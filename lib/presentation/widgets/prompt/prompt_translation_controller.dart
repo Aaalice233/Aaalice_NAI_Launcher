@@ -16,7 +16,9 @@ class PromptTranslation {
 /// Shared by the tag view and text-selection caption. Request generations are
 /// independent of widget identity, so an old response cannot label new input.
 class PromptTranslationController extends ChangeNotifier {
-  PromptTranslationController(this.lookup);
+  PromptTranslationController(this.lookup) {
+    lookup.addListener(_lookupUpdated);
+  }
   final TagTranslationLookup lookup;
   Map<String, PromptTranslation> values = {};
   Set<String> _texts = {};
@@ -25,6 +27,22 @@ class PromptTranslationController extends ChangeNotifier {
   final Map<String, int> _inFlight = {};
   bool _disposed = false;
   bool _composing = false;
+
+  void _lookupUpdated() {
+    final updated = <String, PromptTranslation>{};
+    for (final text in _texts) {
+      final translation = lookup.cachedTranslation(text);
+      if (translation == null || values[text]?.text == translation) continue;
+      _inFlight.remove(text);
+      updated[text] = PromptTranslation(
+        PromptTranslationStatus.translated,
+        translation,
+      );
+    }
+    if (updated.isEmpty) return;
+    values = {...values, ...updated};
+    notifyListeners();
+  }
 
   void update(
     Iterable<String> texts, {
@@ -104,6 +122,7 @@ class PromptTranslationController extends ChangeNotifier {
     _disposed = true;
     _generation++;
     _timer?.cancel();
+    lookup.removeListener(_lookupUpdated);
     super.dispose();
   }
 }

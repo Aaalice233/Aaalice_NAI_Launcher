@@ -5,6 +5,42 @@ import 'package:nai_launcher/presentation/widgets/prompt/prompt_translation_cont
 
 void main() {
   testWidgets(
+    'assistant translations refresh missing captions and beat stale lookup',
+    (tester) async {
+      final slow = Completer<Map<String, String>>();
+      final lookup = TagTranslationLookup.fromResolver((_) => slow.future);
+      final controller = PromptTranslationController(lookup);
+      addTearDown(controller.dispose);
+      controller.update(['a bird rests on the branch'], immediate: true);
+      lookup.addTranslations({'a_bird_rests_on_the_branch': '一只鸟停在树枝上'});
+      expect(controller.values['a bird rests on the branch']!.text, '一只鸟停在树枝上');
+      slow.complete({});
+      await tester.pump();
+      expect(controller.values['a bird rests on the branch']!.text, '一只鸟停在树枝上');
+      expect(await lookup.translate('a bird rests on the branch'), '一只鸟停在树枝上');
+      controller.update(['dog'], composing: true);
+      lookup.addTranslations({'a_bird_rests_on_the_branch': '鸟停在树枝上'});
+      expect(controller.values.keys, ['dog']);
+    },
+  );
+
+  testWidgets(
+    'assistant fills an already missing caption without changing input',
+    (tester) async {
+      final lookup = TagTranslationLookup.fromResolver((_) async => {});
+      final controller = PromptTranslationController(lookup);
+      addTearDown(controller.dispose);
+      controller.update(['unknown'], immediate: true);
+      await tester.pump();
+      expect(
+        controller.values['unknown']!.status,
+        PromptTranslationStatus.missing,
+      );
+      lookup.addTranslations({'unknown': '补充翻译'});
+      expect(controller.values['unknown']!.text, '补充翻译');
+    },
+  );
+  testWidgets(
     'editing one tag keeps completed and missing entries and pending requests',
     (tester) async {
       final requests = <List<String>>[];

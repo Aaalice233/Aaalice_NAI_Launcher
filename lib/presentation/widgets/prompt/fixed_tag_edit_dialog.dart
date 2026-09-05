@@ -311,6 +311,7 @@ class _FixedTagEditDialogState extends ConsumerState<FixedTagEditDialog> {
     );
     final assistant = assistantVisible
         ? PromptAssistantOverlay(
+            supportsTagMode: true,
             key: ValueKey('fixed-tag-prompt-assistant-$_assistantSessionId'),
             sessionId: _assistantSessionId,
             controller: _contentController,

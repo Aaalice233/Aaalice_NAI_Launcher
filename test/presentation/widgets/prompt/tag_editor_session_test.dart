@@ -46,16 +46,78 @@ void main() {
     expect(source.text, '1.25::cat, dog::, bird');
   });
 
-  test('partial and cross-group selections still adjust leaves', () {
-    create('{cat, dog}, bird');
-    session.setSelection([session.leaves.first.id]);
-    TagEditorCommands(session).adjustWeight(step: 0.05);
-    expect(source.text, '{{cat}, dog}, bird');
-    session.selectAll();
-    expect(session.selectedGroup, isNull);
-    TagEditorCommands(session).adjustWeight(step: 0.05);
-    expect(source.text, '{{{cat}}, {dog}}, 1.05::bird::');
+  test(
+    'single selections adjust leaves and multiple selections form a group',
+    () {
+      create('{cat, dog}, bird');
+      session.setSelection([session.leaves.first.id]);
+      TagEditorCommands(session).adjustWeight(step: 0.05);
+      expect(source.text, '{{cat}, dog}, bird');
+      session.selectAll();
+      expect(session.selectedGroup, isNull);
+      TagEditorCommands(session).adjustWeight(step: 0.05);
+      expect(source.text, '1.05::{{cat}, dog}, bird::');
+    },
+  );
+
+  test('nonadjacent selected tags become one group and keep identities', () {
+    create('cat, fox, dog, bird');
+    final cat = session.leaves.first.id;
+    final dog = session.leaves.elementAt(2).id;
+    session.setSelection([dog, cat]);
+    final commands = TagEditorCommands(session);
+    commands.adjustWeight(step: 0.05);
+    expect(source.text, '1.05::cat, dog::, fox, bird');
+    expect(session.selected, {cat, dog});
+    expect(session.selectedGroup, isNotNull);
+    commands.adjustWeight(step: 0.05);
+    expect(source.text, '1.10::cat, dog::, fox, bird');
+    session.undo();
+    expect(source.text, '1.05::cat, dog::, fox, bird');
+    session.undo();
+    expect(source.text, 'cat, fox, dog, bird');
+    session.redo();
+    expect(source.text, '1.05::cat, dog::, fox, bird');
   });
+
+  test(
+    'partial nested selection groups without including unselected siblings',
+    () {
+      create('1.50::cat, fox, dog::, bird');
+      final ids = [session.leaves.first.id, session.leaves.elementAt(2).id];
+      session.setSelection(ids);
+      final commands = TagEditorCommands(session);
+      commands.adjustWeight(step: 0.05);
+      expect(source.text, '1.50::{cat, dog}, fox::, bird');
+      commands.adjustWeight(value: 1);
+      expect(source.text, '1.50::{[cat, dog]}, fox::, bird');
+      expect(session.selectedGroup, isNotNull);
+      expect(commands.weight, 1);
+      commands.adjustWeight(step: -0.05);
+      expect(source.text, '1.50::[cat, dog], fox::, bird');
+      expect(session.selected, ids.toSet());
+    },
+  );
+
+  test('grouping across parents retains member wrappers and excluded tags', () {
+    create('{cat, fox}, {dog, bird}, grass');
+    session.setSelection([
+      session.leaves.first.id,
+      session.leaves.elementAt(2).id,
+    ]);
+    TagEditorCommands(session).adjustWeight(value: 1.2);
+    expect(source.text, '1.20::{cat}, {dog}::, {fox}, {bird}, grass');
+  });
+
+  test(
+    'dragging out preserves local weight but leaves inherited group weight',
+    () {
+      create('1.50::{cat}, dog::, bird');
+      session.setSelection([session.leaves.first.id]);
+      session.moveSelectedBefore(null);
+      expect(source.text, '1.50::dog::, bird, {cat}');
+    },
+  );
 
   test(
     'group survives neutral weight and repeated steps in both directions',
@@ -145,11 +207,11 @@ void main() {
       create('cat, dog');
       session.selectAll();
       TagEditorCommands(session).adjustWeight(step: 0.05);
-      expect(source.text, '1.05::cat::, 1.05::dog::');
+      expect(source.text, '1.05::cat, dog::');
       session.toggleEnabled(session.selected);
       expect(PromptEditDocument.effectiveText(source.text), '');
       session.undo();
-      expect(source.text, '1.05::cat::, 1.05::dog::');
+      expect(source.text, '1.05::cat, dog::');
       session.undo();
       expect(source.text, 'cat, dog');
     },

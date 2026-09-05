@@ -53,6 +53,7 @@ class LocalFirstPromptTranslationPipeline {
           .toList(growable: false);
       delegated.addAll(await translateMissing(batch));
     }
+    _localTranslations.addTranslations(delegated);
     return plan.render(delegated);
   }
 }

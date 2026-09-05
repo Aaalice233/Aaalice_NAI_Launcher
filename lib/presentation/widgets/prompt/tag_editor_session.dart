@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 
 import '../../../core/utils/prompt_edit_document.dart';
 import 'tag_editor_projection.dart';
+import 'tag_editor_grouping.dart';
 
 class PromptEditorTag {
   const PromptEditorTag(this.id, this.span, this.children);
@@ -297,7 +298,11 @@ class TagEditorSession extends ChangeNotifier {
     _lastTyping = null;
   }
 
-  void apply(List<PromptTextPatch> patches, {bool typing = false}) {
+  void apply(
+    List<PromptTextPatch> patches, {
+    bool typing = false,
+    Map<int, int> relocatedIdentities = const {},
+  }) {
     if (patches.isEmpty) return;
     final ordered = [...patches]..sort((a, b) => a.start.compareTo(b.start));
     var lastEnd = -1;
@@ -365,6 +370,9 @@ class TagEditorSession extends ChangeNotifier {
         selection: TextSelection.collapsed(offset: cursor),
       );
       _previous = controller.value;
+      final relocatedIds = relocatedIdentities.values.toSet();
+      identities.removeWhere((_, id) => relocatedIds.contains(id));
+      identities.addAll(relocatedIdentities);
       _reparse(identities);
     } finally {
       _applying = false;
@@ -547,6 +555,31 @@ class TagEditorSession extends ChangeNotifier {
     identities.addAll(movedIdentities);
     _reparse(identities);
     setSelection(selectedList.map((tag) => tag.id));
+  }
+
+  PromptSelectionGrouping get selectionGrouping =>
+      PromptSelectionGrouping.create(
+        tags.map((tag) => tag.span).toList(),
+        selectedTags.map((tag) => tag.span.start).toSet(),
+      );
+
+  void groupSelected(
+    PromptSelectionGrouping plan,
+    String prefix,
+    String suffix,
+  ) {
+    final fragment = plan.wrap(prefix, suffix);
+    final ids = {for (final tag in leaves) tag.span.start: tag.id};
+    _selectedGroupPath = null;
+    apply(
+      [PromptTextPatch(plan.start, plan.end, fragment.text)],
+      relocatedIdentities: {
+        for (final entry in fragment.leafOffsets.entries)
+          plan.start + entry.value: ids[entry.key]!,
+      },
+    );
+    final group = selectedGroup;
+    if (group != null) selectGroup(group);
   }
 
   String copySelection({bool effective = false}) {

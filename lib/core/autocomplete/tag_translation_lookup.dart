@@ -1,5 +1,6 @@
 import 'dart:collection';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../utils/tag_normalizer.dart';
@@ -41,7 +42,7 @@ class TagTextTranslationPlan {
 }
 
 /// Shared optional Chinese lookup used outside the autocomplete overlay.
-class TagTranslationLookup {
+class TagTranslationLookup extends ChangeNotifier {
   TagTranslationLookup(
     ZhDictionaryService dictionary, {
     int maxCacheEntries = 4096,
@@ -67,6 +68,30 @@ class TagTranslationLookup {
   final int _maxCacheEntries;
   final LinkedHashMap<String, String?> _cache = LinkedHashMap();
   final Map<String, Future<Map<String, String?>>> _inFlight = {};
+  bool _disposed = false;
+
+  String? cachedTranslation(String tag) => _cache[normalizeTag(tag)];
+
+  /// Explicit assistant results refresh mounted captions and subsequent lookups.
+  /// They remain an in-memory cache, never part of prompt text or cloud backups.
+  void addTranslations(Map<String, String> translations) {
+    if (_disposed) return;
+    var changed = false;
+    for (final entry in translations.entries) {
+      final key = normalizeTag(entry.key);
+      final value = entry.value.trim();
+      if (key.isEmpty || value.isEmpty || _cache[key] == value) continue;
+      _writeCached(key, value);
+      changed = true;
+    }
+    if (changed) notifyListeners();
+  }
+
+  @override
+  void dispose() {
+    _disposed = true;
+    super.dispose();
+  }
 
   Future<String?> translate(String tag) async {
     final normalized = normalizeTag(tag);
@@ -108,7 +133,8 @@ class TagTranslationLookup {
       try {
         final resolved = await request;
         for (final tag in uncached) {
-          final translation = resolved[tag];
+          // A slower dictionary request must not overwrite an assistant result.
+          final translation = _cache[tag] ?? resolved[tag];
           _writeCached(tag, translation);
           if (translation != null) result[tag] = translation;
         }
@@ -120,7 +146,8 @@ class TagTranslationLookup {
     }
 
     for (final entry in pending.entries) {
-      final translation = (await entry.value)[entry.key];
+      final resolved = await entry.value;
+      final translation = _cache[entry.key] ?? resolved[entry.key];
       _writeCached(entry.key, translation);
       if (translation != null) result[entry.key] = translation;
     }
@@ -416,8 +443,10 @@ class _TranslatableTagSlice {
 
 final tagTranslationLookupProvider = Provider<TagTranslationLookup>((ref) {
   final service = ref.watch(fastTagServiceProvider);
-  return TagTranslationLookup.fromResolver(
+  final lookup = TagTranslationLookup.fromResolver(
     (tags) => service.resolve(tags, locale: 'zh-CN'),
     fuzzyResolver: service.resolveFuzzy,
   );
+  ref.onDispose(lookup.dispose);
+  return lookup;
 });

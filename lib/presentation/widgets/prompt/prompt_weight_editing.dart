@@ -168,7 +168,9 @@ class PromptWeightEditing {
       final depth = (math.log(value).abs() / math.log(1.05)).round();
       final opening = value > 1 ? '{' : '[';
       final closing = value > 1 ? '}' : ']';
-      text = '${opening * depth}${parsed.baseText}${closing * depth}';
+      text = depth == 0 && preserveGroup
+          ? '{[${parsed.baseText}]}'
+          : '${opening * depth}${parsed.baseText}${closing * depth}';
     }
     return disabled ? PromptEditDocument.disable(text) : text;
   }

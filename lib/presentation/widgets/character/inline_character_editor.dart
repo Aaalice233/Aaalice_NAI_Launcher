@@ -261,6 +261,7 @@ class _CharacterPromptEditorState extends ConsumerState<CharacterPromptEditor> {
                           alpha: assistantExpanded ? 0.72 : 0.52,
                         ),
                         child: PromptAssistantOverlay(
+                          supportsTagMode: true,
                           key: ValueKey(assistantSessionId),
                           sessionId: assistantSessionId,
                           controller: _tabIndex == 0

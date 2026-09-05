@@ -11,6 +11,7 @@ import '../../adaptive/interaction_policy.dart';
 import '../../../core/utils/localization_extension.dart';
 import '../../../data/models/character/character_prompt.dart';
 import '../../providers/fixed_tags_provider.dart';
+import '../../providers/prompt_editor_preferences_provider.dart';
 import '../../providers/reverse_prompt_provider.dart';
 import '../../providers/tag_library_page_provider.dart';
 import '../../widgets/tag_library/tag_library_picker_dialog.dart';
@@ -78,6 +79,7 @@ class PromptAssistantOverlay extends ConsumerStatefulWidget {
     this.tapRegionGroupId,
     this.interactionPolicy,
     this.stripFixedTagsFromInput = true,
+    this.supportsTagMode = false,
   });
 
   final String sessionId;
@@ -129,6 +131,7 @@ class PromptAssistantOverlay extends ConsumerStatefulWidget {
   /// Generation prompts exclude enabled fixed tags before assistant requests.
   /// Editors whose entire value is the subject of the request can opt out.
   final bool stripFixedTagsFromInput;
+  final bool supportsTagMode;
 
   @override
   ConsumerState<PromptAssistantOverlay> createState() =>
@@ -224,11 +227,13 @@ class _PromptAssistantOverlayState
 
   Future<void> _runTranslate() async {
     final inputText = _assistantInputText();
+    final tagMode = widget.supportsTagMode && ref.read(promptTagModeProvider);
     await _runAction(
       context.l10n.promptAssistant_translateProcessing,
       inputText,
-      (service, input) =>
-          service.translatePrompt(input, sessionId: widget.sessionId),
+      (service, input) => tagMode
+          ? service.translateTagLabels(input, sessionId: widget.sessionId)
+          : service.translatePrompt(input, sessionId: widget.sessionId),
     );
   }
 

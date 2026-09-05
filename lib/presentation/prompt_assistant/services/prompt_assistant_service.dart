@@ -6,6 +6,7 @@ import 'package:dio/dio.dart';
 
 import '../../../core/autocomplete/local_first_prompt_translation.dart';
 import '../../../core/autocomplete/tag_translation_lookup.dart';
+import '../../../core/utils/prompt_edit_document.dart';
 import '../../../core/utils/app_logger.dart';
 import '../../providers/proxy_settings_provider.dart';
 import '../models/prompt_assistant_models.dart';
@@ -122,6 +123,34 @@ class PromptAssistantService {
 
   static const int tagTranslationPromptVersion = 1;
 
+  /// Fills tag captions without replacing the editable prompt with Chinese.
+  Stream<StreamingChunk> translateTagLabels(
+    String input, {
+    required String sessionId,
+  }) async* {
+    final lookup = _ref.read(tagTranslationLookupProvider);
+    final tags = PromptEditDocument.parse(input)
+        .expand((span) => span.leaves)
+        .map((span) => TagTranslationLookup.normalizeTag(span.label))
+        .where((tag) => tag.isNotEmpty)
+        .toSet()
+        .toList();
+    final local = await lookup.translateBatch(tags);
+    final missing = tags.where((tag) => !local.containsKey(tag)).toList();
+    for (var offset = 0; offset < missing.length; offset += 8) {
+      final batch = missing.skip(offset).take(8).toList();
+      final result = await _translateTagBatch(
+        batch,
+        sessionId: sessionId,
+        naturalLanguage: true,
+      );
+      lookup.addTranslations(result.translations);
+      // Yield between batches so cancellation stops further requests.
+      yield const StreamingChunk(delta: '');
+    }
+    yield const StreamingChunk(delta: '', done: true);
+  }
+
   Future<TagTranslationBatchResult> translateTags(
     List<String> canonicalTags, {
     required String sessionId,
@@ -139,10 +168,18 @@ class PromptAssistantService {
       );
     }
 
+    return _translateTagBatch(tags, sessionId: sessionId);
+  }
+
+  Future<TagTranslationBatchResult> _translateTagBatch(
+    List<String> tags, {
+    required String sessionId,
+    bool naturalLanguage = false,
+  }) async {
     final execution = await _resolveTaskExecution(AssistantTaskType.translate);
     final systemPrompt =
         '''
-You translate Danbooru image-generation tags into concise Simplified Chinese labels.
+${naturalLanguage ? 'Translate image-generation tags and natural-language descriptions into Simplified Chinese. Underscores may represent spaces. Preserve the complete meaning of each description.' : 'You translate Danbooru image-generation tags into concise Simplified Chinese labels.'}
 Return exactly one JSON object. Every key must be copied verbatim from the input array and every value must be a non-empty Simplified Chinese string.
 Do not add keys, Markdown, comments, explanations, or code fences.
 Example JSON: {"blue_eyes":"蓝眼睛"}
@@ -164,7 +201,7 @@ Prompt version: $tagTranslationPromptVersion
         userParts: [PromptAssistantContentPart.text(jsonEncode(tags))],
         apiKey: execution.apiKey,
         responseFormat: PromptAssistantResponseFormat.jsonObject,
-        maxOutputTokens: 512,
+        maxOutputTokens: naturalLanguage ? 4096 : 512,
         reasoningMode: PromptAssistantReasoningMode.disabled,
       ),
     )) {
@@ -174,6 +211,7 @@ Prompt version: $tagTranslationPromptVersion
     final translations = validateTagTranslationResponse(
       output.toString(),
       tags,
+      allowLongText: naturalLanguage,
     );
     return TagTranslationBatchResult(
       translations: translations,
@@ -184,8 +222,9 @@ Prompt version: $tagTranslationPromptVersion
 
   static Map<String, String> validateTagTranslationResponse(
     String raw,
-    List<String> canonicalTags,
-  ) {
+    List<String> canonicalTags, {
+    bool allowLongText = false,
+  }) {
     final decoded = jsonDecode(raw.trim());
     if (decoded is! Map<String, dynamic>) {
       throw const FormatException(
@@ -202,7 +241,7 @@ Prompt version: $tagTranslationPromptVersion
       }
       final value = (entry.value as String).trim();
       if (value.isEmpty ||
-          value.length > 64 ||
+          (!allowLongText && value.length > 64) ||
           value.contains(RegExp(r'[\r\n]'))) {
         throw const FormatException('Tag translation text is invalid');
       }

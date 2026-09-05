@@ -386,6 +386,8 @@ class _UnifiedPromptInputState extends ConsumerState<UnifiedPromptInput> {
     await _assistantStreamSub?.cancel();
     final stream = taskType == AssistantTaskType.llm
         ? service.optimizePrompt(text, sessionId: _sessionId)
+        : _tagMode
+        ? service.translateTagLabels(text, sessionId: _sessionId)
         : service.translatePrompt(text, sessionId: _sessionId);
 
     _assistantStreamSub = stream.listen(
@@ -1092,6 +1094,7 @@ class _UnifiedPromptInputState extends ConsumerState<UnifiedPromptInput> {
         result,
         if (widget.enableAssistant)
           PromptAssistantOverlay(
+            supportsTagMode: widget.config.enableTagMode,
             sessionId: _sessionId,
             controller: _effectiveController,
             interactionPolicy: context.interactionPolicy,

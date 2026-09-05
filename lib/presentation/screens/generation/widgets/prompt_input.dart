@@ -253,6 +253,7 @@ class _FullPromptInput extends ConsumerWidget {
           topPadding: 6,
           assistant: assistantVisible
               ? PromptAssistantOverlay(
+                  supportsTagMode: true,
                   sessionId: assistantSessionId,
                   controller: negative
                       ? controller.negativeController
@@ -486,6 +487,7 @@ class _CompactPromptInput extends ConsumerWidget {
               ),
               assistant: assistantVisible
                   ? PromptAssistantOverlay(
+                      supportsTagMode: true,
                       sessionId: negative
                           ? PromptHistorySessionIds.generationNegative
                           : PromptHistorySessionIds.generationPrompt,

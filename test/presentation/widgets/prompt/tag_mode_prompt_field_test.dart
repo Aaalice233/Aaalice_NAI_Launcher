@@ -912,14 +912,14 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
-      expect(source.text, '1.05::cat::, 1.05::dog::, bird');
+      expect(source.text, '1.05::cat, dog::, bird');
       await tester.sendEventToBinding(
         PointerScrollEvent(
           position: tester.getCenter(find.text('bird')),
           scrollDelta: const Offset(0, -20),
         ),
       );
-      expect(source.text, '1.05::cat::, 1.05::dog::, bird');
+      expect(source.text, '1.05::cat, dog::, bird');
       final pointer = await tester.startGesture(
         tester.getCenter(find.text('bird')),
         kind: PointerDeviceKind.mouse,
@@ -927,7 +927,7 @@ void main() {
       );
       await pointer.up();
       await tester.pumpAndSettle();
-      expect(source.text, '1.05::cat::, 1.05::dog::, /*disabled:bird*/');
+      expect(source.text, '1.05::cat, dog::, /*disabled:bird*/');
       await tester.pumpWidget(const SizedBox.shrink());
     },
   );

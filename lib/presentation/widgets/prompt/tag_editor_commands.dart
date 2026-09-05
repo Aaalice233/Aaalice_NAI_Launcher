@@ -75,6 +75,7 @@ class TagEditorCommands {
         '${group.span.prefix}x${group.span.suffix}',
       ).weight;
     }
+    if (session.selected.length > 1) return 1;
     final weights = session.selectedTags
         .map(
           (tag) => PromptWeightEditing.parseWeightSyntax(tag.span.text).weight,
@@ -110,6 +111,22 @@ class TagEditorCommands {
           shell.substring(split + 1),
         ),
       ]);
+      return;
+    }
+    if (session.selected.length > 1) {
+      final plan = session.selectionGrouping;
+      final shell = PromptWeightEditing.withWeight(
+        'x',
+        value ?? 1 + step!,
+        numericEmphasisEnabled: numeric && plan.numericEmphasisAllowed,
+        preserveGroup: true,
+      );
+      final split = shell.indexOf('x');
+      session.groupSelected(
+        plan,
+        shell.substring(0, split),
+        shell.substring(split + 1),
+      );
       return;
     }
     session.apply([
