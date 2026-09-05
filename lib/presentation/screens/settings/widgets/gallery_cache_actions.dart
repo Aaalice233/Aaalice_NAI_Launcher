@@ -129,7 +129,7 @@ class _GalleryCacheActionsState extends ConsumerState<GalleryCacheActions>
       // 使用流式扫描器处理文件（边扫描边处理，实时更新）
       // 这与自动扫描使用同一套逻辑
       final dataSource = GalleryDataSource();
-      final scanner = GalleryStreamScanner(dataSource: dataSource);
+      final scanner = GalleryStreamScanner.instance(dataSource: dataSource);
 
       // 订阅统计流以实时更新UI
       final statsSubscription = scanner.statsStream.listen((stats) {

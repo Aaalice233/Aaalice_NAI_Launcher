@@ -1119,7 +1119,7 @@ class LocalGalleryNotifier extends _$LocalGalleryNotifier {
 
       // 使用统一的流式扫描器
       final dataSource = GalleryDataSource();
-      final scanner = GalleryStreamScanner(dataSource: dataSource);
+      final scanner = GalleryStreamScanner.instance(dataSource: dataSource);
 
       await scanner.startScanning(
         dir,

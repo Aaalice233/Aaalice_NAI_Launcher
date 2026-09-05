@@ -2,9 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:nai_launcher/core/utils/localization_extension.dart';
 
+import 'package:uuid/uuid.dart';
+
 import '../../../../data/models/gallery/nai_image_metadata.dart';
-import '../../../../data/models/prompt/prompt_config.dart';
-import '../../../../data/services/random_prompt_legacy_adapter.dart';
+
+import '../../../../data/models/prompt/algorithm_config.dart';
+import '../../../../data/models/prompt/character_count_config.dart';
+import '../../../../data/models/prompt/random_category.dart';
+import '../../../../data/models/prompt/random_preset.dart';
+import '../../../../data/models/prompt/random_tag_group.dart';
+import '../../../../data/models/prompt/weighted_tag.dart';
 import '../../../../presentation/providers/random_preset_provider.dart'
     show randomPresetNotifierProvider;
 import '../../adaptive/adaptive_presenter.dart';
@@ -89,21 +96,7 @@ class _SaveAsPresetDialogState extends ConsumerState<SaveAsPresetDialog> {
       text: _generateDefaultName(widget.metadata),
     );
 
-    // 默认全部选中
-    _includePrompt = true;
-    _includeFixedTags = widget.metadata.hasSeparatedFields;
-    _includeQualityTags = widget.metadata.qualityTags.isNotEmpty;
-    _includeNegativePrompt = widget.metadata.negativePrompt.isNotEmpty;
-    _includeSeed = widget.metadata.seed != null;
-    _includeSteps = widget.metadata.steps != null;
-    _includeScale = widget.metadata.scale != null;
-    _includeSize =
-        widget.metadata.width != null && widget.metadata.height != null;
-    _includeSampler = widget.metadata.sampler != null;
-    _includeModel = widget.metadata.model != null;
-    _includeSmea =
-        widget.metadata.smea == true || widget.metadata.smeaDyn == true;
-    _includeVibe = widget.metadata.vibeReferences.isNotEmpty;
+    _resetSelection();
   }
 
   @override
@@ -122,74 +115,69 @@ class _SaveAsPresetDialogState extends ConsumerState<SaveAsPresetDialog> {
     return '$promptPart$seedPart';
   }
 
-  /// 从元数据构建预设配置列表
-  List<PromptConfig> _buildConfigs(NaiImageMetadata metadata) {
+  List<RandomCategory> _buildCategories(NaiImageMetadata metadata) {
     final l10n = context.l10n;
-    final configs = <PromptConfig>[];
+    final categories = <RandomCategory>[];
 
-    // 主提示词处理 - 将提示词中的标签作为配置内容
-    if (_includePrompt && metadata.mainPrompt.isNotEmpty) {
-      final promptTags = _extractTags(metadata.mainPrompt);
-      if (promptTags.isNotEmpty) {
-        configs.add(
-          PromptConfig.create(
-            name: l10n.metadataImport_mainPrompt,
-            selectionMode: SelectionMode.all,
-            stringContents: promptTags,
-          ),
-        );
-      }
+    void addCategory(String name, List<String> tags) {
+      if (tags.isEmpty) return;
+      final id = const Uuid().v4();
+      final key = name
+          .trim()
+          .toLowerCase()
+          .replaceAll(RegExp(r'[^a-z0-9\u4e00-\u9fff]+'), '_')
+          .replaceAll(RegExp(r'_+'), '_')
+          .replaceAll(RegExp(r'^_|_$'), '');
+      categories.add(
+        RandomCategory(
+          id: id,
+          name: name,
+          key: key.isEmpty ? 'legacy_category' : 'legacy_$key',
+          groupSelectionMode: SelectionMode.all,
+          shuffle: false,
+          groups: [
+            RandomTagGroup(
+              id: 'legacy_${id.replaceAll('-', '_')}',
+              name: name,
+              sourceType: TagGroupSourceType.custom,
+              selectionMode: SelectionMode.all,
+              shuffle: false,
+              tags: tags
+                  .map((tag) => WeightedTag.simple(tag, 10, TagSource.custom))
+                  .toList(),
+            ),
+          ],
+        ),
+      );
     }
 
-    // 质量词处理
-    if (_includeQualityTags && metadata.qualityTags.isNotEmpty) {
-      final qualityTags = _extractTags(metadata.qualityTags.join(', '));
-      if (qualityTags.isNotEmpty) {
-        configs.add(
-          PromptConfig.create(
-            name: l10n.qualityTags_label,
-            selectionMode: SelectionMode.all,
-            stringContents: qualityTags,
-          ),
-        );
-      }
+    if (_includePrompt) {
+      addCategory(
+        l10n.metadataImport_mainPrompt,
+        _extractTags(metadata.mainPrompt),
+      );
     }
-
-    // 固定词处理
+    if (_includeQualityTags) {
+      addCategory(
+        l10n.qualityTags_label,
+        _extractTags(metadata.qualityTags.join(', ')),
+      );
+    }
     if (_includeFixedTags && metadata.hasSeparatedFields) {
-      final fixedTags = <String>[
+      addCategory(l10n.metadataImport_fixedTags, [
         ...metadata.fixedPrefixTags,
         ...metadata.fixedSuffixTags,
         ...metadata.fixedNegativePrefixTags,
         ...metadata.fixedNegativeSuffixTags,
-      ];
-      if (fixedTags.isNotEmpty) {
-        configs.add(
-          PromptConfig.create(
-            name: l10n.metadataImport_fixedTags,
-            selectionMode: SelectionMode.all,
-            stringContents: fixedTags,
-          ),
-        );
-      }
+      ]);
     }
-
-    // 负向提示词处理
-    final negativePrompt = metadata.displayNegativePrompt;
-    if (_includeNegativePrompt && negativePrompt.isNotEmpty) {
-      final negativeTags = _extractTags(negativePrompt);
-      if (negativeTags.isNotEmpty) {
-        configs.add(
-          PromptConfig.create(
-            name: l10n.prompt_negativePrompt,
-            selectionMode: SelectionMode.all,
-            stringContents: negativeTags,
-          ),
-        );
-      }
+    if (_includeNegativePrompt) {
+      addCategory(
+        l10n.prompt_negativePrompt,
+        _extractTags(metadata.displayNegativePrompt),
+      );
     }
-
-    return configs;
+    return categories;
   }
 
   /// 从提示词文本中提取标签列表
@@ -219,28 +207,24 @@ class _SaveAsPresetDialogState extends ConsumerState<SaveAsPresetDialog> {
     setState(() => _isSaving = true);
 
     try {
-      // 获取 notifier
       final notifier = ref.read(randomPresetNotifierProvider.notifier);
 
-      // 构建配置列表
-      final configs = _buildConfigs(widget.metadata);
+      final categories = _buildCategories(widget.metadata);
 
-      if (configs.isEmpty) {
+      if (categories.isEmpty) {
         AppToast.warning(context, context.l10n.toast_selectPresetContent);
-        setState(() => _isSaving = false);
         return;
       }
 
-      // 创建预设并转换到随机配置页使用的 canonical RandomPreset 管线。
-      final legacyPreset = RandomPromptPreset.create(
+      final preset = RandomPreset.create(
         name: name,
-        configs: configs,
+        description: context.l10n.savePreset_metadataDescription,
+        categories: categories,
+        algorithmConfig: AlgorithmConfig(
+          characterCountConfig: CharacterCountConfig.naiDefault,
+        ),
       );
-      final preset = RandomPromptLegacyAdapter.fromPreset(
-        legacyPreset,
-      ).copyWith(description: context.l10n.savePreset_metadataDescription);
 
-      // 保存预设
       await notifier.addPreset(preset);
 
       if (mounted) {
@@ -258,24 +242,24 @@ class _SaveAsPresetDialogState extends ConsumerState<SaveAsPresetDialog> {
     }
   }
 
-  void _selectAll() {
-    setState(() {
-      _includePrompt = true;
-      _includeFixedTags = widget.metadata.hasSeparatedFields;
-      _includeQualityTags = widget.metadata.qualityTags.isNotEmpty;
-      _includeNegativePrompt = widget.metadata.negativePrompt.isNotEmpty;
-      _includeSeed = widget.metadata.seed != null;
-      _includeSteps = widget.metadata.steps != null;
-      _includeScale = widget.metadata.scale != null;
-      _includeSize =
-          widget.metadata.width != null && widget.metadata.height != null;
-      _includeSampler = widget.metadata.sampler != null;
-      _includeModel = widget.metadata.model != null;
-      _includeSmea =
-          widget.metadata.smea == true || widget.metadata.smeaDyn == true;
-      _includeVibe = widget.metadata.vibeReferences.isNotEmpty;
-    });
+  void _resetSelection() {
+    _includePrompt = true;
+    _includeFixedTags = widget.metadata.hasSeparatedFields;
+    _includeQualityTags = widget.metadata.qualityTags.isNotEmpty;
+    _includeNegativePrompt = widget.metadata.negativePrompt.isNotEmpty;
+    _includeSeed = widget.metadata.seed != null;
+    _includeSteps = widget.metadata.steps != null;
+    _includeScale = widget.metadata.scale != null;
+    _includeSize =
+        widget.metadata.width != null && widget.metadata.height != null;
+    _includeSampler = widget.metadata.sampler != null;
+    _includeModel = widget.metadata.model != null;
+    _includeSmea =
+        widget.metadata.smea == true || widget.metadata.smeaDyn == true;
+    _includeVibe = widget.metadata.vibeReferences.isNotEmpty;
   }
+
+  void _selectAll() => setState(_resetSelection);
 
   void _deselectAll() {
     setState(() {

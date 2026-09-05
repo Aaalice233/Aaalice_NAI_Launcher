@@ -180,7 +180,6 @@ class TagLibraryService {
   TagLibrary getBuiltinLibrary() {
     final categories = <String, List<WeightedTag>>{};
 
-    // 从 DefaultPresets 转换
     // 发色
     categories[TagSubCategory.hairColor.name] = [
       WeightedTag.simple('blonde hair', 5),

@@ -258,7 +258,7 @@ class GalleryScanCoordinator {
     }
 
     AppLogger.i('[UGS] 开始执行${full ? '全量' : ''}流式扫描', 'LocalGalleryService');
-    await GalleryStreamScanner(dataSource: _dataSource).startScanning(
+    await GalleryStreamScanner.instance(dataSource: _dataSource).startScanning(
       Directory(rootPath),
       retryMissingMetadata: true,
       fileSnapshot: files,

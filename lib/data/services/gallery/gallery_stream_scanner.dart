@@ -168,16 +168,6 @@ class GalleryStreamScanner {
   }) : _dataSource = dataSource,
        _isolateMetadataService = metadataService;
 
-  /// @deprecated 使用 [instance] 代替
-  ///
-  /// 公共构造函数（向后兼容）
-  ///
-  /// ⚠️ 警告：直接创建实例可能导致并发扫描问题。
-  /// 请优先使用 [GalleryStreamScanner.instance(dataSource: dataSource)]
-  factory GalleryStreamScanner({required GalleryDataSource dataSource}) {
-    return instance(dataSource: dataSource);
-  }
-
   /// 开始流式扫描
   ///
   /// [onFileProcessed] - 每个文件处理完成时的回调

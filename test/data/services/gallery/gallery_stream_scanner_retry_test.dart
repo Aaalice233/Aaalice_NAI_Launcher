@@ -80,7 +80,7 @@ void main() {
         );
 
         final imageId = await _seedStaleNoneRecord(dataSource, file);
-        final scanner = GalleryStreamScanner(dataSource: dataSource);
+        final scanner = GalleryStreamScanner.instance(dataSource: dataSource);
 
         await scanner.startScanning(tempDir, retryMissingMetadata: true);
 
@@ -141,7 +141,7 @@ void main() {
       );
 
       final imageId = await _seedStaleNoneRecord(dataSource, file);
-      final scanner = GalleryStreamScanner(dataSource: dataSource);
+      final scanner = GalleryStreamScanner.instance(dataSource: dataSource);
 
       await scanner.startScanning(tempDir, retryMissingMetadata: false);
 
@@ -166,7 +166,7 @@ void main() {
         await file.writeAsBytes(_buildBasePngBytes());
 
         final imageId = await _seedStaleNoneRecord(dataSource, file);
-        final scanner = GalleryStreamScanner(dataSource: dataSource);
+        final scanner = GalleryStreamScanner.instance(dataSource: dataSource);
 
         await scanner.startScanning(tempDir, retryMissingMetadata: true);
 
@@ -310,7 +310,7 @@ void main() {
           },
         ),
       );
-      final scanner = GalleryStreamScanner(dataSource: dataSource);
+      final scanner = GalleryStreamScanner.instance(dataSource: dataSource);
 
       await scanner.startScanning(tempDir, fileSnapshot: [file]);
 
@@ -341,7 +341,7 @@ void main() {
         final added = File(p.join(tempDir.path, 'snapshot_added.png'));
         final callerOwnedSnapshot = <File>[first, deleted];
         final observedStats = <StreamScanStats>[];
-        final scanner = GalleryStreamScanner(dataSource: dataSource);
+        final scanner = GalleryStreamScanner.instance(dataSource: dataSource);
 
         await scanner.startScanning(
           tempDir,
@@ -390,7 +390,7 @@ void main() {
       );
       final externalId = await _seedStaleNoneRecord(dataSource, external);
       final processedPaths = <String>[];
-      final scanner = GalleryStreamScanner(dataSource: dataSource);
+      final scanner = GalleryStreamScanner.instance(dataSource: dataSource);
 
       await scanner.startScanning(
         tempDir,
@@ -426,7 +426,7 @@ void main() {
       );
       await _seedStaleNoneRecord(dataSource, excluded);
 
-      final scanner = GalleryStreamScanner(dataSource: dataSource);
+      final scanner = GalleryStreamScanner.instance(dataSource: dataSource);
       final progressValues = <double>[];
       final subscription = scanner.statsStream.listen(
         (stats) => progressValues.add(stats.progress),
