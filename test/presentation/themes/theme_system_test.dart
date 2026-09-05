@@ -18,6 +18,8 @@ void main() {
         (tester) async {
           final theme = AppTheme.getTheme(style, brightness);
           final scheme = theme.colorScheme;
+          expect(theme.chipTheme.backgroundColor, Colors.transparent);
+          expect(theme.chipTheme.selectedColor, scheme.primaryContainer);
           expect(
             theme.primaryTextTheme.bodyMedium?.fontFamily,
             theme.textTheme.bodyMedium?.fontFamily,
@@ -69,12 +71,20 @@ void main() {
                   active: active,
                   hovered: hovered,
                 );
+                final paintedSurface = Color.alphaBlend(
+                  colors.background,
+                  sectionSurfaceColor(scheme),
+                );
                 expect(
-                  _contrast(colors.foreground, colors.background),
+                  colors.background.a,
+                  active || hovered ? greaterThan(0) : 0,
+                );
+                expect(
+                  _contrast(colors.foreground, paintedSurface),
                   greaterThanOrEqualTo(4.5),
                 );
                 expect(
-                  _contrast(colors.accent, colors.background),
+                  _contrast(colors.accent, paintedSurface),
                   greaterThanOrEqualTo(4.5),
                 );
               }

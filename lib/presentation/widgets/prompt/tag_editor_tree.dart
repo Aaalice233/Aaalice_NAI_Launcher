@@ -5,6 +5,7 @@ import '../../../core/utils/localization_extension.dart';
 import 'prompt_translation_controller.dart';
 import 'tag_editor_capsule.dart';
 import 'tag_editor_session.dart';
+import 'tag_editor_weight_label.dart';
 import 'tag_drag_preview.dart';
 import '../autocomplete/autocomplete_overlay_handle.dart';
 
@@ -151,32 +152,33 @@ class _TagEditorTreeState extends State<TagEditorTree> {
     return Semantics(
       label: context.l10n.tagMode_group,
       child: Container(
+        key: ValueKey('tag-weight-group-${tag.id}'),
         constraints: BoxConstraints(maxWidth: width),
         padding: const EdgeInsets.all(6),
         decoration: BoxDecoration(
           color: Theme.of(context).colorScheme.surfaceContainerLow,
           borderRadius: BorderRadius.circular(8),
+          border: BorderDirectional(
+            start: BorderSide(
+              color: Theme.of(context).colorScheme.outlineVariant,
+              width: 2,
+            ),
+          ),
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              tag.span.prefix,
-              style: Theme.of(context).textTheme.labelSmall,
-            ),
+            TagEditorWeightLabel(span: tag.span),
+            const SizedBox(height: 4),
             Wrap(
               spacing: 6,
               runSpacing: 6,
               children: _items(
                 context,
                 tag.children,
-                (width - 12).clamp(0, width),
+                (width - 14).clamp(0, width),
               ).toList(),
-            ),
-            Text(
-              tag.span.suffix,
-              style: Theme.of(context).textTheme.labelSmall,
             ),
           ],
         ),

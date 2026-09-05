@@ -195,8 +195,8 @@ class _FavoriteIconButtonState extends State<_FavoriteIconButton>
               : activeColor.withValues(alpha: 0.14);
         }
         return interactive
-            ? colors.surfaceContainerHighest
-            : widget.backgroundColor ?? colors.surfaceContainerHigh;
+            ? widget.backgroundColor ?? colors.surfaceContainerHighest
+            : Colors.transparent;
       }
       return interactive ? colors.surfaceContainerHigh : Colors.transparent;
     }

@@ -5,6 +5,48 @@ import 'package:nai_launcher/presentation/themes/theme_extension.dart';
 import 'package:nai_launcher/presentation/widgets/prompt/prompt_control_button.dart';
 
 void main() {
+  testWidgets('inactive prompt controls only fill during interaction', (
+    tester,
+  ) async {
+    Widget app(bool active) => MaterialApp(
+      home: Scaffold(
+        body: PromptControlButton(
+          color: Colors.blue,
+          active: active,
+          padding: EdgeInsets.zero,
+          onPressed: () {},
+          builder: (_) => const Icon(Icons.push_pin),
+        ),
+      ),
+    );
+    await tester.pumpWidget(app(false));
+    Color background() => tester
+        .widget<TextButton>(find.byType(TextButton))
+        .style!
+        .backgroundColor!
+        .resolve({})!;
+    expect(background().a, 0);
+    final controller = tester
+        .widget<TextButton>(find.byType(TextButton))
+        .statesController!;
+    for (final state in [
+      WidgetState.hovered,
+      WidgetState.focused,
+      WidgetState.pressed,
+    ]) {
+      controller.update(state, true);
+      await tester.pump();
+      expect(background().a, greaterThan(0));
+      controller.update(state, false);
+      await tester.pump();
+      expect(background().a, 0);
+    }
+    await tester.pumpWidget(app(true));
+    expect(background().a, greaterThan(0));
+    await tester.pumpWidget(app(false));
+    expect(background().a, 0);
+  });
+
   testWidgets('icon-only content retains a full touch target', (tester) async {
     await tester.pumpWidget(
       MaterialApp(

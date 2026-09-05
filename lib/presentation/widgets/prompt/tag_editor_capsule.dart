@@ -6,6 +6,7 @@ import '../autocomplete/autocomplete_overlay_handle.dart';
 import 'prompt_translation_caption.dart';
 import 'prompt_translation_controller.dart';
 import 'tag_editor_session.dart';
+import 'tag_editor_weight_label.dart';
 
 class TagEditorCapsule extends StatefulWidget {
   const TagEditorCapsule({
@@ -152,15 +153,19 @@ class _TagEditorCapsuleState extends State<TagEditorCapsule> {
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        if (widget.editing)
-          _buildEditor(style)
-        else
-          Text(span.label, style: style),
-        if (span.prefix.isNotEmpty || span.suffix.isNotEmpty)
-          Text(
-            '${span.prefix}…${span.suffix}',
-            style: theme.textTheme.labelSmall,
-          ),
+        Wrap(
+          spacing: 6,
+          runSpacing: 2,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          children: [
+            if (widget.editing)
+              _buildEditor(style)
+            else
+              Text(span.label, style: style),
+            if (span.prefix.isNotEmpty || span.suffix.isNotEmpty)
+              TagEditorWeightLabel(span: span),
+          ],
+        ),
         if (widget.showTranslation)
           Padding(
             padding: const EdgeInsets.only(top: 3),

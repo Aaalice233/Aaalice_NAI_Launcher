@@ -295,7 +295,7 @@ class _SizeSelectorState extends State<SizeSelector> {
               icon: const Icon(Icons.swap_horiz, size: 20),
               tooltip: context.l10n.common_swap,
               style: IconButton.styleFrom(
-                backgroundColor: theme.colorScheme.surfaceContainerHighest,
+                backgroundColor: Colors.transparent,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(8),
                 ),

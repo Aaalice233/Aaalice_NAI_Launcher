@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'core/layered_surface_style.dart';
 
-/// Inactive controls share a neutral surface; only an active function introduces
+/// Inactive controls remain transparent; only an active function introduces
 /// a restrained tint so the toolbar does not become a row of colored blocks.
 class PromptControlColors {
   PromptControlColors(
@@ -11,19 +11,20 @@ class PromptControlColors {
     bool active = false,
     bool hovered = false,
   }) {
-    background = Color.alphaBlend(
-      (active ? color : theme.colorScheme.onSurface).withValues(
-        alpha: (active ? 0.08 : 0.0) + (hovered ? 0.04 : 0),
-      ),
+    background = (active ? color : theme.colorScheme.onSurface).withValues(
+      alpha: (active ? 0.08 : 0.0) + (hovered ? 0.04 : 0),
+    );
+    final paintedSurface = Color.alphaBlend(
+      background,
       sectionSurfaceColor(theme.colorScheme),
     );
     accent = _legible(
       active ? color : theme.colorScheme.onSurfaceVariant,
-      background,
+      paintedSurface,
     );
     foreground = _legible(
       active ? accent : theme.colorScheme.onSurface,
-      background,
+      paintedSurface,
     );
   }
 

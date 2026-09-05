@@ -259,9 +259,11 @@ Compact/Medium 下没有持久侧栏时，页面名称保留在主工具栏，�
 
 - **Shape / padding**：默认按钮 6px；Filled 与 tonal action 为水平 20px、垂直 12px，TextButton 为水平 16px、垂直 10px。
 - **Hierarchy**：`FilledButton` → tonal action → `TextButton` → `IconButton`；`OutlinedButton` 兼容入口表现为无 side 的 tonal action。
+- **Icon actions**：普通纯图标按钮静止时背景透明，不使用 filled / filledTonal 或容器底色作为默认底座；hover 时高亮，键盘 focus 与触屏 pressed 保留等价反馈。图片上的覆盖操作沿用下文专用覆盖色规范。
+- **Toggles**：开关、模式与页签按钮仅在激活或选中时保留背景；未激活时透明并使用中性前景，交互时显示临时反馈。此规则同时适用于自绘按钮和带文字的开关，不改变命中区、布局或操作语义。
 - **States**：loading 使用 16px spinner 并保持内容结构和按钮尺寸；危险操作在最终确认阶段使用 error 语义。
 - **Access**：仅图标按钮必须提供 tooltip 与语义标签；桌面保留焦点和快捷键，移动端提供足够命中区与即时按压反馈。
-- **Prompt roles**：正面沿用主题 primary、负面沿用 error，固定词使用清晰蓝色，质量词保留来源语义色，统一由 `PromptSemanticColors` 提供。未启用入口使用相同中性色面和中性图标，仅启用状态显示少量功能色与轻微底色，避免整排彩色块。五个入口复用 `PromptControlButton`；圆角和动效读取主题 token，文字与图标对实际底色保持至少 4.5:1 对比度，页签通过字重、选中色面与 selected 语义表达当前状态。
+- **Prompt roles**：正面沿用主题 primary、负面沿用 error，固定词使用清晰蓝色，质量词保留来源语义色，统一由 `PromptSemanticColors` 提供。未启用入口背景透明并使用中性图标，仅启用状态显示少量功能色与轻微底色，避免整排彩色块。五个入口复用 `PromptControlButton`；圆角和动效读取主题 token，文字与图标对实际底色保持至少 4.5:1 对比度，页签通过字重、选中色面与 selected 语义表达当前状态。
 
 ### Inputs / Fields
 

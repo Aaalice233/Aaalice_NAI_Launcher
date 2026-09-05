@@ -672,7 +672,7 @@ class _TagEditorViewState extends ConsumerState<TagEditorView> {
               fixedSize: Size.square(diameter),
               minimumSize: Size.square(diameter),
               padding: EdgeInsets.zero,
-              backgroundColor: controlSurfaceColor(colors),
+              backgroundColor: Colors.transparent,
               foregroundColor: colors.onSurfaceVariant,
               shape: const CircleBorder(),
             ),

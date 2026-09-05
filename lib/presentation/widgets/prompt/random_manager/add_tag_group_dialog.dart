@@ -251,7 +251,7 @@ class _AddTagGroupDialogState extends ConsumerState<AddTagGroupDialog>
           const SizedBox(width: 8),
           Tooltip(
             message: context.l10n.category_selectEmoji,
-            child: IconButton.filledTonal(
+            child: IconButton(
               onPressed: _pickEmoji,
               icon: _selectedEmoji.isEmpty
                   ? const Icon(Icons.mood_outlined, size: 20)
@@ -771,8 +771,7 @@ class _DanbooruListTileState extends State<_DanbooruListTile> {
                   onPressed: widget.onOpenExternal,
                   tooltip: context.l10n.randomManager_openInDanbooru,
                   style: IconButton.styleFrom(
-                    backgroundColor: colorScheme.surfaceContainerHighest
-                        .withValues(alpha: 0.5),
+                    backgroundColor: Colors.transparent,
                   ),
                 ),
             ],

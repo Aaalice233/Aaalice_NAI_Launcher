@@ -277,7 +277,7 @@ class ThemeComposer {
           borderRadius: BorderRadius.circular(shape.smallRadius),
         ),
         side: BorderSide.none,
-        backgroundColor: colorScheme.surfaceContainerHighest,
+        backgroundColor: Colors.transparent,
         selectedColor: colorScheme.primaryContainer,
         surfaceTintColor: Colors.transparent,
         // 两项都必须从 textTheme 派生：Chip 对 labelStyle 是"有则取之"而非

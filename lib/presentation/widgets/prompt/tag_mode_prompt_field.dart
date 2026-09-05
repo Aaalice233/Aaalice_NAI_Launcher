@@ -193,7 +193,7 @@ class _TagModePromptFieldState extends State<TagModePromptField> {
                         : scheme.onSurfaceVariant,
                     backgroundColor: _session.tagMode
                         ? scheme.primaryContainer
-                        : scheme.surfaceContainerHighest,
+                        : Colors.transparent,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(6),
                     ),

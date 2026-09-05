@@ -797,8 +797,7 @@ class _ScopeControl extends StatelessWidget {
                   : Theme.of(context).colorScheme.onSurfaceVariant,
               backgroundColor: selected == entries[index].$1
                   ? Theme.of(context).colorScheme.primaryContainer
-                  : Theme.of(context).colorScheme.surfaceContainerHighest
-                        .withValues(alpha: 0.4),
+                  : Colors.transparent,
             ),
           ),
           if (index != entries.length - 1) const SizedBox(height: 4),

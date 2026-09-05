@@ -124,14 +124,14 @@ class _AutoSaveToggleChipState extends ConsumerState<AutoSaveToggleChip>
                     ? null
                     : (_isHovering
                           ? theme.colorScheme.surfaceContainerHighest
-                          : theme.colorScheme.surfaceContainerHigh),
+                          : Colors.transparent),
                 borderRadius: BorderRadius.circular(20),
                 border: Border.all(
                   color: isEnabled
                       ? (_isHovering ? _cuteOrangeDark : _cuteOrange)
                             .withValues(alpha: isDark ? 0.5 : 0.6)
                       : theme.colorScheme.outline.withValues(
-                          alpha: _isHovering ? 0.3 : 0.15,
+                          alpha: _isHovering ? 0.3 : 0,
                         ),
                   width: isEnabled ? 1.5 : 1,
                 ),

@@ -86,6 +86,69 @@ Future<void> pumpEditor(
 );
 
 void main() {
+  for (final width in [320.0, 600.0, 840.0, 1180.0, 1600.0]) {
+    testWidgets('weighted capsules preserve group boundaries at $width', (
+      tester,
+    ) async {
+      tester.view.physicalSize = Size(width, 800);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      const text =
+          '1.3::character_sheet, reference_sheet, multiple_views::, '
+          '1.1::blue_theme::, white_background, '
+          '1.2::white_hair, very_long_hair, hair_over_one_eye::';
+      final source = TextEditingController(text: text);
+      addTearDown(source.dispose);
+      await pumpEditor(
+        tester,
+        source,
+        width: width,
+        scale: 3,
+        insets: const EdgeInsets.only(bottom: 120),
+      );
+      await tester.tap(find.byKey(const ValueKey('tag-mode-button')));
+      await tester.pumpAndSettle();
+      for (final weight in ['×1.3', '×1.1', '×1.2']) {
+        expect(find.text(weight), findsOneWidget);
+      }
+      expect(find.text('::'), findsNothing);
+      expect(find.text('1.1::…::'), findsNothing);
+      expect(find.text('character_sheet'), findsOneWidget);
+      expect(find.text('hair_over_one_eye'), findsOneWidget);
+      final blue = find.ancestor(
+        of: find.text('blue_theme'),
+        matching: find.byType(TagEditorCapsule),
+      );
+      expect(
+        find.descendant(of: blue, matching: find.text('×1.1')),
+        findsOneWidget,
+      );
+      expect(source.text, text);
+      expect(tester.takeException(), isNull);
+      await tester.tap(find.byKey(const ValueKey('tag-mode-button')));
+      await tester.pumpAndSettle();
+      expect(source.text, text);
+    });
+  }
+
+  testWidgets('tag mode is transparent until enabled', (tester) async {
+    final source = TextEditingController(text: 'cat');
+    addTearDown(source.dispose);
+    await pumpEditor(tester, source);
+    final toggle = find.byKey(const ValueKey('tag-mode-button'));
+    Color? background() =>
+        tester.widget<IconButton>(toggle).style!.backgroundColor!.resolve({});
+    expect(background(), Colors.transparent);
+    await tester.tap(toggle);
+    await tester.pumpAndSettle();
+    expect(background()!.a, greaterThan(0));
+    await tester.tap(toggle);
+    await tester.pumpAndSettle();
+    expect(background(), Colors.transparent);
+    expect(source.text, 'cat');
+  });
+
   for (final policy in [
     InteractionPolicy.touchFirst,
     const InteractionPolicy(

@@ -72,6 +72,8 @@ void main() {
       find.byKey(const ValueKey('random-mode-dice-rotation')),
     );
 
+    expect(offColor, Colors.transparent);
+    expect(onColor!.a, greaterThan(0));
     expect(onColor, isNot(offColor));
     expect(rotation.turns, 0.125);
     expect(find.byIcon(Icons.casino_rounded), findsOneWidget);

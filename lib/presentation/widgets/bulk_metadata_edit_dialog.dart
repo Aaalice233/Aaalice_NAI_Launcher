@@ -363,7 +363,7 @@ class _BulkMetadataEditDialogState
           icon: const Icon(Icons.add, size: 20),
           tooltip: context.l10n.tag_addTag,
           style: IconButton.styleFrom(
-            backgroundColor: theme.colorScheme.primary.withValues(alpha: 0.1),
+            backgroundColor: Colors.transparent,
             foregroundColor: theme.colorScheme.primary,
           ),
         ),
