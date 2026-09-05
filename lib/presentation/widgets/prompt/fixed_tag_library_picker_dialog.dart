@@ -123,7 +123,6 @@ class _FixedTagLibraryPickerDialogState
                         Navigator.of(context).pop(entry);
                       },
                     );
-                    if (!entry.hasThumbnail) return tile;
                     return TagLibraryEntryHoverPreview(
                       entry: entry,
                       child: tile,

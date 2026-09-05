@@ -70,7 +70,7 @@ void main() {
     await _openPicker(tester, entries: [entry]);
     final mouse = await _hoverEntry(tester, entry.id);
     addTearDown(mouse.removePointer);
-    await tester.pump(const Duration(milliseconds: 500));
+    await tester.pump(const Duration(milliseconds: 800));
 
     const previewKey = ValueKey('tag-library-entry-preview-overlay');
     expect(find.byKey(previewKey), findsOneWidget);
@@ -91,14 +91,36 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('无图条目悬浮不创建预览浮层', (tester) async {
+  testWidgets('无图条目悬浮显示文字预览并在离开后清理', (tester) async {
     _setViewport(tester, const Size(800, 600));
     final entry = _entry(id: 'without-image', name: '纯文本预设');
 
     await _openPicker(tester, entries: [entry]);
     final mouse = await _hoverEntry(tester, entry.id);
     addTearDown(mouse.removePointer);
-    await tester.pump(const Duration(milliseconds: 600));
+    await tester.pump(const Duration(milliseconds: 800));
+
+    final preview = find.byKey(
+      const ValueKey('tag-library-entry-preview-overlay'),
+    );
+    expect(preview, findsOneWidget);
+    expect(
+      find.descendant(of: preview, matching: find.text(entry.name)),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(of: preview, matching: find.byType(ThumbnailDisplay)),
+      findsNothing,
+    );
+    expect(
+      find.descendant(
+        of: preview,
+        matching: find.textContaining(entry.content),
+      ),
+      findsWidgets,
+    );
+    await mouse.moveTo(const Offset(5, 5));
+    await tester.pump(const Duration(milliseconds: 150));
 
     expect(
       find.byKey(const ValueKey('tag-library-entry-preview-overlay')),
@@ -111,13 +133,17 @@ void main() {
     _setViewport(tester, const Size(900, 640));
     final entries = [
       for (var index = 0; index < 30; index++)
-        _entry(id: 'entry-$index', name: '预设 $index', thumbnail: thumbnailPath),
+        _entry(
+          id: 'entry-$index',
+          name: '预设 $index',
+          thumbnail: index.isEven ? null : thumbnailPath,
+        ),
     ];
 
     await _openPicker(tester, entries: entries);
     final mouse = await _hoverEntry(tester, entries.first.id);
     addTearDown(mouse.removePointer);
-    await tester.pump(const Duration(milliseconds: 500));
+    await tester.pump(const Duration(milliseconds: 800));
 
     const previewKey = ValueKey('tag-library-entry-preview-overlay');
     expect(find.byKey(previewKey), findsOneWidget);
@@ -131,7 +157,7 @@ void main() {
         find.byKey(ValueKey('fixed-tag-library-entry-${entries.first.id}')),
       ),
     );
-    await tester.pump(const Duration(milliseconds: 500));
+    await tester.pump(const Duration(milliseconds: 800));
     expect(find.byKey(previewKey), findsOneWidget);
 
     final scrollable = tester.state<ScrollableState>(
@@ -150,7 +176,7 @@ void main() {
         find.byKey(ValueKey('fixed-tag-library-entry-${visibleEntry.id}')),
       ),
     );
-    await tester.pump(const Duration(milliseconds: 500));
+    await tester.pump(const Duration(milliseconds: 800));
     expect(find.byKey(previewKey), findsOneWidget);
 
     Navigator.of(
@@ -178,7 +204,7 @@ void main() {
     );
     final mouse = await _hoverEntry(tester, entry.id);
     addTearDown(mouse.removePointer);
-    await tester.pump(const Duration(milliseconds: 500));
+    await tester.pump(const Duration(milliseconds: 800));
     expect(
       find.byKey(const ValueKey('tag-library-entry-preview-overlay')),
       findsOneWidget,
@@ -220,6 +246,13 @@ void main() {
       find.byKey(const ValueKey('fixed-tag-library-entry-target')),
       findsOneWidget,
     );
+    final mouse = await _hoverEntry(tester, targetEntry.id);
+    addTearDown(mouse.removePointer);
+    await tester.pump(const Duration(milliseconds: 800));
+    expect(
+      find.byKey(const ValueKey('tag-library-entry-preview-overlay')),
+      findsOneWidget,
+    );
     await tester.tap(
       find.byKey(const ValueKey('fixed-tag-library-entry-target')),
     );
@@ -227,6 +260,10 @@ void main() {
 
     expect(selected, targetEntry);
     expect(find.byType(FixedTagLibraryPickerDialog), findsNothing);
+    expect(
+      find.byKey(const ValueKey('tag-library-entry-preview-overlay')),
+      findsNothing,
+    );
     expect(tester.takeException(), isNull);
   });
 }
