@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/core/storage/local_storage_service.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
-import 'package:nai_launcher/presentation/screens/generation/widgets/prompt_input_assistant.dart';
+import 'package:nai_launcher/presentation/prompt_assistant/widgets/prompt_assistant_overlay.dart';
 import 'package:nai_launcher/presentation/screens/generation/widgets/prompt_tag_mode_toggle.dart';
 
 import '../../../../helpers/memory_local_storage.dart';
@@ -71,7 +71,10 @@ void main() {
                                           ),
                                         ),
                                         Positioned.fill(
-                                          child: PromptInputAssistant(
+                                          child: PromptAssistantOverlay(
+                                            placement: PromptAssistantPlacement
+                                                .viewport,
+                                            iconOnly: true,
                                             sessionId: 'test',
                                             controller: source,
                                             onChanged: (_) {},
@@ -141,7 +144,7 @@ void main() {
         expect(find.byIcon(Icons.text_fields), findsOneWidget);
         expect(find.text('Tag mode'), findsNothing);
         final button = find.byKey(
-          const ValueKey('generation_prompt_assistant_test'),
+          const ValueKey('prompt_assistant_toolbar_test'),
         );
         for (final expanded in [false, true]) {
           for (final offset in [0.0, 150.0, 600.0, 900.0]) {

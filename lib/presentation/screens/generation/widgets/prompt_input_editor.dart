@@ -13,7 +13,7 @@ import '../../../widgets/prompt/unified/unified_prompt_input.dart';
 import 'prompt_input_controller.dart';
 import 'prompt_editor_resize_region.dart';
 import 'prompt_input_models.dart';
-import 'prompt_input_assistant.dart';
+import '../../../prompt_assistant/widgets/prompt_assistant_overlay.dart';
 
 class PromptInputEditor extends ConsumerWidget {
   const PromptInputEditor({
@@ -126,7 +126,10 @@ class PromptInputEditor extends ConsumerWidget {
                     : commands.updatePrompt,
               ),
               Positioned.fill(
-                child: PromptInputAssistant(
+                child: PromptAssistantOverlay(
+                  placement: PromptAssistantPlacement.viewport,
+                  iconOnly: true,
+                  supportsTagMode: true,
                   sessionId: negative
                       ? PromptHistorySessionIds.generationNegative
                       : PromptHistorySessionIds.generationPrompt,

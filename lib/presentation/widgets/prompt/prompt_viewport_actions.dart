@@ -4,6 +4,8 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 
+const _actionInset = 4.0;
+
 /// Keeps editor actions inside the visible portion of a tall, scrolling field.
 class PromptViewportActions extends StatelessWidget {
   const PromptViewportActions({super.key, required this.child});
@@ -57,7 +59,7 @@ class _ViewportActionsLayout extends FlowDelegate {
 
   @override
   BoxConstraints getConstraintsForChild(int i, BoxConstraints constraints) =>
-      constraints.loosen();
+      constraints.deflate(const EdgeInsets.all(_actionInset)).loosen();
 
   @override
   void paintChildren(FlowPaintingContext painting) {
@@ -83,9 +85,9 @@ class _ViewportActionsLayout extends FlowDelegate {
     final childSize = painting.getChildSize(0)!;
     if (visible.isEmpty) return;
     final x = direction == TextDirection.rtl
-        ? visible.left + 4
-        : visible.right - childSize.width - 4;
-    final y = visible.bottom - childSize.height - 4;
+        ? visible.left + _actionInset
+        : visible.right - childSize.width - _actionInset;
+    final y = visible.bottom - childSize.height - _actionInset;
     painting.paintChild(
       0,
       transform: Matrix4.translationValues(

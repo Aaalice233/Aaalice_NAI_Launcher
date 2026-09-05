@@ -673,14 +673,15 @@ void main() {
     final assistant = find.byType(PromptAssistantOverlay);
     expect(contentFooter, findsOneWidget);
     expect(assistant, findsOneWidget);
+    final collapsedAssistantHeight = tester.getSize(assistant).height;
     expect(find.byKey(const ValueKey('tag-mode-button')), findsOneWidget);
     expect(
       tester.getTopLeft(contentFooter).dy,
       closeTo(tester.getBottomLeft(contentInput).dy + 4, 1),
     );
     expect(
-      tester.widget<PromptAssistantOverlay>(assistant).floatOverEditor,
-      false,
+      tester.widget<PromptAssistantOverlay>(assistant).placement,
+      PromptAssistantPlacement.inline,
     );
     expect(
       tester.widget<PromptAssistantOverlay>(assistant).stripFixedTagsFromInput,
@@ -698,6 +699,10 @@ void main() {
     );
     await tester.pumpAndSettle();
     final expandedAssistantRect = tester.getRect(assistant);
+    expect(
+      expandedAssistantRect.height,
+      closeTo(collapsedAssistantHeight, .01),
+    );
     final footerRect = tester.getRect(contentFooter);
     expect(expandedAssistantRect.left, greaterThanOrEqualTo(footerRect.left));
     expect(expandedAssistantRect.right, lessThanOrEqualTo(footerRect.right));

@@ -27,6 +27,7 @@ import '../../../prompt_assistant/providers/prompt_assistant_history_provider.da
 import '../../../prompt_assistant/providers/prompt_assistant_state_provider.dart';
 import '../../../prompt_assistant/services/prompt_assistant_service.dart';
 import '../../../prompt_assistant/widgets/prompt_assistant_overlay.dart';
+import '../../../prompt_assistant/widgets/prompt_assistant_toolbar.dart';
 import '../../../providers/fixed_tags_provider.dart';
 import '../../../providers/prompt_regex_rules_provider.dart';
 import '../comfyui_import_wrapper.dart';
@@ -1365,7 +1366,8 @@ class _UnifiedPromptInputState extends ConsumerState<UnifiedPromptInput> {
         widget.decoration?.contentPadding ??
         const EdgeInsets.symmetric(horizontal: 12, vertical: 10);
     final assistantClearance = shouldReserveAssistantSpace
-        ? PromptAssistantOverlay.effectiveContentBottomClearance(
+        ? PromptAssistantToolbarMetrics.contentBottomClearance(
+            context,
             context.interactionPolicy,
           )
         : 0.0;

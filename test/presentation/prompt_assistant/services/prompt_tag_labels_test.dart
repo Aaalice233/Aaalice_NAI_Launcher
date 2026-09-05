@@ -129,7 +129,7 @@ void main() {
                     controller: source,
                     supportsTagMode: true,
                     stripFixedTagsFromInput: false,
-                    floatOverEditor: false,
+                    placement: PromptAssistantPlacement.inline,
                   ),
                 ],
               ),

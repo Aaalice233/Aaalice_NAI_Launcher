@@ -15,7 +15,7 @@ import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/adaptive/interaction_policy.dart';
 import 'package:nai_launcher/presentation/prompt_assistant/providers/prompt_assistant_history_provider.dart';
 import 'package:nai_launcher/presentation/prompt_assistant/providers/prompt_assistant_state_provider.dart';
-import 'package:nai_launcher/presentation/prompt_assistant/widgets/prompt_assistant_overlay.dart';
+import 'package:nai_launcher/presentation/prompt_assistant/widgets/prompt_assistant_toolbar.dart';
 import 'package:nai_launcher/presentation/providers/character_position_canvas_provider.dart';
 import 'package:nai_launcher/presentation/providers/character_prompt_provider.dart';
 import 'package:nai_launcher/presentation/providers/prompt_token_counter_provider.dart';
@@ -735,7 +735,7 @@ void main() {
 
     final assistant = find.byKey(
       const ValueKey(
-        'generation_prompt_assistant_${PromptHistorySessionIds.generationPrompt}',
+        'prompt_assistant_toolbar_${PromptHistorySessionIds.generationPrompt}',
       ),
     );
     final count = find.byKey(const ValueKey('generation_prompt_footer_count'));
@@ -855,7 +855,7 @@ void main() {
       final footer = find.byKey(const ValueKey('generation_prompt_footer'));
       final assistant = find.byKey(
         const ValueKey(
-          'generation_prompt_assistant_${PromptHistorySessionIds.generationPrompt}',
+          'prompt_assistant_toolbar_${PromptHistorySessionIds.generationPrompt}',
         ),
       );
       expect(tester.getSize(responsiveToolbar).width, 320);
@@ -906,7 +906,7 @@ void main() {
             .getRect(
               find.byKey(
                 const ValueKey(
-                  'generation_prompt_assistant_${PromptHistorySessionIds.generationNegative}',
+                  'prompt_assistant_toolbar_${PromptHistorySessionIds.generationNegative}',
                 ),
               ),
             )
@@ -1253,7 +1253,7 @@ void main() {
     final count = find.byKey(const ValueKey('generation_prompt_footer_count'));
     final assistant = find.byKey(
       const ValueKey(
-        'generation_prompt_assistant_${PromptHistorySessionIds.generationPrompt}',
+        'prompt_assistant_toolbar_${PromptHistorySessionIds.generationPrompt}',
       ),
     );
     final toolbar = find.byKey(
@@ -1738,7 +1738,13 @@ void main() {
       final editableRect = tester.getRect(find.byType(EditableText));
       final toolbarRect = tester.getRect(toolbar);
 
-      expect(padding.bottom, PromptAssistantOverlay.contentBottomClearance);
+      expect(
+        padding.bottom,
+        PromptAssistantToolbarMetrics.contentBottomClearance(
+          tester.element(find.byType(UnifiedPromptInput)),
+          InteractionPolicy.neutral,
+        ),
+      );
       expect(toolbar, findsOneWidget);
       expect(editableRect.height, greaterThanOrEqualTo(18));
       expect(editableRect.bottom, lessThanOrEqualTo(toolbarRect.top));

@@ -180,6 +180,7 @@ void main() {
     final assistant = find.byType(PromptAssistantOverlay);
     expect(contentFooter, findsOneWidget);
     expect(assistant, findsOneWidget);
+    final collapsedAssistantHeight = tester.getSize(assistant).height;
     expect(
       find.descendant(
         of: find.byKey(const Key('entry-add-dialog-content-editor')),
@@ -195,8 +196,8 @@ void main() {
       closeTo(formViewport.bottom + 4, 1),
     );
     expect(
-      tester.widget<PromptAssistantOverlay>(assistant).floatOverEditor,
-      false,
+      tester.widget<PromptAssistantOverlay>(assistant).placement,
+      PromptAssistantPlacement.inline,
     );
     expect(
       tester.widget<PromptAssistantOverlay>(assistant).stripFixedTagsFromInput,
@@ -223,6 +224,10 @@ void main() {
     );
     await tester.pumpAndSettle();
     final expandedAssistantRect = tester.getRect(assistant);
+    expect(
+      expandedAssistantRect.height,
+      closeTo(collapsedAssistantHeight, .01),
+    );
     final footerRect = tester.getRect(contentFooter);
     expect(expandedAssistantRect.left, greaterThanOrEqualTo(footerRect.left));
     expect(expandedAssistantRect.right, lessThanOrEqualTo(footerRect.right));
