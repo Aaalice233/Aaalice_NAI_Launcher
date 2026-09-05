@@ -43,6 +43,7 @@ void main() {
                   padding: const EdgeInsets.only(top: 24, bottom: 20),
                   viewInsets: EdgeInsets.only(bottom: keyboard),
                   textScaler: TextScaler.linear(scale),
+                  disableAnimations: scale == 3,
                 ),
                 child: Scaffold(
                   body: SafeArea(
@@ -99,12 +100,46 @@ void main() {
           ),
         );
         await tester.pumpAndSettle();
-        final modeSwitch = find.widgetWithText(TextButton, 'Tag mode');
+        final modeSwitch = find.byKey(const ValueKey('tag-mode-button'));
         expect(modeSwitch.hitTestable(), findsOneWidget);
         expect(find.byIcon(Icons.sell_outlined), findsOneWidget);
+        final thumb = find.byKey(const ValueKey('tag-mode-thumb'));
+        final initialLeft = tester.getTopLeft(thumb).dx;
+        final initialColor =
+            (tester.widget<AnimatedContainer>(thumb).decoration!
+                    as BoxDecoration)
+                .color;
+        expect(
+          tester.getCenter(find.byIcon(Icons.text_fields)).dy,
+          closeTo(tester.getCenter(modeSwitch).dy, 0.01),
+        );
         await tester.tap(modeSwitch);
+        await tester.pump();
+        if (scale != 3) {
+          await tester.pump(const Duration(milliseconds: 90));
+          expect(tester.getTopLeft(thumb).dx, greaterThan(initialLeft));
+          expect(
+            tester.getTopLeft(thumb).dx,
+            lessThan(initialLeft + tester.getSize(thumb).width),
+          );
+        } else {
+          expect(
+            tester.widget<AnimatedContainer>(thumb).duration,
+            Duration.zero,
+          );
+        }
         await tester.pumpAndSettle();
-        expect(find.byIcon(Icons.sell), findsOneWidget);
+        expect(
+          tester.getTopLeft(thumb).dx,
+          closeTo(initialLeft + tester.getSize(thumb).width, .01),
+        );
+        expect(
+          (tester.widget<AnimatedContainer>(thumb).decoration! as BoxDecoration)
+              .color,
+          isNot(initialColor),
+        );
+        expect(find.byIcon(Icons.text_fields), findsOneWidget);
+        expect(find.text('Tag mode'), findsNothing);
         final button = find.byKey(
           const ValueKey('generation_prompt_assistant_test'),
         );

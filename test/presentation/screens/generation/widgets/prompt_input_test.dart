@@ -725,7 +725,11 @@ void main() {
     );
     expect(
       tester.getTopLeft(toggle).dx,
-      greaterThan(tester.getTopLeft(promptField).dx),
+      closeTo(tester.getTopLeft(promptField).dx, 1),
+    );
+    expect(
+      tester.getRect(find.byKey(const ValueKey('tag-mode-button'))).left,
+      greaterThan(tester.getRect(toggle).right),
     );
     expect(tester.widget<GenerationToggleButton>(toggle).isEnabled, isFalse);
 

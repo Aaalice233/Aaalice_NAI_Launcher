@@ -46,8 +46,6 @@ class PromptInputFooter extends ConsumerWidget {
     final leadingControls = Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        const PromptTagModeToggle(),
-        const SizedBox(width: 4),
         if (showTransparentBackground) ...[
           Tooltip(
             richMessage: WidgetSpan(
@@ -102,8 +100,10 @@ class PromptInputFooter extends ConsumerWidget {
                   .updateTransparentBackground(value),
             ),
           ),
-          if (leading != null) const SizedBox(width: 4),
+          const SizedBox(width: 4),
         ],
+        const PromptTagModeToggle(),
+        if (leading != null) const SizedBox(width: 4),
         if (leading != null) leading!,
       ],
     );
