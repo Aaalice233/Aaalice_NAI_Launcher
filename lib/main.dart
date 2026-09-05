@@ -123,9 +123,11 @@ Future<void> _restoreWindowIfMinimized() async {
 class AppTrayListener extends TrayListener {
   @override
   Future<void> onTrayIconMouseDown() async {
+    if (DesktopAppShutdownService.isShuttingDown) return;
     // 左键点击托盘图标 - 恢复窗口
     try {
       await _restoreWindowIfMinimized();
+      if (DesktopAppShutdownService.isShuttingDown) return;
       await windowManager.show();
       await windowManager.focus();
       AppLogger.d('Window restored from tray (left click)', 'TrayListener');
@@ -136,16 +138,19 @@ class AppTrayListener extends TrayListener {
 
   @override
   void onTrayIconRightMouseDown() {
+    if (DesktopAppShutdownService.isShuttingDown) return;
     // 右键点击托盘图标 - 显示上下文菜单 (Windows)
     trayManager.popUpContextMenu();
   }
 
   @override
   Future<void> onTrayMenuItemClick(MenuItem menuItem) async {
+    if (DesktopAppShutdownService.isShuttingDown) return;
     try {
       if (menuItem.key == 'show') {
         // 显示窗口
         await _restoreWindowIfMinimized();
+        if (DesktopAppShutdownService.isShuttingDown) return;
         await windowManager.show();
         await windowManager.focus();
         AppLogger.d('Window shown via tray menu', 'TrayListener');
