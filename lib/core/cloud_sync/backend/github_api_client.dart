@@ -68,7 +68,7 @@ class GitHubApiClient {
   ) async {
     final existing = await branchShaOrNull();
     if (existing != null) return existing;
-    if (repository['size'] != 0) {
+    if (!await _repositoryHasNoBranches()) {
       throw CloudBackendException(
         CloudBackendErrorKind.notFound,
         '找不到分支 "$branch"，请检查分支名称或 Token 对私有仓库的访问权限。',
@@ -105,18 +105,6 @@ class GitHubApiClient {
     return sha;
   }
 
-  Future<String> branchSha() async {
-    final value = await branchShaOrNull();
-    if (value == null) {
-      throw CloudBackendException(
-        CloudBackendErrorKind.notFound,
-        '找不到分支 "$branch"。',
-        statusCode: 404,
-      );
-    }
-    return value;
-  }
-
   Future<String?> branchShaOrNull() async {
     final response = await request(
       'GET',
@@ -137,8 +125,19 @@ class GitHubApiClient {
     return sha;
   }
 
-  Future<GitHubTreeBase> readTreeBase() async {
-    final commitSha = await branchSha();
+  Future<GitHubTreeBase?> readTreeBase() async {
+    final commitSha = await branchShaOrNull();
+    if (commitSha == null) {
+      // A missing requested branch is only an empty backup when the accessible
+      // repository has no branches. Repository size can lag behind commits.
+      await repositoryInfo();
+      if (await _repositoryHasNoBranches()) return null;
+      throw CloudBackendException(
+        CloudBackendErrorKind.notFound,
+        '找不到分支 "$branch"，请检查分支名称。',
+        statusCode: 404,
+      );
+    }
     final commit = await jsonRequest(
       'GET',
       '$repo/git/commits/${segment(commitSha)}',
@@ -153,6 +152,22 @@ class GitHubApiClient {
       );
     }
     return GitHubTreeBase(commit: commitSha, tree: treeSha);
+  }
+
+  Future<bool> _repositoryHasNoBranches() async {
+    final response = await request(
+      'GET',
+      '$repo/branches?per_page=1',
+      action: '检查仓库是否为空',
+    );
+    final branches = decodeJson(response!);
+    if (branches is! List) {
+      throw const CloudBackendException(
+        CloudBackendErrorKind.invalidResponse,
+        'GitHub 分支清单响应格式无效。',
+      );
+    }
+    return branches.isEmpty;
   }
 
   Future<Map<String, GitHubTreeEntry>> readRecursiveTree(String treeSha) async {

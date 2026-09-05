@@ -10,7 +10,11 @@ class FakeGitHubApi implements HttpClientAdapter {
   FakeGitHubApi({
     Map<String, Uint8List>? initialFiles,
     this.repositoryPrivate = true,
+    this.emptyRepository = false,
+    this.defaultBranch = 'sync',
+    this.requestedBranchMissing = false,
   }) {
+    if (emptyRepository) return;
     final files = Map<String, Uint8List>.from(initialFiles ?? {});
     _commits['c0'] = files;
     _trees['t0'] = files;
@@ -19,6 +23,9 @@ class FakeGitHubApi implements HttpClientAdapter {
   }
 
   final bool repositoryPrivate;
+  bool emptyRepository;
+  final String defaultBranch;
+  bool requestedBranchMissing;
   final List<RequestOptions> requests = [];
   final Map<String, Uint8List> blobs = {};
   final Map<String, Map<String, Uint8List>> _commits = {};
@@ -33,7 +40,7 @@ class FakeGitHubApi implements HttpClientAdapter {
   bool advanceBranchAfterNextTreeBaseRead = false;
   Map<String, Uint8List>? filesForNextBranchAdvance;
 
-  Map<String, Uint8List> get files => _commits[branch]!;
+  Map<String, Uint8List> get files => emptyRepository ? {} : _commits[branch]!;
   int get snapshotCommitCount =>
       requests.where((r) => r.method == 'PATCH').length;
 
@@ -64,13 +71,29 @@ class FakeGitHubApi implements HttpClientAdapter {
       return TestHttpResponse(
         200,
         jsonBody({
-          'size': 1,
+          'size': emptyRepository ? 0 : 1,
+          'default_branch': defaultBranch,
           'private': repositoryPrivate,
           'permissions': {'push': true},
         }),
       );
     }
+    if (request.method == 'GET' && path.endsWith('/branches')) {
+      return TestHttpResponse(
+        200,
+        jsonBody(
+          emptyRepository
+              ? []
+              : [
+                  {'name': defaultBranch},
+                ],
+        ),
+      );
+    }
     if (path.endsWith('/branches/sync')) {
+      if (emptyRepository || requestedBranchMissing) {
+        return const TestHttpResponse(404, '{}');
+      }
       final commit = branch;
       final response = TestHttpResponse(
         200,
@@ -85,6 +108,40 @@ class FakeGitHubApi implements HttpClientAdapter {
         next == null ? _advanceExternal() : _advance(next);
       }
       return response;
+    }
+    if (request.method == 'PUT' && path.contains('/contents/')) {
+      if (!emptyRepository) return const TestHttpResponse(422, '{}');
+      final body = _body(request);
+      final filePath = path.split('/contents/').last;
+      _advance({filePath: base64Decode(body['content'] as String)});
+      emptyRepository = false;
+      requestedBranchMissing = defaultBranch != 'sync';
+      return TestHttpResponse(
+        201,
+        jsonBody({
+          'commit': {'sha': branch},
+        }),
+      );
+    }
+    if (request.method == 'POST' && path.endsWith('/git/refs')) {
+      final body = _body(request);
+      if (emptyRepository || body['ref'] != 'refs/heads/sync') {
+        return const TestHttpResponse(422, '{}');
+      }
+      branch = body['sha'] as String;
+      requestedBranchMissing = false;
+      return TestHttpResponse(
+        201,
+        jsonBody({
+          'object': {'sha': branch},
+        }),
+      );
+    }
+    if (emptyRepository && path.contains('/git/')) {
+      return TestHttpResponse(
+        409,
+        jsonBody({'message': 'Git Repository is empty.'}),
+      );
     }
     if (request.method == 'GET' && path.contains('/git/commits/')) {
       final commit = Uri.decodeComponent(path.split('/').last);

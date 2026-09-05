@@ -94,7 +94,8 @@ class GitHubCloudSyncBackend
 
   @override
   Future<CloudHeadRead?> readHead() async {
-    _staging = null;
+    // The uploader rechecks HEAD before committing. Refresh the published view
+    // without discarding the objects and manifest awaiting the atomic commit.
     final view = await _refreshView();
     final result = await _readFromView(
       view,
@@ -104,7 +105,7 @@ class GitHubCloudSyncBackend
     if (result == null) return null;
     return CloudHeadRead(
       bytes: result.bytes,
-      revision: '${result.revision}:${view.base.commit}',
+      revision: '${result.revision}:${view.base!.commit}',
     );
   }
 
@@ -296,6 +297,7 @@ class GitHubCloudSyncBackend
   }) async {
     _checkProtocolSize(bytes, maxCloudHeadResponseBytes);
     final session = await _stagingSession();
+    final base = session.base!;
     final current = await _readFromView(
       session,
       '$_root/HEAD.json',
@@ -305,7 +307,7 @@ class GitHubCloudSyncBackend
     if ((expected == null && current != null) ||
         (expected != null &&
             (current?.revision != expected.file ||
-                session.base.commit != expected.commit))) {
+                base.commit != expected.commit))) {
       _staging = null;
       _view = null;
       throw const CloudBackendException(
@@ -317,7 +319,7 @@ class GitHubCloudSyncBackend
       final headBlob = await _api.createBlob(bytes, action: '暂存 HEAD');
       session.entries['$_root/HEAD.json'] = headBlob;
       final commitSha = await _api.commitTree(
-        base: session.base,
+        base: base,
         entries: _blobEntries(session.entries),
         message: 'cloud-sync: commit snapshot',
       );
@@ -335,7 +337,19 @@ class GitHubCloudSyncBackend
     if (pending != null) return pending;
     late final Future<_StagingSession> loading;
     loading = () async {
-      final view = await _currentView();
+      var view = await _currentView();
+      if (view.base == null) {
+        // Only an explicit upload may create the first commit; connection
+        // checks, previews and reads must leave an empty repository untouched.
+        await _api.ensureBranch(await _api.repositoryInfo(), _root);
+        view = await _refreshView();
+        if (view.base == null) {
+          throw const CloudBackendException(
+            CloudBackendErrorKind.invalidResponse,
+            'GitHub 初始化后未返回同步分支。',
+          );
+        }
+      }
       return _staging ??= _StagingSession(view.base, view.inventory);
     }();
     _stagingLoad = loading;
@@ -354,7 +368,9 @@ class GitHubCloudSyncBackend
 
   Future<_StagingSession> _refreshView() async {
     final base = await _api.readTreeBase();
-    final inventory = await _api.readRecursiveTree(base.tree);
+    final inventory = base == null
+        ? <String, GitHubTreeEntry>{}
+        : await _api.readRecursiveTree(base.tree);
     return _view = _StagingSession(base, inventory);
   }
 
@@ -399,7 +415,7 @@ class GitHubCloudSyncBackend
       return;
     }
     await _api.commitTree(
-      base: view.base,
+      base: view.base!,
       entries: [
         {'path': _root, 'mode': '040000', 'type': 'tree', 'sha': null},
       ],
@@ -527,7 +543,7 @@ class _GitHubTelemetryInterceptor extends Interceptor {
 class _StagingSession {
   _StagingSession(this.base, this.inventory);
 
-  final GitHubTreeBase base;
+  final GitHubTreeBase? base;
   final Map<String, GitHubTreeEntry> inventory;
   final Map<String, String> entries = {};
 }
