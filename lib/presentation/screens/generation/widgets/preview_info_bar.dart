@@ -160,9 +160,7 @@ class _InfoPill extends StatelessWidget {
     final theme = Theme.of(context);
 
     Widget pill = Material(
-      color: selected
-          ? theme.colorScheme.primaryContainer
-          : theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.6),
+      color: selected ? theme.colorScheme.primaryContainer : Colors.transparent,
       borderRadius: BorderRadius.circular(6),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
@@ -324,7 +322,7 @@ class _TransparencyBackgroundButtonState
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    // 只在浮层打开时高亮，平时与两侧胶囊保持同一套底色
+    // 浮层打开时保留状态高亮，常态透明不影响 InkWell 的交互反馈。
     final selected = _controller.isShowing;
 
     return CompositedTransformTarget(
@@ -361,9 +359,7 @@ class _TransparencyBackgroundButtonState
           child: Material(
             color: selected
                 ? theme.colorScheme.primary.withValues(alpha: 0.18)
-                : theme.colorScheme.surfaceContainerHighest.withValues(
-                    alpha: 0.6,
-                  ),
+                : Colors.transparent,
             borderRadius: BorderRadius.circular(6),
             clipBehavior: Clip.antiAlias,
             child: InkWell(
