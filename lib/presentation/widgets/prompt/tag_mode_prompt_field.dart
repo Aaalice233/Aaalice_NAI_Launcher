@@ -8,6 +8,7 @@ import 'tag_editor_scope.dart';
 import 'tag_editor_session.dart';
 import 'tag_editor_view.dart';
 import 'nai_syntax_controller.dart';
+import 'prompt_viewport_actions.dart';
 import '../common/themed_confirm_dialog.dart';
 
 /// Keeps the text editor mounted so its viewport and native editing state
@@ -122,14 +123,6 @@ class _TagModePromptFieldState extends ConsumerState<TagModePromptField> {
     });
     final tagMode = ref.watch(promptTagModeProvider);
     _session.tagMode = tagMode;
-    final scheme = Theme.of(context).colorScheme;
-    final extent = context.interactionPolicy.minimumControlExtent.clamp(
-      44.0,
-      double.infinity,
-    );
-    final tooltip = _session.tagMode
-        ? context.l10n.tagMode_exit
-        : context.l10n.tagMode_enter;
     return TagEditorScope(
       session: _session,
       child: Actions(
@@ -172,47 +165,61 @@ class _TagModePromptFieldState extends ConsumerState<TagModePromptField> {
                   focusNode: widget.tagFocusNode,
                 ),
               ),
-            if (_session.tagMode && widget.onClear != null)
-              PositionedDirectional(
-                end: extent + 8,
-                bottom: 4,
-                child: IconButton(
-                  key: const ValueKey('tag-clear-button'),
-                  tooltip: context.l10n.common_clear,
-                  onPressed: widget.enabled ? _clear : null,
-                  icon: const Icon(Icons.clear, size: 19),
-                ),
-              ),
-            PositionedDirectional(
-              end: 4,
-              bottom: 4,
-              width: extent,
-              height: extent,
-              child: Semantics(
-                button: true,
-                toggled: _session.tagMode,
-                label: tooltip,
-                child: IconButton(
-                  key: const ValueKey('tag-mode-button'),
-                  tooltip: tooltip,
-                  onPressed: widget.enabled || _session.tagMode
-                      ? _toggle
-                      : null,
-                  style: IconButton.styleFrom(
-                    foregroundColor: scheme.onSurfaceVariant,
-                    backgroundColor: Colors.transparent,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                  ),
-                  icon: Icon(
-                    _session.tagMode ? Icons.sell : Icons.sell_outlined,
-                    size: 19,
-                  ),
-                ),
-              ),
-            ),
+            Positioned.fill(child: _viewportActions(context)),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _viewportActions(BuildContext context) => PromptViewportActions(
+    child: Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (_session.tagMode && widget.onClear != null) ...[
+          IconButton(
+            key: const ValueKey('tag-clear-button'),
+            tooltip: context.l10n.common_clear,
+            onPressed: widget.enabled ? _clear : null,
+            icon: const Icon(Icons.clear, size: 19),
+          ),
+          const SizedBox(width: 4),
+        ],
+        _modeSwitch(context),
+      ],
+    ),
+  );
+
+  Widget _modeSwitch(BuildContext context) {
+    final extent = context.interactionPolicy.minimumControlExtent.clamp(
+      44.0,
+      double.infinity,
+    );
+    final tooltip = _session.tagMode
+        ? context.l10n.tagMode_exit
+        : context.l10n.tagMode_enter;
+    return SizedBox(
+      width: extent,
+      height: extent,
+      child: Semantics(
+        button: true,
+        toggled: _session.tagMode,
+        label: tooltip,
+        child: IconButton(
+          key: const ValueKey('tag-mode-button'),
+          tooltip: tooltip,
+          onPressed: widget.enabled || _session.tagMode ? _toggle : null,
+          style: IconButton.styleFrom(
+            foregroundColor: Theme.of(context).colorScheme.onSurfaceVariant,
+            backgroundColor: Colors.transparent,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(6),
+            ),
+          ),
+          icon: Icon(
+            _session.tagMode ? Icons.sell : Icons.sell_outlined,
+            size: 19,
+          ),
         ),
       ),
     );
