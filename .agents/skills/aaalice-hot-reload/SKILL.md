@@ -1,11 +1,13 @@
 ---
 name: aaalice-hot-reload
-description: 为 Aaalice NAI Launcher 修改代码后选择并执行 Windows/Android 的 r 热重载、R 热重启或完整重建，并读取 Codex 管理的独立开发控制台验证结果。用户要求热重载、热重启、修改后自动刷新双端或查看 Flutter 日志时使用。
+description: 为 Aaalice NAI Launcher 修改代码后选择并执行 Windows/Android 的 r 热重载、R 热重启或完整重建，并验证结果。已有开发会话运行时，代码修改完成后自动使用；用户要求热重载、热重启、修改后刷新或查看 Flutter 日志时也使用。
 ---
 
 # Aaalice 双端热重载
 
-先加载 [aaalice-dev-sessions](../aaalice-dev-sessions/SKILL.md)，确认目标独立 PowerShell 窗口已运行；缺失时由该 skill 创建。用户已要求自动化验收时直接完成这些准备，刷新完成后继续 [aaalice-runtime-verify](../aaalice-runtime-verify/SKILL.md) 的界面操作与截图检查。不得启动第二个 `flutter run`、`flutter attach` 或新的 Codex task。
+先加载 [aaalice-dev-sessions](../aaalice-dev-sessions/SKILL.md)，通过 `Status` 确认当前工作树的运行会话。已有会话运行时，代码修改完成后自动刷新受影响的已启动平台并验证结果，无需再次确认；不为这种自动刷新启动原本缺失的平台。仅修改文档或用户明确要求不刷新时不触发。
+
+用户明确要求启动或自动化验收时，缺失会话由开发会话 skill 创建；自动化验收在刷新后继续 [aaalice-runtime-verify](../aaalice-runtime-verify/SKILL.md) 的界面操作与截图检查。普通改码后的自动刷新不扩展为全界面验收。不得启动第二个 `flutter run`、`flutter attach` 或新的 Codex task。
 
 ## 判定动作
 
@@ -13,7 +15,7 @@ description: 为 Aaalice NAI Launcher 修改代码后选择并执行 Windows/And
 - `Restart`（大写 `R`）：状态字段、`initState`、Provider/依赖注入、路由/启动流程、全局或静态缓存、生成 Dart 代码，以及疑似旧状态残留的问题。
 - 完整重建：`pubspec.yaml`/插件依赖、Windows C++/插件注册、Android Kotlin/Manifest/Gradle/插件注册发生变化。先停止受影响会话，按需完成 `flutter pub get` 或生成，再由 `aaalice-dev-sessions` 新建窗口；不得用 `r`/`R` 代替原生重建。
 
-共享 Dart/UI/业务代码作用于 `All`；平台实现只作用于对应端。
+共享 Dart/UI/业务代码刷新所有已启动平台：双端均运行时使用 `All`，仅运行一端时明确指定该端；平台实现只作用于对应的已启动端。完整重建保留相同的平台范围。
 
 ## 执行与验证
 

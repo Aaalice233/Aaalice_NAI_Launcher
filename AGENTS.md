@@ -72,7 +72,9 @@ Windows release 产物位于 `build/windows/x64/runner/Release/`。macOS 使用 
 
 `build_runner` 不是常规测试或纯 Dart/UI 改动的默认验证步骤。只有改动了 Riverpod/Freezed/JSON/Drift 等生成输入，或开发 Runner 预检明确报告生成文件缺失/过期时才运行；针对性测试直接运行相关测试文件，不得为此先扫描全仓库生成代码。用户要求立即启动热重载时先执行会话状态检查和 Runner 预检，不得先跑测试或生成器；若预检阻塞且必须全量生成，应明确说明这是一次性环境准备及预计耗时，让命令完整结束后立即继续启动，不得称其为“最小验证”或反复中断重跑。生成命令中断后必须检查并恢复被删除但未重新生成的已有输出。
 
-普通 Dart 方法、Widget 布局、样式和文案使用 `Reload`；状态字段、`initState`、Provider/依赖注入、路由/启动流程、静态缓存或生成 Dart 代码使用 `Restart`；依赖、Windows C++/插件注册、Android Kotlin/Manifest/Gradle/插件注册变化必须重建受影响会话。共享代码默认作用于 `All`，平台实现只作用于对应端。
+已有热重载会话运行时，代码修改完成后必须按 `aaalice-hot-reload` 自动刷新受影响的已启动会话，无需用户再次提醒；先检查 `Status`，再根据改动选择 `Reload`、`Restart` 或完整重建，并验证完成结果与增量日志后交付。共享代码覆盖所有已启动平台，平台代码只刷新对应端；自动刷新不启动原本未运行的平台。仅修改文档或用户明确要求不刷新时不触发；刷新失败如实报告，不能以“已发送指令”代替成功。
+
+普通 Dart 方法、Widget 布局、样式和文案使用 `Reload`；状态字段、`initState`、Provider/依赖注入、路由/启动流程、静态缓存或生成 Dart 代码使用 `Restart`；依赖、Windows C++/插件注册、Android Kotlin/Manifest/Gradle/插件注册变化必须重建受影响会话。双端均运行时共享代码使用 `All`，只运行一端时明确指定该端。
 
 ### Windows 窗口稳定性
 
