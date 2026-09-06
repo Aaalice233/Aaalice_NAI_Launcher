@@ -15170,7 +15170,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get dlss_passesHint =>
-      'Choose 1–3 NR layers. Each neural output feeds the next layer; SR upscales once. Detail and color are composed once at the end. More layers take longer and may change the original style.';
+      'Choose 1–3 NR passes. Each pass uses the same source and retains model history to avoid repeatedly amplifying synthesized texture. SR upscales once; detail and color are composed at the end. More passes take longer and do not guarantee more detail.';
 
   @override
   String get dlss_finalizing => 'NR complete · preparing comparison…';

@@ -7271,7 +7271,7 @@
   "dlss_srScaleHint": "與 NR 面板共用放大倍率，預設 2 倍。1 倍不啟動處理。僅調整尺寸與重建細節；不套用 NR 強度、風格或處理次數。",
   "dlss_srUnavailable": "請先在「設定 → 整合 → DLSSNR」安裝、檢測並啟用執行階段。",
   "dlss_passes": "NR 處理次數",
-  "dlss_passesHint": "選擇 1–3 層 NR 疊加。上一層的神經輸出作為下一層輸入，SR 只放大一次；細節與色彩在最後統一合成。更多層會增加耗時，也可能改變原畫風。",
+  "dlss_passesHint": "選擇 1–3 次 NR 處理。每次使用同一張原始輸入，並保留模型歷史，避免反覆強化新增紋理；SR 只放大一次，細節與色彩最後統一合成。增加次數會延長耗時，不保證更多細節。",
   "dlss_finalizing": "NR 已完成，正在準備比較圖…",
   "dlss_passProgress": "NR 已完成 {completed}/{total} 次",
   "@dlss_passProgress": {"placeholders": {"completed": {"type": "int"}, "total": {"type": "int"}}},

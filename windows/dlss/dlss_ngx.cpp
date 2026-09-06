@@ -150,7 +150,7 @@ void Ngx::SetNrParameters(NVSDK_NGX_Parameter* p, unsigned width,
   p->Set("DLSSNR.UICorrection", options.uiCorrection ? 1u : 0u);
 }
 
-Frame Ngx::Cascade(const Frame& input, const NrOptions& options, unsigned passes,
+Frame Ngx::Refine(const Frame& input, const NrOptions& options, unsigned passes,
                     const Frame* depthGuide) {
   if (depthGuide && (depthGuide->width != input.width || depthGuide->height != input.height))
     throw std::runtime_error("Depth guide dimensions must match the NR input");
@@ -186,21 +186,24 @@ Frame Ngx::Cascade(const Frame& input, const NrOptions& options, unsigned passes
   Parameters initParameters;
   CheckNgx(ProbeNvngxInitExt(init_, 0x24480451ull, logPath_.c_str(), gpu_.device(),
                             NVSDK_NGX_Version_API, initParameters.value), "NR Init_Ext");
-  for (unsigned layer = 0; layer < passes; ++layer) {
-    Parameters params;
-    Feature feature;
-    feature.directRelease = release_;
-    SetNrParameters(params.value, input.width, input.height, options);
-    commands = gpu_.Begin();
-    CheckNgx(ProbeNvngxCreateFeature(create_, commands,
-        static_cast<NVSDK_NGX_Feature>(18), params.value, &feature.value), "Create NR layer");
-    gpu_.Submit();
+  Parameters params;
+  Feature feature;
+  feature.directRelease = release_;
+  SetNrParameters(params.value, input.width, input.height, options);
+  commands = gpu_.Begin();
+  CheckNgx(ProbeNvngxCreateFeature(create_, commands,
+      static_cast<NVSDK_NGX_Feature>(18), params.value, &feature.value), "Create NR feature");
+  gpu_.Submit();
+  // A still is an unchanged frame with zero motion. Keep its input and feature
+  // history stable: feeding synthesized detail back as source amplifies grain
+  // and changes geometry on subsequent evaluations.
+  for (unsigned pass = 0; pass < passes; ++pass) {
     params.value->Set("DLSSNR.Color", color.resource.Get());
     params.value->Set("DLSSNR.Depth", depth.resource.Get());
     params.value->Set("DLSSNR.MVec", motion.resource.Get());
     params.value->Set("DLSSNR.Output", output.resource.Get());
     params.value->Set("DLSSNR.DepthInverted", 0u);
-    params.value->Set("DLSSNR.Reset", 1u);
+    params.value->Set("DLSSNR.Reset", pass == 0 ? 1u : 0u);
     params.value->Set("DLSSNR.MVecScaleX", 1.0f);
     params.value->Set("DLSSNR.MVecScaleY", 1.0f);
     params.value->Set("DLSSNR.ColorSubrectWidth", input.width);
@@ -215,15 +218,14 @@ Frame Ngx::Cascade(const Frame& input, const NrOptions& options, unsigned passes
     gpu_.Transition(color, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
     gpu_.Transition(output, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
     CheckNgx(ProbeNvngxEvaluateFeature(evaluate_, commands, feature.value,
-                                       params.value, nullptr), "Evaluate NR layer");
-    // A state transition orders the previous UAV writes before the next layer
-    // reads this image, including drivers that do not insert their own barrier.
+                                       params.value, nullptr), "Evaluate NR pass");
+    // Order output writes before reuse or readback even when the driver does
+    // not insert its own barrier.
     gpu_.Transition(output, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
     gpu_.Submit();
-    std::swap(color, output);
-    std::cout << "AAALICE_NR_PROGRESS " << layer + 1 << ' ' << passes << std::endl;
+    std::cout << "AAALICE_NR_PROGRESS " << pass + 1 << ' ' << passes << std::endl;
   }
-  auto result = gpu_.ReadRgba(color);
+  auto result = gpu_.ReadRgba(output);
   for (size_t i = 0; i < result.size(); ++i)
     if (i % 4 != 3) result[i] = ToLinear(result[i]);
   return Frame{input.width, input.height, std::move(result)};

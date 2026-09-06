@@ -26404,7 +26404,7 @@ abstract class AppLocalizations {
   /// No description provided for @dlss_passesHint.
   ///
   /// In en, this message translates to:
-  /// **'Choose 1–3 NR layers. Each neural output feeds the next layer; SR upscales once. Detail and color are composed once at the end. More layers take longer and may change the original style.'**
+  /// **'Choose 1–3 NR passes. Each pass uses the same source and retains model history to avoid repeatedly amplifying synthesized texture. SR upscales once; detail and color are composed at the end. More passes take longer and do not guarantee more detail.'**
   String get dlss_passesHint;
 
   /// No description provided for @dlss_finalizing.

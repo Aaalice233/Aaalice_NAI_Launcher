@@ -15,7 +15,7 @@ void main() {
       protocol.accept('AAALICE_NR_PROGRESS $i 3');
     }
     expect(protocol.complete, isFalse);
-    protocol.accept('AAALICE_NR_DONE 3 fp16-cascade');
+    protocol.accept('AAALICE_NR_DONE 3 fp16-temporal');
     expect(protocol.complete, isTrue);
     expect(progress, [(0, 3), (1, 3), (2, 3), (3, 3)]);
   });
@@ -23,13 +23,17 @@ void main() {
     'rejects partial, duplicated, reordered and mismatched native results',
     () {
       for (final lines in [
-        ['AAALICE_NR_PROGRESS 0 3', 'AAALICE_NR_DONE 3 fp16-cascade'],
+        ['AAALICE_NR_PROGRESS 0 3', 'AAALICE_NR_DONE 3 fp16-temporal'],
         ['AAALICE_NR_PROGRESS 0 3', 'AAALICE_NR_PROGRESS 2 3'],
         ['AAALICE_NR_PROGRESS 0 2'],
-        ['AAALICE_NR_PROGRESS malformed'],
         [
           for (var i = 0; i <= 3; i++) 'AAALICE_NR_PROGRESS $i 3',
           'AAALICE_NR_DONE 3 fp16-cascade',
+        ],
+        ['AAALICE_NR_PROGRESS malformed'],
+        [
+          for (var i = 0; i <= 3; i++) 'AAALICE_NR_PROGRESS $i 3',
+          'AAALICE_NR_DONE 3 fp16-temporal',
           'AAALICE_NR_PROGRESS 3 3',
         ],
       ]) {
@@ -75,6 +79,10 @@ void main() {
       expect(metadata['Comment'], '{"seed":42}');
       expect(jsonDecode(metadata['Aaalice.DLSS']!)['passes'], 3);
       expect(jsonDecode(metadata['Aaalice.DLSS']!)['scale'], 2);
+      expect(
+        jsonDecode(metadata['Aaalice.DLSS']!)['pipeline'],
+        'fp16-temporal',
+      );
     },
   );
   test(
@@ -203,6 +211,7 @@ void main() {
               jsonDecode(metadata['Aaalice.DLSS']!) as Map,
             )
             ..remove('runtime')
+            ..remove('pipeline')
             ..remove('status');
       expect(parameters, const DlssOptions(scale: 1).toJson());
     },

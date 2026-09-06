@@ -75,9 +75,9 @@ int wmain(int argc, wchar_t** argv) {
     std::cout << "AAALICE_NR_PROGRESS 0 " << job.passes << std::endl;
     auto baseline = ngx.Upscale(std::move(source), job.width, job.height);
     aaalice::dlss::WriteFrame(job.baseline, baseline);
-    auto result = ngx.Cascade(baseline, job.nr, job.passes, depth ? &*depth : nullptr);
+    auto result = ngx.Refine(baseline, job.nr, job.passes, depth ? &*depth : nullptr);
     aaalice::dlss::WriteFrame(job.output, result);
-    std::cout << "AAALICE_NR_DONE " << job.passes << " fp16-cascade" << std::endl;
+    std::cout << "AAALICE_NR_DONE " << job.passes << " fp16-temporal" << std::endl;
     return 0;
   } catch (const std::exception& error) {
     std::cerr << "Aaalice DLSS worker: " << error.what() << std::endl;

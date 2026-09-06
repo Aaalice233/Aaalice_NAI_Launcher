@@ -161,7 +161,7 @@ class DlssWorkerProtocol {
       _completed++;
       onProgress?.call(_completed, total);
     } else if (line.startsWith('AAALICE_NR_DONE')) {
-      if (line != 'AAALICE_NR_DONE $total fp16-cascade' ||
+      if (line != 'AAALICE_NR_DONE $total fp16-temporal' ||
           _completed != total ||
           _done) {
         _invalid = true;
@@ -252,6 +252,11 @@ Uint8List preserveDlssImage(
   return ImageMetadataContainerCodec.embedTextChunkOnly(
     withMetadata,
     'Aaalice.DLSS',
-    jsonEncode({'status': 'success', 'runtime': version, ...options.toJson()}),
+    jsonEncode({
+      'status': 'success',
+      'runtime': version,
+      'pipeline': 'fp16-temporal',
+      ...options.toJson(),
+    }),
   );
 }
