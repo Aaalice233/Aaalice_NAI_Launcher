@@ -84,8 +84,9 @@ final class Img2ImgUpscaleCoordinator {
       final completed = await ref
           .read(dlssUpscaleTaskProvider.notifier)
           .execute(params: params, source: source);
-      if (!completed)
+      if (!completed) {
         return const Img2ImgUpscaleRejected(Img2ImgUpscaleFailure.noResult);
+      }
       return const Img2ImgUpscaleSuccess(kind: Img2ImgUpscaleKind.dlssSr);
     }
     return switch (workflow.upscale.comfyModule) {
