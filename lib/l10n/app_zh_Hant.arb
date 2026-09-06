@@ -7244,5 +7244,14 @@
   "dlss_timeout": "增強逾時，請重試或檢查 GPU 狀態",
   "dlss_outOfMemory": "顯示記憶體不足，請關閉其他占用 GPU 的應用程式後重試",
   "dlss_saveFailed": "儲存失敗，請檢查圖像儲存目錄及磁碟空間",
-  "dlss_compareHint": "左右拖曳分隔線比較，按兩下縮放"
+  "dlss_compareHint": "左右拖曳分隔線比較，按兩下縮放",
+  "dlss_preset": "NR 預設",
+  "dlss_presetHint": "上游僅提供編號，沒有公開各預設的具體效果定義。",
+  "dlss_skin": "皮膚結構",
+  "dlss_globalTone": "全域色調",
+  "dlss_modelDefault": "模型預設",
+  "dlss_modelDefaultHint": "負數保留模型預設值；0～2 明確設定對應強度。",
+  "dlss_autoMask": "自動遮罩",
+  "dlss_uiCorrection": "UI 修正",
+  "dlss_modelSwitchesHint": "這兩個開關交由執行階段處理。上游未公開具體演算法，效果可能隨版本和影像內容變化。"
 }

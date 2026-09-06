@@ -15071,4 +15071,34 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get dlss_compareHint =>
       'Drag the divider to compare; double-tap to zoom';
+
+  @override
+  String get dlss_preset => 'NR preset';
+
+  @override
+  String get dlss_presetHint =>
+      'Upstream provides numbered presets without documenting their visual effects.';
+
+  @override
+  String get dlss_skin => 'Skin structure';
+
+  @override
+  String get dlss_globalTone => 'Global tone';
+
+  @override
+  String get dlss_modelDefault => 'Model default';
+
+  @override
+  String get dlss_modelDefaultHint =>
+      'Negative values keep the model default; 0–2 explicitly sets the strength.';
+
+  @override
+  String get dlss_autoMask => 'Auto mask';
+
+  @override
+  String get dlss_uiCorrection => 'UI correction';
+
+  @override
+  String get dlss_modelSwitchesHint =>
+      'These switches are handled by the runtime. Upstream does not document their algorithms; effects may vary by runtime version and image content.';
 }

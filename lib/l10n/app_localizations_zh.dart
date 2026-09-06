@@ -14410,6 +14410,34 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get dlss_compareHint => '左右拖动分割线对比，双击缩放';
+
+  @override
+  String get dlss_preset => 'NR 预设';
+
+  @override
+  String get dlss_presetHint => '上游仅提供编号，没有公开各预设的具体效果定义。';
+
+  @override
+  String get dlss_skin => '皮肤结构';
+
+  @override
+  String get dlss_globalTone => '全局色调';
+
+  @override
+  String get dlss_modelDefault => '模型默认';
+
+  @override
+  String get dlss_modelDefaultHint => '负数保留模型默认值；0～2 显式设置对应强度。';
+
+  @override
+  String get dlss_autoMask => '自动遮罩';
+
+  @override
+  String get dlss_uiCorrection => 'UI 修正';
+
+  @override
+  String get dlss_modelSwitchesHint =>
+      '这两个开关交由运行库处理。上游未公开具体算法，效果可能随运行库版本和图像内容变化。';
 }
 
 /// The translations for Chinese, using the Han script (`zh_Hant`).
@@ -28819,4 +28847,32 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get dlss_compareHint => '左右拖曳分隔線比較，按兩下縮放';
+
+  @override
+  String get dlss_preset => 'NR 預設';
+
+  @override
+  String get dlss_presetHint => '上游僅提供編號，沒有公開各預設的具體效果定義。';
+
+  @override
+  String get dlss_skin => '皮膚結構';
+
+  @override
+  String get dlss_globalTone => '全域色調';
+
+  @override
+  String get dlss_modelDefault => '模型預設';
+
+  @override
+  String get dlss_modelDefaultHint => '負數保留模型預設值；0～2 明確設定對應強度。';
+
+  @override
+  String get dlss_autoMask => '自動遮罩';
+
+  @override
+  String get dlss_uiCorrection => 'UI 修正';
+
+  @override
+  String get dlss_modelSwitchesHint =>
+      '這兩個開關交由執行階段處理。上游未公開具體演算法，效果可能隨版本和影像內容變化。';
 }

@@ -26244,6 +26244,60 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Drag the divider to compare; double-tap to zoom'**
   String get dlss_compareHint;
+
+  /// No description provided for @dlss_preset.
+  ///
+  /// In en, this message translates to:
+  /// **'NR preset'**
+  String get dlss_preset;
+
+  /// No description provided for @dlss_presetHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Upstream provides numbered presets without documenting their visual effects.'**
+  String get dlss_presetHint;
+
+  /// No description provided for @dlss_skin.
+  ///
+  /// In en, this message translates to:
+  /// **'Skin structure'**
+  String get dlss_skin;
+
+  /// No description provided for @dlss_globalTone.
+  ///
+  /// In en, this message translates to:
+  /// **'Global tone'**
+  String get dlss_globalTone;
+
+  /// No description provided for @dlss_modelDefault.
+  ///
+  /// In en, this message translates to:
+  /// **'Model default'**
+  String get dlss_modelDefault;
+
+  /// No description provided for @dlss_modelDefaultHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Negative values keep the model default; 0–2 explicitly sets the strength.'**
+  String get dlss_modelDefaultHint;
+
+  /// No description provided for @dlss_autoMask.
+  ///
+  /// In en, this message translates to:
+  /// **'Auto mask'**
+  String get dlss_autoMask;
+
+  /// No description provided for @dlss_uiCorrection.
+  ///
+  /// In en, this message translates to:
+  /// **'UI correction'**
+  String get dlss_uiCorrection;
+
+  /// No description provided for @dlss_modelSwitchesHint.
+  ///
+  /// In en, this message translates to:
+  /// **'These switches are handled by the runtime. Upstream does not document their algorithms; effects may vary by runtime version and image content.'**
+  String get dlss_modelSwitchesHint;
 }
 
 class _AppLocalizationsDelegate

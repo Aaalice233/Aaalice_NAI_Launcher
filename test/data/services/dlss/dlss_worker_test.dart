@@ -8,6 +8,79 @@ import 'package:nai_launcher/data/services/dlss/dlss_worker.dart';
 import 'package:nai_launcher/data/services/metadata/image_metadata_container_codec.dart';
 
 void main() {
+  test('advanced NR options round trip and map to native flags', () {
+    const options = DlssOptions(
+      preset: 3,
+      skin: 1.5,
+      globalTone: 2,
+      autoMask: true,
+      uiCorrection: false,
+    );
+    final restored = DlssOptions.fromJson(options.toJson());
+    expect(restored.toJson(), options.toJson());
+    for (final entry in {
+      '--nr-preset': '3',
+      '--nr-skin': '1.5',
+      '--nr-global-tone': '2.0',
+      '--nr-ui-correction': '0',
+    }.entries) {
+      expect(
+        restored.arguments[restored.arguments.indexOf(entry.key) + 1],
+        entry.value,
+      );
+    }
+    expect(restored.arguments, contains('--nr-auto-mask'));
+    final legacy = DlssOptions.fromJson({'intensity': 0.5});
+    expect(legacy.intensity, 0.5);
+    expect(legacy.skin, -1);
+    expect(legacy.globalTone, -1);
+    expect(legacy.preset, 0);
+    expect(legacy.uiCorrection, isTrue);
+    expect(legacy.arguments, isNot(contains('--nr-auto-mask')));
+    for (final options in [
+      const DlssOptions(preset: 4),
+      const DlssOptions(skin: -1.05),
+      const DlssOptions(globalTone: 2.05),
+    ]) {
+      expect(options.validate, throwsFormatException);
+    }
+  });
+  test(
+    'v1.3 UI ranges permit strength extrapolation but bound color to one',
+    () {
+      const maximum = DlssOptions(
+        intensity: 2,
+        localStructure: 2,
+        localTone: 2,
+        detail: 2,
+      );
+      expect(
+        DlssOptions.fromJson(maximum.toJson()).arguments,
+        maximum.arguments,
+      );
+      for (final flag in [
+        '--nr-intensity',
+        '--nr-local-structure',
+        '--nr-local-tone',
+        '--nr-detail',
+      ]) {
+        expect(maximum.arguments[maximum.arguments.indexOf(flag) + 1], '2.0');
+      }
+      const invalid = [
+        DlssOptions(intensity: 2.05),
+        DlssOptions(localStructure: 2.05),
+        DlssOptions(localTone: 2.05),
+        DlssOptions(detail: 2.05),
+        DlssOptions(color: 1.05),
+        DlssOptions(intensity: -0.05),
+        DlssOptions(color: double.infinity),
+      ];
+      for (final options in invalid) {
+        expect(options.validate, throwsFormatException);
+      }
+      expect(DlssOptions.fromJson({}).toJson(), const DlssOptions().toJson());
+    },
+  );
   test(
     'restores exact alpha and preserves Unicode metadata without changing seed',
     () {

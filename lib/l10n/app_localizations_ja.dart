@@ -14670,4 +14670,32 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get dlss_compareHint => '区切り線をドラッグして比較、ダブルタップでズーム';
+
+  @override
+  String get dlss_preset => 'NR プリセット';
+
+  @override
+  String get dlss_presetHint => '上流では番号のみが公開されており、各プリセットの具体的な効果は説明されていません。';
+
+  @override
+  String get dlss_skin => '肌の構造';
+
+  @override
+  String get dlss_globalTone => '全体の色調';
+
+  @override
+  String get dlss_modelDefault => 'モデル既定値';
+
+  @override
+  String get dlss_modelDefaultHint => '負数はモデルの既定値を維持し、0～2 は強度を明示的に設定します。';
+
+  @override
+  String get dlss_autoMask => '自動マスク';
+
+  @override
+  String get dlss_uiCorrection => 'UI 補正';
+
+  @override
+  String get dlss_modelSwitchesHint =>
+      'これらのスイッチはランタイムが処理します。具体的なアルゴリズムは非公開で、効果はバージョンや画像によって異なる場合があります。';
 }

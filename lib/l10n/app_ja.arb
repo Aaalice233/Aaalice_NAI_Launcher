@@ -6922,5 +6922,14 @@
   "dlss_timeout": "強化がタイムアウトしました。再試行するか GPU を確認してください",
   "dlss_outOfMemory": "GPU メモリが不足しています。他の GPU アプリを閉じて再試行してください",
   "dlss_saveFailed": "保存に失敗しました。画像フォルダーと空き容量を確認してください",
-  "dlss_compareHint": "区切り線をドラッグして比較、ダブルタップでズーム"
+  "dlss_compareHint": "区切り線をドラッグして比較、ダブルタップでズーム",
+  "dlss_preset": "NR プリセット",
+  "dlss_presetHint": "上流では番号のみが公開されており、各プリセットの具体的な効果は説明されていません。",
+  "dlss_skin": "肌の構造",
+  "dlss_globalTone": "全体の色調",
+  "dlss_modelDefault": "モデル既定値",
+  "dlss_modelDefaultHint": "負数はモデルの既定値を維持し、0～2 は強度を明示的に設定します。",
+  "dlss_autoMask": "自動マスク",
+  "dlss_uiCorrection": "UI 補正",
+  "dlss_modelSwitchesHint": "これらのスイッチはランタイムが処理します。具体的なアルゴリズムは非公開で、効果はバージョンや画像によって異なる場合があります。"
 }

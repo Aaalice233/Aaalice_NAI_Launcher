@@ -6897,5 +6897,14 @@
   "dlss_timeout": "Enhancement timed out. Retry or check the GPU.",
   "dlss_outOfMemory": "Insufficient GPU memory. Close other GPU applications and retry.",
   "dlss_saveFailed": "Save failed. Check the image folder and free disk space.",
-  "dlss_compareHint": "Drag the divider to compare; double-tap to zoom"
+  "dlss_compareHint": "Drag the divider to compare; double-tap to zoom",
+  "dlss_preset": "NR preset",
+  "dlss_presetHint": "Upstream provides numbered presets without documenting their visual effects.",
+  "dlss_skin": "Skin structure",
+  "dlss_globalTone": "Global tone",
+  "dlss_modelDefault": "Model default",
+  "dlss_modelDefaultHint": "Negative values keep the model default; 0–2 explicitly sets the strength.",
+  "dlss_autoMask": "Auto mask",
+  "dlss_uiCorrection": "UI correction",
+  "dlss_modelSwitchesHint": "These switches are handled by the runtime. Upstream does not document their algorithms; effects may vary by runtime version and image content."
 }

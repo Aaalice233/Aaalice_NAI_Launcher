@@ -34,9 +34,11 @@ void main() {
         Scaffold(
           body: Container(
             color: Colors.grey,
-            child: DlssOptionsEditor(
-              value: const DlssOptions(),
-              onChanged: (_) {},
+            child: SingleChildScrollView(
+              child: DlssOptionsEditor(
+                value: const DlssOptions(),
+                onChanged: (_) {},
+              ),
             ),
           ),
         ),
@@ -46,7 +48,19 @@ void main() {
     await tester.tap(find.text('高级参数'));
     await tester.pumpAndSettle();
     expect(tester.takeException(), isNull);
-    expect(find.byType(Slider), findsNWidgets(5));
+    expect(find.byType(Slider), findsNWidgets(7));
+    final sliders = tester.widgetList<Slider>(find.byType(Slider)).toList();
+    expect(sliders.map((slider) => slider.max), [2, 2, 1, 2, 2, 2, 2]);
+    expect(sliders.map((slider) => slider.min), [0, 0, 0, 0, 0, -1, -1]);
+    expect(sliders.map((slider) => slider.divisions), [
+      40,
+      40,
+      20,
+      40,
+      40,
+      60,
+      60,
+    ]);
   });
   for (final width in [320.0, 600.0, 840.0, 1180.0, 1600.0]) {
     for (final scale in [1.0, 3.0]) {
