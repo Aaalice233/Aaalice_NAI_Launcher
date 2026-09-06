@@ -6844,5 +6844,17 @@
   "userQuestion_timeout": "{time} 後にすべての推奨選択肢を自動送信します。",
   "userQuestion_notification": "エージェントから質問があります。会話を開いて回答してください。",
   "userQuestion_notificationUnavailable": "質問通知を表示できません。システムの通知権限を確認してください。",
-  "@userQuestion_timeout": {"placeholders": {"time": {"type": "String"}}}
+  "@userQuestion_timeout": {"placeholders": {"time": {"type": "String"}}},
+  "agentTool_resultCount": "{kind, select, results {{count} 件の結果} sites {{count} サイトから取得} read {{count} 文字を読み取り} displayed {{count} 枚の画像を表示} inspected {{count} 枚の画像を確認} pendingPreview {保留中のタスクを {count} 件取得} failedPreview {失敗したタスクを {count} 件取得} prepared {{count} 件のタスクを準備、確認待ち} retried {{count} 件を再キュー} updatedText {テキストを更新：{count} 文字} tags {{count} 件のタグを取得} entries {{count} 件の項目を取得} categories {{count} 件のカテゴリを取得} sources {{count} 件のソースを取得} images {{count} 枚の画像を取得} characters {{count} 人のキャラクターを取得} skills {{count} 件のスキルを読み込み} diagnostics {{count} 件の診断を取得} other {{count} 件を取得}}",
+  "@agentTool_resultCount": {
+    "placeholders": {
+      "kind": {
+        "type": "String"
+      },
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "agentTool_resultTruncated": "内容は切り詰められています"
 }

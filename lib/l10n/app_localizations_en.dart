@@ -14830,4 +14830,33 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get userQuestion_notificationUnavailable =>
       'Question notifications are unavailable. Check system notification permissions.';
+
+  @override
+  String agentTool_resultCount(String kind, int count) {
+    String _temp0 = intl.Intl.selectLogic(kind, {
+      'results': 'Returned $count results',
+      'sites': 'From $count sites',
+      'read': 'Read $count characters',
+      'displayed': 'Displayed $count images',
+      'inspected': 'Inspected $count images',
+      'pendingPreview': 'Returned $count pending tasks',
+      'failedPreview': 'Returned $count failed tasks',
+      'prepared': 'Prepared $count tasks; awaiting confirmation',
+      'retried': 'Requeued $count tasks',
+      'updatedText': 'Updated text: $count characters',
+      'tags': 'Returned $count tags',
+      'entries': 'Returned $count entries',
+      'categories': 'Returned $count categories',
+      'sources': 'Returned $count sources',
+      'images': 'Returned $count images',
+      'characters': 'Returned $count characters',
+      'skills': 'Loaded $count skills',
+      'diagnostics': 'Returned $count diagnostics',
+      'other': 'Returned $count items',
+    });
+    return '$_temp0';
+  }
+
+  @override
+  String get agentTool_resultTruncated => 'Content truncated';
 }

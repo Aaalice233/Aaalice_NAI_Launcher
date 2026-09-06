@@ -6819,5 +6819,17 @@
   "userQuestion_timeout": "In {time}, all recommended options will be submitted automatically.",
   "userQuestion_notification": "The agent needs your answers. Open the conversation to respond.",
   "userQuestion_notificationUnavailable": "Question notifications are unavailable. Check system notification permissions.",
-  "@userQuestion_timeout": {"placeholders": {"time": {"type": "String"}}}
+  "@userQuestion_timeout": {"placeholders": {"time": {"type": "String"}}},
+  "agentTool_resultCount": "{kind, select, results {Returned {count} results} sites {From {count} sites} read {Read {count} characters} displayed {Displayed {count} images} inspected {Inspected {count} images} pendingPreview {Returned {count} pending tasks} failedPreview {Returned {count} failed tasks} prepared {Prepared {count} tasks; awaiting confirmation} retried {Requeued {count} tasks} updatedText {Updated text: {count} characters} tags {Returned {count} tags} entries {Returned {count} entries} categories {Returned {count} categories} sources {Returned {count} sources} images {Returned {count} images} characters {Returned {count} characters} skills {Loaded {count} skills} diagnostics {Returned {count} diagnostics} other {Returned {count} items}}",
+  "@agentTool_resultCount": {
+    "placeholders": {
+      "kind": {
+        "type": "String"
+      },
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "agentTool_resultTruncated": "Content truncated"
 }

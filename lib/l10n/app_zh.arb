@@ -6888,5 +6888,17 @@
   "userQuestion_timeout": "{time} 后将自动提交全部推荐选项",
   "userQuestion_notification": "智能体有问题需要你回答，请打开对话查看。",
   "userQuestion_notificationUnavailable": "提问通知未能显示，请检查系统通知权限。",
-  "@userQuestion_timeout": {"placeholders": {"time": {"type": "String"}}}
+  "@userQuestion_timeout": {"placeholders": {"time": {"type": "String"}}},
+  "agentTool_resultCount": "{kind, select, results {找到 {count} 条结果} sites {来自 {count} 个站点} read {已读取 {count} 字} displayed {已展示 {count} 张图片} inspected {已查看 {count} 张图片} pendingPreview {本次返回 {count} 个待处理任务} failedPreview {本次返回 {count} 个失败任务} prepared {已准备 {count} 个任务，等待确认} retried {已重新入队 {count} 个任务} updatedText {已更新文本，共 {count} 字} tags {找到 {count} 个标签} entries {本次返回 {count} 个条目} categories {本次返回 {count} 个分类} sources {本次返回 {count} 个来源} images {本次返回 {count} 张图片} characters {本次返回 {count} 个角色} skills {已加载 {count} 个技能} diagnostics {本次返回 {count} 条诊断} other {本次返回 {count} 项}}",
+  "@agentTool_resultCount": {
+    "placeholders": {
+      "kind": {
+        "type": "String"
+      },
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "agentTool_resultTruncated": "内容已截断"
 }

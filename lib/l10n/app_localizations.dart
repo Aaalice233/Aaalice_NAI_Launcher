@@ -25836,6 +25836,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Question notifications are unavailable. Check system notification permissions.'**
   String get userQuestion_notificationUnavailable;
+
+  /// No description provided for @agentTool_resultCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{kind, select, results {Returned {count} results} sites {From {count} sites} read {Read {count} characters} displayed {Displayed {count} images} inspected {Inspected {count} images} pendingPreview {Returned {count} pending tasks} failedPreview {Returned {count} failed tasks} prepared {Prepared {count} tasks; awaiting confirmation} retried {Requeued {count} tasks} updatedText {Updated text: {count} characters} tags {Returned {count} tags} entries {Returned {count} entries} categories {Returned {count} categories} sources {Returned {count} sources} images {Returned {count} images} characters {Returned {count} characters} skills {Loaded {count} skills} diagnostics {Returned {count} diagnostics} other {Returned {count} items}}'**
+  String agentTool_resultCount(String kind, int count);
+
+  /// No description provided for @agentTool_resultTruncated.
+  ///
+  /// In en, this message translates to:
+  /// **'Content truncated'**
+  String get agentTool_resultTruncated;
 }
 
 class _AppLocalizationsDelegate

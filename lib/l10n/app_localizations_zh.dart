@@ -14182,6 +14182,35 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get userQuestion_notificationUnavailable => '提问通知未能显示，请检查系统通知权限。';
+
+  @override
+  String agentTool_resultCount(String kind, int count) {
+    String _temp0 = intl.Intl.selectLogic(kind, {
+      'results': '找到 $count 条结果',
+      'sites': '来自 $count 个站点',
+      'read': '已读取 $count 字',
+      'displayed': '已展示 $count 张图片',
+      'inspected': '已查看 $count 张图片',
+      'pendingPreview': '本次返回 $count 个待处理任务',
+      'failedPreview': '本次返回 $count 个失败任务',
+      'prepared': '已准备 $count 个任务，等待确认',
+      'retried': '已重新入队 $count 个任务',
+      'updatedText': '已更新文本，共 $count 字',
+      'tags': '找到 $count 个标签',
+      'entries': '本次返回 $count 个条目',
+      'categories': '本次返回 $count 个分类',
+      'sources': '本次返回 $count 个来源',
+      'images': '本次返回 $count 张图片',
+      'characters': '本次返回 $count 个角色',
+      'skills': '已加载 $count 个技能',
+      'diagnostics': '本次返回 $count 条诊断',
+      'other': '本次返回 $count 项',
+    });
+    return '$_temp0';
+  }
+
+  @override
+  String get agentTool_resultTruncated => '内容已截断';
 }
 
 /// The translations for Chinese, using the Han script (`zh_Hant`).
@@ -28363,4 +28392,33 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get userQuestion_notificationUnavailable => '提問通知未能顯示，請檢查系統通知權限。';
+
+  @override
+  String agentTool_resultCount(String kind, int count) {
+    String _temp0 = intl.Intl.selectLogic(kind, {
+      'results': '找到 $count 筆結果',
+      'sites': '來自 $count 個站點',
+      'read': '已讀取 $count 字',
+      'displayed': '已展示 $count 張圖片',
+      'inspected': '已查看 $count 張圖片',
+      'pendingPreview': '本次傳回 $count 個待處理任務',
+      'failedPreview': '本次傳回 $count 個失敗任務',
+      'prepared': '已準備 $count 個任務，等待確認',
+      'retried': '已重新排入 $count 個任務',
+      'updatedText': '已更新文字，共 $count 字',
+      'tags': '找到 $count 個標籤',
+      'entries': '本次傳回 $count 個項目',
+      'categories': '本次傳回 $count 個分類',
+      'sources': '本次傳回 $count 個來源',
+      'images': '本次傳回 $count 張圖片',
+      'characters': '本次傳回 $count 個角色',
+      'skills': '已載入 $count 個技能',
+      'diagnostics': '本次傳回 $count 筆診斷',
+      'other': '本次傳回 $count 項',
+    });
+    return '$_temp0';
+  }
+
+  @override
+  String get agentTool_resultTruncated => '內容已截斷';
 }

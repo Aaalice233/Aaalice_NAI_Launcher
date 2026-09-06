@@ -6,6 +6,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'agent_tool_result_summary.dart';
+
 import '../../../core/agent/agent_media_display_policy.dart';
 import '../../../core/agent/agent_types.dart';
 import '../../../core/agent/agent_tool_presentation.dart';
@@ -706,6 +708,8 @@ String agentToolResultSummary(
   ToolResultMessage result, {
   required String fallback,
 }) {
+  final structured = structuredAgentToolResultSummary(context.l10n, result);
+  if (structured != null) return structured;
   final text = result.text.trim();
   if (text.isEmpty) return fallback;
   return _safeToolTextSummary(text, fallback: fallback, failed: result.isError);

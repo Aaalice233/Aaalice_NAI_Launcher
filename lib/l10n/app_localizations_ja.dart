@@ -14441,4 +14441,33 @@ class AppLocalizationsJa extends AppLocalizations {
   @override
   String get userQuestion_notificationUnavailable =>
       '質問通知を表示できません。システムの通知権限を確認してください。';
+
+  @override
+  String agentTool_resultCount(String kind, int count) {
+    String _temp0 = intl.Intl.selectLogic(kind, {
+      'results': '$count 件の結果',
+      'sites': '$count サイトから取得',
+      'read': '$count 文字を読み取り',
+      'displayed': '$count 枚の画像を表示',
+      'inspected': '$count 枚の画像を確認',
+      'pendingPreview': '保留中のタスクを $count 件取得',
+      'failedPreview': '失敗したタスクを $count 件取得',
+      'prepared': '$count 件のタスクを準備、確認待ち',
+      'retried': '$count 件を再キュー',
+      'updatedText': 'テキストを更新：$count 文字',
+      'tags': '$count 件のタグを取得',
+      'entries': '$count 件の項目を取得',
+      'categories': '$count 件のカテゴリを取得',
+      'sources': '$count 件のソースを取得',
+      'images': '$count 枚の画像を取得',
+      'characters': '$count 人のキャラクターを取得',
+      'skills': '$count 件のスキルを読み込み',
+      'diagnostics': '$count 件の診断を取得',
+      'other': '$count 件を取得',
+    });
+    return '$_temp0';
+  }
+
+  @override
+  String get agentTool_resultTruncated => '内容は切り詰められています';
 }
