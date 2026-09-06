@@ -163,6 +163,7 @@ flutter:
 
   assets:
     - assets/icons/
+    - assets/icons/ai_brands/
     - assets/data/
     - assets/data/opencc/
     - assets/data/tokenizers/

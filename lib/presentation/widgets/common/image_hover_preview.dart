@@ -127,9 +127,11 @@ class ImageHoverPreviewMetric extends StatelessWidget {
     required this.value,
     this.label,
     this.tone = ImageHoverPreviewTone.neutral,
+    this.leading,
   });
 
   final IconData icon;
+  final Widget? leading;
   final String? label;
   final String value;
   final ImageHoverPreviewTone tone;
@@ -151,7 +153,7 @@ class ImageHoverPreviewMetric extends StatelessWidget {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(icon, size: 13, color: color),
+              leading ?? Icon(icon, size: 13, color: color),
               const SizedBox(width: 5),
               Flexible(
                 child: Text(

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../common/model_family_icon.dart';
 
 import '../../../core/constants/api_constants.dart';
 import '../../../core/utils/localization_extension.dart';
@@ -188,13 +189,15 @@ class _GalleryGenerationTransferDialogState
             })
           : null,
       controlAffinity: ListTileControlAffinity.trailing,
-      secondary: Icon(
-        _icon(setting),
-        size: 20,
-        color: enabled
-            ? theme.colorScheme.primary
-            : theme.colorScheme.onSurface.withValues(alpha: 0.3),
-      ),
+      secondary: setting == GenerationTransferSetting.model && enabled
+          ? ModelFamilyIcon(modelId: widget.configuration!.model!, size: 20)
+          : Icon(
+              _icon(setting),
+              size: 20,
+              color: enabled
+                  ? theme.colorScheme.primary
+                  : theme.colorScheme.onSurface.withValues(alpha: 0.3),
+            ),
       title: Text(
         _label(setting),
         style: theme.textTheme.titleSmall?.copyWith(

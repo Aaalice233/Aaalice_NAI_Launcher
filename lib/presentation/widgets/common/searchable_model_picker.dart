@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import '../../adaptive/adaptive_presenter.dart';
 import '../../adaptive/interaction_policy.dart';
 import '../../themes/theme_extension.dart';
+import 'model_family_icon.dart';
 
 class ModelPickerOption<T> {
   const ModelPickerOption({
@@ -15,6 +16,8 @@ class ModelPickerOption<T> {
     required this.subtitle,
     this.searchTerms = const [],
     this.keyValue,
+    this.modelId,
+    this.subtitleLeading,
   });
 
   final String id;
@@ -23,6 +26,8 @@ class ModelPickerOption<T> {
   final String subtitle;
   final List<String> searchTerms;
   final String? keyValue;
+  final String? modelId;
+  final Widget? subtitleLeading;
 
   String get searchText =>
       [title, subtitle, ...searchTerms].join('\n').toLowerCase();
@@ -83,6 +88,12 @@ class SearchableModelPickerField<T> extends StatelessWidget {
             decoration: decoration.copyWith(enabled: interactive),
             child: Row(
               children: [
+                ModelFamilyIcon(
+                  modelId: selected?.modelId ?? selectedId ?? label,
+                  displayName: label,
+                  color: interactive ? null : Theme.of(context).disabledColor,
+                ),
+                const SizedBox(width: 8),
                 Expanded(
                   child: Text(
                     label,
@@ -519,15 +530,10 @@ class _ModelPickerTile<T> extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 12),
             child: Row(
               children: [
-                SizedBox(
-                  width: 20,
-                  child: selected
-                      ? Icon(
-                          Icons.check_rounded,
-                          size: 18,
-                          color: theme.colorScheme.primary,
-                        )
-                      : null,
+                ModelFamilyIcon(
+                  modelId: option.modelId ?? option.id,
+                  displayName: option.title,
+                  size: 20,
                 ),
                 const SizedBox(width: 8),
                 Expanded(
@@ -544,16 +550,37 @@ class _ModelPickerTile<T> extends StatelessWidget {
                         overflow: TextOverflow.ellipsis,
                       ),
                       const SizedBox(height: 2),
-                      Text(
-                        option.subtitle,
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: theme.colorScheme.onSurfaceVariant,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
+                      Row(
+                        children: [
+                          if (option.subtitleLeading != null) ...[
+                            option.subtitleLeading!,
+                            const SizedBox(width: 5),
+                          ],
+                          Expanded(
+                            child: Text(
+                              option.subtitle,
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                color: theme.colorScheme.onSurfaceVariant,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   ),
+                ),
+                const SizedBox(width: 8),
+                SizedBox(
+                  width: 20,
+                  child: selected
+                      ? Icon(
+                          Icons.check_rounded,
+                          size: 18,
+                          color: theme.colorScheme.primary,
+                        )
+                      : null,
                 ),
               ],
             ),

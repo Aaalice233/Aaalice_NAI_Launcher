@@ -22,9 +22,103 @@ import 'package:nai_launcher/presentation/prompt_assistant/models/prompt_assista
 import 'package:nai_launcher/presentation/prompt_assistant/providers/web_access_provider.dart';
 import 'package:nai_launcher/presentation/themes/core/layered_surface_style.dart';
 import 'package:nai_launcher/presentation/themes/modules/color/palettes/grunge_palette.dart';
+import 'package:nai_launcher/presentation/widgets/common/model_family_icon.dart';
+import 'package:nai_launcher/presentation/widgets/common/ai_brand_icon.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+
+  testWidgets(
+    'compact mobile control keeps the current model icon left of reasoning',
+    (tester) async {
+      final config = PromptAssistantConfigState.defaults().copyWith(
+        providers: const [
+          ProviderConfig(
+            id: 'relay',
+            name: 'OpenRouter',
+            baseUrl: 'https://openrouter.ai/api/v1',
+          ),
+        ],
+        models: const [
+          ModelConfig(
+            providerId: 'relay',
+            name: 'google/gemini-3',
+            displayName: 'Gemini',
+            forTask: AssistantTaskType.chat,
+          ),
+          ModelConfig(
+            providerId: 'relay',
+            name: 'deepseek-v4-flash',
+            displayName: 'DeepSeek',
+            forTask: AssistantTaskType.chat,
+          ),
+        ],
+      );
+      for (final (model, asset) in [
+        ('google/gemini-3', 'gemini-color'),
+        ('deepseek-v4-flash', 'deepseek-color'),
+      ]) {
+        await _pumpComposer(
+          tester,
+          width: 320,
+          config: config,
+          state: _readyState.copyWith(thinkingLevel: ThinkingLevel.low),
+          agentSettings: AgentSettingsState(
+            initialized: true,
+            settings: AgentSettings(
+              chat: AgentChatConfig(
+                modelReference: AgentModelReference(
+                  providerId: 'relay',
+                  model: model,
+                ),
+              ),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+        final selector = find.byKey(
+          const ValueKey('agent-chat-model-selector'),
+        );
+        final modelIcon = find.descendant(
+          of: selector,
+          matching: find.byType(ModelFamilyIcon),
+        );
+        final thinking = find.byKey(
+          const ValueKey('agent-chat-thinking-selector'),
+        );
+        expect(modelIcon, findsOneWidget);
+        expect(
+          tester
+              .widget<AiBrandIcon>(
+                find.descendant(
+                  of: modelIcon,
+                  matching: find.byType(AiBrandIcon),
+                ),
+              )
+              .assetName,
+          asset,
+        );
+        expect(tester.widget<Text>(thinking).data, 'Low');
+        expect(
+          tester.getRect(modelIcon).right,
+          lessThan(tester.getRect(thinking).left),
+        );
+        expect(
+          tester.getRect(selector).contains(tester.getCenter(modelIcon)),
+          isTrue,
+        );
+        expect(
+          find.descendant(of: selector, matching: find.text('Gemini')),
+          findsNothing,
+        );
+        expect(
+          find.descendant(of: selector, matching: find.text('DeepSeek')),
+          findsNothing,
+        );
+        expect(tester.takeException(), isNull);
+      }
+    },
+  );
 
   testWidgets('mobile composer follows the mockup hierarchy', (tester) async {
     final resource = AgentChatResourceReference(

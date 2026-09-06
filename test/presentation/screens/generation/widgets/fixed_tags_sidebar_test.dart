@@ -666,14 +666,20 @@ void main() {
         .decoration!
         .contentPadding!
         .resolve(TextDirection.ltr);
-    expect(contentPadding.bottom, 60);
+    expect(contentPadding, const EdgeInsets.all(12));
     final contentFooter = find.byKey(
       const ValueKey('fixed-tag-content-footer'),
     );
     final assistant = find.byType(PromptAssistantOverlay);
     expect(contentFooter, findsOneWidget);
     expect(assistant, findsOneWidget);
-    final collapsedAssistantHeight = tester.getSize(assistant).height;
+    final assistantToolbar = find.byKey(
+      ValueKey(
+        'prompt_assistant_toolbar_${tester.widget<PromptAssistantOverlay>(assistant).sessionId}',
+      ),
+    );
+    final collapsedAssistantHeight = tester.getSize(assistantToolbar).height;
+    final inputRect = tester.getRect(contentInput);
     expect(find.byKey(const ValueKey('tag-mode-button')), findsOneWidget);
     expect(
       tester.getTopLeft(contentFooter).dy,
@@ -681,15 +687,15 @@ void main() {
     );
     expect(
       tester.widget<PromptAssistantOverlay>(assistant).placement,
-      PromptAssistantPlacement.editor,
+      PromptAssistantPlacement.viewport,
     );
     expect(
       tester.widget<PromptAssistantOverlay>(assistant).stripFixedTagsFromInput,
       false,
     );
     expect(
-      tester.getTopRight(assistant).dx,
-      closeTo(tester.getTopRight(contentInput).dx - 8, 1),
+      tester.getTopRight(assistantToolbar).dx,
+      closeTo(tester.getTopRight(contentInput).dx - 4, 1),
     );
     await tester.tap(
       find.descendant(
@@ -698,7 +704,8 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
-    final expandedAssistantRect = tester.getRect(assistant);
+    final expandedAssistantRect = tester.getRect(assistantToolbar);
+    expect(tester.getRect(contentInput), inputRect);
     expect(
       expandedAssistantRect.height,
       closeTo(collapsedAssistantHeight, .01),

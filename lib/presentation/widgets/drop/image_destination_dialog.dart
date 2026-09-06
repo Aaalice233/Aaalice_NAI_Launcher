@@ -2,12 +2,12 @@ import 'dart:math' as math;
 
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
-
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:nai_launcher/core/utils/localization_extension.dart';
 
 import '../common/image_viewport_surface.dart';
+import '../common/model_family_icon.dart';
 import '../../../data/models/gallery/nai_image_metadata.dart';
 import '../../../data/models/vibe/vibe_reference.dart';
 import '../../adaptive/adaptive_presenter.dart';
@@ -858,7 +858,17 @@ class _MetadataSummary extends StatelessWidget {
           Wrap(
             spacing: 6,
             runSpacing: 6,
-            children: facts.map((fact) => _MetadataPill(label: fact)).toList(),
+            children: facts
+                .map(
+                  (fact) => _MetadataPill(
+                    label: fact,
+                    modelId:
+                        fact == (metadata.source ?? metadata.effectiveModel)
+                        ? metadata.effectiveModel ?? metadata.source
+                        : null,
+                  ),
+                )
+                .toList(),
           ),
         ],
       ],
@@ -963,8 +973,9 @@ class _PromptMetadataPanel extends StatelessWidget {
 
 class _MetadataPill extends StatelessWidget {
   final String label;
+  final String? modelId;
 
-  const _MetadataPill({required this.label});
+  const _MetadataPill({required this.label, this.modelId});
 
   @override
   Widget build(BuildContext context) {
@@ -975,13 +986,23 @@ class _MetadataPill extends StatelessWidget {
         color: theme.colorScheme.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(6),
       ),
-      child: Text(
-        label,
-        style: theme.textTheme.labelSmall?.copyWith(
-          color: theme.colorScheme.onSurfaceVariant,
-          fontFeatures: const [FontFeature.tabularFigures()],
-        ),
-      ),
+      child: modelId != null
+          ? ModelNameLabel(
+              modelId: modelId!,
+              displayName: label,
+              iconSize: 14,
+              style: theme.textTheme.labelSmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+                fontFeatures: const [FontFeature.tabularFigures()],
+              ),
+            )
+          : Text(
+              label,
+              style: theme.textTheme.labelSmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+                fontFeatures: const [FontFeature.tabularFigures()],
+              ),
+            ),
     );
   }
 }

@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
+import '../common/model_family_icon.dart';
 
 import '../../../core/cache/local_gallery_thumbnail_provider.dart';
 import '../../../core/utils/byte_format.dart';
@@ -355,6 +356,7 @@ class _LocalImageHoverPreviewCardState
                       child: ImageHoverPreviewMetric(
                         icon: Icons.auto_awesome_outlined,
                         value: model!,
+                        leading: ModelFamilyIcon(modelId: model, size: 13),
                         tone: ImageHoverPreviewTone.primary,
                       ),
                     ),

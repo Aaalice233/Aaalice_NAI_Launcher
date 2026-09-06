@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import '../../../widgets/common/provider_icon.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/platform/platform_capabilities.dart';
@@ -119,7 +120,12 @@ class PromptAssistantSettingsSection extends ConsumerWidget {
     PromptAssistantConfigNotifier notifier,
   ) {
     final providerItems = state.providers
-        .map((p) => DropdownMenuItem(value: p.id, child: Text(p.name)))
+        .map(
+          (p) => DropdownMenuItem(
+            value: p.id,
+            child: ProviderNameLabel(provider: p),
+          ),
+        )
         .toList();
 
     return Column(
@@ -183,14 +189,16 @@ class PromptAssistantSettingsSection extends ConsumerWidget {
       providerId: providerId,
       taskType: taskType,
     );
-    final providerName = state.providers
+    final provider = state.providers
         .where((provider) => provider.id == providerId)
-        .map((provider) => provider.name)
         .firstOrNull;
+    final providerName = provider?.name;
     final modelOptions = models
         .map(
           (model) => ModelPickerOption(
             id: model.name,
+            modelId: model.name,
+            subtitleLeading: ProviderIcon(provider: provider, size: 14),
             value: model.name,
             title: model.displayName.trim().isEmpty
                 ? model.name
@@ -366,8 +374,8 @@ class PromptAssistantSettingsSection extends ConsumerWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text(
-                  provider.name,
+                ProviderNameLabel(
+                  provider: provider,
                   style: Theme.of(context).textTheme.titleMedium,
                 ),
                 const SizedBox(height: 2),

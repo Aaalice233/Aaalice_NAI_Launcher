@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'common/model_family_icon.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:nai_launcher/core/utils/localization_extension.dart';
@@ -194,6 +195,7 @@ class _GalleryFilterPanelState extends ConsumerState<GalleryFilterPanel> {
                     children: [
                       _buildModernTextField(
                         controller: _modelController,
+                        isModel: true,
                         hintText: l10n.localGallery_modelHint,
                         theme: theme,
                         isDark: isDark,
@@ -202,6 +204,7 @@ class _GalleryFilterPanelState extends ConsumerState<GalleryFilterPanel> {
                       const SizedBox(height: 10),
                       _buildPresetChips(
                         presets: _commonModels,
+                        isModel: true,
                         controller: _modelController,
                         theme: theme,
                         colorScheme: colorScheme,
@@ -394,6 +397,7 @@ class _GalleryFilterPanelState extends ConsumerState<GalleryFilterPanel> {
 
   /// Build a filter text field.
   Widget _buildModernTextField({
+    bool isModel = false,
     required TextEditingController controller,
     required String hintText,
     required ThemeData theme,
@@ -404,6 +408,12 @@ class _GalleryFilterPanelState extends ConsumerState<GalleryFilterPanel> {
       controller: controller,
       style: theme.textTheme.bodyMedium?.copyWith(color: colorScheme.onSurface),
       decoration: InputDecoration(
+        prefixIcon: isModel && controller.text.isNotEmpty
+            ? Padding(
+                padding: const EdgeInsets.all(12),
+                child: ModelFamilyIcon(modelId: controller.text),
+              )
+            : null,
         hintText: hintText,
         hintStyle: TextStyle(
           color: colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
@@ -529,6 +539,7 @@ class _GalleryFilterPanelState extends ConsumerState<GalleryFilterPanel> {
 
   /// Build preset chips
   Widget _buildPresetChips({
+    bool isModel = false,
     required List<String> presets,
     required TextEditingController controller,
     required ThemeData theme,
@@ -561,16 +572,28 @@ class _GalleryFilterPanelState extends ConsumerState<GalleryFilterPanel> {
                   : colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
               borderRadius: BorderRadius.circular(6),
             ),
-            child: Text(
-              preset,
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: isSelected
-                    ? colorScheme.primary
-                    : colorScheme.onSurfaceVariant,
-                fontWeight: FontWeight.w500,
-                fontSize: 11,
-              ),
-            ),
+            child: isModel
+                ? ModelNameLabel(
+                    modelId: preset,
+                    iconSize: 14,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: isSelected
+                          ? colorScheme.primary
+                          : colorScheme.onSurfaceVariant,
+                      fontWeight: FontWeight.w500,
+                      fontSize: 11,
+                    ),
+                  )
+                : Text(
+                    preset,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: isSelected
+                          ? colorScheme.primary
+                          : colorScheme.onSurfaceVariant,
+                      fontWeight: FontWeight.w500,
+                      fontSize: 11,
+                    ),
+                  ),
           ),
         );
       }).toList(),

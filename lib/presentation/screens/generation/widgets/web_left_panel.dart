@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import '../../../widgets/common/model_family_icon.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:nai_launcher/core/utils/localization_extension.dart';
@@ -335,13 +336,20 @@ class _WebLeftPanelState extends ConsumerState<WebLeftPanel>
                   ),
                   const SizedBox(width: 8),
                   Expanded(
-                    child: Text(
-                      modelName,
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: theme.colorScheme.primary,
+                    child: Align(
+                      alignment: AlignmentDirectional.centerEnd,
+                      child: ModelNameLabel(
+                        modelId: ref.watch(
+                          generationParamsNotifierProvider.select(
+                            (params) => params.model,
+                          ),
+                        ),
+                        displayName: modelName,
+                        iconSize: 16,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.primary,
+                        ),
                       ),
-                      overflow: TextOverflow.ellipsis,
-                      textAlign: TextAlign.end,
                     ),
                   ),
                   const SizedBox(width: 4),

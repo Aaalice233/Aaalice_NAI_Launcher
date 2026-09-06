@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import '../../../widgets/common/model_family_icon.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:super_drag_and_drop/super_drag_and_drop.dart';
 
@@ -300,7 +301,7 @@ class _ReversePromptPanelState extends ConsumerState<ReversePromptPanel> {
                   .map(
                     (model) => DropdownMenuItem(
                       value: model.path,
-                      child: Text(model.name),
+                      child: ModelNameLabel(modelId: model.name),
                     ),
                   )
                   .toList(),

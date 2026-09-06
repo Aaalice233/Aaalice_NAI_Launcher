@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../widgets/common/model_family_icon.dart';
 
 import '../../../core/agent/agent_types.dart';
 import '../../../core/utils/localization_extension.dart';
@@ -264,10 +265,9 @@ class AgentChatWorkStatus extends StatelessWidget {
                     ),
                     if (routeLabel.trim().isNotEmpty) ...[
                       const SizedBox(height: 2),
-                      Text(
-                        routeLabel,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
+                      ModelNameLabel(
+                        modelId: routeLabel,
+                        iconSize: 14,
                         style: theme.textTheme.labelSmall?.copyWith(
                           color: theme.colorScheme.onSurfaceVariant.withValues(
                             alpha: 0.62,
