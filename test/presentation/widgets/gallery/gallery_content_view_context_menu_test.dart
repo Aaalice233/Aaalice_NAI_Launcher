@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -29,6 +31,63 @@ void main() {
         previousVisibilityUpdateInterval;
     PlatformCapabilities.debugOverride = null;
   });
+
+  testWidgets(
+    'grouped gallery coalesces pending dimension reads across rebuilds',
+    (tester) async {
+      final result = Completer<Size>();
+      var reads = 0;
+      late StateSetter rebuild;
+      final record = LocalImageRecord(
+        path: 'synthetic-pending.png',
+        size: 1,
+        modifiedAt: DateTime(2026),
+      );
+      await tester.pumpWidget(
+        ProviderScope(
+          child: MaterialApp(
+            locale: const Locale('en'),
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            home: Scaffold(
+              body: StatefulBuilder(
+                builder: (_, setState) {
+                  rebuild = setState;
+                  return GenericGalleryContentView<LocalImageRecord>(
+                    columns: 1,
+                    itemWidth: 160,
+                    state: _GroupedGalleryState(record),
+                    selectionState: const _InactiveSelectionState(),
+                    itemBuilder: (_, __, ___, ____) => const SizedBox.shrink(),
+                    idExtractor: (item) => item.path,
+                    imageDimensionsLoader: (_) {
+                      reads++;
+                      return result.future;
+                    },
+                  );
+                },
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+      rebuild(() {});
+      await tester.pump();
+      rebuild(() {});
+      await tester.pump();
+      final readsBeforeCompletion = reads;
+      result.complete(const Size(160, 320));
+      await tester.pump();
+      expect(readsBeforeCompletion, 1);
+      expect(
+        tester.widget<LocalImageCard3D>(find.byType(LocalImageCard3D)).height,
+        320,
+      );
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pump();
+    },
+  );
 
   testWidgets('grouped gallery forwards secondary taps to the context menu', (
     tester,

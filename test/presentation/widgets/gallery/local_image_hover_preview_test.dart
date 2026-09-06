@@ -12,6 +12,63 @@ import 'package:nai_launcher/presentation/widgets/gallery/local_image_hover_prev
 
 void main() {
   testWidgets(
+    'quick hover does not read metadata; sustained hover reads once',
+    (tester) async {
+      var reads = 0;
+      final record = LocalImageRecord(
+        path: 'assets/icons/tray_icon.png',
+        size: 0,
+        modifiedAt: DateTime(2026),
+        metadata: const NaiImageMetadata(
+          width: 32,
+          height: 32,
+          prompt: 'synthetic',
+        ),
+      );
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Center(
+              child: LocalImageHoverPreview(
+                record: record,
+                metadataLoader: (_) async {
+                  reads++;
+                  return record.metadata;
+                },
+                child: const SizedBox(
+                  key: ValueKey('intent-target'),
+                  width: 100,
+                  height: 100,
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+      addTearDown(mouse.removePointer);
+      await mouse.addPointer(location: Offset.zero);
+      await mouse.moveTo(
+        tester.getCenter(find.byKey(const ValueKey('intent-target'))),
+      );
+      await tester.pump(const Duration(milliseconds: 100));
+      expect(reads, 0);
+      await mouse.moveTo(Offset.zero);
+      await tester.pump(const Duration(milliseconds: 400));
+      expect(reads, 0);
+      await mouse.moveTo(
+        tester.getCenter(find.byKey(const ValueKey('intent-target'))),
+      );
+      await tester.pump(const Duration(milliseconds: 300));
+      await tester.pump();
+      expect(reads, 1);
+      await mouse.moveTo(Offset.zero);
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pump();
+    },
+  );
+
+  testWidgets(
     'shows compact full-file preview inside viewport and dismisses it',
     (tester) async {
       final imageFile = File('assets/icons/tray_icon.png');

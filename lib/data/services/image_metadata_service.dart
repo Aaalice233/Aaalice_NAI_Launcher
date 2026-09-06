@@ -7,6 +7,7 @@ import 'package:hive/hive.dart';
 import '../../core/utils/app_logger.dart';
 import '../models/gallery/nai_image_metadata.dart';
 import 'metadata/cache_manager.dart';
+import 'metadata/background_metadata_parser.dart';
 import 'metadata/hash_calculator.dart';
 import 'metadata/preloader.dart';
 import 'metadata/unified_metadata_parser.dart';
@@ -129,7 +130,8 @@ class ParseStatistics {
 /// - 详细的解析统计
 /// - 增强的错误处理
 class ImageMetadataService {
-  static final ImageMetadataService _instance = ImageMetadataService._internal();
+  static final ImageMetadataService _instance =
+      ImageMetadataService._internal();
   factory ImageMetadataService() => _instance;
   ImageMetadataService._internal();
 
@@ -214,7 +216,10 @@ class ImageMetadataService {
     // 设置超时
     final timeoutTimer = Timer(_highPriorityTimeout, () {
       if (!taskCompleter.isCompleted) {
-        AppLogger.w('[MetadataFlow] Parse timeout for: $path', 'ImageMetadataService');
+        AppLogger.w(
+          '[MetadataFlow] Parse timeout for: $path',
+          'ImageMetadataService',
+        );
         _statistics.recordTimeout();
         taskCompleter.complete(null);
       }
@@ -244,7 +249,12 @@ class ImageMetadataService {
       }
       return null;
     } catch (e, stack) {
-      AppLogger.e('[MetadataFlow] Parse error', e, stack, 'ImageMetadataService');
+      AppLogger.e(
+        '[MetadataFlow] Parse error',
+        e,
+        stack,
+        'ImageMetadataService',
+      );
       if (!taskCompleter.isCompleted) {
         taskCompleter.complete(null);
       }
@@ -311,7 +321,10 @@ class ImageMetadataService {
     final actualTimeout = timeout ?? _defaultParseTimeout;
     final timeoutTimer = Timer(actualTimeout, () {
       if (!taskCompleter.isCompleted) {
-        AppLogger.w('[MetadataFlow] Parse timeout for: $path', 'ImageMetadataService');
+        AppLogger.w(
+          '[MetadataFlow] Parse timeout for: $path',
+          'ImageMetadataService',
+        );
         _statistics.recordTimeout();
         taskCompleter.complete(null);
       }
@@ -345,7 +358,12 @@ class ImageMetadataService {
       }
       return null;
     } catch (e, stack) {
-      AppLogger.e('[MetadataFlow] Parse error', e, stack, 'ImageMetadataService');
+      AppLogger.e(
+        '[MetadataFlow] Parse error',
+        e,
+        stack,
+        'ImageMetadataService',
+      );
       if (!taskCompleter.isCompleted) {
         taskCompleter.complete(null);
       }
@@ -358,7 +376,7 @@ class ImageMetadataService {
 
   /// 从字节数组获取元数据
   Future<NaiImageMetadata?> getMetadataFromBytes(Uint8List bytes) async {
-    final hash = _hashCalculator.calculateFromBytes(bytes);
+    final hash = await _hashCalculator.calculateFromBytesInBackground(bytes);
 
     // 检查 L1 内存缓存
     final memoryCached = _cacheManager.getFromMemory(hash);
@@ -411,7 +429,7 @@ class ImageMetadataService {
   Future<MetadataParseResult> getMetadataParseResultFromBytes(
     Uint8List bytes,
   ) async {
-    final hash = _hashCalculator.calculateFromBytes(bytes);
+    final hash = await _hashCalculator.calculateFromBytesInBackground(bytes);
     final cached =
         _cacheManager.getFromMemory(hash) ??
         _cacheManager.getFromPersistent(hash);
@@ -427,7 +445,7 @@ class ImageMetadataService {
 
     final stopwatch = Stopwatch()..start();
     try {
-      final result = UnifiedMetadataParser.parseFromImage(bytes);
+      final result = await parseMetadataBytesInBackground(bytes);
       final metadata = result.success ? result.metadata : null;
       if (metadata != null && metadata.hasData) {
         try {
@@ -479,7 +497,6 @@ class ImageMetadataService {
 
   /// 从缓存获取元数据（同步检查）
   NaiImageMetadata? getCached(String path) {
-
     final hash = _hashCalculator.getHashForPath(path);
     if (hash == null) return null;
 
@@ -550,7 +567,8 @@ class ImageMetadataService {
   Box<String>? get persistentBox => _cacheManager.box;
 
   /// 获取哈希对应的所有路径
-  List<String> getPathsForHash(String hash) => _hashCalculator.getPathsForHash(hash);
+  List<String> getPathsForHash(String hash) =>
+      _hashCalculator.getPathsForHash(hash);
 
   /// 获取解析统计
   ParseStatistics get parseStatistics => _statistics;
@@ -612,7 +630,10 @@ class ImageMetadataService {
       final file = File(path);
       // 检查文件是否存在
       if (!await file.exists()) {
-        AppLogger.w('[MetadataFlow] File NOT FOUND: $path', 'ImageMetadataService');
+        AppLogger.w(
+          '[MetadataFlow] File NOT FOUND: $path',
+          'ImageMetadataService',
+        );
         _statistics.recordFailure('file_not_found', totalStopwatch.elapsed);
         return null;
       }
@@ -628,11 +649,7 @@ class ImageMetadataService {
       try {
         _checkCancelled(cancelToken);
 
-        final result = UnifiedMetadataParser.parseFromFile(
-          path,
-          useGradualRead: true,
-          useCache: true,
-        );
+        final result = await parseMetadataFileInBackground(path);
 
         parseStopwatch.stop();
 
@@ -643,7 +660,10 @@ class ImageMetadataService {
         }
       } catch (e, _) {
         parseStopwatch.stop();
-        AppLogger.w('[MetadataFlow] Unified parse error: $e', 'ImageMetadataService');
+        AppLogger.w(
+          '[MetadataFlow] Unified parse error: $e',
+          'ImageMetadataService',
+        );
         metadata = null;
       }
 
@@ -677,8 +697,16 @@ class ImageMetadataService {
       rethrow;
     } catch (e, stack) {
       totalStopwatch.stop();
-      _statistics.recordFailure('exception: ${e.runtimeType}', totalStopwatch.elapsed);
-      AppLogger.e('[MetadataFlow] Parse FAILED: $path', e, stack, 'ImageMetadataService');
+      _statistics.recordFailure(
+        'exception: ${e.runtimeType}',
+        totalStopwatch.elapsed,
+      );
+      AppLogger.e(
+        '[MetadataFlow] Parse FAILED: $path',
+        e,
+        stack,
+        'ImageMetadataService',
+      );
       return null;
     }
   }
@@ -695,19 +723,25 @@ class ImageMetadataService {
         return null;
       }
 
-      final result = UnifiedMetadataParser.parseFromImage(bytes);
+      final result = await parseMetadataBytesInBackground(bytes);
       final metadata = result.success ? result.metadata : null;
 
       if (metadata != null && metadata.hasData) {
         await _cacheManager.save(hash, metadata);
         _statistics.recordSuccess(stopwatch.elapsed);
       } else {
-        _statistics.recordFailure(result.errorMessage ?? 'unknown', stopwatch.elapsed);
+        _statistics.recordFailure(
+          result.errorMessage ?? 'unknown',
+          stopwatch.elapsed,
+        );
       }
 
       return metadata;
     } catch (e, stack) {
-      _statistics.recordFailure('exception: ${e.runtimeType}', stopwatch.elapsed);
+      _statistics.recordFailure(
+        'exception: ${e.runtimeType}',
+        stopwatch.elapsed,
+      );
       AppLogger.e('Parse bytes failed', e, stack, 'ImageMetadataService');
       return null;
     }

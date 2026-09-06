@@ -1,11 +1,10 @@
-import 'dart:ui' as ui;
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:visibility_detector/visibility_detector.dart';
 
 import '../../../core/utils/app_logger.dart';
+import '../../../core/utils/read_image_dimensions.dart';
 import '../../../core/platform/platform_capabilities.dart';
 import '../../../core/utils/localization_extension.dart';
 import '../../../data/models/gallery/local_image_record.dart';
@@ -106,6 +105,7 @@ class GenericGalleryContentView<T> extends ConsumerStatefulWidget {
   final bool isKritaConnected;
   final String? emptyTitle;
   final String? emptySubtitle;
+  final Future<Size> Function(String)? imageDimensionsLoader;
   final IconData? emptyIcon;
 
   const GenericGalleryContentView({
@@ -134,6 +134,7 @@ class GenericGalleryContentView<T> extends ConsumerStatefulWidget {
     this.isKritaConnected = false,
     this.emptyTitle,
     this.emptySubtitle,
+    this.imageDimensionsLoader,
     this.emptyIcon,
   });
 
@@ -157,6 +158,7 @@ class _GenericGalleryContentViewState<T>
     extends ConsumerState<GenericGalleryContentView<T>>
     with TickerProviderStateMixin {
   final Map<String, double> _aspectRatioCache = {};
+  final Set<String> _pendingAspectRatios = {};
   bool _showSkeleton = false;
   final Set<int> _visibleIndices = {};
   late final AnimationController _emptyStateController;
@@ -350,16 +352,19 @@ class _GenericGalleryContentViewState<T>
   }
 
   double _getCachedAspectRatio(LocalImageRecord record) {
-    if (_aspectRatioCache.containsKey(record.path)) {
-      return _aspectRatioCache[record.path]!;
+    final key =
+        '${record.path}:${record.size}:'
+        '${record.modifiedAt.microsecondsSinceEpoch}';
+    final cached = _aspectRatioCache[key];
+    if (cached != null) return cached;
+    if (_pendingAspectRatios.add(key)) {
+      _calculateAspectRatioForRecord(record).then((value) {
+        _pendingAspectRatios.remove(key);
+        if (mounted && value != _aspectRatioCache[key]) {
+          setState(() => _aspectRatioCache[key] = value);
+        }
+      });
     }
-
-    _calculateAspectRatioForRecord(record).then((value) {
-      if (mounted && value != _aspectRatioCache[record.path]) {
-        setState(() => _aspectRatioCache[record.path] = value);
-      }
-    });
-
     return 1.0;
   }
 
@@ -372,10 +377,11 @@ class _GenericGalleryContentViewState<T>
     }
 
     try {
-      final buffer = await ui.ImmutableBuffer.fromFilePath(record.path);
-      final descriptor = await ui.ImageDescriptor.encoded(buffer);
-      if (descriptor.width > 0 && descriptor.height > 0) {
-        return descriptor.width / descriptor.height;
+      final size = await (widget.imageDimensionsLoader ?? readImageDimensions)(
+        record.path,
+      );
+      if (size.width > 0 && size.height > 0) {
+        return size.width / size.height;
       }
     } catch (e) {
       AppLogger.d(
