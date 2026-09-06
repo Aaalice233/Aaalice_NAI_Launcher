@@ -152,7 +152,7 @@ class _DlssEnhancementPanelState extends ConsumerState<DlssEnhancementPanel> {
                 Expanded(
                   flex: 2,
                   child: Material(
-                    color: Theme.of(context).colorScheme.surfaceContainerLow,
+                    color: Theme.of(context).colorScheme.surface,
                     child: SingleChildScrollView(
                       controller: widget.scrollController,
                       padding: const EdgeInsets.all(20),

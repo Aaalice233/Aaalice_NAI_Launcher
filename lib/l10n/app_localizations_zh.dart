@@ -14563,6 +14563,24 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get dlss_presetColor => '保色';
+
+  @override
+  String get dlss_detailAndColor => '细节与颜色';
+
+  @override
+  String get dlss_nrModel => 'NR 模型';
+
+  @override
+  String get dlss_localAdjustments => '局部调整';
+
+  @override
+  String get dlss_modelStrengths => '模型强度';
+
+  @override
+  String get dlss_modelSwitches => '模型开关';
+
+  @override
+  String get dlss_activation => '启用与自动处理';
 }
 
 /// The translations for Chinese, using the Han script (`zh_Hant`).
@@ -29125,4 +29143,22 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get dlss_presetColor => '保色';
+
+  @override
+  String get dlss_detailAndColor => '細節與顏色';
+
+  @override
+  String get dlss_nrModel => 'NR 模型';
+
+  @override
+  String get dlss_localAdjustments => '局部調整';
+
+  @override
+  String get dlss_modelStrengths => '模型強度';
+
+  @override
+  String get dlss_modelSwitches => '模型開關';
+
+  @override
+  String get dlss_activation => '啟用與自動處理';
 }

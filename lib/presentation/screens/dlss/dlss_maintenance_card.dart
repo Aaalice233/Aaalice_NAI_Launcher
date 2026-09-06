@@ -21,6 +21,7 @@ class DlssMaintenanceCard extends StatelessWidget {
     );
     return SettingsCard(
       title: l10n.dlss_maintenance,
+      icon: Icons.build_outlined,
       child: Padding(
         padding: const EdgeInsets.all(8),
         child: Column(

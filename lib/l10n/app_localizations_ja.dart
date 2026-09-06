@@ -14829,4 +14829,22 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get dlss_presetColor => '色の保持';
+
+  @override
+  String get dlss_detailAndColor => 'ディテールと色';
+
+  @override
+  String get dlss_nrModel => 'NR モデル';
+
+  @override
+  String get dlss_localAdjustments => '局所調整';
+
+  @override
+  String get dlss_modelStrengths => 'モデル強度';
+
+  @override
+  String get dlss_modelSwitches => 'モデルオプション';
+
+  @override
+  String get dlss_activation => '有効化と自動処理';
 }

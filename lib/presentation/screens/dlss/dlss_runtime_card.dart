@@ -25,6 +25,7 @@ class DlssRuntimeCard extends StatelessWidget {
     final selected = this.selected;
     return SettingsCard(
       title: l10n.dlss_runtime,
+      icon: Icons.inventory_2_outlined,
       description: l10n.dlss_source,
       child: Padding(
         padding: const EdgeInsets.all(8),

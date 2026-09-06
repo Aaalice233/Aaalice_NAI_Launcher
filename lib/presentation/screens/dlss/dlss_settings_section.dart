@@ -42,6 +42,9 @@ class _DlssSettingsSectionState extends ConsumerState<DlssSettingsSection> {
         DlssEnvironmentCard(controller: controller),
         const SizedBox(height: 16),
         SettingsCard(
+          key: const Key('dlss-activation-group'),
+          title: l10n.dlss_activation,
+          icon: Icons.power_settings_new,
           child: Column(
             children: [
               SwitchListTile(
@@ -79,13 +82,7 @@ class _DlssSettingsSectionState extends ConsumerState<DlssSettingsSection> {
           onSelected: (value) => setState(() => _selected = value),
         ),
         const SizedBox(height: 16),
-        SettingsCard(
-          title: l10n.dlss_defaults,
-          child: const Padding(
-            padding: EdgeInsets.all(8),
-            child: DlssPresetEditor(),
-          ),
-        ),
+        const DlssPresetEditor(),
         const SizedBox(height: 16),
         DlssMaintenanceCard(controller: controller),
       ],

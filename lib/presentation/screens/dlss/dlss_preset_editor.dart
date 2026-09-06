@@ -5,8 +5,10 @@ import '../../../core/utils/localization_extension.dart';
 import '../../../data/services/dlss/dlss_presets.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../providers/dlss_provider.dart';
+import '../../widgets/common/safe_dropdown.dart';
 import '../../widgets/common/themed_confirm_dialog.dart';
 import '../../widgets/common/themed_input_dialog.dart';
+import '../settings/widgets/settings_card.dart';
 import 'dlss_options_editor.dart';
 
 enum _PresetAction { create, save, rename, delete }
@@ -92,26 +94,37 @@ class _DlssPresetEditorState extends ConsumerState<DlssPresetEditor> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text(
-              l10n.dlss_parameterPreset,
-              style: theme.textTheme.titleSmall?.copyWith(
-                fontWeight: FontWeight.w700,
+            SettingsCard(
+              key: const Key('dlss-preset-group'),
+              title: l10n.dlss_parameterPreset,
+              icon: Icons.bookmark_border,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 4),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    _presetSelector(controller, state, enabled, l10n),
+                    const SizedBox(height: 8),
+                    Text(
+                      state.modified
+                          ? l10n.dlss_draftSaved
+                          : state.selected.builtIn
+                          ? l10n.dlss_builtinPreset
+                          : l10n.dlss_customPreset,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                    if (_error != null)
+                      Text(
+                        '$_error',
+                        style: TextStyle(color: theme.colorScheme.error),
+                      ),
+                  ],
+                ),
               ),
             ),
-            _presetSelector(controller, state, enabled, l10n),
-            Text(
-              state.modified
-                  ? l10n.dlss_draftSaved
-                  : state.selected.builtIn
-                  ? l10n.dlss_builtinPreset
-                  : l10n.dlss_customPreset,
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
-              ),
-            ),
-            if (_error != null)
-              Text('$_error', style: TextStyle(color: theme.colorScheme.error)),
-            const SizedBox(height: 28),
+            const SizedBox(height: 16),
             DlssOptionsEditor(
               value: state.options,
               onChanged: enabled ? controller.setOptions : null,
@@ -135,35 +148,34 @@ class _DlssPresetEditorState extends ConsumerState<DlssPresetEditor> {
   ) => Row(
     children: [
       Expanded(
-        child: DropdownButtonHideUnderline(
-          child: DropdownButton<String>(
-            key: const Key('dlss-preset-selector'),
-            value: state.selected.id,
-            isExpanded: true,
-            itemHeight: null,
-            items: [
-              for (final preset in state.presets)
-                DropdownMenuItem(
-                  value: preset.id,
-                  child: Tooltip(
-                    message: _name(preset, l10n),
-                    child: Text(
-                      _name(preset, l10n),
-                      overflow: TextOverflow.ellipsis,
-                    ),
+        child: SafeDropdown<String>(
+          key: const Key('dlss-preset-selector'),
+          value: state.selected.id,
+          isExpanded: true,
+          itemHeight: null,
+          items: [
+            for (final preset in state.presets)
+              DropdownMenuItem(
+                value: preset.id,
+                child: Tooltip(
+                  message: _name(preset, l10n),
+                  child: Text(
+                    _name(preset, l10n),
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
-            ],
-            onChanged: enabled
-                ? (id) {
-                    if (id != null) {
-                      _perform(() => controller.selectPreset(id));
-                    }
+              ),
+          ],
+          onChanged: enabled
+              ? (id) {
+                  if (id != null) {
+                    _perform(() => controller.selectPreset(id));
                   }
-                : null,
-          ),
+                }
+              : null,
         ),
       ),
+      const SizedBox(width: 4),
       _presetMenu(state, enabled, l10n),
     ],
   );

@@ -6945,5 +6945,11 @@
   "dlss_presetNatural": "Natural",
   "dlss_presetCinema": "Cinematic",
   "dlss_presetCrisp": "Detail",
-  "dlss_presetColor": "Color preservation"
+  "dlss_presetColor": "Color preservation",
+  "dlss_detailAndColor": "Detail and color",
+  "dlss_nrModel": "NR model",
+  "dlss_localAdjustments": "Local adjustments",
+  "dlss_modelStrengths": "Model strengths",
+  "dlss_modelSwitches": "Model options",
+  "dlss_activation": "Activation and automation"
 }

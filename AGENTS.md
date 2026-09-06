@@ -120,6 +120,10 @@ Windows release 产物位于 `build/windows/x64/runner/Release/`。macOS 使用 
 
 新增或修改界面必须遵循仓库根目录的 [`DESIGN.md`](DESIGN.md)。项目采用 Quiet Layered Utility（静谧层叠工具界面）：内容优先、无边框优先、细边框兜底，主要通过排版、留白和低对比色面建立层级。普通卡片、工具按钮、导航项与已填充控件不得默认添加完整描边；主题个性不得破坏统一的信息层级、交互状态、密度、响应式和可访问性规则。
 
+参数面板、设置页、筛选弹窗与选项菜单必须先明确每个字段/操作的分组归属，再按 [参数面板与菜单分组](DESIGN.md#参数面板与菜单分组) 实现。多组表单复用现有 Section 卡片，标题与全部所属参数在同一色面内；高级组展开后仍由整张卡片包住，不能成为无分组的控件墙。共享编辑器复用同一分组结构，不另套重复外层卡片；短操作菜单按职责分段，不为分组机械增加多层卡片。
+
+此类 UI 修改的回归必须检查折叠/展开、窄屏与 3x 文本下的字段归属、容器边界、全部操作可达及编辑状态保留；有截图验收时逐组检查标题、首尾项和相邻组，不能只验证没有 overflow。设计细节只维护在 `DESIGN.md`，不创建大小写不同的第二份设计规范。
+
 Material 3 的中性色面必须在 `ThemeComposer` 中补全并作为跨端唯一事实来源：`surfaceContainerLowest` 至 `surfaceContainerHighest` 不得全部退化为 `surface`，缺失色阶只能从 `surface` 做中性明度变化，严禁混入 `onSurface`、品牌色、强调色或错误色。Android、Windows 与 macOS 必须消费同一套解析结果，不按平台修补普通卡片颜色；Section、Control、Overlay 分别复用 `sectionSurfaceColor`、`controlSurfaceColor`、`overlaySurfaceColor`，并用最终 `ThemeData` 回归测试验证中性色不偏红、层级可辨且切换 `TargetPlatform` 不改变语义色。
 
 所有共享 UI 从设计阶段起必须同时覆盖 Windows/macOS 桌面端和 Android 手机、横屏、平板/大屏，不能先完成桌面版再以缩放、裁切或静默删减功能得到移动版。业务能力、字段语义、状态和操作结果保持跨端一致；导航容器、面板呈现和输入方式可按 constraints 与设备能力自适应。桌面端保留鼠标、触控板、键盘、hover、快捷键和上下文操作效率；移动端提供不依赖 hover/右键/外接键盘的触屏等价入口，并正确处理 `SafeArea`、系统返回、横竖屏、软键盘和系统手势区。共享业务组件、Provider、路由状态和操作命令必须复用，平台差异集中在导航壳层、capabilities/service 与 conditional import，不在页面散落 `Platform.isAndroid` 或复制业务流程。

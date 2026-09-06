@@ -26526,6 +26526,42 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Color preservation'**
   String get dlss_presetColor;
+
+  /// No description provided for @dlss_detailAndColor.
+  ///
+  /// In en, this message translates to:
+  /// **'Detail and color'**
+  String get dlss_detailAndColor;
+
+  /// No description provided for @dlss_nrModel.
+  ///
+  /// In en, this message translates to:
+  /// **'NR model'**
+  String get dlss_nrModel;
+
+  /// No description provided for @dlss_localAdjustments.
+  ///
+  /// In en, this message translates to:
+  /// **'Local adjustments'**
+  String get dlss_localAdjustments;
+
+  /// No description provided for @dlss_modelStrengths.
+  ///
+  /// In en, this message translates to:
+  /// **'Model strengths'**
+  String get dlss_modelStrengths;
+
+  /// No description provided for @dlss_modelSwitches.
+  ///
+  /// In en, this message translates to:
+  /// **'Model options'**
+  String get dlss_modelSwitches;
+
+  /// No description provided for @dlss_activation.
+  ///
+  /// In en, this message translates to:
+  /// **'Activation and automation'**
+  String get dlss_activation;
 }
 
 class _AppLocalizationsDelegate

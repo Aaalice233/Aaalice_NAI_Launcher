@@ -6970,5 +6970,11 @@
   "dlss_presetNatural": "ナチュラル",
   "dlss_presetCinema": "シネマ",
   "dlss_presetCrisp": "ディテール",
-  "dlss_presetColor": "色の保持"
+  "dlss_presetColor": "色の保持",
+  "dlss_detailAndColor": "ディテールと色",
+  "dlss_nrModel": "NR モデル",
+  "dlss_localAdjustments": "局所調整",
+  "dlss_modelStrengths": "モデル強度",
+  "dlss_modelSwitches": "モデルオプション",
+  "dlss_activation": "有効化と自動処理"
 }

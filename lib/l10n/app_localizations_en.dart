@@ -15237,4 +15237,22 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get dlss_presetColor => 'Color preservation';
+
+  @override
+  String get dlss_detailAndColor => 'Detail and color';
+
+  @override
+  String get dlss_nrModel => 'NR model';
+
+  @override
+  String get dlss_localAdjustments => 'Local adjustments';
+
+  @override
+  String get dlss_modelStrengths => 'Model strengths';
+
+  @override
+  String get dlss_modelSwitches => 'Model options';
+
+  @override
+  String get dlss_activation => 'Activation and automation';
 }

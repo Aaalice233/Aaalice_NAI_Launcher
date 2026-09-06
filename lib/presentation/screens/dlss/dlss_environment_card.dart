@@ -26,6 +26,7 @@ class DlssEnvironmentCard extends StatelessWidget {
     final state = controller.environment;
     return SettingsCard(
       title: l10n.dlss_environment,
+      icon: Icons.memory,
       child: Padding(
         padding: const EdgeInsets.all(8),
         child: Column(

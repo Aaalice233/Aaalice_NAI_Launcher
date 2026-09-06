@@ -7292,5 +7292,11 @@
   "dlss_presetNatural": "自然",
   "dlss_presetCinema": "電影",
   "dlss_presetCrisp": "細節",
-  "dlss_presetColor": "保色"
+  "dlss_presetColor": "保色",
+  "dlss_detailAndColor": "細節與顏色",
+  "dlss_nrModel": "NR 模型",
+  "dlss_localAdjustments": "局部調整",
+  "dlss_modelStrengths": "模型強度",
+  "dlss_modelSwitches": "模型開關",
+  "dlss_activation": "啟用與自動處理"
 }

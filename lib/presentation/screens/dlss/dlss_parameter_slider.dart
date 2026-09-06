@@ -84,7 +84,7 @@ class _DlssParameterSliderState extends State<DlssParameterSlider> {
       widget.value,
     );
     return Padding(
-      padding: const EdgeInsets.only(top: 8),
+      padding: const EdgeInsets.only(top: 4),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -113,6 +113,7 @@ class _DlssParameterSliderState extends State<DlssParameterSlider> {
             ),
           ),
           Slider(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
             value: widget.value,
             min: widget.minimum,
             max: maximum,

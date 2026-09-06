@@ -24,9 +24,96 @@ import 'package:nai_launcher/presentation/screens/dlss/dlss_preset_editor.dart';
 import 'package:nai_launcher/presentation/screens/generation/widgets/img2img_dlss_upscale_controls.dart';
 import 'package:nai_launcher/presentation/screens/settings/sections/generation_settings_section.dart';
 import 'package:nai_launcher/presentation/screens/settings/sections/integrations_settings_section.dart';
+import 'package:nai_launcher/presentation/screens/settings/widgets/settings_card.dart';
 import 'package:nai_launcher/presentation/widgets/gallery/local_image_context_menu.dart';
 
 void main() {
+  testWidgets(
+    'recreating an expanded editor cannot restore bool as scroll offset',
+    (tester) async {
+      final controller = _Controller();
+      final bucket = PageStorageBucket();
+      Widget editor(int generation) => _app(
+        controller,
+        Scaffold(
+          body: PageStorage(
+            bucket: bucket,
+            child: SingleChildScrollView(
+              child: DlssOptionsEditor(
+                key: ValueKey(generation),
+                value: controller.options,
+                onChanged: controller.setOptions,
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpWidget(editor(1));
+      await tester.pumpAndSettle();
+      await tester.ensureVisible(find.text('高级参数'));
+      await tester.tap(find.text('高级参数'));
+      await tester.pumpAndSettle();
+      await tester.pumpWidget(editor(2));
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets('group reflow and collapse preserve pending edits and help', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(640, 380));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final controller = _Controller();
+    final editor = Scaffold(
+      body: SafeArea(
+        child: SingleChildScrollView(
+          child: DlssOptionsEditor(
+            value: controller.options,
+            onChanged: controller.setOptions,
+          ),
+        ),
+      ),
+    );
+    await tester.pumpWidget(_app(controller, editor));
+    await tester.pumpAndSettle();
+    final advancedTitle = find.text('高级参数');
+    await tester.ensureVisible(advancedTitle);
+    await tester.tap(advancedTitle);
+    await tester.pumpAndSettle();
+    final help = find.byKey(const ValueKey('dlss-help-细节混合'));
+    await tester.ensureVisible(help);
+    await tester.tap(help);
+    await tester.pumpAndSettle();
+    final field = find.byKey(const ValueKey('dlss-value-细节混合'));
+    final before = tester.widget<TextField>(field);
+    await tester.ensureVisible(field);
+    await tester.enterText(field, '1.');
+    await tester.binding.setSurfaceSize(const Size(320, 380));
+    await tester.pumpAndSettle();
+    final after = tester.widget<TextField>(field);
+    expect(after.controller, same(before.controller));
+    expect(after.controller!.text, '1.');
+    expect(after.focusNode, same(before.focusNode));
+    expect(after.focusNode!.hasFocus, isTrue);
+    await tester.enterText(field, 'NaN');
+    await tester.testTextInput.receiveAction(TextInputAction.done);
+    await tester.pumpAndSettle();
+    expect(find.text('请输入此参数支持的有效数值。'), findsOneWidget);
+    await tester.ensureVisible(advancedTitle);
+    await tester.tap(advancedTitle);
+    await tester.pumpAndSettle();
+    expect(field, findsNothing);
+    expect(find.byKey(const Key('dlss-advanced-group')), findsOneWidget);
+    await tester.tap(advancedTitle);
+    await tester.pumpAndSettle();
+    expect(tester.widget<TextField>(field).controller, same(before.controller));
+    expect(tester.widget<TextField>(field).controller!.text, 'NaN');
+    expect(find.text('请输入此参数支持的有效数值。'), findsOneWidget);
+    expect(tester.widget<IconButton>(help).isSelected, isTrue);
+    expect(tester.takeException(), isNull);
+  });
+
   for (final width in [320.0, 600.0, 840.0, 1180.0, 1600.0]) {
     testWidgets('all six presets remain selectable at $width and 3x text', (
       tester,
@@ -276,6 +363,36 @@ void main() {
         await tester.pumpAndSettle();
         expect(options.autoMask, !const DlssOptions().autoMask);
         expect(options.uiCorrection, !const DlssOptions().uiCorrection);
+        final advanced = find.byKey(const Key('dlss-advanced-group'));
+        final advancedBounds = tester.getRect(advanced);
+        for (final label in [
+          '细节与颜色',
+          'NR 模型',
+          '局部调整',
+          '模型强度',
+          '模型开关',
+          '细节混合',
+          '颜色混合',
+          '局部结构',
+          '局部色调',
+          '皮肤结构',
+          '全局色调',
+          '自动遮罩',
+          'UI 修正',
+        ]) {
+          final child = find.descendant(
+            of: advanced,
+            matching: find.text(label),
+          );
+          expect(child, findsOneWidget);
+          final bounds = tester.getRect(child);
+          expect(advancedBounds.contains(bounds.topLeft), isTrue);
+          expect(advancedBounds.contains(bounds.bottomRight), isTrue);
+        }
+        expect(
+          find.descendant(of: advanced, matching: find.byType(SettingsCard)),
+          findsNothing,
+        );
         expect(tester.takeException(), isNull);
       });
       testWidgets(
@@ -295,6 +412,20 @@ void main() {
             ),
           );
           await tester.pumpAndSettle();
+          for (final key in [
+            'dlss-preset-group',
+            'dlss-processing-group',
+            'dlss-appearance-group',
+            'dlss-advanced-group',
+          ]) {
+            final group = find.byKey(Key(key));
+            expect(group, findsOneWidget);
+            expect(
+              find.ancestor(of: group, matching: find.byType(SettingsCard)),
+              findsNothing,
+              reason: 'each parameter group must stand on its own surface',
+            );
+          }
           final list = find.byType(Scrollable).first;
           await tester.scrollUntilVisible(
             find.byKey(const Key('dlss-install')),
