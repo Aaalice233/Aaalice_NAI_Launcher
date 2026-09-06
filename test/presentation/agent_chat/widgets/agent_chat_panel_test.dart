@@ -1205,6 +1205,21 @@ void main() {
       );
       await tester.pump();
 
+      final statusRow = find.byKey(
+        const ValueKey('generation-mobile-status-row'),
+      );
+      final bottomBar = find.byKey(
+        const ValueKey('generation-mobile-bottom-bar'),
+      );
+      expect(tester.getSize(statusRow).height, 44);
+      expect(tester.getRect(statusRow).top - tester.getRect(bottomBar).top, 3);
+      expect(
+        tester.getSize(
+          find.byKey(const ValueKey('generation-add-current-to-queue')),
+        ),
+        const Size.square(44),
+      );
+
       var hapticCount = 0;
       tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
         SystemChannels.platform,

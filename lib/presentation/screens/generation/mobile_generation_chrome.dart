@@ -160,7 +160,7 @@ class MobileGenerationChrome extends ConsumerWidget {
       top: false,
       child: Container(
         key: const ValueKey('generation-mobile-bottom-bar'),
-        padding: const EdgeInsets.fromLTRB(12, 6, 12, 7),
+        padding: const EdgeInsets.fromLTRB(12, 2, 12, 7),
         decoration: BoxDecoration(
           color: theme.colorScheme.surface,
           border: Border(top: BorderSide(color: theme.dividerColor)),
@@ -170,6 +170,7 @@ class MobileGenerationChrome extends ConsumerWidget {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Wrap(
+              key: const ValueKey('generation-mobile-status-row'),
               alignment: WrapAlignment.spaceBetween,
               crossAxisAlignment: WrapCrossAlignment.center,
               spacing: 6,
@@ -189,9 +190,21 @@ class MobileGenerationChrome extends ConsumerWidget {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     if (data.showRandomTools)
-                      RandomModeToggle(enabled: data.randomModeEnabled),
+                      SizedBox.square(
+                        dimension: 44,
+                        child: RandomModeToggle(
+                          enabled: data.randomModeEnabled,
+                          compact: true,
+                        ),
+                      ),
                     IconButton(
                       key: const ValueKey('generation-add-current-to-queue'),
+                      style: IconButton.styleFrom(
+                        minimumSize: const Size.square(44),
+                        padding: EdgeInsets.zero,
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        visualDensity: VisualDensity.standard,
+                      ),
                       onPressed: () =>
                           controller.addCurrentPromptToQueue(context),
                       icon: const Icon(Icons.playlist_add_rounded),
@@ -201,7 +214,7 @@ class MobileGenerationChrome extends ConsumerWidget {
                 ),
               ],
             ),
-            const SizedBox(height: 5),
+            const SizedBox(height: 2),
             _MobileGenerateButton(
               isGenerating: data.isGenerating,
               showCancel: data.isLauncherGenerating,
