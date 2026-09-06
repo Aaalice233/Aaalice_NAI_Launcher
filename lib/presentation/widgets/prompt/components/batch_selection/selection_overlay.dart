@@ -1,3 +1,4 @@
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -129,6 +130,9 @@ class _BoxSelectionOverlayState extends State<BoxSelectionOverlay> {
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
+      // Competing tap handlers may resolve after movement; anchor the box at
+      // pointer-down so the first drag segment still selects crossed tags.
+      dragStartBehavior: DragStartBehavior.down,
       onPanDown: widget.enabled
           ? (details) {
               _downAllowed = widget.startOnEmptySpace

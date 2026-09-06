@@ -70,6 +70,9 @@ class StorageKeys {
 
   // Device-local editor preferences; intentionally absent from cloud sync.
   static const String promptTagMode = 'prompt_tag_mode';
+  // Mouse interaction preference stays local to the device's input setup.
+  static const String imageComparisonFollowMouse =
+      'image_comparison_follow_mouse';
   static const String promptEditorManualHeight = 'prompt_editor_manual_height';
   static const String promptMaximized = 'prompt_maximized';
   static const String generationLayoutMode = 'generation_layout_mode';

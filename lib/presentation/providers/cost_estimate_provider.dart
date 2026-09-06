@@ -144,7 +144,7 @@ int estimatedCost(Ref ref) {
   final opusQuotaExhausted = subscription?.usage?.isNegative ?? false;
 
   if (workflow.isUpscale) {
-    if (workflow.upscale.backend == UpscaleBackend.comfyui) {
+    if (workflow.upscale.backend != UpscaleBackend.novelai) {
       return 0;
     }
 

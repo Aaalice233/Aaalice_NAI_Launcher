@@ -5768,6 +5768,13 @@ class AppLocalizationsEn extends AppLocalizations {
   String get comparison_maxImages => 'Maximum 4 images allowed for comparison';
 
   @override
+  String get comparison_followMouse => 'Follow mouse';
+
+  @override
+  String get comparison_followMouseHint =>
+      'Move the mouse to position the comparison divider. Drag the image to pan.';
+
+  @override
   String get comparison_close => 'Close comparison';
 
   @override
@@ -14867,4 +14874,359 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get agentTool_resultTruncated => 'Content truncated';
+
+  @override
+  String get dlss_activate => 'Use this version';
+
+  @override
+  String get dlss_automatic => 'Enhance after generation';
+
+  @override
+  String get dlss_automaticHint =>
+      'Off by default. Enhance completed images before history and automatic saving.';
+
+  @override
+  String get dlss_color => 'NR color contribution';
+
+  @override
+  String get dlss_current => 'Active';
+
+  @override
+  String get dlss_openPage => 'Open DLSSNR';
+
+  @override
+  String get dlss_description =>
+      'Enhance images locally and manage runtimes and defaults.';
+
+  @override
+  String get dlss_detail => 'Output blend';
+
+  @override
+  String get dlss_enabled => 'Enable DLSS enhancement';
+
+  @override
+  String get dlss_failed =>
+      'DLSS enhancement failed; the original was retained';
+
+  @override
+  String get dlss_install => 'Install and activate';
+
+  @override
+  String get dlss_installed => 'Installed versions';
+
+  @override
+  String get dlss_intensity => 'NR intensity';
+
+  @override
+  String get dlss_latest => 'Latest stable';
+
+  @override
+  String get dlss_noReleases =>
+      'No installable releases. Refresh the version list.';
+
+  @override
+  String get dlss_notInstalled => 'Not installed';
+
+  @override
+  String get dlss_original => 'Original';
+
+  @override
+  String get dlss_prerelease => 'Prerelease';
+
+  @override
+  String get dlss_previewHint =>
+      'Adjust parameters, then run. Every preview starts from this original. Saving creates a new file.';
+
+  @override
+  String get dlss_result => 'Enhanced result';
+
+  @override
+  String get dlss_run => 'Run enhancement';
+
+  @override
+  String get dlss_running => 'Running DLSS enhancement…';
+
+  @override
+  String get dlss_runtime => 'Runtime versions';
+
+  @override
+  String get dlss_saveCopy => 'Save enhanced copy';
+
+  @override
+  String get dlss_source =>
+      'Components come from public video2dlssnr releases. Installation downloads the full archive, extracts required files and runs a real enhancement test.';
+
+  @override
+  String get dlss_structure => 'Structure strength';
+
+  @override
+  String get dlss_style => 'Style';
+
+  @override
+  String get dlss_styleCinematic => 'Cinematic';
+
+  @override
+  String get dlss_styleDefault => 'Default';
+
+  @override
+  String get dlss_styleNatural => 'Natural';
+
+  @override
+  String get dlss_title => 'DLSSNR Image Enhancement';
+
+  @override
+  String get dlss_tone => 'Lighting and tone strength';
+
+  @override
+  String get dlss_advanced => 'Advanced parameters';
+
+  @override
+  String get dlss_cancelled => 'Enhancement cancelled; original retained';
+
+  @override
+  String get dlss_checking => 'Checking';
+
+  @override
+  String get dlss_detect => 'Check again';
+
+  @override
+  String get dlss_diskUsage => 'Installed component size';
+
+  @override
+  String get dlss_driver => 'Driver';
+
+  @override
+  String get dlss_environment => 'Environment';
+
+  @override
+  String get dlss_gpuAutomatic => 'Automatically select a working GPU';
+
+  @override
+  String get dlss_initializationFailed =>
+      'Enhancement initialization failed. Check the diagnostics.';
+
+  @override
+  String get dlss_invalidComponents =>
+      'Runtime files are damaged or changed. Switch versions or reinstall.';
+
+  @override
+  String get dlss_loadingReleases => 'Loading release list…';
+
+  @override
+  String get dlss_maintenance => 'Try and maintain';
+
+  @override
+  String get dlss_menu => 'DLSSNR Image Enhancement…';
+
+  @override
+  String get dlss_missingRuntime => 'Install a runtime first';
+
+  @override
+  String get dlss_noGpu => 'No usable NVIDIA D3D12 device';
+
+  @override
+  String get dlss_notChecked => 'Not checked';
+
+  @override
+  String get dlss_ready => 'Real enhancement test passed';
+
+  @override
+  String get dlss_tryImage => 'Try a local image';
+
+  @override
+  String get dlss_unknown => 'Unknown';
+
+  @override
+  String get dlss_downloading => 'Downloading components…';
+
+  @override
+  String get dlss_extracting => 'Verifying and extracting components…';
+
+  @override
+  String get dlss_probing => 'Testing GPU enhancement…';
+
+  @override
+  String get dlss_activating => 'Finishing installation…';
+
+  @override
+  String get dlss_diagnostics => 'Diagnostic details';
+
+  @override
+  String get dlss_operationFailed =>
+      'Operation failed. Check diagnostic details and retry.';
+
+  @override
+  String get dlss_downloadFailed =>
+      'Download failed. Check your connection and retry.';
+
+  @override
+  String get dlss_operationCancelled => 'Operation cancelled';
+
+  @override
+  String get dlss_disabled =>
+      'Enhancement is disabled. Enable it in settings first.';
+
+  @override
+  String get dlss_timeout => 'Enhancement timed out. Retry or check the GPU.';
+
+  @override
+  String get dlss_outOfMemory =>
+      'Insufficient GPU memory. Close other GPU applications and retry.';
+
+  @override
+  String get dlss_saveFailed =>
+      'Save failed. Check the image folder and free disk space.';
+
+  @override
+  String get dlss_compareHint =>
+      'Full-resolution comparison fits the window by default. Select 100% to inspect actual pixels; drag to pan or move the divider to compare.';
+
+  @override
+  String get dlss_skin => 'Skin structure strength';
+
+  @override
+  String get dlss_modelDefault => 'Model default';
+
+  @override
+  String get dlss_autoMask => 'Auto mask';
+
+  @override
+  String get dlss_styleHint =>
+      'Selects runtime style 0, 1 or 2 without changing dimensions. Default, Natural and Cinematic retain upstream names; their correspondence to official Model A/B/C has not been verified.';
+
+  @override
+  String get dlss_intensityHint =>
+      'Controls the overall NR effect from 0 to 1. Zero disables the NR effect; one applies full intensity. Higher values produce the same output as one in the current runtime. SR scaling and output blend are separate controls.';
+
+  @override
+  String get dlss_detailHint =>
+      'Controls the overall NR effect, not material detail alone. 0 retains the NR input (the upscaled image when SR is enabled); 1 applies the enhanced result with the NR color contribution setting. Values above 1 amplify the difference and may exaggerate or distort the image.';
+
+  @override
+  String get dlss_colorHint =>
+      '0 keeps the original hue with enhanced luminance; 1 uses the enhanced colours. Lower values stay closer to the original palette.';
+
+  @override
+  String get dlss_structureHint =>
+      'Controls material texture, local shading and structural changes, rather than ordinary sharpening. One is the reference level; the usual slider range is 0–2. Values above one remain effective, but high values can introduce grain, color shifts and distorted detail.';
+
+  @override
+  String get dlss_toneHint =>
+      'Controls broader lighting, shading and color changes. One is the reference level; the usual slider range is 0–2. This is not a fixed brightness or contrast adjustment. Zero does not disable structure changes or guarantee identical source colors.';
+
+  @override
+  String get dlss_skinHint =>
+      'Adjusts skin structure in regions identified by the automatic mask. Requires auto mask. Use -1 for the model default or a nonnegative strength; all negative values use the default. This control does not change output with auto mask off in the current runtime.';
+
+  @override
+  String get dlss_autoMaskHint =>
+      'Enables the model’s internal region mask and skin structure control. Its detected regions cannot currently be previewed. Turning it off may change local effects but does not disable NR overall.';
+
+  @override
+  String get dlss_invalidNumber =>
+      'Enter a valid value supported by this parameter.';
+
+  @override
+  String get dlss_scale => 'SR scale';
+
+  @override
+  String get dlss_scaleHint =>
+      'DLSS SR upscales before NR. Default: 2×; 1× skips SR and runs NR at the original size. Decimal values are supported. Each output edge must stay within 16384 pixels; practical limits depend on GPU memory.';
+
+  @override
+  String get dlss_srHint =>
+      'Local DLSS SR upscale with no NR contribution to the final image. The current runtime still computes one NR pass, requiring a working NR environment and adding processing time.';
+
+  @override
+  String get dlss_srScaleHint =>
+      'Shares the NR panel\'s scale, default 2×. At 1×, processing does not start. Resizes and reconstructs detail without applying NR strength, style, or pass count.';
+
+  @override
+  String get dlss_srUnavailable =>
+      'Install, verify, and enable the runtime in Settings → Integrations → DLSSNR first.';
+
+  @override
+  String get dlss_finalizing => 'NR complete · preparing comparison…';
+
+  @override
+  String get dlss_processing => 'Processing';
+
+  @override
+  String get dlss_appearance => 'Appearance';
+
+  @override
+  String get dlss_parameterPreset => 'Parameter preset';
+
+  @override
+  String get dlss_managePresets => 'Manage presets';
+
+  @override
+  String get dlss_createPreset => 'Save as new preset';
+
+  @override
+  String get dlss_savePreset => 'Save to this preset';
+
+  @override
+  String get dlss_renamePreset => 'Rename preset';
+
+  @override
+  String get dlss_presetName => 'Preset name';
+
+  @override
+  String get dlss_invalidPresetName =>
+      'Enter a name that is not already used by a custom preset.';
+
+  @override
+  String get dlss_deletePresetHint =>
+      'Delete this custom preset? Your current parameter adjustments will be kept.';
+
+  @override
+  String get dlss_draftSaved =>
+      'Modified · Current parameters saved automatically';
+
+  @override
+  String get dlss_builtinPreset =>
+      'Built-in · Read-only; adjust and save a copy';
+
+  @override
+  String get dlss_customPreset => 'Custom preset';
+
+  @override
+  String get dlss_restorePreset => 'Restore this preset';
+
+  @override
+  String get dlss_presetSoft => 'Soft';
+
+  @override
+  String get dlss_presetLight => 'Color-preserving enhancement';
+
+  @override
+  String get dlss_presetNatural => 'Natural';
+
+  @override
+  String get dlss_presetCinema => 'Cinematic';
+
+  @override
+  String get dlss_presetMaterial => 'Texture & light';
+
+  @override
+  String get dlss_presetCrisp => 'Detail';
+
+  @override
+  String get dlss_presetVivid => 'Vivid';
+
+  @override
+  String get dlss_detailAndColor => 'Output blending';
+
+  @override
+  String get dlss_localAdjustments => 'Local adjustments';
+
+  @override
+  String get dlss_modelStrengths => 'Model strengths';
+
+  @override
+  String get dlss_modelSwitches => 'Model options';
+
+  @override
+  String get dlss_activation => 'Activation and automation';
 }

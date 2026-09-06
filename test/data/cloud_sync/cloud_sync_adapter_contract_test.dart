@@ -1,4 +1,7 @@
 import 'dart:io';
+import 'dart:convert';
+import 'package:nai_launcher/data/services/dlss/dlss_options.dart';
+import 'package:nai_launcher/data/services/dlss/dlss_presets.dart';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hive/hive.dart';
@@ -142,6 +145,10 @@ void main() {
     Hive.init(directory.path);
     await Hive.openBox<dynamic>(StorageKeys.settingsBox);
     final storage = LocalStorageService();
+    final dlssState = DlssPresetState()
+        .create('custom-texture', '质感预设')
+        .withOptions(const DlssOptions(scale: 1, detail: 2));
+    await storage.setSetting('dlss_options', jsonEncode(dlssState.toJson()));
     await storage.setSetting(StorageKeys.locale, 'ja');
     await storage.setSetting(StorageKeys.shareWatermark, true);
     await storage.setSetting(StorageKeys.accessToken, 'secret-token');
@@ -178,8 +185,15 @@ void main() {
 
     await storage.setSetting(StorageKeys.locale, 'en');
     await storage.setSetting(StorageKeys.shareWatermark, false);
+    await storage.deleteSetting('dlss_options');
     await storage.deleteSetting(StorageKeys.watermarkConfigV1);
     await adapter.apply(records);
+    final dlssRestored = DlssPresetState.fromJson(
+      jsonDecode(storage.getSetting<String>('dlss_options')!)
+          as Map<String, dynamic>,
+    );
+    expect(dlssRestored.toJson(), dlssState.toJson());
+    expect(dlssRestored.modified, isTrue);
     expect(storage.getSetting<String>(StorageKeys.locale), 'ja');
     expect(storage.getSetting<bool>(StorageKeys.shareWatermark), isTrue);
     expect(

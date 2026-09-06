@@ -971,7 +971,7 @@ User instructions.
     });
 
     test(
-      'override is the exact outbound prompt for new and restored sessions',
+      'override preserves custom body and runtime context across sessions',
       () async {
         final configNotifier = container.read(
           promptAssistantConfigProvider.notifier,
@@ -1012,8 +1012,16 @@ User instructions.
 
         expect(requests, hasLength(3));
         for (final request in requests) {
-          expect(request.systemPrompt, 'EXACT_OVERRIDE');
-          expect(request.systemPrompt, isNot(contains('Aaalice')));
+          expect(
+            request.systemPrompt,
+            startsWith('EXACT_OVERRIDE\n\n<aaalice_runtime_context>'),
+          );
+          expect(request.systemPrompt, contains(tempDir.path));
+          expect(request.systemPrompt, contains('Web access is disabled.'));
+          expect(
+            request.systemPrompt,
+            isNot(contains('You are the AI agent inside Aaalice')),
+          );
           expect(request.systemPrompt, isNot(contains('<skills>')));
           expect(request.tools, isNotEmpty);
         }

@@ -3,6 +3,7 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 
+import '../../../widgets/common/image_viewport_surface.dart';
 import '../../../../core/utils/focused_inpaint_utils.dart';
 import '../../../widgets/common/decoded_memory_image.dart';
 import '../../../widgets/image_editor/painters/focused_overlay_painter.dart';
@@ -63,7 +64,7 @@ class _Img2ImgSourcePreviewState extends State<Img2ImgSourcePreview> {
   @override
   Widget build(BuildContext context) {
     return ColoredBox(
-      color: Theme.of(context).colorScheme.surfaceContainerHighest,
+      color: ImageViewportSurface.background,
       child: LayoutBuilder(
         builder: (context, constraints) {
           final size = _containedSize(constraints);

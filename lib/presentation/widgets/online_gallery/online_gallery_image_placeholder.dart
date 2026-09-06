@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../common/image_viewport_surface.dart';
 import '../../../core/utils/localization_extension.dart';
 
 /// Stable, low-contrast surface used while gallery media is unavailable.
@@ -17,31 +18,30 @@ class OnlineGalleryImagePlaceholder extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).colorScheme;
     return ColoredBox(
-      color: colors.surfaceContainerLow,
+      color: ImageViewportSurface.background,
       child: failed
           ? Center(
               child: onRetry == null
-                  ? Icon(
+                  ? const Icon(
                       Icons.image_not_supported_outlined,
-                      color: colors.onSurfaceVariant.withValues(alpha: 0.38),
+                      color: ImageViewportSurface.mutedForeground,
                     )
                   : IconButton(
                       onPressed: onRetry,
                       tooltip: context.l10n.common_retry,
-                      icon: Icon(
+                      icon: const Icon(
                         Icons.refresh_rounded,
-                        color: colors.onSurfaceVariant.withValues(alpha: 0.62),
+                        color: ImageViewportSurface.mutedForeground,
                       ),
                     ),
             )
           : loading
-          ? Center(
+          ? const Center(
               child: Icon(
                 Icons.downloading_rounded,
                 size: 20,
-                color: colors.onSurfaceVariant.withValues(alpha: 0.28),
+                color: ImageViewportSurface.mutedForeground,
               ),
             )
           : const SizedBox.expand(),

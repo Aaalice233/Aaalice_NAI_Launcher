@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../image_viewport_surface.dart';
 import '../../../../../core/utils/localization_extension.dart';
 import '../image_detail_data.dart';
 
@@ -118,7 +119,7 @@ class _DetailImagePageState extends State<DetailImagePage>
   /// 构建加载指示器
   Widget _buildLoadingIndicator(BuildContext context) {
     return Container(
-      color: Colors.black,
+      color: ImageViewportSurface.background,
       child: Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,

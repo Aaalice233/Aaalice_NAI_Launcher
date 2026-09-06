@@ -2,9 +2,11 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../common/image_viewport_surface.dart';
 import '../../../core/cache/local_gallery_thumbnail_provider.dart';
 import '../../../core/mosaic/mosaic_derivative_registry.dart';
 import '../../../core/platform/platform_capabilities.dart';
@@ -229,7 +231,7 @@ class _LocalImageCard3DState extends ConsumerState<LocalImageCard3D> {
     final cardHeight = widget.height ?? widget.width;
     final colorScheme = theme.colorScheme;
     final interactionPolicy = context.interactionPolicy;
-    final isTouch = interactionPolicy.touchAvailable;
+    final isTouch = interactionPolicy.usesTouchActionMenu;
     final aspectRatio = widget.width / cardHeight;
     final buttonDirection = aspectRatio > 1.3 ? Axis.horizontal : Axis.vertical;
     final reducedMotion = MediaQuery.disableAnimationsOf(context);
@@ -252,7 +254,7 @@ class _LocalImageCard3DState extends ConsumerState<LocalImageCard3D> {
           width: widget.width,
           height: cardHeight,
           decoration: BoxDecoration(
-            color: colorScheme.surfaceContainerLow,
+            color: ImageViewportSurface.background,
             borderRadius: BorderRadius.circular(12),
             boxShadow: [
               BoxShadow(
@@ -266,7 +268,8 @@ class _LocalImageCard3DState extends ConsumerState<LocalImageCard3D> {
           ),
           foregroundDecoration: BoxDecoration(
             borderRadius: BorderRadius.circular(12),
-            border: _isFocused
+            border:
+                _isFocused && context.interactionPolicy.keyboardNavigationActive
                 ? Border.all(color: colorScheme.primary, width: 1)
                 : null,
           ),
@@ -548,7 +551,7 @@ class _LocalImageCard3DState extends ConsumerState<LocalImageCard3D> {
             if (widget.onSendAction != null && widget.enableAddToAgent)
               item(
                 value: LocalImageContextAction.addToAgent,
-                icon: Icons.auto_awesome_outlined,
+                icon: Icons.smart_toy_outlined,
                 label: context.l10n.agentChat_addResource,
               ),
             if (widget.onSendAction != null)
@@ -613,7 +616,7 @@ class _LocalImageCard3DState extends ConsumerState<LocalImageCard3D> {
         ),
       if (widget.onSendAction != null && widget.enableAddToAgent)
         CardActionButtonConfig(
-          icon: Icons.auto_awesome_outlined,
+          icon: Icons.smart_toy_outlined,
           tooltip: context.l10n.agentChat_addResource,
           onPressed: () => unawaited(
             widget.onSendAction!(LocalImageContextAction.addToAgent),
@@ -626,6 +629,14 @@ class _LocalImageCard3DState extends ConsumerState<LocalImageCard3D> {
         onPressed: _copyImageToClipboard,
       ),
       if (widget.onSendAction != null) ...[
+        if (PlatformCapabilities.current.supportsDlssEnhancement)
+          CardActionButtonConfig(
+            icon: Icons.tonality_outlined,
+            tooltip: context.l10n.dlss_title,
+            onPressed: () => unawaited(
+              widget.onSendAction!(LocalImageContextAction.dlssEnhance),
+            ),
+          ),
         CardActionButtonConfig(
           icon: Icons.text_snippet_outlined,
           tooltip: context.l10n.localGallery_copyPrompt,
@@ -634,36 +645,19 @@ class _LocalImageCard3DState extends ConsumerState<LocalImageCard3D> {
           ),
         ),
         CardActionButtonConfig(
-          icon: Icons.delete_outline,
-          tooltip: context.l10n.common_delete,
-          onPressed: () =>
-              unawaited(widget.onSendAction!(LocalImageContextAction.delete)),
-        ),
-        CardActionButtonConfig(
           icon: Icons.send,
           tooltip: context.l10n.localGallery_moreImageActions,
           onPressed: () => unawaited(_showSendMenu(context)),
         ),
+        CardActionButtonConfig(
+          icon: Icons.delete_outline,
+          tooltip: context.l10n.common_delete,
+          iconColor: Theme.of(context).colorScheme.error,
+          onPressed: () =>
+              unawaited(widget.onSendAction!(LocalImageContextAction.delete)),
+        ),
       ],
     ];
-    final buttonStride = context.interactionPolicy.minimumControlExtent + 4;
-    final availableMainAxisExtent = direction == Axis.horizontal
-        ? widget.width
-        : cardHeight;
-    final maximumButtonsPerRun = direction == Axis.vertical
-        ? 3
-        : buttons.length;
-    final buttonsPerRun = ((availableMainAxisExtent + 4) / buttonStride)
-        .floor()
-        .clamp(1, maximumButtonsPerRun);
-    final runs = <List<CardActionButtonConfig>>[
-      for (var start = 0; start < buttons.length; start += buttonsPerRun)
-        buttons.sublist(
-          start,
-          (start + buttonsPerRun).clamp(0, buttons.length),
-        ),
-    ];
-
     return Listener(
       behavior: HitTestBehavior.opaque,
       onPointerDown: (_) => _suppressCardTap = true,
@@ -671,22 +665,11 @@ class _LocalImageCard3DState extends ConsumerState<LocalImageCard3D> {
         scheduleMicrotask(() => _suppressCardTap = false);
       },
       onPointerCancel: (_) => _suppressCardTap = false,
-      child: Flex(
-        direction: direction == Axis.horizontal
-            ? Axis.vertical
-            : Axis.horizontal,
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: direction == Axis.vertical
-            ? CrossAxisAlignment.start
-            : CrossAxisAlignment.center,
-        children: [
-          for (final run in runs)
-            CardActionButtons(
-              visible: _isHovered || _isFocused,
-              direction: direction,
-              buttons: run,
-            ),
-        ],
+      child: CardActionButtons(
+        availableSize: Size(widget.width - 8, cardHeight - 8),
+        visible: _isHovered || _isFocused,
+        direction: direction,
+        buttons: buttons,
       ),
     );
   }

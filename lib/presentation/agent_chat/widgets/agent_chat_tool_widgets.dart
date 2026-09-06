@@ -3,9 +3,11 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../widgets/common/image_viewport_surface.dart';
 import 'agent_tool_result_summary.dart';
 
 import '../../../core/agent/agent_media_display_policy.dart';
@@ -1425,7 +1427,7 @@ class _ToolResultInteractiveImageCardState
                     ),
                     child: ClipRRect(
                       borderRadius: BorderRadius.circular(8),
-                      child: widget.child,
+                      child: ImageViewportSurface(child: widget.child),
                     ),
                   ),
                 ),
@@ -1464,7 +1466,7 @@ class _NetworkImagePreviewPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final reduceMotion = MediaQuery.disableAnimationsOf(context);
     return Material(
-      color: Theme.of(context).colorScheme.surface,
+      color: ImageViewportSurface.background,
       child: AnimatedPadding(
         duration: reduceMotion
             ? Duration.zero

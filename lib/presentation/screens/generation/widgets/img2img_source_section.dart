@@ -11,6 +11,7 @@ import '../../../providers/generation/image_workflow_controller.dart';
 import '../../../widgets/common/app_toast.dart';
 import '../../../widgets/common/image_picker_card/image_picker_card.dart';
 import '../../../utils/comfyui_workflow_l10n.dart';
+import '../../../themes/core/layered_surface_style.dart';
 import '../../../widgets/image_editor/image_editor_screen.dart';
 import 'comfyui_workflow_dialog.dart';
 import 'img2img_panel_coordinator.dart';
@@ -314,31 +315,27 @@ class _OperationChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final foreground = selected
-        ? theme.colorScheme.onPrimaryContainer
-        : theme.colorScheme.onSurface;
-    return Material(
-      color: selected
-          ? theme.colorScheme.primaryContainer
-          : theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.35),
-      borderRadius: BorderRadius.circular(20),
-      child: InkWell(
-        onTap: onPressed,
-        borderRadius: BorderRadius.circular(20),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(icon, size: 16, color: foreground),
-              const SizedBox(width: 6),
-              Text(
-                label,
-                style: theme.textTheme.labelLarge?.copyWith(color: foreground),
-              ),
-            ],
+    final colors = theme.colorScheme;
+    return Semantics(
+      selected: selected,
+      child: FilledButton.icon(
+        onPressed: onPressed,
+        style: FilledButton.styleFrom(
+          backgroundColor: selected
+              ? colors.primary
+              : controlSurfaceColor(colors),
+          foregroundColor: selected ? colors.onPrimary : colors.onSurface,
+          minimumSize: const Size(0, 44),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
+          textStyle: theme.textTheme.labelLarge?.copyWith(
+            fontWeight: FontWeight.w600,
           ),
         ),
+        icon: Icon(icon, size: 18),
+        label: Text(label),
       ),
     );
   }

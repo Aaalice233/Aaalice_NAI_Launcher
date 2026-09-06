@@ -6,7 +6,6 @@ import '../../core/services/auth_error_service.dart';
 import '../../core/utils/localization_extension.dart';
 import '../adaptive/interaction_policy.dart';
 import '../providers/auth_provider.dart';
-import '../widgets/common/update_notice_banner.dart';
 import 'app_routes.dart';
 
 class GlobalStatusBanners extends StatelessWidget {
@@ -14,10 +13,7 @@ class GlobalStatusBanners extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [UpdateNoticeBanner(), _AuthRecoveryBanner()],
-    );
+    return const _AuthRecoveryBanner();
   }
 }
 

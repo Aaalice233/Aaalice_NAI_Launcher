@@ -10,6 +10,50 @@ import 'package:nai_launcher/presentation/widgets/common/image_card_actions.dart
 import 'package:nai_launcher/presentation/widgets/common/image_card_surface.dart';
 
 void main() {
+  testWidgets(
+    'small cards keep direct actions and a reachable hover overflow',
+    (tester) async {
+      var selected = -1;
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Align(
+            alignment: Alignment.topLeft,
+            child: SizedBox(
+              key: const ValueKey('small-card'),
+              width: 96,
+              height: 100,
+              child: CardActionButtons(
+                visible: true,
+                direction: Axis.vertical,
+                availableSize: const Size(96, 100),
+                buttons: [
+                  for (var i = 0; i < 7; i++)
+                    CardActionButtonConfig(
+                      icon: Icons.download,
+                      tooltip: 'action $i',
+                      onPressed: () => selected = i,
+                    ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+      expect(find.byIcon(Icons.download), findsNWidgets(3));
+      final bounds = tester.getRect(find.byKey(const ValueKey('small-card')));
+      for (final button in find.byType(IconButton).evaluate()) {
+        final rect = tester.getRect(find.byWidget(button.widget));
+        expect(bounds.contains(rect.topLeft), isTrue);
+        expect(bounds.contains(rect.bottomRight), isTrue);
+      }
+      await tester.tap(find.byIcon(Icons.more_horiz_rounded));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('action 6'));
+      await tester.pumpAndSettle();
+      expect(selected, 6);
+      expect(tester.takeException(), isNull);
+    },
+  );
   setUp(() {
     PlatformCapabilities.debugOverride = PlatformCapabilities.forPlatform(
       TargetPlatform.windows,
@@ -57,6 +101,52 @@ void main() {
     expect(find.byIcon(Icons.download), findsNothing);
   });
 
+  testWidgets('returning from touch to mouse restores hover actions', (
+    tester,
+  ) async {
+    var policy = InteractionPolicy.touchFirst;
+    var visible = false;
+    late StateSetter updateHost;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: StatefulBuilder(
+          builder: (context, setState) {
+            updateHost = setState;
+            return InteractionPolicyScope(
+              initialPolicy: policy,
+              child: CardActionButtons(
+                visible: visible,
+                buttons: [
+                  CardActionButtonConfig(
+                    icon: Icons.download,
+                    tooltip: 'download',
+                    onPressed: () {},
+                  ),
+                  CardActionButtonConfig(
+                    icon: Icons.more_horiz,
+                    tooltip: 'more',
+                    onPressed: () {},
+                  ),
+                ],
+              ),
+            );
+          },
+        ),
+      ),
+    );
+    expect(find.byIcon(Icons.more_vert_rounded), findsOneWidget);
+    updateHost(
+      () => policy = policy.withPointerDevice(PointerDeviceKind.mouse),
+    );
+    await tester.pump();
+    expect(find.byType(IconButton), findsNothing);
+    updateHost(() => visible = true);
+    await tester.pump();
+    expect(find.byIcon(Icons.download), findsOneWidget);
+    expect(find.byIcon(Icons.more_horiz), findsOneWidget);
+    expect(find.byIcon(Icons.more_vert_rounded), findsNothing);
+  });
+
   testWidgets('desktop pointer and keyboard run the same action', (
     tester,
   ) async {
@@ -86,7 +176,7 @@ void main() {
       ),
     );
 
-    expect(tester.getSize(find.byType(IconButton)), const Size.square(40));
+    expect(tester.getSize(find.byType(IconButton)), const Size.square(32));
 
     await tester.tap(find.byIcon(Icons.download));
     expect(pressed, 1);
@@ -124,9 +214,11 @@ void main() {
     );
 
     expect(tester.getSize(find.byType(IconButton)), const Size.square(48));
+    expect(find.byIcon(Icons.download), findsOneWidget);
+    expect(find.byIcon(Icons.more_vert_rounded), findsNothing);
   });
 
-  testWidgets('touch alternative survives a later keyboard modality', (
+  testWidgets('touch device without a mouse keeps its menu with a keyboard', (
     tester,
   ) async {
     var pressed = 0;
@@ -136,7 +228,7 @@ void main() {
           initialPolicy: const InteractionPolicy(
             modality: InteractionModality.keyboard,
             touchAvailable: true,
-            precisePointerAvailable: true,
+            precisePointerAvailable: false,
           ),
           child: Center(
             child: CardActionButtons(
@@ -189,7 +281,7 @@ void main() {
 
     expect(find.byType(CircularProgressIndicator), findsOneWidget);
     expect(find.bySemanticsLabel('download, Loading…'), findsOneWidget);
-    expect(tester.getSize(find.byType(IconButton)), const Size.square(40));
+    expect(tester.getSize(find.byType(IconButton)), const Size.square(32));
     await tester.tap(find.byType(IconButton));
     expect(pressed, 0);
     semantics.dispose();
@@ -231,7 +323,7 @@ void main() {
   testWidgets('long horizontal action groups wrap inside landscape cards', (
     tester,
   ) async {
-    const cardSize = Size(236, 100);
+    const cardSize = Size(200, 100);
     await tester.pumpWidget(
       MaterialApp(
         home: Align(
@@ -273,16 +365,14 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('bounded horizontal groups fill rows from left to right', (
-    tester,
-  ) async {
+  testWidgets('seven pointer actions use two balanced columns', (tester) async {
     await tester.pumpWidget(
       MaterialApp(
         home: Align(
           alignment: Alignment.topLeft,
           child: CardActionButtons(
             visible: true,
-            maxButtonsPerRow: 4,
+            direction: Axis.vertical,
             buttons: [
               for (var index = 0; index < 7; index++)
                 CardActionButtonConfig(
@@ -302,9 +392,10 @@ void main() {
         tester.getRect(find.byKey(ValueKey('bounded-action-$index'))),
     ];
 
-    expect(actionRects.take(4).map((rect) => rect.top).toSet(), hasLength(1));
-    expect(actionRects.skip(4).map((rect) => rect.top).toSet(), hasLength(1));
-    expect(actionRects[4].left, closeTo(actionRects[1].left, 0.01));
+    expect(actionRects.take(4).map((rect) => rect.left).toSet(), hasLength(1));
+    expect(actionRects.skip(4).map((rect) => rect.left).toSet(), hasLength(1));
+    expect(actionRects[4].left - actionRects[0].right, 4);
+    expect(actionRects[4].top, actionRects[0].top);
   });
 
   testWidgets('hiding actions dismisses an active tooltip', (tester) async {

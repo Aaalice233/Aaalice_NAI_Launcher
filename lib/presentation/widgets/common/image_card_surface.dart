@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import 'image_viewport_surface.dart';
 import '../../adaptive/interaction_policy.dart';
 import '../../../core/utils/localization_extension.dart';
 import '../../themes/theme_extension.dart';
@@ -89,6 +90,7 @@ class ImageCardSurface extends StatelessWidget {
                 : motion.fastDuration,
             curve: motion.standardCurve,
             decoration: BoxDecoration(
+              color: ImageViewportSurface.background,
               borderRadius: BorderRadius.circular(12),
               border: data.isSelected
                   ? Border.all(color: theme.colorScheme.primary, width: 2)
@@ -227,7 +229,7 @@ class ImageCardSurface extends StatelessWidget {
                         ),
                       ),
                     ),
-                  if (context.interactionPolicy.shouldExposeTouchAlternatives &&
+                  if (context.interactionPolicy.usesTouchActionMenu &&
                       (!controller.isHovering ||
                           context.interactionPolicy.prefersTouchPresentation) &&
                       capabilities.enableContextMenu &&
@@ -243,7 +245,10 @@ class ImageCardSurface extends StatelessWidget {
                           width: 48,
                           height: 48,
                         ),
-                        style: ImageOverlayControlStyle.iconButton(extent: 48),
+                        style: ImageOverlayControlStyle.iconButton(
+                          context,
+                          extent: 48,
+                        ),
                         icon: const Icon(Icons.more_horiz_rounded),
                       ),
                     ),
@@ -296,7 +301,7 @@ class ImageCardSurface extends StatelessWidget {
             )
           // 只有铺了底层的卡片需要兜底色遮住它，其余卡片首帧前保持原本的空白。
           else if (data.underlay != null)
-            ColoredBox(color: theme.colorScheme.surface),
+            const ColoredBox(color: ImageViewportSurface.background),
         ],
         if (showsImage && data.underlay != null) data.underlay!,
         child,
@@ -350,6 +355,7 @@ class _HoverAction extends StatelessWidget {
     final theme = Theme.of(context);
     final colors = theme.colorScheme;
     final action = this.action;
+    final interaction = context.interactionPolicy;
     return IconButton(
       tooltip: action.label,
       onPressed: action.invoke,
@@ -363,10 +369,7 @@ class _HoverAction extends StatelessWidget {
         ),
         overlayColor: const WidgetStatePropertyAll(Colors.transparent),
         backgroundColor: WidgetStateProperty.resolveWith((states) {
-          final emphasized =
-              states.contains(WidgetState.hovered) ||
-              states.contains(WidgetState.focused) ||
-              states.contains(WidgetState.pressed);
+          final emphasized = interaction.isControlHighlighted(states);
           if (action.isPrimary) {
             return colors.primary.withValues(alpha: emphasized ? 1 : 0.9);
           }

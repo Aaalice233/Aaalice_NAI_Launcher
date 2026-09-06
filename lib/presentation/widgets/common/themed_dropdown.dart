@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'input_surface_container.dart';
 
-/// 使用共享深色填充与内侧焦点发光的下拉选择器。
+/// 使用共享填充色面与键盘焦点边界的下拉选择器。
 class ThemedDropdown<T> extends StatelessWidget {
   /// 当前选中的值
   final T? value;
@@ -47,6 +47,7 @@ class ThemedDropdown<T> extends StatelessWidget {
   Widget build(BuildContext context) {
     return InputSurfaceContainer(
       borderRadius: borderRadius,
+      keyboardFocusOnly: true,
       child: DropdownButtonFormField<T>(
         initialValue: value,
         items: items,

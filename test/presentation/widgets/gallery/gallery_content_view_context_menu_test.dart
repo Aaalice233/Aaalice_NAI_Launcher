@@ -285,6 +285,7 @@ void main() {
     await tester.tap(find.byIcon(Icons.send));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
+    await tester.pump(const Duration(milliseconds: 300));
     expect(find.text('Send to Reverse Prompt'), findsOneWidget);
     expect(find.text('Import Image Metadata'), findsNothing);
 
@@ -302,6 +303,8 @@ void main() {
 
     selectedAction = null;
     await tester.tap(find.byIcon(Icons.delete_outline));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
     await tester.pump();
     expect(selectedAction, LocalImageContextAction.delete);
 

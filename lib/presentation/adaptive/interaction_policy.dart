@@ -1,4 +1,5 @@
 import 'package:flutter/gestures.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 
 enum InteractionModality { unknown, touch, pointer, keyboard }
@@ -35,7 +36,18 @@ class InteractionPolicy {
   /// Touch-equivalent entry points stay mounted after touch is observed even
   /// when the user later switches to a mouse or keyboard.
   bool get shouldExposeTouchAlternatives => touchAvailable;
+  // A previously observed touch must not replace mouse/keyboard accelerators
+  // with a persistent menu after the user returns to a precise pointer.
+  bool get usesTouchActionMenu => touchAvailable && !usesAnchoredMenus;
   bool get keyboardNavigationActive => modality == InteractionModality.keyboard;
+
+  bool isFocusVisible(Set<WidgetState> states) =>
+      keyboardNavigationActive && states.contains(WidgetState.focused);
+
+  bool isControlHighlighted(Set<WidgetState> states) =>
+      states.contains(WidgetState.hovered) ||
+      states.contains(WidgetState.pressed) ||
+      isFocusVisible(states);
 
   /// Stable target geometry: once touch is observed, later mouse/keyboard input
   /// keeps touch-safe hit areas instead of making the interface jump in size.
@@ -110,13 +122,18 @@ class InteractionPolicyScope extends StatefulWidget {
 
 class _InteractionPolicyScopeState extends State<InteractionPolicyScope> {
   late InteractionPolicy _policy;
-  InteractionModality? _lastPointerModality;
+  late final FocusHighlightStrategy _previousHighlightStrategy;
 
   @override
   void initState() {
     super.initState();
     _policy = widget.initialPolicy ?? InteractionPolicy.neutral;
-    FocusManager.instance.addHighlightModeListener(_handleHighlightMode);
+    _previousHighlightStrategy = FocusManager.instance.highlightStrategy;
+    FocusManager.instance.addEarlyKeyEventHandler(_handleKeyEvent);
+    if (_policy.prefersTouchPresentation) {
+      FocusManager.instance.highlightStrategy =
+          FocusHighlightStrategy.alwaysTouch;
+    }
   }
 
   @override
@@ -125,35 +142,45 @@ class _InteractionPolicyScopeState extends State<InteractionPolicyScope> {
     if (widget.initialPolicy != oldWidget.initialPolicy &&
         widget.initialPolicy != null) {
       _policy = widget.initialPolicy!;
-      _lastPointerModality = switch (_policy.modality) {
-        InteractionModality.touch ||
-        InteractionModality.pointer => _policy.modality,
-        InteractionModality.unknown || InteractionModality.keyboard => null,
-      };
     }
   }
 
   @override
   void dispose() {
-    FocusManager.instance.removeHighlightModeListener(_handleHighlightMode);
+    FocusManager.instance.removeEarlyKeyEventHandler(_handleKeyEvent);
+    FocusManager.instance.highlightStrategy = _previousHighlightStrategy;
     super.dispose();
   }
 
   void _handlePointer(PointerEvent event) {
     final next = _policy.withPointerDevice(event.kind);
+    if (next.modality == InteractionModality.pointer ||
+        next.modality == InteractionModality.touch) {
+      // Flutter's desktop automatic mode groups mouse and keyboard together.
+      // Keep the logical focus for navigation, but hide its keyboard-only ink
+      // after pointer input, including focus restored by a closing menu route.
+      FocusManager.instance.highlightStrategy =
+          FocusHighlightStrategy.alwaysTouch;
+    }
     if (next == _policy) return;
-    _lastPointerModality = next.modality;
     setState(() => _policy = next);
   }
 
-  void _handleHighlightMode(FocusHighlightMode mode) {
-    if (!mounted) return;
-    final nextModality = mode == FocusHighlightMode.traditional
-        ? InteractionModality.keyboard
-        : (_lastPointerModality ?? _policy.modality);
-    final next = _policy.withModality(nextModality);
-    if (next == _policy) return;
-    setState(() => _policy = next);
+  KeyEventResult _handleKeyEvent(KeyEvent event) {
+    if (!mounted) return KeyEventResult.ignored;
+    if (event is KeyDownEvent || event is KeyRepeatEvent) {
+      // The FocusManager has classified this key before early handlers run.
+      // Reuse that classification so Android IME events are not mistaken for
+      // an external keyboard, and never consume navigation or shortcut keys.
+      FocusManager.instance.highlightStrategy =
+          FocusHighlightStrategy.automatic;
+      if (FocusManager.instance.highlightMode ==
+          FocusHighlightMode.traditional) {
+        final next = _policy.withModality(InteractionModality.keyboard);
+        if (next != _policy) setState(() => _policy = next);
+      }
+    }
+    return KeyEventResult.ignored;
   }
 
   @override

@@ -52,15 +52,13 @@ class _PromptControlButtonState extends State<PromptControlButton> {
   @override
   Widget build(BuildContext context) {
     final states = _states.value;
+    final interaction = context.interactionPolicy;
     final tokens = Theme.of(context).appTheme;
     final colors = PromptControlColors(
       Theme.of(context),
       widget.color,
       active: widget.active,
-      hovered:
-          states.contains(WidgetState.hovered) ||
-          states.contains(WidgetState.focused) ||
-          states.contains(WidgetState.pressed),
+      hovered: interaction.isControlHighlighted(states),
     );
     final extent = context.interactionPolicy.minimumControlExtent.clamp(
       44.0,
@@ -84,7 +82,7 @@ class _PromptControlButtonState extends State<PromptControlButton> {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(tokens.controlRadius),
           ),
-          side: states.contains(WidgetState.focused)
+          side: interaction.isFocusVisible(states)
               ? BorderSide(color: colors.accent)
               : BorderSide.none,
         ),

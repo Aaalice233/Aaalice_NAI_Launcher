@@ -75,7 +75,7 @@ void main() {
     expect(addCount, 1);
   });
 
-  testWidgets('portrait hover actions form a compact row-major grid', (
+  testWidgets('portrait hover actions use at most two balanced columns', (
     tester,
   ) async {
     const post = DanbooruPost(
@@ -130,14 +130,14 @@ void main() {
     ];
 
     expect(actionRects, hasLength(7));
-    expect(actionRects.take(4).map((rect) => rect.top).toSet(), hasLength(1));
-    expect(actionRects.skip(4).map((rect) => rect.top).toSet(), hasLength(1));
-    expect(actionRects[4].top, greaterThan(actionRects[0].top));
-    expect(actionRects[4].left, closeTo(actionRects[1].left, 0.01));
+    expect(actionRects.take(4).map((rect) => rect.left).toSet(), hasLength(1));
+    expect(actionRects.skip(4).map((rect) => rect.left).toSet(), hasLength(1));
+    expect(actionRects[4].left - actionRects[0].right, closeTo(4, 0.01));
+    expect(actionRects[4].top, actionRects[0].top);
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('mixed input keeps touch action menu clear of rating badge', (
+  testWidgets('active touch keeps action menu clear of rating badge', (
     tester,
   ) async {
     var addCount = 0;
@@ -154,7 +154,7 @@ void main() {
       ProviderScope(
         child: InteractionPolicyScope(
           initialPolicy: const InteractionPolicy(
-            modality: InteractionModality.pointer,
+            modality: InteractionModality.touch,
             touchAvailable: true,
             precisePointerAvailable: true,
           ),
@@ -602,7 +602,11 @@ void main() {
       expect(cardRect.contains(rect.topLeft), isTrue);
       expect(cardRect.contains(rect.bottomRight), isTrue);
     }
-    expect(actionRects.last.top, greaterThan(actionRects.first.top));
+    for (var index = 0; index < actionRects.length; index++) {
+      for (final other in actionRects.skip(index + 1)) {
+        expect(actionRects[index].overlaps(other), isFalse);
+      }
+    }
     expect(tester.takeException(), isNull);
   });
 

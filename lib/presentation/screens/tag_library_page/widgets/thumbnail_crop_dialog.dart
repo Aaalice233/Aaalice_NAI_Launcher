@@ -1,8 +1,10 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+
 import 'package:flutter/gestures.dart';
 
+import '../../../widgets/common/image_viewport_surface.dart';
 import '../../../../core/utils/localization_extension.dart';
 import '../../../../l10n/app_localizations.dart';
 import '../../../adaptive/adaptive_presenter.dart';
@@ -249,7 +251,7 @@ class _ThumbnailCropDialogState extends State<ThumbnailCropDialog> {
   Widget _buildAdjustArea(Size displaySize) {
     final decoration = BoxDecoration(
       borderRadius: BorderRadius.circular(12),
-      color: Colors.grey.shade900,
+      color: ImageViewportSurface.background,
     );
     if (_imageSize == null) {
       return Container(
@@ -311,7 +313,7 @@ class _ThumbnailCropDialogState extends State<ThumbnailCropDialog> {
                     errorBuilder: (_, __, ___) => Container(
                       width: displayedSize.width,
                       height: displayedSize.height,
-                      color: Colors.grey.shade800,
+                      color: ImageViewportSurface.background,
                       child: const Center(
                         child: Icon(
                           Icons.broken_image,

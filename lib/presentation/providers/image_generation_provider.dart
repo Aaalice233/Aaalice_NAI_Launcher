@@ -34,6 +34,7 @@ import '../../data/services/alias_resolver_service.dart';
 import '../../data/services/statistics_cache_service.dart';
 import '../services/generation_history_storage_service.dart';
 import 'auth_provider.dart';
+import 'dlss_provider.dart';
 import 'character_prompt_provider.dart';
 import 'fixed_tags_provider.dart';
 import 'generation/generation_command.dart';
@@ -373,8 +374,11 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
       _activeFixedTagUsageSnapshot = prepared.fixedTagUsageSnapshot;
       _streamPreviews.clear();
       _failedSnapshotKeys.clear();
+      final dlss = ref.read(dlssProvider);
       final coordinator = ImageGenerationCoordinator(
         apiService: ref.read(naiImageGenerationApiServiceProvider),
+        postprocess: dlss.automaticSnapshot(),
+        onPostprocessError: dlss.reportEnhancementError,
       );
       _coordinator = coordinator;
       final command = GenerationCommand(
@@ -895,6 +899,14 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
 
   void cancel() {
     if (_isDisposed) return;
+    final processingCoordinator = _coordinator;
+    final processingRun = _activeRun;
+    if (processingCoordinator != null && processingRun != null &&
+        processingCoordinator.isPostprocessing) {
+      // Keep this run's ownership until its already-arrived originals are reduced.
+      processingCoordinator.cancel(processingRun);
+      return;
+    }
     final runId = _activeRunId;
     _activeInvocationId = 0;
     _activeComparisonSource = null;

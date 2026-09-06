@@ -64,7 +64,7 @@ import '../../../utils/image_detail_opener.dart';
 import '../../../utils/krita_send_helper.dart';
 import '../../../utils/precise_ref_library_import_helper.dart';
 import '../../tag_library_page/widgets/entry_add_dialog.dart';
-import 'image_comparison_view.dart';
+import '../../../widgets/common/image_comparison_view.dart';
 import 'preview_info_bar.dart';
 
 class PreviewNavShortcuts extends ConsumerWidget {

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:nai_launcher/presentation/themes/theme_extension.dart';
 
+import '../../adaptive/interaction_policy.dart';
+
 /// 卡片语义层级。
 enum CardElevation { level1, level2, level3, level4 }
 
@@ -119,7 +121,8 @@ class _ElevatedCardState extends State<ElevatedCard> {
         (hoverActive
             ? theme.colorScheme.surfaceContainerHigh
             : theme.colorScheme.surfaceContainerLow);
-    final statusBorder = _isFocused
+    final statusBorder =
+        _isFocused && context.interactionPolicy.keyboardNavigationActive
         ? Border.all(color: theme.colorScheme.primary, width: 1)
         : widget.enableSubtleBorder
         ? Border.all(

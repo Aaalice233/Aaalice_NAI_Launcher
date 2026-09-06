@@ -5624,6 +5624,13 @@ class AppLocalizationsJa extends AppLocalizations {
   String get comparison_maxImages => '比較できる画像は最大 4 つです';
 
   @override
+  String get comparison_followMouse => 'マウスに追従';
+
+  @override
+  String get comparison_followMouseHint =>
+      'マウスを動かすと比較の分割線が移動します。画像のドラッグで表示位置を移動できます。';
+
+  @override
   String get comparison_close => '詳細比較';
 
   @override
@@ -14477,4 +14484,343 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get agentTool_resultTruncated => '内容は切り詰められています';
+
+  @override
+  String get dlss_activate => 'このバージョンに切り替え';
+
+  @override
+  String get dlss_automatic => '生成後に自動強化';
+
+  @override
+  String get dlss_automaticHint => '既定ではオフ。生成完了後、履歴と自動保存の前に強化します。';
+
+  @override
+  String get dlss_color => 'NR の色の寄与';
+
+  @override
+  String get dlss_current => '使用中';
+
+  @override
+  String get dlss_openPage => 'DLSSNR ページを開く';
+
+  @override
+  String get dlss_description => 'ローカルで画像を強化し、ランタイムと既定値を管理します。';
+
+  @override
+  String get dlss_detail => '出力ブレンド';
+
+  @override
+  String get dlss_enabled => 'DLSS 強化を有効にする';
+
+  @override
+  String get dlss_failed => 'DLSS 強化に失敗しました。元画像は保持されています';
+
+  @override
+  String get dlss_install => 'インストールして使用';
+
+  @override
+  String get dlss_installed => 'インストール済み';
+
+  @override
+  String get dlss_intensity => 'NR 全体強度';
+
+  @override
+  String get dlss_latest => '最新の安定版';
+
+  @override
+  String get dlss_noReleases => 'インストール可能なバージョンがありません。一覧を更新してください。';
+
+  @override
+  String get dlss_notInstalled => '未インストール';
+
+  @override
+  String get dlss_original => '元画像';
+
+  @override
+  String get dlss_prerelease => 'プレリリース';
+
+  @override
+  String get dlss_previewHint => 'パラメーターを調整して実行します。毎回元画像から処理し、新しいファイルに保存します。';
+
+  @override
+  String get dlss_result => '強化結果';
+
+  @override
+  String get dlss_run => '強化を実行';
+
+  @override
+  String get dlss_running => 'DLSS 強化を実行中…';
+
+  @override
+  String get dlss_runtime => 'ランタイムのバージョン';
+
+  @override
+  String get dlss_saveCopy => '強化画像を別名保存';
+
+  @override
+  String get dlss_source =>
+      '公開 video2dlssnr Release から完全版をダウンロードし、必要なファイルを抽出して実際の強化テストを行います。';
+
+  @override
+  String get dlss_structure => '構造の強度';
+
+  @override
+  String get dlss_style => 'スタイル';
+
+  @override
+  String get dlss_styleCinematic => 'シネマティック';
+
+  @override
+  String get dlss_styleDefault => '既定';
+
+  @override
+  String get dlss_styleNatural => 'ナチュラル';
+
+  @override
+  String get dlss_title => 'DLSSNR 画像強化';
+
+  @override
+  String get dlss_tone => '照明と色調の強度';
+
+  @override
+  String get dlss_advanced => '詳細パラメーター';
+
+  @override
+  String get dlss_cancelled => '強化をキャンセルしました。元画像は保持されています';
+
+  @override
+  String get dlss_checking => '検出中';
+
+  @override
+  String get dlss_detect => '再検出';
+
+  @override
+  String get dlss_diskUsage => 'インストール済み容量';
+
+  @override
+  String get dlss_driver => 'ドライバー';
+
+  @override
+  String get dlss_environment => '実行環境';
+
+  @override
+  String get dlss_gpuAutomatic => '利用可能な GPU を自動選択';
+
+  @override
+  String get dlss_initializationFailed => '強化の初期化に失敗しました。診断情報を確認してください';
+
+  @override
+  String get dlss_invalidComponents =>
+      'ランタイムが破損または変更されています。切り替えまたは再インストールしてください';
+
+  @override
+  String get dlss_loadingReleases => 'バージョン一覧を取得中…';
+
+  @override
+  String get dlss_maintenance => '試用と管理';
+
+  @override
+  String get dlss_menu => 'DLSSNR 画像強化…';
+
+  @override
+  String get dlss_missingRuntime => '先にランタイムをインストールしてください';
+
+  @override
+  String get dlss_noGpu => '利用可能な NVIDIA D3D12 デバイスがありません';
+
+  @override
+  String get dlss_notChecked => '未検出';
+
+  @override
+  String get dlss_ready => '実際の強化テストに成功';
+
+  @override
+  String get dlss_tryImage => 'ローカル画像で試す';
+
+  @override
+  String get dlss_unknown => '不明';
+
+  @override
+  String get dlss_downloading => 'コンポーネントをダウンロード中…';
+
+  @override
+  String get dlss_extracting => 'コンポーネントを検証・展開中…';
+
+  @override
+  String get dlss_probing => 'GPU 強化をテスト中…';
+
+  @override
+  String get dlss_activating => 'インストールを完了中…';
+
+  @override
+  String get dlss_diagnostics => '診断の詳細';
+
+  @override
+  String get dlss_operationFailed => '操作に失敗しました。診断の詳細を確認して再試行してください';
+
+  @override
+  String get dlss_downloadFailed => 'ダウンロードに失敗しました。接続を確認して再試行してください';
+
+  @override
+  String get dlss_operationCancelled => '操作をキャンセルしました';
+
+  @override
+  String get dlss_disabled => '強化が無効です。設定で有効にしてください';
+
+  @override
+  String get dlss_timeout => '強化がタイムアウトしました。再試行するか GPU を確認してください';
+
+  @override
+  String get dlss_outOfMemory => 'GPU メモリが不足しています。他の GPU アプリを閉じて再試行してください';
+
+  @override
+  String get dlss_saveFailed => '保存に失敗しました。画像フォルダーと空き容量を確認してください';
+
+  @override
+  String get dlss_compareHint =>
+      '比較画像はフル解像度で読み込み、最初はウィンドウに合わせて表示します。100% で等倍表示し、画像をドラッグして移動、分割線をドラッグして比較できます。';
+
+  @override
+  String get dlss_skin => '肌の構造の強度';
+
+  @override
+  String get dlss_modelDefault => 'モデル既定値';
+
+  @override
+  String get dlss_autoMask => '自動マスク';
+
+  @override
+  String get dlss_styleHint =>
+      'サイズを変えずにランタイムのスタイル 0 / 1 / 2 を選択します。「デフォルト・ナチュラル・シネマティック」は上流の名称を使用しており、公式 Model A/B/C との対応は未検証です。';
+
+  @override
+  String get dlss_intensityHint =>
+      'NR 全体の効果を 0～1 で調整します。0 は NR 効果なし、1 は最大強度です。現在のランタイムでは 1 を超えても出力は同じです。SR 拡大と出力ブレンドは別の設定です。';
+
+  @override
+  String get dlss_detailHint =>
+      'NR の効果全体を調整します。質感のディテールだけを制御するものではありません。0 は NR 入力（SR 有効時は拡大後の画像）を保持し、1 は色の混合設定に従って強化結果を適用します。1 を超えると差分を増幅し、過剰な表現や歪みが生じる場合があります。';
+
+  @override
+  String get dlss_colorHint =>
+      '0 は強化後の明暗と元画像の色相を使い、1 は強化後の色を使います。低いほど元画像の配色に近づきます。';
+
+  @override
+  String get dlss_structureHint =>
+      '通常のシャープ化とは異なり、材質の質感、局所的な陰影、構造の変化を調整します。1 が基準で、通常のスライダー範囲は 0～2 です。1 を超えても効果がありますが、高い値では粒状感、色ずれ、細部の乱れが生じる場合があります。';
+
+  @override
+  String get dlss_toneHint =>
+      '広い範囲の照明、明暗、色の変化を調整します。1 が基準で、通常のスライダー範囲は 0～2 です。一定の明るさやコントラストの調整ではありません。0 でも構造の効果は残り、元画像と完全に同じ色になるとは限りません。';
+
+  @override
+  String get dlss_skinHint =>
+      '自動マスクが識別した領域の肌の構造を調整します。自動マスクが必要です。-1 はモデルの既定値、0 以上は明示的な強度です。負の値はすべて既定値になります。現在のランタイムでは自動マスクをオフにすると出力に影響しません。';
+
+  @override
+  String get dlss_autoMaskHint =>
+      'モデル内部の領域マスクと肌の構造の調整を有効にします。識別された領域は現在プレビューできません。オフにすると局所的な効果が変わる場合がありますが、NR 全体は無効になりません。';
+
+  @override
+  String get dlss_invalidNumber => 'このパラメーターで使用できる有効な数値を入力してください。';
+
+  @override
+  String get dlss_scale => 'SR 拡大倍率';
+
+  @override
+  String get dlss_scaleHint =>
+      'DLSS SR で拡大してから NR を適用します。既定は 2 倍、1 倍は SR をスキップし、元のサイズで NR のみ実行します。小数を入力できます。出力の各辺は 16384 ピクセル以内で、実際の上限は GPU メモリに依存します。';
+
+  @override
+  String get dlss_srHint =>
+      '最終画像に NR を混ぜないローカル DLSS SR 拡大です。現在のランタイムは内部で NR を 1 回計算するため、動作する NR 環境と追加の処理時間が必要です。';
+
+  @override
+  String get dlss_srScaleHint =>
+      'NR パネルと倍率を共有します。既定は 2 倍です。1 倍では処理を開始しません。NR の強度、スタイル、処理回数は適用せず、拡大とディテール再構成のみを出力します。';
+
+  @override
+  String get dlss_srUnavailable =>
+      '先に「設定 → 連携 → DLSSNR」でランタイムをインストールし、検証・有効化してください。';
+
+  @override
+  String get dlss_finalizing => 'NR 完了・比較画像を準備中…';
+
+  @override
+  String get dlss_processing => '処理';
+
+  @override
+  String get dlss_appearance => '仕上がり';
+
+  @override
+  String get dlss_parameterPreset => 'パラメータープリセット';
+
+  @override
+  String get dlss_managePresets => 'プリセットを管理';
+
+  @override
+  String get dlss_createPreset => '新しいプリセットとして保存';
+
+  @override
+  String get dlss_savePreset => 'このプリセットに保存';
+
+  @override
+  String get dlss_renamePreset => 'プリセット名を変更';
+
+  @override
+  String get dlss_presetName => 'プリセット名';
+
+  @override
+  String get dlss_invalidPresetName => '既存のカスタムプリセットと重複しない名前を入力してください。';
+
+  @override
+  String get dlss_deletePresetHint => 'このカスタムプリセットを削除しますか？現在のパラメーター調整は保持されます。';
+
+  @override
+  String get dlss_draftSaved => '調整済み · 現在の値は自動保存されます';
+
+  @override
+  String get dlss_builtinPreset => '内蔵 · 読み取り専用。調整後に別名で保存できます';
+
+  @override
+  String get dlss_customPreset => 'カスタムプリセット';
+
+  @override
+  String get dlss_restorePreset => 'このプリセットを復元';
+
+  @override
+  String get dlss_presetSoft => 'ソフト';
+
+  @override
+  String get dlss_presetLight => '元の色を保つ強化';
+
+  @override
+  String get dlss_presetNatural => 'ナチュラル';
+
+  @override
+  String get dlss_presetCinema => 'シネマ';
+
+  @override
+  String get dlss_presetMaterial => '質感と光';
+
+  @override
+  String get dlss_presetCrisp => 'ディテール';
+
+  @override
+  String get dlss_presetVivid => '鮮やか';
+
+  @override
+  String get dlss_detailAndColor => '出力ブレンド';
+
+  @override
+  String get dlss_localAdjustments => '局所調整';
+
+  @override
+  String get dlss_modelStrengths => 'モデル強度';
+
+  @override
+  String get dlss_modelSwitches => 'モデルオプション';
+
+  @override
+  String get dlss_activation => '有効化と自動処理';
 }

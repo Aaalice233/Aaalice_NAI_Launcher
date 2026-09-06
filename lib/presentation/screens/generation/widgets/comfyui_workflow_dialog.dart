@@ -3,8 +3,10 @@ import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../widgets/common/image_viewport_surface.dart';
 import '../../../../core/comfyui/comfyui_models.dart';
 import '../../../../core/comfyui/workflow_template.dart';
 import '../../../../core/utils/localization_extension.dart';
@@ -259,11 +261,13 @@ class _ComfyUIWorkflowDialogState extends ConsumerState<ComfyUIWorkflowDialog> {
               children: [
                 ClipRRect(
                   borderRadius: BorderRadius.circular(8),
-                  child: Image.memory(
-                    _inputImages[slot.id]!,
-                    height: 120,
-                    width: double.infinity,
-                    fit: BoxFit.contain,
+                  child: ImageViewportSurface(
+                    child: Image.memory(
+                      _inputImages[slot.id]!,
+                      height: 120,
+                      width: double.infinity,
+                      fit: BoxFit.contain,
+                    ),
                   ),
                 ),
                 Positioned(
@@ -563,12 +567,14 @@ class _ComfyUIWorkflowDialogState extends ConsumerState<ComfyUIWorkflowDialog> {
           if (taskState.hasPreview) ...[
             ClipRRect(
               borderRadius: BorderRadius.circular(8),
-              child: Image.memory(
-                taskState.previewImage!,
-                height: 160,
-                width: double.infinity,
-                fit: BoxFit.contain,
-                gaplessPlayback: true,
+              child: ImageViewportSurface(
+                child: Image.memory(
+                  taskState.previewImage!,
+                  height: 160,
+                  width: double.infinity,
+                  fit: BoxFit.contain,
+                  gaplessPlayback: true,
+                ),
               ),
             ),
             const SizedBox(height: 12),
@@ -648,11 +654,13 @@ class _ComfyUIWorkflowDialogState extends ConsumerState<ComfyUIWorkflowDialog> {
             padding: const EdgeInsets.only(bottom: 8),
             child: ClipRRect(
               borderRadius: BorderRadius.circular(8),
-              child: Image.memory(
-                img,
-                height: 180,
-                width: double.infinity,
-                fit: BoxFit.contain,
+              child: ImageViewportSurface(
+                child: Image.memory(
+                  img,
+                  height: 180,
+                  width: double.infinity,
+                  fit: BoxFit.contain,
+                ),
               ),
             ),
           ),

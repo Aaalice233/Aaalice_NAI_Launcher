@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../adaptive/interaction_policy.dart';
 
 import '../shortcuts/shortcut_tooltip.dart';
 
@@ -32,6 +33,7 @@ class CompactIconButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final interaction = context.interactionPolicy;
     final colorScheme = theme.colorScheme;
     final message = tooltip ?? label;
     final enabled = onPressed != null && !isLoading;
@@ -49,16 +51,12 @@ class CompactIconButton extends StatelessWidget {
     Color background(Set<WidgetState> states) {
       if (states.contains(WidgetState.disabled)) return Colors.transparent;
       if (isActive) {
-        return states.contains(WidgetState.hovered) ||
-                states.contains(WidgetState.focused) ||
-                states.contains(WidgetState.pressed)
+        return interaction.isControlHighlighted(states)
             ? colorScheme.primaryContainer
             : colorScheme.primaryContainer.withValues(alpha: 0.72);
       }
       if (isDanger) {
-        return states.contains(WidgetState.hovered) ||
-                states.contains(WidgetState.focused) ||
-                states.contains(WidgetState.pressed)
+        return interaction.isControlHighlighted(states)
             ? colorScheme.errorContainer
             : Colors.transparent;
       }
@@ -66,7 +64,7 @@ class CompactIconButton extends StatelessWidget {
         return colorScheme.surfaceContainerHighest;
       }
       if (states.contains(WidgetState.hovered) ||
-          states.contains(WidgetState.focused)) {
+          interaction.isFocusVisible(states)) {
         return colorScheme.surfaceContainerHigh;
       }
       return Colors.transparent;

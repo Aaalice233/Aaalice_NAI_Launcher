@@ -1,9 +1,14 @@
 import 'package:flutter/material.dart';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../widgets/common/image_viewport_surface.dart';
 import '../../../../core/comfyui/comfyui_models.dart';
 import '../../../../core/comfyui/seedvr2_support.dart';
 import '../../../../core/utils/localization_extension.dart';
+import '../../../../core/platform/platform_capabilities.dart';
+import '../../../providers/dlss_provider.dart';
+import '../../../providers/generation/dlss_upscale_task_provider.dart';
 import '../../../providers/comfyui/comfyui_provider.dart';
 import '../../../providers/generation/image_workflow_controller.dart';
 import '../../../providers/generation/novel_ai_upscale_task_provider.dart';
@@ -12,6 +17,7 @@ import '../../../widgets/common/anlas_cost_badge.dart';
 import '../../../widgets/common/app_toast.dart';
 import '../../../widgets/common/editable_double_field.dart';
 import 'img2img_upscale_coordinator.dart';
+import 'img2img_dlss_upscale_controls.dart';
 
 class Img2ImgUpscaleSection extends ConsumerStatefulWidget {
   const Img2ImgUpscaleSection({super.key, required this.workflow});
@@ -111,6 +117,10 @@ class _Img2ImgUpscaleSectionState extends ConsumerState<Img2ImgUpscaleSection> {
       ),
     );
     final isNai = settings.backend == UpscaleBackend.novelai;
+    final isSr = settings.backend == UpscaleBackend.dlssSr;
+    final supportsSr =
+        PlatformCapabilities.operatingSystem.supportsDlssEnhancement;
+    final srRunning = isSr && ref.watch(dlssUpscaleTaskProvider).running;
     final capabilities = ref
         .read(comfyUISeedvr2ModelsProvider.notifier)
         .capabilities;
@@ -135,6 +145,12 @@ class _Img2ImgUpscaleSectionState extends ConsumerState<Img2ImgUpscaleSection> {
     );
     final canStart = isNai
         ? hasSource && !naiTask.isRunning
+        : isSr
+        ? supportsSr &&
+              hasSource &&
+              !srRunning &&
+              ref.watch(dlssProvider).enabled &&
+              ref.watch(dlssProvider).options.nativeScale > 1
         : comfyEnabled &&
               hasSource &&
               !task.isRunning &&
@@ -157,25 +173,39 @@ class _Img2ImgUpscaleSectionState extends ConsumerState<Img2ImgUpscaleSection> {
             ),
           ),
           const SizedBox(height: 12),
-          SegmentedButton<UpscaleBackend>(
-            segments: [
-              const ButtonSegment(
-                value: UpscaleBackend.novelai,
-                label: Text('NovelAI'),
-                icon: Icon(Icons.cloud_outlined, size: 16),
-              ),
-              ButtonSegment(
-                value: UpscaleBackend.comfyui,
-                label: const Text('ComfyUI'),
-                icon: const Icon(Icons.computer, size: 16),
-                enabled: comfyEnabled,
-              ),
-            ],
-            selected: {settings.backend},
-            onSelectionChanged: (value) =>
-                controller.updateUpscaleBackend(value.first),
-            showSelectedIcon: false,
-            style: _compactButtonStyle,
+          LayoutBuilder(
+            builder: (context, constraints) => SegmentedButton<UpscaleBackend>(
+              direction:
+                  constraints.maxWidth < 420 ||
+                      MediaQuery.textScalerOf(context).scale(1) > 1.5
+                  ? Axis.vertical
+                  : Axis.horizontal,
+              segments: [
+                const ButtonSegment(
+                  value: UpscaleBackend.novelai,
+                  label: Text('NovelAI'),
+                  icon: Icon(Icons.cloud_outlined, size: 16),
+                ),
+                ButtonSegment(
+                  value: UpscaleBackend.comfyui,
+                  label: const Text('ComfyUI'),
+                  icon: const Icon(Icons.computer, size: 16),
+                  enabled: comfyEnabled,
+                ),
+                if (supportsSr || isSr)
+                  ButtonSegment(
+                    value: UpscaleBackend.dlssSr,
+                    label: const Text('DLSS SR'),
+                    icon: const Icon(Icons.auto_awesome_outlined, size: 16),
+                    enabled: supportsSr,
+                  ),
+              ],
+              selected: {settings.backend},
+              onSelectionChanged: (value) =>
+                  controller.updateUpscaleBackend(value.first),
+              showSelectedIcon: false,
+              style: _compactButtonStyle,
+            ),
           ),
           const SizedBox(height: 12),
           if (isNai)
@@ -185,6 +215,8 @@ class _Img2ImgUpscaleSectionState extends ConsumerState<Img2ImgUpscaleSection> {
                 color: theme.colorScheme.onSurfaceVariant,
               ),
             )
+          else if (isSr)
+            const Img2ImgDlssUpscaleControls()
           else if (!comfyEnabled)
             Text(
               context.l10n.img2img_comfyuiEnableHint,
@@ -321,12 +353,14 @@ class _Img2ImgUpscaleSectionState extends ConsumerState<Img2ImgUpscaleSection> {
               if (task.hasPreview) ...[
                 ClipRRect(
                   borderRadius: BorderRadius.circular(8),
-                  child: Image.memory(
-                    task.previewImage!,
-                    height: 120,
-                    width: double.infinity,
-                    fit: BoxFit.contain,
-                    gaplessPlayback: true,
+                  child: ImageViewportSurface(
+                    child: Image.memory(
+                      task.previewImage!,
+                      height: 120,
+                      width: double.infinity,
+                      fit: BoxFit.contain,
+                      gaplessPlayback: true,
+                    ),
                   ),
                 ),
                 const SizedBox(height: 8),
@@ -380,7 +414,8 @@ class _Img2ImgUpscaleSectionState extends ConsumerState<Img2ImgUpscaleSection> {
     final result = await ref.read(img2ImgUpscaleCoordinatorProvider).run();
     if (!mounted ||
         result is Img2ImgUpscaleSuccess &&
-            result.kind == Img2ImgUpscaleKind.novelAi) {
+            (result.kind == Img2ImgUpscaleKind.novelAi ||
+                result.kind == Img2ImgUpscaleKind.dlssSr)) {
       return;
     }
     if (result case Img2ImgUpscaleSuccess(

@@ -39,6 +39,7 @@ import '../mosaic/mosaic_editor_launcher.dart';
 import '../watermark/watermark_editor_launcher.dart';
 import 'local_gallery_move_target.dart';
 import '../../services/image_workflow_launcher.dart';
+import '../../services/image_send_action_dispatcher.dart';
 import '../../services/image_metadata_import_workflow.dart';
 import '../../utils/asset_protection_guard.dart';
 import '../../utils/fixed_tag_metadata_matcher.dart';
@@ -541,6 +542,10 @@ class LocalGalleryActionCoordinator {
         await _sendToKrita(record);
       case LocalImageContextAction.upscale:
         await _sendToUpscale(record);
+      case LocalImageContextAction.dlssEnhance:
+        await ImageSendActionDispatcher.handle(context: _context(), ref: _ref,
+          action: request.action, fileName: path.basename(record.path),
+          loadBytes: () => File(record.path).readAsBytes());
       case LocalImageContextAction.shareToDiscord:
         await _shareLocalImageToDiscord(record);
       case LocalImageContextAction.createWatermark:

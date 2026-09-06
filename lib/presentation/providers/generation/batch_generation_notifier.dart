@@ -9,6 +9,7 @@ import '../../../data/models/image/image_params.dart';
 import 'generation_models.dart';
 import 'generation_settings_notifiers.dart';
 import 'image_generation_service.dart';
+import '../dlss_provider.dart';
 
 part 'batch_generation_notifier.g.dart';
 
@@ -188,6 +189,7 @@ class BatchGenerationState {
 class BatchGenerationNotifier extends _$BatchGenerationNotifier {
   final Set<ImageGenerationService> _activeServices = {};
   int _epoch = 0;
+  int? _cancelledEpoch;
 
   @override
   BatchGenerationState build() {
@@ -229,6 +231,7 @@ class BatchGenerationNotifier extends _$BatchGenerationNotifier {
     }
 
     final epoch = _beginEpoch();
+    final createService = _serviceFactory();
 
     // 初始化状态
     final items = List<BatchGenerationItem>.generate(
@@ -259,7 +262,9 @@ class BatchGenerationNotifier extends _$BatchGenerationNotifier {
 
     for (int i = 0; i < count; i++) {
       futures.add(
-        semaphore.acquire(() => _generateSingle(params, i, count, epoch)),
+        semaphore.acquire(
+          () => _generateSingle(params, i, count, epoch, createService),
+        ),
       );
     }
 
@@ -273,7 +278,7 @@ class BatchGenerationNotifier extends _$BatchGenerationNotifier {
       final cancelled = state.items.where((i) => i.isCancelled).length;
 
       state = state.copyWith(
-        status: cancelled > 0
+        status: _cancelledEpoch == epoch || cancelled > 0
             ? BatchGenerationStatus.cancelled
             : failed == count
             ? BatchGenerationStatus.error
@@ -300,14 +305,34 @@ class BatchGenerationNotifier extends _$BatchGenerationNotifier {
     }
   }
 
+  ImageGenerationService Function() _serviceFactory() {
+    final dlss = ref.read(dlssProvider);
+    final processor = dlss.automaticSnapshot();
+    final api = ref.read(naiImageGenerationApiServiceProvider);
+    final streamPreview = ref.read(generationStreamPreviewSettingsProvider);
+    var reported = false;
+    return () => ImageGenerationService(
+      apiService: api,
+      postprocess: processor,
+      onPostprocessError: (error) {
+        if (!reported) {
+          reported = true;
+          dlss.reportEnhancementError(error);
+        }
+      },
+      streamPreviewEnabled: streamPreview,
+    );
+  }
+
   /// 生成单个图像
   Future<void> _generateSingle(
     ImageParams params,
     int index,
     int total,
     int epoch,
+    ImageGenerationService Function() createService,
   ) async {
-    if (!_isCurrent(epoch)) return;
+    if (!_isCurrent(epoch) || _cancelledEpoch == epoch) return;
 
     final startTime = DateTime.now();
 
@@ -326,10 +351,7 @@ class BatchGenerationNotifier extends _$BatchGenerationNotifier {
         seed: params.seed == -1 ? -1 : params.seed + index,
       );
 
-      final service = ImageGenerationService(
-        apiService: ref.read(naiImageGenerationApiServiceProvider),
-        streamPreviewEnabled: ref.read(generationStreamPreviewSettingsProvider),
-      );
+      final service = createService();
       _activeServices.add(service);
       late final ImageGenerationResult result;
       try {
@@ -358,12 +380,13 @@ class BatchGenerationNotifier extends _$BatchGenerationNotifier {
       }
       if (!_isCurrent(epoch)) return;
 
-      if (result.isSuccess && result.images.isNotEmpty) {
+      if (result.images.isNotEmpty) {
         _updateItem(
           index,
           (current) => current.copyWith(
             image: result.images.first.bytes,
             isCompleted: true,
+            isCancelled: false,
             endTime: DateTime.now(),
             progress: 1.0,
           ),
@@ -426,9 +449,18 @@ class BatchGenerationNotifier extends _$BatchGenerationNotifier {
 
   /// 取消批量生成
   void cancel() {
-    _invalidateActiveTasks();
+    // Keep this epoch while completed network images finish cancellation of NR.
+    // Starting another batch still invalidates the old epoch normally.
+    _cancelledEpoch = _epoch;
+    for (final service in _activeServices) {
+      service.cancel();
+    }
     state = state.copyWith(
       status: BatchGenerationStatus.cancelled,
+      items: [
+        for (final item in state.items)
+          item.isCompleted ? item : item.copyWith(isCancelled: true),
+      ],
       clearStreamPreview: true,
     );
 
@@ -464,6 +496,7 @@ class BatchGenerationNotifier extends _$BatchGenerationNotifier {
     if (failedIndices.isEmpty) return;
 
     final epoch = _beginEpoch();
+    final createService = _serviceFactory();
     AppLogger.d(
       'Retrying ${failedIndices.length} failed items',
       'BatchGeneration',
@@ -490,7 +523,13 @@ class BatchGenerationNotifier extends _$BatchGenerationNotifier {
     for (final index in failedIndices) {
       futures.add(
         semaphore.acquire(
-          () => _generateSingle(params, index, state.items.length, epoch),
+          () => _generateSingle(
+            params,
+            index,
+            state.items.length,
+            epoch,
+            createService,
+          ),
         ),
       );
     }
@@ -502,7 +541,9 @@ class BatchGenerationNotifier extends _$BatchGenerationNotifier {
       final failed = state.items.where((i) => i.isFailed).length;
 
       state = state.copyWith(
-        status: failed == 0
+        status: _cancelledEpoch == epoch
+            ? BatchGenerationStatus.cancelled
+            : failed == 0
             ? BatchGenerationStatus.completed
             : BatchGenerationStatus.error,
         overallProgress: 1.0,

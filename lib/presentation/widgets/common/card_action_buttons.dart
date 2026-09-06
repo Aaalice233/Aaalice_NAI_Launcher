@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 
 import '../../../l10n/app_localizations.dart';
@@ -15,11 +17,13 @@ abstract final class ImageOverlayControlStyle {
   static const hoveredBorder = Color(0x52FFFFFF);
   static const toolbarSurface = Color(0x99000000);
 
-  static ButtonStyle iconButton({
+  static ButtonStyle iconButton(
+    BuildContext context, {
     required double extent,
     Color? foregroundColor,
   }) {
     final resolvedForeground = foregroundColor ?? foreground;
+    final interaction = context.interactionPolicy;
     return ButtonStyle(
       minimumSize: WidgetStatePropertyAll(Size.square(extent)),
       tapTargetSize: MaterialTapTargetSize.shrinkWrap,
@@ -28,9 +32,7 @@ abstract final class ImageOverlayControlStyle {
       overlayColor: const WidgetStatePropertyAll(Colors.transparent),
       backgroundColor: WidgetStateProperty.resolveWith((states) {
         if (states.contains(WidgetState.disabled)) return disabledSurface;
-        if (states.contains(WidgetState.hovered) ||
-            states.contains(WidgetState.focused) ||
-            states.contains(WidgetState.pressed)) {
+        if (interaction.isControlHighlighted(states)) {
           return hoveredSurface;
         }
         return surface;
@@ -41,10 +43,7 @@ abstract final class ImageOverlayControlStyle {
             : resolvedForeground;
       }),
       side: WidgetStateProperty.resolveWith((states) {
-        final emphasized =
-            states.contains(WidgetState.hovered) ||
-            states.contains(WidgetState.focused) ||
-            states.contains(WidgetState.pressed);
+        final emphasized = interaction.isControlHighlighted(states);
         return BorderSide(color: emphasized ? hoveredBorder : border);
       }),
     );
@@ -79,16 +78,15 @@ class CardActionButtons extends StatelessWidget {
   final List<CardActionButtonConfig> buttons;
   final bool visible;
   final Axis direction;
-  final int? maxButtonsPerRow;
+  final Size? availableSize;
 
   const CardActionButtons({
     super.key,
     required this.buttons,
     required this.visible,
     this.direction = Axis.horizontal,
-    this.maxButtonsPerRow,
-  }) : assert(maxButtonsPerRow == null || maxButtonsPerRow > 0),
-       assert(maxButtonsPerRow == null || direction == Axis.horizontal);
+    this.availableSize,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -98,9 +96,7 @@ class CardActionButtons extends StatelessWidget {
     final loadingLabel =
         AppLocalizations.of(context)?.common_loading ?? 'Loading…';
 
-    // Once touch capability is observed, the explicit alternative remains
-    // available when the user later switches to keyboard or mouse input.
-    if (interactionPolicy.shouldExposeTouchAlternatives) {
+    if (interactionPolicy.usesTouchActionMenu) {
       final extent = interactionPolicy.minimumControlExtent;
       return IconButton(
         tooltip:
@@ -108,7 +104,7 @@ class CardActionButtons extends StatelessWidget {
             MaterialLocalizations.of(context).showMenuTooltip,
         onPressed: () => _showTouchActions(context, loadingLabel),
         constraints: BoxConstraints.tightFor(width: extent, height: extent),
-        style: ImageOverlayControlStyle.iconButton(extent: extent),
+        style: ImageOverlayControlStyle.iconButton(context, extent: extent),
         icon: const Icon(Icons.more_vert_rounded),
       );
     }
@@ -118,18 +114,41 @@ class CardActionButtons extends StatelessWidget {
     // already moved to another card, producing duplicate labels.
     if (!visible) return const SizedBox.shrink();
 
-    final extent = interactionPolicy.minimumControlExtent;
+    // Dense image overlays use compact pointer targets while retaining the
+    // stable touch target once a touch device has been observed.
+    final extent = interactionPolicy.touchAvailable
+        ? interactionPolicy.minimumControlExtent
+        : 32.0;
+    final size = availableSize;
+    final columns = size == null
+        ? 2
+        : ((size.width + 4) / (extent + 4)).floor().clamp(1, 2).toInt();
+    final capacity = size == null
+        ? buttons.length
+        : columns *
+              math.max(1, ((size.height + 4) / (extent + 4)).floor()).toInt();
+    final directCount = direction == Axis.vertical && buttons.length > capacity
+        ? capacity - 1
+        : buttons.length;
     final actionWidgets = [
-      for (final button in buttons)
+      for (final button in buttons.take(directCount))
         _CardActionButton(config: button, extent: extent),
+      if (directCount < buttons.length)
+        _CardOverflowButton(
+          buttons: buttons.sublist(directCount),
+          extent: extent,
+        ),
     ];
 
-    // Tall cards can expose many pointer accelerators. Pack long vertical
-    // groups into columns so every 40/48dp target remains inside the card
-    // instead of being painted into a clipped, non-hit-testable area.
-    if (direction == Axis.vertical && actionWidgets.length > 3) {
+    // Keep pointer actions along the edge in at most two balanced columns,
+    // instead of extending more columns over the image subject.
+    final needsColumns =
+        actionWidgets.length > 3 ||
+        (size != null && actionWidgets.length * (extent + 4) - 4 > size.height);
+    if (direction == Axis.vertical && needsColumns && columns > 1) {
+      final rows = (actionWidgets.length / columns).ceil();
       return SizedBox(
-        height: extent * 3 + 8,
+        height: extent * rows + 4 * (rows - 1),
         child: Wrap(
           direction: Axis.vertical,
           spacing: 4,
@@ -142,20 +161,7 @@ class CardActionButtons extends StatelessWidget {
     // Landscape cards can be narrower than the combined pointer shortcuts.
     // Wrap within the card's bounded width instead of clipping trailing actions.
     if (direction == Axis.horizontal) {
-      final actions = Wrap(
-        alignment: maxButtonsPerRow == null
-            ? WrapAlignment.start
-            : WrapAlignment.end,
-        spacing: 4,
-        runSpacing: 4,
-        children: actionWidgets,
-      );
-      final buttonsPerRow = maxButtonsPerRow;
-      if (buttonsPerRow == null) return actions;
-      return SizedBox(
-        width: extent * buttonsPerRow + 4 * (buttonsPerRow - 1),
-        child: actions,
-      );
+      return Wrap(spacing: 4, runSpacing: 4, children: actionWidgets);
     }
 
     return Flex(
@@ -221,6 +227,62 @@ class CardActionButtons extends StatelessWidget {
   }
 }
 
+class _CardOverflowButton extends StatelessWidget {
+  const _CardOverflowButton({required this.buttons, required this.extent});
+  final List<CardActionButtonConfig> buttons;
+  final double extent;
+
+  @override
+  Widget build(BuildContext context) => SizedBox.square(
+    dimension: extent,
+    child: IconButton(
+      tooltip:
+          AppLocalizations.of(context)?.common_moreActions ??
+          MaterialLocalizations.of(context).showMenuTooltip,
+      padding: EdgeInsets.zero,
+      style: ImageOverlayControlStyle.iconButton(context, extent: extent),
+      icon: const Icon(Icons.more_horiz_rounded, size: 16),
+      onPressed: () => _showMenu(context),
+    ),
+  );
+
+  Future<void> _showMenu(BuildContext context) async {
+    final anchor = context.findRenderObject()! as RenderBox;
+    final overlay =
+        Navigator.of(context).overlay!.context.findRenderObject()! as RenderBox;
+    // Hover controls can unmount while the pointer travels into the menu.
+    // Keep the selected action independent of the trigger's widget lifetime.
+    final selected = await showMenu<CardActionButtonConfig>(
+      context: context,
+      position: RelativeRect.fromRect(
+        anchor.localToGlobal(Offset.zero, ancestor: overlay) & anchor.size,
+        Offset.zero & overlay.size,
+      ),
+      items: [
+        for (final button in buttons)
+          PopupMenuItem(
+            value: button,
+            enabled: button.enabled && !button.isLoading,
+            child: Row(
+              children: [
+                Icon(
+                  button.icon,
+                  color: button.iconColor == Colors.white
+                      ? null
+                      : button.iconColor,
+                  size: 18,
+                ),
+                const SizedBox(width: 12),
+                Flexible(child: Text(button.tooltip)),
+              ],
+            ),
+          ),
+      ],
+    );
+    selected?.onPressed();
+  }
+}
+
 class _CardActionButton extends StatelessWidget {
   const _CardActionButton({required this.config, required this.extent});
 
@@ -246,6 +308,7 @@ class _CardActionButton extends StatelessWidget {
           onPressed: canActivate ? config.onPressed : null,
           constraints: BoxConstraints.tightFor(width: extent, height: extent),
           style: ImageOverlayControlStyle.iconButton(
+            context,
             extent: extent,
             foregroundColor: config.iconColor,
           ),

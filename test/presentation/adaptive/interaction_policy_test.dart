@@ -34,6 +34,7 @@ void main() {
       expect(touch.minimumControlExtent, 48);
       expect(touch.prefersTouchPresentation, isTrue);
       expect(touch.shouldExposeTouchAlternatives, isTrue);
+      expect(touch.usesTouchActionMenu, isTrue);
       expect(touch.usesAnchoredMenus, isFalse);
 
       final keyboard = touch.withModality(InteractionModality.keyboard);
@@ -43,6 +44,7 @@ void main() {
       expect(keyboard.minimumControlExtent, 48);
       expect(keyboard.prefersTouchPresentation, isFalse);
       expect(keyboard.shouldExposeTouchAlternatives, isTrue);
+      expect(keyboard.usesTouchActionMenu, isFalse);
     });
 
     test('an observed mouse adds precise-pointer capability', () {
@@ -58,6 +60,7 @@ void main() {
       expect(pointer.precisePointerAvailable, isTrue);
       expect(pointer.prefersTouchPresentation, isFalse);
       expect(pointer.shouldExposeTouchAlternatives, isTrue);
+      expect(pointer.usesTouchActionMenu, isFalse);
       expect(pointer.usesAnchoredMenus, isTrue);
     });
   });

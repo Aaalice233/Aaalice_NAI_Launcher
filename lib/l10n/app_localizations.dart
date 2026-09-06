@@ -10272,6 +10272,18 @@ abstract class AppLocalizations {
   /// **'Maximum 4 images allowed for comparison'**
   String get comparison_maxImages;
 
+  /// No description provided for @comparison_followMouse.
+  ///
+  /// In en, this message translates to:
+  /// **'Follow mouse'**
+  String get comparison_followMouse;
+
+  /// No description provided for @comparison_followMouseHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Move the mouse to position the comparison divider. Drag the image to pan.'**
+  String get comparison_followMouseHint;
+
   /// No description provided for @comparison_close.
   ///
   /// In en, this message translates to:
@@ -25860,6 +25872,654 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Content truncated'**
   String get agentTool_resultTruncated;
+
+  /// No description provided for @dlss_activate.
+  ///
+  /// In en, this message translates to:
+  /// **'Use this version'**
+  String get dlss_activate;
+
+  /// No description provided for @dlss_automatic.
+  ///
+  /// In en, this message translates to:
+  /// **'Enhance after generation'**
+  String get dlss_automatic;
+
+  /// No description provided for @dlss_automaticHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Off by default. Enhance completed images before history and automatic saving.'**
+  String get dlss_automaticHint;
+
+  /// No description provided for @dlss_color.
+  ///
+  /// In en, this message translates to:
+  /// **'NR color contribution'**
+  String get dlss_color;
+
+  /// No description provided for @dlss_current.
+  ///
+  /// In en, this message translates to:
+  /// **'Active'**
+  String get dlss_current;
+
+  /// No description provided for @dlss_openPage.
+  ///
+  /// In en, this message translates to:
+  /// **'Open DLSSNR'**
+  String get dlss_openPage;
+
+  /// No description provided for @dlss_description.
+  ///
+  /// In en, this message translates to:
+  /// **'Enhance images locally and manage runtimes and defaults.'**
+  String get dlss_description;
+
+  /// No description provided for @dlss_detail.
+  ///
+  /// In en, this message translates to:
+  /// **'Output blend'**
+  String get dlss_detail;
+
+  /// No description provided for @dlss_enabled.
+  ///
+  /// In en, this message translates to:
+  /// **'Enable DLSS enhancement'**
+  String get dlss_enabled;
+
+  /// No description provided for @dlss_failed.
+  ///
+  /// In en, this message translates to:
+  /// **'DLSS enhancement failed; the original was retained'**
+  String get dlss_failed;
+
+  /// No description provided for @dlss_install.
+  ///
+  /// In en, this message translates to:
+  /// **'Install and activate'**
+  String get dlss_install;
+
+  /// No description provided for @dlss_installed.
+  ///
+  /// In en, this message translates to:
+  /// **'Installed versions'**
+  String get dlss_installed;
+
+  /// No description provided for @dlss_intensity.
+  ///
+  /// In en, this message translates to:
+  /// **'NR intensity'**
+  String get dlss_intensity;
+
+  /// No description provided for @dlss_latest.
+  ///
+  /// In en, this message translates to:
+  /// **'Latest stable'**
+  String get dlss_latest;
+
+  /// No description provided for @dlss_noReleases.
+  ///
+  /// In en, this message translates to:
+  /// **'No installable releases. Refresh the version list.'**
+  String get dlss_noReleases;
+
+  /// No description provided for @dlss_notInstalled.
+  ///
+  /// In en, this message translates to:
+  /// **'Not installed'**
+  String get dlss_notInstalled;
+
+  /// No description provided for @dlss_original.
+  ///
+  /// In en, this message translates to:
+  /// **'Original'**
+  String get dlss_original;
+
+  /// No description provided for @dlss_prerelease.
+  ///
+  /// In en, this message translates to:
+  /// **'Prerelease'**
+  String get dlss_prerelease;
+
+  /// No description provided for @dlss_previewHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Adjust parameters, then run. Every preview starts from this original. Saving creates a new file.'**
+  String get dlss_previewHint;
+
+  /// No description provided for @dlss_result.
+  ///
+  /// In en, this message translates to:
+  /// **'Enhanced result'**
+  String get dlss_result;
+
+  /// No description provided for @dlss_run.
+  ///
+  /// In en, this message translates to:
+  /// **'Run enhancement'**
+  String get dlss_run;
+
+  /// No description provided for @dlss_running.
+  ///
+  /// In en, this message translates to:
+  /// **'Running DLSS enhancement…'**
+  String get dlss_running;
+
+  /// No description provided for @dlss_runtime.
+  ///
+  /// In en, this message translates to:
+  /// **'Runtime versions'**
+  String get dlss_runtime;
+
+  /// No description provided for @dlss_saveCopy.
+  ///
+  /// In en, this message translates to:
+  /// **'Save enhanced copy'**
+  String get dlss_saveCopy;
+
+  /// No description provided for @dlss_source.
+  ///
+  /// In en, this message translates to:
+  /// **'Components come from public video2dlssnr releases. Installation downloads the full archive, extracts required files and runs a real enhancement test.'**
+  String get dlss_source;
+
+  /// No description provided for @dlss_structure.
+  ///
+  /// In en, this message translates to:
+  /// **'Structure strength'**
+  String get dlss_structure;
+
+  /// No description provided for @dlss_style.
+  ///
+  /// In en, this message translates to:
+  /// **'Style'**
+  String get dlss_style;
+
+  /// No description provided for @dlss_styleCinematic.
+  ///
+  /// In en, this message translates to:
+  /// **'Cinematic'**
+  String get dlss_styleCinematic;
+
+  /// No description provided for @dlss_styleDefault.
+  ///
+  /// In en, this message translates to:
+  /// **'Default'**
+  String get dlss_styleDefault;
+
+  /// No description provided for @dlss_styleNatural.
+  ///
+  /// In en, this message translates to:
+  /// **'Natural'**
+  String get dlss_styleNatural;
+
+  /// No description provided for @dlss_title.
+  ///
+  /// In en, this message translates to:
+  /// **'DLSSNR Image Enhancement'**
+  String get dlss_title;
+
+  /// No description provided for @dlss_tone.
+  ///
+  /// In en, this message translates to:
+  /// **'Lighting and tone strength'**
+  String get dlss_tone;
+
+  /// No description provided for @dlss_advanced.
+  ///
+  /// In en, this message translates to:
+  /// **'Advanced parameters'**
+  String get dlss_advanced;
+
+  /// No description provided for @dlss_cancelled.
+  ///
+  /// In en, this message translates to:
+  /// **'Enhancement cancelled; original retained'**
+  String get dlss_cancelled;
+
+  /// No description provided for @dlss_checking.
+  ///
+  /// In en, this message translates to:
+  /// **'Checking'**
+  String get dlss_checking;
+
+  /// No description provided for @dlss_detect.
+  ///
+  /// In en, this message translates to:
+  /// **'Check again'**
+  String get dlss_detect;
+
+  /// No description provided for @dlss_diskUsage.
+  ///
+  /// In en, this message translates to:
+  /// **'Installed component size'**
+  String get dlss_diskUsage;
+
+  /// No description provided for @dlss_driver.
+  ///
+  /// In en, this message translates to:
+  /// **'Driver'**
+  String get dlss_driver;
+
+  /// No description provided for @dlss_environment.
+  ///
+  /// In en, this message translates to:
+  /// **'Environment'**
+  String get dlss_environment;
+
+  /// No description provided for @dlss_gpuAutomatic.
+  ///
+  /// In en, this message translates to:
+  /// **'Automatically select a working GPU'**
+  String get dlss_gpuAutomatic;
+
+  /// No description provided for @dlss_initializationFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Enhancement initialization failed. Check the diagnostics.'**
+  String get dlss_initializationFailed;
+
+  /// No description provided for @dlss_invalidComponents.
+  ///
+  /// In en, this message translates to:
+  /// **'Runtime files are damaged or changed. Switch versions or reinstall.'**
+  String get dlss_invalidComponents;
+
+  /// No description provided for @dlss_loadingReleases.
+  ///
+  /// In en, this message translates to:
+  /// **'Loading release list…'**
+  String get dlss_loadingReleases;
+
+  /// No description provided for @dlss_maintenance.
+  ///
+  /// In en, this message translates to:
+  /// **'Try and maintain'**
+  String get dlss_maintenance;
+
+  /// No description provided for @dlss_menu.
+  ///
+  /// In en, this message translates to:
+  /// **'DLSSNR Image Enhancement…'**
+  String get dlss_menu;
+
+  /// No description provided for @dlss_missingRuntime.
+  ///
+  /// In en, this message translates to:
+  /// **'Install a runtime first'**
+  String get dlss_missingRuntime;
+
+  /// No description provided for @dlss_noGpu.
+  ///
+  /// In en, this message translates to:
+  /// **'No usable NVIDIA D3D12 device'**
+  String get dlss_noGpu;
+
+  /// No description provided for @dlss_notChecked.
+  ///
+  /// In en, this message translates to:
+  /// **'Not checked'**
+  String get dlss_notChecked;
+
+  /// No description provided for @dlss_ready.
+  ///
+  /// In en, this message translates to:
+  /// **'Real enhancement test passed'**
+  String get dlss_ready;
+
+  /// No description provided for @dlss_tryImage.
+  ///
+  /// In en, this message translates to:
+  /// **'Try a local image'**
+  String get dlss_tryImage;
+
+  /// No description provided for @dlss_unknown.
+  ///
+  /// In en, this message translates to:
+  /// **'Unknown'**
+  String get dlss_unknown;
+
+  /// No description provided for @dlss_downloading.
+  ///
+  /// In en, this message translates to:
+  /// **'Downloading components…'**
+  String get dlss_downloading;
+
+  /// No description provided for @dlss_extracting.
+  ///
+  /// In en, this message translates to:
+  /// **'Verifying and extracting components…'**
+  String get dlss_extracting;
+
+  /// No description provided for @dlss_probing.
+  ///
+  /// In en, this message translates to:
+  /// **'Testing GPU enhancement…'**
+  String get dlss_probing;
+
+  /// No description provided for @dlss_activating.
+  ///
+  /// In en, this message translates to:
+  /// **'Finishing installation…'**
+  String get dlss_activating;
+
+  /// No description provided for @dlss_diagnostics.
+  ///
+  /// In en, this message translates to:
+  /// **'Diagnostic details'**
+  String get dlss_diagnostics;
+
+  /// No description provided for @dlss_operationFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Operation failed. Check diagnostic details and retry.'**
+  String get dlss_operationFailed;
+
+  /// No description provided for @dlss_downloadFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Download failed. Check your connection and retry.'**
+  String get dlss_downloadFailed;
+
+  /// No description provided for @dlss_operationCancelled.
+  ///
+  /// In en, this message translates to:
+  /// **'Operation cancelled'**
+  String get dlss_operationCancelled;
+
+  /// No description provided for @dlss_disabled.
+  ///
+  /// In en, this message translates to:
+  /// **'Enhancement is disabled. Enable it in settings first.'**
+  String get dlss_disabled;
+
+  /// No description provided for @dlss_timeout.
+  ///
+  /// In en, this message translates to:
+  /// **'Enhancement timed out. Retry or check the GPU.'**
+  String get dlss_timeout;
+
+  /// No description provided for @dlss_outOfMemory.
+  ///
+  /// In en, this message translates to:
+  /// **'Insufficient GPU memory. Close other GPU applications and retry.'**
+  String get dlss_outOfMemory;
+
+  /// No description provided for @dlss_saveFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Save failed. Check the image folder and free disk space.'**
+  String get dlss_saveFailed;
+
+  /// No description provided for @dlss_compareHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Full-resolution comparison fits the window by default. Select 100% to inspect actual pixels; drag to pan or move the divider to compare.'**
+  String get dlss_compareHint;
+
+  /// No description provided for @dlss_skin.
+  ///
+  /// In en, this message translates to:
+  /// **'Skin structure strength'**
+  String get dlss_skin;
+
+  /// No description provided for @dlss_modelDefault.
+  ///
+  /// In en, this message translates to:
+  /// **'Model default'**
+  String get dlss_modelDefault;
+
+  /// No description provided for @dlss_autoMask.
+  ///
+  /// In en, this message translates to:
+  /// **'Auto mask'**
+  String get dlss_autoMask;
+
+  /// No description provided for @dlss_styleHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Selects runtime style 0, 1 or 2 without changing dimensions. Default, Natural and Cinematic retain upstream names; their correspondence to official Model A/B/C has not been verified.'**
+  String get dlss_styleHint;
+
+  /// No description provided for @dlss_intensityHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Controls the overall NR effect from 0 to 1. Zero disables the NR effect; one applies full intensity. Higher values produce the same output as one in the current runtime. SR scaling and output blend are separate controls.'**
+  String get dlss_intensityHint;
+
+  /// No description provided for @dlss_detailHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Controls the overall NR effect, not material detail alone. 0 retains the NR input (the upscaled image when SR is enabled); 1 applies the enhanced result with the NR color contribution setting. Values above 1 amplify the difference and may exaggerate or distort the image.'**
+  String get dlss_detailHint;
+
+  /// No description provided for @dlss_colorHint.
+  ///
+  /// In en, this message translates to:
+  /// **'0 keeps the original hue with enhanced luminance; 1 uses the enhanced colours. Lower values stay closer to the original palette.'**
+  String get dlss_colorHint;
+
+  /// No description provided for @dlss_structureHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Controls material texture, local shading and structural changes, rather than ordinary sharpening. One is the reference level; the usual slider range is 0–2. Values above one remain effective, but high values can introduce grain, color shifts and distorted detail.'**
+  String get dlss_structureHint;
+
+  /// No description provided for @dlss_toneHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Controls broader lighting, shading and color changes. One is the reference level; the usual slider range is 0–2. This is not a fixed brightness or contrast adjustment. Zero does not disable structure changes or guarantee identical source colors.'**
+  String get dlss_toneHint;
+
+  /// No description provided for @dlss_skinHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Adjusts skin structure in regions identified by the automatic mask. Requires auto mask. Use -1 for the model default or a nonnegative strength; all negative values use the default. This control does not change output with auto mask off in the current runtime.'**
+  String get dlss_skinHint;
+
+  /// No description provided for @dlss_autoMaskHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Enables the model’s internal region mask and skin structure control. Its detected regions cannot currently be previewed. Turning it off may change local effects but does not disable NR overall.'**
+  String get dlss_autoMaskHint;
+
+  /// No description provided for @dlss_invalidNumber.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter a valid value supported by this parameter.'**
+  String get dlss_invalidNumber;
+
+  /// No description provided for @dlss_scale.
+  ///
+  /// In en, this message translates to:
+  /// **'SR scale'**
+  String get dlss_scale;
+
+  /// No description provided for @dlss_scaleHint.
+  ///
+  /// In en, this message translates to:
+  /// **'DLSS SR upscales before NR. Default: 2×; 1× skips SR and runs NR at the original size. Decimal values are supported. Each output edge must stay within 16384 pixels; practical limits depend on GPU memory.'**
+  String get dlss_scaleHint;
+
+  /// No description provided for @dlss_srHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Local DLSS SR upscale with no NR contribution to the final image. The current runtime still computes one NR pass, requiring a working NR environment and adding processing time.'**
+  String get dlss_srHint;
+
+  /// No description provided for @dlss_srScaleHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Shares the NR panel\'s scale, default 2×. At 1×, processing does not start. Resizes and reconstructs detail without applying NR strength, style, or pass count.'**
+  String get dlss_srScaleHint;
+
+  /// No description provided for @dlss_srUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Install, verify, and enable the runtime in Settings → Integrations → DLSSNR first.'**
+  String get dlss_srUnavailable;
+
+  /// No description provided for @dlss_finalizing.
+  ///
+  /// In en, this message translates to:
+  /// **'NR complete · preparing comparison…'**
+  String get dlss_finalizing;
+
+  /// No description provided for @dlss_processing.
+  ///
+  /// In en, this message translates to:
+  /// **'Processing'**
+  String get dlss_processing;
+
+  /// No description provided for @dlss_appearance.
+  ///
+  /// In en, this message translates to:
+  /// **'Appearance'**
+  String get dlss_appearance;
+
+  /// No description provided for @dlss_parameterPreset.
+  ///
+  /// In en, this message translates to:
+  /// **'Parameter preset'**
+  String get dlss_parameterPreset;
+
+  /// No description provided for @dlss_managePresets.
+  ///
+  /// In en, this message translates to:
+  /// **'Manage presets'**
+  String get dlss_managePresets;
+
+  /// No description provided for @dlss_createPreset.
+  ///
+  /// In en, this message translates to:
+  /// **'Save as new preset'**
+  String get dlss_createPreset;
+
+  /// No description provided for @dlss_savePreset.
+  ///
+  /// In en, this message translates to:
+  /// **'Save to this preset'**
+  String get dlss_savePreset;
+
+  /// No description provided for @dlss_renamePreset.
+  ///
+  /// In en, this message translates to:
+  /// **'Rename preset'**
+  String get dlss_renamePreset;
+
+  /// No description provided for @dlss_presetName.
+  ///
+  /// In en, this message translates to:
+  /// **'Preset name'**
+  String get dlss_presetName;
+
+  /// No description provided for @dlss_invalidPresetName.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter a name that is not already used by a custom preset.'**
+  String get dlss_invalidPresetName;
+
+  /// No description provided for @dlss_deletePresetHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete this custom preset? Your current parameter adjustments will be kept.'**
+  String get dlss_deletePresetHint;
+
+  /// No description provided for @dlss_draftSaved.
+  ///
+  /// In en, this message translates to:
+  /// **'Modified · Current parameters saved automatically'**
+  String get dlss_draftSaved;
+
+  /// No description provided for @dlss_builtinPreset.
+  ///
+  /// In en, this message translates to:
+  /// **'Built-in · Read-only; adjust and save a copy'**
+  String get dlss_builtinPreset;
+
+  /// No description provided for @dlss_customPreset.
+  ///
+  /// In en, this message translates to:
+  /// **'Custom preset'**
+  String get dlss_customPreset;
+
+  /// No description provided for @dlss_restorePreset.
+  ///
+  /// In en, this message translates to:
+  /// **'Restore this preset'**
+  String get dlss_restorePreset;
+
+  /// No description provided for @dlss_presetSoft.
+  ///
+  /// In en, this message translates to:
+  /// **'Soft'**
+  String get dlss_presetSoft;
+
+  /// No description provided for @dlss_presetLight.
+  ///
+  /// In en, this message translates to:
+  /// **'Color-preserving enhancement'**
+  String get dlss_presetLight;
+
+  /// No description provided for @dlss_presetNatural.
+  ///
+  /// In en, this message translates to:
+  /// **'Natural'**
+  String get dlss_presetNatural;
+
+  /// No description provided for @dlss_presetCinema.
+  ///
+  /// In en, this message translates to:
+  /// **'Cinematic'**
+  String get dlss_presetCinema;
+
+  /// No description provided for @dlss_presetMaterial.
+  ///
+  /// In en, this message translates to:
+  /// **'Texture & light'**
+  String get dlss_presetMaterial;
+
+  /// No description provided for @dlss_presetCrisp.
+  ///
+  /// In en, this message translates to:
+  /// **'Detail'**
+  String get dlss_presetCrisp;
+
+  /// No description provided for @dlss_presetVivid.
+  ///
+  /// In en, this message translates to:
+  /// **'Vivid'**
+  String get dlss_presetVivid;
+
+  /// No description provided for @dlss_detailAndColor.
+  ///
+  /// In en, this message translates to:
+  /// **'Output blending'**
+  String get dlss_detailAndColor;
+
+  /// No description provided for @dlss_localAdjustments.
+  ///
+  /// In en, this message translates to:
+  /// **'Local adjustments'**
+  String get dlss_localAdjustments;
+
+  /// No description provided for @dlss_modelStrengths.
+  ///
+  /// In en, this message translates to:
+  /// **'Model strengths'**
+  String get dlss_modelStrengths;
+
+  /// No description provided for @dlss_modelSwitches.
+  ///
+  /// In en, this message translates to:
+  /// **'Model options'**
+  String get dlss_modelSwitches;
+
+  /// No description provided for @dlss_activation.
+  ///
+  /// In en, this message translates to:
+  /// **'Activation and automation'**
+  String get dlss_activation;
 }
 
 class _AppLocalizationsDelegate

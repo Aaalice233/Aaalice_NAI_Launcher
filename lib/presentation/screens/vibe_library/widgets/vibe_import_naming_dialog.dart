@@ -1,10 +1,12 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+
 import 'package:flutter/services.dart';
 import 'package:nai_launcher/core/utils/localization_extension.dart';
 import 'package:nai_launcher/presentation/themes/core/input_surface_style.dart';
 
+import '../../../widgets/common/image_viewport_surface.dart';
 import '../../../../core/utils/app_logger.dart';
 import '../../../adaptive/adaptive_presenter.dart';
 import '../../../widgets/common/adaptive_dialog_frame.dart';
@@ -296,7 +298,7 @@ class _VibeImportNamingDialogState extends State<VibeImportNamingDialog> {
         child: Container(
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(12),
-            color: theme.colorScheme.surfaceContainerHighest,
+            color: ImageViewportSurface.background,
           ),
           clipBehavior: Clip.antiAlias,
           child: Image.memory(
@@ -307,16 +309,16 @@ class _VibeImportNamingDialogState extends State<VibeImportNamingDialog> {
               return Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(
+                  const Icon(
                     Icons.broken_image,
                     size: 48,
-                    color: theme.colorScheme.outline,
+                    color: ImageViewportSurface.mutedForeground,
                   ),
                   const SizedBox(height: 8),
                   Text(
                     context.l10n.vibe_previewLoadFailed,
                     style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.colorScheme.outline,
+                      color: ImageViewportSurface.mutedForeground,
                     ),
                   ),
                 ],

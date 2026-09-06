@@ -10,6 +10,7 @@ import '../../../core/storage/local_storage_service.dart';
 import '../../../data/models/tag_library/tag_library_category.dart';
 import '../../../data/models/tag_library/tag_library_entry.dart';
 import '../../adaptive/adaptive_presenter.dart';
+import '../../adaptive/interaction_policy.dart';
 import '../../providers/tag_library_page_provider.dart';
 import '../common/thumbnail_display.dart';
 import '../common/translated_tag_text.dart';
@@ -341,7 +342,9 @@ class _EntrySelectCardState extends State<_EntrySelectCard> {
                       ? theme.colorScheme.surfaceContainerHigh
                       : theme.colorScheme.surfaceContainerLow,
                   borderRadius: BorderRadius.circular(12),
-                  border: _isFocused
+                  border:
+                      _isFocused &&
+                          context.interactionPolicy.keyboardNavigationActive
                       ? Border.all(color: theme.colorScheme.primary)
                       : null,
                 ),

@@ -207,3 +207,18 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
+## DLSS-COM and NVIDIA NGX
+
+The NR bridge and GPU texture transfer code under `windows/dlss/` are adapted
+from [MYT-YEP/DLSS-COM](https://github.com/MYT-YEP/DLSS-COM), revision
+`3aeca71b28695118894bd04fc64f42b45e03004b`, under the MIT License.
+The complete notice is in `licenses/dlss/dlss-com.txt` and is installed with
+the Windows application.
+
+The native worker links NVIDIA's NGX SDK from
+[NVIDIA/DLSS](https://github.com/NVIDIA/DLSS), revision
+`a291cc7d2cc642a51566f3dfd5376f635cd1b284`. Build inputs are pinned and SHA-256
+verified in `windows/dlss/ngx_sdk.cmake`. The SDK's NVIDIA license is downloaded
+from the same revision and installed as `licenses/NVIDIA-DLSS.txt`.
+Model runtime DLLs are downloaded separately through the application's runtime
+installer; they are not included in this repository.

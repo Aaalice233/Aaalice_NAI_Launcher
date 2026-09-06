@@ -3,10 +3,12 @@ import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
 import 'package:url_launcher/url_launcher.dart';
 
+import '../common/image_viewport_surface.dart';
 import '../../../core/utils/app_logger.dart';
 import '../../../core/utils/image_share_sanitizer.dart';
 import '../../../core/utils/localization_extension.dart';
@@ -625,7 +627,7 @@ class _DiscordShareDialogState extends ConsumerState<DiscordShareDialog> {
     final image = ClipRRect(
       borderRadius: BorderRadius.circular(14),
       child: ColoredBox(
-        color: colors.surfaceContainerHighest,
+        color: ImageViewportSurface.background,
         child: Image.memory(widget.imageBytes, fit: BoxFit.contain),
       ),
     );

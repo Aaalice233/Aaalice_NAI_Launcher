@@ -41,7 +41,11 @@ void main() {
     isNewer: true,
   );
 
-  Widget app(UpdateState state, {double textScale = 1}) {
+  Widget app(
+    UpdateState state, {
+    double textScale = 1,
+    VoidCallback? onPageTap,
+  }) {
     return ProviderScope(
       overrides: [
         updateStateNotifierProvider.overrideWith(
@@ -58,15 +62,23 @@ void main() {
           ).copyWith(textScaler: TextScaler.linear(textScale)),
           child: child!,
         ),
-        home: const Scaffold(
+        home: Scaffold(
           body: Stack(
             children: [
-              Positioned(
-                top: 0,
-                left: 0,
-                right: 0,
-                child: UpdateNoticeBanner(),
+              Positioned.fill(
+                child: ColoredBox(
+                  key: const ValueKey('underlying-page'),
+                  color: Colors.white,
+                  child: Align(
+                    alignment: Alignment.bottomCenter,
+                    child: TextButton(
+                      onPressed: onPageTap,
+                      child: const Text('page action'),
+                    ),
+                  ),
+                ),
               ),
+              const UpdateNoticeOverlay(),
             ],
           ),
         ),
@@ -90,11 +102,47 @@ void main() {
     expect(find.text('新版本 v2.0.0 可用'), findsOneWidget);
     expect(find.textContaining('+33'), findsNothing);
     expect(find.text('查看更新'), findsOneWidget);
+    final pageRect = tester.getRect(
+      find.byKey(const ValueKey('underlying-page')),
+    );
+    expect(pageRect, const Rect.fromLTWH(0, 0, 800, 600));
 
     await tester.tap(find.byIcon(Icons.close_rounded));
     await tester.pump();
 
     expect(find.text('新版本 v2.0.0 可用'), findsNothing);
+    expect(
+      tester.getRect(find.byKey(const ValueKey('underlying-page'))),
+      pageRect,
+    );
+  });
+
+  testWidgets('overlay leaves page actions reachable at all widths', (
+    tester,
+  ) async {
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    for (final width in [320.0, 600.0, 840.0, 1180.0, 1600.0]) {
+      await tester.binding.setSurfaceSize(Size(width, 360));
+      var tapped = false;
+      await tester.pumpWidget(
+        app(
+          const UpdateState(
+            status: UpdateStatus.available,
+            versionInfo: info,
+            notificationVisible: true,
+          ),
+          textScale: 3,
+          onPageTap: () => tapped = true,
+        ),
+      );
+      await tester.pump();
+      await tester.tap(find.text('page action'));
+      expect(tapped, isTrue);
+      await tester.ensureVisible(find.text('查看更新'));
+      expect(find.text('查看更新').hitTestable(), findsOneWidget);
+      expect(tester.takeException(), isNull, reason: 'width=$width');
+      await tester.pumpWidget(const SizedBox.shrink());
+    }
   });
 
   testWidgets('uses a stacked compact layout without horizontal overflow', (

@@ -74,6 +74,7 @@ void main() {
 
     expect(find.byTooltip('局部重绘'), findsOneWidget);
     expect(find.byTooltip('放大'), findsOneWidget);
+    expect(find.byTooltip('DLSSNR 图像增强…'), findsOneWidget);
   });
 
   testWidgets('agent reference action is shown on hover only when available', (
@@ -700,37 +701,36 @@ void main() {
     expect(find.byType(TransparencyBackgroundLayer), findsOneWidget);
   });
 
-  testWidgets('a completed card without a preview waits on the surface color', (
-    tester,
-  ) async {
-    final result = Uint8List.fromList(
-      img.encodePng(img.Image(width: 40, height: 40)),
-    );
+  testWidgets(
+    'a completed card without a preview waits on neutral image color',
+    (tester) async {
+      final result = Uint8List.fromList(
+        img.encodePng(img.Image(width: 40, height: 40)),
+      );
 
-    await tester.pumpWidget(_buildCompletionApp(imageBytes: result));
+      await tester.pumpWidget(_buildCompletionApp(imageBytes: result));
 
-    final placeholder = find.descendant(
-      of: find.byKey(const ValueKey('selectable-image-content')),
-      matching: find.byType(ColoredBox),
-    );
-    expect(find.byType(ImageCardStreamPreview), findsNothing);
-    expect(find.byType(TransparencyBackgroundLayer), findsNothing);
-    expect(placeholder, findsOneWidget);
-    expect(
-      tester.widget<ColoredBox>(placeholder).color,
-      Theme.of(
-        tester.element(find.byType(SelectableImageCard)),
-      ).colorScheme.surface,
-    );
+      final placeholder = find.descendant(
+        of: find.byKey(const ValueKey('selectable-image-content')),
+        matching: find.byType(ColoredBox),
+      );
+      expect(find.byType(ImageCardStreamPreview), findsNothing);
+      expect(find.byType(TransparencyBackgroundLayer), findsNothing);
+      expect(placeholder, findsOneWidget);
+      expect(
+        tester.widget<ColoredBox>(placeholder).color,
+        const Color(0xFF141414),
+      );
 
-    await _pumpUntilDecoded(
-      tester,
-      () => find.byType(TransparencyBackgroundLayer).evaluate().isNotEmpty,
-    );
+      await _pumpUntilDecoded(
+        tester,
+        () => find.byType(TransparencyBackgroundLayer).evaluate().isNotEmpty,
+      );
 
-    expect(placeholder, findsNothing);
-    expect(find.byType(TransparencyBackgroundLayer), findsOneWidget);
-  });
+      expect(placeholder, findsNothing);
+      expect(find.byType(TransparencyBackgroundLayer), findsOneWidget);
+    },
+  );
 
   testWidgets('an underlay-free card draws nothing before its first frame', (
     tester,

@@ -1,9 +1,11 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+
 import 'package:flutter_inappwebview/flutter_inappwebview.dart'
     show WebViewEnvironment;
 
+import '../../../common/image_viewport_surface.dart';
 import '../../../../../core/platform/platform_capabilities.dart';
 import '../../../../../core/utils/app_logger.dart';
 import '../../../../adaptive/interaction_policy.dart';
@@ -768,7 +770,7 @@ class _LayerThumbnail extends StatelessWidget {
         width: size,
         height: size,
         decoration: BoxDecoration(
-          color: theme.colorScheme.surfaceContainerHighest,
+          color: ImageViewportSurface.background,
           border: Border.all(color: theme.dividerColor, width: 1),
           borderRadius: BorderRadius.circular(4),
         ),

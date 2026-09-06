@@ -2,10 +2,12 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../widgets/common/image_viewport_surface.dart';
 import '../../core/utils/localization_extension.dart';
 import '../../data/models/gallery/local_image_record.dart';
 import '../adaptive/adaptive_layout.dart';
@@ -173,7 +175,7 @@ class _SlideshowScreenState extends ConsumerState<SlideshowScreen> {
       focusNode: _focusNode,
       onKeyEvent: _handleKeyEvent,
       child: Scaffold(
-        backgroundColor: Colors.black,
+        backgroundColor: ImageViewportSurface.background,
         body: SafeArea(
           child: Stack(
             children: [
@@ -375,7 +377,7 @@ class _SlideshowEmptyScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Scaffold(
-      backgroundColor: Colors.black,
+      backgroundColor: ImageViewportSurface.background,
       body: SafeArea(
         child: AdaptiveSlotLayout(
           builder: (context, areas) => SingleChildScrollView(

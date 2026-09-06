@@ -1460,7 +1460,13 @@ void main() {
       notifier.setRunStatus(AgentChatRunStatus.idle);
       await tester.pump();
       expect(runningIndicator, findsNothing);
-      expect(find.byIcon(Icons.smart_toy_outlined), findsOneWidget);
+      expect(
+        find.descendant(
+          of: find.byKey(const ValueKey('generation-agent-drawer-action')),
+          matching: find.byIcon(Icons.smart_toy_outlined),
+        ),
+        findsOneWidget,
+      );
 
       await tester.timedDrag(
         verticalShortcuts,
