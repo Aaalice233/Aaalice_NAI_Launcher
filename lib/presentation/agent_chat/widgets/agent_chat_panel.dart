@@ -192,7 +192,13 @@ class _EmbeddedAgentChatLayout extends StatelessWidget {
       ),
       AgentChatStatus(viewData: viewData, commands: commands),
       if (viewData.state.questionRequest case final request?)
-        Flexible(flex: 2, child: AgentChatQuestionCard(request: request))
+        Expanded(
+          flex: 2,
+          child: Align(
+            alignment: Alignment.bottomCenter,
+            child: AgentChatQuestionCard(request: request),
+          ),
+        )
       else if (viewData.state.routeReady)
         AgentChatComposer(
           viewData: viewData,
@@ -247,9 +253,12 @@ class _MobileAgentChatLayout extends StatelessWidget {
                       commands: commands,
                     ),
                     if (viewData.state.questionRequest case final request?)
-                      Flexible(
+                      Expanded(
                         flex: 2,
-                        child: AgentChatQuestionCard(request: request),
+                        child: Align(
+                          alignment: Alignment.bottomCenter,
+                          child: AgentChatQuestionCard(request: request),
+                        ),
                       )
                     else if (viewData.state.routeReady)
                       ConstrainedBox(

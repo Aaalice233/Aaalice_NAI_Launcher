@@ -94,7 +94,16 @@ void main() {
           expiresAt: DateTime.now().add(const Duration(minutes: 2)),
         ),
       );
-      for (final width in [360.0, 700.0]) {
+      tester.view.physicalSize = const Size(1000, 1000);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      for (final (width, height) in [
+        (360.0, 420.0),
+        (700.0, 420.0),
+        (360.0, 900.0),
+        (700.0, 900.0),
+      ]) {
         await tester.pumpWidget(
           UncontrolledProviderScope(
             container: container,
@@ -105,7 +114,7 @@ void main() {
               home: Scaffold(
                 body: SizedBox(
                   width: width,
-                  height: 420,
+                  height: height,
                   child: const AgentChatPanel(),
                 ),
               ),
@@ -120,6 +129,12 @@ void main() {
           findsOneWidget,
         );
         expect(cancel.hitTestable(), findsOneWidget);
+        expect(
+          tester
+              .getRect(find.byKey(const ValueKey('user-question-card')))
+              .bottom,
+          closeTo(tester.getRect(panel).bottom - 8, 0.01),
+        );
         expect(
           tester.getRect(panel).contains(tester.getRect(cancel).bottomRight),
           isTrue,
