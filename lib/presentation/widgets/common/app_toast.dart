@@ -810,15 +810,17 @@ class _ToastVisualStyle {
   final Color accent;
 }
 
-/// Toast surfaces use complete semantic pairs so every theme owns contrast.
+/// Brand accents do not encode status. Keep status hues stable across themes
+/// and use complete light/dark pairs to preserve text contrast.
 _ToastVisualStyle _getTypeStyle(ThemeData theme, ToastType type) {
   final colors = theme.colorScheme;
+  final dark = theme.brightness == Brightness.dark;
   return switch (type) {
     ToastType.success => _ToastVisualStyle(
       icon: Icons.check_circle_rounded,
-      container: colors.primaryContainer,
-      foreground: colors.onPrimaryContainer,
-      accent: colors.onPrimaryContainer,
+      container: dark ? const Color(0xFF163A24) : const Color(0xFFE8F5E9),
+      foreground: dark ? const Color(0xFFA5D6A7) : const Color(0xFF1B5E20),
+      accent: dark ? const Color(0xFFA5D6A7) : const Color(0xFF1B5E20),
     ),
     ToastType.error => _ToastVisualStyle(
       icon: Icons.cancel_rounded,
@@ -828,21 +830,21 @@ _ToastVisualStyle _getTypeStyle(ThemeData theme, ToastType type) {
     ),
     ToastType.warning => _ToastVisualStyle(
       icon: Icons.warning_rounded,
-      container: colors.tertiaryContainer,
-      foreground: colors.onTertiaryContainer,
-      accent: colors.onTertiaryContainer,
+      container: dark ? const Color(0xFF3D2E08) : const Color(0xFFFFF8E1),
+      foreground: dark ? const Color(0xFFFFE082) : const Color(0xFF6D4C00),
+      accent: dark ? const Color(0xFFFFE082) : const Color(0xFF6D4C00),
     ),
     ToastType.info => _ToastVisualStyle(
       icon: Icons.info_rounded,
-      container: colors.secondaryContainer,
-      foreground: colors.onSecondaryContainer,
-      accent: colors.onSecondaryContainer,
+      container: dark ? const Color(0xFF102F4A) : const Color(0xFFE3F2FD),
+      foreground: dark ? const Color(0xFF90CAF9) : const Color(0xFF0D47A1),
+      accent: dark ? const Color(0xFF90CAF9) : const Color(0xFF0D47A1),
     ),
     ToastType.progress => _ToastVisualStyle(
       icon: Icons.downloading_rounded,
       container: colors.surfaceContainerHigh,
       foreground: colors.onSurface,
-      accent: colors.primary,
+      accent: colors.onSurfaceVariant,
     ),
   };
 }

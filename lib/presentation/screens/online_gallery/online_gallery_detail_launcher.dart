@@ -506,7 +506,7 @@ class OnlineGalleryDetailLauncher {
         );
     Navigator.of(dialogContext, rootNavigator: true).pop();
     context.go('/');
-    AppToast.info(context, context.l10n.onlineGallery_sentToTextToImage);
+    AppToast.success(context, context.l10n.onlineGallery_sentToTextToImage);
   }
 
   Future<void> _sendDetailToGenerationWithOptions(

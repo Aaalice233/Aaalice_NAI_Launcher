@@ -229,79 +229,84 @@ void main() {
     await tester.pump();
   });
 
-  testWidgets('Toast 使用主题语义容器与满足 AA 的前景色', (tester) async {
-    final scheme = ColorScheme.fromSeed(seedColor: const Color(0xFF345678))
-        .copyWith(
-          primaryContainer: const Color(0xFF17351F),
-          onPrimaryContainer: const Color(0xFFFFFFFF),
-          errorContainer: const Color(0xFF4A1018),
-          onErrorContainer: const Color(0xFFFFFFFF),
-          tertiaryContainer: const Color(0xFF3B2608),
-          onTertiaryContainer: const Color(0xFFFFFFFF),
-          secondaryContainer: const Color(0xFF142C45),
-          onSecondaryContainer: const Color(0xFFFFFFFF),
-        );
+  for (final brightness in Brightness.values) {
+    testWidgets('Toast 状态颜色不被红色品牌覆盖且满足 AA $brightness', (tester) async {
+      final scheme =
+          ColorScheme.fromSeed(
+            seedColor: const Color(0xFFB00020),
+            brightness: brightness,
+          ).copyWith(
+            primaryContainer: const Color(0xFF4A1018),
+            onPrimaryContainer: const Color(0xFFFFFFFF),
+            errorContainer: const Color(0xFF4A1018),
+            onErrorContainer: const Color(0xFFFFFFFF),
+            tertiaryContainer: const Color(0xFF4A1018),
+            onTertiaryContainer: const Color(0xFFFFFFFF),
+            secondaryContainer: const Color(0xFF4A1018),
+            onSecondaryContainer: const Color(0xFFFFFFFF),
+          );
 
-    await tester.pumpWidget(
-      MaterialApp(
-        theme: ThemeData(colorScheme: scheme),
-        home: Builder(
-          builder: (context) => Scaffold(
-            body: FilledButton(
-              onPressed: () {
-                AppToast.success(context, 'Success semantic toast');
-                AppToast.error(context, 'Error semantic toast');
-                AppToast.warning(context, 'Warning semantic toast');
-                AppToast.info(context, 'Info semantic toast');
-              },
-              child: const Text('Show semantic toasts'),
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: ThemeData(colorScheme: scheme),
+          home: Builder(
+            builder: (context) => Scaffold(
+              body: FilledButton(
+                onPressed: () {
+                  AppToast.success(context, 'Success semantic toast');
+                  AppToast.error(context, 'Error semantic toast');
+                  AppToast.warning(context, 'Warning semantic toast');
+                  AppToast.info(context, 'Info semantic toast');
+                },
+                child: const Text('Show semantic toasts'),
+              ),
             ),
           ),
         ),
-      ),
-    );
-
-    await tester.tap(find.text('Show semantic toasts'));
-    await tester.pump(const Duration(milliseconds: 301));
-
-    final expectedPairs = <String, (Color, Color)>{
-      'Success semantic toast': (
-        scheme.primaryContainer,
-        scheme.onPrimaryContainer,
-      ),
-      'Error semantic toast': (scheme.errorContainer, scheme.onErrorContainer),
-      'Warning semantic toast': (
-        scheme.tertiaryContainer,
-        scheme.onTertiaryContainer,
-      ),
-      'Info semantic toast': (
-        scheme.secondaryContainer,
-        scheme.onSecondaryContainer,
-      ),
-    };
-    for (final entry in expectedPairs.entries) {
-      final text = tester.widget<Text>(find.text(entry.key));
-      final surface = tester.widget<Container>(
-        find
-            .ancestor(
-              of: find.text(entry.key),
-              matching: find.byWidgetPredicate(
-                (widget) =>
-                    widget is Container && widget.decoration is BoxDecoration,
-              ),
-            )
-            .first,
       );
-      final background = (surface.decoration! as BoxDecoration).color!;
-      final foreground = text.style!.color!;
-      expect(background, entry.value.$1);
-      expect(foreground, entry.value.$2);
-      expect(_contrastRatio(foreground, background), greaterThanOrEqualTo(4.5));
-    }
 
-    await tester.pump(const Duration(seconds: 3));
-    await tester.pump(const Duration(milliseconds: 301));
-  });
+      await tester.tap(find.text('Show semantic toasts'));
+      await tester.pump(const Duration(milliseconds: 301));
+
+      final expectedHues = <String, (double, double)>{
+        'Success semantic toast': (100, 160),
+        'Warning semantic toast': (35, 60),
+        'Info semantic toast': (190, 230),
+        'Error semantic toast': (330, 360),
+      };
+      for (final entry in expectedHues.entries) {
+        final text = tester.widget<Text>(find.text(entry.key));
+        final surface = tester.widget<Container>(
+          find
+              .ancestor(
+                of: find.text(entry.key),
+                matching: find.byWidgetPredicate(
+                  (widget) =>
+                      widget is Container && widget.decoration is BoxDecoration,
+                ),
+              )
+              .first,
+        );
+        final background = (surface.decoration! as BoxDecoration).color!;
+        final foreground = text.style!.color!;
+        expect(
+          HSVColor.fromColor(background).hue,
+          inInclusiveRange(entry.value.$1, entry.value.$2),
+        );
+        if (entry.key.startsWith('Error')) {
+          expect(background, scheme.errorContainer);
+          expect(foreground, scheme.onErrorContainer);
+        }
+        expect(
+          _contrastRatio(foreground, background),
+          greaterThanOrEqualTo(4.5),
+        );
+      }
+
+      await tester.pump(const Duration(seconds: 3));
+      await tester.pump(const Duration(milliseconds: 301));
+    });
+  }
 
   testWidgets('Windows 触屏策略使用触控命中区并居中显示', (tester) async {
     await tester.binding.setSurfaceSize(const Size(800, 600));
