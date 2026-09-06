@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_markdown_plus/flutter_markdown_plus.dart' as md;
 
 import '../../presentation/adaptive/interaction_policy.dart';
+import '../../presentation/themes/core/layered_surface_style.dart';
 
 /// Shared sizing contract for the embedded and detached composer editors.
 abstract final class AgentChatComposerLayout {
@@ -375,7 +376,8 @@ class AgentChatApprovalSurface extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final foreground = theme.colorScheme.onTertiaryContainer;
+    final scheme = theme.colorScheme;
+    final foreground = scheme.onSurface;
     return Container(
       key: const ValueKey('agent-chat-approval-surface'),
       margin: EdgeInsets.fromLTRB(
@@ -386,7 +388,7 @@ class AgentChatApprovalSurface extends StatelessWidget {
       ),
       padding: EdgeInsets.all(touchOptimized ? 14 : 12),
       decoration: BoxDecoration(
-        color: theme.colorScheme.tertiaryContainer.withValues(alpha: 0.5),
+        color: overlaySurfaceColor(scheme),
         borderRadius: BorderRadius.circular(14),
       ),
       child: Column(
@@ -399,13 +401,13 @@ class AgentChatApprovalSurface extends StatelessWidget {
                 width: 36,
                 height: 36,
                 decoration: BoxDecoration(
-                  color: theme.colorScheme.tertiary.withValues(alpha: 0.14),
+                  color: controlSurfaceColor(scheme),
                   shape: BoxShape.circle,
                 ),
                 child: Icon(
                   Icons.gpp_maybe_outlined,
                   size: 19,
-                  color: foreground,
+                  color: scheme.primary,
                 ),
               ),
               const SizedBox(width: 10),
@@ -424,7 +426,7 @@ class AgentChatApprovalSurface extends StatelessWidget {
                     Text(
                       description,
                       style: theme.textTheme.bodySmall?.copyWith(
-                        color: foreground.withValues(alpha: 0.76),
+                        color: scheme.onSurfaceVariant,
                       ),
                     ),
                     if (costLabel case final label?) ...[
@@ -432,7 +434,7 @@ class AgentChatApprovalSurface extends StatelessWidget {
                       Text(
                         label,
                         style: theme.textTheme.labelLarge?.copyWith(
-                          color: theme.colorScheme.tertiary,
+                          color: foreground,
                           fontWeight: FontWeight.w700,
                         ),
                       ),
@@ -458,7 +460,7 @@ class AgentChatApprovalSurface extends StatelessWidget {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: theme.textTheme.labelSmall?.copyWith(
-                      color: foreground.withValues(alpha: 0.74),
+                      color: scheme.onSurfaceVariant,
                       fontFamily: 'monospace',
                     ),
                   ),
@@ -480,6 +482,9 @@ class AgentChatApprovalSurface extends StatelessWidget {
                 child: OutlinedButton(
                   onPressed: onDeny,
                   style: OutlinedButton.styleFrom(
+                    backgroundColor: controlSurfaceColor(scheme),
+                    foregroundColor: foreground,
+                    side: BorderSide.none,
                     minimumSize: Size.fromHeight(touchOptimized ? 48 : 38),
                   ),
                   child: Text(denyLabel),
@@ -490,6 +495,8 @@ class AgentChatApprovalSurface extends StatelessWidget {
                 child: FilledButton(
                   onPressed: onAllow,
                   style: FilledButton.styleFrom(
+                    backgroundColor: scheme.primary,
+                    foregroundColor: scheme.onPrimary,
                     minimumSize: Size.fromHeight(touchOptimized ? 48 : 38),
                   ),
                   child: Text(allowLabel),

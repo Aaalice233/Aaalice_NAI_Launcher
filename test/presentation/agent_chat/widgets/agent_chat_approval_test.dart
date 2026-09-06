@@ -4,14 +4,18 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/agent_chat/widgets/agent_chat_approval.dart';
+import 'package:nai_launcher/presentation/themes/core/layered_surface_style.dart';
+import 'package:nai_launcher/presentation/themes/modules/color/palettes/grunge_palette.dart';
 
 void main() {
   Widget app({
     required double width,
     required Widget child,
     TextScaler textScaler = TextScaler.noScaling,
+    ThemeData? theme,
   }) {
     return MaterialApp(
+      theme: theme,
       localizationsDelegates: AppLocalizations.localizationsDelegates,
       supportedLocales: AppLocalizations.supportedLocales,
       home: MediaQuery(
@@ -50,14 +54,74 @@ void main() {
     );
   }
 
-  testWidgets('is bounded at required widths with TextScaler 2', (
+  testWidgets(
+    'approval text and actions keep readable contrast in both themes',
+    (tester) async {
+      double contrast(Color foreground, Color background) {
+        final a = Color.alphaBlend(foreground, background).computeLuminance();
+        final b = background.computeLuminance();
+        return a > b ? (a + 0.05) / (b + 0.05) : (b + 0.05) / (a + 0.05);
+      }
+
+      for (final palette in [
+        const GrungePalette().lightScheme,
+        const GrungePalette().darkScheme,
+      ]) {
+        final scheme = resolveLayeredSurfaceColors(palette);
+        await tester.pumpWidget(
+          app(
+            width: 600,
+            theme: ThemeData(colorScheme: scheme),
+            child: approval(),
+          ),
+        );
+        final surface = tester.widget<Container>(
+          find.byKey(const ValueKey('agent-chat-approval-surface')),
+        );
+        final background = (surface.decoration! as BoxDecoration).color!;
+        expect(background.a, 1);
+        for (final text
+            in find
+                .descendant(
+                  of: find.byKey(const ValueKey('agent-chat-approval-surface')),
+                  matching: find.byType(Text),
+                )
+                .evaluate()
+                .map((element) => element.widget as Text)) {
+          if (text.style?.color case final color?) {
+            expect(
+              contrast(color, background),
+              greaterThanOrEqualTo(4.5),
+              reason: text.data,
+            );
+          }
+        }
+        for (final button in [
+          tester.widget<OutlinedButton>(find.byType(OutlinedButton)),
+          tester.widget<FilledButton>(find.byType(FilledButton)),
+        ]) {
+          final style = button.style!;
+          expect(
+            contrast(
+              style.foregroundColor!.resolve({})!,
+              style.backgroundColor!.resolve({})!,
+            ),
+            greaterThanOrEqualTo(4.5),
+          );
+        }
+      }
+    },
+  );
+
+  testWidgets('is bounded at required widths with TextScaler 3', (
     tester,
   ) async {
-    for (final width in [320.0, 360.0, 412.0, 600.0, 840.0]) {
+    for (final width in [320.0, 360.0, 412.0, 600.0, 840.0, 1180.0, 1600.0]) {
+      await tester.binding.setSurfaceSize(Size(width, 800));
       await tester.pumpWidget(
         app(
           width: width,
-          textScaler: const TextScaler.linear(2),
+          textScaler: const TextScaler.linear(3),
           child: approval(),
         ),
       );
@@ -80,6 +144,7 @@ void main() {
         );
       }
     }
+    await tester.binding.setSurfaceSize(null);
   });
 
   testWidgets('shows an estimate only when authoritative estimate exists', (
