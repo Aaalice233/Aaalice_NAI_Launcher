@@ -2,11 +2,12 @@ import 'dart:math' as math;
 
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
-import '../common/model_family_icon.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:nai_launcher/core/utils/localization_extension.dart';
 
+import '../common/image_viewport_surface.dart';
+import '../common/model_family_icon.dart';
 import '../../../data/models/gallery/nai_image_metadata.dart';
 import '../../../data/models/vibe/vibe_reference.dart';
 import '../../adaptive/adaptive_presenter.dart';
@@ -135,7 +136,6 @@ class ImageDestinationDialog extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final theme = Theme.of(context);
     final promptMetadata = metadata;
     if (promptMetadata != null) {
       return _buildMetadataDialog(context, promptMetadata);
@@ -154,6 +154,7 @@ class ImageDestinationDialog extends ConsumerWidget {
             child: Container(
               constraints: const BoxConstraints(maxWidth: 200, maxHeight: 200),
               decoration: BoxDecoration(
+                color: ImageViewportSurface.background,
                 borderRadius: BorderRadius.circular(8),
                 boxShadow: [
                   BoxShadow(
@@ -172,11 +173,11 @@ class ImageDestinationDialog extends ConsumerWidget {
                     return Container(
                       width: 200,
                       height: 200,
-                      color: theme.colorScheme.surfaceContainerHighest,
-                      child: Icon(
+                      color: ImageViewportSurface.background,
+                      child: const Icon(
                         Icons.broken_image_outlined,
                         size: 64,
-                        color: theme.colorScheme.outline,
+                        color: ImageViewportSurface.mutedForeground,
                       ),
                     );
                   },
@@ -449,7 +450,7 @@ class ImageDestinationDialog extends ConsumerWidget {
           width: width,
           height: height,
           decoration: BoxDecoration(
-            color: theme.colorScheme.surfaceContainerLowest,
+            color: ImageViewportSurface.background,
             borderRadius: BorderRadius.circular(11),
             boxShadow: [
               BoxShadow(
@@ -464,12 +465,12 @@ class ImageDestinationDialog extends ConsumerWidget {
             child: Image.memory(
               imageBytes,
               fit: BoxFit.contain,
-              errorBuilder: (context, error, stackTrace) => ColoredBox(
-                color: theme.colorScheme.surfaceContainerHighest,
+              errorBuilder: (context, error, stackTrace) => const ColoredBox(
+                color: ImageViewportSurface.background,
                 child: Icon(
                   Icons.broken_image_outlined,
                   size: 64,
-                  color: theme.colorScheme.outline,
+                  color: ImageViewportSurface.mutedForeground,
                 ),
               ),
             ),

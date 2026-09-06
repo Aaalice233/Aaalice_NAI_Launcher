@@ -192,6 +192,7 @@ CloudSyncDataAdapterRegistry createAppCloudSyncAdapterRegistry({
 
 /// Explicit portable settings. Absence from this set means local-only.
 const portableSettingKeys = <String>{
+  'dlss_options',
   StorageKeys.themeType,
   StorageKeys.fontFamily,
   StorageKeys.fontScale,

@@ -1,9 +1,11 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+
 import 'package:flutter/rendering.dart'
     show RenderAbstractViewport, ScrollCacheExtent;
 import 'package:visibility_detector/visibility_detector.dart';
 
+import '../../widgets/common/image_viewport_surface.dart';
 import '../../../core/cache/online_gallery_preload_policy.dart';
 import '../../providers/online_gallery_provider.dart';
 import 'online_gallery_masonry_layout.dart';
@@ -237,7 +239,7 @@ class OnlineGalleryPendingCard extends StatelessWidget {
       height: itemWidth,
       child: DecoratedBox(
         decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.surfaceContainerLow,
+          color: ImageViewportSurface.background,
           borderRadius: BorderRadius.circular(8),
         ),
       ),

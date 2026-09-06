@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:io';
 import 'dart:math' as math;
 import 'dart:ui' as ui;
 
@@ -131,40 +130,16 @@ class LocalImageHoverPreviewCard extends StatefulWidget {
 class _LocalImageHoverPreviewCardState
     extends State<LocalImageHoverPreviewCard> {
   LocalGalleryThumbnailProvider? _imageProvider;
-  int? _resolvedWidth;
-  int? _resolvedHeight;
+  late Future<(int, int)> _imageDimensions;
   double? _devicePixelRatio;
   NaiImageMetadata? _metadata;
-  int _dimensionRequestId = 0;
   int _metadataRequestId = 0;
-
-  int? get _width {
-    final width = _metadata?.width;
-    return width != null && width > 0 ? width : _resolvedWidth;
-  }
-
-  int? get _height {
-    final height = _metadata?.height;
-    return height != null && height > 0 ? height : _resolvedHeight;
-  }
-
-  bool get _hasMetadataDimensions =>
-      (_metadata?.width ?? 0) > 0 && (_metadata?.height ?? 0) > 0;
-
-  double? get _aspectRatio {
-    final width = _width;
-    final height = _height;
-    if (width == null || height == null || width <= 0 || height <= 0) {
-      return null;
-    }
-    return width / height;
-  }
 
   @override
   void initState() {
     super.initState();
     _metadata = widget.record.metadata?.upgradeFromRawJsonIfNeeded();
-    if (!_hasMetadataDimensions) _loadImageDimensions();
+    _imageDimensions = _loadImageDimensions();
     _loadMetadata();
   }
 
@@ -185,11 +160,9 @@ class _LocalImageHoverPreviewCardState
         oldWidget.record.size != widget.record.size ||
         oldWidget.record.modifiedAt != widget.record.modifiedAt) {
       _cancelPendingImage();
-      _resolvedWidth = null;
-      _resolvedHeight = null;
       _metadata = widget.record.metadata?.upgradeFromRawJsonIfNeeded();
       _prepareImageProvider(_devicePixelRatio ?? 1);
-      if (!_hasMetadataDimensions) _loadImageDimensions();
+      _imageDimensions = _loadImageDimensions();
       _loadMetadata();
     }
   }
@@ -235,32 +208,31 @@ class _LocalImageHoverPreviewCardState
     setState(() => _metadata = metadata);
   }
 
-  Future<void> _loadImageDimensions() async {
-    final requestId = ++_dimensionRequestId;
-    final path = widget.record.path;
+  Future<(int, int)> _loadImageDimensions() async {
+    // Generation metadata remains the original recipe after resizing or
+    // enhancement. Only the encoded image describes the current pixel size.
+    final buffer = await ui.ImmutableBuffer.fromFilePath(widget.record.path);
+    ui.ImageDescriptor? descriptor;
     try {
-      final file = File(path);
-      if (!await file.exists()) return;
-      final buffer = await ui.ImmutableBuffer.fromFilePath(path);
-      ui.ImageDescriptor? descriptor;
-      try {
-        descriptor = await ui.ImageDescriptor.encoded(buffer);
-        if (!mounted || requestId != _dimensionRequestId) return;
-        setState(() {
-          _resolvedWidth = descriptor!.width;
-          _resolvedHeight = descriptor.height;
-        });
-      } finally {
-        descriptor?.dispose();
-        buffer.dispose();
-      }
-    } catch (_) {
-      // The image itself still reports a useful load error in the preview.
+      descriptor = await ui.ImageDescriptor.encoded(buffer);
+      return (descriptor.width, descriptor.height);
+    } finally {
+      descriptor?.dispose();
+      buffer.dispose();
     }
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) => FutureBuilder<(int, int)>(
+    key: const ValueKey('local-gallery-image-dimensions'),
+    future: _imageDimensions,
+    builder: (context, snapshot) => _buildPreview(
+      context,
+      snapshot.connectionState == ConnectionState.done ? snapshot.data : null,
+    ),
+  );
+
+  Widget _buildPreview(BuildContext context, (int, int)? dimensions) {
     final theme = Theme.of(context);
     final metadata = _metadata;
     final model = metadata?.effectiveModel?.trim();
@@ -268,7 +240,7 @@ class _LocalImageHoverPreviewCardState
         (model?.isNotEmpty ?? false) ||
         metadata?.seed != null ||
         metadata?.steps != null;
-    final ratio = _aspectRatio ?? 1;
+    final ratio = dimensions == null ? 1.0 : dimensions.$1 / dimensions.$2;
     final imageProvider = _imageProvider;
 
     return ImageHoverPreviewSurface(
@@ -351,7 +323,9 @@ class _LocalImageHoverPreviewCardState
                 Expanded(
                   child: ImageHoverPreviewMetric(
                     icon: Icons.photo_size_select_actual_outlined,
-                    value: _resolutionText,
+                    value: dimensions == null
+                        ? '—'
+                        : '${dimensions.$1}×${dimensions.$2}',
                     tone: ImageHoverPreviewTone.primary,
                   ),
                 ),
@@ -411,12 +385,6 @@ class _LocalImageHoverPreviewCardState
     );
   }
 
-  String get _resolutionText {
-    final width = _width;
-    final height = _height;
-    return width != null && height != null ? '$width×$height' : '—';
-  }
-
   String _fileName(String path) => path.split(RegExp(r'[/\\]')).last;
 
   String _formatDate(DateTime date) =>
@@ -426,7 +394,6 @@ class _LocalImageHoverPreviewCardState
 
   @override
   void dispose() {
-    _dimensionRequestId++;
     _metadataRequestId++;
     _cancelPendingImage();
     super.dispose();

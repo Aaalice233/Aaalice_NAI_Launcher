@@ -46,9 +46,11 @@ class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({
     super.key,
     this.initialSection = SettingsSection.account,
+    this.initiallyShowDlss = false,
   });
 
   final SettingsSection initialSection;
+  final bool initiallyShowDlss;
 
   @override
   ConsumerState<SettingsScreen> createState() => _SettingsScreenState();
@@ -164,7 +166,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         icon: Icons.extension_outlined,
         selectedIcon: Icons.extension,
         label: context.l10n.settings_integrations,
-        widget: const IntegrationsSettingsSection(),
+        widget: IntegrationsSettingsSection(
+          initiallyShowDlss: widget.initiallyShowDlss,
+        ),
       ),
       _SettingsSection(
         id: SettingsSection.about,

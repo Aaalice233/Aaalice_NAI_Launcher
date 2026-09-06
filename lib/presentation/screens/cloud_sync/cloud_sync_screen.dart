@@ -42,7 +42,6 @@ class CloudSyncScreen extends ConsumerWidget {
                     padding: const EdgeInsets.symmetric(vertical: 12),
                     child: Text(state.accountLabel!),
                   ),
-                const LinearProgressIndicator(),
               ],
             ),
           )

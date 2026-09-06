@@ -2,6 +2,7 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 
+import '../../widgets/common/image_viewport_surface.dart';
 import '../../../core/agent/agent_types.dart';
 import '../../../core/agent/resources/agent_chat_resource_reference.dart';
 import '../../../core/agent/resources/agent_chat_resource_reference_codec.dart';
@@ -756,7 +757,7 @@ class AgentChatMessages extends StatelessWidget {
       height: displaySize.height,
       child: ClipRRect(
         borderRadius: BorderRadius.circular(8),
-        child: imageWidget,
+        child: ImageViewportSurface(child: imageWidget),
       ),
     );
     if (bytes == null) return content;
@@ -790,13 +791,13 @@ class AgentChatMessages extends StatelessWidget {
         imageBuilder: (uri, _, alt) => _markdownImage(uri, alt),
       );
 
-  Widget _brokenImage(ThemeData theme) => ColoredBox(
-    color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.35),
+  Widget _brokenImage(ThemeData theme) => const ColoredBox(
+    color: ImageViewportSurface.background,
     child: Center(
       child: Icon(
         Icons.broken_image_outlined,
         size: 20,
-        color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
+        color: ImageViewportSurface.mutedForeground,
       ),
     ),
   );

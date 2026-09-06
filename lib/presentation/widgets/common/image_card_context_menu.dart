@@ -129,7 +129,7 @@ class ImageCardContextMenuRoute extends PopupRoute<ProMenuItem> {
                 mediaQuery.viewInsets.bottom,
               ) -
               16;
-          final menuWidth = ProContextMenu.widthFor(context);
+          final menuWidth = ProContextMenu.widthFor(context, baseWidth: 240);
           final minimumItemExtent =
               context.interactionPolicy.minimumControlExtent;
           final estimatedMenuHeight =
@@ -156,6 +156,7 @@ class ImageCardContextMenuRoute extends PopupRoute<ProMenuItem> {
                   position: Offset(left, top),
                   items: items,
                   maxHeight: maxMenuHeight,
+                  baseWidth: 240,
                   onSelect: (item) => Navigator.of(context).pop(item),
                 ),
               ],

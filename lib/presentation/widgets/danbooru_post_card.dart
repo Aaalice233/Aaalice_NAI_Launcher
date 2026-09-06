@@ -2,6 +2,8 @@ import 'dart:math';
 
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+
+import 'common/image_viewport_surface.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -418,8 +420,7 @@ class _DanbooruPostCardState extends State<DanbooruPostCard> {
     );
 
     final isLandscapeCard = aspectRatio > 1.3;
-    final portraitActionColumns = ((widget.itemWidth - 4) ~/ 44).clamp(1, 4);
-    final usesTouchActionMenu = interactionPolicy.touchAvailable;
+    final usesTouchActionMenu = interactionPolicy.usesTouchActionMenu;
     final onAddToAgent = ImageCardActionScope.maybeOf(context)?.onAddToAgent;
     final showStatusOverlays =
         usesTouchActionMenu || (!_isHovering && !_isFocused);
@@ -464,9 +465,11 @@ class _DanbooruPostCardState extends State<DanbooruPostCard> {
                     curve: motion.standardCurve,
                     height: itemHeight,
                     decoration: BoxDecoration(
-                      color: theme.colorScheme.surfaceContainerLow,
+                      color: ImageViewportSurface.background,
                       borderRadius: BorderRadius.circular(8),
-                      border: _isFocused
+                      border:
+                          _isFocused &&
+                              context.interactionPolicy.keyboardNavigationActive
                           ? Border.all(
                               color: theme.colorScheme.primary,
                               width: 1,
@@ -709,14 +712,17 @@ class _DanbooruPostCardState extends State<DanbooruPostCard> {
                       child: Consumer(
                         builder: (context, ref, _) {
                           return CardActionButtons(
+                            availableSize: Size(
+                              widget.itemWidth - 8,
+                              itemHeight - 8,
+                            ),
                             key: const ValueKey(
                               'online-gallery-card-action-buttons',
                             ),
                             visible: _isHovering || _isFocused,
-                            direction: Axis.horizontal,
-                            maxButtonsPerRow: isLandscapeCard
-                                ? null
-                                : portraitActionColumns,
+                            direction: isLandscapeCard
+                                ? Axis.horizontal
+                                : Axis.vertical,
                             buttons: [
                               if (widget.showFavoriteAction &&
                                   !widget.favoriteReadOnly &&

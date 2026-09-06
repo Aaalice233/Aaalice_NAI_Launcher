@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
+import '../../widgets/common/image_viewport_surface.dart';
 import '../../../core/cache/online_gallery_detail_coordinator.dart';
 import '../../../core/agent/resources/agent_chat_resource_reference.dart';
 import '../../../core/utils/localization_extension.dart';
@@ -232,12 +233,15 @@ class _GalleryGridItemState extends State<GalleryGridItem> {
                   ),
                   child: DecoratedBox(
                     decoration: BoxDecoration(
-                      color: Theme.of(context).colorScheme.surfaceContainerLow,
+                      color: ImageViewportSurface.background,
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Center(
                       child: TextButton.icon(
                         onPressed: _retryDetail,
+                        style: TextButton.styleFrom(
+                          foregroundColor: ImageViewportSurface.mutedForeground,
+                        ),
                         icon: const Icon(Icons.refresh),
                         label: Text(context.l10n.common_retry),
                       ),

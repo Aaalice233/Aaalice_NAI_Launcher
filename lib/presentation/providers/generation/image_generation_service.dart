@@ -54,11 +54,15 @@ class ImageGenerationService {
     ],
     Future<void> Function(Duration) delay = Future<void>.delayed,
     this.streamPreviewEnabled = true,
+    Future<Uint8List> Function(Uint8List, Future<void>)? postprocess,
+    void Function(Object)? onPostprocessError,
   }) : _apiService = apiService,
        _coordinator = ImageGenerationCoordinator(
          apiService: apiService,
          retryDelays: retryDelays,
          delay: delay,
+         postprocess: postprocess,
+         onPostprocessError: onPostprocessError,
        );
 
   final NAIImageGenerationApiService _apiService;
@@ -69,6 +73,7 @@ class ImageGenerationService {
   var _cancelled = false;
 
   bool get isCancelled => _cancelled;
+  bool get isPostprocessing => _coordinator.isPostprocessing;
 
   void cancel() {
     _cancelled = true;
@@ -219,7 +224,11 @@ class ImageGenerationService {
       }
       if (cancelled || handle.isCancelled || _isCancelledError(error)) {
         _cancelled = true;
-        return ImageGenerationResult.cancelled();
+        return ImageGenerationResult(
+          images: images,
+          vibeEncodings: encodings,
+          isCancelled: true,
+        );
       }
       if (images.isEmpty && error != null) {
         return ImageGenerationResult.error(error.toString());

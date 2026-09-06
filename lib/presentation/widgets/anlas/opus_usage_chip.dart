@@ -9,9 +9,8 @@ import '../../providers/subscription_provider.dart';
 
 /// Opus 免费生成配额徽章（V5 起）
 ///
-/// 网页端在 Opus 订阅下展示 "[0]% of Opus Generations remaining" 横条；
-/// 启动器做成余额芯片旁的紧凑徽章：迷你进度条 + 百分比，悬浮显示
-/// 估算张数与回充说明，配额透支时转为警示色。
+/// 百分比保留超过 100% 的真实配额；悬浮显示估算张数与回充说明，
+/// 配额透支时转为警示色。
 ///
 /// 仅当满足全部条件时显示：Opus 订阅、订阅响应携带 usage 字段、
 /// 当前模型受配额池限制（V5）。
@@ -68,9 +67,8 @@ class OpusUsageChip extends ConsumerWidget {
     final theme = Theme.of(context);
     final l10n = context.l10n;
     final exhausted = usage.isNegative;
-    // 服务端允许回充后的额度超过 100%；仅进度条封顶，文本与张数保留真实值。
+    // 服务端允许回充后的额度超过 100%，文本与张数保留真实值。
     final percent = exhausted ? 0.0 : usage.percent.clamp(0.0, double.infinity);
-    final progress = (percent / 100).clamp(0.0, 1.0);
     final accentColor = exhausted
         ? theme.colorScheme.error
         : theme.colorScheme.primary;
@@ -104,20 +102,6 @@ class OpusUsageChip extends ConsumerWidget {
               exhausted ? Icons.hourglass_bottom_rounded : Icons.bolt_rounded,
               size: compact ? 12 : 14,
               color: accentColor,
-            ),
-            const SizedBox(width: 4),
-            SizedBox(
-              width: compact ? 28 : 36,
-              height: 4,
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(2),
-                child: LinearProgressIndicator(
-                  value: progress,
-                  minHeight: 4,
-                  backgroundColor: accentColor.withValues(alpha: 0.2),
-                  valueColor: AlwaysStoppedAnimation<Color>(accentColor),
-                ),
-              ),
             ),
             const SizedBox(width: 4),
             Text(

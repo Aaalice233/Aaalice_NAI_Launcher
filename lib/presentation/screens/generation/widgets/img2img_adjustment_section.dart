@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/constants/api_constants.dart';
+import '../../../../core/platform/platform_capabilities.dart';
+import '../../dlss/dlss_enhancement_panel.dart';
 import '../../../../core/utils/focused_inpaint_utils.dart';
 import '../../../../core/utils/localization_extension.dart';
 import '../../../../data/models/image/image_params.dart';
@@ -129,12 +131,19 @@ class _InpaintPanel extends ConsumerWidget {
   }
 }
 
-class _EnhancePanel extends ConsumerWidget {
+class _EnhancePanel extends ConsumerStatefulWidget {
   const _EnhancePanel({required this.workflow});
   final ImageWorkflowState workflow;
+  @override
+  ConsumerState<_EnhancePanel> createState() => _EnhancePanelState();
+}
+
+class _EnhancePanelState extends ConsumerState<_EnhancePanel> {
+  bool _local = false;
+  ImageWorkflowState get workflow => widget.workflow;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final controller = ref.read(imageWorkflowControllerProvider.notifier);
     final enhance = workflow.enhance;
@@ -157,81 +166,125 @@ class _EnhancePanel extends ConsumerWidget {
               fontWeight: FontWeight.w700,
             ),
           ),
-          const SizedBox(height: 8),
-          Text(
-            context.l10n.img2img_enhanceHint,
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
-              height: 1.4,
-            ),
-          ),
-          const SizedBox(height: 12),
-          Img2ImgSlider(
-            label: context.l10n.img2img_enhanceMagnitude,
-            value: enhance.level.toDouble(),
-            min: EnhanceLevels.minLevel.toDouble(),
-            max: EnhanceLevels.maxLevel.toDouble(),
-            divisions: EnhanceLevels.maxLevel - EnhanceLevels.minLevel,
-            valueLabelBuilder: (value) => value.round().toString(),
-            onChanged: (value) => controller.updateEnhanceLevel(value.round()),
-          ),
-          Material(
-            type: MaterialType.transparency,
-            child: SwitchListTile.adaptive(
-              contentPadding: EdgeInsets.zero,
-              title: Text(
-                context.l10n.img2img_enhanceShowIndividualSettings,
-                style: theme.textTheme.bodyMedium,
-              ),
-              value: enhance.showIndividualSettings,
-              onChanged: controller.toggleEnhanceIndividualSettings,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            context.l10n.img2img_enhanceUpscaleAmount,
-            style: theme.textTheme.bodyMedium,
-          ),
-          const SizedBox(height: 8),
-          Wrap(
-            spacing: 8,
-            children: [
-              ...controller.availableEnhanceFactors.reversed.map(
-                (factor) => ChoiceChip(
-                  label: Text(
-                    factor == factor.roundToDouble()
-                        ? '${factor.toStringAsFixed(0)}x'
-                        : '${factor.toStringAsFixed(1)}x',
+          if (PlatformCapabilities.current.supportsDlssEnhancement) ...[
+            const SizedBox(height: 12),
+            LayoutBuilder(
+              builder: (context, constraints) => SegmentedButton<bool>(
+                direction:
+                    constraints.maxWidth < 280 ||
+                        MediaQuery.textScalerOf(context).scale(1) > 1.5
+                    ? Axis.vertical
+                    : Axis.horizontal,
+                segments: const [
+                  ButtonSegment(
+                    value: false,
+                    label: Text('NovelAI'),
+                    icon: Icon(Icons.cloud_outlined, size: 16),
                   ),
-                  selected:
-                      !useMax && controller.effectiveEnhanceFactor == factor,
-                  onSelected: (_) =>
-                      controller.updateEnhanceUpscaleFactor(factor),
-                ),
+                  ButtonSegment(
+                    value: true,
+                    label: Text('DLSSNR'),
+                    icon: Icon(Icons.computer_outlined, size: 16),
+                  ),
+                ],
+                selected: {_local},
+                showSelectedIcon: false,
+                onSelectionChanged: (value) =>
+                    setState(() => _local = value.first),
               ),
-              if (maxAvailable)
-                ChoiceChip(
-                  label: Text(context.l10n.img2img_enhanceScaleMax),
-                  selected: useMax,
-                  onSelected: (_) => controller.selectEnhanceMaxScale(),
+            ),
+          ],
+          if (_local) ...[
+            const SizedBox(height: 12),
+            FilledButton.icon(
+              key: const Key('img2img-dlss-enhance'),
+              icon: const Icon(Icons.open_in_new),
+              label: Text(context.l10n.dlss_openPage),
+              onPressed: () async {
+                final source = ref
+                    .read(generationParamsNotifierProvider)
+                    .sourceImage;
+                if (source != null) await showDlssEnhancement(context, source);
+              },
+            ),
+          ] else ...[
+            const SizedBox(height: 8),
+            Text(
+              context.l10n.img2img_enhanceHint,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+                height: 1.4,
+              ),
+            ),
+            const SizedBox(height: 12),
+            Img2ImgSlider(
+              label: context.l10n.img2img_enhanceMagnitude,
+              value: enhance.level.toDouble(),
+              min: EnhanceLevels.minLevel.toDouble(),
+              max: EnhanceLevels.maxLevel.toDouble(),
+              divisions: EnhanceLevels.maxLevel - EnhanceLevels.minLevel,
+              valueLabelBuilder: (value) => value.round().toString(),
+              onChanged: (value) =>
+                  controller.updateEnhanceLevel(value.round()),
+            ),
+            Material(
+              type: MaterialType.transparency,
+              child: SwitchListTile.adaptive(
+                contentPadding: EdgeInsets.zero,
+                title: Text(
+                  context.l10n.img2img_enhanceShowIndividualSettings,
+                  style: theme.textTheme.bodyMedium,
                 ),
+                value: enhance.showIndividualSettings,
+                onChanged: controller.toggleEnhanceIndividualSettings,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              context.l10n.img2img_enhanceUpscaleAmount,
+              style: theme.textTheme.bodyMedium,
+            ),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
+              children: [
+                ...controller.availableEnhanceFactors.reversed.map(
+                  (factor) => ChoiceChip(
+                    label: Text(
+                      factor == factor.roundToDouble()
+                          ? '${factor.toStringAsFixed(0)}x'
+                          : '${factor.toStringAsFixed(1)}x',
+                    ),
+                    selected:
+                        !useMax && controller.effectiveEnhanceFactor == factor,
+                    onSelected: (_) =>
+                        controller.updateEnhanceUpscaleFactor(factor),
+                  ),
+                ),
+                if (maxAvailable)
+                  ChoiceChip(
+                    label: Text(context.l10n.img2img_enhanceScaleMax),
+                    selected: useMax,
+                    onSelected: (_) => controller.selectEnhanceMaxScale(),
+                  ),
+              ],
+            ),
+            if (enhance.showIndividualSettings) ...[
+              const SizedBox(height: 12),
+              Img2ImgSlider(
+                label: context.l10n.img2img_strength,
+                value: enhance.strength,
+                onChanged: (value) =>
+                    controller.updateEnhanceIndividualSettings(strength: value),
+              ),
+              const SizedBox(height: 12),
+              Img2ImgSlider(
+                label: context.l10n.img2img_noise,
+                value: enhance.noise,
+                onChanged: (value) =>
+                    controller.updateEnhanceIndividualSettings(noise: value),
+              ),
             ],
-          ),
-          if (enhance.showIndividualSettings) ...[
-            const SizedBox(height: 12),
-            Img2ImgSlider(
-              label: context.l10n.img2img_strength,
-              value: enhance.strength,
-              onChanged: (value) =>
-                  controller.updateEnhanceIndividualSettings(strength: value),
-            ),
-            const SizedBox(height: 12),
-            Img2ImgSlider(
-              label: context.l10n.img2img_noise,
-              value: enhance.noise,
-              onChanged: (value) =>
-                  controller.updateEnhanceIndividualSettings(noise: value),
-            ),
           ],
         ],
       ),

@@ -5524,6 +5524,12 @@ class AppLocalizationsZh extends AppLocalizations {
   String get comparison_maxImages => '最多支持对比4张图片';
 
   @override
+  String get comparison_followMouse => '跟随鼠标';
+
+  @override
+  String get comparison_followMouseHint => '开启后，移动鼠标即可移动对比分割线；拖动图像仍可平移。';
+
+  @override
   String get comparison_close => '关闭对比';
 
   @override
@@ -14211,6 +14217,352 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get agentTool_resultTruncated => '内容已截断';
+
+  @override
+  String get dlss_activate => '切换到此版本';
+
+  @override
+  String get dlss_automatic => '生成后自动增强';
+
+  @override
+  String get dlss_automaticHint => '默认关闭。开启后，生成完成的图像会先增强，再进入历史记录和自动保存。';
+
+  @override
+  String get dlss_color => 'NR 颜色贡献';
+
+  @override
+  String get dlss_current => '当前使用';
+
+  @override
+  String get dlss_defaults => '默认增强参数';
+
+  @override
+  String get dlss_openPage => '打开 DLSSNR 页面';
+
+  @override
+  String get dlss_description => '在本机增强图像，管理所需运行库与默认参数。';
+
+  @override
+  String get dlss_detail => '输出混合';
+
+  @override
+  String get dlss_enabled => '启用 DLSS 增强';
+
+  @override
+  String get dlss_failed => 'DLSS 增强失败，原图已保留';
+
+  @override
+  String get dlss_install => '安装并使用';
+
+  @override
+  String get dlss_installed => '已安装版本';
+
+  @override
+  String get dlss_intensity => 'NR 总强度';
+
+  @override
+  String get dlss_latest => '最新稳定版';
+
+  @override
+  String get dlss_noReleases => '尚无可安装版本。请刷新版本列表。';
+
+  @override
+  String get dlss_notInstalled => '尚未安装';
+
+  @override
+  String get dlss_original => '原图';
+
+  @override
+  String get dlss_prerelease => '预发布版';
+
+  @override
+  String get dlss_previewHint => '调整参数后点击运行。每次都从这张原图开始，保存时创建新文件。';
+
+  @override
+  String get dlss_result => '增强结果';
+
+  @override
+  String get dlss_run => '运行增强';
+
+  @override
+  String get dlss_running => '正在进行 DLSS 增强…';
+
+  @override
+  String get dlss_runtime => '运行库版本';
+
+  @override
+  String get dlss_saveCopy => '另存增强图像';
+
+  @override
+  String get dlss_source =>
+      '组件来自 video2dlssnr 的公开 Release。安装会下载完整包，仅提取所需组件，并进行真实增强测试。';
+
+  @override
+  String get dlss_structure => '结构强度';
+
+  @override
+  String get dlss_style => '风格';
+
+  @override
+  String get dlss_styleCinematic => '电影感';
+
+  @override
+  String get dlss_styleDefault => '默认';
+
+  @override
+  String get dlss_styleNatural => '自然';
+
+  @override
+  String get dlss_title => 'DLSSNR 图像增强';
+
+  @override
+  String get dlss_tone => '光照与色调强度';
+
+  @override
+  String get dlss_validating => '正在校验组件并测试增强…';
+
+  @override
+  String get dlss_advanced => '高级参数';
+
+  @override
+  String get dlss_cancelled => '增强已取消，原图已保留';
+
+  @override
+  String get dlss_checking => '正在检测';
+
+  @override
+  String get dlss_detect => '重新检测';
+
+  @override
+  String get dlss_diskUsage => '组件安装占用';
+
+  @override
+  String get dlss_driver => '驱动';
+
+  @override
+  String get dlss_environment => '运行环境';
+
+  @override
+  String get dlss_gpuAutomatic => '自动选择可用 GPU';
+
+  @override
+  String get dlss_initializationFailed => '增强初始化未通过，请查看诊断信息';
+
+  @override
+  String get dlss_invalidComponents => '运行库损坏或文件发生变化，请切换版本或重新安装';
+
+  @override
+  String get dlss_loadingReleases => '正在获取版本列表…';
+
+  @override
+  String get dlss_maintenance => '试用与维护';
+
+  @override
+  String get dlss_menu => 'DLSSNR 图像增强…';
+
+  @override
+  String get dlss_missingRuntime => '请先安装运行库';
+
+  @override
+  String get dlss_noGpu => '没有可用的 NVIDIA D3D12 设备';
+
+  @override
+  String get dlss_notChecked => '尚未检测';
+
+  @override
+  String get dlss_ready => '真实增强检测通过';
+
+  @override
+  String get dlss_tryImage => '选择本地图片试用';
+
+  @override
+  String get dlss_unknown => '未知';
+
+  @override
+  String get dlss_downloading => '正在下载组件…';
+
+  @override
+  String get dlss_extracting => '正在校验并解压组件…';
+
+  @override
+  String get dlss_probing => '正在测试 GPU 增强…';
+
+  @override
+  String get dlss_activating => '正在完成安装…';
+
+  @override
+  String get dlss_diagnostics => '诊断详情';
+
+  @override
+  String get dlss_operationFailed => '操作失败，请查看诊断详情后重试';
+
+  @override
+  String get dlss_downloadFailed => '下载失败，请检查网络后重试';
+
+  @override
+  String get dlss_operationCancelled => '操作已取消';
+
+  @override
+  String get dlss_disabled => '增强功能已关闭，请先在设置中启用';
+
+  @override
+  String get dlss_timeout => '增强超时，请重试或检查 GPU 状态';
+
+  @override
+  String get dlss_outOfMemory => '显存不足，请关闭其他占用 GPU 的应用后重试';
+
+  @override
+  String get dlss_saveFailed => '保存失败，请检查图像保存目录及磁盘空间';
+
+  @override
+  String get dlss_compareHint =>
+      '完整分辨率对比，默认适应窗口。点击 100% 查看原尺寸像素；拖动图像查看局部，拖动分割线对比。';
+
+  @override
+  String get dlss_skin => '皮肤结构强度';
+
+  @override
+  String get dlss_modelDefault => '模型默认';
+
+  @override
+  String get dlss_autoMask => '自动遮罩';
+
+  @override
+  String get dlss_styleHint =>
+      '选择运行库的风格模式 0 / 1 / 2，不改变尺寸。“默认、自然、电影感”沿用上游名称，尚未验证与官方 Model A/B/C 的对应关系。';
+
+  @override
+  String get dlss_numericHint =>
+      '可直接输入数值，按回车或离开输入框应用。NR 总强度与颜色贡献为 0～1；结构、光照与输出混合常用 0～2，可输入更高值。皮肤结构负值表示模型默认，不是负强度。';
+
+  @override
+  String get dlss_intensityHint =>
+      '控制 NR 整体效果，范围 0～1。0 关闭 NR 效果，1 为完整强度；当前运行库中更高数值与 1 的输出一致。SR 放大与输出混合分别控制。';
+
+  @override
+  String get dlss_detailHint =>
+      '控制 NR 对整体画面的影响，不单独控制材质细节。0 保留 NR 输入（开启 SR 时为放大后的图像）；1 按“NR 颜色贡献”设置应用增强结果；大于 1 放大两者差异，可能使效果夸张或失真。';
+
+  @override
+  String get dlss_colorHint => '0 保留原图色相，但仍采用增强后的明暗；1 采用增强后的颜色。越低越接近原图的配色。';
+
+  @override
+  String get dlss_structureHint =>
+      '控制材质纹理、局部明暗与结构变化，并非普通锐化。1 为基准，常用 0～2；大于 1 仍有效，高值可能产生颗粒、色偏和细节失真。';
+
+  @override
+  String get dlss_toneHint =>
+      '控制较大范围的光照、明暗和颜色变化。1 为基准，常用 0～2；不是固定的亮度或对比度调节。0 不会关闭结构效果，也不保证输出与原图颜色完全一致。';
+
+  @override
+  String get dlss_skinHint =>
+      '调整自动遮罩识别区域的皮肤结构；需开启自动遮罩。-1 使用模型默认，0 及以上显式指定强度；负值均使用默认。当前运行库关闭自动遮罩后此项不改变输出。';
+
+  @override
+  String get dlss_autoMaskHint =>
+      '启用模型内部的区域遮罩，并使皮肤结构强度生效。当前无法预览其识别区域；关闭可能改变局部效果，但不会关闭整体 NR。';
+
+  @override
+  String get dlss_invalidNumber => '请输入此参数支持的有效数值。';
+
+  @override
+  String get dlss_scale => 'SR 放大倍率';
+
+  @override
+  String get dlss_scaleHint =>
+      '先用 DLSS SR 放大，再进行 NR。默认 2 倍；1 倍跳过 SR，仅按原尺寸进行 NR。可手动输入小数，输出每边不能超过 16384 像素，实际可用大小取决于显存。';
+
+  @override
+  String get dlss_srHint =>
+      '本机 DLSS SR 放大，最终结果不混入 NR。当前运行库仍会计算一次 NR，因此需要可用的 NR 环境，也会产生额外耗时。';
+
+  @override
+  String get dlss_srScaleHint =>
+      '与 NR 面板共用放大倍率，默认 2 倍。1 倍不启动处理。仅调整尺寸与重建细节；不会套用 NR 强度、风格或处理次数。';
+
+  @override
+  String get dlss_srUnavailable => '请先在“设置 → 集成 → DLSSNR”安装、检测并启用运行库。';
+
+  @override
+  String get dlss_finalizing => 'NR 已完成，正在准备对比图…';
+
+  @override
+  String get dlss_processing => '处理流程';
+
+  @override
+  String get dlss_appearance => '效果调整';
+
+  @override
+  String get dlss_parameterPreset => '参数预设';
+
+  @override
+  String get dlss_managePresets => '管理预设';
+
+  @override
+  String get dlss_createPreset => '另存为新预设';
+
+  @override
+  String get dlss_savePreset => '保存到此预设';
+
+  @override
+  String get dlss_renamePreset => '重命名预设';
+
+  @override
+  String get dlss_presetName => '预设名称';
+
+  @override
+  String get dlss_invalidPresetName => '请输入名称，且不要与已有自定义预设重名。';
+
+  @override
+  String get dlss_deletePresetHint => '删除此自定义预设？当前调整的参数会保留。';
+
+  @override
+  String get dlss_draftSaved => '已调整 · 当前参数已自动保存';
+
+  @override
+  String get dlss_builtinPreset => '内置预设 · 只读，可调整后另存';
+
+  @override
+  String get dlss_customPreset => '自定义预设';
+
+  @override
+  String get dlss_restorePreset => '恢复此预设';
+
+  @override
+  String get dlss_presetSoft => '柔和';
+
+  @override
+  String get dlss_presetLight => '保色增强';
+
+  @override
+  String get dlss_presetNatural => '自然';
+
+  @override
+  String get dlss_presetCinema => '电影';
+
+  @override
+  String get dlss_presetMaterial => '质感光影';
+
+  @override
+  String get dlss_presetCrisp => '细节';
+
+  @override
+  String get dlss_presetVivid => '浓郁';
+
+  @override
+  String get dlss_detailAndColor => '结果混合';
+
+  @override
+  String get dlss_localAdjustments => '局部调整';
+
+  @override
+  String get dlss_modelStrengths => '模型强度';
+
+  @override
+  String get dlss_modelSwitches => '模型开关';
+
+  @override
+  String get dlss_activation => '启用与自动处理';
 }
 
 /// The translations for Chinese, using the Han script (`zh_Hant`).
@@ -19731,6 +20083,12 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get comparison_maxImages => '最多支援對比4張圖片';
+
+  @override
+  String get comparison_followMouse => '跟隨滑鼠';
+
+  @override
+  String get comparison_followMouseHint => '開啟後，移動滑鼠即可移動比較分隔線；拖曳圖像仍可平移。';
 
   @override
   String get comparison_close => '關閉對比';
@@ -28421,4 +28779,350 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get agentTool_resultTruncated => '內容已截斷';
+
+  @override
+  String get dlss_activate => '切換到此版本';
+
+  @override
+  String get dlss_automatic => '生成後自動增強';
+
+  @override
+  String get dlss_automaticHint => '預設關閉。開啟後，生成的影像會先增強，再進入歷史記錄和自動儲存。';
+
+  @override
+  String get dlss_color => 'NR 色彩貢獻';
+
+  @override
+  String get dlss_current => '目前使用';
+
+  @override
+  String get dlss_defaults => '預設增強參數';
+
+  @override
+  String get dlss_openPage => '開啟 DLSSNR 頁面';
+
+  @override
+  String get dlss_description => '在本機增強影像，管理所需執行階段與預設參數。';
+
+  @override
+  String get dlss_detail => '輸出混合';
+
+  @override
+  String get dlss_enabled => '啟用 DLSS 增強';
+
+  @override
+  String get dlss_failed => 'DLSS 增強失敗，原圖已保留';
+
+  @override
+  String get dlss_install => '安裝並使用';
+
+  @override
+  String get dlss_installed => '已安裝版本';
+
+  @override
+  String get dlss_intensity => 'NR 總強度';
+
+  @override
+  String get dlss_latest => '最新穩定版';
+
+  @override
+  String get dlss_noReleases => '尚無可安裝版本。請重新整理版本清單。';
+
+  @override
+  String get dlss_notInstalled => '尚未安裝';
+
+  @override
+  String get dlss_original => '原圖';
+
+  @override
+  String get dlss_prerelease => '預先發行版';
+
+  @override
+  String get dlss_previewHint => '調整參數後點擊執行。每次都從這張原圖開始，儲存時建立新檔案。';
+
+  @override
+  String get dlss_result => '增強結果';
+
+  @override
+  String get dlss_run => '執行增強';
+
+  @override
+  String get dlss_running => '正在進行 DLSS 增強…';
+
+  @override
+  String get dlss_runtime => '執行階段版本';
+
+  @override
+  String get dlss_saveCopy => '另存增強影像';
+
+  @override
+  String get dlss_source =>
+      '元件來自 video2dlssnr 的公開 Release。安裝會下載完整套件，僅擷取所需元件，並進行實際增強測試。';
+
+  @override
+  String get dlss_structure => '結構強度';
+
+  @override
+  String get dlss_style => '風格';
+
+  @override
+  String get dlss_styleCinematic => '電影感';
+
+  @override
+  String get dlss_styleDefault => '預設';
+
+  @override
+  String get dlss_styleNatural => '自然';
+
+  @override
+  String get dlss_title => 'DLSSNR 圖像增強';
+
+  @override
+  String get dlss_tone => '光照與色調強度';
+
+  @override
+  String get dlss_validating => '正在驗證元件並測試增強…';
+
+  @override
+  String get dlss_advanced => '進階參數';
+
+  @override
+  String get dlss_cancelled => '增強已取消，原圖已保留';
+
+  @override
+  String get dlss_checking => '正在偵測';
+
+  @override
+  String get dlss_detect => '重新偵測';
+
+  @override
+  String get dlss_diskUsage => '元件安裝用量';
+
+  @override
+  String get dlss_driver => '驅動程式';
+
+  @override
+  String get dlss_environment => '執行環境';
+
+  @override
+  String get dlss_gpuAutomatic => '自動選擇可用 GPU';
+
+  @override
+  String get dlss_initializationFailed => '增強初始化未通過，請查看診斷資訊';
+
+  @override
+  String get dlss_invalidComponents => '執行階段損壞或檔案變更，請切換版本或重新安裝';
+
+  @override
+  String get dlss_loadingReleases => '正在取得版本清單…';
+
+  @override
+  String get dlss_maintenance => '試用與維護';
+
+  @override
+  String get dlss_menu => 'DLSSNR 圖像增強…';
+
+  @override
+  String get dlss_missingRuntime => '請先安裝執行階段';
+
+  @override
+  String get dlss_noGpu => '沒有可用的 NVIDIA D3D12 裝置';
+
+  @override
+  String get dlss_notChecked => '尚未偵測';
+
+  @override
+  String get dlss_ready => '實際增強偵測通過';
+
+  @override
+  String get dlss_tryImage => '選擇本機影像試用';
+
+  @override
+  String get dlss_unknown => '未知';
+
+  @override
+  String get dlss_downloading => '正在下載元件…';
+
+  @override
+  String get dlss_extracting => '正在驗證並解壓元件…';
+
+  @override
+  String get dlss_probing => '正在測試 GPU 增強…';
+
+  @override
+  String get dlss_activating => '正在完成安裝…';
+
+  @override
+  String get dlss_diagnostics => '診斷詳情';
+
+  @override
+  String get dlss_operationFailed => '操作失敗，請查看診斷詳情後重試';
+
+  @override
+  String get dlss_downloadFailed => '下載失敗，請檢查網路後重試';
+
+  @override
+  String get dlss_operationCancelled => '操作已取消';
+
+  @override
+  String get dlss_disabled => '增強功能已關閉，請先在設定中啟用';
+
+  @override
+  String get dlss_timeout => '增強逾時，請重試或檢查 GPU 狀態';
+
+  @override
+  String get dlss_outOfMemory => '顯示記憶體不足，請關閉其他占用 GPU 的應用程式後重試';
+
+  @override
+  String get dlss_saveFailed => '儲存失敗，請檢查圖像儲存目錄及磁碟空間';
+
+  @override
+  String get dlss_compareHint =>
+      '完整解析度比較，預設符合視窗。點擊 100% 查看原尺寸像素；拖曳圖像查看局部，拖曳分隔線比較。';
+
+  @override
+  String get dlss_skin => '皮膚結構強度';
+
+  @override
+  String get dlss_modelDefault => '模型預設';
+
+  @override
+  String get dlss_autoMask => '自動遮罩';
+
+  @override
+  String get dlss_styleHint =>
+      '選擇執行庫的風格模式 0 / 1 / 2，不改變尺寸。「預設、自然、電影感」沿用上游名稱，尚未驗證與官方 Model A/B/C 的對應關係。';
+
+  @override
+  String get dlss_numericHint =>
+      '可直接輸入數值，按 Enter 或離開輸入框套用。NR 總強度與色彩貢獻為 0～1；結構、光照與輸出混合常用 0～2，可輸入更高值。皮膚結構負值表示模型預設，不是負強度。';
+
+  @override
+  String get dlss_intensityHint =>
+      '控制 NR 整體效果，範圍 0～1。0 關閉 NR 效果，1 為完整強度；目前執行庫中更高數值與 1 的輸出一致。SR 放大與輸出混合分別控制。';
+
+  @override
+  String get dlss_detailHint =>
+      '控制 NR 對整體畫面的影響，不單獨控制材質細節。0 保留 NR 輸入（開啟 SR 時為放大後的圖像）；1 按「NR 色彩貢獻」設定套用增強結果；大於 1 放大兩者差異，可能使效果誇張或失真。';
+
+  @override
+  String get dlss_colorHint => '0 保留原圖色相，但仍採用增強後的明暗；1 採用增強後的顏色。越低越接近原圖的配色。';
+
+  @override
+  String get dlss_structureHint =>
+      '控制材質紋理、局部明暗與結構變化，並非一般銳化。1 為基準，常用 0～2；大於 1 仍有效，高值可能產生顆粒、色偏和細節失真。';
+
+  @override
+  String get dlss_toneHint =>
+      '控制較大範圍的光照、明暗和色彩變化。1 為基準，常用 0～2；不是固定的亮度或對比調整。0 不會關閉結構效果，也不保證輸出與原圖色彩完全一致。';
+
+  @override
+  String get dlss_skinHint =>
+      '調整自動遮罩辨識區域的皮膚結構；需開啟自動遮罩。-1 使用模型預設，0 及以上明確指定強度；負值皆使用預設。目前執行庫關閉自動遮罩後此項不改變輸出。';
+
+  @override
+  String get dlss_autoMaskHint =>
+      '啟用模型內部的區域遮罩，並使皮膚結構強度生效。目前無法預覽其辨識區域；關閉可能改變局部效果，但不會關閉整體 NR。';
+
+  @override
+  String get dlss_invalidNumber => '請輸入此參數支援的有效數值。';
+
+  @override
+  String get dlss_scale => 'SR 放大倍率';
+
+  @override
+  String get dlss_scaleHint =>
+      '先用 DLSS SR 放大，再進行 NR。預設 2 倍；1 倍略過 SR，僅按原尺寸進行 NR。可手動輸入小數，輸出每邊不能超過 16384 像素，實際可用大小取決於顯示記憶體。';
+
+  @override
+  String get dlss_srHint =>
+      '本機 DLSS SR 放大，最終結果不混入 NR。目前執行階段仍會計算一次 NR，因此需要可用的 NR 環境，也會產生額外耗時。';
+
+  @override
+  String get dlss_srScaleHint =>
+      '與 NR 面板共用放大倍率，預設 2 倍。1 倍不啟動處理。僅調整尺寸與重建細節；不套用 NR 強度、風格或處理次數。';
+
+  @override
+  String get dlss_srUnavailable => '請先在「設定 → 整合 → DLSSNR」安裝、檢測並啟用執行階段。';
+
+  @override
+  String get dlss_finalizing => 'NR 已完成，正在準備比較圖…';
+
+  @override
+  String get dlss_processing => '處理流程';
+
+  @override
+  String get dlss_appearance => '效果調整';
+
+  @override
+  String get dlss_parameterPreset => '參數預設';
+
+  @override
+  String get dlss_managePresets => '管理預設';
+
+  @override
+  String get dlss_createPreset => '另存為新預設';
+
+  @override
+  String get dlss_savePreset => '儲存到此預設';
+
+  @override
+  String get dlss_renamePreset => '重新命名預設';
+
+  @override
+  String get dlss_presetName => '預設名稱';
+
+  @override
+  String get dlss_invalidPresetName => '請輸入名稱，且不要與現有自訂預設同名。';
+
+  @override
+  String get dlss_deletePresetHint => '刪除此自訂預設？目前調整的參數會保留。';
+
+  @override
+  String get dlss_draftSaved => '已調整 · 目前參數已自動儲存';
+
+  @override
+  String get dlss_builtinPreset => '內建預設 · 唯讀，可調整後另存';
+
+  @override
+  String get dlss_customPreset => '自訂預設';
+
+  @override
+  String get dlss_restorePreset => '還原此預設';
+
+  @override
+  String get dlss_presetSoft => '柔和';
+
+  @override
+  String get dlss_presetLight => '保色增強';
+
+  @override
+  String get dlss_presetNatural => '自然';
+
+  @override
+  String get dlss_presetCinema => '電影';
+
+  @override
+  String get dlss_presetMaterial => '質感光影';
+
+  @override
+  String get dlss_presetCrisp => '細節';
+
+  @override
+  String get dlss_presetVivid => '濃郁';
+
+  @override
+  String get dlss_detailAndColor => '結果混合';
+
+  @override
+  String get dlss_localAdjustments => '局部調整';
+
+  @override
+  String get dlss_modelStrengths => '模型強度';
+
+  @override
+  String get dlss_modelSwitches => '模型開關';
+
+  @override
+  String get dlss_activation => '啟用與自動處理';
 }

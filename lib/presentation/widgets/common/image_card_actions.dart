@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
@@ -19,6 +20,8 @@ import '../../providers/mosaic_settings_provider.dart';
 import '../../providers/share_image_settings_provider.dart';
 import '../../providers/watermark_settings_provider.dart';
 import '../../screens/mosaic/mosaic_editor_launcher.dart';
+import '../../screens/dlss/dlss_enhancement_panel.dart';
+import '../../screens/dlss/dlss_error_view.dart';
 import '../../screens/watermark/watermark_editor_launcher.dart';
 import '../../utils/clipboard_image.dart';
 import 'app_toast.dart';
@@ -51,6 +54,7 @@ enum ImageCardActionId {
   generateVariations,
   directorTools,
   enhance,
+  dlssEnhance,
   upscale,
   sendToKrita,
 }
@@ -168,7 +172,7 @@ class ImageCardActionCatalog {
     }
     add(
       ImageCardActionId.addToAgent,
-      Icons.auto_awesome_outlined,
+      Icons.smart_toy_outlined,
       l10n.agentChat_addResource,
       onAddToAgent,
       group: 1,
@@ -192,7 +196,6 @@ class ImageCardActionCatalog {
             : l10n.watermark_actionCreate,
         coordinator.openWatermarkEditor,
         group: 1,
-        hover: false,
       );
     }
     if (coordinator.mosaicEnabled &&
@@ -206,7 +209,6 @@ class ImageCardActionCatalog {
             : l10n.mosaic_actionCreate,
         coordinator.openMosaicEditor,
         group: 1,
-        hover: false,
       );
     }
     add(
@@ -294,6 +296,17 @@ class ImageCardActionCatalog {
       capabilities.onEnhance,
       group: 4,
     );
+    if (capabilities.enableSaveAction &&
+        PlatformCapabilities.current.supportsDlssEnhancement &&
+        (data.imageBytes != null || data.sourceFilePath != null)) {
+      add(
+        ImageCardActionId.dlssEnhance,
+        Icons.tonality_outlined,
+        l10n.dlss_menu,
+        coordinator.openDlss,
+        group: 4,
+      );
+    }
     add(
       ImageCardActionId.upscale,
       Icons.zoom_out_map_rounded,
@@ -325,6 +338,22 @@ class ImageCardActionCoordinator {
 
   ImageCardViewData get _data => controller.data;
   ImageCardCapabilities get _capabilities => controller.capabilities;
+
+  Future<void> openDlss() async {
+    try {
+      final path = _data.sourceFilePath;
+      final bytes = path == null || path.isEmpty
+          ? _data.imageBytes
+          : await File(path).readAsBytes();
+      if (bytes != null && context.mounted) {
+        await showDlssEnhancement(context, bytes);
+      }
+    } catch (error) {
+      if (context.mounted) {
+        AppToast.error(context, dlssErrorLabel(context, error));
+      }
+    }
+  }
 
   bool get watermarkEnabled =>
       ref.read(watermarkSettingsProvider).configuration.enabled;

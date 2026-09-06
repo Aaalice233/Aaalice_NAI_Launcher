@@ -3,6 +3,7 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 
+import '../../image_viewport_surface.dart';
 import '../../decoded_memory_image.dart';
 
 /// 缩略图预览组件
@@ -47,14 +48,16 @@ class PreviewThumbnail extends StatelessWidget {
     if (imageBytes != null && imageBytes!.isNotEmpty) {
       return ClipRRect(
         borderRadius: BorderRadius.circular(borderRadius),
-        child: Image.memory(
-          imageBytes!,
-          width: size,
-          height: size,
-          cacheWidth: cacheSize,
-          cacheHeight: cacheSize,
-          fit: BoxFit.cover,
-          errorBuilder: (context, error, stackTrace) => _buildFallback(theme),
+        child: ImageViewportSurface(
+          child: Image.memory(
+            imageBytes!,
+            width: size,
+            height: size,
+            cacheWidth: cacheSize,
+            cacheHeight: cacheSize,
+            fit: BoxFit.cover,
+            errorBuilder: (context, error, stackTrace) => _buildFallback(theme),
+          ),
         ),
       );
     }
@@ -72,15 +75,17 @@ class PreviewThumbnail extends StatelessWidget {
           if (snapshot.data == true) {
             return ClipRRect(
               borderRadius: BorderRadius.circular(borderRadius),
-              child: Image.file(
-                File(imagePath!),
-                width: size,
-                height: size,
-                cacheWidth: cacheSize,
-                cacheHeight: cacheSize,
-                fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) =>
-                    _buildFallback(theme),
+              child: ImageViewportSurface(
+                child: Image.file(
+                  File(imagePath!),
+                  width: size,
+                  height: size,
+                  cacheWidth: cacheSize,
+                  cacheHeight: cacheSize,
+                  fit: BoxFit.cover,
+                  errorBuilder: (context, error, stackTrace) =>
+                      _buildFallback(theme),
+                ),
               ),
             );
           }
@@ -99,13 +104,13 @@ class PreviewThumbnail extends StatelessWidget {
       width: size,
       height: size,
       decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerHighest,
+        color: ImageViewportSurface.background,
         borderRadius: BorderRadius.circular(borderRadius),
       ),
       child: Icon(
         fallbackIcon,
         size: size * 0.5,
-        color: theme.colorScheme.onSurfaceVariant,
+        color: ImageViewportSurface.mutedForeground,
       ),
     );
   }
@@ -116,7 +121,7 @@ class PreviewThumbnail extends StatelessWidget {
       width: size,
       height: size,
       decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerHighest,
+        color: ImageViewportSurface.background,
         borderRadius: BorderRadius.circular(borderRadius),
       ),
       child: Center(
@@ -124,7 +129,7 @@ class PreviewThumbnail extends StatelessWidget {
           dimension: size * 0.3,
           child: CircularProgressIndicator(
             strokeWidth: 2,
-            color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
+            color: ImageViewportSurface.mutedForeground,
             value: MediaQuery.disableAnimationsOf(context) ? 0.72 : null,
           ),
         ),

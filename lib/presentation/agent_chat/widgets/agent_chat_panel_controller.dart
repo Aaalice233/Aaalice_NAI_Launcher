@@ -2,10 +2,12 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
+
 import 'package:flutter/rendering.dart' show ScrollDirection;
 import 'package:flutter/services.dart'
     show KeyDownEvent, KeyEvent, KeyRepeatEvent, KeyUpEvent, LogicalKeyboardKey;
 
+import '../../widgets/common/image_viewport_surface.dart';
 import '../../../core/agent/agent_types.dart';
 import '../../../core/utils/app_logger.dart';
 import '../../../core/utils/nai_resolution_adapter.dart';
@@ -434,7 +436,7 @@ class AgentChatPanelController extends ChangeNotifier {
             elevation: 8,
             borderRadius: BorderRadius.circular(6),
             clipBehavior: Clip.antiAlias,
-            color: Theme.of(overlayContext).colorScheme.surface,
+            color: ImageViewportSurface.background,
             child: Image.memory(
               image.bytes,
               fit: BoxFit.contain,

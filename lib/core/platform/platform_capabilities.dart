@@ -60,6 +60,7 @@ class PlatformCapabilities {
   bool get supportsCustomStorageDirectories => isDesktop;
   bool get usesAppManagedStorage => isMobile;
   bool get supportsComfyUiIntegration => isDesktop;
+  bool get supportsDlssEnhancement => isWindows;
   bool get supportsDesktopOverlayInteractions => isDesktop;
   bool get supportsKeyboardShortcutConfiguration => isDesktop;
   bool get supportsKritaBridge => isDesktop;

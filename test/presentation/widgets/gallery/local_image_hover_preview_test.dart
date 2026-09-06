@@ -52,17 +52,32 @@ void main() {
       addTearDown(mouse.removePointer);
       await mouse.addPointer(location: const Offset(20, 20));
       await tester.pump();
-      await mouse.moveTo(
-        tester.getCenter(find.byKey(const ValueKey('hover-target'))),
-      );
-      await tester.pump(const Duration(milliseconds: 1));
+      await tester.runAsync(() async {
+        await mouse.moveTo(
+          tester.getCenter(find.byKey(const ValueKey('hover-target'))),
+        );
+        await Future<void>(() {});
+        await tester.pump();
+        final dimensions = tester.widget<FutureBuilder<(int, int)>>(
+          find.byKey(const ValueKey('local-gallery-image-dimensions')),
+        );
+        expect(await dimensions.future!.timeout(const Duration(seconds: 5)), (
+          44,
+          44,
+        ));
+      });
       await tester.pump();
 
       final preview = find.byKey(const ValueKey('local-gallery-hover-preview'));
       expect(preview, findsOneWidget);
       expect(find.byType(ImageHoverPreviewSurface), findsOneWidget);
       expect(find.text('tray_icon.png'), findsOneWidget);
-      expect(find.text('1024×1536'), findsOneWidget);
+      expect(find.text('44×44'), findsOneWidget);
+      expect(find.text('1024×1536'), findsNothing);
+      expect(
+        tester.widget<ImageHoverPreviewSurface>(preview).sourceAspectRatio,
+        1,
+      );
       final modifiedDate =
           '${imageStat.modified.year.toString().padLeft(4, '0')}-'
           '${imageStat.modified.month.toString().padLeft(2, '0')}-'
@@ -84,7 +99,7 @@ void main() {
       expect(find.text('123456'), findsOneWidget);
       expect(find.text('28'), findsOneWidget);
       expect({
-        tester.getCenter(find.text('1024×1536')).dy,
+        tester.getCenter(find.text('44×44')).dy,
         tester.getCenter(find.text(formatBytes(imageStat.size))).dy,
         tester.getCenter(find.text(modifiedDate)).dy,
       }, hasLength(1));

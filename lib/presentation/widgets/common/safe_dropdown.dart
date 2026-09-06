@@ -13,6 +13,7 @@ class SafeDropdown<T> extends StatefulWidget {
   final bool isExpanded;
   final double borderRadius;
   final Widget? icon;
+  final double? itemHeight;
 
   const SafeDropdown({
     super.key,
@@ -23,6 +24,7 @@ class SafeDropdown<T> extends StatefulWidget {
     this.isExpanded = true,
     this.borderRadius = 8.0,
     this.icon,
+    this.itemHeight = kMinInteractiveDimension,
   });
 
   @override
@@ -64,6 +66,7 @@ class _SafeDropdownState<T> extends State<SafeDropdown<T>> {
 
     return InputSurfaceContainer(
       borderRadius: widget.borderRadius,
+      keyboardFocusOnly: true,
       isFocused: _focusNode.hasFocus,
       constraints: BoxConstraints(minHeight: controlExtent),
       padding: const EdgeInsets.symmetric(horizontal: 12),
@@ -71,6 +74,7 @@ class _SafeDropdownState<T> extends State<SafeDropdown<T>> {
         child: DropdownButton<T>(
           value: validValue,
           items: widget.items,
+          itemHeight: widget.itemHeight,
           onChanged: widget.onChanged,
           isExpanded: widget.isExpanded,
           focusNode: _focusNode,

@@ -6,14 +6,17 @@ import 'package:go_router/go_router.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:nai_launcher/core/constants/app_version.dart';
 import 'package:nai_launcher/core/storage/local_storage_service.dart';
+import 'package:nai_launcher/data/models/version/version_info.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/providers/account_manager_provider.dart';
 import 'package:nai_launcher/presentation/providers/auth_provider.dart';
 import 'package:nai_launcher/presentation/providers/queue_execution_provider.dart';
 import 'package:nai_launcher/presentation/providers/replication_queue_provider.dart';
+import 'package:nai_launcher/presentation/providers/update_provider.dart';
 import 'package:nai_launcher/presentation/router/desktop_shell.dart';
 import 'package:nai_launcher/presentation/router/shell_panels_overlay.dart';
 import 'package:nai_launcher/presentation/widgets/navigation/main_nav_rail.dart';
+import 'package:nai_launcher/presentation/widgets/common/update_notice_banner.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
 class _MockNavigationShell extends Mock implements StatefulNavigationShell {
@@ -25,6 +28,28 @@ class _MockNavigationShell extends Mock implements StatefulNavigationShell {
 class _FakeAuthNotifier extends AuthNotifier {
   @override
   AuthState build() => const AuthState(status: AuthStatus.unauthenticated);
+}
+
+class _FakeUpdateNotifier extends UpdateStateNotifier {
+  @override
+  UpdateState build() => const UpdateState();
+
+  void showNotice() {
+    state = const UpdateState(
+      status: UpdateStatus.available,
+      notificationVisible: true,
+      versionInfo: VersionInfo(
+        version: '2.0.0',
+        currentVersion: '1.0.0',
+        isNewer: true,
+      ),
+    );
+  }
+
+  @override
+  Future<void> remindLater({Duration? delay}) async {
+    state = state.copyWith(notificationVisible: false);
+  }
 }
 
 class _FakeAccountManagerNotifier extends AccountManagerNotifier {
@@ -130,6 +155,7 @@ void main() {
     final navigationShell = _MockNavigationShell();
     final storage = _FakeMainNavStorage();
     final lifecycle = _ContentLifecycle();
+    final updates = _FakeUpdateNotifier();
     final textScaler = ValueNotifier<TextScaler>(TextScaler.noScaling);
     addTearDown(textScaler.dispose);
     when(() => navigationShell.currentIndex).thenReturn(0);
@@ -137,6 +163,7 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
+          updateStateNotifierProvider.overrideWith(() => updates),
           localStorageServiceProvider.overrideWith((ref) => storage),
           authNotifierProvider.overrideWith(_FakeAuthNotifier.new),
           accountManagerNotifierProvider.overrideWith(
@@ -177,6 +204,22 @@ void main() {
     expect(find.text('content-0'), findsOneWidget);
     expect(tester.getTopLeft(find.byType(MainNavRail)).dy, 24);
     expect(tester.getBottomRight(find.byType(MainNavRail)).dy, 584);
+
+    final contentRect = tester.getRect(find.byType(_TrackedContent));
+    updates.showNotice();
+    await tester.pump();
+    expect(find.text('新版本 v2.0.0 可用'), findsOneWidget);
+    expect(tester.getRect(find.byType(_TrackedContent)), contentRect);
+    expect(lifecycle.built, 1);
+    await tester.tap(
+      find.descendant(
+        of: find.byType(UpdateNoticeBanner),
+        matching: find.byIcon(Icons.close_rounded),
+      ),
+    );
+    await tester.pump();
+    expect(find.text('新版本 v2.0.0 可用'), findsNothing);
+    expect(tester.getRect(find.byType(_TrackedContent)), contentRect);
 
     final secondaryScrollable = find.descendant(
       of: find.byKey(const Key('main-nav-secondary-scroll')),

@@ -16,6 +16,7 @@ import '../providers/image_generation_provider.dart';
 import '../providers/reverse_prompt_provider.dart';
 import '../router/app_routes.dart';
 import '../screens/mosaic/mosaic_editor_launcher.dart';
+import '../screens/dlss/dlss_enhancement_panel.dart';
 import '../screens/watermark/watermark_editor_launcher.dart';
 import '../utils/fixed_tag_metadata_matcher.dart';
 import '../utils/krita_send_helper.dart';
@@ -84,6 +85,8 @@ class ImageSendActionDispatcher {
           ImageWorkflowLauncher.openUpscale(ref, bytes);
           context.go(AppRoutes.home);
           AppToast.info(context, context.l10n.gallery_upscalePanelLoaded);
+        case LocalImageContextAction.dlssEnhance:
+          await showDlssEnhancement(context, bytes);
         case LocalImageContextAction.shareToDiscord:
           await _shareToDiscord(context, ref, bytes, fileName);
         case LocalImageContextAction.createWatermark:

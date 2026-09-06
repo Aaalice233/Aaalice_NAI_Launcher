@@ -5,6 +5,32 @@ import '../../../core/utils/localization_extension.dart';
 import '../../providers/update_provider.dart';
 import 'update_check_dialog.dart';
 
+/// Keeps update notices outside page layout while bounding long notice content.
+class UpdateNoticeOverlay extends StatelessWidget {
+  const UpdateNoticeOverlay({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Positioned.fill(
+      child: LayoutBuilder(
+        builder: (context, constraints) => Align(
+          alignment: Alignment.topCenter,
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              maxWidth: 672,
+              maxHeight: constraints.maxHeight * 0.45,
+            ),
+            child: const SingleChildScrollView(
+              primary: false,
+              child: UpdateNoticeBanner(),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 /// 新版本的持久、非阻塞提示。
 ///
 /// 它位于主界面 Navigator 内，不依赖启动包装器的无效 context；关闭后

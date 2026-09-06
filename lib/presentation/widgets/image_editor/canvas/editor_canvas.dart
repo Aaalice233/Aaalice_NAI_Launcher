@@ -1,7 +1,9 @@
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+
 import 'package:flutter/services.dart';
 
+import '../../common/image_viewport_surface.dart';
 import '../core/editor_state.dart';
 import '../core/input_handler.dart';
 import 'layer_painter.dart';
@@ -146,7 +148,9 @@ class _EditorCanvasState extends State<EditorCanvas>
                           // 背景 - 独立重绘区域（静态内容）
                           Positioned.fill(
                             child: RepaintBoundary(
-                              child: Container(color: Colors.grey.shade800),
+                              child: Container(
+                                color: ImageViewportSurface.background,
+                              ),
                             ),
                           ),
 

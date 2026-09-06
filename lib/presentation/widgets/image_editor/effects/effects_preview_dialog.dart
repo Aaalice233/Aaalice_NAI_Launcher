@@ -3,6 +3,7 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 
+import '../../common/image_viewport_surface.dart';
 import '../../../../core/utils/localization_extension.dart';
 import '../../../adaptive/adaptive_presenter.dart';
 import '../../common/adaptive_dialog_frame.dart';
@@ -452,7 +453,7 @@ class _EffectsPreviewDialogState extends State<EffectsPreviewDialog> {
     final theme = Theme.of(context);
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainer,
+        color: ImageViewportSurface.background,
         borderRadius: BorderRadius.circular(12),
       ),
       child: Stack(
@@ -483,7 +484,12 @@ class _EffectsPreviewDialogState extends State<EffectsPreviewDialog> {
           Positioned(
             left: 8,
             top: 6,
-            child: Text(title, style: theme.textTheme.labelMedium),
+            child: Text(
+              title,
+              style: theme.textTheme.labelMedium?.copyWith(
+                color: ImageViewportSurface.mutedForeground,
+              ),
+            ),
           ),
           if (busy)
             Positioned(

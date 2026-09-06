@@ -290,7 +290,7 @@ void main() {
           .data,
       '集成',
     );
-    expect(segmentLabels, const ['提示词助手', 'ComfyUI', 'Krita']);
+    expect(segmentLabels, const ['提示词助手', 'ComfyUI', 'Krita', 'DLSSNR']);
     debugDefaultTargetPlatformOverride = null;
   });
 

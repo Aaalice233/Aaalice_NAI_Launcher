@@ -2,10 +2,12 @@ import 'dart:io';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 
+import '../widgets/common/image_viewport_surface.dart';
 import '../../core/utils/localization_extension.dart';
 import '../../data/models/gallery/local_image_record.dart';
 import '../adaptive/adaptive_layout.dart';
@@ -50,7 +52,7 @@ class _ImageComparisonScreenState extends ConsumerState<ImageComparisonScreen> {
     }
 
     return Scaffold(
-      backgroundColor: Colors.black,
+      backgroundColor: ImageViewportSurface.background,
       body: SafeArea(
         child: LayoutBuilder(
           builder: (context, constraints) {
@@ -187,7 +189,7 @@ class _ImageComparisonScreenState extends ConsumerState<ImageComparisonScreen> {
   ) {
     return Container(
       decoration: BoxDecoration(
-        color: theme.colorScheme.surface,
+        color: ImageViewportSurface.background,
         borderRadius: BorderRadius.circular(8),
       ),
       clipBehavior: Clip.antiAlias,
@@ -203,7 +205,7 @@ class _ImageComparisonScreenState extends ConsumerState<ImageComparisonScreen> {
                 fit: BoxFit.contain,
                 errorBuilder: (context, error, stackTrace) {
                   return Container(
-                    color: theme.colorScheme.surfaceContainerHighest,
+                    color: ImageViewportSurface.background,
                     child: SingleChildScrollView(
                       padding: const EdgeInsets.all(16),
                       child: Column(
@@ -217,7 +219,9 @@ class _ImageComparisonScreenState extends ConsumerState<ImageComparisonScreen> {
                           const SizedBox(height: 8),
                           Text(
                             context.l10n.comparison_loadError,
-                            style: theme.textTheme.bodySmall,
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: ImageViewportSurface.mutedForeground,
+                            ),
                             textAlign: TextAlign.center,
                           ),
                         ],
@@ -271,7 +275,7 @@ class _ComparisonMessageScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Scaffold(
-      backgroundColor: Colors.black,
+      backgroundColor: ImageViewportSurface.background,
       body: SafeArea(
         child: AdaptiveSlotLayout(
           builder: (context, areas) => SingleChildScrollView(
