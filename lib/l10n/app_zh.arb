@@ -6921,7 +6921,7 @@
   "dlss_notInstalled": "尚未安装",
   "dlss_original": "原图",
   "dlss_prerelease": "预发布版",
-  "dlss_previewHint": "调整参数后点击运行。每次都从这张原图开始，保存时创建新文件。",
+  "dlss_previewHint": "调整参数后点击运行。每次都从这张原图开始，保存时创建新文件并作为最新结果加入历史记录。",
   "dlss_result": "增强结果",
   "dlss_run": "运行增强",
   "dlss_running": "正在进行 DLSS 增强…",

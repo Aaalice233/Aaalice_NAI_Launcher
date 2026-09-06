@@ -14927,7 +14927,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get dlss_previewHint =>
-      'Adjust parameters, then run. Every preview starts from this original. Saving creates a new file.';
+      'Adjust parameters, then run. Every preview starts from this original. Saving creates a new file and adds it to the history as the latest result.';
 
   @override
   String get dlss_result => 'Enhanced result';

@@ -6877,7 +6877,7 @@
   "dlss_notInstalled": "未インストール",
   "dlss_original": "元画像",
   "dlss_prerelease": "プレリリース",
-  "dlss_previewHint": "パラメーターを調整して実行します。毎回元画像から処理し、新しいファイルに保存します。",
+  "dlss_previewHint": "パラメーターを調整して実行します。毎回元画像から処理し、保存時は新しいファイルを作成して最新の結果として履歴に追加します。",
   "dlss_result": "強化結果",
   "dlss_run": "強化を実行",
   "dlss_running": "DLSS 強化を実行中…",

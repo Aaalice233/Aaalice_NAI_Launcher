@@ -7199,7 +7199,7 @@
   "dlss_notInstalled": "尚未安裝",
   "dlss_original": "原圖",
   "dlss_prerelease": "預先發行版",
-  "dlss_previewHint": "調整參數後點擊執行。每次都從這張原圖開始，儲存時建立新檔案。",
+  "dlss_previewHint": "調整參數後點擊執行。每次都從這張原圖開始，儲存時建立新檔案並作為最新結果加入歷史記錄。",
   "dlss_result": "增強結果",
   "dlss_run": "執行增強",
   "dlss_running": "正在進行 DLSS 增強…",

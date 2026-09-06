@@ -14533,7 +14533,8 @@ class AppLocalizationsJa extends AppLocalizations {
   String get dlss_prerelease => 'プレリリース';
 
   @override
-  String get dlss_previewHint => 'パラメーターを調整して実行します。毎回元画像から処理し、新しいファイルに保存します。';
+  String get dlss_previewHint =>
+      'パラメーターを調整して実行します。毎回元画像から処理し、保存時は新しいファイルを作成して最新の結果として履歴に追加します。';
 
   @override
   String get dlss_result => '強化結果';

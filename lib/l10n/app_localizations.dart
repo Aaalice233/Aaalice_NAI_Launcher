@@ -25972,7 +25972,7 @@ abstract class AppLocalizations {
   /// No description provided for @dlss_previewHint.
   ///
   /// In en, this message translates to:
-  /// **'Adjust parameters, then run. Every preview starts from this original. Saving creates a new file.'**
+  /// **'Adjust parameters, then run. Every preview starts from this original. Saving creates a new file and adds it to the history as the latest result.'**
   String get dlss_previewHint;
 
   /// No description provided for @dlss_result.

@@ -6852,7 +6852,7 @@
   "dlss_notInstalled": "Not installed",
   "dlss_original": "Original",
   "dlss_prerelease": "Prerelease",
-  "dlss_previewHint": "Adjust parameters, then run. Every preview starts from this original. Saving creates a new file.",
+  "dlss_previewHint": "Adjust parameters, then run. Every preview starts from this original. Saving creates a new file and adds it to the history as the latest result.",
   "dlss_result": "Enhanced result",
   "dlss_run": "Run enhancement",
   "dlss_running": "Running DLSS enhancement…",
