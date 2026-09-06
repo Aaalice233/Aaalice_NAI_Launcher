@@ -259,6 +259,12 @@ class _TagEditorViewState extends ConsumerState<TagEditorView> {
     }
   }
 
+  void _dismissTouchSelection() {
+    if (!_menuOpen && session.editing == null && !_draggingTags) {
+      session.clearSelection();
+    }
+  }
+
   void _edit(PromptEditorTag tag, TextEditingValue value) {
     final previousText = session.controller.text;
     _composing = value.composing.isValid && !value.composing.isCollapsed;
@@ -624,61 +630,72 @@ class _TagEditorViewState extends ConsumerState<TagEditorView> {
     return PromptActionOverlay(
       anchor: anchor,
       overlaySize: info.overlaySize,
-      child: TextFieldTapRegion(
-        child: Listener(
-          onPointerSignal: _wheel,
-          child: PromptActionSurface(
-            key: const ValueKey('tag-action-toolbar'),
-            child: Padding(
-              padding: const EdgeInsets.all(6),
-              child: PromptWeightControls(
-                onClose: session.clearSelection,
-                weight: commands.weight,
-                enabled: widget.enabled && commands.canAdjust,
-                onWeight: (value) => commands.adjustWeight(value: value),
-                onStep: (step) => commands.adjustWeight(step: step),
-                trailing: [
-                  IconButton(
-                    tooltip: allDisabled
-                        ? context.l10n.tagMode_enable
-                        : context.l10n.tagMode_disable,
-                    onPressed: widget.enabled && commands.canAdjust
-                        ? () => session.toggleEnabled(
-                            session.selected,
-                            enabled: allDisabled,
-                          )
-                        : null,
-                    icon: Icon(
-                      allDisabled
-                          ? Icons.visibility_off_outlined
-                          : Icons.visibility_outlined,
-                      size: 18,
+      child: TapRegion(
+        groupId: session,
+        child: TextFieldTapRegion(
+          child: Listener(
+            onPointerSignal: _wheel,
+            child: PromptActionSurface(
+              key: const ValueKey('tag-action-toolbar'),
+              child: Padding(
+                padding: const EdgeInsets.all(6),
+                child: PromptWeightControls(
+                  showEdit:
+                      context.interactionPolicy.shouldExposeTouchAlternatives,
+                  onEdit:
+                      widget.enabled && commands.available(TagEditorAction.edit)
+                      ? () => _action(TagEditorAction.edit)
+                      : null,
+                  onClose: session.clearSelection,
+                  weight: commands.weight,
+                  enabled: widget.enabled && commands.canAdjust,
+                  onWeight: (value) => commands.adjustWeight(value: value),
+                  onStep: (step) => commands.adjustWeight(step: step),
+                  trailing: [
+                    IconButton(
+                      tooltip: allDisabled
+                          ? context.l10n.tagMode_enable
+                          : context.l10n.tagMode_disable,
+                      onPressed: widget.enabled && commands.canAdjust
+                          ? () => session.toggleEnabled(
+                              session.selected,
+                              enabled: allDisabled,
+                            )
+                          : null,
+                      icon: Icon(
+                        allDisabled
+                            ? Icons.visibility_off_outlined
+                            : Icons.visibility_outlined,
+                        size: 18,
+                      ),
                     ),
-                  ),
-                  IconButton(
-                    key: const ValueKey('tag-delete-button'),
-                    tooltip: context.l10n.tagMode_deleteTags,
-                    onPressed:
-                        widget.enabled &&
-                            commands.available(TagEditorAction.delete)
-                        ? () => _action(TagEditorAction.delete)
-                        : null,
-                    icon: const Icon(Icons.delete_outline, size: 18),
-                  ),
-                  Builder(
-                    builder: (buttonContext) => IconButton(
-                      tooltip: context.l10n.common_moreActions,
-                      onPressed: () {
-                        final box =
-                            buttonContext.findRenderObject()! as RenderBox;
-                        unawaited(
-                          _menu(box.localToGlobal(Offset(0, box.size.height))),
-                        );
-                      },
-                      icon: const Icon(Icons.more_horiz, size: 18),
+                    IconButton(
+                      key: const ValueKey('tag-delete-button'),
+                      tooltip: context.l10n.tagMode_deleteTags,
+                      onPressed:
+                          widget.enabled &&
+                              commands.available(TagEditorAction.delete)
+                          ? () => _action(TagEditorAction.delete)
+                          : null,
+                      icon: const Icon(Icons.delete_outline, size: 18),
                     ),
-                  ),
-                ],
+                    Builder(
+                      builder: (buttonContext) => IconButton(
+                        tooltip: context.l10n.common_moreActions,
+                        onPressed: () {
+                          final box =
+                              buttonContext.findRenderObject()! as RenderBox;
+                          unawaited(
+                            _menu(
+                              box.localToGlobal(Offset(0, box.size.height)),
+                            ),
+                          );
+                        },
+                        icon: const Icon(Icons.more_horiz, size: 18),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
@@ -855,29 +872,44 @@ class _TagEditorViewState extends ConsumerState<TagEditorView> {
           session.clearSelection();
         }
       },
-      child: Focus(
-        focusNode: _focus,
-        onKeyEvent: _key,
-        child: OverlayPortal.overlayChildLayoutBuilder(
-          controller: _overlay,
-          overlayChildBuilder: (context, info) => ValueListenableBuilder<int>(
-            valueListenable: _toolbarRevision,
-            builder: (context, _, _) => _toolbar(context, info),
-          ),
-          child: Material(
-            key: _surfaceKey,
-            borderRadius:
-                Theme.of(context).inputDecorationTheme.border
-                    is OutlineInputBorder
-                ? (Theme.of(context).inputDecorationTheme.border!
-                          as OutlineInputBorder)
-                      .borderRadius
-                : BorderRadius.circular(8),
-            clipBehavior: Clip.antiAlias,
-            color:
-                widget.surfaceColor ??
-                inputSurfaceFillColor(Theme.of(context).colorScheme),
-            child: LayoutBuilder(builder: _buildContent),
+      child: TapRegion(
+        groupId: session,
+        onTapOutside: (event) {
+          if (event.kind == PointerDeviceKind.touch ||
+              event.kind == PointerDeviceKind.stylus) {
+            _dismissTouchSelection();
+          }
+        },
+        child: Focus(
+          focusNode: _focus,
+          onKeyEvent: _key,
+          child: OverlayPortal.overlayChildLayoutBuilder(
+            controller: _overlay,
+            overlayChildBuilder: (context, info) => ValueListenableBuilder<int>(
+              valueListenable: _toolbarRevision,
+              builder: (context, _, _) => _toolbar(context, info),
+            ),
+            child: Material(
+              key: _surfaceKey,
+              borderRadius:
+                  Theme.of(context).inputDecorationTheme.border
+                      is OutlineInputBorder
+                  ? (Theme.of(context).inputDecorationTheme.border!
+                            as OutlineInputBorder)
+                        .borderRadius
+                  : BorderRadius.circular(8),
+              clipBehavior: Clip.antiAlias,
+              color:
+                  widget.surfaceColor ??
+                  inputSurfaceFillColor(Theme.of(context).colorScheme),
+              child: GestureDetector(
+                behavior: HitTestBehavior.translucent,
+                onTap: context.interactionPolicy.prefersTouchPresentation
+                    ? _dismissTouchSelection
+                    : null,
+                child: LayoutBuilder(builder: _buildContent),
+              ),
+            ),
           ),
         ),
       ),

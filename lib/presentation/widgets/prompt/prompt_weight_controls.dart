@@ -14,6 +14,8 @@ class PromptWeightControls extends StatefulWidget {
     this.trailing = const [],
     this.caption,
     this.onClose,
+    this.onEdit,
+    this.showEdit = false,
   });
   final double? weight;
   final ValueChanged<double> onWeight;
@@ -22,6 +24,8 @@ class PromptWeightControls extends StatefulWidget {
   final List<Widget> trailing;
   final Widget? caption;
   final VoidCallback? onClose;
+  final VoidCallback? onEdit;
+  final bool showEdit;
   @override
   State<PromptWeightControls> createState() => _PromptWeightControlsState();
 }
@@ -80,6 +84,14 @@ class _PromptWeightControlsState extends State<PromptWeightControls> {
           crossAxisAlignment: WrapCrossAlignment.center,
           children: [
             _buildStepper(context, extent),
+            if (widget.showEdit)
+              TextButton.icon(
+                key: const ValueKey('tag-edit-button'),
+                onPressed: widget.onEdit,
+                style: TextButton.styleFrom(minimumSize: Size(extent, extent)),
+                icon: const Icon(Icons.edit_outlined, size: 18),
+                label: Text(l10n.common_edit),
+              ),
             Wrap(
               crossAxisAlignment: WrapCrossAlignment.center,
               children: [
