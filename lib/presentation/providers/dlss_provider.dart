@@ -108,10 +108,11 @@ class DlssController extends ChangeNotifier {
     return _operation(() async {
       installations = await manager.installed();
       active = await manager.active();
-      if (fetchReleases) releases = await source.list();
       await manager.lock.synchronized(
         () => _ensureEnvironment(selectedLuid: preferredLuid),
       );
+      // Installed runtimes remain usable while the optional release lookup waits.
+      if (fetchReleases) releases = await source.list();
     });
   }
 
