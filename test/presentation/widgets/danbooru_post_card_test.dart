@@ -602,7 +602,11 @@ void main() {
       expect(cardRect.contains(rect.topLeft), isTrue);
       expect(cardRect.contains(rect.bottomRight), isTrue);
     }
-    expect(actionRects.last.top, greaterThan(actionRects.first.top));
+    for (var index = 0; index < actionRects.length; index++) {
+      for (final other in actionRects.skip(index + 1)) {
+        expect(actionRects[index].overlaps(other), isFalse);
+      }
+    }
     expect(tester.takeException(), isNull);
   });
 
