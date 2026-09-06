@@ -12,6 +12,7 @@ import 'package:nai_launcher/data/models/gallery/nai_image_metadata.dart';
 import 'package:nai_launcher/data/services/metadata/unified_metadata_parser.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/adaptive/interaction_policy.dart';
+import 'package:nai_launcher/presentation/providers/generation/generated_image_metadata_provider.dart';
 import 'package:nai_launcher/presentation/providers/image_generation_provider.dart';
 import 'package:nai_launcher/presentation/providers/preview_transparency_provider.dart';
 import 'package:nai_launcher/presentation/screens/generation/widgets/preview_info_bar.dart';
@@ -54,6 +55,19 @@ Future<ProviderContainer> _pumpBar(
     ],
   );
   addTearDown(container.dispose);
+  // Start real isolate work outside the widget test's fake async zone.
+  final metadataSubscription = await tester.runAsync(() async {
+    final provider = generatedImageMetadataProvider(image);
+    final subscription = container.listen(provider, (_, _) {});
+    try {
+      await container.read(provider.future).timeout(const Duration(seconds: 3));
+      return subscription;
+    } catch (_) {
+      subscription.close();
+      rethrow;
+    }
+  });
+  addTearDown(metadataSubscription!.close);
 
   Widget home = Scaffold(
     body: Center(
@@ -93,7 +107,7 @@ Future<ProviderContainer> _pumpBar(
       ),
     ),
   );
-  // 种子来自异步解析的 PNG 元数据，先让 FutureProvider 落定
+  // Paint the provider result and any layout scheduled by the first frame.
   await tester.pump();
   await tester.pump();
   return container;
