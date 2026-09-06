@@ -251,9 +251,9 @@ void main() {
           );
           for (final rect in actionRects) {
             expect(
-              rect.top,
-              greaterThanOrEqualTo(primaryRect.bottom + 7.9),
-              reason: '$reason did not use the centered layered layout',
+              primaryRect.top,
+              greaterThanOrEqualTo(rect.bottom + 7.9),
+              reason: '$reason 主按钮换行后没有排在操作图标下方',
             );
           }
           if (scenario.textScale == 1 && scenario.width >= 438) {
@@ -643,6 +643,75 @@ void main() {
         reason: '$reason 生成按钮被挤到单独一行',
       );
       expect(anlasRect.right, lessThan(primaryRect.left), reason: reason);
+      expect(find.text('生成'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    }
+  });
+
+  testWidgets('官网式左栏宽度换行时生成按钮仍排在操作图标下方', (tester) async {
+    final storage = _MemoryLocalStorageService({
+      StorageKeys.autoSaveImages: false,
+      StorageKeys.showRandomPromptTools: true,
+    });
+
+    // 官网式左栏可拖 320~560、默认 400；带 Opus 徽章时这一段放不下单行。
+    for (final width in const [320.0, 360.0, 400.0]) {
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            authNotifierProvider.overrideWith(_AuthenticatedAuthNotifier.new),
+            localStorageServiceProvider.overrideWith((ref) => storage),
+            kritaBridgeNotifierProvider.overrideWith(
+              (ref) => _TestKritaBridgeNotifier(),
+            ),
+            replicationQueueNotifierProvider.overrideWith(
+              _TestReplicationQueueNotifier.new,
+            ),
+            queueExecutionNotifierProvider.overrideWith(
+              _TestQueueExecutionNotifier.new,
+            ),
+            subscriptionNotifierProvider.overrideWith(
+              _OpusSubscriptionNotifier.new,
+            ),
+            estimatedCostProvider.overrideWith((ref) => 0),
+            isFreeGenerationProvider.overrideWith((ref) => true),
+          ],
+          child: MaterialApp(
+            locale: const Locale('zh'),
+            supportedLocales: AppLocalizations.supportedLocales,
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            home: Scaffold(
+              body: SizedBox(
+                width: width,
+                height: 240,
+                child: const GenerationControls(compact: true),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+
+      final reason = 'width=$width';
+      final primaryRect = tester.getRect(
+        find.byKey(const ValueKey('generation-footer-primary-action')),
+      );
+      final actionRects = <Finder>[
+        find.byType(OpusUsageChip),
+        find.byType(AnlasBalanceChip),
+        find.byType(RandomModeToggle),
+        find.byType(AutoSaveToggleChip),
+        find.byType(DraggableNumberInput),
+        find.byType(BatchSettingsButton),
+      ].map(tester.getRect).toList();
+
+      for (final rect in actionRects) {
+        expect(
+          primaryRect.top,
+          greaterThanOrEqualTo(rect.bottom),
+          reason: '$reason 生成按钮排到了操作图标上方',
+        );
+      }
       expect(find.text('生成'), findsOneWidget);
       expect(tester.takeException(), isNull);
     }

@@ -306,25 +306,32 @@ class _RenderGenerationControlsLayout extends RenderBox
     List<RenderBox> right,
     double width,
   ) {
-    _position(primary, 0, 0);
-    if (left.isEmpty && right.isEmpty) return primary.size.height;
-    var y = primary.size.height + _runSpacing;
+    if (left.isEmpty && right.isEmpty) {
+      _position(primary, 0, 0);
+      return primary.size.height;
+    }
+
+    // 主按钮排在操作图标之后，换行后仍留在控制条最下方，与单行版式位置一致。
     final leftWidth = _groupWidth(left);
     final rightWidth = _groupWidth(right);
+    final double actionsBottom;
     if (leftWidth + rightWidth + _primarySpacing <= width) {
       final height = [...left, ...right].fold<double>(
         0,
         (maximum, action) =>
             action.size.height > maximum ? action.size.height : maximum,
       );
-      _positionGroup(left, 0, height, y: y);
-      _positionGroup(right, width - rightWidth, height, y: y);
-      return y + height;
+      _positionGroup(left, 0, height);
+      _positionGroup(right, width - rightWidth, height);
+      actionsBottom = height;
+    } else {
+      var y = _layoutGroupRuns(left, width, 0, alignRight: false);
+      if (left.isNotEmpty && right.isNotEmpty) y += _runSpacing;
+      actionsBottom = _layoutGroupRuns(right, width, y, alignRight: true);
     }
 
-    y = _layoutGroupRuns(left, width, y, alignRight: false);
-    if (left.isNotEmpty && right.isNotEmpty) y += _runSpacing;
-    return _layoutGroupRuns(right, width, y, alignRight: true);
+    _position(primary, 0, actionsBottom + _runSpacing);
+    return actionsBottom + _runSpacing + primary.size.height;
   }
 
   double _layoutGroupRuns(
