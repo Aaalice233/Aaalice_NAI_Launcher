@@ -13,6 +13,7 @@ import 'package:nai_launcher/data/models/fixed_tag/fixed_tag_prompt_type.dart';
 import 'package:nai_launcher/data/models/fixed_tag/fixed_tag_usage_snapshot.dart';
 import 'package:nai_launcher/data/models/gallery/nai_image_metadata.dart';
 import 'package:nai_launcher/data/models/image/image_params.dart';
+import 'package:nai_launcher/data/services/metadata/image_metadata_container_codec.dart';
 import 'package:nai_launcher/data/services/metadata/unified_metadata_parser.dart';
 import 'package:path/path.dart' as p;
 
@@ -533,6 +534,61 @@ void main() {
           'fixed-a',
         );
       },
+    );
+  });
+
+  test(
+    'background metadata failure does not overwrite the destination',
+    () async {
+      final parent = Directory('tool/.tmp/single-pass-save-tests');
+      await parent.create(recursive: true);
+      final root = await parent.createTemp('damaged-');
+      addTearDown(() => root.delete(recursive: true));
+      final file = File(p.join(root.path, 'existing.png'));
+      final original = Uint8List.fromList(
+        img.encodePng(img.Image(width: 8, height: 8)),
+      );
+      await file.writeAsBytes(original);
+      final damaged = Uint8List.fromList(original)..[original.length - 1] ^= 1;
+      await expectLater(
+        ImageSaveUtils.saveImageWithMetadata(
+          imageBytes: damaged,
+          filePath: file.path,
+          params: const ImageParams(seed: 123),
+          actualSeed: 123,
+          preserveExistingNovelAiMetadata: false,
+        ),
+        throwsFormatException,
+      );
+      expect(await file.readAsBytes(), orderedEquals(original));
+    },
+  );
+
+  test('background batch writer preserves the optional stealth mode', () async {
+    final source = Uint8List.fromList(
+      img.encodePng(img.Image(width: 128, height: 128, numChannels: 4)),
+    );
+    final result = await ImageSaveUtils.rebuildImageBytesWithMetadata(
+      imageBytes: source,
+      params: const ImageParams(
+        prompt: 'stealth round trip',
+        seed: 456,
+        width: 128,
+        height: 128,
+      ),
+      actualSeed: 456,
+      useStealth: true,
+    );
+    final hidden = ImageMetadataContainerCodec.extractStealthMetadataText(
+      result,
+    );
+    expect(hidden, isNotNull);
+    expect(jsonDecode(hidden!)['seed'], 456);
+    expect(
+      jsonDecode(
+        UnifiedMetadataParser.extractPngTextData(result)['Comment']!,
+      )['seed'],
+      456,
     );
   });
 
