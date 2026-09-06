@@ -402,6 +402,12 @@ void main() {
 
     expect(typeSwitch, findsOneWidget);
     expect(secondaryScroll, findsOneWidget);
+    expect(
+      find.byKey(
+        const ValueKey('generation_prompt_mobile_secondary_scroll_hint'),
+      ),
+      findsOneWidget,
+    );
     expect(clearAction, findsOneWidget);
     expect(tester.getSize(secondaryScroll).height, greaterThanOrEqualTo(48));
     expect(tester.getSize(secondaryScroll).width, 272);

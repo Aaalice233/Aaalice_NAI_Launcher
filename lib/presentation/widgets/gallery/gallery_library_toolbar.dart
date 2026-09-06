@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../adaptive/interaction_policy.dart';
 import '../common/compact_icon_button.dart';
+import '../common/horizontal_action_strip.dart';
 import '../common/input_surface_container.dart';
 import 'gallery_sidebar.dart';
 
@@ -103,9 +104,11 @@ class GalleryLibraryToolbar extends StatelessWidget {
         ),
         if (actions.isNotEmpty) ...[
           const SizedBox(height: 8),
-          _HorizontalActionStrip(
+          HorizontalActionStrip(
             minimumExtent: minimumExtent,
-            children: _spaced(actions, 4),
+            scrollKey: const ValueKey('gallery-library-toolbar-actions'),
+            hintKey: const ValueKey('gallery-library-toolbar-scroll-hint'),
+            child: Row(children: _spaced(actions, 4)),
           ),
         ],
         if (supplementary != null) ...[
@@ -122,100 +125,6 @@ class GalleryLibraryToolbar extends StatelessWidget {
       children[index],
     ],
   ];
-}
-
-class _HorizontalActionStrip extends StatefulWidget {
-  const _HorizontalActionStrip({
-    required this.minimumExtent,
-    required this.children,
-  });
-
-  final double minimumExtent;
-  final List<Widget> children;
-
-  @override
-  State<_HorizontalActionStrip> createState() => _HorizontalActionStripState();
-}
-
-class _HorizontalActionStripState extends State<_HorizontalActionStrip> {
-  final ScrollController _controller = ScrollController();
-  bool _canScrollForward = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller.addListener(_updateOverflowIndicator);
-    WidgetsBinding.instance.addPostFrameCallback(
-      (_) => _updateOverflowIndicator(),
-    );
-  }
-
-  @override
-  void didUpdateWidget(_HorizontalActionStrip oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    WidgetsBinding.instance.addPostFrameCallback(
-      (_) => _updateOverflowIndicator(),
-    );
-  }
-
-  @override
-  void dispose() {
-    _controller
-      ..removeListener(_updateOverflowIndicator)
-      ..dispose();
-    super.dispose();
-  }
-
-  void _updateOverflowIndicator() {
-    if (!mounted || !_controller.hasClients) return;
-    final canScrollForward =
-        _controller.position.maxScrollExtent - _controller.offset > 1;
-    if (canScrollForward != _canScrollForward) {
-      setState(() => _canScrollForward = canScrollForward);
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    return ConstrainedBox(
-      constraints: BoxConstraints(minHeight: widget.minimumExtent),
-      child: Stack(
-        alignment: Alignment.centerRight,
-        children: [
-          SingleChildScrollView(
-            key: const ValueKey('gallery-library-toolbar-actions'),
-            controller: _controller,
-            scrollDirection: Axis.horizontal,
-            padding: EdgeInsets.only(right: _canScrollForward ? 32 : 0),
-            child: Row(children: widget.children),
-          ),
-          if (_canScrollForward)
-            IgnorePointer(
-              child: Container(
-                key: const ValueKey('gallery-library-toolbar-scroll-hint'),
-                width: 32,
-                height: widget.minimumExtent,
-                alignment: Alignment.centerRight,
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [
-                      colorScheme.surface.withValues(alpha: 0),
-                      colorScheme.surface,
-                    ],
-                  ),
-                ),
-                child: Icon(
-                  Icons.chevron_right_rounded,
-                  size: 22,
-                  color: colorScheme.onSurfaceVariant,
-                ),
-              ),
-            ),
-        ],
-      ),
-    );
-  }
 }
 
 class GalleryLibraryCountBadge extends StatelessWidget {

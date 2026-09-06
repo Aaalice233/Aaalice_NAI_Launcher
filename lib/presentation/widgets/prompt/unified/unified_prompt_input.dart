@@ -1391,6 +1391,7 @@ class _UnifiedPromptInputState extends ConsumerState<UnifiedPromptInput> {
         ? ref.watch(promptAssistantConfigProvider)
         : null;
     final shouldReserveAssistantSpace =
+        !context.interactionPolicy.shouldExposeTouchAlternatives &&
         assistantConfig != null &&
         assistantConfig.enabled &&
         (!context.interactionPolicy.usesAnchoredMenus ||
@@ -1490,7 +1491,8 @@ class _UnifiedPromptInputState extends ConsumerState<UnifiedPromptInput> {
       clipboardAwareInput = TagModePromptField(
         sessionId: _modeId,
         fitContent: widget.fitContent && !widget.expands,
-        bottomPadding: widget.enableAssistant || widget.config.showClearButton
+        bottomPadding:
+            shouldReserveAssistantSpace || widget.config.showClearButton
             ? 58
             : 12,
         showModeSwitch: false,

@@ -8,6 +8,7 @@ import '../../../adaptive/interaction_policy.dart';
 import '../../../providers/image_generation_provider.dart';
 import '../../../providers/prompt_regex_rules_provider.dart';
 import '../../../widgets/character/character_prompt_button.dart';
+import '../../../widgets/common/horizontal_action_strip.dart';
 import '../../../widgets/prompt/fixed_tags_button.dart';
 import '../../../widgets/prompt/quality_tags_selector.dart';
 import '../../../widgets/prompt/regex_rules_dialog.dart';
@@ -448,12 +449,14 @@ class _MobileFullscreenToolbar extends StatelessWidget {
               child: Row(
                 children: [
                   Expanded(
-                    child: SingleChildScrollView(
-                      key: const ValueKey(
+                    child: HorizontalActionStrip(
+                      minimumExtent: 48,
+                      scrollKey: const ValueKey(
                         'generation_prompt_mobile_secondary_scroll',
                       ),
-                      scrollDirection: Axis.horizontal,
-                      padding: const EdgeInsets.only(right: 6),
+                      hintKey: const ValueKey(
+                        'generation_prompt_mobile_secondary_scroll_hint',
+                      ),
                       child: Row(
                         key: const ValueKey(
                           'generation_prompt_mobile_secondary_row',
