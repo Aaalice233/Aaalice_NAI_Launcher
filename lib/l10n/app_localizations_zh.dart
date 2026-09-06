@@ -14497,19 +14497,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get dlss_srUnavailable => '请先在“设置 → 集成 → DLSSNR”安装、检测并启用运行库。';
 
   @override
-  String get dlss_passes => 'NR 处理次数';
-
-  @override
-  String get dlss_passesHint =>
-      '选择 1–3 次 NR 处理。每次使用同一张原始输入，并保留模型历史，避免反复强化新增纹理；SR 只放大一次，细节与色彩最后统一合成。增加次数会延长耗时，不保证更多细节。';
-
-  @override
   String get dlss_finalizing => 'NR 已完成，正在准备对比图…';
-
-  @override
-  String dlss_passProgress(int completed, int total) {
-    return 'NR 已完成 $completed/$total 次';
-  }
 
   @override
   String get dlss_processing => '处理流程';
@@ -29084,19 +29072,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get dlss_srUnavailable => '請先在「設定 → 整合 → DLSSNR」安裝、檢測並啟用執行階段。';
 
   @override
-  String get dlss_passes => 'NR 處理次數';
-
-  @override
-  String get dlss_passesHint =>
-      '選擇 1–3 次 NR 處理。每次使用同一張原始輸入，並保留模型歷史，避免反覆強化新增紋理；SR 只放大一次，細節與色彩最後統一合成。增加次數會延長耗時，不保證更多細節。';
-
-  @override
   String get dlss_finalizing => 'NR 已完成，正在準備比較圖…';
-
-  @override
-  String dlss_passProgress(int completed, int total) {
-    return 'NR 已完成 $completed/$total 次';
-  }
 
   @override
   String get dlss_processing => '處理流程';

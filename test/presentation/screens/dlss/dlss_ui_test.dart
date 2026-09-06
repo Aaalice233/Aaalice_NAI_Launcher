@@ -215,41 +215,8 @@ void main() {
       await tester.pump();
       expect(options.intensity, 3.25);
       expect(find.text('请输入此参数支持的有效数值。'), findsOneWidget);
-      final passes = find.byKey(const Key('dlss-passes'));
-      await tester.ensureVisible(passes);
-      final slider = tester.widget<Slider>(passes);
-      expect(slider.min, 1);
-      expect(slider.max, 3);
-      expect(slider.divisions, 2);
-      await tester.tapAt(
-        tester.getCenter(passes) +
-            Offset(tester.getSize(passes).width / 2 - 10, 0),
-      );
-      await tester.pump();
-      expect(options.passes, 3);
-      await tester.tap(passes);
-      await tester.pump();
-      expect(options.passes, 2);
-      final passInput = field('NR 处理次数');
-      expect(tester.widget<TextField>(passInput).controller!.text, '2');
-      await tester.ensureVisible(passInput);
-      await tester.enterText(passInput, '1');
-      await tester.testTextInput.receiveAction(TextInputAction.done);
-      await tester.pump();
-      expect(options.passes, 1);
-      expect(tester.widget<Slider>(passes).value, 1);
-      for (final invalid in ['0', '4', '2.5', '']) {
-        await tester.enterText(passInput, invalid);
-        await tester.testTextInput.receiveAction(TextInputAction.done);
-        await tester.pump();
-        expect(options.passes, 1);
-        expect(tester.widget<Slider>(passes).value, 1);
-      }
-      await tester.enterText(passInput, '3');
-      await tester.testTextInput.receiveAction(TextInputAction.done);
-      await tester.pump();
-      expect(options.passes, 3);
-      expect(tester.widget<TextField>(passInput).controller!.text, '3');
+      expect(find.byKey(const Key('dlss-passes')), findsNothing);
+      expect(field('NR 处理次数'), findsNothing);
       expect(tester.takeException(), isNull);
     },
   );
@@ -296,18 +263,17 @@ void main() {
     await tester.tap(find.text('高级参数'));
     await tester.pumpAndSettle();
     expect(tester.takeException(), isNull);
-    expect(find.byType(TextField), findsNWidgets(9));
+    expect(find.byType(TextField), findsNWidgets(8));
     for (final input in tester.widgetList<TextField>(find.byType(TextField))) {
       expect(input.textAlign, TextAlign.center);
       expect(input.textAlignVertical, TextAlignVertical.center);
     }
-    expect(find.byType(Slider), findsNWidgets(9));
+    expect(find.byType(Slider), findsNWidgets(8));
     final sliders = tester.widgetList<Slider>(find.byType(Slider)).toList();
-    expect(sliders.map((slider) => slider.max), [4, 3, 2, 2, 1, 2, 2, 2, 2]);
-    expect(sliders.map((slider) => slider.min), [1, 1, 0, 0, 0, 0, 0, -1, -1]);
+    expect(sliders.map((slider) => slider.max), [4, 2, 2, 1, 2, 2, 2, 2]);
+    expect(sliders.map((slider) => slider.min), [1, 0, 0, 0, 0, 0, -1, -1]);
     expect(sliders.map((slider) => slider.divisions), [
       null,
-      2,
       40,
       40,
       20,
@@ -815,11 +781,11 @@ class _Controller extends DlssController {
     Uint8List bytes,
     DlssOptions options, {
     Future<void>? cancelled,
-    void Function(int completed, int total)? onProgress,
+    void Function()? onFinalizing,
   }) async {
     inputs.add(bytes);
     if (pendingResult != null) {
-      onProgress?.call(options.passes, options.passes);
+      onFinalizing?.call();
       return pendingResult!.future;
     }
     final source = img.decodePng(bytes)!;

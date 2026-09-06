@@ -150,8 +150,8 @@ void Ngx::SetNrParameters(NVSDK_NGX_Parameter* p, unsigned width,
   p->Set("DLSSNR.UICorrection", options.uiCorrection ? 1u : 0u);
 }
 
-Frame Ngx::Refine(const Frame& input, const NrOptions& options, unsigned passes,
-                    const Frame* depthGuide) {
+Frame Ngx::Refine(const Frame& input, const NrOptions& options,
+                  const Frame* depthGuide) {
   if (depthGuide && (depthGuide->width != input.width || depthGuide->height != input.height))
     throw std::runtime_error("Depth guide dimensions must match the NR input");
   auto color = gpu_.Create(input.width, input.height, DXGI_FORMAT_R16G16B16A16_FLOAT);
@@ -194,37 +194,31 @@ Frame Ngx::Refine(const Frame& input, const NrOptions& options, unsigned passes,
   CheckNgx(ProbeNvngxCreateFeature(create_, commands,
       static_cast<NVSDK_NGX_Feature>(18), params.value, &feature.value), "Create NR feature");
   gpu_.Submit();
-  // A still is an unchanged frame with zero motion. Keep its input and feature
-  // history stable: feeding synthesized detail back as source amplifies grain
-  // and changes geometry on subsequent evaluations.
-  for (unsigned pass = 0; pass < passes; ++pass) {
-    params.value->Set("DLSSNR.Color", color.resource.Get());
-    params.value->Set("DLSSNR.Depth", depth.resource.Get());
-    params.value->Set("DLSSNR.MVec", motion.resource.Get());
-    params.value->Set("DLSSNR.Output", output.resource.Get());
-    params.value->Set("DLSSNR.DepthInverted", 0u);
-    params.value->Set("DLSSNR.Reset", pass == 0 ? 1u : 0u);
-    params.value->Set("DLSSNR.MVecScaleX", 1.0f);
-    params.value->Set("DLSSNR.MVecScaleY", 1.0f);
-    params.value->Set("DLSSNR.ColorSubrectWidth", input.width);
-    params.value->Set("DLSSNR.ColorSubrectHeight", input.height);
-    params.value->Set("DLSSNR.OutputSubrectWidth", input.width);
-    params.value->Set("DLSSNR.OutputSubrectHeight", input.height);
-    params.value->Set("DLSSNR.DepthSubrectWidth", input.width);
-    params.value->Set("DLSSNR.DepthSubrectHeight", input.height);
-    params.value->Set("DLSSNR.MVecSubrectWidth", input.width);
-    params.value->Set("DLSSNR.MVecSubrectHeight", input.height);
-    commands = gpu_.Begin();
-    gpu_.Transition(color, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-    gpu_.Transition(output, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-    CheckNgx(ProbeNvngxEvaluateFeature(evaluate_, commands, feature.value,
-                                       params.value, nullptr), "Evaluate NR pass");
-    // Order output writes before reuse or readback even when the driver does
-    // not insert its own barrier.
-    gpu_.Transition(output, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
-    gpu_.Submit();
-    std::cout << "AAALICE_NR_PROGRESS " << pass + 1 << ' ' << passes << std::endl;
-  }
+  params.value->Set("DLSSNR.Color", color.resource.Get());
+  params.value->Set("DLSSNR.Depth", depth.resource.Get());
+  params.value->Set("DLSSNR.MVec", motion.resource.Get());
+  params.value->Set("DLSSNR.Output", output.resource.Get());
+  params.value->Set("DLSSNR.DepthInverted", 0u);
+  params.value->Set("DLSSNR.Reset", 1u);
+  params.value->Set("DLSSNR.MVecScaleX", 1.0f);
+  params.value->Set("DLSSNR.MVecScaleY", 1.0f);
+  params.value->Set("DLSSNR.ColorSubrectWidth", input.width);
+  params.value->Set("DLSSNR.ColorSubrectHeight", input.height);
+  params.value->Set("DLSSNR.OutputSubrectWidth", input.width);
+  params.value->Set("DLSSNR.OutputSubrectHeight", input.height);
+  params.value->Set("DLSSNR.DepthSubrectWidth", input.width);
+  params.value->Set("DLSSNR.DepthSubrectHeight", input.height);
+  params.value->Set("DLSSNR.MVecSubrectWidth", input.width);
+  params.value->Set("DLSSNR.MVecSubrectHeight", input.height);
+  commands = gpu_.Begin();
+  gpu_.Transition(color, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+  gpu_.Transition(output, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+  CheckNgx(ProbeNvngxEvaluateFeature(evaluate_, commands, feature.value,
+                                     params.value, nullptr), "Evaluate NR");
+  // Order output writes before readback even when the driver does
+  // not insert its own barrier.
+  gpu_.Transition(output, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+  gpu_.Submit();
   auto result = gpu_.ReadRgba(output);
   for (size_t i = 0; i < result.size(); ++i)
     if (i % 4 != 3) result[i] = ToLinear(result[i]);

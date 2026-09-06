@@ -26395,29 +26395,11 @@ abstract class AppLocalizations {
   /// **'Install, verify, and enable the runtime in Settings → Integrations → DLSSNR first.'**
   String get dlss_srUnavailable;
 
-  /// No description provided for @dlss_passes.
-  ///
-  /// In en, this message translates to:
-  /// **'NR passes'**
-  String get dlss_passes;
-
-  /// No description provided for @dlss_passesHint.
-  ///
-  /// In en, this message translates to:
-  /// **'Choose 1–3 NR passes. Each pass uses the same source and retains model history to avoid repeatedly amplifying synthesized texture. SR upscales once; detail and color are composed at the end. More passes take longer and do not guarantee more detail.'**
-  String get dlss_passesHint;
-
   /// No description provided for @dlss_finalizing.
   ///
   /// In en, this message translates to:
   /// **'NR complete · preparing comparison…'**
   String get dlss_finalizing;
-
-  /// No description provided for @dlss_passProgress.
-  ///
-  /// In en, this message translates to:
-  /// **'NR passes completed: {completed}/{total}'**
-  String dlss_passProgress(int completed, int total);
 
   /// No description provided for @dlss_processing.
   ///

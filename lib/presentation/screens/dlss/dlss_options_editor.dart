@@ -5,7 +5,6 @@ import '../../../data/services/dlss/dlss_options.dart';
 import '../settings/widgets/settings_card.dart';
 import 'dlss_parameter_row.dart';
 import 'dlss_parameter_slider.dart';
-import 'dlss_pass_count_field.dart';
 
 class DlssOptionsEditor extends StatelessWidget {
   const DlssOptionsEditor({
@@ -60,24 +59,13 @@ class DlssOptionsEditor extends StatelessWidget {
       icon: Icons.crop_free,
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 4),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            _slider(
-              l10n.dlss_scale,
-              l10n.dlss_scaleHint,
-              value.scale,
-              (v) => value.copyWith(scale: v),
-              min: 1,
-              max: 16384,
-            ),
-            DlssPassCountField(
-              value: value.passes,
-              onChanged: onChanged == null
-                  ? null
-                  : (passes) => onChanged!(value.copyWith(passes: passes)),
-            ),
-          ],
+        child: _slider(
+          l10n.dlss_scale,
+          l10n.dlss_scaleHint,
+          value.scale,
+          (v) => value.copyWith(scale: v),
+          min: 1,
+          max: 16384,
         ),
       ),
     );

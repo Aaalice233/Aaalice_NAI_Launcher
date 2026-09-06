@@ -1,9 +1,7 @@
-import 'dart:math' as math;
 import 'dart:typed_data';
 
 class DlssOptions {
   static const maximumStrength = 3.4028234663852886e38;
-  static const maximumPasses = 3;
   const DlssOptions({
     this.style = 'cinematic',
     this.intensity = 1.6,
@@ -17,7 +15,6 @@ class DlssOptions {
     this.autoMask = true,
     this.uiCorrection = false,
     this.scale = 2,
-    this.passes = 1,
   });
   final String style;
   final double intensity;
@@ -31,7 +28,6 @@ class DlssOptions {
   final bool autoMask;
   final bool uiCorrection;
   final double scale;
-  final int passes;
 
   // The native CLI parses scale as float32 before calculating target dimensions.
   double get nativeScale => (Float32List(1)..[0] = scale)[0];
@@ -66,7 +62,6 @@ class DlssOptions {
     bool? autoMask,
     bool? uiCorrection,
     double? scale,
-    int? passes,
   }) => DlssOptions(
     style: style ?? this.style,
     intensity: intensity ?? this.intensity,
@@ -80,7 +75,6 @@ class DlssOptions {
     autoMask: autoMask ?? this.autoMask,
     uiCorrection: uiCorrection ?? this.uiCorrection,
     scale: scale ?? this.scale,
-    passes: passes ?? this.passes,
   );
 
   Map<String, dynamic> toJson() => {
@@ -96,7 +90,6 @@ class DlssOptions {
     'autoMask': autoMask,
     'uiCorrection': uiCorrection,
     'scale': scale,
-    'passes': passes,
   };
 
   factory DlssOptions.fromJson(Map<String, dynamic> json) {
@@ -117,12 +110,6 @@ class DlssOptions {
       autoMask: json['autoMask'] as bool? ?? defaults.autoMask,
       uiCorrection: json['uiCorrection'] as bool? ?? defaults.uiCorrection,
       scale: (json['scale'] as num?)?.toDouble() ?? defaults.scale,
-      // Older presets allowed unbounded passes. Keep them loadable under the
-      // current user-facing limit without changing the remaining parameters.
-      passes: math.min(
-        json['passes'] as int? ?? defaults.passes,
-        maximumPasses,
-      ),
     );
     value.validate();
     return value;
@@ -135,8 +122,6 @@ class DlssOptions {
         !scale.isFinite ||
         scale < 1 ||
         scale > 16384 ||
-        passes < 1 ||
-        passes > maximumPasses ||
         preset < 0 ||
         preset > 3 ||
         [skin, globalTone].any((v) => !_validStrength(v, -1)) ||
@@ -159,8 +144,6 @@ class DlssOptions {
   List<String> get arguments {
     validate();
     return [
-      '--passes',
-      '$passes',
       '--style',
       '${['default', 'natural', 'cinematic'].indexOf(style)}',
       '--intensity',

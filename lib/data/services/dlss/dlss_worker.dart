@@ -42,7 +42,7 @@ class DlssWorker {
     int adapter = 0,
     Future<void>? cancelled,
     String? version,
-    void Function(int completed, int total)? onProgress,
+    void Function()? onFinalizing,
   }) async {
     if (!Platform.isWindows) throw UnsupportedError('DLSS requires Windows');
     final size = img.findDecoderForData(source)?.startDecode(source);
@@ -93,7 +93,7 @@ class DlssWorker {
         ],
       );
       if (wasCancelled) process.kill();
-      final protocol = DlssWorkerProtocol(options.passes, onProgress);
+      final protocol = DlssWorkerProtocol();
       final stdout = process.stdout
           .transform(utf8.decoder)
           .transform(const LineSplitter())
@@ -115,6 +115,7 @@ class DlssWorker {
       if (exit != 0 || !protocol.complete) {
         throw DlssWorkerFailure(exit, log);
       }
+      onFinalizing?.call();
       final bytes = await _composeInIsolate(
         source,
         await baseline.readAsBytes(),
@@ -135,38 +136,22 @@ class DlssWorker {
   }
 }
 
-/// Reject incomplete, repeated or out-of-order native progress even on exit 0.
+/// Reject incomplete, repeated or out-of-order native results even on exit 0.
 class DlssWorkerProtocol {
-  DlssWorkerProtocol(this.total, this.onProgress);
-  final int total;
-  final void Function(int, int)? onProgress;
-  int _completed = -1;
+  bool _started = false;
   bool _invalid = false;
   bool _done = false;
-  bool get complete => !_invalid && _done && _completed == total;
+  bool get complete => !_invalid && _started && _done;
 
   void accept(String line) {
-    if (line.startsWith('AAALICE_NR_PROGRESS')) {
-      final match = RegExp(
-        r'^AAALICE_NR_PROGRESS (\d+) (\d+)$',
-      ).firstMatch(line);
-      if (match == null ||
-          _done ||
-          int.parse(match[2]!) != total ||
-          int.parse(match[1]!) != _completed + 1 ||
-          _completed >= total) {
-        _invalid = true;
-        return;
-      }
-      _completed++;
-      onProgress?.call(_completed, total);
-    } else if (line.startsWith('AAALICE_NR_DONE')) {
-      if (line != 'AAALICE_NR_DONE $total fp16-temporal' ||
-          _completed != total ||
-          _done) {
-        _invalid = true;
-      }
+    if (line == 'AAALICE_NR_START') {
+      if (_started || _done) _invalid = true;
+      _started = true;
+    } else if (line == 'AAALICE_NR_DONE fp16-single') {
+      if (!_started || _done) _invalid = true;
       _done = true;
+    } else if (line.startsWith('AAALICE_NR_')) {
+      _invalid = true;
     }
   }
 }
@@ -255,7 +240,7 @@ Uint8List preserveDlssImage(
     jsonEncode({
       'status': 'success',
       'runtime': version,
-      'pipeline': 'fp16-temporal',
+      'pipeline': 'fp16-single',
       ...options.toJson(),
     }),
   );

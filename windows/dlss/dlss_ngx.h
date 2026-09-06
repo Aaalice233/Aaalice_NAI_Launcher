@@ -24,8 +24,8 @@ class Ngx {
   Ngx(const Ngx&) = delete;
   Ngx& operator=(const Ngx&) = delete;
   Frame Upscale(Frame input, unsigned width, unsigned height);
-  Frame Refine(const Frame& input, const NrOptions& options, unsigned passes,
-                const Frame* depthGuide = nullptr);
+  Frame Refine(const Frame& input, const NrOptions& options,
+               const Frame* depthGuide = nullptr);
 
  private:
   Frame SrPass(const Frame& input, unsigned width, unsigned height);

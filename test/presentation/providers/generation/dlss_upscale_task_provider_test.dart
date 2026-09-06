@@ -48,7 +48,7 @@ void main() {
         final registrar = _Registrar();
         when(
           () => controller.options,
-        ).thenReturn(const DlssOptions(scale: 2.5, passes: 4, intensity: 3));
+        ).thenReturn(const DlssOptions(scale: 2.5, intensity: 3));
         DlssOptions? options;
         Future<void>? cancellation;
         when(
@@ -78,7 +78,6 @@ void main() {
         expect(container.read(dlssUpscaleTaskProvider).running, isTrue);
         expect(options!.scale, 2.5);
         expect(options!.detail, 0);
-        expect(options!.passes, 1);
         if (scenario == 'dispose') {
           container.dispose();
           await cancellation;

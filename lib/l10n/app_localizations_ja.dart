@@ -14764,19 +14764,7 @@ class AppLocalizationsJa extends AppLocalizations {
       '先に「設定 → 連携 → DLSSNR」でランタイムをインストールし、検証・有効化してください。';
 
   @override
-  String get dlss_passes => 'NR 処理回数';
-
-  @override
-  String get dlss_passesHint =>
-      'NR 処理を 1～3 回から選択します。同じ入力画像とモデルの履歴を使い、生成された質感の繰り返し強調を抑えます。SR 拡大は一度だけ行い、ディテールと色は最後に合成します。回数を増やすと時間がかかり、細部の改善は保証されません。';
-
-  @override
   String get dlss_finalizing => 'NR 完了・比較画像を準備中…';
-
-  @override
-  String dlss_passProgress(int completed, int total) {
-    return 'NR 完了回数: $completed/$total';
-  }
 
   @override
   String get dlss_processing => '処理';

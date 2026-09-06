@@ -30,12 +30,12 @@ void main() {
       await controller.setOptions(const DlssOptions(scale: 1, intensity: 2.2));
       await controller.createPreset('角色');
       final id = controller.presetState.selectedId;
-      await controller.setOptions(controller.options.copyWith(passes: 3));
+      await controller.setOptions(controller.options.copyWith(detail: 2.5));
       final restored = create();
       addTearDown(restored.dispose);
       expect(restored.presetState.selectedId, id);
-      expect(restored.options.passes, 3);
-      expect(restored.presetState.selected.options.passes, 1);
+      expect(restored.options.detail, 2.5);
+      expect(restored.presetState.selected.options.detail, 1.1);
       expect(restored.presetState.modified, isTrue);
       await restored.savePreset(id);
       await restored.renamePreset(id, '角色细节');
@@ -43,7 +43,7 @@ void main() {
       expect(controller.presetState.modified, isFalse);
       await restored.deletePreset(id);
       expect(controller.presetState.customPresets, isEmpty);
-      expect(controller.options.passes, 3);
+      expect(controller.options.detail, 2.5);
     },
   );
   for (final offline in [false, true]) {

@@ -4,7 +4,7 @@ import 'dart:typed_data';
 import 'package:image/image.dart' as img;
 
 /// Linear-light RGBA float32 transport for the isolated Windows worker.
-/// The source and final NR result cross this boundary once; NR evaluations stay
+/// The source and final NR result cross this boundary once; NR processing stays
 /// in GPU float16 textures and never pass through an 8-bit image codec.
 class DlssFloatFrame {
   const DlssFloatFrame(this.width, this.height, this.pixels);
@@ -70,7 +70,7 @@ class DlssFloatFrame {
     return bytes;
   }
 
-  /// Compose once against the untouched SR/input baseline after all NR passes.
+  /// Compose once against the untouched SR/input baseline after NR.
   img.Image composite(
     DlssFloatFrame neural, {
     required double detail,

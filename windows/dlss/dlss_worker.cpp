@@ -9,7 +9,7 @@
 namespace {
 struct Job {
   std::filesystem::path runtime, input, output, baseline, depth;
-  unsigned width = 0, height = 0, adapter = 0, passes = 1;
+  unsigned width = 0, height = 0, adapter = 0;
   aaalice::dlss::NrOptions nr;
 };
 unsigned Unsigned(const std::wstring& text) {
@@ -40,7 +40,6 @@ Job Parse(int argc, wchar_t** argv) {
     else if (key == L"--width") job.width = Unsigned(value);
     else if (key == L"--height") job.height = Unsigned(value);
     else if (key == L"--adapter") job.adapter = Unsigned(value);
-    else if (key == L"--passes") job.passes = Unsigned(value);
     else if (key == L"--preset") job.nr.preset = Unsigned(value);
     else if (key == L"--style") job.nr.style = Unsigned(value);
     else if (key == L"--intensity") job.nr.intensity = Strength(value);
@@ -54,8 +53,7 @@ Job Parse(int argc, wchar_t** argv) {
   }
   if (job.runtime.empty() || job.input.empty() || job.output.empty() ||
       job.baseline.empty() || job.width < 1 || job.height < 1 ||
-      job.width > 16384 || job.height > 16384 || job.passes < 1 ||
-      job.passes > 3 || job.nr.preset > 3 || job.nr.style > 2)
+      job.width > 16384 || job.height > 16384 || job.nr.preset > 3 || job.nr.style > 2)
     throw std::runtime_error("Invalid DLSS job parameters");
   return job;
 }
@@ -72,12 +70,12 @@ int wmain(int argc, wchar_t** argv) {
     aaalice::dlss::Gpu gpu(job.adapter);
     aaalice::dlss::Ngx ngx(gpu, std::filesystem::absolute(job.runtime),
                           std::filesystem::absolute(job.output).parent_path());
-    std::cout << "AAALICE_NR_PROGRESS 0 " << job.passes << std::endl;
+    std::cout << "AAALICE_NR_START" << std::endl;
     auto baseline = ngx.Upscale(std::move(source), job.width, job.height);
     aaalice::dlss::WriteFrame(job.baseline, baseline);
-    auto result = ngx.Refine(baseline, job.nr, job.passes, depth ? &*depth : nullptr);
+    auto result = ngx.Refine(baseline, job.nr, depth ? &*depth : nullptr);
     aaalice::dlss::WriteFrame(job.output, result);
-    std::cout << "AAALICE_NR_DONE " << job.passes << " fp16-temporal" << std::endl;
+    std::cout << "AAALICE_NR_DONE fp16-single" << std::endl;
     return 0;
   } catch (const std::exception& error) {
     std::cerr << "Aaalice DLSS worker: " << error.what() << std::endl;

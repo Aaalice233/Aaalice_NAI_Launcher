@@ -297,7 +297,7 @@ class DlssController extends ChangeNotifier {
     Uint8List bytes,
     DlssOptions parameters, {
     Future<void>? cancelled,
-    void Function(int completed, int total)? onProgress,
+    void Function()? onFinalizing,
   }) {
     if (!preferenceEnabled) return Future.error(StateError('DLSS is disabled'));
     return _enhance(
@@ -305,7 +305,7 @@ class DlssController extends ChangeNotifier {
       parameters,
       cancelled: cancelled,
       selectedLuid: preferredLuid,
-      onProgress: onProgress,
+      onFinalizing: onFinalizing,
     );
   }
 
@@ -314,7 +314,7 @@ class DlssController extends ChangeNotifier {
     DlssOptions parameters, {
     Future<void>? cancelled,
     String? selectedLuid,
-    void Function(int completed, int total)? onProgress,
+    void Function()? onFinalizing,
   }) async {
     var wasCancelled = false;
     var finished = false;
@@ -346,7 +346,7 @@ class DlssController extends ChangeNotifier {
             adapter: environment.selected!.index,
             cancelled: cancelled,
             version: runtime.release.tag,
-            onProgress: onProgress,
+            onFinalizing: onFinalizing,
           );
           if (wasCancelled) throw const DlssCancelled();
           return result;

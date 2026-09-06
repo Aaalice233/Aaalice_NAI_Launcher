@@ -23,7 +23,6 @@ void main() {
         'autoMask': true,
         'uiCorrection': false,
         'scale': 2.0,
-        'passes': 1,
       });
       expect(DlssPresetState.builtIns, hasLength(6));
       expect(DlssPresetState.builtIns.first.id, 'color-light');
@@ -68,7 +67,6 @@ void main() {
           values.keys.where((key) => values[key] != baseline[key]).toSet(),
           differences[preset.id],
         );
-        expect(preset.options.passes, 1);
         expect(preset.options.scale, 2);
       }
     },
@@ -76,7 +74,7 @@ void main() {
   test(
     'custom preset CRUD keeps draft changes separate from saved definitions',
     () {
-      final draft = const DlssOptions().copyWith(intensity: 2.3, passes: 2);
+      final draft = const DlssOptions().copyWith(intensity: 2.3);
       var state = DlssPresetState()
           .withOptions(draft)
           .create('custom-one', '  人像  ');
@@ -105,7 +103,7 @@ void main() {
     () {
       final state = DlssPresetState()
           .create('my-id', '我的预设')
-          .withOptions(const DlssOptions(scale: 1, passes: 3));
+          .withOptions(const DlssOptions(scale: 1));
       final restored = DlssPresetState.fromJson(
         jsonDecode(jsonEncode(state.toJson())) as Map<String, dynamic>,
       );

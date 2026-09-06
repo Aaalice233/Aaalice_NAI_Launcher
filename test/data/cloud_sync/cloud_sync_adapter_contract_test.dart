@@ -147,7 +147,7 @@ void main() {
     final storage = LocalStorageService();
     final dlssState = DlssPresetState()
         .create('custom-texture', '质感预设')
-        .withOptions(const DlssOptions(scale: 1, passes: 2));
+        .withOptions(const DlssOptions(scale: 1, detail: 2));
     await storage.setSetting('dlss_options', jsonEncode(dlssState.toJson()));
     await storage.setSetting(StorageKeys.locale, 'ja');
     await storage.setSetting(StorageKeys.accessToken, 'secret-token');

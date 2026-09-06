@@ -15166,19 +15166,7 @@ class AppLocalizationsEn extends AppLocalizations {
       'Install, verify, and enable the runtime in Settings → Integrations → DLSSNR first.';
 
   @override
-  String get dlss_passes => 'NR passes';
-
-  @override
-  String get dlss_passesHint =>
-      'Choose 1–3 NR passes. Each pass uses the same source and retains model history to avoid repeatedly amplifying synthesized texture. SR upscales once; detail and color are composed at the end. More passes take longer and do not guarantee more detail.';
-
-  @override
   String get dlss_finalizing => 'NR complete · preparing comparison…';
-
-  @override
-  String dlss_passProgress(int completed, int total) {
-    return 'NR passes completed: $completed/$total';
-  }
 
   @override
   String get dlss_processing => 'Processing';

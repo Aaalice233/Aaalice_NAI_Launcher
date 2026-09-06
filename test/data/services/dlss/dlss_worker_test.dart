@@ -8,48 +8,48 @@ import 'package:nai_launcher/data/services/dlss/dlss_worker.dart';
 import 'package:nai_launcher/data/services/metadata/image_metadata_container_codec.dart';
 
 void main() {
-  test('native progress requires all layers and a final FP16 completion', () {
-    final progress = <(int, int)>[];
-    final protocol = DlssWorkerProtocol(3, (a, b) => progress.add((a, b)));
-    for (var i = 0; i <= 3; i++) {
-      protocol.accept('AAALICE_NR_PROGRESS $i 3');
-    }
+  test('native processing requires start and single NR completion', () {
+    final protocol = DlssWorkerProtocol();
+    protocol.accept('AAALICE_NR_START');
+    protocol.accept('NR core priming: 0x1');
     expect(protocol.complete, isFalse);
-    protocol.accept('AAALICE_NR_DONE 3 fp16-temporal');
+    protocol.accept('AAALICE_NR_DONE fp16-single');
     expect(protocol.complete, isTrue);
-    expect(progress, [(0, 3), (1, 3), (2, 3), (3, 3)]);
+  });
+  test('rejects partial, duplicated, reordered and mismatched results', () {
+    for (final lines in [
+      ['AAALICE_NR_START'],
+      ['AAALICE_NR_DONE fp16-single'],
+      ['AAALICE_NR_START', 'AAALICE_NR_START', 'AAALICE_NR_DONE fp16-single'],
+      [
+        'AAALICE_NR_START',
+        'AAALICE_NR_DONE fp16-single',
+        'AAALICE_NR_DONE fp16-single',
+      ],
+      ['AAALICE_NR_START', 'AAALICE_NR_DONE fp16-single', 'AAALICE_NR_START'],
+      ['AAALICE_NR_START', 'AAALICE_NR_DONE malformed'],
+      ['AAALICE_NR_START', 'AAALICE_NR_DONE 3 fp16-temporal'],
+      ['AAALICE_NR_PROGRESS 0 3', 'AAALICE_NR_DONE 3 fp16-cascade'],
+    ]) {
+      final protocol = DlssWorkerProtocol();
+      for (final line in lines) {
+        protocol.accept(line);
+      }
+      expect(protocol.complete, isFalse, reason: lines.join('\n'));
+    }
   });
   test(
-    'rejects partial, duplicated, reordered and mismatched native results',
+    'legacy pass count is discarded while remaining options are preserved',
     () {
-      for (final lines in [
-        ['AAALICE_NR_PROGRESS 0 3', 'AAALICE_NR_DONE 3 fp16-temporal'],
-        ['AAALICE_NR_PROGRESS 0 3', 'AAALICE_NR_PROGRESS 2 3'],
-        ['AAALICE_NR_PROGRESS 0 2'],
-        [
-          for (var i = 0; i <= 3; i++) 'AAALICE_NR_PROGRESS $i 3',
-          'AAALICE_NR_DONE 3 fp16-cascade',
-        ],
-        ['AAALICE_NR_PROGRESS malformed'],
-        [
-          for (var i = 0; i <= 3; i++) 'AAALICE_NR_PROGRESS $i 3',
-          'AAALICE_NR_DONE 3 fp16-temporal',
-          'AAALICE_NR_PROGRESS 3 3',
-        ],
-      ]) {
-        final protocol = DlssWorkerProtocol(3, null);
-        for (final line in lines) {
-          protocol.accept(line);
-        }
-        expect(protocol.complete, isFalse, reason: lines.join('\n'));
-      }
-    },
-  );
-  test(
-    'old pass presets migrate to three and direct values reject larger counts',
-    () {
-      expect(DlssOptions.fromJson({'passes': 8}).passes, 3);
-      expect(const DlssOptions(passes: 4).validate, throwsFormatException);
+      final options = DlssOptions.fromJson({
+        'passes': 8,
+        'intensity': 2.4,
+        'scale': 1.5,
+      });
+      expect(options.intensity, 2.4);
+      expect(options.scale, 1.5);
+      expect(options.toJson(), isNot(contains('passes')));
+      expect(options.arguments, isNot(contains('--passes')));
     },
   );
   test(
@@ -68,7 +68,7 @@ void main() {
         'Comment',
         '{"seed":42}',
       );
-      const options = DlssOptions(scale: 2, passes: 3);
+      const options = DlssOptions(scale: 2);
       final result = preserveDlssImage(source, enlarged, options, 'v1.3');
       final decoded = img.decodePng(result)!;
       expect((decoded.width, decoded.height), (16, 16));
@@ -77,12 +77,9 @@ void main() {
       expect(decoded.getPixel(0, 0).r, 80);
       final metadata = ImageMetadataContainerCodec.extractPngTextData(result);
       expect(metadata['Comment'], '{"seed":42}');
-      expect(jsonDecode(metadata['Aaalice.DLSS']!)['passes'], 3);
+      expect(jsonDecode(metadata['Aaalice.DLSS']!), isNot(contains('passes')));
       expect(jsonDecode(metadata['Aaalice.DLSS']!)['scale'], 2);
-      expect(
-        jsonDecode(metadata['Aaalice.DLSS']!)['pipeline'],
-        'fp16-temporal',
-      );
+      expect(jsonDecode(metadata['Aaalice.DLSS']!)['pipeline'], 'fp16-single');
     },
   );
   test(
@@ -100,7 +97,6 @@ void main() {
       for (final option in [
         const DlssOptions(scale: 0),
         const DlssOptions(scale: double.nan),
-        const DlssOptions(passes: 0),
       ]) {
         expect(option.validate, throwsFormatException);
       }
@@ -236,7 +232,7 @@ void main() {
   test(
     'validates options and maps native style IDs without an extra rendering mode',
     () {
-      expect(const DlssOptions(style: 'cinematic').arguments.skip(2).take(2), [
+      expect(const DlssOptions(style: 'cinematic').arguments.take(2), [
         '--style',
         '2',
       ]);
@@ -248,7 +244,6 @@ void main() {
         () => const DlssOptions(intensity: double.nan).arguments,
         throwsFormatException,
       );
-      expect(const DlssOptions().arguments.take(2), ['--passes', '1']);
     },
   );
 }

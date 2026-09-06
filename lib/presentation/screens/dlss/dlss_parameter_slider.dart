@@ -16,8 +16,6 @@ class DlssParameterSlider extends StatefulWidget {
     this.minimum = 0,
     this.maximum,
     this.valueLabel,
-    this.integerOnly = false,
-    this.sliderKey,
   });
 
   final String label;
@@ -27,8 +25,6 @@ class DlssParameterSlider extends StatefulWidget {
   final double minimum;
   final double? maximum;
   final String? valueLabel;
-  final bool integerOnly;
-  final Key? sliderKey;
 
   @override
   State<DlssParameterSlider> createState() => _DlssParameterSliderState();
@@ -46,9 +42,7 @@ class _DlssParameterSliderState extends State<DlssParameterSlider> {
     _focus.addListener(_onFocusChanged);
   }
 
-  String get _formattedValue => widget.integerOnly
-      ? widget.value.toInt().toString()
-      : widget.value.toString();
+  String get _formattedValue => widget.value.toString();
 
   @override
   void didUpdateWidget(covariant DlssParameterSlider oldWidget) {
@@ -65,9 +59,7 @@ class _DlssParameterSliderState extends State<DlssParameterSlider> {
 
   void _submit() {
     if (!mounted || widget.onChanged == null) return;
-    final value = widget.integerOnly
-        ? int.tryParse(_text.text.trim())?.toDouble()
-        : double.tryParse(_text.text.trim());
+    final value = double.tryParse(_text.text.trim());
     final valid =
         value != null &&
         value.isFinite &&
@@ -109,7 +101,7 @@ class _DlssParameterSliderState extends State<DlssParameterSlider> {
                 focusNode: _focus,
                 enabled: widget.onChanged != null,
                 keyboardType: TextInputType.numberWithOptions(
-                  decimal: !widget.integerOnly,
+                  decimal: true,
                   signed: widget.minimum < 0,
                 ),
                 textInputAction: TextInputAction.done,
@@ -122,19 +114,15 @@ class _DlssParameterSliderState extends State<DlssParameterSlider> {
             ),
           ),
           Slider(
-            key: widget.sliderKey,
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
             value: widget.value,
             min: widget.minimum,
             max: maximum,
-            divisions: widget.integerOnly
-                ? (maximum - widget.minimum).round()
-                : maximum <= 2
+            divisions: maximum <= 2
                 ? ((maximum - widget.minimum) / 0.05).round()
                 : null,
             label: widget.valueLabel ?? _formattedValue,
-            semanticFormatterCallback: (value) =>
-                '${widget.label}: ${widget.integerOnly ? value.toInt() : value}',
+            semanticFormatterCallback: (value) => '${widget.label}: $value',
             onChanged: widget.onChanged,
           ),
         ],

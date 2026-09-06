@@ -132,7 +132,7 @@ class DlssEnvironmentService {
           .convert(
             utf8.encode(
               jsonEncode({
-                'workerProtocol': 3,
+                'workerProtocol': 4,
                 'device': device.fingerprint,
                 'release': runtime.release.directoryName,
                 'components': {
