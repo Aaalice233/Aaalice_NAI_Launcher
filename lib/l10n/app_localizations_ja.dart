@@ -14667,7 +14667,7 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get dlss_compareHint =>
-      '元の解像度で比較し、初期表示は出力画像の 100% ピクセルです。画像をドラッグして移動、区切り線をドラッグして比較。ダブルタップで全体表示に切り替えます。';
+      '比較画像はフル解像度で読み込み、最初はウィンドウに合わせて表示します。100% で等倍表示し、画像をドラッグして移動、分割線をドラッグして比較できます。';
 
   @override
   String get dlss_preset => 'NR プリセット';
@@ -14826,7 +14826,7 @@ class AppLocalizationsJa extends AppLocalizations {
   String get dlss_presetCrisp => 'ディテール';
 
   @override
-  String get dlss_presetColor => '色の保持';
+  String get dlss_presetVivid => '鮮やか';
 
   @override
   String get dlss_detailAndColor => 'ディテールと色';

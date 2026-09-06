@@ -15067,7 +15067,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get dlss_compareHint =>
-      'Full-resolution comparison, starting at 100% of the output pixels. Drag the image to pan and the divider to compare; double-tap to toggle fit to window.';
+      'Full-resolution comparison fits the window by default. Select 100% to inspect actual pixels; drag to pan or move the divider to compare.';
 
   @override
   String get dlss_preset => 'NR preset';
@@ -15232,7 +15232,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get dlss_presetCrisp => 'Detail';
 
   @override
-  String get dlss_presetColor => 'Color preservation';
+  String get dlss_presetVivid => 'Vivid';
 
   @override
   String get dlss_detailAndColor => 'Detail and color';

@@ -47,35 +47,40 @@ class DlssPresetState {
     List<DlssPreset> customPresets = const [],
   }) : customPresets = List.unmodifiable(customPresets);
 
-  static const defaultId = 'cinematic-light';
-  // Every built-in derives from the same light-and-shadow defaults; only its
-  // intended differences are specified here.
+  static const defaultId = 'color-light';
+  // Keep stable IDs and explicit color values so saved selections and the other
+  // presets retain their effects when the preferred default changes.
   static const builtIns = [
     DlssPreset(id: defaultId, options: DlssOptions(), builtIn: true),
     DlssPreset(
       id: 'soft-light',
       builtIn: true,
-      options: DlssOptions(intensity: 1.1, detail: 0.8),
+      options: DlssOptions(intensity: 1.1, detail: 0.8, color: 1),
     ),
     DlssPreset(
       id: 'natural-light',
       builtIn: true,
-      options: DlssOptions(style: 'natural'),
+      options: DlssOptions(style: 'natural', color: 1),
     ),
     DlssPreset(
       id: 'cinematic-soft',
       builtIn: true,
-      options: DlssOptions(localTone: 1.3, globalTone: 1.2, detail: 0.9),
+      options: DlssOptions(
+        localTone: 1.3,
+        globalTone: 1.2,
+        detail: 0.9,
+        color: 1,
+      ),
     ),
     DlssPreset(
       id: 'crisp-light',
       builtIn: true,
-      options: DlssOptions(localStructure: 1.6, detail: 1.2),
+      options: DlssOptions(localStructure: 1.6, detail: 1.2, color: 1),
     ),
     DlssPreset(
-      id: 'color-light',
+      id: 'cinematic-light',
       builtIn: true,
-      options: DlssOptions(color: 0.25),
+      options: DlssOptions(color: 1),
     ),
   ];
 

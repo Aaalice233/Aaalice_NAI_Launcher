@@ -26236,7 +26236,7 @@ abstract class AppLocalizations {
   /// No description provided for @dlss_compareHint.
   ///
   /// In en, this message translates to:
-  /// **'Full-resolution comparison, starting at 100% of the output pixels. Drag the image to pan and the divider to compare; double-tap to toggle fit to window.'**
+  /// **'Full-resolution comparison fits the window by default. Select 100% to inspect actual pixels; drag to pan or move the divider to compare.'**
   String get dlss_compareHint;
 
   /// No description provided for @dlss_preset.
@@ -26515,11 +26515,11 @@ abstract class AppLocalizations {
   /// **'Detail'**
   String get dlss_presetCrisp;
 
-  /// No description provided for @dlss_presetColor.
+  /// No description provided for @dlss_presetVivid.
   ///
   /// In en, this message translates to:
-  /// **'Color preservation'**
-  String get dlss_presetColor;
+  /// **'Vivid'**
+  String get dlss_presetVivid;
 
   /// No description provided for @dlss_detailAndColor.
   ///

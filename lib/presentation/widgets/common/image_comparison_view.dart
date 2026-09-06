@@ -48,8 +48,6 @@ class _ImageComparisonViewState extends State<ImageComparisonView> {
   TapDownDetails? _doubleTapDetails;
   Size? _generatedSize;
   Size? _viewportSize;
-  bool _pendingActualSize = false;
-  int _imageRevision = 0;
 
   @override
   void initState() {
@@ -66,9 +64,6 @@ class _ImageComparisonViewState extends State<ImageComparisonView> {
     _generatedSize = info == null
         ? null
         : Size(info.width.toDouble(), info.height.toDouble());
-    _pendingActualSize =
-        widget.showPixelScaleControls && _generatedSize != null;
-    _imageRevision++;
   }
 
   @override
@@ -77,8 +72,11 @@ class _ImageComparisonViewState extends State<ImageComparisonView> {
     if (!identical(oldWidget.sourceImageBytes, widget.sourceImageBytes) ||
         !identical(oldWidget.generatedImageBytes, widget.generatedImageBytes) ||
         oldWidget.showPixelScaleControls != widget.showPixelScaleControls) {
-      _position = 0.5;
-      _transformationController.value = Matrix4.identity();
+      // A new enhancement of the same source must not change the viewport.
+      if (!identical(oldWidget.sourceImageBytes, widget.sourceImageBytes)) {
+        _position = 0.5;
+        _transformationController.value = Matrix4.identity();
+      }
       _readGeneratedSize();
     }
   }
@@ -193,20 +191,7 @@ class _ImageComparisonViewState extends State<ImageComparisonView> {
   Widget _buildViewport(BuildContext context) => LayoutBuilder(
     builder: (context, constraints) {
       _viewportSize = constraints.biggest;
-      if (_pendingActualSize) {
-        final revision = _imageRevision;
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (!mounted || revision != _imageRevision || !_pendingActualSize) {
-            return;
-          }
-          _setScale(_actualPixelScale);
-          setState(() => _pendingActualSize = false);
-        });
-      }
-      return Opacity(
-        opacity: _pendingActualSize ? 0 : 1,
-        child: _buildComparison(context),
-      );
+      return _buildComparison(context);
     },
   );
 

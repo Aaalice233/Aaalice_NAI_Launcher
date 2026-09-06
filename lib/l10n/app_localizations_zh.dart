@@ -14407,7 +14407,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get dlss_compareHint =>
-      '完整分辨率对比，默认按增强结果的 100% 像素显示。拖动图像查看局部，拖动分割线对比；双击切换适应窗口。';
+      '完整分辨率对比，默认适应窗口。点击 100% 查看原尺寸像素；拖动图像查看局部，拖动分割线对比。';
 
   @override
   String get dlss_preset => 'NR 预设';
@@ -14560,7 +14560,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get dlss_presetCrisp => '细节';
 
   @override
-  String get dlss_presetColor => '保色';
+  String get dlss_presetVivid => '浓郁';
 
   @override
   String get dlss_detailAndColor => '细节与颜色';
@@ -28985,7 +28985,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get dlss_compareHint =>
-      '完整解析度比較，預設按增強結果的 100% 像素顯示。拖曳影像查看局部，拖曳分隔線比較；按兩下切換適應視窗。';
+      '完整解析度比較，預設符合視窗。點擊 100% 查看原尺寸像素；拖曳圖像查看局部，拖曳分隔線比較。';
 
   @override
   String get dlss_preset => 'NR 預設';
@@ -29138,7 +29138,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get dlss_presetCrisp => '細節';
 
   @override
-  String get dlss_presetColor => '保色';
+  String get dlss_presetVivid => '濃郁';
 
   @override
   String get dlss_detailAndColor => '細節與顏色';

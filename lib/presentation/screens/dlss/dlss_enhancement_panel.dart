@@ -188,21 +188,14 @@ class _DlssEnhancementPanelState extends ConsumerState<DlssEnhancementPanel> {
     final result = _result;
     final image = ClipRRect(
       borderRadius: BorderRadius.circular(12),
-      child: result == null
-          ? SizedBox(
-              height: viewportHeight,
-              child: InteractiveViewer(
-                child: Image.memory(widget.source, fit: BoxFit.contain),
-              ),
-            )
-          : ImageComparisonView(
-              key: _comparisonKey,
-              sourceImageBytes: widget.source,
-              generatedImageBytes: result,
-              fit: BoxFit.contain,
-              showPixelScaleControls: true,
-              viewportHeight: viewportHeight,
-            ),
+      child: ImageComparisonView(
+        key: _comparisonKey,
+        sourceImageBytes: widget.source,
+        generatedImageBytes: result ?? widget.source,
+        fit: BoxFit.contain,
+        showPixelScaleControls: true,
+        viewportHeight: viewportHeight,
+      ),
     );
     return Column(
       mainAxisSize: viewportHeight == null
@@ -214,19 +207,23 @@ class _DlssEnhancementPanelState extends ConsumerState<DlssEnhancementPanel> {
           alignment: WrapAlignment.spaceBetween,
           spacing: 12,
           children: [
-            if (result != null) Text(l10n.dlss_result),
+            Visibility(
+              visible: result != null,
+              maintainSize: true,
+              maintainState: true,
+              maintainAnimation: true,
+              child: Text(l10n.dlss_result),
+            ),
             Text(l10n.dlss_original),
           ],
         ),
         const SizedBox(height: 12),
         if (viewportHeight == null) Expanded(child: image) else image,
-        if (result != null) ...[
-          const SizedBox(height: 12),
-          Text(
-            l10n.dlss_compareHint,
-            style: Theme.of(context).textTheme.bodySmall,
-          ),
-        ],
+        const SizedBox(height: 12),
+        Text(
+          l10n.dlss_compareHint,
+          style: Theme.of(context).textTheme.bodySmall,
+        ),
       ],
     );
   }

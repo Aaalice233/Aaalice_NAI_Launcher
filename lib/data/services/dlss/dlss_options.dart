@@ -10,7 +10,7 @@ class DlssOptions {
     this.localStructure = 1.2,
     this.localTone = 1.8,
     this.detail = 1.1,
-    this.color = 1,
+    this.color = 0.25,
     this.preset = 0,
     this.skin = 1.2,
     this.globalTone = 1.6,

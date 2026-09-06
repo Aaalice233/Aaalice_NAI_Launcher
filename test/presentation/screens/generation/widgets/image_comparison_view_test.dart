@@ -10,7 +10,7 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   testWidgets(
-    'comparison keeps full images and opens at actual output pixels',
+    'comparison keeps full images, fits initially and offers actual output pixels',
     (tester) async {
       tester.view.devicePixelRatio = 2;
       addTearDown(tester.view.resetDevicePixelRatio);
@@ -36,10 +36,7 @@ void main() {
         tester.getSize(generated),
       ).destination;
       final actualScale = 832 / (destination.width * 2);
-      expect(
-        viewer.transformationController!.value.getMaxScaleOnAxis(),
-        closeTo(actualScale, 0.001),
-      );
+      expect(viewer.transformationController!.value.getMaxScaleOnAxis(), 1);
       await tester.tap(find.byKey(const ValueKey('comparison-fit-window')));
       await tester.pump();
       expect(viewer.transformationController!.value.getMaxScaleOnAxis(), 1);

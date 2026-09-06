@@ -5,7 +5,7 @@ import 'package:nai_launcher/data/services/dlss/dlss_presets.dart';
 
 void main() {
   test(
-    'default exactly matches the selected D light-and-shadow parameters',
+    'default uses color preservation with the original vivid preset last',
     () {
       final state = DlssPresetState();
       expect(state.selectedId, DlssPresetState.defaultId);
@@ -16,7 +16,7 @@ void main() {
         'localStructure': 1.2,
         'localTone': 1.8,
         'detail': 1.1,
-        'color': 1.0,
+        'color': 0.25,
         'preset': 0,
         'skin': 1.2,
         'globalTone': 1.6,
@@ -26,6 +26,17 @@ void main() {
         'passes': 1,
       });
       expect(DlssPresetState.builtIns, hasLength(6));
+      expect(DlssPresetState.builtIns.first.id, 'color-light');
+      expect(DlssPresetState.builtIns.last.id, 'cinematic-light');
+      expect(DlssPresetState.builtIns.last.options.color, 1);
+      for (final id in ['color-light', 'cinematic-light']) {
+        final saved = state
+            .select(id)
+            .withOptions(const DlssOptions(intensity: 2.2));
+        final restored = DlssPresetState.fromJson(saved.toJson());
+        expect(restored.selectedId, id);
+        expect(restored.options.toJson(), saved.options.toJson());
+      }
       for (final preset in DlssPresetState.builtIns) {
         expect(preset.options.validate, returnsNormally);
         expect(
@@ -45,11 +56,11 @@ void main() {
     () {
       final baseline = const DlssOptions().toJson();
       const differences = {
-        'soft-light': {'intensity', 'detail'},
-        'natural-light': {'style'},
-        'cinematic-soft': {'localTone', 'globalTone', 'detail'},
-        'crisp-light': {'localStructure', 'detail'},
-        'color-light': {'color'},
+        'soft-light': {'intensity', 'detail', 'color'},
+        'natural-light': {'style', 'color'},
+        'cinematic-soft': {'localTone', 'globalTone', 'detail', 'color'},
+        'crisp-light': {'localStructure', 'detail', 'color'},
+        'cinematic-light': {'color'},
       };
       for (final preset in DlssPresetState.builtIns.skip(1)) {
         final values = preset.options.toJson();

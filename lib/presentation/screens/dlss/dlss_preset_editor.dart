@@ -219,7 +219,7 @@ class _DlssPresetEditorState extends ConsumerState<DlssPresetEditor> {
         'natural-light' => l10n.dlss_presetNatural,
         'cinematic-soft' => l10n.dlss_presetCinema,
         'crisp-light' => l10n.dlss_presetCrisp,
-        'color-light' => l10n.dlss_presetColor,
+        'cinematic-light' => l10n.dlss_presetVivid,
         _ => preset.name ?? preset.id,
       };
 }

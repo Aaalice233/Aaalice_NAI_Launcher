@@ -133,7 +133,7 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.byKey(const Key('dlss-preset-selector')));
       await tester.pumpAndSettle();
-      final preserveColor = find.text('保色').last;
+      final preserveColor = find.text('默认').last;
       await tester.ensureVisible(preserveColor);
       await tester.tap(preserveColor);
       await tester.pumpAndSettle();
@@ -573,10 +573,27 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
+    final viewport = find.byKey(const ValueKey('generation-image-comparison'));
+    final initialRect = tester.getRect(viewport);
+    final viewer = tester.widget<InteractiveViewer>(
+      find.byType(InteractiveViewer),
+    );
+    final transform = viewer.transformationController!;
+    expect(transform.value.getMaxScaleOnAxis(), 1);
     for (var index = 0; index < 2; index++) {
       await tester.ensureVisible(find.byKey(const Key('dlss-run')));
       await tester.tap(find.byKey(const Key('dlss-run')));
       await tester.pumpAndSettle();
+      expect(tester.getRect(viewport), initialRect);
+      expect(
+        tester
+            .widget<InteractiveViewer>(find.byType(InteractiveViewer))
+            .transformationController,
+        same(transform),
+      );
+      expect(transform.value.getMaxScaleOnAxis(), index == 0 ? 1 : 2);
+      // Keep a user's zoom when a later result replaces the current image.
+      transform.value = Matrix4.diagonal3Values(2, 2, 1);
     }
     expect(controller.inputs, hasLength(2));
     expect(
@@ -742,6 +759,15 @@ class _Controller extends DlssController {
     void Function(int completed, int total)? onProgress,
   }) async {
     inputs.add(bytes);
-    return Uint8List.fromList(bytes);
+    final source = img.decodePng(bytes)!;
+    return Uint8List.fromList(
+      img.encodePng(
+        img.copyResize(
+          source,
+          width: (source.width * options.scale).round(),
+          height: (source.height * options.scale).round(),
+        ),
+      ),
+    );
   }
 }
