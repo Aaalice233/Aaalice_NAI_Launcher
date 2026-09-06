@@ -26464,7 +26464,7 @@ abstract class AppLocalizations {
   /// No description provided for @dlss_presetLight.
   ///
   /// In en, this message translates to:
-  /// **'Default'**
+  /// **'Color-preserving enhancement'**
   String get dlss_presetLight;
 
   /// No description provided for @dlss_presetNatural.

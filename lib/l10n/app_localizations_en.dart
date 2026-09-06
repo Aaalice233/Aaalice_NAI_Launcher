@@ -15200,7 +15200,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get dlss_presetSoft => 'Soft';
 
   @override
-  String get dlss_presetLight => 'Default';
+  String get dlss_presetLight => 'Color-preserving enhancement';
 
   @override
   String get dlss_presetNatural => 'Natural';

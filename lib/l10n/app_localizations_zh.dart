@@ -14532,7 +14532,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get dlss_presetSoft => '柔和';
 
   @override
-  String get dlss_presetLight => '默认';
+  String get dlss_presetLight => '保色增强';
 
   @override
   String get dlss_presetNatural => '自然';
@@ -29094,7 +29094,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get dlss_presetSoft => '柔和';
 
   @override
-  String get dlss_presetLight => '預設';
+  String get dlss_presetLight => '保色增強';
 
   @override
   String get dlss_presetNatural => '自然';

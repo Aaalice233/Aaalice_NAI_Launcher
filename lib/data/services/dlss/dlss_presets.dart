@@ -42,27 +42,24 @@ class DlssPreset {
 /// settings value. Built-ins stay in code and cannot be replaced by imported data.
 class DlssPresetState {
   DlssPresetState({
-    this.options = const DlssOptions(),
+    this.options = defaultOptions,
     this.selectedId = defaultId,
     List<DlssPreset> customPresets = const [],
   }) : customPresets = List.unmodifiable(customPresets);
 
-  static const defaultId = 'color-light';
+  static const defaultId = 'material-light';
+  static const defaultOptions = DlssOptions(
+    localStructure: 1.8,
+    localTone: 1.4,
+    skin: 1,
+    detail: 1,
+    color: 0.65,
+  );
   // Keep stable IDs and explicit color values so saved selections and the other
   // presets retain their effects when the preferred default changes.
   static const builtIns = [
-    DlssPreset(id: defaultId, options: DlssOptions(), builtIn: true),
-    DlssPreset(
-      id: 'material-light',
-      builtIn: true,
-      options: DlssOptions(
-        localStructure: 1.8,
-        localTone: 1.4,
-        skin: 1,
-        detail: 1,
-        color: 0.65,
-      ),
-    ),
+    DlssPreset(id: defaultId, options: defaultOptions, builtIn: true),
+    DlssPreset(id: 'color-light', builtIn: true, options: DlssOptions()),
     DlssPreset(
       id: 'soft-light',
       builtIn: true,
@@ -186,6 +183,7 @@ class DlssPresetState {
   };
 
   factory DlssPresetState.fromJson(Map<String, dynamic> json) {
+    if (json.isEmpty) return DlssPresetState();
     final custom = (json['customPresets'] as List? ?? const [])
         .map(
           (entry) =>
@@ -199,7 +197,8 @@ class DlssPresetState {
     }
     return DlssPresetState(
       options: DlssOptions.fromJson(json),
-      selectedId: json['selectedPresetId'] as String? ?? defaultId,
+      // Settings saved before named presets used the color-preserving baseline.
+      selectedId: json['selectedPresetId'] as String? ?? 'color-light',
       customPresets: custom,
     );
   }

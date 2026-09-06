@@ -6934,7 +6934,7 @@
   "dlss_customPreset": "Custom preset",
   "dlss_restorePreset": "Restore this preset",
   "dlss_presetSoft": "Soft",
-  "dlss_presetLight": "Default",
+  "dlss_presetLight": "Color-preserving enhancement",
   "dlss_presetNatural": "Natural",
   "dlss_presetCinema": "Cinematic",
   "dlss_presetMaterial": "Texture & light",

@@ -186,6 +186,57 @@ void main() {
     },
   );
 
+  testWidgets('mouse follow leaves left drags to canvas at the divider', (
+    tester,
+  ) async {
+    await _pumpComparison(tester, width: 400, height: 300);
+    final transform = tester
+        .widget<InteractiveViewer>(find.byType(InteractiveViewer))
+        .transformationController!;
+    final viewport = find.byKey(const ValueKey('generation-image-comparison'));
+    final origin = tester.getTopLeft(viewport);
+    final toggle = find.byKey(const ValueKey('comparison-follow-mouse'));
+    await tester.tap(toggle);
+    await tester.pump();
+    final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+    await mouse.addPointer(location: origin + const Offset(80, 80));
+    addTearDown(mouse.removePointer);
+    for (final start in [const Offset(200, 80), const Offset(200, 150)]) {
+      transform.value = Matrix4.identity()
+        ..translateByDouble(-200, -150, 0, 1)
+        ..scaleByDouble(2, 2, 2, 1);
+      await mouse.moveTo(origin + start);
+      await tester.pump();
+      final before = transform.value.getTranslation().x;
+      await mouse.down(origin + start);
+      await mouse.moveBy(const Offset(25, 0));
+      await tester.pump();
+      await mouse.moveBy(const Offset(50, 0));
+      await tester.pump();
+      expect(transform.value.getTranslation().x, greaterThan(before + 20));
+      await mouse.up();
+      await tester.pumpAndSettle();
+    }
+    await tester.tap(toggle);
+    await tester.pump();
+    final line = find.byKey(
+      const ValueKey('generation-comparison-divider-line'),
+    );
+    final start = tester.getCenter(line);
+    final before = transform.value.clone();
+    await mouse.moveTo(start);
+    await mouse.down(start);
+    await mouse.moveBy(const Offset(-30, 0));
+    await tester.pump();
+    await mouse.moveBy(const Offset(-40, 0));
+    await tester.pump();
+    expect(transform.value, before);
+    expect(tester.getCenter(line).dx, lessThan(start.dx - 30));
+    await mouse.up();
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets(
     'follow toggle remains reachable with large text on a short viewport',
     (tester) async {

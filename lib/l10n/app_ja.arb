@@ -6959,7 +6959,7 @@
   "dlss_customPreset": "カスタムプリセット",
   "dlss_restorePreset": "このプリセットを復元",
   "dlss_presetSoft": "ソフト",
-  "dlss_presetLight": "既定",
+  "dlss_presetLight": "元の色を保つ強化",
   "dlss_presetNatural": "ナチュラル",
   "dlss_presetCinema": "シネマ",
   "dlss_presetMaterial": "質感と光",

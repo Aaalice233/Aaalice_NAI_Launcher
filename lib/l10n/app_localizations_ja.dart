@@ -14795,7 +14795,7 @@ class AppLocalizationsJa extends AppLocalizations {
   String get dlss_presetSoft => 'ソフト';
 
   @override
-  String get dlss_presetLight => '既定';
+  String get dlss_presetLight => '元の色を保つ強化';
 
   @override
   String get dlss_presetNatural => 'ナチュラル';

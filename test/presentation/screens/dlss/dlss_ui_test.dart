@@ -143,7 +143,7 @@ void main() {
       expect(controller.options.detail, 1);
       await tester.tap(find.byKey(const Key('dlss-preset-selector')));
       await tester.pumpAndSettle();
-      final preserveColor = find.text('默认').last;
+      final preserveColor = find.text('保色增强').last;
       await tester.ensureVisible(preserveColor);
       await tester.tap(preserveColor);
       await tester.pumpAndSettle();

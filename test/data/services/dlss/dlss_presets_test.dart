@@ -5,7 +5,24 @@ import 'package:nai_launcher/data/services/dlss/dlss_presets.dart';
 
 void main() {
   test(
-    'default uses color preservation with the original vivid preset last',
+    'fresh settings choose material and saved color settings stay intact',
+    () {
+      final fresh = DlssPresetState.fromJson({});
+      expect(fresh.selectedId, 'material-light');
+      expect(fresh.modified, isFalse);
+      expect(fresh.options.toJson(), DlssPresetState.defaultOptions.toJson());
+      final saved = DlssPresetState().select('color-light');
+      final restored = DlssPresetState.fromJson(saved.toJson());
+      expect(restored.selectedId, 'color-light');
+      expect(restored.modified, isFalse);
+      expect(restored.options.toJson(), const DlssOptions().toJson());
+      final legacy = DlssPresetState.fromJson(const DlssOptions().toJson());
+      expect(legacy.selectedId, 'color-light');
+      expect(legacy.modified, isFalse);
+    },
+  );
+  test(
+    'default selects material lighting while color preservation remains available',
     () {
       final state = DlssPresetState();
       expect(state.selectedId, DlssPresetState.defaultId);
@@ -13,16 +30,16 @@ void main() {
       expect(state.options.toJson(), {
         'style': 'cinematic',
         'intensity': 1.0,
-        'localStructure': 1.2,
-        'localTone': 1.8,
-        'detail': 1.1,
-        'color': 0.25,
-        'skin': 1.2,
+        'localStructure': 1.8,
+        'localTone': 1.4,
+        'detail': 1.0,
+        'color': 0.65,
+        'skin': 1.0,
         'autoMask': true,
         'scale': 2.0,
       });
       expect(DlssPresetState.builtIns, hasLength(7));
-      expect(DlssPresetState.builtIns.first.id, 'color-light');
+      expect(DlssPresetState.builtIns.first.id, 'material-light');
       expect(DlssPresetState.builtIns.last.id, 'cinematic-light');
       expect(DlssPresetState.builtIns.last.options.color, 1);
       for (final id in ['color-light', 'material-light', 'cinematic-light']) {
@@ -52,6 +69,7 @@ void main() {
     () {
       final baseline = const DlssOptions().toJson();
       const differences = {
+        'color-light': <String>{},
         'material-light': {
           'localStructure',
           'localTone',
@@ -65,7 +83,7 @@ void main() {
         'crisp-light': {'localStructure', 'detail', 'color'},
         'cinematic-light': {'color'},
       };
-      for (final preset in DlssPresetState.builtIns.skip(1)) {
+      for (final preset in DlssPresetState.builtIns) {
         final values = preset.options.toJson();
         expect(
           values.keys.where((key) => values[key] != baseline[key]).toSet(),
@@ -99,7 +117,7 @@ void main() {
       expect(state.options.localTone, 0.4);
       expect(state.modified, isTrue);
       state = state.select(DlssPresetState.defaultId);
-      expect(state.options.toJson(), const DlssOptions().toJson());
+      expect(state.options.toJson(), DlssPresetState.defaultOptions.toJson());
     },
   );
   test(

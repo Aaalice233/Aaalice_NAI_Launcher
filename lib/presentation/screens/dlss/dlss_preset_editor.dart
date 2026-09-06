@@ -214,7 +214,7 @@ class _DlssPresetEditorState extends ConsumerState<DlssPresetEditor> {
 
   static String _name(DlssPreset preset, AppLocalizations l10n) =>
       switch (preset.id) {
-        DlssPresetState.defaultId => l10n.dlss_presetLight,
+        'color-light' => l10n.dlss_presetLight,
         'material-light' => l10n.dlss_presetMaterial,
         'soft-light' => l10n.dlss_presetSoft,
         'natural-light' => l10n.dlss_presetNatural,

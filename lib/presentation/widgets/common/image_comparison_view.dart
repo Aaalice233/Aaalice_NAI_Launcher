@@ -387,10 +387,20 @@ class _ImageComparisonViewState extends ConsumerState<ImageComparisonView> {
                 onIncrease: () => _setPosition(_position + _keyboardStep),
                 onDecrease: () => _setPosition(_position - _keyboardStep),
                 child: MouseRegion(
-                  cursor: SystemMouseCursors.resizeColumn,
+                  cursor: _followMouse
+                      ? MouseCursor.defer
+                      : SystemMouseCursors.resizeColumn,
                   child: GestureDetector(
                     key: const ValueKey('generation-comparison-divider-handle'),
                     behavior: HitTestBehavior.translucent,
+                    // Hover places the divider under the mouse. Its recognizers
+                    // must leave mouse drags to the viewport in follow mode.
+                    supportedDevices: _followMouse
+                        ? {
+                            for (final kind in PointerDeviceKind.values)
+                              if (kind != PointerDeviceKind.mouse) kind,
+                          }
+                        : null,
                     onTapDown: (details) {
                       _dividerFocusNode.requestFocus();
                       _setPositionFromGlobal(details.globalPosition);
