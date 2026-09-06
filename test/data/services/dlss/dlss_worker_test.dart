@@ -144,11 +144,11 @@ void main() {
     expect(restored.arguments, contains('--nr-auto-mask'));
     const defaults = DlssOptions();
     expect(defaults.style, 'cinematic');
-    expect(defaults.skin, -1);
-    expect(defaults.globalTone, -1);
+    expect(defaults.skin, 1.2);
+    expect(defaults.globalTone, 1.6);
     expect(defaults.preset, 0);
     expect(defaults.uiCorrection, isFalse);
-    expect(defaults.arguments, isNot(contains('--nr-auto-mask')));
+    expect(defaults.arguments, contains('--nr-auto-mask'));
     for (final options in [
       const DlssOptions(preset: 4),
       const DlssOptions(skin: -1.05),

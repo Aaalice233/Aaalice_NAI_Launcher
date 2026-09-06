@@ -4,6 +4,7 @@ import '../../../core/autocomplete/autocomplete_settings.dart' as autocomplete;
 import '../../agent_settings/providers/agent_settings_provider.dart';
 import '../../prompt_assistant/providers/prompt_assistant_config_provider.dart';
 import '../composition_guide_provider.dart';
+import '../dlss_provider.dart';
 import '../fixed_tags_provider.dart';
 import '../font_provider.dart';
 import '../font_scale_provider.dart';
@@ -36,6 +37,9 @@ import '../watermark_settings_provider.dart';
 
 Future<void> refreshCloudSyncRuntime(Ref ref, Set<String> adapterIds) async {
   if (adapterIds.contains('portable-settings')) {
+    if (ref.exists(dlssProvider)) {
+      ref.read(dlssProvider).refreshPreferences();
+    }
     ref.read(fixedTagsNotifierProvider.notifier).refresh();
     ref.read(tagLibraryPageNotifierProvider.notifier).refresh();
     ref.invalidate(themeNotifierProvider);

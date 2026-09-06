@@ -4,15 +4,15 @@ class DlssOptions {
   static const maximumStrength = 3.4028234663852886e38;
   const DlssOptions({
     this.style = 'cinematic',
-    this.intensity = 1,
-    this.localStructure = 1,
-    this.localTone = 1,
-    this.detail = 1,
+    this.intensity = 1.6,
+    this.localStructure = 1.2,
+    this.localTone = 1.8,
+    this.detail = 1.1,
     this.color = 1,
     this.preset = 0,
-    this.skin = -1,
-    this.globalTone = -1,
-    this.autoMask = false,
+    this.skin = 1.2,
+    this.globalTone = 1.6,
+    this.autoMask = true,
     this.uiCorrection = false,
     this.scale = 2,
     this.passes = 1,
@@ -98,20 +98,24 @@ class DlssOptions {
   };
 
   factory DlssOptions.fromJson(Map<String, dynamic> json) {
+    const defaults = DlssOptions();
     final value = DlssOptions(
-      style: json['style'] as String? ?? 'cinematic',
-      intensity: (json['intensity'] as num?)?.toDouble() ?? 1,
-      localStructure: (json['localStructure'] as num?)?.toDouble() ?? 1,
-      localTone: (json['localTone'] as num?)?.toDouble() ?? 1,
-      detail: (json['detail'] as num?)?.toDouble() ?? 1,
-      color: (json['color'] as num?)?.toDouble() ?? 1,
-      preset: json['preset'] as int? ?? 0,
-      skin: (json['skin'] as num?)?.toDouble() ?? -1,
-      globalTone: (json['globalTone'] as num?)?.toDouble() ?? -1,
-      autoMask: json['autoMask'] as bool? ?? false,
-      uiCorrection: json['uiCorrection'] as bool? ?? false,
-      scale: (json['scale'] as num?)?.toDouble() ?? 2,
-      passes: json['passes'] as int? ?? 1,
+      style: json['style'] as String? ?? defaults.style,
+      intensity: (json['intensity'] as num?)?.toDouble() ?? defaults.intensity,
+      localStructure:
+          (json['localStructure'] as num?)?.toDouble() ??
+          defaults.localStructure,
+      localTone: (json['localTone'] as num?)?.toDouble() ?? defaults.localTone,
+      detail: (json['detail'] as num?)?.toDouble() ?? defaults.detail,
+      color: (json['color'] as num?)?.toDouble() ?? defaults.color,
+      preset: json['preset'] as int? ?? defaults.preset,
+      skin: (json['skin'] as num?)?.toDouble() ?? defaults.skin,
+      globalTone:
+          (json['globalTone'] as num?)?.toDouble() ?? defaults.globalTone,
+      autoMask: json['autoMask'] as bool? ?? defaults.autoMask,
+      uiCorrection: json['uiCorrection'] as bool? ?? defaults.uiCorrection,
+      scale: (json['scale'] as num?)?.toDouble() ?? defaults.scale,
+      passes: json['passes'] as int? ?? defaults.passes,
     );
     value.validate();
     return value;

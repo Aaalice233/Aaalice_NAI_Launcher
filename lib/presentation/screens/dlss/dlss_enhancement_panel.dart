@@ -14,7 +14,7 @@ import '../../widgets/common/app_toast.dart';
 import '../../widgets/common/image_comparison_view.dart';
 import '../../adaptive/window_size_class.dart';
 import 'dlss_error_view.dart';
-import 'dlss_options_editor.dart';
+import 'dlss_preset_editor.dart';
 import '../settings/settings_screen.dart';
 import '../settings/settings_section.dart';
 import 'dlss_environment_card.dart';
@@ -75,6 +75,7 @@ class _DlssEnhancementPanelState extends ConsumerState<DlssEnhancementPanel> {
   }
 
   Future<void> _run() async {
+    _options = _controller.options;
     setState(() {
       _running = true;
       _completedPasses = 0;
@@ -244,12 +245,7 @@ class _DlssEnhancementPanelState extends ConsumerState<DlssEnhancementPanel> {
           ),
         ],
         const SizedBox(height: 20),
-        DlssOptionsEditor(
-          value: _options,
-          onChanged: _running
-              ? null
-              : (value) => setState(() => _options = value),
-        ),
+        DlssPresetEditor(enabled: !_running),
         if (_error != null)
           DlssErrorView(
             error: _error!,

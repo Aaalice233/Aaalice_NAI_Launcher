@@ -26302,7 +26302,7 @@ abstract class AppLocalizations {
   /// No description provided for @dlss_detailHint.
   ///
   /// In en, this message translates to:
-  /// **'0 preserves the original; 1 applies the full enhancement. Values above 1 amplify the difference from the original and may exaggerate or distort the result.'**
+  /// **'0 retains the NR input (the upscaled image when SR is enabled); 1 uses the full enhanced result. Values above 1 amplify their difference and may exaggerate or distort the image.'**
   String get dlss_detailHint;
 
   /// No description provided for @dlss_colorHint.
@@ -26314,13 +26314,13 @@ abstract class AppLocalizations {
   /// No description provided for @dlss_structureHint.
   ///
   /// In en, this message translates to:
-  /// **'Adjusts local structure and high-frequency detail, such as material texture, contact shadows, and reflections. Default: 1. Results depend on the model and image.'**
+  /// **'Adjusts local structure and high-frequency detail, such as material texture, contact shadows, and reflections. Model baseline: 1. Results depend on the model and image.'**
   String get dlss_structureHint;
 
   /// No description provided for @dlss_toneHint.
   ///
   /// In en, this message translates to:
-  /// **'Adjusts broader local lighting and tonal changes. Default: 1. This is not a fixed brightness or contrast adjustment.'**
+  /// **'Adjusts broader local lighting and tonal changes. Model baseline: 1. This is not a fixed brightness or contrast adjustment.'**
   String get dlss_toneHint;
 
   /// No description provided for @dlss_skinHint.
@@ -26418,6 +26418,114 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Appearance'**
   String get dlss_appearance;
+
+  /// No description provided for @dlss_parameterPreset.
+  ///
+  /// In en, this message translates to:
+  /// **'Parameter preset'**
+  String get dlss_parameterPreset;
+
+  /// No description provided for @dlss_managePresets.
+  ///
+  /// In en, this message translates to:
+  /// **'Manage presets'**
+  String get dlss_managePresets;
+
+  /// No description provided for @dlss_createPreset.
+  ///
+  /// In en, this message translates to:
+  /// **'Save as new preset'**
+  String get dlss_createPreset;
+
+  /// No description provided for @dlss_savePreset.
+  ///
+  /// In en, this message translates to:
+  /// **'Save to this preset'**
+  String get dlss_savePreset;
+
+  /// No description provided for @dlss_renamePreset.
+  ///
+  /// In en, this message translates to:
+  /// **'Rename preset'**
+  String get dlss_renamePreset;
+
+  /// No description provided for @dlss_presetName.
+  ///
+  /// In en, this message translates to:
+  /// **'Preset name'**
+  String get dlss_presetName;
+
+  /// No description provided for @dlss_invalidPresetName.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter a name that is not already used by a custom preset.'**
+  String get dlss_invalidPresetName;
+
+  /// No description provided for @dlss_deletePresetHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete this custom preset? Your current parameter adjustments will be kept.'**
+  String get dlss_deletePresetHint;
+
+  /// No description provided for @dlss_draftSaved.
+  ///
+  /// In en, this message translates to:
+  /// **'Modified · Current parameters saved automatically'**
+  String get dlss_draftSaved;
+
+  /// No description provided for @dlss_builtinPreset.
+  ///
+  /// In en, this message translates to:
+  /// **'Built-in · Read-only; adjust and save a copy'**
+  String get dlss_builtinPreset;
+
+  /// No description provided for @dlss_customPreset.
+  ///
+  /// In en, this message translates to:
+  /// **'Custom preset'**
+  String get dlss_customPreset;
+
+  /// No description provided for @dlss_restorePreset.
+  ///
+  /// In en, this message translates to:
+  /// **'Restore this preset'**
+  String get dlss_restorePreset;
+
+  /// No description provided for @dlss_presetSoft.
+  ///
+  /// In en, this message translates to:
+  /// **'Soft'**
+  String get dlss_presetSoft;
+
+  /// No description provided for @dlss_presetLight.
+  ///
+  /// In en, this message translates to:
+  /// **'Default'**
+  String get dlss_presetLight;
+
+  /// No description provided for @dlss_presetNatural.
+  ///
+  /// In en, this message translates to:
+  /// **'Natural'**
+  String get dlss_presetNatural;
+
+  /// No description provided for @dlss_presetCinema.
+  ///
+  /// In en, this message translates to:
+  /// **'Cinematic'**
+  String get dlss_presetCinema;
+
+  /// No description provided for @dlss_presetCrisp.
+  ///
+  /// In en, this message translates to:
+  /// **'Detail'**
+  String get dlss_presetCrisp;
+
+  /// No description provided for @dlss_presetColor.
+  ///
+  /// In en, this message translates to:
+  /// **'Color preservation'**
+  String get dlss_presetColor;
 }
 
 class _AppLocalizationsDelegate

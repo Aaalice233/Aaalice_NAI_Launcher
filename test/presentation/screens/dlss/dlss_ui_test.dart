@@ -20,12 +20,80 @@ import 'package:nai_launcher/presentation/widgets/common/image_comparison_view.d
 import 'package:nai_launcher/presentation/screens/dlss/dlss_enhancement_panel.dart';
 import 'package:nai_launcher/presentation/screens/dlss/dlss_settings_section.dart';
 import 'package:nai_launcher/presentation/screens/dlss/dlss_options_editor.dart';
+import 'package:nai_launcher/presentation/screens/dlss/dlss_preset_editor.dart';
 import 'package:nai_launcher/presentation/screens/generation/widgets/img2img_dlss_upscale_controls.dart';
 import 'package:nai_launcher/presentation/screens/settings/sections/generation_settings_section.dart';
 import 'package:nai_launcher/presentation/screens/settings/sections/integrations_settings_section.dart';
 import 'package:nai_launcher/presentation/widgets/gallery/local_image_context_menu.dart';
 
 void main() {
+  for (final width in [320.0, 600.0, 840.0, 1180.0, 1600.0]) {
+    testWidgets('all six presets remain selectable at $width and 3x text', (
+      tester,
+    ) async {
+      await tester.binding.setSurfaceSize(Size(width, 700));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      final controller = _Controller();
+      await tester.pumpWidget(
+        _app(
+          controller,
+          const Scaffold(
+            body: SingleChildScrollView(child: DlssPresetEditor()),
+          ),
+          scale: 3,
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('dlss-preset-selector')));
+      await tester.pumpAndSettle();
+      final preserveColor = find.text('保色').last;
+      await tester.ensureVisible(preserveColor);
+      await tester.tap(preserveColor);
+      await tester.pumpAndSettle();
+      expect(controller.presetState.selectedId, 'color-light');
+      expect(controller.options.color, 0.25);
+      expect(tester.takeException(), isNull);
+    });
+  }
+  testWidgets(
+    'preset selector restores saved definitions while edits remain portable',
+    (tester) async {
+      final controller = _Controller();
+      await controller.createPreset('我的参数');
+      final customId = controller.presetState.selectedId;
+      await controller.setOptions(controller.options.copyWith(intensity: 2.3));
+      await controller.savePreset(customId);
+      await tester.pumpWidget(
+        _app(
+          controller,
+          const Scaffold(
+            body: SingleChildScrollView(child: DlssPresetEditor()),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('我的参数'), findsOneWidget);
+      await tester.tap(find.byKey(const Key('dlss-preset-selector')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('柔和').last);
+      await tester.pumpAndSettle();
+      expect(controller.options.intensity, 1.1);
+      await tester.tap(find.byKey(const Key('dlss-preset-selector')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('我的参数').last);
+      await tester.pumpAndSettle();
+      expect(controller.options.intensity, 2.3);
+      final strength = find.byKey(const ValueKey('dlss-value-强度'));
+      await tester.ensureVisible(strength);
+      await tester.enterText(strength, '2.7');
+      await tester.testTextInput.receiveAction(TextInputAction.done);
+      await tester.pumpAndSettle();
+      expect(controller.options.intensity, 2.7);
+      expect(controller.presetState.selected.options.intensity, 2.3);
+      expect(find.text('已调整 · 当前参数已自动保存'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    },
+  );
   testWidgets(
     'numeric NR controls accept values beyond sliders and reject invalid input',
     (tester) async {
@@ -206,8 +274,8 @@ void main() {
         await tester.ensureVisible(uiCorrection);
         await tester.tap(uiCorrection);
         await tester.pumpAndSettle();
-        expect(options.autoMask, isTrue);
-        expect(options.uiCorrection, isTrue);
+        expect(options.autoMask, !const DlssOptions().autoMask);
+        expect(options.uiCorrection, !const DlssOptions().uiCorrection);
         expect(tester.takeException(), isNull);
       });
       testWidgets(

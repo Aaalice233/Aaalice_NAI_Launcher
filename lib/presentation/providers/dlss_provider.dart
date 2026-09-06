@@ -4,10 +4,13 @@ import 'dart:convert';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:synchronized/synchronized.dart';
+import 'package:uuid/uuid.dart';
 
 import '../../core/platform/platform_capabilities.dart';
 import '../../core/storage/local_storage_service.dart';
 import '../../data/services/dlss/dlss_options.dart';
+import '../../data/services/dlss/dlss_presets.dart';
 import '../../data/services/dlss/dlss_release.dart';
 import '../../data/services/dlss/dlss_runtime_manager.dart';
 import '../../data/services/dlss/dlss_worker.dart';
@@ -69,6 +72,7 @@ class DlssController extends ChangeNotifier {
   CancelToken? _download;
   Future<void>? _activeOperation;
   bool _disposed = false;
+  final _presetLock = Lock();
 
   bool get preferenceEnabled =>
       storage.getSetting<bool>('dlss_enabled', defaultValue: true) ?? true;
@@ -78,10 +82,12 @@ class DlssController extends ChangeNotifier {
   bool get automatic =>
       storage.getSetting<bool>('dlss_automatic', defaultValue: false) ?? false;
   String? get preferredLuid => storage.getSetting<String>('dlss_adapter_luid');
-  DlssOptions get options => DlssOptions.fromJson(
+  DlssPresetState get presetState => DlssPresetState.fromJson(
     jsonDecode(storage.getSetting<String>('dlss_options') ?? '{}')
         as Map<String, dynamic>,
   );
+  DlssOptions get options => presetState.options;
+  void refreshPreferences() => _notify();
   DlssRelease? get latest => releases.where((r) => !r.prerelease).firstOrNull;
 
   Future<void> setEnabled(bool value) async {
@@ -98,10 +104,27 @@ class DlssController extends ChangeNotifier {
   }
 
   Future<void> setOptions(DlssOptions value) async {
-    value.validate();
-    await storage.setSetting('dlss_options', jsonEncode(value.toJson()));
-    _notify();
+    await _updatePresets((state) => state.withOptions(value));
   }
+
+  Future<void> selectPreset(String id) =>
+      _updatePresets((state) => state.select(id));
+  Future<void> createPreset(String name) =>
+      _updatePresets((state) => state.create(const Uuid().v4(), name));
+  Future<void> savePreset(String id) =>
+      _updatePresets((state) => state.update(id, saveOptions: true));
+  Future<void> renamePreset(String id, String name) =>
+      _updatePresets((state) => state.update(id, name: name));
+  Future<void> deletePreset(String id) =>
+      _updatePresets((state) => state.remove(id));
+
+  Future<void> _updatePresets(
+    DlssPresetState Function(DlssPresetState) update,
+  ) => _presetLock.synchronized(() async {
+    final next = update(presetState);
+    await storage.setSetting('dlss_options', jsonEncode(next.toJson()));
+    _notify();
+  });
 
   Future<void> refresh({bool fetchReleases = true}) async {
     await _activeOperation;

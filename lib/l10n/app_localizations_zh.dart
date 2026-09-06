@@ -14437,21 +14437,21 @@ class AppLocalizationsZh extends AppLocalizations {
       '可直接输入数值，按回车或离开输入框应用。强度滑块常用范围为 0～2，可手动输入更高值；高值不代表效果更好。';
 
   @override
-  String get dlss_intensityHint => '控制 NR 模型的总体细节强度，1 为默认。不是放大倍率，也不是重复处理次数。';
+  String get dlss_intensityHint => '控制 NR 模型的总体细节强度，1 为模型基准。不是放大倍率，也不是重复处理次数。';
 
   @override
   String get dlss_detailHint =>
-      '0 保留原图，1 使用完整增强效果；大于 1 会放大增强结果与原图的差异，可能使效果夸张或失真。';
+      '0 保留 NR 输入（开启 SR 时为放大后的图像），1 使用完整增强效果；大于 1 放大两者差异，可能使效果夸张或失真。';
 
   @override
   String get dlss_colorHint => '0 保留原图色相，但仍采用增强后的明暗；1 采用增强后的颜色。越低越接近原图的配色。';
 
   @override
   String get dlss_structureHint =>
-      '调整局部结构与高频细节，例如材质纹理、接触阴影和反射。1 为默认，实际效果取决于模型与图像。';
+      '调整局部结构与高频细节，例如材质纹理、接触阴影和反射。1 为模型基准，实际效果取决于模型与图像。';
 
   @override
-  String get dlss_toneHint => '调整局部光照和色调等较大范围的明暗变化。1 为默认；不是固定的亮度或对比度调整。';
+  String get dlss_toneHint => '调整局部光照和色调等较大范围的明暗变化。1 为模型基准；不是固定的亮度或对比度调整。';
 
   @override
   String get dlss_skinHint => '模型的皮肤结构强度。-1 使用模型默认，非负数显式指定强度；上游未公开皮肤识别范围。';
@@ -14509,6 +14509,60 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get dlss_appearance => '效果调整';
+
+  @override
+  String get dlss_parameterPreset => '参数预设';
+
+  @override
+  String get dlss_managePresets => '管理预设';
+
+  @override
+  String get dlss_createPreset => '另存为新预设';
+
+  @override
+  String get dlss_savePreset => '保存到此预设';
+
+  @override
+  String get dlss_renamePreset => '重命名预设';
+
+  @override
+  String get dlss_presetName => '预设名称';
+
+  @override
+  String get dlss_invalidPresetName => '请输入名称，且不要与已有自定义预设重名。';
+
+  @override
+  String get dlss_deletePresetHint => '删除此自定义预设？当前调整的参数会保留。';
+
+  @override
+  String get dlss_draftSaved => '已调整 · 当前参数已自动保存';
+
+  @override
+  String get dlss_builtinPreset => '内置预设 · 只读，可调整后另存';
+
+  @override
+  String get dlss_customPreset => '自定义预设';
+
+  @override
+  String get dlss_restorePreset => '恢复此预设';
+
+  @override
+  String get dlss_presetSoft => '柔和';
+
+  @override
+  String get dlss_presetLight => '默认';
+
+  @override
+  String get dlss_presetNatural => '自然';
+
+  @override
+  String get dlss_presetCinema => '电影';
+
+  @override
+  String get dlss_presetCrisp => '细节';
+
+  @override
+  String get dlss_presetColor => '保色';
 }
 
 /// The translations for Chinese, using the Han script (`zh_Hant`).
@@ -28945,21 +28999,21 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
       '可直接輸入數值，按 Enter 或離開輸入框套用。強度滑桿常用範圍為 0～2，可手動輸入更高值；高值不代表效果更好。';
 
   @override
-  String get dlss_intensityHint => '控制 NR 模型的整體細節強度，1 為預設。不是放大倍率，也不是重複處理次數。';
+  String get dlss_intensityHint => '控制 NR 模型的整體細節強度，1 為模型基準。不是放大倍率，也不是重複處理次數。';
 
   @override
   String get dlss_detailHint =>
-      '0 保留原圖，1 使用完整增強效果；大於 1 會放大增強結果與原圖的差異，可能使效果誇張或失真。';
+      '0 保留 NR 輸入（開啟 SR 時為放大後的圖像），1 使用完整增強效果；大於 1 放大兩者差異，可能使效果誇張或失真。';
 
   @override
   String get dlss_colorHint => '0 保留原圖色相，但仍採用增強後的明暗；1 採用增強後的顏色。越低越接近原圖的配色。';
 
   @override
   String get dlss_structureHint =>
-      '調整局部結構與高頻細節，例如材質紋理、接觸陰影和反射。1 為預設，實際效果取決於模型與圖像。';
+      '調整局部結構與高頻細節，例如材質紋理、接觸陰影和反射。1 為模型基準，實際效果取決於模型與圖像。';
 
   @override
-  String get dlss_toneHint => '調整局部光照和色調等較大範圍的明暗變化。1 為預設；不是固定的亮度或對比度調整。';
+  String get dlss_toneHint => '調整局部光照和色調等較大範圍的明暗變化。1 為模型基準；不是固定的亮度或對比度調整。';
 
   @override
   String get dlss_skinHint => '模型的皮膚結構強度。-1 使用模型預設，非負數明確指定強度；上游未公開皮膚辨識範圍。';
@@ -29017,4 +29071,58 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get dlss_appearance => '效果調整';
+
+  @override
+  String get dlss_parameterPreset => '參數預設';
+
+  @override
+  String get dlss_managePresets => '管理預設';
+
+  @override
+  String get dlss_createPreset => '另存為新預設';
+
+  @override
+  String get dlss_savePreset => '儲存到此預設';
+
+  @override
+  String get dlss_renamePreset => '重新命名預設';
+
+  @override
+  String get dlss_presetName => '預設名稱';
+
+  @override
+  String get dlss_invalidPresetName => '請輸入名稱，且不要與現有自訂預設同名。';
+
+  @override
+  String get dlss_deletePresetHint => '刪除此自訂預設？目前調整的參數會保留。';
+
+  @override
+  String get dlss_draftSaved => '已調整 · 目前參數已自動儲存';
+
+  @override
+  String get dlss_builtinPreset => '內建預設 · 唯讀，可調整後另存';
+
+  @override
+  String get dlss_customPreset => '自訂預設';
+
+  @override
+  String get dlss_restorePreset => '還原此預設';
+
+  @override
+  String get dlss_presetSoft => '柔和';
+
+  @override
+  String get dlss_presetLight => '預設';
+
+  @override
+  String get dlss_presetNatural => '自然';
+
+  @override
+  String get dlss_presetCinema => '電影';
+
+  @override
+  String get dlss_presetCrisp => '細節';
+
+  @override
+  String get dlss_presetColor => '保色';
 }

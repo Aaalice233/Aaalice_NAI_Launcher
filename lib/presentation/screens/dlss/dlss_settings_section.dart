@@ -7,7 +7,7 @@ import '../settings/widgets/settings_card.dart';
 import 'dlss_environment_card.dart';
 import 'dlss_error_view.dart';
 import 'dlss_maintenance_card.dart';
-import 'dlss_options_editor.dart';
+import 'dlss_preset_editor.dart';
 import 'dlss_runtime_card.dart';
 
 class DlssSettingsSection extends ConsumerStatefulWidget {
@@ -81,12 +81,9 @@ class _DlssSettingsSectionState extends ConsumerState<DlssSettingsSection> {
         const SizedBox(height: 16),
         SettingsCard(
           title: l10n.dlss_defaults,
-          child: Padding(
-            padding: const EdgeInsets.all(8),
-            child: DlssOptionsEditor(
-              value: controller.options,
-              onChanged: controller.setOptions,
-            ),
+          child: const Padding(
+            padding: EdgeInsets.all(8),
+            child: DlssPresetEditor(),
           ),
         ),
         const SizedBox(height: 16),

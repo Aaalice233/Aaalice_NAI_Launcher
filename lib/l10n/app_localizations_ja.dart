@@ -14703,7 +14703,7 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get dlss_detailHint =>
-      '0 は元画像、1 は完全な強化結果です。1 を超えると元画像との差が増幅され、過剰な変化や歪みが生じる場合があります。';
+      '0 は NR 入力（SR 有効時は拡大後の画像）を保持し、1 は強化結果を全面適用します。1 を超えると差分を増幅し、過剰な表現や歪みが生じる場合があります。';
 
   @override
   String get dlss_colorHint =>
@@ -14711,11 +14711,11 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get dlss_structureHint =>
-      '素材の質感、接触影、反射などの局所構造と高周波ディテールを調整します。既定は 1。効果はモデルと画像に依存します。';
+      '素材の質感、接触影、反射などの局所構造と高周波ディテールを調整します。モデルの基準値は 1。効果はモデルと画像に依存します。';
 
   @override
   String get dlss_toneHint =>
-      '局所的な光や色調など、より広い範囲の明暗を調整します。既定は 1。固定の明るさ・コントラスト補正ではありません。';
+      '局所的な光や色調など、より広い範囲の明暗を調整します。モデルの基準値は 1。固定の明るさ・コントラスト補正ではありません。';
 
   @override
   String get dlss_skinHint =>
@@ -14775,4 +14775,58 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get dlss_appearance => '仕上がり';
+
+  @override
+  String get dlss_parameterPreset => 'パラメータープリセット';
+
+  @override
+  String get dlss_managePresets => 'プリセットを管理';
+
+  @override
+  String get dlss_createPreset => '新しいプリセットとして保存';
+
+  @override
+  String get dlss_savePreset => 'このプリセットに保存';
+
+  @override
+  String get dlss_renamePreset => 'プリセット名を変更';
+
+  @override
+  String get dlss_presetName => 'プリセット名';
+
+  @override
+  String get dlss_invalidPresetName => '既存のカスタムプリセットと重複しない名前を入力してください。';
+
+  @override
+  String get dlss_deletePresetHint => 'このカスタムプリセットを削除しますか？現在のパラメーター調整は保持されます。';
+
+  @override
+  String get dlss_draftSaved => '調整済み · 現在の値は自動保存されます';
+
+  @override
+  String get dlss_builtinPreset => '内蔵 · 読み取り専用。調整後に別名で保存できます';
+
+  @override
+  String get dlss_customPreset => 'カスタムプリセット';
+
+  @override
+  String get dlss_restorePreset => 'このプリセットを復元';
+
+  @override
+  String get dlss_presetSoft => 'ソフト';
+
+  @override
+  String get dlss_presetLight => '既定';
+
+  @override
+  String get dlss_presetNatural => 'ナチュラル';
+
+  @override
+  String get dlss_presetCinema => 'シネマ';
+
+  @override
+  String get dlss_presetCrisp => 'ディテール';
+
+  @override
+  String get dlss_presetColor => '色の保持';
 }

@@ -8,9 +8,44 @@ import 'package:nai_launcher/data/services/dlss/dlss_device_probe.dart';
 import 'package:nai_launcher/data/services/dlss/dlss_release.dart';
 import 'package:nai_launcher/data/services/dlss/dlss_runtime_manager.dart';
 import 'package:nai_launcher/data/services/dlss/dlss_worker.dart';
+import 'package:nai_launcher/data/services/dlss/dlss_options.dart';
 import 'package:nai_launcher/presentation/providers/dlss_provider.dart';
 
 void main() {
+  test(
+    'preset selection, current draft and custom saves survive controller recreation',
+    () async {
+      final storage = _Storage();
+      final dio = Dio();
+      DlssController create() => DlssController(
+        storage,
+        _Runtime(dio),
+        _Releases(dio),
+        _Worker(),
+        deviceProbe: _Devices(),
+      );
+      final controller = create();
+      addTearDown(controller.dispose);
+      addTearDown(() => dio.close(force: true));
+      await controller.setOptions(const DlssOptions(scale: 1, intensity: 2.2));
+      await controller.createPreset('角色');
+      final id = controller.presetState.selectedId;
+      await controller.setOptions(controller.options.copyWith(passes: 3));
+      final restored = create();
+      addTearDown(restored.dispose);
+      expect(restored.presetState.selectedId, id);
+      expect(restored.options.passes, 3);
+      expect(restored.presetState.selected.options.passes, 1);
+      expect(restored.presetState.modified, isTrue);
+      await restored.savePreset(id);
+      await restored.renamePreset(id, '角色细节');
+      expect(controller.presetState.selected.name, '角色细节');
+      expect(controller.presetState.modified, isFalse);
+      await restored.deletePreset(id);
+      expect(controller.presetState.customPresets, isEmpty);
+      expect(controller.options.passes, 3);
+    },
+  );
   for (final offline in [false, true]) {
     test(
       'local readiness precedes release lookup (offline=$offline)',
@@ -29,11 +64,11 @@ void main() {
         addTearDown(controller.dispose);
         addTearDown(() => dio.close(force: true));
 
-      final refresh = controller.refresh();
-      addTearDown(() async {
-        if (!source.response.isCompleted) source.response.complete([]);
-        await refresh;
-      });
+        final refresh = controller.refresh();
+        addTearDown(() async {
+          if (!source.response.isCompleted) source.response.complete([]);
+          await refresh;
+        });
         await source.started.future;
         expect(controller.enabled, isTrue);
         expect(controller.busy, isTrue);

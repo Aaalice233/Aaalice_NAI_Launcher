@@ -15105,7 +15105,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get dlss_detailHint =>
-      '0 preserves the original; 1 applies the full enhancement. Values above 1 amplify the difference from the original and may exaggerate or distort the result.';
+      '0 retains the NR input (the upscaled image when SR is enabled); 1 uses the full enhanced result. Values above 1 amplify their difference and may exaggerate or distort the image.';
 
   @override
   String get dlss_colorHint =>
@@ -15113,11 +15113,11 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get dlss_structureHint =>
-      'Adjusts local structure and high-frequency detail, such as material texture, contact shadows, and reflections. Default: 1. Results depend on the model and image.';
+      'Adjusts local structure and high-frequency detail, such as material texture, contact shadows, and reflections. Model baseline: 1. Results depend on the model and image.';
 
   @override
   String get dlss_toneHint =>
-      'Adjusts broader local lighting and tonal changes. Default: 1. This is not a fixed brightness or contrast adjustment.';
+      'Adjusts broader local lighting and tonal changes. Model baseline: 1. This is not a fixed brightness or contrast adjustment.';
 
   @override
   String get dlss_skinHint =>
@@ -15179,4 +15179,62 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get dlss_appearance => 'Appearance';
+
+  @override
+  String get dlss_parameterPreset => 'Parameter preset';
+
+  @override
+  String get dlss_managePresets => 'Manage presets';
+
+  @override
+  String get dlss_createPreset => 'Save as new preset';
+
+  @override
+  String get dlss_savePreset => 'Save to this preset';
+
+  @override
+  String get dlss_renamePreset => 'Rename preset';
+
+  @override
+  String get dlss_presetName => 'Preset name';
+
+  @override
+  String get dlss_invalidPresetName =>
+      'Enter a name that is not already used by a custom preset.';
+
+  @override
+  String get dlss_deletePresetHint =>
+      'Delete this custom preset? Your current parameter adjustments will be kept.';
+
+  @override
+  String get dlss_draftSaved =>
+      'Modified · Current parameters saved automatically';
+
+  @override
+  String get dlss_builtinPreset =>
+      'Built-in · Read-only; adjust and save a copy';
+
+  @override
+  String get dlss_customPreset => 'Custom preset';
+
+  @override
+  String get dlss_restorePreset => 'Restore this preset';
+
+  @override
+  String get dlss_presetSoft => 'Soft';
+
+  @override
+  String get dlss_presetLight => 'Default';
+
+  @override
+  String get dlss_presetNatural => 'Natural';
+
+  @override
+  String get dlss_presetCinema => 'Cinematic';
+
+  @override
+  String get dlss_presetCrisp => 'Detail';
+
+  @override
+  String get dlss_presetColor => 'Color preservation';
 }

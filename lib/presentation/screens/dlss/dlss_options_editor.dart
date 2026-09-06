@@ -11,9 +11,11 @@ class DlssOptionsEditor extends StatelessWidget {
     super.key,
     required this.value,
     required this.onChanged,
+    this.onReset,
   });
   final DlssOptions value;
   final ValueChanged<DlssOptions>? onChanged;
+  final VoidCallback? onReset;
 
   @override
   Widget build(BuildContext context) {
@@ -78,8 +80,10 @@ class DlssOptionsEditor extends StatelessWidget {
               child: TextButton(
                 onPressed: onChanged == null
                     ? null
-                    : () => onChanged!(const DlssOptions()),
-                child: Text(l10n.common_reset),
+                    : onReset ?? () => onChanged!(const DlssOptions()),
+                child: Text(
+                  onReset == null ? l10n.common_reset : l10n.dlss_restorePreset,
+                ),
               ),
             ),
           ],

@@ -3,9 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/constants/api_constants.dart';
 import '../../../../core/platform/platform_capabilities.dart';
-import '../../../providers/dlss_provider.dart';
 import '../../dlss/dlss_enhancement_panel.dart';
-import '../../dlss/dlss_options_editor.dart';
+import '../../dlss/dlss_preset_editor.dart';
 import '../../../../core/utils/focused_inpaint_utils.dart';
 import '../../../../core/utils/localization_extension.dart';
 import '../../../../data/models/image/image_params.dart';
@@ -200,10 +199,7 @@ class _EnhancePanelState extends ConsumerState<_EnhancePanel> {
             const SizedBox(height: 12),
             Text(context.l10n.dlss_description),
             const SizedBox(height: 12),
-            DlssOptionsEditor(
-              value: ref.watch(dlssProvider).options,
-              onChanged: ref.read(dlssProvider).setOptions,
-            ),
+            const DlssPresetEditor(),
             FilledButton.icon(
               key: const Key('img2img-dlss-enhance'),
               icon: const Icon(Icons.tonality_outlined),
