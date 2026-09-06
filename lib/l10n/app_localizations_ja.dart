@@ -5624,6 +5624,13 @@ class AppLocalizationsJa extends AppLocalizations {
   String get comparison_maxImages => '比較できる画像は最大 4 つです';
 
   @override
+  String get comparison_followMouse => 'マウスに追従';
+
+  @override
+  String get comparison_followMouseHint =>
+      'マウスを動かすと比較の分割線が移動します。画像のドラッグで表示位置を移動できます。';
+
+  @override
   String get comparison_close => '詳細比較';
 
   @override

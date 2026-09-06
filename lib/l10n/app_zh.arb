@@ -2558,6 +2558,8 @@
   "comparison_noImages": "没有可显示的图片",
   "comparison_tooManyImages": "图片数量过多",
   "comparison_maxImages": "最多支持对比4张图片",
+  "comparison_followMouse": "跟随鼠标",
+  "comparison_followMouseHint": "开启后，移动鼠标即可移动对比分割线；拖动图像仍可平移。",
   "comparison_close": "关闭对比",
   "comparison_zoomHint": "捏合或滚动可独立缩放",
   "comparison_loadError": "加载图片失败",

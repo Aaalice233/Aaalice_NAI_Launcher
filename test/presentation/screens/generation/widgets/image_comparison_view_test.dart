@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:image/image.dart' as img;
@@ -47,6 +48,105 @@ void main() {
         closeTo(actualScale, 0.001),
       );
       expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets('divider motion does not rebuild decoded image widgets', (
+    tester,
+  ) async {
+    await _pumpComparison(tester, width: 400, height: 300);
+    final gesture = await tester.startGesture(
+      tester.getCenter(
+        find.byKey(const ValueKey('generation-comparison-divider-handle')),
+      ),
+    );
+    await gesture.moveBy(const Offset(24, 0));
+    await tester.pump();
+    var imageBuilds = 0;
+    final previous = debugOnRebuildDirtyWidget;
+    debugOnRebuildDirtyWidget = (element, builtOnce) {
+      previous?.call(element, builtOnce);
+      if (element.widget is Image) imageBuilds++;
+    };
+    addTearDown(() => debugOnRebuildDirtyWidget = previous);
+    for (var i = 0; i < 20; i++) {
+      await gesture.moveBy(const Offset(4, 0));
+      await tester.pump();
+    }
+    await gesture.up();
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(imageBuilds, 0);
+  });
+
+  testWidgets(
+    'follow mouse stays aligned after zoom and pan and can be disabled',
+    (tester) async {
+      await _pumpComparison(tester, width: 400, height: 300);
+      final viewport = find.byKey(
+        const ValueKey('generation-image-comparison'),
+      );
+      final origin = tester.getTopLeft(viewport);
+      final line = find.byKey(
+        const ValueKey('generation-comparison-divider-line'),
+      );
+      final toggle = find.byKey(const ValueKey('comparison-follow-mouse'));
+      final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+      await mouse.addPointer(location: origin + const Offset(100, 180));
+      addTearDown(mouse.removePointer);
+      await mouse.moveTo(origin + const Offset(120, 180));
+      await tester.pump();
+      expect(tester.getCenter(line).dx, closeTo(origin.dx + 200, 0.01));
+      await tester.tap(toggle);
+      await tester.pump();
+      await mouse.moveTo(origin + const Offset(280, 180));
+      await tester.pump();
+      expect(tester.getCenter(line).dx, closeTo(origin.dx + 280, 0.01));
+      final transform = tester
+          .widget<InteractiveViewer>(find.byType(InteractiveViewer))
+          .transformationController!;
+      transform.value = Matrix4.identity()
+        ..translateByDouble(-180, -60, 0, 1)
+        ..scaleByDouble(3, 3, 3, 1);
+      await tester.pump();
+      expect(tester.getCenter(line).dx, closeTo(origin.dx + 280, 0.01));
+      final zoom = transform.value.clone();
+      await mouse.moveTo(origin + const Offset(30, 180));
+      await tester.pump();
+      expect(tester.getCenter(line).dx, closeTo(origin.dx + 30, 0.01));
+      expect(transform.value, zoom);
+      expect(
+        tester.getRect(viewport).contains(tester.getRect(toggle).center),
+        isTrue,
+      );
+      await tester.tap(toggle);
+      await tester.pump();
+      final stoppedX = tester.getCenter(line).dx;
+      await mouse.moveTo(origin + const Offset(350, 180));
+      await tester.pump();
+      expect(tester.getCenter(line).dx, stoppedX);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets(
+    'follow toggle remains reachable with large text on a short viewport',
+    (tester) async {
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      for (final width in [320.0, 600.0, 840.0, 1180.0, 1600.0]) {
+        await tester.binding.setSurfaceSize(Size(width, 360));
+        await _pumpComparison(tester, width: width, height: 300, textScale: 3);
+        final toggle = find.byKey(const ValueKey('comparison-follow-mouse'));
+        final viewport = tester.getRect(
+          find.byKey(const ValueKey('generation-image-comparison')),
+        );
+        final rect = tester.getRect(toggle);
+        expect(viewport.contains(rect.topLeft), isTrue);
+        expect(viewport.contains(rect.bottomRight), isTrue);
+        expect(rect.height, greaterThanOrEqualTo(44));
+        await tester.tap(toggle);
+        await tester.pump();
+        expect(tester.takeException(), isNull);
+      }
     },
   );
 
@@ -234,11 +334,17 @@ Future<void> _pumpComparison(
   required double width,
   required double height,
   bool pixelControls = false,
+  double textScale = 1,
   Size generatedSize = const Size(4, 3),
 }) async {
   await tester.pumpWidget(
     MaterialApp(
-      builder: (context, child) => InteractionPolicyScope(child: child!),
+      builder: (context, child) => MediaQuery(
+        data: MediaQuery.of(
+          context,
+        ).copyWith(textScaler: TextScaler.linear(textScale)),
+        child: InteractionPolicyScope(child: child!),
+      ),
       locale: const Locale('zh'),
       localizationsDelegates: AppLocalizations.localizationsDelegates,
       supportedLocales: AppLocalizations.supportedLocales,

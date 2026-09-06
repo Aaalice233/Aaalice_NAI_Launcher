@@ -10272,6 +10272,18 @@ abstract class AppLocalizations {
   /// **'Maximum 4 images allowed for comparison'**
   String get comparison_maxImages;
 
+  /// No description provided for @comparison_followMouse.
+  ///
+  /// In en, this message translates to:
+  /// **'Follow mouse'**
+  String get comparison_followMouse;
+
+  /// No description provided for @comparison_followMouseHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Move the mouse to position the comparison divider. Drag the image to pan.'**
+  String get comparison_followMouseHint;
+
   /// No description provided for @comparison_close.
   ///
   /// In en, this message translates to:

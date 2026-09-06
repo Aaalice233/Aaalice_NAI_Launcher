@@ -5524,6 +5524,12 @@ class AppLocalizationsZh extends AppLocalizations {
   String get comparison_maxImages => '最多支持对比4张图片';
 
   @override
+  String get comparison_followMouse => '跟随鼠标';
+
+  @override
+  String get comparison_followMouseHint => '开启后，移动鼠标即可移动对比分割线；拖动图像仍可平移。';
+
+  @override
   String get comparison_close => '关闭对比';
 
   @override
@@ -20099,6 +20105,12 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get comparison_maxImages => '最多支援對比4張圖片';
+
+  @override
+  String get comparison_followMouse => '跟隨滑鼠';
+
+  @override
+  String get comparison_followMouseHint => '開啟後，移動滑鼠即可移動比較分隔線；拖曳圖像仍可平移。';
 
   @override
   String get comparison_close => '關閉對比';

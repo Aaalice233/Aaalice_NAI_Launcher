@@ -2541,6 +2541,8 @@
   "comparison_noImages": "No images to display",
   "comparison_tooManyImages": "Too many images",
   "comparison_maxImages": "Maximum 4 images allowed for comparison",
+  "comparison_followMouse": "Follow mouse",
+  "comparison_followMouseHint": "Move the mouse to position the comparison divider. Drag the image to pan.",
   "comparison_close": "Close comparison",
   "comparison_zoomHint": "Pinch or scroll to zoom independently",
   "comparison_loadError": "Failed to load image",

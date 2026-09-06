@@ -2575,6 +2575,8 @@
   "comparison_noImages": "沒有可顯示的圖片",
   "comparison_tooManyImages": "圖片數量過多",
   "comparison_maxImages": "最多支援對比4張圖片",
+  "comparison_followMouse": "跟隨滑鼠",
+  "comparison_followMouseHint": "開啟後，移動滑鼠即可移動比較分隔線；拖曳圖像仍可平移。",
   "comparison_close": "關閉對比",
   "comparison_zoomHint": "捏合或滾動可獨立縮放",
   "comparison_loadError": "載入圖片失敗",

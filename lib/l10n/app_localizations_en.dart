@@ -5768,6 +5768,13 @@ class AppLocalizationsEn extends AppLocalizations {
   String get comparison_maxImages => 'Maximum 4 images allowed for comparison';
 
   @override
+  String get comparison_followMouse => 'Follow mouse';
+
+  @override
+  String get comparison_followMouseHint =>
+      'Move the mouse to position the comparison divider. Drag the image to pan.';
+
+  @override
   String get comparison_close => 'Close comparison';
 
   @override
