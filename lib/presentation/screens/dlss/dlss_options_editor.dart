@@ -144,7 +144,6 @@ class DlssOptionsEditor extends StatelessWidget {
           _ParameterColumns(
             children: [
               _detailAndColor(context),
-              _nrPreset(context),
               _localAdjustments(context),
               _modelStrengths(context),
             ],
@@ -171,31 +170,6 @@ class DlssOptionsEditor extends StatelessWidget {
         value.color,
         (v) => value.copyWith(color: v),
         max: 1,
-      ),
-    ]);
-  }
-
-  Widget _nrPreset(BuildContext context) {
-    final l10n = context.l10n;
-    return _subsection(context, l10n.dlss_nrModel, [
-      DlssParameterRow(
-        label: l10n.dlss_preset,
-        description: l10n.dlss_presetHint,
-      ),
-      const SizedBox(height: 8),
-      Wrap(
-        spacing: 8,
-        runSpacing: 8,
-        children: [
-          for (var preset = 0; preset <= 3; preset++)
-            ChoiceChip(
-              label: Text(preset == 0 ? l10n.dlss_styleDefault : '$preset'),
-              selected: value.preset == preset,
-              onSelected: onChanged == null
-                  ? null
-                  : (_) => onChanged!(value.copyWith(preset: preset)),
-            ),
-        ],
       ),
     ]);
   }
@@ -228,14 +202,7 @@ class DlssOptionsEditor extends StatelessWidget {
         (v) => value.copyWith(skin: v),
         min: -1,
         valueLabel: value.skin < 0 ? l10n.dlss_modelDefault : null,
-      ),
-      _slider(
-        l10n.dlss_globalTone,
-        l10n.dlss_globalToneHint,
-        value.globalTone,
-        (v) => value.copyWith(globalTone: v),
-        min: -1,
-        valueLabel: value.globalTone < 0 ? l10n.dlss_modelDefault : null,
+        enabled: value.autoMask,
       ),
     ]);
   }
@@ -252,17 +219,6 @@ class DlssOptionsEditor extends StatelessWidget {
           onChanged: onChanged == null
               ? null
               : (v) => onChanged!(value.copyWith(autoMask: v)),
-        ),
-      ),
-      DlssParameterRow(
-        key: const Key('dlss-ui-correction'),
-        label: l10n.dlss_uiCorrection,
-        description: l10n.dlss_uiCorrectionHint,
-        trailing: Switch(
-          value: value.uiCorrection,
-          onChanged: onChanged == null
-              ? null
-              : (v) => onChanged!(value.copyWith(uiCorrection: v)),
         ),
       ),
     ]);
@@ -298,6 +254,7 @@ class DlssOptionsEditor extends StatelessWidget {
     double? max,
     double min = 0,
     String? valueLabel,
+    bool enabled = true,
   }) => DlssParameterSlider(
     label: label,
     description: description,
@@ -305,7 +262,9 @@ class DlssOptionsEditor extends StatelessWidget {
     minimum: min,
     maximum: max,
     valueLabel: valueLabel,
-    onChanged: onChanged == null ? null : (v) => onChanged!(update(v)),
+    onChanged: onChanged == null || !enabled
+        ? null
+        : (v) => onChanged!(update(v)),
   );
 }
 

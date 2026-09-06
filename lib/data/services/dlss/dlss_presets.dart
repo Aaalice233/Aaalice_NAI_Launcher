@@ -58,7 +58,6 @@ class DlssPresetState {
       options: DlssOptions(
         localStructure: 1.8,
         localTone: 1.4,
-        globalTone: 1.3,
         skin: 1,
         detail: 1,
         color: 0.65,
@@ -77,12 +76,7 @@ class DlssPresetState {
     DlssPreset(
       id: 'cinematic-soft',
       builtIn: true,
-      options: DlssOptions(
-        localTone: 1.3,
-        globalTone: 1.2,
-        detail: 0.9,
-        color: 1,
-      ),
+      options: DlssOptions(localTone: 1.3, detail: 0.9, color: 1),
     ),
     DlssPreset(
       id: 'crisp-light',

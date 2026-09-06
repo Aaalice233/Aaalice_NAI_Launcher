@@ -17,11 +17,8 @@ void main() {
         'localTone': 1.8,
         'detail': 1.1,
         'color': 0.25,
-        'preset': 0,
         'skin': 1.2,
-        'globalTone': 1.6,
         'autoMask': true,
-        'uiCorrection': false,
         'scale': 2.0,
       });
       expect(DlssPresetState.builtIns, hasLength(7));
@@ -58,14 +55,13 @@ void main() {
         'material-light': {
           'localStructure',
           'localTone',
-          'globalTone',
           'skin',
           'detail',
           'color',
         },
         'soft-light': {'detail', 'color'},
         'natural-light': {'style', 'color'},
-        'cinematic-soft': {'localTone', 'globalTone', 'detail', 'color'},
+        'cinematic-soft': {'localTone', 'detail', 'color'},
         'crisp-light': {'localStructure', 'detail', 'color'},
         'cinematic-light': {'color'},
       };

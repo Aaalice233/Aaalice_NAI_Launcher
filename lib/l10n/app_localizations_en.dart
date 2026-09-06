@@ -14878,7 +14878,7 @@ class AppLocalizationsEn extends AppLocalizations {
       'Off by default. Enhance completed images before history and automatic saving.';
 
   @override
-  String get dlss_color => 'Color blend';
+  String get dlss_color => 'NR color contribution';
 
   @override
   String get dlss_current => 'Active';
@@ -14894,7 +14894,7 @@ class AppLocalizationsEn extends AppLocalizations {
       'Enhance images locally and manage runtimes and defaults.';
 
   @override
-  String get dlss_detail => 'Enhancement blend';
+  String get dlss_detail => 'Output blend';
 
   @override
   String get dlss_enabled => 'Enable DLSS enhancement';
@@ -14910,7 +14910,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get dlss_installed => 'Installed versions';
 
   @override
-  String get dlss_intensity => 'Intensity';
+  String get dlss_intensity => 'NR intensity';
 
   @override
   String get dlss_latest => 'Latest stable';
@@ -14952,7 +14952,7 @@ class AppLocalizationsEn extends AppLocalizations {
       'Components come from public video2dlssnr releases. Installation downloads the full archive, extracts required files and runs a real enhancement test.';
 
   @override
-  String get dlss_structure => 'Local structure';
+  String get dlss_structure => 'Structure strength';
 
   @override
   String get dlss_style => 'Style';
@@ -14970,7 +14970,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get dlss_title => 'DLSSNR Image Enhancement';
 
   @override
-  String get dlss_tone => 'Local tone';
+  String get dlss_tone => 'Lighting and tone strength';
 
   @override
   String get dlss_validating => 'Verifying components and testing enhancement…';
@@ -15080,17 +15080,7 @@ class AppLocalizationsEn extends AppLocalizations {
       'Full-resolution comparison fits the window by default. Select 100% to inspect actual pixels; drag to pan or move the divider to compare.';
 
   @override
-  String get dlss_preset => 'NR preset';
-
-  @override
-  String get dlss_presetHint =>
-      'Upstream provides numbered presets without documenting their visual effects.';
-
-  @override
-  String get dlss_skin => 'Skin structure';
-
-  @override
-  String get dlss_globalTone => 'Global tone';
+  String get dlss_skin => 'Skin structure strength';
 
   @override
   String get dlss_modelDefault => 'Model default';
@@ -15099,23 +15089,20 @@ class AppLocalizationsEn extends AppLocalizations {
   String get dlss_autoMask => 'Auto mask';
 
   @override
-  String get dlss_uiCorrection => 'UI correction';
-
-  @override
   String get dlss_styleHint =>
-      'Selects the model\'s visual style without changing output size. Default, Natural and Cinematic are the three upstream modes.';
+      'Selects runtime style 0, 1 or 2 without changing dimensions. Default, Natural and Cinematic retain upstream names; their correspondence to official Model A/B/C has not been verified.';
 
   @override
   String get dlss_numericHint =>
-      'Type a value, then press Enter or leave the field to apply it. Strength sliders normally cover 0–2; higher values can be entered. Higher does not mean better.';
+      'Type a value and press Enter or leave the field to apply. NR intensity and color contribution range from 0 to 1. Structure, lighting and output blend normally use 0–2 but accept higher values. Negative skin structure values mean the model default, not negative strength.';
 
   @override
   String get dlss_intensityHint =>
-      'Controls the NR model\'s overall detail strength; 1 is the default. This is neither an upscale factor nor a repeat count.';
+      'Controls the overall NR effect from 0 to 1. Zero disables the NR effect; one applies full intensity. Higher values produce the same output as one in the current runtime. SR scaling and output blend are separate controls.';
 
   @override
   String get dlss_detailHint =>
-      'Controls the overall NR effect, not material detail alone. 0 retains the NR input (the upscaled image when SR is enabled); 1 applies the enhanced result with the Color blend setting. Values above 1 amplify the difference and may exaggerate or distort the image.';
+      'Controls the overall NR effect, not material detail alone. 0 retains the NR input (the upscaled image when SR is enabled); 1 applies the enhanced result with the NR color contribution setting. Values above 1 amplify the difference and may exaggerate or distort the image.';
 
   @override
   String get dlss_colorHint =>
@@ -15123,27 +15110,19 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get dlss_structureHint =>
-      'Adjusts local structure and high-frequency detail, such as material texture, contact shadows, and reflections. Model baseline: 1. Results depend on the model and image.';
+      'Controls material texture, local shading and structural changes, rather than ordinary sharpening. One is the reference level; the usual slider range is 0–2. Values above one remain effective, but high values can introduce grain, color shifts and distorted detail.';
 
   @override
   String get dlss_toneHint =>
-      'Adjusts broader local lighting and tonal changes. Model baseline: 1. This is not a fixed brightness or contrast adjustment.';
+      'Controls broader lighting, shading and color changes. One is the reference level; the usual slider range is 0–2. This is not a fixed brightness or contrast adjustment. Zero does not disable structure changes or guarantee identical source colors.';
 
   @override
   String get dlss_skinHint =>
-      'The model\'s skin structure strength. -1 uses the model default; non-negative values set it explicitly. Skin detection coverage is undocumented.';
-
-  @override
-  String get dlss_globalToneHint =>
-      'The model\'s global tone strength. -1 uses the model default; non-negative values set it explicitly. It is not equivalent to conventional global colour grading.';
+      'Adjusts skin structure in regions identified by the automatic mask. Requires auto mask. Use -1 for the model default or a nonnegative strength; all negative values use the default. This control does not change output with auto mask off in the current runtime.';
 
   @override
   String get dlss_autoMaskHint =>
-      'Enables the model\'s internal automatic mask. Its regions and algorithm are undocumented, and no mask preview is available. Leave off when unsure.';
-
-  @override
-  String get dlss_uiCorrectionHint =>
-      'The model\'s UI correction switch. Which regions it protects or changes is undocumented; unchanged text or icons are not guaranteed. Leave off when unsure.';
+      'Enables the model’s internal region mask and skin structure control. Its detected regions cannot currently be previewed. Turning it off may change local effects but does not disable NR overall.';
 
   @override
   String get dlss_invalidNumber =>
@@ -15240,9 +15219,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get dlss_detailAndColor => 'Output blending';
-
-  @override
-  String get dlss_nrModel => 'NR model';
 
   @override
   String get dlss_localAdjustments => 'Local adjustments';

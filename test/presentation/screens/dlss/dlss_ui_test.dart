@@ -82,11 +82,11 @@ void main() {
     await tester.ensureVisible(advancedTitle);
     await tester.tap(advancedTitle);
     await tester.pumpAndSettle();
-    final help = find.byKey(const ValueKey('dlss-help-增强混合'));
+    final help = find.byKey(const ValueKey('dlss-help-输出混合'));
     await tester.ensureVisible(help);
     await tester.tap(help);
     await tester.pumpAndSettle();
-    final field = find.byKey(const ValueKey('dlss-value-增强混合'));
+    final field = find.byKey(const ValueKey('dlss-value-输出混合'));
     final before = tester.widget<TextField>(field);
     await tester.ensureVisible(field);
     await tester.enterText(field, '1.');
@@ -180,7 +180,7 @@ void main() {
       await tester.tap(find.text('我的参数').last);
       await tester.pumpAndSettle();
       expect(controller.options.intensity, 0.7);
-      final strength = find.byKey(const ValueKey('dlss-value-强度'));
+      final strength = find.byKey(const ValueKey('dlss-value-NR 总强度'));
       await tester.ensureVisible(strength);
       await tester.enterText(strength, '0.8');
       await tester.testTextInput.receiveAction(TextInputAction.done);
@@ -213,7 +213,7 @@ void main() {
       ),
     );
     Finder field(String label) => find.byKey(ValueKey('dlss-value-$label'));
-    final strength = field('强度');
+    final strength = field('NR 总强度');
     await tester.ensureVisible(strength);
     await tester.enterText(strength, '3.25');
     await tester.testTextInput.receiveAction(TextInputAction.done);
@@ -228,6 +228,50 @@ void main() {
     expect(field('NR 处理次数'), findsNothing);
     expect(tester.takeException(), isNull);
   });
+  testWidgets('auto mask gates skin editing without losing its value', (
+    tester,
+  ) async {
+    var options = const DlssOptions(skin: 2.5);
+    await tester.pumpWidget(
+      _app(
+        _Controller(),
+        Scaffold(
+          body: StatefulBuilder(
+            builder: (context, setState) => SingleChildScrollView(
+              child: DlssOptionsEditor(
+                value: options,
+                onChanged: (value) => setState(() => options = value),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.tap(find.text('高级参数'));
+    await tester.pumpAndSettle();
+    final skin = find.byKey(const ValueKey('dlss-value-皮肤结构强度'));
+    final mask = find.descendant(
+      of: find.byKey(const Key('dlss-auto-mask')),
+      matching: find.byType(Switch),
+    );
+    expect(tester.widget<TextField>(skin).enabled, isTrue);
+    await tester.ensureVisible(mask);
+    await tester.tap(mask);
+    await tester.pumpAndSettle();
+    expect(tester.widget<TextField>(skin).enabled, isFalse);
+    expect(options.skin, 2.5);
+    await tester.tap(mask);
+    await tester.pumpAndSettle();
+    expect(tester.widget<TextField>(skin).enabled, isTrue);
+    expect(tester.widget<TextField>(skin).controller!.text, '2.5');
+    await tester.ensureVisible(skin);
+    await tester.enterText(skin, '1.5');
+    await tester.testTextInput.receiveAction(TextInputAction.done);
+    await tester.pump();
+    expect(options.skin, 1.5);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('automatic enhancement failures remain in DLSS settings', (
     tester,
   ) async {
@@ -271,15 +315,15 @@ void main() {
     await tester.tap(find.text('高级参数'));
     await tester.pumpAndSettle();
     expect(tester.takeException(), isNull);
-    expect(find.byType(TextField), findsNWidgets(8));
+    expect(find.byType(TextField), findsNWidgets(7));
     for (final input in tester.widgetList<TextField>(find.byType(TextField))) {
       expect(input.textAlign, TextAlign.center);
       expect(input.textAlignVertical, TextAlignVertical.center);
     }
-    expect(find.byType(Slider), findsNWidgets(8));
+    expect(find.byType(Slider), findsNWidgets(7));
     final sliders = tester.widgetList<Slider>(find.byType(Slider)).toList();
-    expect(sliders.map((slider) => slider.max), [4, 1, 2, 1, 2, 2, 2, 2]);
-    expect(sliders.map((slider) => slider.min), [1, 0, 0, 0, 0, 0, -1, -1]);
+    expect(sliders.map((slider) => slider.max), [4, 1, 2, 1, 2, 2, 2]);
+    expect(sliders.map((slider) => slider.min), [1, 0, 0, 0, 0, 0, -1]);
     expect(sliders.map((slider) => slider.divisions), [
       null,
       20,
@@ -287,7 +331,6 @@ void main() {
       20,
       40,
       40,
-      60,
       60,
     ]);
   });
@@ -348,10 +391,6 @@ void main() {
         await tester.ensureVisible(find.text('高级参数'));
         await tester.tap(find.text('高级参数'));
         await tester.pumpAndSettle();
-        await tester.ensureVisible(find.text('3'));
-        await tester.tap(find.text('3'));
-        await tester.pumpAndSettle();
-        expect(options.preset, 3);
         final autoMask = find.descendant(
           of: find.byKey(const Key('dlss-auto-mask')),
           matching: find.byType(Switch),
@@ -359,31 +398,20 @@ void main() {
         await tester.ensureVisible(autoMask);
         await tester.tap(autoMask);
         await tester.pumpAndSettle();
-        final uiCorrection = find.descendant(
-          of: find.byKey(const Key('dlss-ui-correction')),
-          matching: find.byType(Switch),
-        );
-        await tester.ensureVisible(uiCorrection);
-        await tester.tap(uiCorrection);
-        await tester.pumpAndSettle();
         expect(options.autoMask, !const DlssOptions().autoMask);
-        expect(options.uiCorrection, !const DlssOptions().uiCorrection);
         final advanced = find.byKey(const Key('dlss-advanced-group'));
         final advancedBounds = tester.getRect(advanced);
         for (final label in [
           '结果混合',
-          'NR 模型',
           '局部调整',
           '模型强度',
           '模型开关',
-          '增强混合',
-          '颜色混合',
-          '局部结构',
-          '局部色调',
-          '皮肤结构',
-          '全局色调',
+          '输出混合',
+          'NR 颜色贡献',
+          '结构强度',
+          '光照与色调强度',
+          '皮肤结构强度',
           '自动遮罩',
-          'UI 修正',
         ]) {
           final child = find.descendant(
             of: advanced,

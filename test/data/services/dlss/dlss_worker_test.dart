@@ -50,6 +50,27 @@ void main() {
     expect(options.arguments, isNot(contains('--passes')));
   });
   test(
+    'retired NR fields do not erase active settings or return in output',
+    () {
+      const expected = DlssOptions(
+        localStructure: 2.5,
+        skin: -1,
+        autoMask: false,
+      );
+      final restored = DlssOptions.fromJson({
+        ...expected.toJson(),
+        'preset': 3,
+        'globalTone': 4,
+        'uiCorrection': true,
+      });
+      expect(restored.toJson(), expected.toJson());
+      expect(restored.arguments, expected.arguments);
+      for (final flag in ['--preset', '--global-tone', '--ui-correction']) {
+        expect(restored.arguments, isNot(contains(flag)));
+      }
+    },
+  );
+  test(
     '2x SR preserves alpha shape, RGB, original metadata, and full processing options',
     () {
       final original = img.Image(width: 8, height: 8, numChannels: 4);
@@ -100,21 +121,10 @@ void main() {
     },
   );
   test('advanced NR options round trip and map to native flags', () {
-    const options = DlssOptions(
-      preset: 3,
-      skin: 1.5,
-      globalTone: 2,
-      autoMask: true,
-      uiCorrection: false,
-    );
+    const options = DlssOptions(skin: 1.5, autoMask: true);
     final restored = DlssOptions.fromJson(options.toJson());
     expect(restored.toJson(), options.toJson());
-    for (final entry in {
-      '--preset': '3',
-      '--skin': '1.5',
-      '--global-tone': '2.0',
-      '--ui-correction': '0',
-    }.entries) {
+    for (final entry in {'--skin': '1.5'}.entries) {
       expect(
         restored.arguments[restored.arguments.indexOf(entry.key) + 1],
         entry.value,
@@ -124,15 +134,8 @@ void main() {
     const defaults = DlssOptions();
     expect(defaults.style, 'cinematic');
     expect(defaults.skin, 1.2);
-    expect(defaults.globalTone, 1.6);
-    expect(defaults.preset, 0);
-    expect(defaults.uiCorrection, isFalse);
     expect(defaults.arguments, contains('--auto-mask'));
-    for (final options in [
-      const DlssOptions(preset: 4),
-      const DlssOptions(skin: -1.05),
-      const DlssOptions(globalTone: double.infinity),
-    ]) {
+    for (final options in [const DlssOptions(skin: -1.05)]) {
       expect(options.validate, throwsFormatException);
     }
   });

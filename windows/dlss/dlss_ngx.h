@@ -5,15 +5,12 @@
 
 namespace aaalice::dlss {
 struct NrOptions {
-  unsigned preset = 0;
   unsigned style = 0;
   float intensity = 1;
   float structure = 1;
   float tone = 1;
   float skin = -1;
-  float globalTone = -1;
   bool autoMask = true;
-  bool uiCorrection = false;
 };
 
 class Ngx {

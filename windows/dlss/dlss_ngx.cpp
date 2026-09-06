@@ -139,15 +139,12 @@ void Ngx::SetNrParameters(NVSDK_NGX_Parameter* p, unsigned width,
   p->Set("DLSSNR.Height", height);
   p->Set("DLSSNR.Enabled", 1u);
   p->Set("DLSSNR.Upscaling", 0u);
-  p->Set("DLSSNR.Hint.Render.Preset", options.preset);
   p->Set("DLSSNR.Style", options.style);
   p->Set("DLSSNR.Intensity", options.intensity);
   p->Set("DLSSNR.LocalStructureStrength", options.structure);
   p->Set("DLSSNR.LocalToneStrength", options.tone);
   if (options.skin >= 0) p->Set("DLSSNR.SkinStructureStrength", options.skin);
-  if (options.globalTone >= 0) p->Set("DLSSNR.GlobalToneStrength", options.globalTone);
   p->Set("DLSSNR.UseAutoMask", options.autoMask ? 1u : 0u);
-  p->Set("DLSSNR.UICorrection", options.uiCorrection ? 1u : 0u);
 }
 
 Frame Ngx::Refine(const Frame& input, const NrOptions& options,

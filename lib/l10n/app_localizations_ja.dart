@@ -14488,7 +14488,7 @@ class AppLocalizationsJa extends AppLocalizations {
   String get dlss_automaticHint => '既定ではオフ。生成完了後、履歴と自動保存の前に強化します。';
 
   @override
-  String get dlss_color => '色混合';
+  String get dlss_color => 'NR の色の寄与';
 
   @override
   String get dlss_current => '使用中';
@@ -14503,7 +14503,7 @@ class AppLocalizationsJa extends AppLocalizations {
   String get dlss_description => 'ローカルで画像を強化し、ランタイムと既定値を管理します。';
 
   @override
-  String get dlss_detail => '強化ブレンド';
+  String get dlss_detail => '出力ブレンド';
 
   @override
   String get dlss_enabled => 'DLSS 強化を有効にする';
@@ -14518,7 +14518,7 @@ class AppLocalizationsJa extends AppLocalizations {
   String get dlss_installed => 'インストール済み';
 
   @override
-  String get dlss_intensity => '強度';
+  String get dlss_intensity => 'NR 全体強度';
 
   @override
   String get dlss_latest => '最新の安定版';
@@ -14558,7 +14558,7 @@ class AppLocalizationsJa extends AppLocalizations {
       '公開 video2dlssnr Release から完全版をダウンロードし、必要なファイルを抽出して実際の強化テストを行います。';
 
   @override
-  String get dlss_structure => '局所構造';
+  String get dlss_structure => '構造の強度';
 
   @override
   String get dlss_style => 'スタイル';
@@ -14576,7 +14576,7 @@ class AppLocalizationsJa extends AppLocalizations {
   String get dlss_title => 'DLSSNR 画像強化';
 
   @override
-  String get dlss_tone => '局所トーン';
+  String get dlss_tone => '照明と色調の強度';
 
   @override
   String get dlss_validating => 'ファイルを検証して強化をテスト中…';
@@ -14680,16 +14680,7 @@ class AppLocalizationsJa extends AppLocalizations {
       '比較画像はフル解像度で読み込み、最初はウィンドウに合わせて表示します。100% で等倍表示し、画像をドラッグして移動、分割線をドラッグして比較できます。';
 
   @override
-  String get dlss_preset => 'NR プリセット';
-
-  @override
-  String get dlss_presetHint => '上流では番号のみが公開されており、各プリセットの具体的な効果は説明されていません。';
-
-  @override
-  String get dlss_skin => '肌の構造';
-
-  @override
-  String get dlss_globalTone => '全体の色調';
+  String get dlss_skin => '肌の構造の強度';
 
   @override
   String get dlss_modelDefault => 'モデル既定値';
@@ -14698,19 +14689,16 @@ class AppLocalizationsJa extends AppLocalizations {
   String get dlss_autoMask => '自動マスク';
 
   @override
-  String get dlss_uiCorrection => 'UI 補正';
-
-  @override
   String get dlss_styleHint =>
-      '出力サイズを変えずにモデルの見た目を選びます。デフォルト・自然・映画調は上流が提供する3つのモードです。';
+      'サイズを変えずにランタイムのスタイル 0 / 1 / 2 を選択します。「デフォルト・ナチュラル・シネマティック」は上流の名称を使用しており、公式 Model A/B/C との対応は未検証です。';
 
   @override
   String get dlss_numericHint =>
-      '数値を直接入力し、Enter またはフォーカス移動で適用できます。強度スライダーの通常範囲は 0～2 ですが、それ以上も入力可能です。大きいほど良いとは限りません。';
+      '値を入力し、Enter またはフォーカスを外して適用します。NR 全体強度と色の寄与は 0～1 です。構造、照明、出力ブレンドは通常 0～2 ですが、それ以上も入力できます。肌の構造の負の値は負の強度ではなくモデルの既定値です。';
 
   @override
   String get dlss_intensityHint =>
-      'NR モデル全体のディテール強度です。標準は 1。拡大倍率や処理の繰り返し回数ではありません。';
+      'NR 全体の効果を 0～1 で調整します。0 は NR 効果なし、1 は最大強度です。現在のランタイムでは 1 を超えても出力は同じです。SR 拡大と出力ブレンドは別の設定です。';
 
   @override
   String get dlss_detailHint =>
@@ -14722,27 +14710,19 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get dlss_structureHint =>
-      '素材の質感、接触影、反射などの局所構造と高周波ディテールを調整します。モデルの基準値は 1。効果はモデルと画像に依存します。';
+      '通常のシャープ化とは異なり、材質の質感、局所的な陰影、構造の変化を調整します。1 が基準で、通常のスライダー範囲は 0～2 です。1 を超えても効果がありますが、高い値では粒状感、色ずれ、細部の乱れが生じる場合があります。';
 
   @override
   String get dlss_toneHint =>
-      '局所的な光や色調など、より広い範囲の明暗を調整します。モデルの基準値は 1。固定の明るさ・コントラスト補正ではありません。';
+      '広い範囲の照明、明暗、色の変化を調整します。1 が基準で、通常のスライダー範囲は 0～2 です。一定の明るさやコントラストの調整ではありません。0 でも構造の効果は残り、元画像と完全に同じ色になるとは限りません。';
 
   @override
   String get dlss_skinHint =>
-      'モデルの肌構造の強度です。-1 はモデル標準、0 以上は明示的な指定です。肌の検出範囲は未公開です。';
-
-  @override
-  String get dlss_globalToneHint =>
-      'モデルの全体トーンの強度です。-1 はモデル標準、0 以上は明示的な指定です。通常の全体色調補正とは異なります。';
+      '自動マスクが識別した領域の肌の構造を調整します。自動マスクが必要です。-1 はモデルの既定値、0 以上は明示的な強度です。負の値はすべて既定値になります。現在のランタイムでは自動マスクをオフにすると出力に影響しません。';
 
   @override
   String get dlss_autoMaskHint =>
-      'モデル内部の自動マスクを有効にします。対象領域やアルゴリズムは未公開で、マスクのプレビューもありません。不明な場合はオフのままにしてください。';
-
-  @override
-  String get dlss_uiCorrectionHint =>
-      'モデルの UI 補正です。保護・変更する領域は未公開で、文字やアイコンの維持は保証されません。不明な場合はオフのままにしてください。';
+      'モデル内部の領域マスクと肌の構造の調整を有効にします。識別された領域は現在プレビューできません。オフにすると局所的な効果が変わる場合がありますが、NR 全体は無効になりません。';
 
   @override
   String get dlss_invalidNumber => 'このパラメーターで使用できる有効な数値を入力してください。';
@@ -14834,9 +14814,6 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get dlss_detailAndColor => '出力ブレンド';
-
-  @override
-  String get dlss_nrModel => 'NR モデル';
 
   @override
   String get dlss_localAdjustments => '局所調整';

@@ -9,11 +9,8 @@ class DlssOptions {
     this.localTone = 1.8,
     this.detail = 1.1,
     this.color = 0.25,
-    this.preset = 0,
     this.skin = 1.2,
-    this.globalTone = 1.6,
     this.autoMask = true,
-    this.uiCorrection = false,
     this.scale = 2,
   });
   final String style;
@@ -22,11 +19,8 @@ class DlssOptions {
   final double localTone;
   final double detail;
   final double color;
-  final int preset;
   final double skin;
-  final double globalTone;
   final bool autoMask;
-  final bool uiCorrection;
   final double scale;
 
   // The native CLI parses scale as float32 before calculating target dimensions.
@@ -56,11 +50,8 @@ class DlssOptions {
     double? localTone,
     double? detail,
     double? color,
-    int? preset,
     double? skin,
-    double? globalTone,
     bool? autoMask,
-    bool? uiCorrection,
     double? scale,
   }) => DlssOptions(
     style: style ?? this.style,
@@ -69,11 +60,8 @@ class DlssOptions {
     localTone: localTone ?? this.localTone,
     detail: detail ?? this.detail,
     color: color ?? this.color,
-    preset: preset ?? this.preset,
     skin: skin ?? this.skin,
-    globalTone: globalTone ?? this.globalTone,
     autoMask: autoMask ?? this.autoMask,
-    uiCorrection: uiCorrection ?? this.uiCorrection,
     scale: scale ?? this.scale,
   );
 
@@ -84,11 +72,8 @@ class DlssOptions {
     'localTone': localTone,
     'detail': detail,
     'color': color,
-    'preset': preset,
     'skin': skin,
-    'globalTone': globalTone,
     'autoMask': autoMask,
-    'uiCorrection': uiCorrection,
     'scale': scale,
   };
 
@@ -109,12 +94,8 @@ class DlssOptions {
       localTone: (json['localTone'] as num?)?.toDouble() ?? defaults.localTone,
       detail: (json['detail'] as num?)?.toDouble() ?? defaults.detail,
       color: (json['color'] as num?)?.toDouble() ?? defaults.color,
-      preset: json['preset'] as int? ?? defaults.preset,
       skin: (json['skin'] as num?)?.toDouble() ?? defaults.skin,
-      globalTone:
-          (json['globalTone'] as num?)?.toDouble() ?? defaults.globalTone,
       autoMask: json['autoMask'] as bool? ?? defaults.autoMask,
-      uiCorrection: json['uiCorrection'] as bool? ?? defaults.uiCorrection,
       scale: (json['scale'] as num?)?.toDouble() ?? defaults.scale,
     );
     value.validate();
@@ -129,9 +110,7 @@ class DlssOptions {
         scale < 1 ||
         scale > 16384 ||
         intensity > 1 ||
-        preset < 0 ||
-        preset > 3 ||
-        [skin, globalTone].any((v) => !_validStrength(v, -1)) ||
+        !_validStrength(skin, -1) ||
         [
           intensity,
           localStructure,
@@ -159,14 +138,8 @@ class DlssOptions {
       '$localStructure',
       '--tone',
       '$localTone',
-      '--preset',
-      '$preset',
       '--skin',
       '$skin',
-      '--global-tone',
-      '$globalTone',
-      '--ui-correction',
-      uiCorrection ? '1' : '0',
       '--auto-mask',
       autoMask ? '1' : '0',
     ];

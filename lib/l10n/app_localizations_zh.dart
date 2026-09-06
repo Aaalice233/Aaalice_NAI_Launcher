@@ -14228,7 +14228,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get dlss_automaticHint => '默认关闭。开启后，生成完成的图像会先增强，再进入历史记录和自动保存。';
 
   @override
-  String get dlss_color => '颜色混合';
+  String get dlss_color => 'NR 颜色贡献';
 
   @override
   String get dlss_current => '当前使用';
@@ -14243,7 +14243,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get dlss_description => '在本机增强图像，管理所需运行库与默认参数。';
 
   @override
-  String get dlss_detail => '增强混合';
+  String get dlss_detail => '输出混合';
 
   @override
   String get dlss_enabled => '启用 DLSS 增强';
@@ -14258,7 +14258,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get dlss_installed => '已安装版本';
 
   @override
-  String get dlss_intensity => '强度';
+  String get dlss_intensity => 'NR 总强度';
 
   @override
   String get dlss_latest => '最新稳定版';
@@ -14298,7 +14298,7 @@ class AppLocalizationsZh extends AppLocalizations {
       '组件来自 video2dlssnr 的公开 Release。安装会下载完整包，仅提取所需组件，并进行真实增强测试。';
 
   @override
-  String get dlss_structure => '局部结构';
+  String get dlss_structure => '结构强度';
 
   @override
   String get dlss_style => '风格';
@@ -14316,7 +14316,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get dlss_title => 'DLSSNR 图像增强';
 
   @override
-  String get dlss_tone => '局部色调';
+  String get dlss_tone => '光照与色调强度';
 
   @override
   String get dlss_validating => '正在校验组件并测试增强…';
@@ -14419,16 +14419,7 @@ class AppLocalizationsZh extends AppLocalizations {
       '完整分辨率对比，默认适应窗口。点击 100% 查看原尺寸像素；拖动图像查看局部，拖动分割线对比。';
 
   @override
-  String get dlss_preset => 'NR 预设';
-
-  @override
-  String get dlss_presetHint => '上游仅提供编号，没有公开各预设的具体效果定义。';
-
-  @override
-  String get dlss_skin => '皮肤结构';
-
-  @override
-  String get dlss_globalTone => '全局色调';
+  String get dlss_skin => '皮肤结构强度';
 
   @override
   String get dlss_modelDefault => '模型默认';
@@ -14437,46 +14428,39 @@ class AppLocalizationsZh extends AppLocalizations {
   String get dlss_autoMask => '自动遮罩';
 
   @override
-  String get dlss_uiCorrection => 'UI 修正';
-
-  @override
-  String get dlss_styleHint => '选择模型的视觉风格，不改变输出尺寸。默认、自然、电影感是上游提供的三种模式。';
+  String get dlss_styleHint =>
+      '选择运行库的风格模式 0 / 1 / 2，不改变尺寸。“默认、自然、电影感”沿用上游名称，尚未验证与官方 Model A/B/C 的对应关系。';
 
   @override
   String get dlss_numericHint =>
-      '可直接输入数值，按回车或离开输入框应用。强度滑块常用范围为 0～2，可手动输入更高值；高值不代表效果更好。';
+      '可直接输入数值，按回车或离开输入框应用。NR 总强度与颜色贡献为 0～1；结构、光照与输出混合常用 0～2，可输入更高值。皮肤结构负值表示模型默认，不是负强度。';
 
   @override
-  String get dlss_intensityHint => '控制 NR 模型的总体细节强度，1 为模型基准。不是放大倍率，也不是重复处理次数。';
+  String get dlss_intensityHint =>
+      '控制 NR 整体效果，范围 0～1。0 关闭 NR 效果，1 为完整强度；当前运行库中更高数值与 1 的输出一致。SR 放大与输出混合分别控制。';
 
   @override
   String get dlss_detailHint =>
-      '控制 NR 对整体画面的影响，不单独控制材质细节。0 保留 NR 输入（开启 SR 时为放大后的图像）；1 按“颜色混合”设置应用增强结果；大于 1 放大两者差异，可能使效果夸张或失真。';
+      '控制 NR 对整体画面的影响，不单独控制材质细节。0 保留 NR 输入（开启 SR 时为放大后的图像）；1 按“NR 颜色贡献”设置应用增强结果；大于 1 放大两者差异，可能使效果夸张或失真。';
 
   @override
   String get dlss_colorHint => '0 保留原图色相，但仍采用增强后的明暗；1 采用增强后的颜色。越低越接近原图的配色。';
 
   @override
   String get dlss_structureHint =>
-      '调整局部结构与高频细节，例如材质纹理、接触阴影和反射。1 为模型基准，实际效果取决于模型与图像。';
+      '控制材质纹理、局部明暗与结构变化，并非普通锐化。1 为基准，常用 0～2；大于 1 仍有效，高值可能产生颗粒、色偏和细节失真。';
 
   @override
-  String get dlss_toneHint => '调整局部光照和色调等较大范围的明暗变化。1 为模型基准；不是固定的亮度或对比度调整。';
+  String get dlss_toneHint =>
+      '控制较大范围的光照、明暗和颜色变化。1 为基准，常用 0～2；不是固定的亮度或对比度调节。0 不会关闭结构效果，也不保证输出与原图颜色完全一致。';
 
   @override
-  String get dlss_skinHint => '模型的皮肤结构强度。-1 使用模型默认，非负数显式指定强度；上游未公开皮肤识别范围。';
-
-  @override
-  String get dlss_globalToneHint =>
-      '模型的全局色调强度。-1 使用模型默认，非负数显式指定强度；不等同于普通图像编辑器的全局调色。';
+  String get dlss_skinHint =>
+      '调整自动遮罩识别区域的皮肤结构；需开启自动遮罩。-1 使用模型默认，0 及以上显式指定强度；负值均使用默认。当前运行库关闭自动遮罩后此项不改变输出。';
 
   @override
   String get dlss_autoMaskHint =>
-      '让模型启用内部自动遮罩。上游未公开遮罩区域或算法，界面也无法预览遮罩；不确定时保持关闭。';
-
-  @override
-  String get dlss_uiCorrectionHint =>
-      '模型的 UI 修正开关。上游未公开它会保护或修改哪些区域，不保证文字或图标保持不变；不确定时保持关闭。';
+      '启用模型内部的区域遮罩，并使皮肤结构强度生效。当前无法预览其识别区域；关闭可能改变局部效果，但不会关闭整体 NR。';
 
   @override
   String get dlss_invalidNumber => '请输入此参数支持的有效数值。';
@@ -14567,9 +14551,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get dlss_detailAndColor => '结果混合';
-
-  @override
-  String get dlss_nrModel => 'NR 模型';
 
   @override
   String get dlss_localAdjustments => '局部调整';
@@ -28809,7 +28790,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get dlss_automaticHint => '預設關閉。開啟後，生成的影像會先增強，再進入歷史記錄和自動儲存。';
 
   @override
-  String get dlss_color => '色彩混合';
+  String get dlss_color => 'NR 色彩貢獻';
 
   @override
   String get dlss_current => '目前使用';
@@ -28824,7 +28805,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get dlss_description => '在本機增強影像，管理所需執行階段與預設參數。';
 
   @override
-  String get dlss_detail => '增強混合';
+  String get dlss_detail => '輸出混合';
 
   @override
   String get dlss_enabled => '啟用 DLSS 增強';
@@ -28839,7 +28820,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get dlss_installed => '已安裝版本';
 
   @override
-  String get dlss_intensity => '強度';
+  String get dlss_intensity => 'NR 總強度';
 
   @override
   String get dlss_latest => '最新穩定版';
@@ -28879,7 +28860,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
       '元件來自 video2dlssnr 的公開 Release。安裝會下載完整套件，僅擷取所需元件，並進行實際增強測試。';
 
   @override
-  String get dlss_structure => '局部結構';
+  String get dlss_structure => '結構強度';
 
   @override
   String get dlss_style => '風格';
@@ -28897,7 +28878,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get dlss_title => 'DLSSNR 圖像增強';
 
   @override
-  String get dlss_tone => '局部色調';
+  String get dlss_tone => '光照與色調強度';
 
   @override
   String get dlss_validating => '正在驗證元件並測試增強…';
@@ -29000,16 +28981,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
       '完整解析度比較，預設符合視窗。點擊 100% 查看原尺寸像素；拖曳圖像查看局部，拖曳分隔線比較。';
 
   @override
-  String get dlss_preset => 'NR 預設';
-
-  @override
-  String get dlss_presetHint => '上游僅提供編號，沒有公開各預設的具體效果定義。';
-
-  @override
-  String get dlss_skin => '皮膚結構';
-
-  @override
-  String get dlss_globalTone => '全域色調';
+  String get dlss_skin => '皮膚結構強度';
 
   @override
   String get dlss_modelDefault => '模型預設';
@@ -29018,46 +28990,39 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get dlss_autoMask => '自動遮罩';
 
   @override
-  String get dlss_uiCorrection => 'UI 修正';
-
-  @override
-  String get dlss_styleHint => '選擇模型的視覺風格，不改變輸出尺寸。預設、自然、電影感是上游提供的三種模式。';
+  String get dlss_styleHint =>
+      '選擇執行庫的風格模式 0 / 1 / 2，不改變尺寸。「預設、自然、電影感」沿用上游名稱，尚未驗證與官方 Model A/B/C 的對應關係。';
 
   @override
   String get dlss_numericHint =>
-      '可直接輸入數值，按 Enter 或離開輸入框套用。強度滑桿常用範圍為 0～2，可手動輸入更高值；高值不代表效果更好。';
+      '可直接輸入數值，按 Enter 或離開輸入框套用。NR 總強度與色彩貢獻為 0～1；結構、光照與輸出混合常用 0～2，可輸入更高值。皮膚結構負值表示模型預設，不是負強度。';
 
   @override
-  String get dlss_intensityHint => '控制 NR 模型的整體細節強度，1 為模型基準。不是放大倍率，也不是重複處理次數。';
+  String get dlss_intensityHint =>
+      '控制 NR 整體效果，範圍 0～1。0 關閉 NR 效果，1 為完整強度；目前執行庫中更高數值與 1 的輸出一致。SR 放大與輸出混合分別控制。';
 
   @override
   String get dlss_detailHint =>
-      '控制 NR 對整體畫面的影響，不單獨控制材質細節。0 保留 NR 輸入（開啟 SR 時為放大後的圖像）；1 按「顏色混合」設定套用增強結果；大於 1 放大兩者差異，可能使效果誇張或失真。';
+      '控制 NR 對整體畫面的影響，不單獨控制材質細節。0 保留 NR 輸入（開啟 SR 時為放大後的圖像）；1 按「NR 色彩貢獻」設定套用增強結果；大於 1 放大兩者差異，可能使效果誇張或失真。';
 
   @override
   String get dlss_colorHint => '0 保留原圖色相，但仍採用增強後的明暗；1 採用增強後的顏色。越低越接近原圖的配色。';
 
   @override
   String get dlss_structureHint =>
-      '調整局部結構與高頻細節，例如材質紋理、接觸陰影和反射。1 為模型基準，實際效果取決於模型與圖像。';
+      '控制材質紋理、局部明暗與結構變化，並非一般銳化。1 為基準，常用 0～2；大於 1 仍有效，高值可能產生顆粒、色偏和細節失真。';
 
   @override
-  String get dlss_toneHint => '調整局部光照和色調等較大範圍的明暗變化。1 為模型基準；不是固定的亮度或對比度調整。';
+  String get dlss_toneHint =>
+      '控制較大範圍的光照、明暗和色彩變化。1 為基準，常用 0～2；不是固定的亮度或對比調整。0 不會關閉結構效果，也不保證輸出與原圖色彩完全一致。';
 
   @override
-  String get dlss_skinHint => '模型的皮膚結構強度。-1 使用模型預設，非負數明確指定強度；上游未公開皮膚辨識範圍。';
-
-  @override
-  String get dlss_globalToneHint =>
-      '模型的全域色調強度。-1 使用模型預設，非負數明確指定強度；不等同於一般影像編輯器的全域調色。';
+  String get dlss_skinHint =>
+      '調整自動遮罩辨識區域的皮膚結構；需開啟自動遮罩。-1 使用模型預設，0 及以上明確指定強度；負值皆使用預設。目前執行庫關閉自動遮罩後此項不改變輸出。';
 
   @override
   String get dlss_autoMaskHint =>
-      '讓模型啟用內部自動遮罩。上游未公開遮罩區域或演算法，介面也無法預覽遮罩；不確定時保持關閉。';
-
-  @override
-  String get dlss_uiCorrectionHint =>
-      '模型的 UI 修正開關。上游未公開它會保護或修改哪些區域，不保證文字或圖示保持不變；不確定時保持關閉。';
+      '啟用模型內部的區域遮罩，並使皮膚結構強度生效。目前無法預覽其辨識區域；關閉可能改變局部效果，但不會關閉整體 NR。';
 
   @override
   String get dlss_invalidNumber => '請輸入此參數支援的有效數值。';
@@ -29148,9 +29113,6 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get dlss_detailAndColor => '結果混合';
-
-  @override
-  String get dlss_nrModel => 'NR 模型';
 
   @override
   String get dlss_localAdjustments => '局部調整';

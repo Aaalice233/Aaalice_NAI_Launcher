@@ -25882,7 +25882,7 @@ abstract class AppLocalizations {
   /// No description provided for @dlss_color.
   ///
   /// In en, this message translates to:
-  /// **'Color blend'**
+  /// **'NR color contribution'**
   String get dlss_color;
 
   /// No description provided for @dlss_current.
@@ -25912,7 +25912,7 @@ abstract class AppLocalizations {
   /// No description provided for @dlss_detail.
   ///
   /// In en, this message translates to:
-  /// **'Enhancement blend'**
+  /// **'Output blend'**
   String get dlss_detail;
 
   /// No description provided for @dlss_enabled.
@@ -25942,7 +25942,7 @@ abstract class AppLocalizations {
   /// No description provided for @dlss_intensity.
   ///
   /// In en, this message translates to:
-  /// **'Intensity'**
+  /// **'NR intensity'**
   String get dlss_intensity;
 
   /// No description provided for @dlss_latest.
@@ -26020,7 +26020,7 @@ abstract class AppLocalizations {
   /// No description provided for @dlss_structure.
   ///
   /// In en, this message translates to:
-  /// **'Local structure'**
+  /// **'Structure strength'**
   String get dlss_structure;
 
   /// No description provided for @dlss_style.
@@ -26056,7 +26056,7 @@ abstract class AppLocalizations {
   /// No description provided for @dlss_tone.
   ///
   /// In en, this message translates to:
-  /// **'Local tone'**
+  /// **'Lighting and tone strength'**
   String get dlss_tone;
 
   /// No description provided for @dlss_validating.
@@ -26257,29 +26257,11 @@ abstract class AppLocalizations {
   /// **'Full-resolution comparison fits the window by default. Select 100% to inspect actual pixels; drag to pan or move the divider to compare.'**
   String get dlss_compareHint;
 
-  /// No description provided for @dlss_preset.
-  ///
-  /// In en, this message translates to:
-  /// **'NR preset'**
-  String get dlss_preset;
-
-  /// No description provided for @dlss_presetHint.
-  ///
-  /// In en, this message translates to:
-  /// **'Upstream provides numbered presets without documenting their visual effects.'**
-  String get dlss_presetHint;
-
   /// No description provided for @dlss_skin.
   ///
   /// In en, this message translates to:
-  /// **'Skin structure'**
+  /// **'Skin structure strength'**
   String get dlss_skin;
-
-  /// No description provided for @dlss_globalTone.
-  ///
-  /// In en, this message translates to:
-  /// **'Global tone'**
-  String get dlss_globalTone;
 
   /// No description provided for @dlss_modelDefault.
   ///
@@ -26293,34 +26275,28 @@ abstract class AppLocalizations {
   /// **'Auto mask'**
   String get dlss_autoMask;
 
-  /// No description provided for @dlss_uiCorrection.
-  ///
-  /// In en, this message translates to:
-  /// **'UI correction'**
-  String get dlss_uiCorrection;
-
   /// No description provided for @dlss_styleHint.
   ///
   /// In en, this message translates to:
-  /// **'Selects the model\'s visual style without changing output size. Default, Natural and Cinematic are the three upstream modes.'**
+  /// **'Selects runtime style 0, 1 or 2 without changing dimensions. Default, Natural and Cinematic retain upstream names; their correspondence to official Model A/B/C has not been verified.'**
   String get dlss_styleHint;
 
   /// No description provided for @dlss_numericHint.
   ///
   /// In en, this message translates to:
-  /// **'Type a value, then press Enter or leave the field to apply it. Strength sliders normally cover 0–2; higher values can be entered. Higher does not mean better.'**
+  /// **'Type a value and press Enter or leave the field to apply. NR intensity and color contribution range from 0 to 1. Structure, lighting and output blend normally use 0–2 but accept higher values. Negative skin structure values mean the model default, not negative strength.'**
   String get dlss_numericHint;
 
   /// No description provided for @dlss_intensityHint.
   ///
   /// In en, this message translates to:
-  /// **'Controls the NR model\'s overall detail strength; 1 is the default. This is neither an upscale factor nor a repeat count.'**
+  /// **'Controls the overall NR effect from 0 to 1. Zero disables the NR effect; one applies full intensity. Higher values produce the same output as one in the current runtime. SR scaling and output blend are separate controls.'**
   String get dlss_intensityHint;
 
   /// No description provided for @dlss_detailHint.
   ///
   /// In en, this message translates to:
-  /// **'Controls the overall NR effect, not material detail alone. 0 retains the NR input (the upscaled image when SR is enabled); 1 applies the enhanced result with the Color blend setting. Values above 1 amplify the difference and may exaggerate or distort the image.'**
+  /// **'Controls the overall NR effect, not material detail alone. 0 retains the NR input (the upscaled image when SR is enabled); 1 applies the enhanced result with the NR color contribution setting. Values above 1 amplify the difference and may exaggerate or distort the image.'**
   String get dlss_detailHint;
 
   /// No description provided for @dlss_colorHint.
@@ -26332,38 +26308,26 @@ abstract class AppLocalizations {
   /// No description provided for @dlss_structureHint.
   ///
   /// In en, this message translates to:
-  /// **'Adjusts local structure and high-frequency detail, such as material texture, contact shadows, and reflections. Model baseline: 1. Results depend on the model and image.'**
+  /// **'Controls material texture, local shading and structural changes, rather than ordinary sharpening. One is the reference level; the usual slider range is 0–2. Values above one remain effective, but high values can introduce grain, color shifts and distorted detail.'**
   String get dlss_structureHint;
 
   /// No description provided for @dlss_toneHint.
   ///
   /// In en, this message translates to:
-  /// **'Adjusts broader local lighting and tonal changes. Model baseline: 1. This is not a fixed brightness or contrast adjustment.'**
+  /// **'Controls broader lighting, shading and color changes. One is the reference level; the usual slider range is 0–2. This is not a fixed brightness or contrast adjustment. Zero does not disable structure changes or guarantee identical source colors.'**
   String get dlss_toneHint;
 
   /// No description provided for @dlss_skinHint.
   ///
   /// In en, this message translates to:
-  /// **'The model\'s skin structure strength. -1 uses the model default; non-negative values set it explicitly. Skin detection coverage is undocumented.'**
+  /// **'Adjusts skin structure in regions identified by the automatic mask. Requires auto mask. Use -1 for the model default or a nonnegative strength; all negative values use the default. This control does not change output with auto mask off in the current runtime.'**
   String get dlss_skinHint;
-
-  /// No description provided for @dlss_globalToneHint.
-  ///
-  /// In en, this message translates to:
-  /// **'The model\'s global tone strength. -1 uses the model default; non-negative values set it explicitly. It is not equivalent to conventional global colour grading.'**
-  String get dlss_globalToneHint;
 
   /// No description provided for @dlss_autoMaskHint.
   ///
   /// In en, this message translates to:
-  /// **'Enables the model\'s internal automatic mask. Its regions and algorithm are undocumented, and no mask preview is available. Leave off when unsure.'**
+  /// **'Enables the model’s internal region mask and skin structure control. Its detected regions cannot currently be previewed. Turning it off may change local effects but does not disable NR overall.'**
   String get dlss_autoMaskHint;
-
-  /// No description provided for @dlss_uiCorrectionHint.
-  ///
-  /// In en, this message translates to:
-  /// **'The model\'s UI correction switch. Which regions it protects or changes is undocumented; unchanged text or icons are not guaranteed. Leave off when unsure.'**
-  String get dlss_uiCorrectionHint;
 
   /// No description provided for @dlss_invalidNumber.
   ///
@@ -26538,12 +26502,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Output blending'**
   String get dlss_detailAndColor;
-
-  /// No description provided for @dlss_nrModel.
-  ///
-  /// In en, this message translates to:
-  /// **'NR model'**
-  String get dlss_nrModel;
 
   /// No description provided for @dlss_localAdjustments.
   ///

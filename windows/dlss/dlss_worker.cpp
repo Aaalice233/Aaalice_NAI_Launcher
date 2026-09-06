@@ -40,20 +40,17 @@ Job Parse(int argc, wchar_t** argv) {
     else if (key == L"--width") job.width = Unsigned(value);
     else if (key == L"--height") job.height = Unsigned(value);
     else if (key == L"--adapter") job.adapter = Unsigned(value);
-    else if (key == L"--preset") job.nr.preset = Unsigned(value);
     else if (key == L"--style") job.nr.style = Unsigned(value);
     else if (key == L"--intensity") job.nr.intensity = Strength(value);
     else if (key == L"--structure") job.nr.structure = Strength(value);
     else if (key == L"--tone") job.nr.tone = Strength(value);
     else if (key == L"--skin") job.nr.skin = Strength(value, -1);
-    else if (key == L"--global-tone") job.nr.globalTone = Strength(value, -1);
     else if (key == L"--auto-mask") job.nr.autoMask = Unsigned(value) != 0;
-    else if (key == L"--ui-correction") job.nr.uiCorrection = Unsigned(value) != 0;
     else throw std::runtime_error("Unknown worker argument");
   }
   if (job.runtime.empty() || job.input.empty() || job.output.empty() ||
       job.baseline.empty() || job.width < 1 || job.height < 1 ||
-      job.width > 16384 || job.height > 16384 || job.nr.preset > 3 || job.nr.style > 2)
+      job.width > 16384 || job.height > 16384 || job.nr.style > 2 || job.nr.intensity > 1)
     throw std::runtime_error("Invalid DLSS job parameters");
   return job;
 }
