@@ -9795,6 +9795,13 @@ class AppLocalizationsJa extends AppLocalizations {
   String get settings_protectionFeatures => '保護機能';
 
   @override
+  String get settings_copyDragWatermarkTitle => 'コピーまたはドラッグ時に透かしを追加';
+
+  @override
+  String get settings_copyDragWatermarkSubtitle =>
+      '保存済みの既定の透かしを使用します。透かしの追加ではメタデータは削除されません。削除するには、上の「コピーまたはドラッグするときにすべてのメタデータを削除します」を有効にしてください。';
+
+  @override
   String get settings_stripMetadataTitle => 'コピーまたはドラッグするときにすべてのメタデータを削除します';
 
   @override

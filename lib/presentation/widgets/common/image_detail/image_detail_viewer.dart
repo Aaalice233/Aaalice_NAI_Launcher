@@ -12,6 +12,7 @@ import '../../../../core/utils/window_focus_tracker.dart';
 import '../../../../core/windowing/workspace_side_panel_contract.dart';
 import '../../../adaptive/adaptive_presenter.dart';
 import '../../../providers/share_image_settings_provider.dart';
+import '../../../providers/copy_drag_watermark_provider.dart';
 import '../../../screens/mosaic/mosaic_editor_launcher.dart';
 import '../../../screens/watermark/watermark_editor_launcher.dart';
 import '../../../utils/clipboard_image.dart';
@@ -677,17 +678,20 @@ class _ImageDetailViewerState extends ConsumerState<ImageDetailViewer> {
   /// 复制图像到剪贴板
   Future<void> _copyImageToClipboard(BuildContext context) async {
     final l10n = context.l10n;
+    final transform = ref.read(copyDragWatermarkProvider);
+    final stripMetadata = ref
+        .read(shareImageSettingsProvider)
+        .effectiveStripMetadataForCopyAndDrag;
     try {
       final imageBytes = await _currentImage.getImageBytes();
       final fileName = _currentImage.fileInfo?.fileName ?? 'shared.png';
-      final stripMetadata = ref
-          .read(shareImageSettingsProvider)
-          .effectiveStripMetadataForCopyAndDrag;
-      final shareImage = await ImageShareSanitizer.prepareForCopyOrDrag(
-        imageBytes,
-        fileName: fileName,
-        stripMetadata: stripMetadata,
-      );
+      final shareImage =
+          await ImageShareSanitizer.prepareForCopyOrDragInBackground(
+            imageBytes,
+            fileName: fileName,
+            stripMetadata: stripMetadata,
+            transform: transform,
+          );
 
       // 跨平台复制到剪贴板（原 Windows 端走 PowerShell + System.Drawing，
       // macOS/Linux 不可用）。统一规范化为 PNG，避免 jpg/webp 原始字节被当成

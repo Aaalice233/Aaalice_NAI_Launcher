@@ -33,6 +33,7 @@ import '../../../providers/image_generation_provider.dart';
 import '../../../providers/local_gallery_provider.dart';
 import '../../../providers/reverse_prompt_provider.dart';
 import '../../../providers/share_image_settings_provider.dart';
+import '../../../providers/copy_drag_watermark_provider.dart';
 import '../../../services/image_workflow_launcher.dart';
 import '../../../widgets/common/app_toast.dart';
 import '../../../widgets/common/image_detail/file_image_detail_data.dart';
@@ -85,8 +86,10 @@ class HistoryPanel extends ConsumerStatefulWidget {
     this.onClose,
     this.embedded = false,
     this.viewportOffset,
+    this.sharePreparationService,
   });
 
+  final ShareImagePreparationService? sharePreparationService;
   final VoidCallback? onClose;
 
   /// 嵌入模式：隐藏自带标题行，由外层 Tab 栏承担标题职责。
@@ -99,8 +102,7 @@ class HistoryPanel extends ConsumerStatefulWidget {
 
 class _HistoryPanelState extends ConsumerState<HistoryPanel> {
   final Set<String> _selectedIds = {};
-  final ShareImagePreparationService _sharePreparationService =
-      ShareImagePreparationService.instance;
+  late final ShareImagePreparationService _sharePreparationService;
   Timer? _historyScrollIdleTimer;
   Timer? _historyPreheatTimer;
   Timer? _hoverPreheatTimer;
@@ -119,6 +121,8 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
   @override
   void initState() {
     super.initState();
+    _sharePreparationService =
+        widget.sharePreparationService ?? ShareImagePreparationService.instance;
     _scrollController = OwnedScrollController(viewport: widget.viewportOffset);
     _sharePreparationService.addListener(_handleSharePreparationChanged);
     _selectionSubscription = ref.listenManual(
@@ -147,6 +151,7 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(imageGenerationNotifierProvider);
+    ref.watch(copyDragWatermarkProvider);
     final stripMetadata = ref.watch(
       shareImageSettingsProvider.select(
         (settings) => settings.effectiveStripMetadataForCopyAndDrag,
@@ -417,6 +422,7 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
     final imageIds = images.map((image) => image.id).toSet();
     final maintenanceKey =
         '${stripMetadata ? 'strip' : 'raw'}:'
+        '${ref.read(copyDragWatermarkProvider)?.cacheKey ?? 'original'}:'
         '${imageIds.join('|')}';
 
     if (_lastSharePreparationMaintenanceKey == maintenanceKey) {
@@ -499,16 +505,35 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
         return;
       }
 
+      final transform = ref.read(copyDragWatermarkProvider);
       for (final image in draggableImages) {
+        if (transform != null && !_isHistoryImageVisible(image.id)) continue;
         _sharePreparationService.enqueue(
           imageId: image.id,
           imageBytes: image.bytes,
           fileName: 'history_${image.id}.png',
           sourceFilePath: image.filePath,
           stripMetadata: stripMetadata,
+          transform: ref.read(copyDragWatermarkProvider),
         );
       }
     });
+  }
+
+  bool _isHistoryImageVisible(String imageId) {
+    final item = _imageKeys[imageId]?.currentContext?.findRenderObject();
+    final panel = context.findRenderObject();
+    if (item is! RenderBox ||
+        !item.attached ||
+        !item.hasSize ||
+        panel is! RenderBox ||
+        !panel.attached ||
+        !panel.hasSize) {
+      return false;
+    }
+    return (item.localToGlobal(Offset.zero) & item.size).overlaps(
+      panel.localToGlobal(Offset.zero) & panel.size,
+    );
   }
 
   void _scheduleHoverPreheat(GeneratedImage image, bool stripMetadata) {
@@ -531,6 +556,7 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
         fileName: 'history_${image.id}.png',
         sourceFilePath: image.filePath,
         stripMetadata: stripMetadata,
+        transform: ref.read(copyDragWatermarkProvider),
       );
     });
   }
@@ -903,9 +929,11 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
       return childBuilder(true);
     }
 
+    final transform = ref.read(copyDragWatermarkProvider);
     final snapshot = _sharePreparationService.snapshotFor(
       image.id,
       stripMetadata: stripMetadata,
+      transform: transform,
     );
     final preparedFile = snapshot.isReady ? snapshot.file : null;
     final dragPreparationReady = preparedFile != null;
@@ -924,6 +952,7 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
         requirePreparedDragFile: true,
         preparedDragFile: preparedFile,
         preparedDragStripMetadata: preparedFile == null ? null : stripMetadata,
+        preparedDragTransformKey: transform?.cacheKey,
         disabledReason: preparedFile == null
             ? _dragDisabledReason(snapshot)
             : null,

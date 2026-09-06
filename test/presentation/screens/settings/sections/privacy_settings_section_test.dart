@@ -80,6 +80,8 @@ void main() {
     expect(find.text('保护模式'), findsOneWidget);
     expect(find.text('保护功能'), findsOneWidget);
     expect(find.text('复制/拖拽时移除全部元数据'), findsOneWidget);
+    expect(find.text('复制/拖拽时添加水印'), findsOneWidget);
+    expect(find.textContaining('添加水印不会清除元数据'), findsOneWidget);
     expect(find.text('限制生图频率'), findsOneWidget);
     expect(find.text('生图间隔'), findsOneWidget);
     expect(find.text('打码与隐私遮挡'), findsOneWidget);
@@ -90,7 +92,7 @@ void main() {
     expect(find.byType(OnlineGalleryBlacklistSettingsPanel), findsOneWidget);
   });
 
-  for (final width in [320.0, 600.0, 840.0, 1600.0]) {
+  for (final width in [320.0, 600.0, 840.0, 1180.0, 1600.0]) {
     testWidgets('隐私设置在 ${width.toInt()} 宽度无布局异常', (tester) async {
       await pumpSection(
         tester,
@@ -102,6 +104,28 @@ void main() {
       expect(tester.takeException(), isNull);
     });
   }
+
+  testWidgets('水印开关位于清除下方且不受保护模式与清除开关控制', (tester) async {
+    await pumpSection(tester);
+    final watermark = find.widgetWithText(SwitchListTile, '复制/拖拽时添加水印');
+    final strip = find.widgetWithText(SwitchListTile, '复制/拖拽时移除全部元数据');
+    expect(tester.widget<SwitchListTile>(watermark).value, isFalse);
+    expect(tester.widget<SwitchListTile>(watermark).onChanged, isNotNull);
+    expect(tester.widget<SwitchListTile>(strip).onChanged, isNull);
+    expect(
+      tester.getTopLeft(watermark).dy,
+      greaterThan(tester.getBottomLeft(strip).dy - 1),
+    );
+    await tester.ensureVisible(watermark);
+    await tester.tap(watermark);
+    await tester.pumpAndSettle();
+    expect(tester.widget<SwitchListTile>(watermark).value, isTrue);
+    expect(tester.widget<SwitchListTile>(strip).value, isTrue);
+    await tester.tap(watermark);
+    await tester.pumpAndSettle();
+    expect(tester.widget<SwitchListTile>(watermark).value, isFalse);
+    expect(tester.takeException(), isNull);
+  });
 
   testWidgets('320 宽、3x 文本、IME 和 SafeArea 下数字编辑器仍可用', (tester) async {
     const safePadding = EdgeInsets.fromLTRB(8, 24, 8, 16);
@@ -283,6 +307,11 @@ class _TestShareImageSettingsNotifier extends ShareImageSettingsNotifier {
   @override
   Future<void> setProtectionMode(bool value) async {
     state = state.copyWith(protectionMode: value);
+  }
+
+  @override
+  Future<void> setWatermarkForCopyAndDrag(bool value) async {
+    state = state.copyWith(watermarkForCopyAndDrag: value);
   }
 
   @override

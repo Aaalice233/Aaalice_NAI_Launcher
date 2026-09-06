@@ -17,6 +17,7 @@ import '../../../core/watermark/watermark_derivative_registry.dart';
 import '../../../data/models/gallery/local_image_record.dart';
 import '../../providers/mosaic_settings_provider.dart';
 import '../../providers/share_image_settings_provider.dart';
+import '../../providers/copy_drag_watermark_provider.dart';
 import '../../providers/watermark_settings_provider.dart';
 import '../../themes/theme_extension.dart';
 import '../../utils/clipboard_image.dart';
@@ -168,6 +169,10 @@ class _LocalImageCard3DState extends ConsumerState<LocalImageCard3D> {
   Future<void> _copyImageToClipboard() async {
     if (_isCopyingImage) return;
     setState(() => _isCopyingImage = true);
+    final transform = ref.read(copyDragWatermarkProvider);
+    final stripMetadata = ref
+        .read(shareImageSettingsProvider)
+        .effectiveStripMetadataForCopyAndDrag;
 
     try {
       final sourceFile = File(widget.record.path);
@@ -176,9 +181,6 @@ class _LocalImageCard3DState extends ConsumerState<LocalImageCard3D> {
         return;
       }
 
-      final stripMetadata = ref
-          .read(shareImageSettingsProvider)
-          .effectiveStripMetadataForCopyAndDrag;
       final sourceParts = sourceFile.path.split(RegExp(r'[/\\]'));
       final sourceName = sourceParts.isNotEmpty
           ? sourceParts.last
@@ -189,6 +191,7 @@ class _LocalImageCard3DState extends ConsumerState<LocalImageCard3D> {
             originalBytes,
             fileName: sourceName,
             stripMetadata: stripMetadata,
+            transform: transform,
           );
 
       // 跨平台复制到剪贴板（原 Windows 端走 PowerShell + System.Drawing，
@@ -469,9 +472,7 @@ class _LocalImageCard3DState extends ConsumerState<LocalImageCard3D> {
     final mosaicEnabled =
         widget.onSendAction != null &&
         ref.watch(
-          mosaicSettingsProvider.select(
-            (state) => state.configuration.enabled,
-          ),
+          mosaicSettingsProvider.select((state) => state.configuration.enabled),
         );
     final isMosaicDerivative =
         mosaicEnabled &&

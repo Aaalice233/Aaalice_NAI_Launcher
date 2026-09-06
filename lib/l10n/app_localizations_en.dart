@@ -10029,6 +10029,14 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settings_protectionFeatures => 'Protection Features';
 
   @override
+  String get settings_copyDragWatermarkTitle =>
+      'Add watermark when copying or dragging';
+
+  @override
+  String get settings_copyDragWatermarkSubtitle =>
+      'Use the saved default watermark. Adding a watermark does not remove metadata. To remove it, enable \"Remove all metadata when copying or dragging\" above.';
+
+  @override
   String get settings_stripMetadataTitle =>
       'Remove all metadata when copying or dragging';
 

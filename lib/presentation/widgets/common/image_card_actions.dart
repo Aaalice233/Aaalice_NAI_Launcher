@@ -17,6 +17,7 @@ import '../../../data/repositories/gallery_folder_repository.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../providers/mosaic_settings_provider.dart';
 import '../../providers/share_image_settings_provider.dart';
+import '../../providers/copy_drag_watermark_provider.dart';
 import '../../providers/watermark_settings_provider.dart';
 import '../../screens/mosaic/mosaic_editor_launcher.dart';
 import '../../screens/watermark/watermark_editor_launcher.dart';
@@ -390,7 +391,10 @@ class ImageCardActionCoordinator {
     final stripMetadata = ref
         .read(shareImageSettingsProvider)
         .effectiveStripMetadataForCopyAndDrag;
-    controller.warmShareTransferCache(stripMetadata: stripMetadata);
+    controller.shareTransferCache?.warmUp(
+      stripMetadata: stripMetadata,
+      transform: ref.read(copyDragWatermarkProvider),
+    );
   }
 
   Future<void> saveImage() async {
@@ -446,11 +450,13 @@ class ImageCardActionCoordinator {
         .read(shareImageSettingsProvider)
         .effectiveStripMetadataForCopyAndDrag;
     final clipboardWriter = ref.read(imageClipboardWriterProvider);
+    final transform = ref.read(copyDragWatermarkProvider);
     final cache = controller.shareTransferCache;
     return () => unawaited(
       _copyPreparedImage(
         cache: cache,
         stripMetadata: stripMetadata,
+        transform: transform,
         clipboardWriter: clipboardWriter,
         overlay: overlay,
         l10n: l10n,
@@ -461,13 +467,17 @@ class ImageCardActionCoordinator {
   static Future<void> _copyPreparedImage({
     required ShareImageTransferCache? cache,
     required bool stripMetadata,
+    required ShareImageTransform? transform,
     required ImageClipboardWriter clipboardWriter,
     required OverlayState? overlay,
     required AppLocalizations l10n,
   }) async {
     try {
       if (cache == null) throw StateError(l10n.toast_imageDataUnavailable);
-      final shareImage = await cache.prepareImage(stripMetadata: stripMetadata);
+      final shareImage = await cache.prepareImage(
+        stripMetadata: stripMetadata,
+        transform: transform,
+      );
       await clipboardWriter(shareImage.bytes);
       AppToast.successOnOverlay(overlay, l10n.image_copiedToClipboard);
     } catch (error) {

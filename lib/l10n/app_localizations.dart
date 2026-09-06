@@ -17631,6 +17631,18 @@ abstract class AppLocalizations {
   /// **'Protection Features'**
   String get settings_protectionFeatures;
 
+  /// No description provided for @settings_copyDragWatermarkTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Add watermark when copying or dragging'**
+  String get settings_copyDragWatermarkTitle;
+
+  /// No description provided for @settings_copyDragWatermarkSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Use the saved default watermark. Adding a watermark does not remove metadata. To remove it, enable \"Remove all metadata when copying or dragging\" above.'**
+  String get settings_copyDragWatermarkSubtitle;
+
   /// No description provided for @settings_stripMetadataTitle.
   ///
   /// In en, this message translates to:

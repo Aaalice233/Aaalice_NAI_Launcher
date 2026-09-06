@@ -7,6 +7,7 @@ class ShareImageSettings {
   const ShareImageSettings({
     this.protectionMode = false,
     this.stripMetadataForCopyAndDrag = true,
+    this.watermarkForCopyAndDrag = false,
     this.confirmDangerousActions = true,
     this.warnExternalImageSend = true,
     this.preventOverwrite = true,
@@ -18,6 +19,7 @@ class ShareImageSettings {
 
   final bool protectionMode;
   final bool stripMetadataForCopyAndDrag;
+  final bool watermarkForCopyAndDrag;
   final bool confirmDangerousActions;
   final bool warnExternalImageSend;
   final bool preventOverwrite;
@@ -46,6 +48,7 @@ class ShareImageSettings {
   ShareImageSettings copyWith({
     bool? protectionMode,
     bool? stripMetadataForCopyAndDrag,
+    bool? watermarkForCopyAndDrag,
     bool? confirmDangerousActions,
     bool? warnExternalImageSend,
     bool? preventOverwrite,
@@ -58,6 +61,8 @@ class ShareImageSettings {
       protectionMode: protectionMode ?? this.protectionMode,
       stripMetadataForCopyAndDrag:
           stripMetadataForCopyAndDrag ?? this.stripMetadataForCopyAndDrag,
+      watermarkForCopyAndDrag:
+          watermarkForCopyAndDrag ?? this.watermarkForCopyAndDrag,
       confirmDangerousActions:
           confirmDangerousActions ?? this.confirmDangerousActions,
       warnExternalImageSend:
@@ -102,6 +107,8 @@ class ShareImageSettingsNotifier extends Notifier<ShareImageSettings> {
 
     return ShareImageSettings(
       protectionMode: protectionMode,
+      watermarkForCopyAndDrag:
+          _storage.getSetting<bool>(StorageKeys.shareWatermark) ?? false,
       stripMetadataForCopyAndDrag:
           _storage.getSetting<bool>(
             StorageKeys.shareStripMetadata,
@@ -157,6 +164,11 @@ class ShareImageSettingsNotifier extends Notifier<ShareImageSettings> {
   Future<void> setStripMetadataForCopyAndDrag(bool value) async {
     state = state.copyWith(stripMetadataForCopyAndDrag: value);
     await _storage.setSetting(StorageKeys.shareStripMetadata, value);
+  }
+
+  Future<void> setWatermarkForCopyAndDrag(bool value) async {
+    await _storage.setSetting(StorageKeys.shareWatermark, value);
+    state = state.copyWith(watermarkForCopyAndDrag: value);
   }
 
   Future<void> setConfirmDangerousActions(bool value) async {
