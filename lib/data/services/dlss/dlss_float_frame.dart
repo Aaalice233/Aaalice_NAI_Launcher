@@ -71,7 +71,7 @@ class DlssFloatFrame {
   }
 
   /// Compose once against the untouched SR/input baseline, after every NR layer.
-  Uint8List composite(
+  img.Image composite(
     DlssFloatFrame neural, {
     required double detail,
     required double color,
@@ -101,7 +101,7 @@ class DlssFloatFrame {
         (pixels[offset + 3].clamp(0.0, 1.0) * 255).round(),
       );
     }
-    return Uint8List.fromList(img.encodePng(image));
+    return image;
   }
 
   static double _luma(Float32List pixels, int offset) =>

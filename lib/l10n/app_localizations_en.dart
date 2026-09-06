@@ -15173,6 +15173,9 @@ class AppLocalizationsEn extends AppLocalizations {
       'Choose 1–3 NR layers. Each neural output feeds the next layer; SR upscales once. Detail and color are composed once at the end. More layers take longer and may change the original style.';
 
   @override
+  String get dlss_finalizing => 'NR complete · preparing comparison…';
+
+  @override
   String dlss_passProgress(int completed, int total) {
     return 'NR passes completed: $completed/$total';
   }

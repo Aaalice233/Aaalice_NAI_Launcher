@@ -253,8 +253,16 @@ class _DlssEnhancementPanelState extends ConsumerState<DlssEnhancementPanel> {
             summary: _saveError ? l10n.dlss_saveFailed : null,
           ),
         if (_running) ...[
-          LinearProgressIndicator(value: _completedPasses / _options.passes),
-          Text(l10n.dlss_passProgress(_completedPasses, _options.passes)),
+          LinearProgressIndicator(
+            value: _completedPasses < _options.passes
+                ? _completedPasses / _options.passes
+                : null,
+          ),
+          Text(
+            _completedPasses < _options.passes
+                ? l10n.dlss_passProgress(_completedPasses, _options.passes)
+                : l10n.dlss_finalizing,
+          ),
         ],
         const SizedBox(height: 16),
         FilledButton.icon(

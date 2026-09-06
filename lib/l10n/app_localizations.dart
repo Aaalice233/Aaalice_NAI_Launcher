@@ -26407,6 +26407,12 @@ abstract class AppLocalizations {
   /// **'Choose 1–3 NR layers. Each neural output feeds the next layer; SR upscales once. Detail and color are composed once at the end. More layers take longer and may change the original style.'**
   String get dlss_passesHint;
 
+  /// No description provided for @dlss_finalizing.
+  ///
+  /// In en, this message translates to:
+  /// **'NR complete · preparing comparison…'**
+  String get dlss_finalizing;
+
   /// No description provided for @dlss_passProgress.
   ///
   /// In en, this message translates to:

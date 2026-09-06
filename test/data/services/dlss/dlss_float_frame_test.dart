@@ -30,7 +30,7 @@ void main() {
     final frame = DlssFloatFrame.fromImage(
       Uint8List.fromList(img.encodePng(source)),
     );
-    final output = img.decodePng(frame.composite(frame, detail: 1, color: 1))!;
+    final output = frame.composite(frame, detail: 1, color: 1);
     expect(output.getBytes(), orderedEquals(source.getBytes()));
   });
   test('final detail blend uses untouched baseline once in linear light', () {
@@ -44,16 +44,12 @@ void main() {
       1,
       Float32List.fromList([0.5, 0.5, 0.5, 1]),
     );
-    final result = img.decodePng(
-      baseline.composite(neural, detail: 0.5, color: 1),
-    )!;
+    final result = baseline.composite(neural, detail: 0.5, color: 1);
     expect(
       result.getPixel(0, 0).r,
       (DlssFloatFrame.linearToSrgb(0.3) * 255).round(),
     );
-    final unchanged = img.decodePng(
-      baseline.composite(neural, detail: 0, color: 1),
-    )!;
+    final unchanged = baseline.composite(neural, detail: 0, color: 1);
     expect(
       unchanged.getPixel(0, 0).r,
       (DlssFloatFrame.linearToSrgb(0.1) * 255).round(),

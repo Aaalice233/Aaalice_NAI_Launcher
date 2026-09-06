@@ -210,20 +210,18 @@ class DlssWorkerFailure implements Exception {
   String toString() => 'DLSS worker exited $exitCode\n$diagnostics';
 }
 
-/// The upstream PNG writer discards alpha; resize only the original alpha,
-/// preserving the neural output's RGB and the original generation metadata.
+/// Restore original alpha and metadata before the single final PNG encoding.
 Uint8List preserveDlssImage(
   Uint8List sourceBytes,
-  Uint8List outputBytes,
+  img.Image decoded,
   DlssOptions options,
   String? version,
 ) {
-  if (!ImageMetadataContainerCodec.isPngHeader(outputBytes)) {
-    throw const FormatException('DLSS did not produce a PNG');
+  if (sourceBytes.isEmpty) {
+    throw const FormatException('Invalid DLSS image: empty source');
   }
   final source = img.decodeImage(sourceBytes);
-  final decoded = img.decodePng(outputBytes);
-  if (source == null || decoded == null) {
+  if (source == null) {
     throw const FormatException('Invalid DLSS image');
   }
   final expected = options.targetSize(source.width, source.height);

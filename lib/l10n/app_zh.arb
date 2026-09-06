@@ -6994,6 +6994,7 @@
   "dlss_srUnavailable": "请先在“设置 → 集成 → DLSSNR”安装、检测并启用运行库。",
   "dlss_passes": "NR 处理次数",
   "dlss_passesHint": "选择 1–3 层 NR 叠加。上一层的神经输出作为下一层输入，SR 只放大一次；细节与色彩在最后统一合成。更多层会增加耗时，也可能改变原画风。",
+  "dlss_finalizing": "NR 已完成，正在准备对比图…",
   "dlss_passProgress": "NR 已完成 {completed}/{total} 次",
   "@dlss_passProgress": {"placeholders": {"completed": {"type": "int"}, "total": {"type": "int"}}},
   "dlss_processing": "处理流程",

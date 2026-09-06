@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'dart:typed_data';
 
@@ -553,6 +554,63 @@ void main() {
     expect(controller.automatic, isFalse);
   });
 
+  testWidgets(
+    'NR completion keeps finalizing status until result bytes arrive',
+    (tester) async {
+      await tester.binding.setSurfaceSize(const Size(1100, 850));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      final controller = _Controller()..pendingResult = Completer<Uint8List>();
+      final scroll = ScrollController();
+      addTearDown(scroll.dispose);
+      final source = Uint8List.fromList(
+        img.encodePng(img.Image(width: 16, height: 16)),
+      );
+      await tester.pumpWidget(
+        _app(
+          controller,
+          Scaffold(
+            body: DlssEnhancementPanel(
+              source: source,
+              scrollController: scroll,
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.ensureVisible(find.byKey(const Key('dlss-run')));
+      await tester.tap(find.byKey(const Key('dlss-run')));
+      await tester.pump();
+      final l10n = AppLocalizations.of(
+        tester.element(find.byType(DlssEnhancementPanel)),
+      )!;
+      expect(find.text(l10n.dlss_finalizing), findsOneWidget);
+      expect(
+        tester
+            .widget<LinearProgressIndicator>(
+              find.byType(LinearProgressIndicator),
+            )
+            .value,
+        isNull,
+      );
+      expect(
+        tester
+            .widget<TextButton>(find.byKey(const Key('dlss-save-copy')))
+            .onPressed,
+        isNull,
+      );
+      controller.pendingResult!.complete(source);
+      await tester.pumpAndSettle();
+      expect(find.text(l10n.dlss_finalizing), findsNothing);
+      expect(
+        tester
+            .widget<TextButton>(find.byKey(const Key('dlss-save-copy')))
+            .onPressed,
+        isNotNull,
+      );
+      expect(tester.takeException(), isNull);
+    },
+  );
+
   testWidgets('repeated manual previews always use the original input', (
     tester,
   ) async {
@@ -749,6 +807,7 @@ class _Controller extends DlssController {
     installations = [active!];
   }
   final inputs = <Uint8List>[];
+  Completer<Uint8List>? pendingResult;
   @override
   Future<void> refresh({bool fetchReleases = true}) async {}
   @override
@@ -759,6 +818,10 @@ class _Controller extends DlssController {
     void Function(int completed, int total)? onProgress,
   }) async {
     inputs.add(bytes);
+    if (pendingResult != null) {
+      onProgress?.call(options.passes, options.passes);
+      return pendingResult!.future;
+    }
     final source = img.decodePng(bytes)!;
     return Uint8List.fromList(
       img.encodePng(

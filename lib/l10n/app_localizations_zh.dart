@@ -14504,6 +14504,9 @@ class AppLocalizationsZh extends AppLocalizations {
       '选择 1–3 层 NR 叠加。上一层的神经输出作为下一层输入，SR 只放大一次；细节与色彩在最后统一合成。更多层会增加耗时，也可能改变原画风。';
 
   @override
+  String get dlss_finalizing => 'NR 已完成，正在准备对比图…';
+
+  @override
   String dlss_passProgress(int completed, int total) {
     return 'NR 已完成 $completed/$total 次';
   }
@@ -29086,6 +29089,9 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   @override
   String get dlss_passesHint =>
       '選擇 1–3 層 NR 疊加。上一層的神經輸出作為下一層輸入，SR 只放大一次；細節與色彩在最後統一合成。更多層會增加耗時，也可能改變原畫風。';
+
+  @override
+  String get dlss_finalizing => 'NR 已完成，正在準備比較圖…';
 
   @override
   String dlss_passProgress(int completed, int total) {

@@ -4,14 +4,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image/image.dart' as img;
 
 import '../../../core/utils/localization_extension.dart';
 import '../../adaptive/interaction_policy.dart';
-import 'card_action_buttons.dart';
+import '../../providers/image_comparison_preferences_provider.dart';
+import 'image_comparison_toolbar.dart';
 
 /// Synchronized before/after image comparison with a draggable divider.
-class ImageComparisonView extends StatefulWidget {
+class ImageComparisonView extends ConsumerStatefulWidget {
   const ImageComparisonView({
     super.key,
     required this.sourceImageBytes,
@@ -28,16 +30,17 @@ class ImageComparisonView extends StatefulWidget {
   final double? viewportHeight;
 
   @override
-  State<ImageComparisonView> createState() => _ImageComparisonViewState();
+  ConsumerState<ImageComparisonView> createState() =>
+      _ImageComparisonViewState();
 }
 
-class _ImageComparisonViewState extends State<ImageComparisonView> {
+class _ImageComparisonViewState extends ConsumerState<ImageComparisonView> {
   static const _keyboardStep = 0.05;
   static const _doubleTapScale = 2.0;
-  static const _dividerLineWidth = 2.0;
+  static const _dividerLineWidth = 1.0;
   static const _dividerHitWidth = 48.0;
-  static const _dividerThumbSize = 32.0;
-  static const _dividerIconSize = 20.0;
+  static const _dividerThumbSize = 28.0;
+  static const _dividerIconSize = 16.0;
   static const _dividerElevation = 2.0;
 
   final _viewportKey = GlobalKey();
@@ -47,9 +50,11 @@ class _ImageComparisonViewState extends State<ImageComparisonView> {
   final _transformationController = TransformationController();
 
   final _dividerPosition = ValueNotifier<double>(0.5);
+  final _viewportChanges = ValueNotifier<Size?>(null);
   late final Listenable _dividerChanges;
+  late final Listenable _toolbarChanges;
   double get _position => _dividerPosition.value;
-  bool _followMouse = false;
+  bool get _followMouse => ref.read(imageComparisonFollowMouseProvider);
   Offset? _mousePosition;
   bool _dividerFocused = false;
   TapDownDetails? _doubleTapDetails;
@@ -64,6 +69,10 @@ class _ImageComparisonViewState extends State<ImageComparisonView> {
       _transformationController,
     ]);
     _transformationController.addListener(_followMouseAfterTransform);
+    _toolbarChanges = Listenable.merge([
+      _transformationController,
+      _viewportChanges,
+    ]);
     _readGeneratedSize();
   }
 
@@ -97,6 +106,7 @@ class _ImageComparisonViewState extends State<ImageComparisonView> {
   void dispose() {
     _transformationController.removeListener(_followMouseAfterTransform);
     _dividerPosition.dispose();
+    _viewportChanges.dispose();
     _dividerFocusNode.dispose();
     _transformationController.dispose();
     super.dispose();
@@ -130,41 +140,6 @@ class _ImageComparisonViewState extends State<ImageComparisonView> {
     if (_followMouse) _setPositionFromGlobal(event.position);
   }
 
-  Widget _followMouseToggle(BuildContext context) => Semantics(
-    toggled: _followMouse,
-    child: Tooltip(
-      message: context.l10n.comparison_followMouseHint,
-      child: TextButton.icon(
-        key: const ValueKey('comparison-follow-mouse'),
-        onPressed: () {
-          setState(() => _followMouse = !_followMouse);
-        },
-        style:
-            ImageOverlayControlStyle.iconButton(
-              context,
-              extent: math.max(
-                44,
-                context.interactionPolicy.minimumControlExtent,
-              ),
-            ).copyWith(
-              shape: WidgetStatePropertyAll(
-                RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-              ),
-              padding: const WidgetStatePropertyAll(
-                EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              ),
-              backgroundColor: _followMouse
-                  ? const WidgetStatePropertyAll(
-                      ImageOverlayControlStyle.hoveredSurface,
-                    )
-                  : null,
-            ),
-        icon: Icon(_followMouse ? Icons.check : Icons.mouse_outlined, size: 18),
-        label: Text(context.l10n.comparison_followMouse),
-      ),
-    ),
-  );
-
   void _handleDoubleTap() {
     final position = _doubleTapDetails?.localPosition;
     if (position == null) return;
@@ -188,9 +163,9 @@ class _ImageComparisonViewState extends State<ImageComparisonView> {
   }
 
   @override
-  Widget build(BuildContext context) {
-    if (!widget.showPixelScaleControls) return _buildViewport(context);
-    return Column(
+  Widget build(BuildContext context) => ClipRRect(
+    borderRadius: BorderRadius.circular(14),
+    child: Column(
       mainAxisSize: widget.viewportHeight == null
           ? MainAxisSize.max
           : MainAxisSize.min,
@@ -203,28 +178,28 @@ class _ImageComparisonViewState extends State<ImageComparisonView> {
             height: widget.viewportHeight,
             child: _buildViewport(context),
           ),
-        const SizedBox(height: 4),
-        Wrap(
-          spacing: 8,
-          crossAxisAlignment: WrapCrossAlignment.center,
-          children: [
-            TextButton(
-              key: const ValueKey('comparison-actual-pixels'),
-              onPressed: _generatedSize == null
-                  ? null
-                  : () => _setScale(_actualPixelScale),
-              child: const Text('100%'),
+        AnimatedBuilder(
+          animation: _toolbarChanges,
+          builder: (context, _) => ImageComparisonToolbar(
+            followMouse: ref.watch(imageComparisonFollowMouseProvider),
+            onFollowMouseChanged: (value) => ref
+                .read(imageComparisonFollowMouseProvider.notifier)
+                .setEnabled(value),
+            showZoom: widget.showPixelScaleControls,
+            scale: _transformationController.value.getMaxScaleOnAxis(),
+            actualPixelScale: _actualPixelScale,
+            canUseActualPixels: _generatedSize != null,
+            onScaleChanged: (scale) => _setScale(
+              scale.clamp(
+                math.min(1, _actualPixelScale),
+                math.max(4, _actualPixelScale * 4),
+              ),
             ),
-            TextButton(
-              key: const ValueKey('comparison-fit-window'),
-              onPressed: () => _setScale(1),
-              child: Text(context.l10n.editor_fitToWindow),
-            ),
-          ],
+          ),
         ),
       ],
-    );
-  }
+    ),
+  );
 
   double get _actualPixelScale {
     final imageSize = _generatedSize;
@@ -254,26 +229,23 @@ class _ImageComparisonViewState extends State<ImageComparisonView> {
 
   Widget _buildViewport(BuildContext context) => LayoutBuilder(
     builder: (context, constraints) {
-      _viewportSize = constraints.biggest;
-      return Stack(
-        fit: StackFit.expand,
-        children: [
-          MouseRegion(
-            key: _viewportKey,
-            onHover: _onHover,
-            onExit: (_) => _mousePosition = null,
-            child: _buildComparison(context),
-          ),
-          Positioned(
-            top: 8,
-            left: 8,
-            right: 8,
-            child: Align(
-              alignment: Alignment.topLeft,
-              child: _followMouseToggle(context),
-            ),
-          ),
-        ],
+      final size = constraints.biggest;
+      if (_viewportSize != size) {
+        _viewportSize = size;
+        // The footer is laid out before the flexible viewport. Publish the
+        // resolved size after layout without rebuilding the image subtree.
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) _viewportChanges.value = _viewportSize;
+        });
+      }
+      return ColoredBox(
+        color: Theme.of(context).colorScheme.surfaceContainerLowest,
+        child: MouseRegion(
+          key: _viewportKey,
+          onHover: _onHover,
+          onExit: (_) => _mousePosition = null,
+          child: _buildComparison(context),
+        ),
       );
     },
   );
@@ -436,9 +408,14 @@ class _ImageComparisonViewState extends State<ImageComparisonView> {
                             ? colors.primary
                             : colors.surfaceContainerHigh,
                         elevation: _dividerElevation * inverseScale,
-                        shape: const CircleBorder(),
-                        child: SizedBox.square(
-                          dimension: _dividerThumbSize * inverseScale,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(
+                            14 * inverseScale,
+                          ),
+                        ),
+                        child: SizedBox(
+                          width: _dividerThumbSize * inverseScale,
+                          height: 40 * inverseScale,
                           child: Icon(
                             Icons.drag_indicator_rounded,
                             size: _dividerIconSize * inverseScale,

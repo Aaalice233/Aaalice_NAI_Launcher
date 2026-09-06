@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:nai_launcher/core/storage/local_storage_service.dart';
 import 'package:image/image.dart' as img;
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/adaptive/interaction_policy.dart';
@@ -9,6 +11,60 @@ import 'package:nai_launcher/presentation/widgets/common/image_comparison_view.d
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+
+  testWidgets('footer keeps zoom order and follow switch at its right edge', (
+    tester,
+  ) async {
+    await _pumpComparison(
+      tester,
+      width: 800,
+      height: 450,
+      pixelControls: true,
+      generatedSize: const Size(832, 1216),
+    );
+    final keys = [
+      'comparison-zoom-out',
+      'comparison-zoom-value',
+      'comparison-zoom-in',
+      'comparison-actual-pixels',
+      'comparison-fit-window',
+      'comparison-follow-mouse',
+    ];
+    final rects = [
+      for (final key in keys) tester.getRect(find.byKey(ValueKey(key))),
+    ];
+    for (var i = 1; i < rects.length; i++) {
+      expect(rects[i].left, greaterThanOrEqualTo(rects[i - 1].right));
+    }
+    final bounds = tester.getRect(find.byType(ImageComparisonView));
+    expect(rects.last.right, closeTo(bounds.right - 12, 0.01));
+    expect(
+      rects.last.top,
+      greaterThanOrEqualTo(
+        tester
+            .getRect(find.byKey(const ValueKey('generation-image-comparison')))
+            .bottom,
+      ),
+    );
+    final controller = tester
+        .widget<InteractiveViewer>(find.byType(InteractiveViewer))
+        .transformationController!;
+    await tester.tap(find.byKey(const ValueKey('comparison-zoom-in')));
+    await tester.pump();
+    expect(controller.value.getMaxScaleOnAxis(), closeTo(1.25, 0.001));
+    await tester.tap(find.byKey(const ValueKey('comparison-actual-pixels')));
+    await tester.pump();
+    expect(
+      tester
+          .widget<Text>(find.byKey(const ValueKey('comparison-zoom-value')))
+          .data,
+      '100%',
+    );
+    await tester.tap(find.byKey(const ValueKey('comparison-fit-window')));
+    await tester.pump();
+    expect(controller.value.getMaxScaleOnAxis(), 1);
+    expect(tester.takeException(), isNull);
+  });
 
   testWidgets(
     'comparison keeps full images, fits initially and offers actual output pixels',
@@ -115,7 +171,9 @@ void main() {
       expect(tester.getCenter(line).dx, closeTo(origin.dx + 30, 0.01));
       expect(transform.value, zoom);
       expect(
-        tester.getRect(viewport).contains(tester.getRect(toggle).center),
+        tester
+            .getRect(find.byType(ImageComparisonView))
+            .contains(tester.getRect(toggle).center),
         isTrue,
       );
       await tester.tap(toggle);
@@ -136,9 +194,7 @@ void main() {
         await tester.binding.setSurfaceSize(Size(width, 360));
         await _pumpComparison(tester, width: width, height: 300, textScale: 3);
         final toggle = find.byKey(const ValueKey('comparison-follow-mouse'));
-        final viewport = tester.getRect(
-          find.byKey(const ValueKey('generation-image-comparison')),
-        );
+        final viewport = tester.getRect(find.byType(ImageComparisonView));
         final rect = tester.getRect(toggle);
         expect(viewport.contains(rect.topLeft), isTrue);
         expect(viewport.contains(rect.bottomRight), isTrue);
@@ -306,9 +362,10 @@ void main() {
       _paintedSize(tester, thumb).width,
       closeTo(initialThumbSize.width, 0.01),
     );
-    expect(initialLineSize.width, closeTo(2, 0.01));
+    expect(initialLineSize.width, closeTo(1, 0.01));
     expect(initialHandleSize.width, closeTo(48, 0.01));
-    expect(initialThumbSize.width, closeTo(32, 0.01));
+    expect(initialThumbSize.width, closeTo(28, 0.01));
+    expect(initialThumbSize.height, closeTo(40, 0.01));
   });
 
   testWidgets('comparison stays laid out across shared UI breakpoints', (
@@ -338,26 +395,31 @@ Future<void> _pumpComparison(
   Size generatedSize = const Size(4, 3),
 }) async {
   await tester.pumpWidget(
-    MaterialApp(
-      builder: (context, child) => MediaQuery(
-        data: MediaQuery.of(
-          context,
-        ).copyWith(textScaler: TextScaler.linear(textScale)),
-        child: InteractionPolicyScope(child: child!),
-      ),
-      locale: const Locale('zh'),
-      localizationsDelegates: AppLocalizations.localizationsDelegates,
-      supportedLocales: AppLocalizations.supportedLocales,
-      home: Scaffold(
-        body: Center(
-          child: SizedBox(
-            width: width,
-            height: height,
-            child: ImageComparisonView(
-              sourceImageBytes: _imageBytes(red: 30),
-              generatedImageBytes: _imageBytes(red: 220, size: generatedSize),
-              fit: pixelControls ? BoxFit.contain : BoxFit.cover,
-              showPixelScaleControls: pixelControls,
+    ProviderScope(
+      overrides: [
+        localStorageServiceProvider.overrideWithValue(_ComparisonStorage()),
+      ],
+      child: MaterialApp(
+        builder: (context, child) => MediaQuery(
+          data: MediaQuery.of(
+            context,
+          ).copyWith(textScaler: TextScaler.linear(textScale)),
+          child: InteractionPolicyScope(child: child!),
+        ),
+        locale: const Locale('zh'),
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: Scaffold(
+          body: Center(
+            child: SizedBox(
+              width: width,
+              height: height,
+              child: ImageComparisonView(
+                sourceImageBytes: _imageBytes(red: 30),
+                generatedImageBytes: _imageBytes(red: 220, size: generatedSize),
+                fit: pixelControls ? BoxFit.contain : BoxFit.cover,
+                showPixelScaleControls: pixelControls,
+              ),
             ),
           ),
         ),
@@ -365,6 +427,19 @@ Future<void> _pumpComparison(
     ),
   );
   await tester.pump();
+}
+
+class _ComparisonStorage extends LocalStorageService {
+  final values = <String, Object?>{};
+
+  @override
+  T? getSetting<T>(String key, {T? defaultValue}) =>
+      values[key] as T? ?? defaultValue;
+
+  @override
+  Future<void> setSetting<T>(String key, T value) async {
+    values[key] = value;
+  }
 }
 
 Uint8List _imageBytes({required int red, Size size = const Size(4, 3)}) {

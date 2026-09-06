@@ -6925,6 +6925,7 @@
   "dlss_srUnavailable": "Install, verify, and enable the runtime in Settings → Integrations → DLSSNR first.",
   "dlss_passes": "NR passes",
   "dlss_passesHint": "Choose 1–3 NR layers. Each neural output feeds the next layer; SR upscales once. Detail and color are composed once at the end. More layers take longer and may change the original style.",
+  "dlss_finalizing": "NR complete · preparing comparison…",
   "dlss_passProgress": "NR passes completed: {completed}/{total}",
   "@dlss_passProgress": {"placeholders": {"completed": {"type": "int"}, "total": {"type": "int"}}},
   "dlss_processing": "Processing",

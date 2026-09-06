@@ -14771,6 +14771,9 @@ class AppLocalizationsJa extends AppLocalizations {
       'NR を 1～3 層重ねます。前の層の出力を次の層へ渡し、SR 拡大は一度だけ行います。ディテールと色は最後に一度だけ合成します。層を増やすと処理時間が延び、元の画風が変わる場合があります。';
 
   @override
+  String get dlss_finalizing => 'NR 完了・比較画像を準備中…';
+
+  @override
   String dlss_passProgress(int completed, int total) {
     return 'NR 完了回数: $completed/$total';
   }

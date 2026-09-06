@@ -65,12 +65,7 @@ void main() {
         '{"seed":42}',
       );
       const options = DlssOptions(scale: 2, passes: 3);
-      final result = preserveDlssImage(
-        source,
-        Uint8List.fromList(img.encodePng(enlarged)),
-        options,
-        'v1.3',
-      );
+      final result = preserveDlssImage(source, enlarged, options, 'v1.3');
       final decoded = img.decodePng(result)!;
       expect((decoded.width, decoded.height), (16, 16));
       expect(decoded.getPixel(0, 0).a, 0);
@@ -190,7 +185,7 @@ void main() {
       );
       final result = preserveDlssImage(
         source,
-        Uint8List.fromList(img.encodePng(processed)),
+        processed,
         const DlssOptions(scale: 1),
         'v1.3',
       );
@@ -213,20 +208,18 @@ void main() {
     },
   );
 
-  test('does not accept a silent resize or invalid output', () {
+  test('does not accept a silent resize or invalid source', () {
     final source = Uint8List.fromList(
       img.encodePng(img.Image(width: 8, height: 8)),
     );
-    final resized = Uint8List.fromList(
-      img.encodePng(img.Image(width: 16, height: 16)),
-    );
+    final resized = img.Image(width: 16, height: 16);
     expect(
       () =>
           preserveDlssImage(source, resized, const DlssOptions(scale: 1), null),
       throwsFormatException,
     );
     expect(
-      () => preserveDlssImage(source, Uint8List(0), const DlssOptions(), null),
+      () => preserveDlssImage(Uint8List(0), resized, const DlssOptions(), null),
       throwsFormatException,
     );
   });
