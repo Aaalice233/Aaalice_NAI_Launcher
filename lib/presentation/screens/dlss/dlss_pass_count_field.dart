@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../core/utils/localization_extension.dart';
 import '../../../data/services/dlss/dlss_options.dart';
-import 'dlss_parameter_row.dart';
+import 'dlss_parameter_slider.dart';
 
 class DlssPassCountField extends StatelessWidget {
   const DlssPassCountField({
@@ -15,28 +15,14 @@ class DlssPassCountField extends StatelessWidget {
   final ValueChanged<int>? onChanged;
 
   @override
-  Widget build(BuildContext context) => Column(
-    crossAxisAlignment: CrossAxisAlignment.stretch,
-    children: [
-      DlssParameterRow(
-        label: context.l10n.dlss_passes,
-        description: context.l10n.dlss_passesHint,
-        trailing: Text('$value', textAlign: TextAlign.end),
-      ),
-      Slider(
-        key: const Key('dlss-passes'),
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-        value: value.toDouble(),
-        min: 1,
-        max: DlssOptions.maximumPasses.toDouble(),
-        divisions: DlssOptions.maximumPasses - 1,
-        label: '$value',
-        semanticFormatterCallback: (value) =>
-            '${context.l10n.dlss_passes}: ${value.round()}',
-        onChanged: onChanged == null
-            ? null
-            : (value) => onChanged!(value.round()),
-      ),
-    ],
+  Widget build(BuildContext context) => DlssParameterSlider(
+    label: context.l10n.dlss_passes,
+    description: context.l10n.dlss_passesHint,
+    value: value.toDouble(),
+    minimum: 1,
+    maximum: DlssOptions.maximumPasses.toDouble(),
+    integerOnly: true,
+    sliderKey: const Key('dlss-passes'),
+    onChanged: onChanged == null ? null : (value) => onChanged!(value.toInt()),
   );
 }

@@ -229,6 +229,26 @@ void main() {
       await tester.tap(passes);
       await tester.pump();
       expect(options.passes, 2);
+      final passInput = field('NR 处理次数');
+      expect(tester.widget<TextField>(passInput).controller!.text, '2');
+      await tester.ensureVisible(passInput);
+      await tester.enterText(passInput, '1');
+      await tester.testTextInput.receiveAction(TextInputAction.done);
+      await tester.pump();
+      expect(options.passes, 1);
+      expect(tester.widget<Slider>(passes).value, 1);
+      for (final invalid in ['0', '4', '2.5', '']) {
+        await tester.enterText(passInput, invalid);
+        await tester.testTextInput.receiveAction(TextInputAction.done);
+        await tester.pump();
+        expect(options.passes, 1);
+        expect(tester.widget<Slider>(passes).value, 1);
+      }
+      await tester.enterText(passInput, '3');
+      await tester.testTextInput.receiveAction(TextInputAction.done);
+      await tester.pump();
+      expect(options.passes, 3);
+      expect(tester.widget<TextField>(passInput).controller!.text, '3');
       expect(tester.takeException(), isNull);
     },
   );
@@ -275,6 +295,11 @@ void main() {
     await tester.tap(find.text('高级参数'));
     await tester.pumpAndSettle();
     expect(tester.takeException(), isNull);
+    expect(find.byType(TextField), findsNWidgets(9));
+    for (final input in tester.widgetList<TextField>(find.byType(TextField))) {
+      expect(input.textAlign, TextAlign.center);
+      expect(input.textAlignVertical, TextAlignVertical.center);
+    }
     expect(find.byType(Slider), findsNWidgets(9));
     final sliders = tester.widgetList<Slider>(find.byType(Slider)).toList();
     expect(sliders.map((slider) => slider.max), [4, 3, 2, 2, 1, 2, 2, 2, 2]);
