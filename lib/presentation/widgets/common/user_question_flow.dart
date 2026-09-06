@@ -233,17 +233,27 @@ class _UserQuestionFlowState extends State<UserQuestionFlow> {
         recommended: false,
         selected: _custom,
         onTap: () => setState(() => _custom = true),
+        editor: _custom
+            ? TextField(
+                key: const ValueKey('user-question-custom-input'),
+                controller: _customController,
+                autofocus: true,
+                minLines: 2,
+                maxLines: 5,
+                onChanged: (_) => setState(() {}),
+                onTapOutside: (_) => FocusScope.of(context).unfocus(),
+                decoration: InputDecoration(
+                  hintText: l10n.userQuestion_customDescription,
+                  filled: false,
+                  isDense: true,
+                  contentPadding: const EdgeInsets.only(top: 4),
+                  border: InputBorder.none,
+                  enabledBorder: InputBorder.none,
+                  focusedBorder: InputBorder.none,
+                ),
+              )
+            : null,
       ),
-      if (_custom)
-        TextField(
-          key: const ValueKey('user-question-custom-input'),
-          controller: _customController,
-          minLines: 2,
-          maxLines: 5,
-          onChanged: (_) => setState(() {}),
-          onTapOutside: (_) => FocusScope.of(context).unfocus(),
-          decoration: InputDecoration(labelText: l10n.userQuestion_custom),
-        ),
     ];
   }
 
@@ -273,6 +283,7 @@ class _QuestionOption extends StatelessWidget {
     required this.recommended,
     required this.selected,
     required this.onTap,
+    this.editor,
   });
 
   final String label;
@@ -280,6 +291,7 @@ class _QuestionOption extends StatelessWidget {
   final bool recommended;
   final bool selected;
   final VoidCallback onTap;
+  final Widget? editor;
 
   @override
   Widget build(BuildContext context) {
@@ -287,16 +299,16 @@ class _QuestionOption extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: Semantics(
-        button: true,
+        button: editor == null,
         selected: selected,
         child: Material(
-          color: selected
+          color: selected && editor == null
               ? theme.colorScheme.secondaryContainer
               : controlSurfaceColor(theme.colorScheme),
           borderRadius: BorderRadius.circular(10),
           child: InkWell(
             borderRadius: BorderRadius.circular(10),
-            onTap: onTap,
+            onTap: editor == null ? onTap : null,
             child: Padding(
               padding: const EdgeInsets.all(12),
               child: Column(
@@ -328,7 +340,7 @@ class _QuestionOption extends StatelessWidget {
                     ],
                   ),
                   const SizedBox(height: 4),
-                  Text(description, style: theme.textTheme.bodySmall),
+                  editor ?? Text(description, style: theme.textTheme.bodySmall),
                 ],
               ),
             ),

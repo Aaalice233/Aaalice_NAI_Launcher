@@ -97,6 +97,22 @@ void main() {
       final next = find.byKey(const ValueKey('user-question-next'));
       expect(tester.widget<FilledButton>(next).onPressed, isNull);
       final input = find.byKey(const ValueKey('user-question-custom-input'));
+      expect(
+        find.descendant(
+          of: find.byKey(const ValueKey('user-question-custom-option')),
+          matching: input,
+        ),
+        findsOneWidget,
+      );
+      expect(
+        tester
+            .widget<EditableText>(
+              find.descendant(of: input, matching: find.byType(EditableText)),
+            )
+            .focusNode
+            .hasFocus,
+        isTrue,
+      );
       await tester.enterText(input, '旅行服装');
       await tapVisible(tester, next);
       expect(find.text('确认你的选择'), findsOneWidget);
@@ -133,7 +149,15 @@ void main() {
         );
         await tapVisible(
           tester,
-          find.byKey(const ValueKey('user-question-option-scene-daily')),
+          find.byKey(const ValueKey('user-question-custom-option')),
+        );
+        final input = find.byKey(const ValueKey('user-question-custom-input'));
+        await tester.ensureVisible(input);
+        await tester.pump();
+        await tester.enterText(input, '保留角色特征，采用旅行服装');
+        await tapVisible(
+          tester,
+          find.byKey(const ValueKey('user-question-next')),
         );
         await tester.ensureVisible(
           find.byKey(const ValueKey('user-question-submit')),
