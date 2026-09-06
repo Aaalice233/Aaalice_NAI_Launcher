@@ -10,7 +10,7 @@ import 'package:nai_launcher/presentation/providers/generation/preview_selection
 import 'package:nai_launcher/presentation/providers/history_click_behavior_provider.dart';
 import 'package:nai_launcher/presentation/providers/image_generation_provider.dart';
 import 'package:nai_launcher/presentation/providers/shortcuts_provider.dart';
-import 'package:nai_launcher/presentation/screens/generation/widgets/image_comparison_view.dart';
+import 'package:nai_launcher/presentation/widgets/common/image_comparison_view.dart';
 import 'package:nai_launcher/presentation/screens/generation/widgets/image_preview.dart';
 import 'package:nai_launcher/presentation/screens/generation/widgets/preview_info_bar.dart';
 import 'package:nai_launcher/presentation/widgets/common/image_detail/image_detail_viewer.dart';

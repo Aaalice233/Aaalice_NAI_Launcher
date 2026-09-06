@@ -25,6 +25,8 @@ class ImageGenerationCoordinator {
     this.concurrencyRetryBudget = const Duration(seconds: 90),
     Future<void> Function(Duration) delay = Future<void>.delayed,
     Random? random,
+    this.postprocess,
+    this.onPostprocessError,
   }) : _apiService = apiService,
        _retryDelays = retryDelays,
        _delay = delay,
@@ -38,10 +40,14 @@ class ImageGenerationCoordinator {
   final Duration concurrencyRetryInterval;
   final Duration concurrencyRetryBudget;
   final Random _random;
+  final Future<Uint8List> Function(Uint8List, Future<void>)? postprocess;
+  final void Function(Object)? onPostprocessError;
 
   GenerationRunHandle? _activeRun;
   bool _skipCurrentRequest = false;
   bool _hasRemainingImages = false;
+  bool _postprocessing = false;
+  bool get isPostprocessing => _postprocessing;
 
   GenerationRunHandle start(GenerationCommand command) {
     final handle = GenerationRunHandle(
@@ -82,6 +88,7 @@ class ImageGenerationCoordinator {
       final allImages = <Uint8List>[];
       Object? lastError;
       var consumedImages = 0;
+      var reportedPostprocessError = false;
 
       yield GenerationStarted(
         runId: command.runId,
@@ -206,8 +213,8 @@ class ImageGenerationCoordinator {
             }
           }
 
-          if (_aborted(handle)) break;
-          if (_skipCurrentRequest) {
+          if (_aborted(handle) && batchImages.isEmpty) break;
+          if (_skipCurrentRequest && batchImages.isEmpty) {
             yield GenerationRequestSkipped(
               runId: command.runId,
               startImage: startImage,
@@ -217,6 +224,32 @@ class ImageGenerationCoordinator {
             continue;
           }
           if (batchImages.isNotEmpty) {
+            final processor = postprocess;
+            if (processor != null && !_aborted(handle)) {
+              _postprocessing = true;
+              try {
+              for (var index = 0; index < batchImages.length; index++) {
+                if (_aborted(handle)) break;
+                try {
+                  batchImages[index] = await processor(
+                    batchImages[index],
+                    handle.cancellation.whenCancelled,
+                  );
+                } catch (error, stack) {
+                  AppLogger.e(
+                    'Image postprocessing failed; retaining original',
+                    error,
+                    stack,
+                    'Generation',
+                  );
+                  if (!reportedPostprocessError) {
+                    onPostprocessError?.call(error);
+                    reportedPostprocessError = true;
+                  }
+                }
+              }
+              } finally { _postprocessing = false; }
+            }
             allImages.addAll(batchImages);
             yield GenerationRequestCompleted(
               runId: command.runId,
@@ -245,6 +278,13 @@ class ImageGenerationCoordinator {
       }
 
       if (_aborted(handle)) {
+        if (allImages.isNotEmpty) {
+          yield GenerationCompleted(
+            runId: command.runId,
+            params: currentParams,
+            images: List<Uint8List>.unmodifiable(allImages),
+          );
+        }
         yield GenerationCancelled(command.runId);
       } else if (allImages.isEmpty) {
         yield GenerationFailed(

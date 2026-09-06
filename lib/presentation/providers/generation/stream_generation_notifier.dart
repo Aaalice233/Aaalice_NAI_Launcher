@@ -8,6 +8,7 @@ import '../../../data/models/image/image_params.dart';
 import 'generation_models.dart';
 import 'generation_settings_notifiers.dart';
 import 'image_generation_service.dart';
+import '../dlss_provider.dart';
 
 part 'stream_generation_notifier.g.dart';
 
@@ -111,8 +112,11 @@ class StreamGenerationNotifier extends _$StreamGenerationNotifier {
       AppLogger.w('Generation already in progress', 'StreamGeneration');
       return;
     }
+    final dlss = ref.read(dlssProvider);
     final service = ImageGenerationService(
       apiService: ref.read(naiImageGenerationApiServiceProvider),
+      postprocess: dlss.automaticSnapshot(),
+      onPostprocessError: dlss.reportEnhancementError,
       streamPreviewEnabled: ref.read(generationStreamPreviewSettingsProvider),
     );
     _service = service;
@@ -150,6 +154,7 @@ class StreamGenerationNotifier extends _$StreamGenerationNotifier {
     if (result.isCancelled) {
       state = state.copyWith(
         status: StreamGenerationStatus.cancelled,
+        result: result.images.firstOrNull,
         endTime: DateTime.now(),
         clearPreviewImage: true,
       );
@@ -172,7 +177,7 @@ class StreamGenerationNotifier extends _$StreamGenerationNotifier {
   void cancel() {
     if (!isGenerating) return;
     final service = _service;
-    _service = null;
+    if (service?.isPostprocessing != true) _service = null;
     service?.cancel();
     state = state.copyWith(
       status: StreamGenerationStatus.cancelled,

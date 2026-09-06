@@ -72,6 +72,7 @@ void main() {
 
     expect(find.byTooltip('局部重绘'), findsOneWidget);
     expect(find.byTooltip('放大'), findsOneWidget);
+    expect(find.byTooltip('DLSSNR 图像增强…'), findsOneWidget);
   });
 
   testWidgets('agent reference action is shown on hover only when available', (

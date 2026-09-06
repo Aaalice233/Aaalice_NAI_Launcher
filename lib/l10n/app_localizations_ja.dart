@@ -14470,4 +14470,204 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get agentTool_resultTruncated => '内容は切り詰められています';
+
+  @override
+  String get dlss_activate => 'このバージョンに切り替え';
+
+  @override
+  String get dlss_automatic => '生成後に自動強化';
+
+  @override
+  String get dlss_automaticHint => '既定ではオフ。生成完了後、履歴と自動保存の前に強化します。';
+
+  @override
+  String get dlss_color => '色混合';
+
+  @override
+  String get dlss_current => '使用中';
+
+  @override
+  String get dlss_defaults => '既定の強化パラメーター';
+
+  @override
+  String get dlss_description => 'ローカルで画像を強化し、ランタイムと既定値を管理します。';
+
+  @override
+  String get dlss_detail => 'ディテール混合';
+
+  @override
+  String get dlss_enabled => 'DLSS 強化を有効にする';
+
+  @override
+  String get dlss_failed => 'DLSS 強化に失敗しました。元画像は保持されています';
+
+  @override
+  String get dlss_install => 'インストールして使用';
+
+  @override
+  String get dlss_installed => 'インストール済み';
+
+  @override
+  String get dlss_intensity => '強度';
+
+  @override
+  String get dlss_latest => '最新の安定版';
+
+  @override
+  String get dlss_noReleases => 'インストール可能なバージョンがありません。一覧を更新してください。';
+
+  @override
+  String get dlss_notInstalled => '未インストール';
+
+  @override
+  String get dlss_original => '元画像';
+
+  @override
+  String get dlss_prerelease => 'プレリリース';
+
+  @override
+  String get dlss_previewHint => 'パラメーターを調整して実行します。毎回元画像から処理し、新しいファイルに保存します。';
+
+  @override
+  String get dlss_result => '強化結果';
+
+  @override
+  String get dlss_run => '強化を実行';
+
+  @override
+  String get dlss_running => 'DLSS 強化を実行中…';
+
+  @override
+  String get dlss_runtime => 'ランタイムのバージョン';
+
+  @override
+  String get dlss_saveCopy => '強化画像を別名保存';
+
+  @override
+  String get dlss_source =>
+      '公開 video2dlssnr Release から完全版をダウンロードし、必要なファイルを抽出して実際の強化テストを行います。';
+
+  @override
+  String get dlss_structure => '局所構造';
+
+  @override
+  String get dlss_style => 'スタイル';
+
+  @override
+  String get dlss_styleCinematic => 'シネマティック';
+
+  @override
+  String get dlss_styleDefault => '既定';
+
+  @override
+  String get dlss_styleNatural => 'ナチュラル';
+
+  @override
+  String get dlss_title => 'DLSSNR 画像強化';
+
+  @override
+  String get dlss_tone => '局所トーン';
+
+  @override
+  String get dlss_validating => 'ファイルを検証して強化をテスト中…';
+
+  @override
+  String get dlss_advanced => '詳細パラメーター';
+
+  @override
+  String get dlss_cancelled => '強化をキャンセルしました。元画像は保持されています';
+
+  @override
+  String get dlss_checking => '検出中';
+
+  @override
+  String get dlss_detect => '再検出';
+
+  @override
+  String get dlss_diskUsage => 'インストール済み容量';
+
+  @override
+  String get dlss_driver => 'ドライバー';
+
+  @override
+  String get dlss_environment => '実行環境';
+
+  @override
+  String get dlss_gpuAutomatic => '利用可能な GPU を自動選択';
+
+  @override
+  String get dlss_initializationFailed => '強化の初期化に失敗しました。診断情報を確認してください';
+
+  @override
+  String get dlss_invalidComponents =>
+      'ランタイムが破損または変更されています。切り替えまたは再インストールしてください';
+
+  @override
+  String get dlss_loadingReleases => 'バージョン一覧を取得中…';
+
+  @override
+  String get dlss_maintenance => '試用と管理';
+
+  @override
+  String get dlss_menu => 'DLSSNR 画像強化…';
+
+  @override
+  String get dlss_missingRuntime => '先にランタイムをインストールしてください';
+
+  @override
+  String get dlss_noGpu => '利用可能な NVIDIA D3D12 デバイスがありません';
+
+  @override
+  String get dlss_notChecked => '未検出';
+
+  @override
+  String get dlss_queued => '強化待ちのタスク';
+
+  @override
+  String get dlss_ready => '実際の強化テストに成功';
+
+  @override
+  String get dlss_tryImage => 'ローカル画像で試す';
+
+  @override
+  String get dlss_unknown => '不明';
+
+  @override
+  String get dlss_downloading => 'コンポーネントをダウンロード中…';
+
+  @override
+  String get dlss_extracting => 'コンポーネントを検証・展開中…';
+
+  @override
+  String get dlss_probing => 'GPU 強化をテスト中…';
+
+  @override
+  String get dlss_activating => 'インストールを完了中…';
+
+  @override
+  String get dlss_diagnostics => '診断の詳細';
+
+  @override
+  String get dlss_operationFailed => '操作に失敗しました。診断の詳細を確認して再試行してください';
+
+  @override
+  String get dlss_downloadFailed => 'ダウンロードに失敗しました。接続を確認して再試行してください';
+
+  @override
+  String get dlss_operationCancelled => '操作をキャンセルしました';
+
+  @override
+  String get dlss_disabled => '強化が無効です。設定で有効にしてください';
+
+  @override
+  String get dlss_timeout => '強化がタイムアウトしました。再試行するか GPU を確認してください';
+
+  @override
+  String get dlss_outOfMemory => 'GPU メモリが不足しています。他の GPU アプリを閉じて再試行してください';
+
+  @override
+  String get dlss_saveFailed => '保存に失敗しました。画像フォルダーと空き容量を確認してください';
+
+  @override
+  String get dlss_compareHint => '区切り線をドラッグして比較、ダブルタップでズーム';
 }

@@ -3,7 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:image/image.dart' as img;
 import 'package:nai_launcher/l10n/app_localizations.dart';
-import 'package:nai_launcher/presentation/screens/generation/widgets/image_comparison_view.dart';
+import 'package:nai_launcher/presentation/widgets/common/image_comparison_view.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();

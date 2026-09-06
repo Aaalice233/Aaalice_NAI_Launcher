@@ -37,6 +37,7 @@ class ProContextMenu extends StatefulWidget {
   final List<ProMenuItem> items;
   final void Function(ProMenuItem) onSelect;
   final double? maxHeight;
+  final double baseWidth;
 
   const ProContextMenu({
     super.key,
@@ -44,20 +45,24 @@ class ProContextMenu extends StatefulWidget {
     required this.items,
     required this.onSelect,
     this.maxHeight,
+    this.baseWidth = minimumWidth,
   });
 
   static const double minimumWidth = 180;
   static const double maximumWidth = 320;
 
-  static double widthFor(BuildContext context) {
+  static double widthFor(
+    BuildContext context, {
+    double baseWidth = minimumWidth,
+  }) {
     final availableWidth = (MediaQuery.sizeOf(context).width - 32).clamp(
       0.0,
       maximumWidth,
     );
-    if (availableWidth <= minimumWidth) return availableWidth;
+    if (availableWidth <= baseWidth) return availableWidth;
     final textScale = MediaQuery.textScalerOf(context).scale(1);
-    return (minimumWidth + (textScale - 1).clamp(0, 2) * 56).clamp(
-      minimumWidth,
+    return (baseWidth + (textScale - 1).clamp(0, 2) * 56).clamp(
+      baseWidth,
       availableWidth,
     );
   }
@@ -162,7 +167,10 @@ class _ProContextMenuState extends State<ProContextMenu> {
           autofocus: true,
           onKeyEvent: _handleKeyEvent,
           child: Container(
-            width: ProContextMenu.widthFor(context),
+            width: ProContextMenu.widthFor(
+              context,
+              baseWidth: widget.baseWidth,
+            ),
             decoration: BoxDecoration(
               color: isDark
                   ? colorScheme.surfaceContainerHigh.withValues(alpha: 0.98)

@@ -25848,6 +25848,402 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Content truncated'**
   String get agentTool_resultTruncated;
+
+  /// No description provided for @dlss_activate.
+  ///
+  /// In en, this message translates to:
+  /// **'Use this version'**
+  String get dlss_activate;
+
+  /// No description provided for @dlss_automatic.
+  ///
+  /// In en, this message translates to:
+  /// **'Enhance after generation'**
+  String get dlss_automatic;
+
+  /// No description provided for @dlss_automaticHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Off by default. Enhance completed images before history and automatic saving.'**
+  String get dlss_automaticHint;
+
+  /// No description provided for @dlss_color.
+  ///
+  /// In en, this message translates to:
+  /// **'Color blend'**
+  String get dlss_color;
+
+  /// No description provided for @dlss_current.
+  ///
+  /// In en, this message translates to:
+  /// **'Active'**
+  String get dlss_current;
+
+  /// No description provided for @dlss_defaults.
+  ///
+  /// In en, this message translates to:
+  /// **'Default enhancement parameters'**
+  String get dlss_defaults;
+
+  /// No description provided for @dlss_description.
+  ///
+  /// In en, this message translates to:
+  /// **'Enhance images locally and manage runtimes and defaults.'**
+  String get dlss_description;
+
+  /// No description provided for @dlss_detail.
+  ///
+  /// In en, this message translates to:
+  /// **'Detail blend'**
+  String get dlss_detail;
+
+  /// No description provided for @dlss_enabled.
+  ///
+  /// In en, this message translates to:
+  /// **'Enable DLSS enhancement'**
+  String get dlss_enabled;
+
+  /// No description provided for @dlss_failed.
+  ///
+  /// In en, this message translates to:
+  /// **'DLSS enhancement failed; the original was retained'**
+  String get dlss_failed;
+
+  /// No description provided for @dlss_install.
+  ///
+  /// In en, this message translates to:
+  /// **'Install and activate'**
+  String get dlss_install;
+
+  /// No description provided for @dlss_installed.
+  ///
+  /// In en, this message translates to:
+  /// **'Installed versions'**
+  String get dlss_installed;
+
+  /// No description provided for @dlss_intensity.
+  ///
+  /// In en, this message translates to:
+  /// **'Intensity'**
+  String get dlss_intensity;
+
+  /// No description provided for @dlss_latest.
+  ///
+  /// In en, this message translates to:
+  /// **'Latest stable'**
+  String get dlss_latest;
+
+  /// No description provided for @dlss_noReleases.
+  ///
+  /// In en, this message translates to:
+  /// **'No installable releases. Refresh the version list.'**
+  String get dlss_noReleases;
+
+  /// No description provided for @dlss_notInstalled.
+  ///
+  /// In en, this message translates to:
+  /// **'Not installed'**
+  String get dlss_notInstalled;
+
+  /// No description provided for @dlss_original.
+  ///
+  /// In en, this message translates to:
+  /// **'Original'**
+  String get dlss_original;
+
+  /// No description provided for @dlss_prerelease.
+  ///
+  /// In en, this message translates to:
+  /// **'Prerelease'**
+  String get dlss_prerelease;
+
+  /// No description provided for @dlss_previewHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Adjust parameters, then run. Every preview starts from this original. Saving creates a new file.'**
+  String get dlss_previewHint;
+
+  /// No description provided for @dlss_result.
+  ///
+  /// In en, this message translates to:
+  /// **'Enhanced result'**
+  String get dlss_result;
+
+  /// No description provided for @dlss_run.
+  ///
+  /// In en, this message translates to:
+  /// **'Run enhancement'**
+  String get dlss_run;
+
+  /// No description provided for @dlss_running.
+  ///
+  /// In en, this message translates to:
+  /// **'Running DLSS enhancement…'**
+  String get dlss_running;
+
+  /// No description provided for @dlss_runtime.
+  ///
+  /// In en, this message translates to:
+  /// **'Runtime versions'**
+  String get dlss_runtime;
+
+  /// No description provided for @dlss_saveCopy.
+  ///
+  /// In en, this message translates to:
+  /// **'Save enhanced copy'**
+  String get dlss_saveCopy;
+
+  /// No description provided for @dlss_source.
+  ///
+  /// In en, this message translates to:
+  /// **'Components come from public video2dlssnr releases. Installation downloads the full archive, extracts required files and runs a real enhancement test.'**
+  String get dlss_source;
+
+  /// No description provided for @dlss_structure.
+  ///
+  /// In en, this message translates to:
+  /// **'Local structure'**
+  String get dlss_structure;
+
+  /// No description provided for @dlss_style.
+  ///
+  /// In en, this message translates to:
+  /// **'Style'**
+  String get dlss_style;
+
+  /// No description provided for @dlss_styleCinematic.
+  ///
+  /// In en, this message translates to:
+  /// **'Cinematic'**
+  String get dlss_styleCinematic;
+
+  /// No description provided for @dlss_styleDefault.
+  ///
+  /// In en, this message translates to:
+  /// **'Default'**
+  String get dlss_styleDefault;
+
+  /// No description provided for @dlss_styleNatural.
+  ///
+  /// In en, this message translates to:
+  /// **'Natural'**
+  String get dlss_styleNatural;
+
+  /// No description provided for @dlss_title.
+  ///
+  /// In en, this message translates to:
+  /// **'DLSSNR Image Enhancement'**
+  String get dlss_title;
+
+  /// No description provided for @dlss_tone.
+  ///
+  /// In en, this message translates to:
+  /// **'Local tone'**
+  String get dlss_tone;
+
+  /// No description provided for @dlss_validating.
+  ///
+  /// In en, this message translates to:
+  /// **'Verifying components and testing enhancement…'**
+  String get dlss_validating;
+
+  /// No description provided for @dlss_advanced.
+  ///
+  /// In en, this message translates to:
+  /// **'Advanced parameters'**
+  String get dlss_advanced;
+
+  /// No description provided for @dlss_cancelled.
+  ///
+  /// In en, this message translates to:
+  /// **'Enhancement cancelled; original retained'**
+  String get dlss_cancelled;
+
+  /// No description provided for @dlss_checking.
+  ///
+  /// In en, this message translates to:
+  /// **'Checking'**
+  String get dlss_checking;
+
+  /// No description provided for @dlss_detect.
+  ///
+  /// In en, this message translates to:
+  /// **'Check again'**
+  String get dlss_detect;
+
+  /// No description provided for @dlss_diskUsage.
+  ///
+  /// In en, this message translates to:
+  /// **'Installed component size'**
+  String get dlss_diskUsage;
+
+  /// No description provided for @dlss_driver.
+  ///
+  /// In en, this message translates to:
+  /// **'Driver'**
+  String get dlss_driver;
+
+  /// No description provided for @dlss_environment.
+  ///
+  /// In en, this message translates to:
+  /// **'Environment'**
+  String get dlss_environment;
+
+  /// No description provided for @dlss_gpuAutomatic.
+  ///
+  /// In en, this message translates to:
+  /// **'Automatically select a working GPU'**
+  String get dlss_gpuAutomatic;
+
+  /// No description provided for @dlss_initializationFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Enhancement initialization failed. Check the diagnostics.'**
+  String get dlss_initializationFailed;
+
+  /// No description provided for @dlss_invalidComponents.
+  ///
+  /// In en, this message translates to:
+  /// **'Runtime files are damaged or changed. Switch versions or reinstall.'**
+  String get dlss_invalidComponents;
+
+  /// No description provided for @dlss_loadingReleases.
+  ///
+  /// In en, this message translates to:
+  /// **'Loading release list…'**
+  String get dlss_loadingReleases;
+
+  /// No description provided for @dlss_maintenance.
+  ///
+  /// In en, this message translates to:
+  /// **'Try and maintain'**
+  String get dlss_maintenance;
+
+  /// No description provided for @dlss_menu.
+  ///
+  /// In en, this message translates to:
+  /// **'DLSSNR Image Enhancement…'**
+  String get dlss_menu;
+
+  /// No description provided for @dlss_missingRuntime.
+  ///
+  /// In en, this message translates to:
+  /// **'Install a runtime first'**
+  String get dlss_missingRuntime;
+
+  /// No description provided for @dlss_noGpu.
+  ///
+  /// In en, this message translates to:
+  /// **'No usable NVIDIA D3D12 device'**
+  String get dlss_noGpu;
+
+  /// No description provided for @dlss_notChecked.
+  ///
+  /// In en, this message translates to:
+  /// **'Not checked'**
+  String get dlss_notChecked;
+
+  /// No description provided for @dlss_queued.
+  ///
+  /// In en, this message translates to:
+  /// **'Queued enhancements'**
+  String get dlss_queued;
+
+  /// No description provided for @dlss_ready.
+  ///
+  /// In en, this message translates to:
+  /// **'Real enhancement test passed'**
+  String get dlss_ready;
+
+  /// No description provided for @dlss_tryImage.
+  ///
+  /// In en, this message translates to:
+  /// **'Try a local image'**
+  String get dlss_tryImage;
+
+  /// No description provided for @dlss_unknown.
+  ///
+  /// In en, this message translates to:
+  /// **'Unknown'**
+  String get dlss_unknown;
+
+  /// No description provided for @dlss_downloading.
+  ///
+  /// In en, this message translates to:
+  /// **'Downloading components…'**
+  String get dlss_downloading;
+
+  /// No description provided for @dlss_extracting.
+  ///
+  /// In en, this message translates to:
+  /// **'Verifying and extracting components…'**
+  String get dlss_extracting;
+
+  /// No description provided for @dlss_probing.
+  ///
+  /// In en, this message translates to:
+  /// **'Testing GPU enhancement…'**
+  String get dlss_probing;
+
+  /// No description provided for @dlss_activating.
+  ///
+  /// In en, this message translates to:
+  /// **'Finishing installation…'**
+  String get dlss_activating;
+
+  /// No description provided for @dlss_diagnostics.
+  ///
+  /// In en, this message translates to:
+  /// **'Diagnostic details'**
+  String get dlss_diagnostics;
+
+  /// No description provided for @dlss_operationFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Operation failed. Check diagnostic details and retry.'**
+  String get dlss_operationFailed;
+
+  /// No description provided for @dlss_downloadFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Download failed. Check your connection and retry.'**
+  String get dlss_downloadFailed;
+
+  /// No description provided for @dlss_operationCancelled.
+  ///
+  /// In en, this message translates to:
+  /// **'Operation cancelled'**
+  String get dlss_operationCancelled;
+
+  /// No description provided for @dlss_disabled.
+  ///
+  /// In en, this message translates to:
+  /// **'Enhancement is disabled. Enable it in settings first.'**
+  String get dlss_disabled;
+
+  /// No description provided for @dlss_timeout.
+  ///
+  /// In en, this message translates to:
+  /// **'Enhancement timed out. Retry or check the GPU.'**
+  String get dlss_timeout;
+
+  /// No description provided for @dlss_outOfMemory.
+  ///
+  /// In en, this message translates to:
+  /// **'Insufficient GPU memory. Close other GPU applications and retry.'**
+  String get dlss_outOfMemory;
+
+  /// No description provided for @dlss_saveFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Save failed. Check the image folder and free disk space.'**
+  String get dlss_saveFailed;
+
+  /// No description provided for @dlss_compareHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Drag the divider to compare; double-tap to zoom'**
+  String get dlss_compareHint;
 }
 
 class _AppLocalizationsDelegate

@@ -12,6 +12,7 @@ import '../../widgets/common/owned_scroll_controller.dart';
 import '../../widgets/drop/global_drop_handler.dart';
 import 'desktop_layout.dart';
 import 'mobile_layout.dart';
+import '../dlss/dlss_status_banner.dart';
 import 'web_style_layout.dart';
 import 'widgets/fixed_tags_sidebar.dart';
 import 'widgets/prompt_input_controller.dart';
@@ -141,9 +142,12 @@ class _GenerationScreenState extends ConsumerState<GenerationScreen> {
       },
     );
 
+    final result = PlatformCapabilities.current.supportsDlssEnhancement
+        ? Column(children: [const DlssStatusBanner(), Expanded(child: content)])
+        : content;
     if (!PlatformCapabilities.current.supportsExternalFileDrop) {
-      return content;
+      return result;
     }
-    return GlobalDropHandler(child: content);
+    return GlobalDropHandler(child: result);
   }
 }

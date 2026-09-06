@@ -15,6 +15,7 @@ enum LocalImageContextAction {
   saveToPreciseRefLibrary,
   sendToKrita,
   upscale,
+  dlssEnhance,
   shareToDiscord,
   createWatermark,
   createMosaic,
@@ -95,6 +96,7 @@ class LocalImageContextMenu {
         mediaQuery.padding.horizontal -
         (_screenPadding * 2);
     return BoxConstraints(
+      minWidth: availableWidth.clamp(0.0, 300.0).toDouble(),
       maxWidth: availableWidth.clamp(0.0, _maxWidth).toDouble(),
     );
   }
@@ -250,6 +252,9 @@ class LocalImageContextMenu {
         icon: Icons.zoom_in,
         label: context.l10n.gallery_upscale,
       ),
+      if (PlatformCapabilities.current.supportsDlssEnhancement)
+        _item(context, value: LocalImageContextAction.dlssEnhance,
+          icon: Icons.auto_awesome, label: context.l10n.dlss_menu),
       _item(
         context,
         value: LocalImageContextAction.shareToDiscord,

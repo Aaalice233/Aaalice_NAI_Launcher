@@ -14859,4 +14859,216 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get agentTool_resultTruncated => 'Content truncated';
+
+  @override
+  String get dlss_activate => 'Use this version';
+
+  @override
+  String get dlss_automatic => 'Enhance after generation';
+
+  @override
+  String get dlss_automaticHint =>
+      'Off by default. Enhance completed images before history and automatic saving.';
+
+  @override
+  String get dlss_color => 'Color blend';
+
+  @override
+  String get dlss_current => 'Active';
+
+  @override
+  String get dlss_defaults => 'Default enhancement parameters';
+
+  @override
+  String get dlss_description =>
+      'Enhance images locally and manage runtimes and defaults.';
+
+  @override
+  String get dlss_detail => 'Detail blend';
+
+  @override
+  String get dlss_enabled => 'Enable DLSS enhancement';
+
+  @override
+  String get dlss_failed =>
+      'DLSS enhancement failed; the original was retained';
+
+  @override
+  String get dlss_install => 'Install and activate';
+
+  @override
+  String get dlss_installed => 'Installed versions';
+
+  @override
+  String get dlss_intensity => 'Intensity';
+
+  @override
+  String get dlss_latest => 'Latest stable';
+
+  @override
+  String get dlss_noReleases =>
+      'No installable releases. Refresh the version list.';
+
+  @override
+  String get dlss_notInstalled => 'Not installed';
+
+  @override
+  String get dlss_original => 'Original';
+
+  @override
+  String get dlss_prerelease => 'Prerelease';
+
+  @override
+  String get dlss_previewHint =>
+      'Adjust parameters, then run. Every preview starts from this original. Saving creates a new file.';
+
+  @override
+  String get dlss_result => 'Enhanced result';
+
+  @override
+  String get dlss_run => 'Run enhancement';
+
+  @override
+  String get dlss_running => 'Running DLSS enhancement…';
+
+  @override
+  String get dlss_runtime => 'Runtime versions';
+
+  @override
+  String get dlss_saveCopy => 'Save enhanced copy';
+
+  @override
+  String get dlss_source =>
+      'Components come from public video2dlssnr releases. Installation downloads the full archive, extracts required files and runs a real enhancement test.';
+
+  @override
+  String get dlss_structure => 'Local structure';
+
+  @override
+  String get dlss_style => 'Style';
+
+  @override
+  String get dlss_styleCinematic => 'Cinematic';
+
+  @override
+  String get dlss_styleDefault => 'Default';
+
+  @override
+  String get dlss_styleNatural => 'Natural';
+
+  @override
+  String get dlss_title => 'DLSSNR Image Enhancement';
+
+  @override
+  String get dlss_tone => 'Local tone';
+
+  @override
+  String get dlss_validating => 'Verifying components and testing enhancement…';
+
+  @override
+  String get dlss_advanced => 'Advanced parameters';
+
+  @override
+  String get dlss_cancelled => 'Enhancement cancelled; original retained';
+
+  @override
+  String get dlss_checking => 'Checking';
+
+  @override
+  String get dlss_detect => 'Check again';
+
+  @override
+  String get dlss_diskUsage => 'Installed component size';
+
+  @override
+  String get dlss_driver => 'Driver';
+
+  @override
+  String get dlss_environment => 'Environment';
+
+  @override
+  String get dlss_gpuAutomatic => 'Automatically select a working GPU';
+
+  @override
+  String get dlss_initializationFailed =>
+      'Enhancement initialization failed. Check the diagnostics.';
+
+  @override
+  String get dlss_invalidComponents =>
+      'Runtime files are damaged or changed. Switch versions or reinstall.';
+
+  @override
+  String get dlss_loadingReleases => 'Loading release list…';
+
+  @override
+  String get dlss_maintenance => 'Try and maintain';
+
+  @override
+  String get dlss_menu => 'DLSSNR Image Enhancement…';
+
+  @override
+  String get dlss_missingRuntime => 'Install a runtime first';
+
+  @override
+  String get dlss_noGpu => 'No usable NVIDIA D3D12 device';
+
+  @override
+  String get dlss_notChecked => 'Not checked';
+
+  @override
+  String get dlss_queued => 'Queued enhancements';
+
+  @override
+  String get dlss_ready => 'Real enhancement test passed';
+
+  @override
+  String get dlss_tryImage => 'Try a local image';
+
+  @override
+  String get dlss_unknown => 'Unknown';
+
+  @override
+  String get dlss_downloading => 'Downloading components…';
+
+  @override
+  String get dlss_extracting => 'Verifying and extracting components…';
+
+  @override
+  String get dlss_probing => 'Testing GPU enhancement…';
+
+  @override
+  String get dlss_activating => 'Finishing installation…';
+
+  @override
+  String get dlss_diagnostics => 'Diagnostic details';
+
+  @override
+  String get dlss_operationFailed =>
+      'Operation failed. Check diagnostic details and retry.';
+
+  @override
+  String get dlss_downloadFailed =>
+      'Download failed. Check your connection and retry.';
+
+  @override
+  String get dlss_operationCancelled => 'Operation cancelled';
+
+  @override
+  String get dlss_disabled =>
+      'Enhancement is disabled. Enable it in settings first.';
+
+  @override
+  String get dlss_timeout => 'Enhancement timed out. Retry or check the GPU.';
+
+  @override
+  String get dlss_outOfMemory =>
+      'Insufficient GPU memory. Close other GPU applications and retry.';
+
+  @override
+  String get dlss_saveFailed =>
+      'Save failed. Check the image folder and free disk space.';
+
+  @override
+  String get dlss_compareHint =>
+      'Drag the divider to compare; double-tap to zoom';
 }

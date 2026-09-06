@@ -110,6 +110,7 @@ NAI Launcher is built for people who use NovelAI regularly. Generation, editing,
 
 - **Krita Bridge** sends a Krita canvas to Launcher for generation or inpainting, then returns the result.
 - **ComfyUI** connects to a local server for regular upscale or SeedVR2 workflows. Models and custom nodes stay under your ComfyUI installation.
+- **DLSSNR image enhancement (Windows)**: Install the public runtime on demand and test your NVIDIA GPU under Settings → Integrations → DLSSNR. Supports automatic enhancement after generation (off by default), manual image-card enhancement, and a draggable before/after divider. Images are processed locally; manual saves create a new file without overwriting the original.
 - Gallery, preview, and editing flows can open these tools directly instead of requiring repeated manual exports.
 
 ### ☁️ Sync and backup

@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import '../../../../core/utils/localization_extension.dart';
-import '../../../adaptive/interaction_policy.dart';
-import '../../../widgets/common/decoded_memory_image.dart';
+import '../../../core/utils/localization_extension.dart';
+import '../../adaptive/interaction_policy.dart';
+import 'decoded_memory_image.dart';
 
 /// Synchronized before/after image comparison with a draggable divider.
 class ImageComparisonView extends StatefulWidget {
@@ -11,10 +11,12 @@ class ImageComparisonView extends StatefulWidget {
     super.key,
     required this.sourceImageBytes,
     required this.generatedImageBytes,
+    this.fit = BoxFit.cover,
   });
 
   final Uint8List sourceImageBytes;
   final Uint8List generatedImageBytes;
+  final BoxFit fit;
 
   @override
   State<ImageComparisonView> createState() => _ImageComparisonViewState();
@@ -115,7 +117,7 @@ class _ImageComparisonViewState extends State<ImageComparisonView> {
                   child: DecodedMemoryImage(
                     key: const ValueKey('generation-comparison-generated'),
                     bytes: widget.generatedImageBytes,
-                    fit: BoxFit.cover,
+                    fit: widget.fit,
                   ),
                 ),
                 ClipRect(
@@ -127,7 +129,7 @@ class _ImageComparisonViewState extends State<ImageComparisonView> {
                   child: DecodedMemoryImage(
                     key: const ValueKey('generation-comparison-source'),
                     bytes: widget.sourceImageBytes,
-                    fit: BoxFit.cover,
+                    fit: widget.fit,
                   ),
                 ),
                 AnimatedBuilder(

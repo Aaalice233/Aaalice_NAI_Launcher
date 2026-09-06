@@ -14211,6 +14211,205 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get agentTool_resultTruncated => '内容已截断';
+
+  @override
+  String get dlss_activate => '切换到此版本';
+
+  @override
+  String get dlss_automatic => '生成后自动增强';
+
+  @override
+  String get dlss_automaticHint => '默认关闭。开启后，生成完成的图像会先增强，再进入历史记录和自动保存。';
+
+  @override
+  String get dlss_color => '颜色混合';
+
+  @override
+  String get dlss_current => '当前使用';
+
+  @override
+  String get dlss_defaults => '默认增强参数';
+
+  @override
+  String get dlss_description => '在本机增强图像，管理所需运行库与默认参数。';
+
+  @override
+  String get dlss_detail => '细节混合';
+
+  @override
+  String get dlss_enabled => '启用 DLSS 增强';
+
+  @override
+  String get dlss_failed => 'DLSS 增强失败，原图已保留';
+
+  @override
+  String get dlss_install => '安装并使用';
+
+  @override
+  String get dlss_installed => '已安装版本';
+
+  @override
+  String get dlss_intensity => '强度';
+
+  @override
+  String get dlss_latest => '最新稳定版';
+
+  @override
+  String get dlss_noReleases => '尚无可安装版本。请刷新版本列表。';
+
+  @override
+  String get dlss_notInstalled => '尚未安装';
+
+  @override
+  String get dlss_original => '原图';
+
+  @override
+  String get dlss_prerelease => '预发布版';
+
+  @override
+  String get dlss_previewHint => '调整参数后点击运行。每次都从这张原图开始，保存时创建新文件。';
+
+  @override
+  String get dlss_result => '增强结果';
+
+  @override
+  String get dlss_run => '运行增强';
+
+  @override
+  String get dlss_running => '正在进行 DLSS 增强…';
+
+  @override
+  String get dlss_runtime => '运行库版本';
+
+  @override
+  String get dlss_saveCopy => '另存增强图像';
+
+  @override
+  String get dlss_source =>
+      '组件来自 video2dlssnr 的公开 Release。安装会下载完整包，仅提取所需组件，并进行真实增强测试。';
+
+  @override
+  String get dlss_structure => '局部结构';
+
+  @override
+  String get dlss_style => '风格';
+
+  @override
+  String get dlss_styleCinematic => '电影感';
+
+  @override
+  String get dlss_styleDefault => '默认';
+
+  @override
+  String get dlss_styleNatural => '自然';
+
+  @override
+  String get dlss_title => 'DLSSNR 图像增强';
+
+  @override
+  String get dlss_tone => '局部色调';
+
+  @override
+  String get dlss_validating => '正在校验组件并测试增强…';
+
+  @override
+  String get dlss_advanced => '高级参数';
+
+  @override
+  String get dlss_cancelled => '增强已取消，原图已保留';
+
+  @override
+  String get dlss_checking => '正在检测';
+
+  @override
+  String get dlss_detect => '重新检测';
+
+  @override
+  String get dlss_diskUsage => '组件安装占用';
+
+  @override
+  String get dlss_driver => '驱动';
+
+  @override
+  String get dlss_environment => '运行环境';
+
+  @override
+  String get dlss_gpuAutomatic => '自动选择可用 GPU';
+
+  @override
+  String get dlss_initializationFailed => '增强初始化未通过，请查看诊断信息';
+
+  @override
+  String get dlss_invalidComponents => '运行库损坏或文件发生变化，请切换版本或重新安装';
+
+  @override
+  String get dlss_loadingReleases => '正在获取版本列表…';
+
+  @override
+  String get dlss_maintenance => '试用与维护';
+
+  @override
+  String get dlss_menu => 'DLSSNR 图像增强…';
+
+  @override
+  String get dlss_missingRuntime => '请先安装运行库';
+
+  @override
+  String get dlss_noGpu => '没有可用的 NVIDIA D3D12 设备';
+
+  @override
+  String get dlss_notChecked => '尚未检测';
+
+  @override
+  String get dlss_queued => '等待增强的任务';
+
+  @override
+  String get dlss_ready => '真实增强检测通过';
+
+  @override
+  String get dlss_tryImage => '选择本地图片试用';
+
+  @override
+  String get dlss_unknown => '未知';
+
+  @override
+  String get dlss_downloading => '正在下载组件…';
+
+  @override
+  String get dlss_extracting => '正在校验并解压组件…';
+
+  @override
+  String get dlss_probing => '正在测试 GPU 增强…';
+
+  @override
+  String get dlss_activating => '正在完成安装…';
+
+  @override
+  String get dlss_diagnostics => '诊断详情';
+
+  @override
+  String get dlss_operationFailed => '操作失败，请查看诊断详情后重试';
+
+  @override
+  String get dlss_downloadFailed => '下载失败，请检查网络后重试';
+
+  @override
+  String get dlss_operationCancelled => '操作已取消';
+
+  @override
+  String get dlss_disabled => '增强功能已关闭，请先在设置中启用';
+
+  @override
+  String get dlss_timeout => '增强超时，请重试或检查 GPU 状态';
+
+  @override
+  String get dlss_outOfMemory => '显存不足，请关闭其他占用 GPU 的应用后重试';
+
+  @override
+  String get dlss_saveFailed => '保存失败，请检查图像保存目录及磁盘空间';
+
+  @override
+  String get dlss_compareHint => '左右拖动分割线对比，双击缩放';
 }
 
 /// The translations for Chinese, using the Han script (`zh_Hant`).
@@ -28421,4 +28620,203 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get agentTool_resultTruncated => '內容已截斷';
+
+  @override
+  String get dlss_activate => '切換到此版本';
+
+  @override
+  String get dlss_automatic => '生成後自動增強';
+
+  @override
+  String get dlss_automaticHint => '預設關閉。開啟後，生成的影像會先增強，再進入歷史記錄和自動儲存。';
+
+  @override
+  String get dlss_color => '色彩混合';
+
+  @override
+  String get dlss_current => '目前使用';
+
+  @override
+  String get dlss_defaults => '預設增強參數';
+
+  @override
+  String get dlss_description => '在本機增強影像，管理所需執行階段與預設參數。';
+
+  @override
+  String get dlss_detail => '細節混合';
+
+  @override
+  String get dlss_enabled => '啟用 DLSS 增強';
+
+  @override
+  String get dlss_failed => 'DLSS 增強失敗，原圖已保留';
+
+  @override
+  String get dlss_install => '安裝並使用';
+
+  @override
+  String get dlss_installed => '已安裝版本';
+
+  @override
+  String get dlss_intensity => '強度';
+
+  @override
+  String get dlss_latest => '最新穩定版';
+
+  @override
+  String get dlss_noReleases => '尚無可安裝版本。請重新整理版本清單。';
+
+  @override
+  String get dlss_notInstalled => '尚未安裝';
+
+  @override
+  String get dlss_original => '原圖';
+
+  @override
+  String get dlss_prerelease => '預先發行版';
+
+  @override
+  String get dlss_previewHint => '調整參數後點擊執行。每次都從這張原圖開始，儲存時建立新檔案。';
+
+  @override
+  String get dlss_result => '增強結果';
+
+  @override
+  String get dlss_run => '執行增強';
+
+  @override
+  String get dlss_running => '正在進行 DLSS 增強…';
+
+  @override
+  String get dlss_runtime => '執行階段版本';
+
+  @override
+  String get dlss_saveCopy => '另存增強影像';
+
+  @override
+  String get dlss_source =>
+      '元件來自 video2dlssnr 的公開 Release。安裝會下載完整套件，僅擷取所需元件，並進行實際增強測試。';
+
+  @override
+  String get dlss_structure => '局部結構';
+
+  @override
+  String get dlss_style => '風格';
+
+  @override
+  String get dlss_styleCinematic => '電影感';
+
+  @override
+  String get dlss_styleDefault => '預設';
+
+  @override
+  String get dlss_styleNatural => '自然';
+
+  @override
+  String get dlss_title => 'DLSSNR 圖像增強';
+
+  @override
+  String get dlss_tone => '局部色調';
+
+  @override
+  String get dlss_validating => '正在驗證元件並測試增強…';
+
+  @override
+  String get dlss_advanced => '進階參數';
+
+  @override
+  String get dlss_cancelled => '增強已取消，原圖已保留';
+
+  @override
+  String get dlss_checking => '正在偵測';
+
+  @override
+  String get dlss_detect => '重新偵測';
+
+  @override
+  String get dlss_diskUsage => '元件安裝用量';
+
+  @override
+  String get dlss_driver => '驅動程式';
+
+  @override
+  String get dlss_environment => '執行環境';
+
+  @override
+  String get dlss_gpuAutomatic => '自動選擇可用 GPU';
+
+  @override
+  String get dlss_initializationFailed => '增強初始化未通過，請查看診斷資訊';
+
+  @override
+  String get dlss_invalidComponents => '執行階段損壞或檔案變更，請切換版本或重新安裝';
+
+  @override
+  String get dlss_loadingReleases => '正在取得版本清單…';
+
+  @override
+  String get dlss_maintenance => '試用與維護';
+
+  @override
+  String get dlss_menu => 'DLSSNR 圖像增強…';
+
+  @override
+  String get dlss_missingRuntime => '請先安裝執行階段';
+
+  @override
+  String get dlss_noGpu => '沒有可用的 NVIDIA D3D12 裝置';
+
+  @override
+  String get dlss_notChecked => '尚未偵測';
+
+  @override
+  String get dlss_queued => '等待增強的工作';
+
+  @override
+  String get dlss_ready => '實際增強偵測通過';
+
+  @override
+  String get dlss_tryImage => '選擇本機影像試用';
+
+  @override
+  String get dlss_unknown => '未知';
+
+  @override
+  String get dlss_downloading => '正在下載元件…';
+
+  @override
+  String get dlss_extracting => '正在驗證並解壓元件…';
+
+  @override
+  String get dlss_probing => '正在測試 GPU 增強…';
+
+  @override
+  String get dlss_activating => '正在完成安裝…';
+
+  @override
+  String get dlss_diagnostics => '診斷詳情';
+
+  @override
+  String get dlss_operationFailed => '操作失敗，請查看診斷詳情後重試';
+
+  @override
+  String get dlss_downloadFailed => '下載失敗，請檢查網路後重試';
+
+  @override
+  String get dlss_operationCancelled => '操作已取消';
+
+  @override
+  String get dlss_disabled => '增強功能已關閉，請先在設定中啟用';
+
+  @override
+  String get dlss_timeout => '增強逾時，請重試或檢查 GPU 狀態';
+
+  @override
+  String get dlss_outOfMemory => '顯示記憶體不足，請關閉其他占用 GPU 的應用程式後重試';
+
+  @override
+  String get dlss_saveFailed => '儲存失敗，請檢查圖像儲存目錄及磁碟空間';
+
+  @override
+  String get dlss_compareHint => '左右拖曳分隔線比較，按兩下縮放';
 }

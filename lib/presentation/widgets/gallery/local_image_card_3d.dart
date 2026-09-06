@@ -469,9 +469,7 @@ class _LocalImageCard3DState extends ConsumerState<LocalImageCard3D> {
     final mosaicEnabled =
         widget.onSendAction != null &&
         ref.watch(
-          mosaicSettingsProvider.select(
-            (state) => state.configuration.enabled,
-          ),
+          mosaicSettingsProvider.select((state) => state.configuration.enabled),
         );
     final isMosaicDerivative =
         mosaicEnabled &&
@@ -547,7 +545,7 @@ class _LocalImageCard3DState extends ConsumerState<LocalImageCard3D> {
             if (widget.onSendAction != null && widget.enableAddToAgent)
               item(
                 value: LocalImageContextAction.addToAgent,
-                icon: Icons.auto_awesome_outlined,
+                icon: Icons.smart_toy_outlined,
                 label: context.l10n.agentChat_addResource,
               ),
             if (widget.onSendAction != null)
@@ -612,7 +610,7 @@ class _LocalImageCard3DState extends ConsumerState<LocalImageCard3D> {
         ),
       if (widget.onSendAction != null && widget.enableAddToAgent)
         CardActionButtonConfig(
-          icon: Icons.auto_awesome_outlined,
+          icon: Icons.smart_toy_outlined,
           tooltip: context.l10n.agentChat_addResource,
           onPressed: () => unawaited(
             widget.onSendAction!(LocalImageContextAction.addToAgent),
@@ -625,6 +623,14 @@ class _LocalImageCard3DState extends ConsumerState<LocalImageCard3D> {
         onPressed: _copyImageToClipboard,
       ),
       if (widget.onSendAction != null) ...[
+        if (PlatformCapabilities.current.supportsDlssEnhancement)
+          CardActionButtonConfig(
+            icon: Icons.tonality_outlined,
+            tooltip: context.l10n.dlss_title,
+            onPressed: () => unawaited(
+              widget.onSendAction!(LocalImageContextAction.dlssEnhance),
+            ),
+          ),
         CardActionButtonConfig(
           icon: Icons.text_snippet_outlined,
           tooltip: context.l10n.localGallery_copyPrompt,
