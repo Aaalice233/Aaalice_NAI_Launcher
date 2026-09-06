@@ -20,11 +20,62 @@ import 'package:nai_launcher/presentation/widgets/common/image_comparison_view.d
 import 'package:nai_launcher/presentation/screens/dlss/dlss_enhancement_panel.dart';
 import 'package:nai_launcher/presentation/screens/dlss/dlss_settings_section.dart';
 import 'package:nai_launcher/presentation/screens/dlss/dlss_options_editor.dart';
+import 'package:nai_launcher/presentation/screens/generation/widgets/img2img_dlss_upscale_controls.dart';
 import 'package:nai_launcher/presentation/screens/settings/sections/generation_settings_section.dart';
 import 'package:nai_launcher/presentation/screens/settings/sections/integrations_settings_section.dart';
 import 'package:nai_launcher/presentation/widgets/gallery/local_image_context_menu.dart';
 
 void main() {
+  testWidgets(
+    'numeric NR controls accept values beyond sliders and reject invalid input',
+    (tester) async {
+      await tester.binding.setSurfaceSize(const Size(320, 400));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      var options = const DlssOptions();
+      await tester.pumpWidget(
+        _app(
+          _Controller(),
+          Scaffold(
+            body: StatefulBuilder(
+              builder: (context, setState) => SingleChildScrollView(
+                child: DlssOptionsEditor(
+                  value: options,
+                  onChanged: (value) => setState(() => options = value),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      Finder field(String label) => find.byWidgetPredicate(
+        (widget) =>
+            widget is TextField && widget.decoration?.labelText == label,
+      );
+      final strength = field('强度');
+      await tester.ensureVisible(strength);
+      await tester.enterText(strength, '3.25');
+      await tester.testTextInput.receiveAction(TextInputAction.done);
+      await tester.pump();
+      expect(options.intensity, 3.25);
+      await tester.enterText(strength, 'NaN');
+      await tester.testTextInput.receiveAction(TextInputAction.done);
+      await tester.pump();
+      expect(options.intensity, 3.25);
+      expect(find.text('请输入此参数支持的有效数值。'), findsOneWidget);
+      final passes = find.byKey(const Key('dlss-passes'));
+      await tester.ensureVisible(passes);
+      await tester.enterText(passes, '3');
+      await tester.testTextInput.receiveAction(TextInputAction.done);
+      await tester.pump();
+      expect(options.passes, 3);
+      await tester.enterText(passes, '2.5');
+      await tester.testTextInput.receiveAction(TextInputAction.done);
+      await tester.pump();
+      expect(options.passes, 3);
+      expect(find.text('请输入大于或等于 1 的整数。'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    },
+  );
   testWidgets('automatic enhancement failures remain in DLSS settings', (
     tester,
   ) async {
@@ -64,14 +115,16 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('高级参数'));
     await tester.tap(find.text('高级参数'));
     await tester.pumpAndSettle();
     expect(tester.takeException(), isNull);
-    expect(find.byType(Slider), findsNWidgets(7));
+    expect(find.byType(Slider), findsNWidgets(8));
     final sliders = tester.widgetList<Slider>(find.byType(Slider)).toList();
-    expect(sliders.map((slider) => slider.max), [2, 2, 1, 2, 2, 2, 2]);
-    expect(sliders.map((slider) => slider.min), [0, 0, 0, 0, 0, -1, -1]);
+    expect(sliders.map((slider) => slider.max), [4, 2, 2, 1, 2, 2, 2, 2]);
+    expect(sliders.map((slider) => slider.min), [1, 0, 0, 0, 0, 0, -1, -1]);
     expect(sliders.map((slider) => slider.divisions), [
+      null,
       40,
       40,
       20,
@@ -83,6 +136,35 @@ void main() {
   });
   for (final width in [320.0, 600.0, 840.0, 1180.0, 1600.0]) {
     for (final scale in [1.0, 3.0]) {
+      testWidgets('SR scale entry remains reachable at $width / $scale', (
+        tester,
+      ) async {
+        await tester.binding.setSurfaceSize(Size(width, 400));
+        addTearDown(() => tester.binding.setSurfaceSize(null));
+        final controller = _Controller();
+        await tester.pumpWidget(
+          _app(
+            controller,
+            const Scaffold(
+              body: SafeArea(
+                child: SingleChildScrollView(
+                  child: Img2ImgDlssUpscaleControls(),
+                ),
+              ),
+            ),
+            scale: scale,
+          ),
+        );
+        await tester.pumpAndSettle();
+        final input = find.byType(TextField);
+        await tester.ensureVisible(input);
+        await tester.enterText(input, '2.5');
+        await tester.testTextInput.receiveAction(TextInputAction.done);
+        await tester.pump();
+        expect(controller.options.scale, 2.5);
+        expect(find.textContaining('当前运行库仍会计算一次 NR'), findsOneWidget);
+        expect(tester.takeException(), isNull);
+      });
       testWidgets('advanced NR controls can be changed at $width / $scale', (
         tester,
       ) async {
@@ -231,7 +313,11 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
-    await tester.scrollUntilVisible(find.byKey(const Key('dlss-enabled')), 200);
+    await tester.scrollUntilVisible(
+      find.byKey(const Key('dlss-enabled')),
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
     final toggle = tester.widget<SwitchListTile>(
       find.byKey(const Key('dlss-enabled')),
     );
@@ -427,6 +513,7 @@ class _Controller extends DlssController {
     Uint8List bytes,
     DlssOptions options, {
     Future<void>? cancelled,
+    void Function(int completed, int total)? onProgress,
   }) async {
     inputs.add(bytes);
     return Uint8List.fromList(bytes);

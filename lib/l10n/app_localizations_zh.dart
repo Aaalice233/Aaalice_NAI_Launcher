@@ -14424,17 +14424,85 @@ class AppLocalizationsZh extends AppLocalizations {
   String get dlss_modelDefault => '模型默认';
 
   @override
-  String get dlss_modelDefaultHint => '负数保留模型默认值；0～2 显式设置对应强度。';
-
-  @override
   String get dlss_autoMask => '自动遮罩';
 
   @override
   String get dlss_uiCorrection => 'UI 修正';
 
   @override
-  String get dlss_modelSwitchesHint =>
-      '这两个开关交由运行库处理。上游未公开具体算法，效果可能随运行库版本和图像内容变化。';
+  String get dlss_styleHint => '选择模型的视觉风格，不改变输出尺寸。默认、自然、电影感是上游提供的三种模式。';
+
+  @override
+  String get dlss_numericHint =>
+      '可直接输入数值，按回车或离开输入框应用。强度滑块常用范围为 0～2，可手动输入更高值；高值不代表效果更好。';
+
+  @override
+  String get dlss_intensityHint => '控制 NR 模型的总体细节强度，1 为默认。不是放大倍率，也不是重复处理次数。';
+
+  @override
+  String get dlss_detailHint =>
+      '0 保留原图，1 使用完整增强效果；大于 1 会放大增强结果与原图的差异，可能使效果夸张或失真。';
+
+  @override
+  String get dlss_colorHint => '0 保留原图色相，但仍采用增强后的明暗；1 采用增强后的颜色。越低越接近原图的配色。';
+
+  @override
+  String get dlss_structureHint =>
+      '调整局部结构与高频细节，例如材质纹理、接触阴影和反射。1 为默认，实际效果取决于模型与图像。';
+
+  @override
+  String get dlss_toneHint => '调整局部光照和色调等较大范围的明暗变化。1 为默认；不是固定的亮度或对比度调整。';
+
+  @override
+  String get dlss_skinHint => '模型的皮肤结构强度。-1 使用模型默认，非负数显式指定强度；上游未公开皮肤识别范围。';
+
+  @override
+  String get dlss_globalToneHint =>
+      '模型的全局色调强度。-1 使用模型默认，非负数显式指定强度；不等同于普通图像编辑器的全局调色。';
+
+  @override
+  String get dlss_autoMaskHint =>
+      '让模型启用内部自动遮罩。上游未公开遮罩区域或算法，界面也无法预览遮罩；不确定时保持关闭。';
+
+  @override
+  String get dlss_uiCorrectionHint =>
+      '模型的 UI 修正开关。上游未公开它会保护或修改哪些区域，不保证文字或图标保持不变；不确定时保持关闭。';
+
+  @override
+  String get dlss_invalidNumber => '请输入此参数支持的有效数值。';
+
+  @override
+  String get dlss_scale => 'SR 放大倍率';
+
+  @override
+  String get dlss_scaleHint =>
+      '先用 DLSS SR 放大，再进行 NR。默认 2 倍；1 倍跳过 SR，仅按原尺寸进行 NR。可手动输入小数，输出每边不能超过 16384 像素，实际可用大小取决于显存。';
+
+  @override
+  String get dlss_srHint =>
+      '本机 DLSS SR 放大，最终结果不混入 NR。当前运行库仍会计算一次 NR，因此需要可用的 NR 环境，也会产生额外耗时。';
+
+  @override
+  String get dlss_srScaleHint =>
+      '与 NR 面板共用放大倍率，默认 2 倍。1 倍不启动处理。仅调整尺寸与重建细节；不会套用 NR 强度、风格或处理次数。';
+
+  @override
+  String get dlss_srUnavailable => '请先在“设置 → 集成 → DLSSNR”安装、检测并启用运行库。';
+
+  @override
+  String get dlss_passes => 'NR 处理次数';
+
+  @override
+  String get dlss_passesHint =>
+      '默认 1 次。多次处理是社区式叠加：上一轮结果送入下一轮 NR，SR 仅在首轮放大。次数越多越耗时，也可能积累失真；这不是模型内部层数或官方强度选项。';
+
+  @override
+  String get dlss_invalidPasses => '请输入大于或等于 1 的整数。';
+
+  @override
+  String dlss_passProgress(int completed, int total) {
+    return 'NR 已完成 $completed/$total 次';
+  }
 }
 
 /// The translations for Chinese, using the Han script (`zh_Hant`).
@@ -28858,15 +28926,83 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get dlss_modelDefault => '模型預設';
 
   @override
-  String get dlss_modelDefaultHint => '負數保留模型預設值；0～2 明確設定對應強度。';
-
-  @override
   String get dlss_autoMask => '自動遮罩';
 
   @override
   String get dlss_uiCorrection => 'UI 修正';
 
   @override
-  String get dlss_modelSwitchesHint =>
-      '這兩個開關交由執行階段處理。上游未公開具體演算法，效果可能隨版本和影像內容變化。';
+  String get dlss_styleHint => '選擇模型的視覺風格，不改變輸出尺寸。預設、自然、電影感是上游提供的三種模式。';
+
+  @override
+  String get dlss_numericHint =>
+      '可直接輸入數值，按 Enter 或離開輸入框套用。強度滑桿常用範圍為 0～2，可手動輸入更高值；高值不代表效果更好。';
+
+  @override
+  String get dlss_intensityHint => '控制 NR 模型的整體細節強度，1 為預設。不是放大倍率，也不是重複處理次數。';
+
+  @override
+  String get dlss_detailHint =>
+      '0 保留原圖，1 使用完整增強效果；大於 1 會放大增強結果與原圖的差異，可能使效果誇張或失真。';
+
+  @override
+  String get dlss_colorHint => '0 保留原圖色相，但仍採用增強後的明暗；1 採用增強後的顏色。越低越接近原圖的配色。';
+
+  @override
+  String get dlss_structureHint =>
+      '調整局部結構與高頻細節，例如材質紋理、接觸陰影和反射。1 為預設，實際效果取決於模型與圖像。';
+
+  @override
+  String get dlss_toneHint => '調整局部光照和色調等較大範圍的明暗變化。1 為預設；不是固定的亮度或對比度調整。';
+
+  @override
+  String get dlss_skinHint => '模型的皮膚結構強度。-1 使用模型預設，非負數明確指定強度；上游未公開皮膚辨識範圍。';
+
+  @override
+  String get dlss_globalToneHint =>
+      '模型的全域色調強度。-1 使用模型預設，非負數明確指定強度；不等同於一般影像編輯器的全域調色。';
+
+  @override
+  String get dlss_autoMaskHint =>
+      '讓模型啟用內部自動遮罩。上游未公開遮罩區域或演算法，介面也無法預覽遮罩；不確定時保持關閉。';
+
+  @override
+  String get dlss_uiCorrectionHint =>
+      '模型的 UI 修正開關。上游未公開它會保護或修改哪些區域，不保證文字或圖示保持不變；不確定時保持關閉。';
+
+  @override
+  String get dlss_invalidNumber => '請輸入此參數支援的有效數值。';
+
+  @override
+  String get dlss_scale => 'SR 放大倍率';
+
+  @override
+  String get dlss_scaleHint =>
+      '先用 DLSS SR 放大，再進行 NR。預設 2 倍；1 倍略過 SR，僅按原尺寸進行 NR。可手動輸入小數，輸出每邊不能超過 16384 像素，實際可用大小取決於顯示記憶體。';
+
+  @override
+  String get dlss_srHint =>
+      '本機 DLSS SR 放大，最終結果不混入 NR。目前執行階段仍會計算一次 NR，因此需要可用的 NR 環境，也會產生額外耗時。';
+
+  @override
+  String get dlss_srScaleHint =>
+      '與 NR 面板共用放大倍率，預設 2 倍。1 倍不啟動處理。僅調整尺寸與重建細節；不套用 NR 強度、風格或處理次數。';
+
+  @override
+  String get dlss_srUnavailable => '請先在「設定 → 整合 → DLSSNR」安裝、檢測並啟用執行階段。';
+
+  @override
+  String get dlss_passes => 'NR 處理次數';
+
+  @override
+  String get dlss_passesHint =>
+      '預設 1 次。多次處理是社群式疊加：上一輪結果送入下一輪 NR，SR 僅在首輪放大。次數越多越耗時，也可能累積失真；這不是模型內部層數或官方強度選項。';
+
+  @override
+  String get dlss_invalidPasses => '請輸入大於或等於 1 的整數。';
+
+  @override
+  String dlss_passProgress(int completed, int total) {
+    return 'NR 已完成 $completed/$total 次';
+  }
 }

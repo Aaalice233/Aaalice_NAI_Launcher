@@ -14684,15 +14684,89 @@ class AppLocalizationsJa extends AppLocalizations {
   String get dlss_modelDefault => 'モデル既定値';
 
   @override
-  String get dlss_modelDefaultHint => '負数はモデルの既定値を維持し、0～2 は強度を明示的に設定します。';
-
-  @override
   String get dlss_autoMask => '自動マスク';
 
   @override
   String get dlss_uiCorrection => 'UI 補正';
 
   @override
-  String get dlss_modelSwitchesHint =>
-      'これらのスイッチはランタイムが処理します。具体的なアルゴリズムは非公開で、効果はバージョンや画像によって異なる場合があります。';
+  String get dlss_styleHint =>
+      '出力サイズを変えずにモデルの見た目を選びます。デフォルト・自然・映画調は上流が提供する3つのモードです。';
+
+  @override
+  String get dlss_numericHint =>
+      '数値を直接入力し、Enter またはフォーカス移動で適用できます。強度スライダーの通常範囲は 0～2 ですが、それ以上も入力可能です。大きいほど良いとは限りません。';
+
+  @override
+  String get dlss_intensityHint =>
+      'NR モデル全体のディテール強度です。標準は 1。拡大倍率や処理の繰り返し回数ではありません。';
+
+  @override
+  String get dlss_detailHint =>
+      '0 は元画像、1 は完全な強化結果です。1 を超えると元画像との差が増幅され、過剰な変化や歪みが生じる場合があります。';
+
+  @override
+  String get dlss_colorHint =>
+      '0 は強化後の明暗と元画像の色相を使い、1 は強化後の色を使います。低いほど元画像の配色に近づきます。';
+
+  @override
+  String get dlss_structureHint =>
+      '素材の質感、接触影、反射などの局所構造と高周波ディテールを調整します。既定は 1。効果はモデルと画像に依存します。';
+
+  @override
+  String get dlss_toneHint =>
+      '局所的な光や色調など、より広い範囲の明暗を調整します。既定は 1。固定の明るさ・コントラスト補正ではありません。';
+
+  @override
+  String get dlss_skinHint =>
+      'モデルの肌構造の強度です。-1 はモデル標準、0 以上は明示的な指定です。肌の検出範囲は未公開です。';
+
+  @override
+  String get dlss_globalToneHint =>
+      'モデルの全体トーンの強度です。-1 はモデル標準、0 以上は明示的な指定です。通常の全体色調補正とは異なります。';
+
+  @override
+  String get dlss_autoMaskHint =>
+      'モデル内部の自動マスクを有効にします。対象領域やアルゴリズムは未公開で、マスクのプレビューもありません。不明な場合はオフのままにしてください。';
+
+  @override
+  String get dlss_uiCorrectionHint =>
+      'モデルの UI 補正です。保護・変更する領域は未公開で、文字やアイコンの維持は保証されません。不明な場合はオフのままにしてください。';
+
+  @override
+  String get dlss_invalidNumber => 'このパラメーターで使用できる有効な数値を入力してください。';
+
+  @override
+  String get dlss_scale => 'SR 拡大倍率';
+
+  @override
+  String get dlss_scaleHint =>
+      'DLSS SR で拡大してから NR を適用します。既定は 2 倍、1 倍は SR をスキップし、元のサイズで NR のみ実行します。小数を入力できます。出力の各辺は 16384 ピクセル以内で、実際の上限は GPU メモリに依存します。';
+
+  @override
+  String get dlss_srHint =>
+      '最終画像に NR を混ぜないローカル DLSS SR 拡大です。現在のランタイムは内部で NR を 1 回計算するため、動作する NR 環境と追加の処理時間が必要です。';
+
+  @override
+  String get dlss_srScaleHint =>
+      'NR パネルと倍率を共有します。既定は 2 倍です。1 倍では処理を開始しません。NR の強度、スタイル、処理回数は適用せず、拡大とディテール再構成のみを出力します。';
+
+  @override
+  String get dlss_srUnavailable =>
+      '先に「設定 → 連携 → DLSSNR」でランタイムをインストールし、検証・有効化してください。';
+
+  @override
+  String get dlss_passes => 'NR 処理回数';
+
+  @override
+  String get dlss_passesHint =>
+      '既定は 1 回。複数回処理はコミュニティ方式の重ね掛けで、前回の出力を次の NR に渡します。SR 拡大は最初のみです。回数を増やすと時間がかかり、歪みも蓄積し得ます。モデル内部の層数や公式の強度設定ではありません。';
+
+  @override
+  String get dlss_invalidPasses => '1 以上の整数を入力してください。';
+
+  @override
+  String dlss_passProgress(int completed, int total) {
+    return 'NR 完了回数: $completed/$total';
+  }
 }

@@ -17,7 +17,7 @@ import 'generation_params_notifier.dart';
 
 enum ImageWorkflowMode { base, inpaint, enhance, upscale }
 
-enum UpscaleBackend { comfyui, novelai }
+enum UpscaleBackend { comfyui, novelai, dlssSr }
 
 enum ComfyUpscaleModule { regular, seedvr2, rtx }
 

@@ -1,4 +1,7 @@
+import 'dart:typed_data';
+
 class DlssOptions {
+  static const maximumStrength = 3.4028234663852886e38;
   const DlssOptions({
     this.style = 'cinematic',
     this.intensity = 1,
@@ -11,6 +14,8 @@ class DlssOptions {
     this.globalTone = -1,
     this.autoMask = false,
     this.uiCorrection = false,
+    this.scale = 2,
+    this.passes = 1,
   });
   final String style;
   final double intensity;
@@ -23,6 +28,28 @@ class DlssOptions {
   final double globalTone;
   final bool autoMask;
   final bool uiCorrection;
+  final double scale;
+  final int passes;
+
+  // The native CLI parses scale as float32 before calculating target dimensions.
+  double get nativeScale => (Float32List(1)..[0] = scale)[0];
+
+  (int, int) targetSize(int width, int height) {
+    validate();
+    final targetWidth = (width * nativeScale).round();
+    final targetHeight = (height * nativeScale).round();
+    if (width < 1 ||
+        height < 1 ||
+        targetWidth < 1 ||
+        targetHeight < 1 ||
+        targetWidth > 16384 ||
+        targetHeight > 16384) {
+      throw const FormatException(
+        'DLSS output exceeds the D3D12 texture limit (16384 pixels per dimension)',
+      );
+    }
+    return (targetWidth, targetHeight);
+  }
 
   DlssOptions copyWith({
     String? style,
@@ -36,6 +63,8 @@ class DlssOptions {
     double? globalTone,
     bool? autoMask,
     bool? uiCorrection,
+    double? scale,
+    int? passes,
   }) => DlssOptions(
     style: style ?? this.style,
     intensity: intensity ?? this.intensity,
@@ -48,6 +77,8 @@ class DlssOptions {
     globalTone: globalTone ?? this.globalTone,
     autoMask: autoMask ?? this.autoMask,
     uiCorrection: uiCorrection ?? this.uiCorrection,
+    scale: scale ?? this.scale,
+    passes: passes ?? this.passes,
   );
 
   Map<String, dynamic> toJson() => {
@@ -62,6 +93,8 @@ class DlssOptions {
     'globalTone': globalTone,
     'autoMask': autoMask,
     'uiCorrection': uiCorrection,
+    'scale': scale,
+    'passes': passes,
   };
 
   factory DlssOptions.fromJson(Map<String, dynamic> json) {
@@ -77,23 +110,30 @@ class DlssOptions {
       globalTone: (json['globalTone'] as num?)?.toDouble() ?? -1,
       autoMask: json['autoMask'] as bool? ?? false,
       uiCorrection: json['uiCorrection'] as bool? ?? false,
+      scale: (json['scale'] as num?)?.toDouble() ?? 2,
+      passes: json['passes'] as int? ?? 1,
     );
     value.validate();
     return value;
   }
 
   void validate() {
-    // Ranges follow v1.3 app.py; they are UI limits, not a claimed SDK limit.
+    // The CLI forwards strengths as float32; the upstream slider maximum is not
+    // an engine limit. Colour remains a blend factor between its two endpoints.
     if (!['default', 'natural', 'cinematic'].contains(style) ||
+        !scale.isFinite ||
+        scale < 1 ||
+        scale > 16384 ||
+        passes < 1 ||
         preset < 0 ||
         preset > 3 ||
-        [skin, globalTone].any((v) => !v.isFinite || v < -1 || v > 2) ||
+        [skin, globalTone].any((v) => !_validStrength(v, -1)) ||
         [
           intensity,
           localStructure,
           localTone,
           detail,
-        ].any((v) => !v.isFinite || v < 0 || v > 2) ||
+        ].any((v) => !_validStrength(v, 0)) ||
         !color.isFinite ||
         color < 0 ||
         color > 1) {
@@ -101,9 +141,14 @@ class DlssOptions {
     }
   }
 
+  static bool _validStrength(double value, double minimum) =>
+      value.isFinite && value >= minimum && value <= maximumStrength;
+
   List<String> get arguments {
     validate();
     return [
+      '--nr-scale',
+      '$scale',
       '--nr-style',
       '${['default', 'natural', 'cinematic'].indexOf(style)}',
       '--nr-intensity',

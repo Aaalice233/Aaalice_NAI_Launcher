@@ -20,7 +20,7 @@ class DlssWorker {
     final result = await run(
       runtime,
       source,
-      const DlssOptions(),
+      const DlssOptions(scale: 1),
       adapter: adapter,
     );
     final output = img.decodePng(result)!;
@@ -39,8 +39,35 @@ class DlssWorker {
     int adapter = 0,
     Future<void>? cancelled,
     String? version,
+    void Function(int completed, int total)? onProgress,
+  }) async {
+    final output = await runDlssPasses(
+      source,
+      options,
+      (input, parameters) => _runOnce(
+        runtime,
+        input,
+        parameters,
+        adapter: adapter,
+        cancelled: cancelled,
+      ),
+      cancelled: cancelled,
+      onProgress: onProgress,
+    );
+    return _preserveInIsolate(source, output, options, version);
+  }
+
+  Future<Uint8List> _runOnce(
+    Directory runtime,
+    Uint8List source,
+    DlssOptions options, {
+    int adapter = 0,
+    Future<void>? cancelled,
   }) async {
     if (!Platform.isWindows) throw UnsupportedError('DLSS requires Windows');
+    final size = img.findDecoderForData(source)?.startDecode(source);
+    if (size == null) throw const FormatException('Invalid DLSS source image');
+    options.targetSize(size.width, size.height);
     final directory = runtime.absolute;
     final job = await directory.createTemp('.job-');
     final input = File(p.join(job.path, 'input.png'));
@@ -87,12 +114,14 @@ class DlssWorker {
       );
       final log = '${await stdout}\n${await stderr}';
       if (wasCancelled) throw const DlssCancelled();
-      if (exit != 0 || !log.contains('Neural Rendering done: 1 ok, 0 failed')) {
+      if (exit != 0 ||
+          !log.contains('Neural Rendering done: 1 ok, 0 failed') ||
+          log.contains('finishing the rest bilinear')) {
         throw DlssWorkerFailure(exit, log);
       }
       final file = File(p.join(output.path, 'input.png_nr.png'));
       final bytes = await file.readAsBytes();
-      return await _preserveInIsolate(source, bytes, options, version);
+      return bytes;
     } finally {
       finished = true;
       if (process != null) {
@@ -101,6 +130,52 @@ class DlssWorker {
       }
       await job.delete(recursive: true);
     }
+  }
+}
+
+/// SR applies only on the first pass; each later NR pass consumes the previous
+/// output at the same size. Intermediate files never become user-visible results.
+Future<Uint8List> runDlssPasses(
+  Uint8List source,
+  DlssOptions options,
+  Future<Uint8List> Function(Uint8List, DlssOptions) render, {
+  Future<void>? cancelled,
+  void Function(int completed, int total)? onProgress,
+}) async {
+  options.validate();
+  var wasCancelled = false;
+  var finished = false;
+  if (cancelled != null) {
+    unawaited(
+      cancelled.then((_) {
+        if (!finished) wasCancelled = true;
+      }),
+    );
+  }
+  var output = source;
+  try {
+    await Future<void>.value();
+    if (wasCancelled) throw const DlssCancelled();
+    onProgress?.call(0, options.passes);
+    for (var pass = 0; pass < options.passes; pass++) {
+      if (wasCancelled) throw const DlssCancelled();
+      try {
+        output = await render(
+          output,
+          options.copyWith(scale: pass == 0 ? options.scale : 1, passes: 1),
+        );
+      } on DlssWorkerFailure catch (error) {
+        throw DlssWorkerFailure(
+          error.exitCode,
+          'NR pass ${pass + 1}/${options.passes}\n${error.diagnostics}',
+        );
+      }
+      if (wasCancelled) throw const DlssCancelled();
+      onProgress?.call(pass + 1, options.passes);
+    }
+    return output;
+  } finally {
+    finished = true;
   }
 }
 
@@ -132,7 +207,8 @@ class DlssWorkerFailure implements Exception {
   String toString() => 'DLSS worker exited $exitCode\n$diagnostics';
 }
 
-/// The upstream PNG writer discards alpha. Restore the source channel exactly.
+/// The upstream PNG writer discards alpha; resize only the original alpha,
+/// preserving the neural output's RGB and the original generation metadata.
 Uint8List preserveDlssImage(
   Uint8List sourceBytes,
   Uint8List outputBytes,
@@ -147,12 +223,24 @@ Uint8List preserveDlssImage(
   if (source == null || decoded == null) {
     throw const FormatException('Invalid DLSS image');
   }
-  if (source.width != decoded.width || source.height != decoded.height) {
-    throw const FormatException('DLSS changed image dimensions');
+  final expected = options.targetSize(source.width, source.height);
+  if (expected.$1 != decoded.width || expected.$2 != decoded.height) {
+    throw FormatException(
+      'Unexpected DLSS image dimensions: expected ${expected.$1}x${expected.$2}, got ${decoded.width}x${decoded.height}',
+    );
   }
+  final alphaSource =
+      source.width == decoded.width && source.height == decoded.height
+      ? source
+      : img.copyResize(
+          source,
+          width: decoded.width,
+          height: decoded.height,
+          interpolation: img.Interpolation.linear,
+        );
   final output = decoded.convert(numChannels: 4);
   for (final pixel in output) {
-    pixel.a = source.getPixel(pixel.x, pixel.y).a;
+    pixel.a = alphaSource.getPixel(pixel.x, pixel.y).a;
   }
   output.exif = source.exif;
   output.iccProfile = source.iccProfile;

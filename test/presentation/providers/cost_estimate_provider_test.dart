@@ -71,6 +71,8 @@ void main() {
       workflow.updateUpscaleBackend(UpscaleBackend.comfyui);
 
       expect(container.read(estimatedCostProvider), equals(0));
+      workflow.updateUpscaleBackend(UpscaleBackend.dlssSr);
+      expect(container.read(estimatedCostProvider), equals(0));
     });
 
     test(

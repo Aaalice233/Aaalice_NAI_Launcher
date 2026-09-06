@@ -26269,12 +26269,6 @@ abstract class AppLocalizations {
   /// **'Model default'**
   String get dlss_modelDefault;
 
-  /// No description provided for @dlss_modelDefaultHint.
-  ///
-  /// In en, this message translates to:
-  /// **'Negative values keep the model default; 0–2 explicitly sets the strength.'**
-  String get dlss_modelDefaultHint;
-
   /// No description provided for @dlss_autoMask.
   ///
   /// In en, this message translates to:
@@ -26287,11 +26281,131 @@ abstract class AppLocalizations {
   /// **'UI correction'**
   String get dlss_uiCorrection;
 
-  /// No description provided for @dlss_modelSwitchesHint.
+  /// No description provided for @dlss_styleHint.
   ///
   /// In en, this message translates to:
-  /// **'These switches are handled by the runtime. Upstream does not document their algorithms; effects may vary by runtime version and image content.'**
-  String get dlss_modelSwitchesHint;
+  /// **'Selects the model\'s visual style without changing output size. Default, Natural and Cinematic are the three upstream modes.'**
+  String get dlss_styleHint;
+
+  /// No description provided for @dlss_numericHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Type a value, then press Enter or leave the field to apply it. Strength sliders normally cover 0–2; higher values can be entered. Higher does not mean better.'**
+  String get dlss_numericHint;
+
+  /// No description provided for @dlss_intensityHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Controls the NR model\'s overall detail strength; 1 is the default. This is neither an upscale factor nor a repeat count.'**
+  String get dlss_intensityHint;
+
+  /// No description provided for @dlss_detailHint.
+  ///
+  /// In en, this message translates to:
+  /// **'0 preserves the original; 1 applies the full enhancement. Values above 1 amplify the difference from the original and may exaggerate or distort the result.'**
+  String get dlss_detailHint;
+
+  /// No description provided for @dlss_colorHint.
+  ///
+  /// In en, this message translates to:
+  /// **'0 keeps the original hue with enhanced luminance; 1 uses the enhanced colours. Lower values stay closer to the original palette.'**
+  String get dlss_colorHint;
+
+  /// No description provided for @dlss_structureHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Adjusts local structure and high-frequency detail, such as material texture, contact shadows, and reflections. Default: 1. Results depend on the model and image.'**
+  String get dlss_structureHint;
+
+  /// No description provided for @dlss_toneHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Adjusts broader local lighting and tonal changes. Default: 1. This is not a fixed brightness or contrast adjustment.'**
+  String get dlss_toneHint;
+
+  /// No description provided for @dlss_skinHint.
+  ///
+  /// In en, this message translates to:
+  /// **'The model\'s skin structure strength. -1 uses the model default; non-negative values set it explicitly. Skin detection coverage is undocumented.'**
+  String get dlss_skinHint;
+
+  /// No description provided for @dlss_globalToneHint.
+  ///
+  /// In en, this message translates to:
+  /// **'The model\'s global tone strength. -1 uses the model default; non-negative values set it explicitly. It is not equivalent to conventional global colour grading.'**
+  String get dlss_globalToneHint;
+
+  /// No description provided for @dlss_autoMaskHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Enables the model\'s internal automatic mask. Its regions and algorithm are undocumented, and no mask preview is available. Leave off when unsure.'**
+  String get dlss_autoMaskHint;
+
+  /// No description provided for @dlss_uiCorrectionHint.
+  ///
+  /// In en, this message translates to:
+  /// **'The model\'s UI correction switch. Which regions it protects or changes is undocumented; unchanged text or icons are not guaranteed. Leave off when unsure.'**
+  String get dlss_uiCorrectionHint;
+
+  /// No description provided for @dlss_invalidNumber.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter a valid value supported by this parameter.'**
+  String get dlss_invalidNumber;
+
+  /// No description provided for @dlss_scale.
+  ///
+  /// In en, this message translates to:
+  /// **'SR scale'**
+  String get dlss_scale;
+
+  /// No description provided for @dlss_scaleHint.
+  ///
+  /// In en, this message translates to:
+  /// **'DLSS SR upscales before NR. Default: 2×; 1× skips SR and runs NR at the original size. Decimal values are supported. Each output edge must stay within 16384 pixels; practical limits depend on GPU memory.'**
+  String get dlss_scaleHint;
+
+  /// No description provided for @dlss_srHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Local DLSS SR upscale with no NR contribution to the final image. The current runtime still computes one NR pass, requiring a working NR environment and adding processing time.'**
+  String get dlss_srHint;
+
+  /// No description provided for @dlss_srScaleHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Shares the NR panel\'s scale, default 2×. At 1×, processing does not start. Resizes and reconstructs detail without applying NR strength, style, or pass count.'**
+  String get dlss_srScaleHint;
+
+  /// No description provided for @dlss_srUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Install, verify, and enable the runtime in Settings → Integrations → DLSSNR first.'**
+  String get dlss_srUnavailable;
+
+  /// No description provided for @dlss_passes.
+  ///
+  /// In en, this message translates to:
+  /// **'NR passes'**
+  String get dlss_passes;
+
+  /// No description provided for @dlss_passesHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Default: 1. Repeated processing is community-style stacking: each output feeds the next NR pass; SR upscales only on the first pass. More passes cost time and may accumulate distortion. This is not the model\'s internal layer count or an official intensity option.'**
+  String get dlss_passesHint;
+
+  /// No description provided for @dlss_invalidPasses.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter an integer greater than or equal to 1.'**
+  String get dlss_invalidPasses;
+
+  /// No description provided for @dlss_passProgress.
+  ///
+  /// In en, this message translates to:
+  /// **'NR passes completed: {completed}/{total}'**
+  String dlss_passProgress(int completed, int total);
 }
 
 class _AppLocalizationsDelegate

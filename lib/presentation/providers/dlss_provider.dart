@@ -274,6 +274,7 @@ class DlssController extends ChangeNotifier {
     Uint8List bytes,
     DlssOptions parameters, {
     Future<void>? cancelled,
+    void Function(int completed, int total)? onProgress,
   }) {
     if (!preferenceEnabled) return Future.error(StateError('DLSS is disabled'));
     return _enhance(
@@ -281,6 +282,7 @@ class DlssController extends ChangeNotifier {
       parameters,
       cancelled: cancelled,
       selectedLuid: preferredLuid,
+      onProgress: onProgress,
     );
   }
 
@@ -289,6 +291,7 @@ class DlssController extends ChangeNotifier {
     DlssOptions parameters, {
     Future<void>? cancelled,
     String? selectedLuid,
+    void Function(int completed, int total)? onProgress,
   }) async {
     var wasCancelled = false;
     var finished = false;
@@ -313,14 +316,17 @@ class DlssController extends ChangeNotifier {
         enhancementError = null;
         _notify();
         try {
-          return await worker.run(
+          final result = await worker.run(
             runtime.directory,
             bytes,
             parameters,
             adapter: environment.selected!.index,
             cancelled: cancelled,
             version: runtime.release.tag,
+            onProgress: onProgress,
           );
+          if (wasCancelled) throw const DlssCancelled();
+          return result;
         } on DlssWorkerFailure catch (exception) {
           if (exception.requiresRecheck) {
             environment = DlssEnvironment(

@@ -50,6 +50,7 @@ class _DlssEnhancementPanelState extends ConsumerState<DlssEnhancementPanel> {
   late final DlssController _controller;
   Uint8List? _result;
   bool _running = false;
+  int _completedPasses = 0;
   bool _saving = false;
   Object? _error;
   bool _saveError = false;
@@ -76,6 +77,7 @@ class _DlssEnhancementPanelState extends ConsumerState<DlssEnhancementPanel> {
   Future<void> _run() async {
     setState(() {
       _running = true;
+      _completedPasses = 0;
       _saveError = false;
       _error = null;
     });
@@ -85,6 +87,9 @@ class _DlssEnhancementPanelState extends ConsumerState<DlssEnhancementPanel> {
         widget.source,
         _options,
         cancelled: _cancelled!.future,
+        onProgress: (completed, _) {
+          if (mounted) setState(() => _completedPasses = completed);
+        },
       );
       if (mounted) setState(() => _result = result);
     } catch (error) {
@@ -251,8 +256,8 @@ class _DlssEnhancementPanelState extends ConsumerState<DlssEnhancementPanel> {
             summary: _saveError ? l10n.dlss_saveFailed : null,
           ),
         if (_running) ...[
-          const LinearProgressIndicator(),
-          Text(l10n.dlss_running),
+          LinearProgressIndicator(value: _completedPasses / _options.passes),
+          Text(l10n.dlss_passProgress(_completedPasses, _options.passes)),
         ],
         const SizedBox(height: 16),
         FilledButton.icon(

@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -8,6 +9,117 @@ import 'package:nai_launcher/data/services/dlss/dlss_worker.dart';
 import 'package:nai_launcher/data/services/metadata/image_metadata_container_codec.dart';
 
 void main() {
+  test('SR runs once and each NR pass consumes the preceding output', () async {
+    final inputs = <int>[];
+    final scales = <double>[];
+    final progress = <(int, int)>[];
+    final output = await runDlssPasses(
+      Uint8List.fromList([1]),
+      const DlssOptions(scale: 2.5, passes: 3),
+      (source, options) async {
+        inputs.add(source.single);
+        scales.add(options.scale);
+        return Uint8List.fromList([source.single + 1]);
+      },
+      onProgress: (done, total) => progress.add((done, total)),
+    );
+    expect(inputs, [1, 2, 3]);
+    expect(scales, [2.5, 1, 1]);
+    expect(output.single, 4);
+    expect(progress, [(0, 3), (1, 3), (2, 3), (3, 3)]);
+  });
+  test(
+    'cancellation and failure stop remaining passes without returning a partial result',
+    () async {
+      final cancelled = Completer<void>();
+      var count = 0;
+      await expectLater(
+        runDlssPasses(Uint8List(1), const DlssOptions(passes: 3), (
+          source,
+          _,
+        ) async {
+          count++;
+          cancelled.complete();
+          return source;
+        }, cancelled: cancelled.future),
+        throwsA(isA<DlssCancelled>()),
+      );
+      expect(count, 1);
+      count = 0;
+      await expectLater(
+        runDlssPasses(Uint8List(1), const DlssOptions(passes: 3), (
+          source,
+          _,
+        ) async {
+          count++;
+          throw const DlssWorkerFailure(7, 'native failure');
+        }),
+        throwsA(
+          isA<DlssWorkerFailure>().having(
+            (e) => e.diagnostics,
+            'round',
+            contains('1/3'),
+          ),
+        ),
+      );
+      expect(count, 1);
+    },
+  );
+  test(
+    '2x SR preserves alpha shape, RGB, original metadata, and full processing options',
+    () {
+      final original = img.Image(width: 8, height: 8, numChannels: 4);
+      for (final pixel in original) {
+        pixel.setRgba(10, 20, 30, pixel.x < 4 ? 0 : 255);
+      }
+      final enlarged = img.Image(width: 16, height: 16, numChannels: 4);
+      for (final pixel in enlarged) {
+        pixel.setRgba(80, 90, 100, 255);
+      }
+      final source = ImageMetadataContainerCodec.embedTextChunkOnly(
+        Uint8List.fromList(img.encodePng(original)),
+        'Comment',
+        '{"seed":42}',
+      );
+      const options = DlssOptions(scale: 2, passes: 3);
+      final result = preserveDlssImage(
+        source,
+        Uint8List.fromList(img.encodePng(enlarged)),
+        options,
+        'v1.3',
+      );
+      final decoded = img.decodePng(result)!;
+      expect((decoded.width, decoded.height), (16, 16));
+      expect(decoded.getPixel(0, 0).a, 0);
+      expect(decoded.getPixel(15, 0).a, 255);
+      expect(decoded.getPixel(0, 0).r, 80);
+      final metadata = ImageMetadataContainerCodec.extractPngTextData(result);
+      expect(metadata['Comment'], '{"seed":42}');
+      expect(jsonDecode(metadata['Aaalice.DLSS']!)['passes'], 3);
+      expect(jsonDecode(metadata['Aaalice.DLSS']!)['scale'], 2);
+    },
+  );
+  test(
+    'scale validation uses float32 rounding and the D3D12 dimension limit',
+    () {
+      expect(const DlssOptions(scale: 1.3).targetSize(5, 5), (6, 6));
+      expect(const DlssOptions(scale: 2).targetSize(8192, 8192), (
+        16384,
+        16384,
+      ));
+      expect(
+        () => const DlssOptions(scale: 2).targetSize(8193, 1),
+        throwsFormatException,
+      );
+      for (final option in [
+        const DlssOptions(scale: 0),
+        const DlssOptions(scale: double.nan),
+        const DlssOptions(passes: 0),
+      ]) {
+        expect(option.validate, throwsFormatException);
+      }
+    },
+  );
   test('advanced NR options round trip and map to native flags', () {
     const options = DlssOptions(
       preset: 3,
@@ -40,7 +152,7 @@ void main() {
     for (final options in [
       const DlssOptions(preset: 4),
       const DlssOptions(skin: -1.05),
-      const DlssOptions(globalTone: 2.05),
+      const DlssOptions(globalTone: double.infinity),
     ]) {
       expect(options.validate, throwsFormatException);
     }
@@ -49,10 +161,10 @@ void main() {
     'v1.3 UI ranges permit strength extrapolation but bound color to one',
     () {
       const maximum = DlssOptions(
-        intensity: 2,
-        localStructure: 2,
-        localTone: 2,
-        detail: 2,
+        intensity: 3.25,
+        localStructure: 3.25,
+        localTone: 3.25,
+        detail: 3.25,
       );
       expect(
         DlssOptions.fromJson(maximum.toJson()).arguments,
@@ -64,13 +176,13 @@ void main() {
         '--nr-local-tone',
         '--nr-detail',
       ]) {
-        expect(maximum.arguments[maximum.arguments.indexOf(flag) + 1], '2.0');
+        expect(maximum.arguments[maximum.arguments.indexOf(flag) + 1], '3.25');
       }
       const invalid = [
-        DlssOptions(intensity: 2.05),
-        DlssOptions(localStructure: 2.05),
-        DlssOptions(localTone: 2.05),
-        DlssOptions(detail: 2.05),
+        DlssOptions(intensity: 3.5e38),
+        DlssOptions(localStructure: double.nan),
+        DlssOptions(localTone: double.infinity),
+        DlssOptions(detail: -1),
         DlssOptions(color: 1.05),
         DlssOptions(intensity: -0.05),
         DlssOptions(color: double.infinity),
@@ -101,7 +213,7 @@ void main() {
       final result = preserveDlssImage(
         source,
         Uint8List.fromList(img.encodePng(processed)),
-        const DlssOptions(),
+        const DlssOptions(scale: 1),
         'v1.3',
       );
       final decoded = img.decodePng(result)!;
@@ -119,7 +231,7 @@ void main() {
             )
             ..remove('runtime')
             ..remove('status');
-      expect(parameters, const DlssOptions().toJson());
+      expect(parameters, const DlssOptions(scale: 1).toJson());
     },
   );
 
@@ -131,7 +243,8 @@ void main() {
       img.encodePng(img.Image(width: 16, height: 16)),
     );
     expect(
-      () => preserveDlssImage(source, resized, const DlssOptions(), null),
+      () =>
+          preserveDlssImage(source, resized, const DlssOptions(scale: 1), null),
       throwsFormatException,
     );
     expect(
@@ -143,7 +256,7 @@ void main() {
   test(
     'validates options and maps native style IDs without an extra rendering mode',
     () {
-      expect(const DlssOptions(style: 'cinematic').arguments.take(2), [
+      expect(const DlssOptions(style: 'cinematic').arguments.skip(2).take(2), [
         '--nr-style',
         '2',
       ]);
@@ -155,7 +268,7 @@ void main() {
         () => const DlssOptions(intensity: double.nan).arguments,
         throwsFormatException,
       );
-      expect(const DlssOptions().arguments, isNot(contains('--nr-scale')));
+      expect(const DlssOptions().arguments.take(2), ['--nr-scale', '2.0']);
     },
   );
 }
