@@ -58,21 +58,16 @@ class _AgentSystemPromptEditorState
     _defaultPrompt = ref
         .read(agentSettingsProvider.notifier)
         .buildDefaultSystemPrompt();
-    final usesDefaultPrompt = settings.chat.customSystemPrompt.trim().isEmpty;
-    final saved = usesDefaultPrompt && _defaultPrompt.isNotEmpty
-        ? _defaultPrompt
-        : settings.chat.customSystemPrompt;
-    final savedMode = usesDefaultPrompt && _defaultPrompt.isNotEmpty
-        ? AgentSystemPromptMode.override
-        : settings.chat.systemPromptMode;
+    final saved = settings.chat.customSystemPrompt;
+    final savedMode = settings.chat.systemPromptMode;
     if (draft.saved != saved ||
         draft.savedMode != savedMode ||
         _controller.text != draft.draft) {
       _scheduleSynchronization(saved, savedMode);
     }
-    final defaultDraft =
-        draft.draftMode == AgentSystemPromptMode.override &&
-        draft.draft == _defaultPrompt;
+    final defaultDraft = draft.draftMode == AgentSystemPromptMode.append
+        ? draft.draft.isEmpty
+        : draft.draft == _defaultPrompt;
     return SettingsCard(
       navigation: widget.panelSelector,
       title: context.l10n.agentSettings_systemPrompt,
@@ -199,10 +194,10 @@ class _AgentSystemPromptEditorState
   }
 
   void _restoreDefault() {
-    _setControllerText(_defaultPrompt);
-    ref
-        .read(agentPromptDraftProvider.notifier)
-        .updateMode(AgentSystemPromptMode.override);
+    final mode = ref.read(agentPromptDraftProvider).draftMode;
+    _setControllerText(
+      mode == AgentSystemPromptMode.override ? _defaultPrompt : '',
+    );
   }
 
   void _setControllerText(String text) {
@@ -236,23 +231,14 @@ class _AgentSystemPromptEditorState
   Future<void> _save(AgentPromptDraftState draft) async {
     final notifier = ref.read(agentPromptDraftProvider.notifier);
     notifier.beginSave();
-    final restoresDefault =
-        draft.draftMode == AgentSystemPromptMode.override &&
-        draft.draft == _defaultPrompt;
-    final persistedMode = restoresDefault
-        ? AgentSystemPromptMode.append
-        : draft.draftMode;
-    final persistedValue = restoresDefault ? '' : draft.draft;
     try {
       await ref
           .read(agentSettingsProvider.notifier)
-          .saveCustomSystemPrompt(mode: persistedMode, value: persistedValue);
+          .saveCustomSystemPrompt(mode: draft.draftMode, value: draft.draft);
       notifier.finishSave(
         revision: draft.revision,
-        saved: restoresDefault ? _defaultPrompt : draft.draft,
-        savedMode: restoresDefault
-            ? AgentSystemPromptMode.override
-            : draft.draftMode,
+        saved: draft.draft,
+        savedMode: draft.draftMode,
       );
       if (mounted) {
         AppToast.success(context, context.l10n.agentSettings_promptSaved);

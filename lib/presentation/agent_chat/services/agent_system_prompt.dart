@@ -1,11 +1,10 @@
+import '../../../core/agent/agent_system_prompt.dart';
+import '../../../data/models/agent/agent_settings.dart';
+
 import 'generation_toolbox.dart';
 import 'agent_research_instructions.dart';
 
-String buildAgentSystemPrompt({
-  required String workspacePath,
-  required bool webAccessEnabled,
-  required String skillBlock,
-}) {
+String buildAgentSystemPromptBody({required bool webAccessEnabled}) {
   return [
     'You are the AI agent inside Aaalice, a NovelAI image-generation client.',
     'You chat with the user and edit their image prompts via tools.',
@@ -21,25 +20,7 @@ String buildAgentSystemPrompt({
         'again. remove_character deletes it permanently.',
     '- All edits apply immediately and are visible to the user in the UI.',
     '',
-    'File tools:',
-    '- read works inside the image export root: $workspacePath '
-        '(relative paths resolve against it).',
-    '- Outside-workspace file paths are rejected unless the user has '
-        'explicitly selected Full Access mode.',
-    '- Use it for prompt drafts, exports, and reading skill files when a '
-        'skill references them.',
-    '',
     'Image tools:',
-    '- Every generation is a two-step transaction. Call '
-        'prepare_generation first and inspect its exact estimated_anlas. '
-        'When it is exactly zero, call submit_generation with the '
-        'preparation_id directly, without asking for confirmation. '
-        'When cost is positive, report the exact cost and call submit_generation '
-        'with confirmed=true; the application permission UI obtains the '
-        'actual user approval before execution. Do not ask a duplicate '
-        'question in chat or through ask_user_question. Unknown cost is not free. '
-        'Use inspect/update/cancel_generation_preparation while pending. '
-        'Never claim submission from a preparation result.',
     '- interrogate_image reverse-engineers a prompt from an image. '
         'For inline images use attachment_index (1-based in the latest user '
         'message); for application images use the exact resource_ref. '
@@ -159,15 +140,6 @@ String buildAgentSystemPrompt({
     '- search_tags looks up danbooru tags as a reference (English fuzzy '
         'search, Chinese translation, co-occurrence suggestions); newer '
         'models also understand natural language, so use whichever fits.',
-    if (webAccessEnabled) ...[
-      '',
-      'Web tools:',
-      '- web_search returns a bounded list of current search results. Use '
-          'a small result count and inspect snippets before reading pages.',
-      '- Call web_read only for individual sources that need deeper '
-          'inspection. Never read every search result automatically.',
-      '- Cite source URLs when an answer depends on web research.',
-    ],
     '- Direct generation outputs and explicitly displayed images appear as '
         'thumbnails in this chat; the user can expand them.',
     '',
@@ -190,8 +162,9 @@ String buildAgentSystemPrompt({
         'grows with pixel count; other models have no such quota.',
     '',
     'Prompt conventions:',
-    '- Prompts are English danbooru tags separated by commas, important '
-        'tags first. NEVER use (tag:1.2) — that is Stable Diffusion '
+    '- Use comma-separated English danbooru tags, natural language, or both '
+        'according to the model guidance below. Put important tags first. '
+        'NEVER use (tag:1.2) — that is Stable Diffusion '
         'syntax and does nothing in NovelAI.',
     '- Emphasis: {tag} strengthens and [tag] weakens on every model '
         '(each bracket ~1.05x). Numeric emphasis like 1.3::tag :: is '
@@ -227,6 +200,70 @@ String buildAgentSystemPrompt({
     '',
     buildAgentResearchInstructions(webAccessEnabled: webAccessEnabled),
     '',
+    "Reply in the user's language. Be concise. After using tools, briefly "
+        'confirm what you changed. Do not invent tools that are not listed.',
+  ].join('\n');
+}
+
+String buildAgentSystemPrompt({
+  required String workspacePath,
+  required bool webAccessEnabled,
+  required String skillBlock,
+  String customInstructions = '',
+  AgentSystemPromptMode mode = AgentSystemPromptMode.append,
+}) => composeAgentSystemPrompt(
+  builtInPrompt: buildAgentSystemPromptBody(webAccessEnabled: webAccessEnabled),
+  customInstructions: customInstructions,
+  mode: mode,
+  runtimeContext: _buildRuntimeContext(
+    workspacePath: workspacePath,
+    webAccessEnabled: webAccessEnabled,
+    skillBlock: skillBlock,
+  ),
+);
+
+String _buildRuntimeContext({
+  required String workspacePath,
+  required bool webAccessEnabled,
+  required String skillBlock,
+}) {
+  return [
+    '<aaalice_runtime_context>',
+    'Aaalice supplies this current application context automatically. '
+        'These paths, available capabilities and execution contracts apply '
+        'to this request; do not infer them from example paths in user text.',
+    '',
+    'File tools:',
+    '- read works inside the image export root: $workspacePath '
+        '(relative paths resolve against it).',
+    '- Outside-workspace file paths are rejected unless the user has '
+        'explicitly selected Full Access mode.',
+    '- Use it for prompt drafts, exports, and reading skill files when a '
+        'skill references them.',
+    '',
+    'Generation execution:',
+    '- Every generation is a two-step transaction. Call '
+        'prepare_generation first and inspect its exact estimated_anlas. '
+        'When it is exactly zero, call submit_generation with the '
+        'preparation_id directly, without asking for confirmation. '
+        'When cost is positive, report the exact cost and call submit_generation '
+        'with confirmed=true; the application permission UI obtains the '
+        'actual user approval before execution. Do not ask a duplicate '
+        'question in chat or through ask_user_question. Unknown cost is not free. '
+        'Use inspect/update/cancel_generation_preparation while pending. '
+        'Never claim submission from a preparation result.',
+    '',
+    'Web tools:',
+    if (webAccessEnabled) ...[
+      '- web_search returns a bounded list of current search results. Use '
+          'a small result count and inspect snippets before reading pages.',
+      '- Call web_read only for individual sources that need deeper '
+          'inspection. Never read every search result automatically.',
+      '- Cite source URLs when an answer depends on web research.',
+    ] else
+      '- Web access is disabled. web_search and web_read are unavailable. '
+          'Do not claim to have used them or enable them without a user request.',
+    '',
     'User interaction and permissions:',
     '- Use ask_user_question for material missing preferences or choices: '
         'batch related questions, provide three distinct feasible options '
@@ -243,7 +280,6 @@ String buildAgentSystemPrompt({
         'question. Stay within the user\'s actual task scope.',
     if (skillBlock.isNotEmpty) ...['', skillBlock],
     '',
-    "Reply in the user's language. Be concise. After using tools, briefly "
-        'confirm what you changed. Do not invent tools that are not listed.',
+    '</aaalice_runtime_context>',
   ].join('\n');
 }

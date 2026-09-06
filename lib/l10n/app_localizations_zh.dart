@@ -13353,21 +13353,22 @@ class AppLocalizationsZh extends AppLocalizations {
   String get agentSettings_previewFinalPrompt => '预览最终提示词';
 
   @override
-  String get agentSettings_systemPromptDescription => '选择下方内容如何应用到智能体的系统提示词。';
+  String get agentSettings_systemPromptDescription =>
+      '直接用自然语言描述你的要求，无需填写占位符。工作目录、联网状态、Skills 与应用执行规则由程序自动补充，可预览最终发送的内容。';
 
   @override
-  String get agentSettings_promptModeAppend => '追加';
+  String get agentSettings_promptModeAppend => '补充要求';
 
   @override
   String get agentSettings_promptModeAppendDescription =>
-      '保留内置说明与 Skills 列表，并在末尾追加下方内容。';
+      '推荐：保留内置正文，再加入你的偏好。留空即使用内置正文。';
 
   @override
-  String get agentSettings_promptModeOverride => '覆盖';
+  String get agentSettings_promptModeOverride => '替换正文';
 
   @override
   String get agentSettings_promptModeOverrideDescription =>
-      '仅将下方内容作为系统提示词；内置说明与 Skills 列表不会加入，但 Provider 必需的结构化工具定义仍会发送。';
+      '用下方内容替换内置正文，适合自定义角色、工作方式与回复风格。工作目录、Skills 和应用执行规则仍自动加入；结构化工具定义照常发送。';
 
   @override
   String get agentSettings_systemPromptHint => '例如：优先给出简洁结论；修改提示词前先说明影响。';
@@ -27533,21 +27534,22 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get agentSettings_previewFinalPrompt => '預覽最終提示詞';
 
   @override
-  String get agentSettings_systemPromptDescription => '選擇下方內容如何套用到智慧體的系統提示詞。';
+  String get agentSettings_systemPromptDescription =>
+      '直接用自然語言描述你的要求，無需填寫佔位符。工作目錄、連網狀態、Skills 與應用程式執行規則由程式自動補充，可預覽最終傳送的內容。';
 
   @override
-  String get agentSettings_promptModeAppend => '附加';
+  String get agentSettings_promptModeAppend => '補充要求';
 
   @override
   String get agentSettings_promptModeAppendDescription =>
-      '保留內建說明與 Skills 清單，並在末尾附加下方內容。';
+      '推薦：保留內建正文，再加入你的偏好。留空即使用內建正文。';
 
   @override
-  String get agentSettings_promptModeOverride => '覆蓋';
+  String get agentSettings_promptModeOverride => '替換正文';
 
   @override
   String get agentSettings_promptModeOverrideDescription =>
-      '僅將下方內容作為系統提示詞；內建說明與 Skills 清單不會加入，但 Provider 必需的結構化工具定義仍會傳送。';
+      '以下方內容替換內建正文，適合自訂角色、工作方式與回覆風格。工作目錄、Skills 和應用程式執行規則仍自動加入；結構化工具定義照常傳送。';
 
   @override
   String get agentSettings_systemPromptHint => '例如：優先給出簡潔結論；修改提示詞前先說明影響。';

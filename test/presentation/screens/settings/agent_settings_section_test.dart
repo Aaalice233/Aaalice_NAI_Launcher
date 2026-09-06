@@ -320,24 +320,106 @@ void main() {
         find.byKey(const ValueKey('agent-system-prompt-mode')),
         findsOneWidget,
       );
-      expect(find.text('追加'), findsOneWidget);
-      expect(find.text('覆盖'), findsOneWidget);
+      expect(find.text('补充要求'), findsOneWidget);
+      expect(find.text('替换正文'), findsOneWidget);
       final promptMode = tester.widget<SegmentedButton<AgentSystemPromptMode>>(
         find.byKey(const ValueKey('agent-system-prompt-mode')),
       );
-      expect(promptMode.selected, {AgentSystemPromptMode.override});
+      expect(promptMode.selected, {AgentSystemPromptMode.append});
       final promptField = tester.widget<TextField>(
         find.byKey(const ValueKey('agent-custom-system-prompt')),
       );
+      expect(promptField.controller!.text, isEmpty);
+      expect(find.textContaining('无需填写占位符'), findsOneWidget);
+
+      await tester.tap(find.text('替换正文'));
+      await tester.pumpAndSettle();
       expect(
         promptField.controller!.text,
         startsWith('You are the AI agent inside Aaalice'),
       );
-      expect(find.textContaining('仅将下方内容作为系统提示词'), findsOneWidget);
+      expect(
+        promptField.controller!.text,
+        isNot(contains('<aaalice_runtime_context>')),
+      );
+      expect(find.textContaining('用下方内容替换内置正文'), findsOneWidget);
 
-      await tester.tap(find.text('追加'));
+      const custom = '请用中文回答，先给结论。';
+      await tester.enterText(
+        find.byKey(const ValueKey('agent-custom-system-prompt')),
+        custom,
+      );
       await tester.pumpAndSettle();
-      expect(find.textContaining('保留内置说明与 Skills 列表'), findsOneWidget);
+      await tester.ensureVisible(find.text('预览最终提示词'));
+      await tester.tap(find.text('预览最终提示词'));
+      await tester.pumpAndSettle();
+      final preview = tester
+          .widget<SelectableText>(
+            find.byKey(const ValueKey('agent-system-prompt-preview')),
+          )
+          .data!;
+      expect(preview, startsWith(custom));
+      expect(preview, contains(root.path));
+      expect(preview, contains('<aaalice_runtime_context>'));
+      expect(preview, isNot(contains('You are the AI agent inside Aaalice')));
+      await tester.ensureVisible(find.text('编辑'));
+      await tester.tap(find.text('编辑'));
+      await tester.pumpAndSettle();
+      final savePrompt = find.byKey(const ValueKey('agent-system-prompt-save'));
+      await tester.ensureVisible(savePrompt);
+      await tester.tap(savePrompt);
+      await tester.pumpAndSettle();
+      final savedChat = container.read(agentSettingsProvider).settings.chat;
+      expect(savedChat.customSystemPrompt, custom);
+      expect(savedChat.systemPromptMode, AgentSystemPromptMode.override);
+
+      await tester.ensureVisible(find.text('恢复默认'));
+      await tester.tap(find.text('恢复默认'));
+      await tester.pumpAndSettle();
+      expect(
+        tester
+            .widget<SegmentedButton<AgentSystemPromptMode>>(
+              find.byKey(const ValueKey('agent-system-prompt-mode')),
+            )
+            .selected,
+        {AgentSystemPromptMode.override},
+      );
+      await tester.ensureVisible(savePrompt);
+      await tester.tap(savePrompt);
+      await tester.pumpAndSettle();
+      final restoredChat = container.read(agentSettingsProvider).settings.chat;
+      expect(
+        restoredChat.customSystemPrompt,
+        startsWith('You are the AI agent inside Aaalice'),
+      );
+      expect(
+        restoredChat.customSystemPrompt,
+        isNot(contains('<aaalice_runtime_context>')),
+      );
+      expect(restoredChat.systemPromptMode, AgentSystemPromptMode.override);
+      await Scrollable.ensureVisible(
+        tester.element(find.text('补充要求')),
+        alignment: 0.5,
+      );
+      await tester.tap(find.text('补充要求'));
+      await tester.pumpAndSettle();
+      await tester.enterText(
+        find.byKey(const ValueKey('agent-custom-system-prompt')),
+        '补充的偏好',
+      );
+      await tester.pumpAndSettle();
+      await tester.ensureVisible(find.text('恢复默认'));
+      await tester.tap(find.text('恢复默认'));
+      await tester.pumpAndSettle();
+      expect(
+        tester
+            .widget<SegmentedButton<AgentSystemPromptMode>>(
+              find.byKey(const ValueKey('agent-system-prompt-mode')),
+            )
+            .selected,
+        {AgentSystemPromptMode.append},
+      );
+      expect(find.textContaining('保留内置正文'), findsOneWidget);
       expect(
         tester
             .widget<TextField>(
@@ -350,6 +432,8 @@ void main() {
       expect(tester.takeException(), isNull);
 
       for (final size in const [
+        Size(320, 720),
+        Size(600, 800),
         Size(700, 430),
         Size(840, 700),
         Size(1180, 800),

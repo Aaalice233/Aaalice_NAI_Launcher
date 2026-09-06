@@ -265,7 +265,7 @@ void main() {
   });
 
   test(
-    'builds the editable built-in prompt from current workspace and Skills',
+    'separates editable body from current workspace and Skills in both modes',
     () async {
       final storage = _MemoryStorage();
       storage.values[StorageKeys.agentSettingsJson] = const AgentSettings()
@@ -294,15 +294,17 @@ void main() {
       final notifier = container.read(agentSettingsProvider.notifier);
       final builtIn = notifier.buildDefaultSystemPrompt();
       expect(builtIn, startsWith('You are the AI agent inside Aaalice'));
-      expect(builtIn, contains(temp.path));
-      expect(builtIn, contains('<name>test-skill</name>'));
-      expect(builtIn, contains('<description>test</description>'));
+      expect(builtIn, isNot(contains(temp.path)));
+      expect(builtIn, isNot(contains('<name>test-skill</name>')));
 
       final appended = notifier.buildSystemPromptPreview(
         customInstructions: 'Keep answers brief.',
         mode: AgentSystemPromptMode.append,
       );
       expect(appended, contains(builtIn));
+      expect(appended, contains(temp.path));
+      expect(appended, contains('<name>test-skill</name>'));
+      expect(appended, contains('<description>test</description>'));
       expect(
         appended,
         contains(
@@ -310,12 +312,17 @@ void main() {
           '</user_behavior_instructions>',
         ),
       );
+      final replaced = notifier.buildSystemPromptPreview(
+        customInstructions: 'Replacement prompt',
+        mode: AgentSystemPromptMode.override,
+      );
+      expect(replaced, startsWith('Replacement prompt\n\n'));
+      expect(replaced, isNot(contains(builtIn)));
+      expect(replaced, contains(temp.path));
+      expect(replaced, contains('<name>test-skill</name>'));
       expect(
-        notifier.buildSystemPromptPreview(
-          customInstructions: 'Replacement prompt',
-          mode: AgentSystemPromptMode.override,
-        ),
-        'Replacement prompt',
+        replaced,
+        contains('application permission gate is authoritative'),
       );
     },
   );

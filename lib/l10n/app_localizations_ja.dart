@@ -13598,21 +13598,21 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get agentSettings_systemPromptDescription =>
-      '以下の内容をエージェントのシステムプロンプトに適用する方法を選択します。';
+      '希望する動作を自然な言葉で記入してください。プレースホルダーは不要です。作業ディレクトリ、Web の利用可否、Skills、アプリの実行ルールは自動で追加されます。送信内容全体をプレビューできます。';
 
   @override
-  String get agentSettings_promptModeAppend => '追加';
+  String get agentSettings_promptModeAppend => '指示を追加';
 
   @override
   String get agentSettings_promptModeAppendDescription =>
-      '組み込みの指示と Skills 一覧を保持し、その末尾に以下の内容を追加します。';
+      '推奨：組み込みの本文を維持し、希望を追加します。空欄なら組み込みの本文を使用します。';
 
   @override
-  String get agentSettings_promptModeOverride => '上書き';
+  String get agentSettings_promptModeOverride => '本文を置換';
 
   @override
   String get agentSettings_promptModeOverrideDescription =>
-      '以下の内容だけをシステムプロンプトとして使用します。組み込みの指示と Skills 一覧は含まれませんが、プロバイダーに必要な構造化ツール定義は引き続き送信されます。';
+      '以下の内容で組み込みの本文を置き換え、役割、作業方針、応答スタイルをカスタマイズします。作業ディレクトリ、Skills、アプリの実行ルールは引き続き自動で追加され、構造化されたツール定義も通常どおり送信されます。';
 
   @override
   String get agentSettings_systemPromptHint =>

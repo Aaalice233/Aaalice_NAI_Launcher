@@ -1,7 +1,55 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:nai_launcher/data/models/agent/agent_settings.dart';
 import 'package:nai_launcher/presentation/agent_chat/services/agent_system_prompt.dart';
 
 void main() {
+  test('plain-language replacement retains current execution context', () {
+    final prompt = buildAgentSystemPrompt(
+      workspacePath: 'E:/exports',
+      webAccessEnabled: false,
+      skillBlock: '<available_skills>CURRENT_SKILL</available_skills>',
+      customInstructions: '请用中文回答，先给结论。',
+      mode: AgentSystemPromptMode.override,
+    );
+    expect(prompt, startsWith('请用中文回答，先给结论。\n\n'));
+    expect(prompt, isNot(contains('You are the AI agent inside Aaalice')));
+    expect(
+      prompt,
+      isNot(contains('Character identity and appearance research:')),
+    );
+    expect(prompt, contains('E:/exports'));
+    expect(prompt, contains('CURRENT_SKILL'));
+    expect(prompt, contains('Web access is disabled'));
+    expect(prompt, contains('prepare_generation first'));
+    expect(prompt, contains('application permission gate is authoritative'));
+  });
+
+  test('runtime context refreshes without editing saved user text', () {
+    const custom = '按我的风格回复。';
+    final old = buildAgentSystemPrompt(
+      workspacePath: '/old-device/exports',
+      webAccessEnabled: false,
+      skillBlock: 'OLD_SKILL',
+      customInstructions: custom,
+      mode: AgentSystemPromptMode.override,
+    );
+    final current = buildAgentSystemPrompt(
+      workspacePath: '/new-device/exports',
+      webAccessEnabled: true,
+      skillBlock: 'NEW_SKILL',
+      customInstructions: custom,
+      mode: AgentSystemPromptMode.override,
+    );
+    expect(old, contains('/old-device/exports'));
+    expect(current, startsWith(custom));
+    expect(current, contains('/new-device/exports'));
+    expect(current, contains('NEW_SKILL'));
+    expect(current, isNot(contains('OLD_SKILL')));
+    expect(current, isNot(contains('/old-device/exports')));
+    expect(current, isNot(contains('Web access is disabled')));
+    expect(current, contains('web_search returns'));
+  });
+
   test(
     'character research is composed into the prompt and respects unavailable web access',
     () {

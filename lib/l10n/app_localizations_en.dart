@@ -13958,21 +13958,21 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get agentSettings_systemPromptDescription =>
-      'Choose how the content below is applied to the Agent system prompt.';
+      'Describe your preferences in plain language; no placeholders are needed. The app adds the working directory, web availability, Skills, and execution rules automatically. Preview the complete prompt before saving.';
 
   @override
-  String get agentSettings_promptModeAppend => 'Append';
+  String get agentSettings_promptModeAppend => 'Add instructions';
 
   @override
   String get agentSettings_promptModeAppendDescription =>
-      'Keep the built-in instructions and Skills list, then append the content below.';
+      'Recommended: keep the built-in prompt body and add your preferences. Leave empty to use the built-in body.';
 
   @override
-  String get agentSettings_promptModeOverride => 'Override';
+  String get agentSettings_promptModeOverride => 'Replace body';
 
   @override
   String get agentSettings_promptModeOverrideDescription =>
-      'Use only the content below as the system prompt. Built-in instructions and the Skills list are omitted, while structured tool definitions required by the provider are still sent.';
+      'Replace the built-in body below to customize the role, workflow, and response style. The working directory, Skills, and app execution rules are still added automatically; structured tool definitions are sent as usual.';
 
   @override
   String get agentSettings_systemPromptHint =>

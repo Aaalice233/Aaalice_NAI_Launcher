@@ -5,7 +5,6 @@ import 'dart:io';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path_provider/path_provider.dart';
 
-import '../../../core/agent/agent_system_prompt.dart';
 import '../../../core/agent/harness/harness_types.dart';
 import '../../../core/agent/skill_archive_service.dart';
 import '../../../core/agent/skill_catalog.dart';
@@ -300,7 +299,14 @@ class AgentSettingsNotifier extends StateNotifier<AgentSettingsState> {
     });
   }
 
-  String buildDefaultSystemPrompt() {
+  String buildDefaultSystemPrompt() => buildAgentSystemPromptBody(
+    webAccessEnabled: state.settings.chat.webAccessEnabled,
+  );
+
+  String buildSystemPromptPreview({
+    required String customInstructions,
+    required AgentSystemPromptMode mode,
+  }) {
     final workspaceDirectory =
         _providedWorkspaceDirectory ??
         _resolvedWorkspaceDirectory ??
@@ -317,16 +323,6 @@ class AgentSettingsNotifier extends StateNotifier<AgentSettingsState> {
       workspacePath: workspaceDirectory.path,
       webAccessEnabled: state.settings.chat.webAccessEnabled,
       skillBlock: skillBlock,
-    );
-  }
-
-  String buildSystemPromptPreview({
-    required String customInstructions,
-    required AgentSystemPromptMode mode,
-  }) {
-    final builtInPrompt = buildDefaultSystemPrompt();
-    return composeAgentSystemPrompt(
-      builtInPrompt: builtInPrompt,
       customInstructions: state.settings.chat.behaviorInstructions(
         customPromptOverride: customInstructions,
         modeOverride: mode,

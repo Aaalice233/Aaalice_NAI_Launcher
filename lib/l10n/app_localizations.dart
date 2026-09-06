@@ -24262,31 +24262,31 @@ abstract class AppLocalizations {
   /// No description provided for @agentSettings_systemPromptDescription.
   ///
   /// In en, this message translates to:
-  /// **'Choose how the content below is applied to the Agent system prompt.'**
+  /// **'Describe your preferences in plain language; no placeholders are needed. The app adds the working directory, web availability, Skills, and execution rules automatically. Preview the complete prompt before saving.'**
   String get agentSettings_systemPromptDescription;
 
   /// No description provided for @agentSettings_promptModeAppend.
   ///
   /// In en, this message translates to:
-  /// **'Append'**
+  /// **'Add instructions'**
   String get agentSettings_promptModeAppend;
 
   /// No description provided for @agentSettings_promptModeAppendDescription.
   ///
   /// In en, this message translates to:
-  /// **'Keep the built-in instructions and Skills list, then append the content below.'**
+  /// **'Recommended: keep the built-in prompt body and add your preferences. Leave empty to use the built-in body.'**
   String get agentSettings_promptModeAppendDescription;
 
   /// No description provided for @agentSettings_promptModeOverride.
   ///
   /// In en, this message translates to:
-  /// **'Override'**
+  /// **'Replace body'**
   String get agentSettings_promptModeOverride;
 
   /// No description provided for @agentSettings_promptModeOverrideDescription.
   ///
   /// In en, this message translates to:
-  /// **'Use only the content below as the system prompt. Built-in instructions and the Skills list are omitted, while structured tool definitions required by the provider are still sent.'**
+  /// **'Replace the built-in body below to customize the role, workflow, and response style. The working directory, Skills, and app execution rules are still added automatically; structured tool definitions are sent as usual.'**
   String get agentSettings_promptModeOverrideDescription;
 
   /// No description provided for @agentSettings_systemPromptHint.

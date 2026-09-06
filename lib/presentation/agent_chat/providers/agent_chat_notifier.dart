@@ -5,7 +5,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path_provider/path_provider.dart';
 
 import '../../../core/agent/agent.dart';
-import '../../../core/agent/agent_system_prompt.dart';
 import '../../../core/agent/context_usage.dart';
 import '../../../core/agent/audit/jsonl_audit_sink.dart';
 import '../../../core/agent/harness/compaction/compaction.dart';
@@ -816,13 +815,10 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
     final skillBlock = formatSkillsForSystemPrompt(
       (skillsOverride ?? _skills.values).toList(growable: false),
     );
-    final builtInPrompt = buildAgentSystemPrompt(
+    return buildAgentSystemPrompt(
       workspacePath: _workspaceDir.path,
       webAccessEnabled: agentSettings.chat.webAccessEnabled,
       skillBlock: skillBlock,
-    );
-    return composeAgentSystemPrompt(
-      builtInPrompt: builtInPrompt,
       customInstructions: agentSettings.chat.behaviorInstructions(
         customPromptOverride: customInstructionsOverride,
         modeOverride: modeOverride,
