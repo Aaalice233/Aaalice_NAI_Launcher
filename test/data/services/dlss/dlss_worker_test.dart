@@ -30,13 +30,13 @@ void main() {
       );
     }
     expect(restored.arguments, contains('--nr-auto-mask'));
-    final legacy = DlssOptions.fromJson({'intensity': 0.5});
-    expect(legacy.intensity, 0.5);
-    expect(legacy.skin, -1);
-    expect(legacy.globalTone, -1);
-    expect(legacy.preset, 0);
-    expect(legacy.uiCorrection, isTrue);
-    expect(legacy.arguments, isNot(contains('--nr-auto-mask')));
+    const defaults = DlssOptions();
+    expect(defaults.style, 'cinematic');
+    expect(defaults.skin, -1);
+    expect(defaults.globalTone, -1);
+    expect(defaults.preset, 0);
+    expect(defaults.uiCorrection, isFalse);
+    expect(defaults.arguments, isNot(contains('--nr-auto-mask')));
     for (final options in [
       const DlssOptions(preset: 4),
       const DlssOptions(skin: -1.05),
@@ -113,6 +113,13 @@ void main() {
       expect(metadata['Comment'], comment);
       expect(jsonDecode(metadata['Aaalice.DLSS']!)['runtime'], 'v1.3');
       expect(jsonDecode(metadata['Aaalice.DLSS']!)['status'], 'success');
+      final parameters =
+          Map<String, dynamic>.from(
+              jsonDecode(metadata['Aaalice.DLSS']!) as Map,
+            )
+            ..remove('runtime')
+            ..remove('status');
+      expect(parameters, const DlssOptions().toJson());
     },
   );
 

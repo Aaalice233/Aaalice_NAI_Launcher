@@ -64,6 +64,54 @@ void main() {
   });
   for (final width in [320.0, 600.0, 840.0, 1180.0, 1600.0]) {
     for (final scale in [1.0, 3.0]) {
+      testWidgets('advanced NR controls can be changed at $width / $scale', (
+        tester,
+      ) async {
+        await tester.binding.setSurfaceSize(Size(width, 700));
+        addTearDown(() => tester.binding.setSurfaceSize(null));
+        var options = const DlssOptions();
+        await tester.pumpWidget(
+          _app(
+            _Controller(),
+            Scaffold(
+              body: StatefulBuilder(
+                builder: (context, setState) => SingleChildScrollView(
+                  child: DlssOptionsEditor(
+                    value: options,
+                    onChanged: (value) => setState(() => options = value),
+                  ),
+                ),
+              ),
+            ),
+            scale: scale,
+          ),
+        );
+        await tester.pumpAndSettle();
+        await tester.ensureVisible(find.text('高级参数'));
+        await tester.tap(find.text('高级参数'));
+        await tester.pumpAndSettle();
+        await tester.ensureVisible(find.text('3'));
+        await tester.tap(find.text('3'));
+        await tester.pumpAndSettle();
+        expect(options.preset, 3);
+        final autoMask = find.descendant(
+          of: find.byKey(const Key('dlss-auto-mask')),
+          matching: find.byType(Switch),
+        );
+        await tester.ensureVisible(autoMask);
+        await tester.tap(autoMask);
+        await tester.pumpAndSettle();
+        final uiCorrection = find.descendant(
+          of: find.byKey(const Key('dlss-ui-correction')),
+          matching: find.byType(Switch),
+        );
+        await tester.ensureVisible(uiCorrection);
+        await tester.tap(uiCorrection);
+        await tester.pumpAndSettle();
+        expect(options.autoMask, isTrue);
+        expect(options.uiCorrection, isTrue);
+        expect(tester.takeException(), isNull);
+      });
       testWidgets(
         'DLSS settings controls are reachable at $width / ${scale}x',
         (tester) async {
