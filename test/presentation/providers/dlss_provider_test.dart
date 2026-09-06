@@ -27,7 +27,7 @@ void main() {
       final controller = create();
       addTearDown(controller.dispose);
       addTearDown(() => dio.close(force: true));
-      await controller.setOptions(const DlssOptions(scale: 1, intensity: 2.2));
+      await controller.setOptions(const DlssOptions(scale: 1, intensity: 0.6));
       await controller.createPreset('角色');
       final id = controller.presetState.selectedId;
       await controller.setOptions(controller.options.copyWith(detail: 2.5));

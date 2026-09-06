@@ -6865,6 +6865,7 @@
   "dlss_color": "色混合",
   "dlss_current": "使用中",
   "dlss_defaults": "既定の強化パラメーター",
+  "dlss_openPage": "DLSSNR ページを開く",
   "dlss_description": "ローカルで画像を強化し、ランタイムと既定値を管理します。",
   "dlss_detail": "強化ブレンド",
   "dlss_enabled": "DLSS 強化を有効にする",

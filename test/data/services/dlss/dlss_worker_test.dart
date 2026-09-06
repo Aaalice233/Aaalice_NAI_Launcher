@@ -38,20 +38,17 @@ void main() {
       expect(protocol.complete, isFalse, reason: lines.join('\n'));
     }
   });
-  test(
-    'legacy pass count is discarded while remaining options are preserved',
-    () {
-      final options = DlssOptions.fromJson({
-        'passes': 8,
-        'intensity': 2.4,
-        'scale': 1.5,
-      });
-      expect(options.intensity, 2.4);
-      expect(options.scale, 1.5);
-      expect(options.toJson(), isNot(contains('passes')));
-      expect(options.arguments, isNot(contains('--passes')));
-    },
-  );
+  test('legacy presets migrate intensity to one and discard pass count', () {
+    final options = DlssOptions.fromJson({
+      'passes': 8,
+      'intensity': 2.4,
+      'scale': 1.5,
+    });
+    expect(options.intensity, 1);
+    expect(options.scale, 1.5);
+    expect(options.toJson(), isNot(contains('passes')));
+    expect(options.arguments, isNot(contains('--passes')));
+  });
   test(
     '2x SR preserves alpha shape, RGB, original metadata, and full processing options',
     () {
@@ -140,10 +137,10 @@ void main() {
     }
   });
   test(
-    'v1.3 UI ranges permit strength extrapolation but bound color to one',
+    'structure and tone allow extrapolation while intensity and color stay bounded',
     () {
       const maximum = DlssOptions(
-        intensity: 3.25,
+        intensity: 1,
         localStructure: 3.25,
         localTone: 3.25,
         detail: 3.25,
@@ -152,10 +149,11 @@ void main() {
         DlssOptions.fromJson(maximum.toJson()).arguments,
         maximum.arguments,
       );
-      for (final flag in ['--intensity', '--structure', '--tone']) {
+      for (final flag in ['--structure', '--tone']) {
         expect(maximum.arguments[maximum.arguments.indexOf(flag) + 1], '3.25');
       }
       const invalid = [
+        DlssOptions(intensity: 1.01),
         DlssOptions(intensity: 3.5e38),
         DlssOptions(localStructure: double.nan),
         DlssOptions(localTone: double.infinity),

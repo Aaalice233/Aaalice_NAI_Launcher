@@ -3,10 +3,12 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:super_drag_and_drop/super_drag_and_drop.dart';
 
+import '../../../widgets/common/image_viewport_surface.dart';
 import '../../../../../core/enums/precise_ref_type.dart';
 import '../../../../../core/extensions/precise_ref_type_extensions.dart';
 import '../../../../core/utils/localization_extension.dart';
@@ -746,7 +748,7 @@ class _PreciseReferenceCard extends StatelessWidget {
       child: Container(
         width: 64,
         height: 64,
-        color: theme.colorScheme.surfaceContainerHighest,
+        color: ImageViewportSurface.background,
         child: DecodedMemoryImage(
           bytes: reference.image,
           fit: BoxFit.cover,
@@ -763,8 +765,12 @@ class _PreciseReferenceCard extends StatelessWidget {
   }
 
   Widget _buildPlaceholder(ThemeData theme) {
-    return Center(
-      child: Icon(Icons.person, size: 24, color: theme.colorScheme.outline),
+    return const Center(
+      child: Icon(
+        Icons.person,
+        size: 24,
+        color: ImageViewportSurface.mutedForeground,
+      ),
     );
   }
 

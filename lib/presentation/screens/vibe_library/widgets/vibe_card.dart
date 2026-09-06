@@ -1,6 +1,8 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+
+import '../../../widgets/common/image_viewport_surface.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -440,7 +442,7 @@ class _VibeCardState extends ConsumerState<VibeCard>
     final cacheHeight = ((widget.height ?? widget.width) * pixelRatio).toInt();
 
     return Container(
-      color: Colors.black.withValues(alpha: 0.05),
+      color: ImageViewportSurface.background,
       child: _thumbnailData != null
           ? Image.memory(
               _thumbnailData!,
@@ -450,7 +452,7 @@ class _VibeCardState extends ConsumerState<VibeCard>
               gaplessPlayback: true,
               errorBuilder: (context, error, stackTrace) {
                 return Container(
-                  color: Colors.grey[300],
+                  color: ImageViewportSurface.background,
                   child: const Center(
                     child: Icon(
                       Icons.broken_image,
@@ -462,12 +464,12 @@ class _VibeCardState extends ConsumerState<VibeCard>
               },
             )
           : Container(
-              color: Theme.of(context).colorScheme.surfaceContainerHighest,
+              color: ImageViewportSurface.background,
               child: Center(
                 child: Icon(
                   widget.entry.isBundle ? Icons.style : Icons.auto_fix_high,
                   size: 32,
-                  color: Theme.of(context).colorScheme.outline,
+                  color: ImageViewportSurface.mutedForeground,
                 ),
               ),
             ),
@@ -553,12 +555,14 @@ class _VibeCardState extends ConsumerState<VibeCard>
         ),
         child: ClipRRect(
           borderRadius: BorderRadius.circular(6),
-          child: Image.memory(
-            preview,
-            fit: BoxFit.cover,
-            cacheWidth: cacheWidth,
-            cacheHeight: cacheHeight,
-            gaplessPlayback: true,
+          child: ImageViewportSurface(
+            child: Image.memory(
+              preview,
+              fit: BoxFit.cover,
+              cacheWidth: cacheWidth,
+              cacheHeight: cacheHeight,
+              gaplessPlayback: true,
+            ),
           ),
         ),
       ),
@@ -623,18 +627,20 @@ class _VibeCardState extends ConsumerState<VibeCard>
           ),
           child: ClipRRect(
             borderRadius: BorderRadius.circular(6),
-            child: Image.memory(
-              preview,
-              fit: BoxFit.cover,
-              cacheWidth: cacheWidth,
-              cacheHeight: cacheHeight,
-              gaplessPlayback: true,
-              errorBuilder: (context, error, stackTrace) => Container(
-                color: Colors.grey[800],
-                child: const Icon(
-                  Icons.image_not_supported,
-                  color: Colors.grey,
-                  size: 20,
+            child: ImageViewportSurface(
+              child: Image.memory(
+                preview,
+                fit: BoxFit.cover,
+                cacheWidth: cacheWidth,
+                cacheHeight: cacheHeight,
+                gaplessPlayback: true,
+                errorBuilder: (context, error, stackTrace) => Container(
+                  color: ImageViewportSurface.background,
+                  child: const Icon(
+                    Icons.image_not_supported,
+                    color: Colors.grey,
+                    size: 20,
+                  ),
                 ),
               ),
             ),

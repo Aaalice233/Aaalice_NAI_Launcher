@@ -1,6 +1,8 @@
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
+
+import '../../../widgets/common/image_viewport_surface.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:nai_launcher/core/utils/localization_extension.dart';
 
@@ -203,7 +205,7 @@ class _PreciseRefCardState extends ConsumerState<PreciseRefCard> {
                 ..translateByDouble(0, _hovering && !isTouch ? -2 : 0, 0, 1),
               transformAlignment: Alignment.center,
               decoration: BoxDecoration(
-                color: theme.colorScheme.surfaceContainerLow,
+                color: ImageViewportSurface.background,
                 borderRadius: BorderRadius.circular(12),
                 boxShadow: [
                   BoxShadow(
@@ -278,12 +280,12 @@ class _PreciseRefCardState extends ConsumerState<PreciseRefCard> {
         gaplessPlayback: true,
       );
     }
-    return ColoredBox(
-      color: theme.colorScheme.surfaceContainerHighest,
+    return const ColoredBox(
+      color: ImageViewportSurface.background,
       child: Icon(
         Icons.image_outlined,
         size: 36,
-        color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.38),
+        color: ImageViewportSurface.mutedForeground,
       ),
     );
   }

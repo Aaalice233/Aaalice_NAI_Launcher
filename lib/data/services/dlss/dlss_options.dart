@@ -4,7 +4,7 @@ class DlssOptions {
   static const maximumStrength = 3.4028234663852886e38;
   const DlssOptions({
     this.style = 'cinematic',
-    this.intensity = 1.6,
+    this.intensity = 1,
     this.localStructure = 1.2,
     this.localTone = 1.8,
     this.detail = 1.1,
@@ -94,9 +94,15 @@ class DlssOptions {
 
   factory DlssOptions.fromJson(Map<String, dynamic> json) {
     const defaults = DlssOptions();
+    final savedIntensity =
+        (json['intensity'] as num?)?.toDouble() ?? defaults.intensity;
+    // Older presets allowed values above one; preserve their saturated effect.
+    final intensity = savedIntensity.isFinite && savedIntensity > 1
+        ? 1.0
+        : savedIntensity;
     final value = DlssOptions(
       style: json['style'] as String? ?? defaults.style,
-      intensity: (json['intensity'] as num?)?.toDouble() ?? defaults.intensity,
+      intensity: intensity,
       localStructure:
           (json['localStructure'] as num?)?.toDouble() ??
           defaults.localStructure,
@@ -122,6 +128,7 @@ class DlssOptions {
         !scale.isFinite ||
         scale < 1 ||
         scale > 16384 ||
+        intensity > 1 ||
         preset < 0 ||
         preset > 3 ||
         [skin, globalTone].any((v) => !_validStrength(v, -1)) ||

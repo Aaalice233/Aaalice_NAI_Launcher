@@ -1,12 +1,14 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image/image.dart' as img;
 
+import 'image_viewport_surface.dart';
 import '../../../core/utils/localization_extension.dart';
 import '../../adaptive/interaction_policy.dart';
 import '../../providers/image_comparison_preferences_provider.dart';
@@ -239,7 +241,7 @@ class _ImageComparisonViewState extends ConsumerState<ImageComparisonView> {
         });
       }
       return ColoredBox(
-        color: Theme.of(context).colorScheme.surfaceContainerLowest,
+        color: ImageViewportSurface.background,
         child: MouseRegion(
           key: _viewportKey,
           onHover: _onHover,

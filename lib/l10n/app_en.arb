@@ -6840,6 +6840,7 @@
   "dlss_color": "Color blend",
   "dlss_current": "Active",
   "dlss_defaults": "Default enhancement parameters",
+  "dlss_openPage": "Open DLSSNR",
   "dlss_description": "Enhance images locally and manage runtimes and defaults.",
   "dlss_detail": "Enhancement blend",
   "dlss_enabled": "Enable DLSS enhancement",

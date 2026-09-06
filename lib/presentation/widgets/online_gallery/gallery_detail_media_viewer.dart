@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 
+import '../common/image_viewport_surface.dart';
 import '../../../core/cache/gallery_image_request.dart';
 import '../../../core/cache/online_gallery_image_cache_manager.dart';
 import '../../../data/models/online_gallery/gallery_item.dart';
@@ -50,7 +51,7 @@ class GalleryDetailMediaViewer extends StatelessWidget {
         }
 
         return ColoredBox(
-          color: Colors.black,
+          color: ImageViewportSurface.background,
           child: Column(
             children: [
               Expanded(
@@ -186,7 +187,7 @@ class GalleryDetailMediaViewer extends StatelessWidget {
           : VideoPlayerWidget(videoUrl: videoUrl);
     }
     final imageUrl = capability.imageDisplayUrl;
-    if (imageUrl.isEmpty) return _noImageState(theme, dark: true);
+    if (imageUrl.isEmpty) return _noImageState(theme);
 
     return InteractiveViewer(
       minScale: 0.75,
@@ -245,14 +246,16 @@ class GalleryDetailMediaViewer extends StatelessWidget {
     ]);
   }
 
-  Widget _noImageState(ThemeData theme, {bool dark = false}) {
-    final foreground = dark
-        ? Colors.white70
-        : theme.colorScheme.onSurfaceVariant;
+  Widget _noImageState(ThemeData theme) {
+    const foreground = ImageViewportSurface.mutedForeground;
     return ColoredBox(
-      color: dark ? Colors.black : theme.colorScheme.surfaceContainerLow,
+      color: ImageViewportSurface.background,
       child: _scrollablePlaceholder([
-        Icon(Icons.image_not_supported_outlined, size: 54, color: foreground),
+        const Icon(
+          Icons.image_not_supported_outlined,
+          size: 54,
+          color: foreground,
+        ),
         const SizedBox(height: 12),
         Text(
           viewModel.labels.noImage,

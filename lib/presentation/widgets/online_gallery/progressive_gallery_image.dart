@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../common/image_viewport_surface.dart';
 import '../../../core/cache/gallery_image_request.dart';
 import '../../../core/cache/online_gallery_prefetch_coordinator.dart';
 import '../../themes/theme_extension.dart';
@@ -104,11 +105,14 @@ class _ProgressiveGalleryImageState extends State<ProgressiveGalleryImage> {
       fit: widget.fit,
       alignment: widget.alignment,
       errorBuilder: (_, retry) => ColoredBox(
-        color: Colors.black12,
+        color: ImageViewportSurface.background,
         child: Center(
           child: IconButton(
             onPressed: retry,
-            icon: const Icon(Icons.refresh_rounded),
+            icon: const Icon(
+              Icons.refresh_rounded,
+              color: ImageViewportSurface.mutedForeground,
+            ),
           ),
         ),
       ),

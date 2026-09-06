@@ -14497,6 +14497,9 @@ class AppLocalizationsJa extends AppLocalizations {
   String get dlss_defaults => '既定の強化パラメーター';
 
   @override
+  String get dlss_openPage => 'DLSSNR ページを開く';
+
+  @override
   String get dlss_description => 'ローカルで画像を強化し、ランタイムと既定値を管理します。';
 
   @override

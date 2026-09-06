@@ -1,8 +1,10 @@
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../widgets/common/image_viewport_surface.dart';
 import '../../../core/utils/localization_extension.dart';
 import '../../../data/models/director/director_tool_type.dart';
 import '../../adaptive/adaptive_layout.dart';
@@ -158,7 +160,7 @@ class _DirectorToolsScreenState extends ConsumerState<DirectorToolsScreen> {
 
   Widget _buildImageArea(ThemeData theme, DirectorToolsState state) {
     return Container(
-      color: Colors.black,
+      color: ImageViewportSurface.background,
       child: state.result != null
           ? _buildCompareView(state)
           : _buildSingleImageView(state),

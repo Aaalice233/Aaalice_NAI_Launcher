@@ -12,7 +12,7 @@ void main() {
       expect(state.modified, isFalse);
       expect(state.options.toJson(), {
         'style': 'cinematic',
-        'intensity': 1.6,
+        'intensity': 1.0,
         'localStructure': 1.2,
         'localTone': 1.8,
         'detail': 1.1,
@@ -31,7 +31,7 @@ void main() {
       for (final id in ['color-light', 'material-light', 'cinematic-light']) {
         final saved = state
             .select(id)
-            .withOptions(const DlssOptions(intensity: 2.2));
+            .withOptions(const DlssOptions(intensity: 0.6));
         final restored = DlssPresetState.fromJson(saved.toJson());
         expect(restored.selectedId, id);
         expect(restored.options.toJson(), saved.options.toJson());
@@ -63,7 +63,7 @@ void main() {
           'detail',
           'color',
         },
-        'soft-light': {'intensity', 'detail', 'color'},
+        'soft-light': {'detail', 'color'},
         'natural-light': {'style', 'color'},
         'cinematic-soft': {'localTone', 'globalTone', 'detail', 'color'},
         'crisp-light': {'localStructure', 'detail', 'color'},
@@ -82,7 +82,7 @@ void main() {
   test(
     'custom preset CRUD keeps draft changes separate from saved definitions',
     () {
-      final draft = const DlssOptions().copyWith(intensity: 2.3);
+      final draft = const DlssOptions().copyWith(intensity: 0.7);
       var state = DlssPresetState()
           .withOptions(draft)
           .create('custom-one', '  人像  ');

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../widgets/common/image_viewport_surface.dart';
 import '../../../../core/comfyui/comfyui_models.dart';
 import '../../../../core/comfyui/seedvr2_support.dart';
 import '../../../../core/utils/localization_extension.dart';
@@ -351,12 +353,14 @@ class _Img2ImgUpscaleSectionState extends ConsumerState<Img2ImgUpscaleSection> {
               if (task.hasPreview) ...[
                 ClipRRect(
                   borderRadius: BorderRadius.circular(8),
-                  child: Image.memory(
-                    task.previewImage!,
-                    height: 120,
-                    width: double.infinity,
-                    fit: BoxFit.contain,
-                    gaplessPlayback: true,
+                  child: ImageViewportSurface(
+                    child: Image.memory(
+                      task.previewImage!,
+                      height: 120,
+                      width: double.infinity,
+                      fit: BoxFit.contain,
+                      gaplessPlayback: true,
+                    ),
                   ),
                 ),
                 const SizedBox(height: 8),

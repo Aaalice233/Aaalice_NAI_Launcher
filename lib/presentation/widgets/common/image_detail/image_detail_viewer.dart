@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:nai_launcher/core/utils/localization_extension.dart';
 
+import '../image_viewport_surface.dart';
 import '../../../../core/platform/platform_capabilities.dart';
 import '../../../../core/services/native_share_service.dart';
 import '../../../../core/shortcuts/shortcuts.dart';
@@ -120,7 +122,7 @@ class ImageDetailViewer extends ConsumerStatefulWidget {
         // Windows + 外部截图工具 + 焦点切换下，透明路由和快照过渡更容易触发
         // Flutter 引擎原生崩溃；Windows 走纯黑不透明且无动画路径。
         opaque: isWindows,
-        barrierColor: Colors.black,
+        barrierColor: ImageViewportSurface.background,
         allowSnapshotting: !isWindows,
         transitionDuration: transitionDuration,
         reverseTransitionDuration: reverseTransitionDuration,
@@ -496,7 +498,7 @@ class _ImageDetailViewerState extends ConsumerState<ImageDetailViewer> {
         focusNode: _focusNode,
         onKeyEvent: _handleKeyEvent,
         child: Scaffold(
-          backgroundColor: Colors.black,
+          backgroundColor: ImageViewportSurface.background,
           body: LayoutBuilder(
             builder: (context, constraints) {
               final showSideMetadata = constraints.maxWidth >= 1100;

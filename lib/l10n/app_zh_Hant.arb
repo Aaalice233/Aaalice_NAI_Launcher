@@ -7187,6 +7187,7 @@
   "dlss_color": "色彩混合",
   "dlss_current": "目前使用",
   "dlss_defaults": "預設增強參數",
+  "dlss_openPage": "開啟 DLSSNR 頁面",
   "dlss_description": "在本機增強影像，管理所需執行階段與預設參數。",
   "dlss_detail": "增強混合",
   "dlss_enabled": "啟用 DLSS 增強",

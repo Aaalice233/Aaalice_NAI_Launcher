@@ -158,7 +158,7 @@ void main() {
       final controller = _Controller();
       await controller.createPreset('我的参数');
       final customId = controller.presetState.selectedId;
-      await controller.setOptions(controller.options.copyWith(intensity: 2.3));
+      await controller.setOptions(controller.options.copyWith(intensity: 0.7));
       await controller.savePreset(customId);
       await tester.pumpWidget(
         _app(
@@ -174,61 +174,60 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.text('柔和').last);
       await tester.pumpAndSettle();
-      expect(controller.options.intensity, 1.1);
+      expect(controller.options.intensity, 1);
       await tester.tap(find.byKey(const Key('dlss-preset-selector')));
       await tester.pumpAndSettle();
       await tester.tap(find.text('我的参数').last);
       await tester.pumpAndSettle();
-      expect(controller.options.intensity, 2.3);
+      expect(controller.options.intensity, 0.7);
       final strength = find.byKey(const ValueKey('dlss-value-强度'));
       await tester.ensureVisible(strength);
-      await tester.enterText(strength, '2.7');
+      await tester.enterText(strength, '0.8');
       await tester.testTextInput.receiveAction(TextInputAction.done);
       await tester.pumpAndSettle();
-      expect(controller.options.intensity, 2.7);
-      expect(controller.presetState.selected.options.intensity, 2.3);
+      expect(controller.options.intensity, 0.8);
+      expect(controller.presetState.selected.options.intensity, 0.7);
       expect(find.text('已调整 · 当前参数已自动保存'), findsOneWidget);
       expect(tester.takeException(), isNull);
     },
   );
-  testWidgets(
-    'numeric NR controls accept values beyond sliders and reject invalid input',
-    (tester) async {
-      await tester.binding.setSurfaceSize(const Size(320, 400));
-      addTearDown(() => tester.binding.setSurfaceSize(null));
-      var options = const DlssOptions();
-      await tester.pumpWidget(
-        _app(
-          _Controller(),
-          Scaffold(
-            body: StatefulBuilder(
-              builder: (context, setState) => SingleChildScrollView(
-                child: DlssOptionsEditor(
-                  value: options,
-                  onChanged: (value) => setState(() => options = value),
-                ),
+  testWidgets('intensity rejects values above one and invalid numeric input', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(320, 400));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    var options = const DlssOptions();
+    await tester.pumpWidget(
+      _app(
+        _Controller(),
+        Scaffold(
+          body: StatefulBuilder(
+            builder: (context, setState) => SingleChildScrollView(
+              child: DlssOptionsEditor(
+                value: options,
+                onChanged: (value) => setState(() => options = value),
               ),
             ),
           ),
         ),
-      );
-      Finder field(String label) => find.byKey(ValueKey('dlss-value-$label'));
-      final strength = field('强度');
-      await tester.ensureVisible(strength);
-      await tester.enterText(strength, '3.25');
-      await tester.testTextInput.receiveAction(TextInputAction.done);
-      await tester.pump();
-      expect(options.intensity, 3.25);
-      await tester.enterText(strength, 'NaN');
-      await tester.testTextInput.receiveAction(TextInputAction.done);
-      await tester.pump();
-      expect(options.intensity, 3.25);
-      expect(find.text('请输入此参数支持的有效数值。'), findsOneWidget);
-      expect(find.byKey(const Key('dlss-passes')), findsNothing);
-      expect(field('NR 处理次数'), findsNothing);
-      expect(tester.takeException(), isNull);
-    },
-  );
+      ),
+    );
+    Finder field(String label) => find.byKey(ValueKey('dlss-value-$label'));
+    final strength = field('强度');
+    await tester.ensureVisible(strength);
+    await tester.enterText(strength, '3.25');
+    await tester.testTextInput.receiveAction(TextInputAction.done);
+    await tester.pump();
+    expect(options.intensity, 1);
+    await tester.enterText(strength, 'NaN');
+    await tester.testTextInput.receiveAction(TextInputAction.done);
+    await tester.pump();
+    expect(options.intensity, 1);
+    expect(find.text('请输入此参数支持的有效数值。'), findsOneWidget);
+    expect(find.byKey(const Key('dlss-passes')), findsNothing);
+    expect(field('NR 处理次数'), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
   testWidgets('automatic enhancement failures remain in DLSS settings', (
     tester,
   ) async {
@@ -279,11 +278,11 @@ void main() {
     }
     expect(find.byType(Slider), findsNWidgets(8));
     final sliders = tester.widgetList<Slider>(find.byType(Slider)).toList();
-    expect(sliders.map((slider) => slider.max), [4, 2, 2, 1, 2, 2, 2, 2]);
+    expect(sliders.map((slider) => slider.max), [4, 1, 2, 1, 2, 2, 2, 2]);
     expect(sliders.map((slider) => slider.min), [1, 0, 0, 0, 0, 0, -1, -1]);
     expect(sliders.map((slider) => slider.divisions), [
       null,
-      40,
+      20,
       40,
       20,
       40,

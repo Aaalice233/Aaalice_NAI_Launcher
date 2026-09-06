@@ -48,7 +48,7 @@ void main() {
         final registrar = _Registrar();
         when(
           () => controller.options,
-        ).thenReturn(const DlssOptions(scale: 2.5, intensity: 3));
+        ).thenReturn(const DlssOptions(scale: 2.5, intensity: 1));
         DlssOptions? options;
         Future<void>? cancellation;
         when(

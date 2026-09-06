@@ -1,7 +1,10 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+
 import 'package:image/image.dart' as img;
+
+import 'image_viewport_surface.dart';
 
 /// 缩略图显示组件
 ///
@@ -158,6 +161,8 @@ class _ThumbnailDisplayState extends State<ThumbnailDisplay> {
       ),
     );
 
+    image = ImageViewportSurface(child: image);
+
     if (widget.borderRadius != null) {
       image = ClipRRect(borderRadius: widget.borderRadius!, child: image);
     }
@@ -181,6 +186,8 @@ class _ThumbnailDisplayState extends State<ThumbnailDisplay> {
       ),
     );
 
+    image = ImageViewportSurface(child: image);
+
     if (widget.borderRadius != null) {
       image = ClipRRect(borderRadius: widget.borderRadius!, child: image);
     }
@@ -189,11 +196,11 @@ class _ThumbnailDisplayState extends State<ThumbnailDisplay> {
   }
 
   Widget _buildError() => Container(
-        width: widget.width,
-        height: widget.height,
-        color: Colors.grey.shade800,
-        child: const Icon(Icons.broken_image_outlined, color: Colors.white38),
-      );
+    width: widget.width,
+    height: widget.height,
+    color: ImageViewportSurface.background,
+    child: const Icon(Icons.broken_image_outlined, color: Colors.white38),
+  );
 
   static int? _decodeCacheExtent(
     double logicalExtent,

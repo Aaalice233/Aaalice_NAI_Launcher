@@ -1,8 +1,10 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../widgets/common/image_viewport_surface.dart';
 import '../../../../core/shortcuts/default_shortcuts.dart';
 import '../../../../core/utils/app_logger.dart';
 import '../../../../core/utils/localization_extension.dart';
@@ -657,7 +659,7 @@ class _VibeDetailViewerState extends ConsumerState<VibeDetailViewer> {
     final isBundle = _entry.isBundle;
 
     return ColoredBox(
-      color: Colors.black,
+      color: ImageViewportSurface.background,
       child: ShortcutAwareWidget(
         contextType: ShortcutContext.vibeDetail,
         autofocus: true,
@@ -719,7 +721,7 @@ class _VibeDetailViewerState extends ConsumerState<VibeDetailViewer> {
 
   Widget _buildLoadingView() {
     return ColoredBox(
-      color: Colors.black,
+      color: ImageViewportSurface.background,
       child: Stack(
         fit: StackFit.expand,
         children: [
@@ -790,7 +792,7 @@ class _VibeDetailViewerState extends ConsumerState<VibeDetailViewer> {
         child: Column(
           children: [
             Material(
-              color: Colors.black,
+              color: ImageViewportSurface.background,
               child: TabBar(
                 tabs: [
                   Tab(

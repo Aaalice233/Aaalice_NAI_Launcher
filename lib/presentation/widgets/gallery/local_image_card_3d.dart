@@ -2,9 +2,11 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../common/image_viewport_surface.dart';
 import '../../../core/cache/local_gallery_thumbnail_provider.dart';
 import '../../../core/mosaic/mosaic_derivative_registry.dart';
 import '../../../core/platform/platform_capabilities.dart';
@@ -249,7 +251,7 @@ class _LocalImageCard3DState extends ConsumerState<LocalImageCard3D> {
           width: widget.width,
           height: cardHeight,
           decoration: BoxDecoration(
-            color: colorScheme.surfaceContainerLow,
+            color: ImageViewportSurface.background,
             borderRadius: BorderRadius.circular(12),
             boxShadow: [
               BoxShadow(

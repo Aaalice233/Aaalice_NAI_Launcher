@@ -25897,6 +25897,12 @@ abstract class AppLocalizations {
   /// **'Default enhancement parameters'**
   String get dlss_defaults;
 
+  /// No description provided for @dlss_openPage.
+  ///
+  /// In en, this message translates to:
+  /// **'Open DLSSNR'**
+  String get dlss_openPage;
+
   /// No description provided for @dlss_description.
   ///
   /// In en, this message translates to:

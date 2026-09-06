@@ -107,9 +107,10 @@ class DlssOptionsEditor extends StatelessWidget {
             const SizedBox(height: 8),
             _slider(
               l10n.dlss_intensity,
-              '${l10n.dlss_intensityHint}\n${l10n.dlss_numericHint}',
+              l10n.dlss_intensityHint,
               value.intensity,
               (v) => value.copyWith(intensity: v),
+              max: 1,
             ),
           ],
         ),

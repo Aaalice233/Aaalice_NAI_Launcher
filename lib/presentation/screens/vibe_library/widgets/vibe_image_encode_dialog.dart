@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+
 import 'package:nai_launcher/presentation/themes/core/input_surface_style.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 
+import '../../../widgets/common/image_viewport_surface.dart';
 import '../../../../core/utils/app_logger.dart';
 import '../../../../core/utils/localization_extension.dart';
 import '../../../../data/models/vibe/vibe_reference.dart';
@@ -292,7 +294,7 @@ class _VibeImageEncodeDialogState extends State<VibeImageEncodeDialog> {
         height: extent,
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(12),
-          color: theme.colorScheme.surfaceContainerHighest,
+          color: ImageViewportSurface.background,
         ),
         clipBehavior: Clip.antiAlias,
         child: widget.thumbnail != null
@@ -314,12 +316,16 @@ class _VibeImageEncodeDialogState extends State<VibeImageEncodeDialog> {
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        Icon(Icons.image, size: 48, color: theme.colorScheme.outline),
+        const Icon(
+          Icons.image,
+          size: 48,
+          color: ImageViewportSurface.mutedForeground,
+        ),
         const SizedBox(height: 8),
         Text(
           context.l10n.vibe_imagePreview,
           style: theme.textTheme.bodySmall?.copyWith(
-            color: theme.colorScheme.outline,
+            color: ImageViewportSurface.mutedForeground,
           ),
         ),
       ],
@@ -331,12 +337,16 @@ class _VibeImageEncodeDialogState extends State<VibeImageEncodeDialog> {
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        Icon(Icons.broken_image, size: 48, color: theme.colorScheme.outline),
+        const Icon(
+          Icons.broken_image,
+          size: 48,
+          color: ImageViewportSurface.mutedForeground,
+        ),
         const SizedBox(height: 8),
         Text(
           context.l10n.vibe_previewLoadFailed,
           style: theme.textTheme.bodySmall?.copyWith(
-            color: theme.colorScheme.outline,
+            color: ImageViewportSurface.mutedForeground,
           ),
         ),
       ],

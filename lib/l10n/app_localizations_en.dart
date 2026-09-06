@@ -14887,6 +14887,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get dlss_defaults => 'Default enhancement parameters';
 
   @override
+  String get dlss_openPage => 'Open DLSSNR';
+
+  @override
   String get dlss_description =>
       'Enhance images locally and manage runtimes and defaults.';
 

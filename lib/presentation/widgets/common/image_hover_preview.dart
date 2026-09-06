@@ -4,6 +4,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
+import 'image_viewport_surface.dart';
 import '../../themes/core/layered_surface_style.dart';
 
 enum ImageHoverPreviewTone { primary, secondary, tertiary, neutral }
@@ -98,8 +99,8 @@ class ImageHoverPreviewSurface extends StatelessWidget {
                         child: Stack(
                           fit: StackFit.expand,
                           children: [
-                            ColoredBox(
-                              color: overlaySurfaceColor(theme.colorScheme),
+                            const ColoredBox(
+                              color: ImageViewportSurface.background,
                             ),
                             mediaBuilder(context, layout),
                             ...overlays,

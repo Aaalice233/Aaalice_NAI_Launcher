@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+
+import '../../../widgets/common/image_viewport_surface.dart';
 import 'package:flutter/services.dart';
 
 import '../../../../core/utils/localization_extension.dart';
@@ -102,7 +104,7 @@ class _EntryCardState extends State<EntryCard> {
             Container(
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(16),
-                color: Colors.grey.shade800,
+                color: ImageViewportSurface.background,
               ),
             ),
             // 内容层（带ClipRRect）

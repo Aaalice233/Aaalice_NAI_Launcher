@@ -14237,6 +14237,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get dlss_defaults => '默认增强参数';
 
   @override
+  String get dlss_openPage => '打开 DLSSNR 页面';
+
+  @override
   String get dlss_description => '在本机增强图像，管理所需运行库与默认参数。';
 
   @override
@@ -28813,6 +28816,9 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get dlss_defaults => '預設增強參數';
+
+  @override
+  String get dlss_openPage => '開啟 DLSSNR 頁面';
 
   @override
   String get dlss_description => '在本機增強影像，管理所需執行階段與預設參數。';

@@ -67,7 +67,7 @@ class DlssPresetState {
     DlssPreset(
       id: 'soft-light',
       builtIn: true,
-      options: DlssOptions(intensity: 1.1, detail: 0.8, color: 1),
+      options: DlssOptions(intensity: 1, detail: 0.8, color: 1),
     ),
     DlssPreset(
       id: 'natural-light',

@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import 'image_viewport_surface.dart';
 import '../../adaptive/interaction_policy.dart';
 import '../../../core/utils/localization_extension.dart';
 import '../../themes/theme_extension.dart';
@@ -89,6 +90,7 @@ class ImageCardSurface extends StatelessWidget {
                 : motion.fastDuration,
             curve: motion.standardCurve,
             decoration: BoxDecoration(
+              color: ImageViewportSurface.background,
               borderRadius: BorderRadius.circular(12),
               border: data.isSelected
                   ? Border.all(color: theme.colorScheme.primary, width: 2)
@@ -299,7 +301,7 @@ class ImageCardSurface extends StatelessWidget {
             )
           // 只有铺了底层的卡片需要兜底色遮住它，其余卡片首帧前保持原本的空白。
           else if (data.underlay != null)
-            ColoredBox(color: theme.colorScheme.surface),
+            const ColoredBox(color: ImageViewportSurface.background),
         ],
         if (showsImage && data.underlay != null) data.underlay!,
         child,

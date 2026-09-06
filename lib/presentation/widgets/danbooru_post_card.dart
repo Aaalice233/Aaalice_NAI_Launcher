@@ -2,6 +2,8 @@ import 'dart:math';
 
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+
+import 'common/image_viewport_surface.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -463,7 +465,7 @@ class _DanbooruPostCardState extends State<DanbooruPostCard> {
                     curve: motion.standardCurve,
                     height: itemHeight,
                     decoration: BoxDecoration(
-                      color: theme.colorScheme.surfaceContainerLow,
+                      color: ImageViewportSurface.background,
                       borderRadius: BorderRadius.circular(8),
                       border:
                           _isFocused &&

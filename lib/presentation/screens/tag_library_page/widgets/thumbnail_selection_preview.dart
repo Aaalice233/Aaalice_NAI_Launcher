@@ -2,6 +2,8 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 
+import '../../../widgets/common/image_viewport_surface.dart';
+
 const double tagLibraryCardAspectRatio = 2.5;
 
 Size displayedThumbnailImageSize(Size imageSize, Size displaySize) {
@@ -183,6 +185,7 @@ class _ThumbnailSelectionPreviewState extends State<ThumbnailSelectionPreview> {
         return Stack(
           fit: StackFit.expand,
           children: [
+            const ColoredBox(color: ImageViewportSurface.background),
             Positioned(
               left: imageOffset.dx,
               top: imageOffset.dy,
