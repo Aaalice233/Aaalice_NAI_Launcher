@@ -13,6 +13,7 @@ import 'image_card_controller.dart';
 import 'image_card_effects.dart';
 import 'image_card_hover_motion.dart';
 import 'image_card_models.dart';
+import 'image_card_stream_preview.dart';
 
 class ImageCardSurface extends StatelessWidget {
   const ImageCardSurface({
@@ -111,18 +112,10 @@ class ImageCardSurface extends StatelessWidget {
               child: Stack(
                 fit: StackFit.expand,
                 children: [
-                  if (data.underlay != null) data.underlay!,
+                  if (data.imageContent != null && data.underlay != null)
+                    data.underlay!,
                   RepaintBoundary(
-                    child:
-                        data.imageContent ??
-                        DecodedMemoryImage(
-                          key: const ValueKey('selectable-image-content'),
-                          bytes: controller.displayedImageBytes!,
-                          fit: BoxFit.cover,
-                          frameBuilder: controller.showCompletionPlaceholder
-                              ? null
-                              : controller.completedImageFrameBuilder,
-                        ),
+                    child: data.imageContent ?? _completedImage(theme),
                   ),
                   _DragPreparationOverlay(data: data, controller: controller),
                   if (controller.isHovering && capabilities.enableGlossEffect)
@@ -260,6 +253,54 @@ class ImageCardSurface extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+
+  Widget _completedImage(ThemeData theme) {
+    return DecodedMemoryImage(
+      key: const ValueKey('selectable-image-content'),
+      bytes: data.imageBytes!,
+      fit: BoxFit.cover,
+      frameBuilder: (context, child, frame, wasSynchronouslyLoaded) =>
+          _composeCompletedImage(
+            theme: theme,
+            ready: frame != null || wasSynchronouslyLoaded,
+            child: controller.completedImageFrameBuilder(
+              context,
+              child,
+              frame,
+              wasSynchronouslyLoaded,
+            ),
+          ),
+      errorBuilder: (context, _, _) => const SizedBox.shrink(),
+    );
+  }
+
+  /// 首帧之前继续画生成中卡片的最后一帧，不铺底层，避免闪出棋盘格。
+  Widget _composeCompletedImage({
+    required ThemeData theme,
+    required bool ready,
+    required Widget child,
+  }) {
+    // 换源会把 frame 归零，但旧帧仍在 gapless 画，此时藏底层会让透明区闪一下。
+    final showsImage = ready || controller.hasPaintedCompletedImage;
+    final holdover = controller.effectiveCompletionPreview;
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        if (!showsImage) ...[
+          if (holdover != null)
+            ImageCardStreamPreview(
+              previewBytes: holdover.bytes,
+              placement: holdover.placement,
+            )
+          // 只有铺了底层的卡片需要兜底色遮住它，其余卡片首帧前保持原本的空白。
+          else if (data.underlay != null)
+            ColoredBox(color: theme.colorScheme.surface),
+        ],
+        if (showsImage && data.underlay != null) data.underlay!,
+        child,
+      ],
     );
   }
 }

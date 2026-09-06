@@ -515,6 +515,7 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
           totalImages: totalImages,
           batchWidth: params.width,
           batchHeight: params.height,
+          completionPreviews: const {},
           clearStreamPreview: true,
         );
       case GenerationRequestStarted(
@@ -577,6 +578,15 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
             slot,
           ),
         );
+      case GenerationImageFinalizing(:final imageNumber, :final totalImages):
+        state = state.copyWith(
+          currentImage: imageNumber,
+          progress: imageNumber / totalImages,
+          streamPreviewSlots: _replacePreviewSlot(
+            state.streamPreviewSlots,
+            _finalizedPreviewSlot(imageNumber, totalImages),
+          ),
+        );
       case GenerationRequestCompleted(
         :final params,
         :final startImage,
@@ -596,13 +606,20 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
             )
             .toList();
         final current = [...state.currentImages, ...generated];
+        final history = [
+          ...generated,
+          ...state.history,
+        ].take(GenerationResultLifecycleService.historyLimit).toList();
         state = state.copyWith(
           currentImages: current,
-          history: [
-            ...generated,
-            ...state.history,
-          ].take(GenerationResultLifecycleService.historyLimit).toList(),
+          history: history,
           progress: (startImage - 1 + images.length) / totalImages,
+          completionPreviews: _captureCompletionPreviews(
+            generated: generated,
+            startImage: startImage,
+            currentImages: current,
+            history: history,
+          ),
           clearStreamPreview: true,
         );
         for (var i = 0; i < max(images.length, params.nSamples); i++) {
@@ -794,6 +811,58 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
       blend: mask == null ? img.BlendMode.direct : img.BlendMode.alpha,
     );
     return Uint8List.fromList(img.encodePng(composed, level: 1));
+  }
+
+  StreamPreviewSlot _finalizedPreviewSlot(int imageNumber, int totalImages) {
+    for (final slot in state.streamPreviewSlots) {
+      if (slot.imageNumber == imageNumber) return slot.copyWith(progress: 1);
+    }
+    return StreamPreviewSlot(
+      imageNumber: imageNumber,
+      totalImages: totalImages,
+      progress: 1,
+    );
+  }
+
+  Map<String, StreamPreviewFrame> _captureCompletionPreviews({
+    required List<GeneratedImage> generated,
+    required int startImage,
+    required List<GeneratedImage> currentImages,
+    required List<GeneratedImage> history,
+  }) {
+    final retainedIds = <String>{
+      for (final image in currentImages) image.id,
+      for (final image in history) image.id,
+    };
+    final previews = <String, StreamPreviewFrame>{
+      for (final entry in state.completionPreviews.entries)
+        if (retainedIds.contains(entry.key)) entry.key: entry.value,
+    };
+    for (var i = 0; i < generated.length; i++) {
+      final frame = _completionFrameFor(startImage + i, generated.length);
+      if (frame != null) previews[generated[i].id] = frame;
+    }
+    return previews;
+  }
+
+  /// ImageCache 以字节身份为键，必须交出槽位里的原实例，拷贝会让完成卡片重新解码。
+  StreamPreviewFrame? _completionFrameFor(int imageNumber, int generatedCount) {
+    for (final slot in state.streamPreviewSlots) {
+      if (slot.imageNumber != imageNumber) continue;
+      final bytes = slot.previewBytes;
+      if (bytes == null || bytes.isEmpty) return null;
+      return StreamPreviewFrame(
+        bytes: bytes,
+        placement: slot.focusedPreviewPlacement,
+      );
+    }
+    if (state.streamPreviewSlots.isNotEmpty || generatedCount != 1) return null;
+    final bytes = state.streamPreview;
+    if (bytes == null || bytes.isEmpty) return null;
+    return StreamPreviewFrame(
+      bytes: bytes,
+      placement: state.focusedPreviewPlacement,
+    );
   }
 
   List<StreamPreviewSlot> _replacePreviewSlot(
@@ -992,7 +1061,11 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
   }
 
   void clearCurrent() {
-    state = state.copyWith(currentImages: [], status: GenerationStatus.idle);
+    state = state.copyWith(
+      currentImages: [],
+      status: GenerationStatus.idle,
+      completionPreviews: const {},
+    );
     _retainHistoryCaches();
   }
 
@@ -1003,7 +1076,11 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
   }
 
   void clearHistory() {
-    state = state.copyWith(currentImages: [], history: []);
+    state = state.copyWith(
+      currentImages: [],
+      history: [],
+      completionPreviews: const {},
+    );
     _retainHistoryCaches();
   }
 

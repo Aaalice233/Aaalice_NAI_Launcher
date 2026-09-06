@@ -246,6 +246,9 @@ class ImageGenerationState {
   /// 当前请求中的流式预览槽位（用于一次请求多张时稳定历史位置）。
   final List<StreamPreviewSlot> streamPreviewSlots;
 
+  /// 已完成图像在自己首帧到达前继续显示的最后一帧预览，按图像 id 索引。
+  final Map<String, StreamPreviewFrame> completionPreviews;
+
   /// 当前批次的分辨率（点击生成时捕获）
   final int? batchWidth;
   final int? batchHeight;
@@ -271,6 +274,7 @@ class ImageGenerationState {
     this.streamPreview,
     this.focusedPreviewPlacement,
     this.streamPreviewSlots = const [],
+    this.completionPreviews = const {},
     this.batchWidth,
     this.batchHeight,
     this.displayImages = const [],
@@ -290,6 +294,7 @@ class ImageGenerationState {
     Uint8List? streamPreview,
     FocusedStreamPreviewPlacement? focusedPreviewPlacement,
     List<StreamPreviewSlot>? streamPreviewSlots,
+    Map<String, StreamPreviewFrame>? completionPreviews,
     bool clearStreamPreview = false,
     bool clearFocusedPreviewPlacement = false,
     int? batchWidth,
@@ -317,6 +322,7 @@ class ImageGenerationState {
       streamPreviewSlots: clearStreamPreview
           ? (streamPreviewSlots ?? const [])
           : (streamPreviewSlots ?? this.streamPreviewSlots),
+      completionPreviews: completionPreviews ?? this.completionPreviews,
       batchWidth: batchWidth ?? this.batchWidth,
       batchHeight: batchHeight ?? this.batchHeight,
       displayImages: displayImages ?? this.displayImages,

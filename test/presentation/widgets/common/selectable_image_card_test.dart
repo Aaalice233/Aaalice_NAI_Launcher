@@ -19,8 +19,10 @@ import 'package:nai_launcher/presentation/screens/generation/widgets/image_previ
 import 'package:nai_launcher/presentation/widgets/common/draggable_memory_image.dart';
 import 'package:nai_launcher/presentation/widgets/common/image_card_actions.dart';
 import 'package:nai_launcher/presentation/widgets/common/image_card_hover_motion.dart';
+import 'package:nai_launcher/presentation/widgets/common/image_card_stream_preview.dart';
 import 'package:nai_launcher/presentation/widgets/common/pro_context_menu.dart';
 import 'package:nai_launcher/presentation/widgets/common/selectable_image_card.dart';
+import 'package:nai_launcher/presentation/widgets/common/transparency_background.dart';
 
 void main() {
   late Directory hiveTempDir;
@@ -593,12 +595,123 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 100));
 
-    expect(
-      find.byWidgetPredicate(
-        (widget) =>
-            widget.runtimeType.toString() == '_FocusedStreamPreviewImage',
+    expect(find.byType(ImageCardStreamPreview), findsOneWidget);
+  });
+
+  testWidgets('stream preview keeps the last frame while a new one decodes', (
+    tester,
+  ) async {
+    final firstPreview = Uint8List.fromList(
+      img.encodePng(img.Image(width: 8, height: 8)),
+    );
+    final secondPreview = Uint8List.fromList(
+      img.encodePng(img.Image(width: 12, height: 12)),
+    );
+
+    await tester.pumpWidget(_buildStreamPreviewApp(firstPreview));
+    await _pumpUntilDecoded(
+      tester,
+      () => _streamPreviewPainter(tester).previewImage != null,
+    );
+    final firstFrame = _streamPreviewPainter(tester).previewImage;
+    expect(firstFrame, isNotNull);
+
+    await tester.pumpWidget(_buildStreamPreviewApp(secondPreview));
+
+    expect(_streamPreviewPainter(tester).previewImage, same(firstFrame));
+
+    await _pumpUntilDecoded(
+      tester,
+      () => !identical(_streamPreviewPainter(tester).previewImage, firstFrame),
+    );
+    expect(_streamPreviewPainter(tester).previewImage, isNotNull);
+  });
+
+  testWidgets('completion preview covers the card until its first frame', (
+    tester,
+  ) async {
+    final preview = Uint8List.fromList(
+      img.encodePng(img.Image(width: 24, height: 24)),
+    );
+    final result = Uint8List.fromList(
+      img.encodePng(img.Image(width: 40, height: 40)),
+    );
+
+    await tester.pumpWidget(
+      _buildCompletionApp(
+        imageBytes: result,
+        completionPreview: StreamPreviewFrame(bytes: preview),
       ),
-      findsOneWidget,
+    );
+
+    expect(find.byType(ImageCardStreamPreview), findsOneWidget);
+    expect(find.byType(TransparencyBackgroundLayer), findsNothing);
+
+    await _pumpUntilDecoded(
+      tester,
+      () => find.byType(TransparencyBackgroundLayer).evaluate().isNotEmpty,
+    );
+
+    expect(find.byType(TransparencyBackgroundLayer), findsOneWidget);
+    expect(find.byType(ImageCardStreamPreview), findsNothing);
+
+    await tester.pumpWidget(_buildCompletionApp(imageBytes: result));
+    await tester.pump();
+
+    expect(find.byType(ImageCardStreamPreview), findsNothing);
+    expect(find.byType(TransparencyBackgroundLayer), findsOneWidget);
+  });
+
+  testWidgets('a completed card without a preview waits on the surface color', (
+    tester,
+  ) async {
+    final result = Uint8List.fromList(
+      img.encodePng(img.Image(width: 40, height: 40)),
+    );
+
+    await tester.pumpWidget(_buildCompletionApp(imageBytes: result));
+
+    final placeholder = find.descendant(
+      of: find.byKey(const ValueKey('selectable-image-content')),
+      matching: find.byType(ColoredBox),
+    );
+    expect(find.byType(ImageCardStreamPreview), findsNothing);
+    expect(find.byType(TransparencyBackgroundLayer), findsNothing);
+    expect(placeholder, findsOneWidget);
+    expect(
+      tester.widget<ColoredBox>(placeholder).color,
+      Theme.of(
+        tester.element(find.byType(SelectableImageCard)),
+      ).colorScheme.surface,
+    );
+
+    await _pumpUntilDecoded(
+      tester,
+      () => find.byType(TransparencyBackgroundLayer).evaluate().isNotEmpty,
+    );
+
+    expect(placeholder, findsNothing);
+    expect(find.byType(TransparencyBackgroundLayer), findsOneWidget);
+  });
+
+  testWidgets('an underlay-free card draws nothing before its first frame', (
+    tester,
+  ) async {
+    final result = Uint8List.fromList(
+      img.encodePng(img.Image(width: 40, height: 40)),
+    );
+
+    await tester.pumpWidget(
+      _buildCompletionApp(imageBytes: result, withUnderlay: false),
+    );
+
+    expect(find.byType(ImageCardStreamPreview), findsNothing);
+    expect(
+      find.descendant(
+        of: find.byKey(const ValueKey('selectable-image-content')),
+        matching: find.byType(ColoredBox),
+      ),
+      findsNothing,
     );
   });
 
@@ -674,6 +787,73 @@ void main() {
 }
 
 void _noop() {}
+
+Widget _buildStreamPreviewApp(Uint8List previewBytes) {
+  return MaterialApp(
+    home: Scaffold(
+      body: SizedBox.square(
+        dimension: 160,
+        child: ImageCardStreamPreview(previewBytes: previewBytes),
+      ),
+    ),
+  );
+}
+
+Widget _buildCompletionApp({
+  required Uint8List imageBytes,
+  StreamPreviewFrame? completionPreview,
+  bool withUnderlay = true,
+}) {
+  return ProviderScope(
+    child: MaterialApp(
+      locale: const Locale('zh'),
+      supportedLocales: AppLocalizations.supportedLocales,
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      home: Scaffold(
+        body: Center(
+          child: SizedBox.square(
+            dimension: 160,
+            child: SelectableImageCard(
+              imageBytes: imageBytes,
+              completionPreview: completionPreview,
+              underlay: withUnderlay
+                  ? const TransparencyBackgroundLayer(
+                      style: TransparencyBackgrounds.checker,
+                    )
+                  : null,
+              enableSelection: false,
+              enableContextMenu: false,
+              hoverEffectsEnabled: false,
+            ),
+          ),
+        ),
+      ),
+    ),
+  );
+}
+
+ImageCardStreamPreviewPainter _streamPreviewPainter(WidgetTester tester) {
+  return tester.widget<CustomPaint>(
+        find.descendant(
+          of: find.byType(ImageCardStreamPreview),
+          matching: find.byType(CustomPaint),
+        ),
+      ).painter!
+      as ImageCardStreamPreviewPainter;
+}
+
+/// 图像解码只在真实事件循环里推进，pump 之间必须放行 runAsync。
+Future<void> _pumpUntilDecoded(
+  WidgetTester tester,
+  bool Function() decoded,
+) async {
+  for (var attempt = 0; attempt < 50 && !decoded(); attempt++) {
+    await tester.runAsync(
+      () => Future<void>.delayed(const Duration(milliseconds: 10)),
+    );
+    await tester.pump();
+  }
+}
 
 class _EnabledWatermarkSettingsNotifier extends WatermarkSettingsNotifier {
   @override

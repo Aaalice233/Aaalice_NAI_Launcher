@@ -1,14 +1,9 @@
-import 'dart:math' as math;
-import 'dart:typed_data';
-
 import 'package:flutter/material.dart';
 
-import '../../../data/models/image/image_stream_chunk.dart';
 import '../../themes/theme_extension.dart';
-import 'decoded_memory_image.dart';
 import 'image_card_controller.dart';
-import 'image_card_focused_preview.dart';
 import 'image_card_models.dart';
+import 'image_card_stream_preview.dart';
 
 const _streamProgressForeground = Colors.white;
 
@@ -114,60 +109,10 @@ class ImageCardGenerating extends StatelessWidget {
     );
   }
 
-  Widget _streamPreview() {
-    final placement = data.focusedPreviewPlacement;
-    if (placement == null || !placement.isValid) {
-      return DecodedMemoryImage(
-        bytes: data.streamPreview!,
-        fit: BoxFit.cover,
-        gaplessPlayback: true,
-      );
-    }
-    if (placement.hasMask) {
-      return _FocusedStreamPreviewImage(
-        previewImage: data.streamPreview!,
-        placement: placement,
-      );
-    }
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        if (!constraints.hasBoundedWidth || !constraints.hasBoundedHeight) {
-          return DecodedMemoryImage(
-            bytes: data.streamPreview!,
-            fit: BoxFit.cover,
-            gaplessPlayback: true,
-          );
-        }
-        final x = placement.xPercent.clamp(0.0, 1.0).toDouble();
-        final y = placement.yPercent.clamp(0.0, 1.0).toDouble();
-        final width = placement.widthPercent.clamp(0.0, 1.0 - x).toDouble();
-        final height = placement.heightPercent.clamp(0.0, 1.0 - y).toDouble();
-        return Stack(
-          fit: StackFit.expand,
-          children: [
-            DecodedMemoryImage(
-              bytes: placement.sourceImage,
-              fit: BoxFit.cover,
-              gaplessPlayback: true,
-            ),
-            Positioned(
-              left: constraints.maxWidth * x,
-              top: constraints.maxHeight * y,
-              width: math.max(1, constraints.maxWidth * width),
-              height: math.max(1, constraints.maxHeight * height),
-              child: ClipRect(
-                child: DecodedMemoryImage(
-                  bytes: data.streamPreview!,
-                  fit: BoxFit.fill,
-                  gaplessPlayback: true,
-                ),
-              ),
-            ),
-          ],
-        );
-      },
-    );
-  }
+  Widget _streamPreview() => ImageCardStreamPreview(
+    previewBytes: data.streamPreview!,
+    placement: data.focusedPreviewPlacement,
+  );
 
   Widget _loading(BuildContext context, ThemeData theme) {
     final progress = data.progress ?? 0;
@@ -259,18 +204,4 @@ class ImageCardGenerating extends StatelessWidget {
       Shadow(color: Colors.black87, blurRadius: 4, offset: Offset(0, 1)),
     ],
   );
-}
-
-class _FocusedStreamPreviewImage extends StatelessWidget {
-  const _FocusedStreamPreviewImage({
-    required this.previewImage,
-    required this.placement,
-  });
-
-  final Uint8List previewImage;
-  final FocusedStreamPreviewPlacement placement;
-
-  @override
-  Widget build(BuildContext context) =>
-      ImageCardFocusedPreview(previewImage: previewImage, placement: placement);
 }

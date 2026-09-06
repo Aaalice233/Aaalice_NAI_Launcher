@@ -671,6 +671,11 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> {
       underlay: TransparencyBackgroundLayer(
         style: ref.watch(previewTransparencyNotifierProvider),
       ),
+      completionPreview: ref.watch(
+        imageGenerationNotifierProvider.select(
+          (state) => state.completionPreviews[image.id],
+        ),
+      ),
       imageContent: comparisonEnabled
           ? ImageComparisonView(
               key: ValueKey('generation-image-comparison-${image.id}'),

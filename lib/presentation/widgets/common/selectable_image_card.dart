@@ -42,8 +42,7 @@ class SelectableImageCard extends ConsumerStatefulWidget {
     this.statusBadgeLabel,
     this.statusBadgeTooltip,
     this.dragPreparationReady = true,
-    this.completionPlaceholderBytes,
-    this.onCompletionPlaceholderSettled,
+    this.completionPreview,
     this.enableSelection = true,
     this.onUpscale,
     this.onReversePrompt,
@@ -100,8 +99,7 @@ class SelectableImageCard extends ConsumerStatefulWidget {
   final String? statusBadgeLabel;
   final String? statusBadgeTooltip;
   final bool dragPreparationReady;
-  final Uint8List? completionPlaceholderBytes;
-  final VoidCallback? onCompletionPlaceholderSettled;
+  final StreamPreviewFrame? completionPreview;
   final bool enableSelection;
   final VoidCallback? onUpscale;
   final VoidCallback? onReversePrompt;
@@ -151,7 +149,7 @@ class _SelectableImageCardState extends ConsumerState<SelectableImageCard>
     statusBadgeLabel: widget.statusBadgeLabel,
     statusBadgeTooltip: widget.statusBadgeTooltip,
     dragPreparationReady: widget.dragPreparationReady,
-    completionPlaceholderBytes: widget.completionPlaceholderBytes,
+    completionPreview: widget.completionPreview,
     isFavorite: widget.isFavorite,
     underlay: widget.underlay,
     imageContent: widget.imageContent,
@@ -197,7 +195,6 @@ class _SelectableImageCardState extends ConsumerState<SelectableImageCard>
     onOpenInExplorer: widget.onOpenInExplorer,
     onSaveToLibrary: widget.onSaveToLibrary,
     onFavoriteToggle: widget.onFavoriteToggle,
-    onCompletionPlaceholderSettled: widget.onCompletionPlaceholderSettled,
   );
 
   @override
@@ -214,18 +211,12 @@ class _SelectableImageCardState extends ConsumerState<SelectableImageCard>
   void didChangeDependencies() {
     super.didChangeDependencies();
     _controller.setReducedMotion(MediaQuery.disableAnimationsOf(context));
-    _controller.scheduleCompletedImagePrecache(context);
   }
 
   @override
   void didUpdateWidget(covariant SelectableImageCard oldWidget) {
     super.didUpdateWidget(oldWidget);
-    _controller.update(
-      vsync: this,
-      data: _data,
-      capabilities: _capabilities,
-      context: context,
-    );
+    _controller.update(vsync: this, data: _data, capabilities: _capabilities);
   }
 
   @override
