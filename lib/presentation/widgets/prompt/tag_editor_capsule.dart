@@ -119,6 +119,25 @@ class _TagEditorCapsuleState extends State<TagEditorCapsule> {
     // RenderEditable measures the effective font, composing text and caret.
     // A separate TextPainter can disagree with the TextField's merged style.
     final availableWidth = widget.maxWidth.clamp(1.0, double.infinity);
+    final textScaler = MediaQuery.textScalerOf(context);
+    double lineHeight(TextStyle? textStyle) {
+      final painter = TextPainter(
+        text: TextSpan(
+          text: ' ',
+          style: DefaultTextStyle.of(context).style.merge(textStyle),
+        ),
+        textDirection: Directionality.of(context),
+        textScaler: textScaler,
+      );
+      final height = painter.preferredLineHeight;
+      painter.dispose();
+      return height;
+    }
+
+    // Keep the original and caption's two-line area available for caret taps.
+    final editorPadding = widget.showTranslation
+        ? (3 + lineHeight(Theme.of(context).textTheme.bodySmall)) / 2
+        : 0.0;
     return ConstrainedBox(
       constraints: BoxConstraints(
         minWidth: availableWidth.clamp(1.0, 24.0),
@@ -140,7 +159,16 @@ class _TagEditorCapsuleState extends State<TagEditorCapsule> {
             style: style,
             textAlignVertical: TextAlignVertical.center,
             textInputAction: TextInputAction.done,
-            decoration: null,
+            decoration: InputDecoration(
+              isDense: true,
+              filled: false,
+              contentPadding: EdgeInsets.symmetric(vertical: editorPadding),
+              border: InputBorder.none,
+              enabledBorder: InputBorder.none,
+              focusedBorder: InputBorder.none,
+              disabledBorder: InputBorder.none,
+              hoverColor: Colors.transparent,
+            ),
             onSubmitted: (_) => widget.onSubmitted(),
             onTapOutside: (_) => widget.onTapOutside(),
           ),
@@ -189,7 +217,7 @@ class _TagEditorCapsuleState extends State<TagEditorCapsule> {
               ),
           ],
         ),
-        if (widget.showTranslation)
+        if (widget.showTranslation && !widget.editing)
           Padding(
             padding: const EdgeInsets.only(top: 3),
             child: PromptTranslationLabel(

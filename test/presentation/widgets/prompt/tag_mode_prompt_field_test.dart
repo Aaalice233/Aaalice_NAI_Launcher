@@ -437,7 +437,7 @@ void main() {
   }
 
   testWidgets(
-    'editing retains translation and resizes the capsule with its text',
+    'editing hides translation and uses its area for centered caret taps',
     (tester) async {
       final source = TextEditingController(text: 'cat, dog');
       addTearDown(source.dispose);
@@ -471,12 +471,29 @@ void main() {
       );
       expect(
         find.descendant(of: capsule, matching: find.text('猫')),
-        findsOneWidget,
+        findsNothing,
       );
       final field = find.byKey(const ValueKey('tag-input-0'));
+      final renderEditable = tester
+          .state<EditableTextState>(
+            find.descendant(of: field, matching: find.byType(EditableText)),
+          )
+          .renderEditable;
+      final caret = renderEditable.getLocalRectForCaret(
+        const TextPosition(offset: 0),
+      );
       expect(
-        tester.getRect(field).bottom,
-        lessThan(tester.getRect(find.text('猫')).top),
+        renderEditable.localToGlobal(caret.center).dy,
+        closeTo(tester.getRect(field).center.dy, 2),
+      );
+      expect(tester.getSize(field).height, before.height - 16);
+      await tester.tapAt(
+        tester.getRect(field).bottomLeft + const Offset(1, -2),
+      );
+      await tester.pumpAndSettle();
+      expect(
+        tester.widget<TextField>(field).controller!.selection,
+        const TextSelection.collapsed(offset: 0),
       );
       await tester.enterText(field, 'longer_tag_name');
       await tester.pumpAndSettle();
@@ -502,6 +519,7 @@ void main() {
         findsNothing,
       );
       expect(badge, findsNothing);
+      expect(find.text('译文 ${'long_tag_' * 40}'), findsOneWidget);
       expect(tester.takeException(), isNull);
       await tester.pumpWidget(const SizedBox.shrink());
     },
@@ -1145,7 +1163,7 @@ void main() {
       await tester.enterText(find.byKey(const ValueKey('tag-input-0')), 'bird');
       await tester.pumpAndSettle();
       expect(source.text, 'bird, dog');
-      expect(find.text('译文 bird'), findsOneWidget);
+      expect(find.text('译文 bird'), findsNothing);
       await tester.sendKeyEvent(LogicalKeyboardKey.enter);
       await tester.pumpAndSettle();
       expect(find.text('译文 bird'), findsOneWidget);
@@ -1198,31 +1216,51 @@ void main() {
       await tester.pumpWidget(const SizedBox.shrink());
     },
   );
-  testWidgets(
-    'responsive capsules and selected toolbar remain bounded at 3x text',
-    (tester) async {
-      for (final width in [320.0, 600.0, 840.0, 1180.0, 1600.0]) {
-        await tester.binding.setSurfaceSize(Size(width, 800));
-        final source = TextEditingController(
-          text: 'cat, very_long_tag_name_that_must_wrap, dog',
-        );
-        await pumpEditor(tester, source, width: width, scale: 3);
-        await tester.tap(find.byKey(const ValueKey('tag-mode-button')));
-        await tester.pumpAndSettle();
-        await tester.tap(find.text('cat'));
-        await tester.pumpAndSettle();
-        expect(tester.takeException(), isNull, reason: 'width=$width');
-        final toolbar = tester.getRect(
-          find.byKey(const ValueKey('tag-action-toolbar')),
-        );
-        expect(toolbar.left, greaterThanOrEqualTo(0));
-        expect(toolbar.right, lessThanOrEqualTo(width));
-        await tester.pumpWidget(const SizedBox.shrink());
-        source.dispose();
-      }
-      await tester.binding.setSurfaceSize(null);
-    },
-  );
+  testWidgets('responsive capsules and editing remain bounded at 3x text', (
+    tester,
+  ) async {
+    for (final width in [320.0, 600.0, 840.0, 1180.0, 1600.0]) {
+      await tester.binding.setSurfaceSize(Size(width, 800));
+      final source = TextEditingController(
+        text: 'cat, very_long_tag_name_that_must_wrap, dog',
+      );
+      await pumpEditor(tester, source, width: width, scale: 3);
+      await tester.tap(find.byKey(const ValueKey('tag-mode-button')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('cat'));
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull, reason: 'width=$width');
+      final toolbar = tester.getRect(
+        find.byKey(const ValueKey('tag-action-toolbar')),
+      );
+      expect(toolbar.left, greaterThanOrEqualTo(0));
+      expect(toolbar.right, lessThanOrEqualTo(width));
+      final capsule = find.byType(TagEditorCapsule).first;
+      final beforeHeight = tester.getSize(capsule).height;
+      await tester.tap(find.text('cat'));
+      await tester.pumpAndSettle();
+      final field = find.byKey(const ValueKey('tag-input-0'));
+      expect(find.text('猫'), findsNothing);
+      expect(tester.getSize(capsule).height, beforeHeight);
+      final editable = tester
+          .state<EditableTextState>(
+            find.descendant(of: field, matching: find.byType(EditableText)),
+          )
+          .renderEditable;
+      final caret = editable.getLocalRectForCaret(
+        const TextPosition(offset: 0),
+      );
+      expect(
+        editable.localToGlobal(caret.center).dy,
+        closeTo(tester.getRect(field).center.dy, 2),
+        reason: 'width=$width',
+      );
+      expect(tester.takeException(), isNull, reason: 'width=$width');
+      await tester.pumpWidget(const SizedBox.shrink());
+      source.dispose();
+    }
+    await tester.binding.setSurfaceSize(null);
+  });
 }
 
 class _Dictionary extends ZhDictionaryService {
