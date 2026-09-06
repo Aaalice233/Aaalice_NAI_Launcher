@@ -114,7 +114,11 @@ class CardActionButtons extends StatelessWidget {
     // already moved to another card, producing duplicate labels.
     if (!visible) return const SizedBox.shrink();
 
-    final extent = interactionPolicy.minimumControlExtent;
+    // Dense image overlays use compact pointer targets while retaining the
+    // stable touch target once a touch device has been observed.
+    final extent = interactionPolicy.touchAvailable
+        ? interactionPolicy.minimumControlExtent
+        : 32.0;
     final size = availableSize;
     final columns = size == null
         ? 2

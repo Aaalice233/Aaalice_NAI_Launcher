@@ -176,7 +176,7 @@ void main() {
       ),
     );
 
-    expect(tester.getSize(find.byType(IconButton)), const Size.square(40));
+    expect(tester.getSize(find.byType(IconButton)), const Size.square(32));
 
     await tester.tap(find.byIcon(Icons.download));
     expect(pressed, 1);
@@ -281,7 +281,7 @@ void main() {
 
     expect(find.byType(CircularProgressIndicator), findsOneWidget);
     expect(find.bySemanticsLabel('download, Loading…'), findsOneWidget);
-    expect(tester.getSize(find.byType(IconButton)), const Size.square(40));
+    expect(tester.getSize(find.byType(IconButton)), const Size.square(32));
     await tester.tap(find.byType(IconButton));
     expect(pressed, 0);
     semantics.dispose();
@@ -323,7 +323,7 @@ void main() {
   testWidgets('long horizontal action groups wrap inside landscape cards', (
     tester,
   ) async {
-    const cardSize = Size(236, 100);
+    const cardSize = Size(200, 100);
     await tester.pumpWidget(
       MaterialApp(
         home: Align(
