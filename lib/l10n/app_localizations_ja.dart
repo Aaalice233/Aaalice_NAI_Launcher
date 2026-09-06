@@ -14500,7 +14500,7 @@ class AppLocalizationsJa extends AppLocalizations {
   String get dlss_description => 'ローカルで画像を強化し、ランタイムと既定値を管理します。';
 
   @override
-  String get dlss_detail => 'ディテール混合';
+  String get dlss_detail => '強化ブレンド';
 
   @override
   String get dlss_enabled => 'DLSS 強化を有効にする';
@@ -14711,7 +14711,7 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get dlss_detailHint =>
-      '0 は NR 入力（SR 有効時は拡大後の画像）を保持し、1 は強化結果を全面適用します。1 を超えると差分を増幅し、過剰な表現や歪みが生じる場合があります。';
+      'NR の効果全体を調整します。質感のディテールだけを制御するものではありません。0 は NR 入力（SR 有効時は拡大後の画像）を保持し、1 は色の混合設定に従って強化結果を適用します。1 を超えると差分を増幅し、過剰な表現や歪みが生じる場合があります。';
 
   @override
   String get dlss_colorHint =>
@@ -14821,13 +14821,16 @@ class AppLocalizationsJa extends AppLocalizations {
   String get dlss_presetCinema => 'シネマ';
 
   @override
+  String get dlss_presetMaterial => '質感と光';
+
+  @override
   String get dlss_presetCrisp => 'ディテール';
 
   @override
   String get dlss_presetVivid => '鮮やか';
 
   @override
-  String get dlss_detailAndColor => 'ディテールと色';
+  String get dlss_detailAndColor => '出力ブレンド';
 
   @override
   String get dlss_nrModel => 'NR モデル';

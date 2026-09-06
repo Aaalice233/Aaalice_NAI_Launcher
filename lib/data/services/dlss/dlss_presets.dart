@@ -53,6 +53,18 @@ class DlssPresetState {
   static const builtIns = [
     DlssPreset(id: defaultId, options: DlssOptions(), builtIn: true),
     DlssPreset(
+      id: 'material-light',
+      builtIn: true,
+      options: DlssOptions(
+        localStructure: 1.8,
+        localTone: 1.4,
+        globalTone: 1.3,
+        skin: 1,
+        detail: 1,
+        color: 0.65,
+      ),
+    ),
+    DlssPreset(
       id: 'soft-light',
       builtIn: true,
       options: DlssOptions(intensity: 1.1, detail: 0.8, color: 1),

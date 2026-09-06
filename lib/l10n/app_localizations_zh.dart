@@ -14240,7 +14240,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get dlss_description => '在本机增强图像，管理所需运行库与默认参数。';
 
   @override
-  String get dlss_detail => '细节混合';
+  String get dlss_detail => '增强混合';
 
   @override
   String get dlss_enabled => '启用 DLSS 增强';
@@ -14448,7 +14448,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get dlss_detailHint =>
-      '0 保留 NR 输入（开启 SR 时为放大后的图像），1 使用完整增强效果；大于 1 放大两者差异，可能使效果夸张或失真。';
+      '控制 NR 对整体画面的影响，不单独控制材质细节。0 保留 NR 输入（开启 SR 时为放大后的图像）；1 按“颜色混合”设置应用增强结果；大于 1 放大两者差异，可能使效果夸张或失真。';
 
   @override
   String get dlss_colorHint => '0 保留原图色相，但仍采用增强后的明暗；1 采用增强后的颜色。越低越接近原图的配色。';
@@ -14554,13 +14554,16 @@ class AppLocalizationsZh extends AppLocalizations {
   String get dlss_presetCinema => '电影';
 
   @override
+  String get dlss_presetMaterial => '质感光影';
+
+  @override
   String get dlss_presetCrisp => '细节';
 
   @override
   String get dlss_presetVivid => '浓郁';
 
   @override
-  String get dlss_detailAndColor => '细节与颜色';
+  String get dlss_detailAndColor => '结果混合';
 
   @override
   String get dlss_nrModel => 'NR 模型';
@@ -28815,7 +28818,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get dlss_description => '在本機增強影像，管理所需執行階段與預設參數。';
 
   @override
-  String get dlss_detail => '細節混合';
+  String get dlss_detail => '增強混合';
 
   @override
   String get dlss_enabled => '啟用 DLSS 增強';
@@ -29023,7 +29026,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get dlss_detailHint =>
-      '0 保留 NR 輸入（開啟 SR 時為放大後的圖像），1 使用完整增強效果；大於 1 放大兩者差異，可能使效果誇張或失真。';
+      '控制 NR 對整體畫面的影響，不單獨控制材質細節。0 保留 NR 輸入（開啟 SR 時為放大後的圖像）；1 按「顏色混合」設定套用增強結果；大於 1 放大兩者差異，可能使效果誇張或失真。';
 
   @override
   String get dlss_colorHint => '0 保留原圖色相，但仍採用增強後的明暗；1 採用增強後的顏色。越低越接近原圖的配色。';
@@ -29129,13 +29132,16 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get dlss_presetCinema => '電影';
 
   @override
+  String get dlss_presetMaterial => '質感光影';
+
+  @override
   String get dlss_presetCrisp => '細節';
 
   @override
   String get dlss_presetVivid => '濃郁';
 
   @override
-  String get dlss_detailAndColor => '細節與顏色';
+  String get dlss_detailAndColor => '結果混合';
 
   @override
   String get dlss_nrModel => 'NR 模型';

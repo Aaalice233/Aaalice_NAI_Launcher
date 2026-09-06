@@ -14891,7 +14891,7 @@ class AppLocalizationsEn extends AppLocalizations {
       'Enhance images locally and manage runtimes and defaults.';
 
   @override
-  String get dlss_detail => 'Detail blend';
+  String get dlss_detail => 'Enhancement blend';
 
   @override
   String get dlss_enabled => 'Enable DLSS enhancement';
@@ -15112,7 +15112,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get dlss_detailHint =>
-      '0 retains the NR input (the upscaled image when SR is enabled); 1 uses the full enhanced result. Values above 1 amplify their difference and may exaggerate or distort the image.';
+      'Controls the overall NR effect, not material detail alone. 0 retains the NR input (the upscaled image when SR is enabled); 1 applies the enhanced result with the Color blend setting. Values above 1 amplify the difference and may exaggerate or distort the image.';
 
   @override
   String get dlss_colorHint =>
@@ -15227,13 +15227,16 @@ class AppLocalizationsEn extends AppLocalizations {
   String get dlss_presetCinema => 'Cinematic';
 
   @override
+  String get dlss_presetMaterial => 'Texture & light';
+
+  @override
   String get dlss_presetCrisp => 'Detail';
 
   @override
   String get dlss_presetVivid => 'Vivid';
 
   @override
-  String get dlss_detailAndColor => 'Detail and color';
+  String get dlss_detailAndColor => 'Output blending';
 
   @override
   String get dlss_nrModel => 'NR model';

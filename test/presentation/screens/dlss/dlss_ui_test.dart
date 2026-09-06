@@ -82,11 +82,11 @@ void main() {
     await tester.ensureVisible(advancedTitle);
     await tester.tap(advancedTitle);
     await tester.pumpAndSettle();
-    final help = find.byKey(const ValueKey('dlss-help-细节混合'));
+    final help = find.byKey(const ValueKey('dlss-help-增强混合'));
     await tester.ensureVisible(help);
     await tester.tap(help);
     await tester.pumpAndSettle();
-    final field = find.byKey(const ValueKey('dlss-value-细节混合'));
+    final field = find.byKey(const ValueKey('dlss-value-增强混合'));
     final before = tester.widget<TextField>(field);
     await tester.ensureVisible(field);
     await tester.enterText(field, '1.');
@@ -116,7 +116,7 @@ void main() {
   });
 
   for (final width in [320.0, 600.0, 840.0, 1180.0, 1600.0]) {
-    testWidgets('all six presets remain selectable at $width and 3x text', (
+    testWidgets('material preset remains selectable at $width and 3x text', (
       tester,
     ) async {
       await tester.binding.setSurfaceSize(Size(width, 700));
@@ -132,6 +132,15 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('dlss-preset-selector')));
+      await tester.pumpAndSettle();
+      final material = find.text('质感光影').last;
+      await tester.ensureVisible(material);
+      await tester.tap(material);
+      await tester.pumpAndSettle();
+      expect(controller.presetState.selectedId, 'material-light');
+      expect(controller.options.localStructure, 1.8);
+      expect(controller.options.detail, 1);
       await tester.tap(find.byKey(const Key('dlss-preset-selector')));
       await tester.pumpAndSettle();
       final preserveColor = find.text('默认').last;
@@ -363,12 +372,12 @@ void main() {
         final advanced = find.byKey(const Key('dlss-advanced-group'));
         final advancedBounds = tester.getRect(advanced);
         for (final label in [
-          '细节与颜色',
+          '结果混合',
           'NR 模型',
           '局部调整',
           '模型强度',
           '模型开关',
-          '细节混合',
+          '增强混合',
           '颜色混合',
           '局部结构',
           '局部色调',

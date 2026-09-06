@@ -25906,7 +25906,7 @@ abstract class AppLocalizations {
   /// No description provided for @dlss_detail.
   ///
   /// In en, this message translates to:
-  /// **'Detail blend'**
+  /// **'Enhancement blend'**
   String get dlss_detail;
 
   /// No description provided for @dlss_enabled.
@@ -26314,7 +26314,7 @@ abstract class AppLocalizations {
   /// No description provided for @dlss_detailHint.
   ///
   /// In en, this message translates to:
-  /// **'0 retains the NR input (the upscaled image when SR is enabled); 1 uses the full enhanced result. Values above 1 amplify their difference and may exaggerate or distort the image.'**
+  /// **'Controls the overall NR effect, not material detail alone. 0 retains the NR input (the upscaled image when SR is enabled); 1 applies the enhanced result with the Color blend setting. Values above 1 amplify the difference and may exaggerate or distort the image.'**
   String get dlss_detailHint;
 
   /// No description provided for @dlss_colorHint.
@@ -26509,6 +26509,12 @@ abstract class AppLocalizations {
   /// **'Cinematic'**
   String get dlss_presetCinema;
 
+  /// No description provided for @dlss_presetMaterial.
+  ///
+  /// In en, this message translates to:
+  /// **'Texture & light'**
+  String get dlss_presetMaterial;
+
   /// No description provided for @dlss_presetCrisp.
   ///
   /// In en, this message translates to:
@@ -26524,7 +26530,7 @@ abstract class AppLocalizations {
   /// No description provided for @dlss_detailAndColor.
   ///
   /// In en, this message translates to:
-  /// **'Detail and color'**
+  /// **'Output blending'**
   String get dlss_detailAndColor;
 
   /// No description provided for @dlss_nrModel.

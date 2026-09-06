@@ -24,11 +24,11 @@ void main() {
         'uiCorrection': false,
         'scale': 2.0,
       });
-      expect(DlssPresetState.builtIns, hasLength(6));
+      expect(DlssPresetState.builtIns, hasLength(7));
       expect(DlssPresetState.builtIns.first.id, 'color-light');
       expect(DlssPresetState.builtIns.last.id, 'cinematic-light');
       expect(DlssPresetState.builtIns.last.options.color, 1);
-      for (final id in ['color-light', 'cinematic-light']) {
+      for (final id in ['color-light', 'material-light', 'cinematic-light']) {
         final saved = state
             .select(id)
             .withOptions(const DlssOptions(intensity: 2.2));
@@ -55,6 +55,14 @@ void main() {
     () {
       final baseline = const DlssOptions().toJson();
       const differences = {
+        'material-light': {
+          'localStructure',
+          'localTone',
+          'globalTone',
+          'skin',
+          'detail',
+          'color',
+        },
         'soft-light': {'intensity', 'detail', 'color'},
         'natural-light': {'style', 'color'},
         'cinematic-soft': {'localTone', 'globalTone', 'detail', 'color'},
