@@ -2,6 +2,8 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
+import 'package:flutter/services.dart' show FontLoader, rootBundle;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:image/image.dart' as img;
@@ -42,6 +44,7 @@ Future<ProviderContainer> _pumpBar(
   double? width,
   InteractionPolicy? interactionPolicy,
   String defaultModel = 'nai-diffusion-4-5-full',
+  double textScale = 1,
 }) async {
   final container = ProviderContainer(
     overrides: [
@@ -76,9 +79,16 @@ Future<ProviderContainer> _pumpBar(
     UncontrolledProviderScope(
       container: container,
       child: MaterialApp(
+        theme: ThemeData(fontFamily: 'PreviewTestFont'),
         locale: const Locale('zh'),
         localizationsDelegates: AppLocalizations.localizationsDelegates,
         supportedLocales: AppLocalizations.supportedLocales,
+        builder: (context, child) => MediaQuery(
+          data: MediaQuery.of(
+            context,
+          ).copyWith(textScaler: TextScaler.linear(textScale)),
+          child: child!,
+        ),
         home: home,
       ),
     ),
@@ -91,6 +101,12 @@ Future<ProviderContainer> _pumpBar(
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+  setUpAll(() async {
+    // Ahem 将数字和汉字都画成等宽方块，无法验证真实字体下的紧凑布局。
+    final loader = FontLoader('PreviewTestFont')
+      ..addFont(rootBundle.load('fonts/LXGWZhenKaiGB-Regular.ttf'));
+    await loader.load();
+  });
 
   testWidgets('分辨率胶囊显示图片实际宽高', (tester) async {
     await _pumpBar(tester, _image(seed: 4201934405));
@@ -228,6 +244,83 @@ void main() {
       lessThanOrEqualTo(tester.getRect(bar).right),
     );
     expect(tester.takeException(), isNull);
+  });
+
+  for (final width in [240.0, 280.0, 320.0]) {
+    testWidgets('窄预览 $width 勾选透明背景后种子完整且无需横向滚动', (tester) async {
+      const seed = 4201934405;
+      final container = await _pumpBar(
+        tester,
+        _image(seed: seed),
+        width: width,
+        defaultModel: 'nai-diffusion-5-curated',
+        interactionPolicy: const InteractionPolicy(
+          modality: InteractionModality.touch,
+          touchAvailable: true,
+          precisePointerAvailable: false,
+        ),
+      );
+      final toggle = find.byKey(
+        const ValueKey('generation_preview_transparent_background_toggle'),
+      );
+      for (final enabled in [false, true]) {
+        if (enabled) {
+          await tester.tap(toggle);
+          await tester.pumpAndSettle();
+        }
+        expect(
+          container
+              .read(generationParamsNotifierProvider)
+              .transparentBackground,
+          enabled,
+        );
+        expect(
+          find.descendant(
+            of: find.byType(PreviewInfoBar),
+            matching: find.byType(Scrollable),
+          ),
+          findsNothing,
+        );
+        final seedText = find.text('$seed');
+        final paragraph = tester.renderObject<RenderParagraph>(seedText);
+        expect(paragraph.didExceedMaxLines, isFalse);
+        expect(
+          tester.getRect(seedText).right,
+          lessThanOrEqualTo(tester.getRect(toggle).left),
+        );
+        expect(
+          tester.getSize(find.byType(TransparencyBackgroundIcon)).width,
+          greaterThan(0),
+        );
+        await tester.tap(seedText);
+        await tester.pump();
+        expect(container.read(generationParamsNotifierProvider).seed, seed);
+        expect(tester.takeException(), isNull);
+      }
+    });
+  }
+
+  testWidgets('触屏预览在三倍文字下保持控件可点击且无溢出', (tester) async {
+    await _pumpBar(
+      tester,
+      _image(seed: 4201934405),
+      width: 320,
+      textScale: 3,
+      defaultModel: 'nai-diffusion-5-curated',
+      interactionPolicy: const InteractionPolicy(
+        modality: InteractionModality.touch,
+        touchAvailable: true,
+        precisePointerAvailable: false,
+      ),
+    );
+    await tester.tap(
+      find.byKey(
+        const ValueKey('generation_preview_transparent_background_toggle'),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+    expect(find.text('4201934405').hitTestable(), findsOneWidget);
   });
 
   testWidgets('不支持透明背景的模型不显示主预览开关', (tester) async {

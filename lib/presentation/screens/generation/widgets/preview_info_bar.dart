@@ -73,47 +73,57 @@ class PreviewInfoBar extends ConsumerWidget {
               !constraints.maxWidth.isFinite ||
               constraints.maxWidth >= resolutionMinWidth;
 
-          final infoScroll = SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                if (showResolution) ...[
-                  _InfoPill(
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text('${image.width}'),
-                        const Padding(
-                          padding: EdgeInsets.symmetric(horizontal: 6),
-                          child: Icon(Icons.close_rounded, size: 11),
+          final compactInfo = !showResolution && onComparisonChanged == null;
+          final info = compactInfo
+              ? Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const _TransparencyBackgroundButton(),
+                    if (seed != null && seed >= 0)
+                      Flexible(child: _SeedPill(seed: seed, compact: true)),
+                  ],
+                )
+              : SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (showResolution) ...[
+                        _InfoPill(
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text('${image.width}'),
+                              const Padding(
+                                padding: EdgeInsets.symmetric(horizontal: 6),
+                                child: Icon(Icons.close_rounded, size: 11),
+                              ),
+                              Text('${image.height}'),
+                            ],
+                          ),
                         ),
-                        Text('${image.height}'),
+                        const _PillDivider(),
                       ],
-                    ),
+                      const _TransparencyBackgroundButton(),
+                      if (onComparisonChanged != null) ...[
+                        const _PillDivider(),
+                        _ComparisonToggle(
+                          enabled: comparisonEnabled,
+                          onChanged: onComparisonChanged!,
+                        ),
+                      ],
+                      if (seed != null && seed >= 0) ...[
+                        const SizedBox(width: 6),
+                        _SeedPill(seed: seed),
+                      ],
+                    ],
                   ),
-                  const _PillDivider(),
-                ],
-                const _TransparencyBackgroundButton(),
-                if (onComparisonChanged != null) ...[
-                  const _PillDivider(),
-                  _ComparisonToggle(
-                    enabled: comparisonEnabled,
-                    onChanged: onComparisonChanged!,
-                  ),
-                ],
-                if (seed != null && seed >= 0) ...[
-                  const SizedBox(width: 6),
-                  _SeedPill(seed: seed),
-                ],
-              ],
-            ),
-          );
-          if (!showTransparentBackground) return infoScroll;
+                );
+          if (!showTransparentBackground) return info;
 
           return Row(
             children: [
-              Expanded(child: infoScroll),
+              Expanded(child: info),
               const SizedBox(width: 6),
               Semantics(
                 button: true,
@@ -147,12 +157,14 @@ class _InfoPill extends StatelessWidget {
   final VoidCallback? onTap;
   final String? tooltip;
   final bool selected;
+  final EdgeInsetsGeometry padding;
 
   const _InfoPill({
     required this.child,
     this.onTap,
     this.tooltip,
     this.selected = false,
+    this.padding = const EdgeInsets.symmetric(horizontal: 10),
   });
 
   @override
@@ -170,7 +182,7 @@ class _InfoPill extends StatelessWidget {
             minHeight: PreviewInfoBar.barHeight,
           ),
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 10),
+            padding: padding,
             // widthFactor 让胶囊按内容收窄：种子胶囊在 Flexible 里拿到的是有界宽度，
             // 普通 Center 会撑满剩余空间，把胶囊拉成一条长条
             child: Align(
@@ -257,12 +269,14 @@ class _PillDivider extends StatelessWidget {
 /// 种子胶囊：点击把这张图的种子写回生成参数
 class _SeedPill extends ConsumerWidget {
   final int seed;
+  final bool compact;
 
-  const _SeedPill({required this.seed});
+  const _SeedPill({required this.seed, this.compact = false});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return _InfoPill(
+      padding: EdgeInsets.symmetric(horizontal: compact ? 2 : 10),
       tooltip: context.l10n.generation_previewApplySeed,
       onTap: () =>
           ref.read(generationParamsNotifierProvider.notifier).updateSeed(seed),
@@ -270,7 +284,7 @@ class _SeedPill extends ConsumerWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           const Icon(Icons.eco_outlined, size: 13),
-          const SizedBox(width: 6),
+          SizedBox(width: compact ? 4 : 6),
           Flexible(
             child: Text('$seed', maxLines: 1, overflow: TextOverflow.ellipsis),
           ),
