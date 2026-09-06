@@ -701,7 +701,12 @@ void main() {
     );
     await tester.pumpAndSettle();
     expect(find.byType(IntegrationsSettingsSection), findsOneWidget);
-    await tester.tap(find.byIcon(Icons.smart_toy_outlined));
+    await tester.tap(
+      find.descendant(
+        of: find.byType(NavigationRail),
+        matching: find.byIcon(Icons.smart_toy_outlined),
+      ),
+    );
     await tester.pumpAndSettle();
     expect(
       find.byKey(const ValueKey('agent-custom-system-prompt')),

@@ -14494,9 +14494,6 @@ class AppLocalizationsJa extends AppLocalizations {
   String get dlss_current => '使用中';
 
   @override
-  String get dlss_defaults => '既定の強化パラメーター';
-
-  @override
   String get dlss_openPage => 'DLSSNR ページを開く';
 
   @override
@@ -14577,9 +14574,6 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get dlss_tone => '照明と色調の強度';
-
-  @override
-  String get dlss_validating => 'ファイルを検証して強化をテスト中…';
 
   @override
   String get dlss_advanced => '詳細パラメーター';
@@ -14691,10 +14685,6 @@ class AppLocalizationsJa extends AppLocalizations {
   @override
   String get dlss_styleHint =>
       'サイズを変えずにランタイムのスタイル 0 / 1 / 2 を選択します。「デフォルト・ナチュラル・シネマティック」は上流の名称を使用しており、公式 Model A/B/C との対応は未検証です。';
-
-  @override
-  String get dlss_numericHint =>
-      '値を入力し、Enter またはフォーカスを外して適用します。NR 全体強度と色の寄与は 0～1 です。構造、照明、出力ブレンドは通常 0～2 ですが、それ以上も入力できます。肌の構造の負の値は負の強度ではなくモデルの既定値です。';
 
   @override
   String get dlss_intensityHint =>

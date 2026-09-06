@@ -213,8 +213,8 @@ class ImageGenerationCoordinator {
             }
           }
 
-          if (_aborted(handle) && batchImages.isEmpty) break;
-          if (_skipCurrentRequest && batchImages.isEmpty) {
+          if (_aborted(handle)) break;
+          if (_skipCurrentRequest) {
             yield GenerationRequestSkipped(
               runId: command.runId,
               startImage: startImage,

@@ -14234,9 +14234,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get dlss_current => '当前使用';
 
   @override
-  String get dlss_defaults => '默认增强参数';
-
-  @override
   String get dlss_openPage => '打开 DLSSNR 页面';
 
   @override
@@ -14317,9 +14314,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get dlss_tone => '光照与色调强度';
-
-  @override
-  String get dlss_validating => '正在校验组件并测试增强…';
 
   @override
   String get dlss_advanced => '高级参数';
@@ -14430,10 +14424,6 @@ class AppLocalizationsZh extends AppLocalizations {
   @override
   String get dlss_styleHint =>
       '选择运行库的风格模式 0 / 1 / 2，不改变尺寸。“默认、自然、电影感”沿用上游名称，尚未验证与官方 Model A/B/C 的对应关系。';
-
-  @override
-  String get dlss_numericHint =>
-      '可直接输入数值，按回车或离开输入框应用。NR 总强度与颜色贡献为 0～1；结构、光照与输出混合常用 0～2，可输入更高值。皮肤结构负值表示模型默认，不是负强度。';
 
   @override
   String get dlss_intensityHint =>
@@ -28796,9 +28786,6 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get dlss_current => '目前使用';
 
   @override
-  String get dlss_defaults => '預設增強參數';
-
-  @override
   String get dlss_openPage => '開啟 DLSSNR 頁面';
 
   @override
@@ -28879,9 +28866,6 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get dlss_tone => '光照與色調強度';
-
-  @override
-  String get dlss_validating => '正在驗證元件並測試增強…';
 
   @override
   String get dlss_advanced => '進階參數';
@@ -28992,10 +28976,6 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   @override
   String get dlss_styleHint =>
       '選擇執行庫的風格模式 0 / 1 / 2，不改變尺寸。「預設、自然、電影感」沿用上游名稱，尚未驗證與官方 Model A/B/C 的對應關係。';
-
-  @override
-  String get dlss_numericHint =>
-      '可直接輸入數值，按 Enter 或離開輸入框套用。NR 總強度與色彩貢獻為 0～1；結構、光照與輸出混合常用 0～2，可輸入更高值。皮膚結構負值表示模型預設，不是負強度。';
 
   @override
   String get dlss_intensityHint =>

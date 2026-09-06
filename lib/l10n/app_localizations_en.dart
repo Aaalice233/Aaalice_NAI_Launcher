@@ -14884,9 +14884,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get dlss_current => 'Active';
 
   @override
-  String get dlss_defaults => 'Default enhancement parameters';
-
-  @override
   String get dlss_openPage => 'Open DLSSNR';
 
   @override
@@ -14971,9 +14968,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get dlss_tone => 'Lighting and tone strength';
-
-  @override
-  String get dlss_validating => 'Verifying components and testing enhancement…';
 
   @override
   String get dlss_advanced => 'Advanced parameters';
@@ -15091,10 +15085,6 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get dlss_styleHint =>
       'Selects runtime style 0, 1 or 2 without changing dimensions. Default, Natural and Cinematic retain upstream names; their correspondence to official Model A/B/C has not been verified.';
-
-  @override
-  String get dlss_numericHint =>
-      'Type a value and press Enter or leave the field to apply. NR intensity and color contribution range from 0 to 1. Structure, lighting and output blend normally use 0–2 but accept higher values. Negative skin structure values mean the model default, not negative strength.';
 
   @override
   String get dlss_intensityHint =>

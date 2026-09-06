@@ -25891,12 +25891,6 @@ abstract class AppLocalizations {
   /// **'Active'**
   String get dlss_current;
 
-  /// No description provided for @dlss_defaults.
-  ///
-  /// In en, this message translates to:
-  /// **'Default enhancement parameters'**
-  String get dlss_defaults;
-
   /// No description provided for @dlss_openPage.
   ///
   /// In en, this message translates to:
@@ -26058,12 +26052,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Lighting and tone strength'**
   String get dlss_tone;
-
-  /// No description provided for @dlss_validating.
-  ///
-  /// In en, this message translates to:
-  /// **'Verifying components and testing enhancement…'**
-  String get dlss_validating;
 
   /// No description provided for @dlss_advanced.
   ///
@@ -26280,12 +26268,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Selects runtime style 0, 1 or 2 without changing dimensions. Default, Natural and Cinematic retain upstream names; their correspondence to official Model A/B/C has not been verified.'**
   String get dlss_styleHint;
-
-  /// No description provided for @dlss_numericHint.
-  ///
-  /// In en, this message translates to:
-  /// **'Type a value and press Enter or leave the field to apply. NR intensity and color contribution range from 0 to 1. Structure, lighting and output blend normally use 0–2 but accept higher values. Negative skin structure values mean the model default, not negative strength.'**
-  String get dlss_numericHint;
 
   /// No description provided for @dlss_intensityHint.
   ///
