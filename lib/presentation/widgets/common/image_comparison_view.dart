@@ -153,6 +153,8 @@ class _ImageComparisonViewState extends State<ImageComparisonView> {
     final inverseScale = scale <= 0 ? 1.0 : 1 / scale;
     final lineWidth = _dividerLineWidth * inverseScale;
     final interactionPolicy = context.interactionPolicy;
+    final showFocus =
+        _dividerFocused && interactionPolicy.keyboardNavigationActive;
     final paintedHitWidth =
         interactionPolicy.prefersTouchPresentation &&
             _dividerHitWidth < interactionPolicy.minimumControlExtent
@@ -232,7 +234,7 @@ class _ImageComparisonViewState extends State<ImageComparisonView> {
                         key: const ValueKey(
                           'generation-comparison-divider-thumb',
                         ),
-                        color: _dividerFocused
+                        color: showFocus
                             ? colors.primary
                             : colors.surfaceContainerHigh,
                         elevation: _dividerElevation * inverseScale,
@@ -242,7 +244,7 @@ class _ImageComparisonViewState extends State<ImageComparisonView> {
                           child: Icon(
                             Icons.drag_indicator_rounded,
                             size: _dividerIconSize * inverseScale,
-                            color: _dividerFocused
+                            color: showFocus
                                 ? colors.onPrimary
                                 : colors.onSurface,
                           ),

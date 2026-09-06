@@ -74,6 +74,7 @@ class AgentChatHeader extends StatelessWidget {
       (session) => session.id == viewData.state.activeSessionId,
     );
     final colors = Theme.of(context).colorScheme;
+    final interaction = context.interactionPolicy;
     final controlExtent = context.interactionPolicy.minimumControlExtent;
     return PopupMenuButton<String>(
       key: ValueKey(
@@ -99,7 +100,7 @@ class AgentChatHeader extends StatelessWidget {
             return colors.surfaceContainerHighest;
           }
           if (states.contains(WidgetState.hovered) ||
-              states.contains(WidgetState.focused)) {
+              interaction.isFocusVisible(states)) {
             return colors.surfaceContainerHigh;
           }
           return Colors.transparent;

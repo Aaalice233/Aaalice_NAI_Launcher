@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:image/image.dart' as img;
 import 'package:nai_launcher/l10n/app_localizations.dart';
+import 'package:nai_launcher/presentation/adaptive/interaction_policy.dart';
 import 'package:nai_launcher/presentation/widgets/common/image_comparison_view.dart';
 
 void main() {
@@ -23,9 +24,17 @@ void main() {
     await tester.pump();
     final draggedX = tester.getCenter(line).dx;
     expect(draggedX, greaterThan(initialX + 60));
+    final thumb = find.byKey(
+      const ValueKey('generation-comparison-divider-thumb'),
+    );
+    final colors = Theme.of(tester.element(thumb)).colorScheme;
+    final dragFocus = FocusManager.instance.primaryFocus;
+    expect(tester.widget<Material>(thumb).color, colors.surfaceContainerHigh);
 
     await tester.sendKeyEvent(LogicalKeyboardKey.arrowLeft);
     await tester.pump();
+    expect(FocusManager.instance.primaryFocus, same(dragFocus));
+    expect(tester.widget<Material>(thumb).color, colors.primary);
     expect(tester.getCenter(line).dx, lessThan(draggedX));
     await tester.pump(const Duration(milliseconds: 300));
   });
@@ -186,6 +195,7 @@ Future<void> _pumpComparison(
 }) async {
   await tester.pumpWidget(
     MaterialApp(
+      builder: (context, child) => InteractionPolicyScope(child: child!),
       locale: const Locale('zh'),
       localizationsDelegates: AppLocalizations.localizationsDelegates,
       supportedLocales: AppLocalizations.supportedLocales,

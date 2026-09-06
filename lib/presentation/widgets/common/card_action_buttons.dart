@@ -15,11 +15,13 @@ abstract final class ImageOverlayControlStyle {
   static const hoveredBorder = Color(0x52FFFFFF);
   static const toolbarSurface = Color(0x99000000);
 
-  static ButtonStyle iconButton({
+  static ButtonStyle iconButton(
+    BuildContext context, {
     required double extent,
     Color? foregroundColor,
   }) {
     final resolvedForeground = foregroundColor ?? foreground;
+    final interaction = context.interactionPolicy;
     return ButtonStyle(
       minimumSize: WidgetStatePropertyAll(Size.square(extent)),
       tapTargetSize: MaterialTapTargetSize.shrinkWrap,
@@ -28,9 +30,7 @@ abstract final class ImageOverlayControlStyle {
       overlayColor: const WidgetStatePropertyAll(Colors.transparent),
       backgroundColor: WidgetStateProperty.resolveWith((states) {
         if (states.contains(WidgetState.disabled)) return disabledSurface;
-        if (states.contains(WidgetState.hovered) ||
-            states.contains(WidgetState.focused) ||
-            states.contains(WidgetState.pressed)) {
+        if (interaction.isControlHighlighted(states)) {
           return hoveredSurface;
         }
         return surface;
@@ -41,10 +41,7 @@ abstract final class ImageOverlayControlStyle {
             : resolvedForeground;
       }),
       side: WidgetStateProperty.resolveWith((states) {
-        final emphasized =
-            states.contains(WidgetState.hovered) ||
-            states.contains(WidgetState.focused) ||
-            states.contains(WidgetState.pressed);
+        final emphasized = interaction.isControlHighlighted(states);
         return BorderSide(color: emphasized ? hoveredBorder : border);
       }),
     );
@@ -108,7 +105,7 @@ class CardActionButtons extends StatelessWidget {
             MaterialLocalizations.of(context).showMenuTooltip,
         onPressed: () => _showTouchActions(context, loadingLabel),
         constraints: BoxConstraints.tightFor(width: extent, height: extent),
-        style: ImageOverlayControlStyle.iconButton(extent: extent),
+        style: ImageOverlayControlStyle.iconButton(context, extent: extent),
         icon: const Icon(Icons.more_vert_rounded),
       );
     }
@@ -246,6 +243,7 @@ class _CardActionButton extends StatelessWidget {
           onPressed: canActivate ? config.onPressed : null,
           constraints: BoxConstraints.tightFor(width: extent, height: extent),
           style: ImageOverlayControlStyle.iconButton(
+            context,
             extent: extent,
             foregroundColor: config.iconColor,
           ),

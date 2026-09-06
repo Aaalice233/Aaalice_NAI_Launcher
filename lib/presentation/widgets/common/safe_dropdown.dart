@@ -64,6 +64,7 @@ class _SafeDropdownState<T> extends State<SafeDropdown<T>> {
 
     return InputSurfaceContainer(
       borderRadius: widget.borderRadius,
+      keyboardFocusOnly: true,
       isFocused: _focusNode.hasFocus,
       constraints: BoxConstraints(minHeight: controlExtent),
       padding: const EdgeInsets.symmetric(horizontal: 12),

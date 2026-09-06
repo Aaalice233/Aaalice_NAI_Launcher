@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../adaptive/interaction_policy.dart';
 import '../../themes/core/input_surface_style.dart';
 
 /// Shared deep surface for editable controls.
@@ -23,6 +24,7 @@ class InputSurfaceContainer extends StatelessWidget {
     this.padding,
     this.hasError = false,
     this.isFocused = false,
+    this.keyboardFocusOnly = false,
   });
 
   final Widget child;
@@ -38,6 +40,9 @@ class InputSurfaceContainer extends StatelessWidget {
   final EdgeInsetsGeometry? padding;
   final bool hasError;
   final bool isFocused;
+  // Editable fields indicate the active input even after a pointer click;
+  // selectors only need a focus outline during keyboard navigation.
+  final bool keyboardFocusOnly;
 
   @override
   Widget build(BuildContext context) {
@@ -54,6 +59,10 @@ class InputSurfaceContainer extends StatelessWidget {
   }
 
   Widget _buildSurface(BuildContext context, bool focused) {
+    focused =
+        focused &&
+        (!keyboardFocusOnly ||
+            context.interactionPolicy.keyboardNavigationActive);
     final colors = Theme.of(context).colorScheme;
     final isEnabled = enabled ?? true;
     final showsRestingBorder = borderWidth > 0;

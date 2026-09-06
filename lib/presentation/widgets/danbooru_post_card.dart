@@ -466,7 +466,9 @@ class _DanbooruPostCardState extends State<DanbooruPostCard> {
                     decoration: BoxDecoration(
                       color: theme.colorScheme.surfaceContainerLow,
                       borderRadius: BorderRadius.circular(8),
-                      border: _isFocused
+                      border:
+                          _isFocused &&
+                              context.interactionPolicy.keyboardNavigationActive
                           ? Border.all(
                               color: theme.colorScheme.primary,
                               width: 1,

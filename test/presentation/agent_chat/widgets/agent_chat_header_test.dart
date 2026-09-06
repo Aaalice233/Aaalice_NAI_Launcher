@@ -1,5 +1,6 @@
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/core/agent/harness/session/session_types.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
@@ -144,13 +145,19 @@ void main() {
       backgroundColor.resolve({WidgetState.hovered}),
       colors.surfaceContainerHigh,
     );
-    expect(
-      backgroundColor.resolve({WidgetState.focused}),
-      colors.surfaceContainerHigh,
-    );
+    expect(backgroundColor.resolve({WidgetState.focused}), Colors.transparent);
     expect(
       backgroundColor.resolve({WidgetState.pressed}),
       colors.surfaceContainerHighest,
+    );
+    await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+    await tester.pumpAndSettle();
+    final keyboardMenu = tester.widget<PopupMenuButton<String>>(
+      find.byKey(const ValueKey('agent-chat-desktop-more')),
+    );
+    expect(
+      keyboardMenu.style!.backgroundColor!.resolve({WidgetState.focused}),
+      colors.surfaceContainerHigh,
     );
   });
 

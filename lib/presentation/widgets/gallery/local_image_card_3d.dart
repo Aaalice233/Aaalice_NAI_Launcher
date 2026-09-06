@@ -263,7 +263,8 @@ class _LocalImageCard3DState extends ConsumerState<LocalImageCard3D> {
           ),
           foregroundDecoration: BoxDecoration(
             borderRadius: BorderRadius.circular(12),
-            border: _isFocused
+            border:
+                _isFocused && context.interactionPolicy.keyboardNavigationActive
                 ? Border.all(color: colorScheme.primary, width: 1)
                 : null,
           ),

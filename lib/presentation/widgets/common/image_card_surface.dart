@@ -243,7 +243,10 @@ class ImageCardSurface extends StatelessWidget {
                           width: 48,
                           height: 48,
                         ),
-                        style: ImageOverlayControlStyle.iconButton(extent: 48),
+                        style: ImageOverlayControlStyle.iconButton(
+                          context,
+                          extent: 48,
+                        ),
                         icon: const Icon(Icons.more_horiz_rounded),
                       ),
                     ),
@@ -350,6 +353,7 @@ class _HoverAction extends StatelessWidget {
     final theme = Theme.of(context);
     final colors = theme.colorScheme;
     final action = this.action;
+    final interaction = context.interactionPolicy;
     return IconButton(
       tooltip: action.label,
       onPressed: action.invoke,
@@ -363,10 +367,7 @@ class _HoverAction extends StatelessWidget {
         ),
         overlayColor: const WidgetStatePropertyAll(Colors.transparent),
         backgroundColor: WidgetStateProperty.resolveWith((states) {
-          final emphasized =
-              states.contains(WidgetState.hovered) ||
-              states.contains(WidgetState.focused) ||
-              states.contains(WidgetState.pressed);
+          final emphasized = interaction.isControlHighlighted(states);
           if (action.isPrimary) {
             return colors.primary.withValues(alpha: emphasized ? 1 : 0.9);
           }

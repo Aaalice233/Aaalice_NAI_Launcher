@@ -350,6 +350,7 @@ class _PreciseRefCardState extends ConsumerState<PreciseRefCard> {
           : context.l10n.common_favorite,
       constraints: const BoxConstraints.tightFor(width: 48, height: 48),
       style: ImageOverlayControlStyle.iconButton(
+        context,
         extent: 48,
         foregroundColor: entry.isFavorite ? theme.colorScheme.error : null,
       ),

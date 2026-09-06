@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/presentation/themes/theme_extension.dart';
+import 'package:nai_launcher/presentation/adaptive/interaction_policy.dart';
 import 'package:nai_launcher/presentation/widgets/prompt/prompt_control_button.dart';
 
 void main() {
@@ -9,6 +10,7 @@ void main() {
     tester,
   ) async {
     Widget app(bool active) => MaterialApp(
+      builder: (context, child) => InteractionPolicyScope(child: child!),
       home: Scaffold(
         body: PromptControlButton(
           color: Colors.blue,
@@ -29,11 +31,7 @@ void main() {
     final controller = tester
         .widget<TextButton>(find.byType(TextButton))
         .statesController!;
-    for (final state in [
-      WidgetState.hovered,
-      WidgetState.focused,
-      WidgetState.pressed,
-    ]) {
+    for (final state in [WidgetState.hovered, WidgetState.pressed]) {
       controller.update(state, true);
       await tester.pump();
       expect(background().a, greaterThan(0));
@@ -41,6 +39,14 @@ void main() {
       await tester.pump();
       expect(background().a, 0);
     }
+    controller.update(WidgetState.focused, true);
+    await tester.pump();
+    expect(
+      background().a,
+      0,
+      reason: 'Logical focus alone is not a hover state',
+    );
+    controller.update(WidgetState.focused, false);
     await tester.pumpWidget(app(true));
     expect(background().a, greaterThan(0));
     await tester.pumpWidget(app(false));
@@ -50,6 +56,7 @@ void main() {
   testWidgets('icon-only content retains a full touch target', (tester) async {
     await tester.pumpWidget(
       MaterialApp(
+        builder: (context, child) => InteractionPolicyScope(child: child!),
         home: Scaffold(
           body: Align(
             alignment: Alignment.topLeft,
@@ -74,6 +81,7 @@ void main() {
     (tester) async {
       var calls = 0;
       Widget app(double radius) => MaterialApp(
+        builder: (context, child) => InteractionPolicyScope(child: child!),
         theme: ThemeData(
           extensions: [AppThemeExtension(controlRadius: radius)],
         ),
@@ -125,6 +133,7 @@ void main() {
         var calls = 0;
         await tester.pumpWidget(
           MaterialApp(
+            builder: (context, child) => InteractionPolicyScope(child: child!),
             home: MediaQuery(
               data: MediaQueryData(
                 size: Size(width, 320),

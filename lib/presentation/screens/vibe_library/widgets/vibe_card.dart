@@ -413,7 +413,10 @@ class _VibeCardState extends ConsumerState<VibeCard>
   }
 
   Border? _buildBorder(ColorScheme colorScheme) {
-    if (!widget.isSelected && !_isFocused) return null;
+    if (!widget.isSelected &&
+        !(_isFocused && context.interactionPolicy.keyboardNavigationActive)) {
+      return null;
+    }
     return Border.all(
       color: colorScheme.primary,
       width: widget.isSelected ? 2 : 1,
@@ -815,6 +818,7 @@ class _VibeCardState extends ConsumerState<VibeCard>
               onPressed: widget.onFavoriteToggle,
               constraints: const BoxConstraints.tightFor(width: 48, height: 48),
               style: ImageOverlayControlStyle.iconButton(
+                context,
                 extent: 48,
                 foregroundColor: widget.entry.isFavorite
                     ? Theme.of(context).colorScheme.error
@@ -833,7 +837,7 @@ class _VibeCardState extends ConsumerState<VibeCard>
             key: ValueKey('vibe-card-more-${widget.entry.id}'),
             tooltip: l10n.common_moreActions,
             constraints: const BoxConstraints(minWidth: 210),
-            style: ImageOverlayControlStyle.iconButton(extent: 48),
+            style: ImageOverlayControlStyle.iconButton(context, extent: 48),
             icon: const Icon(Icons.more_vert_rounded, size: 20),
             onSelected: (action) {
               switch (action) {
