@@ -283,7 +283,7 @@ class _LocalImageCard3DState extends ConsumerState<LocalImageCard3D> {
                       : null,
                   child: isTouch
                       ? _buildTouchActionMenu()
-                      : _buildActionButtons(buttonDirection, cardHeight),
+                      : _buildActionButtons(buttonDirection),
                 ),
                 if (widget.isSelected)
                   Positioned(
@@ -596,7 +596,7 @@ class _LocalImageCard3DState extends ConsumerState<LocalImageCard3D> {
     );
   }
 
-  Widget _buildActionButtons(Axis direction, double cardHeight) {
+  Widget _buildActionButtons(Axis direction) {
     final buttons = <CardActionButtonConfig>[
       if (widget.onFavoriteToggle != null)
         CardActionButtonConfig(
@@ -640,36 +640,19 @@ class _LocalImageCard3DState extends ConsumerState<LocalImageCard3D> {
           ),
         ),
         CardActionButtonConfig(
-          icon: Icons.delete_outline,
-          tooltip: context.l10n.common_delete,
-          onPressed: () =>
-              unawaited(widget.onSendAction!(LocalImageContextAction.delete)),
-        ),
-        CardActionButtonConfig(
           icon: Icons.send,
           tooltip: context.l10n.localGallery_moreImageActions,
           onPressed: () => unawaited(_showSendMenu(context)),
         ),
+        CardActionButtonConfig(
+          icon: Icons.delete_outline,
+          tooltip: context.l10n.common_delete,
+          iconColor: Theme.of(context).colorScheme.error,
+          onPressed: () =>
+              unawaited(widget.onSendAction!(LocalImageContextAction.delete)),
+        ),
       ],
     ];
-    final buttonStride = context.interactionPolicy.minimumControlExtent + 4;
-    final availableMainAxisExtent = direction == Axis.horizontal
-        ? widget.width
-        : cardHeight;
-    final maximumButtonsPerRun = direction == Axis.vertical
-        ? 3
-        : buttons.length;
-    final buttonsPerRun = ((availableMainAxisExtent + 4) / buttonStride)
-        .floor()
-        .clamp(1, maximumButtonsPerRun);
-    final runs = <List<CardActionButtonConfig>>[
-      for (var start = 0; start < buttons.length; start += buttonsPerRun)
-        buttons.sublist(
-          start,
-          (start + buttonsPerRun).clamp(0, buttons.length),
-        ),
-    ];
-
     return Listener(
       behavior: HitTestBehavior.opaque,
       onPointerDown: (_) => _suppressCardTap = true,
@@ -677,22 +660,10 @@ class _LocalImageCard3DState extends ConsumerState<LocalImageCard3D> {
         scheduleMicrotask(() => _suppressCardTap = false);
       },
       onPointerCancel: (_) => _suppressCardTap = false,
-      child: Flex(
-        direction: direction == Axis.horizontal
-            ? Axis.vertical
-            : Axis.horizontal,
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: direction == Axis.vertical
-            ? CrossAxisAlignment.start
-            : CrossAxisAlignment.center,
-        children: [
-          for (final run in runs)
-            CardActionButtons(
-              visible: _isHovered || _isFocused,
-              direction: direction,
-              buttons: run,
-            ),
-        ],
+      child: CardActionButtons(
+        visible: _isHovered || _isFocused,
+        direction: direction,
+        buttons: buttons,
       ),
     );
   }

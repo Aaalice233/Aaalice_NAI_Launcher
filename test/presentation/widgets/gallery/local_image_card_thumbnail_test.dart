@@ -272,6 +272,12 @@ void main() {
     expect(actionRects, hasLength(6));
     expect(actionRects.map((rect) => rect.left.round()).toSet(), hasLength(2));
     expect(actionRects.map((rect) => rect.top.round()).toSet(), hasLength(3));
+    expect(actionRects[3].left - actionRects[0].right, 4);
+    expect(actionRects[1].top - actionRects[0].bottom, 4);
+    expect(
+      tester.widget<IconButton>(actionsFinder.last).icon,
+      isA<Icon>().having((icon) => icon.icon, 'icon', Icons.delete_outline),
+    );
     for (final rect in actionRects) {
       expect(cardRect.contains(rect.topLeft), isTrue);
       expect(cardRect.contains(rect.bottomRight), isTrue);
