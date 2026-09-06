@@ -55,6 +55,9 @@ class MobileGenerationController extends ChangeNotifier
   final MobileShellOverlayNotifier shellOverlayNotifier;
   final GlobalKey<ScaffoldState> scaffoldKey = GlobalKey<ScaffoldState>();
   final GlobalKey embeddedPromptKey = GlobalKey();
+  final FocusScopeNode agentFocusScope = FocusScopeNode(
+    debugLabel: 'Mobile agent chat',
+  );
 
   bool agentFullScreen = false;
   bool agentHasOpened = false;
@@ -118,10 +121,18 @@ class MobileGenerationController extends ChangeNotifier
 
   void handleBack(bool isPromptMaximized) {
     if (agentFullScreen) {
-      closeAgentChat();
+      handleAgentBack();
     } else if (isPromptMaximized) {
       closePromptEditor();
     }
+  }
+
+  void handleAgentBack() {
+    if (agentFocusScope.hasFocus && !agentFocusScope.hasPrimaryFocus) {
+      agentFocusScope.unfocus();
+      return;
+    }
+    closeAgentChat();
   }
 
   void openAgentSettings(BuildContext context) {
@@ -368,6 +379,7 @@ class MobileGenerationController extends ChangeNotifier
 
   @override
   void dispose() {
+    agentFocusScope.dispose();
     _disposed = true;
     gestureHintTimer?.cancel();
     WidgetsBinding.instance.removeObserver(this);

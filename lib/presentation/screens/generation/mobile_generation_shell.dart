@@ -55,21 +55,26 @@ class MobileGenerationShell extends StatelessWidget {
                       ? ColoredBox(
                           key: const ValueKey('generation-agent-fullscreen'),
                           color: Theme.of(context).colorScheme.surface,
-                          child: AgentChatPanel(
-                            key: const ValueKey('generation-agent-chat-panel'),
-                            fullScreen: true,
-                            onClose: controller.closeAgentChat,
-                            onOpenSettings: () =>
-                                controller.openAgentSettings(context),
-                            mobileHeaderWrapper: (child) =>
-                                MobileVerticalCloseGesture(
-                                  key: const ValueKey(
-                                    'generation-agent-close-drag-handle',
+                          child: FocusScope(
+                            node: controller.agentFocusScope,
+                            child: AgentChatPanel(
+                              key: const ValueKey(
+                                'generation-agent-chat-panel',
+                              ),
+                              fullScreen: true,
+                              onClose: controller.handleAgentBack,
+                              onOpenSettings: () =>
+                                  controller.openAgentSettings(context),
+                              mobileHeaderWrapper: (child) =>
+                                  MobileVerticalCloseGesture(
+                                    key: const ValueKey(
+                                      'generation-agent-close-drag-handle',
+                                    ),
+                                    closeDirection: AxisDirection.down,
+                                    onClose: controller.closeAgentChat,
+                                    child: child,
                                   ),
-                                  closeDirection: AxisDirection.down,
-                                  onClose: controller.closeAgentChat,
-                                  child: child,
-                                ),
+                            ),
                           ),
                         )
                       : const SizedBox.shrink(),

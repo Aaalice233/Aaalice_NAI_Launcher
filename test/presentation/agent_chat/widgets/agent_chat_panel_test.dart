@@ -1251,6 +1251,35 @@ void main() {
       await tester.pump();
       final chatInput = find.byKey(const ValueKey('agent-chat-input'));
       await tester.enterText(chatInput, '保留的会话草稿');
+      final inputFocus = tester.widget<TextField>(chatInput).focusNode!;
+      expect(inputFocus.hasFocus, isTrue);
+      await tester.binding.handlePopRoute();
+      await tester.pump();
+      expect(inputFocus.hasFocus, isFalse);
+      expect(
+        container.read(mobileShellOverlayNotifierProvider),
+        contains(MobileShellOverlay.agentChat),
+      );
+
+      await tester.tap(chatInput);
+      await tester.pump();
+      expect(inputFocus.hasFocus, isTrue);
+      await tester.tap(find.byKey(const ValueKey('agent-chat-mobile-close')));
+      await tester.pump();
+      expect(inputFocus.hasFocus, isFalse);
+      expect(
+        container.read(mobileShellOverlayNotifierProvider),
+        contains(MobileShellOverlay.agentChat),
+      );
+
+      await tester.tap(chatInput);
+      await tester.pump();
+      await tester.tapAt(
+        tester.getTopLeft(fullScreen) + const Offset(180, 200),
+      );
+      await tester.pump();
+      expect(inputFocus.hasFocus, isFalse);
+      expect(tester.widget<TextField>(chatInput).controller!.text, '保留的会话草稿');
       await tester.timedDrag(
         chatInput,
         const Offset(0, 120),
@@ -1285,12 +1314,24 @@ void main() {
         find.descendant(of: chatInput, matching: find.byType(EditableText)),
       );
       expect(editable.controller.text, '保留的会话草稿');
+      notifier.setRunStatus(AgentChatRunStatus.running);
+      await tester.pump();
       await tester.binding.handlePopRoute();
       await tester.pump(const Duration(milliseconds: 220));
       expect(
         find.byKey(const ValueKey('generation-agent-drawer-action')),
         findsOneWidget,
       );
+
+      final runningIndicator = find.byKey(
+        const ValueKey('agent-chat-entry-running'),
+      );
+      expect(runningIndicator, findsOneWidget);
+      expect(find.byTooltip('聊天 · 回复中'), findsOneWidget);
+      notifier.setRunStatus(AgentChatRunStatus.idle);
+      await tester.pump();
+      expect(runningIndicator, findsNothing);
+      expect(find.byIcon(Icons.smart_toy_outlined), findsOneWidget);
 
       await tester.timedDrag(
         verticalShortcuts,
@@ -1506,6 +1547,10 @@ class _TestAgentChatNotifier extends AgentChatNotifier {
       status: AgentChatRunStatus.running,
       activities: [activity],
     );
+  }
+
+  void setRunStatus(AgentChatRunStatus value) {
+    state = state.copyWith(status: value);
   }
 
   void setQueuedMessages(int count) {

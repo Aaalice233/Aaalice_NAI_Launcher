@@ -258,6 +258,7 @@ class _AgentChatComposerState extends State<AgentChatComposer> {
       key: const ValueKey('agent-chat-input'),
       controller: controller.inputController,
       focusNode: controller.inputFocus,
+      onTapOutside: (_) => controller.inputFocus.unfocus(),
       enabled: viewData.state.initialized,
       expands: _editorExpanded,
       minLines: _editorExpanded

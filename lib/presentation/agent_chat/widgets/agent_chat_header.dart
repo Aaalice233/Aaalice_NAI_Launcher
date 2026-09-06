@@ -45,7 +45,9 @@ class AgentChatHeader extends StatelessWidget {
             ? 'agent-chat-compact-header'
             : 'agent-chat-desktop-header',
       ),
-      leading: collapseButton,
+      leading: fullScreenLayout
+          ? TextFieldTapRegion(child: collapseButton)
+          : collapseButton,
       icon: Icons.auto_awesome_rounded,
       title: SizedBox(height: 48, child: _sessionSelector(context)),
       actions: [

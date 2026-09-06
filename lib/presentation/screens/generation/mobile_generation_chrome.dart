@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/utils/localization_extension.dart';
 import '../../adaptive/window_size_class.dart';
+import '../../agent_chat/widgets/agent_chat_entry_button.dart';
 import '../../providers/image_generation_provider.dart';
 import '../../themes/design_tokens.dart';
 import '../../widgets/anlas/anlas_balance_chip.dart';
@@ -75,11 +76,8 @@ class MobileGenerationChrome extends ConsumerWidget {
                 onPressed: controller.openParameterDrawer,
                 tooltip: context.l10n.generation_paramsSettings,
               ),
-              IconButton(
-                key: const ValueKey('generation-agent-drawer-action'),
-                icon: const Icon(Icons.smart_toy_outlined),
+              AgentChatEntryButton(
                 onPressed: controller.openAgentChat,
-                tooltip: context.l10n.agentChat_tab,
               ),
               IconButton(
                 key: const ValueKey('generation-history-drawer-action'),
