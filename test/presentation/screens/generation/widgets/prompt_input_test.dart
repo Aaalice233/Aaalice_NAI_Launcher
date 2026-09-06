@@ -15,7 +15,6 @@ import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/adaptive/interaction_policy.dart';
 import 'package:nai_launcher/presentation/prompt_assistant/providers/prompt_assistant_history_provider.dart';
 import 'package:nai_launcher/presentation/prompt_assistant/providers/prompt_assistant_state_provider.dart';
-import 'package:nai_launcher/presentation/prompt_assistant/widgets/prompt_assistant_toolbar.dart';
 import 'package:nai_launcher/presentation/providers/character_position_canvas_provider.dart';
 import 'package:nai_launcher/presentation/providers/character_prompt_provider.dart';
 import 'package:nai_launcher/presentation/providers/prompt_token_counter_provider.dart';
@@ -1768,85 +1767,104 @@ void main() {
     expect(input.scrollPhysics, isNull);
   });
 
-  testWidgets('expanded prompt assistant does not cover editable prompt text', (
-    tester,
-  ) async {
-    const sessionId = 'assistant_clearance_test';
-    final controller = TextEditingController(
-      text: List.filled(12, 'long prompt tag').join(', '),
-    );
-    addTearDown(controller.dispose);
-    debugDefaultTargetPlatformOverride = TargetPlatform.windows;
+  for (final fitContent in [false, true]) {
+    for (final width in [320.0, 600.0, 840.0, 1180.0, 1600.0]) {
+      for (final scale in [1.0, 3.0]) {
+        testWidgets(
+          'prompt assistant floats without reserving space ($fitContent, $width, $scale)',
+          (tester) async {
+            const sessionId = 'assistant_overlay_test';
+            final controller = TextEditingController(
+              text: List.filled(12, 'long prompt tag').join(', '),
+            );
+            addTearDown(controller.dispose);
+            debugDefaultTargetPlatformOverride = TargetPlatform.windows;
+            await tester.binding.setSurfaceSize(Size(width, 600));
+            addTearDown(() => tester.binding.setSurfaceSize(null));
 
-    try {
-      await tester.pumpWidget(
-        ProviderScope(
-          overrides: [
-            localStorageServiceProvider.overrideWith(
-              (ref) => _TestLocalStorageService(),
-            ),
-          ],
-          child: MaterialApp(
-            supportedLocales: AppLocalizations.supportedLocales,
-            localizationsDelegates: AppLocalizations.localizationsDelegates,
-            home: Scaffold(
-              body: SizedBox(
-                width: 320,
-                height: 80,
-                child: UnifiedPromptInput(
-                  controller: controller,
-                  sessionId: sessionId,
-                  config: const UnifiedPromptConfig(
-                    enableAutocomplete: false,
-                    enableSyntaxHighlight: false,
+            try {
+              await tester.pumpWidget(
+                ProviderScope(
+                  overrides: [
+                    localStorageServiceProvider.overrideWith(
+                      (ref) => _TestLocalStorageService(),
+                    ),
+                  ],
+                  child: MaterialApp(
+                    builder: (context, child) => MediaQuery(
+                      data: MediaQuery.of(
+                        context,
+                      ).copyWith(textScaler: TextScaler.linear(scale)),
+                      child: child!,
+                    ),
+                    supportedLocales: AppLocalizations.supportedLocales,
+                    localizationsDelegates:
+                        AppLocalizations.localizationsDelegates,
+                    home: Scaffold(
+                      body: SizedBox(
+                        width: width,
+                        height: fitContent ? null : 240,
+                        child: UnifiedPromptInput(
+                          controller: controller,
+                          sessionId: sessionId,
+                          config: const UnifiedPromptConfig(
+                            enableAutocomplete: false,
+                            enableSyntaxHighlight: false,
+                          ),
+                          decoration: const InputDecoration(
+                            contentPadding: EdgeInsets.all(12),
+                          ),
+                          maxLines: null,
+                          fitContent: fitContent,
+                          expands: !fitContent,
+                        ),
+                      ),
+                    ),
                   ),
-                  decoration: const InputDecoration(
-                    contentPadding: EdgeInsets.all(12),
-                  ),
-                  maxLines: null,
-                  expands: true,
                 ),
-              ),
-            ),
-          ),
-        ),
-      );
+              );
 
-      final container = ProviderScope.containerOf(
-        tester.element(find.byType(UnifiedPromptInput)),
-      );
-      container
-          .read(promptAssistantStateProvider.notifier)
-          .setExpanded(sessionId, true);
-      await tester.pump();
-
-      final textField = tester.widget<TextField>(find.byType(TextField));
-      final padding = textField.decoration!.contentPadding!.resolve(
-        TextDirection.ltr,
-      );
-      final toolbar = find.byKey(
-        const ValueKey<String>('prompt_assistant_toolbar_$sessionId'),
-      );
-      final editableRect = tester.getRect(find.byType(EditableText));
-      final toolbarRect = tester.getRect(toolbar);
-
-      expect(
-        padding.bottom,
-        PromptAssistantToolbarMetrics.contentBottomClearance(
-          tester.element(find.byType(UnifiedPromptInput)),
-          InteractionPolicy.neutral,
-        ),
-      );
-      expect(toolbar, findsOneWidget);
-      expect(editableRect.height, greaterThanOrEqualTo(18));
-      expect(editableRect.bottom, lessThanOrEqualTo(toolbarRect.top));
-      expect(toolbarRect.left, greaterThanOrEqualTo(8));
-      expect(toolbarRect.right, lessThanOrEqualTo(312));
-      expect(tester.takeException(), isNull);
-    } finally {
-      debugDefaultTargetPlatformOverride = null;
+              final container = ProviderScope.containerOf(
+                tester.element(find.byType(UnifiedPromptInput)),
+              );
+              await tester.pump();
+              final editorRect = tester.getRect(find.byType(EditableText));
+              final inputRect = tester.getRect(find.byType(UnifiedPromptInput));
+              final toolbar = find.byKey(
+                const ValueKey<String>('prompt_assistant_toolbar_$sessionId'),
+              );
+              for (final expanded in [false, true, false]) {
+                container
+                    .read(promptAssistantStateProvider.notifier)
+                    .setExpanded(sessionId, expanded);
+                await tester.pumpAndSettle();
+                final textField = tester.widget<TextField>(
+                  find.byType(TextField),
+                );
+                expect(
+                  textField.decoration!.contentPadding,
+                  const EdgeInsets.all(12),
+                );
+                expect(tester.getRect(find.byType(EditableText)), editorRect);
+                expect(
+                  tester.getRect(find.byType(UnifiedPromptInput)),
+                  inputRect,
+                );
+                expect(toolbar, findsOneWidget);
+                final toolbarRect = tester.getRect(toolbar);
+                expect(toolbarRect.left, greaterThanOrEqualTo(inputRect.left));
+                expect(toolbarRect.right, lessThanOrEqualTo(inputRect.right));
+                expect(toolbarRect.bottom, lessThanOrEqualTo(inputRect.bottom));
+                expect(tester.takeException(), isNull);
+              }
+            } finally {
+              debugDefaultTargetPlatformOverride = null;
+            }
+          },
+        );
+      }
     }
-  });
+  }
 }
 
 Future<ProviderContainer> _pumpMobilePromptHarness(WidgetTester tester) async {

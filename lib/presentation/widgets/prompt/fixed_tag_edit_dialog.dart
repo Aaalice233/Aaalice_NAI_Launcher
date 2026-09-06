@@ -349,7 +349,7 @@ class _FixedTagEditDialogState extends ConsumerState<FixedTagEditDialog> {
           focusNode: _contentFocusNode,
           decoration: InputDecoration(
             hintText: context.l10n.fixedTags_contentHint,
-            contentPadding: const EdgeInsets.fromLTRB(12, 12, 12, 60),
+            contentPadding: const EdgeInsets.all(12),
           ),
           maxLines: null,
           expands: true,
@@ -358,15 +358,19 @@ class _FixedTagEditDialogState extends ConsumerState<FixedTagEditDialog> {
     );
     return TagModePromptField(
       sessionId: _modeId,
+      bottomPadding: 12,
       showModeSwitch: false,
-      assistant: PromptAssistantOverlay(
-        sessionId: _assistantSessionId,
-        controller: _contentController,
-        iconOnly: true,
-        tagModeSessionId: _modeId,
-        supportsTagMode: true,
-        stripFixedTagsFromInput: false,
-        onOpenSettings: () => PromptAssistantQuickSettings.show(context),
+      assistant: Positioned.fill(
+        child: PromptAssistantOverlay(
+          placement: PromptAssistantPlacement.viewport,
+          sessionId: _assistantSessionId,
+          controller: _contentController,
+          iconOnly: true,
+          tagModeSessionId: _modeId,
+          supportsTagMode: true,
+          stripFixedTagsFromInput: false,
+          onOpenSettings: () => PromptAssistantQuickSettings.show(context),
+        ),
       ),
       controller: _contentController,
       sourceFocusNode: _contentFocusNode,

@@ -28,7 +28,6 @@ import '../../../prompt_assistant/providers/prompt_assistant_history_provider.da
 import '../../../prompt_assistant/providers/prompt_assistant_state_provider.dart';
 import '../../../prompt_assistant/services/prompt_assistant_service.dart';
 import '../../../prompt_assistant/widgets/prompt_assistant_overlay.dart';
-import '../../../prompt_assistant/widgets/prompt_assistant_toolbar.dart';
 import '../../../providers/fixed_tags_provider.dart';
 import '../../../providers/prompt_regex_rules_provider.dart';
 import '../comfyui_import_wrapper.dart';
@@ -1107,16 +1106,19 @@ class _UnifiedPromptInputState extends ConsumerState<UnifiedPromptInput> {
       children: [
         result,
         if (widget.enableAssistant)
-          PromptAssistantOverlay(
-            supportsTagMode: widget.config.enableTagMode,
-            tagModeSessionId: _modeId,
-            tapRegionGroupId: widget.assistantTapRegionGroupId,
-            iconOnly: true,
-            sessionId: _sessionId,
-            controller: _effectiveController,
-            interactionPolicy: context.interactionPolicy,
-            onChanged: widget.onChanged,
-            onOpenSettings: widget.onOpenAssistantSettings,
+          Positioned.fill(
+            child: PromptAssistantOverlay(
+              placement: PromptAssistantPlacement.viewport,
+              supportsTagMode: widget.config.enableTagMode,
+              tagModeSessionId: _modeId,
+              tapRegionGroupId: widget.assistantTapRegionGroupId,
+              iconOnly: true,
+              sessionId: _sessionId,
+              controller: _effectiveController,
+              interactionPolicy: context.interactionPolicy,
+              onChanged: widget.onChanged,
+              onOpenSettings: widget.onOpenAssistantSettings,
+            ),
           ),
       ],
     );
@@ -1387,34 +1389,15 @@ class _UnifiedPromptInputState extends ConsumerState<UnifiedPromptInput> {
   /// 构建文本输入框
   Widget _buildTextField() {
     final enableWheelAdjustment = ref.watch(promptWeightScrollSettingsProvider);
-    final assistantConfig = widget.enableAssistant
-        ? ref.watch(promptAssistantConfigProvider)
-        : null;
-    final shouldReserveAssistantSpace =
-        !context.interactionPolicy.shouldExposeTouchAlternatives &&
-        assistantConfig != null &&
-        assistantConfig.enabled &&
-        (!context.interactionPolicy.usesAnchoredMenus ||
-            assistantConfig.desktopOverlayEnabled);
     final requestedContentPadding =
         widget.decoration?.contentPadding ??
         const EdgeInsets.symmetric(horizontal: 12, vertical: 10);
-    final assistantClearance = shouldReserveAssistantSpace
-        ? PromptAssistantToolbarMetrics.contentBottomClearance(
-            context,
-            context.interactionPolicy,
-          )
-        : 0.0;
-    final effectiveContentPadding = _withBottomActionClearance(
-      requestedContentPadding,
-      clearance: assistantClearance,
-    );
 
     // 合并 decoration：优先使用传入的 decoration，但保留 config 中的 hintText
     final effectiveDecoration =
         InputDecoration(
           hintText: widget.config.hintText,
-          contentPadding: effectiveContentPadding,
+          contentPadding: requestedContentPadding,
         ).copyWith(
           hintText: widget.config.hintText,
           filled: widget.decoration?.filled,
@@ -1491,10 +1474,7 @@ class _UnifiedPromptInputState extends ConsumerState<UnifiedPromptInput> {
       clipboardAwareInput = TagModePromptField(
         sessionId: _modeId,
         fitContent: widget.fitContent && !widget.expands,
-        bottomPadding:
-            shouldReserveAssistantSpace || widget.config.showClearButton
-            ? 58
-            : 12,
+        bottomPadding: widget.config.showClearButton ? 58 : 12,
         showModeSwitch: false,
         controller: _effectiveController,
         sourceFocusNode: _effectiveFocusNode,
@@ -1546,21 +1526,6 @@ class _UnifiedPromptInputState extends ConsumerState<UnifiedPromptInput> {
           PromptWeightEditing.protectNegativeBlockSyntax(_effectiveController),
       child: result,
     );
-  }
-
-  EdgeInsetsGeometry _withBottomActionClearance(
-    EdgeInsetsGeometry contentPadding, {
-    required double clearance,
-  }) {
-    if (clearance <= 0) {
-      return contentPadding;
-    }
-
-    final resolved = contentPadding.resolve(Directionality.of(context));
-    if (resolved.bottom >= clearance) {
-      return resolved;
-    }
-    return resolved.copyWith(bottom: clearance);
   }
 }
 

@@ -30,11 +30,6 @@ class PromptAssistantToolbarMetrics {
     );
   }
 
-  static double contentBottomClearance(
-    BuildContext context,
-    InteractionPolicy policy,
-  ) => controlExtent(context, policy) + (policy.touchAvailable ? 20 : 12);
-
   factory PromptAssistantToolbarMetrics.resolve(
     BuildContext context, {
     required InteractionPolicy policy,
