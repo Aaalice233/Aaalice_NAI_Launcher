@@ -204,30 +204,70 @@ class _TagEditorCapsuleState extends State<TagEditorCapsule> {
           ),
       ],
     );
+    return _buildSurface(content, background, scheme);
+  }
+
+  Widget _buildSurface(Widget content, Color background, ColorScheme scheme) {
+    final span = widget.tag.span;
     return Semantics(
       selected: widget.selected,
       label: span.disabled ? context.l10n.common_disabled : null,
-      child: Material(
-        color: span.disabled
-            ? Color.alphaBlend(Colors.black.withValues(alpha: 0.32), background)
-            : background,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(8),
-          side: widget.selected
-              ? BorderSide(color: scheme.secondary.withValues(alpha: 0.5))
-              : BorderSide.none,
-        ),
-        child: InkWell(
-          onTap: widget.onTap,
-          borderRadius: BorderRadius.circular(8),
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(minHeight: 44),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-              child: content,
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          Material(
+            color: span.disabled
+                ? Color.alphaBlend(
+                    Colors.black.withValues(alpha: 0.32),
+                    background,
+                  )
+                : background,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+              side: widget.selected
+                  ? BorderSide(color: scheme.secondary.withValues(alpha: 0.5))
+                  : BorderSide.none,
+            ),
+            child: InkWell(
+              onTap: widget.onTap,
+              borderRadius: BorderRadius.circular(8),
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(minHeight: 44),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 8,
+                  ),
+                  child: content,
+                ),
+              ),
             ),
           ),
-        ),
+          if (widget.editing)
+            Positioned(
+              left: -5,
+              top: -5,
+              child: IgnorePointer(
+                child: ExcludeSemantics(
+                  child: DecoratedBox(
+                    key: ValueKey('tag-editing-badge-${widget.tag.id}'),
+                    decoration: BoxDecoration(
+                      color: scheme.primary,
+                      shape: BoxShape.circle,
+                    ),
+                    child: SizedBox.square(
+                      dimension: 16,
+                      child: Icon(
+                        Icons.edit_rounded,
+                        size: 11,
+                        color: scheme.onPrimary,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+        ],
       ),
     );
   }

@@ -446,15 +446,29 @@ void main() {
       await tester.pumpAndSettle();
       final capsule = find.byType(TagEditorCapsule).first;
       final before = tester.getSize(capsule);
+      final badge = find.byKey(const ValueKey('tag-editing-badge-0'));
+      expect(badge, findsNothing);
       expect(
         find.descendant(of: capsule, matching: find.text('猫')),
         findsOneWidget,
       );
       await tester.tap(find.text('cat'));
       await tester.pumpAndSettle();
+      expect(badge, findsNothing);
       await tester.tap(find.text('cat'));
       await tester.pumpAndSettle();
       expect(tester.getSize(capsule).height, before.height);
+      expect(badge, findsOneWidget);
+      expect(
+        tester.getRect(badge).topLeft,
+        tester.getRect(capsule).topLeft - const Offset(5, 5),
+      );
+      expect(
+        tester.getSize(capsule),
+        tester.getSize(
+          find.descendant(of: capsule, matching: find.byType(Material)).first,
+        ),
+      );
       expect(
         find.descendant(of: capsule, matching: find.text('猫')),
         findsOneWidget,
@@ -487,6 +501,7 @@ void main() {
         find.descendant(of: capsule, matching: find.byType(TextField)),
         findsNothing,
       );
+      expect(badge, findsNothing);
       expect(tester.takeException(), isNull);
       await tester.pumpWidget(const SizedBox.shrink());
     },
