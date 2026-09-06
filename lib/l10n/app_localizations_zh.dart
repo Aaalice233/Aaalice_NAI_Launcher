@@ -14361,9 +14361,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get dlss_notChecked => '尚未检测';
 
   @override
-  String get dlss_queued => '等待增强的任务';
-
-  @override
   String get dlss_ready => '真实增强检测通过';
 
   @override
@@ -28796,9 +28793,6 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get dlss_notChecked => '尚未偵測';
-
-  @override
-  String get dlss_queued => '等待增強的工作';
 
   @override
   String get dlss_ready => '實際增強偵測通過';

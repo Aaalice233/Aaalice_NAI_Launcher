@@ -6906,7 +6906,6 @@
   "dlss_missingRuntime": "先にランタイムをインストールしてください",
   "dlss_noGpu": "利用可能な NVIDIA D3D12 デバイスがありません",
   "dlss_notChecked": "未検出",
-  "dlss_queued": "強化待ちのタスク",
   "dlss_ready": "実際の強化テストに成功",
   "dlss_tryImage": "ローカル画像で試す",
   "dlss_unknown": "不明",

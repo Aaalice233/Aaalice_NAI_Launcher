@@ -6881,7 +6881,6 @@
   "dlss_missingRuntime": "Install a runtime first",
   "dlss_noGpu": "No usable NVIDIA D3D12 device",
   "dlss_notChecked": "Not checked",
-  "dlss_queued": "Queued enhancements",
   "dlss_ready": "Real enhancement test passed",
   "dlss_tryImage": "Try a local image",
   "dlss_unknown": "Unknown",

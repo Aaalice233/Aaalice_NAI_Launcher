@@ -139,6 +139,8 @@ void main() {
     );
     expect(progressSemantics.properties.liveRegion, isTrue);
     expect(progressSemantics.properties.value, '50%');
+    expect(find.text('50%'), findsOneWidget);
+    expect(find.byType(LinearProgressIndicator), findsNothing);
 
     controller.complete(message: 'Download complete');
     controller.fail(message: 'Late failure must be ignored');

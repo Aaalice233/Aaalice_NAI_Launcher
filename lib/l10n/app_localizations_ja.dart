@@ -14621,9 +14621,6 @@ class AppLocalizationsJa extends AppLocalizations {
   String get dlss_notChecked => '未検出';
 
   @override
-  String get dlss_queued => '強化待ちのタスク';
-
-  @override
   String get dlss_ready => '実際の強化テストに成功';
 
   @override

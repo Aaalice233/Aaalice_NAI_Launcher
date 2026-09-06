@@ -70,7 +70,7 @@ void main() {
     await _pumpChip(tester, opusWithUsage, ImageModels.animeDiffusionV5Curated);
 
     expect(find.text('98%'), findsOneWidget);
-    expect(find.byType(LinearProgressIndicator), findsOneWidget);
+    expect(find.byType(LinearProgressIndicator), findsNothing);
   });
 
   testWidgets('shows overflow quota without capping the text or estimate', (
@@ -87,10 +87,7 @@ void main() {
     await _pumpChip(tester, overflowUsage, ImageModels.animeDiffusionV5Curated);
 
     expect(find.text('192%'), findsOneWidget);
-    final progress = tester.widget<LinearProgressIndicator>(
-      find.byType(LinearProgressIndicator),
-    );
-    expect(progress.value, 1);
+    expect(find.byType(LinearProgressIndicator), findsNothing);
     final tooltip = tester.widget<Tooltip>(find.byType(Tooltip));
     expect(tooltip.message, contains('About 3322 images left'));
   });
@@ -118,6 +115,7 @@ void main() {
   testWidgets('stays hidden on models without the quota pool', (tester) async {
     await _pumpChip(tester, opusWithUsage, ImageModels.animeDiffusionV45Full);
 
+    expect(find.byType(Tooltip), findsNothing);
     expect(find.byType(LinearProgressIndicator), findsNothing);
   });
 
@@ -134,6 +132,7 @@ void main() {
       ImageModels.animeDiffusionV5Curated,
     );
 
+    expect(find.byType(Tooltip), findsNothing);
     expect(find.byType(LinearProgressIndicator), findsNothing);
   });
 
@@ -165,6 +164,7 @@ void main() {
 
     await _pumpChip(tester, scroll, ImageModels.animeDiffusionV5Curated);
 
+    expect(find.byType(Tooltip), findsNothing);
     expect(find.byType(LinearProgressIndicator), findsNothing);
   });
 }

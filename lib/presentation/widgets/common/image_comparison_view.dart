@@ -272,8 +272,8 @@ class _ComparisonClipper extends CustomClipper<Rect> {
   Rect getClip(Size size) {
     final dividerX = size.width * position;
     return switch (side) {
-      _ComparisonSide.source => Rect.fromLTRB(0, 0, dividerX, size.height),
-      _ComparisonSide.generated => Rect.fromLTRB(
+      _ComparisonSide.generated => Rect.fromLTRB(0, 0, dividerX, size.height),
+      _ComparisonSide.source => Rect.fromLTRB(
         dividerX,
         0,
         size.width,

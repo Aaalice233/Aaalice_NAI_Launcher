@@ -190,8 +190,8 @@ class _DlssEnhancementPanelState extends ConsumerState<DlssEnhancementPanel> {
           alignment: WrapAlignment.spaceBetween,
           spacing: 12,
           children: [
-            Text(l10n.dlss_original),
             if (result != null) Text(l10n.dlss_result),
+            Text(l10n.dlss_original),
           ],
         ),
         const SizedBox(height: 12),

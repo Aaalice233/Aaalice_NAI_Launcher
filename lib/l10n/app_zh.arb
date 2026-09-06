@@ -6950,7 +6950,6 @@
   "dlss_missingRuntime": "请先安装运行库",
   "dlss_noGpu": "没有可用的 NVIDIA D3D12 设备",
   "dlss_notChecked": "尚未检测",
-  "dlss_queued": "等待增强的任务",
   "dlss_ready": "真实增强检测通过",
   "dlss_tryImage": "选择本地图片试用",
   "dlss_unknown": "未知",

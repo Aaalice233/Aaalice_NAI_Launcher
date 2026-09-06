@@ -91,9 +91,32 @@ void main() {
         .clipper!
         .getClip(comparisonSize);
 
-    expect(sourceClip, const Rect.fromLTRB(0, 0, 200, 300));
-    expect(generatedClip, const Rect.fromLTRB(200, 0, 400, 300));
+    expect(generatedClip, const Rect.fromLTRB(0, 0, 200, 300));
+    expect(sourceClip, const Rect.fromLTRB(200, 0, 400, 300));
     expect(sourceClip.overlaps(generatedClip), isFalse);
+
+    await tester.drag(
+      find.byKey(const ValueKey('generation-comparison-divider-handle')),
+      const Offset(80, 0),
+    );
+    await tester.pump();
+    final expandedResult = tester
+        .widget<ClipRect>(
+          find.byKey(const ValueKey('generation-comparison-generated-clip')),
+        )
+        .clipper!
+        .getClip(comparisonSize);
+    final reducedSource = tester
+        .widget<ClipRect>(
+          find.byKey(const ValueKey('generation-comparison-source-clip')),
+        )
+        .clipper!
+        .getClip(comparisonSize);
+    expect(expandedResult.width, greaterThan(generatedClip.width));
+    expect(reducedSource.width, lessThan(sourceClip.width));
+    expect(expandedResult.right, reducedSource.left);
+    expect(expandedResult.overlaps(reducedSource), isFalse);
+    await tester.pump(const Duration(milliseconds: 300));
   });
 
   testWidgets('divider and thumb keep a constant painted size while zooming', (

@@ -26143,12 +26143,6 @@ abstract class AppLocalizations {
   /// **'Not checked'**
   String get dlss_notChecked;
 
-  /// No description provided for @dlss_queued.
-  ///
-  /// In en, this message translates to:
-  /// **'Queued enhancements'**
-  String get dlss_queued;
-
   /// No description provided for @dlss_ready.
   ///
   /// In en, this message translates to:

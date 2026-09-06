@@ -59,7 +59,6 @@ class DlssController extends ChangeNotifier {
   List<DlssInstallation> installations = [];
   DlssInstallation? active;
   bool busy = false;
-  bool enhancing = false;
   double? progress;
   Object? error;
   DlssInstallPhase? installPhase;
@@ -67,7 +66,6 @@ class DlssController extends ChangeNotifier {
   int downloadTotalBytes = 0;
   double downloadBytesPerSecond = 0;
   Object? enhancementError;
-  int queuedJobs = 0;
   CancelToken? _download;
   Future<void>? _activeOperation;
   bool _disposed = false;
@@ -300,12 +298,8 @@ class DlssController extends ChangeNotifier {
         }),
       );
     }
-    queuedJobs++;
-    _notify();
     try {
       return await manager.lock.synchronized(() async {
-        queuedJobs--;
-        _notify();
         if (wasCancelled) throw const DlssCancelled();
         await _ensureEnvironment(selectedLuid: selectedLuid);
         final runtime = active;
@@ -315,7 +309,6 @@ class DlssController extends ChangeNotifier {
             environment.detail ?? 'DLSS runtime is not ready',
           );
         }
-        enhancing = true;
         enhancementError = null;
         _notify();
         try {
@@ -338,7 +331,6 @@ class DlssController extends ChangeNotifier {
           }
           rethrow;
         } finally {
-          enhancing = false;
           _notify();
         }
       });

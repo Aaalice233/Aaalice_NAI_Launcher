@@ -15016,9 +15016,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get dlss_notChecked => 'Not checked';
 
   @override
-  String get dlss_queued => 'Queued enhancements';
-
-  @override
   String get dlss_ready => 'Real enhancement test passed';
 
   @override

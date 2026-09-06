@@ -7228,7 +7228,6 @@
   "dlss_missingRuntime": "請先安裝執行階段",
   "dlss_noGpu": "沒有可用的 NVIDIA D3D12 裝置",
   "dlss_notChecked": "尚未偵測",
-  "dlss_queued": "等待增強的工作",
   "dlss_ready": "實際增強偵測通過",
   "dlss_tryImage": "選擇本機影像試用",
   "dlss_unknown": "未知",

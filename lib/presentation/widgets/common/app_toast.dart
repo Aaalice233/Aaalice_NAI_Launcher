@@ -773,16 +773,14 @@ class _ProgressToastWidgetState extends State<_ProgressToastWidget>
                     ),
                   ],
                   if (_type == ToastType.progress && _progress != null) ...[
-                    const SizedBox(height: 12),
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(4),
-                      child: LinearProgressIndicator(
-                        value: _progress,
-                        backgroundColor: style.foreground.withValues(
-                          alpha: 0.16,
+                    const SizedBox(height: 4),
+                    Padding(
+                      padding: const EdgeInsets.only(left: 32),
+                      child: Text(
+                        '${(_progress! * 100).round()}%',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: style.foreground,
                         ),
-                        valueColor: AlwaysStoppedAnimation<Color>(style.accent),
-                        minHeight: 4,
                       ),
                     ),
                   ],

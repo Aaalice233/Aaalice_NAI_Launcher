@@ -5,6 +5,7 @@ import '../../../core/utils/localization_extension.dart';
 import '../../providers/dlss_provider.dart';
 import '../settings/widgets/settings_card.dart';
 import 'dlss_environment_card.dart';
+import 'dlss_error_view.dart';
 import 'dlss_maintenance_card.dart';
 import 'dlss_options_editor.dart';
 import 'dlss_runtime_card.dart';
@@ -60,6 +61,14 @@ class _DlssSettingsSectionState extends ConsumerState<DlssSettingsSection> {
                     ? controller.setAutomatic
                     : null,
               ),
+              if (controller.enhancementError != null)
+                Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: DlssErrorView(
+                    error: controller.enhancementError!,
+                    summary: l10n.dlss_failed,
+                  ),
+                ),
             ],
           ),
         ),

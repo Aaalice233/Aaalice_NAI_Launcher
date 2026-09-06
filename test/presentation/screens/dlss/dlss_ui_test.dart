@@ -25,6 +25,25 @@ import 'package:nai_launcher/presentation/screens/settings/sections/integrations
 import 'package:nai_launcher/presentation/widgets/gallery/local_image_context_menu.dart';
 
 void main() {
+  testWidgets('automatic enhancement failures remain in DLSS settings', (
+    tester,
+  ) async {
+    final controller = _Controller()
+      ..enhancementError = StateError('native enhancement failed');
+    await tester.pumpWidget(
+      _app(
+        controller,
+        const Scaffold(
+          body: SingleChildScrollView(child: DlssSettingsSection()),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('DLSS 增强失败，原图已保留'), findsOneWidget);
+    expect(find.byType(LinearProgressIndicator), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('advanced options render over a decorated sidebar surface', (
     tester,
   ) async {

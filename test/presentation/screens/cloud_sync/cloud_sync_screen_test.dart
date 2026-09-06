@@ -94,7 +94,7 @@ void main() {
           find.text('saved-account-with-a-long-name@example.test'),
           findsOneWidget,
         );
-        expect(find.byType(LinearProgressIndicator), findsOneWidget);
+        expect(find.byType(LinearProgressIndicator), findsNothing);
         expect(find.text('尚未连接'), findsNothing);
         expect(find.text('连接账号'), findsNothing);
         expect(tester.takeException(), isNull, reason: 'width=$width');
