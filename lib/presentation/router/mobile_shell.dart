@@ -9,6 +9,7 @@ import '../providers/mobile_shell_overlay_provider.dart';
 import '../providers/replication_queue_provider.dart';
 import '../providers/update_provider.dart';
 import '../widgets/common/app_toast.dart';
+import '../widgets/common/update_notice_banner.dart';
 import 'android_root_back_guard.dart';
 import 'app_branch.dart';
 import 'global_status_banners.dart';
@@ -78,6 +79,7 @@ class MobileShell extends ConsumerWidget {
                   Expanded(child: content),
                 ],
               ),
+              const UpdateNoticeOverlay(),
               ShellPanelsOverlay(
                 key: panelOverlayKey,
                 activePanel: activePanel,

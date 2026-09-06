@@ -88,10 +88,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
     return Scaffold(
       body: SafeArea(
-        child: Column(
+        child: Stack(
+          fit: StackFit.expand,
           children: [
-            const UpdateNoticeBanner(),
-            Expanded(
+            SizedBox.expand(
               child: AdaptiveSlotLayout(
                 builder: (context, areas) {
                   final isWideScreen = areas.sizeClass.isExpandedOrWider;
@@ -147,6 +147,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 },
               ),
             ),
+            const UpdateNoticeOverlay(),
           ],
         ),
       ),
