@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math' as math;
 import 'dart:ui' as ui;
 
@@ -6,16 +7,26 @@ import 'package:flutter/material.dart';
 
 import '../../../data/models/image/image_stream_chunk.dart';
 
-/// 流式预览的持帧渲染层：新帧解码完成前继续画上一帧。
+typedef StreamPreviewImageDecoder =
+    Future<ui.Image> Function(
+      Uint8List bytes, {
+      required int? targetWidth,
+      required int? targetHeight,
+    });
+
+/// Holds the last decoded frame until its replacement is ready.
 class ImageCardStreamPreview extends StatefulWidget {
   const ImageCardStreamPreview({
     super.key,
     required this.previewBytes,
     this.placement,
+    this.imageDecoder,
   });
 
   final Uint8List previewBytes;
   final FocusedStreamPreviewPlacement? placement;
+  @visibleForTesting
+  final StreamPreviewImageDecoder? imageDecoder;
 
   @override
   State<ImageCardStreamPreview> createState() => _ImageCardStreamPreviewState();
@@ -28,18 +39,6 @@ class _ImageCardStreamPreviewState extends State<ImageCardStreamPreview> {
   bool _resolving = false;
 
   @override
-  void initState() {
-    super.initState();
-    _resolveImages();
-  }
-
-  @override
-  void didUpdateWidget(covariant ImageCardStreamPreview oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    _resolveImages();
-  }
-
-  @override
   void dispose() {
     _preview.dispose();
     _source.dispose();
@@ -49,24 +48,57 @@ class _ImageCardStreamPreviewState extends State<ImageCardStreamPreview> {
 
   @override
   Widget build(BuildContext context) {
-    return CustomPaint(
-      painter: ImageCardStreamPreviewPainter(
-        previewImage: _preview.image,
-        sourceImage: _source.image,
-        maskImage: _mask.image,
-        placement: widget.placement,
-      ),
+    final ratio = MediaQuery.maybeOf(context)?.devicePixelRatio ?? 1;
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        if (!constraints.biggest.isEmpty) {
+          _resolveImages(
+            constraints.hasBoundedWidth
+                ? math.max(1, (constraints.maxWidth * ratio).ceil())
+                : null,
+            constraints.hasBoundedHeight
+                ? math.max(1, (constraints.maxHeight * ratio).ceil())
+                : null,
+          );
+        }
+        return CustomPaint(
+          painter: ImageCardStreamPreviewPainter(
+            previewImage: _preview.image,
+            sourceImage: _source.image,
+            maskImage: _mask.image,
+            placement: widget.placement,
+          ),
+        );
+      },
     );
   }
 
-  void _resolveImages() {
+  void _resolveImages(int? width, int? height) {
     final placement = widget.placement;
     final composited = placement != null && placement.isValid;
-    // 缓存命中时监听器同步回调，此时正处于 initState/didUpdateWidget，不能 setState。
+    final decoder = widget.imageDecoder ?? _decodePreviewImage;
     _resolving = true;
-    _preview.resolve(widget.previewBytes, _onImageChanged);
-    _source.resolve(composited ? placement.sourceImage : null, _onImageChanged);
-    _mask.resolve(composited ? placement.maskImage : null, _onImageChanged);
+    _preview.resolve(
+      widget.previewBytes,
+      width,
+      height,
+      decoder,
+      _onImageChanged,
+    );
+    _source.resolve(
+      composited ? placement.sourceImage : null,
+      width,
+      height,
+      decoder,
+      _onImageChanged,
+    );
+    _mask.resolve(
+      composited ? placement.maskImage : null,
+      width,
+      height,
+      decoder,
+      _onImageChanged,
+    );
     _resolving = false;
   }
 
@@ -76,54 +108,138 @@ class _ImageCardStreamPreviewState extends State<ImageCardStreamPreview> {
   }
 }
 
-/// 一张经 ImageCache 解码并持有的图；换源时旧帧保留到新帧到达。
+// Transient frames bypass ImageCache. Each layer owns one displayed image and
+// at most one active decode; an incoming burst keeps only its newest request.
 class _HeldImage {
   Uint8List? _bytes;
-  ImageStream? _stream;
-  ImageStreamListener? _listener;
-  ImageInfo? _info;
+  int? _width;
+  int? _height;
+  StreamPreviewImageDecoder? _decoder;
+  ui.Image? image;
+  _PreviewDecodeRequest? _pending;
+  int _revision = 0;
+  bool _decoding = false;
+  bool _disposed = false;
 
-  ui.Image? get image => _info?.image;
-
-  void resolve(Uint8List? bytes, VoidCallback onChanged) {
-    if (identical(_bytes, bytes)) return;
+  void resolve(
+    Uint8List? bytes,
+    int? width,
+    int? height,
+    StreamPreviewImageDecoder decoder,
+    VoidCallback onChanged,
+  ) {
+    if (_disposed) return;
+    if (identical(_bytes, bytes) &&
+        _width == width &&
+        _height == height &&
+        identical(_decoder, decoder)) {
+      return;
+    }
     _bytes = bytes;
-    _stopListening();
+    _width = width;
+    _height = height;
+    _decoder = decoder;
+    final revision = ++_revision;
     if (bytes == null || bytes.isEmpty) {
-      _replaceInfo(null);
+      _pending = null;
+      image?.dispose();
+      image = null;
       onChanged();
       return;
     }
-    final stream = MemoryImage(bytes).resolve(ImageConfiguration.empty);
-    final listener = ImageStreamListener(
-      (info, _) {
-        _replaceInfo(info);
-        onChanged();
-      },
-      onError: (_, _) {},
+    _pending = _PreviewDecodeRequest(
+      bytes,
+      width,
+      height,
+      revision,
+      decoder,
+      onChanged,
     );
-    _stream = stream;
-    _listener = listener;
-    stream.addListener(listener);
+    unawaited(_drain());
+  }
+
+  Future<void> _drain() async {
+    if (_decoding || _disposed) return;
+    _decoding = true;
+    try {
+      while (!_disposed && _pending != null) {
+        final request = _pending!;
+        _pending = null;
+        final ui.Image decoded;
+        try {
+          decoded = await request.decoder(
+            request.bytes,
+            targetWidth: request.width,
+            targetHeight: request.height,
+          );
+        } catch (_) {
+          // Invalid replacement frames keep the last successfully decoded image.
+          continue;
+        }
+        if (_disposed || request.revision != _revision) {
+          decoded.dispose();
+        } else {
+          image?.dispose();
+          image = decoded;
+          request.onChanged();
+        }
+      }
+    } finally {
+      _decoding = false;
+    }
   }
 
   void dispose() {
-    _stopListening();
-    _replaceInfo(null);
+    _disposed = true;
+    _pending = null;
+    _bytes = null;
+    image?.dispose();
+    image = null;
   }
+}
 
-  void _stopListening() {
-    final stream = _stream;
-    final listener = _listener;
-    if (stream != null && listener != null) stream.removeListener(listener);
-    _stream = null;
-    _listener = null;
-  }
+class _PreviewDecodeRequest {
+  const _PreviewDecodeRequest(
+    this.bytes,
+    this.width,
+    this.height,
+    this.revision,
+    this.decoder,
+    this.onChanged,
+  );
+  final Uint8List bytes;
+  final int? width;
+  final int? height;
+  final int revision;
+  final StreamPreviewImageDecoder decoder;
+  final VoidCallback onChanged;
+}
 
-  void _replaceInfo(ImageInfo? info) {
-    if (identical(_info, info)) return;
-    _info?.dispose();
-    _info = info;
+Future<ui.Image> _decodePreviewImage(
+  Uint8List bytes, {
+  required int? targetWidth,
+  required int? targetHeight,
+}) async {
+  ui.ImmutableBuffer? buffer;
+  ui.ImageDescriptor? descriptor;
+  ui.Codec? codec;
+  try {
+    buffer = await ui.ImmutableBuffer.fromUint8List(bytes);
+    descriptor = await ui.ImageDescriptor.encoded(buffer);
+    final requestedScale = math.max(
+      targetWidth == null ? 0.0 : targetWidth / descriptor.width,
+      targetHeight == null ? 0.0 : targetHeight / descriptor.height,
+    );
+    final scale = requestedScale <= 0 ? 1.0 : math.min(1.0, requestedScale);
+    codec = await descriptor.instantiateCodec(
+      targetWidth: math.max(1, (descriptor.width * scale).ceil()),
+      targetHeight: math.max(1, (descriptor.height * scale).ceil()),
+    );
+    return (await codec.getNextFrame()).image;
+  } finally {
+    codec?.dispose();
+    descriptor?.dispose();
+    buffer?.dispose();
   }
 }
 
