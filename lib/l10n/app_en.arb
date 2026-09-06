@@ -6925,5 +6925,7 @@
   "dlss_passesHint": "Default: 1. Repeated processing is community-style stacking: each output feeds the next NR pass; SR upscales only on the first pass. More passes cost time and may accumulate distortion. This is not the model's internal layer count or an official intensity option.",
   "dlss_invalidPasses": "Enter an integer greater than or equal to 1.",
   "dlss_passProgress": "NR passes completed: {completed}/{total}",
-  "@dlss_passProgress": {"placeholders": {"completed": {"type": "int"}, "total": {"type": "int"}}}
+  "@dlss_passProgress": {"placeholders": {"completed": {"type": "int"}, "total": {"type": "int"}}},
+  "dlss_processing": "Processing",
+  "dlss_appearance": "Appearance"
 }

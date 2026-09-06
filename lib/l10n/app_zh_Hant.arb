@@ -7272,5 +7272,7 @@
   "dlss_passesHint": "預設 1 次。多次處理是社群式疊加：上一輪結果送入下一輪 NR，SR 僅在首輪放大。次數越多越耗時，也可能累積失真；這不是模型內部層數或官方強度選項。",
   "dlss_invalidPasses": "請輸入大於或等於 1 的整數。",
   "dlss_passProgress": "NR 已完成 {completed}/{total} 次",
-  "@dlss_passProgress": {"placeholders": {"completed": {"type": "int"}, "total": {"type": "int"}}}
+  "@dlss_passProgress": {"placeholders": {"completed": {"type": "int"}, "total": {"type": "int"}}},
+  "dlss_processing": "處理流程",
+  "dlss_appearance": "效果調整"
 }

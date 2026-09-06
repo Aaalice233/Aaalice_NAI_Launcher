@@ -6950,5 +6950,7 @@
   "dlss_passesHint": "既定は 1 回。複数回処理はコミュニティ方式の重ね掛けで、前回の出力を次の NR に渡します。SR 拡大は最初のみです。回数を増やすと時間がかかり、歪みも蓄積し得ます。モデル内部の層数や公式の強度設定ではありません。",
   "dlss_invalidPasses": "1 以上の整数を入力してください。",
   "dlss_passProgress": "NR 完了回数: {completed}/{total}",
-  "@dlss_passProgress": {"placeholders": {"completed": {"type": "int"}, "total": {"type": "int"}}}
+  "@dlss_passProgress": {"placeholders": {"completed": {"type": "int"}, "total": {"type": "int"}}},
+  "dlss_processing": "処理",
+  "dlss_appearance": "仕上がり"
 }

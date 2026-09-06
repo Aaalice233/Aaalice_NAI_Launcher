@@ -47,10 +47,7 @@ void main() {
           ),
         ),
       );
-      Finder field(String label) => find.byWidgetPredicate(
-        (widget) =>
-            widget is TextField && widget.decoration?.labelText == label,
-      );
+      Finder field(String label) => find.byKey(ValueKey('dlss-value-$label'));
       final strength = field('强度');
       await tester.ensureVisible(strength);
       await tester.enterText(strength, '3.25');

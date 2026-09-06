@@ -6994,5 +6994,7 @@
   "dlss_passesHint": "默认 1 次。多次处理是社区式叠加：上一轮结果送入下一轮 NR，SR 仅在首轮放大。次数越多越耗时，也可能积累失真；这不是模型内部层数或官方强度选项。",
   "dlss_invalidPasses": "请输入大于或等于 1 的整数。",
   "dlss_passProgress": "NR 已完成 {completed}/{total} 次",
-  "@dlss_passProgress": {"placeholders": {"completed": {"type": "int"}, "total": {"type": "int"}}}
+  "@dlss_passProgress": {"placeholders": {"completed": {"type": "int"}, "total": {"type": "int"}}},
+  "dlss_processing": "处理流程",
+  "dlss_appearance": "效果调整"
 }

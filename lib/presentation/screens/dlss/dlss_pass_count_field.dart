@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../core/utils/localization_extension.dart';
+import 'dlss_parameter_row.dart';
 
 class DlssPassCountField extends StatefulWidget {
   const DlssPassCountField({
@@ -52,28 +53,23 @@ class _DlssPassCountFieldState extends State<DlssPassCountField> {
   }
 
   @override
-  Widget build(BuildContext context) => Column(
-    crossAxisAlignment: CrossAxisAlignment.stretch,
-    children: [
-      TextField(
+  Widget build(BuildContext context) => DlssParameterRow(
+    label: context.l10n.dlss_passes,
+    description: context.l10n.dlss_passesHint,
+    error: _invalid ? context.l10n.dlss_invalidPasses : null,
+    trailing: Semantics(
+      label: context.l10n.dlss_passes,
+      child: TextField(
         key: const Key('dlss-passes'),
         controller: _text,
         focusNode: _focus,
         enabled: widget.onChanged != null,
         keyboardType: TextInputType.number,
-        decoration: InputDecoration(
-          labelText: context.l10n.dlss_passes,
-          errorText: _invalid ? context.l10n.dlss_invalidPasses : null,
-          errorMaxLines: 3,
-        ),
+        textAlign: TextAlign.end,
+        decoration: dlssNumberDecoration(context),
         onSubmitted: (_) => _commit(),
         onTapOutside: (_) => _focus.unfocus(),
       ),
-      const SizedBox(height: 6),
-      Text(
-        context.l10n.dlss_passesHint,
-        style: Theme.of(context).textTheme.bodySmall,
-      ),
-    ],
+    ),
   );
 }

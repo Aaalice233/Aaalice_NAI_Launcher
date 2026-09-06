@@ -4,6 +4,7 @@ import '../../../core/utils/localization_extension.dart';
 import '../../../data/services/dlss/dlss_options.dart';
 import 'dlss_parameter_slider.dart';
 import 'dlss_pass_count_field.dart';
+import 'dlss_parameter_row.dart';
 
 class DlssOptionsEditor extends StatelessWidget {
   const DlssOptionsEditor({
@@ -17,87 +18,114 @@ class DlssOptionsEditor extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        DlssPassCountField(
-          value: value.passes,
-          onChanged: onChanged == null
-              ? null
-              : (passes) => onChanged!(value.copyWith(passes: passes)),
-        ),
-        _slider(
-          l10n.dlss_scale,
-          l10n.dlss_scaleHint,
-          value.scale,
-          (v) => value.copyWith(scale: v),
-          min: 1,
-          max: 16384,
-        ),
-        Text(l10n.dlss_style),
-        const SizedBox(height: 8),
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 640),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            for (final entry in {
-              'default': l10n.dlss_styleDefault,
-              'natural': l10n.dlss_styleNatural,
-              'cinematic': l10n.dlss_styleCinematic,
-            }.entries)
-              ChoiceChip(
-                label: Text(entry.value),
-                selected: value.style == entry.key,
-                onSelected: onChanged == null
+            _heading(context, l10n.dlss_processing),
+            _slider(
+              l10n.dlss_scale,
+              l10n.dlss_scaleHint,
+              value.scale,
+              (v) => value.copyWith(scale: v),
+              min: 1,
+              max: 16384,
+            ),
+            DlssPassCountField(
+              value: value.passes,
+              onChanged: onChanged == null
+                  ? null
+                  : (passes) => onChanged!(value.copyWith(passes: passes)),
+            ),
+            const SizedBox(height: 28),
+            _heading(context, l10n.dlss_appearance),
+            DlssParameterRow(
+              label: l10n.dlss_style,
+              description: l10n.dlss_styleHint,
+            ),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                for (final entry in {
+                  'default': l10n.dlss_styleDefault,
+                  'natural': l10n.dlss_styleNatural,
+                  'cinematic': l10n.dlss_styleCinematic,
+                }.entries)
+                  ChoiceChip(
+                    label: Text(entry.value),
+                    selected: value.style == entry.key,
+                    onSelected: onChanged == null
+                        ? null
+                        : (_) => onChanged!(value.copyWith(style: entry.key)),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            _slider(
+              l10n.dlss_intensity,
+              '${l10n.dlss_intensityHint}\n${l10n.dlss_numericHint}',
+              value.intensity,
+              (v) => value.copyWith(intensity: v),
+            ),
+            const SizedBox(height: 16),
+            _advanced(context),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: TextButton(
+                onPressed: onChanged == null
                     ? null
-                    : (_) => onChanged!(value.copyWith(style: entry.key)),
+                    : () => onChanged!(const DlssOptions()),
+                child: Text(l10n.common_reset),
               ),
+            ),
           ],
         ),
-        Text(l10n.dlss_styleHint),
-        const SizedBox(height: 8),
-        Text(l10n.dlss_numericHint),
-        _slider(
-          l10n.dlss_intensity,
-          l10n.dlss_intensityHint,
-          value.intensity,
-          (v) => value.copyWith(intensity: v),
-        ),
-        _slider(
-          l10n.dlss_detail,
-          l10n.dlss_detailHint,
-          value.detail,
-          (v) => value.copyWith(detail: v),
-        ),
-        _slider(
-          l10n.dlss_color,
-          l10n.dlss_colorHint,
-          value.color,
-          (v) => value.copyWith(color: v),
-          max: 1,
-        ),
-        _advanced(context),
-        Align(
-          alignment: Alignment.centerLeft,
-          child: TextButton(
-            onPressed: onChanged == null
-                ? null
-                : () => onChanged!(const DlssOptions()),
-            child: Text(l10n.common_reset),
-          ),
-        ),
-      ],
+      ),
     );
   }
+
+  Widget _heading(BuildContext context, String label) => Padding(
+    padding: const EdgeInsets.only(bottom: 8),
+    child: Text(
+      label,
+      style: Theme.of(
+        context,
+      ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
+    ),
+  );
 
   Widget _advanced(BuildContext context) {
     final l10n = context.l10n;
     return Material(
       type: MaterialType.transparency,
       child: ExpansionTile(
+        tilePadding: EdgeInsets.zero,
+        shape: const Border(),
+        collapsedShape: const Border(),
         title: Text(l10n.dlss_advanced),
         children: [
-          Text(l10n.dlss_preset),
+          _slider(
+            l10n.dlss_detail,
+            l10n.dlss_detailHint,
+            value.detail,
+            (v) => value.copyWith(detail: v),
+          ),
+          _slider(
+            l10n.dlss_color,
+            l10n.dlss_colorHint,
+            value.color,
+            (v) => value.copyWith(color: v),
+            max: 1,
+          ),
+          const SizedBox(height: 16),
+          DlssParameterRow(
+            label: l10n.dlss_preset,
+            description: l10n.dlss_presetHint,
+          ),
           const SizedBox(height: 8),
           Wrap(
             spacing: 8,
@@ -113,7 +141,6 @@ class DlssOptionsEditor extends StatelessWidget {
                 ),
             ],
           ),
-          Text(l10n.dlss_presetHint),
           _slider(
             l10n.dlss_structure,
             l10n.dlss_structureHint,
@@ -142,25 +169,27 @@ class DlssOptionsEditor extends StatelessWidget {
             min: -1,
             valueLabel: value.globalTone < 0 ? l10n.dlss_modelDefault : null,
           ),
-          SwitchListTile(
+          DlssParameterRow(
             key: const Key('dlss-auto-mask'),
-            contentPadding: EdgeInsets.zero,
-            title: Text(l10n.dlss_autoMask),
-            subtitle: Text(l10n.dlss_autoMaskHint),
-            value: value.autoMask,
-            onChanged: onChanged == null
-                ? null
-                : (v) => onChanged!(value.copyWith(autoMask: v)),
+            label: l10n.dlss_autoMask,
+            description: l10n.dlss_autoMaskHint,
+            trailing: Switch(
+              value: value.autoMask,
+              onChanged: onChanged == null
+                  ? null
+                  : (v) => onChanged!(value.copyWith(autoMask: v)),
+            ),
           ),
-          SwitchListTile(
+          DlssParameterRow(
             key: const Key('dlss-ui-correction'),
-            contentPadding: EdgeInsets.zero,
-            title: Text(l10n.dlss_uiCorrection),
-            subtitle: Text(l10n.dlss_uiCorrectionHint),
-            value: value.uiCorrection,
-            onChanged: onChanged == null
-                ? null
-                : (v) => onChanged!(value.copyWith(uiCorrection: v)),
+            label: l10n.dlss_uiCorrection,
+            description: l10n.dlss_uiCorrectionHint,
+            trailing: Switch(
+              value: value.uiCorrection,
+              onChanged: onChanged == null
+                  ? null
+                  : (v) => onChanged!(value.copyWith(uiCorrection: v)),
+            ),
           ),
         ],
       ),

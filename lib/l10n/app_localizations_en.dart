@@ -15173,4 +15173,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String dlss_passProgress(int completed, int total) {
     return 'NR passes completed: $completed/$total';
   }
+
+  @override
+  String get dlss_processing => 'Processing';
+
+  @override
+  String get dlss_appearance => 'Appearance';
 }

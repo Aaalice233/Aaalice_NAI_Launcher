@@ -26406,6 +26406,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'NR passes completed: {completed}/{total}'**
   String dlss_passProgress(int completed, int total);
+
+  /// No description provided for @dlss_processing.
+  ///
+  /// In en, this message translates to:
+  /// **'Processing'**
+  String get dlss_processing;
+
+  /// No description provided for @dlss_appearance.
+  ///
+  /// In en, this message translates to:
+  /// **'Appearance'**
+  String get dlss_appearance;
 }
 
 class _AppLocalizationsDelegate

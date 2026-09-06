@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../../../core/utils/localization_extension.dart';
 import '../../../data/services/dlss/dlss_options.dart';
+import 'dlss_parameter_row.dart';
 
 class DlssParameterSlider extends StatefulWidget {
   const DlssParameterSlider({
@@ -78,37 +79,39 @@ class _DlssParameterSliderState extends State<DlssParameterSlider> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     final maximum = math.max(
       math.min(widget.maximum ?? 2.0, 4.0),
       widget.value,
     );
     return Padding(
-      padding: const EdgeInsets.only(top: 16),
+      padding: const EdgeInsets.only(top: 8),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          TextField(
-            controller: _text,
-            focusNode: _focus,
-            enabled: widget.onChanged != null,
-            keyboardType: const TextInputType.numberWithOptions(
-              decimal: true,
-              signed: true,
+          DlssParameterRow(
+            label: widget.label,
+            description: widget.description,
+            valueLabel: widget.valueLabel,
+            error: _invalid ? context.l10n.dlss_invalidNumber : null,
+            trailing: Semantics(
+              label: widget.label,
+              child: TextField(
+                key: ValueKey('dlss-value-${widget.label}'),
+                controller: _text,
+                focusNode: _focus,
+                enabled: widget.onChanged != null,
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                  signed: true,
+                ),
+                textInputAction: TextInputAction.done,
+                textAlign: TextAlign.end,
+                decoration: dlssNumberDecoration(context),
+                onSubmitted: (_) => _submit(),
+                onTapOutside: (_) => _focus.unfocus(),
+              ),
             ),
-            textInputAction: TextInputAction.done,
-            decoration: InputDecoration(
-              labelText: widget.label,
-              helperText: widget.valueLabel,
-              helperMaxLines: 3,
-              errorText: _invalid ? context.l10n.dlss_invalidNumber : null,
-              errorMaxLines: 3,
-            ),
-            onSubmitted: (_) => _submit(),
-            onTapOutside: (_) => _focus.unfocus(),
           ),
-          const SizedBox(height: 6),
-          Text(widget.description, style: theme.textTheme.bodySmall),
           Slider(
             value: widget.value,
             min: widget.minimum,

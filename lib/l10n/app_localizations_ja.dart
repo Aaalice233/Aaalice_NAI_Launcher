@@ -14769,4 +14769,10 @@ class AppLocalizationsJa extends AppLocalizations {
   String dlss_passProgress(int completed, int total) {
     return 'NR 完了回数: $completed/$total';
   }
+
+  @override
+  String get dlss_processing => '処理';
+
+  @override
+  String get dlss_appearance => '仕上がり';
 }

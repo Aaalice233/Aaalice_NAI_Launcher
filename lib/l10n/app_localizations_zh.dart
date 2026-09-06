@@ -14503,6 +14503,12 @@ class AppLocalizationsZh extends AppLocalizations {
   String dlss_passProgress(int completed, int total) {
     return 'NR 已完成 $completed/$total 次';
   }
+
+  @override
+  String get dlss_processing => '处理流程';
+
+  @override
+  String get dlss_appearance => '效果调整';
 }
 
 /// The translations for Chinese, using the Han script (`zh_Hant`).
@@ -29005,4 +29011,10 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String dlss_passProgress(int completed, int total) {
     return 'NR 已完成 $completed/$total 次';
   }
+
+  @override
+  String get dlss_processing => '處理流程';
+
+  @override
+  String get dlss_appearance => '效果調整';
 }
