@@ -7,6 +7,7 @@ import '../../../../core/utils/localization_extension.dart';
 import '../../../adaptive/content_sized_adaptive_form.dart';
 import '../../../prompt_assistant/models/prompt_assistant_models.dart';
 import '../../../widgets/common/themed_confirm_dialog.dart';
+import '../../../widgets/common/provider_icon.dart';
 
 class PromptAssistantProviderFormResult {
   const PromptAssistantProviderFormResult({
@@ -151,11 +152,7 @@ class _PromptAssistantProviderFormState
               .map(
                 (value) => DropdownMenuItem(
                   value: value,
-                  child: Text(
-                    value.label,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
+                  child: ProviderNameLabel(preset: value),
                 ),
               )
               .toList(),
@@ -314,6 +311,11 @@ class _PromptAssistantConnectionFormState
       key: const ValueKey('prompt-assistant-connection-dialog'),
       scrollController: widget.scrollController,
       content: [
+        ProviderNameLabel(
+          provider: widget.provider,
+          style: Theme.of(context).textTheme.titleSmall,
+        ),
+        const SizedBox(height: 12),
         TextField(
           controller: _baseController,
           keyboardType: TextInputType.url,

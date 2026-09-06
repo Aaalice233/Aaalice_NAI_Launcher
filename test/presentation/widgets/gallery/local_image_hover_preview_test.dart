@@ -70,7 +70,14 @@ void main() {
       expect(find.text(formatBytes(imageStat.size)), findsOneWidget);
       expect(find.text(modifiedDate), findsOneWidget);
       final previewImage = tester.widget<Image>(
-        find.descendant(of: preview, matching: find.byType(Image)),
+        find.descendant(
+          of: preview,
+          matching: find.byWidgetPredicate(
+            (widget) =>
+                widget is Image &&
+                widget.image is LocalGalleryThumbnailProvider,
+          ),
+        ),
       );
       expect(previewImage.image, isA<LocalGalleryThumbnailProvider>());
       expect(find.text('nai-diffusion-4-5-full'), findsOneWidget);

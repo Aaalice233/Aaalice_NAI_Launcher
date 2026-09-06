@@ -13,6 +13,8 @@ import '../../adaptive/interaction_policy.dart';
 import '../../prompt_assistant/models/prompt_assistant_models.dart';
 import '../../themes/theme_extension.dart';
 import '../../widgets/common/searchable_model_picker.dart';
+import '../../widgets/common/model_family_icon.dart';
+import '../../widgets/common/provider_icon.dart';
 
 double _agentChatControlExtent(BuildContext context) => math.max(
   context.interactionPolicy.minimumControlExtent,
@@ -94,6 +96,14 @@ class AgentChatConfigurationControl extends StatelessWidget {
                   mainAxisSize: MainAxisSize.min,
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
+                    ModelFamilyIcon(
+                      modelId:
+                          current?.model.name ??
+                          agentSettings.settings.chat.modelReference.model,
+                      displayName: modelName,
+                      size: 16,
+                    ),
+                    const SizedBox(width: 6),
                     if (showModelName) ...[
                       Flexible(
                         child: Text(
@@ -241,6 +251,11 @@ class _AgentChatConfigurationPickerBodyState
                 borderRadius: BorderRadius.circular(12),
                 child: ListTile(
                   key: const ValueKey('agent-chat-model-submenu'),
+                  leading: ModelFamilyIcon(
+                    modelId: widget.selectedModel?.model.name ?? currentModel,
+                    displayName: currentModel,
+                    size: 22,
+                  ),
                   minTileHeight: math.max(56, _agentChatControlExtent(context)),
                   contentPadding: const EdgeInsets.symmetric(horizontal: 14),
                   title: Text(
@@ -420,6 +435,12 @@ class AgentChatModelControl extends StatelessWidget {
                       ),
                       const SizedBox(width: 4),
                     ],
+                    ModelFamilyIcon(
+                      modelId: current?.model.name ?? reference.model,
+                      displayName: displayValue,
+                      size: 16,
+                    ),
+                    const SizedBox(width: 6),
                     Expanded(
                       child: Text(
                         displayValue,
@@ -583,6 +604,8 @@ Future<_AgentChatModelOption?> _showAgentChatModelPicker(
             id: '${option.provider.id}\u0000${option.model.name}',
             value: option,
             title: option.displayName,
+            modelId: option.model.name,
+            subtitleLeading: ProviderIcon(provider: option.provider, size: 14),
             subtitle: _modelMetadata(option),
             searchTerms: [option.provider.id, option.model.name],
             keyValue: '${option.provider.id}-${option.model.name}',
@@ -790,15 +813,10 @@ class _AgentChatModelPickerBodyState extends State<_AgentChatModelPickerBody> {
                                 ),
                                 child: Row(
                                   children: [
-                                    SizedBox(
-                                      width: 20,
-                                      child: selected
-                                          ? Icon(
-                                              Icons.check_rounded,
-                                              size: 18,
-                                              color: theme.colorScheme.primary,
-                                            )
-                                          : null,
+                                    ModelFamilyIcon(
+                                      modelId: option.model.name,
+                                      displayName: option.displayName,
+                                      size: 20,
                                     ),
                                     const SizedBox(width: 8),
                                     Expanded(
@@ -820,19 +838,30 @@ class _AgentChatModelPickerBodyState extends State<_AgentChatModelPickerBody> {
                                             overflow: TextOverflow.ellipsis,
                                           ),
                                           const SizedBox(height: 2),
-                                          Text(
-                                            _modelMetadata(option),
+                                          ProviderNameLabel(
+                                            provider: option.provider,
+                                            displayName: _modelMetadata(option),
+                                            iconSize: 14,
                                             style: theme.textTheme.bodySmall
                                                 ?.copyWith(
                                                   color: theme
                                                       .colorScheme
                                                       .onSurfaceVariant,
                                                 ),
-                                            maxLines: 1,
-                                            overflow: TextOverflow.ellipsis,
                                           ),
                                         ],
                                       ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    SizedBox(
+                                      width: 20,
+                                      child: selected
+                                          ? Icon(
+                                              Icons.check_rounded,
+                                              size: 18,
+                                              color: theme.colorScheme.primary,
+                                            )
+                                          : null,
                                     ),
                                   ],
                                 ),

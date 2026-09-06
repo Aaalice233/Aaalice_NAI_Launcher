@@ -1,5 +1,19 @@
 # Third-Party Notices
 
+## Model and Provider Icons
+
+Model family and provider logos are bundled from [Lobe Icons](https://github.com/lobehub/lobe-icons),
+`@lobehub/icons-static-png` version `1.97.0`, under the MIT license.
+The original PNG files and complete copyright/license text are retained in
+`assets/icons/ai_brands/`. Monochrome logos use the current theme's foreground
+color at runtime. No icon service is contacted. Logos identify their respective
+model families; their trademarks belong to their respective owners.
+
+Source package: `https://registry.npmjs.org/@lobehub/icons-static-png/-/icons-static-png-1.97.0.tgz`
+
+Package integrity (SHA-512, Base64):
+`vyCHQJBxhk9dJxhsCQ3G6U1I4rP8HFiOgxn73IM2s1XAYHupmMJIfm80jRjd83xjM8jSI+SMGsMmjADy0qHwHg==`
+
 ## Project Website Fonts
 
 The public project website self-hosts [Oswald](https://github.com/googlefonts/OswaldFont)

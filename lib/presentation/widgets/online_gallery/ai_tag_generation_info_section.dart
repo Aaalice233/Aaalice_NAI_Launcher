@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import '../../../core/utils/localization_extension.dart';
 import '../../../data/models/online_gallery/ai_tag_generation_info.dart';
 import '../common/app_toast.dart';
+import '../common/model_family_icon.dart';
 import 'gallery_detail_text_section.dart';
 
 class AiTagGenerationInfoSection extends StatelessWidget {
@@ -28,7 +29,15 @@ class AiTagGenerationInfoSection extends StatelessWidget {
 
     final l10n = context.l10n;
     final hasModel = info.model != null && info.model!.trim().isNotEmpty;
-    if (hasModel) addRow(l10n.gallery_metaModel, info.model!.trim());
+    if (hasModel) {
+      rows.add(
+        _AiTagInfoRow(
+          label: l10n.gallery_metaModel,
+          value: info.model!.trim(),
+          isModel: true,
+        ),
+      );
+    }
     if (info.modelHash != null && info.modelHash!.trim().isNotEmpty) {
       addRow('Model Hash', info.modelHash!.trim());
     }
@@ -162,10 +171,15 @@ class AiTagGenerationInfoSection extends StatelessWidget {
 }
 
 class _AiTagInfoRow extends StatelessWidget {
-  const _AiTagInfoRow({required this.label, required this.value});
+  const _AiTagInfoRow({
+    required this.label,
+    required this.value,
+    this.isModel = false,
+  });
 
   final String label;
   final String value;
+  final bool isModel;
   static const _minSideBySideWidth = 220.0;
 
   @override
@@ -182,6 +196,10 @@ class _AiTagInfoRow extends StatelessWidget {
     final valueWidget = Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        if (isModel) ...[
+          ModelFamilyIcon(modelId: value, size: 16),
+          const SizedBox(width: 6),
+        ],
         Expanded(
           child: SelectableText(
             value,

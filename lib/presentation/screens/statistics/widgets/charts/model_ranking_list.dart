@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../widgets/common/model_family_icon.dart';
 import 'package:nai_launcher/core/utils/localization_extension.dart';
 
 /// Model ranking item data
@@ -109,13 +110,12 @@ class _ModelRankRow extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      item.name,
+                    ModelNameLabel(
+                      modelId: item.name,
                       style: theme.textTheme.bodyMedium?.copyWith(
                         fontWeight: FontWeight.w600,
                       ),
                       maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
                     ),
                     const SizedBox(height: 6),
                     // Progress bar

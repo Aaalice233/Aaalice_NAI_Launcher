@@ -8,6 +8,7 @@ import '../../../../data/models/image/image_params.dart';
 import '../../../providers/image_generation_provider.dart';
 import '../../../widgets/common/app_toast.dart';
 import '../../../widgets/common/themed_dropdown.dart';
+import '../../../widgets/common/model_family_icon.dart';
 import '../../../widgets/common/themed_input.dart';
 import '../../../widgets/common/themed_slider.dart';
 import 'generation_toggle_button.dart';
@@ -58,8 +59,9 @@ class ModelSection extends ConsumerWidget {
           ) {
             return DropdownMenuItem(
               value: model,
-              child: Text(
-                ImageModels.modelDisplayNames[model] ?? model,
+              child: ModelNameLabel(
+                modelId: model,
+                displayName: ImageModels.modelDisplayNames[model] ?? model,
                 style: const TextStyle(fontSize: 13),
               ),
             );

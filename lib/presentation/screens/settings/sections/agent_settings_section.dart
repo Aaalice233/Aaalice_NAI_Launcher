@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../widgets/common/provider_icon.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../data/models/agent/agent_settings.dart';
@@ -154,6 +155,8 @@ class _ModelCard extends ConsumerWidget {
             id: _modelPickerId(reference),
             value: reference,
             title: displayName,
+            modelId: model.name,
+            subtitleLeading: ProviderIcon(provider: provider, size: 14),
             subtitle: displayName == model.name
                 ? provider.name
                 : '${provider.name} · ${model.name}',
@@ -171,6 +174,7 @@ class _ModelCard extends ConsumerWidget {
           id: _modelPickerId(selected),
           value: selected,
           title: selected.model,
+          modelId: selected.model,
           subtitle:
               '${selected.providerId} · ${context.l10n.agentSettings_pendingMatch}',
           searchTerms: [selected.providerId],

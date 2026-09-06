@@ -23,6 +23,7 @@ import '../../prompt_copy_split_button.dart';
 import '../../save_as_preset_dialog.dart';
 import '../../save_vibe_dialog.dart';
 import '../../themed_divider.dart';
+import '../../model_family_icon.dart';
 import '../file_image_detail_data.dart';
 import '../image_detail_data.dart';
 import 'prompt_copy_dialog.dart';
@@ -542,6 +543,7 @@ class _MetadataContent extends StatelessWidget {
               _InfoRow(
                 label: context.l10n.gallery_metaModel,
                 value: displayModel!,
+                leading: ModelFamilyIcon(modelId: displayModel, size: 16),
               ),
             if (metadata.seed != null)
               _InfoRow(
@@ -832,8 +834,9 @@ class _InfoRow extends StatelessWidget {
 
   final String label;
   final String value;
+  final Widget? leading;
 
-  const _InfoRow({required this.label, required this.value});
+  const _InfoRow({required this.label, required this.value, this.leading});
 
   @override
   Widget build(BuildContext context) {
@@ -846,7 +849,7 @@ class _InfoRow extends StatelessWidget {
         fontSize: 11,
       ),
     );
-    final valueWidget = SelectionCopyShortcuts(
+    final selectableValue = SelectionCopyShortcuts(
       child: SelectableText(
         value,
         style: theme.textTheme.bodySmall?.copyWith(
@@ -855,6 +858,16 @@ class _InfoRow extends StatelessWidget {
         ),
       ),
     );
+    final valueWidget = leading == null
+        ? selectableValue
+        : Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              leading!,
+              const SizedBox(width: 6),
+              Flexible(child: selectableValue),
+            ],
+          );
 
     return LayoutBuilder(
       builder: (context, constraints) {
