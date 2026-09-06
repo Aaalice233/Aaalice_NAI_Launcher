@@ -10,6 +10,7 @@
 | 设计语言 | [DESIGN.md](../DESIGN.md) | 色面、排版、组件、交互与视觉验收标准 |
 | 自适应实现 | [策略](design/adaptive_ui_strategy.md)、[覆盖清单](design/adaptive_ui_inventory.md) | 共享布局契约、代码入口和按任务建立的验收矩阵 |
 | 提示词助手 | [组件与挂载](design/prompt_assistant_component.md) | 共享尺寸、外壳、挂载方式与回归入口 |
+| 智能体工作流 | [调查、提问与确认](agent_workflows.md) | 角色证据流程、可复用问题表单、权限与零费用提交 |
 | 测试 | [test/README.md](../test/README.md) | 受控测试入口、证据范围和运行验收的区别 |
 | 开发会话 | [aaalice-dev-sessions](../.agents/skills/aaalice-dev-sessions/SKILL.md) | Windows/Android 热重载窗口的启动、复用与关闭 |
 | 刷新应用 | [aaalice-hot-reload](../.agents/skills/aaalice-hot-reload/SKILL.md) | Reload、Restart、完整重建的选择与日志验证 |

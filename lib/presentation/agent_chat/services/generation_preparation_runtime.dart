@@ -75,7 +75,8 @@ class GenerationPreparation {
       if (sourceImage != null) 'has_source_image': true,
       if (maskImage != null) 'has_mask_image': true,
     },
-    'confirmation_required': status == GenerationPreparationStatus.prepared,
+    'confirmation_required':
+        status == GenerationPreparationStatus.prepared && estimatedAnlas != 0,
   };
 }
 

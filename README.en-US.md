@@ -93,7 +93,9 @@ NAI Launcher is built for people who use NovelAI regularly. Generation, editing,
 
 - From a desktop sidebar or mobile drawer, the agent can search tags, organize Prompts, inspect generation history, use libraries, and prepare generation tasks.
 - Images, Vibes, and Precise References can be added directly as context. The agent can also prepare masks, expanded canvases, and inpaint drafts.
-- Planning and actual generation stay separate: preparation spends no Anlas, and submission still needs explicit confirmation.
+- Preparation verifies the cost before generation. In Full Access, verified zero-Anlas generations proceed directly; deletion and paid operations still require approval.
+- The default character research workflow combines online identity verification, canonical tag lookup, and gallery appearance evidence, noting disabled web access or missing evidence.
+- Structured questions offer three feasible directions, one Recommended marker, and a custom-answer option per question. Answer sequentially, then review and submit the full set. After two minutes without submission, all recommended options are selected automatically. New questions show a Toast, a question-mark entry icon, and an Android system notification.
 - Supports OpenAI-compatible APIs, Google's native Gemini API, third-party Gemini-compatible relays, and OpenRouter, including model lists, thinking levels, and tool calls when supported.
 - Your provider controls API keys, regional availability, and fees. Extra network tools such as web search are off by default.
 

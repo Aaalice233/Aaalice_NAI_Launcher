@@ -14138,6 +14138,49 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get promptAssistant_thinkingEnabled => '开启';
+
+  @override
+  String get userQuestion_title => '回答问题';
+
+  @override
+  String get userQuestion_waiting => '等待回答';
+
+  @override
+  String userQuestion_progress(int current, int total) {
+    return '问题 $current / $total';
+  }
+
+  @override
+  String get userQuestion_review => '确认你的选择';
+
+  @override
+  String get userQuestion_previous => '上一个问题';
+
+  @override
+  String get userQuestion_next => '下一步';
+
+  @override
+  String get userQuestion_submit => '提交答案';
+
+  @override
+  String get userQuestion_custom => '自定义';
+
+  @override
+  String get userQuestion_customDescription => '输入你自己的方向或要求';
+
+  @override
+  String get userQuestion_recommended => '推荐';
+
+  @override
+  String userQuestion_timeout(String time) {
+    return '$time 后将自动提交全部推荐选项';
+  }
+
+  @override
+  String get userQuestion_notification => '智能体有问题需要你回答，请打开对话查看。';
+
+  @override
+  String get userQuestion_notificationUnavailable => '提问通知未能显示，请检查系统通知权限。';
 }
 
 /// The translations for Chinese, using the Han script (`zh_Hant`).
@@ -28275,4 +28318,47 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get promptAssistant_thinkingEnabled => '開啟';
+
+  @override
+  String get userQuestion_title => '回答問題';
+
+  @override
+  String get userQuestion_waiting => '等待回答';
+
+  @override
+  String userQuestion_progress(int current, int total) {
+    return '問題 $current / $total';
+  }
+
+  @override
+  String get userQuestion_review => '確認你的選擇';
+
+  @override
+  String get userQuestion_previous => '上一個問題';
+
+  @override
+  String get userQuestion_next => '下一步';
+
+  @override
+  String get userQuestion_submit => '提交答案';
+
+  @override
+  String get userQuestion_custom => '自訂';
+
+  @override
+  String get userQuestion_customDescription => '輸入你自己的方向或要求';
+
+  @override
+  String get userQuestion_recommended => '推薦';
+
+  @override
+  String userQuestion_timeout(String time) {
+    return '$time 後將自動提交全部推薦選項';
+  }
+
+  @override
+  String get userQuestion_notification => '智慧體有問題需要你回答，請開啟對話查看。';
+
+  @override
+  String get userQuestion_notificationUnavailable => '提問通知未能顯示，請檢查系統通知權限。';
 }

@@ -177,12 +177,12 @@ class AgentLoopConfig extends SimpleStreamOptions {
   afterToolCall;
 
   @override
-  AgentLoopConfig copyWith({String? apiKey}) {
+  AgentLoopConfig copyWith({String? apiKey, AbortSignal? signal}) {
     return AgentLoopConfig(
       model: model,
       convertToLlm: convertToLlm,
       apiKey: apiKey ?? this.apiKey,
-      signal: signal,
+      signal: signal ?? this.signal,
       sessionId: sessionId,
       reasoning: reasoning,
       maxRetryDelayMs: maxRetryDelayMs,

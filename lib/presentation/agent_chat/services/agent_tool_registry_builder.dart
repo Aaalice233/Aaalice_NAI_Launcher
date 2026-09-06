@@ -36,6 +36,8 @@ import 'reference_library_toolbox.dart';
 import 'tag_toolbox.dart';
 import 'tag_library_toolbox.dart';
 import 'web_access_toolbox.dart';
+import 'agent_user_question_controller.dart';
+import 'user_question_toolbox.dart';
 
 class AgentToolRegistry {
   const AgentToolRegistry({
@@ -63,6 +65,7 @@ class AgentToolRegistryBuilder {
     required String Function() activeSessionId,
     required bool Function() isMounted,
     required List<Message> Function() messages,
+    required AgentUserQuestionController questionController,
   }) : _ref = ref,
        _workspaceDir = workspaceDir,
        _skills = skills,
@@ -73,7 +76,8 @@ class AgentToolRegistryBuilder {
        _manualInpaintToolbox = manualInpaintToolbox,
        _activeSessionId = activeSessionId,
        _isMounted = isMounted,
-       _messages = messages;
+       _messages = messages,
+       _questionController = questionController;
 
   final Ref _ref;
   final String _workspaceDir;
@@ -86,6 +90,7 @@ class AgentToolRegistryBuilder {
   final String Function() _activeSessionId;
   final bool Function() _isMounted;
   final List<Message> Function() _messages;
+  final AgentUserQuestionController _questionController;
 
   /// 跨 build() 保留：权限模式切换不该抹掉本会话已经看过的图。
   final AgentImageObservationLedger _observationLedger =
@@ -181,6 +186,7 @@ class AgentToolRegistryBuilder {
           .sendImageToKrita(bytes, name: name),
     );
     final tools = <AgentTool>[
+      ...UserQuestionToolbox(_questionController).tools(),
       ...PromptToolbox(
         _ref,
         skills: _skills,

@@ -188,14 +188,16 @@ List<AgentTool> buildManualInpaintToolDefinitions({
     label: 'Submit Manual Inpaint Draft',
     description:
         'Submit a ready draft through the real application generation provider. '
-        'This can spend Anlas and always requires explicit user approval.',
+        'Exact zero-cost drafts need no confirmation flag. Paid drafts require '
+        'confirm=true and application permission approval; do not request '
+        'duplicate confirmation in chat.',
     parameters: const {
       'type': 'object',
       'properties': {
         'draft_id': {'type': 'string'},
         'confirm': {'type': 'boolean'},
       },
-      'required': ['draft_id', 'confirm'],
+      'required': ['draft_id'],
     },
     executeFn: (_, arguments) => submit(arguments),
   ),

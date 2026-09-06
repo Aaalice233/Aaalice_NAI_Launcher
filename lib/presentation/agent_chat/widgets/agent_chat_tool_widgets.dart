@@ -43,6 +43,7 @@ class _AgentToolVisual {
 String agentToolLabel(BuildContext context, String toolName) {
   final l10n = context.l10n;
   return switch (toolName) {
+    'ask_user_question' => l10n.userQuestion_title,
     'generate_image' => l10n.agentChat_toolGenerateImage,
     'queue_image_task' => l10n.agentChat_toolQueueImageTask,
     'interrogate_image' => l10n.agentChat_toolInterrogateImage,

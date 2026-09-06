@@ -18,6 +18,7 @@ import 'agent_chat_panel_view_data.dart';
 import 'agent_chat_reading_preferences.dart';
 import 'agent_resource_drop_region.dart';
 import 'agent_chat_status.dart';
+import 'agent_chat_question_card.dart';
 
 final _agentChatViewportStoreProvider = Provider<AgentChatViewportStore>(
   (ref) => AgentChatViewportStore(),
@@ -190,7 +191,9 @@ class _EmbeddedAgentChatLayout extends StatelessWidget {
         ),
       ),
       AgentChatStatus(viewData: viewData, commands: commands),
-      if (viewData.state.routeReady)
+      if (viewData.state.questionRequest case final request?)
+        Flexible(flex: 2, child: AgentChatQuestionCard(request: request))
+      else if (viewData.state.routeReady)
         AgentChatComposer(
           viewData: viewData,
           commands: commands,
@@ -243,7 +246,12 @@ class _MobileAgentChatLayout extends StatelessWidget {
                       viewData: viewData,
                       commands: commands,
                     ),
-                    if (viewData.state.routeReady)
+                    if (viewData.state.questionRequest case final request?)
+                      Flexible(
+                        flex: 2,
+                        child: AgentChatQuestionCard(request: request),
+                      )
+                    else if (viewData.state.routeReady)
                       ConstrainedBox(
                         constraints: BoxConstraints(
                           maxHeight: constraints.maxHeight * 0.82,

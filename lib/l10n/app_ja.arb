@@ -6829,5 +6829,20 @@
   "promptAssistant_thinkingDefault": "モデルの既定値",
   "promptAssistant_thinkingUnavailable": "調整可能な思考レベルが確認できないため、モデルの既定動作を使用します。",
   "promptAssistant_thinkingReset": "保存されたレベルはこのモデルでは使用できないため、既定値を使用します。",
-  "promptAssistant_thinkingEnabled": "オン"
+  "promptAssistant_thinkingEnabled": "オン",
+  "userQuestion_title": "質問に回答",
+  "userQuestion_waiting": "回答待ち",
+  "userQuestion_progress": "質問 {current} / {total}",
+  "userQuestion_review": "回答を確認",
+  "userQuestion_previous": "前の質問",
+  "userQuestion_next": "次へ",
+  "userQuestion_submit": "回答を送信",
+  "userQuestion_custom": "自由入力",
+  "userQuestion_customDescription": "ご希望の方針や条件を入力してください",
+  "userQuestion_recommended": "おすすめ",
+  "@userQuestion_progress": {"placeholders": {"current": {"type": "int"}, "total": {"type": "int"}}},
+  "userQuestion_timeout": "{time} 後にすべての推奨選択肢を自動送信します。",
+  "userQuestion_notification": "エージェントから質問があります。会話を開いて回答してください。",
+  "userQuestion_notificationUnavailable": "質問通知を表示できません。システムの通知権限を確認してください。",
+  "@userQuestion_timeout": {"placeholders": {"time": {"type": "String"}}}
 }

@@ -25758,6 +25758,84 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'On'**
   String get promptAssistant_thinkingEnabled;
+
+  /// No description provided for @userQuestion_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Answer questions'**
+  String get userQuestion_title;
+
+  /// No description provided for @userQuestion_waiting.
+  ///
+  /// In en, this message translates to:
+  /// **'Waiting for answers'**
+  String get userQuestion_waiting;
+
+  /// No description provided for @userQuestion_progress.
+  ///
+  /// In en, this message translates to:
+  /// **'Question {current} / {total}'**
+  String userQuestion_progress(int current, int total);
+
+  /// No description provided for @userQuestion_review.
+  ///
+  /// In en, this message translates to:
+  /// **'Review your answers'**
+  String get userQuestion_review;
+
+  /// No description provided for @userQuestion_previous.
+  ///
+  /// In en, this message translates to:
+  /// **'Previous question'**
+  String get userQuestion_previous;
+
+  /// No description provided for @userQuestion_next.
+  ///
+  /// In en, this message translates to:
+  /// **'Next'**
+  String get userQuestion_next;
+
+  /// No description provided for @userQuestion_submit.
+  ///
+  /// In en, this message translates to:
+  /// **'Submit answers'**
+  String get userQuestion_submit;
+
+  /// No description provided for @userQuestion_custom.
+  ///
+  /// In en, this message translates to:
+  /// **'Custom'**
+  String get userQuestion_custom;
+
+  /// No description provided for @userQuestion_customDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter your own direction or requirements'**
+  String get userQuestion_customDescription;
+
+  /// No description provided for @userQuestion_recommended.
+  ///
+  /// In en, this message translates to:
+  /// **'Recommended'**
+  String get userQuestion_recommended;
+
+  /// No description provided for @userQuestion_timeout.
+  ///
+  /// In en, this message translates to:
+  /// **'In {time}, all recommended options will be submitted automatically.'**
+  String userQuestion_timeout(String time);
+
+  /// No description provided for @userQuestion_notification.
+  ///
+  /// In en, this message translates to:
+  /// **'The agent needs your answers. Open the conversation to respond.'**
+  String get userQuestion_notification;
+
+  /// No description provided for @userQuestion_notificationUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Question notifications are unavailable. Check system notification permissions.'**
+  String get userQuestion_notificationUnavailable;
 }
 
 class _AppLocalizationsDelegate

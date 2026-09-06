@@ -142,6 +142,38 @@ const _testModel = Model(
 
 void main() {
   group('agentLoop', () {
+    test('forwards the live abort signal to the model transport', () async {
+      final abort = AbortController();
+      SimpleStreamOptions? received;
+      final stream = agentLoop(
+        [UserMessage.text('hi')],
+        const AgentContext(systemPrompt: '', messages: [], tools: []),
+        AgentLoopConfig(
+          model: _testModel,
+          convertToLlm: (messages) async => messages,
+        ),
+        abort.signal,
+        (model, context, [options]) {
+          received = options;
+          abort.abort('transport cancellation');
+          return _messageStream(
+            AssistantMessage(content: const [], stopReason: StopReason.aborted),
+          );
+        },
+      );
+      await stream.stream.drain<void>();
+      expect(received?.signal, same(abort.signal));
+      expect(received?.signal?.aborted, isTrue);
+      expect(
+        (await stream.result()).last,
+        isA<AssistantMessage>().having(
+          (message) => message.stopReason,
+          'stop reason',
+          StopReason.aborted,
+        ),
+      );
+    });
+
     test('simple text response: single turn, no tool calls', () async {
       final scripted = ScriptedStreamFn([
         ScriptedResponse(textChunks: ['hello', ' world']),

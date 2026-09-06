@@ -44,107 +44,109 @@ void main() {
     if (await root.exists()) await root.delete(recursive: true);
   });
 
-  test(
-    'create returns while editor is open, then ready draft submits',
-    () async {
-      final source = _png(value: 30);
-      final mask = _png(value: 255);
-      final sourceFile = File('${root.path}/source.png');
-      await sourceFile.writeAsBytes(source);
-      final editorResult = Completer<ImageEditorResult?>();
-      ImageParams? submittedParams;
-      final updates = <(String, InpaintDraftStatus)>[];
-      final toolbox = ManualInpaintToolbox(
-        container.read(_refProvider),
-        supportDirectory: root,
-        anlasEstimator: (_, _) => 7,
-        workspaceDir: root.path,
-        repository: repository,
-        editorLauncher: (_, __, ___) => ManualInpaintEditorSession(
-          result: editorResult.future,
-          close: () {},
-        ),
-        submitter: (params) async {
-          submittedParams = params;
-          return const ManualInpaintSubmissionResult(accepted: true);
-        },
-        activeSessionId: () => 'session-a',
-        onDraftChanged: (sessionId, draft) {
-          updates.add((sessionId, draft.status));
-        },
-      );
-      final tools = {for (final tool in toolbox.tools()) tool.name: tool};
-      expect(tools, contains('reedit_manual_inpaint_draft'));
+  for (final cost in [0, 7]) {
+    test(
+      'ready draft costing $cost Anlas uses the appropriate confirmation',
+      () async {
+        final source = _png(value: 30);
+        final mask = _png(value: 255);
+        final sourceFile = File('${root.path}/source.png');
+        await sourceFile.writeAsBytes(source);
+        final editorResult = Completer<ImageEditorResult?>();
+        ImageParams? submittedParams;
+        final updates = <(String, InpaintDraftStatus)>[];
+        final toolbox = ManualInpaintToolbox(
+          container.read(_refProvider),
+          supportDirectory: root,
+          anlasEstimator: (_, _) => cost,
+          workspaceDir: root.path,
+          repository: repository,
+          editorLauncher: (_, __, ___) => ManualInpaintEditorSession(
+            result: editorResult.future,
+            close: () {},
+          ),
+          submitter: (params) async {
+            submittedParams = params;
+            return const ManualInpaintSubmissionResult(accepted: true);
+          },
+          activeSessionId: () => 'session-a',
+          onDraftChanged: (sessionId, draft) {
+            updates.add((sessionId, draft.status));
+          },
+        );
+        final tools = {for (final tool in toolbox.tools()) tool.name: tool};
+        expect(tools, contains('reedit_manual_inpaint_draft'));
 
-      final createResult = await tools['create_manual_inpaint_draft']!.execute(
-        'create',
-        {
-          'source_image': sourceFile.path,
-          'prompt': ' repair face ',
-          'params': {'steps': 31, 'inpaintStrength': 0.65},
-        },
-      );
-      final created = _json(createResult)['draft'] as Map<String, dynamic>;
-      final id = created['draftId'] as String;
-      expect(created['status'], 'editing');
-      expect(editorResult.isCompleted, isFalse);
-      expect(
-        (await repository.get(id))!.parameterSnapshot['prompt'],
-        'repair face',
-      );
-      expect((await repository.get(id))!.estimatedAnlas, 7);
-      expect(await toolbox.estimateAnlasForDraft(id), 7);
+        final createResult = await tools['create_manual_inpaint_draft']!
+            .execute('create', {
+              'source_image': sourceFile.path,
+              'prompt': ' repair face ',
+              'params': {'steps': 31, 'inpaintStrength': 0.65},
+            });
+        final created = _json(createResult)['draft'] as Map<String, dynamic>;
+        final id = created['draftId'] as String;
+        expect(created['status'], 'editing');
+        expect(editorResult.isCompleted, isFalse);
+        expect(
+          (await repository.get(id))!.parameterSnapshot['prompt'],
+          'repair face',
+        );
+        expect((await repository.get(id))!.estimatedAnlas, cost);
+        expect(await toolbox.estimateAnlasForDraft(id), cost);
 
-      editorResult.complete(
-        ImageEditorResult(
-          maskImage: mask,
-          inpaintSourceImage: source,
-          hasMaskChanges: true,
-        ),
-      );
-      await _waitForStatus(repository, id, InpaintDraftStatus.ready);
-      expect(updates, contains(('session-a', InpaintDraftStatus.ready)));
+        editorResult.complete(
+          ImageEditorResult(
+            maskImage: mask,
+            inpaintSourceImage: source,
+            hasMaskChanges: true,
+          ),
+        );
+        await _waitForStatus(repository, id, InpaintDraftStatus.ready);
+        expect(updates, contains(('session-a', InpaintDraftStatus.ready)));
 
-      final getResult = await tools['get_manual_inpaint_draft']!.execute(
-        'get',
-        {'draft_id': id},
-      );
-      expect((_json(getResult)['draft'] as Map)['status'], 'ready');
-      expect(
-        getResult.content.whereType<ToolResultImageContent>(),
-        hasLength(2),
-      );
-      final listResult = await tools['list_manual_inpaint_drafts']!.execute(
-        'list',
-        const {},
-      );
-      expect((_json(listResult)['drafts'] as List), hasLength(1));
+        final getResult = await tools['get_manual_inpaint_draft']!.execute(
+          'get',
+          {'draft_id': id},
+        );
+        expect((_json(getResult)['draft'] as Map)['status'], 'ready');
+        expect(
+          getResult.content.whereType<ToolResultImageContent>(),
+          hasLength(2),
+        );
+        final listResult = await tools['list_manual_inpaint_drafts']!.execute(
+          'list',
+          const {},
+        );
+        expect((_json(listResult)['drafts'] as List), hasLength(1));
 
-      final unconfirmed = await tools['submit_manual_inpaint_draft']!.execute(
-        'submit-no',
-        {'draft_id': id, 'confirm': false},
-      );
-      expect(unconfirmed.isError, isTrue);
-      expect((await repository.get(id))!.status, InpaintDraftStatus.ready);
-
-      final submitted = await tools['submit_manual_inpaint_draft']!.execute(
-        'submit',
-        {'draft_id': id, 'confirm': true},
-      );
-      expect(submitted.isError, isFalse);
-      expect((_json(submitted)['draft'] as Map)['status'], 'submitting');
-      expect(_json(submitted)['asynchronous'], isTrue);
-      await _waitForStatus(repository, id, InpaintDraftStatus.submitted);
-      expect(updates, contains(('session-a', InpaintDraftStatus.submitted)));
-      expect((await repository.get(id))!.status, InpaintDraftStatus.submitted);
-      expect(submittedParams!.action, ImageGenerationAction.infill);
-      expect(submittedParams!.prompt, 'repair face');
-      expect(submittedParams!.steps, 31);
-      expect(submittedParams!.inpaintStrength, 0.65);
-      expect(submittedParams!.sourceImage, source);
-      expect(submittedParams!.maskImage, mask);
-    },
-  );
+        if (cost > 0) {
+          final unconfirmed = await tools['submit_manual_inpaint_draft']!
+              .execute('submit-no', {'draft_id': id, 'confirm': false});
+          expect(unconfirmed.isError, isTrue);
+          expect((await repository.get(id))!.status, InpaintDraftStatus.ready);
+        }
+        final submitted = await tools['submit_manual_inpaint_draft']!.execute(
+          'submit',
+          {'draft_id': id, if (cost > 0) 'confirm': true},
+        );
+        expect(submitted.isError, isFalse);
+        expect((_json(submitted)['draft'] as Map)['status'], 'submitting');
+        expect(_json(submitted)['asynchronous'], isTrue);
+        await _waitForStatus(repository, id, InpaintDraftStatus.submitted);
+        expect(updates, contains(('session-a', InpaintDraftStatus.submitted)));
+        expect(
+          (await repository.get(id))!.status,
+          InpaintDraftStatus.submitted,
+        );
+        expect(submittedParams!.action, ImageGenerationAction.infill);
+        expect(submittedParams!.prompt, 'repair face');
+        expect(submittedParams!.steps, 31);
+        expect(submittedParams!.inpaintStrength, 0.65);
+        expect(submittedParams!.sourceImage, source);
+        expect(submittedParams!.maskImage, mask);
+      },
+    );
+  }
 
   test('cancel closes editor and persists cancelled status', () async {
     final sourceFile = File('${root.path}/source.png');

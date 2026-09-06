@@ -7,6 +7,7 @@ import '../../../core/agent/harness/session/session_types.dart'
 import '../../../core/agent/resources/agent_chat_resource_reference.dart';
 import '../models/agent_chat_turn_timeline.dart';
 import 'agent_chat_session_view.dart';
+import '../models/agent_user_question_request.dart';
 
 /// Agent 会话 UI 状态。
 class AgentChatState {
@@ -29,6 +30,7 @@ class AgentChatState {
     this.sessionTransitioning = false,
     this.sessionContentLoading = false,
     this.approvalRequest,
+    this.questionRequest,
     this.totalUsage,
     this.lastRequestUsage,
     this.contextUsage = const AgentContextUsage.unknown(),
@@ -64,6 +66,7 @@ class AgentChatState {
   final bool sessionTransitioning;
   final bool sessionContentLoading;
   final AgentToolApprovalRequest? approvalRequest;
+  final AgentUserQuestionRequest? questionRequest;
   final Usage? totalUsage;
 
   /// Provider usage from the most recent model request.
@@ -103,6 +106,8 @@ class AgentChatState {
     bool? sessionContentLoading,
     AgentToolApprovalRequest? approvalRequest,
     bool clearApprovalRequest = false,
+    AgentUserQuestionRequest? questionRequest,
+    bool clearQuestionRequest = false,
     Usage? totalUsage,
     Usage? lastRequestUsage,
     bool clearLastRequestUsage = false,
@@ -144,6 +149,9 @@ class AgentChatState {
       approvalRequest: clearApprovalRequest
           ? null
           : approvalRequest ?? this.approvalRequest,
+      questionRequest: clearQuestionRequest
+          ? null
+          : questionRequest ?? this.questionRequest,
       totalUsage: totalUsage ?? this.totalUsage,
       lastRequestUsage: clearLastRequestUsage
           ? null

@@ -14784,4 +14784,50 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get promptAssistant_thinkingEnabled => 'On';
+
+  @override
+  String get userQuestion_title => 'Answer questions';
+
+  @override
+  String get userQuestion_waiting => 'Waiting for answers';
+
+  @override
+  String userQuestion_progress(int current, int total) {
+    return 'Question $current / $total';
+  }
+
+  @override
+  String get userQuestion_review => 'Review your answers';
+
+  @override
+  String get userQuestion_previous => 'Previous question';
+
+  @override
+  String get userQuestion_next => 'Next';
+
+  @override
+  String get userQuestion_submit => 'Submit answers';
+
+  @override
+  String get userQuestion_custom => 'Custom';
+
+  @override
+  String get userQuestion_customDescription =>
+      'Enter your own direction or requirements';
+
+  @override
+  String get userQuestion_recommended => 'Recommended';
+
+  @override
+  String userQuestion_timeout(String time) {
+    return 'In $time, all recommended options will be submitted automatically.';
+  }
+
+  @override
+  String get userQuestion_notification =>
+      'The agent needs your answers. Open the conversation to respond.';
+
+  @override
+  String get userQuestion_notificationUnavailable =>
+      'Question notifications are unavailable. Check system notification permissions.';
 }

@@ -104,6 +104,7 @@ class AgentToolPermissionCatalog {
 
 AgentToolPermissionDescriptor describeAgentToolPermission(String toolName) {
   const reads = {
+    'ask_user_question',
     'get_application_context',
     'list_fixed_tags',
     'list_tag_library_entries',
@@ -163,6 +164,7 @@ AgentToolPermissionDescriptor describeAgentToolPermission(String toolName) {
   };
 
   final domain = switch (toolName) {
+    'ask_user_question' => AgentPermissionDomain.status,
     'get_application_context' ||
     'navigate_application' ||
     'select_generated_image' => AgentPermissionDomain.appNavigation,

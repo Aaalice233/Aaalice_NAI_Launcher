@@ -1,4 +1,7 @@
 import 'dart:convert';
+import 'package:nai_launcher/presentation/agent_chat/widgets/agent_question_notifications.dart';
+import 'package:nai_launcher/presentation/agent_chat/models/agent_user_question_request.dart';
+import '../../../fixtures/user_questions.dart';
 import 'dart:io';
 
 import 'package:flutter/gestures.dart';
@@ -53,6 +56,79 @@ void main() {
   });
 
   tearDown(() => PlatformCapabilities.debugOverride = null);
+
+  testWidgets(
+    'pending question card and footer fit the real panel constraints',
+    (tester) async {
+      final tempDir = Directory.systemTemp.createTempSync(
+        'agent_question_panel_',
+      );
+      final container = ProviderContainer(
+        overrides: [
+          localStorageServiceProvider.overrideWithValue(_MemoryLocalStorage()),
+          agentChatNotifierProvider.overrideWith(
+            (ref) => _TestAgentChatNotifier(
+              ref,
+              supportDir: tempDir,
+              workspaceDir: tempDir,
+            ),
+          ),
+        ],
+      );
+      addTearDown(() {
+        container.dispose();
+        tempDir.deleteSync(recursive: true);
+      });
+      await tester.runAsync(() async {
+        container.read(agentChatNotifierProvider);
+        await _waitForInitialized(container);
+      });
+      final notifier =
+          container.read(agentChatNotifierProvider.notifier)
+              as _TestAgentChatNotifier;
+      notifier.setRunStatus(AgentChatRunStatus.running);
+      notifier.setQuestion(
+        AgentUserQuestionRequest(
+          toolCallId: 'panel-question',
+          questions: testQuestions(),
+          expiresAt: DateTime.now().add(const Duration(minutes: 2)),
+        ),
+      );
+      for (final width in [360.0, 700.0]) {
+        await tester.pumpWidget(
+          UncontrolledProviderScope(
+            container: container,
+            child: MaterialApp(
+              locale: const Locale('zh'),
+              localizationsDelegates: AppLocalizations.localizationsDelegates,
+              supportedLocales: AppLocalizations.supportedLocales,
+              home: Scaffold(
+                body: SizedBox(
+                  width: width,
+                  height: 420,
+                  child: const AgentChatPanel(),
+                ),
+              ),
+            ),
+          ),
+        );
+        await tester.pump();
+        final panel = find.byType(AgentChatPanel);
+        final cancel = find.byKey(const ValueKey('user-question-cancel'));
+        expect(
+          find.byKey(const ValueKey('user-question-card')),
+          findsOneWidget,
+        );
+        expect(cancel.hitTestable(), findsOneWidget);
+        expect(
+          tester.getRect(panel).contains(tester.getRect(cancel).bottomRight),
+          isTrue,
+        );
+        expect(tester.takeException(), isNull);
+      }
+      await tester.pumpWidget(const SizedBox.shrink());
+    },
+  );
 
   testWidgets('session selector is disabled during a session transition', (
     tester,
@@ -1119,7 +1195,9 @@ void main() {
               body: SizedBox(
                 width: 360,
                 height: 720,
-                child: MobileGenerationLayout(),
+                child: AgentQuestionNotifications(
+                  child: MobileGenerationLayout(),
+                ),
               ),
             ),
           ),
@@ -1328,6 +1406,27 @@ void main() {
       );
       expect(runningIndicator, findsOneWidget);
       expect(find.byTooltip('聊天 · 回复中'), findsOneWidget);
+      notifier.setQuestion(
+        AgentUserQuestionRequest(
+          toolCallId: 'question-status',
+          questions: testQuestions(),
+          expiresAt: DateTime.now().add(const Duration(minutes: 2)),
+        ),
+      );
+      await tester.pump();
+      expect(
+        find.byKey(const ValueKey('agent-chat-entry-question')),
+        findsOneWidget,
+      );
+      expect(find.byTooltip('聊天 · 等待回答'), findsOneWidget);
+      expect(find.text('智能体有问题需要你回答，请打开对话查看。'), findsOneWidget);
+      notifier.setRunStatus(AgentChatRunStatus.running);
+      await tester.pump();
+      expect(find.text('智能体有问题需要你回答，请打开对话查看。'), findsOneWidget);
+      expect(runningIndicator, findsNothing);
+      notifier.setQuestion(null);
+      await tester.pump();
+      expect(runningIndicator, findsOneWidget);
       notifier.setRunStatus(AgentChatRunStatus.idle);
       await tester.pump();
       expect(runningIndicator, findsNothing);
@@ -1546,6 +1645,13 @@ class _TestAgentChatNotifier extends AgentChatNotifier {
     state = state.copyWith(
       status: AgentChatRunStatus.running,
       activities: [activity],
+    );
+  }
+
+  void setQuestion(AgentUserQuestionRequest? value) {
+    state = state.copyWith(
+      questionRequest: value,
+      clearQuestionRequest: value == null,
     );
   }
 

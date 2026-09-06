@@ -523,18 +523,18 @@ class GenerationPreparationService {
     AbortSignal? signal,
     AgentToolUpdateCallback? onUpdate,
   ]) async {
-    if (args['confirmed'] != true) {
-      return agentToolError(
-        'confirmation_required',
-        'confirmed must be explicitly true.',
-      );
-    }
     final preparation = _runtime.get(args['preparation_id'] as String? ?? '');
     if (preparation == null ||
         preparation.status != GenerationPreparationStatus.prepared) {
       return agentToolError(
         'preparation_not_active',
         'Generation preparation is not active.',
+      );
+    }
+    if (preparation.estimatedAnlas != 0 && args['confirmed'] != true) {
+      return agentToolError(
+        'confirmation_required',
+        'A paid preparation requires confirmed=true and tool permission approval.',
       );
     }
     preparation.status = GenerationPreparationStatus.submitted;

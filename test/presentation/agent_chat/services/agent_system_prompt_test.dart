@@ -2,6 +2,43 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/presentation/agent_chat/services/agent_system_prompt.dart';
 
 void main() {
+  test(
+    'character research is composed into the prompt and respects unavailable web access',
+    () {
+      final online = buildAgentSystemPrompt(
+        workspacePath: 'workspace',
+        webAccessEnabled: true,
+        skillBlock: 'CUSTOM SKILL',
+      );
+      final offline = buildAgentSystemPrompt(
+        workspacePath: 'workspace',
+        webAccessEnabled: false,
+        skillBlock: '',
+      );
+      final research = online.substring(
+        online.indexOf('Character identity and appearance research:'),
+      );
+      expect(
+        research.indexOf('web_search'),
+        lessThan(research.indexOf('search_tags')),
+      );
+      expect(
+        research.indexOf('search_tags'),
+        lessThan(research.indexOf('browse_online_gallery')),
+      );
+      expect(research, contains('asks whether you know a named character'));
+      expect(
+        research,
+        contains('not authorize editing prompts or generating an image'),
+      );
+      expect(online, contains('CUSTOM SKILL'));
+      expect(offline, contains('Web access is disabled'));
+      expect(offline, isNot(contains('First use web_search')));
+      expect(online, contains('exactly zero'));
+      expect(online, contains('without asking for confirmation'));
+      expect(online, contains('Destructive operations and paid/unknown-cost'));
+    },
+  );
   test('does not inspect or repeat direct generation output by default', () {
     final prompt = buildAgentSystemPrompt(
       workspacePath: 'C:/exports',

@@ -626,12 +626,6 @@ class ManualInpaintToolbox implements InpaintDraftAuthoringHost {
   }
 
   Future<AgentToolResult> _submit(Map<String, dynamic> args) async {
-    if (args['confirm'] != true) {
-      return agentToolError(
-        'confirmation_required',
-        'Explicit user confirmation is required before submission.',
-      );
-    }
     final id = args['draft_id'] as String;
     try {
       final draft = await _repository.get(id);
@@ -649,6 +643,12 @@ class ManualInpaintToolbox implements InpaintDraftAuthoringHost {
           'invalid_cost_estimate',
           'The inpaint draft does not have a valid Anlas estimate and cannot '
               'be submitted.',
+        );
+      }
+      if (draft.estimatedAnlas > 0 && args['confirm'] != true) {
+        return agentToolError(
+          'confirmation_required',
+          'Paid inpainting requires confirm=true and tool permission approval.',
         );
       }
       final source = await _repository.readSource(id);

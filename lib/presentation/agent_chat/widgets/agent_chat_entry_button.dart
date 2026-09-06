@@ -19,13 +19,16 @@ class AgentChatEntryButton extends ConsumerWidget {
               state.status == AgentChatRunStatus.running || state.compacting,
           compacting: state.compacting,
           approval: state.approvalRequest != null,
+          question: state.questionRequest != null,
           error: state.error.isNotEmpty,
         ),
       ),
     );
     final l10n = context.l10n;
     final colors = Theme.of(context).colorScheme;
-    final status = state.approval
+    final status = state.question
+        ? l10n.userQuestion_waiting
+        : state.approval
         ? l10n.agentChat_phaseAwaitingApproval
         : state.compacting
         ? l10n.agentChat_compacting
@@ -34,7 +37,13 @@ class AgentChatEntryButton extends ConsumerWidget {
         : state.error
         ? l10n.common_error
         : null;
-    final icon = state.approval
+    final icon = state.question
+        ? Icon(
+            Icons.help_rounded,
+            key: const ValueKey('agent-chat-entry-question'),
+            color: colors.primary,
+          )
+        : state.approval
         ? Icon(Icons.pending_actions_rounded, color: colors.primary)
         : state.running
         ? SizedBox.square(

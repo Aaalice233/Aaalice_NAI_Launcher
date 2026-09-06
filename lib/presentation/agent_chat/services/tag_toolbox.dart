@@ -53,8 +53,10 @@ class TagToolbox {
             'for one or more existing tags (comma-separated query), '
             'requires the optional co-occurrence data pack. Requirements: '
             '"query" is required; "limit" 1-30 (default 10). Results are '
-            'optional reference material — newer models also understand '
-            'natural language, so use whatever fits the request best.',
+            'evidence for verifying canonical spellings, aliases and category. '
+            'For a named character, use this after researching its identity '
+            'and before inspecting gallery tags. Do not guess canonical tags '
+            'from model memory. Natural-language prompts remain supported.',
         parameters: const {
           'type': 'object',
           'properties': {

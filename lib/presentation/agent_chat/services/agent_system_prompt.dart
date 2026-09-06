@@ -1,4 +1,5 @@
 import 'generation_toolbox.dart';
+import 'agent_research_instructions.dart';
 
 String buildAgentSystemPrompt({
   required String workspacePath,
@@ -30,9 +31,13 @@ String buildAgentSystemPrompt({
     '',
     'Image tools:',
     '- Every generation is a two-step transaction. Call '
-        'prepare_generation first, report its exact estimated_anlas to '
-        'the user, and only after explicit confirmation call '
-        'submit_generation with the preparation_id and confirmed=true. '
+        'prepare_generation first and inspect its exact estimated_anlas. '
+        'When it is exactly zero, call submit_generation with the '
+        'preparation_id directly, without asking for confirmation. '
+        'When cost is positive, report the exact cost and call submit_generation '
+        'with confirmed=true; the application permission UI obtains the '
+        'actual user approval before execution. Do not ask a duplicate '
+        'question in chat or through ask_user_question. Unknown cost is not free. '
         'Use inspect/update/cancel_generation_preparation while pending. '
         'Never claim submission from a preparation result.',
     '- interrogate_image reverse-engineers a prompt from an image. '
@@ -45,8 +50,9 @@ String buildAgentSystemPrompt({
         'returns immediately after opening the existing editor; do not wait '
         'inside that call. Poll get_manual_inpaint_draft (or list) until '
         'the user saves to ready or closes to cancelled. Only call '
-        'submit_manual_inpaint_draft after separately reporting the draft '
-        'and estimated Anlas and receiving explicit user confirmation.',
+        'submit_manual_inpaint_draft for ready drafts: exact zero-cost drafts '
+        'can be submitted directly; for paid drafts report the estimate and '
+        'use confirm=true, letting the application approval UI obtain consent.',
     '- create_inpaint_mask authors the mask yourself instead of asking the '
         'user to draw it. Coordinates are 0-1 fractions of the image, so you '
         'must read the source image with the read tool first; the tool '
@@ -75,13 +81,14 @@ String buildAgentSystemPrompt({
         '${GenerationToolbox.maxGenerateCount}); for several DIFFERENT '
         'prompts, call it once per prompt. source_image / mask_image '
         'switch to img2img / inpaint. This compatibility tool follows the '
-        'same two-call preparation_id + confirmed=true contract.',
+        'same two-call preparation_id contract, with confirmed=true only '
+        'required for a paid preparation.',
     '- queue_image_task is ASYNC: it enqueues N IDENTICAL tasks (same '
         'prompt) and returns immediately with no images in the chat. '
         'Only use it when the user explicitly asks to queue / background '
         'batch. For DIFFERENT prompts, call it once per prompt. This '
-        'compatibility tool also requires its returned estimate to be '
-        'confirmed in a second call.',
+        'compatibility tool likewise submits its preparation in a second '
+        'call; do not request confirmation for an exact zero-cost estimate.',
     '- get_generation_status reports generation progress and queue stats.',
     '- Images returned directly by generate_image or submit_generation are '
         'already visible in the conversation. Do not call get_recent_images, '
@@ -217,6 +224,23 @@ String buildAgentSystemPrompt({
         '(quality_toggle / uc_preset settings); do not add quality or '
         'aesthetic tags manually unless the user asks. V4.5+ reference '
         'tags: masterpiece, very aesthetic, location, year 2025.',
+    '',
+    buildAgentResearchInstructions(webAccessEnabled: webAccessEnabled),
+    '',
+    'User interaction and permissions:',
+    '- Use ask_user_question for material missing preferences or choices: '
+        'batch related questions, provide three distinct feasible options '
+        'with descriptions, and designate one recommended_option_id. '
+        'The UI adds the custom fourth option. Wait for the submitted answers; '
+        'the default 120-second timeout submits all recommended options with '
+        'source=timeout_recommendation. These defaults resolve preferences only; '
+        'cancellation and timeout never authorize destructive or paid actions.',
+    '- The application permission gate is authoritative. In Full Access, '
+        'perform ordinary user-requested reads and writes directly. Destructive '
+        'operations and paid/unknown-cost submissions still need its approval. '
+        'Do not add a conversational permission checkpoint before the tool '
+        'approval UI, and never disguise a permission request as a preference '
+        'question. Stay within the user\'s actual task scope.',
     if (skillBlock.isNotEmpty) ...['', skillBlock],
     '',
     "Reply in the user's language. Be concise. After using tools, briefly "

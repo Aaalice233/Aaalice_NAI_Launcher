@@ -23,6 +23,7 @@ import '../../../core/storage/local_storage_service.dart';
 import '../../../core/services/android_foreground_task_service.dart';
 import '../../../core/utils/app_logger.dart';
 import '../../../data/models/agent/agent_settings.dart';
+import '../../../data/models/interaction/user_question.dart';
 import '../../../data/models/inpaint/inpaint_draft.dart';
 import '../../../data/repositories/gallery_folder_repository.dart';
 import '../../agent_settings/providers/agent_settings_provider.dart';
@@ -52,6 +53,7 @@ import '../services/manual_inpaint_toolbox.dart';
 import '../services/queue_toolbox.dart';
 import '../services/agent_tool_permission_controller.dart';
 import '../services/agent_tool_registry_builder.dart';
+import '../services/agent_user_question_controller.dart';
 import 'agent_chat_state.dart';
 
 export 'agent_chat_state.dart';
@@ -131,6 +133,7 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
   late AgentChatEventController _eventController;
   AgentChatSessionController? _sessionControllerValue;
   AgentToolPermissionController? _permissionController;
+  AgentUserQuestionController? _questionController;
   late AgentToolRegistryBuilder _toolRegistryBuilder;
   late ManualInpaintToolbox _manualInpaintToolbox;
   late AgentApiClient _client;
@@ -249,7 +252,17 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
       },
       isMounted: () => mounted,
     );
+    _questionController = AgentUserQuestionController(
+      onChanged: (request) {
+        if (!mounted) return;
+        state = state.copyWith(
+          questionRequest: request,
+          clearQuestionRequest: request == null,
+        );
+      },
+    );
     _toolRegistryBuilder = AgentToolRegistryBuilder(
+      questionController: _questionController!,
       ref: _ref,
       workspaceDir: _workspaceDir.path,
       skills: _skills,
@@ -637,6 +650,11 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
     Context context, [
     SimpleStreamOptions? options,
   ]) {
+    // Pi passes the aborted run signal into the next response boundary after
+    // an interrupted tool. Do not create a fresh transport request for it.
+    if (options?.signal case final AbortSignal signal when signal.aborted) {
+      return _errorStream('aborted', stopReason: StopReason.aborted);
+    }
     try {
       final route = _activeRoute ?? _routeCache;
       if (route == null) {
@@ -709,11 +727,14 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
     return result < 1 ? 1 : result;
   }
 
-  static AssistantMessageEventStream _errorStream(String message) {
+  static AssistantMessageEventStream _errorStream(
+    String message, {
+    StopReason stopReason = StopReason.error,
+  }) {
     final stream = EventStream<AssistantMessageEvent, AssistantMessage>();
     final failure = AssistantMessage(
       content: const [],
-      stopReason: StopReason.error,
+      stopReason: stopReason,
       errorMessage: message,
       timestamp: DateTime.now().millisecondsSinceEpoch,
     );
@@ -1391,6 +1412,7 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
     state = state.copyWith(workPhase: AgentChatWorkPhase.stopping);
     agent.abort();
     _permissionController?.cancelApproval();
+    _questionController?.cancel();
     _client.cancel('agent_chat');
     await agent.waitForIdle();
   }
@@ -1420,8 +1442,15 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
 
   @override
   void dispose() {
+    _sessionControllerValue?.agent?.abort();
+    _questionController?.cancel();
     _permissionController?.dispose();
     _sessionControllerValue?.agent?.clearAllQueues();
     super.dispose();
   }
+
+  bool resolveUserQuestions(
+    String toolCallId,
+    List<UserQuestionAnswer>? answers,
+  ) => _questionController?.resolve(toolCallId, answers) ?? false;
 }

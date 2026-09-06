@@ -6873,5 +6873,20 @@
   "promptAssistant_thinkingDefault": "模型默认",
   "promptAssistant_thinkingUnavailable": "未识别到可调思考等级，使用模型默认行为。",
   "promptAssistant_thinkingReset": "原思考等级不适用于当前模型，本次使用模型默认。",
-  "promptAssistant_thinkingEnabled": "开启"
+  "promptAssistant_thinkingEnabled": "开启",
+  "userQuestion_title": "回答问题",
+  "userQuestion_waiting": "等待回答",
+  "userQuestion_progress": "问题 {current} / {total}",
+  "userQuestion_review": "确认你的选择",
+  "userQuestion_previous": "上一个问题",
+  "userQuestion_next": "下一步",
+  "userQuestion_submit": "提交答案",
+  "userQuestion_custom": "自定义",
+  "userQuestion_customDescription": "输入你自己的方向或要求",
+  "userQuestion_recommended": "推荐",
+  "@userQuestion_progress": {"placeholders": {"current": {"type": "int"}, "total": {"type": "int"}}},
+  "userQuestion_timeout": "{time} 后将自动提交全部推荐选项",
+  "userQuestion_notification": "智能体有问题需要你回答，请打开对话查看。",
+  "userQuestion_notificationUnavailable": "提问通知未能显示，请检查系统通知权限。",
+  "@userQuestion_timeout": {"placeholders": {"time": {"type": "String"}}}
 }

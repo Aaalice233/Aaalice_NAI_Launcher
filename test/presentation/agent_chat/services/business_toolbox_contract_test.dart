@@ -20,6 +20,8 @@ import 'package:nai_launcher/presentation/agent_chat/services/image_presentation
 import 'package:nai_launcher/presentation/agent_chat/services/queue_toolbox.dart';
 import 'package:nai_launcher/presentation/agent_chat/services/reference_library_toolbox.dart';
 import 'package:nai_launcher/presentation/agent_chat/services/tag_toolbox.dart';
+import 'package:nai_launcher/presentation/agent_chat/services/user_question_toolbox.dart';
+import 'package:nai_launcher/presentation/agent_chat/services/agent_user_question_controller.dart';
 import 'package:nai_launcher/presentation/agent_chat/services/tag_library_toolbox.dart';
 import 'package:nai_launcher/presentation/providers/image_generation_provider.dart';
 
@@ -31,6 +33,9 @@ void main() {
     addTearDown(container.dispose);
     final ref = container.read(_refProvider);
     final tools = <AgentTool>[
+      ...UserQuestionToolbox(
+        AgentUserQuestionController(onChanged: (_) {}),
+      ).tools(),
       ...ApplicationContextToolbox(ref).tools(),
       ...TagLibraryToolbox(ref).tools(),
       ...FixedTagsToolbox(ref).tools(),

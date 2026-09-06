@@ -12,6 +12,7 @@ import '../../core/shortcuts/default_shortcuts.dart';
 import '../../core/utils/app_logger.dart';
 import '../../core/utils/localization_extension.dart';
 import '../adaptive/window_size_class.dart';
+import '../agent_chat/widgets/agent_question_notifications.dart';
 import '../providers/auth_provider.dart';
 import '../providers/prompt_maximize_provider.dart';
 import '../widgets/app_branch_visibility.dart';
@@ -268,29 +269,31 @@ class _MainShellState extends ConsumerState<MainShell> {
       ),
     );
 
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final mediaQuery = MediaQuery.of(context);
-        final safeUsableWidth =
-            (constraints.maxWidth - mediaQuery.padding.horizontal)
-                .clamp(0.0, double.infinity)
-                .toDouble();
-        final sizeClass = WindowSizeClass.fromWidth(safeUsableWidth);
-        if (sizeClass.isExpandedOrWider) {
-          return DesktopShell(
+    return AgentQuestionNotifications(
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final mediaQuery = MediaQuery.of(context);
+          final safeUsableWidth =
+              (constraints.maxWidth - mediaQuery.padding.horizontal)
+                  .clamp(0.0, double.infinity)
+                  .toDouble();
+          final sizeClass = WindowSizeClass.fromWidth(safeUsableWidth);
+          if (sizeClass.isExpandedOrWider) {
+            return DesktopShell(
+              navigationShell: widget.navigationShell,
+              content: shortcutEnabledContent,
+              panelOverlayKey: _panelOverlayKey,
+            );
+          }
+
+          return MobileShell(
             navigationShell: widget.navigationShell,
+            branchCanHandlePop: _branchCanHandlePop[currentIndex] ?? false,
             content: shortcutEnabledContent,
             panelOverlayKey: _panelOverlayKey,
           );
-        }
-
-        return MobileShell(
-          navigationShell: widget.navigationShell,
-          branchCanHandlePop: _branchCanHandlePop[currentIndex] ?? false,
-          content: shortcutEnabledContent,
-          panelOverlayKey: _panelOverlayKey,
-        );
-      },
+        },
+      ),
     );
   }
 

@@ -14397,4 +14397,48 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get promptAssistant_thinkingEnabled => 'オン';
+
+  @override
+  String get userQuestion_title => '質問に回答';
+
+  @override
+  String get userQuestion_waiting => '回答待ち';
+
+  @override
+  String userQuestion_progress(int current, int total) {
+    return '質問 $current / $total';
+  }
+
+  @override
+  String get userQuestion_review => '回答を確認';
+
+  @override
+  String get userQuestion_previous => '前の質問';
+
+  @override
+  String get userQuestion_next => '次へ';
+
+  @override
+  String get userQuestion_submit => '回答を送信';
+
+  @override
+  String get userQuestion_custom => '自由入力';
+
+  @override
+  String get userQuestion_customDescription => 'ご希望の方針や条件を入力してください';
+
+  @override
+  String get userQuestion_recommended => 'おすすめ';
+
+  @override
+  String userQuestion_timeout(String time) {
+    return '$time 後にすべての推奨選択肢を自動送信します。';
+  }
+
+  @override
+  String get userQuestion_notification => 'エージェントから質問があります。会話を開いて回答してください。';
+
+  @override
+  String get userQuestion_notificationUnavailable =>
+      '質問通知を表示できません。システムの通知権限を確認してください。';
 }

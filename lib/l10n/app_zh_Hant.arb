@@ -7151,5 +7151,20 @@
   "promptAssistant_thinkingDefault": "模型預設",
   "promptAssistant_thinkingUnavailable": "未識別到可調思考等級，使用模型預設行為。",
   "promptAssistant_thinkingReset": "原思考等級不適用於目前模型，本次使用模型預設。",
-  "promptAssistant_thinkingEnabled": "開啟"
+  "promptAssistant_thinkingEnabled": "開啟",
+  "userQuestion_title": "回答問題",
+  "userQuestion_waiting": "等待回答",
+  "userQuestion_progress": "問題 {current} / {total}",
+  "userQuestion_review": "確認你的選擇",
+  "userQuestion_previous": "上一個問題",
+  "userQuestion_next": "下一步",
+  "userQuestion_submit": "提交答案",
+  "userQuestion_custom": "自訂",
+  "userQuestion_customDescription": "輸入你自己的方向或要求",
+  "userQuestion_recommended": "推薦",
+  "@userQuestion_progress": {"placeholders": {"current": {"type": "int"}, "total": {"type": "int"}}},
+  "userQuestion_timeout": "{time} 後將自動提交全部推薦選項",
+  "userQuestion_notification": "智慧體有問題需要你回答，請開啟對話查看。",
+  "userQuestion_notificationUnavailable": "提問通知未能顯示，請檢查系統通知權限。",
+  "@userQuestion_timeout": {"placeholders": {"time": {"type": "String"}}}
 }

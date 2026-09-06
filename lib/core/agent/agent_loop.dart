@@ -379,7 +379,7 @@ Future<AssistantMessage> _streamAssistantResponse(
   final response = streamFunction(
     config.model,
     llmContext,
-    config.copyWith(apiKey: resolvedApiKey),
+    config.copyWith(apiKey: resolvedApiKey, signal: signal),
   );
 
   AssistantMessage? partialMessage;

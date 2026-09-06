@@ -78,8 +78,8 @@ class GenerationToolDefinitions {
             'Prepare an image generation transaction without submitting it. '
             'Returns a persistent preparation_id and the exact estimated '
             'Anlas cost. operation is generate (synchronous) or queue. '
-            'After inspection or updates, submit_generation must be called '
-            'with confirmed=true.',
+            'Submit exact zero-cost preparations directly. Paid submissions '
+            'use confirmed=true and the application permission approval UI.',
         parameters: {
           'type': 'object',
           'properties': generationPreparationProperties(includeOperation: true),
@@ -135,15 +135,17 @@ class GenerationToolDefinitions {
         name: 'submit_generation',
         label: 'Submit Generation',
         description:
-            'Submit a previously prepared transaction. confirmed must be '
-            'explicitly true; otherwise no provider or queue is called.',
+            'Submit a previously prepared transaction. Exact zero-cost '
+            'preparations need no confirmation flag. Paid preparations require '
+            'confirmed=true; the application then obtains permission through '
+            'its approval UI. Do not ask for duplicate confirmation in chat.',
         parameters: const {
           'type': 'object',
           'properties': {
             'preparation_id': {'type': 'string'},
             'confirmed': {'type': 'boolean', 'const': true},
           },
-          'required': ['preparation_id', 'confirmed'],
+          'required': ['preparation_id'],
         },
         executeWithControl: _preparation.submitPreparation,
       ),
@@ -279,7 +281,8 @@ class GenerationToolDefinitions {
             },
             'confirmed': {
               'type': 'boolean',
-              'description': 'Must be true on the second call.',
+              'description':
+                  'Required only for paid preparations; exact zero-cost submissions omit this.',
             },
           },
           'required': ['prompt'],
@@ -334,7 +337,8 @@ class GenerationToolDefinitions {
             },
             'confirmed': {
               'type': 'boolean',
-              'description': 'Must be true on the second call.',
+              'description':
+                  'Required only for paid preparations; exact zero-cost submissions omit this.',
             },
           },
           'required': ['prompt'],

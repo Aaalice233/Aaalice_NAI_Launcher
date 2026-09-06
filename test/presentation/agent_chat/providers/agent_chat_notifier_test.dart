@@ -13,6 +13,8 @@ import 'package:nai_launcher/core/storage/local_storage_service.dart';
 import 'package:nai_launcher/core/services/android_foreground_task_service.dart';
 import 'package:nai_launcher/core/storage/secure_storage_service.dart';
 import 'package:nai_launcher/data/models/agent/agent_settings.dart';
+import 'package:nai_launcher/data/models/interaction/user_question.dart';
+import '../../../fixtures/user_questions.dart';
 import 'package:nai_launcher/presentation/agent_chat/models/agent_chat_compaction_outcome.dart';
 import 'package:nai_launcher/presentation/agent_chat/providers/agent_chat_notifier.dart';
 import 'package:nai_launcher/presentation/agent_settings/providers/agent_settings_provider.dart';
@@ -358,6 +360,93 @@ User instructions.
         await tempDir.delete(recursive: true);
       }
     });
+
+    for (final resolution in ['submit', 'abort', 'dispose']) {
+      test(
+        'registered question tool settles correctly on $resolution',
+        () async {
+          final config = container.read(promptAssistantConfigProvider.notifier);
+          await config.upsertProvider(ProviderPreset.deepseek.createConfig());
+          await config.upsertModel(
+            const ModelConfig(
+              providerId: 'deepseek',
+              name: 'deepseek-chat',
+              displayName: 'DeepSeek Chat',
+              forTask: AssistantTaskType.chat,
+            ),
+          );
+          await container
+              .read(agentSettingsProvider.notifier)
+              .setModelReference(
+                const AgentModelReference(
+                  providerId: 'deepseek',
+                  model: 'deepseek-chat',
+                ),
+              );
+          var calls = 0;
+          wireCompletion = (request) async* {
+            requests.add(request);
+            calls++;
+            if (calls == 1) {
+              yield AgentWireToolCallDone(
+                id: 'ask-directions',
+                name: 'ask_user_question',
+                arguments: {
+                  'questions': [questionJson('appearance')],
+                },
+              );
+              yield const AgentWireFinish(stopReason: StopReason.toolUse);
+            } else {
+              yield const AgentWireTextDelta('采用经典造型');
+              yield const AgentWireFinish(stopReason: StopReason.stop);
+            }
+          };
+          final questionReady = Completer<void>();
+          final subscription = container.listen(provider, (_, next) {
+            if (next.questionRequest != null && !questionReady.isCompleted) {
+              questionReady.complete();
+            }
+          });
+          addTearDown(subscription.close);
+          final notifier = container.read(provider.notifier);
+          final run = notifier.send('帮我选择角色造型');
+          await questionReady.future.timeout(const Duration(seconds: 5));
+          expect(calls, 1);
+          expect(container.read(provider).approvalRequest, isNull);
+          if (resolution == 'abort') {
+            await notifier.abort();
+            await run;
+            expect(calls, 1);
+            expect(container.read(provider).questionRequest, isNull);
+            return;
+          }
+          if (resolution == 'dispose') {
+            subscription.close();
+            container.invalidate(provider);
+            await run;
+            expect(calls, 1);
+            return;
+          }
+
+          expect(
+            notifier.resolveUserQuestions('stale', [
+              const UserQuestionAnswer.option('classic'),
+            ]),
+            isFalse,
+          );
+          expect(
+            notifier.resolveUserQuestions('ask-directions', [
+              const UserQuestionAnswer.option('classic'),
+            ]),
+            isTrue,
+          );
+          await run;
+          expect(calls, 2);
+          expect(container.read(provider).questionRequest, isNull);
+          expect(container.read(provider).status, AgentChatRunStatus.idle);
+        },
+      );
+    }
 
     for (final outcome in ['success', 'error', 'cancelled', 'start_failure']) {
       test(
