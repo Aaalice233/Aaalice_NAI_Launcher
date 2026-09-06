@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -9,60 +8,44 @@ import 'package:nai_launcher/data/services/dlss/dlss_worker.dart';
 import 'package:nai_launcher/data/services/metadata/image_metadata_container_codec.dart';
 
 void main() {
-  test('SR runs once and each NR pass consumes the preceding output', () async {
-    final inputs = <int>[];
-    final scales = <double>[];
+  test('native progress requires all layers and a final FP16 completion', () {
     final progress = <(int, int)>[];
-    final output = await runDlssPasses(
-      Uint8List.fromList([1]),
-      const DlssOptions(scale: 2.5, passes: 3),
-      (source, options) async {
-        inputs.add(source.single);
-        scales.add(options.scale);
-        return Uint8List.fromList([source.single + 1]);
-      },
-      onProgress: (done, total) => progress.add((done, total)),
-    );
-    expect(inputs, [1, 2, 3]);
-    expect(scales, [2.5, 1, 1]);
-    expect(output.single, 4);
+    final protocol = DlssWorkerProtocol(3, (a, b) => progress.add((a, b)));
+    for (var i = 0; i <= 3; i++) {
+      protocol.accept('AAALICE_NR_PROGRESS $i 3');
+    }
+    expect(protocol.complete, isFalse);
+    protocol.accept('AAALICE_NR_DONE 3 fp16-cascade');
+    expect(protocol.complete, isTrue);
     expect(progress, [(0, 3), (1, 3), (2, 3), (3, 3)]);
   });
   test(
-    'cancellation and failure stop remaining passes without returning a partial result',
-    () async {
-      final cancelled = Completer<void>();
-      var count = 0;
-      await expectLater(
-        runDlssPasses(Uint8List(1), const DlssOptions(passes: 3), (
-          source,
-          _,
-        ) async {
-          count++;
-          cancelled.complete();
-          return source;
-        }, cancelled: cancelled.future),
-        throwsA(isA<DlssCancelled>()),
-      );
-      expect(count, 1);
-      count = 0;
-      await expectLater(
-        runDlssPasses(Uint8List(1), const DlssOptions(passes: 3), (
-          source,
-          _,
-        ) async {
-          count++;
-          throw const DlssWorkerFailure(7, 'native failure');
-        }),
-        throwsA(
-          isA<DlssWorkerFailure>().having(
-            (e) => e.diagnostics,
-            'round',
-            contains('1/3'),
-          ),
-        ),
-      );
-      expect(count, 1);
+    'rejects partial, duplicated, reordered and mismatched native results',
+    () {
+      for (final lines in [
+        ['AAALICE_NR_PROGRESS 0 3', 'AAALICE_NR_DONE 3 fp16-cascade'],
+        ['AAALICE_NR_PROGRESS 0 3', 'AAALICE_NR_PROGRESS 2 3'],
+        ['AAALICE_NR_PROGRESS 0 2'],
+        ['AAALICE_NR_PROGRESS malformed'],
+        [
+          for (var i = 0; i <= 3; i++) 'AAALICE_NR_PROGRESS $i 3',
+          'AAALICE_NR_DONE 3 fp16-cascade',
+          'AAALICE_NR_PROGRESS 3 3',
+        ],
+      ]) {
+        final protocol = DlssWorkerProtocol(3, null);
+        for (final line in lines) {
+          protocol.accept(line);
+        }
+        expect(protocol.complete, isFalse, reason: lines.join('\n'));
+      }
+    },
+  );
+  test(
+    'old pass presets migrate to three and direct values reject larger counts',
+    () {
+      expect(DlssOptions.fromJson({'passes': 8}).passes, 3);
+      expect(const DlssOptions(passes: 4).validate, throwsFormatException);
     },
   );
   test(
@@ -131,24 +114,24 @@ void main() {
     final restored = DlssOptions.fromJson(options.toJson());
     expect(restored.toJson(), options.toJson());
     for (final entry in {
-      '--nr-preset': '3',
-      '--nr-skin': '1.5',
-      '--nr-global-tone': '2.0',
-      '--nr-ui-correction': '0',
+      '--preset': '3',
+      '--skin': '1.5',
+      '--global-tone': '2.0',
+      '--ui-correction': '0',
     }.entries) {
       expect(
         restored.arguments[restored.arguments.indexOf(entry.key) + 1],
         entry.value,
       );
     }
-    expect(restored.arguments, contains('--nr-auto-mask'));
+    expect(restored.arguments, contains('--auto-mask'));
     const defaults = DlssOptions();
     expect(defaults.style, 'cinematic');
     expect(defaults.skin, 1.2);
     expect(defaults.globalTone, 1.6);
     expect(defaults.preset, 0);
     expect(defaults.uiCorrection, isFalse);
-    expect(defaults.arguments, contains('--nr-auto-mask'));
+    expect(defaults.arguments, contains('--auto-mask'));
     for (final options in [
       const DlssOptions(preset: 4),
       const DlssOptions(skin: -1.05),
@@ -170,12 +153,7 @@ void main() {
         DlssOptions.fromJson(maximum.toJson()).arguments,
         maximum.arguments,
       );
-      for (final flag in [
-        '--nr-intensity',
-        '--nr-local-structure',
-        '--nr-local-tone',
-        '--nr-detail',
-      ]) {
+      for (final flag in ['--intensity', '--structure', '--tone']) {
         expect(maximum.arguments[maximum.arguments.indexOf(flag) + 1], '3.25');
       }
       const invalid = [
@@ -257,7 +235,7 @@ void main() {
     'validates options and maps native style IDs without an extra rendering mode',
     () {
       expect(const DlssOptions(style: 'cinematic').arguments.skip(2).take(2), [
-        '--nr-style',
+        '--style',
         '2',
       ]);
       expect(
@@ -268,7 +246,7 @@ void main() {
         () => const DlssOptions(intensity: double.nan).arguments,
         throwsFormatException,
       );
-      expect(const DlssOptions().arguments.take(2), ['--nr-scale', '2.0']);
+      expect(const DlssOptions().arguments.take(2), ['--passes', '1']);
     },
   );
 }

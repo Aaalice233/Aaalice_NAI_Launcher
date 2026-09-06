@@ -15067,7 +15067,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get dlss_compareHint =>
-      'Drag the divider to compare; double-tap to zoom';
+      'Full-resolution comparison, starting at 100% of the output pixels. Drag the image to pan and the divider to compare; double-tap to toggle fit to window.';
 
   @override
   String get dlss_preset => 'NR preset';
@@ -15163,11 +15163,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get dlss_passesHint =>
-      'Default: 1. Repeated processing is community-style stacking: each output feeds the next NR pass; SR upscales only on the first pass. More passes cost time and may accumulate distortion. This is not the model\'s internal layer count or an official intensity option.';
-
-  @override
-  String get dlss_invalidPasses =>
-      'Enter an integer greater than or equal to 1.';
+      'Choose 1–3 NR layers. Each neural output feeds the next layer; SR upscales once. Detail and color are composed once at the end. More layers take longer and may change the original style.';
 
   @override
   String dlss_passProgress(int completed, int total) {

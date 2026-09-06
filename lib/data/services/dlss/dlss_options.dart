@@ -1,7 +1,9 @@
+import 'dart:math' as math;
 import 'dart:typed_data';
 
 class DlssOptions {
   static const maximumStrength = 3.4028234663852886e38;
+  static const maximumPasses = 3;
   const DlssOptions({
     this.style = 'cinematic',
     this.intensity = 1.6,
@@ -115,7 +117,12 @@ class DlssOptions {
       autoMask: json['autoMask'] as bool? ?? defaults.autoMask,
       uiCorrection: json['uiCorrection'] as bool? ?? defaults.uiCorrection,
       scale: (json['scale'] as num?)?.toDouble() ?? defaults.scale,
-      passes: json['passes'] as int? ?? defaults.passes,
+      // Older presets allowed unbounded passes. Keep them loadable under the
+      // current user-facing limit without changing the remaining parameters.
+      passes: math.min(
+        json['passes'] as int? ?? defaults.passes,
+        maximumPasses,
+      ),
     );
     value.validate();
     return value;
@@ -129,6 +136,7 @@ class DlssOptions {
         scale < 1 ||
         scale > 16384 ||
         passes < 1 ||
+        passes > maximumPasses ||
         preset < 0 ||
         preset > 3 ||
         [skin, globalTone].any((v) => !_validStrength(v, -1)) ||
@@ -151,29 +159,26 @@ class DlssOptions {
   List<String> get arguments {
     validate();
     return [
-      '--nr-scale',
-      '$scale',
-      '--nr-style',
+      '--passes',
+      '$passes',
+      '--style',
       '${['default', 'natural', 'cinematic'].indexOf(style)}',
-      '--nr-intensity',
+      '--intensity',
       '$intensity',
-      '--nr-local-structure',
+      '--structure',
       '$localStructure',
-      '--nr-local-tone',
+      '--tone',
       '$localTone',
-      '--nr-detail',
-      '$detail',
-      '--nr-color',
-      '$color',
-      '--nr-preset',
+      '--preset',
       '$preset',
-      '--nr-skin',
+      '--skin',
       '$skin',
-      '--nr-global-tone',
+      '--global-tone',
       '$globalTone',
-      '--nr-ui-correction',
+      '--ui-correction',
       uiCorrection ? '1' : '0',
-      if (autoMask) '--nr-auto-mask',
+      '--auto-mask',
+      autoMask ? '1' : '0',
     ];
   }
 }

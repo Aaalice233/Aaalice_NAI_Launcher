@@ -14666,7 +14666,8 @@ class AppLocalizationsJa extends AppLocalizations {
   String get dlss_saveFailed => '保存に失敗しました。画像フォルダーと空き容量を確認してください';
 
   @override
-  String get dlss_compareHint => '区切り線をドラッグして比較、ダブルタップでズーム';
+  String get dlss_compareHint =>
+      '元の解像度で比較し、初期表示は出力画像の 100% ピクセルです。画像をドラッグして移動、区切り線をドラッグして比較。ダブルタップで全体表示に切り替えます。';
 
   @override
   String get dlss_preset => 'NR プリセット';
@@ -14760,10 +14761,7 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get dlss_passesHint =>
-      '既定は 1 回。複数回処理はコミュニティ方式の重ね掛けで、前回の出力を次の NR に渡します。SR 拡大は最初のみです。回数を増やすと時間がかかり、歪みも蓄積し得ます。モデル内部の層数や公式の強度設定ではありません。';
-
-  @override
-  String get dlss_invalidPasses => '1 以上の整数を入力してください。';
+      'NR を 1～3 層重ねます。前の層の出力を次の層へ渡し、SR 拡大は一度だけ行います。ディテールと色は最後に一度だけ合成します。層を増やすと処理時間が延び、元の画風が変わる場合があります。';
 
   @override
   String dlss_passProgress(int completed, int total) {

@@ -36,6 +36,9 @@ class InteractionPolicy {
   /// Touch-equivalent entry points stay mounted after touch is observed even
   /// when the user later switches to a mouse or keyboard.
   bool get shouldExposeTouchAlternatives => touchAvailable;
+  // A previously observed touch must not replace mouse/keyboard accelerators
+  // with a persistent menu after the user returns to a precise pointer.
+  bool get usesTouchActionMenu => touchAvailable && !usesAnchoredMenus;
   bool get keyboardNavigationActive => modality == InteractionModality.keyboard;
 
   bool isFocusVisible(Set<WidgetState> states) =>

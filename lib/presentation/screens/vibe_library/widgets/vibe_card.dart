@@ -277,7 +277,7 @@ class _VibeCardState extends ConsumerState<VibeCard>
   Widget build(BuildContext context) {
     final cardHeight = widget.height ?? widget.width;
     final colorScheme = Theme.of(context).colorScheme;
-    final isTouch = context.interactionPolicy.shouldExposeTouchAlternatives;
+    final isTouch = context.interactionPolicy.usesTouchActionMenu;
     final onAddToAgent = ImageCardActionScope.maybeOf(context)?.onAddToAgent;
     final hasTouchActions =
         isTouch &&

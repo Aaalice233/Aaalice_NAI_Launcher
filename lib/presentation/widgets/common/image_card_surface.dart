@@ -227,7 +227,7 @@ class ImageCardSurface extends StatelessWidget {
                         ),
                       ),
                     ),
-                  if (context.interactionPolicy.shouldExposeTouchAlternatives &&
+                  if (context.interactionPolicy.usesTouchActionMenu &&
                       (!controller.isHovering ||
                           context.interactionPolicy.prefersTouchPresentation) &&
                       capabilities.enableContextMenu &&

@@ -1,9 +1,11 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:image/image.dart' as img;
 
 import '../../../core/utils/localization_extension.dart';
 import '../../adaptive/interaction_policy.dart';
-import 'decoded_memory_image.dart';
 
 /// Synchronized before/after image comparison with a draggable divider.
 class ImageComparisonView extends StatefulWidget {
@@ -12,11 +14,15 @@ class ImageComparisonView extends StatefulWidget {
     required this.sourceImageBytes,
     required this.generatedImageBytes,
     this.fit = BoxFit.cover,
+    this.showPixelScaleControls = false,
+    this.viewportHeight,
   });
 
   final Uint8List sourceImageBytes;
   final Uint8List generatedImageBytes;
   final BoxFit fit;
+  final bool showPixelScaleControls;
+  final double? viewportHeight;
 
   @override
   State<ImageComparisonView> createState() => _ImageComparisonViewState();
@@ -40,14 +46,40 @@ class _ImageComparisonViewState extends State<ImageComparisonView> {
   double _position = 0.5;
   bool _dividerFocused = false;
   TapDownDetails? _doubleTapDetails;
+  Size? _generatedSize;
+  Size? _viewportSize;
+  bool _pendingActualSize = false;
+  int _imageRevision = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _readGeneratedSize();
+  }
+
+  void _readGeneratedSize() {
+    final info = widget.showPixelScaleControls
+        ? img
+              .findDecoderForData(widget.generatedImageBytes)
+              ?.startDecode(widget.generatedImageBytes)
+        : null;
+    _generatedSize = info == null
+        ? null
+        : Size(info.width.toDouble(), info.height.toDouble());
+    _pendingActualSize =
+        widget.showPixelScaleControls && _generatedSize != null;
+    _imageRevision++;
+  }
 
   @override
   void didUpdateWidget(covariant ImageComparisonView oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (!identical(oldWidget.sourceImageBytes, widget.sourceImageBytes) ||
-        !identical(oldWidget.generatedImageBytes, widget.generatedImageBytes)) {
+        !identical(oldWidget.generatedImageBytes, widget.generatedImageBytes) ||
+        oldWidget.showPixelScaleControls != widget.showPixelScaleControls) {
       _position = 0.5;
       _transformationController.value = Matrix4.identity();
+      _readGeneratedSize();
     }
   }
 
@@ -75,6 +107,10 @@ class _ImageComparisonViewState extends State<ImageComparisonView> {
     final position = _doubleTapDetails?.localPosition;
     if (position == null) return;
     final currentScale = _transformationController.value.getMaxScaleOnAxis();
+    if (widget.showPixelScaleControls) {
+      _setScale((currentScale - 1).abs() < 0.001 ? _actualPixelScale : 1);
+      return;
+    }
     if (currentScale > 1.0) {
       _transformationController.value = Matrix4.identity();
       return;
@@ -91,6 +127,90 @@ class _ImageComparisonViewState extends State<ImageComparisonView> {
 
   @override
   Widget build(BuildContext context) {
+    if (!widget.showPixelScaleControls) return _buildViewport(context);
+    return Column(
+      mainAxisSize: widget.viewportHeight == null
+          ? MainAxisSize.max
+          : MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        if (widget.viewportHeight == null)
+          Expanded(child: _buildViewport(context))
+        else
+          SizedBox(
+            height: widget.viewportHeight,
+            child: _buildViewport(context),
+          ),
+        const SizedBox(height: 4),
+        Wrap(
+          spacing: 8,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          children: [
+            TextButton(
+              key: const ValueKey('comparison-actual-pixels'),
+              onPressed: _generatedSize == null
+                  ? null
+                  : () => _setScale(_actualPixelScale),
+              child: const Text('100%'),
+            ),
+            TextButton(
+              key: const ValueKey('comparison-fit-window'),
+              onPressed: () => _setScale(1),
+              child: Text(context.l10n.editor_fitToWindow),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  double get _actualPixelScale {
+    final imageSize = _generatedSize;
+    final viewport = _viewportSize;
+    if (imageSize == null || viewport == null || viewport.isEmpty) return 1;
+    final destination = applyBoxFit(
+      widget.fit,
+      imageSize,
+      viewport,
+    ).destination;
+    return imageSize.width /
+        (destination.width * MediaQuery.devicePixelRatioOf(context));
+  }
+
+  void _setScale(double scale) {
+    final viewport = _viewportSize;
+    if (viewport == null) return;
+    _transformationController.value = Matrix4.identity()
+      ..translateByDouble(
+        viewport.width * (1 - scale) / 2,
+        viewport.height * (1 - scale) / 2,
+        0,
+        1,
+      )
+      ..scaleByDouble(scale, scale, scale, 1);
+  }
+
+  Widget _buildViewport(BuildContext context) => LayoutBuilder(
+    builder: (context, constraints) {
+      _viewportSize = constraints.biggest;
+      if (_pendingActualSize) {
+        final revision = _imageRevision;
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted || revision != _imageRevision || !_pendingActualSize) {
+            return;
+          }
+          _setScale(_actualPixelScale);
+          setState(() => _pendingActualSize = false);
+        });
+      }
+      return Opacity(
+        opacity: _pendingActualSize ? 0 : 1,
+        child: _buildComparison(context),
+      );
+    },
+  );
+
+  Widget _buildComparison(BuildContext context) {
     return GestureDetector(
       key: const ValueKey('generation-image-comparison'),
       behavior: HitTestBehavior.opaque,
@@ -98,8 +218,8 @@ class _ImageComparisonViewState extends State<ImageComparisonView> {
       onDoubleTap: _handleDoubleTap,
       child: InteractiveViewer(
         transformationController: _transformationController,
-        minScale: 1,
-        maxScale: 4,
+        minScale: math.min(1, _actualPixelScale),
+        maxScale: math.max(4, _actualPixelScale * 4),
         child: LayoutBuilder(
           builder: (context, constraints) {
             return Stack(
@@ -114,10 +234,14 @@ class _ImageComparisonViewState extends State<ImageComparisonView> {
                     _position,
                     side: _ComparisonSide.generated,
                   ),
-                  child: DecodedMemoryImage(
+                  // A comparison is a detail viewer: decoding a thumbnail here
+                  // permanently loses detail when InteractiveViewer zooms in.
+                  child: Image.memory(
                     key: const ValueKey('generation-comparison-generated'),
-                    bytes: widget.generatedImageBytes,
+                    widget.generatedImageBytes,
                     fit: widget.fit,
+                    filterQuality: FilterQuality.high,
+                    gaplessPlayback: true,
                   ),
                 ),
                 ClipRect(
@@ -126,10 +250,12 @@ class _ImageComparisonViewState extends State<ImageComparisonView> {
                     _position,
                     side: _ComparisonSide.source,
                   ),
-                  child: DecodedMemoryImage(
+                  child: Image.memory(
                     key: const ValueKey('generation-comparison-source'),
-                    bytes: widget.sourceImageBytes,
+                    widget.sourceImageBytes,
                     fit: widget.fit,
+                    filterQuality: FilterQuality.high,
+                    gaplessPlayback: true,
                   ),
                 ),
                 AnimatedBuilder(

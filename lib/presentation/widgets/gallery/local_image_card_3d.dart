@@ -226,7 +226,7 @@ class _LocalImageCard3DState extends ConsumerState<LocalImageCard3D> {
     final cardHeight = widget.height ?? widget.width;
     final colorScheme = theme.colorScheme;
     final interactionPolicy = context.interactionPolicy;
-    final isTouch = interactionPolicy.touchAvailable;
+    final isTouch = interactionPolicy.usesTouchActionMenu;
     final aspectRatio = widget.width / cardHeight;
     final buttonDirection = aspectRatio > 1.3 ? Axis.horizontal : Axis.vertical;
     final reducedMotion = MediaQuery.disableAnimationsOf(context);
@@ -283,7 +283,7 @@ class _LocalImageCard3DState extends ConsumerState<LocalImageCard3D> {
                       : null,
                   child: isTouch
                       ? _buildTouchActionMenu()
-                      : _buildActionButtons(buttonDirection),
+                      : _buildActionButtons(buttonDirection, cardHeight),
                 ),
                 if (widget.isSelected)
                   Positioned(
@@ -596,7 +596,7 @@ class _LocalImageCard3DState extends ConsumerState<LocalImageCard3D> {
     );
   }
 
-  Widget _buildActionButtons(Axis direction) {
+  Widget _buildActionButtons(Axis direction, double cardHeight) {
     final buttons = <CardActionButtonConfig>[
       if (widget.onFavoriteToggle != null)
         CardActionButtonConfig(
@@ -661,6 +661,7 @@ class _LocalImageCard3DState extends ConsumerState<LocalImageCard3D> {
       },
       onPointerCancel: (_) => _suppressCardTap = false,
       child: CardActionButtons(
+        availableSize: Size(widget.width - 8, cardHeight - 8),
         visible: _isHovered || _isFocused,
         direction: direction,
         buttons: buttons,

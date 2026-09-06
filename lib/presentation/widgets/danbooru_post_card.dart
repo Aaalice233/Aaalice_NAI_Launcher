@@ -418,8 +418,7 @@ class _DanbooruPostCardState extends State<DanbooruPostCard> {
     );
 
     final isLandscapeCard = aspectRatio > 1.3;
-    final portraitActionColumns = ((widget.itemWidth - 4) ~/ 44).clamp(1, 4);
-    final usesTouchActionMenu = interactionPolicy.touchAvailable;
+    final usesTouchActionMenu = interactionPolicy.usesTouchActionMenu;
     final onAddToAgent = ImageCardActionScope.maybeOf(context)?.onAddToAgent;
     final showStatusOverlays =
         usesTouchActionMenu || (!_isHovering && !_isFocused);
@@ -711,14 +710,17 @@ class _DanbooruPostCardState extends State<DanbooruPostCard> {
                       child: Consumer(
                         builder: (context, ref, _) {
                           return CardActionButtons(
+                            availableSize: Size(
+                              widget.itemWidth - 8,
+                              itemHeight - 8,
+                            ),
                             key: const ValueKey(
                               'online-gallery-card-action-buttons',
                             ),
                             visible: _isHovering || _isFocused,
-                            direction: Axis.horizontal,
-                            maxButtonsPerRow: isLandscapeCard
-                                ? null
-                                : portraitActionColumns,
+                            direction: isLandscapeCard
+                                ? Axis.horizontal
+                                : Axis.vertical,
                             buttons: [
                               if (widget.showFavoriteAction &&
                                   !widget.favoriteReadOnly &&

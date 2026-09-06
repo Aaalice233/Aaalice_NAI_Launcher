@@ -26236,7 +26236,7 @@ abstract class AppLocalizations {
   /// No description provided for @dlss_compareHint.
   ///
   /// In en, this message translates to:
-  /// **'Drag the divider to compare; double-tap to zoom'**
+  /// **'Full-resolution comparison, starting at 100% of the output pixels. Drag the image to pan and the divider to compare; double-tap to toggle fit to window.'**
   String get dlss_compareHint;
 
   /// No description provided for @dlss_preset.
@@ -26392,14 +26392,8 @@ abstract class AppLocalizations {
   /// No description provided for @dlss_passesHint.
   ///
   /// In en, this message translates to:
-  /// **'Default: 1. Repeated processing is community-style stacking: each output feeds the next NR pass; SR upscales only on the first pass. More passes cost time and may accumulate distortion. This is not the model\'s internal layer count or an official intensity option.'**
+  /// **'Choose 1–3 NR layers. Each neural output feeds the next layer; SR upscales once. Detail and color are composed once at the end. More layers take longer and may change the original style.'**
   String get dlss_passesHint;
-
-  /// No description provided for @dlss_invalidPasses.
-  ///
-  /// In en, this message translates to:
-  /// **'Enter an integer greater than or equal to 1.'**
-  String get dlss_invalidPasses;
 
   /// No description provided for @dlss_passProgress.
   ///

@@ -8,9 +8,12 @@ import 'package:image/image.dart' as img;
 import 'package:path/path.dart' as p;
 
 import 'dlss_options.dart';
+import 'dlss_float_frame.dart';
 import '../metadata/image_metadata_container_codec.dart';
 
 class DlssWorker {
+  DlssWorker({String? executable}) : _executable = executable;
+  final String? _executable;
   Future<void> probe(Directory runtime, {int adapter = 0}) async {
     final sample = img.Image(width: 256, height: 256, numChannels: 4);
     for (final pixel in sample) {
@@ -41,42 +44,19 @@ class DlssWorker {
     String? version,
     void Function(int completed, int total)? onProgress,
   }) async {
-    final output = await runDlssPasses(
-      source,
-      options,
-      (input, parameters) => _runOnce(
-        runtime,
-        input,
-        parameters,
-        adapter: adapter,
-        cancelled: cancelled,
-      ),
-      cancelled: cancelled,
-      onProgress: onProgress,
-    );
-    return _preserveInIsolate(source, output, options, version);
-  }
-
-  Future<Uint8List> _runOnce(
-    Directory runtime,
-    Uint8List source,
-    DlssOptions options, {
-    int adapter = 0,
-    Future<void>? cancelled,
-  }) async {
     if (!Platform.isWindows) throw UnsupportedError('DLSS requires Windows');
     final size = img.findDecoderForData(source)?.startDecode(source);
     if (size == null) throw const FormatException('Invalid DLSS source image');
-    options.targetSize(size.width, size.height);
-    final directory = runtime.absolute;
-    final job = await directory.createTemp('.job-');
-    final input = File(p.join(job.path, 'input.png'));
-    final output = Directory(p.join(job.path, 'output'));
+    final target = options.targetSize(size.width, size.height);
+    final job = await runtime.absolute.createTemp('.job-');
+    final input = File(p.join(job.path, 'input.aaf'));
+    final baseline = File(p.join(job.path, 'baseline.aaf'));
+    final output = File(p.join(job.path, 'output.aaf'));
     Process? process;
     var wasCancelled = false;
     var finished = false;
     try {
-      await input.writeAsBytes(source, flush: true);
+      await input.writeAsBytes(await _encodeInIsolate(source), flush: true);
       if (cancelled != null) {
         unawaited(
           cancelled.then((_) {
@@ -88,22 +68,40 @@ class DlssWorker {
         );
       }
       if (wasCancelled) throw const DlssCancelled();
-      // A temporary working directory stays locked by the Windows graphics
-      // process lifecycle after exit. Absolute paths let installation rename
-      // the probed directory without retaining that working-directory handle.
-      process =
-          await Process.start(p.join(directory.path, 'video2dlssnr.exe'), [
-            '--nr-run',
-            '--in',
-            input.path,
-            '--out',
-            output.path,
-            '--adapter',
-            '$adapter',
-            ...options.arguments,
-          ]);
+      process = await Process.start(
+        _executable ??
+            p.join(
+              p.dirname(Platform.resolvedExecutable),
+              'aaalice_dlss_worker.exe',
+            ),
+        [
+          '--runtime',
+          runtime.absolute.path,
+          '--input',
+          input.path,
+          '--output',
+          output.path,
+          '--baseline',
+          baseline.path,
+          '--width',
+          '${target.$1}',
+          '--height',
+          '${target.$2}',
+          '--adapter',
+          '$adapter',
+          ...options.arguments,
+        ],
+      );
       if (wasCancelled) process.kill();
-      final stdout = process.stdout.transform(utf8.decoder).join();
+      final protocol = DlssWorkerProtocol(options.passes, onProgress);
+      final stdout = process.stdout
+          .transform(utf8.decoder)
+          .transform(const LineSplitter())
+          .map((line) {
+            protocol.accept(line);
+            return line;
+          })
+          .join('\n');
       final stderr = process.stderr.transform(utf8.decoder).join();
       final exit = await process.exitCode.timeout(
         const Duration(seconds: 90),
@@ -114,13 +112,17 @@ class DlssWorker {
       );
       final log = '${await stdout}\n${await stderr}';
       if (wasCancelled) throw const DlssCancelled();
-      if (exit != 0 ||
-          !log.contains('Neural Rendering done: 1 ok, 0 failed') ||
-          log.contains('finishing the rest bilinear')) {
+      if (exit != 0 || !protocol.complete) {
         throw DlssWorkerFailure(exit, log);
       }
-      final file = File(p.join(output.path, 'input.png_nr.png'));
-      final bytes = await file.readAsBytes();
+      final bytes = await _composeInIsolate(
+        source,
+        await baseline.readAsBytes(),
+        await output.readAsBytes(),
+        options,
+        version,
+      );
+      if (wasCancelled) throw const DlssCancelled();
       return bytes;
     } finally {
       finished = true;
@@ -133,58 +135,59 @@ class DlssWorker {
   }
 }
 
-/// SR applies only on the first pass; each later NR pass consumes the previous
-/// output at the same size. Intermediate files never become user-visible results.
-Future<Uint8List> runDlssPasses(
-  Uint8List source,
-  DlssOptions options,
-  Future<Uint8List> Function(Uint8List, DlssOptions) render, {
-  Future<void>? cancelled,
-  void Function(int completed, int total)? onProgress,
-}) async {
-  options.validate();
-  var wasCancelled = false;
-  var finished = false;
-  if (cancelled != null) {
-    unawaited(
-      cancelled.then((_) {
-        if (!finished) wasCancelled = true;
-      }),
-    );
-  }
-  var output = source;
-  try {
-    await Future<void>.value();
-    if (wasCancelled) throw const DlssCancelled();
-    onProgress?.call(0, options.passes);
-    for (var pass = 0; pass < options.passes; pass++) {
-      if (wasCancelled) throw const DlssCancelled();
-      try {
-        output = await render(
-          output,
-          options.copyWith(scale: pass == 0 ? options.scale : 1, passes: 1),
-        );
-      } on DlssWorkerFailure catch (error) {
-        throw DlssWorkerFailure(
-          error.exitCode,
-          'NR pass ${pass + 1}/${options.passes}\n${error.diagnostics}',
-        );
+/// Reject incomplete, repeated or out-of-order native progress even on exit 0.
+class DlssWorkerProtocol {
+  DlssWorkerProtocol(this.total, this.onProgress);
+  final int total;
+  final void Function(int, int)? onProgress;
+  int _completed = -1;
+  bool _invalid = false;
+  bool _done = false;
+  bool get complete => !_invalid && _done && _completed == total;
+
+  void accept(String line) {
+    if (line.startsWith('AAALICE_NR_PROGRESS')) {
+      final match = RegExp(
+        r'^AAALICE_NR_PROGRESS (\d+) (\d+)$',
+      ).firstMatch(line);
+      if (match == null ||
+          _done ||
+          int.parse(match[2]!) != total ||
+          int.parse(match[1]!) != _completed + 1 ||
+          _completed >= total) {
+        _invalid = true;
+        return;
       }
-      if (wasCancelled) throw const DlssCancelled();
-      onProgress?.call(pass + 1, options.passes);
+      _completed++;
+      onProgress?.call(_completed, total);
+    } else if (line.startsWith('AAALICE_NR_DONE')) {
+      if (line != 'AAALICE_NR_DONE $total fp16-cascade' ||
+          _completed != total ||
+          _done) {
+        _invalid = true;
+      }
+      _done = true;
     }
-    return output;
-  } finally {
-    finished = true;
   }
 }
 
-Future<Uint8List> _preserveInIsolate(
+Future<Uint8List> _encodeInIsolate(Uint8List source) =>
+    Isolate.run(() => DlssFloatFrame.fromImage(source).encode());
+
+Future<Uint8List> _composeInIsolate(
   Uint8List source,
-  Uint8List output,
+  Uint8List baseline,
+  Uint8List neural,
   DlssOptions options,
   String? version,
-) => Isolate.run(() => preserveDlssImage(source, output, options, version));
+) => Isolate.run(() {
+  final output = DlssFloatFrame.decode(baseline).composite(
+    DlssFloatFrame.decode(neural),
+    detail: options.detail,
+    color: options.color,
+  );
+  return preserveDlssImage(source, output, options, version);
+});
 
 class DlssCancelled implements Exception {
   const DlssCancelled();

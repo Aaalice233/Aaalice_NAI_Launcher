@@ -14406,7 +14406,8 @@ class AppLocalizationsZh extends AppLocalizations {
   String get dlss_saveFailed => '保存失败，请检查图像保存目录及磁盘空间';
 
   @override
-  String get dlss_compareHint => '左右拖动分割线对比，双击缩放';
+  String get dlss_compareHint =>
+      '完整分辨率对比，默认按增强结果的 100% 像素显示。拖动图像查看局部，拖动分割线对比；双击切换适应窗口。';
 
   @override
   String get dlss_preset => 'NR 预设';
@@ -14494,10 +14495,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get dlss_passesHint =>
-      '默认 1 次。多次处理是社区式叠加：上一轮结果送入下一轮 NR，SR 仅在首轮放大。次数越多越耗时，也可能积累失真；这不是模型内部层数或官方强度选项。';
-
-  @override
-  String get dlss_invalidPasses => '请输入大于或等于 1 的整数。';
+      '选择 1–3 层 NR 叠加。上一层的神经输出作为下一层输入，SR 只放大一次；细节与色彩在最后统一合成。更多层会增加耗时，也可能改变原画风。';
 
   @override
   String dlss_passProgress(int completed, int total) {
@@ -28986,7 +28984,8 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get dlss_saveFailed => '儲存失敗，請檢查圖像儲存目錄及磁碟空間';
 
   @override
-  String get dlss_compareHint => '左右拖曳分隔線比較，按兩下縮放';
+  String get dlss_compareHint =>
+      '完整解析度比較，預設按增強結果的 100% 像素顯示。拖曳影像查看局部，拖曳分隔線比較；按兩下切換適應視窗。';
 
   @override
   String get dlss_preset => 'NR 預設';
@@ -29074,10 +29073,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get dlss_passesHint =>
-      '預設 1 次。多次處理是社群式疊加：上一輪結果送入下一輪 NR，SR 僅在首輪放大。次數越多越耗時，也可能累積失真；這不是模型內部層數或官方強度選項。';
-
-  @override
-  String get dlss_invalidPasses => '請輸入大於或等於 1 的整數。';
+      '選擇 1–3 層 NR 疊加。上一層的神經輸出作為下一層輸入，SR 只放大一次；細節與色彩在最後統一合成。更多層會增加耗時，也可能改變原畫風。';
 
   @override
   String dlss_passProgress(int completed, int total) {

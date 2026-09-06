@@ -21,6 +21,7 @@
 | 标签数据 | [标签目录](../tool/tag_catalog/README.md)、[随机词库](../tool/random_tag_library/README.md) | 锁定来源、构建与校验 |
 | Krita | [插件说明](../krita_plugin/README.md) | 安装、连接、隔离预检与真实联动验收 |
 | Windows 拖放 | [OLE 检查器](../tool/ole_drag_inspector/README.md) | 格式检查与元数据保护回归 |
+| DLSS 图像处理 | [处理管线](dlss_processing.md) | 原生 FP16 多层、运行库、构建与验证边界 |
 | CI 缓存 | [prepare-flutter-build](../.github/actions/prepare-flutter-build/README.md) | Flutter 构建层与缓存约束 |
 
 `CLAUDE.md` 只引用 `AGENTS.md`，不复制规则。版本变化保留在 `CHANGELOG.md` 和正式发布记录；第三方归属保留在 `THIRD_PARTY_NOTICES.md`、`licenses/`。

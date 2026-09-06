@@ -170,12 +170,9 @@ class _DlssEnhancementPanelState extends ConsumerState<DlssEnhancementPanel> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              SizedBox(
-                height: (MediaQuery.sizeOf(context).height * 0.42).clamp(
-                  200,
-                  420,
-                ),
-                child: preview,
+              _preview(
+                viewportHeight: (MediaQuery.sizeOf(context).height * 0.42)
+                    .clamp(200, 420),
               ),
               const SizedBox(height: 20),
               controls,
@@ -186,10 +183,31 @@ class _DlssEnhancementPanelState extends ConsumerState<DlssEnhancementPanel> {
     );
   }
 
-  Widget _preview() {
+  Widget _preview({double? viewportHeight}) {
     final l10n = context.l10n;
     final result = _result;
+    final image = ClipRRect(
+      borderRadius: BorderRadius.circular(12),
+      child: result == null
+          ? SizedBox(
+              height: viewportHeight,
+              child: InteractiveViewer(
+                child: Image.memory(widget.source, fit: BoxFit.contain),
+              ),
+            )
+          : ImageComparisonView(
+              key: _comparisonKey,
+              sourceImageBytes: widget.source,
+              generatedImageBytes: result,
+              fit: BoxFit.contain,
+              showPixelScaleControls: true,
+              viewportHeight: viewportHeight,
+            ),
+    );
     return Column(
+      mainAxisSize: viewportHeight == null
+          ? MainAxisSize.max
+          : MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Wrap(
@@ -201,21 +219,7 @@ class _DlssEnhancementPanelState extends ConsumerState<DlssEnhancementPanel> {
           ],
         ),
         const SizedBox(height: 12),
-        Expanded(
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(12),
-            child: result == null
-                ? InteractiveViewer(
-                    child: Image.memory(widget.source, fit: BoxFit.contain),
-                  )
-                : ImageComparisonView(
-                    key: _comparisonKey,
-                    sourceImageBytes: widget.source,
-                    generatedImageBytes: result,
-                    fit: BoxFit.contain,
-                  ),
-          ),
-        ),
+        if (viewportHeight == null) Expanded(child: image) else image,
         if (result != null) ...[
           const SizedBox(height: 12),
           Text(

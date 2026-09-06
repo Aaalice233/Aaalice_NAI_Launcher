@@ -9,6 +9,50 @@ import 'package:nai_launcher/presentation/widgets/common/image_comparison_view.d
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
+  testWidgets(
+    'comparison keeps full images and opens at actual output pixels',
+    (tester) async {
+      tester.view.devicePixelRatio = 2;
+      addTearDown(tester.view.resetDevicePixelRatio);
+      await _pumpComparison(
+        tester,
+        width: 320,
+        height: 240,
+        pixelControls: true,
+        generatedSize: const Size(832, 1216),
+      );
+      final generated = find.byKey(
+        const ValueKey('generation-comparison-generated'),
+      );
+      final source = find.byKey(const ValueKey('generation-comparison-source'));
+      expect(tester.widget<Image>(generated).image, isA<MemoryImage>());
+      expect(tester.widget<Image>(source).image, isA<MemoryImage>());
+      final viewer = tester.widget<InteractiveViewer>(
+        find.byType(InteractiveViewer),
+      );
+      final destination = applyBoxFit(
+        BoxFit.contain,
+        const Size(832, 1216),
+        tester.getSize(generated),
+      ).destination;
+      final actualScale = 832 / (destination.width * 2);
+      expect(
+        viewer.transformationController!.value.getMaxScaleOnAxis(),
+        closeTo(actualScale, 0.001),
+      );
+      await tester.tap(find.byKey(const ValueKey('comparison-fit-window')));
+      await tester.pump();
+      expect(viewer.transformationController!.value.getMaxScaleOnAxis(), 1);
+      await tester.tap(find.byKey(const ValueKey('comparison-actual-pixels')));
+      await tester.pump();
+      expect(
+        viewer.transformationController!.value.getMaxScaleOnAxis(),
+        closeTo(actualScale, 0.001),
+      );
+      expect(tester.takeException(), isNull);
+    },
+  );
+
   testWidgets('drag and keyboard move the comparison divider', (tester) async {
     await _pumpComparison(tester, width: 400, height: 300);
 
@@ -192,6 +236,8 @@ Future<void> _pumpComparison(
   WidgetTester tester, {
   required double width,
   required double height,
+  bool pixelControls = false,
+  Size generatedSize = const Size(4, 3),
 }) async {
   await tester.pumpWidget(
     MaterialApp(
@@ -206,7 +252,9 @@ Future<void> _pumpComparison(
             height: height,
             child: ImageComparisonView(
               sourceImageBytes: _imageBytes(red: 30),
-              generatedImageBytes: _imageBytes(red: 220),
+              generatedImageBytes: _imageBytes(red: 220, size: generatedSize),
+              fit: pixelControls ? BoxFit.contain : BoxFit.cover,
+              showPixelScaleControls: pixelControls,
             ),
           ),
         ),
@@ -216,8 +264,11 @@ Future<void> _pumpComparison(
   await tester.pump();
 }
 
-Uint8List _imageBytes({required int red}) {
-  final image = img.Image(width: 4, height: 3);
+Uint8List _imageBytes({required int red, Size size = const Size(4, 3)}) {
+  final image = img.Image(
+    width: size.width.toInt(),
+    height: size.height.toInt(),
+  );
   image.clear(img.ColorRgba8(red, 40, 50, 255));
   return Uint8List.fromList(img.encodePng(image));
 }

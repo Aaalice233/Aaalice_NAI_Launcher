@@ -175,7 +175,7 @@ class _PreciseRefCardState extends ConsumerState<PreciseRefCard> {
   Widget build(BuildContext context) {
     _loadThumbnailIfNeeded();
     final theme = Theme.of(context);
-    final isTouch = context.interactionPolicy.shouldExposeTouchAlternatives;
+    final isTouch = context.interactionPolicy.usesTouchActionMenu;
     final reducedMotion = MediaQuery.disableAnimationsOf(context);
 
     return CompositedTransformTarget(

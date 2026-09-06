@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-验证用户提供的 video2dlssnr 原生运行组件及静态图像参数效果。
+诊断第三方 video2dlssnr CLI 的静态图像参数；不验证应用的原生 FP16 多层管线，见 docs/dlss_processing.md。
 .DESCRIPTION
 仅运行 --nr-run，不调用包含驱动内存补丁的 --probe-nr。不会下载、安装或
 重新分发运行库，也不会更改驱动。结果与日志写入 tool/.tmp/ 下的新目录。

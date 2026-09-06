@@ -216,15 +216,19 @@ void main() {
       expect(find.text('请输入此参数支持的有效数值。'), findsOneWidget);
       final passes = find.byKey(const Key('dlss-passes'));
       await tester.ensureVisible(passes);
-      await tester.enterText(passes, '3');
-      await tester.testTextInput.receiveAction(TextInputAction.done);
+      final slider = tester.widget<Slider>(passes);
+      expect(slider.min, 1);
+      expect(slider.max, 3);
+      expect(slider.divisions, 2);
+      await tester.tapAt(
+        tester.getCenter(passes) +
+            Offset(tester.getSize(passes).width / 2 - 10, 0),
+      );
       await tester.pump();
       expect(options.passes, 3);
-      await tester.enterText(passes, '2.5');
-      await tester.testTextInput.receiveAction(TextInputAction.done);
+      await tester.tap(passes);
       await tester.pump();
-      expect(options.passes, 3);
-      expect(find.text('请输入大于或等于 1 的整数。'), findsOneWidget);
+      expect(options.passes, 2);
       expect(tester.takeException(), isNull);
     },
   );
@@ -271,12 +275,13 @@ void main() {
     await tester.tap(find.text('高级参数'));
     await tester.pumpAndSettle();
     expect(tester.takeException(), isNull);
-    expect(find.byType(Slider), findsNWidgets(8));
+    expect(find.byType(Slider), findsNWidgets(9));
     final sliders = tester.widgetList<Slider>(find.byType(Slider)).toList();
-    expect(sliders.map((slider) => slider.max), [4, 2, 2, 1, 2, 2, 2, 2]);
-    expect(sliders.map((slider) => slider.min), [1, 0, 0, 0, 0, 0, -1, -1]);
+    expect(sliders.map((slider) => slider.max), [4, 3, 2, 2, 1, 2, 2, 2, 2]);
+    expect(sliders.map((slider) => slider.min), [1, 1, 0, 0, 0, 0, 0, -1, -1]);
     expect(sliders.map((slider) => slider.divisions), [
       null,
+      2,
       40,
       40,
       20,

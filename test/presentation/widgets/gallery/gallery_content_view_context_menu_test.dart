@@ -282,8 +282,12 @@ void main() {
     );
     await tester.pump();
 
+    await tester.tap(find.byIcon(Icons.more_horiz_rounded));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
     await tester.tap(find.byIcon(Icons.send));
     await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
     await tester.pump(const Duration(milliseconds: 300));
     expect(find.text('Send to Reverse Prompt'), findsOneWidget);
     expect(find.text('Import Image Metadata'), findsNothing);
@@ -301,7 +305,12 @@ void main() {
     expect(selectedAction, LocalImageContextAction.copyPrompt);
 
     selectedAction = null;
+    await tester.tap(find.byIcon(Icons.more_horiz_rounded));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
     await tester.tap(find.byIcon(Icons.delete_outline));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
     await tester.pump();
     expect(selectedAction, LocalImageContextAction.delete);
 
