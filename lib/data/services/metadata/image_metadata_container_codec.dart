@@ -312,6 +312,79 @@ class ImageMetadataContainerCodec {
     }
   }
 
+  /// Replaces multiple text fields in one container pass. Unchanged chunks,
+  /// including their CRCs, are copied verbatim after validation.
+  static Uint8List embedTextChunks(
+    Uint8List originalPng,
+    Map<String, String> replacements,
+  ) {
+    if (!isPngHeader(originalPng)) {
+      throw const FormatException('Metadata target must be PNG');
+    }
+    if (replacements.isEmpty) return originalPng;
+    for (final keyword in replacements.keys) {
+      if (keyword.isEmpty ||
+          keyword.length > 79 ||
+          keyword.codeUnits.any((value) => value == 0 || value > 255)) {
+        throw ArgumentError.value(keyword, 'keyword', 'Invalid PNG keyword');
+      }
+    }
+    final view = ByteData.sublistView(originalPng);
+    final output = BytesBuilder(copy: false)
+      ..add(Uint8List.sublistView(originalPng, 0, 8));
+    var offset = 8;
+    var inserted = false;
+    var ended = false;
+    while (offset < originalPng.length) {
+      if (offset + 12 > originalPng.length) {
+        throw const FormatException('Truncated PNG chunk');
+      }
+      final length = view.getUint32(offset);
+      final end = offset + length + 12;
+      if (end > originalPng.length) {
+        throw const FormatException('Truncated PNG payload');
+      }
+      final type = latin1.decode(
+        Uint8List.sublistView(originalPng, offset + 4, offset + 8),
+      );
+      if (offset == 8 && (type != 'IHDR' || length != 13) ||
+          offset != 8 && type == 'IHDR') {
+        throw const FormatException('Invalid PNG header chunk');
+      }
+      final expectedCrc = view.getUint32(end - 4);
+      if (_crc32(Uint8List.sublistView(originalPng, offset + 4, end - 4)) !=
+          expectedCrc) {
+        throw FormatException('Invalid PNG CRC: $type');
+      }
+      if (type == 'IEND') {
+        if (!inserted || length != 0 || end != originalPng.length) {
+          throw const FormatException('Invalid PNG end or missing image data');
+        }
+        ended = true;
+      }
+      if (type == 'IDAT' && !inserted) {
+        for (final entry in replacements.entries) {
+          _writeTextMetadataChunk(output, entry.key, entry.value);
+        }
+        inserted = true;
+      }
+      final keyword = const {'tEXt', 'iTXt', 'zTXt'}.contains(type)
+          ? _textChunkKeyword(
+              _PngChunk(
+                type,
+                Uint8List.sublistView(originalPng, offset + 8, end - 4),
+              ),
+            )
+          : null;
+      if (keyword == null || !replacements.containsKey(keyword)) {
+        output.add(Uint8List.sublistView(originalPng, offset, end));
+      }
+      offset = end;
+    }
+    if (!ended) throw const FormatException('Missing PNG end chunk');
+    return output.takeBytes();
+  }
+
   /// 手动解析 PNG chunks
   static List<_PngChunk> _parsePngChunks(Uint8List bytes) {
     final chunks = <_PngChunk>[];
