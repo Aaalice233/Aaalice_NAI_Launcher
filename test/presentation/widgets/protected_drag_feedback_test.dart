@@ -1,5 +1,7 @@
 import 'dart:async';
 import 'dart:io';
+import 'package:flutter/gestures.dart';
+import 'package:path_provider_platform_interface/path_provider_platform_interface.dart';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -214,6 +216,48 @@ void main() {
       },
     );
 
+    testWidgets('${entry.key} hover preparation never writes temporary files', (
+      tester,
+    ) async {
+      final previous = PathProviderPlatform.instance;
+      final paths = _NoHoverTemporaryDirectory();
+      PathProviderPlatform.instance = paths;
+      addTearDown(() => PathProviderPlatform.instance = previous);
+      var renders = 0;
+      await tester.pumpWidget(
+        _app(
+          settings: const ShareImageSettings(),
+          transform: ShareImageTransform(
+            cacheKey: 'hover',
+            apply: (image, {required stripMetadata}) async {
+              renders++;
+              return image;
+            },
+          ),
+          child: entry.value(
+            LocalImageRecord(
+              path: '',
+              size: _validPreviewBytes.length,
+              modifiedAt: DateTime(2026),
+            ),
+            _validPreviewBytes,
+          ),
+        ),
+      );
+      final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+      addTearDown(mouse.removePointer);
+      await mouse.addPointer(location: const Offset(300, 300));
+      for (var i = 0; i < 2; i++) {
+        await mouse.moveTo(const Offset(50, 50));
+        await tester.pump(const Duration(milliseconds: 300));
+        await mouse.moveTo(const Offset(300, 300));
+        await tester.pump();
+      }
+      await tester.pumpWidget(const SizedBox.shrink());
+      expect(renders, 2);
+      expect(paths.requests, 0);
+      expect(tester.takeException(), isNull);
+    });
     testWidgets('${entry.key} shares concurrent preparation work', (
       tester,
     ) async {
@@ -374,5 +418,16 @@ final class _FakeDragSession extends DragSession {
     _dragging.dispose();
     _completed.dispose();
     _location.dispose();
+  }
+}
+
+class _NoHoverTemporaryDirectory extends PathProviderPlatform {
+  int requests = 0;
+  @override
+  Future<String?> getTemporaryPath() async {
+    requests++;
+    throw StateError(
+      'Hover preparation must not request a temporary directory',
+    );
   }
 }

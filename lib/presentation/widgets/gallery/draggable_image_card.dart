@@ -16,6 +16,7 @@ import '../../../data/models/gallery/local_image_record.dart';
 import '../../providers/share_image_settings_provider.dart';
 import '../../providers/copy_drag_watermark_provider.dart';
 import '../../agent_chat/widgets/agent_resource_drop_region.dart';
+import 'gallery_drag_file.dart';
 
 Future<void> _addLocalAgentReference(
   WidgetRef ref,
@@ -78,12 +79,6 @@ Widget _buildGalleryDragFeedback({
   );
 }
 
-class _PreparedGalleryShare {
-  const _PreparedGalleryShare(this.image, this.file);
-  final SanitizedShareImage image;
-  final File file;
-}
-
 mixin _GallerySharePreparation<T extends ConsumerStatefulWidget>
     on ConsumerState<T> {
   LocalImageRecord get dragRecord;
@@ -91,7 +86,7 @@ mixin _GallerySharePreparation<T extends ConsumerStatefulWidget>
 
   Timer? _shareWarmupTimer;
   String? _shareKey;
-  Future<_PreparedGalleryShare>? _shareFuture;
+  Future<SanitizedShareImage>? _shareFuture;
 
   void _warmGalleryShare({bool immediate = false}) {
     _shareWarmupTimer?.cancel();
@@ -116,7 +111,7 @@ mixin _GallerySharePreparation<T extends ConsumerStatefulWidget>
     _shareFuture = null;
   }
 
-  Future<_PreparedGalleryShare> _prepareGalleryShare(
+  Future<SanitizedShareImage> _prepareGalleryShare(
     bool stripMetadata,
     ShareImageTransform? transform,
   ) {
@@ -153,7 +148,7 @@ mixin _GallerySharePreparation<T extends ConsumerStatefulWidget>
   }
 }
 
-Future<_PreparedGalleryShare> _loadGalleryShare(
+Future<SanitizedShareImage> _loadGalleryShare(
   String path,
   Uint8List? fallback,
   bool stripMetadata,
@@ -167,15 +162,11 @@ Future<_PreparedGalleryShare> _loadGalleryShare(
     throw const ImageSanitizeException('Image bytes are unavailable');
   }
   final name = path.split(RegExp(r'[/\\]')).last;
-  final image = await ImageShareSanitizer.prepareForCopyOrDragInBackground(
+  return ImageShareSanitizer.prepareForCopyOrDragInBackground(
     bytes,
     stripMetadata: stripMetadata,
     transform: transform,
     fileName: name.isEmpty ? 'shared.png' : name,
-  );
-  return _PreparedGalleryShare(
-    image,
-    await ImageShareSanitizer.writeTempShareFile(image),
   );
 }
 
@@ -326,7 +317,7 @@ class _DraggableImageCardState extends ConsumerState<DraggableImageCard>
         },
         child: DragItemWidget(
           allowedOperations: () => [DropOperation.copy],
-          dragItemProvider: (request) => _createDragItem(),
+          dragItemProvider: (request) => _createDragItem(request.session),
           // 关键修复：每次调用时动态构建，确保使用最新的预览状态
           liftBuilder: (context, child) => _buildGalleryDragFeedback(
             context: context,
@@ -363,7 +354,7 @@ class _DraggableImageCardState extends ConsumerState<DraggableImageCard>
     );
   }
 
-  Future<DragItem> _createDragItem() async {
+  Future<DragItem?> _createDragItem(DragSession session) async {
     final fileName = widget.record.path.split(RegExp(r'[/\\]')).last;
     final filePath = widget.record.path;
     final transform = ref.read(copyDragWatermarkProvider);
@@ -385,8 +376,8 @@ class _DraggableImageCardState extends ConsumerState<DraggableImageCard>
 
     if (stripMetadata || transform != null) {
       final prepared = await _prepareGalleryShare(stripMetadata, transform);
-      item.add(Formats.png(prepared.image.bytes));
-      item.add(Formats.fileUri(prepared.file.uri));
+      final transfer = GalleryDragFile(item: item, session: session);
+      if (!await transfer.addImage(prepared)) return null;
       return item;
     }
 
@@ -488,7 +479,7 @@ class _DragWrapperState extends ConsumerState<_DragWrapper>
     });
   }
 
-  Future<DragItem> _createDragItem() async {
+  Future<DragItem?> _createDragItem(DragSession session) async {
     final fileName = widget.record.path.split(RegExp(r'[/\\]')).last;
     final filePath = widget.record.path;
     final transform = ref.read(copyDragWatermarkProvider);
@@ -510,8 +501,8 @@ class _DragWrapperState extends ConsumerState<_DragWrapper>
 
     if (stripMetadata || transform != null) {
       final prepared = await _prepareGalleryShare(stripMetadata, transform);
-      item.add(Formats.png(prepared.image.bytes));
-      item.add(Formats.fileUri(prepared.file.uri));
+      final transfer = GalleryDragFile(item: item, session: session);
+      if (!await transfer.addImage(prepared)) return null;
       return item;
     }
 
@@ -550,7 +541,7 @@ class _DragWrapperState extends ConsumerState<_DragWrapper>
         },
         child: DragItemWidget(
           allowedOperations: () => [DropOperation.copy],
-          dragItemProvider: (request) => _createDragItem(),
+          dragItemProvider: (request) => _createDragItem(request.session),
           // 关键修复：每次调用时动态构建，确保使用最新的预览状态
           liftBuilder: (context, child) => _buildGalleryDragFeedback(
             context: context,
