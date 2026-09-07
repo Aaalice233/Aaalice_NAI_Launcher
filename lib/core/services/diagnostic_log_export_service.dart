@@ -11,6 +11,7 @@ import '../agent/private_data_guard.dart';
 import '../constants/app_version.dart';
 import '../utils/app_logger.dart';
 import '../utils/fatal_diagnostics.dart';
+import 'diagnostic_agent_audit.dart';
 import 'file_export_service.dart';
 
 final diagnosticLogExportServiceProvider = Provider<DiagnosticLogExportService>(
@@ -37,6 +38,7 @@ class DiagnosticLogExportService {
   DiagnosticLogExportService({
     Future<List<File>> Function()? loadLogFiles,
     Future<List<File>> Function()? loadCrashFiles,
+    Future<File?> Function()? loadAgentAuditFile,
     Future<void> Function()? flushLogs,
     DiagnosticArchiveExporter? exportArchive,
     DateTime Function()? now,
@@ -47,6 +49,7 @@ class DiagnosticLogExportService {
        assert(maxTotalSourceBytes > 0),
        _loadLogFiles = loadLogFiles ?? AppLogger.getLogFiles,
        _loadCrashFiles = loadCrashFiles ?? _defaultCrashFiles,
+       _loadAgentAuditFile = loadAgentAuditFile ?? _defaultAgentAuditFile,
        _flushLogs = flushLogs ?? AppLogger.flush,
        _exportArchive = exportArchive ?? _defaultExportArchive,
        _now = now ?? DateTime.now,
@@ -61,6 +64,7 @@ class DiagnosticLogExportService {
 
   final Future<List<File>> Function() _loadLogFiles;
   final Future<List<File>> Function() _loadCrashFiles;
+  final Future<File?> Function() _loadAgentAuditFile;
   final Future<void> Function() _flushLogs;
   final DiagnosticArchiveExporter _exportArchive;
   final DateTime Function() _now;
@@ -98,6 +102,11 @@ class DiagnosticLogExportService {
   }) async {
     await _flushLogs();
     final files = await _collectReadableFiles();
+    final auditFile = await _loadAgentAuditFile();
+    final auditPath = auditFile != null && await auditFile.exists()
+        ? auditFile.path
+        : null;
+    if (auditPath != null) files.insert(0, auditFile!);
     if (files.isEmpty) {
       return const DiagnosticLogExportResult(DiagnosticLogExportStatus.noLogs);
     }
@@ -119,6 +128,7 @@ class DiagnosticLogExportService {
               archivePath: archivePath,
               stagingDirectoryPath: stagingDirectory.path,
               sourcePaths: sourcePaths,
+              auditPath: auditPath,
               createdAt: timestamp,
               diagnosticsMetadata: diagnosticsMetadata,
               fileLoggingEnabled: fileLoggingEnabled,
@@ -159,13 +169,14 @@ class DiagnosticLogExportService {
       (left, right) =>
           right.lastModifiedSync().compareTo(left.lastModifiedSync()),
     );
-    return files.take(maxSourceFiles).toList(growable: false);
+    return files.take(maxSourceFiles).toList();
   }
 
   static Future<void> _buildArchive({
     required String archivePath,
     required String stagingDirectoryPath,
     required List<String> sourcePaths,
+    required String? auditPath,
     required DateTime createdAt,
     required String diagnosticsMetadata,
     required bool fileLoggingEnabled,
@@ -209,6 +220,7 @@ class DiagnosticLogExportService {
             maxBytes: archivedBytes,
             snapshotLength: sourceLength,
             wasTruncated: wasTruncated,
+            isAgentAudit: sourcePath == auditPath,
           );
           remainingSourceBytes -= archivedBytes;
           await encoder.addFile(
@@ -263,20 +275,23 @@ class DiagnosticLogExportService {
     required int maxBytes,
     required int snapshotLength,
     required bool wasTruncated,
+    required bool isAgentAudit,
   }) async {
     final sink = target.openWrite(encoding: utf8);
     final startOffset = snapshotLength > maxBytes
         ? snapshotLength - maxBytes
         : 0;
-    var insidePrivateKey = await _privateKeyOpenNearOffset(
-      source,
-      startOffset,
-      snapshotLength,
-    );
+    var insidePrivateKey =
+        !isAgentAudit &&
+        await _privateKeyOpenNearOffset(source, startOffset, snapshotLength);
     var discardFirstPartialLine = await _startsMidLine(source, startOffset);
     try {
       if (wasTruncated) {
-        sink.writeln('[OLDER LOG CONTENT OMITTED]');
+        sink.writeln(
+          isAgentAudit
+              ? jsonEncode({'diagnostic': 'older_audit_content_omitted'})
+              : '[OLDER LOG CONTENT OMITTED]',
+        );
       }
       await for (final line
           in source
@@ -285,6 +300,10 @@ class DiagnosticLogExportService {
               .transform(const LineSplitter())) {
         if (discardFirstPartialLine) {
           discardFirstPartialLine = false;
+          continue;
+        }
+        if (isAgentAudit) {
+          sink.writeln(DiagnosticAgentAudit.sanitizeLine(line));
           continue;
         }
         if (_privateKeyBegin.hasMatch(line)) {
@@ -412,6 +431,11 @@ class DiagnosticLogExportService {
       return rightTime.compareTo(leftTime);
     });
     return files.take(10).toList(growable: false);
+  }
+
+  static Future<File?> _defaultAgentAuditFile() async {
+    final support = await getApplicationSupportDirectory();
+    return File(p.join(support.path, 'agent', 'audit-v1.jsonl'));
   }
 
   static Future<bool> _defaultExportArchive(

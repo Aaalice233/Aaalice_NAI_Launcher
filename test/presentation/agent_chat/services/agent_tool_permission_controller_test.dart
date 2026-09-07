@@ -9,6 +9,59 @@ import 'package:nai_launcher/presentation/agent_chat/services/agent_tool_permiss
 import 'package:nai_launcher/presentation/agent_chat/services/agent_tool_registry_builder.dart';
 
 void main() {
+  test(
+    'ask mode permits read-only image interrogation without approval',
+    () async {
+      final descriptor = describeAgentToolPermission('interrogate_image');
+      final audit = MemoryAgentAuditSink();
+      final controller = AgentToolPermissionController(
+        auditSink: audit,
+        estimateAnlas: (_, _) async => throw StateError('Read does not bill'),
+        onApprovalChanged: (_) =>
+            fail('Read should not request write approval'),
+        isMounted: () => true,
+      );
+      addTearDown(controller.dispose);
+      controller.configure(
+        AgentToolRegistry(
+          tools: const [],
+          catalog: AgentToolPermissionCatalog(
+            toolNames: ['interrogate_image'],
+            descriptors: [descriptor],
+          ),
+          policy: agentPermissionPolicy(safeMode: false, fullAccess: false),
+        ),
+      );
+      const call = ToolCallContent(
+        id: 'read',
+        name: 'interrogate_image',
+        arguments: {
+          'resource_ref': {'resourceId': 'library-image'},
+        },
+      );
+      final assistant = AssistantMessage(
+        content: [call],
+        stopReason: StopReason.toolUse,
+      );
+      expect(
+        await controller.beforeToolCall(
+          BeforeToolCallContext(
+            assistantMessage: assistant,
+            toolCall: call,
+            args: call.arguments,
+            context: AgentContext(
+              systemPrompt: '',
+              messages: [assistant],
+              tools: const [],
+            ),
+          ),
+          null,
+        ),
+        isNull,
+      );
+      expect(controller.takeDecision('read'), AgentPermissionDecision.allow);
+    },
+  );
   group('AgentToolPermissionController billing decisions', () {
     test(
       'full access automatically allows an exact zero-cost submit',
