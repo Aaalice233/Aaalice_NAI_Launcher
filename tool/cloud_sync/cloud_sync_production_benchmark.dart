@@ -183,7 +183,7 @@ String? _argument(List<String> arguments, String name) {
   return arguments[index + 1];
 }
 
-final class _BenchmarkAdapter implements CloudSyncDataAdapter {
+final class _BenchmarkAdapter extends ValidatingCloudSyncDataAdapter {
   _BenchmarkAdapter({required this.exportResource, required this.logicalBytes});
 
   final bool exportResource;
@@ -194,6 +194,9 @@ final class _BenchmarkAdapter implements CloudSyncDataAdapter {
 
   @override
   String get id => 'production-benchmark';
+
+  @override
+  Set<String> get allowedKinds => const {'benchmark'};
 
   @override
   Stream<PortableSyncRecord> exportRecords() async* {
@@ -219,8 +222,10 @@ final class _BenchmarkAdapter implements CloudSyncDataAdapter {
 
   @override
   Future<void> preflight(List<PortableSyncRecord> records) async {
+    await super.preflight(records);
     if (records.isNotEmpty &&
-        (records.length != 1 || records.single.resource == null)) {
+        (records.length != 1 ||
+            (!records.single.deleted && records.single.resource == null))) {
       throw StateError('benchmark preflight did not receive the resource');
     }
   }
@@ -229,6 +234,11 @@ final class _BenchmarkAdapter implements CloudSyncDataAdapter {
   Future<void> apply(List<PortableSyncRecord> records) async {
     if (records.length != 1) {
       throw StateError('benchmark apply record count mismatch');
+    }
+    if (records.single.deleted) {
+      appliedBytes = 0;
+      sequenceErrors = 0;
+      return;
     }
     var offset = 0;
     await for (final chunk in records.single.resource!.openRead()) {

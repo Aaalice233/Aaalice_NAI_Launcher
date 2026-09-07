@@ -45,6 +45,7 @@ void main() {
       LocalImageContextAction.saveToPreciseRefLibrary,
       LocalImageContextAction.sendToKrita,
       LocalImageContextAction.upscale,
+      LocalImageContextAction.dlssEnhance,
       LocalImageContextAction.shareToDiscord,
       LocalImageContextAction.importMetadata,
       LocalImageContextAction.copyPrompt,
@@ -149,7 +150,7 @@ void main() {
       await tester.pumpAndSettle();
 
       final items = find.byType(PopupMenuItem<LocalImageContextAction>);
-      expect(items, findsNWidgets(16));
+      expect(items, findsNWidgets(17));
       for (final element in items.evaluate()) {
         final rect = tester.getRect(
           find.byElementPredicate((candidate) => candidate == element),
@@ -224,6 +225,7 @@ void main() {
       LocalImageContextAction.saveToPreciseRefLibrary,
       LocalImageContextAction.sendToKrita,
       LocalImageContextAction.upscale,
+      LocalImageContextAction.dlssEnhance,
       LocalImageContextAction.shareToDiscord,
       LocalImageContextAction.createWatermark,
     ]);

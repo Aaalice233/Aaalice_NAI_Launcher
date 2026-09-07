@@ -14,6 +14,31 @@ on:
       - "android/**"
       - "assets/**"
       - "build.yaml"
+      - "dart_test.yaml"
+      - "fonts/**"
+      - "installer/windows/**"
+      - "l10n.yaml"
+      - "lib/**"
+      - "pubspec.lock"
+      - "pubspec.yaml"
+      - "scripts/**"
+      - "test/**"
+      - "tool/**"
+      - "windows/**"
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/actions/prepare-flutter-build/action.yml"
+      - ".github/workflows/android-build.yml"
+      - ".github/workflows/pull-request-validation.yml"
+      - ".github/workflows/release.yml"
+      - ".github/workflows/windows-portable.yml"
+      - "analysis_options.yaml"
+      - "android/**"
+      - "assets/**"
+      - "build.yaml"
+      - "dart_test.yaml"
       - "fonts/**"
       - "installer/windows/**"
       - "l10n.yaml"
@@ -101,29 +126,13 @@ jobs:
         run: flutter analyze
 
   test-shards:
-    name: Test / ${{ matrix.name }}
+    name: Test / shard-${{ matrix.shard }}
     runs-on: windows-2022
     timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - name: core-and-data
-            paths: >-
-              test/core,test/data,test/l10n,test/manual,test/tool,test/windows,
-              test/app_test.dart,test/first_launch_test.dart,
-              test/main_semantics_policy_test.dart,
-              test/windows_runner_single_instance_test.dart
-          - name: presentation-logic
-            paths: >-
-              test/presentation/adaptive,test/presentation/agent_chat,
-              test/presentation/agent_settings,test/presentation/prompt_assistant,
-              test/presentation/providers,test/presentation/services,
-              test/presentation/utils,test/presentation/idle_animation_test.dart
-          - name: presentation-ui
-            paths: >-
-              test/presentation/router,test/presentation/screens,
-              test/presentation/widgets
+        shard: [0, 1, 2, 3, 4, 5]
 
     steps:
       - name: Checkout without LFS payloads
@@ -136,18 +145,24 @@ jobs:
         run: ./scripts/prepare_bundled_database.ps1
 
       - name: Test Windows portable package verifier
-        if: matrix.name == 'core-and-data'
+        if: matrix.shard == 0
         shell: pwsh
         run: ./scripts/test_windows_portable_package_verifier.ps1
+
+      - name: Verify complete test shard coverage
+        if: matrix.shard == 0
+        shell: pwsh
+        run: ./scripts/test_flutter_test_shards.ps1
 
       - name: Prepare incremental Flutter build
         uses: ./.github/actions/prepare-flutter-build
         with:
           flutter-version: ${{ env.FLUTTER_VERSION }}
           cache-namespace: nai-hosted
+          generate-code: "false"
 
       - name: Validate bundled autocomplete databases
-        if: matrix.name == 'core-and-data'
+        if: matrix.shard == 0
         run: dart run tool/tag_catalog/verify_bundled_databases.dart
 
       - name: Run tests
@@ -155,29 +170,62 @@ jobs:
         timeout-minutes: 10
         run: >-
           ./scripts/run_flutter_tests.ps1
-          -Path "${{ matrix.paths }}"
-          -TimeoutSeconds 570
+          -TotalShards 6 -ShardIndex ${{ matrix.shard }}
+          -TimeoutSeconds 570 -NoPub
+          -ReportPath tool/.tmp/ci-tests/results.json
 
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-shard-${{ matrix.shard }}
+          path: tool/.tmp/ci-tests/*.json
+          if-no-files-found: warn
+
+  cloud-sync-benchmark:
+    name: Cloud-sync performance budgets
+    runs-on: windows-2022
+    timeout-minutes: 15
+    steps:
+      - name: Checkout without LFS payloads
+        uses: actions/checkout@v6
+        with:
+          lfs: false
+      - name: Download verified bundled database
+        shell: pwsh
+        run: ./scripts/prepare_bundled_database.ps1
+      - name: Prepare Flutter dependencies
+        uses: ./.github/actions/prepare-flutter-build
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          cache-namespace: nai-hosted
+          generate-code: "false"
       - name: Verify cloud-sync performance budgets
-        if: matrix.name == 'core-and-data'
         shell: pwsh
         run: ./scripts/run_cloud_sync_benchmark.ps1
+      - name: Upload benchmark evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cloud-sync-benchmark
+          path: tool/.tmp/cloud-sync-benchmark/*.json
+          if-no-files-found: warn
 
   tests:
     name: Test
     runs-on: ubuntu-latest
     if: always()
-    needs: test-shards
+    needs: [test-shards, cloud-sync-benchmark]
 
     steps:
       - name: Verify all test shards passed
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
-          if ('${{ needs.test-shards.result }}' -ne 'success') {
-            throw 'One or more test shards did not pass.'
+          if ('${{ needs.test-shards.result }}' -ne 'success' -or '${{ needs.cloud-sync-benchmark.result }}' -ne 'success') {
+            throw 'A test shard or cloud-sync benchmark did not pass.'
           }
-          Write-Host 'All test shards passed.'
+          Write-Host 'All test shards and cloud-sync budgets passed.'
 
   windows-build:
     name: Build Windows debug
@@ -185,7 +233,7 @@ jobs:
     needs: changes
     if: >-
       github.event_name != 'workflow_dispatch' &&
-      needs.changes.outputs.windows_build == 'true' &&
+      (github.event_name == 'push' || needs.changes.outputs.windows_build == 'true') &&
       needs.changes.outputs.windows_package != 'true'
     timeout-minutes: 20
 
@@ -204,6 +252,7 @@ jobs:
         with:
           flutter-version: ${{ env.FLUTTER_VERSION }}
           cache-namespace: nai-hosted
+          generate-code: "false"
           cache-windows-build: "true"
 
       - name: Setup NuGet
@@ -242,6 +291,7 @@ jobs:
         with:
           flutter-version: ${{ env.FLUTTER_VERSION }}
           cache-namespace: nai-hosted
+          generate-code: "false"
           cache-windows-build: "true"
 
       - name: Setup NuGet
