@@ -87,9 +87,19 @@ class GenerateButtonWithCost extends ConsumerWidget {
       child: !_canSkipCurrentBatch
           ? primaryButton
           : largeText
-          ? Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [skipButton, const SizedBox(height: 8), primaryButton],
+          ? LayoutBuilder(
+              builder: (context, constraints) => Column(
+                mainAxisSize: MainAxisSize.min,
+                // 控制栏先测量自然宽度，再分配最终宽度；测量时不能横向拉伸。
+                crossAxisAlignment: constraints.hasBoundedWidth
+                    ? CrossAxisAlignment.stretch
+                    : CrossAxisAlignment.center,
+                children: [
+                  skipButton,
+                  const SizedBox(height: 8),
+                  primaryButton,
+                ],
+              ),
             )
           : Row(
               mainAxisSize: MainAxisSize.min,

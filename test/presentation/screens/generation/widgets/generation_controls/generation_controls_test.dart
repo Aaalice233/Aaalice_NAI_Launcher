@@ -348,6 +348,36 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets(
+    'large-text batch controls keep cancel and skip reachable at each width',
+    (tester) async {
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      for (final width in [320.0, 475.0, 600.0, 840.0, 1180.0, 1600.0]) {
+        final notifier = await _pumpLargeTextBatchControls(tester, width);
+        notifier.setBatchGenerating();
+        await tester.pumpAndSettle();
+        expect(tester.takeException(), isNull, reason: 'width=$width');
+        final primary = tester.getRect(
+          find.byKey(const ValueKey('generation-footer-primary-action')),
+        );
+        final bounds = tester.getRect(
+          find.byKey(const ValueKey('generation-footer-adaptive-layout')),
+        );
+        expect(bounds.inflate(0.01).contains(primary.topLeft), isTrue);
+        expect(bounds.inflate(0.01).contains(primary.bottomRight), isTrue);
+        final skip = find.text('跳过当前批次 1/2');
+        expect(skip.hitTestable(), findsOneWidget);
+        expect(find.text('取消').hitTestable(), findsOneWidget);
+        await tester.tap(skip);
+        expect(notifier.skipCount, 1);
+        await tester.tap(find.text('取消'));
+        expect(notifier.cancelCount, 1);
+        await tester.pumpAndSettle();
+        expect(tester.takeException(), isNull, reason: 'width=$width');
+        await tester.pumpWidget(const SizedBox.shrink());
+      }
+    },
+  );
   testWidgets('preparing footer offers a cancel entry instead of a dead tap', (
     tester,
   ) async {
@@ -718,6 +748,68 @@ void main() {
   });
 }
 
+Future<_TestImageGenerationNotifier> _pumpLargeTextBatchControls(
+  WidgetTester tester,
+  double width,
+) async {
+  await tester.binding.setSurfaceSize(Size(width, 900));
+  final storage = _MemoryLocalStorageService({
+    StorageKeys.autoSaveImages: false,
+    StorageKeys.showRandomPromptTools: true,
+  });
+  final container = ProviderContainer(
+    overrides: [
+      authNotifierProvider.overrideWith(_AuthenticatedAuthNotifier.new),
+      imageGenerationNotifierProvider.overrideWith(
+        _TestImageGenerationNotifier.new,
+      ),
+      localStorageServiceProvider.overrideWith((ref) => storage),
+      kritaBridgeNotifierProvider.overrideWith(
+        (ref) => _TestKritaBridgeNotifier(),
+      ),
+      replicationQueueNotifierProvider.overrideWith(
+        _TestReplicationQueueNotifier.new,
+      ),
+      queueExecutionNotifierProvider.overrideWith(
+        _TestQueueExecutionNotifier.new,
+      ),
+      subscriptionNotifierProvider.overrideWith(_TestSubscriptionNotifier.new),
+      estimatedCostProvider.overrideWith((ref) => 0),
+      isFreeGenerationProvider.overrideWith((ref) => true),
+    ],
+  );
+  addTearDown(container.dispose);
+  await tester.pumpWidget(
+    UncontrolledProviderScope(
+      container: container,
+      child: MaterialApp(
+        builder: (context, child) => MediaQuery(
+          data: MediaQuery.of(
+            context,
+          ).copyWith(textScaler: const TextScaler.linear(3)),
+          child: child!,
+        ),
+        locale: const Locale('zh'),
+        supportedLocales: AppLocalizations.supportedLocales,
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        home: Scaffold(
+          body: Align(
+            alignment: Alignment.topLeft,
+            child: SizedBox(
+              width: width,
+              height: 800,
+              child: const GenerationControls(compact: true),
+            ),
+          ),
+        ),
+      ),
+    ),
+  );
+  await tester.pump();
+  return container.read(imageGenerationNotifierProvider.notifier)
+      as _TestImageGenerationNotifier;
+}
+
 class _AuthenticatedAuthNotifier extends AuthNotifier {
   @override
   AuthState build() => const AuthState(status: AuthStatus.authenticated);
@@ -730,6 +822,20 @@ class _UnauthenticatedAuthNotifier extends AuthNotifier {
 
 class _TestImageGenerationNotifier extends ImageGenerationNotifier {
   int cancelCount = 0;
+  int skipCount = 0;
+
+  void setBatchGenerating() {
+    state = const ImageGenerationState(
+      status: GenerationStatus.generating,
+      currentImage: 1,
+      totalImages: 2,
+    );
+  }
+
+  @override
+  void skipCurrentRequest() {
+    skipCount++;
+  }
 
   @override
   ImageGenerationState build() => const ImageGenerationState();
