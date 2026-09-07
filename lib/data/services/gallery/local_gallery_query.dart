@@ -9,27 +9,13 @@ import 'local_gallery_repository.dart';
 import 'local_gallery_service.dart';
 
 bool isFavoriteOnlyFastFilter(FilterCriteria criteria) {
-  return criteria.showFavoritesOnly &&
-      criteria.searchQuery.trim().isEmpty &&
-      criteria.dateStart == null &&
-      criteria.dateEnd == null &&
-      criteria.selectedTags.isEmpty &&
-      criteria.filterModel == null &&
-      criteria.filterSampler == null &&
-      criteria.filterMinSteps == null &&
-      criteria.filterMaxSteps == null &&
-      criteria.filterMinCfg == null &&
-      criteria.filterMaxCfg == null &&
-      criteria.filterResolution == null &&
-      criteria.minWidth == null &&
-      criteria.minHeight == null &&
-      criteria.maxWidth == null &&
-      criteria.maxHeight == null &&
-      criteria.minFileSize == null &&
-      criteria.maxFileSize == null &&
-      criteria.metadataStatuses.isEmpty &&
-      criteria.categoryId == null &&
-      criteria.categoryFolderPath == null;
+  if (!criteria.showFavoritesOnly) return false;
+  // Derived from hasFilters: new fields disqualify it, a blank query does not.
+  final withoutFavorites = criteria.copyWith(
+    showFavoritesOnly: false,
+    searchQuery: criteria.searchQuery.trim(),
+  );
+  return !withoutFavorites.hasFilters;
 }
 
 /// Owns the authoritative in-memory file ordering and derived query results.
