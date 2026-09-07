@@ -6,6 +6,7 @@ import 'dart:io';
 
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_markdown_plus/flutter_markdown_plus.dart' as md;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -557,16 +558,16 @@ void main() {
         find.descendant(of: image, matching: find.byType(DraggableImageCard)),
       );
       expect(fileDrag.localData, {'source': 'agent_chat_internal'});
-      final mouseRegion = tester.widget<MouseRegion>(
-        find.descendant(of: image, matching: find.byType(MouseRegion)).first,
-      );
-      expect(mouseRegion.cursor, SystemMouseCursors.click);
-
       final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
       addTearDown(mouse.removePointer);
       await mouse.addPointer(location: Offset.zero);
       await mouse.moveTo(tester.getCenter(image));
       await tester.pump();
+      // Wrappers may defer to the card's cursor; check the hit-tested result.
+      expect(
+        RendererBinding.instance.mouseTracker.debugDeviceActiveCursor(1),
+        SystemMouseCursors.click,
+      );
       expect(
         tester
             .widget<ImageCardHoverMotion>(

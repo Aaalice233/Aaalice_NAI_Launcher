@@ -21,6 +21,35 @@ abstract final class AgentChatResourceReferenceCodec {
   static const String mimeType = '$mediaType; version=1';
   static const String uriScheme = 'aaalice-agent-resource';
 
+  /// Tool callers receive one identity, never the surrounding attachment list.
+  static const Map<String, dynamic> jsonSchema = {
+    'type': 'object',
+    'description':
+        'One exact resource_ref object from an application tool or an '
+        'agent-resource-references entry. Do not include references, '
+        'schemaVersion, or available.',
+    'properties': {
+      'version': {
+        'type': 'integer',
+        'enum': [1],
+      },
+      'kind': {'type': 'string'},
+      'source': {'type': 'string'},
+      'resourceId': {'type': 'string'},
+      'mediaId': {'type': 'string'},
+      'display': {
+        'type': 'object',
+        'additionalProperties': {'type': 'string'},
+      },
+      'provenance': {
+        'type': 'object',
+        'additionalProperties': {'type': 'string'},
+      },
+    },
+    'required': ['version', 'kind', 'source', 'resourceId'],
+    'additionalProperties': false,
+  };
+
   static const Set<String> _topLevelFields = {
     'version',
     'kind',

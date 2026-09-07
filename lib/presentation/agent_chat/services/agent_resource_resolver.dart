@@ -60,6 +60,13 @@ class AgentResourceResolver {
     if (value is! Map) {
       throw const FormatException('resource_ref must be an object');
     }
+    if (value.containsKey('references') || value.containsKey('resource_ref')) {
+      throw const FormatException(
+        'resource_ref requires one resource identity. Select the entry\'s '
+        'resource_ref object from agent-resource-references; do not pass '
+        'the attachment envelope or references list.',
+      );
+    }
     return AgentChatResourceReferenceCodec.decodeJsonMap(
       Map<String, dynamic>.from(value),
     );

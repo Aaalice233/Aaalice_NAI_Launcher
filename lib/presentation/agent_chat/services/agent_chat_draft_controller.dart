@@ -242,7 +242,9 @@ class AgentChatDraftController {
       'references': [
         for (final reference in references)
           {
-            ...AgentChatResourceReferenceCodec.encodeJsonMap(reference),
+            'resource_ref': AgentChatResourceReferenceCodec.encodeJsonMap(
+              reference,
+            ),
             'available': !unavailable.contains(
               AgentChatResourceReferenceCodec.encodeJson(reference),
             ),
@@ -252,7 +254,10 @@ class AgentChatDraftController {
     return '<agent-resource-references>\n${jsonEncode(payload)}\n'
         '</agent-resource-references>\n'
         'Resolve available references through their owning application '
-        'tools. Do not use references marked unavailable.';
+        'tools. Pass only the selected entry\'s resource_ref object to a '
+        'resource_ref argument (or those objects in resource_refs). Never '
+        'pass this envelope, the references list, or the available flag. '
+        'Do not use references marked unavailable.';
   }
 
   /// 与 read_skill 一致地抹掉正文里的绝对路径；location 保持原样，模型要靠它

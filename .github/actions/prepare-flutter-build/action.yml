@@ -21,6 +21,10 @@ inputs:
     description: Restore and save Flutter AOT plus native Windows build outputs.
     required: false
     default: "false"
+  generate-code:
+    description: Generate and cache sources; disable when a separate quality job verifies committed outputs.
+    required: false
+    default: "true"
 
 runs:
   using: composite
@@ -36,6 +40,7 @@ runs:
         pub-cache-key: "${{ inputs.cache-namespace }}-flutter-pub-:os:-:channel:-:version:-:arch:-:hash:"
 
     - name: Restore generated-code cache
+      if: inputs.generate-code == 'true'
       uses: actions/cache@v6
       with:
         path: |
@@ -73,9 +78,11 @@ runs:
       run: flutter pub get --enforce-lockfile
 
     - name: Generate localizations
+      if: inputs.generate-code == 'true'
       shell: pwsh
       run: flutter gen-l10n
 
     - name: Generate code incrementally
+      if: inputs.generate-code == 'true'
       shell: pwsh
       run: dart run build_runner build --delete-conflicting-outputs
