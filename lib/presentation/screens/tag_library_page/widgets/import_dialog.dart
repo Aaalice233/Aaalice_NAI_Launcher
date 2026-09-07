@@ -6,6 +6,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:nai_launcher/core/utils/localization_extension.dart';
 
 import '../../../../data/models/tag_library/import_models.dart';
+import '../../../../data/models/tag_library/import_plan.dart';
+import '../../../../data/services/tag_library_import_planner.dart';
 import '../../../../data/services/tag_library_io_service.dart';
 import '../../../adaptive/adaptive_presenter.dart';
 import '../../../adaptive/interaction_policy.dart';
@@ -722,9 +724,13 @@ class _ImportDialogState extends ConsumerState<ImportDialog> {
   }
 
   Future<void> _import() async {
-    if (_selectedFile == null || _preview == null) return;
+    final file = _selectedFile;
+    final preview = _preview;
+    if (file == null || preview == null) return;
 
     final l10n = context.l10n;
+    final state = ref.read(tagLibraryPageNotifierProvider);
+    final notifier = ref.read(tagLibraryPageNotifierProvider.notifier);
 
     setState(() {
       _isImporting = true;
@@ -733,18 +739,22 @@ class _ImportDialogState extends ConsumerState<ImportDialog> {
     });
 
     try {
-      final state = ref.read(tagLibraryPageNotifierProvider);
-      final service = TagLibraryIOService();
-
-      final result = await service.executeImport(
-        zipFile: _selectedFile!,
-        preview: _preview!,
+      final plan = const TagLibraryImportPlanner().plan(
+        preview: preview,
         selectedEntryIds: _selectedEntryIds,
         selectedCategoryIds: _selectedCategoryIds,
+        conflicts: _conflicts,
         conflictResolutions: _conflictResolutions,
         existingEntries: state.entries,
         existingCategories: state.categories,
+        renameSuffix: ' (${l10n.common_import})',
+      );
+
+      final result = await TagLibraryIOService().executeImport(
+        zipFile: file,
+        plan: plan,
         onProgress: (progress, message) {
+          if (!mounted) return;
           setState(() {
             _progress = progress;
             _progressMessage = message;
@@ -752,130 +762,14 @@ class _ImportDialogState extends ConsumerState<ImportDialog> {
         },
       );
 
-      // 导入到 provider
-      final notifier = ref.read(tagLibraryPageNotifierProvider.notifier);
-
-      // 首先处理需要替换（覆盖）的分类 - 先删除现有分类
-      for (final conflict in _conflicts.where(
-        (c) =>
-            c.isCategoryConflict &&
-            _selectedCategoryIds.contains(c.importId) &&
-            _conflictResolutions[c.importId] == ConflictResolution.overwrite,
-      )) {
-        await notifier.deleteCategory(conflict.existingId);
-      }
-
-      // 处理需要替换（覆盖）的条目 - 先删除现有条目
-      for (final conflict in _conflicts.where(
-        (c) =>
-            c.isEntryConflict &&
-            _selectedEntryIds.contains(c.importId) &&
-            _conflictResolutions[c.importId] == ConflictResolution.overwrite,
-      )) {
-        await notifier.deleteEntry(conflict.existingId);
-      }
-
-      // 筛选要导入的分类（根据冲突解决策略处理）
-      final categoriesToImport = _preview!.categories.where((c) {
-        if (!_selectedCategoryIds.contains(c.id)) return false;
-        final resolution = _conflictResolutions[c.id];
-        return resolution != ConflictResolution.skip;
-      }).toList();
-
-      // 确定是否有分类需要保留ID（替换场景）
-      final categoriesNeedKeepIds = categoriesToImport.any((c) {
-        final resolution = _conflictResolutions[c.id];
-        return resolution == ConflictResolution.overwrite;
-      });
-
-      // 确定分类是否需要添加后缀（重命名场景）
-      final categoryNameSuffix =
-          categoriesToImport.any((c) {
-            final resolution = _conflictResolutions[c.id];
-            return resolution == ConflictResolution.rename;
-          })
-          ? ' (${l10n.common_import})'
-          : null;
-
-      // 导入分类并获取 ID 映射
-      final categoryIdMapping = await notifier.importCategories(
-        categoriesToImport,
-        keepIds: categoriesNeedKeepIds,
-        nameSuffix: categoryNameSuffix,
+      final applied = await notifier.applyImportPlan(
+        plan,
+        importedEntries: result.updatedEntries,
       );
 
-      // 筛选要导入的条目（根据冲突解决策略处理）
-      final entriesToImport = _preview!.entries.where((e) {
-        if (!_selectedEntryIds.contains(e.id)) return false;
-        final resolution = _conflictResolutions[e.id];
-        return resolution != ConflictResolution.skip;
-      }).toList();
-
-      // 确定是否有条目需要保留ID（替换场景）
-      final entriesNeedKeepIds = entriesToImport.any((e) {
-        final resolution = _conflictResolutions[e.id];
-        return resolution == ConflictResolution.overwrite;
-      });
-
-      // 确定条目是否需要添加后缀（重命名场景）
-      final entryNameSuffix =
-          entriesToImport.any((e) {
-            final resolution = _conflictResolutions[e.id];
-            return resolution == ConflictResolution.rename;
-          })
-          ? ' (${l10n.common_import})'
-          : null;
-
-      // 导入条目（使用更新后的缩略图路径）
-      await notifier.importEntries(
-        entriesToImport,
-        categoryIdMapping: categoryIdMapping,
-        keepIds: entriesNeedKeepIds,
-        nameSuffix: entryNameSuffix,
-        updatedEntries: result.updatedEntries,
-      );
-
-      if (mounted) {
-        Navigator.of(context).pop();
-        final messages = <String>[];
-        if (result.importedEntries > 0) {
-          messages.add(
-            context.l10n.tagLibrary_importedEntriesCount(
-              result.importedEntries,
-            ),
-          );
-        }
-        if (result.importedCategories > 0) {
-          messages.add(
-            context.l10n.tagLibrary_importedCategoriesCount(
-              result.importedCategories,
-            ),
-          );
-        }
-        if (result.renamedCount > 0) {
-          messages.add(
-            context.l10n.tagLibrary_renamedCount(result.renamedCount),
-          );
-        }
-        if (result.overwrittenCount > 0) {
-          messages.add(
-            context.l10n.tagLibrary_overwrittenCount(result.overwrittenCount),
-          );
-        }
-        if (result.skippedConflicts > 0) {
-          messages.add(
-            context.l10n.tagLibrary_skippedCount(result.skippedConflicts),
-          );
-        }
-        AppToast.info(
-          context,
-          messages.isEmpty
-              ? context.l10n.tagLibrary_importCompleted
-              : context.l10n.tagLibrary_importSuccessSummary(
-                  messages.join(', '),
-                ),
-        );
-      }
+      if (!mounted) return;
+      Navigator.of(context).pop();
+      AppToast.info(context, _importSummary(result, applied));
     } catch (e) {
       if (mounted) {
         setState(() => _isImporting = false);
@@ -885,6 +779,30 @@ class _ImportDialogState extends ConsumerState<ImportDialog> {
         );
       }
     }
+  }
+
+  String _importSummary(
+    ImportResult result,
+    TagLibraryImportApplyResult applied,
+  ) {
+    final l10n = context.l10n;
+    final messages = <String>[
+      if (result.importedEntries > 0)
+        l10n.tagLibrary_importedEntriesCount(result.importedEntries),
+      if (result.importedCategories > 0)
+        l10n.tagLibrary_importedCategoriesCount(result.importedCategories),
+      if (result.renamedCount > 0)
+        l10n.tagLibrary_renamedCount(result.renamedCount),
+      if (result.overwrittenCount > 0)
+        l10n.tagLibrary_overwrittenCount(result.overwrittenCount),
+      if (result.skippedConflicts > 0)
+        l10n.tagLibrary_skippedCount(result.skippedConflicts),
+      if (applied.rejected.isNotEmpty)
+        l10n.tagLibrary_importRejectedCount(applied.rejected.length),
+    ];
+    return messages.isEmpty
+        ? l10n.tagLibrary_importCompleted
+        : l10n.tagLibrary_importSuccessSummary(messages.join(', '));
   }
 }
 

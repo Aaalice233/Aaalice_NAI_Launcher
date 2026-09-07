@@ -5,6 +5,7 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../../core/storage/local_storage_service.dart';
 import '../../core/utils/app_logger.dart';
+import '../../data/models/tag_library/import_plan.dart';
 import '../../data/models/tag_library/tag_library_category.dart';
 import '../../data/models/tag_library/tag_library_entry.dart';
 import 'fixed_tags_provider.dart';
@@ -234,7 +235,7 @@ class TagLibraryPageNotifier extends _$TagLibraryPageNotifier {
   }
 
   /// 保存分类到存储
-  Future<void> _saveCategories() async {
+  Future<void> _saveCategories({bool rethrowError = false}) async {
     try {
       final json = jsonEncode(state.categories.map((e) => e.toJson()).toList());
       await _storage.setTagLibraryCategoriesJson(json);
@@ -245,6 +246,7 @@ class TagLibraryPageNotifier extends _$TagLibraryPageNotifier {
         stack,
         'TagLibraryPageProvider',
       );
+      if (rethrowError) rethrow;
     }
   }
 
@@ -696,120 +698,183 @@ class TagLibraryPageNotifier extends _$TagLibraryPageNotifier {
 
   // ==================== 导入导出 ====================
 
-  /// 批量导入条目
-  ///
-  /// [entries] 要导入的条目列表
-  /// [categoryIdMapping] 分类ID映射（旧ID -> 新ID）
-  /// [keepIds] 是否保留原始ID（用于替换场景）
-  /// [nameSuffix] 名称后缀（用于重命名场景）
-  /// [updatedEntries] 更新缩略图路径后的条目映射（原始ID -> 更新后的条目）
-  Future<int> importEntries(
-    List<TagLibraryEntry> entries, {
-    Map<String, String>? categoryIdMapping,
-    bool keepIds = false,
-    String? nameSuffix,
-    Map<String, TagLibraryEntry>? updatedEntries,
+  /// 按导入计划应用：先删除被覆盖项，再写入计划确定的目标身份，最后统一持久化
+  Future<TagLibraryImportApplyResult> applyImportPlan(
+    TagLibraryImportPlan plan, {
+    Map<String, TagLibraryEntry> importedEntries = const {},
   }) async {
-    final newEntries = <TagLibraryEntry>[];
-    var startSortOrder = state.entries.length;
+    final previousState = state;
+    final removedCategoryIds = _replacedCategoryIds(plan);
+    final removedEntryIds = <String>{
+      for (final item in plan.entries)
+        if (item.replacedEntryId != null) item.replacedEntryId!,
+    };
 
-    for (final entry in entries) {
-      String? mappedCategoryId;
-      if (entry.categoryId != null && categoryIdMapping != null) {
-        mappedCategoryId = categoryIdMapping[entry.categoryId];
-      }
+    final keptCategories = _categoriesWithout(removedCategoryIds);
+    final keptEntries = _entriesWithout(removedEntryIds, removedCategoryIds);
+    final categories = _importedCategories(plan, keptCategories);
+    final entries = _importedEntries(
+      plan,
+      keptEntries,
+      categoryIds: {
+        ...keptCategories.map((c) => c.id),
+        ...categories.inserted.map((c) => c.id),
+      },
+      importedEntries: importedEntries,
+    );
 
-      final newName = nameSuffix != null && nameSuffix.isNotEmpty
-          ? '${entry.name}$nameSuffix'
-          : entry.name;
-
-      // 使用更新后的条目数据（包含正确的缩略图路径）
-      final sourceEntry = updatedEntries?[entry.id] ?? entry;
-
-      if (keepIds) {
-        // 保留原始ID（替换场景）
-        newEntries.add(
-          sourceEntry.copyWith(
-            name: newName,
-            categoryId: mappedCategoryId ?? entry.categoryId,
-            sortOrder: startSortOrder++,
-            updatedAt: DateTime.now(),
-          ),
-        );
-      } else {
-        // 创建新ID（正常导入场景）
-        newEntries.add(
-          TagLibraryEntry.create(
-            name: newName,
-            content: sourceEntry.content,
-            thumbnail: sourceEntry.thumbnail,
-            tags: sourceEntry.tags,
-            categoryId: mappedCategoryId ?? entry.categoryId,
-            sortOrder: startSortOrder++,
-            isFavorite: sourceEntry.isFavorite,
-          ),
-        );
-      }
+    state = state.copyWith(
+      categories: [...keptCategories, ...categories.inserted],
+      entries: [...keptEntries, ...entries.inserted],
+      clearSelectedCategory: removedCategoryIds.contains(
+        previousState.selectedCategoryId,
+      ),
+    );
+    try {
+      await _saveCategories(rethrowError: true);
+      await _saveEntries(rethrowError: true);
+    } catch (_) {
+      state = previousState;
+      await _saveCategories();
+      await _saveEntries();
+      rethrow;
     }
 
-    state = state.copyWith(entries: [...state.entries, ...newEntries]);
-    await _saveEntries();
-
-    return newEntries.length;
+    return TagLibraryImportApplyResult(
+      appliedCategoryIds: categories.inserted.map((c) => c.id).toList(),
+      appliedEntryIds: entries.inserted.map((e) => e.id).toList(),
+      rejected: [...categories.rejected, ...entries.rejected],
+    );
   }
 
-  /// 批量导入分类
-  ///
-  /// [categories] 要导入的分类列表
-  /// [keepIds] 是否保留原始ID（用于替换场景）
-  /// [nameSuffix] 名称后缀（用于重命名场景）
-  Future<Map<String, String>> importCategories(
-    List<TagLibraryCategory> categories, {
-    bool keepIds = false,
-    String? nameSuffix,
-  }) async {
-    // 返回旧ID到新ID的映射
-    final idMapping = <String, String>{};
-    final newCategories = <TagLibraryCategory>[];
-    var startSortOrder = state.categories.length;
+  Set<String> _replacedCategoryIds(TagLibraryImportPlan plan) {
+    final ids = <String>{};
+    for (final item in plan.categories) {
+      final replaced = item.replacedCategoryId;
+      if (replaced == null) continue;
+      ids
+        ..add(replaced)
+        ..addAll(state.categories.getDescendantIds(replaced));
+    }
+    return ids;
+  }
 
-    for (final category in categories) {
-      final newName = nameSuffix != null && nameSuffix.isNotEmpty
-          ? '${category.name}$nameSuffix'
-          : category.name;
+  List<TagLibraryCategory> _categoriesWithout(Set<String> removedIds) =>
+      removedIds.isEmpty
+      ? state.categories
+      : state.categories
+            .where((c) => !removedIds.contains(c.id))
+            .toList()
+            .reindex();
 
-      if (keepIds) {
-        // 保留原始ID（替换场景）
-        final parentId = category.parentId != null
-            ? idMapping[category.parentId]
-            : null;
-        newCategories.add(
-          category.copyWith(
-            name: newName,
-            parentId: parentId,
-            sortOrder: startSortOrder++,
+  List<TagLibraryEntry> _entriesWithout(
+    Set<String> removedIds,
+    Set<String> removedCategoryIds,
+  ) {
+    final orphaned = state.entries
+        .map(
+          (e) => removedCategoryIds.contains(e.categoryId)
+              ? e.copyWith(categoryId: null, updatedAt: DateTime.now())
+              : e,
+        )
+        .toList();
+    if (removedIds.isEmpty) return orphaned;
+    return orphaned.where((e) => !removedIds.contains(e.id)).toList().reindex();
+  }
+
+  _CategoryInserts _importedCategories(
+    TagLibraryImportPlan plan,
+    List<TagLibraryCategory> kept,
+  ) {
+    final takenIds = kept.map((c) => c.id).toSet();
+    final rejected = <TagLibraryImportRejection>[];
+    final inserted = <TagLibraryCategory>[];
+    var sortOrder = kept.length;
+
+    for (final item in plan.categories) {
+      final targetId = item.targetId;
+      if (!item.isApplied || targetId == null) continue;
+      if (!takenIds.add(targetId)) {
+        rejected.add(
+          TagLibraryImportRejection(
+            kind: TagLibraryImportItemKind.category,
+            sourceId: item.source.id,
+            targetId: targetId,
           ),
         );
-        idMapping[category.id] = category.id;
-      } else {
-        // 创建新ID（正常导入场景）
-        final newCategory = TagLibraryCategory.create(
-          name: newName,
-          parentId:
-              category.parentId != null ? idMapping[category.parentId] : null,
-          sortOrder: startSortOrder++,
-        );
-        idMapping[category.id] = newCategory.id;
-        newCategories.add(newCategory);
+        continue;
       }
+      inserted.add(
+        TagLibraryCategory(
+          id: targetId,
+          name: item.targetName,
+          parentId: item.targetParentId,
+          sortOrder: sortOrder++,
+          createdAt: item.source.createdAt,
+        ),
+      );
     }
 
-    state = state.copyWith(categories: [...state.categories, ...newCategories]);
-    await _saveCategories();
+    return (
+      inserted: [
+        for (final category in inserted)
+          category.parentId == null || takenIds.contains(category.parentId)
+              ? category
+              : category.copyWith(parentId: null),
+      ],
+      rejected: rejected,
+    );
+  }
 
-    return idMapping;
+  _EntryInserts _importedEntries(
+    TagLibraryImportPlan plan,
+    List<TagLibraryEntry> kept, {
+    required Set<String> categoryIds,
+    required Map<String, TagLibraryEntry> importedEntries,
+  }) {
+    final takenIds = kept.map((e) => e.id).toSet();
+    final rejected = <TagLibraryImportRejection>[];
+    final inserted = <TagLibraryEntry>[];
+    var sortOrder = kept.length;
+
+    for (final item in plan.entries) {
+      final targetId = item.targetId;
+      if (!item.isApplied || targetId == null) continue;
+      if (!takenIds.add(targetId)) {
+        rejected.add(
+          TagLibraryImportRejection(
+            kind: TagLibraryImportItemKind.entry,
+            sourceId: item.source.id,
+            targetId: targetId,
+          ),
+        );
+        continue;
+      }
+      final categoryId = item.targetCategoryId;
+      inserted.add(
+        (importedEntries[item.source.id] ?? item.source).copyWith(
+          id: targetId,
+          name: item.targetName,
+          categoryId: categoryIds.contains(categoryId) ? categoryId : null,
+          sortOrder: sortOrder++,
+          updatedAt: DateTime.now(),
+        ),
+      );
+    }
+
+    return (inserted: inserted, rejected: rejected);
   }
 }
+
+typedef _CategoryInserts = ({
+  List<TagLibraryCategory> inserted,
+  List<TagLibraryImportRejection> rejected,
+});
+
+typedef _EntryInserts = ({
+  List<TagLibraryEntry> inserted,
+  List<TagLibraryImportRejection> rejected,
+});
 
 // ==================== 便捷 Providers ====================
 
