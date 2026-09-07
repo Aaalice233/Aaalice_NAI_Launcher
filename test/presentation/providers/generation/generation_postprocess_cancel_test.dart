@@ -28,7 +28,7 @@ void main() {
         when(
           () => api.generateImageStream(any()),
         ).thenAnswer((_) => Stream.value(ImageStreamChunk.complete(original)));
-        when(dlss.automaticSnapshot).thenReturn((bytes, cancelled) async {
+        when(dlss.automaticSnapshot).thenReturn((bytes, cancelled, onPhase) async {
           entered.complete();
           await cancelled;
           throw StateError('NR cancelled');

@@ -18921,24 +18921,6 @@ abstract class AppLocalizations {
   /// **'Failed to update favorite state: {error}'**
   String toast_favoriteUpdateFailed(Object error);
 
-  /// No description provided for @toast_packingImages.
-  ///
-  /// In en, this message translates to:
-  /// **'Packing {count} images...'**
-  String toast_packingImages(Object count);
-
-  /// No description provided for @toast_packedImages.
-  ///
-  /// In en, this message translates to:
-  /// **'Packed {count} images'**
-  String toast_packedImages(Object count);
-
-  /// No description provided for @toast_packFailed.
-  ///
-  /// In en, this message translates to:
-  /// **'Pack failed'**
-  String get toast_packFailed;
-
   /// No description provided for @toast_packFailedWithError.
   ///
   /// In en, this message translates to:

@@ -47,7 +47,7 @@ class UpdateCheckDialog extends ConsumerWidget {
           final sizeClass = WindowSizeClass.fromWidth(constraints.maxWidth);
           final compact = sizeClass.isCompact;
           final useSingleColumnActions =
-              constraints.maxWidth < 320 || mediaQuery.textScaler.scale(1) >= 2;
+              constraints.maxWidth < 260 || mediaQuery.textScaler.scale(1) >= 2;
           final padding = EdgeInsets.all(compact ? 16 : 24);
           final title = Text(
             _getTitle(context, state),
@@ -88,11 +88,16 @@ class UpdateCheckDialog extends ConsumerWidget {
           return Padding(
             padding: padding,
             child: Column(
+              mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 title,
                 const SizedBox(height: 12),
-                Expanded(child: content),
+                Flexible(
+                  child: state.status == UpdateStatus.available
+                      ? content
+                      : SingleChildScrollView(child: content),
+                ),
                 if (actions.isNotEmpty) ...[
                   const SizedBox(height: 12),
                   ConstrainedBox(
@@ -186,7 +191,6 @@ class UpdateCheckDialog extends ConsumerWidget {
     return LayoutBuilder(
       builder: (context, constraints) {
         final stackVersionTiles =
-            constraints.maxWidth < 420 ||
             MediaQuery.textScalerOf(context).scale(1) >= 2;
         final currentVersionTile = _buildVersionInfoTile(
           context,
@@ -208,12 +212,18 @@ class UpdateCheckDialog extends ConsumerWidget {
               const SizedBox(height: 8),
               latestVersionTile,
             ] else
-              Row(
-                children: [
-                  Expanded(child: currentVersionTile),
-                  const SizedBox(width: 16),
-                  Expanded(child: latestVersionTile),
-                ],
+              IntrinsicHeight(
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Expanded(child: currentVersionTile),
+                    const Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 6),
+                      child: Icon(Icons.arrow_forward_rounded, size: 18),
+                    ),
+                    Expanded(child: latestVersionTile),
+                  ],
+                ),
               ),
             if (versionInfo.primaryAsset != null) ...[
               const SizedBox(height: 8),
@@ -429,13 +439,9 @@ class UpdateCheckDialog extends ConsumerWidget {
             ? theme.colorScheme.primaryContainer.withValues(alpha: 0.5)
             : theme.colorScheme.surfaceContainerLow,
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(
-          color: isHighlighted
-              ? theme.colorScheme.primary.withValues(alpha: 0.3)
-              : theme.colorScheme.outlineVariant.withValues(alpha: 0.3),
-        ),
       ),
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
@@ -812,6 +818,10 @@ class UpdateCheckDialog extends ConsumerWidget {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
+        key: const ValueKey('update-install-confirmation'),
+        scrollable: true,
+        insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+        constraints: const BoxConstraints(maxWidth: 440),
         title: Text(context.l10n.updateInstallConfirmationTitle),
         content: Text(
           PlatformCapabilities.current.requiresExternalInstallerFlow

@@ -5192,19 +5192,6 @@
       "error": {}
     }
   },
-  "toast_packingImages": "{count} 個の画像をパッキングしています...",
-  "@toast_packingImages": {
-    "placeholders": {
-      "count": {}
-    }
-  },
-  "toast_packedImages": "{count} 個の画像をパックしました",
-  "@toast_packedImages": {
-    "placeholders": {
-      "count": {}
-    }
-  },
-  "toast_packFailed": "パックに失敗しました",
   "toast_packFailedWithError": "パックに失敗しました: {error}",
   "@toast_packFailedWithError": {
     "placeholders": {

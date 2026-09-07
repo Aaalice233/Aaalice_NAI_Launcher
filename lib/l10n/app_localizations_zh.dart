@@ -10367,19 +10367,6 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
-  String toast_packingImages(Object count) {
-    return '正在打包 $count 张图片...';
-  }
-
-  @override
-  String toast_packedImages(Object count) {
-    return '已打包 $count 张图片';
-  }
-
-  @override
-  String get toast_packFailed => '打包失败';
-
-  @override
   String toast_packFailedWithError(Object error) {
     return '打包失败: $error';
   }
@@ -24932,19 +24919,6 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String toast_favoriteUpdateFailed(Object error) {
     return '收藏狀態更新失敗: $error';
   }
-
-  @override
-  String toast_packingImages(Object count) {
-    return '正在打包 $count 張圖片...';
-  }
-
-  @override
-  String toast_packedImages(Object count) {
-    return '已打包 $count 張圖片';
-  }
-
-  @override
-  String get toast_packFailed => '打包失敗';
 
   @override
   String toast_packFailedWithError(Object error) {

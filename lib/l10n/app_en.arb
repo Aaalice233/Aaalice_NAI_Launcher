@@ -5172,19 +5172,6 @@
       "error": {}
     }
   },
-  "toast_packingImages": "Packing {count} images...",
-  "@toast_packingImages": {
-    "placeholders": {
-      "count": {}
-    }
-  },
-  "toast_packedImages": "Packed {count} images",
-  "@toast_packedImages": {
-    "placeholders": {
-      "count": {}
-    }
-  },
-  "toast_packFailed": "Pack failed",
   "toast_packFailedWithError": "Pack failed: {error}",
   "@toast_packFailedWithError": {
     "placeholders": {

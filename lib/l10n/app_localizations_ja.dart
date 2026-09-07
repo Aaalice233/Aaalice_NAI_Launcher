@@ -10545,19 +10545,6 @@ class AppLocalizationsJa extends AppLocalizations {
   }
 
   @override
-  String toast_packingImages(Object count) {
-    return '$count 個の画像をパッキングしています...';
-  }
-
-  @override
-  String toast_packedImages(Object count) {
-    return '$count 個の画像をパックしました';
-  }
-
-  @override
-  String get toast_packFailed => 'パックに失敗しました';
-
-  @override
   String toast_packFailedWithError(Object error) {
     return 'パックに失敗しました: $error';
   }

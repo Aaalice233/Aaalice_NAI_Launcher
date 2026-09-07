@@ -5054,19 +5054,6 @@
       "error": {}
     }
   },
-  "toast_packingImages": "正在打包 {count} 張圖片...",
-  "@toast_packingImages": {
-    "placeholders": {
-      "count": {}
-    }
-  },
-  "toast_packedImages": "已打包 {count} 張圖片",
-  "@toast_packedImages": {
-    "placeholders": {
-      "count": {}
-    }
-  },
-  "toast_packFailed": "打包失敗",
   "toast_packFailedWithError": "打包失敗: {error}",
   "@toast_packFailedWithError": {
     "placeholders": {
