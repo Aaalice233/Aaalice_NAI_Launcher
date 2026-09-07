@@ -14285,7 +14285,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get dlss_prerelease => '预发布版';
 
   @override
-  String get dlss_previewHint => '调整参数后点击运行。每次都从这张原图开始，保存时创建新文件。';
+  String get dlss_previewHint => '调整参数后点击运行。每次都从这张原图开始，保存时创建新文件并作为最新结果加入历史记录。';
 
   @override
   String get dlss_result => '增强结果';
@@ -28849,7 +28849,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get dlss_prerelease => '預先發行版';
 
   @override
-  String get dlss_previewHint => '調整參數後點擊執行。每次都從這張原圖開始，儲存時建立新檔案。';
+  String get dlss_previewHint => '調整參數後點擊執行。每次都從這張原圖開始，儲存時建立新檔案並作為最新結果加入歷史記錄。';
 
   @override
   String get dlss_result => '增強結果';

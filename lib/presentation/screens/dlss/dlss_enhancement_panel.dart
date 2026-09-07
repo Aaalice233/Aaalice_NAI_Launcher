@@ -4,12 +4,11 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../core/utils/image_save_utils.dart';
 import '../../../core/utils/localization_extension.dart';
-import '../../../data/repositories/gallery_folder_repository.dart';
 import '../../../data/services/dlss/dlss_options.dart';
 import '../../adaptive/adaptive_presenter.dart';
 import '../../providers/dlss_provider.dart';
+import '../../providers/generation/dlss_enhancement_adopter.dart';
 import '../../widgets/common/app_toast.dart';
 import '../../widgets/common/image_comparison_view.dart';
 import '../../adaptive/window_size_class.dart';
@@ -109,16 +108,17 @@ class _DlssEnhancementPanelState extends ConsumerState<DlssEnhancementPanel> {
       _error = null;
     });
     try {
-      final root = await GalleryFolderRepository.instance.getRootPath();
-      if (root == null || root.isEmpty) {
-        throw StateError('Image save directory is not configured');
-      }
-      final path = await ImageSaveUtils.saveBytesToDatedPath(
-        rootPath: root,
-        bytes: bytes,
-        seed: await ImageSaveUtils.resolveSeed(bytes: bytes),
-      );
-      if (mounted) {
+      final path = await ref
+          .read(dlssEnhancementAdopterProvider)
+          .adopt(result: bytes, source: widget.source);
+      if (!mounted) return;
+      if (path == null) {
+        setState(() {
+          _error = StateError(
+            'The enhanced image was kept in history but could not be saved',
+          );
+        });
+      } else {
         AppToast.success(context, '${context.l10n.common_success}\n$path');
       }
     } catch (error) {

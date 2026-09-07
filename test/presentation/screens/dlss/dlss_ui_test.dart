@@ -9,6 +9,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:image/image.dart' as img;
 import 'package:nai_launcher/core/platform/platform_capabilities.dart';
 import 'package:nai_launcher/core/storage/local_storage_service.dart';
+import 'package:nai_launcher/data/models/image/image_params.dart';
 import 'package:nai_launcher/data/services/dlss/dlss_device_probe.dart';
 import 'package:nai_launcher/data/services/dlss/dlss_environment_service.dart';
 import 'package:nai_launcher/data/services/dlss/dlss_options.dart';
@@ -17,6 +18,7 @@ import 'package:nai_launcher/data/services/dlss/dlss_runtime_manager.dart';
 import 'package:nai_launcher/data/services/dlss/dlss_worker.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/providers/dlss_provider.dart';
+import 'package:nai_launcher/presentation/providers/image_generation_provider.dart';
 import 'package:nai_launcher/presentation/widgets/common/image_comparison_view.dart';
 import 'package:nai_launcher/presentation/screens/dlss/dlss_enhancement_panel.dart';
 import 'package:nai_launcher/presentation/screens/dlss/dlss_settings_section.dart';
@@ -669,6 +671,93 @@ void main() {
     );
   });
 
+  testWidgets('saving an enhanced result adopts it and reports the new file', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(1100, 850));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final controller = _Controller();
+    final registrar = _Registrar()
+      ..savedPath = r'D:\gallery\2026-09-06\12-00-00-42.png';
+    final scroll = ScrollController();
+    addTearDown(scroll.dispose);
+    final source = Uint8List.fromList(
+      img.encodePng(img.Image(width: 16, height: 16)),
+    );
+    await tester.pumpWidget(
+      _app(
+        controller,
+        Scaffold(
+          body: DlssEnhancementPanel(source: source, scrollController: scroll),
+        ),
+        overrides: [
+          imageGenerationNotifierProvider.overrideWith(() => registrar),
+        ],
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.byKey(const Key('dlss-run')));
+    await tester.tap(find.byKey(const Key('dlss-run')));
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.byKey(const Key('dlss-save-copy')));
+    await tester.tap(find.byKey(const Key('dlss-save-copy')));
+    await tester.pumpAndSettle();
+    expect(registrar.results.single, same(controller.outputs.single));
+    expect(registrar.comparisonSources.single, same(source));
+    expect(find.textContaining(registrar.savedPath!), findsOneWidget);
+    expect(find.text('保存失败，请检查图像保存目录及磁盘空间'), findsNothing);
+    expect(tester.takeException(), isNull);
+    // The toast lingers for 3 s plus its exit animation; drain it first.
+    await tester.pump(const Duration(seconds: 4));
+    await tester.pumpAndSettle();
+  });
+
+  testWidgets(
+    'an enhanced result that could not be written shows the failure',
+    (tester) async {
+      await tester.binding.setSurfaceSize(const Size(1100, 850));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      final controller = _Controller();
+      final registrar = _Registrar();
+      final scroll = ScrollController();
+      addTearDown(scroll.dispose);
+      final source = Uint8List.fromList(
+        img.encodePng(img.Image(width: 16, height: 16)),
+      );
+      await tester.pumpWidget(
+        _app(
+          controller,
+          Scaffold(
+            body: DlssEnhancementPanel(
+              source: source,
+              scrollController: scroll,
+            ),
+          ),
+          overrides: [
+            imageGenerationNotifierProvider.overrideWith(() => registrar),
+          ],
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.ensureVisible(find.byKey(const Key('dlss-run')));
+      await tester.tap(find.byKey(const Key('dlss-run')));
+      await tester.pumpAndSettle();
+      await tester.ensureVisible(find.byKey(const Key('dlss-save-copy')));
+      await tester.tap(find.byKey(const Key('dlss-save-copy')));
+      await tester.pumpAndSettle();
+      expect(registrar.results, hasLength(1));
+      expect(find.text('保存失败，请检查图像保存目录及磁盘空间'), findsOneWidget);
+      expect(find.text('诊断详情'), findsOneWidget);
+      expect(
+        tester
+            .widget<TextButton>(find.byKey(const Key('dlss-save-copy')))
+            .onPressed,
+        isNotNull,
+      );
+      expect(tester.takeException(), isNull);
+    },
+  );
+
   for (final platform in [
     TargetPlatform.android,
     TargetPlatform.macOS,
@@ -728,25 +817,30 @@ void main() {
   }
 }
 
-Widget _app(_Controller controller, Widget home, {double scale = 1}) =>
-    ProviderScope(
-      overrides: [
-        dlssProvider.overrideWith((ref) => controller),
-        localStorageServiceProvider.overrideWith((ref) => controller.storage),
-      ],
-      child: MaterialApp(
-        locale: const Locale('zh'),
-        localizationsDelegates: AppLocalizations.localizationsDelegates,
-        supportedLocales: AppLocalizations.supportedLocales,
-        builder: (context, child) => MediaQuery(
-          data: MediaQuery.of(
-            context,
-          ).copyWith(textScaler: TextScaler.linear(scale)),
-          child: child!,
-        ),
-        home: home,
-      ),
-    );
+Widget _app(
+  _Controller controller,
+  Widget home, {
+  double scale = 1,
+  List<Override> overrides = const [],
+}) => ProviderScope(
+  overrides: [
+    dlssProvider.overrideWith((ref) => controller),
+    localStorageServiceProvider.overrideWith((ref) => controller.storage),
+    ...overrides,
+  ],
+  child: MaterialApp(
+    locale: const Locale('zh'),
+    localizationsDelegates: AppLocalizations.localizationsDelegates,
+    supportedLocales: AppLocalizations.supportedLocales,
+    builder: (context, child) => MediaQuery(
+      data: MediaQuery.of(
+        context,
+      ).copyWith(textScaler: TextScaler.linear(scale)),
+      child: child!,
+    ),
+    home: home,
+  ),
+);
 
 class _Storage extends LocalStorageService {
   final values = <String, Object?>{};
@@ -809,6 +903,7 @@ class _Controller extends DlssController {
     installations = [active!];
   }
   final inputs = <Uint8List>[];
+  final outputs = <Uint8List>[];
   Completer<Uint8List>? pendingResult;
   @override
   Future<void> refresh({bool fetchReleases = true}) async {}
@@ -825,7 +920,7 @@ class _Controller extends DlssController {
       return pendingResult!.future;
     }
     final source = img.decodePng(bytes)!;
-    return Uint8List.fromList(
+    final output = Uint8List.fromList(
       img.encodePng(
         img.copyResize(
           source,
@@ -834,5 +929,35 @@ class _Controller extends DlssController {
         ),
       ),
     );
+    outputs.add(output);
+    return output;
+  }
+}
+
+class _Registrar extends ImageGenerationNotifier {
+  String? savedPath;
+  final results = <Uint8List>[];
+  final comparisonSources = <Uint8List?>[];
+  @override
+  ImageGenerationState build() => const ImageGenerationState();
+  @override
+  Future<void> ensureGenerationHistoryRestored() async {}
+  @override
+  Future<String?> registerExternalImage(
+    Uint8List imageBytes, {
+    required ImageParams params,
+    int? width,
+    int? height,
+    Uint8List? comparisonSourceImage,
+    bool saveToLocal = false,
+    String? saveDirectoryPath,
+    bool syncToGalleryIndex = true,
+    bool addToDisplay = false,
+    bool replaceCurrentDisplay = false,
+    bool embedNaiMetadata = true,
+  }) async {
+    results.add(imageBytes);
+    comparisonSources.add(comparisonSourceImage);
+    return savedPath;
   }
 }
