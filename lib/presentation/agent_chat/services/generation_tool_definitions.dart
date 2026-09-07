@@ -1,4 +1,5 @@
 import '../../../core/agent/agent_types.dart';
+import '../../../core/agent/resources/agent_chat_resource_reference_codec.dart';
 import '../../../core/constants/api_constants.dart';
 import '../../../core/utils/nai_resolution_adapter.dart';
 import '../../providers/replication_queue_provider.dart';
@@ -55,11 +56,7 @@ class GenerationToolDefinitions {
               'minimum': 1,
               'description': '1-based image index in the latest user message.',
             },
-            'resource_ref': {
-              'type': 'object',
-              'description':
-                  'Exact application image reference supplied by the user or a tool.',
-            },
+            'resource_ref': AgentChatResourceReferenceCodec.jsonSchema,
             'path': {
               'type': 'string',
               'description':
