@@ -219,6 +219,7 @@ class AssistantModelCatalog {
       };
     }
 
+    if (rule != null) rule = _ruleForProtocol(provider.protocol, rule);
     if (rule != null && !_protocolSupports(provider.protocol, rule.api)) {
       rule = null;
     }
@@ -255,7 +256,8 @@ class AssistantModelCatalog {
 
     AgentReasoningModelRule? compatible;
     AgentReasoningModelRule? fallback;
-    for (final rule in candidates) {
+    for (final candidate in candidates) {
+      final rule = _ruleForProtocol(protocol, candidate);
       if (fallback == null || rule.contextWindow < fallback.contextWindow) {
         fallback = rule;
       }
@@ -374,6 +376,23 @@ class AssistantModelCatalog {
       if (entry.key.toLowerCase() == normalized) return entry.value;
     }
     return null;
+  }
+
+  // Compatible Responses gateways consume nested effort, not the native
+  // Chat Completions toggle fields. Keep the catalog's supported levels and
+  // explicit off restrictions while adapting only the wire representation.
+  static AgentReasoningModelRule _ruleForProtocol(
+    ProviderProtocol protocol,
+    AgentReasoningModelRule rule,
+  ) {
+    if (protocol == ProviderProtocol.openaiResponses &&
+        (rule.api == AgentReasoningApi.deepSeek ||
+            rule.api == AgentReasoningApi.qwen ||
+            rule.api == AgentReasoningApi.openRouter ||
+            rule.api == AgentReasoningApi.openAiCompletions)) {
+      return rule.withApi(AgentReasoningApi.openAiResponses);
+    }
+    return rule;
   }
 
   static bool _protocolSupports(

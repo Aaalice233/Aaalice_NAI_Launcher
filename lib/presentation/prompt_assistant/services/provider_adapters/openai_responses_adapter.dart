@@ -335,27 +335,26 @@ class OpenAiResponsesAdapter extends PromptAssistantProviderAdapter {
           }
         }
       } else if (message is ToolResultMessage) {
+        final images = toolResultImagesOf(message);
+        // Pi keeps multimodal output on the call itself. A synthetic user
+        // turn here can split the outputs of a parallel tool-call batch.
         input.add({
           'type': 'function_call_output',
           'call_id': message.toolCallId,
-          'output': message.text,
+          'output': images.isEmpty
+              ? message.text
+              : [
+                  if (message.text.isNotEmpty)
+                    {'type': 'input_text', 'text': message.text},
+                  for (final image in images)
+                    if (_openAiImageUrl(image) case final url?)
+                      {
+                        'type': 'input_image',
+                        'image_url': url,
+                        'detail': 'auto',
+                      },
+                ],
         });
-        final images = toolResultImagesOf(message);
-        if (images.isNotEmpty) {
-          input.add({
-            'type': 'message',
-            'role': 'user',
-            'content': [
-              {
-                'type': 'input_text',
-                'text': 'Visual output returned by ${message.toolName}.',
-              },
-              for (final image in images)
-                if (_openAiImageUrl(image) case final url?)
-                  {'type': 'input_image', 'image_url': url, 'detail': 'auto'},
-            ],
-          });
-        }
       }
     }
 
