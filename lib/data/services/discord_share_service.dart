@@ -153,6 +153,8 @@ class DiscordShareService {
 
   final SecureStorageService _secureStorage;
   final LocalStorageService _localStorage;
+  // Dio overrides responseType for non-dynamic generic arguments. Keep requests
+  // dynamic/plain so malformed error bodies cannot hide HTTP status or headers.
   final Dio _dio;
   final DiscordExternalUrlLauncher _externalUrlLauncher;
   Future<DiscordShareResult>? _shareInFlight;
@@ -178,7 +180,7 @@ class DiscordShareService {
 
   Future<DiscordShareSession> verifySession(DiscordShareSession session) async {
     final response = await _request(
-      () => _dio.get<Object?>(
+      () => _dio.get<dynamic>(
         '/v1/session',
         options: Options(
           headers: _authorizationHeaders(session.token),
@@ -230,7 +232,7 @@ class DiscordShareService {
       }
       late final Response<Object?> response;
       try {
-        response = await _dio.post<Object?>(
+        response = await _dio.post<dynamic>(
           '/v1/oauth/result',
           data: {'nonce': nonce, 'verifier': verifier},
           options: Options(
@@ -288,7 +290,7 @@ class DiscordShareService {
     DiscordShareSession session,
   ) async {
     final payload = await _request(
-      () => _dio.get<Object?>(
+      () => _dio.get<dynamic>(
         '/v1/targets',
         options: Options(
           headers: _authorizationHeaders(session.token),
@@ -445,7 +447,7 @@ class DiscordShareService {
       ..addAll(targetIds.map((id) => MapEntry('target', id)));
 
     final payload = await _request(
-      () => _dio.post<Object?>(
+      () => _dio.post<dynamic>(
         '/v1/share',
         data: formData,
         options: Options(

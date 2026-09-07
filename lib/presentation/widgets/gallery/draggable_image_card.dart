@@ -4,6 +4,7 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:path/path.dart' as p;
 import 'package:super_drag_and_drop/super_drag_and_drop.dart';
 
 import '../../../core/utils/drag_drop_utils.dart';
@@ -17,6 +18,8 @@ import '../../providers/share_image_settings_provider.dart';
 import '../../providers/copy_drag_watermark_provider.dart';
 import '../../agent_chat/widgets/agent_resource_drop_region.dart';
 import 'gallery_drag_file.dart';
+import 'gallery_virtual_image.dart';
+import 'gallery_drag_session.dart';
 
 Future<void> _addLocalAgentReference(
   WidgetRef ref,
@@ -57,6 +60,7 @@ Widget _buildGalleryDragFeedback({
   required bool enableFeedback,
   required Widget fallbackChild,
 }) {
+  AppLogger.d('Building drag preview', 'GalleryDrag');
   final stripMetadata = ref
       .read(shareImageSettingsProvider)
       .effectiveStripMetadataForCopyAndDrag;
@@ -83,6 +87,8 @@ mixin _GallerySharePreparation<T extends ConsumerStatefulWidget>
     on ConsumerState<T> {
   LocalImageRecord get dragRecord;
   Uint8List? get dragFallbackBytes;
+
+  final _dragSession = GalleryDragSessionState();
 
   Timer? _shareWarmupTimer;
   String? _shareKey;
@@ -143,6 +149,7 @@ mixin _GallerySharePreparation<T extends ConsumerStatefulWidget>
 
   @override
   void dispose() {
+    _dragSession.dispose();
     _forgetGalleryShare();
     super.dispose();
   }
@@ -250,7 +257,6 @@ class _DraggableImageCardState extends ConsumerState<DraggableImageCard>
   @override
   Uint8List? get dragFallbackBytes => widget.previewBytes ?? _previewBytes;
 
-  bool _isDragging = false;
   Uint8List? _previewBytes;
   ImageProvider? _previewProvider;
 
@@ -306,14 +312,8 @@ class _DraggableImageCardState extends ConsumerState<DraggableImageCard>
       onExit: (_) => _forgetGalleryShare(),
       child: Listener(
         onPointerDown: (_) {
+          AppLogger.d('Pointer down', 'GalleryDrag');
           _warmGalleryShare(immediate: true);
-          setState(() => _isDragging = true);
-        },
-        onPointerUp: (_) {
-          setState(() => _isDragging = false);
-        },
-        onPointerCancel: (_) {
-          setState(() => _isDragging = false);
         },
         child: DragItemWidget(
           allowedOperations: () => [DropOperation.copy],
@@ -344,9 +344,17 @@ class _DraggableImageCardState extends ConsumerState<DraggableImageCard>
             fallbackChild: child,
           ),
           child: DraggableWidget(
-            child: Opacity(
-              opacity: _isDragging ? widget.dragOpacity : 1.0,
+            onDragConfiguration: (configuration, session) {
+              AppLogger.d('Drag snapshot ready', 'GalleryDrag');
+              return configuration;
+            },
+            child: ValueListenableBuilder<bool>(
+              valueListenable: _dragSession,
               child: widget.child,
+              builder: (context, dragging, child) => Opacity(
+                opacity: dragging ? widget.dragOpacity : 1.0,
+                child: child,
+              ),
             ),
           ),
         ),
@@ -355,6 +363,8 @@ class _DraggableImageCardState extends ConsumerState<DraggableImageCard>
   }
 
   Future<DragItem?> _createDragItem(DragSession session) async {
+    _dragSession.track(session);
+    AppLogger.d('Preparing drag item', 'GalleryDrag');
     final fileName = widget.record.path.split(RegExp(r'[/\\]')).last;
     final filePath = widget.record.path;
     final transform = ref.read(copyDragWatermarkProvider);
@@ -363,7 +373,9 @@ class _DraggableImageCardState extends ConsumerState<DraggableImageCard>
         .effectiveStripMetadataForCopyAndDrag;
 
     final item = DragItem(
-      suggestedName: fileName,
+      suggestedName: stripMetadata || transform != null
+          ? p.setExtension(fileName, '.png')
+          : fileName,
       localData:
           widget.localData ??
           {
@@ -373,11 +385,20 @@ class _DraggableImageCardState extends ConsumerState<DraggableImageCard>
           },
     );
     await _addLocalAgentReference(ref, item, widget.record);
+    AppLogger.d(
+      'Agent reference ready; strip=$stripMetadata watermark=${transform != null}',
+      'GalleryDrag',
+    );
 
     if (stripMetadata || transform != null) {
-      final prepared = await _prepareGalleryShare(stripMetadata, transform);
-      final transfer = GalleryDragFile(item: item, session: session);
-      if (!await transfer.addImage(prepared)) return null;
+      final preparation = _prepareGalleryShare(stripMetadata, transform);
+      if (item.virtualFileSupported) {
+        addGalleryVirtualImage(item, preparation);
+        AppLogger.d('Virtual image format ready', 'GalleryDrag');
+      } else {
+        final transfer = GalleryDragFile(item: item, session: session);
+        if (!await transfer.addImage(await preparation)) return null;
+      }
       return item;
     }
 
@@ -434,7 +455,6 @@ class _DragWrapperState extends ConsumerState<_DragWrapper>
   @override
   Uint8List? get dragFallbackBytes => widget.previewBytes ?? _previewBytes;
 
-  bool _isDragging = false;
   Uint8List? _previewBytes;
   ImageProvider? _previewProvider;
 
@@ -480,6 +500,8 @@ class _DragWrapperState extends ConsumerState<_DragWrapper>
   }
 
   Future<DragItem?> _createDragItem(DragSession session) async {
+    _dragSession.track(session);
+    AppLogger.d('Preparing drag item', 'GalleryDrag');
     final fileName = widget.record.path.split(RegExp(r'[/\\]')).last;
     final filePath = widget.record.path;
     final transform = ref.read(copyDragWatermarkProvider);
@@ -488,7 +510,9 @@ class _DragWrapperState extends ConsumerState<_DragWrapper>
         .effectiveStripMetadataForCopyAndDrag;
 
     final item = DragItem(
-      suggestedName: fileName,
+      suggestedName: stripMetadata || transform != null
+          ? p.setExtension(fileName, '.png')
+          : fileName,
       localData:
           widget.localData ??
           {
@@ -498,11 +522,20 @@ class _DragWrapperState extends ConsumerState<_DragWrapper>
           },
     );
     await _addLocalAgentReference(ref, item, widget.record);
+    AppLogger.d(
+      'Agent reference ready; strip=$stripMetadata watermark=${transform != null}',
+      'GalleryDrag',
+    );
 
     if (stripMetadata || transform != null) {
-      final prepared = await _prepareGalleryShare(stripMetadata, transform);
-      final transfer = GalleryDragFile(item: item, session: session);
-      if (!await transfer.addImage(prepared)) return null;
+      final preparation = _prepareGalleryShare(stripMetadata, transform);
+      if (item.virtualFileSupported) {
+        addGalleryVirtualImage(item, preparation);
+        AppLogger.d('Virtual image format ready', 'GalleryDrag');
+      } else {
+        final transfer = GalleryDragFile(item: item, session: session);
+        if (!await transfer.addImage(await preparation)) return null;
+      }
       return item;
     }
 
@@ -530,14 +563,8 @@ class _DragWrapperState extends ConsumerState<_DragWrapper>
       onExit: (_) => _forgetGalleryShare(),
       child: Listener(
         onPointerDown: (_) {
+          AppLogger.d('Pointer down', 'GalleryDrag');
           _warmGalleryShare(immediate: true);
-          setState(() => _isDragging = true);
-        },
-        onPointerUp: (_) {
-          setState(() => _isDragging = false);
-        },
-        onPointerCancel: (_) {
-          setState(() => _isDragging = false);
         },
         child: DragItemWidget(
           allowedOperations: () => [DropOperation.copy],
@@ -568,9 +595,17 @@ class _DragWrapperState extends ConsumerState<_DragWrapper>
             fallbackChild: child,
           ),
           child: DraggableWidget(
-            child: Opacity(
-              opacity: _isDragging ? widget.dragOpacity : 1.0,
+            onDragConfiguration: (configuration, session) {
+              AppLogger.d('Drag snapshot ready', 'GalleryDrag');
+              return configuration;
+            },
+            child: ValueListenableBuilder<bool>(
+              valueListenable: _dragSession,
               child: widget.child,
+              builder: (context, dragging, child) => Opacity(
+                opacity: dragging ? widget.dragOpacity : 1.0,
+                child: child,
+              ),
             ),
           ),
         ),

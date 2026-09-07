@@ -6,6 +6,7 @@ import 'dart:typed_data';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:image/image.dart' as img;
 import 'package:nai_launcher/core/utils/image_share_sanitizer.dart';
+import 'package:nai_launcher/core/utils/png_share_source.dart';
 import 'package:nai_launcher/data/services/metadata/unified_metadata_parser.dart';
 
 void main() {
@@ -103,6 +104,85 @@ void main() {
         },
       );
     }
+
+    test(
+      'clean pixels retain original IDAT while text and trailer are removed',
+      () async {
+        final image = img.Image(width: 8, height: 6, numChannels: 4);
+        image.clear(img.ColorRgba8(30, 60, 90, 254));
+        final clean = Uint8List.fromList(img.encodePng(image));
+        final text = UnifiedMetadataParser.embedTextChunkOnly(
+          clean,
+          'Comment',
+          'private prompt',
+        );
+        final source = Uint8List.fromList([
+          ...text,
+          ...utf8.encode('private trailer'),
+        ]);
+        final result = await ImageShareSanitizer.sanitizeForShare(
+          source,
+          fileName: 'clean.png',
+        );
+        expect(result.bytes, clean);
+      },
+    );
+
+    test(
+      'native sanitization preserves 16-bit colors and alpha high bits',
+      () async {
+        final image = img.Image(
+          width: 4,
+          height: 3,
+          numChannels: 4,
+          format: img.Format.uint16,
+        );
+        for (var y = 0; y < 3; y++) {
+          for (var x = 0; x < 4; x++) {
+            image.setPixelRgba(x, y, 32000 + x, 64000 + y, 12345, 65001 + x);
+          }
+        }
+        final result = await ImageShareSanitizer.sanitizeForShare(
+          Uint8List.fromList(img.encodePng(image)),
+          fileName: '16bit.png',
+        );
+        final decoded = img.decodePng(result.bytes)!;
+        expect(decoded.bitsPerChannel, 16);
+        for (var y = 0; y < 3; y++) {
+          for (var x = 0; x < 4; x++) {
+            final pixel = decoded.getPixel(x, y);
+            expect(
+              [pixel.r, pixel.g, pixel.b, pixel.a],
+              [32000 + x, 64000 + y, 12345, (65001 + x) & 0xfffe],
+            );
+          }
+        }
+      },
+    );
+
+    test(
+      'APNG retains every frame and duration while clearing alpha bits',
+      () async {
+        final first = img.Image(width: 4, height: 3, numChannels: 4)
+          ..frameDuration = 100
+          ..loopCount = 3;
+        first.clear(img.ColorRgba8(20, 40, 60, 255));
+        final second = img.Image(width: 4, height: 3, numChannels: 4)
+          ..frameDuration = 200;
+        second.clear(img.ColorRgba8(80, 100, 120, 253));
+        first.addFrame(second);
+        final result = await ImageShareSanitizer.sanitizeForShare(
+          Uint8List.fromList(img.encodePng(first)),
+          fileName: 'animation.png',
+        );
+        final decoded = img.decodePng(result.bytes)!;
+        expect(decoded.frames, hasLength(2));
+        expect(PngShareSource.parse(result.bytes).animationLoopCount, 3);
+        expect(decoded.frames.map((f) => f.frameDuration), [100, 200]);
+        expect(decoded.frames.map((f) => f.getPixel(0, 0).a), [254, 252]);
+        expect(decoded.frames.map((f) => f.getPixel(0, 0).r), [20, 80]);
+      },
+    );
 
     test('sanitizeForShare removes embedded ICC profile metadata', () async {
       const token = 'NAI_ICC_PROFILE_SENTINEL';

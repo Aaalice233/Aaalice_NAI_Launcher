@@ -5,8 +5,11 @@ import 'dart:isolate';
 
 import 'package:flutter/foundation.dart';
 import 'package:image/image.dart' as img;
+import 'package:nai_png_codec/nai_png_codec.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
+
+import 'png_share_source.dart';
 
 typedef ShareImagePrepareFunction =
     Future<SanitizedShareImage> Function(
@@ -563,7 +566,7 @@ class ImageShareSanitizer {
 
     final oriented = img.bakeOrientation(decoded);
     return SanitizedShareImage(
-      bytes: Uint8List.fromList(img.encodePng(_clearStealthAlphaLsb(oriented))),
+      bytes: _encodePng(_clearStealthAlphaLsb(oriented)),
       fileName: p.setExtension(p.basename(fileName), '.png'),
       mimeType: 'image/png',
     );
@@ -675,20 +678,22 @@ class ImageShareSanitizer {
   }
 
   static Uint8List _sanitizePng(Uint8List bytes) {
-    if (!_looksLikePng(bytes)) {
-      throw const ImageSanitizeException('PNG signature is missing');
-    }
-
-    final img.Image? decoded;
     try {
-      decoded = img.decodePng(bytes);
-    } on Object {
-      throw const ImageSanitizeException('PNG bytes could not be decoded');
+      final source = PngShareSource.parse(bytes);
+      if (!source.isAnimated) return sanitizePngPixels(source.bytes);
+      // libspng handles still PNG. APNG keeps its full frame/timing model.
+      final decoded = img.decodePng(source.bytes);
+      if (decoded == null) {
+        throw const FormatException('APNG bytes could not be decoded');
+      }
+      // The Dart decoder does not restore acTL's loop count onto Image.
+      decoded.loopCount = source.animationLoopCount!;
+      return Uint8List.fromList(
+        img.encodePng(_clearStealthAlphaLsb(decoded), level: 1),
+      );
+    } on FormatException catch (error) {
+      throw ImageSanitizeException(error.message.toString());
     }
-    if (decoded == null) {
-      throw const ImageSanitizeException('PNG bytes could not be decoded');
-    }
-    return Uint8List.fromList(img.encodePng(_clearStealthAlphaLsb(decoded)));
   }
 
   static Future<SanitizedShareImage> _normalizeWithoutProtection(
@@ -733,17 +738,15 @@ class ImageShareSanitizer {
     };
   }
 
-  static bool _looksLikePng(Uint8List bytes) {
-    const signature = <int>[137, 80, 78, 71, 13, 10, 26, 10];
-    if (bytes.length < signature.length) {
-      return false;
+  static Uint8List _encodePng(img.Image image) {
+    if (!image.hasAnimation && image.bitsPerChannel == 8) {
+      return encodePngRgba(
+        image.getBytes(order: img.ChannelOrder.rgba),
+        image.width,
+        image.height,
+      );
     }
-    for (var i = 0; i < signature.length; i++) {
-      if (bytes[i] != signature[i]) {
-        return false;
-      }
-    }
-    return true;
+    return Uint8List.fromList(img.encodePng(image, level: 1));
   }
 
   static img.Image _clearStealthAlphaLsb(img.Image image) {
@@ -758,7 +761,8 @@ class ImageShareSanitizer {
     frame.iccProfile = null;
     if (!frame.hasPalette) {
       for (final pixel in frame) {
-        pixel.a = pixel.a.toInt() & 0xFE;
+        pixel.a =
+            pixel.a.toInt() & (frame.bitsPerChannel == 16 ? 0xFFFE : 0xFE);
       }
       return;
     }

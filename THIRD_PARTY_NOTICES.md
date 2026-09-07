@@ -1,5 +1,13 @@
 # Third-Party Notices
 
+## Native PNG Sanitization
+
+The local `nai_png_codec` package bundles libspng 0.7.4 (BSD-2-Clause and
+libpng-2.0) and miniz 3.0.2 (MIT). Complete license texts are retained in
+`packages/nai_png_codec/LICENSE` and the original source directories. Source URLs
+and SHA-256 hashes are pinned in `packages/nai_png_codec/source_lock.json`.
+The codec is built locally for each target; no runtime download is required.
+
 ## Model and Provider Icons
 
 Model family and provider logos are bundled from [Lobe Icons](https://github.com/lobehub/lobe-icons),

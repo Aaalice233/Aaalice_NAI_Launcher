@@ -58,6 +58,8 @@ dependencies:
 
   # 图片处理
   image: ^4.1.7
+  nai_png_codec:
+    path: packages/nai_png_codec
 
   # 拖拽功能
   super_clipboard: ^0.9.1

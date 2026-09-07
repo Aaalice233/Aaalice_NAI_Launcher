@@ -1068,6 +1068,21 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.0.1"
+  nai_png_codec:
+    dependency: "direct main"
+    description:
+      path: "packages/nai_png_codec"
+      relative: true
+    source: path
+    version: "0.1.0"
+  native_toolchain_c:
+    dependency: transitive
+    description:
+      name: native_toolchain_c
+      sha256: f9c168717100ae6d9fee9ffb0be379bf1f8b26b0f6bcbd4fdddcd931993a6a72
+      url: "https://pub.dev"
+    source: hosted
+    version: "0.19.2"
   objective_c:
     dependency: transitive
     description:

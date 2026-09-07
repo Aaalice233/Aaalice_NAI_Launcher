@@ -84,7 +84,7 @@ void main() {
       Map<String, dynamic>? pollBody;
       when(() => secureStorage.write(any(), any())).thenAnswer((_) async {});
       when(
-        () => dio.post<Object?>(
+        () => dio.post<dynamic>(
           '/v1/oauth/result',
           data: any(named: 'data'),
           options: any(named: 'options'),
@@ -137,7 +137,7 @@ void main() {
 
   test('maps OAuth polling transport failures to a domain error', () async {
     when(
-      () => dio.post<Object?>(
+      () => dio.post<dynamic>(
         '/v1/oauth/result',
         data: any(named: 'data'),
         options: any(named: 'options'),
@@ -172,7 +172,7 @@ void main() {
   test('clears an expired session after relay rejection', () async {
     when(() => secureStorage.delete(any())).thenAnswer((_) async {});
     when(
-      () => dio.get<Object?>('/v1/session', options: any(named: 'options')),
+      () => dio.get<dynamic>('/v1/session', options: any(named: 'options')),
     ).thenAnswer(
       (_) async => Response(
         requestOptions: RequestOptions(path: '/v1/session'),
@@ -198,7 +198,7 @@ void main() {
 
   test('loads valid selectable Discord targets', () async {
     when(
-      () => dio.get<Object?>('/v1/targets', options: any(named: 'options')),
+      () => dio.get<dynamic>('/v1/targets', options: any(named: 'options')),
     ).thenAnswer(
       (_) async => Response(
         requestOptions: RequestOptions(path: '/v1/targets'),
@@ -275,7 +275,7 @@ void main() {
     () async {
       FormData? captured;
       when(
-        () => dio.post<Object?>(
+        () => dio.post<dynamic>(
           '/v1/share',
           data: any(named: 'data'),
           options: any(named: 'options'),
@@ -332,7 +332,7 @@ void main() {
       'HTTP 429 without a business code remains rate limited: $payload',
       () async {
         when(
-          () => dio.post<Object?>(
+          () => dio.post<dynamic>(
             '/v1/share',
             data: any(named: 'data'),
             options: any(named: 'options'),
@@ -363,7 +363,7 @@ void main() {
 
   test('invalid Retry-After falls back to the valid payload delay', () async {
     when(
-      () => dio.post<Object?>(
+      () => dio.post<dynamic>(
         '/v1/share',
         data: any(named: 'data'),
         options: any(named: 'options'),
@@ -392,7 +392,7 @@ void main() {
 
   test('uses Retry-After from a relay 429 response', () async {
     when(
-      () => dio.post<Object?>(
+      () => dio.post<dynamic>(
         '/v1/share',
         data: any(named: 'data'),
         options: any(named: 'options'),
@@ -431,7 +431,7 @@ void main() {
     () async {
       final response = Completer<Response<Map<String, dynamic>>>();
       when(
-        () => dio.post<Object?>(
+        () => dio.post<dynamic>(
           '/v1/share',
           data: any(named: 'data'),
           options: any(named: 'options'),
@@ -464,7 +464,7 @@ void main() {
       await first;
 
       verify(
-        () => dio.post<Object?>(
+        () => dio.post<dynamic>(
           '/v1/share',
           data: any(named: 'data'),
           options: any(named: 'options'),
@@ -476,7 +476,7 @@ void main() {
   test('releases the concurrent-share guard after a failed request', () async {
     var attempts = 0;
     when(
-      () => dio.post<Object?>(
+      () => dio.post<dynamic>(
         '/v1/share',
         data: any(named: 'data'),
         options: any(named: 'options'),

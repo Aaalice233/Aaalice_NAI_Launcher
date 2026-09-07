@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:nai_launcher/data/datasources/remote/nai_image_generation_api_service.dart';
 import 'package:nai_launcher/data/models/image/image_params.dart';
+import 'package:nai_launcher/data/models/image/image_postprocess_phase.dart';
 import 'package:nai_launcher/presentation/providers/generation/generation_command.dart';
 import 'package:nai_launcher/presentation/providers/generation/image_generation_coordinator.dart';
 
@@ -37,11 +38,13 @@ void main() {
             processed++;
             expect(bytes, same(original));
             expect(coordinator.isPostprocessing, isTrue);
+            onPhase(ImagePostprocessPhase.enhancing);
             if (scenario == 'cancel') {
               coordinator.cancel(handle);
               await cancelled;
             }
             if (scenario != 'success') throw StateError('NR $scenario');
+            onPhase(ImagePostprocessPhase.finalizing);
             return enhanced;
           },
           onPostprocessError: errors.add,
@@ -57,6 +60,17 @@ void main() {
         handle = coordinator.start(command);
         final events = await coordinator.execute(command, handle).toList();
         final result = events.whereType<GenerationRequestCompleted>().single;
+        expect(
+          events.whereType<GenerationPostprocessChanged>().map((e) => e.phase),
+          [
+            if (scenario != 'cancel') ...[
+              ImagePostprocessPhase.preparing,
+              ImagePostprocessPhase.enhancing,
+              if (scenario == 'success') ImagePostprocessPhase.finalizing,
+            ],
+          ],
+        );
+        expect(result.postprocessErrors.isEmpty, scenario != 'failure');
         expect(
           result.images.single,
           same(scenario == 'success' ? enhanced : original),
