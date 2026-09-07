@@ -104,6 +104,71 @@ void main() {
     expect(metadata['logs'], ['app.log']);
   });
 
+  test(
+    'exports only projected audit events from the support directory',
+    () async {
+      final agentDirectory = await Directory(
+        p.join(tempDirectory.path, 'agent'),
+      ).create();
+      final audit = File(p.join(agentDirectory.path, 'audit-v1.jsonl'));
+      await audit.writeAsString(
+        '${jsonEncode({
+          'id': 'call.secret-user-text.result',
+          'timestamp': '2026-09-06T13:37:00Z',
+          'result': 'allow',
+          'summary': 'interrogate_image completed',
+          'error': r'Lists and byte payloads are not allowed at $.references '
+              'Bearer secret-token C:/Users/private/image.png private chat text',
+          'messages': ['private chat text'],
+          'image': 'private image bytes',
+        })}\n{"partial":"secret-token',
+      );
+      await File(
+        p.join(agentDirectory.path, 'session.jsonl'),
+      ).writeAsString('private chat text');
+      late Uint8List bytes;
+      final service = DiagnosticLogExportService(
+        loadLogFiles: () async => [],
+        loadCrashFiles: () async => [],
+        flushLogs: () async {},
+        diagnosticsMetadata: () => 'test',
+        exportArchive: (path, _, _) async {
+          bytes = await File(path).readAsBytes();
+          return true;
+        },
+      );
+      expect(
+        (await service.export(dialogTitle: 'Export')).status,
+        DiagnosticLogExportStatus.exported,
+      );
+      final archive = ZipDecoder().decodeBytes(bytes);
+      expect(
+        archive.files.map((file) => file.name),
+        unorderedEquals(['logs/audit-v1.jsonl', 'diagnostics.json']),
+      );
+      final text = utf8.decode(
+        archive.findFile('logs/audit-v1.jsonl')!.content as List<int>,
+      );
+      final records = const LineSplitter()
+          .convert(text)
+          .map(jsonDecode)
+          .toList();
+      expect(records.first['summary'], 'interrogate_image completed');
+      expect(records.first['result'], 'allow');
+      expect(records.first['errorCategory'], 'resource_reference');
+      expect(records.last['diagnostic'], 'invalid_or_incomplete_audit_record');
+      for (final secret in [
+        'secret-user-text',
+        'secret-token',
+        'private',
+        'messages',
+      ]) {
+        expect(text, isNot(contains(secret)));
+      }
+      expect(await audit.readAsString(), contains('secret-token'));
+    },
+  );
+
   test('bounds exported bytes and keeps the newest tail of each log', () async {
     final newer = File(p.join(tempDirectory.path, 'app_newer.log'));
     final older = File(p.join(tempDirectory.path, 'app_older.log'));
@@ -308,4 +373,7 @@ class _TestPathProviderPlatform extends PathProviderPlatform {
 
   @override
   Future<String?> getTemporaryPath() async => temporaryPath;
+
+  @override
+  Future<String?> getApplicationSupportPath() async => temporaryPath;
 }

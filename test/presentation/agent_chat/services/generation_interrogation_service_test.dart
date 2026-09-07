@@ -9,10 +9,16 @@ import 'package:mocktail/mocktail.dart';
 import 'package:nai_launcher/core/agent/agent_types.dart';
 import 'package:nai_launcher/core/agent/resources/agent_chat_resource_reference.dart';
 import 'package:nai_launcher/core/agent/resources/agent_chat_resource_reference_codec.dart';
+import 'package:nai_launcher/core/agent/resources/agent_chat_resource_draft_store.dart';
+import 'package:nai_launcher/core/agent/validate_tool_arguments.dart';
 import 'package:nai_launcher/core/storage/local_storage_service.dart';
 import 'package:nai_launcher/core/storage/secure_storage_service.dart';
 import 'package:nai_launcher/data/models/agent/agent_settings.dart';
+import 'package:nai_launcher/data/models/precise_ref/precise_ref_library_entry.dart';
+import 'package:nai_launcher/data/services/precise_ref_library_storage_service.dart';
 import 'package:nai_launcher/presentation/agent_chat/services/agent_resource_resolver.dart';
+import 'package:nai_launcher/presentation/agent_chat/services/agent_chat_draft_controller.dart';
+import 'package:nai_launcher/presentation/agent_chat/providers/agent_chat_state.dart';
 import 'package:nai_launcher/presentation/agent_chat/services/generation_toolbox.dart';
 import 'package:nai_launcher/presentation/agent_settings/providers/agent_settings_provider.dart';
 import 'package:nai_launcher/presentation/prompt_assistant/models/prompt_assistant_models.dart';
@@ -21,6 +27,9 @@ import 'package:nai_launcher/presentation/prompt_assistant/services/prompt_assis
 import 'package:nai_launcher/presentation/prompt_assistant/services/prompt_assistant_service.dart';
 
 class _Dio extends Mock implements Dio {}
+
+class _ReferenceStorage extends Mock
+    implements PreciseRefLibraryStorageService {}
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -44,6 +53,20 @@ void main() {
   setUp(() async {
     final temporaryRoot = await Directory('tool/.tmp').create(recursive: true);
     root = await temporaryRoot.createTemp('agent-interrogation-test-');
+    final libraryFile = await File(
+      '${root.path}/library.png',
+    ).writeAsBytes(png);
+    final library = _ReferenceStorage();
+    when(() => library.getAllEntries()).thenAnswer(
+      (_) async => [
+        PreciseRefLibraryEntry(
+          id: 'library-image',
+          name: 'Reference image',
+          imagePath: libraryFile.path,
+          createdAt: DateTime(2026),
+        ),
+      ],
+    );
     requests = [];
     final dio = _Dio();
     when(
@@ -71,6 +94,7 @@ void main() {
     });
     container = ProviderContainer(
       overrides: [
+        preciseRefLibraryStorageServiceProvider.overrideWithValue(library),
         localStorageServiceProvider.overrideWithValue(_MemoryStorage()),
         secureStorageServiceProvider.overrideWithValue(_SecureStorage()),
         promptAssistantDioProvider.overrideWithValue(dio),
@@ -135,6 +159,56 @@ void main() {
     await root.delete(recursive: true);
   });
 
+  test('composer resource_ref reaches interrogation unchanged', () async {
+    final draft = AgentChatDraftController(
+      resourceStore: AgentChatResourceDraftStore(
+        File('${root.path}/draft.json'),
+      ),
+      localStorage: _MemoryStorage(),
+      readState: () => const AgentChatState(),
+      writeState: (_) {},
+      createResourceResolver: () => throw StateError('No preview needed'),
+      isMounted: () => true,
+    );
+    final envelope = draft.promptEnvelope(
+      UserMessage(
+        content: [const UserTextContent('Describe this image')],
+        timestamp: 1,
+      ),
+      references: [
+        AgentChatResourceReference(
+          kind: AgentChatResourceKind.preciseRefLibraryEntry,
+          source: 'precise_ref_library',
+          resourceId: 'library-image',
+        ),
+      ],
+    );
+    final prefix = (envelope.blockContent!.first as UserTextContent).text;
+    final payload = jsonDecode(prefix.split('\n')[1]) as Map;
+    final entry = (payload['references'] as List).single as Map;
+    expect(entry['available'], isTrue);
+    final args = <String, dynamic>{'resource_ref': entry['resource_ref']};
+    validateToolArguments(
+      tool,
+      ToolCallContent(id: 'selected', name: tool.name, arguments: args),
+    );
+    expect((await tool.execute('selected', args)).isError, isFalse);
+    expect(requests, hasLength(1));
+    for (final invalid in [payload, entry]) {
+      expect(
+        () => validateToolArguments(
+          tool,
+          ToolCallContent(
+            id: 'invalid',
+            name: tool.name,
+            arguments: {'resource_ref': invalid},
+          ),
+        ),
+        throwsFormatException,
+      );
+    }
+  });
+
   for (final source in ['attachment', 'resource', 'path']) {
     test(
       '$source reaches the vision adapter with the selected image bytes',
@@ -177,6 +251,14 @@ void main() {
     {'attachment_index': 1, 'path': 'test.png'},
     {
       'resource_ref': {'kind': 'invalid'},
+    },
+    {
+      'resource_ref': {
+        'schemaVersion': 1,
+        'references': [
+          AgentChatResourceReferenceCodec.encodeJsonMap(reference),
+        ],
+      },
     },
     {
       'resource_ref': AgentChatResourceReferenceCodec.encodeJsonMap(
