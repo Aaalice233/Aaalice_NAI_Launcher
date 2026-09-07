@@ -207,7 +207,6 @@ class _RenderGenerationControlsLayout extends RenderBox
   static const double _itemSpacing = 2;
   static const double _primarySpacing = 8;
   static const double _runSpacing = 8;
-  static const double _minimumPrimaryWidth = 160;
 
   @override
   void setupParentData(RenderBox child) {
@@ -248,10 +247,15 @@ class _RenderGenerationControlsLayout extends RenderBox
       return;
     }
 
+    // 主按钮的标签不会收缩，压窄就溢出。先用无界约束量出它真正需要的宽度，
+    // 只有连这点宽度都留不出时才换行；固定下限会在大字号下裁掉标签。
+    primaryChild.layout(const BoxConstraints(), parentUsesSize: true);
+    final minimumPrimaryWidth = primaryChild.size.width;
+
     final leftWidth = _groupWidth(left);
     final rightWidth = _groupWidth(right);
     final naturalWidth =
-        leftWidth + rightWidth + _minimumPrimaryWidth + _primarySpacing * 2;
+        leftWidth + rightWidth + minimumPrimaryWidth + _primarySpacing * 2;
     final layoutWidth = constraints.hasBoundedWidth
         ? constraints.maxWidth
         : naturalWidth;
@@ -302,25 +306,32 @@ class _RenderGenerationControlsLayout extends RenderBox
     List<RenderBox> right,
     double width,
   ) {
-    _position(primary, 0, 0);
-    if (left.isEmpty && right.isEmpty) return primary.size.height;
-    var y = primary.size.height + _runSpacing;
+    if (left.isEmpty && right.isEmpty) {
+      _position(primary, 0, 0);
+      return primary.size.height;
+    }
+
+    // 主按钮排在操作图标之后，换行后仍留在控制条最下方，与单行版式位置一致。
     final leftWidth = _groupWidth(left);
     final rightWidth = _groupWidth(right);
+    final double actionsBottom;
     if (leftWidth + rightWidth + _primarySpacing <= width) {
       final height = [...left, ...right].fold<double>(
         0,
         (maximum, action) =>
             action.size.height > maximum ? action.size.height : maximum,
       );
-      _positionGroup(left, 0, height, y: y);
-      _positionGroup(right, width - rightWidth, height, y: y);
-      return y + height;
+      _positionGroup(left, 0, height);
+      _positionGroup(right, width - rightWidth, height);
+      actionsBottom = height;
+    } else {
+      var y = _layoutGroupRuns(left, width, 0, alignRight: false);
+      if (left.isNotEmpty && right.isNotEmpty) y += _runSpacing;
+      actionsBottom = _layoutGroupRuns(right, width, y, alignRight: true);
     }
 
-    y = _layoutGroupRuns(left, width, y, alignRight: false);
-    if (left.isNotEmpty && right.isNotEmpty) y += _runSpacing;
-    return _layoutGroupRuns(right, width, y, alignRight: true);
+    _position(primary, 0, actionsBottom + _runSpacing);
+    return actionsBottom + _runSpacing + primary.size.height;
   }
 
   double _layoutGroupRuns(
@@ -368,84 +379,13 @@ class _RenderGenerationControlsLayout extends RenderBox
 
   @override
   Size computeDryLayout(BoxConstraints constraints) {
-    final availableWidth = constraints.hasBoundedWidth
-        ? constraints.maxWidth
-        : 100000.0;
-    final actionConstraints = BoxConstraints(maxWidth: availableWidth);
-    final left = <Size>[];
-    final right = <Size>[];
-    RenderBox? primaryChild;
-
-    RenderBox? child = firstChild;
-    while (child != null) {
-      final parentData = child.parentData! as _GenerationControlsParentData;
-      switch (parentData.group) {
-        case _GenerationControlGroup.left:
-          final childSize = child.getDryLayout(actionConstraints);
-          if (!childSize.isEmpty) left.add(childSize);
-        case _GenerationControlGroup.primary:
-          primaryChild = child;
-        case _GenerationControlGroup.right:
-          final childSize = child.getDryLayout(actionConstraints);
-          if (!childSize.isEmpty) right.add(childSize);
-      }
-      child = parentData.nextSibling;
-    }
-
-    if (primaryChild == null) return constraints.smallest;
-    final leftWidth = _dryGroupWidth(left);
-    final rightWidth = _dryGroupWidth(right);
-    final singleRowWidth =
-        leftWidth + rightWidth + _minimumPrimaryWidth + _primarySpacing * 2;
-    final width = constraints.hasBoundedWidth
-        ? constraints.maxWidth
-        : singleRowWidth;
-    final useSingleRow = singleRowWidth <= width;
-    final primaryWidth = useSingleRow
-        ? width - leftWidth - rightWidth - _primarySpacing * 2
-        : width;
-    final primarySize = primaryChild.getDryLayout(
-      BoxConstraints.tightFor(width: primaryWidth),
+    // 主按钮内部的 ThemedButton 用 LayoutBuilder 决定标签能否收缩，无法参与 dry layout。
+    assert(
+      debugCannotComputeDryLayout(
+        reason: '主按钮内部的 LayoutBuilder 不支持 dry layout',
+      ),
     );
-    if (useSingleRow) {
-      final height = [...left, primarySize, ...right].fold<double>(
-        0,
-        (maximum, childSize) =>
-            childSize.height > maximum ? childSize.height : maximum,
-      );
-      return constraints.constrain(Size(width, height));
-    }
-
-    final leftAndRightFit = leftWidth + rightWidth + _primarySpacing <= width;
-    if (leftAndRightFit) {
-      final actionsHeight = [...left, ...right].fold<double>(
-        0,
-        (maximum, action) => action.height > maximum ? action.height : maximum,
-      );
-      return constraints.constrain(
-        Size(width, primarySize.height + _runSpacing + actionsHeight),
-      );
-    }
-    var height = primarySize.height;
-    if (left.isNotEmpty) {
-      height += _runSpacing + _dryRunsHeight(left, width);
-    }
-    if (right.isNotEmpty) {
-      height += _runSpacing + _dryRunsHeight(right, width);
-    }
-    return constraints.constrain(Size(width, height));
-  }
-
-  double _dryRunsHeight(List<Size> children, double width) {
-    final runs = _buildRuns<Size>(children, width, (child) => child.width);
-    return runs.fold<double>(0, (height, run) {
-          final runHeight = run.fold<double>(
-            0,
-            (maximum, child) => child.height > maximum ? child.height : maximum,
-          );
-          return height + runHeight;
-        }) +
-        _runSpacing * (runs.length - 1);
+    return Size.zero;
   }
 
   List<List<T>> _buildRuns<T>(
@@ -473,12 +413,6 @@ class _RenderGenerationControlsLayout extends RenderBox
     }
     if (run.isNotEmpty) runs.add(run);
     return runs;
-  }
-
-  double _dryGroupWidth(List<Size> children) {
-    if (children.isEmpty) return 0;
-    return children.fold<double>(0, (sum, child) => sum + child.width) +
-        _itemSpacing * (children.length - 1);
   }
 
   @override

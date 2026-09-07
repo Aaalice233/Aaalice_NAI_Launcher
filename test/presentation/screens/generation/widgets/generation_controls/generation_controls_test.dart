@@ -97,8 +97,9 @@ void main() {
 
       for (final scenario in const [
         (width: 320.0, textScale: 1.0, singleLine: false),
-        (width: 438.0, textScale: 1.0, singleLine: false),
-        (width: 475.0, textScale: 1.0, singleLine: false),
+        (width: 400.0, textScale: 1.0, singleLine: true),
+        (width: 438.0, textScale: 1.0, singleLine: true),
+        (width: 475.0, textScale: 1.0, singleLine: true),
         (width: 497.0, textScale: 1.0, singleLine: true),
         (width: 590.0, textScale: 1.0, singleLine: true),
         (width: 700.0, textScale: 1.0, singleLine: true),
@@ -229,7 +230,14 @@ void main() {
             closeTo(footerRect.right, 0.01),
             reason: reason,
           );
-          expect(primaryRect.width, greaterThanOrEqualTo(160), reason: reason);
+          // 主按钮不再有固定下限，下限即自身内容宽度：标签必须完整落在按钮内。
+          final labelRect = tester.getRect(find.text('生成'));
+          expect(
+            primaryRect.inflate(0.01).contains(labelRect.topLeft) &&
+                primaryRect.inflate(0.01).contains(labelRect.bottomRight),
+            isTrue,
+            reason: '$reason 主按钮被压到放不下标签',
+          );
         } else {
           expect(
             primaryRect.left,
@@ -243,9 +251,9 @@ void main() {
           );
           for (final rect in actionRects) {
             expect(
-              rect.top,
-              greaterThanOrEqualTo(primaryRect.bottom + 7.9),
-              reason: '$reason did not use the centered layered layout',
+              primaryRect.top,
+              greaterThanOrEqualTo(rect.bottom + 7.9),
+              reason: '$reason 主按钮换行后没有排在操作图标下方',
             );
           }
           if (scenario.textScale == 1 && scenario.width >= 438) {
@@ -340,6 +348,36 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets(
+    'large-text batch controls keep cancel and skip reachable at each width',
+    (tester) async {
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      for (final width in [320.0, 475.0, 600.0, 840.0, 1180.0, 1600.0]) {
+        final notifier = await _pumpLargeTextBatchControls(tester, width);
+        notifier.setBatchGenerating();
+        await tester.pumpAndSettle();
+        expect(tester.takeException(), isNull, reason: 'width=$width');
+        final primary = tester.getRect(
+          find.byKey(const ValueKey('generation-footer-primary-action')),
+        );
+        final bounds = tester.getRect(
+          find.byKey(const ValueKey('generation-footer-adaptive-layout')),
+        );
+        expect(bounds.inflate(0.01).contains(primary.topLeft), isTrue);
+        expect(bounds.inflate(0.01).contains(primary.bottomRight), isTrue);
+        final skip = find.text('跳过当前批次 1/2');
+        expect(skip.hitTestable(), findsOneWidget);
+        expect(find.text('取消').hitTestable(), findsOneWidget);
+        await tester.tap(skip);
+        expect(notifier.skipCount, 1);
+        await tester.tap(find.text('取消'));
+        expect(notifier.cancelCount, 1);
+        await tester.pumpAndSettle();
+        expect(tester.takeException(), isNull, reason: 'width=$width');
+        await tester.pumpWidget(const SizedBox.shrink());
+      }
+    },
+  );
   testWidgets('preparing footer offers a cancel entry instead of a dead tap', (
     tester,
   ) async {
@@ -577,6 +615,199 @@ void main() {
     expect(find.text('LOGIN_SCREEN_OPENED'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets('Opus 配额徽章出现时不把生成按钮挤到单独一行', (tester) async {
+    final storage = _MemoryLocalStorageService({
+      StorageKeys.autoSaveImages: false,
+      StorageKeys.showRandomPromptTools: true,
+    });
+
+    for (final width in const [497.0, 520.0, 590.0]) {
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            authNotifierProvider.overrideWith(_AuthenticatedAuthNotifier.new),
+            localStorageServiceProvider.overrideWith((ref) => storage),
+            kritaBridgeNotifierProvider.overrideWith(
+              (ref) => _TestKritaBridgeNotifier(),
+            ),
+            replicationQueueNotifierProvider.overrideWith(
+              _TestReplicationQueueNotifier.new,
+            ),
+            queueExecutionNotifierProvider.overrideWith(
+              _TestQueueExecutionNotifier.new,
+            ),
+            subscriptionNotifierProvider.overrideWith(
+              _OpusSubscriptionNotifier.new,
+            ),
+            estimatedCostProvider.overrideWith((ref) => 0),
+            isFreeGenerationProvider.overrideWith((ref) => true),
+          ],
+          child: MaterialApp(
+            locale: const Locale('zh'),
+            supportedLocales: AppLocalizations.supportedLocales,
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            home: Scaffold(
+              body: SizedBox(
+                width: width,
+                height: 240,
+                child: const GenerationControls(compact: true),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+
+      final reason = 'width=$width';
+      final primaryRect = tester.getRect(
+        find.byKey(const ValueKey('generation-footer-primary-action')),
+      );
+      final opusRect = tester.getRect(find.byType(OpusUsageChip));
+      final anlasRect = tester.getRect(find.byType(AnlasBalanceChip));
+
+      expect(opusRect.width, greaterThan(0), reason: reason);
+      expect(
+        anlasRect.center.dy,
+        closeTo(primaryRect.center.dy, 0.01),
+        reason: '$reason 生成按钮被挤到单独一行',
+      );
+      expect(anlasRect.right, lessThan(primaryRect.left), reason: reason);
+      expect(find.text('生成'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    }
+  });
+
+  testWidgets('官网式左栏宽度换行时生成按钮仍排在操作图标下方', (tester) async {
+    final storage = _MemoryLocalStorageService({
+      StorageKeys.autoSaveImages: false,
+      StorageKeys.showRandomPromptTools: true,
+    });
+
+    // 官网式左栏可拖 320~560、默认 400；带 Opus 徽章时这一段放不下单行。
+    for (final width in const [320.0, 360.0, 400.0]) {
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            authNotifierProvider.overrideWith(_AuthenticatedAuthNotifier.new),
+            localStorageServiceProvider.overrideWith((ref) => storage),
+            kritaBridgeNotifierProvider.overrideWith(
+              (ref) => _TestKritaBridgeNotifier(),
+            ),
+            replicationQueueNotifierProvider.overrideWith(
+              _TestReplicationQueueNotifier.new,
+            ),
+            queueExecutionNotifierProvider.overrideWith(
+              _TestQueueExecutionNotifier.new,
+            ),
+            subscriptionNotifierProvider.overrideWith(
+              _OpusSubscriptionNotifier.new,
+            ),
+            estimatedCostProvider.overrideWith((ref) => 0),
+            isFreeGenerationProvider.overrideWith((ref) => true),
+          ],
+          child: MaterialApp(
+            locale: const Locale('zh'),
+            supportedLocales: AppLocalizations.supportedLocales,
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            home: Scaffold(
+              body: SizedBox(
+                width: width,
+                height: 240,
+                child: const GenerationControls(compact: true),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+
+      final reason = 'width=$width';
+      final primaryRect = tester.getRect(
+        find.byKey(const ValueKey('generation-footer-primary-action')),
+      );
+      final actionRects = <Finder>[
+        find.byType(OpusUsageChip),
+        find.byType(AnlasBalanceChip),
+        find.byType(RandomModeToggle),
+        find.byType(AutoSaveToggleChip),
+        find.byType(DraggableNumberInput),
+        find.byType(BatchSettingsButton),
+      ].map(tester.getRect).toList();
+
+      for (final rect in actionRects) {
+        expect(
+          primaryRect.top,
+          greaterThanOrEqualTo(rect.bottom),
+          reason: '$reason 生成按钮排到了操作图标上方',
+        );
+      }
+      expect(find.text('生成'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    }
+  });
+}
+
+Future<_TestImageGenerationNotifier> _pumpLargeTextBatchControls(
+  WidgetTester tester,
+  double width,
+) async {
+  await tester.binding.setSurfaceSize(Size(width, 900));
+  final storage = _MemoryLocalStorageService({
+    StorageKeys.autoSaveImages: false,
+    StorageKeys.showRandomPromptTools: true,
+  });
+  final container = ProviderContainer(
+    overrides: [
+      authNotifierProvider.overrideWith(_AuthenticatedAuthNotifier.new),
+      imageGenerationNotifierProvider.overrideWith(
+        _TestImageGenerationNotifier.new,
+      ),
+      localStorageServiceProvider.overrideWith((ref) => storage),
+      kritaBridgeNotifierProvider.overrideWith(
+        (ref) => _TestKritaBridgeNotifier(),
+      ),
+      replicationQueueNotifierProvider.overrideWith(
+        _TestReplicationQueueNotifier.new,
+      ),
+      queueExecutionNotifierProvider.overrideWith(
+        _TestQueueExecutionNotifier.new,
+      ),
+      subscriptionNotifierProvider.overrideWith(_TestSubscriptionNotifier.new),
+      estimatedCostProvider.overrideWith((ref) => 0),
+      isFreeGenerationProvider.overrideWith((ref) => true),
+    ],
+  );
+  addTearDown(container.dispose);
+  await tester.pumpWidget(
+    UncontrolledProviderScope(
+      container: container,
+      child: MaterialApp(
+        builder: (context, child) => MediaQuery(
+          data: MediaQuery.of(
+            context,
+          ).copyWith(textScaler: const TextScaler.linear(3)),
+          child: child!,
+        ),
+        locale: const Locale('zh'),
+        supportedLocales: AppLocalizations.supportedLocales,
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        home: Scaffold(
+          body: Align(
+            alignment: Alignment.topLeft,
+            child: SizedBox(
+              width: width,
+              height: 800,
+              child: const GenerationControls(compact: true),
+            ),
+          ),
+        ),
+      ),
+    ),
+  );
+  await tester.pump();
+  return container.read(imageGenerationNotifierProvider.notifier)
+      as _TestImageGenerationNotifier;
 }
 
 class _AuthenticatedAuthNotifier extends AuthNotifier {
@@ -591,6 +822,20 @@ class _UnauthenticatedAuthNotifier extends AuthNotifier {
 
 class _TestImageGenerationNotifier extends ImageGenerationNotifier {
   int cancelCount = 0;
+  int skipCount = 0;
+
+  void setBatchGenerating() {
+    state = const ImageGenerationState(
+      status: GenerationStatus.generating,
+      currentImage: 1,
+      totalImages: 2,
+    );
+  }
+
+  @override
+  void skipCurrentRequest() {
+    skipCount++;
+  }
 
   @override
   ImageGenerationState build() => const ImageGenerationState();
@@ -650,6 +895,19 @@ class _TestSubscriptionNotifier extends SubscriptionNotifier {
       tier: 1,
       active: true,
       trainingStepsLeft: TrainingStepsInfo(fixedTrainingStepsLeft: 7384),
+    ),
+  );
+}
+
+/// tier 3 且带配额，才会让 Opus 徽章真正占位（默认模型 V5 有配额上限）。
+class _OpusSubscriptionNotifier extends SubscriptionNotifier {
+  @override
+  SubscriptionState build() => const SubscriptionState.loaded(
+    UserSubscription(
+      tier: 3,
+      active: true,
+      trainingStepsLeft: TrainingStepsInfo(fixedTrainingStepsLeft: 7384),
+      usage: OpusUsageInfo(percent: 67),
     ),
   );
 }
