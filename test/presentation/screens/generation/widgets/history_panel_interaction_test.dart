@@ -5,6 +5,8 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:image/image.dart' as img;
+import 'package:nai_launcher/core/utils/image_share_sanitizer.dart';
+import 'package:nai_launcher/presentation/providers/copy_drag_watermark_provider.dart';
 import 'package:nai_launcher/core/shortcuts/shortcut_config.dart';
 import 'package:nai_launcher/core/storage/local_storage_service.dart';
 import 'package:nai_launcher/data/models/image/image_stream_chunk.dart';
@@ -23,6 +25,28 @@ import 'package:nai_launcher/presentation/widgets/common/workspace_panel_header.
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+
+  testWidgets('watermark preheat excludes offscreen history', (tester) async {
+    final service = _RecordingSharePreparation();
+    final container = _createContainer(
+      List.generate(20, (i) => _image('preheat-$i')),
+      transform: ShareImageTransform(
+        cacheKey: 'synthetic',
+        apply: (image, {required stripMetadata}) async => image,
+      ),
+    );
+    addTearDown(container.dispose);
+    await tester.pumpWidget(
+      _historyApp(container, preparationService: service),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 800));
+    expect(service.enqueued, isNotEmpty);
+    expect(service.enqueued.length, lessThan(20));
+    expect(service.enqueued, isNot(contains('preheat-19')));
+    await tester.pumpWidget(const SizedBox.shrink());
+    service.dispose();
+  });
 
   testWidgets('历史记录使用统一面板顶栏且收起按钮贴齐左侧', (tester) async {
     final container = _createContainer([_image('header-alignment')]);
@@ -474,9 +498,12 @@ ProviderContainer _createContainer(
   HistoryClickBehavior behavior = HistoryClickBehavior.openDetail,
   List<GeneratedImage> currentImages = const [],
   GenerationStatus status = GenerationStatus.idle,
+  ShareImageTransform? transform,
 }) {
   final container = ProviderContainer(
     overrides: [
+      if (transform != null)
+        copyDragWatermarkProvider.overrideWithValue(transform),
       localStorageServiceProvider.overrideWith(
         (_) => _HistoryBehaviorStorage(behavior),
       ),
@@ -494,6 +521,24 @@ ProviderContainer _createContainer(
     batchHeight: 100,
   );
   return container;
+}
+
+class _RecordingSharePreparation extends ShareImagePreparationService {
+  final enqueued = <String>[];
+  @override
+  void enqueue({
+    required String imageId,
+    required Uint8List imageBytes,
+    required String fileName,
+    required bool stripMetadata,
+    String? sourceFilePath,
+    ShareImageTransform? transform,
+  }) {
+    enqueued.add(imageId);
+  }
+
+  @override
+  Future<void> retainHistoryImageIds(Set<String> imageIds) async {}
 }
 
 class _HistoryBehaviorStorage extends LocalStorageService {
@@ -535,6 +580,7 @@ GeneratedImage _image(
 Widget _historyApp(
   ProviderContainer container, {
   ValueNotifier<bool>? visible,
+  ShareImagePreparationService? preparationService,
 }) {
   final previewFocusNode = container.read(generationPreviewFocusNodeProvider);
   return InteractionPolicyScope(
@@ -556,11 +602,13 @@ Widget _historyApp(
               width: 320,
               height: 640,
               child: visible == null
-                  ? const HistoryPanel()
+                  ? HistoryPanel(sharePreparationService: preparationService)
                   : ValueListenableBuilder(
                       valueListenable: visible,
                       builder: (_, isVisible, __) => isVisible
-                          ? const HistoryPanel()
+                          ? HistoryPanel(
+                              sharePreparationService: preparationService,
+                            )
                           : const SizedBox.shrink(),
                     ),
             ),

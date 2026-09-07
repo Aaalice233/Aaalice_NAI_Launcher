@@ -4672,6 +4672,8 @@
   "settings_protectionMode": "保護模式",
   "settings_protectionModeSubtitle": "開啟後按下方子項保護本地資產、分享副本、高消耗和高頻生圖操作；關閉時保留子項配置但不生效。",
   "settings_protectionFeatures": "保護功能",
+  "settings_copyDragWatermarkTitle": "複製/拖拽時添加浮水印",
+  "settings_copyDragWatermarkSubtitle": "使用已儲存的預設浮水印方案。添加浮水印不會清除後設資料；如需清除，請開啟上方「複製/拖拽時移除全部後設資料」。",
   "settings_stripMetadataTitle": "複製/拖拽時移除全部後設資料",
   "settings_stripMetadataSubtitle": "生成淨化副本，清除 PNG 文字塊、EXIF 與 NAI 隱寫水印，並避免拖拽暴露原始路徑。",
   "settings_confirmDangerousActionsTitle": "危險資產操作二次確認",

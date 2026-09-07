@@ -4809,6 +4809,8 @@
   "settings_protectionMode": "保護モード",
   "settings_protectionModeSubtitle": "以下のオプションを通じて、ローカル資産、共有コピー、高コストおよび高頻度の画像生成操作を保護します。オフにしても各設定値は保持されますが、機能は無効になります。",
   "settings_protectionFeatures": "保護機能",
+  "settings_copyDragWatermarkTitle": "コピーまたはドラッグ時に透かしを追加",
+  "settings_copyDragWatermarkSubtitle": "保存済みの既定の透かしを使用します。透かしの追加ではメタデータは削除されません。削除するには、上の「コピーまたはドラッグするときにすべてのメタデータを削除します」を有効にしてください。",
   "settings_stripMetadataTitle": "コピーまたはドラッグするときにすべてのメタデータを削除します",
   "settings_stripMetadataSubtitle": "サニタイズされたコピーを作成し、PNG テキスト チャンク、EXIF、および NAI ステガノグラフィック透かしデータを削除し、ドラッグ中に元のパスが露出しないようにします。",
   "settings_confirmDangerousActionsTitle": "危険な資産のアクションを再確認する",

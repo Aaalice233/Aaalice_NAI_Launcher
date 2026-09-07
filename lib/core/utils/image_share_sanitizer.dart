@@ -40,6 +40,21 @@ class ImageSanitizeException implements Exception {
   String toString() => 'ImageSanitizeException: $message';
 }
 
+/// A copy/drag post-processing step with a stable cache identity.
+class ShareImageTransform {
+  const ShareImageTransform({required this.cacheKey, required this.apply});
+
+  final String cacheKey;
+  final Future<SanitizedShareImage> Function(
+    SanitizedShareImage image, {
+    required bool stripMetadata,
+  })
+  apply;
+}
+
+String _shareVariantKey(bool stripMetadata, ShareImageTransform? transform) =>
+    '${stripMetadata ? 'strip' : 'raw'}_${transform?.cacheKey ?? 'original'}';
+
 class ShareImageTransferCache {
   ShareImageTransferCache({
     required this.imageBytes,
@@ -57,37 +72,54 @@ class ShareImageTransferCache {
   final ShareImagePrepareFunction _prepareImage;
   final ShareImageWriteTempFileFunction _writeTempFile;
 
-  final Map<bool, Future<SanitizedShareImage>> _preparedImages = {};
-  final Map<bool, Future<File>> _preparedFiles = {};
-  final Map<bool, File> _temporaryFiles = {};
+  final Map<String, Future<SanitizedShareImage>> _preparedImages = {};
+  final Map<String, Future<File>> _preparedFiles = {};
+  final Map<String, File> _temporaryFiles = {};
 
-  Future<SanitizedShareImage> prepareImage({required bool stripMetadata}) {
+  Future<SanitizedShareImage> prepareImage({
+    required bool stripMetadata,
+    ShareImageTransform? transform,
+  }) {
     return _preparedImages.putIfAbsent(
-      stripMetadata,
-      () => _prepareImage(
-        imageBytes,
-        fileName: fileName,
-        stripMetadata: stripMetadata,
-      ),
+      _shareVariantKey(stripMetadata, transform),
+      () async {
+        final image = await _prepareImage(
+          imageBytes,
+          fileName: fileName,
+          stripMetadata: stripMetadata,
+        );
+        return transform == null
+            ? image
+            : transform.apply(image, stripMetadata: stripMetadata);
+      },
     );
   }
 
-  Future<File> prepareFile({required bool stripMetadata}) {
-    final sourceFile = _resolveSourceFile(stripMetadata: stripMetadata);
+  Future<File> prepareFile({
+    required bool stripMetadata,
+    ShareImageTransform? transform,
+  }) {
+    final sourceFile = transform == null
+        ? _resolveSourceFile(stripMetadata: stripMetadata)
+        : null;
     if (sourceFile != null) {
       return Future.value(sourceFile);
     }
 
-    return _preparedFiles.putIfAbsent(stripMetadata, () async {
-      final prepared = await prepareImage(stripMetadata: stripMetadata);
+    final key = _shareVariantKey(stripMetadata, transform);
+    return _preparedFiles.putIfAbsent(key, () async {
+      final prepared = await prepareImage(
+        stripMetadata: stripMetadata,
+        transform: transform,
+      );
       final file = await _writeTempFile(prepared);
-      _temporaryFiles[stripMetadata] = file;
+      _temporaryFiles[key] = file;
       return file;
     });
   }
 
-  void warmUp({required bool stripMetadata}) {
-    prepareFile(stripMetadata: stripMetadata).ignore();
+  void warmUp({required bool stripMetadata, ShareImageTransform? transform}) {
+    prepareFile(stripMetadata: stripMetadata, transform: transform).ignore();
   }
 
   Future<void> dispose() async {
@@ -162,8 +194,10 @@ class ShareImagePreparationService extends ChangeNotifier {
   ShareImagePreparationSnapshot snapshotFor(
     String imageId, {
     required bool stripMetadata,
+    ShareImageTransform? transform,
   }) {
-    final variant = _entries[imageId]?.variants[stripMetadata];
+    final variant =
+        _entries[imageId]?.variants[_shareVariantKey(stripMetadata, transform)];
     if (variant == null) {
       return ShareImagePreparationSnapshot(
         imageId: imageId,
@@ -181,8 +215,16 @@ class ShareImagePreparationService extends ChangeNotifier {
     );
   }
 
-  File? readyFileFor(String imageId, {required bool stripMetadata}) {
-    final snapshot = snapshotFor(imageId, stripMetadata: stripMetadata);
+  File? readyFileFor(
+    String imageId, {
+    required bool stripMetadata,
+    ShareImageTransform? transform,
+  }) {
+    final snapshot = snapshotFor(
+      imageId,
+      stripMetadata: stripMetadata,
+      transform: transform,
+    );
     if (!snapshot.isReady) {
       return null;
     }
@@ -195,13 +237,14 @@ class ShareImagePreparationService extends ChangeNotifier {
     required String fileName,
     required bool stripMetadata,
     String? sourceFilePath,
+    ShareImageTransform? transform,
   }) {
     final entry = _entries.putIfAbsent(
       imageId,
       () => _SharePreparedImageEntry(imageId),
     );
     final variant = entry.variants.putIfAbsent(
-      stripMetadata,
+      _shareVariantKey(stripMetadata, transform),
       _SharePreparedVariant.new,
     );
 
@@ -223,19 +266,32 @@ class ShareImagePreparationService extends ChangeNotifier {
         fileName: fileName,
         sourceFilePath: sourceFilePath,
         stripMetadata: stripMetadata,
+        transform: transform,
       ),
     );
     notifyListeners();
     _pumpQueue();
   }
 
-  Future<File?> waitUntilReady(String imageId, {required bool stripMetadata}) {
-    final readyFile = readyFileFor(imageId, stripMetadata: stripMetadata);
+  Future<File?> waitUntilReady(
+    String imageId, {
+    required bool stripMetadata,
+    ShareImageTransform? transform,
+  }) {
+    final readyFile = readyFileFor(
+      imageId,
+      stripMetadata: stripMetadata,
+      transform: transform,
+    );
     if (readyFile != null) {
       return Future<File?>.value(readyFile);
     }
 
-    final snapshot = snapshotFor(imageId, stripMetadata: stripMetadata);
+    final snapshot = snapshotFor(
+      imageId,
+      stripMetadata: stripMetadata,
+      transform: transform,
+    );
     if (snapshot.status == ShareImagePreparationStatus.failed ||
         snapshot.status == ShareImagePreparationStatus.notQueued) {
       return Future<File?>.value(null);
@@ -243,7 +299,10 @@ class ShareImagePreparationService extends ChangeNotifier {
 
     final completer = Completer<File?>();
     _readyWaiters
-        .putIfAbsent(_variantKey(imageId, stripMetadata), () => [])
+        .putIfAbsent(
+          _variantKey(imageId, _shareVariantKey(stripMetadata, transform)),
+          () => [],
+        )
         .add(completer);
     return completer.future;
   }
@@ -275,8 +334,7 @@ class ShareImagePreparationService extends ChangeNotifier {
     while (_activePreparations < maxConcurrentPreparations &&
         _queue.isNotEmpty) {
       final request = _queue.removeFirst();
-      final variant =
-          _entries[request.imageId]?.variants[request.stripMetadata];
+      final variant = _entries[request.imageId]?.variants[request.variantKey];
       if (variant == null ||
           variant.status != ShareImagePreparationStatus.preparing) {
         continue;
@@ -291,13 +349,12 @@ class ShareImagePreparationService extends ChangeNotifier {
     _PreparedShareFile? prepared;
     try {
       prepared = await _prepareRequest(request);
-      final variant =
-          _entries[request.imageId]?.variants[request.stripMetadata];
+      final variant = _entries[request.imageId]?.variants[request.variantKey];
       if (variant == null) {
         if (prepared.ownsFile) {
           await _deleteFileIfExists(prepared.file);
         }
-        _completeWaiters(request.imageId, request.stripMetadata, null);
+        _completeWaiters(request.imageId, request.variantKey, null);
         return;
       }
 
@@ -306,10 +363,9 @@ class ShareImagePreparationService extends ChangeNotifier {
         ..file = prepared.file
         ..ownsFile = prepared.ownsFile
         ..error = null;
-      _completeWaiters(request.imageId, request.stripMetadata, prepared.file);
+      _completeWaiters(request.imageId, request.variantKey, prepared.file);
     } catch (error) {
-      final variant =
-          _entries[request.imageId]?.variants[request.stripMetadata];
+      final variant = _entries[request.imageId]?.variants[request.variantKey];
       if (variant != null) {
         variant
           ..status = ShareImagePreparationStatus.failed
@@ -317,7 +373,7 @@ class ShareImagePreparationService extends ChangeNotifier {
           ..ownsFile = false
           ..error = error;
       }
-      _completeWaiters(request.imageId, request.stripMetadata, null);
+      _completeWaiters(request.imageId, request.variantKey, null);
     } finally {
       _activePreparations--;
       notifyListeners();
@@ -330,6 +386,7 @@ class ShareImagePreparationService extends ChangeNotifier {
   ) async {
     final sourceFilePath = request.sourceFilePath?.trim();
     if (!request.stripMetadata &&
+        request.transform == null &&
         sourceFilePath != null &&
         sourceFilePath.isNotEmpty) {
       final sourceFile = File(sourceFilePath);
@@ -338,11 +395,18 @@ class ShareImagePreparationService extends ChangeNotifier {
       }
     }
 
-    final prepared = await _prepareImage(
+    var prepared = await _prepareImage(
       request.imageBytes,
       fileName: request.fileName,
       stripMetadata: request.stripMetadata,
     );
+    final transform = request.transform;
+    if (transform != null) {
+      prepared = await transform.apply(
+        prepared,
+        stripMetadata: request.stripMetadata,
+      );
+    }
     final file = await _writePreparedFile(_cacheKeyFor(request), prepared);
     return _PreparedShareFile(file: file, ownsFile: true);
   }
@@ -363,8 +427,8 @@ class ShareImagePreparationService extends ChangeNotifier {
     }
   }
 
-  void _completeWaiters(String imageId, bool stripMetadata, File? file) {
-    final waiters = _readyWaiters.remove(_variantKey(imageId, stripMetadata));
+  void _completeWaiters(String imageId, String variantKey, File? file) {
+    final waiters = _readyWaiters.remove(_variantKey(imageId, variantKey));
     if (waiters == null) {
       return;
     }
@@ -406,8 +470,8 @@ class ShareImagePreparationService extends ChangeNotifier {
     );
   }
 
-  static String _variantKey(String imageId, bool stripMetadata) {
-    return '$imageId|${stripMetadata ? 'strip' : 'raw'}';
+  static String _variantKey(String imageId, String variantKey) {
+    return '$imageId|$variantKey';
   }
 
   static String _cacheKeyFor(_SharePreparationRequest request) {
@@ -415,7 +479,7 @@ class ShareImagePreparationService extends ChangeNotifier {
       RegExp(r'[^A-Za-z0-9_.-]+'),
       '_',
     );
-    return '${safeImageId}_${request.stripMetadata ? 'strip' : 'raw'}';
+    return '${safeImageId}_${request.variantKey}';
   }
 }
 
@@ -423,7 +487,7 @@ class _SharePreparedImageEntry {
   _SharePreparedImageEntry(this.imageId);
 
   final String imageId;
-  final Map<bool, _SharePreparedVariant> variants = {};
+  final Map<String, _SharePreparedVariant> variants = {};
 }
 
 class _SharePreparedVariant {
@@ -440,6 +504,7 @@ class _SharePreparationRequest {
     required this.fileName,
     required this.stripMetadata,
     this.sourceFilePath,
+    this.transform,
   });
 
   final String imageId;
@@ -447,6 +512,9 @@ class _SharePreparationRequest {
   final String fileName;
   final String? sourceFilePath;
   final bool stripMetadata;
+  final ShareImageTransform? transform;
+
+  String get variantKey => _shareVariantKey(stripMetadata, transform);
 }
 
 class _PreparedShareFile {
@@ -505,7 +573,16 @@ class ImageShareSanitizer {
     Uint8List bytes, {
     required String fileName,
     required bool stripMetadata,
+    ShareImageTransform? transform,
   }) async {
+    if (transform != null) {
+      final image = await prepareForCopyOrDrag(
+        bytes,
+        fileName: fileName,
+        stripMetadata: stripMetadata,
+      );
+      return transform.apply(image, stripMetadata: stripMetadata);
+    }
     final normalizedFileName = _normalizeShareFileName(fileName);
     final extension = p.extension(normalizedFileName).toLowerCase();
     if (stripMetadata) {
@@ -527,7 +604,17 @@ class ImageShareSanitizer {
     Uint8List bytes, {
     required String fileName,
     required bool stripMetadata,
+    ShareImageTransform? transform,
   }) async {
+    // Watermark rendering uses dart:ui and must stay on the root isolate.
+    if (transform != null) {
+      final image = await prepareForCopyOrDragInBackground(
+        bytes,
+        fileName: fileName,
+        stripMetadata: stripMetadata,
+      );
+      return transform.apply(image, stripMetadata: stripMetadata);
+    }
     if (!stripMetadata) {
       return prepareForCopyOrDrag(
         bytes,
@@ -660,7 +747,6 @@ class ImageShareSanitizer {
   }
 
   static img.Image _clearStealthAlphaLsb(img.Image image) {
-    _clearFrameStealthAlphaLsb(image);
     for (final frame in image.frames) {
       _clearFrameStealthAlphaLsb(frame);
     }
@@ -670,8 +756,14 @@ class ImageShareSanitizer {
   static void _clearFrameStealthAlphaLsb(img.Image frame) {
     frame.textData = null;
     frame.iccProfile = null;
-    for (var x = 0; x < frame.width; x++) {
-      for (var y = 0; y < frame.height; y++) {
+    if (!frame.hasPalette) {
+      for (final pixel in frame) {
+        pixel.a = pixel.a.toInt() & 0xFE;
+      }
+      return;
+    }
+    for (var y = 0; y < frame.height; y++) {
+      for (var x = 0; x < frame.width; x++) {
         final pixel = frame.getPixel(x, y);
         frame.setPixelRgba(
           x,

@@ -213,6 +213,7 @@ const portableSettingKeys = <String>{
   StorageKeys.autoSaveImages,
   StorageKeys.imageStraightAlpha,
   StorageKeys.shareStripMetadata,
+  StorageKeys.shareWatermark,
   StorageKeys.addQualityTags,
   StorageKeys.ucPresetType,
   StorageKeys.qualityPresetMode,

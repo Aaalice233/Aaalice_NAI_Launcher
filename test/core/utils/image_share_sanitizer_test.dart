@@ -75,6 +75,35 @@ void main() {
       },
     );
 
+    for (final channels in [1, 2, 3, 4]) {
+      test(
+        'sanitizer preserves color channels for $channels-channel PNG',
+        () async {
+          final image = img.Image(width: 8, height: 6, numChannels: channels);
+          for (var y = 0; y < image.height; y++) {
+            for (var x = 0; x < image.width; x++) {
+              image.setPixelRgba(x, y, x * 21, y * 31, 87, 201 + x);
+            }
+          }
+          final source = Uint8List.fromList(img.encodePng(image));
+          final before = img.decodePng(source)!;
+          final output = await ImageShareSanitizer.sanitizeForShare(
+            source,
+            fileName: 'channels.png',
+          );
+          final after = img.decodePng(output.bytes)!;
+          for (var y = 0; y < image.height; y++) {
+            for (var x = 0; x < image.width; x++) {
+              final old = before.getPixel(x, y);
+              final pixel = after.getPixel(x, y);
+              expect([pixel.r, pixel.g, pixel.b], [old.r, old.g, old.b]);
+              expect(pixel.a, channels.isEven ? old.a.toInt() & 0xFE : old.a);
+            }
+          }
+        },
+      );
+    }
+
     test('sanitizeForShare removes embedded ICC profile metadata', () async {
       const token = 'NAI_ICC_PROFILE_SENTINEL';
       final image = img.Image(width: 2, height: 2, numChannels: 4)

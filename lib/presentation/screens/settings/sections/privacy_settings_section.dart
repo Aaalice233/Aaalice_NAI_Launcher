@@ -147,6 +147,17 @@ class _PrivacySettingsSectionState
                     : null,
               ),
               SwitchListTile(
+                secondary: const Icon(Icons.branding_watermark_outlined),
+                title: Text(context.l10n.settings_copyDragWatermarkTitle),
+                subtitle: Text(context.l10n.settings_copyDragWatermarkSubtitle),
+                value: shareSettings.watermarkForCopyAndDrag,
+                onChanged: (value) async {
+                  await ref
+                      .read(shareImageSettingsProvider.notifier)
+                      .setWatermarkForCopyAndDrag(value);
+                },
+              ),
+              SwitchListTile(
                 secondary: const Icon(Icons.warning_amber_rounded),
                 title: Text(context.l10n.settings_confirmDangerousActionsTitle),
                 subtitle: Text(

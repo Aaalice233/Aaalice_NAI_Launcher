@@ -4781,6 +4781,8 @@
   "settings_protectionMode": "Protection Mode",
   "settings_protectionModeSubtitle": "Protect local assets, shared copies, and high-cost or high-frequency generation operations through the options below. Turning this off keeps the option values but disables them.",
   "settings_protectionFeatures": "Protection Features",
+  "settings_copyDragWatermarkTitle": "Add watermark when copying or dragging",
+  "settings_copyDragWatermarkSubtitle": "Use the saved default watermark. Adding a watermark does not remove metadata. To remove it, enable \"Remove all metadata when copying or dragging\" above.",
   "settings_stripMetadataTitle": "Remove all metadata when copying or dragging",
   "settings_stripMetadataSubtitle": "Create a sanitized copy, remove PNG text chunks, EXIF, and NAI steganographic watermark data, and avoid exposing the original path while dragging.",
   "settings_confirmDangerousActionsTitle": "Double-confirm dangerous asset actions",

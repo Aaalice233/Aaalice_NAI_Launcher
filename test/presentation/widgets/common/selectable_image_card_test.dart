@@ -8,6 +8,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:image/image.dart' as img;
 import 'package:nai_launcher/core/constants/storage_keys.dart';
+import 'package:nai_launcher/core/utils/image_share_sanitizer.dart';
+import 'package:nai_launcher/presentation/providers/copy_drag_watermark_provider.dart';
 import 'package:nai_launcher/core/platform/platform_capabilities.dart';
 import 'package:nai_launcher/data/models/image/image_stream_chunk.dart';
 import 'package:nai_launcher/data/models/watermark/watermark_settings.dart';
@@ -406,6 +408,42 @@ void main() {
       await tester.pump(const Duration(seconds: 4));
       await tester.pumpAndSettle();
       expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets(
+    'generation preview copy applies the active watermark transform',
+    (tester) async {
+      Uint8List? copiedBytes;
+      var transformed = false;
+      final output = Uint8List.fromList(
+        img.encodePng(img.Image(width: 16, height: 16)),
+      );
+      final container = _createContainerWithPreviewImage(
+        clipboardWriter: (bytes) async => copiedBytes = bytes,
+        copyDragTransform: ShareImageTransform(
+          cacheKey: 'saved-default',
+          apply: (image, {required stripMetadata}) async {
+            transformed = true;
+            expect(stripMetadata, isFalse);
+            return SanitizedShareImage(
+              bytes: output,
+              fileName: 'marked.png',
+              mimeType: 'image/png',
+            );
+          },
+        ),
+      );
+      addTearDown(container.dispose);
+      await tester.pumpWidget(_buildPreviewApp(container));
+      await tester.pumpAndSettle();
+      await _openImageContextMenu(tester);
+      await tester.tap(find.text('复制图像'));
+      await tester.pumpAndSettle();
+      expect(transformed, isTrue);
+      expect(copiedBytes, orderedEquals(output));
+      await tester.pump(const Duration(seconds: 4));
+      await tester.pumpAndSettle();
     },
   );
 
@@ -833,12 +871,14 @@ Widget _buildCompletionApp({
 }
 
 ImageCardStreamPreviewPainter _streamPreviewPainter(WidgetTester tester) {
-  return tester.widget<CustomPaint>(
-        find.descendant(
-          of: find.byType(ImageCardStreamPreview),
-          matching: find.byType(CustomPaint),
-        ),
-      ).painter!
+  return tester
+          .widget<CustomPaint>(
+            find.descendant(
+              of: find.byType(ImageCardStreamPreview),
+              matching: find.byType(CustomPaint),
+            ),
+          )
+          .painter!
       as ImageCardStreamPreviewPainter;
 }
 
@@ -865,9 +905,12 @@ class _EnabledWatermarkSettingsNotifier extends WatermarkSettingsNotifier {
 ProviderContainer _createContainerWithPreviewImage({
   ImageClipboardWriter? clipboardWriter,
   bool watermarkEnabled = false,
+  ShareImageTransform? copyDragTransform,
 }) {
   final container = ProviderContainer(
     overrides: [
+      if (copyDragTransform != null)
+        copyDragWatermarkProvider.overrideWithValue(copyDragTransform),
       if (clipboardWriter != null)
         imageClipboardWriterProvider.overrideWithValue(clipboardWriter),
       if (watermarkEnabled)

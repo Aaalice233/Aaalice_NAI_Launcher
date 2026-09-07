@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:isolate';
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
@@ -184,9 +185,9 @@ class WatermarkRenderService {
 
       var metadataPreserved = false;
       if (request.preserveMetadata) {
-        final transfer = _preserveSupportedMetadata(
-          source: request.sourceBytes,
-          targetPng: outputBytes,
+        final transfer = await _preserveMetadataInBackground(
+          request.sourceBytes,
+          outputBytes,
         );
         outputBytes = transfer.bytes;
         metadataPreserved = transfer.preserved;
@@ -312,6 +313,16 @@ class WatermarkRenderService {
     });
   }
 }
+
+Future<_MetadataTransfer> _preserveMetadataInBackground(
+  Uint8List source,
+  Uint8List targetPng,
+) => Isolate.run(
+  () => WatermarkRenderService._preserveSupportedMetadata(
+    source: source,
+    targetPng: targetPng,
+  ),
+);
 
 class _MetadataTransfer {
   const _MetadataTransfer({required this.bytes, required this.preserved});

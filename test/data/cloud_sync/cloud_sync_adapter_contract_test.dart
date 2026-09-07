@@ -150,6 +150,7 @@ void main() {
         .withOptions(const DlssOptions(scale: 1, detail: 2));
     await storage.setSetting('dlss_options', jsonEncode(dlssState.toJson()));
     await storage.setSetting(StorageKeys.locale, 'ja');
+    await storage.setSetting(StorageKeys.shareWatermark, true);
     await storage.setSetting(StorageKeys.accessToken, 'secret-token');
     await storage.setSetting(StorageKeys.imageSavePath, 'D:/private');
     await storage.setSetting(
@@ -183,6 +184,7 @@ void main() {
     expect(records.every((record) => record.resource == null), isTrue);
 
     await storage.setSetting(StorageKeys.locale, 'en');
+    await storage.setSetting(StorageKeys.shareWatermark, false);
     await storage.deleteSetting('dlss_options');
     await storage.deleteSetting(StorageKeys.watermarkConfigV1);
     await adapter.apply(records);
@@ -193,6 +195,7 @@ void main() {
     expect(dlssRestored.toJson(), dlssState.toJson());
     expect(dlssRestored.modified, isTrue);
     expect(storage.getSetting<String>(StorageKeys.locale), 'ja');
+    expect(storage.getSetting<bool>(StorageKeys.shareWatermark), isTrue);
     expect(
       WatermarkSettings.decode(
         storage.getSetting<String>(StorageKeys.watermarkConfigV1),
@@ -203,6 +206,7 @@ void main() {
 
   test('portable preferences and explicit exclusions stay classified', () {
     expect(portableSettingKeys, contains(StorageKeys.defaultModel));
+    expect(portableSettingKeys, contains(StorageKeys.shareWatermark));
     expect(portableSettingKeys, contains(StorageKeys.watermarkConfigV1));
     // Redaction remains local-only, including its original-file associations.
     expect(portableSettingKeys, isNot(contains(StorageKeys.mosaicConfigV1)));

@@ -13,6 +13,7 @@ import '../../../core/utils/image_share_sanitizer.dart';
 import '../../../core/utils/localization_extension.dart';
 import '../../../data/models/gallery/local_image_record.dart';
 import '../../providers/share_image_settings_provider.dart';
+import '../../providers/copy_drag_watermark_provider.dart';
 import '../../agent_chat/widgets/agent_resource_drop_region.dart';
 import '../../utils/internal_drag_protocol.dart';
 import 'image_card_actions.dart';
@@ -30,6 +31,7 @@ class DraggableMemoryImage extends ConsumerStatefulWidget {
     this.requirePreparedDragFile = false,
     this.preparedDragFile,
     this.preparedDragStripMetadata,
+    this.preparedDragTransformKey,
     this.disabledReason,
     this.feedbackHint,
     this.feedbackWidth = 280,
@@ -49,6 +51,7 @@ class DraggableMemoryImage extends ConsumerStatefulWidget {
   final bool requirePreparedDragFile;
   final File? preparedDragFile;
   final bool? preparedDragStripMetadata;
+  final String? preparedDragTransformKey;
   final String? disabledReason;
   final String? feedbackHint;
   final double feedbackWidth;
@@ -188,6 +191,7 @@ class _DraggableMemoryImageState extends ConsumerState<DraggableMemoryImage> {
   }
 
   Future<DragItem> _createDragItem() async {
+    final transform = ref.read(copyDragWatermarkProvider);
     final stripMetadata = ref
         .read(shareImageSettingsProvider)
         .effectiveStripMetadataForCopyAndDrag;
@@ -204,6 +208,9 @@ class _DraggableMemoryImageState extends ConsumerState<DraggableMemoryImage> {
 
     final preparedFile = widget.preparedDragFile;
     if (preparedFile != null) {
+      if (widget.preparedDragTransformKey != transform?.cacheKey) {
+        throw StateError('Prepared drag file does not match current watermark');
+      }
       final preparedStripMetadata = widget.preparedDragStripMetadata;
       if (preparedStripMetadata != null &&
           preparedStripMetadata != stripMetadata) {
@@ -225,6 +232,7 @@ class _DraggableMemoryImageState extends ConsumerState<DraggableMemoryImage> {
     final sourceFilePath = widget.sourceFilePath?.trim();
     final hasReusableSourceFile =
         !stripMetadata &&
+        transform == null &&
         sourceFilePath != null &&
         sourceFilePath.isNotEmpty &&
         await File(sourceFilePath).exists();
@@ -241,10 +249,12 @@ class _DraggableMemoryImageState extends ConsumerState<DraggableMemoryImage> {
 
     final image = await transferCache.prepareImage(
       stripMetadata: stripMetadata,
+      transform: transform,
     );
     item.add(Formats.png(image.bytes));
     final transferFile = await transferCache.prepareFile(
       stripMetadata: stripMetadata,
+      transform: transform,
     );
     item.add(Formats.fileUri(transferFile.uri));
     return item;
@@ -267,7 +277,10 @@ class _DraggableMemoryImageState extends ConsumerState<DraggableMemoryImage> {
     final stripMetadata = ref
         .read(shareImageSettingsProvider)
         .effectiveStripMetadataForCopyAndDrag;
-    transferCache.warmUp(stripMetadata: stripMetadata);
+    transferCache.warmUp(
+      stripMetadata: stripMetadata,
+      transform: ref.read(copyDragWatermarkProvider),
+    );
   }
 
   bool get _shouldUsePreparedDragFile => widget.requirePreparedDragFile;

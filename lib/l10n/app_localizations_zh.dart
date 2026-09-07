@@ -9643,6 +9643,13 @@ class AppLocalizationsZh extends AppLocalizations {
   String get settings_protectionFeatures => '保护功能';
 
   @override
+  String get settings_copyDragWatermarkTitle => '复制/拖拽时添加水印';
+
+  @override
+  String get settings_copyDragWatermarkSubtitle =>
+      '使用已保存的默认水印方案。添加水印不会清除元数据；如需清除，请开启上方“复制/拖拽时移除全部元数据”。';
+
+  @override
   String get settings_stripMetadataTitle => '复制/拖拽时移除全部元数据';
 
   @override
@@ -24192,6 +24199,13 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get settings_protectionFeatures => '保護功能';
+
+  @override
+  String get settings_copyDragWatermarkTitle => '複製/拖拽時添加浮水印';
+
+  @override
+  String get settings_copyDragWatermarkSubtitle =>
+      '使用已儲存的預設浮水印方案。添加浮水印不會清除後設資料；如需清除，請開啟上方「複製/拖拽時移除全部後設資料」。';
 
   @override
   String get settings_stripMetadataTitle => '複製/拖拽時移除全部後設資料';
