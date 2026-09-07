@@ -5,6 +5,7 @@ import 'dart:typed_data';
 import 'package:crypto/crypto.dart';
 
 import '../../../core/utils/app_logger.dart';
+import '../../../core/utils/isolate_pool.dart';
 
 /// 文件哈希计算器
 ///
@@ -58,6 +59,9 @@ class FileHashCalculator {
     return sha256.convert(bytes).toString();
   }
 
+  Future<String> calculateFromBytesInBackground(Uint8List bytes) =>
+      ComputeGate().runCompute(_hashBytes, bytes, debugLabel: 'metadata-hash');
+
   /// 注册路径到哈希的映射
   ///
   /// 用于在已知哈希的情况下建立映射关系
@@ -80,7 +84,10 @@ class FileHashCalculator {
       paths.add(newPath);
     }
 
-    AppLogger.d('Hash mapping updated: $oldPath -> $newPath', 'FileHashCalculator');
+    AppLogger.d(
+      'Hash mapping updated: $oldPath -> $newPath',
+      'FileHashCalculator',
+    );
   }
 
   /// 获取哈希对应的所有路径
@@ -120,9 +127,11 @@ class FileHashCalculator {
   Future<String> _calculateWithSemaphore(String filePath) async {
     await _semaphore.acquire();
     try {
-      final file = File(filePath);
-      final bytes = await file.readAsBytes();
-      final hash = sha256.convert(bytes).toString();
+      final hash = await ComputeGate().runCompute(
+        _hashFile,
+        filePath,
+        debugLabel: 'metadata-file-hash',
+      );
 
       // 更新映射
       _pathToHashMap[filePath] = hash;
@@ -135,6 +144,10 @@ class FileHashCalculator {
     }
   }
 }
+
+String _hashBytes(Uint8List bytes) => sha256.convert(bytes).toString();
+
+String _hashFile(String path) => _hashBytes(File(path).readAsBytesSync());
 
 /// 信号量（并发控制）
 class _Semaphore {

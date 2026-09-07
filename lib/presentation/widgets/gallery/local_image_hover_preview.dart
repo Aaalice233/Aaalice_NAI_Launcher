@@ -20,11 +20,13 @@ class LocalImageHoverPreview extends StatefulWidget {
     required this.record,
     required this.child,
     this.hoverDelay = const Duration(milliseconds: 280),
+    this.metadataLoader,
   });
 
   final LocalImageRecord record;
   final Widget child;
   final Duration hoverDelay;
+  final LocalGalleryMetadataLoader? metadataLoader;
 
   @override
   State<LocalImageHoverPreview> createState() => _LocalImageHoverPreviewState();
@@ -33,8 +35,6 @@ class LocalImageHoverPreview extends StatefulWidget {
 class _LocalImageHoverPreviewState extends State<LocalImageHoverPreview> {
   final _layerLink = LayerLink();
   late final ImageHoverPreviewController _hoverController;
-  NaiImageMetadata? _resolvedMetadata;
-  String? _resolvedMetadataPath;
 
   @override
   void initState() {
@@ -47,13 +47,10 @@ class _LocalImageHoverPreviewState extends State<LocalImageHoverPreview> {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.record.path != widget.record.path) {
       _hoverController.dismissFor(oldWidget.record.path);
-      _resolvedMetadata = null;
-      _resolvedMetadataPath = null;
     }
   }
 
   void _schedulePreview() {
-    unawaited(_resolveMetadata());
     final renderObject = context.findRenderObject();
     if (renderObject is! RenderBox || !renderObject.hasSize) return;
 
@@ -72,22 +69,12 @@ class _LocalImageHoverPreviewState extends State<LocalImageHoverPreview> {
       previewSize: previewSize,
       delay: widget.hoverDelay,
       builder: (_) => LocalImageHoverPreviewCard(
-        record: _resolvedMetadataPath == widget.record.path
-            ? widget.record.copyWith(metadata: _resolvedMetadata)
-            : widget.record,
+        record: widget.record,
+        metadataLoader: widget.metadataLoader,
         maxWidth: previewSize.width,
         maxHeight: previewSize.height,
       ),
     );
-  }
-
-  Future<void> _resolveMetadata() async {
-    final path = widget.record.path;
-    if (_resolvedMetadataPath == path) return;
-    final metadata = await resolveLocalGalleryMetadata(widget.record);
-    if (!mounted || widget.record.path != path) return;
-    _resolvedMetadata = metadata;
-    _resolvedMetadataPath = path;
   }
 
   @override
@@ -116,11 +103,13 @@ class LocalImageHoverPreviewCard extends StatefulWidget {
     required this.record,
     required this.maxWidth,
     required this.maxHeight,
+    this.metadataLoader,
   });
 
   final LocalImageRecord record;
   final double maxWidth;
   final double maxHeight;
+  final LocalGalleryMetadataLoader? metadataLoader;
 
   @override
   State<LocalImageHoverPreviewCard> createState() =>
@@ -199,7 +188,10 @@ class _LocalImageHoverPreviewCardState
   Future<void> _loadMetadata() async {
     final requestId = ++_metadataRequestId;
     final path = widget.record.path;
-    final metadata = await resolveLocalGalleryMetadata(widget.record);
+    final metadata = await resolveLocalGalleryMetadata(
+      widget.record,
+      loadFromFile: widget.metadataLoader,
+    );
     if (!mounted ||
         requestId != _metadataRequestId ||
         widget.record.path != path) {

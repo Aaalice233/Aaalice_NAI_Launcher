@@ -21,25 +21,16 @@ class ImageCardGenerating extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final hasPreview = data.streamPreview?.isNotEmpty == true;
-    final reducedMotion = MediaQuery.disableAnimationsOf(context);
-    return AnimatedBuilder(
-      animation: reducedMotion
-          ? const AlwaysStoppedAnimation(0.06)
-          : controller.glowAnimation ?? const AlwaysStoppedAnimation(0.06),
-      builder: (context, child) => Container(
-        decoration: BoxDecoration(
-          color: hasPreview ? null : theme.colorScheme.surface,
-          borderRadius: BorderRadius.circular(12),
-          boxShadow: [
-            BoxShadow(
-              color: theme.colorScheme.primary.withValues(
-                alpha: controller.glowAnimation?.value ?? 0.06,
-              ),
-              blurRadius: 18,
-            ),
-          ],
-        ),
-        child: child,
+    return Container(
+      decoration: BoxDecoration(
+        color: hasPreview ? null : theme.colorScheme.surface,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: theme.colorScheme.primary.withValues(alpha: 0.06),
+            blurRadius: 18,
+          ),
+        ],
       ),
       child: hasPreview ? _preview(context) : _loading(context, theme),
     );
@@ -74,18 +65,20 @@ class ImageCardGenerating extends StatelessWidget {
                 SizedBox(
                   width: 20,
                   height: 20,
-                  child: CircularProgressIndicator(
-                    key: const ValueKey('stream-generation-progress-ring'),
-                    value: progress > 0
-                        ? progress
-                        : MediaQuery.disableAnimationsOf(context)
-                        ? 0.72
-                        : null,
-                    strokeWidth: 2,
-                    backgroundColor: _streamProgressForeground.withValues(
-                      alpha: 0.24,
+                  child: RepaintBoundary(
+                    child: CircularProgressIndicator(
+                      key: const ValueKey('stream-generation-progress-ring'),
+                      value: progress > 0
+                          ? progress
+                          : MediaQuery.disableAnimationsOf(context)
+                          ? 0.72
+                          : null,
+                      strokeWidth: 2,
+                      backgroundColor: _streamProgressForeground.withValues(
+                        alpha: 0.24,
+                      ),
+                      color: _streamProgressForeground,
                     ),
-                    color: _streamProgressForeground,
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -109,9 +102,11 @@ class ImageCardGenerating extends StatelessWidget {
     );
   }
 
-  Widget _streamPreview() => ImageCardStreamPreview(
-    previewBytes: data.streamPreview!,
-    placement: data.focusedPreviewPlacement,
+  Widget _streamPreview() => RepaintBoundary(
+    child: ImageCardStreamPreview(
+      previewBytes: data.streamPreview!,
+      placement: data.focusedPreviewPlacement,
+    ),
   );
 
   Widget _loading(BuildContext context, ThemeData theme) {
@@ -128,17 +123,19 @@ class ImageCardGenerating extends StatelessWidget {
               SizedBox(
                 width: 52,
                 height: 52,
-                child: CircularProgressIndicator(
-                  value: progress > 0
-                      ? progress
-                      : MediaQuery.disableAnimationsOf(context)
-                      ? 0.72
-                      : null,
-                  strokeWidth: 2.5,
-                  backgroundColor: theme.colorScheme.primary.withValues(
-                    alpha: 0.1,
+                child: RepaintBoundary(
+                  child: CircularProgressIndicator(
+                    value: progress > 0
+                        ? progress
+                        : MediaQuery.disableAnimationsOf(context)
+                        ? 0.72
+                        : null,
+                    strokeWidth: 2.5,
+                    backgroundColor: theme.colorScheme.primary.withValues(
+                      alpha: 0.1,
+                    ),
+                    color: theme.colorScheme.primary,
                   ),
-                  color: theme.colorScheme.primary,
                 ),
               ),
               Icon(

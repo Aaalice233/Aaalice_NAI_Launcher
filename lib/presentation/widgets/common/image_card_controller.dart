@@ -24,7 +24,6 @@ class ImageCardController extends ChangeNotifier {
     );
     _lastStreamPreview = _capturedStreamPreview(data);
     showPreparedIndexBadge = data.dragPreparationReady;
-    if (data.isGenerating) _initGlowAnimation(vsync);
     _shareTransferCache = _createShareTransferCache();
   }
 
@@ -51,8 +50,6 @@ class ImageCardController extends ChangeNotifier {
 
   final AnimationController glossController;
   late final Animation<double> glossAnimation;
-  AnimationController? glowController;
-  Animation<double>? glowAnimation;
 
   ImageCardViewData get data => _data;
   ImageCardCapabilities get capabilities => _capabilities;
@@ -73,14 +70,6 @@ class ImageCardController extends ChangeNotifier {
     final oldCapabilities = _capabilities;
     _data = data;
     _capabilities = capabilities;
-
-    if (data.isGenerating && !oldData.isGenerating) {
-      _initGlowAnimation(vsync);
-    } else if (!data.isGenerating && oldData.isGenerating) {
-      glowController?.dispose();
-      glowController = null;
-      glowAnimation = null;
-    }
 
     if (data.streamPreview?.isNotEmpty == true) {
       _lastStreamPreview = _capturedStreamPreview(data);
@@ -134,29 +123,6 @@ class ImageCardController extends ChangeNotifier {
       glossController.stop();
       glossController.value = 0;
     }
-    final controller = glowController;
-    if (controller == null) return;
-    if (reducedMotion) {
-      controller.stop();
-      controller.value = 1 / 3;
-    } else if (!controller.isAnimating) {
-      controller.repeat(reverse: true);
-    }
-  }
-
-  void _initGlowAnimation(TickerProvider vsync) {
-    glowController?.dispose();
-    glowController = AnimationController(
-      duration: const Duration(milliseconds: 2000),
-      value: 1 / 3,
-      vsync: vsync,
-    );
-    if (_motionPreferenceInitialized && !_reducedMotion) {
-      glowController!.repeat(reverse: true);
-    }
-    glowAnimation = Tween<double>(begin: 0.04, end: 0.1).animate(
-      CurvedAnimation(parent: glowController!, curve: Curves.easeInOut),
-    );
   }
 
   void hoverEnter({required VoidCallback warmShareCache}) {
@@ -284,7 +250,6 @@ class ImageCardController extends ChangeNotifier {
   void dispose() {
     _disposed = true;
     glossController.dispose();
-    glowController?.dispose();
     _legacyTapResetTimer?.cancel();
     _doubleTapResetTimer?.cancel();
     final cache = _shareTransferCache;
