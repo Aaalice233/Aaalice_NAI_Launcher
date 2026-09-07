@@ -12,6 +12,8 @@ Windows 使用随应用构建的 `aaalice_dlss_worker.exe` 与 `aaalice_nvngx.dl
 
 worker 必须报告 `AAALICE_NR_START`，成功写出结果后返回 `AAALICE_NR_DONE fp16-single`。输出元数据同时记录 `fp16-single` 管线标记。非零退出、缺失结果、非法尺寸、非有限像素与不完整协议均为失败。取消会终止独立 worker 并清理临时任务文件，不接受部分结果。
 
+SR/VSR 只作为 NR 增强的内部尺寸预处理，不提供独立放大入口、Provider 或独立调用能力。自动增强期间保留最后一帧流式预览，按准备、增强、编码阶段显示中央状态；失败保留原图并提示手动增强重试，批次继续处理后续图片。
+
 静态图片没有游戏引擎的真实深度，当前应用传零值；worker 的 `--depth` 是开发诊断入口，接收与 NR 输出尺寸一致的 AAF1 深度数据。不能把绑定深度纹理等同于模型实际利用深度，也不宣称自动深度重建。NVIDIA 的 DLSS 5 资料区分了推理输入的图像、运动向量与时间状态，以及训练阶段的渲染属性；不能因此推断给当前 NR runtime 添加估算的法线或深度就能改善图片。NR 会改变光照和材质，不承诺语义或像素无损。
 
 ## 参数语义与范围
@@ -47,3 +49,22 @@ worker 必须报告 `AAALICE_NR_START`，成功写出结果后返回 `AAALICE_NR
 - [video2dlssnr](https://github.com/DaniilSokolyuk/video2dlssnr)：SR 在前、NR 在后的顺序与参数参考。
 - [DLSS-COM](https://github.com/MYT-YEP/DLSS-COM)：浮点纹理传递与直接 NGX 桥接，采用部分 MIT 代码；完整声明见 `THIRD_PARTY_NOTICES.md`。
 - [DLSS5Tool](https://github.com/banbanzhige/DLSS5Tool)：对照浮点传输及最终颜色混合；未采用其 UI 或生成式图像组件。
+
+## 编解码测量与 Magpie 评估
+
+当前 worker 记录 `decode`、`marshal`、`write`、`worker`、`read`、`compose`、`alpha`、`encode`、`metadata` 分段微秒耗时，可通过 `onTiming` 收集；`worker` 包含进程启动、NGX 初始化、GPU 处理和原生文件输出，不等于纯 GPU 推理时间。解码结果复用于最终 Alpha 和元数据恢复，浮点传输按字节批量复制，临时文件关闭后直接交给 worker，不做持久化 fsync。大端主机保留显式小端转换；读取仍校验尺寸、完整长度和非有限像素。
+
+2026-09-07 本机 RTX 4060 Laptop、驱动 `32.0.16.1047`、video2dlssnr `v1.3` 的对照：固定生成 512×512 RGBA 渐变/纹理输入，包含透明度和 Comment 元数据，默认参数输出 1024×1024。修改前完整流程三次为 3442/3089/3132 ms，优化后为 3006/3021/3020 ms；中位数约降低 3.6%。六份最终 PNG 的 SHA-256 均为 `c339726048fa4cd45729af43f71246ec7f3c585d99553d72e5bba2fb2ffcf592`。这是有限样本，不能外推为所有图片的加速比例或画质评价。
+
+优化后代表性一轮的解码/搬运/写入/worker/读取/合成/Alpha/编码/元数据分别约为 11/14/3/1965/20/129/142/711/7 ms；主要成本仍在原生处理和 PNG 编码。单独的 1024×1024 float32 往返测试逐值一致，热身后编码从约 6–8 ms 降至约 3 ms，解码从约 9 ms 降至约 6–7 ms。没有通过降低画质、改变压缩参数或删减元数据获得速度。
+
+对照 [Magpie Experimental 的 DLSSNRFilter.cpp](https://github.com/SAOG0721/Magpie/blob/9824d758b162ad3c5b5acc81e2e14c83f138e13d/src/Magpie.Core/DLSSNRFilter.cpp)，建议保留当前静态图管线，局部参考计时与资源复用设计，不直接替换：
+
+| 方面 | 评估 |
+| --- | --- |
+| 图像语义 | Magpie 的 NR 接口接收同尺寸 SDR 窗口纹理，在内部使用 RGBA16F；它拥有帧间历史、重置和运动引导机制。Launcher 需要一次静态增强、原图透明度与文件元数据，不能把连续窗口画面的观感直接当作静态图质量优势。未进行两者同图盲测，不宣称效果更好。 |
+| 性能 | Magpie 复用常驻 GPU 资源和 feature，适合连续帧；其每帧计时不包含本项目的图像解码、文件编码及每任务启动成本。迁移整个窗口捕获栈不能直接解决 PNG 编码开销。常驻 worker 或共享纹理可能有价值，但需独立验证取消、异常隔离和显存生命周期后再决定。 |
+| DLL 来源 | Magpie 从应用目录加载 `nvngx_dlssnr.dll`；[发布说明](https://github.com/SAOG0721/Magpie/releases)提供 NVIDIA 原版与社区 RTX40/50 兼容版选项，部分历史包使用社区修改版，不能仅按同为 `310.8.0.0` 判断二进制相同。本机当前模型 SHA-256 为 `8270b350cd82de5ce89806872cdd6b6a9249b80836b91bbeb3573470744cc206`；本次未替换模型。 |
+| 维护与分发 | Magpie 派生代码采用 GPLv3，第三方 SDK/模型另有条款；其[组件与再分发清单](https://github.com/SAOG0721/Magpie/blob/experimental/docs/THIRD_PARTY_AND_REDISTRIBUTION.md)明确将 DLSSNR 分发权限列为待审查边界。其近期还处理了 NGX 关闭异常后的锁与窗口等待问题。直接移植会扩大维护和许可范围；当前独立进程隔离仍适合静态任务。 |
+
+本次仅阅读和评估 Magpie 源码，未引入其 GPL 代码、SDK、DLL、系统级 NGX 设置或窗口捕获依赖。

@@ -21,11 +21,18 @@ class _BodyAdapter implements HttpClientAdapter {
   final String body;
   final int status;
   @override
-  Future<ResponseBody> fetch(RequestOptions options, Stream<Uint8List>? requestStream, Future<void>? cancelFuture) async =>
-      ResponseBody.fromString(body, status, headers: {
-        Headers.contentTypeHeader: ['application/json'],
-        'retry-after': ['2'],
-      });
+  Future<ResponseBody> fetch(
+    RequestOptions options,
+    Stream<Uint8List>? requestStream,
+    Future<void>? cancelFuture,
+  ) async => ResponseBody.fromString(
+    body,
+    status,
+    headers: {
+      Headers.contentTypeHeader: ['application/json'],
+      'retry-after': ['2'],
+    },
+  );
   @override
   void close({bool force = false}) {}
 }
@@ -53,14 +60,19 @@ void main() {
         ..httpClientAdapter = _BodyAdapter(body, 429);
       addTearDown(transport.close);
       final actualService = DiscordShareService(
-        secureStorage: secureStorage, localStorage: localStorage, dio: transport,
+        secureStorage: secureStorage,
+        localStorage: localStorage,
+        dio: transport,
       );
-      await expectLater(_share(actualService), throwsA(
-        isA<DiscordShareException>()
-          .having((e) => e.code, 'code', 'rate_limited')
-          .having((e) => e.status, 'status', 429)
-          .having((e) => e.retryAfter, 'delay', const Duration(seconds: 2)),
-      ));
+      await expectLater(
+        _share(actualService),
+        throwsA(
+          isA<DiscordShareException>()
+              .having((e) => e.code, 'code', 'rate_limited')
+              .having((e) => e.status, 'status', 429)
+              .having((e) => e.retryAfter, 'delay', const Duration(seconds: 2)),
+        ),
+      );
       verifyNever(() => secureStorage.delete(any()));
     });
   }
@@ -160,10 +172,7 @@ void main() {
   test('clears an expired session after relay rejection', () async {
     when(() => secureStorage.delete(any())).thenAnswer((_) async {});
     when(
-      () => dio.get<Object?>(
-        '/v1/session',
-        options: any(named: 'options'),
-      ),
+      () => dio.get<Object?>('/v1/session', options: any(named: 'options')),
     ).thenAnswer(
       (_) async => Response(
         requestOptions: RequestOptions(path: '/v1/session'),
@@ -189,10 +198,7 @@ void main() {
 
   test('loads valid selectable Discord targets', () async {
     when(
-      () => dio.get<Object?>(
-        '/v1/targets',
-        options: any(named: 'options'),
-      ),
+      () => dio.get<Object?>('/v1/targets', options: any(named: 'options')),
     ).thenAnswer(
       (_) async => Response(
         requestOptions: RequestOptions(path: '/v1/targets'),

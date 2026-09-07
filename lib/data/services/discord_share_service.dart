@@ -180,7 +180,10 @@ class DiscordShareService {
     final response = await _request(
       () => _dio.get<Object?>(
         '/v1/session',
-        options: Options(headers: _authorizationHeaders(session.token), responseType: ResponseType.plain),
+        options: Options(
+          headers: _authorizationHeaders(session.token),
+          responseType: ResponseType.plain,
+        ),
       ),
       clearSessionOnAuthFailure: true,
     );
@@ -253,7 +256,8 @@ class DiscordShareService {
           retryAfterHeader: error.response?.headers.value('retry-after'),
         );
       }
-      final payload = _responsePayload(response.data) ?? const <String, dynamic>{};
+      final payload =
+          _responsePayload(response.data) ?? const <String, dynamic>{};
       if (response.statusCode == 202 || payload['pending'] == true) continue;
       if (response.statusCode != null && response.statusCode! >= 400) {
         throw _exceptionFromPayload(
@@ -286,7 +290,10 @@ class DiscordShareService {
     final payload = await _request(
       () => _dio.get<Object?>(
         '/v1/targets',
-        options: Options(headers: _authorizationHeaders(session.token), responseType: ResponseType.plain),
+        options: Options(
+          headers: _authorizationHeaders(session.token),
+          responseType: ResponseType.plain,
+        ),
       ),
       clearSessionOnAuthFailure: true,
     );

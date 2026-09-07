@@ -192,6 +192,7 @@ tool/tag_catalog/.tmp/
 .spec-workflow/
 .qoder/
 .codex_tmp/
+/.codex-remote-attachments/
 .codex/*
 !.codex/config.toml
 .kiro
