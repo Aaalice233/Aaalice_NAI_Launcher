@@ -6,7 +6,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 
 import '../../../app.dart';
-import '../../../core/services/interactive_work_gate.dart';
 import '../../../core/services/update_check_service.dart';
 import '../../../core/utils/app_logger.dart';
 import '../../../core/utils/first_launch_detector.dart';
@@ -199,15 +198,31 @@ class AutomaticUpdateCheck extends ConsumerStatefulWidget {
       _AutomaticUpdateCheckState();
 }
 
-class _AutomaticUpdateCheckState extends ConsumerState<AutomaticUpdateCheck> {
+class _AutomaticUpdateCheckState extends ConsumerState<AutomaticUpdateCheck>
+    with WidgetsBindingObserver {
   Timer? _timer;
   bool _startupCheckCompleted = false;
+  bool _running = false;
+
+  bool get _isForeground {
+    final lifecycle = WidgetsBinding.instance.lifecycleState;
+    return lifecycle == null || lifecycle == AppLifecycleState.resumed;
+  }
 
   @override
   void initState() {
     super.initState();
-    InteractiveWorkGate.instance.markInteraction();
+    WidgetsBinding.instance.addObserver(this);
     _schedule(widget.delay);
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _schedule(widget.delay);
+    } else {
+      _timer?.cancel();
+    }
   }
 
   void _schedule(Duration delay) {
@@ -216,32 +231,29 @@ class _AutomaticUpdateCheckState extends ConsumerState<AutomaticUpdateCheck> {
   }
 
   Future<void> _run() async {
+    if (!mounted || !_isForeground || _running) return;
+    _running = true;
     try {
-      if (!mounted) return;
       final checkRunner = widget.checkRunner;
       if (checkRunner != null) {
         await checkRunner(ref);
         return;
       }
 
-      // 更新检查可能继续下载并校验发布资产。进入统一空闲队列，避免与
-      // 云恢复、缓存维护和后台刷新同时争抢 UI isolate。
-      await InteractiveWorkGate.instance.runWhenIdle(
-        action: () async {
-          if (!mounted) return;
-          final provider = automaticUpdateCheckProvider(
-            onStartup: !_startupCheckCompleted,
-          );
-          ref.invalidate(provider);
-          await ref.read(provider.future);
-          _startupCheckCompleted = true;
-        },
+      // 检测只读取发布元数据；不能等待交互/动画完全停止，否则持续使用
+      // 应用时可能一直没有更新提示。安装包仍由用户显式触发下载。
+      final provider = automaticUpdateCheckProvider(
+        onStartup: !_startupCheckCompleted,
       );
+      ref.invalidate(provider);
+      await ref.read(provider.future);
+      _startupCheckCompleted = true;
     } catch (error, stackTrace) {
       AppLogger.w('Auto update check failed: $error', 'AppBootstrap');
       AppLogger.d('$stackTrace', 'AppBootstrap');
     } finally {
-      if (mounted) {
+      _running = false;
+      if (mounted && _isForeground) {
         _schedule(UpdateCheckService.failedCheckRetryInterval);
       }
     }
@@ -249,6 +261,7 @@ class _AutomaticUpdateCheckState extends ConsumerState<AutomaticUpdateCheck> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _timer?.cancel();
     super.dispose();
   }

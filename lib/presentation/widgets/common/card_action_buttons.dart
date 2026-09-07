@@ -191,7 +191,7 @@ class CardActionButtons extends StatelessWidget {
     final selection = await AdaptivePresenter.showPanel<CardActionButtonConfig>(
       context: context,
       title: title,
-      initialChildSize: 0.48,
+      initialChildSize: 0.66,
       builder: (panelContext, scrollController) {
         final reducedMotion = MediaQuery.disableAnimationsOf(panelContext);
         return ListView.separated(

@@ -1,3 +1,4 @@
+import 'package:nai_launcher/presentation/widgets/common/horizontal_action_strip.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -194,8 +195,7 @@ class _ShiftEdgesDialogState extends State<ShiftEdgesDialog> {
       child: Text(context.l10n.editor_shiftEdges, textAlign: TextAlign.center),
     );
     if (MediaQuery.textScalerOf(context).scale(1) >= 2) {
-      return SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
+      return HorizontalActionStrip(
         reverse: true,
         child: Row(
           mainAxisSize: MainAxisSize.min,

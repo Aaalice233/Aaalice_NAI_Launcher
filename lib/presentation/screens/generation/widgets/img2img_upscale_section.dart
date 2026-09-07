@@ -6,9 +6,6 @@ import '../../../widgets/common/image_viewport_surface.dart';
 import '../../../../core/comfyui/comfyui_models.dart';
 import '../../../../core/comfyui/seedvr2_support.dart';
 import '../../../../core/utils/localization_extension.dart';
-import '../../../../core/platform/platform_capabilities.dart';
-import '../../../providers/dlss_provider.dart';
-import '../../../providers/generation/dlss_upscale_task_provider.dart';
 import '../../../providers/comfyui/comfyui_provider.dart';
 import '../../../providers/generation/image_workflow_controller.dart';
 import '../../../providers/generation/novel_ai_upscale_task_provider.dart';
@@ -17,7 +14,6 @@ import '../../../widgets/common/anlas_cost_badge.dart';
 import '../../../widgets/common/app_toast.dart';
 import '../../../widgets/common/editable_double_field.dart';
 import 'img2img_upscale_coordinator.dart';
-import 'img2img_dlss_upscale_controls.dart';
 
 class Img2ImgUpscaleSection extends ConsumerStatefulWidget {
   const Img2ImgUpscaleSection({super.key, required this.workflow});
@@ -117,10 +113,6 @@ class _Img2ImgUpscaleSectionState extends ConsumerState<Img2ImgUpscaleSection> {
       ),
     );
     final isNai = settings.backend == UpscaleBackend.novelai;
-    final isSr = settings.backend == UpscaleBackend.dlssSr;
-    final supportsSr =
-        PlatformCapabilities.operatingSystem.supportsDlssEnhancement;
-    final srRunning = isSr && ref.watch(dlssUpscaleTaskProvider).running;
     final capabilities = ref
         .read(comfyUISeedvr2ModelsProvider.notifier)
         .capabilities;
@@ -145,12 +137,6 @@ class _Img2ImgUpscaleSectionState extends ConsumerState<Img2ImgUpscaleSection> {
     );
     final canStart = isNai
         ? hasSource && !naiTask.isRunning
-        : isSr
-        ? supportsSr &&
-              hasSource &&
-              !srRunning &&
-              ref.watch(dlssProvider).enabled &&
-              ref.watch(dlssProvider).options.nativeScale > 1
         : comfyEnabled &&
               hasSource &&
               !task.isRunning &&
@@ -192,13 +178,6 @@ class _Img2ImgUpscaleSectionState extends ConsumerState<Img2ImgUpscaleSection> {
                   icon: const Icon(Icons.computer, size: 16),
                   enabled: comfyEnabled,
                 ),
-                if (supportsSr || isSr)
-                  ButtonSegment(
-                    value: UpscaleBackend.dlssSr,
-                    label: const Text('DLSS SR'),
-                    icon: const Icon(Icons.auto_awesome_outlined, size: 16),
-                    enabled: supportsSr,
-                  ),
               ],
               selected: {settings.backend},
               onSelectionChanged: (value) =>
@@ -215,8 +194,6 @@ class _Img2ImgUpscaleSectionState extends ConsumerState<Img2ImgUpscaleSection> {
                 color: theme.colorScheme.onSurfaceVariant,
               ),
             )
-          else if (isSr)
-            const Img2ImgDlssUpscaleControls()
           else if (!comfyEnabled)
             Text(
               context.l10n.img2img_comfyuiEnableHint,
@@ -414,8 +391,7 @@ class _Img2ImgUpscaleSectionState extends ConsumerState<Img2ImgUpscaleSection> {
     final result = await ref.read(img2ImgUpscaleCoordinatorProvider).run();
     if (!mounted ||
         result is Img2ImgUpscaleSuccess &&
-            (result.kind == Img2ImgUpscaleKind.novelAi ||
-                result.kind == Img2ImgUpscaleKind.dlssSr)) {
+            result.kind == Img2ImgUpscaleKind.novelAi) {
       return;
     }
     if (result case Img2ImgUpscaleSuccess(

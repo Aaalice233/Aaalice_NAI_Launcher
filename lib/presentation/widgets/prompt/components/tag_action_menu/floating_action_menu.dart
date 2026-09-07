@@ -1,3 +1,4 @@
+import 'package:nai_launcher/presentation/widgets/common/horizontal_action_strip.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -52,8 +53,7 @@ class FloatingActionMenu extends StatelessWidget {
         elevation: 8,
         borderRadius: BorderRadius.circular(TagChipSizes.menuBorderRadius),
         clipBehavior: Clip.antiAlias,
-        child: SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
+        child: HorizontalActionStrip(
           padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
           child: Row(
             mainAxisSize: MainAxisSize.min,

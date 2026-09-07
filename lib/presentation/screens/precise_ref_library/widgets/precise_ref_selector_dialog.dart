@@ -1,3 +1,4 @@
+import 'package:nai_launcher/presentation/widgets/common/horizontal_action_strip.dart';
 import 'dart:async';
 import 'dart:typed_data';
 
@@ -210,9 +211,11 @@ class _PreciseRefSelectorDialogState
                           onChanged: _onSearchChanged,
                         ),
                         const SizedBox(height: 8),
-                        SingleChildScrollView(
-                          key: const Key('precise-ref-selector-type-scroll'),
-                          scrollDirection: Axis.horizontal,
+                        HorizontalActionStrip(
+                          scrollKey: const Key(
+                            'precise-ref-selector-type-scroll',
+                          ),
+
                           child: PreciseRefTypeFilterChips(
                             value: _typeFilter,
                             onChanged: (type) =>

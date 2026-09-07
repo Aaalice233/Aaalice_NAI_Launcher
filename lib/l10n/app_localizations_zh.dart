@@ -9,6 +9,21 @@ class AppLocalizationsZh extends AppLocalizations {
   AppLocalizationsZh([String locale = 'zh']) : super(locale);
 
   @override
+  String get generation_enhancementFailed => '增强失败，已保留原图';
+
+  @override
+  String get generation_enhancementRetryHint => '可在图像操作菜单中选择 DLSS NR，仅重试增强。';
+
+  @override
+  String get generation_enhancementPreparing => '准备增强…';
+
+  @override
+  String get generation_enhancementRunning => 'DLSS NR 增强中…';
+
+  @override
+  String get generation_enhancementFinalizing => '合成并编码图像…';
+
+  @override
   String get app_title => 'NAI 启动器';
 
   @override
@@ -14475,17 +14490,6 @@ class AppLocalizationsZh extends AppLocalizations {
       '先用 DLSS SR 放大，再进行 NR。默认 2 倍；1 倍跳过 SR，仅按原尺寸进行 NR。可手动输入小数，输出每边不能超过 16384 像素，实际可用大小取决于显存。';
 
   @override
-  String get dlss_srHint =>
-      '本机 DLSS SR 放大，最终结果不混入 NR。当前运行库仍会计算一次 NR，因此需要可用的 NR 环境，也会产生额外耗时。';
-
-  @override
-  String get dlss_srScaleHint =>
-      '与 NR 面板共用放大倍率，默认 2 倍。1 倍不启动处理。仅调整尺寸与重建细节；不会套用 NR 强度、风格或处理次数。';
-
-  @override
-  String get dlss_srUnavailable => '请先在“设置 → 集成 → DLSSNR”安装、检测并启用运行库。';
-
-  @override
   String get dlss_finalizing => 'NR 已完成，正在准备对比图…';
 
   @override
@@ -14570,6 +14574,21 @@ class AppLocalizationsZh extends AppLocalizations {
 /// The translations for Chinese, using the Han script (`zh_Hant`).
 class AppLocalizationsZhHant extends AppLocalizationsZh {
   AppLocalizationsZhHant() : super('zh_Hant');
+
+  @override
+  String get generation_enhancementFailed => '增強失敗，已保留原圖';
+
+  @override
+  String get generation_enhancementRetryHint => '可在影像操作選單中選擇 DLSS NR，僅重試增強。';
+
+  @override
+  String get generation_enhancementPreparing => '準備增強…';
+
+  @override
+  String get generation_enhancementRunning => 'DLSS NR 增強中…';
+
+  @override
+  String get generation_enhancementFinalizing => '合成並編碼影像…';
 
   @override
   String get app_title => 'NAI 啟動器';
@@ -29037,17 +29056,6 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   @override
   String get dlss_scaleHint =>
       '先用 DLSS SR 放大，再進行 NR。預設 2 倍；1 倍略過 SR，僅按原尺寸進行 NR。可手動輸入小數，輸出每邊不能超過 16384 像素，實際可用大小取決於顯示記憶體。';
-
-  @override
-  String get dlss_srHint =>
-      '本機 DLSS SR 放大，最終結果不混入 NR。目前執行階段仍會計算一次 NR，因此需要可用的 NR 環境，也會產生額外耗時。';
-
-  @override
-  String get dlss_srScaleHint =>
-      '與 NR 面板共用放大倍率，預設 2 倍。1 倍不啟動處理。僅調整尺寸與重建細節；不套用 NR 強度、風格或處理次數。';
-
-  @override
-  String get dlss_srUnavailable => '請先在「設定 → 整合 → DLSSNR」安裝、檢測並啟用執行階段。';
 
   @override
   String get dlss_finalizing => 'NR 已完成，正在準備比較圖…';

@@ -1,3 +1,4 @@
+import 'package:nai_launcher/presentation/widgets/common/horizontal_action_strip.dart';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -259,9 +260,9 @@ class _CloudSyncContentSelectionBodyState
         builder: (context, constraints) {
           if (constraints.maxWidth < 520 ||
               MediaQuery.textScalerOf(context).scale(1) > 1.5) {
-            return SingleChildScrollView(
-              key: const ValueKey('cloud-sync-content-footer-scroll'),
-              scrollDirection: Axis.horizontal,
+            return HorizontalActionStrip(
+              scrollKey: const ValueKey('cloud-sync-content-footer-scroll'),
+
               child: Row(
                 children: [defaults, const SizedBox(width: 24), actions],
               ),

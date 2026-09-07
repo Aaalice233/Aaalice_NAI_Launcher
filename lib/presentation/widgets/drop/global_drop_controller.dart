@@ -10,12 +10,14 @@ import '../../utils/internal_drag_protocol.dart';
 
 class GlobalDropController extends ChangeNotifier {
   GlobalDropController({
-    required Future<void> Function(PerformDropEvent event) performDrop,
+    required Future<List<DroppedFileData>> Function(PerformDropEvent event)
+    readDrop,
     required Future<void> Function(DroppedFileData file) processFile,
-  }) : _performDrop = performDrop,
+  }) : _readDrop = readDrop,
        _processFile = processFile;
 
-  final Future<void> Function(PerformDropEvent event) _performDrop;
+  final Future<List<DroppedFileData>> Function(PerformDropEvent event)
+  _readDrop;
   final Future<void> Function(DroppedFileData file) _processFile;
 
   bool _isDragging = false;
@@ -41,10 +43,18 @@ class GlobalDropController extends ChangeNotifier {
 
   void onDropLeave(DropEvent event) => _setDragging(false);
 
-  Future<void> onPerformDrop(PerformDropEvent event) {
+  Future<void> onPerformDrop(PerformDropEvent event) async {
     _setDragging(false);
-    unawaited(_runDrop(event));
-    return Future<void>.value();
+    _setProcessing(true);
+    try {
+      // The native reader belongs to the drop session. Finish taking all data
+      // before returning, but release the OS drag loop before opening dialogs.
+      final files = await _readDrop(event);
+      unawaited(Future<void>(() => _processDroppedFiles(files)));
+    } catch (_) {
+      _setProcessing(false);
+      rethrow;
+    }
   }
 
   Future<void> handlePasteShortcut(VoidCallback? fallbackTextPaste) async {
@@ -75,8 +85,24 @@ class GlobalDropController extends ChangeNotifier {
     }
   }
 
-  Future<void> _runDrop(PerformDropEvent event) {
-    return runProcessing(() => _performDrop(event));
+  Future<void> _processDroppedFiles(List<DroppedFileData> files) async {
+    try {
+      for (final file in files) {
+        if (_isDisposed) return;
+        await _processFile(file);
+      }
+    } catch (error, stack) {
+      FlutterError.reportError(
+        FlutterErrorDetails(
+          exception: error,
+          stack: stack,
+          library: 'GlobalDropController',
+          context: ErrorDescription('while processing acquired dropped images'),
+        ),
+      );
+    } finally {
+      _setProcessing(false);
+    }
   }
 
   Future<DroppedFileData?> _safeReadClipboardFile() async {

@@ -1,3 +1,4 @@
+import 'package:nai_launcher/presentation/widgets/common/horizontal_action_strip.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -184,9 +185,9 @@ class _ExportDialogState extends ConsumerState<ExportDialog> {
   }
 
   Widget _buildSelectionHeader(ThemeData theme) {
-    return SingleChildScrollView(
-      key: const Key('tag-library-export-selection-header-scroll'),
-      scrollDirection: Axis.horizontal,
+    return HorizontalActionStrip(
+      scrollKey: const Key('tag-library-export-selection-header-scroll'),
+
       child: Row(
         key: const Key('tag-library-export-selection-header'),
         children: [

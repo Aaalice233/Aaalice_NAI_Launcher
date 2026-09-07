@@ -1,3 +1,4 @@
+import 'package:nai_launcher/presentation/widgets/common/horizontal_action_strip.dart';
 import 'package:flutter/material.dart';
 
 import '../../../../../core/utils/localization_extension.dart';
@@ -105,8 +106,7 @@ class MobileToolbar extends StatelessWidget {
             child: ValueListenableBuilder<String?>(
               valueListenable: state.toolNotifier,
               builder: (context, currentToolId, _) {
-                return SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
+                return HorizontalActionStrip(
                   padding: const EdgeInsets.symmetric(horizontal: 4),
                   child: Row(
                     children: _visibleTools.map((tool) {

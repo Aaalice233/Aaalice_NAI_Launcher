@@ -12,48 +12,45 @@ class DlssOptionsEditor extends StatelessWidget {
     required this.value,
     required this.onChanged,
     this.onReset,
+    this.embedded = false,
   });
   final DlssOptions value;
   final ValueChanged<DlssOptions>? onChanged;
   final VoidCallback? onReset;
+  final bool embedded;
 
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
-    return Align(
-      alignment: Alignment.centerLeft,
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 640),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            _ParameterColumns(
-              children: [_processing(context), _appearance(context)],
-            ),
-            const SizedBox(height: 16),
-            _advanced(context),
-            const SizedBox(height: 8),
-            Align(
-              alignment: Alignment.centerLeft,
-              child: TextButton.icon(
-                onPressed: onChanged == null
-                    ? null
-                    : onReset ?? () => onChanged!(const DlssOptions()),
-                icon: const Icon(Icons.restore, size: 18),
-                label: Text(
-                  onReset == null ? l10n.common_reset : l10n.dlss_restorePreset,
-                ),
-              ),
-            ),
-          ],
+    final content = Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _ParameterColumns(
+          children: [_processing(context), _appearance(context)],
         ),
-      ),
+        const SizedBox(height: 16),
+        _advanced(context),
+        const SizedBox(height: 8),
+        Align(
+          alignment: AlignmentDirectional.centerStart,
+          child: TextButton.icon(
+            onPressed: onChanged == null
+                ? null
+                : onReset ?? () => onChanged!(const DlssOptions()),
+            icon: const Icon(Icons.restore, size: 18),
+            label: Text(
+              onReset == null ? l10n.common_reset : l10n.dlss_restorePreset,
+            ),
+          ),
+        ),
+      ],
     );
+    return embedded ? content : SettingsCard(child: content);
   }
 
   Widget _processing(BuildContext context) {
     final l10n = context.l10n;
-    return SettingsCard(
+    return _ParameterGroup(
       key: const Key('dlss-processing-group'),
       title: l10n.dlss_processing,
       icon: Icons.crop_free,
@@ -73,7 +70,7 @@ class DlssOptionsEditor extends StatelessWidget {
 
   Widget _appearance(BuildContext context) {
     final l10n = context.l10n;
-    return SettingsCard(
+    return _ParameterGroup(
       key: const Key('dlss-appearance-group'),
       title: l10n.dlss_appearance,
       icon: Icons.tune,
@@ -120,7 +117,7 @@ class DlssOptionsEditor extends StatelessWidget {
 
   Widget _advanced(BuildContext context) {
     final theme = Theme.of(context);
-    return SettingsCard(
+    return SizedBox(
       key: const Key('dlss-advanced-group'),
       child: ExpansionTile(
         key: const ValueKey('dlss-advanced'),
@@ -265,6 +262,40 @@ class DlssOptionsEditor extends StatelessWidget {
     onChanged: onChanged == null || !enabled
         ? null
         : (v) => onChanged!(update(v)),
+  );
+}
+
+class _ParameterGroup extends StatelessWidget {
+  const _ParameterGroup({
+    super.key,
+    required this.title,
+    required this.icon,
+    required this.child,
+  });
+  final String title;
+  final IconData icon;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) => Column(
+    crossAxisAlignment: CrossAxisAlignment.stretch,
+    children: [
+      Row(
+        children: [
+          Icon(
+            icon,
+            size: 18,
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(title, style: Theme.of(context).textTheme.titleSmall),
+          ),
+        ],
+      ),
+      const SizedBox(height: 8),
+      child,
+    ],
   );
 }
 

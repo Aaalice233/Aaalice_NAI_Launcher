@@ -1,3 +1,4 @@
+import 'package:nai_launcher/presentation/widgets/common/horizontal_action_strip.dart';
 import 'dart:async';
 import 'dart:math' as math;
 import 'dart:ui' as ui;
@@ -772,8 +773,7 @@ class _WatermarkEditorScreenState extends ConsumerState<WatermarkEditorScreen> {
       child: Column(
         children: [
           if (widget.defaultsOnly)
-            SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
+            HorizontalActionStrip(
               padding: const EdgeInsets.symmetric(horizontal: 12),
               child: SegmentedButton<WatermarkLayoutKind>(
                 showSelectedIcon: false,

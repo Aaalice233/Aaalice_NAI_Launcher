@@ -1,3 +1,4 @@
+import 'package:nai_launcher/presentation/widgets/common/horizontal_action_strip.dart';
 import 'dart:io';
 import 'dart:math' as math;
 
@@ -553,8 +554,7 @@ class _ChipBar extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     return SizedBox(
       height: 34,
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
+      child: HorizontalActionStrip(
         padding: const EdgeInsets.symmetric(horizontal: 16),
         child: Row(
           children: [

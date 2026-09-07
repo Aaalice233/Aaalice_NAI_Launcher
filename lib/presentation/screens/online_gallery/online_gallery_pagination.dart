@@ -1,3 +1,4 @@
+import 'package:nai_launcher/presentation/widgets/common/horizontal_action_strip.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -42,8 +43,7 @@ class OnlineGalleryPagination extends StatelessWidget {
           constraints: const BoxConstraints(minHeight: 48),
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
           child: LayoutBuilder(
-            builder: (context, constraints) => SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
+            builder: (context, constraints) => HorizontalActionStrip(
               child: ConstrainedBox(
                 constraints: BoxConstraints(minWidth: constraints.maxWidth),
                 child: Row(
@@ -92,8 +92,7 @@ class OnlineGalleryPagination extends StatelessWidget {
           vertical: 4,
         ),
         child: LayoutBuilder(
-          builder: (context, constraints) => SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
+          builder: (context, constraints) => HorizontalActionStrip(
             child: ConstrainedBox(
               constraints: BoxConstraints(minWidth: constraints.maxWidth),
               child: Row(

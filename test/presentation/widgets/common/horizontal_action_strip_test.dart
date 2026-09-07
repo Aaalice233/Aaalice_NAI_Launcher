@@ -7,6 +7,7 @@ void main() {
     tester,
   ) async {
     const hint = ValueKey('hint');
+    const back = ValueKey('back');
     const scroll = ValueKey('scroll');
     Future<void> pumpStrip(double width, double contentWidth) async {
       await tester.pumpWidget(
@@ -18,6 +19,7 @@ void main() {
                 minimumExtent: 48,
                 scrollKey: scroll,
                 hintKey: hint,
+                leadingHintKey: back,
                 child: SizedBox(width: contentWidth, height: 48),
               ),
             ),
@@ -29,9 +31,11 @@ void main() {
 
     await pumpStrip(320, 700);
     expect(find.byKey(hint), findsOneWidget);
+    expect(find.byKey(back), findsNothing);
     await tester.drag(find.byKey(scroll), const Offset(-700, 0));
     await tester.pumpAndSettle();
     expect(find.byKey(hint), findsNothing);
+    expect(find.byKey(back), findsOneWidget);
     await tester.drag(find.byKey(scroll), const Offset(700, 0));
     await tester.pumpAndSettle();
     expect(find.byKey(hint), findsOneWidget);
@@ -41,6 +45,7 @@ void main() {
     expect(find.byKey(hint), findsOneWidget);
     await pumpStrip(320, 200);
     expect(find.byKey(hint), findsNothing);
+    expect(find.byKey(back), findsNothing);
     expect(tester.takeException(), isNull);
   });
 }

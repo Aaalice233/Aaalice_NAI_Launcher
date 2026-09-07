@@ -128,7 +128,7 @@ void main() {
   });
 
   test(
-    'failed checks record only an attempt and retry after 30 minutes',
+    'failed checks record only an attempt and retry after 5 minutes',
     () async {
       final service = buildService(
         (_) async => throw GitHubApiException('offline'),
@@ -143,7 +143,7 @@ void main() {
       expect(storage.success, isNull);
       expect(await service.shouldCheck(), isFalse);
 
-      now = now.add(const Duration(minutes: 31));
+      now = now.add(const Duration(minutes: 5));
       expect(await service.shouldCheck(), isTrue);
     },
   );
@@ -172,7 +172,7 @@ void main() {
   );
 
   test(
-    'same build is not mistaken for an update and uses 24 hour interval',
+    'same build is not mistaken for an update and checks again after 30 minutes',
     () async {
       final service = buildService(
         (current) async => VersionInfo(
@@ -187,7 +187,9 @@ void main() {
       expect(storage.success, now);
       expect(await service.shouldCheck(), isFalse);
 
-      now = now.add(const Duration(hours: 24));
+      now = now.add(const Duration(minutes: 29));
+      expect(await service.shouldCheck(), isFalse);
+      now = now.add(const Duration(minutes: 1));
       expect(await service.shouldCheck(), isTrue);
     },
   );
@@ -220,12 +222,27 @@ void main() {
     expect(await service.shouldCheckOnStartup(), isFalse);
 
     storage.remindAfter = null;
-    storage.attempt = now.subtract(const Duration(minutes: 5));
+    storage.attempt = now.subtract(const Duration(minutes: 1));
     storage.success = now.subtract(const Duration(hours: 1));
     expect(await service.shouldCheckOnStartup(), isFalse);
 
-    now = now.add(const Duration(minutes: 31));
+    now = now.add(const Duration(minutes: 5));
     expect(await service.shouldCheckOnStartup(), isTrue);
+  });
+
+  test('failed startup retries even after a recent successful check', () async {
+    final service = buildService(
+      (_) async => throw GitHubApiException('offline'),
+    );
+    storage.success = now.subtract(const Duration(minutes: 1));
+    await expectLater(
+      service.checkForUpdates(),
+      throwsA(isA<UpdateCheckException>()),
+    );
+    now = now.add(const Duration(minutes: 4));
+    expect(await service.shouldCheck(), isFalse);
+    now = now.add(const Duration(minutes: 1));
+    expect(await service.shouldCheck(), isTrue);
   });
 
   test('remind later suppresses a known update until the deadline', () async {

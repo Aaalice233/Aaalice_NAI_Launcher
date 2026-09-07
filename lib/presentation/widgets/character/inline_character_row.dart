@@ -1,3 +1,4 @@
+import 'package:nai_launcher/presentation/widgets/common/horizontal_action_strip.dart';
 import 'package:flutter/material.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -52,9 +53,9 @@ class _InlineCharacterHeader extends ConsumerWidget {
               ),
             ],
           )
-        : SingleChildScrollView(
-            key: const ValueKey('character-position-mode-scroll'),
-            scrollDirection: Axis.horizontal,
+        : HorizontalActionStrip(
+            scrollKey: const ValueKey('character-position-mode-scroll'),
+
             child: CharacterPositionModeSegments(
               forceExitMaximizedPrompt: forceExitMaximizedPrompt,
             ),

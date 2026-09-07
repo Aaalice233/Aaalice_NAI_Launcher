@@ -1,3 +1,4 @@
+import 'package:nai_launcher/presentation/widgets/common/horizontal_action_strip.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:nai_launcher/presentation/themes/core/input_surface_style.dart';
@@ -616,8 +617,7 @@ class _VibeSelectorDialogState extends ConsumerState<VibeSelectorDialog> {
       child: LayoutBuilder(
         builder: (context, constraints) {
           if (constraints.maxWidth < 600) {
-            return SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
+            return HorizontalActionStrip(
               child: Row(
                 children: [
                   favoriteFilter,
@@ -639,10 +639,7 @@ class _VibeSelectorDialogState extends ConsumerState<VibeSelectorDialog> {
               sourceFilter,
               const SizedBox(width: 8),
               Expanded(
-                child: SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: Row(children: tagFilters),
-                ),
+                child: HorizontalActionStrip(child: Row(children: tagFilters)),
               ),
               sortButton,
               const SizedBox(width: 8),

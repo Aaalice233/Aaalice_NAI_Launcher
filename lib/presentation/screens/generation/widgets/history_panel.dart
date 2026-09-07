@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io';
+import '../../../utils/zip_export_progress.dart';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
@@ -1592,11 +1593,7 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
           : '$outputPath.zip';
     }
 
-    // 显示打包进度
-    AppToast.info(
-      context,
-      context.l10n.toast_packingImages(_selectedIds.length),
-    );
+    final progress = ZipExportProgress(context, _selectedIds.length);
 
     Directory? tempDir;
     try {
@@ -1617,17 +1614,18 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
         imagePaths.add(file.path);
       }
 
-      late bool success;
+      late ZipCreationResult result;
       String? savedLocation;
       if (PlatformCapabilities.current.supportsDocumentFileExport) {
         savedLocation = await FileExportService.withTemporaryOutput(
           fileName: fileName,
           action: (temporaryPath) async {
-            success = await ZipUtils.createZipFromImages(
+            result = await ZipUtils.createZipFromImagesDetailed(
               imagePaths,
               temporaryPath,
+              onProgress: progress.update,
             );
-            if (!success || !context.mounted) return null;
+            if (!result.succeeded || !context.mounted) return null;
             return FileExportService.saveFileFromPath(
               sourcePath: temporaryPath,
               fileName: fileName,
@@ -1638,27 +1636,49 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
           },
         );
       } else {
-        success = await ZipUtils.createZipFromImages(
+        result = await ZipUtils.createZipFromImagesDetailed(
           imagePaths,
           desktopOutputPath!,
+          onProgress: progress.update,
         );
         savedLocation = desktopOutputPath;
       }
 
       if (context.mounted) {
-        if (success && savedLocation != null) {
-          AppToast.success(
-            context,
-            context.l10n.toast_packedImages(selectedImages.length),
-          );
+        if (result.succeeded && savedLocation != null) {
+          if (result.isPartial) {
+            progress.controller.dismiss();
+            AppToast.warning(
+              context,
+              context.l10n.localGallery_packedImagesWithFailures(
+                result.exportedCount,
+                result.failures.length,
+              ),
+            );
+          } else {
+            progress.controller.complete(
+              message: context.l10n.localGallery_packedImages(
+                result.exportedCount,
+              ),
+            );
+          }
           setState(() {
-            _selectedIds.clear();
+            if (!result.isPartial) _selectedIds.clear();
           });
-        } else if (!success) {
-          AppToast.error(context, context.l10n.toast_packFailed);
+        } else if (!result.succeeded) {
+          progress.controller.fail(
+            message: context.l10n.localGallery_packFailedWithDetails(
+              result.error ?? context.l10n.localGallery_packFailed,
+            ),
+          );
+        } else {
+          progress.controller.dismiss();
         }
+      } else {
+        progress.controller.dismiss();
       }
     } catch (e) {
+      progress.controller.dismiss();
       if (context.mounted) {
         AppToast.error(
           context,

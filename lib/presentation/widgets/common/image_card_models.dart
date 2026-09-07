@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 
 import '../../../data/models/image/image_stream_chunk.dart';
+import '../../../data/models/image/image_postprocess_phase.dart';
 
 @immutable
 class ImageCardViewData {
@@ -28,6 +29,7 @@ class ImageCardViewData {
     required this.imageWidth,
     required this.imageHeight,
     required this.sourceFilePath,
+    this.postprocessPhase,
   });
 
   final Uint8List? imageBytes;
@@ -45,6 +47,7 @@ class ImageCardViewData {
   final Widget? imageContent;
   final bool isGenerating;
   final double? progress;
+  final ImagePostprocessPhase? postprocessPhase;
   final int? currentImage;
   final int? totalImages;
   final Uint8List? streamPreview;

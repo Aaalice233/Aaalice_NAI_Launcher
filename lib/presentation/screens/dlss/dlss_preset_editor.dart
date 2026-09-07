@@ -87,55 +87,38 @@ class _DlssPresetEditorState extends ConsumerState<DlssPresetEditor> {
     final l10n = context.l10n;
     final theme = Theme.of(context);
     final enabled = widget.enabled && !_busy;
-    return Align(
-      alignment: Alignment.centerLeft,
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 640),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            SettingsCard(
-              key: const Key('dlss-preset-group'),
-              title: l10n.dlss_parameterPreset,
-              icon: Icons.bookmark_border,
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 4),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    _presetSelector(controller, state, enabled, l10n),
-                    const SizedBox(height: 8),
-                    Text(
-                      state.modified
-                          ? l10n.dlss_draftSaved
-                          : state.selected.builtIn
-                          ? l10n.dlss_builtinPreset
-                          : l10n.dlss_customPreset,
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: theme.colorScheme.onSurfaceVariant,
-                      ),
-                    ),
-                    if (_error != null)
-                      Text(
-                        '$_error',
-                        style: TextStyle(color: theme.colorScheme.error),
-                      ),
-                  ],
-                ),
-              ),
+    return SettingsCard(
+      key: const Key('dlss-preset-group'),
+      title: l10n.dlss_parameterPreset,
+      icon: Icons.bookmark_border,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _presetSelector(controller, state, enabled, l10n),
+          const SizedBox(height: 8),
+          Text(
+            state.modified
+                ? l10n.dlss_draftSaved
+                : state.selected.builtIn
+                ? l10n.dlss_builtinPreset
+                : l10n.dlss_customPreset,
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
             ),
-            const SizedBox(height: 16),
-            DlssOptionsEditor(
-              value: state.options,
-              onChanged: enabled ? controller.setOptions : null,
-              onReset: enabled
-                  ? () => _perform(
-                      () => controller.selectPreset(state.selected.id),
-                    )
-                  : null,
-            ),
-          ],
-        ),
+          ),
+          if (_error != null)
+            Text('$_error', style: TextStyle(color: theme.colorScheme.error)),
+          const SizedBox(height: 24),
+          DlssOptionsEditor(
+            embedded: true,
+            value: state.options,
+            onChanged: enabled ? controller.setOptions : null,
+            onReset: enabled
+                ? () =>
+                      _perform(() => controller.selectPreset(state.selected.id))
+                : null,
+          ),
+        ],
       ),
     );
   }

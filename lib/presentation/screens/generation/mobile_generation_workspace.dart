@@ -1,3 +1,4 @@
+import 'package:nai_launcher/presentation/widgets/common/horizontal_action_strip.dart';
 import 'package:flutter/material.dart';
 
 import '../../../core/utils/localization_extension.dart';
@@ -336,11 +337,11 @@ class MobileCollapsedPromptLauncher extends StatelessWidget {
                                 Expanded(
                                   child: SizedBox(
                                     height: 17,
-                                    child: SingleChildScrollView(
-                                      key: const ValueKey(
+                                    child: HorizontalActionStrip(
+                                      scrollKey: const ValueKey(
                                         'generation-prompt-overview-statuses',
                                       ),
-                                      scrollDirection: Axis.horizontal,
+
                                       child: Row(
                                         children: [
                                           for (

@@ -1,3 +1,4 @@
+import 'package:nai_launcher/presentation/widgets/common/horizontal_action_strip.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -279,10 +280,7 @@ class _QuickTagCloudToolbarState extends ConsumerState<QuickTagCloudToolbar> {
     return LayoutBuilder(
       builder: (context, constraints) {
         if (!constraints.hasBoundedWidth) return content;
-        return SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: content,
-        );
+        return HorizontalActionStrip(child: content);
       },
     );
   }

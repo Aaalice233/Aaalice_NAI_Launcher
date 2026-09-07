@@ -4,6 +4,7 @@ import 'dart:ui';
 
 import '../../../data/datasources/remote/nai_generation_transport.dart';
 import '../../../data/models/image/image_params.dart';
+import '../../../data/models/image/image_postprocess_phase.dart';
 import '../../../data/models/image/image_stream_chunk.dart';
 
 /// Immutable description of one user-initiated generation run.
@@ -150,6 +151,18 @@ class GenerationImageFinalizing extends GenerationEvent {
   final int totalImages;
 }
 
+class GenerationPostprocessChanged extends GenerationEvent {
+  const GenerationPostprocessChanged({
+    required super.runId,
+    required this.imageNumber,
+    required this.totalImages,
+    required this.phase,
+  });
+  final int imageNumber;
+  final int totalImages;
+  final ImagePostprocessPhase phase;
+}
+
 class GenerationRequestCompleted extends GenerationEvent {
   const GenerationRequestCompleted({
     required super.runId,
@@ -157,6 +170,7 @@ class GenerationRequestCompleted extends GenerationEvent {
     required this.startImage,
     required this.totalImages,
     required this.images,
+    this.postprocessErrors = const {},
     this.vibeEncodings = const <int, String>{},
     this.indexedVibeEncodings = const <GenerationVibeEncoding>[],
   });
@@ -165,6 +179,7 @@ class GenerationRequestCompleted extends GenerationEvent {
   final int startImage;
   final int totalImages;
   final List<Uint8List> images;
+  final Map<int, String> postprocessErrors;
 
   /// Request-shared slot encodings retained for existing event consumers.
   final Map<int, String> vibeEncodings;

@@ -8,6 +8,7 @@ import '../../../core/utils/app_logger.dart';
 import '../../../data/datasources/remote/nai_generation_transport.dart';
 import '../../../data/datasources/remote/nai_image_generation_api_service.dart';
 import '../../../data/models/image/image_params.dart';
+import '../../../data/models/image/image_postprocess_phase.dart';
 import 'generation_command.dart';
 import 'generation_error_classifier.dart';
 
@@ -40,7 +41,7 @@ class ImageGenerationCoordinator {
   final Duration concurrencyRetryInterval;
   final Duration concurrencyRetryBudget;
   final Random _random;
-  final Future<Uint8List> Function(Uint8List, Future<void>)? postprocess;
+  final ImagePostprocessor? postprocess;
   final void Function(Object)? onPostprocessError;
 
   GenerationRunHandle? _activeRun;
@@ -131,6 +132,7 @@ class ImageGenerationCoordinator {
 
         try {
           final batchImages = <Uint8List>[];
+          final postprocessErrors = <int, String>{};
           final batchEncodings = <int, String>{};
           final batchIndexedEncodings = <GenerationVibeEncoding>[];
           Object? batchError;
@@ -228,27 +230,45 @@ class ImageGenerationCoordinator {
             if (processor != null && !_aborted(handle)) {
               _postprocessing = true;
               try {
-              for (var index = 0; index < batchImages.length; index++) {
-                if (_aborted(handle)) break;
-                try {
-                  batchImages[index] = await processor(
-                    batchImages[index],
-                    handle.cancellation.whenCancelled,
-                  );
-                } catch (error, stack) {
-                  AppLogger.e(
-                    'Image postprocessing failed; retaining original',
-                    error,
-                    stack,
-                    'Generation',
-                  );
-                  if (!reportedPostprocessError) {
-                    onPostprocessError?.call(error);
-                    reportedPostprocessError = true;
+                for (var index = 0; index < batchImages.length; index++) {
+                  if (_aborted(handle)) break;
+                  try {
+                    await for (final update in _processImage(
+                      processor,
+                      batchImages[index],
+                      handle.cancellation.whenCancelled,
+                    )) {
+                      if (update.bytes != null) {
+                        batchImages[index] = update.bytes!;
+                      }
+                      if (update.phase != null && !_aborted(handle)) {
+                        yield GenerationPostprocessChanged(
+                          runId: command.runId,
+                          imageNumber: startImage + index,
+                          totalImages: command.totalImages,
+                          phase: update.phase!,
+                        );
+                      }
+                    }
+                  } catch (error, stack) {
+                    if (!_aborted(handle)) {
+                      postprocessErrors[index] = error.toString();
+                    }
+                    AppLogger.e(
+                      'Image postprocessing failed; retaining original',
+                      error,
+                      stack,
+                      'Generation',
+                    );
+                    if (!reportedPostprocessError) {
+                      onPostprocessError?.call(error);
+                      reportedPostprocessError = true;
+                    }
                   }
                 }
+              } finally {
+                _postprocessing = false;
               }
-              } finally { _postprocessing = false; }
             }
             allImages.addAll(batchImages);
             yield GenerationRequestCompleted(
@@ -257,6 +277,7 @@ class ImageGenerationCoordinator {
               startImage: startImage,
               totalImages: command.totalImages,
               images: batchImages,
+              postprocessErrors: postprocessErrors,
               vibeEncodings: batchEncodings,
               indexedVibeEncodings: batchIndexedEncodings,
             );
@@ -303,6 +324,32 @@ class ImageGenerationCoordinator {
     } finally {
       _apiService.releaseCancellationLease(handle.requestLease);
     }
+  }
+
+  Stream<({Uint8List? bytes, ImagePostprocessPhase? phase})> _processImage(
+    ImagePostprocessor processor,
+    Uint8List source,
+    Future<void> cancelled,
+  ) {
+    final updates =
+        StreamController<({Uint8List? bytes, ImagePostprocessPhase? phase})>();
+    updates.add((bytes: null, phase: ImagePostprocessPhase.preparing));
+    unawaited(
+      Future.sync(
+            () => processor(
+              source,
+              cancelled,
+              (phase) => updates.add((bytes: null, phase: phase)),
+            ),
+          )
+          .then<void>(
+            (bytes) => updates.add((bytes: bytes, phase: null)),
+            onError: (Object error, StackTrace stack) =>
+                updates.addError(error, stack),
+          )
+          .whenComplete(updates.close),
+    );
+    return updates.stream;
   }
 
   Stream<_RequestSignal> _runRequest({

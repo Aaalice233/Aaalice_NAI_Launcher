@@ -24,7 +24,6 @@ import 'package:nai_launcher/presentation/screens/dlss/dlss_enhancement_panel.da
 import 'package:nai_launcher/presentation/screens/dlss/dlss_settings_section.dart';
 import 'package:nai_launcher/presentation/screens/dlss/dlss_options_editor.dart';
 import 'package:nai_launcher/presentation/screens/dlss/dlss_preset_editor.dart';
-import 'package:nai_launcher/presentation/screens/generation/widgets/img2img_dlss_upscale_controls.dart';
 import 'package:nai_launcher/presentation/screens/settings/sections/generation_settings_section.dart';
 import 'package:nai_launcher/presentation/screens/settings/sections/integrations_settings_section.dart';
 import 'package:nai_launcher/presentation/screens/settings/widgets/settings_card.dart';
@@ -338,35 +337,6 @@ void main() {
   });
   for (final width in [320.0, 600.0, 840.0, 1180.0, 1600.0]) {
     for (final scale in [1.0, 3.0]) {
-      testWidgets('SR scale entry remains reachable at $width / $scale', (
-        tester,
-      ) async {
-        await tester.binding.setSurfaceSize(Size(width, 400));
-        addTearDown(() => tester.binding.setSurfaceSize(null));
-        final controller = _Controller();
-        await tester.pumpWidget(
-          _app(
-            controller,
-            const Scaffold(
-              body: SafeArea(
-                child: SingleChildScrollView(
-                  child: Img2ImgDlssUpscaleControls(),
-                ),
-              ),
-            ),
-            scale: scale,
-          ),
-        );
-        await tester.pumpAndSettle();
-        final input = find.byType(TextField);
-        await tester.ensureVisible(input);
-        await tester.enterText(input, '2.5');
-        await tester.testTextInput.receiveAction(TextInputAction.done);
-        await tester.pump();
-        expect(controller.options.scale, 2.5);
-        expect(find.textContaining('当前运行库仍会计算一次 NR'), findsOneWidget);
-        expect(tester.takeException(), isNull);
-      });
       testWidgets('advanced NR controls can be changed at $width / $scale', (
         tester,
       ) async {
@@ -457,9 +427,18 @@ void main() {
             expect(group, findsOneWidget);
             expect(
               find.ancestor(of: group, matching: find.byType(SettingsCard)),
-              findsNothing,
-              reason: 'each parameter group must stand on its own surface',
+              key == 'dlss-preset-group' ? findsNothing : findsOneWidget,
+              reason: 'preset and parameter subsections share one complete surface',
             );
+            if (key != 'dlss-preset-group') {
+              expect(
+                find.descendant(
+                  of: find.byKey(const Key('dlss-preset-group')),
+                  matching: group,
+                ),
+                findsOneWidget,
+              );
+            }
           }
           final list = find.byType(Scrollable).first;
           await tester.scrollUntilVisible(

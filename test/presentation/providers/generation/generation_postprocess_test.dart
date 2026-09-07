@@ -33,7 +33,7 @@ void main() {
         final errors = <Object>[];
         coordinator = ImageGenerationCoordinator(
           apiService: api,
-          postprocess: (bytes, cancelled) async {
+          postprocess: (bytes, cancelled, onPhase) async {
             processed++;
             expect(bytes, same(original));
             expect(coordinator.isPostprocessing, isTrue);

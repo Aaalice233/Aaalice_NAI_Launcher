@@ -591,17 +591,33 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
             _finalizedPreviewSlot(imageNumber, totalImages),
           ),
         );
+      case GenerationPostprocessChanged(
+        :final imageNumber,
+        :final totalImages,
+        :final phase,
+      ):
+        state = state.copyWith(
+          streamPreviewSlots: _replacePreviewSlot(
+            state.streamPreviewSlots,
+            _finalizedPreviewSlot(
+              imageNumber,
+              totalImages,
+            ).copyWith(postprocessPhase: phase),
+          ),
+        );
       case GenerationRequestCompleted(
         :final params,
         :final startImage,
         :final totalImages,
         :final images,
         :final vibeEncodings,
+        :final postprocessErrors,
       ):
-        final generated = images
+        final generated = images.indexed
             .map(
-              (bytes) => GeneratedImage.create(
-                bytes,
+              (entry) => GeneratedImage.create(
+                entry.$2,
+                postprocessError: postprocessErrors[entry.$1],
                 width: params.width,
                 height: params.height,
                 comparisonSource: _activeComparisonSource,
@@ -901,7 +917,8 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
     if (_isDisposed) return;
     final processingCoordinator = _coordinator;
     final processingRun = _activeRun;
-    if (processingCoordinator != null && processingRun != null &&
+    if (processingCoordinator != null &&
+        processingRun != null &&
         processingCoordinator.isPostprocessing) {
       // Keep this run's ownership until its already-arrived originals are reduced.
       processingCoordinator.cancel(processingRun);

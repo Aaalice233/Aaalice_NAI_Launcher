@@ -10,6 +10,7 @@ import 'package:uuid/uuid.dart';
 import '../../core/platform/platform_capabilities.dart';
 import '../../core/storage/local_storage_service.dart';
 import '../../data/services/dlss/dlss_options.dart';
+import '../../data/models/image/image_postprocess_phase.dart';
 import '../../data/services/dlss/dlss_presets.dart';
 import '../../data/services/dlss/dlss_release.dart';
 import '../../data/services/dlss/dlss_runtime_manager.dart';
@@ -315,6 +316,7 @@ class DlssController extends ChangeNotifier {
     Future<void>? cancelled,
     String? selectedLuid,
     void Function()? onFinalizing,
+    void Function()? onEnhancing,
   }) async {
     var wasCancelled = false;
     var finished = false;
@@ -347,6 +349,7 @@ class DlssController extends ChangeNotifier {
             cancelled: cancelled,
             version: runtime.release.tag,
             onFinalizing: onFinalizing,
+            onEnhancing: onEnhancing,
           );
           if (wasCancelled) throw const DlssCancelled();
           return result;
@@ -369,28 +372,23 @@ class DlssController extends ChangeNotifier {
     }
   }
 
-  Future<Uint8List> Function(Uint8List, Future<void>) automaticSnapshot() {
+  ImagePostprocessor? automaticSnapshot() {
     final parameters = options;
     final selected = preferredLuid;
     if (!PlatformCapabilities.operatingSystem.supportsDlssEnhancement ||
         !preferenceEnabled ||
         !automatic) {
-      return (bytes, _) async => bytes;
+      return null;
     }
-    var deviceFailed = false;
-    return (bytes, cancelled) async {
-      if (deviceFailed) return bytes;
-      try {
-        return await _enhance(
-          bytes,
-          parameters,
-          cancelled: cancelled,
-          selectedLuid: selected,
-        );
-      } catch (_) {
-        deviceFailed = !ready;
-        rethrow;
-      }
+    return (bytes, cancelled, onPhase) async {
+      return await _enhance(
+        bytes,
+        parameters,
+        cancelled: cancelled,
+        selectedLuid: selected,
+        onEnhancing: () => onPhase(ImagePostprocessPhase.enhancing),
+        onFinalizing: () => onPhase(ImagePostprocessPhase.finalizing),
+      );
     };
   }
 

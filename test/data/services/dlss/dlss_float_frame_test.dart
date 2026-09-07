@@ -33,6 +33,17 @@ void main() {
     final output = frame.composite(frame, detail: 1, color: 1);
     expect(output.getBytes(), orderedEquals(source.getBytes()));
   });
+  test('float transport accepts unaligned views and owns decoded pixels', () {
+    final channels = Float32List.fromList([9, .1, -.2, 1.5, .7, 8]);
+    final frame = DlssFloatFrame(1, 1, Float32List.sublistView(channels, 1, 5));
+    final encoded = frame.encode();
+    final storage = Uint8List(encoded.length + 1)..setRange(1, encoded.length + 1, encoded);
+    final view = Uint8List.sublistView(storage, 1);
+    final decoded = DlssFloatFrame.decode(view);
+    expect(decoded.pixels, orderedEquals(frame.pixels));
+    view.fillRange(16, view.length, 0);
+    expect(decoded.pixels, orderedEquals(frame.pixels));
+  });
   test('final detail blend uses untouched baseline once in linear light', () {
     final baseline = DlssFloatFrame(
       1,

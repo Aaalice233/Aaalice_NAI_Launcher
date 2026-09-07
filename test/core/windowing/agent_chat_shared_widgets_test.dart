@@ -1,8 +1,53 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter/services.dart';
+import 'package:nai_launcher/l10n/app_localizations.dart';
+import 'package:nai_launcher/core/windowing/agent_chat_code_block.dart';
 import 'package:nai_launcher/core/windowing/agent_chat_shared_widgets.dart';
 
 void main() {
+  testWidgets('code blocks copy whitespace and update while streaming', (
+    tester,
+  ) async {
+    String? copied;
+    tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+      SystemChannels.platform,
+      (call) async {
+        if (call.method == 'Clipboard.setData') {
+          copied = (call.arguments as Map)['text'] as String;
+        }
+        return null;
+      },
+    );
+    addTearDown(
+      () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        SystemChannels.platform,
+        null,
+      ),
+    );
+    for (final code in ['  first\n', '  first\n\nsecond\n']) {
+      await tester.pumpWidget(
+        MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(
+            body: AgentChatMarkdownContent(
+              text: '```dart\n$code```',
+              touchOptimized: true,
+            ),
+          ),
+        ),
+      );
+      expect(find.byType(AgentChatCodeBlock), findsOneWidget);
+      await tester.tap(find.byIcon(Icons.copy_rounded));
+      await tester.pump();
+      expect(copied, code);
+      expect(tester.takeException(), isNull);
+    }
+    await tester.pumpWidget(const SizedBox());
+    await tester.pump(const Duration(seconds: 5));
+  });
+
   testWidgets('approval surface keeps both actions usable on a narrow phone', (
     tester,
   ) async {

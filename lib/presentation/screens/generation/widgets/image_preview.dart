@@ -1,3 +1,4 @@
+import 'package:nai_launcher/data/models/image/image_postprocess_phase.dart';
 import 'dart:async';
 import 'dart:io';
 import 'dart:math';
@@ -266,6 +267,7 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> {
     required int currentImage,
     required int totalImages,
     required double progress,
+    ImagePostprocessPhase? postprocessPhase,
     Uint8List? streamPreview,
     FocusedStreamPreviewPlacement? focusedPreviewPlacement,
   }) {
@@ -274,6 +276,7 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> {
       currentImage: currentImage,
       totalImages: totalImages,
       progress: progress,
+      postprocessPhase: postprocessPhase,
       streamPreview: streamPreview,
       focusedPreviewPlacement: focusedPreviewPlacement,
       imageWidth: imageWidth,
@@ -377,6 +380,7 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> {
                 currentImage: slot.imageNumber,
                 totalImages: slot.totalImages,
                 progress: slot.progress,
+                postprocessPhase: slot.postprocessPhase,
                 streamPreview: slot.previewBytes,
                 focusedPreviewPlacement: slot.focusedPreviewPlacement,
               );
@@ -416,6 +420,7 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> {
         currentImage: slot?.imageNumber ?? state.currentImage,
         totalImages: slot?.totalImages ?? state.totalImages,
         progress: slot?.progress ?? state.progress,
+        postprocessPhase: slot?.postprocessPhase,
         streamPreview: slot?.previewBytes ?? state.streamPreview,
         focusedPreviewPlacement:
             slot?.focusedPreviewPlacement ?? state.focusedPreviewPlacement,
@@ -690,9 +695,13 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> {
       enableCopyAction: image.canSave,
       statusBadgeLabel: isFailedSnapshot
           ? context.l10n.generation_failedStreamSnapshot
+          : image.postprocessError != null
+          ? context.l10n.generation_enhancementFailed
           : null,
       statusBadgeTooltip: isFailedSnapshot
           ? context.l10n.generation_failedStreamSnapshotHint
+          : image.postprocessError != null
+          ? context.l10n.generation_enhancementRetryHint
           : null,
       onTap: () => _showFullscreenImage(image),
       onReversePrompt: canUseAsInput

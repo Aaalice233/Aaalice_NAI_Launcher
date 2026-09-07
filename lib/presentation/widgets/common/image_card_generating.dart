@@ -4,6 +4,7 @@ import '../../themes/theme_extension.dart';
 import 'image_card_controller.dart';
 import 'image_card_models.dart';
 import 'image_card_stream_preview.dart';
+import 'image_postprocess_indicator.dart';
 
 const _streamProgressForeground = Colors.white;
 
@@ -41,7 +42,11 @@ class ImageCardGenerating extends StatelessWidget {
         ),
         child: child,
       ),
-      child: hasPreview ? _preview(context) : _loading(context, theme),
+      child: hasPreview
+          ? _preview(context)
+          : data.postprocessPhase != null
+          ? ImagePostprocessIndicator(phase: data.postprocessPhase!)
+          : _loading(context, theme),
     );
   }
 
@@ -65,45 +70,48 @@ class ImageCardGenerating extends StatelessWidget {
               ),
             ),
           ),
-          Positioned(
-            left: 8,
-            right: 8,
-            bottom: 8,
-            child: Row(
-              children: [
-                SizedBox(
-                  width: 20,
-                  height: 20,
-                  child: CircularProgressIndicator(
-                    key: const ValueKey('stream-generation-progress-ring'),
-                    value: progress > 0
-                        ? progress
-                        : MediaQuery.disableAnimationsOf(context)
-                        ? 0.72
-                        : null,
-                    strokeWidth: 2,
-                    backgroundColor: _streamProgressForeground.withValues(
-                      alpha: 0.24,
+          if (data.postprocessPhase != null)
+            ImagePostprocessIndicator(phase: data.postprocessPhase!)
+          else
+            Positioned(
+              left: 8,
+              bottom: 8,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                      key: const ValueKey('stream-generation-progress-ring'),
+                      value: progress > 0
+                          ? progress
+                          : MediaQuery.disableAnimationsOf(context)
+                          ? 0.72
+                          : null,
+                      strokeWidth: 2,
+                      backgroundColor: _streamProgressForeground.withValues(
+                        alpha: 0.24,
+                      ),
+                      color: _streamProgressForeground,
                     ),
-                    color: _streamProgressForeground,
                   ),
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  '${data.currentImage ?? 0}/${data.totalImages ?? 0}',
-                  key: const ValueKey('stream-generation-progress-count'),
-                  style: _progressStyle(),
-                ),
-                const Spacer(),
-                if (progress > 0)
+                  const SizedBox(width: 8),
                   Text(
-                    '${(progress * 100).toInt()}%',
-                    key: const ValueKey('stream-generation-progress-percent'),
+                    '${data.currentImage ?? 0}/${data.totalImages ?? 0}',
+                    key: const ValueKey('stream-generation-progress-count'),
                     style: _progressStyle(),
                   ),
-              ],
+                  const SizedBox(width: 8),
+                  if (progress > 0)
+                    Text(
+                      '${(progress * 100).toInt()}%',
+                      key: const ValueKey('stream-generation-progress-percent'),
+                      style: _progressStyle(),
+                    ),
+                ],
+              ),
             ),
-          ),
         ],
       ),
     );

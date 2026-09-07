@@ -196,7 +196,7 @@ class _LocalStorageUpdateCheckStorage implements UpdateCheckStorage {
 /// 更新检查服务
 ///
 /// 负责检查应用更新，支持：
-/// - 24小时检查间隔控制
+/// - 30分钟检查间隔控制
 /// - 版本跳过功能
 /// - 预发布版本包含开关
 class UpdateCheckService {
@@ -220,11 +220,11 @@ class UpdateCheckService {
   /// 默认仓库名称
   static const String defaultRepo = 'Aaalice_NAI_Launcher';
 
-  /// 默认检查间隔（24小时）
-  static const Duration defaultCheckInterval = Duration(hours: 24);
+  /// 前台使用期间定期发现启动后发布的新版本。
+  static const Duration defaultCheckInterval = Duration(minutes: 30);
 
   /// 检查失败后的重试间隔
-  static const Duration failedCheckRetryInterval = Duration(minutes: 30);
+  static const Duration failedCheckRetryInterval = Duration(minutes: 5);
 
   /// “稍后提醒”的默认延后时间
   static const Duration defaultReminderDelay = Duration(hours: 4);
@@ -266,8 +266,8 @@ class UpdateCheckService {
 
   /// 检查是否应该执行周期更新检查。
   ///
-  /// 成功检查使用常规 24 小时间隔；失败尝试只冷却 30 分钟。已经发现
-  /// 新版本时，“稍后提醒”到期会绕过常规间隔，确保提示不会消失一天。
+  /// 成功检查使用常规 30 分钟间隔；失败尝试只冷却 5 分钟。已经发现
+  /// 新版本时，“稍后提醒”到期会绕过常规间隔，及时恢复提示。
   Future<bool> shouldCheck() async {
     final now = _now();
     if (_isTemporarilySuppressed(now)) return false;
@@ -282,10 +282,12 @@ class UpdateCheckService {
 
     final lastCheckTime = _storage.getLastUpdateCheckTime();
     if (lastCheckTime == null) return true;
+    final lastAttempt = _storage.getLastUpdateCheckAttemptTime();
+    if (lastAttempt != null && lastAttempt.isAfter(lastCheckTime)) return true;
     return now.difference(lastCheckTime) >= _checkInterval;
   }
 
-  /// 每次应用启动都检查一次，不受上次成功检查的 24 小时间隔影响。
+  /// 每次应用启动都检查一次，不受上次成功检查的常规间隔影响。
   ///
   /// 用户明确选择“稍后提醒”或最近一次检查失败仍在冷却期时仍应保持安静。
   Future<bool> shouldCheckOnStartup() async {

@@ -1,3 +1,4 @@
+import 'package:nai_launcher/presentation/widgets/common/horizontal_action_strip.dart';
 import 'dart:math';
 
 import 'package:flutter/material.dart';
@@ -42,9 +43,11 @@ class OnlineGalleryToolbar extends StatelessWidget {
   Widget build(BuildContext context) {
     final primary = scrollPrimary
         ? LayoutBuilder(
-            builder: (context, constraints) => SingleChildScrollView(
-              key: const ValueKey('online-gallery-primary-controls-scroll'),
-              scrollDirection: Axis.horizontal,
+            builder: (context, constraints) => HorizontalActionStrip(
+              scrollKey: const ValueKey(
+                'online-gallery-primary-controls-scroll',
+              ),
+
               child: ConstrainedBox(
                 constraints: BoxConstraints(minWidth: constraints.maxWidth),
                 child: Row(
@@ -184,13 +187,7 @@ class _ToolbarSecondary extends StatelessWidget {
               ),
             ),
           ] else
-            Flexible(
-              flex: 6,
-              child: SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: child,
-              ),
-            ),
+            Flexible(flex: 6, child: HorizontalActionStrip(child: child)),
         ],
       ),
     );

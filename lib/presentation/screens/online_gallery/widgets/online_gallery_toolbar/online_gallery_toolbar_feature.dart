@@ -1,3 +1,4 @@
+import 'package:nai_launcher/presentation/widgets/common/horizontal_action_strip.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -286,8 +287,7 @@ class _OnlineGalleryToolbarPresenter {
         SizedBox(
           key: const ValueKey('online-gallery-mobile-scope-row'),
           height: _galleryToolbarControlHeight(context),
-          child: SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
+          child: HorizontalActionStrip(
             child: Row(
               key: const ValueKey('online-gallery-mobile-primary-row'),
               mainAxisSize: MainAxisSize.min,

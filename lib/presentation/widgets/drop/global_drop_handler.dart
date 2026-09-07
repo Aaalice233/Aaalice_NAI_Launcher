@@ -48,7 +48,7 @@ class _GlobalDropHandlerState extends ConsumerState<GlobalDropHandler> {
       ref: ref,
     );
     _controller = GlobalDropController(
-      performDrop: _actionCoordinator.handleDrop,
+      readDrop: _actionCoordinator.readDrop,
       processFile: _actionCoordinator.processDroppedFile,
     )..addListener(_handleControllerChanged);
   }

@@ -724,6 +724,13 @@ class _DanbooruPostCardState extends State<DanbooruPostCard> {
                                 ? Axis.horizontal
                                 : Axis.vertical,
                             buttons: [
+                              CardActionButtonConfig(
+                                icon: Icons.send,
+                                tooltip: context
+                                    .l10n
+                                    .onlineGallery_sendToTextToImage,
+                                onPressed: () => _handleSendToGeneration(ref),
+                              ),
                               if (widget.showFavoriteAction &&
                                   !widget.favoriteReadOnly &&
                                   widget.onFavoriteToggle != null)
@@ -817,13 +824,6 @@ class _DanbooruPostCardState extends State<DanbooruPostCard> {
                                     }
                                   }
                                 },
-                              ),
-                              CardActionButtonConfig(
-                                icon: Icons.send,
-                                tooltip: context
-                                    .l10n
-                                    .onlineGallery_sendToTextToImage,
-                                onPressed: () => _handleSendToGeneration(ref),
                               ),
                               if (widget.post.mediaCapability.isFlutterImage &&
                                   widget

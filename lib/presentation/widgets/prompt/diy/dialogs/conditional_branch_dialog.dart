@@ -1,3 +1,4 @@
+import 'package:nai_launcher/presentation/widgets/common/horizontal_action_strip.dart';
 import 'package:flutter/material.dart';
 import 'package:nai_launcher/core/utils/localization_extension.dart';
 
@@ -147,8 +148,7 @@ class _ConditionalBranchDialogState extends State<ConditionalBranchDialog> {
         children: actions,
       );
     }
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
+    return HorizontalActionStrip(
       reverse: true,
       child: Row(mainAxisSize: MainAxisSize.min, children: actions),
     );

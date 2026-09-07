@@ -10,14 +10,14 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../common/image_viewport_surface.dart';
 import '../../../core/utils/app_logger.dart';
-import '../../../core/utils/image_share_sanitizer.dart';
 import '../../../core/utils/localization_extension.dart';
 import '../../../data/models/gallery/nai_image_metadata.dart';
 import '../../../data/services/discord_share_service.dart';
 import '../../adaptive/adaptive_presenter.dart';
 import '../../adaptive/content_sized_adaptive_form.dart';
 import '../../utils/asset_protection_guard.dart';
-import '../common/app_toast.dart';
+import 'discord_share_error.dart';
+import '../../providers/discord_share_task_provider.dart';
 
 class DiscordShareDialog extends ConsumerStatefulWidget {
   const DiscordShareDialog({
@@ -351,7 +351,6 @@ class _DiscordShareDialogState extends ConsumerState<DiscordShareDialog> {
       _sending = true;
       _error = null;
     });
-    final service = ref.read(discordShareServiceProvider);
     try {
       final confirmed = await AssetProtectionGuard.confirmExternalImageSend(
         context: context,
@@ -360,29 +359,25 @@ class _DiscordShareDialogState extends ConsumerState<DiscordShareDialog> {
       );
       if (!confirmed || !mounted) return;
 
-      final image = await ImageShareSanitizer.prepareForCopyOrDragInBackground(
-        widget.imageBytes,
-        fileName: widget.fileName,
-        stripMetadata: !_includeMetadata,
-      );
       _persistPreferences();
       await _preferenceWrite;
-      final result = await service.share(
-        session: session,
-        image: image,
-        targetIds: _selectedTargets,
-        prompt: _promptController.text,
-        caption: _captionController.text,
-        width: widget.width ?? widget.metadata?.width,
-        height: widget.height ?? widget.metadata?.height,
-        longPromptAsFile: _longPromptAsFile,
-      );
       if (!mounted) return;
-      if (result.isPartial) {
-        AppToast.warning(context, context.l10n.discordShare_partialSuccess);
-      } else {
-        AppToast.success(context, context.l10n.discordShare_success);
-      }
+      ref
+          .read(discordShareTaskProvider.notifier)
+          .submit(
+            DiscordShareSubmission(
+              session: session,
+              bytes: widget.imageBytes,
+              fileName: widget.fileName,
+              stripMetadata: !_includeMetadata,
+              targetIds: _selectedTargets,
+              prompt: _promptController.text,
+              caption: _captionController.text,
+              width: widget.width ?? widget.metadata?.width,
+              height: widget.height ?? widget.metadata?.height,
+              longPromptAsFile: _longPromptAsFile,
+            ),
+          );
       Navigator.of(context).pop(true);
     } on DiscordShareException catch (error) {
       if (!mounted) return;
@@ -865,41 +860,11 @@ class _DiscordShareDialogState extends ConsumerState<DiscordShareDialog> {
     );
   }
 
-  String _localizedError(Object error) {
-    if (error is DioException) {
-      return context.l10n.discordShare_errorNetwork;
-    }
-    if (error is! DiscordShareException) {
-      return context.l10n.discordShare_errorRelay;
-    }
-    return switch (error.code) {
-      'browser_unavailable' => context.l10n.discordShare_errorBrowser,
-      'timeout' => context.l10n.discordShare_errorTimeout,
-      'share_in_progress' => context.l10n.discordShare_sending,
-      'rate_limited' =>
-        _rateLimitSecondsRemaining > 0
-            ? context.l10n.discordShare_errorRateLimitedRetry(
-                _rateLimitSecondsRemaining,
-              )
-            : context.l10n.discordShare_errorRateLimited,
-      'no_targets' ||
-      'invalid_targets' => context.l10n.discordShare_errorNoChannels,
-      'unauthorized' ||
-      'session_expired' ||
-      'invalid_oauth_request' ||
-      'invalid_oauth_state' ||
-      'invalid_oauth_result_request' ||
-      'invalid_oauth_verifier' => context.l10n.discordShare_errorSession,
-      'relay_misconfigured' ||
-      'rate_limiter_unavailable' => context.l10n.discordShare_errorRelay,
-      'image_upload_rejected' ||
-      'invalid_image' => context.l10n.discordShare_errorImageRejected,
-      'webhook_failed' ||
-      'partial_delivery' => context.l10n.discordShare_errorDelivery,
-      'request_failed' => context.l10n.discordShare_errorNetwork,
-      _ => context.l10n.discordShare_errorRelay,
-    };
-  }
+  String _localizedError(Object error) => discordShareErrorText(
+    context,
+    error,
+    retrySeconds: _rateLimitSecondsRemaining,
+  );
 
   String _categoryLabel(_PromptCategory category) => switch (category) {
     _PromptCategory.main => context.l10n.discordShare_categoryMain,

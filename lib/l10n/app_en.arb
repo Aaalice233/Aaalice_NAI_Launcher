@@ -1,4 +1,11 @@
 {
+  "generation_enhancementFailed": "Enhancement failed; original retained",
+  "generation_enhancementRetryHint": "Choose DLSS NR in the image actions to retry enhancement only.",
+
+  "generation_enhancementPreparing": "Preparing enhancement…",
+  "generation_enhancementRunning": "Enhancing with DLSS NR…",
+  "generation_enhancementFinalizing": "Compositing and encoding image…",
+
   "@@locale": "en",
 
   "app_title": "NAI Launcher",
@@ -6920,9 +6927,6 @@
   "dlss_invalidNumber": "Enter a valid value supported by this parameter.",
   "dlss_scale": "SR scale",
   "dlss_scaleHint": "DLSS SR upscales before NR. Default: 2×; 1× skips SR and runs NR at the original size. Decimal values are supported. Each output edge must stay within 16384 pixels; practical limits depend on GPU memory.",
-  "dlss_srHint": "Local DLSS SR upscale with no NR contribution to the final image. The current runtime still computes one NR pass, requiring a working NR environment and adding processing time.",
-  "dlss_srScaleHint": "Shares the NR panel's scale, default 2×. At 1×, processing does not start. Resizes and reconstructs detail without applying NR strength, style, or pass count.",
-  "dlss_srUnavailable": "Install, verify, and enable the runtime in Settings → Integrations → DLSSNR first.",
   "dlss_finalizing": "NR complete · preparing comparison…",
   "dlss_processing": "Processing",
   "dlss_appearance": "Appearance",

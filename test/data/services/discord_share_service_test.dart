@@ -103,6 +103,7 @@ void main() {
       DioException(
         requestOptions: RequestOptions(path: '/v1/oauth/result'),
         message: 'Failed host lookup: private-relay.test',
+        type: DioExceptionType.connectionError,
       ),
     );
     service = DiscordShareService(
@@ -118,7 +119,7 @@ void main() {
         isA<DiscordShareException>().having(
           (error) => error.code,
           'code',
-          'request_failed',
+          'network_error',
         ),
       ),
     );
@@ -287,6 +288,69 @@ void main() {
       expect(result.isPartial, isFalse);
     },
   );
+
+  for (final payload in <Object?>[null, '<html>Too many requests</html>', {}]) {
+    test(
+      'HTTP 429 without a business code remains rate limited: $payload',
+      () async {
+        when(
+          () => dio.post<Map<String, dynamic>>(
+            '/v1/share',
+            data: any(named: 'data'),
+            options: any(named: 'options'),
+          ),
+        ).thenThrow(
+          DioException(
+            requestOptions: RequestOptions(path: '/v1/share'),
+            type: DioExceptionType.badResponse,
+            response: Response<Object?>(
+              requestOptions: RequestOptions(path: '/v1/share'),
+              statusCode: 429,
+              data: payload,
+            ),
+          ),
+        );
+        await expectLater(
+          _share(service),
+          throwsA(
+            isA<DiscordShareException>()
+                .having((e) => e.code, 'code', 'rate_limited')
+                .having((e) => e.retryAfter, 'retryAfter', isNull),
+          ),
+        );
+        verifyNever(() => secureStorage.delete(any()));
+      },
+    );
+  }
+
+  test('invalid Retry-After falls back to the valid payload delay', () async {
+    when(
+      () => dio.post<Map<String, dynamic>>(
+        '/v1/share',
+        data: any(named: 'data'),
+        options: any(named: 'options'),
+      ),
+    ).thenAnswer(
+      (_) async => Response(
+        requestOptions: RequestOptions(path: '/v1/share'),
+        statusCode: 429,
+        headers: Headers.fromMap({
+          'retry-after': ['invalid'],
+        }),
+        data: {'retry_after_seconds': 'NaN', 'retry_after': 2.5},
+      ),
+    );
+    await expectLater(
+      _share(service),
+      throwsA(
+        isA<DiscordShareException>().having(
+          (e) => e.retryAfter,
+          'retryAfter',
+          const Duration(milliseconds: 2500),
+        ),
+      ),
+    );
+  });
 
   test('uses Retry-After from a relay 429 response', () async {
     when(

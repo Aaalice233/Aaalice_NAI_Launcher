@@ -1,3 +1,4 @@
+import 'package:nai_launcher/presentation/widgets/common/horizontal_action_strip.dart';
 import 'package:flutter/material.dart';
 
 import '../../../../core/platform/platform_capabilities.dart';
@@ -81,8 +82,7 @@ class _IntegrationsSettingsSectionState
     return SettingsPageLayout(
       title: context.l10n.settings_integrations,
       children: [
-        SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
+        HorizontalActionStrip(
           child: SegmentedButton<int>(
             segments: [
               for (var i = 0; i < labels.length; i++)

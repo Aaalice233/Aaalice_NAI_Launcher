@@ -10,7 +10,6 @@ import '../../../../data/models/image/image_params.dart';
 import '../../../providers/comfyui/comfyui_provider.dart';
 import '../../../providers/generation/image_workflow_controller.dart';
 import '../../../providers/generation/novel_ai_upscale_task_provider.dart';
-import '../../../providers/generation/dlss_upscale_task_provider.dart';
 import '../../../providers/image_generation_provider.dart';
 import '../../../providers/image_save_settings_provider.dart';
 
@@ -20,7 +19,6 @@ final img2ImgUpscaleCoordinatorProvider = Provider(
 
 enum Img2ImgUpscaleKind {
   novelAi,
-  dlssSr,
   regular,
   seedVr2Native,
   seedVr2Legacy,
@@ -79,15 +77,6 @@ final class Img2ImgUpscaleCoordinator {
           .read(novelAiUpscaleTaskProvider.notifier)
           .execute(params: params, sourceImage: source);
       return const Img2ImgUpscaleSuccess(kind: Img2ImgUpscaleKind.novelAi);
-    }
-    if (workflow.upscale.backend == UpscaleBackend.dlssSr) {
-      final completed = await ref
-          .read(dlssUpscaleTaskProvider.notifier)
-          .execute(params: params, source: source);
-      if (!completed) {
-        return const Img2ImgUpscaleRejected(Img2ImgUpscaleFailure.noResult);
-      }
-      return const Img2ImgUpscaleSuccess(kind: Img2ImgUpscaleKind.dlssSr);
     }
     return switch (workflow.upscale.comfyModule) {
       ComfyUpscaleModule.regular => _runRegular(params, source, workflow),

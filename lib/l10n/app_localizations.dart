@@ -101,6 +101,36 @@ abstract class AppLocalizations {
     Locale.fromSubtags(languageCode: 'zh', scriptCode: 'Hant'),
   ];
 
+  /// No description provided for @generation_enhancementFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Enhancement failed; original retained'**
+  String get generation_enhancementFailed;
+
+  /// No description provided for @generation_enhancementRetryHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose DLSS NR in the image actions to retry enhancement only.'**
+  String get generation_enhancementRetryHint;
+
+  /// No description provided for @generation_enhancementPreparing.
+  ///
+  /// In en, this message translates to:
+  /// **'Preparing enhancement…'**
+  String get generation_enhancementPreparing;
+
+  /// No description provided for @generation_enhancementRunning.
+  ///
+  /// In en, this message translates to:
+  /// **'Enhancing with DLSS NR…'**
+  String get generation_enhancementRunning;
+
+  /// No description provided for @generation_enhancementFinalizing.
+  ///
+  /// In en, this message translates to:
+  /// **'Compositing and encoding image…'**
+  String get generation_enhancementFinalizing;
+
   /// No description provided for @app_title.
   ///
   /// In en, this message translates to:
@@ -26346,24 +26376,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'DLSS SR upscales before NR. Default: 2×; 1× skips SR and runs NR at the original size. Decimal values are supported. Each output edge must stay within 16384 pixels; practical limits depend on GPU memory.'**
   String get dlss_scaleHint;
-
-  /// No description provided for @dlss_srHint.
-  ///
-  /// In en, this message translates to:
-  /// **'Local DLSS SR upscale with no NR contribution to the final image. The current runtime still computes one NR pass, requiring a working NR environment and adding processing time.'**
-  String get dlss_srHint;
-
-  /// No description provided for @dlss_srScaleHint.
-  ///
-  /// In en, this message translates to:
-  /// **'Shares the NR panel\'s scale, default 2×. At 1×, processing does not start. Resizes and reconstructs detail without applying NR strength, style, or pass count.'**
-  String get dlss_srScaleHint;
-
-  /// No description provided for @dlss_srUnavailable.
-  ///
-  /// In en, this message translates to:
-  /// **'Install, verify, and enable the runtime in Settings → Integrations → DLSSNR first.'**
-  String get dlss_srUnavailable;
 
   /// No description provided for @dlss_finalizing.
   ///

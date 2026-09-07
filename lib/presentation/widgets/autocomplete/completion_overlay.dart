@@ -82,6 +82,16 @@ class CompletionOverlay extends StatelessWidget {
         : (touchInput ? 48.0 : 31.0);
     final showFooter =
         maxHeight >= headerExtent + candidateExtent + footerExtent;
+    final scrollHeader = maxHeight < headerExtent + candidateExtent;
+    final header = _CompletionHeader(
+      query: _displayQuery(state.query),
+      resultCount: state.candidates.length,
+      related: state.query?.relatedTag != null,
+      isRelatedPinned: isRelatedPinned,
+      onToggleRelatedPin: onToggleRelatedPin,
+      onOpenSettings: showFooter ? null : onOpenSettings,
+      onClose: onClose,
+    );
     return LayoutBuilder(
       builder: (context, constraints) {
         final touchCompact = touchInput && constraints.maxWidth < 600;
@@ -142,18 +152,18 @@ class CompletionOverlay extends StatelessWidget {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    _CompletionHeader(
-                      query: _displayQuery(state.query),
-                      resultCount: state.candidates.length,
-                      related: state.query?.relatedTag != null,
-                      isRelatedPinned: isRelatedPinned,
-                      onToggleRelatedPin: onToggleRelatedPin,
-                      onOpenSettings: showFooter ? null : onOpenSettings,
-                      onClose: onClose,
-                    ),
+                    if (!scrollHeader) header,
                     Flexible(
                       child: state.candidates.isEmpty
-                          ? _EmptyCompletionBody(state: state)
+                          ? SingleChildScrollView(
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  _EmptyCompletionBody(state: state),
+                                  if (scrollHeader) header,
+                                ],
+                              ),
+                            )
                           : Scrollbar(
                               key: const ValueKey(
                                 'autocomplete-popup-scrollbar',
@@ -164,34 +174,48 @@ class CompletionOverlay extends StatelessWidget {
                               interactive: !touchCompact,
                               thickness: touchCompact ? 4 : 8,
                               radius: const Radius.circular(8),
-                              child: ListView.builder(
+                              child: CustomScrollView(
                                 key: const ValueKey('autocomplete-popup-list'),
                                 controller: scrollController,
                                 shrinkWrap: true,
-                                padding: EdgeInsets.only(
-                                  right: touchCompact ? 6 : 14,
-                                ),
-                                itemExtent: candidateExtent,
                                 scrollCacheExtent: ScrollCacheExtent.pixels(
                                   candidateExtent * 10,
                                 ),
-                                addAutomaticKeepAlives: false,
-                                itemCount: state.candidates.length,
-                                itemBuilder: (context, index) {
-                                  final candidate = state.candidates[index];
-                                  return _CompletionTile(
-                                    key: ValueKey(
-                                      'autocomplete-candidate-${candidate.stableId}',
+                                slivers: [
+                                  SliverPadding(
+                                    padding: EdgeInsets.only(
+                                      right: touchCompact ? 6 : 14,
                                     ),
-                                    candidate: candidate,
-                                    selected: index == selectedIndex,
-                                    showAliases: showAliases,
-                                    showTranslations: showTranslations,
-                                    showCategory: showCategory,
-                                    showCount: showCount,
-                                    onTap: () => onSelected(index),
-                                  );
-                                },
+                                    sliver: SliverFixedExtentList(
+                                      itemExtent: candidateExtent,
+                                      delegate: SliverChildBuilderDelegate(
+                                        (context, index) {
+                                          final candidate =
+                                              state.candidates[index];
+                                          return _CompletionTile(
+                                            key: ValueKey(
+                                              'autocomplete-candidate-${candidate.stableId}',
+                                            ),
+                                            candidate: candidate,
+                                            selected: index == selectedIndex,
+                                            showAliases: showAliases,
+                                            showTranslations: showTranslations,
+                                            showCategory: showCategory,
+                                            showCount: showCount,
+                                            onTap: () => onSelected(index),
+                                          );
+                                        },
+                                        childCount: state.candidates.length,
+                                        addAutomaticKeepAlives: false,
+                                      ),
+                                    ),
+                                  ),
+                                  // When the keyboard leaves very little room,
+                                  // candidates stay first; header actions remain
+                                  // reachable in the same scrollable surface.
+                                  if (scrollHeader)
+                                    SliverToBoxAdapter(child: header),
+                                ],
                               ),
                             ),
                     ),

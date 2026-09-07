@@ -1,3 +1,4 @@
+import 'package:nai_launcher/presentation/widgets/common/horizontal_action_strip.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -102,8 +103,7 @@ class _ShortcutHelpDialogState extends ConsumerState<ShortcutHelpDialog> {
               },
             ),
           ),
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
+          HorizontalActionStrip(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: Row(
               children: [

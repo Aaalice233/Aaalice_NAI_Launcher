@@ -1,3 +1,4 @@
+import 'package:nai_launcher/presentation/widgets/common/horizontal_action_strip.dart';
 import 'package:flutter/material.dart';
 
 import '../../../themes/core/layered_surface_style.dart';
@@ -71,10 +72,7 @@ class SettingsCard extends StatelessWidget {
                   DesignTokens.spacingMd,
                   DesignTokens.spacingXxs,
                 ),
-                child: SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: navigation!,
-                ),
+                child: HorizontalActionStrip(child: navigation!),
               ),
             if (title != null)
               Padding(
@@ -134,10 +132,7 @@ class SettingsCard extends StatelessWidget {
                         children: [
                           titleBlock,
                           const SizedBox(height: DesignTokens.spacingXs),
-                          SingleChildScrollView(
-                            scrollDirection: Axis.horizontal,
-                            child: trailing!,
-                          ),
+                          HorizontalActionStrip(child: trailing!),
                         ],
                       );
                     }
@@ -150,10 +145,7 @@ class SettingsCard extends StatelessWidget {
                           constraints: BoxConstraints(
                             maxWidth: constraints.maxWidth * 0.45,
                           ),
-                          child: SingleChildScrollView(
-                            scrollDirection: Axis.horizontal,
-                            child: trailing!,
-                          ),
+                          child: HorizontalActionStrip(child: trailing!),
                         ),
                       ],
                     );

@@ -1,4 +1,11 @@
 {
+  "generation_enhancementFailed": "增强失败，已保留原图",
+  "generation_enhancementRetryHint": "可在图像操作菜单中选择 DLSS NR，仅重试增强。",
+
+  "generation_enhancementPreparing": "准备增强…",
+  "generation_enhancementRunning": "DLSS NR 增强中…",
+  "generation_enhancementFinalizing": "合成并编码图像…",
+
   "@@locale": "zh",
 
   "app_title": "NAI 启动器",
@@ -6989,9 +6996,6 @@
   "dlss_invalidNumber": "请输入此参数支持的有效数值。",
   "dlss_scale": "SR 放大倍率",
   "dlss_scaleHint": "先用 DLSS SR 放大，再进行 NR。默认 2 倍；1 倍跳过 SR，仅按原尺寸进行 NR。可手动输入小数，输出每边不能超过 16384 像素，实际可用大小取决于显存。",
-  "dlss_srHint": "本机 DLSS SR 放大，最终结果不混入 NR。当前运行库仍会计算一次 NR，因此需要可用的 NR 环境，也会产生额外耗时。",
-  "dlss_srScaleHint": "与 NR 面板共用放大倍率，默认 2 倍。1 倍不启动处理。仅调整尺寸与重建细节；不会套用 NR 强度、风格或处理次数。",
-  "dlss_srUnavailable": "请先在“设置 → 集成 → DLSSNR”安装、检测并启用运行库。",
   "dlss_finalizing": "NR 已完成，正在准备对比图…",
   "dlss_processing": "处理流程",
   "dlss_appearance": "效果调整",

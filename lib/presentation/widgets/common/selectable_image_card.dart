@@ -1,3 +1,4 @@
+import 'package:nai_launcher/data/models/image/image_postprocess_phase.dart';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
@@ -66,6 +67,7 @@ class SelectableImageCard extends ConsumerStatefulWidget {
     this.imageContent,
     this.isGenerating = false,
     this.progress,
+    this.postprocessPhase,
     this.currentImage,
     this.totalImages,
     this.streamPreview,
@@ -123,6 +125,7 @@ class SelectableImageCard extends ConsumerStatefulWidget {
   final Widget? imageContent;
   final bool isGenerating;
   final double? progress;
+  final ImagePostprocessPhase? postprocessPhase;
   final int? currentImage;
   final int? totalImages;
   final Uint8List? streamPreview;
@@ -155,6 +158,7 @@ class _SelectableImageCardState extends ConsumerState<SelectableImageCard>
     imageContent: widget.imageContent,
     isGenerating: widget.isGenerating,
     progress: widget.progress,
+    postprocessPhase: widget.postprocessPhase,
     currentImage: widget.currentImage,
     totalImages: widget.totalImages,
     streamPreview: widget.streamPreview,

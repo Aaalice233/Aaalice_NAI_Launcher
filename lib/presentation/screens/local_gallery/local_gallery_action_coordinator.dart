@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io';
+import '../../utils/zip_export_progress.dart';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
@@ -274,22 +275,10 @@ class LocalGalleryActionCoordinator {
     if (!_mounted()) return;
 
     final l10n = _context().l10n;
-    final progressToast = AppToast.showProgress(
-      _context(),
-      l10n.localGallery_packingImages(selectedImages.length),
-      progress: 0,
-    );
+    final progress = ZipExportProgress(_context(), selectedImages.length);
+    final progressToast = progress.controller;
     final imagePaths = selectedImages.map((image) => image.path).toList();
-    void onProgress(ZipCreationProgress progress) {
-      progressToast.updateProgress(
-        progress.fraction,
-        message: l10n.localGallery_packingProgress(
-          progress.current,
-          progress.total,
-        ),
-        subtitle: progress.currentFileName,
-      );
-    }
+    final onProgress = progress.update;
 
     late final ZipCreationResult result;
     String? savedLocation;
@@ -404,10 +393,7 @@ class LocalGalleryActionCoordinator {
         oldPath: image.path,
         newPath: newPath,
       );
-      await _mosaicRegistry.relocatePath(
-        oldPath: image.path,
-        newPath: newPath,
-      );
+      await _mosaicRegistry.relocatePath(oldPath: image.path, newPath: newPath);
       movedCount++;
     }
     if (!_mounted()) return;
@@ -499,10 +485,7 @@ class LocalGalleryActionCoordinator {
       isWatermarkDerivative: WatermarkDerivativeRegistry(
         _ref.read(localStorageServiceProvider),
       ).isDerivative(record.path),
-      mosaicEnabled: _ref
-          .read(mosaicSettingsProvider)
-          .configuration
-          .enabled,
+      mosaicEnabled: _ref.read(mosaicSettingsProvider).configuration.enabled,
       isMosaicDerivative: MosaicDerivativeRegistry(
         _ref.read(localStorageServiceProvider),
       ).isDerivative(record.path),
@@ -543,9 +526,13 @@ class LocalGalleryActionCoordinator {
       case LocalImageContextAction.upscale:
         await _sendToUpscale(record);
       case LocalImageContextAction.dlssEnhance:
-        await ImageSendActionDispatcher.handle(context: _context(), ref: _ref,
-          action: request.action, fileName: path.basename(record.path),
-          loadBytes: () => File(record.path).readAsBytes());
+        await ImageSendActionDispatcher.handle(
+          context: _context(),
+          ref: _ref,
+          action: request.action,
+          fileName: path.basename(record.path),
+          loadBytes: () => File(record.path).readAsBytes(),
+        );
       case LocalImageContextAction.shareToDiscord:
         await _shareLocalImageToDiscord(record);
       case LocalImageContextAction.createWatermark:

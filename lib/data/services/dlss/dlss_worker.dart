@@ -7,6 +7,7 @@ import 'dart:typed_data';
 import 'package:image/image.dart' as img;
 import 'package:path/path.dart' as p;
 
+import '../../../core/utils/portable_logger.dart';
 import 'dlss_options.dart';
 import 'dlss_float_frame.dart';
 import '../metadata/image_metadata_container_codec.dart';
@@ -43,6 +44,8 @@ class DlssWorker {
     Future<void>? cancelled,
     String? version,
     void Function()? onFinalizing,
+    void Function()? onEnhancing,
+    void Function(String stage, Duration duration)? onTiming,
   }) async {
     if (!Platform.isWindows) throw UnsupportedError('DLSS requires Windows');
     final size = img.findDecoderForData(source)?.startDecode(source);
@@ -55,8 +58,23 @@ class DlssWorker {
     Process? process;
     var wasCancelled = false;
     var finished = false;
+    void recordTiming(String stage, Duration duration) {
+      PortableLogger.d(
+        'stage=$stage elapsed_us=${duration.inMicroseconds}',
+        'DLSS',
+      );
+      onTiming?.call(stage, duration);
+    }
+
     try {
-      await input.writeAsBytes(await _encodeInIsolate(source), flush: true);
+      final prepared = await _encodeInIsolate(source);
+      recordTiming('decode', prepared.decodeTime);
+      recordTiming('marshal', prepared.marshalTime);
+      final timer = Stopwatch()..start();
+      // A closed temporary file is immediately visible to the worker; fsync is
+      // only needed for durable storage, not this per-process transport.
+      await input.writeAsBytes(prepared.bytes);
+      recordTiming('write', timer.elapsed);
       if (cancelled != null) {
         unawaited(
           cancelled.then((_) {
@@ -68,6 +86,8 @@ class DlssWorker {
         );
       }
       if (wasCancelled) throw const DlssCancelled();
+      onEnhancing?.call();
+      timer.reset();
       process = await Process.start(
         _executable ??
             p.join(
@@ -115,16 +135,25 @@ class DlssWorker {
       if (exit != 0 || !protocol.complete) {
         throw DlssWorkerFailure(exit, log);
       }
+      recordTiming('worker', timer.elapsed);
       onFinalizing?.call();
-      final bytes = await _composeInIsolate(
+      timer.reset();
+      final baselineBytes = await baseline.readAsBytes();
+      final outputBytes = await output.readAsBytes();
+      recordTiming('read', timer.elapsed);
+      final composed = await _composeInIsolate(
         source,
-        await baseline.readAsBytes(),
-        await output.readAsBytes(),
+        prepared.source,
+        baselineBytes,
+        outputBytes,
         options,
         version,
       );
+      for (final entry in composed.timings.entries) {
+        recordTiming(entry.key, entry.value);
+      }
       if (wasCancelled) throw const DlssCancelled();
-      return bytes;
+      return composed.bytes;
     } finally {
       finished = true;
       if (process != null) {
@@ -156,22 +185,53 @@ class DlssWorkerProtocol {
   }
 }
 
-Future<Uint8List> _encodeInIsolate(Uint8List source) =>
-    Isolate.run(() => DlssFloatFrame.fromImage(source).encode());
+typedef _PreparedInput = ({
+  Uint8List bytes,
+  img.Image source,
+  Duration decodeTime,
+  Duration marshalTime,
+});
 
-Future<Uint8List> _composeInIsolate(
+Future<_PreparedInput> _encodeInIsolate(Uint8List source) => Isolate.run(() {
+  final timer = Stopwatch()..start();
+  final decoded = img.decodeImage(source);
+  if (decoded == null) throw const FormatException('Invalid DLSS source image');
+  final decodeTime = timer.elapsed;
+  timer.reset();
+  final bytes = DlssFloatFrame.fromDecodedImage(decoded).encode();
+  return (
+    bytes: bytes,
+    source: decoded,
+    decodeTime: decodeTime,
+    marshalTime: timer.elapsed,
+  );
+});
+
+Future<({Uint8List bytes, Map<String, Duration> timings})> _composeInIsolate(
   Uint8List source,
+  img.Image decodedSource,
   Uint8List baseline,
   Uint8List neural,
   DlssOptions options,
   String? version,
 ) => Isolate.run(() {
+  final timer = Stopwatch()..start();
+  final timings = <String, Duration>{};
   final output = DlssFloatFrame.decode(baseline).composite(
     DlssFloatFrame.decode(neural),
     detail: options.detail,
     color: options.color,
   );
-  return preserveDlssImage(source, output, options, version);
+  timings['compose'] = timer.elapsed;
+  final bytes = preserveDlssImage(
+    source,
+    output,
+    options,
+    version,
+    decodedSource: decodedSource,
+    onTiming: (stage, duration) => timings[stage] = duration,
+  );
+  return (bytes: bytes, timings: timings);
 });
 
 class DlssCancelled implements Exception {
@@ -200,12 +260,14 @@ Uint8List preserveDlssImage(
   Uint8List sourceBytes,
   img.Image decoded,
   DlssOptions options,
-  String? version,
-) {
+  String? version, {
+  img.Image? decodedSource,
+  void Function(String stage, Duration duration)? onTiming,
+}) {
   if (sourceBytes.isEmpty) {
     throw const FormatException('Invalid DLSS image: empty source');
   }
-  final source = img.decodeImage(sourceBytes);
+  final source = decodedSource ?? img.decodeImage(sourceBytes);
   if (source == null) {
     throw const FormatException('Invalid DLSS image');
   }
@@ -215,6 +277,7 @@ Uint8List preserveDlssImage(
       'Unexpected DLSS image dimensions: expected ${expected.$1}x${expected.$2}, got ${decoded.width}x${decoded.height}',
     );
   }
+  final timer = Stopwatch()..start();
   final alphaSource =
       source.width == decoded.width && source.height == decoded.height
       ? source
@@ -230,11 +293,16 @@ Uint8List preserveDlssImage(
   }
   output.exif = source.exif;
   output.iccProfile = source.iccProfile;
+  onTiming?.call('alpha', timer.elapsed);
+  timer.reset();
+  final encoded = Uint8List.fromList(img.encodePng(output));
+  onTiming?.call('encode', timer.elapsed);
+  timer.reset();
   final withMetadata = ImageMetadataContainerCodec.copySupportedMetadata(
     source: sourceBytes,
-    targetPng: Uint8List.fromList(img.encodePng(output)),
+    targetPng: encoded,
   );
-  return ImageMetadataContainerCodec.embedTextChunkOnly(
+  final result = ImageMetadataContainerCodec.embedTextChunkOnly(
     withMetadata,
     'Aaalice.DLSS',
     jsonEncode({
@@ -244,4 +312,6 @@ Uint8List preserveDlssImage(
       ...options.toJson(),
     }),
   );
+  onTiming?.call('metadata', timer.elapsed);
+  return result;
 }

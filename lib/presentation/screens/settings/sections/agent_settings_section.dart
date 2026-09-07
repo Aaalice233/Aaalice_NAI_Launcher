@@ -1,3 +1,4 @@
+import 'package:nai_launcher/presentation/widgets/common/horizontal_action_strip.dart';
 import 'package:flutter/material.dart';
 import '../../../widgets/common/provider_icon.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -298,8 +299,7 @@ class _ReadingPreferencesCard extends ConsumerWidget {
             ),
           ),
           const SizedBox(height: 12),
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
+          HorizontalActionStrip(
             child: SegmentedButton<double>(
               key: const ValueKey('agent-reading-text-scale'),
               segments: [
@@ -332,8 +332,7 @@ class _ReadingPreferencesCard extends ConsumerWidget {
             ),
           ),
           const SizedBox(height: 12),
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
+          HorizontalActionStrip(
             child: SegmentedButton<AgentChatDensity>(
               key: const ValueKey('agent-chat-density'),
               segments: [

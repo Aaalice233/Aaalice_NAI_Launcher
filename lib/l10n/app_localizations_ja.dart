@@ -9,6 +9,22 @@ class AppLocalizationsJa extends AppLocalizations {
   AppLocalizationsJa([String locale = 'ja']) : super(locale);
 
   @override
+  String get generation_enhancementFailed => '補正に失敗しました。元画像は保持されています';
+
+  @override
+  String get generation_enhancementRetryHint =>
+      '画像メニューの DLSS NR から、補正のみ再試行できます。';
+
+  @override
+  String get generation_enhancementPreparing => '補正を準備中…';
+
+  @override
+  String get generation_enhancementRunning => 'DLSS NR で補正中…';
+
+  @override
+  String get generation_enhancementFinalizing => '画像を合成・エンコード中…';
+
+  @override
   String get app_title => 'NAI Launcher';
 
   @override
@@ -14736,18 +14752,6 @@ class AppLocalizationsJa extends AppLocalizations {
   @override
   String get dlss_scaleHint =>
       'DLSS SR で拡大してから NR を適用します。既定は 2 倍、1 倍は SR をスキップし、元のサイズで NR のみ実行します。小数を入力できます。出力の各辺は 16384 ピクセル以内で、実際の上限は GPU メモリに依存します。';
-
-  @override
-  String get dlss_srHint =>
-      '最終画像に NR を混ぜないローカル DLSS SR 拡大です。現在のランタイムは内部で NR を 1 回計算するため、動作する NR 環境と追加の処理時間が必要です。';
-
-  @override
-  String get dlss_srScaleHint =>
-      'NR パネルと倍率を共有します。既定は 2 倍です。1 倍では処理を開始しません。NR の強度、スタイル、処理回数は適用せず、拡大とディテール再構成のみを出力します。';
-
-  @override
-  String get dlss_srUnavailable =>
-      '先に「設定 → 連携 → DLSSNR」でランタイムをインストールし、検証・有効化してください。';
 
   @override
   String get dlss_finalizing => 'NR 完了・比較画像を準備中…';

@@ -9,6 +9,24 @@ class AppLocalizationsEn extends AppLocalizations {
   AppLocalizationsEn([String locale = 'en']) : super(locale);
 
   @override
+  String get generation_enhancementFailed =>
+      'Enhancement failed; original retained';
+
+  @override
+  String get generation_enhancementRetryHint =>
+      'Choose DLSS NR in the image actions to retry enhancement only.';
+
+  @override
+  String get generation_enhancementPreparing => 'Preparing enhancement…';
+
+  @override
+  String get generation_enhancementRunning => 'Enhancing with DLSS NR…';
+
+  @override
+  String get generation_enhancementFinalizing =>
+      'Compositing and encoding image…';
+
+  @override
   String get app_title => 'NAI Launcher';
 
   @override
@@ -15137,18 +15155,6 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get dlss_scaleHint =>
       'DLSS SR upscales before NR. Default: 2×; 1× skips SR and runs NR at the original size. Decimal values are supported. Each output edge must stay within 16384 pixels; practical limits depend on GPU memory.';
-
-  @override
-  String get dlss_srHint =>
-      'Local DLSS SR upscale with no NR contribution to the final image. The current runtime still computes one NR pass, requiring a working NR environment and adding processing time.';
-
-  @override
-  String get dlss_srScaleHint =>
-      'Shares the NR panel\'s scale, default 2×. At 1×, processing does not start. Resizes and reconstructs detail without applying NR strength, style, or pass count.';
-
-  @override
-  String get dlss_srUnavailable =>
-      'Install, verify, and enable the runtime in Settings → Integrations → DLSSNR first.';
 
   @override
   String get dlss_finalizing => 'NR complete · preparing comparison…';

@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 import 'dart:math';
 import 'dart:typed_data';
 
@@ -101,10 +102,12 @@ class DiscordShareResult {
   const DiscordShareResult({
     required this.deliveredTargets,
     required this.failedTargets,
+    this.failedTargetIds = const [],
   });
 
   final List<String> deliveredTargets;
   final List<String> failedTargets;
+  final List<String> failedTargetIds;
 
   bool get isPartial => failedTargets.isNotEmpty;
 }
@@ -116,6 +119,7 @@ class DiscordShareException implements Exception {
     this.status,
     this.communityUrl,
     this.retryAfter,
+    this.businessCode,
   });
 
   final String code;
@@ -123,6 +127,7 @@ class DiscordShareException implements Exception {
   final int? status;
   final String? communityUrl;
   final Duration? retryAfter;
+  final String? businessCode;
 
   bool get isUnauthorized => status == 401 || code == 'unauthorized';
   bool get isNotMember => code == 'not_member';
@@ -172,10 +177,10 @@ class DiscordShareService {
   }
 
   Future<DiscordShareSession> verifySession(DiscordShareSession session) async {
-    final response = await _request<Map<String, dynamic>>(
-      () => _dio.get<Map<String, dynamic>>(
+    final response = await _request(
+      () => _dio.get<Object?>(
         '/v1/session',
-        options: Options(headers: _authorizationHeaders(session.token)),
+        options: Options(headers: _authorizationHeaders(session.token), responseType: ResponseType.plain),
       ),
       clearSessionOnAuthFailure: true,
     );
@@ -220,13 +225,14 @@ class DiscordShareService {
           message: 'Discord verification was cancelled.',
         );
       }
-      late final Response<Map<String, dynamic>> response;
+      late final Response<Object?> response;
       try {
-        response = await _dio.post<Map<String, dynamic>>(
+        response = await _dio.post<Object?>(
           '/v1/oauth/result',
           data: {'nonce': nonce, 'verifier': verifier},
           options: Options(
             headers: {'Origin': _discordOAuthOrigin},
+            responseType: ResponseType.plain,
             validateStatus: (status) => status != null && status < 500,
           ),
           cancelToken: cancelToken,
@@ -238,20 +244,23 @@ class DiscordShareService {
             message: 'Discord verification was cancelled.',
           );
         }
-        final payload = error.response?.data is Map
-            ? Map<String, dynamic>.from(error.response!.data as Map)
-            : <String, dynamic>{};
+        final payload = _responsePayload(error.response?.data) ?? {};
         throw _exceptionFromPayload(
           payload,
           error.response?.statusCode,
           fallback: error.message ?? 'Discord verification failed.',
+          transportType: error.type,
           retryAfterHeader: error.response?.headers.value('retry-after'),
         );
       }
-      final payload = response.data ?? const <String, dynamic>{};
+      final payload = _responsePayload(response.data) ?? const <String, dynamic>{};
       if (response.statusCode == 202 || payload['pending'] == true) continue;
       if (response.statusCode != null && response.statusCode! >= 400) {
-        throw _exceptionFromPayload(payload, response.statusCode);
+        throw _exceptionFromPayload(
+          payload,
+          response.statusCode,
+          retryAfterHeader: response.headers.value('retry-after'),
+        );
       }
       if (payload['ok'] != true || '${payload['token'] ?? ''}'.isEmpty) {
         throw _exceptionFromPayload(payload, response.statusCode);
@@ -274,10 +283,10 @@ class DiscordShareService {
   Future<List<DiscordShareTarget>> loadTargets(
     DiscordShareSession session,
   ) async {
-    final payload = await _request<Map<String, dynamic>>(
-      () => _dio.get<Map<String, dynamic>>(
+    final payload = await _request(
+      () => _dio.get<Object?>(
         '/v1/targets',
-        options: Options(headers: _authorizationHeaders(session.token)),
+        options: Options(headers: _authorizationHeaders(session.token), responseType: ResponseType.plain),
       ),
       clearSessionOnAuthFailure: true,
     );
@@ -428,12 +437,13 @@ class DiscordShareService {
       ..add(MapEntry('long_prompt_as_file', '$longPromptAsFile'))
       ..addAll(targetIds.map((id) => MapEntry('target', id)));
 
-    final payload = await _request<Map<String, dynamic>>(
-      () => _dio.post<Map<String, dynamic>>(
+    final payload = await _request(
+      () => _dio.post<Object?>(
         '/v1/share',
         data: formData,
         options: Options(
           headers: {'Authorization': 'Bearer ${session.token}'},
+          responseType: ResponseType.plain,
           validateStatus: (status) => status != null && status < 500,
         ),
       ),
@@ -453,6 +463,11 @@ class DiscordShareService {
     return DiscordShareResult(
       deliveredTargets: delivered,
       failedTargets: failed,
+      failedTargetIds: (payload['failed_targets'] as List? ?? const [])
+          .whereType<Map>()
+          .map((entry) => '${entry['id'] ?? ''}')
+          .where((id) => id.isNotEmpty && targetIds.contains(id))
+          .toList(growable: false),
     );
   }
 
@@ -468,8 +483,8 @@ class DiscordShareService {
     'Authorization': 'Bearer $token',
   };
 
-  Future<T> _request<T>(
-    Future<Response<T>> Function() request, {
+  Future<Map<String, dynamic>> _request(
+    Future<Response<Object?>> Function() request, {
     bool clearSessionOnAuthFailure = false,
     Set<int> acceptedStatuses = const {200},
   }) async {
@@ -477,9 +492,7 @@ class DiscordShareService {
       final response = await request();
       final status = response.statusCode ?? 0;
       if (!acceptedStatuses.contains(status)) {
-        final payload = response.data is Map
-            ? Map<String, dynamic>.from(response.data as Map)
-            : <String, dynamic>{};
+        final payload = _responsePayload(response.data) ?? {};
         if (clearSessionOnAuthFailure && (status == 401 || status == 403)) {
           await clearSession();
         }
@@ -489,14 +502,14 @@ class DiscordShareService {
           retryAfterHeader: response.headers.value('retry-after'),
         );
       }
-      return response.data as T;
+      final payload = _responsePayload(response.data);
+      if (payload == null) throw _exceptionFromPayload({}, status);
+      return payload;
     } on DiscordShareException {
       rethrow;
     } on DioException catch (error) {
       final response = error.response;
-      final payload = response?.data is Map
-          ? Map<String, dynamic>.from(response!.data as Map)
-          : <String, dynamic>{};
+      final payload = _responsePayload(response?.data) ?? {};
       final status = response?.statusCode;
       if (clearSessionOnAuthFailure && (status == 401 || status == 403)) {
         await clearSession();
@@ -505,8 +518,22 @@ class DiscordShareService {
         payload,
         status,
         fallback: error.message ?? 'Discord sharing failed.',
+        transportType: error.type,
         retryAfterHeader: response?.headers.value('retry-after'),
       );
+    }
+  }
+
+  // Read the HTTP status before interpreting the body. Proxies may send HTML
+  // or malformed JSON for a 429 even when the content type claims JSON.
+  Map<String, dynamic>? _responsePayload(Object? data) {
+    if (data is Map) return Map<String, dynamic>.from(data);
+    if (data is! String) return null;
+    try {
+      final decoded = jsonDecode(data);
+      return decoded is Map ? Map<String, dynamic>.from(decoded) : null;
+    } on FormatException {
+      return null;
     }
   }
 
@@ -515,20 +542,47 @@ class DiscordShareService {
     int? status, {
     String fallback = 'Discord sharing failed.',
     String? retryAfterHeader,
+    DioExceptionType? transportType,
   }) {
+    final businessCode = payload['code']?.toString();
+    final code = switch (status) {
+      429 => 'rate_limited',
+      401 || 403 => businessCode ?? 'unauthorized',
+      _ when businessCode != null => businessCode,
+      _ when status != null => 'request_failed',
+      _
+          when transportType == DioExceptionType.connectionError ||
+              transportType == DioExceptionType.connectionTimeout ||
+              transportType == DioExceptionType.sendTimeout ||
+              transportType == DioExceptionType.receiveTimeout =>
+        'network_error',
+      _ => 'request_failed',
+    };
     return DiscordShareException(
-      code: '${payload['code'] ?? 'request_failed'}',
+      code: code,
+      businessCode: businessCode,
       message: '${payload['message'] ?? fallback}',
       status: status,
       communityUrl:
           payload['community_url']?.toString() ??
           (payload['code'] == 'not_member' ? discordCommunityUrl : null),
-      retryAfter: _retryAfter(
-        retryAfterHeader ??
-            payload['retry_after_seconds'] ??
-            payload['retry_after'],
-      ),
+      retryAfter:
+          _retryAfterHeader(retryAfterHeader) ??
+          _retryAfter(payload['retry_after_seconds']) ??
+          _retryAfter(payload['retry_after']),
     );
+  }
+
+  Duration? _retryAfterHeader(String? value) {
+    if (value == null) return null;
+    final seconds = _retryAfter(value);
+    if (seconds != null) return seconds;
+    try {
+      final delay = HttpDate.parse(value).difference(DateTime.now().toUtc());
+      return delay > Duration.zero ? delay : null;
+    } on HttpException {
+      return null;
+    }
   }
 
   Duration? _retryAfter(Object? raw) {

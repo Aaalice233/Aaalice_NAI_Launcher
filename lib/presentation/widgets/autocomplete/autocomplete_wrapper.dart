@@ -211,6 +211,9 @@ class _AutocompleteWrapperState extends ConsumerState<AutocompleteWrapper> {
     if (!mounted) return;
     final anchorContext = _anchorKey.currentContext;
     if (anchorContext == null) return;
+    if (_overlayEntry != null && _hasInputFocus) {
+      AutocompleteUtils.revealCaret(anchorContext);
+    }
     final isMultiline = AutocompleteUtils.isMultilineTextInput(
       context: anchorContext,
       maxLines: widget.maxLines,
@@ -535,27 +538,37 @@ class _AutocompleteWrapperState extends ConsumerState<AutocompleteWrapper> {
     final keyboardInset = math
         .max(MediaQuery.viewInsetsOf(overlayContext).bottom, rawKeyboardInset)
         .clamp(0.0, screen.height);
-    final visibleBottom = screen.height - keyboardInset;
+    // Overlay coordinates may already be inside a resized Scaffold. Translate
+    // the window's keyboard edge instead of subtracting its inset twice.
+    final overlayOrigin = theater.localToGlobal(Offset.zero);
+    final logicalWindowHeight =
+        flutterView.physicalSize.height / flutterView.devicePixelRatio;
+    final safeInsets = MediaQuery.viewPaddingOf(overlayContext);
+    final visibleTop = math.max(
+      viewportInset,
+      safeInsets.top - overlayOrigin.dy + viewportInset,
+    );
+    final visibleBottom = math.min(
+      screen.height,
+      logicalWindowHeight -
+          keyboardInset -
+          overlayOrigin.dy -
+          (keyboardInset > 0 ? 0 : safeInsets.bottom),
+    );
     final below = math.max(
       visibleBottom - viewportInset - caretBottom - caretGap,
       0.0,
     );
-    final above = math.max(caretTop - caretGap - viewportInset, 0.0);
-    final placeBelow = below >= 180 || below >= above;
-    final availableHeight = placeBelow ? below : above;
-    final minimumUsableHeight = touchCompact ? 152.0 : 90.0;
-    final useViewportFallback = availableHeight < minimumUsableHeight;
-    final viewportFallbackHeight = math.max(
-      visibleBottom - viewportInset * 2,
+    final above = math.max(
+      math.min(caretTop, visibleBottom) - caretGap - visibleTop,
       0.0,
     );
-    if (useViewportFallback && viewportFallbackHeight < 72) {
+    final placeBelow = below >= 180 || below >= above;
+    final availableHeight = placeBelow ? below : above;
+    if (availableHeight < 44) {
       return const SizedBox.shrink();
     }
-    final maxHeight = math.min(
-      useViewportFallback ? viewportFallbackHeight : availableHeight,
-      touchCompact ? 320.0 : 410.0,
-    );
+    final maxHeight = math.min(availableHeight, touchCompact ? 320.0 : 410.0);
 
     // Phone completion is a stable edge-aligned panel. Roomy viewports retain
     // the editor-style footprint and keep some leading text visible.
@@ -577,16 +590,8 @@ class _AutocompleteWrapperState extends ConsumerState<AutocompleteWrapper> {
 
     return Positioned(
       left: left,
-      top: useViewportFallback
-          ? viewportInset
-          : placeBelow
-          ? caretBottom + caretGap
-          : null,
-      bottom: useViewportFallback
-          ? null
-          : placeBelow
-          ? null
-          : screen.height - caretTop + caretGap,
+      top: placeBelow ? caretBottom + caretGap : null,
+      bottom: placeBelow ? null : screen.height - caretTop + caretGap,
       width: width,
       child: TextFieldTapRegion(
         child: CompletionOverlay(
@@ -913,7 +918,13 @@ class _AutocompleteWrapperState extends ConsumerState<AutocompleteWrapper> {
           onPointerDown: _onPointerDown,
           onPointerUp: _onPointerUp,
           onPointerCancel: _onPointerCancel,
-          child: widget.child,
+          child: NotificationListener<ScrollNotification>(
+            onNotification: (_) {
+              _scheduleCursorMetricsUpdate();
+              return false;
+            },
+            child: widget.child,
+          ),
         ),
       ),
     );

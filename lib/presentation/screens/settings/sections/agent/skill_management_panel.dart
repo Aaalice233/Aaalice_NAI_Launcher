@@ -1,3 +1,4 @@
+import 'package:nai_launcher/presentation/widgets/common/horizontal_action_strip.dart';
 import 'dart:io';
 
 import 'package:file_picker/file_picker.dart';
@@ -111,8 +112,7 @@ class _SkillManagementPanelState extends ConsumerState<SkillManagementPanel> {
             style: Theme.of(context).textTheme.labelLarge,
           ),
           const SizedBox(height: 8),
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
+          HorizontalActionStrip(
             child: SegmentedButton<_SkillFilter>(
               showSelectedIcon: false,
               segments: [

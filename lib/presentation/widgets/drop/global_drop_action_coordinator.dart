@@ -197,17 +197,16 @@ class GlobalDropActionCoordinator {
     '.bmp',
   };
 
-  Future<void> handleDrop(PerformDropEvent event) async {
-    var handledAny = false;
+  Future<List<DroppedFileData>> readDrop(PerformDropEvent event) async {
+    final files = <DroppedFileData>[];
     for (final item in event.session.items) {
-      if (!context.mounted) return;
+      if (!context.mounted) return files;
       final internalPayload = resolveInternalHistoryDropPayload(
         item.localData,
         ref.read(imageGenerationNotifierProvider),
       );
       if (internalPayload != null) {
-        handledAny = true;
-        await processDroppedFile(internalPayload);
+        files.add(internalPayload);
         continue;
       }
 
@@ -219,13 +218,13 @@ class GlobalDropActionCoordinator {
         logTag: 'DropHandler',
       );
       if (fileData != null) {
-        handledAny = true;
-        await processDroppedFile(fileData);
+        files.add(fileData);
       }
     }
-    if (!handledAny && context.mounted) {
+    if (files.isEmpty && context.mounted) {
       _showError(context.l10n.toast_unreadableDroppedImageSource);
     }
+    return files;
   }
 
   Future<void> processDroppedFile(DroppedFileData fileData) async {

@@ -2,6 +2,7 @@ import 'dart:typed_data';
 
 import '../../../data/datasources/remote/nai_image_generation_api_service.dart';
 import '../../../data/models/image/image_params.dart';
+import '../../../data/models/image/image_postprocess_phase.dart';
 import 'generation_command.dart';
 import 'generation_models.dart';
 import 'image_generation_coordinator.dart';
@@ -54,7 +55,7 @@ class ImageGenerationService {
     ],
     Future<void> Function(Duration) delay = Future<void>.delayed,
     this.streamPreviewEnabled = true,
-    Future<Uint8List> Function(Uint8List, Future<void>)? postprocess,
+    ImagePostprocessor? postprocess,
     void Function(Object)? onPostprocessError,
   }) : _apiService = apiService,
        _coordinator = ImageGenerationCoordinator(
@@ -188,6 +189,7 @@ class ImageGenerationService {
             );
             onStepProgress?.call(currentStep, totalSteps);
           case GenerationImageFinalizing():
+          case GenerationPostprocessChanged():
             onCompleting?.call();
           case GenerationRequestCompleted(
             :final params,

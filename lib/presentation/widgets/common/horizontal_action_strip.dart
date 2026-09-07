@@ -1,19 +1,27 @@
 import 'package:flutter/material.dart';
 
-/// Horizontal controls with a trailing hint while more content is available.
+/// Shows each direction only while controls remain beyond that viewport edge.
 class HorizontalActionStrip extends StatefulWidget {
   const HorizontalActionStrip({
     super.key,
-    required this.minimumExtent,
+    this.minimumExtent = 0,
     required this.child,
     this.scrollKey,
     this.hintKey,
+    this.leadingHintKey,
+    this.padding,
+    this.physics,
+    this.reverse = false,
   });
 
   final double minimumExtent;
   final Widget child;
   final Key? scrollKey;
   final Key? hintKey;
+  final Key? leadingHintKey;
+  final EdgeInsetsGeometry? padding;
+  final ScrollPhysics? physics;
+  final bool reverse;
 
   @override
   State<HorizontalActionStrip> createState() => _HorizontalActionStripState();
@@ -22,6 +30,7 @@ class HorizontalActionStrip extends StatefulWidget {
 class _HorizontalActionStripState extends State<HorizontalActionStrip> {
   final ScrollController _controller = ScrollController();
   bool _canScrollForward = false;
+  bool _canScrollBack = false;
 
   @override
   void initState() {
@@ -49,17 +58,28 @@ class _HorizontalActionStripState extends State<HorizontalActionStrip> {
   }
 
   void _updateOverflowIndicator() {
-    if (!mounted || !_controller.hasClients) return;
+    if (!mounted ||
+        !_controller.hasClients ||
+        !_controller.position.hasContentDimensions) {
+      return;
+    }
     final canScrollForward =
         _controller.position.maxScrollExtent - _controller.offset > 1;
-    if (canScrollForward != _canScrollForward) {
-      setState(() => _canScrollForward = canScrollForward);
+    final canScrollBack =
+        _controller.offset - _controller.position.minScrollExtent > 1;
+    if (canScrollForward != _canScrollForward ||
+        canScrollBack != _canScrollBack) {
+      setState(() {
+        _canScrollForward = canScrollForward;
+        _canScrollBack = canScrollBack;
+      });
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
+    final rtl =
+        (Directionality.of(context) == TextDirection.rtl) != widget.reverse;
     return ConstrainedBox(
       constraints: BoxConstraints(minHeight: widget.minimumExtent),
       child: NotificationListener<ScrollMetricsNotification>(
@@ -74,31 +94,46 @@ class _HorizontalActionStripState extends State<HorizontalActionStrip> {
               key: widget.scrollKey,
               controller: _controller,
               scrollDirection: Axis.horizontal,
+              reverse: widget.reverse,
+              padding: widget.padding,
+              physics: widget.physics,
               child: widget.child,
             ),
+            if (_canScrollBack)
+              _hint(context, left: !rtl, key: widget.leadingHintKey),
             if (_canScrollForward)
-              IgnorePointer(
-                child: Container(
-                  key: widget.hintKey,
-                  width: 32,
-                  height: widget.minimumExtent,
-                  alignment: Alignment.centerRight,
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [
-                        colorScheme.surface.withValues(alpha: 0),
-                        colorScheme.surface,
-                      ],
-                    ),
-                  ),
-                  child: Icon(
-                    Icons.chevron_right_rounded,
-                    size: 22,
-                    color: colorScheme.onSurfaceVariant,
-                  ),
-                ),
-              ),
+              _hint(context, left: rtl, key: widget.hintKey),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _hint(BuildContext context, {required bool left, Key? key}) {
+    final colors = Theme.of(context).colorScheme;
+    return Positioned(
+      left: left ? 0 : null,
+      right: left ? null : 0,
+      top: 0,
+      bottom: 0,
+      child: IgnorePointer(
+        child: ExcludeSemantics(
+          child: Container(
+            key: key,
+            width: 24,
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: left ? Alignment.centerRight : Alignment.centerLeft,
+                end: left ? Alignment.centerLeft : Alignment.centerRight,
+                colors: [colors.surface.withValues(alpha: 0), colors.surface],
+              ),
+            ),
+            child: Icon(
+              left ? Icons.chevron_left_rounded : Icons.chevron_right_rounded,
+              size: 20,
+              color: colors.onSurfaceVariant,
+            ),
+          ),
         ),
       ),
     );

@@ -525,6 +525,13 @@ class _LocalImageCard3DState extends ConsumerState<LocalImageCard3D> {
             }
           },
           itemBuilder: (context) => <PopupMenuEntry<Object>>[
+            if (widget.onSendAction != null) ...[
+              ...LocalImageContextMenu.buildSendEntries(
+                context,
+                isKritaConnected: widget.isKritaConnected,
+              ),
+              const PopupMenuDivider(),
+            ],
             if (widget.onFavoriteToggle != null)
               item(
                 value: _LocalCardAction.favorite,
@@ -577,11 +584,6 @@ class _LocalImageCard3DState extends ConsumerState<LocalImageCard3D> {
                     : context.l10n.mosaic_actionCreate,
               ),
             if (widget.onSendAction != null) ...[
-              const PopupMenuDivider(),
-              ...LocalImageContextMenu.buildSendEntries(
-                context,
-                isKritaConnected: widget.isKritaConnected,
-              ),
               const PopupMenuDivider(),
               item(
                 value: LocalImageContextAction.copyPrompt,

@@ -1,3 +1,4 @@
+import 'package:nai_launcher/presentation/widgets/common/horizontal_action_strip.dart';
 import 'package:flutter/material.dart';
 import '../../../prompt_assistant/providers/prompt_assistant_history_provider.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -144,9 +145,11 @@ class PromptInputFooter extends ConsumerWidget {
       child: Row(
         children: [
           Expanded(
-            child: SingleChildScrollView(
-              key: const ValueKey('generation_prompt_footer_actions_scroll'),
-              scrollDirection: Axis.horizontal,
+            child: HorizontalActionStrip(
+              scrollKey: const ValueKey(
+                'generation_prompt_footer_actions_scroll',
+              ),
+
               child: leadingControls,
             ),
           ),

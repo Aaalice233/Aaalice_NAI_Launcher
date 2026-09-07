@@ -1,3 +1,4 @@
+import 'package:nai_launcher/presentation/widgets/common/horizontal_action_strip.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:nai_launcher/presentation/adaptive/interaction_policy.dart';
@@ -257,10 +258,7 @@ class _PaginationBarState extends State<PaginationBar> {
           ),
           const SizedBox(height: 8),
         ],
-        SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: _buildPageNavigation(theme, colorScheme),
-        ),
+        HorizontalActionStrip(child: _buildPageNavigation(theme, colorScheme)),
       ],
     );
   }
@@ -275,8 +273,7 @@ class _PaginationBarState extends State<PaginationBar> {
         context.l10n.onlineGallery_imageCount(widget.totalItems.toString());
     final sideExtent = veryNarrow ? 56.0 : 72.0;
     return LayoutBuilder(
-      builder: (context, constraints) => SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
+      builder: (context, constraints) => HorizontalActionStrip(
         child: ConstrainedBox(
           constraints: BoxConstraints(minWidth: constraints.maxWidth),
           child: Row(

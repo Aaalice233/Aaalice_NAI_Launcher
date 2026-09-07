@@ -1,3 +1,4 @@
+import 'package:nai_launcher/presentation/widgets/common/horizontal_action_strip.dart';
 import 'dart:async';
 import 'dart:io';
 import 'dart:typed_data';
@@ -506,8 +507,7 @@ class _Model3dEditorScreenState extends State<Model3dEditorScreen> {
       ),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-        child: SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
+        child: HorizontalActionStrip(
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [

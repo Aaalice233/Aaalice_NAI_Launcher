@@ -16,6 +16,10 @@ class DlssFloatFrame {
   factory DlssFloatFrame.fromImage(Uint8List bytes) {
     final image = img.decodeImage(bytes);
     if (image == null) throw const FormatException('Invalid DLSS source image');
+    return DlssFloatFrame.fromDecodedImage(image);
+  }
+
+  factory DlssFloatFrame.fromDecodedImage(img.Image image) {
     final pixels = Float32List(image.width * image.height * 4);
     var offset = 0;
     for (final pixel in image) {
@@ -44,12 +48,21 @@ class DlssFloatFrame {
       throw const FormatException('Invalid DLSS float frame');
     }
     final pixels = Float32List(width * height * 4);
+    if (Endian.host == Endian.little) {
+      // Copy bytes so unaligned input views are supported and the decoded frame
+      // owns its storage independently of the transport buffer.
+      Uint8List.view(
+        pixels.buffer,
+      ).setRange(0, pixels.lengthInBytes, bytes, 16);
+    }
     for (var i = 0; i < pixels.length; i++) {
-      final value = data.getFloat32(16 + i * 4, Endian.little);
+      final value = Endian.host == Endian.little
+          ? pixels[i]
+          : data.getFloat32(16 + i * 4, Endian.little);
       if (!value.isFinite) {
         throw const FormatException('Non-finite DLSS output pixel');
       }
-      pixels[i] = value;
+      if (Endian.host != Endian.little) pixels[i] = value;
     }
     return DlssFloatFrame(width, height, pixels);
   }
@@ -64,8 +77,12 @@ class DlssFloatFrame {
     data.setUint32(4, width, Endian.little);
     data.setUint32(8, height, Endian.little);
     data.setUint32(12, 4, Endian.little);
-    for (var i = 0; i < pixels.length; i++) {
-      data.setFloat32(16 + i * 4, pixels[i], Endian.little);
+    if (Endian.host == Endian.little) {
+      bytes.setRange(16, bytes.length, Uint8List.sublistView(pixels));
+    } else {
+      for (var i = 0; i < pixels.length; i++) {
+        data.setFloat32(16 + i * 4, pixels[i], Endian.little);
+      }
     }
     return bytes;
   }

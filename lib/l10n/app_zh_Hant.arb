@@ -1,4 +1,11 @@
 {
+  "generation_enhancementFailed": "增強失敗，已保留原圖",
+  "generation_enhancementRetryHint": "可在影像操作選單中選擇 DLSS NR，僅重試增強。",
+
+  "generation_enhancementPreparing": "準備增強…",
+  "generation_enhancementRunning": "DLSS NR 增強中…",
+  "generation_enhancementFinalizing": "合成並編碼影像…",
+
   "@@locale": "zh_Hant",
   "app_title": "NAI 啟動器",
   "app_subtitle": "NovelAI 第三方客戶端",
@@ -7267,9 +7274,6 @@
   "dlss_invalidNumber": "請輸入此參數支援的有效數值。",
   "dlss_scale": "SR 放大倍率",
   "dlss_scaleHint": "先用 DLSS SR 放大，再進行 NR。預設 2 倍；1 倍略過 SR，僅按原尺寸進行 NR。可手動輸入小數，輸出每邊不能超過 16384 像素，實際可用大小取決於顯示記憶體。",
-  "dlss_srHint": "本機 DLSS SR 放大，最終結果不混入 NR。目前執行階段仍會計算一次 NR，因此需要可用的 NR 環境，也會產生額外耗時。",
-  "dlss_srScaleHint": "與 NR 面板共用放大倍率，預設 2 倍。1 倍不啟動處理。僅調整尺寸與重建細節；不套用 NR 強度、風格或處理次數。",
-  "dlss_srUnavailable": "請先在「設定 → 整合 → DLSSNR」安裝、檢測並啟用執行階段。",
   "dlss_finalizing": "NR 已完成，正在準備比較圖…",
   "dlss_processing": "處理流程",
   "dlss_appearance": "效果調整",

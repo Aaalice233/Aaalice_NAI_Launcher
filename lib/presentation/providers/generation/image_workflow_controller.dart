@@ -17,7 +17,7 @@ import 'generation_params_notifier.dart';
 
 enum ImageWorkflowMode { base, inpaint, enhance, upscale }
 
-enum UpscaleBackend { comfyui, novelai, dlssSr }
+enum UpscaleBackend { comfyui, novelai }
 
 enum ComfyUpscaleModule { regular, seedvr2, rtx }
 
@@ -1715,7 +1715,7 @@ class ImageWorkflowController extends Notifier<ImageWorkflowState> {
     final closest = NaiResolutionAdapter.findClosestResolution(width, height);
     AppLogger.i(
       'Editor source clamped to request limits: '
-      '${width}x$height -> ${closest.width}x${closest.height}',
+          '${width}x$height -> ${closest.width}x${closest.height}',
       'ImageWorkflow',
     );
     return (width: closest.width, height: closest.height);

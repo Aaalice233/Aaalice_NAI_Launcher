@@ -5,6 +5,7 @@ import 'dart:typed_data';
 import 'package:hive/hive.dart';
 
 import '../../core/utils/app_logger.dart';
+import '../../core/utils/isolate_pool.dart';
 import '../models/gallery/nai_image_metadata.dart';
 import 'metadata/cache_manager.dart';
 import 'metadata/hash_calculator.dart';
@@ -427,7 +428,13 @@ class ImageMetadataService {
 
     final stopwatch = Stopwatch()..start();
     try {
-      final result = UnifiedMetadataParser.parseFromImage(bytes);
+      // PNG stealth metadata can require a full pixel decode. Keep it off the
+      // UI isolate even though the surrounding cache API is asynchronous.
+      final result = await ComputeGate().runCompute(
+        UnifiedMetadataParser.parseFromImage,
+        bytes,
+        debugLabel: 'image_metadata_from_bytes',
+      );
       final metadata = result.success ? result.metadata : null;
       if (metadata != null && metadata.hasData) {
         try {

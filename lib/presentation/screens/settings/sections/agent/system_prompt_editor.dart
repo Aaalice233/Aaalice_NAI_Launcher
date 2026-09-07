@@ -1,3 +1,4 @@
+import 'package:nai_launcher/presentation/widgets/common/horizontal_action_strip.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -95,8 +96,7 @@ class _AgentSystemPromptEditorState
                 key: const ValueKey('agent-system-prompt-editor'),
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
+                  HorizontalActionStrip(
                     child: SegmentedButton<AgentSystemPromptMode>(
                       key: const ValueKey('agent-system-prompt-mode'),
                       segments: [

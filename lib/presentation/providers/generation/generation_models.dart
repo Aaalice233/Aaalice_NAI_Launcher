@@ -8,6 +8,7 @@ import '../../../core/utils/nai_resolution_adapter.dart';
 import '../../../data/models/gallery/nai_image_metadata.dart';
 import '../../../data/models/fixed_tag/fixed_tag_usage_snapshot.dart';
 import '../../../data/models/image/image_stream_chunk.dart';
+import '../../../data/models/image/image_postprocess_phase.dart';
 
 enum GeneratedImageKind { completed, failedStreamSnapshot }
 
@@ -88,6 +89,7 @@ class GeneratedImage {
   final GeneratedImageKind kind;
   final NaiImageMetadata? metadata;
   final FixedTagUsageSnapshot? fixedTagUsageSnapshot;
+  final String? postprocessError;
 
   /// Source captured for a supported current-session transformation.
   ///
@@ -110,6 +112,7 @@ class GeneratedImage {
     this.kind = GeneratedImageKind.completed,
     this.metadata,
     this.fixedTagUsageSnapshot,
+    this.postprocessError,
     this.comparisonSource,
     this.preserveOriginalBytesOnSave = false,
     this.filePath,
@@ -123,6 +126,7 @@ class GeneratedImage {
     GeneratedImageKind kind = GeneratedImageKind.completed,
     NaiImageMetadata? metadata,
     FixedTagUsageSnapshot? fixedTagUsageSnapshot,
+    String? postprocessError,
     ImageComparisonSource? comparisonSource,
     bool preserveOriginalBytesOnSave = false,
   }) {
@@ -135,6 +139,7 @@ class GeneratedImage {
       kind: kind,
       metadata: metadata,
       fixedTagUsageSnapshot: fixedTagUsageSnapshot,
+      postprocessError: postprocessError,
       comparisonSource: comparisonSource,
       preserveOriginalBytesOnSave: preserveOriginalBytesOnSave,
     );
@@ -154,6 +159,7 @@ class GeneratedImage {
       comparisonSource: comparisonSource,
       preserveOriginalBytesOnSave: preserveOriginalBytesOnSave,
       filePath: path,
+      postprocessError: postprocessError,
     );
   }
 
@@ -199,6 +205,7 @@ class StreamPreviewSlot {
     required this.progress,
     this.previewBytes,
     this.focusedPreviewPlacement,
+    this.postprocessPhase,
   });
 
   final int imageNumber;
@@ -206,6 +213,7 @@ class StreamPreviewSlot {
   final double progress;
   final Uint8List? previewBytes;
   final FocusedStreamPreviewPlacement? focusedPreviewPlacement;
+  final ImagePostprocessPhase? postprocessPhase;
 
   StreamPreviewSlot copyWith({
     int? imageNumber,
@@ -214,11 +222,13 @@ class StreamPreviewSlot {
     Uint8List? previewBytes,
     FocusedStreamPreviewPlacement? focusedPreviewPlacement,
     bool clearFocusedPreviewPlacement = false,
+    ImagePostprocessPhase? postprocessPhase,
   }) {
     return StreamPreviewSlot(
       imageNumber: imageNumber ?? this.imageNumber,
       totalImages: totalImages ?? this.totalImages,
       progress: progress ?? this.progress,
+      postprocessPhase: postprocessPhase ?? this.postprocessPhase,
       previewBytes: previewBytes ?? this.previewBytes,
       focusedPreviewPlacement: clearFocusedPreviewPlacement
           ? null

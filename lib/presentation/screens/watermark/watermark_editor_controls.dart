@@ -1,3 +1,4 @@
+import 'package:nai_launcher/presentation/widgets/common/horizontal_action_strip.dart';
 import 'package:flutter/material.dart';
 
 import '../../../core/utils/localization_extension.dart';
@@ -61,8 +62,7 @@ class WatermarkEditorControls extends StatelessWidget {
           onTap: onOpenMetadataSettings,
         ),
         const SizedBox(height: 8),
-        SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
+        HorizontalActionStrip(
           child: SegmentedButton<WatermarkEditableLayer>(
             segments: [
               ButtonSegment(
@@ -191,8 +191,7 @@ class WatermarkEditorControls extends StatelessWidget {
             style: Theme.of(context).textTheme.labelLarge,
           ),
           const SizedBox(height: 8),
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
+          HorizontalActionStrip(
             child: SegmentedButton<WatermarkTextAlignment>(
               showSelectedIcon: false,
               segments: [

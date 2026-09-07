@@ -1,3 +1,4 @@
+import 'package:nai_launcher/presentation/widgets/common/horizontal_action_strip.dart';
 import 'package:flutter/material.dart';
 
 import '../../adaptive/interaction_policy.dart';
@@ -133,9 +134,11 @@ class PromptAssistantToolbar extends StatelessWidget {
                     '${processingLabel ?? context.l10n.promptAssistant_assistant} · ${context.l10n.promptAssistant_cancelTask}',
                 onCancel: onCancel,
               )
-            : SingleChildScrollView(
-                key: ValueKey('prompt_assistant_action_scroll_$sessionId'),
-                scrollDirection: Axis.horizontal,
+            : HorizontalActionStrip(
+                scrollKey: ValueKey(
+                  'prompt_assistant_action_scroll_$sessionId',
+                ),
+
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [

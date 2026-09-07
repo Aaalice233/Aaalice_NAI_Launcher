@@ -115,6 +115,8 @@ class LocalImageContextMenu {
     final hasImageInfoActions = hasImportableMetadata || hasPrompt || hasSeed;
 
     return [
+      ...buildSendEntries(context, isKritaConnected: isKritaConnected),
+      const PopupMenuDivider(),
       _item(
         context,
         value: LocalImageContextAction.addToAgent,
@@ -128,7 +130,6 @@ class LocalImageContextMenu {
         label: context.l10n.localGallery_moveToCategory,
       ),
       const PopupMenuDivider(),
-      ...buildSendEntries(context, isKritaConnected: isKritaConnected),
       if (watermarkEnabled)
         _item(
           context,
@@ -253,8 +254,12 @@ class LocalImageContextMenu {
         label: context.l10n.gallery_upscale,
       ),
       if (PlatformCapabilities.current.supportsDlssEnhancement)
-        _item(context, value: LocalImageContextAction.dlssEnhance,
-          icon: Icons.auto_awesome, label: context.l10n.dlss_menu),
+        _item(
+          context,
+          value: LocalImageContextAction.dlssEnhance,
+          icon: Icons.auto_awesome,
+          label: context.l10n.dlss_menu,
+        ),
       _item(
         context,
         value: LocalImageContextAction.shareToDiscord,
@@ -307,8 +312,6 @@ class LocalImageContextMenu {
           Flexible(
             child: Text(
               label,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
               style: color == null ? null : TextStyle(color: color),
             ),
           ),

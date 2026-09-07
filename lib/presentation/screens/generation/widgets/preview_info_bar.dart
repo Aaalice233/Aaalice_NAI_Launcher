@@ -1,3 +1,4 @@
+import 'package:nai_launcher/presentation/widgets/common/horizontal_action_strip.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -83,8 +84,7 @@ class PreviewInfoBar extends ConsumerWidget {
                       Flexible(child: _SeedPill(seed: seed, compact: true)),
                   ],
                 )
-              : SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
+              : HorizontalActionStrip(
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [

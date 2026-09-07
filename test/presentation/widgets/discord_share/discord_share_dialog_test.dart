@@ -124,6 +124,7 @@ void main() {
     when(() => service.loadSession()).thenThrow(
       DioException(
         requestOptions: RequestOptions(path: 'https://private-relay.test'),
+        type: DioExceptionType.connectionError,
         message: 'Failed host lookup: private-relay.test',
       ),
     );

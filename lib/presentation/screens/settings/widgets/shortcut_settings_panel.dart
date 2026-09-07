@@ -1,3 +1,4 @@
+import 'package:nai_launcher/presentation/widgets/common/horizontal_action_strip.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/shortcuts/default_shortcuts.dart';
@@ -427,10 +428,7 @@ class _ShortcutSettingsPanelState extends ConsumerState<ShortcutSettingsPanel> {
                   children: [
                     titleBlock,
                     const SizedBox(height: 4),
-                    SingleChildScrollView(
-                      scrollDirection: Axis.horizontal,
-                      child: actions,
-                    ),
+                    HorizontalActionStrip(child: actions),
                   ],
                 )
               : Row(
