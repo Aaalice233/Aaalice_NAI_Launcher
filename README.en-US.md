@@ -72,6 +72,7 @@ NAI Launcher is built for people who use NovelAI regularly. Generation, editing,
 - Dedicated Vibe and Precise Reference libraries provide categories, search, previews, batch management, import/export, and direct use in the current generation.
 - The inpaint editor includes brushes, masks, Focused Inpaint regions, and canvas expansion. Agent Chat can prepare a mask or outpaint draft for review.
 - NovelAI image metadata can restore selected model, size, sampler, Steps, CFG, Seed, pinned tags, and character content.
+- On Android, share a single image or a direct image link from apps such as Discord to NAI Launcher, then choose metadata import, img2img, or reference use. Direct links must be accessible, and restoring parameters requires an original image with metadata intact.
 
 ### 🗂️ Local gallery and artwork organization
 

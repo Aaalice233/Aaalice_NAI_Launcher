@@ -162,7 +162,6 @@ class DroppedFileReader {
     }
   }
 
-  @visibleForTesting
   static Uri? extractImageUriFromText(String text) {
     final normalized = _decodeBasicHtmlEntities(text);
     final attributePattern = RegExp(

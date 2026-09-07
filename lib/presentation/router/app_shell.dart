@@ -18,6 +18,7 @@ import '../providers/dlss_provider.dart';
 import '../providers/prompt_maximize_provider.dart';
 import '../widgets/app_branch_visibility.dart';
 import '../widgets/drop/global_drop_handler.dart';
+import '../widgets/drop/incoming_image_share_handler.dart';
 import '../widgets/shortcuts/shortcut_aware_widget.dart';
 import '../widgets/shortcuts/shortcut_help_dialog.dart';
 import 'app_branch.dart';
@@ -250,6 +251,8 @@ class _MainShellState extends ConsumerState<MainShell> {
     final dropEnabledContent =
         PlatformCapabilities.current.supportsExternalFileDrop
         ? GlobalDropHandler(child: contentStack)
+        : PlatformCapabilities.operatingSystem.isAndroid
+        ? IncomingImageShareHandler(child: contentStack)
         : contentStack;
 
     final globalShortcuts = <String, VoidCallback>{

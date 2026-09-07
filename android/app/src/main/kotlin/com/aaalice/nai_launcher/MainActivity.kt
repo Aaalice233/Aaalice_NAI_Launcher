@@ -12,9 +12,11 @@ class MainActivity : FlutterActivity() {
     private var assetCopyChannel: AndroidAssetCopyChannel? = null
     private var fileExportChannel: AndroidFileExportChannel? = null
     private var generationServiceChannel: MethodChannel? = null
+    private var imageShareChannel: AndroidImageShareChannel? = null
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
+        imageShareChannel = AndroidImageShareChannel(this, flutterEngine.dartExecutor.binaryMessenger)
         questionNotifications = AgentQuestionNotifications(this, flutterEngine.dartExecutor.binaryMessenger)
         fileExportChannel = AndroidFileExportChannel(
             this,
@@ -103,10 +105,13 @@ class MainActivity : FlutterActivity() {
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
+        imageShareChannel?.accept(intent)
         questionNotifications?.onNewIntent(intent)
     }
 
     override fun onDestroy() {
+        imageShareChannel?.dispose()
+        imageShareChannel = null
         questionNotifications?.dispose()
         questionNotifications = null
         appInstaller?.dispose()
