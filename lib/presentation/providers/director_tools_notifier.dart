@@ -316,6 +316,9 @@ class DirectorToolsNotifier extends Notifier<DirectorToolsState> {
           state.result!,
           params: saveParams,
           saveToLocal: true,
+          // 与 DLSS 增强、NovelAI 超分一致：加工结果顶替当前展示图，
+          // 否则它只进历史，会排在仍占着当前区的原图下面。
+          replaceCurrentDisplay: true,
         );
   }
 
