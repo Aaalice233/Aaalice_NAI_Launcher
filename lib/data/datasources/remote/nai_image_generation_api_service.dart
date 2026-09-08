@@ -9,6 +9,7 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../../../core/constants/api_constants.dart';
 import '../../../core/models/image_generation_artifact.dart';
+import '../../../core/network/browser_multipart_body.dart';
 import '../../../core/network/dio_client.dart';
 import '../../../core/network/critical_network_activity.dart';
 import '../../../core/network/nai_api_endpoint_service.dart';
@@ -81,8 +82,10 @@ class NAIImageGenerationApiService {
 
   /// Retained for callers and tests that inspect the official multipart shape.
   @visibleForTesting
-  static FormData buildGenerationFormData(Map<String, dynamic> requestData) {
-    return NaiGenerationTransport.buildGenerationFormData(requestData);
+  static BrowserMultipartBody buildGenerationMultipart(
+    Map<String, dynamic> requestData,
+  ) {
+    return NaiGenerationTransport.buildGenerationMultipart(requestData);
   }
 
   Future<(List<Uint8List>, Map<int, String>)> generateImage(
