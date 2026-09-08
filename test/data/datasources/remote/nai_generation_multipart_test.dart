@@ -2,9 +2,11 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
-import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:nai_launcher/core/network/browser_multipart_body.dart';
 import 'package:nai_launcher/data/datasources/remote/nai_generation_transport.dart';
+
+import '../../../helpers/browser_multipart_reader.dart';
 
 const String _transportSourcePath =
     'lib/data/datasources/remote/nai_generation_transport.dart';
@@ -24,7 +26,7 @@ void main() {
     final directors = parameters['director_reference_images'] as List<String>;
     final snapshot = jsonEncode(requestData);
 
-    NaiGenerationTransport.buildGenerationFormData(requestData);
+    NaiGenerationTransport.buildGenerationMultipart(requestData);
 
     expect(jsonEncode(requestData), snapshot);
     expect(identical(requestData['parameters'], parameters), isTrue);
@@ -46,14 +48,13 @@ void main() {
     expect(parameters.containsKey('director_reference_images_cached'), isFalse);
   });
 
-  test('keeps image part order, payload dedup and the request json', () async {
-    final formData = NaiGenerationTransport.buildGenerationFormData(
-      _buildRequest(),
+  test('keeps image part order, payload dedup and the request json', () {
+    final parts = _parts(
+      NaiGenerationTransport.buildGenerationMultipart(_buildRequest()),
     );
 
-    expect(formData.fields, isEmpty);
     expect(
-      formData.files.map((entry) => entry.key),
+      parts.map((part) => part.name),
       orderedEquals([
         'image',
         'mask',
@@ -65,28 +66,19 @@ void main() {
       ]),
     );
 
-    final parts = {for (final entry in formData.files) entry.key: entry.value};
-    expect(await _readPart(parts['image']!), base64Decode(_sourceImage));
-    expect(await _readPart(parts['mask']!), base64Decode(_maskImage));
-    expect(
-      await _readPart(parts['reference_image']!),
-      base64Decode(_referenceImage),
-    );
-    expect(await _readPart(parts['ref_multiple_0']!), base64Decode(_firstVibe));
-    expect(
-      await _readPart(parts['ref_multiple_1']!),
-      base64Decode(_secondVibe),
-    );
-    expect(
-      await _readPart(parts['director_ref_0']!),
-      base64Decode(_directorImage),
-    );
-    expect(parts['image']!.filename, 'blob');
-    expect(parts['image']!.contentType.toString(), 'image/png');
-    expect(parts['request']!.filename, 'blob');
-    expect(parts['request']!.contentType.toString(), 'application/json');
+    final byName = {for (final part in parts) part.name: part};
+    expect(byName['image']!.bytes, base64Decode(_sourceImage));
+    expect(byName['mask']!.bytes, base64Decode(_maskImage));
+    expect(byName['reference_image']!.bytes, base64Decode(_referenceImage));
+    expect(byName['ref_multiple_0']!.bytes, base64Decode(_firstVibe));
+    expect(byName['ref_multiple_1']!.bytes, base64Decode(_secondVibe));
+    expect(byName['director_ref_0']!.bytes, base64Decode(_directorImage));
+    expect(byName['image']!.filename, 'blob');
+    expect(byName['image']!.contentType, 'image/png');
+    expect(byName['request']!.filename, 'blob');
+    expect(byName['request']!.contentType, 'application/json');
 
-    final requestJson = utf8.decode(await _readPart(parts['request']!));
+    final requestJson = byName['request']!.text;
     expect(_withMaskedCacheKeys(requestJson), _expectedRequestJson);
 
     final request = jsonDecode(requestJson) as Map<String, dynamic>;
@@ -111,21 +103,56 @@ void main() {
     );
   });
 
-  test('encodes the same request map identically on every call', () async {
+  test('writes integral doubles the way the web client does', () {
+    final request = _requestJson(
+      NaiGenerationTransport.buildGenerationMultipart(<String, dynamic>{
+        'input': 'numbers',
+        'parameters': <String, dynamic>{
+          'strength': 1.0,
+          'noise': 0.0,
+          'reference_strength_multiple': <double>[1.0, 0.6],
+        },
+      }),
+    );
+
+    expect(
+      request,
+      '{"input":"numbers","parameters":{"strength":1,"noise":0,'
+      '"reference_strength_multiple":[1,0.6]}}',
+    );
+  });
+
+  test('uses a fresh WebKit boundary for every request', () {
+    final first = NaiGenerationTransport.buildGenerationMultipart(
+      _buildRequest(),
+    );
+    final second = NaiGenerationTransport.buildGenerationMultipart(
+      _buildRequest(),
+    );
+
+    expect(
+      first.boundary,
+      matches(r'^----WebKitFormBoundary[A-Za-z0-9]{16}$'),
+    );
+    expect(first.contentType, 'multipart/form-data; boundary=${first.boundary}');
+    expect(first.boundary, isNot(second.boundary));
+  });
+
+  test('encodes the same request map identically on every call', () {
     final requestData = _buildRequest();
 
-    final first = await _requestJson(
-      NaiGenerationTransport.buildGenerationFormData(requestData),
+    final first = _requestJson(
+      NaiGenerationTransport.buildGenerationMultipart(requestData),
     );
-    final second = await _requestJson(
-      NaiGenerationTransport.buildGenerationFormData(requestData),
+    final second = _requestJson(
+      NaiGenerationTransport.buildGenerationMultipart(requestData),
     );
 
     expect(second, first);
   });
 
-  test('extracts images from dynamically typed parameter containers', () async {
-    final formData = NaiGenerationTransport.buildGenerationFormData(
+  test('extracts images from dynamically typed parameter containers', () {
+    final body = NaiGenerationTransport.buildGenerationMultipart(
       <String, dynamic>{
         'input': 'dynamic containers',
         'parameters': <dynamic, dynamic>{
@@ -136,11 +163,10 @@ void main() {
     );
 
     expect(
-      formData.files.map((entry) => entry.key),
+      _parts(body).map((part) => part.name),
       orderedEquals(['image', 'ref_multiple_0', 'request']),
     );
-    final request =
-        jsonDecode(await _requestJson(formData)) as Map<String, dynamic>;
+    final request = jsonDecode(_requestJson(body)) as Map<String, dynamic>;
     final parameters = request['parameters'] as Map<String, dynamic>;
     final cachedVibes =
         parameters['reference_image_multiple_cached'] as List<dynamic>;
@@ -152,7 +178,7 @@ void main() {
 
   test('rejects parameter containers that are not keyed by strings', () {
     expect(
-      () => NaiGenerationTransport.buildGenerationFormData(<String, dynamic>{
+      () => NaiGenerationTransport.buildGenerationMultipart(<String, dynamic>{
         'input': 'invalid keys',
         'parameters': <dynamic, dynamic>{1: _sourceImage},
       }),
@@ -206,17 +232,8 @@ const String _expectedRequestJson =
 String _withMaskedCacheKeys(String requestJson) =>
     requestJson.replaceAll(RegExp('[0-9a-f]{64}'), '<cache-key>');
 
-Future<String> _requestJson(FormData formData) async {
-  final request = formData.files
-      .firstWhere((entry) => entry.key == 'request')
-      .value;
-  return utf8.decode(await _readPart(request));
-}
+List<DecodedMultipartPart> _parts(BrowserMultipartBody body) =>
+    parseBrowserMultipart(body.bytes, body.boundary);
 
-Future<Uint8List> _readPart(MultipartFile file) async {
-  final builder = BytesBuilder(copy: false);
-  await for (final chunk in file.finalize()) {
-    builder.add(chunk);
-  }
-  return builder.takeBytes();
-}
+String _requestJson(BrowserMultipartBody body) =>
+    _parts(body).firstWhere((part) => part.name == 'request').text;

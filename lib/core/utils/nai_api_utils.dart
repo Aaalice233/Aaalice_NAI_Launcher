@@ -24,12 +24,6 @@ class NAIApiUtils {
     return _normalizedPreciseReferencePngCache[imageBytes] == true;
   }
 
-  /// 将 double 转换为 JSON 数值（整数或浮点数）
-  /// 如果是整数值（如 5.0），返回 int；否则返回 double
-  static num toJsonNumber(double value) {
-    return value == value.truncateToDouble() ? value.toInt() : value;
-  }
-
   /// 将图片转换为 NovelAI Director Reference 要求的格式
   /// 按官方 Web 客户端 Q6 路径处理：
   /// - 选择三种目标画布之一：(1024,1536), (1536,1024), (1472,1472)

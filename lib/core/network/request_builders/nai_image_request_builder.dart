@@ -13,6 +13,8 @@ import '../../utils/novelai_auto_text.dart';
 import '../../utils/prompt_semantics_utils.dart';
 import '../../utils/prompt_edit_document.dart';
 import '../../../data/models/image/image_params.dart';
+import 'official_parameter_order.dart';
+import 'reference_strength_normalization.dart';
 
 /// Variety+ sigma 缩放的基准潜空间体积：4 通道 × 104 × 152（832×1216 的潜空间）。
 const int _cfgDelayReferenceLatents = 4 * 104 * 152;
@@ -85,7 +87,7 @@ class NAIImageRequestBuilder {
       'params_version': _officialParamsVersion,
       'width': params.width,
       'height': params.height,
-      'scale': NAIApiUtils.toJsonNumber(params.scale),
+      'scale': params.scale,
       'sampler': sampler,
       'steps': params.steps,
       'n_samples': params.nSamples,
@@ -98,12 +100,10 @@ class NAIImageRequestBuilder {
       'add_original_image': params.action == ImageGenerationAction.infill
           ? false
           : params.addOriginalImage,
-      'cfg_rescale': NAIApiUtils.toJsonNumber(params.cfgRescale),
+      'cfg_rescale': params.cfgRescale,
       'noise_schedule': noiseSchedule,
       if (params.isV4Model || params.inpaintStrength != 1.0)
-        'inpaintImg2ImgStrength': NAIApiUtils.toJsonNumber(
-          params.inpaintStrength,
-        ),
+        'inpaintImg2ImgStrength': params.inpaintStrength,
       'seed': seed,
       if (effectiveNegativePrompt.isEmpty)
         'uc': ''
@@ -372,10 +372,10 @@ class NAIImageRequestBuilder {
     requestParameters['normalize_reference_strength_multiple'] =
         params.normalizeVibeStrength;
 
+    // 编码里已含信息提取量，官网对编码 Vibe 只发编码与强度。
     if (!isStream) {
       final allEncodings = <String>[];
       final allStrengths = <double>[];
-      final allInfoExtracted = <double>[];
 
       for (int i = 0; i < params.vibeReferencesV4.length; i++) {
         final vibe = params.vibeReferencesV4[i];
@@ -397,7 +397,6 @@ class NAIImageRequestBuilder {
             if (encoding.isNotEmpty) {
               allEncodings.add(encoding);
               allStrengths.add(vibe.strength);
-              allInfoExtracted.add(vibe.infoExtracted);
               vibeEncodingMap[i] = encoding;
               AppLogger.d(
                 'V4 Vibe: Encoded raw image at index $i successfully, hash length: ${encoding.length}',
@@ -418,7 +417,6 @@ class NAIImageRequestBuilder {
         } else if (vibe.vibeEncoding.isNotEmpty) {
           allEncodings.add(vibe.vibeEncoding);
           allStrengths.add(vibe.strength);
-          allInfoExtracted.add(vibe.infoExtracted);
           vibeEncodingMap[i] = vibe.vibeEncoding;
           AppLogger.d('V4 Vibe: Using pre-encoded vibe at index $i', 'ImgGen');
         }
@@ -426,9 +424,11 @@ class NAIImageRequestBuilder {
 
       if (allEncodings.isNotEmpty) {
         requestParameters['reference_image_multiple'] = allEncodings;
-        requestParameters['reference_strength_multiple'] = allStrengths;
-        requestParameters['reference_information_extracted_multiple'] =
-            allInfoExtracted;
+        requestParameters['reference_strength_multiple'] =
+            normalizeReferenceStrengths(
+              allStrengths,
+              enabled: params.normalizeVibeStrength,
+            );
 
         AppLogger.d(
           'V4 Vibe Transfer: ${vibeEncodingMap.length} vibes with encodings',
@@ -451,12 +451,10 @@ class NAIImageRequestBuilder {
 
     final allEncodings = <String>[];
     final allStrengths = <double>[];
-    final allInfoExtracted = <double>[];
 
     for (final vibe in encodedVibes) {
       allEncodings.add(vibe.vibeEncoding);
       allStrengths.add(vibe.strength);
-      allInfoExtracted.add(vibe.infoExtracted);
     }
 
     if (rawImageVibes.isNotEmpty) {
@@ -474,7 +472,6 @@ class NAIImageRequestBuilder {
           if (encoding.isNotEmpty) {
             allEncodings.add(encoding);
             allStrengths.add(vibe.strength);
-            allInfoExtracted.add(vibe.infoExtracted);
             AppLogger.d(
               'V4 Vibe (Stream): Encoded raw image successfully',
               'ImgGen',
@@ -496,9 +493,11 @@ class NAIImageRequestBuilder {
 
     if (allEncodings.isNotEmpty) {
       requestParameters['reference_image_multiple'] = allEncodings;
-      requestParameters['reference_strength_multiple'] = allStrengths;
-      requestParameters['reference_information_extracted_multiple'] =
-          allInfoExtracted;
+      requestParameters['reference_strength_multiple'] =
+          normalizeReferenceStrengths(
+            allStrengths,
+            enabled: params.normalizeVibeStrength,
+          );
 
       AppLogger.d(
         'V4 Vibe Transfer (Stream): ${encodedVibes.length} encoded + ${rawImageVibes.length} raw = ${allEncodings.length} total vibes',
@@ -687,12 +686,12 @@ class NAIImageRequestBuilder {
       requestParameters['mask'] = base64Encode(
         inpaintMaskArtifacts.requestMaskBytes,
       );
-      requestParameters['strength'] = NAIApiUtils.toJsonNumber(params.strength);
-      requestParameters['noise'] = NAIApiUtils.toJsonNumber(params.noise);
+      requestParameters['strength'] = params.strength;
+      requestParameters['noise'] = params.noise;
       if (ImageModels.supportsImg2ImgInpainting(requestModel) &&
           params.inpaintStrength != 1.0) {
         requestParameters['img2img'] = {
-          'strength': NAIApiUtils.toJsonNumber(params.inpaintStrength),
+          'strength': params.inpaintStrength,
           'color_correct': true,
         };
       }
@@ -710,19 +709,19 @@ class NAIImageRequestBuilder {
 
     await buildPreciseReferenceParameters(requestParameters);
 
-    final requestData = <String, dynamic>{
+    final requestData = orderOfficialRequest(<String, dynamic>{
       'input': effectivePrompt,
       'model': requestModel,
       'action': params.action.value,
       'parameters': requestParameters,
       'use_new_shared_trial': true,
-    };
+    });
 
     return NAIImageRequestBuildResult(
       seed: seed,
       effectivePrompt: effectivePrompt,
       effectiveNegativePrompt: effectiveNegativePrompt,
-      requestParameters: requestParameters,
+      requestParameters: requestData['parameters'] as Map<String, dynamic>,
       requestData: requestData,
       vibeEncodingMap: vibeEncodingMap,
       normalizedSourceImageBytes: normalizedSourceImageBytes,

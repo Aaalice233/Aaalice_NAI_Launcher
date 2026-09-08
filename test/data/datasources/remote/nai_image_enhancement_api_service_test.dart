@@ -11,6 +11,8 @@ import 'package:nai_launcher/data/datasources/remote/nai_image_enhancement_api_s
 import 'package:nai_launcher/core/network/critical_network_activity.dart';
 import 'package:nai_launcher/core/network/nai_api_endpoint_service.dart';
 
+import '../../../helpers/browser_multipart_reader.dart';
+
 class _MockDio extends Mock implements Dio {}
 
 void main() {
@@ -23,7 +25,7 @@ void main() {
       final dio = _MockDio();
       final sourceImage = _buildPng(width: 48, height: 32);
       final zipBytes = _buildZipWithSingleImage(sourceImage);
-      FormData? capturedData;
+      final capture = _RequestCapture();
       String? capturedUrl;
 
       when(
@@ -35,7 +37,7 @@ void main() {
         ),
       ).thenAnswer((invocation) async {
         capturedUrl = invocation.positionalArguments.first as String;
-        capturedData = invocation.namedArguments[#data] as FormData;
+        capture.record(invocation);
         return Response<dynamic>(
           data: zipBytes,
           requestOptions: RequestOptions(path: '/ai/upscale'),
@@ -45,26 +47,25 @@ void main() {
       final service = NAIImageEnhancementApiService(dio);
       final result = await service.upscaleImage(sourceImage, scale: 2);
 
-      final parts = {
-        for (final entry in capturedData!.files) entry.key: entry.value,
-      };
-      final request =
-          jsonDecode(utf8.decode(await _readMultipartFile(parts['request']!)))
-              as Map<String, dynamic>;
+      final parts = capture.parts;
+      final request = capture.requestJson;
 
       expect(result, isNotEmpty);
       expect(capturedUrl, contains('image.novelai.net'));
-      expect(parts.keys, unorderedEquals(['image', 'request']));
-      expect(parts['image']!.filename, 'blob');
-      expect(parts['image']!.contentType.toString(), 'image/png');
-      expect(await _readMultipartFile(parts['image']!), sourceImage);
-      expect(parts['request']!.filename, 'blob');
-      expect(parts['request']!.contentType.toString(), 'application/json');
+      expect(parts.map((part) => part.name), orderedEquals(['image', 'request']));
+      expect(parts.first.filename, 'blob');
+      expect(parts.first.contentType, 'image/png');
+      expect(parts.first.bytes, sourceImage);
+      expect(parts.last.filename, 'blob');
+      expect(parts.last.contentType, 'application/json');
+      expect(
+        request.keys,
+        orderedEquals(['image', 'model', 'declared_blur_sigma']),
+      );
       expect(request['image'], equals('image'));
       expect(request['model'], equals('nai-diffusion-5-curated'));
       expect(request['declared_blur_sigma'], equals(0));
-      expect(request.containsKey('scale'), isFalse);
-      expect(request.containsKey('width'), isFalse);
+      expect(capture.options.headers, isNull);
     });
 
     test(
@@ -107,7 +108,7 @@ void main() {
 
         expect(result, isNotEmpty);
         expect(capturedBodies, hasLength(2));
-        expect(capturedBodies.first, isA<FormData>());
+        expect(capturedBodies.first, isA<Uint8List>());
         final legacyBody = Map<String, dynamic>.from(
           capturedBodies.last! as Map,
         );
@@ -153,12 +154,12 @@ void main() {
     });
 
     test(
-      'should send source image width and height for director tools',
+      'should send director tool parameters in the official order',
       () async {
         final dio = _MockDio();
         final sourceImage = _buildPng(width: 48, height: 32);
         final zipBytes = _buildZipWithSingleImage(sourceImage);
-        Map<String, dynamic>? capturedData;
+        final capture = _RequestCapture();
 
         when(
           () => dio.post<dynamic>(
@@ -167,9 +168,7 @@ void main() {
             options: any(named: 'options'),
           ),
         ).thenAnswer((invocation) async {
-          capturedData = Map<String, dynamic>.from(
-            invocation.namedArguments[#data] as Map,
-          );
+          capture.record(invocation);
           return Response<dynamic>(
             data: zipBytes,
             requestOptions: RequestOptions(path: '/augment-image'),
@@ -178,18 +177,38 @@ void main() {
 
         final service = NAIImageEnhancementApiService(dio);
         final result = await service.removeBackground(sourceImage);
+        final request = capture.requestJson;
 
         expect(result, isNotEmpty);
-        expect(capturedData?['req_type'], equals('bg-removal'));
-        expect(capturedData?['width'], equals(48));
-        expect(capturedData?['height'], equals(32));
+        expect(
+          capture.parts.map((part) => part.name),
+          orderedEquals(['image', 'request']),
+        );
+        expect(capture.parts.first.bytes, sourceImage);
+        expect(
+          request.keys,
+          orderedEquals([
+            'req_type',
+            'use_new_shared_trial',
+            'width',
+            'height',
+            'image',
+          ]),
+        );
+        expect(request['req_type'], equals('bg-removal'));
+        expect(request['use_new_shared_trial'], isTrue);
+        expect(request['width'], equals(48));
+        expect(request['height'], equals(32));
+        expect(request['image'], equals('image'));
+        expect(capture.options.headers, isNull);
       },
     );
 
-    test('encodeVibe should send information_extracted to API', () async {
+    test('director prompt sits before defry like the web client', () async {
       final dio = _MockDio();
-      final sourceImage = _buildPng(width: 32, height: 32);
-      Map<String, dynamic>? capturedData;
+      final sourceImage = _buildPng(width: 16, height: 16);
+      final zipBytes = _buildZipWithSingleImage(sourceImage);
+      final capture = _RequestCapture();
 
       when(
         () => dio.post<dynamic>(
@@ -198,9 +217,45 @@ void main() {
           options: any(named: 'options'),
         ),
       ).thenAnswer((invocation) async {
-        capturedData = Map<String, dynamic>.from(
-          invocation.namedArguments[#data] as Map,
+        capture.record(invocation);
+        return Response<dynamic>(
+          data: zipBytes,
+          requestOptions: RequestOptions(path: '/augment-image'),
         );
+      });
+
+      await NAIImageEnhancementApiService(
+        dio,
+      ).colorize(sourceImage, prompt: 'blue eyes', defry: 3);
+
+      expect(
+        capture.requestJson.keys,
+        orderedEquals([
+          'req_type',
+          'use_new_shared_trial',
+          'prompt',
+          'defry',
+          'width',
+          'height',
+          'image',
+        ]),
+      );
+      expect(capture.requestJson['defry'], equals(3));
+    });
+
+    test('encodeVibe should send information_extracted to API', () async {
+      final dio = _MockDio();
+      final sourceImage = _buildPng(width: 32, height: 32);
+      final capture = _RequestCapture();
+
+      when(
+        () => dio.post<dynamic>(
+          any(),
+          data: any(named: 'data'),
+          options: any(named: 'options'),
+        ),
+      ).thenAnswer((invocation) async {
+        capture.record(invocation);
         return Response<dynamic>(
           data: Uint8List.fromList(const [1, 2, 3]),
           requestOptions: RequestOptions(path: '/encode-vibe'),
@@ -213,11 +268,22 @@ void main() {
         model: 'nai-diffusion-4-5-full',
         informationExtracted: 0.35,
       );
+      final request = capture.requestJson;
 
       expect(result, isNotEmpty);
-      expect(capturedData?['model'], equals('nai-diffusion-4-5-full'));
-      expect(capturedData?['information_extracted'], equals(0.35));
-      expect(capturedData?.containsKey('informationExtracted'), isFalse);
+      expect(
+        capture.parts.map((part) => part.name),
+        orderedEquals(['image', 'request']),
+      );
+      expect(capture.parts.first.bytes, sourceImage);
+      expect(
+        request.keys,
+        orderedEquals(['image', 'information_extracted', 'model']),
+      );
+      expect(request['image'], equals('image'));
+      expect(request['model'], equals('nai-diffusion-4-5-full'));
+      expect(request['information_extracted'], equals(0.35));
+      expect(request.containsKey('informationExtracted'), isFalse);
     });
 
     test(
@@ -323,10 +389,20 @@ Uint8List _buildZipWithSingleImage(Uint8List imageBytes) {
   return Uint8List.fromList(encoded!);
 }
 
-Future<Uint8List> _readMultipartFile(MultipartFile file) async {
-  final builder = BytesBuilder(copy: false);
-  await for (final chunk in file.finalize()) {
-    builder.add(chunk);
+/// 收集一次 `dio.post` 调用的 multipart 请求体与 Options。
+class _RequestCapture {
+  late final Uint8List body;
+  late final Options options;
+
+  void record(Invocation invocation) {
+    body = invocation.namedArguments[#data] as Uint8List;
+    options = invocation.namedArguments[#options] as Options;
   }
-  return builder.takeBytes();
+
+  List<DecodedMultipartPart> get parts =>
+      parseBrowserMultipart(body, boundaryOf(options.contentType!));
+
+  Map<String, dynamic> get requestJson =>
+      jsonDecode(parts.firstWhere((part) => part.name == 'request').text)
+          as Map<String, dynamic>;
 }
