@@ -5,7 +5,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/core/services/pixel_snap/pixel_snap_options.dart';
 import 'package:nai_launcher/core/services/pixel_snap/pixel_snap_service.dart';
 import 'package:nai_launcher/data/models/director/director_tool_type.dart';
+import 'package:nai_launcher/data/models/image/image_params.dart';
 import 'package:nai_launcher/presentation/providers/director_tools_notifier.dart';
+import 'package:nai_launcher/presentation/providers/image_generation_provider.dart';
 
 final Uint8List _resultBytes = Uint8List.fromList(<int>[1, 2, 3, 4]);
 
@@ -133,4 +135,91 @@ void main() {
       expect(state.pixelSnapResult, isNull);
     });
   });
+
+  group('DirectorToolsNotifier.registerResult', () {
+    // 只进历史不进当前区，结果会排在仍占着当前区的原图下面，
+    // 与 DLSS 增强、NovelAI 超分的做法不一致。
+    test('加工结果顶替当前展示图，且不走 addToDisplay', () async {
+      final _Registrar registrar = _Registrar();
+      final ProviderContainer container = ProviderContainer(
+        overrides: <Override>[
+          directorToolsNotifierProvider.overrideWith(
+            _SeededDirectorToolsNotifier.new,
+          ),
+          imageGenerationNotifierProvider.overrideWith(() => registrar),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      await _seededNotifier(container).registerResult();
+
+      final _Registration registration = registrar.registrations.single;
+      expect(registration.bytes, same(_resultBytes));
+      expect(registration.replaceCurrentDisplay, isTrue);
+      expect(registration.addToDisplay, isFalse);
+      expect(registration.saveToLocal, isTrue);
+    });
+
+    test('没有结果时不注册', () async {
+      final _Registrar registrar = _Registrar();
+      final ProviderContainer container = ProviderContainer(
+        overrides: <Override>[
+          imageGenerationNotifierProvider.overrideWith(() => registrar),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      await container
+          .read(directorToolsNotifierProvider.notifier)
+          .registerResult();
+
+      expect(registrar.registrations, isEmpty);
+    });
+  });
+}
+
+class _Registration {
+  const _Registration({
+    required this.bytes,
+    required this.saveToLocal,
+    required this.addToDisplay,
+    required this.replaceCurrentDisplay,
+  });
+
+  final Uint8List bytes;
+  final bool saveToLocal;
+  final bool addToDisplay;
+  final bool replaceCurrentDisplay;
+}
+
+class _Registrar extends ImageGenerationNotifier {
+  final List<_Registration> registrations = <_Registration>[];
+
+  @override
+  ImageGenerationState build() => const ImageGenerationState();
+
+  @override
+  Future<String?> registerExternalImage(
+    Uint8List imageBytes, {
+    required ImageParams params,
+    int? width,
+    int? height,
+    Uint8List? comparisonSourceImage,
+    bool saveToLocal = false,
+    String? saveDirectoryPath,
+    bool syncToGalleryIndex = true,
+    bool addToDisplay = false,
+    bool replaceCurrentDisplay = false,
+    bool embedNaiMetadata = true,
+  }) async {
+    registrations.add(
+      _Registration(
+        bytes: imageBytes,
+        saveToLocal: saveToLocal,
+        addToDisplay: addToDisplay,
+        replaceCurrentDisplay: replaceCurrentDisplay,
+      ),
+    );
+    return null;
+  }
 }
