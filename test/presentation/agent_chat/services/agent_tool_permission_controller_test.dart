@@ -62,6 +62,53 @@ void main() {
       expect(controller.takeDecision('read'), AgentPermissionDecision.allow);
     },
   );
+  test('full access runs destructive tools without approval', () async {
+    final descriptor = describeAgentToolPermission('delete_fixed_tag');
+    final controller = AgentToolPermissionController(
+      auditSink: MemoryAgentAuditSink(),
+      estimateAnlas: (_, _) async => throw StateError('Delete does not bill'),
+      onApprovalChanged: (_) => fail('Full access must not ask for deletes'),
+      isMounted: () => true,
+    );
+    addTearDown(controller.dispose);
+    controller.configure(
+      AgentToolRegistry(
+        tools: const [],
+        catalog: AgentToolPermissionCatalog(
+          toolNames: const ['delete_fixed_tag'],
+          descriptors: [descriptor],
+        ),
+        policy: agentPermissionPolicy(safeMode: false, fullAccess: true),
+      ),
+    );
+    const call = ToolCallContent(
+      id: 'delete',
+      name: 'delete_fixed_tag',
+      arguments: {'id': 'tag-1'},
+    );
+    final assistant = AssistantMessage(
+      content: [call],
+      stopReason: StopReason.toolUse,
+    );
+
+    final result = await controller.beforeToolCall(
+      BeforeToolCallContext(
+        assistantMessage: assistant,
+        toolCall: call,
+        args: call.arguments,
+        context: AgentContext(
+          systemPrompt: '',
+          messages: [assistant],
+          tools: const [],
+        ),
+      ),
+      null,
+    );
+
+    expect(result, isNull);
+    expect(controller.takeDecision('delete'), AgentPermissionDecision.allow);
+  });
+
   group('AgentToolPermissionController billing decisions', () {
     test(
       'full access automatically allows an exact zero-cost submit',

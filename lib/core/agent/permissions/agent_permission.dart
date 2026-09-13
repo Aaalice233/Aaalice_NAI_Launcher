@@ -51,37 +51,15 @@ class AgentPermissionPolicy {
     AgentPermissionDomain domain,
     AgentPermissionOperation operation,
   ) {
-    final mode = modeFor(domain);
-    if (mode == AgentAccessMode.blocked) {
-      return AgentPermissionDecision.block;
-    }
-    if (mode == AgentAccessMode.readOnly &&
-        operation != AgentPermissionOperation.read) {
-      return AgentPermissionDecision.block;
-    }
-    // Destructive actions retain an explicit confirmation even in full-access
-    // mode. Billing is evaluated separately from the operation because a tool
-    // that can consume Anlas may have an exact zero-cost invocation.
-    if (_destructiveOperations.contains(operation)) {
-      return AgentPermissionDecision.ask;
-    }
-    return switch (mode) {
+    // Billing stays with the catalog: a chargeable tool can still cost zero.
+    final isRead = operation == AgentPermissionOperation.read;
+    return switch (modeFor(domain)) {
       AgentAccessMode.blocked => AgentPermissionDecision.block,
       AgentAccessMode.readOnly =>
-        operation == AgentPermissionOperation.read
-            ? AgentPermissionDecision.allow
-            : AgentPermissionDecision.block,
+        isRead ? AgentPermissionDecision.allow : AgentPermissionDecision.block,
       AgentAccessMode.askBeforeWrite =>
-        operation == AgentPermissionOperation.read
-            ? AgentPermissionDecision.allow
-            : AgentPermissionDecision.ask,
+        isRead ? AgentPermissionDecision.allow : AgentPermissionDecision.ask,
       AgentAccessMode.allowWrite => AgentPermissionDecision.allow,
     };
   }
 }
-
-const _destructiveOperations = {
-  AgentPermissionOperation.delete,
-  AgentPermissionOperation.overwrite,
-  AgentPermissionOperation.move,
-};

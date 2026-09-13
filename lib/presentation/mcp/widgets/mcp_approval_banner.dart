@@ -10,7 +10,36 @@ import '../../themes/core/layered_surface_style.dart';
 import '../providers/mcp_server_notifier.dart';
 import '../services/mcp_approval_coordinator.dart';
 
-/// 外部 MCP 调用的授权入口：待授权请求可能出现在任意页面，所以挂在全局横幅里。
+const double _bannerMaxWidth = 760;
+const EdgeInsets _bannerPadding = EdgeInsets.fromLTRB(12, 8, 12, 0);
+
+/// 挂在 shell Stack 最上层：侧边面板打开时仍能裁决；无待授权时尺寸为零，不拦截指针。
+class McpApprovalOverlay extends StatelessWidget {
+  const McpApprovalOverlay({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Positioned.fill(
+      child: LayoutBuilder(
+        builder: (context, constraints) => Align(
+          alignment: Alignment.topCenter,
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              maxWidth: _bannerMaxWidth + _bannerPadding.horizontal,
+              maxHeight: constraints.maxHeight * 0.45,
+            ),
+            child: const SingleChildScrollView(
+              primary: false,
+              child: McpApprovalBanner(),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// 外部 MCP 调用的授权卡片，由 [McpApprovalOverlay] 浮在页面之上，不挤占布局。
 class McpApprovalBanner extends ConsumerWidget {
   const McpApprovalBanner({super.key});
 
@@ -34,9 +63,9 @@ class McpApprovalBanner extends ConsumerWidget {
       child: Align(
         alignment: Alignment.topCenter,
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+          padding: _bannerPadding,
           child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 760),
+            constraints: const BoxConstraints(maxWidth: _bannerMaxWidth),
             child: Material(
               key: const ValueKey('mcp-approval-banner'),
               color: overlaySurfaceColor(colorScheme),

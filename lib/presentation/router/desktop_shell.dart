@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 
 import '../adaptive/window_size_class.dart';
 import '../agent_chat/providers/agent_chat_notifier.dart';
+import '../mcp/widgets/mcp_approval_banner.dart';
 import '../providers/layout_state_provider.dart';
 import '../widgets/navigation/main_nav_rail.dart';
 import 'app_branch.dart';
@@ -152,6 +153,9 @@ class _DesktopShellState extends ConsumerState<DesktopShell> {
                             onOpenAgentSettings: () => widget.navigationShell
                                 .goBranch(AppBranch.settings.index),
                           ),
+                        ),
+                        const McpApprovalOverlay(
+                          key: ValueKey('desktop-approval-overlay-layer'),
                         ),
                       ],
                     ),

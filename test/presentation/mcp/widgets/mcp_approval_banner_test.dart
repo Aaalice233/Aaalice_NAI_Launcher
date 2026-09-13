@@ -181,6 +181,103 @@ void main() {
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump(const Duration(seconds: 2));
   });
+
+  group('McpApprovalOverlay', () {
+    const underlyingButtonKey = ValueKey('underlying-button');
+    const underlyingContentKey = ValueKey('underlying-content');
+
+    Future<_RecordingMcpServerNotifier> pumpOverlay(
+      WidgetTester tester, {
+      McpApprovalRequest? pending,
+      required VoidCallback onUnderlyingTap,
+    }) async {
+      late _RecordingMcpServerNotifier notifier;
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            mcpServerNotifierProvider.overrideWith((ref) {
+              notifier = buildNotifier(ref);
+              if (pending != null) notifier.showApproval(pending);
+              return notifier;
+            }),
+          ],
+          child: MaterialApp(
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            home: MediaQuery(
+              data: const MediaQueryData(disableAnimations: true),
+              child: Scaffold(
+                body: Stack(
+                  children: [
+                    Column(
+                      children: [
+                        SizedBox(
+                          height: 48,
+                          child: TextButton(
+                            key: underlyingButtonKey,
+                            onPressed: onUnderlyingTap,
+                            child: const Text('underlying'),
+                          ),
+                        ),
+                        const Expanded(
+                          child: SizedBox.expand(key: underlyingContentKey),
+                        ),
+                      ],
+                    ),
+                    const McpApprovalOverlay(),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+      return notifier;
+    }
+
+    testWidgets('lets pointer events through while idle', (tester) async {
+      var taps = 0;
+      await pumpOverlay(tester, onUnderlyingTap: () => taps++);
+
+      await tester.tap(find.byKey(underlyingButtonKey));
+      expect(taps, 1);
+      expect(find.byKey(const ValueKey('mcp-approval-banner')), findsNothing);
+
+      await tester.pumpWidget(const SizedBox.shrink());
+    });
+
+    testWidgets('floats over the page instead of pushing it down', (
+      tester,
+    ) async {
+      await pumpOverlay(tester, onUnderlyingTap: () {});
+      final idleContent = tester.getRect(find.byKey(underlyingContentKey));
+      await tester.pumpWidget(const SizedBox.shrink());
+
+      final notifier = await pumpOverlay(
+        tester,
+        pending: _request(),
+        onUnderlyingTap: () {},
+      );
+      final l10n = await AppLocalizations.delegate.load(const Locale('en'));
+      final banner = find.byKey(const ValueKey('mcp-approval-banner'));
+
+      expect(banner, findsOneWidget);
+      expect(tester.getRect(find.byKey(underlyingContentKey)), idleContent);
+      expect(tester.getRect(banner).top, lessThan(idleContent.top));
+      expect(
+        tester.getRect(banner).bottom,
+        greaterThan(idleContent.top),
+        reason: 'the card overlaps the page rather than reserving space',
+      );
+
+      await tester.tap(find.text(l10n.agentChat_approvalAllow));
+      await tester.pump();
+      expect(notifier.resolutions, [('call-1', true)]);
+
+      await tester.pumpWidget(const SizedBox.shrink());
+    });
+  });
 }
 
 McpApprovalRequest _request({String clientLabel = 'codex 1.0.0'}) {
