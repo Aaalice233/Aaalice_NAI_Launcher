@@ -6392,6 +6392,8 @@
   "cloudSync_onlineGalleryFavoritesDescription": "Stores source IDs and recovery fields only, never original images",
   "cloudSync_galleryAlbums": "Local gallery albums",
   "cloudSync_galleryAlbumsDescription": "Stores album structure and image references, never original images",
+  "cloudSync_fixedTagUsage": "Fixed-tag usage records",
+  "cloudSync_fixedTagUsageDescription": "Stores a lightweight record of which fixed tags each image used, never the images",
   "cloudSync_optionalResources": "Optional resources (off by default)",
   "cloudSync_vibes": "Vibe",
   "cloudSync_preciseReferences": "Precise references",

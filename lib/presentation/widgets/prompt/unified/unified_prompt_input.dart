@@ -1524,6 +1524,7 @@ class _UnifiedPromptInputState extends ConsumerState<UnifiedPromptInput> {
           enableWheelAdjustment &&
           PromptWeightEditing.hasSelection(_effectiveController) &&
           PromptWeightEditing.protectNegativeBlockSyntax(_effectiveController),
+      focused: () => _effectiveFocusNode.hasFocus || _tagFocusNode.hasFocus,
       child: result,
     );
   }

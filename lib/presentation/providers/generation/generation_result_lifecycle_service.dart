@@ -34,18 +34,10 @@ class GenerationResultLifecycleDependencies {
 
 class GenerationSaveSnapshot {
   const GenerationSaveSnapshot({
-    this.fixedPrefixTags = const [],
-    this.fixedSuffixTags = const [],
-    this.fixedNegativePrefixTags = const [],
-    this.fixedNegativeSuffixTags = const [],
     this.fixedTagUsageSnapshot,
     this.useCoords = false,
   });
 
-  final List<String> fixedPrefixTags;
-  final List<String> fixedSuffixTags;
-  final List<String> fixedNegativePrefixTags;
-  final List<String> fixedNegativeSuffixTags;
   final FixedTagUsageSnapshot? fixedTagUsageSnapshot;
   final bool useCoords;
 }
@@ -200,37 +192,24 @@ class GenerationResultLifecycleService {
             actualSeed = Random().nextInt(4294967295);
           }
         }
-        final fixedTagUsageSnapshot =
-            image.fixedTagUsageSnapshot ?? snapshot.fixedTagUsageSnapshot;
-        final bytes = image.preserveOriginalBytesOnSave
-            ? image.bytes
-            : hasMetadata && fixedTagUsageSnapshot != null
-            ? await ImageSaveUtils.mergeFixedTagUsageMetadata(
-                imageBytes: image.bytes,
-                snapshot: fixedTagUsageSnapshot,
-              )
-            : await ImageSaveUtils.rebuildImageBytesWithMetadata(
-                imageBytes: image.bytes,
-                params: params.copyWith(
-                  width: image.width,
-                  height: image.height,
-                ),
-                actualSeed: actualSeed,
-                fixedPrefixTags: snapshot.fixedPrefixTags,
-                fixedSuffixTags: snapshot.fixedSuffixTags,
-                fixedNegativePrefixTags: snapshot.fixedNegativePrefixTags,
-                fixedNegativeSuffixTags: snapshot.fixedNegativeSuffixTags,
-                fixedTagUsageSnapshot: fixedTagUsageSnapshot,
-                charCaptions: charCaptions,
-                charNegCaptions: charNegCaptions,
-                useCoords: snapshot.useCoords,
-                useStealth: false,
-              );
-        final path = await ImageSaveUtils.saveBytesToDatedPath(
+        final saved = await ImageSaveUtils.saveResultImage(
           rootPath: rootPath,
-          bytes: bytes,
+          imageBytes: image.bytes,
+          preserveOriginalBytes: image.preserveOriginalBytesOnSave,
+          fixedTagUsageSnapshot:
+              image.fixedTagUsageSnapshot ?? snapshot.fixedTagUsageSnapshot,
           seed: actualSeed,
+          rebuild: () => ImageSaveUtils.rebuildImageBytesWithMetadata(
+            imageBytes: image.bytes,
+            params: params.copyWith(width: image.width, height: image.height),
+            actualSeed: actualSeed,
+            charCaptions: charCaptions,
+            charNegCaptions: charNegCaptions,
+            useCoords: snapshot.useCoords,
+            useStealth: false,
+          ),
         );
+        final path = saved.path;
         paths.add(path);
         updated.add(image.copyWithFilePath(path));
         final publishToSystemGallery = dependencies.publishToSystemGallery;

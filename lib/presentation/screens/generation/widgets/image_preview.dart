@@ -29,8 +29,6 @@ import '../../../../core/utils/nai_resolution_adapter.dart';
 import '../../../../core/utils/prompt_preset_resolution.dart';
 import '../../../../core/utils/vibe_file_parser.dart';
 import '../../../../data/models/gallery/nai_image_metadata.dart';
-import '../../../../data/models/fixed_tag/fixed_tag_entry.dart';
-import '../../../../data/models/fixed_tag/fixed_tag_prompt_type.dart';
 import '../../../../data/models/fixed_tag/fixed_tag_usage_snapshot.dart';
 import '../../../../data/models/image/image_stream_chunk.dart';
 import '../../../../data/repositories/gallery_folder_repository.dart';
@@ -1233,25 +1231,12 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> {
       final capturedFixedTags = image is GeneratedImageDetailData
           ? image.fixedTagUsageSnapshot
           : null;
+      final fixedTagsState = ref.read(fixedTagsNotifierProvider);
 
       // 构建最终字节：外部结果可要求保留原始字节；其他图像缺少 NAI
       // 元数据时仍按当前参数重建。
-      final Uint8List finalBytes;
-      if (image.preserveOriginalBytesOnSave) {
-        finalBytes = imageBytes;
-      } else if (ImageSaveUtils.hasEmbeddedNovelAiMetadata(imageBytes)) {
-        finalBytes = capturedFixedTags == null
-            ? imageBytes
-            : await ImageSaveUtils.mergeFixedTagUsageMetadata(
-                imageBytes: imageBytes,
-                snapshot: capturedFixedTags,
-              );
-      } else {
+      Future<Uint8List> rebuildBytes() async {
         final characterConfig = ref.read(characterPromptNotifierProvider);
-        final fixedTagsState = ref.read(fixedTagsNotifierProvider);
-        final fixedTagUsageSnapshot =
-            capturedFixedTags ??
-            FixedTagUsageSnapshot.capture(fixedTagsState.entries);
 
         // 解析别名
         final aliasResolver = ref.read(aliasResolverServiceProvider.notifier);
@@ -1315,39 +1300,10 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> {
           width: encodedSize?.$1 ?? params.width,
           height: encodedSize?.$2 ?? params.height,
         );
-        finalBytes = await ImageSaveUtils.rebuildImageBytesWithMetadata(
+        return ImageSaveUtils.rebuildImageBytesWithMetadata(
           imageBytes: imageBytes,
           params: paramsForSave,
           actualSeed: actualSeed,
-          fixedPrefixTags: fixedTagUsageSnapshot
-              .entriesFor(
-                promptType: FixedTagPromptType.positive,
-                position: FixedTagPosition.prefix,
-              )
-              .map((entry) => entry.renderedContent)
-              .toList(),
-          fixedSuffixTags: fixedTagUsageSnapshot
-              .entriesFor(
-                promptType: FixedTagPromptType.positive,
-                position: FixedTagPosition.suffix,
-              )
-              .map((entry) => entry.renderedContent)
-              .toList(),
-          fixedNegativePrefixTags: fixedTagUsageSnapshot
-              .entriesFor(
-                promptType: FixedTagPromptType.negative,
-                position: FixedTagPosition.prefix,
-              )
-              .map((entry) => entry.renderedContent)
-              .toList(),
-          fixedNegativeSuffixTags: fixedTagUsageSnapshot
-              .entriesFor(
-                promptType: FixedTagPromptType.negative,
-                position: FixedTagPosition.suffix,
-              )
-              .map((entry) => entry.renderedContent)
-              .toList(),
-          fixedTagUsageSnapshot: fixedTagUsageSnapshot,
           charCaptions: charCaptions,
           charNegCaptions: charNegCaptions,
           useCoords: !characterConfig.globalAiChoice,
@@ -1355,11 +1311,19 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> {
       }
 
       // 原子保存：日期分类路径 + 独占防冲突 + 失败清理，全部在工具内完成
-      final filePath = await ImageSaveUtils.saveBytesToDatedPath(
+      final saved = await ImageSaveUtils.saveResultImage(
         rootPath: saveDir.path,
-        bytes: finalBytes,
+        imageBytes: imageBytes,
+        preserveOriginalBytes: image.preserveOriginalBytesOnSave,
+        fixedTagUsageSnapshot: capturedFixedTags,
+        rebuiltFixedTagUsageSnapshot:
+            capturedFixedTags ??
+            FixedTagUsageSnapshot.capture(fixedTagsState.entries),
         seed: actualSeed,
+        rebuild: rebuildBytes,
       );
+      final finalBytes = saved.bytes;
+      final filePath = saved.path;
 
       Object? systemGalleryError;
       if (PlatformCapabilities.current.supportsSystemGalleryExport) {
