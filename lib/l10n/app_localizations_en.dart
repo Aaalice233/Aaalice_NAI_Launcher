@@ -1470,6 +1470,19 @@ class AppLocalizationsEn extends AppLocalizations {
   String get agentChat_approvalDeny => 'Deny';
 
   @override
+  String mcpApproval_title(Object client) {
+    return 'External agent $client is requesting approval';
+  }
+
+  @override
+  String mcpApproval_expiresIn(Object seconds) {
+    return 'Auto-declines in ${seconds}s';
+  }
+
+  @override
+  String get mcpApproval_unknownClient => 'Unknown client';
+
+  @override
   String get generation_failedStreamSnapshot => 'Failed snapshot';
 
   @override
@@ -9838,6 +9851,159 @@ class AppLocalizationsEn extends AppLocalizations {
   String settings_kritaBridgeClient(Object client) {
     return 'Client: $client';
   }
+
+  @override
+  String get settings_mcpServerPermissionSection => 'Permissions';
+
+  @override
+  String get settings_mcpServerClientsSection => 'Clients';
+
+  @override
+  String get settings_mcpServerEnable => 'Enable MCP server';
+
+  @override
+  String get settings_mcpServerDisabledText =>
+      'Off by default; listens only on local 127.0.0.1 when enabled';
+
+  @override
+  String get settings_mcpServerStartingText =>
+      'Starting the local MCP server...';
+
+  @override
+  String get settings_mcpServerListeningText =>
+      'Waiting for MCP client connections';
+
+  @override
+  String get settings_mcpServerErrorText =>
+      'Startup failed, check the error message';
+
+  @override
+  String get settings_mcpServerDisabled => 'Disabled';
+
+  @override
+  String get settings_mcpServerStarting => 'Starting';
+
+  @override
+  String get settings_mcpServerListening => 'Listening';
+
+  @override
+  String get settings_mcpServerError => 'Error';
+
+  @override
+  String get settings_mcpServerEndpoint => 'Endpoint';
+
+  @override
+  String get settings_mcpServerCopyEndpoint => 'Copy endpoint';
+
+  @override
+  String get settings_mcpServerPort => 'Port';
+
+  @override
+  String get settings_mcpServerPortHelper =>
+      'Changing it disconnects connected clients';
+
+  @override
+  String settings_mcpServerPortInvalid(Object min, Object max) {
+    return 'Enter a port between $min and $max';
+  }
+
+  @override
+  String settings_mcpServerPortInUseHint(Object port) {
+    return 'Port $port is already in use, pick another port below';
+  }
+
+  @override
+  String get settings_mcpServerDiscoveryFile => 'Discovery file';
+
+  @override
+  String get settings_mcpServerToken => 'Access token';
+
+  @override
+  String get settings_mcpServerRevealToken => 'Show token';
+
+  @override
+  String get settings_mcpServerHideToken => 'Hide token';
+
+  @override
+  String get settings_mcpServerCopyToken => 'Copy token';
+
+  @override
+  String get settings_mcpServerRegenerateToken => 'Regenerate token';
+
+  @override
+  String get settings_mcpServerRegenerateTokenTitle =>
+      'Regenerate access token';
+
+  @override
+  String get settings_mcpServerRegenerateTokenMessage =>
+      'The current token stops working immediately and connected clients are disconnected. Update every client configuration with the new token.';
+
+  @override
+  String get settings_mcpServerAnlasNotice =>
+      'Anything that may spend Anlas is confirmed separately inside the launcher, regardless of the permission mode.';
+
+  @override
+  String settings_mcpServerPendingApproval(Object client, Object tool) {
+    return '$client is requesting $tool';
+  }
+
+  @override
+  String get settings_mcpServerPendingApprovalHint =>
+      'Respond in the approval banner at the top of the page';
+
+  @override
+  String get settings_mcpServerConnectedClients => 'Connected clients';
+
+  @override
+  String get settings_mcpServerSessionsEmpty => 'No clients connected yet';
+
+  @override
+  String settings_mcpServerSessionConnectedAt(Object time) {
+    return 'Connected at $time';
+  }
+
+  @override
+  String settings_mcpServerSessionLastActivity(Object time) {
+    return 'Last activity $time';
+  }
+
+  @override
+  String get settings_mcpServerClientConfigs => 'Client configuration';
+
+  @override
+  String get settings_mcpServerConfigUnavailable =>
+      'Client configuration appears once the server is running';
+
+  @override
+  String get settings_mcpServerCopyConfig => 'Copy configuration';
+
+  @override
+  String get settings_mcpServerTokenMaskNotice =>
+      'The token is masked in the preview; copying writes the real token.';
+
+  @override
+  String settings_mcpServerCliMissing(Object path) {
+    return 'Bundled CLI not found (expected at $path), which is normal in development runs';
+  }
+
+  @override
+  String get settings_mcpServerViewDocs => 'View documentation';
+
+  @override
+  String get settings_mcpServerClaudeCodeHint =>
+      'Run this command in a terminal to register the server.';
+
+  @override
+  String get settings_mcpServerCodexHint =>
+      'Run the command to register the server, then set the token in the environment variable below.';
+
+  @override
+  String get settings_mcpServerCursorHint =>
+      'Merge this into the Cursor mcp.json configuration file.';
+
+  @override
+  String get settings_mcpServerClaudeDesktopHint =>
+      'Merge this into the Claude Desktop configuration; it connects over stdio through the bundled CLI.';
 
   @override
   String get settings_fontScale => 'Font Size';

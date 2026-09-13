@@ -20,6 +20,7 @@ Aaalice_NAI_Launcher/
 │   ├── data/               # API 数据源、业务模型、仓库与领域服务
 │   ├── presentation/       # 页面、组件、Riverpod providers、主题与路由
 │   └── l10n/               # ARB 源文案及 Flutter 生成的本地化代码
+├── bin/                    # 随包发布的纯 Dart CLI（MCP stdio 代理）
 ├── assets/                 # 图片、翻译、数据文件与随包 SQLite 数据库
 ├── fonts/                  # 应用字体
 ├── test/                   # 与 lib 分层对应的单元测试和 widget tests

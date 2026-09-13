@@ -538,6 +538,19 @@
   "agentChat_approvalDescription": "此工具會讀取本機資料、修改應用程式狀態或產生費用。",
   "agentChat_approvalAllow": "允許一次",
   "agentChat_approvalDeny": "拒絕",
+  "mcpApproval_title": "外部智慧體 {client} 請求授權",
+  "@mcpApproval_title": {
+    "placeholders": {
+      "client": {}
+    }
+  },
+  "mcpApproval_expiresIn": "{seconds} 秒後自動拒絕",
+  "@mcpApproval_expiresIn": {
+    "placeholders": {
+      "seconds": {}
+    }
+  },
+  "mcpApproval_unknownClient": "未知用戶端",
   "generation_failedStreamSnapshot": "失敗快照",
   "generation_failedStreamSnapshotHint": "生成未完成，僅保留最後一幀預覽；不可儲存、收藏或用於圖生圖",
   "generation_noHistory": "暫無歷史記錄",
@@ -4632,6 +4645,81 @@
       "client": {}
     }
   },
+
+  "settings_mcpServerPermissionSection": "權限",
+  "settings_mcpServerClientsSection": "用戶端",
+  "settings_mcpServerEnable": "啟用 MCP 伺服器",
+  "settings_mcpServerDisabledText": "預設關閉；開啟後只監聽本機 127.0.0.1",
+  "settings_mcpServerStartingText": "正在啟動本機 MCP 服務...",
+  "settings_mcpServerListeningText": "等待 MCP 用戶端連線",
+  "settings_mcpServerErrorText": "啟動失敗，請查看錯誤訊息",
+  "settings_mcpServerDisabled": "已關閉",
+  "settings_mcpServerStarting": "啟動中",
+  "settings_mcpServerListening": "監聽中",
+  "settings_mcpServerError": "錯誤",
+  "settings_mcpServerEndpoint": "端點位址",
+  "settings_mcpServerCopyEndpoint": "複製端點位址",
+  "settings_mcpServerPort": "連接埠",
+  "settings_mcpServerPortHelper": "變更後會中斷已連線的用戶端",
+  "settings_mcpServerPortInvalid": "連接埠需在 {min} 到 {max} 之間",
+  "@settings_mcpServerPortInvalid": {
+    "placeholders": {
+      "min": {},
+      "max": {}
+    }
+  },
+  "settings_mcpServerPortInUseHint": "連接埠 {port} 已被占用，請在下方改用其他連接埠",
+  "@settings_mcpServerPortInUseHint": {
+    "placeholders": {
+      "port": {}
+    }
+  },
+  "settings_mcpServerDiscoveryFile": "探索檔案",
+  "settings_mcpServerToken": "存取權杖",
+  "settings_mcpServerRevealToken": "顯示權杖",
+  "settings_mcpServerHideToken": "隱藏權杖",
+  "settings_mcpServerCopyToken": "複製權杖",
+  "settings_mcpServerRegenerateToken": "重新產生權杖",
+  "settings_mcpServerRegenerateTokenTitle": "重新產生存取權杖",
+  "settings_mcpServerRegenerateTokenMessage": "目前權杖會立即失效，已連線的用戶端將中斷。請在所有用戶端設定中更新新權杖。",
+  "settings_mcpServerAnlasNotice": "任何可能消耗 Anlas 的操作都會在啟動器內單獨確認，與權限模式無關。",
+  "settings_mcpServerPendingApproval": "{client} 請求呼叫 {tool}",
+  "@settings_mcpServerPendingApproval": {
+    "placeholders": {
+      "client": {},
+      "tool": {}
+    }
+  },
+  "settings_mcpServerPendingApprovalHint": "請在頁面頂端的授權橫幅中處理",
+  "settings_mcpServerConnectedClients": "已連線用戶端",
+  "settings_mcpServerSessionsEmpty": "尚無用戶端連線",
+  "settings_mcpServerSessionConnectedAt": "連線於 {time}",
+  "@settings_mcpServerSessionConnectedAt": {
+    "placeholders": {
+      "time": {}
+    }
+  },
+  "settings_mcpServerSessionLastActivity": "最近活動 {time}",
+  "@settings_mcpServerSessionLastActivity": {
+    "placeholders": {
+      "time": {}
+    }
+  },
+  "settings_mcpServerClientConfigs": "用戶端設定",
+  "settings_mcpServerConfigUnavailable": "啟用伺服器後顯示用戶端設定",
+  "settings_mcpServerCopyConfig": "複製設定",
+  "settings_mcpServerTokenMaskNotice": "預覽中的權杖已遮罩，複製時會寫入真實權杖。",
+  "settings_mcpServerCliMissing": "找不到隨附 CLI（預期位置：{path}），開發執行時屬正常現象",
+  "@settings_mcpServerCliMissing": {
+    "placeholders": {
+      "path": {}
+    }
+  },
+  "settings_mcpServerViewDocs": "查看文件",
+  "settings_mcpServerClaudeCodeHint": "在終端機執行以下指令註冊伺服器。",
+  "settings_mcpServerCodexHint": "先執行指令註冊伺服器，再把權杖寫入下方的環境變數。",
+  "settings_mcpServerCursorHint": "把以下內容合併進 Cursor 的 mcp.json 設定檔。",
+  "settings_mcpServerClaudeDesktopHint": "把以下內容合併進 Claude Desktop 設定；它透過隨附 CLI 以 stdio 方式連線。",
   "settings_fontScale": "字型大小",
   "settings_fontScale_description": "調整應用全域性字型縮放比例",
   "settings_fontScale_previewSmall": "落霞與孤鶩齊飛",

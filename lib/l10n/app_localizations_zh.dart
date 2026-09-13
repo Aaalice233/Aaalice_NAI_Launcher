@@ -1416,6 +1416,19 @@ class AppLocalizationsZh extends AppLocalizations {
   String get agentChat_approvalDeny => '拒绝';
 
   @override
+  String mcpApproval_title(Object client) {
+    return '外部智能体 $client 请求授权';
+  }
+
+  @override
+  String mcpApproval_expiresIn(Object seconds) {
+    return '$seconds 秒后自动拒绝';
+  }
+
+  @override
+  String get mcpApproval_unknownClient => '未知客户端';
+
+  @override
   String get generation_failedStreamSnapshot => '失败快照';
 
   @override
@@ -9465,6 +9478,147 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
+  String get settings_mcpServerPermissionSection => '权限';
+
+  @override
+  String get settings_mcpServerClientsSection => '客户端';
+
+  @override
+  String get settings_mcpServerEnable => '启用 MCP 服务器';
+
+  @override
+  String get settings_mcpServerDisabledText => '默认关闭；开启后只监听本机 127.0.0.1';
+
+  @override
+  String get settings_mcpServerStartingText => '正在启动本地 MCP 服务...';
+
+  @override
+  String get settings_mcpServerListeningText => '等待 MCP 客户端连接';
+
+  @override
+  String get settings_mcpServerErrorText => '启动失败，请查看错误信息';
+
+  @override
+  String get settings_mcpServerDisabled => '已关闭';
+
+  @override
+  String get settings_mcpServerStarting => '启动中';
+
+  @override
+  String get settings_mcpServerListening => '监听中';
+
+  @override
+  String get settings_mcpServerError => '错误';
+
+  @override
+  String get settings_mcpServerEndpoint => '端点地址';
+
+  @override
+  String get settings_mcpServerCopyEndpoint => '复制端点地址';
+
+  @override
+  String get settings_mcpServerPort => '端口';
+
+  @override
+  String get settings_mcpServerPortHelper => '更改后会断开已连接的客户端';
+
+  @override
+  String settings_mcpServerPortInvalid(Object min, Object max) {
+    return '端口需在 $min 到 $max 之间';
+  }
+
+  @override
+  String settings_mcpServerPortInUseHint(Object port) {
+    return '端口 $port 已被占用，请在下方改用其他端口';
+  }
+
+  @override
+  String get settings_mcpServerDiscoveryFile => '发现文件';
+
+  @override
+  String get settings_mcpServerToken => '接入令牌';
+
+  @override
+  String get settings_mcpServerRevealToken => '显示令牌';
+
+  @override
+  String get settings_mcpServerHideToken => '隐藏令牌';
+
+  @override
+  String get settings_mcpServerCopyToken => '复制令牌';
+
+  @override
+  String get settings_mcpServerRegenerateToken => '重新生成令牌';
+
+  @override
+  String get settings_mcpServerRegenerateTokenTitle => '重新生成接入令牌';
+
+  @override
+  String get settings_mcpServerRegenerateTokenMessage =>
+      '当前令牌会立即失效，已连接的客户端将断开。请在所有客户端配置中更新新令牌。';
+
+  @override
+  String get settings_mcpServerAnlasNotice =>
+      '任何可能消耗 Anlas 的操作都会在启动器内单独确认，与权限模式无关。';
+
+  @override
+  String settings_mcpServerPendingApproval(Object client, Object tool) {
+    return '$client 请求调用 $tool';
+  }
+
+  @override
+  String get settings_mcpServerPendingApprovalHint => '请在页面顶部的授权横幅中处理';
+
+  @override
+  String get settings_mcpServerConnectedClients => '已连接客户端';
+
+  @override
+  String get settings_mcpServerSessionsEmpty => '尚无客户端连接';
+
+  @override
+  String settings_mcpServerSessionConnectedAt(Object time) {
+    return '接入于 $time';
+  }
+
+  @override
+  String settings_mcpServerSessionLastActivity(Object time) {
+    return '最近活动 $time';
+  }
+
+  @override
+  String get settings_mcpServerClientConfigs => '客户端配置';
+
+  @override
+  String get settings_mcpServerConfigUnavailable => '启用服务器后显示客户端配置';
+
+  @override
+  String get settings_mcpServerCopyConfig => '复制配置';
+
+  @override
+  String get settings_mcpServerTokenMaskNotice => '预览中的令牌已打码，复制时写入真实令牌。';
+
+  @override
+  String settings_mcpServerCliMissing(Object path) {
+    return '未找到随包 CLI（预期位置：$path），开发运行时属正常现象';
+  }
+
+  @override
+  String get settings_mcpServerViewDocs => '查看文档';
+
+  @override
+  String get settings_mcpServerClaudeCodeHint => '在终端运行以下命令注册服务器。';
+
+  @override
+  String get settings_mcpServerCodexHint => '先运行命令注册服务器，再把令牌写入下面的环境变量。';
+
+  @override
+  String get settings_mcpServerCursorHint => '把以下内容合并进 Cursor 的 mcp.json 配置文件。';
+
+  @override
+  String get settings_mcpServerClaudeDesktopHint =>
+      '把以下内容合并进 Claude Desktop 配置；它通过随包 CLI 以 stdio 方式接入。';
+
+  @override
   String get settings_fontScale => '字体大小';
 
   @override
@@ -15994,6 +16148,19 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get agentChat_approvalDeny => '拒絕';
+
+  @override
+  String mcpApproval_title(Object client) {
+    return '外部智慧體 $client 請求授權';
+  }
+
+  @override
+  String mcpApproval_expiresIn(Object seconds) {
+    return '$seconds 秒後自動拒絕';
+  }
+
+  @override
+  String get mcpApproval_unknownClient => '未知用戶端';
 
   @override
   String get generation_failedStreamSnapshot => '失敗快照';
@@ -24043,6 +24210,147 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String settings_kritaBridgeClient(Object client) {
     return '客戶端：$client';
   }
+
+  @override
+  String get settings_mcpServerPermissionSection => '權限';
+
+  @override
+  String get settings_mcpServerClientsSection => '用戶端';
+
+  @override
+  String get settings_mcpServerEnable => '啟用 MCP 伺服器';
+
+  @override
+  String get settings_mcpServerDisabledText => '預設關閉；開啟後只監聽本機 127.0.0.1';
+
+  @override
+  String get settings_mcpServerStartingText => '正在啟動本機 MCP 服務...';
+
+  @override
+  String get settings_mcpServerListeningText => '等待 MCP 用戶端連線';
+
+  @override
+  String get settings_mcpServerErrorText => '啟動失敗，請查看錯誤訊息';
+
+  @override
+  String get settings_mcpServerDisabled => '已關閉';
+
+  @override
+  String get settings_mcpServerStarting => '啟動中';
+
+  @override
+  String get settings_mcpServerListening => '監聽中';
+
+  @override
+  String get settings_mcpServerError => '錯誤';
+
+  @override
+  String get settings_mcpServerEndpoint => '端點位址';
+
+  @override
+  String get settings_mcpServerCopyEndpoint => '複製端點位址';
+
+  @override
+  String get settings_mcpServerPort => '連接埠';
+
+  @override
+  String get settings_mcpServerPortHelper => '變更後會中斷已連線的用戶端';
+
+  @override
+  String settings_mcpServerPortInvalid(Object min, Object max) {
+    return '連接埠需在 $min 到 $max 之間';
+  }
+
+  @override
+  String settings_mcpServerPortInUseHint(Object port) {
+    return '連接埠 $port 已被占用，請在下方改用其他連接埠';
+  }
+
+  @override
+  String get settings_mcpServerDiscoveryFile => '探索檔案';
+
+  @override
+  String get settings_mcpServerToken => '存取權杖';
+
+  @override
+  String get settings_mcpServerRevealToken => '顯示權杖';
+
+  @override
+  String get settings_mcpServerHideToken => '隱藏權杖';
+
+  @override
+  String get settings_mcpServerCopyToken => '複製權杖';
+
+  @override
+  String get settings_mcpServerRegenerateToken => '重新產生權杖';
+
+  @override
+  String get settings_mcpServerRegenerateTokenTitle => '重新產生存取權杖';
+
+  @override
+  String get settings_mcpServerRegenerateTokenMessage =>
+      '目前權杖會立即失效，已連線的用戶端將中斷。請在所有用戶端設定中更新新權杖。';
+
+  @override
+  String get settings_mcpServerAnlasNotice =>
+      '任何可能消耗 Anlas 的操作都會在啟動器內單獨確認，與權限模式無關。';
+
+  @override
+  String settings_mcpServerPendingApproval(Object client, Object tool) {
+    return '$client 請求呼叫 $tool';
+  }
+
+  @override
+  String get settings_mcpServerPendingApprovalHint => '請在頁面頂端的授權橫幅中處理';
+
+  @override
+  String get settings_mcpServerConnectedClients => '已連線用戶端';
+
+  @override
+  String get settings_mcpServerSessionsEmpty => '尚無用戶端連線';
+
+  @override
+  String settings_mcpServerSessionConnectedAt(Object time) {
+    return '連線於 $time';
+  }
+
+  @override
+  String settings_mcpServerSessionLastActivity(Object time) {
+    return '最近活動 $time';
+  }
+
+  @override
+  String get settings_mcpServerClientConfigs => '用戶端設定';
+
+  @override
+  String get settings_mcpServerConfigUnavailable => '啟用伺服器後顯示用戶端設定';
+
+  @override
+  String get settings_mcpServerCopyConfig => '複製設定';
+
+  @override
+  String get settings_mcpServerTokenMaskNotice => '預覽中的權杖已遮罩，複製時會寫入真實權杖。';
+
+  @override
+  String settings_mcpServerCliMissing(Object path) {
+    return '找不到隨附 CLI（預期位置：$path），開發執行時屬正常現象';
+  }
+
+  @override
+  String get settings_mcpServerViewDocs => '查看文件';
+
+  @override
+  String get settings_mcpServerClaudeCodeHint => '在終端機執行以下指令註冊伺服器。';
+
+  @override
+  String get settings_mcpServerCodexHint => '先執行指令註冊伺服器，再把權杖寫入下方的環境變數。';
+
+  @override
+  String get settings_mcpServerCursorHint => '把以下內容合併進 Cursor 的 mcp.json 設定檔。';
+
+  @override
+  String get settings_mcpServerClaudeDesktopHint =>
+      '把以下內容合併進 Claude Desktop 設定；它透過隨附 CLI 以 stdio 方式連線。';
 
   @override
   String get settings_fontScale => '字型大小';

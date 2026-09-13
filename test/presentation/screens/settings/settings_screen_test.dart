@@ -290,7 +290,7 @@ void main() {
           .data,
       '集成',
     );
-    expect(segmentLabels, const ['提示词助手', 'ComfyUI', 'Krita', 'DLSSNR']);
+    expect(segmentLabels, const ['提示词助手', 'ComfyUI', 'Krita', 'MCP', 'DLSSNR']);
     debugDefaultTargetPlatformOverride = null;
   });
 
@@ -615,6 +615,13 @@ void main() {
       isTrue,
       isFalse,
     ]);
+    // Android 不提供 Krita / MCP / DLSSNR 集成，分段导航里不出现这些入口。
+    expect(
+      segmentedButton.segments
+          .map((segment) => (segment.label as Text).data)
+          .toList(),
+      const ['提示词助手', 'ComfyUI'],
+    );
     expect(find.text('桌面浮层交互'), findsNothing);
 
     await tester.binding.handlePopRoute();

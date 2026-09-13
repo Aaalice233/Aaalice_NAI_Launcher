@@ -558,6 +558,19 @@
   "agentChat_approvalDescription": "This tool may read local data, change application state, or incur a charge.",
   "agentChat_approvalAllow": "Allow once",
   "agentChat_approvalDeny": "Deny",
+  "mcpApproval_title": "External agent {client} is requesting approval",
+  "@mcpApproval_title": {
+    "placeholders": {
+      "client": {}
+    }
+  },
+  "mcpApproval_expiresIn": "Auto-declines in {seconds}s",
+  "@mcpApproval_expiresIn": {
+    "placeholders": {
+      "seconds": {}
+    }
+  },
+  "mcpApproval_unknownClient": "Unknown client",
   "generation_failedStreamSnapshot": "Failed snapshot",
   "generation_failedStreamSnapshotHint": "Generation did not finish; only the last preview frame is kept. It cannot be saved, favorited, or used for image workflows.",
   "generation_noHistory": "No history records",
@@ -4738,6 +4751,81 @@
       "client": {}
     }
   },
+
+  "settings_mcpServerPermissionSection": "Permissions",
+  "settings_mcpServerClientsSection": "Clients",
+  "settings_mcpServerEnable": "Enable MCP server",
+  "settings_mcpServerDisabledText": "Off by default; listens only on local 127.0.0.1 when enabled",
+  "settings_mcpServerStartingText": "Starting the local MCP server...",
+  "settings_mcpServerListeningText": "Waiting for MCP client connections",
+  "settings_mcpServerErrorText": "Startup failed, check the error message",
+  "settings_mcpServerDisabled": "Disabled",
+  "settings_mcpServerStarting": "Starting",
+  "settings_mcpServerListening": "Listening",
+  "settings_mcpServerError": "Error",
+  "settings_mcpServerEndpoint": "Endpoint",
+  "settings_mcpServerCopyEndpoint": "Copy endpoint",
+  "settings_mcpServerPort": "Port",
+  "settings_mcpServerPortHelper": "Changing it disconnects connected clients",
+  "settings_mcpServerPortInvalid": "Enter a port between {min} and {max}",
+  "@settings_mcpServerPortInvalid": {
+    "placeholders": {
+      "min": {},
+      "max": {}
+    }
+  },
+  "settings_mcpServerPortInUseHint": "Port {port} is already in use, pick another port below",
+  "@settings_mcpServerPortInUseHint": {
+    "placeholders": {
+      "port": {}
+    }
+  },
+  "settings_mcpServerDiscoveryFile": "Discovery file",
+  "settings_mcpServerToken": "Access token",
+  "settings_mcpServerRevealToken": "Show token",
+  "settings_mcpServerHideToken": "Hide token",
+  "settings_mcpServerCopyToken": "Copy token",
+  "settings_mcpServerRegenerateToken": "Regenerate token",
+  "settings_mcpServerRegenerateTokenTitle": "Regenerate access token",
+  "settings_mcpServerRegenerateTokenMessage": "The current token stops working immediately and connected clients are disconnected. Update every client configuration with the new token.",
+  "settings_mcpServerAnlasNotice": "Anything that may spend Anlas is confirmed separately inside the launcher, regardless of the permission mode.",
+  "settings_mcpServerPendingApproval": "{client} is requesting {tool}",
+  "@settings_mcpServerPendingApproval": {
+    "placeholders": {
+      "client": {},
+      "tool": {}
+    }
+  },
+  "settings_mcpServerPendingApprovalHint": "Respond in the approval banner at the top of the page",
+  "settings_mcpServerConnectedClients": "Connected clients",
+  "settings_mcpServerSessionsEmpty": "No clients connected yet",
+  "settings_mcpServerSessionConnectedAt": "Connected at {time}",
+  "@settings_mcpServerSessionConnectedAt": {
+    "placeholders": {
+      "time": {}
+    }
+  },
+  "settings_mcpServerSessionLastActivity": "Last activity {time}",
+  "@settings_mcpServerSessionLastActivity": {
+    "placeholders": {
+      "time": {}
+    }
+  },
+  "settings_mcpServerClientConfigs": "Client configuration",
+  "settings_mcpServerConfigUnavailable": "Client configuration appears once the server is running",
+  "settings_mcpServerCopyConfig": "Copy configuration",
+  "settings_mcpServerTokenMaskNotice": "The token is masked in the preview; copying writes the real token.",
+  "settings_mcpServerCliMissing": "Bundled CLI not found (expected at {path}), which is normal in development runs",
+  "@settings_mcpServerCliMissing": {
+    "placeholders": {
+      "path": {}
+    }
+  },
+  "settings_mcpServerViewDocs": "View documentation",
+  "settings_mcpServerClaudeCodeHint": "Run this command in a terminal to register the server.",
+  "settings_mcpServerCodexHint": "Run the command to register the server, then set the token in the environment variable below.",
+  "settings_mcpServerCursorHint": "Merge this into the Cursor mcp.json configuration file.",
+  "settings_mcpServerClaudeDesktopHint": "Merge this into the Claude Desktop configuration; it connects over stdio through the bundled CLI.",
 
   "settings_fontScale": "Font Size",
   "settings_fontScale_description": "Adjust global font scale",

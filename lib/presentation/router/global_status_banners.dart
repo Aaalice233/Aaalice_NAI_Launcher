@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../core/services/auth_error_service.dart';
 import '../../core/utils/localization_extension.dart';
 import '../adaptive/interaction_policy.dart';
+import '../mcp/widgets/mcp_approval_banner.dart';
 import '../providers/auth_provider.dart';
 import 'app_routes.dart';
 
@@ -13,7 +14,13 @@ class GlobalStatusBanners extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const _AuthRecoveryBanner();
+    return const SafeArea(
+      bottom: false,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [_AuthRecoveryBanner(), McpApprovalBanner()],
+      ),
+    );
   }
 }
 

@@ -4,6 +4,13 @@
   简体中文 · <a href="README.zh-TW.md">繁體中文</a> · <a href="README.en-US.md">English</a>
 </p>
 
+> [!WARNING]
+> **项目暂停更新（2026-09-08）**
+>
+> 我的 NovelAI 账号遭到官方限制：订阅被取消，且无法再购买或订阅。对于这次处理，我至今不明白具体原因，因此决定暂停本项目的更新。
+
+![NovelAI 官方取消订阅及限制购买的通知截图](docs/screenshots/novelai-subscription-canceled-2026-09-08.png)
+
 <p align="center">
   <img src="assets/icons/Icon.png" alt="NAI Launcher 图标" width="112">
 </p>
@@ -103,6 +110,7 @@ NAI Launcher 面向经常使用 NovelAI 的图像创作者。生成、改图、P
 - 默认角色调查流程会结合联网身份核实、标准标签检索和画廊特征；联网关闭或证据不足时会说明限制。
 - 系统提示词可直接用自然语言补充要求或替换内置正文，无需占位符。工作目录、联网状态、Skills 和应用执行规则自动补充，并可预览最终内容；自定义不会绕过应用权限确认。
 - 支持逐题回答的结构化提问：每题三个可行方向、一个“推荐”标记和一个自定义入口，最后统一检查并提交。默认两分钟未提交会自动采用全部推荐选项；提问时显示 Toast、入口问号和 Android 系统通知。
+- Windows 与 macOS 可在“设置 → 集成 → MCP”开启本地 MCP 服务，让 Claude Code、Codex CLI、Cursor、Claude Desktop 等外部智能体通过同一套工具操作 Launcher；服务默认关闭，授权确认与 Anlas 消耗确认仍在 Launcher 内完成。详见 [MCP 服务说明](docs/mcp_server.md)。
 - 支持 OpenAI 兼容接口、Google Gemini 原生接口、第三方 Gemini 兼容中转与 OpenRouter；可获取模型列表，并按模型能力启用思考等级和工具调用。
 - 模型服务、API Key、可用地区和费用由你选择的提供方负责；联网搜索等额外工具默认关闭。
 
@@ -158,7 +166,7 @@ NAI Launcher 面向经常使用 NovelAI 的图像创作者。生成、改图、P
 
 | 平台 | 当前状态 | 说明 |
 | --- | --- | --- |
-| **Windows** | 主要开发与发布平台 | 提供安装版和便携版，适合长时间创作、批量任务以及 Krita / ComfyUI 联动。 |
+| **Windows** | 主要开发与发布平台 | 提供安装版和便携版，适合长时间创作、批量任务、Krita / ComfyUI 联动以及 MCP 外部接入。 |
 | **macOS** | 可用，持续完善中 | 提供便携版；若系统阻止打开未公证应用，请按 macOS 安全提示手动允许。 |
 | **Android** | Beta | 支持手机、横屏、平板和大屏；生成、图库、词库、队列、代理与设置均有触屏入口。 |
 | **Linux** | 暂无正式发行包 | 当前不提供正式下载包。 |

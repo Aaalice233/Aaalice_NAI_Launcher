@@ -49,6 +49,7 @@ function Invoke-Makensis {
     '/DVERSION=0.0.0-test',
     '/DAPP_NAME=Aaalice NAI Launcher Process Test',
     '/DAPP_EXE=nai_launcher_process_test.exe',
+    "/DMCP_CLI_EXE=$script:McpCliName",
     '/DPUBLISHER=Aaalice Test',
     "/DUNINSTALL_KEY=$UninstallKey",
     "/DINSTALL_DIR=$InstallPath",
@@ -132,6 +133,7 @@ $firstInstallDir = Join-Path $tempRoot 'first-install'
 $otherDir = Join-Path $tempRoot 'other'
 $outputDir = Join-Path $tempRoot 'output'
 $appName = 'nai_launcher_process_test.exe'
+$script:McpCliName = 'nai_launcher_mcp_process_test.exe'
 $uninstallKey = "Software\Aaalice\InstallerProcessTest\$testId"
 
 try {
@@ -149,6 +151,12 @@ try {
   Copy-Item -LiteralPath $ping -Destination (Join-Path $sourceDir $appName)
   Copy-Item -LiteralPath $ping -Destination (Join-Path $installDir $appName)
   Copy-Item -LiteralPath $ping -Destination (Join-Path $otherDir $appName)
+  Copy-Item `
+    -LiteralPath $ping `
+    -Destination (Join-Path $installDir $script:McpCliName)
+  Copy-Item `
+    -LiteralPath $ping `
+    -Destination (Join-Path $otherDir $script:McpCliName)
   Set-Content `
     -LiteralPath (Join-Path $sourceDir 'source-version.txt') `
     -Value 'new installer payload' `
@@ -163,6 +171,10 @@ try {
 
   $targetProcess = Start-HiddenProcess -Path (Join-Path $installDir $appName)
   $otherProcess = Start-HiddenProcess -Path (Join-Path $otherDir $appName)
+  $targetMcpProcess = Start-HiddenProcess `
+    -Path (Join-Path $installDir $script:McpCliName)
+  $otherMcpProcess = Start-HiddenProcess `
+    -Path (Join-Path $otherDir $script:McpCliName)
 
   $installExit = Invoke-SilentExecutable -Path $normalInstaller
   if ($installExit -ne 0) {
@@ -176,6 +188,14 @@ try {
     -Process $otherProcess `
     -HasExited $false `
     -Message 'The installer stopped a same-named executable from another directory.'
+  Assert-ProcessState `
+    -Process $targetMcpProcess `
+    -HasExited $true `
+    -Message 'The installer did not stop the MCP proxy from its own install directory.'
+  Assert-ProcessState `
+    -Process $otherMcpProcess `
+    -HasExited $false `
+    -Message 'The installer stopped a same-named MCP proxy from another directory.'
   if (-not (Test-Path -LiteralPath (Join-Path $installDir 'source-version.txt'))) {
     throw 'The normal installer did not copy its payload.'
   }
@@ -189,6 +209,10 @@ try {
     -Process $otherProcess `
     -HasExited $false `
     -Message 'The uninstaller stopped a same-named executable from another directory.'
+  Assert-ProcessState `
+    -Process $otherMcpProcess `
+    -HasExited $false `
+    -Message 'The uninstaller stopped a same-named MCP proxy from another directory.'
 
   $firstInstallInstaller = Join-Path $outputDir 'first-install-setup.exe'
   Invoke-Makensis `
