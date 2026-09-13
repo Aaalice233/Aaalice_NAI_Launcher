@@ -24,7 +24,6 @@ import '../../../core/utils/app_logger.dart';
 import '../../../data/models/agent/agent_settings.dart';
 import '../../../data/models/interaction/user_question.dart';
 import '../../../data/models/inpaint/inpaint_draft.dart';
-import '../../../data/repositories/gallery_folder_repository.dart';
 import '../../agent_settings/providers/agent_settings_provider.dart';
 import '../models/agent_chat_compaction_outcome.dart';
 import '../models/agent_chat_slash_syntax.dart';
@@ -46,7 +45,9 @@ import '../services/agent_chat_session_recovery.dart';
 import '../../prompt_assistant/models/assistant_model_capability.dart';
 import '../services/agent_stream_bridge.dart';
 import '../services/agent_system_prompt.dart';
+import '../services/agent_prepared_anlas_estimator.dart';
 import '../services/agent_resource_resolver.dart';
+import '../services/agent_workspace_directory.dart';
 import '../services/generation_preparation_runtime.dart';
 import '../services/manual_inpaint_toolbox.dart';
 import '../services/queue_toolbox.dart';
@@ -186,29 +187,11 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
         '${Platform.pathSeparator}audit-v1.jsonl',
       ),
     );
-    // 文件工具工作区（read 的 cwd 与相对路径根）。
-    // 默认指向图片导出根目录（自定义保存路径或 Documents/NAI_Launcher/
-    // images），让 Agent 能直接按相对路径读取生成的图片；解析失败时
-    // 回退到应用支持目录下的 agent/workspace。
-    Directory? workspaceDir = _providedWorkspaceDir;
-    if (workspaceDir == null) {
-      try {
-        workspaceDir = await _resolveCurrentImageProjectDirectory();
-      } catch (e) {
-        AppLogger.w('resolve image export dir failed: $e', 'AgentChat');
-      }
-    }
-    _workspaceDir =
-        workspaceDir ??
-        Directory(
-          '${_supportDir.path}${Platform.pathSeparator}agent'
-          '${Platform.pathSeparator}workspace',
-        );
-    try {
-      await _workspaceDir.create(recursive: true);
-    } catch (e) {
-      AppLogger.w('agent workspace create failed: $e', 'AgentChat');
-    }
+    _workspaceDir = await resolveAgentWorkspaceDirectory(
+      _supportDir,
+      preferred: _providedWorkspaceDir,
+      imageProjectDirectory: _resolveCurrentImageProjectDirectory,
+    );
     _manualInpaintToolbox = ManualInpaintToolbox(
       _ref,
       supportDirectory: _supportDir,
@@ -428,12 +411,9 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
     );
   }
 
-  Future<Directory?> _resolveCurrentImageProjectDirectory() async {
+  Future<Directory?> _resolveCurrentImageProjectDirectory() {
     final resolver = _imageProjectDirectoryResolver;
-    if (resolver != null) return resolver();
-    final currentRoot = await GalleryFolderRepository.instance.getRootPath();
-    if (currentRoot == null || currentRoot.isEmpty) return null;
-    return Directory(currentRoot);
+    return resolver != null ? resolver() : resolveCurrentImageProjectDirectory();
   }
 
   Future<int> reloadSkills() async {
@@ -917,28 +897,13 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
   Future<int?> _estimatePreparedAnlas(
     String toolName,
     Map<String, dynamic> args,
-  ) async {
-    if (toolName == 'submit_generation' ||
-        toolName == 'generate_image' ||
-        toolName == 'queue_image_task') {
-      final id = args['preparation_id'];
-      if (id is String) {
-        return _generationPreparationRuntime.get(id)?.estimatedAnlas;
-      }
-    }
-    if (toolName == 'submit_manual_inpaint_draft') {
-      final id = args['draft_id'];
-      return id is String
-          ? await _manualInpaintToolbox.estimateAnlasForDraft(id)
-          : null;
-    }
-    if (toolName == 'start_generation_queue' ||
-        toolName == 'resume_generation_queue') {
-      final id = args['queue_preparation_id'];
-      return id is String ? _queueControlRuntime.get(id)?.estimatedAnlas : null;
-    }
-    return null;
-  }
+  ) => estimatePreparedAnlas(
+    toolName,
+    args,
+    generationRuntime: _generationPreparationRuntime,
+    queueRuntime: _queueControlRuntime,
+    manualInpaintToolbox: _manualInpaintToolbox,
+  );
 
   Future<void> addPendingResource(AgentChatResourceReference reference) async {
     await ensureInitialized();

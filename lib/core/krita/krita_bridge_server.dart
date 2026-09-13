@@ -4,6 +4,7 @@ import 'dart:io';
 import 'dart:math';
 import 'dart:typed_data';
 
+import '../platform/launcher_discovery_directory.dart';
 import '../utils/app_logger.dart';
 import 'krita_bridge_models.dart';
 import 'krita_bridge_protocol.dart';
@@ -281,17 +282,8 @@ class KritaBridgeServer {
     AppLogger.i('Discovery file written: ${target.path}', _logTag);
   }
 
-  static Directory _defaultDiscoveryDirectory() {
-    final appData = Platform.environment['APPDATA'];
-    if (appData != null && appData.isNotEmpty) {
-      return Directory(_join(appData, 'nai-launcher'));
-    }
-
-    final home = Platform.environment['HOME'] ??
-        Platform.environment['USERPROFILE'] ??
-        Directory.current.path;
-    return Directory(_join(home, '.nai-launcher'));
-  }
+  static Directory _defaultDiscoveryDirectory() =>
+      resolveLauncherDiscoveryDirectory();
 
   static String _generateSecret() {
     final random = Random.secure();

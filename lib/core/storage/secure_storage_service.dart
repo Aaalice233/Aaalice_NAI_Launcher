@@ -452,6 +452,48 @@ class SecureStorageService {
     }
   }
 
+  // ==================== MCP 服务器令牌 ====================
+
+  Future<void> saveMcpServerToken(String token) async {
+    final value = token.trim();
+    if (value.isEmpty) {
+      await deleteMcpServerToken();
+      return;
+    }
+    try {
+      await _storage.write(key: StorageKeys.mcpServerToken, value: value);
+      _memoryCache[StorageKeys.mcpServerToken] = value;
+    } catch (e) {
+      AppLogger.w('Failed to save MCP server token: $e', 'SecureStorage');
+      rethrow;
+    }
+  }
+
+  Future<String?> getMcpServerToken() async {
+    final cached = _memoryCache[StorageKeys.mcpServerToken];
+    if (cached != null) return cached;
+    try {
+      final value = await _storage.read(key: StorageKeys.mcpServerToken);
+      if (value != null) {
+        _memoryCache[StorageKeys.mcpServerToken] = value;
+      }
+      return value;
+    } catch (e) {
+      AppLogger.w('Failed to read MCP server token: $e', 'SecureStorage');
+      return null;
+    }
+  }
+
+  Future<void> deleteMcpServerToken() async {
+    try {
+      await _storage.delete(key: StorageKeys.mcpServerToken);
+      _memoryCache.remove(StorageKeys.mcpServerToken);
+    } catch (e) {
+      AppLogger.w('Failed to delete MCP server token: $e', 'SecureStorage');
+      rethrow;
+    }
+  }
+
   // ==================== Account Access Key 存储 ====================
   // 用于 JWT token 刷新，accessKey 可用于重新获取 token
 

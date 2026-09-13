@@ -550,6 +550,19 @@
   "agentChat_approvalDescription": "このツールはローカルデータの読み取り、アプリ状態の変更、または料金の発生を伴う可能性があります。",
   "agentChat_approvalAllow": "今回のみ許可",
   "agentChat_approvalDeny": "拒否",
+  "mcpApproval_title": "外部エージェント {client} が承認を求めています",
+  "@mcpApproval_title": {
+    "placeholders": {
+      "client": {}
+    }
+  },
+  "mcpApproval_expiresIn": "{seconds} 秒後に自動的に拒否します",
+  "@mcpApproval_expiresIn": {
+    "placeholders": {
+      "seconds": {}
+    }
+  },
+  "mcpApproval_unknownClient": "不明なクライアント",
   "generation_failedStreamSnapshot": "スナップショットが失敗しました",
   "generation_failedStreamSnapshotHint": "生成が完了しませんでした。最後のプレビュー フレームのみが保持されます。保存したり、お気に入りに登録したり、画像ワークフローに使用したりすることはできません。",
   "generation_noHistory": "履歴レコードがありません",
@@ -4767,6 +4780,81 @@
       "client": {}
     }
   },
+
+  "settings_mcpServerPermissionSection": "権限",
+  "settings_mcpServerClientsSection": "クライアント",
+  "settings_mcpServerEnable": "MCP サーバーを有効にする",
+  "settings_mcpServerDisabledText": "既定ではオフ。有効にするとローカルの 127.0.0.1 でのみ待ち受けます",
+  "settings_mcpServerStartingText": "ローカル MCP サーバーを起動しています...",
+  "settings_mcpServerListeningText": "MCP クライアントの接続を待っています",
+  "settings_mcpServerErrorText": "起動に失敗しました。エラーメッセージを確認してください",
+  "settings_mcpServerDisabled": "無効",
+  "settings_mcpServerStarting": "起動中",
+  "settings_mcpServerListening": "待ち受け中",
+  "settings_mcpServerError": "エラー",
+  "settings_mcpServerEndpoint": "エンドポイント",
+  "settings_mcpServerCopyEndpoint": "エンドポイントをコピー",
+  "settings_mcpServerPort": "ポート",
+  "settings_mcpServerPortHelper": "変更すると接続中のクライアントは切断されます",
+  "settings_mcpServerPortInvalid": "ポートは {min} から {max} の範囲で入力してください",
+  "@settings_mcpServerPortInvalid": {
+    "placeholders": {
+      "min": {},
+      "max": {}
+    }
+  },
+  "settings_mcpServerPortInUseHint": "ポート {port} は使用中です。下で別のポートを指定してください",
+  "@settings_mcpServerPortInUseHint": {
+    "placeholders": {
+      "port": {}
+    }
+  },
+  "settings_mcpServerDiscoveryFile": "ディスカバリーファイル",
+  "settings_mcpServerToken": "アクセストークン",
+  "settings_mcpServerRevealToken": "トークンを表示",
+  "settings_mcpServerHideToken": "トークンを隠す",
+  "settings_mcpServerCopyToken": "トークンをコピー",
+  "settings_mcpServerRegenerateToken": "トークンを再生成",
+  "settings_mcpServerRegenerateTokenTitle": "アクセストークンを再生成",
+  "settings_mcpServerRegenerateTokenMessage": "現在のトークンは直ちに無効になり、接続中のクライアントは切断されます。すべてのクライアント設定を新しいトークンに更新してください。",
+  "settings_mcpServerAnlasNotice": "Anlas を消費する可能性のある操作は、権限モードに関係なくランチャー内で個別に確認します。",
+  "settings_mcpServerPendingApproval": "{client} が {tool} の実行を要求しています",
+  "@settings_mcpServerPendingApproval": {
+    "placeholders": {
+      "client": {},
+      "tool": {}
+    }
+  },
+  "settings_mcpServerPendingApprovalHint": "ページ上部の承認バナーで対応してください",
+  "settings_mcpServerConnectedClients": "接続中のクライアント",
+  "settings_mcpServerSessionsEmpty": "接続中のクライアントはありません",
+  "settings_mcpServerSessionConnectedAt": "接続 {time}",
+  "@settings_mcpServerSessionConnectedAt": {
+    "placeholders": {
+      "time": {}
+    }
+  },
+  "settings_mcpServerSessionLastActivity": "最終アクティビティ {time}",
+  "@settings_mcpServerSessionLastActivity": {
+    "placeholders": {
+      "time": {}
+    }
+  },
+  "settings_mcpServerClientConfigs": "クライアント設定",
+  "settings_mcpServerConfigUnavailable": "サーバーを有効にするとクライアント設定が表示されます",
+  "settings_mcpServerCopyConfig": "設定をコピー",
+  "settings_mcpServerTokenMaskNotice": "プレビューのトークンはマスクされています。コピーすると実際のトークンが書き込まれます。",
+  "settings_mcpServerCliMissing": "同梱 CLI が見つかりません（想定パス: {path}）。開発実行では正常です",
+  "@settings_mcpServerCliMissing": {
+    "placeholders": {
+      "path": {}
+    }
+  },
+  "settings_mcpServerViewDocs": "ドキュメントを見る",
+  "settings_mcpServerClaudeCodeHint": "ターミナルで次のコマンドを実行してサーバーを登録します。",
+  "settings_mcpServerCodexHint": "コマンドでサーバーを登録してから、下の環境変数にトークンを設定します。",
+  "settings_mcpServerCursorHint": "次の内容を Cursor の mcp.json に統合してください。",
+  "settings_mcpServerClaudeDesktopHint": "次の内容を Claude Desktop の設定に統合してください。同梱 CLI を介して stdio で接続します。",
   "settings_fontScale": "フォント サイズ",
   "settings_fontScale_description": "グローバルフォントスケールを調整します",
   "settings_fontScale_previewSmall": "夕日と一匹のアヒルが一緒に飛ぶ",
