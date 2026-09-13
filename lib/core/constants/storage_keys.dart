@@ -244,6 +244,8 @@ class StorageKeys {
   static const String fixedTagsNegativePanelExpanded =
       'fixed_tags_negative_panel_expanded';
   static const String fixedTagCategoriesData = 'fixed_tag_categories_data';
+  static const String fixedTagUsageRecordsBox = 'fixed_tag_usage_records';
+  static const String fixedTagUsageSnapshotsBox = 'fixed_tag_usage_snapshots';
 
   // Tag Library (词库相关)
   static const String tagLibraryUserBox = 'tag_library_user';

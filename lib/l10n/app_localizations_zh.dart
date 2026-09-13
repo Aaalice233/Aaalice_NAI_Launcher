@@ -12837,6 +12837,12 @@ class AppLocalizationsZh extends AppLocalizations {
   String get cloudSync_galleryAlbumsDescription => '只保存相册结构与图片引用，不上传原图';
 
   @override
+  String get cloudSync_fixedTagUsage => '固定词使用记录';
+
+  @override
+  String get cloudSync_fixedTagUsageDescription => '只保存每张图用了哪些固定词的轻量记录，不上传图片';
+
+  @override
   String get cloudSync_optionalResources => '可选资源（默认关闭）';
 
   @override
@@ -27410,6 +27416,12 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get cloudSync_galleryAlbumsDescription => '只儲存相簿結構與圖片引用，不上傳原圖';
+
+  @override
+  String get cloudSync_fixedTagUsage => '固定詞使用記錄';
+
+  @override
+  String get cloudSync_fixedTagUsageDescription => '只儲存每張圖用了哪些固定詞的輕量記錄，不上傳圖片';
 
   @override
   String get cloudSync_optionalResources => '可選資源（預設關閉）';

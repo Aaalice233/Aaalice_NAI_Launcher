@@ -13061,6 +13061,13 @@ class AppLocalizationsJa extends AppLocalizations {
       'アルバム構造と画像参照のみを保存し、原画像はアップロードしません';
 
   @override
+  String get cloudSync_fixedTagUsage => '固定タグの使用記録';
+
+  @override
+  String get cloudSync_fixedTagUsageDescription =>
+      '各画像がどの固定タグを使ったかの軽量な記録のみを保存し、画像はアップロードしません';
+
+  @override
   String get cloudSync_optionalResources => '任意のリソース（既定はオフ）';
 
   @override

@@ -23299,6 +23299,18 @@ abstract class AppLocalizations {
   /// **'Stores album structure and image references, never original images'**
   String get cloudSync_galleryAlbumsDescription;
 
+  /// No description provided for @cloudSync_fixedTagUsage.
+  ///
+  /// In en, this message translates to:
+  /// **'Fixed-tag usage records'**
+  String get cloudSync_fixedTagUsage;
+
+  /// No description provided for @cloudSync_fixedTagUsageDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Stores a lightweight record of which fixed tags each image used, never the images'**
+  String get cloudSync_fixedTagUsageDescription;
+
   /// No description provided for @cloudSync_optionalResources.
   ///
   /// In en, this message translates to:

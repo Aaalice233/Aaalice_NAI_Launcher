@@ -13411,6 +13411,13 @@ class AppLocalizationsEn extends AppLocalizations {
       'Stores album structure and image references, never original images';
 
   @override
+  String get cloudSync_fixedTagUsage => 'Fixed-tag usage records';
+
+  @override
+  String get cloudSync_fixedTagUsageDescription =>
+      'Stores a lightweight record of which fixed tags each image used, never the images';
+
+  @override
   String get cloudSync_optionalResources =>
       'Optional resources (off by default)';
 

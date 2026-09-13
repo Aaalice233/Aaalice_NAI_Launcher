@@ -24,6 +24,7 @@ import '../../../core/watermark/watermark_render_service.dart';
 import '../../../core/watermark/watermark_scene.dart';
 import '../../../data/models/watermark/watermark_settings.dart';
 import '../../../data/repositories/gallery_folder_repository.dart';
+import '../../../data/services/fixed_tag/fixed_tag_usage_record_store.dart';
 import '../../adaptive/adaptive_layout.dart';
 import '../../providers/local_gallery_provider.dart';
 import '../../providers/share_image_settings_provider.dart';
@@ -395,6 +396,10 @@ class _WatermarkEditorScreenState extends ConsumerState<WatermarkEditorScreen> {
         rootPath: galleryRoot,
         bytes: result.bytes,
         preferredFileName: result.fileName,
+      );
+      await FixedTagUsageRecordStore().copyForDerivative(
+        sourceBytes: _sourceBytes,
+        outputBytes: result.bytes,
       );
       Object? systemGalleryError;
       if (PlatformCapabilities.current.supportsSystemGalleryExport) {

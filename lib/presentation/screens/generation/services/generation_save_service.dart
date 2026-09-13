@@ -9,7 +9,6 @@ import '../../../../core/services/android_media_store_service.dart';
 import '../../../../core/utils/localization_extension.dart';
 import '../../../../core/utils/image_save_utils.dart';
 import '../../../../data/models/gallery/nai_image_metadata.dart';
-import '../../../../data/models/fixed_tag/fixed_tag_usage_snapshot.dart';
 import '../../../../data/repositories/gallery_folder_repository.dart';
 import '../../../../data/services/image_metadata_service.dart';
 import '../../../providers/generation/generation_models.dart';
@@ -105,47 +104,32 @@ class GenerationSaveService {
       final fixedTagUsageSnapshot = image is GeneratedImageDetailData
           ? image.fixedTagUsageSnapshot
           : existingMetadata?.fixedTagUsageSnapshot;
-      // 构建最终字节：明确要求保留原始字节的外部结果不做补写；
-      // 其他图像优先保留已有 NAI 元数据，缺失时再用已解析数据重建。
-      var finalBytes = imageBytes;
-      final hasEmbeddedMetadata = ImageSaveUtils.hasEmbeddedNovelAiMetadata(
-        imageBytes,
-      );
-      if (!image.preserveOriginalBytesOnSave &&
-          hasEmbeddedMetadata &&
-          fixedTagUsageSnapshot != null) {
-        finalBytes = await ImageSaveUtils.mergeFixedTagUsageMetadata(
-          imageBytes: imageBytes,
-          snapshot: fixedTagUsageSnapshot,
-        );
-      } else if (!image.preserveOriginalBytesOnSave &&
-          !hasEmbeddedMetadata &&
-          existingMetadata != null) {
-        finalBytes = await ImageSaveUtils.buildPrebuiltMetadataBytes(
-          imageBytes: imageBytes,
-          metadata: {
-            'Description': existingMetadata.prompt,
-            'Software': 'NovelAI',
-            'Source': existingMetadata.source ?? 'NovelAI Diffusion',
-            'Comment': jsonEncode(
-              buildCommentJsonFromMetadata(
-                existingMetadata,
-                fixedTagUsageSnapshot: fixedTagUsageSnapshot,
-              ),
-            ),
-          },
-        );
-      }
-
       // 原子保存：日期分类路径 + 独占防冲突 + 失败清理，全部在工具内完成
-      final filePath = await ImageSaveUtils.saveBytesToDatedPath(
+      final saved = await ImageSaveUtils.saveResultImage(
         rootPath: saveDirPath,
-        bytes: finalBytes,
+        imageBytes: imageBytes,
+        preserveOriginalBytes: image.preserveOriginalBytesOnSave,
+        fixedTagUsageSnapshot: fixedTagUsageSnapshot,
         seed: await ImageSaveUtils.resolveSeed(
           metadata: existingMetadata,
           bytes: imageBytes,
         ),
+        rebuild: () async => existingMetadata == null
+            ? imageBytes
+            : ImageSaveUtils.buildPrebuiltMetadataBytes(
+                imageBytes: imageBytes,
+                metadata: {
+                  'Description': existingMetadata.prompt,
+                  'Software': 'NovelAI',
+                  'Source': existingMetadata.source ?? 'NovelAI Diffusion',
+                  'Comment': jsonEncode(
+                    buildCommentJsonFromMetadata(existingMetadata),
+                  ),
+                },
+              ),
       );
+      final finalBytes = saved.bytes;
+      final filePath = saved.path;
 
       Object? systemGalleryError;
       if (PlatformCapabilities.current.supportsSystemGalleryExport) {
@@ -185,9 +169,8 @@ class GenerationSaveService {
 
   /// 从元数据构建 Comment JSON
   static Map<String, dynamic> buildCommentJsonFromMetadata(
-    NaiImageMetadata metadata, {
-    FixedTagUsageSnapshot? fixedTagUsageSnapshot,
-  }) {
+    NaiImageMetadata metadata,
+  ) {
     final commentJson = <String, dynamic>{
       'prompt': metadata.prompt,
       'uc': metadata.negativePrompt,
@@ -203,15 +186,6 @@ class GenerationSaveService {
       'sampler': metadata.sampler ?? 'k_euler_ancestral',
       'sm': metadata.smea ?? false,
       'sm_dyn': metadata.smeaDyn ?? false,
-      if (fixedTagUsageSnapshot != null)
-        'aaalice_fixed_tags': fixedTagUsageSnapshot.toJson(),
-      if (fixedTagUsageSnapshot != null ||
-          metadata.hasRecordedFixedTagFields) ...{
-        'fixed_prefix': metadata.fixedPrefixTags,
-        'fixed_suffix': metadata.fixedSuffixTags,
-        'fixed_negative_prefix': metadata.fixedNegativePrefixTags,
-        'fixed_negative_suffix': metadata.fixedNegativeSuffixTags,
-      },
     };
 
     // 添加 Vibe 数据
