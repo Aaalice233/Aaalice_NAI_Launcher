@@ -4,6 +4,8 @@ import 'dart:typed_data';
 
 import 'package:crypto/crypto.dart';
 
+import '../../utils/constant_time_equals.dart';
+
 final class OAuthPkceRequest {
   const OAuthPkceRequest({
     required this.codeVerifier,
@@ -51,18 +53,8 @@ final class OAuthPkce {
   static String challengeForVerifier(String verifier) =>
       _base64Url(sha256.convert(ascii.encode(verifier)).bytes);
 
-  static bool secureEquals(String expected, String actual) {
-    final expectedBytes = utf8.encode(expected);
-    final actualBytes = utf8.encode(actual);
-    var difference = expectedBytes.length ^ actualBytes.length;
-    final length = max(expectedBytes.length, actualBytes.length);
-    for (var index = 0; index < length; index++) {
-      final left = index < expectedBytes.length ? expectedBytes[index] : 0;
-      final right = index < actualBytes.length ? actualBytes[index] : 0;
-      difference |= left ^ right;
-    }
-    return difference == 0;
-  }
+  static bool secureEquals(String expected, String actual) =>
+      constantTimeEquals(expected, actual);
 
   static String _base64Url(List<int> bytes) =>
       base64Url.encode(bytes).replaceAll('=', '');

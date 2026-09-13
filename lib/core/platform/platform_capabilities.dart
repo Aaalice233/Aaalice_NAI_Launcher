@@ -64,6 +64,7 @@ class PlatformCapabilities {
   bool get supportsDesktopOverlayInteractions => isDesktop;
   bool get supportsKeyboardShortcutConfiguration => isDesktop;
   bool get supportsKritaBridge => isDesktop;
+  bool get supportsMcpServer => isDesktop;
   bool get supportsSystemFontEnumeration => isWindows;
   bool get supportsNativeShare => isMobile || isMacOS;
   bool get supportsSystemGalleryExport => isAndroid;

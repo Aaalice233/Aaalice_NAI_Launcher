@@ -13,6 +13,7 @@ on:
       - "analysis_options.yaml"
       - "android/**"
       - "assets/**"
+      - "bin/**"
       - "build.yaml"
       - "dart_test.yaml"
       - "fonts/**"
@@ -37,6 +38,7 @@ on:
       - "analysis_options.yaml"
       - "android/**"
       - "assets/**"
+      - "bin/**"
       - "build.yaml"
       - "dart_test.yaml"
       - "fonts/**"
@@ -84,12 +86,14 @@ jobs:
               - '.github/workflows/release.yml'
               - '.github/workflows/windows-portable.yml'
               - 'assets/**'
+              - 'bin/**'
               - 'build.yaml'
               - 'fonts/**'
               - 'l10n.yaml'
               - 'lib/**'
               - 'pubspec.lock'
               - 'pubspec.yaml'
+              - 'scripts/build_mcp_cli.ps1'
               - 'windows/**'
             windows_package:
               - '.github/actions/prepare-flutter-build/action.yml'
@@ -99,6 +103,7 @@ jobs:
               - 'installer/windows/**'
               - 'pubspec.lock'
               - 'pubspec.yaml'
+              - 'scripts/build_mcp_cli.ps1'
               - 'scripts/package_windows_release.ps1'
               - 'scripts/verify_windows_portable_package.ps1'
               - 'scripts/validate_windows_installer_process_handling.ps1'
@@ -312,6 +317,10 @@ jobs:
 
       - name: Build Windows release
         run: flutter build windows --release --no-pub
+
+      - name: Build MCP CLI
+        shell: pwsh
+        run: ./scripts/build_mcp_cli.ps1 -OutputPath build/windows/x64/runner/Release/nai_launcher_mcp.exe
 
       - name: Validate installer process handling
         shell: pwsh

@@ -1437,6 +1437,19 @@ class AppLocalizationsJa extends AppLocalizations {
   String get agentChat_approvalDeny => '拒否';
 
   @override
+  String mcpApproval_title(Object client) {
+    return '外部エージェント $client が承認を求めています';
+  }
+
+  @override
+  String mcpApproval_expiresIn(Object seconds) {
+    return '$seconds 秒後に自動的に拒否します';
+  }
+
+  @override
+  String get mcpApproval_unknownClient => '不明なクライアント';
+
+  @override
   String get generation_failedStreamSnapshot => 'スナップショットが失敗しました';
 
   @override
@@ -9611,6 +9624,152 @@ class AppLocalizationsJa extends AppLocalizations {
   String settings_kritaBridgeClient(Object client) {
     return 'クライアント: $client';
   }
+
+  @override
+  String get settings_mcpServerPermissionSection => '権限';
+
+  @override
+  String get settings_mcpServerClientsSection => 'クライアント';
+
+  @override
+  String get settings_mcpServerEnable => 'MCP サーバーを有効にする';
+
+  @override
+  String get settings_mcpServerDisabledText =>
+      '既定ではオフ。有効にするとローカルの 127.0.0.1 でのみ待ち受けます';
+
+  @override
+  String get settings_mcpServerStartingText => 'ローカル MCP サーバーを起動しています...';
+
+  @override
+  String get settings_mcpServerListeningText => 'MCP クライアントの接続を待っています';
+
+  @override
+  String get settings_mcpServerErrorText => '起動に失敗しました。エラーメッセージを確認してください';
+
+  @override
+  String get settings_mcpServerDisabled => '無効';
+
+  @override
+  String get settings_mcpServerStarting => '起動中';
+
+  @override
+  String get settings_mcpServerListening => '待ち受け中';
+
+  @override
+  String get settings_mcpServerError => 'エラー';
+
+  @override
+  String get settings_mcpServerEndpoint => 'エンドポイント';
+
+  @override
+  String get settings_mcpServerCopyEndpoint => 'エンドポイントをコピー';
+
+  @override
+  String get settings_mcpServerPort => 'ポート';
+
+  @override
+  String get settings_mcpServerPortHelper => '変更すると接続中のクライアントは切断されます';
+
+  @override
+  String settings_mcpServerPortInvalid(Object min, Object max) {
+    return 'ポートは $min から $max の範囲で入力してください';
+  }
+
+  @override
+  String settings_mcpServerPortInUseHint(Object port) {
+    return 'ポート $port は使用中です。下で別のポートを指定してください';
+  }
+
+  @override
+  String get settings_mcpServerDiscoveryFile => 'ディスカバリーファイル';
+
+  @override
+  String get settings_mcpServerToken => 'アクセストークン';
+
+  @override
+  String get settings_mcpServerRevealToken => 'トークンを表示';
+
+  @override
+  String get settings_mcpServerHideToken => 'トークンを隠す';
+
+  @override
+  String get settings_mcpServerCopyToken => 'トークンをコピー';
+
+  @override
+  String get settings_mcpServerRegenerateToken => 'トークンを再生成';
+
+  @override
+  String get settings_mcpServerRegenerateTokenTitle => 'アクセストークンを再生成';
+
+  @override
+  String get settings_mcpServerRegenerateTokenMessage =>
+      '現在のトークンは直ちに無効になり、接続中のクライアントは切断されます。すべてのクライアント設定を新しいトークンに更新してください。';
+
+  @override
+  String get settings_mcpServerAnlasNotice =>
+      'Anlas を消費する可能性のある操作は、権限モードに関係なくランチャー内で個別に確認します。';
+
+  @override
+  String settings_mcpServerPendingApproval(Object client, Object tool) {
+    return '$client が $tool の実行を要求しています';
+  }
+
+  @override
+  String get settings_mcpServerPendingApprovalHint => 'ページ上部の承認バナーで対応してください';
+
+  @override
+  String get settings_mcpServerConnectedClients => '接続中のクライアント';
+
+  @override
+  String get settings_mcpServerSessionsEmpty => '接続中のクライアントはありません';
+
+  @override
+  String settings_mcpServerSessionConnectedAt(Object time) {
+    return '接続 $time';
+  }
+
+  @override
+  String settings_mcpServerSessionLastActivity(Object time) {
+    return '最終アクティビティ $time';
+  }
+
+  @override
+  String get settings_mcpServerClientConfigs => 'クライアント設定';
+
+  @override
+  String get settings_mcpServerConfigUnavailable =>
+      'サーバーを有効にするとクライアント設定が表示されます';
+
+  @override
+  String get settings_mcpServerCopyConfig => '設定をコピー';
+
+  @override
+  String get settings_mcpServerTokenMaskNotice =>
+      'プレビューのトークンはマスクされています。コピーすると実際のトークンが書き込まれます。';
+
+  @override
+  String settings_mcpServerCliMissing(Object path) {
+    return '同梱 CLI が見つかりません（想定パス: $path）。開発実行では正常です';
+  }
+
+  @override
+  String get settings_mcpServerViewDocs => 'ドキュメントを見る';
+
+  @override
+  String get settings_mcpServerClaudeCodeHint => 'ターミナルで次のコマンドを実行してサーバーを登録します。';
+
+  @override
+  String get settings_mcpServerCodexHint =>
+      'コマンドでサーバーを登録してから、下の環境変数にトークンを設定します。';
+
+  @override
+  String get settings_mcpServerCursorHint =>
+      '次の内容を Cursor の mcp.json に統合してください。';
+
+  @override
+  String get settings_mcpServerClaudeDesktopHint =>
+      '次の内容を Claude Desktop の設定に統合してください。同梱 CLI を介して stdio で接続します。';
 
   @override
   String get settings_fontScale => 'フォント サイズ';

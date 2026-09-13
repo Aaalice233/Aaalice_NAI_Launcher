@@ -543,6 +543,19 @@
   "agentChat_approvalDescription": "此工具会读取本地数据、修改应用状态或产生费用。",
   "agentChat_approvalAllow": "允许一次",
   "agentChat_approvalDeny": "拒绝",
+  "mcpApproval_title": "外部智能体 {client} 请求授权",
+  "@mcpApproval_title": {
+    "placeholders": {
+      "client": {}
+    }
+  },
+  "mcpApproval_expiresIn": "{seconds} 秒后自动拒绝",
+  "@mcpApproval_expiresIn": {
+    "placeholders": {
+      "seconds": {}
+    }
+  },
+  "mcpApproval_unknownClient": "未知客户端",
   "generation_failedStreamSnapshot": "失败快照",
   "generation_failedStreamSnapshotHint": "生成未完成，仅保留最后一帧预览；不可保存、收藏或用于图生图",
   "generation_noHistory": "暂无历史记录",
@@ -4531,6 +4544,81 @@
       "client": {}
     }
   },
+
+  "settings_mcpServerPermissionSection": "权限",
+  "settings_mcpServerClientsSection": "客户端",
+  "settings_mcpServerEnable": "启用 MCP 服务器",
+  "settings_mcpServerDisabledText": "默认关闭；开启后只监听本机 127.0.0.1",
+  "settings_mcpServerStartingText": "正在启动本地 MCP 服务...",
+  "settings_mcpServerListeningText": "等待 MCP 客户端连接",
+  "settings_mcpServerErrorText": "启动失败，请查看错误信息",
+  "settings_mcpServerDisabled": "已关闭",
+  "settings_mcpServerStarting": "启动中",
+  "settings_mcpServerListening": "监听中",
+  "settings_mcpServerError": "错误",
+  "settings_mcpServerEndpoint": "端点地址",
+  "settings_mcpServerCopyEndpoint": "复制端点地址",
+  "settings_mcpServerPort": "端口",
+  "settings_mcpServerPortHelper": "更改后会断开已连接的客户端",
+  "settings_mcpServerPortInvalid": "端口需在 {min} 到 {max} 之间",
+  "@settings_mcpServerPortInvalid": {
+    "placeholders": {
+      "min": {},
+      "max": {}
+    }
+  },
+  "settings_mcpServerPortInUseHint": "端口 {port} 已被占用，请在下方改用其他端口",
+  "@settings_mcpServerPortInUseHint": {
+    "placeholders": {
+      "port": {}
+    }
+  },
+  "settings_mcpServerDiscoveryFile": "发现文件",
+  "settings_mcpServerToken": "接入令牌",
+  "settings_mcpServerRevealToken": "显示令牌",
+  "settings_mcpServerHideToken": "隐藏令牌",
+  "settings_mcpServerCopyToken": "复制令牌",
+  "settings_mcpServerRegenerateToken": "重新生成令牌",
+  "settings_mcpServerRegenerateTokenTitle": "重新生成接入令牌",
+  "settings_mcpServerRegenerateTokenMessage": "当前令牌会立即失效，已连接的客户端将断开。请在所有客户端配置中更新新令牌。",
+  "settings_mcpServerAnlasNotice": "任何可能消耗 Anlas 的操作都会在启动器内单独确认，与权限模式无关。",
+  "settings_mcpServerPendingApproval": "{client} 请求调用 {tool}",
+  "@settings_mcpServerPendingApproval": {
+    "placeholders": {
+      "client": {},
+      "tool": {}
+    }
+  },
+  "settings_mcpServerPendingApprovalHint": "请在页面顶部的授权横幅中处理",
+  "settings_mcpServerConnectedClients": "已连接客户端",
+  "settings_mcpServerSessionsEmpty": "尚无客户端连接",
+  "settings_mcpServerSessionConnectedAt": "接入于 {time}",
+  "@settings_mcpServerSessionConnectedAt": {
+    "placeholders": {
+      "time": {}
+    }
+  },
+  "settings_mcpServerSessionLastActivity": "最近活动 {time}",
+  "@settings_mcpServerSessionLastActivity": {
+    "placeholders": {
+      "time": {}
+    }
+  },
+  "settings_mcpServerClientConfigs": "客户端配置",
+  "settings_mcpServerConfigUnavailable": "启用服务器后显示客户端配置",
+  "settings_mcpServerCopyConfig": "复制配置",
+  "settings_mcpServerTokenMaskNotice": "预览中的令牌已打码，复制时写入真实令牌。",
+  "settings_mcpServerCliMissing": "未找到随包 CLI（预期位置：{path}），开发运行时属正常现象",
+  "@settings_mcpServerCliMissing": {
+    "placeholders": {
+      "path": {}
+    }
+  },
+  "settings_mcpServerViewDocs": "查看文档",
+  "settings_mcpServerClaudeCodeHint": "在终端运行以下命令注册服务器。",
+  "settings_mcpServerCodexHint": "先运行命令注册服务器，再把令牌写入下面的环境变量。",
+  "settings_mcpServerCursorHint": "把以下内容合并进 Cursor 的 mcp.json 配置文件。",
+  "settings_mcpServerClaudeDesktopHint": "把以下内容合并进 Claude Desktop 配置；它通过随包 CLI 以 stdio 方式接入。",
 
   "settings_fontScale": "字体大小",
   "settings_fontScale_description": "调整应用全局字体缩放比例",

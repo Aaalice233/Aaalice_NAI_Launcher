@@ -268,6 +268,10 @@ jobs:
             "--dart-define=ONEDRIVE_WINDOWS_REDIRECT_URI=http://127.0.0.1" `
             "--dart-define=ONEDRIVE_TENANT_ID=$env:ONEDRIVE_TENANT_ID"
 
+      - name: Build MCP CLI
+        shell: pwsh
+        run: ./scripts/build_mcp_cli.ps1 -OutputPath build/windows/x64/runner/Release/nai_launcher_mcp.exe
+
       - name: Sign Windows application
         shell: pwsh
         env:
@@ -285,7 +289,10 @@ jobs:
             [Convert]::FromBase64String($env:WINDOWS_SIGNING_CERT_BASE64)
           )
           ./scripts/sign_windows_binary.ps1 `
-            -Path 'build/windows/x64/runner/Release/nai_launcher.exe' `
+            -Path @(
+              'build/windows/x64/runner/Release/nai_launcher.exe',
+              'build/windows/x64/runner/Release/nai_launcher_mcp.exe'
+            ) `
             -CertificatePath $certificatePath `
             -CertificatePassword $env:WINDOWS_SIGNING_CERT_PASSWORD
 
@@ -410,6 +417,13 @@ jobs:
             "--dart-define=ONEDRIVE_MACOS_CLIENT_ID=$ONEDRIVE_MACOS_CLIENT_ID" \
             "--dart-define=ONEDRIVE_MACOS_REDIRECT_URI=$ONEDRIVE_MACOS_REDIRECT_URI" \
             "--dart-define=ONEDRIVE_TENANT_ID=$ONEDRIVE_TENANT_ID"
+
+      - name: Build MCP CLI
+        shell: pwsh
+        run: ./scripts/build_mcp_cli.ps1 -OutputPath "build/macos/Build/Products/Release/Aaalice NAI Launcher.app/Contents/MacOS/nai_launcher_mcp"
+
+      - name: Re-sign macOS bundle with the bundled CLI
+        run: codesign --force --deep --sign - "build/macos/Build/Products/Release/Aaalice NAI Launcher.app"
 
       - name: Package macOS artifact
         run: |

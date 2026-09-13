@@ -46,7 +46,11 @@ dependencies:
 
   # 加密库 (Blake2b + Argon2id)
   cryptography: ^2.7.0
+  args: ^2.7.0
   crypto: ^3.0.3
+  dart_mcp: ^0.5.2
+  # MCP 服务器用内存通道把 HTTP 传输接到 dart_mcp 协议层
+  stream_channel: ^2.1.4
 
   # SHA 哈希（用于生成唯一ID）
 

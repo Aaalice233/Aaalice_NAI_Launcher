@@ -34,7 +34,7 @@ packages:
     source: hosted
     version: "3.6.1"
   args:
-    dependency: transitive
+    dependency: "direct main"
     description:
       name: args
       sha256: d0481093c50b1da8910eb0bb301626d4d8eb7284aa739614d2b394ee09e3ea04
@@ -305,6 +305,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "0.6.3"
+  dart_mcp:
+    dependency: "direct main"
+    description:
+      name: dart_mcp
+      sha256: "852b51da915d679be8d051e2e3b6c68ed19fe685f1c676bb35272a2d73ceac7a"
+      url: "https://pub.dev"
+    source: hosted
+    version: "0.5.2"
   dart_sentencepiece_tokenizer:
     dependency: "direct main"
     description:
@@ -916,6 +924,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "4.9.0"
+  json_rpc_2:
+    dependency: transitive
+    description:
+      name: json_rpc_2
+      sha256: "82dfd37d3b2e5030ae4729e1d7f5538cbc45eb1c73d618b9272931facac3bec1"
+      url: "https://pub.dev"
+    source: hosted
+    version: "4.1.0"
   json_serializable:
     dependency: "direct dev"
     description:
@@ -1625,7 +1641,7 @@ packages:
     source: hosted
     version: "1.0.0"
   stream_channel:
-    dependency: transitive
+    dependency: "direct main"
     description:
       name: stream_channel
       sha256: "969e04c80b8bcdf826f8f16579c7b14d780458bd97f56d107d3950fdbeef059d"
