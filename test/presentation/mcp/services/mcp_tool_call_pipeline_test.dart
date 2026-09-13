@@ -128,7 +128,7 @@ void main() {
     expect(harness.executed, ['set_positive_prompt', 'delete_fixed_tag']);
   });
 
-  test('full access still confirms destructive and charged calls', () async {
+  test('full access only confirms charged calls', () async {
     final full = _Harness(mode: AgentPermissionMode.fullAccess);
     addTearDown(full.dispose);
 
@@ -136,11 +136,10 @@ void main() {
     expect(plain.isError, isNot(isTrue));
     expect(full.coordinator.current, isNull);
 
-    final destructive = full.call('w2', 'delete_fixed_tag');
-    await pumpEventQueue();
-    expect(full.coordinator.current?.toolCallId, 'w2');
-    full.coordinator.resolve('w2', true);
-    expect((await destructive).isError, isNot(isTrue));
+    final destructive = await full.call('w2', 'delete_fixed_tag');
+    expect(destructive.isError, isNot(isTrue));
+    expect(full.coordinator.current, isNull);
+    expect(full.executed, ['set_positive_prompt', 'delete_fixed_tag']);
 
     final charged = full.call(
       'w3',

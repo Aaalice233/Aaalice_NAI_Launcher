@@ -296,9 +296,16 @@ void main() {
       final workspaceStack = tester.widget<Stack>(
         find.byKey(const Key('desktop-workspace-stack')),
       );
+      final layerKeys = [
+        for (final child in workspaceStack.children) child.key,
+      ];
       expect(
-        workspaceStack.children.last.key,
-        const ValueKey('desktop-panel-overlay-layer'),
+        layerKeys.sublist(layerKeys.length - 2),
+        const [
+          ValueKey('desktop-panel-overlay-layer'),
+          ValueKey('desktop-approval-overlay-layer'),
+        ],
+        reason: 'panels cover the page; approvals stay reachable above panels',
       );
       expect(find.byKey(const Key('shell-panel-scrim')), findsNothing);
 
