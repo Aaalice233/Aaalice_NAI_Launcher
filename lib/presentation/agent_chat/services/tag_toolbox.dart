@@ -1,5 +1,3 @@
-import 'dart:convert';
-
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/agent/agent_types.dart';
@@ -9,21 +7,6 @@ import '../../../core/database/services/service_providers.dart';
 import '../../../core/services/smart_tag_recommendation_service.dart';
 import '../../../core/utils/app_logger.dart';
 import 'defined_agent_tool.dart';
-
-AgentToolResult _textResult(String text) {
-  return AgentToolResult(
-    content: [ToolResultTextContent(text)],
-    details: const <String, dynamic>{},
-  );
-}
-
-AgentToolResult _errorResult(String text) {
-  return AgentToolResult(
-    content: [ToolResultTextContent(text)],
-    details: const <String, dynamic>{},
-    isError: true,
-  );
-}
 
 /// 标签数据工具集：基于内置 tag_catalog.db 与可选下载的中文字典 /
 /// 共现数据包，为提示词写作提供标签检索、中文翻译与共现推荐。
@@ -94,7 +77,7 @@ class TagToolbox {
   Future<AgentToolResult> _searchTags(Map<String, dynamic> args) async {
     final query = (args['query'] as String?)?.trim() ?? '';
     if (query.isEmpty) {
-      return _errorResult('Parameter "query" is required.');
+      return agentToolError('missing_query', 'Parameter "query" is required.');
     }
     final mode = (args['mode'] as String?)?.trim() ?? 'auto';
     final limit = ((args['limit'] as num?)?.toInt() ?? 10).clamp(1, 30);
@@ -109,7 +92,8 @@ class TagToolbox {
       case 'search':
         return _search(query, limit);
       default:
-        return _errorResult(
+        return agentToolError(
+          'invalid_mode',
           'Unknown mode "$mode". Use auto / search / translate / suggest.',
         );
     }
@@ -132,33 +116,29 @@ class TagToolbox {
         ),
       );
       if (candidates.isEmpty) {
-        return _textResult(
-          jsonEncode({
-            'ok': true,
-            'results': const <Map<String, dynamic>>[],
-            'note': 'No catalog match for "$query".',
-          }),
-        );
-      }
-      return _textResult(
-        jsonEncode({
+        return agentToolJsonResult({
           'ok': true,
-          'results': [
-            for (final candidate in candidates)
-              {
-                'tag': candidate.canonicalTag,
-                'category': candidate.category.name,
-                'post_count': candidate.postCount,
-                if (candidate.aliases.isNotEmpty) 'aliases': candidate.aliases,
-                if (candidate.translation != null)
-                  'chinese': candidate.translation,
-              },
-          ],
-        }),
-      );
+          'results': const <Map<String, dynamic>>[],
+          'note': 'No catalog match for "$query".',
+        });
+      }
+      return agentToolJsonResult({
+        'ok': true,
+        'results': [
+          for (final candidate in candidates)
+            {
+              'tag': candidate.canonicalTag,
+              'category': candidate.category.name,
+              'post_count': candidate.postCount,
+              if (candidate.aliases.isNotEmpty) 'aliases': candidate.aliases,
+              if (candidate.translation != null)
+                'chinese': candidate.translation,
+            },
+        ],
+      });
     } catch (e) {
       AppLogger.w('search_tags(search) failed: $e', 'AgentChat');
-      return _errorResult('Tag search failed: $e');
+      return agentToolError('tag_search_failed', 'Tag search failed: $e');
     }
   }
 
@@ -168,36 +148,33 @@ class TagToolbox {
       final dataSource = await _ref.read(translationDataSourceProvider.future);
       final matches = await dataSource.search(query, limit: limit);
       if (matches.isEmpty) {
-        return _textResult(
-          jsonEncode({
-            'ok': true,
-            'results': const <Map<String, dynamic>>[],
-            'note':
-                'No translation match for "$query". If Chinese input '
-                'keeps returning nothing, the Chinese dictionary may not be '
-                'installed yet (download it in Settings).',
-          }),
-        );
-      }
-      return _textResult(
-        jsonEncode({
+        return agentToolJsonResult({
           'ok': true,
-          'results': [
-            for (final match in matches)
-              {
-                'tag': match.tag,
-                'chinese': match.translation,
-                'category': match.category,
-                'post_count': match.count,
-              },
-          ],
-        }),
-      );
+          'results': const <Map<String, dynamic>>[],
+          'note':
+              'No translation match for "$query". If Chinese input '
+              'keeps returning nothing, the Chinese dictionary may not be '
+              'installed yet (download it in Settings).',
+        });
+      }
+      return agentToolJsonResult({
+        'ok': true,
+        'results': [
+          for (final match in matches)
+            {
+              'tag': match.tag,
+              'chinese': match.translation,
+              'category': match.category,
+              'post_count': match.count,
+            },
+        ],
+      });
     } catch (e) {
       AppLogger.w('search_tags(translate) failed: $e', 'AgentChat');
-      return _errorResult(
+      return agentToolError(
+        'tag_translation_failed',
         'Tag translation failed: $e (the Chinese dictionary may not be '
-        'installed)',
+            'installed)',
       );
     }
   }
@@ -213,41 +190,43 @@ class TagToolbox {
           if (part.trim().isNotEmpty) part.trim().replaceAll(' ', '_'),
       ];
       if (inputTags.isEmpty) {
-        return _errorResult('Parameter "query" needs at least one tag.');
+        return agentToolError(
+          'invalid_query',
+          'Parameter "query" needs at least one tag.',
+        );
       }
       final recommendations = await service.getRecommendations(
         inputTags: inputTags,
         limit: limit,
       );
       if (recommendations.isEmpty) {
-        return _textResult(
-          jsonEncode({
-            'ok': true,
-            'results': const <Map<String, dynamic>>[],
-            'note':
-                'No suggestions. The co-occurrence data pack may not be '
-                'installed (download it in Settings).',
-          }),
-        );
-      }
-      return _textResult(
-        jsonEncode({
+        return agentToolJsonResult({
           'ok': true,
-          'results': [
-            for (final recommendation in recommendations)
-              {
-                'tag': recommendation.tag,
-                if (recommendation.translation != null)
-                  'chinese': recommendation.translation,
-                'score': double.parse(recommendation.score.toStringAsFixed(4)),
-                'cooccurrence': recommendation.cooccurrence,
-              },
-          ],
-        }),
-      );
+          'results': const <Map<String, dynamic>>[],
+          'note':
+              'No suggestions. The co-occurrence data pack may not be '
+              'installed (download it in Settings).',
+        });
+      }
+      return agentToolJsonResult({
+        'ok': true,
+        'results': [
+          for (final recommendation in recommendations)
+            {
+              'tag': recommendation.tag,
+              if (recommendation.translation != null)
+                'chinese': recommendation.translation,
+              'score': double.parse(recommendation.score.toStringAsFixed(4)),
+              'cooccurrence': recommendation.cooccurrence,
+            },
+        ],
+      });
     } catch (e) {
       AppLogger.w('search_tags(suggest) failed: $e', 'AgentChat');
-      return _errorResult('Tag suggestion failed: $e');
+      return agentToolError(
+        'tag_suggestion_failed',
+        'Tag suggestion failed: $e',
+      );
     }
   }
 }

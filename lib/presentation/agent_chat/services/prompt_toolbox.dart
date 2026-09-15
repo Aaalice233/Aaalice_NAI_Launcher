@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -13,21 +12,6 @@ import 'defined_agent_tool.dart';
 import '../../../core/agent/harness/skills.dart';
 import '../../../core/agent/private_data_guard.dart';
 import '../../../core/constants/model_capabilities.dart';
-
-AgentToolResult _textResult(String text) {
-  return AgentToolResult(
-    content: [ToolResultTextContent(text)],
-    details: const <String, dynamic>{},
-  );
-}
-
-AgentToolResult _errorResult(String text) {
-  return AgentToolResult(
-    content: [ToolResultTextContent(text)],
-    details: const <String, dynamic>{},
-    isError: true,
-  );
-}
 
 /// 提示词工具集。
 ///
@@ -69,22 +53,20 @@ class PromptToolbox {
           final params = _ref.read(generationParamsNotifierProvider);
           final config = _ref.read(characterPromptNotifierProvider);
           final capabilities = ModelCapabilityRegistry.of(params.model);
-          return _textResult(
-            jsonEncode({
-              'model': params.model,
-              'model_character_limit': capabilities.maxCharacters,
-              'supports_characters': capabilities.maxCharacters > 0,
-              'character_layout_mode': config.globalAiChoice
-                  ? 'ai_choice'
-                  : 'custom',
-              'positive_prompt': params.prompt,
-              'negative_prompt': params.negativePrompt,
-              'characters': [
-                for (var index = 0; index < config.characters.length; index++)
-                  _characterJson(config.characters[index], order: index),
-              ],
-            }),
-          );
+          return agentToolJsonResult({
+            'model': params.model,
+            'model_character_limit': capabilities.maxCharacters,
+            'supports_characters': capabilities.maxCharacters > 0,
+            'character_layout_mode': config.globalAiChoice
+                ? 'ai_choice'
+                : 'custom',
+            'positive_prompt': params.prompt,
+            'negative_prompt': params.negativePrompt,
+            'characters': [
+              for (var index = 0; index < config.characters.length; index++)
+                _characterJson(config.characters[index], order: index),
+            ],
+          });
         },
       ),
       DefinedAgentTool(
@@ -350,21 +332,19 @@ class PromptToolbox {
           'properties': <String, dynamic>{},
           'required': <String>[],
         },
-        executeFn: (_, __) async => _textResult(
-          jsonEncode({
-            'count': _skillDiagnostics.length,
-            'diagnostics': [
-              for (final diagnostic in _skillDiagnostics)
-                {
-                  'code': diagnostic.code.name,
-                  'message': PrivateDataGuard.redactAbsolutePaths(
-                    diagnostic.message,
-                  ),
-                  'path': _agentSafePath(diagnostic.path),
-                },
-            ],
-          }),
-        ),
+        executeFn: (_, __) async => agentToolJsonResult({
+          'count': _skillDiagnostics.length,
+          'diagnostics': [
+            for (final diagnostic in _skillDiagnostics)
+              {
+                'code': diagnostic.code.name,
+                'message': PrivateDataGuard.redactAbsolutePaths(
+                  diagnostic.message,
+                ),
+                'path': _agentSafePath(diagnostic.path),
+              },
+          ],
+        }),
       ),
       if (_reloadSkills != null)
         DefinedAgentTool(
@@ -382,14 +362,12 @@ class PromptToolbox {
           executeFn: (_, __) async {
             final count = await _reloadSkills();
             final available = _skills.keys.toList()..sort();
-            return _textResult(
-              jsonEncode({
-                'ok': true,
-                'count': count,
-                'skills': available,
-                'diagnostic_count': _skillDiagnostics.length,
-              }),
-            );
+            return agentToolJsonResult({
+              'ok': true,
+              'count': count,
+              'skills': available,
+              'diagnostic_count': _skillDiagnostics.length,
+            });
           },
         ),
     ];
@@ -401,7 +379,10 @@ class PromptToolbox {
   }) async {
     final text = (args['text'] as String?)?.trim() ?? '';
     if (text.isEmpty) {
-      return _errorResult('Parameter "text" must be a non-empty string.');
+      return agentToolError(
+        'invalid_prompt_text',
+        'Parameter "text" must be a non-empty string.',
+      );
     }
     final mode = (args['mode'] as String?) ?? 'replace';
     final params = _ref.read(generationParamsNotifierProvider);
@@ -418,14 +399,12 @@ class PromptToolbox {
     // 再回读，保证返回给模型的是已生效的值。
     await Future<void>.delayed(Duration.zero);
     final applied = _ref.read(generationParamsNotifierProvider);
-    return _textResult(
-      jsonEncode({
-        'ok': true,
-        positive ? 'positive_prompt' : 'negative_prompt': positive
-            ? applied.prompt
-            : applied.negativePrompt,
-      }),
-    );
+    return agentToolJsonResult({
+      'ok': true,
+      positive ? 'positive_prompt' : 'negative_prompt': positive
+          ? applied.prompt
+          : applied.negativePrompt,
+    });
   }
 
   CharacterPrompt? _findCharacter({String? id, String? name}) {
@@ -538,12 +517,10 @@ class PromptToolbox {
         .read(characterPromptNotifierProvider)
         .characters
         .indexWhere((character) => character.id == applied.id);
-    return _textResult(
-      jsonEncode({
-        'ok': true,
-        'character': _characterJson(applied, order: order),
-      }),
-    );
+    return agentToolJsonResult({
+      'ok': true,
+      'character': _characterJson(applied, order: order),
+    });
   }
 
   Future<AgentToolResult> _addCharacter(Map<String, dynamic> args) async {
@@ -633,12 +610,10 @@ class PromptToolbox {
         .read(characterPromptNotifierProvider)
         .characters
         .indexWhere((character) => character.id == created.id);
-    return _textResult(
-      jsonEncode({
-        'ok': true,
-        'character': _characterJson(created, order: order),
-      }),
-    );
+    return agentToolJsonResult({
+      'ok': true,
+      'character': _characterJson(created, order: order),
+    });
   }
 
   Future<AgentToolResult> _setCharacterLayoutMode(
@@ -659,16 +634,14 @@ class PromptToolbox {
       );
     }
     final config = _ref.read(characterPromptNotifierProvider);
-    return _textResult(
-      jsonEncode({
-        'ok': true,
-        'character_layout_mode': mode,
-        'characters': [
-          for (var index = 0; index < config.characters.length; index++)
-            _characterJson(config.characters[index], order: index),
-        ],
-      }),
-    );
+    return agentToolJsonResult({
+      'ok': true,
+      'character_layout_mode': mode,
+      'characters': [
+        for (var index = 0; index < config.characters.length; index++)
+          _characterJson(config.characters[index], order: index),
+      ],
+    });
   }
 
   Future<AgentToolResult> _reorderCharacters(Map<String, dynamic> args) async {
@@ -692,15 +665,13 @@ class PromptToolbox {
       return agentToolError('invalid_character_order', error.message);
     }
     final characters = _ref.read(characterPromptNotifierProvider).characters;
-    return _textResult(
-      jsonEncode({
-        'ok': true,
-        'characters': [
-          for (var index = 0; index < characters.length; index++)
-            _characterJson(characters[index], order: index),
-        ],
-      }),
-    );
+    return agentToolJsonResult({
+      'ok': true,
+      'characters': [
+        for (var index = 0; index < characters.length; index++)
+          _characterJson(characters[index], order: index),
+      ],
+    });
   }
 
   Future<AgentToolResult> _removeCharacter(Map<String, dynamic> args) async {
@@ -724,7 +695,7 @@ class PromptToolbox {
         'The character was removed in memory but could not be persisted.',
       );
     }
-    return _textResult(jsonEncode({'ok': true, 'removed': target.name}));
+    return agentToolJsonResult({'ok': true, 'removed': target.name});
   }
 
   Future<AgentToolResult> _clearCharacters() async {
@@ -735,7 +706,7 @@ class PromptToolbox {
         'Characters were cleared in memory but could not be persisted.',
       );
     }
-    return _textResult(jsonEncode({'ok': true, 'characters': <Object>[]}));
+    return agentToolJsonResult({'ok': true, 'characters': <Object>[]});
   }
 
   CharacterPrompt _applyPositionChange(
@@ -838,13 +809,14 @@ class PromptToolbox {
     final skill = _skills[name];
     if (skill == null) {
       final available = _skills.keys.toList()..sort();
-      return _errorResult(
+      return agentToolError(
+        'skill_not_found',
         'Skill "$name" not found. Available skills: ${available.join(', ')}.',
       );
     }
     // 代理 的 Skill.content 即 SKILL.md 正文（加载时已剥离 frontmatter）。
     final content = PrivateDataGuard.redactAbsolutePaths(skill.content);
-    return _textResult(content.isEmpty ? '(empty)' : content);
+    return agentToolTextResult(content.isEmpty ? '(empty)' : content);
   }
 
   Future<AgentToolResult> _readSkillResource(Map<String, dynamic> args) async {
@@ -852,18 +824,27 @@ class PromptToolbox {
     final relativePath = (args['path'] as String?)?.trim() ?? '';
     final skill = _skills[name];
     if (skill == null) {
-      return _errorResult('Skill "$name" not found.');
+      return agentToolError('skill_not_found', 'Skill "$name" not found.');
     }
     if (relativePath.isEmpty) {
-      return _errorResult('Parameter "path" is required.');
+      return agentToolError(
+        'missing_skill_resource_path',
+        'Parameter "path" is required.',
+      );
     }
     final offset = (args['offset'] as num?)?.toInt() ?? 0;
     final limit = (args['limit'] as num?)?.toInt() ?? 200;
     if (offset < 0) {
-      return _errorResult('Parameter "offset" must be at least 0.');
+      return agentToolError(
+        'invalid_skill_resource_offset',
+        'Parameter "offset" must be at least 0.',
+      );
     }
     if (limit < 1 || limit > 1000) {
-      return _errorResult('Parameter "limit" must be between 1 and 1000.');
+      return agentToolError(
+        'invalid_skill_resource_limit',
+        'Parameter "limit" must be between 1 and 1000.',
+      );
     }
 
     final skillRoot = File(skill.filePath).parent.path;
@@ -871,31 +852,38 @@ class PromptToolbox {
     final resolved = await env.absolutePath(relativePath);
     final absolutePath = resolved.valueOrNull;
     if (absolutePath == null) {
-      return _errorResult('Skill resource path is not permitted.');
+      return agentToolError(
+        'skill_resource_path_not_permitted',
+        'Skill resource path is not permitted.',
+      );
     }
     final info = await env.fileInfo(absolutePath);
     if (info.valueOrNull?.kind != FileKind.file) {
-      return _errorResult('Skill resource is not a readable text file.');
+      return agentToolError(
+        'skill_resource_not_readable',
+        'Skill resource is not a readable text file.',
+      );
     }
     final result = await env.readTextFile(absolutePath);
     final content = result.valueOrNull;
     if (content == null) {
-      return _errorResult('Failed to read skill resource.');
+      return agentToolError(
+        'skill_resource_read_failed',
+        'Failed to read skill resource.',
+      );
     }
     final lines = content.split(RegExp(r'\r?\n'));
     final selected = offset >= lines.length
         ? const <String>[]
         : lines.skip(offset).take(limit).toList(growable: false);
-    return _textResult(
-      jsonEncode({
-        'path': relativePath,
-        'offset': offset,
-        'returned_lines': selected.length,
-        'total_lines': lines.length,
-        'truncated': offset + selected.length < lines.length,
-        'content': PrivateDataGuard.redactAbsolutePaths(selected.join('\n')),
-      }),
-    );
+    return agentToolJsonResult({
+      'path': relativePath,
+      'offset': offset,
+      'returned_lines': selected.length,
+      'total_lines': lines.length,
+      'truncated': offset + selected.length < lines.length,
+      'content': PrivateDataGuard.redactAbsolutePaths(selected.join('\n')),
+    });
   }
 
   String _agentSafePath(String path) {

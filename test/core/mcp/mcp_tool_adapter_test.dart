@@ -161,15 +161,19 @@ void main() {
       ]);
     });
 
-    test('promotes JSON-encodable map details to structuredContent', () {
+    test('derives structuredContent from the JSON object text block', () {
       final encoded = wire(
         McpToolAdapter.toCallToolResult(
           AgentToolResult(
-            content: [const ToolResultTextContent('ok')],
-            details: <String, dynamic>{
-              'count': 2,
-              'items': ['a', 'b'],
-            },
+            content: [
+              ToolResultTextContent(
+                jsonEncode({
+                  'count': 2,
+                  'items': ['a', 'b'],
+                }),
+              ),
+            ],
+            details: null,
           ),
         ),
       );
@@ -178,39 +182,93 @@ void main() {
         'count': 2,
         'items': ['a', 'b'],
       });
+      expect(encoded['content'], [
+        {'type': 'text', 'text': '{"count":2,"items":["a","b"]}'},
+      ]);
     });
 
-    test('omits structuredContent for non-map details', () {
-      for (final details in <dynamic>[
-        null,
-        'text',
-        42,
-        <int>[1, 2],
-      ]) {
-        final encoded = wire(
-          McpToolAdapter.toCallToolResult(
-            AgentToolResult(
-              content: [const ToolResultTextContent('ok')],
-              details: details,
-            ),
-          ),
-        );
-
-        expect(encoded.containsKey('structuredContent'), isFalse);
-      }
-    });
-
-    test('omits structuredContent when the map cannot be encoded', () {
+    test('keeps details out of the wire result', () {
       final encoded = wire(
         McpToolAdapter.toCallToolResult(
           AgentToolResult(
-            content: [const ToolResultTextContent('ok')],
-            details: <String, dynamic>{'handle': Object()},
+            content: [const ToolResultTextContent('{"ok":true}')],
+            details: <String, dynamic>{
+              'files': ['C:/Users/alice/secret.png'],
+              'preferFileImages': true,
+            },
           ),
         ),
       );
 
-      expect(encoded.containsKey('structuredContent'), isFalse);
+      expect(encoded['structuredContent'], {'ok': true});
+      expect(jsonEncode(encoded), isNot(contains('secret.png')));
+    });
+
+    test('omits structuredContent when no text block is a JSON object', () {
+      for (final details in <dynamic>[
+        null,
+        <String, dynamic>{},
+        <String, dynamic>{'count': 1},
+        'text',
+        42,
+      ]) {
+        for (final text in const ['ok', '[1, 2]', '{not json', '']) {
+          final encoded = wire(
+            McpToolAdapter.toCallToolResult(
+              AgentToolResult(
+                content: [ToolResultTextContent(text)],
+                details: details,
+              ),
+            ),
+          );
+
+          expect(
+            encoded.containsKey('structuredContent'),
+            isFalse,
+            reason: 'text=$text details=$details',
+          );
+        }
+      }
+    });
+
+    test('uses the first JSON object text block', () {
+      final encoded = wire(
+        McpToolAdapter.toCallToolResult(
+          AgentToolResult(
+            content: [
+              const ToolResultTextContent('plain prefix'),
+              const ToolResultTextContent(' {"first": 1} '),
+              const ToolResultTextContent('{"second": 2}'),
+            ],
+            details: null,
+          ),
+        ),
+      );
+
+      expect(encoded['structuredContent'], {'first': 1});
+    });
+
+    test('derives structuredContent for coded error results', () {
+      final encoded = wire(
+        McpToolAdapter.toCallToolResult(
+          AgentToolResult(
+            content: [
+              const ToolResultTextContent(
+                '{"ok":false,"code":"missing_query","message":"required"}',
+              ),
+            ],
+            details: null,
+            isError: true,
+          ),
+        ),
+      );
+
+      expect(encoded['isError'], isTrue);
+      expect(encoded['structuredContent'], {
+        'ok': false,
+        'code': 'missing_query',
+        'message': 'required',
+      });
     });
 
     test('passes isError through', () {

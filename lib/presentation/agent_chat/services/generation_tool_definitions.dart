@@ -10,7 +10,6 @@ import 'generation_preparation_service.dart';
 import 'generation_preparation_schema.dart';
 import 'generation_settings_service.dart';
 import 'generation_status_service.dart';
-import 'generation_tool_results.dart';
 import 'generation_tool_limits.dart';
 
 class GenerationToolDefinitions {
@@ -353,7 +352,7 @@ class GenerationToolDefinitions {
           'properties': <String, dynamic>{},
           'required': <String>[],
         },
-        executeFn: (_, __) async => generationTextResult(_status.statusJson()),
+        executeFn: (_, __) async => agentToolJsonResult(_status.statusJson()),
       ),
       DefinedAgentTool(
         name: 'get_recent_images',
@@ -400,7 +399,7 @@ class GenerationToolDefinitions {
           'required': <String>[],
         },
         executeFn: (_, __) async =>
-            generationTextResult(_settings.settingsJson()),
+            agentToolJsonResult(_settings.settingsJson()),
       ),
       DefinedAgentTool(
         name: 'update_generation_settings',
