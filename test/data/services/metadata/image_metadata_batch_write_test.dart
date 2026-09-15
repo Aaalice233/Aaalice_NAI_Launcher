@@ -135,6 +135,25 @@ void main() {
     expect(source, orderedEquals(snapshot));
   });
 
+  test('stealth writer validates original metadata chunk CRCs', () async {
+    final text = _chunk(
+      'tEXt',
+      Uint8List.fromList(latin1.encode('Custom\x00untouched')),
+    );
+    text[text.length - 1] ^= 1;
+    final damaged = _beforeEnd(source, [text]);
+    final snapshot = Uint8List.fromList(damaged);
+    await expectLater(
+      ImageMetadataContainerCodec.embedMetadata(
+        damaged,
+        '{"seed":123}',
+        useStealth: true,
+      ),
+      throwsFormatException,
+    );
+    expect(damaged, orderedEquals(snapshot));
+  });
+
   test(
     'rejects missing end, trailing bytes, truncated payload and non-PNG',
     () {
