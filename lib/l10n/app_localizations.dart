@@ -3863,6 +3863,144 @@ abstract class AppLocalizations {
   /// **'Declutter'**
   String get img2img_directorDeclutter;
 
+  /// No description provided for @img2img_directorPixelSnap.
+  ///
+  /// In en, this message translates to:
+  /// **'Pixel Snap'**
+  String get img2img_directorPixelSnap;
+
+  /// No description provided for @img2img_directorPixelSnapHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Runs entirely on your computer. No Anlas, no network. Large images can take a few seconds.'**
+  String get img2img_directorPixelSnapHint;
+
+  /// No description provided for @img2img_directorPixelSnapPalette.
+  ///
+  /// In en, this message translates to:
+  /// **'Palettize'**
+  String get img2img_directorPixelSnapPalette;
+
+  /// No description provided for @img2img_directorPixelSnapPaletteOff.
+  ///
+  /// In en, this message translates to:
+  /// **'Off'**
+  String get img2img_directorPixelSnapPaletteOff;
+
+  /// No description provided for @img2img_directorPixelSnapPaletteAuto.
+  ///
+  /// In en, this message translates to:
+  /// **'Auto'**
+  String get img2img_directorPixelSnapPaletteAuto;
+
+  /// No description provided for @img2img_directorPixelSnapPaletteCustom.
+  ///
+  /// In en, this message translates to:
+  /// **'Custom'**
+  String get img2img_directorPixelSnapPaletteCustom;
+
+  /// No description provided for @img2img_directorPixelSnapColors.
+  ///
+  /// In en, this message translates to:
+  /// **'Colors'**
+  String get img2img_directorPixelSnapColors;
+
+  /// No description provided for @img2img_directorPixelSnapAvoidOverRefining.
+  ///
+  /// In en, this message translates to:
+  /// **'Avoid Over-Refining'**
+  String get img2img_directorPixelSnapAvoidOverRefining;
+
+  /// No description provided for @img2img_directorPixelSnapAvoidOverRefiningOn.
+  ///
+  /// In en, this message translates to:
+  /// **'The detected pixel size is always kept.'**
+  String get img2img_directorPixelSnapAvoidOverRefiningOn;
+
+  /// No description provided for @img2img_directorPixelSnapAvoidOverRefiningOff.
+  ///
+  /// In en, this message translates to:
+  /// **'A finer pixel size may be used when it matches the image better.'**
+  String get img2img_directorPixelSnapAvoidOverRefiningOff;
+
+  /// No description provided for @img2img_directorPixelSnapUpscale.
+  ///
+  /// In en, this message translates to:
+  /// **'Upscale'**
+  String get img2img_directorPixelSnapUpscale;
+
+  /// No description provided for @img2img_directorPixelSnapUpscaleOn.
+  ///
+  /// In en, this message translates to:
+  /// **'The result is scaled back up to roughly the input size.'**
+  String get img2img_directorPixelSnapUpscaleOn;
+
+  /// No description provided for @img2img_directorPixelSnapUpscaleOff.
+  ///
+  /// In en, this message translates to:
+  /// **'The result is kept at its snapped pixel size.'**
+  String get img2img_directorPixelSnapUpscaleOff;
+
+  /// No description provided for @img2img_directorPixelSnapSummary.
+  ///
+  /// In en, this message translates to:
+  /// **'{width}×{height} pixels · {colors} colors'**
+  String img2img_directorPixelSnapSummary(int width, int height, int colors);
+
+  /// No description provided for @img2img_directorPixelSnapSummaryNoPalette.
+  ///
+  /// In en, this message translates to:
+  /// **'{width}×{height} pixels'**
+  String img2img_directorPixelSnapSummaryNoPalette(int width, int height);
+
+  /// No description provided for @img2img_directorPixelSnapNoGrid.
+  ///
+  /// In en, this message translates to:
+  /// **'No repeating pixel grid was found in this image.'**
+  String get img2img_directorPixelSnapNoGrid;
+
+  /// No description provided for @img2img_directorPixelSnapBlank.
+  ///
+  /// In en, this message translates to:
+  /// **'This image is fully transparent.'**
+  String get img2img_directorPixelSnapBlank;
+
+  /// No description provided for @img2img_directorPixelSnapDownscaled.
+  ///
+  /// In en, this message translates to:
+  /// **'The image was downscaled before analysis because it exceeds the size limit.'**
+  String get img2img_directorPixelSnapDownscaled;
+
+  /// No description provided for @img2img_directorCancel.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel'**
+  String get img2img_directorCancel;
+
+  /// No description provided for @img2img_directorStageAnalyzing.
+  ///
+  /// In en, this message translates to:
+  /// **'Analyzing image'**
+  String get img2img_directorStageAnalyzing;
+
+  /// No description provided for @img2img_directorStageSearchingPitch.
+  ///
+  /// In en, this message translates to:
+  /// **'Searching pixel size'**
+  String get img2img_directorStageSearchingPitch;
+
+  /// No description provided for @img2img_directorStageRefiningGrid.
+  ///
+  /// In en, this message translates to:
+  /// **'Refining grid'**
+  String get img2img_directorStageRefiningGrid;
+
+  /// No description provided for @img2img_directorStageFinishing.
+  ///
+  /// In en, this message translates to:
+  /// **'Building result'**
+  String get img2img_directorStageFinishing;
+
   /// No description provided for @img2img_enhance.
   ///
   /// In en, this message translates to:

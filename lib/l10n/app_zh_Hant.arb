@@ -808,6 +808,42 @@
   "img2img_directorColorize": "上色",
   "img2img_directorEmotion": "表情修復",
   "img2img_directorDeclutter": "雜線清理",
+  "img2img_directorPixelSnap": "像素對齊",
+  "img2img_directorPixelSnapHint": "完全在本機計算，不消耗 Anlas、不連網。大圖可能要幾秒到十幾秒。",
+  "img2img_directorPixelSnapPalette": "調色盤",
+  "img2img_directorPixelSnapPaletteOff": "關閉",
+  "img2img_directorPixelSnapPaletteAuto": "自動",
+  "img2img_directorPixelSnapPaletteCustom": "自訂",
+  "img2img_directorPixelSnapColors": "色數",
+  "img2img_directorPixelSnapAvoidOverRefining": "不過度細化",
+  "img2img_directorPixelSnapAvoidOverRefiningOn": "始終保留偵測到的像素尺寸。",
+  "img2img_directorPixelSnapAvoidOverRefiningOff": "更細的像素尺寸更貼合原圖時會改用它。",
+  "img2img_directorPixelSnapUpscale": "放大回原尺寸",
+  "img2img_directorPixelSnapUpscaleOn": "結果會放大到接近原圖的大小。",
+  "img2img_directorPixelSnapUpscaleOff": "結果保持對齊後的像素尺寸。",
+  "img2img_directorPixelSnapSummary": "{width}×{height} 像素 · {colors} 色",
+  "@img2img_directorPixelSnapSummary": {
+    "placeholders": {
+      "width": {"type": "int"},
+      "height": {"type": "int"},
+      "colors": {"type": "int"}
+    }
+  },
+  "img2img_directorPixelSnapSummaryNoPalette": "{width}×{height} 像素",
+  "@img2img_directorPixelSnapSummaryNoPalette": {
+    "placeholders": {
+      "width": {"type": "int"},
+      "height": {"type": "int"}
+    }
+  },
+  "img2img_directorPixelSnapNoGrid": "這張圖裡找不到重複的像素網格。",
+  "img2img_directorPixelSnapBlank": "這張圖整幅都是透明的。",
+  "img2img_directorPixelSnapDownscaled": "圖片超過尺寸上限，已先降採樣再分析。",
+  "img2img_directorCancel": "取消",
+  "img2img_directorStageAnalyzing": "分析影像",
+  "img2img_directorStageSearchingPitch": "搜尋像素尺寸",
+  "img2img_directorStageRefiningGrid": "細化網格",
+  "img2img_directorStageFinishing": "產生結果",
   "img2img_enhance": "增強",
   "img2img_enhanceHint": "增強會繼續參考當前提示詞，對源圖進行潛空間放大與再生成。",
   "img2img_enhanceMagnitude": "幅度",

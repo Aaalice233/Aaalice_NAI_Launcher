@@ -2103,6 +2103,88 @@ class AppLocalizationsEn extends AppLocalizations {
   String get img2img_directorDeclutter => 'Declutter';
 
   @override
+  String get img2img_directorPixelSnap => 'Pixel Snap';
+
+  @override
+  String get img2img_directorPixelSnapHint =>
+      'Runs entirely on your computer. No Anlas, no network. Large images can take a few seconds.';
+
+  @override
+  String get img2img_directorPixelSnapPalette => 'Palettize';
+
+  @override
+  String get img2img_directorPixelSnapPaletteOff => 'Off';
+
+  @override
+  String get img2img_directorPixelSnapPaletteAuto => 'Auto';
+
+  @override
+  String get img2img_directorPixelSnapPaletteCustom => 'Custom';
+
+  @override
+  String get img2img_directorPixelSnapColors => 'Colors';
+
+  @override
+  String get img2img_directorPixelSnapAvoidOverRefining =>
+      'Avoid Over-Refining';
+
+  @override
+  String get img2img_directorPixelSnapAvoidOverRefiningOn =>
+      'The detected pixel size is always kept.';
+
+  @override
+  String get img2img_directorPixelSnapAvoidOverRefiningOff =>
+      'A finer pixel size may be used when it matches the image better.';
+
+  @override
+  String get img2img_directorPixelSnapUpscale => 'Upscale';
+
+  @override
+  String get img2img_directorPixelSnapUpscaleOn =>
+      'The result is scaled back up to roughly the input size.';
+
+  @override
+  String get img2img_directorPixelSnapUpscaleOff =>
+      'The result is kept at its snapped pixel size.';
+
+  @override
+  String img2img_directorPixelSnapSummary(int width, int height, int colors) {
+    return '$width×$height pixels · $colors colors';
+  }
+
+  @override
+  String img2img_directorPixelSnapSummaryNoPalette(int width, int height) {
+    return '$width×$height pixels';
+  }
+
+  @override
+  String get img2img_directorPixelSnapNoGrid =>
+      'No repeating pixel grid was found in this image.';
+
+  @override
+  String get img2img_directorPixelSnapBlank =>
+      'This image is fully transparent.';
+
+  @override
+  String get img2img_directorPixelSnapDownscaled =>
+      'The image was downscaled before analysis because it exceeds the size limit.';
+
+  @override
+  String get img2img_directorCancel => 'Cancel';
+
+  @override
+  String get img2img_directorStageAnalyzing => 'Analyzing image';
+
+  @override
+  String get img2img_directorStageSearchingPitch => 'Searching pixel size';
+
+  @override
+  String get img2img_directorStageRefiningGrid => 'Refining grid';
+
+  @override
+  String get img2img_directorStageFinishing => 'Building result';
+
+  @override
   String get img2img_enhance => 'Enhance';
 
   @override
