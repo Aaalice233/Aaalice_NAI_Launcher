@@ -10014,7 +10014,7 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get settings_stripMetadataSubtitle =>
-      'サニタイズされたコピーを作成し、PNG テキスト チャンク、EXIF、および NAI ステガノグラフィック透かしデータを削除し、ドラッグ中に元のパスが露出しないようにします。';
+      'コピー、ドラッグ、MCP 画像の返却時に PNG テキストチャンク、EXIF、NAI のステガノグラフィック透かしを削除します。ローカルの元画像は変更せず、MCP は元の解像度を維持し、元画像のパスを返しません。';
 
   @override
   String get settings_confirmDangerousActionsTitle => '危険な資産のアクションを再確認する';

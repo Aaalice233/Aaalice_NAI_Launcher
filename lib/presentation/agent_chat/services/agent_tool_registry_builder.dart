@@ -66,6 +66,7 @@ class AgentToolRegistryBuilder {
     required bool Function() isMounted,
     required List<Message> Function() messages,
     required AgentUserQuestionController questionController,
+    ImageResourceExportPreparer? prepareImageExport,
   }) : _ref = ref,
        _workspaceDir = workspaceDir,
        _skills = skills,
@@ -77,7 +78,8 @@ class AgentToolRegistryBuilder {
        _activeSessionId = activeSessionId,
        _isMounted = isMounted,
        _messages = messages,
-       _questionController = questionController;
+       _questionController = questionController,
+       _prepareImageExport = prepareImageExport;
 
   final Ref _ref;
   final String _workspaceDir;
@@ -91,6 +93,7 @@ class AgentToolRegistryBuilder {
   final bool Function() _isMounted;
   final List<Message> Function() _messages;
   final AgentUserQuestionController _questionController;
+  final ImageResourceExportPreparer? _prepareImageExport;
 
   /// 跨 build() 保留：权限模式切换不该抹掉本会话已经看过的图。
   final AgentImageObservationLedger _observationLedger =
@@ -159,6 +162,7 @@ class AgentToolRegistryBuilder {
       ),
     );
     final imageActionService = ImageResourceActionService(
+      prepareExport: _prepareImageExport,
       resolve: (reference) async {
         await resourceResolver.validateImageResource(reference);
         final resolved = await resourceResolver.resolve(reference);

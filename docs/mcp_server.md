@@ -11,7 +11,7 @@
 - 外部客户端拥有独立的权限模式和独立的审计日志，与聊天代理的设置互不影响。
 - 所有需要授权的调用都在启动器窗口内裁决；任何可能消耗 Anlas 的操作都要用户在应用内确认。
 
-## 快速开始（四类客户端）
+## 快速开始
 
 1. 打开“设置 → 集成 → MCP”，启用 MCP 服务器，确认状态为监听中。
 2. 在“接入令牌”处复制令牌，或直接复制对应客户端的配置片段。
@@ -62,9 +62,25 @@ NAI_LAUNCHER_MCP_TOKEN=<token>
 - 审批在启动器窗口内完成，一次调用可能挂起几分钟。把客户端的工具超时调高（Codex 的 `tool_timeout_sec`、Claude Code 的 `MCP_TOOL_TIMEOUT`），否则客户端会在用户点确认之前先判超时。
 - 令牌长期有效，只有用户点“重新生成令牌”才更换；更换后所有客户端配置都要同步更新。
 
+Cherry Studio 可手动导入以下配置（不属于 CLI `print-config` 的客户端枚举）；`timeout` 单位为秒，类型选择 Streamable HTTP 而不是 SSE：
+
+```json
+{
+  "mcpServers": {
+    "nai-launcher": {
+      "name": "NAI Launcher",
+      "type": "streamableHttp",
+      "baseUrl": "http://127.0.0.1:20624/mcp",
+      "headers": {"Authorization": "Bearer <token>"},
+      "timeout": 600
+    }
+  }
+}
+```
+
 ## 端点与协议
 
-单端点 `http://127.0.0.1:<port>/mcp`，默认端口 `20624`（`McpServerDefaults.port`），可在设置中改为 `1024`–`65535`。传输为 Streamable HTTP，按 MCP `2025-11-25` 修订的语义实现，协议层使用 `package:dart_mcp` 0.5.2。
+MCP 协议端点为 `http://127.0.0.1:<port>/mcp`，默认端口 `20624`（`McpServerDefaults.port`），可在设置中改为 `1024`–`65535`。传输为 Streamable HTTP，按 MCP `2025-11-25` 修订的语义实现，协议层使用 `package:dart_mcp` 0.5.2。同端口的 `/mcp/images/<随机凭证>.<扩展名>` 只提供已准备图片的短期 GET/HEAD 展示，不处理 MCP 消息。
 
 请求约定：
 
@@ -87,6 +103,7 @@ NAI_LAUNCHER_MCP_TOKEN=<token>
 - 每条 SSE 流只承载该请求自己的响应，以及 `_meta.progressToken` 与之匹配的 `notifications/progress`；同一会话的并发请求互不串流。不提供 GET 流，其它服务端主动消息会被丢弃。
 - `notifications/cancelled` 会中止对应的在途 `tools/call`；SSE 期间客户端断开连接同样中止该调用。
 - `DELETE` 带会话头结束该会话并返回 `200`，未知会话返回 `404`。
+- `tools/call` 结果的 `structuredContent` 由文本块里的 JSON 对象派生，与文本同源；纯文本结果（如 `interrogate_image` 返回的提示词）不带 `structuredContent`。应用内工具结果的 `details` 不对外暴露。
 - 会话空闲 30 分钟回收（每分钟扫描一次）；同时最多保留 16 个会话，超出时淘汰最久未活动的一个。
 
 发现文件在服务器运行期间发布，停止或退出时删除：
@@ -101,12 +118,13 @@ NAI_LAUNCHER_MCP_TOKEN=<token>
 ## 安全模型
 
 - **令牌**：32 字节随机数，base64url 无填充编码，首次需要时生成并保存在系统安全存储（`flutter_secure_storage`，键 `mcp_server_token_v1`）。比较使用常量时间实现 `constantTimeEquals`，避免按字节比较泄露前缀。重新生成会重启监听并断开全部已连接客户端。
-- **鉴权**：缺失或错误的 `Authorization` 返回 `401` 并带 `WWW-Authenticate: Bearer`。
+- **鉴权**：MCP `/mcp` 请求缺失或错误的 `Authorization` 返回 `401` 并带 `WWW-Authenticate: Bearer`。图片展示使用独立的 32 字节随机逐图凭证，不需要浏览器为 `<img>` 添加 Bearer，也不能用图片凭证调用 MCP。图片地址中不包含主令牌、用户提示词或原图路径。
 - **Origin 门禁**：浏览器页面会带 `Origin`，非回环来源返回 `403`，挡住 DNS rebinding；非浏览器客户端不带该头，缺失视为放行。
 - **Host 门禁**：带了 `Host` 就必须是回环主机名，否则 `403`。
 - **绑定地址**：只绑定 `InternetAddress.loopbackIPv4`，同一端口被占用（通常是另一个启动器实例）时启动失败并在设置页报 `port_in_use`。
 - **发现文件里的令牌**：文件写在当前用户的配置目录，非 Windows 平台写入后置为 `600`，并通过临时文件重命名原子替换。它与应用自身的账号数据同属一个用户级信任边界——能读到这个目录的进程本来就能读应用数据，所以把令牌放进去不会扩大暴露面，换来的是随包 stdio 代理零配置可用。
 - **云同步**：`mcp_server_enabled`、`mcp_server_port`、`mcp_server_permission_mode`、`mcp_server_token_v1` 四个键全部排除在云备份之外，端口和令牌绑定本机，跨设备同步只会互相踢掉端口。约束由 `test/data/cloud_sync/cloud_sync_adapter_contract_test.dart` 钉住。
+- **图片展示边界**：HTTP 图片缓存在内存中，最多 64 张、128 MiB，超出时淘汰最旧项；单图超过预算时仍返回原生 `ImageContent`，但不生成 HTTP 地址。地址最长有效 1 小时，停止服务、换发主令牌及缓存淘汰会使其提前失效；收紧隐私要求后拒绝并移除未净化地址。只接受当前 `127.0.0.1:<port>` Host、回环连接与缺失/回环 Origin；图片接口单独允许 Electron 的 `Origin: null`，MCP 协议端点不放宽。GET/HEAD 之外拒绝，不支持目录遍历、查询参数鉴权、SVG 或 HTML。响应设置 `no-store`、`nosniff` 与 `no-referrer`，不写磁盘或参与云备份。
 
 ## 权限与审批
 
@@ -131,12 +149,11 @@ NAI_LAUNCHER_MCP_TOKEN=<token>
 
 外部工具面复用聊天端同一份工具实现与权限目录，只换上不依赖聊天会话的替身依赖，注册顺序稳定，因此同一权限模式下 `tools/list` 逐次一致。
 
-排除 9 个只对聊天有意义或外部客户端自带的工具：
+排除 8 个只对聊天有意义或外部客户端自带的工具：
 
 | 工具 | 排除原因 |
 | --- | --- |
 | `ask_user_question` | 需要就地向用户追问，外部客户端有自己的提问通道 |
-| `display_images` | 只负责往聊天气泡里贴图，外部调用没有可渲染的位置 |
 | `read` | 外部客户端自带文件读取能力 |
 | `read_skill`、`read_skill_resource`、`get_skill_diagnostics`、`reload_skills` | Skills 是内置代理的提示词机制，不构成对外能力 |
 | `web_search`、`web_read` | 外部客户端自带联网检索 |
@@ -144,7 +161,17 @@ NAI_LAUNCHER_MCP_TOKEN=<token>
 其余行为：
 
 - 每个工具带 `annotations`，`readOnlyHint`、`destructiveHint`、`idempotentHint` 由权限目录的操作类型推导，`openWorldHint` 固定为 `false`（工具只作用于本机启动器状态）。
-- `inspect_images` 返回 MCP 图像内容；只有 URL 没有字节的来源退化为文本，保留链接。
+- `generate_image` / `submit_generation` 完成生成后直接返回原分辨率 MCP `ImageContent`；`display_images` 根据 `resource_ref` 重新取图供用户查看，`inspect_images` 用于视觉分析。外部图片响应不使用内置聊天的 256px JPEG 缩略图。
+- `get_recent_images` 只返回资源列表。外部图片响应不返回图库相对路径、原始绝对路径或 `details.files`；需要再次显示时使用 `display_images`，不要为展示调用 `save_generated_image` 另存图库副本。`resource_ref` 保留为应用拥有的稳定身份，不由客户端拼成文件路径。
+- `ImageContent` 已返回不等于用户已看到图片，客户端可能将它放在折叠的工具详情内。`display_images` 默认 `include_display_url: true`，额外返回 `display_url`、`display_url_expires_at` 与 `display_url_markdown`；Cherry Studio 等会过滤本地路径的客户端应把 HTTP Markdown 直接嵌入正文，不放入代码块或改成普通链接。地址只能在启动器所在机器使用，失效时重新取图，不重新生成。
+- Codex 桌面版应调用 `display_images(include_display_file: true)`，使用 `display_file_markdown` 在正文展示；此选项默认关闭，开启后额外提供显示缓存 `display_path`。`display_markdown` 默认选 HTTP，握手名称包含 Codex 且请求了本地文件时优先选本地 Markdown；两个明确格式字段仍可单独使用。响应使用 `display_status: requires_client_rendering` 与 `image_content_count`，不以 `displayed_count` 暗示展示已完成。没有可用展示地址时保留原生图片，提示展开工具结果。
+- Claude Desktop（`claude-ai`）渲染图片 Markdown，但正文图片一律不自动加载，显示为需要点击一次的占位块。这是客户端的防追踪保护，服务端无法关闭，也没有用户设置可改；真正免点击的内联展示需要 MCP Apps，当前未实现。因此它的 `display_markdown` 仍是图片，另外在图片下方附一条 `display_link_markdown` 可点链接，用户不点占位块也能直接打开图片。链接指向 HTTP 地址而不是本地路径，因为聊天界面普遍剥离 `file://` 协议。
+- 终端里的 Claude Code（`claude-code`）画不出图片，其 `display_images` 无视 `include_display_file` / `include_display_url`，两种展示引用都准备，`display_markdown` 改为可点击的 `display_link_markdown`，优先指向 HTTP 地址，缺失时指向显示缓存路径。
+- 显示缓存只写入已准备好的传出图像字节，与 `ImageContent` 完全一致；使用内容哈希中性命名，重复请求复用文件，不暴露图库原路径。缓存位于系统临时目录的 `nai_launcher_mcp_display`，每个服务实例首次写入时清理超过 7 天的自有缓存；不写入项目工作区、不导入图库、不参与云备份。默认返回模式仍不写显示文件。
+- 开启“保护模式”及“复制/拖拽时移除全部元数据”时，外部生成、检查和展示返回净化后的原分辨率图片，移除 PNG 文本块、EXIF 与 NAI 隐写水印；同时省略这些图片响应中的种子与引用展示/来源提示。HTTP 展示和本地显示缓存复用同一净化结果，不修改图库原图，也不对 MCP 图片自动叠加复制/拖拽水印。
+- MCP 的 `save_generated_image` 和 `copy_generated_image_to_clipboard` 同样遵守上述元数据设置，在实际写文件/剪贴板之前完成净化，并在结果中报告 `metadata_stripped`。净化输出为 PNG，另存目标应使用 `.png`；格式不匹配、目标已存在或不在授权范围时仍拒绝，不静默改名或覆盖。净化失败不创建输出，也不回退原始字节。这是外部 MCP 的导出边界，不改变图库自动保存、内置聊天显式保存原图或 Krita 的既有流程；仅为展示图片时仍应优先用 `display_images`。
+- 净化或原图读取失败时返回错误，不回退到原始字节或缩略图；已完成生成不会因此自动重跑或再次扣费。开关在每次返回图片时读取，不复用旧的未净化输出。
+- 最终是否展示、预览尺寸以及模型输入缩放由 MCP 客户端决定；`inspect_images` 不承诺外部客户端一定对用户隐藏图片。标准 `ImageContent` 直接承载图像，不要求客户端额外实现 Resource URI 读取。
 - 服务器 `instructions` 给出推荐流程：先调 `get_application_context` 取得当前页面、模型、Prompt 和账号状态；生成分两步，`prepare_generation` 校验并返回 `preparation_id`，`submit_generation` 执行该笔准备；图像以 `resource_ref` 句柄传递，不要重新编码图像字节。
 
 ## CLI 参考

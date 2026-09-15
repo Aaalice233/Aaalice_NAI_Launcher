@@ -6,6 +6,7 @@ import 'package:dart_mcp/server.dart' as mcp;
 import '../utils/portable_logger.dart';
 import 'mcp_bearer_authenticator.dart';
 import 'mcp_discovery_file.dart';
+import 'mcp_image_http_endpoint.dart';
 import 'mcp_launcher_server.dart';
 import 'mcp_server_constants.dart';
 import 'mcp_session_registry.dart';
@@ -34,7 +35,9 @@ class McpServerHost {
     DateTime Function()? clock,
     Duration sessionIdleTimeout = McpServerDefaults.sessionIdleTimeout,
     int maxSessions = McpServerDefaults.maxSessions,
+    McpImageHttpEndpoint? imageEndpoint,
   }) : _discovery = discovery,
+       imageEndpoint = imageEndpoint ?? McpImageHttpEndpoint(clock: clock),
        _appVersion = appVersion,
        _pidProvider = pidProvider ?? (() => pid),
        _clock = clock ?? DateTime.now {
@@ -60,6 +63,7 @@ class McpServerHost {
   final String _appVersion;
   final int Function() _pidProvider;
   final DateTime Function() _clock;
+  final McpImageHttpEndpoint imageEndpoint;
 
   late final McpSessionRegistry _registry;
 
@@ -104,6 +108,7 @@ class McpServerHost {
     }
     _token = token;
     _server = server;
+    imageEndpoint.start(endpoint!);
     final transport = McpStreamableHttpTransport(
       sessions: _registry,
       authenticator: McpBearerAuthenticator(() => _token),
@@ -123,11 +128,15 @@ class McpServerHost {
         appVersion: _appVersion,
       ),
     );
-    _sweepTimer = Timer.periodic(_sweepInterval, (_) => _registry.sweepIdle());
+    _sweepTimer = Timer.periodic(_sweepInterval, (_) {
+      _registry.sweepIdle();
+      imageEndpoint.prune();
+    });
     PortableLogger.d('MCP server listening on ${endpoint!}', _logTag);
   }
 
   Future<void> stop() async {
+    imageEndpoint.stop();
     _sweepTimer?.cancel();
     _sweepTimer = null;
     await _registry.closeAll();
@@ -157,7 +166,11 @@ class McpServerHost {
     HttpRequest request,
   ) async {
     try {
-      await transport.handle(request);
+      if (imageEndpoint.matches(request)) {
+        await imageEndpoint.handle(request);
+      } else {
+        await transport.handle(request);
+      }
     } catch (error, stackTrace) {
       PortableLogger.e(
         'MCP request ${request.method} failed',
