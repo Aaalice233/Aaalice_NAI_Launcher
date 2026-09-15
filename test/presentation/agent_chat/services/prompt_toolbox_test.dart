@@ -226,6 +226,41 @@ void main() {
     },
   );
 
+  test('prompt results carry the same JSON in text and details', () async {
+    final container = ProviderContainer(
+      overrides: [
+        generationParamsNotifierProvider.overrideWith(
+          _RecordingGenerationParamsNotifier.new,
+        ),
+        characterPromptNotifierProvider.overrideWith(
+          _OrchestrationCharacterNotifier.new,
+        ),
+      ],
+    );
+    addTearDown(container.dispose);
+    final tools = PromptToolbox(container.read(_refProvider)).tools();
+    AgentTool tool(String name) =>
+        tools.firstWhere((candidate) => candidate.name == name);
+
+    final state = await tool('get_prompt_state').execute('read', const {});
+    expect(state.details, jsonDecode(_resultText(state)));
+    expect(state.details['positive_prompt'], 'base');
+
+    final written = await tool(
+      'set_positive_prompt',
+    ).execute('write', const {'text': 'sky', 'mode': 'append'});
+    expect(written.isError, isFalse);
+    expect(written.details, jsonDecode(_resultText(written)));
+    expect(written.details['positive_prompt'], 'base, sky');
+
+    final rejected = await tool(
+      'set_positive_prompt',
+    ).execute('reject', const {'text': '   '});
+    expect(rejected.isError, isTrue);
+    expect(rejected.details, jsonDecode(_resultText(rejected)));
+    expect(rejected.details['code'], 'invalid_prompt_text');
+  });
+
   test('rejects ambiguous or conflicting character selectors', () async {
     final container = ProviderContainer(
       overrides: [
@@ -342,6 +377,16 @@ void main() {
 class _TestGenerationParamsNotifier extends GenerationParamsNotifier {
   @override
   ImageParams build() => const ImageParams();
+}
+
+class _RecordingGenerationParamsNotifier extends GenerationParamsNotifier {
+  @override
+  ImageParams build() => const ImageParams(prompt: 'base');
+
+  @override
+  void updatePrompt(String prompt) {
+    state = state.copyWith(prompt: prompt);
+  }
 }
 
 class _OrchestrationCharacterNotifier extends CharacterPromptNotifier {

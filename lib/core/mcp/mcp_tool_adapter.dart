@@ -29,7 +29,7 @@ abstract final class McpToolAdapter {
     }
     return mcp.CallToolResult(
       content: content,
-      structuredContent: _structuredContent(result.details),
+      structuredContent: _structuredContent(result.content),
       isError: result.isError,
     );
   }
@@ -51,16 +51,31 @@ abstract final class McpToolAdapter {
     );
   }
 
-  static Map<String, Object?>? _structuredContent(dynamic details) {
-    if (details is! Map<String, dynamic>) {
+  // MCP text blocks serialize structuredContent; details is UI-only, so derive
+  // from text.
+  static Map<String, Object?>? _structuredContent(
+    List<ToolResultContent> content,
+  ) {
+    for (final item in content.whereType<ToolResultTextContent>()) {
+      final decoded = _decodeJsonObject(item.text);
+      if (decoded != null) {
+        return decoded;
+      }
+    }
+    return null;
+  }
+
+  static Map<String, Object?>? _decodeJsonObject(String text) {
+    final trimmed = text.trim();
+    if (!trimmed.startsWith('{') || !trimmed.endsWith('}')) {
       return null;
     }
     try {
-      jsonEncode(details);
-    } on JsonUnsupportedObjectError {
+      final decoded = jsonDecode(trimmed);
+      return decoded is Map<String, Object?> ? decoded : null;
+    } on FormatException {
       return null;
     }
-    return details;
   }
 
   static const Set<AgentPermissionOperation> _destructiveOperations = {
