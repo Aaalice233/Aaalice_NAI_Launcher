@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:isolate';
 import 'dart:typed_data';
 
 import 'package:path/path.dart' as p;
@@ -14,6 +15,7 @@ import '../../data/services/metadata/unified_metadata_parser.dart';
 import '../constants/api_constants.dart';
 import '../enums/precise_ref_type.dart';
 import 'app_logger.dart';
+import 'isolate_pool.dart';
 import 'prompt_semantics_utils.dart';
 
 /// 统一图像保存工具类
@@ -588,39 +590,19 @@ class ImageSaveUtils {
     required String source,
     bool useStealth = false,
   }) async {
-    final commentText = jsonEncode(commentJson);
-    AppLogger.d(
-      'Embedding aligned metadata: commentKeys=${commentJson.keys.take(20).toList()}',
-      'ImageSaveUtils',
+    final result = await ComputeGate().runCompute(
+      _writeAlignedMetadata,
+      _MetadataWriteRequest(
+        bytes: TransferableTypedData.fromList([imageBytes]),
+        commentJson: commentJson,
+        description: description,
+        software: software,
+        source: source,
+        useStealth: useStealth,
+      ),
+      debugLabel: 'save-image-metadata',
     );
-
-    var output = imageBytes;
-    if (useStealth) {
-      output = await UnifiedMetadataParser.embedMetadata(
-        output,
-        commentText,
-        useStealth: true,
-      );
-    } else {
-      output = UnifiedMetadataParser.embedTextChunkOnly(
-        output,
-        'Comment',
-        commentText,
-      );
-    }
-
-    output = UnifiedMetadataParser.embedTextChunkOnly(
-      output,
-      'Description',
-      description,
-    );
-    output = UnifiedMetadataParser.embedTextChunkOnly(
-      output,
-      'Software',
-      software,
-    );
-    output = UnifiedMetadataParser.embedTextChunkOnly(output, 'Source', source);
-    return output;
+    return result.materialize().asUint8List();
   }
 
   static _NormalizedPrebuiltMetadata _normalizePrebuiltMetadata(
@@ -780,6 +762,45 @@ class ImageSaveUtils {
     }
     return map;
   }
+}
+
+class _MetadataWriteRequest {
+  const _MetadataWriteRequest({
+    required this.bytes,
+    required this.commentJson,
+    required this.description,
+    required this.software,
+    required this.source,
+    required this.useStealth,
+  });
+
+  final TransferableTypedData bytes;
+  final Map<String, dynamic> commentJson;
+  final String description;
+  final String software;
+  final String source;
+  final bool useStealth;
+}
+
+Future<TransferableTypedData> _writeAlignedMetadata(
+  _MetadataWriteRequest request,
+) async {
+  var bytes = request.bytes.materialize().asUint8List();
+  final commentText = jsonEncode(request.commentJson);
+  if (request.useStealth) {
+    bytes = await UnifiedMetadataParser.embedMetadata(
+      bytes,
+      commentText,
+      useStealth: true,
+    );
+  }
+  final output = UnifiedMetadataParser.embedTextChunks(bytes, {
+    'Comment': commentText,
+    'Description': request.description,
+    'Software': request.software,
+    'Source': request.source,
+  });
+  return TransferableTypedData.fromList([output]);
 }
 
 class _NormalizedPrebuiltMetadata {
