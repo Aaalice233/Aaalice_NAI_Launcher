@@ -5,9 +5,9 @@
 </p>
 
 > [!WARNING]
-> **Project updates paused (2026-09-08)**
+> **Project maintenance update (2026-09-15)**
 >
-> NovelAI has restricted my account: my subscription was canceled, and I can no longer make purchases or subscribe. I still do not understand the specific reason for this action, so I have decided to pause updates to this project.
+> NovelAI has restricted my account: my subscription was canceled, and I can no longer make purchases or subscribe. I still do not understand the specific reason for this action. Collaborators will take over future updates and maintenance, and I will no longer be primarily responsible for project updates.
 
 ![Notice from NovelAI canceling the subscription and restricting purchases](docs/screenshots/novelai-subscription-canceled-2026-09-08.png)
 
