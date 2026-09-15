@@ -19,10 +19,12 @@ final class ResolvedImageResourceActionSource {
   const ResolvedImageResourceActionSource({
     required this.label,
     required this.bytes,
+    this.metadataStripped,
   });
 
   final String label;
   final Uint8List bytes;
+  final bool? metadataStripped;
 }
 
 /// Injectable boundary for image clipboard writes.
@@ -35,6 +37,10 @@ typedef ResourceImageKritaSender =
     FutureOr<bool> Function(Uint8List bytes, {required String name});
 typedef ResourceImageExclusiveWriter =
     Future<void> Function(String path, Uint8List bytes, String canonicalParent);
+typedef ImageResourceExportPreparer =
+    Future<ResolvedImageResourceActionSource> Function(
+      ResolvedImageResourceActionSource source,
+    );
 
 final class ImageResourceKritaBridgeState {
   const ImageResourceKritaBridgeState({
@@ -61,6 +67,7 @@ final class ImageResourceActionService {
     ImageResourceKritaBridgeState Function()? readKritaBridgeState,
     ResourceImageKritaSender? sendToKrita,
     ResourceImageExclusiveWriter? exclusiveWriter,
+    ImageResourceExportPreparer? prepareExport,
   }) : _resolve = resolve,
        _env = env,
        _clipboardWriter = clipboardWriter,
@@ -69,7 +76,8 @@ final class ImageResourceActionService {
            (() => PlatformCapabilities.current.supportsKritaBridge),
        _readKritaBridgeState = readKritaBridgeState,
        _sendToKrita = sendToKrita,
-       _exclusiveWriter = exclusiveWriter ?? _writeExclusive;
+       _exclusiveWriter = exclusiveWriter ?? _writeExclusive,
+       _prepareExport = prepareExport;
 
   final ImageResourceActionResolver _resolve;
   final ExecutionEnv _env;
@@ -78,6 +86,7 @@ final class ImageResourceActionService {
   final ImageResourceKritaBridgeState Function()? _readKritaBridgeState;
   final ResourceImageKritaSender? _sendToKrita;
   final ResourceImageExclusiveWriter _exclusiveWriter;
+  final ImageResourceExportPreparer? _prepareExport;
 
   Future<AgentToolResult> save(Map<String, dynamic> args) async {
     final loaded = await _loadGeneratedImage(
@@ -163,6 +172,26 @@ final class ImageResourceActionService {
       );
     }
 
+    final writeError = await _writeExport(writePath, canonicalParent, loaded);
+    if (writeError != null) return writeError;
+
+    final destination = _safeDestinationDescription(absolutePath);
+    return agentToolJsonResult({
+      'ok': true,
+      'action': 'saved',
+      'resource_ref': _exportReferenceJson(loaded),
+      if (loaded.metadataStripped != null)
+        'metadata_stripped': loaded.metadataStripped,
+      if (loaded.metadataStripped != null) 'mime_type': loaded.mimeType,
+      ...destination,
+    });
+  }
+
+  Future<AgentToolResult?> _writeExport(
+    String writePath,
+    String canonicalParent,
+    _LoadedImage loaded,
+  ) async {
     try {
       await _exclusiveWriter(writePath, loaded.bytes!, canonicalParent);
     } on _UnsafeDestinationChanged {
@@ -192,15 +221,7 @@ final class ImageResourceActionService {
       );
     }
 
-    final destination = _safeDestinationDescription(absolutePath);
-    return agentToolJsonResult({
-      'ok': true,
-      'action': 'saved',
-      'resource_ref': AgentChatResourceReferenceCodec.encodeJsonMap(
-        loaded.reference!,
-      ),
-      ...destination,
-    });
+    return null;
   }
 
   Future<AgentToolResult> copy(Map<String, dynamic> args) async {
@@ -222,9 +243,9 @@ final class ImageResourceActionService {
     return agentToolJsonResult({
       'ok': true,
       'action': 'copied_to_clipboard',
-      'resource_ref': AgentChatResourceReferenceCodec.encodeJsonMap(
-        loaded.reference!,
-      ),
+      'resource_ref': _exportReferenceJson(loaded),
+      if (loaded.metadataStripped != null)
+        'metadata_stripped': loaded.metadataStripped,
     });
   }
 
@@ -343,11 +364,59 @@ final class ImageResourceActionService {
         ),
       );
     }
-    return _LoadedImage(
+    final loaded = _LoadedImage(
       reference: reference,
       bytes: bytes,
       mimeType: mimeType,
       label: resolved.label,
+    );
+    return _prepareExport != null &&
+            (action == 'save_generated_image' ||
+                action == 'copy_generated_image_to_clipboard')
+        ? _prepareLoadedExport(loaded)
+        : loaded;
+  }
+
+  Future<_LoadedImage> _prepareLoadedExport(_LoadedImage loaded) async {
+    try {
+      final prepared = await _prepareExport!(
+        ResolvedImageResourceActionSource(
+          label: loaded.label!,
+          bytes: loaded.bytes!,
+        ),
+      );
+      final mimeType = detectSupportedImageMimeType(prepared.bytes);
+      if (mimeType == null) throw StateError('Unsupported export format');
+      return _LoadedImage(
+        reference: loaded.reference,
+        bytes: prepared.bytes,
+        mimeType: mimeType,
+        label: prepared.label,
+        metadataStripped: prepared.metadataStripped,
+      );
+    } on Object {
+      return _LoadedImage.error(
+        agentToolError(
+          'image_export_preparation_failed',
+          'The image could not be prepared under the current sharing policy. '
+              'No image was exported; original bytes were not used as a fallback.',
+        ),
+      );
+    }
+  }
+
+  static Map<String, dynamic> _exportReferenceJson(_LoadedImage loaded) {
+    final reference = loaded.reference!;
+    return AgentChatResourceReferenceCodec.encodeJsonMap(
+      loaded.metadataStripped == true
+          ? AgentChatResourceReference(
+              version: reference.version,
+              kind: reference.kind,
+              source: reference.source,
+              resourceId: reference.resourceId,
+              mediaId: reference.mediaId,
+            )
+          : reference,
     );
   }
 
@@ -425,18 +494,25 @@ final class _UnsafeDestinationChanged implements Exception {
 }
 
 final class _LoadedImage {
-  const _LoadedImage({this.reference, this.bytes, this.mimeType, this.label})
-    : error = null;
+  const _LoadedImage({
+    this.reference,
+    this.bytes,
+    this.mimeType,
+    this.label,
+    this.metadataStripped,
+  }) : error = null;
 
   const _LoadedImage.error(AgentToolResult this.error)
     : reference = null,
       bytes = null,
       mimeType = null,
+      metadataStripped = null,
       label = null;
 
   final AgentChatResourceReference? reference;
   final Uint8List? bytes;
   final String? mimeType;
   final String? label;
+  final bool? metadataStripped;
   final AgentToolResult? error;
 }

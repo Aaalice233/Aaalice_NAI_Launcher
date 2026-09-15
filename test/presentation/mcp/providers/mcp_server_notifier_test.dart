@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/core/mcp/mcp_discovery_file.dart';
+import 'package:nai_launcher/core/mcp/mcp_image_http_endpoint.dart';
 import 'package:nai_launcher/core/mcp/mcp_server_constants.dart';
 import 'package:nai_launcher/core/mcp/mcp_server_host.dart';
 import 'package:nai_launcher/core/mcp/mcp_session_registry.dart';
@@ -258,6 +259,8 @@ class _FakeMcpServerHost implements McpServerHost {
   _FakeMcpServerHost({required this.appVersion, this.bindFailurePort});
 
   final String appVersion;
+  @override
+  final imageEndpoint = McpImageHttpEndpoint();
   final int? bindFailurePort;
   final StreamController<List<McpSessionSummary>> _sessions =
       StreamController<List<McpSessionSummary>>.broadcast();
@@ -299,11 +302,13 @@ class _FakeMcpServerHost implements McpServerHost {
     }
     startedPort = port;
     startedToken = token;
+    imageEndpoint.start(endpoint!);
   }
 
   @override
   Future<void> stop() async {
     stopCalls += 1;
+    imageEndpoint.stop();
     startedPort = null;
   }
 

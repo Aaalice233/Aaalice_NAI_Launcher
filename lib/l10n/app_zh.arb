@@ -4701,7 +4701,7 @@
   "settings_copyDragWatermarkTitle": "复制/拖拽时添加水印",
   "settings_copyDragWatermarkSubtitle": "使用已保存的默认水印方案。添加水印不会清除元数据；如需清除，请开启上方“复制/拖拽时移除全部元数据”。",
   "settings_stripMetadataTitle": "复制/拖拽时移除全部元数据",
-  "settings_stripMetadataSubtitle": "生成净化副本，清除 PNG 文本块、EXIF 与 NAI 隐写水印，并避免拖拽暴露原始路径。",
+  "settings_stripMetadataSubtitle": "复制、拖拽及 MCP 图片返回时清除 PNG 文本块、EXIF 与 NAI 隐写水印，不修改本地原图；MCP 保留原分辨率，且不返回原图路径。",
   "settings_confirmDangerousActionsTitle": "危险资产操作二次确认",
   "settings_confirmDangerousActionsSubtitle": "删除、移动、批量移动等本地资产操作会额外弹出保护确认。",
   "settings_warnExternalImageSendTitle": "发送到外部服务前提示",

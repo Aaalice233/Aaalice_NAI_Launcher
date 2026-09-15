@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/core/agent/agent_types.dart';
@@ -175,6 +176,38 @@ void main() {
 
     expect(response.statusCode, HttpStatus.unauthorized);
   });
+
+  test(
+    'image capabilities work on the MCP port without granting RPC access',
+    () async {
+      await host.start(port: 0, token: _token);
+      final link = host.imageEndpoint.publish(
+        Uint8List.fromList([1, 2, 3]),
+        mimeType: 'image/png',
+        metadataStripped: true,
+      )!;
+      final http = HttpClient()..findProxy = (_) => 'DIRECT';
+      addTearDown(() => http.close(force: true));
+      final image = await (await http.getUrl(link.url)).close();
+      expect(image.statusCode, 200);
+      expect(await image.fold<List<int>>([], (a, b) => a..addAll(b)), [
+        1,
+        2,
+        3,
+      ]);
+      final rpc = await (await http.getUrl(host.endpoint!)).close();
+      expect(rpc.statusCode, 401);
+      await rpc.drain<void>();
+      final oldPath = link.url.path;
+      await host.stop();
+      await host.start(port: 0, token: 'new-token');
+      final old = await (await http.getUrl(
+        host.endpoint!.replace(path: oldPath),
+      )).close();
+      expect(old.statusCode, 404);
+      await old.drain<void>();
+    },
+  );
 
   test(
     'the token is dropped on stop and refreshed on the next start',

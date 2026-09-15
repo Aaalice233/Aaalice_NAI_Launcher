@@ -10260,7 +10260,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get settings_stripMetadataSubtitle =>
-      'Create a sanitized copy, remove PNG text chunks, EXIF, and NAI steganographic watermark data, and avoid exposing the original path while dragging.';
+      'Remove PNG text chunks, EXIF, and NAI steganographic watermark data when copying, dragging, or returning MCP images. Local originals stay unchanged; MCP keeps the original resolution and does not return original file paths.';
 
   @override
   String get settings_confirmDangerousActionsTitle =>

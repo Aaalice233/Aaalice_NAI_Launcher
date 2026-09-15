@@ -1,10 +1,22 @@
+import 'dart:convert';
+import 'dart:io';
+import 'dart:typed_data';
+
 import 'package:dart_mcp/server.dart' show CallToolResult, TextContent;
+import 'package:dart_mcp/server.dart' as mcp;
 import 'package:flutter_test/flutter_test.dart';
+import 'package:image/image.dart' as img;
+import 'package:path/path.dart' as p;
 import 'package:nai_launcher/core/agent/agent_types.dart';
 import 'package:nai_launcher/core/agent/audit/audit_sink.dart';
+import 'package:nai_launcher/core/agent/resources/agent_chat_resource_reference.dart';
+import 'package:nai_launcher/presentation/agent_chat/services/agent_resource_resolver.dart';
+import 'package:nai_launcher/presentation/agent_chat/services/defined_agent_tool.dart';
 import 'package:nai_launcher/presentation/mcp/services/mcp_approval_coordinator.dart';
 import 'package:nai_launcher/presentation/mcp/services/mcp_tool_call_pipeline.dart';
+import 'package:nai_launcher/presentation/mcp/services/mcp_image_response_service.dart';
 import 'package:nai_launcher/core/mcp/mcp_tool_executor.dart';
+import 'package:nai_launcher/core/mcp/mcp_image_http_endpoint.dart';
 import 'package:nai_launcher/presentation/prompt_assistant/models/prompt_assistant_models.dart';
 
 import '../mcp_test_tools.dart';
@@ -51,7 +63,10 @@ void main() {
 
     harness.coordinator.resolve('w1', true);
     expect((await write).isError, isNot(isTrue));
-    expect(harness.executed, ['get_generation_settings', 'set_positive_prompt']);
+    expect(harness.executed, [
+      'get_generation_settings',
+      'set_positive_prompt',
+    ]);
   });
 
   test('approved write executes and is audited', () async {
@@ -159,6 +174,165 @@ void main() {
       containsAll(['get_generation_settings', 'set_positive_prompt']),
     );
   });
+
+  test(
+    'tools/call sends sanitized full-resolution ImageContent on the wire',
+    () async {
+      final source = img.Image(width: 320, height: 448, numChannels: 4)
+        ..textData = {'Comment': 'private prompt'};
+      source.clear(img.ColorRgba8(20, 40, 60, 255));
+      final bytes = Uint8List.fromList(img.encodePng(source));
+      final raw = agentToolJsonResult({
+        'ok': true,
+        'files': ['C:/private/original.png'],
+        'images': [
+          {
+            'path': 'private-12345.png',
+            'resource_ref': {
+              'version': 1,
+              'kind': 'generatedImage',
+              'source': 'generation_history',
+              'resourceId': 'test-1',
+            },
+          },
+        ],
+      });
+      Uint8List? displayBytes;
+      final displayPath = p.join(
+        Directory.systemTemp.path,
+        'display-cache',
+        'image.png',
+      );
+      final markdownPath = p.absolute(displayPath).replaceAll('\\', '/');
+      final displayUrl = Uri.parse(
+        'http://127.0.0.1:20624/mcp/images/test.png',
+      );
+      var publishes = 0;
+      final pipeline = _Harness(
+        sourceResult: raw,
+        imageResponses: McpImageResponseService(
+          resolve: (AgentChatResourceReference ref) async =>
+              ResolvedAgentResource(
+                reference: ref,
+                label: 'private',
+                bytes: bytes,
+              ),
+          shouldStripMetadata: () => true,
+          publishDisplayImage:
+              (bytes, {required mimeType, required metadataStripped}) {
+                publishes++;
+                expect(metadataStripped, isTrue);
+                return McpImageDisplayLink(
+                  displayUrl,
+                  DateTime.utc(2026, 9, 14),
+                );
+              },
+          writeDisplayFile: (image) async {
+            displayBytes = image.bytes;
+            return File(displayPath);
+          },
+        ),
+      );
+      addTearDown(pipeline.dispose);
+      final result = await pipeline.call(
+        'image-1',
+        'display_images',
+        arguments: {'include_display_file': true},
+      );
+      expect(result.isError, isFalse);
+      final content =
+          result.content.singleWhere((c) => c.isImage) as mcp.ImageContent;
+      final decoded = img.decodePng(base64Decode(content.data))!;
+      expect([decoded.width, decoded.height], [320, 448]);
+      expect(decoded.textData ?? {}, isEmpty);
+      expect(result.structuredContent?['metadata_stripped'], isTrue);
+      expect(_textOf(result), isNot(contains('private')));
+      expect(result.structuredContent?.containsKey('files'), isFalse);
+      expect(displayBytes, orderedEquals(base64Decode(content.data)));
+      expect(
+        result.structuredContent?['display_status'],
+        'requires_client_rendering',
+      );
+      expect(result.structuredContent?.containsKey('displayed_count'), isFalse);
+      final descriptor =
+          (result.structuredContent!['images'] as List).single as Map;
+      expect(
+        descriptor['display_markdown'],
+        '![Generated image](<$markdownPath>)',
+      );
+      expect(pipeline.coordinator.current, isNull);
+      expect(pipeline.auditIds, contains('image-1.result'));
+      expect(descriptor['display_url'], displayUrl.toString());
+      final cherry = await pipeline.call(
+        'image-2',
+        'display_images',
+        arguments: {'include_display_file': true},
+        clientLabel: 'CherryStudio 2.0.14',
+      );
+      final cherryImage =
+          (cherry.structuredContent!['images'] as List).single as Map;
+      expect(
+        cherryImage['display_markdown'],
+        '![Generated image]($displayUrl)',
+      );
+      expect(
+        cherryImage['display_file_markdown'],
+        '![Generated image](<$markdownPath>)',
+      );
+      final desktop = await pipeline.call(
+        'image-4',
+        'display_images',
+        clientLabel: 'claude-ai 0.1.0',
+      );
+      final desktopImage =
+          (desktop.structuredContent!['images'] as List).single as Map;
+      expect(
+        desktopImage['display_markdown'],
+        '![Generated image]($displayUrl)',
+      );
+      expect(
+        desktopImage['display_link_markdown'],
+        '[Generated image 320x448](<$displayUrl>)',
+      );
+      expect(
+        desktop.structuredContent?['display_instructions'],
+        contains('one-click reveal'),
+      );
+      expect(
+        desktop.structuredContent?['display_instructions'],
+        contains('clickable link'),
+      );
+
+      final cli = await pipeline.call(
+        'image-5',
+        'display_images',
+        clientLabel: 'claude-code 2.0.0',
+      );
+      final cliImage = (cli.structuredContent!['images'] as List).single as Map;
+      expect(
+        cliImage['display_markdown'],
+        '[Generated image 320x448](<$displayUrl>)',
+      );
+      expect(cliImage['display_markdown'], cliImage['display_link_markdown']);
+      expect(cliImage['display_path'], markdownPath);
+      expect(
+        cli.structuredContent?['display_instructions'],
+        contains('clickable link'),
+      );
+
+      final disabled = await pipeline.call(
+        'image-3',
+        'display_images',
+        arguments: {'include_display_url': false},
+      );
+      expect(
+        ((disabled.structuredContent!['images'] as List).single as Map)
+            .containsKey('display_url'),
+        isFalse,
+      );
+      expect(publishes, 4);
+    },
+  );
 }
 
 String? _textOf(CallToolResult result) {
@@ -171,11 +345,24 @@ class _Harness {
   _Harness({
     Duration timeout = const Duration(minutes: 5),
     AgentPermissionMode mode = AgentPermissionMode.askBeforeSensitiveActions,
+    McpImageResponseService? imageResponses,
+    this.sourceResult,
   }) {
     tools = [
       FakeAgentTool(
         name: 'get_generation_settings',
         runner: _runner('get_generation_settings'),
+      ),
+      FakeAgentTool(
+        name: 'display_images',
+        parameters: const {
+          'type': 'object',
+          'properties': {
+            'include_display_file': {'type': 'boolean'},
+            'include_display_url': {'type': 'boolean'},
+          },
+        },
+        runner: _runner('display_images'),
       ),
       FakeAgentTool(
         name: 'set_positive_prompt',
@@ -209,10 +396,17 @@ class _Harness {
       registry: () => fakeToolRegistry(tools, mode: mode),
       approvals: coordinator,
       auditSink: audit,
+      imageResponses:
+          imageResponses ??
+          McpImageResponseService(
+            resolve: (_) async => null,
+            shouldStripMetadata: () => false,
+          ),
     );
   }
 
   final MemoryAgentAuditSink audit = MemoryAgentAuditSink();
+  final AgentToolResult? sourceResult;
   final List<String> executed = [];
   late final List<AgentTool> tools;
   late final McpApprovalCoordinator coordinator;
@@ -222,10 +416,11 @@ class _Harness {
 
   FakeToolRunner _runner(String name) => (args, signal) async {
     executed.add(name);
-    return AgentToolResult(
-      content: [ToolResultTextContent('ok:$name')],
-      details: null,
-    );
+    return sourceResult ??
+        AgentToolResult(
+          content: [ToolResultTextContent('ok:$name')],
+          details: null,
+        );
   };
 
   Future<CallToolResult> call(
@@ -233,6 +428,7 @@ class _Harness {
     String toolName, {
     Map<String, dynamic> arguments = const {},
     AbortSignal? signal,
+    String clientLabel = 'codex 1.0.0',
   }) {
     return executor.call(
       McpToolCallRequest(
@@ -241,7 +437,7 @@ class _Harness {
         toolName: toolName,
         arguments: arguments,
         signal: signal ?? AbortController().signal,
-        clientLabel: 'codex 1.0.0',
+        clientLabel: clientLabel,
       ),
     );
   }

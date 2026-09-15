@@ -18000,7 +18000,7 @@ abstract class AppLocalizations {
   /// No description provided for @settings_stripMetadataSubtitle.
   ///
   /// In en, this message translates to:
-  /// **'Create a sanitized copy, remove PNG text chunks, EXIF, and NAI steganographic watermark data, and avoid exposing the original path while dragging.'**
+  /// **'Remove PNG text chunks, EXIF, and NAI steganographic watermark data when copying, dragging, or returning MCP images. Local originals stay unchanged; MCP keeps the original resolution and does not return original file paths.'**
   String get settings_stripMetadataSubtitle;
 
   /// No description provided for @settings_confirmDangerousActionsTitle.

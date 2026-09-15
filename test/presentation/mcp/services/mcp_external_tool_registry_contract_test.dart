@@ -46,7 +46,9 @@ void main() {
   });
 
   test('external surface exposes unique strict tool contracts', () {
-    final registry = factory.build(AgentPermissionMode.askBeforeSensitiveActions);
+    final registry = factory.build(
+      AgentPermissionMode.askBeforeSensitiveActions,
+    );
     final names = registry.tools.map((tool) => tool.name).toList();
 
     expect(names, isNotEmpty);
@@ -95,6 +97,39 @@ void main() {
     expect(second, first);
   });
 
+  test('external image tools use full-resolution path-free contracts', () {
+    final tools = factory.build(AgentPermissionMode.fullAccess).tools;
+    expect(tools.map((tool) => tool.name), contains('display_images'));
+    for (final name in [
+      'generate_image',
+      'submit_generation',
+      'display_images',
+      'inspect_images',
+    ]) {
+      final tool = tools.singleWhere((tool) => tool.name == name);
+      expect(tool.description, contains('full-resolution MCP ImageContent'));
+      expect(tool.description, isNot(contains('workspace-relative')));
+      expect(tool.description, isNot(contains('NOT shown to the user')));
+    }
+    final recent = tools.singleWhere(
+      (tool) => tool.name == 'get_recent_images',
+    );
+    expect(recent.description, contains('not image bytes or local paths'));
+    final display = tools.singleWhere((tool) => tool.name == 'display_images');
+    expect(
+      display.parameters['properties']['include_display_file']['type'],
+      'boolean',
+    );
+    expect(display.description, contains('display_markdown'));
+    expect(
+      display.parameters['properties']['include_display_url']['type'],
+      'boolean',
+    );
+    expect(display.description, contains('Cherry Studio'));
+    expect(display.description, contains('display_url_markdown'));
+    expect(display.description, contains('Never claim an image is shown'));
+  });
+
   test('safe mode exposes read operations only', () {
     final registry = factory.build(AgentPermissionMode.safe);
 
@@ -116,9 +151,7 @@ void main() {
 
     expect(operations, contains(AgentPermissionOperation.read));
     expect(
-      operations.any(
-        (operation) => operation != AgentPermissionOperation.read,
-      ),
+      operations.any((operation) => operation != AgentPermissionOperation.read),
       isTrue,
     );
   });

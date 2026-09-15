@@ -11,6 +11,7 @@ import '../../../core/mcp/mcp_tool_executor.dart';
 import '../../../core/utils/app_logger.dart';
 import '../../agent_chat/services/agent_tool_registry_builder.dart';
 import 'mcp_approval_coordinator.dart';
+import 'mcp_image_response_service.dart';
 
 const String _logTag = 'McpServer';
 
@@ -21,15 +22,18 @@ class LauncherMcpToolExecutor implements McpToolExecutor {
     required AgentToolRegistry Function() registry,
     required McpApprovalCoordinator approvals,
     required AgentAuditSink auditSink,
+    required McpImageResponseService imageResponses,
     Lock? writeLock,
   }) : _registry = registry,
        _approvals = approvals,
        _auditSink = auditSink,
+       _imageResponses = imageResponses,
        _writeLock = writeLock ?? Lock();
 
   final AgentToolRegistry Function() _registry;
   final McpApprovalCoordinator _approvals;
   final AgentAuditSink _auditSink;
+  final McpImageResponseService _imageResponses;
   final Lock _writeLock;
 
   @override
@@ -117,7 +121,19 @@ class LauncherMcpToolExecutor implements McpToolExecutor {
           gate?.reason ?? 'Tool execution was blocked',
         );
       }
-      final result = await tool.execute(request.callId, args, request.signal);
+      final rawResult = await tool.execute(
+        request.callId,
+        args,
+        request.signal,
+      );
+      final result = await _imageResponses.prepare(
+        tool.name,
+        rawResult,
+        signal: request.signal,
+        includeDisplayFile: args['include_display_file'] == true,
+        includeDisplayUrl: args['include_display_url'] != false,
+        style: McpImageResponseService.styleForClient(request.clientLabel),
+      );
       await _writeAudit(
         request,
         stage: 'result',

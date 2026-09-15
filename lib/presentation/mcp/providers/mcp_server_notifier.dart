@@ -9,6 +9,7 @@ import '../../../core/agent/audit/jsonl_audit_sink.dart';
 import '../../../core/constants/app_version.dart';
 import '../../../core/constants/storage_keys.dart';
 import '../../../core/mcp/mcp_discovery_file.dart';
+import '../../../core/mcp/mcp_image_http_endpoint.dart';
 import '../../../core/mcp/mcp_server_constants.dart';
 import '../../../core/mcp/mcp_server_host.dart';
 import '../../../core/mcp/mcp_session_registry.dart';
@@ -24,6 +25,7 @@ import '../../agent_chat/services/agent_tool_registry_builder.dart';
 import '../../agent_chat/services/agent_workspace_directory.dart';
 import '../../prompt_assistant/models/prompt_assistant_models.dart';
 import '../../providers/notification_settings_provider.dart';
+import '../../providers/share_image_settings_provider.dart';
 import '../services/mcp_approval_coordinator.dart';
 import '../services/mcp_external_tool_registry_factory.dart';
 import '../services/mcp_tool_call_pipeline.dart';
@@ -322,6 +324,13 @@ class McpServerNotifier extends StateNotifier<McpServerState> {
         supportDir: supportDir,
         workspaceDir: workspaceDir.path,
         isHostAlive: () => mounted && state.enabled,
+        publishDisplayImage:
+            (bytes, {required mimeType, required metadataStripped}) =>
+                _host?.imageEndpoint.publish(
+                  bytes,
+                  mimeType: mimeType,
+                  metadataStripped: metadataStripped,
+                ),
       );
       final approvals = McpApprovalCoordinator(
         auditSink: auditSink,
@@ -346,6 +355,7 @@ class McpServerNotifier extends StateNotifier<McpServerState> {
           registry: () => _registry!,
           approvals: approvals,
           auditSink: auditSink,
+          imageResponses: factory.imageResponses,
         ),
         _appVersion(),
       );
@@ -476,6 +486,13 @@ class McpServerNotifier extends StateNotifier<McpServerState> {
     executor: executor,
     discovery: _discovery,
     appVersion: appVersion,
+    imageEndpoint: McpImageHttpEndpoint(
+      requiresStrippedMetadata: () =>
+          !mounted ||
+          _ref
+              .read(shareImageSettingsProvider)
+              .effectiveStripMetadataForCopyAndDrag,
+    ),
   );
 }
 
