@@ -367,10 +367,54 @@ void main() {
       contains('missing_character_coordinates'),
     );
 
+    final placed = await tool.execute('add-custom-with-coordinates', const {
+      'name': 'Placed',
+      'prompt': 'blue hair',
+      'position_mode': 'custom',
+      'position_x': 0.8,
+      'position_y': 0.3,
+    });
+    expect(placed.isError, isFalse);
+    expect(
+      container.read(characterPromptNotifierProvider).globalAiChoice,
+      isFalse,
+    );
+
     final positionModeSchema =
         (tool.parameters['properties'] as Map<String, dynamic>)['position_mode']
             as Map<String, dynamic>;
-    expect(positionModeSchema['default'], 'ai_choice');
+    expect(positionModeSchema.containsKey('default'), isFalse);
+  });
+
+  test('add_character keeps a custom scene under an injected mode', () async {
+    final container = ProviderContainer(
+      overrides: [
+        generationParamsNotifierProvider.overrideWith(
+          _TestGenerationParamsNotifier.new,
+        ),
+        characterPromptNotifierProvider.overrideWith(
+          _CustomLayoutCharacterNotifier.new,
+        ),
+      ],
+    );
+    addTearDown(container.dispose);
+    final tool = PromptToolbox(
+      container.read(_refProvider),
+    ).tools().firstWhere((item) => item.name == 'add_character');
+
+    final added = await tool.execute('add-injected-ai-choice', const {
+      'name': 'Companion',
+      'prompt': 'blonde hair',
+      'position_mode': 'ai_choice',
+    });
+
+    expect(added.isError, isFalse);
+    final config = container.read(characterPromptNotifierProvider);
+    expect(config.globalAiChoice, isFalse);
+    expect(config.characters.first.customPosition?.column, 0.2);
+    expect(config.characters.first.customPosition?.row, 0.4);
+    expect(config.characters.last.positionMode, CharacterPositionMode.custom);
+    expect(config.characters.last.customPosition, isNotNull);
   });
 }
 
@@ -432,6 +476,52 @@ class _OrchestrationCharacterNotifier extends CharacterPromptNotifier {
       characters: [for (final id in orderedIds) byId[id]!],
     );
     return true;
+  }
+}
+
+class _CustomLayoutCharacterNotifier extends CharacterPromptNotifier {
+  @override
+  CharacterPromptConfig build() => const CharacterPromptConfig(
+    globalAiChoice: false,
+    characters: [
+      CharacterPrompt(
+        id: 'placed',
+        name: 'Placed',
+        prompt: 'hero',
+        positionMode: CharacterPositionMode.custom,
+        customPosition: CharacterPosition(
+          mode: CharacterPositionMode.custom,
+          row: 0.4,
+          column: 0.2,
+        ),
+      ),
+    ],
+  );
+
+  @override
+  Future<({CharacterPrompt character, bool persisted})?> addCharacterPersisted(
+    CharacterGender gender, {
+    required String name,
+    required String prompt,
+    String? negativePrompt,
+    required bool enabled,
+    required CharacterPositionMode positionMode,
+    CharacterPosition? customPosition,
+  }) async {
+    final created = CharacterPrompt(
+      id: 'added',
+      name: name,
+      prompt: prompt,
+      negativePrompt: negativePrompt ?? '',
+      gender: gender,
+      enabled: enabled,
+      positionMode: positionMode,
+      customPosition: customPosition,
+    );
+    state = state
+        .copyWith(characters: [...state.characters, created])
+        .normalizeCustomPositions();
+    return (character: created, persisted: true);
   }
 }
 

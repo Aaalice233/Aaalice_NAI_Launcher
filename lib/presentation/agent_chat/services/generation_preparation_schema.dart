@@ -41,7 +41,6 @@ Map<String, dynamic> generationPreparationProperties({
   'character_layout_mode': {
     'type': 'string',
     'enum': ['ai_choice', 'custom'],
-    'default': 'ai_choice',
     'description':
         'Layout for an explicitly provided characters snapshot. Omit or use '
         'ai_choice by default so NovelAI places every character; coordinates '

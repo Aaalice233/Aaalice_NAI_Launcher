@@ -197,7 +197,6 @@ class PromptToolbox {
             'position_mode': {
               'type': 'string',
               'enum': ['ai_choice', 'custom'],
-              'default': 'ai_choice',
               'description':
                   'Default ai_choice. Use custom only for an explicit user '
                   'request and provide both coordinates.',
@@ -577,10 +576,10 @@ class PromptToolbox {
             row: positionChange.y!,
             column: positionChange.x!,
           );
-    if (positionChange.mode != null) {
-      notifier.setGlobalAiChoice(
-        positionChange.mode == CharacterPositionMode.aiChoice,
-      );
+    // 新角色带坐标必须让整个场景进入自定义布局；不带坐标则不代表其他角色要放弃
+    // 已有布局，此处不反向切回 AI 摆放。
+    if (positionChange.mode == CharacterPositionMode.custom) {
+      notifier.setGlobalAiChoice(false);
     }
     final result = await notifier.addCharacterPersisted(
       _parseGender(args['gender']) ?? CharacterGender.female,
