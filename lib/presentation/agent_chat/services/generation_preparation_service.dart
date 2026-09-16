@@ -308,11 +308,24 @@ class GenerationPreparationService {
       }
     }
     final hasExplicitCharacters = args.containsKey('characters');
-    if (!hasExplicitCharacters && args.containsKey('character_layout_mode')) {
-      return agentToolError(
-        'character_layout_without_characters',
-        'character_layout_mode requires an explicit characters snapshot.',
-      );
+    if (!hasExplicitCharacters) {
+      // MCP 客户端会把 schema 默认值实例化进 arguments，key 是否存在不代表调用方
+      // 意图，只能按值判断：继承的编辑器状态无坐标可用，custom 会被静默丢弃。
+      try {
+        final requested = GenerationCharacterOrchestrator.parseLayoutMode(
+          args['character_layout_mode'],
+        );
+        if (requested == GenerationCharacterLayoutMode.custom) {
+          return agentToolError(
+            'character_layout_without_characters',
+            'character_layout_mode custom requires an explicit characters '
+                'snapshot; omit it to inherit the current character editor '
+                'layout.',
+          );
+        }
+      } on GenerationCharacterValidationException catch (error) {
+        return agentToolError(error.code, error.message);
+      }
     }
 
     late final List<CharacterPrompt> characters;

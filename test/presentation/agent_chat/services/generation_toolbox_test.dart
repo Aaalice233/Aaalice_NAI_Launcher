@@ -611,7 +611,7 @@ void main() {
           (prepare.parameters['properties']
                   as Map<String, dynamic>)['character_layout_mode']
               as Map<String, dynamic>;
-      expect(layoutSchema['default'], 'ai_choice');
+      expect(layoutSchema.containsKey('default'), isFalse);
 
       final prepared = _json(
         await prepare.execute('prepare-ai-characters', const {
@@ -647,6 +647,77 @@ void main() {
       ).build(sampler: Samplers.kEulerAncestral);
       expect(request.requestParameters['use_coords'], isFalse);
       expect(request.requestParameters['v4_prompt']['use_coords'], isFalse);
+    },
+  );
+
+  test(
+    'preparations inherit the character editor under an injected layout mode',
+    () async {
+      final fake = _FakeImageGenerationNotifier();
+      final container = ProviderContainer(
+        overrides: [
+          imageGenerationNotifierProvider.overrideWith(() => fake),
+          generationParamsNotifierProvider.overrideWith(
+            _TestV5GenerationParamsNotifier.new,
+          ),
+          characterPromptNotifierProvider.overrideWith(
+            _TestCharacterPromptNotifier.new,
+          ),
+          subscriptionNotifierProvider.overrideWith(
+            _TestSubscriptionNotifier.new,
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+      final tools = GenerationToolbox(
+        _makeRef(container),
+        runtime: GenerationPreparationRuntime(),
+      ).tools();
+      final prepare = tools.firstWhere(
+        (tool) => tool.name == 'prepare_generation',
+      );
+      final update = tools.firstWhere(
+        (tool) => tool.name == 'update_generation_preparation',
+      );
+
+      final prepared = await prepare.execute('prepare-injected-layout', const {
+        'operation': 'generate',
+        'prompt': '1girl',
+        'character_layout_mode': 'ai_choice',
+      });
+      expect(prepared.isError, isFalse);
+      final preparedPayload = _json(prepared);
+      final preparedParams =
+          preparedPayload['parameters'] as Map<String, dynamic>;
+      expect(preparedParams['character_layout_mode'], 'ai_choice');
+      expect(preparedParams['character_count'], 1);
+
+      final updated = await update.execute('update-injected-layout', {
+        'preparation_id': preparedPayload['preparation_id'],
+        'prompt': '1girl, smile',
+        'character_layout_mode': 'ai_choice',
+      });
+      expect(updated.isError, isFalse);
+      final updatedParams =
+          _json(updated)['parameters'] as Map<String, dynamic>;
+      expect(updatedParams['prompt'], '1girl, smile');
+      expect(updatedParams['character_count'], 1);
+
+      final custom = await prepare.execute('prepare-custom-layout', const {
+        'operation': 'generate',
+        'prompt': '1girl',
+        'character_layout_mode': 'custom',
+      });
+      expect(custom.isError, isTrue);
+      expect(_json(custom)['code'], 'character_layout_without_characters');
+
+      final invalid = await prepare.execute('prepare-invalid-layout', const {
+        'operation': 'generate',
+        'prompt': '1girl',
+        'character_layout_mode': 'grid',
+      });
+      expect(invalid.isError, isTrue);
+      expect(_json(invalid)['code'], 'invalid_character_layout_mode');
     },
   );
 
