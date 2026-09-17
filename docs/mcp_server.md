@@ -168,6 +168,12 @@ MCP 协议端点为 `http://127.0.0.1:<port>/mcp`，默认端口 `20624`（`McpS
 
 ## 工具面与排除项
 
+普通生图的最短链路是 `prepare_generation → submit_generation`，无需默认先读取应用上下文。准备响应只包含 ID、精确费用、关键参数和 `next_action`；状态为 `prepared` 时尚未生成，直接按 `next_action` 提交，不查询进度或历史图。完整参数可通过 `inspect_generation_preparation` 或 `include_parameters: true` 获取。
+
+`generate_image` / `queue_image_task` 保留为兼容入口：不带 `preparation_id` 时只准备，费用为零也不会自动执行；带 ID 时提交已有快照，不必重传 `prompt`。`auto_start` 只表示队列提交入队后是否启动，不代表已经生成。应用内费用审批保持不变。
+
+只在任务需要现有参数时读取 `get_generation_settings` / `get_prompt_state`；`get_application_context` 用于导航、画廊和队列状态，默认仅返回草稿摘要，`include_draft_details: true` 才包含完整草稿参数。MCP 文本与 `structuredContent` 继续保留同源兼容表示，不把协议载荷字节数直接当作模型 token 计费数。
+
 外部工具面复用聊天端同一份工具实现与权限目录，只换上不依赖聊天会话的替身依赖，注册顺序稳定，因此同一权限模式下 `tools/list` 逐次一致。
 
 排除 8 个只对聊天有意义或外部客户端自带的工具：
@@ -182,18 +188,18 @@ MCP 协议端点为 `http://127.0.0.1:<port>/mcp`，默认端口 `20624`（`McpS
 其余行为：
 
 - 每个工具带 `annotations`，`readOnlyHint`、`destructiveHint`、`idempotentHint` 由权限目录的操作类型推导，`openWorldHint` 固定为 `false`（工具只作用于本机启动器状态）。
-- `generate_image` / `submit_generation` 完成生成后直接返回原分辨率 MCP `ImageContent`；`display_images` 根据 `resource_ref` 重新取图供用户查看，`inspect_images` 用于视觉分析。外部图片响应不使用内置聊天的 256px JPEG 缩略图。
+- `generate_image` / `submit_generation` 完成生成后直接返回原分辨率 MCP `ImageContent` 和适合当前客户端的顶层 `display_markdown`，其中按顺序汇总全部图片，可直接嵌入最终回复，无需遍历 `images[]` 或再调用 `display_images`。相同 Markdown 另附为独立文本块，避免客户端只转发图片或摘要 JSON 时丢掉显示信息；逐图字段仍保留。`display_images` 只用于用户要求的历史图或失效／缺失／加载失败的展示引用；`inspect_images` 用于尚未返回的图片分析。外部图片响应不使用内置聊天的 256px JPEG 缩略图。
 - `get_recent_images` 只返回资源列表。外部图片响应不返回图库相对路径、原始绝对路径或 `details.files`；需要再次显示时使用 `display_images`，不要为展示调用 `save_generated_image` 另存图库副本。`resource_ref` 保留为应用拥有的稳定身份，不由客户端拼成文件路径。
-- `ImageContent` 已返回不等于用户已看到图片，客户端可能将它放在折叠的工具详情内。`display_images` 默认 `include_display_url: true`，额外返回 `display_url`、`display_url_expires_at` 与 `display_url_markdown`；Cherry Studio 等会过滤本地路径的客户端应把 HTTP Markdown 直接嵌入正文，不放入代码块或改成普通链接。地址只能在启动器所在机器使用，失效时重新取图，不重新生成。
-- Codex 桌面版应调用 `display_images(include_display_file: true)`，使用 `display_file_markdown` 在正文展示；此选项默认关闭，开启后额外提供显示缓存 `display_path`。`display_markdown` 默认选 HTTP，握手名称包含 Codex 且请求了本地文件时优先选本地 Markdown；两个明确格式字段仍可单独使用。响应使用 `display_status: requires_client_rendering` 与 `image_content_count`，不以 `displayed_count` 暗示展示已完成。没有可用展示地址时保留原生图片，提示展开工具结果。
-- Claude Desktop（`claude-ai`）渲染图片 Markdown，但正文图片一律不自动加载，显示为需要点击一次的占位块。这是客户端的防追踪保护，服务端无法关闭，也没有用户设置可改；真正免点击的内联展示需要 MCP Apps，当前未实现。因此它的 `display_markdown` 仍是图片，另外在图片下方附一条 `display_link_markdown` 可点链接，用户不点占位块也能直接打开图片。链接指向 HTTP 地址而不是本地路径，因为聊天界面普遍剥离 `file://` 协议。
+- `ImageContent` 已返回不等于用户已看到图片，客户端可能将它放在折叠的工具详情内。已完成的生成结果及 `display_images` 默认 `include_display_url: true`，返回 `display_url`、`display_url_expires_at` 与 `display_url_markdown`；Cherry Studio 等会过滤本地路径的客户端应把 HTTP Markdown 直接嵌入正文，不放入代码块或改成普通链接。地址只能在启动器所在机器使用，失效时重新取图，不重新生成。
+- Codex 桌面版的生成结果和 `display_images` 默认附带安全显示缓存文件，`display_markdown` 自动选取 `display_file_markdown`，可用 `include_display_file: false` 关闭。其它客户端默认使用 HTTP 展示引用；两个明确格式字段仍可单独使用。客户端所需格式缺失时不把另一种格式冒充为可用的 `display_markdown`，而是保留原生图片与 `resource_ref` 并提示只重取展示引用。响应使用 `display_status: requires_client_rendering` 与 `image_content_count`，不以 `displayed_count` 暗示展示已完成。生成已经完成时，可选展示缓存写入或 URL 发布失败不丢弃已净化的原生图片，也不会重新生成。
+- Claude Desktop 可以直接呈现工具结果中的原生图片；HTTP Markdown 属于另一条展示路径，可能显示需要点击的占位块。仍保留图片 Markdown 与 `display_link_markdown` 作为兼容引用，不能把链接跳转成功当作正文已显示，也不能从客户端名称推断全部展示能力。
 - 终端里的 Claude Code（`claude-code`）画不出图片，其 `display_images` 无视 `include_display_file` / `include_display_url`，两种展示引用都准备，`display_markdown` 改为可点击的 `display_link_markdown`，优先指向 HTTP 地址，缺失时指向显示缓存路径。
-- 显示缓存只写入已准备好的传出图像字节，与 `ImageContent` 完全一致；使用内容哈希中性命名，重复请求复用文件，不暴露图库原路径。缓存位于系统临时目录的 `nai_launcher_mcp_display`，每个服务实例首次写入时清理超过 7 天的自有缓存；不写入项目工作区、不导入图库、不参与云备份。默认返回模式仍不写显示文件。
+- 显示缓存只写入已准备好的传出图像字节，与 `ImageContent` 完全一致；使用内容哈希中性命名，重复请求复用文件，不暴露图库原路径。缓存位于系统临时目录的 `nai_launcher_mcp_display`，每个服务实例首次写入时清理超过 7 天的自有缓存；不写入项目工作区、不导入图库、不参与云备份。
 - 开启“保护模式”及“复制/拖拽时移除全部元数据”时，外部生成、检查和展示返回净化后的原分辨率图片，移除 PNG 文本块、EXIF 与 NAI 隐写水印；同时省略这些图片响应中的种子与引用展示/来源提示。HTTP 展示和本地显示缓存复用同一净化结果，不修改图库原图，也不对 MCP 图片自动叠加复制/拖拽水印。
 - MCP 的 `save_generated_image` 和 `copy_generated_image_to_clipboard` 同样遵守上述元数据设置，在实际写文件/剪贴板之前完成净化，并在结果中报告 `metadata_stripped`。净化输出为 PNG，另存目标应使用 `.png`；格式不匹配、目标已存在或不在授权范围时仍拒绝，不静默改名或覆盖。净化失败不创建输出，也不回退原始字节。这是外部 MCP 的导出边界，不改变图库自动保存、内置聊天显式保存原图或 Krita 的既有流程；仅为展示图片时仍应优先用 `display_images`。
 - 净化或原图读取失败时返回错误，不回退到原始字节或缩略图；已完成生成不会因此自动重跑或再次扣费。开关在每次返回图片时读取，不复用旧的未净化输出。
 - 最终是否展示、预览尺寸以及模型输入缩放由 MCP 客户端决定；`inspect_images` 不承诺外部客户端一定对用户隐藏图片。标准 `ImageContent` 直接承载图像，不要求客户端额外实现 Resource URI 读取。
-- 服务器 `instructions` 给出推荐流程：先调 `get_application_context` 取得当前页面、模型、Prompt 和账号状态；生成分两步，`prepare_generation` 校验并返回 `preparation_id`，`submit_generation` 执行该笔准备；图像以 `resource_ref` 句柄传递，不要重新编码图像字节。
+- 服务器 `instructions` 只保留两阶段生成、按需读取和审批边界的简短指引，避免客户端将大段公共说明重复附到每个工具。客户端特定的展示方法随图片结果下发；图像后续操作使用 `resource_ref`，不重新编码或传回图像字节。
 
 ## CLI 参考
 

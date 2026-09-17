@@ -53,52 +53,54 @@ Future<String> _fakeEncodeVibe(
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  test(
-    'exact zero-cost preparations submit once without a confirmation flag',
-    () async {
-      final fake = _FakeImageGenerationNotifier();
-      final container = ProviderContainer(
-        overrides: [
-          imageGenerationNotifierProvider.overrideWith(() => fake),
-          generationParamsNotifierProvider.overrideWith(
-            _TestGenerationParamsNotifier.new,
+  for (final toolName in ['submit_generation', 'generate_image']) {
+    test(
+      '$toolName submits zero-cost preparations once without prompt or confirmation',
+      () async {
+        final fake = _FakeImageGenerationNotifier();
+        final container = ProviderContainer(
+          overrides: [
+            imageGenerationNotifierProvider.overrideWith(() => fake),
+            generationParamsNotifierProvider.overrideWith(
+              _TestGenerationParamsNotifier.new,
+            ),
+            characterPromptNotifierProvider.overrideWith(
+              _TestCharacterPromptNotifier.new,
+            ),
+          ],
+        );
+        addTearDown(container.dispose);
+        final runtime = GenerationPreparationRuntime();
+        final prepared = runtime.add(
+          GenerationPreparation(
+            kind: GenerationPreparationKind.generate,
+            baseParams: const ImageParams(prompt: 'test'),
+            params: const ImageParams(prompt: 'test'),
+            batchSize: 1,
+            count: 1,
+            autoStart: false,
+            estimatedAnlas: 0,
+            arguments: const {'prompt': 'test'},
           ),
-          characterPromptNotifierProvider.overrideWith(
-            _TestCharacterPromptNotifier.new,
-          ),
-        ],
-      );
-      addTearDown(container.dispose);
-      final runtime = GenerationPreparationRuntime();
-      final prepared = runtime.add(
-        GenerationPreparation(
-          kind: GenerationPreparationKind.generate,
-          baseParams: const ImageParams(prompt: 'test'),
-          params: const ImageParams(prompt: 'test'),
-          batchSize: 1,
-          count: 1,
-          autoStart: false,
-          estimatedAnlas: 0,
-          arguments: const {'prompt': 'test'},
-        ),
-      );
-      expect(prepared.toJson()['confirmation_required'], isFalse);
-      final submit = GenerationToolbox(
-        _makeRef(container),
-        runtime: runtime,
-      ).tools().firstWhere((tool) => tool.name == 'submit_generation');
-      final result = await submit.execute('free', {
-        'preparation_id': prepared.id,
-      });
-      expect(result.isError, isFalse);
-      expect(fake.generateCalls, 1);
-      final duplicate = await submit.execute('duplicate', {
-        'preparation_id': prepared.id,
-      });
-      expect(duplicate.isError, isTrue);
-      expect(fake.generateCalls, 1);
-    },
-  );
+        );
+        expect(prepared.toJson()['confirmation_required'], isFalse);
+        final submit = GenerationToolbox(
+          _makeRef(container),
+          runtime: runtime,
+        ).tools().firstWhere((tool) => tool.name == toolName);
+        final result = await submit.execute('free', {
+          'preparation_id': prepared.id,
+        });
+        expect(result.isError, isFalse);
+        expect(fake.generateCalls, 1);
+        final duplicate = await submit.execute('duplicate', {
+          'preparation_id': prepared.id,
+        });
+        expect(duplicate.isError, isTrue);
+        expect(fake.generateCalls, 1);
+      },
+    );
+  }
 
   test('registers image generation tools', () {
     final container = ProviderContainer();

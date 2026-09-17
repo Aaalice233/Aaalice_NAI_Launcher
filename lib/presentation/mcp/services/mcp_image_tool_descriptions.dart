@@ -1,30 +1,39 @@
 const _imageContract =
-    'Images are returned directly as full-resolution MCP ImageContent, not '
-    'thumbnails. ImageContent is data, not confirmation of visible display: '
-    'clients such as Codex desktop may hide it in collapsed tool details. '
-    'For inline display call display_images and render its display_markdown '
-    'in the final answer, not in a code block or as a plain link. Cherry Studio '
-    'must use the returned display_url_markdown (HTTP), never a local file path. '
-    'Codex desktop should request include_display_file=true and use '
-    'display_file_markdown. Both require the client to be on the same machine. '
-    'Claude Desktop renders the same image Markdown but reveals it only after '
-    'one click, so add display_link_markdown below the image as a clickable '
-    'way to open it; that gate is expected and must not be retried. Claude '
-    'Code draws no images, so present only display_link_markdown there. '
-    'Otherwise forward image '
-    'content with the client media renderer or explain how to expand the tool '
-    'result. Never claim an image is shown based only on a successful call. '
-    'When Protection Mode and Remove all '
-    'metadata when copying or dragging are enabled, returned image bytes '
-    'are sanitized (including NAI stealth metadata); local originals remain '
-    'unchanged. Use resource_ref for later image actions. Original file paths '
-    'are never returned; display URLs and optional files contain only the '
-    'already prepared outgoing image bytes. HTTP links expire within one hour '
-    'and may be revoked sooner on cache eviction, stricter privacy settings or '
-    'server shutdown. Retrieve again instead of regenerating. ';
+    'Returns full-resolution MCP ImageContent and resource_ref. Read top-level '
+    'display_markdown from structuredContent or JSON text and embed it in the '
+    'final answer, not a code block or plain link. ImageContent alone is not '
+    'visible display. Codex uses local display_file_markdown; Cherry Studio '
+    'uses HTTP display_url_markdown. Re-fetch only missing, expired or broken '
+    'display references, never regenerate. References are same-machine only; '
+    'outgoing bytes follow privacy settings, originals are unchanged.';
+
+// Hosts only lift an image out of a tool block that holds a single call.
+const _ownTurn =
+    ' Give this call its own turn: write text before it and after its result, '
+    'or the image stays inside a merged tool block.';
 
 /// Internal read paths and chat visibility promises do not apply to MCP hosts.
 const mcpImageToolDescriptions = <String, String>{
+  'get_application_context':
+      'Read navigation, galleries, queue and compact draft summaries. Not a '
+      'generation prerequisite. Use get_generation_settings or get_prompt_state '
+      'only when those values are needed. include_draft_details returns full drafts.',
+  'prepare_generation':
+      'Validate and snapshot a generation without running it. Returns a compact '
+      'preparation_id, exact estimated_anlas and next_action. Submit that ID '
+      'directly; do not poll status or history while prepared. operation is '
+      'generate (waits for images on submission) or queue. Full parameters are '
+      'available through inspect_generation_preparation or include_parameters=true.',
+  'update_generation_preparation':
+      'Replace supplied fields, cancel the old preparation and return a new '
+      'compact preparation with its recalculated cost and next_action. '
+      'include_parameters=true returns the full snapshot. Does not generate.',
+  'queue_image_task':
+      'Compatibility queue preparation; prefer prepare_generation(operation=queue). '
+      'Without preparation_id this only prepares; follow next_action to submit. '
+      'With an ID it enqueues the stored snapshot, without waiting for images. '
+      'auto_start controls queue startup AFTER submission, not preparation. '
+      'Use only for explicit background/queue requests.',
   'save_generated_image':
       'Export a generated image resource to one explicit destination_path '
       'inside the configured file scope. The destination must not exist and '
@@ -41,51 +50,44 @@ const mcpImageToolDescriptions = <String, String>{
       'when copying or dragging, just like MCP image display and export. '
       'The result reports metadata_stripped. Local originals remain unchanged.',
   'generate_image':
-      'Synchronous image generation using the current generation page settings. '
-      'For ordinary draw requests use this instead of queue_image_task. '
-      'count is 1-8 variations of the same prompt and follows the app batch '
-      'size; use separate calls for different prompts. Omit width/height to '
-      'reuse the page size, or use multiples of 64 up to 4096 per side and '
-      '3145728 total pixels (832x1216, 1216x832, or 1024x1024 recommended). '
-      'seed is random when omitted or -1, and fixed only for count=1. '
-      'source_image enables img2img; mask_image also enables inpaint; both '
-      'affect only this call, not the page source panel. Without a source '
-      'this is text-to-image. Paid requests return a preparation_id; submit '
-      'it with confirmed=true for application approval without regenerating '
-      'the preparation. Exact zero-cost requests proceed without confirmation. '
-      'New image content is included in this result. $_imageContract',
+      'Compatibility entry point; prefer prepare_generation then '
+      'submit_generation. Without preparation_id this ONLY prepares, even at '
+      'zero cost; follow next_action, not status/history polling. With an ID it '
+      'submits the stored snapshot; prompt is then unnecessary. Paid submissions '
+      'need confirmed=true and launcher approval. count is 1-8 variations of '
+      'one prompt. Omitted size/settings inherit the generation page; source_image '
+      'and mask_image affect only this request. $_imageContract$_ownTurn',
   'submit_generation':
-      'Submit a previously prepared transaction exactly once. Zero-cost '
-      'preparations need no confirmed flag. Paid preparations require '
-      'confirmed=true and approval in the launcher, not duplicate chat '
-      'confirmation. A generate preparation returns the completed images; '
-      'a queue preparation returns queue status. $_imageContract',
+      'Execute a prepared transaction once. Omit confirmed at exact zero cost; '
+      'paid requests need confirmed=true and approval inside the launcher, not '
+      'another chat confirmation. generate waits for completion and returns new '
+      'images WITH top-level display_markdown; no status/history/display call '
+      'is needed when that reference works. queue returns queue status instead. '
+      '$_imageContract$_ownTurn',
   'get_recent_images':
-      'List the newest saved generation-history images, including queue '
-      'outputs, as stable resource_ref handles. limit is required (1-20); '
-      'use the exact number the user requests. This call returns metadata '
-      'only, not image bytes or local paths. To show the images, call '
-      'display_images with the returned references; for analysis use '
-      'inspect_images. Neither retrieval call generates images or spends Anlas.',
+      'List saved generation-history resource_ref handles only, newest first; '
+      'not image bytes or local paths. limit is required (1-20). Not needed '
+      'after a successful submission; prepared transactions have no new images. '
+      'Use display_images for requested historical images, inspect_images for analysis.',
   'display_images':
-      'Retrieve 1-12 images by resource_refs for user-facing display without '
-      'generating images or spending Anlas. include_display_url defaults to '
-      'true and returns a temporary loopback HTTP URL with per-image access, '
-      'not the MCP master token. include_display_file defaults to '
-      'false. When true, also prepare reusable local display-cache files and '
-      'return display_file_markdown for the final answer. display_markdown '
-      'follows the connected client: a clickable display_link_markdown for '
-      'clients that draw no images, a local file for Codex, otherwise the HTTP '
-      'URL, and display_link_markdown accompanies the image for clients that '
-      'gate it behind a click. Both display references are prepared for link '
-      'clients regardless of these flags. It does not save new '
-      'gallery images or modify originals. Display files require a client '
-      'that can read the same machine, not a remote host. '
-      '$_imageContract',
+      'Retrieve 1-12 existing resource_refs for display, without generating. '
+      'Use for historical images or missing, expired or broken display references. '
+      'Codex includes a safe local display file by default; Cherry Studio uses '
+      'the default HTTP reference. '
+      '$_imageContract$_ownTurn',
   'inspect_images':
-      'Retrieve 1-12 images by resource_refs for visual analysis, including '
-      'fine details at original resolution. Prefer display_images when the '
-      'user asks to see images. The MCP client decides whether inspection '
-      'images are visible to the user; the server cannot guarantee privacy '
-      'from the client UI. $_imageContract',
+      'Retrieve 1-12 existing resource_refs for visual analysis. Do not call '
+      'again for images already returned by generation or display. This does '
+      'not generate, and client-controlled visibility is not guaranteed. '
+      '$_imageContract',
+  'create_inpaint_mask':
+      'Author an inpaint mask from geometry and store it as a ready draft. '
+      'Regions are normalized 0-1 fractions of the source image, so call '
+      'inspect_images with its resource_ref first: a source this session has '
+      'not received at full resolution is refused, and a reported size or a '
+      'display thumbnail does not count. Pass source_ref rather than a bare '
+      'path; there is no path-based inspect entry point here. Returns an '
+      'overlay preview; check the mask lands on the target before '
+      'submit_manual_inpaint_draft, which is what spends Anlas. Re-authoring a '
+      'mask is free, so prefer another attempt over submitting a doubtful one.',
 };

@@ -11,6 +11,7 @@ import '../../../core/mcp/mcp_tool_executor.dart';
 import '../../../core/utils/app_logger.dart';
 import '../../agent_chat/services/agent_tool_registry_builder.dart';
 import 'mcp_approval_coordinator.dart';
+import 'mcp_compact_tool_response.dart';
 import 'mcp_image_response_service.dart';
 
 const String _logTag = 'McpServer';
@@ -126,14 +127,23 @@ class LauncherMcpToolExecutor implements McpToolExecutor {
       }
       final rawResult = await tool.execute(
         request.callId,
-        args,
+        Map<String, dynamic>.from(args)
+          ..remove('include_parameters')
+          ..remove('include_draft_details')
+          ..remove('include_display_file')
+          ..remove('include_display_url'),
         request.signal,
       );
       final result = await _imageResponses.prepare(
         tool.name,
-        rawResult,
+        compactMcpToolResponse(
+          tool.name,
+          rawResult,
+          includeParameters: args['include_parameters'] == true,
+          includeDraftDetails: args['include_draft_details'] == true,
+        ),
         signal: request.signal,
-        includeDisplayFile: args['include_display_file'] == true,
+        includeDisplayFile: args['include_display_file'] as bool?,
         includeDisplayUrl: args['include_display_url'] != false,
         style: McpImageResponseService.styleForClient(request.clientLabel),
       );

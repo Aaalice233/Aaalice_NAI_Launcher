@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:path/path.dart' as p;
 
@@ -83,7 +84,7 @@ class McpImageResponseService {
     String toolName,
     AgentToolResult result, {
     AbortSignal? signal,
-    bool includeDisplayFile = false,
+    bool? includeDisplayFile,
     bool includeDisplayUrl = true,
     McpImageDisplayStyle style = McpImageDisplayStyle.inlineUrl,
   }) async {
@@ -105,13 +106,18 @@ class McpImageResponseService {
       throwIfAborted(signal);
       final stripMetadata = _shouldStripMetadata();
       final includeImages = imageTools.contains(toolName);
+      final generated =
+          toolName == 'generate_image' || toolName == 'submit_generation';
       // 链接样式的客户端无法内联图片，两种展示引用都要备好：HTTP 一小时过期，
       // 显示缓存文件留得更久。
       final wantsLink = style == McpImageDisplayStyle.link;
+      final prepareDisplay = generated || toolName == 'display_images';
       final needsDisplayFile =
-          toolName == 'display_images' && (includeDisplayFile || wantsLink);
+          prepareDisplay &&
+          ((includeDisplayFile ?? style == McpImageDisplayStyle.inlineFile) ||
+              wantsLink);
       final needsDisplayUrl =
-          toolName == 'display_images' && (includeDisplayUrl || wantsLink);
+          prepareDisplay && (includeDisplayUrl || wantsLink);
       final images = <Map<String, dynamic>>[];
       final content = <ToolResultImageContent>[];
       for (final entry in entries) {
@@ -136,6 +142,7 @@ class McpImageResponseService {
             needsDisplayUrl,
             style,
             signal,
+            bestEffortDisplay: generated,
           );
           if (image == null) return _unavailable();
           descriptor.addAll(image.descriptor);
@@ -145,9 +152,11 @@ class McpImageResponseService {
       }
       // Build both text and structured content from the same safe projection;
       // details.files otherwise exposes the original via the MCP adapter.
+      final displayMarkdown = _displayMarkdown(style, images);
       final output = <String, dynamic>{
         'ok': true,
         'images': images,
+        if (displayMarkdown.isNotEmpty) 'display_markdown': displayMarkdown,
         if (includeImages) 'image_resolution': 'original',
         if (includeImages) 'metadata_stripped': stripMetadata,
         if (toolName == 'inspect_images') 'inspected_count': images.length,
@@ -158,7 +167,13 @@ class McpImageResponseService {
         },
       };
       return AgentToolResult(
-        content: [ToolResultTextContent(jsonEncode(output)), ...content],
+        content: [
+          ToolResultTextContent(jsonEncode(output)),
+          // Some hosts forward text blocks but discard nested JSON fields.
+          if (displayMarkdown.isNotEmpty)
+            ToolResultTextContent(displayMarkdown),
+          ...content,
+        ],
         details: output,
       );
     } on Object {
@@ -175,8 +190,9 @@ class McpImageResponseService {
     bool includeDisplayFile,
     bool includeDisplayUrl,
     McpImageDisplayStyle style,
-    AbortSignal? signal,
-  ) async {
+    AbortSignal? signal, {
+    bool bestEffortDisplay = false,
+  }) async {
     await _validate?.call(reference);
     final resolved = await _resolve(reference);
     final source = resolved?.bytes;
@@ -191,20 +207,30 @@ class McpImageResponseService {
     throwIfAborted(signal);
     final size = NaiResolutionAdapter.readImageSize(image.bytes);
     if (size == null) return null;
-    final displayFile = includeDisplayFile
-        ? await _writeDisplayFile(image)
-        : null;
+    File? displayFile;
+    try {
+      if (includeDisplayFile) displayFile = await _writeDisplayFile(image);
+    } on Object {
+      // A display-cache failure must not turn a completed paid generation into
+      // a generation failure. Privacy preparation above still fails closed.
+      if (!bestEffortDisplay) rethrow;
+    }
     throwIfAborted(signal);
     final displayPath = displayFile == null
         ? null
         : p.absolute(displayFile.path).replaceAll('\\', '/');
-    final displayLink = includeDisplayUrl
-        ? _publishDisplayImage?.call(
-            image.bytes,
-            mimeType: image.mimeType,
-            metadataStripped: stripMetadata,
-          )
-        : null;
+    McpImageDisplayLink? displayLink;
+    try {
+      if (includeDisplayUrl) {
+        displayLink = _publishDisplayImage?.call(
+          image.bytes,
+          mimeType: image.mimeType,
+          metadataStripped: stripMetadata,
+        );
+      }
+    } on Object {
+      if (!bestEffortDisplay) rethrow;
+    }
     final fileMarkdown = displayPath == null
         ? null
         : '![Generated image](<$displayPath>)';
@@ -218,9 +244,9 @@ class McpImageResponseService {
         : '[Generated image ${size.$1}x${size.$2}](<$linkTarget>)';
     final markdown = switch (style) {
       McpImageDisplayStyle.link => linkMarkdown,
-      McpImageDisplayStyle.inlineFile => fileMarkdown ?? urlMarkdown,
+      McpImageDisplayStyle.inlineFile => fileMarkdown,
       McpImageDisplayStyle.inlineUrl ||
-      McpImageDisplayStyle.inlineWithLink => urlMarkdown ?? fileMarkdown,
+      McpImageDisplayStyle.inlineWithLink => urlMarkdown,
     };
     return (
       descriptor: {
@@ -251,64 +277,54 @@ class McpImageResponseService {
     );
   }
 
+  static String _displayMarkdown(
+    McpImageDisplayStyle style,
+    List<Map<String, dynamic>> images,
+  ) => [
+    for (final image in images)
+      if (image['display_markdown'] case final String markdown) ...[
+        markdown,
+        if (style == McpImageDisplayStyle.inlineWithLink &&
+            image['display_link_markdown'] is String)
+          image['display_link_markdown'] as String,
+      ],
+  ].join('\n\n');
+
   static String _instructionsFor(
     McpImageDisplayStyle style,
     List<Map<String, dynamic>> images,
   ) {
-    final hasDisplayReference = images.any(
-      (image) => image.containsKey('display_markdown'),
-    );
-    if (!hasDisplayReference) {
-      return style == McpImageDisplayStyle.link
-          ? 'ImageContent may be hidden in collapsed tool details, and this '
-                'client does not render images in the answer. Call '
-                'display_images with these resource_refs to obtain a clickable '
-                'display_link_markdown. Tool success does not confirm '
-                'user-visible display.'
-          : 'ImageContent may be hidden in collapsed tool details. For '
-                'inline output, call display_images with these resource_refs '
-                'to obtain a temporary HTTP display_url_markdown. For Codex '
-                'desktop set include_display_file=true and embed '
-                'display_file_markdown instead. If no display reference is '
-                'available, use the client media renderer '
-                'or ask the user to expand the tool result. Tool success '
-                'does not confirm user-visible display.';
-    }
-    return switch (style) {
+    final displayInstructions = switch (style) {
       McpImageDisplayStyle.link =>
-        'This client keeps tool images collapsed and does not render image '
-            'Markdown in the answer. Put every images[].display_link_markdown '
-            'in the final answer as a clickable link, one per image, never as '
-            'an image embed and never in a code block, and say the image is '
-            'also inside the collapsed tool result. Links open the same '
-            'prepared bytes on this machine; the HTTP link expires within one '
-            'hour while display_path stays available longer. Retrieve again '
-            'instead of regenerating.',
+        'Put the top-level display_markdown in the final answer as clickable '
+            'links, not image embeds or a code block. This client uses links.',
+      // 只有 Claude Desktop 会把相邻工具调用并成一块，并连带吞掉直显的图。
       McpImageDisplayStyle.inlineWithLink =>
-        'Put every images[].display_markdown in the final answer, and directly '
-            'below each one add its images[].display_link_markdown on its own '
-            'line as a clickable link. This client hides the image behind a '
-            'one-click reveal such as a Show Image placeholder, so the link is '
-            'how the user opens it without that click; the gate is the client '
-            'protecting the user, so never retry or apologise for it. The '
-            'image and the link carry the same prepared bytes from this '
-            'machine and expire within one hour; retrieve again instead of '
-            'regenerating. Do not claim visibility merely because this tool '
-            'succeeded.',
-      _ =>
-        'Render every images[].display_markdown directly in the final '
-            'answer, not in a code block or as a plain link. Cherry '
-            'Studio must use display_url_markdown, not a local path. '
-            'Codex desktop can use display_file_markdown when available. '
-            'All variants contain the same prepared image bytes. HTTP '
-            'URLs are temporary, same-machine capabilities; retrieve '
-            'again if expired, never regenerate. Some clients, including '
-            'Claude Desktop, hide the image behind a one-click reveal such '
-            'as a Show Image placeholder; that is the client protecting the '
-            'user, so keep the Markdown, mention the single click when it '
-            'helps, and never retry or apologise for it. '
-            'Do not claim visibility merely because this tool succeeded.',
+        'Embed the top-level display_markdown in the final answer. It includes '
+            'each image and a clickable link. Keep the one-click reveal; '
+            'do not retry to bypass it. Write your reply text before any '
+            'further tool call, or this result merges into a multi-tool block '
+            'and its image is not shown inline.',
+      McpImageDisplayStyle.inlineFile =>
+        'Embed the top-level display_markdown in the final answer, not a code '
+            'block or plain link. Codex desktop uses the absolute local '
+            'display_file_markdown, not the HTTP URL.',
+      McpImageDisplayStyle.inlineUrl =>
+        'Embed the top-level display_markdown in the final answer, not a code '
+            'block or plain link. Cherry Studio uses display_url_markdown '
+            '(HTTP), never a local file path.',
     };
+    final missingReference = images.any(
+      (image) => !image.containsKey('display_markdown'),
+    );
+    final retrievalInstructions = missingReference
+        ? 'For images missing a display reference, call display_images with '
+              'their resource_refs (Codex: include_display_file=true).'
+        : 'Do not call display_images again unless a reference is missing, '
+              'expired or fails to load.';
+    return '$displayInstructions ImageContent in tool details is not proof '
+        'of visible display. $retrievalInstructions '
+        'Never regenerate merely to display an image.';
   }
 
   static Map<String, dynamic>? _payload(AgentToolResult result) {

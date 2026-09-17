@@ -149,8 +149,11 @@ class GenerationToolDefinitions {
         name: 'generate_image',
         label: 'Generate Image',
         description:
-            'SYNCHRONOUS image generation (the default): waits for the '
-            'images to finish and shows them as thumbnails in the chat. '
+            'Compatibility two-phase generation: without preparation_id this '
+            'only prepares, even at zero Anlas cost. Submit the returned ID '
+            'with submit_generation; do not poll status or history while '
+            'prepared. With preparation_id this submits the stored request '
+            'and waits for the images; prompt is then unnecessary. '
             'Uses the current generation page settings, overriding prompt '
             '/ negative_prompt / width / height / count / seed. '
             'Important: "count" generates N variations of the SAME prompt '
@@ -191,13 +194,14 @@ class GenerationToolDefinitions {
             'workspace-relative argument for read plus an application-owned '
             'resource_ref; never derive one from the other. Thumbnails appear '
             'in the chat. For normal "draw/generate" requests '
-            'always use this tool instead of queue_image_task.',
+            'prefer prepare_generation then submit_generation, not queue_image_task.',
         parameters: const {
           'type': 'object',
           'properties': {
             'prompt': {
               'type': 'string',
-              'description': 'Positive prompt; English danbooru-style tags.',
+              'description':
+                  'Positive prompt required only when no preparation_id is supplied.',
             },
             'negative_prompt': {
               'type': 'string',
@@ -281,7 +285,7 @@ class GenerationToolDefinitions {
                   'Required only for paid preparations; exact zero-cost submissions omit this.',
             },
           },
-          'required': ['prompt'],
+          'required': <String>[],
         },
         executeWithControl: _preparation.generateLegacy,
       ),
@@ -289,7 +293,9 @@ class GenerationToolDefinitions {
         name: 'queue_image_task',
         label: 'Queue Image Task',
         description:
-            'ASYNCHRONOUS queueing: enqueues N IDENTICAL tasks (same '
+            'Compatibility two-phase queueing: without preparation_id this '
+            'only prepares. Submit the returned ID with submit_generation. '
+            'With preparation_id, enqueues N IDENTICAL tasks (same '
             'prompt) into the generation queue and returns immediately '
             'WITHOUT producing images in the chat. "count" only creates '
             'N copies of the SAME prompt; for DIFFERENT prompts call this '
@@ -337,7 +343,7 @@ class GenerationToolDefinitions {
                   'Required only for paid preparations; exact zero-cost submissions omit this.',
             },
           },
-          'required': ['prompt'],
+          'required': <String>[],
         },
         executeWithControl: _preparation.queueLegacy,
       ),

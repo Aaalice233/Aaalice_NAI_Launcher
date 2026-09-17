@@ -38,18 +38,9 @@ final class McpLauncherServer extends mcp.MCPServer with mcp.ToolsSupport {
   static const String _logTag = 'McpServer';
 
   static const String _instructions =
-      'Call `get_application_context` first: it reports which screen the '
-      'launcher is on plus the live model, prompt and account state that every '
-      'other tool reads and writes. Image generation is two-phase — '
-      '`prepare_generation` validates a request and returns a '
-      '`preparation_id`, then `submit_generation` runs that preparation, and '
-      'any preparation with a positive Anlas cost only starts after the user '
-      'approves the charge inside the launcher window. Tool approvals appear '
-      'as prompts in the launcher UI, so a call may stay pending for a few '
-      'minutes while the user decides; do not retry it in the meantime. '
-      'Images are passed around as `resource_ref` handles instead of raw '
-      'bytes, so hand those handles back to tools such as `inspect_images` '
-      'rather than re-encoding image data.';
+      'Images: prepare_generation then submit_generation; embed top-level '
+      'display_markdown in the final answer, not only tool images. Read state '
+      'as needed. Paid calls wait for launcher approval; never retry pending calls.';
 
   final String sessionId;
   final McpToolExecutor _executor;

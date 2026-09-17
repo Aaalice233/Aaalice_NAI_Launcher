@@ -15,6 +15,7 @@ import '../../agent_chat/services/queue_toolbox.dart';
 import '../../prompt_assistant/models/prompt_assistant_models.dart';
 import '../../providers/share_image_settings_provider.dart';
 import '../../router/app_router_config.dart';
+import 'mcp_compact_tool_response.dart';
 import 'mcp_image_response_service.dart';
 import 'mcp_image_tool_descriptions.dart';
 
@@ -42,33 +43,7 @@ abstract final class McpExternalToolSurface {
               name: tool.name,
               label: tool.label,
               description: description,
-              parameters: tool.name == 'display_images'
-                  ? {
-                      ...tool.parameters,
-                      'properties': {
-                        ...tool.parameters['properties']
-                            as Map<String, dynamic>,
-                        'include_display_file': {
-                          'type': 'boolean',
-                          'description':
-                              'Default false. For same-machine clients such as '
-                              'Codex desktop, set true to also return a safe '
-                              'display-cache path and Markdown to embed in the '
-                              'final answer. This never exposes the original '
-                              'file path or bypasses metadata stripping.',
-                        },
-                        'include_display_url': {
-                          'type': 'boolean',
-                          'description':
-                              'Default true. Return a temporary loopback HTTP '
-                              'image URL and display_url_markdown for clients '
-                              'such as Cherry Studio that block local paths. '
-                              'Only prepared outgoing bytes are served; links '
-                              'expire within one hour or when the server stops.',
-                        },
-                      },
-                    }
-                  : tool.parameters,
+              parameters: _parametersFor(tool.name, tool.parameters),
               executionModeOverride: tool.executionMode,
               executeWithControl: tool.execute,
             )
@@ -86,6 +61,44 @@ abstract final class McpExternalToolSurface {
       policy: registry.policy,
     );
   }
+
+  static Map<String, dynamic> _parametersFor(
+    String name,
+    Map<String, dynamic> parameters,
+  ) => {
+    ...parameters,
+    'properties': {
+      ...parameters['properties'] as Map<String, dynamic>,
+      if (mcpPreparationToolNames.contains(name))
+        'include_parameters': {
+          'type': 'boolean',
+          'description':
+              'Return the full prepared snapshot instead of a compact summary. Default false.',
+        },
+      if (name == 'get_application_context')
+        'include_draft_details': {
+          'type': 'boolean',
+          'description':
+              'Include full draft parameter snapshots. Default false.',
+        },
+      if ({
+        'generate_image',
+        'submit_generation',
+        'display_images',
+      }.contains(name)) ...{
+        'include_display_file': {
+          'type': 'boolean',
+          'description':
+              'Include a safe same-machine display-cache file. Defaults to true for Codex, false otherwise.',
+        },
+        'include_display_url': {
+          'type': 'boolean',
+          'description':
+              'Include a temporary same-machine HTTP display reference. Default true.',
+        },
+      },
+    },
+  };
 }
 
 /// 为外部 MCP 客户端组装第二套工具注册表，复用聊天端同一份工具与权限目录，
