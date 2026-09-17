@@ -8,6 +8,7 @@ class CloudSyncContentSelection {
     this.includeOnlineGallerySettings = true,
     this.includeOnlineGalleryFavorites = true,
     this.includeGalleryAlbums = true,
+    this.includeFixedTagUsage = true,
     this.includeAgentSystemPrompt = true,
     this.includeSkills = true,
     this.includeVibes = false,
@@ -15,7 +16,7 @@ class CloudSyncContentSelection {
     this.selectedSkillIds = const {},
   });
 
-  static const int currentSchemaVersion = 2;
+  static const int currentSchemaVersion = 3;
   static const int maxSelectedSkills = 500;
 
   final bool includeSettings;
@@ -24,6 +25,7 @@ class CloudSyncContentSelection {
   final bool includeOnlineGallerySettings;
   final bool includeOnlineGalleryFavorites;
   final bool includeGalleryAlbums;
+  final bool includeFixedTagUsage;
   final bool includeAgentSystemPrompt;
   final bool includeSkills;
   final bool includeVibes;
@@ -37,6 +39,7 @@ class CloudSyncContentSelection {
     includeOnlineGallerySettings,
     includeOnlineGalleryFavorites,
     includeGalleryAlbums,
+    includeFixedTagUsage,
     includeAgentSystemPrompt,
     includeSkills,
     includeVibes,
@@ -50,6 +53,7 @@ class CloudSyncContentSelection {
     bool? includeOnlineGallerySettings,
     bool? includeOnlineGalleryFavorites,
     bool? includeGalleryAlbums,
+    bool? includeFixedTagUsage,
     bool? includeAgentSystemPrompt,
     bool? includeSkills,
     bool? includeVibes,
@@ -64,6 +68,7 @@ class CloudSyncContentSelection {
     includeOnlineGalleryFavorites:
         includeOnlineGalleryFavorites ?? this.includeOnlineGalleryFavorites,
     includeGalleryAlbums: includeGalleryAlbums ?? this.includeGalleryAlbums,
+    includeFixedTagUsage: includeFixedTagUsage ?? this.includeFixedTagUsage,
     includeAgentSystemPrompt:
         includeAgentSystemPrompt ?? this.includeAgentSystemPrompt,
     includeSkills: includeSkills ?? this.includeSkills,
@@ -86,6 +91,7 @@ class CloudSyncContentSelection {
       'includeOnlineGallerySettings': includeOnlineGallerySettings,
       'includeOnlineGalleryFavorites': includeOnlineGalleryFavorites,
       'includeGalleryAlbums': includeGalleryAlbums,
+      'includeFixedTagUsage': includeFixedTagUsage,
       'includeAgentSystemPrompt': includeAgentSystemPrompt,
       'includeSkills': includeSkills,
       'includeVibes': includeVibes,
@@ -103,28 +109,47 @@ class CloudSyncContentSelection {
     }
     final version = value['version'] as int;
     if (version == 1) return _decodeV1(value);
+    if (version == 2) return _decodeV2(value);
     if (version != currentSchemaVersion ||
-        value.keys.any((key) => !_v2Keys.contains(key)) ||
-        _boolKeys.any((key) => value[key] is! bool) ||
+        value.keys.any((key) => !_v3Keys.contains(key)) ||
+        _v3BoolKeys.any((key) => value[key] is! bool) ||
         value['selectedSkillIds'] is! List) {
       throw const FormatException('Invalid cloud backup content selection.');
     }
-    return CloudSyncContentSelection(
-      includeSettings: value['includeSettings']! as bool,
-      includePromptsAndTags: value['includePromptsAndTags']! as bool,
-      includeTagThumbnails: value['includeTagThumbnails']! as bool,
-      includeOnlineGallerySettings:
-          value['includeOnlineGallerySettings']! as bool,
-      includeOnlineGalleryFavorites:
-          value['includeOnlineGalleryFavorites']! as bool,
-      includeGalleryAlbums: value['includeGalleryAlbums']! as bool,
-      includeAgentSystemPrompt: value['includeAgentSystemPrompt']! as bool,
-      includeSkills: value['includeSkills']! as bool,
-      includeVibes: value['includeVibes']! as bool,
-      includePreciseReferences: value['includePreciseReferences']! as bool,
-      selectedSkillIds: _decodeSkillIds(value['selectedSkillIds']! as List),
+    return _decodeCommon(
+      value,
+      includeFixedTagUsage: value['includeFixedTagUsage']! as bool,
     );
   }
+
+  static CloudSyncContentSelection _decodeV2(Map<dynamic, dynamic> value) {
+    if (value.keys.any((key) => !_v2Keys.contains(key)) ||
+        _v2BoolKeys.any((key) => value[key] is! bool) ||
+        value['selectedSkillIds'] is! List) {
+      throw const FormatException('Invalid cloud backup content selection.');
+    }
+    return _decodeCommon(value, includeFixedTagUsage: true);
+  }
+
+  static CloudSyncContentSelection _decodeCommon(
+    Map<dynamic, dynamic> value, {
+    required bool includeFixedTagUsage,
+  }) => CloudSyncContentSelection(
+    includeSettings: value['includeSettings']! as bool,
+    includePromptsAndTags: value['includePromptsAndTags']! as bool,
+    includeTagThumbnails: value['includeTagThumbnails']! as bool,
+    includeOnlineGallerySettings:
+        value['includeOnlineGallerySettings']! as bool,
+    includeOnlineGalleryFavorites:
+        value['includeOnlineGalleryFavorites']! as bool,
+    includeGalleryAlbums: value['includeGalleryAlbums']! as bool,
+    includeFixedTagUsage: includeFixedTagUsage,
+    includeAgentSystemPrompt: value['includeAgentSystemPrompt']! as bool,
+    includeSkills: value['includeSkills']! as bool,
+    includeVibes: value['includeVibes']! as bool,
+    includePreciseReferences: value['includePreciseReferences']! as bool,
+    selectedSkillIds: _decodeSkillIds(value['selectedSkillIds']! as List),
+  );
 
   static CloudSyncContentSelection _decodeV1(Map<dynamic, dynamic> value) {
     const keys = {
@@ -159,7 +184,7 @@ class CloudSyncContentSelection {
     return Set.unmodifiable(ids);
   }
 
-  static const _boolKeys = {
+  static const _v2BoolKeys = {
     'includeSettings',
     'includePromptsAndTags',
     'includeTagThumbnails',
@@ -171,7 +196,9 @@ class CloudSyncContentSelection {
     'includeVibes',
     'includePreciseReferences',
   };
-  static const _v2Keys = {'version', ..._boolKeys, 'selectedSkillIds'};
+  static const _v3BoolKeys = {..._v2BoolKeys, 'includeFixedTagUsage'};
+  static const _v2Keys = {'version', ..._v2BoolKeys, 'selectedSkillIds'};
+  static const _v3Keys = {'version', ..._v3BoolKeys, 'selectedSkillIds'};
 
   static final RegExp _skillId = RegExp(
     r'^(workspace|piUser|commonUser):[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?$',

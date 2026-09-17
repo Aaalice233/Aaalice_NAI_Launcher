@@ -6461,6 +6461,8 @@
   "cloudSync_onlineGalleryFavoritesDescription": "仅保存来源 ID 与恢复所需信息，不保存原图",
   "cloudSync_galleryAlbums": "本地画廊相册",
   "cloudSync_galleryAlbumsDescription": "只保存相册结构与图片引用，不上传原图",
+  "cloudSync_fixedTagUsage": "固定词使用记录",
+  "cloudSync_fixedTagUsageDescription": "只保存每张图用了哪些固定词的轻量记录，不上传图片",
   "cloudSync_optionalResources": "可选资源（默认关闭）",
   "cloudSync_vibes": "Vibe",
   "cloudSync_preciseReferences": "精准参考",

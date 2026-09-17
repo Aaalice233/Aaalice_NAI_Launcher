@@ -130,7 +130,7 @@ NAI Launcher is built for people who use NovelAI regularly. Generation, editing,
 
 - Supports OneDrive, GitHub, and WebDAV. New Google Drive connections are temporarily disabled pending authorization approval. Connecting an account never uploads, downloads, or overwrites content by itself.
 - Push, pull, and restore start only when requested, with change previews and conflict handling.
-- Select settings, Prompts and libraries, previews, online-gallery settings and favorites, local albums, Agent Prompts and Skills, and optional Vibe or Precise Reference content independently.
+- Select settings, Prompts and libraries, previews, online-gallery settings and favorites, local albums, fixed-tag usage records, Agent Prompts and Skills, and optional Vibe or Precise Reference content independently.
 - Original local and remote gallery images, credentials, caches, and logs never enter a backup.
 - Backups use readable plain data and need no separate recovery key. Check the destination's permissions before syncing.
 
@@ -210,7 +210,7 @@ NAI Launcher does not host your account or artwork on a project-operated server.
 
 - NovelAI Tokens, OAuth access/refresh tokens, WebDAV passwords, and GitHub Tokens use device secure storage and are never written into backups.
 - Local Prompts, gallery indexes, tags, resource libraries, and Agent sessions stay on the device by default.
-- Cloud backups store selected data in plaintext. Local gallery image files are not uploaded; albums, categories, and membership references can sync as lightweight data.
+- Cloud backups store selected data in plaintext. Local gallery image files are not uploaded; albums, categories, membership references, and fixed-tag usage records can sync as lightweight data.
 - Online galleries can contain third-party content. Rating filters do not replace user judgment.
 - WebDAV security depends on the server and transport you configure. Keep a local copy of important data.
 

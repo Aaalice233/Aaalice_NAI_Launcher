@@ -7,10 +7,10 @@ import 'package:path/path.dart' as p;
 
 import '../../data/models/gallery/nai_image_metadata.dart';
 import '../../data/models/fixed_tag/fixed_tag_usage_snapshot.dart';
-import '../../data/models/fixed_tag/fixed_tag_entry.dart';
-import '../../data/models/fixed_tag/fixed_tag_prompt_type.dart';
 import '../../data/models/image/image_params.dart';
+import '../../data/services/fixed_tag/fixed_tag_usage_record_store.dart';
 import '../../data/services/image_metadata_service.dart';
+import '../../data/services/metadata/hash_calculator.dart';
 import '../../data/services/metadata/unified_metadata_parser.dart';
 import '../constants/api_constants.dart';
 import '../enums/precise_ref_type.dart';
@@ -29,21 +29,12 @@ class ImageSaveUtils {
   ///
   /// [params] - 图像生成参数
   /// [actualSeed] - 实际使用的种子
-  /// [fixedPrefixTags] - 固定前缀标签列表
-  /// [fixedSuffixTags] - 固定后缀标签列表
-  /// [fixedNegativePrefixTags] - 负向固定前缀标签列表
-  /// [fixedNegativeSuffixTags] - 负向固定后缀标签列表
   /// [charCaptions] - 角色提示词列表（V4多角色）
   /// [charNegCaptions] - 角色负面提示词列表
   /// [useCoords] - 是否使用坐标模式
   static Map<String, dynamic> buildCommentJson({
     required ImageParams params,
     required int actualSeed,
-    List<String>? fixedPrefixTags,
-    List<String>? fixedSuffixTags,
-    List<String>? fixedNegativePrefixTags,
-    List<String>? fixedNegativeSuffixTags,
-    FixedTagUsageSnapshot? fixedTagUsageSnapshot,
     List<Map<String, dynamic>>? charCaptions,
     List<Map<String, dynamic>>? charNegCaptions,
     bool useCoords = false,
@@ -97,26 +88,6 @@ class ImageSaveUtils {
       if (params.effectiveE2eUpscale)
         'upscale': {'declared_blur_sigma': E2eUpscale.declaredBlurSigma},
     };
-
-    if (fixedTagUsageSnapshot != null) {
-      commentJson['aaalice_fixed_tags'] = fixedTagUsageSnapshot.toJson();
-    }
-    if (fixedTagUsageSnapshot != null || fixedPrefixTags?.isNotEmpty == true) {
-      commentJson['fixed_prefix'] = fixedPrefixTags ?? const <String>[];
-    }
-    if (fixedTagUsageSnapshot != null || fixedSuffixTags?.isNotEmpty == true) {
-      commentJson['fixed_suffix'] = fixedSuffixTags ?? const <String>[];
-    }
-    if (fixedTagUsageSnapshot != null ||
-        fixedNegativePrefixTags?.isNotEmpty == true) {
-      commentJson['fixed_negative_prefix'] =
-          fixedNegativePrefixTags ?? const <String>[];
-    }
-    if (fixedTagUsageSnapshot != null ||
-        fixedNegativeSuffixTags?.isNotEmpty == true) {
-      commentJson['fixed_negative_suffix'] =
-          fixedNegativeSuffixTags ?? const <String>[];
-    }
 
     // V4多角色提示词
     if (params.isV4Model) {
@@ -201,11 +172,6 @@ class ImageSaveUtils {
     required Uint8List imageBytes,
     required ImageParams params,
     int? actualSeed,
-    List<String>? fixedPrefixTags,
-    List<String>? fixedSuffixTags,
-    List<String>? fixedNegativePrefixTags,
-    List<String>? fixedNegativeSuffixTags,
-    FixedTagUsageSnapshot? fixedTagUsageSnapshot,
     List<Map<String, dynamic>>? charCaptions,
     List<Map<String, dynamic>>? charNegCaptions,
     bool useCoords = false,
@@ -233,11 +199,6 @@ class ImageSaveUtils {
     final rebuiltCommentJson = buildCommentJson(
       params: params,
       actualSeed: normalizedSeed,
-      fixedPrefixTags: fixedPrefixTags,
-      fixedSuffixTags: fixedSuffixTags,
-      fixedNegativePrefixTags: fixedNegativePrefixTags,
-      fixedNegativeSuffixTags: fixedNegativeSuffixTags,
-      fixedTagUsageSnapshot: fixedTagUsageSnapshot,
       charCaptions: charCaptions,
       charNegCaptions: charNegCaptions,
       useCoords: useCoords,
@@ -266,68 +227,12 @@ class ImageSaveUtils {
     );
   }
 
-  /// Adds Launcher fixed-tag provenance without replacing existing NAI fields.
-  static Future<Uint8List> mergeFixedTagUsageMetadata({
-    required Uint8List imageBytes,
-    required FixedTagUsageSnapshot snapshot,
-    bool useStealth = false,
-  }) async {
-    final existing = _extractEmbeddedPngMetadata(imageBytes);
-    if (existing?.commentJson == null) return imageBytes;
-    final commentJson = <String, dynamic>{
-      ...existing!.commentJson,
-      'aaalice_fixed_tags': snapshot.toJson(),
-      'fixed_prefix': _fixedTagContents(
-        snapshot,
-        FixedTagPromptType.positive,
-        FixedTagPosition.prefix,
-      ),
-      'fixed_suffix': _fixedTagContents(
-        snapshot,
-        FixedTagPromptType.positive,
-        FixedTagPosition.suffix,
-      ),
-      'fixed_negative_prefix': _fixedTagContents(
-        snapshot,
-        FixedTagPromptType.negative,
-        FixedTagPosition.prefix,
-      ),
-      'fixed_negative_suffix': _fixedTagContents(
-        snapshot,
-        FixedTagPromptType.negative,
-        FixedTagPosition.suffix,
-      ),
-    };
-    return _embedNaiAlignedMetadata(
-      imageBytes: imageBytes,
-      commentJson: commentJson,
-      description: existing.description,
-      source: existing.source,
-      software: existing.software,
-      useStealth: useStealth,
-    );
-  }
-
-  static List<String> _fixedTagContents(
-    FixedTagUsageSnapshot snapshot,
-    FixedTagPromptType promptType,
-    FixedTagPosition position,
-  ) => snapshot
-      .entriesFor(promptType: promptType, position: position)
-      .map((entry) => entry.renderedContent)
-      .where((content) => content.isNotEmpty)
-      .toList(growable: false);
-
   /// 保存图像并嵌入完整元数据
   ///
   /// [imageBytes] - 图像字节数据
   /// [filePath] - 目标文件路径
   /// [params] - 图像生成参数
   /// [actualSeed] - 实际使用的种子
-  /// [fixedPrefixTags] - 固定前缀标签
-  /// [fixedSuffixTags] - 固定后缀标签
-  /// [fixedNegativePrefixTags] - 负向固定前缀标签
-  /// [fixedNegativeSuffixTags] - 负向固定后缀标签
   /// [charCaptions] - 角色提示词列表
   /// [charNegCaptions] - 角色负面提示词列表
   /// [useStealth] - 是否使用stealth编码（默认false）
@@ -339,11 +244,6 @@ class ImageSaveUtils {
     required String filePath,
     required ImageParams params,
     required int actualSeed,
-    List<String>? fixedPrefixTags,
-    List<String>? fixedSuffixTags,
-    List<String>? fixedNegativePrefixTags,
-    List<String>? fixedNegativeSuffixTags,
-    FixedTagUsageSnapshot? fixedTagUsageSnapshot,
     List<Map<String, dynamic>>? charCaptions,
     List<Map<String, dynamic>>? charNegCaptions,
     bool useCoords = false,
@@ -354,11 +254,6 @@ class ImageSaveUtils {
       imageBytes: imageBytes,
       params: params,
       actualSeed: actualSeed,
-      fixedPrefixTags: fixedPrefixTags,
-      fixedSuffixTags: fixedSuffixTags,
-      fixedNegativePrefixTags: fixedNegativePrefixTags,
-      fixedNegativeSuffixTags: fixedNegativeSuffixTags,
-      fixedTagUsageSnapshot: fixedTagUsageSnapshot,
       charCaptions: charCaptions,
       charNegCaptions: charNegCaptions,
       useCoords: useCoords,
@@ -723,6 +618,53 @@ class ImageSaveUtils {
     return candidate;
   }
 
+  /// 三条保存入口共用。已有 NovelAI 元数据的图原字节落盘不重写，
+  /// 固定词快照只进旁路记录库。
+  static Future<SavedResultImage> saveResultImage({
+    required String rootPath,
+    required Uint8List imageBytes,
+    required bool preserveOriginalBytes,
+    required Future<Uint8List> Function() rebuild,
+    FixedTagUsageSnapshot? fixedTagUsageSnapshot,
+    FixedTagUsageSnapshot? rebuiltFixedTagUsageSnapshot,
+    int? seed,
+    String? preferredFileName,
+    DateTime? now,
+  }) async {
+    final rebuilt =
+        !preserveOriginalBytes && !hasEmbeddedNovelAiMetadata(imageBytes);
+    final bytes = rebuilt ? await rebuild() : imageBytes;
+    final path = await saveBytesToDatedPath(
+      rootPath: rootPath,
+      bytes: bytes,
+      seed: seed,
+      preferredFileName: preferredFileName,
+      now: now,
+    );
+    final contentHash = FileHashCalculator().calculateFromBytes(bytes);
+    FileHashCalculator().registerPathHash(path, contentHash);
+    final snapshot = rebuilt
+        ? rebuiltFixedTagUsageSnapshot ?? fixedTagUsageSnapshot
+        : fixedTagUsageSnapshot;
+    if (!preserveOriginalBytes && snapshot != null) {
+      try {
+        await FixedTagUsageRecordStore().record(
+          contentHash: contentHash,
+          snapshot: snapshot,
+        );
+      } catch (error, stack) {
+        // 文件已落盘，记录失败不能让调用方把这次保存报成失败。
+        AppLogger.e(
+          'Failed to record fixed-tag usage for $path',
+          error,
+          stack,
+          'ImageSaveUtils',
+        );
+      }
+    }
+    return SavedResultImage(path: path, bytes: bytes, contentHash: contentHash);
+  }
+
   /// 解析图片的真实 seed：优先用已有元数据，否则从 PNG 字节解析。
   ///
   /// 用于保存入口的日期分类文件名，保证非自动保存路径（详情页保存、
@@ -801,6 +743,19 @@ Future<TransferableTypedData> _writeAlignedMetadata(
     'Source': request.source,
   });
   return TransferableTypedData.fromList([output]);
+}
+
+/// 结果图落盘产物：最终字节、路径与内容哈希（固定词记录键）。
+class SavedResultImage {
+  const SavedResultImage({
+    required this.path,
+    required this.bytes,
+    required this.contentHash,
+  });
+
+  final String path;
+  final Uint8List bytes;
+  final String contentHash;
 }
 
 class _NormalizedPrebuiltMetadata {

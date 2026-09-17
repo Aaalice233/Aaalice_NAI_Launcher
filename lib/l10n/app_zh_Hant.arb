@@ -6739,6 +6739,8 @@
   "cloudSync_onlineGalleryFavoritesDescription": "僅儲存來源 ID 與恢復所需資訊，不儲存原圖",
   "cloudSync_galleryAlbums": "本機畫廊相簿",
   "cloudSync_galleryAlbumsDescription": "只儲存相簿結構與圖片引用，不上傳原圖",
+  "cloudSync_fixedTagUsage": "固定詞使用記錄",
+  "cloudSync_fixedTagUsageDescription": "只儲存每張圖用了哪些固定詞的輕量記錄，不上傳圖片",
   "cloudSync_optionalResources": "可選資源（預設關閉）",
   "cloudSync_vibes": "Vibe",
   "cloudSync_preciseReferences": "精準參考",

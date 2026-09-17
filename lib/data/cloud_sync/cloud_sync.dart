@@ -3,6 +3,7 @@ export 'app_cloud_sync_data_source.dart';
 export 'cloud_sync_data_adapter.dart';
 export 'cloud_sync_data_adapter_registry.dart';
 export 'ffdkj_install_intent_adapter.dart';
+export 'fixed_tag_usage_cloud_sync_adapter.dart';
 export 'online_favorites_cloud_sync_adapter.dart';
 export 'portable_sync_record.dart';
 export 'portable_record_codec.dart';

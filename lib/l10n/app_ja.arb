@@ -6417,6 +6417,8 @@
   "cloudSync_onlineGalleryFavoritesDescription": "ソース ID と復元に必要な情報のみを保存し、原画像は保存しません",
   "cloudSync_galleryAlbums": "ローカルギャラリーのアルバム",
   "cloudSync_galleryAlbumsDescription": "アルバム構造と画像参照のみを保存し、原画像はアップロードしません",
+  "cloudSync_fixedTagUsage": "固定タグの使用記録",
+  "cloudSync_fixedTagUsageDescription": "各画像がどの固定タグを使ったかの軽量な記録のみを保存し、画像はアップロードしません",
   "cloudSync_optionalResources": "任意のリソース（既定はオフ）",
   "cloudSync_vibes": "Vibe",
   "cloudSync_preciseReferences": "精密参照",

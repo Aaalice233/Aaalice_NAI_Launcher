@@ -30,6 +30,35 @@ void main() {
       }
     });
 
+    test('matches official Pica fixtures through the RGBA8 image adapter', () {
+      for (final fixture in _fixtures) {
+        final bytes = _buildSource(
+          fixture.sourceWidth,
+          fixture.sourceHeight,
+          withAlpha: fixture.withAlpha,
+        );
+        final source = img.Image.fromBytes(
+          width: fixture.sourceWidth,
+          height: fixture.sourceHeight,
+          bytes: bytes.buffer,
+          numChannels: 4,
+          order: img.ChannelOrder.rgba,
+        );
+
+        final resized = PicaLanczosResizer.resizeImage(
+          source,
+          width: fixture.targetWidth,
+          height: fixture.targetHeight,
+        );
+
+        expect(
+          resized.getBytes(order: img.ChannelOrder.rgba),
+          base64Decode(fixture.expectedBase64),
+          reason: fixture.name,
+        );
+      }
+    });
+
     test('premultiplies alpha and avoids colored transparent fringes', () {
       final source = Uint8List.fromList([
         255,
@@ -98,6 +127,136 @@ void main() {
       }
     });
 
+    for (final channels in [1, 2, 3, 4]) {
+      test('normalizes 16-bit $channels-channel pixels before resizing', () {
+        final source = img.Image(
+          width: 4,
+          height: 3,
+          format: img.Format.uint16,
+          numChannels: channels,
+        );
+        final rgba = _buildSource(4, 3, withAlpha: true);
+        for (var y = 0; y < source.height; y++) {
+          for (var x = 0; x < source.width; x++) {
+            final offset = (y * source.width + x) * 4;
+            final pixel = source.getPixel(x, y);
+            for (var channel = 0; channel < channels; channel++) {
+              final rgbaChannel = channels == 2 && channel == 1 ? 3 : channel;
+              pixel[channel] =
+                  (rgba[offset + rgbaChannel] << 8) |
+                  ((offset * 37 + channel * 53 + 97) & 255);
+            }
+            if (channels <= 2) {
+              rgba[offset + 1] = rgba[offset];
+              rgba[offset + 2] = rgba[offset];
+            }
+            if (channels == 1 || channels == 3) {
+              rgba[offset + 3] = 255;
+            }
+          }
+        }
+
+        _expectNormalizedResize(source, rgba);
+        expect(source.format, img.Format.uint16);
+        expect(source.numChannels, channels);
+      });
+    }
+
+    for (final format in [img.Format.uint1, img.Format.uint4]) {
+      test('expands ${format.name} grayscale pixels before resizing', () {
+        final source = img.Image(
+          width: 4,
+          height: 3,
+          format: format,
+          numChannels: 1,
+        );
+        final maxValue = source.maxChannelValue.toInt();
+        final rgba = Uint8List(source.width * source.height * 4);
+        for (var index = 0; index < source.width * source.height; index++) {
+          final value = (index * 7) % (maxValue + 1);
+          source.setPixelR(index % source.width, index ~/ source.width, value);
+          final gray = value * (255 ~/ maxValue);
+          rgba.setRange(index * 4, index * 4 + 4, [gray, gray, gray, 255]);
+        }
+
+        _expectNormalizedResize(source, rgba);
+        expect(source.format, format);
+      });
+    }
+
+    for (final format in [img.Format.uint4, img.Format.uint8]) {
+      test('expands ${format.name} RGBA palette entries before resizing', () {
+        final source = img.Image(
+          width: 4,
+          height: 3,
+          format: format,
+          numChannels: 4,
+          withPalette: true,
+        );
+        const colors = [
+          [255, 31, 97, 0],
+          [17, 223, 79, 64],
+          [47, 113, 251, 128],
+          [193, 71, 43, 255],
+        ];
+        for (var index = 0; index < colors.length; index++) {
+          final color = colors[index];
+          source.palette!.setRgba(
+            index,
+            color[0],
+            color[1],
+            color[2],
+            color[3],
+          );
+        }
+        final rgba = Uint8List(source.width * source.height * 4);
+        for (var index = 0; index < source.width * source.height; index++) {
+          final paletteIndex = index % colors.length;
+          source.getPixel(index % source.width, index ~/ source.width).index =
+              paletteIndex;
+          rgba.setRange(index * 4, index * 4 + 4, colors[paletteIndex]);
+        }
+
+        _expectNormalizedResize(source, rgba);
+        expect(source.hasPalette, isTrue);
+      });
+    }
+
+    test('normalizes floating-point channels before resizing', () {
+      final source =
+          img.Image(
+              width: 2,
+              height: 1,
+              format: img.Format.float32,
+              numChannels: 4,
+            )
+            ..setPixelRgba(0, 0, -0.25, 0.5, 1.25, 0.25)
+            ..setPixelRgba(1, 0, 1, 0.25, 0, 1);
+
+      _expectNormalizedResize(
+        source,
+        Uint8List.fromList([0, 127, 255, 63, 255, 63, 0, 255]),
+      );
+      expect(source.format, img.Format.float32);
+    });
+
+    test('preserves 16-bit pixels in independent same-size copies', () {
+      final source = img.Image(
+        width: 2,
+        height: 1,
+        format: img.Format.uint16,
+        numChannels: 4,
+      )..setPixelRgba(0, 0, 0x1234, 0xabcd, 0xffff, 0x807f);
+
+      final copy = PicaLanczosResizer.resizeImage(source, width: 2, height: 1);
+
+      expect(copy.format, img.Format.uint16);
+      expect(copy.toUint8List(), source.toUint8List());
+      expect(identical(copy, source), isFalse);
+      copy.setPixelR(0, 0, 0);
+      expect(source.getPixel(0, 0).r, 0x1234);
+    });
+
     test('returns an independent copy when dimensions already match', () {
       final source = _buildSource(2, 2, withAlpha: true);
 
@@ -126,6 +285,31 @@ void main() {
       );
     });
   });
+}
+
+void _expectNormalizedResize(img.Image source, Uint8List rgba) {
+  final originalBytes = Uint8List.fromList(source.toUint8List());
+  final palette = source.palette;
+  final originalPalette = palette == null
+      ? null
+      : Uint8List.fromList(palette.toUint8List());
+  final expected = PicaLanczosResizer.resizeRgba(
+    rgba,
+    sourceWidth: source.width,
+    sourceHeight: source.height,
+    targetWidth: 7,
+    targetHeight: 5,
+  );
+
+  final resized = PicaLanczosResizer.resizeImage(source, width: 7, height: 5);
+
+  expect((resized.width, resized.height), (7, 5));
+  expect(resized.format, img.Format.uint8);
+  expect(resized.numChannels, 4);
+  expect(resized.hasPalette, isFalse);
+  expect(resized.getBytes(order: img.ChannelOrder.rgba), expected);
+  expect(source.toUint8List(), originalBytes);
+  expect(source.palette?.toUint8List(), originalPalette);
 }
 
 Uint8List _buildSource(int width, int height, {required bool withAlpha}) {
