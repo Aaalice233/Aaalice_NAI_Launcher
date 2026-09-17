@@ -45,10 +45,10 @@ class ApiConstants {
   static const int dimensionGrid = 64;
 
   /// 默认请求头
+  ///
+  /// User-Agent、Accept 等浏览器自动附加的头由 BrowserHeadersInterceptor 补齐。
   static const Map<String, String> defaultHeaders = {
     'Content-Type': 'application/json',
-    'User-Agent': 'NAI-Launcher/1.0.0',
-    'Accept': 'application/json',
   };
 }
 
@@ -157,6 +157,10 @@ class ImageModels {
   /// 语义严格限定在 V4.5，V5 返回 false：精准参考等 V4.5 专属功能在 V5
   /// 测试期尚未开放，靠这个判定继续保持隐藏。
   static bool isV45Model(String model) => model.contains('diffusion-4-5');
+
+  /// 判断是否为 V5 家族，包含测试期的历史模型键。
+  static bool isV5Model(String model) =>
+      model.contains('diffusion-5') || model == v5StagingKey;
 
   /// 判断是否为 Inpainting 模型
   static bool isInpaintingModel(String model) => model.contains('inpainting');

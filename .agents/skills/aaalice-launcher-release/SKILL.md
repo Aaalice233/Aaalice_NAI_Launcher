@@ -142,6 +142,8 @@ dart run tool/tag_catalog/verify_bundled_databases.dart
 - Windows、macOS、Android 的适用 release build
 - Windows NuGet / portable package 验证
 
+核对 `lib/core/network/browser_identity/chrome_identity.dart` 的 `chromeMajorVersion` 是否仍是 Chrome 当前稳定版大版本号；落后时更新该常量并重跑 `test/core/network/browser_identity/`。
+
 这是发布核心流程：共享契约、数据库、平台原生代码或大范围变更应执行广泛验证。失败时先判断是否由本版本改动、既有问题或环境导致；不得跳过、伪造通过或为通过而修改无关测试。
 
 发布前再次检查：
@@ -178,6 +180,7 @@ git push origin v<version>
 - [ ] 更新日志提交已完成
 - [ ] Flutter 官方源检查通过
 - [ ] 内置数据库检查通过
+- [ ] `chromeMajorVersion` 与 Chrome 当前稳定版一致
 - [ ] 与风险匹配的测试、analyze、build 已执行并记录
 - [ ] `main` 已推送
 - [ ] `v*` annotated tag 已创建并推送

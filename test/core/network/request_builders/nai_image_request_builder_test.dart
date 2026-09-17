@@ -729,8 +729,10 @@ void main() {
           equals([0.4]),
         );
         expect(
-          result.requestParameters['reference_information_extracted_multiple'],
-          equals([0.3]),
+          result.requestParameters.containsKey(
+            'reference_information_extracted_multiple',
+          ),
+          isFalse,
         );
         expect(result.vibeEncodingMap, equals({1: 'enabled-encoded'}));
       },
@@ -757,6 +759,208 @@ void main() {
       expect(
         result.requestParameters['reference_strength_multiple'],
         equals([3.25]),
+      );
+    });
+
+    test(
+      'should scale encoded vibe strengths like the web client once their sum exceeds one',
+      () async {
+        const params = ImageParams(
+          model: 'nai-diffusion-4-full',
+          normalizeVibeStrength: true,
+          vibeReferencesV4: [
+            VibeReference(
+              displayName: 'first',
+              vibeEncoding: 'first-encoded',
+              sourceType: VibeSourceType.png,
+              strength: 0.6,
+            ),
+            VibeReference(
+              displayName: 'second',
+              vibeEncoding: 'second-encoded',
+              sourceType: VibeSourceType.png,
+              strength: 0.7,
+            ),
+          ],
+        );
+        const total = 0.6 + 0.7;
+        final builder = NAIImageRequestBuilder(
+          params: params,
+          encodeVibe: _fakeEncodeVibe,
+        );
+
+        final nonStreamResult = await builder.build(sampler: 'k_euler');
+        final streamResult = await builder.build(
+          sampler: 'k_euler',
+          isStream: true,
+        );
+
+        for (final result in [nonStreamResult, streamResult]) {
+          expect(
+            result.requestParameters['reference_strength_multiple'],
+            equals([0.6 / total, 0.7 / total]),
+          );
+          expect(
+            result.requestParameters['normalize_reference_strength_multiple'],
+            isTrue,
+          );
+        }
+      },
+    );
+
+    test(
+      'should keep encoded vibe strengths when normalization is off or unnecessary',
+      () async {
+        const disabled = ImageParams(
+          model: 'nai-diffusion-4-full',
+          normalizeVibeStrength: false,
+          vibeReferencesV4: [
+            VibeReference(
+              displayName: 'first',
+              vibeEncoding: 'first-encoded',
+              sourceType: VibeSourceType.png,
+              strength: 0.6,
+            ),
+            VibeReference(
+              displayName: 'second',
+              vibeEncoding: 'second-encoded',
+              sourceType: VibeSourceType.png,
+              strength: 0.7,
+            ),
+          ],
+        );
+        const withinOne = ImageParams(
+          model: 'nai-diffusion-4-full',
+          normalizeVibeStrength: true,
+          vibeReferencesV4: [
+            VibeReference(
+              displayName: 'first',
+              vibeEncoding: 'first-encoded',
+              sourceType: VibeSourceType.png,
+              strength: 0.3,
+            ),
+            VibeReference(
+              displayName: 'second',
+              vibeEncoding: 'second-encoded',
+              sourceType: VibeSourceType.png,
+              strength: 0.5,
+            ),
+          ],
+        );
+
+        final disabledResult = await NAIImageRequestBuilder(
+          params: disabled,
+          encodeVibe: _fakeEncodeVibe,
+        ).build(sampler: 'k_euler');
+        final withinOneResult = await NAIImageRequestBuilder(
+          params: withinOne,
+          encodeVibe: _fakeEncodeVibe,
+        ).build(sampler: 'k_euler');
+
+        expect(
+          disabledResult.requestParameters['reference_strength_multiple'],
+          equals([0.6, 0.7]),
+        );
+        expect(
+          disabledResult
+              .requestParameters['normalize_reference_strength_multiple'],
+          isFalse,
+        );
+        expect(
+          withinOneResult.requestParameters['reference_strength_multiple'],
+          equals([0.3, 0.5]),
+        );
+      },
+    );
+
+    test('should normalize over successfully encoded vibes only', () async {
+      final params = ImageParams(
+        model: 'nai-diffusion-4-full',
+        normalizeVibeStrength: true,
+        vibeReferencesV4: [
+          VibeReference(
+            displayName: 'failing-raw',
+            vibeEncoding: '',
+            rawImageData: Uint8List.fromList([9, 9, 9]),
+            sourceType: VibeSourceType.rawImage,
+            strength: 0.9,
+          ),
+          const VibeReference(
+            displayName: 'first',
+            vibeEncoding: 'first-encoded',
+            sourceType: VibeSourceType.png,
+            strength: 0.6,
+          ),
+          const VibeReference(
+            displayName: 'second',
+            vibeEncoding: 'second-encoded',
+            sourceType: VibeSourceType.png,
+            strength: 0.7,
+          ),
+        ],
+      );
+      const total = 0.6 + 0.7;
+      final builder = NAIImageRequestBuilder(
+        params: params,
+        encodeVibe: (image, {required model, informationExtracted = 1.0}) async {
+          return '';
+        },
+      );
+
+      final nonStreamResult = await builder.build(sampler: 'k_euler');
+      final streamResult = await builder.build(
+        sampler: 'k_euler',
+        isStream: true,
+      );
+
+      for (final result in [nonStreamResult, streamResult]) {
+        expect(
+          result.requestParameters['reference_image_multiple'],
+          equals(['first-encoded', 'second-encoded']),
+        );
+        expect(
+          result.requestParameters['reference_strength_multiple'],
+          equals([0.6 / total, 0.7 / total]),
+        );
+      }
+    });
+
+    test('should send raw V3 vibe strengths without normalization', () async {
+      final firstImage = Uint8List.fromList([1, 2, 3]);
+      final secondImage = Uint8List.fromList([4, 5, 6]);
+      final params = ImageParams(
+        model: ImageModels.animeDiffusionV3,
+        normalizeVibeStrength: true,
+        vibeReferencesV4: [
+          VibeReference(
+            displayName: 'first-raw',
+            vibeEncoding: '',
+            rawImageData: firstImage,
+            sourceType: VibeSourceType.rawImage,
+            strength: 0.6,
+          ),
+          VibeReference(
+            displayName: 'second-raw',
+            vibeEncoding: '',
+            rawImageData: secondImage,
+            sourceType: VibeSourceType.rawImage,
+            strength: 0.7,
+          ),
+        ],
+      );
+
+      final result = await NAIImageRequestBuilder(
+        params: params,
+        encodeVibe: _fakeEncodeVibe,
+      ).build(sampler: 'k_euler');
+
+      expect(
+        result.requestParameters['reference_image_multiple'],
+        equals([base64Encode(firstImage), base64Encode(secondImage)]),
+      );
+      expect(
+        result.requestParameters['reference_strength_multiple'],
+        equals([0.6, 0.7]),
       );
     });
 
