@@ -45,13 +45,14 @@ void main() {
     hivePath =
         '${Directory.systemTemp.path}/autocomplete_widget_${DateTime.now().microsecondsSinceEpoch}';
     Hive.init(hivePath);
-    await Hive.openBox(StorageKeys.settingsBox);
-    await Hive.openBox(StorageKeys.historyBox);
+    // Memory backend: writes under FakeAsync never finish and lock the box
+    await Hive.openBox(StorageKeys.settingsBox, bytes: Uint8List(0));
+    await Hive.openBox(StorageKeys.historyBox, bytes: Uint8List(0));
   });
 
   tearDown(() async {
-    await Hive.close();
-    await Hive.deleteFromDisk();
+    // Bounded wait: a locked box fails fast instead of hitting the watchdog
+    await Hive.close().timeout(const Duration(seconds: 10));
   });
 
   testWidgets('shows local BASE results and inserts by keyboard', (
