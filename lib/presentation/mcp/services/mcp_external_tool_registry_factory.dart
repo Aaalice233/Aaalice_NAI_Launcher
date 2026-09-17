@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/agent/agent_types.dart';
 import '../../../core/agent/permissions/permissions.dart';
 import '../../../core/mcp/mcp_image_http_endpoint.dart';
 import '../../agent_chat/services/agent_resource_resolver.dart';
@@ -139,6 +140,9 @@ class McpExternalToolRegistryFactory {
       messages: () => const [],
       questionController: AgentUserQuestionController(onChanged: (_) {}),
       prepareImageExport: imageResponses.prepareExportImage,
+      observationGuidance:
+          'Call inspect_images with the image resource_ref first; it returns '
+          'the full-resolution image.',
     );
   }
 
@@ -160,4 +164,7 @@ class McpExternalToolRegistryFactory {
       ),
     );
   }
+
+  void observeToolResult(AgentToolResult result) =>
+      _builder.observeToolResult(result);
 }

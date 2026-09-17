@@ -172,7 +172,11 @@ class ManualInpaintToolbox implements InpaintDraftAuthoringHost {
       final bytes = resolved?.bytes;
       return bytes == null
           ? null
-          : (bytes: bytes, filePath: resolved!.filePath);
+          : (
+              bytes: bytes,
+              filePath: resolved!.filePath,
+              reference: resolved.reference,
+            );
     };
   }
 
@@ -182,9 +186,11 @@ class ManualInpaintToolbox implements InpaintDraftAuthoringHost {
   void configureObservationLedger(
     AgentImageObservationLedger ledger, {
     required String Function() activeSessionId,
+    required String observationGuidance,
   }) => _authoring.configureObservationLedger(
     ledger,
     activeSessionId: activeSessionId,
+    observationGuidance: observationGuidance,
   );
 
   Future<int?> estimateAnlasForDraft(String draftId) async {
@@ -382,6 +388,7 @@ class ManualInpaintToolbox implements InpaintDraftAuthoringHost {
     return InpaintSourceResolution.ok((
       bytes: await sourceFile.readAsBytes(),
       filePath: sourcePath,
+      reference: null,
     ));
   }
 

@@ -23,17 +23,20 @@ class LauncherMcpToolExecutor implements McpToolExecutor {
     required McpApprovalCoordinator approvals,
     required AgentAuditSink auditSink,
     required McpImageResponseService imageResponses,
+    void Function(AgentToolResult result)? observeResult,
     Lock? writeLock,
   }) : _registry = registry,
        _approvals = approvals,
        _auditSink = auditSink,
        _imageResponses = imageResponses,
+       _observeResult = observeResult,
        _writeLock = writeLock ?? Lock();
 
   final AgentToolRegistry Function() _registry;
   final McpApprovalCoordinator _approvals;
   final AgentAuditSink _auditSink;
   final McpImageResponseService _imageResponses;
+  final void Function(AgentToolResult result)? _observeResult;
   final Lock _writeLock;
 
   @override
@@ -134,6 +137,8 @@ class LauncherMcpToolExecutor implements McpToolExecutor {
         includeDisplayUrl: args['include_display_url'] != false,
         style: McpImageResponseService.styleForClient(request.clientLabel),
       );
+      // 记的是 prepare 之后的结果：外部客户端收到的是原图，不是工具原始返回的缩略图。
+      _observeResult?.call(result);
       await _writeAudit(
         request,
         stage: 'result',
