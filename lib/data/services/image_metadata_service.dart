@@ -637,7 +637,7 @@ class ImageMetadataService {
     if (metadata == null || metadata.fixedTagUsageData != null) return metadata;
     final snapshot = _fixedTagUsageRecords.lookup(hash);
     if (snapshot == null) return metadata;
-    return metadata.copyWith(fixedTagUsageData: snapshot.toJson());
+    return metadata.withFixedTagUsageData(snapshot.toJson());
   }
 
   MetadataParseResult _withRecordedFixedTagsResult(
