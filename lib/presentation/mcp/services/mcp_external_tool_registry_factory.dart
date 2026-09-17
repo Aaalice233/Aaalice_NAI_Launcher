@@ -38,7 +38,7 @@ abstract final class McpExternalToolSurface {
     final tools = [
       for (final tool in registry.tools)
         if (!excludedToolNames.contains(tool.name))
-          if (mcpImageToolDescriptions[tool.name] case final description?)
+          if (_descriptionFor(tool) case final description?)
             DefinedAgentTool(
               name: tool.name,
               label: tool.label,
@@ -60,6 +60,13 @@ abstract final class McpExternalToolSurface {
       ),
       policy: registry.policy,
     );
+  }
+
+  static String? _descriptionFor(AgentTool tool) {
+    final override = mcpImageToolDescriptions[tool.name];
+    if (override != null) return override;
+    final suffix = mcpToolDescriptionSuffixes[tool.name];
+    return suffix == null ? null : '${tool.description}$suffix';
   }
 
   static Map<String, dynamic> _parametersFor(

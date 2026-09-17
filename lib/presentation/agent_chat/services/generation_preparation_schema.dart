@@ -8,12 +8,35 @@ Map<String, dynamic> generationPreparationProperties({
       'type': 'string',
       'enum': ['generate', 'queue'],
     },
-  'prompt': {'type': 'string'},
-  'negative_prompt': {'type': 'string'},
-  'width': {'type': 'integer'},
-  'height': {'type': 'integer'},
-  'count': {'type': 'integer'},
-  'seed': {'type': 'integer'},
+  'prompt': {
+    'type': 'string',
+    'description':
+        'Positive prompt for this request only, English danbooru-style tags; '
+        'does not change the launcher page.',
+  },
+  'negative_prompt': {
+    'type': 'string',
+    'description':
+        'Undesired content for this request only; omit to inherit the page '
+        'value.',
+  },
+  'width': {
+    'type': 'integer',
+    'description': 'Multiple of 64; omit to inherit the page value.',
+  },
+  'height': {
+    'type': 'integer',
+    'description': 'Multiple of 64; omit to inherit the page value.',
+  },
+  'count': {
+    'type': 'integer',
+    'description': 'Variations of this prompt; omit for 1.',
+  },
+  'seed': {
+    'type': 'integer',
+    'description':
+        '-1 or omitted for random; a fixed seed only applies to count 1.',
+  },
   'source_image': {'type': 'string'},
   'mask_image': {'type': 'string'},
   'source_ref': {'type': 'object'},
