@@ -1,5 +1,8 @@
+import 'dart:convert';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/core/mcp/cli/mcp_client_config_printer.dart';
+import 'package:nai_launcher/core/mcp/mcp_server_constants.dart';
 
 void main() {
   final endpoint = Uri.parse('http://127.0.0.1:20624/mcp');
@@ -22,6 +25,8 @@ void main() {
         'claude-code',
         'codex',
         'cursor',
+        'cherry-studio',
+        'pi',
         'claude-desktop',
       ]);
       for (final kind in McpClientKind.values) {
@@ -32,6 +37,33 @@ void main() {
     test('returns null for an unknown CLI name', () {
       expect(McpClientKind.fromCliName('claude'), isNull);
       expect(McpClientKind.fromCliName(''), isNull);
+    });
+  });
+
+  group('renderMcpAgentSetupPrompt', () {
+    test('points the agent at the bundled CLI and the docs', () {
+      final prompt = renderMcpAgentSetupPrompt(cliPath: windowsCliPath);
+
+      expect(prompt, contains('"$windowsCliPath" print-config <your client>'));
+      expect(prompt, contains(mcpDocsUrl));
+      expect(prompt, contains(McpServerDefaults.serverName));
+    });
+
+    test('names no client, leaving the list to the CLI', () {
+      final prompt = renderMcpAgentSetupPrompt(cliPath: windowsCliPath);
+
+      for (final kind in McpClientKind.values) {
+        expect(prompt, isNot(contains(kind.cliName)));
+      }
+      expect(prompt, contains('without a client argument'));
+    });
+
+    test('carries no credentials into the agent context', () {
+      final prompt = renderMcpAgentSetupPrompt(cliPath: windowsCliPath);
+
+      expect(prompt, isNot(contains(token)));
+      expect(prompt, isNot(contains('Bearer')));
+      expect(prompt, isNot(contains(mcpTokenEnvironmentVariable)));
     });
   });
 
@@ -66,6 +98,64 @@ void main() {
     }
   }
 }''');
+    });
+
+    test('cherry-studio prints an importable streamableHttp entry', () {
+      expect(render(McpClientKind.cherryStudio), '''
+{
+  "mcpServers": {
+    "nai-launcher": {
+      "name": "NAI Launcher",
+      "type": "streamableHttp",
+      "baseUrl": "http://127.0.0.1:20624/mcp",
+      "headers": {
+        "Authorization": "Bearer tok_abcdef0123456789"
+      },
+      "timeout": 600
+    }
+  }
+}''');
+    });
+
+    test('pi prints a bearer entry for the mcp adapter', () {
+      expect(render(McpClientKind.pi), '''
+{
+  "mcpServers": {
+    "nai-launcher": {
+      "url": "http://127.0.0.1:20624/mcp",
+      "auth": "bearer",
+      "bearerToken": "tok_abcdef0123456789",
+      "requestTimeoutMs": 600000
+    }
+  }
+}''');
+    });
+
+    Map<String, dynamic> serverEntry(McpClientKind kind) {
+      final servers =
+          (jsonDecode(render(kind)) as Map<String, dynamic>)['mcpServers']
+              as Map<String, dynamic>;
+      return servers[McpServerDefaults.serverName] as Map<String, dynamic>;
+    }
+
+    test('http clients outwait the in-app approval window', () {
+      const approval = McpServerDefaults.approvalTimeout;
+
+      expect(
+        serverEntry(McpClientKind.cherryStudio)['timeout'] as int,
+        greaterThan(approval.inSeconds),
+      );
+      expect(
+        serverEntry(McpClientKind.pi)['requestTimeoutMs'] as int,
+        greaterThan(approval.inMilliseconds),
+      );
+    });
+
+    test('pi leaves protocol negotiation on the legacy default', () {
+      final entry = serverEntry(McpClientKind.pi);
+
+      expect(entry.containsKey('protocolVersion'), isFalse);
+      expect(entry.containsKey('httpTransport'), isFalse);
     });
 
     test('claude-desktop prints the stdio command with escaped separators', () {

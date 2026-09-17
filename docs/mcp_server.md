@@ -1,6 +1,6 @@
 # 外部智能体接入（MCP 服务）
 
-启动器可以在本机开一个 MCP 服务器，让 Claude Code、Codex CLI、Cursor、Claude Desktop 等外部智能体通过与内置智能代理同一套工具层操作应用。本文面向要接入或维护这条链路的人。
+启动器可以在本机开一个 MCP 服务器，让 Claude Code、Codex CLI、Cursor、Cherry Studio、Pi、Claude Desktop 等外部智能体通过与内置智能代理同一套工具层操作应用。本文面向要接入或维护这条链路的人。
 
 本文与 [MCP 调试](mcp_debugging.md) 方向相反：那篇把 Dart/Flutter 官方 MCP server 接给 Codex 用于调试本项目，本篇是启动器自身作为 MCP 服务器对外提供工具。
 
@@ -16,6 +16,8 @@
 1. 打开“设置 → 集成 → MCP”，启用 MCP 服务器，确认状态为监听中。
 2. 在“接入令牌”处复制令牌，或直接复制对应客户端的配置片段。
 3. 按下面的片段配置客户端，重启客户端后确认工具列表出现 `nai-launcher`。
+
+客户端配置区最上方是推荐做法：复制那段提示词发给要接入的智能体，由它调用随包 CLI 取得配置并写入自己的配置文件。提示词不写客户端名（智能体自己知道宿主，名单由 `print-config` 不带参数时给出），也不含令牌——令牌由 CLI 在本机从发现文件读取，不会进入模型上下文。智能体无法执行命令时再用下列手工片段。
 
 下列片段与 CLI `nai_launcher_mcp print-config <client>` 的输出一致：`<token>` 替换为实际令牌，端口按实际配置替换。
 
@@ -45,6 +47,40 @@ NAI_LAUNCHER_MCP_TOKEN=<token>
 ```
 
 ```json
+// Cherry Studio：MCP 服务器设置里“从 JSON 导入”，类型为 Streamable HTTP 而不是 SSE
+// timeout 单位为秒，取值大于应用内审批超时，避免用户还没点确认就先判超时
+{
+  "mcpServers": {
+    "nai-launcher": {
+      "name": "NAI Launcher",
+      "type": "streamableHttp",
+      "baseUrl": "http://127.0.0.1:20624/mcp",
+      "headers": {
+        "Authorization": "Bearer <token>"
+      },
+      "timeout": 600
+    }
+  }
+}
+```
+
+```json
+// Pi：~/.pi/agent/mcp.json，需先安装 pi-mcp-adapter 包，Pi 本体不含 MCP
+// auth 必须显式写 bearer：留空时 adapter 会把 401 的 WWW-Authenticate 当作 OAuth 提示转去走发现流程
+// 不要写 protocolVersion：默认 legacy 对应 2026 前修订，与启动器实现的 2025-11-25 一致
+{
+  "mcpServers": {
+    "nai-launcher": {
+      "url": "http://127.0.0.1:20624/mcp",
+      "auth": "bearer",
+      "bearerToken": "<token>",
+      "requestTimeoutMs": 600000
+    }
+  }
+}
+```
+
+```json
 // Claude Desktop：claude_desktop_config.json，走随包 stdio 代理，不需要填令牌
 // command 填代理的绝对路径，设置页的复制按钮会填入本机实际路径
 {
@@ -61,22 +97,7 @@ NAI_LAUNCHER_MCP_TOKEN=<token>
 - 地址统一写 `127.0.0.1`，不要写 `localhost`，避免客户端先解析到 IPv6 回环而连不上。
 - 审批在启动器窗口内完成，一次调用可能挂起几分钟。把客户端的工具超时调高（Codex 的 `tool_timeout_sec`、Claude Code 的 `MCP_TOOL_TIMEOUT`），否则客户端会在用户点确认之前先判超时。
 - 令牌长期有效，只有用户点“重新生成令牌”才更换；更换后所有客户端配置都要同步更新。
-
-Cherry Studio 可手动导入以下配置（不属于 CLI `print-config` 的客户端枚举）；`timeout` 单位为秒，类型选择 Streamable HTTP 而不是 SSE：
-
-```json
-{
-  "mcpServers": {
-    "nai-launcher": {
-      "name": "NAI Launcher",
-      "type": "streamableHttp",
-      "baseUrl": "http://127.0.0.1:20624/mcp",
-      "headers": {"Authorization": "Bearer <token>"},
-      "timeout": 600
-    }
-  }
-}
-```
+- Pi 片段把令牌明文写进 `mcp.json`，与 Cursor、Cherry Studio 一致。要避免明文可改用 adapter 的 `bearerTokenEnv`（从环境变量读）或 `bearerTokenStore`（存进系统凭据库，需另跑一次 adapter 命令写入）。
 
 ## 端点与协议
 
@@ -189,7 +210,7 @@ MCP 协议端点为 `http://127.0.0.1:<port>/mcp`，默认端口 `20624`（`McpS
 | --- | --- |
 | `proxy` | 逐行读取 stdin 上的 JSON-RPC，一条一个 POST，服务器消息逐行写回 stdout |
 | `status` | 打印 `endpoint`、`pid`、`started_at`、`app_version`、`protocol_versions`、`token: hidden (N characters)`、`discovery_file` 与 `reachable: yes` / `reachable: no` |
-| `print-config <client>` | 打印对应客户端的配置片段，`<client>` 取 `claude-code`、`codex`、`cursor`、`claude-desktop` |
+| `print-config <client>` | 打印对应客户端的配置片段，`<client>` 取 `claude-code`、`codex`、`cursor`、`cherry-studio`、`pi`、`claude-desktop` |
 
 全局选项：`--endpoint <url>`、`--token <token>`、`--token-env <NAME>`、`--discovery-file <path>`、`--verbose`。端点与令牌按“显式选项 > 环境变量 > 发现文件”解析；两者都能从选项或环境得到时不再读发现文件。
 
@@ -210,7 +231,7 @@ MCP 协议端点为 `http://127.0.0.1:<port>/mcp`，默认端口 `20624`（`McpS
 
 - **连接与可用性**：启用开关、状态行（已关闭／启动中／监听中／错误，端口占用时给出改端口提示）、端点地址（可选中并复制）、端口输入（`1024`–`65535`，提交后生效）、发现文件路径、接入令牌（默认掩码，可显示、复制、重新生成）。
 - **权限**：三档权限模式单选，说明文案与聊天代理一致，并固定提示任何可能消耗 Anlas 的操作都会在启动器内单独确认。
-- **客户端**：待处理授权提示（实际同意／拒绝在页面顶部的授权浮层完成）、已连接客户端列表（名称版本、接入时间、最近活动）、四类客户端的配置片段与复制按钮，以及查看本文的入口。配置片段预览中的令牌是掩码，只有复制动作写出真实令牌；该区块仅在服务器监听时显示。
+- **客户端**：待处理授权提示（实际同意／拒绝在页面顶部的授权浮层完成）、已连接客户端列表（名称版本、接入时间、最近活动）、置顶且默认展开的推荐提示词、六类客户端的配置片段与复制按钮，以及查看本文的入口。配置片段预览中的令牌是掩码，只有复制动作写出真实令牌；该区块仅在服务器监听时显示。
 
 端口和令牌的改动会重启服务器并断开全部已连接的客户端，客户端需要重新 `initialize`。权限模式的改动不重启服务器：新会话立即按新模式构建工具面，已连接会话的 `tools/list` 保持连接时的快照，调用已退出工具面的工具会返回错误结果。
 

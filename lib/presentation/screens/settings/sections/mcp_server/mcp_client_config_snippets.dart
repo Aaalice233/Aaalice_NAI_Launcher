@@ -3,7 +3,6 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-import '../../../../../core/constants/community_links.dart';
 import '../../../../../core/mcp/cli/mcp_client_config_printer.dart';
 import '../../../../../core/mcp/mcp_cli_path.dart';
 import '../../../../../core/utils/localization_extension.dart';
@@ -13,7 +12,6 @@ import '../../../../themes/design_tokens.dart';
 import '../../../../widgets/common/app_toast.dart';
 
 const String _previewTokenMask = '••••';
-const String _docsUrl = '${CommunityLinks.github}/blob/main/docs/mcp_server.md';
 
 /// 每个 MCP 客户端一段可直接粘贴的配置；预览打码，复制时才写入真实令牌。
 class McpClientConfigSnippets extends ConsumerStatefulWidget {
@@ -50,8 +48,16 @@ class _McpClientConfigSnippetsState
     AppToast.success(context, context.l10n.common_copied);
   }
 
+  Future<void> _copyAgentPrompt() async {
+    await Clipboard.setData(
+      ClipboardData(text: renderMcpAgentSetupPrompt(cliPath: _cliPath)),
+    );
+    if (!mounted) return;
+    AppToast.success(context, context.l10n.common_copied);
+  }
+
   Future<void> _openDocs() async {
-    final uri = Uri.parse(_docsUrl);
+    final uri = Uri.parse(mcpDocsUrl);
     if (await canLaunchUrl(uri)) {
       await launchUrl(uri, mode: LaunchMode.externalApplication);
     }
@@ -65,9 +71,21 @@ class _McpClientConfigSnippetsState
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        _ClientPanel(
+          id: 'agent-prompt',
+          title: l10n.settings_mcpServerAgentPromptTitle,
+          instruction: l10n.settings_mcpServerAgentPromptHint,
+          preview: renderMcpAgentSetupPrompt(cliPath: _cliPath),
+          showCliWarning: !_cliExists,
+          cliPath: _cliPath,
+          initiallyExpanded: true,
+          onCopy: _copyAgentPrompt,
+        ),
         for (final kind in McpClientKind.values)
           _ClientPanel(
-            kind: kind,
+            id: kind.cliName,
+            title: _displayName(kind),
+            instruction: _instruction(context, kind),
             preview: renderMcpClientConfig(
               kind,
               endpoint: widget.endpoint,
@@ -111,18 +129,24 @@ class _McpClientConfigSnippetsState
 
 class _ClientPanel extends StatelessWidget {
   const _ClientPanel({
-    required this.kind,
+    required this.id,
+    required this.title,
+    required this.instruction,
     required this.preview,
     required this.showCliWarning,
     required this.cliPath,
     required this.onCopy,
+    this.initiallyExpanded = false,
   });
 
-  final McpClientKind kind;
+  final String id;
+  final String title;
+  final String instruction;
   final String preview;
   final bool showCliWarning;
   final String cliPath;
   final VoidCallback onCopy;
+  final bool initiallyExpanded;
 
   @override
   Widget build(BuildContext context) {
@@ -130,7 +154,8 @@ class _ClientPanel extends StatelessWidget {
     final l10n = context.l10n;
 
     return ExpansionTile(
-      key: ValueKey('mcp-server-client-config-${kind.cliName}'),
+      key: ValueKey('mcp-server-client-config-$id'),
+      initiallyExpanded: initiallyExpanded,
       shape: const Border(),
       collapsedShape: const Border(),
       tilePadding: const EdgeInsets.symmetric(
@@ -143,10 +168,10 @@ class _ClientPanel extends StatelessWidget {
         DesignTokens.spacingXs,
       ),
       expandedCrossAxisAlignment: CrossAxisAlignment.stretch,
-      title: Text(_displayName(kind)),
+      title: Text(title),
       children: [
         Text(
-          _instruction(context, kind),
+          instruction,
           style: theme.textTheme.bodySmall?.copyWith(
             color: theme.colorScheme.onSurfaceVariant,
           ),
@@ -196,7 +221,7 @@ class _ClientPanel extends StatelessWidget {
         Align(
           alignment: AlignmentDirectional.centerStart,
           child: TextButton.icon(
-            key: ValueKey('mcp-server-copy-config-${kind.cliName}'),
+            key: ValueKey('mcp-server-copy-config-$id'),
             onPressed: onCopy,
             icon: const Icon(Icons.copy_outlined, size: DesignTokens.iconSm),
             label: Text(l10n.settings_mcpServerCopyConfig),
@@ -212,6 +237,8 @@ String _displayName(McpClientKind kind) {
     McpClientKind.claudeCode => 'Claude Code',
     McpClientKind.codex => 'Codex CLI',
     McpClientKind.cursor => 'Cursor',
+    McpClientKind.cherryStudio => 'Cherry Studio',
+    McpClientKind.pi => 'Pi',
     McpClientKind.claudeDesktop => 'Claude Desktop',
   };
 }
@@ -222,6 +249,8 @@ String _instruction(BuildContext context, McpClientKind kind) {
     McpClientKind.claudeCode => l10n.settings_mcpServerClaudeCodeHint,
     McpClientKind.codex => l10n.settings_mcpServerCodexHint,
     McpClientKind.cursor => l10n.settings_mcpServerCursorHint,
+    McpClientKind.cherryStudio => l10n.settings_mcpServerCherryStudioHint,
+    McpClientKind.pi => l10n.settings_mcpServerPiHint,
     McpClientKind.claudeDesktop => l10n.settings_mcpServerClaudeDesktopHint,
   };
 }
