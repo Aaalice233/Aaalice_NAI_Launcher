@@ -13,6 +13,7 @@ import 'package:nai_launcher/core/agent/resources/agent_chat_resource_reference.
 import 'package:nai_launcher/presentation/agent_chat/services/agent_resource_resolver.dart';
 import 'package:nai_launcher/presentation/agent_chat/services/defined_agent_tool.dart';
 import 'package:nai_launcher/presentation/mcp/services/mcp_approval_coordinator.dart';
+import 'package:nai_launcher/presentation/mcp/services/mcp_external_tool_registry_factory.dart';
 import 'package:nai_launcher/presentation/mcp/services/mcp_tool_call_pipeline.dart';
 import 'package:nai_launcher/presentation/mcp/services/mcp_image_response_service.dart';
 import 'package:nai_launcher/core/mcp/mcp_tool_executor.dart';
@@ -175,6 +176,144 @@ void main() {
     );
   });
 
+  for (final cost in [0, 24]) {
+    test('two calls return a displayable image at cost $cost', () async {
+      var generations = 0;
+      var reads = 0;
+      var writes = 0;
+      final bytes = Uint8List.fromList(
+        img.encodePng(img.Image(width: 64, height: 64)),
+      );
+      final reference = {
+        'version': 1,
+        'kind': 'generatedImage',
+        'source': 'generation_history',
+        'resourceId': 'new-image',
+      };
+      final tools = McpExternalToolSurface.filter(
+        fakeToolRegistry([
+          FakeAgentTool(
+            name: 'prepare_generation',
+            runner: (args, signal) async => agentToolJsonResult({
+              'ok': true,
+              'status': 'prepared',
+              'operation': 'generate',
+              'preparation_id': 'prep-1',
+              'estimated_anlas': cost,
+              'confirmation_required': cost != 0,
+              'auto_start': true,
+              'parameters': {
+                'prompt': 'long prompt,' * 1000,
+                'width': 64,
+                'height': 64,
+              },
+            }),
+          ),
+          FakeAgentTool(
+            name: 'submit_generation',
+            parameters: const {
+              'type': 'object',
+              'properties': {
+                'preparation_id': {'type': 'string'},
+                'confirmed': {'type': 'boolean', 'const': true},
+              },
+              'required': ['preparation_id'],
+              'additionalProperties': false,
+            },
+            runner: (args, signal) async {
+              expect(args, {
+                'preparation_id': 'prep-1',
+                if (cost > 0) 'confirmed': true,
+              });
+              generations++;
+              return agentToolJsonResult({
+                'ok': true,
+                'images': [
+                  {'resource_ref': reference},
+                ],
+              });
+            },
+          ),
+        ], mode: AgentPermissionMode.fullAccess),
+      ).tools;
+      final pipeline = _Harness(
+        mode: AgentPermissionMode.fullAccess,
+        toolOverrides: tools,
+        estimatedAnlas: cost,
+        imageResponses: McpImageResponseService(
+          resolve: (ref) async {
+            reads++;
+            return ResolvedAgentResource(
+              reference: ref,
+              label: 'new image',
+              bytes: bytes,
+            );
+          },
+          shouldStripMetadata: () => true,
+          writeDisplayFile: (image) async {
+            writes++;
+            return File(p.join(Directory.systemTemp.path, 'new-display.png'));
+          },
+          publishDisplayImage:
+              (bytes, {required mimeType, required metadataStripped}) =>
+                  McpImageDisplayLink(
+                    Uri.parse('http://127.0.0.1:20624/mcp/images/new.png'),
+                    DateTime.utc(2026, 9, 16),
+                  ),
+        ),
+      );
+      addTearDown(pipeline.dispose);
+      final preparation = await pipeline.call('prepare', 'prepare_generation');
+      expect(generations, 0);
+      expect(jsonEncode(preparation.structuredContent).length, lessThan(500));
+      final next = preparation.structuredContent!['next_action'] as Map;
+      final pending = pipeline.call(
+        'submit',
+        next['tool'] as String,
+        arguments: Map<String, dynamic>.from(next['arguments'] as Map),
+      );
+      if (cost > 0) {
+        await pumpEventQueue();
+        expect(generations, 0);
+        expect(pipeline.coordinator.current?.request.estimatedAnlas, cost);
+        pipeline.coordinator.resolve('submit', true);
+      }
+      final result = await pending;
+      expect(result.isError, isFalse);
+      expect(generations, 1);
+      expect(reads, 1);
+      expect(writes, 1);
+      expect(result.content.where((c) => c.isImage), hasLength(1));
+      final descriptor =
+          (result.structuredContent!['images'] as List).single as Map;
+      expect(
+        descriptor['display_markdown'],
+        descriptor['display_file_markdown'],
+      );
+      expect(descriptor['display_markdown'], contains('new-display.png'));
+      expect(
+        result.structuredContent!['display_markdown'],
+        descriptor['display_markdown'],
+      );
+      expect(
+        (result.content.lastWhere((c) => c.isText) as TextContent).text,
+        descriptor['display_markdown'],
+      );
+      expect(
+        descriptor['display_url_markdown'],
+        contains('/mcp/images/new.png'),
+      );
+      expect(
+        result.structuredContent!['display_instructions'].toString().length,
+        lessThan(600),
+      );
+      expect(
+        pipeline.auditIds.where((id) => id.endsWith('.result')),
+        hasLength(2),
+      );
+    });
+  }
+
   test(
     'tools/call sends sanitized full-resolution ImageContent on the wire',
     () async {
@@ -333,6 +472,41 @@ void main() {
       expect(publishes, 4);
     },
   );
+
+  test(
+    'the observation hook sees the prepared result, not the raw one',
+    () async {
+      final observed = <AgentToolResult>[];
+      final pipeline = _Harness(
+        sourceResult: agentToolJsonResult({'ok': true, 'stage': 'raw'}),
+        imageResponses: _PreparedStageImageResponses(),
+        observeResult: observed.add,
+      );
+      addTearDown(pipeline.dispose);
+
+      final result = await pipeline.call('observe-1', 'display_images');
+
+      expect(result.isError, isFalse);
+      expect(observed, hasLength(1));
+      expect(observed.single.details['stage'], 'prepared');
+    },
+  );
+}
+
+/// Marks every prepared result so the hook cannot be satisfied by the raw one.
+class _PreparedStageImageResponses extends McpImageResponseService {
+  _PreparedStageImageResponses()
+    : super(resolve: (_) async => null, shouldStripMetadata: () => false);
+
+  @override
+  Future<AgentToolResult> prepare(
+    String toolName,
+    AgentToolResult result, {
+    AbortSignal? signal,
+    bool? includeDisplayFile,
+    bool includeDisplayUrl = true,
+    McpImageDisplayStyle style = McpImageDisplayStyle.inlineUrl,
+  }) async => agentToolJsonResult({'ok': true, 'stage': 'prepared'});
 }
 
 String? _textOf(CallToolResult result) {
@@ -347,47 +521,52 @@ class _Harness {
     AgentPermissionMode mode = AgentPermissionMode.askBeforeSensitiveActions,
     McpImageResponseService? imageResponses,
     this.sourceResult,
+    List<AgentTool>? toolOverrides,
+    int estimatedAnlas = 24,
+    void Function(AgentToolResult result)? observeResult,
   }) {
-    tools = [
-      FakeAgentTool(
-        name: 'get_generation_settings',
-        runner: _runner('get_generation_settings'),
-      ),
-      FakeAgentTool(
-        name: 'display_images',
-        parameters: const {
-          'type': 'object',
-          'properties': {
-            'include_display_file': {'type': 'boolean'},
-            'include_display_url': {'type': 'boolean'},
-          },
-        },
-        runner: _runner('display_images'),
-      ),
-      FakeAgentTool(
-        name: 'set_positive_prompt',
-        runner: _runner('set_positive_prompt'),
-      ),
-      FakeAgentTool(
-        name: 'delete_fixed_tag',
-        runner: _runner('delete_fixed_tag'),
-      ),
-      FakeAgentTool(
-        name: 'generate_image',
-        parameters: const {
-          'type': 'object',
-          'properties': {
-            'preparation_id': {'type': 'string'},
-          },
-          'additionalProperties': false,
-        },
-        runner: _runner('generate_image'),
-      ),
-    ];
+    tools =
+        toolOverrides ??
+        [
+          FakeAgentTool(
+            name: 'get_generation_settings',
+            runner: _runner('get_generation_settings'),
+          ),
+          FakeAgentTool(
+            name: 'display_images',
+            parameters: const {
+              'type': 'object',
+              'properties': {
+                'include_display_file': {'type': 'boolean'},
+                'include_display_url': {'type': 'boolean'},
+              },
+            },
+            runner: _runner('display_images'),
+          ),
+          FakeAgentTool(
+            name: 'set_positive_prompt',
+            runner: _runner('set_positive_prompt'),
+          ),
+          FakeAgentTool(
+            name: 'delete_fixed_tag',
+            runner: _runner('delete_fixed_tag'),
+          ),
+          FakeAgentTool(
+            name: 'generate_image',
+            parameters: const {
+              'type': 'object',
+              'properties': {
+                'preparation_id': {'type': 'string'},
+              },
+              'additionalProperties': false,
+            },
+            runner: _runner('generate_image'),
+          ),
+        ];
     coordinator = McpApprovalCoordinator(
       auditSink: audit,
       estimateAnlas: (_, args) async =>
-          args['preparation_id'] is String ? 24 : null,
+          args['preparation_id'] is String ? estimatedAnlas : null,
       isMounted: () => true,
       timeout: timeout,
     );
@@ -402,6 +581,7 @@ class _Harness {
             resolve: (_) async => null,
             shouldStripMetadata: () => false,
           ),
+      observeResult: observeResult,
     );
   }
 

@@ -274,6 +274,7 @@ void main() {
         'display_images',
         _internalResult(),
         includeDisplayFile: true,
+        style: McpImageDisplayStyle.inlineFile,
       );
       expect(result.isError, isFalse);
       expect(writes, 1);
@@ -291,7 +292,7 @@ void main() {
       );
       expect(
         wire.structuredContent!['display_instructions'],
-        contains('one-click reveal'),
+        contains('Do not call display_images again'),
       );
       _expectNoFileShortcuts(wire);
       await withDisplayFile.prepare(
@@ -323,6 +324,67 @@ void main() {
     expect(result.isError, isTrue);
     expect(result.content.whereType<ToolResultImageContent>(), isEmpty);
     expect(jsonEncode(result.details), isNot(contains('C:/private')));
+  });
+
+  test(
+    'completed generation survives optional display failures with sanitized media',
+    () async {
+      final failingDisplay = McpImageResponseService(
+        resolve: (ref) async => ResolvedAgentResource(
+          reference: ref,
+          label: 'private',
+          bytes: original,
+          filePath: 'C:/private/original.png',
+        ),
+        shouldStripMetadata: () => true,
+        writeDisplayFile: (_) async =>
+            throw const FileSystemException('cache unavailable'),
+        publishDisplayImage:
+            (_, {required mimeType, required metadataStripped}) =>
+                throw StateError('display unavailable'),
+      );
+      final result = await failingDisplay.prepare(
+        'submit_generation',
+        _internalResult(),
+        style: McpImageDisplayStyle.inlineFile,
+      );
+      expect(result.isError, isFalse);
+      expect(result.content.whereType<ToolResultImageContent>(), hasLength(1));
+      expect(UnifiedMetadataParser.extractPngTextData(_bytes(result)), isEmpty);
+      expect(jsonEncode(result.details), isNot(contains('C:/private')));
+      expect(
+        result.details['display_instructions'],
+        contains('Never regenerate'),
+      );
+      final descriptor = (result.details['images'] as List).single as Map;
+      expect(descriptor['resource_ref'], isNotNull);
+      expect(descriptor.containsKey('display_markdown'), isFalse);
+    },
+  );
+
+  test('Codex generation can explicitly opt out of display files', () async {
+    var writes = 0;
+    final service = McpImageResponseService(
+      resolve: (ref) async => ResolvedAgentResource(
+        reference: ref,
+        label: 'image',
+        bytes: original,
+      ),
+      shouldStripMetadata: () => false,
+      writeDisplayFile: (_) async {
+        writes++;
+        return File('unused.png');
+      },
+    );
+    final result = await service.prepare(
+      'generate_image',
+      _internalResult(),
+      style: McpImageDisplayStyle.inlineFile,
+      includeDisplayFile: false,
+    );
+    expect(result.isError, isFalse);
+    expect(writes, 0);
+    expect(result.content.whereType<ToolResultImageContent>(), hasLength(1));
   });
 
   test(
@@ -392,7 +454,7 @@ void main() {
       );
       await withHttp.prepare('inspect_images', _internalResult());
       await withHttp.prepare('generate_image', _internalResult());
-      expect(publishes, 2);
+      expect(publishes, 3);
     },
   );
 
@@ -496,20 +558,22 @@ void main() {
       expect(_bytes(result), original);
       _expectNoFileShortcuts(McpToolAdapter.toCallToolResult(result));
 
-      final withoutReference = await withLink.prepare(
+      final generated = await withLink.prepare(
         'generate_image',
         _internalResult(),
         style: McpImageDisplayStyle.link,
       );
       expect(
-        withoutReference.details['display_instructions'],
-        contains('display_images'),
+        generated.details['display_instructions'],
+        contains('clickable link'),
       );
       expect(
-        ((withoutReference.details['images'] as List).single as Map)
-            .containsKey('display_link_markdown'),
-        isFalse,
+        ((generated.details['images'] as List).single as Map).containsKey(
+          'display_link_markdown',
+        ),
+        isTrue,
       );
+      expect(writes, 2);
     },
   );
 
@@ -551,6 +615,24 @@ void main() {
     expect(instructions, contains('display_markdown'));
     expect(instructions, contains('clickable link'));
     expect(instructions, contains('one-click reveal'));
+    // 合并工具块会吞掉直显的图，只有这个客户端需要这条节奏提示。
+    expect(instructions, contains('before any further tool call'));
+    expect(instructions.length, lessThan(600));
+    for (final style in [
+      McpImageDisplayStyle.link,
+      McpImageDisplayStyle.inlineFile,
+      McpImageDisplayStyle.inlineUrl,
+    ]) {
+      final other = await gated.prepare(
+        'display_images',
+        _internalResult(),
+        style: style,
+      );
+      expect(
+        other.details['display_instructions'],
+        isNot(contains('before any further tool call')),
+      );
+    }
   });
 
   test(
@@ -587,6 +669,7 @@ void main() {
     },
   );
 
+
   test(
     'paid preparation and non-image results retain their contracts',
     () async {
@@ -609,11 +692,14 @@ void main() {
 }
 
 void _expectNoFileShortcuts(mcp.CallToolResult wire) {
-  final text =
-      (wire.content.singleWhere((c) => c.isText) as mcp.TextContent).text;
-  expect(jsonDecode(text), wire.structuredContent);
+  final texts = wire.content
+      .where((c) => c.isText)
+      .map((c) => (c as mcp.TextContent).text);
+  expect(jsonDecode(texts.first), wire.structuredContent);
   for (final token in ['"path"', '"files"', 'preferFileImages', 'C:/private']) {
-    expect(text, isNot(contains(token)));
+    for (final text in texts) {
+      expect(text, isNot(contains(token)));
+    }
   }
 }
 

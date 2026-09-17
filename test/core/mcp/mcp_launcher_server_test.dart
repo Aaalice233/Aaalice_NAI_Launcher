@@ -108,8 +108,12 @@ void main() {
         'version': '9.9.9',
       });
       expect((result['capabilities'] as Map)['tools'], {'listChanged': true});
-      expect(result['instructions'], contains('get_application_context'));
+      expect(
+        result['instructions'],
+        isNot(contains('get_application_context')),
+      );
       expect(result['instructions'], contains('submit_generation'));
+      expect((result['instructions'] as String).length, lessThan(220));
     },
   );
 

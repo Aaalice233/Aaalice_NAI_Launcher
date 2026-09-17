@@ -157,9 +157,26 @@ void main() {
     ]) {
       final tool = tools.singleWhere((tool) => tool.name == name);
       expect(tool.description, contains('full-resolution MCP ImageContent'));
+      expect(tool.description, contains('top-level display_markdown'));
+      expect(tool.description, contains('final answer'));
+      expect(tool.description, contains('ImageContent alone is not'));
       expect(tool.description, isNot(contains('workspace-relative')));
       expect(tool.description, isNot(contains('NOT shown to the user')));
     }
+    for (final name in [
+      'generate_image',
+      'submit_generation',
+      'display_images',
+    ]) {
+      expect(
+        tools.singleWhere((tool) => tool.name == name).description,
+        contains('its own turn'),
+      );
+    }
+    expect(
+      tools.singleWhere((tool) => tool.name == 'inspect_images').description,
+      isNot(contains('its own turn')),
+    );
     final recent = tools.singleWhere(
       (tool) => tool.name == 'get_recent_images',
     );
@@ -175,8 +192,65 @@ void main() {
       'boolean',
     );
     expect(display.description, contains('Cherry Studio'));
-    expect(display.description, contains('display_url_markdown'));
-    expect(display.description, contains('Never claim an image is shown'));
+    expect(display.description, contains('HTTP reference'));
+    for (final name in [
+      'generate_image',
+      'submit_generation',
+      'display_images',
+      'inspect_images',
+    ]) {
+      expect(
+        tools.singleWhere((tool) => tool.name == name).description.length,
+        lessThan(1200),
+      );
+    }
+    final generate = tools.singleWhere((tool) => tool.name == 'generate_image');
+    expect(generate.description, contains('ONLY prepares'));
+    expect(generate.parameters['required'], isNot(contains('prompt')));
+    for (final name in [
+      'prepare_generation',
+      'update_generation_preparation',
+      'generate_image',
+      'queue_image_task',
+    ]) {
+      final tool = tools.singleWhere((tool) => tool.name == name);
+      expect(
+        tool.parameters['properties']['include_parameters']['type'],
+        'boolean',
+      );
+    }
+    final context = tools.singleWhere(
+      (tool) => tool.name == 'get_application_context',
+    );
+    expect(
+      context.parameters['properties']['include_draft_details']['type'],
+      'boolean',
+    );
+    final submit = tools.singleWhere(
+      (tool) => tool.name == 'submit_generation',
+    );
+    expect(
+      submit.parameters['properties']['include_display_file']['type'],
+      'boolean',
+    );
+    expect(submit.description, contains('no status/history/display call'));
+  });
+
+  test('create_inpaint_mask sends MCP clients to inspect_images', () {
+    final tool = factory
+        .build(AgentPermissionMode.fullAccess)
+        .tools
+        .singleWhere((tool) => tool.name == 'create_inpaint_mask');
+
+    expect(tool.description, contains('inspect_images'));
+    expect(tool.description, contains('resource_ref'));
+    expect(tool.description, contains('full resolution'));
+    expect(tool.description, isNot(contains('read tool')));
+    expect(
+      tool.parameters['properties']['regions']['maxItems'],
+      16,
+      reason: 'the description override must keep the authored mask schema',
+    );
   });
 
   test('safe mode exposes read operations only', () {
