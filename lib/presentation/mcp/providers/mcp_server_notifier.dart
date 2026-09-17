@@ -356,6 +356,7 @@ class McpServerNotifier extends StateNotifier<McpServerState> {
           approvals: approvals,
           auditSink: auditSink,
           imageResponses: factory.imageResponses,
+          observeResult: factory.observeToolResult,
         ),
         _appVersion(),
       );
