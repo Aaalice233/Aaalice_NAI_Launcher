@@ -7,6 +7,7 @@ import 'package:path/path.dart' as p;
 import '../../../core/utils/app_logger.dart';
 import '../../../core/utils/image_save_utils.dart';
 import '../../../core/utils/nai_resolution_adapter.dart';
+import '../../../data/models/gallery/gallery_index_admission.dart';
 import '../../../data/models/image/image_params.dart';
 import '../../../data/models/fixed_tag/fixed_tag_usage_snapshot.dart';
 import '../../../data/services/image_metadata_service.dart';
@@ -25,7 +26,8 @@ class GenerationResultLifecycleDependencies {
 
   final GenerationHistoryStorageService historyStorage;
   final Future<String?> Function() resolveGalleryRootPath;
-  final Future<int> Function(List<String> paths) addGalleryImages;
+  final Future<GalleryIndexAdmission> Function(List<String> paths)
+  addGalleryImages;
   final Future<void> Function() refreshGallery;
   final Future<void> Function(int count) incrementStatistics;
   final Future<void> Function(String sourcePath, String fileName)?
@@ -251,8 +253,11 @@ class GenerationResultLifecycleService {
     if (paths.isNotEmpty) {
       if (syncToGalleryIndex) {
         try {
-          final added = await dependencies.addGalleryImages(paths);
-          if (added < paths.length) await dependencies.refreshGallery();
+          // 全量重扫要枚举整个图库根目录，只有索引与磁盘真的对不上才值得付这个代价。
+          final admission = await dependencies.addGalleryImages(paths);
+          if (admission.requiresFullRescan) {
+            await dependencies.refreshGallery();
+          }
         } catch (error, stackTrace) {
           AppLogger.e('自动保存图库索引更新失败', error, stackTrace);
         }

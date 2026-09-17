@@ -8,6 +8,7 @@ import 'package:nai_launcher/core/utils/image_save_utils.dart';
 import 'package:nai_launcher/data/models/fixed_tag/fixed_tag_entry.dart';
 import 'package:nai_launcher/data/models/fixed_tag/fixed_tag_prompt_type.dart';
 import 'package:nai_launcher/data/models/fixed_tag/fixed_tag_usage_snapshot.dart';
+import 'package:nai_launcher/data/models/gallery/gallery_index_admission.dart';
 import 'package:nai_launcher/data/services/metadata/unified_metadata_parser.dart';
 import 'package:nai_launcher/presentation/providers/generation/generation_models.dart';
 import 'package:nai_launcher/presentation/providers/generation/generation_result_lifecycle_service.dart';
@@ -42,7 +43,7 @@ void main() {
         resolveGalleryRootPath: () async => directory.path,
         addGalleryImages: (paths) async {
           indexedPaths = paths;
-          return paths.length;
+          return GalleryIndexAdmission.added;
         },
         refreshGallery: () async {},
         incrementStatistics: (count) async => statisticsCount += count,
@@ -84,7 +85,10 @@ void main() {
       GenerationResultLifecycleDependencies(
         historyStorage: GenerationHistoryStorageService(enabled: false),
         resolveGalleryRootPath: () async => directory.path,
-        addGalleryImages: (paths) async => indexedCount = paths.length,
+        addGalleryImages: (paths) async {
+          indexedCount = paths.length;
+          return GalleryIndexAdmission.added;
+        },
         refreshGallery: () async {},
         incrementStatistics: (_) async {},
         publishToSystemGallery: (_, _) async => throw StateError('denied'),
@@ -146,7 +150,7 @@ void main() {
       GenerationResultLifecycleDependencies(
         historyStorage: GenerationHistoryStorageService(enabled: false),
         resolveGalleryRootPath: () async => directory.path,
-        addGalleryImages: (paths) async => paths.length,
+        addGalleryImages: (_) async => GalleryIndexAdmission.added,
         refreshGallery: () async {},
         incrementStatistics: (_) async {},
       ),
@@ -173,5 +177,99 @@ void main() {
     expect(metadata.seed, 321);
     expect(metadata.fixedPrefixTags, ['masterpiece']);
     expect(metadata.fixedTagUsageSnapshot?.entries.single.fixedTagId, 'a');
+  });
+
+  group('图库索引结果决定是否全量重扫', () {
+    Future<int> refreshCountFor(GalleryIndexAdmission admission) async {
+      final directory = await Directory.systemTemp.createTemp(
+        'nai_generation_index_admission_',
+      );
+      addTearDown(() => directory.delete(recursive: true));
+
+      var refreshCount = 0;
+      final service = GenerationResultLifecycleService(
+        GenerationResultLifecycleDependencies(
+          historyStorage: GenerationHistoryStorageService(enabled: false),
+          resolveGalleryRootPath: () async => directory.path,
+          addGalleryImages: (_) async => admission,
+          refreshGallery: () async => refreshCount++,
+          incrementStatistics: (_) async {},
+        ),
+      );
+
+      final result = await service.saveImages(
+        [
+          GeneratedImage.create(
+            Uint8List.fromList(
+              image_lib.encodePng(image_lib.Image(width: 2, height: 2)),
+            ),
+            width: 2,
+            height: 2,
+            preserveOriginalBytesOnSave: true,
+          ),
+        ],
+        const ImageParams(seed: 789),
+        snapshot: const GenerationSaveSnapshot(),
+      );
+      expect(result.savedPaths, hasLength(1));
+      return refreshCount;
+    }
+
+    // 全量重扫要枚举整个图库根目录，只有索引与磁盘对不上才允许付这个代价。
+    test('新入索引不重扫', () async {
+      expect(await refreshCountFor(GalleryIndexAdmission.added), 0);
+    });
+
+    test('扫描器抢先收录不重扫', () async {
+      expect(await refreshCountFor(GalleryIndexAdmission.alreadyIndexed), 0);
+    });
+
+    test('图库未初始化不重扫', () async {
+      expect(await refreshCountFor(GalleryIndexAdmission.deferred), 0);
+    });
+
+    test('索引与磁盘不一致才重扫', () async {
+      expect(await refreshCountFor(GalleryIndexAdmission.failed), 1);
+    });
+  });
+
+  group('GalleryIndexAdmission', () {
+    test('批量结果取最坏的一项', () {
+      expect(
+        GalleryIndexAdmission.added.merge(GalleryIndexAdmission.alreadyIndexed),
+        GalleryIndexAdmission.added,
+      );
+      expect(
+        GalleryIndexAdmission.added.merge(GalleryIndexAdmission.failed),
+        GalleryIndexAdmission.failed,
+      );
+      expect(
+        GalleryIndexAdmission.deferred.merge(GalleryIndexAdmission.added),
+        GalleryIndexAdmission.deferred,
+      );
+      expect(
+        GalleryIndexAdmission.alreadyIndexed.merge(
+          GalleryIndexAdmission.alreadyIndexed,
+        ),
+        GalleryIndexAdmission.alreadyIndexed,
+      );
+    });
+
+    test('只有 failed 需要全量重扫', () {
+      for (final admission in GalleryIndexAdmission.values) {
+        expect(
+          admission.requiresFullRescan,
+          admission == GalleryIndexAdmission.failed,
+          reason: '$admission',
+        );
+      }
+    });
+
+    test('索引已包含新图时才重取当前页', () {
+      expect(GalleryIndexAdmission.added.isIndexed, isTrue);
+      expect(GalleryIndexAdmission.alreadyIndexed.isIndexed, isTrue);
+      expect(GalleryIndexAdmission.deferred.isIndexed, isFalse);
+      expect(GalleryIndexAdmission.failed.isIndexed, isFalse);
+    });
   });
 }
