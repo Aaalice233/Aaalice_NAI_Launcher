@@ -99,3 +99,30 @@ const mcpImageToolDescriptions = <String, String>{
       'submit_manual_inpaint_draft, which is what spends Anlas. Re-authoring a '
       'mask is free, so prefer another attempt over submitting a doubtful one.',
 };
+
+// MCP hosts read page editors as generation prerequisites; state the split.
+const _pageEditSuffix =
+    ' Edits the launcher page for the user; not a generation step, pass '
+    'values to prepare_generation instead.';
+const _pageReadSuffix =
+    ' Not needed before prepare_generation unless the user refers to current '
+    'page values.';
+
+/// Appended to the chat description rather than replacing it, so the tool
+/// itself keeps one source of truth.
+const mcpToolDescriptionSuffixes = <String, String>{
+  'get_prompt_state': _pageReadSuffix,
+  'get_generation_settings': _pageReadSuffix,
+  'set_positive_prompt': _pageEditSuffix,
+  'set_negative_prompt': _pageEditSuffix,
+  'add_character': _pageEditSuffix,
+  'update_character': _pageEditSuffix,
+  'remove_character': _pageEditSuffix,
+  'clear_characters': _pageEditSuffix,
+  'reorder_characters': _pageEditSuffix,
+  'set_character_layout_mode': _pageEditSuffix,
+  'update_generation_settings': _pageEditSuffix,
+  'set_generation_source_image': _pageEditSuffix,
+  'clear_generation_source_image': _pageEditSuffix,
+  'update_generation_source_settings': _pageEditSuffix,
+};

@@ -6,6 +6,7 @@ import 'package:nai_launcher/core/agent/permissions/permissions.dart';
 import 'package:nai_launcher/core/storage/local_storage_service.dart';
 import 'package:nai_launcher/presentation/agent_settings/providers/agent_settings_provider.dart';
 import 'package:nai_launcher/presentation/mcp/services/mcp_external_tool_registry_factory.dart';
+import 'package:nai_launcher/presentation/mcp/services/mcp_image_tool_descriptions.dart';
 import 'package:nai_launcher/presentation/prompt_assistant/models/prompt_assistant_models.dart';
 
 final _refProvider = Provider<Ref>((ref) => ref);
@@ -251,6 +252,36 @@ void main() {
       16,
       reason: 'the description override must keep the authored mask schema',
     );
+  });
+
+  test('page editors tell MCP clients they are not generation steps', () {
+    final tools = factory.build(AgentPermissionMode.fullAccess).tools;
+    for (final entry in mcpToolDescriptionSuffixes.entries) {
+      final tool = tools.singleWhere((tool) => tool.name == entry.key);
+      expect(tool.description, endsWith(entry.value), reason: entry.key);
+      expect(
+        tool.description,
+        contains('prepare_generation'),
+        reason: entry.key,
+      );
+    }
+    final prepare = tools.singleWhere(
+      (tool) => tool.name == 'prepare_generation',
+    );
+    expect(prepare.description, contains('leave the launcher page untouched'));
+    expect(prepare.description, contains('do not edit the page first'));
+    for (final name in [
+      'generate_image',
+      'submit_generation',
+      'display_images',
+      'inspect_images',
+    ]) {
+      expect(
+        tools.singleWhere((tool) => tool.name == name).description,
+        isNot(contains('not a generation step')),
+        reason: name,
+      );
+    }
   });
 
   test('safe mode exposes read operations only', () {

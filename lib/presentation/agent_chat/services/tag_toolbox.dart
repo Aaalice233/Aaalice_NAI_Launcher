@@ -57,7 +57,8 @@ class TagToolbox {
               'description':
                   'Single search term, merged with "queries" when both are '
                   'given. For suggest mode: comma-separated existing tags '
-                  'used together as one context.',
+                  'used together as one context. For more than one term use '
+                  'queries in a single call.',
             },
             'queries': {
               'type': 'array',
