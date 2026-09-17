@@ -17685,6 +17685,18 @@ abstract class AppLocalizations {
   /// **'View documentation'**
   String get settings_mcpServerViewDocs;
 
+  /// No description provided for @settings_mcpServerAgentPromptTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Recommended: let the agent configure itself'**
+  String get settings_mcpServerAgentPromptTitle;
+
+  /// No description provided for @settings_mcpServerAgentPromptHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Send this prompt to the agent you want to connect; it reads the setup documentation and installs the configuration itself. The prompt carries no token — the bundled CLI reads it locally.'**
+  String get settings_mcpServerAgentPromptHint;
+
   /// No description provided for @settings_mcpServerClaudeCodeHint.
   ///
   /// In en, this message translates to:
@@ -17702,6 +17714,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Merge this into the Cursor mcp.json configuration file.'**
   String get settings_mcpServerCursorHint;
+
+  /// No description provided for @settings_mcpServerCherryStudioHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Paste this into Cherry Studio\'s MCP server settings with “Import from JSON”; timeout is in seconds and already covers the in-app approval wait.'**
+  String get settings_mcpServerCherryStudioHint;
+
+  /// No description provided for @settings_mcpServerPiHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Pi has no built-in MCP: install the pi-mcp-adapter package first, then merge this into ~/.pi/agent/mcp.json.'**
+  String get settings_mcpServerPiHint;
 
   /// No description provided for @settings_mcpServerClaudeDesktopHint.
   ///

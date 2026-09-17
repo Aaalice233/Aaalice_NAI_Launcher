@@ -9681,6 +9681,13 @@ class AppLocalizationsZh extends AppLocalizations {
   String get settings_mcpServerViewDocs => '查看文档';
 
   @override
+  String get settings_mcpServerAgentPromptTitle => '推荐：让智能体自己配置';
+
+  @override
+  String get settings_mcpServerAgentPromptHint =>
+      '把以下提示词发给要接入的智能体，它会读取配置文档并自行完成安装。提示词不含令牌，令牌由随包 CLI 在本机读取。';
+
+  @override
   String get settings_mcpServerClaudeCodeHint => '在终端运行以下命令注册服务器。';
 
   @override
@@ -9688,6 +9695,14 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get settings_mcpServerCursorHint => '把以下内容合并进 Cursor 的 mcp.json 配置文件。';
+
+  @override
+  String get settings_mcpServerCherryStudioHint =>
+      '在 Cherry Studio 的 MCP 服务器设置中用“从 JSON 导入”粘贴以下内容；timeout 单位为秒，已留足应用内审批时间。';
+
+  @override
+  String get settings_mcpServerPiHint =>
+      'Pi 本体不带 MCP，需先安装 pi-mcp-adapter 包，再把以下内容合并进 ~/.pi/agent/mcp.json。';
 
   @override
   String get settings_mcpServerClaudeDesktopHint =>
@@ -24490,6 +24505,13 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get settings_mcpServerViewDocs => '查看文件';
 
   @override
+  String get settings_mcpServerAgentPromptTitle => '推薦：讓智慧代理自行設定';
+
+  @override
+  String get settings_mcpServerAgentPromptHint =>
+      '把以下提示詞發給要接入的智慧代理，它會讀取設定文件並自行完成安裝。提示詞不含權杖，權杖由隨附 CLI 在本機讀取。';
+
+  @override
   String get settings_mcpServerClaudeCodeHint => '在終端機執行以下指令註冊伺服器。';
 
   @override
@@ -24497,6 +24519,14 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get settings_mcpServerCursorHint => '把以下內容合併進 Cursor 的 mcp.json 設定檔。';
+
+  @override
+  String get settings_mcpServerCherryStudioHint =>
+      '在 Cherry Studio 的 MCP 伺服器設定中用「從 JSON 匯入」貼上以下內容；timeout 單位為秒，已留足應用內審批時間。';
+
+  @override
+  String get settings_mcpServerPiHint =>
+      'Pi 本體不帶 MCP，需先安裝 pi-mcp-adapter 套件，再把以下內容合併進 ~/.pi/agent/mcp.json。';
 
   @override
   String get settings_mcpServerClaudeDesktopHint =>

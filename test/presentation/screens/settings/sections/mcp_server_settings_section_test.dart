@@ -35,6 +35,12 @@ const _claudeCodePanel = ValueKey<String>(
   'mcp-server-client-config-claude-code',
 );
 const _copyClaudeCode = ValueKey<String>('mcp-server-copy-config-claude-code');
+const _agentPromptPanel = ValueKey<String>(
+  'mcp-server-client-config-agent-prompt',
+);
+const _copyAgentPrompt = ValueKey<String>(
+  'mcp-server-copy-config-agent-prompt',
+);
 
 const _fakeToken = 'token-abcdef123456';
 final _endpoint = Uri.parse(
@@ -418,18 +424,46 @@ void main() {
     await tester.pumpWidget(const SizedBox.shrink());
   });
 
+  testWidgets('推荐提示词面板置顶、默认展开且复制时不读取令牌', (tester) async {
+    final written = mockClipboard(tester);
+    final notifier = await pumpSection(tester, initialState: listeningState());
+    final l10n = await AppLocalizations.delegate.load(const Locale('zh'));
+
+    expect(
+      tester.getTopLeft(find.byKey(_agentPromptPanel)).dy,
+      lessThan(tester.getTopLeft(find.byKey(_claudeCodePanel)).dy),
+    );
+    expect(find.text(l10n.settings_mcpServerAgentPromptHint), findsOneWidget);
+
+    await tester.tap(find.byKey(_copyAgentPrompt));
+    await tester.pumpAndSettle();
+
+    expect(notifier.readTokenCount, 0);
+    expect(written, [
+      renderMcpAgentSetupPrompt(cliPath: resolveBundledMcpCliPath()),
+    ]);
+    expect(written.single, isNot(contains(_fakeToken)));
+    await settleToast(tester);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
+
   testWidgets('开发环境缺少随包 CLI 时给出提示', (tester) async {
     await pumpSection(tester, initialState: listeningState());
     final l10n = await AppLocalizations.delegate.load(const Locale('zh'));
 
+    final warning = find.text(
+      l10n.settings_mcpServerCliMissing(resolveBundledMcpCliPath()),
+    );
+
+    // 测试进程旁边不会有随包代理；推荐面板默认展开，提示必须已经可见。
+    expect(warning, findsOneWidget);
+
     await tester.tap(find.text('Claude Desktop'));
     await tester.pumpAndSettle();
 
-    // 测试进程旁边不会有随包代理，提示必须出现且带上预期路径。
-    expect(
-      find.text(l10n.settings_mcpServerCliMissing(resolveBundledMcpCliPath())),
-      findsOneWidget,
-    );
+    // 推荐提示词与 Claude Desktop 都依赖随包 CLI，同时展开时各自给出提示。
+    expect(warning, findsNWidgets(2));
 
     await tester.pumpWidget(const SizedBox.shrink());
   });

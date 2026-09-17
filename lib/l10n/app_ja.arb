@@ -4887,9 +4887,13 @@
     }
   },
   "settings_mcpServerViewDocs": "ドキュメントを見る",
+  "settings_mcpServerAgentPromptTitle": "推奨: エージェントに設定させる",
+  "settings_mcpServerAgentPromptHint": "接続したいエージェントに次のプロンプトを渡すと、設定ドキュメントを読んで自分でインストールします。プロンプトにトークンは含まれず、同梱 CLI がローカルで読み取ります。",
   "settings_mcpServerClaudeCodeHint": "ターミナルで次のコマンドを実行してサーバーを登録します。",
   "settings_mcpServerCodexHint": "コマンドでサーバーを登録してから、下の環境変数にトークンを設定します。",
   "settings_mcpServerCursorHint": "次の内容を Cursor の mcp.json に統合してください。",
+  "settings_mcpServerCherryStudioHint": "Cherry Studio の MCP サーバー設定で「JSON からインポート」に次の内容を貼り付けてください。timeout は秒単位で、アプリ内の承認待ちに十分な余裕があります。",
+  "settings_mcpServerPiHint": "Pi 本体に MCP はありません。先に pi-mcp-adapter パッケージをインストールし、次の内容を ~/.pi/agent/mcp.json に統合してください。",
   "settings_mcpServerClaudeDesktopHint": "次の内容を Claude Desktop の設定に統合してください。同梱 CLI を介して stdio で接続します。",
   "settings_fontScale": "フォント サイズ",
   "settings_fontScale_description": "グローバルフォントスケールを調整します",

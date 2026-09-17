@@ -10072,6 +10072,14 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settings_mcpServerViewDocs => 'View documentation';
 
   @override
+  String get settings_mcpServerAgentPromptTitle =>
+      'Recommended: let the agent configure itself';
+
+  @override
+  String get settings_mcpServerAgentPromptHint =>
+      'Send this prompt to the agent you want to connect; it reads the setup documentation and installs the configuration itself. The prompt carries no token — the bundled CLI reads it locally.';
+
+  @override
   String get settings_mcpServerClaudeCodeHint =>
       'Run this command in a terminal to register the server.';
 
@@ -10082,6 +10090,14 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get settings_mcpServerCursorHint =>
       'Merge this into the Cursor mcp.json configuration file.';
+
+  @override
+  String get settings_mcpServerCherryStudioHint =>
+      'Paste this into Cherry Studio\'s MCP server settings with “Import from JSON”; timeout is in seconds and already covers the in-app approval wait.';
+
+  @override
+  String get settings_mcpServerPiHint =>
+      'Pi has no built-in MCP: install the pi-mcp-adapter package first, then merge this into ~/.pi/agent/mcp.json.';
 
   @override
   String get settings_mcpServerClaudeDesktopHint =>

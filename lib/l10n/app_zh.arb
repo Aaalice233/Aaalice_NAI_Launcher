@@ -4651,9 +4651,13 @@
     }
   },
   "settings_mcpServerViewDocs": "查看文档",
+  "settings_mcpServerAgentPromptTitle": "推荐：让智能体自己配置",
+  "settings_mcpServerAgentPromptHint": "把以下提示词发给要接入的智能体，它会读取配置文档并自行完成安装。提示词不含令牌，令牌由随包 CLI 在本机读取。",
   "settings_mcpServerClaudeCodeHint": "在终端运行以下命令注册服务器。",
   "settings_mcpServerCodexHint": "先运行命令注册服务器，再把令牌写入下面的环境变量。",
   "settings_mcpServerCursorHint": "把以下内容合并进 Cursor 的 mcp.json 配置文件。",
+  "settings_mcpServerCherryStudioHint": "在 Cherry Studio 的 MCP 服务器设置中用“从 JSON 导入”粘贴以下内容；timeout 单位为秒，已留足应用内审批时间。",
+  "settings_mcpServerPiHint": "Pi 本体不带 MCP，需先安装 pi-mcp-adapter 包，再把以下内容合并进 ~/.pi/agent/mcp.json。",
   "settings_mcpServerClaudeDesktopHint": "把以下内容合并进 Claude Desktop 配置；它通过随包 CLI 以 stdio 方式接入。",
 
   "settings_fontScale": "字体大小",

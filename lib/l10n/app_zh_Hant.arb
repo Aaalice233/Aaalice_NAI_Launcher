@@ -4752,9 +4752,13 @@
     }
   },
   "settings_mcpServerViewDocs": "查看文件",
+  "settings_mcpServerAgentPromptTitle": "推薦：讓智慧代理自行設定",
+  "settings_mcpServerAgentPromptHint": "把以下提示詞發給要接入的智慧代理，它會讀取設定文件並自行完成安裝。提示詞不含權杖，權杖由隨附 CLI 在本機讀取。",
   "settings_mcpServerClaudeCodeHint": "在終端機執行以下指令註冊伺服器。",
   "settings_mcpServerCodexHint": "先執行指令註冊伺服器，再把權杖寫入下方的環境變數。",
   "settings_mcpServerCursorHint": "把以下內容合併進 Cursor 的 mcp.json 設定檔。",
+  "settings_mcpServerCherryStudioHint": "在 Cherry Studio 的 MCP 伺服器設定中用「從 JSON 匯入」貼上以下內容；timeout 單位為秒，已留足應用內審批時間。",
+  "settings_mcpServerPiHint": "Pi 本體不帶 MCP，需先安裝 pi-mcp-adapter 套件，再把以下內容合併進 ~/.pi/agent/mcp.json。",
   "settings_mcpServerClaudeDesktopHint": "把以下內容合併進 Claude Desktop 設定；它透過隨附 CLI 以 stdio 方式連線。",
   "settings_fontScale": "字型大小",
   "settings_fontScale_description": "調整應用全域性字型縮放比例",

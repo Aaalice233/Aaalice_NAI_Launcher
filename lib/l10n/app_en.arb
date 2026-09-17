@@ -4858,9 +4858,13 @@
     }
   },
   "settings_mcpServerViewDocs": "View documentation",
+  "settings_mcpServerAgentPromptTitle": "Recommended: let the agent configure itself",
+  "settings_mcpServerAgentPromptHint": "Send this prompt to the agent you want to connect; it reads the setup documentation and installs the configuration itself. The prompt carries no token — the bundled CLI reads it locally.",
   "settings_mcpServerClaudeCodeHint": "Run this command in a terminal to register the server.",
   "settings_mcpServerCodexHint": "Run the command to register the server, then set the token in the environment variable below.",
   "settings_mcpServerCursorHint": "Merge this into the Cursor mcp.json configuration file.",
+  "settings_mcpServerCherryStudioHint": "Paste this into Cherry Studio's MCP server settings with “Import from JSON”; timeout is in seconds and already covers the in-app approval wait.",
+  "settings_mcpServerPiHint": "Pi has no built-in MCP: install the pi-mcp-adapter package first, then merge this into ~/.pi/agent/mcp.json.",
   "settings_mcpServerClaudeDesktopHint": "Merge this into the Claude Desktop configuration; it connects over stdio through the bundled CLI.",
 
   "settings_fontScale": "Font Size",
