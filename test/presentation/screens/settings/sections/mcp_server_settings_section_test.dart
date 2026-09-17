@@ -29,6 +29,7 @@ const _tokenReveal = ValueKey<String>('mcp-server-token-reveal');
 const _tokenCopy = ValueKey<String>('mcp-server-token-copy');
 const _tokenRegenerate = ValueKey<String>('mcp-server-token-regenerate');
 const _sessionsEmpty = ValueKey<String>('mcp-server-sessions-empty');
+const _sessionsList = ValueKey<String>('mcp-server-sessions-list');
 const _pendingApproval = ValueKey<String>('mcp-server-pending-approval');
 const _configUnavailable = ValueKey<String>('mcp-server-config-unavailable');
 const _claudeCodePanel = ValueKey<String>(
@@ -370,6 +371,47 @@ void main() {
     await tester.pumpWidget(const SizedBox.shrink());
   });
 
+  testWidgets('会话过多时限高滚动且全部可达', (tester) async {
+    await pumpSection(
+      tester,
+      initialState: listeningState(
+        sessions: [
+          for (var index = 0; index < 8; index++)
+            _session(id: 's$index', clientName: 'client-$index'),
+        ],
+      ),
+    );
+
+    final list = find.byKey(_sessionsList);
+    expect(list, findsOneWidget);
+    expect(tester.getSize(list).height, lessThanOrEqualTo(200.0));
+    expect(
+      find.ancestor(of: list, matching: find.byType(Scrollbar)),
+      findsOneWidget,
+    );
+    expect(_sessionsPosition(tester).maxScrollExtent, greaterThan(0));
+
+    await tester.drag(list, const Offset(0, -600));
+    await tester.pumpAndSettle();
+    expect(find.text('client-7'), findsOneWidget);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
+
+  testWidgets('会话少时不产生可滚动余量', (tester) async {
+    await pumpSection(
+      tester,
+      initialState: listeningState(
+        sessions: [_session(id: 's1', clientName: 'codex')],
+      ),
+    );
+
+    // 有余量才会抢走设置页的滚轮，少量会话必须保持 0。
+    expect(_sessionsPosition(tester).maxScrollExtent, 0);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
+
   testWidgets('待处理授权提示指向全局横幅', (tester) async {
     await pumpSection(
       tester,
@@ -515,6 +557,17 @@ void main() {
       }
     }
   });
+}
+
+ScrollPosition _sessionsPosition(WidgetTester tester) {
+  return tester
+      .state<ScrollableState>(
+        find.descendant(
+          of: find.byKey(_sessionsList),
+          matching: find.byType(Scrollable),
+        ),
+      )
+      .position;
 }
 
 McpSessionSummary _session({
