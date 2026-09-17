@@ -46,7 +46,8 @@ List<AgentTool> buildManualInpaintToolDefinitions({
         'without opening the editor. Read the source image with the read tool '
         'first: coordinates are normalized 0-1 fractions of the image, so they '
         'must come from actually looking at it rather than from its reported '
-        'size. Returns an overlay preview; check the mask lands on the target '
+        'size. Generation previews and inspect_images thumbnails do not count. '
+        'Returns an overlay preview; check the mask lands on the target '
         'before calling submit_manual_inpaint_draft, which is what spends '
         'Anlas. Re-authoring a mask is free, so prefer another attempt over '
         'submitting a doubtful one.',

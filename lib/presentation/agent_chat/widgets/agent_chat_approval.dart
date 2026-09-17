@@ -18,12 +18,14 @@ class AgentChatApprovalCard extends StatefulWidget {
     required this.toolName,
     required this.args,
     required this.estimatedAnlas,
+    required this.fileTargets,
     required this.onResolve,
   });
 
   final String toolName;
   final Map<String, dynamic> args;
   final int? estimatedAnlas;
+  final List<String> fileTargets;
   final void Function(bool approved) onResolve;
 
   @override
@@ -79,6 +81,9 @@ class _AgentChatApprovalCardState extends State<AgentChatApprovalCard> {
       costLabel: widget.estimatedAnlas == null
           ? null
           : l10n.agentChat_approvalEstimatedAnlas(widget.estimatedAnlas!),
+      fileTargetLabel: widget.fileTargets.isEmpty
+          ? null
+          : l10n.agentChat_approvalFileTarget(widget.fileTargets.join('\n')),
       denyLabel: l10n.agentChat_approvalDeny,
       allowLabel: l10n.agentChat_approvalAllow,
       touchOptimized: context.interactionPolicy.shouldExposeTouchAlternatives,
@@ -114,7 +119,8 @@ class _AgentChatApprovalCardState extends State<AgentChatApprovalCard> {
     } on JsonUnsupportedObjectError {
       encoded = sanitized.toString();
     }
-    return '${widget.toolName}\u0000${widget.estimatedAnlas}\u0000$encoded';
+    return '${widget.toolName}\u0000${widget.estimatedAnlas}'
+        '\u0000${widget.fileTargets.join('\u0000')}\u0000$encoded';
   }
 }
 

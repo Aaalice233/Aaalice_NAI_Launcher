@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/agent/resources/agent_chat_resource_reference.dart';
 import '../../../core/agent/resources/agent_chat_resource_reference_codec.dart';
@@ -15,11 +14,11 @@ class GenerationStatusService {
   final Ref _ref;
   final AgentChatResourceReference Function(String imageId)
   _generatedImageReference;
-  String statusJson() {
+  Map<String, dynamic> statusJson() {
     final gen = _ref.read(imageGenerationNotifierProvider);
     final queue = _ref.read(replicationQueueNotifierProvider);
     final execution = _ref.read(queueExecutionNotifierProvider);
-    return jsonEncode({
+    return {
       'generation': {
         'status': gen.status.name,
         'progress': (gen.progress * 100).round(),
@@ -40,7 +39,7 @@ class GenerationStatusService {
         'execution': execution.status.name,
         'session_progress': (execution.progress * 100).round(),
       },
-    });
+    };
   }
 
   // -------------------------------------------------------------------------

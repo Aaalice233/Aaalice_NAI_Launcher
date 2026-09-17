@@ -293,6 +293,7 @@ class AgentToolApprovalRequest {
     required this.toolName,
     required this.args,
     this.estimatedAnlas,
+    this.fileTargets = const [],
     this.turnId,
     this.itemId,
   });
@@ -301,6 +302,7 @@ class AgentToolApprovalRequest {
   final String toolName;
   final Map<String, dynamic> args;
   final int? estimatedAnlas;
+  final List<String> fileTargets;
   final String? turnId;
   final String? itemId;
 
@@ -310,6 +312,7 @@ class AgentToolApprovalRequest {
         toolName: toolName,
         args: args,
         estimatedAnlas: estimatedAnlas,
+        fileTargets: fileTargets,
         turnId: turnId ?? this.turnId,
         itemId: itemId ?? this.itemId,
       );

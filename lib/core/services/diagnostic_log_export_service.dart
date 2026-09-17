@@ -39,6 +39,7 @@ class DiagnosticLogExportService {
     Future<List<File>> Function()? loadLogFiles,
     Future<List<File>> Function()? loadCrashFiles,
     Future<File?> Function()? loadAgentAuditFile,
+    Future<File?> Function()? loadMcpAuditFile,
     Future<void> Function()? flushLogs,
     DiagnosticArchiveExporter? exportArchive,
     DateTime Function()? now,
@@ -50,6 +51,7 @@ class DiagnosticLogExportService {
        _loadLogFiles = loadLogFiles ?? AppLogger.getLogFiles,
        _loadCrashFiles = loadCrashFiles ?? _defaultCrashFiles,
        _loadAgentAuditFile = loadAgentAuditFile ?? _defaultAgentAuditFile,
+       _loadMcpAuditFile = loadMcpAuditFile ?? _defaultMcpAuditFile,
        _flushLogs = flushLogs ?? AppLogger.flush,
        _exportArchive = exportArchive ?? _defaultExportArchive,
        _now = now ?? DateTime.now,
@@ -65,6 +67,7 @@ class DiagnosticLogExportService {
   final Future<List<File>> Function() _loadLogFiles;
   final Future<List<File>> Function() _loadCrashFiles;
   final Future<File?> Function() _loadAgentAuditFile;
+  final Future<File?> Function() _loadMcpAuditFile;
   final Future<void> Function() _flushLogs;
   final DiagnosticArchiveExporter _exportArchive;
   final DateTime Function() _now;
@@ -102,11 +105,13 @@ class DiagnosticLogExportService {
   }) async {
     await _flushLogs();
     final files = await _collectReadableFiles();
-    final auditFile = await _loadAgentAuditFile();
-    final auditPath = auditFile != null && await auditFile.exists()
-        ? auditFile.path
-        : null;
-    if (auditPath != null) files.insert(0, auditFile!);
+    final auditPaths = <String>{};
+    for (final load in [_loadAgentAuditFile, _loadMcpAuditFile]) {
+      final auditFile = await load();
+      if (auditFile == null || !await auditFile.exists()) continue;
+      if (!auditPaths.add(auditFile.path)) continue;
+      files.insert(0, auditFile);
+    }
     if (files.isEmpty) {
       return const DiagnosticLogExportResult(DiagnosticLogExportStatus.noLogs);
     }
@@ -128,7 +133,7 @@ class DiagnosticLogExportService {
               archivePath: archivePath,
               stagingDirectoryPath: stagingDirectory.path,
               sourcePaths: sourcePaths,
-              auditPath: auditPath,
+              auditPaths: auditPaths,
               createdAt: timestamp,
               diagnosticsMetadata: diagnosticsMetadata,
               fileLoggingEnabled: fileLoggingEnabled,
@@ -176,7 +181,7 @@ class DiagnosticLogExportService {
     required String archivePath,
     required String stagingDirectoryPath,
     required List<String> sourcePaths,
-    required String? auditPath,
+    required Set<String> auditPaths,
     required DateTime createdAt,
     required String diagnosticsMetadata,
     required bool fileLoggingEnabled,
@@ -220,7 +225,7 @@ class DiagnosticLogExportService {
             maxBytes: archivedBytes,
             snapshotLength: sourceLength,
             wasTruncated: wasTruncated,
-            isAgentAudit: sourcePath == auditPath,
+            isAgentAudit: auditPaths.contains(sourcePath),
           );
           remainingSourceBytes -= archivedBytes;
           await encoder.addFile(
@@ -436,6 +441,11 @@ class DiagnosticLogExportService {
   static Future<File?> _defaultAgentAuditFile() async {
     final support = await getApplicationSupportDirectory();
     return File(p.join(support.path, 'agent', 'audit-v1.jsonl'));
+  }
+
+  static Future<File?> _defaultMcpAuditFile() async {
+    final support = await getApplicationSupportDirectory();
+    return File(p.join(support.path, 'agent', 'mcp-audit-v1.jsonl'));
   }
 
   static Future<bool> _defaultExportArchive(

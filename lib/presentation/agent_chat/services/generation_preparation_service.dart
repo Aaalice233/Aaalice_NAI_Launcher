@@ -2,6 +2,7 @@ import 'dart:io';
 import 'dart:typed_data';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/agent/agent_types.dart';
+import '../../../core/agent/harness/harness_types.dart';
 import '../../../core/agent/resources/agent_chat_resource_reference.dart';
 import '../../../core/constants/model_capabilities.dart';
 import '../../../core/services/anlas_calculator.dart';
@@ -18,10 +19,29 @@ import '../../providers/replication_queue_provider.dart';
 import '../../providers/vibe_library_provider.dart';
 import 'agent_resource_resolver.dart';
 import 'defined_agent_tool.dart';
+import 'generated_image_export_writer.dart';
 import 'generation_anlas_estimator.dart';
 import 'generation_character_orchestration.dart';
 import 'generation_preparation_runtime.dart';
+import 'generation_save_path_template.dart';
 import 'generation_workspace_path_resolver.dart';
+
+typedef _ResolvedSavePath = ({String? path, GenerationSavePathSource? source});
+
+/// 模板校验只回报原因，文案与错误码由落盘来源决定。
+enum _SavePathRejection {
+  placeholderInDirectory,
+  missingPlaceholder,
+  invalidTarget,
+  extensionMismatch,
+  notPermitted,
+  exists,
+  checkFailed,
+  unavailable,
+}
+
+/// v4 不会生成全零随机位，样本路径因此撞不上真实目标。
+const String _sampleImageId = '00000000-0000-4000-8000-000000000000';
 
 class GenerationPreparationService {
   GenerationPreparationService(
@@ -29,6 +49,7 @@ class GenerationPreparationService {
     required GenerationPreparationRuntime runtime,
     required AgentResourceResolver resourceResolver,
     required GenerationWorkspacePathResolver pathResolver,
+    required GeneratedImageExportWriter exportWriter,
     required int maxGenerateCount,
     required GenerationAnlasEstimator anlasEstimator,
     required Future<AgentToolResult> Function(
@@ -43,17 +64,21 @@ class GenerationPreparationService {
       required GenerationPreparation prepared,
     })
     executeQueue,
+    bool referencesGalleryOriginal = false,
   }) : _runtime = runtime,
        _resourceResolver = resourceResolver,
        _pathResolver = pathResolver,
+       _exportWriter = exportWriter,
        _maxGenerateCount = maxGenerateCount,
        _anlasEstimator = anlasEstimator,
        _executeGeneration = executeGeneration,
-       _executeQueue = executeQueue;
+       _executeQueue = executeQueue,
+       _referencesGalleryOriginal = referencesGalleryOriginal;
   final Ref _ref;
   final GenerationPreparationRuntime _runtime;
   final AgentResourceResolver _resourceResolver;
   final GenerationWorkspacePathResolver _pathResolver;
+  final GeneratedImageExportWriter _exportWriter;
   final int _maxGenerateCount;
   final GenerationAnlasEstimator _anlasEstimator;
   final Future<AgentToolResult> Function(
@@ -68,6 +93,9 @@ class GenerationPreparationService {
     required GenerationPreparation prepared,
   })
   _executeQueue;
+
+  /// 调用方不传 save_path 时是否把 saved_path 指向图库原图；内置聊天不需要。
+  final bool _referencesGalleryOriginal;
 
   Future<AgentToolResult> generateLegacy(
     String toolCallId,
@@ -308,11 +336,24 @@ class GenerationPreparationService {
       }
     }
     final hasExplicitCharacters = args.containsKey('characters');
-    if (!hasExplicitCharacters && args.containsKey('character_layout_mode')) {
-      return agentToolError(
-        'character_layout_without_characters',
-        'character_layout_mode requires an explicit characters snapshot.',
-      );
+    if (!hasExplicitCharacters) {
+      // MCP 客户端会把 schema 默认值实例化进 arguments，key 是否存在不代表调用方
+      // 意图，只能按值判断：继承的编辑器状态无坐标可用，custom 会被静默丢弃。
+      try {
+        final requested = GenerationCharacterOrchestrator.parseLayoutMode(
+          args['character_layout_mode'],
+        );
+        if (requested == GenerationCharacterLayoutMode.custom) {
+          return agentToolError(
+            'character_layout_without_characters',
+            'character_layout_mode custom requires an explicit characters '
+                'snapshot; omit it to inherit the current character editor '
+                'layout.',
+          );
+        }
+      } on GenerationCharacterValidationException catch (error) {
+        return agentToolError(error.code, error.message);
+      }
     }
 
     late final List<CharacterPrompt> characters;
@@ -392,6 +433,9 @@ class GenerationPreparationService {
         'Unable to estimate Anlas for these parameters.',
       );
     }
+    final savePathResult = await _resolveSavePath(kind, args, count, batchSize);
+    if (savePathResult.errorOrNull case final rejection?) return rejection;
+
     final canonicalArgs = Map<String, dynamic>.from(args)
       ..remove('operation')
       ..remove('preparation_id')
@@ -406,12 +450,145 @@ class GenerationPreparationService {
         autoStart: args['auto_start'] as bool? ?? true,
         estimatedAnlas: estimate,
         arguments: canonicalArgs,
+        savePath: savePathResult.valueOrNull?.path,
+        savePathSource: savePathResult.valueOrNull?.source,
         sourceImage: sourceBytes,
         maskImage: maskBytes,
       ),
     );
     return agentToolJsonResult(preparation.toJson());
   }
+
+  Future<HarnessResult<_ResolvedSavePath, AgentToolResult>> _resolveSavePath(
+    GenerationPreparationKind kind,
+    Map<String, dynamic> args,
+    int count,
+    int batchSize,
+  ) async {
+    final requested = args['save_path'];
+    if (requested != null && requested is! String) {
+      return err(
+        agentToolError(
+          'invalid_save_path',
+          'Parameter "save_path" must be a string file target.',
+        ),
+      );
+    }
+    final template = (requested as String?)?.trim() ?? '';
+    if (template.isEmpty) return ok(_resolveDefaultSavePath(kind));
+    if (kind == GenerationPreparationKind.queue) {
+      return err(
+        agentToolError(
+          'unsupported_queue_save_path',
+          'queue preparations do not support save_path.',
+        ),
+      );
+    }
+    final total = count * batchSize;
+    final resolved = await _validateSavePathTemplate(template, total);
+    if (resolved.errorOrNull case final reason?) {
+      return err(_callerSavePathRejection(reason, total));
+    }
+    return ok((
+      path: resolved.valueOrNull!,
+      source: GenerationSavePathSource.caller,
+    ));
+  }
+
+  /// 调用方没给 save_path 时不写任何副本，最多把 saved_path 指向图库原图。
+  _ResolvedSavePath _resolveDefaultSavePath(GenerationPreparationKind kind) {
+    final references =
+        kind == GenerationPreparationKind.generate &&
+        _referencesGalleryOriginal;
+    return (
+      path: null,
+      source: references ? GenerationSavePathSource.galleryOriginal : null,
+    );
+  }
+
+  Future<HarnessResult<String, _SavePathRejection>> _validateSavePathTemplate(
+    String template,
+    int total,
+  ) async {
+    if (GenerationSavePathTemplate.hasPlaceholderInDirectory(template)) {
+      return err(_SavePathRejection.placeholderInDirectory);
+    }
+    if (total > 1 && !GenerationSavePathTemplate.hasPlaceholder(template)) {
+      return err(_SavePathRejection.missingPlaceholder);
+    }
+    final absolute = (await _pathResolver.env.absolutePath(template))
+        .valueOrNull;
+    if (absolute == null) return err(_SavePathRejection.notPermitted);
+    // 模板本身不是文件名，展开一份样本才能校验扩展名、作用域和占位情况。
+    final sample = GenerationSavePathTemplate.expand(
+      absolute,
+      index: 1,
+      total: total,
+      seed: 0,
+      id: _sampleImageId,
+    );
+    final failure = (await _exportWriter.validate(
+      sample,
+      mimeType: 'image/png',
+    )).errorOrNull;
+    return failure == null
+        ? ok(absolute.replaceAll(r'\', '/'))
+        : err(_rejectionFor(failure.kind));
+  }
+
+  static _SavePathRejection _rejectionFor(
+    GeneratedImageExportFailureKind kind,
+  ) => switch (kind) {
+    GeneratedImageExportFailureKind.invalidTarget =>
+      _SavePathRejection.invalidTarget,
+    GeneratedImageExportFailureKind.extensionMismatch =>
+      _SavePathRejection.extensionMismatch,
+    GeneratedImageExportFailureKind.outsideScope =>
+      _SavePathRejection.notPermitted,
+    GeneratedImageExportFailureKind.exists => _SavePathRejection.exists,
+    GeneratedImageExportFailureKind.checkFailed =>
+      _SavePathRejection.checkFailed,
+    _ => _SavePathRejection.unavailable,
+  };
+
+  static AgentToolResult _callerSavePathRejection(
+    _SavePathRejection reason,
+    int total,
+  ) => switch (reason) {
+    _SavePathRejection.placeholderInDirectory => agentToolError(
+      'invalid_save_path',
+      'save_path placeholders are only allowed in the file name.',
+    ),
+    _SavePathRejection.missingPlaceholder => agentToolError(
+      'invalid_save_path',
+      'This submission produces $total images, so the save_path file name '
+          'must contain {index}, {seed} or {id}.',
+    ),
+    _SavePathRejection.invalidTarget => agentToolError(
+      'invalid_save_path',
+      'save_path must identify a file, not a directory.',
+    ),
+    _SavePathRejection.extensionMismatch => agentToolError(
+      'invalid_save_path',
+      'save_path must use the .png extension.',
+    ),
+    _SavePathRejection.notPermitted => agentToolError(
+      'save_path_not_permitted',
+      'save_path is outside the permitted file scope.',
+    ),
+    _SavePathRejection.exists => agentToolError(
+      'save_path_exists',
+      'save_path already exists; generated images are never overwritten.',
+    ),
+    _SavePathRejection.checkFailed => agentToolError(
+      'save_path_unavailable',
+      'save_path could not be checked safely.',
+    ),
+    _SavePathRejection.unavailable => agentToolError(
+      'save_path_unavailable',
+      'save_path could not be validated.',
+    ),
+  };
 
   Future<AgentToolResult?> _appendTextReferences(
     dynamic rawReferences,

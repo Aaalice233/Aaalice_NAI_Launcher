@@ -19,6 +19,7 @@ void main() {
       expect(capabilities.supportsDesktopOverlayInteractions, isFalse);
       expect(capabilities.supportsKeyboardShortcutConfiguration, isFalse);
       expect(capabilities.supportsKritaBridge, isFalse);
+      expect(capabilities.supportsMcpServer, isFalse);
       expect(capabilities.supportsSystemFontEnumeration, isFalse);
       expect(capabilities.supportsInAppPackageInstall, isTrue);
       expect(capabilities.requiresExternalInstallerFlow, isTrue);
@@ -38,9 +39,21 @@ void main() {
       expect(capabilities.supportsDesktopOverlayInteractions, isTrue);
       expect(capabilities.supportsKeyboardShortcutConfiguration, isTrue);
       expect(capabilities.supportsKritaBridge, isTrue);
+      expect(capabilities.supportsMcpServer, isTrue);
       expect(capabilities.supportsSystemFontEnumeration, isTrue);
       expect(capabilities.supportsInAppPackageInstall, isTrue);
       expect(capabilities.requiresExternalInstallerFlow, isFalse);
+    });
+
+    test('macOS and Linux also host the local MCP server', () {
+      for (final platform in [TargetPlatform.macOS, TargetPlatform.linux]) {
+        final capabilities = PlatformCapabilities.forPlatform(platform);
+        expect(capabilities.supportsMcpServer, isTrue, reason: '$platform');
+      }
+      expect(
+        PlatformCapabilities.forPlatform(TargetPlatform.iOS).supportsMcpServer,
+        isFalse,
+      );
     });
 
     test('current honors an isolated capability override', () {

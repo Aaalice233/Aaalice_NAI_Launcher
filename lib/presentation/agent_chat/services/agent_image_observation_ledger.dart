@@ -1,37 +1,124 @@
+import 'dart:math' as math;
+
 import 'package:path/path.dart' as p;
 
 import '../../../core/agent/agent_types.dart';
+import '../../../core/agent/resources/agent_chat_resource_reference.dart';
+import '../../../core/agent/resources/agent_chat_resource_reference_codec.dart';
+import '../../../core/utils/display_thumbnail_utils.dart';
+import '../../../core/utils/nai_resolution_adapter.dart';
 
-/// 记录模型真正以视觉输入收到过的图片，按会话隔离。
+/// 按会话记录模型真正以视觉输入收到过的图片，以及收到时的最大长边。
 ///
-/// 应用不检测模型视觉能力，缺了这道台账，Agent 可能没看图就凭结果里的 size
-/// 字段编出坐标，最终花 Anlas 重绘错位置。
+/// 应用不检测模型视觉能力，缺了这道台账，Agent 可能只见过展示缩略图甚至只见过
+/// 结果里的 size 字段，就编出坐标，最终花 Anlas 重绘错位置。
 class AgentImageObservationLedger {
-  final Map<String, Set<String>> _observedBySession = {};
+  final Map<String, Map<String, int>> _observedBySession = {};
 
   /// 判据是结果里是否真的挂了图片内容：读文本不会产生 [ToolResultImageContent]。
   void recordToolResult(String sessionId, AgentToolResult result) {
     if (result.isError) return;
-    if (!result.content.any((item) => item is ToolResultImageContent)) return;
+    final images = result.content.whereType<ToolResultImageContent>().toList();
+    if (images.isEmpty) return;
+    final longSide = _feedLongSide(images);
+    if (longSide == null) return;
     final details = result.details;
     if (details is! Map) return;
-    final files = details['files'];
-    if (files is! List) return;
-    for (final file in files) {
-      if (file is String && file.trim().isNotEmpty) {
-        _observedBySession.putIfAbsent(sessionId, () => {}).add(_key(file));
-      }
+    final keys = _identityKeys(details);
+    if (keys.isEmpty) return;
+    final observed = _observedBySession.putIfAbsent(sessionId, () => {});
+    for (final key in keys) {
+      final previous = observed[key];
+      observed[key] = previous == null
+          ? longSide
+          : math.max(previous, longSide);
     }
   }
 
-  bool hasObserved(String sessionId, String absolutePath) =>
-      _observedBySession[sessionId]?.contains(_key(absolutePath)) ?? false;
+  bool hasObserved(
+    String sessionId, {
+    Iterable<String> paths = const [],
+    Iterable<AgentChatResourceReference> references = const [],
+    required int sourceLongSide,
+  }) {
+    final observed = _observedBySession[sessionId];
+    if (observed == null) return false;
+    final keys = [
+      for (final path in paths) _pathKey(path),
+      for (final reference in references) _referenceKey(reference),
+    ];
+    return keys.any((key) {
+      final observedLongSide = observed[key];
+      return observedLongSide != null &&
+          isUsableObservation(
+            observedLongSide: observedLongSide,
+            sourceLongSide: sourceLongSide,
+          );
+    });
+  }
+
+  /// 展示缩略图不是测量输入；但源图本身不大于缩略图时，缩略图就是原图。
+  static bool isUsableObservation({
+    required int observedLongSide,
+    required int sourceLongSide,
+  }) =>
+      observedLongSide > DisplayThumbnailUtils.maxDimension ||
+      observedLongSide >= sourceLongSide;
 
   void forgetSession(String sessionId) => _observedBySession.remove(sessionId);
 
   void clear() => _observedBySession.clear();
 
-  static String _key(String path) => p.canonicalize(path);
+  /// 一个结果里的多张图与多个身份无法逐一对齐，取最小长边是保守做法。
+  static int? _feedLongSide(List<ToolResultImageContent> images) {
+    int? smallest;
+    for (final image in images) {
+      final bytes = image.image.source.bytes;
+      if (bytes == null) return null;
+      final size = NaiResolutionAdapter.readImageSize(bytes);
+      if (size == null) return null;
+      final longSide = math.max(size.$1, size.$2);
+      smallest = smallest == null ? longSide : math.min(smallest, longSide);
+    }
+    return smallest;
+  }
+
+  static List<String> _identityKeys(Map<Object?, Object?> details) {
+    final keys = <String>[];
+    final files = details['files'];
+    if (files is List) {
+      for (final file in files) {
+        if (file is String && file.trim().isNotEmpty) keys.add(_pathKey(file));
+      }
+    }
+    final images = details['images'];
+    if (images is List) {
+      for (final image in images) {
+        if (image is! Map) continue;
+        final reference = _tryDecodeReference(image['resource_ref']);
+        if (reference != null) keys.add(_referenceKey(reference));
+      }
+    }
+    return keys;
+  }
+
+  static AgentChatResourceReference? _tryDecodeReference(Object? encoded) {
+    if (encoded is! Map || encoded.keys.any((key) => key is! String)) {
+      return null;
+    }
+    try {
+      return AgentChatResourceReferenceCodec.decodeJsonMap(
+        Map<String, dynamic>.from(encoded),
+      );
+    } on FormatException {
+      return null;
+    }
+  }
+
+  static String _pathKey(String path) => 'path:${p.canonicalize(path)}';
+
+  static String _referenceKey(AgentChatResourceReference reference) =>
+      'ref:${reference.identityKey}';
 }
 
 /// 转发工具调用，并把成功返回图片的那次调用记进 [AgentImageObservationLedger]。

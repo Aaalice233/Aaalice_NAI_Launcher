@@ -13,7 +13,7 @@ class GlobalStatusBanners extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const _AuthRecoveryBanner();
+    return const SafeArea(bottom: false, child: _AuthRecoveryBanner());
   }
 }
 

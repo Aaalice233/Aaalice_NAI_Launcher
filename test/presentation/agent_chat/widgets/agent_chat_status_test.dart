@@ -71,6 +71,7 @@ void main() {
             'model': 'nai-diffusion-4-full',
           },
           estimatedAnlas: 12,
+          fileTargets: const [],
           onResolve: decisions.add,
         ),
       ),
