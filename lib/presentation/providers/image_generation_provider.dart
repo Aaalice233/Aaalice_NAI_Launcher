@@ -1227,6 +1227,6 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
     // 快照不再进 PNG，内存元数据仍要带上供历史面板与详情页判定固定词。
     return snapshot == null
         ? metadata
-        : metadata.copyWith(fixedTagUsageData: snapshot.toJson());
+        : metadata.withFixedTagUsageData(snapshot.toJson());
   }
 }
