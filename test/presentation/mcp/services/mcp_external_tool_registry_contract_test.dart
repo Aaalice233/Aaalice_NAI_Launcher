@@ -73,6 +73,55 @@ void main() {
     }
   });
 
+  test('external tool schemas never declare a default keyword', () {
+    for (final mode in AgentPermissionMode.values) {
+      for (final tool in factory.build(mode).tools) {
+        expect(
+          _defaultKeywordPaths(tool.parameters, tool.name),
+          isEmpty,
+          reason:
+              '$mode/${tool.name}: external MCP clients materialize schema '
+              'default into arguments while validate_tool_arguments never '
+              'does, so an omitted field arrives populated',
+        );
+      }
+    }
+  });
+
+  test('default keyword sweep separates keywords from property names', () {
+    expect(
+      _defaultKeywordPaths({
+        'type': 'object',
+        'properties': {
+          'mode': {'type': 'string', 'default': 'ai_choice'},
+          'nested': {
+            'type': 'array',
+            'items': {
+              'type': 'object',
+              'properties': {
+                'deep': {'type': 'integer', 'default': 1},
+              },
+            },
+          },
+        },
+      }, 'probe'),
+      [
+        'probe/properties/mode',
+        'probe/properties/nested/items/properties/deep',
+      ],
+    );
+    expect(
+      _defaultKeywordPaths({
+        'type': 'object',
+        'properties': {
+          'default': {'type': 'string'},
+        },
+        'required': ['default'],
+      }, 'probe'),
+      isEmpty,
+    );
+  });
+
   test('chat-only tools never reach external clients', () {
     for (final mode in AgentPermissionMode.values) {
       final names = factory.build(mode).tools.map((tool) => tool.name).toSet();
@@ -155,6 +204,35 @@ void main() {
       isTrue,
     );
   });
+}
+
+// Keys under properties/$defs are parameter names, not keywords, so a parameter
+// literally named default must not be reported.
+List<String> _defaultKeywordPaths(Object? node, String path) {
+  const nameKeyedGroups = {'properties', r'$defs', 'definitions'};
+  final hits = <String>[];
+  if (node is Map) {
+    if (node.containsKey('default')) hits.add(path);
+    for (final entry in node.entries) {
+      final key = entry.key.toString();
+      final childPath = '$path/$key';
+      final value = entry.value;
+      if (nameKeyedGroups.contains(key) && value is Map) {
+        for (final named in value.entries) {
+          hits.addAll(
+            _defaultKeywordPaths(named.value, '$childPath/${named.key}'),
+          );
+        }
+        continue;
+      }
+      hits.addAll(_defaultKeywordPaths(value, childPath));
+    }
+  } else if (node is List) {
+    for (var index = 0; index < node.length; index++) {
+      hits.addAll(_defaultKeywordPaths(node[index], '$path/$index'));
+    }
+  }
+  return hits;
 }
 
 class _MemoryLocalStorage extends LocalStorageService {
