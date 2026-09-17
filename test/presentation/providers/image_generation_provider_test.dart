@@ -16,6 +16,7 @@ import 'package:nai_launcher/data/datasources/remote/nai_image_enhancement_api_s
 import 'package:nai_launcher/data/datasources/remote/nai_image_generation_api_service.dart';
 import 'package:nai_launcher/data/models/fixed_tag/fixed_tag_entry.dart';
 import 'package:nai_launcher/data/models/fixed_tag/fixed_tag_prompt_type.dart';
+import 'package:nai_launcher/data/models/gallery/gallery_index_admission.dart';
 import 'package:nai_launcher/data/models/gallery/nai_image_metadata.dart';
 import 'package:nai_launcher/data/services/metadata/unified_metadata_parser.dart';
 import 'package:nai_launcher/data/models/image/image_params.dart';
@@ -85,8 +86,9 @@ class TestLocalGalleryNotifier extends LocalGalleryNotifier {
   LocalGalleryState build() => const LocalGalleryState(isInitialized: true);
 
   @override
-  Future<int> addNewlySavedImages(List<String> filePaths) async =>
-      filePaths.length;
+  Future<GalleryIndexAdmission> addNewlySavedImages(
+    List<String> filePaths,
+  ) async => GalleryIndexAdmission.added;
 }
 
 void main() {
