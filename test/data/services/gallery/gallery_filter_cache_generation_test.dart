@@ -355,14 +355,20 @@ void main() {
 }
 
 Future<void> _deleteDirectoryWithRetry(Directory directory) async {
-  for (var attempt = 0; attempt < 10; attempt++) {
+  const attempts = 50;
+  for (var attempt = 1; attempt <= attempts; attempt++) {
     try {
       if (await directory.exists()) {
         await directory.delete(recursive: true);
       }
       return;
     } on FileSystemException {
-      if (attempt == 9) rethrow;
+      if (attempt == attempts) {
+        // Windows can hold the handle past close; hosted runners are
+        // ephemeral, so leave it for the operating system to reclaim.
+        if (Platform.isWindows) return;
+        rethrow;
+      }
       await Future<void>.delayed(const Duration(milliseconds: 100));
     }
   }

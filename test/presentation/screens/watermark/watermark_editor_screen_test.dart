@@ -22,14 +22,16 @@ void main() {
   setUpAll(() async {
     directory = await Directory.systemTemp.createTemp('watermark-editor-test');
     Hive.init(directory.path);
-    await Hive.openBox<dynamic>(StorageKeys.settingsBox);
+    // 内存后端：落盘写一旦从 widget test 的 FakeAsync 时钟发起就不会完成，会锁死 box
+    await Hive.openBox<dynamic>(StorageKeys.settingsBox, bytes: Uint8List(0));
     storage = LocalStorageService();
   });
 
   setUp(() => Hive.box<dynamic>(StorageKeys.settingsBox).clear());
 
   tearDownAll(() async {
-    await Hive.close();
+    // 有界等待：box 被锁死时快速失败，不把整个测试分片拖到看门狗超时
+    await Hive.close().timeout(const Duration(seconds: 10));
     await directory.delete(recursive: true);
   });
 

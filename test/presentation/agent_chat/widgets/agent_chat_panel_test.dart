@@ -42,11 +42,13 @@ void main() {
   setUpAll(() async {
     hiveDir = Directory.systemTemp.createTempSync('agent_chat_panel_hive_');
     Hive.init(hiveDir.path);
-    await Hive.openBox(StorageKeys.settingsBox);
+    // Memory backend: writes under FakeAsync never finish and lock the box
+    await Hive.openBox(StorageKeys.settingsBox, bytes: Uint8List(0));
   });
 
   tearDownAll(() async {
-    await Hive.close();
+    // Bounded wait: a locked box fails fast instead of hitting the watchdog
+    await Hive.close().timeout(const Duration(seconds: 10));
     if (hiveDir.existsSync()) hiveDir.deleteSync(recursive: true);
   });
 
