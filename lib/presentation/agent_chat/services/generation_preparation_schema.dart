@@ -97,4 +97,14 @@ Map<String, dynamic> generationPreparationProperties({
   'noise': {'type': 'number'},
   'inpaint_strength': {'type': 'number'},
   'auto_start': {'type': 'boolean'},
+  'save_path': {
+    'type': 'string',
+    'description':
+        'Optional .png file target for every finished image, '
+        'workspace-relative or a permitted absolute path. When count x '
+        'batch_size exceeds 1 the file name must contain {index}, {seed} or '
+        '{id}. Only for operation generate. Without it saved_path points at '
+        'the launcher gallery original; an empty string on update restores '
+        'that default.',
+  },
 };

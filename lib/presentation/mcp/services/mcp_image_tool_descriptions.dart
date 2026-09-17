@@ -19,11 +19,19 @@ const mcpImageToolDescriptions = <String, String>{
       'generation prerequisite. Use get_generation_settings or get_prompt_state '
       'only when those values are needed. include_draft_details returns full drafts.',
   'prepare_generation':
-      'Validate and snapshot a generation without running it. Returns a compact '
+      'Pass the whole request here: prompt, negative_prompt, width/height, '
+      'count, seed, characters and references are one-shot arguments that '
+      'leave the launcher page untouched, so do not edit the page first; '
+      'omitted fields inherit the page. Validate and snapshot a generation '
+      'without running it. Returns a compact '
       'preparation_id, exact estimated_anlas and next_action. Submit that ID '
       'directly; do not poll status or history while prepared. operation is '
       'generate (waits for images on submission) or queue. Full parameters are '
-      'available through inspect_generation_preparation or include_parameters=true.',
+      'available through inspect_generation_preparation or include_parameters=true. '
+      'Without save_path the launcher returns saved_path pointing at its '
+      'gallery original; pass save_path (optional .png target, '
+      '{index}/{seed}/{id} for batches) only to put a copy inside your own '
+      'working directory for inline display.',
   'update_generation_preparation':
       'Replace supplied fields, cancel the old preparation and return a new '
       'compact preparation with its recalculated cost and next_action. '

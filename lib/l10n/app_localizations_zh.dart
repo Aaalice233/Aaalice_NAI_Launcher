@@ -9864,7 +9864,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get settings_stripMetadataSubtitle =>
-      '复制、拖拽及 MCP 图片返回时清除 PNG 文本块、EXIF 与 NAI 隐写水印，不修改本地原图；MCP 保留原分辨率，且不返回原图路径。';
+      '复制、拖拽及 MCP 图片返回时清除 PNG 文本块、EXIF 与 NAI 隐写水印，不修改本地原图；MCP 保留原分辨率，其 saved_path 指向的图库原图不受影响。';
 
   @override
   String get settings_confirmDangerousActionsTitle => '危险资产操作二次确认';
@@ -24607,7 +24607,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get settings_stripMetadataSubtitle =>
-      '複製、拖拽及 MCP 圖片回傳時清除 PNG 文字塊、EXIF 與 NAI 隱寫水印，不修改本機原圖；MCP 保留原解析度，且不回傳原圖路徑。';
+      '複製、拖拽及 MCP 圖片回傳時清除 PNG 文字塊、EXIF 與 NAI 隱寫水印，不修改本機原圖；MCP 保留原解析度，其 saved_path 指向的圖庫原圖不受影響。';
 
   @override
   String get settings_confirmDangerousActionsTitle => '危險資產操作二次確認';

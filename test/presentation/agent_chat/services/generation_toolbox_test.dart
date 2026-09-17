@@ -1227,7 +1227,380 @@ void main() {
         .join();
     expect(text, contains('not permitted'));
   });
+
+  test('save_path is rejected before a preparation is stored', () async {
+    final workspace = await Directory.systemTemp.createTemp(
+      'generation-save-path-',
+    );
+    addTearDown(() => workspace.delete(recursive: true));
+    await File(
+      '${workspace.path}${Platform.pathSeparator}taken.png',
+    ).writeAsString('user data');
+    final container = _savePathContainer();
+    addTearDown(container.dispose);
+    final prepare = GenerationToolbox(
+      _makeRef(container),
+      workspaceDir: workspace.path,
+    ).tools().firstWhere((tool) => tool.name == 'prepare_generation');
+
+    const rejections = {
+      'unsupported_queue_save_path': ('queue', 'out.png'),
+      'invalid_save_path': ('generate', 'out.jpg'),
+      'save_path_not_permitted': ('generate', '../escaped.png'),
+      'save_path_exists': ('generate', 'taken.png'),
+    };
+    for (final entry in rejections.entries) {
+      final result = await prepare.execute('reject-${entry.key}', {
+        'operation': entry.value.$1,
+        'prompt': '1girl',
+        'save_path': entry.value.$2,
+      });
+      expect(result.isError, isTrue, reason: entry.key);
+      expect(_json(result)['code'], entry.key, reason: entry.key);
+    }
+
+    final placeholderInDirectory = await prepare.execute('reject-dir', const {
+      'operation': 'generate',
+      'prompt': '1girl',
+      'save_path': 'run-{index}/shot.png',
+    });
+    expect(_json(placeholderInDirectory)['code'], 'invalid_save_path');
+    expect(_json(placeholderInDirectory)['message'], contains('file name'));
+  });
+
+  test('a batch save_path needs a placeholder in its file name', () async {
+    final workspace = await Directory.systemTemp.createTemp(
+      'generation-save-path-batch-',
+    );
+    addTearDown(() => workspace.delete(recursive: true));
+    final container = _savePathContainer(
+      overrides: [
+        imagesPerRequestProvider.overrideWith(_TestImagesPerRequest.new),
+      ],
+    );
+    addTearDown(container.dispose);
+    final prepare = GenerationToolbox(
+      _makeRef(container),
+      workspaceDir: workspace.path,
+    ).tools().firstWhere((tool) => tool.name == 'prepare_generation');
+
+    final rejected = await prepare.execute('batch-reject', const {
+      'operation': 'generate',
+      'prompt': '1girl',
+      'save_path': 'shot.png',
+    });
+    expect(_json(rejected)['code'], 'invalid_save_path');
+    expect(_json(rejected)['message'], contains('{index}'));
+
+    final accepted = await prepare.execute('batch-accept', const {
+      'operation': 'generate',
+      'prompt': '1girl',
+      'save_path': 'shot-{index}.png',
+    });
+    expect(accepted.isError, isFalse);
+    expect(_json(accepted)['batch_size'], 2);
+    expect(
+      _json(accepted)['save_path'],
+      '${workspace.path.replaceAll(r'\', '/')}/shot-{index}.png',
+    );
+  });
+
+  test('a valid save_path is absolute and an empty update clears it', () async {
+    final workspace = await Directory.systemTemp.createTemp(
+      'generation-save-path-update-',
+    );
+    addTearDown(() => workspace.delete(recursive: true));
+    final container = _savePathContainer();
+    addTearDown(container.dispose);
+    final tools = GenerationToolbox(
+      _makeRef(container),
+      workspaceDir: workspace.path,
+    ).tools();
+    final prepare = tools.firstWhere(
+      (tool) => tool.name == 'prepare_generation',
+    );
+    final update = tools.firstWhere(
+      (tool) => tool.name == 'update_generation_preparation',
+    );
+
+    final prepared = _json(
+      await prepare.execute('save-path-prepare', const {
+        'operation': 'generate',
+        'prompt': '1girl',
+        'save_path': 'exports/shot.png',
+      }),
+    );
+    expect(
+      prepared['save_path'],
+      '${workspace.path.replaceAll(r'\', '/')}/exports/shot.png',
+    );
+    expect(prepared['save_path'], isNot(contains(r'\')));
+    // 准备阶段只校验，不得提前建目录。
+    expect(
+      await Directory(
+        '${workspace.path}${Platform.pathSeparator}exports',
+      ).exists(),
+      isFalse,
+    );
+
+    final cleared = _json(
+      await update.execute('save-path-clear', {
+        'preparation_id': prepared['preparation_id'],
+        'save_path': '',
+      }),
+    );
+    expect(cleared['ok'], isTrue);
+    expect(cleared.containsKey('save_path'), isFalse);
+  });
+
+  test('submitting a prepared save_path writes each finished image', () async {
+    final workspace = await Directory.systemTemp.createTemp(
+      'generation-save-path-submit-',
+    );
+    addTearDown(() => workspace.delete(recursive: true));
+    final container = _savePathContainer(
+      overrides: [
+        imageGenerationNotifierProvider.overrideWith(
+          _FakeImageGenerationNotifier.new,
+        ),
+      ],
+    );
+    addTearDown(container.dispose);
+    final image = await _submitWithSavePath(container, workspace);
+
+    expect(
+      await File(
+        '${workspace.path}${Platform.pathSeparator}exports'
+        '${Platform.pathSeparator}shot.png',
+      ).exists(),
+      isTrue,
+    );
+    expect(
+      image['saved_path'],
+      '${workspace.path.replaceAll(r'\', '/')}/exports/shot.png',
+    );
+    expect(image.containsKey('save_error'), isFalse);
+  });
+
+  test('a failed save_path write never fails the generation', () async {
+    final workspace = await Directory.systemTemp.createTemp(
+      'generation-save-path-conflict-',
+    );
+    addTearDown(() => workspace.delete(recursive: true));
+    final container = _savePathContainer(
+      overrides: [
+        imageGenerationNotifierProvider.overrideWith(
+          _FakeImageGenerationNotifier.new,
+        ),
+      ],
+    );
+    addTearDown(container.dispose);
+    final image = await _submitWithSavePath(
+      container,
+      workspace,
+      // 准备之后目标才被占用，提交时只能报错，不能覆盖也不能重生成。
+      beforeSubmit: () async => File(
+        '${workspace.path}${Platform.pathSeparator}exports'
+        '${Platform.pathSeparator}shot.png',
+      ).create(recursive: true),
+    );
+
+    expect(image['save_error'], {
+      'code': 'destination_exists',
+      'message': isA<String>(),
+    });
+    expect(image.containsKey('saved_path'), isFalse);
+    expect(image['resource_ref']['resourceId'], 'generated-1');
+  });
+
+  test('referencing the gallery original is a per-toolbox decision', () async {
+    final workspace = await Directory.systemTemp.createTemp(
+      'generation-gallery-original-policy-',
+    );
+    addTearDown(() => workspace.delete(recursive: true));
+    final container = _savePathContainer();
+    addTearDown(container.dispose);
+
+    Future<Map<String, dynamic>> prepare({
+      required bool referencesGalleryOriginal,
+      String operation = 'generate',
+      String? savePath,
+    }) async => _json(
+      await GenerationToolbox(
+        _makeRef(container),
+        workspaceDir: workspace.path,
+        referencesGalleryOriginal: referencesGalleryOriginal,
+      ).tools().firstWhere((tool) => tool.name == 'prepare_generation').execute(
+        'gallery-original-$operation-$referencesGalleryOriginal-$savePath',
+        {
+          'operation': operation,
+          'prompt': '1girl',
+          if (savePath != null) 'save_path': savePath,
+        },
+      ),
+    );
+
+    final chat = await prepare(referencesGalleryOriginal: false);
+    expect(chat['ok'], isTrue);
+    expect(chat.containsKey('save_path'), isFalse);
+    expect(chat.containsKey('save_path_source'), isFalse);
+
+    final external = await prepare(referencesGalleryOriginal: true);
+    expect(external.containsKey('save_path'), isFalse);
+    expect(external['save_path_source'], 'gallery_original');
+
+    final queued = await prepare(
+      referencesGalleryOriginal: true,
+      operation: 'queue',
+    );
+    expect(queued['ok'], isTrue);
+    expect(queued.containsKey('save_path'), isFalse);
+    expect(queued.containsKey('save_path_source'), isFalse);
+
+    final explicit = await prepare(
+      referencesGalleryOriginal: true,
+      savePath: 'exports/shot.png',
+    );
+    expect(
+      explicit['save_path'],
+      '${workspace.path.replaceAll(r'\', '/')}/exports/shot.png',
+    );
+    expect(explicit['save_path_source'], 'caller');
+  });
+
+  test('a gallery original is reported without a second copy', () async {
+    final workspace = await Directory.systemTemp.createTemp(
+      'generation-gallery-original-',
+    );
+    addTearDown(() => workspace.delete(recursive: true));
+    final autoSaved = File(
+      '${workspace.path}${Platform.pathSeparator}gallery'
+      '${Platform.pathSeparator}auto.png',
+    );
+    await autoSaved.create(recursive: true);
+    await autoSaved.writeAsBytes(
+      image_lib.encodePng(image_lib.Image(width: 1, height: 1)),
+    );
+    final container = _savePathContainer(
+      overrides: [
+        imageGenerationNotifierProvider.overrideWith(
+          () => _FakeImageGenerationNotifier(autoSaved.path),
+        ),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    final image = await _submitReferencingOriginal(container, workspace);
+
+    expect(image['saved_path'], autoSaved.path.replaceAll(r'\', '/'));
+    expect(image['saved_path_source'], 'gallery_original');
+    expect(
+      await workspace.list(recursive: true).map((entry) => entry.path).toList(),
+      [autoSaved.parent.path, autoSaved.path],
+    );
+  });
+
+  test('a missing gallery original reports original_unavailable', () async {
+    final workspace = await Directory.systemTemp.createTemp(
+      'generation-gallery-original-missing-',
+    );
+    addTearDown(() => workspace.delete(recursive: true));
+    final missing = '${workspace.path}${Platform.pathSeparator}missing.png';
+    final container = _savePathContainer(
+      overrides: [
+        imageGenerationNotifierProvider.overrideWith(
+          () => _FakeImageGenerationNotifier(missing),
+        ),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    final image = await _submitReferencingOriginal(container, workspace);
+
+    expect(image['save_error'], {
+      'code': 'original_unavailable',
+      'message': contains('save_path'),
+    });
+    expect(image.containsKey('saved_path'), isFalse);
+    expect(await workspace.list().isEmpty, isTrue);
+  });
 }
+
+/// 以引用图库原图的工具箱准备并提交一次生成，返回唯一一张图的模型侧报告。
+Future<Map<String, dynamic>> _submitReferencingOriginal(
+  ProviderContainer container,
+  Directory workspace,
+) async {
+  final tools = GenerationToolbox(
+    _makeRef(container),
+    workspaceDir: workspace.path,
+    referencesGalleryOriginal: true,
+  ).tools();
+  final prepared = _json(
+    await tools.firstWhere((tool) => tool.name == 'prepare_generation').execute(
+      'gallery-original-prepare',
+      const {'operation': 'generate', 'prompt': '1girl'},
+    ),
+  );
+  final submitted = await tools
+      .firstWhere((tool) => tool.name == 'submit_generation')
+      .execute('gallery-original-submit', {
+        'preparation_id': prepared['preparation_id'],
+        'confirmed': true,
+      });
+  expect(submitted.isError, isFalse);
+  return ((_json(submitted)['images'] as List).single as Map)
+      .cast<String, dynamic>();
+}
+
+/// 准备一个带 save_path 的生成、提交它，并返回唯一一张图的模型侧报告。
+Future<Map<String, dynamic>> _submitWithSavePath(
+  ProviderContainer container,
+  Directory workspace, {
+  Future<void> Function()? beforeSubmit,
+}) async {
+  final tools = GenerationToolbox(
+    _makeRef(container),
+    workspaceDir: workspace.path,
+  ).tools();
+  final prepared = _json(
+    await tools.firstWhere((tool) => tool.name == 'prepare_generation').execute(
+      'save-path-submit-prepare',
+      const {
+        'operation': 'generate',
+        'prompt': '1girl',
+        'save_path': 'exports/shot.png',
+      },
+    ),
+  );
+  await beforeSubmit?.call();
+  final submitted = await tools
+      .firstWhere((tool) => tool.name == 'submit_generation')
+      .execute('save-path-submit', {
+        'preparation_id': prepared['preparation_id'],
+        'confirmed': true,
+      });
+  expect(submitted.isError, isFalse);
+  expect(submitted.content.whereType<ToolResultImageContent>(), hasLength(1));
+  return ((_json(submitted)['images'] as List).single as Map)
+      .cast<String, dynamic>();
+}
+
+ProviderContainer _savePathContainer({List<Override> overrides = const []}) =>
+    ProviderContainer(
+      overrides: [
+        generationParamsNotifierProvider.overrideWith(
+          _TestGenerationParamsNotifier.new,
+        ),
+        characterPromptNotifierProvider.overrideWith(
+          _TestCharacterPromptNotifier.new,
+        ),
+        subscriptionNotifierProvider.overrideWith(
+          _TestSubscriptionNotifier.new,
+        ),
+        ...overrides,
+      ],
+    );
 
 class _TestReplicationQueueNotifier extends ReplicationQueueNotifier {
   @override

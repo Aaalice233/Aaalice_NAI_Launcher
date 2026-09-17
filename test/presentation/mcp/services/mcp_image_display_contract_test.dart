@@ -178,6 +178,134 @@ void main() {
     );
   }
 
+  for (final savedPath in [null, 'C:/work/out.png']) {
+    test('a workspace-file client embeds '
+        '${savedPath == null ? 'the HTTP URL' : 'the caller file'}', () async {
+      final result = await service.prepare(
+        'submit_generation',
+        _result(['one'], savedPath: savedPath),
+        style: McpImageDisplayStyle.inlineWorkspaceFile,
+      );
+
+      expect(
+        result.details['display_markdown'],
+        savedPath == null
+            ? '![Generated image]($url)'
+            : '![Generated image](<$savedPath>)',
+      );
+      expect(
+        (result.details['images'] as List).single['display_path'],
+        savedPath,
+      );
+      // 工作目录客户端不需要显示缓存副本，两种情况都不写。
+      expect(writes, 0);
+      expect(publishes, 1);
+      expect(
+        result.details['display_instructions'],
+        contains('renders local images only inside its working directory'),
+      );
+    });
+  }
+
+  for (final source in ['caller', 'gallery_original']) {
+    test(
+      'a workspace-file client inlines $source only from the caller',
+      () async {
+        const savedPath = 'C:/work/out.png';
+        final result = await service.prepare(
+          'submit_generation',
+          _result(['one'], savedPath: savedPath, savedPathSource: source),
+          style: McpImageDisplayStyle.inlineWorkspaceFile,
+        );
+
+        expect(
+          result.details['display_markdown'],
+          source == 'caller'
+              ? '![Generated image](<$savedPath>)'
+              : '![Generated image]($url)',
+        );
+        expect(
+          (result.details['images'] as List).single['saved_path_source'],
+          source,
+        );
+        expect(writes, 0);
+
+        final codex = await service.prepare(
+          'submit_generation',
+          _result(['one'], savedPath: savedPath, savedPathSource: source),
+          style: McpImageDisplayStyle.inlineFile,
+        );
+        expect(
+          codex.details['display_markdown'],
+          '![Generated image](<$savedPath>)',
+        );
+      },
+    );
+  }
+
+  test('link clients aggregate both links for every saved image', () async {
+    final savedPaths = [
+      for (final name in ['first.png', 'second.png'])
+        p
+            .absolute(p.join(Directory.systemTemp.path, 'saved', name))
+            .replaceAll('\\', '/'),
+    ];
+    var index = 0;
+    final saved = McpImageResponseService(
+      resolve: (reference) async => ResolvedAgentResource(
+        reference: reference,
+        label: 'image',
+        bytes: bytes,
+      ),
+      shouldStripMetadata: () => false,
+      publishDisplayImage:
+          (_, {required mimeType, required metadataStripped}) =>
+              McpImageDisplayLink(url, DateTime.utc(2026, 9, 17)),
+    );
+
+    final result = await saved.prepare(
+      'submit_generation',
+      agentToolJsonResult({
+        'ok': true,
+        'images': [
+          for (final id in ['first', 'second'])
+            {
+              'resource_ref': {
+                'version': 1,
+                'kind': 'generatedImage',
+                'source': 'generation_history',
+                'resourceId': id,
+              },
+              'saved_path': savedPaths[index++],
+              'saved_path_source': 'gallery_original',
+            },
+        ],
+      }),
+      style: McpImageDisplayStyle.link,
+    );
+
+    expect(
+      result.details['display_markdown'],
+      [
+        for (final path in savedPaths)
+          '[Generated image 64x64]'
+              '(<${Uri.file(path, windows: Platform.isWindows)}>)\n'
+              '[Temporary preview link](<$url>)',
+      ].join('\n\n'),
+    );
+    final images = result.details['images'] as List;
+    expect(images.map((dynamic image) => image['display_file_link_markdown']), [
+      for (final path in savedPaths)
+        '[Generated image 64x64]'
+            '(<${Uri.file(path, windows: Platform.isWindows)}>)',
+    ]);
+    // 文件链接单独暴露，display_link_markdown 保持 HTTP。
+    expect(
+      images.map((dynamic image) => image['display_link_markdown']),
+      everyElement('[Generated image 64x64](<$url>)'),
+    );
+  });
+
   test(
     'analysis and metadata tools do not add display work or Markdown',
     () async {
@@ -196,7 +324,11 @@ void main() {
   );
 }
 
-AgentToolResult _result(List<String> ids) => agentToolJsonResult({
+AgentToolResult _result(
+  List<String> ids, {
+  String? savedPath,
+  String? savedPathSource,
+}) => agentToolJsonResult({
   'ok': true,
   'images': [
     for (final id in ids)
@@ -207,6 +339,8 @@ AgentToolResult _result(List<String> ids) => agentToolJsonResult({
           'source': 'generation_history',
           'resourceId': id,
         },
+        if (savedPath != null) 'saved_path': savedPath,
+        if (savedPathSource != null) 'saved_path_source': savedPathSource,
       },
   ],
 });

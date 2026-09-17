@@ -4940,7 +4940,7 @@
   "settings_copyDragWatermarkTitle": "コピーまたはドラッグ時に透かしを追加",
   "settings_copyDragWatermarkSubtitle": "保存済みの既定の透かしを使用します。透かしの追加ではメタデータは削除されません。削除するには、上の「コピーまたはドラッグするときにすべてのメタデータを削除します」を有効にしてください。",
   "settings_stripMetadataTitle": "コピーまたはドラッグするときにすべてのメタデータを削除します",
-  "settings_stripMetadataSubtitle": "コピー、ドラッグ、MCP 画像の返却時に PNG テキストチャンク、EXIF、NAI のステガノグラフィック透かしを削除します。ローカルの元画像は変更せず、MCP は元の解像度を維持し、元画像のパスを返しません。",
+  "settings_stripMetadataSubtitle": "コピー、ドラッグ、MCP 画像の返却時に PNG テキストチャンク、EXIF、NAI のステガノグラフィック透かしを削除します。ローカルの元画像は変更せず、MCP は元の解像度を維持します。MCP が saved_path として返すギャラリーの元画像はそのままです。",
   "settings_confirmDangerousActionsTitle": "危険な資産のアクションを再確認する",
   "settings_confirmDangerousActionsSubtitle": "ローカル アセットを削除、移動、またはバッチ移動すると、追加の保護の確認が表示されます。",
   "settings_warnExternalImageSendTitle": "外部サービスに送信する前に確認してください",

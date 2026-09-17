@@ -38,9 +38,13 @@ final class McpLauncherServer extends mcp.MCPServer with mcp.ToolsSupport {
   static const String _logTag = 'McpServer';
 
   static const String _instructions =
-      'Images: prepare_generation then submit_generation; embed top-level '
-      'display_markdown in the final answer, not only tool images. Read state '
-      'as needed. Paid calls wait for launcher approval; never retry pending calls.';
+      'Images: prepare_generation with the whole request inline (prompt, '
+      'size, count, seed, characters; page untouched), then '
+      'submit_generation; embed top-level display_markdown in the final '
+      'answer. Without save_path images point at the launcher gallery '
+      'original; pass save_path only to inline one from your working '
+      'directory. Paid calls wait for launcher approval; never retry pending '
+      'calls.';
 
   final String sessionId;
   final McpToolExecutor _executor;

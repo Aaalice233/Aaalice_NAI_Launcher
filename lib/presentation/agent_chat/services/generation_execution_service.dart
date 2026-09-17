@@ -13,6 +13,7 @@ import '../../providers/image_generation_provider.dart';
 import 'defined_agent_tool.dart';
 import 'generation_image_read_contract.dart';
 import 'generation_preparation_runtime.dart';
+import 'generation_save_path_exporter.dart';
 import 'generation_workspace_path_resolver.dart';
 
 class GenerationExecutionService {
@@ -20,13 +21,16 @@ class GenerationExecutionService {
     this._ref, {
     required GenerationWorkspacePathResolver pathResolver,
     required GenerationImageReadContract imageReadContract,
+    required GenerationSavePathExporter exporter,
     required int maxGenerateCount,
   }) : _pathResolver = pathResolver,
        _imageReadContract = imageReadContract,
+       _exporter = exporter,
        _maxGenerateCount = maxGenerateCount;
   final Ref _ref;
   final GenerationWorkspacePathResolver _pathResolver;
   final GenerationImageReadContract _imageReadContract;
+  final GenerationSavePathExporter _exporter;
   final int _maxGenerateCount;
   Future<AgentToolResult> generate(
     String toolCallId,
@@ -272,11 +276,15 @@ class GenerationExecutionService {
         }
         await Future<void>.delayed(const Duration(milliseconds: 250));
       }
+      final exports = await _exportToSavePath(prepared, signal, onUpdate);
       final report = <Map<String, dynamic>>[];
       final savedFiles = <String>[];
       for (final image
           in _ref.read(imageGenerationNotifierProvider).currentImages) {
-        final descriptor = await _imageReadContract.describe(image);
+        final descriptor = await _imageReadContract.describe(
+          image,
+          export: exports[image.id],
+        );
         if (descriptor.saved) {
           if (image.filePath case final path?) savedFiles.add(path);
         }
@@ -318,6 +326,41 @@ class GenerationExecutionService {
       AppLogger.w('Agent generation failed: $error', 'AgentChat');
       return agentToolError('generation_failed', 'Generation failed to start.');
     }
+  }
+
+  /// 按 preparation 选定的落盘来源逐张处理；失败只记在该图的结果里。
+  Future<Map<String, GeneratedImageExportOutcome>> _exportToSavePath(
+    GenerationPreparation prepared,
+    AbortSignal? signal,
+    AgentToolUpdateCallback? onUpdate,
+  ) async {
+    final source = prepared.savePathSource;
+    if (source == null) return const <String, GeneratedImageExportOutcome>{};
+    throwIfAborted(signal);
+    onUpdate?.call(
+      agentToolTextResult(
+        source == GenerationSavePathSource.galleryOriginal
+            ? 'Resolving saved images...'
+            : 'Exporting images...',
+      ),
+    );
+    final images = _ref.read(imageGenerationNotifierProvider).currentImages;
+    final outcomes = <String, GeneratedImageExportOutcome>{};
+    for (var index = 0; index < images.length; index++) {
+      final image = images[index];
+      outcomes[image.id] = await _exporter.export(
+        source: source,
+        id: image.id,
+        template: prepared.savePath,
+        originalPath: image.filePath,
+        index: index + 1,
+        total: images.length,
+        seed: image.metadata?.seed,
+        bytes: image.bytes,
+        label: '${image.id}.png',
+      );
+    }
+    return outcomes;
   }
 
   /// 排队等待：生成页忙时等其结束；空闲立即通过（不空转）。
