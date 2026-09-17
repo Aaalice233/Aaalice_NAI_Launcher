@@ -4,9 +4,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../../core/mcp/mcp_session_registry.dart';
 import '../../../../../core/utils/localization_extension.dart';
 import '../../../../mcp/providers/mcp_server_notifier.dart';
+import '../../../../themes/core/layered_surface_style.dart';
 import '../../../../themes/design_tokens.dart';
 import '../../widgets/settings_card.dart';
 import 'mcp_client_config_snippets.dart';
+
+// 会话数量不受控，列表撑高会把下方配置片段顶出视野。
+const double _sessionsViewportHeight = 200;
 
 /// 客户端分组：待处理授权提示、已连接会话与各客户端的配置片段。
 class McpServerClientsCard extends ConsumerWidget {
@@ -31,25 +35,20 @@ class McpServerClientsCard extends ConsumerWidget {
               toolName: pending.request.toolName,
             ),
           _GroupLabel(text: l10n.settings_mcpServerConnectedClients),
-          if (state.sessions.isEmpty)
-            Padding(
-              padding: const EdgeInsets.symmetric(
-                horizontal: DesignTokens.spacingXs,
-              ),
-              child: Text(
-                l10n.settings_mcpServerSessionsEmpty,
-                key: const ValueKey('mcp-server-sessions-empty'),
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
-              ),
-            )
-          else
-            for (final session in state.sessions)
-              _SessionRow(
-                session: session,
-                label: _clientLabel(context, session.clientName),
-              ),
+          _SessionsBox(
+            child: state.sessions.isEmpty
+                ? Padding(
+                    padding: const EdgeInsets.all(DesignTokens.spacingSm),
+                    child: Text(
+                      l10n.settings_mcpServerSessionsEmpty,
+                      key: const ValueKey('mcp-server-sessions-empty'),
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  )
+                : _SessionList(sessions: state.sessions),
+          ),
           _GroupLabel(text: l10n.settings_mcpServerClientConfigs),
           if (endpoint == null)
             Padding(
@@ -129,6 +128,86 @@ class _PendingApprovalRow extends StatelessWidget {
   }
 }
 
+/// 承载会话列表的独立色面，与配置片段预览框保持同一层级语义。
+class _SessionsBox extends StatelessWidget {
+  const _SessionsBox({required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: DesignTokens.spacingXs),
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: controlSurfaceColor(theme.colorScheme),
+          borderRadius: BorderRadius.circular(DesignTokens.spacingXs),
+        ),
+        child: child,
+      ),
+    );
+  }
+}
+
+class _SessionList extends StatefulWidget {
+  const _SessionList({required this.sessions});
+
+  final List<McpSessionSummary> sessions;
+
+  @override
+  State<_SessionList> createState() => _SessionListState();
+}
+
+class _SessionListState extends State<_SessionList> {
+  final ScrollController _controller = ScrollController();
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final sessions = widget.sessions;
+
+    return ConstrainedBox(
+      constraints: BoxConstraints(
+        maxHeight: MediaQuery.textScalerOf(
+          context,
+        ).scale(_sessionsViewportHeight),
+      ),
+      child: Scrollbar(
+        controller: _controller,
+        thumbVisibility: true,
+        child: ScrollConfiguration(
+          // 桌面端默认行为会再加一条滚动条。
+          behavior: ScrollConfiguration.of(context).copyWith(scrollbars: false),
+          child: ListView.separated(
+            key: const ValueKey('mcp-server-sessions-list'),
+            controller: _controller,
+            primary: false,
+            shrinkWrap: true,
+            padding: const EdgeInsets.all(DesignTokens.spacingSm),
+            itemCount: sessions.length,
+            separatorBuilder: (_, _) =>
+                const SizedBox(height: DesignTokens.spacingXs),
+            itemBuilder: (context, index) {
+              final session = sessions[index];
+              return _SessionRow(
+                session: session,
+                label: _clientLabel(context, session.clientName),
+              );
+            },
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _SessionRow extends StatelessWidget {
   const _SessionRow({required this.session, required this.label});
 
@@ -144,36 +223,28 @@ class _SessionRow extends StatelessWidget {
         ? label
         : '$label $version';
 
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(
-        DesignTokens.spacingXs,
-        0,
-        DesignTokens.spacingXs,
-        DesignTokens.spacingXs,
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(title),
-          const SizedBox(height: DesignTokens.spacingXxs),
-          Text(
-            l10n.settings_mcpServerSessionConnectedAt(
-              _formatClock(session.connectedAt),
-            ),
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
-            ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(title),
+        const SizedBox(height: DesignTokens.spacingXxs),
+        Text(
+          l10n.settings_mcpServerSessionConnectedAt(
+            _formatClock(session.connectedAt),
           ),
-          Text(
-            l10n.settings_mcpServerSessionLastActivity(
-              _formatClock(session.lastActivity),
-            ),
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
-            ),
+          style: theme.textTheme.bodySmall?.copyWith(
+            color: theme.colorScheme.onSurfaceVariant,
           ),
-        ],
-      ),
+        ),
+        Text(
+          l10n.settings_mcpServerSessionLastActivity(
+            _formatClock(session.lastActivity),
+          ),
+          style: theme.textTheme.bodySmall?.copyWith(
+            color: theme.colorScheme.onSurfaceVariant,
+          ),
+        ),
+      ],
     );
   }
 }
