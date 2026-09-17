@@ -70,6 +70,34 @@ void main() {
     },
   );
 
+  test('a compact summary keeps the caller save_path target', () {
+    final compact = compactMcpToolResponse(
+      'prepare_generation',
+      agentToolJsonResult({
+        ...preparation(),
+        'save_path': 'C:/work/out-{index}.png',
+        'save_path_source': 'caller',
+      }),
+    );
+
+    expect(compact.details['save_path'], 'C:/work/out-{index}.png');
+    expect(jsonEncode(compact.details), contains('"save_path"'));
+    expect(compact.details['save_path_source'], 'caller');
+  });
+
+  test('a compact summary keeps the gallery original decision', () {
+    final compact = compactMcpToolResponse(
+      'prepare_generation',
+      agentToolJsonResult({
+        ...preparation(),
+        'save_path_source': 'gallery_original',
+      }),
+    );
+
+    expect(compact.details['save_path_source'], 'gallery_original');
+    expect(compact.details.containsKey('save_path'), isFalse);
+  });
+
   test('full snapshots are opt-in and explicit inspection stays complete', () {
     final original = agentToolJsonResult(preparation());
     final full = compactMcpToolResponse(

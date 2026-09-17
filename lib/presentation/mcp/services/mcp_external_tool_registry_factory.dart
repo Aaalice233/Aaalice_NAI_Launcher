@@ -153,6 +153,8 @@ class McpExternalToolRegistryFactory {
       messages: () => const [],
       questionController: AgentUserQuestionController(onChanged: (_) {}),
       prepareImageExport: imageResponses.prepareExportImage,
+      // 内置聊天有自己的预览，只有外部客户端需要一个不过期的文件引用。
+      referencesGalleryOriginal: true,
       observationGuidance:
           'Call inspect_images with the image resource_ref first; it returns '
           'the full-resolution image.',

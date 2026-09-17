@@ -16,10 +16,19 @@ import '../../agent_chat/services/image_presentation_toolbox.dart';
 import 'mcp_image_display_cache.dart';
 
 /// 客户端呈现图片的方式，只决定返回哪种 Markdown，不改变返回的图片字节。
-enum McpImageDisplayStyle { inlineUrl, inlineFile, inlineWithLink, link }
+enum McpImageDisplayStyle {
+  inlineUrl,
+  inlineFile,
 
-/// External clients receive image bytes, never original-file shortcuts.
-/// Internal chat previews and the auto-saved originals are left untouched.
+  /// 只渲染工作目录内的本地文件，故仅调用方自己传的 saved_path 走文件 Markdown。
+  inlineWorkspaceFile,
+  inlineWithLink,
+  link,
+}
+
+/// External clients receive image bytes. A gallery original is exposed only as
+/// saved_path; internal chat previews and the auto-saved originals are left
+/// untouched.
 class McpImageResponseService {
   McpImageResponseService({
     required AgentImageResourceResolver resolve,
@@ -37,13 +46,19 @@ class McpImageResponseService {
        _publishDisplayImage = publishDisplayImage;
 
   /// Claude Desktop 渲染图片 Markdown 但用点击门拦住自动加载，于是图片之外再附
-  /// 一条链接绕开那一下；终端里的 Claude Code 画不出图片，只能给链接。
-  /// claude-code 必须先判，否则会被 claude 前缀吞掉。
+  /// 一条链接绕开那一下；终端里的 Claude Code（`claude-code`）画不出图片，只能
+  /// 给链接。`local-agent-mode` 是 Claude Code 桌面版，只认工作目录内的文件；
+  /// `pi-mcp` 是 Pi 终端，同样只能给链接。
+  /// claude-code 与 local-agent-mode 必须先判，否则会被 claude 前缀吞掉。
   static McpImageDisplayStyle styleForClient(String clientLabel) {
     final label = clientLabel.toLowerCase();
     if (label.contains('claude-code')) return McpImageDisplayStyle.link;
+    if (label.contains('local-agent-mode')) {
+      return McpImageDisplayStyle.inlineWorkspaceFile;
+    }
     if (label.contains('claude')) return McpImageDisplayStyle.inlineWithLink;
     if (label.contains('codex')) return McpImageDisplayStyle.inlineFile;
+    if (label.contains('pi-mcp')) return McpImageDisplayStyle.link;
     return McpImageDisplayStyle.inlineUrl;
   }
 
@@ -128,10 +143,20 @@ class McpImageResponseService {
         final reference = AgentChatResourceReferenceCodec.decodeJsonMap(
           Map<String, dynamic>.from(entry['resource_ref'] as Map),
         );
+        final savedPath = entry['saved_path'] is String
+            ? entry['saved_path'] as String
+            : null;
+        final savedPathSource = entry['saved_path_source'] is String
+            ? entry['saved_path_source'] as String
+            : null;
         final descriptor = <String, dynamic>{
           if (entry['size'] is String) 'size': entry['size'],
           if (entry['saved'] is bool) 'saved': entry['saved'],
           if (!stripMetadata && entry['seed'] is num) 'seed': entry['seed'],
+          if (savedPath != null) 'saved_path': savedPath,
+          if (savedPathSource != null) 'saved_path_source': savedPathSource,
+          if (entry['save_error'] is Map)
+            'save_error': Map<String, dynamic>.from(entry['save_error'] as Map),
           'resource_ref': _referenceJson(reference, stripMetadata),
         };
         if (includeImages) {
@@ -143,6 +168,8 @@ class McpImageResponseService {
             style,
             signal,
             bestEffortDisplay: generated,
+            savedPath: savedPath,
+            savedPathSource: savedPathSource,
           );
           if (image == null) return _unavailable();
           descriptor.addAll(image.descriptor);
@@ -192,6 +219,8 @@ class McpImageResponseService {
     McpImageDisplayStyle style,
     AbortSignal? signal, {
     bool bestEffortDisplay = false,
+    String? savedPath,
+    String? savedPathSource,
   }) async {
     await _validate?.call(reference);
     final resolved = await _resolve(reference);
@@ -209,16 +238,21 @@ class McpImageResponseService {
     if (size == null) return null;
     File? displayFile;
     try {
-      if (includeDisplayFile) displayFile = await _writeDisplayFile(image);
+      // 调用方给了持久文件，显示缓存副本没有意义。
+      if (includeDisplayFile && savedPath == null) {
+        displayFile = await _writeDisplayFile(image);
+      }
     } on Object {
       // A display-cache failure must not turn a completed paid generation into
       // a generation failure. Privacy preparation above still fails closed.
       if (!bestEffortDisplay) rethrow;
     }
     throwIfAborted(signal);
-    final displayPath = displayFile == null
-        ? null
-        : p.absolute(displayFile.path).replaceAll('\\', '/');
+    final displayPath =
+        savedPath ??
+        (displayFile == null
+            ? null
+            : p.absolute(displayFile.path).replaceAll('\\', '/'));
     McpImageDisplayLink? displayLink;
     try {
       if (includeDisplayUrl) {
@@ -231,40 +265,25 @@ class McpImageResponseService {
     } on Object {
       if (!bestEffortDisplay) rethrow;
     }
-    final fileMarkdown = displayPath == null
-        ? null
-        : '![Generated image](<$displayPath>)';
-    final urlMarkdown = displayLink == null
-        ? null
-        : '![Generated image](${displayLink.url})';
-    // 链接优先给 HTTP：聊天界面普遍把 http 变成可点链接，file:// 常被剥掉。
-    final linkTarget = displayLink?.url.toString() ?? displayPath;
-    final linkMarkdown = linkTarget == null
-        ? null
-        : '[Generated image ${size.$1}x${size.$2}](<$linkTarget>)';
-    final markdown = switch (style) {
-      McpImageDisplayStyle.link => linkMarkdown,
-      McpImageDisplayStyle.inlineFile => fileMarkdown,
-      McpImageDisplayStyle.inlineUrl ||
-      McpImageDisplayStyle.inlineWithLink => urlMarkdown,
-    };
     return (
       descriptor: {
         'resource_ref': _referenceJson(resolved.reference, stripMetadata),
         'size': '${size.$1}x${size.$2}',
         'mime_type': image.mimeType,
         'metadata_stripped': stripMetadata,
-        if (displayPath != null) ...{
-          'display_path': displayPath,
-          'display_file_markdown': fileMarkdown,
-        },
+        if (displayPath != null) 'display_path': displayPath,
         if (displayLink != null) ...{
           'display_url': displayLink.url.toString(),
           'display_url_expires_at': displayLink.expiresAt.toIso8601String(),
-          'display_url_markdown': urlMarkdown,
         },
-        if (linkMarkdown != null) 'display_link_markdown': linkMarkdown,
-        if (markdown != null) 'display_markdown': markdown,
+        ..._displayReferences(
+          style,
+          size: size,
+          displayPath: displayPath,
+          displayLink: displayLink,
+          savedPath: savedPath,
+          savedPathSource: savedPathSource,
+        ),
       },
       content: ToolResultImageContent(
         ImageContent(
@@ -275,6 +294,61 @@ class McpImageResponseService {
         ),
       ),
     );
+  }
+
+  /// 两种 saved_path 来源里只有 caller 落在客户端工作目录内，图库原图给文件引用是死链。
+  static bool _isCallerPath(String? savedPath, String? savedPathSource) =>
+      savedPath != null &&
+      (savedPathSource == null || savedPathSource == 'caller');
+
+  static String _fileUri(String path) =>
+      Uri.file(path, windows: Platform.isWindows).toString();
+
+  static Map<String, dynamic> _displayReferences(
+    McpImageDisplayStyle style, {
+    required (int, int) size,
+    required String? displayPath,
+    required McpImageDisplayLink? displayLink,
+    required String? savedPath,
+    required String? savedPathSource,
+  }) {
+    final label = 'Generated image ${size.$1}x${size.$2}';
+    final fileMarkdown = displayPath == null
+        ? null
+        : '![Generated image](<$displayPath>)';
+    final urlMarkdown = displayLink == null
+        ? null
+        : '![Generated image](${displayLink.url})';
+    final fileLinkMarkdown = displayPath == null
+        ? null
+        : '[$label](<${_fileUri(displayPath)}>)';
+    // 链接优先给 HTTP：聊天界面普遍把 http 变成可点链接，file:// 常被剥掉。
+    final linkTarget = displayLink?.url.toString() ?? displayPath;
+    final linkMarkdown = linkTarget == null ? null : '[$label](<$linkTarget>)';
+    // 持久文件不过期而 HTTP 预览会，终端两条都要，其余样式只能二选一。
+    final durableLinks = savedPath == null
+        ? null
+        : [
+            fileLinkMarkdown!,
+            if (displayLink != null)
+              '[Temporary preview link](<${displayLink.url}>)',
+          ].join('\n');
+    final markdown = switch (style) {
+      McpImageDisplayStyle.link => durableLinks ?? linkMarkdown,
+      McpImageDisplayStyle.inlineFile => fileMarkdown,
+      McpImageDisplayStyle.inlineWorkspaceFile =>
+        _isCallerPath(savedPath, savedPathSource) ? fileMarkdown : urlMarkdown,
+      McpImageDisplayStyle.inlineUrl ||
+      McpImageDisplayStyle.inlineWithLink => urlMarkdown,
+    };
+    return {
+      if (fileMarkdown != null) 'display_file_markdown': fileMarkdown,
+      if (fileLinkMarkdown != null)
+        'display_file_link_markdown': fileLinkMarkdown,
+      if (urlMarkdown != null) 'display_url_markdown': urlMarkdown,
+      if (linkMarkdown != null) 'display_link_markdown': linkMarkdown,
+      if (markdown != null) 'display_markdown': markdown,
+    };
   }
 
   static String _displayMarkdown(
@@ -290,14 +364,20 @@ class McpImageResponseService {
       ],
   ].join('\n\n');
 
-  static String _instructionsFor(
+  static const String _dualLinkNote =
+      ' Each image gives a durable local file link first and a temporary HTTP '
+      'preview link that expires; put both in the final answer.';
+
+  static String _displayInstructions(
     McpImageDisplayStyle style,
     List<Map<String, dynamic>> images,
   ) {
-    final displayInstructions = switch (style) {
+    final durableFiles = images.any((image) => image.containsKey('saved_path'));
+    return switch (style) {
       McpImageDisplayStyle.link =>
         'Put the top-level display_markdown in the final answer as clickable '
-            'links, not image embeds or a code block. This client uses links.',
+            'links, not image embeds or a code block. This client uses links.'
+            '${durableFiles ? _dualLinkNote : ''}',
       // 只有 Claude Desktop 会把相邻工具调用并成一块，并连带吞掉直显的图。
       McpImageDisplayStyle.inlineWithLink =>
         'Embed the top-level display_markdown in the final answer. It includes '
@@ -309,11 +389,24 @@ class McpImageResponseService {
         'Embed the top-level display_markdown in the final answer, not a code '
             'block or plain link. Codex desktop uses the absolute local '
             'display_file_markdown, not the HTTP URL.',
+      McpImageDisplayStyle.inlineWorkspaceFile =>
+        'Embed the top-level display_markdown in the final answer. This client '
+            'renders local images only inside its working directory: only a '
+            'save_path you passed yourself is inlined as a file, while the '
+            'launcher gallery original sits outside it and falls back to the '
+            'HTTP URL, which expires. Pass a save_path inside your working '
+            'directory to inline the file.',
       McpImageDisplayStyle.inlineUrl =>
         'Embed the top-level display_markdown in the final answer, not a code '
             'block or plain link. Cherry Studio uses display_url_markdown '
             '(HTTP), never a local file path.',
     };
+  }
+
+  static String _instructionsFor(
+    McpImageDisplayStyle style,
+    List<Map<String, dynamic>> images,
+  ) {
     final missingReference = images.any(
       (image) => !image.containsKey('display_markdown'),
     );
@@ -322,9 +415,24 @@ class McpImageResponseService {
               'their resource_refs (Codex: include_display_file=true).'
         : 'Do not call display_images again unless a reference is missing, '
               'expired or fails to load.';
-    return '$displayInstructions ImageContent in tool details is not proof '
-        'of visible display. $retrievalInstructions '
-        'Never regenerate merely to display an image.';
+    final savePathInstructions = [
+      if (images.any((image) => image.containsKey('saved_path')))
+        'saved_path is the durable file chosen by the caller or the launcher '
+            'gallery original; state it in the final answer and prefer it over '
+            'display cache paths.',
+      if (images.any((image) => image.containsKey('saved_path_source')))
+        'saved_path_source is caller for a path you passed and '
+            'gallery_original for the launcher own gallery file, which must '
+            'never be deleted, moved or rewritten.',
+      if (images.any((image) => image.containsKey('save_error')))
+        'save_error means the image was generated but not written to '
+            'save_path; never regenerate for that, call save_generated_image '
+            'with a new destination if a file is still needed.',
+    ].join(' ');
+    return '${_displayInstructions(style, images)} ImageContent in tool '
+        'details is not proof of visible display. $retrievalInstructions '
+        'Never regenerate merely to display an image.'
+        '${savePathInstructions.isEmpty ? '' : ' $savePathInstructions'}';
   }
 
   static Map<String, dynamic>? _payload(AgentToolResult result) {

@@ -4839,7 +4839,7 @@
   "settings_copyDragWatermarkTitle": "複製/拖拽時添加浮水印",
   "settings_copyDragWatermarkSubtitle": "使用已儲存的預設浮水印方案。添加浮水印不會清除後設資料；如需清除，請開啟上方「複製/拖拽時移除全部後設資料」。",
   "settings_stripMetadataTitle": "複製/拖拽時移除全部後設資料",
-  "settings_stripMetadataSubtitle": "複製、拖拽及 MCP 圖片回傳時清除 PNG 文字塊、EXIF 與 NAI 隱寫水印，不修改本機原圖；MCP 保留原解析度，且不回傳原圖路徑。",
+  "settings_stripMetadataSubtitle": "複製、拖拽及 MCP 圖片回傳時清除 PNG 文字塊、EXIF 與 NAI 隱寫水印，不修改本機原圖；MCP 保留原解析度，其 saved_path 指向的圖庫原圖不受影響。",
   "settings_confirmDangerousActionsTitle": "危險資產操作二次確認",
   "settings_confirmDangerousActionsSubtitle": "刪除、移動、批次移動等本地資產操作會額外彈出保護確認。",
   "settings_warnExternalImageSendTitle": "傳送到外部服務前提示",

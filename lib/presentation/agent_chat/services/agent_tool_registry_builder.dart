@@ -72,6 +72,7 @@ class AgentToolRegistryBuilder {
     required List<Message> Function() messages,
     required AgentUserQuestionController questionController,
     ImageResourceExportPreparer? prepareImageExport,
+    bool referencesGalleryOriginal = false,
     String observationGuidance = _chatObservationGuidance,
   }) : _ref = ref,
        _workspaceDir = workspaceDir,
@@ -86,6 +87,7 @@ class AgentToolRegistryBuilder {
        _messages = messages,
        _questionController = questionController,
        _prepareImageExport = prepareImageExport,
+       _referencesGalleryOriginal = referencesGalleryOriginal,
        _observationGuidance = observationGuidance;
 
   final Ref _ref;
@@ -101,6 +103,7 @@ class AgentToolRegistryBuilder {
   final List<Message> Function() _messages;
   final AgentUserQuestionController _questionController;
   final ImageResourceExportPreparer? _prepareImageExport;
+  final bool _referencesGalleryOriginal;
   final String _observationGuidance;
 
   /// 跨 build() 保留：权限模式切换不该抹掉本会话已经看过的图。
@@ -221,6 +224,8 @@ class AgentToolRegistryBuilder {
         resourceResolver: resourceResolver,
         readAttachedImage: (index) =>
             readAgentAttachedImage(_messages(), index),
+        prepareImageExport: _prepareImageExport,
+        referencesGalleryOriginal: _referencesGalleryOriginal,
       ).tools(),
       ...QueueToolbox(_ref, _queueRuntime).tools(),
       ..._manualInpaintToolbox.tools(),

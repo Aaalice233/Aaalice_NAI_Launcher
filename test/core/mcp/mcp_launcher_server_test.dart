@@ -113,7 +113,9 @@ void main() {
         isNot(contains('get_application_context')),
       );
       expect(result['instructions'], contains('submit_generation'));
-      expect((result['instructions'] as String).length, lessThan(220));
+      expect(result['instructions'], contains('launcher gallery original'));
+      expect(result['instructions'], contains('whole request inline'));
+      expect((result['instructions'] as String).length, lessThan(400));
     },
   );
 

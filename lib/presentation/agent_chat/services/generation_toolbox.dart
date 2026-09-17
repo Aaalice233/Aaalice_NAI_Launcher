@@ -6,6 +6,7 @@ import '../../../core/agent/agent_types.dart';
 import '../../../data/models/agent/agent_settings.dart';
 import '../../prompt_assistant/models/prompt_assistant_models.dart';
 import 'agent_resource_resolver.dart';
+import 'generated_image_export_writer.dart';
 import 'generation_anlas_estimator.dart';
 import 'generation_execution_service.dart';
 import 'generation_history_service.dart';
@@ -14,12 +15,14 @@ import 'generation_interrogation_service.dart';
 import 'generation_preparation_runtime.dart';
 import 'generation_preparation_service.dart';
 import 'generation_queue_task_service.dart';
+import 'generation_save_path_exporter.dart';
 import 'generation_settings_service.dart';
 import 'generation_source_image_toolbox.dart';
 import 'generation_status_service.dart';
 import 'generation_tool_definitions.dart';
 import 'generation_tool_limits.dart';
 import 'generation_workspace_path_resolver.dart';
+import 'image_resource_action_service.dart';
 
 /// 生成 / 反推工具集的稳定入口。
 ///
@@ -33,6 +36,8 @@ class GenerationToolbox {
     GenerationPreparationRuntime? runtime,
     AgentResourceResolver? resourceResolver,
     Uint8List? Function(int index)? readAttachedImage,
+    ImageResourceExportPreparer? prepareImageExport,
+    bool referencesGalleryOriginal = false,
   }) {
     final preparationRuntime = runtime ?? GenerationPreparationRuntime();
     final resolver = resourceResolver ?? AgentResourceResolver(ref);
@@ -41,6 +46,7 @@ class GenerationToolbox {
       allowOutsideWorkspace: allowOutsideWorkspace,
     );
     final imageReadContract = GenerationImageReadContract(pathResolver);
+    final exportWriter = GeneratedImageExportWriter(env: pathResolver.env);
     final history = GenerationHistoryService(
       ref,
       imageReadContract: imageReadContract,
@@ -50,6 +56,10 @@ class GenerationToolbox {
       ref,
       pathResolver: pathResolver,
       imageReadContract: imageReadContract,
+      exporter: GenerationSavePathExporter(
+        writer: exportWriter,
+        prepareExport: prepareImageExport,
+      ),
       maxGenerateCount: maxGenerateCount,
     );
     final queue = GenerationQueueTaskService(
@@ -62,10 +72,12 @@ class GenerationToolbox {
       runtime: preparationRuntime,
       resourceResolver: resolver,
       pathResolver: pathResolver,
+      exportWriter: exportWriter,
       maxGenerateCount: maxGenerateCount,
       anlasEstimator: GenerationAnlasEstimator(ref),
       executeGeneration: execution.generate,
       executeQueue: queue.queueTask,
+      referencesGalleryOriginal: referencesGalleryOriginal,
     );
     _definitions = GenerationToolDefinitions(
       interrogation: GenerationInterrogationService(

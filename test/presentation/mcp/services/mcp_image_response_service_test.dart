@@ -492,6 +492,10 @@ void main() {
       // Claude Desktop 有点击门，图片之外还要附链接。
       'claude-ai 0.1.0': McpImageDisplayStyle.inlineWithLink,
       'claude-code 2.0.0': McpImageDisplayStyle.link,
+      'claude-code 0.1.0': McpImageDisplayStyle.link,
+      'local-agent-mode-nai-launcher 1.0.0':
+          McpImageDisplayStyle.inlineWorkspaceFile,
+      'pi-mcp-nai-launcher 1.0.0': McpImageDisplayStyle.link,
       'codex-mcp-client 0.154.0': McpImageDisplayStyle.inlineFile,
       'Cherry Studio 2.0.14': McpImageDisplayStyle.inlineUrl,
       'unknown client': McpImageDisplayStyle.inlineUrl,
@@ -669,6 +673,315 @@ void main() {
     },
   );
 
+  test('a caller save_path replaces the display cache file', () async {
+    const savedPath = 'C:/work/out-1.png';
+    final uri = Uri.parse('http://127.0.0.1:20624/mcp/images/saved-case.png');
+    var writes = 0;
+    final withSavePath = McpImageResponseService(
+      resolve: (ref) async => ResolvedAgentResource(
+        reference: ref,
+        label: 'private',
+        bytes: original,
+      ),
+      shouldStripMetadata: () => false,
+      writeDisplayFile: (_) async {
+        writes++;
+        return File(p.join(Directory.systemTemp.path, 'image-saved.png'));
+      },
+      publishDisplayImage:
+          (_, {required mimeType, required metadataStripped}) =>
+              McpImageDisplayLink(uri, DateTime.utc(2026, 9, 18)),
+    );
+
+    final result = await withSavePath.prepare(
+      'submit_generation',
+      _internalResult(export: const {'saved_path': savedPath}),
+      includeDisplayFile: true,
+      style: McpImageDisplayStyle.inlineWorkspaceFile,
+    );
+
+    final entry = (result.details['images'] as List).single as Map;
+    expect(writes, 0);
+    expect(entry['saved_path'], savedPath);
+    expect(entry['display_path'], savedPath);
+    expect(entry['display_markdown'], '![Generated image](<$savedPath>)');
+    expect(result.details['display_markdown'], entry['display_markdown']);
+    expect(
+      result.details['display_instructions'],
+      contains('saved_path is the durable file chosen by the caller'),
+    );
+
+    // 终端拿到持久文件后给两条链接，display_link_markdown 仍只是 HTTP。
+    final linked = await withSavePath.prepare(
+      'submit_generation',
+      _internalResult(export: const {'saved_path': savedPath}),
+      style: McpImageDisplayStyle.link,
+    );
+    final linkedEntry = (linked.details['images'] as List).single as Map;
+    final savedUri = Uri.file(savedPath, windows: Platform.isWindows);
+    expect(writes, 0);
+    expect(linkedEntry['display_path'], savedPath);
+    expect(
+      linkedEntry['display_file_link_markdown'],
+      '[Generated image 832x1216](<$savedUri>)',
+    );
+    expect(
+      linkedEntry['display_link_markdown'],
+      '[Generated image 832x1216](<$uri>)',
+    );
+    expect(
+      linkedEntry['display_markdown'],
+      [
+        '[Generated image 832x1216](<$savedUri>)',
+        '[Temporary preview link](<$uri>)',
+      ].join('\n'),
+    );
+    expect(
+      linked.details['display_instructions'],
+      contains('durable local file link first'),
+    );
+  });
+
+  test(
+    'a terminal link stays a single HTTP link without a saved file',
+    () async {
+      final uri = Uri.parse('http://127.0.0.1:20624/mcp/images/no-save.png');
+      final withoutSave = McpImageResponseService(
+        resolve: (ref) async => ResolvedAgentResource(
+          reference: ref,
+          label: 'image',
+          bytes: original,
+        ),
+        shouldStripMetadata: () => false,
+        writeDisplayFile: (_) async =>
+            File(p.join(Directory.systemTemp.path, 'image-no-save.png')),
+        publishDisplayImage:
+            (_, {required mimeType, required metadataStripped}) =>
+                McpImageDisplayLink(uri, DateTime.utc(2026, 9, 19)),
+      );
+
+      final result = await withoutSave.prepare(
+        'submit_generation',
+        _internalResult(),
+        style: McpImageDisplayStyle.link,
+      );
+
+      final entry = (result.details['images'] as List).single as Map;
+      expect(entry['display_markdown'], '[Generated image 832x1216](<$uri>)');
+      expect(entry['display_markdown'], isNot(contains('\n')));
+      expect(
+        result.details['display_instructions'],
+        isNot(contains('durable local file link first')),
+      );
+    },
+  );
+
+  test('a terminal file link is a percent-encoded file URI', () async {
+    final savedPath = p
+        .absolute(p.join(Directory.systemTemp.path, 'work dir', 'out 1.png'))
+        .replaceAll('\\', '/');
+    final uri = Uri.parse('http://127.0.0.1:20624/mcp/images/spaced.png');
+    final withSpaces = McpImageResponseService(
+      resolve: (ref) async => ResolvedAgentResource(
+        reference: ref,
+        label: 'image',
+        bytes: original,
+      ),
+      shouldStripMetadata: () => false,
+      publishDisplayImage:
+          (_, {required mimeType, required metadataStripped}) =>
+              McpImageDisplayLink(uri, DateTime.utc(2026, 9, 19)),
+    );
+
+    final result = await withSpaces.prepare(
+      'submit_generation',
+      _internalResult(
+        export: {'saved_path': savedPath, 'saved_path_source': 'caller'},
+      ),
+      style: McpImageDisplayStyle.link,
+    );
+
+    final entry = (result.details['images'] as List).single as Map;
+    final fileLink = entry['display_file_link_markdown'] as String;
+    expect(
+      fileLink,
+      '[Generated image 832x1216]'
+      '(<${Uri.file(savedPath, windows: Platform.isWindows)}>)',
+    );
+    expect(fileLink, startsWith('[Generated image 832x1216](<file:///'));
+    expect(fileLink, contains('work%20dir/out%201.png'));
+    expect(fileLink, isNot(contains('\\')));
+    expect((entry['display_markdown'] as String).split('\n').first, fileLink);
+  });
+
+  for (final source in ['caller', 'gallery_original']) {
+    test('$source selects the display reference per client style', () async {
+      const savedPath = 'C:/work/out-source.png';
+      final uri = Uri.parse('http://127.0.0.1:20624/mcp/images/$source.png');
+      final sourced = McpImageResponseService(
+        resolve: (ref) async => ResolvedAgentResource(
+          reference: ref,
+          label: 'image',
+          bytes: original,
+        ),
+        shouldStripMetadata: () => false,
+        publishDisplayImage:
+            (_, {required mimeType, required metadataStripped}) =>
+                McpImageDisplayLink(uri, DateTime.utc(2026, 9, 19)),
+      );
+      final payload = {'saved_path': savedPath, 'saved_path_source': source};
+
+      final workspace = await sourced.prepare(
+        'submit_generation',
+        _internalResult(export: payload),
+        style: McpImageDisplayStyle.inlineWorkspaceFile,
+      );
+      final workspaceEntry =
+          (workspace.details['images'] as List).single as Map;
+      expect(workspaceEntry['saved_path_source'], source);
+      expect(
+        workspaceEntry['display_markdown'],
+        source == 'caller'
+            ? '![Generated image](<$savedPath>)'
+            : '![Generated image]($uri)',
+      );
+
+      // Codex 渲染任意绝对路径，三种来源都走文件 Markdown。
+      final codex = await sourced.prepare(
+        'submit_generation',
+        _internalResult(export: payload),
+        style: McpImageDisplayStyle.inlineFile,
+      );
+      final codexEntry = (codex.details['images'] as List).single as Map;
+      expect(
+        codexEntry['display_markdown'],
+        '![Generated image](<$savedPath>)',
+      );
+
+      for (final style in [
+        McpImageDisplayStyle.inlineUrl,
+        McpImageDisplayStyle.inlineWithLink,
+      ]) {
+        final http = await sourced.prepare(
+          'submit_generation',
+          _internalResult(export: payload),
+          style: style,
+        );
+        expect(
+          ((http.details['images'] as List).single as Map)['display_markdown'],
+          '![Generated image]($uri)',
+        );
+      }
+    });
+  }
+
+  test('a missing saved_path_source is treated as a caller path', () async {
+    const savedPath = 'C:/work/out-legacy.png';
+    final uri = Uri.parse('http://127.0.0.1:20624/mcp/images/legacy.png');
+    final legacy = McpImageResponseService(
+      resolve: (ref) async => ResolvedAgentResource(
+        reference: ref,
+        label: 'image',
+        bytes: original,
+      ),
+      shouldStripMetadata: () => false,
+      publishDisplayImage:
+          (_, {required mimeType, required metadataStripped}) =>
+              McpImageDisplayLink(uri, DateTime.utc(2026, 9, 19)),
+    );
+
+    final result = await legacy.prepare(
+      'submit_generation',
+      _internalResult(export: const {'saved_path': savedPath}),
+      style: McpImageDisplayStyle.inlineWorkspaceFile,
+    );
+
+    final entry = (result.details['images'] as List).single as Map;
+    expect(entry.containsKey('saved_path_source'), isFalse);
+    expect(entry['display_markdown'], '![Generated image](<$savedPath>)');
+  });
+
+  test(
+    'the source legend reaches the model only when a source is set',
+    () async {
+      const legend = 'gallery_original for the launcher own gallery file';
+      final withoutSource = await service.prepare(
+        'submit_generation',
+        _internalResult(export: const {'saved_path': 'C:/work/out.png'}),
+      );
+      expect(
+        withoutSource.details['display_instructions'],
+        isNot(contains(legend)),
+      );
+
+      final withSource = await service.prepare(
+        'submit_generation',
+        _internalResult(
+          export: const {
+            'saved_path': 'C:/gallery/original.png',
+            'saved_path_source': 'gallery_original',
+          },
+        ),
+      );
+      final instructions = withSource.details['display_instructions'] as String;
+      expect(instructions, contains(legend));
+      expect(instructions, contains('never be deleted, moved or rewritten'));
+      expect(instructions, isNot(contains('default_export')));
+      expect(
+        instructions,
+        contains('saved_path is the durable file chosen by the caller'),
+      );
+      _expectNoFileShortcuts(McpToolAdapter.toCallToolResult(withSource));
+    },
+  );
+
+  test(
+    'a workspace client is told why a launcher path is not inlined',
+    () async {
+      final result = await service.prepare(
+        'submit_generation',
+        _internalResult(
+          export: const {
+            'saved_path': 'C:/gallery/original.png',
+            'saved_path_source': 'gallery_original',
+          },
+        ),
+        style: McpImageDisplayStyle.inlineWorkspaceFile,
+      );
+
+      final instructions = result.details['display_instructions'] as String;
+      expect(
+        instructions,
+        contains('renders local images only inside its working directory'),
+      );
+      expect(instructions, contains('save_path you passed yourself'));
+      expect(
+        instructions,
+        contains('falls back to the HTTP URL, which expires'),
+      );
+    },
+  );
+
+  test('a save_error is forwarded without inviting a regeneration', () async {
+    const failure = {
+      'code': 'destination_exists',
+      'message': 'The save_path destination already exists.',
+    };
+
+    final result = await service.prepare(
+      'submit_generation',
+      _internalResult(export: const {'save_error': failure}),
+    );
+
+    final entry = (result.details['images'] as List).single as Map;
+    expect(entry['save_error'], failure);
+    expect(entry.containsKey('saved_path'), isFalse);
+    final instructions = result.details['display_instructions'] as String;
+    expect(instructions, contains('never regenerate for that'));
+    expect(instructions, contains('save_generated_image'));
+    expect(instructions, isNot(contains('durable file chosen by the caller')));
+    _expectNoFileShortcuts(McpToolAdapter.toCallToolResult(result));
+  });
 
   test(
     'paid preparation and non-image results retain their contracts',
@@ -723,7 +1036,10 @@ Map<String, dynamic> _refJson(String id) =>
       ),
     );
 
-AgentToolResult _internalResult({bool media = true}) {
+AgentToolResult _internalResult({
+  bool media = true,
+  Map<String, dynamic> export = const {},
+}) {
   final payload = {
     'ok': true,
     'images': [
@@ -733,6 +1049,7 @@ AgentToolResult _internalResult({bool media = true}) {
         'size': '832x1216',
         'saved': true,
         'path': '2026-09-14/private-file-12345.png',
+        ...export,
       },
     ],
   };
