@@ -872,6 +872,42 @@
   "img2img_directorColorize": "Colorize",
   "img2img_directorEmotion": "Fix Emotion",
   "img2img_directorDeclutter": "Declutter",
+  "img2img_directorPixelSnap": "Pixel Snap",
+  "img2img_directorPixelSnapHint": "Runs entirely on your computer. No Anlas, no network. Large images can take a few seconds.",
+  "img2img_directorPixelSnapPalette": "Palettize",
+  "img2img_directorPixelSnapPaletteOff": "Off",
+  "img2img_directorPixelSnapPaletteAuto": "Auto",
+  "img2img_directorPixelSnapPaletteCustom": "Custom",
+  "img2img_directorPixelSnapColors": "Colors",
+  "img2img_directorPixelSnapAvoidOverRefining": "Avoid Over-Refining",
+  "img2img_directorPixelSnapAvoidOverRefiningOn": "The detected pixel size is always kept.",
+  "img2img_directorPixelSnapAvoidOverRefiningOff": "A finer pixel size may be used when it matches the image better.",
+  "img2img_directorPixelSnapUpscale": "Upscale",
+  "img2img_directorPixelSnapUpscaleOn": "The result is scaled back up to roughly the input size.",
+  "img2img_directorPixelSnapUpscaleOff": "The result is kept at its snapped pixel size.",
+  "img2img_directorPixelSnapSummary": "{width}×{height} pixels · {colors} colors",
+  "@img2img_directorPixelSnapSummary": {
+    "placeholders": {
+      "width": {"type": "int"},
+      "height": {"type": "int"},
+      "colors": {"type": "int"}
+    }
+  },
+  "img2img_directorPixelSnapSummaryNoPalette": "{width}×{height} pixels",
+  "@img2img_directorPixelSnapSummaryNoPalette": {
+    "placeholders": {
+      "width": {"type": "int"},
+      "height": {"type": "int"}
+    }
+  },
+  "img2img_directorPixelSnapNoGrid": "No repeating pixel grid was found in this image.",
+  "img2img_directorPixelSnapBlank": "This image is fully transparent.",
+  "img2img_directorPixelSnapDownscaled": "The image was downscaled before analysis because it exceeds the size limit.",
+  "img2img_directorCancel": "Cancel",
+  "img2img_directorStageAnalyzing": "Analyzing image",
+  "img2img_directorStageSearchingPitch": "Searching pixel size",
+  "img2img_directorStageRefiningGrid": "Refining grid",
+  "img2img_directorStageFinishing": "Building result",
   "img2img_enhance": "Enhance",
   "img2img_enhanceHint": "Enhance keeps using the current prompt while it upscales and regenerates the source image in latent space.",
   "img2img_enhanceMagnitude": "Magnitude",
