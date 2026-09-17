@@ -46,6 +46,8 @@ class McpStdioProxy {
   String? _protocolVersion;
   Object? _initializeRequestId;
   bool _awaitingInitializeResult = false;
+  Map<String, Object?>? _initializeMessage;
+  int _recoverySequence = 0;
 
   Future<int> run() async {
     try {
@@ -73,7 +75,7 @@ class McpStdioProxy {
   }
 
   /// Returns a process exit code when the proxy must stop, `null` to continue.
-  Future<int?> _forward(String line) async {
+  Future<int?> _forward(String line, {bool canRecoverSession = true}) async {
     final Object? decoded;
     try {
       decoded = jsonDecode(line);
@@ -89,6 +91,7 @@ class McpStdioProxy {
     final id = message['id'];
     final isInitialize = message['method'] == 'initialize';
     if (isInitialize) {
+      _initializeMessage = message;
       _initializeRequestId = id;
       _awaitingInitializeResult = true;
       _sessionId = null;
@@ -97,15 +100,8 @@ class McpStdioProxy {
 
     final HttpClientResponse response;
     try {
-      final request = await _client.postUrl(_endpoint);
-      _applyHeaders(request.headers);
-      request.headers.set(HttpHeaders.contentTypeHeader, 'application/json');
-      request.headers.set(HttpHeaders.acceptHeader, _acceptedContentTypes);
-      final payload = utf8.encode(line);
-      request.contentLength = payload.length;
-      request.add(payload);
       _log('-> ${_describe(message)}');
-      response = await request.close();
+      response = await _post(line);
     } on SocketException catch (error) {
       _warn(
         'Cannot reach the NAI Launcher MCP endpoint at $_endpoint: '
@@ -133,18 +129,28 @@ class McpStdioProxy {
       return null;
     }
     if (status != HttpStatus.ok) {
+      final body = await _readBody(response);
+      final expiredSession =
+          !isInitialize &&
+          _sessionId != null &&
+          status == HttpStatus.notFound &&
+          _isSessionNotFound(body, id);
       if (status == HttpStatus.notFound) {
-        // The launcher dropped the session; the client has to re-initialize.
         _sessionId = null;
         _protocolVersion = null;
       }
-      final detail = _truncate(await _readBody(response));
+      // Only this transport rejection guarantees the tool never executed.
+      // Timeouts, dropped streams and other errors must never replay a charge.
+      if (expiredSession && canRecoverSession && await _recoverSession()) {
+        return _forward(line, canRecoverSession: false);
+      }
+      final detail = _truncate(body);
       _reportFailure(
         id,
         'NAI Launcher MCP endpoint returned HTTP $status'
         '${detail.isEmpty ? '' : ': $detail'}',
       );
-      return null;
+      return expiredSession ? launcherUnavailableExitCode : null;
     }
 
     if (response.headers.contentType?.mimeType == 'text/event-stream') {
@@ -152,6 +158,84 @@ class McpStdioProxy {
       return null;
     }
     _emitEncoded(await _readBody(response));
+    return null;
+  }
+
+  Future<HttpClientResponse> _post(String line) async {
+    final request = await _client.postUrl(_endpoint);
+    _applyHeaders(request.headers);
+    request.headers.set(HttpHeaders.contentTypeHeader, 'application/json');
+    request.headers.set(HttpHeaders.acceptHeader, _acceptedContentTypes);
+    final payload = utf8.encode(line);
+    request.contentLength = payload.length;
+    request.add(payload);
+    return request.close();
+  }
+
+  static bool _isSessionNotFound(String body, Object? id) {
+    try {
+      final message = jsonDecode(body);
+      return message is Map &&
+          message['id'] == id &&
+          message['error'] is Map &&
+          message['error']['code'] == -32001 &&
+          message['error']['message'] == 'Session not found';
+    } on FormatException {
+      return false;
+    }
+  }
+
+  Future<bool> _recoverSession() async {
+    final initialize = _initializeMessage;
+    if (initialize == null) return false;
+    final id = 'proxy-reinitialize-${++_recoverySequence}';
+    try {
+      _log('Recovering expired HTTP session');
+      final response = await _post(jsonEncode({...initialize, 'id': id}));
+      final session = response.headers.value(McpServerDefaults.sessionIdHeader);
+      if (response.statusCode != HttpStatus.ok ||
+          session == null ||
+          session.isEmpty) {
+        await response.drain<void>();
+        return false;
+      }
+      final result = await _readInitializeResult(response, id);
+      if (result?['protocolVersion'] case final String version) {
+        _sessionId = session;
+        _protocolVersion = version;
+      } else {
+        return false;
+      }
+      final ready = await _post(
+        jsonEncode({'jsonrpc': '2.0', 'method': 'notifications/initialized'}),
+      );
+      await ready.drain<void>();
+      if (ready.statusCode == HttpStatus.accepted) return true;
+    } on Exception catch (error) {
+      _warn('MCP session recovery failed: ${error.runtimeType}');
+    }
+    _sessionId = null;
+    _protocolVersion = null;
+    return false;
+  }
+
+  Future<Map<String, Object?>?> _readInitializeResult(
+    HttpClientResponse response,
+    String id,
+  ) async {
+    final body = await _readBody(response);
+    final List<Object?> messages;
+    if (response.headers.contentType?.mimeType == 'text/event-stream') {
+      final decoder = McpSseLineDecoder();
+      messages = [...decoder.addChunk(body), ...decoder.flush()];
+    } else {
+      messages = [jsonDecode(body)];
+    }
+    for (final message in messages) {
+      if (message is Map && message['id'] == id && message['result'] is Map) {
+        return Map<String, Object?>.from(message['result'] as Map);
+      }
+    }
     return null;
   }
 

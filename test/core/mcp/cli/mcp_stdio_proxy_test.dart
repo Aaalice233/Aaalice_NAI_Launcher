@@ -112,59 +112,150 @@ void main() {
       expect(await diagnostics.text(), contains('HTTP 401'));
     });
 
-    test('drops the session and reports the error on HTTP 404', () async {
-      final proxy = McpStdioProxy(
-        endpoint: server.endpoint,
-        token: server.token,
-        input: _controlledStdin([
-          _initialize,
-          () => server.rejectSession = true,
-          _toolsList,
-          () => server.rejectSession = false,
-          _toolsList,
-        ]),
-        output: output.sink,
-        diagnostics: diagnostics.sink,
-      );
+    test(
+      'recovers an expired session without exposing another handshake',
+      () async {
+        final proxy = McpStdioProxy(
+          endpoint: server.endpoint,
+          token: server.token,
+          input: _controlledStdin([
+            _initialize,
+            () => server.rejectSession = true,
+            _toolsList,
+            _toolsList,
+          ]),
+          output: output.sink,
+          diagnostics: diagnostics.sink,
+        );
 
-      expect(await proxy.run(), 0);
-      final lines = await output.lines();
-      expect(lines, hasLength(3));
-      expect(
-        (_decode(lines[1])['error']! as Map<String, Object?>)['message'],
-        startsWith('NAI Launcher MCP endpoint returned HTTP 404'),
-      );
-      // The launcher forgot the session, so nothing may claim it again.
-      expect(server.requests[2].sessionId, isNull);
-      expect(server.requests[2].protocolVersion, isNull);
-      expect(server.deleted, isFalse);
-    });
+        expect(await proxy.run(), 0);
+        final lines = await output.lines();
+        expect(lines, hasLength(3));
+        expect(_decode(lines[1])['result'], isNotNull);
+        expect(_decode(lines[2])['result'], isNotNull);
+        expect(server.requests[2].body, contains('initialize'));
+        expect(server.requests[2].sessionId, isNull);
+        expect(server.requests[2].protocolVersion, isNull);
+        expect(server.requests[3].body, contains('notifications/initialized'));
+        expect(server.requests[4].sessionId, 'session-2');
+        expect(server.requests[5].sessionId, 'session-2');
+        expect(server.deleted, isTrue);
+      },
+    );
 
     test('claims the new session when the client re-initializes', () async {
       final proxy = McpStdioProxy(
         endpoint: server.endpoint,
         token: server.token,
-        input: _controlledStdin([
-          _initialize,
-          () => server.rejectSession = true,
-          _toolsList,
-          () => server.rejectSession = false,
-          _initialize,
-          _toolsList,
-        ]),
+        input: _controlledStdin([_initialize, _initialize, _toolsList]),
         output: output.sink,
         diagnostics: diagnostics.sink,
       );
 
       expect(await proxy.run(), 0);
-      expect(server.requests[2].body, contains('initialize'));
-      expect(server.requests[2].sessionId, isNull);
-      expect(server.requests[2].protocolVersion, isNull);
-      expect(server.requests[3].sessionId, 'session-2');
-      expect(server.requests[3].protocolVersion, '2025-11-25');
+      expect(server.requests[1].body, contains('initialize'));
+      expect(server.requests[1].sessionId, isNull);
+      expect(server.requests[1].protocolVersion, isNull);
+      expect(server.requests[2].sessionId, 'session-2');
+      expect(server.requests[2].protocolVersion, '2025-11-25');
       expect(server.requests.last.method, 'DELETE');
       expect(server.requests.last.sessionId, 'session-2');
     });
+
+    for (final sse in [false, true]) {
+      test(
+        'a rejected submission executes once after ${sse ? 'SSE' : 'JSON'} recovery',
+        () async {
+          server.initializeUsingSse = sse;
+          final proxy = McpStdioProxy(
+            endpoint: server.endpoint,
+            token: server.token,
+            input: _controlledStdin([
+              _initialize,
+              () => server.rejectSession = true,
+              _toolsCall,
+            ]),
+            output: output.sink,
+            diagnostics: diagnostics.sink,
+          );
+          expect(await proxy.run(), 0);
+          expect(server.toolExecutions, 1);
+          expect(
+            server.requests.where(
+              (r) => r.body.contains('"method":"tools/call"'),
+            ),
+            hasLength(2),
+          );
+          final lines = await output.lines();
+          expect(lines, hasLength(3));
+          expect(_decode(lines.last)['id'], 4);
+          expect(_decode(lines.last)['result'], isNotNull);
+        },
+      );
+    }
+
+    test('repeated session rejection is bounded to one recovery', () async {
+      server.expireToolRequests = true;
+      expect(await runProxy([_initialize, _toolsCall]), 2);
+      expect(server.toolExecutions, 0);
+      expect(
+        server.requests.where((r) => r.body.contains('"method":"initialize"')),
+        hasLength(2),
+      );
+      expect(
+        server.requests.where((r) => r.body.contains('"method":"tools/call"')),
+        hasLength(2),
+      );
+      expect(_decode((await output.lines()).last)['error'], isNotNull);
+    });
+
+    test('failed handshake never replays the rejected submission', () async {
+      server.failRecovery = true;
+      final proxy = McpStdioProxy(
+        endpoint: server.endpoint,
+        token: server.token,
+        input: _controlledStdin([
+          _initialize,
+          () => server.rejectSession = true,
+          _toolsCall,
+        ]),
+        output: output.sink,
+        diagnostics: diagnostics.sink,
+      );
+      expect(await proxy.run(), 2);
+      expect(server.toolExecutions, 0);
+      expect(
+        server.requests.where((r) => r.body.contains('"method":"tools/call"')),
+        hasLength(1),
+      );
+    });
+
+    for (final status in [
+      HttpStatus.internalServerError,
+      HttpStatus.notFound,
+    ]) {
+      test(
+        'HTTP $status with an unknown outcome never replays a submission',
+        () async {
+          server.toolFailureStatus = status;
+          expect(await runProxy([_initialize, _toolsCall]), 0);
+          expect(server.toolExecutions, 1);
+          expect(
+            server.requests.where(
+              (r) => r.body.contains('"method":"tools/call"'),
+            ),
+            hasLength(1),
+          );
+          expect(
+            server.requests.where(
+              (r) => r.body.contains('"method":"initialize"'),
+            ),
+            hasLength(1),
+          );
+          expect(_decode((await output.lines()).last)['error'], isNotNull);
+        },
+      );
+    }
 
     test('ignores a line that is not a JSON-RPC object', () async {
       final exitCode = await runProxy(['not json', '[1,2,3]', _initialize]);
@@ -213,7 +304,8 @@ const String _initialize =
 const String _notification =
     '{"jsonrpc":"2.0","method":"notifications/initialized"}';
 const String _toolsList = '{"jsonrpc":"2.0","id":3,"method":"tools/list"}';
-const String _toolsCall = '{"jsonrpc":"2.0","id":4,"method":"tools/call"}';
+const String _toolsCall =
+    '{"jsonrpc":"2.0","id":4,"method":"tools/call","params":{"name":"submit_generation","arguments":{"preparation_id":"prep-1","confirmed":true}}}';
 
 Map<String, Object?> _decode(String line) =>
     jsonDecode(line) as Map<String, Object?>;
@@ -269,6 +361,11 @@ class _FakeMcpServer {
   final String token;
   final List<_RecordedRequest> requests = <_RecordedRequest>[];
   bool rejectSession = false;
+  bool expireToolRequests = false;
+  bool initializeUsingSse = false;
+  bool failRecovery = false;
+  int? toolFailureStatus;
+  int toolExecutions = 0;
   bool deleted = false;
   int _sessions = 0;
 
@@ -304,10 +401,28 @@ class _FakeMcpServer {
 
     final message = jsonDecode(body) as Map<String, Object?>;
     final id = message['id'];
+    if (message['method'] != 'initialize' &&
+        (rejectSession ||
+            (expireToolRequests && message['method'] == 'tools/call') ||
+            request.headers.value('Mcp-Session-Id') != 'session-$_sessions')) {
+      response.statusCode = HttpStatus.notFound;
+      await _writeJson(response, {
+        'jsonrpc': '2.0',
+        'id': id,
+        'error': {'code': -32001, 'message': 'Session not found'},
+      });
+      return;
+    }
     switch (message['method']) {
       case 'initialize':
+        if (failRecovery && _sessions > 0) {
+          response.statusCode = HttpStatus.serviceUnavailable;
+          await response.close();
+          return;
+        }
+        rejectSession = false;
         response.headers.set('Mcp-Session-Id', 'session-${++_sessions}');
-        await _writeJson(response, {
+        final initialized = <String, Object?>{
           'jsonrpc': '2.0',
           'id': id,
           'result': {
@@ -315,8 +430,20 @@ class _FakeMcpServer {
             'capabilities': <String, Object?>{},
             'serverInfo': {'name': 'nai-launcher', 'version': '0.0.0'},
           },
-        });
+        };
+        if (initializeUsingSse) {
+          await _writeEventStream(response, [initialized]);
+        } else {
+          await _writeJson(response, initialized);
+        }
       case 'tools/call':
+        toolExecutions++;
+        if (toolFailureStatus case final status?) {
+          response.statusCode = status;
+          response.write('Unknown execution outcome');
+          await response.close();
+          return;
+        }
         await _writeEventStream(response, [
           {
             'jsonrpc': '2.0',
@@ -330,12 +457,6 @@ class _FakeMcpServer {
           },
         ]);
       default:
-        if (rejectSession) {
-          response.statusCode = HttpStatus.notFound;
-          response.write('unknown session');
-          await response.close();
-          return;
-        }
         if (id == null) {
           response.statusCode = HttpStatus.accepted;
           await response.close();

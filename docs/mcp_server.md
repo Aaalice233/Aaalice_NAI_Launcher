@@ -118,7 +118,7 @@ MCP 协议端点为 `http://127.0.0.1:<port>/mcp`，默认端口 `20624`（`McpS
 
 消息流转：
 
-- `initialize` 会新建会话，响应头返回 `Mcp-Session-Id`，后续所有请求都要带上。收到 `404` 表示会话已失效，客户端需要重新 `initialize`。
+- `initialize` 会新建会话，响应头返回 `Mcp-Session-Id`，后续所有请求都要带上。会话失效后需要重新 `initialize`；随包 stdio 代理收到明确的 `404 / -32001 / Session not found` 时自动重新握手，只重试这笔尚未执行的请求一次。普通 404、超时、断流和其它结果未知的错误不会重放，避免重复计费。
 - 通知和响应返回 `202`，不带响应体。
 - 请求在 SSE 模式下以 `event: message` 逐条下发，等待期间每 15 秒写一条 `: keep-alive` 注释；目标响应写出后连接即关闭。
 - 每条 SSE 流只承载该请求自己的响应，以及 `_meta.progressToken` 与之匹配的 `notifications/progress`；同一会话的并发请求互不串流。不提供 GET 流，其它服务端主动消息会被丢弃。
