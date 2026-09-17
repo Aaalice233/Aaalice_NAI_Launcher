@@ -1321,6 +1321,11 @@ class AppLocalizationsJa extends AppLocalizations {
   }
 
   @override
+  String agentChat_approvalFileTarget(String path) {
+    return 'ファイルを書き込みます：$path';
+  }
+
+  @override
   String get agentChat_needSetup =>
       'チャットモデルが未設定です。先に設定でツール呼び出しに対応したプロバイダーを追加してください。';
 

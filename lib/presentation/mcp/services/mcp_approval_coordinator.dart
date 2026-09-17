@@ -28,6 +28,8 @@ class McpApprovalCoordinator {
     required AgentAuditSink auditSink,
     required Future<int?> Function(String toolName, Map<String, dynamic> args)
     estimateAnlas,
+    required List<String> Function(String toolName, Map<String, dynamic> args)
+    describeFileTargets,
     required bool Function() isMounted,
     Duration timeout = McpServerDefaults.approvalTimeout,
     DateTime Function()? clock,
@@ -38,6 +40,7 @@ class McpApprovalCoordinator {
     controller = AgentToolPermissionController(
       auditSink: auditSink,
       estimateAnlas: estimateAnlas,
+      describeFileTargets: describeFileTargets,
       onApprovalChanged: _handleApprovalChanged,
       isMounted: () => !_disposed && isMounted(),
     );

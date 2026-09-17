@@ -111,6 +111,7 @@ class _Harness {
     coordinator = McpApprovalCoordinator(
       auditSink: audit,
       estimateAnlas: (_, _) async => null,
+      describeFileTargets: (_, _) => const [],
       isMounted: () => true,
       timeout: _timeout,
     );

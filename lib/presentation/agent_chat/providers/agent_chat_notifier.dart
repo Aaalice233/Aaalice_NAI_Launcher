@@ -46,6 +46,7 @@ import '../../prompt_assistant/models/assistant_model_capability.dart';
 import '../services/agent_stream_bridge.dart';
 import '../services/agent_system_prompt.dart';
 import '../services/agent_prepared_anlas_estimator.dart';
+import '../services/agent_prepared_file_targets.dart';
 import '../services/agent_resource_resolver.dart';
 import '../services/agent_workspace_directory.dart';
 import '../services/generation_preparation_runtime.dart';
@@ -217,6 +218,7 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
     _permissionController = AgentToolPermissionController(
       auditSink: auditSink,
       estimateAnlas: _estimatePreparedAnlas,
+      describeFileTargets: _describePreparedFileTargets,
       onApprovalChanged: (request) {
         final boundRequest = request?.bind(
           turnId: _sessionControllerValue?.activeTurnId,
@@ -903,6 +905,15 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
     generationRuntime: _generationPreparationRuntime,
     queueRuntime: _queueControlRuntime,
     manualInpaintToolbox: _manualInpaintToolbox,
+  );
+
+  List<String> _describePreparedFileTargets(
+    String toolName,
+    Map<String, dynamic> args,
+  ) => preparedFileTargets(
+    toolName,
+    args,
+    generationRuntime: _generationPreparationRuntime,
   );
 
   Future<void> addPendingResource(AgentChatResourceReference reference) async {

@@ -507,6 +507,8 @@
   "@agentChat_addResourceFailed": {"placeholders":{"error":{"type":"String"}}},
   "agentChat_approvalEstimatedAnlas": "推定コスト：{cost} Anlas",
   "@agentChat_approvalEstimatedAnlas": {"placeholders": {"cost": {"type": "int"}}},
+  "agentChat_approvalFileTarget": "ファイルを書き込みます：{path}",
+  "@agentChat_approvalFileTarget": {"placeholders": {"path": {"type": "String"}}},
   "agentChat_needSetup": "チャットモデルが未設定です。先に設定でツール呼び出しに対応したプロバイダーを追加してください。",
   "agentChat_heroTitle": "今日は何をしますか？",
   "agentChat_heroSubtitle": "キャラクタープロンプトの準備、アイデアの整理、設定の調整ができます。",

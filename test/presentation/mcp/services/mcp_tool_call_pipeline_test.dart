@@ -567,6 +567,7 @@ class _Harness {
       auditSink: audit,
       estimateAnlas: (_, args) async =>
           args['preparation_id'] is String ? estimatedAnlas : null,
+      describeFileTargets: (_, _) => const [],
       isMounted: () => true,
       timeout: timeout,
     );

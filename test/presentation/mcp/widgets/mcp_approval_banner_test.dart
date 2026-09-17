@@ -323,7 +323,6 @@ class _MemorySettingsStore implements McpServerSettingsStore {
   @override
   AgentPermissionMode permissionMode =
       AgentPermissionMode.askBeforeSensitiveActions;
-
   @override
   Future<void> writeEnabled(bool value) async => enabled = value;
 
