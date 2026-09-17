@@ -138,7 +138,8 @@ String buildAgentSystemPromptBody({required bool webAccessEnabled}) {
         'toggle the transparent_background switch there (V5 renders '
         'native alpha), optionally reinforced with the prompt tags.',
     '- search_tags looks up danbooru tags as a reference (English fuzzy '
-        'search, Chinese translation, co-occurrence suggestions); newer '
+        'search, Chinese translation, co-occurrence suggestions) and takes a '
+        '"queries" array to resolve several tags in one call; newer '
         'models also understand natural language, so use whichever fits.',
     '- Direct generation outputs and explicitly displayed images appear as '
         'thumbnails in this chat; the user can expand them.',
