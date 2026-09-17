@@ -326,7 +326,6 @@ class _MemorySettingsStore implements McpServerSettingsStore {
   @override
   AgentPermissionMode permissionMode =
       AgentPermissionMode.askBeforeSensitiveActions;
-
   final List<bool> enabledWrites = [];
 
   @override

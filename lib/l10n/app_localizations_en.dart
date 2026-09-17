@@ -1347,6 +1347,11 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String agentChat_approvalFileTarget(String path) {
+    return 'Will write file: $path';
+  }
+
+  @override
   String get agentChat_needSetup =>
       'No chat model configured. Add a provider with tool-calling support in Settings first.';
 

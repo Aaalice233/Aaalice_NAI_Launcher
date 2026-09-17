@@ -21,6 +21,7 @@ import '../../../core/storage/local_storage_service.dart';
 import '../../../core/storage/secure_storage_service.dart';
 import '../../../core/utils/app_logger.dart';
 import '../../agent_chat/services/agent_prepared_anlas_estimator.dart';
+import '../../agent_chat/services/agent_prepared_file_targets.dart';
 import '../../agent_chat/services/agent_tool_registry_builder.dart';
 import '../../agent_chat/services/agent_workspace_directory.dart';
 import '../../prompt_assistant/models/prompt_assistant_models.dart';
@@ -340,6 +341,11 @@ class McpServerNotifier extends StateNotifier<McpServerState> {
           generationRuntime: factory.generationRuntime,
           queueRuntime: factory.queueRuntime,
           manualInpaintToolbox: factory.manualInpaintToolbox,
+        ),
+        describeFileTargets: (toolName, args) => preparedFileTargets(
+          toolName,
+          args,
+          generationRuntime: factory.generationRuntime,
         ),
         isMounted: () => mounted,
         notifyRequested: _notifyApprovalRequested ?? _playApprovalSound,

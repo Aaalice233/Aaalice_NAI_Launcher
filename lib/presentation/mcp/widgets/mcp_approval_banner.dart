@@ -168,6 +168,7 @@ class _McpApprovalBannerBodyState extends State<_McpApprovalBannerBody> {
             toolName: widget.pending.request.toolName,
             args: widget.pending.request.args,
             estimatedAnlas: widget.pending.request.estimatedAnlas,
+            fileTargets: widget.pending.request.fileTargets,
             onResolve: widget.onResolve,
           ),
           Padding(

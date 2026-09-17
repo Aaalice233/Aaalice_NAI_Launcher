@@ -1302,6 +1302,11 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
+  String agentChat_approvalFileTarget(String path) {
+    return '将写入文件：$path';
+  }
+
+  @override
   String get agentChat_needSetup => '未配置聊天模型。请先在设置中添加支持工具调用的供应商。';
 
   @override
@@ -16042,6 +16047,11 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   @override
   String agentChat_approvalEstimatedAnlas(int cost) {
     return '預計消耗：$cost Anlas';
+  }
+
+  @override
+  String agentChat_approvalFileTarget(String path) {
+    return '將寫入檔案：$path';
   }
 
   @override

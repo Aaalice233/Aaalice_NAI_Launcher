@@ -500,6 +500,8 @@
   "@agentChat_addResourceFailed": {"placeholders":{"error":{"type":"String"}}},
   "agentChat_approvalEstimatedAnlas": "预计消耗：{cost} Anlas",
   "@agentChat_approvalEstimatedAnlas": {"placeholders": {"cost": {"type": "int"}}},
+  "agentChat_approvalFileTarget": "将写入文件：{path}",
+  "@agentChat_approvalFileTarget": {"placeholders": {"path": {"type": "String"}}},
   "agentChat_needSetup": "未配置聊天模型。请先在设置中添加支持工具调用的供应商。",
   "agentChat_heroTitle": "今天想做什么？",
   "agentChat_heroSubtitle": "准备生成角色提示词、整理灵感或优化设置。",

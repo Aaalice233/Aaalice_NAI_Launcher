@@ -2555,6 +2555,12 @@ abstract class AppLocalizations {
   /// **'Estimated cost: {cost} Anlas'**
   String agentChat_approvalEstimatedAnlas(int cost);
 
+  /// No description provided for @agentChat_approvalFileTarget.
+  ///
+  /// In en, this message translates to:
+  /// **'Will write file: {path}'**
+  String agentChat_approvalFileTarget(String path);
+
   /// No description provided for @agentChat_needSetup.
   ///
   /// In en, this message translates to:

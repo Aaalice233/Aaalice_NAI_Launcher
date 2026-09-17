@@ -515,6 +515,8 @@
   "@agentChat_addResourceFailed": {"placeholders":{"error":{"type":"String"}}},
   "agentChat_approvalEstimatedAnlas": "Estimated cost: {cost} Anlas",
   "@agentChat_approvalEstimatedAnlas": {"placeholders": {"cost": {"type": "int"}}},
+  "agentChat_approvalFileTarget": "Will write file: {path}",
+  "@agentChat_approvalFileTarget": {"placeholders": {"path": {"type": "String"}}},
   "agentChat_needSetup": "No chat model configured. Add a provider with tool-calling support in Settings first.",
   "agentChat_heroTitle": "What would you like to do today?",
   "agentChat_heroSubtitle": "Prepare character prompts, organize ideas, or fine-tune settings.",

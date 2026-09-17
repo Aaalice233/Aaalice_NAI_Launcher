@@ -362,6 +362,7 @@ class AgentChatApprovalSurface extends StatelessWidget {
     required this.onDeny,
     required this.onAllow,
     this.costLabel,
+    this.fileTargetLabel,
     this.touchOptimized = false,
   });
 
@@ -369,6 +370,7 @@ class AgentChatApprovalSurface extends StatelessWidget {
   final String description;
   final String details;
   final String? costLabel;
+  final String? fileTargetLabel;
   final String denyLabel;
   final String allowLabel;
   final VoidCallback onDeny;
@@ -432,6 +434,16 @@ class AgentChatApprovalSurface extends StatelessWidget {
                       ),
                     ),
                     if (costLabel case final label?) ...[
+                      const SizedBox(height: 6),
+                      Text(
+                        label,
+                        style: theme.textTheme.labelLarge?.copyWith(
+                          color: foreground,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
+                    if (fileTargetLabel case final label?) ...[
                       const SizedBox(height: 6),
                       Text(
                         label,
