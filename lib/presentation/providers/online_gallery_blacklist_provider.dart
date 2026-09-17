@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/constants/storage_keys.dart';
@@ -113,6 +114,7 @@ class OnlineGalleryBlacklistNotifier
   GalleryBlacklistUndo? _undo;
   Timer? _incrementalSyncDebounce;
   bool _incrementalSyncRequested = false;
+  Completer<void>? _incrementalSyncSettled;
   CancelToken? _remoteCancelToken;
   int _remoteGeneration = 0;
 
@@ -652,6 +654,9 @@ class OnlineGalleryBlacklistNotifier
       state = state.copyWith(syncPhase: GalleryBlacklistSyncPhase.idle);
     }
     _resumeRequestedIncrementalSync();
+    if (_incrementalSyncDebounce == null && !_incrementalSyncRequested) {
+      _settleIncrementalSync();
+    }
   }
 
   void _resumeRequestedIncrementalSync() {
@@ -660,18 +665,33 @@ class OnlineGalleryBlacklistNotifier
     }
   }
 
+  /// Completes once the pending debounce and incremental sync have finished,
+  /// or immediately when nothing is scheduled.
+  @visibleForTesting
+  Future<void> get incrementalSyncSettled =>
+      _incrementalSyncSettled?.future ?? Future<void>.value();
+
+  void _settleIncrementalSync() {
+    final settled = _incrementalSyncSettled;
+    _incrementalSyncSettled = null;
+    settled?.complete();
+  }
+
   void _scheduleIncrementalSync() {
     _incrementalSyncRequested = true;
     _incrementalSyncDebounce?.cancel();
     if (_store.desiredTags.isEmpty && _store.pendingRemoteDeletions.isEmpty) {
       _incrementalSyncRequested = false;
+      _settleIncrementalSync();
       return;
     }
     if (!state.isCloudAvailable ||
         state.isSyncing ||
         _store.legacyUnscopedRules.isNotEmpty) {
+      if (!state.isSyncing) _settleIncrementalSync();
       return;
     }
+    _incrementalSyncSettled ??= Completer<void>();
     _incrementalSyncDebounce = Timer(const Duration(milliseconds: 500), () {
       _incrementalSyncDebounce = null;
       unawaited(_syncIncrementally());
@@ -854,6 +874,7 @@ class OnlineGalleryBlacklistNotifier
 
   void _dispose() {
     _incrementalSyncDebounce?.cancel();
+    _settleIncrementalSync();
     _remoteCancelToken?.cancel('Blacklist notifier disposed');
   }
 }

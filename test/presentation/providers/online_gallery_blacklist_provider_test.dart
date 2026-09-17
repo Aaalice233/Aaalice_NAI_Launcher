@@ -73,7 +73,7 @@ void main() {
       await notifier.ensureInitialized();
 
       await notifier.addTag('local_edit');
-      await Future<void>.delayed(const Duration(milliseconds: 650));
+      await notifier.incrementalSyncSettled;
       expect(api.updateCalls, 0);
 
       await notifier.pullFromCloud(background: true);
@@ -150,7 +150,7 @@ void main() {
       isTrue,
     );
     expect(await notifier.undoLastMutation(), isTrue);
-    await Future<void>.delayed(const Duration(milliseconds: 650));
+    await notifier.incrementalSyncSettled;
 
     expect(container.read(onlineGalleryBlacklistNotifierProvider).tags, {
       'local_tag',
@@ -169,11 +169,11 @@ void main() {
     await notifier.ensureInitialized();
 
     await notifier.addTag('temporary_tag');
-    await Future<void>.delayed(const Duration(milliseconds: 650));
+    await notifier.incrementalSyncSettled;
     expect(api.rules, ['temporary_tag']);
 
     expect(await notifier.undoLastMutation(), isTrue);
-    await Future<void>.delayed(const Duration(milliseconds: 650));
+    await notifier.incrementalSyncSettled;
 
     expect(
       container.read(onlineGalleryBlacklistNotifierProvider).tags,
@@ -319,7 +319,7 @@ void main() {
     await notifier.ensureInitialized();
 
     expect(await notifier.addTag('new cloud tag'), isTrue);
-    await Future<void>.delayed(const Duration(milliseconds: 650));
+    await notifier.incrementalSyncSettled;
 
     expect(api.rules, [
       'cloud_tag',
@@ -345,7 +345,7 @@ void main() {
     await notifier.ensureInitialized();
 
     await notifier.removeTag('remote_tag');
-    await Future<void>.delayed(const Duration(milliseconds: 650));
+    await notifier.incrementalSyncSettled;
 
     expect(api.rules, isEmpty);
     expect(
@@ -372,7 +372,7 @@ void main() {
     await notifier.pullFromCloud();
 
     await notifier.removeTag('remote_tag');
-    await Future<void>.delayed(const Duration(milliseconds: 650));
+    await notifier.incrementalSyncSettled;
 
     expect(api.rules, isEmpty);
     expect(
@@ -415,7 +415,7 @@ void main() {
     await notifier.ensureInitialized();
 
     await notifier.removeTag('shared_tag');
-    await Future<void>.delayed(const Duration(milliseconds: 650));
+    await notifier.incrementalSyncSettled;
 
     expect(api.rules, isEmpty);
     final persisted = GalleryBlacklistStore.fromJson(
@@ -471,7 +471,7 @@ void main() {
           .loginAs(2);
       api.rules = ['shared_tag'];
       await notifier.addTag('local_tag');
-      await Future<void>.delayed(const Duration(milliseconds: 650));
+      await notifier.incrementalSyncSettled;
 
       expect(api.rules, ['local_tag']);
       persisted = GalleryBlacklistStore.fromJson(
@@ -499,7 +499,7 @@ void main() {
     await notifier.clearTags();
 
     await notifier.addTag('local_c');
-    await Future<void>.delayed(const Duration(milliseconds: 650));
+    await notifier.incrementalSyncSettled;
 
     expect(api.rules.toSet(), {'cloud_a', 'cloud_b', 'local_c'});
     expect(container.read(onlineGalleryBlacklistNotifierProvider).tags, {
@@ -520,7 +520,7 @@ void main() {
     expect(await notifier.removeTag('blocked_tag'), isTrue);
 
     api.failUpdates = true;
-    await Future<void>.delayed(const Duration(milliseconds: 650));
+    await notifier.incrementalSyncSettled;
     await notifier.pullFromCloud();
 
     final state = container.read(onlineGalleryBlacklistNotifierProvider);
@@ -570,12 +570,14 @@ void main() {
       final pullGate = Completer<List<String>>();
       api.nextFetch = pullGate;
       final pull = notifier.pullFromCloud();
+      // Let the debounce elapse: the point is that it deliberately does not
+      // settle while the pull holds the remote operation.
       await Future<void>.delayed(const Duration(milliseconds: 600));
       expect(api.updateCalls, 0);
 
       pullGate.complete(['cloud_tag']);
       await pull;
-      await Future<void>.delayed(const Duration(milliseconds: 650));
+      await notifier.incrementalSyncSettled;
 
       expect(api.rules, containsAll(<String>['cloud_tag', 'local_edit']));
       expect(api.updateCalls, 1);
@@ -605,7 +607,7 @@ void main() {
     expect(await notifier.addTag('during_push'), isTrue);
     updateGate.complete();
     expect(await push, isTrue);
-    await Future<void>.delayed(const Duration(milliseconds: 650));
+    await notifier.incrementalSyncSettled;
 
     expect(api.rules, containsAll(<String>['before', 'during_push']));
     expect(container.read(onlineGalleryBlacklistNotifierProvider).tags, {
@@ -686,7 +688,7 @@ void main() {
     await notifier.ensureInitialized();
 
     await notifier.syncOnStartup();
-    await Future<void>.delayed(const Duration(milliseconds: 650));
+    await notifier.incrementalSyncSettled;
 
     expect(api.updateCalls, 1);
     expect(api.rules, ['local_tag']);

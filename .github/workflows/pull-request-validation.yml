@@ -159,7 +159,6 @@ jobs:
         with:
           flutter-version: ${{ env.FLUTTER_VERSION }}
           cache-namespace: nai-hosted
-          generate-code: "false"
 
       - name: Validate bundled autocomplete databases
         if: matrix.shard == 0
@@ -194,12 +193,11 @@ jobs:
       - name: Download verified bundled database
         shell: pwsh
         run: ./scripts/prepare_bundled_database.ps1
-      - name: Prepare Flutter dependencies
+      - name: Prepare incremental Flutter build
         uses: ./.github/actions/prepare-flutter-build
         with:
           flutter-version: ${{ env.FLUTTER_VERSION }}
           cache-namespace: nai-hosted
-          generate-code: "false"
       - name: Verify cloud-sync performance budgets
         shell: pwsh
         run: ./scripts/run_cloud_sync_benchmark.ps1
@@ -252,7 +250,6 @@ jobs:
         with:
           flutter-version: ${{ env.FLUTTER_VERSION }}
           cache-namespace: nai-hosted
-          generate-code: "false"
           cache-windows-build: "true"
 
       - name: Setup NuGet
@@ -291,7 +288,6 @@ jobs:
         with:
           flutter-version: ${{ env.FLUTTER_VERSION }}
           cache-namespace: nai-hosted
-          generate-code: "false"
           cache-windows-build: "true"
 
       - name: Setup NuGet
