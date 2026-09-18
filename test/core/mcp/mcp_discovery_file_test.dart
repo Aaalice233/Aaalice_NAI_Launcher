@@ -65,6 +65,20 @@ void main() {
     expect((await store.read())!.port, 14020);
   });
 
+  test('a failed write surfaces the error and leaves no temp file', () async {
+    // A directory sitting on the target path makes the final rename fail.
+    await Directory(store.file.path).create();
+
+    await expectLater(
+      store.write(document()),
+      throwsA(isA<FileSystemException>()),
+    );
+
+    final entries = tempDir.listSync();
+    expect(entries, hasLength(1));
+    expect(entries.where((entity) => entity.path.endsWith('.tmp')), isEmpty);
+  });
+
   test('reading a missing file returns null', () async {
     expect(await store.read(), isNull);
   });

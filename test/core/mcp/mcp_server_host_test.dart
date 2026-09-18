@@ -29,6 +29,14 @@ void main() {
     return client;
   }
 
+  McpServerHost buildHost(McpDiscoveryFileStore store) => McpServerHost(
+    executor: executor,
+    discovery: store,
+    appVersion: '4.2.1',
+    pidProvider: () => 4242,
+    clock: () => DateTime.utc(2026, 5, 7, 10, 30),
+  );
+
   setUp(() async {
     tempDir = await Directory.systemTemp.createTemp('mcp_server_host_test_');
     discovery = McpDiscoveryFileStore(directory: tempDir);
@@ -49,13 +57,7 @@ void main() {
         },
       ),
     ]);
-    host = McpServerHost(
-      executor: executor,
-      discovery: discovery,
-      appVersion: '4.2.1',
-      pidProvider: () => 4242,
-      clock: () => DateTime.utc(2026, 5, 7, 10, 30),
-    );
+    host = buildHost(discovery);
   });
 
   tearDown(() async {
@@ -135,6 +137,87 @@ void main() {
       ),
     );
     expect(host.isListening, isFalse);
+  });
+
+  test('stop tolerates a host that never started', () async {
+    await host.stop();
+    await host.stop();
+
+    expect(host.isListening, isFalse);
+    expect(host.port, isNull);
+  });
+
+  test('a failed discovery write releases the bound port', () async {
+    final store = _FailingDiscoveryStore(tempDir);
+    final failing = buildHost(store);
+    addTearDown(failing.stop);
+
+    await expectLater(
+      failing.start(port: 0, token: _token),
+      throwsA(isA<FileSystemException>()),
+    );
+
+    expect(failing.isListening, isFalse);
+    expect(failing.port, isNull);
+    expect(failing.endpoint, isNull);
+
+    final boundPort = store.lastWrittenPort!;
+    final rebound = await HttpServer.bind(
+      InternetAddress.loopbackIPv4,
+      boundPort,
+    );
+    await rebound.close(force: true);
+
+    await failing.stop();
+    await failing.stop();
+
+    store.failWrites = false;
+    await failing.start(port: boundPort, token: _token);
+
+    expect(failing.isListening, isTrue);
+    expect(failing.port, boundPort);
+    expect((await store.read())!.port, boundPort);
+  });
+
+  test('a failed start keeps the discovery file of another instance', () async {
+    await discovery.write(
+      McpDiscoveryDocument(
+        port: 20624,
+        pid: 777,
+        startedAt: DateTime.utc(2026, 5, 7, 9),
+        token: 'other-instance-token',
+        protocolVersions: const ['2025-11-25'],
+        appVersion: '4.2.0',
+      ),
+    );
+    final failing = buildHost(_FailingDiscoveryStore(tempDir));
+    addTearDown(failing.stop);
+
+    await expectLater(
+      failing.start(port: 0, token: _token),
+      throwsA(isA<FileSystemException>()),
+    );
+
+    final survivor = await discovery.read();
+    expect(survivor, isNotNull);
+    expect(survivor!.pid, 777);
+    expect(survivor.token, 'other-instance-token');
+  });
+
+  test('start and stop can be cycled repeatedly', () async {
+    for (var round = 0; round < 3; round++) {
+      await host.start(port: 0, token: '$_token-$round');
+
+      expect(host.isListening, isTrue);
+      expect(host.port, isNotNull);
+      expect((await discovery.read())!.token, '$_token-$round');
+
+      await host.stop();
+
+      expect(host.isListening, isFalse);
+      expect(host.port, isNull);
+      expect(await discovery.read(), isNull);
+    }
   });
 
   test('starting twice rebinds without leaking the old server', () async {
@@ -273,4 +356,20 @@ void main() {
     expect(signal.reason, 'server stopped');
     expect(host.sessions, isEmpty);
   });
+}
+
+class _FailingDiscoveryStore extends McpDiscoveryFileStore {
+  _FailingDiscoveryStore(Directory directory) : super(directory: directory);
+
+  bool failWrites = true;
+  int? lastWrittenPort;
+
+  @override
+  Future<void> write(McpDiscoveryDocument document) async {
+    lastWrittenPort = document.port;
+    if (failWrites) {
+      throw const FileSystemException('discovery directory is not writable');
+    }
+    return super.write(document);
+  }
 }

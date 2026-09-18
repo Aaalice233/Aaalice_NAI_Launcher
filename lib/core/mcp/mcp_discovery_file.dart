@@ -115,14 +115,19 @@ class McpDiscoveryFileStore {
     final temp = File(
       '${target.path}.${DateTime.now().microsecondsSinceEpoch}.tmp',
     );
-    await temp.writeAsString(jsonEncode(document.toJson()), flush: true);
-    if (!Platform.isWindows) {
-      await Process.run('chmod', ['600', temp.path]);
+    try {
+      await temp.writeAsString(jsonEncode(document.toJson()), flush: true);
+      if (!Platform.isWindows) {
+        await Process.run('chmod', ['600', temp.path]);
+      }
+      if (await target.exists()) {
+        await target.delete();
+      }
+      await temp.rename(target.path);
+    } catch (_) {
+      await _discardTemp(temp);
+      rethrow;
     }
-    if (await target.exists()) {
-      await target.delete();
-    }
-    await temp.rename(target.path);
   }
 
   /// Returns `null` when no launcher has published a file; a corrupt file
@@ -143,6 +148,16 @@ class McpDiscoveryFileStore {
     final target = file;
     if (await target.exists()) {
       await target.delete();
+    }
+  }
+
+  Future<void> _discardTemp(File temp) async {
+    try {
+      if (await temp.exists()) {
+        await temp.delete();
+      }
+    } on FileSystemException {
+      // Cleanup must not mask the write failure the caller is about to see.
     }
   }
 }

@@ -108,34 +108,45 @@ class McpServerHost {
     }
     _token = token;
     _server = server;
-    imageEndpoint.start(endpoint!);
-    final transport = McpStreamableHttpTransport(
-      sessions: _registry,
-      authenticator: McpBearerAuthenticator(() => _token),
-    );
-    _transport = transport;
-    unawaited(_accept(server, transport));
-    await _discovery.write(
-      McpDiscoveryDocument(
-        port: server.port,
-        pid: _pidProvider(),
-        startedAt: _clock().toUtc(),
-        token: token,
-        protocolVersions: [
-          for (final version in mcp.ProtocolVersion.values)
-            if (version.isSupported) version.versionString,
-        ],
-        appVersion: _appVersion,
-      ),
-    );
-    _sweepTimer = Timer.periodic(_sweepInterval, (_) {
-      _registry.sweepIdle();
-      imageEndpoint.prune();
-    });
+    try {
+      imageEndpoint.start(endpoint!);
+      final transport = McpStreamableHttpTransport(
+        sessions: _registry,
+        authenticator: McpBearerAuthenticator(() => _token),
+      );
+      _transport = transport;
+      unawaited(_accept(server, transport));
+      await _discovery.write(
+        McpDiscoveryDocument(
+          port: server.port,
+          pid: _pidProvider(),
+          startedAt: _clock().toUtc(),
+          token: token,
+          protocolVersions: [
+            for (final version in mcp.ProtocolVersion.values)
+              if (version.isSupported) version.versionString,
+          ],
+          appVersion: _appVersion,
+        ),
+      );
+      _sweepTimer = Timer.periodic(_sweepInterval, (_) {
+        _registry.sweepIdle();
+        imageEndpoint.prune();
+      });
+    } catch (_) {
+      // Publishing failed, so the discovery file is not ours to delete.
+      await _releaseListener();
+      rethrow;
+    }
     PortableLogger.d('MCP server listening on ${endpoint!}', _logTag);
   }
 
   Future<void> stop() async {
+    await _releaseListener();
+    await _discovery.delete();
+  }
+
+  Future<void> _releaseListener() async {
     imageEndpoint.stop();
     _sweepTimer?.cancel();
     _sweepTimer = null;
@@ -149,7 +160,6 @@ class McpServerHost {
       await server.close(force: true);
     }
     _token = '';
-    await _discovery.delete();
   }
 
   Future<void> _accept(

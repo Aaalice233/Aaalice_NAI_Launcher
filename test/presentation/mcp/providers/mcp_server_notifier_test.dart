@@ -24,16 +24,24 @@ void main() {
   late List<_FakeMcpServerHost> hosts;
   late List<McpToolExecutor> executors;
 
-  McpServerNotifier build() {
+  McpServerNotifier build({
+    int? bindFailurePort,
+    McpDiscoveryFileStore? discovery,
+  }) {
+    final store = discovery ?? McpDiscoveryFileStore(directory: root);
     return McpServerNotifier(
       container.read(_refProvider),
       hostFactory: (executor, appVersion) {
-        final host = _FakeMcpServerHost(appVersion: appVersion);
+        final host = _FakeMcpServerHost(
+          appVersion: appVersion,
+          discovery: store,
+          bindFailurePort: bindFailurePort,
+        );
         hosts.add(host);
         executors.add(executor);
         return host;
       },
-      discovery: McpDiscoveryFileStore(directory: root),
+      discovery: store,
       settingsStore: settings,
       tokenStore: tokens,
       supportDirectory: root,
@@ -193,23 +201,7 @@ void main() {
   });
 
   test('a bound port reports port_in_use instead of listening', () async {
-    final notifier = McpServerNotifier(
-      container.read(_refProvider),
-      hostFactory: (executor, appVersion) {
-        final host = _FakeMcpServerHost(
-          appVersion: appVersion,
-          bindFailurePort: McpServerDefaults.port,
-        );
-        hosts.add(host);
-        executors.add(executor);
-        return host;
-      },
-      discovery: McpDiscoveryFileStore(directory: root),
-      settingsStore: settings,
-      tokenStore: tokens,
-      supportDirectory: root,
-      notifyApprovalRequested: () async {},
-    );
+    final notifier = build(bindFailurePort: McpServerDefaults.port);
     addTearDown(notifier.dispose);
 
     await notifier.enable();
@@ -219,6 +211,33 @@ void main() {
     expect(notifier.state.errorMessage, isNotNull);
     expect(notifier.state.enabled, isFalse);
     expect(settings.enabledWrites, isEmpty);
+  });
+
+  test('a failed discovery write reports start_failed and retries', () async {
+    final discovery = _FailingDiscoveryStore(root);
+    final notifier = build(discovery: discovery);
+    addTearDown(notifier.dispose);
+
+    await notifier.enable();
+
+    expect(notifier.state.status, McpServerStatus.error);
+    expect(notifier.state.errorCode, 'start_failed');
+    expect(notifier.state.errorMessage, isNotNull);
+    expect(notifier.state.enabled, isFalse);
+    expect(notifier.state.port, isNull);
+    expect(hosts.single.isListening, isFalse);
+    expect(settings.enabledWrites, isEmpty);
+
+    await notifier.disable();
+    expect(notifier.state.status, McpServerStatus.disabled);
+
+    discovery.failWrites = false;
+    await notifier.enable();
+
+    expect(notifier.state.status, McpServerStatus.listening);
+    expect(notifier.state.port, McpServerDefaults.port);
+    expect(hosts.last.startedPort, McpServerDefaults.port);
+    expect(hosts.last.isListening, isTrue);
   });
 
   test('permission mode is persisted and narrows the exposed tools', () async {
@@ -256,9 +275,14 @@ List<String> _toolNames(McpToolExecutor executor) =>
     executor.tools.map((tool) => tool.name).toList();
 
 class _FakeMcpServerHost implements McpServerHost {
-  _FakeMcpServerHost({required this.appVersion, this.bindFailurePort});
+  _FakeMcpServerHost({
+    required this.appVersion,
+    required this.discovery,
+    this.bindFailurePort,
+  });
 
   final String appVersion;
+  final McpDiscoveryFileStore discovery;
   @override
   final imageEndpoint = McpImageHttpEndpoint();
   final int? bindFailurePort;
@@ -303,18 +327,52 @@ class _FakeMcpServerHost implements McpServerHost {
     startedPort = port;
     startedToken = token;
     imageEndpoint.start(endpoint!);
+    try {
+      await discovery.write(
+        McpDiscoveryDocument(
+          port: port,
+          pid: 4242,
+          startedAt: DateTime.utc(2026, 5, 7, 10, 30),
+          token: token,
+          protocolVersions: const ['2025-11-25'],
+          appVersion: appVersion,
+        ),
+      );
+    } catch (_) {
+      _release();
+      rethrow;
+    }
   }
 
+  // dispose() stops the host unawaited, so deleting here would race tearDown.
   @override
   Future<void> stop() async {
     stopCalls += 1;
-    imageEndpoint.stop();
-    startedPort = null;
+    _release();
   }
 
   void emitSessions(List<McpSessionSummary> summaries) {
     _summaries = summaries;
     _sessions.add(summaries);
+  }
+
+  void _release() {
+    imageEndpoint.stop();
+    startedPort = null;
+  }
+}
+
+class _FailingDiscoveryStore extends McpDiscoveryFileStore {
+  _FailingDiscoveryStore(Directory directory) : super(directory: directory);
+
+  bool failWrites = true;
+
+  @override
+  Future<void> write(McpDiscoveryDocument document) async {
+    if (failWrites) {
+      throw const FileSystemException('discovery directory is not writable');
+    }
+    return super.write(document);
   }
 }
 
