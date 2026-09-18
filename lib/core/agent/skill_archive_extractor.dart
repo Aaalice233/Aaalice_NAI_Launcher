@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import 'package:archive/archive_io.dart';
 import 'package:path/path.dart' as p;
 
+import '../utils/zip_archive_entry.dart';
 import 'private_data_guard.dart';
 
 class ExtractedSkillGroup {
@@ -67,30 +68,36 @@ class SkillArchiveExtractor {
           entry.name,
           maxPathDepth: maxPathDepth,
         );
+        final isDirectory = isZipDirectoryEntry(entry);
+        final collisionKey = normalized.toLowerCase();
+        if (!_registerArchivePath(
+          seen,
+          collisionKey,
+          isDirectory: isDirectory,
+        )) {
+          throw FormatException('Colliding archive path: ${entry.name}');
+        }
+        if (isDirectory) continue;
         if (PrivateDataGuard.isSensitiveSkillPath(normalized)) {
           throw FormatException(
             'Sensitive files are not allowed in Skill archives: ${entry.name}',
           );
         }
-        final collisionKey = normalized.toLowerCase();
-        if (!_registerArchivePath(seen, collisionKey, isFile: entry.isFile)) {
-          throw FormatException('Colliding archive path: ${entry.name}');
-        }
-        if (!entry.isFile) continue;
         if (entry.size < 0 || entry.size > fileBytesLimit) {
           throw FormatException(
             '${entry.name} exceeds the per-file size limit.',
           );
         }
         final segments = normalized.split('/');
+        if (segments.length < 2) {
+          throw FormatException(
+            'Each Skill needs its own top-level folder in the archive: '
+            '${entry.name}',
+          );
+        }
         final skillName = segments.first;
         validateSkillArchiveName(skillName);
         final relative = segments.skip(1).join('/');
-        if (relative.isEmpty) {
-          throw const FormatException(
-            'Archive file must be inside a Skill folder.',
-          );
-        }
         final output = File(p.joinAll([outputRoot.path, ...segments]));
         await output.parent.create(recursive: true);
         final sink = _BoundedArchiveOutput(
@@ -155,15 +162,17 @@ class SkillArchiveExtractor {
   bool _registerArchivePath(
     Set<String> seen,
     String path, {
-    required bool isFile,
+    required bool isDirectory,
   }) {
-    final encoded = '${isFile ? 'f' : 'd'}:$path';
+    final encoded = '${isDirectory ? 'd' : 'f'}:$path';
+    // Repeating a directory entry writes nothing, so it stays idempotent.
+    if (isDirectory && seen.contains(encoded)) return true;
     if (seen.any((entry) => entry.substring(2) == path)) return false;
     for (final entry in seen) {
       if (!entry.startsWith('f:')) continue;
       final existingFile = entry.substring(2);
       if (path.startsWith('$existingFile/') ||
-          (isFile && existingFile.startsWith('$path/'))) {
+          (!isDirectory && existingFile.startsWith('$path/'))) {
         return false;
       }
     }
@@ -259,22 +268,32 @@ String validateSkillArchiveEntryPath(
   if (input.isEmpty || input.contains('\u0000')) {
     throw const FormatException('Archive contains an invalid path.');
   }
-  final value = input.replaceAll('\\', '/');
+  var value = input.replaceAll('\\', '/');
   if (value.startsWith('/') || RegExp(r'^[A-Za-z]:').hasMatch(value)) {
     throw FormatException('Absolute archive paths are not allowed: $input');
   }
-  final segments = value.split('/');
-  if (segments.length > maxPathDepth ||
-      segments.any((part) => part.isEmpty || part == '.' || part == '..')) {
-    throw FormatException('Unsafe or overly nested archive path: $input');
+  if (zipEntryNameMarksDirectory(value)) {
+    value = value.substring(0, value.length - 1);
   }
-  return segments.join('/');
+  final segments = value.split('/');
+  if (segments.length > maxPathDepth) {
+    throw FormatException(
+      'Archive path exceeds $maxPathDepth folder levels: $input',
+    );
+  }
+  if (segments.any((part) => part.isEmpty || part == '.' || part == '..')) {
+    throw FormatException('Unsafe archive path: $input');
+  }
+  return value;
 }
 
 void validateSkillArchiveName(String name) {
   if (!RegExp(r'^[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?$').hasMatch(name) ||
       name.contains('--')) {
-    throw FormatException('Invalid Skill name: $name');
+    throw FormatException(
+      'Invalid Skill name "$name": use lowercase letters, digits, '
+      'and single hyphens.',
+    );
   }
 }
 
