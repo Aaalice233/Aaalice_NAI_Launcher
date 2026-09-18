@@ -43,7 +43,7 @@ class FixedTagUsageRecordStore {
     await initialize();
     final fingerprint = snapshot.fingerprint;
     await _writeSnapshot(fingerprint, snapshot.toJson());
-    await _writeUsage(
+    await _writeUsageIfNewer(
       FixedTagUsageRecord(
         contentHash: contentHash,
         fingerprint: fingerprint,
@@ -68,7 +68,7 @@ class FixedTagUsageRecordStore {
     final usage = _decodeUsage(fromHash, _usageBox!.get(fromHash));
     if (usage == null) return;
     if (!_snapshotBox!.containsKey(usage.fingerprint)) return;
-    await _writeUsage(
+    await _writeUsageIfNewer(
       FixedTagUsageRecord(
         contentHash: toHash,
         fingerprint: usage.fingerprint,
@@ -140,8 +140,8 @@ class FixedTagUsageRecordStore {
     return snapshots;
   }
 
-  /// 云同步合并写入：同一哈希以 recordedAt 较新者为准。
-  Future<void> merge({
+  /// 云同步落实目标快照：同一哈希无条件覆盖，让本地等于所选备份。
+  Future<void> applySync({
     Map<String, Map<String, dynamic>> snapshots = const {},
     Iterable<FixedTagUsageRecord> usage = const [],
   }) async {
@@ -178,7 +178,7 @@ class FixedTagUsageRecordStore {
     await _snapshotBox!.put(fingerprint, jsonEncode(snapshot));
   }
 
-  Future<void> _writeUsage(FixedTagUsageRecord record) async {
+  Future<void> _writeUsageIfNewer(FixedTagUsageRecord record) async {
     final existing = _decodeUsage(
       record.contentHash,
       _usageBox!.get(record.contentHash),
@@ -186,6 +186,10 @@ class FixedTagUsageRecordStore {
     if (existing != null && existing.recordedAt.isAfter(record.recordedAt)) {
       return;
     }
+    await _writeUsage(record);
+  }
+
+  Future<void> _writeUsage(FixedTagUsageRecord record) async {
     await _usageBox!.put(
       record.contentHash,
       jsonEncode({

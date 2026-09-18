@@ -116,7 +116,7 @@ class FixedTagUsageCloudSyncAdapter extends ValidatingCloudSyncDataAdapter {
       );
     }
 
-    await _store.merge(snapshots: snapshots, usage: usage);
+    await _store.applySync(snapshots: snapshots, usage: usage);
     for (final contentHash in removedHashes) {
       await _store.removeUsage(contentHash);
     }

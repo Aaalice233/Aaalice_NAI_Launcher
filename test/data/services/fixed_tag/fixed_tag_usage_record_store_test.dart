@@ -125,7 +125,7 @@ void main() {
   });
 
   test(
-    'export and merge round-trip usage with deduplicated snapshots',
+    'export and applySync round-trip usage with deduplicated snapshots',
     () async {
       await store.record(contentHash: _hashA, snapshot: _snapshot);
       await store.record(contentHash: _hashB, snapshot: _snapshot);
@@ -140,14 +140,38 @@ void main() {
       await store.removeUsage(_hashA);
       expect(store.lookup(_hashA), isNull);
 
-      await store.merge(snapshots: snapshots, usage: usage);
+      await store.applySync(snapshots: snapshots, usage: usage);
       expect(store.lookup(_hashA)?.entries.single.fixedTagId, 'fixed-a');
     },
   );
 
-  test('merge refuses usage whose snapshot is unknown', () async {
+  test('applySync overwrites a newer local record', () async {
+    const older = FixedTagUsageSnapshot();
+
+    await store.record(
+      contentHash: _hashA,
+      snapshot: _snapshot,
+      recordedAt: DateTime.utc(2026, 1, 2),
+    );
+    await store.applySync(
+      snapshots: {older.fingerprint: older.toJson()},
+      usage: [
+        FixedTagUsageRecord(
+          contentHash: _hashA,
+          fingerprint: older.fingerprint,
+          recordedAt: DateTime.utc(2026, 1, 1),
+        ),
+      ],
+    );
+
+    final restored = store.lookup(_hashA);
+    expect(restored, isNotNull);
+    expect(restored!.entries, isEmpty);
+  });
+
+  test('applySync refuses usage whose snapshot is unknown', () async {
     await expectLater(
-      store.merge(
+      store.applySync(
         usage: [
           FixedTagUsageRecord(
             contentHash: _hashA,

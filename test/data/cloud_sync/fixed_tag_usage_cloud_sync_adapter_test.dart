@@ -140,16 +140,42 @@ void main() {
     await adapter.preflight([_usageRecord()]);
   });
 
-  test('apply merges by recordedAt and honours usage tombstones', () async {
+  test('apply lands the target usage regardless of recordedAt', () async {
+    const other = FixedTagUsageSnapshot();
+
     await adapter.apply([_snapshotRecord(), _usageRecord(recordedAt: 2000)]);
     expect(store.lookup(_hashA)?.entries.single.fixedTagId, 'fixed-a');
 
-    const other = FixedTagUsageSnapshot();
     await adapter.apply([
       _snapshotRecord(fingerprint: other.fingerprint, snapshot: other.toJson()),
       _usageRecord(fingerprint: other.fingerprint, recordedAt: 1000),
     ]);
+    final restored = store.lookup(_hashA);
+    expect(restored, isNotNull);
+    expect(restored!.entries, isEmpty);
+
+    await adapter.apply([_snapshotRecord(), _usageRecord(recordedAt: 3000)]);
     expect(store.lookup(_hashA)?.entries.single.fixedTagId, 'fixed-a');
+  });
+
+  test('rollback reapplies the earlier target', () async {
+    const other = FixedTagUsageSnapshot();
+
+    await adapter.apply([_snapshotRecord(), _usageRecord(recordedAt: 3000)]);
+    expect(store.lookup(_hashA)?.entries.single.fixedTagId, 'fixed-a');
+
+    await adapter.apply([
+      _snapshotRecord(fingerprint: other.fingerprint, snapshot: other.toJson()),
+      _usageRecord(fingerprint: other.fingerprint, recordedAt: 2000),
+    ]);
+    final rolledBack = store.lookup(_hashA);
+    expect(rolledBack, isNotNull);
+    expect(rolledBack!.entries, isEmpty);
+  });
+
+  test('apply honours usage tombstones', () async {
+    await adapter.apply([_snapshotRecord(), _usageRecord(recordedAt: 2000)]);
+    expect(store.lookup(_hashA), isNotNull);
 
     await adapter.apply([_usageRecord(deleted: true)]);
     expect(store.lookup(_hashA), isNull);
