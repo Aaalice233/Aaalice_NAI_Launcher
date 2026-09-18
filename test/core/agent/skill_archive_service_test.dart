@@ -52,6 +52,164 @@ void main() {
     );
   });
 
+  test('imports an archive that records directory entries', () async {
+    final bytes = _zip([
+      _directory('demo/'),
+      ArchiveFile.string('demo/SKILL.md', _skill('demo', 'Demo skill')),
+      _directory('demo/references/'),
+      ArchiveFile.string('demo/references/guide.md', 'guide'),
+      _directory('demo/references/deep/'),
+      ArchiveFile.string('demo/references/deep/notes.md', 'notes'),
+    ]);
+    final target = Directory('${temp.path}/target');
+
+    final preview = await service.previewImport(
+      bytes: bytes,
+      targetDirectory: target,
+    );
+    expect(preview.items.single.name, 'demo');
+    expect(preview.items.single.fileCount, 3);
+
+    await service.install(bytes: bytes, targetDirectory: target);
+    expect(
+      await File('${target.path}/demo/references/guide.md').readAsString(),
+      'guide',
+    );
+    expect(
+      await File('${target.path}/demo/references/deep/notes.md').readAsString(),
+      'notes',
+    );
+  });
+
+  test('reads a trailing separator as a directory without mode bits', () async {
+    final bytes = _clearZipEntryUnixModes(
+      _zip([
+        ArchiveFile.string('demo/SKILL.md', _skill('demo', 'Demo skill')),
+        _directory('demo/references/'),
+        ArchiveFile.string('demo/references/guide.md', 'guide'),
+      ]),
+    );
+    final target = Directory('${temp.path}/target');
+
+    final preview = await service.previewImport(
+      bytes: bytes,
+      targetDirectory: target,
+    );
+    expect(preview.items.single.fileCount, 2);
+
+    await service.install(bytes: bytes, targetDirectory: target);
+    expect(
+      Directory('${target.path}/demo/references').existsSync(),
+      isTrue,
+    );
+    expect(
+      await File('${target.path}/demo/references/guide.md').readAsString(),
+      'guide',
+    );
+  });
+
+  test('installs the same tree with or without directory entries', () async {
+    List<ArchiveFile> contents() => [
+      ArchiveFile.string('demo/SKILL.md', _skill('demo', 'Demo skill')),
+      ArchiveFile.string('demo/secrets/guide.md', 'guide'),
+    ];
+    final withoutDirectories = _zip(contents());
+    final listed = contents();
+    final withDirectories = _zip([
+      _directory('demo/'),
+      listed.first,
+      _directory('demo/secrets/'),
+      _directory('demo/secrets/'),
+      listed.last,
+    ]);
+
+    final expected = await service.previewImport(
+      bytes: withoutDirectories,
+      targetDirectory: Directory('${temp.path}/plain'),
+    );
+    final actual = await service.previewImport(
+      bytes: withDirectories,
+      targetDirectory: Directory('${temp.path}/listed'),
+    );
+
+    expect(actual.items.single.name, expected.items.single.name);
+    expect(actual.items.single.fileCount, expected.items.single.fileCount);
+    expect(actual.items.single.totalBytes, expected.items.single.totalBytes);
+  });
+
+  test('explains the folder layout that import expects', () async {
+    await expectLater(
+      service.previewImport(
+        bytes: _zip([ArchiveFile.string('SKILL.md', _skill('demo', 'Demo'))]),
+        targetDirectory: Directory('${temp.path}/root-file'),
+      ),
+      throwsA(
+        isA<FormatException>().having(
+          (error) => error.message,
+          'message',
+          contains('top-level folder'),
+        ),
+      ),
+    );
+
+    await expectLater(
+      service.previewImport(
+        bytes: _zip([
+          ArchiveFile.string('Repo-main/demo/SKILL.md', _skill('demo', 'Demo')),
+        ]),
+        targetDirectory: Directory('${temp.path}/wrapped'),
+      ),
+      throwsA(
+        isA<FormatException>().having(
+          (error) => error.message,
+          'message',
+          contains('Invalid Skill name "Repo-main"'),
+        ),
+      ),
+    );
+  });
+
+  test('nests up to the folder depth limit and no further', () async {
+    String path(int folders, String file) => [
+      'demo',
+      for (var index = 0; index < folders; index++) 'level$index',
+      file,
+    ].join('/');
+    const limit = SkillArchiveService.maxPathDepth;
+
+    final deepest = path(limit - 2, 'guide.md');
+    final accepted = await service.previewImport(
+      bytes: _zip([
+        ArchiveFile.string('demo/SKILL.md', _skill('demo', 'Demo skill')),
+        ArchiveFile.string(deepest, 'guide'),
+      ]),
+      targetDirectory: Directory('${temp.path}/deepest'),
+    );
+    expect(accepted.items.single.fileCount, 2);
+
+    for (final entry in [
+      ArchiveFile.string(path(limit - 1, 'guide.md'), 'guide'),
+      _directory('${path(limit - 1, 'tail')}/'),
+    ]) {
+      await expectLater(
+        service.previewImport(
+          bytes: _zip([
+            ArchiveFile.string('demo/SKILL.md', _skill('demo', 'Demo skill')),
+            entry,
+          ]),
+          targetDirectory: Directory('${temp.path}/too-deep'),
+        ),
+        throwsA(
+          isA<FormatException>().having(
+            (error) => error.message,
+            'message',
+            contains('folder levels'),
+          ),
+        ),
+      );
+    }
+  });
+
   test(
     'exports a direct manifest without including neighboring Skills',
     () async {
@@ -431,6 +589,36 @@ Uint8List _zip(List<ArchiveFile> files) {
     archive.addFile(file);
   }
   return Uint8List.fromList(ZipEncoder().encode(archive)!);
+}
+
+ArchiveFile _directory(String name) =>
+    ArchiveFile(name, 0, <int>[])..isFile = false;
+
+Uint8List _clearZipEntryUnixModes(Uint8List bytes) {
+  final data = ByteData.sublistView(bytes);
+  var cursor = _centralDirectoryOffset(data, bytes.length);
+  while (cursor + 46 <= bytes.length &&
+      data.getUint32(cursor, Endian.little) == 0x02014b50) {
+    bytes[cursor + 5] = 3; // ZIP creator OS: Unix.
+    for (var byte = 0; byte < 4; byte++) {
+      bytes[cursor + 38 + byte] = 0;
+    }
+    cursor +=
+        46 +
+        data.getUint16(cursor + 28, Endian.little) +
+        data.getUint16(cursor + 30, Endian.little) +
+        data.getUint16(cursor + 32, Endian.little);
+  }
+  return bytes;
+}
+
+int _centralDirectoryOffset(ByteData data, int length) {
+  for (var offset = length - 22; offset >= 0; offset--) {
+    if (data.getUint32(offset, Endian.little) == 0x06054b50) {
+      return data.getUint32(offset + 16, Endian.little);
+    }
+  }
+  throw StateError('Central directory was not found.');
 }
 
 Uint8List _markZipEntryAsSymbolicLink(Uint8List bytes) {
