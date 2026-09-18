@@ -39,8 +39,9 @@ void main() {
       'parameter_panel_test_',
     );
     Hive.init(hiveTempDir.path);
-    await Hive.openBox(StorageKeys.settingsBox);
-    await Hive.openBox(StorageKeys.historyBox);
+    // 内存后端：落盘写一旦从 widget test 的 FakeAsync 时钟发起就不会完成，会锁死 box
+    await Hive.openBox(StorageKeys.settingsBox, bytes: Uint8List(0));
+    await Hive.openBox(StorageKeys.historyBox, bytes: Uint8List(0));
   });
 
   setUp(() {
@@ -56,7 +57,8 @@ void main() {
   });
 
   tearDownAll(() async {
-    await Hive.close();
+    // 有界等待：box 被锁死时快速失败，不把整个测试分片拖到看门狗超时
+    await Hive.close().timeout(const Duration(seconds: 10));
     if (await hiveTempDir.exists()) {
       await hiveTempDir.delete(recursive: true);
     }
