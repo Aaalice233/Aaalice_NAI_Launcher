@@ -126,6 +126,31 @@ void main() {
     expect(harness.coordinator.current, isNull);
   });
 
+  test('a write cancelled while queued never asks for approval', () async {
+    final controller = AbortController();
+    final first = harness.call('w1', 'set_positive_prompt');
+    await pumpEventQueue();
+    final second = harness.call(
+      'w2',
+      'delete_fixed_tag',
+      signal: controller.signal,
+    );
+    await pumpEventQueue();
+    expect(harness.coordinator.current?.toolCallId, 'w1');
+
+    controller.abort();
+    harness.coordinator.resolve('w1', true);
+    expect((await first).isError, isNot(isTrue));
+
+    final result = await second;
+    expect(result.isError, isTrue);
+    expect(_textOf(result), 'Operation aborted');
+    expect(harness.executed, ['set_positive_prompt']);
+    expect(harness.coordinator.current, isNull);
+    expect(harness.auditIds, contains('w2.result'));
+    expect(harness.auditIds, isNot(contains('w2.decision')));
+  });
+
   test('a second write queues instead of cancelling the first', () async {
     final first = harness.call('w1', 'set_positive_prompt');
     await pumpEventQueue();

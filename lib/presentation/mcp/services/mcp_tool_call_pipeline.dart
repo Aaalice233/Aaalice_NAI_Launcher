@@ -94,6 +94,16 @@ class LauncherMcpToolExecutor implements McpToolExecutor {
     Map<String, dynamic> args,
     McpToolCallRequest request,
   ) async {
+    if (request.signal.aborted) {
+      // 排队等写锁期间被取消：抢在审批卡和提示音之前退出。
+      await _writeAudit(
+        request,
+        stage: 'result',
+        result: AgentPermissionDecision.block,
+        error: 'Operation aborted',
+      );
+      return McpToolAdapter.errorResult('Operation aborted');
+    }
     final toolCall = ToolCallContent(
       id: request.callId,
       name: request.toolName,

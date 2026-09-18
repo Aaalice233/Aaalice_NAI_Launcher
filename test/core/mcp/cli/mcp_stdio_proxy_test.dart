@@ -22,17 +22,45 @@ void main() {
       });
     });
 
+    McpStdioProxy proxyFor(Stream<List<int>> input, {String? token}) =>
+        McpStdioProxy(
+          endpoint: server.endpoint,
+          token: token ?? server.token,
+          input: input,
+          output: output.sink,
+          diagnostics: diagnostics.sink,
+        );
+
     Future<int> runProxy(List<String> stdinLines, {String? token}) {
-      final proxy = McpStdioProxy(
-        endpoint: server.endpoint,
-        token: token ?? server.token,
-        input: Stream<List<int>>.fromIterable(
+      return proxyFor(
+        Stream<List<int>>.fromIterable(
           stdinLines.map((line) => utf8.encode('$line\n')),
         ),
-        output: output.sink,
-        diagnostics: diagnostics.sink,
-      );
-      return proxy.run();
+        token: token,
+      ).run();
+    }
+
+    /// Starts a proxy whose stdin stays open, so a test can interleave lines
+    /// with an in-flight response.
+    (_StdinPipe, Future<int>) startProxy() {
+      final stdin = _StdinPipe();
+      addTearDown(stdin.close);
+      return (stdin, proxyFor(stdin.stream).run());
+    }
+
+    /// Indexes stdout by JSON-RPC id, because concurrent requests answer in
+    /// completion order rather than arrival order.
+    Future<Map<Object?, Map<String, Object?>>> answersById() async => {
+      for (final line in await output.lines())
+        _decode(line)['id']: _decode(line),
+    };
+
+    /// Drops the session only once the handshake is answered; flipping it
+    /// earlier would be undone by the launcher's own initialize handler.
+    Future<void> expireSessionAfterHandshake(_StdinPipe stdin) async {
+      stdin.write(_initialize);
+      await _soon(output.awaitLine((line) => line.contains('"id":1')));
+      server.rejectSession = true;
     }
 
     test(
@@ -96,6 +124,75 @@ void main() {
       );
     });
 
+    test('forwards a cancellation while the call is still pending', () async {
+      server.holdToolCall = Completer<void>();
+      final (stdin, running) = startProxy();
+
+      stdin
+        ..write(_initialize)
+        ..write(_toolsCall);
+      await _soon(server.awaitRequests(_isToolCall));
+      stdin.write(_cancelled);
+      await _soon(server.awaitRequests(_isCancellation));
+
+      expect(server.toolResultWritten, isFalse);
+      server.holdToolCall!.complete();
+      await stdin.close();
+
+      expect(await _soon(running), 0);
+      final lines = await output.lines();
+      expect(lines.map((line) => _decode(line)['id']), [1, null, 4]);
+    });
+
+    test('answers a ping while the call is still pending', () async {
+      server.holdToolCall = Completer<void>();
+      final (stdin, running) = startProxy();
+
+      stdin
+        ..write(_initialize)
+        ..write(_toolsCall);
+      await _soon(server.awaitRequests(_isToolCall));
+      stdin.write(_ping);
+
+      final pong = await _soon(
+        output.awaitLine((line) => line.contains('"id":6')),
+      );
+      expect(_decode(pong)['result'], isNotNull);
+      expect(server.toolResultWritten, isFalse);
+
+      server.holdToolCall!.complete();
+      await stdin.close();
+      expect(await _soon(running), 0);
+    });
+
+    test('a stream that ends without a result answers the id once', () async {
+      server.truncateToolStream = true;
+
+      expect(await _soon(runProxy([_initialize, _toolsCall])), 0);
+
+      final lines = await output.lines();
+      expect(lines, hasLength(3));
+      final failure = _decode(lines.last);
+      expect(failure['id'], 4);
+      final error = failure['error']! as Map<String, Object?>;
+      expect(error['code'], -32000);
+      expect(error['message'], contains('does not retry it'));
+      expect(server.toolExecutions, 1);
+      expect(server.requests.where(_isToolCall), hasLength(1));
+    });
+
+    test('a malformed server-sent event fails only that request', () async {
+      server.malformedToolEvent = true;
+
+      expect(await _soon(runProxy([_initialize, _toolsCall, _toolsList])), 0);
+
+      final answers = await answersById();
+      expect(answers[4]!['error'], isNotNull);
+      expect(answers[3]!['result'], isNotNull);
+      expect(await diagnostics.text(), contains('malformed server-sent event'));
+      expect(server.requests.where(_isToolCall), hasLength(1));
+    });
+
     test('synthesizes a JSON-RPC error when the token is rejected', () async {
       final exitCode = await runProxy([_initialize], token: 'wrong-token');
 
@@ -113,46 +210,63 @@ void main() {
     });
 
     test(
-      'recovers an expired session without exposing another handshake',
+      'a request queued with initialize waits for the new session',
       () async {
-        final proxy = McpStdioProxy(
-          endpoint: server.endpoint,
-          token: server.token,
-          input: _controlledStdin([
-            _initialize,
-            () => server.rejectSession = true,
-            _toolsList,
-            _toolsList,
-          ]),
-          output: output.sink,
-          diagnostics: diagnostics.sink,
-        );
+        final (stdin, running) = startProxy();
 
-        expect(await proxy.run(), 0);
-        final lines = await output.lines();
-        expect(lines, hasLength(3));
-        expect(_decode(lines[1])['result'], isNotNull);
-        expect(_decode(lines[2])['result'], isNotNull);
-        expect(server.requests[2].body, contains('initialize'));
-        expect(server.requests[2].sessionId, isNull);
-        expect(server.requests[2].protocolVersion, isNull);
-        expect(server.requests[3].body, contains('notifications/initialized'));
-        expect(server.requests[4].sessionId, 'session-2');
-        expect(server.requests[5].sessionId, 'session-2');
-        expect(server.deleted, isTrue);
+        stdin
+          ..write(_initialize)
+          ..write(_toolsList);
+        await stdin.close();
+
+        expect(await _soon(running), 0);
+        expect(server.requests[0].body, contains('"method":"initialize"'));
+        expect(server.requests[1].body, contains('"method":"tools/list"'));
+        expect(server.requests[1].sessionId, 'session-1');
+        expect(server.requests[1].protocolVersion, '2025-11-25');
       },
     );
 
-    test('claims the new session when the client re-initializes', () async {
-      final proxy = McpStdioProxy(
-        endpoint: server.endpoint,
-        token: server.token,
-        input: _controlledStdin([_initialize, _initialize, _toolsList]),
-        output: output.sink,
-        diagnostics: diagnostics.sink,
-      );
+    test('concurrent session rejections share one handshake', () async {
+      final (stdin, running) = startProxy();
+      stdin.write(_initialize);
+      await _soon(output.awaitLine((line) => line.contains('"id":1')));
 
-      expect(await proxy.run(), 0);
+      server
+        ..holdSessionRejection = Completer<void>()
+        ..rejectSession = true;
+      stdin
+        ..write(_toolsList)
+        ..write(_toolsListAlt);
+      await _soon(server.awaitRequests(_isToolsList, count: 2));
+      server.holdSessionRejection!.complete();
+      await stdin.close();
+
+      expect(await _soon(running), 0);
+      final handshakes = server.requests.where(_isHandshake).toList();
+      expect(handshakes, hasLength(2));
+      expect(handshakes.last.sessionId, isNull);
+      expect(handshakes.last.protocolVersion, isNull);
+      expect(
+        server.requests.where(
+          (request) => request.body.contains('notifications/initialized'),
+        ),
+        hasLength(1),
+      );
+      final calls = server.requests.where(_isToolsList).toList();
+      expect(calls, hasLength(4));
+      expect(calls.skip(2).map((request) => request.sessionId), [
+        'session-2',
+        'session-2',
+      ]);
+      final answers = await answersById();
+      expect(answers[3]!['result'], isNotNull);
+      expect(answers[5]!['result'], isNotNull);
+      expect(server.deleted, isTrue);
+    });
+
+    test('claims the new session when the client re-initializes', () async {
+      expect(await runProxy([_initialize, _initialize, _toolsList]), 0);
       expect(server.requests[1].body, contains('initialize'));
       expect(server.requests[1].sessionId, isNull);
       expect(server.requests[1].protocolVersion, isNull);
@@ -167,25 +281,14 @@ void main() {
         'a rejected submission executes once after ${sse ? 'SSE' : 'JSON'} recovery',
         () async {
           server.initializeUsingSse = sse;
-          final proxy = McpStdioProxy(
-            endpoint: server.endpoint,
-            token: server.token,
-            input: _controlledStdin([
-              _initialize,
-              () => server.rejectSession = true,
-              _toolsCall,
-            ]),
-            output: output.sink,
-            diagnostics: diagnostics.sink,
-          );
-          expect(await proxy.run(), 0);
+          final (stdin, running) = startProxy();
+          await expireSessionAfterHandshake(stdin);
+          stdin.write(_toolsCall);
+          await stdin.close();
+
+          expect(await _soon(running), 0);
           expect(server.toolExecutions, 1);
-          expect(
-            server.requests.where(
-              (r) => r.body.contains('"method":"tools/call"'),
-            ),
-            hasLength(2),
-          );
+          expect(server.requests.where(_isToolCall), hasLength(2));
           final lines = await output.lines();
           expect(lines, hasLength(3));
           expect(_decode(lines.last)['id'], 4);
@@ -198,36 +301,21 @@ void main() {
       server.expireToolRequests = true;
       expect(await runProxy([_initialize, _toolsCall]), 2);
       expect(server.toolExecutions, 0);
-      expect(
-        server.requests.where((r) => r.body.contains('"method":"initialize"')),
-        hasLength(2),
-      );
-      expect(
-        server.requests.where((r) => r.body.contains('"method":"tools/call"')),
-        hasLength(2),
-      );
+      expect(server.requests.where(_isHandshake), hasLength(2));
+      expect(server.requests.where(_isToolCall), hasLength(2));
       expect(_decode((await output.lines()).last)['error'], isNotNull);
     });
 
     test('failed handshake never replays the rejected submission', () async {
       server.failRecovery = true;
-      final proxy = McpStdioProxy(
-        endpoint: server.endpoint,
-        token: server.token,
-        input: _controlledStdin([
-          _initialize,
-          () => server.rejectSession = true,
-          _toolsCall,
-        ]),
-        output: output.sink,
-        diagnostics: diagnostics.sink,
-      );
-      expect(await proxy.run(), 2);
+      final (stdin, running) = startProxy();
+      await expireSessionAfterHandshake(stdin);
+      stdin.write(_toolsCall);
+      await stdin.close();
+
+      expect(await _soon(running), 2);
       expect(server.toolExecutions, 0);
-      expect(
-        server.requests.where((r) => r.body.contains('"method":"tools/call"')),
-        hasLength(1),
-      );
+      expect(server.requests.where(_isToolCall), hasLength(1));
     });
 
     for (final status in [
@@ -240,22 +328,33 @@ void main() {
           server.toolFailureStatus = status;
           expect(await runProxy([_initialize, _toolsCall]), 0);
           expect(server.toolExecutions, 1);
-          expect(
-            server.requests.where(
-              (r) => r.body.contains('"method":"tools/call"'),
-            ),
-            hasLength(1),
-          );
-          expect(
-            server.requests.where(
-              (r) => r.body.contains('"method":"initialize"'),
-            ),
-            hasLength(1),
-          );
+          expect(server.requests.where(_isToolCall), hasLength(1));
+          expect(server.requests.where(_isHandshake), hasLength(1));
           expect(_decode((await output.lines()).last)['error'], isNotNull);
         },
       );
     }
+
+    test('waits for a pending call before closing the session', () async {
+      server.holdToolCall = Completer<void>();
+      final (stdin, running) = startProxy();
+
+      stdin
+        ..write(_initialize)
+        ..write(_toolsCall);
+      await _soon(server.awaitRequests(_isToolCall));
+      await stdin.close();
+      await pumpEventQueue();
+      expect(server.deleted, isFalse);
+
+      server.holdToolCall!.complete();
+      expect(await _soon(running), 0);
+      final lines = await output.lines();
+      expect(_decode(lines.last)['id'], 4);
+      expect(_decode(lines.last)['result'], isNotNull);
+      expect(server.requests.last.method, 'DELETE');
+      expect(server.deleted, isTrue);
+    });
 
     test('ignores a line that is not a JSON-RPC object', () async {
       final exitCode = await runProxy(['not json', '[1,2,3]', _initialize]);
@@ -304,22 +403,40 @@ const String _initialize =
 const String _notification =
     '{"jsonrpc":"2.0","method":"notifications/initialized"}';
 const String _toolsList = '{"jsonrpc":"2.0","id":3,"method":"tools/list"}';
+const String _toolsListAlt = '{"jsonrpc":"2.0","id":5,"method":"tools/list"}';
+const String _ping = '{"jsonrpc":"2.0","id":6,"method":"ping"}';
+const String _cancelled =
+    '{"jsonrpc":"2.0","method":"notifications/cancelled","params":{"requestId":4}}';
 const String _toolsCall =
     '{"jsonrpc":"2.0","id":4,"method":"tools/call","params":{"name":"submit_generation","arguments":{"preparation_id":"prep-1","confirmed":true}}}';
+
+bool _isHandshake(_RecordedRequest request) =>
+    request.body.contains('"method":"initialize"');
+bool _isToolCall(_RecordedRequest request) =>
+    request.body.contains('"method":"tools/call"');
+bool _isToolsList(_RecordedRequest request) =>
+    request.body.contains('"method":"tools/list"');
+bool _isCancellation(_RecordedRequest request) =>
+    request.body.contains('"method":"notifications/cancelled"');
 
 Map<String, Object?> _decode(String line) =>
     jsonDecode(line) as Map<String, Object?>;
 
-/// Emits stdin lines with interleaved side effects so a test can change the
-/// server's behaviour between two forwarded messages.
-Stream<List<int>> _controlledStdin(List<Object> steps) async* {
-  for (final step in steps) {
-    if (step is String) {
-      yield utf8.encode('$step\n');
-    } else {
-      (step as void Function())();
-    }
-  }
+/// Fails a regression fast instead of letting it eat the whole test budget.
+Future<T> _soon<T>(Future<T> future) =>
+    future.timeout(const Duration(seconds: 10));
+
+/// Stdin the test writes to line by line, so lines can arrive while an earlier
+/// response is still open.
+class _StdinPipe {
+  final StreamController<List<int>> _controller = StreamController<List<int>>();
+
+  Stream<List<int>> get stream => _controller.stream;
+
+  void write(String line) => _controller.add(utf8.encode('$line\n'));
+
+  Future<void> close() =>
+      _controller.isClosed ? Future<void>.value() : _controller.close();
 }
 
 Future<int> _reserveClosedPort() async {
@@ -360,10 +477,16 @@ class _FakeMcpServer {
   final HttpServer _server;
   final String token;
   final List<_RecordedRequest> requests = <_RecordedRequest>[];
+  final List<void Function()> _watchers = <void Function()>[];
   bool rejectSession = false;
   bool expireToolRequests = false;
   bool initializeUsingSse = false;
   bool failRecovery = false;
+  bool truncateToolStream = false;
+  bool malformedToolEvent = false;
+  bool toolResultWritten = false;
+  Completer<void>? holdToolCall;
+  Completer<void>? holdSessionRejection;
   int? toolFailureStatus;
   int toolExecutions = 0;
   bool deleted = false;
@@ -372,6 +495,24 @@ class _FakeMcpServer {
   Uri get endpoint => Uri.parse('http://127.0.0.1:${_server.port}/mcp');
 
   Future<void> close() => _server.close(force: true);
+
+  /// Completes once [count] recorded requests match, before their responses
+  /// are written, so a test can assert on what has not happened yet.
+  Future<void> awaitRequests(
+    bool Function(_RecordedRequest request) matches, {
+    int count = 1,
+  }) {
+    final completer = Completer<void>();
+    void check() {
+      if (!completer.isCompleted && requests.where(matches).length >= count) {
+        completer.complete();
+      }
+    }
+
+    _watchers.add(check);
+    check();
+    return completer.future.whenComplete(() => _watchers.remove(check));
+  }
 
   Future<void> _handle(HttpRequest request) async {
     final body = await utf8.decoder.bind(request).join();
@@ -385,6 +526,9 @@ class _FakeMcpServer {
         body: body,
       ),
     );
+    for (final watcher in [..._watchers]) {
+      watcher();
+    }
     final response = request.response;
     if (request.method == 'DELETE') {
       deleted = true;
@@ -405,6 +549,7 @@ class _FakeMcpServer {
         (rejectSession ||
             (expireToolRequests && message['method'] == 'tools/call') ||
             request.headers.value('Mcp-Session-Id') != 'session-$_sessions')) {
+      await holdSessionRejection?.future;
       response.statusCode = HttpStatus.notFound;
       await _writeJson(response, {
         'jsonrpc': '2.0',
@@ -444,18 +589,7 @@ class _FakeMcpServer {
           await response.close();
           return;
         }
-        await _writeEventStream(response, [
-          {
-            'jsonrpc': '2.0',
-            'method': 'notifications/progress',
-            'params': {'progress': 1, 'total': 2},
-          },
-          {
-            'jsonrpc': '2.0',
-            'id': id,
-            'result': {'isError': false, 'content': <Object?>[]},
-          },
-        ]);
+        await _writeToolCall(response, id);
       default:
         if (id == null) {
           response.statusCode = HttpStatus.accepted;
@@ -468,6 +602,31 @@ class _FakeMcpServer {
           'result': {'tools': <Object?>[]},
         });
     }
+  }
+
+  Future<void> _writeToolCall(HttpResponse response, Object? id) async {
+    _startEventStream(response);
+    _writeEvent(response, {
+      'jsonrpc': '2.0',
+      'method': 'notifications/progress',
+      'params': {'progress': 1, 'total': 2},
+    });
+    await response.flush();
+    await holdToolCall?.future;
+    if (malformedToolEvent) {
+      response.write('event: message\ndata: {"jsonrpc":\n\n');
+      await response.close();
+      return;
+    }
+    if (!truncateToolStream) {
+      toolResultWritten = true;
+      _writeEvent(response, {
+        'jsonrpc': '2.0',
+        'id': id,
+        'result': {'isError': false, 'content': <Object?>[]},
+      });
+    }
+    await response.close();
   }
 
   Future<void> _writeJson(
@@ -483,24 +642,36 @@ class _FakeMcpServer {
     HttpResponse response,
     List<Map<String, Object?>> messages,
   ) async {
+    _startEventStream(response);
+    for (final message in messages) {
+      _writeEvent(response, message);
+    }
+    await response.close();
+  }
+
+  void _startEventStream(HttpResponse response) {
     response.headers.contentType = ContentType(
       'text',
       'event-stream',
       charset: 'utf-8',
     );
     response.write(': keep-alive\n\n');
-    for (final message in messages) {
-      response.write('event: message\ndata: ${jsonEncode(message)}\n\n');
-    }
-    await response.close();
   }
+
+  void _writeEvent(HttpResponse response, Map<String, Object?> message) =>
+      response.write('event: message\ndata: ${jsonEncode(message)}\n\n');
 }
 
 /// Collects everything written to an [IOSink] without touching the process.
 class _MemorySink {
   _MemorySink() {
     _controller = StreamController<List<int>>();
-    _subscription = _controller.stream.listen(_chunks.add);
+    _subscription = _controller.stream.listen((chunk) {
+      _chunks.add(chunk);
+      for (final watcher in [..._watchers]) {
+        watcher();
+      }
+    });
     sink = IOSink(_controller.sink);
   }
 
@@ -508,11 +679,12 @@ class _MemorySink {
   late final StreamSubscription<List<int>> _subscription;
   late final IOSink sink;
   final List<List<int>> _chunks = <List<int>>[];
+  final List<void Function()> _watchers = <void Function()>[];
 
   Future<String> text() async {
     await sink.flush();
     await Future<void>.delayed(Duration.zero);
-    return utf8.decode(_chunks.expand((chunk) => chunk).toList());
+    return _collected;
   }
 
   Future<List<String>> lines() async {
@@ -522,6 +694,30 @@ class _MemorySink {
     }
     return const LineSplitter().convert(collected);
   }
+
+  /// Completes as soon as a matching line is written, so a test can observe
+  /// stdout while another response is still open.
+  Future<String> awaitLine(bool Function(String line) matches) {
+    final completer = Completer<String>();
+    void check() {
+      if (completer.isCompleted) {
+        return;
+      }
+      for (final line in const LineSplitter().convert(_collected)) {
+        if (matches(line)) {
+          completer.complete(line);
+          return;
+        }
+      }
+    }
+
+    _watchers.add(check);
+    check();
+    return completer.future.whenComplete(() => _watchers.remove(check));
+  }
+
+  String get _collected =>
+      utf8.decode(_chunks.expand((chunk) => chunk).toList());
 
   Future<void> dispose() async {
     await sink.close();
