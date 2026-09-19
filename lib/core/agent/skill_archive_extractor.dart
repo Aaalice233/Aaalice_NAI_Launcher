@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
@@ -85,7 +86,8 @@ class SkillArchiveExtractor {
         }
         if (entry.size < 0 || entry.size > fileBytesLimit) {
           throw FormatException(
-            '${entry.name} exceeds the per-file size limit.',
+            '${entry.name} is ${_asMegabytes(entry.size)}, over the '
+            '${_asMegabytes(fileBytesLimit)} per-file limit.',
           );
         }
         final segments = normalized.split('/');
@@ -134,7 +136,12 @@ class SkillArchiveExtractor {
           throw FormatException('${entry.name} failed CRC validation.');
         }
         final data = await output.readAsBytes();
-        PrivateDataGuard.rejectPrivateText(entry.name, data);
+        // 导入时作者的绝对路径不是本机泄露，导出侧仍然拦截。
+        PrivateDataGuard.rejectPrivateText(
+          entry.name,
+          data,
+          allowAbsolutePaths: true,
+        );
         filesBySkill.putIfAbsent(skillName, () => {})[relative] = output;
         bytesBySkill[skillName] = (bytesBySkill[skillName] ?? 0) + sink.length;
       }
@@ -237,13 +244,20 @@ class SkillArchiveExtractor {
       final entryCommentLength = data.getUint16(cursor + 32, Endian.little);
       final unixMode = data.getUint32(cursor + 38, Endian.little) >> 16;
       final isUnixLink = creator == 3 && (unixMode & 0xf000) == 0xa000;
-      if ((flags & 1) != 0 ||
-          isUnixLink ||
-          compressedSize == 0xffffffff ||
-          expandedSize == 0xffffffff ||
-          expandedSize > fileBytesLimit) {
-        throw const FormatException(
-          'Encrypted, linked, ZIP64, or oversized entries are not supported.',
+      final name = _entryName(bytes, cursor + 46, nameLength, endOffset);
+      if ((flags & 1) != 0) {
+        throw FormatException('Encrypted entries are not supported: $name');
+      }
+      if (isUnixLink) {
+        throw FormatException('Symbolic links are not allowed: $name');
+      }
+      if (compressedSize == 0xffffffff || expandedSize == 0xffffffff) {
+        throw FormatException('ZIP64 entries are not supported: $name');
+      }
+      if (expandedSize > fileBytesLimit) {
+        throw FormatException(
+          '$name is ${_asMegabytes(expandedSize)}, over the '
+          '${_asMegabytes(fileBytesLimit)} per-file limit.',
         );
       }
       declaredExpandedBytes += expandedSize;
@@ -260,6 +274,17 @@ class SkillArchiveExtractor {
     }
   }
 }
+
+String _entryName(Uint8List bytes, int start, int length, int limit) {
+  if (length <= 0 || start + length > limit) return '(unnamed entry)';
+  return utf8.decode(
+    bytes.sublist(start, start + length),
+    allowMalformed: true,
+  );
+}
+
+String _asMegabytes(int value) =>
+    '${(value / (1024 * 1024)).toStringAsFixed(2)} MB';
 
 String validateSkillArchiveEntryPath(
   String input, {

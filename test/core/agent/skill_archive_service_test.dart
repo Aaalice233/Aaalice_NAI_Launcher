@@ -477,6 +477,99 @@ void main() {
     }
   });
 
+  test('imports scripts that read credentials from the environment', () async {
+    final bytes = _zip([
+      ArchiveFile.string('demo/SKILL.md', _skill('demo', 'Demo skill')),
+      ArchiveFile.string(
+        'demo/scripts/run.ps1',
+        r'$apiKey = $env:VOLCENGINE_SPEECH_API_KEY' '\n'
+        r'$apiKey = [Environment]::GetEnvironmentVariable("SPEECH_KEY")',
+      ),
+      ArchiveFile.string(
+        'demo/scripts/transcribe.py',
+        'def send(api_key: str, token: str):\n'
+        '    headers = {"X-Api-Key": api_key}\n'
+        '    api_key = os.environ["SPEECH_KEY"]\n'
+        '    password = getenv("PW")\n',
+      ),
+      ArchiveFile.string(
+        'demo/scripts/config.example.json',
+        '{"apiKey": "YOUR_API_KEY", "token": "<your-token>", "secret": ""}',
+      ),
+    ]);
+
+    final preview = await service.previewImport(
+      bytes: bytes,
+      targetDirectory: Directory('${temp.path}/env-scripts'),
+    );
+
+    expect(preview.items.single.fileCount, 4);
+  });
+
+  test('still rejects literal secrets in the same shapes', () async {
+    for (final source in [
+      r'$apiKey = "sk-proj-0123456789abcdefghijklmnop"',
+      'api_key: hunter2hunter2',
+      'Authorization: Bearer abcdefghijklmnopqrst',
+      'client_secret=Zm9vYmFyYmF6cXV1eA==',
+    ]) {
+      await expectLater(
+        service.previewImport(
+          bytes: _zip([
+            ArchiveFile.string('demo/SKILL.md', _skill('demo', 'Demo skill')),
+            ArchiveFile.string('demo/scripts/leak.txt', source),
+          ]),
+          targetDirectory: Directory('${temp.path}/leak'),
+        ),
+        throwsFormatException,
+        reason: '应拦截字面量密钥：$source',
+      );
+    }
+  });
+
+  test('imports absolute paths but refuses to export them', () async {
+    const document = 'See `G:\\AIdarw\\nai5\\NAI-V5-testing-log.md` for notes.';
+    final target = Directory('${temp.path}/absolute');
+    await service.install(
+      bytes: _zip([
+        ArchiveFile.string('demo/SKILL.md', _skill('demo', 'Demo skill')),
+        ArchiveFile.string('demo/references/v5.md', document),
+      ]),
+      targetDirectory: target,
+    );
+    expect(
+      await File('${target.path}/demo/references/v5.md').readAsString(),
+      contains('NAI-V5-testing-log.md'),
+    );
+
+    await expectLater(
+      service.exportSkills([
+        (name: 'demo', manifest: File('${target.path}/demo/SKILL.md')),
+      ]),
+      throwsFormatException,
+    );
+  });
+
+  test('names the oversized file and the limit it exceeded', () async {
+    const constrained = SkillArchiveService(fileBytesLimit: 1024);
+    await expectLater(
+      constrained.previewImport(
+        bytes: _zip([
+          ArchiveFile.string('demo/SKILL.md', _skill('demo', 'Demo skill')),
+          ArchiveFile.string('demo/data/tags.csv', 'x' * 4096),
+        ]),
+        targetDirectory: Directory('${temp.path}/oversized'),
+      ),
+      throwsA(
+        isA<FormatException>().having(
+          (error) => error.message,
+          'message',
+          allOf(contains('demo/data/tags.csv'), contains('per-file limit')),
+        ),
+      ),
+    );
+  });
+
   test('recovers an interrupted multi-Skill replacement on startup', () async {
     final target = Directory('${temp.path}/target')
       ..createSync(recursive: true);
