@@ -121,9 +121,9 @@ extension ProviderPresetDefaults on ProviderPreset {
       case ProviderPreset.openaiResponses:
         return 'OpenAI Responses';
       case ProviderPreset.openaiCompatibleChat:
-        return 'OpenAI-compatible Chat';
+        return 'Custom OpenAI-compatible (Chat)';
       case ProviderPreset.openaiCompatibleResponses:
-        return 'OpenAI-compatible Responses';
+        return 'Custom OpenAI-compatible (Responses)';
       case ProviderPreset.anthropic:
         return 'Anthropic';
       case ProviderPreset.gemini:
@@ -227,9 +227,9 @@ extension ProviderPresetDefaults on ProviderPreset {
       case ProviderPreset.openaiResponses:
         return 'OpenAI Responses';
       case ProviderPreset.openaiCompatibleChat:
-        return 'OpenAI Compatible Chat';
+        return 'Custom OpenAI-compatible Chat';
       case ProviderPreset.openaiCompatibleResponses:
-        return 'OpenAI Compatible Responses';
+        return 'Custom OpenAI-compatible Responses';
       case ProviderPreset.anthropic:
         return 'Anthropic';
       case ProviderPreset.gemini:
