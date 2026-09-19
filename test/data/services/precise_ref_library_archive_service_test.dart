@@ -103,6 +103,20 @@ void main() {
     expect(await storage.getAllEntries(), hasLength(3));
   });
 
+  test('接受记录了目录项的配置包', () async {
+    final path = await _writeArchive(
+      tempDir,
+      resource: 'images/11111111-1111-4111-8111-111111111111.png',
+      fileName: 'listed.naipreciseref',
+      directories: const ['images/'],
+    );
+
+    final imported = (await archives.importFromPath(path)).single;
+
+    expect(imported.name, 'source');
+    expect(await File(imported.imagePath).readAsBytes(), _pngBytes());
+  });
+
   test('完整预检拒绝未知版本且不写入任何条目', () async {
     final path = await _writeArchive(
       tempDir,
@@ -170,6 +184,7 @@ Future<String> _writeArchive(
   required String resource,
   String? shaOverride,
   String fileName = 'invalid.naipreciseref',
+  List<String> directories = const [],
 }) async {
   final bytes = _pngBytes();
   final manifest = utf8.encode(
@@ -195,8 +210,11 @@ Future<String> _writeArchive(
     }),
   );
   final archive = Archive()
-    ..addFile(ArchiveFile('manifest.json', manifest.length, manifest))
-    ..addFile(ArchiveFile(resource, bytes.length, bytes));
+    ..addFile(ArchiveFile('manifest.json', manifest.length, manifest));
+  for (final name in directories) {
+    archive.addFile(ArchiveFile(name, 0, <int>[])..isFile = false);
+  }
+  archive.addFile(ArchiveFile(resource, bytes.length, bytes));
   final path = p.join(directory.path, fileName);
   await File(path).writeAsBytes(ZipEncoder().encode(archive)!);
   return path;
