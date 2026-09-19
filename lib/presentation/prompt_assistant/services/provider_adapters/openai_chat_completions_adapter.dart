@@ -125,6 +125,7 @@ class OpenAiChatCompletionsAdapter extends PromptAssistantProviderAdapter {
     final headers = _agentHeaders(request.apiKey);
     final toolBuffers = <int, _OpenAiToolBuffer>{};
     final toolOrder = <int>[];
+    final emittedToolCallIds = <String>{};
     String? finishReason;
     Usage? usage;
     var sawError = false;
@@ -268,6 +269,10 @@ class OpenAiChatCompletionsAdapter extends PromptAssistantProviderAdapter {
       if (buffer.name.isEmpty) {
         continue;
       }
+      // A repeated provider id is a relay replay; emitting it runs the tool twice.
+      if (buffer.id.isNotEmpty && !emittedToolCallIds.add(buffer.id)) {
+        continue;
+      }
       yield AgentWireToolCallDone(
         id: buffer.id,
         name: buffer.name,
@@ -286,6 +291,7 @@ class OpenAiChatCompletionsAdapter extends PromptAssistantProviderAdapter {
     required CancelToken cancelToken,
   }) async* {
     final payload = _buildAgentPayload(request, stream: false);
+    final emittedToolCallIds = <String>{};
     try {
       final response = await dio.post<dynamic>(
         _resolveEndpoint(request.provider),
@@ -323,11 +329,14 @@ class OpenAiChatCompletionsAdapter extends PromptAssistantProviderAdapter {
                     final rawArgs = function is Map<String, dynamic>
                         ? function['arguments'] as String?
                         : null;
-                    yield AgentWireToolCallDone(
-                      id: call['id'] as String? ?? '',
-                      name: name,
-                      arguments: parseToolArguments(rawArgs),
-                    );
+                    final id = call['id'] as String? ?? '';
+                    if (id.isEmpty || emittedToolCallIds.add(id)) {
+                      yield AgentWireToolCallDone(
+                        id: id,
+                        name: name,
+                        arguments: parseToolArguments(rawArgs),
+                      );
+                    }
                   }
                 }
               }
