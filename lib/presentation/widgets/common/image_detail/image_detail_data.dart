@@ -10,6 +10,33 @@ import '../../../../data/models/fixed_tag/fixed_tag_usage_snapshot.dart';
 import '../../../../data/services/image_metadata_service.dart';
 import '../../../../data/services/metadata/isolate_metadata_service.dart';
 
+/// 原图解码期间的低清占位图。
+///
+/// 【偏离上游】上游 v4.2.1 删掉了落盘缩略图缓存（`ThumbnailCacheService`），
+/// 改成由 `LocalGalleryThumbnailProvider` 按显示尺寸直接解码。那个 provider
+/// 不能拿来当详情页占位：它的解码调度器被
+/// `LocalGalleryThumbnailProvider.setGalleryVisible()` 门控，而详情页也可能从
+/// 生成页/历史面板打开（此时本地图库分支不可见），排进去的解码任务会永远不被
+/// drain，占位图静默卡住。所以这里退回到与调度器无关的标准 provider：
+/// 同一个文件按 [_placeholderMaxDimension] 降采样解码，代价只有全尺寸解码的零头，
+/// 又不会挂在别人的可见性状态上。占位是纯优化，任何失败都静默回退到无占位。
+Future<ImageProvider?> downscaledFilePlaceholder(String path) async {
+  const placeholderMaxDimension = 512;
+  try {
+    final file = File(path);
+    if (!await file.exists()) return null;
+    return ResizeImage(
+      FileImage(file),
+      width: placeholderMaxDimension,
+      height: placeholderMaxDimension,
+      policy: ResizeImagePolicy.fit,
+      allowUpscaling: false,
+    );
+  } catch (_) {
+    return null;
+  }
+}
+
 /// 图像详情数据抽象接口
 ///
 /// 通过适配器模式统一两种数据源：
@@ -19,11 +46,28 @@ abstract class ImageDetailData {
   /// 获取图像提供者（用于显示）
   ImageProvider getImageProvider();
 
+  /// 获取低清占位图（原图解码期间显示，避免长时间黑屏）；没有则返回 null。
+  ///
+  /// 【偏离上游】上游没有这个成员，详情页在原图解码完成前只显示一个转圈。
+  Future<ImageProvider?> getPlaceholderProvider();
+
   /// 获取原始图像字节（用于保存）
   Future<Uint8List> getImageBytes();
 
   /// 获取元数据
   NaiImageMetadata? get metadata;
+
+  /// 异步获取元数据（[metadata] 为空时从图像文件/字节解析兜底）。
+  ///
+  /// 【偏离上游】三个实现类在上游都已经有同名方法，但**不是接口成员**，
+  /// 于是 `detail_metadata_panel.dart:145-165` 只能按具体类型 if/else 分派，
+  /// 而顶栏 `detail_top_bar.dart:55` 干脆只读 [metadata] 这个数据库快照。
+  /// iOS 覆盖安装后应用容器 UUID 变化、快照里的绝对路径全部失效，
+  /// [metadata] 返回 null，「复用参数」按钮会直接从顶栏消失——
+  /// 上游只修了「点了之后能不能用」（`local_gallery_action_coordinator`
+  /// 改走文件级 `resolveLocalGalleryMetadata`），没修「按钮显不显示」。
+  /// 提升为接口成员后 `ImageDetailViewer` 才能统一兜底并把结果回灌给顶栏。
+  Future<NaiImageMetadata?> getMetadataAsync();
 
   /// 是否收藏
   bool get isFavorite;
@@ -113,6 +157,10 @@ class LocalImageDetailData implements ImageDetailData {
   }
 
   @override
+  Future<ImageProvider?> getPlaceholderProvider() =>
+      downscaledFilePlaceholder(record.path);
+
+  @override
   Future<Uint8List> getImageBytes() async {
     return File(record.path).readAsBytes();
   }
@@ -126,6 +174,7 @@ class LocalImageDetailData implements ImageDetailData {
   /// **前台高优先级调用** - 用户主动打开详情页时使用
   ///
   /// 【优化】使用 Isolate 在后台线程解析，避免阻塞 UI
+  @override
   Future<NaiImageMetadata?> getMetadataAsync() async {
     // 1. 先检查已缓存的元数据
     final cachedRecordMetadata = metadata;
@@ -203,6 +252,10 @@ class GeneratedImageDetailData implements ImageDetailData {
     return MemoryImage(imageBytes);
   }
 
+  /// 内存字节没有可降采样的磁盘副本，[MemoryImage] 本身就是唯一来源，无占位。
+  @override
+  Future<ImageProvider?> getPlaceholderProvider() async => null;
+
   @override
   Future<Uint8List> getImageBytes() async {
     return imageBytes;
@@ -216,6 +269,7 @@ class GeneratedImageDetailData implements ImageDetailData {
   ///
   /// **前台高优先级调用** - 用户主动打开详情页时使用
   /// 内存字节直接解析，不受后台队列影响
+  @override
   Future<NaiImageMetadata?> getMetadataAsync() async {
     // 1. 先检查已缓存的元数据
     if (_metadata != null) return _metadata;

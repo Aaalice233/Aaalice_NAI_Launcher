@@ -8,6 +8,7 @@ import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/cache/online_gallery_image_cache_manager.dart';
+import '../../../core/platform/platform_capabilities.dart';
 import '../../../core/services/file_export_service.dart';
 import '../../../core/utils/app_logger.dart';
 import '../../../core/utils/localization_extension.dart';
@@ -201,8 +202,17 @@ class OnlineGalleryDetailLauncher {
             _galleryNotifier.search(tag);
           },
           onBlacklistChanged: () => _galleryNotifier.refresh(),
-          onDownloadAll: (media) =>
-              _downloadGalleryMediaBatch(context, item, media),
+          // 【偏离上游：上游无条件传这个回调】
+          // 「下载全部媒体」要先选一个输出目录再批量写盘，iOS 上
+          // FileExportService.pickExportDirectory 只能返回 null，按钮点了没反应。
+          // GalleryDetailActionRail 已经按 `actions.downloadAll != null` 决定是否
+          // 渲染该项，所以传 null 就是整体隐藏入口，而不是留一个死按钮。
+          // 单张「下载原图」不受影响：它走 FileExportService.saveBytes，
+          // 在 iOS 上是临时文件 + 系统分享面板，对话框仍有可用动作。
+          onDownloadAll:
+              PlatformCapabilities.current.supportsDirectoryBatchExport
+              ? (media) => _downloadGalleryMediaBatch(context, item, media)
+              : null,
           onSendToReverse: (media) =>
               _sendGalleryMediaToReverse(context, item, media),
         ),

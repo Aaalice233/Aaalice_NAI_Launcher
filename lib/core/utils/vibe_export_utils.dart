@@ -8,6 +8,7 @@ import 'package:path/path.dart' as p;
 
 import '../../data/models/vibe/vibe_library_entry.dart';
 import '../../data/models/vibe/vibe_reference.dart';
+import '../platform/platform_capabilities.dart';
 import '../services/file_export_service.dart';
 import 'app_logger.dart';
 import 'file_name_sanitizer.dart';
@@ -175,6 +176,17 @@ class VibeExportUtils {
     final plans = buildEmbeddedPngExportPlans(entries);
     if (plans.isEmpty) {
       AppLogger.e('无法导出 PNG：没有任何 Vibe 拥有可用图片', null, null, 'VibeExport');
+      return const [];
+    }
+
+    // 【偏离上游：上游没有这个前置判断】
+    // 这条链路是「先选一个目录、再往里批量写 PNG」，iOS 上拿不到可长期写入的目录，
+    // FileExportService.pickExportDirectory 会直接返回 null。上游的写法在 iOS 上
+    // 表现为「点了导出，什么都不发生，日志里只有一行用户取消」。
+    // 这里提前判定并打一条可区分的日志，调用方（未来接入的 UI）应先用同一能力位
+    // 隐藏入口，单个导出请改走 exportToEmbeddedPng（iOS 会走系统分享面板）。
+    if (!PlatformCapabilities.current.supportsDirectoryBatchExport) {
+      AppLogger.w('当前平台不支持目录批量导出，已跳过 PNG 批量导出', 'VibeExport');
       return const [];
     }
 

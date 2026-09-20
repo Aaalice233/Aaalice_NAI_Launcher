@@ -5,6 +5,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../core/constants/app_version.dart';
 import '../../../../core/constants/community_links.dart';
+import '../../../../core/platform/platform_capabilities.dart';
 import '../../../../core/services/diagnostic_log_export_service.dart';
 import '../../../../core/services/update_check_service.dart';
 import '../../../../core/storage/local_storage_service.dart';
@@ -13,6 +14,9 @@ import '../../../providers/update_provider.dart';
 import '../../../widgets/common/update_check_dialog.dart';
 import '../widgets/settings_card.dart';
 import '../widgets/settings_page_layout.dart';
+
+/// Release 页面。iOS 侧载版只能从这里取新版 IPA 自行签名。
+const String _releasesPageUrl = '${CommunityLinks.github}/releases';
 
 /// 关于设置板块
 ///
@@ -98,77 +102,92 @@ class _AboutSettingsSectionState extends ConsumerState<AboutSettingsSection> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // 检查更新按钮
-              FutureBuilder<DateTime?>(
-                future: updateService.getLastCheckTime(),
-                builder: (context, snapshot) {
-                  final lastCheckTime = snapshot.data;
-                  return ListTile(
-                    leading: Badge(
-                      isLabelVisible: updateState.hasNewVersion,
-                      smallSize: 7,
-                      child: const Icon(Icons.system_update),
-                    ),
-                    title: Text(context.l10n.checkForUpdate),
-                    subtitle: Text(
-                      updateState.hasDownloadedUpdate
-                          ? context.l10n.updateSettingsReady(
-                              updateState.versionInfo?.displayVersion ?? '',
+              // 【偏离上游】上游无条件渲染「检查更新」与「包含预发布版本」两项。
+              // iOS 是自签侧载：Release 里没有 iOS 资产，检查更新只会失败或把
+              // 桌面/安卓安装包推过来，预发布开关也就失去意义。这里整体换成一个
+              // 指向 Release 页面的外链，用户仍能看到新版说明并自取 IPA 重签。
+              if (!PlatformCapabilities.current.supportsAutomaticUpdateCheck)
+                ListTile(
+                  key: const ValueKey('about-release-page'),
+                  leading: const Icon(Icons.system_update),
+                  title: Text(context.l10n.settings_releasePage),
+                  subtitle: Text(context.l10n.settings_releasePageSubtitle),
+                  trailing: const Icon(Icons.open_in_new),
+                  onTap: () => _openUrl(_releasesPageUrl),
+                )
+              else ...[
+                // 检查更新按钮
+                FutureBuilder<DateTime?>(
+                  future: updateService.getLastCheckTime(),
+                  builder: (context, snapshot) {
+                    final lastCheckTime = snapshot.data;
+                    return ListTile(
+                      leading: Badge(
+                        isLabelVisible: updateState.hasNewVersion,
+                        smallSize: 7,
+                        child: const Icon(Icons.system_update),
+                      ),
+                      title: Text(context.l10n.checkForUpdate),
+                      subtitle: Text(
+                        updateState.hasDownloadedUpdate
+                            ? context.l10n.updateSettingsReady(
+                                updateState.versionInfo?.displayVersion ?? '',
+                              )
+                            : updateState.hasNewVersion
+                            ? context.l10n.updateSettingsAvailable(
+                                updateState.versionInfo?.displayVersion ?? '',
+                              )
+                            : _formatLastCheckTime(context, lastCheckTime),
+                      ),
+                      trailing: updateState.isChecking
+                          ? const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(strokeWidth: 2),
                             )
-                          : updateState.hasNewVersion
-                          ? context.l10n.updateSettingsAvailable(
-                              updateState.versionInfo?.displayVersion ?? '',
-                            )
-                          : _formatLastCheckTime(context, lastCheckTime),
-                    ),
-                    trailing: updateState.isChecking
-                        ? const SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : const Icon(Icons.chevron_right),
-                    onTap: updateState.isChecking
-                        ? null
-                        : () async {
-                            if (updateState.hasNewVersion ||
-                                updateState.hasDownloadedUpdate) {
-                              updateNotifier.showNotification();
-                            } else {
-                              await updateNotifier.checkForUpdates(
-                                manual: true,
-                              );
-                            }
-                            if (context.mounted) {
-                              await UpdateCheckDialog.show(context);
-                            }
-                          },
-                  );
-                },
-              ),
-              // 包含预发布版本开关
-              FutureBuilder<bool>(
-                future: Future.value(updateService.shouldIncludePrerelease()),
-                builder: (context, snapshot) {
-                  final includePrerelease = snapshot.data ?? false;
-                  return SwitchListTile(
-                    secondary: const Icon(Icons.new_releases_outlined),
-                    title: Text(context.l10n.includePrereleaseUpdates),
-                    subtitle: Text(
-                      context.l10n.includePrereleaseUpdatesDescription,
-                    ),
-                    value: includePrerelease,
-                    onChanged: (value) async {
-                      await updateNotifier.setIncludePrerelease(value);
-                      if (mounted) {
-                        setState(
-                          () {},
-                        ); // Force widget rebuild to refresh value
-                      }
-                    },
-                  );
-                },
-              ),
+                          : const Icon(Icons.chevron_right),
+                      onTap: updateState.isChecking
+                          ? null
+                          : () async {
+                              if (updateState.hasNewVersion ||
+                                  updateState.hasDownloadedUpdate) {
+                                updateNotifier.showNotification();
+                              } else {
+                                await updateNotifier.checkForUpdates(
+                                  manual: true,
+                                );
+                              }
+                              if (context.mounted) {
+                                await UpdateCheckDialog.show(context);
+                              }
+                            },
+                    );
+                  },
+                ),
+                // 包含预发布版本开关
+                FutureBuilder<bool>(
+                  future: Future.value(updateService.shouldIncludePrerelease()),
+                  builder: (context, snapshot) {
+                    final includePrerelease = snapshot.data ?? false;
+                    return SwitchListTile(
+                      secondary: const Icon(Icons.new_releases_outlined),
+                      title: Text(context.l10n.includePrereleaseUpdates),
+                      subtitle: Text(
+                        context.l10n.includePrereleaseUpdatesDescription,
+                      ),
+                      value: includePrerelease,
+                      onChanged: (value) async {
+                        await updateNotifier.setIncludePrerelease(value);
+                        if (mounted) {
+                          setState(
+                            () {},
+                          ); // Force widget rebuild to refresh value
+                        }
+                      },
+                    );
+                  },
+                ),
+              ],
             ],
           ),
         ),
@@ -189,6 +208,14 @@ class _AboutSettingsSectionState extends ConsumerState<AboutSettingsSection> {
         ),
       ],
     );
+  }
+
+  /// 打开外部链接
+  Future<void> _openUrl(String url) async {
+    final uri = Uri.parse(url);
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    }
   }
 
   Future<void> _exportDiagnosticLogs() async {

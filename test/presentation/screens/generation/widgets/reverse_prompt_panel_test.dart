@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:image/image.dart' as img;
+import 'package:nai_launcher/core/platform/platform_capabilities.dart';
 import 'package:nai_launcher/presentation/providers/reverse_prompt_provider.dart';
 import 'package:nai_launcher/presentation/screens/generation/widgets/reverse_prompt_panel.dart';
 
@@ -33,6 +34,30 @@ void main() {
     expect(find.text('待添加'), findsNothing);
     expect(find.text('1 张'), findsNothing);
     expect(find.text('保留的反推结果'), findsOneWidget);
+  });
+
+  testWidgets('无外部文件拖放能力的平台上，反推面板提供剪贴板粘贴入口', (tester) async {
+    PlatformCapabilities.debugOverride = PlatformCapabilities.forPlatform(
+      TargetPlatform.iOS,
+    );
+    addTearDown(() => PlatformCapabilities.debugOverride = null);
+
+    final container = createStorageFreeContainer();
+    addTearDown(container.dispose);
+
+    await pumpPanelInLightTheme(
+      tester,
+      container: container,
+      panel: const ReversePromptPanel(),
+    );
+
+    await tester.tap(find.text('反推'));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(const Key('reverse-prompt-panel-paste-from-clipboard')),
+      findsOneWidget,
+    );
   });
 }
 

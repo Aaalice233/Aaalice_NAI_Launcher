@@ -6,6 +6,7 @@ import '../../../../../core/storage/local_storage_service.dart';
 import '../../../../../core/utils/localization_extension.dart';
 import '../../../../../core/watermark/watermark_derivative_registry.dart';
 import '../../../../../data/models/gallery/local_image_record.dart';
+import '../../../../../data/models/gallery/nai_image_metadata.dart';
 import '../../../../providers/local_gallery_provider.dart';
 import '../../../../providers/mosaic_settings_provider.dart';
 import '../../../../providers/watermark_settings_provider.dart';
@@ -25,11 +26,40 @@ class DetailTopBar extends StatelessWidget {
   final VoidCallback? onFavoriteToggle;
   final VoidCallback? onSave;
   final VoidCallback? onCopyImage;
+
+  /// 复制「去除元数据」的副本。
+  ///
+  /// 【偏离上游】上游只有 [onCopyImage] 一个复制动作，是否去元数据取决于
+  /// `shareImageSettingsProvider.effectiveStripMetadataForCopyAndDrag`
+  /// （= `assetProtectionMode && stripMetadataForCopyAndDrag`），
+  /// 而 `assetProtectionMode` 默认 false ——**上游默认的复制是带元数据的**。
+  /// 用户点名要的是「复制永远不带元数据」，所以这里加一个绕过全局开关的
+  /// 常驻动作，把上游那个跟随设置的复制降级成次要入口。
+  final VoidCallback? onCopyImageClean;
+
+  /// 显式保存到系统相册（iOS）。
+  ///
+  /// 【偏离上游】上游 Android 侧是「出图/保存即无条件发布到系统相册」
+  /// （`publishToSystemGallery` 等约 10 个调用点，由
+  /// `PlatformCapabilities.supportsSystemGalleryExport` 统一放行，无设置项可关）。
+  /// 我们的产品决定是保存只写应用自管的本地图库，进系统相册必须由用户主动点，
+  /// 因此这条入口只由 `IosPhotoLibraryService.isSupported` 门控，
+  /// 与 `supportsSystemGalleryExport` 完全解耦。
+  final VoidCallback? onSaveToAlbum;
   final VoidCallback? onShare;
   final VoidCallback? onWatermark;
   final VoidCallback? onMosaic;
   final VoidCallback? onSendToImg2Img;
   final VoidCallback? onSendToReversePrompt;
+
+  /// 兜底解析出来的元数据，优先于 [ImageDetailData.metadata] 这个数据库快照。
+  ///
+  /// 【偏离上游】上游这里直接读 `currentImage.metadata`。那是本地图库数据库里的
+  /// 快照，iOS 覆盖安装后应用容器 UUID 变化、快照里的绝对路径全部失效，
+  /// 快照读回 null，「复用参数」按钮会**直接从顶栏消失**。
+  /// 上游只修了点击之后的行为（改走文件级 `resolveLocalGalleryMetadata`），
+  /// 没修按钮显隐——这是 iOS 特有问题，上游不会修。
+  final NaiImageMetadata? metadataOverride;
 
   const DetailTopBar({
     super.key,
@@ -42,17 +72,20 @@ class DetailTopBar extends StatelessWidget {
     this.onFavoriteToggle,
     this.onSave,
     this.onCopyImage,
+    this.onCopyImageClean,
+    this.onSaveToAlbum,
     this.onShare,
     this.onWatermark,
     this.onMosaic,
     this.onSendToImg2Img,
     this.onSendToReversePrompt,
+    this.metadataOverride,
   });
 
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
-    final metadata = currentImage.metadata;
+    final metadata = metadataOverride ?? currentImage.metadata;
 
     return Container(
       padding: EdgeInsets.only(
@@ -118,6 +151,8 @@ class DetailTopBar extends StatelessWidget {
                 onFavoriteToggle: onFavoriteToggle,
                 onSave: onSave,
                 onCopyImage: onCopyImage,
+                onCopyImageClean: onCopyImageClean,
+                onSaveToAlbum: onSaveToAlbum,
                 onShare: onShare,
                 onWatermark: onWatermark,
                 onMosaic: onMosaic,
@@ -134,6 +169,7 @@ class DetailTopBar extends StatelessWidget {
 
 enum _DetailOverflowAction {
   save,
+  saveToAlbum,
   share,
   favorite,
   reuse,
@@ -153,6 +189,8 @@ class _DetailTopBarActions extends ConsumerWidget {
     this.onFavoriteToggle,
     this.onSave,
     this.onCopyImage,
+    this.onCopyImageClean,
+    this.onSaveToAlbum,
     this.onShare,
     this.onWatermark,
     this.onMosaic,
@@ -167,6 +205,8 @@ class _DetailTopBarActions extends ConsumerWidget {
   final VoidCallback? onFavoriteToggle;
   final VoidCallback? onSave;
   final VoidCallback? onCopyImage;
+  final VoidCallback? onCopyImageClean;
+  final VoidCallback? onSaveToAlbum;
   final VoidCallback? onShare;
   final VoidCallback? onWatermark;
   final VoidCallback? onMosaic;
@@ -230,6 +270,15 @@ class _DetailTopBarActions extends ConsumerWidget {
               title: Text(l10n.common_save),
             ),
           ),
+        // 保存到系统相册：显式动作，固定收进溢出菜单（不与上游的「保存」混淆）
+        if (onSaveToAlbum != null)
+          PopupMenuItem(
+            value: _DetailOverflowAction.saveToAlbum,
+            child: ListTile(
+              leading: const Icon(Icons.photo_library_outlined),
+              title: Text(l10n.image_saveToAlbum),
+            ),
+          ),
         if (veryCompact && onShare != null)
           PopupMenuItem(
             value: _DetailOverflowAction.share,
@@ -278,12 +327,18 @@ class _DetailTopBarActions extends ConsumerWidget {
               title: Text(l10n.detail_sendToReversePrompt),
             ),
           ),
+        // 【偏离上游】上游这条就是唯一的复制入口，且默认带元数据。
+        // 我们把它降级成次要入口并改用明确文案，常驻顶栏的是去元数据版本。
         if (onCopyImage != null)
           PopupMenuItem(
             value: _DetailOverflowAction.copy,
             child: ListTile(
-              leading: const Icon(Icons.copy),
-              title: Text(l10n.shortcut_action_copy_image),
+              leading: const Icon(Icons.copy_all_outlined),
+              title: Text(
+                onCopyImageClean != null
+                    ? l10n.image_copyWithMetadata
+                    : l10n.shortcut_action_copy_image,
+              ),
             ),
           ),
         if (watermarkEnabled && onWatermark != null)
@@ -319,6 +374,15 @@ class _DetailTopBarActions extends ConsumerWidget {
               tooltip: l10n.common_share,
             ),
           if (!veryCompact && favorite != null) favorite,
+          // 【偏离上游】去元数据复制常驻顶栏（含 veryCompact），不进溢出菜单：
+          // 这是用户点名的高频动作，硬传 stripMetadataOverride: true，
+          // 不跟随 shareImageSettingsProvider。
+          if (onCopyImageClean != null)
+            IconButton(
+              icon: const Icon(Icons.copy, color: Colors.white),
+              onPressed: onCopyImageClean,
+              tooltip: l10n.image_copyCleanImage,
+            ),
           if (onShowMetadata != null)
             IconButton(
               icon: const Icon(Icons.info_outline, color: Colors.white),
@@ -334,6 +398,9 @@ class _DetailTopBarActions extends ConsumerWidget {
                 switch (action) {
                   case _DetailOverflowAction.save:
                     onSave?.call();
+                    break;
+                  case _DetailOverflowAction.saveToAlbum:
+                    onSaveToAlbum?.call();
                     break;
                   case _DetailOverflowAction.share:
                     onShare?.call();
@@ -375,6 +442,13 @@ class _DetailTopBarActions extends ConsumerWidget {
             onPressed: onSave,
             tooltip: l10n.common_save,
           ),
+        // 保存到系统相册（宽屏，如 iPad 横屏）：与上面的「保存」是两件事
+        if (onSaveToAlbum != null)
+          IconButton(
+            icon: const Icon(Icons.photo_library_outlined, color: Colors.white),
+            onPressed: onSaveToAlbum,
+            tooltip: l10n.image_saveToAlbum,
+          ),
         if (onShare != null)
           IconButton(
             icon: const Icon(Icons.share_rounded, color: Colors.white),
@@ -414,11 +488,24 @@ class _DetailTopBarActions extends ConsumerWidget {
             onPressed: onSendToReversePrompt,
             tooltip: l10n.detail_sendToReversePrompt,
           ),
-        if (onCopyImage != null)
+        // 【偏离上游】宽屏同时给两个复制按钮：常驻的去元数据版本（用户点名），
+        // 以及上游那个跟随「分享保护」设置的版本。桌面端空间够，不做降级。
+        if (onCopyImageClean != null)
           IconButton(
             icon: const Icon(Icons.copy, color: Colors.white),
+            onPressed: onCopyImageClean,
+            tooltip: l10n.image_copyCleanImage,
+          ),
+        if (onCopyImage != null)
+          IconButton(
+            icon: Icon(
+              onCopyImageClean != null ? Icons.copy_all_outlined : Icons.copy,
+              color: Colors.white,
+            ),
             onPressed: onCopyImage,
-            tooltip: l10n.shortcut_action_copy_image,
+            tooltip: onCopyImageClean != null
+                ? l10n.image_copyWithMetadata
+                : l10n.shortcut_action_copy_image,
           ),
         if (favorite != null) favorite,
       ],

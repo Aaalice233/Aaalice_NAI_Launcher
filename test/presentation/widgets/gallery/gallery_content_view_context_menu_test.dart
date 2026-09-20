@@ -142,14 +142,25 @@ void main() {
             locale: const Locale('en'),
             localizationsDelegates: AppLocalizations.localizationsDelegates,
             supportedLocales: AppLocalizations.supportedLocales,
-            home: Scaffold(
-              body: Align(
-                alignment: Alignment.topLeft,
-                child: LocalImageCard3D(
-                  record: record,
-                  width: 160,
-                  height: 220,
-                  onTap: () => cardTapCount++,
+            // 卡片的操作按钮现在按 precisePointerAvailable 门控（见
+            // local_image_card_3d.dart：iOS 上的合成 hover 会误触缩放与悬浮预览），
+            // 所以这里必须显式声明指针策略，否则默认的 InteractionPolicy.neutral
+            // 会关掉 hover 路径、按钮根本不渲染。
+            home: InteractionPolicyScope(
+              initialPolicy: const InteractionPolicy(
+                modality: InteractionModality.pointer,
+                touchAvailable: false,
+                precisePointerAvailable: true,
+              ),
+              child: Scaffold(
+                body: Align(
+                  alignment: Alignment.topLeft,
+                  child: LocalImageCard3D(
+                    record: record,
+                    width: 160,
+                    height: 220,
+                    onTap: () => cardTapCount++,
+                  ),
                 ),
               ),
             ),

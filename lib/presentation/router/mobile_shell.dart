@@ -201,6 +201,14 @@ class MobileShell extends ConsumerWidget {
     if (mobileIndex < 0 || mobileIndex >= mobileNavigationBranches.length) {
       return;
     }
-    navigationShell.goBranch(mobileNavigationBranches[mobileIndex].index);
+    final branchIndex = mobileNavigationBranches[mobileIndex].index;
+    // 偏离上游：上游这里只有 goBranch(branchIndex)，重按已选中的 Tab 是 no-op，
+    // 从词库/图库的深层子页没有任何一键回到该分支根的入口（移动端没有桌面侧栏
+    // 可以点）。initialLocation 只在「重按当前 Tab」时为 true，切换 Tab 仍按
+    // 上游语义恢复该分支上次的位置。
+    navigationShell.goBranch(
+      branchIndex,
+      initialLocation: branchIndex == navigationShell.currentIndex,
+    );
   }
 }

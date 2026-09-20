@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
@@ -8,6 +10,64 @@ import '../constants/storage_keys.dart';
 import '../platform/platform_capabilities.dart';
 
 part 'local_storage_service.g.dart';
+
+/// 配置导出文件的格式版本。
+///
+/// 0 = ios-v2 时期的无信封扁平 Map（导入侧仍然接受）；
+/// 1 = 当前格式，外层信封含版本号与导出时间。
+const int settingsExportFormatVersion = 1;
+
+/// 词库/固定词的内容类设置键。
+///
+/// 上游云同步把词库正文走独立 adapter，所以它们不在
+/// `portableSettingKeys` / `portablePromptSettingKeys` 里；而"本地配置导入"
+/// 的典型用途恰恰是把 PC 上的固定词与词库整份搬到手机，所以单列一组供调用方
+/// 拼进白名单。内容与 tool/export_content_settings.dart 的 contentKeys 一致，
+/// 改动时两边要一起改。
+const Set<String> contentSettingKeys = <String>{
+  StorageKeys.fixedTagsData,
+  StorageKeys.fixedTagLinksData,
+  StorageKeys.fixedTagCategoriesData,
+  StorageKeys.tagLibraryEntriesData,
+  StorageKeys.tagLibraryCategoriesData,
+};
+
+/// 一份已解析的配置导出文件。
+class SettingsExportFile {
+  const SettingsExportFile({
+    required this.formatVersion,
+    required this.exportedAt,
+    required this.settings,
+  });
+
+  static const String versionField = 'formatVersion';
+  static const String exportedAtField = 'exportedAt';
+  static const String payloadField = 'settings';
+
+  final int formatVersion;
+  final DateTime? exportedAt;
+  final Map<String, dynamic> settings;
+
+  /// 文件来自比当前实现更新的版本，导入前应当提醒用户。
+  bool get isNewerThanSupported => formatVersion > settingsExportFormatVersion;
+}
+
+/// 一次配置导入的结果。
+class SettingsImportResult {
+  const SettingsImportResult({
+    required this.importedKeys,
+    required this.skippedKeys,
+  });
+
+  /// 实际写入的键（已排序）。
+  final List<String> importedKeys;
+
+  /// 因不在白名单内而被跳过的键（已排序）。
+  final List<String> skippedKeys;
+
+  int get importedCount => importedKeys.length;
+  int get skippedCount => skippedKeys.length;
+}
 
 /// 本地存储服务 - 存储非敏感配置数据
 class LocalStorageService {
@@ -41,6 +101,104 @@ class LocalStorageService {
   /// 删除设置
   Future<void> deleteSetting(String key) async {
     await _settingsBox.delete(key);
+  }
+
+  // ==================== 配置导出/导入 ====================
+  //
+  // 偏离上游：v4.2.1 全仓没有 exportSettings / importSettings，上游的配置迁移
+  // 只走云同步（lib/data/cloud_sync/app_cloud_sync_adapters.dart）。云同步在
+  // iOS 上只剩 GitHub / WebDAV 两个 provider 且必须先配好凭据，"把 PC 上的一份
+  // 配置直接搬到手机"这条离线路径没有替代品，所以这一组是我们的纯增量。
+  //
+  // 相对旧实现（ios-v2）加了两道保险：
+  //   1. 导出文件带格式版本号与导出时间，导入端能识别格式、日后能做迁移；
+  //   2. 导入按调用方给出的 key 白名单过滤。v4.2.1 起 StorageKeys 膨胀很多，
+  //      拿一份旧备份逐条 put 覆盖会把新版本才有的键连同窗口几何、设备本地
+  //      路径一起写坏，所以 [allowedKeys] 是必填参数——少传就编译不过，
+  //      不会出现"忘了过滤"的静默失效。
+
+  /// 导出全部设置为 JSON 可编码的 Map（跳过无法编码的值）。
+  ///
+  /// 这里刻意不做白名单过滤：导出文件同时承担"排查问题时的现场快照"，
+  /// 过滤发生在导入侧。
+  Map<String, dynamic> exportSettings() {
+    if (!Hive.isBoxOpen(StorageKeys.settingsBox)) {
+      return const {};
+    }
+    final result = <String, dynamic>{};
+    for (final key in _settingsBox.keys) {
+      final value = _settingsBox.get(key);
+      try {
+        jsonEncode(value);
+        result[key.toString()] = value;
+      } catch (_) {
+        // 非 JSON 可编码的值不参与导出
+      }
+    }
+    return result;
+  }
+
+  /// 构造带版本号信封的导出文档，调用方直接 jsonEncode 写盘即可。
+  Map<String, dynamic> buildSettingsExportDocument() {
+    return <String, dynamic>{
+      SettingsExportFile.versionField: settingsExportFormatVersion,
+      SettingsExportFile.exportedAtField: DateTime.now().toIso8601String(),
+      SettingsExportFile.payloadField: exportSettings(),
+    };
+  }
+
+  /// 解析一份导出文件的 JSON 文本。
+  ///
+  /// 同时接受两种形态：带信封的新格式，以及 ios-v2 时期与
+  /// tool/export_content_settings.dart 产出的扁平 Map（按版本 0 处理）。
+  static SettingsExportFile parseSettingsExport(String source) {
+    final decoded = jsonDecode(source);
+    if (decoded is! Map) {
+      throw const FormatException('settings export root is not an object');
+    }
+    final payload = decoded[SettingsExportFile.payloadField];
+    if (decoded.containsKey(SettingsExportFile.versionField) &&
+        payload is Map) {
+      final rawVersion = decoded[SettingsExportFile.versionField];
+      final exportedAt = decoded[SettingsExportFile.exportedAtField];
+      return SettingsExportFile(
+        formatVersion: rawVersion is int ? rawVersion : 0,
+        exportedAt: exportedAt is String ? DateTime.tryParse(exportedAt) : null,
+        settings: Map<String, dynamic>.from(payload),
+      );
+    }
+    // 旧的扁平格式
+    return SettingsExportFile(
+      formatVersion: 0,
+      exportedAt: null,
+      settings: Map<String, dynamic>.from(decoded),
+    );
+  }
+
+  /// 把导出的设置写回本地，仅接受 [allowedKeys] 中的键。
+  ///
+  /// 返回写入与跳过的明细，供 UI 在导入后如实告诉用户"有多少条没被采纳"。
+  Future<SettingsImportResult> importSettings(
+    Map<String, dynamic> data, {
+    required Set<String> allowedKeys,
+  }) async {
+    final accepted = <String, Object?>{};
+    final skippedKeys = <String>[];
+    for (final entry in data.entries) {
+      if (allowedKeys.contains(entry.key)) {
+        accepted[entry.key] = entry.value;
+      } else {
+        skippedKeys.add(entry.key);
+      }
+    }
+    if (accepted.isNotEmpty) {
+      await _settingsBox.putAll(accepted);
+    }
+    skippedKeys.sort();
+    return SettingsImportResult(
+      importedKeys: accepted.keys.toList()..sort(),
+      skippedKeys: skippedKeys,
+    );
   }
 
   // ==================== Theme ====================

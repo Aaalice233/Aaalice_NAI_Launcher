@@ -333,13 +333,33 @@ class _LocalImageCard3DState extends ConsumerState<LocalImageCard3D> {
       cardContent = widget.dragWrapper!(cardContent);
     }
 
+    // 【偏离上游：上游没有这个门控】
+    // 上游无条件挂 MouseRegion + LocalImageHoverPreview：卡片缩放抬升
+    // （ImageCardFrame.hovered）和 280ms 延时悬浮预览卡都只由 _isHovered 驱动，
+    // 而 _isHovered 只由 MouseRegion 的 enter/exit 设置，没有任何指针类型判断。
+    // 上游之所以在 Android 上没炸，是 card_action_buttons.dart 在
+    // usesTouchActionMenu 时提前返回常驻 more 菜单、根本不读 visible —— 那只盖住了
+    // 按钮显隐这一条，缩放与悬浮预览卡两条至今无门控。
+    // Flutter 的 MouseTracker 只接受 mouse 与 **stylus** 两种设备
+    // （rendering/mouse_tracker.dart 的 kind 过滤），所以 iPad + Apple Pencil 悬停
+    // 会真的触发 enter：手写笔悬停时弹出一张 360pt 宽的预览卡盖住刚要点的图，
+    // 是 iOS 上特有的坏体验。
+    // 这里按 interactionPolicy.precisePointerAvailable 门控：只有本会话确实观察到
+    // 鼠标/触控板才启用 hover 呈现。stylus 在 InteractionPolicy.withPointerDevice
+    // 里归入 touch 且不置该位，因此手写笔悬停不会打开这条路径。
+    // 该位单调递增（只会 false→true，永不回落），所以不存在「先为真后转假」
+    // 把 _isHovered 卡在 true 的残留状态。
+    final pointerHoverEnabled = interactionPolicy.precisePointerAvailable;
     return LocalImageHoverPreview(
       record: widget.record,
-      enabled: !selectionMode,
+      enabled: !selectionMode && pointerHoverEnabled,
       child: MouseRegion(
-        onEnter: _onHoverEnter,
-        onExit: _onHoverExit,
-        cursor: interactive ? SystemMouseCursors.click : MouseCursor.defer,
+        key: const ValueKey('local-image-card-hover-region'),
+        onEnter: pointerHoverEnabled ? _onHoverEnter : null,
+        onExit: pointerHoverEnabled ? _onHoverExit : null,
+        cursor: interactive && pointerHoverEnabled
+            ? SystemMouseCursors.click
+            : MouseCursor.defer,
         child: cardContent,
       ),
     );

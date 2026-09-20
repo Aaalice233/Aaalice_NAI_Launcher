@@ -5,6 +5,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/platform/platform_capabilities.dart';
 import '../../../../core/services/file_export_service.dart';
 import '../../../../core/utils/app_logger.dart';
 import '../../../../core/utils/file_name_sanitizer.dart';
@@ -181,13 +182,41 @@ class _VibeExportDialogState extends ConsumerState<VibeExportDialog> {
         .toList(growable: false);
   }
 
+  /// 【偏离上游：上游没有这个能力位判断】
+  /// `single` 格式在选中多个条目时走的是「先选一个输出目录、再往里逐个写文件」
+  /// （`_exportAsSingleFiles` 里的 `FileExportService.pickExportDirectory`），
+  /// iOS 上该调用只能返回 null，表现为「选好格式点导出，进度条闪一下就没了」。
+  /// 这里把该单选项整体隐藏，而不是留一个必定失败的选项；
+  /// `bundle` 打成单个 .naiv4vibebundle 走 `FileExportService.saveBytes`
+  /// （iOS = 临时文件 + 系统分享面板），所以对话框始终至少有一个可用格式。
+  /// 只选了一个条目时 `single` 仍然保留——那条路径不碰目录选择。
+  bool get _supportsMultiEntrySingleFiles =>
+      PlatformCapabilities.current.supportsDirectoryBatchExport ||
+      _selectedExportEntryCount <= 1;
+
+  /// 与 [_export] 里的过滤口径保持一致，避免 `_selectedEntryIds` 里残留
+  /// 不属于 `widget.entries` 的 id 时数出错误的数量。
+  int get _selectedExportEntryCount =>
+      widget.entries.where((e) => _selectedEntryIds.contains(e.id)).length;
+
   List<VibeExportFormat> get _availableFormats {
     return VibeExportFormat.values
         .where(
           (format) =>
-              format != VibeExportFormat.embeddedPng || _supportsEmbeddedPng,
+              (format != VibeExportFormat.embeddedPng ||
+                  _supportsEmbeddedPng) &&
+              (format != VibeExportFormat.single ||
+                  _supportsMultiEntrySingleFiles),
         )
         .toList(growable: false);
+  }
+
+  /// 选中项变化会让 [_availableFormats] 缩水，已经选中的格式可能就此消失。
+  /// 用这个 getter 统一读取，避免在 build 里 setState 去纠正 [_exportFormat]。
+  /// `bundle` 永远不会被过滤掉，所以 `_availableFormats` 不会为空。
+  VibeExportFormat get _effectiveExportFormat {
+    final formats = _availableFormats;
+    return formats.contains(_exportFormat) ? _exportFormat : formats.first;
   }
 
   void _ensureDefaultCarrierSelection() {
@@ -260,7 +289,8 @@ class _VibeExportDialogState extends ConsumerState<VibeExportDialog> {
 
                       const Divider(height: 24),
 
-                      if (_exportFormat != VibeExportFormat.embeddedPng) ...[
+                      if (_effectiveExportFormat !=
+                          VibeExportFormat.embeddedPng) ...[
                         CheckboxListTile(
                           title: Text(
                             context.l10n.vibe_export_include_thumbnails,
@@ -387,7 +417,7 @@ class _VibeExportDialogState extends ConsumerState<VibeExportDialog> {
     final formats = _availableFormats;
 
     return RadioGroup<VibeExportFormat>(
-      groupValue: _exportFormat,
+      groupValue: _effectiveExportFormat,
       onChanged: (value) {
         if (value != null) {
           _setExportFormat(value);
@@ -402,7 +432,7 @@ class _VibeExportDialogState extends ConsumerState<VibeExportDialog> {
           ),
           const SizedBox(height: 8),
           ...formats.map((format) {
-            final isSelected = _exportFormat == format;
+            final isSelected = _effectiveExportFormat == format;
             return InkWell(
               onTap: () => _setExportFormat(format),
               borderRadius: BorderRadius.circular(8),
@@ -1207,9 +1237,9 @@ class _VibeExportDialogState extends ConsumerState<VibeExportDialog> {
 
     try {
       final bool exported;
-      if (_exportFormat == VibeExportFormat.bundle) {
+      if (_effectiveExportFormat == VibeExportFormat.bundle) {
         exported = await _exportAsBundle(selectedEntries);
-      } else if (_exportFormat == VibeExportFormat.embeddedPng) {
+      } else if (_effectiveExportFormat == VibeExportFormat.embeddedPng) {
         exported = await _exportAsEmbeddedPng(selectedEntries);
       } else {
         exported = await _exportAsSingleFiles(selectedEntries);

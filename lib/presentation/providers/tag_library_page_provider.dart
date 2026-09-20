@@ -306,13 +306,24 @@ class TagLibraryPageNotifier extends _$TagLibraryPageNotifier {
     TagLibraryEntry updatedEntry, {
     bool failOnPersistenceError = false,
   }) async {
+    // 偏离上游：先记下"修改前的内容"再落库。上游只把新条目交给
+    // syncFromTagLibrary，于是同步只能按 sourceEntryId 匹配，手动创建的固定词
+    // 永远收不到词库改名 / 改内容。把旧内容一起带下去，下游才能按内容认领它们
+    // 并补写关联。注意必须在 updateEntryWithoutSync 之前读，那之后 state 已是新值。
+    final previousIndex = state.entries.indexWhere(
+      (e) => e.id == updatedEntry.id,
+    );
+    final previousContent = previousIndex == -1
+        ? null
+        : state.entries[previousIndex].content;
+
     await updateEntryWithoutSync(
       updatedEntry,
       failOnPersistenceError: failOnPersistenceError,
     );
 
     // 【新增】同步更新关联的固定词
-    await _syncToFixedTags(updatedEntry);
+    await _syncToFixedTags(updatedEntry, previousContent: previousContent);
   }
 
   /// 【新增】更新条目（不带同步）
@@ -360,11 +371,18 @@ class TagLibraryPageNotifier extends _$TagLibraryPageNotifier {
 
   /// 【新增】同步更新关联的固定词
   ///
-  /// 当词库条目更新时，自动更新所有 sourceEntryId 匹配的固定词
-  Future<void> _syncToFixedTags(TagLibraryEntry entry) async {
+  /// 当词库条目更新时，自动更新所有 sourceEntryId 匹配的固定词。
+  /// [previousContent] 见 [updateEntry]：用于认领未关联但内容一致的手动固定词。
+  Future<void> _syncToFixedTags(
+    TagLibraryEntry entry, {
+    String? previousContent,
+  }) async {
     try {
       final fixedTagsNotifier = ref.read(fixedTagsNotifierProvider.notifier);
-      await fixedTagsNotifier.syncFromTagLibrary(entry);
+      await fixedTagsNotifier.syncFromTagLibrary(
+        entry,
+        previousContent: previousContent,
+      );
     } catch (e) {
       AppLogger.w('Failed to sync to fixed tags: $e', 'TagLibraryPage');
     }

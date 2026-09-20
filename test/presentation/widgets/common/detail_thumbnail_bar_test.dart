@@ -89,6 +89,14 @@ class _TestImageDetailData implements ImageDetailData {
   @override
   ImageProvider<Object> getImageProvider() => provider;
 
+  // ImageDetailData 新增的两个接口成员：顶栏按钮的显隐要接住异步兜底解析的结果
+  // （DB 快照在 iOS 覆盖安装后会失效），缩略图条用不上，给空实现即可。
+  @override
+  Future<ImageProvider<Object>?> getPlaceholderProvider() async => null;
+
+  @override
+  Future<NaiImageMetadata?> getMetadataAsync() async => null;
+
   @override
   Future<Uint8List> getImageBytes() async => Uint8List(0);
 

@@ -533,6 +533,13 @@ class LocalGalleryContentView extends ConsumerWidget {
   final bool use3DCardView;
   final int columns;
   final double itemWidth;
+
+  /// 全屏查看器（[ImageDetailCallbacks.onReuseMetadata]）专用的「复用参数」。
+  ///
+  /// 【偏离上游】这条回调**只**喂查看器，调用方传进来的实现走的是
+  /// 「成功后只弹 toast、不跳生成页」的分支；列表卡片菜单的「复用参数」
+  /// 走 [onSendAction] / [LocalImageContextAction.importMetadata]，仍是上游默认跳转。
+  /// 想给列表入口加行为时别复用这个字段。
   final void Function(LocalImageRecord record)? onReuseMetadata;
   final void Function(LocalImageRecord record, Offset position)? onContextMenu;
   final Future<void> Function(

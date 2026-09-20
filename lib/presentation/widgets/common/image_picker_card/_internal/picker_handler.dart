@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import 'package:file_picker/file_picker.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 
+import '../../../../../core/platform/platform_capabilities.dart';
 import '../image_picker_result.dart';
 
 /// FilePicker 调用封装
@@ -120,11 +121,26 @@ class PickerHandler {
   }
 
   /// 选择目录
+  ///
+  /// 【偏离上游】上游在这里无条件调 `FilePicker.platform.getDirectoryPath`。
+  /// iOS 上该调用返回的是一次性的 security-scoped 路径：本次运行内还能读，
+  /// 进程重启后就失去授权，而调用方（`ImagePickerCard.onDirectorySelected`）
+  /// 拿到的是要长期保存的目录字符串——界面会显示「已配置」，实际扫不到任何文件。
+  ///
+  /// 门控选的是 [PlatformCapabilities.supportsDirectoryBatchExport]（`!isIOS`）
+  /// 而不是 [PlatformCapabilities.supportsCustomStorageDirectories]（`isDesktop`）：
+  /// 上面这条失效原因是 iOS 独有的，Android 的 `getDirectoryPath` 走 SAF
+  /// 仍然可用；用 `isDesktop` 会顺手把 Android 也关掉，那是本次任务之外的行为变更。
+  /// 返回 null 等价于「用户取消」，调用方既有的 `if (path != null)` 分支直接兜住；
+  /// 但入口按钮本身应由上层用同一能力位隐藏，不要留一个点了没反应的按钮。
   static Future<String?> pickDirectory({
     required AppLocalizations l10n,
     String? dialogTitle,
     void Function(String)? onError,
   }) async {
+    if (!PlatformCapabilities.current.supportsDirectoryBatchExport) {
+      return null;
+    }
     try {
       final path = await FilePicker.platform.getDirectoryPath(
         dialogTitle: dialogTitle,

@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:markdown/markdown.dart' as md;
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../../core/constants/community_links.dart';
 import '../../../core/platform/platform_capabilities.dart';
 import '../../../core/services/update_check_service.dart';
 import '../../../core/utils/byte_format.dart';
@@ -16,6 +17,20 @@ import '../../providers/queue_execution_provider.dart';
 import '../../providers/update_provider.dart';
 import 'adaptive_dialog_frame.dart';
 import 'app_toast.dart';
+
+/// Release 页面。iOS 侧载版只能从这里取新版 IPA 自行签名。
+const String _releasesPageUrl = '${CommunityLinks.github}/releases';
+
+/// 当前平台是否存在可用的应用内更新通道。
+///
+/// 【偏离上游】上游这个文件里只有 `requiresExternalInstallerFlow`（= isAndroid）
+/// 用来区分「Android 交系统安装器」与「Windows 就地替换」，没有任何一路判断
+/// 会考虑「根本没有本平台安装包」的情况。
+///
+/// 判定必须写成「**iOS 才禁用**」而不是「非 Windows 就禁用」：上游 4.x 新增了
+/// Android APK 应用内安装，后者会误伤 Android。
+bool get _hasInAppUpdateChannel =>
+    PlatformCapabilities.current.supportsAutomaticUpdateCheck;
 
 /// 更新检查弹窗组件
 ///
@@ -225,7 +240,19 @@ class UpdateCheckDialog extends ConsumerWidget {
                   ],
                 ),
               ),
-            if (versionInfo.primaryAsset != null) ...[
+            // 【偏离上游】上游无条件展示 primaryAsset 卡片。iOS 上这张卡描述的
+            // 一定是桌面/安卓包（本平台没有发布资产），展示它等于诱导用户在
+            // Safari 里下一个装不上的文件，改为只指向 Release 页面。
+            if (!_hasInAppUpdateChannel) ...[
+              const SizedBox(height: 8),
+              ListTile(
+                key: const ValueKey('update-manual-release-hint'),
+                contentPadding: EdgeInsets.zero,
+                leading: const Icon(Icons.open_in_new),
+                title: Text(context.l10n.goToDownload),
+                subtitle: Text(context.l10n.updatePortableManualHint),
+              ),
+            ] else if (versionInfo.primaryAsset != null) ...[
               const SizedBox(height: 8),
               ListTile(
                 contentPadding: EdgeInsets.zero,
@@ -566,6 +593,10 @@ class UpdateCheckDialog extends ConsumerWidget {
           horizontal: 10,
           vertical: 7,
         ),
+        // flutter_markdown_plus 只在列宽为 Fixed/Intrinsic 时才给表格套横向滚动
+        // 容器；上游只设了 tableScrollbarThumbVisibility，保持默认的
+        // FlexColumnWidth 会让窄屏表格逐字换行，滚动条设置形同虚设。
+        tableColumnWidth: const IntrinsicColumnWidth(),
         tableScrollbarThumbVisibility: true,
         horizontalRuleDecoration: BoxDecoration(
           border: Border(top: BorderSide(color: colorScheme.outlineVariant)),
@@ -728,7 +759,7 @@ class UpdateCheckDialog extends ConsumerWidget {
         FilledButton(
           onPressed: () async {
             final versionInfo = state.versionInfo;
-            if (versionInfo?.supportsInAppInstall == true) {
+            if (_supportsInAppInstall(versionInfo)) {
               await ref.read(updateStateProvider.notifier).downloadUpdate();
               return;
             }
@@ -738,7 +769,7 @@ class UpdateCheckDialog extends ConsumerWidget {
             }
           },
           child: Text(
-            state.versionInfo?.supportsInAppInstall == true
+            _supportsInAppInstall(state.versionInfo)
                 ? context.l10n.updateDownload
                 : context.l10n.goToDownload,
           ),
@@ -795,8 +826,7 @@ class UpdateCheckDialog extends ConsumerWidget {
             // 否则重新走检查更新流程。
             if (state.downloadedUpdate != null) {
               _confirmInstall(context, ref);
-            } else if (state.versionInfo != null &&
-                state.versionInfo!.supportsInAppInstall) {
+            } else if (_supportsInAppInstall(state.versionInfo)) {
               notifier.downloadUpdate();
             } else {
               notifier.checkForUpdates(manual: true);
@@ -870,11 +900,24 @@ class UpdateCheckDialog extends ConsumerWidget {
     }
   }
 
+  /// 是否真的可以走应用内下载+安装。
+  ///
+  /// 【偏离上游】上游直接读 `versionInfo.supportsInAppInstall`，该字段只反映
+  /// 「这个资产能不能装」，不反映「本平台有没有资产」。iOS 上 primaryAsset 已被
+  /// `GitHubApiService._findPlatformAsset` 置空，但一旦哪天兜底又把桌面包匹配
+  /// 进来，按这个字段走下载分支就必然抛异常且重试无解——这里再挡一层。
+  bool _supportsInAppInstall(VersionInfo? versionInfo) =>
+      _hasInAppUpdateChannel && versionInfo?.supportsInAppInstall == true;
+
   Future<void> _openDownloadUrl(
     BuildContext context,
     VersionInfo? versionInfo,
   ) async {
-    final url = versionInfo?.downloadUrl ?? versionInfo?.htmlUrl;
+    // 【偏离上游】上游优先用 downloadUrl（= 某个具体安装包的直链）。
+    // iOS 上那个直链指向桌面资产，只能打开 Release 页面让用户自取 IPA 重新签名。
+    final url = _hasInAppUpdateChannel
+        ? (versionInfo?.downloadUrl ?? versionInfo?.htmlUrl)
+        : (versionInfo?.htmlUrl ?? _releasesPageUrl);
     if (url == null) return;
 
     final uri = Uri.parse(url);

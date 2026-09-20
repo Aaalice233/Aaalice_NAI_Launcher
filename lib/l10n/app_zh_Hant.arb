@@ -7341,5 +7341,100 @@
   "onlineGallery_tagContextMenuTooltipTouch": "長按可加入黑名單或輸出過濾",
   "@onlineGallery_tagContextMenuTooltipTouch": {
       "description": "Tooltip for a tag chip on touch devices, where there is no right-click; mirrors onlineGallery_tagContextMenuTooltip."
+  },
+  "image_albumPermissionDenied": "相簿權限遭拒。請在「設定 > 隱私權 > 照片」中允許本應用程式「僅加入照片」。",
+  "@image_albumPermissionDenied": {
+      "description": "Toast shown when the user denied the add-only photo library permission."
+  },
+  "image_copyCleanImage": "複製圖片（移除中繼資料）",
+  "@image_copyCleanImage": {
+      "description": "Persistent image-detail top bar action that always copies a metadata-free copy, bypassing the global asset protection setting."
+  },
+  "image_copyWithMetadata": "複製圖片（含中繼資料）",
+  "@image_copyWithMetadata": {
+      "description": "Secondary image-detail copy action that follows the global share protection setting."
+  },
+  "image_saveToAlbum": "儲存至相簿",
+  "@image_saveToAlbum": {
+      "description": "Explicit user-triggered action that writes the current image to the system photo library (iOS only)."
+  },
+  "image_saveToAlbumFailed": "儲存至相簿失敗：{error}",
+  "@image_saveToAlbumFailed": {
+      "description": "Toast shown when writing to the system photo library failed. {error} is the underlying error description.",
+      "placeholders": {
+          "error": {}
+      }
+  },
+  "image_savedToAlbum": "已儲存至相簿",
+  "@image_savedToAlbum": {
+      "description": "Toast shown after the image was written to the system photo library."
+  },
+  "more_switchTheme": "切換主題",
+  "@more_switchTheme": {
+      "description": "Mobile \"more\" panel entry that toggles between the default dark theme and the Bold Retro light theme in one tap."
+  },
+  "settings_configExportFailed": "匯出設定失敗",
+  "@settings_configExportFailed": {
+      "description": "Error toast prefix when the configuration export fails; the underlying error text is appended in code."
+  },
+  "settings_configExported": "設定已匯出",
+  "@settings_configExported": {
+      "description": "Success toast after writing the configuration export file."
+  },
+  "settings_configImportFailed": "匯入設定失敗",
+  "@settings_configImportFailed": {
+      "description": "Error toast prefix when the configuration import fails; the underlying error text is appended in code."
+  },
+  "settings_configImported": "設定已匯入",
+  "@settings_configImported": {
+      "description": "Success toast after importing a configuration file; the applied/skipped counts are appended in code."
+  },
+  "settings_exportConfig": "匯出設定",
+  "@settings_exportConfig": {
+      "description": "Storage settings tile that writes every local app setting to a JSON file. Local (offline) counterpart of cloud sync, which needs GitHub/WebDAV credentials before it can move a config between devices."
+  },
+  "settings_exportConfigSubtitle": "把本機設定儲存為 JSON 檔案，可帶到另一台裝置",
+  "@settings_exportConfigSubtitle": {
+      "description": "Subtitle for settings_exportConfig."
+  },
+  "settings_importConfig": "匯入設定",
+  "@settings_importConfig": {
+      "description": "Storage settings tile that restores settings from a previously exported JSON file."
+  },
+  "settings_importConfigConfirmMessage": "檔案裡的同名設定會覆寫本機目前值。本版本不認識的項目會被略過，視窗大小、儲存路徑等裝置本機值不會被匯入。 匯入的設定需要重新啟動應用程式後才會生效。",
+  "@settings_importConfigConfirmMessage": {
+      "description": "Body of the import confirmation dialog, explaining the allow-list filtering."
+  },
+  "settings_importConfigConfirmTitle": "確認覆寫本機設定？",
+  "@settings_importConfigConfirmTitle": {
+      "description": "Title of the confirmation dialog shown before a configuration import is applied."
+  },
+  "settings_importConfigNewerFormat": "此檔案來自較新版本的應用程式，部分項目可能無法套用。",
+  "@settings_importConfigNewerFormat": {
+      "description": "Extra warning line in the import confirmation dialog when the export file's format version is newer than this build supports."
+  },
+  "settings_importConfigSubtitle": "從匯出的 JSON 檔案還原設定",
+  "@settings_importConfigSubtitle": {
+      "description": "Subtitle for settings_importConfig."
+  },
+  "settings_localOnnxTaggerFolderIosHint": "用「檔案」App 放入模型：我的 iPhone → NAI Launcher → tagger_models（.onnx 與詞表檔案），點右側圖示開啟該資料夾",
+  "@settings_localOnnxTaggerFolderIosHint": {
+      "description": "iOS-only subtitle for the local ONNX tagger model folder tile, explaining that models are dropped into Documents/tagger_models through the Files app."
+  },
+  "settings_pathFixedIosHint": "iOS 沙盒限制：該目錄固定在應用程式內，無法變更",
+  "@settings_pathFixedIosHint": {
+      "description": "iOS replacement for settings_androidManagedStorage on the image save / Vibe library / Hive storage path tiles."
+  },
+  "settings_releasePage": "前往 GitHub Release 頁",
+  "@settings_releasePage": {
+      "description": "About settings entry shown instead of the update checker on platforms without an in-app update channel (iOS sideload)."
+  },
+  "settings_releasePageSubtitle": "查看新版本說明並下載 IPA，需自行重新簽名安裝",
+  "@settings_releasePageSubtitle": {
+      "description": "Subtitle for settings_releasePage."
+  },
+  "vibe_export_internalVibeBatchUnsupported": "目前平台無法匯出到資料夾，請一次只選擇一個內部 Vibe。",
+  "@vibe_export_internalVibeBatchUnsupported": {
+      "description": "Validation message in the advanced vibe export dialog when several internal vibes are selected on a platform without directory batch export (iOS)."
   }
 }

@@ -15266,4 +15266,87 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get onlineGallery_tagContextMenuTooltipTouch =>
       'Long-press to add to the blacklist or output filter';
+
+  @override
+  String get image_albumPermissionDenied =>
+      'Photos access was denied. Allow \"Add Photos Only\" for this app in Settings > Privacy > Photos.';
+
+  @override
+  String get image_copyCleanImage => 'Copy image (metadata removed)';
+
+  @override
+  String get image_copyWithMetadata => 'Copy image (with metadata)';
+
+  @override
+  String get image_saveToAlbum => 'Save to Photos';
+
+  @override
+  String image_saveToAlbumFailed(Object error) {
+    return 'Failed to save to Photos: $error';
+  }
+
+  @override
+  String get image_savedToAlbum => 'Saved to Photos';
+
+  @override
+  String get more_switchTheme => 'Switch Theme';
+
+  @override
+  String get settings_configExportFailed =>
+      'Could not export the configuration';
+
+  @override
+  String get settings_configExported => 'Configuration exported';
+
+  @override
+  String get settings_configImportFailed =>
+      'Could not import the configuration';
+
+  @override
+  String get settings_configImported => 'Configuration imported';
+
+  @override
+  String get settings_exportConfig => 'Export configuration';
+
+  @override
+  String get settings_exportConfigSubtitle =>
+      'Save the local settings to a JSON file you can carry to another device';
+
+  @override
+  String get settings_importConfig => 'Import configuration';
+
+  @override
+  String get settings_importConfigConfirmMessage =>
+      'Matching settings in this file replace the ones on this device. Entries this version does not recognise are skipped, and device-local values such as window size and storage paths are never imported. Imported values take effect after you restart the app.';
+
+  @override
+  String get settings_importConfigConfirmTitle =>
+      'Overwrite the settings on this device?';
+
+  @override
+  String get settings_importConfigNewerFormat =>
+      'This file was exported by a newer version of the app. Some entries may not be applied.';
+
+  @override
+  String get settings_importConfigSubtitle =>
+      'Restore settings from an exported JSON file';
+
+  @override
+  String get settings_localOnnxTaggerFolderIosHint =>
+      'Add models via the Files app: On My iPhone → NAI Launcher → tagger_models (.onnx plus label files). Tap the folder icon to open it';
+
+  @override
+  String get settings_pathFixedIosHint =>
+      'iOS sandbox: this folder is fixed inside the app and cannot be changed';
+
+  @override
+  String get settings_releasePage => 'Open GitHub Releases';
+
+  @override
+  String get settings_releasePageSubtitle =>
+      'Read the release notes and download the IPA — you must re-sign it yourself';
+
+  @override
+  String get vibe_export_internalVibeBatchUnsupported =>
+      'This platform cannot export to a folder. Select one internal vibe at a time.';
 }

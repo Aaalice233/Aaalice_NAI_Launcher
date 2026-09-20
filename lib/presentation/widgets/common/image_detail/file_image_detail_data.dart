@@ -65,6 +65,10 @@ class FileImageDetailData implements ImageDetailData {
   }
 
   @override
+  Future<ImageProvider?> getPlaceholderProvider() =>
+      downscaledFilePlaceholder(filePath);
+
+  @override
   Future<Uint8List> getImageBytes() async {
     if (_cachedBytes != null) {
       return _cachedBytes;
@@ -88,6 +92,7 @@ class FileImageDetailData implements ImageDetailData {
   ///
   /// **前台高优先级调用** - 用户主动打开详情页时使用
   /// 不受后台预加载队列影响，立即开始解析
+  @override
   Future<NaiImageMetadata?> getMetadataAsync() async {
     AppLogger.i(
       '[MetadataFlow] getMetadataAsync START: path=$filePath',

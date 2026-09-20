@@ -14595,6 +14595,81 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get onlineGallery_tagContextMenuTooltipTouch => '长按可加入黑名单或输出过滤';
+
+  @override
+  String get image_albumPermissionDenied =>
+      '相册权限被拒绝。请在「设置 > 隐私 > 照片」中允许本应用「仅添加照片」。';
+
+  @override
+  String get image_copyCleanImage => '复制图片（去除元数据）';
+
+  @override
+  String get image_copyWithMetadata => '复制图片（含元数据）';
+
+  @override
+  String get image_saveToAlbum => '保存到相册';
+
+  @override
+  String image_saveToAlbumFailed(Object error) {
+    return '保存到相册失败：$error';
+  }
+
+  @override
+  String get image_savedToAlbum => '已保存到相册';
+
+  @override
+  String get more_switchTheme => '切换主题';
+
+  @override
+  String get settings_configExportFailed => '导出配置失败';
+
+  @override
+  String get settings_configExported => '配置已导出';
+
+  @override
+  String get settings_configImportFailed => '导入配置失败';
+
+  @override
+  String get settings_configImported => '配置已导入';
+
+  @override
+  String get settings_exportConfig => '导出配置';
+
+  @override
+  String get settings_exportConfigSubtitle => '把本机设置保存为 JSON 文件，可带到另一台设备';
+
+  @override
+  String get settings_importConfig => '导入配置';
+
+  @override
+  String get settings_importConfigConfirmMessage =>
+      '文件里的同名设置会覆盖本机当前值。本版本不认识的条目会被跳过，窗口大小、存储路径等设备本地值不会被导入。 导入的设置需要重启应用后才会生效。';
+
+  @override
+  String get settings_importConfigConfirmTitle => '确认覆盖本机设置？';
+
+  @override
+  String get settings_importConfigNewerFormat => '该文件来自更新版本的应用，部分条目可能无法应用。';
+
+  @override
+  String get settings_importConfigSubtitle => '从导出的 JSON 文件恢复设置';
+
+  @override
+  String get settings_localOnnxTaggerFolderIosHint =>
+      '用「文件」App 放入模型：我的 iPhone → NAI Launcher → tagger_models（.onnx 与词表文件），点右侧图标打开该文件夹';
+
+  @override
+  String get settings_pathFixedIosHint => 'iOS 沙盒限制：该目录固定在应用内，不能更改';
+
+  @override
+  String get settings_releasePage => '前往 GitHub Release 页';
+
+  @override
+  String get settings_releasePageSubtitle => '查看新版本说明并下载 IPA，需自行重新签名安装';
+
+  @override
+  String get vibe_export_internalVibeBatchUnsupported =>
+      '当前平台无法导出到文件夹，请一次只选择一个内部 Vibe。';
 }
 
 /// The translations for Chinese, using the Han script (`zh_Hant`).
@@ -29189,4 +29264,79 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get onlineGallery_tagContextMenuTooltipTouch => '長按可加入黑名單或輸出過濾';
+
+  @override
+  String get image_albumPermissionDenied =>
+      '相簿權限遭拒。請在「設定 > 隱私權 > 照片」中允許本應用程式「僅加入照片」。';
+
+  @override
+  String get image_copyCleanImage => '複製圖片（移除中繼資料）';
+
+  @override
+  String get image_copyWithMetadata => '複製圖片（含中繼資料）';
+
+  @override
+  String get image_saveToAlbum => '儲存至相簿';
+
+  @override
+  String image_saveToAlbumFailed(Object error) {
+    return '儲存至相簿失敗：$error';
+  }
+
+  @override
+  String get image_savedToAlbum => '已儲存至相簿';
+
+  @override
+  String get more_switchTheme => '切換主題';
+
+  @override
+  String get settings_configExportFailed => '匯出設定失敗';
+
+  @override
+  String get settings_configExported => '設定已匯出';
+
+  @override
+  String get settings_configImportFailed => '匯入設定失敗';
+
+  @override
+  String get settings_configImported => '設定已匯入';
+
+  @override
+  String get settings_exportConfig => '匯出設定';
+
+  @override
+  String get settings_exportConfigSubtitle => '把本機設定儲存為 JSON 檔案，可帶到另一台裝置';
+
+  @override
+  String get settings_importConfig => '匯入設定';
+
+  @override
+  String get settings_importConfigConfirmMessage =>
+      '檔案裡的同名設定會覆寫本機目前值。本版本不認識的項目會被略過，視窗大小、儲存路徑等裝置本機值不會被匯入。 匯入的設定需要重新啟動應用程式後才會生效。';
+
+  @override
+  String get settings_importConfigConfirmTitle => '確認覆寫本機設定？';
+
+  @override
+  String get settings_importConfigNewerFormat => '此檔案來自較新版本的應用程式，部分項目可能無法套用。';
+
+  @override
+  String get settings_importConfigSubtitle => '從匯出的 JSON 檔案還原設定';
+
+  @override
+  String get settings_localOnnxTaggerFolderIosHint =>
+      '用「檔案」App 放入模型：我的 iPhone → NAI Launcher → tagger_models（.onnx 與詞表檔案），點右側圖示開啟該資料夾';
+
+  @override
+  String get settings_pathFixedIosHint => 'iOS 沙盒限制：該目錄固定在應用程式內，無法變更';
+
+  @override
+  String get settings_releasePage => '前往 GitHub Release 頁';
+
+  @override
+  String get settings_releasePageSubtitle => '查看新版本說明並下載 IPA，需自行重新簽名安裝';
+
+  @override
+  String get vibe_export_internalVibeBatchUnsupported =>
+      '目前平台無法匯出到資料夾，請一次只選擇一個內部 Vibe。';
 }

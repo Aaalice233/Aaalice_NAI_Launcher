@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:nai_launcher/core/utils/localization_extension.dart';
 
+import '../../../../core/platform/platform_capabilities.dart';
 import '../../../../core/services/file_export_service.dart';
 import '../../../../core/utils/app_logger.dart';
 import '../../../../core/utils/vibe_encoding_utils.dart';
@@ -129,6 +130,13 @@ class _VibeExportDialogAdvancedState
         !_selectedInternalVibes.any((v) => v);
   }
 
+  /// 是否支持「一次提取多个内部 vibe」。
+  ///
+  /// 【上游没有这个判断】该路径必须先拿到一个可长期写入的输出目录，
+  /// iOS 拿不到（见 `PlatformCapabilities.supportsDirectoryBatchExport`）。
+  bool get _supportsInternalVibeBatchExtraction =>
+      PlatformCapabilities.current.supportsDirectoryBatchExport;
+
   @override
   void initState() {
     super.initState();
@@ -157,9 +165,17 @@ class _VibeExportDialogAdvancedState
       return;
     }
 
+    // 【偏离上游：上游一律默认全选】
+    // 不支持目录批量导出的平台上「全选」是一个必定被校验拦下的初始状态，
+    // 一打开就是灰按钮 + 报错。这里默认只勾第一个，用户仍可自由改勾。
+    final selectFirstOnly = !_supportsInternalVibeBatchExtraction && count > 1;
     _selectedInternalVibes
       ..clear()
-      ..addAll(List<bool>.filled(count, true));
+      ..addAll(
+        selectFirstOnly
+            ? List<bool>.generate(count, (index) => index == 0)
+            : List<bool>.filled(count, true),
+      );
   }
 
   void _rebuildCarrierImageOptions([List<VibeLibraryEntry>? sourceEntries]) {
@@ -449,22 +465,28 @@ class _VibeExportDialogAdvancedState
                   ),
                 ),
               ),
-              TextButton(
-                onPressed: () {
-                  setState(() {
-                    final allSelected = _selectedInternalVibes.every((v) => v);
-                    for (var i = 0; i < _selectedInternalVibes.length; i++) {
-                      _selectedInternalVibes[i] = !allSelected;
-                    }
-                    _errorMessage = _validateExportOptions().errorMessage;
-                  });
-                },
-                child: Text(
-                  _selectedInternalVibes.every((v) => v)
-                      ? context.l10n.common_deselectAll
-                      : context.l10n.common_selectAll,
+              // 【偏离上游：上游无条件渲染这个按钮】
+              // 不支持目录批量导出时「全选」只会把用户推进一个必定被校验拦下的
+              // 状态，所以整体隐藏入口，逐个勾选的能力保持不变。
+              if (_supportsInternalVibeBatchExtraction)
+                TextButton(
+                  onPressed: () {
+                    setState(() {
+                      final allSelected = _selectedInternalVibes.every(
+                        (v) => v,
+                      );
+                      for (var i = 0; i < _selectedInternalVibes.length; i++) {
+                        _selectedInternalVibes[i] = !allSelected;
+                      }
+                      _errorMessage = _validateExportOptions().errorMessage;
+                    });
+                  },
+                  child: Text(
+                    _selectedInternalVibes.every((v) => v)
+                        ? context.l10n.common_deselectAll
+                        : context.l10n.common_selectAll,
+                  ),
                 ),
-              ),
             ],
           ),
           const SizedBox(height: 12),
@@ -988,11 +1010,25 @@ class _VibeExportDialogAdvancedState
 
     // 如果是导出 bundle 内部单个 vibe，需要至少选择一个
     if (_isSingleBundle && !_exportWholeBundle && _exportBundle) {
-      final hasSelection = _selectedInternalVibes.any((v) => v);
-      if (!hasSelection) {
+      final selectedCount = _selectedInternalVibes.where((v) => v).length;
+      if (selectedCount == 0) {
         return _ValidationResult(
           isValid: false,
           errorMessage: context.l10n.vibe_export_selectAtLeastOneInternalVibe,
+        );
+      }
+      // 【偏离上游：上游没有这条校验】
+      // 选中多个内部 vibe 时 `_exportSelectedInternalVibes` 会先调
+      // `FileExportService.pickExportDirectory` 选一个输出目录，iOS 上该调用
+      // 只能返回 null，于是整条导出静默返回 null——用户看到的是「点了导出没反应」。
+      // 这里把它变成一条显式校验：按钮置灰并说明原因，而不是留一个死按钮。
+      // 只选一个时不走目录分支（outputDirectory 传 null → `exportToNaiv4Vibe`
+      // 走 `FileExportService.saveText`，iOS 上是系统分享面板），所以功能没丢，
+      // 只是需要一个一个导。
+      if (selectedCount > 1 && !_supportsInternalVibeBatchExtraction) {
+        return _ValidationResult(
+          isValid: false,
+          errorMessage: context.l10n.vibe_export_internalVibeBatchUnsupported,
         );
       }
     }

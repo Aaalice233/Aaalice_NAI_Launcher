@@ -78,13 +78,23 @@ void main() {
           locale: const Locale('en'),
           localizationsDelegates: AppLocalizations.localizationsDelegates,
           supportedLocales: AppLocalizations.supportedLocales,
-          home: Center(
-            child: LocalImageCard3D(
-              record: record,
-              width: 180,
-              height: 220,
-              onTap: () {},
-              onSendAction: (action) async => actions.add(action),
+          // 卡片的 hover 呈现现在按 interactionPolicy.precisePointerAvailable
+          // 门控（见 local_image_card_3d.dart），所以这里必须显式声明指针策略，
+          // 否则默认的 InteractionPolicy.neutral 会关掉 hover 路径。
+          home: InteractionPolicyScope(
+            initialPolicy: const InteractionPolicy(
+              modality: InteractionModality.pointer,
+              touchAvailable: false,
+              precisePointerAvailable: true,
+            ),
+            child: Center(
+              child: LocalImageCard3D(
+                record: record,
+                width: 180,
+                height: 220,
+                onTap: () {},
+                onSendAction: (action) async => actions.add(action),
+              ),
             ),
           ),
         ),

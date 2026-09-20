@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/cache/online_gallery_image_cache_manager.dart';
+import '../../../core/platform/platform_capabilities.dart';
 import '../../../core/services/file_export_service.dart';
 import '../../../core/utils/localization_extension.dart';
 import '../../../core/utils/media_mime_type.dart';
@@ -59,7 +60,15 @@ class OnlineGallerySelectionActions {
           enabled: complete,
           invoke: () => favoriteSelected(posts),
         ),
-      if (posts.every((post) => post.hasValidPreview))
+      // 【偏离上游：上游只判 hasValidPreview】
+      // 批量下载必须先选一个输出目录再批量写盘，iOS 上
+      // FileExportService.pickExportDirectory 只能返回 null，
+      // 按钮点了之后连 toast 都不会有。整体隐藏该项而不是留死按钮；
+      // 多选栏仍保留「加入队列」与「批量收藏」，不会变成空工具栏。
+      // iOS 上的单张保存走详情页的下载入口（FileExportService.saveBytes
+      // → 系统分享面板），能力没有丢失。
+      if (PlatformCapabilities.current.supportsDirectoryBatchExport &&
+          posts.every((post) => post.hasValidPreview))
         ImageCardAction(
           id: ImageCardActionId.save,
           icon: Icons.download,

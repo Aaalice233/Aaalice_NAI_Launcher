@@ -7,12 +7,16 @@ import '../../core/constants/community_links.dart';
 import '../../core/utils/localization_extension.dart';
 import '../../data/models/auth/saved_account.dart';
 import '../adaptive/adaptive_presenter.dart';
+import '../adaptive/content_sized_adaptive_form.dart';
 import '../agent_chat/providers/agent_chat_notifier.dart';
 import '../providers/account_manager_provider.dart';
+import '../providers/auth_mode_provider.dart';
 import '../providers/auth_provider.dart';
 import '../providers/replication_queue_provider.dart';
+import '../providers/theme_provider.dart';
 import '../providers/update_provider.dart';
 import '../services/mobile_image_metadata_importer.dart';
+import '../widgets/auth/login_form_container.dart';
 import '../widgets/common/app_toast.dart';
 import '../widgets/navigation/main_nav_rail.dart';
 import '../widgets/settings/account_profile_sheet.dart';
@@ -94,6 +98,25 @@ Future<void> showMobileMorePanel({
                       }
                     },
                   ),
+                  // 偏离上游：上游移动端登录后没有任何添加第二账号的路径——
+                  // AccountDetailTile 只在未登录时渲染登录按钮，
+                  // AccountProfileBottomSheet 只有「切换账号 / 退出登录」，
+                  // 而 auth_addAccount 的唯一入口在桌面侧栏 MainNavRail 的弹出菜单里。
+                  // 这里补一条，复用桌面同一套表单（push /login 行不通：
+                  // app_routes 的 redirect 会把已登录用户从 /login 打回首页）。
+                  if (accountForMenu != null)
+                    _MobileMoreDestination(
+                      key: const ValueKey('mobile-more-add-account'),
+                      icon: Icons.person_add_alt_1_outlined,
+                      label: panelContext.l10n.auth_addAccount,
+                      onTap: () async {
+                        final panelRoute = ModalRoute.of(panelContext);
+                        Navigator.of(panelContext).pop();
+                        if (panelRoute != null) await panelRoute.completed;
+                        if (!context.mounted) return;
+                        await _showAddAccountForm(context, ref);
+                      },
+                    ),
                   const Divider(indent: 16, endIndent: 16),
                   _MobileMoreDestination(
                     key: const ValueKey('mobile-more-agent'),
@@ -183,6 +206,19 @@ Future<void> showMobileMorePanel({
                       AppBranch.settings,
                     ),
                   ),
+                  // 偏离上游：上游的条目表里没有任何主题项，换主题只能进
+                  // 设置 → 外观 逐个挑（或用桌面端的 nextTheme 在 16 个主题里轮转）。
+                  // 移动端要的是一键深浅快切，所以这里直接调 toggleQuickTheme，
+                  // 且不关闭面板——方便连点比较两套配色。
+                  _MobileMoreDestination(
+                    key: const ValueKey('mobile-more-theme'),
+                    icon: Icons.palette_outlined,
+                    label: panelContext.l10n.more_switchTheme,
+                    trailing: const Icon(Icons.brightness_6_outlined),
+                    onTap: () => ref
+                        .read(themeNotifierProvider.notifier)
+                        .toggleQuickTheme(),
+                  ),
                 ],
               ),
             ),
@@ -268,6 +304,27 @@ Future<void> _openCommunityLink(BuildContext panelContext, String url) async {
   }
 }
 
+/// 移动端「添加账号」表单，与桌面侧栏 MainNavRail 的添加账号走同一套内容。
+Future<void> _showAddAccountForm(BuildContext context, WidgetRef ref) async {
+  // 与桌面一致：先把登录模式复位并立刻清掉上一次的错误，避免表单带着旧报错打开。
+  ref.read(authModeNotifierProvider.notifier).reset();
+  ref.read(authNotifierProvider.notifier).clearError(delayMs: 0);
+
+  await AdaptivePresenter.showForm<void>(
+    context: context,
+    title: context.l10n.auth_addAccount,
+    dialogWidth: 450,
+    builder: (formContext, scrollController) => ContentSizedAdaptiveForm(
+      scrollViewKey: const Key('mobile-more-add-account-form'),
+      scrollController: scrollController,
+      padding: const EdgeInsets.fromLTRB(8, 16, 8, 32),
+      content: [
+        LoginFormContainer(onLoginSuccess: () => Navigator.pop(formContext)),
+      ],
+    ),
+  );
+}
+
 void _selectBranch(
   BuildContext panelContext,
   StatefulNavigationShell navigationShell,
@@ -322,6 +379,7 @@ class _MobileMoreDestination extends StatelessWidget {
     this.badgeCount = 0,
     this.showBadge = false,
     this.selected = false,
+    this.trailing,
   });
 
   final IconData icon;
@@ -330,6 +388,9 @@ class _MobileMoreDestination extends StatelessWidget {
   final int badgeCount;
   final bool showBadge;
   final bool selected;
+
+  /// 覆盖默认的 chevron。原地生效（不跳转）的条目用它，避免 chevron 误导成导航。
+  final Widget? trailing;
 
   @override
   Widget build(BuildContext context) {
@@ -350,9 +411,11 @@ class _MobileMoreDestination extends StatelessWidget {
         maxLines: largeText ? null : 1,
         overflow: largeText ? TextOverflow.visible : TextOverflow.ellipsis,
       ),
-      trailing: selected
-          ? const Icon(Icons.check_rounded)
-          : const Icon(Icons.chevron_right),
+      trailing:
+          trailing ??
+          (selected
+              ? const Icon(Icons.check_rounded)
+              : const Icon(Icons.chevron_right)),
       selected: selected,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       onTap: onTap,

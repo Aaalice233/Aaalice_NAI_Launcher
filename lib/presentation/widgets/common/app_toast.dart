@@ -296,10 +296,17 @@ class _ToastStack extends StatelessWidget {
             final policy = context.interactionPolicy;
             final sizeClass = WindowSizeClass.fromWidth(constraints.maxWidth);
             final horizontalInset = sizeClass.isCompact ? 12.0 : 16.0;
+            // 窄屏（= MobileShell 生效的宽度）上 toast 走我们自己的三项交互决定，
+            // 宽屏保持上游形态。判据用 WindowSizeClass 而不是 Platform，与上游
+            // 的壳选择同源；用 InteractionPolicy 会随会话内观察到的输入设备漂移。
+            final compactToast = sizeClass.isCompact;
             return Padding(
               padding: EdgeInsets.fromLTRB(
                 horizontalInset,
-                sizeClass.isCompact ? 12 : 16,
+                // 偏离上游①：上游窄屏是紧贴安全区下方 12pt 起，这个位置正好压在
+                // 移动端生成页 AppBar 的按钮行（leading + 4 个 action）上。再让开
+                // 一个 kToolbarHeight，toast 落到顶栏下方，不再遮挡这排按钮。
+                compactToast ? kToolbarHeight + 12 : 16,
                 horizontalInset,
                 12,
               ),
@@ -307,27 +314,45 @@ class _ToastStack extends StatelessWidget {
                 alignment: policy.usesAnchoredMenus
                     ? Alignment.topRight
                     : Alignment.topCenter,
-                child: ConstrainedBox(
-                  constraints: BoxConstraints(
-                    maxWidth: sizeClass.isCompact ? constraints.maxWidth : 360,
-                    maxHeight: constraints.maxHeight,
-                  ),
-                  child: SingleChildScrollView(
-                    primary: false,
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        for (final toast in toasts) ...[
-                          _SingleToastWidget(
-                            key: ValueKey(toast.id),
-                            message: toast.message,
-                            type: toast.type,
-                            onDismiss: () => onDismiss(toast.id),
-                          ),
-                          if (toast != toasts.last) const SizedBox(height: 8),
+                // 偏离上游②：上游这层是可命中的——SingleChildScrollView 内部的
+                // Scrollable 用 HitTestBehavior.opaque，_SingleToastWidget 的
+                // MouseRegion 默认 opaque:true，两者都会把 toast 覆盖区域的触摸
+                // 整块吃掉。窄屏上 toast 是纯提示，必须完全不拦截点击，否则它出现
+                // 的这几秒里下方按钮点不动（而且看不出原因）。
+                child: IgnorePointer(
+                  ignoring: compactToast,
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(
+                      maxWidth: sizeClass.isCompact
+                          ? constraints.maxWidth
+                          : 360,
+                      maxHeight: constraints.maxHeight,
+                    ),
+                    child: SingleChildScrollView(
+                      primary: false,
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          for (final toast in toasts) ...[
+                            _SingleToastWidget(
+                              key: ValueKey(toast.id),
+                              message: toast.message,
+                              type: toast.type,
+                              // 偏离上游③：上游统一 3s。窄屏沿用我们的 2.2s——
+                              // toast 悬在顶栏下方，停留越久越碍事。
+                              autoDismissDelay: compactToast
+                                  ? const Duration(milliseconds: 2200)
+                                  : const Duration(seconds: 3),
+                              // 被 IgnorePointer 包住时关闭按钮点不到，画一个点不动
+                              // 的按钮比没有更糟，所以窄屏不渲染它（靠自动消失）。
+                              showDismissAction: !compactToast,
+                              onDismiss: () => onDismiss(toast.id),
+                            ),
+                            if (toast != toasts.last) const SizedBox(height: 8),
+                          ],
                         ],
-                      ],
+                      ),
                     ),
                   ),
                 ),
@@ -346,11 +371,19 @@ class _SingleToastWidget extends StatefulWidget {
   final ToastType type;
   final VoidCallback onDismiss;
 
+  /// 自动消失时长。上游写死 3s，窄屏由 [_ToastStack] 传 2.2s。
+  final Duration autoDismissDelay;
+
+  /// 是否渲染右侧手动关闭按钮。窄屏整块 IgnorePointer，按钮不可点，故不渲染。
+  final bool showDismissAction;
+
   const _SingleToastWidget({
     super.key,
     required this.message,
     required this.type,
     required this.onDismiss,
+    this.autoDismissDelay = const Duration(seconds: 3),
+    this.showDismissAction = true,
   });
 
   @override
@@ -407,7 +440,7 @@ class _SingleToastWidgetState extends State<_SingleToastWidget>
 
   void _scheduleAutoDismiss() {
     _autoDismissTimer?.cancel();
-    _autoDismissTimer = Timer(const Duration(seconds: 3), _dismiss);
+    _autoDismissTimer = Timer(widget.autoDismissDelay, _dismiss);
   }
 
   void _handleHoverEnter(PointerEnterEvent event) {
@@ -482,24 +515,26 @@ class _SingleToastWidgetState extends State<_SingleToastWidget>
                         ),
                       ),
                     ),
-                    const SizedBox(width: 8),
-                    IconButton(
-                      onPressed: _dismiss,
-                      tooltip: MaterialLocalizations.of(
-                        context,
-                      ).closeButtonTooltip,
-                      icon: Icon(
-                        Icons.close,
-                        size: 18,
-                        color: style.foreground,
-                      ),
-                      style: IconButton.styleFrom(
-                        minimumSize: Size.square(
-                          context.interactionPolicy.minimumControlExtent,
+                    if (widget.showDismissAction) ...[
+                      const SizedBox(width: 8),
+                      IconButton(
+                        onPressed: _dismiss,
+                        tooltip: MaterialLocalizations.of(
+                          context,
+                        ).closeButtonTooltip,
+                        icon: Icon(
+                          Icons.close,
+                          size: 18,
+                          color: style.foreground,
                         ),
-                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        style: IconButton.styleFrom(
+                          minimumSize: Size.square(
+                            context.interactionPolicy.minimumControlExtent,
+                          ),
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        ),
                       ),
-                    ),
+                    ],
                   ],
                 ),
               ),

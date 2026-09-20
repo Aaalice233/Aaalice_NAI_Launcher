@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -86,6 +87,72 @@ void main() {
 
     await restoredStorage.setIncludePrereleaseUpdates(false);
     expect(storage.getIncludePrereleaseUpdates(), isFalse);
+  });
+
+  group('配置导出/导入', () {
+    test('导出文档带格式版本与导出时间，正文是扁平的设置 Map', () async {
+      final storage = LocalStorageService();
+      await storage.setDefaultSteps(31);
+
+      final document = storage.buildSettingsExportDocument();
+
+      expect(document[SettingsExportFile.versionField], 1);
+      expect(
+        DateTime.tryParse(
+          document[SettingsExportFile.exportedAtField] as String,
+        ),
+        isNotNull,
+      );
+      final payload =
+          document[SettingsExportFile.payloadField] as Map<String, dynamic>;
+      expect(payload[StorageKeys.defaultSteps], 31);
+    });
+
+    test('解析同时支持带信封的新格式与 ios-v2 的扁平旧格式', () {
+      final storage = LocalStorageService();
+      final enveloped = LocalStorageService.parseSettingsExport(
+        jsonEncode(storage.buildSettingsExportDocument()),
+      );
+      expect(enveloped.formatVersion, 1);
+      expect(enveloped.isNewerThanSupported, isFalse);
+
+      final legacy = LocalStorageService.parseSettingsExport(
+        jsonEncode({StorageKeys.defaultSteps: 24}),
+      );
+      expect(legacy.formatVersion, 0);
+      expect(legacy.settings[StorageKeys.defaultSteps], 24);
+
+      final future = LocalStorageService.parseSettingsExport(
+        jsonEncode({
+          SettingsExportFile.versionField: 99,
+          SettingsExportFile.payloadField: <String, dynamic>{},
+        }),
+      );
+      expect(future.isNewerThanSupported, isTrue);
+    });
+
+    test('导入只写白名单内的键，白名单外的键原样保留', () async {
+      final storage = LocalStorageService();
+      await storage.setSetting(StorageKeys.windowWidth, 1280.0);
+
+      final result = await storage.importSettings(
+        <String, dynamic>{
+          StorageKeys.defaultSteps: 33,
+          StorageKeys.windowWidth: 4096.0,
+          'some_key_from_a_newer_build': 'nope',
+        },
+        allowedKeys: const {StorageKeys.defaultSteps},
+      );
+
+      expect(result.importedKeys, [StorageKeys.defaultSteps]);
+      expect(result.skippedKeys, [
+        'some_key_from_a_newer_build',
+        StorageKeys.windowWidth,
+      ]);
+      expect(storage.getDefaultSteps(), 33);
+      // 窗口几何是设备本地值，不能被别的机器的备份覆盖
+      expect(storage.getSetting<double>(StorageKeys.windowWidth), 1280.0);
+    });
   });
 
   group('随机提示词工具入口的平台默认值', () {

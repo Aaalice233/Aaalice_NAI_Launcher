@@ -30,6 +30,70 @@
 - **把我们 20 个文件里的 65 行 `Platform.is*` 翻译成 `PlatformCapabilities`**。与上游纪律一致，后续移栽冲突面小得多，上游新增的一批 widget test 能用 `debugOverride` 覆盖
 - **暂留私有仓库 `f1luct/nai-launcher-ios`**。f1luct 对上游是 `push: false` 且无待接受邀请，上游 `ios` 分支是落后 996 提交的空占位。fork 已建：`f1luct/Aaalice_NAI_Launcher`。有 5 条是上游同样存在的缺陷、适合回馈（角色定位画布编号错位、词库卡片 `onSend` 死回调、取色器只有 onPan 没有 onTapDown、`image_preview.dart:838` 的 `onSendToKrita` 漏门控、`agent_question_notification_service.show()` 不检查 `_supported`）
 
+## 进度日志
+
+### 批次 1（commit `f401edb7`）— L0 + L1 平台工程与流水线
+
+`ios-v3` 从 v4.2.1（`eede51e0`）开出。ios/ 28 文件整入，逐字节比对 27 个与 ios-v2 一致，
+唯一改动的 `Info.plist` 是按用户 4 条决策做的增量。workflow 删 4 留 2 加 1。
+
+踩坑记录：
+- **`git archive` 会触发 LFS smudge**。v4.2.1 起 `tag_catalog.db` 是 133 字节指针，而我们从没用
+  `--no-verify` 以外的方式推过 LFS 对象，私有仓库上不存在该对象 → 404。
+  同步到 Mac 必须用 `git -c filter.lfs.smudge= -c filter.lfs.process= -c filter.lfs.required=false archive`，
+  真实 db 在 Mac 上按 `manifest.json` 的 release URL 直接 curl（带 size + sha256 校验）。
+- **推送被 GitHub 连续掐断十几次**，看着像网络问题，实际是**历史里有 merge 提交**：
+  `git rev-list A..B` 返回的提交**不一定是 A 的后代**，按它分段推会被判 non-fast-forward
+  （而错误信息在连接断掉时看不见，表现为"推了但没进展"）。
+  正解是 `git rev-list --reverse --ancestry-path $REMOTE..$BRANCH` 取检查点，每轮推 30 个，14 轮推完。
+- **`gal` 会连带改写受版本控制的 Windows 插件注册表**（`windows/flutter/generated_plugin_registrant.cc`
+  与 `generated_plugins.cmake`）。不提交的话 `android-build.yml` 的 `git diff --exit-code` 必红。
+  副作用：本 fork 的 Windows 构建从此要编译 gal 的 C++20/WinRT 插件（未验证，本机无 VS 工具链）。
+  想去掉的话，可用约 40 行 Swift 的 `PHPhotoLibrary` method channel 替掉 gal，依赖与 Windows 污染一起消失。
+
+### 批次 2（commit `ce296862`）— 8 条车道并行
+
+L2 能力矩阵与导出链路 / L4 生成页左抽屉 / L6 画廊相簿迁移与左抽屉 / L7 移动端默认值 /
+L8 提示词 raw 直填 / L10 触屏可达性 / L11 剪贴板与图片导入 / L14 3D 编辑器触屏。
+73 文件 +3981/−339，`flutter analyze` 干净。
+
+集成阶段由主控修掉的两条（8 个车道 agent 都没发现，靠交叉自检 agent 抓出来）：
+- **`MobileWorkflowPanelReveal` 建了注册点但全仓无任何 `register()` 调用方**。
+  `request()` 在无注册者时是空操作，所以**编译通过、运行不报错、手机上点「放大 / 增强」屏幕毫无反应**
+  ——必保定制 #24 等于没做。已接到 `MobileGenerationController` 的构造与 `dispose`
+  （存成字段供 `identical` 比对）。这类跨车道断链是本方法论的固有风险，交叉自检不能省。
+- **导入来源面板被 L4 与 L11 各实现一份**，L11 那份生产零引用（只有它自己的测试在用）。
+  已删 L4 的私有版本，统一走 L11 的公开 API `showMobileImageMetadataImportSheet`。
+
+**l10n 合并模式**（下次沿用）：8 个 agent 并发改同一份 arb 必然互相覆盖，所以各车道把新 key 写进
+`lib/l10n/fragments/<lane>.json`（四语 + description），主控统一合并后跑 `gen-l10n` 并删除该目录。
+注意必须**四份** arb 一起写——`app_zh_Hant.arb` 也在 `i18n_regression_test` 的 parity 断言里
+（计划表原先漏了它）。
+
+### 工作流的实质变化：本机不能再跑测试
+
+`nai_png_codec` 的 native assets 会在**每次 `flutter test` 调用**时构建，而 `native_toolchain_c`
+在 Windows 上找 `vswhere.exe` 失败——本机没有 VS C++ 工具链且无管理员权限。
+上一轮 2381 个测试全是本机跑的，现在 **analyze 仍可本机跑，test 必须上 Mac**（clang 17）。
+
+### Mac 构建自检结果（2026-09-20）
+
+| 项 | 结果 |
+| --- | --- |
+| `flutter build ios --release --no-codesign` | **EXIT=0** |
+| `Runner.app` | 172 MB |
+| **`nai_png_codec.framework`** | **存在**，174,080 字节，arm64 |
+| install name | `@rpath/nai_png_codec.framework/nai_png_codec` |
+| 签名 | `adhoc`（`--no-codesign` 下的预期形态） |
+| framework MinimumOSVersion | 13.0（flutter_tools 硬编码，低于工程的 16.0，无害） |
+| `onnxruntime` | 符号**静态链进主二进制**（`otool -L` 无动态引用，`nm -u` 19 个 ORT 符号） |
+| Xcode / Flutter | 16.4 / 3.44.2 |
+
+**硬风险 #1（native assets 在 iOS 上的构建链路）已证伪，不再是风险。**
+`hook/build.dart` 无平台分支、源码已 vendored 在 `src/vendor/`（不联网），Flutter 工具链
+自动把 `libnai_png_codec.dylib` 包成 framework 并 ad-hoc 签名。
+**硬风险 #10（onnxruntime_v2 的 iOS 支持）同时证伪**——本地反推与魔棒抠图不会丢。
+
 ## 上游新功能（按主题）
 
 ### 自适应呈现层与移动端骨架（v3.0.0-v4.0.0 的地基，iOS 白捡）

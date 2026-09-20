@@ -1,7 +1,9 @@
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:image/image.dart' as img;
+import 'package:nai_launcher/core/platform/platform_capabilities.dart';
 import 'package:nai_launcher/core/utils/isolate_pool.dart';
 import 'package:nai_launcher/data/services/local_onnx_model_service.dart';
 import 'package:nai_launcher/data/services/local_onnx_tagger_preprocessor.dart';
@@ -92,6 +94,80 @@ void main() {
         await directory.delete(recursive: true);
       }
     });
+  });
+
+  group('LocalOnnxTaggerService mobile inference tuning', () {
+    test(
+      'raises intra-op threads on mobile but keeps desktop single-threaded',
+      () {
+        expect(
+          LocalOnnxTaggerService.resolveIntraOpThreadCount(
+            PlatformCapabilities.forPlatform(TargetPlatform.iOS),
+            processorCount: 8,
+          ),
+          4,
+        );
+        expect(
+          LocalOnnxTaggerService.resolveIntraOpThreadCount(
+            PlatformCapabilities.forPlatform(TargetPlatform.android),
+            processorCount: 2,
+          ),
+          2,
+        );
+        expect(
+          LocalOnnxTaggerService.resolveIntraOpThreadCount(
+            PlatformCapabilities.forPlatform(TargetPlatform.windows),
+            processorCount: 16,
+          ),
+          1,
+        );
+      },
+    );
+
+    test(
+      'loads the original model file when the opset patch is a no-op',
+      () async {
+        final directory = await Directory.systemTemp.createTemp(
+          'nai_launcher_onnx_opset_noop_test_',
+        );
+        addTearDown(() => directory.delete(recursive: true));
+        final model = await File(
+          '${directory.path}${Platform.pathSeparator}model.onnx',
+        ).writeAsBytes(List<int>.filled(8192, 0));
+
+        final resolved = await const LocalOnnxTaggerService()
+            .debugEnsurePatchedModelPathForTesting(model.path);
+
+        expect(resolved, model.path);
+      },
+    );
+
+    test(
+      'still writes a patched copy when the opset tail needs patching',
+      () async {
+        final directory = await Directory.systemTemp.createTemp(
+          'nai_launcher_onnx_opset_patch_test_',
+        );
+        addTearDown(() => directory.delete(recursive: true));
+        final bytes = List<int>.filled(8192, 0);
+        bytes.setRange(8188, 8192, const [0x42, 0x02, 0x10, 20]);
+        final model = await File(
+          '${directory.path}${Platform.pathSeparator}model.onnx',
+        ).writeAsBytes(bytes);
+
+        final resolved = await const LocalOnnxTaggerService()
+            .debugEnsurePatchedModelPathForTesting(model.path);
+        addTearDown(() async {
+          final patched = File(resolved);
+          if (await patched.exists()) await patched.delete();
+        });
+
+        expect(resolved, isNot(model.path));
+        final patchedBytes = await File(resolved).readAsBytes();
+        expect(patchedBytes.length, bytes.length);
+        expect(patchedBytes.sublist(8188), [0x42, 0x02, 0x10, 18]);
+      },
+    );
   });
 
   group('ComputeGate', () {

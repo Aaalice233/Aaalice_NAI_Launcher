@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 
 import '../../../app.dart';
+import '../../../core/platform/platform_capabilities.dart';
 import '../../../core/services/update_check_service.dart';
 import '../../../core/utils/app_logger.dart';
 import '../../../core/utils/first_launch_detector.dart';
@@ -227,6 +228,14 @@ class _AutomaticUpdateCheckState extends ConsumerState<AutomaticUpdateCheck>
 
   void _schedule(Duration delay) {
     _timer?.cancel();
+    // 【偏离上游】上游无条件周期性自动检查更新。iOS 是自签侧载分发，Release 里
+    // 根本没有 iOS 资产，检查必然失败并按 failedCheckRetryInterval 无限重试，
+    // 骚扰用户的同时还会把桌面/安卓安装包推过来。
+    //
+    // 守卫必须落在 _schedule() 里而不是 initState()：上游 4.2.1 把这里改成了
+    // 带 WidgetsBindingObserver 的周期检查，didChangeAppLifecycleState 的 resumed
+    // 分支和 _run() 的 finally 都会再次调用 _schedule()，在 initState 早退会被绕过。
+    if (!PlatformCapabilities.current.supportsAutomaticUpdateCheck) return;
     _timer = Timer(delay, _run);
   }
 

@@ -318,7 +318,13 @@ class _TestImageData implements ImageDetailData {
   ImageProvider<Object> getImageProvider() => MemoryImage(bytes);
 
   @override
+  Future<ImageProvider?> getPlaceholderProvider() async => null;
+
+  @override
   Future<Uint8List> getImageBytes() async => bytes;
+
+  @override
+  Future<NaiImageMetadata?> getMetadataAsync() async => metadata;
 
   @override
   bool get isFavorite => false;

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/platform/platform_capabilities.dart';
 import '../../../core/utils/localization_extension.dart';
 import '../../providers/update_provider.dart';
 import 'update_check_dialog.dart';
@@ -40,6 +41,14 @@ class UpdateNoticeBanner extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // 【偏离上游】上游这个文件全文没有平台判断，横幅在所有平台都会弹。
+    // iOS 是自签侧载，既没有 iOS 发布资产也无法应用内安装；自动检查在 iOS 已被
+    // 关闭（见 app_bootstrap.dart 的 _schedule），但手动检查仍可能把状态置成
+    // available/error，横幅一旦出现就是在把桌面安装包推给手机用户。整体不渲染。
+    if (!PlatformCapabilities.current.supportsAutomaticUpdateCheck) {
+      return const SizedBox.shrink();
+    }
+
     final state = ref.watch(updateStateProvider);
     final hasNotice = state.hasNewVersion || state.status == UpdateStatus.error;
     if (!state.notificationVisible || !hasNotice) {

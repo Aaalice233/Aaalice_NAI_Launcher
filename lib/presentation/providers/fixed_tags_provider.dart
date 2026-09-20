@@ -752,10 +752,33 @@ class FixedTagsNotifier extends _$FixedTagsNotifier {
 
   /// 【新增】从词库同步更新固定词
   ///
-  /// 当词库条目更新时，更新所有 sourceEntryId 匹配的固定词
-  Future<void> syncFromTagLibrary(TagLibraryEntry tagEntry) async {
+  /// 当词库条目更新时，更新所有 sourceEntryId 匹配的固定词。
+  ///
+  /// 偏离上游：上游只按 `sourceEntryId` 匹配，于是"手动敲进去的固定词"和
+  /// "词库里同一个词"永远是两份互不相干的数据——用户在词库里改了名字或内容，
+  /// 固定词那边纹丝不动，而且没有任何提示，只能自己再改一遍。
+  /// 我们额外接受 [previousContent]（词库条目"修改前"的内容）：未关联
+  /// (`sourceEntryId == null`) 且内容与修改前一致的固定词视为同一个词，
+  /// 一并同步并补写 `sourceEntryId` 收养它，之后就走上游的正常双向同步。
+  /// 该参数为空时行为与上游完全一致，所以其他调用点不受影响。
+  ///
+  /// 与上游新增的 `resolveFixedTagImport` / `fixedTagResolution` 无交集：
+  /// 那条链路是"从图片元数据导入时决定固定词归属"，在 image_metadata_import
+  /// 流程里，不经过本方法。
+  Future<void> syncFromTagLibrary(
+    TagLibraryEntry tagEntry, {
+    String? previousContent,
+  }) async {
+    final prev = previousContent?.trim();
     final entriesToSync = state.entries
-        .where((e) => e.sourceEntryId == tagEntry.id)
+        .where(
+          (e) =>
+              e.sourceEntryId == tagEntry.id ||
+              (e.sourceEntryId == null &&
+                  prev != null &&
+                  prev.isNotEmpty &&
+                  e.content.trim() == prev),
+        )
         .toList();
 
     if (entriesToSync.isEmpty) return;
@@ -769,6 +792,9 @@ class FixedTagsNotifier extends _$FixedTagsNotifier {
           name: tagEntry.name,
           content: tagEntry.content,
           categoryId: tagEntry.categoryId,
+          // 补写关联：被"按修改前内容"收养的固定词从此有了 sourceEntryId，
+          // 后续更新走上游原本的 sourceEntryId 匹配。
+          sourceEntryId: tagEntry.id,
           updatedAt: DateTime.now(),
         );
       }

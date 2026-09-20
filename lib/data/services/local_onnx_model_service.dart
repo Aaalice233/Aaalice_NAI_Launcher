@@ -7,6 +7,7 @@ import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
 import '../../core/constants/storage_keys.dart';
+import '../../core/platform/platform_capabilities.dart';
 import '../../core/storage/local_storage_service.dart';
 import '../../core/utils/app_logger.dart';
 
@@ -52,6 +53,9 @@ class LocalOnnxModelService {
   static const int _archiveExpandedBytesLimit = 4 * 1024 * 1024 * 1024;
   static const int _archiveEntryBytesLimit = 2 * 1024 * 1024 * 1024;
 
+  /// iOS 自管 tagger 模型目录名，位于应用 Documents 下，「文件」App 可见。
+  static const String iosTaggerFolderName = 'tagger_models';
+
   final LocalStorageService _storage;
 
   String get taggerDirectory =>
@@ -61,9 +65,37 @@ class LocalOnnxModelService {
     await _storage.setSetting(StorageKeys.onnxTaggerModelDirectory, path);
   }
 
+  /// 应用自管的 tagger 模型目录（ZIP 导入、事务落地、中断恢复的落点）。
+  ///
+  /// 【偏离上游】上游一律返回 `applicationSupport/models/onnx_taggers`。
+  /// 那个位置在 iOS 上是 `Library/Application Support`，**「文件」App 完全看不见**，
+  /// 而用户正是靠「文件」App 手动投放 GB 级模型的（Info.plist 的
+  /// `UIFileSharingEnabled` + `LSSupportsOpeningDocumentsInPlace` 只暴露 Documents）。
+  /// 因此 iOS 换成 `Documents/tagger_models`：上游整条导入链路原样复用，
+  /// 只是落点与用户手动投放的目录**合并成同一个**，而不是各自为政。
   Future<String> getManagedTaggerDirectory() async {
+    if (PlatformCapabilities.current.isIOS) {
+      final documentsDirectory = await getApplicationDocumentsDirectory();
+      return p.join(documentsDirectory.path, iosTaggerFolderName);
+    }
     final supportDirectory = await getApplicationSupportDirectory();
     return p.join(supportDirectory.path, 'models', 'onnx_taggers');
+  }
+
+  /// 解析本次实际应当扫描/展示的目录。
+  ///
+  /// 【上游没有这个方法】iOS 沙盒容器路径每次重装都会变化，写进设置项的绝对路径
+  /// 重装后即指向一个不存在的旧容器；`FilePicker.getDirectoryPath` 返回的
+  /// security-scoped 授权同样不跨启动持久化。所以 iOS 永远按当前容器重新推导
+  /// `Documents/tagger_models` 并自动创建（保证「文件」App 里那个文件夹一直在），
+  /// 其余平台沿用用户设置的目录。
+  Future<String> resolveTaggerDirectory() async {
+    if (!PlatformCapabilities.current.isIOS) {
+      return taggerDirectory;
+    }
+    final directory = Directory(await getManagedTaggerDirectory());
+    await directory.create(recursive: true);
+    return directory.path;
   }
 
   Future<int> importTaggerSelections(
@@ -473,16 +505,37 @@ class LocalOnnxModelService {
     if (await managedDirectory.exists()) {
       await _recoverInterruptedImports(managedDirectory);
     }
-    return _scanModels(
-      taggerDirectory,
-      allowedKinds: const {
-        LocalOnnxModelKind.wd14Tagger,
-        LocalOnnxModelKind.clTagger,
-        LocalOnnxModelKind.clTaggerV2,
-        LocalOnnxModelKind.animeTimmEva02,
-        LocalOnnxModelKind.unknown,
-      },
-    );
+
+    // 【偏离上游】上游只扫描 `taggerDirectory` 这一个设置项里的路径。
+    // iOS 上必须是「设置项 ∪ Documents/tagger_models」而不是二选一：
+    // 设置项里的绝对路径跨重装失效，而用户完全可能在任何一次应用内导入之前，
+    // 就先用「文件」App 把模型放进了固定目录——只扫其中一边都会让模型凭空消失。
+    final directories = <String>{taggerDirectory};
+    if (PlatformCapabilities.current.isIOS) {
+      directories.add(await resolveTaggerDirectory());
+    }
+
+    const allowedKinds = <LocalOnnxModelKind>{
+      LocalOnnxModelKind.wd14Tagger,
+      LocalOnnxModelKind.clTagger,
+      LocalOnnxModelKind.clTaggerV2,
+      LocalOnnxModelKind.animeTimmEva02,
+      LocalOnnxModelKind.unknown,
+    };
+    final result = <LocalOnnxModelDescriptor>[];
+    final seenPaths = <String>{};
+    for (final directory in directories) {
+      for (final descriptor in await _scanModels(
+        directory,
+        allowedKinds: allowedKinds,
+      )) {
+        if (seenPaths.add(p.canonicalize(descriptor.path))) {
+          result.add(descriptor);
+        }
+      }
+    }
+    result.sort((a, b) => a.name.compareTo(b.name));
+    return result;
   }
 
   Future<List<LocalOnnxModelDescriptor>> _scanModels(

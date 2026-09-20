@@ -26574,6 +26574,144 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Long-press to add to the blacklist or output filter'**
   String get onlineGallery_tagContextMenuTooltipTouch;
+
+  /// Toast shown when the user denied the add-only photo library permission.
+  ///
+  /// In en, this message translates to:
+  /// **'Photos access was denied. Allow \"Add Photos Only\" for this app in Settings > Privacy > Photos.'**
+  String get image_albumPermissionDenied;
+
+  /// Persistent image-detail top bar action that always copies a metadata-free copy, bypassing the global asset protection setting.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy image (metadata removed)'**
+  String get image_copyCleanImage;
+
+  /// Secondary image-detail copy action that follows the global share protection setting.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy image (with metadata)'**
+  String get image_copyWithMetadata;
+
+  /// Explicit user-triggered action that writes the current image to the system photo library (iOS only).
+  ///
+  /// In en, this message translates to:
+  /// **'Save to Photos'**
+  String get image_saveToAlbum;
+
+  /// Toast shown when writing to the system photo library failed. {error} is the underlying error description.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to save to Photos: {error}'**
+  String image_saveToAlbumFailed(Object error);
+
+  /// Toast shown after the image was written to the system photo library.
+  ///
+  /// In en, this message translates to:
+  /// **'Saved to Photos'**
+  String get image_savedToAlbum;
+
+  /// Mobile "more" panel entry that toggles between the default dark theme and the Bold Retro light theme in one tap.
+  ///
+  /// In en, this message translates to:
+  /// **'Switch Theme'**
+  String get more_switchTheme;
+
+  /// Error toast prefix when the configuration export fails; the underlying error text is appended in code.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not export the configuration'**
+  String get settings_configExportFailed;
+
+  /// Success toast after writing the configuration export file.
+  ///
+  /// In en, this message translates to:
+  /// **'Configuration exported'**
+  String get settings_configExported;
+
+  /// Error toast prefix when the configuration import fails; the underlying error text is appended in code.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not import the configuration'**
+  String get settings_configImportFailed;
+
+  /// Success toast after importing a configuration file; the applied/skipped counts are appended in code.
+  ///
+  /// In en, this message translates to:
+  /// **'Configuration imported'**
+  String get settings_configImported;
+
+  /// Storage settings tile that writes every local app setting to a JSON file. Local (offline) counterpart of cloud sync, which needs GitHub/WebDAV credentials before it can move a config between devices.
+  ///
+  /// In en, this message translates to:
+  /// **'Export configuration'**
+  String get settings_exportConfig;
+
+  /// Subtitle for settings_exportConfig.
+  ///
+  /// In en, this message translates to:
+  /// **'Save the local settings to a JSON file you can carry to another device'**
+  String get settings_exportConfigSubtitle;
+
+  /// Storage settings tile that restores settings from a previously exported JSON file.
+  ///
+  /// In en, this message translates to:
+  /// **'Import configuration'**
+  String get settings_importConfig;
+
+  /// Body of the import confirmation dialog, explaining the allow-list filtering.
+  ///
+  /// In en, this message translates to:
+  /// **'Matching settings in this file replace the ones on this device. Entries this version does not recognise are skipped, and device-local values such as window size and storage paths are never imported. Imported values take effect after you restart the app.'**
+  String get settings_importConfigConfirmMessage;
+
+  /// Title of the confirmation dialog shown before a configuration import is applied.
+  ///
+  /// In en, this message translates to:
+  /// **'Overwrite the settings on this device?'**
+  String get settings_importConfigConfirmTitle;
+
+  /// Extra warning line in the import confirmation dialog when the export file's format version is newer than this build supports.
+  ///
+  /// In en, this message translates to:
+  /// **'This file was exported by a newer version of the app. Some entries may not be applied.'**
+  String get settings_importConfigNewerFormat;
+
+  /// Subtitle for settings_importConfig.
+  ///
+  /// In en, this message translates to:
+  /// **'Restore settings from an exported JSON file'**
+  String get settings_importConfigSubtitle;
+
+  /// iOS-only subtitle for the local ONNX tagger model folder tile, explaining that models are dropped into Documents/tagger_models through the Files app.
+  ///
+  /// In en, this message translates to:
+  /// **'Add models via the Files app: On My iPhone → NAI Launcher → tagger_models (.onnx plus label files). Tap the folder icon to open it'**
+  String get settings_localOnnxTaggerFolderIosHint;
+
+  /// iOS replacement for settings_androidManagedStorage on the image save / Vibe library / Hive storage path tiles.
+  ///
+  /// In en, this message translates to:
+  /// **'iOS sandbox: this folder is fixed inside the app and cannot be changed'**
+  String get settings_pathFixedIosHint;
+
+  /// About settings entry shown instead of the update checker on platforms without an in-app update channel (iOS sideload).
+  ///
+  /// In en, this message translates to:
+  /// **'Open GitHub Releases'**
+  String get settings_releasePage;
+
+  /// Subtitle for settings_releasePage.
+  ///
+  /// In en, this message translates to:
+  /// **'Read the release notes and download the IPA — you must re-sign it yourself'**
+  String get settings_releasePageSubtitle;
+
+  /// Validation message in the advanced vibe export dialog when several internal vibes are selected on a platform without directory batch export (iOS).
+  ///
+  /// In en, this message translates to:
+  /// **'This platform cannot export to a folder. Select one internal vibe at a time.'**
+  String get vibe_export_internalVibeBatchUnsupported;
 }
 
 class _AppLocalizationsDelegate

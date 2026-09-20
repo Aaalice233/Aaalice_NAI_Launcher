@@ -202,6 +202,75 @@ void main() {
       );
     },
   );
+
+  // 【偏离上游】上游 _findPlatformAsset 的兜底是「取第一个已知资产」，
+  // 于是平台为 unknown（iOS 自签侧载时 AppInstallationService 的返回值）也会
+  // 拿到 Windows 安装器。我们让 unknown 直接返回 null，调用方因此判定
+  // 「本平台没有发布资产」。
+  test('unknown platform resolves to no asset at all', () async {
+    final adapter = _StableReleaseDioAdapter();
+    final dio = Dio(BaseOptions(baseUrl: GitHubApiService.defaultBaseUrl))
+      ..httpClientAdapter = adapter;
+    final service = GitHubApiService(dio: dio);
+
+    await expectLater(
+      service.fetchLatestRelease(
+        owner: 'Aaalice233',
+        repo: 'Aaalice_NAI_Launcher',
+        currentVersion: '1.8.0+31',
+        platform: 'unknown',
+      ),
+      throwsA(
+        isA<GitHubApiException>().having(
+          (error) => error.type,
+          'type',
+          GitHubReleaseErrorType.invalidResponse,
+        ),
+      ),
+    );
+  });
+
+  // unknown 的拦截不得误伤上游新增的 android-apk 分支。
+  test('android-apk still resolves to the APK asset', () async {
+    final adapter = _StableReleaseDioAdapter(
+      manifestOverride: {
+        'version': '1.8.1+32',
+        'tag': 'v1.8.1',
+        'releaseNotes': 'notes',
+        'assets': [
+          {
+            'platform': 'windows',
+            'type': 'windows-installer',
+            'fileName': 'NAI_Launcher_Windows_1.8.1+32_Setup.exe',
+            'downloadUrl': _StableReleaseDioAdapter.setupUrl,
+            'sha256': _StableReleaseDioAdapter.setupSha256,
+            'size': 123,
+          },
+          {
+            'platform': 'android',
+            'type': 'android-apk',
+            'fileName': 'NAI_Launcher_1.8.1.apk',
+            'downloadUrl': _StableReleaseDioAdapter.apkUrl,
+            'sha256': _StableReleaseDioAdapter.setupSha256,
+            'size': 456,
+          },
+        ],
+      },
+    );
+    final dio = Dio(BaseOptions(baseUrl: GitHubApiService.defaultBaseUrl))
+      ..httpClientAdapter = adapter;
+    final service = GitHubApiService(dio: dio);
+
+    final info = await service.fetchLatestRelease(
+      owner: 'Aaalice233',
+      repo: 'Aaalice_NAI_Launcher',
+      currentVersion: '1.8.0+31',
+      platform: 'android-apk',
+    );
+
+    expect(info.primaryAsset?.type, ReleaseAssetType.androidApk);
+    expect(info.supportsInAppInstall, isTrue);
+  });
 }
 
 class _StableReleaseDioAdapter implements HttpClientAdapter {
@@ -211,6 +280,9 @@ class _StableReleaseDioAdapter implements HttpClientAdapter {
   static const setupUrl =
       'https://github.com/Aaalice233/Aaalice_NAI_Launcher/releases/'
       'download/v1.8.1/NAI_Launcher_Windows_1.8.1%2B32_Setup.exe';
+  static const apkUrl =
+      'https://github.com/Aaalice233/Aaalice_NAI_Launcher/releases/'
+      'download/v1.8.1/NAI_Launcher_1.8.1.apk';
   static const notesUrl =
       'https://github.com/Aaalice233/Aaalice_NAI_Launcher/releases/'
       'download/v1.8.1/release_notes_v1.8.1.md';

@@ -287,14 +287,50 @@ class _LocalGalleryShell extends ConsumerWidget {
       key: const Key('local-gallery-category-drawer'),
       width: 290,
       child: SafeArea(
-        child: Consumer(
-          builder: (context, drawerRef, _) => controller.buildCategoryPanel(
-            galleryState: drawerRef.watch(localGalleryNotifierProvider),
-            categoryState: drawerRef.watch(galleryCategoryNotifierProvider),
-            albumState: drawerRef.watch(galleryAlbumNotifierProvider),
-            modal: true,
-            afterSelection: controller.closeCategoryDrawer,
-          ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // 上游的底部弹面板自带标题（showPanel 的 title 参数），换成抽屉后
+            // 不补一个标题头就是退化——抽屉滑出来只有一棵光秃秃的分类树。
+            // 沿用上游同一条 localGallery_categoryPanelTitle。
+            Builder(
+              builder: (headerContext) => Padding(
+                padding: const EdgeInsets.fromLTRB(16, 16, 8, 8),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        headerContext.l10n.localGallery_categoryPanelTitle,
+                        style: Theme.of(headerContext).textTheme.titleMedium,
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close),
+                      tooltip: headerContext.l10n.common_close,
+                      onPressed: controller.closeCategoryDrawer,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const Divider(height: 1),
+            Expanded(
+              child: Consumer(
+                builder: (context, drawerRef, _) =>
+                    controller.buildCategoryPanel(
+                      galleryState: drawerRef.watch(
+                        localGalleryNotifierProvider,
+                      ),
+                      categoryState: drawerRef.watch(
+                        galleryCategoryNotifierProvider,
+                      ),
+                      albumState: drawerRef.watch(galleryAlbumNotifierProvider),
+                      modal: true,
+                      afterSelection: controller.closeCategoryDrawer,
+                    ),
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -346,7 +382,11 @@ class _LocalGalleryShell extends ConsumerWidget {
       columns: viewModel.columns,
       itemWidth: viewModel.itemWidth,
       groupedGridViewKey: groupedGridViewKey,
-      onReuseMetadata: actions.importImageMetadata,
+      // 【偏离上游】这条回调只喂全屏查看器（LocalGalleryContentView 内部
+      // 只把它挂到 ImageDetailCallbacks.onReuseMetadata），所以走
+      // 「只弹 toast、不跳生成页」的查看器专用入口；列表卡片右键菜单的
+      // 「复用参数」走下面的 onSendAction → routeImageAction，仍是上游默认跳转。
+      onReuseMetadata: actions.importImageMetadataFromViewer,
       onSendAction: (record, action) => actions.routeImageAction(
         LocalGalleryImageAction(record: record, action: action),
       ),

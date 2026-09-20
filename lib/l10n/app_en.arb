@@ -6994,5 +6994,100 @@
   "onlineGallery_tagContextMenuTooltipTouch": "Long-press to add to the blacklist or output filter",
   "@onlineGallery_tagContextMenuTooltipTouch": {
       "description": "Tooltip for a tag chip on touch devices, where there is no right-click; mirrors onlineGallery_tagContextMenuTooltip."
+  },
+  "image_albumPermissionDenied": "Photos access was denied. Allow \"Add Photos Only\" for this app in Settings > Privacy > Photos.",
+  "@image_albumPermissionDenied": {
+      "description": "Toast shown when the user denied the add-only photo library permission."
+  },
+  "image_copyCleanImage": "Copy image (metadata removed)",
+  "@image_copyCleanImage": {
+      "description": "Persistent image-detail top bar action that always copies a metadata-free copy, bypassing the global asset protection setting."
+  },
+  "image_copyWithMetadata": "Copy image (with metadata)",
+  "@image_copyWithMetadata": {
+      "description": "Secondary image-detail copy action that follows the global share protection setting."
+  },
+  "image_saveToAlbum": "Save to Photos",
+  "@image_saveToAlbum": {
+      "description": "Explicit user-triggered action that writes the current image to the system photo library (iOS only)."
+  },
+  "image_saveToAlbumFailed": "Failed to save to Photos: {error}",
+  "@image_saveToAlbumFailed": {
+      "description": "Toast shown when writing to the system photo library failed. {error} is the underlying error description.",
+      "placeholders": {
+          "error": {}
+      }
+  },
+  "image_savedToAlbum": "Saved to Photos",
+  "@image_savedToAlbum": {
+      "description": "Toast shown after the image was written to the system photo library."
+  },
+  "more_switchTheme": "Switch Theme",
+  "@more_switchTheme": {
+      "description": "Mobile \"more\" panel entry that toggles between the default dark theme and the Bold Retro light theme in one tap."
+  },
+  "settings_configExportFailed": "Could not export the configuration",
+  "@settings_configExportFailed": {
+      "description": "Error toast prefix when the configuration export fails; the underlying error text is appended in code."
+  },
+  "settings_configExported": "Configuration exported",
+  "@settings_configExported": {
+      "description": "Success toast after writing the configuration export file."
+  },
+  "settings_configImportFailed": "Could not import the configuration",
+  "@settings_configImportFailed": {
+      "description": "Error toast prefix when the configuration import fails; the underlying error text is appended in code."
+  },
+  "settings_configImported": "Configuration imported",
+  "@settings_configImported": {
+      "description": "Success toast after importing a configuration file; the applied/skipped counts are appended in code."
+  },
+  "settings_exportConfig": "Export configuration",
+  "@settings_exportConfig": {
+      "description": "Storage settings tile that writes every local app setting to a JSON file. Local (offline) counterpart of cloud sync, which needs GitHub/WebDAV credentials before it can move a config between devices."
+  },
+  "settings_exportConfigSubtitle": "Save the local settings to a JSON file you can carry to another device",
+  "@settings_exportConfigSubtitle": {
+      "description": "Subtitle for settings_exportConfig."
+  },
+  "settings_importConfig": "Import configuration",
+  "@settings_importConfig": {
+      "description": "Storage settings tile that restores settings from a previously exported JSON file."
+  },
+  "settings_importConfigConfirmMessage": "Matching settings in this file replace the ones on this device. Entries this version does not recognise are skipped, and device-local values such as window size and storage paths are never imported. Imported values take effect after you restart the app.",
+  "@settings_importConfigConfirmMessage": {
+      "description": "Body of the import confirmation dialog, explaining the allow-list filtering."
+  },
+  "settings_importConfigConfirmTitle": "Overwrite the settings on this device?",
+  "@settings_importConfigConfirmTitle": {
+      "description": "Title of the confirmation dialog shown before a configuration import is applied."
+  },
+  "settings_importConfigNewerFormat": "This file was exported by a newer version of the app. Some entries may not be applied.",
+  "@settings_importConfigNewerFormat": {
+      "description": "Extra warning line in the import confirmation dialog when the export file's format version is newer than this build supports."
+  },
+  "settings_importConfigSubtitle": "Restore settings from an exported JSON file",
+  "@settings_importConfigSubtitle": {
+      "description": "Subtitle for settings_importConfig."
+  },
+  "settings_localOnnxTaggerFolderIosHint": "Add models via the Files app: On My iPhone → NAI Launcher → tagger_models (.onnx plus label files). Tap the folder icon to open it",
+  "@settings_localOnnxTaggerFolderIosHint": {
+      "description": "iOS-only subtitle for the local ONNX tagger model folder tile, explaining that models are dropped into Documents/tagger_models through the Files app."
+  },
+  "settings_pathFixedIosHint": "iOS sandbox: this folder is fixed inside the app and cannot be changed",
+  "@settings_pathFixedIosHint": {
+      "description": "iOS replacement for settings_androidManagedStorage on the image save / Vibe library / Hive storage path tiles."
+  },
+  "settings_releasePage": "Open GitHub Releases",
+  "@settings_releasePage": {
+      "description": "About settings entry shown instead of the update checker on platforms without an in-app update channel (iOS sideload)."
+  },
+  "settings_releasePageSubtitle": "Read the release notes and download the IPA — you must re-sign it yourself",
+  "@settings_releasePageSubtitle": {
+      "description": "Subtitle for settings_releasePage."
+  },
+  "vibe_export_internalVibeBatchUnsupported": "This platform cannot export to a folder. Select one internal vibe at a time.",
+  "@vibe_export_internalVibeBatchUnsupported": {
+      "description": "Validation message in the advanced vibe export dialog when several internal vibes are selected on a platform without directory batch export (iOS)."
   }
 }

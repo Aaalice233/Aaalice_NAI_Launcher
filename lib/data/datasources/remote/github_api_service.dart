@@ -377,6 +377,16 @@ class GitHubApiService {
         normalizedPlatform == 'android') {
       return _firstAssetOfType(assets, ReleaseAssetType.androidApk);
     }
+    // 【偏离上游】`unknown` 是 AppInstallationService 对「本平台没有发布资产」
+    // 的显式回答（iOS 自签侧载就走这里）。上游让它落进下面的兜底，等于把
+    // 第一个已知资产——通常是 Windows 安装器或 macOS zip——当成 iPhone 的更新
+    // 推过去，还会让 VersionInfo.supportsInAppInstall 误判为 true 而进入
+    // 必然失败的安装流程。宁可没有资产。
+    //
+    // 只拦 `unknown`，不动兜底本身：Linux 等未列出的平台仍保持上游行为。
+    if (normalizedPlatform == 'unknown') {
+      return null;
+    }
     return assets
         .where((asset) => asset.type != ReleaseAssetType.unknown)
         .firstOrNull;

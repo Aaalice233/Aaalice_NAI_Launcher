@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
@@ -17,6 +18,7 @@ import '../../../providers/tag_library_page_provider.dart';
 import '../../../prompt_assistant/providers/prompt_assistant_history_provider.dart';
 import '../../../utils/asset_protection_guard.dart';
 import '../../../utils/card_drop_reader.dart';
+import '../../../utils/clipboard_image.dart';
 import '../../../widgets/common/image_card_action.dart';
 import '../../../../core/utils/localization_extension.dart';
 import '../../../widgets/common/app_toast.dart';
@@ -168,9 +170,35 @@ class _ReversePromptPanelState extends ConsumerState<ReversePromptPanel> {
         _isDragging
             ? context.l10n.reversePrompt_dropToAdd
             : context.l10n.reversePrompt_addOrDropImages,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
       ),
     );
-    if (!PlatformCapabilities.current.supportsExternalFileDrop) return button;
+    // 偏离上游：上游这里只有"添加 / 拖入图片"一个按钮，因为桌面端还能把图直接
+    // 拖进窗口。没有 OS 级文件拖入的平台（iOS / Android）上"从别处复制一张图"
+    // 在反推面板无处落地——只能先存成文件再用文件选择器捞回来。
+    // 所以在没有外部拖放能力时，旁边补一个剪贴板入口。
+    // 与 precise_reference_panel / img2img_source_section 的做法保持一致。
+    if (!PlatformCapabilities.current.supportsExternalFileDrop) {
+      return Row(
+        children: [
+          Expanded(child: button),
+          const SizedBox(width: 8),
+          Expanded(
+            child: FilledButton.tonalIcon(
+              key: const Key('reverse-prompt-panel-paste-from-clipboard'),
+              onPressed: state.isProcessing ? null : _pasteImageFromClipboard,
+              icon: const Icon(Icons.content_paste_go, size: 18),
+              label: Text(
+                context.l10n.generation_pasteImageFromClipboard,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ),
+        ],
+      );
+    }
 
     return DropRegion(
       formats: cardDropFormats,
@@ -551,6 +579,33 @@ class _ReversePromptPanelState extends ConsumerState<ReversePromptPanel> {
           .read(reversePromptProvider.notifier)
           .addImage(bytes, name: file.name);
     }
+  }
+
+  /// 从系统剪贴板取一张图加进反推队列。
+  ///
+  /// 复用 L11 已就绪的 [readImageBytesFromClipboard]（PNG/JPEG/WEBP/BMP），
+  /// 拿到字节后走与拖入、文件选择完全相同的 `addImage`，不另起一套入队逻辑。
+  Future<void> _pasteImageFromClipboard() async {
+    final Uint8List? bytes;
+    try {
+      bytes = await readImageBytesFromClipboard();
+    } catch (error) {
+      if (mounted) {
+        AppToast.error(
+          context,
+          '${context.l10n.reversePrompt_dropUnreadable}: $error',
+        );
+      }
+      return;
+    }
+    if (!mounted) return;
+    if (bytes == null || bytes.isEmpty) {
+      AppToast.info(context, context.l10n.generation_clipboardNoImage);
+      return;
+    }
+    await ref
+        .read(reversePromptProvider.notifier)
+        .addImage(bytes, name: 'clipboard.png');
   }
 
   Future<void> _handleDrop(PerformDropEvent event) async {

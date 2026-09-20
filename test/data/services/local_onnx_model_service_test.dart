@@ -2,9 +2,11 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:archive/archive.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:nai_launcher/core/constants/storage_keys.dart';
+import 'package:nai_launcher/core/platform/platform_capabilities.dart';
 import 'package:nai_launcher/core/storage/local_storage_service.dart';
 import 'package:nai_launcher/data/services/local_onnx_model_service.dart';
 import 'package:path/path.dart' as p;
@@ -15,6 +17,7 @@ void main() {
 
   late Directory tempDirectory;
   late Directory supportDirectory;
+  late Directory documentsDirectory;
   late LocalStorageService storage;
   late LocalOnnxModelService service;
 
@@ -25,8 +28,12 @@ void main() {
     supportDirectory = await Directory(
       p.join(tempDirectory.path, 'support'),
     ).create(recursive: true);
+    documentsDirectory = await Directory(
+      p.join(tempDirectory.path, 'documents'),
+    ).create(recursive: true);
     PathProviderPlatform.instance = _TestPathProviderPlatform(
       supportPath: supportDirectory.path,
+      documentsPath: documentsDirectory.path,
       temporaryPath: p.join(tempDirectory.path, 'cache'),
     );
     Hive.init(p.join(tempDirectory.path, 'hive'));
@@ -36,6 +43,7 @@ void main() {
   });
 
   tearDown(() async {
+    PlatformCapabilities.debugOverride = null;
     await Hive.close();
     if (await tempDirectory.exists()) {
       await tempDirectory.delete(recursive: true);
@@ -265,6 +273,83 @@ void main() {
     expect(Directory(p.join(tempDirectory.path, 'cache')).listSync(), isEmpty);
   });
 
+  test('imports into a Files-app visible directory on iOS', () async {
+    PlatformCapabilities.debugOverride = PlatformCapabilities.forPlatform(
+      TargetPlatform.iOS,
+    );
+    final sourceDirectory = await Directory(
+      p.join(tempDirectory.path, 'picked'),
+    ).create();
+    final model = await File(
+      p.join(sourceDirectory.path, 'model.onnx'),
+    ).writeAsBytes([1, 2, 3, 4]);
+
+    final managedDirectory = await service.getManagedTaggerDirectory();
+
+    expect(
+      managedDirectory,
+      p.join(
+        documentsDirectory.path,
+        LocalOnnxModelService.iosTaggerFolderName,
+      ),
+    );
+    expect(
+      await service.importTaggerFiles([
+        LocalOnnxImportSource(name: 'model.onnx', path: model.path),
+      ]),
+      1,
+    );
+    expect(File(p.join(managedDirectory, 'model.onnx')).existsSync(), isTrue);
+    expect(
+      Directory(
+        p.join(supportDirectory.path, 'models', 'onnx_taggers'),
+      ).existsSync(),
+      isFalse,
+    );
+  });
+
+  test(
+    'scans the stored directory and the fixed iOS folder together',
+    () async {
+      PlatformCapabilities.debugOverride = PlatformCapabilities.forPlatform(
+        TargetPlatform.iOS,
+      );
+
+      // 用户用「文件」App 直接放进 Documents/tagger_models 的模型。
+      final droppedDirectory = await Directory(
+        p.join(
+          documentsDirectory.path,
+          LocalOnnxModelService.iosTaggerFolderName,
+        ),
+      ).create(recursive: true);
+      final dropped = await File(
+        p.join(droppedDirectory.path, 'wd14-convnext.onnx'),
+      ).writeAsBytes([1]);
+      await File(
+        p.join(droppedDirectory.path, 'selected_tags.csv'),
+      ).writeAsString('name,category\ntag,0\n');
+
+      // 设置项里残留的另一个目录（例如从桌面配置导入或旧版本写下的）。
+      final storedDirectory = await Directory(
+        p.join(tempDirectory.path, 'stored'),
+      ).create();
+      final stored = await File(
+        p.join(storedDirectory.path, 'cl_tagger.onnx'),
+      ).writeAsBytes([1]);
+      await File(
+        p.join(storedDirectory.path, 'tag_mapping.json'),
+      ).writeAsString('{}');
+      await service.setTaggerDirectory(storedDirectory.path);
+
+      final models = await service.scanTaggerModels();
+
+      expect(
+        models.map((model) => model.path),
+        containsAll(<String>[dropped.path, stored.path]),
+      );
+    },
+  );
+
   test('rejects duplicate flattened names in a ZIP archive', () async {
     final archive = Archive()
       ..addFile(ArchiveFile('first/model.onnx', 1, [1]))
@@ -293,14 +378,19 @@ void main() {
 class _TestPathProviderPlatform extends PathProviderPlatform {
   _TestPathProviderPlatform({
     required this.supportPath,
+    required this.documentsPath,
     required this.temporaryPath,
   });
 
   final String supportPath;
+  final String documentsPath;
   final String temporaryPath;
 
   @override
   Future<String?> getApplicationSupportPath() async => supportPath;
+
+  @override
+  Future<String?> getApplicationDocumentsPath() async => documentsPath;
 
   @override
   Future<String?> getTemporaryPath() async {

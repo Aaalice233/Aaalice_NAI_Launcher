@@ -31,6 +31,11 @@ class AppInstallationService {
     if (Platform.isAndroid) {
       return AppInstallationType.androidApk;
     }
+    // iOS 刻意不加分支：自签侧载没有任何可用的安装通道，必须落到 unsupported，
+    // 由此 getReleaseAssetPreference() 返回 'unknown'，
+    // GitHubApiService._findPlatformAsset 会据此返回 null（见那里的注释），
+    // supportsInAppInstall 也保持 false。任何给 iOS 补分支的改动都会让更新链路
+    // 重新把桌面包推给 iPhone。
     return AppInstallationType.unsupported;
   }
 

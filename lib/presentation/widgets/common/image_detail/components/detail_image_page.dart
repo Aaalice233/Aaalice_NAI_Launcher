@@ -40,6 +40,12 @@ class _DetailImagePageState extends State<DetailImagePage>
   /// 加载状态
   bool _isLoading = true;
 
+  /// 原图解码期间的低清占位图。
+  ///
+  /// 【偏离上游】上游只在 [_buildLoadingIndicator] 里显示一个转圈，
+  /// 全尺寸 PNG 在移动端解码要好几百毫秒，期间整屏是纯色。
+  ImageProvider? _placeholder;
+
   static const double _minScale = 0.5;
   static const double _maxScale = 4.0;
   static const double _doubleTapScale = 2.5;
@@ -56,6 +62,12 @@ class _DetailImagePageState extends State<DetailImagePage>
       if (_animation != null) {
         _transformController.value = _animation!.value;
       }
+    });
+    // 占位是纯优化：原图已经解码完（_isLoading == false）就不再插入占位，
+    // 失败也只是回退到上游原本的转圈。
+    widget.data.getPlaceholderProvider().then((provider) {
+      if (!mounted || provider == null || !_isLoading) return;
+      setState(() => _placeholder = provider);
     });
   }
 
@@ -149,6 +161,42 @@ class _DetailImagePageState extends State<DetailImagePage>
     );
   }
 
+  /// 构建低清占位层（占位铺满 + 右下角小转圈）
+  Widget _buildPlaceholderLayer(BuildContext context, ImageProvider provider) {
+    return Container(
+      color: ImageViewportSurface.background,
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          Center(
+            child: Image(
+              image: provider,
+              fit: BoxFit.contain,
+              gaplessPlayback: true,
+              // 占位解码失败不能连带炸掉整屏，静默留纯色背景。
+              errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+            ),
+          ),
+          Positioned(
+            right: 16,
+            bottom: 16,
+            child: SizedBox(
+              width: 22,
+              height: 22,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                value: MediaQuery.disableAnimationsOf(context) ? 0.72 : null,
+                valueColor: AlwaysStoppedAnimation<Color>(
+                  Colors.white.withValues(alpha: 0.7),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   /// 标记加载完成
   void _markLoadingComplete() {
     if (_isLoading && mounted) {
@@ -224,8 +272,14 @@ class _DetailImagePageState extends State<DetailImagePage>
           ),
         ),
 
-        // 加载指示器
-        if (_isLoading) Positioned.fill(child: _buildLoadingIndicator(context)),
+        // 加载指示器：拿到低清占位图时先铺占位 + 角落小转圈，
+        // 否则退回上游的全屏加载指示。
+        if (_isLoading)
+          Positioned.fill(
+            child: _placeholder != null
+                ? _buildPlaceholderLayer(context, _placeholder!)
+                : _buildLoadingIndicator(context),
+          ),
       ],
     );
   }

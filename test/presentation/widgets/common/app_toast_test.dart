@@ -464,6 +464,118 @@ void main() {
     await tester.pump(const Duration(milliseconds: 301));
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets('窄屏 Toast 让开 AppBar 按钮行且完全不拦截点击', (tester) async {
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(390, 800);
+    addTearDown(tester.view.reset);
+
+    var underlyingTaps = 0;
+    await tester.pumpWidget(
+      InteractionPolicyScope(
+        initialPolicy: const InteractionPolicy(
+          modality: InteractionModality.touch,
+          touchAvailable: true,
+          precisePointerAvailable: false,
+        ),
+        child: MaterialApp(
+          home: Builder(
+            builder: (context) => Scaffold(
+              appBar: AppBar(
+                title: const Text('生成'),
+                actions: [
+                  IconButton(
+                    key: const ValueKey('appbar-action'),
+                    onPressed: () {},
+                    icon: const Icon(Icons.tune),
+                  ),
+                ],
+              ),
+              body: Column(
+                children: [
+                  SizedBox(
+                    height: 120,
+                    child: GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: () => underlyingTaps++,
+                      child: const SizedBox.expand(),
+                    ),
+                  ),
+                  FilledButton(
+                    onPressed: () => AppToast.info(context, '已加入队列'),
+                    child: const Text('显示 Toast'),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('显示 Toast'));
+    await tester.pump(const Duration(milliseconds: 301));
+
+    final message = find.text('已加入队列');
+    expect(message, findsOneWidget);
+    // 上游窄屏紧贴安全区 12pt 起，正好压住顶栏按钮行；这里必须整体下移一个
+    // kToolbarHeight。
+    expect(tester.getTopLeft(message).dy, greaterThan(kToolbarHeight));
+    expect(
+      tester.getTopLeft(message).dy,
+      greaterThan(
+        tester.getBottomLeft(find.byKey(const ValueKey('appbar-action'))).dy,
+      ),
+    );
+
+    // 窄屏整块 IgnorePointer：toast 覆盖区域的点击照常落到下方控件上，
+    // 因此也不渲染点不到的关闭按钮。
+    expect(find.byIcon(Icons.close), findsNothing);
+    await tester.tapAt(tester.getCenter(message));
+    await tester.pump();
+    expect(underlyingTaps, 1);
+
+    await tester.pump(const Duration(seconds: 3));
+    await tester.pump(const Duration(milliseconds: 301));
+  });
+
+  testWidgets('窄屏 Toast 2.2 秒自动消失而不是上游的 3 秒', (tester) async {
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(390, 800);
+    addTearDown(tester.view.reset);
+
+    await tester.pumpWidget(
+      InteractionPolicyScope(
+        initialPolicy: const InteractionPolicy(
+          modality: InteractionModality.touch,
+          touchAvailable: true,
+          precisePointerAvailable: false,
+        ),
+        child: MaterialApp(
+          home: Builder(
+            builder: (context) => Scaffold(
+              body: FilledButton(
+                onPressed: () => AppToast.info(context, '窄屏提示'),
+                child: const Text('显示 Toast'),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('显示 Toast'));
+    await tester.pump(); // 插入 overlay，自动消失计时从这一帧开始
+
+    await tester.pump(const Duration(milliseconds: 2000));
+    expect(find.text('窄屏提示'), findsOneWidget);
+
+    await tester.pump(const Duration(milliseconds: 250)); // 累计 2.25s > 2.2s
+    await tester.pump(const Duration(milliseconds: 310)); // 退场动画
+    await tester.pump();
+    // 累计约 2.56s：若仍是上游的 3s，这里应当还看得见。
+    expect(find.text('窄屏提示'), findsNothing);
+  });
 }
 
 double _contrastRatio(Color foreground, Color background) {
