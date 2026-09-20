@@ -1,8 +1,6 @@
 import '../../widgets/common/image_card_action.dart';
 import '../../widgets/common/image_card_batch_scope.dart';
 import '../../selection/card_selection_scope.dart';
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import '../../../core/constants/storage_keys.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -240,6 +238,13 @@ class _LocalGalleryShell extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final gallery = viewModel.gallery;
     return Scaffold(
+      key: controller.categoryDrawerScaffoldKey,
+      // 【偏离上游】上游窄屏把分类树塞进 AdaptivePresenter 的底部弹面板，
+      // 这里改成左侧 Drawer 承载同一个 buildCategoryPanel（用户点名的
+      // 「左边侧边栏」）。宽屏有常驻侧栏时不挂 drawer，避免多一个入口。
+      drawer: viewModel.usePersistentCategories ? null : _buildCategoryDrawer(),
+      // 画廊卡片本身有横向滑动手势，边缘拖拽会和它抢触点，所以只允许按钮打开
+      drawerEnableOpenDragGesture: false,
       body: GalleryCollectionWorkspace(
         sidebarWidthKey: StorageKeys.localGallerySidebarWidth,
         toolbar: _buildToolbar(context, ref),
@@ -276,6 +281,25 @@ class _LocalGalleryShell extends ConsumerWidget {
     );
   }
 
+  /// 窄屏分类抽屉：内容与常驻侧栏、上游底部面板完全同源
+  Widget _buildCategoryDrawer() {
+    return Drawer(
+      key: const Key('local-gallery-category-drawer'),
+      width: 290,
+      child: SafeArea(
+        child: Consumer(
+          builder: (context, drawerRef, _) => controller.buildCategoryPanel(
+            galleryState: drawerRef.watch(localGalleryNotifierProvider),
+            categoryState: drawerRef.watch(galleryCategoryNotifierProvider),
+            albumState: drawerRef.watch(galleryAlbumNotifierProvider),
+            modal: true,
+            afterSelection: controller.closeCategoryDrawer,
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildToolbar(BuildContext context, WidgetRef ref) {
     final bulk = viewModel.bulkOperation;
     return LocalGalleryToolbar(
@@ -292,7 +316,7 @@ class _LocalGalleryShell extends ConsumerWidget {
       showCategoryPanel: viewModel.showPersistentCategories,
       onToggleCategoryPanel: viewModel.usePersistentCategories
           ? controller.toggleCategoryPanel
-          : () => unawaited(controller.showCategoryPanelSheet()),
+          : controller.openCategoryDrawer,
       onOpenFolder: PlatformCapabilities.current.supportsOpenFolder
           ? controller.openGalleryFolder
           : null,

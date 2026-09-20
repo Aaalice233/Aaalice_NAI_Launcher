@@ -37,6 +37,7 @@ import 'layout_state_provider.dart';
 import 'local_gallery_provider.dart';
 import 'online_gallery_provider.dart';
 import 'precise_ref_library_provider.dart';
+import 'proxy_settings_provider.dart';
 import 'random_preset_provider.dart';
 import 'tag_library_page_provider.dart';
 import 'tag_library_provider.dart';
@@ -285,17 +286,32 @@ final startupInitializationTasksProvider = Provider<StartupInitializationTasks>(
 );
 
 void _configureSystemProxy(Box<dynamic> settingsBox) {
-  if (!PlatformCapabilities.operatingSystem.isDesktop) return;
+  final capabilities = PlatformCapabilities.operatingSystem;
+
+  // 偏离上游：上游这里是 `if (!capabilities.isDesktop) return;`。而这是全仓唯一写
+  // HttpOverrides.global 的地方，后果是移动端的代理开关可点可存但永不生效——
+  // 用户以为配好了，请求其实还是直连。所以这里放行移动端。
+  if (!capabilities.isDesktop && !capabilities.isMobile) return;
 
   final proxyEnabled =
-      settingsBox.get(StorageKeys.proxyEnabled, defaultValue: true) as bool;
+      settingsBox.get(
+            StorageKeys.proxyEnabled,
+            // 偏离上游：上游是全平台 defaultValue: true。默认值与
+            // ProxySettingsNotifier.build 共用 defaultProxyEnabled，两处必须一致。
+            defaultValue: defaultProxyEnabled(capabilities),
+          )
+          as bool;
   if (!proxyEnabled) {
     AppLogger.d('Proxy disabled by user settings', 'NETWORK');
     return;
   }
 
-  final proxyMode =
+  final storedMode =
       settingsBox.get(StorageKeys.proxyMode, defaultValue: 'auto') as String;
+  // 偏离上游：移动端只注入 manual 模式。ProxyService.getSystemProxyAddress() 对
+  // iOS/Android 返回 null，auto 在手机上永远拿不到地址；与
+  // resolveProxyMode（proxy_settings_provider.dart）的折算保持一致。
+  final proxyMode = capabilities.isMobile ? 'manual' : storedMode;
   String? proxyAddress;
   if (proxyMode == 'manual') {
     final host = settingsBox.get(StorageKeys.proxyManualHost) as String?;

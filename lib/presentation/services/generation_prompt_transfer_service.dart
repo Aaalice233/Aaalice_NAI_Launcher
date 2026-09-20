@@ -183,11 +183,17 @@ class GenerationPromptTransferService {
 
   final Ref _ref;
 
+  /// [raw] 原样填充，跳过 SD→NAI 转换与格式化。
+  ///
+  /// 偏离上游：上游没有这个参数，两条提示词一律 `_normalize`。AI TAG 这类来源
+  /// 的提示词已经是 NAI 原生语法，再转一次会把自然语言描述压成下划线串、
+  /// 并改写坏 `[...]` 降权。booru 系（danbooru 卡片）仍走默认的 false。
   void replaceMainPrompt({
     required String prompt,
     String? negativePrompt,
     GenerationTransferConfiguration? configuration,
     Set<GenerationTransferSetting>? configurationSettings,
+    bool raw = false,
   }) {
     _ref.read(pendingPromptNotifierProvider.notifier).clear();
     final notifier = _ref.read(generationParamsNotifierProvider.notifier);
@@ -238,12 +244,12 @@ class GenerationPromptTransferService {
 
     final positive = prompt.trim();
     if (positive.isNotEmpty) {
-      notifier.updatePrompt(_normalize(positive));
+      notifier.updatePrompt(raw ? positive : _normalize(positive));
     }
 
     final negative = negativePrompt?.trim();
     if (negative != null && negative.isNotEmpty) {
-      notifier.updateNegativePrompt(_normalize(negative));
+      notifier.updateNegativePrompt(raw ? negative : _normalize(negative));
     }
   }
 

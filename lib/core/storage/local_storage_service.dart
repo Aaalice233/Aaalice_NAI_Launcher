@@ -5,6 +5,7 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 import '../constants/api_constants.dart';
 import '../constants/model_capabilities.dart';
 import '../constants/storage_keys.dart';
+import '../platform/platform_capabilities.dart';
 
 part 'local_storage_service.g.dart';
 
@@ -374,13 +375,21 @@ class LocalStorageService {
     await setSetting(StorageKeys.randomPromptMode, value);
   }
 
-  /// 获取是否显示随机提示词工具入口 (默认开启)
+  /// 获取是否显示随机提示词工具入口（桌面默认开启，移动端默认隐藏）
+  ///
+  /// 偏离上游：上游是全平台 `defaultValue: true`。手机上生成页工具条的横向空间
+  /// 非常紧张，抽卡（随机提示词）入口默认不占位，用户仍可在设置里手动打开。
+  ///
+  /// 注意这是移动端隐藏抽卡入口的唯一支点：mobile_layout.dart 与
+  /// prompt_input_toolbar.dart 仍在 watch randomPromptToolsVisibilityProvider，
+  /// 这里改回 true，手机上的开关就会重新出现。
   bool getShowRandomPromptTools() {
+    final defaultVisible = !PlatformCapabilities.current.isMobile;
     return getSetting<bool>(
           StorageKeys.showRandomPromptTools,
-          defaultValue: true,
+          defaultValue: defaultVisible,
         ) ??
-        true;
+        defaultVisible;
   }
 
   /// 保存是否显示随机提示词工具入口

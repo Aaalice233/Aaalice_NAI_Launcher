@@ -79,6 +79,14 @@ class _TagLibraryPageScreenState extends ConsumerState<TagLibraryPageScreen> {
   final ValueNotifier<bool> _categoriesExpanded = ValueNotifier(true);
   bool _showCategoryPanel = true;
 
+  /// 窄屏分类抽屉所在 Scaffold 的 key
+  ///
+  /// 【偏离上游】上游窄屏走 AdaptivePresenter.showPanel 的底部面板，不需要
+  /// Scaffold 句柄；我们保留左侧 Drawer 呈现，触发按钮在工具栏里（context 在
+  /// Scaffold 之上），只能靠 key 打开。
+  final GlobalKey<ScaffoldState> _categoryDrawerScaffoldKey =
+      GlobalKey<ScaffoldState>();
+
   @override
   void dispose() {
     _searchFocusNode.dispose();
@@ -176,6 +184,12 @@ class _TagLibraryPageScreenState extends ConsumerState<TagLibraryPageScreen> {
             contextType: ShortcutContext.tagLibrary,
             shortcuts: shortcuts,
             child: Scaffold(
+              key: _categoryDrawerScaffoldKey,
+              // 【偏离上游】上游窄屏把分类树塞进底部弹面板，这里改成左侧
+              // Drawer 承载同一个 _buildCategorySidebar(forPanel: true)。
+              // 关闭边缘拖拽：词库卡片列表有横向手势，避免抢触点。
+              drawer: _buildCategoryDrawer(),
+              drawerEnableOpenDragGesture: false,
               body: LayoutBuilder(
                 builder: (context, constraints) {
                   final persistentCategories = constraints.maxWidth >= 840;
@@ -190,7 +204,7 @@ class _TagLibraryPageScreenState extends ConsumerState<TagLibraryPageScreen> {
                           ? () => setState(
                               () => _showCategoryPanel = !_showCategoryPanel,
                             )
-                          : () => _showCategoryPanelSheet(state),
+                          : _openCategoryDrawer,
                       onOpenFolder:
                           PlatformCapabilities.current.supportsOpenFolder
                           ? _openLibraryFolder
@@ -432,16 +446,31 @@ class _TagLibraryPageScreenState extends ConsumerState<TagLibraryPageScreen> {
     ),
   );
 
-  Future<void> _showCategoryPanelSheet(TagLibraryPageState state) {
-    return AdaptivePresenter.showPanel<void>(
-      context: context,
-      title: context.l10n.tagLibrary_categories,
-      initialChildSize: 0.76,
-      builder: (panelContext, scrollController) => _buildCategorySidebar(
-        forPanel: true,
-        onCategorySelectionComplete: () => Navigator.of(panelContext).pop(),
+  /// 窄屏分类抽屉
+  ///
+  /// 【偏离上游】上游 v4.2.1 是 `_showCategoryPanelSheet`（AdaptivePresenter
+  /// .showPanel 底部面板，tag_library_page_screen.dart:435-445）。用户点名保留
+  /// 左侧边栏，所以只换承载容器：里面仍是同一个 `_buildCategorySidebar(
+  /// forPanel: true)`，分类树没有重建。
+  Widget _buildCategoryDrawer() {
+    return Drawer(
+      key: const Key('tag-library-category-drawer'),
+      width: 290,
+      child: SafeArea(
+        child: _buildCategorySidebar(
+          forPanel: true,
+          onCategorySelectionComplete: _closeCategoryDrawer,
+        ),
       ),
     );
+  }
+
+  void _openCategoryDrawer() {
+    _categoryDrawerScaffoldKey.currentState?.openDrawer();
+  }
+
+  void _closeCategoryDrawer() {
+    _categoryDrawerScaffoldKey.currentState?.closeDrawer();
   }
 
   Future<void> _openLibraryFolder() async {

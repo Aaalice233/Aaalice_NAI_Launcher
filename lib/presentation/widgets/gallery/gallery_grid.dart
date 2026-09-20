@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:visibility_detector/visibility_detector.dart';
 
+import '../../../core/platform/platform_capabilities.dart';
 import '../../../core/utils/localization_extension.dart';
 import '../../../data/models/gallery/local_image_record.dart';
 import 'draggable_image_card.dart';
@@ -343,7 +344,15 @@ class _GalleryImageCardState extends State<_GalleryImageCard> {
       isKritaConnected: widget.isKritaConnected,
       // 使用 dragWrapper 将拖拽功能注入到卡片内部
       // 解决 GestureDetector 与拖拽手势的冲突问题
-      dragWrapper: widget.enableDrag
+      //
+      // 偏离上游：上游只判 enableDrag，而 gallery_content_view 传进来的是
+      // `!selectionState.isActive` —— 也就是"还没进入多选模式"时拖拽仍然开着，
+      // 而那恰好就是用户要靠长按进多选的时刻，长按会被桌面拖放先吞掉。
+      // 触屏平台本来也没有可以拖到的目标（没有系统文件管理器接收），
+      // 所以再叠一层 supportsExternalFileDrop。
+      dragWrapper:
+          widget.enableDrag &&
+              PlatformCapabilities.current.supportsExternalFileDrop
           ? DraggableImageCard.createDragWrapper(record: widget.record)
           : null,
     );

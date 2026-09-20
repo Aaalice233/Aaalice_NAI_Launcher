@@ -14576,6 +14576,25 @@ class AppLocalizationsZh extends AppLocalizations {
 
     return '会员到期日期：$dateString';
   }
+
+  @override
+  String get generation_clipboardNoImage => '剪贴板里没有图片';
+
+  @override
+  String get generation_importImageFromFile => '从文件选择';
+
+  @override
+  String get generation_pasteImageFromClipboard => '从剪贴板粘贴图片';
+
+  @override
+  String get generation_quickTools => '快捷工具';
+
+  @override
+  String get onlineGallery_outputFilteredTagTooltipTouch =>
+      '此标签会在复制、发送和加入队列时被剔除；长按可管理';
+
+  @override
+  String get onlineGallery_tagContextMenuTooltipTouch => '长按可加入黑名单或输出过滤';
 }
 
 /// The translations for Chinese, using the Han script (`zh_Hant`).
@@ -29151,4 +29170,23 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
     return '會員到期日期：$dateString';
   }
+
+  @override
+  String get generation_clipboardNoImage => '剪貼簿裡沒有圖片';
+
+  @override
+  String get generation_importImageFromFile => '從檔案選擇';
+
+  @override
+  String get generation_pasteImageFromClipboard => '從剪貼簿貼上圖片';
+
+  @override
+  String get generation_quickTools => '快捷工具';
+
+  @override
+  String get onlineGallery_outputFilteredTagTooltipTouch =>
+      '此標籤會在複製、傳送和加入佇列時被剔除；長按可管理';
+
+  @override
+  String get onlineGallery_tagContextMenuTooltipTouch => '長按可加入黑名單或輸出過濾';
 }

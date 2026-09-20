@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -73,7 +75,31 @@ final promptTokenUsageProvider =
       final currentQualityEntry = ref.watch(currentQualityEntryProvider);
       final currentUcEntry = ref.watch(currentUcEntryProvider);
       final aliasResolver = ref.read(aliasResolverServiceProvider.notifier);
-      final service = await ref.watch(promptTokenCounterServiceProvider.future);
+      final serviceFuture = ref.watch(promptTokenCounterServiceProvider.future);
+
+      // 偏离上游：上游在这里直接 await 服务并立刻全量重算。分词是纯 Dart
+      // 同步执行（跑在 UI 线程），逐键全量重算会在快速连续输入（如连按删除、
+      // 中文输入法组合串）时拖垮主线程——移动端尤其明显。改为停顿 400ms 后
+      // 才真正计数：期间的重建会触发 onDispose，放弃本次计算并取消计时器。
+      // token 条用的是 skipLoadingOnReload，会保留旧值，不会闪烁。
+      var restarted = false;
+      final debounce = Completer<void>();
+      final debounceTimer = Timer(
+        const Duration(milliseconds: 400),
+        debounce.complete,
+      );
+      ref.onDispose(() {
+        restarted = true;
+        debounceTimer.cancel();
+        if (!debounce.isCompleted) {
+          debounce.complete();
+        }
+      });
+      await debounce.future;
+      if (restarted) {
+        return null;
+      }
+      final service = await serviceFuture;
       final qualityContent = switch (qualityPresetState.mode) {
         PromptPresetMode.naiDefault => QualityTags.getQualityTagsForTier(
           promptState.model,

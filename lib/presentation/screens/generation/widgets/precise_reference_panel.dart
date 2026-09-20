@@ -12,6 +12,7 @@ import 'package:super_drag_and_drop/super_drag_and_drop.dart';
 import '../../../widgets/common/image_viewport_surface.dart';
 import '../../../../../core/enums/precise_ref_type.dart';
 import '../../../../../core/extensions/precise_ref_type_extensions.dart';
+import '../../../../core/platform/platform_capabilities.dart';
 import '../../../../core/utils/localization_extension.dart';
 import '../../../../data/models/image/image_params.dart';
 import '../../../../data/services/precise_ref_library_storage_service.dart';
@@ -19,6 +20,7 @@ import '../../../providers/generation/generation_panel_expansion_provider.dart';
 import '../../../providers/image_generation_provider.dart';
 import '../../../providers/precise_ref_library_provider.dart';
 import '../../../utils/card_drop_reader.dart';
+import '../../../utils/clipboard_image.dart';
 import '../../../widgets/common/image_card_action.dart';
 import '../../../utils/precise_ref_library_import_helper.dart';
 import '../../../widgets/common/app_toast.dart';
@@ -234,21 +236,7 @@ class _PreciseReferencePanelState extends ConsumerState<PreciseReferencePanel> {
             ],
 
             // 添加按钮
-            _buildAddReferenceDropTarget(
-              supportsPreciseReference: supportsPreciseReference,
-              child: FilledButton.tonalIcon(
-                onPressed: supportsPreciseReference ? _addReference : null,
-                icon: Icon(
-                  _isFileDraggingOver ? Icons.file_download_rounded : Icons.add,
-                  size: 18,
-                ),
-                label: Text(
-                  _isFileDraggingOver
-                      ? context.l10n.preciseRef_dropToAdd
-                      : context.l10n.preciseRef_addReference,
-                ),
-              ),
-            ),
+            _buildAddReferenceRow(supportsPreciseReference),
 
             // 库操作：从库导入 / 保存到库
             const SizedBox(height: 8),
@@ -302,6 +290,87 @@ class _PreciseReferencePanelState extends ConsumerState<PreciseReferencePanel> {
         ),
       ),
     );
+  }
+
+  /// 「添加参考」按钮区域。
+  ///
+  /// 偏离上游：上游只有一个「添加参考」按钮（外面套 DropRegion），因为桌面端
+  /// 还能把图直接拖进来。没有 OS 级文件拖入的平台在它旁边补一个剪贴板入口，
+  /// 否则「从别处复制一张图」在这里无处落地。
+  ///
+  /// 注意 DropRegion 在两条分支里都保留：上游的它同时接收应用内卡片拖拽
+  /// （cardDropFormats + CardDropPolicy），触屏上长按拖卡片是可用的，整段摘掉
+  /// 会连带丢掉这个能力——这与我们上一轮在 v1.8.1 上的做法不同，当时上游还没有
+  /// 卡片内拖。
+  Widget _buildAddReferenceRow(bool supportsPreciseReference) {
+    final addButton = _buildAddReferenceDropTarget(
+      supportsPreciseReference: supportsPreciseReference,
+      child: FilledButton.tonalIcon(
+        onPressed: supportsPreciseReference ? _addReference : null,
+        icon: Icon(
+          _isFileDraggingOver ? Icons.file_download_rounded : Icons.add,
+          size: 18,
+        ),
+        label: Text(
+          _isFileDraggingOver
+              ? context.l10n.preciseRef_dropToAdd
+              : context.l10n.preciseRef_addReference,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
+      ),
+    );
+    if (PlatformCapabilities.current.supportsExternalFileDrop) {
+      return addButton;
+    }
+    return Row(
+      children: [
+        Expanded(child: addButton),
+        const SizedBox(width: 8),
+        Expanded(
+          child: FilledButton.tonalIcon(
+            key: const Key('precise-ref-panel-paste-from-clipboard'),
+            onPressed: supportsPreciseReference
+                ? _pasteReferenceFromClipboard
+                : null,
+            icon: const Icon(Icons.content_paste_go, size: 18),
+            label: Text(
+              context.l10n.generation_pasteImageFromClipboard,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// 从系统剪贴板取图作为精准参考。
+  ///
+  /// 取到字节后复用上游的 [_applyDroppedReferences]，类型选择、批量结果与
+  /// toast 全部与拖入一致，不另起一套。
+  Future<void> _pasteReferenceFromClipboard() async {
+    if (_isProcessingDroppedFiles) return;
+    final Uint8List? bytes;
+    try {
+      bytes = await readImageBytesFromClipboard();
+    } catch (error) {
+      if (mounted) {
+        AppToast.error(context, context.l10n.img2img_selectFailed('$error'));
+      }
+      return;
+    }
+    if (!mounted) return;
+    if (bytes == null || bytes.isEmpty) {
+      AppToast.info(context, context.l10n.generation_clipboardNoImage);
+      return;
+    }
+    setState(() => _isProcessingDroppedFiles = true);
+    await _applyDroppedReferences([
+      CardDroppedResource(
+        file: DroppedFileData(fileName: 'clipboard.png', bytes: bytes),
+      ),
+    ]);
   }
 
   Widget _buildAddReferenceDropTarget({

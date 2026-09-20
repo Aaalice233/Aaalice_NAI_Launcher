@@ -543,6 +543,17 @@ class _UnifiedPromptInputState extends ConsumerState<UnifiedPromptInput> {
 
     final externalValue = externalController.value;
 
+    // 偏离上游：上游没有这道组词守卫，只要外部控制器变了就整块改写内部文本。
+    // iOS 中文输入法在组合输入（composing）期间被外部改写会摧毁组合区，并与
+    // 系统输入法就编辑状态互相打架，表现为输入框卡死。组合期间跳过同步，
+    // 组合结束后由后续输入自然同步回来。
+    final composing = syntaxController.value.composing;
+    if (composing.isValid &&
+        !composing.isCollapsed &&
+        externalValue.text != syntaxController.text) {
+      return;
+    }
+
     if (syntaxController.value != externalValue) {
       _syncingControllerValue = true;
       try {

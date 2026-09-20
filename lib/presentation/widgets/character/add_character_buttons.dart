@@ -6,6 +6,7 @@ import '../../../core/utils/character_prompt_block_parser.dart';
 import '../../../data/models/character/character_prompt.dart';
 import '../../providers/character_prompt_provider.dart';
 import '../../providers/tag_library_page_provider.dart';
+import '../common/app_toast.dart';
 import '../tag_library/tag_library_picker_dialog.dart';
 
 /// 添加角色按钮组件。
@@ -20,6 +21,20 @@ class AddCharacterButtons extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = AppLocalizations.of(context)!;
     final hasScaledText = MediaQuery.textScalerOf(context).scale(14) > 14;
+    // 偏离上游：上游只在 inline_character_row 的行尾添加芯片上做了上限处理，
+    // 本组件（挂在参数面板与 web_left_panel 的 headerActions，移动端同样可达）
+    // 全文没有任何上限判断，到达官方上限后 addCharacter 只写一行日志就 return，
+    // 表现是"点了没反应"。而且上游那处只给 tooltip——触屏没有 hover，
+    // 要长按才看得到原因，等于没有提示，所以这里点击也必须有可见反馈。
+    final limitReached = ref.watch(characterLimitReachedProvider);
+    final disabledReason = limitReached
+        ? l10n.character_limitReached(
+            ref
+                .read(characterPromptNotifierProvider.notifier)
+                .characterLimit
+                .toString(),
+          )
+        : null;
 
     return Wrap(
       spacing: compact && hasScaledText ? 2 : 4,
@@ -31,6 +46,7 @@ class AddCharacterButtons extends ConsumerWidget {
           label: l10n.characterEditor_addFemale,
           color: const Color(0xFFEC4899),
           compact: compact,
+          disabledReason: disabledReason,
           onTap: () => _addCharacter(ref, CharacterGender.female),
         ),
         _GenderButton(
@@ -39,6 +55,7 @@ class AddCharacterButtons extends ConsumerWidget {
           label: l10n.characterEditor_addMale,
           color: const Color(0xFF3B82F6),
           compact: compact,
+          disabledReason: disabledReason,
           onTap: () => _addCharacter(ref, CharacterGender.male),
         ),
         _GenderButton(
@@ -47,11 +64,13 @@ class AddCharacterButtons extends ConsumerWidget {
           label: l10n.characterEditor_addOther,
           color: const Color(0xFF8B5CF6),
           compact: compact,
+          disabledReason: disabledReason,
           onTap: () => _addCharacter(ref, CharacterGender.other),
         ),
         _LibraryButton(
           key: const Key('character-add-from-library'),
           compact: compact,
+          disabledReason: disabledReason,
           onTap: () => _addFromLibrary(context, ref),
         ),
       ],
@@ -86,6 +105,17 @@ class AddCharacterButtons extends ConsumerWidget {
   }
 }
 
+/// 禁用态包装：变灰 + tooltip（桌面悬停 / 触屏长按）
+///
+/// 点击反馈由各按钮自己在 onTap 里给 toast，见 AddCharacterButtons 的注释。
+Widget _wrapDisabled({required String? disabledReason, required Widget child}) {
+  if (disabledReason == null) return child;
+  return Tooltip(
+    message: disabledReason,
+    child: Opacity(opacity: 0.45, child: child),
+  );
+}
+
 /// 性别按钮组件（无边框+色差风格）
 class _GenderButton extends StatefulWidget {
   final IconData icon;
@@ -94,6 +124,10 @@ class _GenderButton extends StatefulWidget {
   final bool compact;
   final VoidCallback onTap;
 
+  /// 非空表示不可用（当前只有「已达角色上限」一种原因），
+  /// 同一句文案同时用于 tooltip 与点击后的 toast
+  final String? disabledReason;
+
   const _GenderButton({
     super.key,
     required this.icon,
@@ -101,6 +135,7 @@ class _GenderButton extends StatefulWidget {
     required this.color,
     required this.compact,
     required this.onTap,
+    this.disabledReason,
   });
 
   @override
@@ -114,13 +149,24 @@ class _GenderButtonState extends State<_GenderButton> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
+    final disabled = widget.disabledReason != null;
+    final hovered = _isHovered && !disabled;
 
-    return MouseRegion(
+    final button = MouseRegion(
       onEnter: (_) => setState(() => _isHovered = true),
       onExit: (_) => setState(() => _isHovered = false),
-      cursor: SystemMouseCursors.click,
+      cursor: disabled
+          ? SystemMouseCursors.forbidden
+          : SystemMouseCursors.click,
       child: GestureDetector(
-        onTap: widget.onTap,
+        onTap: () {
+          final reason = widget.disabledReason;
+          if (reason != null) {
+            AppToast.warning(context, reason);
+            return;
+          }
+          widget.onTap();
+        },
         child: AnimatedContainer(
           duration: MediaQuery.disableAnimationsOf(context)
               ? Duration.zero
@@ -131,7 +177,7 @@ class _GenderButtonState extends State<_GenderButton> {
           ),
           decoration: BoxDecoration(
             // 无边框，常态淡背景，悬停时加深
-            color: _isHovered
+            color: hovered
                 ? widget.color.withValues(alpha: 0.18)
                 : widget.color.withValues(alpha: 0.08),
             borderRadius: BorderRadius.circular(6),
@@ -152,10 +198,10 @@ class _GenderButtonState extends State<_GenderButton> {
                             ? theme.textTheme.labelSmall
                             : theme.textTheme.labelMedium)
                         ?.copyWith(
-                          color: _isHovered
+                          color: hovered
                               ? widget.color
                               : colorScheme.onSurfaceVariant,
-                          fontWeight: _isHovered
+                          fontWeight: hovered
                               ? FontWeight.w600
                               : FontWeight.w500,
                         ),
@@ -165,6 +211,10 @@ class _GenderButtonState extends State<_GenderButton> {
         ),
       ),
     );
+    return _wrapDisabled(
+      disabledReason: widget.disabledReason,
+      child: button,
+    );
   }
 }
 
@@ -173,7 +223,15 @@ class _LibraryButton extends StatefulWidget {
   final bool compact;
   final VoidCallback onTap;
 
-  const _LibraryButton({super.key, required this.compact, required this.onTap});
+  /// 见 [_GenderButton.disabledReason]
+  final String? disabledReason;
+
+  const _LibraryButton({
+    super.key,
+    required this.compact,
+    required this.onTap,
+    this.disabledReason,
+  });
 
   @override
   State<_LibraryButton> createState() => _LibraryButtonState();
@@ -188,13 +246,24 @@ class _LibraryButtonState extends State<_LibraryButton> {
     final colorScheme = theme.colorScheme;
     final l10n = AppLocalizations.of(context)!;
     final accentColor = colorScheme.tertiary;
+    final disabled = widget.disabledReason != null;
+    final hovered = _isHovered && !disabled;
 
-    return MouseRegion(
+    final button = MouseRegion(
       onEnter: (_) => setState(() => _isHovered = true),
       onExit: (_) => setState(() => _isHovered = false),
-      cursor: SystemMouseCursors.click,
+      cursor: disabled
+          ? SystemMouseCursors.forbidden
+          : SystemMouseCursors.click,
       child: GestureDetector(
-        onTap: widget.onTap,
+        onTap: () {
+          final reason = widget.disabledReason;
+          if (reason != null) {
+            AppToast.warning(context, reason);
+            return;
+          }
+          widget.onTap();
+        },
         child: AnimatedContainer(
           duration: MediaQuery.disableAnimationsOf(context)
               ? Duration.zero
@@ -205,7 +274,7 @@ class _LibraryButtonState extends State<_LibraryButton> {
           ),
           decoration: BoxDecoration(
             // 无边框，常态淡背景，悬停时加深
-            color: _isHovered
+            color: hovered
                 ? accentColor.withValues(alpha: 0.18)
                 : accentColor.withValues(alpha: 0.08),
             borderRadius: BorderRadius.circular(6),
@@ -216,7 +285,7 @@ class _LibraryButtonState extends State<_LibraryButton> {
               Icon(
                 Icons.library_books_outlined,
                 size: widget.compact ? 15 : 17,
-                color: _isHovered ? accentColor : colorScheme.onSurfaceVariant,
+                color: hovered ? accentColor : colorScheme.onSurfaceVariant,
               ),
               SizedBox(width: widget.compact ? 3 : 5),
               Text(
@@ -226,10 +295,10 @@ class _LibraryButtonState extends State<_LibraryButton> {
                             ? theme.textTheme.labelSmall
                             : theme.textTheme.labelMedium)
                         ?.copyWith(
-                          color: _isHovered
+                          color: hovered
                               ? accentColor
                               : colorScheme.onSurfaceVariant,
-                          fontWeight: _isHovered
+                          fontWeight: hovered
                               ? FontWeight.w600
                               : FontWeight.w500,
                         ),
@@ -238,6 +307,10 @@ class _LibraryButtonState extends State<_LibraryButton> {
           ),
         ),
       ),
+    );
+    return _wrapDisabled(
+      disabledReason: widget.disabledReason,
+      child: button,
     );
   }
 }

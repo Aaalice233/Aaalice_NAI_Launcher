@@ -3,7 +3,6 @@ import 'dart:io';
 import '../../utils/zip_export_progress.dart';
 import '../../widgets/common/image_card_action.dart';
 
-import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -265,11 +264,14 @@ class LocalGalleryActionCoordinator {
     final fileName = 'images_${DateTime.now().millisecondsSinceEpoch}.zip';
     String? desktopOutputPath;
     if (!PlatformCapabilities.current.supportsDocumentFileExport) {
-      final outputPath = await FilePicker.platform.saveFile(
+      // 【偏离上游】同 generation_image_batch_actions：上游在 UI 层裸调
+      // FilePicker.platform.saveFile，而 file_picker 在 iOS/Android 下不传 bytes
+      // 会抛 ArgumentError。supportsDocumentFileExport 现已含 iOS，iOS 走下面的
+      // 临时文件 + 系统分享面板通道；桌面路径收编进 FileExportService。
+      final outputPath = await FileExportService.pickSaveFilePath(
         dialogTitle: _context().l10n.localGallery_saveZipArchive,
         fileName: fileName,
-        type: FileType.custom,
-        allowedExtensions: ['zip'],
+        allowedExtensions: const ['zip'],
       );
       if (outputPath == null || !_mounted()) return;
       final requestedPath = outputPath.endsWith('.zip')

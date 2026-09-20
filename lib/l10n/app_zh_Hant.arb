@@ -7317,5 +7317,29 @@
         "format": "yMMMd"
       }
     }
+  },
+  "generation_clipboardNoImage": "剪貼簿裡沒有圖片",
+  "@generation_clipboardNoImage": {
+      "description": "Shown after a clipboard paste action when the system clipboard holds no image."
+  },
+  "generation_importImageFromFile": "從檔案選擇",
+  "@generation_importImageFromFile": {
+      "description": "Source option in the mobile metadata-import sheet that opens the system file/photo picker, as opposed to the clipboard option."
+  },
+  "generation_pasteImageFromClipboard": "從剪貼簿貼上圖片",
+  "@generation_pasteImageFromClipboard": {
+      "description": "Action label for reading an image out of the system clipboard. Used by the mobile metadata-import source sheet and by the paste entry points in the img2img, precise reference, vibe transfer and reverse-prompt panels, which have no OS-level file drop."
+  },
+  "generation_quickTools": "快捷工具",
+  "@generation_quickTools": {
+      "description": "Tooltip for the generation screen's leading app-bar button that opens the left drawer holding the fixed-tag and character quick toggles."
+  },
+  "onlineGallery_outputFilteredTagTooltipTouch": "此標籤會在複製、傳送和加入佇列時被剔除；長按可管理",
+  "@onlineGallery_outputFilteredTagTooltipTouch": {
+      "description": "Tooltip for an output-filtered tag chip on touch devices; mirrors onlineGallery_outputFilteredTagTooltip."
+  },
+  "onlineGallery_tagContextMenuTooltipTouch": "長按可加入黑名單或輸出過濾",
+  "@onlineGallery_tagContextMenuTooltipTouch": {
+      "description": "Tooltip for a tag chip on touch devices, where there is no right-click; mirrors onlineGallery_tagContextMenuTooltip."
   }
 }

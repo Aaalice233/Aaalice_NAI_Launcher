@@ -11,6 +11,28 @@ import { buildMannequin } from './mannequin.js';
 
 const canvas = document.getElementById('viewport');
 
+// ---- 触屏/粗指针适配(iOS 与 Android 的 WebView) ----
+// 偏离上游:上游 v4.2.1 的 editor.js 全文没有任何触屏处理(grep isTouch/coarse/
+// maxTouchPoints/pointerType 零命中),三处都按鼠标定尺寸:骨骼标记球半径按世界尺寸
+// max(bbox*0.008, 0.006)(见 rebuildBoneMarkers)、gizmo 固定 setSize(0.8)、拾取只有
+// 一条严格 raycast。在手机上这三处投影出来都只有几 px,属于「看得见点不中」。
+// 我们的做法与 Dart 侧 lib/presentation/adaptive/interaction_policy.dart 取同一语义:
+// 本会话一旦观察到真实 touch 指针就永久切到大触摸目标,之后即使接鼠标也不回退
+// (避免手指/鼠标混用时目标大小来回跳)。精确指针分支的数值与上游逐字相同,桌面观感不变。
+let coarsePointer = false;
+try {
+  coarsePointer = window.matchMedia('(pointer: coarse)').matches;
+} catch (_) {
+  coarsePointer = false; // 老 WebView 无 matchMedia:按精确指针起步,首个 touch 事件会纠正
+}
+/** 触屏下骨骼标记球的放大倍数(只放大观感,真正的拾取靠屏幕空间容差) */
+const MARKER_TOUCH_SCALE = 1.8;
+/** 触屏拾取容差(CSS px 半径);44px 直径对齐 iOS HIG 与 Material 的最小触摸目标 */
+const MARKER_TOUCH_PICK_RADIUS = 22;
+/** gizmo 尺寸:上游固定 0.8;触屏下放大到手指能捏住 */
+const GIZMO_SIZE_POINTER = 0.8;
+const GIZMO_SIZE_TOUCH = 1.2;
+
 function emit(msg) {
   window.flutter_inappwebview.callHandler('naiModel3d', msg);
 }
@@ -54,6 +76,10 @@ camera.position.set(0, 1.2, 3.2);
 const controls = new OrbitControls(camera, canvas);
 controls.target.set(0, 0.9, 0);
 // 官网键位:左键旋转 / 中键推拉 / 右键平移(OrbitControls 默认即此映射)
+// 触屏:OrbitControls 的默认 touches 就是 { ONE: ROTATE, TWO: DOLLY_PAN },
+// 且 screenSpacePanning 默认 true,所以单指旋转 / 双指捏合缩放 / 双指拖动平移(含上下)
+// 开箱即有,不需要我们再挂一套手势——再挂一套只会和它抢同一批 pointer 事件。
+// 下方 WASDQE 的键盘飞行在触屏上没有等价物,但双指平移已覆盖它的全部自由度。
 controls.update();
 
 const hemiLight = new THREE.HemisphereLight(0xffffff, 0x445566, 1.0);
@@ -269,7 +295,8 @@ registerCommand('loadModel', async ({ url, builtin, sceneState }) => {
 
 // ---- 变换 gizmo 与双模式编辑 ----
 const transformControls = new TransformControls(camera, canvas);
-transformControls.setSize(0.8);
+// 偏离上游:上游恒为 0.8,触屏下 gizmo 的拾取几何太细。见文件头 GIZMO_SIZE_* 注释。
+transformControls.setSize(coarsePointer ? GIZMO_SIZE_TOUCH : GIZMO_SIZE_POINTER);
 // r169+ 的 TransformControls 不再是 Object3D,通过 getHelper() 挂载
 const gizmoHelper = transformControls.getHelper
   ? transformControls.getHelper()
@@ -295,6 +322,23 @@ const markerMaterial = new THREE.MeshBasicMaterial({
 const markerSelectedColor = new THREE.Color(0xffc24f);
 let selectedMarker = null;
 
+// 把当前指针形态应用到已存在的对象上(gizmo 尺寸 + 标记球缩放)。
+// 上游没有这个概念:上游只在构造时写死一套鼠标尺寸。
+function applyPointerMode() {
+  transformControls.setSize(coarsePointer ? GIZMO_SIZE_TOUCH : GIZMO_SIZE_POINTER);
+  const scale = coarsePointer ? MARKER_TOUCH_SCALE : 1;
+  for (const marker of boneMarkers.children) marker.scale.setScalar(scale);
+}
+
+// 观察到真实手指触摸后切到大触摸目标(粘性,不回退)。
+// 只认 'touch':iOS WKWebView 下 flutter_inappwebview 注入/合成的鼠标事件 pointerType
+// 是 'mouse',真实手指才是 'touch';触控笔 'pen' 是精确指针,不应被放大。
+function notePointerType(event) {
+  if (coarsePointer || event.pointerType !== 'touch') return;
+  coarsePointer = true;
+  applyPointerMode();
+}
+
 function rebuildBoneMarkers() {
   boneMarkers.clear();
   selectedMarker = null;
@@ -305,6 +349,8 @@ function rebuildBoneMarkers() {
   for (const bone of collectBones()) {
     const marker = new THREE.Mesh(geometry, markerMaterial.clone());
     marker.renderOrder = 999;
+    // 偏离上游:上游标记球恒为 1 倍。触屏下放大观感,让手指知道该往哪按。
+    marker.scale.setScalar(coarsePointer ? MARKER_TOUCH_SCALE : 1);
     marker.userData.bone = bone;
     boneMarkers.add(marker);
   }
@@ -349,22 +395,65 @@ function selectBone(marker) {
 }
 
 const raycaster = new THREE.Raycaster();
-canvas.addEventListener('pointerdown', (event) => {
-  if (mode !== 'pose' || transformControls.dragging) return;
+const _projected = new THREE.Vector3();
+
+// 骨骼拾取:先走上游的严格 raycast;未命中且当前是粗指针时,退到屏幕空间最近邻。
+//
+// 偏离上游:上游只有 raycast 一条路径。标记球半径是世界尺寸 max(bbox*0.008, 0.006),
+// 人形模型在手机竖屏上投影出来直径只有几 px,手指几乎不可能命中。容差用 CSS px 表达,
+// 因此与相机远近、DPR、标记球半径都解耦。容差分支只在 coarsePointer 为真时进入,
+// 桌面鼠标的行为与上游完全一致(点空就是点空,不会「吸」到附近骨骼)。
+function pickMarker(event) {
   const rect = canvas.getBoundingClientRect();
-  const ndc = new THREE.Vector2(
-    ((event.clientX - rect.left) / rect.width) * 2 - 1,
-    -((event.clientY - rect.top) / rect.height) * 2 + 1,
+  if (rect.width === 0 || rect.height === 0) return null;
+  const x = event.clientX - rect.left;
+  const y = event.clientY - rect.top;
+  raycaster.setFromCamera(
+    new THREE.Vector2((x / rect.width) * 2 - 1, -(y / rect.height) * 2 + 1),
+    camera,
   );
-  raycaster.setFromCamera(ndc, camera);
   const hits = raycaster.intersectObjects(boneMarkers.children, false);
-  if (hits.length) {
-    controls.enabled = false; // 选骨点击不应带动相机
-    window.addEventListener('pointerup', () => {
-      if (!transformControls.dragging) controls.enabled = true;
-    }, { once: true });
-    selectBone(hits[0].object);
+  if (hits.length) return hits[0].object;
+  if (!coarsePointer) return null;
+
+  const candidates = [];
+  for (const marker of boneMarkers.children) {
+    _projected.copy(marker.position).project(camera);
+    if (_projected.z < -1 || _projected.z > 1) continue; // 相机背面或裁剪面之外
+    const dx = ((_projected.x + 1) / 2) * rect.width - x;
+    const dy = ((1 - _projected.y) / 2) * rect.height - y;
+    const distance = Math.hypot(dx, dy);
+    if (distance > MARKER_TOUCH_PICK_RADIUS) continue;
+    candidates.push({ marker, distance, depth: _projected.z });
   }
+  if (!candidates.length) return null;
+  // 先按屏幕距离(2px 一档,档内视为并列),并列时取离相机更近的那颗——
+  // 骨骼在屏幕上重叠时,这与「点到的是看得见的那个」一致。
+  candidates.sort(
+    (a, b) =>
+      Math.round(a.distance / 2) - Math.round(b.distance / 2) ||
+      a.depth - b.depth,
+  );
+  return candidates[0].marker;
+}
+
+canvas.addEventListener('pointerdown', (event) => {
+  notePointerType(event);
+  if (mode !== 'pose' || transformControls.dragging) return;
+  const marker = pickMarker(event);
+  if (!marker) return;
+  controls.enabled = false; // 选骨点击不应带动相机
+  // 偏离上游:上游只挂 pointerup。iOS WKWebView 在系统手势接管(边缘返回手势、
+  // 多指进出)时只派发 pointercancel 而不派发 pointerup,少这一路会把 controls
+  // 永久留在 disabled —— 表现为相机彻底不动,只能退出重进编辑器。
+  const releaseControls = () => {
+    window.removeEventListener('pointerup', releaseControls);
+    window.removeEventListener('pointercancel', releaseControls);
+    if (!transformControls.dragging) controls.enabled = true;
+  };
+  window.addEventListener('pointerup', releaseControls);
+  window.addEventListener('pointercancel', releaseControls);
+  selectBone(marker);
 });
 
 // ---- 会话内撤销(仅姿势/变换,不进画布 history) ----

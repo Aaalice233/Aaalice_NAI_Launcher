@@ -39,9 +39,11 @@ class LocalGalleryViewModel {
     final contentWidth = maxWidth - (showPersistentCategories ? 250 : 0);
     const horizontalPadding = 24.0;
     const spacing = 12.0;
-    // 320px 仍保留双列触屏画廊；更宽布局继续使用桌面密度，避免
-    // 为了增加列数而让卡片在常规窗口中过小。
-    final minimumItemWidth = contentWidth < 360 ? 136.0 : 160.0;
+    // 【偏离上游】上游 v4.2.1 是 `contentWidth < 360 ? 136 : 160`，390pt 的
+    // 手机竖屏只能排 2 列，信息密度比我们习惯的少三分之一。这里把窄屏
+    // （< 600，即手机竖屏）的最小卡片宽压到 110：390pt 正好 3 列，320pt 仍是
+    // 2 列（与上游 136 的结果一致）。≥ 600 的平板/桌面继续用上游的 160。
+    final minimumItemWidth = contentWidth < 600 ? 110.0 : 160.0;
     final availableGridWidth = (contentWidth - horizontalPadding).clamp(
       0.0,
       double.infinity,

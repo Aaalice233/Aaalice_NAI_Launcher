@@ -493,9 +493,13 @@ class OnlineGalleryDetailLauncher {
     GenerationTransferConfiguration? configuration,
     Set<GenerationTransferSetting>? configurationSettings,
   }) {
-    ref
-        .read(characterPromptNotifierProvider.notifier)
-        .replaceAll(_codexCharacters(item, projection));
+    // 偏离上游：上游无条件 replaceAll(_codexCharacters(...))，解析不出角色时
+    // 等价于 replaceAll([])，会把用户已经配置好的角色面板整个清空。「发送到
+    // 文生图」是增量行为，解析结果为空就保持角色面板不动。
+    final characters = _codexCharacters(item, projection);
+    if (characters.isNotEmpty) {
+      ref.read(characterPromptNotifierProvider.notifier).replaceAll(characters);
+    }
     ref
         .read(generationPromptTransferServiceProvider)
         .replaceMainPrompt(
@@ -503,6 +507,10 @@ class OnlineGalleryDetailLauncher {
           negativePrompt: projection.negativePrompt,
           configuration: configuration,
           configurationSettings: configurationSettings,
+          // 偏离上游：上游一律做 SD→NAI 转换 + 格式化。AI TAG 的提示词直接来自
+          // NovelAI 元数据，本身就是 NAI 原生语法，再转一次会把自然语言描述压成
+          // 下划线串、并改写坏 `[...]` 降权。booru 系来源仍走上游的归一化。
+          raw: item.sourceId == GallerySourceId.aiTag,
         );
     Navigator.of(dialogContext, rootNavigator: true).pop();
     context.go('/');

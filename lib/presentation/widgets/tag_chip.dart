@@ -1,4 +1,6 @@
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/autocomplete/tag_translation_lookup.dart';
@@ -13,6 +15,14 @@ class SimpleTagChip extends ConsumerStatefulWidget {
   final Color? color;
   final VoidCallback? onTap;
   final GestureTapUpCallback? onSecondaryTapUp;
+
+  /// 长按回调。
+  ///
+  /// 偏离上游：上游只有 [onSecondaryTapUp]（右键），触屏没有右键，
+  /// 于是标签的「加入黑名单 / 输出过滤」菜单在 iOS 上完全不可达。
+  /// 不传时自动复用 [onSecondaryTapUp]，把长按位置合成成同形状的
+  /// [TapUpDetails] 交给同一个菜单回调——调用方不改也能在手机上用。
+  final GestureLongPressStartCallback? onLongPressStart;
   final String? translation;
   final bool autoTranslate;
   final int? category;
@@ -27,6 +37,7 @@ class SimpleTagChip extends ConsumerStatefulWidget {
     this.color,
     this.onTap,
     this.onSecondaryTapUp,
+    this.onLongPressStart,
     this.translation,
     this.autoTranslate = true,
     this.category,
@@ -68,6 +79,28 @@ class _SimpleTagChipState extends ConsumerState<SimpleTagChip> {
     if (mounted) {
       setState(() {});
     }
+  }
+
+  /// 长按走与右键相同的菜单：显式传入优先，否则复用
+  /// [SimpleTagChip.onSecondaryTapUp]（详见该字段的注释）。
+  GestureLongPressStartCallback? _resolveLongPressStart() {
+    final explicit = widget.onLongPressStart;
+    if (explicit != null) return explicit;
+
+    final secondary = widget.onSecondaryTapUp;
+    if (secondary == null) return null;
+
+    return (details) {
+      HapticFeedback.selectionClick();
+      // 菜单只用得到 globalPosition，长按位置直接转成同形状的 details
+      secondary(
+        TapUpDetails(
+          kind: PointerDeviceKind.touch,
+          globalPosition: details.globalPosition,
+          localPosition: details.localPosition,
+        ),
+      );
+    };
   }
 
   @override
@@ -172,9 +205,15 @@ class _SimpleTagChipState extends ConsumerState<SimpleTagChip> {
         ),
       ),
     );
-    return widget.tooltip == null
+    // InkWell 的 onLongPress 不带坐标，而标签菜单要用 globalPosition 定位，
+    // 所以长按识别器单独包在外层（与 InkWell 的 tap 在手势竞技场里互斥）。
+    final longPressStart = _resolveLongPressStart();
+    final interactiveChip = longPressStart == null
         ? chip
-        : Tooltip(message: widget.tooltip!, child: chip);
+        : GestureDetector(onLongPressStart: longPressStart, child: chip);
+    return widget.tooltip == null
+        ? interactiveChip
+        : Tooltip(message: widget.tooltip!, child: interactiveChip);
   }
 }
 

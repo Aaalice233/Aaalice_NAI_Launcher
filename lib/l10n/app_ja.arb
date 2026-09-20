@@ -6995,5 +6995,29 @@
         "format": "yMMMd"
       }
     }
+  },
+  "generation_clipboardNoImage": "クリップボードに画像がありません",
+  "@generation_clipboardNoImage": {
+      "description": "Shown after a clipboard paste action when the system clipboard holds no image."
+  },
+  "generation_importImageFromFile": "ファイルから選択",
+  "@generation_importImageFromFile": {
+      "description": "Source option in the mobile metadata-import sheet that opens the system file/photo picker, as opposed to the clipboard option."
+  },
+  "generation_pasteImageFromClipboard": "クリップボードから画像を貼り付け",
+  "@generation_pasteImageFromClipboard": {
+      "description": "Action label for reading an image out of the system clipboard. Used by the mobile metadata-import source sheet and by the paste entry points in the img2img, precise reference, vibe transfer and reverse-prompt panels, which have no OS-level file drop."
+  },
+  "generation_quickTools": "クイックツール",
+  "@generation_quickTools": {
+      "description": "Tooltip for the generation screen's leading app-bar button that opens the left drawer holding the fixed-tag and character quick toggles."
+  },
+  "onlineGallery_outputFilteredTagTooltipTouch": "コピー、送信、キュー追加時に除外されます。長押しで管理できます",
+  "@onlineGallery_outputFilteredTagTooltipTouch": {
+      "description": "Tooltip for an output-filtered tag chip on touch devices; mirrors onlineGallery_outputFilteredTagTooltip."
+  },
+  "onlineGallery_tagContextMenuTooltipTouch": "長押しでブラックリストまたは出力フィルターに追加",
+  "@onlineGallery_tagContextMenuTooltipTouch": {
+      "description": "Tooltip for a tag chip on touch devices, where there is no right-click; mirrors onlineGallery_tagContextMenuTooltip."
   }
 }

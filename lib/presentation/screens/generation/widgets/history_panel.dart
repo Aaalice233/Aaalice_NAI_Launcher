@@ -934,7 +934,15 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
                                     historyImage.bytes,
                                   )
                                 : null,
-                            onSendToKrita: historyImage.canUseAsGenerationInput
+                            // 偏离上游：上游只判 canUseAsGenerationInput。
+                            // Krita 桥接是桌面专属（PlatformCapabilities
+                            // .supportsKritaBridge => isDesktop），iOS 上菜单
+                            // 仍会出现这一项，点了只弹「未连接」。
+                            onSendToKrita:
+                                historyImage.canUseAsGenerationInput &&
+                                    PlatformCapabilities
+                                        .current
+                                        .supportsKritaBridge
                                 ? () => KritaSendHelper.sendImageBytes(
                                     context,
                                     ref,
@@ -975,7 +983,11 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
     required bool stripMetadata,
     required Widget Function(bool dragPreparationReady) childBuilder,
   }) {
-    if (!image.canDrag) {
+    // 偏离上游：上游只判 canDrag，随后无条件包 MouseRegion +
+    // DraggableMemoryImage。触屏平台没有可拖放的外部目标，这层桌面拖放包装
+    // 只会抢走 tap / 长按手势（这是 iOS 上很难排查的一类"点不动"）。
+    if (!image.canDrag ||
+        !PlatformCapabilities.current.supportsExternalFileDrop) {
       return childBuilder(true);
     }
 
@@ -1137,7 +1149,10 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
           onUpscale: image.canUseAsGenerationInput
               ? () => ImageWorkflowLauncher.openUpscale(ref, imageBytes)
               : null,
-          onSendToKrita: image.canUseAsGenerationInput
+          // 偏离上游：同上，Krita 桥接是桌面专属能力
+          onSendToKrita:
+              image.canUseAsGenerationInput &&
+                  PlatformCapabilities.current.supportsKritaBridge
               ? () => KritaSendHelper.sendImageBytes(
                   context,
                   ref,

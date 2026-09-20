@@ -14838,4 +14838,24 @@ class AppLocalizationsJa extends AppLocalizations {
 
     return 'メンバーシップ有効期限：$dateString';
   }
+
+  @override
+  String get generation_clipboardNoImage => 'クリップボードに画像がありません';
+
+  @override
+  String get generation_importImageFromFile => 'ファイルから選択';
+
+  @override
+  String get generation_pasteImageFromClipboard => 'クリップボードから画像を貼り付け';
+
+  @override
+  String get generation_quickTools => 'クイックツール';
+
+  @override
+  String get onlineGallery_outputFilteredTagTooltipTouch =>
+      'コピー、送信、キュー追加時に除外されます。長押しで管理できます';
+
+  @override
+  String get onlineGallery_tagContextMenuTooltipTouch =>
+      '長押しでブラックリストまたは出力フィルターに追加';
 }

@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/network/proxy_service.dart';
+import '../../../../core/platform/platform_capabilities.dart';
 import '../../../../core/utils/localization_extension.dart';
 import '../../../../data/models/settings/proxy_settings.dart';
 import '../../../providers/proxy_settings_provider.dart';
@@ -48,6 +49,12 @@ class NetworkSettingsSectionState
     final proxySettings = ref.watch(proxySettingsNotifierProvider);
     final detectedProxy = ref.watch(detectedSystemProxyProvider);
     final l10n = context.l10n;
+    // 偏离上游：上游这一段无平台门控，auto/manual 选择器全平台渲染。移动端的
+    // auto 模式永远拿不到地址（ProxyService.getSystemProxyAddress 对 iOS/Android
+    // 返回 null），选中它等于静默失效，所以整段隐藏；ProxySettingsNotifier 已把
+    // 移动端的模式钉成 manual，下面的手动地址输入框照常显示。
+    final supportsAutomaticProxyDetection =
+        !PlatformCapabilities.current.isMobile;
 
     // 初始化手动代理输入框
     if (_hostController.text.isEmpty && proxySettings.manualHost != null) {
@@ -95,55 +102,56 @@ class NetworkSettingsSectionState
                   leading: const Icon(Icons.security_outlined),
                   title: Text(l10n.settings_proxyTrafficDisclosure),
                 ),
-                LayoutBuilder(
-                  builder: (context, constraints) {
-                    final selector = SegmentedButton<ProxyMode>(
-                      segments: [
-                        ButtonSegment(
-                          value: ProxyMode.auto,
-                          label: Text(l10n.settings_auto),
-                        ),
-                        ButtonSegment(
-                          value: ProxyMode.manual,
-                          label: Text(l10n.settings_manual),
-                        ),
-                      ],
-                      selected: {proxySettings.mode},
-                      onSelectionChanged: (set) async {
-                        await ref
-                            .read(proxySettingsNotifierProvider.notifier)
-                            .setMode(set.first);
-                      },
-                    );
-                    final tile = ListTile(
-                      leading: const Icon(Icons.settings_ethernet),
-                      title: Text(l10n.settings_proxyMode),
-                      subtitle: Text(
-                        proxySettings.mode == ProxyMode.auto
-                            ? '${l10n.settings_proxyModeAuto} (${detectedProxy ?? l10n.settings_proxyNotDetected})'
-                            : l10n.settings_proxyModeManual,
-                      ),
-                      trailing: constraints.maxWidth >= 560 ? selector : null,
-                    );
-
-                    if (constraints.maxWidth >= 560) {
-                      return tile;
-                    }
-                    return Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        tile,
-                        Padding(
-                          padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-                          child: Align(
-                            alignment: Alignment.centerLeft,
-                            child: HorizontalActionStrip(child: selector),
+                if (supportsAutomaticProxyDetection)
+                  LayoutBuilder(
+                    builder: (context, constraints) {
+                      final selector = SegmentedButton<ProxyMode>(
+                        segments: [
+                          ButtonSegment(
+                            value: ProxyMode.auto,
+                            label: Text(l10n.settings_auto),
                           ),
+                          ButtonSegment(
+                            value: ProxyMode.manual,
+                            label: Text(l10n.settings_manual),
+                          ),
+                        ],
+                        selected: {proxySettings.mode},
+                        onSelectionChanged: (set) async {
+                          await ref
+                              .read(proxySettingsNotifierProvider.notifier)
+                              .setMode(set.first);
+                        },
+                      );
+                      final tile = ListTile(
+                        leading: const Icon(Icons.settings_ethernet),
+                        title: Text(l10n.settings_proxyMode),
+                        subtitle: Text(
+                          proxySettings.mode == ProxyMode.auto
+                              ? '${l10n.settings_proxyModeAuto} (${detectedProxy ?? l10n.settings_proxyNotDetected})'
+                              : l10n.settings_proxyModeManual,
                         ),
-                      ],
-                    );
-                  },
-                ),
+                        trailing: constraints.maxWidth >= 560 ? selector : null,
+                      );
+
+                      if (constraints.maxWidth >= 560) {
+                        return tile;
+                      }
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          tile,
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                            child: Align(
+                              alignment: Alignment.centerLeft,
+                              child: HorizontalActionStrip(child: selector),
+                            ),
+                          ),
+                        ],
+                      );
+                    },
+                  ),
 
                 // 手动模式输入框
                 if (proxySettings.mode == ProxyMode.manual)

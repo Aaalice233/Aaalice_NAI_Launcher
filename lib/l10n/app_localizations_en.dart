@@ -15246,4 +15246,24 @@ class AppLocalizationsEn extends AppLocalizations {
 
     return 'Subscription expiry: $dateString';
   }
+
+  @override
+  String get generation_clipboardNoImage => 'No image in the clipboard';
+
+  @override
+  String get generation_importImageFromFile => 'Choose from files';
+
+  @override
+  String get generation_pasteImageFromClipboard => 'Paste image from clipboard';
+
+  @override
+  String get generation_quickTools => 'Quick tools';
+
+  @override
+  String get onlineGallery_outputFilteredTagTooltipTouch =>
+      'Removed when copying, sending, or adding to queue; long-press to manage';
+
+  @override
+  String get onlineGallery_tagContextMenuTooltipTouch =>
+      'Long-press to add to the blacklist or output filter';
 }

@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/widgets.dart';
 
+import '../../../core/platform/platform_capabilities.dart';
 import '../../../data/models/vibe/vibe_import_progress.dart';
 
 class VibeLibraryScreenController extends ChangeNotifier {
@@ -128,15 +129,28 @@ class VibeLibraryScreenController extends ChangeNotifier {
       if (useInjectedPicker && _injectedPicker != null) {
         return await _injectedPicker();
       }
+      // 偏离上游：上游恒用 FileType.custom + allowedExtensions。file_picker 在
+      // iOS 上把 allowedExtensions 翻译成 UTI，未注册过的扩展名会让对应文件在
+      // 「文件」App 里整片置灰选不中——`.naiv4vibe` / `.naiv4vibebundle` 正是这
+      // 种自定义扩展名，照搬上游等于 Vibe 库在 iOS 上导入不了任何东西。iOS 改
+      // 成 FileType.any 再自己按扩展名筛，行为等价而不依赖 UTI 注册。
+      final useSystemExtensionFilter = !PlatformCapabilities.current.isIOS;
       final result = await FilePicker.platform.pickFiles(
-        type: FileType.custom,
-        allowedExtensions: allowedExtensions,
+        type: useSystemExtensionFilter ? FileType.custom : FileType.any,
+        allowedExtensions: useSystemExtensionFilter ? allowedExtensions : null,
         allowMultiple: allowMultiple,
         dialogTitle: dialogTitle,
         withData: false,
         lockParentWindow: true,
       );
-      return result?.files;
+      final files = result?.files;
+      if (files == null || useSystemExtensionFilter) return files;
+      final accepted = allowedExtensions
+          .map((extension) => extension.toLowerCase())
+          .toSet();
+      return files
+          .where((file) => accepted.contains(file.extension?.toLowerCase()))
+          .toList();
     } finally {
       _isPickingFile = false;
       notifyListeners();

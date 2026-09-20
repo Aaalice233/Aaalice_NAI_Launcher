@@ -6970,5 +6970,29 @@
         "format": "yMMMd"
       }
     }
+  },
+  "generation_clipboardNoImage": "No image in the clipboard",
+  "@generation_clipboardNoImage": {
+      "description": "Shown after a clipboard paste action when the system clipboard holds no image."
+  },
+  "generation_importImageFromFile": "Choose from files",
+  "@generation_importImageFromFile": {
+      "description": "Source option in the mobile metadata-import sheet that opens the system file/photo picker, as opposed to the clipboard option."
+  },
+  "generation_pasteImageFromClipboard": "Paste image from clipboard",
+  "@generation_pasteImageFromClipboard": {
+      "description": "Action label for reading an image out of the system clipboard. Used by the mobile metadata-import source sheet and by the paste entry points in the img2img, precise reference, vibe transfer and reverse-prompt panels, which have no OS-level file drop."
+  },
+  "generation_quickTools": "Quick tools",
+  "@generation_quickTools": {
+      "description": "Tooltip for the generation screen's leading app-bar button that opens the left drawer holding the fixed-tag and character quick toggles."
+  },
+  "onlineGallery_outputFilteredTagTooltipTouch": "Removed when copying, sending, or adding to queue; long-press to manage",
+  "@onlineGallery_outputFilteredTagTooltipTouch": {
+      "description": "Tooltip for an output-filtered tag chip on touch devices; mirrors onlineGallery_outputFilteredTagTooltip."
+  },
+  "onlineGallery_tagContextMenuTooltipTouch": "Long-press to add to the blacklist or output filter",
+  "@onlineGallery_tagContextMenuTooltipTouch": {
+      "description": "Tooltip for a tag chip on touch devices, where there is no right-click; mirrors onlineGallery_tagContextMenuTooltip."
   }
 }

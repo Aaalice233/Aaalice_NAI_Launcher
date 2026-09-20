@@ -62,14 +62,22 @@ class PromptInputCoordinator {
         case SendTargetType.mainPrompt:
         case SendTargetType.fixedTag:
         case null:
-          applyToMainPrompt(prompt);
+          // 偏离上游：上游这里是无条件的 applyToMainPrompt(prompt)（已归一化）。
+          // consumed.raw 为真时（AI TAG 这类本身就是 NAI 原生语法的来源）原样落地，
+          // 否则 SD→NAI 转换会把自然语言描述压成下划线串、并改写坏 `[...]` 降权。
+          // 只旁路主提示词与负面两条：smartDecompose / 角色两个分支仍走上游的
+          // 归一化，它们依赖 PipeParser 的结构化解析结果。
+          applyToMainPrompt(consumed.raw ? sourcePrompt : prompt);
       }
     }
 
     if (target == null || target == SendTargetType.mainPrompt) {
       final sourceNegative = consumed.negativePrompt;
       if (sourceNegative != null && sourceNegative.isNotEmpty) {
-        final negative = _normalize(sourceNegative);
+        // 偏离上游：同上，raw 时负面提示词也原样落地。
+        final negative = consumed.raw
+            ? sourceNegative
+            : _normalize(sourceNegative);
         _controller.negativeController.text = negative;
         updateNegativePrompt(negative);
       }

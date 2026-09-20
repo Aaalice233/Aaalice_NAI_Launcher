@@ -5,18 +5,20 @@ import '../../../core/utils/localization_extension.dart';
 import '../../adaptive/window_size_class.dart';
 import '../../agent_chat/widgets/agent_chat_entry_button.dart';
 import '../../providers/image_generation_provider.dart';
+import '../../services/mobile_image_metadata_importer.dart';
 import '../../themes/design_tokens.dart';
 import '../../widgets/anlas/anlas_balance_chip.dart';
 import '../../widgets/anlas/opus_usage_chip.dart';
 import '../../widgets/common/anlas_cost_badge.dart';
+import '../../widgets/common/draggable_number_input.dart';
 import '../../widgets/common/owned_scroll_controller.dart';
 import '../../widgets/common/themed_button.dart';
 import '../../widgets/common/themed_scaffold.dart';
 import 'mobile_generation_controller.dart';
 import 'mobile_generation_gestures.dart';
 import 'mobile_generation_view_data.dart';
-import 'widgets/history_panel.dart';
 import 'widgets/parameter_panel.dart';
+import 'widgets/quick_tools_drawer.dart';
 import 'widgets/generation_controls/generate_button.dart';
 import 'widgets/generation_controls/random_mode_toggle.dart';
 
@@ -34,7 +36,7 @@ class MobileGenerationChrome extends ConsumerWidget {
   final OwnedViewportOffset historyViewport;
   final Widget body;
 
-  PreferredSizeWidget? _buildAppBar(BuildContext context) {
+  PreferredSizeWidget? _buildAppBar(BuildContext context, WidgetRef ref) {
     if (controller.agentFullScreen) return null;
     return AppBar(
       automaticallyImplyLeading: false,
@@ -45,7 +47,14 @@ class MobileGenerationChrome extends ConsumerWidget {
               tooltip: context.l10n.toolbar_fullscreenEdit,
               onPressed: controller.closePromptEditor,
             )
-          : null,
+          // 偏离上游：上游这里是空的（左抽屉是参数面板，只靠边缘侧滑打开）。
+          // 左抽屉换成快捷工具后必须有一击可达的入口。
+          : IconButton(
+              key: const ValueKey('generation-quick-tools-drawer-action'),
+              icon: const Icon(Icons.style_outlined),
+              tooltip: context.l10n.generation_quickTools,
+              onPressed: controller.openQuickToolsDrawer,
+            ),
       title: data.isPromptMaximized
           ? MobileVerticalCloseGesture(
               key: const ValueKey('generation-prompt-editor-drag-handle'),
@@ -76,19 +85,42 @@ class MobileGenerationChrome extends ConsumerWidget {
                 onPressed: controller.openParameterDrawer,
                 tooltip: context.l10n.generation_paramsSettings,
               ),
-              AgentChatEntryButton(
-                onPressed: controller.openAgentChat,
-              ),
+              // 桌面端靠把图拖进窗口解析元数据，移动端没有拖放，这是等价入口。
               IconButton(
-                key: const ValueKey('generation-history-drawer-action'),
+                key: const ValueKey('generation-import-metadata-action'),
+                icon: const Icon(Icons.document_scanner_outlined),
+                onPressed: () => showMobileImageMetadataImportSheet(
+                  context: context,
+                  ref: ref,
+                ),
+                tooltip: context.l10n.metadataImport_readImageMetadata,
+              ),
+              AgentChatEntryButton(onPressed: controller.openAgentChat),
+              IconButton(
+                key: const ValueKey('generation-history-panel-action'),
                 icon: const Icon(Icons.history_rounded),
-                onPressed: controller.openHistoryDrawer,
+                onPressed: () =>
+                    controller.openHistoryPanel(context, historyViewport),
                 tooltip: context.l10n.generation_history,
               ),
             ],
     );
   }
 
+  /// 左抽屉：固定词 / 角色的快捷开关列表（用户点名保留的入口）。
+  ///
+  /// 偏离上游：上游 v4.2.1 的 `drawer` 是参数面板，见
+  /// [GenerationQuickToolsDrawer] 的文件头注释。
+  Widget? _buildQuickToolsDrawer() {
+    if (data.isPromptMaximized || controller.agentFullScreen) return null;
+    return const GenerationQuickToolsDrawer();
+  }
+
+  /// 右抽屉：参数面板。
+  ///
+  /// 偏离上游：上游把它放在左 `drawer` 且宽度取 usableWidth*0.9（上限 520），
+  /// 手机上几乎盖满屏幕。我们挪到 `endDrawer` 并收到 300pt + 紧凑密度 +
+  /// 字号 0.92，保证左边还露着预览，可以一边调参数一边看图。
   Widget? _buildParameterDrawer(BuildContext context) {
     if (data.isPromptMaximized || controller.agentFullScreen) return null;
     final theme = Theme.of(context);
@@ -96,58 +128,53 @@ class MobileGenerationChrome extends ConsumerWidget {
       key: const ValueKey('generation-parameters-drawer'),
       width: (AdaptiveWindowMetrics.of(context).usableSize.width * 0.9).clamp(
         0.0,
-        520.0,
+        300.0,
       ),
-      child: SafeArea(
-        child: Column(
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(8, 6, 12, 6),
-              child: Row(
-                children: [
-                  IconButton(
-                    onPressed: controller.closeParameterDrawer,
-                    icon: const Icon(Icons.arrow_back_rounded),
-                    tooltip: MaterialLocalizations.of(
-                      context,
-                    ).backButtonTooltip,
-                    constraints: const BoxConstraints.tightFor(
-                      width: 48,
-                      height: 48,
-                    ),
-                  ),
-                  const SizedBox(width: 4),
-                  Expanded(
-                    child: Text(
-                      context.l10n.generation_paramsSettings,
-                      style: theme.textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w600,
+      child: Theme(
+        data: theme.copyWith(
+          visualDensity: VisualDensity.compact,
+          textTheme: theme.textTheme.apply(fontSizeFactor: 0.92),
+          inputDecorationTheme: theme.inputDecorationTheme.copyWith(
+            isDense: true,
+          ),
+        ),
+        child: SafeArea(
+          child: Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 6, 8, 6),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        context.l10n.generation_paramsSettings,
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w600,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
-                  ),
-                ],
+                    const SizedBox(width: 4),
+                    IconButton(
+                      key: const ValueKey('generation-parameters-drawer-close'),
+                      onPressed: controller.closeParameterDrawer,
+                      icon: const Icon(Icons.close_rounded),
+                      tooltip: MaterialLocalizations.of(
+                        context,
+                      ).closeButtonTooltip,
+                      constraints: const BoxConstraints.tightFor(
+                        width: 48,
+                        height: 48,
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            ),
-            Divider(height: 1, color: theme.dividerColor),
-            const Expanded(child: ParameterPanel()),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget? _buildHistoryDrawer(BuildContext context) {
-    if (data.isPromptMaximized || controller.agentFullScreen) return null;
-    return Drawer(
-      key: const ValueKey('generation-history-drawer'),
-      width: (AdaptiveWindowMetrics.of(context).usableSize.width * 0.9).clamp(
-        0.0,
-        520.0,
-      ),
-      child: SafeArea(
-        child: HistoryPanel(
-          onClose: controller.closeHistoryDrawer,
-          viewportOffset: historyViewport,
+              Divider(height: 1, color: theme.dividerColor),
+              const Expanded(child: ParameterPanel()),
+            ],
+          ),
         ),
       ),
     );
@@ -189,6 +216,22 @@ class MobileGenerationChrome extends ConsumerWidget {
                   key: const ValueKey('generation-mobile-queue-actions'),
                   mainAxisSize: MainAxisSize.min,
                   children: [
+                    // 偏离上游：上游的移动端底栏没有 nSamples，连续生成张数只能
+                    // 进参数抽屉改。它是每次生成前都要动的高频项，必须留在底栏。
+                    DraggableNumberInput(
+                      key: const ValueKey('generation-mobile-batch-count'),
+                      value: ref.watch(
+                        generationParamsNotifierProvider.select(
+                          (params) => params.nSamples,
+                        ),
+                      ),
+                      min: 1,
+                      prefix: '×',
+                      onChanged: (value) => ref
+                          .read(generationParamsNotifierProvider.notifier)
+                          .updateNSamples(value),
+                    ),
+                    const SizedBox(width: 4),
                     if (data.showRandomTools)
                       SizedBox.square(
                         dimension: 44,
@@ -236,9 +279,11 @@ class MobileGenerationChrome extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     return ThemedScaffold(
       scaffoldKey: controller.scaffoldKey,
-      drawer: _buildParameterDrawer(context),
-      endDrawer: _buildHistoryDrawer(context),
-      appBar: _buildAppBar(context),
+      // 左 = 快捷工具（固定词 / 角色开关），右 = 参数面板。
+      // 上游是左 = 参数面板 / 右 = 历史，历史见 controller.openHistoryPanel。
+      drawer: _buildQuickToolsDrawer(),
+      endDrawer: _buildParameterDrawer(context),
+      appBar: _buildAppBar(context, ref),
       body: body,
       bottomNavigationBar: _buildBottomBar(context, ref),
     );

@@ -5,9 +5,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/comfyui/workflow_template.dart';
+import '../../../../core/platform/platform_capabilities.dart';
 import '../../../../core/utils/localization_extension.dart';
 import '../../../providers/comfyui/comfyui_provider.dart';
 import '../../../providers/generation/image_workflow_controller.dart';
+import '../../../utils/clipboard_image.dart';
 import '../../../widgets/common/app_toast.dart';
 import '../../../widgets/common/image_picker_card/image_picker_card.dart';
 import '../../../utils/comfyui_workflow_l10n.dart';
@@ -81,6 +83,23 @@ class Img2ImgSourceSection extends ConsumerWidget {
               overflow: TextOverflow.ellipsis,
             ),
           ),
+          // 偏离上游：上游只有「上传 / 画一张 / 从精准参考库」三个入口，因为桌面
+          // 端还能把图直接拖进窗口。没有 OS 级文件拖入的平台补一个剪贴板入口，
+          // 否则「从别处复制一张图」在这里无处落地。
+          if (!PlatformCapabilities.current.supportsExternalFileDrop) ...[
+            const SizedBox(height: 8),
+            OutlinedButton.icon(
+              key: const Key('img2img-paste-source-from-clipboard'),
+              onPressed: () => _pasteSourceFromClipboard(context, coordinator),
+              icon: const Icon(Icons.content_paste_go, size: 16),
+              label: Text(
+                context.l10n.generation_pasteImageFromClipboard,
+                style: const TextStyle(fontSize: 12),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
         ],
       );
     }
@@ -109,6 +128,16 @@ class Img2ImgSourceSection extends ConsumerWidget {
               onPressed: () => coordinator.saveSourceToLibrary(context, ref),
               tooltip: context.l10n.preciseRefLib_saveCurrentToLibrary,
             ),
+            // 同上：已有源图时也保留一键替换成剪贴板里的图。
+            if (!PlatformCapabilities.current.supportsExternalFileDrop) ...[
+              const SizedBox(width: 8),
+              _SmallIconButton(
+                key: const Key('img2img-paste-source-from-clipboard'),
+                icon: Icons.content_paste_go,
+                onPressed: () => _pasteSourceFromClipboard(context, coordinator),
+                tooltip: context.l10n.generation_pasteImageFromClipboard,
+              ),
+            ],
             const SizedBox(width: 8),
             _SmallIconButton(
               icon: Icons.refresh,
@@ -253,6 +282,30 @@ class Img2ImgSourceSection extends ConsumerWidget {
         )
         .toList();
   }
+}
+
+/// 从系统剪贴板取图并替换 img2img 源图。
+///
+/// 偏离上游：上游没有这条路径，桌面端等价动作是把图拖进窗口。
+Future<void> _pasteSourceFromClipboard(
+  BuildContext context,
+  Img2ImgPanelCoordinator coordinator,
+) async {
+  final Uint8List? bytes;
+  try {
+    bytes = await readImageBytesFromClipboard();
+  } catch (error) {
+    if (context.mounted) {
+      AppToast.error(context, context.l10n.img2img_selectFailed('$error'));
+    }
+    return;
+  }
+  if (!context.mounted) return;
+  if (bytes == null || bytes.isEmpty) {
+    AppToast.info(context, context.l10n.generation_clipboardNoImage);
+    return;
+  }
+  await coordinator.replaceSource(bytes);
 }
 
 class _InpaintStatus extends StatelessWidget {

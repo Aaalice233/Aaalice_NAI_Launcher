@@ -1,5 +1,4 @@
 import 'dart:io';
-import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
 import '../../../../core/platform/platform_capabilities.dart';
@@ -111,11 +110,16 @@ class GenerationImageBatchActions {
     final fileName = '$defaultName.zip';
     String? desktopOutputPath;
     if (!PlatformCapabilities.current.supportsDocumentFileExport) {
-      final outputPath = await FilePicker.platform.saveFile(
+      // 【偏离上游】上游这里裸调 FilePicker.platform.saveFile，且这一句在下面的
+      // try 块之外。file_picker 在 iOS/Android 下不传 bytes 会直接抛 ArgumentError，
+      // 于是 iOS 上是一条未捕获异常（按钮点了没反应 + 一条 fatal 上报）。
+      // 现在两件事一起改：supportsDocumentFileExport 已含 iOS，所以 iOS 根本不进
+      // 这个分支（走下面的临时文件 + 系统分享面板）；剩下的桌面路径也收编进
+      // FileExportService，不在 UI 层直接碰 FilePicker。
+      final outputPath = await FileExportService.pickSaveFilePath(
         dialogTitle: context.l10n.localGallery_saveZipArchive,
         fileName: fileName,
-        type: FileType.custom,
-        allowedExtensions: ['zip'],
+        allowedExtensions: const ['zip'],
       );
       if (outputPath == null || !context.mounted) return;
       desktopOutputPath = outputPath.endsWith('.zip')

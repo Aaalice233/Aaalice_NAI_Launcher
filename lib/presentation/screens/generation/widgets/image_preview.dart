@@ -124,6 +124,32 @@ class PreviewNavShortcuts extends ConsumerWidget {
   }
 }
 
+/// 移动端「揭示工作流面板」的注册点。
+///
+/// 偏离上游：上游 ImageWorkflowLauncher.openUpscale / openEnhance 只调
+/// `setPanelExpanded(true)`。桌面上参数面板常驻可见，展开即看得到；手机上
+/// 参数面板在抽屉里，点「放大 / 增强」后屏幕上不会出现任何东西，看起来就是
+/// 按钮坏了。这里只留一个注册点而不直接调 `openEndDrawer()`：生成页移动端
+/// 左右抽屉的分工由 mobile_generation_chrome 决定（我们把左抽屉让给了快捷
+/// 工具、参数面板挪到右侧），在这里写死侧别会在分工再变时静默失效。
+///
+/// 由移动端生成页壳层在挂载时 [register]、卸载时 [unregister]；
+/// 没有注册者（桌面 / 测试）时 [request] 是空操作。
+class MobileWorkflowPanelReveal {
+  MobileWorkflowPanelReveal._();
+
+  static VoidCallback? _handler;
+
+  static void register(VoidCallback handler) => _handler = handler;
+
+  /// 只在当前注册的就是自己时清除，避免壳层重建时误清后注册的那个
+  static void unregister(VoidCallback handler) {
+    if (identical(_handler, handler)) _handler = null;
+  }
+
+  static void request() => _handler?.call();
+}
+
 /// 图像预览组件
 class ImagePreviewWidget extends ConsumerStatefulWidget {
   const ImagePreviewWidget({super.key});
@@ -830,12 +856,23 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> {
             )
           : null,
       onEnhance: canUseAsInput
-          ? () => ImageWorkflowLauncher.openEnhance(ref, imageBytes)
+          ? () {
+              ImageWorkflowLauncher.openEnhance(ref, imageBytes);
+              MobileWorkflowPanelReveal.request();
+            }
           : null,
       onUpscale: canUseAsInput
-          ? () => ImageWorkflowLauncher.openUpscale(ref, imageBytes)
+          ? () {
+              ImageWorkflowLauncher.openUpscale(ref, imageBytes);
+              MobileWorkflowPanelReveal.request();
+            }
           : null,
-      onSendToKrita: canUseAsInput
+      // 偏离上游：上游只判 canUseAsInput。Krita 桥接是桌面专属能力
+      // （PlatformCapabilities.supportsKritaBridge => isDesktop），
+      // iOS 预览菜单仍会出现「发送到 Krita」，点了只弹「未连接」。
+      // 同一行上游自己给 onOpenInExplorer 用了 supportsOpenFolder，只漏了这一项。
+      onSendToKrita:
+          canUseAsInput && PlatformCapabilities.current.supportsKritaBridge
           ? () => KritaSendHelper.sendImageBytes(
               context,
               ref,

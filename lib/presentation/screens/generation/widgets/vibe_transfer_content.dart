@@ -13,6 +13,7 @@ import '../../../../data/models/vibe/vibe_reference.dart';
 import '../../../providers/image_generation_provider.dart';
 import '../../../providers/generation/generation_params_notifier.dart';
 import '../../../utils/card_drop_reader.dart';
+import '../../../utils/clipboard_image.dart';
 import '../../../widgets/common/app_toast.dart';
 import 'recent_vibes_section.dart';
 import 'vibe_card.dart';
@@ -163,26 +164,7 @@ class _VibeTransferContentState extends ConsumerState<VibeTransferContent> {
 
         // 添加按钮（有数据时显示）
         if (hasVibes && vibes.length < 16)
-          _wrapWithFileDropRegion(
-            child: FilledButton.tonalIcon(
-              onPressed: widget.onAddVibe,
-              icon: Icon(
-                _isFileDraggingOver ? Icons.file_download_rounded : Icons.add,
-                size: 18,
-              ),
-              label: Text(
-                _isFileDraggingOver
-                    ? context.l10n.vibe_releaseToAddStyleReference
-                    : context.l10n.vibe_addReference,
-              ),
-              style: showBackground
-                  ? FilledButton.styleFrom(
-                      foregroundColor: Colors.white,
-                      backgroundColor: Colors.white.withValues(alpha: 0.12),
-                    )
-                  : null,
-            ),
-          ),
+          _buildAddReferenceRow(context, showBackground),
 
         // 最近使用的 Vibes
         if (widget.recentEntries.isNotEmpty && vibes.length < 16) ...[
@@ -257,6 +239,108 @@ class _VibeTransferContentState extends ConsumerState<VibeTransferContent> {
         ),
       ],
     );
+  }
+
+  /// 「添加风格参考」按钮区域。
+  ///
+  /// 偏离上游：上游只有一个添加按钮（外套 DropRegion，且该 DropRegion 已按
+  /// supportsExternalFileDrop 门控，在移动端自动退化成裸按钮）。没有 OS 级文件
+  /// 拖入的平台在它旁边补一个剪贴板入口，否则「从别处复制一张图」在这里无处
+  /// 落地。
+  Widget _buildAddReferenceRow(BuildContext context, bool showBackground) {
+    final style = showBackground
+        ? FilledButton.styleFrom(
+            foregroundColor: Colors.white,
+            backgroundColor: Colors.white.withValues(alpha: 0.12),
+          )
+        : null;
+    final addButton = _wrapWithFileDropRegion(
+      child: FilledButton.tonalIcon(
+        onPressed: widget.onAddVibe,
+        icon: Icon(
+          _isFileDraggingOver ? Icons.file_download_rounded : Icons.add,
+          size: 18,
+        ),
+        label: Text(
+          _isFileDraggingOver
+              ? context.l10n.vibe_releaseToAddStyleReference
+              : context.l10n.vibe_addReference,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
+        style: style,
+      ),
+    );
+    if (PlatformCapabilities.current.supportsExternalFileDrop) {
+      return addButton;
+    }
+    return Row(
+      children: [
+        Expanded(child: addButton),
+        const SizedBox(width: 8),
+        Expanded(
+          child: FilledButton.tonalIcon(
+            key: const Key('vibe-transfer-paste-from-clipboard'),
+            onPressed: _pasteVibeFromClipboard,
+            icon: const Icon(Icons.content_paste_go, size: 18),
+            label: Text(
+              context.l10n.generation_pasteImageFromClipboard,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+            style: style,
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// 从系统剪贴板取图作为风格参考。
+  ///
+  /// 取到字节后包成 [CardDroppedResource] 交给与拖入同一个
+  /// `onImportDroppedResources`，编码确认、计数与 toast 全部复用上游链路。
+  Future<void> _pasteVibeFromClipboard() async {
+    final importer = widget.onImportDroppedResources;
+    if (importer == null || _isProcessingDroppedFiles) return;
+    if (widget.vibes.length >= 16) {
+      AppToast.warning(context, context.l10n.vibe_maxReached);
+      return;
+    }
+
+    final Uint8List? bytes;
+    try {
+      bytes = await readImageBytesFromClipboard();
+    } catch (error) {
+      if (mounted) {
+        AppToast.error(context, '${context.l10n.common_error}: $error');
+      }
+      return;
+    }
+    if (!mounted) return;
+    if (bytes == null || bytes.isEmpty) {
+      AppToast.info(context, context.l10n.generation_clipboardNoImage);
+      return;
+    }
+
+    setState(() => _isProcessingDroppedFiles = true);
+    try {
+      final addedCount = await importer([
+        CardDroppedResource(
+          file: DroppedFileData(fileName: 'clipboard.png', bytes: bytes),
+        ),
+      ]);
+      if (mounted && addedCount > 0) {
+        AppToast.success(context, context.l10n.drop_addedToVibe);
+      }
+    } catch (error) {
+      if (mounted) {
+        AppToast.error(context, '${context.l10n.common_error}: $error');
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isProcessingDroppedFiles = false);
+      }
+    }
   }
 
   /// 构建拖拽目标包装器
@@ -340,7 +424,35 @@ class _VibeTransferContentState extends ConsumerState<VibeTransferContent> {
   }
 
   /// 构建空状态 - 双卡片并排布局：从文件添加 + 从库导入
+  ///
+  /// 偏离上游：没有 OS 级文件拖入的平台在两张卡片下面补一个剪贴板入口。空状态
+  /// 是最常从这里开始的地方，只有「从文件」和「从库」两条路时，剪贴板里那张图
+  /// 必须先存成文件才能用。
   Widget _buildEmptyState(BuildContext context, ThemeData theme) {
+    final cards = _buildEmptyStateCards(context, theme);
+    if (PlatformCapabilities.current.supportsExternalFileDrop) {
+      return cards;
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        cards,
+        const SizedBox(height: 8),
+        OutlinedButton.icon(
+          key: const Key('vibe-transfer-empty-paste-from-clipboard'),
+          onPressed: _pasteVibeFromClipboard,
+          icon: const Icon(Icons.content_paste_go, size: 18),
+          label: Text(
+            context.l10n.generation_pasteImageFromClipboard,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildEmptyStateCards(BuildContext context, ThemeData theme) {
     return IntrinsicHeight(
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.stretch,

@@ -5,8 +5,23 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
 <style>
-  html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; }
-  #viewport { width: 100%; height: 100%; display: block; touch-action: none; }
+  /* overscroll-behavior 是相对上游新增:iOS WKWebView 的橡皮筋回弹会整块拖动页面,
+     把 canvas 拖出视口露出底色。桌面端无可见影响。 */
+  html, body {
+    margin: 0; height: 100%; background: transparent;
+    overflow: hidden; overscroll-behavior: none;
+  }
+  /* 上游只有 touch-action: none。后四条是 iOS WKWebView 的触屏适配:
+     长按 canvas 不弹「拷贝/分享」气泡、不进文字选择放大镜、点击不闪灰色高亮。
+     这些在 iOS 上会把「按住骨骼拖动」打断成一次长按菜单。桌面端无可见影响。 */
+  #viewport {
+    width: 100%; height: 100%; display: block;
+    touch-action: none;
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+  }
 </style>
 <script type="importmap">
 {

@@ -194,6 +194,10 @@ class _SVPanel extends StatelessWidget {
             onChanged(hsvColor.withValue((hsvColor.value - 0.05).clamp(0, 1))),
         child: GestureDetector(
           behavior: HitTestBehavior.opaque,
+          // 偏离上游：上游只有 onPanStart/onPanUpdate，触屏上必须"按住拖一下"
+          // 才会取到颜色，单纯点一下毫无反应（鼠标按下即微动，桌面上看不出来）。
+          onTapDown: (details) =>
+              _handleTouch(details.localPosition, constraints),
           onPanStart: (details) =>
               _handleTouch(details.localPosition, constraints),
           onPanUpdate: (details) =>
@@ -279,6 +283,10 @@ class _HueSlider extends StatelessWidget {
         onDecrease: () => onChanged((hue - 5).clamp(0, 360)),
         child: GestureDetector(
           behavior: HitTestBehavior.opaque,
+          // 偏离上游：上游只有 onPanStart/onPanUpdate，触屏上必须"按住拖一下"
+          // 才会取到颜色，单纯点一下毫无反应（鼠标按下即微动，桌面上看不出来）。
+          onTapDown: (details) =>
+              _handleTouch(details.localPosition, constraints),
           onPanStart: (details) =>
               _handleTouch(details.localPosition, constraints),
           onPanUpdate: (details) =>

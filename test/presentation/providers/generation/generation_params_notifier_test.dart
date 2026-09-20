@@ -58,6 +58,24 @@ void main() {
     expect(params.sampler, Samplers.kEulerAncestral);
   });
 
+  // 定制回归（偏离上游）：上游 updatePrompt/updateNegativePrompt 一律
+  // Future.microtask 延迟写入，同一事件内连续两次输入会留下过期写入并与
+  // prompt_input 的回写监听形成永久振荡。非构建阶段必须同步落地。
+  test('prompt updates apply synchronously outside the build phase', () {
+    final container = ProviderContainer();
+    addTearDown(container.dispose);
+    final notifier = container.read(generationParamsNotifierProvider.notifier);
+
+    notifier
+      ..updatePrompt('first')
+      ..updatePrompt('second')
+      ..updateNegativePrompt('negative');
+
+    final params = container.read(generationParamsNotifierProvider);
+    expect(params.prompt, 'second');
+    expect(params.negativePrompt, 'negative');
+  });
+
   test('build should preserve stored generation preferences', () async {
     final storage = LocalStorageService();
     await storage.setDefaultModel(ImageModels.animeDiffusionV45Curated);

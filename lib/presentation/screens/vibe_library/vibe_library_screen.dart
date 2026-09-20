@@ -18,7 +18,6 @@ import '../../../core/utils/localization_extension.dart';
 import '../../../core/utils/novelai_vibe_codec.dart';
 import '../../../core/utils/vibe_library_path_helper.dart';
 import '../../../data/models/vibe/vibe_library_entry.dart';
-import '../../adaptive/adaptive_presenter.dart';
 import '../../providers/generation/generation_params_notifier.dart';
 import '../../providers/vibe_library_category_provider.dart';
 import '../../providers/vibe_library_provider.dart';
@@ -51,6 +50,14 @@ class VibeLibraryScreen extends ConsumerStatefulWidget {
 class _VibeLibraryScreenState extends ConsumerState<VibeLibraryScreen> {
   late final VibeLibraryScreenController _controller;
   late final VibeImportController _imports;
+
+  /// 窄屏分类抽屉所在 Scaffold 的 key
+  ///
+  /// 【偏离上游】上游窄屏走 AdaptivePresenter.showPanel 的底部面板，不需要
+  /// Scaffold 句柄；我们保留左侧 Drawer 呈现，触发入口在工具栏命令里
+  /// （context 在 Scaffold 之上），只能靠 key 打开。
+  final GlobalKey<ScaffoldState> _categoryDrawerScaffoldKey =
+      GlobalKey<ScaffoldState>();
 
   @override
   void initState() {
@@ -118,6 +125,12 @@ class _VibeLibraryScreenState extends ConsumerState<VibeLibraryScreen> {
           }
         },
         child: Scaffold(
+          key: _categoryDrawerScaffoldKey,
+          // 【偏离上游】上游窄屏把分类树塞进底部弹面板，这里改成左侧 Drawer
+          // 承载同一棵 VibeCategoryTreeView。关闭边缘拖拽：Vibe 卡片有横向
+          // 手势，边缘拖拽会与之抢触点。
+          drawer: _buildCategoryDrawer(),
+          drawerEnableOpenDragGesture: false,
           body: Shortcuts(
             shortcuts: {
               LogicalKeySet(
@@ -243,7 +256,7 @@ class _VibeLibraryScreenState extends ConsumerState<VibeLibraryScreen> {
       case ToggleCategoryPanelCommand():
         _controller.toggleCategoryPanel();
       case ShowCategoryPanelCommand():
-        await _showCategoryPanel();
+        _openCategoryDrawer();
       case SelectCategoryCommand(:final categoryId):
         _selectCategory(categoryId);
       case CreateCategoryCommand():
@@ -305,36 +318,53 @@ class _VibeLibraryScreenState extends ConsumerState<VibeLibraryScreen> {
     }
   }
 
-  Future<void> _showCategoryPanel() => AdaptivePresenter.showPanel<void>(
-    context: context,
-    title: context.l10n.vibeLibrary_categories,
-    builder: (panelContext, _) => Consumer(
-      builder: (context, panelRef, _) {
-        final library = panelRef.watch(vibeLibraryNotifierProvider);
-        final categories = panelRef.watch(vibeLibraryCategoryNotifierProvider);
-        return VibeCategoryTreeView(
-          showSortHeader: true,
-          onCategoryMoveToSlot: (id, targetId, slot) => panelRef
-              .read(librarySidebarMoveServiceProvider)
-              .moveVibeCategory(id, targetId, slot),
-          categories: categories.categories,
-          totalEntryCount: library.entries.length,
-          favoriteCount: library.favoriteCount,
-          categoryEntryCounts: library.categoryEntryCounts,
-          selectedCategoryId: categories.selectedCategoryId,
-          onCategorySelected: (id) {
-            _selectCategory(id);
-            Navigator.of(panelContext).maybePop();
-          },
-          onCategoryRename: (id, name) => panelRef
-              .read(vibeLibraryCategoryNotifierProvider.notifier)
-              .renameCategory(id, name),
-          onCategoryDelete: _deleteCategory,
-          onCreateCategory: _createCategory,
-        );
-      },
+  /// 窄屏分类抽屉
+  ///
+  /// 【偏离上游】上游 v4.2.1 是 `_showCategoryPanel`（AdaptivePresenter
+  /// .showPanel 底部面板，vibe_library_screen.dart:308）。用户点名保留左侧
+  /// 边栏，所以只换承载容器：里面仍是同一棵 VibeCategoryTreeView，没有重建。
+  Widget _buildCategoryDrawer() => Drawer(
+    key: const Key('vibe-library-category-drawer'),
+    width: 290,
+    child: SafeArea(
+      child: Consumer(
+        builder: (context, panelRef, _) {
+          final library = panelRef.watch(vibeLibraryNotifierProvider);
+          final categories = panelRef.watch(
+            vibeLibraryCategoryNotifierProvider,
+          );
+          return VibeCategoryTreeView(
+            showSortHeader: true,
+            onCategoryMoveToSlot: (id, targetId, slot) => panelRef
+                .read(librarySidebarMoveServiceProvider)
+                .moveVibeCategory(id, targetId, slot),
+            categories: categories.categories,
+            totalEntryCount: library.entries.length,
+            favoriteCount: library.favoriteCount,
+            categoryEntryCounts: library.categoryEntryCounts,
+            selectedCategoryId: categories.selectedCategoryId,
+            onCategorySelected: (id) {
+              _selectCategory(id);
+              _closeCategoryDrawer();
+            },
+            onCategoryRename: (id, name) => panelRef
+                .read(vibeLibraryCategoryNotifierProvider.notifier)
+                .renameCategory(id, name),
+            onCategoryDelete: _deleteCategory,
+            onCreateCategory: _createCategory,
+          );
+        },
+      ),
     ),
   );
+
+  void _openCategoryDrawer() {
+    _categoryDrawerScaffoldKey.currentState?.openDrawer();
+  }
+
+  void _closeCategoryDrawer() {
+    _categoryDrawerScaffoldKey.currentState?.closeDrawer();
+  }
 
   Future<void> _createCategory() async {
     final name = await _controller.runDialogLocked(

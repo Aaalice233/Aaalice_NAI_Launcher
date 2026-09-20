@@ -26538,6 +26538,42 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Subscription expiry: {date}'**
   String settings_subscriptionExpiresOn(DateTime date);
+
+  /// Shown after a clipboard paste action when the system clipboard holds no image.
+  ///
+  /// In en, this message translates to:
+  /// **'No image in the clipboard'**
+  String get generation_clipboardNoImage;
+
+  /// Source option in the mobile metadata-import sheet that opens the system file/photo picker, as opposed to the clipboard option.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose from files'**
+  String get generation_importImageFromFile;
+
+  /// Action label for reading an image out of the system clipboard. Used by the mobile metadata-import source sheet and by the paste entry points in the img2img, precise reference, vibe transfer and reverse-prompt panels, which have no OS-level file drop.
+  ///
+  /// In en, this message translates to:
+  /// **'Paste image from clipboard'**
+  String get generation_pasteImageFromClipboard;
+
+  /// Tooltip for the generation screen's leading app-bar button that opens the left drawer holding the fixed-tag and character quick toggles.
+  ///
+  /// In en, this message translates to:
+  /// **'Quick tools'**
+  String get generation_quickTools;
+
+  /// Tooltip for an output-filtered tag chip on touch devices; mirrors onlineGallery_outputFilteredTagTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Removed when copying, sending, or adding to queue; long-press to manage'**
+  String get onlineGallery_outputFilteredTagTooltipTouch;
+
+  /// Tooltip for a tag chip on touch devices, where there is no right-click; mirrors onlineGallery_tagContextMenuTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Long-press to add to the blacklist or output filter'**
+  String get onlineGallery_tagContextMenuTooltipTouch;
 }
 
 class _AppLocalizationsDelegate

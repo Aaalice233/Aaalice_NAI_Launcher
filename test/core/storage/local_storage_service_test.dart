@@ -3,7 +3,9 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:nai_launcher/core/constants/api_constants.dart';
+import 'package:flutter/foundation.dart';
 import 'package:nai_launcher/core/constants/storage_keys.dart';
+import 'package:nai_launcher/core/platform/platform_capabilities.dart';
 import 'package:nai_launcher/core/storage/local_storage_service.dart';
 
 void main() {
@@ -84,5 +86,31 @@ void main() {
 
     await restoredStorage.setIncludePrereleaseUpdates(false);
     expect(storage.getIncludePrereleaseUpdates(), isFalse);
+  });
+
+  group('随机提示词工具入口的平台默认值', () {
+    tearDown(() {
+      PlatformCapabilities.debugOverride = null;
+    });
+
+    test('移动端默认隐藏，桌面端默认显示，显式设置优先', () async {
+      final storage = LocalStorageService();
+
+      PlatformCapabilities.debugOverride = PlatformCapabilities.forPlatform(
+        TargetPlatform.iOS,
+      );
+      expect(storage.getShowRandomPromptTools(), isFalse);
+
+      PlatformCapabilities.debugOverride = PlatformCapabilities.forPlatform(
+        TargetPlatform.windows,
+      );
+      expect(storage.getShowRandomPromptTools(), isTrue);
+
+      PlatformCapabilities.debugOverride = PlatformCapabilities.forPlatform(
+        TargetPlatform.iOS,
+      );
+      await storage.setShowRandomPromptTools(true);
+      expect(storage.getShowRandomPromptTools(), isTrue);
+    });
   });
 }

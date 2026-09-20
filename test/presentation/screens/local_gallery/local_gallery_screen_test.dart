@@ -61,12 +61,21 @@ void main() {
             closedColumns: 2,
             closedItemWidth: 162,
           ),
+          // 【偏离上游】窄屏最小卡片宽是我们的 110（上游 136/160）：
+          // 390pt 与 412pt 手机竖屏都排 3 列，320/360 仍与上游一致是 2 列
+          (
+            width: 390,
+            openedColumns: 3,
+            openedItemWidth: 114,
+            closedColumns: 3,
+            closedItemWidth: 114,
+          ),
           (
             width: 412,
-            openedColumns: 2,
-            openedItemWidth: 188,
-            closedColumns: 2,
-            closedItemWidth: 188,
+            openedColumns: 3,
+            openedItemWidth: 121.33333333333333,
+            closedColumns: 3,
+            closedItemWidth: 121.33333333333333,
           ),
           (
             width: 600,

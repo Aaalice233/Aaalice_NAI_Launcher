@@ -190,4 +190,52 @@ void main() {
     expect(albums.single.name, '旧集合');
     expect(albums.single.imageCount, 1);
   });
+
+  test('旧集合的失效绝对路径按后缀重挂到当前图库根目录', () async {
+    // 模拟 iOS 覆盖安装：旧集合记的是上一个容器 UUID 下的绝对路径，
+    // 文件其实还在当前图库根目录的同一相对位置上。
+    final rootPath = GalleryAlbumSidecarService.toAbsolutePath(
+      tempDir.path,
+      'Containers/NEW-UUID/Documents/gallery',
+    );
+    Directory(
+      GalleryAlbumSidecarService.toAbsolutePath(rootPath, '2025'),
+    ).createSync(recursive: true);
+    final livePath = GalleryAlbumSidecarService.toAbsolutePath(
+      rootPath,
+      '2025/a.png',
+    );
+    File(livePath).writeAsStringSync('x');
+    await seedImage(livePath);
+
+    const stalePath =
+        '/var/mobile/Containers/Data/Application/OLD-UUID/Documents/'
+        'gallery/2025/a.png';
+    const gonePath =
+        '/var/mobile/Containers/Data/Application/OLD-UUID/Documents/'
+        'gallery/2025/gone.png';
+    final legacy = [
+      ImageCollection(
+        id: 'c1',
+        name: '旧集合',
+        imagePaths: const [stalePath, gonePath],
+        createdAt: DateTime(2025, 1, 1),
+      ),
+    ];
+    final coordinator = GalleryAlbumImportCoordinator(
+      dataSource: dataSource,
+      localStorage: _MemoryLocalStorage(),
+      sidecarService: _FakeSidecar(),
+      readLegacyCollections: () => legacy,
+    )..galleryRootPathOverride = rootPath;
+
+    await coordinator.importIfNeeded();
+
+    final albums = await dataSource.albums.getAlbums();
+    expect(albums.single.id, 'c1');
+    // 换过容器路径的成员被救回来，真正消失的那个才计入跳过
+    expect(albums.single.imageCount, 1);
+    expect(coordinator.rebasedImageCount, 1);
+    expect(coordinator.skippedImageCount, 1);
+  });
 }

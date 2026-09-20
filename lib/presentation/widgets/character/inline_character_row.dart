@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:nai_launcher/presentation/widgets/common/horizontal_action_strip.dart';
 import 'package:flutter/material.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
@@ -11,6 +13,7 @@ import '../../providers/character_position_canvas_provider.dart';
 import '../../providers/character_prompt_provider.dart';
 import '../../providers/image_generation_provider.dart';
 import '../../providers/tag_library_page_provider.dart';
+import '../common/app_toast.dart';
 import '../tag_library/tag_library_picker_dialog.dart';
 import 'add_to_library_dialog.dart';
 import 'character_position_canvas.dart';
@@ -526,6 +529,15 @@ class _PanelIconButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final interactionPolicy = context.interactionPolicy;
+    final baseExtent = comfortable ? 40.0 : 23.0;
+    // 偏离上游：上游写死 comfortable ? 40 : 23。紧凑态的 23pt 远低于 44pt 的
+    // 触摸下限（上游自己在角色卡片头部已经修到 44），而紧凑态正是手机上
+    // 参数面板里角色行走的分支。只在本会话观察到触屏时抬到
+    // minimumControlExtent，指针环境保持上游密度不变。
+    final extent = interactionPolicy.touchAvailable
+        ? math.max(baseExtent, interactionPolicy.minimumControlExtent)
+        : baseExtent;
     return Tooltip(
       message: tooltip,
       waitDuration: const Duration(milliseconds: 500),
@@ -533,7 +545,7 @@ class _PanelIconButton extends StatelessWidget {
         onTap: enabled ? onTap : null,
         borderRadius: BorderRadius.circular(8),
         child: SizedBox.square(
-          dimension: comfortable ? 40 : 23,
+          dimension: extent,
           child: Icon(
             icon,
             size: comfortable ? 20 : 15,
@@ -562,11 +574,19 @@ class _AddCharacterChip extends ConsumerWidget {
       final limit = ref
           .read(characterPromptNotifierProvider.notifier)
           .characterLimit;
+      final message = l10n.character_limitReached(limit.toString());
       return Tooltip(
-        message: l10n.character_limitReached(limit.toString()),
+        message: message,
         child: Opacity(
           opacity: 0.4,
-          child: IgnorePointer(child: _buildChipBody(theme, l10n)),
+          // 偏离上游：上游是 IgnorePointer，理由只能从 tooltip 看到。触屏没有
+          // hover，要长按 500ms 才会弹 tooltip，实际表现就是"点了没反应"。
+          // 保留禁用语义（不添加角色），但点击必须给出同一句话的可见反馈。
+          child: GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: () => AppToast.warning(context, message),
+            child: _buildChipBody(theme, l10n),
+          ),
         ),
       );
     }

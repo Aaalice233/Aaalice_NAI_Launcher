@@ -16,7 +16,6 @@ import '../../../core/utils/localization_extension.dart';
 import '../../../core/utils/permission_utils.dart';
 import '../../../data/models/gallery/gallery_category.dart';
 import '../../../data/repositories/gallery_folder_repository.dart';
-import '../../adaptive/adaptive_presenter.dart';
 import '../../providers/bulk_operation_provider.dart';
 import '../../providers/collection_provider.dart';
 import '../../providers/gallery_album_provider.dart';
@@ -70,6 +69,14 @@ class LocalGalleryScreenController extends ChangeNotifier {
   final bool Function() _mounted;
   final LocalGalleryActionCoordinator _actions;
   final GlobalKey<GroupedGridViewState> groupedGridViewKey;
+
+  /// 窄屏分类抽屉所在 Scaffold 的 key
+  ///
+  /// 【偏离上游】上游窄屏用 AdaptivePresenter.showPanel 弹底部面板，不需要
+  /// Scaffold 句柄；我们保留左侧 Drawer 呈现（用户点名的「左边侧边栏」），
+  /// 而触发按钮在工具栏里、context 位于 Scaffold 之上，只能靠 key 打开。
+  final GlobalKey<ScaffoldState> categoryDrawerScaffoldKey =
+      GlobalKey<ScaffoldState>();
 
   late final Map<String, VoidCallback> shortcuts;
   final FocusNode shortcutsFocusNode = FocusNode();
@@ -248,25 +255,19 @@ class LocalGalleryScreenController extends ChangeNotifier {
     return completer.future;
   }
 
-  Future<void> showCategoryPanelSheet() {
-    final context = _context();
-    return AdaptivePresenter.showPanel<void>(
-      context: context,
-      title: context.l10n.localGallery_categoryPanelTitle,
-      initialChildSize: 0.82,
-      minChildSize: 0.45,
-      maxChildSize: 0.96,
-      builder: (sheetContext, scrollController) => Consumer(
-        builder: (context, sheetRef, _) => buildCategoryPanel(
-          galleryState: sheetRef.watch(localGalleryNotifierProvider),
-          categoryState: sheetRef.watch(galleryCategoryNotifierProvider),
-          albumState: sheetRef.watch(galleryAlbumNotifierProvider),
-          modal: true,
-          scrollController: scrollController,
-          afterSelection: () => Navigator.of(sheetContext).maybePop(),
-        ),
-      ),
-    );
+  /// 打开窄屏分类面板（相簿 + 分类树）
+  ///
+  /// 【偏离上游】上游 v4.2.1 这里是 `AdaptivePresenter.showPanel` 弹底部面板
+  /// （local_gallery_screen_controller.dart:251-269）。用户点名要保留左侧边栏，
+  /// 所以只换承载容器：抽屉里装的仍然是同一个 [buildCategoryPanel]，分类树本身
+  /// 没有重建，上游后续对面板内容的改动可以直接吃下。
+  void openCategoryDrawer() {
+    categoryDrawerScaffoldKey.currentState?.openDrawer();
+  }
+
+  /// 关闭窄屏分类抽屉（选中分类/相簿后调用，等价于上游面板里的 maybePop）
+  void closeCategoryDrawer() {
+    categoryDrawerScaffoldKey.currentState?.closeDrawer();
   }
 
   Widget buildCategoryPanel({
@@ -382,7 +383,7 @@ class LocalGalleryScreenController extends ChangeNotifier {
     final availableWidth =
         context.size?.width ?? MediaQuery.sizeOf(context).width;
     if (availableWidth < 1000) {
-      unawaited(showCategoryPanelSheet());
+      openCategoryDrawer();
       return;
     }
     _showCategoryPanel = !_showCategoryPanel;

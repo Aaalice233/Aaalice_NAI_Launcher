@@ -62,6 +62,19 @@ class GalleryAlbumImportCoordinator {
   /// 需要跳过的相对路径数量（sidecar 引用了图库中尚不存在的文件）
   int skippedImageCount = 0;
 
+  /// 旧集合迁移时靠「重挂到当前图库根目录」才救回来的成员数量
+  ///
+  /// 【偏离上游】上游 v4.2.1 没有这个概念：旧集合成员只按记录里的绝对路径
+  /// 查一次 `getImageIdByPath`、再 `File(绝对路径).exists()`，两者都失败就
+  /// `skippedImageCount++` 并静默丢弃。iOS 每次覆盖安装都会换掉应用容器 UUID
+  /// （/var/mobile/Containers/Data/Application/「UUID」/...），旧集合里记的
+  /// 绝对路径必然全部失效，用户已有的集合会在迁移那一刻整体丢成员且只打一行
+  /// 日志。这里加一层「按路径后缀重挂到当前图库根目录」的回退匹配来兜住它。
+  int rebasedImageCount = 0;
+
+  /// 旧根目录相对当前根目录多出来的前缀段数（探测一次后复用）
+  int? _legacyRootSegmentCount;
+
   Future<void> importIfNeeded() async {
     if (_localStorage.getSetting<bool>(StorageKeys.galleryAlbumImportDone) ==
         true) {
@@ -149,19 +162,12 @@ class GalleryAlbumImportCoordinator {
       final imageIds = <int>[];
       final pendingPaths = <String>[];
       for (final imagePath in collection.imagePaths) {
-        final imageId = await _dataSource.getImageIdByPath(imagePath);
-        if (imageId != null) {
-          imageIds.add(imageId);
-        } else if (await File(imagePath).exists()) {
-          // 旧集合记录的是绝对路径；转换失败（图库外文件）按跳过处理
-          final relative = rootPath == null || rootPath.isEmpty
-              ? null
-              : GalleryAlbumSidecarService.toRelativePath(rootPath, imagePath);
-          if (relative != null) {
-            pendingPaths.add(relative);
-          } else {
-            skippedImageCount++;
-          }
+        final match = await _resolveLegacyMember(imagePath, rootPath);
+        if (match.rebased) rebasedImageCount++;
+        if (match.imageId != null) {
+          imageIds.add(match.imageId!);
+        } else if (match.pendingRelativePath != null) {
+          pendingPaths.add(match.pendingRelativePath!);
         } else {
           skippedImageCount++;
         }
@@ -188,10 +194,108 @@ class GalleryAlbumImportCoordinator {
       pendingPathsByAlbumId: pendingPathsByAlbumId,
     );
     AppLogger.i(
-      '从旧集合迁移 ${albums.length} 个相簿，跳过 $skippedImageCount 个无效引用',
+      '从旧集合迁移 ${albums.length} 个相簿，'
+          '重挂 $rebasedImageCount 个换过容器路径的成员，'
+          '跳过 $skippedImageCount 个无效引用',
       'AlbumImport',
     );
   }
+
+  /// 解析一条旧集合成员（绝对路径）在当前设备上的归属。
+  ///
+  /// 【偏离上游】上游只做前两步（原样查库 / 原样查文件）。第三步的后缀重挂是
+  /// 我们为 iOS 加的：覆盖安装后容器 UUID 变化，旧绝对路径的前缀失效，但
+  /// 「图库根目录以下的那段相对路径」不变，所以把旧路径的最长可用后缀重新
+  /// 挂到当前根目录上即可还原成员。从最长后缀开始试，命中即止，把同名文件
+  /// 误选的概率压到最低（纯 basename 匹配是最后一档）。
+  Future<({int? imageId, String? pendingRelativePath, bool rebased})>
+  _resolveLegacyMember(String legacyPath, String? rootPath) async {
+    // 1) 原样匹配：同机升级与桌面端走这条，行为与上游一致
+    final directId = await _dataSource.getImageIdByPath(legacyPath);
+    if (directId != null) {
+      return (imageId: directId, pendingRelativePath: null, rebased: false);
+    }
+
+    final root = rootPath == null || rootPath.isEmpty ? null : rootPath;
+
+    // 2) 文件还在原处但尚未索引：保留为 pending，扫描完成后补绑
+    if (await File(legacyPath).exists()) {
+      final relative = root == null
+          ? null
+          : GalleryAlbumSidecarService.toRelativePath(root, legacyPath);
+      // 转换失败说明文件在图库外，上游同样按跳过处理
+      return (imageId: null, pendingRelativePath: relative, rebased: false);
+    }
+
+    if (root == null) {
+      return (imageId: null, pendingRelativePath: null, rebased: false);
+    }
+
+    // 3) 回退：把旧绝对路径的尾段重挂到当前图库根目录
+    final rebased = await _rebaseOntoRoot(legacyPath, root);
+    if (rebased == null) {
+      return (imageId: null, pendingRelativePath: null, rebased: false);
+    }
+    final rebasedId = await _dataSource.getImageIdByPath(rebased.absolutePath);
+    return (
+      imageId: rebasedId,
+      pendingRelativePath: rebasedId == null ? rebased.relativePath : null,
+      rebased: true,
+    );
+  }
+
+  /// 按「最长后缀优先」把旧绝对路径重挂到当前图库根目录；都对不上返回 null
+  Future<({String relativePath, String absolutePath})?> _rebaseOntoRoot(
+    String legacyPath,
+    String rootPath,
+  ) async {
+    final segments = _splitPathSegments(legacyPath);
+    if (segments.isEmpty) return null;
+
+    // 同一次迁移里旧根目录只有一个，探测出来之后直接复用
+    final cached = _legacyRootSegmentCount;
+    if (cached != null && cached < segments.length) {
+      final candidate = _candidateFor(rootPath, segments, cached);
+      if (candidate != null && await File(candidate.absolutePath).exists()) {
+        return candidate;
+      }
+    }
+
+    for (var skip = 0; skip < segments.length; skip++) {
+      if (skip == cached) continue;
+      final candidate = _candidateFor(rootPath, segments, skip);
+      if (candidate == null) continue;
+      if (await File(candidate.absolutePath).exists()) {
+        _legacyRootSegmentCount = skip;
+        return candidate;
+      }
+    }
+    return null;
+  }
+
+  static ({String relativePath, String absolutePath})? _candidateFor(
+    String rootPath,
+    List<String> segments,
+    int skip,
+  ) {
+    final relative = segments.sublist(skip).join('/');
+    if (!GalleryAlbumSidecarService.isValidRelativeMemberPath(relative)) {
+      return null;
+    }
+    return (
+      relativePath: relative,
+      absolutePath: GalleryAlbumSidecarService.toAbsolutePath(
+        rootPath,
+        relative,
+      ),
+    );
+  }
+
+  /// 同时吃 '/' 与 '\\'：旧集合可能是在另一个平台上写下的
+  static List<String> _splitPathSegments(String path) => path
+      .split(RegExp(r'[\\/]+'))
+      .where((segment) => segment.isNotEmpty && segment != '.')
+      .toList();
 
   static GalleryAlbumRecord _toRecord(GalleryAlbum album) {
     return GalleryAlbumRecord(
