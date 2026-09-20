@@ -7,6 +7,7 @@ list(APPEND FLUTTER_PLUGIN_LIST
   emoji_picker_flutter
   flutter_inappwebview_windows
   flutter_secure_storage_windows
+  gal
   irondash_engine_context
   media_kit_libs_windows_video
   media_kit_video

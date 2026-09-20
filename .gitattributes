@@ -4,3 +4,11 @@ assets/databases/*.db filter=lfs diff=lfs merge=lfs -text
 assets/data/nai_official_random_wordlists.json text eol=lf
 assets/data/random_tag_library.json text eol=lf
 assets/data/tokenizers/* -text
+
+# CocoaPods 对 Podfile.lock 与 Pods/Manifest.lock 做逐字节比对：
+# 根目录的 * text=auto 会让这两个文件在 Windows 上检出成 CRLF，
+# 而 Mac 上 pod install 写出的 Manifest.lock 是 LF，
+# Xcode 的 [CP] Check Pods Manifest.lock 会在编译末尾才报
+# "The sandbox is not in sync with the Podfile.lock"。强制 LF。
+ios/Podfile.lock text eol=lf
+ios/Podfile text eol=lf

@@ -97,6 +97,12 @@ dependencies:
   # 分享功能
   share_plus: ^10.0.0
 
+  # 保存图片到系统相册（iOS/Android）。
+  # 仅服务「保存到系统相册」这一个显式手动动作（用户点按保存/长按菜单）。
+  # 不接 image_generation_provider 的 publishToSystemGallery 自动回调——
+  # 那是 Android 的生成即入相册行为，iOS 上明确不要自动写相册。
+  gal: ^2.3.0
+
   # 文件选择
   file_picker: ^8.0.0
 

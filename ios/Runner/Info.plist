@@ -1,0 +1,205 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CADisableMinimumFrameDurationOnPhone</key>
+	<true/>
+	<key>CFBundleDevelopmentRegion</key>
+	<string>$(DEVELOPMENT_LANGUAGE)</string>
+	<key>CFBundleDisplayName</key>
+	<string>NAI Launcher</string>
+	<key>CFBundleExecutable</key>
+	<string>$(EXECUTABLE_NAME)</string>
+	<key>CFBundleIdentifier</key>
+	<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
+	<key>CFBundleInfoDictionaryVersion</key>
+	<string>6.0</string>
+	<key>CFBundleName</key>
+	<string>nai_launcher</string>
+	<key>CFBundlePackageType</key>
+	<string>APPL</string>
+	<key>CFBundleShortVersionString</key>
+	<string>$(FLUTTER_BUILD_NAME)</string>
+	<key>CFBundleSignature</key>
+	<string>????</string>
+	<key>CFBundleVersion</key>
+	<string>$(FLUTTER_BUILD_NUMBER)</string>
+	<!--
+		声明可打开的文档类型。public.image 让本应用出现在「文件」App 与任意图片的
+		「用其他 App 打开 / 共享」列表里，这是 Share Extension 的零签名代价替代方案
+		（Share Extension 需独立 target + 独立 bundle ID + App Group，App Group 在免费
+		Apple ID 的 free provisioning 下不可用，自签工具多半会剥掉 PlugIns/）。
+		LSHandlerRank = Alternate：不抢占系统图片类型的默认打开方。
+		注意：本批次只落 Info.plist 声明；真正接收文件还需要
+		AppDelegate.application(_:open:options:) → method channel → Dart 侧的接收链路，
+		那部分属于 lib/ 车道，尚未实现，声明本身不影响构建。
+	-->
+	<key>CFBundleDocumentTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeName</key>
+			<string>Image</string>
+			<key>CFBundleTypeRole</key>
+			<string>Viewer</string>
+			<key>LSHandlerRank</key>
+			<string>Alternate</string>
+			<key>LSItemContentTypes</key>
+			<array>
+				<string>public.image</string>
+			</array>
+		</dict>
+		<dict>
+			<key>CFBundleTypeName</key>
+			<string>NovelAI V4 Vibe</string>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>LSHandlerRank</key>
+			<string>Owner</string>
+			<key>LSItemContentTypes</key>
+			<array>
+				<string>com.aaalice.naiLauncher.naiv4vibe</string>
+			</array>
+		</dict>
+		<dict>
+			<key>CFBundleTypeName</key>
+			<string>NovelAI V4 Vibe Bundle</string>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>LSHandlerRank</key>
+			<string>Owner</string>
+			<key>LSItemContentTypes</key>
+			<array>
+				<string>com.aaalice.naiLauncher.naiv4vibebundle</string>
+			</array>
+		</dict>
+	</array>
+	<key>LSRequiresIPhoneOS</key>
+	<true/>
+	<key>UIFileSharingEnabled</key>
+	<true/>
+	<key>LSSupportsOpeningDocumentsInPlace</key>
+	<true/>
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<!-- 3D 模型编辑器由应用内 HttpServer 提供页面，WKWebView 需允许访问 127.0.0.1 -->
+		<key>NSAllowsLocalNetworking</key>
+		<true/>
+		<!--
+			放行任意明文 HTTP。自定义 API base URL 可能是内网穿透地址、公网域名反代
+			或自建服务的 http:// 端点，域名在运行时由用户输入，无法用 NSExceptionDomains
+			静态枚举。与 Android 侧 android:usesCleartextTraffic="true"
+			（android/app/src/main/AndroidManifest.xml:20）对齐。
+			本应用为自用未签名侧载分发，不经 App Store 审核，无审核风险。
+			NSAllowsArbitraryLoads 与 NSAllowsLocalNetworking 为同级键、可共存：
+			前者放行任意域名的明文 HTTP，后者额外放行本地/链路本地地址。
+		-->
+		<key>NSAllowsArbitraryLoads</key>
+		<true/>
+	</dict>
+	<!--
+		3D 模型编辑器通过应用内 127.0.0.1 HttpServer 提供页面，需要本地网络权限；
+		与 ComfyUI 无关（ComfyUI 集成在移动端按上游能力位禁用）。
+	-->
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>用于 3D 模型编辑器访问本机内置的本地 HTTP 服务，以及连接你在同一局域网内自建的服务。</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>用于将生成的图片保存到系统相册。</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>用于选择图片进行图生图、局部重绘和 Vibe 参考。</string>
+	<key>UIApplicationSceneManifest</key>
+	<dict>
+		<key>UIApplicationSupportsMultipleScenes</key>
+		<false/>
+		<key>UISceneConfigurations</key>
+		<dict>
+			<key>UIWindowSceneSessionRoleApplication</key>
+			<array>
+				<dict>
+					<key>UISceneClassName</key>
+					<string>UIWindowScene</string>
+					<key>UISceneConfigurationName</key>
+					<string>flutter</string>
+					<key>UISceneDelegateClassName</key>
+					<string>$(PRODUCT_MODULE_NAME).SceneDelegate</string>
+					<key>UISceneStoryboardFile</key>
+					<string>Main</string>
+				</dict>
+			</array>
+		</dict>
+	</dict>
+	<key>UIApplicationSupportsIndirectInputEvents</key>
+	<true/>
+	<key>UILaunchStoryboardName</key>
+	<string>LaunchScreen</string>
+	<key>UIMainStoryboardFile</key>
+	<string>Main</string>
+	<key>UISupportedInterfaceOrientations</key>
+	<array>
+		<string>UIInterfaceOrientationPortrait</string>
+		<string>UIInterfaceOrientationLandscapeLeft</string>
+		<string>UIInterfaceOrientationLandscapeRight</string>
+	</array>
+	<key>UISupportedInterfaceOrientations~ipad</key>
+	<array>
+		<string>UIInterfaceOrientationPortrait</string>
+		<string>UIInterfaceOrientationPortraitUpsideDown</string>
+		<string>UIInterfaceOrientationLandscapeLeft</string>
+		<string>UIInterfaceOrientationLandscapeRight</string>
+	</array>
+	<!--
+		导出 Vibe 的两个自定义类型。两者都是 UTF-8 JSON：
+		.naiv4vibe       单个 Vibe（lib/core/utils/vibe_export_utils.dart:545 生成 JSON）
+		.naiv4vibebundle 多个 Vibe 的打包（lib/core/utils/vibe_file_parser.dart:765-766 走 utf8+jsonDecode）
+		扩展名常量见 lib/data/models/vibe/vibe_export_format.dart:8,11。
+		没有这段声明时，iOS 的文件选择器无法把 allowedExtensions
+		（vibe_export_utils.dart:241,292）解析成 UTType，Vibe 文件在选择器里会被置灰。
+	-->
+	<key>UTExportedTypeDeclarations</key>
+	<array>
+		<dict>
+			<key>UTTypeIdentifier</key>
+			<string>com.aaalice.naiLauncher.naiv4vibe</string>
+			<key>UTTypeDescription</key>
+			<string>NovelAI V4 Vibe</string>
+			<key>UTTypeConformsTo</key>
+			<array>
+				<string>public.json</string>
+			</array>
+			<key>UTTypeTagSpecification</key>
+			<dict>
+				<key>public.filename-extension</key>
+				<array>
+					<string>naiv4vibe</string>
+				</array>
+				<key>public.mime-type</key>
+				<array>
+					<string>application/json</string>
+				</array>
+			</dict>
+		</dict>
+		<dict>
+			<key>UTTypeIdentifier</key>
+			<string>com.aaalice.naiLauncher.naiv4vibebundle</string>
+			<key>UTTypeDescription</key>
+			<string>NovelAI V4 Vibe Bundle</string>
+			<key>UTTypeConformsTo</key>
+			<array>
+				<string>public.json</string>
+			</array>
+			<key>UTTypeTagSpecification</key>
+			<dict>
+				<key>public.filename-extension</key>
+				<array>
+					<string>naiv4vibebundle</string>
+				</array>
+				<key>public.mime-type</key>
+				<array>
+					<string>application/json</string>
+				</array>
+			</dict>
+		</dict>
+	</array>
+</dict>
+</plist>
