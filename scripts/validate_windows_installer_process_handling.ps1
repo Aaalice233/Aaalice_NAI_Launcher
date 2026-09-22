@@ -90,15 +90,31 @@ function Start-HiddenProcess {
   return $process
 }
 
+function Start-HiddenProcessSet {
+  param(
+    [Parameter(Mandatory)]
+    [string]$Path,
+    [Parameter(Mandatory)]
+    [int]$Count
+  )
+
+  $processes = [System.Collections.Generic.List[System.Diagnostics.Process]]::new()
+  for ($index = 0; $index -lt $Count; $index++) {
+    [void]$processes.Add((Start-HiddenProcess -Path $Path))
+  }
+  return $processes.ToArray()
+}
+
 function Invoke-SilentExecutable {
   param(
     [Parameter(Mandatory)]
-    [string]$Path
+    [string]$Path,
+    [string[]]$AdditionalArguments = @()
   )
 
   $process = Start-Process `
     -FilePath $Path `
-    -ArgumentList '/S' `
+    -ArgumentList (@('/S') + $AdditionalArguments) `
     -WindowStyle Hidden `
     -Wait `
     -PassThru
@@ -121,6 +137,24 @@ function Assert-ProcessState {
   }
 }
 
+function Assert-ProcessSetState {
+  param(
+    [Parameter(Mandatory)]
+    [System.Diagnostics.Process[]]$Processes,
+    [Parameter(Mandatory)]
+    [bool]$HasExited,
+    [Parameter(Mandatory)]
+    [string]$Message
+  )
+
+  foreach ($process in $Processes) {
+    Assert-ProcessState `
+      -Process $process `
+      -HasExited $HasExited `
+      -Message "$Message (pid $($process.Id))"
+  }
+}
+
 $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
 $script:NsisScript = Join-Path $repoRoot 'installer\windows\nai_launcher.nsi'
 $script:Makensis = Get-MakensisPath
@@ -134,6 +168,8 @@ $otherDir = Join-Path $tempRoot 'other'
 $outputDir = Join-Path $tempRoot 'output'
 $appName = 'nai_launcher_process_test.exe'
 $script:McpCliName = 'nai_launcher_mcp_process_test.exe'
+# Every MCP client spawns its own stdio proxy, so several run from one install.
+$script:McpProxyCount = 3
 $uninstallKey = "Software\Aaalice\InstallerProcessTest\$testId"
 
 try {
@@ -171,8 +207,9 @@ try {
 
   $targetProcess = Start-HiddenProcess -Path (Join-Path $installDir $appName)
   $otherProcess = Start-HiddenProcess -Path (Join-Path $otherDir $appName)
-  $targetMcpProcess = Start-HiddenProcess `
-    -Path (Join-Path $installDir $script:McpCliName)
+  $targetMcpProcesses = @(Start-HiddenProcessSet `
+    -Path (Join-Path $installDir $script:McpCliName) `
+    -Count $script:McpProxyCount)
   $otherMcpProcess = Start-HiddenProcess `
     -Path (Join-Path $otherDir $script:McpCliName)
 
@@ -188,10 +225,10 @@ try {
     -Process $otherProcess `
     -HasExited $false `
     -Message 'The installer stopped a same-named executable from another directory.'
-  Assert-ProcessState `
-    -Process $targetMcpProcess `
+  Assert-ProcessSetState `
+    -Processes $targetMcpProcesses `
     -HasExited $true `
-    -Message 'The installer did not stop the MCP proxy from its own install directory.'
+    -Message 'The installer did not stop every MCP proxy from its own install directory.'
   Assert-ProcessState `
     -Process $otherMcpProcess `
     -HasExited $false `
@@ -200,11 +237,28 @@ try {
     throw 'The normal installer did not copy its payload.'
   }
 
+  $uninstallTargetProcess = Start-HiddenProcess `
+    -Path (Join-Path $installDir $appName)
+  $uninstallMcpProcesses = @(Start-HiddenProcessSet `
+    -Path (Join-Path $installDir $script:McpCliName) `
+    -Count $script:McpProxyCount)
+
+  # _?= keeps the uninstaller in place so -Wait observes the real uninstall.
   $uninstaller = Join-Path $installDir 'Uninstall.exe'
-  $uninstallExit = Invoke-SilentExecutable -Path $uninstaller
+  $uninstallExit = Invoke-SilentExecutable `
+    -Path $uninstaller `
+    -AdditionalArguments @("_?=$installDir")
   if ($uninstallExit -ne 0) {
     throw "Silent uninstaller exited with code $uninstallExit"
   }
+  Assert-ProcessState `
+    -Process $uninstallTargetProcess `
+    -HasExited $true `
+    -Message 'The uninstaller did not stop the executable from its own install directory.'
+  Assert-ProcessSetState `
+    -Processes $uninstallMcpProcesses `
+    -HasExited $true `
+    -Message 'The uninstaller did not stop every MCP proxy from its own install directory.'
   Assert-ProcessState `
     -Process $otherProcess `
     -HasExited $false `
@@ -213,6 +267,9 @@ try {
     -Process $otherMcpProcess `
     -HasExited $false `
     -Message 'The uninstaller stopped a same-named MCP proxy from another directory.'
+  if (Test-Path -LiteralPath (Join-Path $installDir 'source-version.txt')) {
+    throw 'The uninstaller left its payload behind.'
+  }
 
   $firstInstallInstaller = Join-Path $outputDir 'first-install-setup.exe'
   Invoke-Makensis `

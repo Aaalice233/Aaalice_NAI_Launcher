@@ -52,6 +52,9 @@ Unicode true
 !define /math PROCESS_PATH_BUFFER_BYTES ${NSIS_MAX_STRLEN} * 2
 !define PROCESS_ENTRY_SIZE 556
 
+; taskkill stops one PID, but every MCP client thread owns its own stdio proxy.
+!define CLOSE_PROCESS_MAX_ROUNDS 32
+
 !define MUI_ABORTWARNING
 !define MUI_FINISHPAGE_RUN "$INSTDIR\${APP_EXE}"
 !insertmacro MUI_PAGE_WELCOME
@@ -180,6 +183,12 @@ find_process_done:
 FunctionEnd
 
 Function ${Prefix}CloseInstalledProcess
+  Push $R0
+  Push $R1
+  Push $R2
+
+  StrCpy $R1 0
+
   Call ${Prefix}FindInstalledProcess
   StrCmp $ProcessInspectionFailed "1" process_inspection_failed
   StrCmp $TargetProcessId "0" app_closed
@@ -188,12 +197,22 @@ Function ${Prefix}CloseInstalledProcess
   MessageBox MB_ICONEXCLAMATION|MB_OKCANCEL "$(AppRunningPrompt)" IDOK close_app IDCANCEL cancel_install
 
 close_app:
+  StrCpy $R2 $TargetProcessId
   nsExec::ExecToLog '"$SYSDIR\taskkill.exe" /PID $TargetProcessId /T /F'
+  Pop $R0
   Sleep 1000
+  IntOp $R1 $R1 + 1
   Call ${Prefix}FindInstalledProcess
   StrCmp $ProcessInspectionFailed "1" process_inspection_failed
   StrCmp $TargetProcessId "0" app_closed
+  ; A repeated PID means the kill failed; a new PID is just the next proxy.
+  StrCmp $TargetProcessId $R2 close_failed
+  IntCmp $R1 ${CLOSE_PROCESS_MAX_ROUNDS} close_failed close_app close_failed
 
+close_failed:
+  Pop $R2
+  Pop $R1
+  Pop $R0
   IfSilent silent_close_failed 0
   MessageBox MB_ICONSTOP|MB_OK "$(AppCloseFailed)"
   Abort
@@ -203,6 +222,9 @@ silent_close_failed:
   Quit
 
 process_inspection_failed:
+  Pop $R2
+  Pop $R1
+  Pop $R0
   IfSilent silent_inspection_failed 0
   MessageBox MB_ICONSTOP|MB_OK "$(AppInspectionFailed)"
   Abort
@@ -212,9 +234,15 @@ silent_inspection_failed:
   Quit
 
 cancel_install:
+  Pop $R2
+  Pop $R1
+  Pop $R0
   Abort
 
 app_closed:
+  Pop $R2
+  Pop $R1
+  Pop $R0
 FunctionEnd
 
 Function ${Prefix}EnsureAppClosed
