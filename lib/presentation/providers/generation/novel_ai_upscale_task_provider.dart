@@ -5,7 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/utils/app_logger.dart';
 import '../../../data/datasources/remote/nai_image_enhancement_api_service.dart';
 import '../../../data/models/image/image_params.dart';
-import '../auth_provider.dart';
+import '../../../data/services/auth_provider.dart';
 import '../image_generation_provider.dart';
 import '../image_save_settings_provider.dart';
 import '../subscription_provider.dart';

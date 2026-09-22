@@ -5,7 +5,7 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../../core/network/nai_api_endpoint.dart';
 import '../../core/storage/secure_storage_service.dart';
-import '../../data/models/auth/saved_account.dart';
+import '../models/auth/saved_account.dart';
 
 part 'account_manager_provider.g.dart';
 

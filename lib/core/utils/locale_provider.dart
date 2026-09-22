@@ -2,8 +2,8 @@ import 'dart:ui';
 
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
-import '../../core/storage/local_storage_service.dart';
-import '../../core/utils/app_locale.dart';
+import '../storage/local_storage_service.dart';
+import 'app_locale.dart';
 
 part 'locale_provider.g.dart';
 

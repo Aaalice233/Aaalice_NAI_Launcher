@@ -4,7 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/constants/api_constants.dart';
 import '../../../core/platform/platform_capabilities.dart';
 import '../../../core/utils/localization_extension.dart';
-import '../../providers/auth_provider.dart';
+import '../../../data/services/auth_provider.dart';
 import '../../providers/character_prompt_provider.dart';
 import '../../providers/fixed_tags_provider.dart';
 import '../../providers/generation/image_generation_selectors.dart';

@@ -22,7 +22,7 @@ import 'presentation/router/shell_panels_overlay.dart';
 import 'presentation/providers/theme_provider.dart';
 import 'presentation/providers/font_provider.dart';
 import 'presentation/providers/font_scale_provider.dart';
-import 'presentation/providers/locale_provider.dart';
+import 'core/utils/locale_provider.dart';
 import 'presentation/providers/cloud_sync/cloud_sync_provider_wiring.dart';
 import 'presentation/mcp/providers/mcp_server_notifier.dart';
 import 'presentation/providers/krita/krita_bridge_notifier.dart';

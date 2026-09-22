@@ -7,7 +7,7 @@ import 'package:nai_launcher/core/services/anlas_calculator.dart';
 import 'package:nai_launcher/data/datasources/remote/nai_image_enhancement_api_service.dart';
 import 'package:nai_launcher/data/models/director/director_tool_type.dart';
 import 'package:nai_launcher/data/models/user/user_subscription.dart';
-import 'package:nai_launcher/presentation/providers/auth_provider.dart';
+import 'package:nai_launcher/data/services/auth_provider.dart';
 import 'package:nai_launcher/presentation/providers/director_tools_notifier.dart';
 import 'package:nai_launcher/presentation/providers/subscription_provider.dart';
 

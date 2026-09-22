@@ -1,9 +1,9 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
-import '../../core/constants/storage_keys.dart';
-import '../../core/network/proxy_service.dart';
-import '../../core/storage/local_storage_service.dart';
+import '../constants/storage_keys.dart';
+import 'proxy_service.dart';
+import '../storage/local_storage_service.dart';
 import '../../data/models/settings/proxy_settings.dart';
 
 part 'proxy_settings_provider.g.dart';

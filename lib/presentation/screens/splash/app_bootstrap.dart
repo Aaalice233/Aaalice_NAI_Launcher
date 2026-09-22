@@ -10,7 +10,7 @@ import '../../../core/services/update_check_service.dart';
 import '../../../core/utils/app_logger.dart';
 import '../../../core/utils/first_launch_detector.dart';
 import '../../../core/windowing/windows_native_window_state.dart';
-import '../../providers/locale_provider.dart';
+import '../../../core/utils/locale_provider.dart';
 import '../../providers/update_provider.dart';
 import '../../providers/warmup_provider.dart';
 import '../../widgets/common/desktop_window_frame.dart';

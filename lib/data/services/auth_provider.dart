@@ -8,10 +8,11 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../core/crypto/nai_crypto_service.dart';
 import '../../core/network/nai_api_endpoint.dart';
 import '../../core/network/nai_api_endpoint_service.dart';
+import '../../core/services/auth_error_service.dart';
 import '../../core/storage/secure_storage_service.dart';
 import '../../core/utils/app_logger.dart';
-import '../../data/datasources/remote/nai_auth_api_service.dart';
-import '../../data/models/auth/saved_account.dart';
+import '../datasources/remote/nai_auth_api_service.dart';
+import '../models/auth/saved_account.dart';
 import 'account_manager_provider.dart';
 
 part 'auth_provider.g.dart';
@@ -93,18 +94,6 @@ bool requireAuthenticatedWidgetAction(WidgetRef ref, AuthPromptReason reason) {
     reason: reason,
     publish: ref.read(authPromptRequestProvider.notifier).publish,
   );
-}
-
-/// 认证错误码
-enum AuthErrorCode {
-  networkTimeout,
-  networkError,
-  authFailed,
-  tokenInvalid,
-  credentialsLoginUnavailable,
-  endpointIncompatible,
-  serverError,
-  unknown,
 }
 
 /// 认证状态模型

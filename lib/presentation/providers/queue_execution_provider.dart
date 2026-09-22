@@ -14,7 +14,7 @@ import '../../data/models/queue/replication_task_status.dart';
 import '../../data/models/queue/failure_handling_strategy.dart';
 import 'character_prompt_provider.dart';
 import 'image_generation_provider.dart';
-import 'auth_provider.dart';
+import '../../data/services/auth_provider.dart';
 import 'krita/krita_bridge_notifier.dart';
 import 'notification_settings_provider.dart';
 import 'replication_queue_provider.dart';

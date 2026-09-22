@@ -31,7 +31,7 @@ import '../../data/repositories/gallery_folder_repository.dart';
 import 'alias_resolver_service.dart';
 import '../../data/services/statistics_cache_service.dart';
 import '../services/generation_history_storage_service.dart';
-import 'auth_provider.dart';
+import '../../data/services/auth_provider.dart';
 import 'dlss_provider.dart';
 import 'character_prompt_provider.dart';
 import 'fixed_tags_provider.dart';

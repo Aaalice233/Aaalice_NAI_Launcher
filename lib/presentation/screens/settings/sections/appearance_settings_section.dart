@@ -7,7 +7,7 @@ import '../../../providers/font_provider.dart';
 import '../../../providers/font_scale_provider.dart';
 import '../../../providers/generation_layout_mode_provider.dart';
 import '../../../providers/history_click_behavior_provider.dart';
-import '../../../providers/locale_provider.dart';
+import '../../../../core/utils/locale_provider.dart';
 import '../../../providers/theme_provider.dart';
 import '../../../themes/app_theme.dart';
 import '../../../adaptive/adaptive_presenter.dart';

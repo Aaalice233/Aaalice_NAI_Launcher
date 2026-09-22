@@ -11,7 +11,7 @@ import '../../core/services/pixel_snap/pixel_snap_progress.dart';
 import '../../core/services/pixel_snap/pixel_snap_service.dart';
 import '../../data/datasources/remote/nai_image_enhancement_api_service.dart';
 import '../../data/models/director/director_tool_type.dart';
-import 'auth_provider.dart';
+import '../../data/services/auth_provider.dart';
 import 'image_generation_provider.dart';
 import 'subscription_provider.dart';
 

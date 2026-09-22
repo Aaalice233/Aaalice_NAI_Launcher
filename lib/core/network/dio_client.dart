@@ -5,9 +5,10 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../../data/services/token_refresh_service.dart';
 import '../../l10n/app_localizations.dart';
-import '../../presentation/providers/auth_provider.dart';
-import '../../presentation/providers/locale_provider.dart';
-import '../../presentation/providers/proxy_settings_provider.dart';
+import '../../data/services/auth_provider.dart';
+import '../services/auth_error_service.dart';
+import '../utils/locale_provider.dart';
+import 'proxy_settings_provider.dart';
 import '../constants/api_constants.dart';
 import '../storage/secure_storage_service.dart';
 import '../utils/app_logger.dart';

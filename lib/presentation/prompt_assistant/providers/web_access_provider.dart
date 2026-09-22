@@ -10,7 +10,7 @@ import '../../../core/network/web_access/web_access_http_transport.dart';
 import '../../../core/network/web_access/web_access_service.dart';
 import '../../../core/storage/local_storage_service.dart';
 import '../../../core/storage/secure_storage_service.dart';
-import '../../providers/proxy_settings_provider.dart';
+import '../../../core/network/proxy_settings_provider.dart';
 
 class WebAccessConfigState {
   const WebAccessConfigState({

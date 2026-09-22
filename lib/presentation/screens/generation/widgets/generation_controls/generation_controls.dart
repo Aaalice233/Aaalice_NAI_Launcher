@@ -9,7 +9,7 @@ import 'package:nai_launcher/core/platform/platform_capabilities.dart';
 import 'package:nai_launcher/core/utils/localization_extension.dart';
 import 'package:nai_launcher/presentation/providers/generation/image_generation_selectors.dart';
 import 'package:nai_launcher/presentation/providers/generation/image_workflow_controller.dart';
-import 'package:nai_launcher/presentation/providers/auth_provider.dart';
+import 'package:nai_launcher/data/services/auth_provider.dart';
 import 'package:nai_launcher/presentation/providers/image_generation_provider.dart';
 import 'package:nai_launcher/presentation/providers/krita/krita_bridge_notifier.dart';
 import 'package:nai_launcher/presentation/utils/asset_protection_guard.dart';

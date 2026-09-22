@@ -6,7 +6,8 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../../core/constants/api_constants.dart';
 import '../../adaptive/interaction_policy.dart';
 import '../../providers/auth_mode_provider.dart';
-import '../../providers/auth_provider.dart';
+import '../../../data/services/auth_provider.dart';
+import '../../../core/services/auth_error_service.dart';
 import '../common/floating_label_input.dart';
 import '../common/themed_checkbox.dart';
 

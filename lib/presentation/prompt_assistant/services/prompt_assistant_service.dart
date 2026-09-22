@@ -8,7 +8,7 @@ import '../../../core/autocomplete/local_first_prompt_translation.dart';
 import '../../../core/autocomplete/tag_translation_lookup.dart';
 import '../../../core/utils/app_logger.dart';
 import '../../../core/utils/prompt_edit_document.dart';
-import '../../providers/proxy_settings_provider.dart';
+import '../../../core/network/proxy_settings_provider.dart';
 import '../models/agent_protocol.dart';
 import '../models/assistant_execution_settings.dart';
 import '../models/assistant_model_capability.dart';
