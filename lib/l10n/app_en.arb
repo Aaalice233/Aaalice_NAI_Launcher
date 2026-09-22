@@ -4697,12 +4697,6 @@
   },
   "vibe_saveToLibrary_tagHint": "Enter a tag, then press Add",
   "vibe_maxReached": "Maximum 16 vibes reached",
-  "vibe_addedNamed": "Added Vibe: {name}",
-  "@vibe_addedNamed": {
-    "placeholders": {
-      "name": {"type": "String"}
-    }
-  },
   "vibe_addedCount": "Added {count} vibes",
   "@vibe_addedCount": {
     "placeholders": {

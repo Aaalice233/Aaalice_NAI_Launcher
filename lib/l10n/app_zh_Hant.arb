@@ -4586,14 +4586,6 @@
   },
   "vibe_saveToLibrary_tagHint": "輸入標籤後點選新增",
   "vibe_maxReached": "已達到最大數量 (16張)",
-  "vibe_addedNamed": "已新增 Vibe: {name}",
-  "@vibe_addedNamed": {
-    "placeholders": {
-      "name": {
-        "type": "String"
-      }
-    }
-  },
   "vibe_addedCount": "已新增 {count} 個 vibes",
   "@vibe_addedCount": {
     "placeholders": {

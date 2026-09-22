@@ -4721,14 +4721,6 @@
   },
   "vibe_saveToLibrary_tagHint": "タグを入力して、[追加] を押します",
   "vibe_maxReached": "最大 16 件の Vibe に達しました",
-  "vibe_addedNamed": "Vibe を追加しました: {name}",
-  "@vibe_addedNamed": {
-    "placeholders": {
-      "name": {
-        "type": "String"
-      }
-    }
-  },
   "vibe_addedCount": "{count} 件の Vibe を追加しました",
   "@vibe_addedCount": {
     "placeholders": {

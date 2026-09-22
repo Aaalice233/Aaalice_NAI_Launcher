@@ -9354,11 +9354,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get vibe_maxReached => '已达到最大数量 (16张)';
 
   @override
-  String vibe_addedNamed(String name) {
-    return '已添加 Vibe: $name';
-  }
-
-  @override
   String vibe_addedCount(int count) {
     return '已添加 $count 个 vibes';
   }
@@ -24181,11 +24176,6 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get vibe_maxReached => '已達到最大數量 (16張)';
-
-  @override
-  String vibe_addedNamed(String name) {
-    return '已新增 Vibe: $name';
-  }
 
   @override
   String vibe_addedCount(int count) {

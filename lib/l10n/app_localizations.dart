@@ -17079,12 +17079,6 @@ abstract class AppLocalizations {
   /// **'Maximum 16 vibes reached'**
   String get vibe_maxReached;
 
-  /// No description provided for @vibe_addedNamed.
-  ///
-  /// In en, this message translates to:
-  /// **'Added Vibe: {name}'**
-  String vibe_addedNamed(String name);
-
   /// No description provided for @vibe_addedCount.
   ///
   /// In en, this message translates to:

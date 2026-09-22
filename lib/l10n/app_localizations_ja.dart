@@ -9503,11 +9503,6 @@ class AppLocalizationsJa extends AppLocalizations {
   String get vibe_maxReached => '最大 16 件の Vibe に達しました';
 
   @override
-  String vibe_addedNamed(String name) {
-    return 'Vibe を追加しました: $name';
-  }
-
-  @override
   String vibe_addedCount(int count) {
     return '$count 件の Vibe を追加しました';
   }

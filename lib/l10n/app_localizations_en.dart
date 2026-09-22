@@ -9730,11 +9730,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get vibe_maxReached => 'Maximum 16 vibes reached';
 
   @override
-  String vibe_addedNamed(String name) {
-    return 'Added Vibe: $name';
-  }
-
-  @override
   String vibe_addedCount(int count) {
     return 'Added $count vibes';
   }

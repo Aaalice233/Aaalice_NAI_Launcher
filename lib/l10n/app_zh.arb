@@ -4490,12 +4490,6 @@
   },
   "vibe_saveToLibrary_tagHint": "输入标签后点击添加",
   "vibe_maxReached": "已达到最大数量 (16张)",
-  "vibe_addedNamed": "已添加 Vibe: {name}",
-  "@vibe_addedNamed": {
-    "placeholders": {
-      "name": {"type": "String"}
-    }
-  },
   "vibe_addedCount": "已添加 {count} 个 vibes",
   "@vibe_addedCount": {
     "placeholders": {
