@@ -39,6 +39,7 @@ void main() {
           zipPath: r'C:\Temp\update.zip',
           appDirectory: r'D:\Apps\NAI',
           executableName: 'nai_launcher.exe',
+          proxyExecutableName: 'nai_launcher_mcp.exe',
           extractDirectory: r'D:\Apps\.nai_update_1.6.0',
           backupDirectory: r'D:\Apps\.nai_backup_1.6.0',
           resultPath: r'C:\Temp\result.json',
@@ -59,6 +60,49 @@ void main() {
         expect(script, isNot(contains('/MIR')));
       },
     );
+
+    test(
+      'portable script stops only bundled proxies inside the app directory',
+      () {
+        final script = WindowsUpdateScript.buildPortableScript(
+          appPid: 1234,
+          version: '1.6.0',
+          zipPath: r'C:\Temp\update.zip',
+          appDirectory: r'D:\Apps\NAI',
+          executableName: 'nai_launcher.exe',
+          proxyExecutableName: 'nai_launcher_mcp.exe',
+          extractDirectory: r'D:\Apps\.nai_update_1.6.0',
+          backupDirectory: r'D:\Apps\.nai_backup_1.6.0',
+          resultPath: r'C:\Temp\result.json',
+          pendingMetadataPath: r'C:\Temp\pending.json',
+          logPath: r'C:\Temp\update.log',
+        );
+
+        expect(script, contains("\$ProxyExeName = 'nai_launcher_mcp.exe'"));
+        expect(script, contains('Join-Path \$AppDir \$ProxyExeName'));
+        expect(script, contains('OrdinalIgnoreCase'));
+        expect(script, contains('Stop-Process -Id \$Proxy.ProcessId -Force'));
+        expect(
+          script.indexOf('Stop-BundledProxies\n'),
+          lessThan(script.indexOf('Move-Item -LiteralPath \$AppDir')),
+        );
+      },
+    );
+
+    test('installer script defers process handling to the installer', () {
+      final script = WindowsUpdateScript.buildInstallerScript(
+        appPid: 4321,
+        version: '1.6.0',
+        installerPath: r'C:\Temp\setup.exe',
+        executablePath: r'C:\Apps\NAI\nai_launcher.exe',
+        resultPath: r'C:\Temp\result.json',
+        pendingMetadataPath: r'C:\Temp\pending.json',
+        logPath: r'C:\Temp\update.log',
+      );
+
+      expect(script, isNot(contains('Stop-BundledProxies')));
+      expect(script, isNot(contains('Stop-Process')));
+    });
 
     test('generated scripts pass the Windows PowerShell parser', () async {
       if (!Platform.isWindows) return;
@@ -81,6 +125,7 @@ void main() {
             zipPath: r'C:\Temp\update.zip',
             appDirectory: r'D:\Apps\NAI',
             executableName: 'nai_launcher.exe',
+            proxyExecutableName: 'nai_launcher_mcp.exe',
             extractDirectory: r'D:\Apps\.nai_update_1.6.0',
             backupDirectory: r'D:\Apps\.nai_backup_1.6.0',
             resultPath: r'C:\Temp\result.json',

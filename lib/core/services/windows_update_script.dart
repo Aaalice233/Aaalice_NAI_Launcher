@@ -63,6 +63,7 @@ try {
     required String zipPath,
     required String appDirectory,
     required String executableName,
+    required String proxyExecutableName,
     required String extractDirectory,
     required String backupDirectory,
     required String resultPath,
@@ -76,6 +77,7 @@ try {
 \$ZipPath = '${_escape(zipPath)}'
 \$AppDir = '${_escape(appDirectory)}'
 \$ExeName = '${_escape(executableName)}'
+\$ProxyExeName = '${_escape(proxyExecutableName)}'
 \$ExtractDir = '${_escape(extractDirectory)}'
 \$BackupDir = '${_escape(backupDirectory)}'
 \$ResultPath = '${_escape(resultPath)}'
@@ -85,6 +87,7 @@ try {
 \$Swapped = \$false
 
 ${_commonFunctions()}
+${_stopBundledProxiesFunction()}
 
 try {
   Write-UpdateLog "Waiting for application process \$AppPid to exit."
@@ -122,6 +125,8 @@ try {
   } else {
     Write-UpdateLog 'No existing file manifest; skipping user-file migration for this update.'
   }
+
+  Stop-BundledProxies
 
   Write-UpdateLog "Moving current application to backup: \$BackupDir"
   Move-Item -LiteralPath \$AppDir -Destination \$BackupDir
@@ -215,6 +220,39 @@ function Wait-ApplicationExit {
   Start-Sleep -Milliseconds 500
   if (Get-Process -Id \$AppPid -ErrorAction SilentlyContinue) {
     throw "Application process \$AppPid did not exit within 120 seconds."
+  }
+}
+''';
+  }
+
+  static String _stopBundledProxiesFunction() {
+    return '''
+# 目录整体切换要求 AppDir 内没有运行中的映像，而每个 MCP 客户端各起一个代理。
+function Stop-BundledProxies {
+  \$ProxyPath = [System.IO.Path]::GetFullPath((Join-Path \$AppDir \$ProxyExeName))
+  \$Deadline = [DateTime]::UtcNow.AddSeconds(15)
+  while (\$true) {
+    \$Running = @(
+      Get-CimInstance -ClassName Win32_Process |
+        Where-Object {
+          \$_.ExecutablePath -and [string]::Equals(
+            \$_.ExecutablePath,
+            \$ProxyPath,
+            [System.StringComparison]::OrdinalIgnoreCase
+          )
+        }
+    )
+    if (\$Running.Count -eq 0) {
+      return
+    }
+    if ([DateTime]::UtcNow -ge \$Deadline) {
+      throw "Stdio proxy processes in \$AppDir did not exit within 15 seconds."
+    }
+    foreach (\$Proxy in \$Running) {
+      Write-UpdateLog "Stopping stdio proxy process \$(\$Proxy.ProcessId)."
+      Stop-Process -Id \$Proxy.ProcessId -Force -ErrorAction SilentlyContinue
+    }
+    Start-Sleep -Milliseconds 250
   }
 }
 ''';
