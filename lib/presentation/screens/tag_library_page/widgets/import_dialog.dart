@@ -7,6 +7,7 @@ import 'package:nai_launcher/core/utils/localization_extension.dart';
 
 import '../../../../data/models/tag_library/import_models.dart';
 import '../../../../data/models/tag_library/import_plan.dart';
+import '../../../../data/models/tag_library/tag_library_entry.dart';
 import '../../../../data/services/tag_library_import_planner.dart';
 import '../../../../data/services/tag_library_io_service.dart';
 import '../../../adaptive/adaptive_presenter.dart';
@@ -14,6 +15,7 @@ import '../../../adaptive/interaction_policy.dart';
 import '../../../providers/tag_library_page_provider.dart';
 import '../../../widgets/common/app_toast.dart';
 import '../../../widgets/common/translated_tag_text.dart';
+import '../../../widgets/library_export/library_selection_controller.dart';
 
 /// 导入对话框
 class ImportDialog extends ConsumerStatefulWidget {
@@ -60,10 +62,20 @@ class _ImportDialogState extends ConsumerState<ImportDialog> {
   String _progressMessage = '';
   String? _errorMessage;
 
-  // 选中的条目和分类
-  final Set<String> _selectedEntryIds = {};
-  final Set<String> _selectedCategoryIds = {};
+  // 选中的条目和分类，与预览同生命周期
+  LibrarySelectionController? _selection;
   final Map<String, ConflictResolution> _conflictResolutions = {};
+
+  @override
+  void dispose() {
+    _selection?.dispose();
+    super.dispose();
+  }
+
+  void _resetSelection() {
+    _selection?.dispose();
+    _selection = null;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -99,6 +111,8 @@ class _ImportDialogState extends ConsumerState<ImportDialog> {
       );
     }
 
+    final selection = _selection!;
+
     return Padding(
       key: const Key('tag-library-import-content'),
       padding: const EdgeInsets.all(16),
@@ -121,20 +135,17 @@ class _ImportDialogState extends ConsumerState<ImportDialog> {
                     _preview = null;
                     _conflicts = [];
                     _conflictResolutions.clear();
+                    _resetSelection();
                   });
                 },
                 child: Text(context.l10n.tagLibrary_reselect),
               ),
               FilledButton.icon(
-                onPressed:
-                    _selectedEntryIds.isNotEmpty ||
-                        _selectedCategoryIds.isNotEmpty
-                    ? _import
-                    : null,
+                onPressed: selection.isNothingSelected ? null : _import,
                 icon: const Icon(Icons.file_download),
                 label: Text(
                   context.l10n.tagLibrary_selectedImportCount(
-                    _selectedEntryIds.length + _selectedCategoryIds.length,
+                    selection.selectedCount,
                   ),
                 ),
               ),
@@ -233,6 +244,7 @@ class _ImportDialogState extends ConsumerState<ImportDialog> {
 
   Widget _buildPreview(ThemeData theme) {
     final preview = _preview!;
+    final selection = _selection!;
 
     return SingleChildScrollView(
       child: Column(
@@ -315,23 +327,11 @@ class _ImportDialogState extends ConsumerState<ImportDialog> {
               ),
               const Spacer(),
               TextButton(
-                onPressed: () {
-                  setState(() {
-                    _selectedEntryIds.addAll(preview.entries.map((e) => e.id));
-                    _selectedCategoryIds.addAll(
-                      preview.categories.map((c) => c.id),
-                    );
-                  });
-                },
+                onPressed: () => setState(selection.selectAll),
                 child: Text(context.l10n.common_selectAll),
               ),
               TextButton(
-                onPressed: () {
-                  setState(() {
-                    _selectedEntryIds.clear();
-                    _selectedCategoryIds.clear();
-                  });
-                },
+                onPressed: () => setState(selection.selectNone),
                 child: Text(context.l10n.common_deselectAll),
               ),
             ],
@@ -366,18 +366,15 @@ class _ImportDialogState extends ConsumerState<ImportDialog> {
                 theme: theme,
                 title: category.displayName,
                 subtitle: isConflict ? _getConflictSubtitle(resolution) : null,
-                isSelected: _selectedCategoryIds.contains(category.id),
+                isSelected: selection.isCategorySelected(category.id),
                 isConflict: isConflict,
                 resolution: resolution,
-                onChanged: (value) {
-                  setState(() {
-                    if (value == true) {
-                      _selectedCategoryIds.add(category.id);
-                    } else {
-                      _selectedCategoryIds.remove(category.id);
-                    }
-                  });
-                },
+                onChanged: (value) => setState(
+                  () => selection.setCategorySelected(
+                    category.id,
+                    value == true,
+                  ),
+                ),
                 onResolutionChanged: isConflict
                     ? (newResolution) {
                         setState(() {
@@ -418,18 +415,12 @@ class _ImportDialogState extends ConsumerState<ImportDialog> {
                     ? _getConflictSubtitle(resolution)
                     : entry.contentPreview,
                 translateSubtitle: !isConflict,
-                isSelected: _selectedEntryIds.contains(entry.id),
+                isSelected: selection.isEntrySelected(entry.id),
                 isConflict: isConflict,
                 resolution: resolution,
-                onChanged: (value) {
-                  setState(() {
-                    if (value == true) {
-                      _selectedEntryIds.add(entry.id);
-                    } else {
-                      _selectedEntryIds.remove(entry.id);
-                    }
-                  });
-                },
+                onChanged: (value) => setState(
+                  () => selection.setEntrySelected(entry.id, value == true),
+                ),
                 onResolutionChanged: isConflict
                     ? (newResolution) {
                         setState(() {
@@ -700,16 +691,17 @@ class _ImportDialogState extends ConsumerState<ImportDialog> {
         state.categories,
       );
 
-      // 默认选中所有项
-      _selectedEntryIds.addAll(preview.entries.map((e) => e.id));
-      _selectedCategoryIds.addAll(preview.categories.map((c) => c.id));
-
       // 冲突项默认跳过
       for (final conflict in conflicts) {
         _conflictResolutions[conflict.importId] = ConflictResolution.skip;
       }
 
       setState(() {
+        _resetSelection();
+        // 控制器初始即全选条目与分类
+        _selection = LibrarySelectionController(
+          tree: _buildSelectionTree(preview),
+        );
         _selectedFile = file;
         _preview = preview;
         _conflicts = conflicts;
@@ -723,10 +715,36 @@ class _ImportDialogState extends ConsumerState<ImportDialog> {
     }
   }
 
+  LibrarySelectionTree<TagLibraryEntry> _buildSelectionTree(
+    ImportPreview preview,
+  ) {
+    return LibrarySelectionTree<TagLibraryEntry>(
+      categories: preview.categories
+          .map(
+            (category) => LibraryCategoryNode(
+              id: category.id,
+              displayName: category.displayName,
+              parentId: category.parentId,
+            ),
+          )
+          .toList(growable: false),
+      entries: preview.entries
+          .map(
+            (entry) => LibraryEntryNode<TagLibraryEntry>(
+              id: entry.id,
+              value: entry,
+              categoryId: entry.categoryId,
+            ),
+          )
+          .toList(growable: false),
+    );
+  }
+
   Future<void> _import() async {
     final file = _selectedFile;
     final preview = _preview;
-    if (file == null || preview == null) return;
+    final selection = _selection;
+    if (file == null || preview == null || selection == null) return;
 
     final l10n = context.l10n;
     final state = ref.read(tagLibraryPageNotifierProvider);
@@ -741,8 +759,8 @@ class _ImportDialogState extends ConsumerState<ImportDialog> {
     try {
       final plan = const TagLibraryImportPlanner().plan(
         preview: preview,
-        selectedEntryIds: _selectedEntryIds,
-        selectedCategoryIds: _selectedCategoryIds,
+        selectedEntryIds: selection.selectedEntryIds,
+        selectedCategoryIds: selection.selectedCategoryIds,
         conflicts: _conflicts,
         conflictResolutions: _conflictResolutions,
         existingEntries: state.entries,
