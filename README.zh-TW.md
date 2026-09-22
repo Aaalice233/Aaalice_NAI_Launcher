@@ -4,13 +4,6 @@
   <a href="README.md">简体中文</a> · 繁體中文 · <a href="README.en-US.md">English</a>
 </p>
 
-> [!WARNING]
-> **專案維護安排（2026-09-15）**
->
-> 我的 NovelAI 帳號遭到官方限制：訂閱被取消，且無法再購買或訂閱。對於這次處理，我至今不明白具體原因。後續更新與維護將由協作者接手，我將不再承擔主要更新工作。
-
-![NovelAI 官方取消訂閱及限制購買的通知截圖](docs/screenshots/novelai-subscription-canceled-2026-09-08.png)
-
 <p align="center">
   <img src="assets/icons/Icon.png" alt="NAI Launcher 圖示" width="112">
 </p>
