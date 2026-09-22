@@ -1,5 +1,3 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:nai_launcher/core/utils/localization_extension.dart';
@@ -738,13 +736,6 @@ class _AccountProfileBottomSheetState
   ) {
     final theme = Theme.of(context);
 
-    // 检查头像文件是否存在
-    final avatarPath = account.avatarPath;
-    final hasValidAvatar =
-        avatarPath != null &&
-        avatarPath.isNotEmpty &&
-        File(avatarPath).existsSync();
-
     return Card(
       margin: const EdgeInsets.symmetric(vertical: 4),
       elevation: 0,
@@ -764,29 +755,7 @@ class _AccountProfileBottomSheetState
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           child: Row(
             children: [
-              // 头像
-              if (hasValidAvatar)
-                CircleAvatar(
-                  radius: 20,
-                  backgroundImage: FileImage(File(avatarPath)),
-                )
-              else
-                CircleAvatar(
-                  radius: 20,
-                  backgroundColor: _getColorFromName(
-                    account.displayName,
-                    theme,
-                  ),
-                  child: Text(
-                    account.displayName.isNotEmpty
-                        ? account.displayName.characters.first.toUpperCase()
-                        : '?',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
+              AccountAvatarSmall(account: account),
               const SizedBox(width: 12),
               // 名称和邮箱
               Expanded(
@@ -858,27 +827,5 @@ class _AccountProfileBottomSheetState
         ),
       ),
     );
-  }
-
-  /// 根据名称生成稳定的颜色
-  Color _getColorFromName(String name, ThemeData theme) {
-    final colors = [
-      Colors.blue,
-      Colors.green,
-      Colors.orange,
-      Colors.purple,
-      Colors.teal,
-      Colors.pink,
-      Colors.indigo,
-      Colors.amber,
-      Colors.cyan,
-      Colors.deepOrange,
-    ];
-
-    if (name.isEmpty) {
-      return theme.colorScheme.primary;
-    }
-
-    return colors[name.hashCode.abs() % colors.length];
   }
 }
