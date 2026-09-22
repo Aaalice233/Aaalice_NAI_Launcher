@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:path/path.dart' as p;
 
 import '../platform/launcher_discovery_directory.dart';
+import '../platform/owner_only_permissions.dart';
 import 'mcp_server_constants.dart';
 
 /// Contents of `mcp-server.json`, the handshake file the stdio proxy reads.
@@ -97,23 +98,18 @@ class McpDiscoveryDocument {
   }
 }
 
-/// Restricts `path` to its owner. Injected so the failure branch stays
-/// reachable on platforms without `chmod`.
-typedef McpDiscoveryPermissionGuard =
-    Future<void> Function(String path, String mode);
-
 /// Atomically publishes and removes the discovery file. It lives in the
 /// per-user profile and therefore shares the trust boundary of the app's own
 /// storage.
 class McpDiscoveryFileStore {
   McpDiscoveryFileStore({
     Directory? directory,
-    McpDiscoveryPermissionGuard? restrictToOwner,
+    OwnerOnlyPermissionGuard? restrictToOwner,
   }) : directory = directory ?? resolveLauncherDiscoveryDirectory(),
-       _restrictToOwner = restrictToOwner ?? _chmod;
+       _restrictToOwner = restrictToOwner ?? restrictPathToOwner;
 
   final Directory directory;
-  final McpDiscoveryPermissionGuard _restrictToOwner;
+  final OwnerOnlyPermissionGuard _restrictToOwner;
 
   File get file =>
       File(p.join(directory.path, McpServerDefaults.discoveryFileName));
@@ -155,20 +151,6 @@ class McpDiscoveryFileStore {
     final target = file;
     if (await target.exists()) {
       await target.delete();
-    }
-  }
-
-  // The Windows profile directory already carries per-user ACLs.
-  static Future<void> _chmod(String path, String mode) async {
-    if (Platform.isWindows) {
-      return;
-    }
-    final result = await Process.run('chmod', [mode, path]);
-    if (result.exitCode != 0) {
-      throw FileSystemException(
-        'chmod $mode failed with exit code ${result.exitCode}',
-        path,
-      );
     }
   }
 

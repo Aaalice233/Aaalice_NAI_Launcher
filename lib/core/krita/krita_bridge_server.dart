@@ -5,6 +5,7 @@ import 'dart:math';
 import 'dart:typed_data';
 
 import '../platform/launcher_discovery_directory.dart';
+import '../platform/owner_only_permissions.dart';
 import '../utils/app_logger.dart';
 import 'krita_bridge_models.dart';
 import 'krita_bridge_protocol.dart';
@@ -19,12 +20,14 @@ class KritaBridgeServer {
     KritaBridgeSecretGenerator? secretGenerator,
     KritaBridgePidProvider? pidProvider,
     KritaBridgeClock? clock,
+    OwnerOnlyPermissionGuard? restrictToOwner,
     this.maxTextFrameBytes = KritaBridgeProtocol.defaultMaxTextFrameBytes,
   })  : _discoveryDirectory =
             discoveryDirectory ?? _defaultDiscoveryDirectory(),
         _secretGenerator = secretGenerator ?? _generateSecret,
         _pidProvider = pidProvider ?? (() => pid),
-        _clock = clock ?? DateTime.now;
+        _clock = clock ?? DateTime.now,
+        _restrictToOwner = restrictToOwner ?? restrictPathToOwner;
 
   static const String discoveryFileName = 'krita-bridge.json';
   static const String _logTag = 'KritaBridge';
@@ -33,6 +36,7 @@ class KritaBridgeServer {
   final KritaBridgeSecretGenerator _secretGenerator;
   final KritaBridgePidProvider _pidProvider;
   final KritaBridgeClock _clock;
+  final OwnerOnlyPermissionGuard _restrictToOwner;
   final int maxTextFrameBytes;
 
   final StreamController<KritaBridgeMessage> _messageController =
@@ -273,6 +277,7 @@ class KritaBridgeServer {
 
   Future<void> _writeDiscoveryFile() async {
     await _discoveryDirectory.create(recursive: true);
+    await _restrictToOwner(_discoveryDirectory.path, '700');
 
     final target = discoveryFile;
     final temp = File(
@@ -290,7 +295,9 @@ class KritaBridgeServer {
       'started_at': _startedAt?.toIso8601String(),
     };
 
+    await temp.create(exclusive: true);
     try {
+      await _restrictToOwner(temp.path, '600');
       await temp.writeAsString(jsonEncode(data), flush: true);
       // rename replaces the target; an extra delete only blanks it for Krita.
       await temp.rename(target.path);

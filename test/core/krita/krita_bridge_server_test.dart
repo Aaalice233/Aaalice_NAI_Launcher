@@ -6,6 +6,27 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/core/krita/krita_bridge_models.dart';
 import 'package:nai_launcher/core/krita/krita_bridge_server.dart';
 
+class RecordingPermissionGuard {
+  RecordingPermissionGuard({this.refusedMode});
+
+  final String? refusedMode;
+  final modes = <String>[];
+  final paths = <String>[];
+  int? sizeWhenRestricted;
+
+  Future<void> call(String path, String mode) async {
+    modes.add(mode);
+    paths.add(path);
+    final candidate = File(path);
+    if (mode == '600') {
+      sizeWhenRestricted = await candidate.length();
+    }
+    if (mode == refusedMode) {
+      throw const FileSystemException('permission change refused');
+    }
+  }
+}
+
 void main() {
   late Directory tempDir;
   late KritaBridgeServer server;
@@ -62,6 +83,74 @@ void main() {
       await tempDir.list().map((entity) => entity.path).toList(),
       [file.path],
     );
+  });
+
+  test('start restricts the directory and temp file before writing the secret',
+      () async {
+    final guard = RecordingPermissionGuard();
+    final guarded = KritaBridgeServer(
+      discoveryDirectory: tempDir,
+      pidProvider: () => 12345,
+      secretGenerator: () => 'guarded-secret',
+      clock: () => DateTime.utc(2026, 5, 7, 10, 30),
+      restrictToOwner: guard.call,
+    );
+    addTearDown(guarded.stop);
+
+    await guarded.start(preferredPort: 0);
+
+    expect(guard.modes, ['700', '600']);
+    expect(guard.paths.first, tempDir.path);
+    expect(guard.paths.last, endsWith('.tmp'));
+    // The secret must not reach the disk before the file is owner-only.
+    expect(guard.sizeWhenRestricted, 0);
+
+    final file =
+        File('${tempDir.path}${Platform.pathSeparator}krita-bridge.json');
+    final data = jsonDecode(await file.readAsString()) as Map<String, dynamic>;
+    expect(data['secret'], 'guarded-secret');
+  });
+
+  test('a refused permission change rolls back and keeps the published file',
+      () async {
+    const foreignContent = '{"port":4711,"pid":777,"version":1,'
+        '"secret":"other-instance","started_at":"2026-05-07T09:00:00.000Z"}';
+    final foreign =
+        File('${tempDir.path}${Platform.pathSeparator}krita-bridge.json');
+    await foreign.writeAsString(foreignContent);
+
+    final guard = RecordingPermissionGuard(refusedMode: '600');
+    int? boundPort;
+    late final KritaBridgeServer failing;
+    failing = KritaBridgeServer(
+      discoveryDirectory: tempDir,
+      pidProvider: () {
+        boundPort = failing.port;
+        return 12345;
+      },
+      secretGenerator: () => 'failing-secret',
+      clock: () => DateTime.utc(2026, 5, 7, 10, 30),
+      restrictToOwner: guard.call,
+    );
+    addTearDown(failing.stop);
+
+    await expectLater(
+      failing.start(preferredPort: 0),
+      throwsA(isA<FileSystemException>()),
+    );
+
+    expect(guard.sizeWhenRestricted, 0);
+    expect(
+      await tempDir.list().map((entity) => entity.path).toList(),
+      [foreign.path],
+    );
+    expect(await foreign.readAsString(), foreignContent);
+    expect(failing.isListening, isFalse);
+    expect(failing.port, isNull);
+
+    final rebound =
+        await HttpServer.bind(InternetAddress.loopbackIPv4, boundPort!);
+    await rebound.close(force: true);
   });
 
   test('a failed discovery write releases the bound port', () async {
