@@ -1,43 +1,13 @@
-import 'dart:convert';
 import 'dart:io';
-import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hive/hive.dart';
-import 'package:image/image.dart' as img;
-import 'package:nai_launcher/core/utils/image_save_utils.dart';
-import 'package:nai_launcher/data/models/fixed_tag/fixed_tag_entry.dart';
-import 'package:nai_launcher/data/models/fixed_tag/fixed_tag_prompt_type.dart';
-import 'package:nai_launcher/data/models/fixed_tag/fixed_tag_usage_snapshot.dart';
-import 'package:nai_launcher/data/models/image/image_params.dart';
 import 'package:nai_launcher/data/services/fixed_tag/fixed_tag_usage_record_store.dart';
 import 'package:nai_launcher/data/services/image_metadata_service.dart';
 import 'package:nai_launcher/data/services/metadata/hash_calculator.dart';
 import 'package:nai_launcher/data/services/metadata/unified_metadata_parser.dart';
 
-FixedTagUsageSnapshot _snapshot(String id) => FixedTagUsageSnapshot(
-  entries: [
-    FixedTagUsageEntry(
-      fixedTagId: id,
-      name: id,
-      content: id,
-      weight: 1,
-      renderedContent: id,
-      position: FixedTagPosition.prefix,
-      promptType: FixedTagPromptType.positive,
-      order: 0,
-    ),
-  ],
-);
-
-Future<Uint8List> _novelAiPng(String prompt) =>
-    ImageSaveUtils.rebuildImageBytesWithMetadata(
-      imageBytes: Uint8List.fromList(
-        img.encodePng(img.Image(width: 2, height: 2)),
-      ),
-      params: ImageParams(prompt: prompt, width: 2, height: 2),
-      actualSeed: 42,
-    );
+import '../../helpers/fixed_tag_usage_fixture.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -59,11 +29,11 @@ void main() {
   test(
     'a recorded snapshot is mounted onto metadata parsed from bytes',
     () async {
-      final bytes = await _novelAiPng('recorded from bytes');
+      final bytes = await novelAiPngBytes('recorded from bytes');
       final hash = FileHashCalculator().calculateFromBytes(bytes);
       await FixedTagUsageRecordStore().record(
         contentHash: hash,
-        snapshot: _snapshot('from-store'),
+        snapshot: fixedTagUsageSnapshotOf('from-store'),
       );
 
       final metadata = await ImageMetadataService().getMetadataFromBytes(bytes);
@@ -82,12 +52,12 @@ void main() {
   test(
     'a recorded snapshot is mounted onto metadata parsed from a file',
     () async {
-      final bytes = await _novelAiPng('recorded from file');
+      final bytes = await novelAiPngBytes('recorded from file');
       final file = File('${directory.path}/recorded.png');
       await file.writeAsBytes(bytes);
       await FixedTagUsageRecordStore().record(
         contentHash: FileHashCalculator().calculateFromBytes(bytes),
-        snapshot: _snapshot('file-store'),
+        snapshot: fixedTagUsageSnapshotOf('file-store'),
       );
 
       final metadata = await ImageMetadataService().getMetadata(file.path);
@@ -100,10 +70,10 @@ void main() {
   );
 
   test('the parse result entry mounts the recorded snapshot too', () async {
-    final bytes = await _novelAiPng('recorded for parse result');
+    final bytes = await novelAiPngBytes('recorded for parse result');
     await FixedTagUsageRecordStore().record(
       contentHash: FileHashCalculator().calculateFromBytes(bytes),
-      snapshot: _snapshot('parse-result'),
+      snapshot: fixedTagUsageSnapshotOf('parse-result'),
     );
 
     final result = await ImageMetadataService().getMetadataParseResultFromBytes(
@@ -118,19 +88,13 @@ void main() {
   });
 
   test('a snapshot embedded in the png wins over the record', () async {
-    final plain = await _novelAiPng('embedded wins');
-    final comment =
-        jsonDecode(UnifiedMetadataParser.extractPngTextData(plain)['Comment']!)
-            as Map<String, dynamic>;
-    comment['aaalice_fixed_tags'] = _snapshot('from-png').toJson();
-    final bytes = UnifiedMetadataParser.embedTextChunkOnly(
-      plain,
-      'Comment',
-      jsonEncode(comment),
+    final bytes = embedFixedTagUsageSnapshot(
+      await novelAiPngBytes('embedded wins'),
+      fixedTagUsageSnapshotOf('from-png'),
     );
     await FixedTagUsageRecordStore().record(
       contentHash: FileHashCalculator().calculateFromBytes(bytes),
-      snapshot: _snapshot('from-store'),
+      snapshot: fixedTagUsageSnapshotOf('from-store'),
     );
 
     final metadata = await ImageMetadataService().getMetadataFromBytes(bytes);
@@ -142,11 +106,11 @@ void main() {
   });
 
   test('mounting never leaks into the metadata cache', () async {
-    final bytes = await _novelAiPng('cache stays clean');
+    final bytes = await novelAiPngBytes('cache stays clean');
     final hash = FileHashCalculator().calculateFromBytes(bytes);
     await FixedTagUsageRecordStore().record(
       contentHash: hash,
-      snapshot: _snapshot('from-store'),
+      snapshot: fixedTagUsageSnapshotOf('from-store'),
     );
 
     final mounted = await ImageMetadataService().getMetadataFromBytes(bytes);
