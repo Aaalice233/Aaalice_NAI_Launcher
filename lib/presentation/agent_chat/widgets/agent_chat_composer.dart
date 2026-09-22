@@ -9,7 +9,7 @@ import '../../../core/utils/localization_extension.dart';
 import '../../adaptive/interaction_policy.dart';
 import '../../../core/utils/token_count_format.dart';
 import '../../../core/windowing/agent_chat_layout_contract.dart';
-import '../../../core/windowing/agent_chat_shared_widgets.dart';
+import 'agent_chat_shared_widgets.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../prompt_assistant/models/prompt_assistant_models.dart';
 import '../../themes/core/layered_surface_style.dart';

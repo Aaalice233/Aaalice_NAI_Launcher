@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter/services.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
-import 'package:nai_launcher/core/windowing/agent_chat_code_block.dart';
-import 'package:nai_launcher/core/windowing/agent_chat_shared_widgets.dart';
+import 'package:nai_launcher/presentation/agent_chat/widgets/agent_chat_code_block.dart';
+import 'package:nai_launcher/presentation/agent_chat/widgets/agent_chat_shared_widgets.dart';
 
 void main() {
   testWidgets('code blocks copy whitespace and update while streaming', (

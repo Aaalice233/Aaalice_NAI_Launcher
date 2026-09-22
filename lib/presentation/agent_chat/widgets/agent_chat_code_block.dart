@@ -3,8 +3,8 @@ import 'package:flutter/services.dart';
 import 'package:flutter_markdown_plus/flutter_markdown_plus.dart' as md;
 import 'package:markdown/markdown.dart' as markdown;
 
-import '../utils/localization_extension.dart';
-import '../../presentation/widgets/common/app_toast.dart';
+import '../../../core/utils/localization_extension.dart';
+import '../../widgets/common/app_toast.dart';
 
 class AgentChatCodeBlockBuilder extends md.MarkdownElementBuilder {
   @override

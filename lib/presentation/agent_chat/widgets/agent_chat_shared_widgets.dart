@@ -4,8 +4,8 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_markdown_plus/flutter_markdown_plus.dart' as md;
 
-import '../../presentation/adaptive/interaction_policy.dart';
-import '../../presentation/themes/core/layered_surface_style.dart';
+import '../../adaptive/interaction_policy.dart';
+import '../../themes/core/layered_surface_style.dart';
 import 'agent_chat_code_block.dart';
 
 /// Shared sizing contract for the embedded and detached composer editors.

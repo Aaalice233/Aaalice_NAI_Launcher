@@ -5,7 +5,7 @@ import 'package:flutter/material.dart';
 
 import '../../../core/agent/private_data_guard.dart';
 import '../../../core/utils/localization_extension.dart';
-import '../../../core/windowing/agent_chat_shared_widgets.dart';
+import 'agent_chat_shared_widgets.dart';
 import '../../adaptive/interaction_policy.dart';
 import '../../themes/theme_extension.dart';
 import 'agent_chat_tool_widgets.dart';

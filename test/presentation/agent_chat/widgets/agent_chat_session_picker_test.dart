@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:nai_launcher/core/windowing/agent_chat_session_picker.dart';
+import 'package:nai_launcher/presentation/agent_chat/widgets/agent_chat_session_picker.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 
 void main() {

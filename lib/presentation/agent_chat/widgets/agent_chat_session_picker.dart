@@ -2,8 +2,8 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
-import '../../l10n/app_localizations.dart';
-import '../../presentation/themes/theme_extension.dart';
+import '../../../l10n/app_localizations.dart';
+import '../../themes/theme_extension.dart';
 
 class AgentChatSessionOption {
   const AgentChatSessionOption({

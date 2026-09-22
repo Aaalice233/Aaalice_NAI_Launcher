@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:nai_launcher/core/windowing/agent_chat_shared_widgets.dart';
+import 'package:nai_launcher/presentation/agent_chat/widgets/agent_chat_shared_widgets.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/agent_chat/providers/agent_chat_state.dart';
 import 'package:nai_launcher/presentation/agent_chat/widgets/agent_chat_approval.dart';

@@ -12,7 +12,7 @@ import 'agent_tool_result_summary.dart';
 import '../../../core/agent/agent_media_display_policy.dart';
 import '../../../core/agent/agent_types.dart';
 import '../../../core/agent/agent_tool_presentation.dart';
-import '../../../core/windowing/agent_chat_shared_widgets.dart';
+import 'agent_chat_shared_widgets.dart';
 import '../../../core/agent/resources/agent_chat_resource_reference.dart';
 import '../../../core/agent/resources/agent_chat_resource_reference_codec.dart';
 import '../../../core/utils/localization_extension.dart';
