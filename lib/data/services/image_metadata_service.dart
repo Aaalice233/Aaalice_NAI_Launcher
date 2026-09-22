@@ -510,13 +510,6 @@ class ImageMetadataService {
     }
   }
 
-  /// 手动缓存元数据
-  Future<void> cacheMetadata(String path, NaiImageMetadata metadata) async {
-    if (!metadata.hasData) return;
-    final hash = await _hashCalculator.calculate(path);
-    await _cacheManager.save(hash, metadata);
-  }
-
   /// 将图像加入预加载队列
   void enqueuePreload({
     required String taskId,
