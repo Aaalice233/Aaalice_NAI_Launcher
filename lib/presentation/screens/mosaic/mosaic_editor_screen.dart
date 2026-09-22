@@ -812,24 +812,21 @@ class _MosaicEditorScreenState extends ConsumerState<MosaicEditorScreen> {
       },
       child: Material(
         color: Theme.of(context).colorScheme.surface,
-        child: Padding(
-          padding: EdgeInsets.only(bottom: keyboardInset),
-          child: SafeArea(
-            child: Column(
-              children: [
-                if (keyboardInset == 0) _buildHeader(),
-                Expanded(
-                  child: ExcludeFocus(
-                    excluding: _saving,
-                    child: AbsorbPointer(
-                      absorbing: _saving,
-                      child: _buildBody(),
-                    ),
+        child: SafeArea(
+          child: Column(
+            children: [
+              if (keyboardInset == 0) _buildHeader(),
+              Expanded(
+                child: ExcludeFocus(
+                  excluding: _saving,
+                  child: AbsorbPointer(
+                    absorbing: _saving,
+                    child: _buildBody(),
                   ),
                 ),
-                _buildActions(),
-              ],
-            ),
+              ),
+              _buildActions(),
+            ],
           ),
         ),
       ),

@@ -1,169 +1,80 @@
-import 'dart:io';
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
-import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:path/path.dart' as p;
 
-import '../../../core/mosaic/mosaic_derivative_registry.dart';
-import '../../../core/storage/local_storage_service.dart';
+import '../../../core/derivatives/derivative_registry.dart';
 import '../../../core/utils/localization_extension.dart';
+import '../derivatives/derivative_editor_launcher.dart';
 import 'mosaic_editor_screen.dart';
 
 class MosaicEditorLauncher {
   const MosaicEditorLauncher._();
 
-  static Future<String?> pickSourceAndOpen({
-    required BuildContext context,
-  }) async {
-    final selected = await _pickSource();
-    final path = selected?.path;
-    if (selected == null || path == null || !context.mounted) return null;
-    return open(
-      context: context,
-      sourceBytes: selected.bytes,
-      sourceFileName: selected.fileName,
-      sourcePath: path,
-    );
-  }
+  static final _config = DerivativeEditorConfig(
+    kind: DerivativeKind.mosaic,
+    sourceMissingTitle: (context) => context.l10n.mosaic_sourceMissing,
+    sourceMissingHint: (context) => context.l10n.mosaic_sourceMissingHint,
+    chooseOriginalLabel: (context) => context.l10n.mosaic_chooseOriginal,
+    sampleFileName: 'redaction_preview.png',
+    dialogWidth: 1320,
+    maxDialogHeight: 920,
+    paintSample: _paintSample,
+    buildPage: _buildPage,
+  );
+
+  static Future<String?> pickSourceAndOpen({required BuildContext context}) =>
+      DerivativeEditorLauncher.pickSourceAndOpen(
+        context: context,
+        config: _config,
+      );
 
   static Future<String?> open({
     required BuildContext context,
     required Uint8List sourceBytes,
     required String sourceFileName,
     String? sourcePath,
-  }) => _present(
+  }) => DerivativeEditorLauncher.open(
     context: context,
+    config: _config,
     sourceBytes: sourceBytes,
     sourceFileName: sourceFileName,
     sourcePath: sourcePath,
-    defaultsOnly: false,
   );
 
   static Future<String?> openForLocalPath({
     required BuildContext context,
     required String path,
     Uint8List? fallbackBytes,
-  }) async {
-    final container = ProviderScope.containerOf(context, listen: false);
-    final registry = MosaicDerivativeRegistry(
-      container.read(localStorageServiceProvider),
-    );
-    final link = registry.find(path);
-    final inferredDerivative =
-        link == null && MosaicDerivativeRegistry.looksLikeDerivativePath(path);
-    var source = File(link?.sourcePath ?? path);
-    String? resolvedSourcePath;
-    Uint8List? bytes;
-    if (!inferredDerivative && await source.exists()) {
-      bytes = await source.readAsBytes();
-      resolvedSourcePath = source.path;
-    } else if (!inferredDerivative && link == null && fallbackBytes != null) {
-      bytes = fallbackBytes;
-    } else {
-      if (!context.mounted) return null;
-      final choose = await showDialog<bool>(
-        context: context,
-        builder: (dialogContext) => AlertDialog(
-          title: Text(context.l10n.mosaic_sourceMissing),
-          content: Text(context.l10n.mosaic_sourceMissingHint),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(dialogContext).pop(false),
-              child: Text(context.l10n.common_cancel),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.of(dialogContext).pop(true),
-              child: Text(context.l10n.mosaic_chooseOriginal),
-            ),
-          ],
-        ),
-      );
-      if (choose != true) return null;
-      final selected = await _pickSource();
-      final pickedPath = selected?.path;
-      if (selected == null || pickedPath == null) return null;
-      source = File(pickedPath);
-      resolvedSourcePath = pickedPath;
-      bytes = selected.bytes;
-    }
-    if (!context.mounted) return null;
-    return open(
-      context: context,
-      sourceBytes: bytes,
-      sourceFileName: p.basename(source.path),
-      sourcePath: resolvedSourcePath,
-    );
-  }
+  }) => DerivativeEditorLauncher.openForLocalPath(
+    context: context,
+    config: _config,
+    path: path,
+    fallbackBytes: fallbackBytes,
+  );
 
-  static Future<void> editDefaults({required BuildContext context}) async {
-    final sample = await _buildSampleImage();
-    if (!context.mounted) return;
-    await _present(
-      context: context,
-      sourceBytes: sample,
-      sourceFileName: 'redaction_preview.png',
-      defaultsOnly: true,
-    );
-  }
+  static Future<void> editDefaults({required BuildContext context}) =>
+      DerivativeEditorLauncher.editDefaults(context: context, config: _config);
 
-  static Future<String?> _present({
-    required BuildContext context,
-    required Uint8List sourceBytes,
-    required String sourceFileName,
-    required bool defaultsOnly,
-    String? sourcePath,
-  }) {
-    final page = MosaicEditorScreen(
-      sourceBytes: sourceBytes,
-      sourceFileName: sourceFileName,
-      sourcePath: sourcePath,
-      defaultsOnly: defaultsOnly,
-      onChooseSource: defaultsOnly ? null : _pickSource,
-    );
-    if (MediaQuery.sizeOf(context).width >= 840) {
-      return showDialog<String>(
-        context: context,
-        barrierDismissible: false,
-        builder: (dialogContext) => Dialog(
-          clipBehavior: Clip.antiAlias,
-          insetPadding: const EdgeInsets.all(24),
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 1320, maxHeight: 920),
-            child: page,
-          ),
-        ),
-      );
-    }
-    return Navigator.of(context).push<String>(
-      MaterialPageRoute(builder: (_) => page, fullscreenDialog: true),
-    );
-  }
+  static Widget _buildPage(DerivativeEditorPage page) => MosaicEditorScreen(
+    sourceBytes: page.sourceBytes,
+    sourceFileName: page.sourceFileName,
+    sourcePath: page.sourcePath,
+    defaultsOnly: page.defaultsOnly,
+    onChooseSource: page.defaultsOnly ? null : _chooseSource,
+  );
 
-  static Future<MosaicEditorSource?> _pickSource() async {
-    final picked = await FilePicker.platform.pickFiles(
-      type: FileType.custom,
-      allowedExtensions: const ['png', 'jpg', 'jpeg', 'webp', 'bmp'],
-      allowMultiple: false,
-      withData: false,
-    );
-    final path = picked?.files.single.path;
-    if (path == null) return null;
-    final file = File(path);
-    if (!await file.exists()) return null;
+  static Future<MosaicEditorSource?> _chooseSource() async {
+    final selected = await DerivativeEditorLauncher.pickSource();
+    if (selected == null) return null;
     return MosaicEditorSource(
-      bytes: await file.readAsBytes(),
-      fileName: p.basename(path),
-      path: path,
+      bytes: selected.bytes,
+      fileName: selected.fileName,
+      path: selected.path,
     );
   }
 
-  static Future<Uint8List> _buildSampleImage() async {
-    const size = ui.Size(1200, 800);
-    final recorder = ui.PictureRecorder();
-    final canvas = ui.Canvas(recorder);
+  static void _paintSample(ui.Canvas canvas, ui.Size size) {
     final background = ui.Paint()
       ..shader = ui.Gradient.linear(
         ui.Offset.zero,
@@ -194,20 +105,5 @@ class MosaicEditorLauncher {
       ),
       ui.Paint()..color = const Color(0x44FFFFFF),
     );
-    final picture = recorder.endRecording();
-    try {
-      final image = await picture.toImage(
-        size.width.toInt(),
-        size.height.toInt(),
-      );
-      try {
-        final data = await image.toByteData(format: ui.ImageByteFormat.png);
-        return data!.buffer.asUint8List();
-      } finally {
-        image.dispose();
-      }
-    } finally {
-      picture.dispose();
-    }
   }
 }
