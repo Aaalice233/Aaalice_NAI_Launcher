@@ -4,13 +4,6 @@
   <a href="README.md">简体中文</a> · <a href="README.zh-TW.md">繁體中文</a> · English
 </p>
 
-> [!WARNING]
-> **Project maintenance update (2026-09-15)**
->
-> NovelAI has restricted my account: my subscription was canceled, and I can no longer make purchases or subscribe. I still do not understand the specific reason for this action. Collaborators will take over future updates and maintenance, and I will no longer be primarily responsible for project updates.
-
-![Notice from NovelAI canceling the subscription and restricting purchases](docs/screenshots/novelai-subscription-canceled-2026-09-08.png)
-
 <p align="center">
   <img src="assets/icons/Icon.png" alt="NAI Launcher icon" width="112">
 </p>
