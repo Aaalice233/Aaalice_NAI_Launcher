@@ -108,6 +108,26 @@ void main() {
     expect(observedPath(r'C:\work\a.png'), isFalse);
   });
 
+  test('retainSessions drops every session that is no longer live', () {
+    ledger.recordToolResult('s1', _imageResult([r'C:\work\a.png']));
+    ledger.recordToolResult('s2', _imageResult([r'C:\work\b.png']));
+
+    ledger.retainSessions(const ['s2']);
+
+    expect(observedPath(r'C:\work\a.png'), isFalse);
+    expect(
+      ledger.hasObserved('s2', paths: [r'C:\work\b.png'], sourceLongSide: 1024),
+      isTrue,
+    );
+
+    ledger.retainSessions(const []);
+
+    expect(
+      ledger.hasObserved('s2', paths: [r'C:\work\b.png'], sourceLongSide: 1024),
+      isFalse,
+    );
+  });
+
   test('ignores failed reads and malformed details', () {
     final failed = _imageResult([r'C:\work\a.png'])..isError = true;
     ledger.recordToolResult('s1', failed);

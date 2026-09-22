@@ -13,6 +13,7 @@ import '../../agent_chat/services/agent_tool_registry_builder.dart';
 import 'mcp_approval_coordinator.dart';
 import 'mcp_compact_tool_response.dart';
 import 'mcp_image_response_service.dart';
+import 'mcp_tool_session_scope.dart';
 
 const String _logTag = 'McpServer';
 
@@ -24,7 +25,7 @@ class LauncherMcpToolExecutor implements McpToolExecutor {
     required McpApprovalCoordinator approvals,
     required AgentAuditSink auditSink,
     required McpImageResponseService imageResponses,
-    void Function(AgentToolResult result)? observeResult,
+    void Function(String sessionId, AgentToolResult result)? observeResult,
     Lock? writeLock,
   }) : _registry = registry,
        _approvals = approvals,
@@ -37,7 +38,7 @@ class LauncherMcpToolExecutor implements McpToolExecutor {
   final McpApprovalCoordinator _approvals;
   final AgentAuditSink _auditSink;
   final McpImageResponseService _imageResponses;
-  final void Function(AgentToolResult result)? _observeResult;
+  final void Function(String sessionId, AgentToolResult result)? _observeResult;
   final Lock _writeLock;
 
   @override
@@ -79,13 +80,14 @@ class LauncherMcpToolExecutor implements McpToolExecutor {
       return McpToolAdapter.errorResult('$error');
     }
 
-    final descriptor = registry.catalog.descriptorFor(request.toolName);
-    if (descriptor.operation == AgentPermissionOperation.read) {
-      return _gateAndExecute(registry, tool, args, request);
-    }
-    return _writeLock.synchronized(
+    // 会话作用域在锁外建立，工具无论被谁调度起来都读得到本次请求的会话。
+    Future<CallToolResult> run() => McpToolSessionScope.run(
+      request.sessionId,
       () => _gateAndExecute(registry, tool, args, request),
     );
+    final descriptor = registry.catalog.descriptorFor(request.toolName);
+    if (descriptor.operation == AgentPermissionOperation.read) return run();
+    return _writeLock.synchronized(run);
   }
 
   Future<CallToolResult> _gateAndExecute(
@@ -158,7 +160,7 @@ class LauncherMcpToolExecutor implements McpToolExecutor {
         style: McpImageResponseService.styleForClient(request.clientLabel),
       );
       // 记的是 prepare 之后的结果：外部客户端收到的是原图，不是工具原始返回的缩略图。
-      _observeResult?.call(result);
+      _observeResult?.call(request.sessionId, result);
       await _writeAudit(
         request,
         stage: 'result',

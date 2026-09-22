@@ -20,6 +20,7 @@ import '../../../core/services/notification_service.dart';
 import '../../../core/storage/local_storage_service.dart';
 import '../../../core/storage/secure_storage_service.dart';
 import '../../../core/utils/app_logger.dart';
+import '../../agent_chat/services/agent_image_observation_ledger.dart';
 import '../../agent_chat/services/agent_prepared_anlas_estimator.dart';
 import '../../agent_chat/services/agent_prepared_file_targets.dart';
 import '../../agent_chat/services/agent_tool_registry_builder.dart';
@@ -185,6 +186,7 @@ class McpServerNotifier extends StateNotifier<McpServerState> {
     McpServerTokenStore? tokenStore,
     McpServerSettingsStore? settingsStore,
     Directory? supportDirectory,
+    AgentImageObservationLedger? observationLedger,
     Future<void> Function()? notifyApprovalRequested,
   }) : _hostFactory = hostFactory,
        _discovery = discovery ?? McpDiscoveryFileStore(),
@@ -197,6 +199,7 @@ class McpServerNotifier extends StateNotifier<McpServerState> {
              _ref.read(localStorageServiceProvider),
            ),
        _providedSupportDirectory = supportDirectory,
+       _observationLedger = observationLedger ?? AgentImageObservationLedger(),
        _notifyApprovalRequested = notifyApprovalRequested,
        super(const McpServerState()) {
     state = McpServerState(
@@ -212,6 +215,9 @@ class McpServerNotifier extends StateNotifier<McpServerState> {
   final McpServerTokenStore _tokenStore;
   final McpServerSettingsStore _settings;
   final Directory? _providedSupportDirectory;
+
+  /// 按传输会话记录模型真正看过的图，会话归这里管，台账就归这里管。
+  final AgentImageObservationLedger _observationLedger;
   final Future<void> Function()? _notifyApprovalRequested;
 
   McpServerHost? _host;
@@ -325,6 +331,7 @@ class McpServerNotifier extends StateNotifier<McpServerState> {
         supportDir: supportDir,
         workspaceDir: workspaceDir.path,
         isHostAlive: () => mounted && state.enabled,
+        observationLedger: _observationLedger,
         publishDisplayImage:
             (bytes, {required mimeType, required metadataStripped}) =>
                 _host?.imageEndpoint.publish(
@@ -362,7 +369,7 @@ class McpServerNotifier extends StateNotifier<McpServerState> {
           approvals: approvals,
           auditSink: auditSink,
           imageResponses: factory.imageResponses,
-          observeResult: factory.observeToolResult,
+          observeResult: _observationLedger.recordToolResult,
         ),
         _appVersion(),
       );
@@ -437,6 +444,7 @@ class McpServerNotifier extends StateNotifier<McpServerState> {
     _approvals = null;
     _factory = null;
     _registry = null;
+    _observationLedger.clear();
     final host = _host;
     _host = null;
     if (host != null) await host.stop();
@@ -451,6 +459,10 @@ class McpServerNotifier extends StateNotifier<McpServerState> {
   }
 
   void _handleSessionsChanged(List<McpSessionSummary> sessions) {
+    // 断开、被淘汰或空闲清扫掉的会话不能再替后来的客户端放行坐标敏感操作。
+    _observationLedger.retainSessions(
+      sessions.map((session) => session.id).toList(growable: false),
+    );
     if (!mounted || !state.enabled) return;
     state = state.copyWith(sessions: sessions);
   }

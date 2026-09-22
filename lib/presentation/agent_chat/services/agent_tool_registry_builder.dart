@@ -72,6 +72,7 @@ class AgentToolRegistryBuilder {
     required List<Message> Function() messages,
     required AgentUserQuestionController questionController,
     ImageResourceExportPreparer? prepareImageExport,
+    AgentImageObservationLedger? observationLedger,
     bool referencesGalleryOriginal = false,
     String observationGuidance = _chatObservationGuidance,
   }) : _ref = ref,
@@ -87,6 +88,7 @@ class AgentToolRegistryBuilder {
        _messages = messages,
        _questionController = questionController,
        _prepareImageExport = prepareImageExport,
+       _observationLedger = observationLedger ?? AgentImageObservationLedger(),
        _referencesGalleryOriginal = referencesGalleryOriginal,
        _observationGuidance = observationGuidance;
 
@@ -107,11 +109,7 @@ class AgentToolRegistryBuilder {
   final String _observationGuidance;
 
   /// 跨 build() 保留：权限模式切换不该抹掉本会话已经看过的图。
-  final AgentImageObservationLedger _observationLedger =
-      AgentImageObservationLedger();
-
-  void observeToolResult(AgentToolResult result) =>
-      _observationLedger.recordToolResult(_activeSessionId(), result);
+  final AgentImageObservationLedger _observationLedger;
 
   AgentToolRegistry build({
     required bool fullAccess,

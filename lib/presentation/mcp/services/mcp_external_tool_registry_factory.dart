@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/agent/agent_types.dart';
 import '../../../core/agent/permissions/permissions.dart';
 import '../../../core/mcp/mcp_image_http_endpoint.dart';
+import '../../agent_chat/services/agent_image_observation_ledger.dart';
 import '../../agent_chat/services/agent_resource_resolver.dart';
 import '../../agent_chat/services/agent_tool_registry_builder.dart';
 import '../../agent_chat/services/agent_user_question_controller.dart';
@@ -18,6 +19,7 @@ import '../../router/app_router_config.dart';
 import 'mcp_compact_tool_response.dart';
 import 'mcp_image_response_service.dart';
 import 'mcp_image_tool_descriptions.dart';
+import 'mcp_tool_session_scope.dart';
 
 /// 外部 MCP 客户端可见的工具面。
 abstract final class McpExternalToolSurface {
@@ -116,6 +118,7 @@ class McpExternalToolRegistryFactory {
     required Directory supportDir,
     required String workspaceDir,
     required bool Function() isHostAlive,
+    AgentImageObservationLedger? observationLedger,
     McpImageDisplayPublisher? publishDisplayImage,
   }) : _isHostAlive = isHostAlive,
        generationRuntime = GenerationPreparationRuntime(),
@@ -129,7 +132,7 @@ class McpExternalToolRegistryFactory {
              .routerDelegate
              .navigatorKey
              .currentState,
-         activeSessionId: () => sessionId,
+         activeSessionId: _resolveSessionId,
        ) {
     final resolver = AgentResourceResolver(
       ref,
@@ -155,7 +158,8 @@ class McpExternalToolRegistryFactory {
       generationRuntime: generationRuntime,
       queueRuntime: queueRuntime,
       manualInpaintToolbox: manualInpaintToolbox,
-      activeSessionId: () => sessionId,
+      activeSessionId: _resolveSessionId,
+      observationLedger: observationLedger,
       isMounted: _isHostAlive,
       messages: () => const [],
       questionController: AgentUserQuestionController(onChanged: (_) {}),
@@ -168,8 +172,12 @@ class McpExternalToolRegistryFactory {
     );
   }
 
-  /// 外部调用没有聊天会话，用固定 id 让草稿与观察台账仍能归属同一来源。
-  static const String sessionId = 'mcp';
+  /// 只在工具跑在任何 `tools/call` 之外时兜底：正常路径一律用传输会话 id，
+  /// 否则一个客户端看过的图会替另一个客户端放行坐标敏感操作。
+  static const String _unscopedSessionId = 'mcp';
+
+  static String _resolveSessionId() =>
+      McpToolSessionScope.currentSessionId ?? _unscopedSessionId;
 
   final bool Function() _isHostAlive;
   final GenerationPreparationRuntime generationRuntime;
@@ -186,7 +194,4 @@ class McpExternalToolRegistryFactory {
       ),
     );
   }
-
-  void observeToolResult(AgentToolResult result) =>
-      _builder.observeToolResult(result);
 }

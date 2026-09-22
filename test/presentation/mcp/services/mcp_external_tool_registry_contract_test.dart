@@ -1,12 +1,18 @@
+import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:image/image.dart' as img;
+import 'package:nai_launcher/core/agent/agent_types.dart';
 import 'package:nai_launcher/core/agent/permissions/permissions.dart';
 import 'package:nai_launcher/core/storage/local_storage_service.dart';
+import 'package:nai_launcher/presentation/agent_chat/services/agent_image_observation_ledger.dart';
 import 'package:nai_launcher/presentation/agent_settings/providers/agent_settings_provider.dart';
 import 'package:nai_launcher/presentation/mcp/services/mcp_external_tool_registry_factory.dart';
 import 'package:nai_launcher/presentation/mcp/services/mcp_image_tool_descriptions.dart';
+import 'package:nai_launcher/presentation/mcp/services/mcp_tool_session_scope.dart';
 import 'package:nai_launcher/presentation/prompt_assistant/models/prompt_assistant_models.dart';
 
 final _refProvider = Provider<Ref>((ref) => ref);
@@ -297,6 +303,55 @@ void main() {
     }
   });
 
+  test('one client never inherits another observation', () async {
+    final ledger = AgentImageObservationLedger();
+    final scoped = McpExternalToolRegistryFactory(
+      ref: container.read(_refProvider),
+      supportDir: root,
+      workspaceDir: root.path,
+      isHostAlive: () => true,
+      observationLedger: ledger,
+    );
+    final tools = {
+      for (final tool in scoped.build(AgentPermissionMode.fullAccess).tools)
+        tool.name: tool,
+    };
+    final source = File('${root.path}/source.png');
+    await source.writeAsBytes(_png(512, 512));
+    ledger.recordToolResult('session-a', _observedImage(source.path));
+
+    // 只有 subtract 的选区在台账门禁之后、估价之前失败，断言因此收在门禁本身。
+    Future<Object?> maskAs(String sessionId) async {
+      final result = await McpToolSessionScope.run(
+        sessionId,
+        () => tools['create_inpaint_mask']!.execute('mask-$sessionId', {
+          'source_image': 'source.png',
+          'prompt': 'fix the hand',
+          'focused': false,
+          'preview': false,
+          'regions': const [
+            {
+              'shape': 'rect',
+              'mode': 'subtract',
+              'x': 0.4,
+              'y': 0.4,
+              'width': 0.2,
+              'height': 0.2,
+            },
+          ],
+        }),
+      );
+      return result.details['code'];
+    }
+
+    expect(await maskAs('session-b'), 'image_not_observed');
+    expect(await maskAs('session-a'), 'empty_mask');
+
+    ledger.retainSessions(const ['session-b']);
+
+    expect(await maskAs('session-a'), 'image_not_observed');
+  });
+
   test('full access exposes write operations', () {
     final registry = factory.build(AgentPermissionMode.fullAccess);
     final operations = registry.tools
@@ -310,6 +365,25 @@ void main() {
     );
   });
 }
+
+Uint8List _png(int width, int height) =>
+    Uint8List.fromList(img.encodePng(img.Image(width: width, height: height)));
+
+AgentToolResult _observedImage(String path) => AgentToolResult(
+  content: [
+    ToolResultImageContent(
+      ImageContent(
+        source: ImageSource.base64(
+          mimeType: 'image/png',
+          base64Data: base64Encode(_png(512, 512)),
+        ),
+      ),
+    ),
+  ],
+  details: <String, dynamic>{
+    'files': [path],
+  },
+);
 
 // Keys under properties/$defs are parameter names, not keywords, so a parameter
 // literally named default must not be reported.

@@ -1,8 +1,11 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:image/image.dart' as img;
+import 'package:nai_launcher/core/agent/agent_types.dart';
 import 'package:nai_launcher/core/mcp/mcp_discovery_file.dart';
 import 'package:nai_launcher/core/mcp/mcp_image_http_endpoint.dart';
 import 'package:nai_launcher/core/mcp/mcp_server_constants.dart';
@@ -10,6 +13,7 @@ import 'package:nai_launcher/core/mcp/mcp_server_host.dart';
 import 'package:nai_launcher/core/mcp/mcp_session_registry.dart';
 import 'package:nai_launcher/core/mcp/mcp_tool_executor.dart';
 import 'package:nai_launcher/core/storage/local_storage_service.dart';
+import 'package:nai_launcher/presentation/agent_chat/services/agent_image_observation_ledger.dart';
 import 'package:nai_launcher/presentation/agent_settings/providers/agent_settings_provider.dart';
 import 'package:nai_launcher/presentation/mcp/providers/mcp_server_notifier.dart';
 import 'package:nai_launcher/presentation/prompt_assistant/models/prompt_assistant_models.dart';
@@ -27,10 +31,12 @@ void main() {
   McpServerNotifier build({
     int? bindFailurePort,
     McpDiscoveryFileStore? discovery,
+    AgentImageObservationLedger? observationLedger,
   }) {
     final store = discovery ?? McpDiscoveryFileStore(directory: root);
     return McpServerNotifier(
       container.read(_refProvider),
+      observationLedger: observationLedger,
       hostFactory: (executor, appVersion) {
         final host = _FakeMcpServerHost(
           appVersion: appVersion,
@@ -143,6 +149,29 @@ void main() {
     await pumpEventQueue();
 
     expect(notifier.state.sessions.single.clientName, 'codex');
+  });
+
+  test('a disconnected session loses its observation evidence', () async {
+    final ledger = AgentImageObservationLedger();
+    final notifier = build(observationLedger: ledger);
+    addTearDown(notifier.dispose);
+    await notifier.enable();
+    ledger.recordToolResult('session-1', _observedImage(r'C:\work\a.png'));
+    ledger.recordToolResult('session-2', _observedImage(r'C:\work\b.png'));
+
+    hosts.single.emitSessions([_summary('session-2')]);
+    await pumpEventQueue();
+
+    expect(_observed(ledger, 'session-1', r'C:\work\a.png'), isFalse);
+    expect(_observed(ledger, 'session-2', r'C:\work\b.png'), isTrue);
+
+    await notifier.disable();
+
+    expect(
+      _observed(ledger, 'session-2', r'C:\work\b.png'),
+      isFalse,
+      reason: 'a restart hands out fresh session ids, so evidence cannot carry',
+    );
   });
 
   test('setPort rejects ports outside the allowed range', () async {
@@ -273,6 +302,36 @@ final _refProvider = Provider<Ref>((ref) => ref);
 
 List<String> _toolNames(McpToolExecutor executor) =>
     executor.tools.map((tool) => tool.name).toList();
+
+McpSessionSummary _summary(String id) => McpSessionSummary(
+  id: id,
+  connectedAt: DateTime.utc(2026, 1, 1),
+  lastActivity: DateTime.utc(2026, 1, 1),
+);
+
+AgentToolResult _observedImage(String path) => AgentToolResult(
+  content: [
+    ToolResultImageContent(
+      ImageContent(
+        source: ImageSource.base64(
+          mimeType: 'image/png',
+          base64Data: base64Encode(
+            img.encodePng(img.Image(width: 512, height: 512)),
+          ),
+        ),
+      ),
+    ),
+  ],
+  details: <String, dynamic>{
+    'files': [path],
+  },
+);
+
+bool _observed(
+  AgentImageObservationLedger ledger,
+  String session,
+  String path,
+) => ledger.hasObserved(session, paths: [path], sourceLongSide: 512);
 
 class _FakeMcpServerHost implements McpServerHost {
   _FakeMcpServerHost({

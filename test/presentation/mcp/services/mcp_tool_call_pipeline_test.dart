@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
@@ -10,12 +11,14 @@ import 'package:path/path.dart' as p;
 import 'package:nai_launcher/core/agent/agent_types.dart';
 import 'package:nai_launcher/core/agent/audit/audit_sink.dart';
 import 'package:nai_launcher/core/agent/resources/agent_chat_resource_reference.dart';
+import 'package:nai_launcher/presentation/agent_chat/services/agent_image_observation_ledger.dart';
 import 'package:nai_launcher/presentation/agent_chat/services/agent_resource_resolver.dart';
 import 'package:nai_launcher/presentation/agent_chat/services/defined_agent_tool.dart';
 import 'package:nai_launcher/presentation/mcp/services/mcp_approval_coordinator.dart';
 import 'package:nai_launcher/presentation/mcp/services/mcp_external_tool_registry_factory.dart';
 import 'package:nai_launcher/presentation/mcp/services/mcp_tool_call_pipeline.dart';
 import 'package:nai_launcher/presentation/mcp/services/mcp_image_response_service.dart';
+import 'package:nai_launcher/presentation/mcp/services/mcp_tool_session_scope.dart';
 import 'package:nai_launcher/core/mcp/mcp_tool_executor.dart';
 import 'package:nai_launcher/core/mcp/mcp_image_http_endpoint.dart';
 import 'package:nai_launcher/presentation/prompt_assistant/models/prompt_assistant_models.dart';
@@ -520,7 +523,7 @@ void main() {
       final pipeline = _Harness(
         sourceResult: agentToolJsonResult({'ok': true, 'stage': 'raw'}),
         imageResponses: _PreparedStageImageResponses(),
-        observeResult: observed.add,
+        observeResult: (_, result) => observed.add(result),
       );
       addTearDown(pipeline.dispose);
 
@@ -531,7 +534,92 @@ void main() {
       expect(observed.single.details['stage'], 'prepared');
     },
   );
+
+  test('an image is only observable by the session that asked', () async {
+    const path = r'C:\work\session-scoped.png';
+    final ledger = AgentImageObservationLedger();
+    final pipeline = _Harness(
+      sourceResult: AgentToolResult(
+        content: [_pngContent(512, 512)],
+        details: <String, dynamic>{
+          'files': [path],
+        },
+      ),
+      observeResult: ledger.recordToolResult,
+    );
+    addTearDown(pipeline.dispose);
+
+    final result = await pipeline.call(
+      'r1',
+      'get_generation_settings',
+      sessionId: 'session-a',
+    );
+
+    expect(result.isError, isFalse);
+    expect(
+      ledger.hasObserved('session-a', paths: [path], sourceLongSide: 512),
+      isTrue,
+    );
+    expect(
+      ledger.hasObserved('session-b', paths: [path], sourceLongSide: 512),
+      isFalse,
+      reason: 'a second client must view the image itself before trusting it',
+    );
+  });
+
+  test('concurrent read calls each keep their own session in scope', () async {
+    final entered = <String?>[];
+    final resumed = <String?>[];
+    final barrier = Completer<void>();
+    final pipeline = _Harness(
+      toolOverrides: [
+        FakeAgentTool(
+          name: 'get_generation_settings',
+          runner: (args, signal) async {
+            entered.add(McpToolSessionScope.currentSessionId);
+            await barrier.future;
+            resumed.add(McpToolSessionScope.currentSessionId);
+            return AgentToolResult(
+              content: [const ToolResultTextContent('ok')],
+              details: null,
+            );
+          },
+        ),
+      ],
+    );
+    addTearDown(pipeline.dispose);
+
+    final first = pipeline.call(
+      'r1',
+      'get_generation_settings',
+      sessionId: 'session-a',
+    );
+    final second = pipeline.call(
+      'r2',
+      'get_generation_settings',
+      sessionId: 'session-b',
+    );
+    await pumpEventQueue();
+    expect(entered, unorderedEquals(['session-a', 'session-b']));
+
+    barrier.complete();
+    await Future.wait([first, second]);
+
+    expect(resumed, unorderedEquals(['session-a', 'session-b']));
+  });
 }
+
+ToolResultImageContent _pngContent(int width, int height) =>
+    ToolResultImageContent(
+      ImageContent(
+        source: ImageSource.base64(
+          mimeType: 'image/png',
+          base64Data: base64Encode(
+            img.encodePng(img.Image(width: width, height: height)),
+          ),
+        ),
+      ),
+    );
 
 /// Marks every prepared result so the hook cannot be satisfied by the raw one.
 class _PreparedStageImageResponses extends McpImageResponseService {
@@ -563,7 +651,7 @@ class _Harness {
     this.sourceResult,
     List<AgentTool>? toolOverrides,
     int estimatedAnlas = 24,
-    void Function(AgentToolResult result)? observeResult,
+    void Function(String sessionId, AgentToolResult result)? observeResult,
   }) {
     tools =
         toolOverrides ??
@@ -650,10 +738,11 @@ class _Harness {
     Map<String, dynamic> arguments = const {},
     AbortSignal? signal,
     String clientLabel = 'codex 1.0.0',
+    String sessionId = 'session-1',
   }) {
     return executor.call(
       McpToolCallRequest(
-        sessionId: 'session-1',
+        sessionId: sessionId,
         callId: callId,
         toolName: toolName,
         arguments: arguments,

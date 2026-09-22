@@ -67,6 +67,12 @@ class AgentImageObservationLedger {
 
   void forgetSession(String sessionId) => _observedBySession.remove(sessionId);
 
+  /// 传入的是当前仍然存活的全部会话：断开的会话不能继续替后来者放行。
+  void retainSessions(Iterable<String> sessionIds) {
+    final live = sessionIds.toSet();
+    _observedBySession.removeWhere((sessionId, _) => !live.contains(sessionId));
+  }
+
   void clear() => _observedBySession.clear();
 
   /// 一个结果里的多张图与多个身份无法逐一对齐，取最小长边是保守做法。
