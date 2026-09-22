@@ -533,12 +533,9 @@ void main() {
                 McpImageDisplayLink(uri, DateTime.utc(2026, 9, 14, 5)),
       );
 
-      // Both references are prepared even though the caller opted out of each.
       final result = await withLink.prepare(
         'display_images',
         _internalResult(),
-        includeDisplayFile: false,
-        includeDisplayUrl: false,
         style: McpImageDisplayStyle.link,
       );
 
@@ -580,6 +577,127 @@ void main() {
       expect(writes, 2);
     },
   );
+
+  test('a link client honours explicit display-reference opt-outs', () async {
+    final uri = Uri.parse('http://127.0.0.1:20624/mcp/images/opt-out.png');
+    final displayPath = p
+        .absolute(p.join(Directory.systemTemp.path, 'image-opt-out.png'))
+        .replaceAll('\\', '/');
+    var writes = 0;
+    var publishes = 0;
+    final withLink = McpImageResponseService(
+      resolve: (ref) async => ResolvedAgentResource(
+        reference: ref,
+        label: 'image',
+        bytes: original,
+      ),
+      shouldStripMetadata: () => false,
+      writeDisplayFile: (_) async {
+        writes++;
+        return File(displayPath);
+      },
+      publishDisplayImage: (_, {required mimeType, required metadataStripped}) {
+        publishes++;
+        return McpImageDisplayLink(uri, DateTime.utc(2026, 9, 14, 5));
+      },
+    );
+
+    final withoutFile = await withLink.prepare(
+      'display_images',
+      _internalResult(),
+      includeDisplayFile: false,
+      style: McpImageDisplayStyle.link,
+    );
+    final withoutFileEntry =
+        (withoutFile.details['images'] as List).single as Map;
+    expect(writes, 0);
+    expect(publishes, 1);
+    expect(withoutFileEntry.containsKey('display_path'), isFalse);
+    expect(
+      withoutFileEntry['display_markdown'],
+      '[Generated image 832x1216](<$uri>)',
+    );
+
+    final withoutUrl = await withLink.prepare(
+      'display_images',
+      _internalResult(),
+      includeDisplayUrl: false,
+      style: McpImageDisplayStyle.link,
+    );
+    final withoutUrlEntry =
+        (withoutUrl.details['images'] as List).single as Map;
+    expect(writes, 1);
+    expect(publishes, 1);
+    expect(withoutUrlEntry.containsKey('display_url'), isFalse);
+    expect(withoutUrlEntry['display_path'], displayPath);
+    expect(
+      withoutUrlEntry['display_markdown'],
+      '[Generated image 832x1216](<$displayPath>)',
+    );
+
+    final withoutBoth = await withLink.prepare(
+      'display_images',
+      _internalResult(),
+      includeDisplayFile: false,
+      includeDisplayUrl: false,
+      style: McpImageDisplayStyle.link,
+    );
+    final withoutBothEntry =
+        (withoutBoth.details['images'] as List).single as Map;
+    expect(writes, 1);
+    expect(publishes, 1);
+    expect(withoutBothEntry.containsKey('display_path'), isFalse);
+    expect(withoutBothEntry.containsKey('display_url'), isFalse);
+    expect(withoutBothEntry.containsKey('display_markdown'), isFalse);
+    expect(withoutBoth.details.containsKey('display_markdown'), isFalse);
+    expect(
+      withoutBoth.content.whereType<ToolResultImageContent>(),
+      hasLength(1),
+    );
+  });
+
+  test('a client style only supplies the display defaults', () async {
+    final uri = Uri.parse('http://127.0.0.1:20624/mcp/images/defaults.png');
+    var writes = 0;
+    var publishes = 0;
+    final service = McpImageResponseService(
+      resolve: (ref) async => ResolvedAgentResource(
+        reference: ref,
+        label: 'image',
+        bytes: original,
+      ),
+      shouldStripMetadata: () => false,
+      writeDisplayFile: (_) async {
+        writes++;
+        return File(p.join(Directory.systemTemp.path, 'image-defaults.png'));
+      },
+      publishDisplayImage: (_, {required mimeType, required metadataStripped}) {
+        publishes++;
+        return McpImageDisplayLink(uri, DateTime.utc(2026, 9, 14, 7));
+      },
+    );
+
+    for (final (style, file, url) in [
+      (McpImageDisplayStyle.link, true, true),
+      (McpImageDisplayStyle.inlineFile, true, true),
+      (McpImageDisplayStyle.inlineUrl, false, true),
+      (McpImageDisplayStyle.inlineWithLink, false, true),
+      (McpImageDisplayStyle.inlineWorkspaceFile, false, true),
+    ]) {
+      writes = 0;
+      publishes = 0;
+      final result = await service.prepare(
+        'display_images',
+        _internalResult(),
+        style: style,
+      );
+      final entry = (result.details['images'] as List).single as Map;
+      expect(writes, file ? 1 : 0, reason: '$style');
+      expect(publishes, url ? 1 : 0, reason: '$style');
+      expect(entry.containsKey('display_path'), file, reason: '$style');
+      expect(entry.containsKey('display_url'), url, reason: '$style');
+    }
+  });
 
   test('a gated client keeps the image and gains a clickable link', () async {
     final uri = Uri.parse('http://127.0.0.1:20624/mcp/images/gated-case.png');

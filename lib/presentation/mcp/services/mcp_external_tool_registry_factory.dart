@@ -96,12 +96,12 @@ abstract final class McpExternalToolSurface {
         'include_display_file': {
           'type': 'boolean',
           'description':
-              'Include a safe same-machine display-cache file. Defaults to true for Codex, false otherwise.',
+              'Include a safe same-machine display-cache file. Defaults to true for Codex and link-only clients, false otherwise.',
         },
         'include_display_url': {
           'type': 'boolean',
           'description':
-              'Include a temporary same-machine HTTP display reference. Default true.',
+              'Include a temporary same-machine HTTP display reference. Defaults to true for every client.',
         },
       },
     },

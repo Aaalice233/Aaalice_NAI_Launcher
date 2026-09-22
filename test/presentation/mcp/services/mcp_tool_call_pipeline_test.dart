@@ -494,6 +494,21 @@ void main() {
             .containsKey('display_url'),
         isFalse,
       );
+
+      final cliDisabled = await pipeline.call(
+        'image-6',
+        'display_images',
+        arguments: {'include_display_url': false},
+        clientLabel: 'claude-code 2.0.0',
+      );
+      final cliDisabledImage =
+          (cliDisabled.structuredContent!['images'] as List).single as Map;
+      expect(cliDisabledImage.containsKey('display_url'), isFalse);
+      expect(cliDisabledImage['display_path'], markdownPath);
+      expect(
+        cliDisabledImage['display_markdown'],
+        '[Generated image 320x448](<$markdownPath>)',
+      );
       expect(publishes, 4);
     },
   );
@@ -529,7 +544,7 @@ class _PreparedStageImageResponses extends McpImageResponseService {
     AgentToolResult result, {
     AbortSignal? signal,
     bool? includeDisplayFile,
-    bool includeDisplayUrl = true,
+    bool? includeDisplayUrl,
     McpImageDisplayStyle style = McpImageDisplayStyle.inlineUrl,
   }) async => agentToolJsonResult({'ok': true, 'stage': 'prepared'});
 }

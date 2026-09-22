@@ -154,7 +154,7 @@ class LauncherMcpToolExecutor implements McpToolExecutor {
         ),
         signal: request.signal,
         includeDisplayFile: args['include_display_file'] as bool?,
-        includeDisplayUrl: args['include_display_url'] != false,
+        includeDisplayUrl: args['include_display_url'] as bool?,
         style: McpImageResponseService.styleForClient(request.clientLabel),
       );
       // 记的是 prepare 之后的结果：外部客户端收到的是原图，不是工具原始返回的缩略图。

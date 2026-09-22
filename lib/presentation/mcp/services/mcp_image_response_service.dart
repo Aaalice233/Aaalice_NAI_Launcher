@@ -100,7 +100,7 @@ class McpImageResponseService {
     AgentToolResult result, {
     AbortSignal? signal,
     bool? includeDisplayFile,
-    bool includeDisplayUrl = true,
+    bool? includeDisplayUrl,
     McpImageDisplayStyle style = McpImageDisplayStyle.inlineUrl,
   }) async {
     if (result.isError ||
@@ -123,16 +123,15 @@ class McpImageResponseService {
       final includeImages = imageTools.contains(toolName);
       final generated =
           toolName == 'generate_image' || toolName == 'submit_generation';
-      // 链接样式的客户端无法内联图片，两种展示引用都要备好：HTTP 一小时过期，
+      // 链接样式的客户端无法内联图片，默认两种展示引用都备好：HTTP 一小时过期，
       // 显示缓存文件留得更久。
-      final wantsLink = style == McpImageDisplayStyle.link;
+      final fileByDefault =
+          style == McpImageDisplayStyle.inlineFile ||
+          style == McpImageDisplayStyle.link;
       final prepareDisplay = generated || toolName == 'display_images';
       final needsDisplayFile =
-          prepareDisplay &&
-          ((includeDisplayFile ?? style == McpImageDisplayStyle.inlineFile) ||
-              wantsLink);
-      final needsDisplayUrl =
-          prepareDisplay && (includeDisplayUrl || wantsLink);
+          prepareDisplay && (includeDisplayFile ?? fileByDefault);
+      final needsDisplayUrl = prepareDisplay && (includeDisplayUrl ?? true);
       final images = <Map<String, dynamic>>[];
       final content = <ToolResultImageContent>[];
       for (final entry in entries) {
