@@ -12,6 +12,13 @@ class PromptTokenParser {
     r'^artist:',
     caseSensitive: false,
   );
+  static final RegExp _lineBreak = RegExp(r'[\r\n]');
+  static final RegExp _tagSeparator = RegExp(r'[,\n]');
+  static final RegExp _tagSeparatorWithSpaces = RegExp(r'[,\n\s]+');
+  static final RegExp _syntaxSuffix = RegExp(
+    r'^(?::\s*-?\d+(?:\.\d+)?)?[\}\]\)]*',
+  );
+  static final RegExp _leadingComma = RegExp(r'^\s*,\s*');
 
   static CompletionQuery parse({
     required String text,
@@ -45,7 +52,7 @@ class PromptTokenParser {
     if (isTypingAlias) {
       var replacementEnd = cursor;
       final closingBracket = text.indexOf('>', cursor);
-      final nextLineBreak = text.indexOf(RegExp(r'[\r\n]'), cursor);
+      final nextLineBreak = text.indexOf(_lineBreak, cursor);
       if (closingBracket >= 0 &&
           (nextLineBreak < 0 || closingBracket < nextLineBreak)) {
         replacementEnd = closingBracket + 1;
@@ -151,7 +158,7 @@ class PromptTokenParser {
           .trimRight();
       if (!before.endsWith(',')) return null;
       final withoutComma = before.substring(0, before.length - 1);
-      final previous = withoutComma.split(RegExp(r'[,\n]')).last;
+      final previous = withoutComma.split(_tagSeparator).last;
       final normalized = _normalizeExistingTag(previous);
       if (normalized.length < 2) return null;
       return parsed.copyWith(relatedTag: normalized);
@@ -324,11 +331,11 @@ class PromptTokenParser {
       final syntaxEnd = negativeBlock == null
           ? after.length
           : (negativeBlock.contentRange.end - range.end).clamp(0, after.length);
-      final syntaxSuffix = RegExp(
-        r'^(?::\s*-?\d+(?:\.\d+)?)?[\}\]\)]*',
-      ).firstMatch(after.substring(0, syntaxEnd))!.group(0)!;
+      final syntaxSuffix = _syntaxSuffix
+          .firstMatch(after.substring(0, syntaxEnd))!
+          .group(0)!;
       final contentAfterSyntax = after.substring(syntaxSuffix.length);
-      final existingComma = RegExp(r'^\s*,\s*').firstMatch(contentAfterSyntax);
+      final existingComma = _leadingComma.firstMatch(contentAfterSyntax);
       if (existingComma == null) {
         insertion = '$insertion$syntaxSuffix, ';
         after = contentAfterSyntax;
@@ -349,7 +356,7 @@ class PromptTokenParser {
   ) {
     List<String> tags(String text) {
       final parsed = CharacterPromptBlockParser.parse(text);
-      final separator = splitOnSpaces ? RegExp(r'[,\n\s]+') : RegExp(r'[,\n]');
+      final separator = splitOnSpaces ? _tagSeparatorWithSpaces : _tagSeparator;
       return _semanticText(parsed)
           .split(separator)
           .map(_normalizeExistingTag)
@@ -387,7 +394,7 @@ class PromptTokenParser {
     required bool splitOnSpaces,
   }) {
     final tags = <String>{};
-    final separator = splitOnSpaces ? RegExp(r'[,\n\s]+') : RegExp(r'[,\n]');
+    final separator = splitOnSpaces ? _tagSeparatorWithSpaces : _tagSeparator;
     for (final segment in _semanticText(parsed).split(separator)) {
       final normalized = _normalizeExistingTag(segment);
       if (normalized.isNotEmpty && normalized != token) tags.add(normalized);

@@ -70,6 +70,15 @@ class TagTranslationLookup extends ChangeNotifier {
   final Map<String, Future<Map<String, String?>>> _inFlight = {};
   bool _disposed = false;
 
+  static final RegExp _tagBoundary = RegExp(r'(?<=[,，\r\n])|(?=[,，\r\n])');
+  static final RegExp _tagSeparatorOnly = RegExp(r'^[,，\r\n]+$');
+  static final RegExp _numericWeight = RegExp(
+    r'^[+-]?(?:\d+(?:\.\d+)?|\.\d+)::([\s\S]*?)(?:::)?$',
+  );
+  static final RegExp _trailingWeightSeparator = RegExp(r'::$');
+  static final RegExp _unescapedParenthesis = RegExp(r'(^|[^_])\(');
+  static final RegExp _pluralCandidate = RegExp(r'^[a-z][a-z0-9_]*s$');
+
   String? cachedTranslation(String tag) => _cache[normalizeTag(tag)];
 
   /// Explicit assistant results refresh mounted captions and subsequent lookups.
@@ -210,7 +219,7 @@ class TagTranslationLookup extends ChangeNotifier {
   static List<String> extractTagKeys(String source) {
     if (source.isEmpty) return const [];
     return source
-        .split(RegExp(r'(?<=[,，\r\n])|(?=[,，\r\n])'))
+        .split(_tagBoundary)
         .where((part) => !_isTagSeparator(part))
         .map(_TranslatableTagSlice.parse)
         .map((slice) => slice.lookupKey)
@@ -242,7 +251,7 @@ class TagTranslationLookup extends ChangeNotifier {
     }
 
     final tagKeys = source
-        .split(RegExp(r'(?<=[,，\r\n])|(?=[,，\r\n])'))
+        .split(_tagBoundary)
         .where((part) => !_isTagSeparator(part))
         .map(_TranslatableTagSlice.parse)
         .map((slice) => slice.lookupKey)
@@ -270,7 +279,7 @@ class TagTranslationLookup extends ChangeNotifier {
     if (source.isEmpty || translations.isEmpty) {
       return TagTextTranslation(text: source, translatedTagCount: 0);
     }
-    final parts = source.split(RegExp(r'(?<=[,，\r\n])|(?=[,，\r\n])'));
+    final parts = source.split(_tagBoundary);
     final slices = parts
         .where((part) => !_isTagSeparator(part))
         .map(_TranslatableTagSlice.parse)
@@ -295,15 +304,13 @@ class TagTranslationLookup extends ChangeNotifier {
 
   static String normalizeTag(String tag) {
     var value = TagNormalizer.stripWeightPrefix(tag.trim()).trim();
-    final weighted = RegExp(
-      r'^[+-]?(?:\d+(?:\.\d+)?|\.\d+)::([\s\S]*?)(?:::)?$',
-    ).firstMatch(value);
+    final weighted = _numericWeight.firstMatch(value);
     if (weighted != null) value = weighted.group(1)?.trim() ?? value;
     const pairs = {'{': '}', '[': ']', '(': ')'};
     while (value.length >= 2 && pairs[value[0]] == value[value.length - 1]) {
       value = value.substring(1, value.length - 1).trim();
     }
-    value = value.replaceFirst(RegExp(r'::$'), '').trim();
+    value = value.replaceFirst(_trailingWeightSeparator, '').trim();
     return TagNormalizer.normalize(value.replaceAll(r'\_', '_'));
   }
 
@@ -322,7 +329,7 @@ class TagTranslationLookup extends ChangeNotifier {
       candidates.add(withoutWildcard.replaceAll('-', '_'));
       candidates.add(
         withoutWildcard.replaceAllMapped(
-          RegExp(r'(^|[^_])\('),
+          _unescapedParenthesis,
           (match) => '${match.group(1)}_(',
         ),
       );
@@ -335,7 +342,7 @@ class TagTranslationLookup extends ChangeNotifier {
     for (final candidate in candidates.toList(growable: false)) {
       if (candidate.length > 4 &&
           candidate.endsWith('s') &&
-          RegExp(r'^[a-z][a-z0-9_]*s$').hasMatch(candidate)) {
+          _pluralCandidate.hasMatch(candidate)) {
         candidates.add(candidate.substring(0, candidate.length - 1));
       }
     }
@@ -343,7 +350,7 @@ class TagTranslationLookup extends ChangeNotifier {
   }
 
   static bool _isTagSeparator(String value) =>
-      value.isNotEmpty && RegExp(r'^[,，\r\n]+$').hasMatch(value);
+      value.isNotEmpty && _tagSeparatorOnly.hasMatch(value);
 }
 
 class _TranslatableTagSlice {

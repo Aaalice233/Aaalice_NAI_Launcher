@@ -51,6 +51,8 @@ class ZhDictionaryService extends ChangeNotifier
   ZhDictionarySource? _pendingUpdateSource;
   Future<void>? _initialization;
 
+  static final RegExp _lowercaseLetters = RegExp(r'^[a-z]+$');
+
   ZhDictionaryDownloader get _downloader => ZhDictionaryDownloader(dio: _dio);
 
   ZhDictionaryState get state => _state;
@@ -287,7 +289,7 @@ class ZhDictionaryService extends ChangeNotifier
       final tag = _normalize(source);
       if (tag.length < 5 ||
           tag.length > 12 ||
-          !RegExp(r'^[a-z]+$').hasMatch(tag)) {
+          !_lowercaseLetters.hasMatch(tag)) {
         continue;
       }
       final prefix = tag.substring(0, 2);
