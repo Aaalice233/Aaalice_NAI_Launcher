@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'dart:typed_data';
 
+import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:path/path.dart' as p;
 
 import '../../../core/agent/harness/harness_types.dart';
@@ -243,19 +244,34 @@ final class GeneratedImageExportWriter {
     return expected.contains(extension);
   }
 
-  static Future<void> _writeExclusive(
+  /// Lets tests swap the destination between the exclusive create and the open.
+  @visibleForTesting
+  static Future<void> writeExclusiveWithSwap(
     String path,
     Uint8List bytes,
     String canonicalParent,
-  ) async {
+    Future<void> Function() swap,
+  ) => _writeExclusive(path, bytes, canonicalParent, afterCreate: swap);
+
+  static Future<void> _writeExclusive(
+    String path,
+    Uint8List bytes,
+    String canonicalParent, {
+    Future<void> Function()? afterCreate,
+  }) async {
     final file = File(path);
+    await file.create(exclusive: true);
+    if (afterCreate != null) await afterCreate();
+
     RandomAccessFile? output;
-    String? openedPath;
+    var ownsDestination = false;
     try {
-      await file.create(exclusive: true);
-      output = await file.open(mode: FileMode.writeOnly);
-      openedPath = await file.resolveSymbolicLinks();
-      if (!p.equals(p.dirname(openedPath), canonicalParent)) {
+      // Appending never truncates, so a swapped destination stays intact.
+      output = await file.open(mode: FileMode.writeOnlyAppend);
+      ownsDestination =
+          await output.length() == 0 && !await FileSystemEntity.isLink(path);
+      final openedParent = p.dirname(await file.resolveSymbolicLinks());
+      if (!ownsDestination || !p.equals(openedParent, canonicalParent)) {
         throw const _UnsafeDestinationChanged();
       }
       await output.writeFrom(bytes);
@@ -263,16 +279,21 @@ final class GeneratedImageExportWriter {
     } on Object {
       await output?.close();
       output = null;
-      if (openedPath != null) {
-        try {
-          await File(openedPath).delete();
-        } on Object {
-          // Preserve the original write or boundary failure.
-        }
-      }
+      if (ownsDestination) await _deleteOwnCreation(path);
       rethrow;
     } finally {
       await output?.close();
+    }
+  }
+
+  /// Only an empty unlinked file can still be the one created here.
+  static Future<void> _deleteOwnCreation(String path) async {
+    try {
+      if (await FileSystemEntity.isLink(path)) return;
+      if (!await FileSystemEntity.isFile(path)) return;
+      await File(path).delete();
+    } on Object {
+      // Preserve the original write or boundary failure.
     }
   }
 }

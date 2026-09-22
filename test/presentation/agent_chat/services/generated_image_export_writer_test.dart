@@ -188,6 +188,103 @@ void main() {
     expect(await File(prepared.writePath).exists(), isFalse);
   });
 
+  test('write refuses a destination holding data when it is opened', () async {
+    final writer = _writer(
+      workspace,
+      exclusiveWriter: _swapping(
+        (path) => File(path).writeAsString('user data'),
+      ),
+    );
+    final target = (await writer.prepareTarget(
+      'result.png',
+      mimeType: 'image/png',
+    )).valueOrNull!;
+
+    final failure = await writer.write(target, _bytes);
+
+    expect(failure?.kind, GeneratedImageExportFailureKind.unsafeChange);
+    expect(await File(target.writePath).readAsString(), 'user data');
+  });
+
+  test(
+    'write refuses a destination swapped for a link to another file',
+    () async {
+      final victim = File(p.join(workspace.path, 'victim.png'));
+      await victim.writeAsString('user data');
+      final writer = _writer(
+        workspace,
+        exclusiveWriter: _swapping((path) async {
+          await File(path).delete();
+          await Link(path).create(victim.path);
+        }),
+      );
+      final target = (await writer.prepareTarget(
+        'result.png',
+        mimeType: 'image/png',
+      )).valueOrNull!;
+
+      final failure = await writer.write(target, _bytes);
+
+      expect(failure?.kind, GeneratedImageExportFailureKind.unsafeChange);
+      expect(await victim.readAsString(), 'user data');
+      expect(await FileSystemEntity.isLink(target.writePath), isTrue);
+    },
+    skip: _symbolicLinkSkip,
+  );
+
+  test('write refuses a link swapped in over an empty file', () async {
+    final victim = File(p.join(workspace.path, 'victim.png'));
+    await victim.create();
+    final writer = _writer(
+      workspace,
+      exclusiveWriter: _swapping((path) async {
+        await File(path).delete();
+        await Link(path).create(victim.path);
+      }),
+    );
+    final target = (await writer.prepareTarget(
+      'result.png',
+      mimeType: 'image/png',
+    )).valueOrNull!;
+
+    final failure = await writer.write(target, _bytes);
+
+    expect(failure?.kind, GeneratedImageExportFailureKind.unsafeChange);
+    expect(await victim.exists(), isTrue);
+    expect(await victim.length(), 0);
+  }, skip: _symbolicLinkSkip);
+
+  test(
+    'write never deletes the file a swapped link resolves to',
+    () async {
+      final elsewhere = await Directory.systemTemp.createTemp(
+        'image-export-victim-',
+      );
+      addTearDown(() async {
+        if (await elsewhere.exists()) await elsewhere.delete(recursive: true);
+      });
+      final victim = File(p.join(elsewhere.path, 'victim.png'));
+      await victim.writeAsString('user data');
+      final writer = _writer(
+        workspace,
+        exclusiveWriter: _swapping((path) async {
+          await File(path).delete();
+          await Link(path).create(victim.path);
+        }),
+      );
+      final target = (await writer.prepareTarget(
+        'result.png',
+        mimeType: 'image/png',
+      )).valueOrNull!;
+
+      final failure = await writer.write(target, _bytes);
+
+      expect(failure?.kind, GeneratedImageExportFailureKind.unsafeChange);
+      expect(await victim.readAsString(), 'user data');
+    },
+    skip: _symbolicLinkSkip,
+  );
+
   test('write maps a destination created after preparation', () async {
     final occupied = File(p.join(workspace.path, 'raced.png'));
     final writer = _writer(
@@ -277,6 +374,35 @@ GeneratedImageExportWriter _writer(
   env: DartIoExecutionEnv(workingDirectory: workspace.path),
   exclusiveWriter: exclusiveWriter,
 );
+
+ResourceImageExclusiveWriter _swapping(
+  Future<void> Function(String path) swap,
+) =>
+    (path, bytes, canonicalParent) =>
+        GeneratedImageExportWriter.writeExclusiveWithSwap(
+          path,
+          bytes,
+          canonicalParent,
+          () => swap(path),
+        );
+
+final Object? _symbolicLinkSkip = _supportsSymbolicLinks()
+    ? null
+    : 'creating symbolic links requires elevated permissions';
+
+bool _supportsSymbolicLinks() {
+  final probe = Directory.systemTemp.createTempSync('image-export-link-probe-');
+  try {
+    final target = File(p.join(probe.path, 'target'))
+      ..writeAsStringSync('probe');
+    Link(p.join(probe.path, 'link')).createSync(target.path);
+    return true;
+  } on FileSystemException {
+    return false;
+  } finally {
+    probe.deleteSync(recursive: true);
+  }
+}
 
 final class _ExistsFailureEnv extends DartIoExecutionEnv {
   _ExistsFailureEnv({required super.workingDirectory});
