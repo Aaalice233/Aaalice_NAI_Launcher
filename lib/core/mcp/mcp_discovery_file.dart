@@ -97,32 +97,39 @@ class McpDiscoveryDocument {
   }
 }
 
+/// Restricts `path` to its owner. Injected so the failure branch stays
+/// reachable on platforms without `chmod`.
+typedef McpDiscoveryPermissionGuard =
+    Future<void> Function(String path, String mode);
+
 /// Atomically publishes and removes the discovery file. It lives in the
 /// per-user profile and therefore shares the trust boundary of the app's own
 /// storage.
 class McpDiscoveryFileStore {
-  McpDiscoveryFileStore({Directory? directory})
-    : directory = directory ?? resolveLauncherDiscoveryDirectory();
+  McpDiscoveryFileStore({
+    Directory? directory,
+    McpDiscoveryPermissionGuard? restrictToOwner,
+  }) : directory = directory ?? resolveLauncherDiscoveryDirectory(),
+       _restrictToOwner = restrictToOwner ?? _chmod;
 
   final Directory directory;
+  final McpDiscoveryPermissionGuard _restrictToOwner;
 
   File get file =>
       File(p.join(directory.path, McpServerDefaults.discoveryFileName));
 
   Future<void> write(McpDiscoveryDocument document) async {
     await directory.create(recursive: true);
+    await _restrictToOwner(directory.path, '700');
     final target = file;
     final temp = File(
       '${target.path}.${DateTime.now().microsecondsSinceEpoch}.tmp',
     );
+    await temp.create(exclusive: true);
     try {
+      await _restrictToOwner(temp.path, '600');
       await temp.writeAsString(jsonEncode(document.toJson()), flush: true);
-      if (!Platform.isWindows) {
-        await Process.run('chmod', ['600', temp.path]);
-      }
-      if (await target.exists()) {
-        await target.delete();
-      }
+      // rename replaces the target; unlinking first opens a "not running" gap.
       await temp.rename(target.path);
     } catch (_) {
       await _discardTemp(temp);
@@ -148,6 +155,20 @@ class McpDiscoveryFileStore {
     final target = file;
     if (await target.exists()) {
       await target.delete();
+    }
+  }
+
+  // The Windows profile directory already carries per-user ACLs.
+  static Future<void> _chmod(String path, String mode) async {
+    if (Platform.isWindows) {
+      return;
+    }
+    final result = await Process.run('chmod', [mode, path]);
+    if (result.exitCode != 0) {
+      throw FileSystemException(
+        'chmod $mode failed with exit code ${result.exitCode}',
+        path,
+      );
     }
   }
 

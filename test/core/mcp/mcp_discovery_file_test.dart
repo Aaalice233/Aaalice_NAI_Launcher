@@ -79,6 +79,76 @@ void main() {
     expect(entries.where((entity) => entity.path.endsWith('.tmp')), isEmpty);
   });
 
+  test('write restricts the directory and temp file to the owner', () async {
+    final calls = <({String path, String mode, int size})>[];
+    final guarded = McpDiscoveryFileStore(
+      directory: tempDir,
+      restrictToOwner: (path, mode) async {
+        final candidate = File(path);
+        calls.add((
+          path: path,
+          mode: mode,
+          size: candidate.existsSync() ? candidate.lengthSync() : -1,
+        ));
+      },
+    );
+
+    await guarded.write(document());
+
+    expect(calls, hasLength(2));
+    expect(calls.first.path, tempDir.path);
+    expect(calls.first.mode, '700');
+    expect(calls.last.path, endsWith('.tmp'));
+    expect(calls.last.mode, '600');
+    // The token must not reach the disk before the file is owner-only.
+    expect(calls.last.size, 0);
+    expect((await guarded.read())!.token, 'discovery-token');
+  });
+
+  test('a refused permission change keeps the published file', () async {
+    await store.write(document());
+    final published = await store.file.readAsString();
+
+    final guarded = McpDiscoveryFileStore(
+      directory: tempDir,
+      restrictToOwner: (path, mode) async {
+        if (mode == '600') {
+          throw const FileSystemException('permission change refused');
+        }
+      },
+    );
+
+    await expectLater(
+      guarded.write(document(port: 14020)),
+      throwsA(isA<FileSystemException>()),
+    );
+
+    expect(await store.file.readAsString(), published);
+    expect(
+      tempDir.listSync().where((entity) => entity.path.endsWith('.tmp')),
+      isEmpty,
+    );
+  });
+
+  test('publishing renames onto the target instead of unlinking it', () {
+    final source = File(
+      'lib/core/mcp/mcp_discovery_file.dart',
+    ).readAsStringSync();
+    final writeStart = source.indexOf(
+      'Future<void> write(McpDiscoveryDocument',
+    );
+    final readStart = source.indexOf(
+      'Future<McpDiscoveryDocument?> read()',
+      writeStart,
+    );
+    expect(writeStart, greaterThanOrEqualTo(0));
+    expect(readStart, greaterThan(writeStart));
+
+    final publish = source.substring(writeStart, readStart);
+    expect(publish, contains('temp.rename(target.path)'));
+    expect(publish, isNot(contains('target.delete()')));
+  });
+
   test('reading a missing file returns null', () async {
     expect(await store.read(), isNull);
   });
