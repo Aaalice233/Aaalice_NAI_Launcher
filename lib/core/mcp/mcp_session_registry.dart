@@ -16,6 +16,17 @@ typedef McpLauncherServerFactory =
       McpSession session,
     );
 
+/// Every session slot is held by a session that is still running a tool call,
+/// so no slot can be freed for a new client.
+class McpSessionCapacityException implements Exception {
+  const McpSessionCapacityException(this.maxSessions);
+
+  final int maxSessions;
+
+  @override
+  String toString() => 'McpSessionCapacityException(maxSessions: $maxSessions)';
+}
+
 /// Immutable view of one connected client, for the settings UI.
 class McpSessionSummary {
   const McpSessionSummary({
@@ -106,6 +117,10 @@ class McpSession {
   Stream<Map<String, Object?>> get outgoing => _outgoing.stream;
 
   DateTime get lastActivity => _lastActivity;
+
+  /// A tool call can run for far longer than the idle timeout, so the registry
+  /// asks before reclaiming a session.
+  bool get hasInFlightCalls => _inFlight.isNotEmpty;
 
   McpLauncherServer get server => _server!;
 
@@ -230,6 +245,8 @@ class McpSessionRegistry {
 
   int get length => _sessions.length;
 
+  /// Throws [McpSessionCapacityException] when every slot is held by a session
+  /// whose tool call is still running.
   McpSession create() {
     if (_sessions.length >= maxSessions) {
       _evictIdlest();
@@ -275,7 +292,11 @@ class McpSessionRegistry {
   int sweepIdle() {
     final now = _clock();
     final expired = _sessions.values
-        .where((session) => now.difference(session.lastActivity) >= idleTimeout)
+        .where(
+          (session) =>
+              !session.hasInFlightCalls &&
+              now.difference(session.lastActivity) >= idleTimeout,
+        )
         .toList(growable: false);
     if (expired.isEmpty) {
       return 0;
@@ -294,7 +315,13 @@ class McpSessionRegistry {
   }
 
   void _evictIdlest() {
-    final idlest = _sessions.values.reduce(
+    final reclaimable = _sessions.values.where(
+      (session) => !session.hasInFlightCalls,
+    );
+    if (reclaimable.isEmpty) {
+      throw McpSessionCapacityException(maxSessions);
+    }
+    final idlest = reclaimable.reduce(
       (a, b) => a.lastActivity.isAfter(b.lastActivity) ? b : a,
     );
     _sessions.remove(idlest.id);

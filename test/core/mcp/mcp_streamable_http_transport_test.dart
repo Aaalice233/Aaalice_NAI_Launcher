@@ -29,6 +29,7 @@ void main() {
   Future<void> startServer({
     int maxBodyBytes = McpServerDefaults.maxBodyBytes,
     Duration keepAliveInterval = McpServerDefaults.keepAliveInterval,
+    int maxSessions = McpServerDefaults.maxSessions,
   }) async {
     httpServer = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
     registry = McpSessionRegistry(
@@ -40,6 +41,7 @@ void main() {
         signalFor: session.signalFor,
         onClientInfo: session.attachClientInfo,
       ),
+      maxSessions: maxSessions,
     );
     transport = McpStreamableHttpTransport(
       sessions: registry,
@@ -385,6 +387,37 @@ void main() {
         'method': 'tools/list',
       });
       expect(stillWorks.statusCode, HttpStatus.ok);
+    });
+
+    test('initialize is refused while every session is busy', () async {
+      await httpServer.close(force: true);
+      await registry.dispose();
+      await startServer(maxSessions: 1);
+      final second = McpHttpTestClient(endpoint: endpoint, token: _token);
+      addTearDown(second.close);
+      await client.initialize();
+
+      final pending = client.callTool('generate_image', id: 14);
+      await slowToolStarted.future;
+
+      final refused = await second.post({
+        'jsonrpc': '2.0',
+        'id': 1,
+        'method': 'initialize',
+        'params': {
+          'protocolVersion': '2025-11-25',
+          'capabilities': <String, Object?>{},
+          'clientInfo': {'name': 'codex', 'version': '0.9.1'},
+        },
+      }, sendSession: false);
+
+      expect(refused.statusCode, HttpStatus.serviceUnavailable);
+      expect((refused.json['error'] as Map)['code'], -32003);
+      expect(refused.json['id'], 1);
+      expect(registry.length, 1);
+
+      slowToolRelease.complete();
+      expect((await pending).json['id'], 14);
     });
   });
 

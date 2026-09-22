@@ -31,6 +31,7 @@ class McpStreamableHttpTransport {
   static const int _invalidRequestCode = -32600;
   static const int _sessionNotFoundCode = -32001;
   static const int _sessionClosedCode = -32002;
+  static const int _sessionsBusyCode = -32003;
   static const Set<String> _loopbackHosts = {
     '127.0.0.1',
     'localhost',
@@ -184,11 +185,22 @@ class McpStreamableHttpTransport {
       );
     }
 
-    final session = _resolveSession(
-      request,
-      method: method,
-      isRequest: isRequest,
-    );
+    final McpSession? session;
+    try {
+      session = _resolveSession(request, method: method, isRequest: isRequest);
+    } on McpSessionCapacityException catch (error) {
+      PortableLogger.w(
+        'Refused a new session: all ${error.maxSessions} are busy',
+        _logTag,
+      );
+      return _writeJsonRpcError(
+        response,
+        status: HttpStatus.serviceUnavailable,
+        id: id,
+        code: _sessionsBusyCode,
+        message: 'Every session is busy running a tool call',
+      );
+    }
     if (session == null) {
       return _writeJsonRpcError(
         response,

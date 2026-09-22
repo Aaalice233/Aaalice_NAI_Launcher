@@ -206,16 +206,40 @@ void main() {
     expect(registry.sweepIdle(), 0);
   });
 
-  test('sweepIdle aborts the calls of the sessions it closes', () async {
+  test('sweepIdle stops the servers of the sessions it closes', () async {
+    final registry = buildRegistry(idleTimeout: const Duration(minutes: 5));
+    final session = registry.create();
+    now = now.add(const Duration(minutes: 6));
+
+    expect(registry.sweepIdle(), 1);
+    await Future<void>.delayed(Duration.zero);
+    expect(session.server.isActive, isFalse);
+  });
+
+  test('sweepIdle keeps a session whose call is still running', () async {
     final registry = buildRegistry(idleTimeout: const Duration(minutes: 5));
     final session = registry.create();
     final signal = session.signalFor('call-1');
     now = now.add(const Duration(minutes: 6));
 
+    expect(registry.sweepIdle(), 0);
+    expect(registry.find(session.id), same(session));
+    expect(signal.aborted, isFalse);
+
+    session.endCall('call-1');
     expect(registry.sweepIdle(), 1);
-    await Future<void>.delayed(Duration.zero);
-    expect(signal.aborted, isTrue);
-    expect(signal.reason, 'session idle');
+  });
+
+  test('sweepIdle closes the idle neighbours of a busy session', () async {
+    final registry = buildRegistry(idleTimeout: const Duration(minutes: 5));
+    final busy = registry.create();
+    busy.signalFor('call-1');
+    final idle = registry.create();
+    now = now.add(const Duration(minutes: 6));
+
+    expect(registry.sweepIdle(), 1);
+    expect(registry.find(busy.id), same(busy));
+    expect(registry.find(idle.id), isNull);
   });
 
   test('reaching maxSessions evicts the idlest session', () async {
@@ -232,6 +256,40 @@ void main() {
     expect(registry.find(second.id), isNull);
     expect(registry.find(first.id), same(first));
     expect(registry.find(third.id), same(third));
+  });
+
+  test('a busy session is never the one evicted', () async {
+    final registry = buildRegistry(maxSessions: 2);
+    final busy = registry.create();
+    final busySignal = busy.signalFor('call-1');
+    now = now.add(const Duration(minutes: 1));
+    final idle = registry.create();
+
+    final third = registry.create();
+
+    expect(registry.length, 2);
+    expect(registry.find(idle.id), isNull);
+    expect(registry.find(busy.id), same(busy));
+    expect(registry.find(third.id), same(third));
+    expect(busySignal.aborted, isFalse);
+  });
+
+  test('create is refused while every session is busy', () async {
+    final registry = buildRegistry(maxSessions: 2);
+    final first = registry.create();
+    final firstSignal = first.signalFor('call-1');
+    final second = registry.create();
+    final secondSignal = second.signalFor('call-2');
+
+    expect(
+      () => registry.create(),
+      throwsA(isA<McpSessionCapacityException>()),
+    );
+    expect(registry.length, 2);
+    expect(registry.find(first.id), same(first));
+    expect(registry.find(second.id), same(second));
+    expect(firstSignal.aborted, isFalse);
+    expect(secondSignal.aborted, isFalse);
   });
 
   test('closeAll empties the registry and stops every server', () async {
