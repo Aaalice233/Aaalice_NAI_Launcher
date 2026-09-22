@@ -3,14 +3,14 @@ import 'dart:convert';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import '../../core/constants/storage_keys.dart';
-import '../../core/database/providers/database_state_providers.dart';
-import '../../core/database/services/services.dart';
-import '../../core/database/services/service_providers.dart';
-import '../../core/database/state/database_state.dart';
-import '../../core/services/danbooru_tags_lazy_service.dart';
-import '../../core/utils/app_logger.dart';
-import '../../data/models/cache/data_source_cache_meta.dart';
+import '../../constants/storage_keys.dart';
+import 'database_state_providers.dart';
+import '../services/services.dart';
+import '../services/service_providers.dart';
+import '../state/database_state.dart';
+import '../../services/danbooru_tags_lazy_service.dart';
+import '../../utils/app_logger.dart';
+import '../../../data/models/cache/data_source_cache_meta.dart';
 
 part 'data_source_cache_provider.g.dart';
 

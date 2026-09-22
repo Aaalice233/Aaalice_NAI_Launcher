@@ -14,7 +14,7 @@ import 'package:nai_launcher/core/platform/platform_capabilities.dart';
 import 'package:nai_launcher/core/storage/local_storage_service.dart';
 import 'package:nai_launcher/data/services/local_onnx_model_service.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
-import 'package:nai_launcher/presentation/providers/data_source_cache_provider.dart';
+import 'package:nai_launcher/core/database/providers/data_source_cache_provider.dart';
 import 'package:nai_launcher/presentation/screens/settings/sections/storage_settings_section.dart';
 import 'package:nai_launcher/presentation/screens/settings/widgets/cache_statistics_tile.dart';
 import 'package:nai_launcher/presentation/screens/settings/widgets/data_source_cache_settings.dart';
