@@ -21,6 +21,5 @@ export 'charts/weekday_bar_chart.dart';
 export 'charts/aspect_ratio_chart.dart';
 
 // Card widgets exports
-export 'cards/stat_card.dart';
 export 'cards/chart_card.dart';
 export 'cards/metric_card.dart';

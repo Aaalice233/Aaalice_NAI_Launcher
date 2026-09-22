@@ -40,8 +40,6 @@ const cloudSyncSelectableDataKinds = <CloudSyncDataKind>{
   CloudSyncDataKind.galleries,
 };
 
-enum CloudSyncChangeKind { added, modified, deleted }
-
 @immutable
 class CloudSyncChangeSummary {
   const CloudSyncChangeSummary({

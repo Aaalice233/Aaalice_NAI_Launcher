@@ -260,14 +260,6 @@ class ShortcutCallbackIntent extends AppShortcutIntent {
   const ShortcutCallbackIntent(this.callback);
 }
 
-/// 通用回调Action
-class ShortcutCallbackAction extends Action<ShortcutCallbackIntent> {
-  @override
-  void invoke(ShortcutCallbackIntent intent) {
-    intent.callback();
-  }
-}
-
 /// Vibe库导入Intent
 /// 触发Vibe导入对话框或流程
 class VibeImportIntent extends AppShortcutIntent {

@@ -345,26 +345,3 @@ Future<ConnectionLease> acquireLease({
     operationId: operationId,
   );
 }
-
-/// 便捷函数：使用连接租借执行操作
-///
-/// [operation] 数据库操作
-/// [operationId] 操作标识
-/// [timeout] 操作超时时间
-Future<T> withLease<T>(
-  Future<T> Function(Database db) operation, {
-  String? operationId,
-  Duration acquireTimeout = const Duration(seconds: 5),
-  Duration operationTimeout = const Duration(seconds: 30),
-}) async {
-  final lease = await acquireLease(
-    operationId: operationId,
-    timeout: acquireTimeout,
-  );
-
-  try {
-    return await lease.execute(operation).timeout(operationTimeout);
-  } finally {
-    await lease.dispose();
-  }
-}
