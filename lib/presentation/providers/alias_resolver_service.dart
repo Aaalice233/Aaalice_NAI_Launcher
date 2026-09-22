@@ -3,8 +3,8 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 import '../../core/utils/alias_parser.dart';
 import '../../core/utils/app_logger.dart';
 import '../../core/utils/prompt_edit_document.dart';
-import '../../presentation/providers/tag_library_page_provider.dart';
-import '../models/tag_library/tag_library_entry.dart';
+import 'tag_library_page_provider.dart';
+import '../../data/models/tag_library/tag_library_entry.dart';
 
 part 'alias_resolver_service.g.dart';
 

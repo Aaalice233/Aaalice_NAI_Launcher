@@ -20,7 +20,7 @@ import '../../../../core/utils/file_explorer_utils.dart';
 import '../../../../core/utils/image_save_utils.dart';
 import '../../../../core/utils/image_share_sanitizer.dart';
 import '../../../../core/utils/vibe_file_parser.dart';
-import '../../../../data/services/alias_resolver_service.dart';
+import '../../../providers/alias_resolver_service.dart';
 import '../../../adaptive/interaction_policy.dart';
 import '../../../providers/layout_state_provider.dart';
 import '../../../providers/tag_library_page_provider.dart';

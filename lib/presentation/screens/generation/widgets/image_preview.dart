@@ -32,7 +32,7 @@ import '../../../../data/models/gallery/nai_image_metadata.dart';
 import '../../../../data/models/fixed_tag/fixed_tag_usage_snapshot.dart';
 import '../../../../data/models/image/image_stream_chunk.dart';
 import '../../../../data/repositories/gallery_folder_repository.dart';
-import '../../../../data/services/alias_resolver_service.dart';
+import '../../../providers/alias_resolver_service.dart';
 import '../../../../data/services/image_metadata_service.dart';
 import '../../../adaptive/window_size_class.dart';
 import '../../../providers/generation/generation_error_classifier.dart';

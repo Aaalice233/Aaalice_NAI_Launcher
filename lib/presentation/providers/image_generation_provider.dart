@@ -28,7 +28,7 @@ import '../../data/models/gallery/nai_image_metadata.dart';
 import '../../data/models/image/image_params.dart';
 import '../../data/models/image/image_stream_chunk.dart';
 import '../../data/repositories/gallery_folder_repository.dart';
-import '../../data/services/alias_resolver_service.dart';
+import 'alias_resolver_service.dart';
 import '../../data/services/statistics_cache_service.dart';
 import '../services/generation_history_storage_service.dart';
 import 'auth_provider.dart';

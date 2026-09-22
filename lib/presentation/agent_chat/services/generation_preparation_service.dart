@@ -10,7 +10,7 @@ import '../../../core/services/character_conversion_service.dart';
 import '../../../core/utils/nai_resolution_adapter.dart';
 import '../../../data/models/fixed_tag/fixed_tag_prompt_type.dart';
 import '../../../data/models/image/image_params.dart';
-import '../../../data/services/alias_resolver_service.dart';
+import '../../providers/alias_resolver_service.dart';
 import '../../providers/character_prompt_provider.dart';
 import '../../providers/fixed_tags_provider.dart';
 import '../../providers/image_generation_provider.dart';

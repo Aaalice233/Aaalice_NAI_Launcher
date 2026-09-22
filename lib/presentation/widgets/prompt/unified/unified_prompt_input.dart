@@ -13,7 +13,7 @@ import '../../../../core/utils/prompt_edit_document.dart';
 import '../../../../core/utils/prompt_regex_replacer.dart';
 import '../../../../core/utils/sd_to_nai_converter.dart';
 import '../../../../data/models/character/character_prompt.dart';
-import '../../../../data/services/alias_resolver_service.dart';
+import '../../../providers/alias_resolver_service.dart';
 import '../../../../presentation/utils/text_selection_utils.dart';
 import '../../../adaptive/interaction_policy.dart';
 import '../../../providers/generation/generation_settings_notifiers.dart';

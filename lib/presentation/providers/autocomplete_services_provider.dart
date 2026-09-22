@@ -4,7 +4,7 @@ import '../../core/autocomplete/autocomplete_providers.dart';
 import '../../core/autocomplete/autocomplete_settings.dart';
 import '../../core/autocomplete/llm_translation_resolver.dart';
 import '../../core/autocomplete/tag_library_completion_source.dart';
-import '../../data/services/alias_resolver_service.dart';
+import 'alias_resolver_service.dart';
 import '../prompt_assistant/services/prompt_assistant_service.dart';
 import '../prompt_assistant/services/prompt_assistant_tag_translation.dart';
 
