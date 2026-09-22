@@ -111,20 +111,6 @@ double medianOfPrefixInPlace(Float64List data, int count) {
   return (prefix[mid - 1] + prefix[mid]) / 2;
 }
 
-/// 返回 `data[offset .. offset+count)` 中最小值的下标（相对 offset）。
-int argMin(Float64List data, int offset, int count) {
-  int best = 0;
-  double bestValue = data[offset];
-  for (int i = 1; i < count; i++) {
-    final double v = data[offset + i];
-    if (v < bestValue) {
-      bestValue = v;
-      best = i;
-    }
-  }
-  return best;
-}
-
 /// `[0, 1)` 上的等距相位序列。
 Float64List phaseGrid(int count) {
   final Float64List out = Float64List(count);

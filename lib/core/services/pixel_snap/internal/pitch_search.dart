@@ -17,8 +17,6 @@ class PitchEvaluation {
   final double pitch;
   final double phaseX;
   final double phaseY;
-
-  bool get isUnavailable => spread >= kSpreadUnavailable;
 }
 
 /// 单个细化间距条目上的最优解。
@@ -88,51 +86,6 @@ class PitchSearch {
     }
 
     return <Float64List>[phaseX, phaseY];
-  }
-
-  /// 间距已定时求两轴相位。
-  List<double> phasesForPitch(
-    double pitchX,
-    double pitchY,
-    int phaseSteps, {
-    int stride = 1,
-  }) {
-    final Float64List phases = phaseGrid(phaseSteps);
-    final Float32List byRow = kernel.spreadRows(
-      buildGridPartition(
-        0,
-        width.toDouble(),
-        <double>[pitchX],
-        <Float64List>[phases],
-        stride,
-      ),
-      buildSinglePhasePartition(
-        0,
-        height.toDouble(),
-        <double>[pitchY],
-        <double>[0.37],
-        stride,
-      ),
-    );
-    final double phaseX = phases[_argMin32(byRow, 0, phaseSteps)];
-
-    final Float32List byCol = kernel.spreadCols(
-      buildGridPartition(
-        0,
-        height.toDouble(),
-        <double>[pitchY],
-        <Float64List>[phases],
-        stride,
-      ),
-      buildSinglePhasePartition(
-        0,
-        width.toDouble(),
-        <double>[pitchX],
-        <double>[phaseX],
-        stride,
-      ),
-    );
-    return <double>[phaseX, phases[_argMin32(byCol, 0, phaseSteps)]];
   }
 
   /// 把候选间距展开成 `[lowFactor, highFactor]` 区间内的细化序列。
