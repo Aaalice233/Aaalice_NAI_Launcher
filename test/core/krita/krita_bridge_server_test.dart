@@ -47,6 +47,128 @@ void main() {
     expect(await file.exists(), isFalse);
   });
 
+  test('start replaces a stale discovery file without leaving temp files',
+      () async {
+    final file =
+        File('${tempDir.path}${Platform.pathSeparator}krita-bridge.json');
+    await file.writeAsString('{"port":4711,"pid":777,"version":1}');
+
+    await server.start(preferredPort: 0);
+
+    final data = jsonDecode(await file.readAsString()) as Map<String, dynamic>;
+    expect(data['pid'], 12345);
+    expect(data['secret'], 'server-secret');
+    expect(
+      await tempDir.list().map((entity) => entity.path).toList(),
+      [file.path],
+    );
+  });
+
+  test('a failed discovery write releases the bound port', () async {
+    final blockedDirectory =
+        Directory('${tempDir.path}${Platform.pathSeparator}blocked');
+    await blockedDirectory.create();
+    await Directory(
+      '${blockedDirectory.path}${Platform.pathSeparator}krita-bridge.json',
+    ).create();
+
+    int? boundPort;
+    late final KritaBridgeServer failing;
+    failing = KritaBridgeServer(
+      discoveryDirectory: blockedDirectory,
+      pidProvider: () {
+        boundPort = failing.port;
+        return 12345;
+      },
+      secretGenerator: () => 'failing-secret',
+      clock: () => DateTime.utc(2026, 5, 7, 10, 30),
+    );
+    addTearDown(failing.stop);
+
+    await expectLater(
+      failing.start(preferredPort: 0),
+      throwsA(isA<FileSystemException>()),
+    );
+
+    final residue =
+        await blockedDirectory.list().map((entity) => entity.path).toList();
+    expect(residue.where((path) => path.endsWith('.tmp')), isEmpty);
+
+    expect(failing.isListening, isFalse);
+    expect(failing.port, isNull);
+    expect(failing.secret, isNull);
+
+    final rebound =
+        await HttpServer.bind(InternetAddress.loopbackIPv4, boundPort!);
+    await rebound.close(force: true);
+  });
+
+  test('a failed start keeps the discovery file of another instance', () async {
+    const foreignContent = '{"port":4711,"pid":777,"version":1,'
+        '"secret":"other-instance","started_at":"2026-05-07T09:00:00.000Z"}';
+    final foreign =
+        File('${tempDir.path}${Platform.pathSeparator}krita-bridge.json');
+    await foreign.writeAsString(foreignContent);
+
+    final failing = KritaBridgeServer(
+      discoveryDirectory: tempDir,
+      pidProvider: () => throw StateError('pid unavailable'),
+      secretGenerator: () => 'failing-secret',
+      clock: () => DateTime.utc(2026, 5, 7, 10, 30),
+    );
+
+    await expectLater(
+      failing.start(preferredPort: 0),
+      throwsA(isA<StateError>()),
+    );
+
+    expect(failing.isListening, isFalse);
+    expect(await foreign.exists(), isTrue);
+    expect(await foreign.readAsString(), foreignContent);
+    expect(
+      await tempDir.list().map((entity) => entity.path).toList(),
+      [foreign.path],
+    );
+  });
+
+  test('start succeeds again on the same port after a failed write', () async {
+    var failWrites = true;
+    int? boundPort;
+    late final KritaBridgeServer flaky;
+    flaky = KritaBridgeServer(
+      discoveryDirectory: tempDir,
+      pidProvider: () {
+        boundPort = flaky.port;
+        if (failWrites) {
+          throw StateError('pid unavailable');
+        }
+        return 12345;
+      },
+      secretGenerator: () => 'flaky-secret',
+      clock: () => DateTime.utc(2026, 5, 7, 10, 30),
+    );
+    addTearDown(flaky.stop);
+
+    await expectLater(
+      flaky.start(preferredPort: 0),
+      throwsA(isA<StateError>()),
+    );
+    await flaky.stop();
+    await flaky.stop();
+
+    failWrites = false;
+    await flaky.start(preferredPort: boundPort!);
+
+    expect(flaky.isListening, isTrue);
+    expect(flaky.port, boundPort);
+    expect(flaky.secret, 'flaky-secret');
+    expect(
+      await File('${tempDir.path}${Platform.pathSeparator}krita-bridge.json')
+          .exists(),
+      isTrue,
+    );
+  });
+
   test('rejects unauthenticated messages and keeps them off message stream',
       () async {
     await server.start(preferredPort: 0);

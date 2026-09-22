@@ -69,18 +69,31 @@ class KritaBridgeServer {
       await stop();
     }
 
-    _secret = _secretGenerator();
-    _startedAt = _clock().toUtc();
-    _server = await HttpServer.bind(
+    final server = await HttpServer.bind(
       InternetAddress.loopbackIPv4,
       preferredPort,
     );
-    unawaited(_acceptRequests(_server!));
-    await _writeDiscoveryFile();
+    _server = server;
+    try {
+      _secret = _secretGenerator();
+      _startedAt = _clock().toUtc();
+      unawaited(_acceptRequests(server));
+      await _writeDiscoveryFile();
+    } catch (_) {
+      // Publishing failed, so the discovery file is not ours to delete.
+      await _releaseListener();
+      rethrow;
+    }
     AppLogger.i('Bridge listening on 127.0.0.1:$port', _logTag);
   }
 
   Future<void> stop() async {
+    await _releaseListener();
+    await _deleteDiscoveryFile();
+    AppLogger.i('Bridge stopped', _logTag);
+  }
+
+  Future<void> _releaseListener() async {
     final client = _client;
     _client = null;
     _clientAuthenticated = false;
@@ -95,16 +108,19 @@ class KritaBridgeServer {
 
     final server = _server;
     _server = null;
+    _secret = null;
+    _startedAt = null;
     if (server != null) {
       await server.close(force: true);
     }
+  }
 
+  Future<void> _deleteDiscoveryFile() async {
     final file = discoveryFile;
     if (await file.exists()) {
       await file.delete();
       AppLogger.i('Discovery file deleted: ${file.path}', _logTag);
     }
-    AppLogger.i('Bridge stopped', _logTag);
   }
 
   Future<void> dispose() async {
@@ -274,12 +290,25 @@ class KritaBridgeServer {
       'started_at': _startedAt?.toIso8601String(),
     };
 
-    await temp.writeAsString(jsonEncode(data), flush: true);
-    if (await target.exists()) {
-      await target.delete();
+    try {
+      await temp.writeAsString(jsonEncode(data), flush: true);
+      // rename replaces the target; an extra delete only blanks it for Krita.
+      await temp.rename(target.path);
+    } catch (_) {
+      await _discardTemp(temp);
+      rethrow;
     }
-    await temp.rename(target.path);
     AppLogger.i('Discovery file written: ${target.path}', _logTag);
+  }
+
+  Future<void> _discardTemp(File temp) async {
+    try {
+      if (await temp.exists()) {
+        await temp.delete();
+      }
+    } on FileSystemException {
+      // Cleanup must not mask the write failure the caller is about to see.
+    }
   }
 
   static Directory _defaultDiscoveryDirectory() =>

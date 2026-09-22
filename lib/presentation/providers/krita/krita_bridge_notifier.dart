@@ -126,9 +126,11 @@ class KritaBridgeNotifier extends StateNotifier<KritaBridgeState> {
     );
 
     final server = _serverFactory();
+    var started = false;
     try {
       AppLogger.i('Enabling Krita bridge', _logTag);
       await server.start(preferredPort: 0);
+      started = true;
       _server = server;
       _service = _serviceFactory?.call(server);
       _service?.setActiveRequestReporter(_setActiveRequest);
@@ -180,7 +182,11 @@ class KritaBridgeNotifier extends StateNotifier<KritaBridgeState> {
       }
       AppLogger.i('Krita bridge enabled on port ${server.port}', _logTag);
     } catch (error) {
-      await server.stop();
+      _server = null;
+      // Stopping a server that never started deletes another owner's file.
+      if (started) {
+        await server.stop();
+      }
       AppLogger.e('Failed to enable Krita bridge', error, null, _logTag);
       if (!mounted) {
         return;
