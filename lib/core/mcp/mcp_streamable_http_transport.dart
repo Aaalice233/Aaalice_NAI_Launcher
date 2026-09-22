@@ -485,11 +485,17 @@ class McpStreamableHttpTransport {
       !message.containsKey('method') &&
       (message.containsKey('result') || message.containsKey('error'));
 
+  // `1` and `"1"` are different JSON-RPC ids, so the tag keeps them apart.
   String _callIdFor(String sessionId, Object? requestId) {
     final prefix = sessionId.length <= 8
         ? sessionId
         : sessionId.substring(0, 8);
-    return '$prefix-$requestId';
+    final tag = switch (requestId) {
+      num() => 'n',
+      String() => 's',
+      _ => 'o',
+    };
+    return '$prefix-$tag$requestId';
   }
 
   Map<String, Object?> _errorBody({

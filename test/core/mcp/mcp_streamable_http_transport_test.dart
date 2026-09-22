@@ -423,9 +423,29 @@ void main() {
       expect(executor.lastCall.sessionId, client.sessionId);
       expect(
         executor.lastCall.callId,
-        '${client.sessionId!.substring(0, 8)}-7',
+        '${client.sessionId!.substring(0, 8)}-n7',
       );
       expect(executor.lastCall.clientLabel, 'claude-code 2.4.0');
+    });
+
+    test('a string request id gets a call id of its own', () async {
+      await client.initialize();
+
+      final response = await client.post({
+        'jsonrpc': '2.0',
+        'id': '7',
+        'method': 'tools/call',
+        'params': {
+          'name': 'get_application_context',
+          'arguments': <String, Object?>{},
+        },
+      });
+
+      expect(response.json['id'], '7');
+      expect(
+        executor.lastCall.callId,
+        '${client.sessionId!.substring(0, 8)}-s7',
+      );
     });
 
     test('tools/call answers with an event stream when asked', () async {
@@ -497,6 +517,53 @@ void main() {
         ((response.json['result'] as Map)['content'] as List).first,
         containsPair('text', 'finished cancelled by client'),
       );
+    });
+
+    test('cancelling a string id spares the call numbered the same', () async {
+      await client.initialize();
+
+      final pending = client.callTool('generate_image', id: 1);
+      final signal = await slowToolStarted.future;
+
+      final cancelled = await client.post({
+        'jsonrpc': '2.0',
+        'method': 'notifications/cancelled',
+        'params': {'requestId': '1', 'reason': 'user stopped'},
+      });
+
+      expect(cancelled.statusCode, HttpStatus.accepted);
+      expect(signal.aborted, isFalse);
+
+      slowToolRelease.complete();
+      expect((await pending).json['id'], 1);
+    });
+
+    test('a finished call keeps the call numbered the same', () async {
+      await client.initialize();
+
+      final pending = client.callTool('generate_image', id: 1);
+      final signal = await slowToolStarted.future;
+
+      final finished = await client.post({
+        'jsonrpc': '2.0',
+        'id': '1',
+        'method': 'tools/call',
+        'params': {
+          'name': 'get_application_context',
+          'arguments': <String, Object?>{},
+        },
+      });
+      expect(finished.json['id'], '1');
+
+      await client.post({
+        'jsonrpc': '2.0',
+        'method': 'notifications/cancelled',
+        'params': {'requestId': 1, 'reason': 'user stopped'},
+      });
+
+      expect(signal.aborted, isTrue);
+      expect(signal.reason, 'cancelled by client');
+      await pending;
     });
 
     test(
