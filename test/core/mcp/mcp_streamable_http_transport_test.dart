@@ -670,45 +670,77 @@ void main() {
       },
     );
 
-    test('a client that hangs up aborts the running call', () async {
+    test('a client that hangs up leaves its call running', () async {
       await client.initialize(acceptEventStream: true);
-      final body = jsonEncode({
+      final socket = await _openEventStream(client, endpoint, id: 13);
+      final signal = await slowToolStarted.future;
+      final session = registry.find(client.sessionId!)!;
+
+      socket.destroy();
+      await client.post({'jsonrpc': '2.0', 'id': 14, 'method': 'ping'});
+
+      expect(signal.aborted, isFalse);
+      expect(session.hasInFlightCalls, isTrue);
+
+      final cancelled = await client.post({
         'jsonrpc': '2.0',
-        'id': 13,
-        'method': 'tools/call',
-        'params': {'name': 'generate_image', 'arguments': <String, Object?>{}},
+        'method': 'notifications/cancelled',
+        'params': {'requestId': 13, 'reason': 'user stopped'},
       });
 
-      final socket = await Socket.connect(endpoint.host, endpoint.port);
-      socket.listen((_) {}, onError: (Object _) {});
-      socket.write(
-        'POST ${McpServerDefaults.endpointPath} HTTP/1.1\r\n'
-        'Host: 127.0.0.1\r\n'
-        'Authorization: Bearer $_token\r\n'
-        'Accept: text/event-stream\r\n'
-        '${McpServerDefaults.sessionIdHeader}: ${client.sessionId}\r\n'
-        'Content-Type: application/json\r\n'
-        'Content-Length: ${body.length}\r\n\r\n$body',
-      );
-      await socket.flush();
+      expect(cancelled.statusCode, HttpStatus.accepted);
+      expect(signal.reason, 'cancelled by client');
+      await _pumpUntil(() => !session.hasInFlightCalls);
+      expect(session.hasInFlightCalls, isFalse);
+    });
 
+    test('deleting the session aborts a call whose client hung up', () async {
+      await client.initialize(acceptEventStream: true);
+      final socket = await _openEventStream(client, endpoint, id: 15);
       final signal = await slowToolStarted.future;
-      socket.destroy();
 
-      final reason = await _abortReason(
-        signal,
-      ).timeout(const Duration(seconds: 5));
-      expect(reason, 'client disconnected');
+      socket.destroy();
+      final deleted = await client.delete();
+
+      expect(deleted.statusCode, HttpStatus.ok);
+      expect(signal.aborted, isTrue);
+      expect(signal.reason, 'session closed');
     });
   });
 }
 
-Future<String?> _abortReason(AbortSignal signal) {
-  final completer = Completer<String?>();
-  signal.addListener((reason) {
-    if (!completer.isCompleted) {
-      completer.complete(reason);
-    }
+/// Opens a raw event stream so the test can hang up mid-call, which
+/// `HttpClient` will not do for a response it is still reading.
+Future<Socket> _openEventStream(
+  McpHttpTestClient client,
+  Uri endpoint, {
+  required int id,
+}) async {
+  final body = jsonEncode({
+    'jsonrpc': '2.0',
+    'id': id,
+    'method': 'tools/call',
+    'params': {'name': 'generate_image', 'arguments': <String, Object?>{}},
   });
-  return completer.future;
+  final socket = await Socket.connect(endpoint.host, endpoint.port);
+  socket.listen((_) {}, onError: (Object _) {});
+  socket.write(
+    'POST ${McpServerDefaults.endpointPath} HTTP/1.1\r\n'
+    'Host: 127.0.0.1\r\n'
+    'Authorization: Bearer $_token\r\n'
+    'Accept: text/event-stream\r\n'
+    '${McpServerDefaults.sessionIdHeader}: ${client.sessionId}\r\n'
+    'Content-Type: application/json\r\n'
+    'Content-Length: ${body.length}\r\n\r\n$body',
+  );
+  await socket.flush();
+  return socket;
+}
+
+/// Hands the event loop back a bounded number of times instead of waiting on
+/// the wall clock.
+Future<void> _pumpUntil(bool Function() done) async {
+  for (var turn = 0; turn < 500 && !done(); turn++) {
+    await Future<void>.delayed(Duration.zero);
+  }
 }

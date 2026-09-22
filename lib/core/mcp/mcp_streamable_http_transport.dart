@@ -11,6 +11,8 @@ import 'mcp_origin_policy.dart';
 import 'mcp_server_constants.dart';
 import 'mcp_session_registry.dart';
 
+const String _logTag = 'McpServer';
+
 /// Streamable HTTP (spec 2025-11-25) in front of [McpSessionRegistry].
 ///
 /// Replace this file with `dart_mcp`'s own `handleStreamableHttpRequest` once
@@ -24,7 +26,6 @@ class McpStreamableHttpTransport {
     this.keepAliveInterval = McpServerDefaults.keepAliveInterval,
   });
 
-  static const String _logTag = 'McpServer';
   static const String _allowedMethods = 'POST, DELETE';
   static const String _jsonRpcVersion = '2.0';
   static const int _parseErrorCode = -32700;
@@ -45,7 +46,7 @@ class McpStreamableHttpTransport {
   final int maxBodyBytes;
   final Duration keepAliveInterval;
 
-  final Set<Socket> _eventStreams = <Socket>{};
+  final Set<_McpEventStream> _eventStreams = <_McpEventStream>{};
 
   Future<void> handle(HttpRequest request) async {
     final response = request.response;
@@ -91,8 +92,8 @@ class McpStreamableHttpTransport {
   Future<void> shutdown() async {
     final streams = _eventStreams.toList(growable: false);
     _eventStreams.clear();
-    for (final socket in streams) {
-      socket.destroy();
+    for (final stream in streams) {
+      stream.detach();
     }
   }
 
@@ -249,13 +250,7 @@ class McpStreamableHttpTransport {
     }
     try {
       if (_acceptsEventStream(request)) {
-        await _respondWithEventStream(
-          request,
-          session,
-          message,
-          id: id,
-          callId: callId,
-        );
+        await _respondWithEventStream(request, session, message, id: id);
       } else {
         await _respondWithJson(request, session, message, id: id);
       }
@@ -309,7 +304,6 @@ class McpStreamableHttpTransport {
     McpSession session,
     Map<String, Object?> message, {
     required Object? id,
-    required String callId,
   }) async {
     final response = request.response;
     response.statusCode = HttpStatus.ok;
@@ -323,59 +317,34 @@ class McpStreamableHttpTransport {
     // reports the client hanging up while a tool call is still running.
     response.persistentConnection = false;
     response.headers.chunkedTransferEncoding = false;
-    final socket = await response.detachSocket();
-    _eventStreams.add(socket);
+    final stream = _McpEventStream(
+      await response.detachSocket(),
+      keepAliveInterval,
+    );
+    _eventStreams.add(stream);
 
     final completer = Completer<Map<String, Object?>>();
-    var connected = true;
-    void handleClientGone() {
-      if (!connected) {
-        return;
-      }
-      connected = false;
-      session.abortCall(callId, 'client disconnected');
-      if (!completer.isCompleted) {
-        completer.completeError(const _McpClientGoneException());
-      }
-    }
-
-    final socketSubscription = socket.listen(
-      _discardIncoming,
-      onDone: handleClientGone,
-      onError: (Object _) => handleClientGone(),
-      cancelOnError: false,
-    );
     final subscription = _listenForResponse(
       session,
       message,
       completer,
-      (related) => _writeEvent(socket, related),
+      stream.writeEvent,
     );
-    final keepAlive = Timer.periodic(
-      keepAliveInterval,
-      (_) => _writeRaw(socket, ': keep-alive\n\n'),
-    );
-
     try {
       session.send(message);
-      _writeEvent(socket, await completer.future);
+      stream.writeEvent(await completer.future);
     } on _McpSessionClosedException {
-      _writeEvent(
-        socket,
+      stream.writeEvent(
         _errorBody(
           id: id,
           code: _sessionClosedCode,
           message: 'Session closed before the response was produced',
         ),
       );
-    } on _McpClientGoneException {
-      PortableLogger.d('Event stream client disconnected', _logTag);
     } finally {
-      keepAlive.cancel();
       await subscription.cancel();
-      await socketSubscription.cancel();
-      _eventStreams.remove(socket);
-      await _closeSocket(socket);
+      _eventStreams.remove(stream);
+      await stream.close();
     }
   }
 
@@ -520,32 +489,6 @@ class McpStreamableHttpTransport {
     'error': <String, Object?>{'code': code, 'message': message},
   };
 
-  void _writeEvent(Socket socket, Map<String, Object?> message) =>
-      _writeRaw(socket, 'event: message\ndata: ${jsonEncode(message)}\n\n');
-
-  void _writeRaw(Socket socket, String frame) {
-    if (!_eventStreams.contains(socket)) {
-      return;
-    }
-    try {
-      socket.write(frame);
-    } on SocketException catch (error) {
-      PortableLogger.w('Event stream write failed: ${error.message}', _logTag);
-    }
-  }
-
-  void _discardIncoming(Uint8List _) {}
-
-  Future<void> _closeSocket(Socket socket) async {
-    try {
-      await socket.flush();
-      await socket.close();
-    } on SocketException {
-      // The peer is already gone; destroying below is the only cleanup left.
-    }
-    socket.destroy();
-  }
-
   Future<void> _writeStatus(
     HttpResponse response,
     int status,
@@ -579,10 +522,79 @@ class McpStreamableHttpTransport {
   }
 }
 
-class _McpSessionClosedException implements Exception {
-  const _McpSessionClosedException();
+/// One detached SSE connection. A client hanging up only stops the writes: MCP
+/// 2025-11-25 says a dropped stream is not a cancellation, so the tool call it
+/// carries runs to completion and its result is discarded.
+class _McpEventStream {
+  _McpEventStream(this._socket, Duration keepAliveInterval) {
+    _subscription = _socket.listen(
+      _discardIncoming,
+      onDone: detach,
+      onError: (Object _) => detach(),
+      cancelOnError: false,
+    );
+    _keepAlive = Timer.periodic(
+      keepAliveInterval,
+      (_) => _write(': keep-alive\n\n'),
+    );
+  }
+
+  final Socket _socket;
+
+  late final StreamSubscription<Uint8List> _subscription;
+  late final Timer _keepAlive;
+  bool _attached = true;
+
+  void writeEvent(Map<String, Object?> message) =>
+      _write('event: message\ndata: ${jsonEncode(message)}\n\n');
+
+  /// Stops pushing and drops the socket without a goodbye, for a peer that is
+  /// already gone or a transport that is shutting down.
+  void detach() {
+    if (!_release()) {
+      return;
+    }
+    PortableLogger.d('Event stream detached', _logTag);
+    _socket.destroy();
+  }
+
+  Future<void> close() async {
+    if (!_release()) {
+      return;
+    }
+    try {
+      await _socket.flush();
+      await _socket.close();
+    } on SocketException {
+      // The peer is already gone; destroying below is the only cleanup left.
+    }
+    _socket.destroy();
+  }
+
+  bool _release() {
+    if (!_attached) {
+      return false;
+    }
+    _attached = false;
+    _keepAlive.cancel();
+    unawaited(_subscription.cancel());
+    return true;
+  }
+
+  void _write(String frame) {
+    if (!_attached) {
+      return;
+    }
+    try {
+      _socket.write(frame);
+    } on SocketException catch (error) {
+      PortableLogger.w('Event stream write failed: ${error.message}', _logTag);
+    }
+  }
+
+  static void _discardIncoming(Uint8List _) {}
 }
 
-class _McpClientGoneException implements Exception {
-  const _McpClientGoneException();
+class _McpSessionClosedException implements Exception {
+  const _McpSessionClosedException();
 }
