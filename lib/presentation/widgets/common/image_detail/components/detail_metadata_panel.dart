@@ -74,6 +74,7 @@ class _DetailMetadataPanelState extends ConsumerState<DetailMetadataPanel> {
   Future<NaiImageMetadata?>? _metadataFuture;
   NaiImageMetadata? _loadedMetadata;
   (int, int)? _actualImageSize;
+  FileInfo? _fileInfo;
 
   @override
   void initState() {
@@ -105,6 +106,7 @@ class _DetailMetadataPanelState extends ConsumerState<DetailMetadataPanel> {
     final image = widget.currentImage;
     if (image == null) {
       _actualImageSize = null;
+      _fileInfo = null;
       AppLogger.w(
         '[MetadataFlow] _startMetadataLoading: image is null',
         'DetailMetadataPanel',
@@ -113,7 +115,9 @@ class _DetailMetadataPanelState extends ConsumerState<DetailMetadataPanel> {
     }
 
     _actualImageSize = null;
+    _fileInfo = image.fileInfo;
     unawaited(_loadActualImageSize(image));
+    unawaited(_loadFileInfo(image));
 
     AppLogger.i(
       '[MetadataFlow] _startMetadataLoading: identifier=${image.identifier}, type=${image.runtimeType}',
@@ -193,6 +197,22 @@ class _DetailMetadataPanelState extends ConsumerState<DetailMetadataPanel> {
       _metadataFuture = null;
       _loadedMetadata = null;
     }
+  }
+
+  Future<void> _loadFileInfo(ImageDetailData image) async {
+    if (image is! FileImageDetailData) return;
+    final FileInfo info;
+    try {
+      info = await image.getFileInfoAsync();
+    } catch (error) {
+      AppLogger.w(
+        '[MetadataFlow] Failed to read file info: $error',
+        'DetailMetadataPanel',
+      );
+      return;
+    }
+    if (!mounted || widget.currentImage?.identifier != image.identifier) return;
+    setState(() => _fileInfo = info);
   }
 
   Future<void> _loadActualImageSize(ImageDetailData image) async {
@@ -331,7 +351,7 @@ class _DetailMetadataPanelState extends ConsumerState<DetailMetadataPanel> {
                     metadata: metadata,
                     positiveFixedTagEntries: fixedTagsState.positiveEntries,
                     negativeFixedTagEntries: fixedTagsState.negativeEntries,
-                    fileInfo: widget.currentImage!.fileInfo,
+                    fileInfo: _fileInfo,
                     actualImageSize: _actualImageSize,
                   ),
                 )
@@ -522,14 +542,16 @@ class _MetadataContent extends StatelessWidget {
                 label: context.l10n.detail_fileName,
                 value: fileInfo!.fileName,
               ),
-              _InfoRow(
-                label: context.l10n.detail_modifiedTime,
-                value: _formatTime(context, fileInfo!.modifiedAt),
-              ),
-              _InfoRow(
-                label: context.l10n.detail_fileSize,
-                value: _formatSize(fileInfo!.size),
-              ),
+              if (fileInfo!.modifiedAt != null)
+                _InfoRow(
+                  label: context.l10n.detail_modifiedTime,
+                  value: _formatTime(context, fileInfo!.modifiedAt!),
+                ),
+              if (fileInfo!.size != null)
+                _InfoRow(
+                  label: context.l10n.detail_fileSize,
+                  value: _formatSize(fileInfo!.size!),
+                ),
             ],
           ),
           const SizedBox(height: 16),

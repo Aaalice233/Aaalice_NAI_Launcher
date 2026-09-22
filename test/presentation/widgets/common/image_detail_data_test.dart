@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
@@ -39,6 +40,46 @@ void main() {
       expect(await detail.getImageBytes(), orderedEquals(bytes));
     },
   );
+
+  test('file detail data keeps the sync file info free of disk access', () {
+    final detail = FileImageDetailData(filePath: 'C:/tmp/never_created.png');
+
+    final info = detail.fileInfo;
+    expect(info.path, 'C:/tmp/never_created.png');
+    expect(info.fileName, 'never_created.png');
+    expect(info.size, isNull);
+    expect(info.modifiedAt, isNull);
+  });
+
+  test(
+    'file detail data reads size and modified time asynchronously',
+    () async {
+      final directory = await Directory.systemTemp.createTemp('file_detail_');
+      addTearDown(() => directory.delete(recursive: true));
+      final file = File('${directory.path}${Platform.pathSeparator}image.png')
+        ..writeAsBytesSync(img.encodePng(img.Image(width: 4, height: 4)));
+
+      final info = await FileImageDetailData(
+        filePath: file.path,
+      ).getFileInfoAsync();
+
+      expect(info.fileName, 'image.png');
+      expect(info.size, file.lengthSync());
+      expect(info.modifiedAt, isNotNull);
+    },
+  );
+
+  test('file detail data reports unknown stat for a missing file', () async {
+    final directory = await Directory.systemTemp.createTemp('file_detail_');
+    addTearDown(() => directory.delete(recursive: true));
+    final path = '${directory.path}${Platform.pathSeparator}absent.png';
+
+    final info = await FileImageDetailData(filePath: path).getFileInfoAsync();
+
+    expect(info.fileName, 'absent.png');
+    expect(info.size, isNull);
+    expect(info.modifiedAt, isNull);
+  });
 
   test('file detail data can hide copy without changing save visibility', () {
     final detail = FileImageDetailData(
