@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../../core/utils/localization_extension.dart';
 import '../../../../mcp/providers/mcp_server_notifier.dart';
-import '../../../../prompt_assistant/models/prompt_assistant_models.dart';
+import '../../../../../data/models/prompt_assistant/prompt_assistant_models.dart';
 import '../../../../themes/design_tokens.dart';
 import '../../widgets/settings_card.dart';
 

@@ -22,7 +22,7 @@ import '../../../screens/tag_library_page/widgets/entry_add_dialog.dart';
 import '../../autocomplete/autocomplete_wrapper.dart';
 import '../../common/app_toast.dart';
 import '../../common/weight_adjust_toolbar.dart';
-import '../../../prompt_assistant/models/prompt_assistant_models.dart';
+import '../../../../data/models/prompt_assistant/prompt_assistant_models.dart';
 import '../../../prompt_assistant/providers/prompt_assistant_config_provider.dart';
 import '../../../prompt_assistant/providers/prompt_assistant_history_provider.dart';
 import '../../../prompt_assistant/providers/prompt_assistant_state_provider.dart';

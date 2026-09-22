@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/adaptive/adaptive_presenter.dart';
-import 'package:nai_launcher/presentation/prompt_assistant/models/assistant_execution_settings.dart';
-import 'package:nai_launcher/presentation/prompt_assistant/models/prompt_assistant_models.dart';
+import 'package:nai_launcher/data/models/prompt_assistant/assistant_execution_settings.dart';
+import 'package:nai_launcher/data/models/prompt_assistant/prompt_assistant_models.dart';
 import 'package:nai_launcher/presentation/screens/settings/widgets/assistant_task_thinking_field.dart';
 import 'package:nai_launcher/presentation/screens/settings/widgets/prompt_assistant_settings_forms.dart';
 

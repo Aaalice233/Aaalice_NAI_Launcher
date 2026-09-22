@@ -13,7 +13,7 @@ import '../../agent_chat/services/defined_agent_tool.dart';
 import '../../agent_chat/services/generation_preparation_runtime.dart';
 import '../../agent_chat/services/manual_inpaint_toolbox.dart';
 import '../../agent_chat/services/queue_toolbox.dart';
-import '../../prompt_assistant/models/prompt_assistant_models.dart';
+import '../../../data/models/prompt_assistant/prompt_assistant_models.dart';
 import '../../providers/share_image_settings_provider.dart';
 import '../../router/app_router_config.dart';
 import 'mcp_compact_tool_response.dart';

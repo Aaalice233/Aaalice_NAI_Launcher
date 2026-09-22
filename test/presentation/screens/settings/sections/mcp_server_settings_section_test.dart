@@ -13,7 +13,7 @@ import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/agent_chat/providers/agent_chat_state.dart';
 import 'package:nai_launcher/presentation/mcp/providers/mcp_server_notifier.dart';
 import 'package:nai_launcher/presentation/mcp/services/mcp_approval_coordinator.dart';
-import 'package:nai_launcher/presentation/prompt_assistant/models/prompt_assistant_models.dart';
+import 'package:nai_launcher/data/models/prompt_assistant/prompt_assistant_models.dart';
 import 'package:nai_launcher/presentation/screens/settings/sections/mcp_server_settings_section.dart';
 
 const _enableSwitch = ValueKey<String>('mcp-server-enable-switch');

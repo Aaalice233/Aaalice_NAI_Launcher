@@ -27,7 +27,7 @@ import '../../../data/models/inpaint/inpaint_draft.dart';
 import '../../agent_settings/providers/agent_settings_provider.dart';
 import '../models/agent_chat_compaction_outcome.dart';
 import '../models/agent_chat_slash_syntax.dart';
-import '../../prompt_assistant/models/prompt_assistant_models.dart';
+import '../../../data/models/prompt_assistant/prompt_assistant_models.dart';
 import '../../prompt_assistant/models/agent_protocol.dart';
 import '../../prompt_assistant/providers/prompt_assistant_config_provider.dart';
 import '../../prompt_assistant/providers/web_access_provider.dart';

@@ -13,7 +13,7 @@ import 'package:nai_launcher/presentation/agent_settings/providers/agent_setting
 import 'package:nai_launcher/presentation/mcp/services/mcp_external_tool_registry_factory.dart';
 import 'package:nai_launcher/presentation/mcp/services/mcp_image_tool_descriptions.dart';
 import 'package:nai_launcher/presentation/mcp/services/mcp_tool_session_scope.dart';
-import 'package:nai_launcher/presentation/prompt_assistant/models/prompt_assistant_models.dart';
+import 'package:nai_launcher/data/models/prompt_assistant/prompt_assistant_models.dart';
 
 final _refProvider = Provider<Ref>((ref) => ref);
 

@@ -21,7 +21,7 @@ import 'package:nai_launcher/presentation/mcp/services/mcp_image_response_servic
 import 'package:nai_launcher/presentation/mcp/services/mcp_tool_session_scope.dart';
 import 'package:nai_launcher/core/mcp/mcp_tool_executor.dart';
 import 'package:nai_launcher/core/mcp/mcp_image_http_endpoint.dart';
-import 'package:nai_launcher/presentation/prompt_assistant/models/prompt_assistant_models.dart';
+import 'package:nai_launcher/data/models/prompt_assistant/prompt_assistant_models.dart';
 
 import '../mcp_test_tools.dart';
 

@@ -25,7 +25,7 @@ import '../../agent_chat/services/agent_prepared_anlas_estimator.dart';
 import '../../agent_chat/services/agent_prepared_file_targets.dart';
 import '../../agent_chat/services/agent_tool_registry_builder.dart';
 import '../../agent_chat/services/agent_workspace_directory.dart';
-import '../../prompt_assistant/models/prompt_assistant_models.dart';
+import '../../../data/models/prompt_assistant/prompt_assistant_models.dart';
 import '../../providers/notification_settings_provider.dart';
 import '../../providers/share_image_settings_provider.dart';
 import '../services/mcp_approval_coordinator.dart';

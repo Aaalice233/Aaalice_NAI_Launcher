@@ -6,7 +6,7 @@ import '../../../core/utils/localization_extension.dart';
 import 'agent_chat_session_picker.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../adaptive/interaction_policy.dart';
-import '../../prompt_assistant/models/prompt_assistant_models.dart';
+import '../../../data/models/prompt_assistant/prompt_assistant_models.dart';
 import '../../widgets/common/workspace_panel_header.dart';
 import 'agent_chat_panel_view_data.dart';
 

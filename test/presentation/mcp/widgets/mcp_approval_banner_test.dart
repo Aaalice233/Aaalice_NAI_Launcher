@@ -11,7 +11,7 @@ import 'package:nai_launcher/presentation/agent_chat/providers/agent_chat_state.
 import 'package:nai_launcher/presentation/mcp/providers/mcp_server_notifier.dart';
 import 'package:nai_launcher/presentation/mcp/services/mcp_approval_coordinator.dart';
 import 'package:nai_launcher/presentation/mcp/widgets/mcp_approval_banner.dart';
-import 'package:nai_launcher/presentation/prompt_assistant/models/prompt_assistant_models.dart';
+import 'package:nai_launcher/data/models/prompt_assistant/prompt_assistant_models.dart';
 
 void main() {
   late Directory root;

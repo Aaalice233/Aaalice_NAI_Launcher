@@ -1,7 +1,7 @@
 import 'package:dio/dio.dart';
 
 import '../../prompt_assistant/models/agent_protocol.dart';
-import '../../prompt_assistant/models/prompt_assistant_models.dart';
+import '../../../data/models/prompt_assistant/prompt_assistant_models.dart';
 import '../../prompt_assistant/services/provider_adapters/anthropic_messages_adapter.dart';
 import '../../prompt_assistant/services/provider_adapters/gemini_generate_content_adapter.dart';
 import '../../prompt_assistant/services/provider_adapters/openai_chat_completions_adapter.dart';

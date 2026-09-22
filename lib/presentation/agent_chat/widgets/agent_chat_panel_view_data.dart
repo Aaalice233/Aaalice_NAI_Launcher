@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../core/agent/agent_types.dart';
 import '../../../core/agent/resources/agent_chat_resource_reference.dart';
 import '../../../core/windowing/agent_chat_layout_contract.dart';
-import '../../prompt_assistant/models/prompt_assistant_models.dart';
+import '../../../data/models/prompt_assistant/prompt_assistant_models.dart';
 import '../../prompt_assistant/providers/web_access_provider.dart';
 import '../../agent_settings/providers/agent_settings_provider.dart';
 import '../providers/agent_chat_notifier.dart';

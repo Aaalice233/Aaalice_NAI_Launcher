@@ -6,7 +6,7 @@ import '../../../core/agent/agent_types.dart';
 import '../../../core/utils/app_logger.dart';
 import '../../../data/models/agent/agent_settings.dart';
 import '../../agent_settings/providers/agent_settings_provider.dart';
-import '../../prompt_assistant/models/prompt_assistant_models.dart';
+import '../../../data/models/prompt_assistant/prompt_assistant_models.dart';
 import '../../prompt_assistant/providers/prompt_assistant_config_provider.dart';
 import '../../prompt_assistant/services/prompt_assistant_api_client.dart';
 import '../../prompt_assistant/services/provider_adapters/prompt_assistant_adapter.dart';

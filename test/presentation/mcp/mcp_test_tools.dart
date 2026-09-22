@@ -1,7 +1,7 @@
 import 'package:nai_launcher/core/agent/agent_types.dart';
 import 'package:nai_launcher/core/agent/permissions/permissions.dart';
 import 'package:nai_launcher/presentation/agent_chat/services/agent_tool_registry_builder.dart';
-import 'package:nai_launcher/presentation/prompt_assistant/models/prompt_assistant_models.dart';
+import 'package:nai_launcher/data/models/prompt_assistant/prompt_assistant_models.dart';
 
 typedef FakeToolRunner =
     Future<AgentToolResult> Function(

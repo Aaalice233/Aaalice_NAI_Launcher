@@ -6,7 +6,7 @@ import '../../../core/agent/harness/harness_types.dart';
 import '../../../core/agent/harness/skills.dart';
 import '../../../core/agent/permissions/permissions.dart';
 import '../../agent_settings/providers/agent_settings_provider.dart';
-import '../../prompt_assistant/models/prompt_assistant_models.dart';
+import '../../../data/models/prompt_assistant/prompt_assistant_models.dart';
 import '../../prompt_assistant/providers/web_access_provider.dart';
 import '../../providers/generation/image_workflow_controller.dart';
 import '../../providers/krita/krita_bridge_notifier.dart';

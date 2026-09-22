@@ -4,7 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/agent/agent_types.dart';
 import '../../../data/models/agent/agent_settings.dart';
-import '../../prompt_assistant/models/prompt_assistant_models.dart';
+import '../../../data/models/prompt_assistant/prompt_assistant_models.dart';
 import 'agent_resource_resolver.dart';
 import 'generated_image_export_writer.dart';
 import 'generation_anlas_estimator.dart';
