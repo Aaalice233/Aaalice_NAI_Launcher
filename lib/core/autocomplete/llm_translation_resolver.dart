@@ -1,6 +1,6 @@
 import 'dart:async';
 
-import '../../presentation/prompt_assistant/services/prompt_assistant_service.dart';
+import 'tag_translation_port.dart';
 import 'autocomplete_cache_database.dart';
 import 'completion_models.dart';
 
@@ -10,14 +10,14 @@ class LlmTranslationResolver
         CancellableTranslationResolver,
         ScopedTranslationResolver {
   LlmTranslationResolver({
-    required PromptAssistantService service,
+    required TagTranslationPort service,
     required AutocompleteCacheDatabase cache,
     required bool Function() isEnabled,
   }) : _service = service,
        _cache = cache,
        _isEnabled = isEnabled;
 
-  final PromptAssistantService _service;
+  final TagTranslationPort _service;
   final AutocompleteCacheDatabase _cache;
   final bool Function() _isEnabled;
   int _generation = 0;
@@ -40,7 +40,7 @@ class LlmTranslationResolver
     final sessionId = _activeSessionId;
     _activeSessionId = null;
     if (sessionId != null) {
-      unawaited(_service.cancelCurrentTask(sessionId: sessionId));
+      unawaited(_service.cancelTask(sessionId: sessionId));
     }
   }
 
@@ -56,7 +56,7 @@ class LlmTranslationResolver
     }
     final tags = canonicalTags.toSet().take(8).toList(growable: false);
     if (tags.isEmpty) return const {};
-    final route = _service.translateRouteFingerprint();
+    final route = _service.routeFingerprint();
     if (route.isEmpty) {
       throw StateError(
         'Translate route is not configured in Prompt Assistant settings.',
@@ -66,7 +66,7 @@ class LlmTranslationResolver
       tags: tags,
       locale: locale,
       routeFingerprint: route,
-      promptVersion: PromptAssistantService.tagTranslationPromptVersion,
+      promptVersion: _service.promptVersion,
     );
     if (generation != _generation) return const {};
     final missing = tags.where((tag) => !cached.containsKey(tag)).toList();
@@ -76,19 +76,19 @@ class LlmTranslationResolver
         'autocomplete-tags-${DateTime.now().microsecondsSinceEpoch}-$generation';
     _activeSessionId = sessionId;
     try {
-      final response = await _service.translateTags(
+      final translated = await _service.translateTags(
         missing,
         sessionId: sessionId,
       );
       if (generation != _generation) return const {};
       await _cache.putAiTranslations(
-        translations: response.translations,
+        translations: translated,
         locale: locale,
         routeFingerprint: route,
-        promptVersion: PromptAssistantService.tagTranslationPromptVersion,
+        promptVersion: _service.promptVersion,
       );
       if (generation != _generation) return const {};
-      return {...cached, ...response.translations};
+      return {...cached, ...translated};
     } finally {
       if (_activeSessionId == sessionId) _activeSessionId = null;
     }
@@ -104,13 +104,13 @@ class LlmTranslationResolver
     }
     final tags = canonicalTags.toSet().toList(growable: false);
     if (tags.isEmpty) return const {};
-    final route = _service.translateRouteFingerprint();
+    final route = _service.routeFingerprint();
     if (route.isEmpty) return const {};
     return _cache.getAiTranslations(
       tags: tags,
       locale: locale,
       routeFingerprint: route,
-      promptVersion: PromptAssistantService.tagTranslationPromptVersion,
+      promptVersion: _service.promptVersion,
     );
   }
 }
