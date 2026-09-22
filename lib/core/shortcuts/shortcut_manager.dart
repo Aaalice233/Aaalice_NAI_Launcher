@@ -253,13 +253,6 @@ class ToggleThemeIntent extends AppShortcutIntent {
   const ToggleThemeIntent();
 }
 
-/// 通用动作回调Intent
-class ShortcutCallbackIntent extends AppShortcutIntent {
-  final VoidCallback callback;
-
-  const ShortcutCallbackIntent(this.callback);
-}
-
 /// Vibe库导入Intent
 /// 触发Vibe导入对话框或流程
 class VibeImportIntent extends AppShortcutIntent {
