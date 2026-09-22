@@ -8,6 +8,7 @@ import 'package:nai_launcher/core/utils/localization_extension.dart';
 import '../../../data/models/queue/replication_task.dart';
 import '../../adaptive/interaction_policy.dart';
 import '../../../data/models/queue/replication_task_status.dart';
+import '../../providers/generation/image_generation_selectors.dart';
 import '../../providers/image_generation_provider.dart';
 import '../../providers/queue_execution_provider.dart';
 import '../../providers/replication_queue_provider.dart';
@@ -592,8 +593,12 @@ class _TaskListItemState extends ConsumerState<TaskListItem>
       final executionState = ref.watch(queueExecutionNotifierProvider);
       final currentTaskId = executionState.currentTaskId;
       if (currentTaskId == widget.task.id && executionState.isRunning) {
-        final genState = ref.watch(imageGenerationNotifierProvider);
-        return (currentTaskId, genState.progress);
+        return (
+          currentTaskId,
+          ref.watch(
+            imageGenerationNotifierProvider.select(selectGenerationProgress),
+          ),
+        );
       }
       return (currentTaskId, 0.0);
     } catch (e) {

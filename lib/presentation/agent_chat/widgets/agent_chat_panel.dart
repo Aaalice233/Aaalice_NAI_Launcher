@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../prompt_assistant/providers/prompt_assistant_config_provider.dart';
 import '../../prompt_assistant/providers/web_access_provider.dart';
 import '../../agent_settings/providers/agent_settings_provider.dart';
+import '../../providers/generation/image_generation_selectors.dart';
 import '../../providers/image_generation_provider.dart';
 import '../../../core/agent/resources/agent_chat_resource_reference.dart';
 import '../providers/agent_chat_notifier.dart';
@@ -51,6 +52,7 @@ class AgentChatPanel extends ConsumerStatefulWidget {
 class _AgentChatPanelState extends ConsumerState<AgentChatPanel> {
   late final AgentChatPanelController _controller;
   late final AgentChatPanelCoordinator _coordinator;
+  late final AgentChatPanelCommands _commands = _coordinator.commands(context);
 
   @override
   void initState() {
@@ -97,26 +99,22 @@ class _AgentChatPanelState extends ConsumerState<AgentChatPanel> {
     final config = ref.watch(promptAssistantConfigProvider);
     final agentSettings = ref.watch(agentSettingsProvider);
     final webAccess = ref.watch(webAccessConfigProvider);
-    final generation = ref.watch(imageGenerationNotifierProvider);
-    final currentCanvas = generation.displayImages
-        .where((image) => image.kind == GeneratedImageKind.completed)
-        .firstOrNull;
-    final currentCanvasReference = currentCanvas == null
+    final currentCanvasId = ref.watch(
+      imageGenerationNotifierProvider.select(selectCurrentCanvasImageId),
+    );
+    final currentCanvasReference = currentCanvasId == null
         ? null
         : AgentChatResourceReference(
             kind: AgentChatResourceKind.generatedImage,
             source: 'generation_history',
-            resourceId: currentCanvas.id,
+            resourceId: currentCanvasId,
           );
     _controller
       ..attachOverlayContext(context)
       ..observe(state)
       ..syncComposerText(state.composerText);
-    final commands = _coordinator.commands(
-      context,
-      state,
-      currentCanvasReference: currentCanvasReference,
-    );
+    _coordinator.currentCanvasReference = currentCanvasReference;
+    final commands = _commands;
 
     return LayoutBuilder(
       builder: (context, constraints) {

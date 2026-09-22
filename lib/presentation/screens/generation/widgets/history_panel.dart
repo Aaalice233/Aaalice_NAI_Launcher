@@ -154,6 +154,7 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
 
   @override
   Widget build(BuildContext context) {
+    // 面板自身渲染流式预览卡片，字段投影覆盖不到，只能整状态订阅。
     final state = ref.watch(imageGenerationNotifierProvider);
     final selection = ref.watch(generationImageCardSelectionProvider);
     ref.watch(copyDragWatermarkProvider);

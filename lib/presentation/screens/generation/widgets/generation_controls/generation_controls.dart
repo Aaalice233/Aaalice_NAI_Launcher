@@ -7,6 +7,7 @@ import 'package:go_router/go_router.dart';
 
 import 'package:nai_launcher/core/platform/platform_capabilities.dart';
 import 'package:nai_launcher/core/utils/localization_extension.dart';
+import 'package:nai_launcher/presentation/providers/generation/image_generation_selectors.dart';
 import 'package:nai_launcher/presentation/providers/generation/image_workflow_controller.dart';
 import 'package:nai_launcher/presentation/providers/auth_provider.dart';
 import 'package:nai_launcher/presentation/providers/image_generation_provider.dart';
@@ -36,7 +37,9 @@ class GenerationControls extends ConsumerStatefulWidget {
 class _GenerationControlsState extends ConsumerState<GenerationControls> {
   @override
   Widget build(BuildContext context) {
-    final generationState = ref.watch(imageGenerationNotifierProvider);
+    final batchStatus = ref.watch(
+      imageGenerationNotifierProvider.select(selectGenerationButtonViewData),
+    );
     final cooldownState = ref.watch(generationCooldownProvider);
     final isAuthenticated = ref.watch(
       authNotifierProvider.select((state) => state.isAuthenticated),
@@ -47,7 +50,7 @@ class _GenerationControlsState extends ConsumerState<GenerationControls> {
     final nSamples = ref.watch(
       generationParamsNotifierProvider.select((params) => params.nSamples),
     );
-    final isLauncherGenerating = generationState.isGenerating;
+    final isLauncherGenerating = batchStatus.isGenerating;
     final isGenerating = isLauncherGenerating || isKritaGenerating;
 
     // 生成中常驻显示取消入口（与移动端一致）
@@ -99,7 +102,7 @@ class _GenerationControlsState extends ConsumerState<GenerationControls> {
           height: 48,
           isGenerating: isGenerating,
           showCancel: showCancel,
-          generationState: generationState,
+          batchStatus: batchStatus,
           cooldownRemainingSeconds: cooldownState.remainingSeconds,
           onGenerate: () => unawaited(_handleGenerate(context, ref)),
           onCancel: () =>

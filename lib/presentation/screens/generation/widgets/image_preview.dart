@@ -37,6 +37,7 @@ import '../../../../data/services/image_metadata_service.dart';
 import '../../../adaptive/window_size_class.dart';
 import '../../../providers/generation/generation_error_classifier.dart';
 import '../../../providers/generation/generation_params_selectors.dart';
+import '../../../providers/generation/image_generation_selectors.dart';
 import '../../../providers/generation/generation_view_state_provider.dart';
 import '../../../providers/generation/preview_selection_provider.dart';
 import '../../../providers/history_click_behavior_provider.dart';
@@ -152,17 +153,20 @@ class ImagePreviewWidget extends ConsumerStatefulWidget {
 class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> {
   @override
   Widget build(BuildContext context) {
-    final state = ref.watch(imageGenerationNotifierProvider);
+    // 外壳只随图像集合变化重建；流式预览帧由内层 Consumer 单独承担。
+    final panelImages = ref.watch(
+      imageGenerationNotifierProvider.select(selectGenerationPanelImages),
+    );
     final theme = Theme.of(context);
     final selection = ref.watch(generationImageCardSelectionProvider);
     final selectionNotifier = ref.read(
       generationImageCardSelectionProvider.notifier,
     );
-    final presented = state.displayImages
+    final presented = panelImages.displayImages
         .where((image) => image.canBulkSelect)
         .map((image) => image.id)
         .toList();
-    final selectedImages = state.selectableMergedImages
+    final selectedImages = panelImages.selectableMergedImages
         .where((image) => selection.isSelected(image.id))
         .toList();
 
@@ -208,7 +212,14 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> {
                             compact ? 4 : 16,
                           ),
                           child: Center(
-                            child: _buildContent(context, ref, state, theme),
+                            child: Consumer(
+                              builder: (context, ref, _) => _buildContent(
+                                context,
+                                ref,
+                                ref.watch(imageGenerationNotifierProvider),
+                                theme,
+                              ),
+                            ),
                           ),
                         );
                       },
