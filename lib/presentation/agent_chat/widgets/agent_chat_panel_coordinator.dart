@@ -42,11 +42,13 @@ class AgentChatPanelCoordinator {
   final AgentChatPanelController _controller;
   final bool Function() _isMounted;
 
-  AgentChatPanelCommands commands(
-    BuildContext context,
-    AgentChatState state, {
-    AgentChatResourceReference? currentCanvasReference,
-  }) {
+  AgentChatResourceReference? _currentCanvasReference;
+
+  set currentCanvasReference(AgentChatResourceReference? reference) =>
+      _currentCanvasReference = reference;
+
+  /// 回调在触发时才取会话状态与画布引用，命令集因此可以建一次复用。
+  AgentChatPanelCommands commands(BuildContext context) {
     return AgentChatPanelCommands(
       collapse: () => _ref
           .read(layoutStateNotifierProvider.notifier)
@@ -57,7 +59,11 @@ class AgentChatPanelCoordinator {
       selectSession: (sessionId) => _notifier.switchSession(sessionId),
       renameSession: (sessionId) => _renameSession(context, sessionId),
       deleteSession: (sessionId) => _deleteSession(context, sessionId),
-      moreAction: (action) => _handleMoreAction(context, state, action),
+      moreAction: (action) => _handleMoreAction(
+        context,
+        _ref.read(agentChatNotifierProvider),
+        action,
+      ),
       selectModel: (providerId, model) =>
           _notifier.selectChatModel(providerId, model),
       selectThinkingLevel: _notifier.setThinkingLevel,
@@ -67,7 +73,7 @@ class AgentChatPanelCoordinator {
           .setWebAccessEnabled(enabled),
       pickImages: () => _pickImages(context),
       attachCurrentCanvas: () =>
-          _attachCurrentCanvas(context, currentCanvasReference),
+          _attachCurrentCanvas(context, _currentCanvasReference),
       openReferenceGallery: () => AgentChatResourcePicker.showReferenceGallery(
         context: context,
         ref: _ref,
@@ -87,8 +93,11 @@ class AgentChatPanelCoordinator {
       resolveApproval: _notifier.resolveToolApproval,
       useSuggestion: _controller.setSuggestion,
       copyUserMessage: (message) => _copyUserMessage(context, message),
-      editUserMessage: (message, messageIndex) =>
-          _editUserMessage(state, message, messageIndex),
+      editUserMessage: (message, messageIndex) => _editUserMessage(
+        _ref.read(agentChatNotifierProvider),
+        message,
+        messageIndex,
+      ),
       cancelUserMessageEdit: _cancelUserMessageEdit,
       copyAssistantMessage: (message) =>
           _copyAssistantMessage(context, message),

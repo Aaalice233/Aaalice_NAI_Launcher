@@ -1321,6 +1321,11 @@ class AppLocalizationsJa extends AppLocalizations {
   }
 
   @override
+  String agentChat_approvalFileTarget(String path) {
+    return 'ファイルを書き込みます：$path';
+  }
+
+  @override
   String get agentChat_needSetup =>
       'チャットモデルが未設定です。先に設定でツール呼び出しに対応したプロバイダーを追加してください。';
 
@@ -1435,6 +1440,19 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get agentChat_approvalDeny => '拒否';
+
+  @override
+  String mcpApproval_title(Object client) {
+    return '外部エージェント $client が承認を求めています';
+  }
+
+  @override
+  String mcpApproval_expiresIn(Object seconds) {
+    return '$seconds 秒後に自動的に拒否します';
+  }
+
+  @override
+  String get mcpApproval_unknownClient => '不明なクライアント';
 
   @override
   String get generation_failedStreamSnapshot => 'スナップショットが失敗しました';
@@ -2034,6 +2052,84 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get img2img_directorDeclutter => 'デクラッター';
+
+  @override
+  String get img2img_directorPixelSnap => 'ピクセルスナップ';
+
+  @override
+  String get img2img_directorPixelSnapHint =>
+      'すべてこの PC 上で処理します。Anlas も通信も不要です。大きな画像では数秒かかります。';
+
+  @override
+  String get img2img_directorPixelSnapPalette => 'パレット化';
+
+  @override
+  String get img2img_directorPixelSnapPaletteOff => 'オフ';
+
+  @override
+  String get img2img_directorPixelSnapPaletteAuto => '自動';
+
+  @override
+  String get img2img_directorPixelSnapPaletteCustom => 'カスタム';
+
+  @override
+  String get img2img_directorPixelSnapColors => '色数';
+
+  @override
+  String get img2img_directorPixelSnapAvoidOverRefining => '細かくしすぎない';
+
+  @override
+  String get img2img_directorPixelSnapAvoidOverRefiningOn =>
+      '検出したピクセルサイズを常に維持します。';
+
+  @override
+  String get img2img_directorPixelSnapAvoidOverRefiningOff =>
+      '画像により適している場合、より細かいピクセルサイズを使用することがあります。';
+
+  @override
+  String get img2img_directorPixelSnapUpscale => 'アップスケール';
+
+  @override
+  String get img2img_directorPixelSnapUpscaleOn => '結果を元の画像とほぼ同じサイズまで拡大し直します。';
+
+  @override
+  String get img2img_directorPixelSnapUpscaleOff => '結果をスナップ後のピクセルサイズのまま保持します。';
+
+  @override
+  String img2img_directorPixelSnapSummary(int width, int height, int colors) {
+    return '$width×$height ピクセル · $colors 色';
+  }
+
+  @override
+  String img2img_directorPixelSnapSummaryNoPalette(int width, int height) {
+    return '$width×$height ピクセル';
+  }
+
+  @override
+  String get img2img_directorPixelSnapNoGrid =>
+      'この画像には繰り返しのピクセルグリッドが見つかりませんでした。';
+
+  @override
+  String get img2img_directorPixelSnapBlank => 'この画像は全体が透明です。';
+
+  @override
+  String get img2img_directorPixelSnapDownscaled =>
+      'サイズ上限を超えているため、縮小してから解析しました。';
+
+  @override
+  String get img2img_directorCancel => 'キャンセル';
+
+  @override
+  String get img2img_directorStageAnalyzing => '画像を解析中';
+
+  @override
+  String get img2img_directorStageSearchingPitch => 'ピクセルサイズを探索中';
+
+  @override
+  String get img2img_directorStageRefiningGrid => 'グリッドを調整中';
+
+  @override
+  String get img2img_directorStageFinishing => '結果を生成中';
 
   @override
   String get img2img_enhance => '品質向上';
@@ -9407,11 +9503,6 @@ class AppLocalizationsJa extends AppLocalizations {
   String get vibe_maxReached => '最大 16 件の Vibe に達しました';
 
   @override
-  String vibe_addedNamed(String name) {
-    return 'Vibe を追加しました: $name';
-  }
-
-  @override
   String vibe_addedCount(int count) {
     return '$count 件の Vibe を追加しました';
   }
@@ -9611,6 +9702,167 @@ class AppLocalizationsJa extends AppLocalizations {
   String settings_kritaBridgeClient(Object client) {
     return 'クライアント: $client';
   }
+
+  @override
+  String get settings_mcpServerPermissionSection => '権限';
+
+  @override
+  String get settings_mcpServerClientsSection => 'クライアント';
+
+  @override
+  String get settings_mcpServerEnable => 'MCP サーバーを有効にする';
+
+  @override
+  String get settings_mcpServerDisabledText =>
+      '既定ではオフ。有効にするとローカルの 127.0.0.1 でのみ待ち受けます';
+
+  @override
+  String get settings_mcpServerStartingText => 'ローカル MCP サーバーを起動しています...';
+
+  @override
+  String get settings_mcpServerListeningText => 'MCP クライアントの接続を待っています';
+
+  @override
+  String get settings_mcpServerErrorText => '起動に失敗しました。エラーメッセージを確認してください';
+
+  @override
+  String get settings_mcpServerDisabled => '無効';
+
+  @override
+  String get settings_mcpServerStarting => '起動中';
+
+  @override
+  String get settings_mcpServerListening => '待ち受け中';
+
+  @override
+  String get settings_mcpServerError => 'エラー';
+
+  @override
+  String get settings_mcpServerEndpoint => 'エンドポイント';
+
+  @override
+  String get settings_mcpServerCopyEndpoint => 'エンドポイントをコピー';
+
+  @override
+  String get settings_mcpServerPort => 'ポート';
+
+  @override
+  String get settings_mcpServerPortHelper => '変更すると接続中のクライアントは切断されます';
+
+  @override
+  String settings_mcpServerPortInvalid(Object min, Object max) {
+    return 'ポートは $min から $max の範囲で入力してください';
+  }
+
+  @override
+  String settings_mcpServerPortInUseHint(Object port) {
+    return 'ポート $port は使用中です。下で別のポートを指定してください';
+  }
+
+  @override
+  String get settings_mcpServerDiscoveryFile => 'ディスカバリーファイル';
+
+  @override
+  String get settings_mcpServerToken => 'アクセストークン';
+
+  @override
+  String get settings_mcpServerRevealToken => 'トークンを表示';
+
+  @override
+  String get settings_mcpServerHideToken => 'トークンを隠す';
+
+  @override
+  String get settings_mcpServerCopyToken => 'トークンをコピー';
+
+  @override
+  String get settings_mcpServerRegenerateToken => 'トークンを再生成';
+
+  @override
+  String get settings_mcpServerRegenerateTokenTitle => 'アクセストークンを再生成';
+
+  @override
+  String get settings_mcpServerRegenerateTokenMessage =>
+      '現在のトークンは直ちに無効になり、接続中のクライアントは切断されます。すべてのクライアント設定を新しいトークンに更新してください。';
+
+  @override
+  String get settings_mcpServerAnlasNotice =>
+      'Anlas を消費する可能性のある操作は、権限モードに関係なくランチャー内で個別に確認します。';
+
+  @override
+  String settings_mcpServerPendingApproval(Object client, Object tool) {
+    return '$client が $tool の実行を要求しています';
+  }
+
+  @override
+  String get settings_mcpServerPendingApprovalHint => 'ページ上部の承認バナーで対応してください';
+
+  @override
+  String get settings_mcpServerConnectedClients => '接続中のクライアント';
+
+  @override
+  String get settings_mcpServerSessionsEmpty => '接続中のクライアントはありません';
+
+  @override
+  String settings_mcpServerSessionConnectedAt(Object time) {
+    return '接続 $time';
+  }
+
+  @override
+  String settings_mcpServerSessionLastActivity(Object time) {
+    return '最終アクティビティ $time';
+  }
+
+  @override
+  String get settings_mcpServerClientConfigs => 'クライアント設定';
+
+  @override
+  String get settings_mcpServerConfigUnavailable =>
+      'サーバーを有効にするとクライアント設定が表示されます';
+
+  @override
+  String get settings_mcpServerCopyConfig => '設定をコピー';
+
+  @override
+  String get settings_mcpServerTokenMaskNotice =>
+      'プレビューのトークンはマスクされています。コピーすると実際のトークンが書き込まれます。';
+
+  @override
+  String settings_mcpServerCliMissing(Object path) {
+    return '同梱 CLI が見つかりません（想定パス: $path）。開発実行では正常です';
+  }
+
+  @override
+  String get settings_mcpServerViewDocs => 'ドキュメントを見る';
+
+  @override
+  String get settings_mcpServerAgentPromptTitle => '推奨: エージェントに設定させる';
+
+  @override
+  String get settings_mcpServerAgentPromptHint =>
+      '接続したいエージェントに次のプロンプトを渡すと、設定ドキュメントを読んで自分でインストールします。プロンプトにトークンは含まれず、同梱 CLI がローカルで読み取ります。';
+
+  @override
+  String get settings_mcpServerClaudeCodeHint => 'ターミナルで次のコマンドを実行してサーバーを登録します。';
+
+  @override
+  String get settings_mcpServerCodexHint =>
+      'コマンドでサーバーを登録してから、下の環境変数にトークンを設定します。';
+
+  @override
+  String get settings_mcpServerCursorHint =>
+      '次の内容を Cursor の mcp.json に統合してください。';
+
+  @override
+  String get settings_mcpServerCherryStudioHint =>
+      'Cherry Studio の MCP サーバー設定で「JSON からインポート」に次の内容を貼り付けてください。timeout は秒単位で、アプリ内の承認待ちに十分な余裕があります。';
+
+  @override
+  String get settings_mcpServerPiHint =>
+      'Pi 本体に MCP はありません。先に pi-mcp-adapter パッケージをインストールし、次の内容を ~/.pi/agent/mcp.json に統合してください。';
+
+  @override
+  String get settings_mcpServerClaudeDesktopHint =>
+      '次の内容を Claude Desktop の設定に統合してください。同梱 CLI を介して stdio で接続します。';
 
   @override
   String get settings_fontScale => 'フォント サイズ';
@@ -9855,7 +10107,7 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get settings_stripMetadataSubtitle =>
-      'サニタイズされたコピーを作成し、PNG テキスト チャンク、EXIF、および NAI ステガノグラフィック透かしデータを削除し、ドラッグ中に元のパスが露出しないようにします。';
+      'コピー、ドラッグ、MCP 画像の返却時に PNG テキストチャンク、EXIF、NAI のステガノグラフィック透かしを削除します。ローカルの元画像は変更せず、MCP は元の解像度を維持します。MCP が saved_path として返すギャラリーの元画像はそのままです。';
 
   @override
   String get settings_confirmDangerousActionsTitle => '危険な資産のアクションを再確認する';
@@ -13059,6 +13311,13 @@ class AppLocalizationsJa extends AppLocalizations {
   @override
   String get cloudSync_galleryAlbumsDescription =>
       'アルバム構造と画像参照のみを保存し、原画像はアップロードしません';
+
+  @override
+  String get cloudSync_fixedTagUsage => '固定タグの使用記録';
+
+  @override
+  String get cloudSync_fixedTagUsageDescription =>
+      '各画像がどの固定タグを使ったかの軽量な記録のみを保存し、画像はアップロードしません';
 
   @override
   String get cloudSync_optionalResources => '任意のリソース（既定はオフ）';

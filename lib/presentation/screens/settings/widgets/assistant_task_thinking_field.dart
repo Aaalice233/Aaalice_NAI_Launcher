@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/utils/localization_extension.dart';
-import '../../../prompt_assistant/models/assistant_execution_settings.dart';
+import '../../../../data/models/prompt_assistant/assistant_execution_settings.dart';
 import '../../../prompt_assistant/models/assistant_model_capability.dart';
-import '../../../prompt_assistant/models/prompt_assistant_models.dart';
+import '../../../../data/models/prompt_assistant/prompt_assistant_models.dart';
 
 class AssistantTaskThinkingField extends StatelessWidget {
   const AssistantTaskThinkingField({

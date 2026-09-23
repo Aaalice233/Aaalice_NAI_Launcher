@@ -2555,6 +2555,12 @@ abstract class AppLocalizations {
   /// **'Estimated cost: {cost} Anlas'**
   String agentChat_approvalEstimatedAnlas(int cost);
 
+  /// No description provided for @agentChat_approvalFileTarget.
+  ///
+  /// In en, this message translates to:
+  /// **'Will write file: {path}'**
+  String agentChat_approvalFileTarget(String path);
+
   /// No description provided for @agentChat_needSetup.
   ///
   /// In en, this message translates to:
@@ -2770,6 +2776,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Deny'**
   String get agentChat_approvalDeny;
+
+  /// No description provided for @mcpApproval_title.
+  ///
+  /// In en, this message translates to:
+  /// **'External agent {client} is requesting approval'**
+  String mcpApproval_title(Object client);
+
+  /// No description provided for @mcpApproval_expiresIn.
+  ///
+  /// In en, this message translates to:
+  /// **'Auto-declines in {seconds}s'**
+  String mcpApproval_expiresIn(Object seconds);
+
+  /// No description provided for @mcpApproval_unknownClient.
+  ///
+  /// In en, this message translates to:
+  /// **'Unknown client'**
+  String get mcpApproval_unknownClient;
 
   /// No description provided for @generation_failedStreamSnapshot.
   ///
@@ -3844,6 +3868,144 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Declutter'**
   String get img2img_directorDeclutter;
+
+  /// No description provided for @img2img_directorPixelSnap.
+  ///
+  /// In en, this message translates to:
+  /// **'Pixel Snap'**
+  String get img2img_directorPixelSnap;
+
+  /// No description provided for @img2img_directorPixelSnapHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Runs entirely on your computer. No Anlas, no network. Large images can take a few seconds.'**
+  String get img2img_directorPixelSnapHint;
+
+  /// No description provided for @img2img_directorPixelSnapPalette.
+  ///
+  /// In en, this message translates to:
+  /// **'Palettize'**
+  String get img2img_directorPixelSnapPalette;
+
+  /// No description provided for @img2img_directorPixelSnapPaletteOff.
+  ///
+  /// In en, this message translates to:
+  /// **'Off'**
+  String get img2img_directorPixelSnapPaletteOff;
+
+  /// No description provided for @img2img_directorPixelSnapPaletteAuto.
+  ///
+  /// In en, this message translates to:
+  /// **'Auto'**
+  String get img2img_directorPixelSnapPaletteAuto;
+
+  /// No description provided for @img2img_directorPixelSnapPaletteCustom.
+  ///
+  /// In en, this message translates to:
+  /// **'Custom'**
+  String get img2img_directorPixelSnapPaletteCustom;
+
+  /// No description provided for @img2img_directorPixelSnapColors.
+  ///
+  /// In en, this message translates to:
+  /// **'Colors'**
+  String get img2img_directorPixelSnapColors;
+
+  /// No description provided for @img2img_directorPixelSnapAvoidOverRefining.
+  ///
+  /// In en, this message translates to:
+  /// **'Avoid Over-Refining'**
+  String get img2img_directorPixelSnapAvoidOverRefining;
+
+  /// No description provided for @img2img_directorPixelSnapAvoidOverRefiningOn.
+  ///
+  /// In en, this message translates to:
+  /// **'The detected pixel size is always kept.'**
+  String get img2img_directorPixelSnapAvoidOverRefiningOn;
+
+  /// No description provided for @img2img_directorPixelSnapAvoidOverRefiningOff.
+  ///
+  /// In en, this message translates to:
+  /// **'A finer pixel size may be used when it matches the image better.'**
+  String get img2img_directorPixelSnapAvoidOverRefiningOff;
+
+  /// No description provided for @img2img_directorPixelSnapUpscale.
+  ///
+  /// In en, this message translates to:
+  /// **'Upscale'**
+  String get img2img_directorPixelSnapUpscale;
+
+  /// No description provided for @img2img_directorPixelSnapUpscaleOn.
+  ///
+  /// In en, this message translates to:
+  /// **'The result is scaled back up to roughly the input size.'**
+  String get img2img_directorPixelSnapUpscaleOn;
+
+  /// No description provided for @img2img_directorPixelSnapUpscaleOff.
+  ///
+  /// In en, this message translates to:
+  /// **'The result is kept at its snapped pixel size.'**
+  String get img2img_directorPixelSnapUpscaleOff;
+
+  /// No description provided for @img2img_directorPixelSnapSummary.
+  ///
+  /// In en, this message translates to:
+  /// **'{width}×{height} pixels · {colors} colors'**
+  String img2img_directorPixelSnapSummary(int width, int height, int colors);
+
+  /// No description provided for @img2img_directorPixelSnapSummaryNoPalette.
+  ///
+  /// In en, this message translates to:
+  /// **'{width}×{height} pixels'**
+  String img2img_directorPixelSnapSummaryNoPalette(int width, int height);
+
+  /// No description provided for @img2img_directorPixelSnapNoGrid.
+  ///
+  /// In en, this message translates to:
+  /// **'No repeating pixel grid was found in this image.'**
+  String get img2img_directorPixelSnapNoGrid;
+
+  /// No description provided for @img2img_directorPixelSnapBlank.
+  ///
+  /// In en, this message translates to:
+  /// **'This image is fully transparent.'**
+  String get img2img_directorPixelSnapBlank;
+
+  /// No description provided for @img2img_directorPixelSnapDownscaled.
+  ///
+  /// In en, this message translates to:
+  /// **'The image was downscaled before analysis because it exceeds the size limit.'**
+  String get img2img_directorPixelSnapDownscaled;
+
+  /// No description provided for @img2img_directorCancel.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel'**
+  String get img2img_directorCancel;
+
+  /// No description provided for @img2img_directorStageAnalyzing.
+  ///
+  /// In en, this message translates to:
+  /// **'Analyzing image'**
+  String get img2img_directorStageAnalyzing;
+
+  /// No description provided for @img2img_directorStageSearchingPitch.
+  ///
+  /// In en, this message translates to:
+  /// **'Searching pixel size'**
+  String get img2img_directorStageSearchingPitch;
+
+  /// No description provided for @img2img_directorStageRefiningGrid.
+  ///
+  /// In en, this message translates to:
+  /// **'Refining grid'**
+  String get img2img_directorStageRefiningGrid;
+
+  /// No description provided for @img2img_directorStageFinishing.
+  ///
+  /// In en, this message translates to:
+  /// **'Building result'**
+  String get img2img_directorStageFinishing;
 
   /// No description provided for @img2img_enhance.
   ///
@@ -16917,12 +17079,6 @@ abstract class AppLocalizations {
   /// **'Maximum 16 vibes reached'**
   String get vibe_maxReached;
 
-  /// No description provided for @vibe_addedNamed.
-  ///
-  /// In en, this message translates to:
-  /// **'Added Vibe: {name}'**
-  String vibe_addedNamed(String name);
-
   /// No description provided for @vibe_addedCount.
   ///
   /// In en, this message translates to:
@@ -17300,6 +17456,282 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Client: {client}'**
   String settings_kritaBridgeClient(Object client);
+
+  /// No description provided for @settings_mcpServerPermissionSection.
+  ///
+  /// In en, this message translates to:
+  /// **'Permissions'**
+  String get settings_mcpServerPermissionSection;
+
+  /// No description provided for @settings_mcpServerClientsSection.
+  ///
+  /// In en, this message translates to:
+  /// **'Clients'**
+  String get settings_mcpServerClientsSection;
+
+  /// No description provided for @settings_mcpServerEnable.
+  ///
+  /// In en, this message translates to:
+  /// **'Enable MCP server'**
+  String get settings_mcpServerEnable;
+
+  /// No description provided for @settings_mcpServerDisabledText.
+  ///
+  /// In en, this message translates to:
+  /// **'Off by default; listens only on local 127.0.0.1 when enabled'**
+  String get settings_mcpServerDisabledText;
+
+  /// No description provided for @settings_mcpServerStartingText.
+  ///
+  /// In en, this message translates to:
+  /// **'Starting the local MCP server...'**
+  String get settings_mcpServerStartingText;
+
+  /// No description provided for @settings_mcpServerListeningText.
+  ///
+  /// In en, this message translates to:
+  /// **'Waiting for MCP client connections'**
+  String get settings_mcpServerListeningText;
+
+  /// No description provided for @settings_mcpServerErrorText.
+  ///
+  /// In en, this message translates to:
+  /// **'Startup failed, check the error message'**
+  String get settings_mcpServerErrorText;
+
+  /// No description provided for @settings_mcpServerDisabled.
+  ///
+  /// In en, this message translates to:
+  /// **'Disabled'**
+  String get settings_mcpServerDisabled;
+
+  /// No description provided for @settings_mcpServerStarting.
+  ///
+  /// In en, this message translates to:
+  /// **'Starting'**
+  String get settings_mcpServerStarting;
+
+  /// No description provided for @settings_mcpServerListening.
+  ///
+  /// In en, this message translates to:
+  /// **'Listening'**
+  String get settings_mcpServerListening;
+
+  /// No description provided for @settings_mcpServerError.
+  ///
+  /// In en, this message translates to:
+  /// **'Error'**
+  String get settings_mcpServerError;
+
+  /// No description provided for @settings_mcpServerEndpoint.
+  ///
+  /// In en, this message translates to:
+  /// **'Endpoint'**
+  String get settings_mcpServerEndpoint;
+
+  /// No description provided for @settings_mcpServerCopyEndpoint.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy endpoint'**
+  String get settings_mcpServerCopyEndpoint;
+
+  /// No description provided for @settings_mcpServerPort.
+  ///
+  /// In en, this message translates to:
+  /// **'Port'**
+  String get settings_mcpServerPort;
+
+  /// No description provided for @settings_mcpServerPortHelper.
+  ///
+  /// In en, this message translates to:
+  /// **'Changing it disconnects connected clients'**
+  String get settings_mcpServerPortHelper;
+
+  /// No description provided for @settings_mcpServerPortInvalid.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter a port between {min} and {max}'**
+  String settings_mcpServerPortInvalid(Object min, Object max);
+
+  /// No description provided for @settings_mcpServerPortInUseHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Port {port} is already in use, pick another port below'**
+  String settings_mcpServerPortInUseHint(Object port);
+
+  /// No description provided for @settings_mcpServerDiscoveryFile.
+  ///
+  /// In en, this message translates to:
+  /// **'Discovery file'**
+  String get settings_mcpServerDiscoveryFile;
+
+  /// No description provided for @settings_mcpServerToken.
+  ///
+  /// In en, this message translates to:
+  /// **'Access token'**
+  String get settings_mcpServerToken;
+
+  /// No description provided for @settings_mcpServerRevealToken.
+  ///
+  /// In en, this message translates to:
+  /// **'Show token'**
+  String get settings_mcpServerRevealToken;
+
+  /// No description provided for @settings_mcpServerHideToken.
+  ///
+  /// In en, this message translates to:
+  /// **'Hide token'**
+  String get settings_mcpServerHideToken;
+
+  /// No description provided for @settings_mcpServerCopyToken.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy token'**
+  String get settings_mcpServerCopyToken;
+
+  /// No description provided for @settings_mcpServerRegenerateToken.
+  ///
+  /// In en, this message translates to:
+  /// **'Regenerate token'**
+  String get settings_mcpServerRegenerateToken;
+
+  /// No description provided for @settings_mcpServerRegenerateTokenTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Regenerate access token'**
+  String get settings_mcpServerRegenerateTokenTitle;
+
+  /// No description provided for @settings_mcpServerRegenerateTokenMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'The current token stops working immediately and connected clients are disconnected. Update every client configuration with the new token.'**
+  String get settings_mcpServerRegenerateTokenMessage;
+
+  /// No description provided for @settings_mcpServerAnlasNotice.
+  ///
+  /// In en, this message translates to:
+  /// **'Anything that may spend Anlas is confirmed separately inside the launcher, regardless of the permission mode.'**
+  String get settings_mcpServerAnlasNotice;
+
+  /// No description provided for @settings_mcpServerPendingApproval.
+  ///
+  /// In en, this message translates to:
+  /// **'{client} is requesting {tool}'**
+  String settings_mcpServerPendingApproval(Object client, Object tool);
+
+  /// No description provided for @settings_mcpServerPendingApprovalHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Respond in the approval banner at the top of the page'**
+  String get settings_mcpServerPendingApprovalHint;
+
+  /// No description provided for @settings_mcpServerConnectedClients.
+  ///
+  /// In en, this message translates to:
+  /// **'Connected clients'**
+  String get settings_mcpServerConnectedClients;
+
+  /// No description provided for @settings_mcpServerSessionsEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No clients connected yet'**
+  String get settings_mcpServerSessionsEmpty;
+
+  /// No description provided for @settings_mcpServerSessionConnectedAt.
+  ///
+  /// In en, this message translates to:
+  /// **'Connected at {time}'**
+  String settings_mcpServerSessionConnectedAt(Object time);
+
+  /// No description provided for @settings_mcpServerSessionLastActivity.
+  ///
+  /// In en, this message translates to:
+  /// **'Last activity {time}'**
+  String settings_mcpServerSessionLastActivity(Object time);
+
+  /// No description provided for @settings_mcpServerClientConfigs.
+  ///
+  /// In en, this message translates to:
+  /// **'Client configuration'**
+  String get settings_mcpServerClientConfigs;
+
+  /// No description provided for @settings_mcpServerConfigUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Client configuration appears once the server is running'**
+  String get settings_mcpServerConfigUnavailable;
+
+  /// No description provided for @settings_mcpServerCopyConfig.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy configuration'**
+  String get settings_mcpServerCopyConfig;
+
+  /// No description provided for @settings_mcpServerTokenMaskNotice.
+  ///
+  /// In en, this message translates to:
+  /// **'The token is masked in the preview; copying writes the real token.'**
+  String get settings_mcpServerTokenMaskNotice;
+
+  /// No description provided for @settings_mcpServerCliMissing.
+  ///
+  /// In en, this message translates to:
+  /// **'Bundled CLI not found (expected at {path}), which is normal in development runs'**
+  String settings_mcpServerCliMissing(Object path);
+
+  /// No description provided for @settings_mcpServerViewDocs.
+  ///
+  /// In en, this message translates to:
+  /// **'View documentation'**
+  String get settings_mcpServerViewDocs;
+
+  /// No description provided for @settings_mcpServerAgentPromptTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Recommended: let the agent configure itself'**
+  String get settings_mcpServerAgentPromptTitle;
+
+  /// No description provided for @settings_mcpServerAgentPromptHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Send this prompt to the agent you want to connect; it reads the setup documentation and installs the configuration itself. The prompt carries no token — the bundled CLI reads it locally.'**
+  String get settings_mcpServerAgentPromptHint;
+
+  /// No description provided for @settings_mcpServerClaudeCodeHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Run this command in a terminal to register the server.'**
+  String get settings_mcpServerClaudeCodeHint;
+
+  /// No description provided for @settings_mcpServerCodexHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Run the command to register the server, then set the token in the environment variable below.'**
+  String get settings_mcpServerCodexHint;
+
+  /// No description provided for @settings_mcpServerCursorHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Merge this into the Cursor mcp.json configuration file.'**
+  String get settings_mcpServerCursorHint;
+
+  /// No description provided for @settings_mcpServerCherryStudioHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Paste this into Cherry Studio\'s MCP server settings with “Import from JSON”; timeout is in seconds and already covers the in-app approval wait.'**
+  String get settings_mcpServerCherryStudioHint;
+
+  /// No description provided for @settings_mcpServerPiHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Pi has no built-in MCP: install the pi-mcp-adapter package first, then merge this into ~/.pi/agent/mcp.json.'**
+  String get settings_mcpServerPiHint;
+
+  /// No description provided for @settings_mcpServerClaudeDesktopHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Merge this into the Claude Desktop configuration; it connects over stdio through the bundled CLI.'**
+  String get settings_mcpServerClaudeDesktopHint;
 
   /// No description provided for @settings_fontScale.
   ///
@@ -17730,7 +18162,7 @@ abstract class AppLocalizations {
   /// No description provided for @settings_stripMetadataSubtitle.
   ///
   /// In en, this message translates to:
-  /// **'Create a sanitized copy, remove PNG text chunks, EXIF, and NAI steganographic watermark data, and avoid exposing the original path while dragging.'**
+  /// **'Remove PNG text chunks, EXIF, and NAI steganographic watermark data when copying, dragging, or returning MCP images. Local originals stay unchanged; MCP keeps the original resolution, and the gallery original it reports as saved_path is not sanitized.'**
   String get settings_stripMetadataSubtitle;
 
   /// No description provided for @settings_confirmDangerousActionsTitle.
@@ -23298,6 +23730,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Stores album structure and image references, never original images'**
   String get cloudSync_galleryAlbumsDescription;
+
+  /// No description provided for @cloudSync_fixedTagUsage.
+  ///
+  /// In en, this message translates to:
+  /// **'Fixed-tag usage records'**
+  String get cloudSync_fixedTagUsage;
+
+  /// No description provided for @cloudSync_fixedTagUsageDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Stores a lightweight record of which fixed tags each image used, never the images'**
+  String get cloudSync_fixedTagUsageDescription;
 
   /// No description provided for @cloudSync_optionalResources.
   ///

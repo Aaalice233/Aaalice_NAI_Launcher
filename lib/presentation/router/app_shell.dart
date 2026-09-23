@@ -13,7 +13,7 @@ import '../../core/utils/app_logger.dart';
 import '../../core/utils/localization_extension.dart';
 import '../adaptive/window_size_class.dart';
 import '../agent_chat/widgets/agent_question_notifications.dart';
-import '../providers/auth_provider.dart';
+import '../../data/services/auth_provider.dart';
 import '../providers/dlss_provider.dart';
 import '../providers/prompt_maximize_provider.dart';
 import '../widgets/app_branch_visibility.dart';

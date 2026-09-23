@@ -42,6 +42,87 @@ void main() {
     },
   );
 
+  test('quality tags at the tail do not hide an inferred fixed suffix', () {
+    final suffix = FixedTagEntry.create(
+      name: 'style',
+      content: 'artist:foo',
+      position: FixedTagPosition.suffix,
+    );
+
+    final result = matchMetadataFixedTags(
+      metadata: const NaiImageMetadata(
+        prompt: '1girl, artist:foo, very aesthetic, masterpiece',
+        qualityTags: ['very aesthetic', 'masterpiece'],
+      ),
+      positiveEntries: [suffix],
+      negativeEntries: const [],
+    );
+
+    expect(result.fixedSuffixTags, equals(['artist:foo']));
+    expect(result.mainPrompt, '1girl');
+  });
+
+  test(
+    'transparent background marker does not hide an inferred fixed suffix',
+    () {
+      final suffix = FixedTagEntry.create(
+        name: 'style',
+        content: 'artist:foo',
+        position: FixedTagPosition.suffix,
+      );
+
+      final result = matchMetadataFixedTags(
+        metadata: const NaiImageMetadata(
+          prompt: '1girl, artist:foo, transparent background',
+          transparentBackground: true,
+        ),
+        positiveEntries: [suffix],
+        negativeEntries: const [],
+      );
+
+      expect(result.fixedSuffixTags, equals(['artist:foo']));
+    },
+  );
+
+  test('an empty quality tag list still lets the marker be skipped', () {
+    final suffix = FixedTagEntry.create(
+      name: 'style',
+      content: 'artist:foo',
+      position: FixedTagPosition.suffix,
+    );
+
+    final result = matchMetadataFixedTags(
+      metadata: const NaiImageMetadata(
+        prompt: '1girl, artist:foo, transparent background',
+        qualityTags: [],
+        transparentBackground: true,
+      ),
+      positiveEntries: [suffix],
+      negativeEntries: const [],
+    );
+
+    expect(result.fixedSuffixTags, equals(['artist:foo']));
+  });
+
+  test('a tail that is not a quality tag still blocks the suffix', () {
+    final suffix = FixedTagEntry.create(
+      name: 'style',
+      content: 'artist:foo',
+      position: FixedTagPosition.suffix,
+    );
+
+    final result = matchMetadataFixedTags(
+      metadata: const NaiImageMetadata(
+        prompt: '1girl, artist:foo, outdoors',
+        qualityTags: ['very aesthetic'],
+      ),
+      positiveEntries: [suffix],
+      negativeEntries: const [],
+    );
+
+    expect(result.fixedSuffixTags, isEmpty);
+  });
+
   test('matches a weighted comma group as one complete fixed fragment', () {
     const fragment = '{{{masterpiece, best_quality, year_2024}}}';
     final result = matchMetadataFixedTags(

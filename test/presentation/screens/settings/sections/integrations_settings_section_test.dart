@@ -7,7 +7,13 @@ import 'package:nai_launcher/presentation/screens/settings/sections/integrations
 const _promptAssistantPanelKey = ValueKey<String>('panel-prompt-assistant');
 const _comfyUiPanelKey = ValueKey<String>('panel-comfyui');
 const _kritaPanelKey = ValueKey<String>('panel-krita');
-const _panelKeys = [_promptAssistantPanelKey, _comfyUiPanelKey, _kritaPanelKey];
+const _mcpPanelKey = ValueKey<String>('panel-mcp');
+const _panelKeys = [
+  _promptAssistantPanelKey,
+  _comfyUiPanelKey,
+  _kritaPanelKey,
+  _mcpPanelKey,
+];
 
 class _PanelProbe extends StatefulWidget {
   const _PanelProbe({
@@ -79,6 +85,11 @@ void main() {
                     label: 'panel-krita',
                     onDispose: () => disposedPanels.add('krita'),
                   ),
+                  (_) => _PanelProbe(
+                    key: _mcpPanelKey,
+                    label: 'panel-mcp',
+                    onDispose: () => disposedPanels.add('mcp'),
+                  ),
                 ],
               ),
             ),
@@ -100,10 +111,10 @@ void main() {
     }
   }
 
-  test('测试注入面板数量必须恰好为三项', () {
+  test('测试注入面板数量必须恰好为四项', () {
     Widget buildPanel(BuildContext _) => const SizedBox.shrink();
 
-    for (final invalidLength in [0, 1, 2, 4]) {
+    for (final invalidLength in [0, 1, 2, 3, 5]) {
       expect(
         () => IntegrationsSettingsSection(
           panelBuilders: List<WidgetBuilder>.filled(invalidLength, buildPanel),
@@ -115,21 +126,22 @@ void main() {
 
     expect(
       () => IntegrationsSettingsSection(
-        panelBuilders: List<WidgetBuilder>.filled(3, buildPanel),
+        panelBuilders: List<WidgetBuilder>.filled(4, buildPanel),
       ),
       returnsNormally,
     );
     expect(() => const IntegrationsSettingsSection(), returnsNormally);
   });
 
-  testWidgets('默认显示第一个面板且三段可切换', (tester) async {
+  testWidgets('默认显示第一个面板且四段可切换', (tester) async {
     final disposedPanels = <String>[];
     await pumpSection(tester, disposedPanels);
 
-    // 三段子导航
+    // 四段子导航
     expect(find.text('提示词助手'), findsOneWidget);
     expect(find.text('ComfyUI'), findsOneWidget);
     expect(find.text('Krita'), findsOneWidget);
+    expect(find.text('MCP'), findsOneWidget);
 
     // 从完整元素树确认默认只挂载第一个面板。
     expectOnlyPanel(_promptAssistantPanelKey);
@@ -144,6 +156,11 @@ void main() {
     await tester.pumpAndSettle();
     expectOnlyPanel(_kritaPanelKey);
     expect(disposedPanels, ['prompt-assistant', 'comfyui']);
+
+    await tester.tap(find.text('MCP'));
+    await tester.pumpAndSettle();
+    expectOnlyPanel(_mcpPanelKey);
+    expect(disposedPanels, ['prompt-assistant', 'comfyui', 'krita']);
   });
 
   testWidgets('英文环境切换集成面板时分段导航总宽度保持不变', (tester) async {
@@ -161,12 +178,16 @@ void main() {
     await tester.pumpAndSettle();
     final kritaWidth = tester.getSize(segmentedButton).width;
 
+    await tester.tap(find.text('MCP'));
+    await tester.pumpAndSettle();
+    final mcpWidth = tester.getSize(segmentedButton).width;
+
     expect(
-      [promptAssistantWidth, comfyUiWidth, kritaWidth],
+      [promptAssistantWidth, comfyUiWidth, kritaWidth, mcpWidth],
       everyElement(promptAssistantWidth),
       reason:
           'Prompt Assistant=$promptAssistantWidth, '
-          'ComfyUI=$comfyUiWidth, Krita=$kritaWidth',
+          'ComfyUI=$comfyUiWidth, Krita=$kritaWidth, MCP=$mcpWidth',
     );
   });
 
@@ -206,9 +227,9 @@ void main() {
   }
 
   const expectedLabels = <String, List<String>>{
-    'en': ['Prompt Assistant', 'ComfyUI', 'Krita'],
-    'zh': ['提示词助手', 'ComfyUI', 'Krita'],
-    'ja': ['プロンプトアシスタント', 'ComfyUI', 'Krita'],
+    'en': ['Prompt Assistant', 'ComfyUI', 'Krita', 'MCP'],
+    'zh': ['提示词助手', 'ComfyUI', 'Krita', 'MCP'],
+    'ja': ['プロンプトアシスタント', 'ComfyUI', 'Krita', 'MCP'],
   };
 
   for (final entry in expectedLabels.entries) {

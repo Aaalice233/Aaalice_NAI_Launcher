@@ -8,7 +8,7 @@ import '../../core/storage/local_storage_service.dart';
 import '../../data/models/character/character_prompt.dart';
 import '../../data/services/local_onnx_model_service.dart';
 import '../../data/services/local_onnx_tagger_service.dart';
-import '../prompt_assistant/models/prompt_assistant_models.dart';
+import '../../data/models/prompt_assistant/prompt_assistant_models.dart';
 import '../prompt_assistant/services/prompt_assistant_service.dart';
 import '../utils/reverse_prompt_image_normalizer.dart';
 

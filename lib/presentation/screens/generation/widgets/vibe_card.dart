@@ -11,7 +11,7 @@ import '../../../../data/models/vibe/vibe_reference.dart';
 import '../../../widgets/common/app_toast.dart';
 import '../../../widgets/common/decoded_memory_image.dart';
 import '../../../widgets/common/editable_double_field.dart';
-import '../../../providers/auth_provider.dart';
+import '../../../../data/services/auth_provider.dart';
 import '../../../providers/generation/generation_params_notifier.dart';
 import '../../../widgets/common/hover_image_preview.dart';
 import '../handlers/vibe_import_handler.dart';

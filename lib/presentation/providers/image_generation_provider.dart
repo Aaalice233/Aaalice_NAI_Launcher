@@ -23,17 +23,15 @@ import '../../core/utils/pica_lanczos_resizer.dart';
 import '../../core/utils/prompt_preset_resolution.dart';
 import '../../data/datasources/remote/nai_image_generation_api_service.dart';
 import '../../data/models/character/character_prompt.dart' as ui_character;
-import '../../data/models/fixed_tag/fixed_tag_entry.dart';
-import '../../data/models/fixed_tag/fixed_tag_prompt_type.dart';
 import '../../data/models/fixed_tag/fixed_tag_usage_snapshot.dart';
 import '../../data/models/gallery/nai_image_metadata.dart';
 import '../../data/models/image/image_params.dart';
 import '../../data/models/image/image_stream_chunk.dart';
 import '../../data/repositories/gallery_folder_repository.dart';
-import '../../data/services/alias_resolver_service.dart';
+import 'alias_resolver_service.dart';
 import '../../data/services/statistics_cache_service.dart';
 import '../services/generation_history_storage_service.dart';
-import 'auth_provider.dart';
+import '../../data/services/auth_provider.dart';
 import 'dlss_provider.dart';
 import 'character_prompt_provider.dart';
 import 'fixed_tags_provider.dart';
@@ -1033,34 +1031,6 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
       images,
       params,
       snapshot: GenerationSaveSnapshot(
-        fixedPrefixTags: fixedTagUsageSnapshot
-            .entriesFor(
-              promptType: FixedTagPromptType.positive,
-              position: FixedTagPosition.prefix,
-            )
-            .map((entry) => entry.renderedContent)
-            .toList(),
-        fixedSuffixTags: fixedTagUsageSnapshot
-            .entriesFor(
-              promptType: FixedTagPromptType.positive,
-              position: FixedTagPosition.suffix,
-            )
-            .map((entry) => entry.renderedContent)
-            .toList(),
-        fixedNegativePrefixTags: fixedTagUsageSnapshot
-            .entriesFor(
-              promptType: FixedTagPromptType.negative,
-              position: FixedTagPosition.prefix,
-            )
-            .map((entry) => entry.renderedContent)
-            .toList(),
-        fixedNegativeSuffixTags: fixedTagUsageSnapshot
-            .entriesFor(
-              promptType: FixedTagPromptType.negative,
-              position: FixedTagPosition.suffix,
-            )
-            .map((entry) => entry.renderedContent)
-            .toList(),
         fixedTagUsageSnapshot: fixedTagUsageSnapshot,
         useCoords: params.useCoords,
       ),
@@ -1243,44 +1213,20 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
     final comment = ImageSaveUtils.buildCommentJson(
       params: effective,
       actualSeed: effective.seed,
-      fixedTagUsageSnapshot: _activeFixedTagUsageSnapshot,
-      fixedPrefixTags: _activeFixedTagUsageSnapshot
-          ?.entriesFor(
-            promptType: FixedTagPromptType.positive,
-            position: FixedTagPosition.prefix,
-          )
-          .map((entry) => entry.renderedContent)
-          .toList(),
-      fixedSuffixTags: _activeFixedTagUsageSnapshot
-          ?.entriesFor(
-            promptType: FixedTagPromptType.positive,
-            position: FixedTagPosition.suffix,
-          )
-          .map((entry) => entry.renderedContent)
-          .toList(),
-      fixedNegativePrefixTags: _activeFixedTagUsageSnapshot
-          ?.entriesFor(
-            promptType: FixedTagPromptType.negative,
-            position: FixedTagPosition.prefix,
-          )
-          .map((entry) => entry.renderedContent)
-          .toList(),
-      fixedNegativeSuffixTags: _activeFixedTagUsageSnapshot
-          ?.entriesFor(
-            promptType: FixedTagPromptType.negative,
-            position: FixedTagPosition.suffix,
-          )
-          .map((entry) => entry.renderedContent)
-          .toList(),
       charCaptions: charCaptions,
       charNegCaptions: charNegCaptions,
       useCoords: effective.useCoords,
     );
     final raw = jsonEncode(comment);
-    return NaiImageMetadata.fromNaiComment({
+    final metadata = NaiImageMetadata.fromNaiComment({
       'Comment': raw,
       'Software': 'NovelAI',
       'Source': ImageSaveUtils.getModelSourceName(effective.model),
     }, rawJson: raw);
+    final snapshot = _activeFixedTagUsageSnapshot;
+    // 快照不再进 PNG，内存元数据仍要带上供历史面板与详情页判定固定词。
+    return snapshot == null
+        ? metadata
+        : metadata.withFixedTagUsageData(snapshot.toJson());
   }
 }

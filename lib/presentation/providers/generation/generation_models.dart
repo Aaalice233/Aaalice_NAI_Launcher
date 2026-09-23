@@ -358,7 +358,17 @@ class ImageGenerationState {
       streamPreviewSlots.any((slot) => slot.previewBytes?.isNotEmpty == true);
 }
 
-extension ImageGenerationStateImages on ImageGenerationState {
+/// The image lists a panel shell needs, projected out of the full state.
+///
+/// Record equality compares the three lists by identity, so subscribers stay
+/// quiet while streaming previews rewrite the rest of the state.
+typedef GenerationPanelImages = ({
+  List<GeneratedImage> currentImages,
+  List<GeneratedImage> history,
+  List<GeneratedImage> displayImages,
+});
+
+extension GenerationPanelImagesProjection on GenerationPanelImages {
   /// Images in the same order as the history panel: current batch first, then
   /// newest-to-oldest history, with duplicate ids removed.
   List<GeneratedImage> get mergedPanelImages {
@@ -396,4 +406,22 @@ extension ImageGenerationStateImages on ImageGenerationState {
     if (display.any((image) => image.id == target.id)) return display;
     return [target];
   }
+}
+
+extension ImageGenerationStateImages on ImageGenerationState {
+  GenerationPanelImages get panelImages => (
+    currentImages: currentImages,
+    history: history,
+    displayImages: displayImages,
+  );
+
+  List<GeneratedImage> get mergedPanelImages => panelImages.mergedPanelImages;
+
+  List<GeneratedImage> get selectableMergedImages =>
+      panelImages.selectableMergedImages;
+
+  GeneratedImage? findImageById(String? id) => panelImages.findImageById(id);
+
+  List<GeneratedImage> detailSequenceFor(GeneratedImage target) =>
+      panelImages.detailSequenceFor(target);
 }

@@ -495,6 +495,8 @@
   "@agentChat_addResourceFailed": {"placeholders":{"error":{"type":"String"}}},
   "agentChat_approvalEstimatedAnlas": "預計消耗：{cost} Anlas",
   "@agentChat_approvalEstimatedAnlas": {"placeholders": {"cost": {"type": "int"}}},
+  "agentChat_approvalFileTarget": "將寫入檔案：{path}",
+  "@agentChat_approvalFileTarget": {"placeholders": {"path": {"type": "String"}}},
   "agentChat_needSetup": "未設定聊天模型。請先在設定中新增支援工具呼叫的供應商。",
   "agentChat_heroTitle": "今天想做什麼？",
   "agentChat_heroSubtitle": "準備生成角色提示詞、整理靈感或最佳化設定。",
@@ -538,6 +540,19 @@
   "agentChat_approvalDescription": "此工具會讀取本機資料、修改應用程式狀態或產生費用。",
   "agentChat_approvalAllow": "允許一次",
   "agentChat_approvalDeny": "拒絕",
+  "mcpApproval_title": "外部智慧體 {client} 請求授權",
+  "@mcpApproval_title": {
+    "placeholders": {
+      "client": {}
+    }
+  },
+  "mcpApproval_expiresIn": "{seconds} 秒後自動拒絕",
+  "@mcpApproval_expiresIn": {
+    "placeholders": {
+      "seconds": {}
+    }
+  },
+  "mcpApproval_unknownClient": "未知用戶端",
   "generation_failedStreamSnapshot": "失敗快照",
   "generation_failedStreamSnapshotHint": "生成未完成，僅保留最後一幀預覽；不可儲存、收藏或用於圖生圖",
   "generation_noHistory": "暫無歷史記錄",
@@ -795,6 +810,42 @@
   "img2img_directorColorize": "上色",
   "img2img_directorEmotion": "表情修復",
   "img2img_directorDeclutter": "雜線清理",
+  "img2img_directorPixelSnap": "像素對齊",
+  "img2img_directorPixelSnapHint": "完全在本機計算，不消耗 Anlas、不連網。大圖可能要幾秒到十幾秒。",
+  "img2img_directorPixelSnapPalette": "調色盤",
+  "img2img_directorPixelSnapPaletteOff": "關閉",
+  "img2img_directorPixelSnapPaletteAuto": "自動",
+  "img2img_directorPixelSnapPaletteCustom": "自訂",
+  "img2img_directorPixelSnapColors": "色數",
+  "img2img_directorPixelSnapAvoidOverRefining": "不過度細化",
+  "img2img_directorPixelSnapAvoidOverRefiningOn": "始終保留偵測到的像素尺寸。",
+  "img2img_directorPixelSnapAvoidOverRefiningOff": "更細的像素尺寸更貼合原圖時會改用它。",
+  "img2img_directorPixelSnapUpscale": "放大回原尺寸",
+  "img2img_directorPixelSnapUpscaleOn": "結果會放大到接近原圖的大小。",
+  "img2img_directorPixelSnapUpscaleOff": "結果保持對齊後的像素尺寸。",
+  "img2img_directorPixelSnapSummary": "{width}×{height} 像素 · {colors} 色",
+  "@img2img_directorPixelSnapSummary": {
+    "placeholders": {
+      "width": {"type": "int"},
+      "height": {"type": "int"},
+      "colors": {"type": "int"}
+    }
+  },
+  "img2img_directorPixelSnapSummaryNoPalette": "{width}×{height} 像素",
+  "@img2img_directorPixelSnapSummaryNoPalette": {
+    "placeholders": {
+      "width": {"type": "int"},
+      "height": {"type": "int"}
+    }
+  },
+  "img2img_directorPixelSnapNoGrid": "這張圖裡找不到重複的像素網格。",
+  "img2img_directorPixelSnapBlank": "這張圖整幅都是透明的。",
+  "img2img_directorPixelSnapDownscaled": "圖片超過尺寸上限，已先降採樣再分析。",
+  "img2img_directorCancel": "取消",
+  "img2img_directorStageAnalyzing": "分析影像",
+  "img2img_directorStageSearchingPitch": "搜尋像素尺寸",
+  "img2img_directorStageRefiningGrid": "細化網格",
+  "img2img_directorStageFinishing": "產生結果",
   "img2img_enhance": "增強",
   "img2img_enhanceHint": "增強會繼續參考當前提示詞，對源圖進行潛空間放大與再生成。",
   "img2img_enhanceMagnitude": "幅度",
@@ -4535,14 +4586,6 @@
   },
   "vibe_saveToLibrary_tagHint": "輸入標籤後點選新增",
   "vibe_maxReached": "已達到最大數量 (16張)",
-  "vibe_addedNamed": "已新增 Vibe: {name}",
-  "@vibe_addedNamed": {
-    "placeholders": {
-      "name": {
-        "type": "String"
-      }
-    }
-  },
   "vibe_addedCount": "已新增 {count} 個 vibes",
   "@vibe_addedCount": {
     "placeholders": {
@@ -4632,6 +4675,85 @@
       "client": {}
     }
   },
+
+  "settings_mcpServerPermissionSection": "權限",
+  "settings_mcpServerClientsSection": "用戶端",
+  "settings_mcpServerEnable": "啟用 MCP 伺服器",
+  "settings_mcpServerDisabledText": "預設關閉；開啟後只監聽本機 127.0.0.1",
+  "settings_mcpServerStartingText": "正在啟動本機 MCP 服務...",
+  "settings_mcpServerListeningText": "等待 MCP 用戶端連線",
+  "settings_mcpServerErrorText": "啟動失敗，請查看錯誤訊息",
+  "settings_mcpServerDisabled": "已關閉",
+  "settings_mcpServerStarting": "啟動中",
+  "settings_mcpServerListening": "監聽中",
+  "settings_mcpServerError": "錯誤",
+  "settings_mcpServerEndpoint": "端點位址",
+  "settings_mcpServerCopyEndpoint": "複製端點位址",
+  "settings_mcpServerPort": "連接埠",
+  "settings_mcpServerPortHelper": "變更後會中斷已連線的用戶端",
+  "settings_mcpServerPortInvalid": "連接埠需在 {min} 到 {max} 之間",
+  "@settings_mcpServerPortInvalid": {
+    "placeholders": {
+      "min": {},
+      "max": {}
+    }
+  },
+  "settings_mcpServerPortInUseHint": "連接埠 {port} 已被占用，請在下方改用其他連接埠",
+  "@settings_mcpServerPortInUseHint": {
+    "placeholders": {
+      "port": {}
+    }
+  },
+  "settings_mcpServerDiscoveryFile": "探索檔案",
+  "settings_mcpServerToken": "存取權杖",
+  "settings_mcpServerRevealToken": "顯示權杖",
+  "settings_mcpServerHideToken": "隱藏權杖",
+  "settings_mcpServerCopyToken": "複製權杖",
+  "settings_mcpServerRegenerateToken": "重新產生權杖",
+  "settings_mcpServerRegenerateTokenTitle": "重新產生存取權杖",
+  "settings_mcpServerRegenerateTokenMessage": "目前權杖會立即失效，已連線的用戶端將中斷。請在所有用戶端設定中更新新權杖。",
+  "settings_mcpServerAnlasNotice": "任何可能消耗 Anlas 的操作都會在啟動器內單獨確認，與權限模式無關。",
+  "settings_mcpServerPendingApproval": "{client} 請求呼叫 {tool}",
+  "@settings_mcpServerPendingApproval": {
+    "placeholders": {
+      "client": {},
+      "tool": {}
+    }
+  },
+  "settings_mcpServerPendingApprovalHint": "請在頁面頂端的授權橫幅中處理",
+  "settings_mcpServerConnectedClients": "已連線用戶端",
+  "settings_mcpServerSessionsEmpty": "尚無用戶端連線",
+  "settings_mcpServerSessionConnectedAt": "連線於 {time}",
+  "@settings_mcpServerSessionConnectedAt": {
+    "placeholders": {
+      "time": {}
+    }
+  },
+  "settings_mcpServerSessionLastActivity": "最近活動 {time}",
+  "@settings_mcpServerSessionLastActivity": {
+    "placeholders": {
+      "time": {}
+    }
+  },
+  "settings_mcpServerClientConfigs": "用戶端設定",
+  "settings_mcpServerConfigUnavailable": "啟用伺服器後顯示用戶端設定",
+  "settings_mcpServerCopyConfig": "複製設定",
+  "settings_mcpServerTokenMaskNotice": "預覽中的權杖已遮罩，複製時會寫入真實權杖。",
+  "settings_mcpServerCliMissing": "找不到隨附 CLI（預期位置：{path}），開發執行時屬正常現象",
+  "@settings_mcpServerCliMissing": {
+    "placeholders": {
+      "path": {}
+    }
+  },
+  "settings_mcpServerViewDocs": "查看文件",
+  "settings_mcpServerAgentPromptTitle": "推薦：讓智慧代理自行設定",
+  "settings_mcpServerAgentPromptHint": "把以下提示詞發給要接入的智慧代理，它會讀取設定文件並自行完成安裝。提示詞不含權杖，權杖由隨附 CLI 在本機讀取。",
+  "settings_mcpServerClaudeCodeHint": "在終端機執行以下指令註冊伺服器。",
+  "settings_mcpServerCodexHint": "先執行指令註冊伺服器，再把權杖寫入下方的環境變數。",
+  "settings_mcpServerCursorHint": "把以下內容合併進 Cursor 的 mcp.json 設定檔。",
+  "settings_mcpServerCherryStudioHint": "在 Cherry Studio 的 MCP 伺服器設定中用「從 JSON 匯入」貼上以下內容；timeout 單位為秒，已留足應用內審批時間。",
+  "settings_mcpServerPiHint": "Pi 本體不帶 MCP，需先安裝 pi-mcp-adapter 套件，再把以下內容合併進 ~/.pi/agent/mcp.json。",
+  "settings_mcpServerClaudeDesktopHint": "把以下內容合併進 Claude Desktop 設定；它透過隨附 CLI 以 stdio 方式連線。",
   "settings_fontScale": "字型大小",
   "settings_fontScale_description": "調整應用全域性字型縮放比例",
   "settings_fontScale_previewSmall": "落霞與孤鶩齊飛",
@@ -4711,7 +4833,7 @@
   "settings_copyDragWatermarkTitle": "複製/拖拽時添加浮水印",
   "settings_copyDragWatermarkSubtitle": "使用已儲存的預設浮水印方案。添加浮水印不會清除後設資料；如需清除，請開啟上方「複製/拖拽時移除全部後設資料」。",
   "settings_stripMetadataTitle": "複製/拖拽時移除全部後設資料",
-  "settings_stripMetadataSubtitle": "生成淨化副本，清除 PNG 文字塊、EXIF 與 NAI 隱寫水印，並避免拖拽暴露原始路徑。",
+  "settings_stripMetadataSubtitle": "複製、拖拽及 MCP 圖片回傳時清除 PNG 文字塊、EXIF 與 NAI 隱寫水印，不修改本機原圖；MCP 保留原解析度，其 saved_path 指向的圖庫原圖不受影響。",
   "settings_confirmDangerousActionsTitle": "危險資產操作二次確認",
   "settings_confirmDangerousActionsSubtitle": "刪除、移動、批次移動等本地資產操作會額外彈出保護確認。",
   "settings_warnExternalImageSendTitle": "傳送到外部服務前提示",
@@ -6739,6 +6861,8 @@
   "cloudSync_onlineGalleryFavoritesDescription": "僅儲存來源 ID 與恢復所需資訊，不儲存原圖",
   "cloudSync_galleryAlbums": "本機畫廊相簿",
   "cloudSync_galleryAlbumsDescription": "只儲存相簿結構與圖片引用，不上傳原圖",
+  "cloudSync_fixedTagUsage": "固定詞使用記錄",
+  "cloudSync_fixedTagUsageDescription": "只儲存每張圖用了哪些固定詞的輕量記錄，不上傳圖片",
   "cloudSync_optionalResources": "可選資源（預設關閉）",
   "cloudSync_vibes": "Vibe",
   "cloudSync_preciseReferences": "精準參考",

@@ -20,7 +20,7 @@ import '../../../../core/utils/file_explorer_utils.dart';
 import '../../../../core/utils/image_save_utils.dart';
 import '../../../../core/utils/image_share_sanitizer.dart';
 import '../../../../core/utils/vibe_file_parser.dart';
-import '../../../../data/services/alias_resolver_service.dart';
+import '../../../providers/alias_resolver_service.dart';
 import '../../../adaptive/interaction_policy.dart';
 import '../../../providers/layout_state_provider.dart';
 import '../../../providers/tag_library_page_provider.dart';
@@ -154,6 +154,7 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
 
   @override
   Widget build(BuildContext context) {
+    // 面板自身渲染流式预览卡片，字段投影覆盖不到，只能整状态订阅。
     final state = ref.watch(imageGenerationNotifierProvider);
     final selection = ref.watch(generationImageCardSelectionProvider);
     ref.watch(copyDragWatermarkProvider);

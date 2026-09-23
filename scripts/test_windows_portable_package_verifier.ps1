@@ -57,6 +57,7 @@ function Reset-Fixture {
   }
   New-Item -ItemType Directory -Force -Path $fixturePath | Out-Null
   Write-TestFile 'nai_launcher.exe' 'executable'
+  Write-TestFile 'nai_launcher_mcp.exe' 'mcp stdio proxy'
   Write-TestFile 'flutter_windows.dll' 'flutter runtime'
   Write-TestFile 'data/icudtl.dat' 'icu data'
   Write-TestFile 'data/flutter_assets/AssetManifest.bin' 'asset manifest'

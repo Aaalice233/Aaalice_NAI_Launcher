@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import '../../../prompt_assistant/models/assistant_execution_settings.dart';
+import '../../../../data/models/prompt_assistant/assistant_execution_settings.dart';
 
 import '../../../../core/utils/localization_extension.dart';
 import '../../../adaptive/content_sized_adaptive_form.dart';
-import '../../../prompt_assistant/models/prompt_assistant_models.dart';
+import '../../../../data/models/prompt_assistant/prompt_assistant_models.dart';
 import '../../../widgets/common/themed_confirm_dialog.dart';
 import '../../../widgets/common/provider_icon.dart';
 

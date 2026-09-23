@@ -1,6 +1,6 @@
 import 'dart:convert';
 
-import '../../../presentation/prompt_assistant/models/prompt_assistant_models.dart';
+import '../prompt_assistant/prompt_assistant_models.dart';
 
 const String legacyDefaultAgentChatPrompt =
     'You are a helpful assistant embedded in a NovelAI image-generation client. '

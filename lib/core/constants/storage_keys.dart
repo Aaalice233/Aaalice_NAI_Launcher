@@ -244,6 +244,8 @@ class StorageKeys {
   static const String fixedTagsNegativePanelExpanded =
       'fixed_tags_negative_panel_expanded';
   static const String fixedTagCategoriesData = 'fixed_tag_categories_data';
+  static const String fixedTagUsageRecordsBox = 'fixed_tag_usage_records';
+  static const String fixedTagUsageSnapshotsBox = 'fixed_tag_usage_snapshots';
 
   // Tag Library (词库相关)
   static const String tagLibraryUserBox = 'tag_library_user';
@@ -379,6 +381,12 @@ class StorageKeys {
 
   // Krita Bridge 设置
   static const String kritaBridgeEnabled = 'krita_bridge_enabled';
+
+  // MCP 服务器设置。端口、令牌与权限模式都绑定本机，不进入云同步。
+  static const String mcpServerEnabled = 'mcp_server_enabled';
+  static const String mcpServerPort = 'mcp_server_port';
+  static const String mcpServerPermissionMode = 'mcp_server_permission_mode';
+  static const String mcpServerToken = 'mcp_server_token_v1';
 
   // 工作流设置
   /// 旧版连续幅度（0-1），只用于迁移到 [workflowEnhanceLevel]。

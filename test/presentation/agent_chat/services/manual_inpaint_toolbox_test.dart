@@ -10,6 +10,7 @@ import 'package:image/image.dart' as img;
 import 'package:nai_launcher/core/agent/agent_types.dart';
 import 'package:nai_launcher/core/agent/resources/agent_chat_resource_reference.dart';
 import 'package:nai_launcher/core/agent/resources/agent_chat_resource_reference_codec.dart';
+import 'package:nai_launcher/core/utils/display_thumbnail_utils.dart';
 import 'package:nai_launcher/data/models/image/image_params.dart';
 import 'package:nai_launcher/data/models/inpaint/inpaint_draft_status.dart';
 import 'package:nai_launcher/data/services/inpaint_draft_file_repository.dart';
@@ -19,6 +20,10 @@ import 'package:nai_launcher/presentation/providers/generation/generation_params
 import 'package:nai_launcher/presentation/widgets/image_editor/image_editor_types.dart';
 
 final _refProvider = Provider<Ref>((ref) => ref);
+
+const _observationGuidance =
+    'Call inspect_images with the image resource_ref first; it returns the '
+    'full-resolution image.';
 
 void main() {
   late Directory root;
@@ -202,8 +207,11 @@ void main() {
         supportDirectory: root,
         anlasEstimator: (_, _) => 0,
         repository: repository,
-        resourceLoader: (_) async =>
-            (bytes: (await pendingSource.future)!, filePath: null),
+        resourceLoader: (value) async => (
+          bytes: (await pendingSource.future)!,
+          filePath: null,
+          reference: value,
+        ),
         activeSessionId: () => sessionId,
         editorLauncher: (_, __, ___) {
           editorLaunches += 1;
@@ -239,8 +247,9 @@ void main() {
       supportDirectory: root,
       anlasEstimator: (_, _) => 0,
       repository: repository,
-      resourceLoader: (value) async =>
-          value == reference ? (bytes: source, filePath: null) : null,
+      resourceLoader: (value) async => value == reference
+          ? (bytes: source, filePath: null, reference: value)
+          : null,
       editorLauncher: (_, __, ___) =>
           ManualInpaintEditorSession(result: editorResult.future, close: () {}),
     );
@@ -283,6 +292,7 @@ void main() {
 
     Future<ManualInpaintToolbox> buildToolbox({
       ManualInpaintAnlasEstimator? anlasEstimator,
+      ManualInpaintResourceLoader? resourceLoader,
     }) async {
       final toolbox = ManualInpaintToolbox(
         container.read(_refProvider),
@@ -290,33 +300,51 @@ void main() {
         workspaceDir: workspace.path,
         repository: repository,
         anlasEstimator: anlasEstimator ?? (_, _) => 5,
+        resourceLoader: resourceLoader,
         activeSessionId: () => 'session-a',
       );
       toolbox.configureObservationLedger(
         ledger,
         activeSessionId: () => 'session-a',
+        observationGuidance: _observationGuidance,
       );
       return toolbox;
     }
 
-    void markObserved(String path) => ledger.recordToolResult(
-      'session-a',
-      AgentToolResult(
-        content: [
-          const ToolResultImageContent(
-            ImageContent(
-              source: ImageSource.base64(
-                mimeType: 'image/png',
-                base64Data: 'AA==',
+    void markObserved(Map<String, dynamic> details, {int size = 512}) =>
+        ledger.recordToolResult(
+          'session-a',
+          AgentToolResult(
+            content: [
+              ToolResultImageContent(
+                ImageContent(
+                  source: ImageSource.base64(
+                    mimeType: 'image/png',
+                    base64Data: base64Encode(_png(width: size, height: size)),
+                  ),
+                ),
               ),
-            ),
+            ],
+            details: details,
           ),
-        ],
-        details: <String, dynamic>{
-          'files': [path],
+        );
+
+    void markObservedPath(String path, {int size = 512}) => markObserved({
+      'files': [path],
+    }, size: size);
+
+    void markObservedReference(
+      AgentChatResourceReference reference, {
+      int size = 512,
+    }) => markObserved({
+      'images': [
+        {
+          'resource_ref': AgentChatResourceReferenceCodec.encodeJsonMap(
+            reference,
+          ),
         },
-      ),
-    );
+      ],
+    }, size: size);
 
     setUp(() async {
       workspace = await Directory('${root.path}/workspace').create();
@@ -342,12 +370,64 @@ void main() {
       expect(await repository.list(), isEmpty);
     });
 
+    test('refuses a source seen only as a display thumbnail', () async {
+      final toolbox = await buildToolbox();
+      final tools = {for (final tool in toolbox.tools()) tool.name: tool};
+      markObservedPath(
+        sourceFile.path,
+        size: DisplayThumbnailUtils.maxDimension,
+      );
+
+      final result = await tools['create_inpaint_mask']!.execute('c1b', {
+        'source_image': 'source.png',
+        'prompt': 'fix the hand',
+        'focused': false,
+        'regions': const [
+          {'shape': 'rect', 'x': 0.4, 'y': 0.4, 'width': 0.2, 'height': 0.2},
+        ],
+      });
+
+      expect(result.details['code'], 'image_not_observed');
+      expect(result.details['message'], contains(_observationGuidance));
+      expect(await repository.list(), isEmpty);
+    });
+
+    test('accepts a source_ref observed at full resolution', () async {
+      final reference = AgentChatResourceReference(
+        kind: AgentChatResourceKind.generatedImage,
+        source: 'generation_history',
+        resourceId: 'generated-7',
+      );
+      final source = _png(value: 40, width: 512, height: 512);
+      final toolbox = await buildToolbox(
+        resourceLoader: (value) async =>
+            (bytes: source, filePath: null, reference: value),
+      );
+      final tools = {for (final tool in toolbox.tools()) tool.name: tool};
+      markObservedReference(reference);
+
+      final result = await tools['create_inpaint_mask']!.execute('c1c', {
+        'source_ref': AgentChatResourceReferenceCodec.encodeJsonMap(reference),
+        'prompt': 'fix the hand',
+        'focused': false,
+        'preview': false,
+        'regions': const [
+          {'shape': 'rect', 'x': 0.4, 'y': 0.4, 'width': 0.2, 'height': 0.2},
+        ],
+      });
+
+      expect(result.details['ok'], isTrue);
+      final drafts = await repository.list();
+      expect(drafts, hasLength(1));
+      expect(drafts.single.status, InpaintDraftStatus.ready);
+    });
+
     test(
       'commits a ready draft with a mask once the source was read',
       () async {
         final toolbox = await buildToolbox();
         final tools = {for (final tool in toolbox.tools()) tool.name: tool};
-        markObserved(sourceFile.path);
+        markObservedPath(sourceFile.path);
 
         final result = await tools['create_inpaint_mask']!.execute('c2', {
           'source_image': 'source.png',
@@ -385,7 +465,7 @@ void main() {
           },
         );
         final tools = {for (final tool in toolbox.tools()) tool.name: tool};
-        markObserved(sourceFile.path);
+        markObservedPath(sourceFile.path);
 
         await tools['create_inpaint_mask']!.execute('c3', {
           'source_image': 'source.png',
@@ -438,7 +518,7 @@ void main() {
         );
       });
       final tools = {for (final tool in toolbox.tools()) tool.name: tool};
-      markObserved(sourceFile.path);
+      markObservedPath(sourceFile.path);
 
       final created = await tools['create_inpaint_mask']!.execute('p1', {
         'source_image': 'source.png',

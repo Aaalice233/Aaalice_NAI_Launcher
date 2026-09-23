@@ -2,7 +2,9 @@ import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 
 const _gelbooruReferer = 'https://gelbooru.com/';
 const _gelbooruContentCookie = 'fringeBenefits=yup';
-const _aiTagReferer = 'https://aitag.win/';
+
+// aitag.win 对 /api 与图片 CDN 都要求同源 Referer，且必须带路径斜杠，去掉斜杠返回 403
+const aiTagReferer = 'https://aitag.win/';
 const _onlineGalleryBrowserUserAgent =
     'Mozilla/5.0 (Windows NT 10.0; Win64; x64) '
     'AppleWebKit/537.36 (KHTML, like Gecko) '
@@ -18,7 +20,7 @@ const _gelbooruImageHeaders = <String, String>{
 };
 const _aiTagImageHeaders = <String, String>{
   'User-Agent': _onlineGalleryBrowserUserAgent,
-  'Referer': _aiTagReferer,
+  'Referer': aiTagReferer,
   'Accept': _imageAcceptHeader,
 };
 

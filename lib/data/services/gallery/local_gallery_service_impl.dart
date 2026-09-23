@@ -4,6 +4,7 @@ import 'dart:io';
 import '../../../core/database/datasources/gallery_data_source.dart';
 import '../../../core/exceptions/gallery_exceptions.dart';
 import '../../../core/utils/app_logger.dart';
+import '../../models/gallery/gallery_index_admission.dart';
 import '../../models/gallery/local_image_record.dart';
 import '../../models/gallery/nai_image_metadata.dart';
 import 'gallery_filter_service.dart';
@@ -221,7 +222,7 @@ class LocalGalleryServiceImpl implements LocalGalleryService {
   }
 
   @override
-  Future<bool> addNewImageImmediately(
+  Future<GalleryIndexAdmission> addNewImageImmediately(
     String filePath, {
     NaiImageMetadata? metadata,
   }) async {
@@ -233,18 +234,18 @@ class LocalGalleryServiceImpl implements LocalGalleryService {
           '[AddNewImage] File does not exist: $filePath',
           'LocalGalleryService',
         );
-        return false;
+        return GalleryIndexAdmission.failed;
       }
       if (_query.containsPath(file.path)) {
         AppLogger.d(
           '[AddNewImage] File already exists in gallery: $filePath',
           'LocalGalleryService',
         );
-        return false;
+        return GalleryIndexAdmission.alreadyIndexed;
       }
       await _repository.addImage(file, metadata: metadata);
       await _query.syncAfterMutation(file);
-      return true;
+      return GalleryIndexAdmission.added;
     } catch (error, stackTrace) {
       AppLogger.e(
         '[AddNewImage] Failed to add new image: $filePath',
@@ -252,7 +253,7 @@ class LocalGalleryServiceImpl implements LocalGalleryService {
         stackTrace,
         'LocalGalleryService',
       );
-      return false;
+      return GalleryIndexAdmission.failed;
     }
   }
 

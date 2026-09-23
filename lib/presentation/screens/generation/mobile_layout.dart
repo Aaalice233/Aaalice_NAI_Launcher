@@ -4,9 +4,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/constants/api_constants.dart';
 import '../../../core/platform/platform_capabilities.dart';
 import '../../../core/utils/localization_extension.dart';
-import '../../providers/auth_provider.dart';
+import '../../../data/services/auth_provider.dart';
 import '../../providers/character_prompt_provider.dart';
 import '../../providers/fixed_tags_provider.dart';
+import '../../providers/generation/image_generation_selectors.dart';
 import '../../providers/generation/image_workflow_controller.dart';
 import '../../providers/image_generation_provider.dart';
 import '../../providers/krita/krita_bridge_notifier.dart';
@@ -73,7 +74,9 @@ class _MobileGenerationLayoutState
 
   @override
   Widget build(BuildContext context) {
-    final generationState = ref.watch(imageGenerationNotifierProvider);
+    final batchStatus = ref.watch(
+      imageGenerationNotifierProvider.select(selectGenerationButtonViewData),
+    );
     final cooldownState = ref.watch(generationCooldownProvider);
     final isAuthenticated = ref.watch(
       authNotifierProvider.select((state) => state.isAuthenticated),
@@ -116,7 +119,7 @@ class _MobileGenerationLayoutState
             MediaQuery.viewInsetsOf(context).bottom > 0 ||
             View.of(context).viewInsets.bottom > 0;
         _controller.updateKeyboardVisibility(keyboardVisible);
-        final isLauncherGenerating = generationState.isGenerating;
+        final isLauncherGenerating = batchStatus.isGenerating;
         final isGenerating = isLauncherGenerating || isKritaGenerating;
         final negativePresetLabel = ucPresetState.isCustom
             ? context.l10n.ucPreset_label
@@ -128,7 +131,7 @@ class _MobileGenerationLayoutState
                 UcPresetType.none => null,
               };
         final data = MobileGenerationViewData(
-          generationState: generationState,
+          batchStatus: batchStatus,
           cooldownRemainingSeconds: cooldownState.remainingSeconds,
           isPromptMaximized: isPromptMaximized,
           keyboardVisible: keyboardVisible,

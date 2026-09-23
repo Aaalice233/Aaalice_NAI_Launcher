@@ -58,70 +58,74 @@ class _WebStyleGenerationLayoutState
   bool _isResizingLeft = false;
   bool _isResizingRight = false;
 
+  // 回调只在触发时取当前状态，快捷键表因此可以建一次复用，不随生成帧重建。
+  late final Map<String, VoidCallback> _shortcuts = _buildShortcuts();
+
+  bool get _isBusy {
+    final isKritaGenerating =
+        PlatformCapabilities.current.supportsKritaBridge &&
+        ref.read(kritaBridgeNotifierProvider).isBridgeGenerating;
+    // 提交后到开跑之间同样不能再次触发，否则快捷键会被静默吞掉。
+    return ref.read(imageGenerationNotifierProvider).isBusy ||
+        isKritaGenerating;
+  }
+
+  Map<String, VoidCallback> _buildShortcuts() => <String, VoidCallback>{
+    ShortcutIds.generateImage: () {
+      if (!_isBusy && !ref.read(generationCooldownProvider).isActive) {
+        unawaited(generateWithProtection(context, ref));
+      }
+    },
+    ShortcutIds.cancelGeneration: () {
+      if (ref.read(imageGenerationNotifierProvider).isGenerating) {
+        ref.read(imageGenerationNotifierProvider.notifier).cancel();
+      } else if (ref.read(generationPreviewSelectionProvider) != null) {
+        ref.read(generationPreviewSelectionProvider.notifier).clear();
+      }
+    },
+    ShortcutIds.addToQueue: () {
+      final currentParams = ref.read(generationParamsNotifierProvider);
+      if (currentParams.prompt.isNotEmpty) {
+        final task = ReplicationTask.create(prompt: currentParams.prompt);
+        ref.read(replicationQueueNotifierProvider.notifier).add(task);
+        AppToast.success(context, context.l10n.queue_taskAdded);
+      }
+    },
+    ShortcutIds.randomPrompt: () {
+      if (ref.read(randomPromptToolsVisibilityProvider)) {
+        ref.read(randomPromptModeProvider.notifier).toggle();
+      } else {
+        AppToast.info(context, context.l10n.randomPromptToolsHiddenHint);
+      }
+    },
+    ShortcutIds.clearPrompt: () {
+      ref.read(generationParamsNotifierProvider.notifier).updatePrompt('');
+      ref
+          .read(generationParamsNotifierProvider.notifier)
+          .updateNegativePrompt('');
+      ref.read(characterPromptNotifierProvider.notifier).clearAll();
+    },
+    // 官网式布局没有全屏编辑，该快捷键改为切换正/负输入
+    ShortcutIds.togglePromptMode: () {
+      widget.negativeModeNotifier.value = !widget.negativeModeNotifier.value;
+    },
+    ShortcutIds.openTagLibrary: () {
+      context.go(AppRoutes.tagLibraryPage);
+    },
+    ShortcutIds.upscaleImage: () {
+      final displayImages = ref
+          .read(imageGenerationNotifierProvider)
+          .displayImages;
+      if (displayImages.isNotEmpty) {
+        ImageWorkflowLauncher.openUpscale(ref, displayImages.first.bytes);
+        AppToast.info(context, context.l10n.img2img_upscalePanelOpened);
+      }
+    },
+  };
+
   @override
   Widget build(BuildContext context) {
     final layoutState = ref.watch(layoutStateNotifierProvider);
-    final generationState = ref.watch(imageGenerationNotifierProvider);
-    final cooldownState = ref.watch(generationCooldownProvider);
-    final isKritaGenerating =
-        PlatformCapabilities.current.supportsKritaBridge &&
-        ref.watch(kritaBridgeNotifierProvider).isBridgeGenerating;
-    final isLauncherGenerating = generationState.isGenerating;
-    // 提交后到开跑之间同样不能再次触发，否则快捷键会被静默吞掉。
-    final isBusy = generationState.isBusy || isKritaGenerating;
-
-    final shortcuts = <String, VoidCallback>{
-      ShortcutIds.generateImage: () {
-        if (!isBusy && !cooldownState.isActive) {
-          unawaited(generateWithProtection(context, ref));
-        }
-      },
-      ShortcutIds.cancelGeneration: () {
-        if (isLauncherGenerating) {
-          ref.read(imageGenerationNotifierProvider.notifier).cancel();
-        } else if (ref.read(generationPreviewSelectionProvider) != null) {
-          ref.read(generationPreviewSelectionProvider.notifier).clear();
-        }
-      },
-      ShortcutIds.addToQueue: () {
-        final currentParams = ref.read(generationParamsNotifierProvider);
-        if (currentParams.prompt.isNotEmpty) {
-          final task = ReplicationTask.create(prompt: currentParams.prompt);
-          ref.read(replicationQueueNotifierProvider.notifier).add(task);
-          AppToast.success(context, context.l10n.queue_taskAdded);
-        }
-      },
-      ShortcutIds.randomPrompt: () {
-        if (ref.read(randomPromptToolsVisibilityProvider)) {
-          ref.read(randomPromptModeProvider.notifier).toggle();
-        } else {
-          AppToast.info(context, context.l10n.randomPromptToolsHiddenHint);
-        }
-      },
-      ShortcutIds.clearPrompt: () {
-        ref.read(generationParamsNotifierProvider.notifier).updatePrompt('');
-        ref
-            .read(generationParamsNotifierProvider.notifier)
-            .updateNegativePrompt('');
-        ref.read(characterPromptNotifierProvider.notifier).clearAll();
-      },
-      // 官网式布局没有全屏编辑，该快捷键改为切换正/负输入
-      ShortcutIds.togglePromptMode: () {
-        widget.negativeModeNotifier.value = !widget.negativeModeNotifier.value;
-      },
-      ShortcutIds.openTagLibrary: () {
-        context.go(AppRoutes.tagLibraryPage);
-      },
-      ShortcutIds.upscaleImage: () {
-        if (generationState.displayImages.isNotEmpty) {
-          ImageWorkflowLauncher.openUpscale(
-            ref,
-            generationState.displayImages.first.bytes,
-          );
-          AppToast.info(context, context.l10n.img2img_upscalePanelOpened);
-        }
-      },
-    };
 
     final leftWidth = layoutState.webLeftPanelExpanded
         ? layoutState.webLeftPanelWidth
@@ -135,7 +139,7 @@ class _WebStyleGenerationLayoutState
 
     return ShortcutAwareWidget(
       contextType: ShortcutContext.generation,
-      shortcuts: shortcuts,
+      shortcuts: _shortcuts,
       autofocus: true,
       child: GenerationWorkspaceRow(
         occupiedLeadingWidth: occupiedLeadingWidth,

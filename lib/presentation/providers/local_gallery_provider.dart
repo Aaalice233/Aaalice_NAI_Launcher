@@ -7,6 +7,7 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 import '../../core/cache/gallery_cache_manager.dart';
 import '../../core/exceptions/gallery_exceptions.dart';
 import '../../core/utils/app_logger.dart';
+import '../../data/models/gallery/gallery_index_admission.dart';
 import '../../data/models/gallery/local_image_record.dart';
 import '../../data/models/gallery/nai_image_metadata.dart';
 import '../../core/database/datasources/gallery_data_source.dart';
@@ -151,6 +152,7 @@ class LocalGalleryNotifier extends _$LocalGalleryNotifier {
   Future<int>? _favoriteCountLoad;
   DateTime? _lastSynchronizedAt;
   int _filterRequestSerial = 0;
+  final Map<String, String> _deferredAdmissions = {};
 
   DateTime? get lastSynchronizedAt => _lastSynchronizedAt;
 
@@ -179,6 +181,7 @@ class LocalGalleryNotifier extends _$LocalGalleryNotifier {
     _favoriteCountLoad = null;
     _lastSynchronizedAt = null;
     _filterRequestSerial++;
+    _deferredAdmissions.clear();
     _setState(const LocalGalleryState());
   }
 
@@ -200,7 +203,30 @@ class LocalGalleryNotifier extends _$LocalGalleryNotifier {
       );
     }
     _service = service;
+    await _flushDeferredAdmissions(service);
     return service;
+  }
+
+  /// 服务就绪前保存的新图在这里补收录，已被枚举收进去的会返回 alreadyIndexed。
+  Future<void> _flushDeferredAdmissions(LocalGalleryService service) async {
+    if (_deferredAdmissions.isEmpty) return;
+
+    // 先取空再逐张收录，并发进来的 getService() 不会重复补收录同一批路径。
+    final filePaths = _deferredAdmissions.values.toList(growable: false);
+    _deferredAdmissions.clear();
+
+    for (final filePath in filePaths) {
+      try {
+        await service.addNewImageImmediately(filePath);
+      } catch (e) {
+        AppLogger.e(
+          '[AddNewImages] Failed to admit deferred image: $filePath',
+          e,
+          null,
+          'LocalGalleryNotifier',
+        );
+      }
+    }
   }
 
   // ============================================================
@@ -491,23 +517,38 @@ class LocalGalleryNotifier extends _$LocalGalleryNotifier {
   ///
   /// [filePaths] 新图像的文件路径列表
   ///
-  /// 返回成功添加的图像数量
-  Future<int> addNewlySavedImages(List<String> filePaths) async {
-    if (!state.isInitialized || filePaths.isEmpty) {
-      return 0;
+  /// 返回本批路径中最坏的一项结果，调用方据此决定是否需要全量重扫
+  Future<GalleryIndexAdmission> addNewlySavedImages(
+    List<String> filePaths,
+  ) async {
+    if (filePaths.isEmpty) return GalleryIndexAdmission.alreadyIndexed;
+
+    final service = _service;
+    // 服务未就绪时收录一张新图要先枚举整个根目录，代价远大于收益；
+    // 在途枚举可能已经越过这些文件，所以登记路径等服务就绪后补收录。
+    if (service == null) {
+      for (final filePath in filePaths) {
+        _deferredAdmissions[galleryFilePathKey(filePath)] = filePath;
+      }
+      return GalleryIndexAdmission.deferred;
     }
 
+    return _admitImmediately(service, filePaths);
+  }
+
+  Future<GalleryIndexAdmission> _admitImmediately(
+    LocalGalleryService service,
+    List<String> filePaths,
+  ) async {
+    var admission = GalleryIndexAdmission.alreadyIndexed;
     var addedCount = 0;
 
     try {
-      final service = await getService();
-
       for (final filePath in filePaths) {
         // 尝试即时添加新图像（不等待扫描）
-        final success = await service.addNewImageImmediately(filePath);
-        if (success) {
-          addedCount++;
-        }
+        final result = await service.addNewImageImmediately(filePath);
+        if (result == GalleryIndexAdmission.added) addedCount++;
+        admission = admission.merge(result);
       }
 
       if (addedCount > 0) {
@@ -523,11 +564,13 @@ class LocalGalleryNotifier extends _$LocalGalleryNotifier {
             filteredCount: service.filteredCount,
           ),
         );
+      }
 
-        // 如果在第一页，刷新显示以包含新图像
-        if (state.currentPage == 0) {
-          await loadPage(0, showLoading: false);
-        }
+      // 扫描器抢先收录时同样要重取首页，否则开着图库会看不到新图。
+      if (admission.isIndexed &&
+          state.isInitialized &&
+          state.currentPage == 0) {
+        await loadPage(0, showLoading: false);
       }
     } catch (e) {
       AppLogger.e(
@@ -536,9 +579,10 @@ class LocalGalleryNotifier extends _$LocalGalleryNotifier {
         null,
         'LocalGalleryNotifier',
       );
+      return GalleryIndexAdmission.failed;
     }
 
-    return addedCount;
+    return admission;
   }
 
   // ============================================================

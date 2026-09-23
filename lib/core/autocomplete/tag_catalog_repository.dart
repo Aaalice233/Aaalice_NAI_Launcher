@@ -30,6 +30,9 @@ class TagCatalogRepository implements CompletionSource {
   Database? _database;
   Future<Database>? _opening;
 
+  static final RegExp _whitespace = RegExp(r'\s+');
+  static final RegExp _nonAlphanumeric = RegExp(r'[^a-z0-9]+');
+
   Future<void> initialize() async {
     if (_database != null) return;
     final opening = _opening ??= AssetDatabaseManager.instance
@@ -158,9 +161,7 @@ class TagCatalogRepository implements CompletionSource {
     Iterable<String> terms,
   ) async {
     final normalized = terms
-        .map(
-          (term) => term.trim().toLowerCase().replaceAll(RegExp(r'\s+'), '_'),
-        )
+        .map((term) => term.trim().toLowerCase().replaceAll(_whitespace, '_'))
         .where((term) => term.isNotEmpty)
         .toSet()
         .toList(growable: false);
@@ -371,7 +372,7 @@ class TagCatalogRepository implements CompletionSource {
   static String _ftsExpression(String value) {
     final normalized = value.replaceAll('_', ' ');
     final tokens = normalized
-        .split(RegExp(r'[^a-z0-9]+'))
+        .split(_nonAlphanumeric)
         .where((token) => token.isNotEmpty)
         .toList();
     return tokens.map((token) => '"${token.replaceAll('"', '""')}"*').join(' ');

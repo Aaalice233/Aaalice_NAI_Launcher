@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -12,10 +14,82 @@ import 'package:nai_launcher/presentation/providers/shortcuts_provider.dart';
 import 'package:nai_launcher/presentation/widgets/common/image_detail/components/detail_metadata_panel.dart';
 import 'package:nai_launcher/presentation/widgets/common/image_detail/components/prompt_copy_dialog.dart';
 import 'package:nai_launcher/presentation/widgets/common/image_detail/components/prompt_section.dart';
+import 'package:nai_launcher/presentation/widgets/common/image_detail/file_image_detail_data.dart';
 import 'package:nai_launcher/presentation/widgets/common/image_detail/image_detail_data.dart';
 import 'package:nai_launcher/presentation/widgets/shortcuts/shortcuts.dart';
 
 void main() {
+  testWidgets('file size and modified time arrive from the async stat', (
+    tester,
+  ) async {
+    final directory = (await tester.runAsync(
+      () => Directory.systemTemp.createTemp('detail_panel_file_info_'),
+    ))!;
+    addTearDown(() async {
+      // Image 读取可能在 fake async 结束后才释放句柄，清理尽力而为。
+      for (var attempt = 0; attempt < 10; attempt++) {
+        try {
+          if (directory.existsSync()) await directory.delete(recursive: true);
+          return;
+        } on FileSystemException {
+          await Future<void>.delayed(const Duration(milliseconds: 25));
+        }
+      }
+    });
+    // 放行真实事件循环后自动补全会去问 path_provider，桩成临时目录即可。
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(
+          const MethodChannel('plugins.flutter.io/path_provider'),
+          (call) async => directory.path,
+        );
+    addTearDown(
+      () => TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(
+            const MethodChannel('plugins.flutter.io/path_provider'),
+            null,
+          ),
+    );
+    final file = File('${directory.path}${Platform.pathSeparator}shot.png')
+      ..writeAsBytesSync(img.encodePng(img.Image(width: 4, height: 4)));
+    final detail = FileImageDetailData(
+      filePath: file.path,
+      initialMetadata: const NaiImageMetadata(
+        seed: 7,
+        prompt: '1girl, silver hair',
+      ),
+    );
+
+    await tester.pumpWidget(
+      ProviderScope(
+        child: MaterialApp(
+          locale: const Locale('zh'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(
+            body: DetailMetadataPanel(currentImage: detail, expandedWidth: 600),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.text('shot.png'), findsOneWidget);
+    expect(find.text('文件大小'), findsNothing);
+
+    // 文件 stat 只在真实事件循环里推进，pump 之间必须放行 runAsync。
+    for (var attempt = 0; attempt < 50; attempt++) {
+      if (find.text('文件大小').evaluate().isNotEmpty) break;
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 10)),
+      );
+      await tester.pump();
+    }
+
+    expect(find.text('文件大小'), findsOneWidget);
+    expect(find.text('${file.lengthSync()} B'), findsOneWidget);
+    expect(find.text('修改时间'), findsOneWidget);
+  });
+
   testWidgets(
     'resolution uses encoded image size instead of request metadata',
     (tester) async {

@@ -12,7 +12,7 @@ import '../../../core/storage/local_storage_service.dart';
 import '../../../core/utils/localization_extension.dart';
 import '../../../data/models/queue/replication_task.dart';
 import '../../../data/models/queue/replication_task_generation_snapshot.dart';
-import '../../providers/auth_provider.dart';
+import '../../../data/services/auth_provider.dart';
 import '../../providers/image_generation_provider.dart';
 import '../../providers/krita/krita_bridge_notifier.dart';
 import '../../providers/mobile_shell_overlay_provider.dart';

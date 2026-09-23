@@ -60,6 +60,9 @@ class _DesktopGenerationLayoutState
   bool _isResizingLeft = false;
   bool _isResizingRight = false;
 
+  // 回调只在触发时取当前状态，快捷键表因此可以建一次复用，不随生成帧重建。
+  late final Map<String, VoidCallback> _shortcuts = _buildShortcuts();
+
   /// 切换提示词区域最大化状态
   void _togglePromptMaximize() {
     final newValue = !ref.read(promptMaximizeNotifierProvider);
@@ -67,81 +70,81 @@ class _DesktopGenerationLayoutState
     AppLogger.d('Prompt area maximize toggled', 'DesktopLayout');
   }
 
+  bool get _isBusy {
+    final isKritaGenerating =
+        PlatformCapabilities.current.supportsKritaBridge &&
+        ref.read(kritaBridgeNotifierProvider).isBridgeGenerating;
+    // 提交后到开跑之间同样不能再次触发，否则快捷键会被静默吞掉。
+    return ref.read(imageGenerationNotifierProvider).isBusy ||
+        isKritaGenerating;
+  }
+
+  /// 定义快捷键动作映射（使用 ShortcutIds 常量）
+  Map<String, VoidCallback> _buildShortcuts() => <String, VoidCallback>{
+    // 生成图像
+    ShortcutIds.generateImage: () {
+      if (!_isBusy && !ref.read(generationCooldownProvider).isActive) {
+        unawaited(generateWithProtection(context, ref));
+      }
+    },
+    // 取消生成
+    ShortcutIds.cancelGeneration: () {
+      if (ref.read(imageGenerationNotifierProvider).isGenerating) {
+        ref.read(imageGenerationNotifierProvider.notifier).cancel();
+      } else if (ref.read(generationPreviewSelectionProvider) != null) {
+        ref.read(generationPreviewSelectionProvider.notifier).clear();
+      }
+    },
+    // 加入队列
+    ShortcutIds.addToQueue: () {
+      final currentParams = ref.read(generationParamsNotifierProvider);
+      if (currentParams.prompt.isNotEmpty) {
+        final task = ReplicationTask.create(prompt: currentParams.prompt);
+        ref.read(replicationQueueNotifierProvider.notifier).add(task);
+        AppToast.success(context, context.l10n.queue_taskAdded);
+      }
+    },
+    // 随机提示词
+    ShortcutIds.randomPrompt: () {
+      if (ref.read(randomPromptToolsVisibilityProvider)) {
+        ref.read(randomPromptModeProvider.notifier).toggle();
+      } else {
+        AppToast.info(context, context.l10n.randomPromptToolsHiddenHint);
+      }
+    },
+    // 清空提示词
+    ShortcutIds.clearPrompt: () {
+      ref.read(generationParamsNotifierProvider.notifier).updatePrompt('');
+      ref
+          .read(generationParamsNotifierProvider.notifier)
+          .updateNegativePrompt('');
+      ref.read(characterPromptNotifierProvider.notifier).clearAll();
+    },
+    // 切换正/负面模式
+    ShortcutIds.togglePromptMode: () {
+      ref.read(promptMaximizeNotifierProvider.notifier).toggle();
+    },
+    // 打开词库
+    ShortcutIds.openTagLibrary: () {
+      context.go(AppRoutes.tagLibraryPage);
+    },
+    // 放大图像
+    ShortcutIds.upscaleImage: () {
+      final displayImages = ref
+          .read(imageGenerationNotifierProvider)
+          .displayImages;
+      if (displayImages.isNotEmpty) {
+        ImageWorkflowLauncher.openUpscale(ref, displayImages.first.bytes);
+        AppToast.info(context, context.l10n.img2img_upscalePanelOpened);
+      }
+    },
+    // 已移除 Space 全屏预览快捷键，避免在提示词输入时误触发预览
+  };
+
   @override
   Widget build(BuildContext context) {
     // 从 Provider 读取布局状态
     final layoutState = ref.watch(layoutStateNotifierProvider);
-    // 从 Provider 读取生成状态（用于快捷键回调）
-    final generationState = ref.watch(imageGenerationNotifierProvider);
-    final cooldownState = ref.watch(generationCooldownProvider);
-    final isKritaGenerating =
-        PlatformCapabilities.current.supportsKritaBridge &&
-        ref.watch(kritaBridgeNotifierProvider).isBridgeGenerating;
-    final isLauncherGenerating = generationState.isGenerating;
-    // 提交后到开跑之间同样不能再次触发，否则快捷键会被静默吞掉。
-    final isBusy = generationState.isBusy || isKritaGenerating;
-
-    // 定义快捷键动作映射（使用 ShortcutIds 常量）
-    final shortcuts = <String, VoidCallback>{
-      // 生成图像
-      ShortcutIds.generateImage: () {
-        if (!isBusy && !cooldownState.isActive) {
-          unawaited(generateWithProtection(context, ref));
-        }
-      },
-      // 取消生成
-      ShortcutIds.cancelGeneration: () {
-        if (isLauncherGenerating) {
-          ref.read(imageGenerationNotifierProvider.notifier).cancel();
-        } else if (ref.read(generationPreviewSelectionProvider) != null) {
-          ref.read(generationPreviewSelectionProvider.notifier).clear();
-        }
-      },
-      // 加入队列
-      ShortcutIds.addToQueue: () {
-        final currentParams = ref.read(generationParamsNotifierProvider);
-        if (currentParams.prompt.isNotEmpty) {
-          final task = ReplicationTask.create(prompt: currentParams.prompt);
-          ref.read(replicationQueueNotifierProvider.notifier).add(task);
-          AppToast.success(context, context.l10n.queue_taskAdded);
-        }
-      },
-      // 随机提示词
-      ShortcutIds.randomPrompt: () {
-        if (ref.read(randomPromptToolsVisibilityProvider)) {
-          ref.read(randomPromptModeProvider.notifier).toggle();
-        } else {
-          AppToast.info(context, context.l10n.randomPromptToolsHiddenHint);
-        }
-      },
-      // 清空提示词
-      ShortcutIds.clearPrompt: () {
-        ref.read(generationParamsNotifierProvider.notifier).updatePrompt('');
-        ref
-            .read(generationParamsNotifierProvider.notifier)
-            .updateNegativePrompt('');
-        ref.read(characterPromptNotifierProvider.notifier).clearAll();
-      },
-      // 切换正/负面模式
-      ShortcutIds.togglePromptMode: () {
-        ref.read(promptMaximizeNotifierProvider.notifier).toggle();
-      },
-      // 打开词库
-      ShortcutIds.openTagLibrary: () {
-        context.go(AppRoutes.tagLibraryPage);
-      },
-      // 放大图像
-      ShortcutIds.upscaleImage: () {
-        if (generationState.displayImages.isNotEmpty) {
-          ImageWorkflowLauncher.openUpscale(
-            ref,
-            generationState.displayImages.first.bytes,
-          );
-          AppToast.info(context, context.l10n.img2img_upscalePanelOpened);
-        }
-      },
-      // 已移除 Space 全屏预览快捷键，避免在提示词输入时误触发预览
-    };
 
     final leftWidth = layoutState.leftPanelExpanded
         ? layoutState.leftPanelWidth
@@ -179,7 +182,7 @@ class _DesktopGenerationLayoutState
       ],
       main: ShortcutAwareWidget(
         contextType: ShortcutContext.generation,
-        shortcuts: shortcuts,
+        shortcuts: _shortcuts,
         autofocus: true,
         child: MainWorkspace(
           onToggleMaximize: _togglePromptMaximize,

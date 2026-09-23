@@ -7,6 +7,7 @@ import '../../../core/database/datasources/gallery_data_source.dart';
 import '../../../core/database/database.dart';
 import '../../../core/exceptions/gallery_exceptions.dart';
 import '../../../core/utils/app_logger.dart';
+import '../../models/gallery/gallery_index_admission.dart';
 import '../../models/gallery/local_image_record.dart';
 import '../../models/gallery/nai_image_metadata.dart';
 import 'gallery_filter_service.dart';
@@ -127,7 +128,7 @@ class ErrorGalleryService implements LocalGalleryService {
   @override
   Future<void> refresh({bool scan = true}) => _throwError();
   @override
-  Future<bool> addNewImageImmediately(
+  Future<GalleryIndexAdmission> addNewImageImmediately(
     String filePath, {
     NaiImageMetadata? metadata,
   }) => _throwError();
@@ -191,7 +192,7 @@ class _PlaceholderGalleryService implements LocalGalleryService {
   @override
   Future<void> refresh({bool scan = true}) => _throwNotInitialized();
   @override
-  Future<bool> addNewImageImmediately(
+  Future<GalleryIndexAdmission> addNewImageImmediately(
     String filePath, {
     NaiImageMetadata? metadata,
   }) => _throwNotInitialized();

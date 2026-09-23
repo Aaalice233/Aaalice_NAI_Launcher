@@ -1,6 +1,7 @@
 import '../../data/models/fixed_tag/fixed_tag_entry.dart';
 import '../../data/models/fixed_tag/fixed_tag_prompt_type.dart';
 import '../../data/models/fixed_tag/fixed_tag_usage_snapshot.dart';
+import '../../data/models/gallery/fixed_tag_usage_projection.dart';
 import '../../data/models/gallery/nai_image_metadata.dart';
 import 'fixed_tag_metadata_matcher.dart';
 
@@ -27,7 +28,7 @@ FixedTagImportResolution resolveFixedTagImport({
   final structured = metadata.fixedTagUsageSnapshot;
   if (structured != null) {
     return FixedTagImportResolution(
-      metadata: metadata,
+      metadata: projectFixedTagUsageSnapshot(metadata),
       source: FixedTagImportSource.structured,
       snapshot: structured,
     );

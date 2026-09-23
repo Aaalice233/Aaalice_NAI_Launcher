@@ -10,7 +10,7 @@ import '../../../l10n/app_localizations.dart';
 import '../../agent_settings/providers/agent_settings_provider.dart';
 import '../../adaptive/adaptive_presenter.dart';
 import '../../adaptive/interaction_policy.dart';
-import '../../prompt_assistant/models/prompt_assistant_models.dart';
+import '../../../data/models/prompt_assistant/prompt_assistant_models.dart';
 import '../../themes/theme_extension.dart';
 import '../../widgets/common/searchable_model_picker.dart';
 import '../../widgets/common/model_family_icon.dart';

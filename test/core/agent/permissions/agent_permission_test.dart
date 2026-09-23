@@ -174,13 +174,15 @@ void main() {
       );
     });
 
-    test('always confirms destructive operations in non-blocked domains', () {
-      for (final mode in const {
-        AgentAccessMode.askBeforeWrite,
-        AgentAccessMode.allowWrite,
-      }) {
+    test('destructive operations follow the domain mode like other writes', () {
+      const expected = {
+        AgentAccessMode.readOnly: AgentPermissionDecision.block,
+        AgentAccessMode.askBeforeWrite: AgentPermissionDecision.ask,
+        AgentAccessMode.allowWrite: AgentPermissionDecision.allow,
+      };
+      for (final entry in expected.entries) {
         final policy = AgentPermissionPolicy({
-          AgentPermissionDomain.generationQueue: mode,
+          AgentPermissionDomain.generationQueue: entry.key,
         });
         for (final operation in const {
           AgentPermissionOperation.delete,
@@ -189,7 +191,8 @@ void main() {
         }) {
           expect(
             policy.decide(AgentPermissionDomain.generationQueue, operation),
-            AgentPermissionDecision.ask,
+            entry.value,
+            reason: '${entry.key.name}/${operation.name}',
           );
         }
       }
@@ -279,7 +282,7 @@ void main() {
         AgentAccessMode.allowWrite: const [
           AgentPermissionDecision.allow,
           AgentPermissionDecision.allow,
-          AgentPermissionDecision.ask,
+          AgentPermissionDecision.allow,
           AgentPermissionDecision.allow,
           AgentPermissionDecision.confirmCharge,
         ],

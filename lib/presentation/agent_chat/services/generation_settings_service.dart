@@ -1,16 +1,15 @@
-import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/agent/agent_types.dart';
 import '../../../core/constants/api_constants.dart';
 import '../../providers/image_generation_provider.dart';
-import 'generation_tool_results.dart';
+import 'defined_agent_tool.dart';
 
 class GenerationSettingsService {
   GenerationSettingsService(this._ref);
   final Ref _ref;
-  String settingsJson() {
+  Map<String, dynamic> settingsJson() {
     final params = _ref.read(generationParamsNotifierProvider);
-    return jsonEncode({
+    return {
       'model': params.model,
       'available_models': [
         for (final id in ImageModels.allModels)
@@ -37,12 +36,15 @@ class GenerationSettingsService {
       'strength': params.strength,
       'noise': params.noise,
       'inpaint_strength': params.inpaintStrength,
-    });
+    };
   }
 
   Future<AgentToolResult> updateSettings(Map<String, dynamic> args) async {
     if (args.isEmpty) {
-      return generationErrorResult('Provide at least one setting to change.');
+      return agentToolError(
+        'missing_settings',
+        'Provide at least one setting to change.',
+      );
     }
     final notifier = _ref.read(generationParamsNotifierProvider.notifier);
     final applied = <String, dynamic>{};
@@ -53,9 +55,10 @@ class GenerationSettingsService {
     if (model != null && model.isNotEmpty) {
       final resolved = _resolveModelId(model);
       if (resolved == null) {
-        return generationErrorResult(
+        return agentToolError(
+          'unknown_model',
           'Unknown model "$model". Available models: '
-          '${ImageModels.allModels.join(", ")}.',
+              '${ImageModels.allModels.join(", ")}.',
         );
       }
       notifier.updateModel(resolved);
@@ -115,16 +118,19 @@ class GenerationSettingsService {
     applyBool('smea_dyn', notifier.updateSmeaDyn);
 
     if (applied.isEmpty) {
-      return generationErrorResult(
+      return agentToolError(
+        'unrecognized_settings',
         'No recognized settings found in arguments. Call '
-        'get_generation_settings for valid field names.',
+            'get_generation_settings for valid field names.',
       );
     }
     // updateXxx 经 Future.microtask 写入 state，冲刷后再回读生效值。
     await Future<void>.delayed(Duration.zero);
-    return generationTextResult(
-      jsonEncode({'ok': true, 'applied': applied, 'current': settingsJson()}),
-    );
+    return agentToolJsonResult({
+      'ok': true,
+      'applied': applied,
+      'current': settingsJson(),
+    });
   }
 
   /// 把用户/模型给出的模型称呼解析为确切模型 ID：

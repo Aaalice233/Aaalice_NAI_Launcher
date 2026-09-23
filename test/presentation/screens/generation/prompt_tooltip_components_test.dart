@@ -4,7 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/data/models/character/character_prompt.dart';
 import 'package:nai_launcher/data/models/fixed_tag/fixed_tag_entry.dart';
 import 'package:nai_launcher/data/models/fixed_tag/fixed_tag_prompt_type.dart';
-import 'package:nai_launcher/data/services/alias_resolver_service.dart';
+import 'package:nai_launcher/presentation/providers/alias_resolver_service.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/screens/generation/widgets/prompt_input_tooltips.dart';
 import 'package:nai_launcher/presentation/screens/generation/widgets/prompt_tooltip_components.dart';

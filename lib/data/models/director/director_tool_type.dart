@@ -9,6 +9,7 @@ enum DirectorToolType {
   colorize,
   fixEmotion,
   declutter,
+  pixelSnap,
 }
 
 extension DirectorToolTypeExtension on DirectorToolType {
@@ -17,6 +18,12 @@ extension DirectorToolTypeExtension on DirectorToolType {
 
   bool get supportsDefry =>
       this == DirectorToolType.colorize || this == DirectorToolType.fixEmotion;
+
+  /// 在本机算完，不发请求也不计费。
+  bool get runsLocally => this == DirectorToolType.pixelSnap;
+
+  /// 结果是像素画，预览与缩略图都必须关掉插值。
+  bool get producesPixelArt => this == DirectorToolType.pixelSnap;
 
   IconData get icon {
     switch (this) {
@@ -32,6 +39,8 @@ extension DirectorToolTypeExtension on DirectorToolType {
         return Icons.mood_outlined;
       case DirectorToolType.declutter:
         return Icons.cleaning_services_outlined;
+      case DirectorToolType.pixelSnap:
+        return Icons.grid_on_rounded;
     }
   }
 
@@ -49,6 +58,8 @@ extension DirectorToolTypeExtension on DirectorToolType {
         return l10n.img2img_directorEmotion;
       case DirectorToolType.declutter:
         return l10n.img2img_directorDeclutter;
+      case DirectorToolType.pixelSnap:
+        return l10n.img2img_directorPixelSnap;
     }
   }
 }

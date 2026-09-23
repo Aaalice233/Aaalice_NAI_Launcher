@@ -6,7 +6,7 @@ import '../../../core/agent/harness/harness_types.dart';
 import '../../../core/agent/harness/skills.dart';
 import '../../../core/agent/permissions/permissions.dart';
 import '../../agent_settings/providers/agent_settings_provider.dart';
-import '../../prompt_assistant/models/prompt_assistant_models.dart';
+import '../../../data/models/prompt_assistant/prompt_assistant_models.dart';
 import '../../prompt_assistant/providers/web_access_provider.dart';
 import '../../providers/generation/image_workflow_controller.dart';
 import '../../providers/krita/krita_bridge_notifier.dart';
@@ -39,6 +39,11 @@ import 'web_access_toolbox.dart';
 import 'agent_user_question_controller.dart';
 import 'user_question_toolbox.dart';
 
+/// 聊天端唯一能拿到原分辨率图片的入口就是 read 工具。
+const String _chatObservationGuidance =
+    'Read the image file with the read tool first; generated images expose a '
+    'workspace path only once they are saved to disk.';
+
 class AgentToolRegistry {
   const AgentToolRegistry({
     required this.tools,
@@ -66,6 +71,10 @@ class AgentToolRegistryBuilder {
     required bool Function() isMounted,
     required List<Message> Function() messages,
     required AgentUserQuestionController questionController,
+    ImageResourceExportPreparer? prepareImageExport,
+    AgentImageObservationLedger? observationLedger,
+    bool referencesGalleryOriginal = false,
+    String observationGuidance = _chatObservationGuidance,
   }) : _ref = ref,
        _workspaceDir = workspaceDir,
        _skills = skills,
@@ -77,7 +86,11 @@ class AgentToolRegistryBuilder {
        _activeSessionId = activeSessionId,
        _isMounted = isMounted,
        _messages = messages,
-       _questionController = questionController;
+       _questionController = questionController,
+       _prepareImageExport = prepareImageExport,
+       _observationLedger = observationLedger ?? AgentImageObservationLedger(),
+       _referencesGalleryOriginal = referencesGalleryOriginal,
+       _observationGuidance = observationGuidance;
 
   final Ref _ref;
   final String _workspaceDir;
@@ -91,10 +104,12 @@ class AgentToolRegistryBuilder {
   final bool Function() _isMounted;
   final List<Message> Function() _messages;
   final AgentUserQuestionController _questionController;
+  final ImageResourceExportPreparer? _prepareImageExport;
+  final bool _referencesGalleryOriginal;
+  final String _observationGuidance;
 
   /// 跨 build() 保留：权限模式切换不该抹掉本会话已经看过的图。
-  final AgentImageObservationLedger _observationLedger =
-      AgentImageObservationLedger();
+  final AgentImageObservationLedger _observationLedger;
 
   AgentToolRegistry build({
     required bool fullAccess,
@@ -112,6 +127,7 @@ class AgentToolRegistryBuilder {
     _manualInpaintToolbox.configureObservationLedger(
       _observationLedger,
       activeSessionId: _activeSessionId,
+      observationGuidance: _observationGuidance,
     );
     _manualInpaintToolbox.configurePanelHandoff(({
       required source,
@@ -159,6 +175,7 @@ class AgentToolRegistryBuilder {
       ),
     );
     final imageActionService = ImageResourceActionService(
+      prepareExport: _prepareImageExport,
       resolve: (reference) async {
         await resourceResolver.validateImageResource(reference);
         final resolved = await resourceResolver.resolve(reference);
@@ -196,8 +213,6 @@ class AgentToolRegistryBuilder {
       ...ExecutionToolbox(
         _workspaceDir,
         allowOutsideWorkspace: fullAccess,
-        observationLedger: _observationLedger,
-        activeSessionId: _activeSessionId,
       ).tools(),
       ...GenerationToolbox(
         _ref,
@@ -207,6 +222,8 @@ class AgentToolRegistryBuilder {
         resourceResolver: resourceResolver,
         readAttachedImage: (index) =>
             readAgentAttachedImage(_messages(), index),
+        prepareImageExport: _prepareImageExport,
+        referencesGalleryOriginal: _referencesGalleryOriginal,
       ).tools(),
       ...QueueToolbox(_ref, _queueRuntime).tools(),
       ..._manualInpaintToolbox.tools(),
@@ -244,7 +261,13 @@ class AgentToolRegistryBuilder {
     return AgentToolRegistry(
       tools: [
         for (final tool in tools)
-          if (_canRegisterTool(catalog.descriptorFor(tool.name), policy)) tool,
+          if (_canRegisterTool(catalog.descriptorFor(tool.name), policy))
+            // 任何工具都可能把图喂给模型，记录点放在注册表出口而不是某个工具内部。
+            ImageObservingAgentTool(
+              tool,
+              ledger: _observationLedger,
+              activeSessionId: _activeSessionId,
+            ),
       ],
       catalog: catalog,
       policy: policy,

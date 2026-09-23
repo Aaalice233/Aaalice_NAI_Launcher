@@ -103,7 +103,7 @@ void main() {
       }
       await tester.tap(find.byKey(const ValueKey('cloud-sync-content-save')));
       await tester.pumpAndSettle();
-      expect(result?.selectedItemCount, 8);
+      expect(result?.selectedItemCount, 9);
       expect(result?.includeAgentSystemPrompt, isTrue);
       expect(result?.includeSkills, isTrue);
       expect(result?.includeTagThumbnails, isTrue);
