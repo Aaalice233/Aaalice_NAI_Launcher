@@ -21,7 +21,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  FLUTTER_VERSION: "3.44.2"
+  FLUTTER_VERSION: "3.47.5"
   PUB_HOSTED_URL: "https://pub.dev"
   PORTABLE_RECIPE_VERSION: "2"
   BUILD_MODE: ${{ inputs.build-mode || 'release' }}
