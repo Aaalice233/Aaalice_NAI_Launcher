@@ -5,8 +5,9 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/utils/localization_extension.dart';
 import '../../../data/datasources/remote/nai_auth_api_service.dart';
-import '../../providers/account_manager_provider.dart';
-import '../../providers/auth_provider.dart';
+import '../../../data/services/account_manager_provider.dart';
+import '../../../data/services/auth_provider.dart';
+import '../../../core/services/auth_error_service.dart';
 import '../common/floating_label_input.dart';
 
 /// Token 登录卡片组件

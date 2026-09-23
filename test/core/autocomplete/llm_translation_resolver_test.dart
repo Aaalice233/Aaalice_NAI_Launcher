@@ -4,16 +4,17 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:nai_launcher/core/autocomplete/autocomplete_cache_database.dart';
 import 'package:nai_launcher/core/autocomplete/llm_translation_resolver.dart';
-import 'package:nai_launcher/presentation/prompt_assistant/services/prompt_assistant_service.dart';
+import 'package:nai_launcher/core/autocomplete/tag_translation_port.dart';
 
 void main() {
   test('resolveCached reads every cached tag without calling AI', () async {
-    final service = _MockPromptAssistantService();
+    final service = _MockTagTranslationPort();
     final cache = _FakeAutocompleteCacheDatabase({
       for (var index = 0; index < 10; index++)
         'cached_tag_$index': '缓存翻译 $index',
     });
-    when(service.translateRouteFingerprint).thenReturn('test-route');
+    when(service.routeFingerprint).thenReturn('test-route');
+    when(() => service.promptVersion).thenReturn(1);
     final resolver = LlmTranslationResolver(
       service: service,
       cache: cache,
@@ -30,13 +31,14 @@ void main() {
     );
   });
 
-  test('cancelPending cancels the active Prompt Assistant session', () async {
-    final service = _MockPromptAssistantService();
+  test('cancelPending cancels the active translation session', () async {
+    final service = _MockTagTranslationPort();
     final cache = _FakeAutocompleteCacheDatabase();
-    final response = Completer<TagTranslationBatchResult>();
+    final response = Completer<Map<String, String>>();
     final requestStarted = Completer<void>();
     late String sessionId;
-    when(service.translateRouteFingerprint).thenReturn('test-route');
+    when(service.routeFingerprint).thenReturn('test-route');
+    when(() => service.promptVersion).thenReturn(1);
     when(
       () => service.translateTags(any(), sessionId: any(named: 'sessionId')),
     ).thenAnswer((invocation) {
@@ -45,7 +47,7 @@ void main() {
       return response.future;
     });
     when(
-      () => service.cancelCurrentTask(sessionId: any(named: 'sessionId')),
+      () => service.cancelTask(sessionId: any(named: 'sessionId')),
     ).thenAnswer((_) async {});
     final resolver = LlmTranslationResolver(
       service: service,
@@ -57,20 +59,15 @@ void main() {
     await requestStarted.future;
     resolver.cancelPending();
 
-    verify(() => service.cancelCurrentTask(sessionId: sessionId)).called(1);
-    response.complete(
-      const TagTranslationBatchResult(
-        translations: {'blue_eyes': '蓝眼睛'},
-        routeFingerprint: 'test-route',
-      ),
-    );
+    verify(() => service.cancelTask(sessionId: sessionId)).called(1);
+    response.complete(const {'blue_eyes': '蓝眼睛'});
     expect(await result, isEmpty);
     expect(cache.writes, isEmpty);
   });
 }
 
-class _MockPromptAssistantService extends Mock
-    implements PromptAssistantService {}
+class _MockTagTranslationPort extends Mock
+    implements TagTranslationPort {}
 
 class _FakeAutocompleteCacheDatabase extends AutocompleteCacheDatabase {
   _FakeAutocompleteCacheDatabase([this.cached = const {}]);

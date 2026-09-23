@@ -4,8 +4,11 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/core/agent/agent.dart';
 import 'package:nai_launcher/core/agent/audit/audit_sink.dart';
 import 'package:nai_launcher/core/agent/permissions/permissions.dart';
+import 'package:nai_launcher/data/models/image/image_params.dart';
 import 'package:nai_launcher/presentation/agent_chat/providers/agent_chat_state.dart';
+import 'package:nai_launcher/presentation/agent_chat/services/agent_prepared_file_targets.dart';
 import 'package:nai_launcher/presentation/agent_chat/services/agent_tool_permission_controller.dart';
+import 'package:nai_launcher/presentation/agent_chat/services/generation_preparation_runtime.dart';
 import 'package:nai_launcher/presentation/agent_chat/services/agent_tool_registry_builder.dart';
 
 void main() {
@@ -17,6 +20,7 @@ void main() {
       final controller = AgentToolPermissionController(
         auditSink: audit,
         estimateAnlas: (_, _) async => throw StateError('Read does not bill'),
+        describeFileTargets: (_, _) => const [],
         onApprovalChanged: (_) =>
             fail('Read should not request write approval'),
         isMounted: () => true,
@@ -62,6 +66,54 @@ void main() {
       expect(controller.takeDecision('read'), AgentPermissionDecision.allow);
     },
   );
+  test('full access runs destructive tools without approval', () async {
+    final descriptor = describeAgentToolPermission('delete_fixed_tag');
+    final controller = AgentToolPermissionController(
+      auditSink: MemoryAgentAuditSink(),
+      estimateAnlas: (_, _) async => throw StateError('Delete does not bill'),
+      describeFileTargets: (_, _) => const [],
+      onApprovalChanged: (_) => fail('Full access must not ask for deletes'),
+      isMounted: () => true,
+    );
+    addTearDown(controller.dispose);
+    controller.configure(
+      AgentToolRegistry(
+        tools: const [],
+        catalog: AgentToolPermissionCatalog(
+          toolNames: const ['delete_fixed_tag'],
+          descriptors: [descriptor],
+        ),
+        policy: agentPermissionPolicy(safeMode: false, fullAccess: true),
+      ),
+    );
+    const call = ToolCallContent(
+      id: 'delete',
+      name: 'delete_fixed_tag',
+      arguments: {'id': 'tag-1'},
+    );
+    final assistant = AssistantMessage(
+      content: [call],
+      stopReason: StopReason.toolUse,
+    );
+
+    final result = await controller.beforeToolCall(
+      BeforeToolCallContext(
+        assistantMessage: assistant,
+        toolCall: call,
+        args: call.arguments,
+        context: AgentContext(
+          systemPrompt: '',
+          messages: [assistant],
+          tools: const [],
+        ),
+      ),
+      null,
+    );
+
+    expect(result, isNull);
+    expect(controller.takeDecision('delete'), AgentPermissionDecision.allow);
+  });
+
   group('AgentToolPermissionController billing decisions', () {
     test(
       'full access automatically allows an exact zero-cost submit',
@@ -146,6 +198,64 @@ void main() {
       expect(approval, isNull);
     });
 
+    test('a prepared save path reaches the approval request', () async {
+      final runtime = GenerationPreparationRuntime();
+      final prepared = runtime.add(
+        GenerationPreparation(
+          kind: GenerationPreparationKind.generate,
+          baseParams: const ImageParams(prompt: 'test'),
+          params: const ImageParams(prompt: 'test'),
+          batchSize: 1,
+          count: 1,
+          autoStart: false,
+          estimatedAnlas: 0,
+          arguments: const {'prompt': 'test'},
+          savePath: r'D:\art\out.png',
+        ),
+      );
+      AgentToolApprovalRequest? approval;
+      final controller = _controller(
+        mode: AgentAccessMode.askBeforeWrite,
+        estimate: 0,
+        onApproval: (value) => approval = value,
+        describeFileTargets: (toolName, args) =>
+            preparedFileTargets(toolName, args, generationRuntime: runtime),
+      );
+
+      final pending = controller.beforeToolCall(
+        _context('ask-save', preparationId: prepared.id),
+        null,
+      );
+      await Future<void>.delayed(Duration.zero);
+
+      expect(approval?.fileTargets, [r'D:\art\out.png']);
+      expect(controller.resolveApproval('ask-save', true), isTrue);
+      expect(await pending, isNull);
+      expect(controller.takeDecision('ask-save'), AgentPermissionDecision.ask);
+    });
+
+    test('full access writes a prepared save path without asking', () async {
+      AgentToolApprovalRequest? approval;
+      final controller = _controller(
+        mode: AgentAccessMode.allowWrite,
+        estimate: 0,
+        onApproval: (value) => approval = value,
+        describeFileTargets: (_, _) => const [r'D:\art\out.png'],
+      );
+
+      final result = await controller.beforeToolCall(
+        _context('allow-save'),
+        null,
+      );
+
+      expect(result, isNull);
+      expect(approval, isNull);
+      expect(
+        controller.takeDecision('allow-save'),
+        AgentPermissionDecision.allow,
+      );
+    });
+
     test('stale window response cannot resolve a newer approval', () async {
       final controller = _controller(
         mode: AgentAccessMode.allowWrite,
@@ -165,12 +275,55 @@ void main() {
       expect((await pending)?.block, isTrue);
     });
   });
+
+  group('AgentToolPermissionController.mergeDecisions', () {
+    test('a blocked side blocks the merged decision', () {
+      expect(
+        AgentToolPermissionController.mergeDecisions(
+          AgentPermissionDecision.confirmCharge,
+          AgentPermissionDecision.block,
+        ),
+        AgentPermissionDecision.block,
+      );
+    });
+
+    test('a charge confirmation outranks ask and allow', () {
+      expect(
+        AgentToolPermissionController.mergeDecisions(
+          AgentPermissionDecision.confirmCharge,
+          AgentPermissionDecision.ask,
+        ),
+        AgentPermissionDecision.confirmCharge,
+      );
+    });
+
+    test('an ask outranks allow', () {
+      expect(
+        AgentToolPermissionController.mergeDecisions(
+          AgentPermissionDecision.allow,
+          AgentPermissionDecision.ask,
+        ),
+        AgentPermissionDecision.ask,
+      );
+    });
+
+    test('allow survives only when both sides allow', () {
+      expect(
+        AgentToolPermissionController.mergeDecisions(
+          AgentPermissionDecision.allow,
+          AgentPermissionDecision.allow,
+        ),
+        AgentPermissionDecision.allow,
+      );
+    });
+  });
 }
 
 AgentToolPermissionController _controller({
   required AgentAccessMode mode,
   required int? estimate,
   required void Function(AgentToolApprovalRequest?) onApproval,
+  List<String> Function(String, Map<String, dynamic>)? describeFileTargets,
 }) {
   final descriptor = describeAgentToolPermission('submit_generation');
   final catalog = AgentToolPermissionCatalog(
@@ -180,6 +333,7 @@ AgentToolPermissionController _controller({
   final controller = AgentToolPermissionController(
     auditSink: MemoryAgentAuditSink(),
     estimateAnlas: (_, _) async => estimate,
+    describeFileTargets: describeFileTargets ?? ((_, _) => const []),
     onApprovalChanged: onApproval,
     isMounted: () => true,
   );
@@ -187,17 +341,23 @@ AgentToolPermissionController _controller({
     AgentToolRegistry(
       tools: const [],
       catalog: catalog,
-      policy: AgentPermissionPolicy({descriptor.domain: mode}),
+      policy: AgentPermissionPolicy({
+        descriptor.domain: mode,
+        AgentPermissionDomain.file: mode,
+      }),
     ),
   );
   return controller;
 }
 
-BeforeToolCallContext _context(String id) {
+BeforeToolCallContext _context(
+  String id, {
+  String preparationId = 'prepared',
+}) {
   final toolCall = ToolCallContent(
     id: id,
     name: 'submit_generation',
-    arguments: const {'preparation_id': 'prepared', 'confirmed': true},
+    arguments: {'preparation_id': preparationId, 'confirmed': true},
   );
   final assistant = AssistantMessage(
     content: [toolCall],

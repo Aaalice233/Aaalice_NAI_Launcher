@@ -507,6 +507,8 @@
   "@agentChat_addResourceFailed": {"placeholders":{"error":{"type":"String"}}},
   "agentChat_approvalEstimatedAnlas": "推定コスト：{cost} Anlas",
   "@agentChat_approvalEstimatedAnlas": {"placeholders": {"cost": {"type": "int"}}},
+  "agentChat_approvalFileTarget": "ファイルを書き込みます：{path}",
+  "@agentChat_approvalFileTarget": {"placeholders": {"path": {"type": "String"}}},
   "agentChat_needSetup": "チャットモデルが未設定です。先に設定でツール呼び出しに対応したプロバイダーを追加してください。",
   "agentChat_heroTitle": "今日は何をしますか？",
   "agentChat_heroSubtitle": "キャラクタープロンプトの準備、アイデアの整理、設定の調整ができます。",
@@ -550,6 +552,19 @@
   "agentChat_approvalDescription": "このツールはローカルデータの読み取り、アプリ状態の変更、または料金の発生を伴う可能性があります。",
   "agentChat_approvalAllow": "今回のみ許可",
   "agentChat_approvalDeny": "拒否",
+  "mcpApproval_title": "外部エージェント {client} が承認を求めています",
+  "@mcpApproval_title": {
+    "placeholders": {
+      "client": {}
+    }
+  },
+  "mcpApproval_expiresIn": "{seconds} 秒後に自動的に拒否します",
+  "@mcpApproval_expiresIn": {
+    "placeholders": {
+      "seconds": {}
+    }
+  },
+  "mcpApproval_unknownClient": "不明なクライアント",
   "generation_failedStreamSnapshot": "スナップショットが失敗しました",
   "generation_failedStreamSnapshotHint": "生成が完了しませんでした。最後のプレビュー フレームのみが保持されます。保存したり、お気に入りに登録したり、画像ワークフローに使用したりすることはできません。",
   "generation_noHistory": "履歴レコードがありません",
@@ -862,6 +877,42 @@
   "img2img_directorColorize": "カラー化",
   "img2img_directorEmotion": "感情",
   "img2img_directorDeclutter": "デクラッター",
+  "img2img_directorPixelSnap": "ピクセルスナップ",
+  "img2img_directorPixelSnapHint": "すべてこの PC 上で処理します。Anlas も通信も不要です。大きな画像では数秒かかります。",
+  "img2img_directorPixelSnapPalette": "パレット化",
+  "img2img_directorPixelSnapPaletteOff": "オフ",
+  "img2img_directorPixelSnapPaletteAuto": "自動",
+  "img2img_directorPixelSnapPaletteCustom": "カスタム",
+  "img2img_directorPixelSnapColors": "色数",
+  "img2img_directorPixelSnapAvoidOverRefining": "細かくしすぎない",
+  "img2img_directorPixelSnapAvoidOverRefiningOn": "検出したピクセルサイズを常に維持します。",
+  "img2img_directorPixelSnapAvoidOverRefiningOff": "画像により適している場合、より細かいピクセルサイズを使用することがあります。",
+  "img2img_directorPixelSnapUpscale": "アップスケール",
+  "img2img_directorPixelSnapUpscaleOn": "結果を元の画像とほぼ同じサイズまで拡大し直します。",
+  "img2img_directorPixelSnapUpscaleOff": "結果をスナップ後のピクセルサイズのまま保持します。",
+  "img2img_directorPixelSnapSummary": "{width}×{height} ピクセル · {colors} 色",
+  "@img2img_directorPixelSnapSummary": {
+    "placeholders": {
+      "width": {"type": "int"},
+      "height": {"type": "int"},
+      "colors": {"type": "int"}
+    }
+  },
+  "img2img_directorPixelSnapSummaryNoPalette": "{width}×{height} ピクセル",
+  "@img2img_directorPixelSnapSummaryNoPalette": {
+    "placeholders": {
+      "width": {"type": "int"},
+      "height": {"type": "int"}
+    }
+  },
+  "img2img_directorPixelSnapNoGrid": "この画像には繰り返しのピクセルグリッドが見つかりませんでした。",
+  "img2img_directorPixelSnapBlank": "この画像は全体が透明です。",
+  "img2img_directorPixelSnapDownscaled": "サイズ上限を超えているため、縮小してから解析しました。",
+  "img2img_directorCancel": "キャンセル",
+  "img2img_directorStageAnalyzing": "画像を解析中",
+  "img2img_directorStageSearchingPitch": "ピクセルサイズを探索中",
+  "img2img_directorStageRefiningGrid": "グリッドを調整中",
+  "img2img_directorStageFinishing": "結果を生成中",
   "img2img_enhance": "品質向上",
   "img2img_enhanceHint": "品質向上は、潜在スペースでソース画像を拡大して再生成する間、現在のプロンプトを使用し続けます。",
   "img2img_enhanceMagnitude": "大きさ",
@@ -4670,14 +4721,6 @@
   },
   "vibe_saveToLibrary_tagHint": "タグを入力して、[追加] を押します",
   "vibe_maxReached": "最大 16 件の Vibe に達しました",
-  "vibe_addedNamed": "Vibe を追加しました: {name}",
-  "@vibe_addedNamed": {
-    "placeholders": {
-      "name": {
-        "type": "String"
-      }
-    }
-  },
   "vibe_addedCount": "{count} 件の Vibe を追加しました",
   "@vibe_addedCount": {
     "placeholders": {
@@ -4767,6 +4810,85 @@
       "client": {}
     }
   },
+
+  "settings_mcpServerPermissionSection": "権限",
+  "settings_mcpServerClientsSection": "クライアント",
+  "settings_mcpServerEnable": "MCP サーバーを有効にする",
+  "settings_mcpServerDisabledText": "既定ではオフ。有効にするとローカルの 127.0.0.1 でのみ待ち受けます",
+  "settings_mcpServerStartingText": "ローカル MCP サーバーを起動しています...",
+  "settings_mcpServerListeningText": "MCP クライアントの接続を待っています",
+  "settings_mcpServerErrorText": "起動に失敗しました。エラーメッセージを確認してください",
+  "settings_mcpServerDisabled": "無効",
+  "settings_mcpServerStarting": "起動中",
+  "settings_mcpServerListening": "待ち受け中",
+  "settings_mcpServerError": "エラー",
+  "settings_mcpServerEndpoint": "エンドポイント",
+  "settings_mcpServerCopyEndpoint": "エンドポイントをコピー",
+  "settings_mcpServerPort": "ポート",
+  "settings_mcpServerPortHelper": "変更すると接続中のクライアントは切断されます",
+  "settings_mcpServerPortInvalid": "ポートは {min} から {max} の範囲で入力してください",
+  "@settings_mcpServerPortInvalid": {
+    "placeholders": {
+      "min": {},
+      "max": {}
+    }
+  },
+  "settings_mcpServerPortInUseHint": "ポート {port} は使用中です。下で別のポートを指定してください",
+  "@settings_mcpServerPortInUseHint": {
+    "placeholders": {
+      "port": {}
+    }
+  },
+  "settings_mcpServerDiscoveryFile": "ディスカバリーファイル",
+  "settings_mcpServerToken": "アクセストークン",
+  "settings_mcpServerRevealToken": "トークンを表示",
+  "settings_mcpServerHideToken": "トークンを隠す",
+  "settings_mcpServerCopyToken": "トークンをコピー",
+  "settings_mcpServerRegenerateToken": "トークンを再生成",
+  "settings_mcpServerRegenerateTokenTitle": "アクセストークンを再生成",
+  "settings_mcpServerRegenerateTokenMessage": "現在のトークンは直ちに無効になり、接続中のクライアントは切断されます。すべてのクライアント設定を新しいトークンに更新してください。",
+  "settings_mcpServerAnlasNotice": "Anlas を消費する可能性のある操作は、権限モードに関係なくランチャー内で個別に確認します。",
+  "settings_mcpServerPendingApproval": "{client} が {tool} の実行を要求しています",
+  "@settings_mcpServerPendingApproval": {
+    "placeholders": {
+      "client": {},
+      "tool": {}
+    }
+  },
+  "settings_mcpServerPendingApprovalHint": "ページ上部の承認バナーで対応してください",
+  "settings_mcpServerConnectedClients": "接続中のクライアント",
+  "settings_mcpServerSessionsEmpty": "接続中のクライアントはありません",
+  "settings_mcpServerSessionConnectedAt": "接続 {time}",
+  "@settings_mcpServerSessionConnectedAt": {
+    "placeholders": {
+      "time": {}
+    }
+  },
+  "settings_mcpServerSessionLastActivity": "最終アクティビティ {time}",
+  "@settings_mcpServerSessionLastActivity": {
+    "placeholders": {
+      "time": {}
+    }
+  },
+  "settings_mcpServerClientConfigs": "クライアント設定",
+  "settings_mcpServerConfigUnavailable": "サーバーを有効にするとクライアント設定が表示されます",
+  "settings_mcpServerCopyConfig": "設定をコピー",
+  "settings_mcpServerTokenMaskNotice": "プレビューのトークンはマスクされています。コピーすると実際のトークンが書き込まれます。",
+  "settings_mcpServerCliMissing": "同梱 CLI が見つかりません（想定パス: {path}）。開発実行では正常です",
+  "@settings_mcpServerCliMissing": {
+    "placeholders": {
+      "path": {}
+    }
+  },
+  "settings_mcpServerViewDocs": "ドキュメントを見る",
+  "settings_mcpServerAgentPromptTitle": "推奨: エージェントに設定させる",
+  "settings_mcpServerAgentPromptHint": "接続したいエージェントに次のプロンプトを渡すと、設定ドキュメントを読んで自分でインストールします。プロンプトにトークンは含まれず、同梱 CLI がローカルで読み取ります。",
+  "settings_mcpServerClaudeCodeHint": "ターミナルで次のコマンドを実行してサーバーを登録します。",
+  "settings_mcpServerCodexHint": "コマンドでサーバーを登録してから、下の環境変数にトークンを設定します。",
+  "settings_mcpServerCursorHint": "次の内容を Cursor の mcp.json に統合してください。",
+  "settings_mcpServerCherryStudioHint": "Cherry Studio の MCP サーバー設定で「JSON からインポート」に次の内容を貼り付けてください。timeout は秒単位で、アプリ内の承認待ちに十分な余裕があります。",
+  "settings_mcpServerPiHint": "Pi 本体に MCP はありません。先に pi-mcp-adapter パッケージをインストールし、次の内容を ~/.pi/agent/mcp.json に統合してください。",
+  "settings_mcpServerClaudeDesktopHint": "次の内容を Claude Desktop の設定に統合してください。同梱 CLI を介して stdio で接続します。",
   "settings_fontScale": "フォント サイズ",
   "settings_fontScale_description": "グローバルフォントスケールを調整します",
   "settings_fontScale_previewSmall": "夕日と一匹のアヒルが一緒に飛ぶ",
@@ -4848,7 +4970,7 @@
   "settings_copyDragWatermarkTitle": "コピーまたはドラッグ時に透かしを追加",
   "settings_copyDragWatermarkSubtitle": "保存済みの既定の透かしを使用します。透かしの追加ではメタデータは削除されません。削除するには、上の「コピーまたはドラッグするときにすべてのメタデータを削除します」を有効にしてください。",
   "settings_stripMetadataTitle": "コピーまたはドラッグするときにすべてのメタデータを削除します",
-  "settings_stripMetadataSubtitle": "サニタイズされたコピーを作成し、PNG テキスト チャンク、EXIF、および NAI ステガノグラフィック透かしデータを削除し、ドラッグ中に元のパスが露出しないようにします。",
+  "settings_stripMetadataSubtitle": "コピー、ドラッグ、MCP 画像の返却時に PNG テキストチャンク、EXIF、NAI のステガノグラフィック透かしを削除します。ローカルの元画像は変更せず、MCP は元の解像度を維持します。MCP が saved_path として返すギャラリーの元画像はそのままです。",
   "settings_confirmDangerousActionsTitle": "危険な資産のアクションを再確認する",
   "settings_confirmDangerousActionsSubtitle": "ローカル アセットを削除、移動、またはバッチ移動すると、追加の保護の確認が表示されます。",
   "settings_warnExternalImageSendTitle": "外部サービスに送信する前に確認してください",
@@ -6417,6 +6539,8 @@
   "cloudSync_onlineGalleryFavoritesDescription": "ソース ID と復元に必要な情報のみを保存し、原画像は保存しません",
   "cloudSync_galleryAlbums": "ローカルギャラリーのアルバム",
   "cloudSync_galleryAlbumsDescription": "アルバム構造と画像参照のみを保存し、原画像はアップロードしません",
+  "cloudSync_fixedTagUsage": "固定タグの使用記録",
+  "cloudSync_fixedTagUsageDescription": "各画像がどの固定タグを使ったかの軽量な記録のみを保存し、画像はアップロードしません",
   "cloudSync_optionalResources": "任意のリソース（既定はオフ）",
   "cloudSync_vibes": "Vibe",
   "cloudSync_preciseReferences": "精密参照",

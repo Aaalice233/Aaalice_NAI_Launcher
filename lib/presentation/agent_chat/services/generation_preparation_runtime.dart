@@ -8,6 +8,16 @@ enum GenerationPreparationKind { generate, queue }
 
 enum GenerationPreparationStatus { prepared, submitted, cancelled }
 
+enum GenerationSavePathSource { caller, galleryOriginal }
+
+extension GenerationSavePathSourceWire on GenerationSavePathSource {
+  /// 模型侧键值统一 snake_case，不跟随 Dart 枚举名。
+  String get wireName => switch (this) {
+    GenerationSavePathSource.caller => 'caller',
+    GenerationSavePathSource.galleryOriginal => 'gallery_original',
+  };
+}
+
 class GenerationPreparation {
   GenerationPreparation({
     required this.kind,
@@ -18,6 +28,8 @@ class GenerationPreparation {
     required this.autoStart,
     required this.estimatedAnlas,
     required this.arguments,
+    this.savePath,
+    this.savePathSource,
     this.sourceImage,
     this.maskImage,
   }) : id = const Uuid().v4(),
@@ -33,6 +45,10 @@ class GenerationPreparation {
   final bool autoStart;
   final int estimatedAnlas;
   final Map<String, dynamic> arguments;
+  final String? savePath;
+
+  /// null 表示这次既不落盘也不引用原图。
+  final GenerationSavePathSource? savePathSource;
   final Uint8List? sourceImage;
   final Uint8List? maskImage;
   GenerationPreparationStatus status = GenerationPreparationStatus.prepared;
@@ -46,6 +62,8 @@ class GenerationPreparation {
     'count': count,
     'batch_size': batchSize,
     'auto_start': autoStart,
+    if (savePath != null) 'save_path': savePath,
+    if (savePathSource != null) 'save_path_source': savePathSource!.wireName,
     'parameters': {
       'prompt': params.prompt,
       'negative_prompt': params.negativePrompt,

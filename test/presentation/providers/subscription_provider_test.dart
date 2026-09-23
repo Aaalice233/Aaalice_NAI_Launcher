@@ -7,7 +7,7 @@ import 'package:mocktail/mocktail.dart';
 import 'package:nai_launcher/core/network/critical_network_activity.dart';
 import 'package:nai_launcher/data/datasources/remote/nai_user_info_api_service.dart';
 import 'package:nai_launcher/data/models/user/user_subscription.dart';
-import 'package:nai_launcher/presentation/providers/auth_provider.dart';
+import 'package:nai_launcher/data/services/auth_provider.dart';
 import 'package:nai_launcher/presentation/providers/subscription_provider.dart';
 
 class _MockNAIUserInfoApiService extends Mock

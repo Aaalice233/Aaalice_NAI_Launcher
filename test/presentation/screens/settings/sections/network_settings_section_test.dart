@@ -4,7 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/core/constants/storage_keys.dart';
 import 'package:nai_launcher/core/storage/local_storage_service.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
-import 'package:nai_launcher/presentation/providers/proxy_settings_provider.dart';
+import 'package:nai_launcher/core/network/proxy_settings_provider.dart';
 import 'package:nai_launcher/presentation/screens/settings/sections/network_settings_section.dart';
 import 'package:nai_launcher/presentation/widgets/common/themed_input.dart';
 

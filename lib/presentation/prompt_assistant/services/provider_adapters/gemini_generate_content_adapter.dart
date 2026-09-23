@@ -4,7 +4,7 @@ import 'package:dio/dio.dart';
 
 import '../../../../core/agent/agent_types.dart';
 import '../../models/agent_protocol.dart';
-import '../../models/prompt_assistant_models.dart';
+import '../../../../data/models/prompt_assistant/prompt_assistant_models.dart';
 import 'agent_wire_helpers.dart';
 import 'prompt_assistant_adapter.dart';
 import 'reasoning_payload.dart';

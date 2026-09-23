@@ -7,6 +7,7 @@ import 'package:path/path.dart' as p;
 import '../../../core/utils/app_logger.dart';
 import '../../../core/utils/image_save_utils.dart';
 import '../../../core/utils/nai_resolution_adapter.dart';
+import '../../../data/models/gallery/gallery_index_admission.dart';
 import '../../../data/models/image/image_params.dart';
 import '../../../data/models/fixed_tag/fixed_tag_usage_snapshot.dart';
 import '../../../data/services/image_metadata_service.dart';
@@ -25,7 +26,8 @@ class GenerationResultLifecycleDependencies {
 
   final GenerationHistoryStorageService historyStorage;
   final Future<String?> Function() resolveGalleryRootPath;
-  final Future<int> Function(List<String> paths) addGalleryImages;
+  final Future<GalleryIndexAdmission> Function(List<String> paths)
+  addGalleryImages;
   final Future<void> Function() refreshGallery;
   final Future<void> Function(int count) incrementStatistics;
   final Future<void> Function(String sourcePath, String fileName)?
@@ -34,18 +36,10 @@ class GenerationResultLifecycleDependencies {
 
 class GenerationSaveSnapshot {
   const GenerationSaveSnapshot({
-    this.fixedPrefixTags = const [],
-    this.fixedSuffixTags = const [],
-    this.fixedNegativePrefixTags = const [],
-    this.fixedNegativeSuffixTags = const [],
     this.fixedTagUsageSnapshot,
     this.useCoords = false,
   });
 
-  final List<String> fixedPrefixTags;
-  final List<String> fixedSuffixTags;
-  final List<String> fixedNegativePrefixTags;
-  final List<String> fixedNegativeSuffixTags;
   final FixedTagUsageSnapshot? fixedTagUsageSnapshot;
   final bool useCoords;
 }
@@ -200,37 +194,24 @@ class GenerationResultLifecycleService {
             actualSeed = Random().nextInt(4294967295);
           }
         }
-        final fixedTagUsageSnapshot =
-            image.fixedTagUsageSnapshot ?? snapshot.fixedTagUsageSnapshot;
-        final bytes = image.preserveOriginalBytesOnSave
-            ? image.bytes
-            : hasMetadata && fixedTagUsageSnapshot != null
-            ? await ImageSaveUtils.mergeFixedTagUsageMetadata(
-                imageBytes: image.bytes,
-                snapshot: fixedTagUsageSnapshot,
-              )
-            : await ImageSaveUtils.rebuildImageBytesWithMetadata(
-                imageBytes: image.bytes,
-                params: params.copyWith(
-                  width: image.width,
-                  height: image.height,
-                ),
-                actualSeed: actualSeed,
-                fixedPrefixTags: snapshot.fixedPrefixTags,
-                fixedSuffixTags: snapshot.fixedSuffixTags,
-                fixedNegativePrefixTags: snapshot.fixedNegativePrefixTags,
-                fixedNegativeSuffixTags: snapshot.fixedNegativeSuffixTags,
-                fixedTagUsageSnapshot: fixedTagUsageSnapshot,
-                charCaptions: charCaptions,
-                charNegCaptions: charNegCaptions,
-                useCoords: snapshot.useCoords,
-                useStealth: false,
-              );
-        final path = await ImageSaveUtils.saveBytesToDatedPath(
+        final saved = await ImageSaveUtils.saveResultImage(
           rootPath: rootPath,
-          bytes: bytes,
+          imageBytes: image.bytes,
+          preserveOriginalBytes: image.preserveOriginalBytesOnSave,
+          fixedTagUsageSnapshot:
+              image.fixedTagUsageSnapshot ?? snapshot.fixedTagUsageSnapshot,
           seed: actualSeed,
+          rebuild: () => ImageSaveUtils.rebuildImageBytesWithMetadata(
+            imageBytes: image.bytes,
+            params: params.copyWith(width: image.width, height: image.height),
+            actualSeed: actualSeed,
+            charCaptions: charCaptions,
+            charNegCaptions: charNegCaptions,
+            useCoords: snapshot.useCoords,
+            useStealth: false,
+          ),
         );
+        final path = saved.path;
         paths.add(path);
         updated.add(image.copyWithFilePath(path));
         final publishToSystemGallery = dependencies.publishToSystemGallery;
@@ -251,8 +232,11 @@ class GenerationResultLifecycleService {
     if (paths.isNotEmpty) {
       if (syncToGalleryIndex) {
         try {
-          final added = await dependencies.addGalleryImages(paths);
-          if (added < paths.length) await dependencies.refreshGallery();
+          // 全量重扫要枚举整个图库根目录，只有索引与磁盘真的对不上才值得付这个代价。
+          final admission = await dependencies.addGalleryImages(paths);
+          if (admission.requiresFullRescan) {
+            await dependencies.refreshGallery();
+          }
         } catch (error, stackTrace) {
           AppLogger.e('自动保存图库索引更新失败', error, stackTrace);
         }

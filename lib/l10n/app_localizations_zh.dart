@@ -1302,6 +1302,11 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
+  String agentChat_approvalFileTarget(String path) {
+    return '将写入文件：$path';
+  }
+
+  @override
   String get agentChat_needSetup => '未配置聊天模型。请先在设置中添加支持工具调用的供应商。';
 
   @override
@@ -1414,6 +1419,19 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get agentChat_approvalDeny => '拒绝';
+
+  @override
+  String mcpApproval_title(Object client) {
+    return '外部智能体 $client 请求授权';
+  }
+
+  @override
+  String mcpApproval_expiresIn(Object seconds) {
+    return '$seconds 秒后自动拒绝';
+  }
+
+  @override
+  String get mcpApproval_unknownClient => '未知客户端';
 
   @override
   String get generation_failedStreamSnapshot => '失败快照';
@@ -2005,6 +2023,81 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get img2img_directorDeclutter => '杂线清理';
+
+  @override
+  String get img2img_directorPixelSnap => '像素对齐';
+
+  @override
+  String get img2img_directorPixelSnapHint =>
+      '完全在本机计算，不消耗 Anlas、不联网。大图可能要几秒到十几秒。';
+
+  @override
+  String get img2img_directorPixelSnapPalette => '调色板';
+
+  @override
+  String get img2img_directorPixelSnapPaletteOff => '关闭';
+
+  @override
+  String get img2img_directorPixelSnapPaletteAuto => '自动';
+
+  @override
+  String get img2img_directorPixelSnapPaletteCustom => '自定义';
+
+  @override
+  String get img2img_directorPixelSnapColors => '色数';
+
+  @override
+  String get img2img_directorPixelSnapAvoidOverRefining => '不过度细化';
+
+  @override
+  String get img2img_directorPixelSnapAvoidOverRefiningOn => '始终保留检测到的像素尺寸。';
+
+  @override
+  String get img2img_directorPixelSnapAvoidOverRefiningOff =>
+      '更细的像素尺寸更贴合原图时会改用它。';
+
+  @override
+  String get img2img_directorPixelSnapUpscale => '放大回原尺寸';
+
+  @override
+  String get img2img_directorPixelSnapUpscaleOn => '结果会放大到接近原图的大小。';
+
+  @override
+  String get img2img_directorPixelSnapUpscaleOff => '结果保持对齐后的像素尺寸。';
+
+  @override
+  String img2img_directorPixelSnapSummary(int width, int height, int colors) {
+    return '$width×$height 像素 · $colors 色';
+  }
+
+  @override
+  String img2img_directorPixelSnapSummaryNoPalette(int width, int height) {
+    return '$width×$height 像素';
+  }
+
+  @override
+  String get img2img_directorPixelSnapNoGrid => '这张图里找不到重复的像素网格。';
+
+  @override
+  String get img2img_directorPixelSnapBlank => '这张图整幅都是透明的。';
+
+  @override
+  String get img2img_directorPixelSnapDownscaled => '图片超过尺寸上限，已先降采样再分析。';
+
+  @override
+  String get img2img_directorCancel => '取消';
+
+  @override
+  String get img2img_directorStageAnalyzing => '分析图像';
+
+  @override
+  String get img2img_directorStageSearchingPitch => '搜索像素尺寸';
+
+  @override
+  String get img2img_directorStageRefiningGrid => '细化网格';
+
+  @override
+  String get img2img_directorStageFinishing => '生成结果';
 
   @override
   String get img2img_enhance => '增强';
@@ -9261,11 +9354,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get vibe_maxReached => '已达到最大数量 (16张)';
 
   @override
-  String vibe_addedNamed(String name) {
-    return '已添加 Vibe: $name';
-  }
-
-  @override
   String vibe_addedCount(int count) {
     return '已添加 $count 个 vibes';
   }
@@ -9463,6 +9551,162 @@ class AppLocalizationsZh extends AppLocalizations {
   String settings_kritaBridgeClient(Object client) {
     return '客户端：$client';
   }
+
+  @override
+  String get settings_mcpServerPermissionSection => '权限';
+
+  @override
+  String get settings_mcpServerClientsSection => '客户端';
+
+  @override
+  String get settings_mcpServerEnable => '启用 MCP 服务器';
+
+  @override
+  String get settings_mcpServerDisabledText => '默认关闭；开启后只监听本机 127.0.0.1';
+
+  @override
+  String get settings_mcpServerStartingText => '正在启动本地 MCP 服务...';
+
+  @override
+  String get settings_mcpServerListeningText => '等待 MCP 客户端连接';
+
+  @override
+  String get settings_mcpServerErrorText => '启动失败，请查看错误信息';
+
+  @override
+  String get settings_mcpServerDisabled => '已关闭';
+
+  @override
+  String get settings_mcpServerStarting => '启动中';
+
+  @override
+  String get settings_mcpServerListening => '监听中';
+
+  @override
+  String get settings_mcpServerError => '错误';
+
+  @override
+  String get settings_mcpServerEndpoint => '端点地址';
+
+  @override
+  String get settings_mcpServerCopyEndpoint => '复制端点地址';
+
+  @override
+  String get settings_mcpServerPort => '端口';
+
+  @override
+  String get settings_mcpServerPortHelper => '更改后会断开已连接的客户端';
+
+  @override
+  String settings_mcpServerPortInvalid(Object min, Object max) {
+    return '端口需在 $min 到 $max 之间';
+  }
+
+  @override
+  String settings_mcpServerPortInUseHint(Object port) {
+    return '端口 $port 已被占用，请在下方改用其他端口';
+  }
+
+  @override
+  String get settings_mcpServerDiscoveryFile => '发现文件';
+
+  @override
+  String get settings_mcpServerToken => '接入令牌';
+
+  @override
+  String get settings_mcpServerRevealToken => '显示令牌';
+
+  @override
+  String get settings_mcpServerHideToken => '隐藏令牌';
+
+  @override
+  String get settings_mcpServerCopyToken => '复制令牌';
+
+  @override
+  String get settings_mcpServerRegenerateToken => '重新生成令牌';
+
+  @override
+  String get settings_mcpServerRegenerateTokenTitle => '重新生成接入令牌';
+
+  @override
+  String get settings_mcpServerRegenerateTokenMessage =>
+      '当前令牌会立即失效，已连接的客户端将断开。请在所有客户端配置中更新新令牌。';
+
+  @override
+  String get settings_mcpServerAnlasNotice =>
+      '任何可能消耗 Anlas 的操作都会在启动器内单独确认，与权限模式无关。';
+
+  @override
+  String settings_mcpServerPendingApproval(Object client, Object tool) {
+    return '$client 请求调用 $tool';
+  }
+
+  @override
+  String get settings_mcpServerPendingApprovalHint => '请在页面顶部的授权横幅中处理';
+
+  @override
+  String get settings_mcpServerConnectedClients => '已连接客户端';
+
+  @override
+  String get settings_mcpServerSessionsEmpty => '尚无客户端连接';
+
+  @override
+  String settings_mcpServerSessionConnectedAt(Object time) {
+    return '接入于 $time';
+  }
+
+  @override
+  String settings_mcpServerSessionLastActivity(Object time) {
+    return '最近活动 $time';
+  }
+
+  @override
+  String get settings_mcpServerClientConfigs => '客户端配置';
+
+  @override
+  String get settings_mcpServerConfigUnavailable => '启用服务器后显示客户端配置';
+
+  @override
+  String get settings_mcpServerCopyConfig => '复制配置';
+
+  @override
+  String get settings_mcpServerTokenMaskNotice => '预览中的令牌已打码，复制时写入真实令牌。';
+
+  @override
+  String settings_mcpServerCliMissing(Object path) {
+    return '未找到随包 CLI（预期位置：$path），开发运行时属正常现象';
+  }
+
+  @override
+  String get settings_mcpServerViewDocs => '查看文档';
+
+  @override
+  String get settings_mcpServerAgentPromptTitle => '推荐：让智能体自己配置';
+
+  @override
+  String get settings_mcpServerAgentPromptHint =>
+      '把以下提示词发给要接入的智能体，它会读取配置文档并自行完成安装。提示词不含令牌，令牌由随包 CLI 在本机读取。';
+
+  @override
+  String get settings_mcpServerClaudeCodeHint => '在终端运行以下命令注册服务器。';
+
+  @override
+  String get settings_mcpServerCodexHint => '先运行命令注册服务器，再把令牌写入下面的环境变量。';
+
+  @override
+  String get settings_mcpServerCursorHint => '把以下内容合并进 Cursor 的 mcp.json 配置文件。';
+
+  @override
+  String get settings_mcpServerCherryStudioHint =>
+      '在 Cherry Studio 的 MCP 服务器设置中用“从 JSON 导入”粘贴以下内容；timeout 单位为秒，已留足应用内审批时间。';
+
+  @override
+  String get settings_mcpServerPiHint =>
+      'Pi 本体不带 MCP，需先安装 pi-mcp-adapter 包，再把以下内容合并进 ~/.pi/agent/mcp.json。';
+
+  @override
+  String get settings_mcpServerClaudeDesktopHint =>
+      '把以下内容合并进 Claude Desktop 配置；它通过随包 CLI 以 stdio 方式接入。';
 
   @override
   String get settings_fontScale => '字体大小';
@@ -9695,7 +9939,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get settings_stripMetadataSubtitle =>
-      '生成净化副本，清除 PNG 文本块、EXIF 与 NAI 隐写水印，并避免拖拽暴露原始路径。';
+      '复制、拖拽及 MCP 图片返回时清除 PNG 文本块、EXIF 与 NAI 隐写水印，不修改本地原图；MCP 保留原分辨率，其 saved_path 指向的图库原图不受影响。';
 
   @override
   String get settings_confirmDangerousActionsTitle => '危险资产操作二次确认';
@@ -12837,6 +13081,12 @@ class AppLocalizationsZh extends AppLocalizations {
   String get cloudSync_galleryAlbumsDescription => '只保存相册结构与图片引用，不上传原图';
 
   @override
+  String get cloudSync_fixedTagUsage => '固定词使用记录';
+
+  @override
+  String get cloudSync_fixedTagUsageDescription => '只保存每张图用了哪些固定词的轻量记录，不上传图片';
+
+  @override
   String get cloudSync_optionalResources => '可选资源（默认关闭）';
 
   @override
@@ -15876,6 +16126,11 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   }
 
   @override
+  String agentChat_approvalFileTarget(String path) {
+    return '將寫入檔案：$path';
+  }
+
+  @override
   String get agentChat_needSetup => '未設定聊天模型。請先在設定中新增支援工具呼叫的供應商。';
 
   @override
@@ -15988,6 +16243,19 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get agentChat_approvalDeny => '拒絕';
+
+  @override
+  String mcpApproval_title(Object client) {
+    return '外部智慧體 $client 請求授權';
+  }
+
+  @override
+  String mcpApproval_expiresIn(Object seconds) {
+    return '$seconds 秒後自動拒絕';
+  }
+
+  @override
+  String get mcpApproval_unknownClient => '未知用戶端';
 
   @override
   String get generation_failedStreamSnapshot => '失敗快照';
@@ -16579,6 +16847,81 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get img2img_directorDeclutter => '雜線清理';
+
+  @override
+  String get img2img_directorPixelSnap => '像素對齊';
+
+  @override
+  String get img2img_directorPixelSnapHint =>
+      '完全在本機計算，不消耗 Anlas、不連網。大圖可能要幾秒到十幾秒。';
+
+  @override
+  String get img2img_directorPixelSnapPalette => '調色盤';
+
+  @override
+  String get img2img_directorPixelSnapPaletteOff => '關閉';
+
+  @override
+  String get img2img_directorPixelSnapPaletteAuto => '自動';
+
+  @override
+  String get img2img_directorPixelSnapPaletteCustom => '自訂';
+
+  @override
+  String get img2img_directorPixelSnapColors => '色數';
+
+  @override
+  String get img2img_directorPixelSnapAvoidOverRefining => '不過度細化';
+
+  @override
+  String get img2img_directorPixelSnapAvoidOverRefiningOn => '始終保留偵測到的像素尺寸。';
+
+  @override
+  String get img2img_directorPixelSnapAvoidOverRefiningOff =>
+      '更細的像素尺寸更貼合原圖時會改用它。';
+
+  @override
+  String get img2img_directorPixelSnapUpscale => '放大回原尺寸';
+
+  @override
+  String get img2img_directorPixelSnapUpscaleOn => '結果會放大到接近原圖的大小。';
+
+  @override
+  String get img2img_directorPixelSnapUpscaleOff => '結果保持對齊後的像素尺寸。';
+
+  @override
+  String img2img_directorPixelSnapSummary(int width, int height, int colors) {
+    return '$width×$height 像素 · $colors 色';
+  }
+
+  @override
+  String img2img_directorPixelSnapSummaryNoPalette(int width, int height) {
+    return '$width×$height 像素';
+  }
+
+  @override
+  String get img2img_directorPixelSnapNoGrid => '這張圖裡找不到重複的像素網格。';
+
+  @override
+  String get img2img_directorPixelSnapBlank => '這張圖整幅都是透明的。';
+
+  @override
+  String get img2img_directorPixelSnapDownscaled => '圖片超過尺寸上限，已先降採樣再分析。';
+
+  @override
+  String get img2img_directorCancel => '取消';
+
+  @override
+  String get img2img_directorStageAnalyzing => '分析影像';
+
+  @override
+  String get img2img_directorStageSearchingPitch => '搜尋像素尺寸';
+
+  @override
+  String get img2img_directorStageRefiningGrid => '細化網格';
+
+  @override
+  String get img2img_directorStageFinishing => '產生結果';
 
   @override
   String get img2img_enhance => '增強';
@@ -23835,11 +24178,6 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get vibe_maxReached => '已達到最大數量 (16張)';
 
   @override
-  String vibe_addedNamed(String name) {
-    return '已新增 Vibe: $name';
-  }
-
-  @override
   String vibe_addedCount(int count) {
     return '已新增 $count 個 vibes';
   }
@@ -24037,6 +24375,162 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String settings_kritaBridgeClient(Object client) {
     return '客戶端：$client';
   }
+
+  @override
+  String get settings_mcpServerPermissionSection => '權限';
+
+  @override
+  String get settings_mcpServerClientsSection => '用戶端';
+
+  @override
+  String get settings_mcpServerEnable => '啟用 MCP 伺服器';
+
+  @override
+  String get settings_mcpServerDisabledText => '預設關閉；開啟後只監聽本機 127.0.0.1';
+
+  @override
+  String get settings_mcpServerStartingText => '正在啟動本機 MCP 服務...';
+
+  @override
+  String get settings_mcpServerListeningText => '等待 MCP 用戶端連線';
+
+  @override
+  String get settings_mcpServerErrorText => '啟動失敗，請查看錯誤訊息';
+
+  @override
+  String get settings_mcpServerDisabled => '已關閉';
+
+  @override
+  String get settings_mcpServerStarting => '啟動中';
+
+  @override
+  String get settings_mcpServerListening => '監聽中';
+
+  @override
+  String get settings_mcpServerError => '錯誤';
+
+  @override
+  String get settings_mcpServerEndpoint => '端點位址';
+
+  @override
+  String get settings_mcpServerCopyEndpoint => '複製端點位址';
+
+  @override
+  String get settings_mcpServerPort => '連接埠';
+
+  @override
+  String get settings_mcpServerPortHelper => '變更後會中斷已連線的用戶端';
+
+  @override
+  String settings_mcpServerPortInvalid(Object min, Object max) {
+    return '連接埠需在 $min 到 $max 之間';
+  }
+
+  @override
+  String settings_mcpServerPortInUseHint(Object port) {
+    return '連接埠 $port 已被占用，請在下方改用其他連接埠';
+  }
+
+  @override
+  String get settings_mcpServerDiscoveryFile => '探索檔案';
+
+  @override
+  String get settings_mcpServerToken => '存取權杖';
+
+  @override
+  String get settings_mcpServerRevealToken => '顯示權杖';
+
+  @override
+  String get settings_mcpServerHideToken => '隱藏權杖';
+
+  @override
+  String get settings_mcpServerCopyToken => '複製權杖';
+
+  @override
+  String get settings_mcpServerRegenerateToken => '重新產生權杖';
+
+  @override
+  String get settings_mcpServerRegenerateTokenTitle => '重新產生存取權杖';
+
+  @override
+  String get settings_mcpServerRegenerateTokenMessage =>
+      '目前權杖會立即失效，已連線的用戶端將中斷。請在所有用戶端設定中更新新權杖。';
+
+  @override
+  String get settings_mcpServerAnlasNotice =>
+      '任何可能消耗 Anlas 的操作都會在啟動器內單獨確認，與權限模式無關。';
+
+  @override
+  String settings_mcpServerPendingApproval(Object client, Object tool) {
+    return '$client 請求呼叫 $tool';
+  }
+
+  @override
+  String get settings_mcpServerPendingApprovalHint => '請在頁面頂端的授權橫幅中處理';
+
+  @override
+  String get settings_mcpServerConnectedClients => '已連線用戶端';
+
+  @override
+  String get settings_mcpServerSessionsEmpty => '尚無用戶端連線';
+
+  @override
+  String settings_mcpServerSessionConnectedAt(Object time) {
+    return '連線於 $time';
+  }
+
+  @override
+  String settings_mcpServerSessionLastActivity(Object time) {
+    return '最近活動 $time';
+  }
+
+  @override
+  String get settings_mcpServerClientConfigs => '用戶端設定';
+
+  @override
+  String get settings_mcpServerConfigUnavailable => '啟用伺服器後顯示用戶端設定';
+
+  @override
+  String get settings_mcpServerCopyConfig => '複製設定';
+
+  @override
+  String get settings_mcpServerTokenMaskNotice => '預覽中的權杖已遮罩，複製時會寫入真實權杖。';
+
+  @override
+  String settings_mcpServerCliMissing(Object path) {
+    return '找不到隨附 CLI（預期位置：$path），開發執行時屬正常現象';
+  }
+
+  @override
+  String get settings_mcpServerViewDocs => '查看文件';
+
+  @override
+  String get settings_mcpServerAgentPromptTitle => '推薦：讓智慧代理自行設定';
+
+  @override
+  String get settings_mcpServerAgentPromptHint =>
+      '把以下提示詞發給要接入的智慧代理，它會讀取設定文件並自行完成安裝。提示詞不含權杖，權杖由隨附 CLI 在本機讀取。';
+
+  @override
+  String get settings_mcpServerClaudeCodeHint => '在終端機執行以下指令註冊伺服器。';
+
+  @override
+  String get settings_mcpServerCodexHint => '先執行指令註冊伺服器，再把權杖寫入下方的環境變數。';
+
+  @override
+  String get settings_mcpServerCursorHint => '把以下內容合併進 Cursor 的 mcp.json 設定檔。';
+
+  @override
+  String get settings_mcpServerCherryStudioHint =>
+      '在 Cherry Studio 的 MCP 伺服器設定中用「從 JSON 匯入」貼上以下內容；timeout 單位為秒，已留足應用內審批時間。';
+
+  @override
+  String get settings_mcpServerPiHint =>
+      'Pi 本體不帶 MCP，需先安裝 pi-mcp-adapter 套件，再把以下內容合併進 ~/.pi/agent/mcp.json。';
+
+  @override
+  String get settings_mcpServerClaudeDesktopHint =>
+      '把以下內容合併進 Claude Desktop 設定；它透過隨附 CLI 以 stdio 方式連線。';
 
   @override
   String get settings_fontScale => '字型大小';
@@ -24269,7 +24763,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get settings_stripMetadataSubtitle =>
-      '生成淨化副本，清除 PNG 文字塊、EXIF 與 NAI 隱寫水印，並避免拖拽暴露原始路徑。';
+      '複製、拖拽及 MCP 圖片回傳時清除 PNG 文字塊、EXIF 與 NAI 隱寫水印，不修改本機原圖；MCP 保留原解析度，其 saved_path 指向的圖庫原圖不受影響。';
 
   @override
   String get settings_confirmDangerousActionsTitle => '危險資產操作二次確認';
@@ -27410,6 +27904,12 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get cloudSync_galleryAlbumsDescription => '只儲存相簿結構與圖片引用，不上傳原圖';
+
+  @override
+  String get cloudSync_fixedTagUsage => '固定詞使用記錄';
+
+  @override
+  String get cloudSync_fixedTagUsageDescription => '只儲存每張圖用了哪些固定詞的輕量記錄，不上傳圖片';
 
   @override
   String get cloudSync_optionalResources => '可選資源（預設關閉）';

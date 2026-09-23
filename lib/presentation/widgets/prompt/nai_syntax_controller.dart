@@ -22,6 +22,11 @@ class NaiSyntaxController extends TextEditingController {
   bool _numericEmphasisEnabled;
 
   static final RegExp _numericPrefixPattern = RegExp(r'-?\d*\.?\d*$');
+  static final RegExp _spacedNumericBeforePattern = RegExp(
+    r'(?:^|[\s,])(-?\d*\.?\d* )$',
+  );
+  static final RegExp _numericAfterPattern = RegExp(r'^ ?-?\d*\.?\d*');
+  static final RegExp _numericSeparatorAfterPattern = RegExp(r'^ ?[\d.\-]*::');
 
   /// 是否启用官网强调高亮。
   bool get highlightEnabled => _highlightEnabled;
@@ -520,9 +525,7 @@ class NaiSyntaxController extends TextEditingController {
     List<String> errors,
   ) {
     final before = text.substring(0, separatorStart);
-    final spacedBefore = RegExp(
-      r'(?:^|[\s,])(-?\d*\.?\d* )$',
-    ).firstMatch(before);
+    final spacedBefore = _spacedNumericBeforePattern.firstMatch(before);
     final beforeValue = spacedBefore?.group(1)?.trim() ?? '';
     final parsedBefore = double.tryParse(beforeValue);
     if (beforeValue.isNotEmpty &&
@@ -532,13 +535,13 @@ class NaiSyntaxController extends TextEditingController {
     }
 
     final after = text.substring(separatorStart + 2);
-    final misplacedAfter = RegExp(r'^ ?-?\d*\.?\d*').firstMatch(after);
+    final misplacedAfter = _numericAfterPattern.firstMatch(after);
     final afterValue = misplacedAfter?.group(0)?.trim() ?? '';
     final parsedAfter = double.tryParse(afterValue);
     if (afterValue.isNotEmpty &&
         parsedAfter != null &&
         parsedAfter.abs() < 21 &&
-        !RegExp(r'^ ?[\d.\-]*::').hasMatch(after)) {
+        !_numericSeparatorAfterPattern.hasMatch(after)) {
       errors.add('数值权重应写在 :: 前：::$afterValue');
     }
   }

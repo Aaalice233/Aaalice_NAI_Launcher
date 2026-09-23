@@ -1,5 +1,9 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
+import 'package:flutter/services.dart';
+import 'package:image/image.dart' as img;
 import 'package:nai_launcher/presentation/widgets/character/inline_character_editor.dart';
 import 'package:nai_launcher/presentation/widgets/prompt/tag_editor_view.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -354,6 +358,104 @@ void main() {
 
       await tester.pumpWidget(const SizedBox.shrink());
       await tester.pump();
+    });
+  });
+  group('缩略图探测', () {
+    late Directory directory;
+
+    setUp(() async {
+      directory = await Directory.systemTemp.createTemp('inline_character_');
+      // 放行真实事件循环后自动补全会去问 path_provider，桩成临时目录即可。
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(
+            const MethodChannel('plugins.flutter.io/path_provider'),
+            (call) async => directory.path,
+          );
+    });
+
+    tearDown(() async {
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(
+            const MethodChannel('plugins.flutter.io/path_provider'),
+            null,
+          );
+      // Image.file 的读取可能在 fake async 结束后才释放句柄，清理尽力而为。
+      for (var attempt = 0; attempt < 10; attempt++) {
+        try {
+          if (directory.existsSync()) await directory.delete(recursive: true);
+          return;
+        } on FileSystemException {
+          await Future<void>.delayed(const Duration(milliseconds: 25));
+        }
+      }
+    });
+
+    // 文件探测只在真实事件循环里推进，pump 之间必须放行 runAsync。
+    Future<void> pumpProbe(
+      WidgetTester tester, {
+      bool Function()? until,
+      int rounds = 6,
+    }) async {
+      for (var attempt = 0; attempt < rounds; attempt++) {
+        if (until != null && until()) return;
+        await tester.runAsync(
+          () => Future<void>.delayed(const Duration(milliseconds: 10)),
+        );
+        await tester.pump();
+      }
+    }
+
+    testWidgets('头部背景在探测完成后才换成缩略图', (tester) async {
+      final thumbnail = File('${directory.path}/thumb.png')
+        ..writeAsBytesSync(img.encodePng(img.Image(width: 8, height: 8)));
+      final target = character.copyWith(thumbnailPath: thumbnail.path);
+
+      await tester.pumpWidget(buildTestApp(target: target));
+      expect(find.byType(Image), findsNothing);
+
+      await pumpProbe(
+        tester,
+        until: () => find.byType(Image).evaluate().isNotEmpty,
+        rounds: 50,
+      );
+
+      expect(find.byType(Image), findsOneWidget);
+    });
+
+    testWidgets('缩略图缺失时保持渐变头部', (tester) async {
+      final target = character.copyWith(
+        thumbnailPath: '${directory.path}/absent.png',
+      );
+
+      await tester.pumpWidget(buildTestApp(target: target));
+      await pumpProbe(tester);
+
+      expect(find.byType(Image), findsNothing);
+    });
+
+    testWidgets('换成缺失路径后撤下已有缩略图', (tester) async {
+      final thumbnail = File('${directory.path}/thumb.png')
+        ..writeAsBytesSync(img.encodePng(img.Image(width: 8, height: 8)));
+
+      await tester.pumpWidget(
+        buildTestApp(target: character.copyWith(thumbnailPath: thumbnail.path)),
+      );
+      await pumpProbe(
+        tester,
+        until: () => find.byType(Image).evaluate().isNotEmpty,
+        rounds: 50,
+      );
+
+      await tester.pumpWidget(
+        buildTestApp(
+          target: character.copyWith(
+            thumbnailPath: '${directory.path}/absent.png',
+          ),
+        ),
+      );
+      await pumpProbe(tester);
+
+      expect(find.byType(Image), findsNothing);
     });
   });
 }

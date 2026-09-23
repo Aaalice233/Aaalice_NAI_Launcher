@@ -1,7 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
-import '../../../presentation/providers/data_source_cache_provider.dart';
+import 'data_source_cache_provider.dart';
 import '../../services/danbooru_tags_lazy_service.dart';
 import '../../utils/app_logger.dart';
 import '../connection_pool_lifecycle_manager.dart';

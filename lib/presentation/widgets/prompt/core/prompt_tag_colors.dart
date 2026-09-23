@@ -183,11 +183,6 @@ class CategoryGradient {
     return gradient;
   }
 
-  /// 清除渐变色缓存（用于主题切换时）
-  static void clearCache() {
-    _gradientCache.clear();
-  }
-
   /// 获取渐变色的起始色（用于文本颜色计算）
   static Color getGradientStartColor(int category) {
     final gradient = getGradientByCategory(category);

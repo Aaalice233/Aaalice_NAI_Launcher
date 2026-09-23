@@ -6,6 +6,7 @@ import 'package:hive/hive.dart';
 import '../image/image_params.dart';
 import '../fixed_tag/fixed_tag_usage_snapshot.dart';
 import '../vibe/vibe_reference.dart';
+import 'fixed_tag_usage_projection.dart';
 import 'nai_image_metadata_raw_decoder.dart';
 import 'nai_metadata_prompt_projection.dart';
 
@@ -186,6 +187,12 @@ class NaiImageMetadata with _$NaiImageMetadata {
 
   const NaiImageMetadata._();
 
+  /// 挂载固定词使用快照，并同步投影出四个固定词列表。
+  ///
+  /// 所有挂快照的入口都必须走这里，漏投影会让固定词对全应用隐身。
+  NaiImageMetadata withFixedTagUsageData(Map<String, dynamic>? data) =>
+      projectFixedTagUsageSnapshot(copyWith(fixedTagUsageData: data));
+
   FixedTagUsageSnapshot? get fixedTagUsageSnapshot {
     final data = fixedTagUsageData;
     if (data == null) return null;
@@ -340,6 +347,9 @@ class NaiImageMetadata with _$NaiImageMetadata {
 }
 
 NaiImageMetadata _metadataFromFields(NaiImageMetadataFields fields) =>
+    projectFixedTagUsageSnapshot(_rawMetadataFromFields(fields));
+
+NaiImageMetadata _rawMetadataFromFields(NaiImageMetadataFields fields) =>
     NaiImageMetadata(
       prompt: fields.prompt,
       negativePrompt: fields.negativePrompt,

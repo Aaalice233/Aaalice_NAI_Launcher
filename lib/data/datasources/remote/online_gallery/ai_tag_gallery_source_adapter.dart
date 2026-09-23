@@ -24,6 +24,10 @@ class AiTagGallerySourceAdapter implements GallerySourceAdapter {
 
   static const _baseUrl = 'https://aitag.win';
   static const _configTtl = Duration(minutes: 30);
+  static const _apiHeaders = <String, String>{
+    'Accept': 'application/json',
+    'Referer': aiTagReferer,
+  };
 
   final Dio _dio;
   final Random _random;
@@ -60,7 +64,7 @@ class AiTagGallerySourceAdapter implements GallerySourceAdapter {
     try {
       final response = await _dio.get(
         '$_baseUrl/api/config',
-        options: Options(headers: const {'Accept': 'application/json'}),
+        options: Options(headers: _apiHeaders),
         cancelToken: cancelToken,
       );
       if (response.data is! Map) {
@@ -187,7 +191,7 @@ class AiTagGallerySourceAdapter implements GallerySourceAdapter {
         queryParameters: queryParameters,
         options: Options(
           headers: {
-            'Accept': 'application/json',
+            ..._apiHeaders,
             if (noCache) 'Cache-Control': 'no-cache',
           },
         ),
@@ -282,7 +286,7 @@ class AiTagGallerySourceAdapter implements GallerySourceAdapter {
     try {
       final response = await _dio.get(
         '$_baseUrl/api/work/${item.id}',
-        options: Options(headers: const {'Accept': 'application/json'}),
+        options: Options(headers: _apiHeaders),
         cancelToken: cancelToken,
       );
       if (response.data is! Map) {

@@ -3,8 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/data/models/auth/saved_account.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
-import 'package:nai_launcher/presentation/providers/account_manager_provider.dart';
-import 'package:nai_launcher/presentation/providers/auth_provider.dart';
+import 'package:nai_launcher/data/services/account_manager_provider.dart';
+import 'package:nai_launcher/data/services/auth_provider.dart';
+import 'package:nai_launcher/presentation/widgets/auth/account_avatar.dart';
 import 'package:nai_launcher/presentation/widgets/settings/account_profile_sheet.dart';
 
 final _account = SavedAccount(
@@ -215,6 +216,32 @@ void main() {
           .first,
     );
     expect(find.text('Token 账号'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('切换账号列表复用共享头像组件，不在 build 内探测文件', (tester) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          authNotifierProvider.overrideWith(_AuthenticatedAuthNotifier.new),
+          accountManagerNotifierProvider.overrideWith(
+            _AccountManagerNotifier.new,
+          ),
+        ],
+        child: MaterialApp(
+          locale: const Locale('zh'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(body: AccountProfileBottomSheet(account: _account)),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final avatar = tester.widget<AccountAvatarSmall>(
+      find.byType(AccountAvatarSmall),
+    );
+    expect(avatar.account.id, _otherAccount.id);
     expect(tester.takeException(), isNull);
   });
 

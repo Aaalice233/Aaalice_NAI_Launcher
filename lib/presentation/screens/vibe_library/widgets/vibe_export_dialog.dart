@@ -15,16 +15,18 @@ import '../../../../data/models/vibe/vibe_library_entry.dart';
 import '../../../../data/models/vibe/vibe_reference.dart';
 
 import '../../../adaptive/adaptive_presenter.dart';
-import '../../../adaptive/interaction_policy.dart';
 import '../../../providers/generation/generation_params_notifier.dart';
 import '../../../widgets/common/app_toast.dart';
+import '../../../widgets/library_export/library_export_controls.dart';
+import '../../../widgets/library_export/library_export_panel.dart';
+import '../../../widgets/library_export/library_selection_controller.dart';
 
-double _compactControlExtent(BuildContext context) =>
-    context.interactionPolicy.shouldExposeTouchAlternatives ? 48 : 32;
-VisualDensity _compactControlDensity(BuildContext context) =>
-    context.interactionPolicy.shouldExposeTouchAlternatives
-    ? VisualDensity.standard
-    : VisualDensity.compact;
+/// 检查条目是否可以导出（是否有可导出的数据）
+bool _canExportEntry(VibeLibraryEntry entry) {
+  return entry.vibeEncoding.isNotEmpty ||
+      (entry.rawImageData != null && entry.rawImageData!.isNotEmpty) ||
+      (entry.vibeThumbnail != null && entry.vibeThumbnail!.isNotEmpty);
+}
 
 /// Vibe 导出格式枚举
 enum VibeExportFormat {
@@ -135,35 +137,48 @@ class _VibeExportDialogState extends ConsumerState<VibeExportDialog> {
   String? _selectedExternalCarrierImagePath;
   String? _carrierImageErrorMessage;
 
-  // 选中的条目和分类
-  final Set<String> _selectedEntryIds = {};
-  final Set<String> _selectedCategoryIds = {};
-
-  // 展开的分类
-  final Set<String> _expandedCategories = {};
+  late final LibrarySelectionTree<VibeLibraryEntry> _tree;
+  late final LibrarySelectionController _selection;
 
   @override
   void initState() {
     super.initState();
-    // 默认全选所有条目和分类
-    _selectedEntryIds.addAll(
-      widget.entries.where((e) => _canExportEntry(e)).map((e) => e.id),
+    _tree = LibrarySelectionTree<VibeLibraryEntry>(
+      categories: widget.categories
+          .map(
+            (category) => LibraryCategoryNode(
+              id: category.id,
+              displayName: category.displayName,
+              parentId: category.parentId,
+            ),
+          )
+          .toList(growable: false),
+      entries: widget.entries
+          .where(_canExportEntry)
+          .map(
+            (entry) => LibraryEntryNode<VibeLibraryEntry>(
+              id: entry.id,
+              value: entry,
+              categoryId: entry.categoryId,
+            ),
+          )
+          .toList(growable: false),
     );
-    _selectedCategoryIds.addAll(widget.categories.map((c) => c.id));
-    // 默认展开所有有子项的分类
-    for (final category in widget.categories) {
-      if (category.parentId == null) {
-        _expandedCategories.add(category.id);
-      }
-    }
-    // 如果有未分类的条目，默认展开未分类
-    final hasUncategorized = widget.entries.any(
-      (e) => e.categoryId == null && _canExportEntry(e),
-    );
-    if (hasUncategorized) {
-      _expandedCategories.add('__uncategorized__');
-    }
+    _selection = LibrarySelectionController(tree: _tree)
+      ..addListener(_handleSelectionChanged);
     _ensureDefaultCarrierSelection();
+  }
+
+  @override
+  void dispose() {
+    _selection
+      ..removeListener(_handleSelectionChanged)
+      ..dispose();
+    super.dispose();
+  }
+
+  void _handleSelectionChanged() {
+    if (mounted) setState(() {});
   }
 
   bool get _supportsEmbeddedPng => widget.entries.length == 1;
@@ -202,13 +217,6 @@ class _VibeExportDialogState extends ConsumerState<VibeExportDialog> {
     }
   }
 
-  /// 检查条目是否可以导出（是否有可导出的数据）
-  bool _canExportEntry(VibeLibraryEntry entry) {
-    return entry.vibeEncoding.isNotEmpty ||
-        (entry.rawImageData != null && entry.rawImageData!.isNotEmpty) ||
-        (entry.vibeThumbnail != null && entry.vibeThumbnail!.isNotEmpty);
-  }
-
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -221,17 +229,12 @@ class _VibeExportDialogState extends ConsumerState<VibeExportDialog> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            if (_isExporting) ...[
-              // 导出进度
-              LinearProgressIndicator(value: _progress),
-              const SizedBox(height: 12),
-              Text(
-                _progressMessage,
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: theme.colorScheme.outline,
-                ),
-              ),
-            ] else ...[
+            if (_isExporting)
+              LibraryExportProgressView(
+                progress: _progress,
+                message: _progressMessage,
+              )
+            else ...[
               Flexible(
                 fit: FlexFit.loose,
                 child: SingleChildScrollView(
@@ -256,26 +259,27 @@ class _VibeExportDialogState extends ConsumerState<VibeExportDialog> {
                       const SizedBox(height: 8),
 
                       // 选择列表与其余选项共用滚动视口，避免 IME 压缩时溢出。
-                      _buildSelectionList(theme),
+                      LibraryExportPanel<VibeLibraryEntry>(
+                        tree: _tree,
+                        selection: _selection,
+                        uncategorizedLabel:
+                            context.l10n.vibeLibrary_uncategorized,
+                        entryContentBuilder: _buildEntryContent,
+                        mode: LibraryExportListMode.shrinkWrap,
+                        hidesEmptyCategories: true,
+                      ),
 
                       const Divider(height: 24),
 
                       if (_exportFormat != VibeExportFormat.embeddedPng) ...[
-                        CheckboxListTile(
-                          title: Text(
-                            context.l10n.vibe_export_include_thumbnails,
-                          ),
-                          subtitle: Text(
-                            context
-                                .l10n
-                                .vibe_export_include_thumbnails_subtitle,
-                          ),
+                        LibraryExportThumbnailOption(
+                          title: context.l10n.vibe_export_include_thumbnails,
+                          subtitle: context
+                              .l10n
+                              .vibe_export_include_thumbnails_subtitle,
                           value: _includeThumbnails,
-                          onChanged: (value) {
-                            setState(() => _includeThumbnails = value ?? true);
-                          },
-                          contentPadding: EdgeInsets.zero,
-                          dense: true,
+                          onChanged: (value) =>
+                              setState(() => _includeThumbnails = value),
                         ),
                         const SizedBox(height: 16),
                       ],
@@ -296,11 +300,12 @@ class _VibeExportDialogState extends ConsumerState<VibeExportDialog> {
       onPressed: () => Navigator.of(context).pop(),
       child: Text(context.l10n.common_cancel),
     );
+    final selectedEntryCount = _selection.selectedEntryIds.length;
     final export = FilledButton.icon(
-      onPressed: _selectedEntryIds.isEmpty ? null : _export,
+      onPressed: selectedEntryCount == 0 ? null : _export,
       icon: const Icon(Icons.file_download),
       label: Text(
-        context.l10n.vibe_export_exportSelected(_selectedEntryIds.length),
+        context.l10n.vibe_export_exportSelected(selectedEntryCount),
         textAlign: TextAlign.center,
       ),
     );
@@ -325,26 +330,25 @@ class _VibeExportDialogState extends ConsumerState<VibeExportDialog> {
 
   /// 构建统计信息栏
   Widget _buildStatsBar(ThemeData theme) {
-    final exportableCount = widget.entries
-        .where((e) => _canExportEntry(e))
-        .length;
+    final exportableCount = _tree.entries.length;
     final unexportableCount = widget.entries.length - exportableCount;
 
-    final exportable = _StatItem(
+    final exportable = LibraryExportStatItem(
       label: context.l10n.vibe_export_exportable,
-      value: '${_selectedEntryIds.length}/$exportableCount',
+      value: '${_selection.selectedEntryIds.length}/$exportableCount',
       icon: Icons.check_circle_outline,
       color: theme.colorScheme.primary,
     );
-    final unexportable = _StatItem(
+    final unexportable = LibraryExportStatItem(
       label: context.l10n.vibe_export_notExportable,
       value: '$unexportableCount',
       icon: Icons.error_outline,
       color: theme.colorScheme.error,
     );
-    final categories = _StatItem(
+    final categories = LibraryExportStatItem(
       label: context.l10n.common_category,
-      value: '${_selectedCategoryIds.length}/${widget.categories.length}',
+      value:
+          '${_selection.selectedCategoryIds.length}/${widget.categories.length}',
       icon: Icons.folder_outlined,
       color: theme.colorScheme.outline,
     );
@@ -668,29 +672,21 @@ class _VibeExportDialogState extends ConsumerState<VibeExportDialog> {
 
   /// 构建选择操作按钮
   Widget _buildSelectionActions(ThemeData theme) {
-    final exportableEntries = widget.entries
-        .where((e) => _canExportEntry(e))
-        .toList();
-    final allEntriesSelected =
-        _selectedEntryIds.length == exportableEntries.length;
-    final allCategoriesSelected =
-        _selectedCategoryIds.length == widget.categories.length;
-    final allSelected = allEntriesSelected && allCategoriesSelected;
+    final allSelected = _selection.isEverythingSelected;
+    final nothingSelected = _selection.isNothingSelected;
 
     List<Widget> buildButtons({required bool compact}) {
       if (compact) {
         return [
           IconButton(
             tooltip: context.l10n.common_selectAll,
-            onPressed: allSelected ? null : _selectAll,
+            onPressed: allSelected ? null : _selection.selectAll,
             icon: const Icon(Icons.select_all, size: 18),
             visualDensity: VisualDensity.compact,
           ),
           IconButton(
             tooltip: context.l10n.common_deselectAll,
-            onPressed: _selectedEntryIds.isEmpty && _selectedCategoryIds.isEmpty
-                ? null
-                : _selectNone,
+            onPressed: nothingSelected ? null : _selection.selectNone,
             icon: const Icon(Icons.deselect, size: 18),
             visualDensity: VisualDensity.compact,
           ),
@@ -699,7 +695,7 @@ class _VibeExportDialogState extends ConsumerState<VibeExportDialog> {
 
       return [
         TextButton.icon(
-          onPressed: allSelected ? null : _selectAll,
+          onPressed: allSelected ? null : _selection.selectAll,
           icon: const Icon(Icons.select_all, size: 18),
           label: Text(context.l10n.common_selectAll),
           style: TextButton.styleFrom(
@@ -707,9 +703,7 @@ class _VibeExportDialogState extends ConsumerState<VibeExportDialog> {
           ),
         ),
         TextButton.icon(
-          onPressed: _selectedEntryIds.isEmpty && _selectedCategoryIds.isEmpty
-              ? null
-              : _selectNone,
+          onPressed: nothingSelected ? null : _selection.selectNone,
           icon: const Icon(Icons.deselect, size: 18),
           label: Text(context.l10n.common_deselectAll),
           style: TextButton.styleFrom(
@@ -744,454 +738,91 @@ class _VibeExportDialogState extends ConsumerState<VibeExportDialog> {
     );
   }
 
-  /// 构建选择列表
-  Widget _buildSelectionList(ThemeData theme) {
-    // 构建分类树结构
-    final rootCategories = widget.categories
-        .where((c) => c.parentId == null)
-        .toList();
-
-    // 获取无分类的条目（且可导出）
-    final uncategorizedEntries = widget.entries
-        .where((e) => e.categoryId == null && _canExportEntry(e))
-        .toList();
-
-    return ListView.builder(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      itemCount:
-          rootCategories.length + (uncategorizedEntries.isNotEmpty ? 1 : 0),
-      itemBuilder: (context, index) {
-        // 先显示有分类的
-        if (index < rootCategories.length) {
-          final category = rootCategories[index];
-          return _buildCategoryTile(category, 0);
-        }
-
-        // 最后显示未分类
-        return _buildUncategorizedSection(theme, uncategorizedEntries);
-      },
-    );
-  }
-
-  /// 构建未分类部分
-  Widget _buildUncategorizedSection(
-    ThemeData theme,
-    List<VibeLibraryEntry> entries,
+  /// 构建条目行内容
+  Widget _buildEntryContent(
+    BuildContext context,
+    LibraryEntryNode<VibeLibraryEntry> node,
   ) {
-    final isExpanded = _expandedCategories.contains('__uncategorized__');
-    final selectedCount = entries
-        .where((e) => _selectedEntryIds.contains(e.id))
-        .length;
-
-    if (entries.isEmpty) return const SizedBox.shrink();
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        InkWell(
-          onTap: () {
-            setState(() {
-              if (selectedCount == entries.length) {
-                for (final entry in entries) {
-                  _selectedEntryIds.remove(entry.id);
-                }
-              } else {
-                for (final entry in entries) {
-                  _selectedEntryIds.add(entry.id);
-                }
-              }
-            });
-          },
-          child: Row(
-            children: [
-              IconButton(
-                icon: Icon(
-                  isExpanded
-                      ? Icons.keyboard_arrow_down
-                      : Icons.keyboard_arrow_right,
-                  size: 20,
-                ),
-                onPressed: () {
-                  setState(() {
-                    if (isExpanded) {
-                      _expandedCategories.remove('__uncategorized__');
-                    } else {
-                      _expandedCategories.add('__uncategorized__');
-                    }
-                  });
-                },
-                padding: EdgeInsets.zero,
-                visualDensity: _compactControlDensity(context),
-                constraints: BoxConstraints.tightFor(
-                  width: _compactControlExtent(context),
-                  height: _compactControlExtent(context),
-                ),
-              ),
-              SizedBox(
-                width: 40,
-                child: Checkbox(
-                  value: selectedCount == 0
-                      ? false
-                      : selectedCount == entries.length
-                      ? true
-                      : null,
-                  tristate: true,
-                  onChanged: (value) {
-                    setState(() {
-                      if (value == true) {
-                        for (final entry in entries) {
-                          _selectedEntryIds.add(entry.id);
-                        }
-                      } else {
-                        for (final entry in entries) {
-                          _selectedEntryIds.remove(entry.id);
-                        }
-                      }
-                    });
-                  },
-                ),
-              ),
-              Icon(
-                Icons.folder_open_outlined,
-                size: 20,
-                color: theme.colorScheme.outline,
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  context.l10n.vibeLibrary_uncategorized,
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    fontWeight: FontWeight.w500,
-                    color: theme.colorScheme.outline,
-                  ),
-                ),
-              ),
-              Text(
-                '$selectedCount/${entries.length}',
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: theme.colorScheme.outline,
-                ),
-              ),
-            ],
-          ),
-        ),
-        if (isExpanded) ...entries.map((entry) => _buildEntryTile(entry, 1)),
-      ],
-    );
-  }
-
-  /// 构建分类项（递归）
-  Widget _buildCategoryTile(VibeLibraryCategory category, int depth) {
     final theme = Theme.of(context);
-    final isSelected = _selectedCategoryIds.contains(category.id);
-    final isExpanded = _expandedCategories.contains(category.id);
-
-    // 获取子分类
-    final childCategories = widget.categories
-        .where((c) => c.parentId == category.id)
-        .toList();
-
-    // 获取该分类下的条目（且可导出）
-    final categoryEntries = widget.entries
-        .where((e) => e.categoryId == category.id && _canExportEntry(e))
-        .toList();
-
-    if (categoryEntries.isEmpty && childCategories.isEmpty) {
-      return const SizedBox.shrink();
-    }
-
-    // 计算选中状态（用于indeterminate状态）
-    final childSelectedCount = childCategories
-        .where((c) => _selectedCategoryIds.contains(c.id))
-        .length;
-    final entrySelectedCount = categoryEntries
-        .where((e) => _selectedEntryIds.contains(e.id))
-        .length;
-    final totalChildren = childCategories.length + categoryEntries.length;
-    final totalSelected = childSelectedCount + entrySelectedCount;
-
-    final bool? checkboxValue = totalSelected == 0
-        ? false
-        : totalSelected == totalChildren && isSelected
-        ? true
-        : null;
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        InkWell(
-          onTap: () {
-            setState(() {
-              if (isSelected) {
-                _selectedCategoryIds.remove(category.id);
-                // 取消选择时同时取消子分类和条目
-                for (final child in childCategories) {
-                  _selectedCategoryIds.remove(child.id);
-                }
-                for (final entry in categoryEntries) {
-                  _selectedEntryIds.remove(entry.id);
-                }
-              } else {
-                _selectedCategoryIds.add(category.id);
-                // 选择时同时选择子分类和条目
-                for (final child in childCategories) {
-                  _selectedCategoryIds.add(child.id);
-                }
-                for (final entry in categoryEntries) {
-                  _selectedEntryIds.add(entry.id);
-                }
-              }
-            });
-          },
-          child: Padding(
-            padding: EdgeInsets.only(
-              left: (depth * 16.0).clamp(0.0, 64.0).toDouble(),
-            ),
-            child: Row(
-              children: [
-                // 展开/折叠按钮
-                if (childCategories.isNotEmpty || categoryEntries.isNotEmpty)
-                  IconButton(
-                    icon: Icon(
-                      isExpanded
-                          ? Icons.keyboard_arrow_down
-                          : Icons.keyboard_arrow_right,
-                      size: 20,
-                    ),
-                    onPressed: () {
-                      setState(() {
-                        if (isExpanded) {
-                          _expandedCategories.remove(category.id);
-                        } else {
-                          _expandedCategories.add(category.id);
-                        }
-                      });
-                    },
-                    padding: EdgeInsets.zero,
-                    visualDensity: _compactControlDensity(context),
-                    constraints: BoxConstraints.tightFor(
-                      width: _compactControlExtent(context),
-                      height: _compactControlExtent(context),
-                    ),
-                  )
-                else
-                  SizedBox(width: _compactControlExtent(context)),
-
-                // 复选框
-                SizedBox(
-                  width: 40,
-                  child: Checkbox(
-                    value: checkboxValue,
-                    tristate: true,
-                    onChanged: (value) {
-                      setState(() {
-                        if (value == true) {
-                          _selectedCategoryIds.add(category.id);
-                          for (final child in childCategories) {
-                            _selectedCategoryIds.add(child.id);
-                          }
-                          for (final entry in categoryEntries) {
-                            _selectedEntryIds.add(entry.id);
-                          }
-                        } else {
-                          _selectedCategoryIds.remove(category.id);
-                          for (final child in childCategories) {
-                            _selectedCategoryIds.remove(child.id);
-                          }
-                          for (final entry in categoryEntries) {
-                            _selectedEntryIds.remove(entry.id);
-                          }
-                        }
-                      });
-                    },
-                  ),
-                ),
-
-                // 图标
-                Icon(
-                  isExpanded ? Icons.folder_open : Icons.folder,
-                  size: 20,
-                  color: theme.colorScheme.primary,
-                ),
-                const SizedBox(width: 8),
-
-                // 名称
-                Expanded(
-                  child: Text(
-                    category.displayName,
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ),
-
-                // 数量
-                if (totalChildren > 0)
-                  Text(
-                    '$totalSelected/$totalChildren',
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.colorScheme.outline,
-                    ),
-                  ),
-              ],
-            ),
-          ),
-        ),
-
-        // 子项
-        if (isExpanded) ...[
-          // 子分类
-          ...childCategories.map(
-            (child) => _buildCategoryTile(child, depth + 1),
-          ),
-
-          // 条目
-          ...categoryEntries.map((entry) => _buildEntryTile(entry, depth + 1)),
-        ],
-      ],
-    );
-  }
-
-  /// 构建条目项
-  Widget _buildEntryTile(VibeLibraryEntry entry, int depth) {
-    final theme = Theme.of(context);
-    final isSelected = _selectedEntryIds.contains(entry.id);
+    final entry = node.value;
 
     // 获取缩略图数据
     final Uint8List? thumbnailData =
         entry.vibeThumbnail ?? entry.thumbnail ?? entry.rawImageData;
 
-    return InkWell(
-      onTap: () {
-        setState(() {
-          if (isSelected) {
-            _selectedEntryIds.remove(entry.id);
-          } else {
-            _selectedEntryIds.add(entry.id);
-          }
-        });
-      },
-      child: Padding(
-        padding: EdgeInsets.only(
-          left: (depth * 16.0).clamp(0.0, 64.0).toDouble(),
-        ),
-        child: Row(
-          children: [
-            const SizedBox(width: 32),
-            SizedBox(
-              width: 40,
-              child: Checkbox(
-                value: isSelected,
-                onChanged: (value) {
-                  setState(() {
-                    if (value == true) {
-                      _selectedEntryIds.add(entry.id);
-                    } else {
-                      _selectedEntryIds.remove(entry.id);
-                    }
-                  });
-                },
-              ),
-            ),
-
-            // 缩略图
-            Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(4),
-                color: theme.colorScheme.surfaceContainerHighest,
-              ),
-              clipBehavior: Clip.antiAlias,
-              child: thumbnailData != null
-                  ? Image.memory(
-                      thumbnailData,
-                      fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) {
-                        return Icon(
-                          Icons.image_not_supported,
-                          size: 20,
-                          color: theme.colorScheme.outline,
-                        );
-                      },
-                    )
-                  : Icon(
-                      Icons.image,
+    return Row(
+      children: [
+        // 缩略图
+        Container(
+          width: 40,
+          height: 40,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(4),
+            color: theme.colorScheme.surfaceContainerHighest,
+          ),
+          clipBehavior: Clip.antiAlias,
+          child: thumbnailData != null
+              ? Image.memory(
+                  thumbnailData,
+                  fit: BoxFit.cover,
+                  errorBuilder: (context, error, stackTrace) {
+                    return Icon(
+                      Icons.image_not_supported,
                       size: 20,
                       color: theme.colorScheme.outline,
-                    ),
-            ),
-            const SizedBox(width: 12),
+                    );
+                  },
+                )
+              : Icon(Icons.image, size: 20, color: theme.colorScheme.outline),
+        ),
+        const SizedBox(width: 12),
 
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
                 children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          entry.displayName,
-                          style: theme.textTheme.bodyMedium,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                      if (entry.isFavorite)
-                        const Icon(
-                          Icons.favorite,
-                          size: 14,
-                          color: Colors.pink,
-                        ),
-                    ],
+                  Expanded(
+                    child: Text(
+                      entry.displayName,
+                      style: theme.textTheme.bodyMedium,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   ),
-                  const SizedBox(height: 2),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 2,
-                    crossAxisAlignment: WrapCrossAlignment.center,
-                    children: [
-                      _SourceTypeBadge(sourceType: entry.sourceType),
-                      Text(
-                        context.l10n.vibe_export_strengthPercent(
-                          (entry.strength * 100).toInt(),
-                        ),
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: theme.colorScheme.outline,
-                        ),
-                      ),
-                    ],
+                  if (entry.isFavorite)
+                    const Icon(Icons.favorite, size: 14, color: Colors.pink),
+                ],
+              ),
+              const SizedBox(height: 2),
+              Wrap(
+                spacing: 8,
+                runSpacing: 2,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  _SourceTypeBadge(sourceType: entry.sourceType),
+                  Text(
+                    context.l10n.vibe_export_strengthPercent(
+                      (entry.strength * 100).toInt(),
+                    ),
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.outline,
+                    ),
                   ),
                 ],
               ),
-            ),
-          ],
+            ],
+          ),
         ),
-      ),
+      ],
     );
-  }
-
-  void _selectAll() {
-    setState(() {
-      _selectedEntryIds.addAll(
-        widget.entries.where((e) => _canExportEntry(e)).map((e) => e.id),
-      );
-      _selectedCategoryIds.addAll(widget.categories.map((c) => c.id));
-    });
-  }
-
-  void _selectNone() {
-    setState(() {
-      _selectedEntryIds.clear();
-      _selectedCategoryIds.clear();
-    });
   }
 
   Future<void> _export() async {
     // 过滤选中的条目
     final selectedEntries = widget.entries
-        .where((e) => _selectedEntryIds.contains(e.id))
+        .where((e) => _selection.isEntrySelected(e.id))
         .toList();
 
     if (selectedEntries.isEmpty) {
@@ -1395,49 +1026,6 @@ class _VibeExportDialogState extends ConsumerState<VibeExportDialog> {
       );
     });
     return true;
-  }
-}
-
-/// 统计项组件
-class _StatItem extends StatelessWidget {
-  final String label;
-  final String value;
-  final IconData icon;
-  final Color color;
-
-  const _StatItem({
-    required this.label,
-    required this.value,
-    required this.icon,
-    required this.color,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Row(
-      children: [
-        Icon(icon, size: 16, color: color),
-        const SizedBox(width: 6),
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              label,
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.outline,
-              ),
-            ),
-            Text(
-              value,
-              style: theme.textTheme.bodyMedium?.copyWith(
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ],
-        ),
-      ],
-    );
   }
 }
 

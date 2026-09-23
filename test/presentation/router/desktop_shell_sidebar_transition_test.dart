@@ -8,8 +8,8 @@ import 'package:nai_launcher/core/constants/app_version.dart';
 import 'package:nai_launcher/core/storage/local_storage_service.dart';
 import 'package:nai_launcher/data/models/version/version_info.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
-import 'package:nai_launcher/presentation/providers/account_manager_provider.dart';
-import 'package:nai_launcher/presentation/providers/auth_provider.dart';
+import 'package:nai_launcher/data/services/account_manager_provider.dart';
+import 'package:nai_launcher/data/services/auth_provider.dart';
 import 'package:nai_launcher/presentation/providers/queue_execution_provider.dart';
 import 'package:nai_launcher/presentation/providers/replication_queue_provider.dart';
 import 'package:nai_launcher/presentation/providers/update_provider.dart';
@@ -296,9 +296,16 @@ void main() {
       final workspaceStack = tester.widget<Stack>(
         find.byKey(const Key('desktop-workspace-stack')),
       );
+      final layerKeys = [
+        for (final child in workspaceStack.children) child.key,
+      ];
       expect(
-        workspaceStack.children.last.key,
-        const ValueKey('desktop-panel-overlay-layer'),
+        layerKeys.sublist(layerKeys.length - 2),
+        const [
+          ValueKey('desktop-panel-overlay-layer'),
+          ValueKey('desktop-approval-overlay-layer'),
+        ],
+        reason: 'panels cover the page; approvals stay reachable above panels',
       );
       expect(find.byKey(const Key('shell-panel-scrim')), findsNothing);
 

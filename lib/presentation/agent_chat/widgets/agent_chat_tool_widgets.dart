@@ -1,7 +1,5 @@
-import '../../widgets/common/image_card_context_menu.dart';
 import 'dart:async';
 import 'dart:convert';
-import 'dart:io';
 
 import 'package:flutter/material.dart';
 
@@ -14,29 +12,22 @@ import 'agent_tool_result_summary.dart';
 import '../../../core/agent/agent_media_display_policy.dart';
 import '../../../core/agent/agent_types.dart';
 import '../../../core/agent/agent_tool_presentation.dart';
-import '../../../core/windowing/agent_chat_shared_widgets.dart';
+import 'agent_chat_shared_widgets.dart';
 import '../../../core/agent/resources/agent_chat_resource_reference.dart';
 import '../../../core/agent/resources/agent_chat_resource_reference_codec.dart';
 import '../../../core/utils/localization_extension.dart';
-import '../../../core/utils/nai_resolution_adapter.dart';
-import '../../../data/models/gallery/local_image_record.dart';
 import '../../adaptive/interaction_policy.dart';
 import '../../utils/image_detail_opener.dart';
-import '../../providers/krita/krita_bridge_notifier.dart';
-import '../../providers/mosaic_settings_provider.dart';
-import '../../providers/watermark_settings_provider.dart';
 import '../../screens/online_gallery/online_gallery_detail_launcher.dart';
-import '../../services/image_send_action_dispatcher.dart';
 import '../../themes/theme_extension.dart';
 import '../../widgets/common/app_toast.dart';
 import '../../widgets/common/image_card_hover_motion.dart';
 import '../../widgets/common/image_detail/file_image_detail_data.dart';
 import '../../widgets/common/image_detail/image_detail_data.dart';
-import '../../widgets/gallery/draggable_image_card.dart';
-import '../../widgets/gallery/local_image_context_menu.dart';
 import '../providers/agent_chat_notifier.dart';
 import '../services/agent_resource_resolver.dart';
 import 'agent_chat_resource_widgets.dart';
+import 'agent_chat_tool_result_file_image.dart';
 
 class _AgentToolVisual {
   const _AgentToolVisual({required this.icon, required this.color});
@@ -362,7 +353,7 @@ class _AgentChatToolResultTileState extends State<AgentChatToolResultTile> {
             child: AgentChatResourceGallery(
               children: [
                 for (final path in files)
-                  _ToolResultImage(key: ValueKey(path), path: path),
+                  AgentChatToolResultFileImage(key: ValueKey(path), path: path),
                 ..._buildResourcePreviewWidgets(
                   references: resourceReferences,
                   inlineImages: inlineImages,
@@ -433,7 +424,7 @@ class AgentChatToolResultMedia extends StatelessWidget {
       child: AgentChatResourceGallery(
         children: [
           for (final path in files)
-            _ToolResultImage(key: ValueKey(path), path: path),
+            AgentChatToolResultFileImage(key: ValueKey(path), path: path),
           ..._buildResourcePreviewWidgets(
             references: resourceReferences,
             inlineImages: inlineImages,
@@ -1542,185 +1533,4 @@ List<String> _extractImageFiles(ToolResultMessage result) {
     }
   }
   return const [];
-}
-
-const Map<String, Object> _agentChatImageDragLocalData = {
-  'source': 'agent_chat_internal',
-};
-
-Future<void> _showAgentChatImageSendMenu({
-  required BuildContext context,
-  required WidgetRef ref,
-  required Offset position,
-  required String fileName,
-  required Future<List<int>> Function() loadBytes,
-}) async {
-  var isKritaConnected = false;
-  try {
-    isKritaConnected =
-        ref.read(kritaBridgeNotifierProvider).status ==
-        KritaBridgeStatus.connected;
-  } catch (_) {
-    // The remaining image actions stay available during service restoration.
-  }
-  final watermarkEnabled = ref.read(
-    watermarkSettingsProvider.select((state) => state.configuration.enabled),
-  );
-  final mosaicEnabled = ref.read(
-    mosaicSettingsProvider.select((state) => state.configuration.enabled),
-  );
-  await ImageCardContextMenu.show(
-    context: context,
-    position: position,
-    actions: LocalImageContextMenu.buildSendActions(
-      context,
-      isKritaConnected: isKritaConnected,
-      watermarkEnabled: watermarkEnabled,
-      mosaicEnabled: mosaicEnabled,
-      onAction: (action) => ImageSendActionDispatcher.handle(
-        context: context,
-        ref: ref,
-        action: action,
-        fileName: fileName,
-        loadBytes: () async => Uint8List.fromList(await loadBytes()),
-      ),
-    ),
-  );
-}
-
-class _ToolResultImage extends ConsumerStatefulWidget {
-  const _ToolResultImage({super.key, required this.path});
-
-  final String path;
-
-  @override
-  ConsumerState<_ToolResultImage> createState() => _ToolResultImageState();
-}
-
-class _ToolResultImageState extends ConsumerState<_ToolResultImage> {
-  static const int _maxHeaderBytes = 64 * 1024;
-  static final Map<String, double> _aspectCache = {};
-  bool _isHovering = false;
-
-  double _readAspect(File file) {
-    final cached = _aspectCache[widget.path];
-    if (cached != null) return cached;
-    var aspect = 4 / 3;
-    RandomAccessFile? handle;
-    try {
-      final length = file.lengthSync();
-      final headerLength = length < _maxHeaderBytes ? length : _maxHeaderBytes;
-      handle = file.openSync();
-      final dimensions = NaiResolutionAdapter.readImageSize(
-        handle.readSync(headerLength),
-      );
-      if (dimensions != null && dimensions.$1 > 0 && dimensions.$2 > 0) {
-        aspect = dimensions.$1 / dimensions.$2;
-      }
-    } catch (_) {
-      // Keep a stable placeholder ratio for damaged or unsupported files.
-    } finally {
-      handle?.closeSync();
-    }
-    _aspectCache[widget.path] = aspect;
-    return aspect;
-  }
-
-  void _openDetail() {
-    ImageDetailOpener.showSingleImmediate(
-      context,
-      image: FileImageDetailData(filePath: widget.path),
-      showMetadataPanel: true,
-    );
-  }
-
-  void _showSendMenu(TapUpDetails details) {
-    unawaited(
-      _showAgentChatImageSendMenu(
-        context: context,
-        ref: ref,
-        position: details.globalPosition,
-        fileName: widget.path.split(RegExp(r'[/\\]')).last,
-        loadBytes: () => File(widget.path).readAsBytes(),
-      ),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final file = File(widget.path);
-    if (!file.existsSync()) return _missing(theme);
-    late final LocalImageRecord record;
-    try {
-      record = LocalImageRecord(
-        path: widget.path,
-        size: file.lengthSync(),
-        modifiedAt: file.lastModifiedSync(),
-      );
-    } catch (_) {
-      return _missing(theme);
-    }
-    return Padding(
-      padding: const EdgeInsets.only(top: 4),
-      child: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 320, maxHeight: 320),
-          child: DraggableImageCard(
-            record: record,
-            localData: _agentChatImageDragLocalData,
-            feedbackWidth: 240,
-            child: AspectRatio(
-              aspectRatio: _readAspect(file),
-              child: MouseRegion(
-                cursor: SystemMouseCursors.click,
-                onEnter: (_) => setState(() => _isHovering = true),
-                onExit: (_) => setState(() => _isHovering = false),
-                child: GestureDetector(
-                  behavior: HitTestBehavior.opaque,
-                  onTap: _openDetail,
-                  onSecondaryTapUp: _showSendMenu,
-                  child: ImageCardHoverMotion(
-                    hovered: _isHovering,
-                    child: AnimatedContainer(
-                      duration: MediaQuery.disableAnimationsOf(context)
-                          ? Duration.zero
-                          : const Duration(milliseconds: 120),
-                      curve: Curves.easeOut,
-                      foregroundDecoration: BoxDecoration(
-                        color: _isHovering
-                            ? theme.colorScheme.primary.withValues(alpha: 0.07)
-                            : Colors.transparent,
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(8),
-                        child: Image.file(
-                          file,
-                          fit: BoxFit.contain,
-                          gaplessPlayback: true,
-                          filterQuality: FilterQuality.medium,
-                          errorBuilder: (_, __, ___) => _missing(theme),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _missing(ThemeData theme) => Padding(
-    padding: const EdgeInsets.only(top: 2),
-    child: Text(
-      '找不到图片：${widget.path}',
-      style: theme.textTheme.labelSmall?.copyWith(
-        color: theme.colorScheme.onSurface.withValues(alpha: 0.4),
-      ),
-    ),
-  );
 }

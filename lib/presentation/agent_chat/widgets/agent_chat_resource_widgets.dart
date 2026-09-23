@@ -963,11 +963,16 @@ class _PickerItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    const fallbackPreview = Icon(Icons.bookmark_outline_rounded);
     final preview = imageBytes != null
         ? Image.memory(imageBytes!, fit: BoxFit.cover)
-        : imageFile != null && imageFile!.existsSync()
-        ? Image.file(imageFile!, fit: BoxFit.cover)
-        : const Icon(Icons.bookmark_outline_rounded);
+        : imageFile != null
+        ? Image.file(
+            imageFile!,
+            fit: BoxFit.cover,
+            errorBuilder: (_, __, ___) => fallbackPreview,
+          )
+        : fallbackPreview;
     return Material(
       color: Colors.transparent,
       borderRadius: BorderRadius.circular(10),

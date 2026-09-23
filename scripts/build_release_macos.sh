@@ -19,7 +19,7 @@ echo "  NAI Launcher macOS Release Build"
 echo "========================================"
 echo
 
-echo "[0/3] 准备预构建数据库（Git LFS）..."
+echo "[0/4] 准备预构建数据库（Git LFS）..."
 if ! command -v git-lfs >/dev/null 2>&1; then
   echo "[ERROR] 未检测到 git-lfs。请先安装：brew install git-lfs && git lfs install"
   exit 1
@@ -42,17 +42,24 @@ for db in assets/databases/tag_catalog.db; do
 fi
 echo
 
-echo "[1/3] 生成本地化文件..."
+echo "[1/4] 生成本地化文件..."
 flutter gen-l10n
 # 若拉取/修改了带注解的源码，需要重新生成 freezed/json/riverpod 代码，取消下一行注释：
 # dart run build_runner build --delete-conflicting-outputs
 echo
 
-echo "[2/3] 构建 Release 版本（首次会自动执行 pod install）..."
+echo "[2/4] 构建 Release 版本（首次会自动执行 pod install）..."
 flutter build macos --release
 echo
 
-echo "[3/3] 代码签名（可选）..."
+echo "[3/4] 构建随包 MCP stdio 代理..."
+pwsh -NoProfile -File scripts/build_mcp_cli.ps1 \
+  -OutputPath "$APP_PATH/Contents/MacOS/nai_launcher_mcp"
+# 往 .app 里加可执行文件会让已有签名失效，需重新做一次 ad-hoc 签名。
+codesign --force --deep --sign - "$APP_PATH"
+echo
+
+echo "[4/4] 代码签名（可选）..."
 # 默认使用 Flutter 的本地 ad-hoc 签名，可直接在本机运行。
 # 如需用 Apple Developer ID 签名并公证以分发给其他用户，取消注释并填入证书：
 # CODESIGN_IDENTITY="Developer ID Application: Your Name (TEAMID)"

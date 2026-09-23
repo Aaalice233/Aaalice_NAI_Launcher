@@ -48,17 +48,19 @@ abstract class ImageDetailData {
 }
 
 /// 文件信息
+///
+/// [size] 与 [modifiedAt] 需要磁盘 IO，只有异步取到才有值；未知时留空不展示。
 class FileInfo {
   final String path;
   final String fileName;
-  final int size;
-  final DateTime modifiedAt;
+  final int? size;
+  final DateTime? modifiedAt;
 
   const FileInfo({
     required this.path,
     required this.fileName,
-    required this.size,
-    required this.modifiedAt,
+    this.size,
+    this.modifiedAt,
   });
 }
 

@@ -351,6 +351,18 @@ class SkillImportConflictForm {
                         : item.canReplace
                         ? context.l10n.agentSettings_skillConflictReplace
                         : context.l10n.agentSettings_skillConflictUnsafe;
+                    final title = Text(item.name);
+                    final subtitle = Text(
+                      '${item.description}\n'
+                      '${context.l10n.agentSettings_skillArchiveStats(item.fileCount, item.totalBytes)}'
+                      '${conflictText.isNotEmpty ? '\n$conflictText' : ''}',
+                      maxLines: 4,
+                      overflow: TextOverflow.ellipsis,
+                    );
+                    // 无冲突的技能没有可选项，给复选框会读成“没勾就不装”。
+                    if (!item.conflicts) {
+                      return ListTile(title: title, subtitle: subtitle);
+                    }
                     return CheckboxListTile(
                       value: item.canReplace && replace.contains(item.name),
                       enabled: item.canReplace,
@@ -359,14 +371,8 @@ class SkillImportConflictForm {
                             ? replace.add(item.name)
                             : replace.remove(item.name);
                       }),
-                      title: Text(item.name),
-                      subtitle: Text(
-                        '${item.description}\n'
-                        '${context.l10n.agentSettings_skillArchiveStats(item.fileCount, item.totalBytes)}'
-                        '${conflictText.isNotEmpty ? '\n$conflictText' : ''}',
-                        maxLines: 4,
-                        overflow: TextOverflow.ellipsis,
-                      ),
+                      title: title,
+                      subtitle: subtitle,
                     );
                   },
                 ),

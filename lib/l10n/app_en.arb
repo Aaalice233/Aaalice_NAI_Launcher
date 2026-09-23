@@ -515,6 +515,8 @@
   "@agentChat_addResourceFailed": {"placeholders":{"error":{"type":"String"}}},
   "agentChat_approvalEstimatedAnlas": "Estimated cost: {cost} Anlas",
   "@agentChat_approvalEstimatedAnlas": {"placeholders": {"cost": {"type": "int"}}},
+  "agentChat_approvalFileTarget": "Will write file: {path}",
+  "@agentChat_approvalFileTarget": {"placeholders": {"path": {"type": "String"}}},
   "agentChat_needSetup": "No chat model configured. Add a provider with tool-calling support in Settings first.",
   "agentChat_heroTitle": "What would you like to do today?",
   "agentChat_heroSubtitle": "Prepare character prompts, organize ideas, or fine-tune settings.",
@@ -558,6 +560,19 @@
   "agentChat_approvalDescription": "This tool may read local data, change application state, or incur a charge.",
   "agentChat_approvalAllow": "Allow once",
   "agentChat_approvalDeny": "Deny",
+  "mcpApproval_title": "External agent {client} is requesting approval",
+  "@mcpApproval_title": {
+    "placeholders": {
+      "client": {}
+    }
+  },
+  "mcpApproval_expiresIn": "Auto-declines in {seconds}s",
+  "@mcpApproval_expiresIn": {
+    "placeholders": {
+      "seconds": {}
+    }
+  },
+  "mcpApproval_unknownClient": "Unknown client",
   "generation_failedStreamSnapshot": "Failed snapshot",
   "generation_failedStreamSnapshotHint": "Generation did not finish; only the last preview frame is kept. It cannot be saved, favorited, or used for image workflows.",
   "generation_noHistory": "No history records",
@@ -872,6 +887,42 @@
   "img2img_directorColorize": "Colorize",
   "img2img_directorEmotion": "Fix Emotion",
   "img2img_directorDeclutter": "Declutter",
+  "img2img_directorPixelSnap": "Pixel Snap",
+  "img2img_directorPixelSnapHint": "Runs entirely on your computer. No Anlas, no network. Large images can take a few seconds.",
+  "img2img_directorPixelSnapPalette": "Palettize",
+  "img2img_directorPixelSnapPaletteOff": "Off",
+  "img2img_directorPixelSnapPaletteAuto": "Auto",
+  "img2img_directorPixelSnapPaletteCustom": "Custom",
+  "img2img_directorPixelSnapColors": "Colors",
+  "img2img_directorPixelSnapAvoidOverRefining": "Avoid Over-Refining",
+  "img2img_directorPixelSnapAvoidOverRefiningOn": "The detected pixel size is always kept.",
+  "img2img_directorPixelSnapAvoidOverRefiningOff": "A finer pixel size may be used when it matches the image better.",
+  "img2img_directorPixelSnapUpscale": "Upscale",
+  "img2img_directorPixelSnapUpscaleOn": "The result is scaled back up to roughly the input size.",
+  "img2img_directorPixelSnapUpscaleOff": "The result is kept at its snapped pixel size.",
+  "img2img_directorPixelSnapSummary": "{width}×{height} pixels · {colors} colors",
+  "@img2img_directorPixelSnapSummary": {
+    "placeholders": {
+      "width": {"type": "int"},
+      "height": {"type": "int"},
+      "colors": {"type": "int"}
+    }
+  },
+  "img2img_directorPixelSnapSummaryNoPalette": "{width}×{height} pixels",
+  "@img2img_directorPixelSnapSummaryNoPalette": {
+    "placeholders": {
+      "width": {"type": "int"},
+      "height": {"type": "int"}
+    }
+  },
+  "img2img_directorPixelSnapNoGrid": "No repeating pixel grid was found in this image.",
+  "img2img_directorPixelSnapBlank": "This image is fully transparent.",
+  "img2img_directorPixelSnapDownscaled": "The image was downscaled before analysis because it exceeds the size limit.",
+  "img2img_directorCancel": "Cancel",
+  "img2img_directorStageAnalyzing": "Analyzing image",
+  "img2img_directorStageSearchingPitch": "Searching pixel size",
+  "img2img_directorStageRefiningGrid": "Refining grid",
+  "img2img_directorStageFinishing": "Building result",
   "img2img_enhance": "Enhance",
   "img2img_enhanceHint": "Enhance keeps using the current prompt while it upscales and regenerates the source image in latent space.",
   "img2img_enhanceMagnitude": "Magnitude",
@@ -4646,12 +4697,6 @@
   },
   "vibe_saveToLibrary_tagHint": "Enter a tag, then press Add",
   "vibe_maxReached": "Maximum 16 vibes reached",
-  "vibe_addedNamed": "Added Vibe: {name}",
-  "@vibe_addedNamed": {
-    "placeholders": {
-      "name": {"type": "String"}
-    }
-  },
   "vibe_addedCount": "Added {count} vibes",
   "@vibe_addedCount": {
     "placeholders": {
@@ -4739,6 +4784,85 @@
     }
   },
 
+  "settings_mcpServerPermissionSection": "Permissions",
+  "settings_mcpServerClientsSection": "Clients",
+  "settings_mcpServerEnable": "Enable MCP server",
+  "settings_mcpServerDisabledText": "Off by default; listens only on local 127.0.0.1 when enabled",
+  "settings_mcpServerStartingText": "Starting the local MCP server...",
+  "settings_mcpServerListeningText": "Waiting for MCP client connections",
+  "settings_mcpServerErrorText": "Startup failed, check the error message",
+  "settings_mcpServerDisabled": "Disabled",
+  "settings_mcpServerStarting": "Starting",
+  "settings_mcpServerListening": "Listening",
+  "settings_mcpServerError": "Error",
+  "settings_mcpServerEndpoint": "Endpoint",
+  "settings_mcpServerCopyEndpoint": "Copy endpoint",
+  "settings_mcpServerPort": "Port",
+  "settings_mcpServerPortHelper": "Changing it disconnects connected clients",
+  "settings_mcpServerPortInvalid": "Enter a port between {min} and {max}",
+  "@settings_mcpServerPortInvalid": {
+    "placeholders": {
+      "min": {},
+      "max": {}
+    }
+  },
+  "settings_mcpServerPortInUseHint": "Port {port} is already in use, pick another port below",
+  "@settings_mcpServerPortInUseHint": {
+    "placeholders": {
+      "port": {}
+    }
+  },
+  "settings_mcpServerDiscoveryFile": "Discovery file",
+  "settings_mcpServerToken": "Access token",
+  "settings_mcpServerRevealToken": "Show token",
+  "settings_mcpServerHideToken": "Hide token",
+  "settings_mcpServerCopyToken": "Copy token",
+  "settings_mcpServerRegenerateToken": "Regenerate token",
+  "settings_mcpServerRegenerateTokenTitle": "Regenerate access token",
+  "settings_mcpServerRegenerateTokenMessage": "The current token stops working immediately and connected clients are disconnected. Update every client configuration with the new token.",
+  "settings_mcpServerAnlasNotice": "Anything that may spend Anlas is confirmed separately inside the launcher, regardless of the permission mode.",
+  "settings_mcpServerPendingApproval": "{client} is requesting {tool}",
+  "@settings_mcpServerPendingApproval": {
+    "placeholders": {
+      "client": {},
+      "tool": {}
+    }
+  },
+  "settings_mcpServerPendingApprovalHint": "Respond in the approval banner at the top of the page",
+  "settings_mcpServerConnectedClients": "Connected clients",
+  "settings_mcpServerSessionsEmpty": "No clients connected yet",
+  "settings_mcpServerSessionConnectedAt": "Connected at {time}",
+  "@settings_mcpServerSessionConnectedAt": {
+    "placeholders": {
+      "time": {}
+    }
+  },
+  "settings_mcpServerSessionLastActivity": "Last activity {time}",
+  "@settings_mcpServerSessionLastActivity": {
+    "placeholders": {
+      "time": {}
+    }
+  },
+  "settings_mcpServerClientConfigs": "Client configuration",
+  "settings_mcpServerConfigUnavailable": "Client configuration appears once the server is running",
+  "settings_mcpServerCopyConfig": "Copy configuration",
+  "settings_mcpServerTokenMaskNotice": "The token is masked in the preview; copying writes the real token.",
+  "settings_mcpServerCliMissing": "Bundled CLI not found (expected at {path}), which is normal in development runs",
+  "@settings_mcpServerCliMissing": {
+    "placeholders": {
+      "path": {}
+    }
+  },
+  "settings_mcpServerViewDocs": "View documentation",
+  "settings_mcpServerAgentPromptTitle": "Recommended: let the agent configure itself",
+  "settings_mcpServerAgentPromptHint": "Send this prompt to the agent you want to connect; it reads the setup documentation and installs the configuration itself. The prompt carries no token — the bundled CLI reads it locally.",
+  "settings_mcpServerClaudeCodeHint": "Run this command in a terminal to register the server.",
+  "settings_mcpServerCodexHint": "Run the command to register the server, then set the token in the environment variable below.",
+  "settings_mcpServerCursorHint": "Merge this into the Cursor mcp.json configuration file.",
+  "settings_mcpServerCherryStudioHint": "Paste this into Cherry Studio's MCP server settings with “Import from JSON”; timeout is in seconds and already covers the in-app approval wait.",
+  "settings_mcpServerPiHint": "Pi has no built-in MCP: install the pi-mcp-adapter package first, then merge this into ~/.pi/agent/mcp.json.",
+  "settings_mcpServerClaudeDesktopHint": "Merge this into the Claude Desktop configuration; it connects over stdio through the bundled CLI.",
+
   "settings_fontScale": "Font Size",
   "settings_fontScale_description": "Adjust global font scale",
   "settings_fontScale_previewSmall": "The setting sun and lone duck fly together",
@@ -4820,7 +4944,7 @@
   "settings_copyDragWatermarkTitle": "Add watermark when copying or dragging",
   "settings_copyDragWatermarkSubtitle": "Use the saved default watermark. Adding a watermark does not remove metadata. To remove it, enable \"Remove all metadata when copying or dragging\" above.",
   "settings_stripMetadataTitle": "Remove all metadata when copying or dragging",
-  "settings_stripMetadataSubtitle": "Create a sanitized copy, remove PNG text chunks, EXIF, and NAI steganographic watermark data, and avoid exposing the original path while dragging.",
+  "settings_stripMetadataSubtitle": "Remove PNG text chunks, EXIF, and NAI steganographic watermark data when copying, dragging, or returning MCP images. Local originals stay unchanged; MCP keeps the original resolution, and the gallery original it reports as saved_path is not sanitized.",
   "settings_confirmDangerousActionsTitle": "Double-confirm dangerous asset actions",
   "settings_confirmDangerousActionsSubtitle": "Deleting, moving, or batch-moving local assets will show an additional protection confirmation.",
   "settings_warnExternalImageSendTitle": "Confirm before sending to external services",
@@ -6392,6 +6516,8 @@
   "cloudSync_onlineGalleryFavoritesDescription": "Stores source IDs and recovery fields only, never original images",
   "cloudSync_galleryAlbums": "Local gallery albums",
   "cloudSync_galleryAlbumsDescription": "Stores album structure and image references, never original images",
+  "cloudSync_fixedTagUsage": "Fixed-tag usage records",
+  "cloudSync_fixedTagUsageDescription": "Stores a lightweight record of which fixed tags each image used, never the images",
   "cloudSync_optionalResources": "Optional resources (off by default)",
   "cloudSync_vibes": "Vibe",
   "cloudSync_preciseReferences": "Precise references",

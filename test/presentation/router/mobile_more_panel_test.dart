@@ -4,7 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
-import 'package:nai_launcher/presentation/providers/account_manager_provider.dart';
+import 'package:nai_launcher/data/services/account_manager_provider.dart';
 import 'package:nai_launcher/presentation/router/mobile_more_panel.dart';
 
 class _MockNavigationShell extends Mock implements StatefulNavigationShell {

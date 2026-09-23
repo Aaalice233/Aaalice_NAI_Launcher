@@ -44,6 +44,7 @@ class PromptEditDocument {
   const PromptEditDocument._();
   static const disabledPrefix = '/*disabled:';
   static final _numericOpening = RegExp(r'-?(?:\d+(?:\.\d*)?|\.\d+)::');
+  static final _bracketShell = RegExp(r'^[\{\[]+$');
 
   static String disable(String text) =>
       '$disabledPrefix${text.replaceAll(r'\', r'\\').replaceAll('*/', r'*\/')}*/';
@@ -212,8 +213,8 @@ class PromptEditDocument {
     // Consecutive bracket shells describe one weight, not separate groups.
     // Keep numeric resets and real subgroups as distinct editing boundaries.
     if (children.length == 1 &&
-        RegExp(r'^[\{\[]+$').hasMatch(raw.substring(0, innerStart - start)) &&
-        RegExp(r'^[\{\[]+$').hasMatch(children.single.prefix)) {
+        _bracketShell.hasMatch(raw.substring(0, innerStart - start)) &&
+        _bracketShell.hasMatch(children.single.prefix)) {
       final child = children.single;
       return PromptEditSpan(
         start,

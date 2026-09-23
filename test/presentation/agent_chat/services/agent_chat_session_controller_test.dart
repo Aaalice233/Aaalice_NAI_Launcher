@@ -513,6 +513,7 @@ void main() {
       permissionController: AgentToolPermissionController(
         auditSink: MemoryAgentAuditSink(),
         estimateAnlas: (_, _) async => null,
+        describeFileTargets: (_, _) => const [],
         onApprovalChanged: (_) {},
         isMounted: () => true,
       ),

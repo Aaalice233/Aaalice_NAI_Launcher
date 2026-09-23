@@ -17,17 +17,27 @@ class WatermarkSettingsState {
   final WatermarkSettings configuration;
   final String? localLogoPath;
   final WatermarkSettingsLoadIssue? loadIssue;
-
-  bool get localLogoMissing {
-    if (!configuration.logoStyle.enabled) return false;
-    final path = localLogoPath;
-    return path == null || path.isEmpty || !File(path).existsSync();
-  }
 }
 
 final watermarkLogoServiceProvider = Provider<WatermarkLogoService>(
   (ref) => const WatermarkLogoService(),
 );
+
+/// 默认水印 logo 是否已丢失；随启用状态与路径变化重新探测，不在 build 内做文件 IO。
+final watermarkLocalLogoMissingProvider = FutureProvider<bool>((ref) async {
+  final (enabled, path) = ref.watch(
+    watermarkSettingsProvider.select(
+      (state) => (state.configuration.logoStyle.enabled, state.localLogoPath),
+    ),
+  );
+  if (!enabled) return false;
+  if (path == null || path.isEmpty) return true;
+  try {
+    return !await File(path).exists();
+  } on FileSystemException {
+    return true;
+  }
+});
 
 final watermarkSettingsProvider =
     NotifierProvider<WatermarkSettingsNotifier, WatermarkSettingsState>(

@@ -4,7 +4,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:nai_launcher/presentation/prompt_assistant/models/prompt_assistant_models.dart';
+import 'package:nai_launcher/data/models/prompt_assistant/prompt_assistant_models.dart';
 import 'package:nai_launcher/presentation/widgets/common/model_family_icon.dart';
 import 'package:nai_launcher/presentation/widgets/common/provider_icon.dart';
 import 'package:nai_launcher/presentation/widgets/common/searchable_model_picker.dart';

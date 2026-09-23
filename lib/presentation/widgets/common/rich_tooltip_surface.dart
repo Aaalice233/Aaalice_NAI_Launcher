@@ -91,6 +91,3 @@ class _RichTooltipSurfaceState extends State<RichTooltipSurface> {
     );
   }
 }
-
-/// 富内容 Tooltip 的透明外壳装饰，实际层级由 [RichTooltipSurface] 表达。
-const richTooltipOuterDecoration = BoxDecoration(color: Colors.transparent);

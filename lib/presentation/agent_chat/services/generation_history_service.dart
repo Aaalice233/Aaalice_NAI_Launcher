@@ -3,7 +3,6 @@ import '../../../core/agent/agent_types.dart';
 import '../../providers/image_generation_provider.dart';
 import 'defined_agent_tool.dart';
 import 'generation_image_read_contract.dart';
-import 'generation_tool_results.dart';
 
 class GenerationHistoryService {
   GenerationHistoryService(
@@ -18,14 +17,18 @@ class GenerationHistoryService {
   Future<AgentToolResult> recentImages(Map<String, dynamic> args) async {
     final rawLimit = args['limit'];
     if (rawLimit == null) {
-      return generationErrorResult('Parameter "limit" is required.');
+      return agentToolError('missing_limit', 'Parameter "limit" is required.');
     }
     if (rawLimit is! num || rawLimit != rawLimit.roundToDouble()) {
-      return generationErrorResult('Parameter "limit" must be an integer.');
+      return agentToolError(
+        'invalid_limit',
+        'Parameter "limit" must be an integer.',
+      );
     }
     final limit = rawLimit.toInt();
     if (limit < 1 || limit > _maxRecentImageLimit) {
-      return generationErrorResult(
+      return agentToolError(
+        'invalid_limit',
         'Parameter "limit" must be between 1 and $_maxRecentImageLimit.',
       );
     }
@@ -42,9 +45,10 @@ class GenerationHistoryService {
       if (report.length == limit) break;
     }
     if (report.isEmpty) {
-      return generationErrorResult(
+      return agentToolError(
+        'no_saved_images',
         'No saved images yet. generate_image results and queue outputs '
-        'appear here after they are saved.',
+            'appear here after they are saved.',
       );
     }
     return agentToolJsonResult({'ok': true, 'images': report});

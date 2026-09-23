@@ -6,7 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/network/proxy_service.dart';
 import '../../../../core/utils/localization_extension.dart';
 import '../../../../data/models/settings/proxy_settings.dart';
-import '../../../providers/proxy_settings_provider.dart';
+import '../../../../core/network/proxy_settings_provider.dart';
 import '../../../widgets/common/app_toast.dart';
 import '../../../widgets/common/themed_input.dart';
 import '../widgets/settings_card.dart';

@@ -24,7 +24,7 @@ import '../../../data/models/vibe/vibe_reference.dart';
 import '../../../data/services/vibe_import_service.dart';
 import '../../../data/services/vibe_library_import_repository_impl.dart';
 import '../../../data/services/vibe_library_storage_service.dart';
-import '../../providers/auth_provider.dart';
+import '../../../data/services/auth_provider.dart';
 import '../../providers/generation/generation_params_notifier.dart';
 import '../../providers/vibe_library_provider.dart';
 import '../../widgets/common/app_toast.dart';

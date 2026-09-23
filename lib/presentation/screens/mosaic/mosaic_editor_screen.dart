@@ -19,6 +19,7 @@ import '../../../core/utils/image_share_sanitizer.dart';
 import '../../../core/utils/localization_extension.dart';
 import '../../../data/models/mosaic/mosaic_settings.dart';
 import '../../../data/repositories/gallery_folder_repository.dart';
+import '../../../data/services/fixed_tag/fixed_tag_usage_record_store.dart';
 import '../../providers/local_gallery_provider.dart';
 import '../../providers/mosaic_settings_provider.dart';
 import '../../providers/share_image_settings_provider.dart';
@@ -617,6 +618,10 @@ class _MosaicEditorScreenState extends ConsumerState<MosaicEditorScreen> {
         bytes: result.bytes,
         preferredFileName: result.fileName,
       );
+      await FixedTagUsageRecordStore().copyForDerivative(
+        sourceBytes: _sourceBytes,
+        outputBytes: result.bytes,
+      );
       Object? systemGalleryError;
       if (PlatformCapabilities.current.supportsSystemGalleryExport) {
         try {
@@ -807,24 +812,21 @@ class _MosaicEditorScreenState extends ConsumerState<MosaicEditorScreen> {
       },
       child: Material(
         color: Theme.of(context).colorScheme.surface,
-        child: Padding(
-          padding: EdgeInsets.only(bottom: keyboardInset),
-          child: SafeArea(
-            child: Column(
-              children: [
-                if (keyboardInset == 0) _buildHeader(),
-                Expanded(
-                  child: ExcludeFocus(
-                    excluding: _saving,
-                    child: AbsorbPointer(
-                      absorbing: _saving,
-                      child: _buildBody(),
-                    ),
+        child: SafeArea(
+          child: Column(
+            children: [
+              if (keyboardInset == 0) _buildHeader(),
+              Expanded(
+                child: ExcludeFocus(
+                  excluding: _saving,
+                  child: AbsorbPointer(
+                    absorbing: _saving,
+                    child: _buildBody(),
                   ),
                 ),
-                _buildActions(),
-              ],
-            ),
+              ),
+              _buildActions(),
+            ],
           ),
         ),
       ),

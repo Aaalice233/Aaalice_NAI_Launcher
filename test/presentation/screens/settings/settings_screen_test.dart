@@ -11,8 +11,8 @@ import 'package:nai_launcher/core/agent/skill_catalog.dart';
 import 'package:nai_launcher/core/windowing/desktop_window_controller.dart';
 import 'package:nai_launcher/data/models/user/user_subscription.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
-import 'package:nai_launcher/presentation/providers/account_manager_provider.dart';
-import 'package:nai_launcher/presentation/providers/auth_provider.dart';
+import 'package:nai_launcher/data/services/account_manager_provider.dart';
+import 'package:nai_launcher/data/services/auth_provider.dart';
 import 'package:nai_launcher/presentation/providers/subscription_provider.dart';
 import 'package:nai_launcher/presentation/agent_settings/providers/agent_settings_provider.dart';
 import 'package:nai_launcher/presentation/agent_settings/providers/agent_prompt_draft_provider.dart';
@@ -290,7 +290,7 @@ void main() {
           .data,
       '集成',
     );
-    expect(segmentLabels, const ['提示词助手', 'ComfyUI', 'Krita', 'DLSSNR']);
+    expect(segmentLabels, const ['提示词助手', 'ComfyUI', 'Krita', 'MCP', 'DLSSNR']);
     debugDefaultTargetPlatformOverride = null;
   });
 
@@ -615,6 +615,13 @@ void main() {
       isTrue,
       isFalse,
     ]);
+    // Android 不提供 Krita / MCP / DLSSNR 集成，分段导航里不出现这些入口。
+    expect(
+      segmentedButton.segments
+          .map((segment) => (segment.label as Text).data)
+          .toList(),
+      const ['提示词助手', 'ComfyUI'],
+    );
     expect(find.text('桌面浮层交互'), findsNothing);
 
     await tester.binding.handlePopRoute();

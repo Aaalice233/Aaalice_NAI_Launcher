@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:nai_launcher/core/utils/localization_extension.dart';
-import 'package:nai_launcher/presentation/providers/image_generation_provider.dart';
+import 'package:nai_launcher/presentation/providers/generation/image_generation_selectors.dart';
 import 'package:nai_launcher/presentation/widgets/common/themed_button.dart';
 import 'package:nai_launcher/presentation/widgets/common/anlas_cost_badge.dart';
 
@@ -10,7 +10,7 @@ import 'package:nai_launcher/presentation/widgets/common/anlas_cost_badge.dart';
 class GenerateButtonWithCost extends ConsumerWidget {
   final bool isGenerating;
   final bool showCancel;
-  final ImageGenerationState generationState;
+  final GenerationButtonViewData batchStatus;
   final int cooldownRemainingSeconds;
   final VoidCallback onGenerate;
   final VoidCallback onCancel;
@@ -26,7 +26,7 @@ class GenerateButtonWithCost extends ConsumerWidget {
     super.key,
     required this.isGenerating,
     required this.showCancel,
-    required this.generationState,
+    required this.batchStatus,
     this.cooldownRemainingSeconds = 0,
     required this.onGenerate,
     required this.onCancel,
@@ -39,23 +39,23 @@ class GenerateButtonWithCost extends ConsumerWidget {
 
   bool get _canSkipCurrentBatch =>
       showCancel &&
-      generationState.currentImage > 0 &&
-      generationState.totalImages > generationState.currentImage;
+      batchStatus.currentImage > 0 &&
+      batchStatus.totalImages > batchStatus.currentImage;
 
   /// 已提交但还没开跑，此时按钮必须立刻反馈，否则点击会被静默吞掉。
-  bool get _isPreparing => generationState.isPreparing;
+  bool get _isPreparing => batchStatus.isPreparing;
 
   bool get _showCancelAction => showCancel || _isPreparing;
 
   String _progressText() =>
-      '${generationState.currentImage}/${generationState.totalImages}';
+      '${batchStatus.currentImage}/${batchStatus.totalImages}';
 
   String _generateLabelText(BuildContext context) {
     if (requiresLogin && !isGenerating) {
       return context.l10n.auth_login;
     }
     if (isGenerating) {
-      return generationState.totalImages > 1
+      return batchStatus.totalImages > 1
           ? _progressText()
           : context.l10n.generation_generating;
     }

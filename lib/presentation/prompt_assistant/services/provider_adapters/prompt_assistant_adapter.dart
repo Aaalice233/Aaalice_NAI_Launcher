@@ -7,7 +7,7 @@ import 'package:dio/dio.dart';
 import 'package:image/image.dart' as img;
 
 import '../../models/agent_protocol.dart';
-import '../../models/prompt_assistant_models.dart';
+import '../../../../data/models/prompt_assistant/prompt_assistant_models.dart';
 
 const int promptAssistantImageUploadMaxBytes = 5 * 1024 * 1024;
 const String promptAssistantCompressedImageMimeType = 'image/jpeg';

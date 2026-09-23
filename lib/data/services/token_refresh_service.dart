@@ -3,7 +3,7 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 import '../../core/storage/secure_storage_service.dart';
 import '../../core/utils/app_logger.dart';
 import '../../core/utils/jwt_parser.dart';
-import '../../presentation/providers/account_manager_provider.dart';
+import 'account_manager_provider.dart';
 import '../datasources/remote/nai_auth_api_service.dart';
 import '../models/auth/saved_account.dart';
 

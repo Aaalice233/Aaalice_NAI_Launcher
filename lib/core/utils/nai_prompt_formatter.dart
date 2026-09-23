@@ -9,6 +9,7 @@ class NaiPromptFormatter {
   static final RegExp _horizontalWhitespacePattern = RegExp(r'[ \t\f\u00a0]+');
   static final RegExp _leadingHorizontalWhitespacePattern = RegExp(r'^[ \t]*');
   static final RegExp _trailingHorizontalWhitespacePattern = RegExp(r'[ \t]*$');
+  static final RegExp _leadingSeparatorPattern = RegExp(r'^[ \t]*[,，][ \t]*');
 
   /// 格式化单个标签为 NAI 格式
   /// 将空格转换为下划线
@@ -26,7 +27,7 @@ class NaiPromptFormatter {
       // A leading comma after an opaque disabled fragment separates tags;
       // formatting that fragment alone would treat it as an empty first tag.
       final separator = followsDisabled
-          ? RegExp(r'^[ \t]*[,，][ \t]*').firstMatch(fragment)
+          ? _leadingSeparatorPattern.firstMatch(fragment)
           : null;
       followsDisabled = true;
       if (separator == null) return _formatActive(fragment);

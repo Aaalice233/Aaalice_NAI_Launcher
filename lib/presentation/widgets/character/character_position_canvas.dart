@@ -13,6 +13,7 @@ import '../../providers/character_position_canvas_provider.dart';
 import '../../providers/character_prompt_provider.dart';
 import '../../providers/composition_guide_provider.dart';
 import '../../providers/generation/generation_params_selectors.dart';
+import '../../providers/generation/image_generation_selectors.dart';
 import '../../providers/image_generation_provider.dart';
 import '../common/composition_guide.dart';
 import '../common/decoded_memory_image.dart';
@@ -158,14 +159,16 @@ class _CharacterPositionCanvasViewState
     CharacterPromptConfig config,
   ) {
     final colorScheme = theme.colorScheme;
-    final generationState = ref.watch(imageGenerationNotifierProvider);
+    final displayImages = ref.watch(
+      imageGenerationNotifierProvider.select(selectDisplayImages),
+    );
     final previewDimensions = ref.watch(
       generationParamsNotifierProvider.select(selectPreviewDimensionsViewData),
     );
     final guide = ref.watch(compositionGuideNotifierProvider);
 
-    final backgroundImage = generationState.displayImages.isNotEmpty
-        ? generationState.displayImages.first
+    final backgroundImage = displayImages.isNotEmpty
+        ? displayImages.first
         : null;
     // 锚点坐标用于下一次请求；历史预览只作背景，不能决定画布尺寸。
     final aspectRatio = previewDimensions.width / previewDimensions.height;

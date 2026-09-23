@@ -1,6 +1,6 @@
 import '../../../core/agent/agent_types.dart';
 import 'agent_protocol.dart';
-import 'prompt_assistant_models.dart';
+import '../../../data/models/prompt_assistant/prompt_assistant_models.dart';
 import 'agent_reasoning_model_rule.dart';
 import 'pi_reasoning_model_catalog.dart';
 

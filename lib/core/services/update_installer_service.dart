@@ -11,6 +11,7 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../../data/models/version/release_asset_info.dart';
 import '../../data/models/version/version_info.dart';
+import '../mcp/mcp_cli_path.dart';
 import '../utils/app_logger.dart';
 import 'android_app_installer_service.dart';
 import 'app_installation_service.dart';
@@ -415,6 +416,9 @@ class UpdateInstallerService {
             zipPath: update.file.path,
             appDirectory: appDirectory,
             executableName: p.basename(executablePath),
+            proxyExecutableName: p.basename(
+              resolveBundledMcpCliPath(executablePath: executablePath),
+            ),
             extractDirectory: p.join(
               parentDirectory,
               '.nai_update_$safeVersion',

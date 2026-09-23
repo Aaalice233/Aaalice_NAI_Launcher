@@ -17,6 +17,3 @@ String galleryFilePathKey(String filePath) {
   final normalized = normalizeGalleryFilePath(filePath);
   return Platform.isWindows ? normalized.toLowerCase() : normalized;
 }
-
-bool galleryFilePathsEqual(String left, String right) =>
-    galleryFilePathKey(left) == galleryFilePathKey(right);

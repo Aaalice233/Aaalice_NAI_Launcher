@@ -17,7 +17,7 @@ import 'package:nai_launcher/core/storage/secure_storage_service.dart';
 import 'package:nai_launcher/data/models/agent/agent_settings.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/agent_settings/providers/agent_settings_provider.dart';
-import 'package:nai_launcher/presentation/prompt_assistant/models/prompt_assistant_models.dart';
+import 'package:nai_launcher/data/models/prompt_assistant/prompt_assistant_models.dart';
 import 'package:nai_launcher/presentation/screens/settings/sections/agent/agent_profile_actions.dart';
 import 'package:nai_launcher/presentation/screens/settings/sections/agent/skill_management_panel.dart';
 import 'package:nai_launcher/presentation/screens/settings/sections/agent_settings_section.dart';
@@ -848,6 +848,11 @@ void main() {
         find.byKey(const ValueKey('skill-import-conflict-list')),
         findsOneWidget,
       );
+      expect(
+        find.widgetWithText(CheckboxListTile, 'a-conflict'),
+        findsOneWidget,
+      );
+
       var installButton = tester.widget<FilledButton>(
         find.widgetWithText(FilledButton, '安装'),
       );
@@ -869,6 +874,22 @@ void main() {
             .value,
         isTrue,
       );
+      // 滚到全新技能：它不该带复选框，否则会读成“没勾就不装”。
+      await tester.scrollUntilVisible(
+        find.text('skill-import-1'),
+        300,
+        scrollable: find.descendant(
+          of: find.byKey(const ValueKey('skill-import-conflict-list')),
+          matching: find.byType(Scrollable),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(
+        find.widgetWithText(CheckboxListTile, 'skill-import-1'),
+        findsNothing,
+      );
+      expect(find.widgetWithText(ListTile, 'skill-import-1'), findsOneWidget);
+
       expect(tester.takeException(), isNull);
       await tester.tap(find.widgetWithText(TextButton, '取消'));
       await tester.pumpAndSettle();
@@ -876,6 +897,79 @@ void main() {
     } finally {
       await tester.pumpWidget(const SizedBox.shrink());
       container.dispose();
+      await tester.binding.setSurfaceSize(null);
+      root.deleteSync(recursive: true);
+    }
+  });
+
+  testWidgets('全新 Skill 导入不呈现为禁用状态且可直接安装', (tester) async {
+    final root = Directory('tool/.tmp/agent-skill-import-fresh-test')
+      ..createSync(recursive: true);
+    final target = Directory('${root.path}/pi-user/skills');
+    final archive = Archive();
+    for (final name in const ['alpha-skill', 'beta-skill']) {
+      final manifest = Uint8List.fromList(
+        ('---\nname: $name\ndescription: Fresh $name.\n---\nBody.').codeUnits,
+      );
+      archive.addFile(ArchiveFile('$name/SKILL.md', manifest.length, manifest));
+    }
+    final preview = (await tester.runAsync(
+      () => const SkillArchiveService().previewImport(
+        bytes: Uint8List.fromList(ZipEncoder().encode(archive)!),
+        targetDirectory: target,
+      ),
+    ))!;
+    expect(preview.items.every((item) => !item.conflicts), isTrue);
+
+    try {
+      for (final width in const [320.0, 600.0, 840.0, 1180.0, 1600.0]) {
+        await tester.binding.setSurfaceSize(Size(width, 800));
+        await tester.pumpWidget(
+          MaterialApp(
+            locale: const Locale('zh'),
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            builder: (context, child) => MediaQuery(
+              data: MediaQuery.of(
+                context,
+              ).copyWith(textScaler: const TextScaler.linear(3)),
+              child: child!,
+            ),
+            home: Scaffold(
+              body: Builder(
+                builder: (context) => ElevatedButton(
+                  key: const ValueKey('open-fresh-form'),
+                  onPressed: () =>
+                      SkillImportConflictForm.show(context, preview),
+                  child: const Text('打开导入表单'),
+                ),
+              ),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+        await tester.tap(find.byKey(const ValueKey('open-fresh-form')));
+        await tester.pumpAndSettle();
+
+        expect(
+          find.byType(CheckboxListTile),
+          findsNothing,
+          reason: '宽度 $width 全新导入不应出现复选框',
+        );
+        expect(
+          tester
+              .widget<FilledButton>(find.widgetWithText(FilledButton, '安装'))
+              .onPressed,
+          isNotNull,
+          reason: '宽度 $width 全新导入应可直接安装',
+        );
+        expect(tester.takeException(), isNull, reason: '宽度 $width');
+
+        await tester.tap(find.widgetWithText(TextButton, '取消'));
+        await tester.pumpAndSettle();
+      }
+    } finally {
+      await tester.pumpWidget(const SizedBox.shrink());
       await tester.binding.setSurfaceSize(null);
       root.deleteSync(recursive: true);
     }

@@ -11,7 +11,7 @@ import '../../core/utils/prompt_semantics_utils.dart';
 import '../../data/models/character/character_prompt.dart' as ui_character;
 import '../../data/models/image/image_params.dart';
 import '../../data/models/prompt/prompt_preset_mode.dart';
-import '../../data/services/alias_resolver_service.dart';
+import 'alias_resolver_service.dart';
 import 'character_prompt_provider.dart';
 import 'fixed_tags_provider.dart';
 import 'generation/generation_params_notifier.dart';

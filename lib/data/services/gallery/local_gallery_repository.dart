@@ -227,7 +227,6 @@ class LocalGalleryRepository {
     );
     if (hasMetadata) {
       await _dataSource.upsertMetadata(imageId, resolvedMetadata!);
-      ImageMetadataService().cacheMetadata(file.path, resolvedMetadata);
     }
     AppLogger.i(
       '[AddNewImage] Added new image immediately: ${p.basename(file.path)} '

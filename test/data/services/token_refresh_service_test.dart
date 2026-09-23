@@ -9,7 +9,7 @@ import 'package:nai_launcher/core/storage/secure_storage_service.dart';
 import 'package:nai_launcher/data/datasources/remote/nai_auth_api_service.dart';
 import 'package:nai_launcher/data/models/auth/saved_account.dart';
 import 'package:nai_launcher/data/services/token_refresh_service.dart';
-import 'package:nai_launcher/presentation/providers/account_manager_provider.dart';
+import 'package:nai_launcher/data/services/account_manager_provider.dart';
 
 void main() {
   test('refreshes current credentials JWT through the image user host', () async {

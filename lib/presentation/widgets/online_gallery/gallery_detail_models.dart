@@ -206,11 +206,6 @@ bool galleryMediaHasOriginal(GalleryMedia media) {
   return media.downloadUrl.isNotEmpty;
 }
 
-String galleryMediaDisplayUrl(GalleryMedia media) {
-  final capability = media.capability;
-  return capability.isVideo ? capability.videoUrl : capability.imageDisplayUrl;
-}
-
 String galleryMediaPreviewUrl(GalleryMedia media) =>
     media.capability.canPrefetchPreview ? media.capability.previewUrl : '';
 

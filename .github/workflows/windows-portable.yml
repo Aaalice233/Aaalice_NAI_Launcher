@@ -54,7 +54,7 @@ jobs:
         id: build-inputs
         shell: pwsh
         run: |
-          "fingerprint=${{ hashFiles('.github/workflows/windows-portable.yml', '.github/actions/prepare-flutter-build/**', 'scripts/package_windows_release.ps1', 'scripts/verify_windows_portable_package.ps1', 'scripts/verify_nuget.ps1', 'pubspec.lock', 'pubspec.yaml', 'build.yaml', 'l10n.yaml', 'lib/**', 'windows/**', 'assets/**', 'fonts/**') }}" >> $env:GITHUB_OUTPUT
+          "fingerprint=${{ hashFiles('.github/workflows/windows-portable.yml', '.github/actions/prepare-flutter-build/**', 'scripts/package_windows_release.ps1', 'scripts/verify_windows_portable_package.ps1', 'scripts/verify_nuget.ps1', 'scripts/build_mcp_cli.ps1', 'pubspec.lock', 'pubspec.yaml', 'build.yaml', 'l10n.yaml', 'bin/**', 'lib/**', 'windows/**', 'assets/**', 'fonts/**') }}" >> $env:GITHUB_OUTPUT
 
       - name: Restore exact portable bundle
         id: portable-cache
@@ -102,6 +102,15 @@ jobs:
         if: steps.portable-cache.outputs.cache-hit != 'true'
         shell: pwsh
         run: flutter build windows --$env:BUILD_MODE --no-pub
+
+      - name: Build MCP CLI
+        if: steps.portable-cache.outputs.cache-hit != 'true'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $configuration = if ($env:BUILD_MODE -eq 'debug') { 'Debug' } else { 'Release' }
+          ./scripts/build_mcp_cli.ps1 `
+            -OutputPath "build/windows/x64/runner/$configuration/nai_launcher_mcp.exe"
 
       - name: Package user-ready portable archive
         id: package

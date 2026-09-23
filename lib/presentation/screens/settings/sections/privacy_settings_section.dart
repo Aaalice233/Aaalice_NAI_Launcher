@@ -95,6 +95,8 @@ class _PrivacySettingsSectionState
     final watermarkState = ref.watch(watermarkSettingsProvider);
     final watermarkSettings = watermarkState.configuration;
     final watermarkControlsEnabled = watermarkState.loadIssue == null;
+    final localLogoMissing =
+        ref.watch(watermarkLocalLogoMissingProvider).valueOrNull ?? false;
     final mosaicState = ref.watch(mosaicSettingsProvider);
     final mosaicSettings = mosaicState.configuration;
     final mosaicControlsEnabled = mosaicState.loadIssue == null;
@@ -366,7 +368,7 @@ class _PrivacySettingsSectionState
               ListTile(
                 leading: const Icon(Icons.edit_outlined),
                 title: Text(context.l10n.settings_watermarkEditDefault),
-                subtitle: watermarkState.localLogoMissing
+                subtitle: localLogoMissing
                     ? Text(
                         context.l10n.watermark_logoMissing,
                         style: TextStyle(

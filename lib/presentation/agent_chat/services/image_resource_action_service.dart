@@ -1,8 +1,5 @@
 import 'dart:async';
-import 'dart:io';
 import 'dart:typed_data';
-
-import 'package:path/path.dart' as p;
 
 import '../../../core/agent/agent_types.dart';
 import '../../../core/agent/harness/harness_types.dart';
@@ -13,16 +10,21 @@ import '../../../core/krita/krita_outbound_image.dart';
 import '../../../core/platform/platform_capabilities.dart';
 import '../../utils/clipboard_image.dart';
 import 'defined_agent_tool.dart';
+import 'generated_image_export_writer.dart';
 import 'generation_image_resource.dart';
+
+export 'generated_image_export_writer.dart' show ResourceImageExclusiveWriter;
 
 final class ResolvedImageResourceActionSource {
   const ResolvedImageResourceActionSource({
     required this.label,
     required this.bytes,
+    this.metadataStripped,
   });
 
   final String label;
   final Uint8List bytes;
+  final bool? metadataStripped;
 }
 
 /// Injectable boundary for image clipboard writes.
@@ -33,8 +35,10 @@ typedef ImageResourceActionResolver =
 typedef ResourceImageClipboardWriter = Future<void> Function(Uint8List bytes);
 typedef ResourceImageKritaSender =
     FutureOr<bool> Function(Uint8List bytes, {required String name});
-typedef ResourceImageExclusiveWriter =
-    Future<void> Function(String path, Uint8List bytes, String canonicalParent);
+typedef ImageResourceExportPreparer =
+    Future<ResolvedImageResourceActionSource> Function(
+      ResolvedImageResourceActionSource source,
+    );
 
 final class ImageResourceKritaBridgeState {
   const ImageResourceKritaBridgeState({
@@ -61,23 +65,27 @@ final class ImageResourceActionService {
     ImageResourceKritaBridgeState Function()? readKritaBridgeState,
     ResourceImageKritaSender? sendToKrita,
     ResourceImageExclusiveWriter? exclusiveWriter,
+    ImageResourceExportPreparer? prepareExport,
   }) : _resolve = resolve,
-       _env = env,
        _clipboardWriter = clipboardWriter,
        _supportsKritaBridge =
            supportsKritaBridge ??
            (() => PlatformCapabilities.current.supportsKritaBridge),
        _readKritaBridgeState = readKritaBridgeState,
        _sendToKrita = sendToKrita,
-       _exclusiveWriter = exclusiveWriter ?? _writeExclusive;
+       _exportWriter = GeneratedImageExportWriter(
+         env: env,
+         exclusiveWriter: exclusiveWriter,
+       ),
+       _prepareExport = prepareExport;
 
   final ImageResourceActionResolver _resolve;
-  final ExecutionEnv _env;
   final ResourceImageClipboardWriter _clipboardWriter;
   final bool Function() _supportsKritaBridge;
   final ImageResourceKritaBridgeState Function()? _readKritaBridgeState;
   final ResourceImageKritaSender? _sendToKrita;
-  final ResourceImageExclusiveWriter _exclusiveWriter;
+  final GeneratedImageExportWriter _exportWriter;
+  final ImageResourceExportPreparer? _prepareExport;
 
   Future<AgentToolResult> save(Map<String, dynamic> args) async {
     final loaded = await _loadGeneratedImage(
@@ -93,114 +101,81 @@ final class ImageResourceActionService {
         'destination_path must be a non-empty explicit file target.',
       );
     }
-    final normalizedRequest = requestedPath.trim();
-    if (p.basename(normalizedRequest).isEmpty ||
-        p.basename(normalizedRequest) == '.' ||
-        p.basename(normalizedRequest) == '..') {
-      return agentToolError(
-        'invalid_destination',
-        'destination_path must identify a file, not a directory.',
-      );
-    }
 
-    final absoluteResult = await _env.absolutePath(normalizedRequest);
-    if (absoluteResult case HarnessErr<String, FileError>()) {
-      return agentToolError(
-        'unsafe_destination',
-        'The requested destination is outside the permitted file scope.',
-      );
-    }
-    final absolutePath = (absoluteResult as HarnessOk<String, FileError>).value;
-    final extensionError = _validateTargetExtension(
-      absolutePath,
-      loaded.mimeType!,
+    final prepared = await _exportWriter.prepareTarget(
+      requestedPath,
+      mimeType: loaded.mimeType!,
     );
-    if (extensionError != null) return extensionError;
-
-    final parentResult = await _env.createDir(p.dirname(absolutePath));
-    if (parentResult case HarnessErr<void, FileError>()) {
-      return agentToolError(
-        'destination_unavailable',
-        'The destination directory could not be created.',
-      );
+    if (prepared.errorOrNull case final failure?) {
+      return _exportFailureResult(failure, loaded);
     }
+    final target = prepared.valueOrNull!;
 
-    final String writePath;
-    final String canonicalParent;
-    try {
-      canonicalParent = await Directory(
-        p.dirname(absolutePath),
-      ).resolveSymbolicLinks();
-      final canonicalTarget = p.join(canonicalParent, p.basename(absolutePath));
-      final canonicalResult = await _env.absolutePath(
-        p.relative(canonicalTarget, from: _env.cwd),
-      );
-      if (canonicalResult case HarnessErr<String, FileError>()) {
-        return agentToolError(
-          'unsafe_destination',
-          'The requested destination changed outside the permitted file scope.',
-        );
-      }
-      writePath = (canonicalResult as HarnessOk<String, FileError>).value;
-    } on FileSystemException {
-      return agentToolError(
-        'destination_unavailable',
-        'The destination directory could not be resolved safely.',
-      );
-    }
+    final writeFailure = await _exportWriter.write(target, loaded.bytes!);
+    if (writeFailure != null) return _exportFailureResult(writeFailure, loaded);
 
-    final existsResult = await _env.exists(writePath);
-    if (existsResult case HarnessErr<bool, FileError>()) {
-      return agentToolError(
-        'destination_check_failed',
-        'The destination could not be checked safely.',
-      );
-    }
-    if ((existsResult as HarnessOk<bool, FileError>).value) {
-      return agentToolError(
-        'destination_exists',
-        'The destination already exists; image resources are never overwritten.',
-      );
-    }
-
-    try {
-      await _exclusiveWriter(writePath, loaded.bytes!, canonicalParent);
-    } on _UnsafeDestinationChanged {
-      return agentToolError(
-        'unsafe_destination',
-        'The requested destination changed outside the permitted file scope.',
-      );
-    } on FileSystemException {
-      if (await File(writePath).exists()) {
-        return agentToolError(
-          'destination_exists',
-          'The destination already exists; image resources are never overwritten.',
-        );
-      }
-      return agentToolError(
-        'save_failed',
-        'save_generated_image: generated image '
-            '${loaded.reference!.resourceId} failed during exclusive file '
-            'write.',
-      );
-    } on Object catch (error) {
-      return agentToolError(
-        'save_failed',
-        'save_generated_image: generated image '
-            '${loaded.reference!.resourceId} failed during exclusive file '
-            'write (${error.runtimeType}).',
-      );
-    }
-
-    final destination = _safeDestinationDescription(absolutePath);
+    final destination = _exportWriter.describeDestination(target.absolutePath);
     return agentToolJsonResult({
       'ok': true,
       'action': 'saved',
-      'resource_ref': AgentChatResourceReferenceCodec.encodeJsonMap(
-        loaded.reference!,
-      ),
+      'resource_ref': _exportReferenceJson(loaded),
+      if (loaded.metadataStripped != null)
+        'metadata_stripped': loaded.metadataStripped,
+      if (loaded.metadataStripped != null) 'mime_type': loaded.mimeType,
       ...destination,
     });
+  }
+
+  AgentToolResult _exportFailureResult(
+    GeneratedImageExportFailure failure,
+    _LoadedImage loaded,
+  ) => switch (failure.kind) {
+    GeneratedImageExportFailureKind.invalidTarget => agentToolError(
+      'invalid_destination',
+      'destination_path must identify a file, not a directory.',
+    ),
+    GeneratedImageExportFailureKind.outsideScope => agentToolError(
+      'unsafe_destination',
+      'The requested destination is outside the permitted file scope.',
+    ),
+    GeneratedImageExportFailureKind.extensionMismatch => agentToolError(
+      'invalid_destination_extension',
+      'destination_path must use an extension matching the image format.',
+    ),
+    GeneratedImageExportFailureKind.parentUnavailable => agentToolError(
+      'destination_unavailable',
+      'The destination directory could not be created.',
+    ),
+    GeneratedImageExportFailureKind.parentUnresolvable => agentToolError(
+      'destination_unavailable',
+      'The destination directory could not be resolved safely.',
+    ),
+    GeneratedImageExportFailureKind.checkFailed => agentToolError(
+      'destination_check_failed',
+      'The destination could not be checked safely.',
+    ),
+    GeneratedImageExportFailureKind.exists => agentToolError(
+      'destination_exists',
+      'The destination already exists; image resources are never overwritten.',
+    ),
+    GeneratedImageExportFailureKind.unsafeChange => agentToolError(
+      'unsafe_destination',
+      'The requested destination changed outside the permitted file scope.',
+    ),
+    GeneratedImageExportFailureKind.writeFailed => _saveFailedResult(
+      loaded,
+      failure.error,
+    ),
+  };
+
+  static AgentToolResult _saveFailedResult(_LoadedImage loaded, Object? error) {
+    final detail = error == null ? '' : ' (${error.runtimeType})';
+    return agentToolError(
+      'save_failed',
+      'save_generated_image: generated image '
+          '${loaded.reference!.resourceId} failed during exclusive file '
+          'write$detail.',
+    );
   }
 
   Future<AgentToolResult> copy(Map<String, dynamic> args) async {
@@ -222,9 +197,9 @@ final class ImageResourceActionService {
     return agentToolJsonResult({
       'ok': true,
       'action': 'copied_to_clipboard',
-      'resource_ref': AgentChatResourceReferenceCodec.encodeJsonMap(
-        loaded.reference!,
-      ),
+      'resource_ref': _exportReferenceJson(loaded),
+      if (loaded.metadataStripped != null)
+        'metadata_stripped': loaded.metadataStripped,
     });
   }
 
@@ -343,100 +318,84 @@ final class ImageResourceActionService {
         ),
       );
     }
-    return _LoadedImage(
+    final loaded = _LoadedImage(
       reference: reference,
       bytes: bytes,
       mimeType: mimeType,
       label: resolved.label,
     );
+    return _prepareExport != null &&
+            (action == 'save_generated_image' ||
+                action == 'copy_generated_image_to_clipboard')
+        ? _prepareLoadedExport(loaded)
+        : loaded;
   }
 
-  AgentToolResult? _validateTargetExtension(String path, String mimeType) {
-    final extension = p.extension(path).toLowerCase();
-    final expected = switch (mimeType) {
-      'image/jpeg' => const {'.jpg', '.jpeg'},
-      'image/png' => const {'.png'},
-      'image/gif' => const {'.gif'},
-      'image/webp' => const {'.webp'},
-      'image/bmp' => const {'.bmp'},
-      _ => const <String>{},
-    };
-    if (!expected.contains(extension)) {
-      return agentToolError(
-        'invalid_destination_extension',
-        'destination_path must use an extension matching the image format.',
+  Future<_LoadedImage> _prepareLoadedExport(_LoadedImage loaded) async {
+    try {
+      final prepared = await _prepareExport!(
+        ResolvedImageResourceActionSource(
+          label: loaded.label!,
+          bytes: loaded.bytes!,
+        ),
+      );
+      final mimeType = detectSupportedImageMimeType(prepared.bytes);
+      if (mimeType == null) throw StateError('Unsupported export format');
+      return _LoadedImage(
+        reference: loaded.reference,
+        bytes: prepared.bytes,
+        mimeType: mimeType,
+        label: prepared.label,
+        metadataStripped: prepared.metadataStripped,
+      );
+    } on Object {
+      return _LoadedImage.error(
+        agentToolError(
+          'image_export_preparation_failed',
+          'The image could not be prepared under the current sharing policy. '
+              'No image was exported; original bytes were not used as a fallback.',
+        ),
       );
     }
-    return null;
   }
 
-  Map<String, dynamic> _safeDestinationDescription(String absolutePath) {
-    final root = p.normalize(_env.cwd);
-    final target = p.normalize(absolutePath);
-    final relative = p.relative(target, from: root);
-    final inside =
-        relative != '..' &&
-        !p.isAbsolute(relative) &&
-        !relative.startsWith('..${p.separator}');
-    return inside
-        ? {
-            'destination_path': relative.replaceAll(p.separator, '/'),
-            'destination_scope': 'workspace',
-          }
-        : {'file_name': p.basename(target), 'destination_scope': 'external'};
+  static Map<String, dynamic> _exportReferenceJson(_LoadedImage loaded) {
+    final reference = loaded.reference!;
+    return AgentChatResourceReferenceCodec.encodeJsonMap(
+      loaded.metadataStripped == true
+          ? AgentChatResourceReference(
+              version: reference.version,
+              kind: reference.kind,
+              source: reference.source,
+              resourceId: reference.resourceId,
+              mediaId: reference.mediaId,
+            )
+          : reference,
+    );
   }
 
-  static Future<void> _writeExclusive(
-    String path,
-    Uint8List bytes,
-    String canonicalParent,
-  ) async {
-    final file = File(path);
-    RandomAccessFile? output;
-    String? openedPath;
-    try {
-      await file.create(exclusive: true);
-      output = await file.open(mode: FileMode.writeOnly);
-      openedPath = await file.resolveSymbolicLinks();
-      if (!p.equals(p.dirname(openedPath), canonicalParent)) {
-        throw const _UnsafeDestinationChanged();
-      }
-      await output.writeFrom(bytes);
-      await output.flush();
-    } on Object {
-      await output?.close();
-      output = null;
-      if (openedPath != null) {
-        try {
-          await File(openedPath).delete();
-        } on Object {
-          // Preserve the original write or boundary failure.
-        }
-      }
-      rethrow;
-    } finally {
-      await output?.close();
-    }
-  }
-}
-
-final class _UnsafeDestinationChanged implements Exception {
-  const _UnsafeDestinationChanged();
 }
 
 final class _LoadedImage {
-  const _LoadedImage({this.reference, this.bytes, this.mimeType, this.label})
-    : error = null;
+  const _LoadedImage({
+    this.reference,
+    this.bytes,
+    this.mimeType,
+    this.label,
+    this.metadataStripped,
+  }) : error = null;
 
   const _LoadedImage.error(AgentToolResult this.error)
     : reference = null,
       bytes = null,
       mimeType = null,
+      metadataStripped = null,
       label = null;
 
   final AgentChatResourceReference? reference;
   final Uint8List? bytes;
   final String? mimeType;
   final String? label;
+  final bool? metadataStripped;
   final AgentToolResult? error;
 }

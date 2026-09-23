@@ -244,6 +244,21 @@ void main() {
       portableSettingKeys,
       isNot(contains(StorageKeys.onnxTaggerModelDirectory)),
     );
+    // MCP 服务器端口、令牌与权限模式绑定本机，跨设备同步会互相踢掉端口。
+    for (final key in const [
+      StorageKeys.mcpServerEnabled,
+      StorageKeys.mcpServerPort,
+      StorageKeys.mcpServerPermissionMode,
+      StorageKeys.mcpServerToken,
+    ]) {
+      expect(portableSettingKeys, isNot(contains(key)), reason: key);
+      expect(portablePromptSettingKeys, isNot(contains(key)), reason: key);
+      expect(
+        portableOnlineGallerySettingKeys,
+        isNot(contains(key)),
+        reason: key,
+      );
+    }
   });
 
   test('settings adapter applies only currently selected groups', () async {

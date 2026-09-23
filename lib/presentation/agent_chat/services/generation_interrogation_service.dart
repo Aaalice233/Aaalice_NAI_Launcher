@@ -6,12 +6,12 @@ import '../../../core/agent/agent_types.dart';
 import '../../../core/utils/app_logger.dart';
 import '../../../data/models/agent/agent_settings.dart';
 import '../../agent_settings/providers/agent_settings_provider.dart';
-import '../../prompt_assistant/models/prompt_assistant_models.dart';
+import '../../../data/models/prompt_assistant/prompt_assistant_models.dart';
 import '../../prompt_assistant/providers/prompt_assistant_config_provider.dart';
 import '../../prompt_assistant/services/prompt_assistant_api_client.dart';
 import '../../prompt_assistant/services/provider_adapters/prompt_assistant_adapter.dart';
 import '../../prompt_assistant/services/prompt_assistant_service.dart';
-import 'generation_tool_results.dart';
+import 'defined_agent_tool.dart';
 import 'generation_workspace_path_resolver.dart';
 import 'agent_resource_resolver.dart';
 
@@ -61,7 +61,7 @@ class GenerationInterrogationService {
       bytes = await _loadImage(args);
       throwIfAborted(signal);
     } on FormatException catch (error) {
-      return generationErrorResult(error.message);
+      return agentToolError('invalid_image_input', error.message);
     } catch (error, stackTrace) {
       AppLogger.e(
         'Interrogation image loading failed',
@@ -69,10 +69,15 @@ class GenerationInterrogationService {
         stackTrace,
         'AgentChat',
       );
-      return generationErrorResult(
-        signal?.aborted == true
-            ? 'Interrogation cancelled.'
-            : 'Unable to read the selected image.',
+      if (signal?.aborted == true) {
+        return agentToolError(
+          'interrogation_cancelled',
+          'Interrogation cancelled.',
+        );
+      }
+      return agentToolError(
+        'image_unreadable',
+        'Unable to read the selected image.',
       );
     }
     return _interrogateBytes(bytes, signal);
@@ -101,10 +106,11 @@ class GenerationInterrogationService {
       (p) => p.id == reverseProviderId && p.enabled,
     );
     if (!chatCapable && !reverseReady) {
-      return generationErrorResult(
+      return agentToolError(
+        'interrogation_model_unavailable',
         'No image-capable model available for interrogation. Enable a chat '
-        'provider with image input support, or configure a "reverse" task '
-        'vision model in Settings > Integrations.',
+            'provider with image input support, or configure a "reverse" task '
+            'vision model in Settings > Integrations.',
       );
     }
     try {
@@ -126,7 +132,7 @@ class GenerationInterrogationService {
               signal: signal,
             );
             if (viaChat.isNotEmpty) {
-              return generationTextResult(viaChat);
+              return agentToolTextResult(viaChat);
             }
             AppLogger.w(
               'interrogate via chat route returned empty prompt',
@@ -138,7 +144,10 @@ class GenerationInterrogationService {
             }
             AppLogger.w('interrogate via chat route failed: $e', 'AgentChat');
             if (!reverseReady) {
-              return generationErrorResult('Interrogation failed.');
+              return agentToolError(
+                'interrogation_failed',
+                'Interrogation failed.',
+              );
             }
           }
         }
@@ -149,21 +158,25 @@ class GenerationInterrogationService {
           signal,
         );
         if (prompt.isEmpty) {
-          return generationErrorResult(
+          return agentToolError(
+            'interrogation_empty',
             'Interrogation returned an empty prompt. The reverse model may not '
-            'support image input.',
+                'support image input.',
           );
         }
-        return generationTextResult(prompt);
+        return agentToolTextResult(prompt);
       } finally {
         signal?.removeListener(cancelInterrogation);
       }
     } catch (e) {
       AppLogger.w('interrogate_image failed: $e', 'AgentChat');
       if (signal?.aborted == true) {
-        return generationErrorResult('Interrogation cancelled.');
+        return agentToolError(
+          'interrogation_cancelled',
+          'Interrogation cancelled.',
+        );
       }
-      return generationErrorResult('Interrogation failed.');
+      return agentToolError('interrogation_failed', 'Interrogation failed.');
     }
   }
 
