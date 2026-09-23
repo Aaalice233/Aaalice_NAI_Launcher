@@ -995,6 +995,117 @@ void main() {
       expect(payload.toString(), contains('exact_tool'), reason: protocol.name);
     }
   });
+
+  test('Anthropic drops a replayed tool_use batch at the same index', () async {
+    final dio = Dio()
+      ..httpClientAdapter = _SseAdapter(
+        _anthropicToolUseStream(const [
+          (0, 'toolu_A', 'get_prompt_state'),
+          (1, 'toolu_B', 'read_skill'),
+          (0, 'toolu_A', 'get_prompt_state'),
+          (1, 'toolu_B', 'read_skill'),
+        ]),
+      );
+    addTearDown(dio.close);
+
+    final events = await const AnthropicMessagesAdapter()
+        .completeAgent(
+          dio: dio,
+          request: _request(ProviderProtocol.anthropicMessages),
+          cancelToken: CancelToken(),
+        )
+        .toList();
+
+    final calls = events.whereType<AgentWireToolCallDone>().toList();
+    expect(calls.map((call) => call.id), ['toolu_A', 'toolu_B']);
+  });
+
+  test('Anthropic drops a replay that lands on fresh indexes', () async {
+    final dio = Dio()
+      ..httpClientAdapter = _SseAdapter(
+        _anthropicToolUseStream(const [
+          (0, 'toolu_A', 'get_prompt_state'),
+          (1, 'toolu_B', 'read_skill'),
+          (2, 'toolu_A', 'get_prompt_state'),
+          (3, 'toolu_B', 'read_skill'),
+        ]),
+      );
+    addTearDown(dio.close);
+
+    final events = await const AnthropicMessagesAdapter()
+        .completeAgent(
+          dio: dio,
+          request: _request(ProviderProtocol.anthropicMessages),
+          cancelToken: CancelToken(),
+        )
+        .toList();
+
+    final calls = events.whereType<AgentWireToolCallDone>().toList();
+    expect(calls.map((call) => call.id), ['toolu_A', 'toolu_B']);
+  });
+
+  test('Anthropic keeps two distinct ids for the same tool', () async {
+    final dio = Dio()
+      ..httpClientAdapter = _SseAdapter(
+        _anthropicToolUseStream(const [
+          (0, 'toolu_A', 'search_tags'),
+          (1, 'toolu_B', 'search_tags'),
+        ]),
+      );
+    addTearDown(dio.close);
+
+    final events = await const AnthropicMessagesAdapter()
+        .completeAgent(
+          dio: dio,
+          request: _request(ProviderProtocol.anthropicMessages),
+          cancelToken: CancelToken(),
+        )
+        .toList();
+
+    final calls = events.whereType<AgentWireToolCallDone>().toList();
+    expect(calls.map((call) => call.id), ['toolu_A', 'toolu_B']);
+  });
+
+  test('OpenAI chat drops a tool call whose id was already sent', () async {
+    final dio = Dio()
+      ..httpClientAdapter = _SseAdapter(
+        'data: {"choices":[{"delta":{"tool_calls":['
+        '{"index":0,"id":"call_A","function":'
+        '{"name":"read","arguments":"{}"}},'
+        '{"index":1,"id":"call_B","function":'
+        '{"name":"write","arguments":"{}"}},'
+        '{"index":2,"id":"call_A","function":'
+        '{"name":"read","arguments":"{}"}}'
+        ']}}]}\n\n'
+        'data: {"choices":[{"delta":{},"finish_reason":"tool_calls"}]}\n\n'
+        'data: [DONE]\n\n',
+      );
+    addTearDown(dio.close);
+
+    final events = await const OpenAiChatCompletionsAdapter()
+        .completeAgent(
+          dio: dio,
+          request: _request(ProviderProtocol.openaiChatCompletions),
+          cancelToken: CancelToken(),
+        )
+        .toList();
+
+    final calls = events.whereType<AgentWireToolCallDone>().toList();
+    expect(calls.map((call) => call.id), ['call_A', 'call_B']);
+  });
+}
+
+/// Builds an Anthropic tool_use stream, terminated by message_stop.
+String _anthropicToolUseStream(List<(int, String, String)> blocks) {
+  return [
+    for (final (index, id, name) in blocks)
+      'event: content_block_start\n'
+          'data: {"index":$index,"content_block":'
+          '{"type":"tool_use","id":"$id","name":"$name"}}\n\n'
+          'event: content_block_stop\n'
+          'data: {"index":$index}\n\n',
+    'event: message_stop\ndata: {}\n\n',
+  ].join();
 }
 
 AgentChatRequest _request(
