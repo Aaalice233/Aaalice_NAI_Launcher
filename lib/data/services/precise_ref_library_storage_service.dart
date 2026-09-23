@@ -344,7 +344,7 @@ class PreciseRefLibraryStorageService {
 
     try {
       final activeLoad = _thumbnailLoadsById[id];
-      if (activeLoad != null) return activeLoad;
+      if (activeLoad != null) return await activeLoad;
 
       final load = _thumbnailReadPool.run(
         () => _readOrCreateDisplayThumbnail(id),

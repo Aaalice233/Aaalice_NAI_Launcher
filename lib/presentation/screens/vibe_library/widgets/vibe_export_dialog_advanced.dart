@@ -1325,7 +1325,7 @@ class _VibeExportDialogAdvancedState
           ? '${entries.first.displayName}_vibe.png'
           : 'vibe_bundle_${vibes.length}.png';
 
-      return VibeExportUtils.exportToEmbeddedPng(
+      return await VibeExportUtils.exportToEmbeddedPng(
         vibes,
         carrierImageBytes: carrierImageBytes,
         fileName: fileName,

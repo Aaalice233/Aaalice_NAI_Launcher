@@ -185,6 +185,24 @@ void main() {
       expect(result?.sourcePath, isNull);
       expect(result?.sourceUri, isNull);
     });
+
+    test('keeps reading when the suggested name lookup fails', () async {
+      final bytes = buildNovelAiWebpFixture(
+        comment: const {'prompt': 'clipboard fixture'},
+      );
+      final reader = _FailingSuggestedNameWebpDataReader(
+        bytes,
+        fileName: 'clipboard.WEBP',
+      );
+
+      final result = await DroppedFileReader.read(
+        reader,
+        allowRemoteImages: false,
+      );
+
+      expect(result?.fileName, 'clipboard.WEBP');
+      expect(result?.bytes, bytes);
+    });
   });
 }
 
@@ -386,6 +404,14 @@ class _WebpDataReader extends DataReader {
 
   @override
   List<PlatformFormat> get platformFormats => const [];
+}
+
+class _FailingSuggestedNameWebpDataReader extends _WebpDataReader {
+  _FailingSuggestedNameWebpDataReader(super.bytes, {required super.fileName});
+
+  @override
+  Future<String?> getSuggestedName() =>
+      Future<String?>.error(const FileSystemException('name lookup failed'));
 }
 
 class _MemoryDataReaderFile extends DataReaderFile {

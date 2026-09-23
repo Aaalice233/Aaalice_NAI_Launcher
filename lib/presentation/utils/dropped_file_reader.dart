@@ -787,7 +787,7 @@ class DroppedFileReader {
 
   static Future<String?> _safeSuggestedName(DataReader reader) async {
     try {
-      return reader.getSuggestedName().timeout(readTimeout);
+      return await reader.getSuggestedName().timeout(readTimeout);
     } catch (_) {
       return null;
     }
