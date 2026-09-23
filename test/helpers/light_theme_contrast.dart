@@ -8,12 +8,9 @@
 /// 这组工具在浅色主题下渲染面板，找出所有"贴着面板底色却是近白色"的文字。
 library;
 
-import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:hive/hive.dart';
 import 'package:nai_launcher/core/storage/local_storage_service.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -41,21 +38,6 @@ ProviderContainer createStorageFreeContainer({
       ...overrides,
     ],
   );
-}
-
-/// 把 Hive 指向一个临时目录，并在测试结束后清理。
-///
-/// 少数面板（如 Vibe 参考面板）会直接通过存储服务打开 box，无法只靠
-/// 替换 [LocalStorageService] 绕开，需要一个真实但一次性的 Hive 根目录。
-Future<void> setUpTemporaryHive() async {
-  final tempDir = await Directory.systemTemp.createTemp('nai_light_theme_test');
-  Hive.init(tempDir.path);
-  addTearDown(() async {
-    await Hive.close();
-    if (tempDir.existsSync()) {
-      await tempDir.delete(recursive: true);
-    }
-  });
 }
 
 /// 纯内存的 [LocalStorageService]，供 widget 测试替换真实 Hive 实现。

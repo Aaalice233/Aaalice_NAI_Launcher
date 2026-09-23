@@ -109,12 +109,17 @@ void main() {
     await Hive.close();
     if (!await hiveTempDir.exists()) return;
 
-    for (var attempt = 0; attempt < 5; attempt++) {
+    const attempts = 50;
+    for (var attempt = 1; attempt <= attempts; attempt++) {
       try {
         await hiveTempDir.delete(recursive: true);
         return;
       } on FileSystemException {
-        if (attempt == 4) rethrow;
+        if (attempt == attempts) {
+          // Windows 可能在关闭后仍持有句柄；hosted runner 用完即弃，交给系统回收
+          if (Platform.isWindows) return;
+          rethrow;
+        }
         await Future<void>.delayed(const Duration(milliseconds: 100));
       }
     }
