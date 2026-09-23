@@ -38,7 +38,8 @@ void main() {
 
     expect(labels['people'], '人物');
     expect(labels['female'], '人物 / 女性角色');
-    expect(labels[null], isNull);
+    const String? uncategorizedId = null;
+    expect(labels[uncategorizedId], isNull);
     expect(labels['missing'], isNull);
   });
 
