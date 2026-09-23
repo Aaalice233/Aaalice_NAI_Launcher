@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../core/utils/localization_extension.dart';
 import '../../../data/services/dlss/dlss_options.dart';
+import '../../widgets/common/heading_semantics.dart';
 import '../settings/widgets/settings_card.dart';
 import 'dlss_parameter_row.dart';
 import 'dlss_parameter_slider.dart';
@@ -228,8 +229,8 @@ class DlssOptionsEditor extends StatelessWidget {
   ) => Column(
     crossAxisAlignment: CrossAxisAlignment.stretch,
     children: [
-      Semantics(
-        header: true,
+      HeadingSemantics(
+        level: 3,
         child: Text(
           title,
           style: Theme.of(context).textTheme.bodySmall?.copyWith(

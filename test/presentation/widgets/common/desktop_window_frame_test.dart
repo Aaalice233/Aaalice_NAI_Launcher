@@ -267,6 +267,10 @@ void main() {
             .label,
         '关闭窗口',
       );
+
+      final title = tester.getSemantics(find.text('NAI Launcher'));
+      expect(title.flagsCollection.isHeader, isTrue);
+      expect(title.headingLevel, 1);
     },
   );
 
