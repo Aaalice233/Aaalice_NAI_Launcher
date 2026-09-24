@@ -714,7 +714,7 @@ class ImageMetadataService {
         } else {
           parseError = result.errorMessage;
         }
-      } catch (e, _) {
+      } catch (e) {
         parseStopwatch.stop();
         AppLogger.w('[MetadataFlow] Unified parse error: $e', 'ImageMetadataService');
         metadata = null;

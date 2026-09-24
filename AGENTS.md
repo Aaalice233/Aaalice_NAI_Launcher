@@ -40,7 +40,7 @@ Aaalice_NAI_Launcher/
 
 ## 构建、测试与开发命令
 
-项目使用 Flutter `>=3.35.0`、Dart `>=3.10.7`，当前 CI 固定 Flutter `3.44.2`。拉取仓库后必须安装 Git LFS，并获取唯一内置数据库 `assets/databases/tag_catalog.db`。Windows 构建还需要 Visual Studio 2022 的 Desktop development with C++、已加入 `PATH` 的 NuGet CLI；macOS 构建需要完整 Xcode 与 CocoaPods；Android 构建需要 JDK 17 和 Android SDK，最低运行版本为 Android 7.0（API 24）。
+项目使用 Flutter `>=3.47.0`、Dart `>=3.10.7`，当前 CI 固定 Flutter `3.47.5`。拉取仓库后必须安装 Git LFS，并获取唯一内置数据库 `assets/databases/tag_catalog.db`。Windows 构建还需要 Visual Studio 2022 的 Desktop development with C++、已加入 `PATH` 的 NuGet CLI；macOS 构建需要完整 Xcode 与 CocoaPods，最低运行版本为 macOS 12；Android 构建需要 JDK 17 和 Android SDK，最低运行版本为 Android 7.0（API 24）。Windows、macOS 与 Android（API 29+ 且支持 Vulkan）使用 Impeller 渲染，排查渲染差异时用 `flutter run --no-enable-impeller` 对照 Skia。
 
 `pubspec.lock` 中的 hosted package URL 必须保持为 `https://pub.dev`。禁止在用户级或系统级设置 `PUB_HOSTED_URL` 或 `FLUTTER_STORAGE_BASE_URL` 镜像，因为 `flutter pub get` 会据此重写 lockfile 或从非官方地址下载 SDK 资源。项目开发脚本与 GitHub Actions 固定使用官方源，提交、构建和发布前运行 `scripts/verify_flutter_sources.ps1`；发现镜像环境变量或非官方 lockfile URL 时必须失败，不得提交或发布。
 

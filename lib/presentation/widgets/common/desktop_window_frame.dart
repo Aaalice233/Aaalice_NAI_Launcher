@@ -7,6 +7,7 @@ import '../../../core/platform/platform_capabilities.dart';
 import '../../../core/utils/app_logger.dart';
 import '../../../core/windowing/desktop_window_controller.dart';
 import '../../../l10n/app_localizations.dart';
+import 'heading_semantics.dart';
 
 const double desktopWindowHeaderHeight = 40;
 const double desktopWindowButtonWidth = 48;
@@ -215,8 +216,8 @@ class _DesktopWindowHeaderState extends State<DesktopWindowHeader>
                       alignment: Alignment.centerLeft,
                       child: Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 12),
-                        child: Semantics(
-                          header: true,
+                        child: HeadingSemantics(
+                          level: 1,
                           child: MediaQuery.withClampedTextScaling(
                             maxScaleFactor: 1.3,
                             child: Row(

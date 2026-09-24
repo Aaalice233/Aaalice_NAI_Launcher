@@ -141,7 +141,7 @@ class DiagnosticLogExportService {
               maxTotalSourceBytes: _maxTotalSourceBytes,
             ),
           );
-          return _exportArchive(archivePath, fileName, dialogTitle);
+          return await _exportArchive(archivePath, fileName, dialogTitle);
         } finally {
           if (await stagingDirectory.exists()) {
             await stagingDirectory.delete(recursive: true);

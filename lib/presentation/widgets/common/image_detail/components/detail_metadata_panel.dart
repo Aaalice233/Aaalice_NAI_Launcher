@@ -252,7 +252,7 @@ class _DetailMetadataPanelState extends ConsumerState<DetailMetadataPanel> {
     const headerByteLimit = 64 * 1024;
     final handle = await File(path).open();
     try {
-      return handle.read(headerByteLimit);
+      return await handle.read(headerByteLimit);
     } finally {
       await handle.close();
     }

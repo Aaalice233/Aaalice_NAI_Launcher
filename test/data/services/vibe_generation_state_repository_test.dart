@@ -60,4 +60,25 @@ void main() {
       expect(await repository.loadJson(), '{"vibeReferences":[]}');
     },
   );
+
+  test(
+    'generation state falls back to legacy preference when the file is unreadable',
+    () async {
+      SharedPreferences.setMockInitialValues({
+        VibeGenerationStateRepository.generationStateKey:
+            '{"vibeReferences":[]}',
+      });
+      final directory = await Directory.systemTemp.createTemp(
+        'vibe_state_test_',
+      );
+      addTearDown(() => directory.delete(recursive: true));
+      final file = File('${directory.path}/generation_state.json');
+      await file.writeAsBytes(const [0xFF, 0xFE, 0xFD]);
+      final repository = VibeGenerationStateRepository(
+        fileResolver: ({required createDirectory}) async => file,
+      );
+
+      expect(await repository.loadJson(), '{"vibeReferences":[]}');
+    },
+  );
 }

@@ -161,7 +161,7 @@ NAI Launcher is built for people who use NovelAI regularly. Generation, editing,
 | Platform | Current status | Notes |
 | --- | --- | --- |
 | **Windows** | Primary development and release platform | Installer and portable packages are available. Well suited to long sessions, batch work, Krita / ComfyUI integration, and external MCP access. |
-| **macOS** | Available and still being refined | A portable package is available. If macOS blocks an unnotarized build, allow it through the system security prompt. |
+| **macOS** | Available and still being refined | Requires macOS 12 or later. A portable package is available. If macOS blocks an unnotarized build, allow it through the system security prompt. |
 | **Android** | Beta | Supports phones, landscape, tablets, and large screens, with touch access to generation, galleries, libraries, queues, Agent Chat, and settings. |
 | **Linux** | No official release package | No official download is currently provided. |
 

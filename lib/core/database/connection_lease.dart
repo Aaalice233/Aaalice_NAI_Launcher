@@ -20,8 +20,8 @@ class ConnectionLeaseException implements Exception {
 
 /// 连接已失效异常
 class ConnectionInvalidException extends ConnectionLeaseException {
-  ConnectionInvalidException({String? operationId})
-    : super('Connection is no longer valid', operationId: operationId);
+  ConnectionInvalidException({super.operationId})
+    : super('Connection is no longer valid');
 }
 
 /// 连接版本不匹配异常
@@ -32,10 +32,9 @@ class ConnectionVersionMismatchException extends ConnectionLeaseException {
   ConnectionVersionMismatchException({
     required this.expectedVersion,
     required this.actualVersion,
-    String? operationId,
+    super.operationId,
   }) : super(
          'Connection version mismatch: expected $expectedVersion, got $actualVersion',
-         operationId: operationId,
        );
 }
 

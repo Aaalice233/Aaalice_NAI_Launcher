@@ -298,7 +298,7 @@ class OnlineGalleryBlacklistNotifier
         rules: List.unmodifiable(rules),
         lastSyncAt: DateTime.now(),
       );
-      return _enqueueMutation(() async {
+      return await _enqueueMutation(() async {
         if (!_isCurrentRemoteOperation(generation, accountKey)) return null;
         final remoteSimple = snapshot.simpleTags;
         final additions = remoteSimple
@@ -373,7 +373,7 @@ class OnlineGalleryBlacklistNotifier
         rules: List.unmodifiable(rules),
         lastSyncAt: DateTime.now(),
       );
-      return _enqueueMutation(() async {
+      return await _enqueueMutation(() async {
         if (!_isCurrentRemoteOperation(generation, accountKey)) return null;
         await _persistRemoteSnapshot(snapshot);
         if (!_isCurrentRemoteOperation(generation, accountKey)) return null;
