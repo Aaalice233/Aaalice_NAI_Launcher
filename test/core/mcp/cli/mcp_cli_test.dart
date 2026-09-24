@@ -7,6 +7,8 @@ import 'package:nai_launcher/core/mcp/cli/mcp_cli.dart';
 import 'package:nai_launcher/core/mcp/mcp_discovery_file.dart';
 import 'package:path/path.dart' as p;
 
+import '../../../helpers/unreachable_loopback.dart';
+
 void main() {
   late Directory temp;
   late McpDiscoveryFileStore store;
@@ -250,7 +252,9 @@ void main() {
     test(
       'reports an unreachable endpoint without printing the token',
       () async {
-        final port = await _reserveClosedPort();
+        final refusing = await RefusingLoopbackPort.reserve();
+        addTearDown(refusing.release);
+        final port = refusing.port;
         final document = await publishDiscovery(
           port: port,
           token: 'secret-abc',
@@ -300,13 +304,6 @@ void main() {
       expect(await run(['status', '--nope']), 64);
     });
   });
-}
-
-Future<int> _reserveClosedPort() async {
-  final probe = await ServerSocket.bind(InternetAddress.loopbackIPv4, 0);
-  final port = probe.port;
-  await probe.close();
-  return port;
 }
 
 /// Collects everything written to an [IOSink] without touching the process.

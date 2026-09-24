@@ -5,6 +5,8 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/core/mcp/cli/mcp_stdio_proxy.dart';
 
+import '../../../helpers/unreachable_loopback.dart';
+
 void main() {
   group('McpStdioProxy', () {
     late _FakeMcpServer server;
@@ -365,9 +367,10 @@ void main() {
     });
 
     test('exits 2 when the endpoint refuses the connection', () async {
-      final closedPort = await _reserveClosedPort();
+      final refusing = await RefusingLoopbackPort.reserve();
+      addTearDown(refusing.release);
       final proxy = McpStdioProxy(
-        endpoint: Uri.parse('http://127.0.0.1:$closedPort/mcp'),
+        endpoint: Uri.parse('http://127.0.0.1:${refusing.port}/mcp'),
         token: 'token',
         input: Stream<List<int>>.fromIterable([utf8.encode('$_initialize\n')]),
         output: output.sink,
@@ -437,13 +440,6 @@ class _StdinPipe {
 
   Future<void> close() =>
       _controller.isClosed ? Future<void>.value() : _controller.close();
-}
-
-Future<int> _reserveClosedPort() async {
-  final probe = await ServerSocket.bind(InternetAddress.loopbackIPv4, 0);
-  final port = probe.port;
-  await probe.close();
-  return port;
 }
 
 class _RecordedRequest {
