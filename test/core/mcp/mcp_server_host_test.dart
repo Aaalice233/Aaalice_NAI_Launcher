@@ -114,14 +114,8 @@ void main() {
     expect(host.port, isNull);
     expect(host.endpoint, isNull);
     expect(await discovery.read(), isNull);
-    expect(
-      Socket.connect(
-        McpServerDefaults.loopbackHost,
-        port,
-        timeout: const Duration(seconds: 2),
-      ),
-      throwsA(isA<SocketException>()),
-    );
+    final rebound = await HttpServer.bind(InternetAddress.loopbackIPv4, port);
+    await rebound.close(force: true);
   });
 
   test('a taken port surfaces as McpHostBindException', () async {

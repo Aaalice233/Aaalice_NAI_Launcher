@@ -9,6 +9,8 @@ import 'package:nai_launcher/core/cloud_sync/backend/backend_http_metrics.dart';
 import 'package:nai_launcher/core/cloud_sync/backend/cloud_sync_backend.dart';
 import 'package:nai_launcher/core/cloud_sync/operation.dart';
 
+import '../../../helpers/unreachable_loopback.dart';
+
 void main() {
   test('HEAD ignores the declared representation length', () async {
     final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
@@ -236,14 +238,13 @@ void main() {
   });
 
   test('connection failures expose a user-readable message', () async {
-    final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
-    final port = server.port;
-    await server.close(force: true);
+    final server = await bindHangUpServer();
+    addTearDown(() => server.close(force: true));
 
     await expectLater(
-      BackendHttp().request(
+      BackendHttp(sleeper: (_) async {}).request(
         'GET',
-        Uri.parse('http://127.0.0.1:$port/unreachable'),
+        Uri.parse('http://127.0.0.1:${server.port}/unreachable'),
       ),
       throwsA(
         isA<CloudBackendException>()

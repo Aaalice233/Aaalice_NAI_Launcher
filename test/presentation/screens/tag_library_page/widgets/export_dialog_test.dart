@@ -8,10 +8,12 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:nai_launcher/core/autocomplete/tag_translation_lookup.dart';
 import 'package:nai_launcher/data/models/tag_library/tag_library_category.dart';
 import 'package:nai_launcher/data/models/tag_library/tag_library_entry.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/screens/tag_library_page/widgets/export_dialog.dart';
+import 'package:nai_launcher/presentation/widgets/library_export/library_export_controls.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider_platform_interface/path_provider_platform_interface.dart';
 
@@ -31,16 +33,8 @@ void main() {
   });
 
   tearDown(() async {
-    // 导出链路的临时文件清理可能仍在途，Windows 会短暂占用句柄。
-    for (var attempt = 0; attempt < 10; attempt++) {
-      try {
-        if (await tempDirectory.exists()) {
-          await tempDirectory.delete(recursive: true);
-        }
-        return;
-      } on FileSystemException {
-        await Future<void>.delayed(const Duration(milliseconds: 20));
-      }
+    if (await tempDirectory.exists()) {
+      await tempDirectory.delete(recursive: true);
     }
   });
 
@@ -137,6 +131,16 @@ Future<void> _pumpExportDialog(WidgetTester tester) async {
 
   await tester.pumpWidget(
     ProviderScope(
+      overrides: [
+        // 真实查询会在后台把随包标签库复制进 app support，句柄越过用例结束仍占着临时目录
+        tagTranslationLookupProvider.overrideWith((ref) {
+          final lookup = TagTranslationLookup.fromResolver(
+            (tags) async => const {},
+          );
+          ref.onDispose(lookup.dispose);
+          return lookup;
+        }),
+      ],
       child: MaterialApp(
         locale: const Locale('zh'),
         localizationsDelegates: AppLocalizations.localizationsDelegates,
@@ -170,16 +174,12 @@ Future<void> _settleExport(
   Duration limit = const Duration(seconds: 10),
 }) async {
   final deadline = DateTime.now().add(limit);
-  while (!picker.saveRequested.isCompleted) {
+  // 进度视图在临时导出文件删除完成后才退场，以它为收尾信号
+  while (!picker.saveRequested.isCompleted ||
+      find.byType(LibraryExportProgressView).evaluate().isNotEmpty) {
     if (DateTime.now().isAfter(deadline)) {
-      fail('导出未在时限内到达保存步骤');
+      fail('导出未在时限内完成');
     }
-    await tester.runAsync(
-      () => Future<void>.delayed(const Duration(milliseconds: 1)),
-    );
-    await tester.pump();
-  }
-  for (var i = 0; i < 5; i++) {
     await tester.runAsync(
       () => Future<void>.delayed(const Duration(milliseconds: 1)),
     );
