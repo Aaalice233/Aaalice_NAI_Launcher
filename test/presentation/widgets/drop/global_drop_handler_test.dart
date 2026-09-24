@@ -10,13 +10,14 @@ import 'package:nai_launcher/core/constants/storage_keys.dart';
 import 'package:nai_launcher/core/enums/precise_ref_type.dart';
 import 'package:nai_launcher/data/models/vibe/vibe_reference.dart';
 import 'package:nai_launcher/data/services/metadata/unified_metadata_parser.dart';
+import 'package:nai_launcher/data/services/vibe_library_storage_protocol.dart';
+import 'package:nai_launcher/data/services/vibe_library_storage_service.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/providers/image_generation_provider.dart';
 import 'package:nai_launcher/presentation/utils/internal_drag_protocol.dart';
 import 'package:nai_launcher/presentation/widgets/drop/global_drop_action_coordinator.dart';
 import 'package:nai_launcher/presentation/widgets/drop/global_drop_handler.dart';
 import 'package:nai_launcher/presentation/widgets/drop/image_destination_dialog.dart';
-import 'package:path_provider_platform_interface/path_provider_platform_interface.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../helpers/webp_metadata_fixture.dart';
@@ -29,12 +30,6 @@ void main() {
   setUpAll(() async {
     hiveTempDir = await Directory.systemTemp.createTemp(
       'nai_launcher_global_drop_hive_',
-    );
-    final appSupportDir = await Directory(
-      '${hiveTempDir.path}${Platform.pathSeparator}app_support',
-    ).create();
-    PathProviderPlatform.instance = _TestPathProviderPlatform(
-      appSupportDir.path,
     );
     Hive.init(hiveTempDir.path);
     // 内存后端：落盘写一旦从 widget test 的 FakeAsync 时钟发起就不会完成，会锁死 box
@@ -55,7 +50,18 @@ void main() {
     setUp(() async {
       await Hive.box(StorageKeys.settingsBox).clear();
       SharedPreferences.setMockInitialValues({});
-      container = ProviderContainer();
+      container = ProviderContainer(
+        overrides: [
+          // 生成状态保存不随用例等待：落盘会在删临时目录时占住句柄，也会被下个用例的恢复读到
+          vibeLibraryStorageServiceProvider.overrideWith((ref) {
+            final service = VibeLibraryStorageService(
+              generationStateRepository: _MemoryGenerationStateRepository(),
+            );
+            ref.onDispose(service.close);
+            return service;
+          }),
+        ],
+      );
     });
 
     tearDown(() {
@@ -450,11 +456,20 @@ const _transparentPngBytes = [
   0x82,
 ];
 
-class _TestPathProviderPlatform extends PathProviderPlatform {
-  _TestPathProviderPlatform(this.appSupportPath);
-
-  final String appSupportPath;
+class _MemoryGenerationStateRepository
+    implements VibeGenerationStateRepositoryProtocol {
+  String? _stateJson;
 
   @override
-  Future<String?> getApplicationSupportPath() async => appSupportPath;
+  Future<void> saveJson(String stateJson) async {
+    _stateJson = stateJson;
+  }
+
+  @override
+  Future<String?> loadJson() async => _stateJson;
+
+  @override
+  Future<void> clear() async {
+    _stateJson = null;
+  }
 }
