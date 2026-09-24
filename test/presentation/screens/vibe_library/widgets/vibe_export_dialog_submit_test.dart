@@ -32,15 +32,8 @@ void main() {
   });
 
   tearDown(() async {
-    for (var attempt = 0; attempt < 10; attempt++) {
-      try {
-        if (await tempDirectory.exists()) {
-          await tempDirectory.delete(recursive: true);
-        }
-        return;
-      } on FileSystemException {
-        await Future<void>.delayed(const Duration(milliseconds: 20));
-      }
+    if (await tempDirectory.exists()) {
+      await tempDirectory.delete(recursive: true);
     }
   });
 
@@ -51,10 +44,8 @@ void main() {
     await tester.pump();
 
     await tester.tap(find.widgetWithIcon(FilledButton, Icons.file_download));
-    await _settleExport(
-      tester,
-      () => _exportedFiles(outputDirectory).length >= 2,
-    );
+    // 文件出现时写入可能仍在途，成功提示要等全部写入 await 完才弹出
+    await _settleExport(tester, () => find.text('导出成功').evaluate().isNotEmpty);
 
     expect(picker.requestedDirectory, isTrue);
     final written = _exportedFiles(outputDirectory);
