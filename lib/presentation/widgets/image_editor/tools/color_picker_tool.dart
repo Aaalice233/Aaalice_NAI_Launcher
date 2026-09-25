@@ -7,6 +7,8 @@ import 'package:flutter/services.dart';
 import '../../../../core/utils/localization_extension.dart';
 import '../core/editor_state.dart';
 import 'tool_base.dart';
+import 'tool_setting_rows.dart';
+import '../../../widgets/common/horizontal_segmented_control.dart';
 import '../../../widgets/common/themed_divider.dart';
 
 int _colorComponent8(double component) =>
@@ -658,7 +660,8 @@ extension ColorPickerSourceExtension on ColorPickerSource {
   }
 }
 
-class _ColorPickerSettingsPanel extends StatelessWidget {
+// 宿主只在切换工具时重建，选中态要靠本面板 setState 刷新
+class _ColorPickerSettingsPanel extends StatefulWidget {
   final ColorPickerTool tool;
   final VoidCallback onSettingsChanged;
 
@@ -667,6 +670,12 @@ class _ColorPickerSettingsPanel extends StatelessWidget {
     required this.onSettingsChanged,
   });
 
+  @override
+  State<_ColorPickerSettingsPanel> createState() =>
+      _ColorPickerSettingsPanelState();
+}
+
+class _ColorPickerSettingsPanelState extends State<_ColorPickerSettingsPanel> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -716,19 +725,13 @@ class _ColorPickerSettingsPanel extends StatelessWidget {
           ),
         ),
 
-        // 取样模式
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          child: Row(
-            children: [
-              SizedBox(
-                width: 60,
-                child: Text(
-                  context.l10n.editor_sample,
-                  style: theme.textTheme.bodySmall,
-                ),
-              ),
-              Expanded(
+        ToolSettingRows(
+          rowPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          rows: [
+            // 取样模式
+            ToolSettingRow(
+              label: context.l10n.editor_sample,
+              control: HorizontalSegmentedControl(
                 child: SegmentedButton<ColorPickerSampleMode>(
                   segments: ColorPickerSampleMode.values.map((mode) {
                     return ButtonSegment<ColorPickerSampleMode>(
@@ -736,10 +739,12 @@ class _ColorPickerSettingsPanel extends StatelessWidget {
                       label: Text(_sampleModeLabel(context, mode)),
                     );
                   }).toList(),
-                  selected: {tool.sampleMode},
+                  selected: {widget.tool.sampleMode},
                   onSelectionChanged: (selected) {
-                    tool.setSampleMode(selected.first);
-                    onSettingsChanged();
+                    setState(() {
+                      widget.tool.setSampleMode(selected.first);
+                    });
+                    widget.onSettingsChanged();
                   },
                   style: ButtonStyle(
                     visualDensity: VisualDensity.compact,
@@ -749,23 +754,12 @@ class _ColorPickerSettingsPanel extends StatelessWidget {
                   ),
                 ),
               ),
-            ],
-          ),
-        ),
+            ),
 
-        // 取样来源
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          child: Row(
-            children: [
-              SizedBox(
-                width: 60,
-                child: Text(
-                  context.l10n.editor_source,
-                  style: theme.textTheme.bodySmall,
-                ),
-              ),
-              Expanded(
+            // 取样来源
+            ToolSettingRow(
+              label: context.l10n.editor_source,
+              control: HorizontalSegmentedControl(
                 child: SegmentedButton<ColorPickerSource>(
                   segments: ColorPickerSource.values.map((source) {
                     return ButtonSegment<ColorPickerSource>(
@@ -773,10 +767,12 @@ class _ColorPickerSettingsPanel extends StatelessWidget {
                       label: Text(_sourceLabel(context, source)),
                     );
                   }).toList(),
-                  selected: {tool.source},
+                  selected: {widget.tool.source},
                   onSelectionChanged: (selected) {
-                    tool.setSource(selected.first);
-                    onSettingsChanged();
+                    setState(() {
+                      widget.tool.setSource(selected.first);
+                    });
+                    widget.onSettingsChanged();
                   },
                   style: ButtonStyle(
                     visualDensity: VisualDensity.compact,
@@ -786,8 +782,8 @@ class _ColorPickerSettingsPanel extends StatelessWidget {
                   ),
                 ),
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ],
     );
