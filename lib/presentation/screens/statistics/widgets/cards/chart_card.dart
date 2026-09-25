@@ -3,6 +3,7 @@ import 'package:nai_launcher/presentation/themes/theme_extension.dart';
 
 import '../../../../adaptive/window_size_class.dart';
 import '../../../../themes/core/layered_surface_style.dart';
+import '../../../../widgets/common/ink_host.dart';
 
 /// Section header widget
 /// 章节标题组件
@@ -114,50 +115,52 @@ class _ChartCardState extends State<ChartCard> {
             ),
             child: ClipRRect(
               borderRadius: BorderRadius.circular(8),
-              child: Padding(
-                padding:
-                    widget.padding ??
-                    EdgeInsets.all(useExpandedSpacing ? 22 : 18),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    if (widget.title != null) ...[
-                      Row(
-                        children: [
-                          if (widget.titleIcon != null) ...[
-                            // 深度层叠风格：简洁图标容器
-                            Container(
-                              padding: const EdgeInsets.all(8),
-                              decoration: BoxDecoration(
-                                color: accentColor.withValues(
-                                  alpha: isDark ? 0.15 : 0.1,
+              child: InkHost(
+                child: Padding(
+                  padding:
+                      widget.padding ??
+                      EdgeInsets.all(useExpandedSpacing ? 22 : 18),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      if (widget.title != null) ...[
+                        Row(
+                          children: [
+                            if (widget.titleIcon != null) ...[
+                              // 深度层叠风格：简洁图标容器
+                              Container(
+                                padding: const EdgeInsets.all(8),
+                                decoration: BoxDecoration(
+                                  color: accentColor.withValues(
+                                    alpha: isDark ? 0.15 : 0.1,
+                                  ),
+                                  borderRadius: BorderRadius.circular(6),
                                 ),
-                                borderRadius: BorderRadius.circular(6),
+                                child: Icon(
+                                  widget.titleIcon,
+                                  size: 18,
+                                  color: accentColor,
+                                ),
                               ),
-                              child: Icon(
-                                widget.titleIcon,
-                                size: 18,
-                                color: accentColor,
+                              const SizedBox(width: 12),
+                            ],
+                            Expanded(
+                              child: Text(
+                                widget.title!,
+                                style: theme.textTheme.titleMedium?.copyWith(
+                                  fontWeight: FontWeight.w600,
+                                  letterSpacing: -0.3,
+                                ),
                               ),
                             ),
-                            const SizedBox(width: 12),
+                            if (widget.trailing != null) widget.trailing!,
                           ],
-                          Expanded(
-                            child: Text(
-                              widget.title!,
-                              style: theme.textTheme.titleMedium?.copyWith(
-                                fontWeight: FontWeight.w600,
-                                letterSpacing: -0.3,
-                              ),
-                            ),
-                          ),
-                          if (widget.trailing != null) widget.trailing!,
-                        ],
-                      ),
-                      SizedBox(height: useExpandedSpacing ? 18 : 14),
+                        ),
+                        SizedBox(height: useExpandedSpacing ? 18 : 14),
+                      ],
+                      widget.child,
                     ],
-                    widget.child,
-                  ],
+                  ),
                 ),
               ),
             ),

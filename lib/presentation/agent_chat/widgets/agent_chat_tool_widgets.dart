@@ -22,6 +22,7 @@ import '../../screens/online_gallery/online_gallery_detail_launcher.dart';
 import '../../themes/theme_extension.dart';
 import '../../widgets/common/app_toast.dart';
 import '../../widgets/common/image_card_hover_motion.dart';
+import '../../widgets/common/surface_ink_well.dart';
 import '../../widgets/common/image_detail/file_image_detail_data.dart';
 import '../../widgets/common/image_detail/image_detail_data.dart';
 import '../providers/agent_chat_notifier.dart';
@@ -1206,69 +1207,69 @@ class _OnlineGalleryResourceCardState
           hovered: _hovered,
           child: ClipRRect(
             borderRadius: radius,
-            child: Material(
+            child: SurfaceInkWell(
               key: const ValueKey('online-gallery-resource-card'),
+              borderRadius: radius,
               color: theme.colorScheme.surfaceContainerLow,
-              child: InkWell(
-                onTap: widget.onTap,
-                child: Stack(
-                  children: [
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        AspectRatio(
-                          aspectRatio: 4 / 3,
-                          child: ColoredBox(
-                            color: theme.colorScheme.surfaceContainerHighest,
-                            child: widget.image,
-                          ),
-                        ),
-                        if (hasDetails)
-                          Padding(
-                            padding: const EdgeInsets.fromLTRB(10, 8, 10, 9),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                if (title != null)
-                                  Text(
-                                    title,
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: theme.textTheme.labelLarge,
-                                  ),
-                                if (author != null) ...[
-                                  if (title != null) const SizedBox(height: 1),
-                                  Text(
-                                    author,
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: theme.textTheme.bodySmall?.copyWith(
-                                      color: theme.colorScheme.onSurfaceVariant,
-                                    ),
-                                  ),
-                                ],
-                              ],
-                            ),
-                          ),
-                      ],
-                    ),
-                    Positioned.fill(
-                      child: IgnorePointer(
-                        child: AnimatedContainer(
-                          duration: MediaQuery.disableAnimationsOf(context)
-                              ? Duration.zero
-                              : const Duration(milliseconds: 120),
-                          curve: Curves.easeOut,
-                          color: _hovered
-                              ? theme.colorScheme.primary.withValues(
-                                  alpha: 0.08,
-                                )
-                              : Colors.transparent,
+              inkAboveChild: true,
+              // 悬停交给卡片自带的高亮蒙层
+              hoverColor: Colors.transparent,
+              onTap: widget.onTap,
+              child: Stack(
+                children: [
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      AspectRatio(
+                        aspectRatio: 4 / 3,
+                        child: ColoredBox(
+                          color: theme.colorScheme.surfaceContainerHighest,
+                          child: widget.image,
                         ),
                       ),
+                      if (hasDetails)
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(10, 8, 10, 9),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              if (title != null)
+                                Text(
+                                  title,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: theme.textTheme.labelLarge,
+                                ),
+                              if (author != null) ...[
+                                if (title != null) const SizedBox(height: 1),
+                                Text(
+                                  author,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: theme.textTheme.bodySmall?.copyWith(
+                                    color: theme.colorScheme.onSurfaceVariant,
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
+                        ),
+                    ],
+                  ),
+                  Positioned.fill(
+                    child: IgnorePointer(
+                      child: AnimatedContainer(
+                        duration: MediaQuery.disableAnimationsOf(context)
+                            ? Duration.zero
+                            : const Duration(milliseconds: 120),
+                        curve: Curves.easeOut,
+                        color: _hovered
+                            ? theme.colorScheme.primary.withValues(alpha: 0.08)
+                            : Colors.transparent,
+                      ),
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ),
           ),

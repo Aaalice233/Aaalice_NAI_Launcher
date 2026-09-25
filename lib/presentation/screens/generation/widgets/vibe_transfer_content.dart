@@ -14,6 +14,7 @@ import '../../../providers/image_generation_provider.dart';
 import '../../../providers/generation/generation_params_notifier.dart';
 import '../../../utils/card_drop_reader.dart';
 import '../../../widgets/common/app_toast.dart';
+import '../../../widgets/common/surface_ink_well.dart';
 import 'recent_vibes_section.dart';
 import 'vibe_card.dart';
 
@@ -495,51 +496,46 @@ class _EmptyStateCardState extends State<_EmptyStateCard> {
     return MouseRegion(
       onEnter: (_) => setState(() => _isHovered = true),
       onExit: (_) => setState(() => _isHovered = false),
-      child: AnimatedContainer(
-        duration: MediaQuery.disableAnimationsOf(context)
-            ? Duration.zero
-            : const Duration(milliseconds: 150),
+      child: SurfaceInkWell(
+        borderRadius: BorderRadius.circular(8),
+        color: _isHovered
+            ? theme.colorScheme.surfaceContainerHigh
+            : theme.colorScheme.surfaceContainerLow,
+        // 悬停由底色与主色文字表达
+        hoverColor: Colors.transparent,
+        duration: const Duration(milliseconds: 150),
         curve: Curves.easeInOut,
-        decoration: BoxDecoration(
-          color: _isHovered
-              ? theme.colorScheme.surfaceContainerHigh
-              : theme.colorScheme.surfaceContainerLow,
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: InkWell(
-          onTap: widget.onTap,
-          borderRadius: BorderRadius.circular(8),
-          child: Container(
-            padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 12),
-            child: Column(
-              children: [
-                Icon(
-                  widget.icon,
-                  size: 40,
+        onTap: widget.onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 12),
+          child: Column(
+            children: [
+              Icon(
+                widget.icon,
+                size: 40,
+                color: _isHovered
+                    ? theme.colorScheme.primary
+                    : theme.colorScheme.onSurfaceVariant,
+              ),
+              const SizedBox(height: 12),
+              Text(
+                widget.title,
+                style: theme.textTheme.bodyMedium?.copyWith(
                   color: _isHovered
                       ? theme.colorScheme.primary
-                      : theme.colorScheme.onSurfaceVariant,
+                      : theme.colorScheme.onSurface.withValues(alpha: 0.8),
+                  fontWeight: FontWeight.w500,
                 ),
-                const SizedBox(height: 12),
-                Text(
-                  widget.title,
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    color: _isHovered
-                        ? theme.colorScheme.primary
-                        : theme.colorScheme.onSurface.withValues(alpha: 0.8),
-                    fontWeight: FontWeight.w500,
-                  ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                widget.subtitle,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  widget.subtitle,
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-              ],
-            ),
+                textAlign: TextAlign.center,
+              ),
+            ],
           ),
         ),
       ),

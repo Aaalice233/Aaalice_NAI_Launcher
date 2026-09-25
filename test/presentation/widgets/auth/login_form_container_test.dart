@@ -13,6 +13,8 @@ import 'package:nai_launcher/presentation/widgets/auth/third_party_api_login_car
 import 'package:nai_launcher/presentation/widgets/common/floating_label_input.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../../helpers/ink_expectations.dart';
+
 class _FakeAuthNotifier extends AuthNotifier {
   @override
   AuthState build() => const AuthState(status: AuthStatus.unauthenticated);
@@ -109,6 +111,46 @@ void main() {
     expect(find.text(l10n.auth_tokenLoginRecommended), findsOneWidget);
     expect(find.text(l10n.auth_tokenLoginCompact), findsNothing);
   });
+
+  testWidgets('按压已选登录方式时反馈画在选中底色之上', (tester) async {
+    await _pumpModeSwitcher(tester, const Locale('zh'));
+    final token = find.byKey(const Key('auth_mode_token'));
+    final theme = Theme.of(tester.element(token));
+
+    final press = await pressAndHold(tester, token);
+    expectInkOnTop(
+      tester,
+      token,
+      ink: theme.highlightColor,
+      below: theme.colorScheme.primaryContainer,
+    );
+    await press.up();
+    await tester.pumpAndSettle();
+  });
+
+  testWidgets(
+    'Tab 聚焦已选登录方式时显示焦点高亮',
+    (tester) async {
+      await _pumpModeSwitcher(tester, const Locale('zh'));
+      final token = find.byKey(const Key('auth_mode_token'));
+      final theme = Theme.of(tester.element(token));
+
+      await tabUntilFocused(
+        tester,
+        find.descendant(of: token, matching: find.byType(InkWell)),
+      );
+      expectInkOnTop(
+        tester,
+        token,
+        ink: theme.focusColor,
+        below: theme.colorScheme.primaryContainer,
+      );
+    },
+    variant: const TargetPlatformVariant({
+      TargetPlatform.windows,
+      TargetPlatform.macOS,
+    }),
+  );
 
   testWidgets(
     'credentials actions reflow at 320 width with 3x text and keep touch targets',

@@ -8,6 +8,7 @@ import '../../../../data/models/vibe/vibe_reference.dart';
 import '../../../adaptive/adaptive_presenter.dart';
 import '../../../widgets/common/adaptive_dialog_frame.dart';
 import '../../../widgets/common/editable_double_field.dart';
+import '../../../widgets/common/surface_ink_well.dart';
 import '../../../widgets/common/themed_slider.dart';
 
 enum BundleImportOption { keepAsBundle, split, importSelected }
@@ -883,157 +884,144 @@ class _VibeBundleImportDialogState extends State<VibeBundleImportDialog> {
     Uint8List? thumbnail,
     required bool isSelected,
   }) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: () => _toggleVibeSelection(index),
-        borderRadius: BorderRadius.circular(12),
-        child: AnimatedContainer(
-          duration: MediaQuery.disableAnimationsOf(context)
-              ? Duration.zero
-              : const Duration(milliseconds: 200),
-          decoration: BoxDecoration(
-            border: Border.all(
-              color: isSelected
-                  ? theme.colorScheme.primary
-                  : theme.colorScheme.outlineVariant.withValues(alpha: 0.6),
-              width: isSelected ? 2.5 : 1,
-            ),
-            borderRadius: BorderRadius.circular(12),
-            color: isSelected
-                ? theme.colorScheme.primaryContainer.withValues(alpha: 0.25)
-                : theme.colorScheme.surface,
-            boxShadow: isSelected
-                ? [
-                    BoxShadow(
-                      color: theme.colorScheme.primary.withValues(alpha: 0.25),
-                      blurRadius: 8,
-                      offset: const Offset(0, 3),
-                    ),
-                  ]
-                : [
-                    BoxShadow(
-                      color: theme.colorScheme.shadow.withValues(alpha: 0.08),
-                      blurRadius: 4,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Expanded(
-                flex: 3,
-                child: Container(
-                  margin: const EdgeInsets.all(6),
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(8),
-                    color: theme.colorScheme.surfaceContainerHighest,
-                    border: Border.all(
-                      color: theme.colorScheme.outlineVariant.withValues(
-                        alpha: 0.3,
-                      ),
-                    ),
+    return SurfaceInkWell(
+      borderRadius: BorderRadius.circular(12),
+      color: isSelected
+          ? theme.colorScheme.primaryContainer.withValues(alpha: 0.25)
+          : theme.colorScheme.surface,
+      side: BorderSide(
+        color: isSelected
+            ? theme.colorScheme.primary
+            : theme.colorScheme.outlineVariant.withValues(alpha: 0.6),
+        width: isSelected ? 2.5 : 1,
+      ),
+      shadows: isSelected
+          ? [
+              BoxShadow(
+                color: theme.colorScheme.primary.withValues(alpha: 0.25),
+                blurRadius: 8,
+                offset: const Offset(0, 3),
+              ),
+            ]
+          : [
+              BoxShadow(
+                color: theme.colorScheme.shadow.withValues(alpha: 0.08),
+                blurRadius: 4,
+                offset: const Offset(0, 2),
+              ),
+            ],
+      inkAboveChild: true,
+      duration: const Duration(milliseconds: 200),
+      onTap: () => _toggleVibeSelection(index),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Expanded(
+            flex: 3,
+            child: Container(
+              margin: const EdgeInsets.all(6),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(8),
+                color: theme.colorScheme.surfaceContainerHighest,
+                border: Border.all(
+                  color: theme.colorScheme.outlineVariant.withValues(
+                    alpha: 0.3,
                   ),
-                  clipBehavior: Clip.antiAlias,
-                  child: Stack(
-                    fit: StackFit.expand,
-                    children: [
-                      thumbnail != null
-                          ? Image.memory(
-                              thumbnail,
-                              fit: BoxFit.cover,
-                              errorBuilder: (context, error, stackTrace) {
-                                return Center(
-                                  child: Icon(
-                                    Icons.image_not_supported,
-                                    size: 28,
-                                    color: theme.colorScheme.outline,
-                                  ),
-                                );
-                              },
-                            )
-                          : Center(
+                ),
+              ),
+              clipBehavior: Clip.antiAlias,
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  thumbnail != null
+                      ? Image.memory(
+                          thumbnail,
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) {
+                            return Center(
                               child: Icon(
-                                Icons.image,
+                                Icons.image_not_supported,
                                 size: 28,
                                 color: theme.colorScheme.outline,
                               ),
-                            ),
-                      if (isSelected)
-                        Container(
-                          color: theme.colorScheme.primary.withValues(
-                            alpha: 0.15,
+                            );
+                          },
+                        )
+                      : Center(
+                          child: Icon(
+                            Icons.image,
+                            size: 28,
+                            color: theme.colorScheme.outline,
                           ),
                         ),
-                      if (isSelected)
-                        Positioned(
-                          top: 4,
-                          right: 4,
-                          child: Container(
-                            padding: const EdgeInsets.all(4),
-                            decoration: BoxDecoration(
-                              color: theme.colorScheme.primary,
-                              shape: BoxShape.circle,
-                              boxShadow: [
-                                BoxShadow(
-                                  color: theme.colorScheme.shadow.withValues(
-                                    alpha: 0.3,
-                                  ),
-                                  blurRadius: 4,
-                                  offset: const Offset(0, 2),
-                                ),
-                              ],
+                  if (isSelected)
+                    Container(
+                      color: theme.colorScheme.primary.withValues(alpha: 0.15),
+                    ),
+                  if (isSelected)
+                    Positioned(
+                      top: 4,
+                      right: 4,
+                      child: Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: BoxDecoration(
+                          color: theme.colorScheme.primary,
+                          shape: BoxShape.circle,
+                          boxShadow: [
+                            BoxShadow(
+                              color: theme.colorScheme.shadow.withValues(
+                                alpha: 0.3,
+                              ),
+                              blurRadius: 4,
+                              offset: const Offset(0, 2),
                             ),
-                            child: Icon(
-                              Icons.check,
-                              size: 14,
-                              color: theme.colorScheme.onPrimary,
-                            ),
-                          ),
+                          ],
                         ),
-                    ],
+                        child: Icon(
+                          Icons.check,
+                          size: 14,
+                          color: theme.colorScheme.onPrimary,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(10, 4, 10, 8),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  name,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                    color: isSelected
+                        ? theme.colorScheme.primary
+                        : theme.colorScheme.onSurface,
+                    fontSize: 12,
+                    height: 1.2,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  '#${index + 1}',
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant.withValues(
+                      alpha: 0.7,
+                    ),
+                    fontSize: 10,
+                    height: 1.2,
                   ),
                 ),
-              ),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(10, 4, 10, 8),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      name,
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        fontWeight: isSelected
-                            ? FontWeight.w600
-                            : FontWeight.w500,
-                        color: isSelected
-                            ? theme.colorScheme.primary
-                            : theme.colorScheme.onSurface,
-                        fontSize: 12,
-                        height: 1.2,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      '#${index + 1}',
-                      style: theme.textTheme.labelSmall?.copyWith(
-                        color: theme.colorScheme.onSurfaceVariant.withValues(
-                          alpha: 0.7,
-                        ),
-                        fontSize: 10,
-                        height: 1.2,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
+              ],
+            ),
           ),
-        ),
+        ],
       ),
     );
   }

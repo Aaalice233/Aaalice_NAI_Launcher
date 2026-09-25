@@ -10,6 +10,7 @@ import 'tag_editor_weight_style.dart';
 import 'nai_syntax_controller.dart';
 import 'tag_drag_preview.dart';
 import '../autocomplete/autocomplete_overlay_handle.dart';
+import '../common/ink_host.dart';
 
 /// Presents the source hierarchy; all mutations remain session transactions.
 class TagEditorTree extends StatefulWidget {
@@ -240,38 +241,40 @@ class _TagEditorTreeState extends State<TagEditorTree> {
                 ),
               ),
             ),
-            child: Stack(
-              children: [
-                Positioned.fill(
-                  child: SizedBox(
-                    key: widget.keys.putIfAbsent(tag.id, GlobalKey.new),
+            child: InkHost(
+              child: Stack(
+                children: [
+                  Positioned.fill(
+                    child: SizedBox(
+                      key: widget.keys.putIfAbsent(tag.id, GlobalKey.new),
+                    ),
                   ),
-                ),
-                Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    TagEditorWeightLabel(
-                      span: tag.span,
-                      emphasisColor: color,
-                      expandable: true,
-                      onSelect: widget.enabled
-                          ? () => widget.onSelect(tag)
-                          : null,
-                    ),
-                    const SizedBox(height: 4),
-                    Wrap(
-                      spacing: 6,
-                      runSpacing: 6,
-                      children: _items(
-                        context,
-                        tag.children,
-                        (width - 14).clamp(0, width),
-                      ).toList(),
-                    ),
-                  ],
-                ),
-              ],
+                  Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      TagEditorWeightLabel(
+                        span: tag.span,
+                        emphasisColor: color,
+                        expandable: true,
+                        onSelect: widget.enabled
+                            ? () => widget.onSelect(tag)
+                            : null,
+                      ),
+                      const SizedBox(height: 4),
+                      Wrap(
+                        spacing: 6,
+                        runSpacing: 6,
+                        children: _items(
+                          context,
+                          tag.children,
+                          (width - 14).clamp(0, width),
+                        ).toList(),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
           ),
         ),

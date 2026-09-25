@@ -20,7 +20,10 @@ import 'package:nai_launcher/presentation/screens/generation/widgets/generation_
 import 'package:nai_launcher/presentation/widgets/anlas/anlas_balance_chip.dart';
 import 'package:nai_launcher/presentation/widgets/anlas/opus_usage_chip.dart';
 import 'package:nai_launcher/presentation/widgets/common/draggable_number_input.dart';
+import 'package:nai_launcher/presentation/widgets/common/surface_ink_well.dart';
 import 'package:nai_launcher/presentation/widgets/generation/auto_save_toggle_chip.dart';
+
+import '../../../../../helpers/ink_expectations.dart';
 
 void main() {
   testWidgets('compact controls keep the auto-save toggle visible', (
@@ -545,6 +548,45 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('批次选项的悬停与按压反馈画在选项底色之上', (tester) async {
+    await _pumpBatchSettingsForm(tester);
+    final option = _batchOption('3');
+    final theme = Theme.of(tester.element(option));
+    final resting = theme.colorScheme.surfaceContainerHighest;
+
+    await hoverOver(tester, option);
+    expectInkOnTop(tester, option, ink: theme.hoverColor, below: resting);
+
+    final press = await pressAndHold(tester, option);
+    expectInkOnTop(tester, option, ink: theme.highlightColor, below: resting);
+    await press.up();
+    await tester.pumpAndSettle();
+  });
+
+  testWidgets(
+    '键盘聚焦到已选批次时焦点高亮不被主色底盖住',
+    (tester) async {
+      await _pumpBatchSettingsForm(tester);
+      final option = _batchOption('1');
+      final theme = Theme.of(tester.element(option));
+
+      await tabUntilFocused(
+        tester,
+        find.descendant(of: option, matching: find.byType(InkWell)),
+      );
+      expectInkOnTop(
+        tester,
+        option,
+        ink: theme.focusColor,
+        below: theme.colorScheme.primary,
+      );
+    },
+    variant: const TargetPlatformVariant({
+      TargetPlatform.windows,
+      TargetPlatform.macOS,
+    }),
+  );
+
   testWidgets('signed-out generate button opens login directly', (
     tester,
   ) async {
@@ -747,6 +789,34 @@ void main() {
     }
   });
 }
+
+Future<void> _pumpBatchSettingsForm(WidgetTester tester) async {
+  tester.view.devicePixelRatio = 1;
+  tester.view.physicalSize = const Size(1000, 800);
+  addTearDown(tester.view.resetDevicePixelRatio);
+  addTearDown(tester.view.resetPhysicalSize);
+  await tester.pumpWidget(
+    ProviderScope(
+      overrides: [
+        localStorageServiceProvider.overrideWith(
+          (ref) => _MemoryLocalStorageService({}),
+        ),
+      ],
+      child: const MaterialApp(
+        locale: Locale('zh'),
+        supportedLocales: AppLocalizations.supportedLocales,
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        home: Scaffold(body: Center(child: BatchSettingsButton())),
+      ),
+    ),
+  );
+  await tester.pump();
+  await tester.tap(find.byType(BatchSettingsButton));
+  await tester.pumpAndSettle();
+}
+
+Finder _batchOption(String value) =>
+    find.ancestor(of: find.text(value), matching: find.byType(SurfaceInkWell));
 
 Future<_TestImageGenerationNotifier> _pumpLargeTextBatchControls(
   WidgetTester tester,

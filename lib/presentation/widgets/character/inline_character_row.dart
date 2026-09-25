@@ -11,6 +11,7 @@ import '../../providers/character_position_canvas_provider.dart';
 import '../../providers/character_prompt_provider.dart';
 import '../../providers/image_generation_provider.dart';
 import '../../providers/tag_library_page_provider.dart';
+import '../common/ink_host.dart';
 import '../tag_library/tag_library_picker_dialog.dart';
 import 'add_to_library_dialog.dart';
 import 'character_position_canvas.dart';
@@ -464,30 +465,35 @@ class _RowEditorPanelState extends ConsumerState<_RowEditorPanel> {
                 ? null
                 : Border.all(color: colorScheme.primary, width: 1.5),
           ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (largeText) ...[
-                buildIdentity(),
-                const SizedBox(height: 4),
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: Row(mainAxisSize: MainAxisSize.min, children: actions),
+          child: InkHost(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (largeText) ...[
+                  buildIdentity(),
+                  const SizedBox(height: 4),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: actions,
+                    ),
+                  ),
+                ] else
+                  Row(
+                    children: [
+                      Expanded(child: buildIdentity()),
+                      ...actions,
+                    ],
+                  ),
+                const SizedBox(height: 6),
+                CharacterPromptEditor(
+                  character: widget.character,
+                  compact: !widget.borderless,
                 ),
-              ] else
-                Row(
-                  children: [
-                    Expanded(child: buildIdentity()),
-                    ...actions,
-                  ],
-                ),
-              const SizedBox(height: 6),
-              CharacterPromptEditor(
-                character: widget.character,
-                compact: !widget.borderless,
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),

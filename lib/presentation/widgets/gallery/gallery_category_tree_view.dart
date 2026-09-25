@@ -11,6 +11,7 @@ import '../../adaptive/interaction_policy.dart';
 import '../../../data/models/gallery/gallery_category.dart';
 import '../../../data/models/gallery/gallery_tree_drop_slot.dart';
 import '../common/context_menu_anchor.dart';
+import '../common/surface_ink_well.dart';
 import '../common/themed_divider.dart';
 import 'package:nai_launcher/presentation/widgets/common/themed_input.dart';
 import 'gallery_scan_progress_panel.dart';
@@ -450,22 +451,19 @@ class _CategoryItemState extends State<_CategoryItem> {
         onSecondaryTapUp: widget.onRename != null
             ? (details) => _showContextMenu(context, details.globalPosition)
             : null,
-        child: AnimatedContainer(
-          duration: MediaQuery.disableAnimationsOf(context)
-              ? Duration.zero
-              : const Duration(milliseconds: 150),
-          margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 1),
-          decoration: BoxDecoration(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 1),
+          child: SurfaceInkWell(
+            borderRadius: BorderRadius.circular(8),
             color: widget.isSelected
                 ? theme.colorScheme.primaryContainer
                 : (_isHovering
                       ? theme.colorScheme.onSurface.withValues(alpha: 0.07)
                       : Colors.transparent),
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: InkWell(
+            // 未选中时悬停由底色表达
+            hoverColor: widget.isSelected ? null : Colors.transparent,
+            duration: const Duration(milliseconds: 150),
             onTap: widget.onTap,
-            borderRadius: BorderRadius.circular(8),
             child: ConstrainedBox(
               constraints: const BoxConstraints(minHeight: controlExtent),
               child: Padding(

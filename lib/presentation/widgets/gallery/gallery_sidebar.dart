@@ -4,7 +4,9 @@ import 'resizable_gallery_sidebar.dart';
 
 import '../../../core/utils/localization_extension.dart';
 import '../../adaptive/interaction_policy.dart';
+import '../common/ink_host.dart';
 import '../common/library_classification_drag.dart';
+import '../common/surface_ink_well.dart';
 import '../../themes/core/layered_surface_style.dart';
 
 /// Shared geometry for collection pages that pair a navigation sidebar with a
@@ -77,7 +79,7 @@ class GalleryCollectionFooterSurface extends StatelessWidget {
             GalleryCollectionChrome.regionRadius,
           ),
         ),
-        child: child,
+        child: InkHost(child: child),
       ),
     );
   }
@@ -335,12 +337,10 @@ class _GallerySidebarNavigationItemState
         cursor: SystemMouseCursors.click,
         onEnter: (_) => setState(() => _isHovered = true),
         onExit: (_) => setState(() => _isHovered = false),
-        child: AnimatedContainer(
-          duration: MediaQuery.disableAnimationsOf(context)
-              ? Duration.zero
-              : const Duration(milliseconds: 150),
-          margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 1),
-          decoration: BoxDecoration(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 1),
+          child: SurfaceInkWell(
+            borderRadius: BorderRadius.circular(8),
             color: widget.isSelected
                 ? colors.primaryContainer
                 : isAcceptingDrop
@@ -348,11 +348,10 @@ class _GallerySidebarNavigationItemState
                 : _isHovered
                 ? colors.surfaceContainerHighest
                 : Colors.transparent,
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: InkWell(
+            // 未选中时悬停由底色表达
+            hoverColor: widget.isSelected ? null : Colors.transparent,
+            duration: const Duration(milliseconds: 150),
             onTap: widget.onTap,
-            borderRadius: BorderRadius.circular(8),
             child: ConstrainedBox(
               constraints: const BoxConstraints(minHeight: controlExtent),
               child: Padding(

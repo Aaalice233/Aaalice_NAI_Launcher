@@ -9,11 +9,14 @@ import 'package:nai_launcher/data/models/online_gallery/gallery_prompt_projectio
 import 'package:nai_launcher/data/models/online_gallery/gallery_source.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/adaptive/adaptive_presenter.dart';
+import 'package:nai_launcher/presentation/widgets/common/surface_ink_well.dart';
 import 'package:nai_launcher/presentation/widgets/online_gallery/gallery_detail_dialog.dart';
 import 'package:nai_launcher/presentation/widgets/online_gallery/gallery_detail_overview_card.dart';
 import 'package:nai_launcher/presentation/widgets/online_gallery/gallery_prompt_copy_dialog.dart';
 import 'package:nai_launcher/presentation/widgets/online_gallery/video_player_widget.dart';
 import 'package:nai_launcher/presentation/widgets/tag_chip.dart';
+
+import '../../../helpers/ink_expectations.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -933,6 +936,71 @@ void main() {
 
     expect(find.text('2 / 2'), findsOneWidget);
     expect(tester.widget<PageView>(find.byType(PageView)).controller?.page, 1);
+  });
+
+  testWidgets('缩略图条的反馈叠在缩略图之上，选中描边不挤占内容', (tester) async {
+    tester.view.physicalSize = const Size(1280, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    const item = GalleryItem(
+      id: 8,
+      workId: 'work-8',
+      sourceId: GallerySourceId.aiTag,
+      focusedMediaId: 'first',
+      focusedMediaIndex: 0,
+    );
+    await tester.pumpWidget(
+      ProviderScope(
+        child: MaterialApp(
+          home: Scaffold(
+            body: GalleryDetailDialog(
+              item: item,
+              detail: const GalleryDetail(
+                item: item,
+                media: [
+                  GalleryMedia(id: 'first'),
+                  GalleryMedia(id: 'second'),
+                ],
+              ),
+              isFavorited: false,
+              favoriteLoading: false,
+              canUseGenerationActions: false,
+              labels: _labels(),
+              onCopyPrompt: (_) {},
+              onToggleFavorite: () async => true,
+              onOpenSource: () {},
+              onSendToGenerate: (_) {},
+              onAddToQueue: (_) async {},
+              onDownloadCurrentOriginal: (_) async {},
+              onTagSearch: (_) {},
+              onBlacklistChanged: () {},
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final thumbnails = find.byType(SurfaceInkWell);
+    expect(thumbnails, findsNWidgets(2));
+    Size contentSize(Finder thumbnail) => tester.getSize(
+      find.descendant(of: thumbnail, matching: find.byType(Icon)),
+    );
+    expect(contentSize(thumbnails.at(0)), contentSize(thumbnails.at(1)));
+
+    final other = thumbnails.at(1);
+    final theme = Theme.of(tester.element(other));
+    final fill = theme.colorScheme.surfaceContainerLow;
+    await hoverOver(tester, other);
+    expectInkOnTop(tester, other, ink: theme.hoverColor, below: fill);
+
+    final press = await pressAndHold(tester, other);
+    expectInkOnTop(tester, other, ink: theme.highlightColor, below: fill);
+    await press.up();
+    await tester.pumpAndSettle();
+    expect(find.text('2 / 2'), findsOneWidget);
   });
 
   testWidgets('embedded detail composes with the adaptive presenter', (

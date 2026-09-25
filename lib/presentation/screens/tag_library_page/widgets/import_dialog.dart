@@ -14,6 +14,7 @@ import '../../../adaptive/adaptive_presenter.dart';
 import '../../../adaptive/interaction_policy.dart';
 import '../../../providers/tag_library_page_provider.dart';
 import '../../../widgets/common/app_toast.dart';
+import '../../../widgets/common/surface_ink_well.dart';
 import '../../../widgets/common/translated_tag_text.dart';
 import '../../../widgets/library_export/library_selection_controller.dart';
 
@@ -161,16 +162,13 @@ class _ImportDialogState extends ConsumerState<ImportDialog> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         // 选择文件按钮
-        InkWell(
-          onTap: _isLoading ? null : _selectFile,
+        SurfaceInkWell(
           borderRadius: BorderRadius.circular(12),
+          color: theme.colorScheme.surfaceContainerHighest,
+          onTap: _isLoading ? null : _selectFile,
           child: Container(
             width: double.infinity,
             padding: const EdgeInsets.all(32),
-            decoration: BoxDecoration(
-              color: theme.colorScheme.surfaceContainerHighest,
-              borderRadius: BorderRadius.circular(12),
-            ),
             child: Column(
               children: [
                 if (_isLoading)

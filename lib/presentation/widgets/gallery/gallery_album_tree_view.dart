@@ -7,6 +7,7 @@ import '../../adaptive/interaction_policy.dart';
 import '../../../data/models/gallery/gallery_album.dart';
 import '../../../data/models/gallery/gallery_tree_drop_slot.dart';
 import '../common/context_menu_anchor.dart';
+import '../common/surface_ink_well.dart';
 import '../common/themed_input.dart';
 import '../../utils/gallery_drop_reader.dart';
 import 'gallery_sidebar.dart';
@@ -368,12 +369,10 @@ class _GalleryAllImagesItemState extends State<GalleryAllImagesItem> {
         cursor: SystemMouseCursors.click,
         onEnter: (_) => setState(() => _isHovering = true),
         onExit: (_) => setState(() => _isHovering = false),
-        child: AnimatedContainer(
-          duration: MediaQuery.disableAnimationsOf(context)
-              ? Duration.zero
-              : const Duration(milliseconds: 150),
-          margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-          decoration: BoxDecoration(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          child: SurfaceInkWell(
+            borderRadius: BorderRadius.circular(10),
             gradient: widget.isSelected
                 ? LinearGradient(
                     colors: [
@@ -390,11 +389,10 @@ class _GalleryAllImagesItemState extends State<GalleryAllImagesItem> {
                 : colors.onSurface.withValues(
                     alpha: _isHovering ? 0.09 : 0.045,
                   ),
-            borderRadius: BorderRadius.circular(10),
-          ),
-          child: InkWell(
+            // 未选中时悬停由底色表达
+            hoverColor: widget.isSelected ? null : Colors.transparent,
+            duration: const Duration(milliseconds: 150),
             onTap: widget.onTap,
-            borderRadius: BorderRadius.circular(10),
             child: ConstrainedBox(
               constraints: const BoxConstraints(minHeight: 48),
               child: Padding(

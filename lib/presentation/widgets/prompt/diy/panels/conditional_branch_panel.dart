@@ -3,6 +3,7 @@ import 'package:nai_launcher/core/utils/localization_extension.dart';
 
 import '../../../../adaptive/interaction_policy.dart';
 import '../../../../../data/models/prompt/conditional_branch.dart';
+import '../../../common/surface_ink_well.dart';
 import '../../../common/themed_slider.dart';
 import '../../../../widgets/common/themed_divider.dart';
 import '../../../../widgets/common/elevated_card.dart';
@@ -235,61 +236,51 @@ class _ConditionalBranchPanelState extends State<ConditionalBranchPanel> {
                 flex: branch.probability,
                 child: Tooltip(
                   message: '${branch.name}: $percent%',
-                  child: Material(
-                    color: Colors.transparent,
-                    child: InkWell(
-                      onTap: () => setState(() => _selectedIndex = index),
-                      child: AnimatedContainer(
-                        duration: MediaQuery.disableAnimationsOf(context)
-                            ? Duration.zero
-                            : const Duration(milliseconds: 200),
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            begin: Alignment.topCenter,
-                            end: Alignment.bottomCenter,
-                            colors: isSelected
-                                ? colors
-                                : [
-                                    colors[0].withValues(alpha: 0.6),
-                                    colors[1].withValues(alpha: 0.4),
-                                  ],
-                          ),
-                        ),
-                        child: Center(
-                          child: branch.probability >= 10
-                              ? Column(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Text(
-                                      branch.name,
-                                      style: const TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 11,
-                                        fontWeight: FontWeight.bold,
-                                        shadows: [
-                                          Shadow(
-                                            color: Colors.black26,
-                                            blurRadius: 2,
-                                          ),
-                                        ],
+                  child: SurfaceInkWell(
+                    borderRadius: BorderRadius.zero,
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: isSelected
+                          ? colors
+                          : [
+                              colors[0].withValues(alpha: 0.6),
+                              colors[1].withValues(alpha: 0.4),
+                            ],
+                    ),
+                    duration: const Duration(milliseconds: 200),
+                    onTap: () => setState(() => _selectedIndex = index),
+                    child: Center(
+                      child: branch.probability >= 10
+                          ? Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Text(
+                                  branch.name,
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.bold,
+                                    shadows: [
+                                      Shadow(
+                                        color: Colors.black26,
+                                        blurRadius: 2,
                                       ),
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                    Text(
-                                      '$percent%',
-                                      style: TextStyle(
-                                        color: Colors.white.withValues(
-                                          alpha: 0.9,
-                                        ),
-                                        fontSize: 9,
-                                        fontWeight: FontWeight.w500,
-                                      ),
-                                    ),
-                                  ],
-                                )
-                              : null,
-                        ),
-                      ),
+                                    ],
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                Text(
+                                  '$percent%',
+                                  style: TextStyle(
+                                    color: Colors.white.withValues(alpha: 0.9),
+                                    fontSize: 9,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ],
+                            )
+                          : null,
                     ),
                   ),
                 ),

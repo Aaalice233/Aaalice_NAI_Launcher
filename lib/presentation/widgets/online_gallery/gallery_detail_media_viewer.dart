@@ -4,6 +4,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 
 import '../common/image_viewport_surface.dart';
+import '../common/surface_ink_well.dart';
 import '../../../core/cache/gallery_image_request.dart';
 import '../../../core/cache/online_gallery_image_cache_manager.dart';
 import '../../../data/models/online_gallery/gallery_item.dart';
@@ -348,25 +349,21 @@ class GalleryDetailMediaViewer extends StatelessWidget {
                 index + 1,
                 viewModel.media.length,
               ),
-              child: InkWell(
-                onTap: () => actions.moveToMedia(index),
-                borderRadius: BorderRadius.circular(8),
-                child: AnimatedContainer(
-                  duration: MediaQuery.disableAnimationsOf(context)
-                      ? Duration.zero
-                      : const Duration(milliseconds: 140),
-                  width: 64,
-                  clipBehavior: Clip.antiAlias,
-                  decoration: BoxDecoration(
-                    color: theme.colorScheme.surfaceContainerLow,
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(
-                      color: selected
-                          ? theme.colorScheme.primary
-                          : theme.dividerColor.withValues(alpha: 0.45),
-                      width: selected ? 2 : 1,
-                    ),
+              child: SizedBox(
+                width: 64,
+                child: SurfaceInkWell(
+                  borderRadius: BorderRadius.circular(8),
+                  color: theme.colorScheme.surfaceContainerLow,
+                  side: BorderSide(
+                    color: selected
+                        ? theme.colorScheme.primary
+                        : theme.dividerColor.withValues(alpha: 0.45),
+                    width: selected ? 2 : 1,
                   ),
+                  clipBehavior: Clip.antiAlias,
+                  inkAboveChild: true,
+                  duration: const Duration(milliseconds: 140),
+                  onTap: () => actions.moveToMedia(index),
                   child: previewUrl.isEmpty
                       ? Icon(
                           capability.isVideo
