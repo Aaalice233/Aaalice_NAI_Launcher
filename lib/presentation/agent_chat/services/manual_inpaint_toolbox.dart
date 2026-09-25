@@ -196,7 +196,14 @@ class ManualInpaintToolbox implements InpaintDraftAuthoringHost {
   Future<int?> estimateAnlasForDraft(String draftId) async {
     final draft = await _repository.get(draftId);
     if (draft == null) return null;
-    final snapshot = draft.parameterSnapshot;
+    return _estimateDraftAnlas(
+      draft.parameterSnapshot,
+      await _repository.readMask(draftId),
+    );
+  }
+
+  /// 权限层按此实时估价，草稿里存的估价也必须走同一条路径，两道门禁才不会分歧。
+  int _estimateDraftAnlas(Map<String, dynamic> snapshot, Uint8List? mask) {
     final storedBatchSize = snapshot['_agentBatchSize'];
     final batchSize = storedBatchSize is int && storedBatchSize > 0
         ? storedBatchSize
@@ -204,7 +211,7 @@ class ManualInpaintToolbox implements InpaintDraftAuthoringHost {
     return estimateInfillAnlas(
       ImageParams.fromJson(snapshot),
       batchSize: batchSize,
-      maskImage: await _repository.readMask(draftId),
+      maskImage: mask,
       focused: readFocusedSnapshot(snapshot),
     );
   }
@@ -430,16 +437,11 @@ class ManualInpaintToolbox implements InpaintDraftAuthoringHost {
               ),
             );
       }
-      final params = ImageParams.fromJson(snapshot);
-      final batchSize = _ref.read(imagesPerRequestProvider);
-      snapshot['_agentBatchSize'] = batchSize;
+      snapshot['_agentBatchSize'] = _ref.read(imagesPerRequestProvider);
       final prepared = await _repository.prepare(
         sourceBytes: source,
         parameterSnapshot: snapshot,
-        estimatedAnlas: _estimateAnlas(
-          params.copyWith(action: ImageGenerationAction.infill),
-          batchSize,
-        ),
+        estimatedAnlas: _estimateDraftAnlas(snapshot, null),
       );
       createdDraftId = prepared.id;
       if (!isCurrentSession()) {
@@ -515,16 +517,23 @@ class ManualInpaintToolbox implements InpaintDraftAuthoringHost {
         await notifyDraftChanged(await _repository.cancel(id));
         return;
       }
-      final source =
-          result.outpaintSourceImage ??
-          result.inpaintSourceImage ??
-          originalSource;
+      final replacement = result.hasOutpaintChanges
+          ? result.outpaintSourceImage
+          : result.inpaintSourceImage;
+      final snapshot = replacement == null
+          ? current.parameterSnapshot
+          : applyManualInpaintEditorSource(
+              current.parameterSnapshot,
+              replacement,
+              isOutpaint: result.hasOutpaintChanges,
+              compressionApplied: result.compressionApplied,
+            );
       final ready = await _repository.complete(
         id,
-        sourceBytes: source,
+        sourceBytes: replacement ?? originalSource,
         maskBytes: mask,
-        parameterSnapshot: current.parameterSnapshot,
-        estimatedAnlas: current.estimatedAnlas,
+        parameterSnapshot: snapshot,
+        estimatedAnlas: _estimateDraftAnlas(snapshot, mask),
       );
       await notifyDraftChanged(ready);
     } on Object catch (error, stackTrace) {
@@ -601,10 +610,11 @@ class ManualInpaintToolbox implements InpaintDraftAuthoringHost {
         minContextMegaPixels: focused.minimumContextMegaPixels,
       )?.focusBounds.rect;
     }
-    final storedOutpaint = draft.parameterSnapshot['_agentSourceIsOutpaint'];
-    final sourceIsOutpaint =
-        storedOutpaint == true &&
-        NaiResolutionAdapter.isCompatible(width, height);
+    final sourceIsOutpaint = manualInpaintSourceIsOutpaint(
+      draft.parameterSnapshot,
+      width: width,
+      height: height,
+    );
 
     try {
       await handoff(
@@ -663,10 +673,16 @@ class ManualInpaintToolbox implements InpaintDraftAuthoringHost {
       if (mask == null) {
         return agentToolError('invalid_draft', 'Ready draft has no mask.');
       }
+      // isOutpaint 不进 JSON 快照，必须在这里从私有键还原。
       final params = ImageParams.fromJson(draft.parameterSnapshot).copyWith(
         action: ImageGenerationAction.infill,
         sourceImage: source,
         maskImage: mask,
+        isOutpaint: manualInpaintSourceIsOutpaint(
+          draft.parameterSnapshot,
+          width: draft.source.width,
+          height: draft.source.height,
+        ),
       );
       final batchSize = draft.parameterSnapshot['_agentBatchSize'] as int?;
       final submitting = await _repository.beginSubmission(id);
