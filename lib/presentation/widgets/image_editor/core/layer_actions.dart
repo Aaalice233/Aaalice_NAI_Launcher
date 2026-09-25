@@ -120,10 +120,9 @@ class MergeDownAction extends EditorAction {
     _lowerBefore = lower.captureContent();
     layers.runBatch(() {
       layers.removeLayer(upperId);
-      layers.replaceLayerBaseImageSync(
+      layers.replaceLayerBaseRasterSync(
         lowerId,
-        _merged.image.clone(),
-        _merged.bytes,
+        _merged.raster.retain(),
         offset: _merged.offset,
       );
       layers.setActiveLayer(lowerId);
@@ -202,10 +201,9 @@ class CutSelectionToLayerAction extends EditorAction {
     _sourceBefore?.dispose();
     _sourceBefore = source.captureContent();
     layers.runBatch(() {
-      layers.replaceLayerBaseImageSync(
+      layers.replaceLayerBaseRasterSync(
         sourceId,
-        _remainder.image.clone(),
-        _remainder.bytes,
+        _remainder.raster.retain(),
         offset: _remainder.offset,
       );
       layers.insertLayerFromData(

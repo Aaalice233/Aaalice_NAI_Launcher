@@ -273,7 +273,7 @@ class EditorFrameController extends ChangeNotifier
         }
         final after = layer.isMask
             ? await _bakeMaskContent(layer, frame)
-            : await _cropImageContent(layer, frame);
+            : _cropImageContent(layer, frame);
         changes.add(
           CropToFrameLayerChange(
             layerId: layer.id,
@@ -292,18 +292,17 @@ class EditorFrameController extends ChangeNotifier
   }
 
   /// 图片层只保留框内像素；原图层同时收缩到原图与框的交集，成为新的原图区域
-  Future<LayerContentSnapshot> _cropImageContent(Layer layer, Rect frame) async {
+  LayerContentSnapshot _cropImageContent(Layer layer, Rect frame) {
     final source = sourceRect;
     final keep = layer.id == session.sourceLayerId && source != null
         ? source.intersect(frame)
         : frame;
-    final cropped = await LayerPatchBaker.cropTo(layer, keep);
+    final cropped = LayerPatchBaker.cropTo(layer, keep);
     if (cropped == null) {
       return const LayerContentSnapshot.empty();
     }
-    return LayerContentSnapshot(
-      baseImage: cropped.image,
-      baseImageBytes: cropped.bytes,
+    return LayerContentSnapshot.shared(
+      baseRaster: cropped.raster,
       baseImageOffset: cropped.offset,
     );
   }

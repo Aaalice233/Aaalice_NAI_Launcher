@@ -77,8 +77,9 @@ class _Harness {
   }
 
   Future<img.Image> materializedSource() async {
+    final sourceImage = await source.resolveBaseImageBytes();
     final result = await session.processingService.materializeOutpaint(
-      sourceImage: source.baseImageBytes!,
+      sourceImage: sourceImage!,
       frame: frames.virtualFrame!,
     );
     return img.decodePng(result.sourceImage)!;

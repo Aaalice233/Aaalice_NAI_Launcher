@@ -86,6 +86,7 @@ class ImageExporterNew {
   }) async {
     final visibleLayers = maskLayers.where((layer) => layer.visible).toList();
     if (preferCpuHardEdgeExport && forceHardEdges && selectionPath == null) {
+      await _encodeBaseImages(visibleLayers);
       final input = _tryBuildHardEdgeMaskInput(
         visibleLayers,
         region,
@@ -141,8 +142,10 @@ class ImageExporterNew {
     Rect region, {
     List<Rect> additionalMaskRects = const [],
   }) async {
+    final visibleLayers = maskLayers.where((layer) => layer.visible).toList();
+    await _encodeBaseImages(visibleLayers);
     final input = _tryBuildHardEdgeMaskInput(
-      maskLayers.where((layer) => layer.visible),
+      visibleLayers,
       region,
       additionalMaskRects,
     );
@@ -184,6 +187,7 @@ class ImageExporterNew {
     Layer layer,
     Rect region,
   ) async {
+    await _encodeBaseImages([layer]);
     final input = _tryBuildHardEdgeMaskInput([layer], region, const []);
     if (input != null) {
       return HardEdgeMaskExporter.exportRasterAsync(input);
@@ -258,6 +262,14 @@ class ImageExporterNew {
       additionalRects: List<Rect>.from(additionalMaskRects),
       orderedOperations: operations,
     );
+  }
+
+  /// CPU 硬边导出读取底图的 PNG 字节，同步写回的底图到这里才编码
+  static Future<void> _encodeBaseImages(Iterable<Layer> layers) {
+    return Future.wait([
+      for (final layer in layers)
+        if (layer.hasBaseImage) layer.resolveBaseImageBytes(),
+    ]);
   }
 
   static bool _hasEraser(Layer layer) =>

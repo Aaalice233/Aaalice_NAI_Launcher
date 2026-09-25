@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
@@ -15,6 +17,7 @@ import 'layer_commands.dart';
 import 'layer_move_controller.dart';
 import 'layer_role_policy.dart';
 import 'mask_paint_style.dart';
+import 'pixel_readback_queue.dart';
 import 'selection_manager.dart';
 import 'stroke_manager.dart';
 import 'tool_manager.dart';
@@ -60,6 +63,9 @@ class EditorState extends ChangeNotifier {
 
   /// 移动工具的拖动与微移
   late final LayerMoveController layerMover = LayerMoveController(this);
+
+  /// 填充等需要先回读像素的编辑；导出与撤销前须等它清空
+  final PixelReadbackQueue pixelReadbacks = PixelReadbackQueue();
 
   LayerRolePolicy _rolePolicy = const LayerRolePolicy.disabled();
   LayerRolePolicy get rolePolicy => _rolePolicy;
@@ -121,6 +127,7 @@ class EditorState extends ChangeNotifier {
   bool _isNotifying = false;
 
   bool _isDisposed = false;
+  bool get isDisposed => _isDisposed;
   bool _strokePreviewFrameScheduled = false;
   bool _pendingStrokePreviewChange = false;
   int _batchDepth = 0;
@@ -462,12 +469,7 @@ class EditorState extends ChangeNotifier {
       return true;
     }
 
-    // 撤销绘画操作
-    final result = historyManager.undo(this);
-    if (result) {
-      notifyListeners();
-    }
-    return result;
+    return _afterPendingEdits(historyManager.undo);
   }
 
   bool redo() {
@@ -478,12 +480,20 @@ class EditorState extends ChangeNotifier {
       return true;
     }
 
-    // 重做绘画操作
-    final result = historyManager.redo(this);
-    if (result) {
-      notifyListeners();
+    return _afterPendingEdits(historyManager.redo);
+  }
+
+  /// 排队中的编辑先落地，撤销与重做才对应用户操作的先后
+  bool _afterPendingEdits(bool Function(EditorState state) step) {
+    bool apply() {
+      final result = step(this);
+      if (result) notifyListeners();
+      return result;
     }
-    return result;
+
+    if (pixelReadbacks.isIdle) return apply();
+    unawaited(pixelReadbacks.run(() async => apply()));
+    return true;
   }
 
   bool get canUndo {
@@ -727,6 +737,7 @@ class EditorState extends ChangeNotifier {
   @override
   void dispose() {
     _isDisposed = true;
+    pixelReadbacks.close();
     _pendingStrokePreviewChange = false;
     _magicWandHandler = null;
     _frameCommands = null;

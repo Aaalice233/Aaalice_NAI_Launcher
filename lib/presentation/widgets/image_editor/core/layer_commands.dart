@@ -113,20 +113,14 @@ class LayerCommands {
   bool canMergeDown(Layer layer) =>
       _policy.mergeTargetFor(_layers, layer) != null;
 
-  Future<bool> mergeDown(Layer layer) async {
+  bool mergeDown(Layer layer) {
     final lower = _policy.mergeTargetFor(_layers, layer);
     if (lower == null) return false;
-    final version = _layers.snapshotVersion;
-    final merged = await LayerPatchBaker.mergeDown(
+    final merged = LayerPatchBaker.mergeDown(
       upper: layer,
       lower: lower,
       extentLock: _policy.extentLockFor(lower),
     );
-    if (!_isStillCurrent(version) ||
-        _policy.mergeTargetFor(_layers, layer)?.id != lower.id) {
-      merged.dispose();
-      return false;
-    }
     _state.historyManager.execute(
       MergeDownAction(upperId: layer.id, lowerId: lower.id, merged: merged),
       _state,
@@ -174,21 +168,17 @@ class LayerCommands {
   }
 
   /// 剪切选区像素到紧贴当前图层上方的新图层，新图层与原图层同一角色
-  Future<bool> cutSelectionToNewLayer({required String layerName}) async {
+  bool cutSelectionToNewLayer({required String layerName}) {
     final selection = _state.selectionPath;
     final source = _layers.activeLayer;
     if (!canEditSelectionPixels || selection == null || source == null) {
       return false;
     }
-    final version = _layers.snapshotVersion;
-    final extracted = await LayerPatchBaker.extractRegion(
-      source,
-      region: selection,
-    );
+    final extracted = LayerPatchBaker.extractRegion(source, region: selection);
     if (extracted == null) return false;
     final BakedLayerImage remainder;
     try {
-      remainder = await LayerPatchBaker.eraseRegion(
+      remainder = LayerPatchBaker.eraseRegion(
         source,
         region: selection,
         extentLock: _policy.extentLockFor(source),
@@ -196,11 +186,6 @@ class LayerCommands {
     } on Object {
       extracted.dispose();
       rethrow;
-    }
-    if (!_isStillCurrent(version) || _state.selectionPath != selection) {
-      extracted.dispose();
-      remainder.dispose();
-      return false;
     }
     _state.historyManager.execute(
       CutSelectionToLayerAction(
@@ -214,9 +199,8 @@ class LayerCommands {
           opacity: source.opacity,
           blendMode: source.blendMode,
           role: source.role,
-          content: LayerContentSnapshot(
-            baseImage: extracted.image,
-            baseImageBytes: extracted.bytes,
+          content: LayerContentSnapshot.shared(
+            baseRaster: extracted.raster,
             baseImageOffset: extracted.offset,
           ),
         ),
@@ -228,22 +212,17 @@ class LayerCommands {
   }
 
   /// 清除当前图层在选区内的像素，选区保留
-  Future<bool> clearSelectionPixels() async {
+  bool clearSelectionPixels() {
     final selection = _state.selectionPath;
     final layer = _layers.activeLayer;
     if (!canEditSelectionPixels || selection == null || layer == null) {
       return false;
     }
-    final version = _layers.snapshotVersion;
-    final erased = await LayerPatchBaker.eraseRegion(
+    final erased = LayerPatchBaker.eraseRegion(
       layer,
       region: selection,
       extentLock: _policy.extentLockFor(layer),
     );
-    if (!_isStillCurrent(version)) {
-      erased.dispose();
-      return false;
-    }
     _state.historyManager.execute(
       ReplaceLayerImageAction.baked(
         layerId: layer.id,
@@ -254,7 +233,4 @@ class LayerCommands {
     );
     return true;
   }
-
-  /// 异步烘焙期间文档被改动过，结果已不对应当前内容
-  bool _isStillCurrent(int version) => _layers.snapshotVersion == version;
 }

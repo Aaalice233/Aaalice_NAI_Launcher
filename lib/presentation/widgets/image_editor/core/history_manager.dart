@@ -6,6 +6,7 @@ import '../../../../core/utils/app_logger.dart';
 import 'editor_state.dart';
 import '../layers/layer.dart';
 import '../layers/layer_patch_baker.dart';
+import '../layers/layer_raster.dart';
 import '../layers/layer_role.dart';
 import '../layers/model3d_layer_data.dart';
 
@@ -241,62 +242,70 @@ class SelectionChange {
 
 /// 替换图层图像操作（用于模糊、仿制图章等全图处理）
 ///
-/// 使用预解码的 [ui.Image] 保证 execute/undo 同步完成，
-/// 避免异步解码导致 UI 闪白或撤销失效。
+/// 新底图在构造前已就绪，execute/undo 都是同步的整体替换。
 class ReplaceLayerImageAction extends EditorAction {
   final String layerId;
-  final Uint8List newImageBytes;
 
   /// 新底图在文档中的位置（渲染区域的左上角）
   final Offset newImageOffset;
   final String actionDescription;
   final SelectionChange? selectionChange;
 
-  /// 预解码的新图像（由调用者传入，确保同步 execute）
-  Image? _newImage;
+  LayerRaster? _newPixels;
 
   /// 保存的旧内容（用于同步 undo）
   LayerContentSnapshot? _previousContent;
 
+  /// [newImage] 的所有权移交给操作
   ReplaceLayerImageAction({
-    required this.layerId,
-    required this.newImageBytes,
+    required String layerId,
+    required Uint8List? newImageBytes,
     required Image newImage,
-    this.newImageOffset = Offset.zero,
-    this.actionDescription = 'Replace Layer Image',
-    this.selectionChange,
-  }) : _newImage = newImage;
+    Offset newImageOffset = Offset.zero,
+    String actionDescription = 'Replace Layer Image',
+    SelectionChange? selectionChange,
+  }) : this._(
+         layerId: layerId,
+         pixels: LayerRaster(newImage, bytes: newImageBytes),
+         newImageOffset: newImageOffset,
+         actionDescription: actionDescription,
+         selectionChange: selectionChange,
+       );
 
   /// [pixels] 的所有权移交给操作
-  factory ReplaceLayerImageAction.baked({
+  ReplaceLayerImageAction.baked({
     required String layerId,
     required BakedLayerImage pixels,
     required String actionDescription,
     SelectionChange? selectionChange,
-  }) {
-    return ReplaceLayerImageAction(
-      layerId: layerId,
-      newImageBytes: pixels.bytes,
-      newImage: pixels.image,
-      newImageOffset: pixels.offset,
-      actionDescription: actionDescription,
-      selectionChange: selectionChange,
-    );
-  }
+  }) : this._(
+         layerId: layerId,
+         pixels: pixels.raster,
+         newImageOffset: pixels.offset,
+         actionDescription: actionDescription,
+         selectionChange: selectionChange,
+       );
+
+  ReplaceLayerImageAction._({
+    required this.layerId,
+    required LayerRaster pixels,
+    required this.newImageOffset,
+    required this.actionDescription,
+    required this.selectionChange,
+  }) : _newPixels = pixels;
 
   @override
   void execute(EditorState state) {
     final layer = state.layerManager.getLayerById(layerId);
-    final newImage = _newImage;
-    if (layer == null || newImage == null) return;
+    final newPixels = _newPixels;
+    if (layer == null || newPixels == null) return;
 
     _previousContent?.dispose();
     _previousContent = layer.captureContent();
 
-    state.layerManager.replaceLayerBaseImageSync(
+    state.layerManager.replaceLayerBaseRasterSync(
       layerId,
-      newImage.clone(),
-      newImageBytes,
+      newPixels.retain(),
       offset: newImageOffset,
     );
     final change = selectionChange;
@@ -318,8 +327,8 @@ class ReplaceLayerImageAction extends EditorAction {
 
   @override
   void dispose() {
-    _newImage?.dispose();
-    _newImage = null;
+    _newPixels?.release();
+    _newPixels = null;
     _previousContent?.dispose();
     _previousContent = null;
   }

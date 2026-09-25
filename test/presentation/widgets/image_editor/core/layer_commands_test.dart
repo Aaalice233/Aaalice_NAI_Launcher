@@ -118,7 +118,7 @@ void main() {
           );
           upper.opacity = 0.5;
 
-          expect(await state.layerCommands.mergeDown(upper), isTrue);
+          expect(state.layerCommands.mergeDown(upper), isTrue);
 
           expect(layers.layers, [lower]);
           expect(lower.contentBounds, const Rect.fromLTWH(0, 0, 12, 8));
@@ -194,7 +194,7 @@ void main() {
           final selection = Path()..addRect(const Rect.fromLTWH(0, 0, 8, 8));
           state.setSelection(selection);
 
-          final cut = await state.layerCommands.cutSelectionToNewLayer(
+          final cut = state.layerCommands.cutSelectionToNewLayer(
             layerName: 'cut',
           );
 
@@ -240,7 +240,7 @@ void main() {
         await fillLayer(layers, layer, size: const Size(16, 16), color: _red);
         state.setSelection(Path()..addRect(const Rect.fromLTWH(4, 4, 4, 4)));
 
-        expect(await state.layerCommands.clearSelectionPixels(), isTrue);
+        expect(state.layerCommands.clearSelectionPixels(), isTrue);
 
         expect(state.selectionPath, isNotNull);
         var pixels = await LayerPixels.of(
@@ -264,7 +264,7 @@ void main() {
       state.setSelection(Path()..addRect(const Rect.fromLTWH(0, 0, 4, 4)));
 
       expect(state.layerCommands.canEditSelectionPixels, isFalse);
-      expect(await state.layerCommands.clearSelectionPixels(), isFalse);
+      expect(state.layerCommands.clearSelectionPixels(), isFalse);
 
       layer.addStroke(_stroke());
       expect(state.layerCommands.canEditSelectionPixels, isTrue);
@@ -320,7 +320,7 @@ void main() {
         expect(state.layerCommands.canDelete(session.source), isFalse);
         expect(state.rolePolicy.canClear(session.source), isFalse);
         expect(state.layerCommands.canMergeDown(session.source), isFalse);
-        expect(await state.layerCommands.mergeDown(session.source), isFalse);
+        expect(state.layerCommands.mergeDown(session.source), isFalse);
       });
     });
 
@@ -405,12 +405,12 @@ void main() {
           Path()..addRect(const Rect.fromLTWH(-8, -8, 12, 12)),
         );
 
-        expect(await state.layerCommands.clearSelectionPixels(), isTrue);
+        expect(state.layerCommands.clearSelectionPixels(), isTrue);
         expect(session.source.contentBounds, const Rect.fromLTWH(0, 0, 16, 16));
 
         state.setSelection(Path()..addRect(const Rect.fromLTWH(8, 8, 16, 16)));
         expect(
-          await state.layerCommands.cutSelectionToNewLayer(layerName: 'cut'),
+          state.layerCommands.cutSelectionToNewLayer(layerName: 'cut'),
           isTrue,
         );
         expect(session.source.contentBounds, const Rect.fromLTWH(0, 0, 16, 16));

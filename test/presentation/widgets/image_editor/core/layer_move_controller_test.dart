@@ -29,7 +29,7 @@ void main() {
       expect(layer.movePreview?.offset, const Offset(10, 4));
       expect(layer.contentBounds, const Rect.fromLTWH(0, 0, 8, 8));
 
-      await mover.end();
+      mover.end();
 
       expect(layer.movePreview, isNull);
       expect(layer.contentBounds, const Rect.fromLTWH(10, 4, 8, 8));
@@ -48,7 +48,7 @@ void main() {
 
       state.layerMover.begin(const Offset(4, 4));
       state.layerMover.update(const Offset(4.3, 3.8));
-      await state.layerMover.end();
+      state.layerMover.end();
 
       expect(layer.movePreview, isNull);
       expect(state.historyManager.canUndo, isFalse);
@@ -90,7 +90,7 @@ void main() {
           const Rect.fromLTWH(12, 0, 4, 4),
         );
 
-        await mover.end();
+        mover.end();
 
         expect(layer.movePreview, isNull);
         expect(state.selectionManager.isDragging, isFalse);
@@ -136,7 +136,7 @@ void main() {
       state.setSelection(Path()..addRect(const Rect.fromLTWH(4, 4, 4, 4)));
       expect(state.layerMover.begin(const Offset(5, 5)), isTrue);
       state.layerMover.update(const Offset(11, 5));
-      await state.layerMover.end();
+      state.layerMover.end();
 
       expect(source.contentBounds, const Rect.fromLTWH(0, 0, 8, 8));
       final pixels = await LayerPixels.of(source, _canvas);
@@ -158,16 +158,17 @@ void main() {
     });
   });
 
-  testWidgets('nudges queue up and commit in order', (tester) async {
+  testWidgets('back-to-back nudges each commit on top of the previous one', (
+    tester,
+  ) async {
     await tester.runAsync(() async {
       final (state, layer) = await _stateWithLayer();
       state.setSelection(Path()..addRect(const Rect.fromLTWH(0, 0, 4, 4)));
 
-      await Future.wait([
-        state.layerMover.nudge(const Offset(1, 0)),
-        state.layerMover.nudge(const Offset(1, 0)),
-      ]);
+      state.layerMover.nudge(const Offset(1, 0));
+      state.layerMover.nudge(const Offset(1, 0));
 
+      expect(state.historyManager.undoStackSize, 2);
       expect(state.selectionPath!.getBounds(), const Rect.fromLTWH(2, 0, 4, 4));
       final pixels = await LayerPixels.of(layer, _canvas);
       expect(pixels.alphaAt(0, 1), 0);
@@ -176,8 +177,35 @@ void main() {
       expect(pixels.at(5, 1), [255, 0, 0, 255]);
 
       state.clearSelection();
-      await state.layerMover.nudge(const Offset(0, 10));
+      state.layerMover.nudge(const Offset(0, 10));
       expect(layer.contentBounds.top, 10);
+    });
+  });
+
+  testWidgets('a new drag can start right after a selection move is released', (
+    tester,
+  ) async {
+    await tester.runAsync(() async {
+      final (state, layer) = await _stateWithLayer();
+      state.setSelection(Path()..addRect(const Rect.fromLTWH(0, 0, 4, 4)));
+      final mover = state.layerMover;
+
+      expect(mover.begin(const Offset(1, 1)), isTrue);
+      mover.update(const Offset(5, 1));
+      mover.end();
+      expect(mover.begin(const Offset(5, 1)), isTrue);
+      mover.update(const Offset(9, 1));
+      mover.end();
+
+      expect(state.historyManager.undoStackSize, 2);
+      var pixels = await LayerPixels.of(layer, _canvas);
+      expect(pixels.at(9, 1), [255, 0, 0, 255]);
+      expect(pixels.alphaAt(1, 1), 0);
+
+      state.undo();
+      pixels = await LayerPixels.of(layer, _canvas);
+      expect(pixels.at(5, 1), [255, 0, 0, 255]);
+      expect(pixels.alphaAt(9, 1), 0);
     });
   });
 }

@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import '../../../../core/utils/app_logger.dart';
 import '../core/history_manager.dart';
 import 'layer.dart';
+import 'layer_raster.dart';
 import 'layer_role.dart';
 import 'snapshot_cache.dart';
 
@@ -241,13 +242,26 @@ class LayerManager extends ChangeNotifier {
     Uint8List? bytes, {
     Offset offset = Offset.zero,
   }) {
+    replaceLayerBaseRasterSync(
+      layerId,
+      LayerRaster(image, bytes: bytes),
+      offset: offset,
+    );
+  }
+
+  /// 同步替换底图并清空笔画；[raster] 的一份持有移交给图层
+  void replaceLayerBaseRasterSync(
+    String layerId,
+    LayerRaster raster, {
+    Offset offset = Offset.zero,
+  }) {
     final layer = getLayerById(layerId);
     if (layer == null) {
-      image.dispose();
+      raster.release();
       return;
     }
     layer.clearStrokes();
-    layer.setBaseImageSync(image, bytes, offset: offset);
+    layer.setBaseRaster(raster, offset: offset);
     _markContentChanged();
   }
 

@@ -885,6 +885,7 @@ class ImageEditorWorkspaceState extends State<ImageEditorWorkspace> {
         ),
       );
 
+      await _state.pixelReadbacks.idle;
       final pasteBackCanvas = _isInpaintMode
           ? _frameController.pasteBackCanvas
           : null;

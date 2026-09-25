@@ -89,9 +89,13 @@ class ImageEditorEffectsController {
       );
       if (!context.mounted || !session.accepts(epoch)) return;
       final image = await session.processingService.decode(result.bytes);
+      if (!context.mounted || !session.accepts(epoch)) {
+        image.dispose();
+        return;
+      }
       final BakedLayerImage baked;
       try {
-        baked = await LayerPatchBaker.replaceRegion(
+        baked = LayerPatchBaker.replaceRegion(
           layer,
           patch: image,
           patchRect: region,
@@ -99,10 +103,6 @@ class ImageEditorEffectsController {
         );
       } finally {
         image.dispose();
-      }
-      if (!context.mounted || !session.accepts(epoch)) {
-        baked.dispose();
-        return;
       }
       editorState.historyManager.execute(
         ReplaceLayerImageAction.baked(

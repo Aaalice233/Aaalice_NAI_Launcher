@@ -7,6 +7,7 @@ import 'package:uuid/uuid.dart';
 import '../../../../core/utils/app_logger.dart';
 import '../../../../core/utils/hard_edge_mask_exporter.dart';
 import '../core/history_manager.dart';
+import 'layer_raster.dart';
 import 'layer_role.dart';
 import 'model3d_layer_data.dart';
 
@@ -98,29 +99,43 @@ class LayerContentSnapshot {
   /// [baseImage] 的所有权移交给快照，由 [dispose] 释放
   LayerContentSnapshot({
     ui.Image? baseImage,
-    this.baseImageBytes,
+    Uint8List? baseImageBytes,
+    Offset baseImageOffset = Offset.zero,
+    List<StrokeData> strokes = const [],
+  }) : this.shared(
+         baseRaster: baseImage == null
+             ? null
+             : LayerRaster(baseImage, bytes: baseImageBytes),
+         baseImageOffset: baseImageOffset,
+         strokes: strokes,
+       );
+
+  /// 快照占用 [baseRaster] 的一份持有，由 [dispose] 归还
+  LayerContentSnapshot.shared({
+    LayerRaster? baseRaster,
     this.baseImageOffset = Offset.zero,
     List<StrokeData> strokes = const [],
-  }) : _baseImage = baseImage,
+  }) : _baseRaster = baseRaster,
        strokes = List.unmodifiable(strokes);
 
   const LayerContentSnapshot.empty()
-    : _baseImage = null,
-      baseImageBytes = null,
+    : _baseRaster = null,
       baseImageOffset = Offset.zero,
       strokes = const [];
 
-  final ui.Image? _baseImage;
-  final Uint8List? baseImageBytes;
+  final LayerRaster? _baseRaster;
   final Offset baseImageOffset;
   final List<StrokeData> strokes;
 
-  bool get hasBaseImage => _baseImage != null;
+  bool get hasBaseImage => _baseRaster != null;
 
-  ui.Image? cloneBaseImage() => _baseImage?.clone();
+  Uint8List? get baseImageBytes => _baseRaster?.bytes;
+
+  /// 为恢复出的图层另占一份底图
+  LayerRaster? retainBaseRaster() => _baseRaster?.retain();
 
   void dispose() {
-    _baseImage?.dispose();
+    _baseRaster?.release();
   }
 }
 
@@ -194,11 +209,12 @@ class Layer {
   final List<StrokeData> _strokes = [];
   List<StrokeData> get strokes => List.unmodifiable(_strokes);
 
-  /// 导入的基础图像（作为图层底图）
-  ui.Image? _baseImage;
-  ui.Image? get baseImage => _baseImage;
-  Uint8List? _baseImageBytes;
-  Uint8List? get baseImageBytes => _baseImageBytes;
+  /// 图层底图
+  LayerRaster? _base;
+  ui.Image? get baseImage => _base?.image;
+
+  /// 底图的 PNG 字节；同步写回的底图没有现成字节，需要时用 [resolveBaseImageBytes]
+  Uint8List? get baseImageBytes => _base?.bytes;
   Offset _baseImageOffset = Offset.zero;
   Offset get baseImageOffset => _baseImageOffset;
 
@@ -277,20 +293,25 @@ class Layer {
   bool get isMask => role == LayerRole.mask;
 
   /// 是否有基础图像
-  bool get hasBaseImage => _baseImage != null;
+  bool get hasBaseImage => _base != null;
 
   /// 是否为 3D 模型图层
   bool get hasModel3d => model3d != null;
 
   /// 是否有内容
-  bool get hasContent => _baseImage != null || _strokes.isNotEmpty;
+  bool get hasContent => _base != null || _strokes.isNotEmpty;
 
   /// 待处理的笔画数量
   int get pendingStrokeCount => _strokes.length - _rasterizedStrokeCount;
 
-  /// [origin] 是导出区域在文档中的左上角，输出为区域局部坐标
+  /// 底图的 PNG 字节，尚未编码时现编并缓存；没有底图时为 null
+  Future<Uint8List?> resolveBaseImageBytes() =>
+      _base?.encodePng() ?? Future<Uint8List?>.value();
+
+  /// [origin] 是导出区域在文档中的左上角，输出为区域局部坐标；
+  /// 底图尚未编码时返回 null，调用方应先 [resolveBaseImageBytes]
   HardEdgeMaskBaseImage? toHardEdgeBaseMask({Offset origin = Offset.zero}) {
-    final bytes = _baseImageBytes;
+    final bytes = _base?.bytes;
     if (bytes == null) {
       return null;
     }
@@ -351,9 +372,7 @@ class Layer {
       final frame = await codec.getNextFrame();
 
       // 成功解码后才更新状态
-      _baseImage?.dispose();
-      _baseImage = frame.image;
-      _baseImageBytes = bytes;
+      _swapBase(LayerRaster(frame.image, bytes: bytes));
       _baseImageOffset = Offset.zero;
       _invalidateRasterState();
     } catch (e) {
@@ -366,33 +385,22 @@ class Layer {
 
   /// 从 ui.Image 设置基础图像
   void setBaseImageFromImage(ui.Image image) {
-    _baseImage?.dispose();
-    _baseImage = image;
+    _swapBase(LayerRaster(image));
     _baseImageOffset = Offset.zero;
     _invalidateRasterState();
   }
 
-  /// 同步设置基础图像（包含已解码图像和原始字节）
-  ///
-  /// 用于 [ReplaceLayerImageAction] 等需要同步执行的操作。
-  /// 调用者负责确保 [image] 不在其他地方共享/释放。
-  void setBaseImageSync(
-    ui.Image image,
-    Uint8List? bytes, {
-    Offset offset = Offset.zero,
-  }) {
-    _baseImage?.dispose();
-    _baseImage = image;
-    _baseImageBytes = bytes;
+  /// 同步替换底图，接管 [raster] 的一份持有
+  void setBaseRaster(LayerRaster raster, {Offset offset = Offset.zero}) {
+    _swapBase(raster);
     _baseImageOffset = offset;
     _invalidateRasterState();
   }
 
-  /// 快照持有底图的独立克隆，调用者负责释放
+  /// 快照与图层共用底图，调用者负责释放快照
   LayerContentSnapshot captureContent() {
-    return LayerContentSnapshot(
-      baseImage: _baseImage?.clone(),
-      baseImageBytes: _baseImageBytes,
+    return LayerContentSnapshot.shared(
+      baseRaster: _base?.retain(),
       baseImageOffset: _baseImageOffset,
       strokes: _strokes,
     );
@@ -400,9 +408,7 @@ class Layer {
 
   /// 恢复为快照内容；快照本身不被消费，可重复用于撤销/重做
   void restoreContent(LayerContentSnapshot snapshot) {
-    _baseImage?.dispose();
-    _baseImage = snapshot.cloneBaseImage();
-    _baseImageBytes = snapshot.baseImageBytes;
+    _swapBase(snapshot.retainBaseRaster());
     _baseImageOffset = snapshot.baseImageOffset;
     _strokes
       ..clear()
@@ -413,11 +419,16 @@ class Layer {
 
   /// 清除基础图像
   void clearBaseImage() {
-    _baseImage?.dispose();
-    _baseImage = null;
-    _baseImageBytes = null;
+    _swapBase(null);
     _baseImageOffset = Offset.zero;
     _invalidateRasterState();
+  }
+
+  /// 新底图的持有先到位再归还旧的，两者是同一份时不会被提前释放
+  void _swapBase(LayerRaster? next) {
+    final previous = _base;
+    _base = next;
+    previous?.release();
   }
 
   void setBaseImageOffset(Offset offset) {
@@ -479,12 +490,12 @@ class Layer {
   }
 
   void _drawBaseImage(Canvas canvas, Paint paint) {
-    final baseImage = _baseImage;
-    if (baseImage == null) {
+    final base = _base;
+    if (base == null) {
       return;
     }
 
-    canvas.drawImage(baseImage, _baseImageOffset, paint);
+    canvas.drawImage(base.image, _baseImageOffset, paint);
   }
 
   /// 添加笔画
@@ -610,7 +621,7 @@ class Layer {
         .any((s) => s.isEraser);
     final hasAnyEraser = _strokes.any((s) => s.isEraser);
     final eraserNeedsSaveLayer =
-        hasEraserInPending || (hasAnyEraser && _baseImage != null);
+        hasEraserInPending || (hasAnyEraser && _base != null);
 
     final appliesLayerPaint = layerPaint != null && _hasLayerEffects;
     final needsLayer = appliesLayerPaint || eraserNeedsSaveLayer;
@@ -629,7 +640,7 @@ class Layer {
         _compositeBounds.topLeft,
         imagePaint,
       );
-    } else if (hasAnyEraser && _baseImage != null) {
+    } else if (hasAnyEraser && _base != null) {
       // eraser + baseImage: 必须在 saveLayer 中先绘制 base 再绘制全部笔画，
       // 这样 BlendMode.clear 才能正确擦除 base 的像素。
       _drawBaseImage(canvas, imagePaint);
@@ -746,31 +757,42 @@ class Layer {
 
   /// 把图层像素中位于 [region] 的部分渲染成 [region] 大小的图像
   Future<ui.Image> renderToImage(Rect region) async {
-    final recorder = ui.PictureRecorder();
-    final canvas = Canvas(recorder);
-    canvas.translate(-region.left, -region.top);
-    renderPixels(canvas);
-    final picture = recorder.endRecording();
+    final picture = _recordPixels(region);
     try {
-      return await picture.toImage(
-        region.width.round(),
-        region.height.round(),
-      );
+      return await picture.toImage(region.width.round(), region.height.round());
     } finally {
       picture.dispose();
     }
   }
 
+  /// 同 [renderToImage]，结果当帧可用
+  ui.Image renderToImageSync(Rect region) {
+    final picture = _recordPixels(region);
+    try {
+      return picture.toImageSync(region.width.round(), region.height.round());
+    } finally {
+      picture.dispose();
+    }
+  }
+
+  ui.Picture _recordPixels(Rect region) {
+    final recorder = ui.PictureRecorder();
+    final canvas = Canvas(recorder);
+    canvas.translate(-region.left, -region.top);
+    renderPixels(canvas);
+    return recorder.endRecording();
+  }
+
   /// 计算图层边界
   Rect _calculateBounds() {
-    final baseImage = _baseImage;
-    final baseBounds = baseImage == null
+    final base = _base;
+    final baseBounds = base == null
         ? null
         : Rect.fromLTWH(
             _baseImageOffset.dx,
             _baseImageOffset.dy,
-            baseImage.width.toDouble(),
-            baseImage.height.toDouble(),
+            base.width.toDouble(),
+            base.height.toDouble(),
           );
     final strokeBounds = _calculateStrokeBounds();
     if (baseBounds == null) return strokeBounds;
@@ -986,7 +1008,7 @@ class Layer {
       }
 
       final hasAnyEraser = _strokes.any((s) => s.isEraser);
-      final usesStrokeRaster = !(hasAnyEraser && _baseImage != null);
+      final usesStrokeRaster = !(hasAnyEraser && _base != null);
       // 光栅缓存没覆盖全部笔画时（过大或并发修改）不能拼出完整合成图
       if (usesStrokeRaster &&
           _strokes.isNotEmpty &&
@@ -1161,7 +1183,7 @@ class Layer {
   /// [mode] 变换模式
   void transformContent(Size oldSize, Size newSize, CanvasResizeMode mode) {
     if (oldSize == newSize) return;
-    if (_strokes.isEmpty && _baseImage == null) return;
+    if (_strokes.isEmpty && _base == null) return;
 
     switch (mode) {
       case CanvasResizeMode.crop:
@@ -1214,14 +1236,12 @@ class Layer {
     _rasterizedImage = null;
     _compositedCache?.dispose();
     _compositedCache = null;
-    _baseImage?.dispose();
-    _baseImage = null;
+    _swapBase(null);
     _thumbnail?.dispose();
     _thumbnail = null;
 
     // 清理笔画数据
     _strokes.clear();
-    _baseImageBytes = null;
     _baseImageOffset = Offset.zero;
 
     // 重置计数器和标志

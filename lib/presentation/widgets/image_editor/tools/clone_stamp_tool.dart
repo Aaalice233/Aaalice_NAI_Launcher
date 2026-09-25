@@ -51,8 +51,6 @@ class CloneStampTool extends EditorTool {
 
   _CloneGesture? _gesture;
 
-  bool _isApplying = false;
-
   void setSize(double value) {
     _size = value.clamp(1.0, 200.0);
   }
@@ -184,7 +182,6 @@ class CloneStampTool extends EditorTool {
 
     final points = List<Offset>.from(state.currentStrokePoints);
     state.endStroke();
-    if (_isApplying) return;
     _applyClone(state, points);
   }
 
@@ -196,49 +193,47 @@ class CloneStampTool extends EditorTool {
     super.onPointerCancel(state);
   }
 
-  Future<void> _applyClone(EditorState state, List<Offset> points) async {
-    final activeLayer = state.layerManager.activeLayer;
-    if (activeLayer == null || activeLayer.locked) return;
-    // 等待图层渲染期间可能重设源点或切换工具，合成只用此刻定格的取样参数
-    final sample = _liveSample?.frozen();
+  // 写回图像的录制内容自带一份快照引用，之后重设源点或切换工具释放快照不影响这一笔
+  void _applyClone(EditorState state, List<Offset> points) {
+    final layer = state.layerManager.activeLayer;
+    if (layer == null || layer.locked) return;
+    final sample = _liveSample;
     if (sample == null) return;
-    _isApplying = true;
 
-    try {
-      final region = state.frame;
+    final frame = state.frame;
+    final dirty = _dabBounds(points, sample.size).intersect(frame);
+    if (dirty.isEmpty) return;
 
-      final layerImg = await activeLayer.renderToImage(region);
-
-      final result = _compositeCloneSync(layerImg, sample, points, region);
-      layerImg.dispose();
-
-      final BakedLayerImage baked;
-      try {
-        baked = await LayerPatchBaker.replaceRegion(
-          activeLayer,
-          patch: result,
-          patchRect: region,
-          extentLock: state.rolePolicy.extentLockFor(activeLayer),
-        );
-      } finally {
-        result.dispose();
-      }
-
-      state.historyManager.execute(
-        ReplaceLayerImageAction.baked(
-          layerId: activeLayer.id,
-          pixels: baked,
-          actionDescription: 'Clone Stamp',
-        ),
-        state,
-      );
-    } finally {
-      sample.snapshot.dispose();
-      _isApplying = false;
-    }
+    final baked = LayerPatchBaker.paintOver(
+      layer,
+      dirtyRect: dirty,
+      extentLock: state.rolePolicy.extentLockFor(layer),
+      paint: (canvas) => _drawClonePoints(canvas, sample, points),
+    );
+    state.historyManager.execute(
+      ReplaceLayerImageAction.baked(
+        layerId: layer.id,
+        pixels: baked,
+        actionDescription: 'Clone Stamp',
+      ),
+      state,
+    );
   }
 
-  /// 当前取样参数；快照是工具持有的实例，跨异步等待使用前须 [_CloneSample.frozen]
+  static Rect _dabBounds(List<Offset> points, double size) {
+    var bounds = Rect.fromCenter(
+      center: points.first,
+      width: size,
+      height: size,
+    );
+    for (final point in points.skip(1)) {
+      bounds = bounds.expandToInclude(
+        Rect.fromCenter(center: point, width: size, height: size),
+      );
+    }
+    return bounds;
+  }
+
   _CloneSample? get _liveSample {
     final snapshot = _canvasSnapshot;
     final offset = _sourceOffset;
@@ -250,27 +245,6 @@ class CloneStampTool extends EditorTool {
       size: _size,
       opacity: _opacity,
     );
-  }
-
-  /// 同步合成克隆结果，输出 [region] 大小的图像
-  ui.Image _compositeCloneSync(
-    ui.Image layerImage,
-    _CloneSample sample,
-    List<Offset> points,
-    Rect region,
-  ) {
-    final rec = ui.PictureRecorder();
-    final c = Canvas(rec);
-    c.translate(-region.left, -region.top);
-
-    c.drawImage(layerImage, region.topLeft, Paint());
-
-    _drawClonePoints(c, sample, points);
-
-    final pic = rec.endRecording();
-    final img = pic.toImageSync(region.width.toInt(), region.height.toInt());
-    pic.dispose();
-    return img;
   }
 
   /// 在画布上绘制克隆点（含插值，共用于实时预览和最终应用）
@@ -403,15 +377,6 @@ class _CloneSample {
   final Offset offset;
   final double size;
   final double opacity;
-
-  /// 改持快照副本，用完由调用方释放
-  _CloneSample frozen() => _CloneSample(
-    snapshot: snapshot.clone(),
-    origin: origin,
-    offset: offset,
-    size: size,
-    opacity: opacity,
-  );
 }
 
 /// 源点开关与状态；宿主面板只在切换工具时重建，画布点按引起的变化靠监听刷新

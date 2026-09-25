@@ -239,17 +239,13 @@ class MagicWandController extends ChangeNotifier {
     );
     final BakedLayerImage baked;
     try {
-      baked = await LayerPatchBaker.replaceRegion(
+      baked = LayerPatchBaker.replaceRegion(
         target,
         patch: image,
         patchRect: region,
       );
     } finally {
       image.dispose();
-    }
-    if (!context.mounted || !session.accepts(epoch)) {
-      baked.dispose();
-      return;
     }
     editorState.historyManager.execute(
       ReplaceLayerImageAction.baked(
@@ -307,9 +303,13 @@ class MagicWandController extends ChangeNotifier {
       height: height,
     );
     final image = await session.processingService.decode(bytes);
+    if (!context.mounted || !session.accepts(epoch)) {
+      image.dispose();
+      return;
+    }
     final BakedLayerImage baked;
     try {
-      baked = await LayerPatchBaker.replaceRegion(
+      baked = LayerPatchBaker.replaceRegion(
         target,
         patch: image,
         patchRect: region,
@@ -317,10 +317,6 @@ class MagicWandController extends ChangeNotifier {
       );
     } finally {
       image.dispose();
-    }
-    if (!context.mounted || !session.accepts(epoch)) {
-      baked.dispose();
-      return;
     }
     editorState.historyManager.execute(
       ReplaceLayerImageAction.baked(
