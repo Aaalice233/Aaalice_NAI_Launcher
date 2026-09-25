@@ -368,7 +368,7 @@ class ImageCardCornerActionRail extends StatelessWidget {
     children: [
       for (final action in pinnedActions)
         ImageCardOverlayActionButton(config: action, extent: _extent),
-      ?favorite,
+      if (favorite case final favorite?) favorite,
     ],
   );
 }
