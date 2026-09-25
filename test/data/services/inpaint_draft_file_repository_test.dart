@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
@@ -7,6 +8,7 @@ import 'package:image/image.dart' as img;
 import 'package:nai_launcher/data/models/inpaint/inpaint_draft.dart';
 import 'package:nai_launcher/data/models/inpaint/inpaint_draft_status.dart';
 import 'package:nai_launcher/data/services/inpaint_draft_file_repository.dart';
+import 'package:nai_launcher/data/services/inpaint_draft_file_store.dart';
 import 'package:nai_launcher/data/services/inpaint_draft_repository.dart';
 import 'package:path/path.dart' as p;
 
@@ -286,6 +288,60 @@ void main() {
     },
   );
 
+  test(
+    'readers wait for a completing draft instead of seeing its new mask early',
+    () async {
+      final store = _PausingFileStore(pauseAfter: 'mask.image');
+      final gated = InpaintDraftFileRepository(
+        rootDirectory: root,
+        idGenerator: ids.next,
+        clock: () => DateTime.utc(2026, 3, 14, 12),
+        fileStore: store,
+      );
+      final draft = await _prepare(gated, width: 10, height: 6);
+      await gated.beginEditing(draft.id);
+      await gated.complete(
+        draft.id,
+        sourceBytes: _png(width: 10, height: 6, value: 60),
+        maskBytes: _png(width: 10, height: 6, value: 200),
+        parameterSnapshot: const {'prompt': 'first pass'},
+        estimatedAnlas: 2,
+      );
+      await gated.reEdit(draft.id);
+
+      final newMask = _png(width: 10, height: 6, value: 120);
+      final paused = store.arm();
+      final completing = gated.complete(
+        draft.id,
+        sourceBytes: _png(width: 10, height: 6, value: 80),
+        maskBytes: newMask,
+        parameterSnapshot: const {'prompt': 'second pass'},
+        estimatedAnlas: 3,
+      );
+      await paused;
+
+      var settled = false;
+      final reading = gated.get(draft.id).whenComplete(() => settled = true);
+      final maskReading = gated.readMask(draft.id);
+      for (var turn = 0; turn < 5; turn++) {
+        await Future<void>.delayed(Duration.zero);
+      }
+      expect(
+        settled,
+        isFalse,
+        reason: 'the new mask is on disk but metadata still describes the old',
+      );
+
+      store.release();
+      final ready = await completing;
+      final seen = await reading;
+      final seenMask = await maskReading;
+      expect(seen!.status, InpaintDraftStatus.ready);
+      expect(seen.mask!.toJson(), ready.mask!.toJson());
+      expect(seenMask, newMask);
+    },
+  );
+
   test('detects tampering and never accepts caller-controlled paths', () async {
     final draft = await _prepare(repository);
     final source = File(p.join(root.path, draft.id, 'source.image'));
@@ -341,6 +397,32 @@ Uint8List _png({int width = 8, int height = 8, int value = 128}) {
   final image = img.Image(width: width, height: height);
   img.fill(image, color: img.ColorRgb8(value, value, value));
   return Uint8List.fromList(img.encodePng(image));
+}
+
+class _PausingFileStore extends InpaintDraftFileStore {
+  _PausingFileStore({required this.pauseAfter});
+
+  final String pauseAfter;
+  Completer<void>? _paused;
+  Completer<void>? _release;
+
+  Future<void> arm() {
+    _paused = Completer<void>();
+    _release = Completer<void>();
+    return _paused!.future;
+  }
+
+  void release() => _release?.complete();
+
+  @override
+  Future<void> atomicWriteBytes(File target, List<int> bytes) async {
+    await super.atomicWriteBytes(target, bytes);
+    final paused = _paused;
+    if (paused == null || p.basename(target.path) != pauseAfter) return;
+    _paused = null;
+    paused.complete();
+    await _release!.future;
+  }
 }
 
 class _IdSequence {

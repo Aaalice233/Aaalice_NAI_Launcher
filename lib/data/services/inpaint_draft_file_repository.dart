@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
@@ -18,10 +19,11 @@ class InpaintDraftFileRepository implements InpaintDraftRepository {
     required Directory rootDirectory,
     InpaintDraftIdGenerator? idGenerator,
     InpaintDraftClock? clock,
+    InpaintDraftFileStore? fileStore,
   }) : _rootDirectory = rootDirectory,
        _idGenerator = idGenerator ?? const Uuid().v4,
        _clock = clock ?? DateTime.now,
-       _fileStore = InpaintDraftFileStore();
+       _fileStore = fileStore ?? InpaintDraftFileStore();
 
   static const _metadataFileName = 'metadata.json';
   static const _sourceFileName = 'source.image';
@@ -30,6 +32,10 @@ class InpaintDraftFileRepository implements InpaintDraftRepository {
   static final _uuidPattern = RegExp(
     r'^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$',
   );
+
+  // Assets are replaced before metadata commits, so each draft's access is
+  // queued, keyed by directory to span repository instances.
+  static final Map<String, Future<void>> _pendingDraftOperations = {};
 
   final Directory _rootDirectory;
   final InpaintDraftIdGenerator _idGenerator;
@@ -83,8 +89,12 @@ class InpaintDraftFileRepository implements InpaintDraftRepository {
   }
 
   @override
-  Future<InpaintDraft?> get(String id) async {
+  Future<InpaintDraft?> get(String id) {
     _validateId(id);
+    return _serialized(id, () => _load(id));
+  }
+
+  Future<InpaintDraft?> _load(String id) async {
     final directory = _draftDirectory(id);
     if (!await directory.exists()) return null;
     final metadataFile = File(p.join(directory.path, _metadataFileName));
@@ -157,7 +167,11 @@ class InpaintDraftFileRepository implements InpaintDraftRepository {
   }
 
   @override
-  Future<Uint8List> readSource(String id) async {
+  Future<Uint8List> readSource(String id) {
+    return _serialized(id, () => _readSource(id));
+  }
+
+  Future<Uint8List> _readSource(String id) async {
     final draft = await _requireDraft(id);
     final file = File(
       p.join(_draftDirectory(id).path, _sourceFileNameFor(draft.status)),
@@ -169,7 +183,11 @@ class InpaintDraftFileRepository implements InpaintDraftRepository {
   }
 
   @override
-  Future<Uint8List?> readMask(String id) async {
+  Future<Uint8List?> readMask(String id) {
+    return _serialized(id, () => _readMask(id));
+  }
+
+  Future<Uint8List?> _readMask(String id) async {
     final draft = await _requireDraft(id);
     if (draft.mask == null) return null;
     final file = File(p.join(_draftDirectory(id).path, _maskFileName));
@@ -180,19 +198,40 @@ class InpaintDraftFileRepository implements InpaintDraftRepository {
   }
 
   @override
-  Future<InpaintDraft> beginEditing(String id) async {
-    final draft = await _requireDraft(id);
-    _requireStatus(draft, 'begin editing', {InpaintDraftStatus.prepared});
-    return _save(
-      draft.copyWith(
-        status: InpaintDraftStatus.editing,
-        updatedAt: _clock().toUtc(),
-      ),
-    );
+  Future<InpaintDraft> beginEditing(String id) {
+    return _serialized(id, () async {
+      final draft = await _requireDraft(id);
+      _requireStatus(draft, 'begin editing', {InpaintDraftStatus.prepared});
+      return _save(
+        draft.copyWith(
+          status: InpaintDraftStatus.editing,
+          updatedAt: _clock().toUtc(),
+        ),
+      );
+    });
   }
 
   @override
   Future<InpaintDraft> complete(
+    String id, {
+    required Uint8List sourceBytes,
+    required Uint8List maskBytes,
+    required Map<String, dynamic> parameterSnapshot,
+    required num estimatedAnlas,
+  }) {
+    return _serialized(
+      id,
+      () => _complete(
+        id,
+        sourceBytes: sourceBytes,
+        maskBytes: maskBytes,
+        parameterSnapshot: parameterSnapshot,
+        estimatedAnlas: estimatedAnlas,
+      ),
+    );
+  }
+
+  Future<InpaintDraft> _complete(
     String id, {
     required Uint8List sourceBytes,
     required Uint8List maskBytes,
@@ -235,32 +274,40 @@ class InpaintDraftFileRepository implements InpaintDraftRepository {
   }
 
   @override
-  Future<InpaintDraft> cancel(String id) async {
-    final draft = await _requireDraft(id);
-    _requireStatus(draft, 'cancel', {
-      InpaintDraftStatus.prepared,
-      InpaintDraftStatus.editing,
-      InpaintDraftStatus.ready,
-      InpaintDraftStatus.failed,
-    });
-    if (draft.status == InpaintDraftStatus.ready ||
-        draft.status == InpaintDraftStatus.failed) {
-      final directory = _draftDirectory(id);
-      await _fileStore.atomicWriteBytes(
-        File(p.join(directory.path, _sourceFileName)),
-        await File(p.join(directory.path, _readySourceFileName)).readAsBytes(),
+  Future<InpaintDraft> cancel(String id) {
+    return _serialized(id, () async {
+      final draft = await _requireDraft(id);
+      _requireStatus(draft, 'cancel', {
+        InpaintDraftStatus.prepared,
+        InpaintDraftStatus.editing,
+        InpaintDraftStatus.ready,
+        InpaintDraftStatus.failed,
+      });
+      if (draft.status == InpaintDraftStatus.ready ||
+          draft.status == InpaintDraftStatus.failed) {
+        final directory = _draftDirectory(id);
+        await _fileStore.atomicWriteBytes(
+          File(p.join(directory.path, _sourceFileName)),
+          await File(
+            p.join(directory.path, _readySourceFileName),
+          ).readAsBytes(),
+        );
+      }
+      return _save(
+        draft.copyWith(
+          status: InpaintDraftStatus.cancelled,
+          updatedAt: _clock().toUtc(),
+        ),
       );
-    }
-    return _save(
-      draft.copyWith(
-        status: InpaintDraftStatus.cancelled,
-        updatedAt: _clock().toUtc(),
-      ),
-    );
+    });
   }
 
   @override
-  Future<InpaintDraft> reEdit(String id) async {
+  Future<InpaintDraft> reEdit(String id) {
+    return _serialized(id, () => _reEdit(id));
+  }
+
+  Future<InpaintDraft> _reEdit(String id) async {
     final draft = await _requireDraft(id);
     _requireStatus(draft, 're-edit', {
       InpaintDraftStatus.editing,
@@ -290,111 +337,136 @@ class InpaintDraftFileRepository implements InpaintDraftRepository {
       );
     }
 
-    final sourceBytes = await readSource(id);
+    final sourceBytes = await _readSource(id);
     final newDraft = await prepare(
       sourceBytes: sourceBytes,
       parameterSnapshot: draft.parameterSnapshot,
       estimatedAnlas: draft.estimatedAnlas,
     );
-    final maskBytes = await readMask(id);
-    if (maskBytes != null) {
-      await _fileStore.atomicWriteBytes(
-        File(p.join(_draftDirectory(newDraft.id).path, _maskFileName)),
-        maskBytes,
+    final maskBytes = await _readMask(id);
+    return _serialized(newDraft.id, () async {
+      if (maskBytes != null) {
+        await _fileStore.atomicWriteBytes(
+          File(p.join(_draftDirectory(newDraft.id).path, _maskFileName)),
+          maskBytes,
+        );
+      }
+      final editingDraft = InpaintDraft(
+        id: newDraft.id,
+        status: InpaintDraftStatus.editing,
+        source: newDraft.source,
+        mask: draft.mask,
+        parameterSnapshot: newDraft.parameterSnapshot,
+        estimatedAnlas: newDraft.estimatedAnlas,
+        createdAt: newDraft.createdAt,
+        updatedAt: _clock().toUtc(),
+        reEditOfDraftId: draft.id,
       );
-    }
-    final editingDraft = InpaintDraft(
-      id: newDraft.id,
-      status: InpaintDraftStatus.editing,
-      source: newDraft.source,
-      mask: draft.mask,
-      parameterSnapshot: newDraft.parameterSnapshot,
-      estimatedAnlas: newDraft.estimatedAnlas,
-      createdAt: newDraft.createdAt,
-      updatedAt: _clock().toUtc(),
-      reEditOfDraftId: draft.id,
-    );
-    return _save(editingDraft);
+      return _save(editingDraft);
+    });
   }
 
   @override
-  Future<InpaintDraft> markSubmitted(String id) async {
-    final draft = await _requireDraft(id);
-    _requireStatus(draft, 'mark submitted', {InpaintDraftStatus.submitting});
-    try {
-      return await _save(
-        draft.copyWith(
-          status: InpaintDraftStatus.submitted,
-          updatedAt: _clock().toUtc(),
-        ),
-      );
-    } finally {
-      _activeSubmissions.remove(id);
-    }
+  Future<InpaintDraft> markSubmitted(String id) {
+    return _serialized(id, () async {
+      final draft = await _requireDraft(id);
+      _requireStatus(draft, 'mark submitted', {InpaintDraftStatus.submitting});
+      try {
+        return await _save(
+          draft.copyWith(
+            status: InpaintDraftStatus.submitted,
+            updatedAt: _clock().toUtc(),
+          ),
+        );
+      } finally {
+        _activeSubmissions.remove(id);
+      }
+    });
   }
 
   @override
-  Future<InpaintDraft> beginSubmission(String id) async {
-    final draft = await _requireDraft(id);
-    _requireStatus(draft, 'begin submission', {InpaintDraftStatus.ready});
-    _activeSubmissions.add(id);
-    try {
-      return await _save(
-        draft.copyWith(
-          status: InpaintDraftStatus.submitting,
-          updatedAt: _clock().toUtc(),
-          clearFailureMessage: true,
-        ),
-      );
-    } on Object {
-      _activeSubmissions.remove(id);
-      rethrow;
-    }
+  Future<InpaintDraft> beginSubmission(String id) {
+    return _serialized(id, () async {
+      final draft = await _requireDraft(id);
+      _requireStatus(draft, 'begin submission', {InpaintDraftStatus.ready});
+      _activeSubmissions.add(id);
+      try {
+        return await _save(
+          draft.copyWith(
+            status: InpaintDraftStatus.submitting,
+            updatedAt: _clock().toUtc(),
+            clearFailureMessage: true,
+          ),
+        );
+      } on Object {
+        _activeSubmissions.remove(id);
+        rethrow;
+      }
+    });
   }
 
   @override
-  Future<InpaintDraft> restoreReady(
-    String id, {
-    required String message,
-  }) async {
-    final draft = await _requireDraft(id);
-    _requireStatus(draft, 'restore ready', {InpaintDraftStatus.submitting});
-    final normalizedMessage = message.trim();
-    if (normalizedMessage.isEmpty) {
-      throw ArgumentError.value(message, 'message', 'Must not be empty');
-    }
-    try {
-      return await _save(
+  Future<InpaintDraft> restoreReady(String id, {required String message}) {
+    return _serialized(id, () async {
+      final draft = await _requireDraft(id);
+      _requireStatus(draft, 'restore ready', {InpaintDraftStatus.submitting});
+      final normalizedMessage = message.trim();
+      if (normalizedMessage.isEmpty) {
+        throw ArgumentError.value(message, 'message', 'Must not be empty');
+      }
+      try {
+        return await _save(
+          draft.copyWith(
+            status: InpaintDraftStatus.ready,
+            updatedAt: _clock().toUtc(),
+            failureMessage: normalizedMessage,
+          ),
+        );
+      } finally {
+        _activeSubmissions.remove(id);
+      }
+    });
+  }
+
+  @override
+  Future<InpaintDraft> markFailed(String id, {required String message}) {
+    return _serialized(id, () async {
+      final draft = await _requireDraft(id);
+      _requireStatus(draft, 'mark failed', {InpaintDraftStatus.ready});
+      final normalizedMessage = message.trim();
+      if (normalizedMessage.isEmpty) {
+        throw ArgumentError.value(message, 'message', 'Must not be empty');
+      }
+      return _save(
         draft.copyWith(
-          status: InpaintDraftStatus.ready,
+          status: InpaintDraftStatus.failed,
           updatedAt: _clock().toUtc(),
           failureMessage: normalizedMessage,
         ),
       );
-    } finally {
-      _activeSubmissions.remove(id);
-    }
+    });
   }
 
-  @override
-  Future<InpaintDraft> markFailed(String id, {required String message}) async {
-    final draft = await _requireDraft(id);
-    _requireStatus(draft, 'mark failed', {InpaintDraftStatus.ready});
-    final normalizedMessage = message.trim();
-    if (normalizedMessage.isEmpty) {
-      throw ArgumentError.value(message, 'message', 'Must not be empty');
+  // Queued work must use the private unlocked helpers; a public call on the
+  // same draft would wait on itself.
+  Future<T> _serialized<T>(String id, Future<T> Function() operation) async {
+    final key = p.canonicalize(_draftDirectory(id).path);
+    final previous = _pendingDraftOperations[key] ?? Future<void>.value();
+    final completer = Completer<void>();
+    _pendingDraftOperations[key] = completer.future;
+    try {
+      await previous;
+      return await operation();
+    } finally {
+      completer.complete();
+      if (identical(_pendingDraftOperations[key], completer.future)) {
+        _pendingDraftOperations.remove(key);
+      }
     }
-    return _save(
-      draft.copyWith(
-        status: InpaintDraftStatus.failed,
-        updatedAt: _clock().toUtc(),
-        failureMessage: normalizedMessage,
-      ),
-    );
   }
 
   Future<InpaintDraft> _requireDraft(String id) async {
-    return await get(id) ?? (throw InpaintDraftNotFoundException(id));
+    return await _load(id) ?? (throw InpaintDraftNotFoundException(id));
   }
 
   Future<InpaintDraft> _save(InpaintDraft draft) async {
