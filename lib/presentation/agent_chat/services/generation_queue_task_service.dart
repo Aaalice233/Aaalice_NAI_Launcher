@@ -71,9 +71,11 @@ class GenerationQueueTaskService {
       negativePrompt: negativePrompt,
       nSamples: 1,
     );
+    // Agent 提交方必须显式给出聚焦状态，否则执行时会继承生成页残留的聚焦选区
     final generationSnapshot = ReplicationTaskGenerationSnapshot.encode(
       queuedParams,
       batchSize: prepared.batchSize,
+      focused: const QueuedFocusedInpaint.disabled(),
     );
     final snapshotBytes = utf8.encode(jsonEncode(generationSnapshot)).length;
     final existingSnapshotBytes = _ref

@@ -20,36 +20,52 @@ class ColorPickerTool extends EditorTool {
     Offset canvasPoint,
     EditorState state,
   ) async {
-    final canvasWidth = state.canvasSize.width.toInt();
-    final canvasHeight = state.canvasSize.height.toInt();
-
-    // 检查是否在画布范围内
-    if (canvasPoint.dx < 0 ||
-        canvasPoint.dy < 0 ||
-        canvasPoint.dx >= canvasWidth ||
-        canvasPoint.dy >= canvasHeight) {
+    // 只在取景框内取色，与送出的内容保持一致
+    if (!state.frame.contains(canvasPoint)) {
       return null;
     }
 
+    final centerX = canvasPoint.dx.floor();
+    final centerY = canvasPoint.dy.floor();
+
     // 优先使用缓存快照（同步采样）
-    final cachedColor = state.layerManager.getPixelColor(
-      canvasPoint.dx.toInt(),
-      canvasPoint.dy.toInt(),
-    );
+    final cachedColor = state.layerManager.getPixelColor(centerX, centerY);
     if (cachedColor != null) {
       return cachedColor;
     }
 
     // 回退到异步采样（渲染小区域）
     const sampleRegionSize = 5;
-    final centerX = canvasPoint.dx.toInt();
-    final centerY = canvasPoint.dy.toInt();
-    const halfRegion = sampleRegionSize ~/ 2;
+    final region = await _renderSampleRegion(
+      state,
+      centerX,
+      centerY,
+      sampleRegionSize ~/ 2,
+    );
+    return region?.colorAt(centerX, centerY);
+  }
 
-    final regionLeft = (centerX - halfRegion).clamp(0, canvasWidth - 1);
-    final regionTop = (centerY - halfRegion).clamp(0, canvasHeight - 1);
-    final regionRight = (centerX + halfRegion + 1).clamp(0, canvasWidth);
-    final regionBottom = (centerY + halfRegion + 1).clamp(0, canvasHeight);
+  /// 渲染以 (centerX, centerY) 为中心、裁到取景框内的合成像素块
+  static Future<_SampleRegion?> _renderSampleRegion(
+    EditorState state,
+    int centerX,
+    int centerY,
+    int halfRegion,
+  ) async {
+    final frame = state.frame;
+    final frameLeft = frame.left.round();
+    final frameTop = frame.top.round();
+    final frameRight = frame.right.round();
+    final frameBottom = frame.bottom.round();
+    if (frameRight <= frameLeft || frameBottom <= frameTop) return null;
+
+    final regionLeft = (centerX - halfRegion).clamp(frameLeft, frameRight - 1);
+    final regionTop = (centerY - halfRegion).clamp(frameTop, frameBottom - 1);
+    final regionRight = (centerX + halfRegion + 1).clamp(frameLeft, frameRight);
+    final regionBottom = (centerY + halfRegion + 1).clamp(
+      frameTop,
+      frameBottom,
+    );
     final regionWidth = regionRight - regionLeft;
     final regionHeight = regionBottom - regionTop;
 
@@ -58,7 +74,10 @@ class ColorPickerTool extends EditorTool {
     final recorder = ui.PictureRecorder();
     final canvas = Canvas(recorder);
 
+    // 平移画布，使采样区域位于原点
     canvas.translate(-regionLeft.toDouble(), -regionTop.toDouble());
+
+    // 裁剪到采样区域，避免绘制不必要的内容
     canvas.clipRect(
       Rect.fromLTWH(
         regionLeft.toDouble(),
@@ -68,15 +87,14 @@ class ColorPickerTool extends EditorTool {
       ),
     );
 
-    // 绘制白色背景
-    canvas.drawRect(
-      Rect.fromLTWH(0, 0, canvasWidth.toDouble(), canvasHeight.toDouble()),
-      Paint()..color = Colors.white,
-    );
+    // 绘制白色背景（与画布显示一致）
+    canvas.drawRect(frame, Paint()..color = Colors.white);
 
-    state.layerManager.renderAll(canvas, state.canvasSize);
+    // 所见即所得：始终渲染所有可见图层的合成结果
+    state.layerManager.renderAll(canvas);
 
     final picture = recorder.endRecording();
+    // 只生成小区域的图像，而非整个画布
     final image = await picture.toImage(regionWidth, regionHeight);
 
     final byteData = await image.toByteData(format: ui.ImageByteFormat.rawRgba);
@@ -85,19 +103,13 @@ class ColorPickerTool extends EditorTool {
 
     if (byteData == null) return null;
 
-    final localX = centerX - regionLeft;
-    final localY = centerY - regionTop;
-    final offset = (localY * regionWidth + localX) * 4;
-
-    if (offset >= 0 && offset + 3 < byteData.lengthInBytes) {
-      final r = byteData.getUint8(offset);
-      final g = byteData.getUint8(offset + 1);
-      final b = byteData.getUint8(offset + 2);
-      final a = byteData.getUint8(offset + 3);
-      return Color.fromARGB(a, r, g, b);
-    }
-
-    return null;
+    return _SampleRegion(
+      bytes: byteData,
+      left: regionLeft,
+      top: regionTop,
+      width: regionWidth,
+      height: regionHeight,
+    );
   }
 
   /// 取样范围
@@ -261,8 +273,8 @@ class ColorPickerTool extends EditorTool {
     final positionChanged = _previewPosition != screenPosition;
     _previewPosition = screenPosition;
 
-    final centerX = screenPosition.dx.toInt();
-    final centerY = screenPosition.dy.toInt();
+    final centerX = screenPosition.dx.floor();
+    final centerY = screenPosition.dy.floor();
 
     // 1. 尝试从区域缓存同步采样（最快，O(1)）
     if (_source == ColorPickerSource.allLayers) {
@@ -340,7 +352,7 @@ class ColorPickerTool extends EditorTool {
       await state.layerManager.updateRegionalSnapshot(
         centerX,
         centerY,
-        state.canvasSize,
+        state.frame,
       );
     });
   }
@@ -371,7 +383,7 @@ class ColorPickerTool extends EditorTool {
       final cacheFuture = currentState.layerManager.updateRegionalSnapshot(
         centerX,
         centerY,
-        currentState.canvasSize,
+        currentState.frame,
       );
 
       final color = await sampleFuture;
@@ -394,8 +406,8 @@ class ColorPickerTool extends EditorTool {
     // 因为缓存的是合成后的所有图层
     if (_source != ColorPickerSource.allLayers) return null;
 
-    final centerX = canvasPoint.dx.toInt();
-    final centerY = canvasPoint.dy.toInt();
+    final centerX = canvasPoint.dx.floor();
+    final centerY = canvasPoint.dy.floor();
 
     // 从缓存获取放大镜像素
     final pixels = state.layerManager.getMagnifierPixels(
@@ -464,95 +476,32 @@ class ColorPickerTool extends EditorTool {
   /// 在指定画布坐标位置采样颜色
   /// 所见即所得：采样所有可见图层合成后的实际显示颜色
   Future<Color?> _sampleColorAt(Offset canvasPoint, EditorState state) async {
-    final canvasWidth = state.canvasSize.width.toInt();
-    final canvasHeight = state.canvasSize.height.toInt();
-
-    // 检查是否在画布范围内
-    if (canvasPoint.dx < 0 ||
-        canvasPoint.dy < 0 ||
-        canvasPoint.dx >= canvasWidth ||
-        canvasPoint.dy >= canvasHeight) {
+    // 检查是否在取景框范围内
+    if (!state.frame.contains(canvasPoint)) {
       _magnifierPixels = null;
       return null;
     }
 
-    final centerX = canvasPoint.dx.toInt();
-    final centerY = canvasPoint.dy.toInt();
-    const halfRegion = _sampleRegionSize ~/ 2;
+    final centerX = canvasPoint.dx.floor();
+    final centerY = canvasPoint.dy.floor();
 
-    // 计算采样区域的边界（裁剪到画布范围）
-    final regionLeft = (centerX - halfRegion).clamp(0, canvasWidth - 1);
-    final regionTop = (centerY - halfRegion).clamp(0, canvasHeight - 1);
-    final regionRight = (centerX + halfRegion + 1).clamp(0, canvasWidth);
-    final regionBottom = (centerY + halfRegion + 1).clamp(0, canvasHeight);
-    final regionWidth = regionRight - regionLeft;
-    final regionHeight = regionBottom - regionTop;
-
-    if (regionWidth <= 0 || regionHeight <= 0) {
-      _magnifierPixels = null;
-      return null;
-    }
-
-    // 创建小区域的临时图像
-    final recorder = ui.PictureRecorder();
-    final canvas = Canvas(recorder);
-
-    // 平移画布，使采样区域位于原点
-    canvas.translate(-regionLeft.toDouble(), -regionTop.toDouble());
-
-    // 裁剪到采样区域，避免绘制不必要的内容
-    canvas.clipRect(
-      Rect.fromLTWH(
-        regionLeft.toDouble(),
-        regionTop.toDouble(),
-        regionWidth.toDouble(),
-        regionHeight.toDouble(),
-      ),
+    final region = await _renderSampleRegion(
+      state,
+      centerX,
+      centerY,
+      _sampleRegionSize ~/ 2,
     );
-
-    // 绘制白色背景（与画布显示一致）
-    canvas.drawRect(
-      Rect.fromLTWH(0, 0, canvasWidth.toDouble(), canvasHeight.toDouble()),
-      Paint()..color = Colors.white,
-    );
-
-    // 所见即所得：始终渲染所有可见图层的合成结果
-    state.layerManager.renderAll(canvas, state.canvasSize);
-
-    final picture = recorder.endRecording();
-    // 只生成小区域的图像，而非整个画布
-    final image = await picture.toImage(regionWidth, regionHeight);
-
-    // 获取像素颜色
-    final byteData = await image.toByteData(format: ui.ImageByteFormat.rawRgba);
-    image.dispose();
-    picture.dispose();
-
-    if (byteData == null) {
+    if (region == null) {
       _magnifierPixels = null;
       return null;
     }
 
-    // 计算光标在采样区域内的相对位置
-    final localX = centerX - regionLeft;
-    final localY = centerY - regionTop;
     const halfGrid = _magnifierGridSize ~/ 2;
 
     // 获取放大镜区域的像素
     _magnifierPixels = List.generate(_magnifierGridSize, (row) {
       return List.generate(_magnifierGridSize, (col) {
-        final px = (localX + col - halfGrid).clamp(0, regionWidth - 1);
-        final py = (localY + row - halfGrid).clamp(0, regionHeight - 1);
-        final offset = (py * regionWidth + px) * 4;
-
-        if (offset >= 0 && offset + 3 < byteData.lengthInBytes) {
-          final r = byteData.getUint8(offset);
-          final g = byteData.getUint8(offset + 1);
-          final b = byteData.getUint8(offset + 2);
-          final a = byteData.getUint8(offset + 3);
-          return Color.fromARGB(a, r, g, b);
-        }
-        return Colors.transparent;
+        return region.colorAt(centerX + col - halfGrid, centerY + row - halfGrid);
       });
     });
 
@@ -1029,4 +978,34 @@ class _SyncSampleResult {
   final List<List<Color>> pixels;
 
   _SyncSampleResult({required this.color, required this.pixels});
+}
+
+/// 异步渲染出的一小块 RGBA 像素，坐标为文档坐标
+class _SampleRegion {
+  const _SampleRegion({
+    required this.bytes,
+    required this.left,
+    required this.top,
+    required this.width,
+    required this.height,
+  });
+
+  final ByteData bytes;
+  final int left;
+  final int top;
+  final int width;
+  final int height;
+
+  /// 超出像素块的坐标取最近的边缘像素
+  Color colorAt(int x, int y) {
+    final px = (x - left).clamp(0, width - 1);
+    final py = (y - top).clamp(0, height - 1);
+    final offset = (py * width + px) * 4;
+    return Color.fromARGB(
+      bytes.getUint8(offset + 3),
+      bytes.getUint8(offset),
+      bytes.getUint8(offset + 1),
+      bytes.getUint8(offset + 2),
+    );
+  }
 }

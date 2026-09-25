@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
@@ -114,8 +113,8 @@ class RegionalSnapshotCache {
 /// 画布快照管理器
 /// 负责管理画布快照缓存，用于拾色器等需要同步采样的功能
 class CanvasSnapshotManager {
-  /// 渲染回调（由 LayerManager 提供）
-  final void Function(Canvas canvas, Size canvasSize) renderCallback;
+  /// 以文档坐标渲染所有图层（由 LayerManager 提供）
+  final void Function(Canvas canvas) renderCallback;
 
   /// 缓存的合成图像
   ui.Image? _canvasSnapshot;
@@ -123,15 +122,14 @@ class CanvasSnapshotManager {
   /// 缓存的像素数据（RGBA 格式）
   ByteData? _canvasSnapshotBytes;
 
-  /// 快照尺寸
+  /// 快照覆盖的文档区域
+  int _snapshotLeft = 0;
+  int _snapshotTop = 0;
   int _snapshotWidth = 0;
   int _snapshotHeight = 0;
 
   /// 快照版本号（每次失效时递增）
   int _snapshotVersion = 0;
-
-  /// 快照更新防抖定时器
-  Timer? _snapshotDebounceTimer;
 
   /// 区域快照缓存实例
   final RegionalSnapshotCache _regionalCache = RegionalSnapshotCache();
@@ -144,46 +142,36 @@ class CanvasSnapshotManager {
   /// 快照是否有效
   bool get hasValidSnapshot => _canvasSnapshotBytes != null;
 
-  /// 标记快照失效（在图层变化时调用）
-  /// 使用防抖机制避免频繁失效
+  /// 标记快照失效（图层或取景框变化时调用），实际更新由拾色器按需触发
   void invalidate() {
     _snapshotVersion++;
-
-    // 取消之前的防抖定时器
-    _snapshotDebounceTimer?.cancel();
-
-    // 防抖：100ms 内的多次失效合并
-    _snapshotDebounceTimer = Timer(const Duration(milliseconds: 100), () {
-      // 可选：触发异步快照更新
-      // 这里只是标记失效，实际更新由拾色器按需触发
-    });
   }
 
-  /// 异步更新画布快照
+  /// 异步更新 [region]（取景框）的画布快照
   /// 返回是否成功更新
-  Future<bool> updateSnapshotAsync(Size canvasSize) async {
+  Future<bool> updateSnapshotAsync(Rect region) async {
     final targetVersion = _snapshotVersion;
+    final left = region.left.round();
+    final top = region.top.round();
+    final width = region.width.round();
+    final height = region.height.round();
+    if (width <= 0 || height <= 0) return false;
 
     // 渲染所有图层到临时画布
     final recorder = ui.PictureRecorder();
     final canvas = Canvas(recorder);
+    canvas.translate(-left.toDouble(), -top.toDouble());
 
     // 绘制白色背景
-    canvas.drawRect(
-      Rect.fromLTWH(0, 0, canvasSize.width, canvasSize.height),
-      Paint()..color = Colors.white,
-    );
+    canvas.drawRect(region, Paint()..color = Colors.white);
 
     // 渲染所有可见图层
-    renderCallback(canvas, canvasSize);
+    renderCallback(canvas);
 
     final picture = recorder.endRecording();
 
     try {
-      final image = await picture.toImage(
-        canvasSize.width.toInt(),
-        canvasSize.height.toInt(),
-      );
+      final image = await picture.toImage(width, height);
 
       // 检查版本号，如果已过期则放弃
       if (_snapshotVersion != targetVersion) {
@@ -207,8 +195,10 @@ class CanvasSnapshotManager {
       _canvasSnapshot?.dispose();
       _canvasSnapshot = image;
       _canvasSnapshotBytes = byteData;
-      _snapshotWidth = canvasSize.width.toInt();
-      _snapshotHeight = canvasSize.height.toInt();
+      _snapshotLeft = left;
+      _snapshotTop = top;
+      _snapshotWidth = width;
+      _snapshotHeight = height;
 
       picture.dispose();
       return true;
@@ -218,18 +208,20 @@ class CanvasSnapshotManager {
     }
   }
 
-  /// 同步读取指定位置的像素颜色
-  /// 如果缓存不可用，返回 null
+  /// 同步读取指定文档坐标的像素颜色
+  /// 如果缓存不可用或坐标在快照区域外，返回 null
   Color? getPixelColor(int x, int y) {
+    final localX = x - _snapshotLeft;
+    final localY = y - _snapshotTop;
     if (_canvasSnapshotBytes == null ||
-        x < 0 ||
-        y < 0 ||
-        x >= _snapshotWidth ||
-        y >= _snapshotHeight) {
+        localX < 0 ||
+        localY < 0 ||
+        localX >= _snapshotWidth ||
+        localY >= _snapshotHeight) {
       return null;
     }
 
-    final offset = (y * _snapshotWidth + x) * 4;
+    final offset = (localY * _snapshotWidth + localX) * 4;
     if (offset + 3 >= _canvasSnapshotBytes!.lengthInBytes) {
       return null;
     }
@@ -262,12 +254,12 @@ class CanvasSnapshotManager {
     });
   }
 
-  /// 更新区域快照（仅渲染光标周围的小区域）
+  /// 更新区域快照（仅渲染光标周围的小区域，限制在 [bounds] 内）
   /// 返回是否成功更新
   Future<bool> updateRegionalSnapshot(
     int centerX,
     int centerY,
-    Size canvasSize,
+    Rect bounds,
   ) async {
     // 防止并发更新
     if (_regionalCache.isUpdating) return false;
@@ -276,15 +268,20 @@ class CanvasSnapshotManager {
     final targetVersion = _snapshotVersion;
     const regionSize = RegionalSnapshotCache.regionSize;
     const halfRegion = regionSize ~/ 2;
+    final boundsLeft = bounds.left.round();
+    final boundsTop = bounds.top.round();
+    final boundsRight = bounds.right.round();
+    final boundsBottom = bounds.bottom.round();
+    if (boundsRight <= boundsLeft || boundsBottom <= boundsTop) {
+      _regionalCache.isUpdating = false;
+      return false;
+    }
 
-    // 计算区域边界（裁剪到画布范围）
-    final left = (centerX - halfRegion).clamp(0, canvasSize.width.toInt() - 1);
-    final top = (centerY - halfRegion).clamp(0, canvasSize.height.toInt() - 1);
-    final right = (centerX + halfRegion + 1).clamp(0, canvasSize.width.toInt());
-    final bottom = (centerY + halfRegion + 1).clamp(
-      0,
-      canvasSize.height.toInt(),
-    );
+    // 计算区域边界（裁剪到取景框范围）
+    final left = (centerX - halfRegion).clamp(boundsLeft, boundsRight - 1);
+    final top = (centerY - halfRegion).clamp(boundsTop, boundsBottom - 1);
+    final right = (centerX + halfRegion + 1).clamp(boundsLeft, boundsRight);
+    final bottom = (centerY + halfRegion + 1).clamp(boundsTop, boundsBottom);
     final width = right - left;
     final height = bottom - top;
 
@@ -311,13 +308,10 @@ class CanvasSnapshotManager {
       );
 
       // 绘制白色背景
-      canvas.drawRect(
-        Rect.fromLTWH(0, 0, canvasSize.width, canvasSize.height),
-        Paint()..color = Colors.white,
-      );
+      canvas.drawRect(bounds, Paint()..color = Colors.white);
 
       // 渲染所有可见图层
-      renderCallback(canvas, canvasSize);
+      renderCallback(canvas);
 
       final picture = recorder.endRecording();
 
@@ -386,7 +380,6 @@ class CanvasSnapshotManager {
 
   /// 释放资源
   void dispose() {
-    _snapshotDebounceTimer?.cancel();
     _canvasSnapshot?.dispose();
     _canvasSnapshot = null;
     _canvasSnapshotBytes = null;

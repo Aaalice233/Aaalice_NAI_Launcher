@@ -18,6 +18,7 @@ class GenerationCommand {
     this.focusedInpaintEnabled = false,
     this.minimumContextMegaPixels = 88.0,
     this.focusedSelectionRect,
+    this.focusedContextCrop,
     this.materializeRandomSeed = true,
     this.requestEachImage = false,
     this.cancellableFallback = true,
@@ -33,6 +34,7 @@ class GenerationCommand {
   final bool focusedInpaintEnabled;
   final double minimumContextMegaPixels;
   final Rect? focusedSelectionRect;
+  final Rect? focusedContextCrop;
   final bool materializeRandomSeed;
   final bool requestEachImage;
   final bool cancellableFallback;

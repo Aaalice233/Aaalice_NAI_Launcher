@@ -5,6 +5,7 @@ import '../../../../../core/utils/localization_extension.dart';
 import '../../core/editor_state.dart';
 import '../../tools/tool_base.dart';
 import '../../../../widgets/common/themed_divider.dart';
+import 'editor_toolbar_tools.dart';
 
 /// 移动端底部工具栏
 class MobileToolbar extends StatelessWidget {
@@ -29,14 +30,8 @@ class MobileToolbar extends StatelessWidget {
     this.allowedToolIds,
   });
 
-  List<EditorTool> get _visibleTools {
-    if (allowedToolIds == null || allowedToolIds!.isEmpty) {
-      return state.tools;
-    }
-    return state.tools
-        .where((tool) => allowedToolIds!.contains(tool.id))
-        .toList();
-  }
+  List<EditorTool> get _visibleTools =>
+      visibleEditorTools(state, allowedToolIds);
 
   @override
   Widget build(BuildContext context) {
@@ -156,20 +151,7 @@ class _MobileToolButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final localizedName = switch (tool.id) {
-      'brush' => context.l10n.editor_toolBrush,
-      'eraser' => context.l10n.editor_toolEraser,
-      'fill' => context.l10n.editor_toolFill,
-      'magic_wand' => context.l10n.editor_toolMagicWand,
-      'line' => context.l10n.editor_toolLine,
-      'rect_selection' => context.l10n.editor_toolRectSelect,
-      'ellipse_selection' => context.l10n.editor_toolEllipseSelect,
-      'lasso_selection' => context.l10n.editor_toolLassoSelect,
-      'color_picker' => context.l10n.editor_toolColorPicker,
-      'clone_stamp' => context.l10n.editor_toolCloneStamp,
-      'blur' => context.l10n.editor_toolBlur,
-      _ => tool.name,
-    };
+    final localizedName = localizedEditorToolName(context, tool);
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 2),

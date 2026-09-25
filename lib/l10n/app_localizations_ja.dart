@@ -12598,6 +12598,79 @@ class AppLocalizationsJa extends AppLocalizations {
   }
 
   @override
+  String get editor_toolFrame => 'フレーム';
+
+  @override
+  String get editor_frameToolHint =>
+      'フレーム内をドラッグすると全体を移動し、端をドラッグするとサイズを変更します。フレーム外の内容は暗く表示されたまま保持され、生成に送られるのはフレーム内だけです。移動後も元画像と 64 ピクセル以上重なるようにします。';
+
+  @override
+  String editor_frameSizeReadout(int width, int height) {
+    return 'サイズ: $width × $height';
+  }
+
+  @override
+  String editor_frameOffsetReadout(int x, int y) {
+    return '元画像からの位置: X $x, Y $y';
+  }
+
+  @override
+  String get editor_frameMoveLockedByView =>
+      'ビューを回転・反転している間はフレームを移動できません。R でビューをリセットしてから再度お試しください。';
+
+  @override
+  String get editor_resetFrame => 'フレームをリセット';
+
+  @override
+  String get editor_cropToFrame => 'フレームで切り抜き';
+
+  @override
+  String get editor_cropToFrameHint => 'フレーム外の画像とマスクを破棄します。元に戻せます。';
+
+  @override
+  String editor_cropToFrameFailed(Object error) {
+    return 'フレームでの切り抜きに失敗しました: $error';
+  }
+
+  @override
+  String get editor_changeFrameSize => 'フレームのサイズを変更';
+
+  @override
+  String editor_frameResized(int width, int height) {
+    return 'フレームのサイズを $width × $height に変更しました';
+  }
+
+  @override
+  String get editor_frameToolHintPasteBack =>
+      'フレーム内をドラッグすると 64 ピクセル単位で移動し、端をドラッグするとサイズを変更します。生成に送られるのはフレーム内だけです。フレーム外にも元画像がある場合、結果はマスクに沿って画像全体に貼り戻され、フレーム外はそのまま残ります。フレームは元画像と 64 ピクセル以上重なる必要があります。';
+
+  @override
+  String editor_frameRequestReadout(int width, int height) {
+    return '送信: $width × $height';
+  }
+
+  @override
+  String get editor_frameRequestFree => '無料';
+
+  @override
+  String editor_frameRequestCost(int cost) {
+    return '約 $cost Anlas';
+  }
+
+  @override
+  String editor_frameResizeRejected(int overlap, int max) {
+    return 'フレームを変更できません：元画像と $overlap ピクセル以上重なり、元画像と合わせて各辺 $max ピクセル以内である必要があります。';
+  }
+
+  @override
+  String get editor_compressionFrameLimited =>
+      'フレームがリクエスト面積上限を超えるため、これ以上の解像度は選べません。';
+
+  @override
+  String get img2img_focusOutpaintHint =>
+      'フォーカスアウトペイント：フレーム内だけを送信し、生成結果はマスクに沿って画像全体に貼り戻されます。位置はインペイント エディターのフレームツールで調整できます。';
+
+  @override
   String get savePreset_title => 'プリセットとして保存';
 
   @override

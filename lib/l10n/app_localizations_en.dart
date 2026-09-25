@@ -12931,6 +12931,80 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get editor_toolFrame => 'Frame';
+
+  @override
+  String get editor_frameToolHint =>
+      'Drag inside the frame to move it, or drag its edges to resize. Content outside the frame is kept and dimmed; only the area inside is sent for generation. A moved frame keeps at least 64 px of overlap with the image.';
+
+  @override
+  String editor_frameSizeReadout(int width, int height) {
+    return 'Size: $width x $height';
+  }
+
+  @override
+  String editor_frameOffsetReadout(int x, int y) {
+    return 'Offset from image: X $x, Y $y';
+  }
+
+  @override
+  String get editor_frameMoveLockedByView =>
+      'The frame can\'t be moved while the view is rotated or mirrored. Press R to reset the view, then try again.';
+
+  @override
+  String get editor_resetFrame => 'Reset Frame';
+
+  @override
+  String get editor_cropToFrame => 'Crop to Frame';
+
+  @override
+  String get editor_cropToFrameHint =>
+      'Discard the image and mask outside the frame. This can be undone.';
+
+  @override
+  String editor_cropToFrameFailed(Object error) {
+    return 'Crop to frame failed: $error';
+  }
+
+  @override
+  String get editor_changeFrameSize => 'Change Frame Size';
+
+  @override
+  String editor_frameResized(int width, int height) {
+    return 'Frame resized to $width x $height';
+  }
+
+  @override
+  String get editor_frameToolHintPasteBack =>
+      'Drag inside the frame to move it in 64 px steps, or drag its edges to resize. Only the area inside is sent for generation; when part of the image lies outside the frame, the result is pasted back into the full image through the mask and the outside stays unchanged. The frame keeps at least 64 px of overlap with the image.';
+
+  @override
+  String editor_frameRequestReadout(int width, int height) {
+    return 'Request: $width x $height';
+  }
+
+  @override
+  String get editor_frameRequestFree => 'Free';
+
+  @override
+  String editor_frameRequestCost(int cost) {
+    return '~$cost Anlas';
+  }
+
+  @override
+  String editor_frameResizeRejected(int overlap, int max) {
+    return 'Can\'t resize the frame: it must overlap the image by at least $overlap px, and the frame and image together can\'t exceed $max px per side.';
+  }
+
+  @override
+  String get editor_compressionFrameLimited =>
+      'Higher resolutions are unavailable because the frame would exceed the request area limit.';
+
+  @override
+  String get img2img_focusOutpaintHint =>
+      'Focus outpaint: only the frame is sent, and the result is pasted back into the full image through the mask. Adjust the frame with the Frame tool in the inpaint editor.';
+
+  @override
   String get savePreset_title => 'Save as Preset';
 
   @override

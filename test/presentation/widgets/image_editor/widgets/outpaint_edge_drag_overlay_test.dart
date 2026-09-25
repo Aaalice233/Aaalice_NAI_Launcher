@@ -17,6 +17,8 @@ Widget _wrapOverlay({
   OutpaintEdgeDragPreviewChanged? onPreviewChanged,
   bool enabled = true,
   Size canvasSize = const Size(128, 96),
+  Offset frameOrigin = Offset.zero,
+  bool Function(Rect candidateFrame)? isFrameAllowed,
 }) {
   return MaterialApp(
     home: Scaffold(
@@ -24,12 +26,13 @@ Widget _wrapOverlay({
         width: 400,
         height: 400,
         child: OutpaintEdgeDragOverlay(
-          canvasSize: canvasSize,
+          frame: frameOrigin & canvasSize,
           controller: controller,
           onPreviewChanged: onPreviewChanged,
           onCommitted: onCommitted,
           onFrameResizeCommitted: onFrameResizeCommitted,
           enabled: enabled,
+          isFrameAllowed: isFrameAllowed,
         ),
       ),
     ),
@@ -617,6 +620,90 @@ void main() {
     },
   );
 
+  testWidgets('frames rejected by the host neither preview nor commit', (
+    tester,
+  ) async {
+    final previews = <OutpaintEdges>[];
+    final candidates = <Rect>[];
+    var commitCount = 0;
+
+    await tester.pumpWidget(
+      _wrapOverlay(
+        controller: controller,
+        canvasSize: const Size(128, 128),
+        frameOrigin: const Offset(64, 32),
+        onPreviewChanged: previews.add,
+        onCommitted:
+            (
+              edges, {
+              required horizontalSnapTarget,
+              required verticalSnapTarget,
+            }) async {
+              commitCount++;
+            },
+        onFrameResizeCommitted:
+            (
+              delta, {
+              required horizontalSnapTarget,
+              required verticalSnapTarget,
+            }) async {
+              commitCount++;
+            },
+        isFrameAllowed: (candidate) {
+          candidates.add(candidate);
+          return false;
+        },
+      ),
+    );
+
+    await tester.drag(
+      find.byKey(const Key('outpaint_handle_right')),
+      const Offset(32, 0),
+    );
+    await tester.pumpAndSettle();
+
+    expect(candidates, isNotEmpty);
+    expect(candidates.last, const Rect.fromLTWH(64, 32, 192, 128));
+    expect(previews, isEmpty);
+    expect(find.textContaining('Applied:'), findsNothing);
+    expect(commitCount, 0);
+  });
+
+  testWidgets('frames allowed by the host commit as before', (tester) async {
+    OutpaintFrameDelta? committedDelta;
+
+    await tester.pumpWidget(
+      _wrapOverlay(
+        controller: controller,
+        canvasSize: const Size(128, 128),
+        frameOrigin: const Offset(64, 32),
+        onCommitted:
+            (
+              edges, {
+              required horizontalSnapTarget,
+              required verticalSnapTarget,
+            }) async {},
+        onFrameResizeCommitted:
+            (
+              delta, {
+              required horizontalSnapTarget,
+              required verticalSnapTarget,
+            }) async {
+              committedDelta = delta;
+            },
+        isFrameAllowed: (candidate) => true,
+      ),
+    );
+
+    await tester.drag(
+      find.byKey(const Key('outpaint_handle_right')),
+      const Offset(32, 0),
+    );
+    await tester.pumpAndSettle();
+
+    expect(committedDelta?.right, 64);
+  });
+
   testWidgets('oversized drag does not throw or emit invalid preview', (
     tester,
   ) async {
@@ -978,7 +1065,7 @@ void main() {
                 ),
                 Positioned.fill(
                   child: OutpaintEdgeDragOverlay(
-                    canvasSize: const Size(128, 96),
+                    frame: const Rect.fromLTWH(0, 0, 128, 96),
                     controller: controller,
                     onCommitted:
                         (
@@ -1051,13 +1138,64 @@ void main() {
         OutpaintEdgeDragOverlay.isResizeInteractionPoint(
           localPosition: center,
           viewportSize: viewportSize,
-          canvasSize: const Size(128, 96),
+          frame: const Rect.fromLTWH(0, 0, 128, 96),
           controller: controller,
         ),
         isTrue,
         reason: '$key 的中心必须被判定为拖拽热区',
       );
     }
+  });
+
+  testWidgets('取景框离开原点后手柄与热区跟随框的屏幕位置', (tester) async {
+    const frameOrigin = Offset(-64, 32);
+    const frameSize = Size(256, 192);
+    await tester.pumpWidget(
+      _wrapOverlay(
+        controller: controller,
+        canvasSize: frameSize,
+        frameOrigin: frameOrigin,
+        onCommitted:
+            (
+              edges, {
+              required horizontalSnapTarget,
+              required verticalSnapTarget,
+            }) async {},
+      ),
+    );
+
+    final frame = frameOrigin & frameSize;
+    final frameOnScreen = Rect.fromPoints(
+      controller.canvasToScreen(frame.topLeft),
+      controller.canvasToScreen(frame.bottomRight),
+    );
+    expect(
+      tester.getCenter(find.byKey(const Key('outpaint_handle_top_left'))),
+      frameOnScreen.topLeft,
+    );
+    expect(
+      tester.getCenter(find.byKey(const Key('outpaint_handle_bottom_right'))),
+      frameOnScreen.bottomRight,
+    );
+    expect(
+      OutpaintEdgeDragOverlay.isResizeInteractionPoint(
+        localPosition: frameOnScreen.centerRight,
+        viewportSize: const Size(400, 400),
+        frame: frame,
+        controller: controller,
+      ),
+      isTrue,
+    );
+    expect(
+      OutpaintEdgeDragOverlay.isResizeInteractionPoint(
+        localPosition: frameOnScreen.center,
+        viewportSize: const Size(400, 400),
+        frame: frame,
+        controller: controller,
+      ),
+      isFalse,
+      reason: '框内部留给取景框工具平移，不能被当成拖边热区',
+    );
   });
 }
 

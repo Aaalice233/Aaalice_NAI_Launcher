@@ -41,18 +41,23 @@ _GenerationCostInput _resolveGenerationCostInput(
   FocusedInpaintGeometry? focusedMaskGeometry,
 ) {
   if (workflow.focusedInpaintEnabled && params.isInpainting) {
+    final sourceWidth =
+        workflow.sourceImageWidth ?? workflow.sourceWidth ?? params.width;
+    final sourceHeight =
+        workflow.sourceImageHeight ?? workflow.sourceHeight ?? params.height;
+    final contextCrop = workflow.focusedContextCrop;
     final focusedSelectionRect = workflow.focusedSelectionRect;
-    final focusedGeometry = focusedSelectionRect == null
+    final focusedGeometry = contextCrop != null
+        ? FocusedInpaintUtils.resolveGeometryForCrop(
+            sourceWidth: sourceWidth,
+            sourceHeight: sourceHeight,
+            crop: contextCrop,
+          )
+        : focusedSelectionRect == null
         ? focusedMaskGeometry
         : FocusedInpaintUtils.resolveGeometryForSelection(
-            sourceWidth:
-                workflow.sourceImageWidth ??
-                workflow.sourceWidth ??
-                params.width,
-            sourceHeight:
-                workflow.sourceImageHeight ??
-                workflow.sourceHeight ??
-                params.height,
+            sourceWidth: sourceWidth,
+            sourceHeight: sourceHeight,
             selectionRect: focusedSelectionRect,
             minContextMegaPixels: workflow.minimumContextMegaPixels,
           );
@@ -94,7 +99,8 @@ FocusedInpaintGeometry? focusedInpaintMaskRequestSize(Ref ref) {
     imageWorkflowControllerProvider.select(
       (workflow) =>
           workflow.focusedInpaintEnabled &&
-          workflow.focusedSelectionRect == null,
+          workflow.focusedSelectionRect == null &&
+          workflow.focusedContextCrop == null,
     ),
   );
   final isInpainting = ref.watch(

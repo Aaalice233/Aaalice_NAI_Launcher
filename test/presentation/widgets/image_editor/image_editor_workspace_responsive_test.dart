@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/adaptive/interaction_policy.dart';
+import 'package:nai_launcher/presentation/widgets/image_editor/frame/frame_tool_panel.dart';
 import 'package:nai_launcher/presentation/widgets/image_editor/image_editor_controller.dart';
 import 'package:nai_launcher/presentation/widgets/image_editor/image_editor_types.dart';
 import 'package:nai_launcher/presentation/widgets/image_editor/image_editor_workspace.dart';
+import 'package:nai_launcher/presentation/widgets/image_editor/tools/frame_tool.dart';
 import 'package:nai_launcher/presentation/widgets/image_editor/widgets/toolbar/desktop_toolbar.dart';
 import 'package:nai_launcher/presentation/widgets/image_editor/widgets/toolbar/mobile_toolbar.dart';
 
@@ -191,6 +194,134 @@ void main() {
     }
   });
 
+  testWidgets('inpaint frame tool and crop entry stay reachable', (
+    tester,
+  ) async {
+    final key = GlobalKey<ImageEditorWorkspaceState>();
+    final session = ImageEditorController(config: _inpaintConfig);
+    addTearDown(session.dispose);
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    tester.view.devicePixelRatio = 1;
+
+    for (final scenario in <({Size size, double scale})>[
+      (size: const Size(320, 720), scale: 3),
+      (size: const Size(600, 760), scale: 1),
+      (size: const Size(840, 760), scale: 1),
+      (size: const Size(1180, 760), scale: 1),
+      (size: const Size(1600, 900), scale: 1),
+    ]) {
+      final reason = '${scenario.size} x${scenario.scale}';
+      tester.view.physicalSize = scenario.size;
+      // Brush panel overflows at 3x on its own; scale after switching tools.
+      await _pumpWorkspace(
+        tester,
+        key: key,
+        session: session,
+        config: _inpaintConfig,
+        policy: pointerPolicy,
+      );
+      await tester.pumpAndSettle();
+      key.currentState!.debugSetToolById(FrameTool.toolId);
+      await _pumpWorkspace(
+        tester,
+        key: key,
+        session: session,
+        config: _inpaintConfig,
+        policy: pointerPolicy,
+        textScaler: TextScaler.linear(scenario.scale),
+      );
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull, reason: reason);
+      expect(key.currentState!.debugCurrentToolId, FrameTool.toolId);
+      expect(find.byType(FrameToolPanel), findsOneWidget, reason: reason);
+
+      final desktop = find.byType(DesktopToolbar).evaluate().isNotEmpty;
+      final frameTool = find.byTooltip(desktop ? 'Frame (V)' : 'Frame');
+      await tester.ensureVisible(frameTool);
+      await tester.pumpAndSettle();
+      expect(frameTool.hitTestable(), findsOneWidget, reason: reason);
+
+      for (final label in const ['Reset Frame', 'Crop to Frame']) {
+        final panelAction = find.descendant(
+          of: find.byType(FrameToolPanel),
+          matching: find.text(label),
+        );
+        await tester.ensureVisible(panelAction);
+        await tester.pumpAndSettle();
+        expect(
+          panelAction.hitTestable(),
+          findsOneWidget,
+          reason: '$label $reason',
+        );
+      }
+
+      if (!desktop && scenario.size.width < 520) {
+        await tester.tap(find.byTooltip('More'));
+        await tester.pumpAndSettle();
+        expect(
+          find.descendant(
+            of: find.byWidgetPredicate((widget) => widget is PopupMenuItem),
+            matching: find.text('Crop to Frame'),
+          ),
+          findsOneWidget,
+          reason: reason,
+        );
+        await tester.tapAt(Offset.zero);
+        await tester.pumpAndSettle();
+      } else if (desktop && scenario.size.width >= 1280) {
+        expect(
+          find.widgetWithText(TextButton, 'Crop to Frame').hitTestable(),
+          findsOneWidget,
+          reason: reason,
+        );
+      } else {
+        expect(
+          find.byTooltip('Crop to Frame').hitTestable(),
+          findsOneWidget,
+          reason: reason,
+        );
+      }
+      expect(tester.takeException(), isNull, reason: reason);
+    }
+  });
+
+  testWidgets('frame tool shortcut only works in inpaint mode', (
+    tester,
+  ) async {
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(1180, 760);
+
+    for (final config in [_config, _inpaintConfig]) {
+      final key = GlobalKey<ImageEditorWorkspaceState>();
+      final session = ImageEditorController(config: config);
+      addTearDown(session.dispose);
+      await _pumpWorkspace(
+        tester,
+        key: key,
+        session: session,
+        config: config,
+        policy: pointerPolicy,
+      );
+      await tester.pumpAndSettle();
+      final inpaint = config.mode == ImageEditorMode.inpaint;
+      final toolBefore = key.currentState!.debugCurrentToolId;
+
+      expect(
+        find.byTooltip('Frame (V)'),
+        inpaint ? findsOneWidget : findsNothing,
+      );
+      await tester.sendKeyEvent(LogicalKeyboardKey.keyV);
+      await tester.pumpAndSettle();
+      expect(
+        key.currentState!.debugCurrentToolId,
+        inpaint ? 'frame' : toolBefore,
+      );
+    }
+  });
+
   testWidgets('expanded layout follows local width under touch policy', (
     tester,
   ) async {
@@ -221,17 +352,28 @@ final _config = ImageEditorSessionConfig(
   debugOptions: const ImageEditorDebugOptions(disableDropRegion: true),
 );
 
+final _inpaintConfig = ImageEditorSessionConfig(
+  initialSize: const Size(512, 512),
+  mode: ImageEditorMode.inpaint,
+  debugOptions: const ImageEditorDebugOptions(disableDropRegion: true),
+);
+
 Future<void> _pumpWorkspace(
   WidgetTester tester, {
   GlobalKey<ImageEditorWorkspaceState>? key,
   required ImageEditorController session,
   required InteractionPolicy policy,
+  ImageEditorSessionConfig? config,
   double? contentWidth,
   TextScaler textScaler = TextScaler.noScaling,
 }) {
   final workspace = InteractionPolicyScope(
     initialPolicy: policy,
-    child: ImageEditorWorkspace(key: key, controller: session, config: _config),
+    child: ImageEditorWorkspace(
+      key: key,
+      controller: session,
+      config: config ?? _config,
+    ),
   );
   return tester.pumpWidget(
     MaterialApp(

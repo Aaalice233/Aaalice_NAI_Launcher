@@ -36,6 +36,8 @@ class _LayerPanelState extends State<LayerPanel> {
     super.initState();
     // 监听图层内容变化（用于触发缩略图更新）
     widget.state.layerManager.addListener(_onLayerContentChanged);
+    // 缩略图只展示取景框内的内容，框变化后同样需要重建
+    widget.state.frameNotifier.addListener(_onLayerContentChanged);
     // 初始化时立即更新缩略图
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _updateThumbnails();
@@ -45,6 +47,7 @@ class _LayerPanelState extends State<LayerPanel> {
   @override
   void dispose() {
     widget.state.layerManager.removeListener(_onLayerContentChanged);
+    widget.state.frameNotifier.removeListener(_onLayerContentChanged);
     _thumbnailUpdateTimer?.cancel();
     super.dispose();
   }
@@ -67,12 +70,12 @@ class _LayerPanelState extends State<LayerPanel> {
   }
 
   Future<void> _updateThumbnails() async {
-    final canvasSize = widget.state.canvasSize;
+    final region = widget.state.frame;
     final layers = widget.state.layerManager.layers;
 
     // 只获取需要更新的图层
     final layersToUpdate = layers
-        .where((layer) => layer.needsThumbnailUpdate)
+        .where((layer) => layer.needsThumbnailUpdateFor(region))
         .toList();
 
     // 如果没有需要更新的图层，直接返回
@@ -86,7 +89,7 @@ class _LayerPanelState extends State<LayerPanel> {
 
         final batch = layersToUpdate.skip(i).take(batchSize);
         await Future.wait(
-          batch.map((layer) => layer.updateThumbnail(canvasSize)),
+          batch.map((layer) => layer.updateThumbnail(region)),
           eagerError: false,
         );
 
@@ -131,16 +134,18 @@ class _LayerPanelState extends State<LayerPanel> {
   Future<void> _onAdd3dLayer() async {
     if (!await _ensureWebView2Available()) return;
     if (!mounted) return;
-    final size = widget.state.canvasSize;
+    // 渲染尺寸等于取景框，结果铺在取景框位置
+    final frame = widget.state.frame;
     final result = await Model3dEditorScreen.show(
       context,
-      renderWidth: size.width.round(),
-      renderHeight: size.height.round(),
+      renderWidth: frame.width.round(),
+      renderHeight: frame.height.round(),
     );
     if (result == null || !mounted) return;
     final layer = await widget.state.layerManager.addLayerFromImage(
       result.pngBytes,
       name: context.l10n.model3d_editorTitle,
+      offset: frame.topLeft,
     );
     layer?.model3d = Model3dLayerData(
       modelRef: result.modelRef,
@@ -153,17 +158,18 @@ class _LayerPanelState extends State<LayerPanel> {
     if (data == null) return;
     if (!await _ensureWebView2Available()) return;
     if (!mounted) return;
-    final size = widget.state.canvasSize;
+    final frame = widget.state.frame;
     final result = await Model3dEditorScreen.show(
       context,
       existing: data,
-      renderWidth: size.width.round(),
-      renderHeight: size.height.round(),
+      renderWidth: frame.width.round(),
+      renderHeight: frame.height.round(),
     );
     if (result == null || !mounted) return;
     await widget.state.layerManager.replaceLayerBaseImage(
       layer.id,
       result.pngBytes,
+      offset: frame.topLeft,
     );
     layer.model3d = Model3dLayerData(
       modelRef: result.modelRef,

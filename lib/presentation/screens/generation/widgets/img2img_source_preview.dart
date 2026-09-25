@@ -18,6 +18,7 @@ class Img2ImgSourcePreview extends StatefulWidget {
     this.maskBytes,
     this.focusedInpaintEnabled = false,
     this.focusedSelectionRect,
+    this.focusedContextCrop,
     this.minimumContextMegaPixels = 88.0,
   });
 
@@ -25,6 +26,7 @@ class Img2ImgSourcePreview extends StatefulWidget {
   final Uint8List? maskBytes;
   final bool focusedInpaintEnabled;
   final Rect? focusedSelectionRect;
+  final Rect? focusedContextCrop;
   final double minimumContextMegaPixels;
   final int imageWidth;
   final int imageHeight;
@@ -55,6 +57,7 @@ class _Img2ImgSourcePreviewState extends State<Img2ImgSourcePreview> {
       maskImage: widget.maskBytes,
       focusedInpaintEnabled: widget.focusedInpaintEnabled,
       focusedSelectionRect: widget.focusedSelectionRect,
+      focusedContextCrop: widget.focusedContextCrop,
       minContextMegaPixels: widget.minimumContextMegaPixels,
       sourceWidth: widget.imageWidth,
       sourceHeight: widget.imageHeight,

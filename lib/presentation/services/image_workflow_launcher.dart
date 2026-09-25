@@ -75,20 +75,21 @@ class ImageWorkflowLauncher {
     }
 
     final params = read(generationParamsNotifierProvider);
+    final isInpaint = mode == ImageEditorMode.inpaint;
     final result = await ImageEditorScreen.show(
       context,
       initialImage: imageBytes,
-      existingMask: mode == ImageEditorMode.inpaint ? params.maskImage : null,
-      existingFocusRect: mode == ImageEditorMode.inpaint
-          ? workflow.focusedSelectionRect
-          : null,
-      initialMinimumContextMegaPixels: mode == ImageEditorMode.inpaint
+      existingMask: isInpaint ? params.maskImage : null,
+      existingFocusRect: isInpaint ? workflow.focusedSelectionRect : null,
+      initialMinimumContextMegaPixels: isInpaint
           ? workflow.minimumContextMegaPixels
           : 88.0,
-      initialFocusedInpaintEnabled: mode == ImageEditorMode.inpaint
-          ? workflow.focusedInpaintEnabled
-          : false,
-      focusedInpaintCostConfig: mode == ImageEditorMode.inpaint
+      // 聚焦外扩在编辑器里由取景框表示，不走选区式聚焦
+      initialFocusedInpaintEnabled:
+          isInpaint &&
+          workflow.focusedInpaintEnabled &&
+          workflow.focusedContextCrop == null,
+      focusedInpaintCostConfig: isInpaint
           ? ImageEditorFocusedInpaintCostConfig(
               model: params.model,
               steps: params.steps,
@@ -109,9 +110,13 @@ class ImageWorkflowLauncher {
                   false,
               extraPerSampleCost:
                   AnlasCalculator.resolvePreciseReferenceExtraCost(params),
+              currentWidth: params.width,
+              currentHeight: params.height,
             )
           : null,
-      showMaskExport: mode == ImageEditorMode.inpaint,
+      showMaskExport: isInpaint,
+      supportsFocusOutpaint: isInpaint,
+      existingFrameRect: isInpaint ? workflow.focusedContextCrop : null,
       mode: mode,
       title: mode == ImageEditorMode.edit
           ? context.l10n.img2img_editImage
@@ -141,6 +146,7 @@ class ImageWorkflowLauncher {
           'outputHeight=${result.outputHeight}, '
           'compressionApplied=${result.compressionApplied}, '
           'focusRect=${result.focusAreaRect}, '
+          'focusOutpaintCrop=${result.focusOutpaint?.crop}, '
           'minContext=${result.minimumContextMegaPixels.toStringAsFixed(2)}, '
           'focusedEnabled=${result.focusedInpaintEnabled}',
       'ImageWorkflow',
@@ -166,6 +172,38 @@ class ImageWorkflowLauncher {
             InpaintMaskUtils.hasMaskedPixels(result.maskImage!)
         ? result.maskImage
         : null;
+    applyInpaintEditorResult(workflowNotifier, result, effectiveMask);
+    if (effectiveMask != null) {
+      AppToast.success(context, context.l10n.img2img_inpaintMaskReady);
+    } else if (result.maskImage != null) {
+      AppToast.warning(context, context.l10n.toast_noValidMaskIgnored);
+    }
+    return true;
+  }
+
+  @visibleForTesting
+  static void applyInpaintEditorResult(
+    ImageWorkflowController workflowNotifier,
+    ImageEditorResult result,
+    Uint8List? effectiveMask,
+  ) {
+    final focusOutpaint = result.focusOutpaint;
+    if (focusOutpaint != null) {
+      workflowNotifier.applyInpaintEditorResult(
+        sourceImage: focusOutpaint.sourceImage,
+        sourceWidth: focusOutpaint.width,
+        sourceHeight: focusOutpaint.height,
+        maskImage: effectiveMask,
+        focusedInpaintEnabled: true,
+        focusedSelectionRect: null,
+        // 没有可生成的蒙版时只换成整张画布，不再聚焦
+        focusedContextCrop: effectiveMask == null ? null : focusOutpaint.crop,
+        minimumContextMegaPixels: result.minimumContextMegaPixels,
+        sourceIsOutpaint: false,
+        useExactSourceDimensions: result.compressionApplied,
+      );
+      return;
+    }
     workflowNotifier.applyInpaintEditorResult(
       sourceImage: result.hasOutpaintChanges
           ? result.outpaintSourceImage
@@ -184,12 +222,6 @@ class ImageWorkflowLauncher {
       sourceIsOutpaint: result.hasOutpaintChanges,
       useExactSourceDimensions: result.compressionApplied,
     );
-    if (effectiveMask != null) {
-      AppToast.success(context, context.l10n.img2img_inpaintMaskReady);
-    } else if (result.maskImage != null) {
-      AppToast.warning(context, context.l10n.toast_noValidMaskIgnored);
-    }
-    return true;
   }
 
   static void openEnhance(WidgetRef ref, Uint8List imageBytes) =>

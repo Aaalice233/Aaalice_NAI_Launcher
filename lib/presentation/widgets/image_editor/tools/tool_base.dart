@@ -30,6 +30,9 @@ abstract class EditorTool {
   /// 工具是否自行处理 Alt 键（跳过临时拾色器切换）
   bool get handlesAltKey => false;
 
+  /// 当前编辑会话能否使用此工具；不可用时不出现在工具栏，也不响应快捷键
+  bool isAvailableIn(EditorState state) => true;
+
   /// 指针按下
   void onPointerDown(PointerDownEvent event, EditorState state);
 

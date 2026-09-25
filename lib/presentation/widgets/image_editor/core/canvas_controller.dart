@@ -119,27 +119,20 @@ class CanvasController extends ChangeNotifier {
   }
 
   /// 适应视口
-  void fitToViewport(Size canvasSize, {double padding = 40.0}) {
+  void fitToViewport(Rect frame, {double padding = 40.0}) {
     if (_viewportSize == Size.zero) return;
     // 防止除零错误
-    if (canvasSize.width <= 0 || canvasSize.height <= 0) return;
+    if (frame.width <= 0 || frame.height <= 0) return;
 
     final availableWidth = _viewportSize.width - padding * 2;
     final availableHeight = _viewportSize.height - padding * 2;
     // 防止负数或零
     if (availableWidth <= 0 || availableHeight <= 0) return;
 
-    final scaleX = availableWidth / canvasSize.width;
-    final scaleY = availableHeight / canvasSize.height;
+    final scaleX = availableWidth / frame.width;
+    final scaleY = availableHeight / frame.height;
     _scale = (scaleX < scaleY ? scaleX : scaleY).clamp(minScale, maxScale);
-
-    // 居中
-    final scaledWidth = canvasSize.width * _scale;
-    final scaledHeight = canvasSize.height * _scale;
-    _offset = Offset(
-      (_viewportSize.width - scaledWidth) / 2,
-      (_viewportSize.height - scaledHeight) / 2,
-    );
+    _centerFrame(frame);
 
     _notifyChanged();
   }
@@ -152,14 +145,10 @@ class CanvasController extends ChangeNotifier {
   }
 
   /// 重置到100%
-  void resetTo100({Size? canvasSize}) {
+  void resetTo100({Rect? frame}) {
     _scale = 1.0;
-    if (_viewportSize != Size.zero && canvasSize != null) {
-      // 居中显示：计算画布在视口中居中的偏移量
-      _offset = Offset(
-        (_viewportSize.width - canvasSize.width) / 2,
-        (_viewportSize.height - canvasSize.height) / 2,
-      );
+    if (_viewportSize != Size.zero && frame != null) {
+      _centerFrame(frame);
     } else {
       _offset = Offset.zero;
     }
@@ -167,45 +156,38 @@ class CanvasController extends ChangeNotifier {
   }
 
   /// 适应视口高度
-  void fitToHeight(Size canvasSize, {double padding = 40.0}) {
+  void fitToHeight(Rect frame, {double padding = 40.0}) {
     if (_viewportSize == Size.zero) return;
-    if (canvasSize.height <= 0) return;
+    if (frame.height <= 0) return;
 
     final availableHeight = _viewportSize.height - padding * 2;
     if (availableHeight <= 0) return;
 
-    _scale = (availableHeight / canvasSize.height).clamp(minScale, maxScale);
-
-    // 居中
-    final scaledWidth = canvasSize.width * _scale;
-    final scaledHeight = canvasSize.height * _scale;
-    _offset = Offset(
-      (_viewportSize.width - scaledWidth) / 2,
-      (_viewportSize.height - scaledHeight) / 2,
-    );
+    _scale = (availableHeight / frame.height).clamp(minScale, maxScale);
+    _centerFrame(frame);
 
     _notifyChanged();
   }
 
   /// 适应视口宽度
-  void fitToWidth(Size canvasSize, {double padding = 40.0}) {
+  void fitToWidth(Rect frame, {double padding = 40.0}) {
     if (_viewportSize == Size.zero) return;
-    if (canvasSize.width <= 0) return;
+    if (frame.width <= 0) return;
 
     final availableWidth = _viewportSize.width - padding * 2;
     if (availableWidth <= 0) return;
 
-    _scale = (availableWidth / canvasSize.width).clamp(minScale, maxScale);
-
-    // 居中
-    final scaledWidth = canvasSize.width * _scale;
-    final scaledHeight = canvasSize.height * _scale;
-    _offset = Offset(
-      (_viewportSize.width - scaledWidth) / 2,
-      (_viewportSize.height - scaledHeight) / 2,
-    );
+    _scale = (availableWidth / frame.width).clamp(minScale, maxScale);
+    _centerFrame(frame);
 
     _notifyChanged();
+  }
+
+  void _centerFrame(Rect frame) {
+    _offset = Offset(
+      (_viewportSize.width - frame.width * _scale) / 2 - frame.left * _scale,
+      (_viewportSize.height - frame.height * _scale) / 2 - frame.top * _scale,
+    );
   }
 
   /// 向左旋转（默认15度）
@@ -233,21 +215,46 @@ class CanvasController extends ChangeNotifier {
   }
 
   /// 重置视图（包括旋转和镜像）
-  void resetView(Size canvasSize) {
+  void resetView(Rect frame) {
     _rotation = 0.0;
     _isMirroredHorizontally = false;
-    fitToViewport(canvasSize);
+    fitToViewport(frame);
+  }
+
+  /// 旋转/镜像以取景框中心为枢轴（缩放后、未加平移偏移的坐标系）
+  Offset _pivotFor(Rect frame) => frame.center * _scale;
+
+  /// 把文档坐标到屏幕坐标的完整变换应用到画布上
+  void applyViewTransform(Canvas canvas, Rect frame) {
+    canvas.translate(_offset.dx, _offset.dy);
+
+    if (_rotation != 0 || _isMirroredHorizontally) {
+      final pivot = _pivotFor(frame);
+      canvas.translate(pivot.dx, pivot.dy);
+
+      if (_rotation != 0) {
+        canvas.rotate(_rotation);
+      }
+
+      if (_isMirroredHorizontally) {
+        canvas.scale(-1.0, 1.0);
+      }
+
+      canvas.translate(-pivot.dx, -pivot.dy);
+    }
+
+    canvas.scale(_scale);
   }
 
   /// 将屏幕坐标转换为画布坐标（考虑旋转和镜像）
-  Offset screenToCanvas(Offset screenPoint, {Size? canvasSize}) {
+  Offset screenToCanvas(Offset screenPoint, {Rect? frame}) {
     // 如果没有旋转和镜像，使用简单计算
     if (_rotation == 0 && !_isMirroredHorizontally) {
       return (screenPoint - _offset) / _scale;
     }
 
-    // 需要画布尺寸来计算旋转中心
-    if (canvasSize == null) {
+    // 需要取景框来计算旋转中心
+    if (frame == null) {
       // 回退到简单计算
       return (screenPoint - _offset) / _scale;
     }
@@ -256,8 +263,9 @@ class CanvasController extends ChangeNotifier {
     var point = screenPoint - _offset;
 
     // 2. 计算旋转/镜像中心（在缩放后的屏幕坐标系中）
-    final centerX = canvasSize.width * _scale / 2;
-    final centerY = canvasSize.height * _scale / 2;
+    final pivot = _pivotFor(frame);
+    final centerX = pivot.dx;
+    final centerY = pivot.dy;
 
     // 3. 移到中心
     point = Offset(point.dx - centerX, point.dy - centerY);
@@ -285,13 +293,13 @@ class CanvasController extends ChangeNotifier {
   }
 
   /// 将画布坐标转换为屏幕坐标（考虑旋转和镜像）
-  Offset canvasToScreen(Offset canvasPoint, {Size? canvasSize}) {
+  Offset canvasToScreen(Offset canvasPoint, {Rect? frame}) {
     // 如果没有旋转和镜像，使用简单计算
     if (_rotation == 0 && !_isMirroredHorizontally) {
       return canvasPoint * _scale + _offset;
     }
 
-    if (canvasSize == null) {
+    if (frame == null) {
       return canvasPoint * _scale + _offset;
     }
 
@@ -299,8 +307,9 @@ class CanvasController extends ChangeNotifier {
     var point = canvasPoint * _scale;
 
     // 2. 计算中心
-    final centerX = canvasSize.width * _scale / 2;
-    final centerY = canvasSize.height * _scale / 2;
+    final pivot = _pivotFor(frame);
+    final centerX = pivot.dx;
+    final centerY = pivot.dy;
 
     // 3. 移到中心
     point = Offset(point.dx - centerX, point.dy - centerY);
@@ -328,15 +337,16 @@ class CanvasController extends ChangeNotifier {
   }
 
   /// 获取变换矩阵（包含旋转和镜像）
-  Matrix4 getTransformMatrix(Size canvasSize) {
+  Matrix4 getTransformMatrix(Rect frame) {
     final matrix = Matrix4.identity();
 
     // 1. 移动到偏移位置
     matrix.translate(_offset.dx, _offset.dy);
 
-    // 2. 移动到画布中心进行旋转和镜像
-    final centerX = canvasSize.width * _scale / 2;
-    final centerY = canvasSize.height * _scale / 2;
+    // 2. 移动到取景框中心进行旋转和镜像
+    final pivot = _pivotFor(frame);
+    final centerX = pivot.dx;
+    final centerY = pivot.dy;
     matrix.translate(centerX, centerY);
 
     // 3. 应用旋转

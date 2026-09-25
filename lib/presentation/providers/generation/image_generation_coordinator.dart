@@ -387,6 +387,7 @@ class ImageGenerationCoordinator {
                 focusedInpaintEnabled: command.focusedInpaintEnabled,
                 minimumContextMegaPixels: command.minimumContextMegaPixels,
                 focusedSelectionRect: command.focusedSelectionRect,
+                focusedContextCrop: command.focusedContextCrop,
               ),
             )) {
           if (_aborted(handle) || _skipCurrentRequest) return;
@@ -528,6 +529,7 @@ class ImageGenerationCoordinator {
           focusedInpaintEnabled: command.focusedInpaintEnabled,
           minimumContextMegaPixels: command.minimumContextMegaPixels,
           focusedSelectionRect: command.focusedSelectionRect,
+          focusedContextCrop: command.focusedContextCrop,
         ),
       );
       if (_aborted(handle) || _skipCurrentRequest) {
@@ -547,6 +549,7 @@ class ImageGenerationCoordinator {
         focusedInpaintEnabled: command.focusedInpaintEnabled,
         minimumContextMegaPixels: command.minimumContextMegaPixels,
         focusedSelectionRect: command.focusedSelectionRect,
+        focusedContextCrop: command.focusedContextCrop,
       ),
     );
     if (_aborted(handle) || _skipCurrentRequest) {

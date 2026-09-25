@@ -72,25 +72,19 @@ class BlurTool extends EditorTool {
     _isApplying = true;
 
     try {
-      final canvasSize = state.canvasSize;
-      final w = canvasSize.width.toInt();
-      final h = canvasSize.height.toInt();
+      final region = state.frame;
+      final w = region.width.toInt();
+      final h = region.height.toInt();
 
-      final original = await _renderLayerToImage(activeLayer, canvasSize, w, h);
+      final original = await activeLayer.renderToImage(region);
 
       final sigma = _size * _intensity * 0.5;
       final blurred = await _createBlurredImage(original, sigma, w, h);
 
-      final strokeMask = _buildStrokePath(points);
+      // 模糊在取景框局部坐标的图像上合成，笔画路径随之换算
+      final strokeMask = _buildStrokePath(points).shift(-region.topLeft);
 
-      final result = await _compositeBlur(
-        original,
-        blurred,
-        strokeMask,
-        w,
-        h,
-        canvasSize,
-      );
+      final result = await _compositeBlur(original, blurred, strokeMask, w, h);
       original.dispose();
       blurred.dispose();
 
@@ -105,6 +99,7 @@ class BlurTool extends EditorTool {
           layerId: activeLayer.id,
           newImageBytes: pngData.buffer.asUint8List(),
           newImage: result,
+          newImageOffset: region.topLeft,
           actionDescription: 'Blur',
         ),
         state,
@@ -112,21 +107,6 @@ class BlurTool extends EditorTool {
     } finally {
       _isApplying = false;
     }
-  }
-
-  Future<ui.Image> _renderLayerToImage(
-    dynamic layer,
-    Size canvasSize,
-    int w,
-    int h,
-  ) async {
-    final rec = ui.PictureRecorder();
-    final c = Canvas(rec);
-    (layer as dynamic).render(c, canvasSize);
-    final pic = rec.endRecording();
-    final img = await pic.toImage(w, h);
-    pic.dispose();
-    return img;
   }
 
   Future<ui.Image> _createBlurredImage(
@@ -184,7 +164,6 @@ class BlurTool extends EditorTool {
     Path mask,
     int w,
     int h,
-    Size canvasSize,
   ) async {
     final rec = ui.PictureRecorder();
     final c = Canvas(rec);

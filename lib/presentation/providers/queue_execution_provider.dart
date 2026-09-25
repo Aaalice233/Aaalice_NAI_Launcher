@@ -465,6 +465,9 @@ class QueueExecutionNotifier extends _$QueueExecutionNotifier {
       final batchSizeOverride = snapshot == null
           ? null
           : ReplicationTaskGenerationSnapshot.decodeBatchSize(snapshot);
+      final queuedFocused = snapshot == null
+          ? null
+          : ReplicationTaskGenerationSnapshot.decodeFocused(snapshot);
       final params = snapshot == null
           ? baseParams.copyWith(
               prompt: task.prompt,
@@ -495,6 +498,14 @@ class QueueExecutionNotifier extends _$QueueExecutionNotifier {
         params,
         batchSizeOverride: batchSizeOverride,
         preserveCharacterSnapshot: snapshot != null,
+        focusedOverride: queuedFocused == null
+            ? null
+            : GenerationFocusedSnapshot(
+                enabled: queuedFocused.enabled,
+                minimumContextMegaPixels: queuedFocused.contextPadding,
+                selectionRect: queuedFocused.selectionRect,
+                contextCrop: queuedFocused.contextCrop,
+              ),
       );
     } on FormatException catch (error, stackTrace) {
       final taskId = state.currentTaskId;

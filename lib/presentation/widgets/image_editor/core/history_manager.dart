@@ -138,9 +138,7 @@ class AddStrokeAction extends EditorAction {
 /// 清除图层操作
 class ClearLayerAction extends EditorAction {
   final String layerId;
-  List<StrokeData>? _previousStrokes;
-  Image? _previousBaseImage;
-  Uint8List? _previousBaseImageBytes;
+  LayerContentSnapshot? _previousContent;
 
   ClearLayerAction({required this.layerId});
 
@@ -149,13 +147,8 @@ class ClearLayerAction extends EditorAction {
     final layer = state.layerManager.getLayerById(layerId);
     if (layer == null) return;
 
-    _previousStrokes = List.from(layer.strokes.map((s) => s.copyWith()));
-
-    _previousBaseImage?.dispose();
-    _previousBaseImage = layer.baseImage?.clone();
-    _previousBaseImageBytes = layer.baseImageBytes != null
-        ? Uint8List.fromList(layer.baseImageBytes!)
-        : null;
+    _previousContent?.dispose();
+    _previousContent = layer.captureContent();
 
     if (layer.hasBaseImage) {
       layer.clearBaseImage();
@@ -165,27 +158,15 @@ class ClearLayerAction extends EditorAction {
 
   @override
   void undo(EditorState state) {
-    final layer = state.layerManager.getLayerById(layerId);
-    if (layer == null) return;
-
-    if (_previousBaseImage != null) {
-      layer.setBaseImageSync(
-        _previousBaseImage!.clone(),
-        _previousBaseImageBytes,
-      );
-    }
-
-    if (_previousStrokes != null) {
-      for (final stroke in _previousStrokes!) {
-        state.layerManager.addStrokeToLayer(layerId, stroke);
-      }
-    }
+    final previous = _previousContent;
+    if (previous == null) return;
+    state.layerManager.restoreLayerContent(layerId, previous);
   }
 
   @override
   void dispose() {
-    _previousBaseImage?.dispose();
-    _previousBaseImage = null;
+    _previousContent?.dispose();
+    _previousContent = null;
   }
 
   @override
@@ -381,74 +362,55 @@ class ResizeCanvasAction extends EditorAction {
 class ReplaceLayerImageAction extends EditorAction {
   final String layerId;
   final Uint8List newImageBytes;
+
+  /// 新底图在文档中的位置（渲染区域的左上角）
+  final Offset newImageOffset;
   final String actionDescription;
 
   /// 预解码的新图像（由调用者传入，确保同步 execute）
   Image? _newImage;
 
-  /// 保存的旧图像（用于同步 undo）
-  Image? _oldImage;
-  Uint8List? _oldBaseImageBytes;
-  List<StrokeData>? _oldStrokes;
+  /// 保存的旧内容（用于同步 undo）
+  LayerContentSnapshot? _previousContent;
 
   ReplaceLayerImageAction({
     required this.layerId,
     required this.newImageBytes,
-    Image? newImage,
+    required Image newImage,
+    this.newImageOffset = Offset.zero,
     this.actionDescription = 'Replace Layer Image',
   }) : _newImage = newImage;
 
   @override
   void execute(EditorState state) {
     final layer = state.layerManager.getLayerById(layerId);
-    if (layer == null) return;
+    final newImage = _newImage;
+    if (layer == null || newImage == null) return;
 
-    _oldBaseImageBytes = layer.baseImageBytes != null
-        ? Uint8List.fromList(layer.baseImageBytes!)
-        : null;
-    _oldStrokes = List.from(layer.strokes.map((s) => s.copyWith()));
+    _previousContent?.dispose();
+    _previousContent = layer.captureContent();
 
-    _oldImage?.dispose();
-    _oldImage = layer.baseImage?.clone();
-
-    layer.clearStrokes();
-
-    if (_newImage != null) {
-      layer.setBaseImageSync(_newImage!.clone(), newImageBytes);
-    } else {
-      layer.setBaseImage(newImageBytes);
-    }
+    state.layerManager.replaceLayerBaseImageSync(
+      layerId,
+      newImage.clone(),
+      newImageBytes,
+      offset: newImageOffset,
+    );
   }
 
   @override
   void undo(EditorState state) {
-    final layer = state.layerManager.getLayerById(layerId);
-    if (layer == null) return;
-
-    layer.clearStrokes();
-
-    if (_oldImage != null) {
-      layer.setBaseImageSync(_oldImage!.clone(), _oldBaseImageBytes);
-    } else if (_oldBaseImageBytes != null) {
-      layer.clearBaseImage();
-      layer.setBaseImage(_oldBaseImageBytes!);
-    } else {
-      layer.clearBaseImage();
-    }
-
-    if (_oldStrokes != null) {
-      for (final stroke in _oldStrokes!) {
-        layer.addStroke(stroke);
-      }
-    }
+    final previous = _previousContent;
+    if (previous == null) return;
+    state.layerManager.restoreLayerContent(layerId, previous);
   }
 
   @override
   void dispose() {
     _newImage?.dispose();
     _newImage = null;
-    _oldImage?.dispose();
-    _oldImage = null;
+    _previousContent?.dispose();
+    _previousContent = null;
   }
 
   @override
