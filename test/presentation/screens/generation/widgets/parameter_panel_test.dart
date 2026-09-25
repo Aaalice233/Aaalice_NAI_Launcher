@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import 'package:dio/dio.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/semantics.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hive_flutter/hive_flutter.dart';
@@ -169,6 +170,43 @@ void main() {
       expect(cfgSliders.single.divisions, equals(190));
       expect(stepsSliders, hasLength(1));
       expect(stepsSliders.single.divisions, equals(49));
+    });
+
+    testWidgets('步数与 CFG 滑块以不含数值的名称朗读，读数与标题一致', (tester) async {
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            localStorageServiceProvider.overrideWith(
+              (ref) => _TestLocalStorageService(),
+            ),
+            vibeLibraryStorageServiceProvider.overrideWithValue(
+              _TestVibeLibraryStorageService(),
+            ),
+            kritaBridgeNotifierProvider.overrideWith(
+              (ref) => _TestKritaBridgeNotifier(),
+            ),
+          ],
+          child: const MaterialApp(
+            locale: Locale('zh'),
+            supportedLocales: AppLocalizations.supportedLocales,
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            home: Scaffold(
+              body: SizedBox(width: 960, height: 1200, child: ParameterPanel()),
+            ),
+          ),
+        ),
+      );
+
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 150));
+
+      final steps = _sliderNode('步数');
+      expect(steps.value, matches(RegExp(r'^\d+$')));
+      expect(find.text('步数: ${steps.value}'), findsOneWidget);
+
+      final cfg = _sliderNode('CFG 强度');
+      expect(cfg.value, matches(RegExp(r'^\d+\.\d$')));
+      expect(find.text('CFG 强度：${cfg.value}'), findsOneWidget);
     });
 
     testWidgets('高级选项在侧栏色面内使用独立 Material', (tester) async {
@@ -619,4 +657,12 @@ class _TestKritaBridgeNotifier extends KritaBridgeNotifier {
 
   @override
   Future<void> close() async {}
+}
+
+SemanticsNode _sliderNode(String label) {
+  final slider = find.semantics.byPredicate(
+    (node) => node.flagsCollection.isSlider && node.label == label,
+  );
+  expect(slider, findsOne, reason: label);
+  return slider.evaluate().single;
 }

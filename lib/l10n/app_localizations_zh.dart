@@ -1530,9 +1530,15 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
+  String get generation_stepsLabel => '步数';
+
+  @override
   String generation_cfgScale(Object scale) {
     return 'CFG 强度：$scale';
   }
+
+  @override
+  String get generation_cfgScaleLabel => 'CFG 强度';
 
   @override
   String get generation_seed => '种子';
@@ -1613,6 +1619,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String generation_cfgRescale(Object value) {
     return 'CFG 重缩放：$value';
   }
+
+  @override
+  String get generation_cfgRescaleLabel => 'CFG 重缩放';
 
   @override
   String get generation_noiseSchedule => '噪声调度';
@@ -2891,6 +2900,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String editor_focusMinimumContextArea(Object value) {
     return '最小上下文区域：$value';
   }
+
+  @override
+  String get editor_focusMinimumContextAreaLabel => '最小上下文区域';
 
   @override
   String get editor_canvasSizeTitle => '画布尺寸';
@@ -12511,6 +12523,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get onlineGallery_videoLoadFailed => '视频加载失败';
 
   @override
+  String get onlineGallery_videoPositionLabel => '播放进度';
+
+  @override
   String get vibe_releaseToAddStyleReference => '松开后添加风格参考';
 
   @override
@@ -16492,9 +16507,15 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   }
 
   @override
+  String get generation_stepsLabel => '步數';
+
+  @override
   String generation_cfgScale(Object scale) {
     return 'CFG 強度：$scale';
   }
+
+  @override
+  String get generation_cfgScaleLabel => 'CFG 強度';
 
   @override
   String get generation_seed => '種子';
@@ -16575,6 +16596,9 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String generation_cfgRescale(Object value) {
     return 'CFG 重縮放：$value';
   }
+
+  @override
+  String get generation_cfgRescaleLabel => 'CFG 重縮放';
 
   @override
   String get generation_noiseSchedule => '噪聲排程';
@@ -17853,6 +17877,9 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String editor_focusMinimumContextArea(Object value) {
     return '最小上下文區域：$value';
   }
+
+  @override
+  String get editor_focusMinimumContextAreaLabel => '最小上下文區域';
 
   @override
   String get editor_canvasSizeTitle => '畫布尺寸';
@@ -27471,6 +27498,9 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get onlineGallery_videoLoadFailed => '影片載入失敗';
+
+  @override
+  String get onlineGallery_videoPositionLabel => '播放進度';
 
   @override
   String get vibe_releaseToAddStyleReference => '鬆開後新增風格參考';

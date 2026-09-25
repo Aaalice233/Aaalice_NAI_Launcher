@@ -8,6 +8,7 @@ import '../../../../data/models/vibe/vibe_reference.dart';
 import '../../../adaptive/adaptive_presenter.dart';
 import '../../../widgets/common/adaptive_dialog_frame.dart';
 import '../../../widgets/common/editable_double_field.dart';
+import '../../../widgets/common/themed_slider.dart';
 
 enum BundleImportOption { keepAsBundle, split, importSelected }
 
@@ -777,6 +778,7 @@ class _VibeBundleImportDialogState extends State<VibeBundleImportDialog> {
     required ValueChanged<double> onChanged,
     bool unboundedInput = false,
   }) {
+    const decimals = 2;
     final labelWidget = Text(
       label,
       style: theme.textTheme.labelSmall?.copyWith(
@@ -787,7 +789,7 @@ class _VibeBundleImportDialogState extends State<VibeBundleImportDialog> {
       value: value,
       min: unboundedInput ? null : min,
       max: unboundedInput ? null : max,
-      decimals: 2,
+      decimals: decimals,
       width: 56,
       enabled: enabled,
       onChanged: onChanged,
@@ -795,8 +797,10 @@ class _VibeBundleImportDialogState extends State<VibeBundleImportDialog> {
         fontFeatures: const [FontFeature.tabularFigures()],
       ),
     );
-    final slider = Slider(
-      value: value.clamp(min, max).toDouble(),
+    final slider = NamedSlider(
+      label: label,
+      valueText: (v) => EditableDoubleField.format(v, decimals: decimals),
+      value: value,
       min: min,
       max: max,
       divisions: divisions,

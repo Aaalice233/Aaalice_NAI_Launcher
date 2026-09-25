@@ -6,6 +6,7 @@ import '../../../../adaptive/interaction_policy.dart';
 import '../../../../../core/utils/localization_extension.dart';
 import '../../../../../data/models/prompt/prompt_tag.dart';
 import '../../core/prompt_tag_colors.dart';
+import '../../../common/themed_slider.dart';
 import '../../../common/translated_tag_text.dart';
 
 /// 移动端标签操作底部面板
@@ -237,7 +238,7 @@ class _TagBottomActionSheetState extends State<TagBottomActionSheet> {
                       borderRadius: BorderRadius.circular(6),
                     ),
                     child: Text(
-                      '${(_currentWeight * 100).round()}%',
+                      PromptTag.formatWeightPercent(_currentWeight),
                       style: TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w700,
@@ -327,7 +328,9 @@ class _TagBottomActionSheetState extends State<TagBottomActionSheet> {
                       .withValues(alpha: 0.2),
               thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 8),
             ),
-            child: Slider(
+            child: NamedSlider(
+              label: context.l10n.weight_title,
+              valueText: PromptTag.formatWeightPercent,
               value: _currentWeight,
               min: PromptTag.minWeight,
               max: PromptTag.maxWeight,
@@ -344,15 +347,15 @@ class _TagBottomActionSheetState extends State<TagBottomActionSheet> {
           // 权重刻度提示
           Row(
             children: [
-              for (final entry in <(String, TextAlign)>[
-                ('${(PromptTag.minWeight * 100).round()}%', TextAlign.left),
-                ('100%', TextAlign.center),
-                ('${(PromptTag.maxWeight * 100).round()}%', TextAlign.right),
+              for (final (weight, align) in const [
+                (PromptTag.minWeight, TextAlign.left),
+                (1.0, TextAlign.center),
+                (PromptTag.maxWeight, TextAlign.right),
               ])
                 Expanded(
                   child: Text(
-                    entry.$1,
-                    textAlign: entry.$2,
+                    PromptTag.formatWeightPercent(weight),
+                    textAlign: align,
                     style: TextStyle(
                       fontSize: 11,
                       color: theme.colorScheme.onSurface.withValues(alpha: 0.4),

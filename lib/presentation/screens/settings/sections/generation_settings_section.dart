@@ -13,6 +13,7 @@ import '../../../providers/notification_settings_provider.dart';
 import '../../../themes/core/input_surface_style.dart';
 import '../../../widgets/common/app_toast.dart';
 import '../../../widgets/common/themed_input.dart';
+import '../../../widgets/common/themed_slider.dart';
 import '../widgets/settings_card.dart';
 import '../widgets/settings_page_layout.dart';
 
@@ -294,12 +295,12 @@ class _GenerationSettingsSectionState
               _buildRetrySliderRow(
                 theme: theme,
                 label: l10n.settings_queueRetryCount,
-                valueLabel: l10n.settings_queueRetryCountMax(
-                  retryCount.toString(),
-                ),
+                valueText: (value) =>
+                    l10n.settings_queueRetryCountMax('${value.round()}'),
                 value: retryCount.toDouble(),
                 min: 1,
                 max: 30,
+                divisions: 29,
                 unit: l10n.unit_times,
                 controller: _retryCountController,
                 onDecrease: retryCount > 1
@@ -321,12 +322,13 @@ class _GenerationSettingsSectionState
               _buildRetrySliderRow(
                 theme: theme,
                 label: l10n.settings_queueRetryInterval,
-                valueLabel: l10n.settings_queueRetryIntervalValue(
-                  retryInterval.toStringAsFixed(1),
+                valueText: (value) => l10n.settings_queueRetryIntervalValue(
+                  value.toStringAsFixed(1),
                 ),
                 value: retryInterval,
                 min: 0.5,
                 max: 10.0,
+                divisions: 19,
                 unit: l10n.unit_seconds,
                 controller: _retryIntervalController,
                 keyboardType: const TextInputType.numberWithOptions(
@@ -404,10 +406,11 @@ class _GenerationSettingsSectionState
   Widget _buildRetrySliderRow({
     required ThemeData theme,
     required String label,
-    required String valueLabel,
+    required String Function(double value) valueText,
     required double value,
     required double min,
     required double max,
+    required int divisions,
     required String unit,
     required TextEditingController controller,
     TextInputType keyboardType = TextInputType.number,
@@ -443,10 +446,13 @@ class _GenerationSettingsSectionState
         Expanded(
           child: SliderTheme(
             data: _buildSettingsSliderTheme(context),
-            child: Slider(
+            child: NamedSlider(
+              label: label,
+              valueText: valueText,
               value: value,
               min: min,
               max: max,
+              divisions: divisions,
               onChanged: onSliderChanged,
             ),
           ),
@@ -472,7 +478,7 @@ class _GenerationSettingsSectionState
             children: [
               Text(label),
               Text(
-                valueLabel,
+                valueText(value),
                 style: theme.textTheme.bodySmall?.copyWith(
                   color: theme.colorScheme.outline,
                 ),

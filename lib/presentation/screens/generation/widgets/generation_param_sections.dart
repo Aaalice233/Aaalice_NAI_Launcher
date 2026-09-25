@@ -266,6 +266,8 @@ class NoiseScheduleSection extends ConsumerWidget {
 class StepsSection extends ConsumerWidget {
   const StepsSection({super.key});
 
+  static String _valueText(double steps) => '${steps.round()}';
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final steps = ref.watch(
@@ -274,8 +276,12 @@ class StepsSection extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        ParamSectionTitle(context.l10n.generation_steps(steps.toString())),
+        ParamSectionTitle(
+          context.l10n.generation_steps(_valueText(steps.toDouble())),
+        ),
         ThemedSlider(
+          label: context.l10n.generation_stepsLabel,
+          valueText: _valueText,
           value: steps.toDouble(),
           min: 1,
           max: 50,
@@ -294,6 +300,8 @@ class StepsSection extends ConsumerWidget {
 /// CFG Scale 分节（标题含当前值 + Decrisp/Variety+ 开关 + 滑杆）
 class CfgScaleSection extends ConsumerWidget {
   const CfgScaleSection({super.key});
+
+  static String _valueText(double scale) => scale.toStringAsFixed(1);
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -318,7 +326,7 @@ class CfgScaleSection extends ConsumerWidget {
           runSpacing: 8,
           children: [
             ParamSectionTitle(
-              context.l10n.generation_cfgScale(data.scale.toStringAsFixed(1)),
+              context.l10n.generation_cfgScale(_valueText(data.scale)),
             ),
             Wrap(
               spacing: 8,
@@ -349,6 +357,8 @@ class CfgScaleSection extends ConsumerWidget {
           ],
         ),
         ThemedSlider(
+          label: context.l10n.generation_cfgScaleLabel,
+          valueText: _valueText,
           value: data.scale,
           min: 1,
           max: 20,
@@ -543,6 +553,8 @@ class _SeedSectionState extends ConsumerState<SeedSection> {
 class AdvancedSamplingOptions extends ConsumerWidget {
   const AdvancedSamplingOptions({super.key});
 
+  static String _cfgRescaleText(double rescale) => rescale.toStringAsFixed(2);
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
@@ -641,10 +653,12 @@ class AdvancedSamplingOptions extends ConsumerWidget {
             contentPadding: EdgeInsets.zero,
             title: Text(
               context.l10n.generation_cfgRescale(
-                data.cfgRescale.toStringAsFixed(2),
+                _cfgRescaleText(data.cfgRescale),
               ),
             ),
             subtitle: ThemedSlider(
+              label: context.l10n.generation_cfgRescaleLabel,
+              valueText: _cfgRescaleText,
               value: data.cfgRescale,
               min: 0,
               max: 1,

@@ -617,7 +617,9 @@
       "steps": {}
     }
   },
+  "generation_stepsLabel": "ステップ",
   "generation_cfgScale": "CFG スケール: {scale}",
+  "generation_cfgScaleLabel": "CFG スケール",
   "@character_limitReached": {
     "placeholders": {
       "limit": {}
@@ -674,6 +676,7 @@
       "value": {}
     }
   },
+  "generation_cfgRescaleLabel": "CFG リスケール",
   "generation_noiseSchedule": "ノイズスケジュール",
   "prompt_positive": "プロンプト",
   "prompt_negative": "除外したい要素",
@@ -1330,6 +1333,7 @@
       "value": {}
     }
   },
+  "editor_focusMinimumContextAreaLabel": "最小コンテキスト領域",
   "editor_canvasSizeTitle": "キャンバスのサイズ",
   "editor_presetSize": "プリセット サイズ",
   "editor_customSize": "カスタム",
@@ -6397,6 +6401,7 @@
   },
 
   "onlineGallery_videoLoadFailed": "動画を読み込めませんでした",
+  "onlineGallery_videoPositionLabel": "再生位置",
   "vibe_releaseToAddStyleReference": "離すとスタイル参照を追加",
   "router_backAgainToExit": "もう一度スワイプするか戻るボタンを押すと終了します",
   "router_pageNotFound": "ページが見つかりません: {error}",

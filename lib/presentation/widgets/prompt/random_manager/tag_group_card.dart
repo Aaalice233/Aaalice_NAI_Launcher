@@ -8,6 +8,7 @@ import '../../../adaptive/adaptive_presenter.dart';
 import '../../../providers/random_preset_provider.dart';
 import '../../../providers/tag_library_provider.dart';
 import '../../../themes/core/layered_surface_style.dart';
+import '../../common/themed_slider.dart';
 import '../../common/translated_tag_text.dart';
 import '../../../../data/models/prompt/random_tag_group.dart';
 import '../../../../data/models/prompt/tag_category.dart';
@@ -16,6 +17,7 @@ import '../diy/panels/dependency_config_panel.dart';
 import '../diy/panels/visibility_rule_panel.dart';
 import '../diy/panels/time_condition_panel.dart';
 import '../diy/panels/post_process_rule_panel.dart';
+import 'probability_text.dart';
 import 'random_config_l10n.dart';
 
 /// 词组卡片组件
@@ -126,7 +128,7 @@ class _TagGroupCardState extends ConsumerState<TagGroupCard> {
                               ),
                               const SizedBox(height: 2),
                               Text(
-                                '$tagCount · ${(tagGroup.probability * 100).round()}%',
+                                '$tagCount · ${formatProbabilityPercent(tagGroup.probability)}',
                                 style: theme.textTheme.labelSmall?.copyWith(
                                   color: colors.onSurfaceVariant,
                                   fontFeatures: const [
@@ -565,12 +567,13 @@ class _TagGroupEditDialogState extends ConsumerState<_TagGroupEditDialog>
               );
               final slider = Opacity(
                 opacity: isReadOnly ? 0.6 : 1.0,
-                child: Slider(
+                child: NamedSlider(
+                  label: l10n.randomManager_probability,
+                  valueText: formatProbabilityPercent,
                   value: _editingTagGroup.probability,
                   min: 0,
                   max: 1,
                   divisions: 20,
-                  label: '${(_editingTagGroup.probability * 100).toInt()}%',
                   onChanged: isReadOnly
                       ? null
                       : (value) {
@@ -583,7 +586,7 @@ class _TagGroupEditDialogState extends ConsumerState<_TagGroupEditDialog>
                 ),
               );
               final value = Text(
-                '${(_editingTagGroup.probability * 100).toInt()}%',
+                formatProbabilityPercent(_editingTagGroup.probability),
                 textAlign: TextAlign.right,
                 style: theme.textTheme.bodyMedium?.copyWith(
                   fontWeight: FontWeight.bold,
@@ -899,13 +902,13 @@ class _TagGroupEditDialogState extends ConsumerState<_TagGroupEditDialog>
                     thumbColor: colorScheme.tertiary,
                     overlayColor: colorScheme.tertiary.withValues(alpha: 0.1),
                   ),
-                  child: Slider(
+                  child: NamedSlider(
+                    label: l10n.randomManager_emphasisProbability,
+                    valueText: formatProbabilityPercent,
                     value: _editingTagGroup.emphasisProbability,
                     min: 0,
                     max: 0.1,
                     divisions: 10,
-                    label:
-                        '${(_editingTagGroup.emphasisProbability * 100).toInt()}%',
                     onChanged: (value) {
                       setState(() {
                         _editingTagGroup = _editingTagGroup.copyWith(
@@ -916,7 +919,9 @@ class _TagGroupEditDialogState extends ConsumerState<_TagGroupEditDialog>
                   ),
                 );
                 final value = Text(
-                  '${(_editingTagGroup.emphasisProbability * 100).toInt()}%',
+                  formatProbabilityPercent(
+                    _editingTagGroup.emphasisProbability,
+                  ),
                   textAlign: TextAlign.right,
                   style: theme.textTheme.bodyMedium?.copyWith(
                     fontWeight: FontWeight.bold,

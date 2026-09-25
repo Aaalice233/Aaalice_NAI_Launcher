@@ -625,7 +625,9 @@
       "steps": {}
     }
   },
+  "generation_stepsLabel": "Steps",
   "generation_cfgScale": "CFG Scale: {scale}",
+  "generation_cfgScaleLabel": "CFG Scale",
   "@character_limitReached": {
     "placeholders": {
       "limit": {}
@@ -682,6 +684,7 @@
       "value": {}
     }
   },
+  "generation_cfgRescaleLabel": "CFG Rescale",
   "generation_noiseSchedule": "Noise Schedule",
   "prompt_positive": "Prompt",
   "prompt_negative": "Undesired Content",
@@ -1341,6 +1344,7 @@
       "value": {}
     }
   },
+  "editor_focusMinimumContextAreaLabel": "Minimum Context Area",
   "editor_canvasSizeTitle": "Canvas Size",
   "editor_presetSize": "Preset Size",
   "editor_customSize": "Custom",
@@ -6374,6 +6378,7 @@
   },
 
   "onlineGallery_videoLoadFailed": "Failed to load video",
+  "onlineGallery_videoPositionLabel": "Playback position",
   "vibe_releaseToAddStyleReference": "Release to add style reference",
   "router_backAgainToExit": "Swipe or press back again to exit",
   "router_pageNotFound": "Page not found: {error}",

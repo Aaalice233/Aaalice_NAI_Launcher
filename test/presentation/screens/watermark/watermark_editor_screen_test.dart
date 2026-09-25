@@ -372,6 +372,51 @@ void main() {
     expect(find.text('Allura'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets('ratio slider speaks its name and the displayed percentage', (
+    tester,
+  ) async {
+    const settings = WatermarkSettings();
+    await tester.binding.setSurfaceSize(const Size(420, 760));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await tester.pumpWidget(
+      MaterialApp(
+        locale: const Locale('en'),
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: Scaffold(
+          body: WatermarkEditorControls(
+            settings: settings,
+            layout: settings.universalLayout,
+            selectedLayer: WatermarkEditableLayer.text,
+            logoAvailable: false,
+            preserveMetadata: false,
+            onOpenMetadataSettings: () {},
+            onSettingsChanged: (_) {},
+            onLayoutChanged: (_) {},
+            onSelectedLayerChanged: (_) {},
+            onChooseLogo: () {},
+          ),
+        ),
+      ),
+    );
+    await tester.scrollUntilVisible(
+      find.text('Opacity'),
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.pumpAndSettle();
+
+    // 名称与读数只落在滑块自身节点；外包 Semantics 会多出一个读数不同的容器节点
+    final named = find.semantics.byPredicate(
+      (node) => node.label == 'Opacity' && node.value.isNotEmpty,
+    );
+    expect(named, findsOne);
+    final node = named.evaluate().single;
+    expect(node.flagsCollection.isSlider, isTrue);
+    expect(node.value, '82%');
+    expect(find.text('82%'), findsOneWidget);
+  });
 }
 
 Uint8List _pngBytes(int width, int height) {

@@ -6,6 +6,7 @@ import '../../../core/watermark/watermark_font_catalog.dart';
 import '../../../data/models/watermark/watermark_settings.dart';
 import '../../adaptive/adaptive_presenter.dart';
 import '../../adaptive/content_sized_adaptive_form.dart';
+import '../../widgets/common/themed_slider.dart';
 import '../../widgets/image_editor/widgets/color_picker.dart';
 
 class WatermarkEditorControls extends StatelessWidget {
@@ -528,43 +529,44 @@ class _RatioSlider extends StatelessWidget {
   final double max;
   final ValueChanged<double> onChanged;
 
+  static String _percentText(double value) =>
+      '${(value * 100).toStringAsFixed(0)}%';
+
   @override
-  Widget build(BuildContext context) => Semantics(
-    label: label,
-    value: '${(value * 100).toStringAsFixed(1)}%',
-    child: LayoutBuilder(
-      builder: (context, constraints) {
-        final percentage = Text('${(value * 100).toStringAsFixed(0)}%');
-        final slider = Slider(
-          value: value.clamp(min, max),
-          min: min,
-          max: max,
-          onChanged: onChanged,
-        );
-        if (constraints.maxWidth < 350 ||
-            MediaQuery.textScalerOf(context).scale(14) > 20) {
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(label),
-              Row(
-                children: [
-                  Expanded(child: slider),
-                  percentage,
-                ],
-              ),
-            ],
-          );
-        }
-        return Row(
+  Widget build(BuildContext context) => LayoutBuilder(
+    builder: (context, constraints) {
+      final percentage = Text(_percentText(value));
+      final slider = NamedSlider(
+        label: label,
+        valueText: _percentText,
+        value: value,
+        min: min,
+        max: max,
+        onChanged: onChanged,
+      );
+      if (constraints.maxWidth < 350 ||
+          MediaQuery.textScalerOf(context).scale(14) > 20) {
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            SizedBox(width: 112, child: Text(label)),
-            Expanded(child: slider),
-            SizedBox(width: 52, child: percentage),
+            Text(label),
+            Row(
+              children: [
+                Expanded(child: slider),
+                percentage,
+              ],
+            ),
           ],
         );
-      },
-    ),
+      }
+      return Row(
+        children: [
+          SizedBox(width: 112, child: Text(label)),
+          Expanded(child: slider),
+          SizedBox(width: 52, child: percentage),
+        ],
+      );
+    },
   );
 }
 

@@ -605,7 +605,9 @@
   "generation_e2eUpscaleHint": "服务端输出 {size}",
   "generation_sampler": "采样器",
   "generation_steps": "步数: {steps}",
+  "generation_stepsLabel": "步数",
   "generation_cfgScale": "CFG 强度：{scale}",
+  "generation_cfgScaleLabel": "CFG 强度",
   "generation_seed": "种子",
   "generation_previewApplySeed": "使用当前图片的种子",
   "generation_imageComparison": "对比",
@@ -632,6 +634,7 @@
   "generation_smeaDyn": "SMEA DYN",
   "generation_smeaDescription": "高分辨率采样器会在超过一定图像尺寸时自动使用",
   "generation_cfgRescale": "CFG 重缩放：{value}",
+  "generation_cfgRescaleLabel": "CFG 重缩放",
   "generation_noiseSchedule": "噪声调度",
   "prompt_positive": "正面",
   "prompt_negative": "负面",
@@ -1272,6 +1275,7 @@
       "value": {}
     }
   },
+  "editor_focusMinimumContextAreaLabel": "最小上下文区域",
   "editor_canvasSizeTitle": "画布尺寸",
   "editor_presetSize": "预设尺寸",
   "editor_customSize": "自定义",
@@ -6443,6 +6447,7 @@
   },
 
   "onlineGallery_videoLoadFailed": "视频加载失败",
+  "onlineGallery_videoPositionLabel": "播放进度",
   "vibe_releaseToAddStyleReference": "松开后添加风格参考",
   "router_backAgainToExit": "再滑一次或按返回键退出应用",
   "router_pageNotFound": "页面未找到: {error}",

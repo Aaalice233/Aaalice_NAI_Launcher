@@ -804,7 +804,7 @@ class _VibeExportDialogState extends ConsumerState<VibeExportDialog> {
                   _SourceTypeBadge(sourceType: entry.sourceType),
                   Text(
                     context.l10n.vibe_export_strengthPercent(
-                      (entry.strength * 100).toInt(),
+                      (entry.strength * 100).round(),
                     ),
                     style: theme.textTheme.bodySmall?.copyWith(
                       color: theme.colorScheme.outline,

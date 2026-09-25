@@ -441,6 +441,8 @@ class _FixedTagEditDialogState extends ConsumerState<FixedTagEditDialog> {
     );
   }
 
+  static String _weightText(double weight) => '${weight.toStringAsFixed(2)}x';
+
   Widget _buildWeightControl(ThemeData theme) {
     return Column(
       key: const ValueKey('fixed-tag-weight-control'),
@@ -460,7 +462,7 @@ class _FixedTagEditDialogState extends ConsumerState<FixedTagEditDialog> {
                 borderRadius: BorderRadius.circular(6),
               ),
               child: Text(
-                '${_weight.toStringAsFixed(2)}x',
+                _weightText(_weight),
                 style: TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w600,
@@ -488,6 +490,8 @@ class _FixedTagEditDialogState extends ConsumerState<FixedTagEditDialog> {
           builder: (context, _) {
             final stackSlider = MediaQuery.textScalerOf(context).scale(1) >= 2;
             final slider = ThemedSlider(
+              label: context.l10n.fixedTags_weight,
+              valueText: _weightText,
               value: _weight,
               min: 0.5,
               max: 2.0,

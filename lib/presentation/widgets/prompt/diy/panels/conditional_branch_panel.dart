@@ -531,6 +531,9 @@ class _ConditionalBranchPanelState extends State<ConditionalBranchPanel> {
     );
   }
 
+  static String _probabilityText(double probability) =>
+      '${probability.round()}%';
+
   Widget _buildBranchEditor(int index) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
@@ -625,6 +628,8 @@ class _ConditionalBranchPanelState extends State<ConditionalBranchPanel> {
               const SizedBox(width: 12),
               Expanded(
                 child: ThemedSlider(
+                  label: context.l10n.diy_probability,
+                  valueText: _probabilityText,
                   value: branch.probability.toDouble(),
                   min: 0,
                   max: 100,
@@ -655,7 +660,7 @@ class _ConditionalBranchPanelState extends State<ConditionalBranchPanel> {
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text(
-                  '${branch.probability}%',
+                  _probabilityText(branch.probability.toDouble()),
                   style: theme.textTheme.labelLarge?.copyWith(
                     fontWeight: FontWeight.bold,
                     color: colorScheme.tertiary,

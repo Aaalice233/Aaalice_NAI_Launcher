@@ -7,6 +7,7 @@ import '../../../../data/models/precise_ref/precise_ref_library_entry.dart';
 import '../../../adaptive/adaptive_presenter.dart';
 import '../../../widgets/common/adaptive_dialog_frame.dart';
 import '../../../widgets/common/editable_double_field.dart';
+import '../../../widgets/common/themed_slider.dart';
 
 /// 编辑对话框返回结果
 class PreciseRefEntryEditResult {
@@ -253,18 +254,21 @@ class _PreciseRefEntryEditDialogState extends State<PreciseRefEntryEditDialog> {
     required ValueChanged<double> onChanged,
   }) {
     final theme = Theme.of(context);
+    const decimals = 2;
     return LayoutBuilder(
       builder: (context, constraints) {
         final textScale = MediaQuery.textScalerOf(context).scale(14) / 14;
         final field = EditableDoubleField(
           key: fieldKey,
           value: value,
-          decimals: 2,
+          decimals: decimals,
           width: 64,
           onChanged: onChanged,
         );
-        final slider = Slider(
-          value: value.clamp(0.0, 1.0),
+        final slider = NamedSlider(
+          label: label,
+          valueText: (v) => EditableDoubleField.format(v, decimals: decimals),
+          value: value,
           divisions: 20,
           onChanged: onChanged,
         );

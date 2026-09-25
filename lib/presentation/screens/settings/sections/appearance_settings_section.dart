@@ -13,6 +13,7 @@ import '../../../themes/app_theme.dart';
 import '../../../adaptive/adaptive_presenter.dart';
 import '../../../widgets/common/adaptive_dialog_frame.dart';
 import '../../../widgets/common/themed_divider.dart';
+import '../../../widgets/common/themed_slider.dart';
 import '../widgets/settings_card.dart';
 import '../widgets/settings_page_layout.dart';
 
@@ -73,7 +74,7 @@ class _AppearanceSettingsSectionState
                 leading: const Icon(Icons.format_size),
                 title: Text(context.l10n.settings_fontScale),
                 subtitle: Text(context.l10n.settings_fontScale_description),
-                trailing: Text('${(fontScale * 100).round()}%'),
+                trailing: Text(_fontScaleText(fontScale)),
                 onTap: () => _showFontScaleDialog(context, fontScale),
               ),
 
@@ -569,6 +570,8 @@ class _FontPickerTile extends StatelessWidget {
   }
 }
 
+String _fontScaleText(double scale) => '${(scale * 100).round()}%';
+
 class _FontScaleEditor extends ConsumerStatefulWidget {
   const _FontScaleEditor({
     required this.initialScale,
@@ -589,7 +592,6 @@ class _FontScaleEditorState extends ConsumerState<_FontScaleEditor> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final textTheme = theme.textTheme;
-    final scalePercent = (_scale * 100).round();
 
     return ListView(
       controller: widget.scrollController,
@@ -629,12 +631,13 @@ class _FontScaleEditorState extends ConsumerState<_FontScaleEditor> {
             thumbColor: theme.colorScheme.primary,
             overlayColor: theme.colorScheme.primary.withValues(alpha: 0.12),
           ),
-          child: Slider(
+          child: NamedSlider(
+            label: context.l10n.settings_fontScale,
+            valueText: _fontScaleText,
             value: _scale,
             min: FontScaleNotifier.minScale,
             max: FontScaleNotifier.maxScale,
             divisions: 7,
-            label: '$scalePercent%',
             onChanged: (value) {
               setState(() => _scale = value);
               ref.read(fontScaleNotifierProvider.notifier).setFontScale(value);
@@ -665,7 +668,7 @@ class _FontScaleEditorState extends ConsumerState<_FontScaleEditor> {
         const SizedBox(height: 8),
         Center(
           child: Text(
-            '$scalePercent%',
+            _fontScaleText(_scale),
             style: textTheme.titleMedium?.copyWith(
               fontWeight: FontWeight.w600,
               color: theme.colorScheme.primary,

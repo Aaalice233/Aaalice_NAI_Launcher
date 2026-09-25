@@ -2948,11 +2948,23 @@ abstract class AppLocalizations {
   /// **'Steps: {steps}'**
   String generation_steps(Object steps);
 
+  /// No description provided for @generation_stepsLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Steps'**
+  String get generation_stepsLabel;
+
   /// No description provided for @generation_cfgScale.
   ///
   /// In en, this message translates to:
   /// **'CFG Scale: {scale}'**
   String generation_cfgScale(Object scale);
+
+  /// No description provided for @generation_cfgScaleLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'CFG Scale'**
+  String get generation_cfgScaleLabel;
 
   /// No description provided for @generation_seed.
   ///
@@ -3109,6 +3121,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'CFG Rescale: {value}'**
   String generation_cfgRescale(Object value);
+
+  /// No description provided for @generation_cfgRescaleLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'CFG Rescale'**
+  String get generation_cfgRescaleLabel;
 
   /// No description provided for @generation_noiseSchedule.
   ///
@@ -5398,6 +5416,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Minimum Context Area: {value}'**
   String editor_focusMinimumContextArea(Object value);
+
+  /// No description provided for @editor_focusMinimumContextAreaLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Minimum Context Area'**
+  String get editor_focusMinimumContextAreaLabel;
 
   /// No description provided for @editor_canvasSizeTitle.
   ///
@@ -22697,6 +22721,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Failed to load video'**
   String get onlineGallery_videoLoadFailed;
+
+  /// No description provided for @onlineGallery_videoPositionLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Playback position'**
+  String get onlineGallery_videoPositionLabel;
 
   /// No description provided for @vibe_releaseToAddStyleReference.
   ///

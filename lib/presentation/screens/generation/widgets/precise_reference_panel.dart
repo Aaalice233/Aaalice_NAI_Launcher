@@ -26,6 +26,7 @@ import '../../../widgets/common/editable_double_field.dart';
 import '../../../widgets/common/hover_image_preview.dart';
 import '../../../widgets/common/precise_reference_type_dialog.dart';
 import '../../../widgets/common/themed_divider.dart';
+import '../../../widgets/common/themed_slider.dart';
 import '../../../widgets/common/collapsible_image_panel.dart';
 import '../../../widgets/common/decoded_memory_image.dart';
 import '../../precise_ref_library/widgets/precise_ref_selector_dialog.dart';
@@ -822,7 +823,7 @@ class _PreciseReferenceCard extends StatelessWidget {
     required double value,
     required ValueChanged<double> onChanged,
   }) {
-    final sliderValue = value.clamp(0.0, 1.0).toDouble();
+    const decimals = 2;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -840,7 +841,7 @@ class _PreciseReferenceCard extends StatelessWidget {
             ),
             EditableDoubleField(
               value: value,
-              decimals: 2,
+              decimals: decimals,
               width: 64,
               onChanged: onChanged,
               textStyle: theme.textTheme.bodySmall?.copyWith(
@@ -856,8 +857,10 @@ class _PreciseReferenceCard extends StatelessWidget {
             thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6),
             overlayShape: const RoundSliderOverlayShape(overlayRadius: 12),
           ),
-          child: Slider(
-            value: sliderValue,
+          child: NamedSlider(
+            label: label,
+            valueText: (v) => EditableDoubleField.format(v, decimals: decimals),
+            value: value,
             min: 0.0,
             max: 1.0,
             divisions: 20,

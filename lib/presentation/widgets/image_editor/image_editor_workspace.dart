@@ -46,6 +46,7 @@ import 'widgets/magic_wand_progress_overlay.dart';
 import 'canvas/layer_painter.dart';
 import 'export/image_exporter_new.dart';
 import '../../widgets/common/themed_divider.dart';
+import '../../widgets/common/themed_slider.dart';
 import 'image_editor_controller.dart';
 import 'image_editor_types.dart';
 
@@ -2119,6 +2120,21 @@ class ImageEditorWorkspaceState extends State<ImageEditorWorkspace> {
     return normalized;
   }
 
+  /// 档位实际会发送的尺寸，超出请求面积上限的档位按生成页规则收敛
+  String _compressionSizeText(EditorCompressionTarget target) {
+    final issue = NaiResolutionAdapter.validateGenerationResolution(
+      target.width,
+      target.height,
+    );
+    return '${issue?.suggestedWidth ?? target.width} x '
+        '${issue?.suggestedHeight ?? target.height}';
+  }
+
+  String _compressionSliderText(EditorCompressionPlan plan, double index) =>
+      _compressionSizeText(
+        plan.targets[index.round().clamp(0, plan.targets.length - 1)],
+      );
+
   Widget _buildDesktopCompressionControl({required bool expanded}) {
     final plan = _compressionPlan;
     if (plan == null) return const SizedBox.shrink();
@@ -2152,14 +2168,15 @@ class ImageEditorWorkspaceState extends State<ImageEditorWorkspace> {
             SizedBox(
               width: 92,
               child: Text(
-                '${clamped?.width ?? target.width} x '
-                '${clamped?.height ?? target.height}',
+                _compressionSizeText(target),
                 overflow: TextOverflow.ellipsis,
                 style: Theme.of(context).textTheme.labelMedium,
               ),
             ),
             Expanded(
-              child: Slider(
+              child: NamedSlider(
+                label: context.l10n.editor_compressionTitle,
+                valueText: (position) => _compressionSliderText(plan, position),
                 value: index.toDouble(),
                 min: 0,
                 max: plan.targets.length > 1
@@ -2234,7 +2251,9 @@ class ImageEditorWorkspaceState extends State<ImageEditorWorkspace> {
                   color: theme.colorScheme.onSurfaceVariant,
                 ),
               ),
-              Slider(
+              NamedSlider(
+                label: context.l10n.editor_compressionTitle,
+                valueText: (position) => _compressionSliderText(plan, position),
                 value: index.toDouble(),
                 min: 0,
                 max: plan.targets.length > 1
@@ -2243,7 +2262,6 @@ class ImageEditorWorkspaceState extends State<ImageEditorWorkspace> {
                 divisions: plan.targets.length > 1
                     ? plan.targets.length - 1
                     : null,
-                label: '${target.width} x ${target.height}',
                 onChanged: plan.canCompress
                     ? (value) {
                         _selectCompressionTarget(value.round());
@@ -2317,6 +2335,8 @@ class ImageEditorWorkspaceState extends State<ImageEditorWorkspace> {
 
     return FocusedInpaintCostEstimate(geometry: geometry, cost: cost);
   }
+
+  static String _contextAreaText(double megaPixels) => '${megaPixels.round()}';
 
   Widget _buildFocusedSelectionCard() {
     final theme = Theme.of(context);
@@ -2416,11 +2436,13 @@ class ImageEditorWorkspaceState extends State<ImageEditorWorkspace> {
             const SizedBox(height: 12),
             Text(
               context.l10n.editor_focusMinimumContextArea(
-                _minimumContextMegaPixels.round(),
+                _contextAreaText(_minimumContextMegaPixels),
               ),
               style: theme.textTheme.labelMedium,
             ),
-            Slider(
+            NamedSlider(
+              label: context.l10n.editor_focusMinimumContextAreaLabel,
+              valueText: _contextAreaText,
               value: _minimumContextMegaPixels,
               min: 16,
               max: 192,

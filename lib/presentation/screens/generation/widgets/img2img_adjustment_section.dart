@@ -10,6 +10,7 @@ import '../../../../data/models/image/image_params.dart';
 import '../../../providers/cost_estimate_provider.dart';
 import '../../../providers/generation/generation_params_notifier.dart';
 import '../../../providers/generation/image_workflow_controller.dart';
+import '../../../widgets/common/themed_slider.dart';
 import 'img2img_panel_data.dart';
 
 class Img2ImgAdjustmentSection extends ConsumerWidget {
@@ -323,6 +324,9 @@ class Img2ImgSlider extends StatelessWidget {
   final int? divisions;
   final String Function(double)? valueLabelBuilder;
 
+  String _valueText(double value) =>
+      valueLabelBuilder?.call(value) ?? value.toStringAsFixed(2);
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -334,14 +338,16 @@ class Img2ImgSlider extends StatelessWidget {
             Text(label, style: theme.textTheme.bodyMedium),
             const Spacer(),
             Text(
-              valueLabelBuilder?.call(value) ?? value.toStringAsFixed(2),
+              _valueText(value),
               style: theme.textTheme.bodySmall?.copyWith(
                 fontWeight: FontWeight.w600,
               ),
             ),
           ],
         ),
-        Slider(
+        NamedSlider(
+          label: label,
+          valueText: _valueText,
           value: value,
           min: min,
           max: max,

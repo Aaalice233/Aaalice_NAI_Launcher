@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/semantics.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/data/models/prompt/conditional_branch.dart';
@@ -133,4 +134,60 @@ void main() {
     expect(find.byType(Dialog), findsNothing);
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets('概率滑块以字段名朗读，读数与界面一致且按四舍五入显示', (tester) async {
+    // 0.1 分 10 格的第 7 格插值结果，截断取整会显示成 6%
+    const group = RandomTagGroup(
+      id: 'rounding',
+      name: '取整词组',
+      probability: 0.35,
+      emphasisProbability: 0.06999999999999999,
+    );
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          randomPresetNotifierProvider.overrideWith(
+            _FixedRandomPresetNotifier.new,
+          ),
+        ],
+        child: const MaterialApp(
+          locale: Locale('zh'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(
+            body: TagGroupCard(
+              tagGroup: group,
+              categoryId: 'category',
+              categoryKey: 'category',
+              presetId: 'preset',
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('取整词组'));
+    await tester.pumpAndSettle();
+    expect(_sliderNode('概率').value, '35%');
+    expect(find.text('35%'), findsOneWidget);
+
+    await tester.tap(find.byIcon(Icons.account_tree_outlined));
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('7%'));
+    await tester.pumpAndSettle();
+
+    final emphasis = _sliderNode('强调概率');
+    expect(emphasis.value, '7%');
+    expect(emphasis.increasedValue, '8%');
+    expect(find.text('6%'), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+}
+
+SemanticsNode _sliderNode(String label) {
+  final slider = find.semantics.byPredicate(
+    (node) => node.flagsCollection.isSlider && node.label == label,
+  );
+  expect(slider, findsOne, reason: label);
+  return slider.evaluate().single;
 }

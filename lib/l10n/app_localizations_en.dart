@@ -1588,9 +1588,15 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get generation_stepsLabel => 'Steps';
+
+  @override
   String generation_cfgScale(Object scale) {
     return 'CFG Scale: $scale';
   }
+
+  @override
+  String get generation_cfgScaleLabel => 'CFG Scale';
 
   @override
   String get generation_seed => 'Seed';
@@ -1676,6 +1682,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String generation_cfgRescale(Object value) {
     return 'CFG Rescale: $value';
   }
+
+  @override
+  String get generation_cfgRescaleLabel => 'CFG Rescale';
 
   @override
   String get generation_noiseSchedule => 'Noise Schedule';
@@ -3015,6 +3024,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String editor_focusMinimumContextArea(Object value) {
     return 'Minimum Context Area: $value';
   }
+
+  @override
+  String get editor_focusMinimumContextAreaLabel => 'Minimum Context Area';
 
   @override
   String get editor_canvasSizeTitle => 'Canvas Size';
@@ -13060,6 +13072,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get onlineGallery_videoLoadFailed => 'Failed to load video';
+
+  @override
+  String get onlineGallery_videoPositionLabel => 'Playback position';
 
   @override
   String get vibe_releaseToAddStyleReference =>

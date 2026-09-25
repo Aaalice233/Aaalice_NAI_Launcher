@@ -1552,9 +1552,15 @@ class AppLocalizationsJa extends AppLocalizations {
   }
 
   @override
+  String get generation_stepsLabel => 'ステップ';
+
+  @override
   String generation_cfgScale(Object scale) {
     return 'CFG スケール: $scale';
   }
+
+  @override
+  String get generation_cfgScaleLabel => 'CFG スケール';
 
   @override
   String get generation_seed => 'シード';
@@ -1636,6 +1642,9 @@ class AppLocalizationsJa extends AppLocalizations {
   String generation_cfgRescale(Object value) {
     return 'CFG リスケール: $value';
   }
+
+  @override
+  String get generation_cfgRescaleLabel => 'CFG リスケール';
 
   @override
   String get generation_noiseSchedule => 'ノイズスケジュール';
@@ -2937,6 +2946,9 @@ class AppLocalizationsJa extends AppLocalizations {
   String editor_focusMinimumContextArea(Object value) {
     return '最小コンテキスト領域: $value';
   }
+
+  @override
+  String get editor_focusMinimumContextAreaLabel => '最小コンテキスト領域';
 
   @override
   String get editor_canvasSizeTitle => 'キャンバスのサイズ';
@@ -12724,6 +12736,9 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get onlineGallery_videoLoadFailed => '動画を読み込めませんでした';
+
+  @override
+  String get onlineGallery_videoPositionLabel => '再生位置';
 
   @override
   String get vibe_releaseToAddStyleReference => '離すとスタイル参照を追加';

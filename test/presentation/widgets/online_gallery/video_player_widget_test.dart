@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/widgets/online_gallery/video_player_widget.dart';
 import 'package:video_player/video_player.dart';
 
@@ -27,16 +28,14 @@ void main() {
       var parentBuilds = 0;
 
       await tester.pumpWidget(
-        MaterialApp(
-          home: Scaffold(
-            body: _CountingParent(
-              onBuild: () => parentBuilds++,
-              child: OnlineGalleryVideoControls(
-                valueListenable: videoValue,
-                showControls: true,
-                onTogglePlayPause: () {},
-                onSeek: (_) {},
-              ),
+        _app(
+          _CountingParent(
+            onBuild: () => parentBuilds++,
+            child: OnlineGalleryVideoControls(
+              valueListenable: videoValue,
+              showControls: true,
+              onTogglePlayPause: () {},
+              onSeek: (_) {},
             ),
           ),
         ),
@@ -64,20 +63,18 @@ void main() {
     final seeks = <Duration>[];
 
     await tester.pumpWidget(
-      MaterialApp(
-        home: Scaffold(
-          body: OnlineGalleryVideoControls(
-            valueListenable: ValueNotifier<VideoPlayerValue>(
-              const VideoPlayerValue(
-                duration: Duration(seconds: 10),
-                position: Duration(seconds: 2),
-                isInitialized: true,
-              ),
+      _app(
+        OnlineGalleryVideoControls(
+          valueListenable: ValueNotifier<VideoPlayerValue>(
+            const VideoPlayerValue(
+              duration: Duration(seconds: 10),
+              position: Duration(seconds: 2),
+              isInitialized: true,
             ),
-            showControls: true,
-            onTogglePlayPause: () {},
-            onSeek: seeks.add,
           ),
+          showControls: true,
+          onTogglePlayPause: () {},
+          onSeek: seeks.add,
         ),
       ),
     );
@@ -87,7 +84,43 @@ void main() {
 
     expect(seeks, [const Duration(seconds: 5)]);
   });
+
+  testWidgets('seek bar speaks its name and the displayed position', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _app(
+        OnlineGalleryVideoControls(
+          valueListenable: ValueNotifier<VideoPlayerValue>(
+            const VideoPlayerValue(
+              duration: Duration(seconds: 10),
+              position: Duration(seconds: 2),
+              isInitialized: true,
+            ),
+          ),
+          showControls: true,
+          onTogglePlayPause: () {},
+          onSeek: (_) {},
+        ),
+      ),
+    );
+
+    final slider = find.semantics.byPredicate(
+      (node) =>
+          node.flagsCollection.isSlider && node.label == 'Playback position',
+    );
+    expect(slider, findsOne);
+    expect(slider.evaluate().single.value, '00:02');
+    expect(find.text('00:02'), findsOneWidget);
+  });
 }
+
+Widget _app(Widget body) => MaterialApp(
+  locale: const Locale('en'),
+  localizationsDelegates: AppLocalizations.localizationsDelegates,
+  supportedLocales: AppLocalizations.supportedLocales,
+  home: Scaffold(body: body),
+);
 
 class _CountingParent extends StatelessWidget {
   const _CountingParent({required this.onBuild, required this.child});
