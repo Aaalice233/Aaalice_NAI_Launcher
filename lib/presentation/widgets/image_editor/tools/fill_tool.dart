@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import '../../../../core/utils/localization_extension.dart';
 import '../core/editor_state.dart';
 import '../core/history_manager.dart';
+import '../core/mask_paint_style.dart';
 import 'tool_base.dart';
 import 'tool_setting_rows.dart';
 
@@ -50,10 +51,10 @@ class FillTool extends EditorTool {
     final height = region.height.toInt();
     final startX = (tapPosition.dx - region.left).round().clamp(0, width - 1);
     final startY = (tapPosition.dy - region.top).round().clamp(0, height - 1);
-    final fillColor = state.foregroundColor;
-
     final activeLayer = state.layerManager.activeLayer;
     if (activeLayer == null || activeLayer.locked) return;
+    final fillColor = state.paintColor;
+    final fillOpacity = activeLayer.isMask ? MaskPaintStyle.opacity : fillColor.a;
 
     final recorder = ui.PictureRecorder();
     final canvas = Canvas(recorder);
@@ -130,7 +131,7 @@ class FillTool extends EditorTool {
       points: fillPoints,
       size: 1,
       color: fillColor,
-      opacity: fillColor.a,
+      opacity: fillOpacity,
       hardness: 1.0,
       isEraser: false,
     );

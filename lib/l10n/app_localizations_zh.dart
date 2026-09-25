@@ -12481,6 +12481,58 @@ class AppLocalizationsZh extends AppLocalizations {
   String get editor_toolFrame => '取景框';
 
   @override
+  String get editor_toolMove => '移动';
+
+  @override
+  String get editor_moveLayerHint => '拖动以移动整个当前图层。';
+
+  @override
+  String get editor_moveSelectionHint => '拖动以移动当前图层在选区内的像素。';
+
+  @override
+  String get editor_moveBaseLayerHint => '底图不能整体移动；先框选，再移动选区内的像素。';
+
+  @override
+  String get editor_moveNoLayer => '没有可移动的图层。';
+
+  @override
+  String get editor_moveNudgeHint => '方向键移动 1 像素，按住 Shift 移动 10 像素。';
+
+  @override
+  String get editor_shortcutNudge => '移动 1 像素';
+
+  @override
+  String get editor_shortcutNudgeFar => '移动 10 像素';
+
+  @override
+  String get editor_maskBrushSettings => '蒙版画笔';
+
+  @override
+  String get selection_clearPixels => '删除选区内容';
+
+  @override
+  String selection_cutLayerName(Object name) {
+    return '$name 剪切';
+  }
+
+  @override
+  String layer_duplicateName(Object name) {
+    return '$name 副本';
+  }
+
+  @override
+  String get layer_roleMask => '蒙版';
+
+  @override
+  String get layer_addImage => '添加图片图层';
+
+  @override
+  String get layer_addMask => '添加蒙版图层';
+
+  @override
+  String get img2img_inpaintSourceUpdated => '底图修改已保存，涂上蒙版后即可局部重绘';
+
+  @override
   String get editor_frameToolHint =>
       '在框内按住拖动可整体移动取景框，拖动边缘可调整尺寸。框外内容会保留并压暗显示，只有框内部分会送去生成；移动时至少与原图重叠 64 像素。';
 
@@ -27537,6 +27589,58 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get editor_toolFrame => '取景框';
+
+  @override
+  String get editor_toolMove => '移動';
+
+  @override
+  String get editor_moveLayerHint => '拖曳以移動整個目前圖層。';
+
+  @override
+  String get editor_moveSelectionHint => '拖曳以移動目前圖層在選區內的像素。';
+
+  @override
+  String get editor_moveBaseLayerHint => '底圖不能整體移動；先框選，再移動選區內的像素。';
+
+  @override
+  String get editor_moveNoLayer => '沒有可移動的圖層。';
+
+  @override
+  String get editor_moveNudgeHint => '方向鍵移動 1 像素，按住 Shift 移動 10 像素。';
+
+  @override
+  String get editor_shortcutNudge => '移動 1 像素';
+
+  @override
+  String get editor_shortcutNudgeFar => '移動 10 像素';
+
+  @override
+  String get editor_maskBrushSettings => '蒙版畫筆';
+
+  @override
+  String get selection_clearPixels => '刪除選區內容';
+
+  @override
+  String selection_cutLayerName(Object name) {
+    return '$name 剪下';
+  }
+
+  @override
+  String layer_duplicateName(Object name) {
+    return '$name 副本';
+  }
+
+  @override
+  String get layer_roleMask => '蒙版';
+
+  @override
+  String get layer_addImage => '新增圖片圖層';
+
+  @override
+  String get layer_addMask => '新增蒙版圖層';
+
+  @override
+  String get img2img_inpaintSourceUpdated => '底圖修改已儲存，塗上蒙版後即可區域性重繪';
 
   @override
   String get editor_frameToolHint =>

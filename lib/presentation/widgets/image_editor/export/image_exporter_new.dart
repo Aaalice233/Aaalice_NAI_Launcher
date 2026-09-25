@@ -66,33 +66,29 @@ class ImageExporterNew {
     bool forceHardEdges = false,
   }) async {
     return exportMaskFromLayers(
-      null,
+      const [],
       region,
       selectionPath: selectionPath,
       forceHardEdges: forceHardEdges,
     );
   }
 
-  /// 从图层与选区共同导出蒙版图像（黑白，用于 Inpainting）
+  /// 把 [maskLayers] 中可见图层的并集与选区共同导出为黑白蒙版
   ///
-  /// [additionalMaskRects] 是导出区域的局部坐标。
+  /// 每个图层单独合成，橡皮擦只影响本层；[additionalMaskRects] 是导出区域的局部坐标。
   static Future<Uint8List> exportMaskFromLayers(
-    LayerManager? layerManager,
+    Iterable<Layer> maskLayers,
     Rect region, {
     Path? selectionPath,
-    Set<String> excludedBaseImageLayerIds = const {},
     bool forceHardEdges = false,
     List<Rect> additionalMaskRects = const [],
     bool preferCpuHardEdgeExport = false,
   }) async {
-    if (preferCpuHardEdgeExport &&
-        forceHardEdges &&
-        selectionPath == null &&
-        layerManager != null) {
+    final visibleLayers = maskLayers.where((layer) => layer.visible).toList();
+    if (preferCpuHardEdgeExport && forceHardEdges && selectionPath == null) {
       final input = _tryBuildHardEdgeMaskInput(
-        layerManager.layers.where((layer) => layer.visible),
+        visibleLayers,
         region,
-        excludedBaseImageLayerIds,
         additionalMaskRects,
       );
       if (input != null) {
@@ -110,18 +106,8 @@ class ImageExporterNew {
 
     canvas.save();
     canvas.translate(-region.left, -region.top);
-    if (layerManager != null) {
-      for (final layer in layerManager.layers) {
-        if (!layer.visible) {
-          continue;
-        }
-        _drawMaskLayer(
-          canvas,
-          layer,
-          includeBaseImage: !excludedBaseImageLayerIds.contains(layer.id),
-          forceHardEdges: forceHardEdges,
-        );
-      }
+    for (final layer in visibleLayers) {
+      _drawIsolatedMaskLayer(canvas, layer, forceHardEdges: forceHardEdges);
     }
 
     if (selectionPath != null) {
@@ -151,15 +137,13 @@ class ImageExporterNew {
 
   /// Returns the CPU hard-edge raster without a PNG encode/decode round trip.
   static Future<HardEdgeMaskRaster?> tryExportHardEdgeMaskRasterFromLayers(
-    LayerManager layerManager,
+    Iterable<Layer> maskLayers,
     Rect region, {
-    Set<String> excludedBaseImageLayerIds = const {},
     List<Rect> additionalMaskRects = const [],
   }) async {
     final input = _tryBuildHardEdgeMaskInput(
-      layerManager.layers.where((layer) => layer.visible),
+      maskLayers.where((layer) => layer.visible),
       region,
-      excludedBaseImageLayerIds,
       additionalMaskRects,
     );
     if (input == null) return null;
@@ -168,22 +152,19 @@ class ImageExporterNew {
 
   /// [region] 内全部可见蒙版的硬边光栅；CPU 光栅不支持时退回画布绘制
   static Future<HardEdgeMaskRaster> exportMaskRasterFromLayers(
-    LayerManager layerManager,
+    Iterable<Layer> maskLayers,
     Rect region, {
-    Set<String> excludedBaseImageLayerIds = const {},
     List<Rect> additionalMaskRects = const [],
   }) async {
     final raster = await tryExportHardEdgeMaskRasterFromLayers(
-      layerManager,
+      maskLayers,
       region,
-      excludedBaseImageLayerIds: excludedBaseImageLayerIds,
       additionalMaskRects: additionalMaskRects,
     );
     if (raster != null) return raster;
     final bytes = await exportMaskFromLayers(
-      layerManager,
+      maskLayers,
       region,
-      excludedBaseImageLayerIds: excludedBaseImageLayerIds,
       forceHardEdges: true,
       additionalMaskRects: additionalMaskRects,
     );
@@ -203,12 +184,7 @@ class ImageExporterNew {
     Layer layer,
     Rect region,
   ) async {
-    final input = _tryBuildHardEdgeMaskInput(
-      [layer],
-      region,
-      const {},
-      const [],
-    );
+    final input = _tryBuildHardEdgeMaskInput([layer], region, const []);
     if (input != null) {
       return HardEdgeMaskExporter.exportRasterAsync(input);
     }
@@ -248,7 +224,6 @@ class ImageExporterNew {
   static HardEdgeMaskExportInput? _tryBuildHardEdgeMaskInput(
     Iterable<Layer> layers,
     Rect region,
-    Set<String> excludedBaseImageLayerIds,
     List<Rect> additionalMaskRects,
   ) {
     final width = region.width.round();
@@ -259,21 +234,20 @@ class ImageExporterNew {
 
     final operations = <HardEdgeMaskOperation>[];
     for (final layer in layers) {
-      final shouldIncludeBaseImage = !excludedBaseImageLayerIds.contains(
-        layer.id,
-      );
-      final includeBaseImage =
-          shouldIncludeBaseImage && layer.baseImage != null;
+      final includeBaseImage = layer.baseImage != null;
       if (includeBaseImage && layer.toHardEdgeBaseMask() == null) {
         return null;
       }
 
-      operations.addAll(
-        layer.toHardEdgeMaskOperations(
-          includeBaseImage: includeBaseImage,
-          origin: region.topLeft,
-        ),
+      final layerOperations = layer.toHardEdgeMaskOperations(
+        includeBaseImage: includeBaseImage,
+        origin: region.topLeft,
       );
+      if (_hasEraser(layer)) {
+        operations.add(HardEdgeMaskLayerOperation(operations: layerOperations));
+      } else {
+        operations.addAll(layerOperations);
+      }
     }
 
     return HardEdgeMaskExportInput(
@@ -284,6 +258,25 @@ class ImageExporterNew {
       additionalRects: List<Rect>.from(additionalMaskRects),
       orderedOperations: operations,
     );
+  }
+
+  static bool _hasEraser(Layer layer) =>
+      layer.strokes.any((stroke) => stroke.isEraser);
+
+  /// 带橡皮擦的图层先在独立图层里合成，清除只作用于本层
+  static void _drawIsolatedMaskLayer(
+    Canvas canvas,
+    Layer layer, {
+    required bool forceHardEdges,
+  }) {
+    final isolated = _hasEraser(layer);
+    if (isolated) {
+      canvas.saveLayer(null, Paint());
+    }
+    _drawMaskLayer(canvas, layer, forceHardEdges: forceHardEdges);
+    if (isolated) {
+      canvas.restore();
+    }
   }
 
   /// 导出单个图层
@@ -302,10 +295,9 @@ class ImageExporterNew {
   static void _drawMaskLayer(
     Canvas canvas,
     Layer layer, {
-    bool includeBaseImage = true,
     bool forceHardEdges = false,
   }) {
-    if (includeBaseImage && layer.baseImage != null) {
+    if (layer.baseImage != null) {
       canvas.drawImage(layer.baseImage!, layer.baseImageOffset, Paint());
     }
 

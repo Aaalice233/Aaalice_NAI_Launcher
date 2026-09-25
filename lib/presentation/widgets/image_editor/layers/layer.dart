@@ -7,6 +7,7 @@ import 'package:uuid/uuid.dart';
 import '../../../../core/utils/app_logger.dart';
 import '../../../../core/utils/hard_edge_mask_exporter.dart';
 import '../core/history_manager.dart';
+import 'layer_role.dart';
 import 'model3d_layer_data.dart';
 
 /// 画布调整模式
@@ -123,6 +124,38 @@ class LayerContentSnapshot {
   }
 }
 
+/// 拖动中的平移预览，只影响屏幕绘制，松手提交前不改动图层数据
+class LayerMovePreview {
+  /// 整层平移
+  LayerMovePreview.whole(this.offset) : region = null, _remainder = null;
+
+  /// 只平移 [region] 内的像素；[extent] 需覆盖图层内容与区域
+  LayerMovePreview.region(Path this.region, this.offset, Rect extent)
+    : _remainder = Path.combine(
+        PathOperation.difference,
+        Path()..addRect(extent.expandToInclude(region.getBounds()).inflate(1)),
+        region,
+      );
+
+  final Path? region;
+  final Offset offset;
+  final Path? _remainder;
+
+  LayerMovePreview withOffset(Offset next) {
+    final selected = region;
+    if (selected == null) return LayerMovePreview.whole(next);
+    return LayerMovePreview._(selected, next, _remainder);
+  }
+
+  LayerMovePreview._(this.region, this.offset, this._remainder);
+
+  Rect affectedBounds(Rect contentBounds) {
+    final selected = region;
+    if (selected == null) return contentBounds.shift(offset);
+    return contentBounds.expandToInclude(selected.getBounds().shift(offset));
+  }
+}
+
 /// 图层类
 class Layer {
   /// 图层ID
@@ -146,6 +179,16 @@ class Layer {
 
   /// 混合模式
   LayerBlendMode blendMode;
+
+  /// 重绘会话里决定图层进入底图还是蒙版；编辑模式恒为图片层
+  LayerRole role;
+
+  /// 内容每变一次加一，用来判断底图是否被改过
+  int _contentRevision = 0;
+  int get contentRevision => _contentRevision;
+
+  LayerMovePreview? _movePreview;
+  LayerMovePreview? get movePreview => _movePreview;
 
   /// 笔画列表
   final List<StrokeData> _strokes = [];
@@ -228,7 +271,10 @@ class Layer {
     this.locked = false,
     this.opacity = 1.0,
     this.blendMode = LayerBlendMode.normal,
+    this.role = LayerRole.image,
   }) : id = id ?? const Uuid().v4();
+
+  bool get isMask => role == LayerRole.mask;
 
   /// 是否有基础图像
   bool get hasBaseImage => _baseImage != null;
@@ -379,7 +425,43 @@ class Layer {
     _invalidateRasterState();
   }
 
+  /// 平移全部内容；整数位移直接挪动已有缓存，避免重新光栅化
+  void translateContent(Offset delta) {
+    if (delta == Offset.zero) return;
+    if (_strokes.isNotEmpty) {
+      final moved = [
+        for (final stroke in _strokes)
+          stroke.copyWith(
+            points: [for (final point in stroke.points) point + delta],
+          ),
+      ];
+      _strokes
+        ..clear()
+        ..addAll(moved);
+    }
+    _baseImageOffset += delta;
+    _strokeGeneration++;
+
+    final isIntegral =
+        delta.dx == delta.dx.roundToDouble() &&
+        delta.dy == delta.dy.roundToDouble();
+    if (!isIntegral || _isRasterizing || _isCompositing) {
+      _invalidateRasterState();
+      return;
+    }
+    _contentRevision++;
+    _rasterBounds = _rasterBounds.shift(delta);
+    _compositeBounds = _compositeBounds.shift(delta);
+    _bounds = _bounds?.shift(delta);
+    _needsThumbnailUpdate = true;
+  }
+
+  void setMovePreview(LayerMovePreview? preview) {
+    _movePreview = preview;
+  }
+
   void _invalidateRasterState() {
+    _contentRevision++;
     _rasterizedStrokeCount = 0;
     _needsRasterize = true;
     _needsComposite = true;
@@ -408,6 +490,7 @@ class Layer {
   /// 添加笔画
   void addStroke(StrokeData stroke) {
     _strokes.add(stroke);
+    _contentRevision++;
     _strokeGeneration++; // 递增版本号
     _lastStrokeTime = DateTime.now();
     _needsRasterize = true;
@@ -425,6 +508,7 @@ class Layer {
   /// 调用者负责在批量操作结束后设置标志
   void addStrokeInternal(StrokeData stroke) {
     _strokes.add(stroke);
+    _contentRevision++;
     _strokeGeneration++; // 递增版本号
     _needsRasterize = true;
     _needsComposite = true;
@@ -441,6 +525,7 @@ class Layer {
     // 在移除前检查该笔画是否已光栅化
     final wasRasterized = _rasterizedStrokeCount >= _strokes.length;
     final stroke = _strokes.removeLast();
+    _contentRevision++;
     _strokeGeneration++; // 递增版本号，使正在进行的光栅化失效
 
     if (wasRasterized) {
@@ -467,6 +552,7 @@ class Layer {
   List<StrokeData> clearStrokes() {
     final oldStrokes = List<StrokeData>.from(_strokes);
     _strokes.clear();
+    _contentRevision++;
     _strokeGeneration++; // 递增版本号
     _rasterizedStrokeCount = 0;
     _needsRasterize = true;
@@ -482,22 +568,39 @@ class Layer {
     return oldStrokes;
   }
 
+  bool get _hasLayerEffects =>
+      opacity < 1.0 || blendMode != LayerBlendMode.normal;
+
+  Paint _layerPaint(FilterQuality filterQuality) {
+    final paint = Paint()..filterQuality = filterQuality;
+    if (opacity < 1.0) {
+      paint.color = Color.fromRGBO(255, 255, 255, opacity);
+    }
+    if (blendMode != LayerBlendMode.normal) {
+      paint.blendMode = blendMode.toFlutterBlendMode();
+    }
+    return paint;
+  }
+
   /// 以文档坐标绘制图层内容
   void render(Canvas canvas, {FilterQuality filterQuality = FilterQuality.none}) {
     if (!visible) return;
+    _renderContent(
+      canvas,
+      filterQuality: filterQuality,
+      layerPaint: _layerPaint(filterQuality),
+    );
+  }
 
-    // 保存当前状态
+  /// [layerPaint] 为 null 表示不透明度与混合模式已由调用方的 saveLayer 承担
+  void _renderContent(
+    Canvas canvas, {
+    required FilterQuality filterQuality,
+    Paint? layerPaint,
+  }) {
     canvas.save();
 
-    // 应用不透明度和混合模式
-    final layerPaint = Paint()..filterQuality = filterQuality;
     final imagePaint = Paint()..filterQuality = filterQuality;
-    if (opacity < 1.0) {
-      layerPaint.color = Color.fromRGBO(255, 255, 255, opacity);
-    }
-    if (blendMode != LayerBlendMode.normal) {
-      layerPaint.blendMode = blendMode.toFlutterBlendMode();
-    }
 
     // BlendMode.clear 需要在隔离的 saveLayer 中绘制，否则会擦穿到下层。
     // 当存在 baseImage 时，已光栅化的 eraser 也需要 saveLayer，
@@ -509,13 +612,14 @@ class Layer {
     final eraserNeedsSaveLayer =
         hasEraserInPending || (hasAnyEraser && _baseImage != null);
 
-    final needsLayer =
-        opacity < 1.0 ||
-        blendMode != LayerBlendMode.normal ||
-        eraserNeedsSaveLayer;
+    final appliesLayerPaint = layerPaint != null && _hasLayerEffects;
+    final needsLayer = appliesLayerPaint || eraserNeedsSaveLayer;
     if (needsLayer) {
       final layerBounds = contentBounds;
-      canvas.saveLayer(layerBounds.isEmpty ? null : layerBounds, layerPaint);
+      canvas.saveLayer(
+        layerBounds.isEmpty ? null : layerBounds,
+        layerPaint ?? imagePaint,
+      );
     }
 
     // 优先使用合成缓存
@@ -558,7 +662,7 @@ class Layer {
     canvas.restore();
   }
 
-  /// 使用缓存渲染（优先使用缓存，性能更好）
+  /// 使用缓存渲染（优先使用缓存，性能更好）；移动预览只在这里生效
   void renderWithCache(
     Canvas canvas, {
     Rect? viewportBounds,
@@ -566,43 +670,86 @@ class Layer {
   }) {
     if (!visible) return;
 
-    // 空间剔除优化：如果图层边界与视口不相交，则跳过渲染
-    // 这在放大查看画布的某一部分时特别有效，可以避免渲染不可见的图层
-    if (viewportBounds != null && !contentBounds.overlaps(viewportBounds)) {
+    final preview = _movePreview;
+    final bounds = preview == null
+        ? contentBounds
+        : preview.affectedBounds(contentBounds);
+    // 空间剔除优化：放大查看局部时跳过不在视口内的图层
+    if (viewportBounds != null && !bounds.overlaps(viewportBounds)) {
       return;
     }
 
-    canvas.save();
-
-    final layerPaint = Paint()..filterQuality = filterQuality;
-    if (opacity < 1.0) {
-      layerPaint.color = Color.fromRGBO(255, 255, 255, opacity);
-    }
-    if (blendMode != LayerBlendMode.normal) {
-      layerPaint.blendMode = blendMode.toFlutterBlendMode();
-    }
-
-    // 如果有合成缓存且不需要更新，直接使用
-    if (_compositedCache != null && !_needsComposite) {
-      canvas.drawImage(
-        _compositedCache!,
-        _compositeBounds.topLeft,
-        layerPaint,
+    if (preview == null) {
+      _drawCachedOrRender(
+        canvas,
+        filterQuality: filterQuality,
+        layerPaint: _layerPaint(filterQuality),
       );
-    } else {
-      // 否则走正常渲染流程
-      render(canvas, filterQuality: filterQuality);
+      return;
     }
 
+    // 预览分两块绘制，不透明度与混合模式要在合拢后统一施加一次
+    final isolated = _hasLayerEffects;
+    canvas.save();
+    if (isolated) {
+      canvas.saveLayer(
+        bounds.isEmpty ? null : bounds,
+        _layerPaint(filterQuality),
+      );
+    }
+    final region = preview.region;
+    if (region == null) {
+      canvas.translate(preview.offset.dx, preview.offset.dy);
+      _drawCachedOrRender(canvas, filterQuality: filterQuality);
+    } else {
+      canvas.save();
+      canvas.clipPath(preview._remainder!);
+      _drawCachedOrRender(canvas, filterQuality: filterQuality);
+      canvas.restore();
+      canvas.save();
+      canvas.translate(preview.offset.dx, preview.offset.dy);
+      canvas.clipPath(region);
+      _drawCachedOrRender(canvas, filterQuality: filterQuality);
+      canvas.restore();
+    }
+    if (isolated) {
+      canvas.restore();
+    }
     canvas.restore();
   }
 
-  /// 把图层内容中位于 [region] 的部分渲染成 [region] 大小的图像
+  void _drawCachedOrRender(
+    Canvas canvas, {
+    required FilterQuality filterQuality,
+    Paint? layerPaint,
+  }) {
+    final cache = _compositedCache;
+    if (cache != null && !_needsComposite) {
+      canvas.drawImage(
+        cache,
+        _compositeBounds.topLeft,
+        layerPaint ?? (Paint()..filterQuality = filterQuality),
+      );
+      return;
+    }
+    _renderContent(
+      canvas,
+      filterQuality: filterQuality,
+      layerPaint: layerPaint,
+    );
+  }
+
+  /// 只画像素本身：不受可见性、不透明度与混合模式影响，烘焙后这些属性仍由图层承担
+  void renderPixels(Canvas canvas) {
+    _renderContent(canvas, filterQuality: FilterQuality.none);
+  }
+
+  /// 把图层像素中位于 [region] 的部分渲染成 [region] 大小的图像
   Future<ui.Image> renderToImage(Rect region) async {
     final recorder = ui.PictureRecorder();
     final canvas = Canvas(recorder);
     canvas.translate(-region.left, -region.top);
-    render(canvas);
+    renderPixels(canvas);
     final picture = recorder.endRecording();
     try {
       return await picture.toImage(
@@ -956,7 +1103,7 @@ class Layer {
     _needsThumbnailUpdate = true;
   }
 
-  /// 转换为数据对象
+  /// 完整数据（含已解码底图的独立克隆），持有者负责 [LayerData.dispose]
   LayerData toData() {
     return LayerData(
       id: id,
@@ -965,11 +1112,13 @@ class Layer {
       locked: locked,
       opacity: opacity,
       blendMode: blendMode,
-      strokes: List.from(_strokes),
+      role: role,
+      model3d: model3d,
+      content: captureContent(),
     );
   }
 
-  /// 从数据对象创建图层
+  /// 从数据重建图层；[data] 不被消费，可重复用于撤销/重做
   factory Layer.fromData(LayerData data) {
     final layer = Layer(
       id: data.id,
@@ -978,16 +1127,14 @@ class Layer {
       locked: data.locked,
       opacity: data.opacity,
       blendMode: data.blendMode,
+      role: data.role,
     );
-    for (final stroke in data.strokes) {
-      layer.addStroke(stroke);
-    }
+    layer.restoreContent(data.content);
+    layer.model3d = data.model3d;
     return layer;
   }
 
-  /// 克隆图层
-  ///
-  /// 注意：如果图层有 baseImage，需要调用 [cloneAsync] 来正确克隆基础图像
+  /// 同步克隆全部内容，新图层使用新 id
   Layer clone({String? newName}) {
     final cloned = Layer(
       name: newName ?? '$name Copy',
@@ -995,33 +1142,15 @@ class Layer {
       locked: locked,
       opacity: opacity,
       blendMode: blendMode,
+      role: role,
     );
-
-    // 复制基础图像字节（延迟解码）
-    if (_baseImageBytes != null) {
-      cloned._baseImageBytes = Uint8List.fromList(_baseImageBytes!);
-    }
-    cloned._baseImageOffset = _baseImageOffset;
-
-    for (final stroke in _strokes) {
-      cloned.addStroke(stroke.copyWith());
+    final snapshot = captureContent();
+    try {
+      cloned.restoreContent(snapshot);
+    } finally {
+      snapshot.dispose();
     }
     cloned.model3d = model3d;
-    return cloned;
-  }
-
-  /// 异步克隆图层（包括解码基础图像）
-  Future<Layer> cloneAsync({String? newName}) async {
-    final cloned = clone(newName: newName);
-
-    // 如果有基础图像字节，重新解码
-    if (cloned._baseImageBytes != null) {
-      final baseImageOffset = cloned._baseImageOffset;
-      await cloned.setBaseImage(cloned._baseImageBytes!);
-      cloned.setBaseImageOffset(baseImageOffset);
-    }
-    cloned.model3d = model3d;
-
     return cloned;
   }
 
@@ -1075,6 +1204,8 @@ class Layer {
 
   /// 释放资源
   void dispose() {
+    _movePreview = null;
+
     // 释放通知器
     isActiveNotifier.dispose();
 

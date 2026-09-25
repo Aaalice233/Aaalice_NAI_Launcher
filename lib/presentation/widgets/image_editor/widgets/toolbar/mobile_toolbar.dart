@@ -16,7 +16,6 @@ class MobileToolbar extends StatelessWidget {
   final VoidCallback? onFillMask;
   final bool Function()? canFillMask;
   final VoidCallback? onLayersPressed;
-  final Set<String>? allowedToolIds;
 
   const MobileToolbar({
     super.key,
@@ -27,11 +26,7 @@ class MobileToolbar extends StatelessWidget {
     this.onFillMask,
     this.canFillMask,
     this.onLayersPressed,
-    this.allowedToolIds,
   });
-
-  List<EditorTool> get _visibleTools =>
-      visibleEditorTools(state, allowedToolIds);
 
   @override
   Widget build(BuildContext context) {
@@ -49,11 +44,12 @@ class MobileToolbar extends StatelessWidget {
       ),
       child: Row(
         children: [
-          // 撤销/重做 - 监听历史管理器
+          // 撤销/重做/清空 - 监听历史、图层内容与当前图层
           ListenableBuilder(
             listenable: Listenable.merge([
               state.historyManager,
               state.layerManager,
+              state.layerManager.activeLayerNotifier,
             ]),
             builder: (context, _) {
               return Row(
@@ -70,13 +66,12 @@ class MobileToolbar extends StatelessWidget {
                     enabled: state.canRedo,
                     onTap: onRedo ?? () => state.redo(),
                   ),
-                  if (onClear != null)
-                    _ActionButton(
-                      icon: Icons.delete_outline,
-                      tooltip: context.l10n.editor_clearLayer,
-                      enabled: true,
-                      onTap: onClear!,
-                    ),
+                  _ActionButton(
+                    icon: Icons.delete_outline,
+                    tooltip: clearToolbarTooltip(context, state),
+                    enabled: canClearFromToolbar(state),
+                    onTap: onClear ?? state.clearActiveLayerWithHistory,
+                  ),
                   if (onFillMask != null)
                     _ActionButton(
                       icon: Icons.format_color_fill,
@@ -96,15 +91,16 @@ class MobileToolbar extends StatelessWidget {
             endIndent: 12,
           ),
 
-          // 工具列表 - 监听工具切换
+          // 工具列表 - 监听工具切换与当前图层
           Expanded(
-            child: ValueListenableBuilder<String?>(
-              valueListenable: state.toolNotifier,
-              builder: (context, currentToolId, _) {
+            child: ListenableBuilder(
+              listenable: editorToolAvailability(state),
+              builder: (context, _) {
+                final currentToolId = state.toolNotifier.value;
                 return HorizontalActionStrip(
                   padding: const EdgeInsets.symmetric(horizontal: 4),
                   child: Row(
-                    children: _visibleTools.map((tool) {
+                    children: visibleEditorTools(state).map((tool) {
                       return _MobileToolButton(
                         tool: tool,
                         isSelected: tool.id == currentToolId,

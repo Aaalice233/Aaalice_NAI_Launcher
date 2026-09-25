@@ -6355,6 +6355,32 @@
     }
   },
   "editor_toolFrame": "フレーム",
+  "editor_toolMove": "移動",
+  "editor_moveLayerHint": "ドラッグして現在のレイヤー全体を移動します。",
+  "editor_moveSelectionHint": "ドラッグして現在のレイヤーの選択範囲内のピクセルを移動します。",
+  "editor_moveBaseLayerHint": "ベース画像は全体を移動できません。先に範囲を選択してから、その中のピクセルを移動してください。",
+  "editor_moveNoLayer": "移動できるレイヤーがありません。",
+  "editor_moveNudgeHint": "矢印キーで 1 ピクセル、Shift を押しながらで 10 ピクセル移動します。",
+  "editor_shortcutNudge": "1 ピクセル移動",
+  "editor_shortcutNudgeFar": "10 ピクセル移動",
+  "editor_maskBrushSettings": "マスクブラシ",
+  "selection_clearPixels": "選択範囲の内容を削除",
+  "selection_cutLayerName": "{name} カット",
+  "@selection_cutLayerName": {
+    "placeholders": {
+      "name": {}
+    }
+  },
+  "layer_duplicateName": "{name} のコピー",
+  "@layer_duplicateName": {
+    "placeholders": {
+      "name": {}
+    }
+  },
+  "layer_roleMask": "マスク",
+  "layer_addImage": "画像レイヤーを追加",
+  "layer_addMask": "マスクレイヤーを追加",
+  "img2img_inpaintSourceUpdated": "ベース画像の編集を保存しました。マスクを塗るとインペイントできます。",
   "editor_frameToolHint": "フレーム内をドラッグすると全体を移動し、端をドラッグするとサイズを変更します。フレーム外の内容は暗く表示されたまま保持され、生成に送られるのはフレーム内だけです。移動後も元画像と 64 ピクセル以上重なるようにします。",
   "editor_frameSizeReadout": "サイズ: {width} × {height}",
   "@editor_frameSizeReadout": {

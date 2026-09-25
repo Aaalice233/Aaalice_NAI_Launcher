@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import '../../../../core/utils/localization_extension.dart';
 import '../core/editor_state.dart';
 import '../core/history_manager.dart';
+import '../core/mask_paint_style.dart';
 import 'color_picker_tool.dart';
 import 'tool_base.dart';
 import 'tool_setting_rows.dart';
@@ -100,6 +101,10 @@ class BrushTool extends EditorTool {
   int _selectedPresetIndex = 2; // Default to "Standard Brush".
   int get selectedPresetIndex => _selectedPresetIndex;
 
+  /// 蒙版笔只有大小可调，与图片笔刷各自记忆
+  double _maskSize = 40.0;
+  double get maskSize => _maskSize;
+
   @override
   String get id => 'brush';
 
@@ -146,6 +151,21 @@ class BrushTool extends EditorTool {
     _settings = _settings.copyWith(hardness: hardness.clamp(0.0, 1.0));
   }
 
+  void setMaskSize(double size) {
+    _maskSize = size.clamp(1.0, 500.0);
+  }
+
+  double sizeFor(EditorState state) =>
+      state.isMaskLayerActive ? _maskSize : _settings.size;
+
+  void setSizeFor(EditorState state, double size) {
+    if (state.isMaskLayerActive) {
+      setMaskSize(size);
+    } else {
+      setSize(size);
+    }
+  }
+
   @override
   void onPointerDown(PointerDownEvent event, EditorState state) {
     // Alt 模式下不开始绘画，等待 pointerUp 取色
@@ -190,13 +210,13 @@ class BrushTool extends EditorTool {
   void _commitCurrentStroke(EditorState state) {
     final activeLayer = state.layerManager.activeLayer;
     if (activeLayer != null && !activeLayer.locked) {
-      // 创建笔画数据
+      final paintsMask = activeLayer.isMask;
       final stroke = StrokeData(
         points: List.from(state.currentStrokePoints),
-        size: _settings.size,
-        color: state.foregroundColor,
-        opacity: _settings.opacity,
-        hardness: _settings.hardness,
+        size: paintsMask ? _maskSize : _settings.size,
+        color: state.paintColor,
+        opacity: paintsMask ? MaskPaintStyle.opacity : _settings.opacity,
+        hardness: paintsMask ? MaskPaintStyle.hardness : _settings.hardness,
         isEraser: false,
       );
 
@@ -218,16 +238,99 @@ class BrushTool extends EditorTool {
   }
 
   @override
-  double getCursorRadius(EditorState state) => _settings.size / 2;
+  double getCursorRadius(EditorState state) => sizeFor(state) / 2;
 
   @override
   Widget buildSettingsPanel(BuildContext context, EditorState state) {
-    return _BrushSettingsPanel(
-      tool: this,
-      onSettingsChanged: () {
-        // 触发刷新
-        state.requestUiUpdate();
+    // 切换图层时蒙版笔与图片笔刷的面板随之互换
+    return ValueListenableBuilder<String?>(
+      valueListenable: state.layerManager.activeLayerNotifier,
+      builder: (context, _, _) {
+        if (state.isMaskLayerActive) {
+          return _MaskBrushSettingsPanel(
+            tool: this,
+            onSettingsChanged: state.requestUiUpdate,
+          );
+        }
+        return _BrushSettingsPanel(
+          tool: this,
+          onSettingsChanged: state.requestUiUpdate,
+        );
       },
+    );
+  }
+}
+
+/// 蒙版笔只调大小：颜色、不透明度与硬度对蒙版结果没有影响
+class _MaskBrushSettingsPanel extends StatefulWidget {
+  const _MaskBrushSettingsPanel({
+    required this.tool,
+    required this.onSettingsChanged,
+  });
+
+  final BrushTool tool;
+  final VoidCallback onSettingsChanged;
+
+  @override
+  State<_MaskBrushSettingsPanel> createState() =>
+      _MaskBrushSettingsPanelState();
+}
+
+class _MaskBrushSettingsPanelState extends State<_MaskBrushSettingsPanel> {
+  late final TextEditingController _sizeController = TextEditingController(
+    text: widget.tool.maskSize.round().toString(),
+  );
+
+  @override
+  void didUpdateWidget(_MaskBrushSettingsPanel oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final text = widget.tool.maskSize.round().toString();
+    if (_sizeController.text != text) {
+      _sizeController.text = text;
+    }
+  }
+
+  @override
+  void dispose() {
+    _sizeController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          child: Text(
+            context.l10n.editor_maskBrushSettings,
+            style: theme.textTheme.titleSmall?.copyWith(
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ),
+        const ThemedDivider(height: 1),
+        ToolSettingRows(
+          rows: [
+            ToolSettingRow.slider(
+              label: context.l10n.editor_size,
+              value: widget.tool.maskSize,
+              min: 1,
+              max: 500,
+              controller: _sizeController,
+              onChanged: (value) {
+                setState(() {
+                  widget.tool.setMaskSize(value);
+                  _sizeController.text = value.round().toString();
+                });
+                widget.onSettingsChanged();
+              },
+            ),
+          ],
+        ),
+      ],
     );
   }
 }

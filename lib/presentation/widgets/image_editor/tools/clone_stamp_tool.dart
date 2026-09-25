@@ -7,6 +7,7 @@ import '../../../../core/utils/localization_extension.dart';
 import '../../common/compact_icon_button.dart';
 import '../core/editor_state.dart';
 import '../core/history_manager.dart';
+import '../layers/layer_patch_baker.dart';
 import 'tool_base.dart';
 import 'tool_setting_rows.dart';
 
@@ -67,6 +68,10 @@ class CloneStampTool extends EditorTool {
 
   @override
   String get id => 'clone_stamp';
+
+  /// 仿制的是画面像素，蒙版层上没有意义
+  @override
+  bool isAvailableIn(EditorState state) => !state.isMaskLayerActive;
 
   @override
   String get name => 'Clone Stamp';
@@ -139,7 +144,7 @@ class CloneStampTool extends EditorTool {
     final rec = ui.PictureRecorder();
     final c = Canvas(rec);
     c.translate(-region.left, -region.top);
-    state.layerManager.renderAll(c);
+    state.layerManager.renderImageLayers(c);
     final pic = rec.endRecording();
     _canvasSnapshot = pic.toImageSync(w, h);
     _snapshotOrigin = region.topLeft;
@@ -207,18 +212,22 @@ class CloneStampTool extends EditorTool {
       final result = _compositeCloneSync(layerImg, sample, points, region);
       layerImg.dispose();
 
-      final pngData = await result.toByteData(format: ui.ImageByteFormat.png);
-      if (pngData == null) {
+      final BakedLayerImage baked;
+      try {
+        baked = await LayerPatchBaker.replaceRegion(
+          activeLayer,
+          patch: result,
+          patchRect: region,
+          extentLock: state.rolePolicy.extentLockFor(activeLayer),
+        );
+      } finally {
         result.dispose();
-        return;
       }
 
       state.historyManager.execute(
-        ReplaceLayerImageAction(
+        ReplaceLayerImageAction.baked(
           layerId: activeLayer.id,
-          newImageBytes: pngData.buffer.asUint8List(),
-          newImage: result,
-          newImageOffset: region.topLeft,
+          pixels: baked,
           actionDescription: 'Clone Stamp',
         ),
         state,

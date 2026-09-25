@@ -12696,6 +12696,60 @@ class AppLocalizationsJa extends AppLocalizations {
   String get editor_toolFrame => 'フレーム';
 
   @override
+  String get editor_toolMove => '移動';
+
+  @override
+  String get editor_moveLayerHint => 'ドラッグして現在のレイヤー全体を移動します。';
+
+  @override
+  String get editor_moveSelectionHint => 'ドラッグして現在のレイヤーの選択範囲内のピクセルを移動します。';
+
+  @override
+  String get editor_moveBaseLayerHint =>
+      'ベース画像は全体を移動できません。先に範囲を選択してから、その中のピクセルを移動してください。';
+
+  @override
+  String get editor_moveNoLayer => '移動できるレイヤーがありません。';
+
+  @override
+  String get editor_moveNudgeHint => '矢印キーで 1 ピクセル、Shift を押しながらで 10 ピクセル移動します。';
+
+  @override
+  String get editor_shortcutNudge => '1 ピクセル移動';
+
+  @override
+  String get editor_shortcutNudgeFar => '10 ピクセル移動';
+
+  @override
+  String get editor_maskBrushSettings => 'マスクブラシ';
+
+  @override
+  String get selection_clearPixels => '選択範囲の内容を削除';
+
+  @override
+  String selection_cutLayerName(Object name) {
+    return '$name カット';
+  }
+
+  @override
+  String layer_duplicateName(Object name) {
+    return '$name のコピー';
+  }
+
+  @override
+  String get layer_roleMask => 'マスク';
+
+  @override
+  String get layer_addImage => '画像レイヤーを追加';
+
+  @override
+  String get layer_addMask => 'マスクレイヤーを追加';
+
+  @override
+  String get img2img_inpaintSourceUpdated =>
+      'ベース画像の編集を保存しました。マスクを塗るとインペイントできます。';
+
+  @override
   String get editor_frameToolHint =>
       'フレーム内をドラッグすると全体を移動し、端をドラッグするとサイズを変更します。フレーム外の内容は暗く表示されたまま保持され、生成に送られるのはフレーム内だけです。移動後も元画像と 64 ピクセル以上重なるようにします。';
 

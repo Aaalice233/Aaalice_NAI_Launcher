@@ -249,7 +249,7 @@ void main() {
     );
 
     final exported = await ImageExporterNew.exportMaskFromLayers(
-      layerManager,
+      layerManager.layers,
       const Rect.fromLTWH(0, 0, 12, 12),
       forceHardEdges: true,
       additionalMaskRects: const [Rect.fromLTWH(0, 0, 2, 2)],
@@ -303,13 +303,13 @@ void main() {
       await importedMaskLayer.setBaseImage(_blackWhiteTransparentPng());
 
       final cpuExported = await ImageExporterNew.exportMaskFromLayers(
-        layerManager,
+        layerManager.layers,
         const Rect.fromLTWH(0, 0, 4, 2),
         forceHardEdges: true,
         preferCpuHardEdgeExport: true,
       );
       final canvasExported = await ImageExporterNew.exportMaskFromLayers(
-        layerManager,
+        layerManager.layers,
         const Rect.fromLTWH(0, 0, 4, 2),
         forceHardEdges: true,
         preferCpuHardEdgeExport: false,
@@ -335,7 +335,7 @@ void main() {
     layer.setBaseImageOffset(const Offset(3, 2));
 
     final exported = await ImageExporterNew.exportMaskFromLayers(
-      layerManager,
+      layerManager.layers,
       const Rect.fromLTWH(0, 0, 8, 8),
       forceHardEdges: true,
       preferCpuHardEdgeExport: false,
@@ -352,7 +352,7 @@ void main() {
     final selectionPath = Path()..addRect(const Rect.fromLTWH(10, 10, 1, 1));
 
     final exported = await ImageExporterNew.exportMaskFromLayers(
-      layerManager,
+      layerManager.layers,
       const Rect.fromLTWH(0, 0, 12, 12),
       selectionPath: selectionPath,
       forceHardEdges: true,

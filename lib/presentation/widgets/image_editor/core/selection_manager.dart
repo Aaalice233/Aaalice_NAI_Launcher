@@ -1,23 +1,4 @@
-import 'dart:ui' as ui;
-
 import 'package:flutter/material.dart';
-
-/// 选区变换状态
-class SelectionTransform {
-  const SelectionTransform({this.offset = Offset.zero, this.scale = 1.0});
-
-  final Offset offset;
-  final double scale;
-
-  bool get isIdentity => offset == Offset.zero && scale == 1.0;
-
-  SelectionTransform copyWith({Offset? offset, double? scale}) {
-    return SelectionTransform(
-      offset: offset ?? this.offset,
-      scale: scale ?? this.scale,
-    );
-  }
-}
 
 /// 选区管理器
 /// 负责选区的创建、修改、历史记录等操作
@@ -31,21 +12,15 @@ class SelectionManager extends ChangeNotifier {
   Path? _previewPath;
   Path? get previewPath => _previewPath;
 
-  /// 选区变换状态（移动/缩放选中内容）
-  SelectionTransform _transform = const SelectionTransform();
-  SelectionTransform get transform => _transform;
+  /// 拖动中的预览位移：轮廓跟随指针，松手提交前不改动选区
+  Offset _dragOffset = Offset.zero;
+  bool _isDragging = false;
+  bool get isDragging => _isDragging;
+  Offset get dragOffset => _dragOffset;
+  Path? _displayPath;
 
-  /// 是否处于变换模式
-  bool _isTransforming = false;
-  bool get isTransforming => _isTransforming;
-
-  /// 变换模式下缓存的裁切内容
-  ui.Image? _transformContent;
-  ui.Image? get transformContent => _transformContent;
-
-  /// 变换开始时的选区边界
-  Rect? _transformBounds;
-  Rect? get transformBounds => _transformBounds;
+  /// 绘制用选区：拖动中是平移后的轮廓
+  Path? get displayPath => _isDragging ? _displayPath : _selectionPath;
 
   /// 选区历史（用于撤销）
   final List<Path?> _selectionHistory = [];
@@ -155,7 +130,7 @@ class SelectionManager extends ChangeNotifier {
     return false;
   }
 
-  // ===== 选区变换 =====
+  // ===== 选区拖动 =====
 
   /// 检测点是否在选区内部
   bool hitTestSelection(Offset point) {
@@ -163,72 +138,52 @@ class SelectionManager extends ChangeNotifier {
     return _selectionPath!.contains(point);
   }
 
-  /// 进入变换模式
-  void enterTransform(ui.Image content) {
-    if (_selectionPath == null) return;
-    _isTransforming = true;
-    _transformContent = content;
-    _transformBounds = _selectionPath!.getBounds();
-    _transform = const SelectionTransform();
+  void beginDrag() {
+    final path = _selectionPath;
+    if (path == null) return;
+    _isDragging = true;
+    _dragOffset = Offset.zero;
+    _displayPath = path;
     notifyListeners();
   }
 
-  /// 更新变换偏移
-  void updateTransformOffset(Offset delta) {
-    if (!_isTransforming) return;
-    _transform = _transform.copyWith(offset: _transform.offset + delta);
+  void updateDrag(Offset offset) {
+    final path = _selectionPath;
+    if (!_isDragging || path == null || offset == _dragOffset) return;
+    _dragOffset = offset;
+    _displayPath = path.shift(offset);
     notifyListeners();
   }
 
-  /// 更新变换缩放
-  void updateTransformScale(double scale) {
-    if (!_isTransforming) return;
-    _transform = _transform.copyWith(scale: scale.clamp(0.1, 10.0));
-    notifyListeners();
-  }
-
-  /// 获取变换后的选区边界
-  Rect? get transformedBounds {
-    if (_transformBounds == null) return null;
-    final b = _transformBounds!;
-    return Rect.fromLTWH(
-      b.left + _transform.offset.dx,
-      b.top + _transform.offset.dy,
-      b.width * _transform.scale,
-      b.height * _transform.scale,
-    );
-  }
-
-  /// 完成变换（返回 transform 和 bounds 给调用者处理像素合并）
-  (SelectionTransform, Rect)? commitTransform() {
-    if (!_isTransforming || _transformBounds == null) {
-      cancelTransform();
-      return null;
+  /// 只移动轮廓：提交为一条选区历史
+  void commitDrag() {
+    if (!_isDragging) return;
+    final path = _selectionPath;
+    final offset = _dragOffset;
+    _endDrag();
+    if (path != null && offset != Offset.zero) {
+      setSelection(path.shift(offset));
+    } else {
+      notifyListeners();
     }
-    final result = (_transform, _transformBounds!);
-    _isTransforming = false;
-    _transformContent?.dispose();
-    _transformContent = null;
-    _transformBounds = null;
-    _transform = const SelectionTransform();
-    clearSelection();
-    notifyListeners();
-    return result;
   }
 
-  /// 取消变换
-  void cancelTransform() {
-    _isTransforming = false;
-    _transformContent?.dispose();
-    _transformContent = null;
-    _transformBounds = null;
-    _transform = const SelectionTransform();
+  /// 放弃预览；像素移动由撤销操作自己写回选区
+  void cancelDrag() {
+    if (!_isDragging) return;
+    _endDrag();
     notifyListeners();
+  }
+
+  void _endDrag() {
+    _isDragging = false;
+    _dragOffset = Offset.zero;
+    _displayPath = null;
   }
 
   /// 重置
   void reset() {
-    cancelTransform();
+    _endDrag();
     _selectionPath = null;
     _previewPath = null;
     _selectionHistory.clear();
@@ -239,7 +194,6 @@ class SelectionManager extends ChangeNotifier {
 
   @override
   void dispose() {
-    _transformContent?.dispose();
     selectionNotifier.dispose();
     super.dispose();
   }

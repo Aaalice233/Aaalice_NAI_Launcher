@@ -192,6 +192,7 @@ class ImageEditorResult {
     this.modifiedImage,
     this.maskImage,
     this.hasImageChanges = false,
+    this.hasSourceImageChanges = false,
     this.hasMaskChanges = false,
     this.focusAreaRect,
     this.minimumContextMegaPixels = 88.0,
@@ -213,6 +214,9 @@ class ImageEditorResult {
   final Uint8List? modifiedImage;
   final Uint8List? maskImage;
   final bool hasImageChanges;
+
+  /// 重绘会话里图片层被改过：交出的源图是重新合成的画面，不是打开时的原图
+  final bool hasSourceImageChanges;
   final bool hasMaskChanges;
   final Rect? focusAreaRect;
   final double minimumContextMegaPixels;

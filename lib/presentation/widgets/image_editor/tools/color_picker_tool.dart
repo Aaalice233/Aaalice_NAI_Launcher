@@ -92,8 +92,8 @@ class ColorPickerTool extends EditorTool {
     // 绘制白色背景（与画布显示一致）
     canvas.drawRect(frame, Paint()..color = Colors.white);
 
-    // 所见即所得：始终渲染所有可见图层的合成结果
-    state.layerManager.renderAll(canvas);
+    // 只取画面内容，重绘会话里的蒙版叠加色不参与
+    state.layerManager.renderImageLayers(canvas);
 
     final picture = recorder.endRecording();
     // 只生成小区域的图像，而非整个画布
@@ -155,6 +155,10 @@ class ColorPickerTool extends EditorTool {
 
   @override
   String get id => 'color_picker';
+
+  /// 蒙版层只用固定的蒙版色，取色对它没有意义
+  @override
+  bool isAvailableIn(EditorState state) => !state.isMaskLayerActive;
 
   @override
   String get name => 'Color Picker';

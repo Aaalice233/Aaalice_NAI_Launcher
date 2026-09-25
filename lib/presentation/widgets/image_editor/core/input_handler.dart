@@ -99,6 +99,13 @@ class GestureState {
   }
 }
 
+final Map<LogicalKeyboardKey, Offset> _arrowDirections = {
+  LogicalKeyboardKey.arrowLeft: const Offset(-1, 0),
+  LogicalKeyboardKey.arrowRight: const Offset(1, 0),
+  LogicalKeyboardKey.arrowUp: const Offset(0, -1),
+  LogicalKeyboardKey.arrowDown: const Offset(0, 1),
+};
+
 /// 输入处理器
 /// 负责处理键盘、鼠标、手势等输入事件
 class InputHandler {
@@ -274,14 +281,28 @@ class InputHandler {
           state.increaseBrushOpacity();
           return KeyEventResult.handled;
         case LogicalKeyboardKey.escape:
+          // 拖动中的工具（移动、选区、取景框）一并放弃本次手势
+          _cancelDrawingPointer();
           state.cancelStroke();
           return KeyEventResult.handled;
         case LogicalKeyboardKey.delete:
         case LogicalKeyboardKey.backspace:
           if (state.selectionPath != null) {
-            state.clearSelection();
+            state.layerCommands.clearSelectionPixels();
           }
           return KeyEventResult.handled;
+      }
+    }
+
+    // 方向键微移：1 像素，按住 Shift 为 10 像素
+    if ((isDown || event is KeyRepeatEvent) && !keyboard.isCtrlPressed) {
+      final direction = _arrowDirections[event.logicalKey];
+      final tool = state.currentTool;
+      if (direction != null && tool != null) {
+        final step = keyboard.isShiftPressed ? 10.0 : 1.0;
+        if (tool.onArrowNudge(state, direction * step)) {
+          return KeyEventResult.handled;
+        }
       }
     }
 
@@ -675,6 +696,7 @@ class InputHandler {
       case 'color_picker':
         return SystemMouseCursors.precise;
       case 'frame':
+      case 'move':
         return SystemMouseCursors.move;
       default:
         return SystemMouseCursors.basic;

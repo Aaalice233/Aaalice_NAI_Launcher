@@ -8,6 +8,7 @@ import '../core/editor_state.dart';
 import '../export/image_exporter_new.dart';
 import '../image_editor_controller.dart';
 import '../layers/layer.dart';
+import '../layers/layer_patch_baker.dart';
 import 'editor_frame_commands.dart';
 import 'frame_geometry.dart';
 import 'frame_history_actions.dart';
@@ -270,9 +271,9 @@ class EditorFrameController extends ChangeNotifier
             !EditorFrameGeometry.exceedsFrame(layer.contentBounds, frame)) {
           continue;
         }
-        final after = layer.id == session.sourceLayerId
-            ? await _cropSourceContent(layer, frame)
-            : await _bakeMaskContent(layer, frame);
+        final after = layer.isMask
+            ? await _bakeMaskContent(layer, frame)
+            : await _cropImageContent(layer, frame);
         changes.add(
           CropToFrameLayerChange(
             layerId: layer.id,
@@ -290,26 +291,20 @@ class EditorFrameController extends ChangeNotifier
     return CropToFrameAction(changes: changes);
   }
 
-  Future<LayerContentSnapshot> _cropSourceContent(
-    Layer layer,
-    Rect frame,
-  ) async {
-    final bytes = layer.baseImageBytes;
+  /// 图片层只保留框内像素；原图层同时收缩到原图与框的交集，成为新的原图区域
+  Future<LayerContentSnapshot> _cropImageContent(Layer layer, Rect frame) async {
     final source = sourceRect;
-    if (bytes == null || source == null) {
-      throw StateError('Unable to read current source image.');
+    final keep = layer.id == session.sourceLayerId && source != null
+        ? source.intersect(frame)
+        : frame;
+    final cropped = await LayerPatchBaker.cropTo(layer, keep);
+    if (cropped == null) {
+      return const LayerContentSnapshot.empty();
     }
-    final kept = source.intersect(frame);
-    final cropped = await session.processingService.materializeOutpaint(
-      sourceImage: bytes,
-      frame: EditorFrameGeometry.virtualFrame(frame: kept, sourceRect: source),
-    );
-    final image = await session.processingService.decode(cropped.sourceImage);
     return LayerContentSnapshot(
-      baseImage: image,
-      baseImageBytes: cropped.sourceImage,
-      baseImageOffset: kept.topLeft,
-      strokes: layer.strokes,
+      baseImage: cropped.image,
+      baseImageBytes: cropped.bytes,
+      baseImageOffset: cropped.offset,
     );
   }
 

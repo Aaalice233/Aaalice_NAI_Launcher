@@ -13032,6 +13032,62 @@ class AppLocalizationsEn extends AppLocalizations {
   String get editor_toolFrame => 'Frame';
 
   @override
+  String get editor_toolMove => 'Move';
+
+  @override
+  String get editor_moveLayerHint => 'Drag to move the whole current layer.';
+
+  @override
+  String get editor_moveSelectionHint =>
+      'Drag to move the pixels of the current layer inside the selection.';
+
+  @override
+  String get editor_moveBaseLayerHint =>
+      'The base image cannot be moved as a whole. Make a selection first, then move the pixels inside it.';
+
+  @override
+  String get editor_moveNoLayer => 'There is no layer to move.';
+
+  @override
+  String get editor_moveNudgeHint =>
+      'Arrow keys move 1 pixel; hold Shift to move 10 pixels.';
+
+  @override
+  String get editor_shortcutNudge => 'Move 1 pixel';
+
+  @override
+  String get editor_shortcutNudgeFar => 'Move 10 pixels';
+
+  @override
+  String get editor_maskBrushSettings => 'Mask Brush';
+
+  @override
+  String get selection_clearPixels => 'Delete Selected Pixels';
+
+  @override
+  String selection_cutLayerName(Object name) {
+    return '$name Cut';
+  }
+
+  @override
+  String layer_duplicateName(Object name) {
+    return '$name Copy';
+  }
+
+  @override
+  String get layer_roleMask => 'Mask';
+
+  @override
+  String get layer_addImage => 'Add Image Layer';
+
+  @override
+  String get layer_addMask => 'Add Mask Layer';
+
+  @override
+  String get img2img_inpaintSourceUpdated =>
+      'Base image edits saved. Paint a mask to start inpainting.';
+
+  @override
   String get editor_frameToolHint =>
       'Drag inside the frame to move it, or drag its edges to resize. Content outside the frame is kept and dimmed; only the area inside is sent for generation. A moved frame keeps at least 64 px of overlap with the image.';
 

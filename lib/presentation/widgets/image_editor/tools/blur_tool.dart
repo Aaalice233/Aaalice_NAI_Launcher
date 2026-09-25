@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../../../../core/utils/localization_extension.dart';
 import '../core/editor_state.dart';
 import '../core/history_manager.dart';
+import '../layers/layer_patch_baker.dart';
 import 'tool_base.dart';
 import 'tool_setting_rows.dart';
 
@@ -39,6 +40,10 @@ class BlurTool extends EditorTool {
 
   @override
   bool get isPaintTool => true;
+
+  /// 模糊只处理画面像素，蒙版层上没有意义
+  @override
+  bool isAvailableIn(EditorState state) => !state.isMaskLayerActive;
 
   @override
   void onPointerDown(PointerDownEvent event, EditorState state) {
@@ -89,18 +94,22 @@ class BlurTool extends EditorTool {
       original.dispose();
       blurred.dispose();
 
-      final pngData = await result.toByteData(format: ui.ImageByteFormat.png);
-      if (pngData == null) {
+      final BakedLayerImage baked;
+      try {
+        baked = await LayerPatchBaker.replaceRegion(
+          activeLayer,
+          patch: result,
+          patchRect: region,
+          extentLock: state.rolePolicy.extentLockFor(activeLayer),
+        );
+      } finally {
         result.dispose();
-        return;
       }
 
       state.historyManager.execute(
-        ReplaceLayerImageAction(
+        ReplaceLayerImageAction.baked(
           layerId: activeLayer.id,
-          newImageBytes: pngData.buffer.asUint8List(),
-          newImage: result,
-          newImageOffset: region.topLeft,
+          pixels: baked,
           actionDescription: 'Blur',
         ),
         state,

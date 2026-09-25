@@ -5,6 +5,9 @@ import 'package:flutter/foundation.dart';
 import '../../../../core/utils/app_logger.dart';
 import 'editor_state.dart';
 import '../layers/layer.dart';
+import '../layers/layer_patch_baker.dart';
+import '../layers/layer_role.dart';
+import '../layers/model3d_layer_data.dart';
 
 /// 编辑器操作基类
 abstract class EditorAction {
@@ -173,133 +176,6 @@ class ClearLayerAction extends EditorAction {
   String get description => 'Clear Layer';
 }
 
-/// 添加图层操作
-class AddLayerAction extends EditorAction {
-  final String? name;
-  String? _layerId;
-
-  AddLayerAction({this.name});
-
-  @override
-  void execute(EditorState state) {
-    final layer = state.layerManager.addLayer(name: name);
-    _layerId = layer.id;
-  }
-
-  @override
-  void undo(EditorState state) {
-    if (_layerId == null) return;
-    state.layerManager.removeLayer(_layerId!);
-  }
-
-  @override
-  String get description => 'Add Layer';
-}
-
-/// 删除图层操作
-class DeleteLayerAction extends EditorAction {
-  final String layerId;
-  LayerData? _layerData;
-  int? _index;
-
-  DeleteLayerAction({required this.layerId});
-
-  @override
-  void execute(EditorState state) {
-    final layer = state.layerManager.getLayerById(layerId);
-    if (layer != null) {
-      _layerData = layer.toData();
-      _index = state.layerManager.layers.indexOf(layer);
-      state.layerManager.removeLayer(layerId);
-    }
-  }
-
-  @override
-  void undo(EditorState state) {
-    if (_layerData == null || _index == null) return;
-    state.layerManager.insertLayerFromData(_layerData!, _index!);
-  }
-
-  @override
-  String get description => 'Delete Layer';
-}
-
-/// 合并图层操作
-class MergeLayerAction extends EditorAction {
-  final String topLayerId;
-  final String bottomLayerId;
-  LayerData? _topLayerData;
-  LayerData? _bottomLayerData;
-  int? _topIndex;
-  int? _bottomIndex;
-  bool _executed = false;
-
-  MergeLayerAction({required this.topLayerId, required this.bottomLayerId});
-
-  @override
-  void execute(EditorState state) {
-    final topLayer = state.layerManager.getLayerById(topLayerId);
-    final bottomLayer = state.layerManager.getLayerById(bottomLayerId);
-    if (topLayer != null && bottomLayer != null) {
-      _topLayerData = topLayer.toData();
-      _bottomLayerData = bottomLayer.toData();
-      _topIndex = state.layerManager.layers.indexOf(topLayer);
-      _bottomIndex = state.layerManager.layers.indexOf(bottomLayer);
-      state.layerManager.mergeLayers(topLayerId, bottomLayerId);
-      _executed = true;
-    }
-  }
-
-  @override
-  void undo(EditorState state) {
-    if (!_executed ||
-        _topLayerData == null ||
-        _bottomLayerData == null ||
-        _topIndex == null ||
-        _bottomIndex == null) {
-      return;
-    }
-
-    // 删除合并后的图层（合并后bottomLayer包含了所有内容）
-    state.layerManager.removeLayer(bottomLayerId);
-
-    // 按原顺序恢复图层
-    // bottomIndex 总是小于 topIndex（bottom在下面）
-    state.layerManager.insertLayerFromData(_bottomLayerData!, _bottomIndex!);
-    state.layerManager.insertLayerFromData(_topLayerData!, _topIndex!);
-  }
-
-  @override
-  String get description => 'Merge Layers';
-}
-
-/// 图层重排序操作
-class ReorderLayerAction extends EditorAction {
-  final int oldIndex;
-  final int newIndex;
-
-  ReorderLayerAction({required this.oldIndex, required this.newIndex});
-
-  @override
-  void execute(EditorState state) {
-    state.layerManager.reorderLayer(oldIndex, newIndex);
-  }
-
-  @override
-  void undo(EditorState state) {
-    // 反向移动
-    if (oldIndex < newIndex) {
-      state.layerManager.reorderLayer(newIndex - 1, oldIndex);
-    } else {
-      state.layerManager.reorderLayer(newIndex, oldIndex);
-    }
-  }
-
-  @override
-  String get description => 'Reorder Layers';
-}
-
-/// 画布调整大小操作
 /// 调整画布大小操作
 class ResizeCanvasAction extends EditorAction {
   final Size newSize;
@@ -355,6 +231,14 @@ class ResizeCanvasAction extends EditorAction {
   String get description => 'Resize Canvas (${mode.label})';
 }
 
+/// 选区随像素一起变化时，撤销/重做要把选区一并换回
+class SelectionChange {
+  const SelectionChange({required this.before, required this.after});
+
+  final Path? before;
+  final Path? after;
+}
+
 /// 替换图层图像操作（用于模糊、仿制图章等全图处理）
 ///
 /// 使用预解码的 [ui.Image] 保证 execute/undo 同步完成，
@@ -366,6 +250,7 @@ class ReplaceLayerImageAction extends EditorAction {
   /// 新底图在文档中的位置（渲染区域的左上角）
   final Offset newImageOffset;
   final String actionDescription;
+  final SelectionChange? selectionChange;
 
   /// 预解码的新图像（由调用者传入，确保同步 execute）
   Image? _newImage;
@@ -379,7 +264,25 @@ class ReplaceLayerImageAction extends EditorAction {
     required Image newImage,
     this.newImageOffset = Offset.zero,
     this.actionDescription = 'Replace Layer Image',
+    this.selectionChange,
   }) : _newImage = newImage;
+
+  /// [pixels] 的所有权移交给操作
+  factory ReplaceLayerImageAction.baked({
+    required String layerId,
+    required BakedLayerImage pixels,
+    required String actionDescription,
+    SelectionChange? selectionChange,
+  }) {
+    return ReplaceLayerImageAction(
+      layerId: layerId,
+      newImageBytes: pixels.bytes,
+      newImage: pixels.image,
+      newImageOffset: pixels.offset,
+      actionDescription: actionDescription,
+      selectionChange: selectionChange,
+    );
+  }
 
   @override
   void execute(EditorState state) {
@@ -396,6 +299,10 @@ class ReplaceLayerImageAction extends EditorAction {
       newImageBytes,
       offset: newImageOffset,
     );
+    final change = selectionChange;
+    if (change != null) {
+      state.setSelection(change.after, saveHistory: false);
+    }
   }
 
   @override
@@ -403,6 +310,10 @@ class ReplaceLayerImageAction extends EditorAction {
     final previous = _previousContent;
     if (previous == null) return;
     state.layerManager.restoreLayerContent(layerId, previous);
+    final change = selectionChange;
+    if (change != null) {
+      state.setSelection(change.before, saveHistory: false);
+    }
   }
 
   @override
@@ -454,7 +365,7 @@ class StrokeData {
   }
 }
 
-/// 图层数据（用于序列化和历史记录）
+/// 图层完整数据（用于历史记录），[content] 持有底图克隆
 class LayerData {
   final String id;
   final String name;
@@ -462,7 +373,9 @@ class LayerData {
   final bool locked;
   final double opacity;
   final LayerBlendMode blendMode;
-  final List<StrokeData> strokes;
+  final LayerRole role;
+  final Model3dLayerData? model3d;
+  final LayerContentSnapshot content;
 
   LayerData({
     required this.id,
@@ -471,6 +384,10 @@ class LayerData {
     required this.locked,
     required this.opacity,
     this.blendMode = LayerBlendMode.normal,
-    required this.strokes,
+    this.role = LayerRole.image,
+    this.model3d,
+    this.content = const LayerContentSnapshot.empty(),
   });
+
+  void dispose() => content.dispose();
 }

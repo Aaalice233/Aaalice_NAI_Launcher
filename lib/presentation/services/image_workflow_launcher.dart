@@ -131,6 +131,7 @@ class ImageWorkflowLauncher {
 
     AppLogger.d(
       'Editor returned: mode=$mode, hasImageChanges=${result.hasImageChanges}, '
+          'hasSourceImageChanges=${result.hasSourceImageChanges}, '
           'hasMaskChanges=${result.hasMaskChanges}, '
           'modifiedBytes=${result.modifiedImage?.length ?? 0}, '
           'maskBytes=${result.maskImage?.length ?? 0}, '
@@ -177,6 +178,8 @@ class ImageWorkflowLauncher {
       AppToast.success(context, context.l10n.img2img_inpaintMaskReady);
     } else if (result.maskImage != null) {
       AppToast.warning(context, context.l10n.toast_noValidMaskIgnored);
+    } else if (result.hasSourceImageChanges) {
+      AppToast.success(context, context.l10n.img2img_inpaintSourceUpdated);
     }
     return true;
   }

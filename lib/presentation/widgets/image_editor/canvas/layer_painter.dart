@@ -291,57 +291,13 @@ class SelectionPainter extends CustomPainter {
     canvas.save();
     controller.applyViewTransform(canvas, state.frame);
 
-    // 绘制预览（绘制中）
-    if (state.previewPath != null) {
-      _drawMarchingAnts(canvas, state.previewPath!);
-    }
-
-    // 绘制已确认的选区（蚂蚁线）
-    if (state.selectionPath != null) {
-      if (state.selectionManager.isTransforming) {
-        final bounds = state.selectionManager.transformedBounds;
-        if (bounds != null) {
-          final transformedPath = Path()..addRect(bounds);
-          _drawMarchingAnts(canvas, transformedPath);
-          _drawTransformHandles(canvas, bounds, controller.scale);
-        }
-      } else {
-        _drawMarchingAnts(canvas, state.selectionPath!);
-      }
+    // 绘制新选区期间旧选区让位；拖动中显示平移后的轮廓
+    final selection = state.previewPath ?? state.selectionManager.displayPath;
+    if (selection != null) {
+      _drawMarchingAnts(canvas, selection);
     }
 
     canvas.restore();
-  }
-
-  /// 绘制变换控制点
-  void _drawTransformHandles(Canvas canvas, Rect bounds, double viewScale) {
-    final handleSize = 6.0 / viewScale;
-    final handlePaint = Paint()..color = Colors.white;
-    final handleBorder = Paint()
-      ..color = Colors.black
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.0 / viewScale;
-
-    final corners = [
-      bounds.topLeft,
-      bounds.topCenter,
-      bounds.topRight,
-      bounds.centerLeft,
-      bounds.centerRight,
-      bounds.bottomLeft,
-      bounds.bottomCenter,
-      bounds.bottomRight,
-    ];
-
-    for (final corner in corners) {
-      final rect = Rect.fromCenter(
-        center: corner,
-        width: handleSize,
-        height: handleSize,
-      );
-      canvas.drawRect(rect, handlePaint);
-      canvas.drawRect(rect, handleBorder);
-    }
   }
 
   /// 绘制蚂蚁线（选区边框动画）

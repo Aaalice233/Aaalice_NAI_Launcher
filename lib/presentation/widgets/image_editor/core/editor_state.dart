@@ -1,5 +1,3 @@
-import 'dart:ui' as ui;
-
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
@@ -13,6 +11,10 @@ import '../tools/eraser_tool.dart';
 import 'canvas_controller.dart';
 import 'color_manager.dart';
 import 'history_manager.dart';
+import 'layer_commands.dart';
+import 'layer_move_controller.dart';
+import 'layer_role_policy.dart';
+import 'mask_paint_style.dart';
 import 'selection_manager.dart';
 import 'stroke_manager.dart';
 import 'tool_manager.dart';
@@ -52,6 +54,15 @@ class EditorState extends ChangeNotifier {
 
   /// 历史管理器
   final HistoryManager historyManager = HistoryManager();
+
+  /// 图层结构与选区像素操作，全部经撤销栈执行
+  late final LayerCommands layerCommands = LayerCommands(this);
+
+  /// 移动工具的拖动与微移
+  late final LayerMoveController layerMover = LayerMoveController(this);
+
+  LayerRolePolicy _rolePolicy = const LayerRolePolicy.disabled();
+  LayerRolePolicy get rolePolicy => _rolePolicy;
 
   // ===== 通知器 =====
 
@@ -162,6 +173,18 @@ class EditorState extends ChangeNotifier {
   void setFrameCommands(EditorFrameCommands? commands) {
     _frameCommands = commands;
   }
+
+  void setRolePolicy(LayerRolePolicy policy) {
+    _rolePolicy = policy;
+    _safeNotifyListeners();
+  }
+
+  /// 当前画在蒙版上：笔刷、填充改用蒙版外观，只保留蒙版可用的工具
+  bool get isMaskLayerActive => layerManager.activeLayer?.isMask ?? false;
+
+  /// 笔刷与填充实际使用的颜色
+  Color get paintColor =>
+      isMaskLayerActive ? MaskPaintStyle.color : foregroundColor;
 
   Future<void> applyMagicWand(
     Offset canvasPoint, {
@@ -288,27 +311,29 @@ class EditorState extends ChangeNotifier {
   void invertSelection() => selectionManager.invertSelection(_frame);
   void setPreviewPath(Path? path) => selectionManager.setPreviewPath(path);
   void clearPreview() => selectionManager.clearPreview();
-  bool get isTransforming => selectionManager.isTransforming;
 
   // ===== 代理方法：笔画 =====
 
-  /// 将点裁剪到取景框范围内
-  Offset _clampToFrame(Offset point) {
+  /// 笔画只落在取景框内；原图层另外限制在原图区域内，保证它的范围始终等于原图
+  Offset _clampToPaintBounds(Offset point) {
+    final active = layerManager.activeLayer;
+    final lock = active == null ? null : _rolePolicy.extentLockFor(active);
+    final bounds = lock == null || !lock.overlaps(_frame)
+        ? _frame
+        : _frame.intersect(lock);
     return Offset(
-      point.dx.clamp(_frame.left, _frame.right),
-      point.dy.clamp(_frame.top, _frame.bottom),
+      point.dx.clamp(bounds.left, bounds.right),
+      point.dy.clamp(bounds.top, bounds.bottom),
     );
   }
 
   void startStroke(Offset point) {
-    // 将点裁剪到取景框范围内，防止框外涂抹
-    strokeManager.startStroke(_clampToFrame(point));
+    strokeManager.startStroke(_clampToPaintBounds(point));
     _notifyStrokePreviewChange();
   }
 
   void updateStroke(Offset point) {
-    // 将点裁剪到取景框范围内，防止框外涂抹
-    strokeManager.updateStroke(_clampToFrame(point));
+    strokeManager.updateStroke(_clampToPaintBounds(point));
     _notifyStrokePreviewChangeCoalesced();
   }
 
@@ -373,35 +398,36 @@ class EditorState extends ChangeNotifier {
   double get brushSize {
     final tool = toolManager.currentTool;
     if (tool is BrushTool) {
-      return tool.settings.size;
+      return tool.sizeFor(this);
     } else if (tool is EraserTool) {
       return tool.size;
     }
     final brushTool = toolManager.tools.whereType<BrushTool>().firstOrNull;
-    return brushTool?.settings.size ?? 20.0;
+    return brushTool?.sizeFor(this) ?? 20.0;
   }
 
   void setBrushSize(double size) {
     final tool = toolManager.currentTool;
     if (tool is BrushTool) {
-      tool.setSize(size);
+      tool.setSizeFor(this, size);
     } else if (tool is EraserTool) {
       tool.setSize(size);
     }
     notifyListeners();
   }
 
+  /// 蒙版笔迹的不透明度固定，调节只作用于图片层笔刷
   double get brushOpacity {
     final tool = toolManager.currentTool;
     if (tool is BrushTool) {
-      return tool.settings.opacity;
+      return isMaskLayerActive ? MaskPaintStyle.opacity : tool.settings.opacity;
     }
     return 1.0;
   }
 
   void setBrushOpacity(double opacity) {
     final tool = toolManager.currentTool;
-    if (tool is BrushTool) {
+    if (tool is BrushTool && !isMaskLayerActive) {
       tool.setOpacity(opacity);
       notifyListeners();
     }
@@ -477,7 +503,7 @@ class EditorState extends ChangeNotifier {
   /// 清空当前图层（支持撤销）
   void clearActiveLayerWithHistory() {
     final layer = layerManager.activeLayer;
-    if (layer == null || layer.locked || !layer.hasContent) return;
+    if (layer == null || !_rolePolicy.canClear(layer)) return;
 
     historyManager.execute(ClearLayerAction(layerId: layer.id), this);
   }
@@ -491,100 +517,6 @@ class EditorState extends ChangeNotifier {
       ResizeCanvasAction(newSize: newSize, mode: mode),
       this,
     );
-  }
-
-  // ===== 选区操作 =====
-
-  /// 将选区内容剪切到新图层
-  Future<bool> cutSelectionToNewLayer() async {
-    final selection = selectionManager.selectionPath;
-    final activeLayer = layerManager.activeLayer;
-    if (selection == null || activeLayer == null || activeLayer.locked) {
-      return false;
-    }
-
-    final region = _frame;
-    if (region.isEmpty) return false;
-
-    final layerImg = await activeLayer.renderToImage(region);
-
-    final cutImg = await _extractSelection(layerImg, selection, region);
-    final remainImg = await _eraseSelection(layerImg, selection, region);
-    layerImg.dispose();
-
-    final cutPng = await cutImg.toByteData(format: ui.ImageByteFormat.png);
-    final remainPng = await remainImg.toByteData(
-      format: ui.ImageByteFormat.png,
-    );
-    if (cutPng == null || remainPng == null) {
-      cutImg.dispose();
-      remainImg.dispose();
-      return false;
-    }
-
-    historyManager.execute(
-      ReplaceLayerImageAction(
-        layerId: activeLayer.id,
-        newImageBytes: remainPng.buffer.asUint8List(),
-        newImage: remainImg,
-        newImageOffset: region.topLeft,
-        actionDescription: 'Cut Selection',
-      ),
-      this,
-    );
-
-    final cutLayer = layerManager.addLayer(
-      name: '${activeLayer.name} (Selection)',
-    );
-    await cutLayer.setBaseImage(cutPng.buffer.asUint8List());
-    cutLayer.setBaseImageOffset(region.topLeft);
-    cutImg.dispose();
-
-    selectionManager.clearSelection();
-    _notifyRenderChange();
-    notifyListeners();
-    return true;
-  }
-
-  Future<ui.Image> _extractSelection(
-    ui.Image source,
-    Path selection,
-    Rect region,
-  ) async {
-    final rec = ui.PictureRecorder();
-    final c = Canvas(rec);
-    c.translate(-region.left, -region.top);
-    c.clipPath(selection);
-    c.drawImage(source, region.topLeft, Paint());
-    final pic = rec.endRecording();
-    final img = await pic.toImage(
-      region.width.round(),
-      region.height.round(),
-    );
-    pic.dispose();
-    return img;
-  }
-
-  Future<ui.Image> _eraseSelection(
-    ui.Image source,
-    Path selection,
-    Rect region,
-  ) async {
-    final rec = ui.PictureRecorder();
-    final c = Canvas(rec);
-    c.translate(-region.left, -region.top);
-    c.drawImage(source, region.topLeft, Paint());
-    c.save();
-    c.clipPath(selection);
-    c.drawRect(region, Paint()..blendMode = BlendMode.clear);
-    c.restore();
-    final pic = rec.endRecording();
-    final img = await pic.toImage(
-      region.width.round(),
-      region.height.round(),
-    );
-    pic.dispose();
-    return img;
   }
 
   // ===== 内部方法 =====
@@ -771,6 +703,7 @@ class EditorState extends ChangeNotifier {
   // ===== 重置与初始化 =====
 
   void reset() {
+    _rolePolicy = const LayerRolePolicy.disabled();
     layerManager.clear();
     historyManager.clear();
     colorManager.reset();

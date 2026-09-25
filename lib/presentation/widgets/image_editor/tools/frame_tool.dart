@@ -19,10 +19,10 @@ class FrameTool extends EditorTool {
   String get name => 'Frame';
 
   @override
-  IconData get icon => Icons.open_with;
+  IconData get icon => Icons.crop_free;
 
   @override
-  LogicalKeyboardKey? get shortcutKey => LogicalKeyboardKey.keyV;
+  LogicalKeyboardKey? get shortcutKey => LogicalKeyboardKey.keyC;
 
   @override
   bool isAvailableIn(EditorState state) => state.frameCommands != null;
