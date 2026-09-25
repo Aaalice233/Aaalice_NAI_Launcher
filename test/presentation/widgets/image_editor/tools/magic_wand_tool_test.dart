@@ -36,6 +36,24 @@ void main() {
           reason: '$label $scenario',
         );
       }
+      // 常规字号下两种模式并排可见，不必横向滚动才发现第二项
+      if (scenario.labelWidthsRealistic && scenario.textScale == 1) {
+        final panelRight = tester.getRect(panel).right;
+        for (final label in [
+          l10n.editor_magicWandSmartObject,
+          l10n.editor_magicWandColorArea,
+        ]) {
+          final segment = find.descendant(
+            of: _modeSegments,
+            matching: find.text(label),
+          );
+          expect(
+            tester.getRect(segment).right,
+            lessThanOrEqualTo(panelRight),
+            reason: '$label $scenario',
+          );
+        }
+      }
       await expectReachable(
         tester,
         find.descendant(of: panel, matching: find.byType(Switch)),

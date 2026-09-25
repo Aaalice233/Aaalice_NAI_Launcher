@@ -26,6 +26,31 @@ void main() {
     }
   }
 
+  for (final locale in const ['zh', 'ja']) {
+    testWidgets('$locale 1x 侧栏里每组分段选项并排可见', (tester) async {
+      await pumpEditorWorkspace(
+        tester,
+        viewSize: const Size(1180, 760),
+        locale: locale,
+        toolId: 'color_picker',
+      );
+      final l10n = lookupAppLocalizations(Locale(locale));
+      final panelRight = tester.getRect(find.byType(ToolSettingRows)).right;
+      for (final label in [
+        l10n.editor_samplePoint,
+        l10n.editor_sampleArea,
+        l10n.editor_sourceCurrentLayer,
+        l10n.editor_sourceAllLayers,
+      ]) {
+        expect(
+          tester.getRect(find.text(label)).right,
+          lessThanOrEqualTo(panelRight),
+          reason: '$label $locale',
+        );
+      }
+    });
+  }
+
   testWidgets('中文 1x 侧栏中分段选项不被挤断', (tester) async {
     await pumpEditorWorkspace(
       tester,

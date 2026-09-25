@@ -2368,10 +2368,10 @@ class AppLocalizationsJa extends AppLocalizations {
   String get editor_magicWandMode => '選択方法';
 
   @override
-  String get editor_magicWandSmartObject => 'スマートオブジェクト（EfficientViT）';
+  String get editor_magicWandSmartObject => 'オブジェクト';
 
   @override
-  String get editor_magicWandColorArea => '色領域（塗りつぶし）';
+  String get editor_magicWandColorArea => '色領域';
 
   @override
   String get editor_magicWandSmartHelp =>
@@ -2998,13 +2998,13 @@ class AppLocalizationsJa extends AppLocalizations {
   String get editor_sampleArea => 'エリア';
 
   @override
-  String get editor_source => 'ソース';
+  String get editor_source => '対象レイヤー';
 
   @override
-  String get editor_sourceCurrentLayer => '現在のレイヤー';
+  String get editor_sourceCurrentLayer => '現在';
 
   @override
-  String get editor_sourceAllLayers => 'すべてのレイヤー';
+  String get editor_sourceAllLayers => 'すべて';
 
   @override
   String get editor_lassoSelectionHelp =>
