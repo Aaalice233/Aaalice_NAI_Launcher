@@ -410,64 +410,71 @@ class _BrushPresetButton extends StatelessWidget {
         ? theme.colorScheme.onPrimaryContainer
         : theme.colorScheme.onSurfaceVariant;
     final labelStyle = theme.textTheme.labelSmall?.copyWith(color: foreground);
+    // 描边画在 Material 前景、不占内边距；Ink/Container 会让选中磁贴变宽
+    final shape = RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(8),
+      side: isSelected
+          ? BorderSide(color: theme.colorScheme.primary, width: 1)
+          : BorderSide.none,
+    );
 
     return Semantics(
+      container: true,
       label: presetName,
       hint: context.l10n.brushPreset_selectHint,
       button: true,
       selected: isSelected,
       enabled: true,
-      excludeSemantics: true,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(8),
-        // 只设下限：文字放大时磁贴随标签长高变宽
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(minWidth: 56, minHeight: 70),
-          // 不用 Container：它把描边宽度计入内边距，选中时磁贴会变宽
-          child: DecoratedBox(
-            decoration: BoxDecoration(
-              color: isSelected
-                  ? theme.colorScheme.primary.withValues(alpha: 0.12)
-                  : theme.colorScheme.surfaceContainer,
-              border: isSelected
-                  ? Border.all(color: theme.colorScheme.primary, width: 1)
-                  : null,
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Padding(
-              padding: const EdgeInsets.all(4),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(preset.icon, size: 24, color: foreground),
-                  const SizedBox(height: 2),
-                  // 按粗体占宽：选中切换字重时磁贴宽度不变
-                  Stack(
-                    alignment: Alignment.center,
-                    children: [
-                      Visibility.maintain(
-                        visible: false,
-                        child: Text(
+      // 底色放在 Material 上，墨水才画在底色之上；不透明子节点会盖住高亮
+      child: Material(
+        color: isSelected
+            ? theme.colorScheme.primary.withValues(alpha: 0.12)
+            : theme.colorScheme.surfaceContainer,
+        shape: shape,
+        // Material 只插值描边、底色瞬切，统一瞬切
+        animationDuration: Duration.zero,
+        child: InkWell(
+          onTap: onTap,
+          customBorder: shape,
+          // 名称由外层 Semantics 提供；只排除文字，点击与焦点动作仍来自 InkWell
+          child: ExcludeSemantics(
+            // 只设下限：文字放大时磁贴随标签长高变宽
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(minWidth: 56, minHeight: 70),
+              child: Padding(
+                padding: const EdgeInsets.all(4),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(preset.icon, size: 24, color: foreground),
+                    const SizedBox(height: 2),
+                    // 按粗体占宽：选中切换字重时磁贴宽度不变
+                    Stack(
+                      alignment: Alignment.center,
+                      children: [
+                        Visibility.maintain(
+                          visible: false,
+                          child: Text(
+                            presetName,
+                            style: labelStyle?.copyWith(
+                              fontWeight: FontWeight.bold,
+                            ),
+                            softWrap: false,
+                          ),
+                        ),
+                        Text(
                           presetName,
                           style: labelStyle?.copyWith(
-                            fontWeight: FontWeight.bold,
+                            fontWeight: isSelected
+                                ? FontWeight.bold
+                                : FontWeight.normal,
                           ),
                           softWrap: false,
                         ),
-                      ),
-                      Text(
-                        presetName,
-                        style: labelStyle?.copyWith(
-                          fontWeight: isSelected
-                              ? FontWeight.bold
-                              : FontWeight.normal,
-                        ),
-                        softWrap: false,
-                      ),
-                    ],
-                  ),
-                ],
+                      ],
+                    ),
+                  ],
+                ),
               ),
             ),
           ),

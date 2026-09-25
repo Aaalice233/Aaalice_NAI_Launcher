@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
+import '../../../adaptive/interaction_policy.dart';
 import '../../../widgets/common/themed_input.dart';
 
 /// 工具设置行：标签、控件与可选的尾随数值
@@ -18,17 +19,21 @@ class ToolSettingRow {
     required double value,
     required double min,
     required double max,
-    required ValueChanged<double> onChanged,
+    required ValueChanged<double>? onChanged,
+    int? divisions,
     TextEditingController? controller,
     String suffix = '',
   }) : control = _ToolSlider(
+         label: label,
          value: value,
          min: min,
          max: max,
+         divisions: divisions,
+         suffix: suffix,
          onChanged: onChanged,
        ),
        trailing = controller == null
-           ? _ToolValueText('${value.round()}$suffix')
+           ? _ToolValueText(_sliderValueText(value, suffix))
            : _ToolNumberField(
                controller: controller,
                min: min,
@@ -40,6 +45,10 @@ class ToolSettingRow {
   final Widget control;
   final Widget? trailing;
 }
+
+// 尾随数值与滑块读屏数值共用，读出的即显示的
+String _sliderValueText(double value, String suffix) =>
+    '${value.round()}$suffix';
 
 /// 成组的工具设置行
 ///
@@ -188,30 +197,51 @@ class _StackedSettingRow extends StatelessWidget {
 
 class _ToolSlider extends StatelessWidget {
   const _ToolSlider({
+    required this.label,
     required this.value,
     required this.min,
     required this.max,
+    required this.divisions,
+    required this.suffix,
     required this.onChanged,
   });
 
+  final String label;
   final double value;
   final double min;
   final double max;
-  final ValueChanged<double> onChanged;
+  final int? divisions;
+  final String suffix;
+  final ValueChanged<double>? onChanged;
 
   @override
   Widget build(BuildContext context) {
-    return SliderTheme(
-      data: SliderTheme.of(context).copyWith(
-        trackHeight: 2,
-        thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6),
-        overlayShape: const RoundSliderOverlayShape(overlayRadius: 12),
-      ),
-      child: Slider(
-        value: value.clamp(min, max),
-        min: min,
-        max: max,
-        onChanged: onChanged,
+    final policy = context.interactionPolicy;
+    return SizedBox(
+      // 触屏撑足命中高度，轨道与滑块仍居中保持紧凑外观
+      height: policy.shouldExposeTouchAlternatives
+          ? policy.minimumControlExtent
+          : null,
+      child: SliderTheme(
+        data: SliderTheme.of(context).copyWith(
+          trackHeight: 2,
+          thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6),
+          overlayShape: const RoundSliderOverlayShape(overlayRadius: 12),
+          tickMarkShape: SliderTickMarkShape.noTickMark,
+          // label 只作读屏名称，不画成数值气泡
+          showValueIndicator: ShowValueIndicator.never,
+        ),
+        child: Slider(
+          value: value.clamp(min, max),
+          min: min,
+          max: max,
+          divisions: divisions,
+          // label 写进滑块自身的语义节点；外包 Semantics 只会标到其外层容器节点
+          label: label,
+          // 默认按区间读百分比，与界面显示的数值不一致
+          semanticFormatterCallback: (value) => _sliderValueText(value, suffix),
+          onChanged: onChanged,
+        ),
       ),
     );
   }
@@ -228,12 +258,14 @@ class _ToolNumberField extends StatelessWidget {
   final TextEditingController controller;
   final double min;
   final double max;
-  final ValueChanged<double> onChanged;
+  final ValueChanged<double>? onChanged;
 
   @override
   Widget build(BuildContext context) {
+    final onChanged = this.onChanged;
     return ThemedInput(
       controller: controller,
+      enabled: onChanged != null,
       style: Theme.of(context).textTheme.bodySmall,
       textAlign: TextAlign.center,
       decoration: const InputDecoration(
@@ -244,7 +276,7 @@ class _ToolNumberField extends StatelessWidget {
       keyboardType: TextInputType.number,
       onSubmitted: (text) {
         final parsed = double.tryParse(text);
-        if (parsed != null) {
+        if (parsed != null && onChanged != null) {
           onChanged(parsed.clamp(min, max));
         }
       },

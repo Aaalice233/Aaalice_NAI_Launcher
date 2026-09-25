@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:nai_launcher/presentation/adaptive/interaction_policy.dart';
 import 'package:nai_launcher/presentation/widgets/image_editor/tools/tool_setting_rows.dart';
 
 import '../../../../helpers/text_layout_expectations.dart';
@@ -175,17 +176,149 @@ void main() {
       });
     }
   }
+
+  testWidgets('滑块以所在行标签朗读，数值与界面一致且不并入数值框', (tester) async {
+    final controller = TextEditingController(text: '20');
+    addTearDown(controller.dispose);
+    await _pumpRows(
+      tester,
+      width: 600,
+      rows: _sliderRows(latinLabels, controller: controller),
+    );
+
+    for (final (label, value) in const [
+      ('Size', '20'),
+      ('Opacity', '100%'),
+      ('Hardness', '80%'),
+    ]) {
+      final slider = find.semantics.byPredicate(
+        (node) => node.flagsCollection.isSlider && node.label == label,
+      );
+      expect(slider, findsOne, reason: label);
+      final node = slider.evaluate().single;
+      expect(node.value, value, reason: label);
+      expect(node.isMergedIntoParent, isFalse, reason: '标签落在滑块自身节点 $label');
+    }
+
+    final field = find.semantics.byPredicate(
+      (node) => node.flagsCollection.isTextField,
+    );
+    expect(field, findsOne);
+    final fieldNode = field.evaluate().single;
+    expect(fieldNode.flagsCollection.isSlider, isFalse);
+    expect(fieldNode.isMergedIntoParent, isFalse);
+    expect(fieldNode.value, '20');
+
+    expect(
+      SliderTheme.of(
+        tester.element(find.byType(Slider).first),
+      ).showValueIndicator,
+      ShowValueIndicator.never,
+      reason: '行标签只作读屏名称，不画成数值气泡',
+    );
+  });
+
+  testWidgets('设了 divisions 时键盘与读屏按一格步进', (tester) async {
+    final changes = <double>[];
+    await _pumpRows(
+      tester,
+      width: 600,
+      rows: [
+        ToolSettingRow.slider(
+          label: 'Tolerance',
+          value: 32,
+          min: 0,
+          max: 255,
+          divisions: 255,
+          onChanged: changes.add,
+        ),
+      ],
+    );
+
+    tester.semantics.increase(
+      find.semantics.byPredicate(
+        (node) => node.flagsCollection.isSlider && node.label == 'Tolerance',
+      ),
+    );
+
+    expect(changes.single, moreOrLessEquals(33));
+  });
+
+  testWidgets('onChanged 为 null 时滑块与数值框一并禁用', (tester) async {
+    final controller = TextEditingController(text: '20');
+    addTearDown(controller.dispose);
+    await _pumpRows(
+      tester,
+      width: 600,
+      rows: [
+        ToolSettingRow.slider(
+          label: 'Size',
+          value: 20,
+          min: 1,
+          max: 500,
+          controller: controller,
+          onChanged: null,
+        ),
+      ],
+    );
+
+    expect(tester.widget<Slider>(find.byType(Slider)).onChanged, isNull);
+    expect(tester.widget<TextField>(find.byType(TextField)).enabled, isFalse);
+  });
+
+  testWidgets('观察到触屏后滑块命中高度撑到 48，轨道仍是紧凑样式', (tester) async {
+    final changes = <double>[];
+    await _pumpRows(
+      tester,
+      width: 600,
+      policy: InteractionPolicy.touchFirst,
+      rows: [
+        ToolSettingRow.slider(
+          label: 'Size',
+          value: 0,
+          min: 0,
+          max: 100,
+          onChanged: changes.add,
+        ),
+      ],
+    );
+
+    final slider = tester.getRect(find.byType(Slider));
+    expect(slider.height, 48);
+    expect(SliderTheme.of(tester.element(find.byType(Slider))).trackHeight, 2);
+    await tester.tapAt(Offset(slider.center.dx, slider.top + 2));
+    expect(changes, isNotEmpty, reason: '紧贴命中区上缘的触点仍落在滑块上');
+  });
+
+  testWidgets('精确指针下滑块保持紧凑高度', (tester) async {
+    await _pumpRows(
+      tester,
+      width: 600,
+      policy: const InteractionPolicy(
+        modality: InteractionModality.pointer,
+        touchAvailable: false,
+        precisePointerAvailable: true,
+      ),
+      rows: _sliderRows(latinLabels),
+    );
+
+    for (var i = 0; i < latinLabels.length; i++) {
+      expect(tester.getSize(find.byType(Slider).at(i)).height, 24);
+    }
+  });
 }
 
 Future<void> _pumpRows(
   WidgetTester tester, {
   required double width,
   double textScale = 1,
+  InteractionPolicy? policy,
   required List<ToolSettingRow> rows,
 }) async {
   tester.view.devicePixelRatio = 1;
   tester.view.physicalSize = Size(width, 900);
   addTearDown(tester.view.reset);
+  final body = SingleChildScrollView(child: ToolSettingRows(rows: rows));
   await tester.pumpWidget(
     MaterialApp(
       builder: (context, child) => MediaQuery(
@@ -195,7 +328,9 @@ Future<void> _pumpRows(
         child: child!,
       ),
       home: Scaffold(
-        body: SingleChildScrollView(child: ToolSettingRows(rows: rows)),
+        body: policy == null
+            ? body
+            : InteractionPolicyScope(initialPolicy: policy, child: body),
       ),
     ),
   );

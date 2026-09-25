@@ -7,6 +7,7 @@ import '../../../../core/utils/localization_extension.dart';
 import '../core/editor_state.dart';
 import '../core/history_manager.dart';
 import 'tool_base.dart';
+import 'tool_setting_rows.dart';
 
 class FillTool extends EditorTool {
   int _tolerance = 32;
@@ -153,25 +154,21 @@ class FillTool extends EditorTool {
                   fontWeight: FontWeight.bold,
                 ),
               ),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  Text(
-                    context.l10n.editor_tolerance,
-                    style: theme.textTheme.bodySmall,
+              const SizedBox(height: 8),
+              ToolSettingRows(
+                rowPadding: const EdgeInsets.symmetric(vertical: 4),
+                rows: [
+                  ToolSettingRow.slider(
+                    label: context.l10n.editor_tolerance,
+                    value: _tolerance.toDouble(),
+                    min: 0,
+                    max: 255,
+                    divisions: 255,
+                    onChanged: (v) {
+                      setState(() => setTolerance(v.round()));
+                    },
                   ),
-                  const Spacer(),
-                  Text('$_tolerance', style: theme.textTheme.bodySmall),
                 ],
-              ),
-              Slider(
-                value: _tolerance.toDouble(),
-                min: 0,
-                max: 255,
-                divisions: 255,
-                onChanged: (v) {
-                  setState(() => setTolerance(v.round()));
-                },
               ),
             ],
           ),

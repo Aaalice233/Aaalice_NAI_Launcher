@@ -1,4 +1,6 @@
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/widgets/common/horizontal_action_strip.dart';
@@ -115,6 +117,196 @@ void main() {
       });
     }
   }
+
+  testWidgets('预设磁贴的悬停与按压反馈画在磁贴底色之上', (tester) async {
+    await _pumpBrushPanel(tester);
+    final theme = Theme.of(tester.element(_presetTile(0)));
+
+    final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+    await mouse.addPointer(location: Offset.zero);
+    addTearDown(mouse.removePointer);
+    for (final index in const [0, 2]) {
+      await mouse.moveTo(tester.getCenter(_presetTile(index)));
+      await tester.pumpAndSettle();
+      _expectInkOnPresetTile(
+        tester,
+        index,
+        selected: index == 2,
+        ink: theme.hoverColor,
+        reason: '悬停预设 $index',
+      );
+    }
+
+    final press = await tester.startGesture(tester.getCenter(_presetTile(1)));
+    await tester.pump(kPressTimeout);
+    await tester.pump(const Duration(milliseconds: 200));
+    _expectInkOnPresetTile(
+      tester,
+      1,
+      selected: false,
+      ink: theme.highlightColor,
+      reason: '按下即显示按压高亮',
+    );
+    await press.up();
+    await tester.pumpAndSettle();
+    expect(_sizeFieldText(tester), '${defaultBrushPresets[1].size.round()}');
+  });
+
+  testWidgets(
+    'Tab 聚焦的预设磁贴显示焦点高亮',
+    (tester) async {
+      await _pumpBrushPanel(tester);
+      final theme = Theme.of(tester.element(_presetTile(0)));
+
+      for (final index in const [0, 1, 2]) {
+        await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+        await tester.pumpAndSettle();
+        _expectInkOnPresetTile(
+          tester,
+          index,
+          selected: index == 2,
+          ink: theme.focusColor,
+          reason: 'Tab 聚焦预设 $index',
+        );
+      }
+    },
+    variant: const TargetPlatformVariant({
+      TargetPlatform.windows,
+      TargetPlatform.macOS,
+    }),
+  );
+
+  testWidgets('预设磁贴语义带名称与选中态，读屏点击可切换预设', (tester) async {
+    await _pumpBrushPanel(tester);
+    final hint = AppLocalizations.of(
+      tester.element(_presetTile(0)),
+    )!.brushPreset_selectHint;
+
+    for (final (index, preset) in defaultBrushPresets.indexed) {
+      expect(
+        tester.getSemantics(_presetTile(index)),
+        isSemantics(
+          label: preset.name,
+          hint: hint,
+          isButton: true,
+          hasSelectedState: true,
+          isSelected: index == 2,
+          hasEnabledState: true,
+          isEnabled: true,
+          isFocusable: true,
+          hasTapAction: true,
+          hasFocusAction: true,
+        ),
+        reason: preset.name,
+      );
+    }
+
+    tester.semantics.tap(find.semantics.byLabel(defaultBrushPresets[1].name));
+    await tester.pumpAndSettle();
+    expect(_sizeFieldText(tester), '${defaultBrushPresets[1].size.round()}');
+    expect(tester.getSemantics(_presetTile(1)), isSemantics(isSelected: true));
+    expect(tester.getSemantics(_presetTile(2)), isSemantics(isSelected: false));
+  });
+
+  testWidgets('笔刷面板滑块以行标签朗读并读出界面上的数值', (tester) async {
+    final tool = await _pumpBrushPanel(tester);
+    final l10n = AppLocalizations.of(
+      tester.element(find.byType(ToolSettingRows)),
+    )!;
+    final settings = tool.settings;
+
+    for (final (label, value) in [
+      (l10n.editor_size, '${settings.size.round()}'),
+      (l10n.editor_opacity, '${(settings.opacity * 100).round()}%'),
+      (l10n.editor_hardness, '${(settings.hardness * 100).round()}%'),
+    ]) {
+      expect(
+        find.semantics.byPredicate(
+          (node) =>
+              node.flagsCollection.isSlider &&
+              node.label == label &&
+              node.value == value,
+        ),
+        findsOne,
+        reason: '$label $value',
+      );
+    }
+  });
+}
+
+Future<BrushTool> _pumpBrushPanel(WidgetTester tester) async {
+  tester.view.devicePixelRatio = 1;
+  tester.view.physicalSize = const Size(1600, 900);
+  addTearDown(tester.view.reset);
+  final tool = BrushTool();
+  final state = EditorState();
+  addTearDown(state.dispose);
+
+  await tester.pumpWidget(
+    MaterialApp(
+      locale: const Locale('en'),
+      supportedLocales: AppLocalizations.supportedLocales,
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      home: Scaffold(
+        body: Builder(
+          builder: (context) =>
+              Material(child: tool.buildSettingsPanel(context, state)),
+        ),
+      ),
+    ),
+  );
+  await tester.pumpAndSettle();
+  return tool;
+}
+
+Finder _presetTile(int index) => find.byKey(ValueKey('brush-preset-$index'));
+
+// 绘制顺序即叠放层级：磁贴底色 → 墨水 → 选中描边，墨水之后不能再有不透明填充
+void _expectInkOnPresetTile(
+  WidgetTester tester,
+  int index, {
+  required bool selected,
+  required Color ink,
+  required String reason,
+}) {
+  final tile = _presetTile(index);
+  final colors = Theme.of(tester.element(tile)).colorScheme;
+  // 按压水波同样调用 drawRect；墨水透明度经 8 位量化，按 ARGB32 比较
+  bool isInk(Symbol method, List<dynamic> arguments) =>
+      method == #drawRect &&
+      (arguments[1] as Paint).color.toARGB32() == ink.toARGB32();
+
+  expect(
+    tester.renderObject(tile),
+    paints
+      ..path(
+        color: selected
+            ? colors.primary.withValues(alpha: 0.12)
+            : colors.surfaceContainer,
+      )
+      ..something(isInk)
+      ..everything(_isNotOpaqueFill),
+    reason: reason,
+  );
+  if (selected) {
+    expect(
+      tester.renderObject(tile),
+      paints
+        ..something(isInk)
+        ..drrect(color: colors.primary),
+      reason: reason,
+    );
+  }
+}
+
+bool _isNotOpaqueFill(Symbol method, List<dynamic> arguments) {
+  if (!const {#drawRect, #drawRRect, #drawPath, #drawPaint}.contains(method)) {
+    return true;
+  }
+  final paint = arguments.last as Paint;
+  return paint.style == PaintingStyle.stroke ||
+      paint.shader != null ||
+      paint.color.a < 1;
 }
 
 String _sizeFieldText(WidgetTester tester) => tester
