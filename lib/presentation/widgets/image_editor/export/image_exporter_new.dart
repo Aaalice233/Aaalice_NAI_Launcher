@@ -11,15 +11,17 @@ import '../layers/layer.dart';
 import '../layers/layer_manager.dart';
 
 /// 图像导出器
+///
+/// [region] 是文档坐标中的导出区域（取景框），输出图像以其左上角为原点。
 class ImageExporterNew {
   /// Renders the merged editor canvas once and returns unencoded RGBA pixels.
   static Future<EditorRawRgbaImage> exportMergedRgba(
     LayerManager layerManager,
-    Size canvasSize, {
+    Rect region, {
     bool transparentBackground = false,
   }) async {
     final image = await layerManager.exportMergedImage(
-      canvasSize,
+      region,
       transparentBackground: transparentBackground,
     );
     final byteData = await image.toByteData(format: ui.ImageByteFormat.rawRgba);
@@ -44,9 +46,9 @@ class ImageExporterNew {
   /// 导出合并后的图像
   static Future<Uint8List> exportMergedImage(
     LayerManager layerManager,
-    Size canvasSize,
+    Rect region,
   ) async {
-    final image = await layerManager.exportMergedImage(canvasSize);
+    final image = await layerManager.exportMergedImage(region);
     final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
     image.dispose();
 
@@ -60,21 +62,23 @@ class ImageExporterNew {
   /// 导出蒙版图像（黑白，用于 Inpainting）
   static Future<Uint8List> exportMask(
     Path selectionPath,
-    Size canvasSize, {
+    Rect region, {
     bool forceHardEdges = false,
   }) async {
     return exportMaskFromLayers(
       null,
-      canvasSize,
+      region,
       selectionPath: selectionPath,
       forceHardEdges: forceHardEdges,
     );
   }
 
   /// 从图层与选区共同导出蒙版图像（黑白，用于 Inpainting）
+  ///
+  /// [additionalMaskRects] 是导出区域的局部坐标。
   static Future<Uint8List> exportMaskFromLayers(
     LayerManager? layerManager,
-    Size canvasSize, {
+    Rect region, {
     Path? selectionPath,
     Set<String> excludedBaseImageLayerIds = const {},
     bool forceHardEdges = false,
@@ -86,8 +90,8 @@ class ImageExporterNew {
         selectionPath == null &&
         layerManager != null) {
       final input = _tryBuildHardEdgeMaskInput(
-        layerManager,
-        canvasSize,
+        layerManager.layers.where((layer) => layer.visible),
+        region,
         excludedBaseImageLayerIds,
         additionalMaskRects,
       );
@@ -96,12 +100,16 @@ class ImageExporterNew {
       }
     }
 
+    final width = region.width.round();
+    final height = region.height.round();
     final recorder = ui.PictureRecorder();
     final canvas = Canvas(recorder);
-    final bounds = Rect.fromLTWH(0, 0, canvasSize.width, canvasSize.height);
+    final bounds = Rect.fromLTWH(0, 0, width.toDouble(), height.toDouble());
 
     canvas.saveLayer(bounds, Paint());
 
+    canvas.save();
+    canvas.translate(-region.left, -region.top);
     if (layerManager != null) {
       for (final layer in layerManager.layers) {
         if (!layer.visible) {
@@ -119,6 +127,7 @@ class ImageExporterNew {
     if (selectionPath != null) {
       canvas.drawPath(selectionPath, Paint()..color = Colors.white);
     }
+    canvas.restore();
 
     for (final rect in additionalMaskRects) {
       canvas.drawRect(rect, Paint()..color = Colors.white);
@@ -127,10 +136,7 @@ class ImageExporterNew {
     canvas.restore();
 
     final picture = recorder.endRecording();
-    final image = await picture.toImage(
-      canvasSize.width.toInt(),
-      canvasSize.height.toInt(),
-    );
+    final image = await picture.toImage(width, height);
     picture.dispose();
 
     final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
@@ -146,13 +152,13 @@ class ImageExporterNew {
   /// Returns the CPU hard-edge raster without a PNG encode/decode round trip.
   static Future<HardEdgeMaskRaster?> tryExportHardEdgeMaskRasterFromLayers(
     LayerManager layerManager,
-    Size canvasSize, {
+    Rect region, {
     Set<String> excludedBaseImageLayerIds = const {},
     List<Rect> additionalMaskRects = const [],
   }) async {
     final input = _tryBuildHardEdgeMaskInput(
-      layerManager,
-      canvasSize,
+      layerManager.layers.where((layer) => layer.visible),
+      region,
       excludedBaseImageLayerIds,
       additionalMaskRects,
     );
@@ -160,24 +166,99 @@ class ImageExporterNew {
     return HardEdgeMaskExporter.exportRasterAsync(input);
   }
 
-  static HardEdgeMaskExportInput? _tryBuildHardEdgeMaskInput(
+  /// [region] 内全部可见蒙版的硬边光栅；CPU 光栅不支持时退回画布绘制
+  static Future<HardEdgeMaskRaster> exportMaskRasterFromLayers(
     LayerManager layerManager,
-    Size canvasSize,
+    Rect region, {
+    Set<String> excludedBaseImageLayerIds = const {},
+    List<Rect> additionalMaskRects = const [],
+  }) async {
+    final raster = await tryExportHardEdgeMaskRasterFromLayers(
+      layerManager,
+      region,
+      excludedBaseImageLayerIds: excludedBaseImageLayerIds,
+      additionalMaskRects: additionalMaskRects,
+    );
+    if (raster != null) return raster;
+    final bytes = await exportMaskFromLayers(
+      layerManager,
+      region,
+      excludedBaseImageLayerIds: excludedBaseImageLayerIds,
+      forceHardEdges: true,
+      additionalMaskRects: additionalMaskRects,
+    );
+    final decoded = InpaintMaskUtils.decodeBinaryMask(bytes);
+    if (decoded == null) {
+      throw StateError('Failed to read the layer mask.');
+    }
+    return HardEdgeMaskRaster(
+      mask: decoded.mask,
+      width: decoded.width,
+      height: decoded.height,
+    );
+  }
+
+  /// 单个图层在 [region] 内的硬边蒙版，不受图层可见性影响
+  static Future<HardEdgeMaskRaster> exportLayerMaskRaster(
+    Layer layer,
+    Rect region,
+  ) async {
+    final input = _tryBuildHardEdgeMaskInput(
+      [layer],
+      region,
+      const {},
+      const [],
+    );
+    if (input != null) {
+      return HardEdgeMaskExporter.exportRasterAsync(input);
+    }
+
+    final width = region.width.round();
+    final height = region.height.round();
+    final recorder = ui.PictureRecorder();
+    final canvas = Canvas(recorder);
+    canvas.saveLayer(
+      Rect.fromLTWH(0, 0, width.toDouble(), height.toDouble()),
+      Paint(),
+    );
+    canvas.translate(-region.left, -region.top);
+    _drawMaskLayer(canvas, layer, forceHardEdges: true);
+    canvas.restore();
+    final picture = recorder.endRecording();
+    final image = await picture.toImage(width, height);
+    picture.dispose();
+    final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
+    image.dispose();
+    if (byteData == null) {
+      throw Exception('Failed to convert mask to bytes');
+    }
+    final decoded = InpaintMaskUtils.decodeBinaryMask(
+      InpaintMaskUtils.normalizeMaskBytes(byteData.buffer.asUint8List()),
+    );
+    if (decoded == null) {
+      throw StateError('Failed to read the layer mask.');
+    }
+    return HardEdgeMaskRaster(
+      mask: decoded.mask,
+      width: decoded.width,
+      height: decoded.height,
+    );
+  }
+
+  static HardEdgeMaskExportInput? _tryBuildHardEdgeMaskInput(
+    Iterable<Layer> layers,
+    Rect region,
     Set<String> excludedBaseImageLayerIds,
     List<Rect> additionalMaskRects,
   ) {
-    final width = canvasSize.width.round();
-    final height = canvasSize.height.round();
+    final width = region.width.round();
+    final height = region.height.round();
     if (width <= 0 || height <= 0) {
       return null;
     }
 
     final operations = <HardEdgeMaskOperation>[];
-    for (final layer in layerManager.layers) {
-      if (!layer.visible) {
-        continue;
-      }
-
+    for (final layer in layers) {
       final shouldIncludeBaseImage = !excludedBaseImageLayerIds.contains(
         layer.id,
       );
@@ -188,7 +269,10 @@ class ImageExporterNew {
       }
 
       operations.addAll(
-        layer.toHardEdgeMaskOperations(includeBaseImage: includeBaseImage),
+        layer.toHardEdgeMaskOperations(
+          includeBaseImage: includeBaseImage,
+          origin: region.topLeft,
+        ),
       );
     }
 

@@ -6,6 +6,7 @@ import '../tools/clone_stamp_tool.dart';
 import '../tools/color_picker_tool.dart';
 import '../tools/eraser_tool.dart';
 import '../tools/fill_tool.dart';
+import '../tools/frame_tool.dart';
 import '../tools/magic_wand_tool.dart';
 import '../tools/selection/ellipse_selection_tool.dart';
 import '../tools/selection/lasso_selection_tool.dart';
@@ -253,6 +254,7 @@ class ToolManager extends ChangeNotifier {
       EllipseSelectionTool(),
       LassoSelectionTool(),
       ColorPickerTool(),
+      FrameTool(),
     ];
   }
 

@@ -6273,6 +6273,64 @@
       "max": {"type": "int"}
     }
   },
+  "editor_toolFrame": "Frame",
+  "editor_frameToolHint": "Drag inside the frame to move it, or drag its edges to resize. Content outside the frame is kept and dimmed; only the area inside is sent for generation. A moved frame keeps at least 64 px of overlap with the image.",
+  "editor_frameSizeReadout": "Size: {width} x {height}",
+  "@editor_frameSizeReadout": {
+    "placeholders": {
+      "width": {"type": "int"},
+      "height": {"type": "int"}
+    }
+  },
+  "editor_frameOffsetReadout": "Offset from image: X {x}, Y {y}",
+  "@editor_frameOffsetReadout": {
+    "placeholders": {
+      "x": {"type": "int"},
+      "y": {"type": "int"}
+    }
+  },
+  "editor_frameMoveLockedByView": "The frame can't be moved while the view is rotated or mirrored. Press R to reset the view, then try again.",
+  "editor_resetFrame": "Reset Frame",
+  "editor_cropToFrame": "Crop to Frame",
+  "editor_cropToFrameHint": "Discard the image and mask outside the frame. This can be undone.",
+  "editor_cropToFrameFailed": "Crop to frame failed: {error}",
+  "@editor_cropToFrameFailed": {
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "editor_changeFrameSize": "Change Frame Size",
+  "editor_frameResized": "Frame resized to {width} x {height}",
+  "@editor_frameResized": {
+    "placeholders": {
+      "width": {"type": "int"},
+      "height": {"type": "int"}
+    }
+  },
+  "editor_frameToolHintPasteBack": "Drag inside the frame to move it in 64 px steps, or drag its edges to resize. Only the area inside is sent for generation; when part of the image lies outside the frame, the result is pasted back into the full image through the mask and the outside stays unchanged. The frame keeps at least 64 px of overlap with the image.",
+  "editor_frameRequestReadout": "Request: {width} x {height}",
+  "@editor_frameRequestReadout": {
+    "placeholders": {
+      "width": {"type": "int"},
+      "height": {"type": "int"}
+    }
+  },
+  "editor_frameRequestFree": "Free",
+  "editor_frameRequestCost": "~{cost} Anlas",
+  "@editor_frameRequestCost": {
+    "placeholders": {
+      "cost": {"type": "int"}
+    }
+  },
+  "editor_frameResizeRejected": "Can't resize the frame: it must overlap the image by at least {overlap} px, and the frame and image together can't exceed {max} px per side.",
+  "@editor_frameResizeRejected": {
+    "placeholders": {
+      "overlap": {"type": "int"},
+      "max": {"type": "int"}
+    }
+  },
+  "editor_compressionFrameLimited": "Higher resolutions are unavailable because the frame would exceed the request area limit.",
+  "img2img_focusOutpaintHint": "Focus outpaint: only the frame is sent, and the result is pasted back into the full image through the mask. Adjust the frame with the Frame tool in the inpaint editor.",
 
   "savePreset_title": "Save as Preset",
   "savePreset_nameHint": "Enter preset name",

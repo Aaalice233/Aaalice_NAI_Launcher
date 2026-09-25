@@ -134,6 +134,7 @@ class Img2ImgSourceSection extends ConsumerWidget {
               focusedInpaintEnabled:
                   workflow.isInpaint && workflow.focusedInpaintEnabled,
               focusedSelectionRect: workflow.focusedSelectionRect,
+              focusedContextCrop: workflow.focusedContextCrop,
               minimumContextMegaPixels: workflow.minimumContextMegaPixels,
               imageWidth: dimensions.$1,
               imageHeight: dimensions.$2,

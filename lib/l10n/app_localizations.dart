@@ -22503,6 +22503,114 @@ abstract class AppLocalizations {
   /// **'Applied dimensions must not exceed {max}.'**
   String editor_appliedDimensionLimit(int max);
 
+  /// No description provided for @editor_toolFrame.
+  ///
+  /// In en, this message translates to:
+  /// **'Frame'**
+  String get editor_toolFrame;
+
+  /// No description provided for @editor_frameToolHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Drag inside the frame to move it, or drag its edges to resize. Content outside the frame is kept and dimmed; only the area inside is sent for generation. A moved frame keeps at least 64 px of overlap with the image.'**
+  String get editor_frameToolHint;
+
+  /// No description provided for @editor_frameSizeReadout.
+  ///
+  /// In en, this message translates to:
+  /// **'Size: {width} x {height}'**
+  String editor_frameSizeReadout(int width, int height);
+
+  /// No description provided for @editor_frameOffsetReadout.
+  ///
+  /// In en, this message translates to:
+  /// **'Offset from image: X {x}, Y {y}'**
+  String editor_frameOffsetReadout(int x, int y);
+
+  /// No description provided for @editor_frameMoveLockedByView.
+  ///
+  /// In en, this message translates to:
+  /// **'The frame can\'t be moved while the view is rotated or mirrored. Press R to reset the view, then try again.'**
+  String get editor_frameMoveLockedByView;
+
+  /// No description provided for @editor_resetFrame.
+  ///
+  /// In en, this message translates to:
+  /// **'Reset Frame'**
+  String get editor_resetFrame;
+
+  /// No description provided for @editor_cropToFrame.
+  ///
+  /// In en, this message translates to:
+  /// **'Crop to Frame'**
+  String get editor_cropToFrame;
+
+  /// No description provided for @editor_cropToFrameHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Discard the image and mask outside the frame. This can be undone.'**
+  String get editor_cropToFrameHint;
+
+  /// No description provided for @editor_cropToFrameFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Crop to frame failed: {error}'**
+  String editor_cropToFrameFailed(Object error);
+
+  /// No description provided for @editor_changeFrameSize.
+  ///
+  /// In en, this message translates to:
+  /// **'Change Frame Size'**
+  String get editor_changeFrameSize;
+
+  /// No description provided for @editor_frameResized.
+  ///
+  /// In en, this message translates to:
+  /// **'Frame resized to {width} x {height}'**
+  String editor_frameResized(int width, int height);
+
+  /// No description provided for @editor_frameToolHintPasteBack.
+  ///
+  /// In en, this message translates to:
+  /// **'Drag inside the frame to move it in 64 px steps, or drag its edges to resize. Only the area inside is sent for generation; when part of the image lies outside the frame, the result is pasted back into the full image through the mask and the outside stays unchanged. The frame keeps at least 64 px of overlap with the image.'**
+  String get editor_frameToolHintPasteBack;
+
+  /// No description provided for @editor_frameRequestReadout.
+  ///
+  /// In en, this message translates to:
+  /// **'Request: {width} x {height}'**
+  String editor_frameRequestReadout(int width, int height);
+
+  /// No description provided for @editor_frameRequestFree.
+  ///
+  /// In en, this message translates to:
+  /// **'Free'**
+  String get editor_frameRequestFree;
+
+  /// No description provided for @editor_frameRequestCost.
+  ///
+  /// In en, this message translates to:
+  /// **'~{cost} Anlas'**
+  String editor_frameRequestCost(int cost);
+
+  /// No description provided for @editor_frameResizeRejected.
+  ///
+  /// In en, this message translates to:
+  /// **'Can\'t resize the frame: it must overlap the image by at least {overlap} px, and the frame and image together can\'t exceed {max} px per side.'**
+  String editor_frameResizeRejected(int overlap, int max);
+
+  /// No description provided for @editor_compressionFrameLimited.
+  ///
+  /// In en, this message translates to:
+  /// **'Higher resolutions are unavailable because the frame would exceed the request area limit.'**
+  String get editor_compressionFrameLimited;
+
+  /// No description provided for @img2img_focusOutpaintHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Focus outpaint: only the frame is sent, and the result is pasted back into the full image through the mask. Adjust the frame with the Frame tool in the inpaint editor.'**
+  String get img2img_focusOutpaintHint;
+
   /// No description provided for @savePreset_title.
   ///
   /// In en, this message translates to:

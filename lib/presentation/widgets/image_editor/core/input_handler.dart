@@ -219,7 +219,7 @@ class InputHandler {
           state.redo();
           return KeyEventResult.handled;
         case LogicalKeyboardKey.digit0:
-          state.canvasController.resetTo100(canvasSize: state.canvasSize);
+          state.canvasController.resetTo100(frame: state.frame);
           return KeyEventResult.handled;
         case LogicalKeyboardKey.equal:
         case LogicalKeyboardKey.add:
@@ -235,13 +235,13 @@ class InputHandler {
     if (isDown && !keyboard.isCtrlPressed) {
       switch (event.logicalKey) {
         case LogicalKeyboardKey.digit1:
-          state.canvasController.resetTo100(canvasSize: state.canvasSize);
+          state.canvasController.resetTo100(frame: state.frame);
           return KeyEventResult.handled;
         case LogicalKeyboardKey.digit2:
-          state.canvasController.fitToHeight(state.canvasSize);
+          state.canvasController.fitToHeight(state.frame);
           return KeyEventResult.handled;
         case LogicalKeyboardKey.digit3:
-          state.canvasController.fitToWidth(state.canvasSize);
+          state.canvasController.fitToWidth(state.frame);
           return KeyEventResult.handled;
         case LogicalKeyboardKey.digit4:
           state.canvasController.rotateLeft();
@@ -256,7 +256,7 @@ class InputHandler {
           state.canvasController.toggleMirrorHorizontal();
           return KeyEventResult.handled;
         case LogicalKeyboardKey.keyR:
-          state.canvasController.resetView(state.canvasSize);
+          state.canvasController.resetView(state.frame);
           return KeyEventResult.handled;
         case LogicalKeyboardKey.keyX:
           state.swapColors();
@@ -296,7 +296,7 @@ class InputHandler {
 
     // 处理工具快捷键
     for (final tool in state.tools) {
-      if (tool.shortcutKey == event.logicalKey) {
+      if (tool.shortcutKey == event.logicalKey && tool.isAvailableIn(state)) {
         state.setTool(tool);
         return true;
       }
@@ -326,7 +326,7 @@ class InputHandler {
     if (tool != null) {
       final canvasPosition = state.canvasController.screenToCanvas(
         event.localPosition,
-        canvasSize: state.canvasSize,
+        frame: state.frame,
       );
       tool.onPointerHover(PointerHoverEvent(position: canvasPosition), state);
     }
@@ -390,7 +390,7 @@ class InputHandler {
       if (tool != null) {
         final canvasPosition = state.canvasController.screenToCanvas(
           event.localPosition,
-          canvasSize: state.canvasSize,
+          frame: state.frame,
         );
         _drawingPointerId = event.pointer;
         _drawingPointerKind = event.kind;
@@ -433,7 +433,7 @@ class InputHandler {
       if (tool != null) {
         final canvasPosition = state.canvasController.screenToCanvas(
           event.localPosition,
-          canvasSize: state.canvasSize,
+          frame: state.frame,
         );
         tool.onPointerUp(PointerUpEvent(position: canvasPosition), state);
       }
@@ -512,7 +512,7 @@ class InputHandler {
       if (tool != null) {
         final canvasPosition = state.canvasController.screenToCanvas(
           event.localPosition,
-          canvasSize: state.canvasSize,
+          frame: state.frame,
         );
         tool.onPointerMove(PointerMoveEvent(position: canvasPosition), state);
       }
@@ -629,7 +629,12 @@ class InputHandler {
 
   void _cancelDrawingPointer() {
     if (_drawingPointerId != null) {
-      state.cancelStroke();
+      final tool = state.currentTool;
+      if (tool != null) {
+        tool.onPointerCancel(state);
+      } else {
+        state.cancelStroke();
+      }
     }
     _drawingPointerId = null;
     _drawingPointerKind = null;
@@ -669,6 +674,8 @@ class InputHandler {
         return SystemMouseCursors.precise;
       case 'color_picker':
         return SystemMouseCursors.precise;
+      case 'frame':
+        return SystemMouseCursors.move;
       default:
         return SystemMouseCursors.basic;
     }

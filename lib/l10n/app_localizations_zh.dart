@@ -12385,6 +12385,77 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
+  String get editor_toolFrame => '取景框';
+
+  @override
+  String get editor_frameToolHint =>
+      '在框内按住拖动可整体移动取景框，拖动边缘可调整尺寸。框外内容会保留并压暗显示，只有框内部分会送去生成；移动时至少与原图重叠 64 像素。';
+
+  @override
+  String editor_frameSizeReadout(int width, int height) {
+    return '尺寸: $width x $height';
+  }
+
+  @override
+  String editor_frameOffsetReadout(int x, int y) {
+    return '相对原图: X $x, Y $y';
+  }
+
+  @override
+  String get editor_frameMoveLockedByView => '视图旋转或镜像时无法移动取景框，按 R 重置视图后再试。';
+
+  @override
+  String get editor_resetFrame => '重置取景框';
+
+  @override
+  String get editor_cropToFrame => '裁切到取景框';
+
+  @override
+  String get editor_cropToFrameHint => '丢弃取景框外的原图和蒙版，可撤销';
+
+  @override
+  String editor_cropToFrameFailed(Object error) {
+    return '裁切到取景框失败: $error';
+  }
+
+  @override
+  String get editor_changeFrameSize => '调整取景框尺寸';
+
+  @override
+  String editor_frameResized(int width, int height) {
+    return '取景框已调整为 $width x $height';
+  }
+
+  @override
+  String get editor_frameToolHintPasteBack =>
+      '在框内按住拖动可按 64 像素一格移动取景框，拖动边缘可调整尺寸。只有框内部分会送去生成；框外还有原图时，结果按蒙版贴回整张图，框外内容保持不变。框须与原图重叠至少 64 像素。';
+
+  @override
+  String editor_frameRequestReadout(int width, int height) {
+    return '发送: $width x $height';
+  }
+
+  @override
+  String get editor_frameRequestFree => '免费';
+
+  @override
+  String editor_frameRequestCost(int cost) {
+    return '约 $cost Anlas';
+  }
+
+  @override
+  String editor_frameResizeRejected(int overlap, int max) {
+    return '无法调整取景框：框须与原图重叠至少 $overlap 像素，且与原图合起来每边不超过 $max 像素。';
+  }
+
+  @override
+  String get editor_compressionFrameLimited => '取景框在更高分辨率下会超过请求面积上限，因此滑条上限已收紧。';
+
+  @override
+  String get img2img_focusOutpaintHint =>
+      '聚焦外扩：只发送取景框内的部分，生成结果按蒙版贴回整张图。可在重绘编辑器里用取景框工具调整位置。';
+
+  @override
   String get savePreset_title => '另存为预设';
 
   @override
@@ -27207,6 +27278,77 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String editor_appliedDimensionLimit(int max) {
     return '應用後的尺寸不能超過 $max。';
   }
+
+  @override
+  String get editor_toolFrame => '取景框';
+
+  @override
+  String get editor_frameToolHint =>
+      '在框內按住拖曳可整體移動取景框，拖曳邊緣可調整尺寸。框外內容會保留並調暗顯示，只有框內部分會送去生成；移動時至少與原圖重疊 64 像素。';
+
+  @override
+  String editor_frameSizeReadout(int width, int height) {
+    return '尺寸: $width x $height';
+  }
+
+  @override
+  String editor_frameOffsetReadout(int x, int y) {
+    return '相對原圖: X $x, Y $y';
+  }
+
+  @override
+  String get editor_frameMoveLockedByView => '檢視旋轉或鏡像時無法移動取景框，按 R 重置檢視後再試。';
+
+  @override
+  String get editor_resetFrame => '重置取景框';
+
+  @override
+  String get editor_cropToFrame => '裁切到取景框';
+
+  @override
+  String get editor_cropToFrameHint => '丟棄取景框外的原圖和蒙版，可撤銷';
+
+  @override
+  String editor_cropToFrameFailed(Object error) {
+    return '裁切到取景框失敗: $error';
+  }
+
+  @override
+  String get editor_changeFrameSize => '調整取景框尺寸';
+
+  @override
+  String editor_frameResized(int width, int height) {
+    return '取景框已調整為 $width x $height';
+  }
+
+  @override
+  String get editor_frameToolHintPasteBack =>
+      '在框內按住拖曳可按 64 像素一格移動取景框，拖曳邊緣可調整尺寸。只有框內部分會送去生成；框外還有原圖時，結果按遮罩貼回整張圖，框外內容保持不變。框須與原圖重疊至少 64 像素。';
+
+  @override
+  String editor_frameRequestReadout(int width, int height) {
+    return '傳送: $width x $height';
+  }
+
+  @override
+  String get editor_frameRequestFree => '免費';
+
+  @override
+  String editor_frameRequestCost(int cost) {
+    return '約 $cost Anlas';
+  }
+
+  @override
+  String editor_frameResizeRejected(int overlap, int max) {
+    return '無法調整取景框：框須與原圖重疊至少 $overlap 像素，且與原圖合起來每邊不超過 $max 像素。';
+  }
+
+  @override
+  String get editor_compressionFrameLimited => '取景框在更高解析度下會超過請求面積上限，因此滑條上限已收緊。';
+
+  @override
+  String get img2img_focusOutpaintHint =>
+      '聚焦外擴：只傳送取景框內的部分，生成結果按遮罩貼回整張圖。可在重繪編輯器裡用取景框工具調整位置。';
 
   @override
   String get savePreset_title => '另存為預設';

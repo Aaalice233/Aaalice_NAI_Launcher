@@ -250,7 +250,7 @@ void main() {
 
     final exported = await ImageExporterNew.exportMaskFromLayers(
       layerManager,
-      const Size(12, 12),
+      const Rect.fromLTWH(0, 0, 12, 12),
       forceHardEdges: true,
       additionalMaskRects: const [Rect.fromLTWH(0, 0, 2, 2)],
       preferCpuHardEdgeExport: true,
@@ -304,13 +304,13 @@ void main() {
 
       final cpuExported = await ImageExporterNew.exportMaskFromLayers(
         layerManager,
-        const Size(4, 2),
+        const Rect.fromLTWH(0, 0, 4, 2),
         forceHardEdges: true,
         preferCpuHardEdgeExport: true,
       );
       final canvasExported = await ImageExporterNew.exportMaskFromLayers(
         layerManager,
-        const Size(4, 2),
+        const Rect.fromLTWH(0, 0, 4, 2),
         forceHardEdges: true,
         preferCpuHardEdgeExport: false,
       );
@@ -336,7 +336,7 @@ void main() {
 
     final exported = await ImageExporterNew.exportMaskFromLayers(
       layerManager,
-      const Size(8, 8),
+      const Rect.fromLTWH(0, 0, 8, 8),
       forceHardEdges: true,
       preferCpuHardEdgeExport: false,
     );
@@ -353,7 +353,7 @@ void main() {
 
     final exported = await ImageExporterNew.exportMaskFromLayers(
       layerManager,
-      const Size(12, 12),
+      const Rect.fromLTWH(0, 0, 12, 12),
       selectionPath: selectionPath,
       forceHardEdges: true,
       additionalMaskRects: const [Rect.fromLTWH(0, 0, 2, 2)],

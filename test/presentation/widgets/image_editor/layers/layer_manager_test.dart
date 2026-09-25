@@ -101,7 +101,9 @@ void main() {
         ),
       );
 
-      final merged = await layerManager.exportMergedImage(const Size(64, 64));
+      final merged = await layerManager.exportMergedImage(
+        const Rect.fromLTWH(0, 0, 64, 64),
+      );
       final bytes = await merged.toByteData(format: ui.ImageByteFormat.png);
       final decoded = img.decodePng(
         Uint8List.fromList(bytes!.buffer.asUint8List()),

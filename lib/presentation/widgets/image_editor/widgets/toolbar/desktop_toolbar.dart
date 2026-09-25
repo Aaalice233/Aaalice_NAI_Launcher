@@ -5,6 +5,7 @@ import '../../../../adaptive/interaction_policy.dart';
 import '../../core/editor_state.dart';
 import '../../tools/tool_base.dart';
 import '../../../../widgets/common/themed_divider.dart';
+import 'editor_toolbar_tools.dart';
 
 /// 检查是否可以清空当前图层
 bool _canClearActiveLayer(EditorState state) {
@@ -33,14 +34,8 @@ class DesktopToolbar extends StatelessWidget {
     this.allowedToolIds,
   });
 
-  List<EditorTool> get _visibleTools {
-    if (allowedToolIds == null || allowedToolIds!.isEmpty) {
-      return state.tools;
-    }
-    return state.tools
-        .where((tool) => allowedToolIds!.contains(tool.id))
-        .toList();
-  }
+  List<EditorTool> get _visibleTools =>
+      visibleEditorTools(state, allowedToolIds);
 
   @override
   Widget build(BuildContext context) {
@@ -164,7 +159,7 @@ class DesktopToolbar extends StatelessWidget {
                     icon: Icons.fit_screen,
                     tooltip: context.l10n.editor_fitToWindow,
                     onTap: () =>
-                        state.canvasController.fitToViewport(state.canvasSize),
+                        state.canvasController.fitToViewport(state.frame),
                   ),
                 ],
               );
@@ -237,30 +232,13 @@ class _ToolButton extends StatelessWidget {
     final shortcut = tool.shortcutKey != null
         ? ' (${_getShortcutLabel(tool)})'
         : '';
-    final base = '${_localizedToolName(context)}$shortcut';
+    final base = '${localizedEditorToolName(context, tool)}$shortcut';
 
     if (tool.id == 'color_picker') {
       return '$base\n${context.l10n.editor_tempColorPickerShortcut}';
     }
 
     return base;
-  }
-
-  String _localizedToolName(BuildContext context) {
-    return switch (tool.id) {
-      'brush' => context.l10n.editor_toolBrush,
-      'eraser' => context.l10n.editor_toolEraser,
-      'fill' => context.l10n.editor_toolFill,
-      'magic_wand' => context.l10n.editor_toolMagicWand,
-      'line' => context.l10n.editor_toolLine,
-      'rect_selection' => context.l10n.editor_toolRectSelect,
-      'ellipse_selection' => context.l10n.editor_toolEllipseSelect,
-      'lasso_selection' => context.l10n.editor_toolLassoSelect,
-      'color_picker' => context.l10n.editor_toolColorPicker,
-      'clone_stamp' => context.l10n.editor_toolCloneStamp,
-      'blur' => context.l10n.editor_toolBlur,
-      _ => tool.name,
-    };
   }
 }
 

@@ -39,7 +39,8 @@ class ImageEditorEffectsController {
       );
       return;
     }
-    final sourceBytes = await _readLayerPng(layer);
+    final region = editorState.frame;
+    final sourceBytes = await _readLayerPng(layer, region);
     if (!context.mounted) return;
     if (sourceBytes == null) {
       AppToast.error(context, context.l10n.editor_readCurrentLayerFailed);
@@ -48,7 +49,7 @@ class ImageEditorEffectsController {
     final selection = await EffectsPreviewDialog.show(
       context,
       sourceBytes: sourceBytes,
-      cropRect: _selectionCropRect(),
+      cropRect: _selectionCropRect(region),
       processingService: session.processingService,
     );
     if (selection == null || !context.mounted) return;
@@ -69,8 +70,9 @@ class ImageEditorEffectsController {
       return;
     }
     final epoch = session.beginOperation();
+    final region = editorState.frame;
     try {
-      final sourceBytes = await _readLayerPng(layer);
+      final sourceBytes = await _readLayerPng(layer, region);
       if (!context.mounted || !session.accepts(epoch)) return;
       if (sourceBytes == null) {
         AppToast.error(context, context.l10n.editor_readCurrentLayerFailed);
@@ -81,7 +83,7 @@ class ImageEditorEffectsController {
           imageBytes: sourceBytes,
           effectType: selection.type,
           intensity: selection.intensity,
-          cropRect: _selectionCropRect(),
+          cropRect: _selectionCropRect(region),
         ),
       );
       if (!context.mounted || !session.accepts(epoch)) return;
@@ -95,6 +97,7 @@ class ImageEditorEffectsController {
           layerId: layer.id,
           newImageBytes: result.bytes,
           newImage: image,
+          newImageOffset: region.topLeft,
           actionDescription: effectLabel(context, selection.type),
         ),
         editorState,
@@ -112,42 +115,30 @@ class ImageEditorEffectsController {
     }
   }
 
-  Future<Uint8List?> _readLayerPng(Layer layer) async {
-    final recorder = ui.PictureRecorder();
-    final canvas = Canvas(recorder);
-    layer.render(canvas, editorState.canvasSize);
-    final picture = recorder.endRecording();
+  Future<Uint8List?> _readLayerPng(Layer layer, Rect region) async {
     ui.Image? image;
     try {
-      image = await picture.toImage(
-        editorState.canvasSize.width.toInt(),
-        editorState.canvasSize.height.toInt(),
-      );
+      image = await layer.renderToImage(region);
       final data = await image.toByteData(format: ui.ImageByteFormat.png);
       return data?.buffer.asUint8List(data.offsetInBytes, data.lengthInBytes);
     } finally {
       image?.dispose();
-      picture.dispose();
     }
   }
 
-  EditorEffectCropRect? _selectionCropRect() {
+  /// 选区在 [region] 局部坐标中的外接矩形，与读出的图层图像对齐
+  EditorEffectCropRect? _selectionCropRect(Rect region) {
     final selection = editorState.selectionPath;
     if (selection == null) return null;
-    final bounds = selection.getBounds().intersect(
-      Offset.zero & editorState.canvasSize,
-    );
+    final bounds = selection
+        .getBounds()
+        .intersect(region)
+        .shift(-region.topLeft);
     if (bounds.isEmpty) return null;
-    final x = bounds.left.floor().clamp(0, editorState.canvasSize.width - 1);
-    final y = bounds.top.floor().clamp(0, editorState.canvasSize.height - 1);
-    final right = bounds.right.ceil().clamp(
-      x + 1,
-      editorState.canvasSize.width,
-    );
-    final bottom = bounds.bottom.ceil().clamp(
-      y + 1,
-      editorState.canvasSize.height,
-    );
+    final x = bounds.left.floor().clamp(0, region.width - 1);
+    final y = bounds.top.floor().clamp(0, region.height - 1);
+    final right = bounds.right.ceil().clamp(x + 1, region.width);
+    final bottom = bounds.bottom.ceil().clamp(y + 1, region.height);
     return EditorEffectCropRect(
       x: x.toInt(),
       y: y.toInt(),

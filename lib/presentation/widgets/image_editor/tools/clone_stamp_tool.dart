@@ -27,6 +27,9 @@ class CloneStampTool extends EditorTool {
   ui.Image? _canvasSnapshot;
   ui.Image? get canvasSnapshot => _canvasSnapshot;
 
+  /// 快照左上角在文档中的位置
+  Offset _snapshotOrigin = Offset.zero;
+
   bool _isApplying = false;
 
   void setSize(double value) {
@@ -76,16 +79,18 @@ class CloneStampTool extends EditorTool {
     _canvasSnapshot?.dispose();
     _canvasSnapshot = null;
 
-    final canvasSize = state.canvasSize;
-    final w = canvasSize.width.toInt();
-    final h = canvasSize.height.toInt();
+    final region = state.frame;
+    final w = region.width.toInt();
+    final h = region.height.toInt();
     if (w <= 0 || h <= 0) return;
 
     final rec = ui.PictureRecorder();
     final c = Canvas(rec);
-    state.layerManager.renderAll(c, canvasSize);
+    c.translate(-region.left, -region.top);
+    state.layerManager.renderAll(c);
     final pic = rec.endRecording();
     _canvasSnapshot = pic.toImageSync(w, h);
+    _snapshotOrigin = region.topLeft;
     pic.dispose();
   }
 
@@ -123,19 +128,16 @@ class CloneStampTool extends EditorTool {
     _isApplying = true;
 
     try {
-      final canvasSize = state.canvasSize;
-      final w = canvasSize.width.toInt();
-      final h = canvasSize.height.toInt();
+      final region = state.frame;
 
-      final layerImg = await _renderLayerToImage(activeLayer, canvasSize, w, h);
+      final layerImg = await activeLayer.renderToImage(region);
 
       final result = _compositeCloneSync(
         layerImg,
         _canvasSnapshot!,
         points,
         _sourceOffset!,
-        w,
-        h,
+        region,
       );
       layerImg.dispose();
 
@@ -150,6 +152,7 @@ class CloneStampTool extends EditorTool {
           layerId: activeLayer.id,
           newImageBytes: pngData.buffer.asUint8List(),
           newImage: result,
+          newImageOffset: region.topLeft,
           actionDescription: 'Clone Stamp',
         ),
         state,
@@ -159,41 +162,26 @@ class CloneStampTool extends EditorTool {
     }
   }
 
-  Future<ui.Image> _renderLayerToImage(
-    dynamic layer,
-    Size canvasSize,
-    int w,
-    int h,
-  ) async {
-    final rec = ui.PictureRecorder();
-    final c = Canvas(rec);
-    (layer as dynamic).render(c, canvasSize);
-    final pic = rec.endRecording();
-    final img = await pic.toImage(w, h);
-    pic.dispose();
-    return img;
-  }
-
-  /// 同步合成克隆结果
+  /// 同步合成克隆结果，输出 [region] 大小的图像
   ui.Image _compositeCloneSync(
     ui.Image layerImage,
     ui.Image snapshot,
     List<Offset> points,
     Offset offset,
-    int w,
-    int h,
+    Rect region,
   ) {
     final rec = ui.PictureRecorder();
     final c = Canvas(rec);
+    c.translate(-region.left, -region.top);
 
-    c.drawImage(layerImage, Offset.zero, Paint());
+    c.drawImage(layerImage, region.topLeft, Paint());
 
     final clonePaint = Paint()..color = Color.fromRGBO(255, 255, 255, _opacity);
 
     _drawClonePoints(c, snapshot, points, offset, clonePaint);
 
     final pic = rec.endRecording();
-    final img = pic.toImageSync(w, h);
+    final img = pic.toImageSync(region.width.toInt(), region.height.toInt());
     pic.dispose();
     return img;
   }
@@ -212,7 +200,7 @@ class CloneStampTool extends EditorTool {
         Path()
           ..addOval(Rect.fromCenter(center: pt, width: _size, height: _size)),
       );
-      c.drawImage(snapshot, offset, paint);
+      c.drawImage(snapshot, _snapshotOrigin + offset, paint);
       c.restore();
     }
 

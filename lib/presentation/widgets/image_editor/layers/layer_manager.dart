@@ -50,7 +50,7 @@ class LayerManager extends ChangeNotifier {
 
   /// 快照缓存管理器（延迟初始化）
   late final CanvasSnapshotManager _snapshotManager = CanvasSnapshotManager(
-    renderCallback: renderAll,
+    renderCallback: (canvas) => renderAll(canvas),
   );
 
   /// 获取快照版本号
@@ -141,13 +141,14 @@ class LayerManager extends ChangeNotifier {
     return layer;
   }
 
-  /// 从图像数据创建图层
+  /// 从图像数据创建图层，底图左上角落在文档坐标 [offset]
   ///
   /// 如果图像解码失败，返回 null 并清理资源
   Future<Layer?> addLayerFromImage(
     Uint8List imageBytes, {
     String? name,
     int? index,
+    Offset offset = Offset.zero,
   }) async {
     final layerName = name ?? 'Imported Image ${_layers.length + 1}';
     final layer = Layer(name: layerName);
@@ -155,6 +156,9 @@ class LayerManager extends ChangeNotifier {
     try {
       // 设置基础图像
       await layer.setBaseImage(imageBytes);
+      if (offset != Offset.zero) {
+        layer.setBaseImageOffset(offset);
+      }
     } catch (e) {
       // 解码失败，清理资源
       layer.dispose();
@@ -199,14 +203,43 @@ class LayerManager extends ChangeNotifier {
     return layer;
   }
 
+  /// 同步替换底图并清空笔画；[image] 的所有权移交给图层
+  void replaceLayerBaseImageSync(
+    String layerId,
+    ui.Image image,
+    Uint8List? bytes, {
+    Offset offset = Offset.zero,
+  }) {
+    final layer = getLayerById(layerId);
+    if (layer == null) {
+      image.dispose();
+      return;
+    }
+    layer.clearStrokes();
+    layer.setBaseImageSync(image, bytes, offset: offset);
+    _markContentChanged();
+  }
+
+  /// 把图层内容恢复为快照；快照不被消费
+  void restoreLayerContent(String layerId, LayerContentSnapshot snapshot) {
+    final layer = getLayerById(layerId);
+    if (layer == null) return;
+    layer.restoreContent(snapshot);
+    _markContentChanged();
+  }
+
   /// 替换图层底图(3D 图层再编辑用),保留图层其余状态
   Future<Layer?> replaceLayerBaseImage(
     String layerId,
-    Uint8List imageBytes,
-  ) async {
+    Uint8List imageBytes, {
+    Offset offset = Offset.zero,
+  }) async {
     final layer = getLayerById(layerId);
     if (layer == null) return null;
     await layer.setBaseImage(imageBytes);
+    if (offset != Offset.zero) {
+      layer.setBaseImageOffset(offset);
+    }
     _markContentChanged();
     return layer;
   }
@@ -548,29 +581,8 @@ class LayerManager extends ChangeNotifier {
     }
   }
 
-  void translateLayersContent(Iterable<String> layerIds, Offset delta) {
-    if (delta == Offset.zero) return;
-
-    final targetLayerIds = layerIds.toSet();
-    if (targetLayerIds.isEmpty) return;
-
-    runBatch(() {
-      var translatedAny = false;
-      for (final layer in _layers) {
-        if (!targetLayerIds.contains(layer.id)) {
-          continue;
-        }
-        layer.translateContent(delta);
-        translatedAny = true;
-      }
-      if (translatedAny) {
-        _markContentChanged();
-      }
-    });
-  }
-
-  /// 更新所有缩略图
-  Future<void> updateAllThumbnails(Size canvasSize) async {
+  /// 更新所有缩略图（[region] 为取景框）
+  Future<void> updateAllThumbnails(Rect region) async {
     if (_isUpdatingThumbnails) return;
     _isUpdatingThumbnails = true;
 
@@ -578,7 +590,7 @@ class LayerManager extends ChangeNotifier {
       // 创建快照避免并发修改
       final layersSnapshot = List<Layer>.from(_layers);
       for (final layer in layersSnapshot) {
-        await layer.updateThumbnail(canvasSize);
+        await layer.updateThumbnail(region);
       }
       notifyListeners();
     } finally {
@@ -586,13 +598,12 @@ class LayerManager extends ChangeNotifier {
     }
   }
 
-  /// 渲染所有可见图层到画布
+  /// 以文档坐标渲染所有可见图层
   /// 面板下方的图层渲染在上层（覆盖面板上方的图层）
   /// 使用 renderWithCache 优先利用缓存提升性能
   /// [viewportBounds] 视口边界，用于空间剔除优化（可选）
   void renderAll(
-    Canvas canvas,
-    Size canvasSize, {
+    Canvas canvas, {
     Rect? viewportBounds,
     FilterQuality filterQuality = FilterQuality.none,
   }) {
@@ -601,7 +612,6 @@ class LayerManager extends ChangeNotifier {
       if (layer.visible) {
         layer.renderWithCache(
           canvas,
-          canvasSize,
           viewportBounds: viewportBounds,
           filterQuality: filterQuality,
         );
@@ -609,28 +619,26 @@ class LayerManager extends ChangeNotifier {
     }
   }
 
-  /// 导出合并后的图像
+  /// 导出 [region]（取景框）内合并后的图像
   Future<ui.Image> exportMergedImage(
-    Size canvasSize, {
+    Rect region, {
     bool transparentBackground = false,
   }) async {
     final recorder = ui.PictureRecorder();
     final canvas = Canvas(recorder);
+    canvas.translate(-region.left, -region.top);
 
     if (!transparentBackground) {
-      canvas.drawRect(
-        Rect.fromLTWH(0, 0, canvasSize.width, canvasSize.height),
-        Paint()..color = Colors.white,
-      );
+      canvas.drawRect(region, Paint()..color = Colors.white);
     }
 
     // 渲染所有图层
-    renderAll(canvas, canvasSize);
+    renderAll(canvas);
 
     final picture = recorder.endRecording();
     final image = await picture.toImage(
-      canvasSize.width.toInt(),
-      canvasSize.height.toInt(),
+      region.width.round(),
+      region.height.round(),
     );
     picture.dispose();
 
@@ -771,11 +779,11 @@ class LayerManager extends ChangeNotifier {
   /// 标记快照失效（在图层变化时调用）
   void invalidateSnapshot() => _snapshotManager.invalidate();
 
-  /// 异步更新画布快照
-  Future<bool> updateSnapshotAsync(Size canvasSize) =>
-      _snapshotManager.updateSnapshotAsync(canvasSize);
+  /// 异步更新 [region]（取景框）的画布快照
+  Future<bool> updateSnapshotAsync(Rect region) =>
+      _snapshotManager.updateSnapshotAsync(region);
 
-  /// 同步读取指定位置的像素颜色
+  /// 同步读取指定文档坐标的像素颜色
   Color? getPixelColor(int x, int y) => _snapshotManager.getPixelColor(x, y);
 
   /// 同步获取放大镜网格像素
@@ -785,12 +793,12 @@ class LayerManager extends ChangeNotifier {
     int gridSize,
   ) => _snapshotManager.getMagnifierPixels(centerX, centerY, gridSize);
 
-  /// 更新区域快照（仅渲染光标周围的小区域）
+  /// 更新区域快照（仅渲染光标周围的小区域，限制在 [region] 内）
   Future<bool> updateRegionalSnapshot(
     int centerX,
     int centerY,
-    Size canvasSize,
-  ) => _snapshotManager.updateRegionalSnapshot(centerX, centerY, canvasSize);
+    Rect region,
+  ) => _snapshotManager.updateRegionalSnapshot(centerX, centerY, region);
 
   /// 获取区域缓存中的像素颜色（同步，O(1)）
   Color? getRegionalPixel(int x, int y) =>

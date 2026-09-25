@@ -16,7 +16,7 @@ void main() {
       await tester.runAsync(() async {
         final maskBytes = await ImageExporterNew.exportMask(
           Path()..addRect(const Rect.fromLTWH(16, 20, 24, 28)),
-          const Size(64, 64),
+          const Rect.fromLTWH(0, 0, 64, 64),
         );
 
         final decoded = img.decodePng(maskBytes)!;
@@ -50,7 +50,7 @@ void main() {
 
         final maskBytes = await ImageExporterNew.exportMaskFromLayers(
           layerManager,
-          const Size(64, 64),
+          const Rect.fromLTWH(0, 0, 64, 64),
           excludedBaseImageLayerIds: {sourceLayer.id},
         );
 
@@ -86,7 +86,7 @@ void main() {
 
         final maskBytes = await ImageExporterNew.exportMaskFromLayers(
           layerManager,
-          const Size(64, 64),
+          const Rect.fromLTWH(0, 0, 64, 64),
           forceHardEdges: true,
         );
 
@@ -122,7 +122,7 @@ void main() {
 
         final maskBytes = await ImageExporterNew.exportMaskFromLayers(
           layerManager,
-          const Size(64, 64),
+          const Rect.fromLTWH(0, 0, 64, 64),
           excludedBaseImageLayerIds: {sourceLayer.id},
         );
 
@@ -169,7 +169,7 @@ void main() {
 
         final exportedBytes = await ImageExporterNew.exportMaskFromLayers(
           layerManager,
-          const Size(64, 64),
+          const Rect.fromLTWH(0, 0, 64, 64),
         );
 
         final decoded = img.decodePng(exportedBytes)!;

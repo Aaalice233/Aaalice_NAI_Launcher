@@ -112,12 +112,11 @@ class SelectionManager extends ChangeNotifier {
     }
   }
 
-  /// 反转选区
-  void invertSelection(Size canvasSize) {
+  /// 以取景框为全集反转选区
+  void invertSelection(Rect frame) {
     if (_selectionPath != null) {
       _saveHistory();
-      final fullRect = Path()
-        ..addRect(Rect.fromLTWH(0, 0, canvasSize.width, canvasSize.height));
+      final fullRect = Path()..addRect(frame);
       _selectionPath = Path.combine(
         PathOperation.difference,
         fullRect,

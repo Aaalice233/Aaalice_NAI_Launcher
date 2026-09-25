@@ -15,6 +15,9 @@ class EditorCanvas extends StatefulWidget {
   final EditorState state;
   final bool suppressSelectionOverlay;
   final bool showTransparentCanvasBackground;
+
+  /// 取景框外的内容照常绘制并压暗；关闭时裁到取景框
+  final bool revealOutsideFrame;
   final bool Function(Offset localPosition)? shouldSuppressPointerInput;
 
   const EditorCanvas({
@@ -22,6 +25,7 @@ class EditorCanvas extends StatefulWidget {
     required this.state,
     this.suppressSelectionOverlay = false,
     this.showTransparentCanvasBackground = false,
+    this.revealOutsideFrame = false,
     this.shouldSuppressPointerInput,
   });
 
@@ -161,6 +165,7 @@ class _EditorCanvasState extends State<EditorCanvas>
                                 state: widget.state,
                                 showTransparentCanvasBackground:
                                     widget.showTransparentCanvasBackground,
+                                revealOutsideFrame: widget.revealOutsideFrame,
                               ),
                             ),
                           ),

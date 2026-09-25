@@ -393,6 +393,7 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
         minimumContextMegaPixels:
             prepared.focusedSnapshot.minimumContextMegaPixels,
         focusedSelectionRect: prepared.focusedSnapshot.selectionRect,
+        focusedContextCrop: prepared.focusedSnapshot.contextCrop,
         streamPreviewEnabled: ref.read(generationStreamPreviewSettingsProvider),
       );
       final handle = coordinator.start(command);
@@ -488,6 +489,7 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
               enabled: workflow.focusedInpaintEnabled,
               minimumContextMegaPixels: workflow.minimumContextMegaPixels,
               selectionRect: workflow.focusedSelectionRect,
+              contextCrop: workflow.focusedContextCrop,
             );
           },
         ),

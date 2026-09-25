@@ -43,11 +43,12 @@ class FillTool extends EditorTool {
   void onPointerUp(PointerUpEvent event, EditorState state) {}
 
   Future<void> _performFill(EditorState state, Offset tapPosition) async {
-    final canvasSize = state.canvasSize;
-    final width = canvasSize.width.toInt();
-    final height = canvasSize.height.toInt();
-    final startX = tapPosition.dx.round().clamp(0, width - 1);
-    final startY = tapPosition.dy.round().clamp(0, height - 1);
+    // 采样与填充都限定在按下时的取景框内，填充点再换回文档坐标
+    final region = state.frame;
+    final width = region.width.toInt();
+    final height = region.height.toInt();
+    final startX = (tapPosition.dx - region.left).round().clamp(0, width - 1);
+    final startY = (tapPosition.dy - region.top).round().clamp(0, height - 1);
     final fillColor = state.foregroundColor;
 
     final activeLayer = state.layerManager.activeLayer;
@@ -55,9 +56,11 @@ class FillTool extends EditorTool {
 
     final recorder = ui.PictureRecorder();
     final canvas = Canvas(recorder);
-    state.layerManager.renderAll(canvas, canvasSize);
+    canvas.translate(-region.left, -region.top);
+    state.layerManager.renderAll(canvas);
     final picture = recorder.endRecording();
     final image = await picture.toImage(width, height);
+    picture.dispose();
     final byteData = await image.toByteData(format: ui.ImageByteFormat.rawRgba);
     image.dispose();
 
@@ -95,7 +98,7 @@ class FillTool extends EditorTool {
       final idx = stack.removeLast();
       final px = idx % width;
       final py = idx ~/ width;
-      fillPoints.add(Offset(px.toDouble(), py.toDouble()));
+      fillPoints.add(Offset(px + region.left, py + region.top));
 
       for (final (dx, dy) in [(0, -1), (0, 1), (-1, 0), (1, 0)]) {
         final nx = px + dx;

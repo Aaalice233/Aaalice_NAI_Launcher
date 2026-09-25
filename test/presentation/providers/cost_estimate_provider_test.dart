@@ -344,6 +344,63 @@ void main() {
       },
     );
 
+    test('should estimate focus outpaint from the fixed frame crop', () {
+      final workflow = container.read(imageWorkflowControllerProvider.notifier);
+      final subscription = container.read(
+        subscriptionNotifierProvider.notifier,
+      );
+      subscription.state = const SubscriptionState.loaded(
+        UserSubscription(tier: 1),
+      );
+      const crop = Rect.fromLTWH(384, 0, 832, 1216);
+
+      workflow.applyInpaintEditorResult(
+        sourceImage: _buildPng(width: 1216, height: 1216),
+        sourceWidth: 1216,
+        sourceHeight: 1216,
+        sourceIsOutpaint: false,
+        useExactSourceDimensions: true,
+        maskImage: _buildMask(
+          width: 1216,
+          height: 1216,
+          rect: const Rect.fromLTWH(831, 0, 385, 1216),
+        ),
+        focusedInpaintEnabled: true,
+        focusedSelectionRect: null,
+        focusedContextCrop: crop,
+        minimumContextMegaPixels: 88,
+      );
+      container
+          .read(generationParamsNotifierProvider.notifier)
+          .updateInpaintStrength(0.5);
+
+      final params = container.read(generationParamsNotifierProvider);
+      final geometry = FocusedInpaintUtils.resolveGeometryForCrop(
+        sourceWidth: 1216,
+        sourceHeight: 1216,
+        crop: crop,
+      )!;
+      expect((geometry.requestWidth, geometry.requestHeight), (832, 1216));
+      expect(container.read(focusedInpaintMaskRequestSizeProvider), isNull);
+
+      final expected = AnlasCalculator.calculateRequestCost(
+        width: geometry.requestWidth,
+        height: geometry.requestHeight,
+        steps: params.steps,
+        batchCount: params.nSamples,
+        batchSize: 1,
+        model: params.model,
+        subscriptionTier:
+            container.read(subscriptionNotifierProvider).subscription?.tier ??
+            0,
+        smea: params.effectiveSmea,
+        smeaDyn: params.effectiveSmeaDyn,
+        strength: params.inpaintStrength,
+        extraPerSampleCost: 0,
+      );
+      expect(container.read(estimatedCostProvider), equals(expected));
+    });
+
     test(
       'should estimate mask-only focused inpaint from lightweight mask bounds',
       () {

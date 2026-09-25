@@ -6509,6 +6509,76 @@
       }
     }
   },
+  "editor_toolFrame": "取景框",
+  "editor_frameToolHint": "在框內按住拖曳可整體移動取景框，拖曳邊緣可調整尺寸。框外內容會保留並調暗顯示，只有框內部分會送去生成；移動時至少與原圖重疊 64 像素。",
+  "editor_frameSizeReadout": "尺寸: {width} x {height}",
+  "@editor_frameSizeReadout": {
+    "placeholders": {
+      "width": {
+        "type": "int"
+      },
+      "height": {
+        "type": "int"
+      }
+    }
+  },
+  "editor_frameOffsetReadout": "相對原圖: X {x}, Y {y}",
+  "@editor_frameOffsetReadout": {
+    "placeholders": {
+      "x": {
+        "type": "int"
+      },
+      "y": {
+        "type": "int"
+      }
+    }
+  },
+  "editor_frameMoveLockedByView": "檢視旋轉或鏡像時無法移動取景框，按 R 重置檢視後再試。",
+  "editor_resetFrame": "重置取景框",
+  "editor_cropToFrame": "裁切到取景框",
+  "editor_cropToFrameHint": "丟棄取景框外的原圖和蒙版，可撤銷",
+  "editor_cropToFrameFailed": "裁切到取景框失敗: {error}",
+  "@editor_cropToFrameFailed": {
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "editor_changeFrameSize": "調整取景框尺寸",
+  "editor_frameResized": "取景框已調整為 {width} x {height}",
+  "@editor_frameResized": {
+    "placeholders": {
+      "width": {
+        "type": "int"
+      },
+      "height": {
+        "type": "int"
+      }
+    }
+  },
+  "editor_frameToolHintPasteBack": "在框內按住拖曳可按 64 像素一格移動取景框，拖曳邊緣可調整尺寸。只有框內部分會送去生成；框外還有原圖時，結果按遮罩貼回整張圖，框外內容保持不變。框須與原圖重疊至少 64 像素。",
+  "editor_frameRequestReadout": "傳送: {width} x {height}",
+  "@editor_frameRequestReadout": {
+    "placeholders": {
+      "width": {"type": "int"},
+      "height": {"type": "int"}
+    }
+  },
+  "editor_frameRequestFree": "免費",
+  "editor_frameRequestCost": "約 {cost} Anlas",
+  "@editor_frameRequestCost": {
+    "placeholders": {
+      "cost": {"type": "int"}
+    }
+  },
+  "editor_frameResizeRejected": "無法調整取景框：框須與原圖重疊至少 {overlap} 像素，且與原圖合起來每邊不超過 {max} 像素。",
+  "@editor_frameResizeRejected": {
+    "placeholders": {
+      "overlap": {"type": "int"},
+      "max": {"type": "int"}
+    }
+  },
+  "editor_compressionFrameLimited": "取景框在更高解析度下會超過請求面積上限，因此滑條上限已收緊。",
+  "img2img_focusOutpaintHint": "聚焦外擴：只傳送取景框內的部分，生成結果按遮罩貼回整張圖。可在重繪編輯器裡用取景框工具調整位置。",
   "savePreset_title": "另存為預設",
   "savePreset_nameHint": "輸入預設名稱",
   "savePreset_metadataDescription": "從圖片後設資料儲存",

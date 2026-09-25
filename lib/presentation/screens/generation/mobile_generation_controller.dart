@@ -13,6 +13,7 @@ import '../../../core/utils/localization_extension.dart';
 import '../../../data/models/queue/replication_task.dart';
 import '../../../data/models/queue/replication_task_generation_snapshot.dart';
 import '../../../data/services/auth_provider.dart';
+import '../../providers/generation/image_workflow_controller.dart';
 import '../../providers/image_generation_provider.dart';
 import '../../providers/krita/krita_bridge_notifier.dart';
 import '../../providers/mobile_shell_overlay_provider.dart';
@@ -339,6 +340,14 @@ class MobileGenerationController extends ChangeNotifier
       return;
     }
     final queuedParams = params.copyWith(nSamples: 1);
+    // 与立即生成时读取的聚焦状态一致，任务执行时不再借用生成页届时的状态
+    final workflow = ref.read(imageWorkflowControllerProvider);
+    final focused = QueuedFocusedInpaint(
+      enabled: workflow.focusedInpaintEnabled,
+      contextPadding: workflow.minimumContextMegaPixels,
+      selectionRect: workflow.focusedSelectionRect,
+      contextCrop: workflow.focusedContextCrop,
+    );
     final task = ReplicationTask.create(
       prompt: params.prompt,
       negativePrompt: params.negativePrompt,
@@ -356,6 +365,7 @@ class MobileGenerationController extends ChangeNotifier
       generationSnapshot: ReplicationTaskGenerationSnapshot.encode(
         queuedParams,
         batchSize: ref.read(imagesPerRequestProvider),
+        focused: focused,
       ),
       source: ReplicationTaskSource.local,
       seed: params.seed,

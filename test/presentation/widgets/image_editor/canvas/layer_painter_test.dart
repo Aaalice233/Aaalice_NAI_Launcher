@@ -61,6 +61,41 @@ int _redByte(Color color) {
   return (color.r * 255).round().clamp(0, 255);
 }
 
+Future<ByteData> _paintFramePixels(
+  EditorState state, {
+  required bool revealOutsideFrame,
+}) async {
+  final recorder = ui.PictureRecorder();
+  final canvas = Canvas(recorder);
+  LayerPainter(
+    state: state,
+    showTransparentCanvasBackground: true,
+    revealOutsideFrame: revealOutsideFrame,
+  ).paint(canvas, const Size(32, 32));
+
+  final picture = recorder.endRecording();
+  addTearDown(picture.dispose);
+  final image = await picture.toImage(32, 32);
+  addTearDown(image.dispose);
+  final byteData = await image.toByteData(format: ui.ImageByteFormat.rawRgba);
+  expect(byteData, isNotNull);
+  return byteData!;
+}
+
+Future<ui.Image> _createSolidImage(int width, int height, Color color) async {
+  final recorder = ui.PictureRecorder();
+  Canvas(recorder).drawRect(
+    Rect.fromLTWH(0, 0, width.toDouble(), height.toDouble()),
+    Paint()..color = color,
+  );
+  final picture = recorder.endRecording();
+  try {
+    return await picture.toImage(width, height);
+  } finally {
+    picture.dispose();
+  }
+}
+
 Future<ui.Image> _createTwoToneImage() async {
   final recorder = ui.PictureRecorder();
   final canvas = Canvas(recorder);
@@ -278,4 +313,54 @@ void main() {
       expect(boundaryRed, lessThan(255));
     },
   );
+
+  group('detached frame', () {
+    const red = Color(0xFFFF0000);
+
+    Future<EditorState> createState() async {
+      final state = EditorState()
+        ..allowsDetachedFrame = true
+        ..setFrame(const Rect.fromLTWH(16, 0, 16, 32));
+      addTearDown(state.dispose);
+      state.canvasController.setViewportSize(const Size(32, 32));
+      state.layerManager.addLayerFromUiImage(
+        await _createSolidImage(32, 32, red),
+        name: 'source',
+      );
+      return state;
+    }
+
+    test('reveal mode keeps outside content visible but dimmed', () async {
+      final state = await createState();
+
+      final pixels = await _paintFramePixels(state, revealOutsideFrame: true);
+
+      expect(_pixelAt(pixels, 32, 24, 16), red);
+      final outside = _pixelAt(pixels, 32, 8, 16);
+      expect(_alphaByte(outside), 255);
+      expect(outside, isNot(red));
+      expect(_redByte(outside), lessThan(255));
+    });
+
+    test('clip mode hides everything outside the frame', () async {
+      final state = await createState();
+
+      final pixels = await _paintFramePixels(state, revealOutsideFrame: false);
+
+      expect(_pixelAt(pixels, 32, 24, 16), red);
+      expect(_alphaByte(_pixelAt(pixels, 32, 8, 16)), 0);
+    });
+
+    test('checkerboard follows the frame origin', () async {
+      final state = EditorState()
+        ..allowsDetachedFrame = true
+        ..setFrame(const Rect.fromLTWH(16, 0, 16, 32));
+      addTearDown(state.dispose);
+
+      final pixels = await _paintFramePixels(state, revealOutsideFrame: false);
+
+      expect(_alphaByte(_pixelAt(pixels, 32, 4, 4)), 0);
+      expect(_alphaByte(_pixelAt(pixels, 32, 20, 4)), greaterThan(0));
+    });
+  });
 }

@@ -29,11 +29,14 @@ class NaiGenerationResponseContext {
 }
 
 class NaiGenerationResponseProcessor {
+  /// [focusedContextCrop] 为聚焦外扩的固定裁切区；重绘请求准备失败时直接报错，
+  /// 退回普通重绘会把整张拼接画布原样发出去
   Future<FocusedInpaintRequest?> prepareFocusedInpaint(
     ImageParams params, {
     required bool enabled,
     required double minimumContextMegaPixels,
     Rect? focusedSelectionRect,
+    Rect? focusedContextCrop,
   }) async {
     if (!enabled ||
         params.action != ImageGenerationAction.infill ||
@@ -46,11 +49,18 @@ class NaiGenerationResponseProcessor {
       sourceImage: params.sourceImage!,
       maskImage: params.maskImage!,
       focusedSelectionRect: focusedSelectionRect,
+      contextCrop: focusedContextCrop,
       minContextMegaPixels: minimumContextMegaPixels,
     );
+    if (request == null && focusedContextCrop != null) {
+      throw StateError(
+        'Focus outpaint crop $focusedContextCrop does not fit the source '
+        'image or contains no masked pixels.',
+      );
+    }
     if (request != null) {
       AppLogger.d(
-        'Focused inpaint prepared: crop=${request.crop.x},${request.crop.y},${request.crop.width}x${request.crop.height}, target=${request.targetWidth}x${request.targetHeight}, minContextArea=${minimumContextMegaPixels.round()}, focusRect=$focusedSelectionRect',
+        'Focused inpaint prepared: crop=${request.crop.x},${request.crop.y},${request.crop.width}x${request.crop.height}, target=${request.targetWidth}x${request.targetHeight}, minContextArea=${minimumContextMegaPixels.round()}, focusRect=$focusedSelectionRect, contextCrop=$focusedContextCrop',
         'ImgGen',
       );
     }

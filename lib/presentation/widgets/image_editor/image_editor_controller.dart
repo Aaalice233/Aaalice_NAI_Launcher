@@ -3,7 +3,6 @@ import 'dart:ui';
 import 'package:flutter/foundation.dart';
 
 import '../../../core/utils/editor_compression_utils.dart';
-import '../../../core/utils/inpaint_outpaint_utils.dart';
 import 'core/editor_state.dart';
 import 'core/focused_selection_state.dart';
 import 'document_transaction.dart';
@@ -30,8 +29,6 @@ class ImageEditorSessionSnapshot {
     required this.initialSourceWidth,
     required this.initialSourceHeight,
     required this.sourceWasNormalized,
-    required this.virtualOutpaintFrame,
-    required this.hasOutpaintChanges,
     required this.isImportingDroppedImage,
     required this.hasTransparentCutout,
   }) : outpaintSourceImage = outpaintSourceImage == null
@@ -58,8 +55,6 @@ class ImageEditorSessionSnapshot {
   final int? initialSourceWidth;
   final int? initialSourceHeight;
   final bool sourceWasNormalized;
-  final OutpaintVirtualFrame? virtualOutpaintFrame;
-  final bool hasOutpaintChanges;
   final bool isImportingDroppedImage;
   final bool hasTransparentCutout;
 }
@@ -94,8 +89,6 @@ class ImageEditorController extends ChangeNotifier {
   int? initialSourceWidth;
   int? initialSourceHeight;
   bool sourceWasNormalized = false;
-  OutpaintVirtualFrame? virtualOutpaintFrame;
-  bool hasOutpaintChanges = false;
   bool isImportingDroppedImage = false;
   bool hasTransparentCutout = false;
 
@@ -117,8 +110,6 @@ class ImageEditorController extends ChangeNotifier {
     initialSourceWidth: initialSourceWidth,
     initialSourceHeight: initialSourceHeight,
     sourceWasNormalized: sourceWasNormalized,
-    virtualOutpaintFrame: virtualOutpaintFrame,
-    hasOutpaintChanges: hasOutpaintChanges,
     isImportingDroppedImage: isImportingDroppedImage,
     hasTransparentCutout: hasTransparentCutout,
   );

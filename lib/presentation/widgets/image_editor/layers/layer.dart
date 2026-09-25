@@ -121,6 +121,37 @@ extension LayerBlendModeExtension on LayerBlendMode {
   }
 }
 
+/// 图层内容快照（底图、偏移、笔画），供撤销在同步阶段整体恢复
+class LayerContentSnapshot {
+  /// [baseImage] 的所有权移交给快照，由 [dispose] 释放
+  LayerContentSnapshot({
+    ui.Image? baseImage,
+    this.baseImageBytes,
+    this.baseImageOffset = Offset.zero,
+    List<StrokeData> strokes = const [],
+  }) : _baseImage = baseImage,
+       strokes = List.unmodifiable(strokes);
+
+  const LayerContentSnapshot.empty()
+    : _baseImage = null,
+      baseImageBytes = null,
+      baseImageOffset = Offset.zero,
+      strokes = const [];
+
+  final ui.Image? _baseImage;
+  final Uint8List? baseImageBytes;
+  final Offset baseImageOffset;
+  final List<StrokeData> strokes;
+
+  bool get hasBaseImage => _baseImage != null;
+
+  ui.Image? cloneBaseImage() => _baseImage?.clone();
+
+  void dispose() {
+    _baseImage?.dispose();
+  }
+}
+
 /// 图层类
 class Layer {
   /// 图层ID
@@ -157,13 +188,18 @@ class Layer {
   Offset _baseImageOffset = Offset.zero;
   Offset get baseImageOffset => _baseImageOffset;
 
-  /// 光栅化后的图像缓存（笔画合并后）
+  /// 光栅化后的图像缓存（笔画合并后），覆盖 [_rasterBounds]
   ui.Image? _rasterizedImage;
   ui.Image? get rasterizedImage => _rasterizedImage;
+  Rect _rasterBounds = Rect.zero;
 
-  /// 合并缓存（基础图像 + 光栅化笔画）
+  /// 合并缓存（基础图像 + 光栅化笔画），覆盖 [_compositeBounds]
   ui.Image? _compositedCache;
   ui.Image? get compositedCache => _compositedCache;
+  Rect _compositeBounds = Rect.zero;
+
+  /// 超出后不建缓存、直接绘制，避免超过 GPU 纹理上限
+  static const int _maxCacheExtent = 8192;
 
   /// 是否需要重新光栅化
   bool _needsRasterize = true;
@@ -179,6 +215,7 @@ class Layer {
   /// 是否需要更新缩略图
   bool _needsThumbnailUpdate = true;
   bool get needsThumbnailUpdate => _needsThumbnailUpdate;
+  Rect? _thumbnailRegion;
 
   /// 延迟光栅化计时器（空闲时执行）
   DateTime? _lastStrokeTime;
@@ -207,6 +244,9 @@ class Layer {
   /// 如果图层与视口不相交，则可以跳过渲染
   Rect? get bounds => _bounds;
 
+  /// 文档坐标中的内容外接矩形（含笔刷半径与柔边），无内容时为空矩形
+  Rect get contentBounds => _bounds ??= _calculateBounds();
+
   /// 3D 模型图层元数据(null = 普通图层)
   Model3dLayerData? model3d;
 
@@ -231,23 +271,27 @@ class Layer {
   /// 待处理的笔画数量
   int get pendingStrokeCount => _strokes.length - _rasterizedStrokeCount;
 
-  HardEdgeMaskBaseImage? toHardEdgeBaseMask() {
+  /// [origin] 是导出区域在文档中的左上角，输出为区域局部坐标
+  HardEdgeMaskBaseImage? toHardEdgeBaseMask({Offset origin = Offset.zero}) {
     final bytes = _baseImageBytes;
     if (bytes == null) {
       return null;
     }
 
+    final offset = _baseImageOffset - origin;
     return HardEdgeMaskBaseImage(
       bytes: Uint8List.fromList(bytes),
-      offsetX: _baseImageOffset.dx.round(),
-      offsetY: _baseImageOffset.dy.round(),
+      offsetX: offset.dx.round(),
+      offsetY: offset.dy.round(),
     );
   }
 
-  List<HardEdgeMaskStroke> toHardEdgeMaskStrokes() {
+  List<HardEdgeMaskStroke> toHardEdgeMaskStrokes({
+    Offset origin = Offset.zero,
+  }) {
     return _strokes.map((stroke) {
       return HardEdgeMaskStroke(
-        points: List<Offset>.from(stroke.points),
+        points: stroke.points.map((point) => point - origin).toList(),
         size: stroke.size,
         isEraser: stroke.isEraser,
       );
@@ -256,17 +300,18 @@ class Layer {
 
   List<HardEdgeMaskOperation> toHardEdgeMaskOperations({
     bool includeBaseImage = true,
+    Offset origin = Offset.zero,
   }) {
     final operations = <HardEdgeMaskOperation>[];
 
     if (includeBaseImage) {
-      final baseMask = toHardEdgeBaseMask();
+      final baseMask = toHardEdgeBaseMask(origin: origin);
       if (baseMask != null) {
         operations.add(HardEdgeMaskBaseImageOperation(baseMask: baseMask));
       }
     }
 
-    for (final stroke in toHardEdgeMaskStrokes()) {
+    for (final stroke in toHardEdgeMaskStrokes(origin: origin)) {
       operations.add(HardEdgeMaskStrokeOperation(stroke: stroke));
     }
 
@@ -314,11 +359,38 @@ class Layer {
   ///
   /// 用于 [ReplaceLayerImageAction] 等需要同步执行的操作。
   /// 调用者负责确保 [image] 不在其他地方共享/释放。
-  void setBaseImageSync(ui.Image image, Uint8List? bytes) {
+  void setBaseImageSync(
+    ui.Image image,
+    Uint8List? bytes, {
+    Offset offset = Offset.zero,
+  }) {
     _baseImage?.dispose();
     _baseImage = image;
     _baseImageBytes = bytes;
-    _baseImageOffset = Offset.zero;
+    _baseImageOffset = offset;
+    _invalidateRasterState();
+  }
+
+  /// 快照持有底图的独立克隆，调用者负责释放
+  LayerContentSnapshot captureContent() {
+    return LayerContentSnapshot(
+      baseImage: _baseImage?.clone(),
+      baseImageBytes: _baseImageBytes,
+      baseImageOffset: _baseImageOffset,
+      strokes: _strokes,
+    );
+  }
+
+  /// 恢复为快照内容；快照本身不被消费，可重复用于撤销/重做
+  void restoreContent(LayerContentSnapshot snapshot) {
+    _baseImage?.dispose();
+    _baseImage = snapshot.cloneBaseImage();
+    _baseImageBytes = snapshot.baseImageBytes;
+    _baseImageOffset = snapshot.baseImageOffset;
+    _strokes
+      ..clear()
+      ..addAll(snapshot.strokes);
+    _strokeGeneration++;
     _invalidateRasterState();
   }
 
@@ -333,27 +405,6 @@ class Layer {
 
   void setBaseImageOffset(Offset offset) {
     _baseImageOffset = offset;
-    _invalidateRasterState();
-  }
-
-  void translateContent(Offset delta) {
-    if (delta == Offset.zero) {
-      return;
-    }
-
-    _baseImageOffset += delta;
-    final translatedStrokes = _strokes
-        .map((stroke) {
-          return stroke.copyWith(
-            points: stroke.points.map((point) => point + delta).toList(),
-          );
-        })
-        .toList(growable: false);
-
-    _strokes
-      ..clear()
-      ..addAll(translatedStrokes);
-    _strokeGeneration++;
     _invalidateRasterState();
   }
 
@@ -460,12 +511,8 @@ class Layer {
     return oldStrokes;
   }
 
-  /// 绘制图层内容到画布
-  void render(
-    Canvas canvas,
-    Size canvasSize, {
-    FilterQuality filterQuality = FilterQuality.none,
-  }) {
+  /// 以文档坐标绘制图层内容
+  void render(Canvas canvas, {FilterQuality filterQuality = FilterQuality.none}) {
     if (!visible) return;
 
     // 保存当前状态
@@ -496,15 +543,17 @@ class Layer {
         blendMode != LayerBlendMode.normal ||
         eraserNeedsSaveLayer;
     if (needsLayer) {
-      canvas.saveLayer(
-        Rect.fromLTWH(0, 0, canvasSize.width, canvasSize.height),
-        layerPaint,
-      );
+      final layerBounds = contentBounds;
+      canvas.saveLayer(layerBounds.isEmpty ? null : layerBounds, layerPaint);
     }
 
     // 优先使用合成缓存
     if (_compositedCache != null && !_needsComposite) {
-      canvas.drawImage(_compositedCache!, Offset.zero, imagePaint);
+      canvas.drawImage(
+        _compositedCache!,
+        _compositeBounds.topLeft,
+        imagePaint,
+      );
     } else if (hasAnyEraser && _baseImage != null) {
       // eraser + baseImage: 必须在 saveLayer 中先绘制 base 再绘制全部笔画，
       // 这样 BlendMode.clear 才能正确擦除 base 的像素。
@@ -518,7 +567,11 @@ class Layer {
 
       // 使用光栅化缓存绘制已处理的笔画
       if (_rasterizedImage != null && _rasterizedStrokeCount > 0) {
-        canvas.drawImage(_rasterizedImage!, Offset.zero, imagePaint);
+        canvas.drawImage(
+          _rasterizedImage!,
+          _rasterBounds.topLeft,
+          imagePaint,
+        );
       }
 
       // 绘制未光栅化的笔画
@@ -536,8 +589,7 @@ class Layer {
 
   /// 使用缓存渲染（优先使用缓存，性能更好）
   void renderWithCache(
-    Canvas canvas,
-    Size canvasSize, {
+    Canvas canvas, {
     Rect? viewportBounds,
     FilterQuality filterQuality = FilterQuality.none,
   }) {
@@ -545,14 +597,8 @@ class Layer {
 
     // 空间剔除优化：如果图层边界与视口不相交，则跳过渲染
     // 这在放大查看画布的某一部分时特别有效，可以避免渲染不可见的图层
-    if (viewportBounds != null) {
-      // 确保边界已计算
-      _bounds ??= _calculateBounds(canvasSize);
-
-      // 如果图层边界存在且与视口不相交，则跳过渲染
-      if (_bounds != null && !_bounds!.overlaps(viewportBounds)) {
-        return;
-      }
+    if (viewportBounds != null && !contentBounds.overlaps(viewportBounds)) {
+      return;
     }
 
     canvas.save();
@@ -567,28 +613,55 @@ class Layer {
 
     // 如果有合成缓存且不需要更新，直接使用
     if (_compositedCache != null && !_needsComposite) {
-      canvas.drawImage(_compositedCache!, Offset.zero, layerPaint);
+      canvas.drawImage(
+        _compositedCache!,
+        _compositeBounds.topLeft,
+        layerPaint,
+      );
     } else {
       // 否则走正常渲染流程
-      render(canvas, canvasSize, filterQuality: filterQuality);
+      render(canvas, filterQuality: filterQuality);
     }
 
     canvas.restore();
   }
 
-  /// 计算图层边界
-  Rect _calculateBounds(Size canvasSize) {
-    Rect? bounds;
-    final baseImage = _baseImage;
-    if (baseImage != null) {
-      bounds = Rect.fromLTWH(
-        _baseImageOffset.dx,
-        _baseImageOffset.dy,
-        baseImage.width.toDouble(),
-        baseImage.height.toDouble(),
+  /// 把图层内容中位于 [region] 的部分渲染成 [region] 大小的图像
+  Future<ui.Image> renderToImage(Rect region) async {
+    final recorder = ui.PictureRecorder();
+    final canvas = Canvas(recorder);
+    canvas.translate(-region.left, -region.top);
+    render(canvas);
+    final picture = recorder.endRecording();
+    try {
+      return await picture.toImage(
+        region.width.round(),
+        region.height.round(),
       );
+    } finally {
+      picture.dispose();
     }
+  }
 
+  /// 计算图层边界
+  Rect _calculateBounds() {
+    final baseImage = _baseImage;
+    final baseBounds = baseImage == null
+        ? null
+        : Rect.fromLTWH(
+            _baseImageOffset.dx,
+            _baseImageOffset.dy,
+            baseImage.width.toDouble(),
+            baseImage.height.toDouble(),
+          );
+    final strokeBounds = _calculateStrokeBounds();
+    if (baseBounds == null) return strokeBounds;
+    if (strokeBounds.isEmpty) return baseBounds;
+    return baseBounds.expandToInclude(strokeBounds);
+  }
+
+  Rect _calculateStrokeBounds() {
+    Rect? bounds;
     for (final stroke in _strokes) {
       if (stroke.points.isEmpty) {
         continue;
@@ -605,12 +678,16 @@ class Layer {
         if (point.dy > maxY) maxY = point.dy;
       }
 
-      final radius = stroke.size / 2;
+      // 软笔刷的模糊光晕约延伸 3 个 sigma，缓存必须把它包进去
+      final blurSigma = stroke.hardness < 1.0
+          ? stroke.size * (1.0 - stroke.hardness) * 0.5
+          : 0.0;
+      final extent = stroke.size / 2 + blurSigma * 3;
       final strokeBounds = Rect.fromLTRB(
-        minX - radius,
-        minY - radius,
-        maxX + radius,
-        maxY + radius,
+        minX - extent,
+        minY - extent,
+        maxX + extent,
+        maxY + extent,
       );
       bounds = bounds == null
           ? strokeBounds
@@ -618,6 +695,21 @@ class Layer {
     }
 
     return bounds ?? Rect.zero;
+  }
+
+  /// 缓存图像覆盖的整数像素区域；过大时返回 null 表示不建缓存
+  static Rect? _cacheRectFor(Rect bounds) {
+    if (bounds.isEmpty) return null;
+    final rect = Rect.fromLTRB(
+      bounds.left.floorToDouble(),
+      bounds.top.floorToDouble(),
+      bounds.right.ceilToDouble(),
+      bounds.bottom.ceilToDouble(),
+    );
+    if (rect.width > _maxCacheExtent || rect.height > _maxCacheExtent) {
+      return null;
+    }
+    return rect;
   }
 
   /// 绘制单个笔画
@@ -681,12 +773,14 @@ class Layer {
     return path;
   }
 
-  /// 光栅化图层（增量光栅化）
-  Future<void> rasterize(Size canvasSize) async {
+  /// 光栅化图层（增量光栅化），缓存覆盖笔画在文档中的外接矩形
+  Future<void> rasterize() async {
     if (!_needsRasterize && _rasterizedImage != null) return;
     if (_strokes.isEmpty && _rasterizedImage != null) return;
     if (_isRasterizing) return; // 防止并发重入
-    if (canvasSize.width <= 0 || canvasSize.height <= 0) return;
+
+    final rasterBounds = _cacheRectFor(_calculateStrokeBounds());
+    if (rasterBounds == null) return;
 
     _isRasterizing = true;
     try {
@@ -696,52 +790,50 @@ class Layer {
 
       final recorder = ui.PictureRecorder();
       final canvas = Canvas(recorder);
+      canvas.translate(-rasterBounds.left, -rasterBounds.top);
 
       // 先用透明色清除整个画布，避免显示 GPU 垃圾数据
       canvas.drawRect(
-        Rect.fromLTWH(0, 0, canvasSize.width, canvasSize.height),
+        rasterBounds,
         Paint()
           ..color = const Color(0x00000000)
           ..blendMode = BlendMode.src,
       );
 
-      if (_strokes.isEmpty) {
-        // 没有笔画时，直接返回透明画布
+      // 检查待光栅化的笔画中是否有橡皮擦
+      // BlendMode.clear 需要在已有内容上操作，所以橡皮擦需要完整重绘
+      final hasEraserInPending = _strokes
+          .skip(_rasterizedStrokeCount)
+          .any((s) => s.isEraser);
+
+      // 如果有橡皮擦，需要完整重绘（不能增量）
+      final needsFullRedraw =
+          hasEraserInPending ||
+          _rasterizedStrokeCount == 0 ||
+          _rasterizedImage == null;
+
+      if (needsFullRedraw) {
+        // 完整重绘所有笔画
+        for (int i = 0; i < strokeCount; i++) {
+          _drawStroke(canvas, _strokes[i]);
+        }
       } else {
-        // 检查待光栅化的笔画中是否有橡皮擦
-        // BlendMode.clear 需要在已有内容上操作，所以橡皮擦需要完整重绘
-        final hasEraserInPending = _strokes
-            .skip(_rasterizedStrokeCount)
-            .any((s) => s.isEraser);
+        // 增量绘制（无橡皮擦时）：新边界总是包含旧边界
+        canvas.drawImage(_rasterizedImage!, _rasterBounds.topLeft, Paint());
 
-        // 如果有橡皮擦，需要完整重绘（不能增量）
-        final needsFullRedraw =
-            hasEraserInPending || _rasterizedStrokeCount == 0;
-
-        if (needsFullRedraw) {
-          // 完整重绘所有笔画
-          for (int i = 0; i < strokeCount; i++) {
-            _drawStroke(canvas, _strokes[i]);
-          }
-        } else {
-          // 增量绘制（无橡皮擦时）
-          if (_rasterizedImage != null && _rasterizedStrokeCount > 0) {
-            canvas.drawImage(_rasterizedImage!, Offset.zero, Paint());
-          }
-
-          // 只绘制未光栅化的笔画
-          for (int i = _rasterizedStrokeCount; i < strokeCount; i++) {
-            _drawStroke(canvas, _strokes[i]);
-          }
+        // 只绘制未光栅化的笔画
+        for (int i = _rasterizedStrokeCount; i < strokeCount; i++) {
+          _drawStroke(canvas, _strokes[i]);
         }
       }
 
       final picture = recorder.endRecording();
       final oldImage = _rasterizedImage;
       _rasterizedImage = await picture.toImage(
-        canvasSize.width.toInt(),
-        canvasSize.height.toInt(),
+        rasterBounds.width.toInt(),
+        rasterBounds.height.toInt(),
       );
+      _rasterBounds = rasterBounds;
       picture.dispose();
       oldImage?.dispose();
 
@@ -758,43 +850,48 @@ class Layer {
     }
   }
 
-  /// 更新合成缓存（基础图像 + 光栅化笔画）
-  Future<void> updateCompositeCache(Size canvasSize) async {
+  /// 更新合成缓存（基础图像 + 光栅化笔画），缓存覆盖整个内容外接矩形
+  Future<void> updateCompositeCache() async {
     if (!_needsComposite && _compositedCache != null) return;
     if (_isCompositing) return; // 防止并发重入
-    if (canvasSize.width <= 0 || canvasSize.height <= 0) return;
+
+    final compositeBounds = _cacheRectFor(contentBounds);
+    if (compositeBounds == null) return;
 
     _isCompositing = true;
     try {
+      final startGeneration = _strokeGeneration;
+
       // 确保笔画已光栅化
       if (_needsRasterize && _strokes.isNotEmpty) {
-        await rasterize(canvasSize);
+        await rasterize();
+      }
+
+      final hasAnyEraser = _strokes.any((s) => s.isEraser);
+      final usesStrokeRaster = !(hasAnyEraser && _baseImage != null);
+      // 光栅缓存没覆盖全部笔画时（过大或并发修改）不能拼出完整合成图
+      if (usesStrokeRaster &&
+          _strokes.isNotEmpty &&
+          (_rasterizedImage == null ||
+              _rasterizedStrokeCount < _strokes.length)) {
+        return;
       }
 
       final recorder = ui.PictureRecorder();
       final canvas = Canvas(recorder);
+      canvas.translate(-compositeBounds.left, -compositeBounds.top);
 
       // 先用透明色清除整个画布，避免显示 GPU 垃圾数据
       canvas.drawRect(
-        Rect.fromLTWH(0, 0, canvasSize.width, canvasSize.height),
+        compositeBounds,
         Paint()
           ..color = const Color(0x00000000)
           ..blendMode = BlendMode.src,
       );
 
-      final hasAnyEraser = _strokes.any((s) => s.isEraser);
-
-      if (hasAnyEraser && _baseImage != null) {
+      if (!usesStrokeRaster) {
         // eraser + baseImage: saveLayer 内先绘制 base 再绘制全部笔画
-        canvas.saveLayer(
-          Rect.fromLTWH(
-            0,
-            0,
-            canvasSize.width.toDouble(),
-            canvasSize.height.toDouble(),
-          ),
-          Paint(),
-        );
+        canvas.saveLayer(compositeBounds, Paint());
         _drawBaseImage(canvas, Paint());
         for (final stroke in _strokes) {
           _drawStroke(canvas, stroke);
@@ -803,20 +900,23 @@ class Layer {
       } else {
         _drawBaseImage(canvas, Paint());
         if (_rasterizedImage != null) {
-          canvas.drawImage(_rasterizedImage!, Offset.zero, Paint());
+          canvas.drawImage(_rasterizedImage!, _rasterBounds.topLeft, Paint());
         }
       }
 
       final picture = recorder.endRecording();
       final oldCache = _compositedCache;
       _compositedCache = await picture.toImage(
-        canvasSize.width.toInt(),
-        canvasSize.height.toInt(),
+        compositeBounds.width.toInt(),
+        compositeBounds.height.toInt(),
       );
+      _compositeBounds = compositeBounds;
       picture.dispose();
       oldCache?.dispose();
 
-      _needsComposite = false;
+      if (_strokeGeneration == startGeneration) {
+        _needsComposite = false;
+      }
     } finally {
       _isCompositing = false;
     }
@@ -838,12 +938,20 @@ class Layer {
     return false;
   }
 
+  /// 缩略图展示的是 [region]（取景框）内的内容，取景框变化后也要重建
+  bool needsThumbnailUpdateFor(Rect region) {
+    return _needsThumbnailUpdate ||
+        _thumbnail == null ||
+        _thumbnailRegion != region;
+  }
+
   /// 更新缩略图
-  Future<void> updateThumbnail(Size canvasSize, {int maxSize = 64}) async {
-    if (!_needsThumbnailUpdate && _thumbnail != null) return;
+  Future<void> updateThumbnail(Rect region, {int maxSize = 64}) async {
+    if (!needsThumbnailUpdateFor(region)) return;
+    if (region.isEmpty) return;
 
     // 计算缩略图尺寸
-    final aspect = canvasSize.width / canvasSize.height;
+    final aspect = region.width / region.height;
     int thumbWidth, thumbHeight;
     if (aspect > 1) {
       thumbWidth = maxSize;
@@ -857,9 +965,10 @@ class Layer {
     final canvas = Canvas(recorder);
 
     // 缩放绘制
-    final scale = thumbWidth / canvasSize.width;
+    final scale = thumbWidth / region.width;
     canvas.scale(scale);
-    render(canvas, canvasSize);
+    canvas.translate(-region.left, -region.top);
+    render(canvas);
 
     final picture = recorder.endRecording();
     _thumbnail?.dispose();
@@ -867,6 +976,7 @@ class Layer {
     picture.dispose();
 
     _needsThumbnailUpdate = false;
+    _thumbnailRegion = region;
   }
 
   /// 标记需要更新

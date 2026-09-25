@@ -55,24 +55,34 @@ class _InpaintPanel extends ConsumerWidget {
         (value) => (value.width, value.height),
       ),
     );
+    final sourceWidth =
+        workflow.sourceImageWidth ?? workflow.sourceWidth ?? generationSize.$1;
+    final sourceHeight =
+        workflow.sourceImageHeight ??
+        workflow.sourceHeight ??
+        generationSize.$2;
+    final contextCrop = workflow.focusedContextCrop;
     final selection = workflow.focusedSelectionRect;
-    final geometry = selection == null
+    final geometry = contextCrop != null
+        ? FocusedInpaintUtils.resolveGeometryForCrop(
+            sourceWidth: sourceWidth,
+            sourceHeight: sourceHeight,
+            crop: contextCrop,
+          )
+        : selection == null
         ? null
         : FocusedInpaintUtils.resolveGeometryForSelection(
-            sourceWidth:
-                workflow.sourceImageWidth ??
-                workflow.sourceWidth ??
-                generationSize.$1,
-            sourceHeight:
-                workflow.sourceImageHeight ??
-                workflow.sourceHeight ??
-                generationSize.$2,
+            sourceWidth: sourceWidth,
+            sourceHeight: sourceHeight,
             selectionRect: selection,
             minContextMegaPixels: workflow.minimumContextMegaPixels,
           );
     final focusedCost = geometry == null
         ? null
         : ref.watch(estimatedCostProvider);
+    final enabledHint = contextCrop != null
+        ? context.l10n.img2img_focusOutpaintHint
+        : context.l10n.img2img_focusedInpaintEnabledHint;
     return _SubPanel(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -94,9 +104,9 @@ class _InpaintPanel extends ConsumerWidget {
             ),
             subtitle: Text(
               workflow.focusedInpaintEnabled && geometry != null
-                  ? '${context.l10n.img2img_focusedInpaintEnabledHint}\n${context.l10n.editor_focusRequestSummary(geometry.contextCrop.width, geometry.contextCrop.height, geometry.requestWidth, geometry.requestHeight, focusedCost ?? 0)}'
+                  ? '$enabledHint\n${context.l10n.editor_focusRequestSummary(geometry.contextCrop.width, geometry.contextCrop.height, geometry.requestWidth, geometry.requestHeight, focusedCost ?? 0)}'
                   : workflow.focusedInpaintEnabled
-                  ? context.l10n.img2img_focusedInpaintEnabledHint
+                  ? enabledHint
                   : context.l10n.img2img_focusedInpaintDisabledHint,
               style: theme.textTheme.bodySmall?.copyWith(
                 color: theme.colorScheme.onSurfaceVariant,
