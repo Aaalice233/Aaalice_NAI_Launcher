@@ -570,6 +570,34 @@
   "generation_noHistory": "履歴レコードがありません",
   "generation_clearHistory": "履歴をクリア",
   "generation_clearHistoryConfirm": "すべての履歴レコードをクリアしてもよろしいですか?この操作は元に戻すことができません。",
+  "generation_deleteImageConfirm": "この画像を履歴から削除しますか？この操作は元に戻せません。",
+  "generation_deleteImageWithFileConfirm": "この画像を履歴から削除し、ローカルギャラリーのファイル「{fileName}」も完全に削除しますか？この操作は元に戻せません。",
+  "@generation_deleteImageWithFileConfirm": {
+    "placeholders": {
+      "fileName": {}
+    }
+  },
+  "generation_deleteImagesConfirm": "選択した {count} 枚の画像を履歴から削除しますか？この操作は元に戻せません。",
+  "@generation_deleteImagesConfirm": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "generation_deleteImagesWithFilesConfirm": "選択した {count} 枚の画像を履歴から削除し、そのうちローカルギャラリーに保存済みの {fileCount} 個のファイルも完全に削除しますか？この操作は元に戻せません。",
+  "@generation_deleteImagesWithFilesConfirm": {
+    "placeholders": {
+      "count": {},
+      "fileCount": {}
+    }
+  },
+  "generation_deleteConfirmSkipForSession": "アプリを再起動するまで確認しない",
+  "generation_deleteImageFilesFailed": "履歴からは削除しましたが、{count} 個のローカルファイルを削除できませんでした：{error}",
+  "@generation_deleteImageFilesFailed": {
+    "placeholders": {
+      "count": {},
+      "error": {}
+    }
+  },
   "generation_model": "モデル",
   "generation_opusUsageRemaining": "Opus 無料生成の残り {percent}%",
   "generation_opusUsageEstimate": "あと約 {count} 枚生成可能",

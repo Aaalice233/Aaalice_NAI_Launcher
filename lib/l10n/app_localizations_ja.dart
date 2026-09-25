@@ -1472,6 +1472,35 @@ class AppLocalizationsJa extends AppLocalizations {
       'すべての履歴レコードをクリアしてもよろしいですか?この操作は元に戻すことができません。';
 
   @override
+  String get generation_deleteImageConfirm => 'この画像を履歴から削除しますか？この操作は元に戻せません。';
+
+  @override
+  String generation_deleteImageWithFileConfirm(Object fileName) {
+    return 'この画像を履歴から削除し、ローカルギャラリーのファイル「$fileName」も完全に削除しますか？この操作は元に戻せません。';
+  }
+
+  @override
+  String generation_deleteImagesConfirm(Object count) {
+    return '選択した $count 枚の画像を履歴から削除しますか？この操作は元に戻せません。';
+  }
+
+  @override
+  String generation_deleteImagesWithFilesConfirm(
+    Object count,
+    Object fileCount,
+  ) {
+    return '選択した $count 枚の画像を履歴から削除し、そのうちローカルギャラリーに保存済みの $fileCount 個のファイルも完全に削除しますか？この操作は元に戻せません。';
+  }
+
+  @override
+  String get generation_deleteConfirmSkipForSession => 'アプリを再起動するまで確認しない';
+
+  @override
+  String generation_deleteImageFilesFailed(Object count, Object error) {
+    return '履歴からは削除しましたが、$count 個のローカルファイルを削除できませんでした：$error';
+  }
+
+  @override
   String get generation_model => 'モデル';
 
   @override

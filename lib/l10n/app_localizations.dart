@@ -2825,6 +2825,45 @@ abstract class AppLocalizations {
   /// **'Are you sure you want to clear all history records? This action cannot be undone.'**
   String get generation_clearHistoryConfirm;
 
+  /// No description provided for @generation_deleteImageConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete this image from history? This action cannot be undone.'**
+  String get generation_deleteImageConfirm;
+
+  /// No description provided for @generation_deleteImageWithFileConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete this image from history and permanently delete the file \"{fileName}\" from the local gallery? This action cannot be undone.'**
+  String generation_deleteImageWithFileConfirm(Object fileName);
+
+  /// No description provided for @generation_deleteImagesConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete the {count} selected images from history? This action cannot be undone.'**
+  String generation_deleteImagesConfirm(Object count);
+
+  /// No description provided for @generation_deleteImagesWithFilesConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete the {count} selected images from history and permanently delete {fileCount} of their files saved in the local gallery? This action cannot be undone.'**
+  String generation_deleteImagesWithFilesConfirm(
+    Object count,
+    Object fileCount,
+  );
+
+  /// No description provided for @generation_deleteConfirmSkipForSession.
+  ///
+  /// In en, this message translates to:
+  /// **'Don\'t ask again until the app restarts'**
+  String get generation_deleteConfirmSkipForSession;
+
+  /// No description provided for @generation_deleteImageFilesFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Removed from history, but {count} local files could not be deleted: {error}'**
+  String generation_deleteImageFilesFailed(Object count, Object error);
+
   /// No description provided for @generation_model.
   ///
   /// In en, this message translates to:

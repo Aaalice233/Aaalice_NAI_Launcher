@@ -153,6 +153,7 @@ class LocalGalleryNotifier extends _$LocalGalleryNotifier {
   DateTime? _lastSynchronizedAt;
   int _filterRequestSerial = 0;
   final Map<String, String> _deferredAdmissions = {};
+  final Map<String, String> _deferredRemovals = {};
 
   DateTime? get lastSynchronizedAt => _lastSynchronizedAt;
 
@@ -182,6 +183,7 @@ class LocalGalleryNotifier extends _$LocalGalleryNotifier {
     _lastSynchronizedAt = null;
     _filterRequestSerial++;
     _deferredAdmissions.clear();
+    _deferredRemovals.clear();
     _setState(const LocalGalleryState());
   }
 
@@ -204,6 +206,7 @@ class LocalGalleryNotifier extends _$LocalGalleryNotifier {
     }
     _service = service;
     await _flushDeferredAdmissions(service);
+    await _flushDeferredRemovals(service);
     return service;
   }
 
@@ -226,6 +229,24 @@ class LocalGalleryNotifier extends _$LocalGalleryNotifier {
           'LocalGalleryNotifier',
         );
       }
+    }
+  }
+
+  /// 在途的初始化枚举可能早于删除，服务就绪后按磁盘现状再移除一次。
+  Future<void> _flushDeferredRemovals(LocalGalleryService service) async {
+    if (_deferredRemovals.isEmpty) return;
+
+    final filePaths = _deferredRemovals.values.toList(growable: false);
+    _deferredRemovals.clear();
+    try {
+      await service.removeDeletedImagesImmediately(filePaths);
+    } catch (e, stackTrace) {
+      AppLogger.e(
+        '[RemoveDeletedImages] Failed to apply deferred removals',
+        e,
+        stackTrace,
+        'LocalGalleryNotifier',
+      );
     }
   }
 
@@ -459,8 +480,10 @@ class LocalGalleryNotifier extends _$LocalGalleryNotifier {
   /// 执行增量扫描，更新文件列表和索引
   Future<void> refresh({bool scan = true}) async {
     if (!state.isInitialized) {
+      // 共享服务已被别处初始化时，页面初始化只读它的内存列表，还得真正刷一次磁盘。
+      final serviceWasReady = ref.read(galleryServiceProvider).isInitialized;
       await initialize();
-      return;
+      if (!serviceWasReady || !state.isInitialized) return;
     }
 
     _setState(state.copyWith(isLoading: true));
@@ -534,6 +557,48 @@ class LocalGalleryNotifier extends _$LocalGalleryNotifier {
     }
 
     return _admitImmediately(service, filePaths);
+  }
+
+  /// 文件已从磁盘删掉后调用：直接移出列表，不为几张图重新枚举整个图库根目录。
+  Future<void> removeDeletedImages(List<String> filePaths) async {
+    if (filePaths.isEmpty) return;
+
+    final service = _service;
+    if (service == null) {
+      for (final filePath in filePaths) {
+        final key = galleryFilePathKey(filePath);
+        _deferredAdmissions.remove(key);
+        _deferredRemovals[key] = filePath;
+      }
+      return;
+    }
+
+    try {
+      final removedCount = await service.removeDeletedImagesImmediately(
+        filePaths,
+      );
+      if (removedCount == 0) return;
+      _favoriteCountLoad = null;
+      _setState(
+        state.copyWith(
+          totalCount: service.totalCount,
+          filteredCount: service.filteredCount,
+        ),
+      );
+      if (!state.isInitialized) return;
+      if (state.isGroupedView) {
+        await _loadGroupedImages();
+      } else {
+        await loadPage(state.currentPage, showLoading: false);
+      }
+    } catch (e, stackTrace) {
+      AppLogger.e(
+        '[RemoveDeletedImages] Failed to remove deleted images',
+        e,
+        stackTrace,
+        'LocalGalleryNotifier',
+      );
+    }
   }
 
   Future<GalleryIndexAdmission> _admitImmediately(

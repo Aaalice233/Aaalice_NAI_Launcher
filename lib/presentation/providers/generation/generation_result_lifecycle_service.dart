@@ -20,6 +20,8 @@ class GenerationResultLifecycleDependencies {
     required this.resolveGalleryRootPath,
     required this.addGalleryImages,
     required this.refreshGallery,
+    required this.removeGalleryImages,
+    required this.deleteGalleryFile,
     required this.incrementStatistics,
     this.publishToSystemGallery,
   });
@@ -29,6 +31,10 @@ class GenerationResultLifecycleDependencies {
   final Future<GalleryIndexAdmission> Function(List<String> paths)
   addGalleryImages;
   final Future<void> Function() refreshGallery;
+  final Future<void> Function(List<String> paths) removeGalleryImages;
+
+  /// 文件已不存在时返回 `false`。
+  final Future<bool> Function(String path) deleteGalleryFile;
   final Future<void> Function(int count) incrementStatistics;
   final Future<void> Function(String sourcePath, String fileName)?
   publishToSystemGallery;
@@ -54,6 +60,26 @@ class GenerationSaveResult {
   final List<GeneratedImage> images;
   final List<String> savedPaths;
   final int systemGalleryExportFailureCount;
+}
+
+class SavedFileDeletionResult {
+  const SavedFileDeletionResult({
+    this.deletedPaths = const [],
+    this.failures = const {},
+  });
+
+  final List<String> deletedPaths;
+  final Map<String, Object> failures;
+}
+
+class GeneratedImageRemovalResult {
+  const GeneratedImageRemovalResult({
+    this.removedCount = 0,
+    this.files = const SavedFileDeletionResult(),
+  });
+
+  final int removedCount;
+  final SavedFileDeletionResult files;
 }
 
 class ExternalImagePreparationResult {
@@ -252,6 +278,33 @@ class GenerationResultLifecycleService {
       updated,
       paths,
       systemGalleryExportFailureCount: systemGalleryExportFailureCount,
+    );
+  }
+
+  /// 单个文件失败不阻断其余文件；只把真正删掉的路径移出图库索引。
+  Future<SavedFileDeletionResult> deleteSavedFiles(
+    Iterable<String> paths,
+  ) async {
+    final deleted = <String>[];
+    final failures = <String, Object>{};
+    for (final path in paths.toSet()) {
+      try {
+        if (await dependencies.deleteGalleryFile(path)) deleted.add(path);
+      } catch (error, stackTrace) {
+        AppLogger.e('删除生成结果的图库文件失败', error, stackTrace);
+        failures[path] = error;
+      }
+    }
+    if (deleted.isNotEmpty) {
+      try {
+        await dependencies.removeGalleryImages(deleted);
+      } catch (error, stackTrace) {
+        AppLogger.e('删除后更新图库索引失败', error, stackTrace);
+      }
+    }
+    return SavedFileDeletionResult(
+      deletedPaths: List.unmodifiable(deleted),
+      failures: Map.unmodifiable(failures),
     );
   }
 

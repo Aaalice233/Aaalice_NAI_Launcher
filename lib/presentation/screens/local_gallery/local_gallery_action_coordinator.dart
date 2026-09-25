@@ -24,6 +24,7 @@ import '../../../core/utils/zip_utils.dart';
 import '../../../core/watermark/watermark_derivative_registry.dart';
 import '../../../data/models/gallery/local_image_record.dart';
 import '../../../data/models/gallery/nai_image_metadata.dart';
+import '../../../data/services/gallery/gallery_image_file_deleter.dart';
 import '../../providers/bulk_operation_provider.dart';
 import '../../agent_chat/providers/agent_chat_notifier.dart';
 import '../../providers/fixed_tags_provider.dart';
@@ -169,6 +170,9 @@ class LocalGalleryActionCoordinator {
   MosaicDerivativeRegistry get _mosaicRegistry =>
       MosaicDerivativeRegistry(_ref.read(localStorageServiceProvider));
 
+  GalleryImageFileDeleter get _fileDeleter =>
+      GalleryImageFileDeleter(_ref.read(localStorageServiceProvider));
+
   Future<List<LocalImageRecord>> _selectedImages([Set<String>? targets]) async {
     final selectedIds =
         (targets ??
@@ -232,26 +236,23 @@ class LocalGalleryActionCoordinator {
     );
     if (!protected || !_mounted()) return;
 
-    var deletedCount = 0;
+    final deletedPaths = <String>[];
+    final deleter = _fileDeleter;
     for (final image in selectedImages) {
       try {
-        final file = File(image.path);
-        if (await file.exists()) {
-          await file.delete();
-          await _watermarkRegistry.remove(image.path);
-          await _mosaicRegistry.remove(image.path);
-          deletedCount++;
-        }
+        if (await deleter.delete(image.path)) deletedPaths.add(image.path);
       } catch (_) {
         // Individual failures do not prevent deleting the remaining selection.
       }
     }
     _ref.read(localGallerySelectionNotifierProvider.notifier).exit();
-    await _ref.read(localGalleryNotifierProvider.notifier).refresh();
-    if (_mounted() && deletedCount > 0) {
+    await _ref
+        .read(localGalleryNotifierProvider.notifier)
+        .removeDeletedImages(deletedPaths);
+    if (_mounted() && deletedPaths.isNotEmpty) {
       AppToast.success(
         _context(),
-        _context().l10n.localGallery_deletedImages(deletedCount),
+        _context().l10n.localGallery_deletedImages(deletedPaths.length),
       );
     }
   }
@@ -1011,12 +1012,10 @@ class LocalGalleryActionCoordinator {
     );
     if (!protected || !_mounted()) return;
     try {
-      final file = File(record.path);
-      if (!await file.exists()) return;
-      await file.delete();
-      await _watermarkRegistry.remove(record.path);
-      await _mosaicRegistry.remove(record.path);
-      await _ref.read(localGalleryNotifierProvider.notifier).refresh();
+      if (!await _fileDeleter.delete(record.path)) return;
+      await _ref
+          .read(localGalleryNotifierProvider.notifier)
+          .removeDeletedImages([record.path]);
       if (_mounted()) {
         AppToast.success(_context(), _context().l10n.localGallery_imageDeleted);
       }

@@ -133,6 +133,9 @@ class ErrorGalleryService implements LocalGalleryService {
     NaiImageMetadata? metadata,
   }) => _throwError();
   @override
+  Future<int> removeDeletedImagesImmediately(List<String> filePaths) =>
+      _throwError();
+  @override
   Future<void> setSearchQuery(String query) => _throwError();
   @override
   Future<void> setDateRange(DateTime? start, DateTime? end) => _throwError();
@@ -196,6 +199,9 @@ class _PlaceholderGalleryService implements LocalGalleryService {
     String filePath, {
     NaiImageMetadata? metadata,
   }) => _throwNotInitialized();
+  @override
+  Future<int> removeDeletedImagesImmediately(List<String> filePaths) =>
+      _throwNotInitialized();
   @override
   Future<void> setSearchQuery(String query) => _throwNotInitialized();
   @override

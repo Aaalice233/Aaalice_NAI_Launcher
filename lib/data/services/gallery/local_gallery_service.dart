@@ -45,6 +45,10 @@ abstract class LocalGalleryService {
     String filePath, {
     NaiImageMetadata? metadata,
   });
+
+  /// Removes files that are already gone from disk without re-enumerating the
+  /// gallery root, and returns how many tracked files were dropped.
+  Future<int> removeDeletedImagesImmediately(List<String> filePaths);
   int get filteredCount;
   int get totalCount;
   FilterCriteria get currentFilter;

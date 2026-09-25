@@ -12,6 +12,7 @@ import '../../core/services/android_foreground_task_service.dart';
 import '../../core/services/android_media_store_service.dart';
 import '../../core/services/anlas_calculator.dart';
 import '../../core/services/character_conversion_service.dart';
+import '../../core/storage/local_storage_service.dart';
 import '../../core/utils/app_logger.dart';
 import '../../core/utils/character_center_resolver.dart';
 import '../../core/utils/image_save_utils.dart';
@@ -29,6 +30,7 @@ import '../../data/models/image/image_params.dart';
 import '../../data/models/image/image_stream_chunk.dart';
 import '../../data/repositories/gallery_folder_repository.dart';
 import 'alias_resolver_service.dart';
+import '../../data/services/gallery/gallery_image_file_deleter.dart';
 import '../../data/services/statistics_cache_service.dart';
 import '../services/generation_history_storage_service.dart';
 import '../../data/services/auth_provider.dart';
@@ -82,6 +84,9 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
   GenerationRunHandle? _activeRun;
   ImageGenerationCoordinator? _coordinator;
   final Map<String, String?> _persistedHistoryFilePaths = <String, String?>{};
+
+  // 清空历史或超出上限只移出记录、保留文件；只有用户删过的结果，晚到的保存要连文件一起清掉。
+  final Set<String> _deletedImageIds = <String>{};
   final StreamPreviewSnapshotStore _streamPreviews =
       StreamPreviewSnapshotStore();
   final Set<String> _failedSnapshotKeys = {};
@@ -130,6 +135,10 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
         resolveGalleryRootPath: GalleryFolderRepository.instance.getRootPath,
         addGalleryImages: gallery.addNewlySavedImages,
         refreshGallery: gallery.refresh,
+        removeGalleryImages: gallery.removeDeletedImages,
+        deleteGalleryFile: GalleryImageFileDeleter(
+          ref.read(localStorageServiceProvider),
+        ).delete,
         incrementStatistics: statistics.incrementImageCount,
         publishToSystemGallery:
             PlatformCapabilities.operatingSystem.supportsSystemGalleryExport
@@ -1005,7 +1014,7 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
         syncToGalleryIndex: syncToGalleryIndex,
       );
       image = result.images.first;
-      return image.filePath;
+      return _deletedImageIds.contains(image.id) ? null : image.filePath;
     }
     lifecycle.preloadMetadata([image]);
     return null;
@@ -1038,8 +1047,18 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
       syncToGalleryIndex: syncToGalleryIndex,
     );
     if (!_isCurrentLifecycle(epoch)) return result;
+    final orphanedPaths = <String>[];
     for (final image in result.images) {
-      if (image.filePath != null) _replaceImage(image.id, image);
+      final path = image.filePath;
+      if (path == null) continue;
+      if (_deletedImageIds.contains(image.id)) {
+        orphanedPaths.add(path);
+      } else {
+        _replaceImage(image.id, image);
+      }
+    }
+    if (orphanedPaths.isNotEmpty) {
+      await lifecycle.deleteSavedFiles(orphanedPaths);
     }
     return result;
   }
@@ -1083,11 +1102,73 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
     _retainHistoryCaches();
   }
 
+  /// 从当前批次、历史与中央预览移除这些结果，并永久删除它们关联的图库文件。
+  ///
+  /// 仍被其他结果引用的文件不会删除。
+  Future<GeneratedImageRemovalResult> removeImages(
+    Iterable<String> imageIds,
+  ) async {
+    if (_isDisposed) return const GeneratedImageRemovalResult();
+    final ids = imageIds.toSet();
+    final removed = <String, GeneratedImage>{
+      for (final image in [
+        ...state.currentImages,
+        ...state.history,
+        ...state.displayImages,
+      ])
+        if (ids.contains(image.id)) image.id: image,
+    };
+    if (removed.isEmpty) return const GeneratedImageRemovalResult();
+    _deletedImageIds.addAll(removed.keys);
+
+    bool retained(GeneratedImage image) => !removed.containsKey(image.id);
+    final displayImages = state.displayImages.where(retained).toList();
+    state = state.copyWith(
+      currentImages: state.currentImages.where(retained).toList(),
+      history: state.history.where(retained).toList(),
+      displayImages: displayImages,
+      displayWidth: displayImages.isEmpty ? null : displayImages.first.width,
+      displayHeight: displayImages.isEmpty ? null : displayImages.first.height,
+      completionPreviews: {
+        for (final entry in state.completionPreviews.entries)
+          if (!removed.containsKey(entry.key)) entry.key: entry.value,
+      },
+      errorMessage: state.errorMessage,
+    );
+    _retainHistoryCaches();
+
+    final referencedPaths = <String?>{
+      for (final image in [
+        ...state.currentImages,
+        ...state.history,
+        ...state.displayImages,
+      ])
+        image.filePath,
+    };
+    final paths = <String>[
+      for (final image in removed.values)
+        if (image.filePath case final String path
+            when path.isNotEmpty && !referencedPaths.contains(path))
+          path,
+    ];
+    final files = paths.isEmpty
+        ? const SavedFileDeletionResult()
+        : await _lifecycle().deleteSavedFiles(paths);
+    return GeneratedImageRemovalResult(
+      removedCount: removed.length,
+      files: files,
+    );
+  }
+
   void updateDisplayImages(List<GeneratedImage> images) {
     state = state.copyWith(displayImages: images);
   }
 
   void updateImageFilePath(String imageId, String filePath) {
+    if (_deletedImageIds.contains(imageId)) {
+      unawaited(_lifecycle().deleteSavedFiles([filePath]));
+      return;
+    }
     final image = state.findImageById(imageId);
     if (image == null) return;
     _replaceImage(imageId, image.copyWithFilePath(filePath));

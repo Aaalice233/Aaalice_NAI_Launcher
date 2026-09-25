@@ -267,6 +267,13 @@ class ImageCardActionCatalog {
       capabilities.onFavoriteToggle,
       hover: false,
     );
+    add(
+      ImageCardActionId.delete,
+      Icons.delete_outline,
+      l10n.common_delete,
+      capabilities.onDelete,
+      danger: true,
+    );
     return actions;
   }
 }

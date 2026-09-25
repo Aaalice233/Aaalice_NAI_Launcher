@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/gestures.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -12,6 +14,7 @@ import 'package:nai_launcher/core/storage/local_storage_service.dart';
 import 'package:nai_launcher/data/models/image/image_stream_chunk.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/adaptive/interaction_policy.dart';
+import 'package:nai_launcher/presentation/providers/generation/image_card_selection_provider.dart';
 import 'package:nai_launcher/presentation/providers/generation/preview_selection_provider.dart';
 import 'package:nai_launcher/presentation/providers/history_click_behavior_provider.dart';
 import 'package:nai_launcher/presentation/providers/image_generation_provider.dart';
@@ -486,7 +489,229 @@ void main() {
     expect(firstCard.completionPreview, same(firstFrame));
     expect(secondCard.completionPreview, same(secondFrame));
   });
+
+  group('card actions', () {
+    testWidgets('hover pins copy and delete left of favorite instead of the '
+        'full action bar', (tester) async {
+      final container = _createContainer([_image('pinned')]);
+      addTearDown(container.dispose);
+      await tester.pumpWidget(_cardActionApp(container, width: 200));
+      await tester.pump();
+
+      final card = find.byKey(const ValueKey('pinned'));
+      expect(_cardAction(card, '收藏'), findsOneWidget);
+      expect(_cardAction(card, '复制'), findsNothing);
+      expect(_cardAction(card, '删除'), findsNothing);
+
+      final gesture = await _hover(tester, card);
+      addTearDown(gesture.removePointer);
+
+      expect(
+        find.byKey(const ValueKey('image-card-hover-action-bar-surface')),
+        findsNothing,
+      );
+      final copy = tester.getRect(_cardAction(card, '复制'));
+      final delete = tester.getRect(_cardAction(card, '删除'));
+      final favorite = tester.getRect(_cardAction(card, '收藏'));
+      expect(copy.right, lessThanOrEqualTo(delete.left));
+      expect(delete.right, lessThanOrEqualTo(favorite.left));
+      expect(copy.center.dy, closeTo(favorite.center.dy, 0.01));
+      expect(delete.center.dy, closeTo(favorite.center.dy, 0.01));
+      final checkbox = tester.getRect(
+        find.descendant(of: card, matching: find.byType(Checkbox)),
+      );
+      expect(checkbox.right, lessThanOrEqualTo(copy.left));
+      final cardRect = tester.getRect(card);
+      expect(favorite.right, lessThanOrEqualTo(cardRect.right));
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('failed snapshots expose delete without copy or favorite', (
+      tester,
+    ) async {
+      final container = _createContainer([
+        _image('snapshot', kind: GeneratedImageKind.failedStreamSnapshot),
+      ]);
+      addTearDown(container.dispose);
+      await tester.pumpWidget(_cardActionApp(container));
+      await tester.pump();
+
+      final card = find.byKey(const ValueKey('snapshot'));
+      final gesture = await _hover(tester, card);
+      addTearDown(gesture.removePointer);
+
+      expect(_cardAction(card, '删除'), findsOneWidget);
+      expect(_cardAction(card, '复制'), findsNothing);
+      expect(_cardAction(card, '收藏'), findsNothing);
+    });
+
+    testWidgets('delete asks once and can skip confirmation for this run', (
+      tester,
+    ) async {
+      final container = _createContainer([
+        _image('first'),
+        _image('second'),
+        _image('third'),
+      ]);
+      addTearDown(container.dispose);
+      await tester.pumpWidget(_cardActionApp(container));
+      await tester.pump();
+
+      final first = find.byKey(const ValueKey('first'));
+      final gesture = await _hover(tester, first);
+      addTearDown(gesture.removePointer);
+      await tester.tap(_cardAction(first, '删除'), kind: PointerDeviceKind.mouse);
+      await _pumpRoute(tester);
+      expect(find.text('从历史记录中删除这张图片？此操作不可撤销。'), findsOneWidget);
+      await tester.tap(find.text('取消'), kind: PointerDeviceKind.mouse);
+      await _pumpRoute(tester);
+      expect(_historyIds(container), ['first', 'second', 'third']);
+
+      // 对话框遮罩会让卡片退出悬停，指针再动一下才重新进入。
+      await gesture.moveTo(tester.getCenter(first));
+      await tester.pump();
+      await tester.tap(_cardAction(first, '删除'), kind: PointerDeviceKind.mouse);
+      await _pumpRoute(tester);
+      await tester.tap(find.text('本次运行期间不再询问'), kind: PointerDeviceKind.mouse);
+      await tester.pump();
+      await tester.tap(
+        find.widgetWithText(FilledButton, '删除'),
+        kind: PointerDeviceKind.mouse,
+      );
+      await _pumpRoute(tester);
+      expect(_historyIds(container), ['second', 'third']);
+      expect(find.byKey(const ValueKey('first')), findsNothing);
+
+      final second = find.byKey(const ValueKey('second'));
+      await gesture.moveTo(tester.getCenter(second));
+      await tester.pump();
+      expect(_cardAction(second, '删除'), findsOneWidget);
+      await tester.tap(
+        _cardAction(second, '删除'),
+        kind: PointerDeviceKind.mouse,
+      );
+      await _pumpRoute(tester);
+      expect(find.byType(AlertDialog), findsNothing);
+      expect(_historyIds(container), ['third']);
+    });
+
+    testWidgets('context menu lists delete for a single card', (tester) async {
+      final container = _createContainer([_image('menu')]);
+      addTearDown(container.dispose);
+      await tester.pumpWidget(_cardActionApp(container));
+      await tester.pump();
+
+      await _openContextMenu(tester, find.byKey(const ValueKey('menu')));
+      final menuDelete = find.text('删除').last;
+      await tester.ensureVisible(menuDelete);
+      await tester.pump();
+      await tester.tap(menuDelete, kind: PointerDeviceKind.mouse);
+      await _pumpRoute(tester);
+      expect(find.text('从历史记录中删除这张图片？此操作不可撤销。'), findsOneWidget);
+      await tester.tap(
+        find.widgetWithText(FilledButton, '删除'),
+        kind: PointerDeviceKind.mouse,
+      );
+      await _pumpRoute(tester);
+
+      expect(_historyIds(container), isEmpty);
+    });
+
+    testWidgets('bulk delete removes every selected image after one prompt', (
+      tester,
+    ) async {
+      final container = _createContainer([
+        _image('keep'),
+        _image('drop-a'),
+        _image('drop-b'),
+      ]);
+      addTearDown(container.dispose);
+      await tester.pumpWidget(_cardActionApp(container, width: 200));
+      await tester.pump();
+
+      container.read(generationImageCardSelectionProvider.notifier)
+        ..enterAndSelect('drop-a')
+        ..enterAndSelect('drop-b');
+      await tester.pump();
+
+      final bulkDelete = find.byKey(
+        const ValueKey('history-batch-action-delete'),
+      );
+      expect(bulkDelete, findsOneWidget);
+      expect(tester.takeException(), isNull);
+      await tester.tap(bulkDelete, kind: PointerDeviceKind.mouse);
+      await _pumpRoute(tester);
+      expect(find.text('从历史记录中删除选中的 2 张图片？此操作不可撤销。'), findsOneWidget);
+      await tester.tap(
+        find.widgetWithText(FilledButton, '删除'),
+        kind: PointerDeviceKind.mouse,
+      );
+      await _pumpRoute(tester);
+
+      expect(_historyIds(container), ['keep']);
+      expect(bulkDelete, findsNothing);
+    });
+  });
 }
+
+/// 悬停效果要等拖拽文件就绪；卡片动作测试直接给出就绪快照。
+Widget _cardActionApp(ProviderContainer container, {double width = 320}) =>
+    _historyApp(
+      container,
+      width: width,
+      embedded: true,
+      preparationService: _ReadySharePreparation(),
+    );
+
+class _ReadySharePreparation extends ShareImagePreparationService {
+  @override
+  ShareImagePreparationSnapshot snapshotFor(
+    String imageId, {
+    required bool stripMetadata,
+    ShareImageTransform? transform,
+  }) => ShareImagePreparationSnapshot(
+    imageId: imageId,
+    stripMetadata: stripMetadata,
+    status: ShareImagePreparationStatus.ready,
+    file: File('$imageId.png'),
+  );
+
+  @override
+  void enqueue({
+    required String imageId,
+    required Uint8List imageBytes,
+    required String fileName,
+    required bool stripMetadata,
+    String? sourceFilePath,
+    ShareImageTransform? transform,
+  }) {}
+
+  @override
+  Future<void> retainHistoryImageIds(Set<String> imageIds) async {}
+}
+
+Finder _cardAction(Finder card, String tooltip) => find.descendant(
+  of: card,
+  matching: find.byWidgetPredicate(
+    (widget) => widget is IconButton && widget.tooltip == tooltip,
+  ),
+);
+
+Future<TestGesture> _hover(WidgetTester tester, Finder target) async {
+  final gesture = await tester.createGesture(kind: PointerDeviceKind.mouse);
+  await gesture.addPointer(location: Offset.zero);
+  await gesture.moveTo(tester.getCenter(target));
+  await tester.pump();
+  // 测试环境的拖拽设备检测初值是触屏，首个鼠标事件会让卡片重建，第二次移动才进入新区域。
+  await gesture.moveTo(tester.getCenter(target) + const Offset(1, 1));
+  await tester.pump();
+  return gesture;
+}
+
+List<String> _historyIds(ProviderContainer container) => [
+  for (final image in container.read(imageGenerationNotifierProvider).history)
+    image.id,
+];
 
 Uint8List _solidPng(int red, int green, int blue) {
   final image = img.Image(width: 4, height: 4, numChannels: 4);
@@ -582,6 +807,8 @@ Widget _historyApp(
   ProviderContainer container, {
   ValueNotifier<bool>? visible,
   ShareImagePreparationService? preparationService,
+  double width = 320,
+  bool embedded = false,
 }) {
   final previewFocusNode = container.read(generationPreviewFocusNodeProvider);
   return InteractionPolicyScope(
@@ -600,10 +827,13 @@ Widget _historyApp(
           body: Focus(
             focusNode: previewFocusNode,
             child: SizedBox(
-              width: 320,
+              width: width,
               height: 640,
               child: visible == null
-                  ? HistoryPanel(sharePreparationService: preparationService)
+                  ? HistoryPanel(
+                      embedded: embedded,
+                      sharePreparationService: preparationService,
+                    )
                   : ValueListenableBuilder(
                       valueListenable: visible,
                       builder: (_, isVisible, __) => isVisible

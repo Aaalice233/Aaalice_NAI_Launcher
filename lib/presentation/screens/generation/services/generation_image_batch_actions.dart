@@ -15,6 +15,7 @@ import '../../../providers/local_gallery_provider.dart';
 import '../../../utils/zip_export_progress.dart';
 import '../../../widgets/common/app_toast.dart';
 import '../../../widgets/common/image_card_action.dart';
+import 'generation_image_deletion.dart';
 
 class GenerationImageBatchActions {
   GenerationImageBatchActions({
@@ -22,11 +23,13 @@ class GenerationImageBatchActions {
     required this.images,
     required this.gallery,
     required this.selection,
+    required this.deletion,
   });
   final BuildContext context;
   final List<GeneratedImage> images;
   final LocalGalleryNotifier gallery;
   final GenerationImageCardSelection selection;
+  final GenerationImageDeletion deletion;
 
   List<ImageCardAction> build() => [
     ImageCardAction(
@@ -43,6 +46,14 @@ class GenerationImageBatchActions {
       supportsBatch: true,
       isPrimary: true,
       invoke: _saveSelectedImages,
+    ),
+    ImageCardAction(
+      id: ImageCardActionId.delete,
+      icon: Icons.delete_outline,
+      label: context.l10n.common_delete,
+      supportsBatch: true,
+      isDanger: true,
+      invoke: () => deletion.confirmAndDelete(images),
     ),
   ];
   Future<void> _saveSelectedImages() async {

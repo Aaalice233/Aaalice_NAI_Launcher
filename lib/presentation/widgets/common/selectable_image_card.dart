@@ -50,6 +50,8 @@ class SelectableImageCard extends ConsumerStatefulWidget {
     this.enableSelection = true,
     this.selectionMode = false,
     this.showSelectionOnHover = true,
+    this.showHoverActionBar = true,
+    this.pinnedHoverActions = const [],
     this.onUpscale,
     this.onReversePrompt,
     this.onImageToImage,
@@ -68,6 +70,7 @@ class SelectableImageCard extends ConsumerStatefulWidget {
     this.onSaveToLibrary,
     this.isFavorite = false,
     this.onFavoriteToggle,
+    this.onDelete,
     this.underlay,
     this.imageContent,
     this.isGenerating = false,
@@ -110,6 +113,8 @@ class SelectableImageCard extends ConsumerStatefulWidget {
   final bool enableSelection;
   final bool selectionMode;
   final bool showSelectionOnHover;
+  final bool showHoverActionBar;
+  final List<ImageCardActionId> pinnedHoverActions;
   final ImageCardCallback? onUpscale;
   final ImageCardCallback? onReversePrompt;
   final ImageCardCallback? onImageToImage;
@@ -128,6 +133,7 @@ class SelectableImageCard extends ConsumerStatefulWidget {
   final void Function(Uint8List imageBytes, String prompt)? onSaveToLibrary;
   final bool isFavorite;
   final ImageCardCallback? onFavoriteToggle;
+  final ImageCardCallback? onDelete;
   final Widget? underlay;
   final Widget? imageContent;
   final bool isGenerating;
@@ -187,6 +193,8 @@ class _SelectableImageCardState extends ConsumerState<SelectableImageCard>
     enableSelection: widget.enableSelection,
     selectionMode: widget.selectionMode,
     showSelectionOnHover: widget.showSelectionOnHover,
+    showHoverActionBar: widget.showHoverActionBar,
+    pinnedHoverActions: widget.pinnedHoverActions,
     onTap: _handleTap,
     onDoubleTap: widget.onDoubleTap,
     onLongPress: widget.onLongPress,
@@ -208,6 +216,7 @@ class _SelectableImageCardState extends ConsumerState<SelectableImageCard>
     onOpenInExplorer: widget.onOpenInExplorer,
     onSaveToLibrary: widget.onSaveToLibrary,
     onFavoriteToggle: widget.onFavoriteToggle,
+    onDelete: widget.onDelete,
   );
 
   @override

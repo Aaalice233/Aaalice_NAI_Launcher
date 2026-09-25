@@ -558,6 +558,34 @@
   "generation_noHistory": "暫無歷史記錄",
   "generation_clearHistory": "清除歷史記錄",
   "generation_clearHistoryConfirm": "確定要清除所有歷史記錄嗎？此操作不可撤銷。",
+  "generation_deleteImageConfirm": "從歷史記錄中刪除這張圖片？此操作不可撤銷。",
+  "generation_deleteImageWithFileConfirm": "從歷史記錄中刪除這張圖片，並永久刪除本機圖庫中的檔案「{fileName}」？此操作不可撤銷。",
+  "@generation_deleteImageWithFileConfirm": {
+    "placeholders": {
+      "fileName": {}
+    }
+  },
+  "generation_deleteImagesConfirm": "從歷史記錄中刪除選取的 {count} 張圖片？此操作不可撤銷。",
+  "@generation_deleteImagesConfirm": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "generation_deleteImagesWithFilesConfirm": "從歷史記錄中刪除選取的 {count} 張圖片，並永久刪除其中 {fileCount} 個已儲存到本機圖庫的檔案？此操作不可撤銷。",
+  "@generation_deleteImagesWithFilesConfirm": {
+    "placeholders": {
+      "count": {},
+      "fileCount": {}
+    }
+  },
+  "generation_deleteConfirmSkipForSession": "本次執行期間不再詢問",
+  "generation_deleteImageFilesFailed": "圖片已從歷史記錄移除，但有 {count} 個本機檔案刪除失敗：{error}",
+  "@generation_deleteImageFilesFailed": {
+    "placeholders": {
+      "count": {},
+      "error": {}
+    }
+  },
   "generation_model": "模型",
   "generation_opusUsageRemaining": "Opus 免費生成剩餘 {percent}%",
   "generation_opusUsageEstimate": "約可再生成 {count} 張",
