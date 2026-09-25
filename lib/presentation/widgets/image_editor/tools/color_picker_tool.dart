@@ -629,17 +629,6 @@ enum ColorPickerSampleMode {
   area,
 }
 
-extension ColorPickerSampleModeExtension on ColorPickerSampleMode {
-  String get label {
-    switch (this) {
-      case ColorPickerSampleMode.point:
-        return 'Point';
-      case ColorPickerSampleMode.area:
-        return 'Area';
-    }
-  }
-}
-
 /// 取样来源
 enum ColorPickerSource {
   /// 当前图层
@@ -647,17 +636,6 @@ enum ColorPickerSource {
 
   /// 所有图层
   allLayers,
-}
-
-extension ColorPickerSourceExtension on ColorPickerSource {
-  String get label {
-    switch (this) {
-      case ColorPickerSource.currentLayer:
-        return 'Current Layer';
-      case ColorPickerSource.allLayers:
-        return 'All Layers';
-    }
-  }
 }
 
 // 宿主只在切换工具时重建，选中态要靠本面板 setState 刷新
