@@ -6,8 +6,8 @@ import '../core/editor_state.dart';
 import '../core/history_manager.dart';
 import 'color_picker_tool.dart';
 import 'tool_base.dart';
+import 'tool_setting_rows.dart';
 import '../../../widgets/common/themed_divider.dart';
-import 'package:nai_launcher/presentation/widgets/common/themed_input.dart';
 
 /// 橡皮擦工具
 class EraserTool extends EditorTool {
@@ -177,119 +177,39 @@ class _EraserSettingsPanelState extends State<_EraserSettingsPanel> {
         ),
         const ThemedDivider(height: 1),
 
-        // 大小
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-          child: Row(
-            children: [
-              SizedBox(
-                width: 60,
-                child: Text(
-                  context.l10n.editor_size,
-                  style: theme.textTheme.bodySmall,
-                ),
-              ),
-              Expanded(
-                child: SliderTheme(
-                  data: SliderTheme.of(context).copyWith(
-                    trackHeight: 2,
-                    thumbShape: const RoundSliderThumbShape(
-                      enabledThumbRadius: 6,
-                    ),
-                    overlayShape: const RoundSliderOverlayShape(
-                      overlayRadius: 12,
-                    ),
-                  ),
-                  child: Slider(
-                    value: widget.tool.size,
-                    min: 1,
-                    max: 500,
-                    onChanged: (value) {
-                      setState(() {
-                        widget.tool.setSize(value);
-                        _sizeController.text = value.round().toString();
-                      });
-                      widget.onSettingsChanged();
-                    },
-                  ),
-                ),
-              ),
-              SizedBox(
-                width: 50,
-                child: ThemedInput(
-                  controller: _sizeController,
-                  style: theme.textTheme.bodySmall,
-                  textAlign: TextAlign.center,
-                  decoration: const InputDecoration(
-                    isDense: true,
-                    contentPadding: EdgeInsets.symmetric(
-                      horizontal: 4,
-                      vertical: 4,
-                    ),
-                    border: OutlineInputBorder(),
-                  ),
-                  keyboardType: TextInputType.number,
-                  onSubmitted: (text) {
-                    final parsed = double.tryParse(text);
-                    if (parsed != null) {
-                      setState(() {
-                        widget.tool.setSize(parsed);
-                      });
-                      widget.onSettingsChanged();
-                    }
-                  },
-                ),
-              ),
-            ],
-          ),
-        ),
+        ToolSettingRows(
+          rows: [
+            // 大小
+            ToolSettingRow.slider(
+              label: context.l10n.editor_size,
+              value: widget.tool.size,
+              min: 1,
+              max: 500,
+              controller: _sizeController,
+              onChanged: (value) {
+                setState(() {
+                  widget.tool.setSize(value);
+                  _sizeController.text = value.round().toString();
+                });
+                widget.onSettingsChanged();
+              },
+            ),
 
-        // 硬度
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-          child: Row(
-            children: [
-              SizedBox(
-                width: 60,
-                child: Text(
-                  context.l10n.editor_hardness,
-                  style: theme.textTheme.bodySmall,
-                ),
-              ),
-              Expanded(
-                child: SliderTheme(
-                  data: SliderTheme.of(context).copyWith(
-                    trackHeight: 2,
-                    thumbShape: const RoundSliderThumbShape(
-                      enabledThumbRadius: 6,
-                    ),
-                    overlayShape: const RoundSliderOverlayShape(
-                      overlayRadius: 12,
-                    ),
-                  ),
-                  child: Slider(
-                    value: widget.tool.hardness * 100,
-                    min: 0,
-                    max: 100,
-                    onChanged: (value) {
-                      setState(() {
-                        widget.tool.setHardness(value / 100);
-                      });
-                      widget.onSettingsChanged();
-                    },
-                  ),
-                ),
-              ),
-              SizedBox(
-                width: 50,
-                child: Text(
-                  '${(widget.tool.hardness * 100).round()}%',
-                  style: theme.textTheme.bodySmall,
-                  textAlign: TextAlign.center,
-                ),
-              ),
-            ],
-          ),
+            // 硬度
+            ToolSettingRow.slider(
+              label: context.l10n.editor_hardness,
+              value: widget.tool.hardness * 100,
+              min: 0,
+              max: 100,
+              suffix: '%',
+              onChanged: (value) {
+                setState(() {
+                  widget.tool.setHardness(value / 100);
+                });
+                widget.onSettingsChanged();
+              },
+            ),
+          ],
         ),
       ],
     );

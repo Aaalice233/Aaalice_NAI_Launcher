@@ -2473,10 +2473,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get editor_magicWandMode => 'Selection method';
 
   @override
-  String get editor_magicWandSmartObject => 'Smart object (EfficientViT)';
+  String get editor_magicWandSmartObject => 'Smart object';
 
   @override
-  String get editor_magicWandColorArea => 'Color area (flood fill)';
+  String get editor_magicWandColorArea => 'Color area';
 
   @override
   String get editor_magicWandSmartHelp =>

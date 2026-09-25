@@ -2371,10 +2371,10 @@ class AppLocalizationsZh extends AppLocalizations {
   String get editor_magicWandMode => '选择方式';
 
   @override
-  String get editor_magicWandSmartObject => '智能对象（EfficientViT）';
+  String get editor_magicWandSmartObject => '智能对象';
 
   @override
-  String get editor_magicWandColorArea => '颜色区域（洪水填充）';
+  String get editor_magicWandColorArea => '颜色区域';
 
   @override
   String get editor_magicWandSmartHelp =>
@@ -17336,10 +17336,10 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get editor_magicWandMode => '選擇方式';
 
   @override
-  String get editor_magicWandSmartObject => '智慧物件（EfficientViT）';
+  String get editor_magicWandSmartObject => '智慧物件';
 
   @override
-  String get editor_magicWandColorArea => '顏色區域（洪水填充）';
+  String get editor_magicWandColorArea => '顏色區域';
 
   @override
   String get editor_magicWandSmartHelp =>

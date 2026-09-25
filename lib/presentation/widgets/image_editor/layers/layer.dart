@@ -62,35 +62,6 @@ extension LayerBlendModeExtension on LayerBlendMode {
     );
   }
 
-  String get label {
-    switch (this) {
-      case LayerBlendMode.normal:
-        return 'Normal';
-      case LayerBlendMode.multiply:
-        return 'Multiply';
-      case LayerBlendMode.screen:
-        return 'Screen';
-      case LayerBlendMode.overlay:
-        return 'Overlay';
-      case LayerBlendMode.darken:
-        return 'Darken';
-      case LayerBlendMode.lighten:
-        return 'Lighten';
-      case LayerBlendMode.colorDodge:
-        return 'Color Dodge';
-      case LayerBlendMode.colorBurn:
-        return 'Color Burn';
-      case LayerBlendMode.hardLight:
-        return 'Hard Light';
-      case LayerBlendMode.softLight:
-        return 'Soft Light';
-      case LayerBlendMode.difference:
-        return 'Difference';
-      case LayerBlendMode.exclusion:
-        return 'Exclusion';
-    }
-  }
-
   BlendMode toFlutterBlendMode() {
     switch (this) {
       case LayerBlendMode.normal:

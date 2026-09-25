@@ -141,34 +141,6 @@ enum SelectionMode {
   intersect,
 }
 
-extension SelectionModeExtension on SelectionMode {
-  String get label {
-    switch (this) {
-      case SelectionMode.replace:
-        return 'Replace';
-      case SelectionMode.add:
-        return 'Add';
-      case SelectionMode.subtract:
-        return 'Subtract';
-      case SelectionMode.intersect:
-        return 'Intersect';
-    }
-  }
-
-  IconData get icon {
-    switch (this) {
-      case SelectionMode.replace:
-        return Icons.crop_square;
-      case SelectionMode.add:
-        return Icons.add_box_outlined;
-      case SelectionMode.subtract:
-        return Icons.indeterminate_check_box_outlined;
-      case SelectionMode.intersect:
-        return Icons.filter_none;
-    }
-  }
-}
-
 /// 选区设置
 class SelectionSettings {
   /// 选区模式

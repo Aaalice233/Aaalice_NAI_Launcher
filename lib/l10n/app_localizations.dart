@@ -4493,13 +4493,13 @@ abstract class AppLocalizations {
   /// No description provided for @editor_magicWandSmartObject.
   ///
   /// In en, this message translates to:
-  /// **'Smart object (EfficientViT)'**
+  /// **'Smart object'**
   String get editor_magicWandSmartObject;
 
   /// No description provided for @editor_magicWandColorArea.
   ///
   /// In en, this message translates to:
-  /// **'Color area (flood fill)'**
+  /// **'Color area'**
   String get editor_magicWandColorArea;
 
   /// No description provided for @editor_magicWandSmartHelp.

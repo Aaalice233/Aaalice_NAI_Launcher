@@ -6,6 +6,7 @@ import '../../../../core/utils/localization_extension.dart';
 import '../core/editor_state.dart';
 import '../core/history_manager.dart';
 import 'tool_base.dart';
+import 'tool_setting_rows.dart';
 
 /// Clone Stamp 工具 - 像素级仿制图章
 ///
@@ -284,42 +285,26 @@ class CloneStampTool extends EditorTool {
                   ),
                 ),
               ],
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  Text(
-                    context.l10n.editor_size,
-                    style: theme.textTheme.bodySmall,
-                  ),
-                  const Spacer(),
-                  Text('${_size.round()}', style: theme.textTheme.bodySmall),
-                ],
-              ),
-              Slider(
-                value: _size,
-                min: 1,
-                max: 200,
-                onChanged: (v) => setState(() => setSize(v)),
-              ),
               const SizedBox(height: 8),
-              Row(
-                children: [
-                  Text(
-                    context.l10n.editor_opacity,
-                    style: theme.textTheme.bodySmall,
+              ToolSettingRows(
+                rowPadding: const EdgeInsets.symmetric(vertical: 4),
+                rows: [
+                  ToolSettingRow.slider(
+                    label: context.l10n.editor_size,
+                    value: _size,
+                    min: 1,
+                    max: 200,
+                    onChanged: (v) => setState(() => setSize(v)),
                   ),
-                  const Spacer(),
-                  Text(
-                    '${(_opacity * 100).round()}%',
-                    style: theme.textTheme.bodySmall,
+                  ToolSettingRow.slider(
+                    label: context.l10n.editor_opacity,
+                    value: _opacity * 100,
+                    min: 0,
+                    max: 100,
+                    suffix: '%',
+                    onChanged: (v) => setState(() => setOpacity(v / 100)),
                   ),
                 ],
-              ),
-              Slider(
-                value: _opacity,
-                min: 0.0,
-                max: 1.0,
-                onChanged: (v) => setState(() => setOpacity(v)),
               ),
             ],
           ),
