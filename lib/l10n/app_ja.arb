@@ -1017,7 +1017,17 @@
   "editor_done": "完了",
   "editor_tolerance": "許容差",
   "editor_intensity": "強度",
-  "editor_sourcePoint": "Alt+クリックしてソースポイントを設定します",
+  "editor_cloneStampSetSource": "ソースを設定",
+  "editor_cloneStampSetSourceTooltip": "オンにすると、次にキャンバス上で選んだ位置がソースポイントになります。Alt キーを押しながらキャンバスをクリックしても設定できます。",
+  "editor_cloneStampPickingHint": "キャンバス上でクローン元の位置を選びます",
+  "editor_cloneStampNoSourceHint": "ソースポイントが未設定です。「ソースを設定」をオンにしてから、キャンバス上の位置を選んでください。",
+  "editor_cloneStampSourceReadout": "ソースポイント: X {x}, Y {y}",
+  "@editor_cloneStampSourceReadout": {
+    "placeholders": {
+      "x": {"type": "int"},
+      "y": {"type": "int"}
+    }
+  },
   "editor_brushPresets": "ブラシ プリセット",
   "editor_size": "サイズ",
   "editor_opacity": "不透明度",
@@ -1067,6 +1077,7 @@
   "editor_shortcutHistoryActions": "履歴アクション",
   "editor_shortcutSelectionActions": "選択アクション",
   "editor_shortcutTemporaryColorPicker": "一時的なカラーピッカー",
+  "editor_shortcutCloneStampSource": "クローンスタンプのソースを設定",
   "editor_shortcutRectSelection": "長方形の選択",
   "editor_shortcutEllipseSelection": "楕円の選択",
   "editor_shortcutLassoSelection": "なげなわ選択",

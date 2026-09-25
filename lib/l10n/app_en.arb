@@ -1028,7 +1028,17 @@
   "editor_done": "Done",
   "editor_tolerance": "Tolerance",
   "editor_intensity": "Intensity",
-  "editor_sourcePoint": "Alt+Click to set source point",
+  "editor_cloneStampSetSource": "Set Source",
+  "editor_cloneStampSetSourceTooltip": "When on, the next point you pick on the canvas becomes the source. Alt+click on the canvas also sets it.",
+  "editor_cloneStampPickingHint": "Pick a point on the canvas to clone from.",
+  "editor_cloneStampNoSourceHint": "No source point yet. Turn on Set Source, then pick a point on the canvas.",
+  "editor_cloneStampSourceReadout": "Source point: X {x}, Y {y}",
+  "@editor_cloneStampSourceReadout": {
+    "placeholders": {
+      "x": {"type": "int"},
+      "y": {"type": "int"}
+    }
+  },
   "editor_brushPresets": "Brush Presets",
   "editor_size": "Size",
   "editor_opacity": "Opacity",
@@ -1078,6 +1088,7 @@
   "editor_shortcutHistoryActions": "History Actions",
   "editor_shortcutSelectionActions": "Selection Actions",
   "editor_shortcutTemporaryColorPicker": "Temporary Color Picker",
+  "editor_shortcutCloneStampSource": "Set Clone Stamp Source",
   "editor_shortcutRectSelection": "Rectangle Selection",
   "editor_shortcutEllipseSelection": "Ellipse Selection",
   "editor_shortcutLassoSelection": "Lasso Selection",

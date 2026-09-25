@@ -957,7 +957,17 @@
 
   "editor_tolerance": "容差",
   "editor_intensity": "强度",
-  "editor_sourcePoint": "Alt+点击设置源点",
+  "editor_cloneStampSetSource": "设置源点",
+  "editor_cloneStampSetSourceTooltip": "开启后，下一次点击画布的位置设为源点；也可以按住 Alt 点击画布",
+  "editor_cloneStampPickingHint": "点击画布选取仿制源点",
+  "editor_cloneStampNoSourceHint": "尚未设置源点，开启「设置源点」后点击画布",
+  "editor_cloneStampSourceReadout": "源点: X {x}, Y {y}",
+  "@editor_cloneStampSourceReadout": {
+    "placeholders": {
+      "x": {"type": "int"},
+      "y": {"type": "int"}
+    }
+  },
 
   "editor_brushPresets": "笔刷预设",
   "editor_size": "大小",
@@ -1009,6 +1019,7 @@
   "editor_shortcutHistoryActions": "历史操作",
   "editor_shortcutSelectionActions": "选区操作",
   "editor_shortcutTemporaryColorPicker": "临时拾色器",
+  "editor_shortcutCloneStampSource": "设置仿制图章源点",
   "editor_shortcutRectSelection": "矩形选区",
   "editor_shortcutEllipseSelection": "椭圆选区",
   "editor_shortcutLassoSelection": "套索选区",

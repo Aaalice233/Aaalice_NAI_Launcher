@@ -3112,19 +3112,28 @@ class ImageEditorWorkspaceState extends State<ImageEditorWorkspace> {
   }
 
   /// 显示快捷键帮助
-  void _showShortcutHelp() =>
-      _presentShortcutHelp(context, includeFrameTool: _isInpaintMode);
+  void _showShortcutHelp() => _presentShortcutHelp(
+    context,
+    includeFrameTool: _isInpaintMode,
+    includeCloneStamp: !_isInpaintMode,
+  );
 
   static void debugShowShortcutHelpForContext(
     BuildContext context, {
     bool includeFrameTool = false,
+    bool includeCloneStamp = true,
   }) {
-    _presentShortcutHelp(context, includeFrameTool: includeFrameTool);
+    _presentShortcutHelp(
+      context,
+      includeFrameTool: includeFrameTool,
+      includeCloneStamp: includeCloneStamp,
+    );
   }
 
   static void _presentShortcutHelp(
     BuildContext context, {
     required bool includeFrameTool,
+    required bool includeCloneStamp,
   }) {
     unawaited(
       AdaptivePresenter.showForm<void>(
@@ -3159,6 +3168,8 @@ class ImageEditorWorkspaceState extends State<ImageEditorWorkspace> {
                 ('W', context.l10n.editor_toolMagicWand),
                 ('P', context.l10n.editor_toolColorPicker),
                 ('Alt', context.l10n.editor_shortcutTemporaryColorPicker),
+                if (includeCloneStamp)
+                  ('Alt + Click', context.l10n.editor_shortcutCloneStampSource),
                 if (includeFrameTool) ('V', context.l10n.editor_toolFrame),
               ],
             ),
@@ -3258,32 +3269,45 @@ class ImageEditorWorkspaceState extends State<ImageEditorWorkspace> {
             ),
           ),
           const SizedBox(height: 8),
-          ...shortcuts.map(
-            (s) => Padding(
-              padding: const EdgeInsets.symmetric(vertical: 2),
-              child: Row(
+          LayoutBuilder(
+            builder: (context, constraints) {
+              // 按键名最多占半行，放大文字时在自身框内换行，不把说明顶出右侧
+              final keyMaxWidth = constraints.maxWidth / 2;
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 2,
-                    ),
-                    decoration: BoxDecoration(
-                      color: theme.colorScheme.surfaceContainerHighest,
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                    child: Text(
-                      s.$1,
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        fontFamily: 'monospace',
+                  for (final s in shortcuts)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 2),
+                      child: Row(
+                        children: [
+                          Container(
+                            constraints: BoxConstraints(maxWidth: keyMaxWidth),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 2,
+                            ),
+                            decoration: BoxDecoration(
+                              color: theme.colorScheme.surfaceContainerHighest,
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Text(
+                              s.$1,
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                fontFamily: 'monospace',
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Text(s.$2, style: theme.textTheme.bodySmall),
+                          ),
+                        ],
                       ),
                     ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(child: Text(s.$2, style: theme.textTheme.bodySmall)),
                 ],
-              ),
-            ),
+              );
+            },
           ),
         ],
       ),
