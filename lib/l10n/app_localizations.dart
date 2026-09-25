@@ -10641,12 +10641,6 @@ abstract class AppLocalizations {
   /// **'No statistics available'**
   String get statistics_noData;
 
-  /// No description provided for @statistics_noTagData.
-  ///
-  /// In en, this message translates to:
-  /// **'No tag data'**
-  String get statistics_noTagData;
-
   /// No description provided for @statistics_generateFirst.
   ///
   /// In en, this message translates to:

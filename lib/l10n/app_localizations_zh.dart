@@ -5736,9 +5736,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get statistics_noData => '暂无统计数据';
 
   @override
-  String get statistics_noTagData => '暂无标签数据';
-
-  @override
   String get statistics_generateFirst => '先生成一些图片吧';
 
   @override
@@ -20699,9 +20696,6 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get statistics_noData => '暫無統計資料';
-
-  @override
-  String get statistics_noTagData => '暫無標籤資料';
 
   @override
   String get statistics_generateFirst => '先生成一些圖片吧';
