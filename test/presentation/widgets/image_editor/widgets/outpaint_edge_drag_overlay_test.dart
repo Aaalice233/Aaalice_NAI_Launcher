@@ -1166,8 +1166,8 @@ void main() {
 
     final frame = frameOrigin & frameSize;
     final frameOnScreen = Rect.fromPoints(
-      controller.canvasToScreen(frame.topLeft),
-      controller.canvasToScreen(frame.bottomRight),
+      controller.canvasToScreen(frame.topLeft, frame: frame),
+      controller.canvasToScreen(frame.bottomRight, frame: frame),
     );
     expect(
       tester.getCenter(find.byKey(const Key('outpaint_handle_top_left'))),

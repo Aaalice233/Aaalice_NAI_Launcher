@@ -162,7 +162,7 @@ class LayerPainter extends CustomPainter {
 
     // 获取视口边界用于空间剔除优化
     // 这可以避免渲染不在视口内的图层，提高性能（特别是放大查看时）
-    final viewportBounds = controller.viewportBounds;
+    final viewportBounds = controller.viewportBounds(state.frame);
 
     // 绘制所有图层（传入视口边界以启用空间剔除优化）
     state.layerManager.renderAll(

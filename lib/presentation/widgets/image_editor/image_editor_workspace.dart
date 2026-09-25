@@ -21,7 +21,6 @@ import '../../adaptive/adaptive_presenter.dart';
 import '../../utils/card_drop_reader.dart';
 import '../../widgets/common/app_toast.dart';
 import 'controllers/magic_wand_controller.dart';
-import 'core/canvas_controller.dart';
 import 'core/editor_state.dart';
 import 'effects/image_editor_effects_controller.dart';
 import 'core/focused_selection_state.dart';
@@ -34,7 +33,7 @@ import 'frame/frame_tool_panel.dart';
 import 'layers/image_layer_source.dart';
 import 'layers/layer.dart';
 import 'layers/layer_role.dart';
-import 'painters/focused_overlay_painter.dart';
+import 'painters/focused_context_overlay_painter.dart';
 import 'tools/frame_tool.dart';
 import 'tools/tool_base.dart';
 import 'canvas/editor_canvas.dart';
@@ -1648,8 +1647,8 @@ class ImageEditorWorkspaceState extends State<ImageEditorWorkspace> {
             child: IgnorePointer(
               child: RepaintBoundary(
                 child: CustomPaint(
-                  painter: _FocusedContextOverlayPainter(
-                    canvasController: _state.canvasController,
+                  painter: FocusedContextOverlayPainter(
+                    state: _state,
                     focusAreaRect: focusAreaRect,
                     contextCrop: contextCrop,
                     repaint: Listenable.merge([
@@ -3364,40 +3363,6 @@ class ImageEditorWorkspaceState extends State<ImageEditorWorkspace> {
         ],
       ),
     );
-  }
-}
-
-class _FocusedContextOverlayPainter extends CustomPainter {
-  _FocusedContextOverlayPainter({
-    required this.canvasController,
-    required this.focusAreaRect,
-    required this.contextCrop,
-    super.repaint,
-  });
-
-  final CanvasController canvasController;
-  final Rect focusAreaRect;
-  final Rect contextCrop;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final matrix = canvasController.transformMatrix.storage;
-    final screenSelectionPath = (Path()..addRect(focusAreaRect)).transform(
-      matrix,
-    );
-    final screenContextPath = (Path()..addRect(contextCrop)).transform(matrix);
-
-    FocusedOverlayPainter(
-      contextPath: screenContextPath,
-      focusPath: screenSelectionPath,
-    ).paint(canvas, size);
-  }
-
-  @override
-  bool shouldRepaint(covariant _FocusedContextOverlayPainter oldDelegate) {
-    return contextCrop != oldDelegate.contextCrop ||
-        focusAreaRect != oldDelegate.focusAreaRect ||
-        canvasController != oldDelegate.canvasController;
   }
 }
 

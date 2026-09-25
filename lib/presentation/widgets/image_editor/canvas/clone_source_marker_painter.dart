@@ -45,10 +45,9 @@ class CloneSourceMarkerPainter extends CustomPainter {
     final position = tool.sourceMarker.value;
     if (position == null) return;
 
-    // 与图层渲染同一矩阵；canvasToScreen 在旋转叠加镜像时次序不同，会偏离像素
-    final center = MatrixUtils.transformPoint(
-      state.canvasController.getTransformMatrix(state.frame),
+    final center = state.canvasController.canvasToScreen(
       position,
+      frame: state.frame,
     );
     for (final paint in [_outline, _line]) {
       for (final direction in _directions) {
