@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../../../core/utils/localization_extension.dart';
 import '../../../../themes/design_tokens.dart';
+import '../../../common/heading_semantics.dart';
 import '../../core/editor_state.dart';
 import '../../core/editor_view_action.dart';
 
@@ -70,8 +71,8 @@ class _EditorMenuSectionHeaderState<T>
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return Semantics(
-      header: true,
+    return HeadingSemantics(
+      level: 3,
       child: Padding(
         // 与菜单项 ListTile 前导图标的左缘对齐
         padding: const EdgeInsetsDirectional.fromSTEB(
