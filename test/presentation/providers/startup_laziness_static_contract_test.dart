@@ -50,7 +50,7 @@ void main() {
     expect(mainShellSource, contains('tagLibraryNotifierProvider.notifier'));
     expect(mainShellSource, contains('officialWordlistDataProvider.future'));
     expect(mainShellSource, contains('layoutState.rightPanelExpanded'));
-    expect(mainShellSource, contains('rightPanelTab == 0'));
+    expect(mainShellSource, contains('chatVisibleAtStartup'));
     expect(mainShellSource, contains('agentChatNotifierProvider.notifier'));
     expect(mainShellSource, contains('tagGroupCacheServiceProvider'));
     expect(mainShellSource, contains('onlineGalleryNotifierProvider'));

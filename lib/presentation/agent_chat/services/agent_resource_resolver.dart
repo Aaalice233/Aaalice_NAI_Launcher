@@ -37,7 +37,7 @@ final class ResolvedAgentResource {
   final Uint8List? bytes;
 
   /// Application-owned identity for detail viewers. This is never serialized
-  /// into model-visible tool output or detached-window DTOs.
+  /// into model-visible tool output.
   final String? filePath;
   final String? text;
   final String? vibeEntryId;

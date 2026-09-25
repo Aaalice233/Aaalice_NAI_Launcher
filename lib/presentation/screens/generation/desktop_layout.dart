@@ -9,6 +9,7 @@ import '../../../core/shortcuts/default_shortcuts.dart';
 import '../../../core/utils/app_logger.dart';
 import '../../../core/windowing/workspace_side_panel_contract.dart';
 import '../../../data/models/queue/replication_task.dart';
+import '../../agent_chat/providers/agent_chat_dock_provider.dart';
 import '../../providers/character_prompt_provider.dart';
 import '../../providers/image_generation_provider.dart';
 import '../../providers/generation/preview_selection_provider.dart';
@@ -155,6 +156,9 @@ class _DesktopGenerationLayoutState
     final occupiedLeadingWidth =
         leftWidth +
         (layoutState.leftPanelExpanded ? ResizeHandle.defaultWidth : 0.0);
+    final sideBySideChatWidth = ref.watch(
+      agentChatDockProvider.select((dock) => dock.sideBySideChatWidthDemand),
+    );
 
     return GenerationWorkspaceRow(
       occupiedLeadingWidth: occupiedLeadingWidth,
@@ -192,6 +196,7 @@ class _DesktopGenerationLayoutState
       ),
       rightPanelExpanded: layoutState.rightPanelExpanded,
       preferredRightPanelWidth: layoutState.rightPanelWidth,
+      sideBySideChatWidth: sideBySideChatWidth,
       rightHandle: ResizeHandle(
         onDragStart: () => setState(() => _isResizingRight = true),
         onDragEnd: () => setState(() => _isResizingRight = false),
@@ -208,10 +213,9 @@ class _DesktopGenerationLayoutState
               .setRightPanelWidth(newWidth);
         },
       ),
-      rightPanelBuilder: (width, expanded) => RightPanel(
+      rightPanelBuilder: (allocation) => RightPanel(
         isResizing: _isResizingRight,
-        width: width,
-        expanded: expanded,
+        allocation: allocation,
         historyViewport: widget.historyViewport,
       ),
     );

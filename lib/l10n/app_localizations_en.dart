@@ -973,6 +973,18 @@ class AppLocalizationsEn extends AppLocalizations {
   String get agentChat_tab => 'Chat';
 
   @override
+  String get agentChat_popOutFloating => 'Pop out as floating window';
+
+  @override
+  String get agentChat_dockToSidePanel => 'Dock to side panel';
+
+  @override
+  String get agentChat_hideFloating => 'Hide floating window';
+
+  @override
+  String get agentChat_resizeDockSplit => 'Resize chat and history';
+
+  @override
   String get nav_agent => 'Agent';
 
   @override
@@ -14177,6 +14189,36 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get agentSettings_densityCompact => 'Compact';
+
+  @override
+  String get agentSettings_chatPlacement => 'Chat placement';
+
+  @override
+  String get agentSettings_chatPlacementDescription =>
+      'Applies to wide windows only; narrow screens keep the full-screen chat.';
+
+  @override
+  String get agentSettings_dockLayout => 'Right panel layout';
+
+  @override
+  String get agentSettings_dockLayoutDescription =>
+      'Switch shows either chat or history in the right panel; split layouts show both at once.';
+
+  @override
+  String get agentSettings_dockExclusive => 'Switch';
+
+  @override
+  String get agentSettings_dockStacked => 'Stacked';
+
+  @override
+  String get agentSettings_dockSideBySide => 'Side by side';
+
+  @override
+  String get agentSettings_floatingWindow => 'Show chat in a floating window';
+
+  @override
+  String get agentSettings_floatingWindowDescription =>
+      'The floating window stays on every page and can be moved and resized; the right panel then shows only history.';
 
   @override
   String get agentSettings_chatModel => 'Chat model';

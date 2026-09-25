@@ -229,6 +229,132 @@ void main() {
     expect(settingsOpened, isTrue);
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets('弹出为浮窗按钮宽度充足时在头部，窄栏收进更多菜单且不溢出', (tester) async {
+    var popOuts = 0;
+    const pointer = InteractionPolicy(
+      modality: InteractionModality.pointer,
+      touchAvailable: false,
+      precisePointerAvailable: true,
+    );
+    await tester.pumpWidget(
+      _app(
+        width: 600,
+        mobile: false,
+        onPopOut: () => popOuts++,
+        interactionPolicy: pointer,
+      ),
+    );
+    final inline = find.byKey(const ValueKey('agent-chat-pop-out'));
+    expect(inline, findsOneWidget);
+    expect(tester.getSize(inline).height, greaterThanOrEqualTo(40));
+    expect(
+      find.byWidgetPredicate(
+        (widget) => widget is Tooltip && widget.message == '弹出为浮窗',
+      ),
+      findsOneWidget,
+    );
+    await tester.tap(inline, kind: PointerDeviceKind.mouse);
+    expect(popOuts, 1);
+
+    for (final (width, policy) in const [
+      (204.0, pointer),
+      (
+        280.0,
+        InteractionPolicy(
+          modality: InteractionModality.touch,
+          touchAvailable: true,
+          precisePointerAvailable: false,
+        ),
+      ),
+    ]) {
+      await tester.pumpWidget(
+        _app(
+          width: width,
+          mobile: false,
+          textScale: 3,
+          onPopOut: () => popOuts++,
+          interactionPolicy: policy,
+        ),
+      );
+      expect(tester.takeException(), isNull, reason: 'width=$width');
+      expect(find.byKey(const ValueKey('agent-chat-pop-out')), findsNothing);
+      await tester.tap(find.byKey(const ValueKey('agent-chat-compact-more')));
+      await tester.pumpAndSettle();
+      final menuEntry = find.byKey(const ValueKey('agent-chat-menu-pop-out'));
+      expect(menuEntry, findsOneWidget, reason: 'width=$width');
+      await tester.tap(menuEntry);
+      await tester.pumpAndSettle();
+    }
+    expect(popOuts, 3);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('浮窗头部提供隐藏与停靠回侧栏，且不再提供弹出', (tester) async {
+    var docks = 0;
+    await tester.pumpWidget(
+      _app(
+        width: 420,
+        mobile: false,
+        onDock: () => docks++,
+        onPopOut: () => fail('floating hosts must not offer pop-out'),
+      ),
+    );
+    final hide = find.byKey(const ValueKey('agent-chat-floating-hide'));
+    expect(hide, findsOneWidget);
+    expect(find.byKey(const ValueKey('agent-chat-collapse')), findsNothing);
+    expect(find.byIcon(Icons.remove_rounded), findsOneWidget);
+    expect(find.byKey(const ValueKey('agent-chat-pop-out')), findsNothing);
+    final dock = find.byKey(const ValueKey('agent-chat-dock'));
+    expect(dock, findsOneWidget);
+    expect(
+      find.byWidgetPredicate(
+        (widget) =>
+            widget is Tooltip &&
+            (widget.message == '停靠回侧栏' || widget.message == '隐藏浮窗'),
+      ),
+      findsNWidgets(2),
+    );
+    await tester.tap(dock);
+    expect(docks, 1);
+  });
+
+  testWidgets('浮窗相关提示在四种语言下均已翻译', (tester) async {
+    for (final (locale, popOut, dock, hide) in const [
+      (
+        Locale('en'),
+        'Pop out as floating window',
+        'Dock to side panel',
+        'Hide floating window',
+      ),
+      (Locale('ja'), 'フローティングウィンドウで表示', 'サイドパネルに戻す', 'フローティングウィンドウを隠す'),
+      (
+        Locale.fromSubtags(languageCode: 'zh', scriptCode: 'Hant'),
+        '彈出為浮窗',
+        '停靠回側欄',
+        '隱藏浮窗',
+      ),
+    ]) {
+      await tester.pumpWidget(
+        _app(width: 600, mobile: false, onPopOut: () {}, locale: locale),
+      );
+      expect(
+        find.byWidgetPredicate((w) => w is Tooltip && w.message == popOut),
+        findsOneWidget,
+        reason: '$locale',
+      );
+      await tester.pumpWidget(
+        _app(width: 600, mobile: false, onDock: () {}, locale: locale),
+      );
+      for (final message in [dock, hide]) {
+        expect(
+          find.byWidgetPredicate((w) => w is Tooltip && w.message == message),
+          findsOneWidget,
+          reason: '$locale $message',
+        );
+      }
+    }
+  });
 }
 
 Widget _app({
@@ -238,7 +364,10 @@ Widget _app({
   void Function(String id)? onSelect,
   void Function(AgentChatMoreAction action)? onMoreAction,
   VoidCallback? onOpenSettings,
+  VoidCallback? onPopOut,
+  VoidCallback? onDock,
   InteractionPolicy? interactionPolicy,
+  Locale locale = const Locale('zh'),
 }) {
   final state = AgentChatState(
     initialized: true,
@@ -267,7 +396,9 @@ Widget _app({
     height: 720,
     onClose: () {},
     onOpenSettings: onOpenSettings,
-    mobileHeaderWrapper: null,
+    headerWrapper: null,
+    onPopOut: onPopOut,
+    onDock: onDock,
   );
   final commands = AgentChatPanelCommands(
     collapse: () {},
@@ -303,7 +434,7 @@ Widget _app({
     removePendingResource: (_) async {},
   );
   return MaterialApp(
-    locale: const Locale('zh'),
+    locale: locale,
     localizationsDelegates: AppLocalizations.localizationsDelegates,
     supportedLocales: AppLocalizations.supportedLocales,
     home: InteractionPolicyScope(

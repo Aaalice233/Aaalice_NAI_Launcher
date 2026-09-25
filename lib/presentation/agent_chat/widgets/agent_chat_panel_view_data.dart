@@ -22,7 +22,9 @@ class AgentChatPanelViewData {
     required this.height,
     required this.onClose,
     required this.onOpenSettings,
-    required this.mobileHeaderWrapper,
+    required this.headerWrapper,
+    this.onPopOut,
+    this.onDock,
     this.currentCanvasReference,
   });
 
@@ -36,9 +38,19 @@ class AgentChatPanelViewData {
   final double height;
   final VoidCallback? onClose;
   final VoidCallback? onOpenSettings;
-  final Widget Function(Widget child)? mobileHeaderWrapper;
+
+  /// Lets the host attach gestures to the header, such as dragging a
+  /// floating window or swiping a mobile sheet closed.
+  final Widget Function(Widget child)? headerWrapper;
+
+  final VoidCallback? onPopOut;
+
+  /// Only floating hosts set this; the header derives its floating chrome
+  /// from it.
+  final VoidCallback? onDock;
   final AgentChatResourceReference? currentCanvasReference;
 
+  bool get floating => onDock != null;
   bool get running => state.status == AgentChatRunStatus.running;
   AgentChatWidthClass get widthClass =>
       AgentChatLayoutContract.widthClassFor(width);

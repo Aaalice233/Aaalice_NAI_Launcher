@@ -11,7 +11,7 @@ import '../../themes/theme_extension.dart';
 import 'agent_chat_tool_widgets.dart';
 
 /// Adapts an authoritative approval request to the approval surface shared by
-/// the embedded and detached Agent clients.
+/// every Agent chat host.
 class AgentChatApprovalCard extends StatefulWidget {
   const AgentChatApprovalCard({
     super.key,

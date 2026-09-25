@@ -22,9 +22,11 @@ void main() {
                 rightPanelExpanded: desktop,
                 preferredRightPanelWidth: 960,
                 rightHandle: const SizedBox(width: 8),
-                rightPanelBuilder: (panelWidth, expanded) => SizedBox(
-                  key: ValueKey('test-generation-right-panel-$expanded'),
-                  width: panelWidth,
+                rightPanelBuilder: (allocation) => SizedBox(
+                  key: ValueKey(
+                    'test-generation-right-panel-${allocation.expanded}',
+                  ),
+                  width: allocation.width,
                 ),
               ),
             ),
@@ -77,9 +79,11 @@ void main() {
               rightPanelExpanded: true,
               preferredRightPanelWidth: 520,
               rightHandle: const SizedBox(width: 8),
-              rightPanelBuilder: (panelWidth, expanded) => SizedBox(
-                key: ValueKey('test-classic-right-panel-$expanded'),
-                width: panelWidth,
+              rightPanelBuilder: (allocation) => SizedBox(
+                key: ValueKey(
+                  'test-classic-right-panel-${allocation.expanded}',
+                ),
+                width: allocation.width,
               ),
             ),
           ),

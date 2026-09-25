@@ -1871,6 +1871,30 @@ abstract class AppLocalizations {
   /// **'Chat'**
   String get agentChat_tab;
 
+  /// No description provided for @agentChat_popOutFloating.
+  ///
+  /// In en, this message translates to:
+  /// **'Pop out as floating window'**
+  String get agentChat_popOutFloating;
+
+  /// No description provided for @agentChat_dockToSidePanel.
+  ///
+  /// In en, this message translates to:
+  /// **'Dock to side panel'**
+  String get agentChat_dockToSidePanel;
+
+  /// No description provided for @agentChat_hideFloating.
+  ///
+  /// In en, this message translates to:
+  /// **'Hide floating window'**
+  String get agentChat_hideFloating;
+
+  /// No description provided for @agentChat_resizeDockSplit.
+  ///
+  /// In en, this message translates to:
+  /// **'Resize chat and history'**
+  String get agentChat_resizeDockSplit;
+
   /// No description provided for @nav_agent.
   ///
   /// In en, this message translates to:
@@ -24606,6 +24630,60 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Compact'**
   String get agentSettings_densityCompact;
+
+  /// No description provided for @agentSettings_chatPlacement.
+  ///
+  /// In en, this message translates to:
+  /// **'Chat placement'**
+  String get agentSettings_chatPlacement;
+
+  /// No description provided for @agentSettings_chatPlacementDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Applies to wide windows only; narrow screens keep the full-screen chat.'**
+  String get agentSettings_chatPlacementDescription;
+
+  /// No description provided for @agentSettings_dockLayout.
+  ///
+  /// In en, this message translates to:
+  /// **'Right panel layout'**
+  String get agentSettings_dockLayout;
+
+  /// No description provided for @agentSettings_dockLayoutDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Switch shows either chat or history in the right panel; split layouts show both at once.'**
+  String get agentSettings_dockLayoutDescription;
+
+  /// No description provided for @agentSettings_dockExclusive.
+  ///
+  /// In en, this message translates to:
+  /// **'Switch'**
+  String get agentSettings_dockExclusive;
+
+  /// No description provided for @agentSettings_dockStacked.
+  ///
+  /// In en, this message translates to:
+  /// **'Stacked'**
+  String get agentSettings_dockStacked;
+
+  /// No description provided for @agentSettings_dockSideBySide.
+  ///
+  /// In en, this message translates to:
+  /// **'Side by side'**
+  String get agentSettings_dockSideBySide;
+
+  /// No description provided for @agentSettings_floatingWindow.
+  ///
+  /// In en, this message translates to:
+  /// **'Show chat in a floating window'**
+  String get agentSettings_floatingWindow;
+
+  /// No description provided for @agentSettings_floatingWindowDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'The floating window stays on every page and can be moved and resized; the right panel then shows only history.'**
+  String get agentSettings_floatingWindowDescription;
 
   /// No description provided for @agentSettings_chatModel.
   ///

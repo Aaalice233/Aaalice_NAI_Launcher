@@ -1416,7 +1416,7 @@ class _ComposerHarnessState extends State<_ComposerHarness> {
         height: widget.height,
         onClose: null,
         onOpenSettings: null,
-        mobileHeaderWrapper: null,
+        headerWrapper: null,
         currentCanvasReference: widget.currentCanvasReference,
       ),
       commands: commands,
