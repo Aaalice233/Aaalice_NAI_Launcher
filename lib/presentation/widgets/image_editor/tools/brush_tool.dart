@@ -11,6 +11,13 @@ import 'tool_setting_rows.dart';
 import '../../../widgets/common/horizontal_action_strip.dart';
 import '../../../widgets/common/themed_divider.dart';
 
+typedef BrushStrokeStyle = ({
+  double size,
+  Color color,
+  double opacity,
+  double hardness,
+});
+
 /// 笔刷预设
 class BrushPreset {
   final String name;
@@ -158,6 +165,17 @@ class BrushTool extends EditorTool {
   double sizeFor(EditorState state) =>
       state.isMaskLayerActive ? _maskSize : _settings.size;
 
+  /// 当前图层上一笔实际使用的样式，提交与实时预览共用
+  BrushStrokeStyle strokeStyleFor(EditorState state) {
+    final paintsMask = state.isMaskLayerActive;
+    return (
+      size: sizeFor(state),
+      color: state.paintColor,
+      opacity: paintsMask ? MaskPaintStyle.opacity : _settings.opacity,
+      hardness: paintsMask ? MaskPaintStyle.hardness : _settings.hardness,
+    );
+  }
+
   void setSizeFor(EditorState state, double size) {
     if (state.isMaskLayerActive) {
       setMaskSize(size);
@@ -210,13 +228,13 @@ class BrushTool extends EditorTool {
   void _commitCurrentStroke(EditorState state) {
     final activeLayer = state.layerManager.activeLayer;
     if (activeLayer != null && !activeLayer.locked) {
-      final paintsMask = activeLayer.isMask;
+      final style = strokeStyleFor(state);
       final stroke = StrokeData(
         points: List.from(state.currentStrokePoints),
-        size: paintsMask ? _maskSize : _settings.size,
-        color: state.paintColor,
-        opacity: paintsMask ? MaskPaintStyle.opacity : _settings.opacity,
-        hardness: paintsMask ? MaskPaintStyle.hardness : _settings.hardness,
+        size: style.size,
+        color: style.color,
+        opacity: style.opacity,
+        hardness: style.hardness,
         isEraser: false,
       );
 

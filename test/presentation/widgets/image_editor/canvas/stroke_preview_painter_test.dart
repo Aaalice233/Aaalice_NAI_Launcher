@@ -5,6 +5,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/presentation/widgets/image_editor/canvas/stroke_preview_painter.dart';
 import 'package:nai_launcher/presentation/widgets/image_editor/core/editor_state.dart';
+import 'package:nai_launcher/presentation/widgets/image_editor/core/layer_role_policy.dart';
+import 'package:nai_launcher/presentation/widgets/image_editor/core/mask_paint_style.dart';
+import 'package:nai_launcher/presentation/widgets/image_editor/layers/layer_role.dart';
 
 Future<ByteData> _paintPreview(
   EditorState state, {
@@ -79,6 +82,36 @@ void main() {
 
     expect(pathPixel.b, greaterThan(0.8));
     expect(_alphaByte(pathPixel), greaterThan(200));
+  });
+
+  test('brush preview on a mask layer uses the mask style it commits', () async {
+    final state = EditorState()..setCanvasSize(const Size(48, 48));
+    addTearDown(state.dispose);
+    final image = state.layerManager.addLayer(name: 'image');
+    final mask = state.layerManager.addLayer(
+      name: 'mask',
+      index: 0,
+      role: LayerRole.mask,
+    );
+    state.setRolePolicy(LayerRolePolicy.inpaint(protectedLayerId: image.id));
+
+    state.setForegroundColor(const Color(0xFF000000));
+    state.layerManager.setActiveLayer(image.id);
+    state.setBrushSize(4);
+    state.setBrushOpacity(1);
+    state.setBrushHardness(0.2);
+    state.layerManager.setActiveLayer(mask.id);
+    state.setBrushSize(16);
+    state.startStroke(const Offset(24, 24));
+
+    final byteData = await _paintPreview(state);
+    final center = _pixelAt(byteData, 48, 24, 24);
+    // 离中心 6 像素：只有蒙版笔的 16 像素直径能覆盖到
+    final rim = _pixelAt(byteData, 48, 30, 24);
+
+    expect(_alphaByte(center), closeTo(MaskPaintStyle.opacity * 255, 3));
+    expect(center.b, greaterThan(center.r));
+    expect(_alphaByte(rim), closeTo(MaskPaintStyle.opacity * 255, 3));
   });
 
   test('draws eraser preview as semi-transparent grey', () async {
