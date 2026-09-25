@@ -245,11 +245,20 @@ void main() {
       isNot(contains(StorageKeys.onnxTaggerModelDirectory)),
     );
     // MCP 服务器端口、令牌与权限模式绑定本机，跨设备同步会互相踢掉端口。
+    // 聊天停靠方式、分栏尺寸与浮窗几何取决于本机窗口，同步到别的设备会错位。
     for (final key in const [
       StorageKeys.mcpServerEnabled,
       StorageKeys.mcpServerPort,
       StorageKeys.mcpServerPermissionMode,
       StorageKeys.mcpServerToken,
+      StorageKeys.rightPanelTab,
+      StorageKeys.agentChatDockMode,
+      StorageKeys.agentChatDockFoldedPane,
+      StorageKeys.agentChatDockStackedChatFraction,
+      StorageKeys.agentChatDockSideBySideChatWidth,
+      StorageKeys.agentChatFloatingEnabled,
+      StorageKeys.agentChatFloatingVisible,
+      StorageKeys.agentChatFloatingRect,
     ]) {
       expect(portableSettingKeys, isNot(contains(key)), reason: key);
       expect(portablePromptSettingKeys, isNot(contains(key)), reason: key);

@@ -300,12 +300,15 @@ void main() {
         for (final child in workspaceStack.children) child.key,
       ];
       expect(
-        layerKeys.sublist(layerKeys.length - 2),
+        layerKeys.sublist(layerKeys.length - 3),
         const [
           ValueKey('desktop-panel-overlay-layer'),
+          ValueKey('desktop-floating-agent-layer'),
           ValueKey('desktop-approval-overlay-layer'),
         ],
-        reason: 'panels cover the page; approvals stay reachable above panels',
+        reason:
+            'panels cover the page, the floating agent stays above panels, '
+            'and approvals stay reachable above both',
       );
       expect(find.byKey(const Key('shell-panel-scrim')), findsNothing);
 

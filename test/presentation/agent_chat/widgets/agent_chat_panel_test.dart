@@ -911,11 +911,10 @@ void main() {
                     onOpenSettings: () => settingsOpened = true,
                     // Session picker scaling is covered by its own shared-widget
                     // tests; keep this regression focused on the composer.
-                    mobileHeaderWrapper: (child) =>
-                        MediaQuery.withClampedTextScaling(
-                          maxScaleFactor: 1.6,
-                          child: child,
-                        ),
+                    headerWrapper: (child) => MediaQuery.withClampedTextScaling(
+                      maxScaleFactor: 1.6,
+                      child: child,
+                    ),
                   ),
                 ),
               ),

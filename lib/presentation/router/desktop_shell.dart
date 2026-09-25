@@ -1,10 +1,15 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../adaptive/window_size_class.dart';
+import '../agent_chat/providers/agent_chat_dock_provider.dart';
 import '../agent_chat/providers/agent_chat_notifier.dart';
+import '../agent_chat/providers/agent_chat_surface_registry.dart';
+import '../agent_chat/widgets/agent_chat_floating_window.dart';
 import '../mcp/widgets/mcp_approval_banner.dart';
 import '../providers/layout_state_provider.dart';
 import '../widgets/navigation/main_nav_rail.dart';
@@ -41,12 +46,81 @@ class _DesktopShellState extends ConsumerState<DesktopShell> {
     super.dispose();
   }
 
+  @override
+  void didUpdateWidget(DesktopShell oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final index = widget.navigationShell.currentIndex;
+    if (oldWidget.navigationShell.currentIndex == index ||
+        index != AppBranch.generation.index) {
+      return;
+    }
+    // 生成页首次挂载时右栏在本帧才登记，下一帧再判断能否接管浮层里的聊天。
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted ||
+          ref.read(shellPanelProvider) != ShellPanel.agent ||
+          _agentTarget() != AgentChatSurfaceTarget.dock) {
+        return;
+      }
+      _setPanel(null);
+      unawaited(
+        ref
+            .read(agentChatDockProvider.notifier)
+            .revealDockedPane(AgentChatDockPane.chat),
+      );
+    });
+  }
+
   void _setPanel(ShellPanel? panel, {FocusNode? restoreFocus}) {
     ref.read(shellPanelProvider.notifier).state = panel;
-    if (panel == null && restoreFocus != null) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) restoreFocus.requestFocus();
-      });
+    if (panel == null && restoreFocus != null) _restoreFocus(restoreFocus);
+  }
+
+  void _restoreFocus(FocusNode node) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) node.requestFocus();
+    });
+  }
+
+  bool get _generationDockAvailable =>
+      widget.navigationShell.currentIndex == AppBranch.generation.index &&
+      ref.read(agentChatSurfaceRegistryProvider).dockFitsExpanded;
+
+  AgentChatSurfaceTarget _agentTarget() => ref
+      .read(agentChatDockProvider)
+      .navigationTarget(dockAvailable: _generationDockAvailable);
+
+  void _handleAgentNavigation() {
+    final dock = ref.read(agentChatDockProvider.notifier);
+    switch (_agentTarget()) {
+      case AgentChatSurfaceTarget.floating:
+        final show = !ref.read(agentChatDockProvider).floatingVisible;
+        unawaited(dock.setFloatingVisible(show));
+        if (!show) _restoreFocus(_agentFocusNode);
+      case AgentChatSurfaceTarget.dock:
+        if (ref.read(shellPanelProvider) == ShellPanel.agent) _setPanel(null);
+        unawaited(dock.revealDockedPane(AgentChatDockPane.chat));
+      case AgentChatSurfaceTarget.overlay:
+        final open = ref.read(shellPanelProvider) == ShellPanel.agent;
+        _setPanel(
+          open ? null : ShellPanel.agent,
+          restoreFocus: open ? _agentFocusNode : null,
+        );
+    }
+  }
+
+  void _popOutAgent() {
+    _setPanel(null);
+    unawaited(ref.read(agentChatDockProvider.notifier).popOut());
+  }
+
+  // 生成页放得下右栏时停靠回右栏，其他页面停靠回当前页面的侧边面板。
+  void _dockFloatingAgent() {
+    final dock = ref.read(agentChatDockProvider.notifier);
+    unawaited(dock.setFloatingEnabled(false));
+    if (_generationDockAvailable) {
+      unawaited(dock.revealDockedPane(AgentChatDockPane.chat));
+    } else {
+      _setPanel(ShellPanel.agent);
     }
   }
 
@@ -58,7 +132,15 @@ class _DesktopShellState extends ConsumerState<DesktopShell> {
         (state) => state.status == AgentChatRunStatus.running,
       ),
     );
-    final isAgentVisible = activePanel == ShellPanel.agent;
+    final floating = ref.watch(
+      agentChatDockProvider.select(
+        (dock) =>
+            (enabled: dock.floatingEnabled, visible: dock.floatingVisible),
+      ),
+    );
+    final isAgentVisible = floating.enabled
+        ? floating.visible
+        : activePanel == ShellPanel.agent;
     final isQueueVisible = activePanel == ShellPanel.queue;
 
     return LayoutBuilder(
@@ -104,10 +186,7 @@ class _DesktopShellState extends ConsumerState<DesktopShell> {
                     isQueueVisible: isQueueVisible,
                     agentFocusNode: _agentFocusNode,
                     queueFocusNode: _queueFocusNode,
-                    onAgentVisibilityChanged: (isVisible) => _setPanel(
-                      isVisible ? ShellPanel.agent : null,
-                      restoreFocus: isVisible ? null : _agentFocusNode,
-                    ),
+                    onAgentVisibilityChanged: (_) => _handleAgentNavigation(),
                     onQueueVisibilityChanged: (isVisible) => _setPanel(
                       isVisible ? ShellPanel.queue : null,
                       restoreFocus: isVisible ? null : _queueFocusNode,
@@ -151,6 +230,15 @@ class _DesktopShellState extends ConsumerState<DesktopShell> {
                             onQueueStarted: () => widget.navigationShell
                                 .goBranch(AppBranch.generation.index),
                             onOpenAgentSettings: () => widget.navigationShell
+                                .goBranch(AppBranch.settings.index),
+                            onPopOutAgent: _popOutAgent,
+                          ),
+                        ),
+                        Positioned.fill(
+                          key: const ValueKey('desktop-floating-agent-layer'),
+                          child: AgentChatFloatingLayer(
+                            onDock: _dockFloatingAgent,
+                            onOpenSettings: () => widget.navigationShell
                                 .goBranch(AppBranch.settings.index),
                           ),
                         ),

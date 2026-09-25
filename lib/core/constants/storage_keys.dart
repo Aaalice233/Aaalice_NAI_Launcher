@@ -115,6 +115,18 @@ class StorageKeys {
   // Panel Width Keys (面板宽度)
   static const String historyPanelWidth = 'history_panel_width';
   static const String rightPanelTab = 'right_panel_tab';
+
+  // Agent Chat Dock Keys (智能体聊天停靠与浮窗，本机布局)
+  static const String agentChatDockMode = 'agent_chat_dock_mode';
+  static const String agentChatDockFoldedPane = 'agent_chat_dock_folded_pane';
+  static const String agentChatDockStackedChatFraction =
+      'agent_chat_dock_stacked_chat_fraction';
+  static const String agentChatDockSideBySideChatWidth =
+      'agent_chat_dock_side_by_side_chat_width';
+  static const String agentChatFloatingEnabled = 'agent_chat_floating_enabled';
+  static const String agentChatFloatingVisible = 'agent_chat_floating_visible';
+  static const String agentChatFloatingRect = 'agent_chat_floating_rect';
+
   static const String agentChatActiveSession = 'agent_chat_active_session';
   static const String defaultModel = 'default_model';
   static const String defaultSampler = 'default_sampler';

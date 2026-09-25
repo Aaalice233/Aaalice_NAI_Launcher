@@ -65,7 +65,7 @@ class MobileGenerationShell extends StatelessWidget {
                               onClose: controller.handleAgentBack,
                               onOpenSettings: () =>
                                   controller.openAgentSettings(context),
-                              mobileHeaderWrapper: (child) =>
+                              headerWrapper: (child) =>
                                   MobileVerticalCloseGesture(
                                     key: const ValueKey(
                                       'generation-agent-close-drag-handle',

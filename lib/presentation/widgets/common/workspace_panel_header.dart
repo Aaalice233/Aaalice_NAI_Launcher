@@ -13,6 +13,19 @@ class WorkspacePanelHeader extends StatelessWidget {
     this.trailing,
   });
 
+  static const double _edgePadding = 4;
+  static const double _titleOnlyStartPadding = 12;
+  static const double _leadingGap = 4;
+  static const double _iconSize = 20;
+  static const double _iconGap = 8;
+
+  /// 标题栏自身占用的水平宽度（不含 leading、actions 与标题）。
+  static double chromeWidth({required bool hasLeading}) =>
+      (hasLeading ? _edgePadding + _leadingGap : _titleOnlyStartPadding) +
+      _edgePadding +
+      _iconSize +
+      _iconGap;
+
   final IconData icon;
   final Widget title;
   final Widget? leading;
@@ -29,16 +42,19 @@ class WorkspacePanelHeader extends StatelessWidget {
         constraints: const BoxConstraints(minHeight: 56),
         child: Padding(
           padding: EdgeInsets.only(
-            left: leading == null ? 12 : 4,
-            right: 4,
+            left: leading == null ? _titleOnlyStartPadding : _edgePadding,
+            right: _edgePadding,
             top: 4,
             bottom: 4,
           ),
           child: Row(
             children: [
-              if (leading != null) ...[leading!, const SizedBox(width: 4)],
-              Icon(icon, size: 20, color: colors.primary),
-              const SizedBox(width: 8),
+              if (leading != null) ...[
+                leading!,
+                const SizedBox(width: _leadingGap),
+              ],
+              Icon(icon, size: _iconSize, color: colors.primary),
+              const SizedBox(width: _iconGap),
               Expanded(child: title),
               ...actions,
               if (trailing != null) trailing!,

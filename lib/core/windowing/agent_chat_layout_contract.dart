@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
 
-/// Shared responsive contract used by the embedded and detached Agent clients.
-///
-/// The secondary window remains an IPC-only client; sharing these presentation
-/// rules prevents it from drifting into a separate chat experience.
+/// Shared responsive contract for every Agent chat host: the docked right
+/// panel, the shell side panel, the in-app floating window and full screen.
 enum AgentChatWidthClass { compact, regular, wide }
 
 @immutable

@@ -936,6 +936,18 @@ class AppLocalizationsZh extends AppLocalizations {
   String get agentChat_tab => '聊天';
 
   @override
+  String get agentChat_popOutFloating => '弹出为浮窗';
+
+  @override
+  String get agentChat_dockToSidePanel => '停靠回侧栏';
+
+  @override
+  String get agentChat_hideFloating => '隐藏浮窗';
+
+  @override
+  String get agentChat_resizeDockSplit => '调整聊天与历史的分隔';
+
+  @override
   String get nav_agent => '智能体';
 
   @override
@@ -13652,6 +13664,35 @@ class AppLocalizationsZh extends AppLocalizations {
   String get agentSettings_densityCompact => '紧凑';
 
   @override
+  String get agentSettings_chatPlacement => '聊天位置';
+
+  @override
+  String get agentSettings_chatPlacementDescription => '仅在宽屏生效；窄屏保持全屏聊天。';
+
+  @override
+  String get agentSettings_dockLayout => '右栏布局';
+
+  @override
+  String get agentSettings_dockLayoutDescription =>
+      '独占切换时右栏一次只显示聊天或历史；分栏则同时显示两者。';
+
+  @override
+  String get agentSettings_dockExclusive => '独占切换';
+
+  @override
+  String get agentSettings_dockStacked => '上下分栏';
+
+  @override
+  String get agentSettings_dockSideBySide => '左右分栏';
+
+  @override
+  String get agentSettings_floatingWindow => '以浮窗显示聊天';
+
+  @override
+  String get agentSettings_floatingWindowDescription =>
+      '浮窗常驻所有页面，可拖动和调整大小；开启后右栏只显示历史。';
+
+  @override
   String get agentSettings_chatModel => '聊天模型';
 
   @override
@@ -15858,6 +15899,18 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get agentChat_tab => '聊天';
+
+  @override
+  String get agentChat_popOutFloating => '彈出為浮窗';
+
+  @override
+  String get agentChat_dockToSidePanel => '停靠回側欄';
+
+  @override
+  String get agentChat_hideFloating => '隱藏浮窗';
+
+  @override
+  String get agentChat_resizeDockSplit => '調整聊天與歷史的分隔';
 
   @override
   String get nav_agent => '智慧體';
@@ -28575,6 +28628,35 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get agentSettings_densityCompact => '緊湊';
+
+  @override
+  String get agentSettings_chatPlacement => '聊天位置';
+
+  @override
+  String get agentSettings_chatPlacementDescription => '僅在寬螢幕生效；窄螢幕保持全螢幕聊天。';
+
+  @override
+  String get agentSettings_dockLayout => '右欄佈局';
+
+  @override
+  String get agentSettings_dockLayoutDescription =>
+      '獨佔切換時右欄一次只顯示聊天或歷史；分欄則同時顯示兩者。';
+
+  @override
+  String get agentSettings_dockExclusive => '獨佔切換';
+
+  @override
+  String get agentSettings_dockStacked => '上下分欄';
+
+  @override
+  String get agentSettings_dockSideBySide => '左右分欄';
+
+  @override
+  String get agentSettings_floatingWindow => '以浮窗顯示聊天';
+
+  @override
+  String get agentSettings_floatingWindowDescription =>
+      '浮窗常駐所有頁面，可拖曳並調整大小；開啟後右欄只顯示歷史。';
 
   @override
   String get agentSettings_chatModel => '聊天模型';

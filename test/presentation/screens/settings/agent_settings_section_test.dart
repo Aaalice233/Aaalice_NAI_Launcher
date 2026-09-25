@@ -18,6 +18,7 @@ import 'package:nai_launcher/data/models/agent/agent_settings.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/agent_settings/providers/agent_settings_provider.dart';
 import 'package:nai_launcher/data/models/prompt_assistant/prompt_assistant_models.dart';
+import 'package:nai_launcher/presentation/screens/settings/sections/agent/agent_chat_placement_card.dart';
 import 'package:nai_launcher/presentation/screens/settings/sections/agent/agent_profile_actions.dart';
 import 'package:nai_launcher/presentation/screens/settings/sections/agent/skill_management_panel.dart';
 import 'package:nai_launcher/presentation/screens/settings/sections/agent_settings_section.dart';
@@ -202,6 +203,7 @@ void main() {
 
       expect(find.byType(AgentSettingsSection), findsOneWidget);
       expect(find.byType(SettingsPageLayout), findsOneWidget);
+      expect(find.byType(AgentChatPlacementCard), findsOneWidget);
       final pageLeft = tester.getTopLeft(find.byType(SettingsPageLayout)).dx;
       expect(tester.getTopLeft(find.byType(SettingsCard).first).dx, pageLeft);
       expect(

@@ -745,7 +745,7 @@ Future<void> _pump(
                 height: height,
                 onClose: null,
                 onOpenSettings: null,
-                mobileHeaderWrapper: null,
+                headerWrapper: null,
               ),
               commands: _commands,
               controller: controller,

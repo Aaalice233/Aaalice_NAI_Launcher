@@ -24,19 +24,29 @@ class AgentChatHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = context.l10n;
     final fullScreenLayout = viewData.fullScreen;
-    final leadingTooltip = viewData.fullScreen
-        ? MaterialLocalizations.of(context).backButtonTooltip
-        : MaterialLocalizations.of(context).closeButtonTooltip;
     final collapseButton = _HeaderIconButton(
       key: ValueKey(
-        fullScreenLayout ? 'agent-chat-mobile-close' : 'agent-chat-collapse',
+        fullScreenLayout
+            ? 'agent-chat-mobile-close'
+            : viewData.floating
+            ? 'agent-chat-floating-hide'
+            : 'agent-chat-collapse',
       ),
       icon: fullScreenLayout
           ? Icons.arrow_back_rounded
+          : viewData.floating
+          ? Icons.remove_rounded
           : Icons.chevron_right_rounded,
-      tooltip: leadingTooltip,
+      tooltip: fullScreenLayout
+          ? MaterialLocalizations.of(context).backButtonTooltip
+          : viewData.floating
+          ? l10n.agentChat_hideFloating
+          : MaterialLocalizations.of(context).closeButtonTooltip,
       onPressed: viewData.onClose ?? commands.collapse,
     );
+    final windowAction = _windowAction(l10n);
+    final windowActionInline =
+        windowAction != null && _fitsInlineWindowAction(context);
     final header = WorkspacePanelHeader(
       key: ValueKey(
         fullScreenLayout
@@ -51,6 +61,13 @@ class AgentChatHeader extends StatelessWidget {
       icon: Icons.auto_awesome_rounded,
       title: SizedBox(height: 48, child: _sessionSelector(context)),
       actions: [
+        if (windowActionInline)
+          _HeaderIconButton(
+            key: ValueKey('agent-chat-${windowAction.id}'),
+            icon: windowAction.icon,
+            tooltip: windowAction.label,
+            onPressed: windowAction.onPressed,
+          ),
         _HeaderIconButton(
           key: ValueKey(
             fullScreenLayout
@@ -63,13 +80,51 @@ class AgentChatHeader extends StatelessWidget {
               ? commands.newSession
               : null,
         ),
-        _moreMenu(context, l10n),
+        _moreMenu(
+          context,
+          l10n,
+          overflowWindowAction: windowActionInline ? null : windowAction,
+        ),
       ],
     );
-    return viewData.mobileHeaderWrapper?.call(header) ?? header;
+    return viewData.headerWrapper?.call(header) ?? header;
   }
 
-  Widget _moreMenu(BuildContext context, AppLocalizations l10n) {
+  _WindowAction? _windowAction(AppLocalizations l10n) {
+    if (viewData.onDock case final onDock?) {
+      return _WindowAction(
+        id: 'dock',
+        icon: Icons.view_sidebar_outlined,
+        label: l10n.agentChat_dockToSidePanel,
+        onPressed: onDock,
+      );
+    }
+    if (viewData.onPopOut case final onPopOut?) {
+      return _WindowAction(
+        id: 'pop-out',
+        icon: Icons.picture_in_picture_alt_outlined,
+        label: l10n.agentChat_popOutFloating,
+        onPressed: onPopOut,
+      );
+    }
+    return null;
+  }
+
+  // Below a readable title width the placement entry moves into the overflow
+  // menu, so narrow docks never overflow and never lose the action.
+  bool _fitsInlineWindowAction(BuildContext context) {
+    const minimumTitleWidth = 72.0;
+    final extent = context.interactionPolicy.minimumControlExtent;
+    final occupied =
+        WorkspacePanelHeader.chromeWidth(hasLeading: true) + extent * 4;
+    return viewData.width - occupied >= minimumTitleWidth;
+  }
+
+  Widget _moreMenu(
+    BuildContext context,
+    AppLocalizations l10n, {
+    _WindowAction? overflowWindowAction,
+  }) {
     final hasActiveSession = viewData.state.sessions.any(
       (session) => session.id == viewData.state.activeSessionId,
     );
@@ -121,6 +176,9 @@ class AgentChatHeader extends StatelessWidget {
           case 'settings':
             if (context.mounted) _openAgentSettings(context);
             return;
+          case _WindowAction.menuValue:
+            overflowWindowAction?.onPressed();
+            return;
         }
       },
       itemBuilder: (_) => [
@@ -135,6 +193,13 @@ class AgentChatHeader extends StatelessWidget {
           ),
           const PopupMenuDivider(),
         ],
+        if (overflowWindowAction != null)
+          _menuItem(
+            _WindowAction.menuValue,
+            overflowWindowAction.icon,
+            overflowWindowAction.label,
+            key: ValueKey('agent-chat-menu-${overflowWindowAction.id}'),
+          ),
         _menuItem('settings', Icons.settings_outlined, l10n.settings_agent),
       ],
     );
@@ -145,7 +210,9 @@ class AgentChatHeader extends StatelessWidget {
     IconData icon,
     String label, {
     Color? color,
+    Key? key,
   }) => PopupMenuItem(
+    key: key,
     value: value,
     child: Row(
       children: [
@@ -187,6 +254,23 @@ class AgentChatHeader extends StatelessWidget {
       onDelete: commands.deleteSession,
     );
   }
+}
+
+@immutable
+class _WindowAction {
+  const _WindowAction({
+    required this.id,
+    required this.icon,
+    required this.label,
+    required this.onPressed,
+  });
+
+  static const menuValue = 'window-placement';
+
+  final String id;
+  final IconData icon;
+  final String label;
+  final VoidCallback onPressed;
 }
 
 class _HeaderIconButton extends StatelessWidget {

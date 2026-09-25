@@ -14,6 +14,7 @@ import '../../../widgets/common/searchable_model_picker.dart';
 import '../widgets/settings_card.dart';
 import '../widgets/settings_page_layout.dart';
 import 'web_access_settings.dart';
+import 'agent/agent_chat_placement_card.dart';
 import 'agent/agent_profile_actions.dart';
 import 'agent/context_window_field.dart';
 import 'agent/skill_management_panel.dart';
@@ -108,6 +109,7 @@ class _AgentSettingsSectionState extends ConsumerState<AgentSettingsSection> {
           onOpenIntegrations: widget.onOpenIntegrations,
         ),
         _ReadingPreferencesCard(settings: state.settings),
+        const AgentChatPlacementCard(),
         _PermissionCard(settings: state.settings),
         _WebAccessCard(settings: state.settings),
         if (_selectedPanel == 0)

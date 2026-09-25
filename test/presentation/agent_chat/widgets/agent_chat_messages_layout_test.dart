@@ -547,7 +547,7 @@ Future<void> _pumpMessages(
                 height: 900,
                 onClose: null,
                 onOpenSettings: null,
-                mobileHeaderWrapper: null,
+                headerWrapper: null,
               ),
               commands: commands ?? _commands,
               controller: controller,

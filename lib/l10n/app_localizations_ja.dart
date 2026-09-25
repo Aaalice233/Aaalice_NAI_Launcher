@@ -955,6 +955,18 @@ class AppLocalizationsJa extends AppLocalizations {
   String get agentChat_tab => 'チャット';
 
   @override
+  String get agentChat_popOutFloating => 'フローティングウィンドウで表示';
+
+  @override
+  String get agentChat_dockToSidePanel => 'サイドパネルに戻す';
+
+  @override
+  String get agentChat_hideFloating => 'フローティングウィンドウを隠す';
+
+  @override
+  String get agentChat_resizeDockSplit => 'チャットと履歴の境界を調整';
+
+  @override
   String get nav_agent => 'エージェント';
 
   @override
@@ -13903,6 +13915,36 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get agentSettings_densityCompact => 'コンパクト';
+
+  @override
+  String get agentSettings_chatPlacement => 'チャットの配置';
+
+  @override
+  String get agentSettings_chatPlacementDescription =>
+      'ワイド表示でのみ有効です。狭い画面では全画面チャットのままです。';
+
+  @override
+  String get agentSettings_dockLayout => '右パネルのレイアウト';
+
+  @override
+  String get agentSettings_dockLayoutDescription =>
+      '切り替えでは右パネルにチャットか履歴の一方を表示し、分割では両方を同時に表示します。';
+
+  @override
+  String get agentSettings_dockExclusive => '切り替え';
+
+  @override
+  String get agentSettings_dockStacked => '上下に分割';
+
+  @override
+  String get agentSettings_dockSideBySide => '左右に分割';
+
+  @override
+  String get agentSettings_floatingWindow => 'チャットをフローティングウィンドウで表示';
+
+  @override
+  String get agentSettings_floatingWindowDescription =>
+      'フローティングウィンドウはすべてのページに常駐し、移動とサイズ変更ができます。有効にすると右パネルには履歴のみ表示されます。';
 
   @override
   String get agentSettings_chatModel => 'チャットモデル';

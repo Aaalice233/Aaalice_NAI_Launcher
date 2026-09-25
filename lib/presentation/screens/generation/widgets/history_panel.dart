@@ -84,6 +84,7 @@ class HistoryPanel extends ConsumerStatefulWidget {
   const HistoryPanel({
     super.key,
     this.onClose,
+    this.onCollapse,
     this.embedded = false,
     this.viewportOffset,
     this.sharePreparationService,
@@ -91,6 +92,9 @@ class HistoryPanel extends ConsumerStatefulWidget {
 
   final ShareImagePreparationService? sharePreparationService;
   final VoidCallback? onClose;
+
+  /// 替换默认的“收起右栏”行为，按钮仍表达收起而非关闭。
+  final VoidCallback? onCollapse;
 
   /// 嵌入模式：隐藏自带标题行，由外层 Tab 栏承担标题职责。
   final bool embedded;
@@ -423,6 +427,7 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
       key: const ValueKey('generation-history-collapse'),
       onPressed:
           onClose ??
+          widget.onCollapse ??
           () => ref
               .read(layoutStateNotifierProvider.notifier)
               .setRightPanelExpanded(false),
