@@ -1003,6 +1003,78 @@ void main() {
     expect(find.text('2 / 2'), findsOneWidget);
   });
 
+  testWidgets('overflow action paints feedback above its round surface', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(600, 360));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    const item = GalleryItem(
+      id: 46,
+      sourceId: GallerySourceId.quickTagCloud,
+      title: 'A deliberately long gallery title for responsive layout',
+      tags: ['solo'],
+    );
+    await tester.pumpWidget(
+      ProviderScope(
+        child: MaterialApp(
+          locale: const Locale('en'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          builder: (context, child) => MediaQuery(
+            data: MediaQuery.of(
+              context,
+            ).copyWith(textScaler: const TextScaler.linear(2)),
+            child: child!,
+          ),
+          home: Scaffold(
+            body: GalleryDetailDialog(
+              item: item,
+              detail: const GalleryDetail(
+                item: item,
+                media: [GalleryMedia(id: 'overflow')],
+              ),
+              isFavorited: false,
+              favoriteLoading: false,
+              canUseGenerationActions: true,
+              labels: _labels(),
+              onCopyPrompt: (_) {},
+              onToggleFavorite: () async => true,
+              onOpenSource: () {},
+              onSendToGenerate: (_) {},
+              onAddToQueue: (_) async {},
+              onDownloadCurrentOriginal: (_) async {},
+              onTagSearch: (_) {},
+              onBlacklistChanged: () {},
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final overflow = find.byKey(
+      const ValueKey('gallery-detail-action-overflow'),
+    );
+    final surface = find
+        .ancestor(
+          of: overflow,
+          matching: find.byWidgetPredicate(
+            (widget) => widget is Material && widget.shape is CircleBorder,
+          ),
+        )
+        .first;
+    final theme = Theme.of(tester.element(overflow));
+    final fill = theme.colorScheme.surfaceContainerHigh;
+
+    await hoverOver(tester, overflow);
+    expectInkOnTop(tester, surface, ink: theme.hoverColor, below: fill);
+
+    final press = await pressAndHold(tester, overflow);
+    expectInkOnTop(tester, surface, ink: theme.highlightColor, below: fill);
+    await press.cancel();
+    await tester.pumpAndSettle();
+  });
+
   testWidgets('embedded detail composes with the adaptive presenter', (
     tester,
   ) async {

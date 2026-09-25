@@ -100,4 +100,61 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 400));
   });
+
+  testWidgets('添加角色卡的悬停与按压反馈画在卡片底色之上', (tester) async {
+    tester.view.physicalSize = const Size(1200, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          characterPromptRepositoryProvider.overrideWith(
+            (ref) => _MemoryCharacterPromptRepository(
+              const CharacterPromptConfig(
+                characters: [
+                  CharacterPrompt(id: 'alice', name: 'Alice', prompt: 'girl'),
+                ],
+              ),
+            ),
+          ),
+          imageGenerationNotifierProvider.overrideWith(
+            _IdleImageGenerationNotifier.new,
+          ),
+        ],
+        child: const MaterialApp(
+          locale: Locale('en'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(
+            body: SingleChildScrollView(child: InlineCharacterRow()),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    final addMenu = find.byKey(const Key('character-add-menu'));
+    final theme = Theme.of(tester.element(addMenu));
+    final cardFill = theme.colorScheme.surfaceContainerLow;
+    final card = find
+        .ancestor(
+          of: addMenu,
+          matching: find.byWidgetPredicate(
+            (widget) =>
+                widget is DecoratedBox &&
+                (widget.decoration as BoxDecoration).color == cardFill,
+          ),
+        )
+        .first;
+
+    await hoverOver(tester, addMenu);
+    expectInkOnTop(tester, card, ink: theme.hoverColor, below: cardFill);
+
+    final press = await pressAndHold(tester, addMenu);
+    expectInkOnTop(tester, card, ink: theme.highlightColor, below: cardFill);
+    await press.cancel();
+    await tester.pump(const Duration(milliseconds: 400));
+  });
 }

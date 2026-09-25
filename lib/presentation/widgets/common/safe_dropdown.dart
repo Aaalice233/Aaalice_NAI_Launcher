@@ -78,6 +78,8 @@ class _SafeDropdownState<T> extends State<SafeDropdown<T>> {
           onChanged: widget.onChanged,
           isExpanded: widget.isExpanded,
           focusNode: _focusNode,
+          // 键盘焦点由输入框描边表达
+          focusColor: Colors.transparent,
           hint: widget.hintText != null
               ? Text(
                   widget.hintText!,

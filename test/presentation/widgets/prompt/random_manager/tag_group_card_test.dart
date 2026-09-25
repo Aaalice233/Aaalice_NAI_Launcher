@@ -12,7 +12,10 @@ import 'package:nai_launcher/data/models/prompt/time_condition.dart';
 import 'package:nai_launcher/data/models/prompt/visibility_rule.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/providers/random_preset_provider.dart';
+import 'package:nai_launcher/presentation/themes/core/layered_surface_style.dart';
 import 'package:nai_launcher/presentation/widgets/prompt/random_manager/tag_group_card.dart';
+
+import '../../../../helpers/ink_expectations.dart';
 
 const _group = RandomTagGroup(
   id: 'group',
@@ -181,6 +184,52 @@ void main() {
     expect(emphasis.increasedValue, '8%');
     expect(find.text('6%'), findsNothing);
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('选择模式下拉框的悬停反馈画在分组底色之上', (tester) async {
+    tester.view.physicalSize = const Size(1180, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          randomPresetNotifierProvider.overrideWith(
+            _FixedRandomPresetNotifier.new,
+          ),
+        ],
+        child: const MaterialApp(
+          locale: Locale('zh'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(
+            body: TagGroupCard(
+              tagGroup: _group,
+              categoryId: 'category',
+              categoryKey: 'category',
+              presetId: 'preset',
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.tap(find.text('包含全部复杂配置的超长词组名称'));
+    await tester.pumpAndSettle();
+
+    final selector = find.byType(DropdownButton<SelectionMode>);
+    await tester.ensureVisible(selector);
+    await tester.pumpAndSettle();
+    final section = find
+        .ancestor(of: find.byType(TabBarView), matching: find.byType(Container))
+        .first;
+    final theme = Theme.of(tester.element(selector));
+    await hoverOver(tester, selector);
+    expectInkOnTop(
+      tester,
+      section,
+      ink: theme.hoverColor,
+      below: sectionSurfaceColor(theme.colorScheme),
+    );
   });
 }
 

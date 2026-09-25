@@ -34,6 +34,9 @@ void main() {
 
     final segment = find.byType(SurfaceInkWell).first;
     final theme = Theme.of(tester.element(segment));
+    Color leadingStop() =>
+        tester.widget<SurfaceInkWell>(segment).gradient!.colors.first;
+    expect(leadingStop(), theme.colorScheme.primary.withValues(alpha: 0.6));
 
     await hoverOver(tester, segment);
     expectInkOnTop(tester, segment, ink: theme.hoverColor, belowGradient: true);
@@ -47,8 +50,7 @@ void main() {
     );
     await press.up();
     await tester.pump(const Duration(milliseconds: 300));
-    final selected = tester.widget<SurfaceInkWell>(segment).gradient!;
-    expect(selected.colors.first, theme.colorScheme.primary);
+    expect(leadingStop(), theme.colorScheme.primary);
 
     final again = await pressAndHold(tester, segment);
     expectInkOnTop(

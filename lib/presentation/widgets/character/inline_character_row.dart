@@ -572,15 +572,18 @@ class _AddCharacterChip extends ConsumerWidget {
         message: l10n.character_limitReached(limit.toString()),
         child: Opacity(
           opacity: 0.4,
-          child: IgnorePointer(child: _buildChipBody(theme, l10n)),
+          child: IgnorePointer(
+            child: _buildChipSurface(theme, _buildChipBody(theme, l10n)),
+          ),
         ),
       );
     }
 
-    return PopupMenuButton<_CharacterAddAction>(
+    final menu = PopupMenuButton<_CharacterAddAction>(
       key: const Key('character-add-menu'),
       tooltip: l10n.character_addCharacter,
       padding: EdgeInsets.zero,
+      borderRadius: _chipRadius,
       position: PopupMenuPosition.under,
       offset: const Offset(0, 4),
       onSelected: (action) => _handleAdd(context, ref, action),
@@ -621,15 +624,24 @@ class _AddCharacterChip extends ConsumerWidget {
       // 与角色卡同宽的添加卡（宽度由外部网格单元给定）
       child: _buildChipBody(theme, l10n),
     );
+    return _buildChipSurface(theme, menu);
+  }
+
+  static const _chipRadius = BorderRadius.all(Radius.circular(8));
+
+  Widget _buildChipSurface(ThemeData theme, Widget child) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerLow,
+        borderRadius: _chipRadius,
+      ),
+      child: InkHost(child: child),
+    );
   }
 
   Widget _buildChipBody(ThemeData theme, AppLocalizations l10n) {
     return Container(
       constraints: const BoxConstraints(minHeight: 72),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerLow,
-        borderRadius: BorderRadius.circular(8),
-      ),
       child: Center(
         child: Row(
           mainAxisSize: MainAxisSize.min,

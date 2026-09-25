@@ -50,7 +50,7 @@ class GalleryCollectionToolbarSurface extends StatelessWidget {
       ),
       padding: GalleryCollectionChrome.toolbarPadding(context),
       color: sectionSurfaceColor(Theme.of(context).colorScheme),
-      child: child,
+      child: InkHost(child: child),
     );
   }
 }
@@ -224,11 +224,13 @@ class GallerySidebarSurface extends StatelessWidget {
     final colorScheme = Theme.of(context).colorScheme;
     final content = ColoredBox(
       color: controlSurfaceColor(colorScheme),
-      child: Column(
-        children: [
-          Expanded(child: child),
-          if (footer != null) footer!,
-        ],
+      child: InkHost(
+        child: Column(
+          children: [
+            Expanded(child: child),
+            if (footer != null) footer!,
+          ],
+        ),
       ),
     );
     if (modal) return SizedBox(width: double.infinity, child: content);
@@ -348,7 +350,7 @@ class _GallerySidebarNavigationItemState
                 : _isHovered
                 ? colors.surfaceContainerHighest
                 : Colors.transparent,
-            // 未选中时悬停由底色表达
+            // Unselected rows show hover through the fill alone.
             hoverColor: widget.isSelected ? null : Colors.transparent,
             duration: const Duration(milliseconds: 150),
             onTap: widget.onTap,
@@ -556,6 +558,8 @@ class _GallerySidebarSectionHeaderState
         child: InkWell(
           onTap: widget.onToggle,
           borderRadius: BorderRadius.circular(8),
+          // The header fill already darkens on hover.
+          hoverColor: Colors.transparent,
           child: ConstrainedBox(
             constraints: const BoxConstraints(minHeight: 48),
             child: Row(

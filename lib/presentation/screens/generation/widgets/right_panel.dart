@@ -15,6 +15,7 @@ import '../../../agent_chat/widgets/agent_chat_panel.dart';
 import '../../../providers/layout_state_provider.dart';
 import '../../../router/shell_panels_overlay.dart';
 import '../../../themes/core/layered_surface_style.dart';
+import '../../../widgets/common/ink_host.dart';
 import '../../../widgets/common/owned_scroll_controller.dart';
 import '../../../widgets/common/resizable_split.dart';
 import 'collapsed_panel.dart';
@@ -120,9 +121,11 @@ class _RightPanelState extends ConsumerState<RightPanel>
         color: theme.colorScheme.surface,
         border: Border(left: BorderSide(color: theme.dividerColor, width: 1)),
       ),
-      child: allocation.expanded
-          ? _buildExpanded(layout, allocation)
-          : _buildCollapsed(layout, allocation),
+      child: InkHost(
+        child: allocation.expanded
+            ? _buildExpanded(layout, allocation)
+            : _buildCollapsed(layout, allocation),
+      ),
     );
   }
 
