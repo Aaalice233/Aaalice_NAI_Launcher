@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/semantics.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/widgets/online_gallery/video_player_widget.dart';
@@ -112,6 +113,44 @@ void main() {
     expect(slider, findsOne);
     expect(slider.evaluate().single.value, '00:02');
     expect(find.text('00:02'), findsOneWidget);
+  });
+
+  testWidgets('play toggle is a named button that follows the playing state', (
+    tester,
+  ) async {
+    final videoValue = ValueNotifier<VideoPlayerValue>(
+      const VideoPlayerValue(
+        duration: Duration(seconds: 10),
+        isInitialized: true,
+      ),
+    );
+    addTearDown(videoValue.dispose);
+    var toggles = 0;
+    await tester.pumpWidget(
+      _app(
+        OnlineGalleryVideoControls(
+          valueListenable: videoValue,
+          showControls: true,
+          onTogglePlayPause: () => toggles++,
+          onSeek: (_) {},
+        ),
+      ),
+    );
+
+    FinderBase<SemanticsNode> toggle(String label) =>
+        find.semantics.byPredicate(
+          (node) => node.flagsCollection.isButton && node.label == label,
+        );
+    expect(toggle('Play'), findsOne);
+    expect(find.byTooltip('Play'), findsOneWidget);
+
+    tester.semantics.tap(toggle('Play'));
+    expect(toggles, 1);
+
+    videoValue.value = videoValue.value.copyWith(isPlaying: true);
+    await tester.pump();
+    expect(toggle('Play'), findsNothing);
+    expect(toggle('Pause'), findsOne);
   });
 }
 

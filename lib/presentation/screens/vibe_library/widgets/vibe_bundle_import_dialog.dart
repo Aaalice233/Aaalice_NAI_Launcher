@@ -788,6 +788,7 @@ class _VibeBundleImportDialogState extends State<VibeBundleImportDialog> {
     );
     final field = EditableDoubleField(
       value: value,
+      semanticLabel: label,
       min: unboundedInput ? null : min,
       max: unboundedInput ? null : max,
       decimals: decimals,

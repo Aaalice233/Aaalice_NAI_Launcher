@@ -261,6 +261,7 @@ class _PreciseRefEntryEditDialogState extends State<PreciseRefEntryEditDialog> {
         final field = EditableDoubleField(
           key: fieldKey,
           value: value,
+          semanticLabel: label,
           decimals: decimals,
           width: 64,
           onChanged: onChanged,

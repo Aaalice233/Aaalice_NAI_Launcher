@@ -20,6 +20,11 @@ void main() {
     expect(node.value, '0.5');
     expect(node.increasedValue, '0.55');
     expect(_fieldText(tester, 'NR 强度'), '0.5');
+    final field = find.semantics.byPredicate(
+      (node) => node.flagsCollection.isTextField && node.label == 'NR 强度',
+    );
+    expect(field, findsOne, reason: '外包的 Semantics 标签并入输入框节点');
+    expect(field.evaluate().single.value, '0.5');
     expect(
       SliderTheme.of(tester.element(find.byType(Slider))).showValueIndicator,
       ShowValueIndicator.never,

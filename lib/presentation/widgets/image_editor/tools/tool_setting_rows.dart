@@ -36,6 +36,7 @@ class ToolSettingRow {
        trailing = controller == null
            ? _ToolValueText(_sliderValueText(value, suffix))
            : _ToolNumberField(
+               label: label,
                controller: controller,
                min: min,
                max: max,
@@ -245,12 +246,14 @@ class _ToolSlider extends StatelessWidget {
 
 class _ToolNumberField extends StatelessWidget {
   const _ToolNumberField({
+    required this.label,
     required this.controller,
     required this.min,
     required this.max,
     required this.onChanged,
   });
 
+  final String label;
   final TextEditingController controller;
   final double min;
   final double max;
@@ -261,6 +264,7 @@ class _ToolNumberField extends StatelessWidget {
     final onChanged = this.onChanged;
     return ThemedInput(
       controller: controller,
+      semanticLabel: label,
       enabled: onChanged != null,
       style: Theme.of(context).textTheme.bodySmall,
       textAlign: TextAlign.center,

@@ -426,6 +426,7 @@ class _GenerationSettingsSectionState
           width: 64,
           child: ThemedInput(
             controller: controller,
+            semanticLabel: label,
             keyboardType: keyboardType,
             textAlign: TextAlign.center,
             decoration: _buildSettingsInputDecoration(theme),
@@ -440,6 +441,7 @@ class _GenerationSettingsSectionState
       children: [
         IconButton(
           icon: const Icon(Icons.remove_circle_outline),
+          tooltip: context.l10n.settings_decreaseValue(label),
           visualDensity: VisualDensity.compact,
           onPressed: onDecrease,
         ),
@@ -459,6 +461,7 @@ class _GenerationSettingsSectionState
         ),
         IconButton(
           icon: const Icon(Icons.add_circle_outline),
+          tooltip: context.l10n.settings_increaseValue(label),
           visualDensity: VisualDensity.compact,
           onPressed: onIncrease,
         ),

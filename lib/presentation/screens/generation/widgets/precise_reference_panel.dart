@@ -841,6 +841,7 @@ class _PreciseReferenceCard extends StatelessWidget {
             ),
             EditableDoubleField(
               value: value,
+              semanticLabel: label,
               decimals: decimals,
               width: 64,
               onChanged: onChanged,

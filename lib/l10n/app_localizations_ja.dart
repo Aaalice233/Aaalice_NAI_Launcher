@@ -7917,6 +7917,16 @@ class AppLocalizationsJa extends AppLocalizations {
   }
 
   @override
+  String settings_decreaseValue(Object field) {
+    return '$fieldを減らす';
+  }
+
+  @override
+  String settings_increaseValue(Object field) {
+    return '$fieldを増やす';
+  }
+
+  @override
   String get unit_times => '回';
 
   @override
@@ -12838,6 +12848,12 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get onlineGallery_videoPositionLabel => '再生位置';
+
+  @override
+  String get onlineGallery_videoPlay => '再生';
+
+  @override
+  String get onlineGallery_videoPause => '一時停止';
 
   @override
   String get vibe_releaseToAddStyleReference => '離すとスタイル参照を追加';

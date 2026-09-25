@@ -8114,6 +8114,16 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String settings_decreaseValue(Object field) {
+    return 'Decrease $field';
+  }
+
+  @override
+  String settings_increaseValue(Object field) {
+    return 'Increase $field';
+  }
+
+  @override
   String get unit_times => 'times';
 
   @override
@@ -13177,6 +13187,12 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get onlineGallery_videoPositionLabel => 'Playback position';
+
+  @override
+  String get onlineGallery_videoPlay => 'Play';
+
+  @override
+  String get onlineGallery_videoPause => 'Pause';
 
   @override
   String get vibe_releaseToAddStyleReference =>

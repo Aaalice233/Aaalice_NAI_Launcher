@@ -177,7 +177,7 @@ void main() {
     }
   }
 
-  testWidgets('滑块以所在行标签朗读，数值与界面一致且不并入数值框', (tester) async {
+  testWidgets('滑块与数值框各自以所在行标签朗读，数值与界面一致', (tester) async {
     final controller = TextEditingController(text: '20');
     addTearDown(controller.dispose);
     await _pumpRows(
@@ -204,6 +204,7 @@ void main() {
       (node) => node.flagsCollection.isTextField,
     );
     expect(field, findsOne);
+    expect(field.evaluate().single.label, 'Size');
     final fieldNode = field.evaluate().single;
     expect(fieldNode.flagsCollection.isSlider, isFalse);
     expect(fieldNode.isMergedIntoParent, isFalse);

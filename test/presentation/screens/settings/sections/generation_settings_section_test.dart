@@ -174,6 +174,53 @@ void main() {
     expect(storage.values[StorageKeys.queueRetryCount], before + 1);
   });
 
+  testWidgets('重试行的数值框与增减按钮以设置名朗读', (tester) async {
+    final storage = _MemoryLocalStorageService();
+    await tester.binding.setSurfaceSize(const Size(1000, 1600));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [localStorageServiceProvider.overrideWith((ref) => storage)],
+        child: const MaterialApp(
+          locale: Locale('zh'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(
+            body: SingleChildScrollView(child: GenerationSettingsSection()),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    SemanticsNode fieldNode(String label) {
+      final field = find.semantics.byPredicate(
+        (node) => node.flagsCollection.isTextField && node.label == label,
+      );
+      expect(field, findsOne, reason: label);
+      return field.evaluate().single;
+    }
+
+    for (final label in const ['重试次数', '重试间隔']) {
+      expect(fieldNode(label).value, isNotEmpty, reason: label);
+      for (final action in ['减少$label', '增加$label']) {
+        expect(
+          find.semantics.byPredicate(
+            (node) => node.flagsCollection.isButton && node.tooltip == action,
+          ),
+          findsOne,
+          reason: action,
+        );
+      }
+    }
+
+    final before = int.parse(fieldNode('重试次数').value);
+    await tester.tap(find.byTooltip('增加重试次数'));
+    await tester.pumpAndSettle();
+    expect(storage.values[StorageKeys.queueRetryCount], before + 1);
+  });
+
   testWidgets('透明图像 Alpha 模式默认直通并可切换为预乘', (tester) async {
     final storage = _MemoryLocalStorageService();
     await tester.binding.setSurfaceSize(const Size(1000, 1600));

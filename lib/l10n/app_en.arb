@@ -3772,6 +3772,18 @@
       "seconds": {}
     }
   },
+  "settings_decreaseValue": "Decrease {field}",
+  "@settings_decreaseValue": {
+    "placeholders": {
+      "field": {}
+    }
+  },
+  "settings_increaseValue": "Increase {field}",
+  "@settings_increaseValue": {
+    "placeholders": {
+      "field": {}
+    }
+  },
   "unit_times": "times",
   "unit_seconds": "seconds",
 
@@ -6428,6 +6440,8 @@
 
   "onlineGallery_videoLoadFailed": "Failed to load video",
   "onlineGallery_videoPositionLabel": "Playback position",
+  "onlineGallery_videoPlay": "Play",
+  "onlineGallery_videoPause": "Pause",
   "vibe_releaseToAddStyleReference": "Release to add style reference",
   "router_backAgainToExit": "Swipe or press back again to exit",
   "router_pageNotFound": "Page not found: {error}",

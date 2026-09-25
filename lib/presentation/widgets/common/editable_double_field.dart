@@ -15,6 +15,7 @@ class EditableDoubleField extends StatefulWidget {
     this.width = 64,
     this.textStyle,
     this.enabled = true,
+    this.semanticLabel,
   }) : assert(min == null || max == null || min <= max);
 
   static const int defaultDecimals = 2;
@@ -31,6 +32,7 @@ class EditableDoubleField extends StatefulWidget {
   final double width;
   final TextStyle? textStyle;
   final bool enabled;
+  final String? semanticLabel;
 
   @override
   State<EditableDoubleField> createState() => _EditableDoubleFieldState();
@@ -115,42 +117,45 @@ class _EditableDoubleFieldState extends State<EditableDoubleField> {
         constraints: BoxConstraints(
           minHeight: context.interactionPolicy.minimumControlExtent,
         ),
-        child: TextField(
-          controller: _controller,
-          focusNode: _focusNode,
-          enabled: widget.enabled,
-          textAlign: TextAlign.right,
-          keyboardType: const TextInputType.numberWithOptions(
-            decimal: true,
-            signed: true,
+        child: Semantics(
+          label: widget.semanticLabel,
+          child: TextField(
+            controller: _controller,
+            focusNode: _focusNode,
+            enabled: widget.enabled,
+            textAlign: TextAlign.right,
+            keyboardType: const TextInputType.numberWithOptions(
+              decimal: true,
+              signed: true,
+            ),
+            inputFormatters: [
+              FilteringTextInputFormatter.allow(RegExp(r'[-0-9.]')),
+            ],
+            decoration: InputDecoration(
+              isDense: true,
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 8,
+                vertical: 6,
+              ),
+              filled: true,
+              fillColor: inputSurfaceFillColor(theme.colorScheme),
+              border: inputSurfaceBorder(
+                theme.colorScheme,
+                BorderRadius.circular(8),
+              ),
+              enabledBorder: inputSurfaceBorder(
+                theme.colorScheme,
+                BorderRadius.circular(8),
+              ),
+              focusedBorder: inputSurfaceBorder(
+                theme.colorScheme,
+                BorderRadius.circular(8),
+                focused: true,
+              ),
+            ),
+            style: widget.textStyle,
+            onSubmitted: (_) => _commit(),
           ),
-          inputFormatters: [
-            FilteringTextInputFormatter.allow(RegExp(r'[-0-9.]')),
-          ],
-          decoration: InputDecoration(
-            isDense: true,
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: 8,
-              vertical: 6,
-            ),
-            filled: true,
-            fillColor: inputSurfaceFillColor(theme.colorScheme),
-            border: inputSurfaceBorder(
-              theme.colorScheme,
-              BorderRadius.circular(8),
-            ),
-            enabledBorder: inputSurfaceBorder(
-              theme.colorScheme,
-              BorderRadius.circular(8),
-            ),
-            focusedBorder: inputSurfaceBorder(
-              theme.colorScheme,
-              BorderRadius.circular(8),
-              focused: true,
-            ),
-          ),
-          style: widget.textStyle,
-          onSubmitted: (_) => _commit(),
         ),
       ),
     );

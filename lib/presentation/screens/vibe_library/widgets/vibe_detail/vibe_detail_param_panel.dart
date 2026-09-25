@@ -290,6 +290,7 @@ class VibeDetailParamPanel extends StatelessWidget {
             ),
             EditableDoubleField(
               value: value,
+              semanticLabel: labelText,
               min: fieldMin,
               max: fieldMax,
               width: 72,

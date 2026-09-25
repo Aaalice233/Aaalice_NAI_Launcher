@@ -134,6 +134,9 @@ class ThemedInput extends StatefulWidget {
   /// Whether to add a native Ctrl+Y redo shortcut for plain text fields.
   final bool enableNativeRedoShortcut;
 
+  /// 读屏名称，可见标签不在输入框内时提供
+  final String? semanticLabel;
+
   const ThemedInput({
     super.key,
     this.controller,
@@ -178,6 +181,7 @@ class ThemedInput extends StatefulWidget {
     this.clearNeedsConfirm = false,
     this.contextMenuBuilder,
     this.enableNativeRedoShortcut = true,
+    this.semanticLabel,
   });
 
   /// 创建多行输入框
@@ -222,6 +226,7 @@ class ThemedInput extends StatefulWidget {
     this.clearNeedsConfirm = false,
     this.contextMenuBuilder,
     this.enableNativeRedoShortcut = true,
+    this.semanticLabel,
   });
 
   @override
@@ -374,39 +379,43 @@ class _ThemedInputState extends State<ThemedInput> {
       );
     }
 
-    final field = TextField(
-      controller: _effectiveController,
-      undoController: widget.undoController,
-      focusNode: _effectiveFocusNode,
-      maxLines: widget.maxLines,
-      minLines: widget.minLines,
-      expands: widget.expands,
-      scrollPhysics: widget.scrollPhysics,
-      textInputAction: widget.textInputAction,
-      keyboardType: widget.keyboardType,
-      onChanged: widget.onChanged,
-      onSubmitted: widget.onSubmitted,
-      onTap: widget.onTap,
-      onEditingComplete: widget.onEditingComplete,
-      onTapOutside: widget.onTapOutside,
-      readOnly: widget.readOnly,
-      enabled: widget.enabled,
-      inputFormatters: widget.inputFormatters,
-      obscureText: widget.obscureText,
-      maxLength: widget.maxLength,
-      style: widget.style,
-      autofocus: widget.autofocus,
-      textAlign: widget.textAlign,
-      textAlignVertical:
-          widget.textAlignVertical ??
-          (widget.maxLines == 1 && !widget.expands
-              ? TextAlignVertical.center
-              : null),
-      cursorColor: widget.cursorColor,
-      decoration: inputDecoration,
-      // 不传时用带主题字体的默认实现：Flutter 自带的工具栏按钮会绕开
-      // 主题字体，右键菜单会一直是系统默认字体。
-      contextMenuBuilder: widget.contextMenuBuilder ?? themedContextMenuBuilder,
+    final field = Semantics(
+      label: widget.semanticLabel,
+      child: TextField(
+        controller: _effectiveController,
+        undoController: widget.undoController,
+        focusNode: _effectiveFocusNode,
+        maxLines: widget.maxLines,
+        minLines: widget.minLines,
+        expands: widget.expands,
+        scrollPhysics: widget.scrollPhysics,
+        textInputAction: widget.textInputAction,
+        keyboardType: widget.keyboardType,
+        onChanged: widget.onChanged,
+        onSubmitted: widget.onSubmitted,
+        onTap: widget.onTap,
+        onEditingComplete: widget.onEditingComplete,
+        onTapOutside: widget.onTapOutside,
+        readOnly: widget.readOnly,
+        enabled: widget.enabled,
+        inputFormatters: widget.inputFormatters,
+        obscureText: widget.obscureText,
+        maxLength: widget.maxLength,
+        style: widget.style,
+        autofocus: widget.autofocus,
+        textAlign: widget.textAlign,
+        textAlignVertical:
+            widget.textAlignVertical ??
+            (widget.maxLines == 1 && !widget.expands
+                ? TextAlignVertical.center
+                : null),
+        cursorColor: widget.cursorColor,
+        decoration: inputDecoration,
+        // 不传时用带主题字体的默认实现：Flutter 自带的工具栏按钮会绕开
+        // 主题字体，右键菜单会一直是系统默认字体。
+        contextMenuBuilder:
+            widget.contextMenuBuilder ?? themedContextMenuBuilder,
+      ),
     );
 
     final textField = widget.enableNativeRedoShortcut
