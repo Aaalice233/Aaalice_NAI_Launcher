@@ -111,10 +111,7 @@ void main() {
     );
 
     lease.release();
-    for (var i = 0; i < 20; i++) {
-      await Future<void>.delayed(const Duration(milliseconds: 10));
-      if (container.read(subscriptionNotifierProvider).balance == 73) break;
-    }
+    await _waitForBalance(container, 73);
     expect(container.read(subscriptionNotifierProvider).balance, 73);
     verify(
       () => apiService.getUserSubscription(
@@ -174,6 +171,7 @@ void main() {
     () async {
       final apiService = _MockNAIUserInfoApiService();
       final firstResponse = Completer<Map<String, dynamic>>();
+      final firstRequestStarted = Completer<void>();
       CancelToken? firstCancelToken;
       var requestCount = 0;
       when(
@@ -190,6 +188,7 @@ void main() {
           cancelToken.whenCancel.then((error) {
             if (!firstResponse.isCompleted) firstResponse.completeError(error);
           });
+          firstRequestStarted.complete();
           return firstResponse.future;
         }
         return Future.value(_subscriptionJson(balance: 77));
@@ -206,9 +205,7 @@ void main() {
       unawaited(
         container.read(subscriptionNotifierProvider.notifier).refreshBalance(),
       );
-      for (var i = 0; i < 20 && firstCancelToken == null; i++) {
-        await Future<void>.delayed(const Duration(milliseconds: 5));
-      }
+      await firstRequestStarted.future;
       expect(firstCancelToken, isNotNull);
 
       final activity = CriticalNetworkActivityCoordinator.instance;
@@ -220,13 +217,7 @@ void main() {
       expect(requestCount, 1);
 
       lease.release();
-      for (
-        var i = 0;
-        i < 20 && container.read(subscriptionNotifierProvider).balance != 77;
-        i++
-      ) {
-        await Future<void>.delayed(const Duration(milliseconds: 5));
-      }
+      await _waitForBalance(container, 77);
       expect(requestCount, 2);
       expect(container.read(subscriptionNotifierProvider).balance, 77);
     },
@@ -454,7 +445,9 @@ void main() {
     container.dispose();
   });
 
-  test('post-billing refresh waits briefly and debounces bursts', () async {
+  testWidgets('post-billing refresh waits briefly and debounces bursts', (
+    tester,
+  ) async {
     final apiService = _MockNAIUserInfoApiService();
     var requestCount = 0;
     when(
@@ -479,17 +472,19 @@ void main() {
     addTearDown(container.dispose);
 
     final notifier = container.read(subscriptionNotifierProvider.notifier);
-    notifier.schedulePostBillingRefresh(
-      delay: const Duration(milliseconds: 10),
-    );
-    notifier.schedulePostBillingRefresh(
-      delay: const Duration(milliseconds: 10),
-    );
+    const delay = Duration(milliseconds: 10);
+    notifier.schedulePostBillingRefresh(delay: delay);
+    notifier.schedulePostBillingRefresh(delay: delay);
 
-    await Future<void>.delayed(const Duration(milliseconds: 30));
+    await tester.pump(delay - const Duration(milliseconds: 1));
+    expect(requestCount, 0);
 
+    await tester.pump(const Duration(milliseconds: 1));
     expect(requestCount, 1);
     expect(container.read(subscriptionNotifierProvider).balance, 70);
+
+    await tester.pump(delay * 3);
+    expect(requestCount, 1);
   });
 
   test('subscription-unsupported session never hits the endpoint', () async {
@@ -529,6 +524,18 @@ void main() {
       ),
     );
   });
+}
+
+Future<void> _waitForBalance(ProviderContainer container, int balance) {
+  final reached = Completer<void>();
+  final subscription = container.listen<SubscriptionState>(
+    subscriptionNotifierProvider,
+    (_, next) {
+      if (next.balance == balance && !reached.isCompleted) reached.complete();
+    },
+    fireImmediately: true,
+  );
+  return reached.future.whenComplete(subscription.close);
 }
 
 Map<String, dynamic> _subscriptionJson({required int balance}) {
