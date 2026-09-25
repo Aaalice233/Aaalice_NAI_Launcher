@@ -14,6 +14,8 @@ import 'package:nai_launcher/presentation/providers/mosaic_settings_provider.dar
 import 'package:nai_launcher/presentation/screens/mosaic/mosaic_editor_canvas.dart';
 import 'package:nai_launcher/presentation/screens/mosaic/mosaic_editor_screen.dart';
 
+import '../../../helpers/labeled_rows_expectations.dart';
+
 class _Settings extends MosaicSettingsNotifier {
   @override
   MosaicSettingsState build() => const MosaicSettingsState(
@@ -227,6 +229,39 @@ void main() {
     }
   }
 
+  for (final locale in const ['en', 'ja']) {
+    for (final width in labeledRowWidths) {
+      for (final scale in labeledRowTextScales) {
+        final scenario = '$locale ${width.toInt()} ${scale}x';
+        testWidgets('$scenario mask sliders keep labels whole and reachable', (
+          tester,
+        ) async {
+          await _mount(tester, bytes, Size(width, 900), scale, locale: locale);
+          expect(tester.takeException(), isNull, reason: scenario);
+          final l10n = lookupAppLocalizations(Locale(locale));
+          await expectLabeledSliderRows(
+            tester,
+            labels: [
+              l10n.mosaic_opacity,
+              l10n.mosaic_cornerRadius,
+              l10n.mosaic_brushSize,
+            ],
+            labelsSingleLine: locale != 'en',
+            lazyScrollable: find
+                .descendant(
+                  of: find.byType(ListView),
+                  matching: find.byType(Scrollable),
+                )
+                .first,
+            reason: scenario,
+          );
+          expect(tester.takeException(), isNull, reason: scenario);
+          await tester.pumpWidget(const SizedBox.shrink());
+        });
+      }
+    }
+  }
+
   for (final inset in [0.0, 200.0]) {
     testWidgets(
       'short landscape with keyboard inset $inset has usable actions',
@@ -323,6 +358,7 @@ Future<void> _mount(
   Size size,
   double scale, {
   double keyboardInset = 0,
+  String locale = 'en',
   MosaicRenderOperation renderCopy = MosaicRenderService.render,
 }) async {
   await tester.binding.setSurfaceSize(size);
@@ -331,7 +367,7 @@ Future<void> _mount(
     ProviderScope(
       overrides: [mosaicSettingsProvider.overrideWith(_Settings.new)],
       child: MaterialApp(
-        locale: const Locale('en'),
+        locale: Locale(locale),
         localizationsDelegates: AppLocalizations.localizationsDelegates,
         supportedLocales: AppLocalizations.supportedLocales,
         home: MediaQuery(

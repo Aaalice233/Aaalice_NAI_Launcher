@@ -7,9 +7,8 @@ import '../../../../core/utils/localization_extension.dart';
 import '../../../../data/models/vibe/vibe_reference.dart';
 import '../../../adaptive/adaptive_presenter.dart';
 import '../../../widgets/common/adaptive_dialog_frame.dart';
-import '../../../widgets/common/editable_double_field.dart';
+import '../../../widgets/common/labeled_slider_rows.dart';
 import '../../../widgets/common/surface_ink_well.dart';
-import '../../../widgets/common/themed_slider.dart';
 
 enum BundleImportOption { keepAsBundle, split, importSelected }
 
@@ -701,33 +700,36 @@ class _VibeBundleImportDialogState extends State<VibeBundleImportDialog> {
     required int index,
     required bool isSelected,
   }) {
-    return Column(
-      children: [
-        _buildParamSlider(
-          theme,
+    return LabeledSliderRows(
+      labelStyle: theme.textTheme.labelSmall?.copyWith(
+        color: theme.colorScheme.onSurfaceVariant,
+      ),
+      valueStyle: theme.textTheme.labelSmall,
+      rowPadding: const EdgeInsets.symmetric(vertical: 3),
+      sliders: [
+        LabeledSlider.editable(
           label: context.l10n.vibe_strength,
           value: _strengthValues[index],
           min: VibeReference.minSliderStrength,
           max: VibeReference.maxSliderStrength,
           divisions: 99,
-          unboundedInput: true,
-          enabled: isSelected,
-          onChanged: (value) {
-            setState(() => _strengthValues[index] = value);
-          },
+          inputWidth: 56,
+          onChanged: isSelected
+              ? (value) => setState(() => _strengthValues[index] = value)
+              : null,
         ),
-        const SizedBox(height: 6),
-        _buildParamSlider(
-          theme,
+        LabeledSlider.editable(
           label: context.l10n.vibe_infoExtracted,
           value: _infoExtractedValues[index],
           min: VibeReference.minInfoExtracted,
           max: VibeReference.maxInfoExtracted,
           divisions: 99,
-          enabled: isSelected,
-          onChanged: (value) {
-            setState(() => _infoExtractedValues[index] = value);
-          },
+          inputMin: VibeReference.minInfoExtracted,
+          inputMax: VibeReference.maxInfoExtracted,
+          inputWidth: 56,
+          onChanged: isSelected
+              ? (value) => setState(() => _infoExtractedValues[index] = value)
+              : null,
         ),
       ],
     );
@@ -765,76 +767,6 @@ class _VibeBundleImportDialogState extends State<VibeBundleImportDialog> {
           fontFeatures: const [FontFeature.tabularFigures()],
         ),
       ),
-    );
-  }
-
-  Widget _buildParamSlider(
-    ThemeData theme, {
-    required String label,
-    required double value,
-    required double min,
-    required double max,
-    required int divisions,
-    required bool enabled,
-    required ValueChanged<double> onChanged,
-    bool unboundedInput = false,
-  }) {
-    const decimals = 2;
-    final labelWidget = Text(
-      label,
-      style: theme.textTheme.labelSmall?.copyWith(
-        color: theme.colorScheme.onSurfaceVariant,
-      ),
-    );
-    final field = EditableDoubleField(
-      value: value,
-      semanticLabel: label,
-      min: unboundedInput ? null : min,
-      max: unboundedInput ? null : max,
-      decimals: decimals,
-      width: 56,
-      enabled: enabled,
-      onChanged: onChanged,
-      textStyle: theme.textTheme.labelSmall?.copyWith(
-        fontFeatures: const [FontFeature.tabularFigures()],
-      ),
-    );
-    final slider = NamedSlider(
-      label: label,
-      valueText: (v) => EditableDoubleField.format(v, decimals: decimals),
-      value: value,
-      min: min,
-      max: max,
-      divisions: divisions,
-      onChanged: enabled ? onChanged : null,
-    );
-
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        if (constraints.maxWidth < 300 ||
-            MediaQuery.textScalerOf(context).scale(14) > 21) {
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Row(
-                children: [
-                  Expanded(child: labelWidget),
-                  const SizedBox(width: 8),
-                  field,
-                ],
-              ),
-              slider,
-            ],
-          );
-        }
-        return Row(
-          children: [
-            SizedBox(width: 56, child: labelWidget),
-            Expanded(child: slider),
-            field,
-          ],
-        );
-      },
     );
   }
 

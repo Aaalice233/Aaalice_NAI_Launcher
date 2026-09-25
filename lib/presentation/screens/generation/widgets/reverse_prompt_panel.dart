@@ -25,7 +25,7 @@ import '../../../widgets/common/translated_tag_text.dart';
 import '../../../widgets/common/collapsible_image_panel.dart';
 import '../../../widgets/common/decoded_memory_image.dart';
 import '../../../widgets/common/themed_divider.dart';
-import '../../../widgets/common/themed_slider.dart';
+import '../../../widgets/common/labeled_slider_rows.dart';
 import '../../../widgets/tag_library/tag_library_picker_dialog.dart';
 
 class ReversePromptPanel extends ConsumerStatefulWidget {
@@ -323,23 +323,27 @@ class _ReversePromptPanelState extends ConsumerState<ReversePromptPanel> {
               ),
             ),
             const SizedBox(height: 6),
-            _ThresholdSlider(
-              label: context.l10n.reversePrompt_generalThreshold,
-              value: state.taggerGeneralThreshold,
-              onChanged: state.isProcessing
-                  ? null
-                  : ref
-                        .read(reversePromptProvider.notifier)
-                        .setTaggerGeneralThreshold,
-            ),
-            _ThresholdSlider(
-              label: context.l10n.reversePrompt_characterThreshold,
-              value: state.taggerCharacterThreshold,
-              onChanged: state.isProcessing
-                  ? null
-                  : ref
-                        .read(reversePromptProvider.notifier)
-                        .setTaggerCharacterThreshold,
+            LabeledSliderRows(
+              sliders: [
+                _thresholdSlider(
+                  label: context.l10n.reversePrompt_generalThreshold,
+                  value: state.taggerGeneralThreshold,
+                  onChanged: state.isProcessing
+                      ? null
+                      : ref
+                            .read(reversePromptProvider.notifier)
+                            .setTaggerGeneralThreshold,
+                ),
+                _thresholdSlider(
+                  label: context.l10n.reversePrompt_characterThreshold,
+                  value: state.taggerCharacterThreshold,
+                  onChanged: state.isProcessing
+                      ? null
+                      : ref
+                            .read(reversePromptProvider.notifier)
+                            .setTaggerCharacterThreshold,
+                ),
+              ],
             ),
             Text(
               context.l10n.reversePrompt_taggerFilterHint,
@@ -609,39 +613,19 @@ class _ReversePromptPanelState extends ConsumerState<ReversePromptPanel> {
   }
 }
 
-class _ThresholdSlider extends StatelessWidget {
-  const _ThresholdSlider({
-    required this.label,
-    required this.value,
-    required this.onChanged,
-  });
-
-  final String label;
-  final double value;
-  final ValueChanged<double>? onChanged;
-
-  static String _valueText(double value) => value.toStringAsFixed(2);
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        SizedBox(width: 104, child: Text('$label ${_valueText(value)}')),
-        Expanded(
-          child: NamedSlider(
-            label: label,
-            valueText: _valueText,
-            value: value,
-            min: 0.05,
-            max: 0.95,
-            divisions: 18,
-            onChanged: onChanged,
-          ),
-        ),
-      ],
-    );
-  }
-}
+LabeledSlider _thresholdSlider({
+  required String label,
+  required double value,
+  required ValueChanged<double>? onChanged,
+}) => LabeledSlider(
+  label: label,
+  value: value,
+  min: 0.05,
+  max: 0.95,
+  divisions: 18,
+  valueText: (value) => value.toStringAsFixed(2),
+  onChanged: onChanged,
+);
 
 class _PromptOutputBlock extends StatelessWidget {
   const _PromptOutputBlock({required this.title, required this.text});

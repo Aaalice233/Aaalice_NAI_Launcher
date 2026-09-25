@@ -1,8 +1,11 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../adaptive/interaction_policy.dart';
 import '../../themes/core/input_surface_style.dart';
+import '../../utils/single_line_text_width.dart';
 
 class EditableDoubleField extends StatefulWidget {
   const EditableDoubleField({
@@ -20,9 +23,34 @@ class EditableDoubleField extends StatefulWidget {
 
   static const int defaultDecimals = 2;
 
+  static const _contentPadding = EdgeInsets.symmetric(
+    horizontal: 8,
+    vertical: 6,
+  );
+
+  // M3 在描边输入框内容两侧各留一段 gapPadding；光标另占 2px 宽度与其后 1px
+  static final double _horizontalChrome =
+      _contentPadding.horizontal +
+      2 * const OutlineInputBorder().gapPadding +
+      3;
+
   /// 输入框显示数值的格式；配对滑块的读屏读数也用它，读出的即显示的
   static String format(double value, {int decimals = defaultDecimals}) =>
       value.toStringAsFixed(decimals);
+
+  /// 单行完整显示 [text] 且内容不滚动所需的宽度，不小于 [minWidth]
+  static double widthFor(
+    BuildContext context,
+    String text, {
+    TextStyle? textStyle,
+    double minWidth = 64,
+  }) {
+    final style = Theme.of(context).textTheme.bodyLarge?.merge(textStyle);
+    return math.max(
+      minWidth,
+      singleLineTextWidth(context, text, style) + _horizontalChrome,
+    );
+  }
 
   final double value;
   final double? min;
@@ -100,19 +128,14 @@ class _EditableDoubleFieldState extends State<EditableDoubleField> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final textStyle = widget.textStyle ?? theme.textTheme.bodyLarge;
-    final textPainter = TextPainter(
-      text: TextSpan(text: _format(widget.value), style: textStyle),
-      textScaler: MediaQuery.textScalerOf(context),
-      textDirection: Directionality.of(context),
-      maxLines: 1,
-    )..layout();
-    final responsiveWidth = (textPainter.width + 16)
-        .clamp(widget.width, double.infinity)
-        .toDouble();
 
     return SizedBox(
-      width: responsiveWidth,
+      width: EditableDoubleField.widthFor(
+        context,
+        _format(widget.value),
+        textStyle: widget.textStyle,
+        minWidth: widget.width,
+      ),
       child: ConstrainedBox(
         constraints: BoxConstraints(
           minHeight: context.interactionPolicy.minimumControlExtent,
@@ -133,10 +156,7 @@ class _EditableDoubleFieldState extends State<EditableDoubleField> {
             ],
             decoration: InputDecoration(
               isDense: true,
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: 8,
-                vertical: 6,
-              ),
+              contentPadding: EditableDoubleField._contentPadding,
               filled: true,
               fillColor: inputSurfaceFillColor(theme.colorScheme),
               border: inputSurfaceBorder(

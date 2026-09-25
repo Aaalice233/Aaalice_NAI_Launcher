@@ -2,10 +2,16 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image/image.dart' as img;
+import 'package:nai_launcher/core/storage/local_storage_service.dart';
+import 'package:nai_launcher/data/services/local_onnx_model_service.dart';
+import 'package:nai_launcher/l10n/app_localizations.dart';
+import 'package:nai_launcher/presentation/providers/generation/generation_panel_expansion_provider.dart';
 import 'package:nai_launcher/presentation/providers/reverse_prompt_provider.dart';
 import 'package:nai_launcher/presentation/screens/generation/widgets/reverse_prompt_panel.dart';
 
+import '../../../../helpers/labeled_rows_expectations.dart';
 import '../../../../helpers/light_theme_contrast.dart';
 
 void main() {
@@ -34,6 +40,71 @@ void main() {
     expect(find.text('1 张'), findsNothing);
     expect(find.text('保留的反推结果'), findsOneWidget);
   });
+
+  for (final locale in const ['zh', 'ja', 'en']) {
+    for (final width in labeledRowWidths) {
+      for (final scale in labeledRowTextScales) {
+        final scenario = '$locale ${width.toInt()} ${scale}x';
+        testWidgets('$scenario 下阈值滑块标签完整且可达', (tester) async {
+          final container = createStorageFreeContainer(
+            overrides: [
+              localOnnxModelServiceProvider.overrideWith(
+                (ref) => _NoTaggerModels(ref.read(localStorageServiceProvider)),
+              ),
+            ],
+          );
+          addTearDown(container.dispose);
+          await container
+              .read(generationPanelExpansionProvider.notifier)
+              .setExpanded(GenerationWorkbenchPanel.reversePrompt, true);
+          await tester.binding.setSurfaceSize(Size(width, 1200));
+          addTearDown(() => tester.binding.setSurfaceSize(null));
+          await tester.pumpWidget(
+            UncontrolledProviderScope(
+              container: container,
+              child: MaterialApp(
+                locale: Locale(locale),
+                supportedLocales: AppLocalizations.supportedLocales,
+                localizationsDelegates: AppLocalizations.localizationsDelegates,
+                builder: (context, child) => MediaQuery(
+                  data: MediaQuery.of(
+                    context,
+                  ).copyWith(textScaler: TextScaler.linear(scale)),
+                  child: child!,
+                ),
+                home: const Scaffold(
+                  body: SingleChildScrollView(child: ReversePromptPanel()),
+                ),
+              ),
+            ),
+          );
+          await tester.pumpAndSettle();
+          // 底部操作按钮行在窄屏大字号下的既有溢出不属于滑块行，行内越界由逐项边界断言覆盖
+          tester.takeException();
+
+          final l10n = lookupAppLocalizations(Locale(locale));
+          await expectLabeledSliderRows(
+            tester,
+            labels: [
+              l10n.reversePrompt_generalThreshold,
+              l10n.reversePrompt_characterThreshold,
+            ],
+            labelsSingleLine: locale != 'en',
+            readouts: const ['0.35'],
+            reason: scenario,
+          );
+          tester.takeException();
+        });
+      }
+    }
+  }
+}
+
+class _NoTaggerModels extends LocalOnnxModelService {
+  const _NoTaggerModels(super.storage);
+
+  @override
+  Future<List<LocalOnnxModelDescriptor>> scanTaggerModels() async => const [];
 }
 
 final Uint8List _testImageBytes = Uint8List.fromList(

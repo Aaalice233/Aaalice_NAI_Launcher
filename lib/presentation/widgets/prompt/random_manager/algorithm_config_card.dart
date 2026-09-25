@@ -8,6 +8,7 @@ import '../../../../data/models/prompt/random_preset.dart';
 import '../../../providers/random_preset_provider.dart';
 import '../../../themes/core/layered_surface_style.dart';
 import '../../common/ink_host.dart';
+import '../../common/labeled_slider_rows.dart';
 import '../../common/themed_slider.dart';
 import 'probability_text.dart';
 import 'random_config_l10n.dart';
@@ -358,13 +359,17 @@ class _ExpandedConfig extends StatelessWidget {
             label: context.l10n.randomManager_characterCountWeight,
           ),
           const SizedBox(height: 8),
-          ...countCategories.map(
-            (category) => _WeightSlider(
-              label: context.l10n.characterCountLabel(category),
-              value: category.weight,
-              enabled: !readOnly,
-              onChanged: (value) => onCountWeightChanged(category.id, value),
-            ),
+          _WeightSliders(
+            sliders: [
+              for (final category in countCategories)
+                _weightSlider(
+                  label: context.l10n.characterCountLabel(category),
+                  value: category.weight,
+                  enabled: !readOnly,
+                  onChanged: (value) =>
+                      onCountWeightChanged(category.id, value),
+                ),
+            ],
           ),
           if (soloCategoryId != null && soloOptions.isNotEmpty) ...[
             const SizedBox(height: 12),
@@ -373,14 +378,17 @@ class _ExpandedConfig extends StatelessWidget {
               label: context.l10n.randomManager_genderWeight,
             ),
             const SizedBox(height: 8),
-            ...soloOptions.map(
-              (option) => _WeightSlider(
-                label: context.l10n.characterTagOptionLabel(option),
-                value: option.weight,
-                enabled: !readOnly,
-                onChanged: (value) =>
-                    onGenderWeightChanged(soloCategoryId, option.id, value),
-              ),
+            _WeightSliders(
+              sliders: [
+                for (final option in soloOptions)
+                  _weightSlider(
+                    label: context.l10n.characterTagOptionLabel(option),
+                    value: option.weight,
+                    enabled: !readOnly,
+                    onChanged: (value) =>
+                        onGenderWeightChanged(soloCategoryId, option.id, value),
+                  ),
+              ],
             ),
           ],
           const SizedBox(height: 10),
@@ -465,55 +473,33 @@ class _SectionLabel extends StatelessWidget {
   }
 }
 
-class _WeightSlider extends StatelessWidget {
-  const _WeightSlider({
-    required this.label,
-    required this.value,
-    required this.enabled,
-    required this.onChanged,
-  });
+LabeledSlider _weightSlider({
+  required String label,
+  required int value,
+  required bool enabled,
+  required ValueChanged<int> onChanged,
+}) => LabeledSlider(
+  label: label,
+  value: value.toDouble(),
+  min: 1,
+  max: 100,
+  divisions: 99,
+  valueText: (weight) => '${weight.round()}',
+  onChanged: enabled ? (next) => onChanged(next.round()) : null,
+);
 
-  final String label;
-  final int value;
-  final bool enabled;
-  final ValueChanged<int> onChanged;
+class _WeightSliders extends StatelessWidget {
+  const _WeightSliders({required this.sliders});
 
-  static String _weightText(double weight) => '${weight.round()}';
+  final List<LabeledSlider> sliders;
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
-        SizedBox(
-          width: 78,
-          child: Text(
-            label,
-            overflow: TextOverflow.ellipsis,
-            style: Theme.of(context).textTheme.bodySmall,
-          ),
-        ),
-        Expanded(
-          child: NamedSlider(
-            label: label,
-            valueText: _weightText,
-            value: value.toDouble(),
-            min: 1,
-            max: 100,
-            divisions: 99,
-            onChanged: enabled ? (next) => onChanged(next.round()) : null,
-          ),
-        ),
-        SizedBox(
-          width: 28,
-          child: Text(
-            _weightText(value.toDouble()),
-            textAlign: TextAlign.end,
-            style: Theme.of(context).textTheme.labelSmall?.copyWith(
-              fontFeatures: const [FontFeature.tabularFigures()],
-            ),
-          ),
-        ),
-      ],
+    final textTheme = Theme.of(context).textTheme;
+    return LabeledSliderRows(
+      sliders: sliders,
+      labelStyle: textTheme.bodySmall,
+      valueStyle: textTheme.labelSmall,
     );
   }
 }

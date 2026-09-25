@@ -25,7 +25,7 @@ import '../../providers/mosaic_settings_provider.dart';
 import '../../providers/share_image_settings_provider.dart';
 import '../../widgets/image_editor/widgets/color_picker.dart';
 import '../../widgets/common/horizontal_segmented_control.dart';
-import '../../widgets/common/themed_slider.dart';
+import '../../widgets/common/labeled_slider_rows.dart';
 import 'mosaic_editor_canvas.dart';
 
 class MosaicEditorSource {
@@ -1171,28 +1171,34 @@ class _MosaicEditorScreenState extends ConsumerState<MosaicEditorScreen> {
     ),
     const SizedBox(height: 10),
     if (_settings.effect == MosaicEffect.pixelate)
-      _MosaicSlider(
-        label: context.l10n.mosaic_pixelSize,
-        value: _settings.pixelSizeRatio,
-        min: 0.004,
-        max: 0.08,
-        onChangeStart: _pushUndo,
-        onChanged: (value) => _changeSettings(
-          _settings.copyWith(pixelSizeRatio: value),
-          recordUndo: false,
-        ),
+      LabeledSliderRows(
+        sliders: [
+          _ratioSlider(
+            label: context.l10n.mosaic_pixelSize,
+            value: _settings.pixelSizeRatio,
+            min: 0.004,
+            max: 0.08,
+            onChanged: (value) => _changeSettings(
+              _settings.copyWith(pixelSizeRatio: value),
+              recordUndo: false,
+            ),
+          ),
+        ],
       ),
     if (_settings.effect == MosaicEffect.blur)
-      _MosaicSlider(
-        label: context.l10n.mosaic_blurStrength,
-        value: _settings.blurSigmaRatio,
-        min: 0.003,
-        max: 0.06,
-        onChangeStart: _pushUndo,
-        onChanged: (value) => _changeSettings(
-          _settings.copyWith(blurSigmaRatio: value),
-          recordUndo: false,
-        ),
+      LabeledSliderRows(
+        sliders: [
+          _ratioSlider(
+            label: context.l10n.mosaic_blurStrength,
+            value: _settings.blurSigmaRatio,
+            min: 0.003,
+            max: 0.06,
+            onChanged: (value) => _changeSettings(
+              _settings.copyWith(blurSigmaRatio: value),
+              recordUndo: false,
+            ),
+          ),
+        ],
       ),
     if (_settings.effect == MosaicEffect.solid)
       ListTile(
@@ -1212,44 +1218,65 @@ class _MosaicEditorScreenState extends ConsumerState<MosaicEditorScreen> {
       ),
   ];
 
+  LabeledSlider _ratioSlider({
+    required String label,
+    required double value,
+    required double min,
+    required double max,
+    required ValueChanged<double>? onChanged,
+  }) {
+    // 选区贴边时可移动范围会收成一点，滑块区间不能为空
+    final safeMax = math.max(min + 0.000001, max);
+    return LabeledSlider(
+      label: label,
+      value: value.clamp(min, safeMax).toDouble(),
+      min: min,
+      max: safeMax,
+      valueText: _percentText,
+      onChangeStart: onChanged == null ? null : (_) => _pushUndo(),
+      onChanged: onChanged,
+    );
+  }
+
   List<Widget> _buildMaskControls() => [
-    _MosaicSlider(
-      label: context.l10n.mosaic_opacity,
-      value: _settings.opacity,
-      min: 0.1,
-      max: 1,
-      onChangeStart: _pushUndo,
-      onChanged: (value) => _changeSettings(
-        _settings.copyWith(opacity: value),
-        recordUndo: false,
-      ),
-    ),
-    _MosaicSlider(
-      label: context.l10n.mosaic_cornerRadius,
-      value: _settings.cornerRadiusRatio,
-      min: 0,
-      max: 0.5,
-      onChangeStart: _pushUndo,
-      onChanged: (value) => _changeSettings(
-        _settings.copyWith(cornerRadiusRatio: value),
-        recordUndo: false,
-      ),
-    ),
-    _MosaicSlider(
-      label: context.l10n.mosaic_brushSize,
-      value: _settings.brushSizeRatio,
-      min: 0.01,
-      max: 0.16,
-      onChangeStart: _pushUndo,
-      onChanged: (value) {
-        _changeSettings(
-          _settings.copyWith(brushSizeRatio: value),
-          recordUndo: false,
-        );
-        if (_selectedRegion?.shape == MosaicShape.brush) {
-          _setSelectedBrushSize(value);
-        }
-      },
+    LabeledSliderRows(
+      sliders: [
+        _ratioSlider(
+          label: context.l10n.mosaic_opacity,
+          value: _settings.opacity,
+          min: 0.1,
+          max: 1,
+          onChanged: (value) => _changeSettings(
+            _settings.copyWith(opacity: value),
+            recordUndo: false,
+          ),
+        ),
+        _ratioSlider(
+          label: context.l10n.mosaic_cornerRadius,
+          value: _settings.cornerRadiusRatio,
+          min: 0,
+          max: 0.5,
+          onChanged: (value) => _changeSettings(
+            _settings.copyWith(cornerRadiusRatio: value),
+            recordUndo: false,
+          ),
+        ),
+        _ratioSlider(
+          label: context.l10n.mosaic_brushSize,
+          value: _settings.brushSizeRatio,
+          min: 0.01,
+          max: 0.16,
+          onChanged: (value) {
+            _changeSettings(
+              _settings.copyWith(brushSizeRatio: value),
+              recordUndo: false,
+            );
+            if (_selectedRegion?.shape == MosaicShape.brush) {
+              _setSelectedBrushSize(value);
+            }
+          },
+        ),
+      ],
     ),
     SwitchListTile(
       contentPadding: EdgeInsets.zero,
@@ -1366,68 +1393,71 @@ class _MosaicEditorScreenState extends ConsumerState<MosaicEditorScreen> {
   List<Widget> _buildRegionGeometryControls(MosaicRegion selected) => [
     if (selected.shape != MosaicShape.brush) ...[
       const SizedBox(height: 8),
-      _MosaicSlider(
-        label: context.l10n.mosaic_positionX,
-        value: selected.left,
-        min: 0,
-        max: math.max(0.001, 1 - selected.width),
-        onChangeStart: _pushUndo,
-        onChanged: selected.locked
-            ? null
-            : (value) => _updateRegion(
-                selected.copyWith(left: value),
-                recordUndo: false,
-              ),
-      ),
-      _MosaicSlider(
-        label: context.l10n.mosaic_positionY,
-        value: selected.top,
-        min: 0,
-        max: math.max(0.001, 1 - selected.height),
-        onChangeStart: _pushUndo,
-        onChanged: selected.locked
-            ? null
-            : (value) => _updateRegion(
-                selected.copyWith(top: value),
-                recordUndo: false,
-              ),
-      ),
-      _MosaicSlider(
-        label: context.l10n.mosaic_width,
-        value: selected.width,
-        min: 0.02,
-        max: math.max(0.02, 1 - selected.left),
-        onChangeStart: _pushUndo,
-        onChanged: selected.locked
-            ? null
-            : (value) => _updateRegion(
-                selected.copyWith(width: value),
-                recordUndo: false,
-              ),
-      ),
-      _MosaicSlider(
-        label: context.l10n.mosaic_height,
-        value: selected.height,
-        min: 0.02,
-        max: math.max(0.02, 1 - selected.top),
-        onChangeStart: _pushUndo,
-        onChanged: selected.locked
-            ? null
-            : (value) => _updateRegion(
-                selected.copyWith(height: value),
-                recordUndo: false,
-              ),
+      LabeledSliderRows(
+        sliders: [
+          _ratioSlider(
+            label: context.l10n.mosaic_positionX,
+            value: selected.left,
+            min: 0,
+            max: math.max(0.001, 1 - selected.width),
+            onChanged: selected.locked
+                ? null
+                : (value) => _updateRegion(
+                    selected.copyWith(left: value),
+                    recordUndo: false,
+                  ),
+          ),
+          _ratioSlider(
+            label: context.l10n.mosaic_positionY,
+            value: selected.top,
+            min: 0,
+            max: math.max(0.001, 1 - selected.height),
+            onChanged: selected.locked
+                ? null
+                : (value) => _updateRegion(
+                    selected.copyWith(top: value),
+                    recordUndo: false,
+                  ),
+          ),
+          _ratioSlider(
+            label: context.l10n.mosaic_width,
+            value: selected.width,
+            min: 0.02,
+            max: math.max(0.02, 1 - selected.left),
+            onChanged: selected.locked
+                ? null
+                : (value) => _updateRegion(
+                    selected.copyWith(width: value),
+                    recordUndo: false,
+                  ),
+          ),
+          _ratioSlider(
+            label: context.l10n.mosaic_height,
+            value: selected.height,
+            min: 0.02,
+            max: math.max(0.02, 1 - selected.top),
+            onChanged: selected.locked
+                ? null
+                : (value) => _updateRegion(
+                    selected.copyWith(height: value),
+                    recordUndo: false,
+                  ),
+          ),
+        ],
       ),
     ] else
-      _MosaicSlider(
-        label: context.l10n.mosaic_brushSize,
-        value: selected.brushSizeRatio,
-        min: 0.01,
-        max: 0.16,
-        onChangeStart: _pushUndo,
-        onChanged: selected.locked
-            ? null
-            : (value) => _setSelectedBrushSize(value),
+      LabeledSliderRows(
+        sliders: [
+          _ratioSlider(
+            label: context.l10n.mosaic_brushSize,
+            value: selected.brushSizeRatio,
+            min: 0.01,
+            max: 0.16,
+            onChanged: selected.locked
+                ? null
+                : (value) => _setSelectedBrushSize(value),
+          ),
+        ],
       ),
   ];
 
@@ -1588,65 +1618,4 @@ class _MosaicSnapshot {
   final MosaicShape drawShape;
 }
 
-class _MosaicSlider extends StatelessWidget {
-  const _MosaicSlider({
-    required this.label,
-    required this.value,
-    required this.min,
-    required this.max,
-    required this.onChangeStart,
-    required this.onChanged,
-  });
-
-  final String label;
-  final double value;
-  final double min;
-  final double max;
-  final VoidCallback onChangeStart;
-  final ValueChanged<double>? onChanged;
-
-  static String _percentText(double value) =>
-      '${(value * 100).toStringAsFixed(0)}%';
-
-  @override
-  Widget build(BuildContext context) {
-    final safeMax = math.max(min + 0.000001, max);
-    final safeValue = value.clamp(min, safeMax).toDouble();
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final percentage = Text(_percentText(safeValue));
-        final slider = NamedSlider(
-          label: label,
-          valueText: _percentText,
-          value: safeValue,
-          min: min,
-          max: safeMax,
-          onChangeStart: onChanged == null ? null : (_) => onChangeStart(),
-          onChanged: onChanged,
-        );
-        if (constraints.maxWidth < 350 ||
-            MediaQuery.textScalerOf(context).scale(14) > 20) {
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(label),
-              Row(
-                children: [
-                  Expanded(child: slider),
-                  percentage,
-                ],
-              ),
-            ],
-          );
-        }
-        return Row(
-          children: [
-            SizedBox(width: 116, child: Text(label)),
-            Expanded(child: slider),
-            percentage,
-          ],
-        );
-      },
-    );
-  }
-}
+String _percentText(double value) => '${(value * 100).toStringAsFixed(0)}%';

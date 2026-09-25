@@ -1,4 +1,6 @@
 import 'package:nai_launcher/presentation/widgets/common/horizontal_action_strip.dart';
+import 'dart:math' as math;
+
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -11,7 +13,9 @@ import '../../../providers/generation/generation_params_notifier.dart';
 import '../../../providers/generation/generation_settings_notifiers.dart';
 import '../../../providers/notification_settings_provider.dart';
 import '../../../themes/core/input_surface_style.dart';
+import '../../../utils/single_line_text_width.dart';
 import '../../../widgets/common/app_toast.dart';
+import '../../../widgets/common/labeled_control_rows.dart';
 import '../../../widgets/common/themed_input.dart';
 import '../../../widgets/common/themed_slider.dart';
 import '../widgets/settings_card.dart';
@@ -289,71 +293,69 @@ class _GenerationSettingsSectionState
         ),
         SettingsCard(
           title: l10n.settings_generationRetrySection,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              _buildRetrySliderRow(
-                theme: theme,
-                label: l10n.settings_queueRetryCount,
-                valueText: (value) =>
-                    l10n.settings_queueRetryCountMax('${value.round()}'),
-                value: retryCount.toDouble(),
-                min: 1,
-                max: 30,
-                divisions: 29,
-                unit: l10n.unit_times,
-                controller: _retryCountController,
-                onDecrease: retryCount > 1
-                    ? () => _updateRetryCount(retryCount - 1)
-                    : null,
-                onIncrease: retryCount < 30
-                    ? () => _updateRetryCount(retryCount + 1)
-                    : null,
-                onSliderChanged: (value) => _updateRetryCount(value.round()),
-                onSubmitted: (value) {
-                  final parsed = int.tryParse(value);
-                  if (parsed != null) {
-                    _updateRetryCount(parsed);
-                  } else {
-                    _retryCountController.text = '$retryCount';
-                  }
-                },
+          child: _buildRetryRows(theme, [
+            _RetrySlider(
+              label: l10n.settings_queueRetryCount,
+              valueText: (value) =>
+                  l10n.settings_queueRetryCountMax('${value.round()}'),
+              value: retryCount.toDouble(),
+              min: 1,
+              max: 30,
+              divisions: 29,
+              unit: l10n.unit_times,
+              inputText: (value) => '${value.round()}',
+              controller: _retryCountController,
+              onDecrease: retryCount > 1
+                  ? () => _updateRetryCount(retryCount - 1)
+                  : null,
+              onIncrease: retryCount < 30
+                  ? () => _updateRetryCount(retryCount + 1)
+                  : null,
+              onSliderChanged: (value) => _updateRetryCount(value.round()),
+              onSubmitted: (value) {
+                final parsed = int.tryParse(value);
+                if (parsed != null) {
+                  _updateRetryCount(parsed);
+                } else {
+                  _retryCountController.text = '$retryCount';
+                }
+              },
+            ),
+            _RetrySlider(
+              label: l10n.settings_queueRetryInterval,
+              valueText: (value) => l10n.settings_queueRetryIntervalValue(
+                value.toStringAsFixed(1),
               ),
-              _buildRetrySliderRow(
-                theme: theme,
-                label: l10n.settings_queueRetryInterval,
-                valueText: (value) => l10n.settings_queueRetryIntervalValue(
-                  value.toStringAsFixed(1),
-                ),
-                value: retryInterval,
-                min: 0.5,
-                max: 10.0,
-                divisions: 19,
-                unit: l10n.unit_seconds,
-                controller: _retryIntervalController,
-                keyboardType: const TextInputType.numberWithOptions(
-                  decimal: true,
-                ),
-                onDecrease: retryInterval > 0.5
-                    ? () => _updateRetryInterval(retryInterval - 0.5)
-                    : null,
-                onIncrease: retryInterval < 10.0
-                    ? () => _updateRetryInterval(retryInterval + 0.5)
-                    : null,
-                onSliderChanged: (value) =>
-                    _updateRetryInterval((value * 2).round() / 2),
-                onSubmitted: (value) {
-                  final parsed = double.tryParse(value);
-                  if (parsed != null) {
-                    _updateRetryInterval(parsed);
-                  } else {
-                    _retryIntervalController.text = retryInterval
-                        .toStringAsFixed(1);
-                  }
-                },
+              value: retryInterval,
+              min: 0.5,
+              max: 10.0,
+              divisions: 19,
+              unit: l10n.unit_seconds,
+              inputText: (value) => value.toStringAsFixed(1),
+              controller: _retryIntervalController,
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
               ),
-            ],
-          ),
+              onDecrease: retryInterval > 0.5
+                  ? () => _updateRetryInterval(retryInterval - 0.5)
+                  : null,
+              onIncrease: retryInterval < 10.0
+                  ? () => _updateRetryInterval(retryInterval + 0.5)
+                  : null,
+              onSliderChanged: (value) =>
+                  _updateRetryInterval((value * 2).round() / 2),
+              onSubmitted: (value) {
+                final parsed = double.tryParse(value);
+                if (parsed != null) {
+                  _updateRetryInterval(parsed);
+                } else {
+                  _retryIntervalController.text = retryInterval.toStringAsFixed(
+                    1,
+                  );
+                }
+              },
+            ),
+          ]),
         ),
         SettingsCard(
           title: l10n.settings_generationFeedbackSection,
@@ -403,115 +405,149 @@ class _GenerationSettingsSectionState
     );
   }
 
-  Widget _buildRetrySliderRow({
-    required ThemeData theme,
-    required String label,
-    required String Function(double value) valueText,
-    required double value,
-    required double min,
-    required double max,
-    required int divisions,
-    required String unit,
-    required TextEditingController controller,
-    TextInputType keyboardType = TextInputType.number,
-    VoidCallback? onDecrease,
-    VoidCallback? onIncrease,
-    required ValueChanged<double> onSliderChanged,
-    required ValueChanged<String> onSubmitted,
-  }) {
-    final valueEditor = Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        SizedBox(
-          width: 64,
-          child: ThemedInput(
-            controller: controller,
-            semanticLabel: label,
-            keyboardType: keyboardType,
-            textAlign: TextAlign.center,
-            decoration: _buildSettingsInputDecoration(theme),
-            onSubmitted: onSubmitted,
+  Widget _buildRetryRows(ThemeData theme, List<_RetrySlider> sliders) {
+    final descriptionStyle = theme.textTheme.bodySmall?.copyWith(
+      color: theme.colorScheme.outline,
+      fontFeatures: const [FontFeature.tabularFigures()],
+    );
+    const unitGap = 8.0;
+    // 内容区左右内边距、输入框容器两侧 1px 描边、光标 2px 宽度与其后 1px
+    final inputChrome =
+        _buildSettingsInputDecoration(theme).contentPadding!.horizontal + 5;
+    double widest(Iterable<String> texts, TextStyle? style) => texts.fold(
+      0.0,
+      (width, text) =>
+          math.max(width, singleLineTextWidth(context, text, style)),
+    );
+    final inputWidth = math.max(
+      64.0,
+      widest([
+            for (final slider in sliders) ...[
+              slider.inputText(slider.min),
+              slider.inputText(slider.max),
+            ],
+          ], theme.textTheme.bodyLarge) +
+          inputChrome,
+    );
+
+    return LabeledControlRows(
+      descriptionStyle: descriptionStyle,
+      // 读数随拖动变化，按区间两端定宽，滑块不会跟着挪动
+      minLabelWidth: widest([
+        for (final slider in sliders) ...[
+          slider.valueText(slider.min),
+          slider.valueText(slider.max),
+        ],
+      ], descriptionStyle),
+      trailingWidth:
+          inputWidth + unitGap + widest(sliders.map((s) => s.unit), null),
+      rowPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      // 两个增减按钮之外还要留出可拖动的轨道
+      minControlWidth: 200,
+      columnGap: 8,
+      rows: [
+        for (final slider in sliders)
+          _buildRetryRow(
+            theme,
+            slider,
+            inputWidth: inputWidth,
+            unitGap: unitGap,
           ),
-        ),
-        const SizedBox(width: 8),
-        Flexible(child: Text(unit)),
       ],
     );
-    final slider = Row(
-      children: [
-        IconButton(
-          icon: const Icon(Icons.remove_circle_outline),
-          tooltip: context.l10n.settings_decreaseValue(label),
-          visualDensity: VisualDensity.compact,
-          onPressed: onDecrease,
-        ),
-        Expanded(
-          child: SliderTheme(
-            data: _buildSettingsSliderTheme(context),
-            child: NamedSlider(
-              label: label,
-              valueText: valueText,
-              value: value,
-              min: min,
-              max: max,
-              divisions: divisions,
-              onChanged: onSliderChanged,
+  }
+
+  LabeledControlRow _buildRetryRow(
+    ThemeData theme,
+    _RetrySlider slider, {
+    required double inputWidth,
+    required double unitGap,
+  }) {
+    final label = slider.label;
+    return LabeledControlRow(
+      label: label,
+      description: slider.valueText(slider.value),
+      control: Row(
+        children: [
+          IconButton(
+            icon: const Icon(Icons.remove_circle_outline),
+            tooltip: context.l10n.settings_decreaseValue(label),
+            visualDensity: VisualDensity.compact,
+            onPressed: slider.onDecrease,
+          ),
+          Expanded(
+            child: SliderTheme(
+              data: _buildSettingsSliderTheme(context),
+              child: NamedSlider(
+                label: label,
+                valueText: slider.valueText,
+                value: slider.value,
+                min: slider.min,
+                max: slider.max,
+                divisions: slider.divisions,
+                onChanged: slider.onSliderChanged,
+              ),
             ),
           ),
-        ),
-        IconButton(
-          icon: const Icon(Icons.add_circle_outline),
-          tooltip: context.l10n.settings_increaseValue(label),
-          visualDensity: VisualDensity.compact,
-          onPressed: onIncrease,
-        ),
-      ],
-    );
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final textScale = MediaQuery.textScalerOf(context).scale(1);
-          final useStackedLayout =
-              constraints.maxWidth < 600 || textScale > 1.6;
-          final labels = Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(label),
-              Text(
-                valueText(value),
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: theme.colorScheme.outline,
-                ),
-              ),
-            ],
-          );
-
-          if (useStackedLayout) {
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                labels,
-                const SizedBox(height: 4),
-                slider,
-                const SizedBox(height: 4),
-                Align(alignment: Alignment.centerRight, child: valueEditor),
-              ],
-            );
-          }
-          return Row(
-            children: [
-              SizedBox(width: 112, child: labels),
-              const SizedBox(width: 8),
-              Expanded(child: slider),
-              const SizedBox(width: 8),
-              valueEditor,
-            ],
-          );
-        },
+          IconButton(
+            icon: const Icon(Icons.add_circle_outline),
+            tooltip: context.l10n.settings_increaseValue(label),
+            visualDensity: VisualDensity.compact,
+            onPressed: slider.onIncrease,
+          ),
+        ],
+      ),
+      trailing: Row(
+        children: [
+          SizedBox(
+            width: inputWidth,
+            child: ThemedInput(
+              controller: slider.controller,
+              semanticLabel: label,
+              keyboardType: slider.keyboardType,
+              textAlign: TextAlign.center,
+              decoration: _buildSettingsInputDecoration(theme),
+              onSubmitted: slider.onSubmitted,
+            ),
+          ),
+          SizedBox(width: unitGap),
+          Flexible(child: Text(slider.unit)),
+        ],
       ),
     );
   }
+}
+
+class _RetrySlider {
+  const _RetrySlider({
+    required this.label,
+    required this.valueText,
+    required this.value,
+    required this.min,
+    required this.max,
+    required this.divisions,
+    required this.unit,
+    required this.inputText,
+    required this.controller,
+    this.keyboardType = TextInputType.number,
+    required this.onDecrease,
+    required this.onIncrease,
+    required this.onSliderChanged,
+    required this.onSubmitted,
+  });
+
+  final String label;
+  final String Function(double value) valueText;
+  final double value;
+  final double min;
+  final double max;
+  final int divisions;
+  final String unit;
+  final String Function(double value) inputText;
+  final TextEditingController controller;
+  final TextInputType keyboardType;
+  final VoidCallback? onDecrease;
+  final VoidCallback? onIncrease;
+  final ValueChanged<double> onSliderChanged;
+  final ValueChanged<String> onSubmitted;
 }
