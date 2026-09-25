@@ -5952,9 +5952,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get statistics_noData => 'No statistics available';
 
   @override
-  String get statistics_noTagData => 'No tag data';
-
-  @override
   String get statistics_generateFirst => 'Generate some images first';
 
   @override

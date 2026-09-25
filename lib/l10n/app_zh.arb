@@ -2653,7 +2653,6 @@
 
   "statistics_title": "统计仪表盘",
   "statistics_noData": "暂无统计数据",
-  "statistics_noTagData": "暂无标签数据",
   "statistics_generateFirst": "先生成一些图片吧",
   "statistics_totalImages": "总图片数",
   "statistics_totalSize": "总大小",

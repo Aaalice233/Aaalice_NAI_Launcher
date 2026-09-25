@@ -2637,7 +2637,6 @@
 
   "statistics_title": "Statistics",
   "statistics_noData": "No statistics available",
-  "statistics_noTagData": "No tag data",
   "statistics_generateFirst": "Generate some images first",
   "statistics_totalImages": "Total Images",
   "statistics_totalSize": "Total Size",
