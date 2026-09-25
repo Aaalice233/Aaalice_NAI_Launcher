@@ -22,6 +22,11 @@ Future<void> pumpEditorWorkspace(
   double textScale = 1,
   String locale = 'en',
   String? toolId,
+  InteractionPolicy policy = const InteractionPolicy(
+    modality: InteractionModality.pointer,
+    touchAvailable: false,
+    precisePointerAvailable: true,
+  ),
 }) async {
   tester.view.devicePixelRatio = 1;
   tester.view.physicalSize = viewSize;
@@ -47,11 +52,7 @@ Future<void> pumpEditorWorkspace(
         child: child!,
       ),
       home: InteractionPolicyScope(
-        initialPolicy: const InteractionPolicy(
-          modality: InteractionModality.pointer,
-          touchAvailable: false,
-          precisePointerAvailable: true,
-        ),
+        initialPolicy: policy,
         child: ImageEditorWorkspace(
           key: key,
           controller: session,

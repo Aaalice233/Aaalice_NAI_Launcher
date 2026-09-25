@@ -22,6 +22,7 @@ import '../../utils/card_drop_reader.dart';
 import '../../widgets/common/app_toast.dart';
 import 'controllers/magic_wand_controller.dart';
 import 'core/editor_state.dart';
+import 'core/editor_view_action.dart';
 import 'effects/image_editor_effects_controller.dart';
 import 'core/focused_selection_state.dart';
 import 'core/layer_role_policy.dart';
@@ -38,11 +39,14 @@ import 'tools/frame_tool.dart';
 import 'tools/tool_base.dart';
 import 'canvas/editor_canvas.dart';
 import 'widgets/toolbar/desktop_toolbar.dart';
+import 'widgets/toolbar/editor_overflow_menu.dart';
+import 'widgets/toolbar/editor_view_menu.dart';
 import 'widgets/toolbar/mobile_toolbar.dart';
 import 'widgets/panels/layer_panel.dart';
 import 'widgets/panels/color_panel.dart';
 import 'widgets/panels/canvas_size_dialog.dart';
 import 'widgets/panels/shift_edges_dialog.dart';
+import 'widgets/editor_status_bar.dart';
 import 'widgets/outpaint_edge_drag_overlay.dart';
 import 'widgets/magic_wand_progress_overlay.dart';
 import 'canvas/layer_painter.dart';
@@ -2672,7 +2676,7 @@ class ImageEditorWorkspaceState extends State<ImageEditorWorkspace> {
                       children: [
                         Expanded(child: _buildCanvasArea()),
                         // 底部状态栏
-                        _buildStatusBar(),
+                        EditorStatusBar(state: _state),
                       ],
                     ),
                   ),
@@ -2750,7 +2754,7 @@ class ImageEditorWorkspaceState extends State<ImageEditorWorkspace> {
               onPressed: _showEffectsDialog,
               tooltip: context.l10n.editor_effects,
             ),
-          if (compactActions) _buildMobileOverflowMenu(),
+          _buildMobileOverflowMenu(includeCanvasActions: compactActions),
           ListenableBuilder(
             listenable: _frameController,
             builder: (context, _) => IconButton(
@@ -2791,67 +2795,46 @@ class ImageEditorWorkspaceState extends State<ImageEditorWorkspace> {
     );
   }
 
-  Widget _buildMobileOverflowMenu() {
-    return PopupMenuButton<_MobileEditorAction>(
-      tooltip: MaterialLocalizations.of(context).moreButtonTooltip,
-      onSelected: (action) {
-        switch (action) {
-          case _MobileEditorAction.compression:
-            unawaited(_showCompressionSheet());
-          case _MobileEditorAction.loadMask:
-            unawaited(_loadMask());
-          case _MobileEditorAction.shiftEdges:
-            unawaited(_showShiftEdgesDialog());
-          case _MobileEditorAction.cropToFrame:
-            unawaited(_cropToFrame());
-          case _MobileEditorAction.effects:
-            unawaited(_showEffectsDialog());
-        }
-      },
-      itemBuilder: (context) => [
-        PopupMenuItem(
-          value: _MobileEditorAction.compression,
-          child: ListTile(
-            leading: const Icon(Icons.compress),
-            title: Text(context.l10n.editor_compressionTooltip),
-          ),
-        ),
-        if (_isInpaintMode)
-          PopupMenuItem(
-            value: _MobileEditorAction.loadMask,
-            child: ListTile(
-              leading: const Icon(Icons.upload_file),
-              title: Text(context.l10n.editor_loadMask),
-            ),
-          ),
-        if (_isInpaintMode)
-          PopupMenuItem(
-            value: _MobileEditorAction.shiftEdges,
-            child: ListTile(
-              leading: const Icon(Icons.open_in_full),
-              title: Text(context.l10n.editor_shiftEdges),
-            ),
-          ),
-        if (_isInpaintMode)
-          PopupMenuItem(
-            value: _MobileEditorAction.cropToFrame,
-            enabled: _frameController.canCropToFrame,
-            child: ListTile(
-              enabled: _frameController.canCropToFrame,
-              leading: const Icon(Icons.crop),
-              title: Text(context.l10n.editor_cropToFrame),
-            ),
-          ),
-        if (!_isInpaintMode)
-          PopupMenuItem(
-            value: _MobileEditorAction.effects,
-            child: ListTile(
-              leading: const Icon(Icons.tune_rounded),
-              title: Text(context.l10n.editor_effects),
-            ),
-          ),
-      ],
+  /// 视图分组始终可达；画布操作只在顶栏放不下时收进菜单
+  Widget _buildMobileOverflowMenu({required bool includeCanvasActions}) {
+    return EditorOverflowMenu(
+      state: _state,
+      canvasActions: includeCanvasActions ? _mobileCanvasMenuActions : null,
     );
+  }
+
+  List<EditorMenuAction> _mobileCanvasMenuActions() {
+    final l10n = context.l10n;
+    return [
+      EditorMenuAction(
+        icon: Icons.compress,
+        label: l10n.editor_compressionTooltip,
+        onSelected: () => unawaited(_showCompressionSheet()),
+      ),
+      if (_isInpaintMode) ...[
+        EditorMenuAction(
+          icon: Icons.upload_file,
+          label: l10n.editor_loadMask,
+          onSelected: () => unawaited(_loadMask()),
+        ),
+        EditorMenuAction(
+          icon: Icons.open_in_full,
+          label: l10n.editor_shiftEdges,
+          onSelected: () => unawaited(_showShiftEdgesDialog()),
+        ),
+        EditorMenuAction(
+          icon: Icons.crop,
+          label: l10n.editor_cropToFrame,
+          enabled: _frameController.canCropToFrame,
+          onSelected: () => unawaited(_cropToFrame()),
+        ),
+      ] else
+        EditorMenuAction(
+          icon: Icons.tune_rounded,
+          label: l10n.editor_effects,
+          onSelected: () => unawaited(_showEffectsDialog()),
+        ),
+    ];
   }
 
   /// 桌面端菜单栏
@@ -3013,103 +2996,6 @@ class ImageEditorWorkspaceState extends State<ImageEditorWorkspace> {
     );
   }
 
-  /// 状态栏
-  /// 使用 Listenable.merge 实现细粒度监听
-  Widget _buildStatusBar() {
-    final theme = Theme.of(context);
-
-    return ListenableBuilder(
-      listenable: Listenable.merge([
-        _state.canvasController, // 缩放、旋转、镜像
-        _state.canvasSizeNotifier, // 画布尺寸
-        _state.layerManager, // 图层数量
-        _state.selectionManager, // 选区状态
-      ]),
-      builder: (context, _) {
-        return Container(
-          height: 24,
-          padding: const EdgeInsets.symmetric(horizontal: 12),
-          decoration: BoxDecoration(
-            color: theme.colorScheme.surfaceContainerHighest,
-            border: Border(
-              top: BorderSide(
-                color: theme.colorScheme.outlineVariant.withValues(alpha: 0.24),
-              ),
-            ),
-          ),
-          child: Row(
-            children: [
-              Text(
-                context.l10n.editor_statusZoom(
-                  (_state.canvasController.scale * 100).round(),
-                ),
-                style: theme.textTheme.bodySmall,
-              ),
-              const SizedBox(width: 16),
-              Text(
-                context.l10n.editor_statusCanvas(
-                  _state.canvasSize.width.toInt(),
-                  _state.canvasSize.height.toInt(),
-                ),
-                style: theme.textTheme.bodySmall,
-              ),
-              const SizedBox(width: 16),
-              Text(
-                context.l10n.editor_statusLayers(
-                  _state.layerManager.layerCount,
-                ),
-                style: theme.textTheme.bodySmall,
-              ),
-              if (_state.selectionPath != null) ...[
-                const SizedBox(width: 16),
-                Text(
-                  context.l10n.editor_statusHasSelection,
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.colorScheme.primary,
-                  ),
-                ),
-              ],
-              // 旋转角度显示
-              if (_state.canvasController.rotation != 0) ...[
-                const SizedBox(width: 16),
-                Text(
-                  context.l10n.editor_statusRotation(
-                    (_state.canvasController.rotation * 180 / 3.14159265359)
-                        .round(),
-                  ),
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.colorScheme.secondary,
-                  ),
-                ),
-              ],
-              // 镜像状态显示
-              if (_state.canvasController.isMirroredHorizontally) ...[
-                const SizedBox(width: 16),
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      Icons.flip,
-                      size: 14,
-                      color: theme.colorScheme.secondary,
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      context.l10n.editor_statusMirrored,
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: theme.colorScheme.secondary,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ],
-          ),
-        );
-      },
-    );
-  }
-
   /// 工具设置面板
   /// 使用 toolChangeNotifier 实现细粒度监听，仅在工具切换时重建
   Widget _buildToolSettingsPanel() {
@@ -3213,6 +3099,7 @@ class ImageEditorWorkspaceState extends State<ImageEditorWorkspace> {
               [
                 ('B', context.l10n.editor_toolBrush),
                 ('E', context.l10n.editor_toolEraser),
+                ('G', context.l10n.editor_toolFill),
                 ('W', context.l10n.editor_toolMagicWand),
                 ('P', context.l10n.editor_toolColorPicker),
                 ('Alt', context.l10n.editor_shortcutTemporaryColorPicker),
@@ -3235,14 +3122,8 @@ class ImageEditorWorkspaceState extends State<ImageEditorWorkspace> {
               panelContext,
               context.l10n.editor_shortcutCanvasView,
               [
-                ('1', context.l10n.editor_shortcut100Zoom),
-                ('2', context.l10n.editor_shortcutFitHeight),
-                ('3', context.l10n.editor_shortcutFitWidth),
-                ('4', context.l10n.editor_shortcutRotateLeft15),
-                ('5', context.l10n.editor_shortcutResetRotation),
-                ('6', context.l10n.editor_shortcutRotateRight15),
-                ('F', context.l10n.editor_shortcutFlipHorizontal),
-                ('R', context.l10n.editor_resetView),
+                for (final action in EditorViewAction.byShortcut)
+                  (action.shortcutLabel!, action.label(context)),
                 (context.l10n.editor_shortcutWheel, context.l10n.editor_zoom),
                 ('Ctrl+0', context.l10n.editor_shortcut100Zoom),
                 ('Ctrl++', context.l10n.editor_zoomIn),
@@ -3364,12 +3245,4 @@ class ImageEditorWorkspaceState extends State<ImageEditorWorkspace> {
       ),
     );
   }
-}
-
-enum _MobileEditorAction {
-  compression,
-  loadMask,
-  shiftEdges,
-  cropToFrame,
-  effects,
 }

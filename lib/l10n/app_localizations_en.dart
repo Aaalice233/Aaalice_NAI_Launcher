@@ -2596,6 +2596,15 @@ class AppLocalizationsEn extends AppLocalizations {
   String get editor_fitToWindow => 'Fit to Window';
 
   @override
+  String get editor_viewOptions => 'View Options';
+
+  @override
+  String get editor_menuGroupView => 'View';
+
+  @override
+  String get editor_menuGroupCanvas => 'Canvas';
+
+  @override
   String get editor_tempColorPickerShortcut =>
       'Alt+Click: temporary color picker';
 

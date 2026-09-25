@@ -2531,6 +2531,15 @@ class AppLocalizationsJa extends AppLocalizations {
   String get editor_fitToWindow => '窓に合わせる';
 
   @override
+  String get editor_viewOptions => 'ビューのオプション';
+
+  @override
+  String get editor_menuGroupView => 'ビュー';
+
+  @override
+  String get editor_menuGroupCanvas => 'キャンバス';
+
+  @override
   String get editor_tempColorPickerShortcut => 'Alt+クリック: 一時的なカラーピッカー';
 
   @override
