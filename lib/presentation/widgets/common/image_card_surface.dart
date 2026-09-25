@@ -48,7 +48,27 @@ class ImageCardSurface extends StatelessWidget {
     final theme = Theme.of(context);
     final motion = theme.appTheme;
     final reducedMotion = MediaQuery.disableAnimationsOf(context);
-    final hoverActions = actions.where((action) => action.showOnHover).toList();
+    final interaction = context.interactionPolicy;
+    final pinnedIds = capabilities.pinnedHoverActions;
+    final hoverActions = capabilities.showHoverActionBar
+        ? actions
+              .where(
+                (action) =>
+                    action.showOnHover && !pinnedIds.contains(action.id),
+              )
+              .toList()
+        : const <ImageCardAction>[];
+    final showHoverBar =
+        controller.isHovering &&
+        hoverActions.isNotEmpty &&
+        !capabilities.selectionMode;
+    final pinnedActions =
+        controller.isHovering && !interaction.usesTouchActionMenu
+        ? [
+            for (final id in pinnedIds)
+              ...actions.where((action) => action.id == id && action.visible),
+          ]
+        : const <ImageCardAction>[];
     final showIndexBadge =
         data.dragPreparationReady &&
         controller.showPreparedIndexBadge &&
@@ -147,28 +167,32 @@ class ImageCardSurface extends StatelessWidget {
                     onChanged: capabilities.onSelectionChanged,
                   ),
                 ),
-              if (capabilities.onFavoriteToggle != null &&
-                  !capabilities.selectionMode)
+              if (!capabilities.selectionMode &&
+                  (capabilities.onFavoriteToggle != null ||
+                      pinnedActions.isNotEmpty))
                 Positioned(
                   top: 8,
                   right: 8,
-                  child: CardFavoriteButton(
-                    isFavorite: data.isFavorite,
-                    onToggle: () => unawaited(
-                      dispatchImageCardAction(
-                        context,
-                        actions.firstWhere(
-                          (a) => a.id == ImageCardActionId.favorite,
-                        ),
-                      ),
-                    ),
-                    size: 17,
-                    borderRadius: 999,
+                  child: ImageCardCornerActionRail(
+                    pinnedActions: pinnedActions,
+                    favorite: capabilities.onFavoriteToggle == null
+                        ? null
+                        : CardFavoriteButton(
+                            isFavorite: data.isFavorite,
+                            onToggle: () => unawaited(
+                              dispatchImageCardAction(
+                                context,
+                                actions.firstWhere(
+                                  (a) => a.id == ImageCardActionId.favorite,
+                                ),
+                              ),
+                            ),
+                            size: 16,
+                            borderRadius: 999,
+                          ),
                   ),
                 ),
-              if (controller.isHovering &&
-                  hoverActions.isNotEmpty &&
-                  !capabilities.selectionMode)
+              if (showHoverBar)
                 Positioned(
                   bottom: 12,
                   left: 0,
@@ -214,9 +238,9 @@ class ImageCardSurface extends StatelessWidget {
                     ),
                   ),
                 ),
-              if (context.interactionPolicy.usesTouchActionMenu &&
-                  (!controller.isHovering ||
-                      context.interactionPolicy.prefersTouchPresentation) &&
+              // 悬停条在触屏菜单模式下自带「更多」，不显示悬停条时这里必须补上入口。
+              if (interaction.usesTouchActionMenu &&
+                  (!showHoverBar || interaction.prefersTouchPresentation) &&
                   capabilities.enableContextMenu &&
                   actions.isNotEmpty)
                 Positioned(
@@ -319,6 +343,33 @@ class ImageCardHoverActionBar extends StatelessWidget {
         pointerExtent: 40,
       ),
     ),
+  );
+}
+
+/// 右上角操作轨：悬停动作按顺序排在常驻收藏左侧，收藏位置不随悬停移动。
+class ImageCardCornerActionRail extends StatelessWidget {
+  const ImageCardCornerActionRail({
+    super.key,
+    required this.pinnedActions,
+    this.favorite,
+  });
+
+  static const _extent = 40.0;
+  static const _spacing = 4.0;
+
+  final List<ImageCardAction> pinnedActions;
+  final Widget? favorite;
+
+  @override
+  Widget build(BuildContext context) => Row(
+    key: const ValueKey('image-card-corner-action-rail'),
+    mainAxisSize: MainAxisSize.min,
+    spacing: _spacing,
+    children: [
+      for (final action in pinnedActions)
+        ImageCardOverlayActionButton(config: action, extent: _extent),
+      if (favorite case final favorite?) favorite,
+    ],
   );
 }
 

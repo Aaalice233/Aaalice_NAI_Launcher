@@ -166,6 +166,9 @@ class LocalGalleryRepository {
   Future<int?> getImageIdByPath(String filePath) =>
       _dataSource.getImageIdByPath(filePath);
 
+  Future<void> markAsDeleted(List<String> filePaths) =>
+      _dataSource.batchMarkAsDeleted(filePaths);
+
   Future<bool> toggleFavorite(String filePath) async {
     final file = File(filePath);
     var imageId = await _dataSource.getImageIdByPath(filePath);

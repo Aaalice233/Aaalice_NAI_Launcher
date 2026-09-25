@@ -1505,6 +1505,37 @@ class AppLocalizationsEn extends AppLocalizations {
       'Are you sure you want to clear all history records? This action cannot be undone.';
 
   @override
+  String get generation_deleteImageConfirm =>
+      'Delete this image from history? This action cannot be undone.';
+
+  @override
+  String generation_deleteImageWithFileConfirm(Object fileName) {
+    return 'Delete this image from history and permanently delete the file \"$fileName\" from the local gallery? This action cannot be undone.';
+  }
+
+  @override
+  String generation_deleteImagesConfirm(Object count) {
+    return 'Delete the $count selected images from history? This action cannot be undone.';
+  }
+
+  @override
+  String generation_deleteImagesWithFilesConfirm(
+    Object count,
+    Object fileCount,
+  ) {
+    return 'Delete the $count selected images from history and permanently delete $fileCount of their files saved in the local gallery? This action cannot be undone.';
+  }
+
+  @override
+  String get generation_deleteConfirmSkipForSession =>
+      'Don\'t ask again until the app restarts';
+
+  @override
+  String generation_deleteImageFilesFailed(Object count, Object error) {
+    return 'Removed from history, but $count local files could not be deleted: $error';
+  }
+
+  @override
   String get generation_model => 'Model';
 
   @override

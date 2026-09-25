@@ -1450,6 +1450,35 @@ class AppLocalizationsZh extends AppLocalizations {
   String get generation_clearHistoryConfirm => '确定要清除所有历史记录吗？此操作不可撤销。';
 
   @override
+  String get generation_deleteImageConfirm => '从历史记录中删除这张图片？此操作不可撤销。';
+
+  @override
+  String generation_deleteImageWithFileConfirm(Object fileName) {
+    return '从历史记录中删除这张图片，并永久删除本地图库中的文件「$fileName」？此操作不可撤销。';
+  }
+
+  @override
+  String generation_deleteImagesConfirm(Object count) {
+    return '从历史记录中删除选中的 $count 张图片？此操作不可撤销。';
+  }
+
+  @override
+  String generation_deleteImagesWithFilesConfirm(
+    Object count,
+    Object fileCount,
+  ) {
+    return '从历史记录中删除选中的 $count 张图片，并永久删除其中 $fileCount 个已保存到本地图库的文件？此操作不可撤销。';
+  }
+
+  @override
+  String get generation_deleteConfirmSkipForSession => '本次运行期间不再询问';
+
+  @override
+  String generation_deleteImageFilesFailed(Object count, Object error) {
+    return '图片已从历史记录移除，但有 $count 个本地文件删除失败：$error';
+  }
+
+  @override
   String get generation_model => '模型';
 
   @override
@@ -16343,6 +16372,35 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get generation_clearHistoryConfirm => '確定要清除所有歷史記錄嗎？此操作不可撤銷。';
+
+  @override
+  String get generation_deleteImageConfirm => '從歷史記錄中刪除這張圖片？此操作不可撤銷。';
+
+  @override
+  String generation_deleteImageWithFileConfirm(Object fileName) {
+    return '從歷史記錄中刪除這張圖片，並永久刪除本機圖庫中的檔案「$fileName」？此操作不可撤銷。';
+  }
+
+  @override
+  String generation_deleteImagesConfirm(Object count) {
+    return '從歷史記錄中刪除選取的 $count 張圖片？此操作不可撤銷。';
+  }
+
+  @override
+  String generation_deleteImagesWithFilesConfirm(
+    Object count,
+    Object fileCount,
+  ) {
+    return '從歷史記錄中刪除選取的 $count 張圖片，並永久刪除其中 $fileCount 個已儲存到本機圖庫的檔案？此操作不可撤銷。';
+  }
+
+  @override
+  String get generation_deleteConfirmSkipForSession => '本次執行期間不再詢問';
+
+  @override
+  String generation_deleteImageFilesFailed(Object count, Object error) {
+    return '圖片已從歷史記錄移除，但有 $count 個本機檔案刪除失敗：$error';
+  }
 
   @override
   String get generation_model => '模型';

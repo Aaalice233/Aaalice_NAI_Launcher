@@ -19,6 +19,15 @@ enum ThemedConfirmDialogType {
   info,
 }
 
+typedef ThemedConfirmOutcome = ({bool confirmed, bool optionChecked});
+
+/// 确认对话框里的单个勾选项，由 [ThemedConfirmDialog.showWithOption] 创建并释放。
+class ThemedConfirmOption extends ValueNotifier<bool> {
+  ThemedConfirmOption({required this.label}) : super(false);
+
+  final String label;
+}
+
 /// 通用确认对话框
 ///
 /// 用于删除确认、清空确认等简单的二选一场景。
@@ -54,6 +63,9 @@ class ThemedConfirmDialog extends StatelessWidget {
   /// 自定义图标（可选）
   final IconData? icon;
 
+  /// 正文下方的附加勾选项（可选）
+  final ThemedConfirmOption? option;
+
   const ThemedConfirmDialog({
     super.key,
     required this.title,
@@ -62,6 +74,7 @@ class ThemedConfirmDialog extends StatelessWidget {
     this.cancelText,
     this.type = ThemedConfirmDialogType.normal,
     this.icon,
+    this.option,
   });
 
   /// 显示确认对话框
@@ -75,6 +88,54 @@ class ThemedConfirmDialog extends StatelessWidget {
     String? cancelText,
     ThemedConfirmDialogType type = ThemedConfirmDialogType.normal,
     IconData? icon,
+  }) => _present(
+    context: context,
+    title: title,
+    content: content,
+    confirmText: confirmText,
+    cancelText: cancelText,
+    type: type,
+    icon: icon,
+  );
+
+  /// 显示带一个勾选项的确认对话框；取消时勾选项一律视为未勾选
+  static Future<ThemedConfirmOutcome> showWithOption({
+    required BuildContext context,
+    required String title,
+    required String content,
+    required String optionLabel,
+    String? confirmText,
+    String? cancelText,
+    ThemedConfirmDialogType type = ThemedConfirmDialogType.normal,
+    IconData? icon,
+  }) async {
+    final option = ThemedConfirmOption(label: optionLabel);
+    try {
+      final confirmed = await _present(
+        context: context,
+        title: title,
+        content: content,
+        confirmText: confirmText,
+        cancelText: cancelText,
+        type: type,
+        icon: icon,
+        option: option,
+      );
+      return (confirmed: confirmed, optionChecked: confirmed && option.value);
+    } finally {
+      option.dispose();
+    }
+  }
+
+  static Future<bool> _present({
+    required BuildContext context,
+    required String title,
+    required String content,
+    String? confirmText,
+    String? cancelText,
+    required ThemedConfirmDialogType type,
+    IconData? icon,
+    ThemedConfirmOption? option,
   }) async {
     final l10n = context.l10n;
     final resolvedConfirmText = confirmText ?? l10n.common_confirm;
@@ -94,6 +155,7 @@ class ThemedConfirmDialog extends StatelessWidget {
           cancelText: resolvedCancelText,
           type: type,
           scrollController: scrollController,
+          option: option,
         ),
       );
       return result ?? false;
@@ -107,6 +169,7 @@ class ThemedConfirmDialog extends StatelessWidget {
         cancelText: resolvedCancelText,
         type: type,
         icon: icon,
+        option: option,
       ),
     );
     return result ?? false;
@@ -226,12 +289,22 @@ class ThemedConfirmDialog extends StatelessWidget {
         reservedVerticalSpace: 120,
         scaleReservedVerticalSpace: true,
         child: SingleChildScrollView(
-          child: Text(
-            content,
-            style: theme.textTheme.bodyMedium?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
-              height: 1.5,
-            ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                content,
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                  height: 1.5,
+                ),
+              ),
+              if (option case final option?) ...[
+                const SizedBox(height: 8),
+                _ConfirmOptionTile(option: option),
+              ],
+            ],
           ),
         ),
       ),
@@ -260,6 +333,33 @@ class ThemedConfirmDialog extends StatelessWidget {
           child: Text(confirmText, textAlign: TextAlign.center),
         ),
       ],
+    );
+  }
+}
+
+class _ConfirmOptionTile extends StatelessWidget {
+  const _ConfirmOptionTile({required this.option});
+
+  final ThemedConfirmOption option;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return ValueListenableBuilder<bool>(
+      valueListenable: option,
+      builder: (context, checked, _) => CheckboxListTile(
+        value: checked,
+        onChanged: (value) => option.value = value ?? false,
+        controlAffinity: ListTileControlAffinity.leading,
+        contentPadding: EdgeInsets.zero,
+        dense: true,
+        title: Text(
+          option.label,
+          style: theme.textTheme.bodyMedium?.copyWith(
+            color: theme.colorScheme.onSurface,
+          ),
+        ),
+      ),
     );
   }
 }
@@ -303,6 +403,7 @@ class _CompactConfirmBody extends StatelessWidget {
     required this.cancelText,
     required this.type,
     required this.scrollController,
+    this.option,
   });
 
   final String content;
@@ -310,6 +411,7 @@ class _CompactConfirmBody extends StatelessWidget {
   final String? cancelText;
   final ThemedConfirmDialogType type;
   final ScrollController scrollController;
+  final ThemedConfirmOption? option;
 
   @override
   Widget build(BuildContext context) {
@@ -340,6 +442,10 @@ class _CompactConfirmBody extends StatelessWidget {
               height: 1.5,
             ),
           ),
+          if (option case final option?) ...[
+            const SizedBox(height: 8),
+            _ConfirmOptionTile(option: option),
+          ],
           const SizedBox(height: 16),
           Wrap(
             alignment: WrapAlignment.end,

@@ -49,6 +49,8 @@ void main() {
           return GalleryIndexAdmission.added;
         },
         refreshGallery: () async {},
+        removeGalleryImages: _unexpectedGalleryRemoval,
+        deleteGalleryFile: _unexpectedFileDeletion,
         incrementStatistics: (count) async => statisticsCount += count,
         publishToSystemGallery: (sourcePath, fileName) async {
           published.add((sourcePath: sourcePath, fileName: fileName));
@@ -93,6 +95,8 @@ void main() {
           return GalleryIndexAdmission.added;
         },
         refreshGallery: () async {},
+        removeGalleryImages: _unexpectedGalleryRemoval,
+        deleteGalleryFile: _unexpectedFileDeletion,
         incrementStatistics: (_) async {},
         publishToSystemGallery: (_, _) async => throw StateError('denied'),
       ),
@@ -153,6 +157,8 @@ void main() {
             resolveGalleryRootPath: () async => directory.path,
             addGalleryImages: (_) async => GalleryIndexAdmission.added,
             refreshGallery: () async {},
+            removeGalleryImages: _unexpectedGalleryRemoval,
+            deleteGalleryFile: _unexpectedFileDeletion,
             incrementStatistics: (_) async {},
           ),
         );
@@ -245,6 +251,8 @@ void main() {
           resolveGalleryRootPath: () async => directory.path,
           addGalleryImages: (_) async => admission,
           refreshGallery: () async => refreshCount++,
+          removeGalleryImages: _unexpectedGalleryRemoval,
+          deleteGalleryFile: _unexpectedFileDeletion,
           incrementStatistics: (_) async {},
         ),
       );
@@ -324,4 +332,85 @@ void main() {
       expect(GalleryIndexAdmission.failed.isIndexed, isFalse);
     });
   });
+
+  group('deleteSavedFiles', () {
+    GenerationResultLifecycleService serviceWith({
+      required Future<bool> Function(String path) deleteGalleryFile,
+      required Future<void> Function(List<String> paths) removeGalleryImages,
+    }) => GenerationResultLifecycleService(
+      GenerationResultLifecycleDependencies(
+        historyStorage: GenerationHistoryStorageService(enabled: false),
+        resolveGalleryRootPath: () async => null,
+        addGalleryImages: (_) async => GalleryIndexAdmission.added,
+        refreshGallery: _unexpectedGalleryRefresh,
+        removeGalleryImages: removeGalleryImages,
+        deleteGalleryFile: deleteGalleryFile,
+        incrementStatistics: (_) async {},
+      ),
+    );
+
+    test('同一路径只删一次，单个失败不阻断其余文件，只把删掉的路径移出图库', () async {
+      final attempted = <String>[];
+      final removals = <List<String>>[];
+      final service = serviceWith(
+        deleteGalleryFile: (path) async {
+          attempted.add(path);
+          if (path == 'locked.png') throw const FileSystemException('locked');
+          return path != 'missing.png';
+        },
+        removeGalleryImages: (paths) async => removals.add(paths),
+      );
+
+      final result = await service.deleteSavedFiles([
+        'a.png',
+        'locked.png',
+        'a.png',
+        'missing.png',
+        'b.png',
+      ]);
+
+      expect(attempted, ['a.png', 'locked.png', 'missing.png', 'b.png']);
+      expect(result.deletedPaths, ['a.png', 'b.png']);
+      expect(result.failures.keys, ['locked.png']);
+      expect(result.failures['locked.png'], isA<FileSystemException>());
+      expect(removals, [
+        ['a.png', 'b.png'],
+      ]);
+    });
+
+    test('没有真正删掉文件时不动图库', () async {
+      final removals = <List<String>>[];
+      final service = serviceWith(
+        deleteGalleryFile: (_) async => false,
+        removeGalleryImages: (paths) async => removals.add(paths),
+      );
+
+      final result = await service.deleteSavedFiles(['gone.png']);
+
+      expect(result.deletedPaths, isEmpty);
+      expect(result.failures, isEmpty);
+      expect(removals, isEmpty);
+    });
+
+    test('图库索引更新失败不影响删除结果', () async {
+      final service = serviceWith(
+        deleteGalleryFile: (_) async => true,
+        removeGalleryImages: (_) async => throw StateError('index busy'),
+      );
+
+      final result = await service.deleteSavedFiles(['a.png']);
+
+      expect(result.deletedPaths, ['a.png']);
+      expect(result.failures, isEmpty);
+    });
+  });
 }
+
+Future<bool> _unexpectedFileDeletion(String path) =>
+    throw StateError('unexpected gallery file deletion: $path');
+
+Future<void> _unexpectedGalleryRefresh() =>
+    throw StateError('deleting files must not re-enumerate the gallery');
+
+Future<void> _unexpectedGalleryRemoval(List<String> paths) =>
+    throw StateError('unexpected gallery removal: $paths');

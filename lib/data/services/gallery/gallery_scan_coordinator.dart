@@ -41,7 +41,8 @@ class GalleryScanCoordinator {
   final GalleryDataSource _dataSource;
   final LocalGalleryRepository _repository;
   Future<List<File>>? _initializing;
-  Future<void>? _refreshing;
+  bool _isRefreshing = false;
+  _QueuedRefresh? _queuedRefresh;
   bool _isBackgroundScanning = false;
 
   Future<List<File>> initialize() {
@@ -77,34 +78,36 @@ class GalleryScanCoordinator {
     required int previousCount,
     required Future<void> Function(List<File> files) onFilesLoaded,
   }) {
-    final active = _refreshing;
-    if (active != null) return active;
-    final operation = _refresh(
+    final request = _RefreshRequest(
       scan: scan,
       previousCount: previousCount,
       onFilesLoaded: onFilesLoaded,
     );
-    _refreshing = operation;
-    unawaited(
-      operation.then<void>(
-        (_) {
-          if (identical(_refreshing, operation)) _refreshing = null;
-        },
-        onError: (Object _, StackTrace __) {
-          if (identical(_refreshing, operation)) _refreshing = null;
-        },
-      ),
-    );
-    return operation;
+    if (!_isRefreshing) return _runRefresh(request);
+    // 在途刷新可能早于调用方的文件改动就枚举完了目录，必须在它之后再刷一轮。
+    final queued = _queuedRefresh;
+    if (queued != null) return queued.absorb(request);
+    return (_queuedRefresh = _QueuedRefresh(request)).done;
   }
 
-  Future<void> _refresh({
-    required bool scan,
-    required int previousCount,
-    required Future<void> Function(List<File> files) onFilesLoaded,
-  }) async {
+  Future<void> _runRefresh(_RefreshRequest request) async {
+    _isRefreshing = true;
+    try {
+      await _refresh(request);
+    } finally {
+      _isRefreshing = false;
+      final queued = _queuedRefresh;
+      if (queued != null) {
+        _queuedRefresh = null;
+        queued.complete(_runRefresh(queued.request));
+      }
+    }
+  }
+
+  Future<void> _refresh(_RefreshRequest request) async {
+    final _RefreshRequest(:scan, :previousCount) = request;
     final files = await _repository.findGalleryFiles();
-    await onFilesLoaded(files);
+    await request.onFilesLoaded(files);
     if (shouldRunRefreshIndexScan(
       scanRequested: scan,
       isBackgroundScanning: _isBackgroundScanning,
@@ -265,4 +268,37 @@ class GalleryScanCoordinator {
     );
     AppLogger.i('[UGS] ${full ? '全量' : ''}流式扫描完成', 'LocalGalleryService');
   }
+}
+
+class _RefreshRequest {
+  const _RefreshRequest({
+    required this.scan,
+    required this.previousCount,
+    required this.onFilesLoaded,
+  });
+
+  final bool scan;
+  final int previousCount;
+  final Future<void> Function(List<File> files) onFilesLoaded;
+}
+
+/// 在途刷新期间到达的请求合并成一轮；只要有一方要求索引扫描，这一轮就扫描。
+class _QueuedRefresh {
+  _QueuedRefresh(this.request);
+
+  _RefreshRequest request;
+  final _completer = Completer<void>();
+
+  Future<void> get done => _completer.future;
+
+  Future<void> absorb(_RefreshRequest next) {
+    request = _RefreshRequest(
+      scan: request.scan || next.scan,
+      previousCount: next.previousCount,
+      onFilesLoaded: next.onFilesLoaded,
+    );
+    return done;
+  }
+
+  void complete(Future<void> run) => _completer.complete(run);
 }

@@ -2,7 +2,9 @@ import '../../../providers/generation/image_card_selection_provider.dart';
 import '../../../selection/card_selection_scope.dart';
 import '../../../widgets/common/image_card_batch_scope.dart';
 import '../../../widgets/bulk_action_bar.dart';
+import '../services/generated_image_file_link.dart';
 import '../services/generation_image_batch_actions.dart';
+import '../services/generation_image_deletion.dart';
 import 'package:nai_launcher/data/models/image/image_postprocess_phase.dart';
 import 'dart:async';
 import 'dart:io';
@@ -179,6 +181,7 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> {
         images: selectedImages,
         gallery: ref.read(localGalleryNotifierProvider.notifier),
         selection: selectionNotifier,
+        deletion: GenerationImageDeletion(context: context, ref: ref),
       ).build(),
       child: CardSelectionScope(
         selection: selection,
@@ -1025,32 +1028,14 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> {
     GeneratedImage image,
   ) async {
     try {
-      final existingPath = image.filePath;
-      if (existingPath != null &&
-          existingPath.isNotEmpty &&
-          await File(existingPath).exists()) {
-        await FileExplorerUtils.revealFile(existingPath);
-        return;
-      }
-
-      final saveDirPath = await GalleryFolderRepository.instance.getRootPath();
-      if (saveDirPath == null) return;
-
-      // 原子保存：日期分类路径 + 独占防冲突 + 失败清理，全部在工具内完成
-      final filePath = await ImageSaveUtils.saveBytesToDatedPath(
-        rootPath: saveDirPath,
-        bytes: image.bytes,
-        seed: await ImageSaveUtils.resolveSeed(
-          metadata: image.metadata,
-          bytes: image.bytes,
-        ),
+      final linked = await GeneratedImageFileLink.ensureSaved(
+        ref,
+        image,
+        context.l10n,
       );
-
-      ref.read(localGalleryNotifierProvider.notifier).refresh();
-      await FileExplorerUtils.revealFile(filePath);
-
-      if (context.mounted) {
-        AppToast.success(context, context.l10n.image_imageSaved(saveDirPath));
+      await FileExplorerUtils.revealFile(linked.path);
+      if (linked.newlySavedRoot case final root? when context.mounted) {
+        AppToast.success(context, context.l10n.image_imageSaved(root));
       }
     } catch (e) {
       if (context.mounted) {

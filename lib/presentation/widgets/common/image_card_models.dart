@@ -72,6 +72,8 @@ class ImageCardCapabilities {
     required this.enableSelection,
     this.selectionMode = false,
     this.showSelectionOnHover = true,
+    this.showHoverActionBar = true,
+    this.pinnedHoverActions = const [],
     required this.onTap,
     required this.onDoubleTap,
     required this.onLongPress,
@@ -93,6 +95,7 @@ class ImageCardCapabilities {
     required this.onOpenInExplorer,
     required this.onSaveToLibrary,
     required this.onFavoriteToggle,
+    required this.onDelete,
   });
 
   final bool allowRepeatedModifierTaps;
@@ -106,6 +109,10 @@ class ImageCardCapabilities {
   final bool enableSelection;
   final bool selectionMode;
   final bool showSelectionOnHover;
+  final bool showHoverActionBar;
+
+  /// 悬停时按顺序排在收藏左侧的动作，同时从底部悬停动作条中移除。
+  final List<ImageCardActionId> pinnedHoverActions;
   final VoidCallback? onTap;
   final VoidCallback? onDoubleTap;
   final VoidCallback? onLongPress;
@@ -127,4 +134,5 @@ class ImageCardCapabilities {
   final ImageCardCallback? onOpenInExplorer;
   final void Function(Uint8List imageBytes, String prompt)? onSaveToLibrary;
   final ImageCardCallback? onFavoriteToggle;
+  final ImageCardCallback? onDelete;
 }

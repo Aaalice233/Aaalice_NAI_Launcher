@@ -563,6 +563,34 @@
   "generation_noHistory": "暂无历史记录",
   "generation_clearHistory": "清除历史记录",
   "generation_clearHistoryConfirm": "确定要清除所有历史记录吗？此操作不可撤销。",
+  "generation_deleteImageConfirm": "从历史记录中删除这张图片？此操作不可撤销。",
+  "generation_deleteImageWithFileConfirm": "从历史记录中删除这张图片，并永久删除本地图库中的文件「{fileName}」？此操作不可撤销。",
+  "@generation_deleteImageWithFileConfirm": {
+    "placeholders": {
+      "fileName": {}
+    }
+  },
+  "generation_deleteImagesConfirm": "从历史记录中删除选中的 {count} 张图片？此操作不可撤销。",
+  "@generation_deleteImagesConfirm": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "generation_deleteImagesWithFilesConfirm": "从历史记录中删除选中的 {count} 张图片，并永久删除其中 {fileCount} 个已保存到本地图库的文件？此操作不可撤销。",
+  "@generation_deleteImagesWithFilesConfirm": {
+    "placeholders": {
+      "count": {},
+      "fileCount": {}
+    }
+  },
+  "generation_deleteConfirmSkipForSession": "本次运行期间不再询问",
+  "generation_deleteImageFilesFailed": "图片已从历史记录移除，但有 {count} 个本地文件删除失败：{error}",
+  "@generation_deleteImageFilesFailed": {
+    "placeholders": {
+      "count": {},
+      "error": {}
+    }
+  },
   "generation_model": "模型",
   "generation_opusUsageRemaining": "Opus 免费生成剩余 {percent}%",
   "generation_opusUsageEstimate": "约可再生成 {count} 张",
