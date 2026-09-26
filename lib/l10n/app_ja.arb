@@ -548,7 +548,7 @@
   "agentChat_permissionAsk": "確認",
   "agentChat_permissionAskDescription": "機密性の高い操作の前に確認",
   "agentChat_permissionFull": "フルアクセス",
-  "agentChat_permissionFullDescription": "確認なしで実行し、ワークスペース外のファイルも許可",
+  "agentChat_permissionFullDescription": "保存データの削除と Anlas 消費時のみ確認、ワークスペース外も許可",
   "agentChat_approvalTitle": "{toolName} の実行を許可しますか？",
   "@agentChat_approvalTitle": {
     "placeholders": {
@@ -6841,7 +6841,7 @@
   "agentSettings_permissionAsk": "機密操作の前に確認",
   "agentSettings_permissionAskDescription": "既定。ファイル書き込みや画像生成などの前に確認します。",
   "agentSettings_permissionFull": "フルアクセス",
-  "agentSettings_permissionFullDescription": "ワークスペース外のファイルとツールの直接実行を許可します。信頼できるタスクにのみ使用してください。",
+  "agentSettings_permissionFullDescription": "ワークスペース外のファイルとツールの直接実行を許可します。保存済みデータの削除と Anlas の消費は引き続き確認します。信頼できるタスクにのみ使用してください。",
   "agentSettings_webPreference": "Web 接続設定",
   "agentSettings_webEnabled": "エージェントによる Web ツールの使用を許可",
   "agentSettings_webDescription": "有効にすると公開ページを検索・閲覧できます。無効にすると実行時ツールから Web 機能が削除されます。",

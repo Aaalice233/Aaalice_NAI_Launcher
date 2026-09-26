@@ -1443,7 +1443,8 @@ class AppLocalizationsJa extends AppLocalizations {
   String get agentChat_permissionFull => 'フルアクセス';
 
   @override
-  String get agentChat_permissionFullDescription => '確認なしで実行し、ワークスペース外のファイルも許可';
+  String get agentChat_permissionFullDescription =>
+      '保存データの削除と Anlas 消費時のみ確認、ワークスペース外も許可';
 
   @override
   String agentChat_approvalTitle(Object toolName) {
@@ -14086,7 +14087,7 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get agentSettings_permissionFullDescription =>
-      'ワークスペース外のファイルとツールの直接実行を許可します。信頼できるタスクにのみ使用してください。';
+      'ワークスペース外のファイルとツールの直接実行を許可します。保存済みデータの削除と Anlas の消費は引き続き確認します。信頼できるタスクにのみ使用してください。';
 
   @override
   String get agentSettings_webPreference => 'Web 接続設定';

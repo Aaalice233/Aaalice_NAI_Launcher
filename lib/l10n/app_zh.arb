@@ -541,7 +541,7 @@
   "agentChat_permissionAsk": "询问模式",
   "agentChat_permissionAskDescription": "敏感操作执行前询问",
   "agentChat_permissionFull": "完全访问",
-  "agentChat_permissionFullDescription": "不询问并允许访问工作区外文件",
+  "agentChat_permissionFullDescription": "仅删除已存数据或消耗 Anlas 时询问，可访问工作区外文件",
   "agentChat_approvalTitle": "允许执行 {toolName}？",
   "@agentChat_approvalTitle": {
     "placeholders": {
@@ -6887,7 +6887,7 @@
   "agentSettings_permissionAsk": "敏感操作前询问",
   "agentSettings_permissionAskDescription": "默认模式。写文件、执行生成等敏感操作前先请求确认。",
   "agentSettings_permissionFull": "完全访问",
-  "agentSettings_permissionFullDescription": "允许访问工作区外文件并直接执行工具。仅在信任当前任务时使用。",
+  "agentSettings_permissionFullDescription": "允许访问工作区外文件并直接执行工具；删除已保存的数据或消耗 Anlas 前仍会确认。仅在信任当前任务时使用。",
   "agentSettings_webPreference": "联网偏好",
   "agentSettings_webEnabled": "允许智能体使用 Web 工具",
   "agentSettings_webDescription": "开启后模型可搜索并读取公开网页；关闭后相关工具会从运行时工具表移除。",

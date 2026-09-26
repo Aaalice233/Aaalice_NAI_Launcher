@@ -1423,7 +1423,8 @@ class AppLocalizationsZh extends AppLocalizations {
   String get agentChat_permissionFull => '完全访问';
 
   @override
-  String get agentChat_permissionFullDescription => '不询问并允许访问工作区外文件';
+  String get agentChat_permissionFullDescription =>
+      '仅删除已存数据或消耗 Anlas 时询问，可访问工作区外文件';
 
   @override
   String agentChat_approvalTitle(Object toolName) {
@@ -13829,7 +13830,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get agentSettings_permissionFullDescription =>
-      '允许访问工作区外文件并直接执行工具。仅在信任当前任务时使用。';
+      '允许访问工作区外文件并直接执行工具；删除已保存的数据或消耗 Anlas 前仍会确认。仅在信任当前任务时使用。';
 
   @override
   String get agentSettings_webPreference => '联网偏好';
@@ -16463,7 +16464,8 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get agentChat_permissionFull => '完全存取';
 
   @override
-  String get agentChat_permissionFullDescription => '不詢問並允許存取工作區外檔案';
+  String get agentChat_permissionFullDescription =>
+      '僅刪除已存資料或消耗 Anlas 時詢問，可存取工作區外檔案';
 
   @override
   String agentChat_approvalTitle(Object toolName) {
@@ -28870,7 +28872,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get agentSettings_permissionFullDescription =>
-      '允許存取工作區外檔案並直接執行工具。僅在信任目前任務時使用。';
+      '允許存取工作區外檔案並直接執行工具；刪除已儲存的資料或消耗 Anlas 前仍會確認。僅在信任目前任務時使用。';
 
   @override
   String get agentSettings_webPreference => '連網偏好';

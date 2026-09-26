@@ -66,52 +66,92 @@ void main() {
       expect(controller.takeDecision('read'), AgentPermissionDecision.allow);
     },
   );
-  test('full access runs destructive tools without approval', () async {
-    final descriptor = describeAgentToolPermission('delete_fixed_tag');
-    final controller = AgentToolPermissionController(
-      auditSink: MemoryAgentAuditSink(),
-      estimateAnlas: (_, _) async => throw StateError('Delete does not bill'),
-      describeFileTargets: (_, _) => const [],
-      onApprovalChanged: (_) => fail('Full access must not ask for deletes'),
-      isMounted: () => true,
-    );
-    addTearDown(controller.dispose);
-    controller.configure(
-      AgentToolRegistry(
-        tools: const [],
-        catalog: AgentToolPermissionCatalog(
-          toolNames: const ['delete_fixed_tag'],
-          descriptors: [descriptor],
-        ),
-        policy: agentPermissionPolicy(safeMode: false, fullAccess: true),
-      ),
-    );
-    const call = ToolCallContent(
-      id: 'delete',
-      name: 'delete_fixed_tag',
-      arguments: {'id': 'tag-1'},
-    );
-    final assistant = AssistantMessage(
-      content: [call],
-      stopReason: StopReason.toolUse,
-    );
-
-    final result = await controller.beforeToolCall(
-      BeforeToolCallContext(
-        assistantMessage: assistant,
-        toolCall: call,
-        args: call.arguments,
-        context: AgentContext(
-          systemPrompt: '',
-          messages: [assistant],
+  group('full access deletions', () {
+    AgentToolPermissionController fullAccessController(
+      String toolName,
+      void Function(AgentToolApprovalRequest? request) onApprovalChanged,
+    ) {
+      final controller = AgentToolPermissionController(
+        auditSink: MemoryAgentAuditSink(),
+        estimateAnlas: (_, _) async => null,
+        describeFileTargets: (_, _) => const [],
+        onApprovalChanged: onApprovalChanged,
+        isMounted: () => true,
+      );
+      addTearDown(controller.dispose);
+      controller.configure(
+        AgentToolRegistry(
           tools: const [],
+          catalog: AgentToolPermissionCatalog(
+            toolNames: [toolName],
+            descriptors: [describeAgentToolPermission(toolName)],
+          ),
+          policy: agentPermissionPolicy(safeMode: false, fullAccess: true),
         ),
-      ),
-      null,
-    );
+      );
+      return controller;
+    }
 
-    expect(result, isNull);
-    expect(controller.takeDecision('delete'), AgentPermissionDecision.allow);
+    Future<BeforeToolCallResult?> gate(
+      AgentToolPermissionController controller,
+      ToolCallContent call,
+    ) {
+      final assistant = AssistantMessage(
+        content: [call],
+        stopReason: StopReason.toolUse,
+      );
+      return controller.beforeToolCall(
+        BeforeToolCallContext(
+          assistantMessage: assistant,
+          toolCall: call,
+          args: call.arguments,
+          context: AgentContext(
+            systemPrompt: '',
+            messages: [assistant],
+            tools: const [],
+          ),
+        ),
+        null,
+      );
+    }
+
+    test('still ask before deleting saved data', () async {
+      final requests = <AgentToolApprovalRequest?>[];
+      final controller = fullAccessController(
+        'delete_vibe_library_entry',
+        requests.add,
+      );
+      const call = ToolCallContent(
+        id: 'delete',
+        name: 'delete_vibe_library_entry',
+        arguments: {'entry_id': 'vibe-1'},
+      );
+
+      final pending = gate(controller, call);
+      await pumpEventQueue();
+      expect(requests.single?.toolName, 'delete_vibe_library_entry');
+      expect(requests.single?.estimatedAnlas, isNull);
+
+      expect(controller.resolveApproval('delete', false), isTrue);
+      expect((await pending)?.block, isTrue);
+      expect(requests.last, isNull);
+      expect(controller.takeDecision('delete'), AgentPermissionDecision.block);
+    });
+
+    test('run page-state removals without approval', () async {
+      final controller = fullAccessController(
+        'remove_character',
+        (_) => fail('Removing a character must not ask in full access'),
+      );
+      const call = ToolCallContent(
+        id: 'remove',
+        name: 'remove_character',
+        arguments: {'index': 0},
+      );
+
+      expect(await gate(controller, call), isNull);
+      expect(controller.takeDecision('remove'), AgentPermissionDecision.allow);
+    });
   });
 
   group('AgentToolPermissionController billing decisions', () {
