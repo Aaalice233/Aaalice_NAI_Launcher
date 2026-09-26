@@ -40,8 +40,6 @@ import '../../../providers/character_position_canvas_provider.dart';
 import '../../../providers/character_prompt_provider.dart';
 import '../../../providers/fixed_tags_provider.dart';
 import '../../../providers/image_generation_provider.dart';
-import '../../../providers/image_save_settings_provider.dart';
-import '../../../providers/local_gallery_provider.dart';
 import '../../../providers/preview_transparency_provider.dart';
 import '../../../providers/prompt_config_provider.dart';
 import '../../../providers/reverse_prompt_provider.dart';
@@ -171,10 +169,10 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> {
       actions: GenerationImageBatchActions(
         context: context,
         images: selectedImages,
-        gallery: ref.read(localGalleryNotifierProvider.notifier),
         selection: selectionNotifier,
         deletion: GenerationImageDeletion(context: context, ref: ref),
-        readSystemGallery: () => ref.read(systemGalleryPublisherProvider),
+        saveImages: (images) =>
+            GenerationSaveService.saveImages(context, ref, images),
       ).build(),
       child: CardSelectionScope(
         selection: selection,
@@ -779,7 +777,9 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> {
                 .read(generationImageCardSelectionProvider.notifier)
                 .enterAndSelect(image.id)
           : null,
-      enableSaveAction: image.canSave,
+      onSave: image.canSave
+          ? () => GenerationSaveService.saveImages(context, ref, [image])
+          : null,
       enableCopyAction: image.canSave,
       statusBadgeLabel: isFailedSnapshot
           ? context.l10n.generation_failedStreamSnapshot
@@ -1027,8 +1027,8 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> {
         context.l10n,
       );
       await FileExplorerUtils.revealFile(linked.path);
-      if (linked.newlySavedRoot case final root? when context.mounted) {
-        AppToast.success(context, context.l10n.image_imageSaved(root));
+      if (context.mounted) {
+        GenerationSaveService.showNewlySavedFeedback(context, linked);
       }
     } catch (e) {
       if (context.mounted) {

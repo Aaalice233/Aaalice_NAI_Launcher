@@ -30,7 +30,6 @@ import '../../../providers/generation/generation_params_selectors.dart';
 import '../../../providers/generation/preview_selection_provider.dart';
 import '../../../providers/history_click_behavior_provider.dart';
 import '../../../providers/image_generation_provider.dart';
-import '../../../providers/image_save_settings_provider.dart';
 import '../../../providers/local_gallery_provider.dart';
 import '../../../providers/reverse_prompt_provider.dart';
 import '../../../providers/share_image_settings_provider.dart';
@@ -191,10 +190,10 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
       actions: GenerationImageBatchActions(
         context: context,
         images: selectedImages,
-        gallery: ref.read(localGalleryNotifierProvider.notifier),
         selection: _selection,
         deletion: _deletion,
-        readSystemGallery: () => ref.read(systemGalleryPublisherProvider),
+        saveImages: (images) =>
+            GenerationSaveService.saveImages(context, ref, images),
       ).build(),
       child: CardSelectionScope(
         selection: selection,
@@ -815,7 +814,13 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
                             selectionMode: ref
                                 .read(generationImageCardSelectionProvider)
                                 .isActive,
-                            enableSaveAction: historyImage.canSave,
+                            onSave: historyImage.canSave
+                                ? () => GenerationSaveService.saveImages(
+                                    context,
+                                    ref,
+                                    [historyImage],
+                                  )
+                                : null,
                             enableCopyAction: historyImage.canSave,
                             statusBadgeLabel: isFailedSnapshot
                                 ? context.l10n.generation_failedStreamSnapshot
@@ -1070,7 +1075,9 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
           selectionMode: ref
               .read(generationImageCardSelectionProvider)
               .isActive,
-          enableSaveAction: image.canSave,
+          onSave: image.canSave
+              ? () => GenerationSaveService.saveImages(context, ref, [image])
+              : null,
           enableCopyAction: image.canSave,
           statusBadgeLabel: isFailedSnapshot
               ? context.l10n.generation_failedStreamSnapshot
@@ -1371,6 +1378,7 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
               ? context.l10n.toast_favorited
               : context.l10n.toast_unfavorited,
         );
+        GenerationSaveService.showSystemGalleryFailure(context, linked);
       }
     } catch (e) {
       if (context.mounted) {
@@ -1572,8 +1580,8 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
         context.l10n,
       );
       await FileExplorerUtils.revealFile(linked.path);
-      if (linked.newlySavedRoot case final root? when context.mounted) {
-        AppToast.success(context, context.l10n.image_imageSaved(root));
+      if (context.mounted) {
+        GenerationSaveService.showNewlySavedFeedback(context, linked);
       }
     } catch (e) {
       if (context.mounted) {

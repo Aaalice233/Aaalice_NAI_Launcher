@@ -786,12 +786,30 @@ void main() {
     expect(toggled, isTrue);
   });
 
+  testWidgets('save action delegates to the owner-supplied onSave', (
+    tester,
+  ) async {
+    var saveCount = 0;
+    await tester.pumpWidget(_buildCardApp(onSave: () => saveCount++));
+
+    final gesture = await tester.createGesture(kind: PointerDeviceKind.mouse);
+    addTearDown(gesture.removePointer);
+    await gesture.addPointer();
+    await gesture.moveTo(tester.getCenter(find.byType(SelectableImageCard)));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byTooltip('保存'));
+    await tester.pumpAndSettle();
+
+    expect(saveCount, 1);
+  });
+
   testWidgets('read-only card hides save and copy actions but keeps badge', (
     tester,
   ) async {
     await tester.pumpWidget(
       _buildCardApp(
-        enableSaveAction: false,
+        onSave: null,
         enableCopyAction: false,
         statusBadgeLabel: '失败快照',
         onInpaint: null,
@@ -978,7 +996,7 @@ Widget _buildCardApp({
   bool isFavorite = false,
   bool isGenerating = false,
   bool disableAnimations = false,
-  bool enableSaveAction = true,
+  VoidCallback? onSave = _noop,
   bool enableCopyAction = true,
   String? statusBadgeLabel,
   VoidCallback? onFavoriteToggle,
@@ -1004,7 +1022,7 @@ Widget _buildCardApp({
     imageHeight: 32,
     enableSelection: false,
     hoverEffectsEnabled: hoverEffectsEnabled,
-    enableSaveAction: enableSaveAction,
+    onSave: onSave,
     enableCopyAction: enableCopyAction,
     statusBadgeLabel: statusBadgeLabel,
     isFavorite: isFavorite,

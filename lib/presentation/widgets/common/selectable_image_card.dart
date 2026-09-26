@@ -32,6 +32,7 @@ class SelectableImageCard extends ConsumerStatefulWidget {
     this.onDoubleTap,
     this.onLongPress,
     this.onSelectionChanged,
+    this.onSave,
     this.onFullscreen,
     this.isPreviewActive = false,
     this.imageIdentity,
@@ -41,7 +42,6 @@ class SelectableImageCard extends ConsumerStatefulWidget {
     this.enableGlossEffect = false,
     this.hoverEffectsEnabled = true,
     this.shareWarmupEnabled = true,
-    this.enableSaveAction = true,
     this.enableCopyAction = true,
     this.statusBadgeLabel,
     this.statusBadgeTooltip,
@@ -95,6 +95,7 @@ class SelectableImageCard extends ConsumerStatefulWidget {
   final VoidCallback? onDoubleTap;
   final VoidCallback? onLongPress;
   final ValueChanged<bool>? onSelectionChanged;
+  final ImageCardCallback? onSave;
   final ImageCardCallback? onFullscreen;
   final bool isPreviewActive;
   final Object? imageIdentity;
@@ -104,7 +105,6 @@ class SelectableImageCard extends ConsumerStatefulWidget {
   final bool enableGlossEffect;
   final bool hoverEffectsEnabled;
   final bool shareWarmupEnabled;
-  final bool enableSaveAction;
   final bool enableCopyAction;
   final String? statusBadgeLabel;
   final String? statusBadgeTooltip;
@@ -188,7 +188,6 @@ class _SelectableImageCardState extends ConsumerState<SelectableImageCard>
     enableGlossEffect: widget.enableGlossEffect,
     hoverEffectsEnabled: widget.hoverEffectsEnabled,
     shareWarmupEnabled: widget.shareWarmupEnabled,
-    enableSaveAction: widget.enableSaveAction,
     enableCopyAction: widget.enableCopyAction,
     enableSelection: widget.enableSelection,
     selectionMode: widget.selectionMode,
@@ -199,6 +198,7 @@ class _SelectableImageCardState extends ConsumerState<SelectableImageCard>
     onDoubleTap: widget.onDoubleTap,
     onLongPress: widget.onLongPress,
     onSelectionChanged: widget.onSelectionChanged,
+    onSave: widget.onSave,
     onFullscreen: widget.onFullscreen,
     onUpscale: widget.onUpscale,
     onReversePrompt: widget.onReversePrompt,
