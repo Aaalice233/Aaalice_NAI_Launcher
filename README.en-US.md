@@ -86,6 +86,7 @@ NAI Launcher is built for people who use NovelAI regularly. Generation, editing,
 - Image and resource cards use consistent actions across context menus, More menus, and batch toolbars. Selected cards open batch actions; unselected cards act only on themselves. Desktop supports Ctrl/Cmd toggling, Shift range selection, and selecting the current page, with selection preserved across pages.
 - Dragging a selected card includes the entire selected set: actual images for image cards and portable resource files for Vibes, Bundles, and Precise References. In-app targets include compatible generation references, Agent, categories, and albums; single-item targets reject multiple items.
 - Local images can go directly to generation, Agent Chat, or Krita without repeated exports and file picking.
+- On Android, saved images are copied to the photo gallery by default. Turn off "Sync to photo gallery" in Settings → Data & Storage to keep generated and saved images in the app gallery only; you can still save individual images to the photo gallery when needed.
 
 ### 🔎 Online galleries and inspiration
 

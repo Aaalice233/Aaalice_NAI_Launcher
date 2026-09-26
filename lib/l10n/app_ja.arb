@@ -288,6 +288,8 @@
   "settings_imageSavePath": "画像の保存場所",
   "settings_autoSave": "自動保存",
   "settings_autoSaveSubtitle": "生成後に画像を自動的に保存します",
+  "settings_syncToSystemGallery": "システムギャラリーに同期",
+  "settings_syncToSystemGallerySubtitle": "オフにすると画像はアプリ内ギャラリーにのみ保存され、システムギャラリーには表示されません。同期済みの画像には影響しません。",
   "settings_about": "概要",
   "settings_version": "バージョン {version}",
   "@settings_version": {
@@ -6565,6 +6567,7 @@
   "@localGallery_saveToSystemGalleryFailed": {"placeholders":{"error":{}}},
   "image_savedAppOnly": "アプリ内ギャラリーには保存しましたが、システムギャラリーに書き出せませんでした: {error}",
   "@image_savedAppOnly": {"placeholders":{"error":{}}},
+  "image_savedToAppGallery": "アプリ内ギャラリーに保存しました",
   "image_shareFailed": "共有に失敗しました: {error}",
   "@image_shareFailed": {"placeholders":{"error":{}}},
   "onlineGallery_savedFiles": "{count} 個のファイルを保存しました",

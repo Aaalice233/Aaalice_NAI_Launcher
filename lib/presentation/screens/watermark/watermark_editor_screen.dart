@@ -10,9 +10,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-import '../../../core/platform/platform_capabilities.dart';
-import '../../../core/services/android_media_store_service.dart';
 import '../../../core/services/native_share_service.dart';
+import '../../../core/services/system_gallery_publisher.dart';
 import '../../../core/storage/local_storage_service.dart';
 import '../../../core/utils/app_logger.dart';
 import '../../../core/utils/image_save_utils.dart';
@@ -26,6 +25,7 @@ import '../../../data/models/watermark/watermark_settings.dart';
 import '../../../data/repositories/gallery_folder_repository.dart';
 import '../../../data/services/fixed_tag/fixed_tag_usage_record_store.dart';
 import '../../adaptive/adaptive_layout.dart';
+import '../../providers/image_save_settings_provider.dart';
 import '../../providers/local_gallery_provider.dart';
 import '../../providers/share_image_settings_provider.dart';
 import '../../providers/watermark_settings_provider.dart';
@@ -392,6 +392,7 @@ class _WatermarkEditorScreenState extends ConsumerState<WatermarkEditorScreen> {
       if (galleryRoot == null || galleryRoot.isEmpty) {
         throw StateError(context.l10n.localGallery_saveDirectoryNotSet);
       }
+      final systemGallery = ref.read(systemGalleryPublisherProvider);
       final output = await ImageSaveUtils.saveBytesToDatedPath(
         rootPath: galleryRoot,
         bytes: result.bytes,
@@ -401,22 +402,20 @@ class _WatermarkEditorScreenState extends ConsumerState<WatermarkEditorScreen> {
         sourceBytes: _sourceBytes,
         outputBytes: result.bytes,
       );
-      Object? systemGalleryError;
-      if (PlatformCapabilities.current.supportsSystemGalleryExport) {
-        try {
-          await AndroidMediaStoreService.savePng(
-            bytes: result.bytes,
-            fileName: result.fileName,
-          );
-        } on Object catch (error, stackTrace) {
-          systemGalleryError = error;
-          AppLogger.e(
-            'Watermarked copy saved but system gallery export failed',
-            error,
-            stackTrace,
-            'WatermarkEditor',
-          );
-        }
+      final systemGalleryOutcome = await systemGallery.publishPng(
+        bytes: result.bytes,
+        fileName: result.fileName,
+      );
+      if (systemGalleryOutcome case SystemGalleryPublishFailed(
+        :final error,
+        :final stackTrace,
+      )) {
+        AppLogger.e(
+          'Watermarked copy saved but system gallery export failed',
+          error,
+          stackTrace,
+          'WatermarkEditor',
+        );
       }
       if (!mounted) return;
       final sourcePath = _sourcePath;
@@ -449,7 +448,7 @@ class _WatermarkEditorScreenState extends ConsumerState<WatermarkEditorScreen> {
         );
       }
       if (!mounted) return;
-      if (systemGalleryError != null) {
+      if (systemGalleryOutcome is SystemGalleryPublishFailed) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(context.l10n.watermark_systemGalleryExportFailed),

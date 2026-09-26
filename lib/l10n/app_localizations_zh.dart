@@ -737,6 +737,13 @@ class AppLocalizationsZh extends AppLocalizations {
   String get settings_autoSaveSubtitle => '生成后自动保存图片';
 
   @override
+  String get settings_syncToSystemGallery => '同步到系统相册';
+
+  @override
+  String get settings_syncToSystemGallerySubtitle =>
+      '关闭后仅保存到应用图库，不再出现在系统相册；已同步的图片不受影响';
+
+  @override
   String get settings_about => '关于';
 
   @override
@@ -12985,6 +12992,9 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
+  String get image_savedToAppGallery => '已保存到应用图库';
+
+  @override
   String image_shareFailed(Object error) {
     return '分享失败: $error';
   }
@@ -15730,6 +15740,13 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get settings_autoSaveSubtitle => '生成後自動儲存圖片';
+
+  @override
+  String get settings_syncToSystemGallery => '同步到系統相簿';
+
+  @override
+  String get settings_syncToSystemGallerySubtitle =>
+      '關閉後僅儲存到應用程式圖庫，不再出現在系統相簿；已同步的圖片不受影響';
 
   @override
   String get settings_about => '關於';
@@ -27978,6 +27995,9 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String image_savedAppOnly(Object error) {
     return '已儲存到應用程式圖庫，但無法匯出到系統相簿：$error';
   }
+
+  @override
+  String get image_savedToAppGallery => '已儲存到應用程式圖庫';
 
   @override
   String image_shareFailed(Object error) {

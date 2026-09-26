@@ -753,6 +753,13 @@ class AppLocalizationsJa extends AppLocalizations {
   String get settings_autoSaveSubtitle => '生成後に画像を自動的に保存します';
 
   @override
+  String get settings_syncToSystemGallery => 'システムギャラリーに同期';
+
+  @override
+  String get settings_syncToSystemGallerySubtitle =>
+      'オフにすると画像はアプリ内ギャラリーにのみ保存され、システムギャラリーには表示されません。同期済みの画像には影響しません。';
+
+  @override
   String get settings_about => '概要';
 
   @override
@@ -13207,6 +13214,9 @@ class AppLocalizationsJa extends AppLocalizations {
   String image_savedAppOnly(Object error) {
     return 'アプリ内ギャラリーには保存しましたが、システムギャラリーに書き出せませんでした: $error';
   }
+
+  @override
+  String get image_savedToAppGallery => 'アプリ内ギャラリーに保存しました';
 
   @override
   String image_shareFailed(Object error) {

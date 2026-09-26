@@ -243,6 +243,19 @@ class LocalStorageService {
     await setSetting(StorageKeys.autoSaveImages, value);
   }
 
+  /// 保存图片时是否同时发布到系统相册（仅 Android 生效）
+  bool getSyncImagesToSystemGallery() {
+    return getSetting<bool>(
+          StorageKeys.syncImagesToSystemGallery,
+          defaultValue: true,
+        ) ??
+        true;
+  }
+
+  Future<void> setSyncImagesToSystemGallery(bool value) async {
+    await setSetting(StorageKeys.syncImagesToSystemGallery, value);
+  }
+
   /// 获取透明图像的 Alpha 模式（true=Straight，false=Premultiplied）。
   bool getImageStraightAlpha() {
     return getSetting<bool>(

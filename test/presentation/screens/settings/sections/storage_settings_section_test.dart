@@ -120,6 +120,33 @@ void main() {
     },
   );
 
+  testWidgets('Android 同步到系统相册开关默认开启，关闭后写入设置', (tester) async {
+    PlatformCapabilities.debugOverride = PlatformCapabilities.forPlatform(
+      TargetPlatform.android,
+    );
+
+    await tester.pumpWidget(_buildSubject(storage));
+    await tester.pump();
+
+    final syncSwitch = find.widgetWithText(SwitchListTile, '同步到系统相册');
+    expect(syncSwitch, findsOneWidget);
+    expect(tester.widget<SwitchListTile>(syncSwitch).value, isTrue);
+
+    await tester.ensureVisible(syncSwitch);
+    await tester.tap(syncSwitch);
+    await tester.pump();
+
+    expect(tester.widget<SwitchListTile>(syncSwitch).value, isFalse);
+    expect(storage.values[StorageKeys.syncImagesToSystemGallery], isFalse);
+  });
+
+  testWidgets('桌面端不显示同步到系统相册开关', (tester) async {
+    await tester.pumpWidget(_buildSubject(storage));
+    await tester.pump();
+
+    expect(find.text('同步到系统相册'), findsNothing);
+  });
+
   testWidgets('聚焦数据与存储：保护模式移出，数据源缓存迁入', (tester) async {
     await tester.binding.setSurfaceSize(const Size(1000, 2400));
     addTearDown(() => tester.binding.setSurfaceSize(null));

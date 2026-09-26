@@ -1499,6 +1499,18 @@ abstract class AppLocalizations {
   /// **'Automatically save images after generation'**
   String get settings_autoSaveSubtitle;
 
+  /// No description provided for @settings_syncToSystemGallery.
+  ///
+  /// In en, this message translates to:
+  /// **'Sync to photo gallery'**
+  String get settings_syncToSystemGallery;
+
+  /// No description provided for @settings_syncToSystemGallerySubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'When off, images are saved only to the app gallery and won\'t appear in your photo gallery. Images already synced are not affected.'**
+  String get settings_syncToSystemGallerySubtitle;
+
   /// No description provided for @settings_about.
   ///
   /// In en, this message translates to:
@@ -23535,6 +23547,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Saved to the app gallery, but could not export to your photo gallery: {error}'**
   String image_savedAppOnly(Object error);
+
+  /// No description provided for @image_savedToAppGallery.
+  ///
+  /// In en, this message translates to:
+  /// **'Saved to the app gallery'**
+  String get image_savedToAppGallery;
 
   /// No description provided for @image_shareFailed.
   ///

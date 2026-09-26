@@ -17,7 +17,6 @@ import 'package:path/path.dart' as p;
 
 import '../../../../core/enums/precise_ref_type.dart';
 import '../../../../core/platform/platform_capabilities.dart';
-import '../../../../core/services/android_media_store_service.dart';
 import '../../../../core/services/character_conversion_service.dart';
 import '../../../../core/shortcuts/default_shortcuts.dart';
 import '../../../../core/shortcuts/shortcut_config.dart';
@@ -47,6 +46,7 @@ import '../../../providers/character_position_canvas_provider.dart';
 import '../../../providers/character_prompt_provider.dart';
 import '../../../providers/fixed_tags_provider.dart';
 import '../../../providers/image_generation_provider.dart';
+import '../../../providers/image_save_settings_provider.dart';
 import '../../../providers/local_gallery_provider.dart';
 import '../../../providers/quality_preset_provider.dart';
 import '../../../providers/preview_transparency_provider.dart';
@@ -59,6 +59,7 @@ import '../../../services/image_workflow_launcher.dart';
 import '../../../widgets/character/character_position_canvas.dart';
 import '../../../widgets/common/app_toast.dart';
 import '../../../widgets/common/draggable_memory_image.dart';
+import '../../../widgets/common/gallery_save_feedback.dart';
 import '../../../widgets/common/image_detail/file_image_detail_data.dart';
 import '../../../widgets/common/image_detail/image_detail_data.dart';
 import '../../../widgets/common/image_detail/image_detail_viewer.dart';
@@ -182,6 +183,7 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> {
         gallery: ref.read(localGalleryNotifierProvider.notifier),
         selection: selectionNotifier,
         deletion: GenerationImageDeletion(context: context, ref: ref),
+        readSystemGallery: () => ref.read(systemGalleryPublisherProvider),
       ).build(),
       child: CardSelectionScope(
         selection: selection,
@@ -1208,6 +1210,7 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> {
   /// 保存图像
   Future<void> _saveImage(BuildContext context, ImageDetailData image) async {
     try {
+      final systemGallery = ref.read(systemGalleryPublisherProvider);
       final imageBytes = await image.getImageBytes();
       final saveDir = await _getSaveDirectory();
       if (saveDir == null) return;
@@ -1321,17 +1324,10 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> {
       final finalBytes = saved.bytes;
       final filePath = saved.path;
 
-      Object? systemGalleryError;
-      if (PlatformCapabilities.current.supportsSystemGalleryExport) {
-        try {
-          await AndroidMediaStoreService.savePng(
-            bytes: finalBytes,
-            fileName: p.basename(filePath),
-          );
-        } catch (error) {
-          systemGalleryError = error;
-        }
-      }
+      final systemGalleryOutcome = await systemGallery.publishPng(
+        bytes: finalBytes,
+        fileName: p.basename(filePath),
+      );
 
       // 立即解析并缓存刚保存图像的元数据
       unawaited(
@@ -1366,19 +1362,11 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> {
       ref.read(localGalleryNotifierProvider.notifier).refresh();
 
       if (context.mounted) {
-        if (systemGalleryError != null) {
-          AppToast.warning(
-            context,
-            context.l10n.image_savedAppOnly(systemGalleryError.toString()),
-          );
-        } else {
-          AppToast.success(
-            context,
-            PlatformCapabilities.current.supportsSystemGalleryExport
-                ? context.l10n.image_savedToSystemGallery
-                : context.l10n.image_imageSaved(saveDir.path),
-          );
-        }
+        showGallerySaveFeedback(
+          context,
+          systemGalleryOutcome,
+          appGalleryMessage: context.l10n.image_imageSaved(saveDir.path),
+        );
       }
     } catch (e) {
       if (context.mounted) {

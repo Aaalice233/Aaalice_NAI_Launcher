@@ -768,6 +768,13 @@ class AppLocalizationsEn extends AppLocalizations {
       'Automatically save images after generation';
 
   @override
+  String get settings_syncToSystemGallery => 'Sync to photo gallery';
+
+  @override
+  String get settings_syncToSystemGallerySubtitle =>
+      'When off, images are saved only to the app gallery and won\'t appear in your photo gallery. Images already synced are not affected.';
+
+  @override
   String get settings_about => 'About';
 
   @override
@@ -13566,6 +13573,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String image_savedAppOnly(Object error) {
     return 'Saved to the app gallery, but could not export to your photo gallery: $error';
   }
+
+  @override
+  String get image_savedToAppGallery => 'Saved to the app gallery';
 
   @override
   String image_shareFailed(Object error) {

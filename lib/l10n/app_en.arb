@@ -297,6 +297,8 @@
   "settings_imageSavePath": "Image Save Location",
   "settings_autoSave": "Auto Save",
   "settings_autoSaveSubtitle": "Automatically save images after generation",
+  "settings_syncToSystemGallery": "Sync to photo gallery",
+  "settings_syncToSystemGallerySubtitle": "When off, images are saved only to the app gallery and won't appear in your photo gallery. Images already synced are not affected.",
   "settings_about": "About",
   "settings_version": "Version {version}",
   "@settings_version": {
@@ -6542,6 +6544,7 @@
   "@localGallery_saveToSystemGalleryFailed": {"placeholders":{"error":{}}},
   "image_savedAppOnly": "Saved to the app gallery, but could not export to your photo gallery: {error}",
   "@image_savedAppOnly": {"placeholders":{"error":{}}},
+  "image_savedToAppGallery": "Saved to the app gallery",
   "image_shareFailed": "Share failed: {error}",
   "@image_shareFailed": {"placeholders":{"error":{}}},
   "onlineGallery_savedFiles": "Saved {count} files",
