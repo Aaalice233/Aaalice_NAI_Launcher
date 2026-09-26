@@ -3,8 +3,8 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
 import '../../../../core/platform/platform_capabilities.dart';
-import '../../../../core/services/android_media_store_service.dart';
 import '../../../../core/services/file_export_service.dart';
+import '../../../../core/services/system_gallery_publisher.dart';
 import '../../../../core/utils/image_save_utils.dart';
 import '../../../../core/utils/localization_extension.dart';
 import '../../../../core/utils/zip_utils.dart';
@@ -14,6 +14,7 @@ import '../../../providers/image_generation_provider.dart';
 import '../../../providers/local_gallery_provider.dart';
 import '../../../utils/zip_export_progress.dart';
 import '../../../widgets/common/app_toast.dart';
+import '../../../widgets/common/gallery_save_feedback.dart';
 import '../../../widgets/common/image_card_action.dart';
 import 'generation_image_deletion.dart';
 
@@ -24,12 +25,16 @@ class GenerationImageBatchActions {
     required this.gallery,
     required this.selection,
     required this.deletion,
+    required this.readSystemGallery,
   });
   final BuildContext context;
   final List<GeneratedImage> images;
   final LocalGalleryNotifier gallery;
   final GenerationImageCardSelection selection;
   final GenerationImageDeletion deletion;
+
+  /// 点击保存时才读取，避免沿用构建时的同步开关。
+  final SystemGalleryPublisher Function() readSystemGallery;
 
   List<ImageCardAction> build() => [
     ImageCardAction(
@@ -65,7 +70,8 @@ class GenerationImageBatchActions {
 
       final selectedImages = images;
 
-      Object? systemGalleryError;
+      final systemGallery = readSystemGallery();
+      SystemGalleryPublishOutcome? systemGalleryOutcome;
       // 原子保存：日期分类路径 + 独占防冲突 + 失败清理，全部在工具内完成
       for (int i = 0; i < selectedImages.length; i++) {
         final image = selectedImages[i];
@@ -77,32 +83,23 @@ class GenerationImageBatchActions {
             bytes: image.bytes,
           ),
         );
-        if (PlatformCapabilities.current.supportsSystemGalleryExport) {
-          try {
-            await AndroidMediaStoreService.savePng(
-              bytes: image.bytes,
-              fileName: p.basename(filePath),
-            );
-          } catch (error) {
-            systemGalleryError ??= error;
-          }
+        final outcome = await systemGallery.publishPng(
+          bytes: image.bytes,
+          fileName: p.basename(filePath),
+        );
+        if (systemGalleryOutcome is! SystemGalleryPublishFailed) {
+          systemGalleryOutcome = outcome;
         }
       }
 
       await gallery.refresh();
 
       if (context.mounted) {
-        if (systemGalleryError != null) {
-          AppToast.warning(
+        if (systemGalleryOutcome != null) {
+          showGallerySaveFeedback(
             context,
-            context.l10n.image_savedAppOnly(systemGalleryError.toString()),
-          );
-        } else {
-          AppToast.success(
-            context,
-            PlatformCapabilities.current.supportsSystemGalleryExport
-                ? context.l10n.image_savedToSystemGallery
-                : context.l10n.image_imageSaved(saveDirPath),
+            systemGalleryOutcome,
+            appGalleryMessage: context.l10n.image_imageSaved(saveDirPath),
           );
         }
         selection.deselectAll(images.map((image) => image.id));

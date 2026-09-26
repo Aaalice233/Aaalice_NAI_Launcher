@@ -9,7 +9,6 @@ import 'package:path/path.dart' as p;
 import '../../../core/mosaic/mosaic_derivative_registry.dart';
 import '../../../core/platform/platform_capabilities.dart';
 import '../../../core/storage/local_storage_service.dart';
-import '../../../core/services/android_media_store_service.dart';
 import '../../../core/utils/image_save_utils.dart';
 import '../../../core/utils/image_share_sanitizer.dart';
 import '../../../core/utils/localization_extension.dart';
@@ -19,6 +18,7 @@ import '../../../l10n/app_localizations.dart';
 import '../../providers/mosaic_settings_provider.dart';
 import '../../providers/share_image_settings_provider.dart';
 import '../../providers/copy_drag_watermark_provider.dart';
+import '../../providers/image_save_settings_provider.dart';
 import '../../providers/watermark_settings_provider.dart';
 import '../../screens/mosaic/mosaic_editor_launcher.dart';
 import '../../screens/dlss/dlss_enhancement_panel.dart';
@@ -26,6 +26,7 @@ import '../../screens/dlss/dlss_error_view.dart';
 import '../../screens/watermark/watermark_editor_launcher.dart';
 import '../../utils/clipboard_image.dart';
 import 'app_toast.dart';
+import 'gallery_save_feedback.dart';
 import 'image_card_controller.dart';
 import 'image_card_action.dart';
 export 'image_card_action.dart';
@@ -382,6 +383,7 @@ class ImageCardActionCoordinator {
     final l10n = context.l10n;
     final bytes = _data.imageBytes;
     if (bytes == null) return;
+    final systemGallery = ref.read(systemGalleryPublisherProvider);
     try {
       final rootPath = await GalleryFolderRepository.instance.getRootPath();
       if (rootPath == null || rootPath.isEmpty) {
@@ -393,28 +395,15 @@ class ImageCardActionCoordinator {
         bytes: bytes,
         seed: await ImageSaveUtils.resolveSeed(bytes: bytes),
       );
-      if (PlatformCapabilities.current.supportsSystemGalleryExport) {
-        try {
-          await AndroidMediaStoreService.savePng(
-            bytes: bytes,
-            fileName: p.basename(filePath),
-          );
-        } catch (error) {
-          if (context.mounted) {
-            AppToast.warning(
-              context,
-              l10n.image_savedAppOnly(error.toString()),
-            );
-          }
-          return;
-        }
-      }
+      final systemGalleryOutcome = await systemGallery.publishPng(
+        bytes: bytes,
+        fileName: p.basename(filePath),
+      );
       if (context.mounted) {
-        AppToast.success(
+        showGallerySaveFeedback(
           context,
-          PlatformCapabilities.current.supportsSystemGalleryExport
-              ? l10n.image_savedToSystemGallery
-              : l10n.toast_savedTo(rootPath),
+          systemGalleryOutcome,
+          appGalleryMessage: l10n.toast_savedTo(rootPath),
         );
       }
     } catch (error) {

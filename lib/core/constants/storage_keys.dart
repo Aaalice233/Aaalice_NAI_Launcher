@@ -138,6 +138,8 @@ class StorageKeys {
       'selected_resolution_preset_id';
   static const String imageSavePath = 'image_save_path';
   static const String autoSaveImages = 'auto_save_images';
+  static const String syncImagesToSystemGallery =
+      'sync_images_to_system_gallery';
   static const String imageStraightAlpha = 'image_straight_alpha';
   static const String shareStripMetadata = 'share_strip_metadata';
   static const String shareWatermark = 'share_watermark';

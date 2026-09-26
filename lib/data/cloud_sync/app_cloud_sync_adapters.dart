@@ -214,6 +214,7 @@ const portableSettingKeys = <String>{
   StorageKeys.defaultHeight,
   StorageKeys.selectedResolutionPresetId,
   StorageKeys.autoSaveImages,
+  StorageKeys.syncImagesToSystemGallery,
   StorageKeys.imageStraightAlpha,
   StorageKeys.shareStripMetadata,
   StorageKeys.shareWatermark,

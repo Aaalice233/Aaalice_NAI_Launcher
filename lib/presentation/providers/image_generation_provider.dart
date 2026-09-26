@@ -9,9 +9,9 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 import '../../core/constants/model_capabilities.dart';
 import '../../core/platform/platform_capabilities.dart';
 import '../../core/services/android_foreground_task_service.dart';
-import '../../core/services/android_media_store_service.dart';
 import '../../core/services/anlas_calculator.dart';
 import '../../core/services/character_conversion_service.dart';
+import '../../core/services/system_gallery_publisher.dart';
 import '../../core/storage/local_storage_service.dart';
 import '../../core/utils/app_logger.dart';
 import '../../core/utils/character_center_resolver.dart';
@@ -129,6 +129,12 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
   GenerationResultLifecycleService _lifecycle() {
     final gallery = ref.read(localGalleryNotifierProvider.notifier);
     final statistics = ref.read(statisticsCacheServiceProvider);
+    final systemGallery = SystemGalleryPublisher(
+      syncEnabled: ref
+          .read(imageSaveSettingsNotifierProvider)
+          .syncToSystemGallery,
+      capabilities: PlatformCapabilities.operatingSystem,
+    );
     return GenerationResultLifecycleService(
       GenerationResultLifecycleDependencies(
         historyStorage: ref.read(generationHistoryStorageServiceProvider),
@@ -140,14 +146,14 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
           ref.read(localStorageServiceProvider),
         ).delete,
         incrementStatistics: statistics.incrementImageCount,
-        publishToSystemGallery:
-            PlatformCapabilities.operatingSystem.supportsSystemGalleryExport
+        publishToSystemGallery: systemGallery.isActive
             ? (sourcePath, fileName) async {
-                await AndroidMediaStoreService.saveImageFromPath(
+                final outcome = await systemGallery.publishFile(
                   sourcePath: sourcePath,
                   fileName: fileName,
                   mimeType: 'image/png',
                 );
+                outcome.throwIfFailed();
               }
             : null,
       ),

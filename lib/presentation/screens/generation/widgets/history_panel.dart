@@ -30,6 +30,7 @@ import '../../../providers/generation/generation_params_selectors.dart';
 import '../../../providers/generation/preview_selection_provider.dart';
 import '../../../providers/history_click_behavior_provider.dart';
 import '../../../providers/image_generation_provider.dart';
+import '../../../providers/image_save_settings_provider.dart';
 import '../../../providers/local_gallery_provider.dart';
 import '../../../providers/reverse_prompt_provider.dart';
 import '../../../providers/share_image_settings_provider.dart';
@@ -193,6 +194,7 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
         gallery: ref.read(localGalleryNotifierProvider.notifier),
         selection: _selection,
         deletion: _deletion,
+        readSystemGallery: () => ref.read(systemGalleryPublisherProvider),
       ).build(),
       child: CardSelectionScope(
         selection: selection,

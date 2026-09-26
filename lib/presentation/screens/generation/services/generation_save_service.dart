@@ -4,17 +4,17 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
 
-import '../../../../core/platform/platform_capabilities.dart';
-import '../../../../core/services/android_media_store_service.dart';
 import '../../../../core/utils/localization_extension.dart';
 import '../../../../core/utils/image_save_utils.dart';
 import '../../../../data/models/gallery/nai_image_metadata.dart';
 import '../../../../data/repositories/gallery_folder_repository.dart';
 import '../../../../data/services/image_metadata_service.dart';
 import '../../../providers/generation/generation_models.dart';
+import '../../../providers/image_save_settings_provider.dart';
 import '../../../providers/local_gallery_provider.dart';
 import '../../../utils/image_detail_opener.dart';
 import '../../../widgets/common/app_toast.dart';
+import '../../../widgets/common/gallery_save_feedback.dart';
 import '../../../widgets/common/image_detail/file_image_detail_data.dart';
 import '../../../widgets/common/image_detail/image_detail_data.dart';
 import '../../../widgets/common/image_detail/image_detail_viewer.dart';
@@ -94,6 +94,7 @@ class GenerationSaveService {
     WidgetRef ref,
     ImageDetailData image,
   ) async {
+    final systemGallery = ref.read(systemGalleryPublisherProvider);
     try {
       final imageBytes = await image.getImageBytes();
       final saveDirPath = await GalleryFolderRepository.instance.getRootPath();
@@ -131,34 +132,19 @@ class GenerationSaveService {
       final finalBytes = saved.bytes;
       final filePath = saved.path;
 
-      Object? systemGalleryError;
-      if (PlatformCapabilities.current.supportsSystemGalleryExport) {
-        try {
-          await AndroidMediaStoreService.savePng(
-            bytes: finalBytes,
-            fileName: p.basename(filePath),
-          );
-        } catch (error) {
-          systemGalleryError = error;
-        }
-      }
+      final systemGalleryOutcome = await systemGallery.publishPng(
+        bytes: finalBytes,
+        fileName: p.basename(filePath),
+      );
 
       ref.read(localGalleryNotifierProvider.notifier).refresh();
 
       if (context.mounted) {
-        if (systemGalleryError != null) {
-          AppToast.warning(
-            context,
-            context.l10n.image_savedAppOnly(systemGalleryError.toString()),
-          );
-        } else {
-          AppToast.success(
-            context,
-            PlatformCapabilities.current.supportsSystemGalleryExport
-                ? context.l10n.image_savedToSystemGallery
-                : context.l10n.image_imageSaved(saveDirPath),
-          );
-        }
+        showGallerySaveFeedback(
+          context,
+          systemGalleryOutcome,
+          appGalleryMessage: context.l10n.image_imageSaved(saveDirPath),
+        );
       }
     } catch (e) {
       if (context.mounted) {
