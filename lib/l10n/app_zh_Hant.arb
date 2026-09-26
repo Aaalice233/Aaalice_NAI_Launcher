@@ -952,7 +952,17 @@
   "img2img_upscalePanelOpened": "已開啟圖生圖超分面板",
   "editor_tolerance": "容差",
   "editor_intensity": "強度",
-  "editor_sourcePoint": "Alt+點選設定源點",
+  "editor_cloneStampSetSource": "設定源點",
+  "editor_cloneStampSetSourceTooltip": "開啟後，下一次點選畫布的位置設為源點；也可以按住 Alt 點選畫布",
+  "editor_cloneStampPickingHint": "點選畫布選取仿製源點",
+  "editor_cloneStampNoSourceHint": "尚未設定源點，開啟「設定源點」後點選畫布",
+  "editor_cloneStampSourceReadout": "源點: X {x}, Y {y}",
+  "@editor_cloneStampSourceReadout": {
+    "placeholders": {
+      "x": {"type": "int"},
+      "y": {"type": "int"}
+    }
+  },
   "editor_brushPresets": "筆刷預設",
   "editor_size": "大小",
   "editor_opacity": "不透明度",
@@ -1003,6 +1013,7 @@
   "editor_shortcutHistoryActions": "歷史操作",
   "editor_shortcutSelectionActions": "選區操作",
   "editor_shortcutTemporaryColorPicker": "臨時拾色器",
+  "editor_shortcutCloneStampSource": "設定仿製圖章源點",
   "editor_shortcutRectSelection": "矩形選區",
   "editor_shortcutEllipseSelection": "橢圓選區",
   "editor_shortcutLassoSelection": "套索選區",

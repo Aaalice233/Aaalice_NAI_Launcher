@@ -2370,7 +2370,23 @@ class AppLocalizationsJa extends AppLocalizations {
   String get editor_intensity => '強度';
 
   @override
-  String get editor_sourcePoint => 'Alt+クリックしてソースポイントを設定します';
+  String get editor_cloneStampSetSource => 'ソースを設定';
+
+  @override
+  String get editor_cloneStampSetSourceTooltip =>
+      'オンにすると、次にキャンバス上で選んだ位置がソースポイントになります。Alt キーを押しながらキャンバスをクリックしても設定できます。';
+
+  @override
+  String get editor_cloneStampPickingHint => 'キャンバス上でクローン元の位置を選びます';
+
+  @override
+  String get editor_cloneStampNoSourceHint =>
+      'ソースポイントが未設定です。「ソースを設定」をオンにしてから、キャンバス上の位置を選んでください。';
+
+  @override
+  String editor_cloneStampSourceReadout(int x, int y) {
+    return 'ソースポイント: X $x, Y $y';
+  }
 
   @override
   String get editor_brushPresets => 'ブラシ プリセット';
@@ -2520,6 +2536,9 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get editor_shortcutTemporaryColorPicker => '一時的なカラーピッカー';
+
+  @override
+  String get editor_shortcutCloneStampSource => 'クローンスタンプのソースを設定';
 
   @override
   String get editor_shortcutRectSelection => '長方形の選択';

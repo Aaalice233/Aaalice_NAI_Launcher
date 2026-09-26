@@ -2332,7 +2332,22 @@ class AppLocalizationsZh extends AppLocalizations {
   String get editor_intensity => '强度';
 
   @override
-  String get editor_sourcePoint => 'Alt+点击设置源点';
+  String get editor_cloneStampSetSource => '设置源点';
+
+  @override
+  String get editor_cloneStampSetSourceTooltip =>
+      '开启后，下一次点击画布的位置设为源点；也可以按住 Alt 点击画布';
+
+  @override
+  String get editor_cloneStampPickingHint => '点击画布选取仿制源点';
+
+  @override
+  String get editor_cloneStampNoSourceHint => '尚未设置源点，开启「设置源点」后点击画布';
+
+  @override
+  String editor_cloneStampSourceReadout(int x, int y) {
+    return '源点: X $x, Y $y';
+  }
 
   @override
   String get editor_brushPresets => '笔刷预设';
@@ -2481,6 +2496,9 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get editor_shortcutTemporaryColorPicker => '临时拾色器';
+
+  @override
+  String get editor_shortcutCloneStampSource => '设置仿制图章源点';
 
   @override
   String get editor_shortcutRectSelection => '矩形选区';
@@ -17309,7 +17327,22 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get editor_intensity => '強度';
 
   @override
-  String get editor_sourcePoint => 'Alt+點選設定源點';
+  String get editor_cloneStampSetSource => '設定源點';
+
+  @override
+  String get editor_cloneStampSetSourceTooltip =>
+      '開啟後，下一次點選畫布的位置設為源點；也可以按住 Alt 點選畫布';
+
+  @override
+  String get editor_cloneStampPickingHint => '點選畫布選取仿製源點';
+
+  @override
+  String get editor_cloneStampNoSourceHint => '尚未設定源點，開啟「設定源點」後點選畫布';
+
+  @override
+  String editor_cloneStampSourceReadout(int x, int y) {
+    return '源點: X $x, Y $y';
+  }
 
   @override
   String get editor_brushPresets => '筆刷預設';
@@ -17458,6 +17491,9 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get editor_shortcutTemporaryColorPicker => '臨時拾色器';
+
+  @override
+  String get editor_shortcutCloneStampSource => '設定仿製圖章源點';
 
   @override
   String get editor_shortcutRectSelection => '矩形選區';

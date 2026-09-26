@@ -2434,7 +2434,24 @@ class AppLocalizationsEn extends AppLocalizations {
   String get editor_intensity => 'Intensity';
 
   @override
-  String get editor_sourcePoint => 'Alt+Click to set source point';
+  String get editor_cloneStampSetSource => 'Set Source';
+
+  @override
+  String get editor_cloneStampSetSourceTooltip =>
+      'When on, the next point you pick on the canvas becomes the source. Alt+click on the canvas also sets it.';
+
+  @override
+  String get editor_cloneStampPickingHint =>
+      'Pick a point on the canvas to clone from.';
+
+  @override
+  String get editor_cloneStampNoSourceHint =>
+      'No source point yet. Turn on Set Source, then pick a point on the canvas.';
+
+  @override
+  String editor_cloneStampSourceReadout(int x, int y) {
+    return 'Source point: X $x, Y $y';
+  }
 
   @override
   String get editor_brushPresets => 'Brush Presets';
@@ -2585,6 +2602,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get editor_shortcutTemporaryColorPicker => 'Temporary Color Picker';
+
+  @override
+  String get editor_shortcutCloneStampSource => 'Set Clone Stamp Source';
 
   @override
   String get editor_shortcutRectSelection => 'Rectangle Selection';

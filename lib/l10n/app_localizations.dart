@@ -4412,11 +4412,35 @@ abstract class AppLocalizations {
   /// **'Intensity'**
   String get editor_intensity;
 
-  /// No description provided for @editor_sourcePoint.
+  /// No description provided for @editor_cloneStampSetSource.
   ///
   /// In en, this message translates to:
-  /// **'Alt+Click to set source point'**
-  String get editor_sourcePoint;
+  /// **'Set Source'**
+  String get editor_cloneStampSetSource;
+
+  /// No description provided for @editor_cloneStampSetSourceTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'When on, the next point you pick on the canvas becomes the source. Alt+click on the canvas also sets it.'**
+  String get editor_cloneStampSetSourceTooltip;
+
+  /// No description provided for @editor_cloneStampPickingHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Pick a point on the canvas to clone from.'**
+  String get editor_cloneStampPickingHint;
+
+  /// No description provided for @editor_cloneStampNoSourceHint.
+  ///
+  /// In en, this message translates to:
+  /// **'No source point yet. Turn on Set Source, then pick a point on the canvas.'**
+  String get editor_cloneStampNoSourceHint;
+
+  /// No description provided for @editor_cloneStampSourceReadout.
+  ///
+  /// In en, this message translates to:
+  /// **'Source point: X {x}, Y {y}'**
+  String editor_cloneStampSourceReadout(int x, int y);
 
   /// No description provided for @editor_brushPresets.
   ///
@@ -4711,6 +4735,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Temporary Color Picker'**
   String get editor_shortcutTemporaryColorPicker;
+
+  /// No description provided for @editor_shortcutCloneStampSource.
+  ///
+  /// In en, this message translates to:
+  /// **'Set Clone Stamp Source'**
+  String get editor_shortcutCloneStampSource;
 
   /// No description provided for @editor_shortcutRectSelection.
   ///

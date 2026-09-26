@@ -6,6 +6,8 @@ import 'package:flutter/services.dart';
 import '../../common/image_viewport_surface.dart';
 import '../core/editor_state.dart';
 import '../core/input_handler.dart';
+import '../tools/clone_stamp_tool.dart';
+import 'clone_source_marker_painter.dart';
 import 'layer_painter.dart';
 import 'stroke_preview_painter.dart';
 
@@ -195,6 +197,20 @@ class _EditorCanvasState extends State<EditorCanvas>
                               ),
                             ),
                           ),
+
+                          // 仿制图章源点准星 - 独立重绘区域（涂抹时逐点移动）
+                          if (widget.state.currentTool
+                              case final CloneStampTool cloneStamp)
+                            Positioned.fill(
+                              child: RepaintBoundary(
+                                child: CustomPaint(
+                                  painter: CloneSourceMarkerPainter(
+                                    state: widget.state,
+                                    tool: cloneStamp,
+                                  ),
+                                ),
+                              ),
+                            ),
 
                           // 光标绘制 - 独立重绘区域（每次指针移动都重绘，
                           // 不隔离会连带整幅图层重绘，willChange 也会污染整块画布的光栅缓存）
