@@ -699,7 +699,7 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
           final lifecycle = _lifecycle();
           final settings = ref.read(imageSaveSettingsNotifierProvider);
           if (settings.autoSave) {
-            await _saveImages(images, params, epoch: epoch);
+            await _saveImages(images, epoch: epoch);
             if (!_isCurrentLifecycle(epoch) || event.runId != _activeRunId) {
               return;
             }
@@ -989,6 +989,11 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
       comparisonSource: comparisonSourceImage == null
           ? null
           : _comparisonSourceFor(comparisonSourceImage),
+      fixedTagUsageSnapshot: embedNaiMetadata
+          ? FixedTagUsageSnapshot.capture(
+              ref.read(fixedTagsNotifierProvider).entries,
+            )
+          : null,
       embedNaiMetadata: embedNaiMetadata,
     );
     if (!_isCurrentLifecycle(epoch)) return null;
@@ -1016,7 +1021,6 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
     if (saveToLocal) {
       final result = await _saveImages(
         [image],
-        prepared.params,
         epoch: epoch,
         directoryPath: saveDirectoryPath,
         syncToGalleryIndex: syncToGalleryIndex,
@@ -1029,8 +1033,7 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
   }
 
   Future<GenerationSaveResult> _saveImages(
-    List<GeneratedImage> images,
-    ImageParams params, {
+    List<GeneratedImage> images, {
     required int epoch,
     String? directoryPath,
     bool syncToGalleryIndex = true,
@@ -1038,19 +1041,9 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
     if (!_isCurrentLifecycle(epoch)) {
       return GenerationSaveResult(images, const []);
     }
-    final fixedTagUsageSnapshot =
-        (images.isEmpty ? null : images.first.fixedTagUsageSnapshot) ??
-        FixedTagUsageSnapshot.capture(
-          ref.read(fixedTagsNotifierProvider).entries,
-        );
     final lifecycle = _lifecycle();
     final result = await lifecycle.saveImages(
       images,
-      params,
-      snapshot: GenerationSaveSnapshot(
-        fixedTagUsageSnapshot: fixedTagUsageSnapshot,
-        useCoords: params.useCoords,
-      ),
       directoryPath: directoryPath,
       syncToGalleryIndex: syncToGalleryIndex,
     );

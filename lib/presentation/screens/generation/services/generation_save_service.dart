@@ -1,194 +1,47 @@
-import 'dart:convert';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:path/path.dart' as p;
 
 import '../../../../core/utils/localization_extension.dart';
-import '../../../../core/utils/image_save_utils.dart';
-import '../../../../data/models/gallery/nai_image_metadata.dart';
 import '../../../../data/repositories/gallery_folder_repository.dart';
-import '../../../../data/services/image_metadata_service.dart';
-import '../../../providers/generation/generation_models.dart';
+import '../../../providers/image_generation_provider.dart';
 import '../../../providers/image_save_settings_provider.dart';
 import '../../../providers/local_gallery_provider.dart';
-import '../../../utils/image_detail_opener.dart';
 import '../../../widgets/common/app_toast.dart';
 import '../../../widgets/common/gallery_save_feedback.dart';
-import '../../../widgets/common/image_detail/file_image_detail_data.dart';
 import '../../../widgets/common/image_detail/image_detail_data.dart';
-import '../../../widgets/common/image_detail/image_detail_viewer.dart';
+import 'generation_detail_saver.dart';
 
-/// 图像保存服务类
-///
-/// 负责处理图像保存、全屏预览等功能
-/// 从 desktop_layout.dart 中提取，减少文件职责
+/// 生成页详情查看器的保存入口，预览区与历史栏共用。
 class GenerationSaveService {
   GenerationSaveService._();
 
-  /// 显示全屏预览
-  ///
-  /// 简化逻辑：统一使用 FileImageDetailData 从 PNG 文件解析元数据
-  /// - 如果图像已保存（有 filePath），直接使用
-  /// - 如果图像未保存，先保存到磁盘再使用
-  /// - 元数据异步加载，详情页先显示，解析中显示转圈
-  static void showFullscreenPreview(
-    BuildContext context,
-    WidgetRef ref,
-    List<GeneratedImage> images,
-  ) {
-    // 立即构建基础数据（使用 FileImageDetailData 从文件解析）
-    final allImages = images.map((img) {
-      // 如果图像已保存，直接使用 filePath
-      // 如果未保存，使用临时字节（这种情况在 auto-save 开启时应该很少）
-      if (img.filePath != null && img.filePath!.isNotEmpty) {
-        // 加入预加载队列（如果尚未解析）
-        ImageMetadataService().enqueuePreload(
-          taskId: img.id,
-          filePath: img.filePath,
-        );
-        return FileImageDetailData(
-          filePath: img.filePath!,
-          cachedBytes: img.bytes,
-          id: img.id,
-          initialMetadata: img.metadata,
-          showCopyButton: img.canSave,
-        );
-      }
-
-      // 未保存的图像：使用 GeneratedImageDetailData 作为 fallback
-      // 这种情况只应在 auto-save 关闭且用户未手动保存时发生
-      return GeneratedImageDetailData(
-        imageBytes: img.bytes,
-        metadata: img.metadata,
-        id: img.id,
-        showSaveButton: img.canSave,
-        showCopyButton: img.canSave,
-        preserveOriginalBytesOnSave: img.preserveOriginalBytesOnSave,
-        fixedTagUsageSnapshot: img.fixedTagUsageSnapshot,
-      );
-    }).toList();
-
-    // 使用 ImageDetailOpener 打开详情页（带防重复点击）
-    // 使用 'generation_desktop' key 避免与本地图库的 'default' key 冲突
-    ImageDetailOpener.showMultipleImmediate(
-      context,
-      images: allImages,
-      initialIndex: 0,
-      showMetadataPanel: true,
-      showThumbnails: allImages.length > 1,
-      callbacks: ImageDetailCallbacks(
-        onSave: (image) async {
-          if (!image.showSaveButton) return;
-          await saveImageFromDetail(context, ref, image);
-        },
-      ),
-    );
-  }
-
-  /// 从详情页保存图像
-  ///
-  /// 使用 [ImageSaveUtils] 确保元数据完整嵌入
   static Future<void> saveImageFromDetail(
     BuildContext context,
     WidgetRef ref,
     ImageDetailData image,
   ) async {
-    final systemGallery = ref.read(systemGalleryPublisherProvider);
+    // 保存期间宿主组件可能被卸载，句柄必须在第一个 await 之前取好。
+    final generation = ref.read(imageGenerationNotifierProvider.notifier);
+    final gallery = ref.read(localGalleryNotifierProvider.notifier);
+    final saver = GenerationDetailSaver(
+      resolveGalleryRootPath: GalleryFolderRepository.instance.getRootPath,
+      systemGallery: ref.read(systemGalleryPublisherProvider),
+      recordSavedPath: generation.updateImageFilePath,
+      addGalleryImages: gallery.addNewlySavedImages,
+      refreshGallery: gallery.refresh,
+    );
     try {
-      final imageBytes = await image.getImageBytes();
-      final saveDirPath = await GalleryFolderRepository.instance.getRootPath();
-      if (saveDirPath == null) return;
-
-      // 获取已有元数据（如果图像已包含）
-      final existingMetadata = image.metadata;
-      final fixedTagUsageSnapshot = image is GeneratedImageDetailData
-          ? image.fixedTagUsageSnapshot
-          : existingMetadata?.fixedTagUsageSnapshot;
-      // 原子保存：日期分类路径 + 独占防冲突 + 失败清理，全部在工具内完成
-      final saved = await ImageSaveUtils.saveResultImage(
-        rootPath: saveDirPath,
-        imageBytes: imageBytes,
-        preserveOriginalBytes: image.preserveOriginalBytesOnSave,
-        fixedTagUsageSnapshot: fixedTagUsageSnapshot,
-        seed: await ImageSaveUtils.resolveSeed(
-          metadata: existingMetadata,
-          bytes: imageBytes,
-        ),
-        rebuild: () async => existingMetadata == null
-            ? imageBytes
-            : ImageSaveUtils.buildPrebuiltMetadataBytes(
-                imageBytes: imageBytes,
-                metadata: {
-                  'Description': existingMetadata.prompt,
-                  'Software': 'NovelAI',
-                  'Source': existingMetadata.source ?? 'NovelAI Diffusion',
-                  'Comment': jsonEncode(
-                    buildCommentJsonFromMetadata(existingMetadata),
-                  ),
-                },
-              ),
+      final result = await saver.save(image);
+      if (result == null || !context.mounted) return;
+      showGallerySaveFeedback(
+        context,
+        result.systemGalleryOutcome,
+        appGalleryMessage: context.l10n.image_imageSaved(result.rootPath),
       );
-      final finalBytes = saved.bytes;
-      final filePath = saved.path;
-
-      final systemGalleryOutcome = await systemGallery.publishPng(
-        bytes: finalBytes,
-        fileName: p.basename(filePath),
-      );
-
-      ref.read(localGalleryNotifierProvider.notifier).refresh();
-
-      if (context.mounted) {
-        showGallerySaveFeedback(
-          context,
-          systemGalleryOutcome,
-          appGalleryMessage: context.l10n.image_imageSaved(saveDirPath),
-        );
-      }
     } catch (e) {
       if (context.mounted) {
         AppToast.error(context, context.l10n.image_saveFailed(e.toString()));
       }
     }
-  }
-
-  /// 从元数据构建 Comment JSON
-  static Map<String, dynamic> buildCommentJsonFromMetadata(
-    NaiImageMetadata metadata,
-  ) {
-    final commentJson = <String, dynamic>{
-      'prompt': metadata.prompt,
-      'uc': metadata.negativePrompt,
-      'seed': metadata.seed ?? -1,
-      'steps': metadata.steps ?? 28,
-      'width': metadata.width ?? 832,
-      'height': metadata.height ?? 1216,
-      'scale': metadata.scale ?? 5.0,
-      'uncond_scale': 0.0,
-      'cfg_rescale': metadata.cfgRescale ?? 0.0,
-      'n_samples': 1,
-      'noise_schedule': metadata.noiseSchedule ?? 'native',
-      'sampler': metadata.sampler ?? 'k_euler_ancestral',
-      'sm': metadata.smea ?? false,
-      'sm_dyn': metadata.smeaDyn ?? false,
-    };
-
-    // 添加 Vibe 数据
-    if (metadata.vibeReferences.isNotEmpty) {
-      commentJson['reference_image_multiple'] = metadata.vibeReferences
-          .where((v) => v.vibeEncoding.isNotEmpty)
-          .map((v) => v.vibeEncoding)
-          .toList();
-      commentJson['reference_strength_multiple'] = metadata.vibeReferences
-          .map((v) => v.strength)
-          .toList();
-      commentJson['reference_information_extracted_multiple'] = metadata
-          .vibeReferences
-          .map((v) => v.infoExtracted)
-          .toList();
-    }
-
-    return commentJson;
   }
 }

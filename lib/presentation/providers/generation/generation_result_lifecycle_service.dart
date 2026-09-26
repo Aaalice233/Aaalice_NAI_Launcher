@@ -1,5 +1,4 @@
 import 'dart:io';
-import 'dart:math';
 import 'dart:typed_data';
 
 import 'package:path/path.dart' as p;
@@ -38,16 +37,6 @@ class GenerationResultLifecycleDependencies {
   final Future<void> Function(int count) incrementStatistics;
   final Future<void> Function(String sourcePath, String fileName)?
   publishToSystemGallery;
-}
-
-class GenerationSaveSnapshot {
-  const GenerationSaveSnapshot({
-    this.fixedTagUsageSnapshot,
-    this.useCoords = false,
-  });
-
-  final FixedTagUsageSnapshot? fixedTagUsageSnapshot;
-  final bool useCoords;
 }
 
 class GenerationSaveResult {
@@ -133,6 +122,7 @@ class GenerationResultLifecycleService {
     int? width,
     int? height,
     ImageComparisonSource? comparisonSource,
+    FixedTagUsageSnapshot? fixedTagUsageSnapshot,
     required bool embedNaiMetadata,
   }) async {
     final size =
@@ -156,6 +146,7 @@ class GenerationResultLifecycleService {
         width: size.$1,
         height: size.$2,
         comparisonSource: comparisonSource,
+        fixedTagUsageSnapshot: fixedTagUsageSnapshot,
         preserveOriginalBytesOnSave: !embedNaiMetadata,
       ),
       params: effectiveParams,
@@ -163,9 +154,7 @@ class GenerationResultLifecycleService {
   }
 
   Future<GenerationSaveResult> saveImages(
-    List<GeneratedImage> images,
-    ImageParams params, {
-    required GenerationSaveSnapshot snapshot,
+    List<GeneratedImage> images, {
     String? directoryPath,
     bool syncToGalleryIndex = true,
   }) async {
@@ -185,57 +174,17 @@ class GenerationResultLifecycleService {
       return GenerationSaveResult(images, const []);
     }
 
-    final charCaptions = <Map<String, dynamic>>[];
-    final charNegCaptions = <Map<String, dynamic>>[];
-    for (final character in params.characters) {
-      charCaptions.add({
-        'char_caption': character.prompt,
-        'centers': [
-          {'x': 0.5, 'y': 0.5},
-        ],
-      });
-      charNegCaptions.add({
-        'char_caption': character.negativePrompt,
-        'centers': [
-          {'x': 0.5, 'y': 0.5},
-        ],
-      });
-    }
-
     final updated = <GeneratedImage>[];
     final paths = <String>[];
     var systemGalleryExportFailureCount = 0;
     for (final image in images) {
       try {
-        final hasMetadata = ImageSaveUtils.hasEmbeddedNovelAiMetadata(
-          image.bytes,
-        );
-        var actualSeed = params.seed;
-        if (actualSeed < 0 || hasMetadata) {
-          final metadata = await ImageMetadataService().getMetadataFromBytes(
-            image.bytes,
-          );
-          actualSeed = metadata?.seed ?? actualSeed;
-          if (actualSeed < 0) {
-            actualSeed = Random().nextInt(4294967295);
-          }
-        }
         final saved = await ImageSaveUtils.saveResultImage(
           rootPath: rootPath,
           imageBytes: image.bytes,
           preserveOriginalBytes: image.preserveOriginalBytesOnSave,
-          fixedTagUsageSnapshot:
-              image.fixedTagUsageSnapshot ?? snapshot.fixedTagUsageSnapshot,
-          seed: actualSeed,
-          rebuild: () => ImageSaveUtils.rebuildImageBytesWithMetadata(
-            imageBytes: image.bytes,
-            params: params.copyWith(width: image.width, height: image.height),
-            actualSeed: actualSeed,
-            charCaptions: charCaptions,
-            charNegCaptions: charNegCaptions,
-            useCoords: snapshot.useCoords,
-            useStealth: false,
-          ),
+          metadata: image.metadata,
+          fixedTagUsageSnapshot: image.fixedTagUsageSnapshot,
         );
         final path = saved.path;
         paths.add(path);

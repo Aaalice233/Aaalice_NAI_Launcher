@@ -5,6 +5,7 @@ import '../../../widgets/bulk_action_bar.dart';
 import '../services/generated_image_file_link.dart';
 import '../services/generation_image_batch_actions.dart';
 import '../services/generation_image_deletion.dart';
+import '../services/generation_save_service.dart';
 import 'package:nai_launcher/data/models/image/image_postprocess_phase.dart';
 import 'dart:async';
 import 'dart:io';
@@ -17,22 +18,15 @@ import 'package:path/path.dart' as p;
 
 import '../../../../core/enums/precise_ref_type.dart';
 import '../../../../core/platform/platform_capabilities.dart';
-import '../../../../core/services/character_conversion_service.dart';
 import '../../../../core/shortcuts/default_shortcuts.dart';
 import '../../../../core/shortcuts/shortcut_config.dart';
 import '../../../../core/shortcuts/shortcut_manager.dart';
 import '../../../../core/utils/app_logger.dart';
-import '../../../../core/utils/character_prompt_block_parser.dart';
 import '../../../../core/utils/file_explorer_utils.dart';
-import '../../../../core/utils/image_save_utils.dart';
 import '../../../../core/utils/localization_extension.dart';
-import '../../../../core/utils/nai_resolution_adapter.dart';
-import '../../../../core/utils/prompt_preset_resolution.dart';
 import '../../../../core/utils/vibe_file_parser.dart';
 import '../../../../data/models/gallery/nai_image_metadata.dart';
-import '../../../../data/models/fixed_tag/fixed_tag_usage_snapshot.dart';
 import '../../../../data/models/image/image_stream_chunk.dart';
-import '../../../../data/repositories/gallery_folder_repository.dart';
 import '../../../providers/alias_resolver_service.dart';
 import '../../../../data/services/image_metadata_service.dart';
 import '../../../adaptive/window_size_class.dart';
@@ -48,18 +42,15 @@ import '../../../providers/fixed_tags_provider.dart';
 import '../../../providers/image_generation_provider.dart';
 import '../../../providers/image_save_settings_provider.dart';
 import '../../../providers/local_gallery_provider.dart';
-import '../../../providers/quality_preset_provider.dart';
 import '../../../providers/preview_transparency_provider.dart';
 import '../../../providers/prompt_config_provider.dart';
 import '../../../providers/reverse_prompt_provider.dart';
 import '../../../providers/tag_library_page_provider.dart';
 import '../../../providers/shortcuts_provider.dart';
-import '../../../providers/uc_preset_provider.dart';
 import '../../../services/image_workflow_launcher.dart';
 import '../../../widgets/character/character_position_canvas.dart';
 import '../../../widgets/common/app_toast.dart';
 import '../../../widgets/common/draggable_memory_image.dart';
-import '../../../widgets/common/gallery_save_feedback.dart';
 import '../../../widgets/common/image_detail/file_image_detail_data.dart';
 import '../../../widgets/common/image_detail/image_detail_data.dart';
 import '../../../widgets/common/image_detail/image_detail_viewer.dart';
@@ -1190,189 +1181,10 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> {
       callbacks: ImageDetailCallbacks(
         onSave: (image) async {
           if (!image.showSaveButton) return;
-          await _saveImage(context, image);
+          await GenerationSaveService.saveImageFromDetail(context, ref, image);
         },
       ),
     );
-  }
-
-  /// 获取保存目录
-  Future<Directory?> _getSaveDirectory() async {
-    final dirPath = await GalleryFolderRepository.instance.getRootPath();
-    if (dirPath == null) return null;
-    final dir = Directory(dirPath);
-    if (!await dir.exists()) {
-      await dir.create(recursive: true);
-    }
-    return dir;
-  }
-
-  /// 保存图像
-  Future<void> _saveImage(BuildContext context, ImageDetailData image) async {
-    try {
-      final systemGallery = ref.read(systemGalleryPublisherProvider);
-      final imageBytes = await image.getImageBytes();
-      final saveDir = await _getSaveDirectory();
-      if (saveDir == null) return;
-
-      // 统一解析真实 seed：文件名与元数据嵌入共用同一结果
-      final resolvedSeed = await ImageSaveUtils.resolveSeed(
-        metadata: image.metadata,
-        bytes: imageBytes,
-      );
-      final params = ref.read(generationParamsNotifierProvider);
-      // 最终 seed：解析结果优先，回退当前参数，仍未知则随机。
-      // 在生成文件名前确定，保证文件名与嵌入元数据完全一致。
-      final finalSeed = resolvedSeed ?? params.seed;
-      final actualSeed = finalSeed < 0
-          ? Random().nextInt(4294967295)
-          : finalSeed;
-      final capturedFixedTags = image is GeneratedImageDetailData
-          ? image.fixedTagUsageSnapshot
-          : null;
-      final fixedTagsState = ref.read(fixedTagsNotifierProvider);
-
-      // 构建最终字节：外部结果可要求保留原始字节；其他图像缺少 NAI
-      // 元数据时仍按当前参数重建。
-      Future<Uint8List> rebuildBytes() async {
-        final characterConfig = ref.read(characterPromptNotifierProvider);
-
-        // 解析别名
-        final aliasResolver = ref.read(aliasResolverServiceProvider.notifier);
-        final resolvedPrompt = aliasResolver.resolveAliases(params.prompt);
-        final resolvedNegative = aliasResolver.resolveAliases(
-          params.negativePrompt,
-        );
-        final promptWithFixedTags = fixedTagsState.applyToPrompt(
-          CharacterPromptBlockParser.parse(resolvedPrompt).positivePrompt,
-        );
-        final negativePromptWithFixedTags = fixedTagsState
-            .applyToNegativePrompt(resolvedNegative);
-        final qualityState = ref.read(qualityPresetNotifierProvider);
-        final qualityContent = ref
-            .read(qualityPresetNotifierProvider.notifier)
-            .getEffectiveContent(params.model);
-        final ucState = ref.read(ucPresetNotifierProvider);
-        final ucPresetContent = ref
-            .read(ucPresetNotifierProvider.notifier)
-            .getEffectiveContent(params.model);
-        final presetResolution = resolvePromptPresetSettings(
-          prompt: promptWithFixedTags,
-          negativePrompt: negativePromptWithFixedTags,
-          qualityMode: qualityState.mode,
-          qualityContent: qualityContent,
-          ucPresetType: ucState.presetType,
-          ucPresetContent: ucPresetContent,
-          useCustomUcPreset: ucState.isCustom,
-        );
-
-        // 构建 V4 多角色提示词结构（解析别名）
-        final charCaptions = <Map<String, dynamic>>[];
-        final charNegCaptions = <Map<String, dynamic>>[];
-
-        final convertedCharacters = CharacterConversionService(
-          aliasResolver: aliasResolver.resolveAliases,
-        ).convert(characterConfig);
-        for (final char in convertedCharacters.characters) {
-          charCaptions.add({
-            'char_caption': char.prompt,
-            'centers': [
-              {'x': 0.5, 'y': 0.5},
-            ],
-          });
-          charNegCaptions.add({
-            'char_caption': char.negativePrompt,
-            'centers': [
-              {'x': 0.5, 'y': 0.5},
-            ],
-          });
-        }
-
-        final encodedSize = NaiResolutionAdapter.readImageSize(imageBytes);
-        final paramsForSave = params.copyWith(
-          prompt: presetResolution.prompt,
-          negativePrompt: presetResolution.negativePrompt,
-          qualityToggle: presetResolution.qualityToggle,
-          ucPreset: presetResolution.ucPreset,
-          omitQualityTagHint: presetResolution.omitQualityTagHint,
-          omitUcPresetTagHint: presetResolution.omitUcPresetTagHint,
-          width: encodedSize?.$1 ?? params.width,
-          height: encodedSize?.$2 ?? params.height,
-        );
-        return ImageSaveUtils.rebuildImageBytesWithMetadata(
-          imageBytes: imageBytes,
-          params: paramsForSave,
-          actualSeed: actualSeed,
-          charCaptions: charCaptions,
-          charNegCaptions: charNegCaptions,
-          useCoords: !characterConfig.globalAiChoice,
-        );
-      }
-
-      // 原子保存：日期分类路径 + 独占防冲突 + 失败清理，全部在工具内完成
-      final saved = await ImageSaveUtils.saveResultImage(
-        rootPath: saveDir.path,
-        imageBytes: imageBytes,
-        preserveOriginalBytes: image.preserveOriginalBytesOnSave,
-        fixedTagUsageSnapshot: capturedFixedTags,
-        rebuiltFixedTagUsageSnapshot:
-            capturedFixedTags ??
-            FixedTagUsageSnapshot.capture(fixedTagsState.entries),
-        seed: actualSeed,
-        rebuild: rebuildBytes,
-      );
-      final finalBytes = saved.bytes;
-      final filePath = saved.path;
-
-      final systemGalleryOutcome = await systemGallery.publishPng(
-        bytes: finalBytes,
-        fileName: p.basename(filePath),
-      );
-
-      // 立即解析并缓存刚保存图像的元数据
-      unawaited(
-        ImageMetadataService()
-            .getMetadata(filePath)
-            .then((metadata) {
-              AppLogger.d(
-                '生成图像元数据已缓存: ${metadata?.prompt.substring(0, metadata.prompt.length > 30 ? 30 : metadata.prompt.length)}...',
-                'ImagePreview',
-              );
-            })
-            .catchError((e) {
-              AppLogger.w('生成图像元数据缓存失败: $e', 'ImagePreview');
-            }),
-      );
-
-      // 更新保存图像的文件路径到状态
-      final currentState = ref.read(imageGenerationNotifierProvider);
-      final updatedImages = currentState.displayImages.map((img) {
-        if (img.id == image.identifier) {
-          return img.copyWithFilePath(filePath);
-        }
-        return img;
-      }).toList();
-
-      if (updatedImages.isNotEmpty) {
-        ref
-            .read(imageGenerationNotifierProvider.notifier)
-            .updateDisplayImages(updatedImages);
-      }
-
-      ref.read(localGalleryNotifierProvider.notifier).refresh();
-
-      if (context.mounted) {
-        showGallerySaveFeedback(
-          context,
-          systemGalleryOutcome,
-          appGalleryMessage: context.l10n.image_imageSaved(saveDir.path),
-        );
-      }
-    } catch (e) {
-      if (context.mounted) {
-        AppToast.error(context, context.l10n.image_saveFailed(e.toString()));
-      }
-    }
   }
 }
 

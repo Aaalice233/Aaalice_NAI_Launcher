@@ -618,34 +618,37 @@ class ImageSaveUtils {
     return candidate;
   }
 
-  /// 三条保存入口共用。已有 NovelAI 元数据的图原字节落盘不重写，
+  /// 生成结果的唯一落盘入口，只认图像自身数据，不读当前生成参数。
+  ///
+  /// 字节已带 NovelAI 元数据时原样写入；否则仅按 [metadata] 补写，没有就原样写入。
   /// 固定词快照只进旁路记录库。
   static Future<SavedResultImage> saveResultImage({
     required String rootPath,
     required Uint8List imageBytes,
     required bool preserveOriginalBytes,
-    required Future<Uint8List> Function() rebuild,
+    NaiImageMetadata? metadata,
     FixedTagUsageSnapshot? fixedTagUsageSnapshot,
-    FixedTagUsageSnapshot? rebuiltFixedTagUsageSnapshot,
-    int? seed,
     String? preferredFileName,
     DateTime? now,
   }) async {
     final rebuilt =
-        !preserveOriginalBytes && !hasEmbeddedNovelAiMetadata(imageBytes);
-    final bytes = rebuilt ? await rebuild() : imageBytes;
+        !preserveOriginalBytes &&
+        metadata != null &&
+        !hasEmbeddedNovelAiMetadata(imageBytes);
+    final bytes = rebuilt
+        ? await _embedOwnMetadata(imageBytes: imageBytes, metadata: metadata)
+        : imageBytes;
     final path = await saveBytesToDatedPath(
       rootPath: rootPath,
       bytes: bytes,
-      seed: seed,
+      // 文件名里的 seed 必须与最终落盘字节内的元数据一致。
+      seed: await resolveSeed(metadata: rebuilt ? metadata : null, bytes: bytes),
       preferredFileName: preferredFileName,
       now: now,
     );
     final contentHash = FileHashCalculator().calculateFromBytes(bytes);
     FileHashCalculator().registerPathHash(path, contentHash);
-    final snapshot = rebuilt
-        ? rebuiltFixedTagUsageSnapshot ?? fixedTagUsageSnapshot
-        : fixedTagUsageSnapshot;
+    final snapshot = fixedTagUsageSnapshot ?? metadata?.fixedTagUsageSnapshot;
     if (!preserveOriginalBytes && snapshot != null) {
       try {
         await FixedTagUsageRecordStore().record(
@@ -686,6 +689,64 @@ class ImageSaveUtils {
       }
     }
     return null;
+  }
+
+  static Future<Uint8List> _embedOwnMetadata({
+    required Uint8List imageBytes,
+    required NaiImageMetadata metadata,
+  }) => _embedNaiAlignedMetadata(
+    imageBytes: imageBytes,
+    commentJson: _commentJsonOf(metadata),
+    description: metadata.prompt,
+    software: metadata.software ?? 'NovelAI',
+    source: metadata.source ?? 'NovelAI Diffusion',
+  );
+
+  // rawJson 是完整 Comment；字段投影会丢掉 v4_prompt、预设与 tag_hint 等。
+  static Map<String, dynamic> _commentJsonOf(NaiImageMetadata metadata) {
+    final raw = metadata.rawJson;
+    final decoded = raw == null ? null : _tryDecodeJsonMap(raw);
+    if (decoded != null) {
+      final comment = _unwrapCommentIfWrapped(decoded);
+      if (comment.containsKey('prompt')) return comment;
+    }
+    return _commentJsonFromFields(metadata);
+  }
+
+  static Map<String, dynamic> _commentJsonFromFields(
+    NaiImageMetadata metadata,
+  ) {
+    final commentJson = <String, dynamic>{
+      'prompt': metadata.prompt,
+      'uc': metadata.negativePrompt,
+      'seed': metadata.seed ?? -1,
+      'steps': metadata.steps ?? 28,
+      'width': metadata.width ?? 832,
+      'height': metadata.height ?? 1216,
+      'scale': metadata.scale ?? 5.0,
+      'uncond_scale': 0.0,
+      'cfg_rescale': metadata.cfgRescale ?? 0.0,
+      'n_samples': 1,
+      'noise_schedule': metadata.noiseSchedule ?? 'native',
+      'sampler': metadata.sampler ?? 'k_euler_ancestral',
+      'sm': metadata.smea ?? false,
+      'sm_dyn': metadata.smeaDyn ?? false,
+    };
+    final vibes = metadata.vibeReferences
+        .where((v) => v.vibeEncoding.isNotEmpty)
+        .toList();
+    if (vibes.isNotEmpty) {
+      commentJson['reference_image_multiple'] = vibes
+          .map((v) => v.vibeEncoding)
+          .toList();
+      commentJson['reference_strength_multiple'] = vibes
+          .map((v) => v.strength)
+          .toList();
+      commentJson['reference_information_extracted_multiple'] = vibes
+          .map((v) => v.infoExtracted)
+          .toList();
+    }
+    return commentJson;
   }
 
   /// 兼容历史“外层包装”结构：{Description, Software, Source, Comment:"{...}"}

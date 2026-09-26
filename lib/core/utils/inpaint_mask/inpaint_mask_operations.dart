@@ -1,10 +1,12 @@
 import 'dart:collection';
+import 'dart:convert';
 import 'dart:isolate';
 import 'dart:math' as math;
 import 'dart:typed_data';
 import 'dart:ui' show Rect;
 import 'package:image/image.dart' as img;
 
+import '../../../data/services/metadata/image_metadata_container_codec.dart';
 import '../../models/image_generation_artifact.dart';
 import '../isolate_pool.dart';
 import '../pica_lanczos_resizer.dart';
@@ -581,9 +583,62 @@ class InpaintMaskUtils {
     );
 
     return ImageGenerationArtifact(
-      displayImageBytes: Uint8List.fromList(img.encodePng(display, level: 1)),
+      displayImageBytes: encodeCompositedDisplay(
+        display,
+        generatedImage: generatedImage,
+      ),
       transparentPatchBytes: Uint8List.fromList(img.encodePng(patch, level: 1)),
     );
+  }
+
+  /// 编码贴回后的整图，文本元数据只取服务端结果图。
+  static Uint8List encodeCompositedDisplay(
+    img.Image display, {
+    required Uint8List generatedImage,
+  }) {
+    // 底图解码时带着原图文本块，不清掉会把原图的旧提示词和 seed 当成本次结果。
+    display.textData = null;
+    final encoded = Uint8List.fromList(img.encodePng(display, level: 1));
+    try {
+      return _withCommentResolution(
+        ImageMetadataContainerCodec.copySupportedMetadata(
+          source: generatedImage,
+          targetPng: encoded,
+        ),
+        width: display.width,
+        height: display.height,
+      );
+    } on FormatException {
+      // 元数据损坏不能连累已经付费生成的结果图。
+      return encoded;
+    }
+  }
+
+  // 服务端记录的是请求尺寸，聚焦重绘贴回后整图尺寸不同，元数据要与实际像素一致。
+  static Uint8List _withCommentResolution(
+    Uint8List png, {
+    required int width,
+    required int height,
+  }) {
+    final comment = ImageMetadataContainerCodec.extractPngTextData(
+      png,
+    )['Comment'];
+    if (comment == null) return png;
+    final Object? decoded;
+    try {
+      decoded = jsonDecode(comment);
+    } on FormatException {
+      return png;
+    }
+    if (decoded is! Map<String, dynamic> ||
+        !decoded.containsKey('width') ||
+        !decoded.containsKey('height') ||
+        (decoded['width'] == width && decoded['height'] == height)) {
+      return png;
+    }
+    return ImageMetadataContainerCodec.embedTextChunks(png, {
+      'Comment': jsonEncode({...decoded, 'width': width, 'height': height}),
+    });
   }
 
   /// 构建用于 final inpaint 写回的客户端合成蒙版。
