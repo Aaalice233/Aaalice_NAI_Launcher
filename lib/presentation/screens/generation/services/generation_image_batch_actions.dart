@@ -1,20 +1,14 @@
 import 'dart:io';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
-import 'package:path/path.dart' as p;
 import '../../../../core/platform/platform_capabilities.dart';
 import '../../../../core/services/file_export_service.dart';
-import '../../../../core/services/system_gallery_publisher.dart';
-import '../../../../core/utils/image_save_utils.dart';
 import '../../../../core/utils/localization_extension.dart';
 import '../../../../core/utils/zip_utils.dart';
-import '../../../../data/repositories/gallery_folder_repository.dart';
 import '../../../providers/generation/image_card_selection_provider.dart';
 import '../../../providers/image_generation_provider.dart';
-import '../../../providers/local_gallery_provider.dart';
 import '../../../utils/zip_export_progress.dart';
 import '../../../widgets/common/app_toast.dart';
-import '../../../widgets/common/gallery_save_feedback.dart';
 import '../../../widgets/common/image_card_action.dart';
 import 'generation_image_deletion.dart';
 
@@ -22,19 +16,21 @@ class GenerationImageBatchActions {
   GenerationImageBatchActions({
     required this.context,
     required this.images,
-    required this.gallery,
     required this.selection,
     required this.deletion,
-    required this.readSystemGallery,
+    required this.saveImages,
+    required this.saveImagesToFolder,
   });
   final BuildContext context;
   final List<GeneratedImage> images;
-  final LocalGalleryNotifier gallery;
   final GenerationImageCardSelection selection;
   final GenerationImageDeletion deletion;
 
-  /// 点击保存时才读取，避免沿用构建时的同步开关。
-  final SystemGalleryPublisher Function() readSystemGallery;
+  /// 全部成功才返回 true。
+  final Future<bool> Function(List<GeneratedImage> images) saveImages;
+
+  /// 另存为到用户选择的文件夹，全部成功才返回 true。
+  final Future<bool> Function(List<GeneratedImage> images) saveImagesToFolder;
 
   List<ImageCardAction> build() => [
     ImageCardAction(
@@ -53,6 +49,13 @@ class GenerationImageBatchActions {
       invoke: _saveSelectedImages,
     ),
     ImageCardAction(
+      id: ImageCardActionId.saveAs,
+      icon: Icons.save_as_outlined,
+      label: context.l10n.image_saveAsToFolder,
+      supportsBatch: true,
+      invoke: _saveSelectedImagesToFolder,
+    ),
+    ImageCardAction(
       id: ImageCardActionId.delete,
       icon: Icons.delete_outline,
       label: context.l10n.common_delete,
@@ -63,51 +66,17 @@ class GenerationImageBatchActions {
   ];
   Future<void> _saveSelectedImages() async {
     if (images.isEmpty) return;
+    // 部分失败时保留选择，重试会复用已保存的文件，不会重复落盘。
+    if (await saveImages(images) && context.mounted) {
+      selection.deselectAll(images.map((image) => image.id));
+    }
+  }
 
-    try {
-      final saveDirPath = await GalleryFolderRepository.instance.getRootPath();
-      if (saveDirPath == null) return;
-
-      final selectedImages = images;
-
-      final systemGallery = readSystemGallery();
-      SystemGalleryPublishOutcome? systemGalleryOutcome;
-      // 原子保存：日期分类路径 + 独占防冲突 + 失败清理，全部在工具内完成
-      for (int i = 0; i < selectedImages.length; i++) {
-        final image = selectedImages[i];
-        final filePath = await ImageSaveUtils.saveBytesToDatedPath(
-          rootPath: saveDirPath,
-          bytes: image.bytes,
-          seed: await ImageSaveUtils.resolveSeed(
-            metadata: image.metadata,
-            bytes: image.bytes,
-          ),
-        );
-        final outcome = await systemGallery.publishPng(
-          bytes: image.bytes,
-          fileName: p.basename(filePath),
-        );
-        if (systemGalleryOutcome is! SystemGalleryPublishFailed) {
-          systemGalleryOutcome = outcome;
-        }
-      }
-
-      await gallery.refresh();
-
-      if (context.mounted) {
-        if (systemGalleryOutcome != null) {
-          showGallerySaveFeedback(
-            context,
-            systemGalleryOutcome,
-            appGalleryMessage: context.l10n.image_imageSaved(saveDirPath),
-          );
-        }
-        selection.deselectAll(images.map((image) => image.id));
-      }
-    } catch (e) {
-      if (context.mounted) {
-        AppToast.error(context, context.l10n.image_saveFailed(e.toString()));
-      }
+  Future<void> _saveSelectedImagesToFolder() async {
+    if (images.isEmpty) return;
+    // 部分失败或取消时保留选择，方便重试。
+    if (await saveImagesToFolder(images) && context.mounted) {
+      selection.deselectAll(images.map((image) => image.id));
     }
   }
 

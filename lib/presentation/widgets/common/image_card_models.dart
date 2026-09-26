@@ -67,7 +67,6 @@ class ImageCardCapabilities {
     required this.enableGlossEffect,
     required this.hoverEffectsEnabled,
     required this.shareWarmupEnabled,
-    required this.enableSaveAction,
     required this.enableCopyAction,
     required this.enableSelection,
     this.selectionMode = false,
@@ -78,6 +77,8 @@ class ImageCardCapabilities {
     required this.onDoubleTap,
     required this.onLongPress,
     required this.onSelectionChanged,
+    required this.onSave,
+    required this.onSaveAs,
     required this.onFullscreen,
     required this.onUpscale,
     required this.onReversePrompt,
@@ -104,7 +105,6 @@ class ImageCardCapabilities {
   final bool enableGlossEffect;
   final bool hoverEffectsEnabled;
   final bool shareWarmupEnabled;
-  final bool enableSaveAction;
   final bool enableCopyAction;
   final bool enableSelection;
   final bool selectionMode;
@@ -117,6 +117,8 @@ class ImageCardCapabilities {
   final VoidCallback? onDoubleTap;
   final VoidCallback? onLongPress;
   final ValueChanged<bool>? onSelectionChanged;
+  final ImageCardCallback? onSave;
+  final ImageCardCallback? onSaveAs;
   final ImageCardCallback? onFullscreen;
   final ImageCardCallback? onUpscale;
   final ImageCardCallback? onReversePrompt;

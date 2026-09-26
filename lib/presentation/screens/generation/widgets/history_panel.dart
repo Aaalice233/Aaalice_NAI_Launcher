@@ -8,6 +8,7 @@ import '../services/generation_image_batch_actions.dart';
 import '../services/generation_image_deletion.dart';
 import 'dart:async';
 
+import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
@@ -30,15 +31,12 @@ import '../../../providers/generation/generation_params_selectors.dart';
 import '../../../providers/generation/preview_selection_provider.dart';
 import '../../../providers/history_click_behavior_provider.dart';
 import '../../../providers/image_generation_provider.dart';
-import '../../../providers/image_save_settings_provider.dart';
 import '../../../providers/local_gallery_provider.dart';
 import '../../../providers/reverse_prompt_provider.dart';
 import '../../../providers/share_image_settings_provider.dart';
 import '../../../providers/copy_drag_watermark_provider.dart';
 import '../../../services/image_workflow_launcher.dart';
 import '../../../widgets/common/app_toast.dart';
-import '../../../widgets/common/image_detail/file_image_detail_data.dart';
-import '../../../widgets/common/image_detail/image_detail_data.dart';
 import '../../../widgets/common/image_detail/image_detail_viewer.dart';
 import '../../../widgets/common/draggable_memory_image.dart';
 import '../../../widgets/common/owned_scroll_controller.dart';
@@ -49,6 +47,7 @@ import '../../../utils/krita_send_helper.dart';
 import '../../../utils/precise_ref_library_import_helper.dart';
 import '../../../widgets/common/themed_confirm_dialog.dart';
 import '../../../widgets/common/workspace_panel_header.dart';
+import '../services/generation_detail_data.dart';
 import '../services/generation_save_service.dart';
 import '../../../widgets/common/themed_divider.dart';
 import '../../tag_library_page/widgets/entry_add_dialog.dart';
@@ -110,6 +109,9 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
     ImageCardActionId.copy,
     ImageCardActionId.delete,
   ];
+
+  // 历史栏最窄时一行两个按钮仍放得下完整文字，再多就换行。
+  static const _batchButtonsPerRow = 2;
 
   Set<String> get _selectedIds =>
       ref.read(generationImageCardSelectionProvider).selectedIds;
@@ -191,10 +193,12 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
       actions: GenerationImageBatchActions(
         context: context,
         images: selectedImages,
-        gallery: ref.read(localGalleryNotifierProvider.notifier),
         selection: _selection,
         deletion: _deletion,
-        readSystemGallery: () => ref.read(systemGalleryPublisherProvider),
+        saveImages: (images) =>
+            GenerationSaveService.saveImages(context, ref, images),
+        saveImagesToFolder: (images) =>
+            GenerationSaveService.saveImagesAsToFolder(context, ref, images),
       ).build(),
       child: CardSelectionScope(
         selection: selection,
@@ -815,7 +819,20 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
                             selectionMode: ref
                                 .read(generationImageCardSelectionProvider)
                                 .isActive,
-                            enableSaveAction: historyImage.canSave,
+                            onSave: historyImage.canSave
+                                ? () => GenerationSaveService.saveImages(
+                                    context,
+                                    ref,
+                                    [historyImage],
+                                  )
+                                : null,
+                            onSaveAs: historyImage.canSave
+                                ? () => GenerationSaveService.saveImageAs(
+                                    context,
+                                    ref,
+                                    historyImage,
+                                  )
+                                : null,
                             enableCopyAction: historyImage.canSave,
                             statusBadgeLabel: isFailedSnapshot
                                 ? context.l10n.generation_failedStreamSnapshot
@@ -1070,7 +1087,12 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
           selectionMode: ref
               .read(generationImageCardSelectionProvider)
               .isActive,
-          enableSaveAction: image.canSave,
+          onSave: image.canSave
+              ? () => GenerationSaveService.saveImages(context, ref, [image])
+              : null,
+          onSaveAs: image.canSave
+              ? () => GenerationSaveService.saveImageAs(context, ref, image)
+              : null,
           enableCopyAction: image.canSave,
           statusBadgeLabel: isFailedSnapshot
               ? context.l10n.generation_failedStreamSnapshot
@@ -1371,6 +1393,7 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
               ? context.l10n.toast_favorited
               : context.l10n.toast_unfavorited,
         );
+        GenerationSaveService.showSystemGalleryFailure(context, linked);
       }
     } catch (e) {
       if (context.mounted) {
@@ -1494,7 +1517,10 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
       final height = extent < 44 ? 44.0 : extent;
       final count = batch.targetIds.length;
       final rows = [
-        batch.actions.where((action) => !action.isDanger).toList(),
+        ...batch.actions
+            .where((action) => !action.isDanger)
+            .toList()
+            .slices(_batchButtonsPerRow),
         batch.actions.where((action) => action.isDanger).toList(),
       ].where((row) => row.isNotEmpty);
       return Container(
@@ -1536,7 +1562,11 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
         ? () => unawaited(dispatchImageCardAction(context, action))
         : null;
     final key = ValueKey('history-batch-action-${action.id.name}');
-    final label = Text('${action.label} ($count)');
+    final label = Text(
+      '${action.label} ($count)',
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+    );
     final icon = Icon(action.icon, size: 20);
     return action.isPrimary
         ? FilledButton.icon(
@@ -1572,8 +1602,8 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
         context.l10n,
       );
       await FileExplorerUtils.revealFile(linked.path);
-      if (linked.newlySavedRoot case final root? when context.mounted) {
-        AppToast.success(context, context.l10n.image_imageSaved(root));
+      if (context.mounted) {
+        GenerationSaveService.showNewlySavedFeedback(context, linked);
       }
     } catch (e) {
       if (context.mounted) {
@@ -1586,7 +1616,7 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
     final state = ref.read(imageGenerationNotifierProvider);
     final sequence = state.detailSequenceFor(image);
     final initialIndex = sequence.indexWhere((item) => item.id == image.id);
-    final detailImages = sequence.map(_createDetailData).toList();
+    final detailImages = sequence.map(GenerationDetailData.forImage).toList();
     if (!context.mounted || detailImages.isEmpty) return;
 
     ImageDetailOpener.showMultipleImmediate(
@@ -1600,33 +1630,9 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
           if (!detail.showSaveButton) return;
           await GenerationSaveService.saveImageFromDetail(context, ref, detail);
         },
+        onSaveAs: (detail) =>
+            GenerationSaveService.saveImageAsFromDetail(context, ref, detail),
       ),
-    );
-  }
-
-  ImageDetailData _createDetailData(GeneratedImage image) {
-    final filePath = image.filePath;
-    if (filePath != null && filePath.isNotEmpty) {
-      ImageMetadataService().enqueuePreload(
-        taskId: image.id,
-        filePath: filePath,
-      );
-      return FileImageDetailData(
-        filePath: filePath,
-        cachedBytes: image.bytes,
-        id: image.id,
-        initialMetadata: image.metadata,
-        showCopyButton: image.canSave,
-      );
-    }
-    return GeneratedImageDetailData(
-      imageBytes: image.bytes,
-      metadata: image.metadata,
-      id: image.id,
-      showSaveButton: image.canSave,
-      showCopyButton: image.canSave,
-      preserveOriginalBytesOnSave: image.preserveOriginalBytesOnSave,
-      fixedTagUsageSnapshot: image.fixedTagUsageSnapshot,
     );
   }
 

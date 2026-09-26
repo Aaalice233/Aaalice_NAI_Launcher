@@ -13578,6 +13578,41 @@ class AppLocalizationsEn extends AppLocalizations {
   String get image_savedToAppGallery => 'Saved to the app gallery';
 
   @override
+  String get image_saveAs => 'Save as…';
+
+  @override
+  String get image_saveAsDialogTitle => 'Save image as';
+
+  @override
+  String get image_saveAsToFolder => 'Save to folder…';
+
+  @override
+  String get image_saveAsFolderDialogTitle => 'Choose a folder to save to';
+
+  @override
+  String image_savedAs(Object path) {
+    return 'Saved as $path';
+  }
+
+  @override
+  String get image_savedAsToChosenLocation => 'Saved to the chosen location';
+
+  @override
+  String image_savedAsToFolder(int count, Object path) {
+    return 'Saved $count images to $path';
+  }
+
+  @override
+  String image_savedAsToChosenFolder(int count) {
+    return 'Saved $count images to the chosen folder';
+  }
+
+  @override
+  String image_savedAsPartial(int saved, int failed, Object error) {
+    return 'Saved $saved, $failed failed: $error';
+  }
+
+  @override
   String image_shareFailed(Object error) {
     return 'Share failed: $error';
   }

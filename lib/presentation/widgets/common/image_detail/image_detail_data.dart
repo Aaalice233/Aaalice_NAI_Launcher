@@ -40,6 +40,9 @@ abstract class ImageDetailData {
   /// 是否需要显示复制按钮
   bool get showCopyButton;
 
+  /// 是否允许另存为副本；已存入图库的图没有保存按钮但仍可另存为
+  bool get showSaveAsButton;
+
   /// 是否需要显示收藏按钮
   bool get showFavoriteButton;
 
@@ -167,6 +170,9 @@ class LocalImageDetailData implements ImageDetailData {
   bool get showCopyButton => true;
 
   @override
+  bool get showSaveAsButton => true;
+
+  @override
   bool get showFavoriteButton => true;
 
   @override
@@ -183,6 +189,7 @@ class GeneratedImageDetailData implements ImageDetailData {
   final String _id;
   final bool _showSaveButton;
   final bool _showCopyButton;
+  final bool _showSaveAsButton;
   final FixedTagUsageSnapshot? fixedTagUsageSnapshot;
   @override
   final bool preserveOriginalBytesOnSave;
@@ -193,12 +200,14 @@ class GeneratedImageDetailData implements ImageDetailData {
     String? id,
     bool showSaveButton = true,
     bool showCopyButton = true,
+    bool showSaveAsButton = true,
     this.preserveOriginalBytesOnSave = false,
     this.fixedTagUsageSnapshot,
   }) : _metadata = metadata,
        _id = id ?? imageBytes.hashCode.toString(),
        _showSaveButton = showSaveButton,
-       _showCopyButton = showCopyButton;
+       _showCopyButton = showCopyButton,
+       _showSaveAsButton = showSaveAsButton;
 
   @override
   ImageProvider getImageProvider() {
@@ -240,6 +249,9 @@ class GeneratedImageDetailData implements ImageDetailData {
 
   @override
   bool get showCopyButton => _showCopyButton;
+
+  @override
+  bool get showSaveAsButton => _showSaveAsButton;
 
   @override
   bool get showFavoriteButton => false;

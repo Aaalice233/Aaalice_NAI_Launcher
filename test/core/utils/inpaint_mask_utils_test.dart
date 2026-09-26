@@ -1,9 +1,12 @@
+import 'dart:convert';
 import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:image/image.dart' as img;
+import 'package:nai_launcher/core/models/image_generation_artifact.dart';
 import 'package:nai_launcher/core/utils/inpaint_mask_utils.dart';
+import 'package:nai_launcher/data/services/metadata/unified_metadata_parser.dart';
 
 import '../../helpers/image_pixel_matchers.dart';
 
@@ -568,6 +571,76 @@ void main() {
         );
       },
     );
+
+    group('composeGeneratedImageArtifact display metadata', () {
+      Uint8List withText(img.Image image, Map<String, String> text) =>
+          UnifiedMetadataParser.embedTextChunks(
+            Uint8List.fromList(img.encodePng(image)),
+            text,
+          );
+
+      Map<String, String> naiText(String prompt, int seed) => {
+        'Comment': jsonEncode({'prompt': prompt, 'seed': seed}),
+        'Description': prompt,
+        'Software': 'NovelAI',
+        'Source': 'NovelAI Diffusion V4.5',
+      };
+
+      ImageGenerationArtifact compose({
+        required Uint8List sourceBytes,
+        required Uint8List generatedBytes,
+      }) {
+        final mask = img.Image(width: 8, height: 8, numChannels: 4);
+        img.fill(mask, color: img.ColorRgba8(0, 0, 0, 0));
+        img.fillRect(
+          mask,
+          x1: 2,
+          y1: 2,
+          x2: 5,
+          y2: 5,
+          color: img.ColorRgba8(255, 255, 255, 255),
+        );
+        return InpaintMaskUtils.composeGeneratedImageArtifact(
+          normalizedSourceImage: sourceBytes,
+          compositeMaskImage: Uint8List.fromList(img.encodePng(mask)),
+          generatedImage: generatedBytes,
+        );
+      }
+
+      final source = img.Image(width: 8, height: 8);
+      img.fill(source, color: img.ColorRgb8(10, 20, 30));
+      final generated = img.Image(width: 8, height: 8);
+      img.fill(generated, color: img.ColorRgb8(200, 210, 220));
+
+      test('replaces the source image metadata with the server result', () {
+        final serverText = naiText('inpaint prompt', 4242);
+
+        final result = compose(
+          sourceBytes: withText(source, naiText('original prompt', 1)),
+          generatedBytes: withText(generated, serverText),
+        );
+
+        expect(
+          UnifiedMetadataParser.extractPngTextData(result.displayImageBytes),
+          equals(serverText),
+        );
+        final display = img.decodeImage(result.displayImageBytes)!;
+        expect(display.getPixel(0, 0).r.toInt(), equals(10));
+        expect(display.getPixel(3, 3).r.toInt(), equals(200));
+      });
+
+      test('never passes the source image metadata off as the result', () {
+        final result = compose(
+          sourceBytes: withText(source, naiText('original prompt', 1)),
+          generatedBytes: Uint8List.fromList(img.encodePng(generated)),
+        );
+
+        expect(
+          UnifiedMetadataParser.extractPngTextData(result.displayImageBytes),
+          isEmpty,
+        );
+      });
+    });
 
     test(
       'composeGeneratedImageArtifact replaces masked alpha with transparent result',

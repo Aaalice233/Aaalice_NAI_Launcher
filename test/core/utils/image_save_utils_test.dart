@@ -14,6 +14,7 @@ import 'package:nai_launcher/data/models/fixed_tag/fixed_tag_prompt_type.dart';
 import 'package:nai_launcher/data/models/fixed_tag/fixed_tag_usage_snapshot.dart';
 import 'package:nai_launcher/data/models/gallery/nai_image_metadata.dart';
 import 'package:nai_launcher/data/models/image/image_params.dart';
+import 'package:nai_launcher/data/models/vibe/vibe_reference.dart';
 import 'package:nai_launcher/data/services/fixed_tag/fixed_tag_usage_record_store.dart';
 import 'package:nai_launcher/data/services/metadata/image_metadata_container_codec.dart';
 import 'package:nai_launcher/data/services/metadata/unified_metadata_parser.dart';
@@ -512,12 +513,12 @@ void main() {
         rootPath: root.path,
         imageBytes: base,
         preserveOriginalBytes: false,
+        metadata: const NaiImageMetadata(prompt: 'must not replace', seed: 1),
         fixedTagUsageSnapshot: snapshot,
-        seed: 777,
-        rebuild: () async => fail('NovelAI bytes must not be rebuilt'),
       );
 
       expect(saved.bytes, orderedEquals(base));
+      expect(p.basenameWithoutExtension(saved.path), endsWith('-777'));
       expect(await File(saved.path).readAsBytes(), orderedEquals(base));
       expect(
         FixedTagUsageRecordStore()
@@ -533,6 +534,171 @@ void main() {
       expect(metadata.prompt, 'original prompt');
       expect(metadata.fixedTagUsageData, isNull);
       expect(metadata.fixedPrefixTags, isEmpty);
+    });
+  });
+
+  group('saveResultImage reads only the image itself', () {
+    late Directory root;
+    late Directory hiveDirectory;
+    final plainPng = Uint8List.fromList(
+      img.encodePng(img.Image(width: 2, height: 2)),
+    );
+
+    setUp(() async {
+      hiveDirectory = await Directory.systemTemp.createTemp('own-meta-hive-');
+      Hive.init(hiveDirectory.path);
+      root = await Directory.systemTemp.createTemp('own-meta-root-');
+    });
+
+    tearDown(() async {
+      await Hive.close();
+      await hiveDirectory.delete(recursive: true);
+      await root.delete(recursive: true);
+    });
+
+    Map<String, dynamic> savedComment(Uint8List bytes) =>
+        jsonDecode(UnifiedMetadataParser.extractPngTextData(bytes)['Comment']!)
+            as Map<String, dynamic>;
+
+    test('rebuilds missing metadata losslessly from the own raw comment', () async {
+      final comment = ImageSaveUtils.buildCommentJson(
+        params: const ImageParams(
+          prompt: 'own prompt',
+          negativePrompt: 'own negative',
+          model: 'nai-diffusion-4-5-full',
+          ucPreset: 2,
+          width: 2,
+          height: 2,
+        ),
+        actualSeed: 2468,
+        charCaptions: const [
+          {
+            'char_caption': 'girl, red hair',
+            'centers': [
+              {'x': 0.3, 'y': 0.5},
+            ],
+          },
+        ],
+        useCoords: true,
+      );
+      final raw = jsonEncode(comment);
+      final metadata = NaiImageMetadata.fromNaiComment({
+        'Comment': raw,
+        'Software': 'NovelAI',
+        'Source': 'NovelAI Diffusion V4.5',
+      }, rawJson: raw);
+
+      final saved = await ImageSaveUtils.saveResultImage(
+        rootPath: root.path,
+        imageBytes: plainPng,
+        preserveOriginalBytes: false,
+        metadata: metadata,
+      );
+
+      expect(savedComment(saved.bytes), equals(jsonDecode(raw)));
+      expect(
+        UnifiedMetadataParser.extractPngTextData(saved.bytes)['Source'],
+        'NovelAI Diffusion V4.5',
+      );
+      expect(p.basenameWithoutExtension(saved.path), endsWith('-2468'));
+      expect(await File(saved.path).readAsBytes(), orderedEquals(saved.bytes));
+    });
+
+    test('saves bytes untouched when the image has no metadata at all', () async {
+      final now = DateTime(2026, 9, 27, 8, 9, 10);
+
+      final saved = await ImageSaveUtils.saveResultImage(
+        rootPath: root.path,
+        imageBytes: plainPng,
+        preserveOriginalBytes: false,
+        now: now,
+      );
+
+      expect(saved.bytes, orderedEquals(plainPng));
+      expect(UnifiedMetadataParser.extractPngTextData(saved.bytes), isEmpty);
+      expect(
+        p.basename(saved.path),
+        '08-09-10-${now.millisecondsSinceEpoch}.png',
+      );
+    });
+
+    test('field projection keeps vibe arrays aligned without raw comment', () async {
+      const metadata = NaiImageMetadata(
+        prompt: 'projected prompt',
+        seed: 99,
+        vibeReferences: [
+          VibeReference(displayName: 'empty', vibeEncoding: '', strength: 0.1),
+          VibeReference(
+            displayName: 'kept',
+            vibeEncoding: 'encoded-vibe',
+            strength: 0.8,
+            infoExtracted: 0.4,
+          ),
+        ],
+      );
+
+      final saved = await ImageSaveUtils.saveResultImage(
+        rootPath: root.path,
+        imageBytes: plainPng,
+        preserveOriginalBytes: false,
+        metadata: metadata,
+      );
+
+      final comment = savedComment(saved.bytes);
+      expect(comment['prompt'], 'projected prompt');
+      expect(comment['seed'], 99);
+      expect(comment['reference_image_multiple'], ['encoded-vibe']);
+      expect(comment['reference_strength_multiple'], [0.8]);
+      expect(comment['reference_information_extracted_multiple'], [0.4]);
+    });
+
+    test('records the own metadata snapshot when none is passed', () async {
+      const snapshot = FixedTagUsageSnapshot(
+        entries: [
+          FixedTagUsageEntry(
+            fixedTagId: 'own-fixed',
+            name: 'Own',
+            content: 'best quality',
+            weight: 1,
+            renderedContent: 'best quality',
+            position: FixedTagPosition.suffix,
+            promptType: FixedTagPromptType.positive,
+            order: 0,
+          ),
+        ],
+      );
+
+      final saved = await ImageSaveUtils.saveResultImage(
+        rootPath: root.path,
+        imageBytes: plainPng,
+        preserveOriginalBytes: false,
+        metadata: const NaiImageMetadata(
+          prompt: 'own prompt',
+          seed: 5,
+        ).withFixedTagUsageData(snapshot.toJson()),
+      );
+
+      expect(
+        FixedTagUsageRecordStore()
+            .lookup(saved.contentHash)
+            ?.entries
+            .single
+            .fixedTagId,
+        'own-fixed',
+      );
+    });
+
+    test('preserved bytes ignore own metadata and fixed tags', () async {
+      final saved = await ImageSaveUtils.saveResultImage(
+        rootPath: root.path,
+        imageBytes: plainPng,
+        preserveOriginalBytes: true,
+        metadata: const NaiImageMetadata(prompt: 'own prompt', seed: 5),
+        fixedTagUsageSnapshot: const FixedTagUsageSnapshot(),
+      );
+
+      expect(saved.bytes, orderedEquals(plainPng));
+      expect(FixedTagUsageRecordStore().lookup(saved.contentHash), isNull);
     });
   });
 
@@ -614,5 +780,33 @@ void main() {
     expect(p.basename(second), 'portrait___watermarked-2.png');
     expect(await File(first).readAsBytes(), bytes);
     expect(await File(second).readAsBytes(), bytes);
+  });
+
+  test('dated saves and save-as suggestions share the gallery name', () async {
+    final root = await Directory.systemTemp.createTemp('gallery-name-save');
+    addTearDown(() => root.delete(recursive: true));
+    final now = DateTime(2026, 9, 26, 8, 5, 3);
+
+    final saved = await ImageSaveUtils.saveBytesToDatedPath(
+      rootPath: root.path,
+      bytes: Uint8List.fromList([1]),
+      seed: 42,
+      now: now,
+    );
+
+    expect(p.basename(saved), '08-05-03-42.png');
+    expect(p.basename(p.dirname(saved)), '2026-09-26');
+    expect(
+      ImageSaveUtils.galleryFileName(seed: 42, now: now),
+      p.basename(saved),
+    );
+    expect(
+      ImageSaveUtils.galleryFileName(seed: -1, now: now),
+      '08-05-03-${now.millisecondsSinceEpoch}.png',
+    );
+    expect(
+      ImageSaveUtils.galleryFileName(now: now),
+      '08-05-03-${now.millisecondsSinceEpoch}.png',
+    );
   });
 }

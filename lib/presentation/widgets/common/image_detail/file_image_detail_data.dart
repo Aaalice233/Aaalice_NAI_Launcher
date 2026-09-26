@@ -19,6 +19,7 @@ class FileImageDetailData implements ImageDetailData {
   final String? _id;
   final NaiImageMetadata? _initialMetadata;
   final bool _showCopyButton;
+  final bool _showSaveAsButton;
 
   /// 图像最大维度阈值（超过此值会进行缩放优化）
   static const int _maxImageDimension = 4096;
@@ -29,10 +30,12 @@ class FileImageDetailData implements ImageDetailData {
     String? id,
     NaiImageMetadata? initialMetadata,
     bool showCopyButton = true,
+    bool showSaveAsButton = true,
   }) : _cachedBytes = cachedBytes,
        _id = id ?? filePath,
        _initialMetadata = initialMetadata,
-       _showCopyButton = showCopyButton;
+       _showCopyButton = showCopyButton,
+       _showSaveAsButton = showSaveAsButton;
 
   @override
   ImageProvider getImageProvider() {
@@ -159,6 +162,9 @@ class FileImageDetailData implements ImageDetailData {
 
   @override
   bool get showCopyButton => _showCopyButton;
+
+  @override
+  bool get showSaveAsButton => _showSaveAsButton;
 
   @override
   bool get showFavoriteButton => true;

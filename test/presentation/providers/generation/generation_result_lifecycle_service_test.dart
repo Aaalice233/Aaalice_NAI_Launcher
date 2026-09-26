@@ -10,6 +10,7 @@ import 'package:nai_launcher/data/models/fixed_tag/fixed_tag_entry.dart';
 import 'package:nai_launcher/data/models/fixed_tag/fixed_tag_prompt_type.dart';
 import 'package:nai_launcher/data/models/fixed_tag/fixed_tag_usage_snapshot.dart';
 import 'package:nai_launcher/data/models/gallery/gallery_index_admission.dart';
+import 'package:nai_launcher/data/models/gallery/nai_image_metadata.dart';
 import 'package:nai_launcher/data/services/fixed_tag/fixed_tag_usage_record_store.dart';
 import 'package:nai_launcher/data/services/metadata/hash_calculator.dart';
 import 'package:nai_launcher/data/services/metadata/unified_metadata_parser.dart';
@@ -58,11 +59,7 @@ void main() {
       ),
     );
 
-    final result = await service.saveImages(
-      images,
-      const ImageParams(seed: 123),
-      snapshot: const GenerationSaveSnapshot(),
-    );
+    final result = await service.saveImages(images);
 
     expect(result.savedPaths, hasLength(2));
     expect(result.systemGalleryExportFailureCount, 0);
@@ -111,8 +108,6 @@ void main() {
           preserveOriginalBytesOnSave: true,
         ),
       ],
-      const ImageParams(seed: 456),
-      snapshot: const GenerationSaveSnapshot(),
     );
 
     expect(result.savedPaths, hasLength(1));
@@ -150,19 +145,6 @@ void main() {
           actualSeed: 321,
         );
 
-    GenerationResultLifecycleService buildService(Directory directory) =>
-        GenerationResultLifecycleService(
-          GenerationResultLifecycleDependencies(
-            historyStorage: GenerationHistoryStorageService(enabled: false),
-            resolveGalleryRootPath: () async => directory.path,
-            addGalleryImages: (_) async => GalleryIndexAdmission.added,
-            refreshGallery: () async {},
-            removeGalleryImages: _unexpectedGalleryRemoval,
-            deleteGalleryFile: _unexpectedFileDeletion,
-            incrementStatistics: (_) async {},
-          ),
-        );
-
     test('自动保存不改写 NAI 字节，快照写入旁路记录库', () async {
       final directory = await Directory.systemTemp.createTemp(
         'nai_generation_fixed_snapshot_',
@@ -184,7 +166,7 @@ void main() {
         ],
       );
 
-      final result = await buildService(directory).saveImages(
+      final result = await _serviceSavingTo(directory).saveImages(
         [
           GeneratedImage.create(
             bytes,
@@ -193,10 +175,6 @@ void main() {
             fixedTagUsageSnapshot: generatedSnapshot,
           ),
         ],
-        const ImageParams(prompt: 'changed later', seed: 999),
-        snapshot: const GenerationSaveSnapshot(
-          fixedTagUsageSnapshot: FixedTagUsageSnapshot(),
-        ),
       );
       final saved = await File(result.savedPaths.single).readAsBytes();
 
@@ -220,13 +198,14 @@ void main() {
       addTearDown(() => directory.delete(recursive: true));
       final bytes = await novelAiBytes();
 
-      final result = await buildService(directory).saveImages(
-        [GeneratedImage.create(bytes, width: 2, height: 2)],
-        const ImageParams(seed: 321),
-        snapshot: const GenerationSaveSnapshot(
-          fixedTagUsageSnapshot: FixedTagUsageSnapshot(),
+      final result = await _serviceSavingTo(directory).saveImages([
+        GeneratedImage.create(
+          bytes,
+          width: 2,
+          height: 2,
+          fixedTagUsageSnapshot: const FixedTagUsageSnapshot(),
         ),
-      );
+      ]);
 
       expect(result.savedPaths, hasLength(1));
       final recorded = FixedTagUsageRecordStore().lookup(
@@ -234,6 +213,60 @@ void main() {
       );
       expect(recorded, isNotNull);
       expect(recorded!.entries, isEmpty);
+    });
+  });
+
+  group('自动保存只读图像自身元数据', () {
+    late Directory hiveDirectory;
+    late Directory directory;
+    final plainPng = Uint8List.fromList(
+      image_lib.encodePng(image_lib.Image(width: 2, height: 2)),
+    );
+
+    setUp(() async {
+      hiveDirectory = await Directory.systemTemp.createTemp(
+        'nai_generation_own_meta_hive_',
+      );
+      Hive.init(hiveDirectory.path);
+      directory = await Directory.systemTemp.createTemp(
+        'nai_generation_own_meta_',
+      );
+    });
+
+    tearDown(() async {
+      await Hive.close();
+      await hiveDirectory.delete(recursive: true);
+      await directory.delete(recursive: true);
+    });
+
+    test('字节与图像自身都没有元数据时原样落盘', () async {
+      final result = await _serviceSavingTo(
+        directory,
+      ).saveImages([GeneratedImage.create(plainPng, width: 2, height: 2)]);
+
+      final saved = await File(result.savedPaths.single).readAsBytes();
+      expect(saved, orderedEquals(plainPng));
+      expect(UnifiedMetadataParser.extractPngTextData(saved), isEmpty);
+    });
+
+    test('字节缺元数据时按图像自身元数据补写', () async {
+      final result = await _serviceSavingTo(directory).saveImages([
+        GeneratedImage.create(
+          plainPng,
+          width: 2,
+          height: 2,
+          metadata: const NaiImageMetadata(prompt: 'own prompt', seed: 77),
+        ),
+      ]);
+
+      final path = result.savedPaths.single;
+      final metadata = UnifiedMetadataParser.parseFromPng(
+        await File(path).readAsBytes(),
+      ).metadata!;
+      expect(metadata.prompt, 'own prompt');
+      expect(metadata.seed, 77);
+      expect(p.basenameWithoutExtension(path), endsWith('-77'));
+      expect(result.images.single.filePath, path);
     });
   });
 
@@ -268,8 +301,6 @@ void main() {
             preserveOriginalBytesOnSave: true,
           ),
         ],
-        const ImageParams(seed: 789),
-        snapshot: const GenerationSaveSnapshot(),
       );
       expect(result.savedPaths, hasLength(1));
       return refreshCount;
@@ -405,6 +436,19 @@ void main() {
     });
   });
 }
+
+GenerationResultLifecycleService _serviceSavingTo(Directory directory) =>
+    GenerationResultLifecycleService(
+      GenerationResultLifecycleDependencies(
+        historyStorage: GenerationHistoryStorageService(enabled: false),
+        resolveGalleryRootPath: () async => directory.path,
+        addGalleryImages: (_) async => GalleryIndexAdmission.added,
+        refreshGallery: () async {},
+        removeGalleryImages: _unexpectedGalleryRemoval,
+        deleteGalleryFile: _unexpectedFileDeletion,
+        incrementStatistics: (_) async {},
+      ),
+    );
 
 Future<bool> _unexpectedFileDeletion(String path) =>
     throw StateError('unexpected gallery file deletion: $path');

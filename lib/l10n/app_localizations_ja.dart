@@ -13219,6 +13219,41 @@ class AppLocalizationsJa extends AppLocalizations {
   String get image_savedToAppGallery => 'アプリ内ギャラリーに保存しました';
 
   @override
+  String get image_saveAs => '名前を付けて保存…';
+
+  @override
+  String get image_saveAsDialogTitle => '画像に名前を付けて保存';
+
+  @override
+  String get image_saveAsToFolder => 'フォルダーに保存…';
+
+  @override
+  String get image_saveAsFolderDialogTitle => '保存先フォルダーを選択';
+
+  @override
+  String image_savedAs(Object path) {
+    return '$path に保存しました';
+  }
+
+  @override
+  String get image_savedAsToChosenLocation => '選択した場所に保存しました';
+
+  @override
+  String image_savedAsToFolder(int count, Object path) {
+    return '$count 枚の画像を $path に保存しました';
+  }
+
+  @override
+  String image_savedAsToChosenFolder(int count) {
+    return '$count 枚の画像を選択したフォルダーに保存しました';
+  }
+
+  @override
+  String image_savedAsPartial(int saved, int failed, Object error) {
+    return '$saved 枚を保存、$failed 枚が失敗しました: $error';
+  }
+
+  @override
   String image_shareFailed(Object error) {
     return '共有に失敗しました: $error';
   }

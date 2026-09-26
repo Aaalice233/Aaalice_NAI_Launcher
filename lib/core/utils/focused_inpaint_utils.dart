@@ -162,7 +162,10 @@ class FocusedInpaintRequest {
       dstY: crop.y,
     );
     return ImageGenerationArtifact(
-      displayImageBytes: Uint8List.fromList(img.encodePng(display, level: 1)),
+      displayImageBytes: InpaintMaskUtils.encodeCompositedDisplay(
+        display,
+        generatedImage: generatedBytes,
+      ),
       transparentPatchBytes: Uint8List.fromList(
         img.encodePng(fullPatch, level: 1),
       ),

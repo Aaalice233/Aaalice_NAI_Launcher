@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:typed_data';
 import 'dart:ui';
 
@@ -5,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:image/image.dart' as img;
 import 'package:nai_launcher/core/utils/focused_inpaint_utils.dart';
 import 'package:nai_launcher/core/utils/inpaint_mask_utils.dart';
+import 'package:nai_launcher/data/services/metadata/unified_metadata_parser.dart';
 
 import '../../helpers/image_pixel_matchers.dart';
 
@@ -362,6 +364,91 @@ void main() {
           reconstructed,
           display,
           tolerance: focusedInpaintResampleTolerance,
+        );
+      },
+    );
+
+    test(
+      'composeGeneratedImageArtifact takes display metadata from the server result only',
+      () {
+        Map<String, String> naiText(
+          String prompt,
+          int seed, {
+          required int width,
+          required int height,
+        }) => {
+          'Comment': jsonEncode({
+            'prompt': prompt,
+            'width': width,
+            'height': height,
+            'seed': seed,
+          }),
+          'Description': prompt,
+          'Software': 'NovelAI',
+          'Source': 'NovelAI Diffusion V4.5',
+        };
+        final source = img.Image(width: 400, height: 300);
+        img.fill(source, color: img.ColorRgb8(16, 32, 64));
+        final mask = img.Image(width: 400, height: 300);
+        img.fill(mask, color: img.ColorRgb8(0, 0, 0));
+        img.fillRect(
+          mask,
+          x1: 150,
+          y1: 120,
+          x2: 189,
+          y2: 159,
+          color: img.ColorRgb8(255, 255, 255),
+        );
+        final request = FocusedInpaintUtils.prepareRequest(
+          sourceImage: UnifiedMetadataParser.embedTextChunks(
+            Uint8List.fromList(img.encodePng(source)),
+            naiText('original prompt', 1, width: 400, height: 300),
+          ),
+          maskImage: Uint8List.fromList(img.encodePng(mask)),
+          minContextMegaPixels: 40,
+        )!;
+        final generated = img.Image(
+          width: request.targetWidth,
+          height: request.targetHeight,
+        );
+        img.fill(generated, color: img.ColorRgb8(255, 255, 255));
+        expect((request.targetWidth, request.targetHeight), isNot((400, 300)));
+        final serverText = naiText(
+          'focused prompt',
+          4242,
+          width: request.targetWidth,
+          height: request.targetHeight,
+        );
+        final maskArtifacts =
+            InpaintMaskUtils.prepareNovelAiInpaintMaskArtifacts(
+              request.requestMaskImage,
+              targetWidth: request.targetWidth,
+              targetHeight: request.targetHeight,
+            );
+
+        final artifact = request.composeGeneratedImageArtifact(
+          UnifiedMetadataParser.embedTextChunks(
+            Uint8List.fromList(img.encodePng(generated)),
+            serverText,
+          ),
+          maskArtifacts,
+        );
+
+        final displayText = UnifiedMetadataParser.extractPngTextData(
+          artifact.displayImageBytes,
+        );
+        expect(
+          jsonDecode(displayText['Comment']!),
+          equals({
+            'prompt': 'focused prompt',
+            'width': 400,
+            'height': 300,
+            'seed': 4242,
+          }),
+        );
+        expect(
+          Map.of(displayText)..remove('Comment'),
+          equals(Map.of(serverText)..remove('Comment')),
         );
       },
     );

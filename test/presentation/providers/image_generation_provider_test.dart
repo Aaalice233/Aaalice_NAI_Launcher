@@ -986,6 +986,16 @@ void main() {
       final mockApiService = MockNAIImageGenerationApiService();
       final originalSource = _validImageBytes(width: 640, height: 960);
       final originalMask = _validMaskBytes(width: 640, height: 960);
+      // API 服务贴回后的结果自带服务端元数据，尺寸已校正为整图。
+      final composedResult = await _buildImageWithEmbeddedMetadata(
+        imageWidth: 640,
+        imageHeight: 960,
+        metadataWidth: 640,
+        metadataHeight: 960,
+        prompt: 'focused server prompt',
+        negativePrompt: 'focused server negative',
+        seed: 9876,
+      );
       when(
         () => mockApiService.generateImage(
           any(),
@@ -1004,7 +1014,7 @@ void main() {
         ),
       ).thenAnswer(
         (_) => Stream<ImageStreamChunk>.fromIterable([
-          ImageStreamChunk.complete(_validImageBytes(width: 640, height: 960)),
+          ImageStreamChunk.complete(composedResult),
         ]),
       );
 
@@ -1075,6 +1085,8 @@ void main() {
         await File(generationState.history.single.filePath!).readAsBytes(),
       );
       expect(savedResult.success, isTrue);
+      expect(savedResult.metadata?.prompt, equals('focused server prompt'));
+      expect(savedResult.metadata?.seed, equals(9876));
       expect(savedResult.metadata?.width, equals(640));
       expect(savedResult.metadata?.height, equals(960));
 

@@ -4,21 +4,17 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:path/path.dart' as p;
 
 import '../../../core/mosaic/mosaic_derivative_registry.dart';
 import '../../../core/platform/platform_capabilities.dart';
 import '../../../core/storage/local_storage_service.dart';
-import '../../../core/utils/image_save_utils.dart';
 import '../../../core/utils/image_share_sanitizer.dart';
 import '../../../core/utils/localization_extension.dart';
 import '../../../core/watermark/watermark_derivative_registry.dart';
-import '../../../data/repositories/gallery_folder_repository.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../providers/mosaic_settings_provider.dart';
 import '../../providers/share_image_settings_provider.dart';
 import '../../providers/copy_drag_watermark_provider.dart';
-import '../../providers/image_save_settings_provider.dart';
 import '../../providers/watermark_settings_provider.dart';
 import '../../screens/mosaic/mosaic_editor_launcher.dart';
 import '../../screens/dlss/dlss_enhancement_panel.dart';
@@ -26,7 +22,6 @@ import '../../screens/dlss/dlss_error_view.dart';
 import '../../screens/watermark/watermark_editor_launcher.dart';
 import '../../utils/clipboard_image.dart';
 import 'app_toast.dart';
-import 'gallery_save_feedback.dart';
 import 'image_card_controller.dart';
 import 'image_card_action.dart';
 export 'image_card_action.dart';
@@ -110,16 +105,21 @@ class ImageCardActionCatalog {
         hover: false,
       );
     }
-    if (capabilities.enableSaveAction) {
-      add(
-        ImageCardActionId.save,
-        Icons.save_alt_rounded,
-        l10n.image_save,
-        coordinator.saveImage,
-        primary: true,
-        menuLabel: l10n.shortcut_action_save_image,
-      );
-    }
+    add(
+      ImageCardActionId.save,
+      Icons.save_alt_rounded,
+      l10n.image_save,
+      capabilities.onSave,
+      primary: true,
+      menuLabel: l10n.shortcut_action_save_image,
+    );
+    add(
+      ImageCardActionId.saveAs,
+      Icons.save_as_rounded,
+      l10n.image_saveAs,
+      capabilities.onSaveAs,
+      hover: false,
+    );
     if (capabilities.enableCopyAction) {
       add(
         ImageCardActionId.copy,
@@ -239,7 +239,7 @@ class ImageCardActionCatalog {
       l10n.img2img_enhance,
       capabilities.onEnhance,
     );
-    if (capabilities.enableSaveAction &&
+    if (capabilities.onSave != null &&
         PlatformCapabilities.current.supportsDlssEnhancement &&
         (data.imageBytes != null || data.sourceFilePath != null)) {
       add(
@@ -377,40 +377,6 @@ class ImageCardActionCoordinator {
       stripMetadata: stripMetadata,
       transform: ref.read(copyDragWatermarkProvider),
     );
-  }
-
-  Future<void> saveImage() async {
-    final l10n = context.l10n;
-    final bytes = _data.imageBytes;
-    if (bytes == null) return;
-    final systemGallery = ref.read(systemGalleryPublisherProvider);
-    try {
-      final rootPath = await GalleryFolderRepository.instance.getRootPath();
-      if (rootPath == null || rootPath.isEmpty) {
-        if (context.mounted) AppToast.error(context, l10n.toast_saveDirNotSet);
-        return;
-      }
-      final filePath = await ImageSaveUtils.saveBytesToDatedPath(
-        rootPath: rootPath,
-        bytes: bytes,
-        seed: await ImageSaveUtils.resolveSeed(bytes: bytes),
-      );
-      final systemGalleryOutcome = await systemGallery.publishPng(
-        bytes: bytes,
-        fileName: p.basename(filePath),
-      );
-      if (context.mounted) {
-        showGallerySaveFeedback(
-          context,
-          systemGalleryOutcome,
-          appGalleryMessage: l10n.toast_savedTo(rootPath),
-        );
-      }
-    } catch (error) {
-      if (context.mounted) {
-        AppToast.error(context, l10n.image_saveFailed(error.toString()));
-      }
-    }
   }
 
   ImageCardCallback createCopyImageAction() {
