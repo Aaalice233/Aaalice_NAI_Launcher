@@ -9,6 +9,7 @@ import '../../../../../core/utils/localization_extension.dart';
 import '../../../../themes/design_tokens.dart';
 import '../../../../widgets/common/animated_favorite_button.dart';
 import '../../../../widgets/common/editable_double_field.dart';
+import '../../../../widgets/common/themed_slider.dart';
 
 enum _VibeDetailAction { save, rename, export, delete }
 
@@ -273,7 +274,6 @@ class VibeDetailParamPanel extends StatelessWidget {
     final sliderMax = isInfoExtracted
         ? VibeReference.maxInfoExtracted
         : VibeReference.maxSliderStrength;
-    final sliderValue = value.clamp(sliderMin, sliderMax).toDouble();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -319,8 +319,10 @@ class VibeDetailParamPanel extends StatelessWidget {
             inactiveTrackColor: theme.colorScheme.surfaceContainerHighest,
             thumbColor: theme.colorScheme.primary,
           ),
-          child: Slider(
-            value: sliderValue,
+          child: NamedSlider(
+            label: labelText,
+            valueText: EditableDoubleField.format,
+            value: value,
             min: sliderMin,
             max: sliderMax,
             divisions: 99,

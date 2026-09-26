@@ -9,6 +9,7 @@ import '../../../../core/utils/localization_extension.dart';
 import '../../../../l10n/app_localizations.dart';
 import '../../../adaptive/interaction_policy.dart';
 import '../../../providers/director_tools_notifier.dart';
+import '../../../widgets/common/themed_slider.dart';
 
 /// Pixel Snap 专属的参数、进度与结果控件。
 /// 其余导演工具走服务端，没有本机进度和调色板设置，不共用这里的任何一块。
@@ -23,6 +24,8 @@ class PixelSnapOptionsSection extends ConsumerWidget {
 
   final PixelSnapOptions options;
   final bool enabled;
+
+  static String _colorsText(double colors) => '${colors.round()}';
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -93,23 +96,22 @@ class PixelSnapOptionsSection extends ConsumerWidget {
               ),
               const Spacer(),
               Text(
-                '${options.colors}',
+                _colorsText(options.colors.toDouble()),
                 style: theme.textTheme.bodyMedium?.copyWith(
                   fontWeight: FontWeight.w600,
                 ),
               ),
             ],
           ),
-          Slider(
-            value: options.colors
-                .clamp(PixelSnapOptions.minColors, PixelSnapOptions.maxColors)
-                .toDouble(),
+          NamedSlider(
+            label: l10n.img2img_directorPixelSnapColors,
+            valueText: _colorsText,
+            value: options.colors.toDouble(),
             min: PixelSnapOptions.minColors.toDouble(),
             max: PixelSnapOptions.maxColors.toDouble(),
             divisions:
                 (PixelSnapOptions.maxColors - PixelSnapOptions.minColors) ~/
                 PixelSnapOptions.colorsStep,
-            label: '${options.colors}',
             onChanged: enabled
                 ? (value) => update(options.copyWith(colors: value.round()))
                 : null,

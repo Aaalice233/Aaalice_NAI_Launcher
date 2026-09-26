@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../../../adaptive/interaction_policy.dart';
 import '../../../widgets/common/themed_input.dart';
+import '../../../widgets/common/themed_slider.dart';
 
 /// 工具设置行：标签、控件与可选的尾随数值
 class ToolSettingRow {
@@ -227,19 +228,14 @@ class _ToolSlider extends StatelessWidget {
           trackHeight: 2,
           thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6),
           overlayShape: const RoundSliderOverlayShape(overlayRadius: 12),
-          tickMarkShape: SliderTickMarkShape.noTickMark,
-          // label 只作读屏名称，不画成数值气泡
-          showValueIndicator: ShowValueIndicator.never,
         ),
-        child: Slider(
-          value: value.clamp(min, max),
+        child: NamedSlider(
+          label: label,
+          valueText: (value) => _sliderValueText(value, suffix),
+          value: value,
           min: min,
           max: max,
           divisions: divisions,
-          // label 写进滑块自身的语义节点；外包 Semantics 只会标到其外层容器节点
-          label: label,
-          // 默认按区间读百分比，与界面显示的数值不一致
-          semanticFormatterCallback: (value) => _sliderValueText(value, suffix),
           onChanged: onChanged,
         ),
       ),

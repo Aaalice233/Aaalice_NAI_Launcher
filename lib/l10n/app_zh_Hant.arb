@@ -600,7 +600,9 @@
   "generation_e2eUpscaleHint": "服務端輸出 {size}",
   "generation_sampler": "取樣器",
   "generation_steps": "步數: {steps}",
+  "generation_stepsLabel": "步數",
   "generation_cfgScale": "CFG 強度：{scale}",
+  "generation_cfgScaleLabel": "CFG 強度",
   "generation_seed": "種子",
   "generation_previewApplySeed": "使用當前圖片的種子",
   "generation_imageComparison": "對比",
@@ -627,6 +629,7 @@
   "generation_smeaDyn": "SMEA DYN",
   "generation_smeaDescription": "高解析度取樣器會在超過一定影象尺寸時自動使用",
   "generation_cfgRescale": "CFG 重縮放：{value}",
+  "generation_cfgRescaleLabel": "CFG 重縮放",
   "generation_noiseSchedule": "噪聲排程",
   "prompt_positive": "正面",
   "prompt_negative": "負面",
@@ -1289,6 +1292,7 @@
       "value": {}
     }
   },
+  "editor_focusMinimumContextAreaLabel": "最小上下文區域",
   "editor_canvasSizeTitle": "畫布尺寸",
   "editor_presetSize": "預設尺寸",
   "editor_customSize": "自定義",
@@ -6622,6 +6626,7 @@
     }
   },
   "onlineGallery_videoLoadFailed": "影片載入失敗",
+  "onlineGallery_videoPositionLabel": "播放進度",
   "vibe_releaseToAddStyleReference": "鬆開後新增風格參考",
   "router_backAgainToExit": "再滑一次或按返回鍵退出應用",
   "router_pageNotFound": "頁面未找到: {error}",

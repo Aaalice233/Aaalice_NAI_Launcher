@@ -13,6 +13,7 @@ import '../../../providers/image_generation_provider.dart';
 import '../../../widgets/common/anlas_cost_badge.dart';
 import '../../../widgets/common/app_toast.dart';
 import '../../../widgets/common/editable_double_field.dart';
+import '../../../widgets/common/themed_slider.dart';
 import 'img2img_upscale_coordinator.dart';
 
 class Img2ImgUpscaleSection extends ConsumerStatefulWidget {
@@ -464,9 +465,12 @@ class _ScaleControl extends StatelessWidget {
   final UpscaleWorkflowSettings settings;
   final ImageWorkflowController controller;
 
+  static const _decimals = 1;
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final label = context.l10n.upscale_scale;
     final value = settings.comfyScale.clamp(
       UpscaleWorkflowSettings.minScale,
       UpscaleWorkflowSettings.maxScale,
@@ -475,17 +479,12 @@ class _ScaleControl extends StatelessWidget {
       children: [
         Row(
           children: [
-            Expanded(
-              child: Text(
-                context.l10n.upscale_scale,
-                style: theme.textTheme.bodyMedium,
-              ),
-            ),
+            Expanded(child: Text(label, style: theme.textTheme.bodyMedium)),
             EditableDoubleField(
               value: value,
               min: UpscaleWorkflowSettings.minScale,
               max: UpscaleWorkflowSettings.maxScale,
-              decimals: 1,
+              decimals: _decimals,
               width: 60,
               onChanged: controller.updateUpscaleComfyScale,
               textStyle: theme.textTheme.bodySmall?.copyWith(
@@ -500,7 +499,10 @@ class _ScaleControl extends StatelessWidget {
             thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6),
             overlayShape: const RoundSliderOverlayShape(overlayRadius: 12),
           ),
-          child: Slider(
+          child: NamedSlider(
+            label: label,
+            valueText: (v) =>
+                EditableDoubleField.format(v, decimals: _decimals),
             value: value,
             min: UpscaleWorkflowSettings.minScale,
             max: UpscaleWorkflowSettings.maxScale,
@@ -645,6 +647,8 @@ class _IntegerControl extends StatelessWidget {
   final ValueChanged<double> onChanged;
   final String? hint;
 
+  static const _decimals = 0;
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -659,7 +663,7 @@ class _IntegerControl extends StatelessWidget {
               value: current,
               min: min.toDouble(),
               max: max.toDouble(),
-              decimals: 0,
+              decimals: _decimals,
               width: 72,
               onChanged: onChanged,
             ),
@@ -671,7 +675,10 @@ class _IntegerControl extends StatelessWidget {
             thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6),
             overlayShape: const RoundSliderOverlayShape(overlayRadius: 12),
           ),
-          child: Slider(
+          child: NamedSlider(
+            label: label,
+            valueText: (v) =>
+                EditableDoubleField.format(v, decimals: _decimals),
             value: current,
             min: min.toDouble(),
             max: max.toDouble(),

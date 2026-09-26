@@ -7,6 +7,8 @@ import '../../../../data/models/prompt/character_count_config.dart';
 import '../../../../data/models/prompt/random_preset.dart';
 import '../../../providers/random_preset_provider.dart';
 import '../../../themes/core/layered_surface_style.dart';
+import '../../common/themed_slider.dart';
+import 'probability_text.dart';
 import 'random_config_l10n.dart';
 
 class AlgorithmConfigCard extends ConsumerStatefulWidget {
@@ -401,8 +403,10 @@ class _ExpandedConfig extends StatelessWidget {
               ),
               SizedBox(
                 width: 140,
-                child: Slider(
-                  value: config.globalEmphasisProbability.clamp(0, 0.1),
+                child: NamedSlider(
+                  label: context.l10n.randomManager_globalEmphasisProbability,
+                  valueText: formatProbabilityPercent,
+                  value: config.globalEmphasisProbability,
                   min: 0,
                   max: 0.1,
                   divisions: 10,
@@ -416,7 +420,7 @@ class _ExpandedConfig extends StatelessWidget {
               SizedBox(
                 width: 34,
                 child: Text(
-                  '${(config.globalEmphasisProbability * 100).round()}%',
+                  formatProbabilityPercent(config.globalEmphasisProbability),
                   textAlign: TextAlign.end,
                   style: Theme.of(context).textTheme.labelSmall?.copyWith(
                     fontFeatures: const [FontFeature.tabularFigures()],
@@ -468,6 +472,8 @@ class _WeightSlider extends StatelessWidget {
   final bool enabled;
   final ValueChanged<int> onChanged;
 
+  static String _weightText(double weight) => '${weight.round()}';
+
   @override
   Widget build(BuildContext context) {
     return Row(
@@ -481,8 +487,10 @@ class _WeightSlider extends StatelessWidget {
           ),
         ),
         Expanded(
-          child: Slider(
-            value: value.clamp(1, 100).toDouble(),
+          child: NamedSlider(
+            label: label,
+            valueText: _weightText,
+            value: value.toDouble(),
             min: 1,
             max: 100,
             divisions: 99,
@@ -492,7 +500,7 @@ class _WeightSlider extends StatelessWidget {
         SizedBox(
           width: 28,
           child: Text(
-            value.toString(),
+            _weightText(value.toDouble()),
             textAlign: TextAlign.end,
             style: Theme.of(context).textTheme.labelSmall?.copyWith(
               fontFeatures: const [FontFeature.tabularFigures()],

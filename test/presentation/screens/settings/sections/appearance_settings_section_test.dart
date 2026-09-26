@@ -311,6 +311,11 @@ void main() {
       tester.element(find.byType(AppearanceSettingsSection)),
     );
     expect(container.read(fontScaleNotifierProvider), 1.5);
+    final scaleSlider = find.semantics.byPredicate(
+      (node) => node.flagsCollection.isSlider && node.label == '字体大小',
+    );
+    expect(scaleSlider, findsOne, reason: '滑块以面板标题朗读，而不是把数值当名称');
+    expect(scaleSlider.evaluate().single.value, '150%');
 
     await tester.scrollUntilVisible(
       find.text('完成'),

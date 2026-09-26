@@ -7,6 +7,7 @@ import '../../common/image_viewport_surface.dart';
 import '../../../../core/utils/localization_extension.dart';
 import '../../../adaptive/adaptive_presenter.dart';
 import '../../common/adaptive_dialog_frame.dart';
+import '../../common/themed_slider.dart';
 import '../image_editor_processing_service.dart';
 import 'editor_effects.dart';
 import 'image_editor_effects_controller.dart';
@@ -316,6 +317,9 @@ class _EffectsPreviewDialogState extends State<EffectsPreviewDialog> {
     );
   }
 
+  static String _intensityText(double intensity) =>
+      intensity.toStringAsFixed(2);
+
   Widget _effectControl() {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
@@ -345,6 +349,9 @@ class _EffectsPreviewDialogState extends State<EffectsPreviewDialog> {
       );
     }
 
+    final intensityLabel = context.l10n.editor_effectIntensity(
+      effectLabel(context, type),
+    );
     return DecoratedBox(
       decoration: BoxDecoration(
         color: colorScheme.surfaceContainer,
@@ -365,9 +372,7 @@ class _EffectsPreviewDialogState extends State<EffectsPreviewDialog> {
                 const SizedBox(width: 10),
                 Expanded(
                   child: Text(
-                    context.l10n.editor_effectIntensity(
-                      effectLabel(context, type),
-                    ),
+                    intensityLabel,
                     style: theme.textTheme.titleSmall?.copyWith(
                       fontWeight: FontWeight.bold,
                     ),
@@ -382,7 +387,7 @@ class _EffectsPreviewDialogState extends State<EffectsPreviewDialog> {
                 spacing: 8,
                 children: [
                   Text(
-                    intensity.toStringAsFixed(2),
+                    _intensityText(intensity),
                     style: theme.textTheme.titleSmall,
                   ),
                   TextButton(
@@ -397,7 +402,9 @@ class _EffectsPreviewDialogState extends State<EffectsPreviewDialog> {
                 ],
               ),
             ),
-            Slider(
+            NamedSlider(
+              label: intensityLabel,
+              valueText: _intensityText,
               value: intensity,
               min: editorEffectMin(type),
               max: editorEffectMax(type),

@@ -13,6 +13,7 @@ import '../../providers/director_tools_notifier.dart';
 import '../../providers/subscription_provider.dart';
 import '../../widgets/common/app_toast.dart';
 import '../../widgets/common/themed_confirm_dialog.dart';
+import '../../widgets/common/themed_slider.dart';
 import 'widgets/pixel_snap_panel.dart';
 
 class DirectorToolsScreen extends ConsumerStatefulWidget {
@@ -339,20 +340,20 @@ class _DirectorToolsScreenState extends ConsumerState<DirectorToolsScreen> {
     return widgets;
   }
 
-  List<Widget> _buildColorizeOptions(
+  static String _defryText(double defry) => '${defry.round()}';
+
+  List<Widget> _buildDefrySlider(
     ThemeData theme,
-    DirectorToolsState state,
-  ) {
+    DirectorToolsState state, {
+    required String label,
+  }) {
     return [
       Row(
         children: [
-          Text(
-            context.l10n.img2img_directorDefry,
-            style: theme.textTheme.bodyMedium,
-          ),
+          Text(label, style: theme.textTheme.bodyMedium),
           const Spacer(),
           Text(
-            '${state.defry}',
+            _defryText(state.defry.toDouble()),
             style: theme.textTheme.bodyMedium?.copyWith(
               fontWeight: FontWeight.w600,
             ),
@@ -360,15 +361,29 @@ class _DirectorToolsScreenState extends ConsumerState<DirectorToolsScreen> {
         ],
       ),
       const SizedBox(height: 4),
-      Slider(
+      NamedSlider(
+        label: label,
+        valueText: _defryText,
         value: state.defry.toDouble(),
         min: 0,
         max: 5,
         divisions: 5,
-        label: '${state.defry}',
         onChanged: (v) => ref
             .read(directorToolsNotifierProvider.notifier)
             .updateDefry(v.round()),
+      ),
+    ];
+  }
+
+  List<Widget> _buildColorizeOptions(
+    ThemeData theme,
+    DirectorToolsState state,
+  ) {
+    return [
+      ..._buildDefrySlider(
+        theme,
+        state,
+        label: context.l10n.img2img_directorDefry,
       ),
       Text(
         context.l10n.img2img_directorDefryHint,
@@ -381,31 +396,10 @@ class _DirectorToolsScreenState extends ConsumerState<DirectorToolsScreen> {
 
   List<Widget> _buildEmotionOptions(ThemeData theme, DirectorToolsState state) {
     return [
-      Row(
-        children: [
-          Text(
-            context.l10n.img2img_directorEmotionLevel,
-            style: theme.textTheme.bodyMedium,
-          ),
-          const Spacer(),
-          Text(
-            '${state.defry}',
-            style: theme.textTheme.bodyMedium?.copyWith(
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ],
-      ),
-      const SizedBox(height: 4),
-      Slider(
-        value: state.defry.toDouble(),
-        min: 0,
-        max: 5,
-        divisions: 5,
-        label: '${state.defry}',
-        onChanged: (v) => ref
-            .read(directorToolsNotifierProvider.notifier)
-            .updateDefry(v.round()),
+      ..._buildDefrySlider(
+        theme,
+        state,
+        label: context.l10n.img2img_directorEmotionLevel,
       ),
       Text(
         context.l10n.img2img_directorEmotionLevelHint,

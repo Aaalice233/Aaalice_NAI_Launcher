@@ -24,6 +24,7 @@ import '../../../widgets/common/translated_tag_text.dart';
 import '../../../widgets/common/collapsible_image_panel.dart';
 import '../../../widgets/common/decoded_memory_image.dart';
 import '../../../widgets/common/themed_divider.dart';
+import '../../../widgets/common/themed_slider.dart';
 import '../../../widgets/tag_library/tag_library_picker_dialog.dart';
 
 class ReversePromptPanel extends ConsumerStatefulWidget {
@@ -616,13 +617,17 @@ class _ThresholdSlider extends StatelessWidget {
   final double value;
   final ValueChanged<double>? onChanged;
 
+  static String _valueText(double value) => value.toStringAsFixed(2);
+
   @override
   Widget build(BuildContext context) {
     return Row(
       children: [
-        SizedBox(width: 104, child: Text('$label ${value.toStringAsFixed(2)}')),
+        SizedBox(width: 104, child: Text('$label ${_valueText(value)}')),
         Expanded(
-          child: Slider(
+          child: NamedSlider(
+            label: label,
+            valueText: _valueText,
             value: value,
             min: 0.05,
             max: 0.95,

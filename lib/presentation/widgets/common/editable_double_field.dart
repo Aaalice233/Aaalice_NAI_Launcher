@@ -11,11 +11,17 @@ class EditableDoubleField extends StatefulWidget {
     required this.onChanged,
     this.min,
     this.max,
-    this.decimals = 2,
+    this.decimals = defaultDecimals,
     this.width = 64,
     this.textStyle,
     this.enabled = true,
   }) : assert(min == null || max == null || min <= max);
+
+  static const int defaultDecimals = 2;
+
+  /// 输入框显示数值的格式；配对滑块的读屏读数也用它，读出的即显示的
+  static String format(double value, {int decimals = defaultDecimals}) =>
+      value.toStringAsFixed(decimals);
 
   final double value;
   final double? min;
@@ -86,7 +92,8 @@ class _EditableDoubleFieldState extends State<EditableDoubleField> {
     _controller.text = _format(normalized);
   }
 
-  String _format(double value) => value.toStringAsFixed(widget.decimals);
+  String _format(double value) =>
+      EditableDoubleField.format(value, decimals: widget.decimals);
 
   @override
   Widget build(BuildContext context) {

@@ -25,6 +25,7 @@ import '../../providers/mosaic_settings_provider.dart';
 import '../../providers/share_image_settings_provider.dart';
 import '../../widgets/image_editor/widgets/color_picker.dart';
 import '../../widgets/common/horizontal_segmented_control.dart';
+import '../../widgets/common/themed_slider.dart';
 import 'mosaic_editor_canvas.dart';
 
 class MosaicEditorSource {
@@ -1605,47 +1606,48 @@ class _MosaicSlider extends StatelessWidget {
   final VoidCallback onChangeStart;
   final ValueChanged<double>? onChanged;
 
+  static String _percentText(double value) =>
+      '${(value * 100).toStringAsFixed(0)}%';
+
   @override
   Widget build(BuildContext context) {
     final safeMax = math.max(min + 0.000001, max);
     final safeValue = value.clamp(min, safeMax).toDouble();
-    return Semantics(
-      label: label,
-      value: '${(safeValue * 100).toStringAsFixed(1)}%',
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final percentage = Text('${(safeValue * 100).toStringAsFixed(0)}%');
-          final slider = Slider(
-            value: safeValue,
-            min: min,
-            max: safeMax,
-            onChangeStart: onChanged == null ? null : (_) => onChangeStart(),
-            onChanged: onChanged,
-          );
-          if (constraints.maxWidth < 350 ||
-              MediaQuery.textScalerOf(context).scale(14) > 20) {
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(label),
-                Row(
-                  children: [
-                    Expanded(child: slider),
-                    percentage,
-                  ],
-                ),
-              ],
-            );
-          }
-          return Row(
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final percentage = Text(_percentText(safeValue));
+        final slider = NamedSlider(
+          label: label,
+          valueText: _percentText,
+          value: safeValue,
+          min: min,
+          max: safeMax,
+          onChangeStart: onChanged == null ? null : (_) => onChangeStart(),
+          onChanged: onChanged,
+        );
+        if (constraints.maxWidth < 350 ||
+            MediaQuery.textScalerOf(context).scale(14) > 20) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              SizedBox(width: 116, child: Text(label)),
-              Expanded(child: slider),
-              percentage,
+              Text(label),
+              Row(
+                children: [
+                  Expanded(child: slider),
+                  percentage,
+                ],
+              ),
             ],
           );
-        },
-      ),
+        }
+        return Row(
+          children: [
+            SizedBox(width: 116, child: Text(label)),
+            Expanded(child: slider),
+            percentage,
+          ],
+        );
+      },
     );
   }
 }

@@ -22,6 +22,7 @@ import '../../../providers/image_generation_provider.dart';
 import '../../../providers/vibe_library_provider.dart';
 import '../../../widgets/common/app_toast.dart';
 import '../../../widgets/common/editable_double_field.dart';
+import '../../../widgets/common/themed_slider.dart';
 import '../../vibe_library/widgets/vibe_selector_dialog.dart';
 
 /// Vibe 导入处理器
@@ -640,7 +641,7 @@ Widget _buildVibeLibraryDialogSlider(
   required ValueChanged<double> onChanged,
   bool unboundedInput = false,
 }) {
-  final sliderValue = value.clamp(min, max).toDouble();
+  const decimals = 2;
 
   return Column(
     crossAxisAlignment: CrossAxisAlignment.start,
@@ -657,7 +658,7 @@ Widget _buildVibeLibraryDialogSlider(
             value: value,
             min: unboundedInput ? null : min,
             max: unboundedInput ? null : max,
-            decimals: 2,
+            decimals: decimals,
             width: 64,
             onChanged: onChanged,
             textStyle: const TextStyle(
@@ -666,8 +667,10 @@ Widget _buildVibeLibraryDialogSlider(
           ),
         ],
       ),
-      Slider(
-        value: sliderValue,
+      NamedSlider(
+        label: label,
+        valueText: (v) => EditableDoubleField.format(v, decimals: decimals),
+        value: value,
         min: min,
         max: max,
         divisions: 99,

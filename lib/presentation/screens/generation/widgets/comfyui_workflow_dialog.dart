@@ -14,6 +14,7 @@ import '../../../adaptive/adaptive_presenter.dart';
 import '../../../providers/comfyui/comfyui_provider.dart';
 import '../../../utils/comfyui_workflow_l10n.dart';
 import '../../../widgets/common/app_toast.dart';
+import '../../../widgets/common/themed_slider.dart';
 
 /// 通用 ComfyUI 工作流执行对话框
 ///
@@ -413,31 +414,35 @@ class _ComfyUIWorkflowDialogState extends ConsumerState<ComfyUIWorkflowDialog> {
     );
   }
 
+  static String _integerText(num value) => '${value.round()}';
+
+  static String _numberText(num value) => value.toStringAsFixed(2);
+
   Widget _buildIntegerInput(ThemeData theme, WorkflowSlot slot) {
     final val = (_paramValues[slot.id] ?? slot.defaultValue ?? 0) as num;
     final hasRange = slot.min != null && slot.max != null;
 
     if (hasRange && (slot.max! - slot.min!) <= 100) {
+      final label = slot.localizedLabel(context);
       return Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
+              Text(label, style: theme.textTheme.bodyMedium),
               Text(
-                slot.localizedLabel(context),
-                style: theme.textTheme.bodyMedium,
-              ),
-              Text(
-                val.toInt().toString(),
+                _integerText(val),
                 style: theme.textTheme.bodySmall?.copyWith(
                   fontWeight: FontWeight.w600,
                 ),
               ),
             ],
           ),
-          Slider(
-            value: val.toDouble().clamp(slot.min!, slot.max!),
+          NamedSlider(
+            label: label,
+            valueText: _integerText,
+            value: val.toDouble(),
             min: slot.min!,
             max: slot.max!,
             divisions: ((slot.max! - slot.min!) / (slot.step ?? 1)).round(),
@@ -466,26 +471,26 @@ class _ComfyUIWorkflowDialogState extends ConsumerState<ComfyUIWorkflowDialog> {
     final hasRange = slot.min != null && slot.max != null;
 
     if (hasRange) {
+      final label = slot.localizedLabel(context);
       return Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
+              Text(label, style: theme.textTheme.bodyMedium),
               Text(
-                slot.localizedLabel(context),
-                style: theme.textTheme.bodyMedium,
-              ),
-              Text(
-                val.toStringAsFixed(2),
+                _numberText(val),
                 style: theme.textTheme.bodySmall?.copyWith(
                   fontWeight: FontWeight.w600,
                 ),
               ),
             ],
           ),
-          Slider(
-            value: val.toDouble().clamp(slot.min!, slot.max!),
+          NamedSlider(
+            label: label,
+            valueText: _numberText,
+            value: val.toDouble(),
             min: slot.min!,
             max: slot.max!,
             divisions: slot.step != null

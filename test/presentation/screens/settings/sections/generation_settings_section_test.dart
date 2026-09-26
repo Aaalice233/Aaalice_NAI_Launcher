@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/semantics.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/core/constants/storage_keys.dart';
@@ -130,6 +131,47 @@ void main() {
     expect(find.text('重试次数'), findsOneWidget);
     expect(find.text('重试间隔'), findsOneWidget);
     expect(find.text('完成音效'), findsOneWidget);
+  });
+
+  testWidgets('重试滑块以设置名朗读，读数与说明一致并按一格步进', (tester) async {
+    final storage = _MemoryLocalStorageService();
+    await tester.binding.setSurfaceSize(const Size(1000, 1600));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [localStorageServiceProvider.overrideWith((ref) => storage)],
+        child: const MaterialApp(
+          locale: Locale('zh'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(
+            body: SingleChildScrollView(child: GenerationSettingsSection()),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      tester.widgetList<Slider>(find.byType(Slider)).map((s) => s.divisions),
+      [29, 19],
+    );
+    final interval = _sliderNode('重试间隔');
+    expect(interval.value, endsWith('秒'));
+    expect(find.text(interval.value), findsOneWidget);
+
+    final count = _sliderNode('重试次数');
+    expect(find.text(count.value), findsOneWidget);
+    final before = int.parse(RegExp(r'\d+').firstMatch(count.value)![0]!);
+    tester.semantics.increase(
+      find.semantics.byPredicate(
+        (node) => node.flagsCollection.isSlider && node.label == '重试次数',
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(count.increasedValue, '最多 ${before + 1} 次');
+    expect(storage.values[StorageKeys.queueRetryCount], before + 1);
   });
 
   testWidgets('透明图像 Alpha 模式默认直通并可切换为预乘', (tester) async {
@@ -270,6 +312,14 @@ void main() {
 
     expect(find.text('自定义音效'), findsNothing);
   });
+}
+
+SemanticsNode _sliderNode(String label) {
+  final slider = find.semantics.byPredicate(
+    (node) => node.flagsCollection.isSlider && node.label == label,
+  );
+  expect(slider, findsOne, reason: label);
+  return slider.evaluate().single;
 }
 
 class _MemoryLocalStorageService extends LocalStorageService {

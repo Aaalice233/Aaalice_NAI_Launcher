@@ -199,7 +199,7 @@ class DlssOptionsEditor extends StatelessWidget {
         value.skin,
         (v) => value.copyWith(skin: v),
         min: -1,
-        valueLabel: value.skin < 0 ? l10n.dlss_modelDefault : null,
+        valueLabel: (skin) => skin < 0 ? l10n.dlss_modelDefault : null,
         enabled: value.autoMask,
       ),
     ]);
@@ -251,7 +251,7 @@ class DlssOptionsEditor extends StatelessWidget {
     DlssOptions Function(double) update, {
     double? max,
     double min = 0,
-    String? valueLabel,
+    String? Function(double value)? valueLabel,
     bool enabled = true,
   }) => DlssParameterSlider(
     label: label,

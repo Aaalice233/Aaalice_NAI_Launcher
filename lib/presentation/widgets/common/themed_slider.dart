@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 
-/// 项目统一滑块。
+/// 所有滑块的共享底座：读屏名称写进滑块自身语义节点，读数与界面数值一致。
 ///
-/// 复用 Material 原生拖动、键盘、焦点和语义行为，页面仅配置数值与语义颜色。
-class ThemedSlider extends StatelessWidget {
-  const ThemedSlider({
+/// [valueText] 应与页面上显示当前值的文本共用同一个格式化函数。
+class NamedSlider extends StatelessWidget {
+  const NamedSlider({
     super.key,
+    required this.label,
+    required this.valueText,
     required this.value,
     required this.onChanged,
     this.onChangeStart,
@@ -13,7 +15,61 @@ class ThemedSlider extends StatelessWidget {
     this.min = 0,
     this.max = 1,
     this.divisions,
-    this.label,
+    this.padding,
+  });
+
+  final String label;
+  final String Function(double value) valueText;
+  final double value;
+  final ValueChanged<double>? onChanged;
+  final ValueChanged<double>? onChangeStart;
+  final ValueChanged<double>? onChangeEnd;
+  final double min;
+  final double max;
+  final int? divisions;
+  final EdgeInsetsGeometry? padding;
+
+  @override
+  Widget build(BuildContext context) {
+    return SliderTheme(
+      data: SliderTheme.of(context).copyWith(
+        tickMarkShape: SliderTickMarkShape.noTickMark,
+        // label 已是读屏名称，画成气泡就成了把名称当数值显示
+        showValueIndicator: ShowValueIndicator.never,
+      ),
+      child: Slider(
+        value: value.clamp(min, max),
+        min: min,
+        max: max,
+        divisions: divisions,
+        padding: padding,
+        // 3.44 起滑块自成语义节点，外包 Semantics 只会标到外层容器
+        label: label,
+        // 默认按区间读百分比，与界面数值不一致
+        semanticFormatterCallback: valueText,
+        onChanged: onChanged,
+        onChangeStart: onChangeStart,
+        onChangeEnd: onChangeEnd,
+      ),
+    );
+  }
+}
+
+/// 项目统一滑块。
+///
+/// 在 [NamedSlider] 上叠加项目外观，页面仅配置数值与语义颜色。
+class ThemedSlider extends StatelessWidget {
+  const ThemedSlider({
+    super.key,
+    required this.label,
+    required this.valueText,
+    required this.value,
+    required this.onChanged,
+    this.onChangeStart,
+    this.onChangeEnd,
+    this.min = 0,
+    this.max = 1,
+    this.divisions,
     this.enabled = true,
     this.activeColor,
     this.inactiveColor,
@@ -22,6 +78,8 @@ class ThemedSlider extends StatelessWidget {
     this.thumbSize = 18,
   });
 
+  final String label;
+  final String Function(double value) valueText;
   final double value;
   final ValueChanged<double>? onChanged;
   final ValueChanged<double>? onChangeStart;
@@ -29,7 +87,6 @@ class ThemedSlider extends StatelessWidget {
   final double min;
   final double max;
   final int? divisions;
-  final String? label;
   final bool enabled;
   final Color? activeColor;
   final Color? inactiveColor;
@@ -49,104 +106,21 @@ class ThemedSlider extends StatelessWidget {
         inactiveTrackColor: inactiveColor ?? colors.surfaceContainerHighest,
         thumbColor: thumbColor ?? activeColor ?? colors.primary,
         overlayColor: (activeColor ?? colors.primary).withValues(alpha: 0.12),
-        tickMarkShape: SliderTickMarkShape.noTickMark,
         thumbShape: RoundSliderThumbShape(
           enabledThumbRadius: thumbSize / 2,
           disabledThumbRadius: thumbSize / 2,
         ),
-        showValueIndicator: label == null
-            ? ShowValueIndicator.never
-            : ShowValueIndicator.onDrag,
       ),
-      child: Slider(
-        value: value.clamp(min, max),
-        onChanged: effectiveOnChanged,
-        onChangeStart: effectiveOnChanged == null ? null : onChangeStart,
-        onChangeEnd: effectiveOnChanged == null ? null : onChangeEnd,
+      child: NamedSlider(
+        label: label,
+        valueText: valueText,
+        value: value,
         min: min,
         max: max,
         divisions: divisions,
-        label: label,
-      ),
-    );
-  }
-}
-
-/// 带标题和值说明的统一滑块。
-class ThemedSliderListTile extends StatelessWidget {
-  const ThemedSliderListTile({
-    super.key,
-    required this.value,
-    required this.onChanged,
-    this.onChangeEnd,
-    required this.title,
-    this.subtitle,
-    this.min = 0,
-    this.max = 1,
-    this.divisions,
-    this.enabled = true,
-    this.contentPadding,
-  });
-
-  final double value;
-  final ValueChanged<double>? onChanged;
-  final ValueChanged<double>? onChangeEnd;
-  final Widget title;
-  final Widget? subtitle;
-  final double min;
-  final double max;
-  final int? divisions;
-  final bool enabled;
-  final EdgeInsetsGeometry? contentPadding;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Padding(
-      padding:
-          contentPadding ??
-          const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: DefaultTextStyle(
-                  style: theme.textTheme.bodyLarge!.copyWith(
-                    color: enabled
-                        ? null
-                        : theme.colorScheme.onSurface.withValues(alpha: 0.38),
-                  ),
-                  child: title,
-                ),
-              ),
-              if (subtitle != null) ...[
-                const SizedBox(width: 8),
-                DefaultTextStyle(
-                  style: theme.textTheme.bodyMedium!.copyWith(
-                    color: enabled
-                        ? theme.colorScheme.primary
-                        : theme.colorScheme.onSurface.withValues(alpha: 0.38),
-                    fontWeight: FontWeight.w500,
-                  ),
-                  child: subtitle!,
-                ),
-              ],
-            ],
-          ),
-          const SizedBox(height: 8),
-          ThemedSlider(
-            value: value,
-            onChanged: onChanged,
-            onChangeEnd: onChangeEnd,
-            min: min,
-            max: max,
-            divisions: divisions,
-            enabled: enabled,
-          ),
-        ],
+        onChanged: effectiveOnChanged,
+        onChangeStart: effectiveOnChanged == null ? null : onChangeStart,
+        onChangeEnd: effectiveOnChanged == null ? null : onChangeEnd,
       ),
     );
   }
