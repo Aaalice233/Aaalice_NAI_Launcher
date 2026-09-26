@@ -113,6 +113,13 @@ class ImageCardActionCatalog {
       primary: true,
       menuLabel: l10n.shortcut_action_save_image,
     );
+    add(
+      ImageCardActionId.saveAs,
+      Icons.save_as_rounded,
+      l10n.image_saveAs,
+      capabilities.onSaveAs,
+      hover: false,
+    );
     if (capabilities.enableCopyAction) {
       add(
         ImageCardActionId.copy,

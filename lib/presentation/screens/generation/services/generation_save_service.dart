@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/services/image_save_as_service.dart';
 import '../../../../core/services/system_gallery_publisher.dart';
 import '../../../../core/utils/localization_extension.dart';
 import '../../../../data/repositories/gallery_folder_repository.dart';
 import '../../../providers/image_generation_provider.dart';
 import '../../../providers/image_save_settings_provider.dart';
 import '../../../providers/local_gallery_provider.dart';
+import '../../../services/image_save_as_workflow.dart';
+import '../../../utils/asset_protection_guard.dart';
 import '../../../widgets/common/app_toast.dart';
 import '../../../widgets/common/gallery_save_feedback.dart';
 import '../../../widgets/common/image_detail/image_detail_data.dart';
@@ -33,9 +36,70 @@ class GenerationSaveService {
   static GenerationResultSaveRequest requestFor(
     WidgetRef ref,
     GeneratedImage image,
-  ) => GenerationResultSaveRequest.fromImage(
-    ref.read(imageGenerationNotifierProvider).findImageById(image.id) ?? image,
+  ) => GenerationResultSaveRequest.fromImage(_latest(ref, image));
+
+  /// 另存为只导出副本：不写图库、不改记路径，字节与保存到图库的结果一致。
+  static ImageSaveAsSource saveAsSourceFor(
+    WidgetRef ref,
+    GeneratedImage image,
+  ) {
+    final latest = _latest(ref, image);
+    return ImageSaveAsSource(
+      bytes: latest.bytes,
+      filePath: latest.filePath,
+      metadata: latest.metadata,
+      preserveOriginalBytes: latest.preserveOriginalBytesOnSave,
+    );
+  }
+
+  static Future<void> saveImageAs(
+    BuildContext context,
+    WidgetRef ref,
+    GeneratedImage image,
+  ) => ImageSaveAsWorkflow.saveOne(
+    context,
+    saveAsSourceFor(ref, image),
+    preventOverwrite: AssetProtectionGuard.shouldPreventOverwrite(ref),
   );
+
+  /// 全部成功才返回 true；取消选择文件夹也返回 false。
+  static Future<bool> saveImagesAsToFolder(
+    BuildContext context,
+    WidgetRef ref,
+    List<GeneratedImage> images,
+  ) async {
+    final sources = [for (final image in images) saveAsSourceFor(ref, image)];
+    final result = await ImageSaveAsWorkflow.saveAllToFolder(context, sources);
+    return result != null && result.failures.isEmpty;
+  }
+
+  static Future<void> saveImageAsFromDetail(
+    BuildContext context,
+    WidgetRef ref,
+    ImageDetailData image,
+  ) async {
+    if (!image.showSaveAsButton) return;
+    final savedPath =
+        image.fileInfo?.path ??
+        ref
+            .read(imageGenerationNotifierProvider)
+            .findImageById(image.identifier)
+            ?.filePath;
+    await ImageSaveAsWorkflow.saveOne(
+      context,
+      ImageSaveAsSource.deferred(
+        loadBytes: image.getImageBytes,
+        filePath: savedPath,
+        metadata: image.metadata,
+        preserveOriginalBytes: image.preserveOriginalBytesOnSave,
+      ),
+      preventOverwrite: AssetProtectionGuard.shouldPreventOverwrite(ref),
+    );
+  }
+
+  static GeneratedImage _latest(WidgetRef ref, GeneratedImage image) =>
+      ref.read(imageGenerationNotifierProvider).findImageById(image.id) ??
+      image;
 
   static Future<void> saveImageFromDetail(
     BuildContext context,

@@ -5,6 +5,7 @@ import '../../../widgets/bulk_action_bar.dart';
 import '../services/generated_image_file_link.dart';
 import '../services/generation_image_batch_actions.dart';
 import '../services/generation_image_deletion.dart';
+import '../services/generation_detail_data.dart';
 import '../services/generation_save_service.dart';
 import 'package:nai_launcher/data/models/image/image_postprocess_phase.dart';
 import 'dart:async';
@@ -49,8 +50,6 @@ import '../../../services/image_workflow_launcher.dart';
 import '../../../widgets/character/character_position_canvas.dart';
 import '../../../widgets/common/app_toast.dart';
 import '../../../widgets/common/draggable_memory_image.dart';
-import '../../../widgets/common/image_detail/file_image_detail_data.dart';
-import '../../../widgets/common/image_detail/image_detail_data.dart';
 import '../../../widgets/common/image_detail/image_detail_viewer.dart';
 import '../../../widgets/common/selectable_image_card.dart';
 import '../../../widgets/common/transparency_background.dart';
@@ -173,6 +172,8 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> {
         deletion: GenerationImageDeletion(context: context, ref: ref),
         saveImages: (images) =>
             GenerationSaveService.saveImages(context, ref, images),
+        saveImagesToFolder: (images) =>
+            GenerationSaveService.saveImagesAsToFolder(context, ref, images),
       ).build(),
       child: CardSelectionScope(
         selection: selection,
@@ -780,6 +781,9 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> {
       onSave: image.canSave
           ? () => GenerationSaveService.saveImages(context, ref, [image])
           : null,
+      onSaveAs: image.canSave
+          ? () => GenerationSaveService.saveImageAs(context, ref, image)
+          : null,
       enableCopyAction: image.canSave,
       statusBadgeLabel: isFailedSnapshot
           ? context.l10n.generation_failedStreamSnapshot
@@ -1140,36 +1144,7 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> {
     );
     final initialIndex = selectedIndex < 0 ? 0 : selectedIndex;
 
-    // 简化逻辑：统一使用 FileImageDetailData 从 PNG 文件解析
-    // - 已保存的图像直接使用 filePath
-    // - 未保存的图像使用 GeneratedImageDetailData 作为 fallback
-    final allImages = sequence.map((img) {
-      if (img.filePath != null && img.filePath!.isNotEmpty) {
-        // 加入预加载队列（如果尚未解析）
-        ImageMetadataService().enqueuePreload(
-          taskId: img.id,
-          filePath: img.filePath,
-        );
-        return FileImageDetailData(
-          filePath: img.filePath!,
-          cachedBytes: img.bytes,
-          id: img.id,
-          initialMetadata: img.metadata,
-          showCopyButton: img.canSave,
-        );
-      }
-
-      // 未保存的图像：使用 GeneratedImageDetailData 作为 fallback
-      return GeneratedImageDetailData(
-        imageBytes: img.bytes,
-        metadata: img.metadata,
-        id: img.id,
-        showSaveButton: img.canSave,
-        showCopyButton: img.canSave,
-        preserveOriginalBytesOnSave: img.preserveOriginalBytesOnSave,
-        fixedTagUsageSnapshot: img.fixedTagUsageSnapshot,
-      );
-    }).toList();
+    final allImages = sequence.map(GenerationDetailData.forImage).toList();
 
     // 使用 ImageDetailOpener 打开详情页
     ImageDetailOpener.showMultipleImmediate(
@@ -1183,6 +1158,8 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> {
           if (!image.showSaveButton) return;
           await GenerationSaveService.saveImageFromDetail(context, ref, image);
         },
+        onSaveAs: (image) =>
+            GenerationSaveService.saveImageAsFromDetail(context, ref, image),
       ),
     );
   }

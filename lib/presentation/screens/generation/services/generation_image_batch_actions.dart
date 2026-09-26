@@ -19,6 +19,7 @@ class GenerationImageBatchActions {
     required this.selection,
     required this.deletion,
     required this.saveImages,
+    required this.saveImagesToFolder,
   });
   final BuildContext context;
   final List<GeneratedImage> images;
@@ -27,6 +28,9 @@ class GenerationImageBatchActions {
 
   /// 全部成功才返回 true。
   final Future<bool> Function(List<GeneratedImage> images) saveImages;
+
+  /// 另存为到用户选择的文件夹，全部成功才返回 true。
+  final Future<bool> Function(List<GeneratedImage> images) saveImagesToFolder;
 
   List<ImageCardAction> build() => [
     ImageCardAction(
@@ -45,6 +49,13 @@ class GenerationImageBatchActions {
       invoke: _saveSelectedImages,
     ),
     ImageCardAction(
+      id: ImageCardActionId.saveAs,
+      icon: Icons.save_as_outlined,
+      label: context.l10n.image_saveAsToFolder,
+      supportsBatch: true,
+      invoke: _saveSelectedImagesToFolder,
+    ),
+    ImageCardAction(
       id: ImageCardActionId.delete,
       icon: Icons.delete_outline,
       label: context.l10n.common_delete,
@@ -57,6 +68,14 @@ class GenerationImageBatchActions {
     if (images.isEmpty) return;
     // 部分失败时保留选择，重试会复用已保存的文件，不会重复落盘。
     if (await saveImages(images) && context.mounted) {
+      selection.deselectAll(images.map((image) => image.id));
+    }
+  }
+
+  Future<void> _saveSelectedImagesToFolder() async {
+    if (images.isEmpty) return;
+    // 部分失败或取消时保留选择，方便重试。
+    if (await saveImagesToFolder(images) && context.mounted) {
       selection.deselectAll(images.map((image) => image.id));
     }
   }

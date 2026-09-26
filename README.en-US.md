@@ -50,6 +50,7 @@ NAI Launcher is built for people who use NovelAI regularly. Generation, editing,
 - Configure size, sampler, Steps, CFG, Seed, noise schedule, and related parameters. Invalid NovelAI dimensions are caught early with a usable size suggestion.
 - Estimated Anlas cost appears before generation. Important paid actions require separate confirmation, and balances and statistics refresh afterward.
 - Built-in history and previews let you reuse Prompts, Seeds, models, or selected settings without overwriting work still being edited.
+- Previews and history images support "Save as": pick a location and file name for one image from its context menu, More menu, or the full-screen detail toolbar, or save a multi-selection into one folder. Save as exports a copy with its full generation parameters and does not add it to the app gallery. With Protection Mode and "Avoid overwriting existing files on export" enabled, name conflicts are numbered automatically.
 
 ### ✍️ Prompts, pinned tags, and characters
 

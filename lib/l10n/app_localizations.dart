@@ -23554,6 +23554,60 @@ abstract class AppLocalizations {
   /// **'Saved to the app gallery'**
   String get image_savedToAppGallery;
 
+  /// No description provided for @image_saveAs.
+  ///
+  /// In en, this message translates to:
+  /// **'Save as…'**
+  String get image_saveAs;
+
+  /// No description provided for @image_saveAsDialogTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Save image as'**
+  String get image_saveAsDialogTitle;
+
+  /// No description provided for @image_saveAsToFolder.
+  ///
+  /// In en, this message translates to:
+  /// **'Save to folder…'**
+  String get image_saveAsToFolder;
+
+  /// No description provided for @image_saveAsFolderDialogTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose a folder to save to'**
+  String get image_saveAsFolderDialogTitle;
+
+  /// No description provided for @image_savedAs.
+  ///
+  /// In en, this message translates to:
+  /// **'Saved as {path}'**
+  String image_savedAs(Object path);
+
+  /// No description provided for @image_savedAsToChosenLocation.
+  ///
+  /// In en, this message translates to:
+  /// **'Saved to the chosen location'**
+  String get image_savedAsToChosenLocation;
+
+  /// No description provided for @image_savedAsToFolder.
+  ///
+  /// In en, this message translates to:
+  /// **'Saved {count} images to {path}'**
+  String image_savedAsToFolder(int count, Object path);
+
+  /// No description provided for @image_savedAsToChosenFolder.
+  ///
+  /// In en, this message translates to:
+  /// **'Saved {count} images to the chosen folder'**
+  String image_savedAsToChosenFolder(int count);
+
+  /// No description provided for @image_savedAsPartial.
+  ///
+  /// In en, this message translates to:
+  /// **'Saved {saved}, {failed} failed: {error}'**
+  String image_savedAsPartial(int saved, int failed, Object error);
+
   /// No description provided for @image_shareFailed.
   ///
   /// In en, this message translates to:

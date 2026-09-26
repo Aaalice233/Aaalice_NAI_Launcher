@@ -78,6 +78,7 @@ class ImageCardCapabilities {
     required this.onLongPress,
     required this.onSelectionChanged,
     required this.onSave,
+    required this.onSaveAs,
     required this.onFullscreen,
     required this.onUpscale,
     required this.onReversePrompt,
@@ -117,6 +118,7 @@ class ImageCardCapabilities {
   final VoidCallback? onLongPress;
   final ValueChanged<bool>? onSelectionChanged;
   final ImageCardCallback? onSave;
+  final ImageCardCallback? onSaveAs;
   final ImageCardCallback? onFullscreen;
   final ImageCardCallback? onUpscale;
   final ImageCardCallback? onReversePrompt;

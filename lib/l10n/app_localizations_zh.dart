@@ -12995,6 +12995,41 @@ class AppLocalizationsZh extends AppLocalizations {
   String get image_savedToAppGallery => '已保存到应用图库';
 
   @override
+  String get image_saveAs => '另存为…';
+
+  @override
+  String get image_saveAsDialogTitle => '另存为图片';
+
+  @override
+  String get image_saveAsToFolder => '另存为到文件夹…';
+
+  @override
+  String get image_saveAsFolderDialogTitle => '选择保存文件夹';
+
+  @override
+  String image_savedAs(Object path) {
+    return '已另存为 $path';
+  }
+
+  @override
+  String get image_savedAsToChosenLocation => '已保存到所选位置';
+
+  @override
+  String image_savedAsToFolder(int count, Object path) {
+    return '已保存 $count 张图片到 $path';
+  }
+
+  @override
+  String image_savedAsToChosenFolder(int count) {
+    return '已保存 $count 张图片到所选文件夹';
+  }
+
+  @override
+  String image_savedAsPartial(int saved, int failed, Object error) {
+    return '已保存 $saved 张，$failed 张失败：$error';
+  }
+
+  @override
   String image_shareFailed(Object error) {
     return '分享失败: $error';
   }
@@ -27998,6 +28033,41 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get image_savedToAppGallery => '已儲存到應用程式圖庫';
+
+  @override
+  String get image_saveAs => '另存為…';
+
+  @override
+  String get image_saveAsDialogTitle => '另存為圖片';
+
+  @override
+  String get image_saveAsToFolder => '另存為到資料夾…';
+
+  @override
+  String get image_saveAsFolderDialogTitle => '選擇儲存資料夾';
+
+  @override
+  String image_savedAs(Object path) {
+    return '已另存為 $path';
+  }
+
+  @override
+  String get image_savedAsToChosenLocation => '已儲存到所選位置';
+
+  @override
+  String image_savedAsToFolder(int count, Object path) {
+    return '已儲存 $count 張圖片到 $path';
+  }
+
+  @override
+  String image_savedAsToChosenFolder(int count) {
+    return '已儲存 $count 張圖片到所選資料夾';
+  }
+
+  @override
+  String image_savedAsPartial(int saved, int failed, Object error) {
+    return '已儲存 $saved 張，$failed 張失敗：$error';
+  }
 
   @override
   String image_shareFailed(Object error) {

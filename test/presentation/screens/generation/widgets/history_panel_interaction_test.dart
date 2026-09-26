@@ -651,6 +651,34 @@ void main() {
       expect(_historyIds(container), ['keep']);
       expect(bulkDelete, findsNothing);
     });
+
+    for (final width in [200.0, 280.0]) {
+      testWidgets('bulk save-as wraps to its own row at ${width.toInt()}px', (
+        tester,
+      ) async {
+        final container = _createContainer([_image('a'), _image('b')]);
+        addTearDown(container.dispose);
+        await tester.pumpWidget(_cardActionApp(container, width: width));
+        await tester.pump();
+
+        container.read(generationImageCardSelectionProvider.notifier)
+          ..enterAndSelect('a')
+          ..enterAndSelect('b');
+        await tester.pump();
+
+        Rect rectOf(String id) =>
+            tester.getRect(find.byKey(ValueKey('history-batch-action-$id')));
+        final save = rectOf('save');
+        final saveAs = rectOf('saveAs');
+        final delete = rectOf('delete');
+
+        expect(tester.takeException(), isNull);
+        expect(rectOf('export').top, save.top);
+        expect(saveAs.top, greaterThan(save.bottom));
+        expect(delete.top, greaterThan(saveAs.bottom));
+        expect(saveAs.width, delete.width);
+      });
+    }
   });
 }
 

@@ -212,6 +212,44 @@ void main() {
     expect(find.text('放大'), findsOneWidget);
   });
 
+  testWidgets('context menu offers save-as right after save', (tester) async {
+    await tester.pumpWidget(_buildCardApp());
+
+    final gesture = await tester.startGesture(
+      tester.getCenter(find.byType(SelectableImageCard)),
+      kind: PointerDeviceKind.mouse,
+      buttons: kSecondaryMouseButton,
+    );
+    addTearDown(gesture.removePointer);
+    await tester.pumpAndSettle();
+    await gesture.up();
+    await tester.pumpAndSettle();
+
+    expect(find.text('另存为…'), findsOneWidget);
+    final menu = tester.widget<ProContextMenu>(find.byType(ProContextMenu));
+    final itemIds = menu.items
+        .where((item) => !item.isDivider)
+        .map((item) => item.id)
+        .toList();
+    expect(
+      itemIds.indexOf(ImageCardActionId.saveAs.name),
+      itemIds.indexOf(ImageCardActionId.save.name) + 1,
+    );
+  });
+
+  testWidgets('save-as stays out of the hover action bar', (tester) async {
+    await tester.pumpWidget(_buildCardApp());
+
+    final gesture = await tester.createGesture(kind: PointerDeviceKind.mouse);
+    addTearDown(gesture.removePointer);
+    await gesture.addPointer();
+    await gesture.moveTo(tester.getCenter(find.byType(SelectableImageCard)));
+    await tester.pumpAndSettle();
+
+    expect(find.byTooltip('保存'), findsOneWidget);
+    expect(find.byTooltip('另存为…'), findsNothing);
+  });
+
   testWidgets('context menu closes before invoking route launching actions', (
     tester,
   ) async {
@@ -804,12 +842,36 @@ void main() {
     expect(saveCount, 1);
   });
 
+  testWidgets('save-as menu item delegates to the owner-supplied onSaveAs', (
+    tester,
+  ) async {
+    var saveAsCount = 0;
+    await tester.pumpWidget(_buildCardApp(onSaveAs: () => saveAsCount++));
+
+    final gesture = await tester.startGesture(
+      tester.getCenter(find.byType(SelectableImageCard)),
+      kind: PointerDeviceKind.mouse,
+      buttons: kSecondaryMouseButton,
+    );
+    addTearDown(gesture.removePointer);
+    await tester.pumpAndSettle();
+    await gesture.up();
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('另存为…'));
+    await tester.pumpAndSettle();
+
+    expect(saveAsCount, 1);
+    expect(find.byType(ProContextMenu), findsNothing);
+  });
+
   testWidgets('read-only card hides save and copy actions but keeps badge', (
     tester,
   ) async {
     await tester.pumpWidget(
       _buildCardApp(
         onSave: null,
+        onSaveAs: null,
         enableCopyAction: false,
         statusBadgeLabel: '失败快照',
         onInpaint: null,
@@ -840,6 +902,7 @@ void main() {
 
     expect(find.text('保存图片'), findsNothing);
     expect(find.text('复制图片'), findsNothing);
+    expect(find.text('另存为…'), findsNothing);
     expect(find.byType(ProContextMenu), findsNothing);
   });
 }
@@ -997,6 +1060,7 @@ Widget _buildCardApp({
   bool isGenerating = false,
   bool disableAnimations = false,
   VoidCallback? onSave = _noop,
+  VoidCallback? onSaveAs = _noop,
   bool enableCopyAction = true,
   String? statusBadgeLabel,
   VoidCallback? onFavoriteToggle,
@@ -1023,6 +1087,7 @@ Widget _buildCardApp({
     enableSelection: false,
     hoverEffectsEnabled: hoverEffectsEnabled,
     onSave: onSave,
+    onSaveAs: onSaveAs,
     enableCopyAction: enableCopyAction,
     statusBadgeLabel: statusBadgeLabel,
     isFavorite: isFavorite,

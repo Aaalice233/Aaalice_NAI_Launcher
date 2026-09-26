@@ -108,6 +108,9 @@ class _TestImageDetailData implements ImageDetailData {
   bool get showCopyButton => false;
 
   @override
+  bool get showSaveAsButton => false;
+
+  @override
   bool get showFavoriteButton => false;
 
   @override

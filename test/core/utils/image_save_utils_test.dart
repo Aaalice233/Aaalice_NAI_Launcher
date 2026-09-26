@@ -781,4 +781,32 @@ void main() {
     expect(await File(first).readAsBytes(), bytes);
     expect(await File(second).readAsBytes(), bytes);
   });
+
+  test('dated saves and save-as suggestions share the gallery name', () async {
+    final root = await Directory.systemTemp.createTemp('gallery-name-save');
+    addTearDown(() => root.delete(recursive: true));
+    final now = DateTime(2026, 9, 26, 8, 5, 3);
+
+    final saved = await ImageSaveUtils.saveBytesToDatedPath(
+      rootPath: root.path,
+      bytes: Uint8List.fromList([1]),
+      seed: 42,
+      now: now,
+    );
+
+    expect(p.basename(saved), '08-05-03-42.png');
+    expect(p.basename(p.dirname(saved)), '2026-09-26');
+    expect(
+      ImageSaveUtils.galleryFileName(seed: 42, now: now),
+      p.basename(saved),
+    );
+    expect(
+      ImageSaveUtils.galleryFileName(seed: -1, now: now),
+      '08-05-03-${now.millisecondsSinceEpoch}.png',
+    );
+    expect(
+      ImageSaveUtils.galleryFileName(now: now),
+      '08-05-03-${now.millisecondsSinceEpoch}.png',
+    );
+  });
 }

@@ -33,6 +33,7 @@ class SelectableImageCard extends ConsumerStatefulWidget {
     this.onLongPress,
     this.onSelectionChanged,
     this.onSave,
+    this.onSaveAs,
     this.onFullscreen,
     this.isPreviewActive = false,
     this.imageIdentity,
@@ -96,6 +97,7 @@ class SelectableImageCard extends ConsumerStatefulWidget {
   final VoidCallback? onLongPress;
   final ValueChanged<bool>? onSelectionChanged;
   final ImageCardCallback? onSave;
+  final ImageCardCallback? onSaveAs;
   final ImageCardCallback? onFullscreen;
   final bool isPreviewActive;
   final Object? imageIdentity;
@@ -199,6 +201,7 @@ class _SelectableImageCardState extends ConsumerState<SelectableImageCard>
     onLongPress: widget.onLongPress,
     onSelectionChanged: widget.onSelectionChanged,
     onSave: widget.onSave,
+    onSaveAs: widget.onSaveAs,
     onFullscreen: widget.onFullscreen,
     onUpscale: widget.onUpscale,
     onReversePrompt: widget.onReversePrompt,

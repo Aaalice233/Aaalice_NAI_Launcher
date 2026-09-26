@@ -582,12 +582,9 @@ class ImageSaveUtils {
               .basenameWithoutExtension(p.basename(preferredFileName))
               .replaceAll(RegExp(r'[<>:"/\\|?*\x00-\x1F]'), '_')
               .trim();
-    final seedPart = (seed != null && seed >= 0)
-        ? '$seed'
-        : '${time.millisecondsSinceEpoch}';
     final baseName = preferredStem.isNotEmpty
         ? preferredStem
-        : '${two(time.hour)}-${two(time.minute)}-${two(time.second)}-$seedPart';
+        : _galleryFileStem(seed: seed, time: time);
     var candidate = p.join(dir.path, '$baseName.png');
     var suffix = 2;
     File file;
@@ -618,9 +615,40 @@ class ImageSaveUtils {
     return candidate;
   }
 
+  /// 图库保存时的默认文件名 `时-分-秒-seed.png`，另存为的建议文件名与它一致。
+  static String galleryFileName({int? seed, DateTime? now}) =>
+      '${_galleryFileStem(seed: seed, time: now ?? DateTime.now())}.png';
+
+  static String _galleryFileStem({int? seed, required DateTime time}) {
+    String two(int v) => v.toString().padLeft(2, '0');
+    final seedPart = (seed != null && seed >= 0)
+        ? '$seed'
+        : '${time.millisecondsSinceEpoch}';
+    return '${two(time.hour)}-${two(time.minute)}-${two(time.second)}-$seedPart';
+  }
+
+  /// 生成结果最终落盘的字节，保存与另存为共用以得到同一份文件。
+  ///
+  /// 字节已带 NovelAI 元数据时原样返回；否则仅按 [metadata] 补写，没有就原样返回。
+  static Future<PreparedResultImage> prepareResultBytes({
+    required Uint8List imageBytes,
+    required bool preserveOriginalBytes,
+    NaiImageMetadata? metadata,
+  }) async {
+    final rebuilt =
+        !preserveOriginalBytes &&
+        metadata != null &&
+        !hasEmbeddedNovelAiMetadata(imageBytes);
+    if (!rebuilt) return PreparedResultImage._(imageBytes, null);
+    return PreparedResultImage._(
+      await _embedOwnMetadata(imageBytes: imageBytes, metadata: metadata),
+      metadata,
+    );
+  }
+
   /// 生成结果的唯一落盘入口，只认图像自身数据，不读当前生成参数。
   ///
-  /// 字节已带 NovelAI 元数据时原样写入；否则仅按 [metadata] 补写，没有就原样写入。
+  /// 最终字节见 [prepareResultBytes]。
   /// 固定词快照只进旁路记录库。
   static Future<SavedResultImage> saveResultImage({
     required String rootPath,
@@ -631,18 +659,16 @@ class ImageSaveUtils {
     String? preferredFileName,
     DateTime? now,
   }) async {
-    final rebuilt =
-        !preserveOriginalBytes &&
-        metadata != null &&
-        !hasEmbeddedNovelAiMetadata(imageBytes);
-    final bytes = rebuilt
-        ? await _embedOwnMetadata(imageBytes: imageBytes, metadata: metadata)
-        : imageBytes;
+    final prepared = await prepareResultBytes(
+      imageBytes: imageBytes,
+      preserveOriginalBytes: preserveOriginalBytes,
+      metadata: metadata,
+    );
+    final bytes = prepared.bytes;
     final path = await saveBytesToDatedPath(
       rootPath: rootPath,
       bytes: bytes,
-      // 文件名里的 seed 必须与最终落盘字节内的元数据一致。
-      seed: await resolveSeed(metadata: rebuilt ? metadata : null, bytes: bytes),
+      seed: await prepared.resolveSeed(),
       preferredFileName: preferredFileName,
       now: now,
     );
@@ -768,6 +794,17 @@ class ImageSaveUtils {
 }
 
 /// 结果图落盘产物：最终字节、路径与内容哈希（固定词记录键）。
+class PreparedResultImage {
+  const PreparedResultImage._(this.bytes, this._embeddedMetadata);
+
+  final Uint8List bytes;
+  final NaiImageMetadata? _embeddedMetadata;
+
+  // 文件名里的 seed 必须与最终落盘字节内的元数据一致；只在按 seed 命名时才解析。
+  Future<int?> resolveSeed() =>
+      ImageSaveUtils.resolveSeed(metadata: _embeddedMetadata, bytes: bytes);
+}
+
 class SavedResultImage {
   const SavedResultImage({
     required this.path,
