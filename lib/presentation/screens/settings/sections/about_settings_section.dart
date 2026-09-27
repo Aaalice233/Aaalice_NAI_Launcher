@@ -30,9 +30,6 @@ class _AboutSettingsSectionState extends ConsumerState<AboutSettingsSection> {
 
   @override
   Widget build(BuildContext context) {
-    final updateState = ref.watch(updateStateProvider);
-    final updateNotifier = ref.read(updateStateProvider.notifier);
-    final updateService = ref.watch(updateCheckServiceProvider);
     final localStorageService = ref.watch(localStorageServiceProvider);
     final fileLoggingEnabled = localStorageService.getFileLoggingEnabled();
 
@@ -95,82 +92,7 @@ class _AboutSettingsSectionState extends ConsumerState<AboutSettingsSection> {
         ),
         SettingsCard(
           title: context.l10n.settings_aboutUpdatesSection,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              // 检查更新按钮
-              FutureBuilder<DateTime?>(
-                future: updateService.getLastCheckTime(),
-                builder: (context, snapshot) {
-                  final lastCheckTime = snapshot.data;
-                  return ListTile(
-                    leading: Badge(
-                      isLabelVisible: updateState.hasNewVersion,
-                      smallSize: 7,
-                      child: const Icon(Icons.system_update),
-                    ),
-                    title: Text(context.l10n.checkForUpdate),
-                    subtitle: Text(
-                      updateState.hasDownloadedUpdate
-                          ? context.l10n.updateSettingsReady(
-                              updateState.versionInfo?.displayVersion ?? '',
-                            )
-                          : updateState.hasNewVersion
-                          ? context.l10n.updateSettingsAvailable(
-                              updateState.versionInfo?.displayVersion ?? '',
-                            )
-                          : _formatLastCheckTime(context, lastCheckTime),
-                    ),
-                    trailing: updateState.isChecking
-                        ? const SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : const Icon(Icons.chevron_right),
-                    onTap: updateState.isChecking
-                        ? null
-                        : () async {
-                            if (updateState.hasNewVersion ||
-                                updateState.hasDownloadedUpdate) {
-                              updateNotifier.showNotification();
-                            } else {
-                              await updateNotifier.checkForUpdates(
-                                manual: true,
-                              );
-                            }
-                            if (context.mounted) {
-                              await UpdateCheckDialog.show(context);
-                            }
-                          },
-                  );
-                },
-              ),
-              // 包含预发布版本开关
-              FutureBuilder<bool>(
-                future: Future.value(updateService.shouldIncludePrerelease()),
-                builder: (context, snapshot) {
-                  final includePrerelease = snapshot.data ?? false;
-                  return SwitchListTile(
-                    secondary: const Icon(Icons.new_releases_outlined),
-                    title: Text(context.l10n.includePrereleaseUpdates),
-                    subtitle: Text(
-                      context.l10n.includePrereleaseUpdatesDescription,
-                    ),
-                    value: includePrerelease,
-                    onChanged: (value) async {
-                      await updateNotifier.setIncludePrerelease(value);
-                      if (mounted) {
-                        setState(
-                          () {},
-                        ); // Force widget rebuild to refresh value
-                      }
-                    },
-                  );
-                },
-              ),
-            ],
-          ),
+          child: _buildUpdatesContent(context),
         ),
         SettingsCard(
           title: context.l10n.settings_aboutResourcesSection,
@@ -186,6 +108,122 @@ class _AboutSettingsSectionState extends ConsumerState<AboutSettingsSection> {
               }
             },
           ),
+        ),
+      ],
+    );
+  }
+
+  /// 更新入口依赖异步就绪的 [UpdateCheckService]，未就绪时保留同样的两行
+  /// 结构并置为不可用，避免卡片高度跳变。
+  Widget _buildUpdatesContent(BuildContext context) {
+    return ref
+        .watch(updateCheckServiceReadyProvider)
+        .when(
+          data: (service) => _buildUpdatesReady(context, service),
+          loading: () =>
+              _buildUpdatesUnavailable(context, context.l10n.common_loading),
+          error: (_, _) =>
+              _buildUpdatesUnavailable(context, context.l10n.common_error),
+        );
+  }
+
+  Widget _buildUpdatesReady(BuildContext context, UpdateCheckService service) {
+    final updateState = ref.watch(updateStateProvider);
+    final updateNotifier = ref.read(updateStateProvider.notifier);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        // 检查更新按钮
+        FutureBuilder<DateTime?>(
+          future: service.getLastCheckTime(),
+          builder: (context, snapshot) {
+            final lastCheckTime = snapshot.data;
+            return ListTile(
+              key: const ValueKey('check-for-update'),
+              leading: Badge(
+                isLabelVisible: updateState.hasNewVersion,
+                smallSize: 7,
+                child: const Icon(Icons.system_update),
+              ),
+              title: Text(context.l10n.checkForUpdate),
+              subtitle: Text(
+                updateState.hasDownloadedUpdate
+                    ? context.l10n.updateSettingsReady(
+                        updateState.versionInfo?.displayVersion ?? '',
+                      )
+                    : updateState.hasNewVersion
+                    ? context.l10n.updateSettingsAvailable(
+                        updateState.versionInfo?.displayVersion ?? '',
+                      )
+                    : _formatLastCheckTime(context, lastCheckTime),
+              ),
+              trailing: updateState.isChecking
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.chevron_right),
+              onTap: updateState.isChecking
+                  ? null
+                  : () async {
+                      if (updateState.hasNewVersion ||
+                          updateState.hasDownloadedUpdate) {
+                        updateNotifier.showNotification();
+                      } else {
+                        await updateNotifier.checkForUpdates(manual: true);
+                      }
+                      if (context.mounted) {
+                        await UpdateCheckDialog.show(context);
+                      }
+                    },
+            );
+          },
+        ),
+        // 包含预发布版本开关
+        FutureBuilder<bool>(
+          future: Future.value(service.shouldIncludePrerelease()),
+          builder: (context, snapshot) {
+            final includePrerelease = snapshot.data ?? false;
+            return SwitchListTile(
+              key: const ValueKey('include-prerelease'),
+              secondary: const Icon(Icons.new_releases_outlined),
+              title: Text(context.l10n.includePrereleaseUpdates),
+              subtitle: Text(context.l10n.includePrereleaseUpdatesDescription),
+              value: includePrerelease,
+              onChanged: (value) async {
+                await updateNotifier.setIncludePrerelease(value);
+                if (mounted) {
+                  setState(() {}); // Force widget rebuild to refresh value
+                }
+              },
+            );
+          },
+        ),
+      ],
+    );
+  }
+
+  Widget _buildUpdatesUnavailable(BuildContext context, String statusLabel) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        ListTile(
+          key: const ValueKey('check-for-update'),
+          enabled: false,
+          leading: const Icon(Icons.system_update),
+          title: Text(context.l10n.checkForUpdate),
+          subtitle: Text(statusLabel),
+          trailing: const Icon(Icons.chevron_right),
+        ),
+        SwitchListTile(
+          key: const ValueKey('include-prerelease'),
+          secondary: const Icon(Icons.new_releases_outlined),
+          title: Text(context.l10n.includePrereleaseUpdates),
+          subtitle: Text(context.l10n.includePrereleaseUpdatesDescription),
+          value: false,
+          onChanged: null,
         ),
       ],
     );
