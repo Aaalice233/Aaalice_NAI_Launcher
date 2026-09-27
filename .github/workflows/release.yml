@@ -1,0 +1,700 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag to build, for example v1.0.0"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+env:
+  FLUTTER_VERSION: "3.44.2"
+  PUB_HOSTED_URL: "https://pub.dev"
+  RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
+
+jobs:
+  prepare:
+    name: Prepare release metadata
+    runs-on: ubuntu-latest
+
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      public_version: ${{ steps.version.outputs.public_version }}
+      prerelease: ${{ steps.version.outputs.prerelease }}
+      release_sha: ${{ steps.release-ref.outputs.release_sha }}
+
+    steps:
+      - name: Checkout release tag
+        uses: actions/checkout@v6
+        with:
+          ref: refs/tags/${{ env.RELEASE_TAG }}
+          lfs: false
+
+      - name: Resolve immutable release commit
+        id: release-ref
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $releaseSha = (git rev-parse --verify 'HEAD^{commit}').Trim().ToLowerInvariant()
+          if ($releaseSha -notmatch '^[0-9a-f]{40}$') {
+            throw "Resolved release commit is not a full 40-character SHA: $releaseSha"
+          }
+          "release_sha=$releaseSha" >> $env:GITHUB_OUTPUT
+
+      - name: Verify tag matches pubspec version
+        id: version
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $match = Select-String -Path pubspec.yaml -Pattern '^version:\s*(.+)$'
+          if (!$match) {
+            throw 'pubspec.yaml does not contain a version field.'
+          }
+          $version = $match.Matches[0].Groups[1].Value.Trim()
+          $publicVersion = $version -replace '\+.*$', ''
+          $expectedTag = "v$publicVersion"
+          if ('${{ env.RELEASE_TAG }}' -ne $expectedTag) {
+            throw "Release tag ${{ env.RELEASE_TAG }} does not match pubspec version $version. Expected $expectedTag."
+          }
+          "version=$version" >> $env:GITHUB_OUTPUT
+          "public_version=$publicVersion" >> $env:GITHUB_OUTPUT
+          "prerelease=$($publicVersion.Contains('-').ToString().ToLowerInvariant())" >> $env:GITHUB_OUTPUT
+
+      - name: Verify co-occurrence data release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $manifest = Get-Content `
+            -LiteralPath 'assets/data/cooccurrence_data_pack_manifest.json' `
+            -Raw `
+            -Encoding UTF8 | ConvertFrom-Json
+          $dataTag = $manifest.release.tag
+          $archive = $manifest.archive
+          $headers = @{
+            Accept = 'application/vnd.github+json'
+            Authorization = "Bearer $env:GH_TOKEN"
+            'X-GitHub-Api-Version' = '2022-11-28'
+          }
+          $uri = "https://api.github.com/repos/Aaalice233/Aaalice_NAI_Launcher/releases/tags/$dataTag"
+          $release = Invoke-RestMethod -Uri $uri -Headers $headers
+          if ($release.tag_name -ne $dataTag -or !$release.prerelease -or $release.draft) {
+            throw "Co-occurrence data release is not a published prerelease: $dataTag"
+          }
+          $assets = @($release.assets | Where-Object { $_.name -eq $archive.name })
+          if ($assets.Count -ne 1) {
+            throw "Expected exactly one $($archive.name) asset in data release $dataTag."
+          }
+          $asset = $assets[0]
+          if ($asset.state -ne 'uploaded' -or $asset.size -ne $archive.size) {
+            throw "Co-occurrence data asset is incomplete or has an unexpected size."
+          }
+          if ($asset.browser_download_url -ne $manifest.release.url) {
+            throw "Co-occurrence data asset URL does not match the client manifest."
+          }
+          if ($asset.digest -ne "sha256:$($archive.sha256)") {
+            throw "Co-occurrence data asset digest does not match the client manifest."
+          }
+
+      - name: Verify tag catalog data release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $manifest = Get-Content `
+            -LiteralPath 'assets/databases/manifest.json' `
+            -Raw `
+            -Encoding UTF8 | ConvertFrom-Json
+          $database = $manifest.databases.'tag_catalog.db'
+          $dataRelease = $database.release
+          $headers = @{
+            Accept = 'application/vnd.github+json'
+            Authorization = "Bearer $env:GH_TOKEN"
+            'X-GitHub-Api-Version' = '2022-11-28'
+          }
+          $repositoryApi = 'https://api.github.com/repos/Aaalice233/Aaalice_NAI_Launcher'
+          $release = Invoke-RestMethod `
+            -Uri "$repositoryApi/releases/tags/$($dataRelease.tag)" `
+            -Headers $headers
+          if ($release.tag_name -ne $dataRelease.tag -or
+              !$release.prerelease -or
+              $release.draft) {
+            throw "Tag catalog data release is not a published prerelease: $($dataRelease.tag)"
+          }
+          $latest = Invoke-RestMethod -Uri "$repositoryApi/releases/latest" -Headers $headers
+          if ($latest.tag_name -eq $dataRelease.tag) {
+            throw 'Tag catalog data release must not be marked latest.'
+          }
+          $assets = @($release.assets | Where-Object { $_.name -eq 'tag_catalog.db' })
+          if ($assets.Count -ne 1) {
+            throw "Expected exactly one tag_catalog.db asset in $($dataRelease.tag)."
+          }
+          $asset = $assets[0]
+          if ($asset.state -ne 'uploaded' -or
+              $asset.size -ne $database.size -or
+              $asset.browser_download_url -ne $dataRelease.url -or
+              $asset.digest -ne "sha256:$($database.sha256)") {
+            throw 'Tag catalog data asset does not match the bundled database manifest.'
+          }
+
+  build-windows:
+    name: Build Windows
+    # A trusted tag may use a prewarmed runner configured by repository vars.
+    runs-on: ${{ vars.WINDOWS_FLUTTER_RUNNER || 'windows-2022' }}
+    needs: prepare
+    env:
+      WINDOWS_CACHE_NAMESPACE: ${{ vars.WINDOWS_FLUTTER_RUNNER != '' && 'nai-self-hosted' || 'nai-hosted' }}
+
+    steps:
+      - name: Checkout immutable release commit without LFS payloads
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ needs.prepare.outputs.release_sha }}
+          lfs: false
+
+      - name: Verify checked out release commit
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $head = (git rev-parse --verify HEAD).Trim().ToLowerInvariant()
+          $expected = '${{ needs.prepare.outputs.release_sha }}'
+          if ($head -ne $expected) {
+            throw "Checked out commit $head does not match immutable release commit $expected."
+          }
+
+      - name: Download verified bundled database
+        shell: pwsh
+        run: ./scripts/prepare_bundled_database.ps1
+
+      - name: Setup Flutter
+        id: flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: ${{ vars.WINDOWS_FLUTTER_SDK_CACHE || 'true' }}
+          pub-cache: ${{ vars.WINDOWS_PUB_CACHE || 'true' }}
+          pub-cache-key: "${{ env.WINDOWS_CACHE_NAMESPACE }}-flutter-pub-:os:-:channel:-:version:-:arch:-:hash:"
+
+      - name: Restore generated-code cache
+        uses: actions/cache@v6
+        with:
+          path: |
+            .dart_tool/build
+            lib/**/*.g.dart
+            lib/**/*.freezed.dart
+          key: ${{ env.WINDOWS_CACHE_NAMESPACE }}-codegen-${{ runner.os }}-${{ env.FLUTTER_VERSION }}-${{ hashFiles('pubspec.lock') }}-${{ hashFiles('pubspec.yaml', 'build.yaml', 'lib/**') }}
+          restore-keys: |
+            ${{ env.WINDOWS_CACHE_NAMESPACE }}-codegen-${{ runner.os }}-${{ env.FLUTTER_VERSION }}-${{ hashFiles('pubspec.lock') }}-
+
+      - name: Restore Flutter and native Windows build cache
+        uses: actions/cache@v6
+        with:
+          path: |
+            .dart_tool/flutter_build
+            build/native_assets
+            build/windows
+          key: ${{ env.WINDOWS_CACHE_NAMESPACE }}-windows-build-${{ runner.os }}-${{ env.FLUTTER_VERSION }}-${{ hashFiles('pubspec.lock', 'windows/**') }}-${{ hashFiles('pubspec.yaml', 'l10n.yaml', 'lib/**', 'assets/**', 'fonts/**') }}
+          restore-keys: |
+            ${{ env.WINDOWS_CACHE_NAMESPACE }}-windows-build-${{ runner.os }}-${{ env.FLUTTER_VERSION }}-${{ hashFiles('pubspec.lock', 'windows/**') }}-
+
+      - name: Setup NuGet
+        uses: NuGet/setup-nuget@v4
+        with:
+          nuget-version: latest
+
+      - name: Verify NuGet
+        shell: pwsh
+        run: ./scripts/verify_nuget.ps1
+
+      - name: Install NSIS
+        shell: pwsh
+        run: choco install nsis -y --no-progress
+
+      - name: Verify official Flutter dependency sources
+        shell: pwsh
+        run: ./scripts/verify_flutter_sources.ps1
+
+      - name: Resolve dependencies from cache
+        if: steps.flutter.outputs.PUB-CACHE-HIT == 'true'
+        run: flutter pub get --enforce-lockfile --offline
+
+      - name: Resolve dependencies from network
+        if: steps.flutter.outputs.PUB-CACHE-HIT != 'true'
+        run: flutter pub get --enforce-lockfile
+
+      - name: Validate bundled autocomplete databases
+        run: dart run tool/tag_catalog/verify_bundled_databases.dart
+
+      - name: Generate localizations
+        run: flutter gen-l10n
+
+      - name: Generate code
+        run: dart run build_runner build --delete-conflicting-outputs
+
+      - name: Validate cloud-drive OAuth registration
+        shell: pwsh
+        env:
+          GOOGLE_DRIVE_WINDOWS_CLIENT_ID: ${{ vars.GOOGLE_DRIVE_WINDOWS_CLIENT_ID }}
+          GOOGLE_DRIVE_WINDOWS_CLIENT_SECRET: ${{ secrets.GOOGLE_DRIVE_WINDOWS_CLIENT_SECRET }}
+          GOOGLE_DRIVE_WINDOWS_REDIRECT_URI: http://127.0.0.1
+          ONEDRIVE_WINDOWS_CLIENT_ID: ${{ vars.ONEDRIVE_CLIENT_ID }}
+          ONEDRIVE_WINDOWS_REDIRECT_URI: http://127.0.0.1
+          ONEDRIVE_TENANT_ID: ${{ vars.ONEDRIVE_TENANT_ID || 'common' }}
+        run: ./scripts/verify_cloud_drive_oauth_config.ps1 -Platform windows -RequireConfigured
+
+      - name: Build Windows release
+        shell: pwsh
+        env:
+          GOOGLE_DRIVE_WINDOWS_CLIENT_ID: ${{ vars.GOOGLE_DRIVE_WINDOWS_CLIENT_ID }}
+          GOOGLE_DRIVE_WINDOWS_CLIENT_SECRET: ${{ secrets.GOOGLE_DRIVE_WINDOWS_CLIENT_SECRET }}
+          ONEDRIVE_WINDOWS_CLIENT_ID: ${{ vars.ONEDRIVE_CLIENT_ID }}
+          ONEDRIVE_TENANT_ID: ${{ vars.ONEDRIVE_TENANT_ID || 'common' }}
+        run: |
+          flutter build windows --release --no-pub `
+            "--dart-define=GOOGLE_DRIVE_WINDOWS_CLIENT_ID=$env:GOOGLE_DRIVE_WINDOWS_CLIENT_ID" `
+            "--dart-define=GOOGLE_DRIVE_WINDOWS_CLIENT_SECRET=$env:GOOGLE_DRIVE_WINDOWS_CLIENT_SECRET" `
+            "--dart-define=GOOGLE_DRIVE_WINDOWS_REDIRECT_URI=http://127.0.0.1" `
+            "--dart-define=ONEDRIVE_WINDOWS_CLIENT_ID=$env:ONEDRIVE_WINDOWS_CLIENT_ID" `
+            "--dart-define=ONEDRIVE_WINDOWS_REDIRECT_URI=http://127.0.0.1" `
+            "--dart-define=ONEDRIVE_TENANT_ID=$env:ONEDRIVE_TENANT_ID"
+
+      - name: Sign Windows application
+        shell: pwsh
+        env:
+          WINDOWS_SIGNING_CERT_BASE64: ${{ secrets.WINDOWS_SIGNING_CERT_BASE64 }}
+          WINDOWS_SIGNING_CERT_PASSWORD: ${{ secrets.WINDOWS_SIGNING_CERT_PASSWORD }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          if ([string]::IsNullOrWhiteSpace($env:WINDOWS_SIGNING_CERT_BASE64)) {
+            Write-Host 'Windows signing certificate is not configured; skipping application signing.'
+            exit 0
+          }
+          $certificatePath = Join-Path $env:RUNNER_TEMP 'nai-launcher-signing.pfx'
+          [IO.File]::WriteAllBytes(
+            $certificatePath,
+            [Convert]::FromBase64String($env:WINDOWS_SIGNING_CERT_BASE64)
+          )
+          ./scripts/sign_windows_binary.ps1 `
+            -Path 'build/windows/x64/runner/Release/nai_launcher.exe' `
+            -CertificatePath $certificatePath `
+            -CertificatePassword $env:WINDOWS_SIGNING_CERT_PASSWORD
+
+      - name: Package Windows artifacts
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          ./scripts/package_windows_release.ps1 `
+            -Version '${{ needs.prepare.outputs.version }}' `
+            -SkipFlutterBuild
+
+      - name: Verify Windows portable package
+        shell: pwsh
+        run: |
+          ./scripts/verify_windows_portable_package.ps1 `
+            -ArchivePath 'dist/NAI_Launcher_Windows_${{ needs.prepare.outputs.version }}_Portable.zip' `
+            -ExpectedVersion '${{ needs.prepare.outputs.version }}'
+
+      - name: Sign Windows installer
+        shell: pwsh
+        env:
+          WINDOWS_SIGNING_CERT_PASSWORD: ${{ secrets.WINDOWS_SIGNING_CERT_PASSWORD }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $certificatePath = Join-Path $env:RUNNER_TEMP 'nai-launcher-signing.pfx'
+          if (!(Test-Path -LiteralPath $certificatePath)) {
+            Write-Host 'Windows signing certificate is not configured; skipping installer signing.'
+            exit 0
+          }
+          ./scripts/sign_windows_binary.ps1 `
+            -Path 'dist/NAI_Launcher_Windows_${{ needs.prepare.outputs.version }}_Setup.exe' `
+            -CertificatePath $certificatePath `
+            -CertificatePassword $env:WINDOWS_SIGNING_CERT_PASSWORD
+
+      - name: Remove signing certificate
+        if: ${{ always() }}
+        shell: pwsh
+        run: Remove-Item -LiteralPath (Join-Path $env:RUNNER_TEMP 'nai-launcher-signing.pfx') -Force -ErrorAction SilentlyContinue
+
+      - name: Upload Windows artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-release
+          path: |
+            dist/NAI_Launcher_Windows_*_Setup.exe
+            dist/NAI_Launcher_Windows_*_Portable.zip
+          if-no-files-found: error
+
+  build-macos:
+    name: Build macOS
+    runs-on: macos-latest
+    needs: prepare
+
+    steps:
+      - name: Checkout immutable release commit without LFS payloads
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ needs.prepare.outputs.release_sha }}
+          lfs: false
+
+      - name: Verify checked out release commit
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $head = (git rev-parse --verify HEAD).Trim().ToLowerInvariant()
+          $expected = '${{ needs.prepare.outputs.release_sha }}'
+          if ($head -ne $expected) {
+            throw "Checked out commit $head does not match immutable release commit $expected."
+          }
+
+      - name: Download verified bundled database
+        shell: pwsh
+        run: ./scripts/prepare_bundled_database.ps1
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - name: Prepare CocoaPods
+        run: pod --version
+
+      - name: Verify official Flutter dependency sources
+        shell: pwsh
+        run: ./scripts/verify_flutter_sources.ps1
+
+      - name: Resolve dependencies
+        run: flutter pub get --enforce-lockfile
+
+      - name: Validate bundled autocomplete databases
+        run: dart run tool/tag_catalog/verify_bundled_databases.dart
+
+      - name: Generate localizations
+        run: flutter gen-l10n
+
+      - name: Generate code
+        run: dart run build_runner build --delete-conflicting-outputs
+
+      - name: Validate cloud-drive OAuth registration
+        shell: pwsh
+        env:
+          GOOGLE_DRIVE_MACOS_CLIENT_ID: ${{ vars.GOOGLE_DRIVE_MACOS_CLIENT_ID }}
+          GOOGLE_DRIVE_MACOS_REDIRECT_URI: ${{ vars.GOOGLE_DRIVE_MACOS_REDIRECT_URI }}
+          ONEDRIVE_MACOS_CLIENT_ID: ${{ vars.ONEDRIVE_CLIENT_ID }}
+          ONEDRIVE_MACOS_REDIRECT_URI: ${{ vars.ONEDRIVE_MACOS_REDIRECT_URI }}
+          ONEDRIVE_TENANT_ID: ${{ vars.ONEDRIVE_TENANT_ID || 'common' }}
+        run: ./scripts/verify_cloud_drive_oauth_config.ps1 -Platform macos -RequireConfigured
+
+      - name: Build macOS release
+        env:
+          GOOGLE_DRIVE_MACOS_CLIENT_ID: ${{ vars.GOOGLE_DRIVE_MACOS_CLIENT_ID }}
+          GOOGLE_DRIVE_MACOS_REDIRECT_URI: ${{ vars.GOOGLE_DRIVE_MACOS_REDIRECT_URI }}
+          ONEDRIVE_MACOS_CLIENT_ID: ${{ vars.ONEDRIVE_CLIENT_ID }}
+          ONEDRIVE_MACOS_REDIRECT_URI: ${{ vars.ONEDRIVE_MACOS_REDIRECT_URI }}
+          ONEDRIVE_TENANT_ID: ${{ vars.ONEDRIVE_TENANT_ID || 'common' }}
+        run: |
+          flutter build macos --release \
+            "--dart-define=GOOGLE_DRIVE_MACOS_CLIENT_ID=$GOOGLE_DRIVE_MACOS_CLIENT_ID" \
+            "--dart-define=GOOGLE_DRIVE_MACOS_REDIRECT_URI=$GOOGLE_DRIVE_MACOS_REDIRECT_URI" \
+            "--dart-define=ONEDRIVE_MACOS_CLIENT_ID=$ONEDRIVE_MACOS_CLIENT_ID" \
+            "--dart-define=ONEDRIVE_MACOS_REDIRECT_URI=$ONEDRIVE_MACOS_REDIRECT_URI" \
+            "--dart-define=ONEDRIVE_TENANT_ID=$ONEDRIVE_TENANT_ID"
+
+      - name: Package macOS artifact
+        run: |
+          version="${{ needs.prepare.outputs.version }}"
+          mkdir -p dist
+          cd "build/macos/Build/Products/Release"
+          ditto -c -k --sequesterRsrc --keepParent "Aaalice NAI Launcher.app" "$GITHUB_WORKSPACE/dist/NAI_Launcher_macOS_${version}_Portable.zip"
+
+      - name: Upload macOS artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-release
+          path: dist/NAI_Launcher_macOS_*_Portable.zip
+          if-no-files-found: error
+
+  build-android:
+    name: Build Android
+    runs-on: ubuntu-latest
+    needs: prepare
+    env:
+      ANDROID_SIGNING_KEYSTORE_BASE64: ${{ secrets.ANDROID_SIGNING_KEYSTORE_BASE64 }}
+      ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_SIGNING_KEYSTORE_PASSWORD }}
+      ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_SIGNING_KEY_ALIAS }}
+      ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_SIGNING_KEY_PASSWORD }}
+
+    steps:
+      - name: Checkout immutable release commit without LFS payloads
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ needs.prepare.outputs.release_sha }}
+          lfs: false
+
+      - name: Verify checked out release commit
+        run: |
+          set -euo pipefail
+          head="$(git rev-parse --verify HEAD | tr '[:upper:]' '[:lower:]')"
+          expected='${{ needs.prepare.outputs.release_sha }}'
+          if [[ "$head" != "$expected" ]]; then
+            echo "Checked out commit $head does not match immutable release commit $expected." >&2
+            exit 1
+          fi
+
+      - name: Download verified bundled database
+        shell: pwsh
+        run: ./scripts/prepare_bundled_database.ps1
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - name: Verify official Flutter dependency sources
+        shell: pwsh
+        run: ./scripts/verify_flutter_sources.ps1
+
+      - name: Resolve dependencies
+        run: flutter pub get --enforce-lockfile
+
+      - name: Validate bundled autocomplete databases
+        run: dart run tool/tag_catalog/verify_bundled_databases.dart
+
+      - name: Generate localizations
+        run: flutter gen-l10n
+
+      - name: Generate code
+        run: dart run build_runner build --delete-conflicting-outputs
+
+      - name: Verify generated files
+        run: git diff --exit-code
+
+      - name: Prepare Android signing
+        run: |
+          set -euo pipefail
+          if [[ -z "$ANDROID_SIGNING_KEYSTORE_BASE64" || \
+                -z "$ANDROID_KEYSTORE_PASSWORD" || \
+                -z "$ANDROID_KEY_ALIAS" || \
+                -z "$ANDROID_KEY_PASSWORD" ]]; then
+            echo 'Android release signing secrets are required.' >&2
+            exit 1
+          fi
+          keystore="$RUNNER_TEMP/nai-launcher-release.keystore"
+          printf '%s' "$ANDROID_SIGNING_KEYSTORE_BASE64" | base64 --decode > "$keystore"
+          test -s "$keystore"
+
+          # Validate the configured store, alias, and passwords before starting a long build.
+          keytool -list \
+            -keystore "$keystore" \
+            -storepass "$ANDROID_KEYSTORE_PASSWORD" \
+            -alias "$ANDROID_KEY_ALIAS" \
+            -keypass "$ANDROID_KEY_PASSWORD" >/dev/null
+          expected_signer_sha256="$({
+            keytool -exportcert \
+              -keystore "$keystore" \
+              -storepass "$ANDROID_KEYSTORE_PASSWORD" \
+              -alias "$ANDROID_KEY_ALIAS" \
+              -keypass "$ANDROID_KEY_PASSWORD"
+          } | openssl dgst -sha256 -r | awk '{print tolower($1)}')"
+          if [[ ! "$expected_signer_sha256" =~ ^[0-9a-f]{64}$ ]]; then
+            echo 'Unable to derive the Android release signer digest.' >&2
+            exit 1
+          fi
+          echo "ANDROID_KEYSTORE_PATH=$keystore" >> "$GITHUB_ENV"
+          echo "ANDROID_EXPECTED_SIGNER_SHA256=$expected_signer_sha256" >> "$GITHUB_ENV"
+
+      - name: Validate cloud-drive OAuth registration
+        shell: pwsh
+        env:
+          GOOGLE_DRIVE_ANDROID_CLIENT_ID: ${{ vars.GOOGLE_DRIVE_ANDROID_CLIENT_ID }}
+          ONEDRIVE_ANDROID_CLIENT_ID: ${{ vars.ONEDRIVE_CLIENT_ID }}
+          ONEDRIVE_ANDROID_REDIRECT_URI: ${{ vars.ONEDRIVE_ANDROID_REDIRECT_URI }}
+          ONEDRIVE_TENANT_ID: ${{ vars.ONEDRIVE_TENANT_ID || 'common' }}
+        run: ./scripts/verify_cloud_drive_oauth_config.ps1 -Platform android -RequireConfigured
+
+      - name: Build signed Android APK
+        env:
+          GOOGLE_DRIVE_ANDROID_CLIENT_ID: ${{ vars.GOOGLE_DRIVE_ANDROID_CLIENT_ID }}
+          ONEDRIVE_ANDROID_CLIENT_ID: ${{ vars.ONEDRIVE_CLIENT_ID }}
+          ONEDRIVE_ANDROID_REDIRECT_URI: ${{ vars.ONEDRIVE_ANDROID_REDIRECT_URI }}
+          ONEDRIVE_TENANT_ID: ${{ vars.ONEDRIVE_TENANT_ID || 'common' }}
+        run: |
+          flutter build apk --release \
+            "--dart-define=GOOGLE_DRIVE_ANDROID_CLIENT_ID=$GOOGLE_DRIVE_ANDROID_CLIENT_ID" \
+            "--dart-define=ONEDRIVE_ANDROID_CLIENT_ID=$ONEDRIVE_ANDROID_CLIENT_ID" \
+            "--dart-define=ONEDRIVE_ANDROID_REDIRECT_URI=$ONEDRIVE_ANDROID_REDIRECT_URI" \
+            "--dart-define=ONEDRIVE_TENANT_ID=$ONEDRIVE_TENANT_ID"
+
+      - name: Verify and package Android APK
+        run: |
+          set -euo pipefail
+          apk='build/app/outputs/flutter-apk/app-release.apk'
+          test -s "$apk"
+          apksigner="$(find "$ANDROID_HOME/build-tools" -type f -name apksigner | sort -V | tail -n 1)"
+          test -x "$apksigner"
+          verification="$("$apksigner" verify --verbose --print-certs "$apk" 2>&1)"
+          printf '%s\n' "$verification"
+          signer_count="$(
+            sed -nE 's/^Number of signers: ([0-9]+)$/\1/p' \
+              <<< "$verification"
+          )"
+          if [[ "$signer_count" != "1" ]]; then
+            echo "Android release APK must contain exactly one signer; found: ${signer_count:-unknown}" >&2
+            exit 1
+          fi
+          mapfile -t signer_digests < <(
+            sed -nE \
+              -e 's/^[[:space:]]*(Signer #1 certificate|V2 Signer: certificate) SHA-256 digest: ([0-9a-fA-F]{64})[[:space:]]*$/\2/p' \
+              <<< "$verification" |
+              tr '[:upper:]' '[:lower:]' |
+              sort -u
+          )
+          if (( ${#signer_digests[@]} != 1 )); then
+            echo 'Unable to determine exactly one Android APK signer digest.' >&2
+            exit 1
+          fi
+          actual_signer_sha256="${signer_digests[0]}"
+          if [[ "$actual_signer_sha256" != "$ANDROID_EXPECTED_SIGNER_SHA256" ]]; then
+            echo 'Android release APK signer does not match the configured keystore.' >&2
+            exit 1
+          fi
+          if grep -qi 'CN=Android Debug' <<< "$verification"; then
+            echo 'Android release APK was signed with the debug certificate.' >&2
+            exit 1
+          fi
+
+          expected_version='${{ needs.prepare.outputs.version }}'
+          if [[ ! "$expected_version" =~ ^(.+)\+([0-9]+)$ ]]; then
+            echo "Android release version must include a numeric build number: $expected_version" >&2
+            exit 1
+          fi
+          expected_version_name="${BASH_REMATCH[1]}"
+          expected_version_code="${BASH_REMATCH[2]}"
+          aapt="$(find "$ANDROID_HOME/build-tools" -type f -name aapt | sort -V | tail -n 1)"
+          test -x "$aapt"
+          package_line="$("$aapt" dump badging "$apk" | head -n 1)"
+          if [[ "$package_line" != *"name='com.aaalice.nai_launcher'"* || \
+                "$package_line" != *"versionCode='$expected_version_code'"* || \
+                "$package_line" != *"versionName='$expected_version_name'"* ]]; then
+            echo "Android APK package/version mismatch: $package_line" >&2
+            exit 1
+          fi
+
+          mkdir -p dist
+          cp "$apk" "dist/NAI_Launcher_Android_${{ needs.prepare.outputs.version }}.apk"
+
+      - name: Remove Android signing key
+        if: ${{ always() }}
+        run: rm -f "$RUNNER_TEMP/nai-launcher-release.keystore"
+
+      - name: Upload Android artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-release
+          path: dist/NAI_Launcher_Android_*.apk
+          if-no-files-found: error
+
+  publish:
+    name: Publish GitHub Release
+    runs-on: ubuntu-latest
+    needs:
+      - prepare
+      - build-windows
+      - build-macos
+      - build-android
+
+    steps:
+      - name: Checkout immutable release commit
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ needs.prepare.outputs.release_sha }}
+
+      - name: Verify checked out release commit
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $head = (git rev-parse --verify HEAD).Trim().ToLowerInvariant()
+          $expected = '${{ needs.prepare.outputs.release_sha }}'
+          if ($head -ne $expected) {
+            throw "Checked out commit $head does not match immutable release commit $expected."
+          }
+
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: release-assets
+          merge-multiple: true
+
+      - name: Generate release metadata
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          ./scripts/generate_release_metadata.ps1 `
+            -AssetDirectory release-assets `
+            -OutputDirectory release-assets `
+            -Version '${{ needs.prepare.outputs.version }}' `
+            -Tag '${{ env.RELEASE_TAG }}' `
+            -Repository '${{ github.repository }}'
+
+      - name: Show assets
+        run: ls -lh release-assets
+
+      - name: Verify release tag has not moved
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $tag = '${{ env.RELEASE_TAG }}'
+          $expected = '${{ needs.prepare.outputs.release_sha }}'
+          $lines = @(git ls-remote origin "refs/tags/$tag" "refs/tags/$tag^{}")
+          if ($LASTEXITCODE -ne 0) {
+            throw "Failed to resolve remote release tag refs/tags/$tag."
+          }
+          $direct = $null
+          $peeled = $null
+          foreach ($line in $lines) {
+            $fields = $line -split '\s+', 2
+            if ($fields.Count -ne 2) {
+              continue
+            }
+            if ($fields[1] -eq "refs/tags/$tag^{}") {
+              $peeled = $fields[0]
+            } elseif ($fields[1] -eq "refs/tags/$tag") {
+              $direct = $fields[0]
+            }
+          }
+          $current = if ($peeled) { $peeled } else { $direct }
+          if ($current -notmatch '^[0-9a-fA-F]{40}$') {
+            throw "Remote release tag refs/tags/$tag does not resolve to a commit SHA."
+          }
+          if ($current.ToLowerInvariant() -ne $expected) {
+            throw "Remote release tag refs/tags/$tag moved from $expected to $current."
+          }
+
+      - name: Publish release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ env.RELEASE_TAG }}
+          name: NAI Launcher ${{ env.RELEASE_TAG }}
+          body_path: release-assets/release_notes_${{ env.RELEASE_TAG }}.md
+          files: release-assets/*
+          draft: false
+          prerelease: ${{ needs.prepare.outputs.prerelease }}
