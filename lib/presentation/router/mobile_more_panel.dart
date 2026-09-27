@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../core/platform/platform_capabilities.dart';
 import '../../core/constants/community_links.dart';
 import '../../core/utils/localization_extension.dart';
 import '../../data/models/auth/saved_account.dart';
@@ -35,8 +36,19 @@ Future<void> showMobileMorePanel({
 }) {
   final importImageMetadata =
       onImportImageMetadata ??
-      ((context, ref) =>
-          MobileImageMetadataImporter.shared.run(context: context, ref: ref));
+      // 偏离上游：上游直接开 FilePicker，iOS 上那是「文件」App，选不了相册，
+      // 而 iOS 上生成的图存在相册里。iOS 改走来源面板（相册 / 文件 / 剪贴板），
+      // 落地仍是上游的去向对话框；其它平台原样保留上游。
+      (PlatformCapabilities.current.isIOS
+          ? (context, ref) => showMobileImageMetadataImportSheet(
+              context: context,
+              ref: ref,
+              askDestination: true,
+            )
+          : (context, ref) => MobileImageMetadataImporter.shared.run(
+              context: context,
+              ref: ref,
+            ));
   final queueCount = ref.read(replicationQueueNotifierProvider).count;
   final hasUpdate = ref.read(updateStateProvider).hasNewVersion;
   final activePanel = ref.read(shellPanelProvider);
