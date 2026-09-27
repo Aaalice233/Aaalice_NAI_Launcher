@@ -2,6 +2,8 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/core/utils/app_logger.dart';
 
+import 'helpers/isolated_app_log_directory.dart';
+
 /// 首次启动流程验证
 /// 
 /// 验证点：
@@ -13,10 +15,15 @@ import 'package:nai_launcher/core/utils/app_logger.dart';
 void main() {
   group('首次启动流程验证', () {
     
+    late Directory logDir;
+
     setUpAll(() async {
+      logDir = createIsolatedAppLogDirectory('first_launch_log_test_');
       // 测试开始前初始化日志
       await AppLogger.initialize(isTestEnvironment: true);
     });
+
+    tearDownAll(() => deleteIsolatedAppLogDirectory(logDir));
 
     test('1. 日志系统成功初始化', () async {
       // 验证日志文件已创建
@@ -60,7 +67,7 @@ void main() {
       AppLogger.w('警告信息');
       
       // 等待写入
-      await Future.delayed(const Duration(milliseconds: 100));
+      await AppLogger.flush();
       
       // 验证文件非空
       final logFile = File(AppLogger.currentLogFile!);
@@ -91,7 +98,7 @@ void main() {
       AppLogger.i('初始化共现数据', 'Warmup');
       AppLogger.i('Danbooru标签数据加载', 'Warmup');
       
-      await Future.delayed(const Duration(milliseconds: 100));
+      await AppLogger.flush();
       
       // 验证日志文件
       final logFile = File(AppLogger.currentLogFile!);
