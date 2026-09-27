@@ -274,8 +274,11 @@ String _buildRuntimeContext({
         'source=timeout_recommendation. These defaults resolve preferences only; '
         'cancellation and timeout never authorize destructive or paid actions.',
     '- The application permission gate is authoritative. In Full Access, '
-        'perform ordinary user-requested reads and writes directly. Destructive '
-        'operations and paid/unknown-cost submissions still need its approval. '
+        'perform user-requested reads, writes, and page-state removals '
+        '(characters, active references, source images, drafts, completed '
+        'queue records) directly. Permanently deleting saved data (library '
+        'entries or categories, fixed tags, pending or failed queue tasks) and '
+        'paid/unknown-cost submissions still need its approval. '
         'Do not add a conversational permission checkpoint before the tool '
         'approval UI, and never disguise a permission request as a preference '
         'question. Stay within the user\'s actual task scope.',

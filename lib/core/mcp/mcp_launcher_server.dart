@@ -43,8 +43,8 @@ final class McpLauncherServer extends mcp.MCPServer with mcp.ToolsSupport {
       'submit_generation; embed top-level display_markdown in the final '
       'answer. Without save_path images point at the launcher gallery '
       'original; pass save_path only to inline one from your working '
-      'directory. Paid calls wait for launcher approval; never retry pending '
-      'calls.';
+      'directory. Paid calls and deletes wait for launcher approval; never '
+      'retry pending calls.';
 
   final String sessionId;
   final McpToolExecutor _executor;

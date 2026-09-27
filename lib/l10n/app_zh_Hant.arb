@@ -536,7 +536,7 @@
   "agentChat_permissionAsk": "詢問模式",
   "agentChat_permissionAskDescription": "敏感操作執行前詢問",
   "agentChat_permissionFull": "完全存取",
-  "agentChat_permissionFullDescription": "不詢問並允許存取工作區外檔案",
+  "agentChat_permissionFullDescription": "僅刪除已存資料或消耗 Anlas 時詢問，可存取工作區外檔案",
   "agentChat_approvalTitle": "允許執行 {toolName}？",
   "@agentChat_approvalTitle": {
     "placeholders": {
@@ -7175,7 +7175,7 @@
   "agentSettings_permissionAsk": "敏感操作前詢問",
   "agentSettings_permissionAskDescription": "預設模式。寫入檔案、執行生成等敏感操作前先要求確認。",
   "agentSettings_permissionFull": "完全存取",
-  "agentSettings_permissionFullDescription": "允許存取工作區外檔案並直接執行工具。僅在信任目前任務時使用。",
+  "agentSettings_permissionFullDescription": "允許存取工作區外檔案並直接執行工具；刪除已儲存的資料或消耗 Anlas 前仍會確認。僅在信任目前任務時使用。",
   "agentSettings_webPreference": "連網偏好",
   "agentSettings_webEnabled": "允許智慧體使用 Web 工具",
   "agentSettings_webDescription": "開啟後模型可搜尋並讀取公開網頁；關閉後相關工具會從執行階段工具表移除。",

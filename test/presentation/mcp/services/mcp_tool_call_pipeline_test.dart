@@ -172,7 +172,7 @@ void main() {
     expect(harness.executed, ['set_positive_prompt', 'delete_fixed_tag']);
   });
 
-  test('full access only confirms charged calls', () async {
+  test('full access confirms only saved-data deletes and charges', () async {
     final full = _Harness(mode: AgentPermissionMode.fullAccess);
     addTearDown(full.dispose);
 
@@ -180,20 +180,28 @@ void main() {
     expect(plain.isError, isNot(isTrue));
     expect(full.coordinator.current, isNull);
 
-    final destructive = await full.call('w2', 'delete_fixed_tag');
-    expect(destructive.isError, isNot(isTrue));
+    final pageState = await full.call('w2', 'remove_character');
+    expect(pageState.isError, isNot(isTrue));
     expect(full.coordinator.current, isNull);
-    expect(full.executed, ['set_positive_prompt', 'delete_fixed_tag']);
+    expect(full.executed, ['set_positive_prompt', 'remove_character']);
+
+    final deletion = full.call('w3', 'delete_fixed_tag');
+    await pumpEventQueue();
+    expect(full.coordinator.current?.toolCallId, 'w3');
+    expect(full.executed, ['set_positive_prompt', 'remove_character']);
+    full.coordinator.resolve('w3', true);
+    expect((await deletion).isError, isNot(isTrue));
+    expect(full.executed.last, 'delete_fixed_tag');
 
     final charged = full.call(
-      'w3',
+      'w4',
       'generate_image',
       arguments: const {'preparation_id': 'prep-1'},
     );
     await pumpEventQueue();
-    expect(full.coordinator.current?.toolCallId, 'w3');
+    expect(full.coordinator.current?.toolCallId, 'w4');
     expect(full.coordinator.current?.request.estimatedAnlas, 24);
-    full.coordinator.resolve('w3', false);
+    full.coordinator.resolve('w4', false);
     expect((await charged).isError, isTrue);
   });
 
@@ -678,6 +686,10 @@ class _Harness {
           FakeAgentTool(
             name: 'delete_fixed_tag',
             runner: _runner('delete_fixed_tag'),
+          ),
+          FakeAgentTool(
+            name: 'remove_character',
+            runner: _runner('remove_character'),
           ),
           FakeAgentTool(
             name: 'generate_image',

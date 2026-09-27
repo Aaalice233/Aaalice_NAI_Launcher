@@ -83,6 +83,98 @@ void main() {
     }
   });
 
+  group('stored-data deletions', () {
+    const storedDataDeletions = [
+      'delete_fixed_tag',
+      'delete_tag_library_entry',
+      'delete_tag_library_category',
+      'delete_precise_reference_entry',
+      'delete_vibe_library_entry',
+      'delete_generation_queue_task',
+      'clear_failed_generation_queue_tasks',
+    ];
+    const pageStateRemovals = [
+      'remove_character',
+      'clear_characters',
+      'remove_active_vibe',
+      'remove_active_precise_reference',
+      'clear_generation_source_image',
+      'cancel_generation_preparation',
+      'cancel_manual_inpaint_draft',
+      'clear_completed_generation_queue_tasks',
+    ];
+
+    test('are told apart from page-state removals', () {
+      for (final name in storedDataDeletions) {
+        final descriptor = describeAgentToolPermission(name);
+        expect(descriptor.deletesStoredData, isTrue, reason: name);
+        expect(
+          descriptor.operation,
+          AgentPermissionOperation.delete,
+          reason: name,
+        );
+      }
+      for (final name in pageStateRemovals) {
+        final descriptor = describeAgentToolPermission(name);
+        expect(descriptor.deletesStoredData, isFalse, reason: name);
+        expect(
+          descriptor.operation,
+          AgentPermissionOperation.delete,
+          reason: name,
+        );
+      }
+      expect(
+        describeAgentToolPermission('delete_vibe_library_folder'),
+        isA<AgentToolPermissionDescriptor>().having(
+          (value) => value.deletesStoredData,
+          'deletesStoredData',
+          isTrue,
+        ),
+        reason: 'new delete_ tools must default to confirmation',
+      );
+      expect(
+        describeAgentToolPermission('update_fixed_tag').deletesStoredData,
+        isFalse,
+      );
+    });
+
+    test('still ask in full access while page-state removals run', () {
+      const toolNames = [...storedDataDeletions, ...pageStateRemovals];
+      final catalog = AgentToolPermissionCatalog(
+        toolNames: toolNames,
+        descriptors: [
+          for (final name in toolNames) describeAgentToolPermission(name),
+        ],
+      );
+
+      for (final mode in const {
+        AgentAccessMode.readOnly,
+        AgentAccessMode.askBeforeWrite,
+        AgentAccessMode.allowWrite,
+      }) {
+        final policy = AgentPermissionPolicy({
+          for (final domain in AgentPermissionDomain.values) domain: mode,
+        });
+        for (final name in toolNames) {
+          final expected = switch (mode) {
+            AgentAccessMode.readOnly ||
+            AgentAccessMode.blocked => AgentPermissionDecision.block,
+            AgentAccessMode.askBeforeWrite => AgentPermissionDecision.ask,
+            AgentAccessMode.allowWrite =>
+              storedDataDeletions.contains(name)
+                  ? AgentPermissionDecision.ask
+                  : AgentPermissionDecision.allow,
+          };
+          expect(
+            catalog.decide(toolName: name, policy: policy),
+            expected,
+            reason: '${mode.name}/$name',
+          );
+        }
+      }
+    });
+  });
+
   test('image mutations follow safe, ask, and full-access policies', () {
     const toolNames = [
       'select_generated_image',

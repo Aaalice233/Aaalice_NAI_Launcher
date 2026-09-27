@@ -556,7 +556,7 @@
   "agentChat_permissionAsk": "Ask",
   "agentChat_permissionAskDescription": "Ask before sensitive actions",
   "agentChat_permissionFull": "Full access",
-  "agentChat_permissionFullDescription": "Run without prompts and allow files outside the workspace",
+  "agentChat_permissionFullDescription": "Ask only to delete saved data or spend Anlas; allow outside files",
   "agentChat_approvalTitle": "Allow {toolName}?",
   "@agentChat_approvalTitle": {
     "placeholders": {
@@ -6818,7 +6818,7 @@
   "agentSettings_permissionAsk": "Ask before sensitive actions",
   "agentSettings_permissionAskDescription": "Default. Ask before writing files, generating images, or other sensitive actions.",
   "agentSettings_permissionFull": "Full access",
-  "agentSettings_permissionFullDescription": "Allow direct tool use and files outside the workspace. Use only for trusted tasks.",
+  "agentSettings_permissionFullDescription": "Allow direct tool use and files outside the workspace; deleting saved data or spending Anlas still asks first. Use only for trusted tasks.",
   "agentSettings_webPreference": "Web preference",
   "agentSettings_webEnabled": "Allow the Agent to use Web tools",
   "agentSettings_webDescription": "When enabled, the model can search and read public pages. Turning it off removes Web tools at runtime.",

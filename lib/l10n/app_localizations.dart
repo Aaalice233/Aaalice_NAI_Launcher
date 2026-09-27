@@ -2786,7 +2786,7 @@ abstract class AppLocalizations {
   /// No description provided for @agentChat_permissionFullDescription.
   ///
   /// In en, this message translates to:
-  /// **'Run without prompts and allow files outside the workspace'**
+  /// **'Ask only to delete saved data or spend Anlas; allow outside files'**
   String get agentChat_permissionFullDescription;
 
   /// No description provided for @agentChat_approvalTitle.
@@ -25069,7 +25069,7 @@ abstract class AppLocalizations {
   /// No description provided for @agentSettings_permissionFullDescription.
   ///
   /// In en, this message translates to:
-  /// **'Allow direct tool use and files outside the workspace. Use only for trusted tasks.'**
+  /// **'Allow direct tool use and files outside the workspace; deleting saved data or spending Anlas still asks first. Use only for trusted tasks.'**
   String get agentSettings_permissionFullDescription;
 
   /// No description provided for @agentSettings_webPreference.
