@@ -161,6 +161,7 @@ NAI Launcher 面向經常使用 NovelAI 的圖像創作者。生成、改圖、P
 | **Windows** | 主要開發與發佈平台 | 提供安裝版和可攜版，適合長時間創作、批次任務以及 Krita / ComfyUI 串接。 |
 | **macOS** | 可用，持續改善中 | 提供可攜版；若系統阻止開啟未公證應用程式，請依 macOS 安全提示手動允許。 |
 | **Android** | Beta | 支援手機、橫向畫面、平板和大螢幕；生成、圖庫、詞庫、佇列、代理與設定都有觸控入口。 |
+| **iOS** | 開發中 | 在 [`ios`](https://github.com/Aaalice233/Aaalice_NAI_Launcher/tree/ios) 分支開發，暫不提供正式安裝包；可自行建置未簽名 IPA 後簽名側載。 |
 | **Linux** | 暫無正式發行包 | 目前不提供正式下載包。 |
 
 ## ⚡ 下載與開始使用
