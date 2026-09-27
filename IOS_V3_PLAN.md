@@ -70,6 +70,63 @@ L8 提示词 raw 直填 / L10 触屏可达性 / L11 剪贴板与图片导入 / L
 注意必须**四份** arb 一起写——`app_zh_Hant.arb` 也在 `i18n_regression_test` 的 parity 断言里
 （计划表原先漏了它）。
 
+### 批次 3（commit `b770ae8f`）— 6 条车道 + 3 条收尾
+
+L5 详情页复制与相册 / L9 tagger 目录与 iOS 存储 / L3 关闭应用内更新 / L12 配置导出导入与固定词同步 /
+L7b 补批次 2 遗漏的四条 / L16 导出入口门控与 hover 残留；外加三条跨车道无人认领的收尾
+（配置导出导入的 UI、复用参数不跳页、sqflite 核实）。
+70 文件 +4573/−231。`flutter analyze` 干净、模板无未引用 key、63 个改动文件格式全过。
+
+**用户点名的三条偏好至此全部落地**：
+
+| | 上游 v4.2.1 | 我们 |
+| --- | --- | --- |
+| 生成页左抽屉 | `drawer`=参数面板 / `endDrawer`=历史 | `drawer`=快捷工具 / `endDrawer`=参数面板，历史降级成顶栏按钮弹自适应面板 |
+| 复制不带元数据 | 单个复制按钮，行为取 `protectionMode && stripMetadataForCopyAndDrag`，**protectionMode 默认 false** | 顶栏常驻 clean 按钮硬传 `stripMetadataOverride: true`，含元数据的降级进溢出菜单 |
+| 保存不自动进相册 | `supportsSystemGalleryExport => isAndroid` 守着 10 个自动发布调用点 | 那行原样不动 + 注释钉死；另开 `supportsExplicitPhotoLibraryExport => isIOS` 只挂手动入口，配断言测试 |
+
+clean 复制有一条 v4.2.1 新引入的陷阱：上游新增的「复制/拖拽时加水印」会把 transform 喂给同一个
+`image_share_sanitizer`。**水印开关与元数据开关是正交的**，clean 路径必须不带 transform。
+落地时把 transform 的选择抽成具名静态 `ImageDetailViewer.copyTransformFor` 并配测试钉死——
+下次跟上游时谁把两者合并回去，测试会直接红。
+
+### 计划本身的两处误判（已纠正）
+
+- **#30 sqflite 移动端 init** 原标「必保 / 风险低」，实测**上游没问题，不该改**：
+  `sqfliteFfiInit()` 在 iOS 上函数体只有 `if (Platform.isWindows) { windowsInit(); }`，是纯空操作
+  （`sqflite_common_ffi 2.3.7+1/lib/src/sqflite_ffi_io.dart:29`）；`databaseFactoryFfi` 注册时
+  `ffiInit` 就是 null、isolate 里 `ffiInit?.call()` 直接短路；iOS 的 sqlite3 走
+  `load_library.dart` 的 `_tryLoadingFromSqliteFlutterLibs() ?? DynamicLibrary.process()`
+  在**首次 open 时**解析，与 `sqfliteFfiInit` 完全无关。而 `CSQLite.framework` 确实在构建产物里
+  （走 SwiftPM 的 simolus3/CSQLite，所以 `ios/Podfile.lock` 里看不到 `sqlite3_flutter_libs` 属正常）。
+  #30 的另一半「移动端不覆写全局 databaseFactory」上游的 early return 已原生做到。
+  **遗留观察项**：若 `CSQLite.framework` 因任何原因没加载成功，`load_library.dart` 会**静默 fallback**
+  到系统 libsqlite3，问题会推迟到 `gallery_schema.dart` 建 FTS5 虚表那一刻才暴露——已进真机清单。
+- **#20 ComfyUI 移动端保留** 被用户决策 3 取消（跟上游，手机上禁用），从必保清单划掉。
+
+### 一条自己造成的回归（已修）
+
+L6 把上游的窄屏分类底部面板换成左侧 Drawer 时，带走了 `localGallery_categoryPanelTitle` 的
+最后一个引用（上游用它做 `AdaptivePresenter.showPanel` 的 title），打红了 i18n 回归测试的
+「模板里不能有未被引用的 key」。**没有删 key**，而是给抽屉补了标题头 + 关闭按钮——
+上游的底部面板本来就有标题，换成抽屉后只剩一棵光秃秃的分类树，删 key 等于把退化固化下来。
+
+### 方法论补充：跨车道断链是固有风险，交叉自检不能省
+
+两批共抓出三类只有交叉自检能发现的问题，**编译器全都不报错**：
+1. **注册点建了但没有调用方**（批次 2 的 `MobileWorkflowPanelReveal`）——`request()` 在无注册者时
+   是空操作，运行不报错，功能静默消失。
+2. **服务层做完但没有 UI 入口**（批次 3 的必保 #21）——连带它的 11 个 l10n key 变成孤儿，
+   一合并进 arb 就会打红 i18n 回归测试。
+3. **agent 自述与实际不符**（批次 2 的 L7 声称做了四条必保定制，实测那四个文件根本不在 `git status` 里）。
+   批次 3 因此要求自检 agent「逐条 grep 验证，自述一律不采信」，结果六条车道自述全部属实。
+
+### 真机验证清单
+
+`IOS_V3_VERIFY.md`（51 条）。最高优先的几条：生成保存后确认没有图自动进系统相册、
+开着水印开关做一次 clean 复制、覆盖安装后「复用参数」按钮还在不在、
+「文件」App 里 `tagger_models` 能看到且重装后模型仍扫得到。
+
 ### 工作流的实质变化：本机不能再跑测试
 
 `nai_png_codec` 的 native assets 会在**每次 `flutter test` 调用**时构建，而 `native_toolchain_c`
