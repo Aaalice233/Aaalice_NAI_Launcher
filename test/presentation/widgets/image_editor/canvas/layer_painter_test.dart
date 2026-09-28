@@ -314,6 +314,33 @@ void main() {
     },
   );
 
+  test('rotated view keeps layers that rotate into the viewport', () async {
+    const red = Color(0xFFFF0000);
+    const viewport = Size(128, 32);
+    final state = EditorState()..setCanvasSize(const Size(64, 64));
+    addTearDown(state.dispose);
+    // 未旋转时这块内容在视口下方，旋转 90° 后落到视口左侧 (4..24, 0..20)
+    state.layerManager
+        .addLayerFromUiImage(await _createSolidImage(20, 20, red), name: 'red')
+        .translateContent(const Offset(0, 40));
+    state.canvasController
+      ..setViewportSize(viewport)
+      ..rotateRight(degrees: 90);
+
+    final recorder = ui.PictureRecorder();
+    LayerPainter(
+      state: state,
+      showTransparentCanvasBackground: true,
+    ).paint(Canvas(recorder), viewport);
+    final picture = recorder.endRecording();
+    addTearDown(picture.dispose);
+    final image = await picture.toImage(128, 32);
+    addTearDown(image.dispose);
+    final pixels = await image.toByteData(format: ui.ImageByteFormat.rawRgba);
+
+    expect(_pixelAt(pixels!, 128, 14, 10), red);
+  });
+
   group('detached frame', () {
     const red = Color(0xFFFF0000);
 

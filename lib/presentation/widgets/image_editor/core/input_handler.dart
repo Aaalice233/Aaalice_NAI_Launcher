@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import 'editor_state.dart';
+import 'editor_view_action.dart';
 
 /// 键盘状态管理
 class KeyboardState {
@@ -226,7 +227,7 @@ class InputHandler {
           state.redo();
           return KeyEventResult.handled;
         case LogicalKeyboardKey.digit0:
-          state.canvasController.resetTo100(frame: state.frame);
+          EditorViewAction.actualSize.perform(state);
           return KeyEventResult.handled;
         case LogicalKeyboardKey.equal:
         case LogicalKeyboardKey.add:
@@ -240,31 +241,13 @@ class InputHandler {
 
     // Krita 风格视图快捷键（无修饰键）
     if (isDown && !keyboard.isCtrlPressed) {
+      final viewAction = EditorViewAction.forShortcut(event.logicalKey);
+      if (viewAction != null) {
+        viewAction.perform(state);
+        return KeyEventResult.handled;
+      }
+
       switch (event.logicalKey) {
-        case LogicalKeyboardKey.digit1:
-          state.canvasController.resetTo100(frame: state.frame);
-          return KeyEventResult.handled;
-        case LogicalKeyboardKey.digit2:
-          state.canvasController.fitToHeight(state.frame);
-          return KeyEventResult.handled;
-        case LogicalKeyboardKey.digit3:
-          state.canvasController.fitToWidth(state.frame);
-          return KeyEventResult.handled;
-        case LogicalKeyboardKey.digit4:
-          state.canvasController.rotateLeft();
-          return KeyEventResult.handled;
-        case LogicalKeyboardKey.digit5:
-          state.canvasController.resetRotation();
-          return KeyEventResult.handled;
-        case LogicalKeyboardKey.digit6:
-          state.canvasController.rotateRight();
-          return KeyEventResult.handled;
-        case LogicalKeyboardKey.keyF:
-          state.canvasController.toggleMirrorHorizontal();
-          return KeyEventResult.handled;
-        case LogicalKeyboardKey.keyR:
-          state.canvasController.resetView(state.frame);
-          return KeyEventResult.handled;
         case LogicalKeyboardKey.keyX:
           state.swapColors();
           return KeyEventResult.handled;

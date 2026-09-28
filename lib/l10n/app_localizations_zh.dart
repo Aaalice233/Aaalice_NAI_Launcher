@@ -2490,6 +2490,15 @@ class AppLocalizationsZh extends AppLocalizations {
   String get editor_fitToWindow => '适应窗口';
 
   @override
+  String get editor_viewOptions => '视图选项';
+
+  @override
+  String get editor_menuGroupView => '视图';
+
+  @override
+  String get editor_menuGroupCanvas => '画布';
+
+  @override
   String get editor_tempColorPickerShortcut => 'Alt+点击: 临时取色';
 
   @override
@@ -17614,6 +17623,15 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get editor_fitToWindow => '適應視窗';
+
+  @override
+  String get editor_viewOptions => '檢視選項';
+
+  @override
+  String get editor_menuGroupView => '檢視';
+
+  @override
+  String get editor_menuGroupCanvas => '畫布';
 
   @override
   String get editor_tempColorPickerShortcut => 'Alt+點選: 臨時取色';

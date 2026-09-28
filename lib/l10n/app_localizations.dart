@@ -4712,6 +4712,24 @@ abstract class AppLocalizations {
   /// **'Fit to Window'**
   String get editor_fitToWindow;
 
+  /// No description provided for @editor_viewOptions.
+  ///
+  /// In en, this message translates to:
+  /// **'View Options'**
+  String get editor_viewOptions;
+
+  /// No description provided for @editor_menuGroupView.
+  ///
+  /// In en, this message translates to:
+  /// **'View'**
+  String get editor_menuGroupView;
+
+  /// No description provided for @editor_menuGroupCanvas.
+  ///
+  /// In en, this message translates to:
+  /// **'Canvas'**
+  String get editor_menuGroupCanvas;
+
   /// No description provided for @editor_tempColorPickerShortcut.
   ///
   /// In en, this message translates to:

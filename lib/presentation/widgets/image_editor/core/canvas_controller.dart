@@ -1,5 +1,3 @@
-// ignore_for_file: deprecated_member_use
-
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -221,6 +219,8 @@ class CanvasController extends ChangeNotifier {
     fitToViewport(frame);
   }
 
+  bool get _hasOrientation => _rotation != 0 || _isMirroredHorizontally;
+
   /// 旋转/镜像以取景框中心为枢轴（缩放后、未加平移偏移的坐标系）
   Offset _pivotFor(Rect frame) => frame.center * _scale;
 
@@ -228,7 +228,7 @@ class CanvasController extends ChangeNotifier {
   void applyViewTransform(Canvas canvas, Rect frame) {
     canvas.translate(_offset.dx, _offset.dy);
 
-    if (_rotation != 0 || _isMirroredHorizontally) {
+    if (_hasOrientation) {
       final pivot = _pivotFor(frame);
       canvas.translate(pivot.dx, pivot.dy);
 
@@ -246,150 +246,59 @@ class CanvasController extends ChangeNotifier {
     canvas.scale(_scale);
   }
 
-  /// 将屏幕坐标转换为画布坐标（考虑旋转和镜像）
-  Offset screenToCanvas(Offset screenPoint, {Rect? frame}) {
-    // 如果没有旋转和镜像，使用简单计算
-    if (_rotation == 0 && !_isMirroredHorizontally) {
+  /// 屏幕坐标转文档坐标，是 [canvasToScreen] 的逆变换
+  Offset screenToCanvas(Offset screenPoint, {required Rect frame}) {
+    if (!_hasOrientation) {
       return (screenPoint - _offset) / _scale;
     }
-
-    // 需要取景框来计算旋转中心
-    if (frame == null) {
-      // 回退到简单计算
-      return (screenPoint - _offset) / _scale;
-    }
-
-    // 1. 减去偏移
-    var point = screenPoint - _offset;
-
-    // 2. 计算旋转/镜像中心（在缩放后的屏幕坐标系中）
-    final pivot = _pivotFor(frame);
-    final centerX = pivot.dx;
-    final centerY = pivot.dy;
-
-    // 3. 移到中心
-    point = Offset(point.dx - centerX, point.dy - centerY);
-
-    // 4. 逆向镜像（镜像是自逆的）
-    if (_isMirroredHorizontally) {
-      point = Offset(-point.dx, point.dy);
-    }
-
-    // 5. 逆向旋转
-    if (_rotation != 0) {
-      final cos = math.cos(-_rotation);
-      final sin = math.sin(-_rotation);
-      point = Offset(
-        point.dx * cos - point.dy * sin,
-        point.dx * sin + point.dy * cos,
-      );
-    }
-
-    // 6. 移回原点
-    point = Offset(point.dx + centerX, point.dy + centerY);
-
-    // 7. 除以缩放
-    return point / _scale;
-  }
-
-  /// 将画布坐标转换为屏幕坐标（考虑旋转和镜像）
-  Offset canvasToScreen(Offset canvasPoint, {Rect? frame}) {
-    // 如果没有旋转和镜像，使用简单计算
-    if (_rotation == 0 && !_isMirroredHorizontally) {
-      return canvasPoint * _scale + _offset;
-    }
-
-    if (frame == null) {
-      return canvasPoint * _scale + _offset;
-    }
-
-    // 1. 应用缩放
-    var point = canvasPoint * _scale;
-
-    // 2. 计算中心
-    final pivot = _pivotFor(frame);
-    final centerX = pivot.dx;
-    final centerY = pivot.dy;
-
-    // 3. 移到中心
-    point = Offset(point.dx - centerX, point.dy - centerY);
-
-    // 4. 应用旋转
-    if (_rotation != 0) {
-      final cos = math.cos(_rotation);
-      final sin = math.sin(_rotation);
-      point = Offset(
-        point.dx * cos - point.dy * sin,
-        point.dx * sin + point.dy * cos,
-      );
-    }
-
-    // 5. 应用镜像
-    if (_isMirroredHorizontally) {
-      point = Offset(-point.dx, point.dy);
-    }
-
-    // 6. 移回并加偏移
-    return Offset(
-      point.dx + centerX + _offset.dx,
-      point.dy + centerY + _offset.dy,
+    return MatrixUtils.transformPoint(
+      Matrix4.inverted(getTransformMatrix(frame)),
+      screenPoint,
     );
   }
 
-  /// 获取变换矩阵（包含旋转和镜像）
+  /// 文档坐标转屏幕坐标，落点与 [applyViewTransform] 渲染出的像素重合
+  Offset canvasToScreen(Offset canvasPoint, {required Rect frame}) {
+    if (!_hasOrientation) {
+      return canvasPoint * _scale + _offset;
+    }
+    return MatrixUtils.transformPoint(getTransformMatrix(frame), canvasPoint);
+  }
+
+  /// 文档坐标到屏幕坐标的变换矩阵
   Matrix4 getTransformMatrix(Rect frame) {
-    final matrix = Matrix4.identity();
+    // 矩阵后乘，步骤必须与 applyViewTransform 同序：文档点先镜像再旋转
+    final matrix = Matrix4.identity()
+      ..translateByDouble(_offset.dx, _offset.dy, 0, 1);
 
-    // 1. 移动到偏移位置
-    matrix.translate(_offset.dx, _offset.dy);
+    if (_hasOrientation) {
+      final pivot = _pivotFor(frame);
+      matrix.translateByDouble(pivot.dx, pivot.dy, 0, 1);
 
-    // 2. 移动到取景框中心进行旋转和镜像
-    final pivot = _pivotFor(frame);
-    final centerX = pivot.dx;
-    final centerY = pivot.dy;
-    matrix.translate(centerX, centerY);
+      if (_rotation != 0) {
+        matrix.rotateZ(_rotation);
+      }
 
-    // 3. 应用旋转
-    if (_rotation != 0) {
-      matrix.rotateZ(_rotation);
+      if (_isMirroredHorizontally) {
+        matrix.scaleByDouble(-1.0, 1.0, 1.0, 1.0);
+      }
+
+      matrix.translateByDouble(-pivot.dx, -pivot.dy, 0, 1);
     }
 
-    // 4. 应用水平镜像
-    if (_isMirroredHorizontally) {
-      matrix.scale(-1.0, 1.0, 1.0);
-    }
-
-    // 5. 移回原点
-    matrix.translate(-centerX, -centerY);
-
-    // 6. 应用缩放
-    matrix.scale(_scale);
-
-    return matrix;
+    return matrix..scaleByDouble(_scale, _scale, 1.0, 1.0);
   }
 
-  /// 获取简单变换矩阵（仅缩放和平移，用于兼容）
-  Matrix4 get transformMatrix {
-    return Matrix4.identity()
-      ..translate(_offset.dx, _offset.dy)
-      ..scale(_scale);
-  }
-
-  /// 获取视口边界（用于空间剔除优化）
-  ///
-  /// 返回当前视口在画布坐标系中的矩形边界
-  /// 图层如果与这个矩形不相交，则可以被跳过渲染
-  Rect get viewportBounds {
+  /// 视口在文档坐标系中的轴对齐包围盒，供图层空间剔除
+  Rect viewportBounds(Rect frame) {
     if (_viewportSize == Size.zero) {
       return Rect.zero;
     }
 
-    // 将视口左上角和右下角转换为画布坐标
-    final topLeft = screenToCanvas(Offset.zero);
-    final bottomRight = screenToCanvas(
-      Offset(_viewportSize.width, _viewportSize.height),
+    // 旋转后视口在文档里是斜矩形，须取四角包围盒，否则会剔除仍可见的图层
+    return MatrixUtils.inverseTransformRect(
+      getTransformMatrix(frame),
+      Offset.zero & _viewportSize,
     );
-
-    return Rect.fromPoints(topLeft, bottomRight);
   }
 }
