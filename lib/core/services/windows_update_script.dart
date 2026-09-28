@@ -1,7 +1,7 @@
 /// Windows 平台应用内更新的辅助脚本生成器。
 ///
-/// 更新在应用完全退出后执行。脚本记录日志与结构化结果，安装失败会
-/// 重新启动旧版本；便携版通过同卷目录切换和备份实现可回滚更新。
+/// 更新在应用完全退出后执行。脚本先写启动标记供主应用确认接管，再记录
+/// 日志与结构化结果；便携版通过同卷目录切换和备份实现可回滚更新。
 library;
 
 class WindowsUpdateScript {
@@ -14,6 +14,7 @@ class WindowsUpdateScript {
     required String executablePath,
     required String resultPath,
     required String pendingMetadataPath,
+    required String startedMarkerPath,
     required String logPath,
   }) {
     return '''
@@ -24,10 +25,13 @@ class WindowsUpdateScript {
 \$ExePath = '${_escape(executablePath)}'
 \$ResultPath = '${_escape(resultPath)}'
 \$PendingMetadataPath = '${_escape(pendingMetadataPath)}'
+\$StartedPath = '${_escape(startedMarkerPath)}'
 \$LogPath = '${_escape(logPath)}'
 \$ScriptPath = \$MyInvocation.MyCommand.Path
 
 ${_commonFunctions()}
+
+Write-UpdateStarted
 
 try {
   Write-UpdateLog "Waiting for application process \$AppPid to exit."
@@ -68,6 +72,7 @@ try {
     required String backupDirectory,
     required String resultPath,
     required String pendingMetadataPath,
+    required String startedMarkerPath,
     required String logPath,
   }) {
     return '''
@@ -82,12 +87,15 @@ try {
 \$BackupDir = '${_escape(backupDirectory)}'
 \$ResultPath = '${_escape(resultPath)}'
 \$PendingMetadataPath = '${_escape(pendingMetadataPath)}'
+\$StartedPath = '${_escape(startedMarkerPath)}'
 \$LogPath = '${_escape(logPath)}'
 \$ScriptPath = \$MyInvocation.MyCommand.Path
 \$Swapped = \$false
 
 ${_commonFunctions()}
 ${_stopBundledProxiesFunction()}
+
+Write-UpdateStarted
 
 try {
   Write-UpdateLog "Waiting for application process \$AppPid to exit."
@@ -196,6 +204,20 @@ function Write-UpdateLog {
   Add-Content -LiteralPath \$LogPath -Value "[\$Timestamp] \$Message" -Encoding UTF8
 }
 
+# 主应用据此确认脚本真的开始执行；标记迟迟不出现说明脚本被策略或安全软件拦下。
+function Write-UpdateStarted {
+  \$Started = [ordered]@{
+    version = \$Version
+    appPid = \$AppPid
+  } | ConvertTo-Json -Compress
+  [System.IO.File]::WriteAllText(
+    \$StartedPath,
+    \$Started,
+    (New-Object System.Text.UTF8Encoding(\$false))
+  )
+  Write-UpdateLog "Updater script started for version \$Version."
+}
+
 function Write-UpdateResult {
   param([bool]\$Success, [string]\$Message)
   \$Result = [ordered]@{
@@ -209,6 +231,8 @@ function Write-UpdateResult {
     \$Result,
     (New-Object System.Text.UTF8Encoding(\$false))
   )
+  # 有了结果就不再需要启动标记，留着会让下次启动误判成安装被中断。
+  Remove-Item -LiteralPath \$StartedPath -Force -ErrorAction SilentlyContinue
 }
 
 function Wait-ApplicationExit {
