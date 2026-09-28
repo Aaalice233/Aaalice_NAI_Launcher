@@ -493,12 +493,30 @@ class AppLocalizationsJa extends AppLocalizations {
   String get auth_selectAccount => 'アカウントを選択してください';
 
   @override
-  String get auth_deleteAccount => 'アカウントを削除';
+  String get auth_manageAccounts => 'アカウント管理';
 
   @override
-  String auth_deleteAccountConfirm(Object name) {
-    return '「$name」を削除してもよろしいですか?これを元に戻すことはできません。';
+  String get auth_removeSavedAccount => 'アカウントを削除';
+
+  @override
+  String get auth_removeSavedAccountAction => '削除';
+
+  @override
+  String auth_removeSavedAccountConfirm(Object name) {
+    return '「$name」の保存済みログイン情報とアバターをこの端末から削除します。NovelAI アカウント自体には影響せず、あとで再ログインできます。';
   }
+
+  @override
+  String get auth_removeSessionAccountNotice =>
+      '現在このアカウントでログイン中です。削除の前にログアウトします。';
+
+  @override
+  String auth_removeSavedAccountSuccess(Object name) {
+    return '「$name」を削除しました';
+  }
+
+  @override
+  String get auth_removeSavedAccountFailed => 'アカウントを削除できませんでした。もう一度お試しください。';
 
   @override
   String get auth_removeAvatar => 'アバターを削除';

@@ -482,12 +482,29 @@ class AppLocalizationsZh extends AppLocalizations {
   String get auth_selectAccount => '选择账号';
 
   @override
-  String get auth_deleteAccount => '删除账号';
+  String get auth_manageAccounts => '管理账号';
 
   @override
-  String auth_deleteAccountConfirm(Object name) {
-    return '确定要删除账号 \"$name\" 吗？此操作不可撤销。';
+  String get auth_removeSavedAccount => '移除账号';
+
+  @override
+  String get auth_removeSavedAccountAction => '移除';
+
+  @override
+  String auth_removeSavedAccountConfirm(Object name) {
+    return '将从本机移除「$name」保存的登录凭据和头像。NovelAI 账号本身不受影响，之后可以重新登录。';
   }
+
+  @override
+  String get auth_removeSessionAccountNotice => '你当前正在使用此账号，确认后会先退出登录。';
+
+  @override
+  String auth_removeSavedAccountSuccess(Object name) {
+    return '已移除「$name」';
+  }
+
+  @override
+  String get auth_removeSavedAccountFailed => '移除账号失败，请稍后重试';
 
   @override
   String get auth_removeAvatar => '移除头像';
@@ -15523,12 +15540,29 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get auth_selectAccount => '選擇賬號';
 
   @override
-  String get auth_deleteAccount => '刪除賬號';
+  String get auth_manageAccounts => '管理賬號';
 
   @override
-  String auth_deleteAccountConfirm(Object name) {
-    return '確定要刪除賬號 \"$name\" 嗎？此操作不可撤銷。';
+  String get auth_removeSavedAccount => '移除賬號';
+
+  @override
+  String get auth_removeSavedAccountAction => '移除';
+
+  @override
+  String auth_removeSavedAccountConfirm(Object name) {
+    return '將從本機移除「$name」儲存的登入憑據和頭像。NovelAI 賬號本身不受影響，之後可以重新登入。';
   }
+
+  @override
+  String get auth_removeSessionAccountNotice => '你目前正在使用此賬號，確認後會先退出登入。';
+
+  @override
+  String auth_removeSavedAccountSuccess(Object name) {
+    return '已移除「$name」';
+  }
+
+  @override
+  String get auth_removeSavedAccountFailed => '移除賬號失敗，請稍後重試';
 
   @override
   String get auth_removeAvatar => '移除頭像';

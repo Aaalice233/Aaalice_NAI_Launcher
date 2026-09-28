@@ -4,6 +4,7 @@ import 'package:hive/hive.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../../core/network/nai_api_endpoint.dart';
+import '../../core/services/avatar_service.dart';
 import '../../core/storage/secure_storage_service.dart';
 import '../models/auth/saved_account.dart';
 
@@ -44,6 +45,8 @@ class AccountManagerNotifier extends _$AccountManagerNotifier {
   static const String _boxName = 'accounts';
   static const String _accountsKey = 'saved_accounts';
   static const String _accountApiEndpointsKey = 'account_api_endpoints';
+
+  final _avatarService = AvatarService();
 
   Box? _box;
   late Future<void> _initialLoad;
@@ -241,7 +244,8 @@ class AccountManagerNotifier extends _$AccountManagerNotifier {
 
   /// 删除账号
   Future<void> removeAccount(String accountId) async {
-    // 删除 Token
+    final removed = state.accounts.where((a) => a.id == accountId).firstOrNull;
+    // 先清凭据：中途失败最多留下无 token 的列表项，不会留下不可见的凭据
     await _deleteAccountToken(accountId);
     // 删除 accessKey（用于 token 刷新）
     await _secureStorage.deleteAccountAccessKey(accountId);
@@ -266,6 +270,10 @@ class AccountManagerNotifier extends _$AccountManagerNotifier {
       accounts: newAccounts,
       accountApiEndpoints: endpoints,
     );
+
+    if (removed != null) {
+      await _avatarService.removeAvatar(removed);
+    }
   }
 
   /// 更新账号信息
@@ -309,6 +317,8 @@ class AccountManagerNotifier extends _$AccountManagerNotifier {
 
   /// 更新账号的 Token（用于 token 刷新后更新）
   Future<void> updateAccountToken(String accountId, String newToken) async {
+    // 刷新请求可能在账号移除后才返回，不能把凭据写回已移除的账号
+    if (!state.accounts.any((a) => a.id == accountId)) return;
     await _saveAccountToken(accountId, newToken);
   }
 

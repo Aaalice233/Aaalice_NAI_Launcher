@@ -9,7 +9,9 @@ import '../../adaptive/interaction_policy.dart';
 import '../../adaptive/content_sized_adaptive_form.dart';
 import '../../../data/services/account_manager_provider.dart';
 import '../../../data/services/auth_provider.dart';
+import '../../../data/services/saved_account_removal_service.dart';
 import '../auth/account_avatar.dart';
+import '../auth/saved_account_removal_flow.dart';
 import '../common/app_toast.dart';
 import '../common/themed_divider.dart';
 import 'nickname_edit_dialog.dart';
@@ -254,6 +256,30 @@ class _AccountProfileBottomSheetState
     await authNotifier.logout();
   }
 
+  Future<void> _removeAccount(SavedAccount account) async {
+    if (_isOperationInProgress) return;
+
+    final closesSheet =
+        account.id == currentAccount.id ||
+        ref
+            .read(savedAccountRemovalServiceProvider)
+            .isSessionAccount(account.id);
+    final navigator = Navigator.of(context);
+    await confirmAndRemoveSavedAccount(
+      context: context,
+      ref: ref,
+      account: account,
+      beforeRemove: () async {
+        _setOperationInProgress(true);
+        if (!closesSheet) return;
+        navigator.pop();
+        // 等面板销毁完再退出登录，否则路由的登录态监听会在卸载途中触发
+        await WidgetsBinding.instance.endOfFrame;
+      },
+    );
+    _setOperationInProgress(false);
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -306,8 +332,10 @@ class _AccountProfileBottomSheetState
         // 设为默认（多账号时显示）
         if (hasMultipleAccounts) ...[
           _buildSetAsDefaultRow(context, isDefaultAccount),
-          const SizedBox(height: 16),
+          const SizedBox(height: 8),
         ],
+        _buildRemoveAccountRow(context),
+        const SizedBox(height: 16),
         // 多账号列表
         if (hasMultipleAccounts) ...[
           _buildAccountsList(
@@ -679,6 +707,40 @@ class _AccountProfileBottomSheetState
     );
   }
 
+  Widget _buildRemoveAccountRow(BuildContext context) {
+    final theme = Theme.of(context);
+    final color = theme.colorScheme.error;
+
+    return Semantics(
+      button: true,
+      child: InkWell(
+        key: const Key('account-profile-remove-button'),
+        onTap: _isOperationInProgress
+            ? null
+            : () => _removeAccount(currentAccount),
+        borderRadius: BorderRadius.circular(8),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: 48),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 4),
+            child: Row(
+              children: [
+                Icon(Icons.person_remove_outlined, size: 20, color: color),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    context.l10n.auth_removeSavedAccount,
+                    style: theme.textTheme.bodyMedium?.copyWith(color: color),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   /// 构建多账号列表
   Widget _buildAccountsList(
     BuildContext context,
@@ -822,6 +884,21 @@ class _AccountProfileBottomSheetState
                   color: theme.colorScheme.outline,
                   size: 20,
                 ),
+              const SizedBox(width: 4),
+              IconButton(
+                key: ValueKey('account-profile-remove-${account.id}'),
+                tooltip: context.l10n.auth_removeSavedAccount,
+                onPressed: _isOperationInProgress
+                    ? null
+                    : () => _removeAccount(account),
+                icon: const Icon(Icons.person_remove_outlined, size: 20),
+                color: theme.colorScheme.onSurfaceVariant,
+                style: IconButton.styleFrom(
+                  minimumSize: Size.square(
+                    context.interactionPolicy.minimumControlExtent,
+                  ),
+                ),
+              ),
             ],
           ),
         ),

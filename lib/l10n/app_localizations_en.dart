@@ -505,12 +505,31 @@ class AppLocalizationsEn extends AppLocalizations {
   String get auth_selectAccount => 'Select Account';
 
   @override
-  String get auth_deleteAccount => 'Delete Account';
+  String get auth_manageAccounts => 'Manage Accounts';
 
   @override
-  String auth_deleteAccountConfirm(Object name) {
-    return 'Are you sure you want to delete \"$name\"? This cannot be undone.';
+  String get auth_removeSavedAccount => 'Remove Account';
+
+  @override
+  String get auth_removeSavedAccountAction => 'Remove';
+
+  @override
+  String auth_removeSavedAccountConfirm(Object name) {
+    return 'The saved login credentials and avatar for \"$name\" will be removed from this device. Your NovelAI account is not affected, and you can log in again later.';
   }
+
+  @override
+  String get auth_removeSessionAccountNotice =>
+      'You are currently logged in with this account. You will be logged out first.';
+
+  @override
+  String auth_removeSavedAccountSuccess(Object name) {
+    return 'Removed \"$name\"';
+  }
+
+  @override
+  String get auth_removeSavedAccountFailed =>
+      'Couldn\'t remove the account. Please try again.';
 
   @override
   String get auth_removeAvatar => 'Remove Avatar';

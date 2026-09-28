@@ -1013,17 +1013,47 @@ abstract class AppLocalizations {
   /// **'Select Account'**
   String get auth_selectAccount;
 
-  /// No description provided for @auth_deleteAccount.
+  /// No description provided for @auth_manageAccounts.
   ///
   /// In en, this message translates to:
-  /// **'Delete Account'**
-  String get auth_deleteAccount;
+  /// **'Manage Accounts'**
+  String get auth_manageAccounts;
 
-  /// No description provided for @auth_deleteAccountConfirm.
+  /// No description provided for @auth_removeSavedAccount.
   ///
   /// In en, this message translates to:
-  /// **'Are you sure you want to delete \"{name}\"? This cannot be undone.'**
-  String auth_deleteAccountConfirm(Object name);
+  /// **'Remove Account'**
+  String get auth_removeSavedAccount;
+
+  /// No description provided for @auth_removeSavedAccountAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove'**
+  String get auth_removeSavedAccountAction;
+
+  /// No description provided for @auth_removeSavedAccountConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'The saved login credentials and avatar for \"{name}\" will be removed from this device. Your NovelAI account is not affected, and you can log in again later.'**
+  String auth_removeSavedAccountConfirm(Object name);
+
+  /// No description provided for @auth_removeSessionAccountNotice.
+  ///
+  /// In en, this message translates to:
+  /// **'You are currently logged in with this account. You will be logged out first.'**
+  String get auth_removeSessionAccountNotice;
+
+  /// No description provided for @auth_removeSavedAccountSuccess.
+  ///
+  /// In en, this message translates to:
+  /// **'Removed \"{name}\"'**
+  String auth_removeSavedAccountSuccess(Object name);
+
+  /// No description provided for @auth_removeSavedAccountFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t remove the account. Please try again.'**
+  String get auth_removeSavedAccountFailed;
 
   /// No description provided for @auth_removeAvatar.
   ///
