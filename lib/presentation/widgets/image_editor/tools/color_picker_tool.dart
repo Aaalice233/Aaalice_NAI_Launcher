@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 
 import '../../../../core/utils/localization_extension.dart';
 import '../core/editor_state.dart';
+import '../layers/layer_role.dart';
 import 'tool_base.dart';
 import 'tool_setting_rows.dart';
 import '../../../widgets/common/horizontal_segmented_control.dart';
@@ -158,7 +159,10 @@ class ColorPickerTool extends EditorTool {
 
   /// 蒙版层只用固定的蒙版色，取色对它没有意义
   @override
-  bool isAvailableIn(EditorState state) => !state.isMaskLayerActive;
+  bool supportsRole(LayerRole role) => role == LayerRole.image;
+
+  @override
+  bool get followsLayerRole => true;
 
   @override
   String get name => 'Color Picker';

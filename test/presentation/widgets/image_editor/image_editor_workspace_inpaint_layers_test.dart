@@ -46,7 +46,8 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(workspace.debugCurrentToolId, 'brush');
-    expect(blurButton, findsNothing);
+    // 模糊仍留在编辑组，再点它会切回图片层
+    expect(blurButton, findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 

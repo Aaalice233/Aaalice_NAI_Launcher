@@ -116,6 +116,9 @@ class BrushTool extends EditorTool {
   String get id => 'brush';
 
   @override
+  bool get followsLayerRole => true;
+
+  @override
   String get name => 'Brush';
 
   @override
@@ -323,7 +326,7 @@ class _MaskBrushSettingsPanelState extends State<_MaskBrushSettingsPanel> {
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
           child: Text(
-            context.l10n.editor_maskBrushSettings,
+            context.l10n.editor_toolMaskBrush,
             style: theme.textTheme.titleSmall?.copyWith(
               fontWeight: FontWeight.bold,
             ),

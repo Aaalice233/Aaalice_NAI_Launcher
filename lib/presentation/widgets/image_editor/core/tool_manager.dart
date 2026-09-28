@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../tools/blur_tool.dart';
 import '../tools/brush_tool.dart';
+import '../tools/closed_region_fill_tool.dart';
 import '../tools/clone_stamp_tool.dart';
 import '../tools/color_picker_tool.dart';
 import '../tools/eraser_tool.dart';
@@ -252,6 +253,7 @@ class ToolManager extends ChangeNotifier {
     return [
       BrushTool(),
       EraserTool(),
+      ClosedRegionFillTool(),
       FillTool(),
       MagicWandTool(),
       BlurTool(),

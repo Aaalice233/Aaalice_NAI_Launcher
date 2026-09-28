@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 
 import '../../../../core/utils/localization_extension.dart';
 import '../core/editor_state.dart';
+import '../core/editor_tool_groups.dart';
 import '../core/history_manager.dart';
 import '../core/mask_paint_style.dart';
 import 'tool_base.dart';
@@ -21,6 +22,9 @@ class FillTool extends EditorTool {
 
   @override
   String get id => 'fill';
+
+  @override
+  bool get followsLayerRole => true;
 
   @override
   String get name => 'Fill';
@@ -124,7 +128,7 @@ class FillTool extends EditorTool {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                context.l10n.editor_toolFill,
+                editorToolLabel(context, this, state.activeLayerRole),
                 style: theme.textTheme.titleSmall?.copyWith(
                   fontWeight: FontWeight.bold,
                 ),

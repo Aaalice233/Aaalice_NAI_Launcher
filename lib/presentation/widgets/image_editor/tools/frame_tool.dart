@@ -25,7 +25,7 @@ class FrameTool extends EditorTool {
   LogicalKeyboardKey? get shortcutKey => LogicalKeyboardKey.keyC;
 
   @override
-  bool isAvailableIn(EditorState state) => state.frameCommands != null;
+  bool isEnabledInSession(EditorState state) => state.frameCommands != null;
 
   @override
   void onPointerDown(PointerDownEvent event, EditorState state) {

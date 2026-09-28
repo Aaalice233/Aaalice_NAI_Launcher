@@ -35,6 +35,7 @@ import 'layers/image_layer_source.dart';
 import 'layers/layer.dart';
 import 'layers/layer_role.dart';
 import 'painters/focused_context_overlay_painter.dart';
+import 'tools/closed_region_fill_tool.dart';
 import 'tools/frame_tool.dart';
 import 'tools/tool_base.dart';
 import 'canvas/editor_canvas.dart';
@@ -152,7 +153,6 @@ class ImageEditorWorkspaceState extends State<ImageEditorWorkspace> {
   bool get _isImportingDroppedImage => _controller.isImportingDroppedImage;
   set _isImportingDroppedImage(bool value) =>
       _controller.isImportingDroppedImage = value;
-  bool _isMaskFillMode = false;
   bool _showLayerPanel = true;
   bool _allowRoutePop = false;
   bool _exitDialogVisible = false;
@@ -377,6 +377,9 @@ class ImageEditorWorkspaceState extends State<ImageEditorWorkspace> {
     _state.layerManager.activeLayerNotifier.addListener(
       _handleActiveLayerChanged,
     );
+    if (_isInpaintMode) {
+      _state.setClosedRegionFillHandler(_fillClosedMaskRegionsAt);
+    }
     _state.setMagicWandHandler(
       (point, {required mode, required tolerance, required invert}) =>
           _magicWandController.apply(
@@ -636,6 +639,7 @@ class ImageEditorWorkspaceState extends State<ImageEditorWorkspace> {
       _consumeFocusedSelection,
     );
     _state.setMagicWandHandler(null);
+    _state.setClosedRegionFillHandler(null);
     _state.frameNotifier.removeListener(_handleFrameChanged);
     _state.layerManager.removeListener(_handleLayersChanged);
     _state.layerManager.activeLayerNotifier.removeListener(
@@ -1152,21 +1156,10 @@ class ImageEditorWorkspaceState extends State<ImageEditorWorkspace> {
     return false;
   }
 
-  void _handleFillClosedMaskRegions() {
-    if (!_isInpaintMode) {
-      return;
-    }
+  bool get _isClosedRegionFillActive =>
+      _state.currentTool?.id == ClosedRegionFillTool.toolId;
 
-    setState(() {
-      _isMaskFillMode = !_isMaskFillMode;
-    });
-
-    if (_isMaskFillMode) {
-      AppToast.info(context, context.l10n.editor_clickInsideClosedRegion);
-    }
-  }
-
-  Future<void> _fillClosedMaskRegionsAt(Offset localPosition) async {
+  Future<void> _fillClosedMaskRegionsAt(Offset canvasPoint) async {
     if (!_isInpaintMode || !mounted) {
       return;
     }
@@ -1176,10 +1169,6 @@ class ImageEditorWorkspaceState extends State<ImageEditorWorkspace> {
     try {
       // 蒙版按点击时的取景框导出，填充结果落回同一位置
       final region = _state.frame;
-      final canvasPoint = _state.canvasController.screenToCanvas(
-        localPosition,
-        frame: region,
-      );
       final originalMask = await ImageExporterNew.exportMaskFromLayers(
         _state.layerManager.maskLayers,
         region,
@@ -1235,8 +1224,6 @@ class ImageEditorWorkspaceState extends State<ImageEditorWorkspace> {
 
       _state.requestUiUpdate();
       if (mounted) {
-        _isMaskFillMode = false;
-        setState(() {});
         AppToast.success(context, l10n.editor_closedRegionFilled);
       }
     } catch (e) {
@@ -1386,7 +1373,6 @@ class ImageEditorWorkspaceState extends State<ImageEditorWorkspace> {
     _state.clearSelection(saveHistory: false);
     _state.clearPreview();
     _focusedSelectionState.clear();
-    _isMaskFillMode = false;
     _addEmptyMaskLayerAboveSource(name: context.l10n.editor_maskLayerName);
     _state.setToolById(_focusedInpaintEnabled ? 'rect_selection' : 'brush');
     _refreshCompressionPlan();
@@ -1627,23 +1613,27 @@ class ImageEditorWorkspaceState extends State<ImageEditorWorkspace> {
               ),
             ),
           ),
-        if (_isInpaintMode && !_focusedInpaintEnabled && !_isMaskFillMode)
+        if (_isInpaintMode && !_focusedInpaintEnabled)
           Positioned.fill(
             child: ListenableBuilder(
               listenable: Listenable.merge([
                 _frameController,
                 _state.framePreviewNotifier,
+                _state.toolChangeNotifier,
               ]),
-              builder: (context, _) => OutpaintEdgeDragOverlay(
-                frame: _state.displayFrame,
-                controller: _state.canvasController,
-                enabled:
-                    !_frameController.isCommitting &&
-                    _state.framePreviewNotifier.value == null,
-                onCommitted: _applyOutpaintEdges,
-                onFrameResizeCommitted: _applyOutpaintFrameDelta,
-                isFrameAllowed: _frameController.isFrameAllowed,
-              ),
+              // 封闭区域填充要点到取景框边缘附近，边缘拖动此时让出指针
+              builder: (context, _) => _isClosedRegionFillActive
+                  ? const SizedBox.shrink()
+                  : OutpaintEdgeDragOverlay(
+                      frame: _state.displayFrame,
+                      controller: _state.canvasController,
+                      enabled:
+                          !_frameController.isCommitting &&
+                          _state.framePreviewNotifier.value == null,
+                      onCommitted: _applyOutpaintEdges,
+                      onFrameResizeCommitted: _applyOutpaintFrameDelta,
+                      isFrameAllowed: _frameController.isFrameAllowed,
+                    ),
             ),
           ),
         if (_isInpaintMode && focusAreaRect != null && contextCrop != null)
@@ -1664,19 +1654,6 @@ class ImageEditorWorkspaceState extends State<ImageEditorWorkspace> {
               ),
             ),
           ),
-        if (_isInpaintMode && _isMaskFillMode)
-          Positioned.fill(
-            child: MouseRegion(
-              cursor: SystemMouseCursors.click,
-              child: Listener(
-                behavior: HitTestBehavior.opaque,
-                onPointerDown: (event) {
-                  unawaited(_fillClosedMaskRegionsAt(event.localPosition));
-                },
-                child: const SizedBox.expand(),
-              ),
-            ),
-          ),
         if (_isInpaintMode)
           Positioned(top: 16, left: 16, child: _buildFocusedSelectionCard()),
         Positioned.fill(
@@ -1689,7 +1666,7 @@ class ImageEditorWorkspaceState extends State<ImageEditorWorkspace> {
   bool _shouldSuppressCanvasPointerInput(Offset localPosition) {
     if (!_isInpaintMode ||
         _focusedInpaintEnabled ||
-        _isMaskFillMode ||
+        _isClosedRegionFillActive ||
         _frameController.isCommitting) {
       return false;
     }
@@ -2664,10 +2641,6 @@ class ImageEditorWorkspaceState extends State<ImageEditorWorkspace> {
                   DesktopToolbar(
                     state: _state,
                     onClear: _isInpaintMode ? _resetInpaintMask : null,
-                    onFillMask: _isInpaintMode
-                        ? _handleFillClosedMaskRegions
-                        : null,
-                    canFillMask: _isInpaintMode ? _hasMaskContent : null,
                   ),
 
                   // 中间画布区域
@@ -2782,10 +2755,6 @@ class ImageEditorWorkspaceState extends State<ImageEditorWorkspace> {
               MobileToolbar(
                 state: _state,
                 onClear: _isInpaintMode ? _resetInpaintMask : null,
-                onFillMask: _isInpaintMode
-                    ? _handleFillClosedMaskRegions
-                    : null,
-                canFillMask: _isInpaintMode ? _hasMaskContent : null,
                 onLayersPressed: _showMobileLayerSheet,
               ),
             ],

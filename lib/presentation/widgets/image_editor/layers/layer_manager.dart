@@ -44,6 +44,9 @@ class LayerManager extends ChangeNotifier {
   /// 批量操作期间是否有内容变化（笔画添加）
   bool _pendingContentChange = false;
 
+  /// 各角色最近激活的图层，工具入口切换角色时回到用户刚才在用的那一层
+  final Map<LayerRole, String> _lastActiveIdByRole = {};
+
   bool _pendingActiveLayerNotification = false;
   String? _pendingActiveLayerId;
   final Map<String, bool> _pendingLayerActiveValues = {};
@@ -70,9 +73,32 @@ class LayerManager extends ChangeNotifier {
 
     _activeLayerId = layerId;
     _setActiveLayerNotifierValue(layerId);
+    _rememberActiveRole(layerId);
 
     // 新活动图层：通知变为活动
     _setLayerActiveNotifierValue(layerId, true);
+  }
+
+  void _rememberActiveRole(String? layerId) {
+    final layer = layerId == null ? null : getLayerById(layerId);
+    if (layer != null) _lastActiveIdByRole[layer.role] = layer.id;
+  }
+
+  /// 切到 [role] 时落到的图层：最近激活过且未锁定的同角色图层，其次最上方未锁定的
+  Layer? preferredLayerFor(LayerRole role) {
+    final rememberedId = _lastActiveIdByRole[role];
+    final remembered = rememberedId == null ? null : getLayerById(rememberedId);
+    if (remembered != null && remembered.role == role && !remembered.locked) {
+      return remembered;
+    }
+
+    Layer? firstOfRole;
+    for (final layer in _layers) {
+      if (layer.role != role) continue;
+      if (!layer.locked) return layer;
+      firstOfRole ??= layer;
+    }
+    return firstOfRole;
   }
 
   /// 仅通知UI更新（不触发画布重绘）
@@ -337,6 +363,7 @@ class LayerManager extends ChangeNotifier {
     if (newLayer != null) {
       _activeLayerId = layerId;
       // 保持兼容：更新全局通知器（其他需要监听活动图层的组件）
+      _rememberActiveRole(layerId);
       _setLayerActiveNotifierValue(layerId, true);
       _setActiveLayerNotifierValue(layerId);
     }
@@ -451,6 +478,7 @@ class LayerManager extends ChangeNotifier {
       layer.dispose();
     }
     _layers.clear();
+    _lastActiveIdByRole.clear();
     _setActiveLayerIdInternal(null);
     _markStructureChanged();
   }
