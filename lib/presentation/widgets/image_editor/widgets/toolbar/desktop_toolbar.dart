@@ -3,9 +3,11 @@ import 'package:flutter/material.dart';
 import '../../../../../core/utils/localization_extension.dart';
 import '../../../../adaptive/interaction_policy.dart';
 import '../../core/editor_state.dart';
+import '../../core/editor_tool_groups.dart';
 import '../../core/editor_view_action.dart';
 import '../../tools/tool_base.dart';
 import '../../../../widgets/common/themed_divider.dart';
+import 'editor_tool_group_section.dart';
 import 'editor_toolbar_tools.dart';
 import 'editor_view_menu.dart';
 
@@ -15,8 +17,6 @@ class DesktopToolbar extends StatelessWidget {
   final VoidCallback? onUndo;
   final VoidCallback? onRedo;
   final VoidCallback? onClear;
-  final VoidCallback? onFillMask;
-  final bool Function()? canFillMask;
 
   const DesktopToolbar({
     super.key,
@@ -24,8 +24,6 @@ class DesktopToolbar extends StatelessWidget {
     this.onUndo,
     this.onRedo,
     this.onClear,
-    this.onFillMask,
-    this.canFillMask,
   });
 
   @override
@@ -79,24 +77,11 @@ class DesktopToolbar extends StatelessWidget {
   ) {
     return Column(
       children: [
-        // 工具按钮 - 监听工具切换与当前图层
+        // 工具分组 - 监听工具切换与当前图层
         ListenableBuilder(
           listenable: editorToolAvailability(state),
-          builder: (context, _) {
-            final currentToolId = state.toolNotifier.value;
-            return Column(
-              children: visibleEditorTools(state)
-                  .map(
-                    (tool) => _ToolButton(
-                      tool: tool,
-                      isSelected: tool.id == currentToolId,
-                      minimumExtent: minimumControlExtent,
-                      onTap: () => state.setTool(tool),
-                    ),
-                  )
-                  .toList(),
-            );
-          },
+          builder: (context, _) =>
+              _ToolSections(state: state, minimumExtent: minimumControlExtent),
         ),
         const ThemedDivider(height: 16),
         // 撤销/重做/清空 - 监听历史、图层内容与当前图层
@@ -130,18 +115,50 @@ class DesktopToolbar extends StatelessWidget {
                   enabled: canClearFromToolbar(state),
                   onTap: onClear ?? () => state.clearActiveLayerWithHistory(),
                 ),
-                if (onFillMask != null)
-                  _ActionButton(
-                    minimumExtent: minimumControlExtent,
-                    icon: Icons.format_color_fill,
-                    tooltip: context.l10n.editor_fillClosedRegion,
-                    enabled: canFillMask?.call() ?? false,
-                    onTap: onFillMask!,
-                  ),
               ],
             );
           },
         ),
+      ],
+    );
+  }
+}
+
+class _ToolSections extends StatelessWidget {
+  const _ToolSections({required this.state, required this.minimumExtent});
+
+  final EditorState state;
+  final double minimumExtent;
+
+  static const double _sectionGap = 8;
+
+  @override
+  Widget build(BuildContext context) {
+    final showTitles = showsEditorToolGroupTitles(state);
+    final sections = editorToolSections(state);
+    return Column(
+      children: [
+        for (final (index, section) in sections.indexed) ...[
+          if (index > 0) const SizedBox(height: _sectionGap),
+          EditorToolGroupSection(
+            key: ValueKey('editor-tool-group-${section.group.name}'),
+            axis: Axis.vertical,
+            title: showTitles
+                ? editorToolGroupLabel(context, section.group)
+                : null,
+            children: [
+              for (final entry in section.entries)
+                _ToolButton(
+                  key: ValueKey('editor-tool-${entry.key}'),
+                  tool: entry.tool,
+                  label: editorToolLabel(context, entry.tool, entry.targetRole),
+                  isSelected: isEditorToolEntrySelected(state, entry),
+                  minimumExtent: minimumExtent,
+                  onTap: () => activateEditorToolEntry(state, entry),
+                ),
+            ],
+          ),
+        ],
       ],
     );
   }
@@ -256,12 +273,15 @@ class _ZoomMenuButton extends StatelessWidget {
 /// 工具按钮
 class _ToolButton extends StatelessWidget {
   final EditorTool tool;
+  final String label;
   final bool isSelected;
   final VoidCallback onTap;
   final double minimumExtent;
 
   const _ToolButton({
+    super.key,
     required this.tool,
+    required this.label,
     required this.isSelected,
     required this.minimumExtent,
     required this.onTap,
@@ -275,24 +295,28 @@ class _ToolButton extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: 2),
       child: Tooltip(
         message: _buildTooltipMessage(context),
-        child: Material(
-          color: isSelected
-              ? theme.colorScheme.primaryContainer
-              : Colors.transparent,
-          borderRadius: BorderRadius.circular(8),
-          child: InkWell(
-            onTap: onTap,
+        child: Semantics(
+          button: true,
+          selected: isSelected,
+          child: Material(
+            color: isSelected
+                ? theme.colorScheme.primaryContainer
+                : Colors.transparent,
             borderRadius: BorderRadius.circular(8),
-            child: Container(
-              width: minimumExtent,
-              height: minimumExtent,
-              alignment: Alignment.center,
-              child: Icon(
-                tool.icon,
-                size: 20,
-                color: isSelected
-                    ? theme.colorScheme.onPrimaryContainer
-                    : theme.colorScheme.onSurface,
+            child: InkWell(
+              onTap: onTap,
+              borderRadius: BorderRadius.circular(8),
+              child: Container(
+                width: minimumExtent,
+                height: minimumExtent,
+                alignment: Alignment.center,
+                child: Icon(
+                  tool.icon,
+                  size: 20,
+                  color: isSelected
+                      ? theme.colorScheme.onPrimaryContainer
+                      : theme.colorScheme.onSurface,
+                ),
               ),
             ),
           ),
@@ -312,7 +336,7 @@ class _ToolButton extends StatelessWidget {
     final shortcut = tool.shortcutKey != null
         ? ' (${_getShortcutLabel(tool)})'
         : '';
-    final base = '${localizedEditorToolName(context, tool)}$shortcut';
+    final base = '$label$shortcut';
 
     if (tool.id == 'color_picker') {
       return '$base\n${context.l10n.editor_tempColorPickerShortcut}';

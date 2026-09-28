@@ -13054,6 +13054,27 @@ class AppLocalizationsEn extends AppLocalizations {
   String get editor_toolMove => 'Move';
 
   @override
+  String get editor_toolGroupInpaint => 'Inpaint';
+
+  @override
+  String get editor_toolGroupEdit => 'Edit';
+
+  @override
+  String get editor_toolGroupCommon => 'General';
+
+  @override
+  String get editor_toolMaskBrush => 'Mask Brush';
+
+  @override
+  String get editor_toolMaskEraser => 'Mask Eraser';
+
+  @override
+  String get editor_toolMaskColorFill => 'Fill Mask by Color';
+
+  @override
+  String get editor_toolMaskMagicWand => 'Mask Magic Wand';
+
+  @override
   String get editor_moveLayerHint => 'Drag to move the whole current layer.';
 
   @override
@@ -13076,9 +13097,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get editor_shortcutNudgeFar => 'Move 10 pixels';
-
-  @override
-  String get editor_maskBrushSettings => 'Mask Brush';
 
   @override
   String get selection_clearPixels => 'Delete Selected Pixels';

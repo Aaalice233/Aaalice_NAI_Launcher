@@ -2,6 +2,7 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../tools/closed_region_fill_tool.dart';
 import 'editor_state.dart';
 import 'editor_view_action.dart';
 
@@ -681,6 +682,8 @@ class InputHandler {
       case 'frame':
       case 'move':
         return SystemMouseCursors.move;
+      case ClosedRegionFillTool.toolId:
+        return SystemMouseCursors.click;
       default:
         return SystemMouseCursors.basic;
     }

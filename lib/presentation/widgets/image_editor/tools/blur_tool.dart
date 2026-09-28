@@ -6,6 +6,7 @@ import '../../../../core/utils/localization_extension.dart';
 import '../core/editor_state.dart';
 import '../core/history_manager.dart';
 import '../layers/layer_patch_baker.dart';
+import '../layers/layer_role.dart';
 import 'tool_base.dart';
 import 'tool_setting_rows.dart';
 
@@ -41,7 +42,10 @@ class BlurTool extends EditorTool {
 
   /// 模糊只处理画面像素，蒙版层上没有意义
   @override
-  bool isAvailableIn(EditorState state) => !state.isMaskLayerActive;
+  bool supportsRole(LayerRole role) => role == LayerRole.image;
+
+  @override
+  bool get followsLayerRole => true;
 
   @override
   void onPointerDown(PointerDownEvent event, EditorState state) {

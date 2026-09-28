@@ -22698,6 +22698,48 @@ abstract class AppLocalizations {
   /// **'Move'**
   String get editor_toolMove;
 
+  /// No description provided for @editor_toolGroupInpaint.
+  ///
+  /// In en, this message translates to:
+  /// **'Inpaint'**
+  String get editor_toolGroupInpaint;
+
+  /// No description provided for @editor_toolGroupEdit.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit'**
+  String get editor_toolGroupEdit;
+
+  /// No description provided for @editor_toolGroupCommon.
+  ///
+  /// In en, this message translates to:
+  /// **'General'**
+  String get editor_toolGroupCommon;
+
+  /// No description provided for @editor_toolMaskBrush.
+  ///
+  /// In en, this message translates to:
+  /// **'Mask Brush'**
+  String get editor_toolMaskBrush;
+
+  /// No description provided for @editor_toolMaskEraser.
+  ///
+  /// In en, this message translates to:
+  /// **'Mask Eraser'**
+  String get editor_toolMaskEraser;
+
+  /// No description provided for @editor_toolMaskColorFill.
+  ///
+  /// In en, this message translates to:
+  /// **'Fill Mask by Color'**
+  String get editor_toolMaskColorFill;
+
+  /// No description provided for @editor_toolMaskMagicWand.
+  ///
+  /// In en, this message translates to:
+  /// **'Mask Magic Wand'**
+  String get editor_toolMaskMagicWand;
+
   /// No description provided for @editor_moveLayerHint.
   ///
   /// In en, this message translates to:
@@ -22739,12 +22781,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Move 10 pixels'**
   String get editor_shortcutNudgeFar;
-
-  /// No description provided for @editor_maskBrushSettings.
-  ///
-  /// In en, this message translates to:
-  /// **'Mask Brush'**
-  String get editor_maskBrushSettings;
 
   /// No description provided for @selection_clearPixels.
   ///

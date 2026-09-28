@@ -22,6 +22,9 @@ class EraserTool extends EditorTool {
   String get id => 'eraser';
 
   @override
+  bool get followsLayerRole => true;
+
+  @override
   String get name => 'Eraser';
 
   @override

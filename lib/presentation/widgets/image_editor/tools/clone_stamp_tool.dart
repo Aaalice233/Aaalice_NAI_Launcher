@@ -8,6 +8,7 @@ import '../../common/compact_icon_button.dart';
 import '../core/editor_state.dart';
 import '../core/history_manager.dart';
 import '../layers/layer_patch_baker.dart';
+import '../layers/layer_role.dart';
 import 'tool_base.dart';
 import 'tool_setting_rows.dart';
 
@@ -69,7 +70,10 @@ class CloneStampTool extends EditorTool {
 
   /// 仿制的是画面像素，蒙版层上没有意义
   @override
-  bool isAvailableIn(EditorState state) => !state.isMaskLayerActive;
+  bool supportsRole(LayerRole role) => role == LayerRole.image;
+
+  @override
+  bool get followsLayerRole => true;
 
   @override
   String get name => 'Clone Stamp';

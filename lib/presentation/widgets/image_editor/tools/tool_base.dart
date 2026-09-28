@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../core/editor_state.dart';
+import '../layers/layer_role.dart';
 
 /// 工具基类
 /// 所有编辑器工具的抽象基类
@@ -30,8 +31,18 @@ abstract class EditorTool {
   /// 工具是否自行处理 Alt 键（跳过临时拾色器切换）
   bool get handlesAltKey => false;
 
-  /// 当前编辑会话能否使用此工具；不可用时不出现在工具栏，也不响应快捷键
-  bool isAvailableIn(EditorState state) => true;
+  /// 当前编辑会话能否使用此工具，与当前图层无关
+  bool isEnabledInSession(EditorState state) => true;
+
+  /// 能否作用于该角色的图层
+  bool supportsRole(LayerRole role) => true;
+
+  /// 行为随图层角色改变：重绘会话里蒙版与图片各有一个入口，点入口会切到对应图层
+  bool get followsLayerRole => false;
+
+  /// 会话与当前图层都允许时才可用；不可用时不响应快捷键
+  bool isAvailableIn(EditorState state) =>
+      isEnabledInSession(state) && supportsRole(state.activeLayerRole);
 
   /// 指针按下
   void onPointerDown(PointerDownEvent event, EditorState state);

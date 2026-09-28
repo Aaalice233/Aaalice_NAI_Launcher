@@ -12718,6 +12718,27 @@ class AppLocalizationsJa extends AppLocalizations {
   String get editor_toolMove => '移動';
 
   @override
+  String get editor_toolGroupInpaint => 'インペイント';
+
+  @override
+  String get editor_toolGroupEdit => '編集';
+
+  @override
+  String get editor_toolGroupCommon => '共通';
+
+  @override
+  String get editor_toolMaskBrush => 'マスクブラシ';
+
+  @override
+  String get editor_toolMaskEraser => 'マスク消しゴム';
+
+  @override
+  String get editor_toolMaskColorFill => '色でマスクを塗りつぶし';
+
+  @override
+  String get editor_toolMaskMagicWand => 'マスクマジックワンド';
+
+  @override
   String get editor_moveLayerHint => 'ドラッグして現在のレイヤー全体を移動します。';
 
   @override
@@ -12738,9 +12759,6 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get editor_shortcutNudgeFar => '10 ピクセル移動';
-
-  @override
-  String get editor_maskBrushSettings => 'マスクブラシ';
 
   @override
   String get selection_clearPixels => '選択範囲の内容を削除';

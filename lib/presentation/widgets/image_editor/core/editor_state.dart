@@ -7,6 +7,7 @@ import 'package:flutter/services.dart';
 import '../frame/editor_frame_commands.dart';
 import '../layers/layer.dart';
 import '../layers/layer_manager.dart';
+import '../layers/layer_role.dart';
 import '../tools/tool_base.dart';
 import '../tools/brush_tool.dart';
 import '../tools/eraser_tool.dart';
@@ -31,6 +32,8 @@ typedef MagicWandHandler =
       required int tolerance,
       required bool invert,
     });
+
+typedef ClosedRegionFillHandler = Future<void> Function(Offset canvasPoint);
 
 /// 编辑器全局状态（协调器）
 /// 协调各 Manager 之间的交互，提供统一的 API 给 UI 层
@@ -120,6 +123,7 @@ class EditorState extends ChangeNotifier {
 
   Rect Function(Rect candidate, Offset fixedAnchor)? _rectSelectionConstraint;
   MagicWandHandler? _magicWandHandler;
+  ClosedRegionFillHandler? _closedRegionFillHandler;
 
   // ===== 内部状态 =====
 
@@ -181,6 +185,16 @@ class EditorState extends ChangeNotifier {
     _frameCommands = commands;
   }
 
+  void setClosedRegionFillHandler(ClosedRegionFillHandler? handler) {
+    _closedRegionFillHandler = handler;
+  }
+
+  bool get canFillClosedRegions => _closedRegionFillHandler != null;
+
+  Future<void> fillClosedRegionAt(Offset canvasPoint) async {
+    await _closedRegionFillHandler?.call(canvasPoint);
+  }
+
   void setRolePolicy(LayerRolePolicy policy) {
     _rolePolicy = policy;
     _safeNotifyListeners();
@@ -188,6 +202,9 @@ class EditorState extends ChangeNotifier {
 
   /// 当前画在蒙版上：笔刷、填充改用蒙版外观，只保留蒙版可用的工具
   bool get isMaskLayerActive => layerManager.activeLayer?.isMask ?? false;
+
+  LayerRole get activeLayerRole =>
+      layerManager.activeLayer?.role ?? LayerRole.image;
 
   /// 笔刷与填充实际使用的颜色
   Color get paintColor =>
@@ -740,6 +757,7 @@ class EditorState extends ChangeNotifier {
     pixelReadbacks.close();
     _pendingStrokePreviewChange = false;
     _magicWandHandler = null;
+    _closedRegionFillHandler = null;
     _frameCommands = null;
 
     // 移除监听器

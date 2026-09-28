@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 
 import '../../../../core/utils/localization_extension.dart';
 import '../core/editor_state.dart';
+import '../core/editor_tool_groups.dart';
 import 'tool_base.dart';
 import 'tool_setting_rows.dart';
 import '../../../widgets/common/horizontal_segmented_control.dart';
@@ -34,6 +35,9 @@ class MagicWandTool extends EditorTool {
 
   @override
   String get id => 'magic_wand';
+
+  @override
+  bool get followsLayerRole => true;
 
   @override
   String get name => 'Magic Wand';
@@ -82,7 +86,7 @@ class MagicWandTool extends EditorTool {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                context.l10n.editor_toolMagicWand,
+                editorToolLabel(context, this, state.activeLayerRole),
                 style: theme.textTheme.titleSmall?.copyWith(
                   fontWeight: FontWeight.bold,
                 ),
