@@ -12,6 +12,7 @@ import '../../../providers/character_position_canvas_provider.dart';
 import '../../../providers/character_prompt_provider.dart';
 import '../../../providers/fixed_tags_provider.dart';
 import '../../../providers/tag_library_page_provider.dart';
+import '../../../themes/core/layered_surface_style.dart';
 import '../../../widgets/character/add_character_buttons.dart';
 import '../../../widgets/character/mobile_character_manager_sheet.dart';
 import '../../../widgets/common/themed_button.dart';
@@ -206,20 +207,46 @@ class _FixedTagsQuickListState extends ConsumerState<_FixedTagsQuickList> {
     List<_FixedTagSection> sections,
     String promptTypeKey,
   ) sync* {
+    final colorScheme = Theme.of(context).colorScheme;
+    // 抽屉本身是 section 色面，分类卡片再高一级，分类之间靠色面和间距分开，
+    // 卡片内条目之间用细分隔线分开。
+    final cardColor = controlSurfaceColor(colorScheme);
     for (final section in sections) {
       final sectionKey = '$promptTypeKey:${section.id}';
       final collapsed = _collapsedSectionKeys.contains(sectionKey);
-      yield _SectionHeader(
-        key: ValueKey('generation-quick-tools-section-$sectionKey'),
-        section: section,
-        collapsed: collapsed,
-        onTap: () => _toggleSection(sectionKey),
+      yield Padding(
+        padding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
+        child: Material(
+          color: cardColor,
+          borderRadius: BorderRadius.circular(10),
+          clipBehavior: Clip.antiAlias,
+          child: Column(
+            children: [
+              _SectionHeader(
+                key: ValueKey('generation-quick-tools-section-$sectionKey'),
+                section: section,
+                collapsed: collapsed,
+                backgroundColor: Color.alphaBlend(
+                  section.color.withValues(alpha: 0.14),
+                  cardColor,
+                ),
+                onTap: () => _toggleSection(sectionKey),
+              ),
+              if (!collapsed)
+                for (var i = 0; i < section.entries.length; i++) ...[
+                  if (i > 0)
+                    Divider(
+                      height: 1,
+                      indent: 12,
+                      endIndent: 12,
+                      color: colorScheme.outlineVariant.withValues(alpha: 0.6),
+                    ),
+                  _FixedTagSwitchTile(entry: section.entries[i]),
+                ],
+            ],
+          ),
+        ),
       );
-      if (!collapsed) {
-        for (final entry in section.entries) {
-          yield _FixedTagSwitchTile(entry: entry);
-        }
-      }
     }
   }
 }
@@ -305,54 +332,59 @@ class _SectionHeader extends StatelessWidget {
     super.key,
     required this.section,
     required this.collapsed,
+    required this.backgroundColor,
     required this.onTap,
   });
 
   final _FixedTagSection section;
   final bool collapsed;
+  final Color backgroundColor;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final enabledCount = section.enabledCount;
-    return InkWell(
-      onTap: onTap,
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
-        child: Row(
-          children: [
-            Icon(
-              collapsed
-                  ? Icons.chevron_right_rounded
-                  : Icons.expand_more_rounded,
-              size: 18,
-              color: theme.colorScheme.outline,
-            ),
-            const SizedBox(width: 4),
-            Icon(Icons.folder_rounded, size: 16, color: section.color),
-            const SizedBox(width: 6),
-            Expanded(
-              child: Text(
-                section.name,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: theme.textTheme.labelMedium?.copyWith(
+    return Material(
+      color: backgroundColor,
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(10, 10, 12, 10),
+          child: Row(
+            children: [
+              Icon(
+                collapsed
+                    ? Icons.chevron_right_rounded
+                    : Icons.expand_more_rounded,
+                size: 18,
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+              const SizedBox(width: 4),
+              Icon(Icons.folder_rounded, size: 16, color: section.color),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  section.name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.labelMedium?.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+              // 收起时也能看出这一类开着几条，切插件不必先展开。
+              Text(
+                '$enabledCount/${section.entries.length}',
+                style: theme.textTheme.labelSmall?.copyWith(
+                  color: enabledCount > 0
+                      ? theme.colorScheme.primary
+                      : theme.colorScheme.onSurfaceVariant,
                   fontWeight: FontWeight.w700,
                 ),
               ),
-            ),
-            // 收起时也能看出这一类开着几条，切插件不必先展开。
-            Text(
-              '$enabledCount/${section.entries.length}',
-              style: theme.textTheme.labelSmall?.copyWith(
-                color: enabledCount > 0
-                    ? theme.colorScheme.primary
-                    : theme.colorScheme.outline,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -372,7 +404,7 @@ class _FixedTagSwitchTile extends ConsumerWidget {
     return ListTile(
       dense: true,
       visualDensity: VisualDensity.compact,
-      contentPadding: const EdgeInsets.only(left: 16, right: 4),
+      contentPadding: const EdgeInsets.only(left: 12, right: 4),
       title: Text(
         entry.displayName,
         maxLines: 1,
@@ -607,12 +639,12 @@ class _GroupLabel extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 10, 16, 2),
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 8),
       child: Text(
         text,
-        style: theme.textTheme.labelSmall?.copyWith(
-          color: theme.colorScheme.outline,
-          fontWeight: FontWeight.w600,
+        style: theme.textTheme.labelMedium?.copyWith(
+          color: theme.colorScheme.onSurfaceVariant,
+          fontWeight: FontWeight.w700,
         ),
       ),
     );
