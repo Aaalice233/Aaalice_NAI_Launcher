@@ -23,6 +23,7 @@ import '../../router/app_routes.dart';
 import '../../themes/theme_extension.dart';
 import '../auth/account_avatar.dart';
 import '../auth/login_form_container.dart';
+import '../settings/account_profile_sheet.dart';
 
 import '../common/app_toast.dart';
 
@@ -1374,6 +1375,23 @@ class _AccountAvatarButtonState extends State<_AccountAvatarButton> {
             ),
           ),
 
+        if (menuCurrentAccount != null)
+          PopupMenuItem<String>(
+            key: const Key('main-nav-manage-accounts'),
+            value: 'manage',
+            child: Row(
+              children: [
+                Icon(
+                  Icons.manage_accounts_outlined,
+                  color: theme.colorScheme.onSurface,
+                  size: 20,
+                ),
+                const SizedBox(width: 12),
+                Text(context.l10n.auth_manageAccounts),
+              ],
+            ),
+          ),
+
         // 退出登录
         if (authState.isAuthenticated)
           PopupMenuItem<String>(
@@ -1402,6 +1420,13 @@ class _AccountAvatarButtonState extends State<_AccountAvatarButton> {
         // ignore: use_build_context_synchronously
         _showAddAccountDialog(context);
       }
+    } else if (value == 'manage' &&
+        menuCurrentAccount != null &&
+        context.mounted) {
+      AccountProfileBottomSheet.show(
+        context: context,
+        account: menuCurrentAccount,
+      );
     } else if (value == 'logout') {
       // Use SchedulerBinding.endOfFrame to ensure logout happens AFTER the menu is fully disposed
       // This prevents the "ref.listen can only be used within build method" error that occurs when

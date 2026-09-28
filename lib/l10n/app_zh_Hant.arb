@@ -195,13 +195,23 @@
   "auth_switchAccount": "切換賬號",
   "auth_currentAccount": "當前賬號",
   "auth_selectAccount": "選擇賬號",
-  "auth_deleteAccount": "刪除賬號",
-  "auth_deleteAccountConfirm": "確定要刪除賬號 \"{name}\" 嗎？此操作不可撤銷。",
-  "@auth_deleteAccountConfirm": {
+  "auth_manageAccounts": "管理賬號",
+  "auth_removeSavedAccount": "移除賬號",
+  "auth_removeSavedAccountAction": "移除",
+  "auth_removeSavedAccountConfirm": "將從本機移除「{name}」儲存的登入憑據和頭像。NovelAI 賬號本身不受影響，之後可以重新登入。",
+  "@auth_removeSavedAccountConfirm": {
     "placeholders": {
       "name": {}
     }
   },
+  "auth_removeSessionAccountNotice": "你目前正在使用此賬號，確認後會先退出登入。",
+  "auth_removeSavedAccountSuccess": "已移除「{name}」",
+  "@auth_removeSavedAccountSuccess": {
+    "placeholders": {
+      "name": {}
+    }
+  },
+  "auth_removeSavedAccountFailed": "移除賬號失敗，請稍後重試",
   "auth_removeAvatar": "移除頭像",
   "auth_selectFromGallery": "從相簿選擇",
   "auth_quickLogin": "一鍵登入",

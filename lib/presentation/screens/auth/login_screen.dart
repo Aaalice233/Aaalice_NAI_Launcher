@@ -16,6 +16,7 @@ import '../../../data/services/auth_provider.dart';
 import '../../widgets/auth/account_avatar.dart';
 import '../../widgets/auth/login_form_container.dart';
 import '../../widgets/auth/network_troubleshooting_dialog.dart';
+import '../../widgets/auth/saved_account_removal_flow.dart';
 import '../../widgets/common/app_toast.dart';
 import '../../widgets/common/themed_divider.dart';
 import '../../widgets/common/update_notice_banner.dart';
@@ -327,7 +328,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 Navigator.pop(panelContext);
                 _handleQuickLogin(context, ref, account);
               },
-              onDelete: () => _showDeleteAccountDialog(context, ref, account),
+              onDelete: () =>
+                  _removeSavedAccount(context, panelContext, account),
             ),
           ),
           const ThemedDivider(),
@@ -351,40 +353,17 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     );
   }
 
-  void _showDeleteAccountDialog(
+  Future<void> _removeSavedAccount(
     BuildContext context,
-    WidgetRef ref,
+    BuildContext panelContext,
     SavedAccount account,
-  ) {
-    final theme = Theme.of(context);
-
-    showDialog(
+  ) async {
+    await confirmAndRemoveSavedAccount(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: Text(context.l10n.auth_deleteAccount),
-        content: Text(
-          context.l10n.auth_deleteAccountConfirm(account.displayName),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: Text(context.l10n.common_cancel),
-          ),
-          FilledButton(
-            style: FilledButton.styleFrom(
-              backgroundColor: theme.colorScheme.error,
-            ),
-            onPressed: () {
-              ref
-                  .read(accountManagerNotifierProvider.notifier)
-                  .removeAccount(account.id);
-              Navigator.pop(dialogContext);
-              Navigator.pop(context);
-            },
-            child: Text(context.l10n.common_delete),
-          ),
-        ],
-      ),
+      ref: ref,
+      account: account,
+      // 选择面板的列表在打开时固定，移除前关闭以免残留已删除项
+      beforeRemove: () async => Navigator.pop(panelContext),
     );
   }
 
@@ -947,8 +926,10 @@ class _AccountListItem extends StatelessWidget {
         ),
       ),
       trailing: IconButton(
+        key: ValueKey('login-account-remove-${account.id}'),
+        tooltip: context.l10n.auth_removeSavedAccount,
         icon: Icon(
-          Icons.delete_outline,
+          Icons.person_remove_outlined,
           color: theme.colorScheme.onSurfaceVariant,
         ),
         onPressed: onDelete,

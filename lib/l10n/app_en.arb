@@ -199,13 +199,23 @@
   "auth_switchAccount": "Switch Account",
   "auth_currentAccount": "Current Account",
   "auth_selectAccount": "Select Account",
-  "auth_deleteAccount": "Delete Account",
-  "auth_deleteAccountConfirm": "Are you sure you want to delete \"{name}\"? This cannot be undone.",
-  "@auth_deleteAccountConfirm": {
+  "auth_manageAccounts": "Manage Accounts",
+  "auth_removeSavedAccount": "Remove Account",
+  "auth_removeSavedAccountAction": "Remove",
+  "auth_removeSavedAccountConfirm": "The saved login credentials and avatar for \"{name}\" will be removed from this device. Your NovelAI account is not affected, and you can log in again later.",
+  "@auth_removeSavedAccountConfirm": {
     "placeholders": {
       "name": {}
     }
   },
+  "auth_removeSessionAccountNotice": "You are currently logged in with this account. You will be logged out first.",
+  "auth_removeSavedAccountSuccess": "Removed \"{name}\"",
+  "@auth_removeSavedAccountSuccess": {
+    "placeholders": {
+      "name": {}
+    }
+  },
+  "auth_removeSavedAccountFailed": "Couldn't remove the account. Please try again.",
   "auth_removeAvatar": "Remove Avatar",
   "auth_selectFromGallery": "Select from Gallery",
   "auth_quickLogin": "Quick Login",

@@ -192,13 +192,23 @@
   "auth_switchAccount": "アカウントを切り替える",
   "auth_currentAccount": "現在のアカウント",
   "auth_selectAccount": "アカウントを選択してください",
-  "auth_deleteAccount": "アカウントを削除",
-  "auth_deleteAccountConfirm": "「{name}」を削除してもよろしいですか?これを元に戻すことはできません。",
-  "@auth_deleteAccountConfirm": {
+  "auth_manageAccounts": "アカウント管理",
+  "auth_removeSavedAccount": "アカウントを削除",
+  "auth_removeSavedAccountAction": "削除",
+  "auth_removeSavedAccountConfirm": "「{name}」の保存済みログイン情報とアバターをこの端末から削除します。NovelAI アカウント自体には影響せず、あとで再ログインできます。",
+  "@auth_removeSavedAccountConfirm": {
     "placeholders": {
       "name": {}
     }
   },
+  "auth_removeSessionAccountNotice": "現在このアカウントでログイン中です。削除の前にログアウトします。",
+  "auth_removeSavedAccountSuccess": "「{name}」を削除しました",
+  "@auth_removeSavedAccountSuccess": {
+    "placeholders": {
+      "name": {}
+    }
+  },
+  "auth_removeSavedAccountFailed": "アカウントを削除できませんでした。もう一度お試しください。",
   "auth_removeAvatar": "アバターを削除",
   "auth_selectFromGallery": "ギャラリーから選択",
   "auth_quickLogin": "クイックログイン",

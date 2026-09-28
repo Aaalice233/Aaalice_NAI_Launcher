@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -5,6 +7,7 @@ import 'package:nai_launcher/data/models/auth/saved_account.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/data/services/account_manager_provider.dart';
 import 'package:nai_launcher/data/services/auth_provider.dart';
+import 'package:nai_launcher/data/services/saved_account_removal_service.dart';
 import 'package:nai_launcher/presentation/widgets/auth/account_avatar.dart';
 import 'package:nai_launcher/presentation/widgets/settings/account_profile_sheet.dart';
 
@@ -37,6 +40,82 @@ class _AccountManagerNotifier extends AccountManagerNotifier {
 class _SingleAccountManager extends AccountManagerNotifier {
   @override
   AccountManagerState build() => AccountManagerState(accounts: [_account]);
+}
+
+class _RecordingRemovalService extends SavedAccountRemovalService {
+  _RecordingRemovalService(super.ref, this._removedIds);
+
+  final List<String> _removedIds;
+
+  @override
+  Future<void> remove(String accountId) async => _removedIds.add(accountId);
+}
+
+/// 打开当前账号的资料面板，返回记录移除请求的列表
+Future<List<String>> _openProfileWithRemovalService(WidgetTester tester) async {
+  final removedIds = <String>[];
+  await tester.pumpWidget(
+    ProviderScope(
+      overrides: [
+        authNotifierProvider.overrideWith(_AuthenticatedAuthNotifier.new),
+        accountManagerNotifierProvider.overrideWith(
+          _AccountManagerNotifier.new,
+        ),
+        savedAccountRemovalServiceProvider.overrideWith(
+          (ref) => _RecordingRemovalService(ref, removedIds),
+        ),
+      ],
+      child: MaterialApp(
+        locale: const Locale('zh'),
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: Scaffold(
+          body: Builder(
+            builder: (context) => FilledButton(
+              onPressed: () => AccountProfileBottomSheet.show(
+                context: context,
+                account: _account,
+              ),
+              child: const Text('打开'),
+            ),
+          ),
+        ),
+      ),
+    ),
+  );
+  await tester.tap(find.text('打开'));
+  await tester.pumpAndSettle();
+  return removedIds;
+}
+
+Finder _profileScrollable() => find
+    .descendant(
+      of: find.byType(AccountProfileBottomSheet),
+      matching: find.byType(Scrollable),
+    )
+    .first;
+
+/// 按滚动位置推进直到目标被构建，避免拖动手势被 SelectableText 的内部滚动截走
+Future<void> _revealInProfile(WidgetTester tester, Finder target) async {
+  final position = tester.state<ScrollableState>(_profileScrollable()).position;
+  while (target.evaluate().isEmpty &&
+      position.pixels < position.maxScrollExtent) {
+    position.jumpTo(math.min(position.pixels + 80, position.maxScrollExtent));
+    await tester.pump();
+  }
+  await tester.ensureVisible(target);
+  await tester.pumpAndSettle();
+}
+
+Future<void> _tapProfileAction(WidgetTester tester, Finder action) async {
+  await _revealInProfile(tester, action);
+  await tester.tap(action);
+  await tester.pumpAndSettle();
+}
+
+Future<void> _settleToasts(WidgetTester tester) async {
+  await tester.pump(const Duration(seconds: 4));
+  await tester.pumpAndSettle();
 }
 
 void main() {
@@ -146,6 +225,12 @@ void main() {
           );
           await tester.pumpAndSettle();
           expect(avatarAction.hitTestable(), findsOneWidget);
+          final removeAction = find.byKey(
+            const Key('account-profile-remove-button'),
+          );
+          await _revealInProfile(tester, removeAction);
+          expect(removeAction.hitTestable(), findsOneWidget);
+          expect(tester.getSize(removeAction).height, greaterThanOrEqualTo(48));
           final error = tester.takeException();
           expect(
             error,
@@ -237,6 +322,7 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
+    await _revealInProfile(tester, find.byType(AccountAvatarSmall));
 
     final avatar = tester.widget<AccountAvatarSmall>(
       find.byType(AccountAvatarSmall),
@@ -289,5 +375,59 @@ void main() {
     ).colorScheme;
     expect(logout.style?.backgroundColor?.resolve({}), colors.errorContainer);
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('移除当前登录账号先提示会退出登录，确认后关闭面板', (tester) async {
+    final removedIds = await _openProfileWithRemovalService(tester);
+
+    await _tapProfileAction(
+      tester,
+      find.byKey(const Key('account-profile-remove-button')),
+    );
+    expect(find.textContaining('确认后会先退出登录'), findsOneWidget);
+    expect(find.textContaining('NovelAI 账号本身不受影响'), findsOneWidget);
+
+    await tester.tap(find.widgetWithText(FilledButton, '移除'));
+    await tester.pumpAndSettle();
+
+    expect(removedIds, [_account.id]);
+    expect(find.byType(AccountProfileBottomSheet), findsNothing);
+    expect(find.textContaining('已移除'), findsOneWidget);
+    await _settleToasts(tester);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('从切换列表移除其他账号时不提示退出登录，面板保持打开', (tester) async {
+    final removedIds = await _openProfileWithRemovalService(tester);
+    final removeOther = find.byKey(
+      ValueKey('account-profile-remove-${_otherAccount.id}'),
+    );
+    await _revealInProfile(tester, removeOther);
+    expect(tester.getSize(removeOther).height, greaterThanOrEqualTo(40));
+    expect(tester.widget<IconButton>(removeOther).tooltip, isNotNull);
+
+    await _tapProfileAction(tester, removeOther);
+    expect(find.textContaining('确认后会先退出登录'), findsNothing);
+
+    await tester.tap(find.widgetWithText(FilledButton, '移除'));
+    await tester.pumpAndSettle();
+
+    expect(removedIds, [_otherAccount.id]);
+    expect(find.byType(AccountProfileBottomSheet), findsOneWidget);
+    await _settleToasts(tester);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('取消确认时不移除账号', (tester) async {
+    final removedIds = await _openProfileWithRemovalService(tester);
+
+    final removeAction = find.byKey(const Key('account-profile-remove-button'));
+    await _tapProfileAction(tester, removeAction);
+    await tester.tap(find.widgetWithText(TextButton, '取消'));
+    await tester.pumpAndSettle();
+
+    expect(removedIds, isEmpty);
+    expect(find.byType(AccountProfileBottomSheet), findsOneWidget);
+    expect(tester.widget<InkWell>(removeAction).onTap, isNotNull);
   });
 }
