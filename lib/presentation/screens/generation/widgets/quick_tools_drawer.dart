@@ -1,13 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/constants/storage_keys.dart';
+import '../../../../core/storage/local_storage_service.dart';
 import '../../../../core/utils/localization_extension.dart';
 import '../../../../data/models/character/character_prompt.dart';
 import '../../../../data/models/fixed_tag/fixed_tag_entry.dart';
+import '../../../../data/models/tag_library/tag_library_category.dart';
 import '../../../adaptive/adaptive_presenter.dart';
 import '../../../providers/character_position_canvas_provider.dart';
 import '../../../providers/character_prompt_provider.dart';
 import '../../../providers/fixed_tags_provider.dart';
+import '../../../providers/tag_library_page_provider.dart';
+import '../../../themes/core/layered_surface_style.dart';
 import '../../../widgets/character/add_character_buttons.dart';
 import '../../../widgets/character/mobile_character_manager_sheet.dart';
 import '../../../widgets/common/themed_button.dart';
@@ -96,15 +101,63 @@ class _GenerationQuickToolsDrawerState
 }
 
 /// 固定词快捷开关列表。
-class _FixedTagsQuickList extends ConsumerWidget {
+///
+/// 正向 / 负向两组下再按词库分类分节，每节可以收起，收起状态持久化。
+/// 分节规则照上游 `FixedTagsSidebar._tagSections`：已知分类按词库排序、空分类
+/// 不显示，分类已删除的条目各自成「未知分类」节，没有分类的条目放在最后。
+/// 上游侧边栏的收起状态不持久化；抽屉是来回切换插件的地方，每次打开全展开
+/// 太烦，所以这里记住。
+class _FixedTagsQuickList extends ConsumerStatefulWidget {
   const _FixedTagsQuickList();
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_FixedTagsQuickList> createState() =>
+      _FixedTagsQuickListState();
+}
+
+class _FixedTagsQuickListState extends ConsumerState<_FixedTagsQuickList> {
+  late final Set<String> _collapsedSectionKeys;
+
+  @override
+  void initState() {
+    super.initState();
+    final stored = ref
+        .read(localStorageServiceProvider)
+        .getSetting<List<dynamic>>(
+          StorageKeys.quickToolsFixedTagsCollapsedSections,
+        );
+    _collapsedSectionKeys = {...?stored?.whereType<String>()};
+  }
+
+  void _toggleSection(String sectionKey) {
+    setState(() {
+      if (!_collapsedSectionKeys.remove(sectionKey)) {
+        _collapsedSectionKeys.add(sectionKey);
+      }
+    });
+    ref
+        .read(localStorageServiceProvider)
+        .setSetting<List<String>>(
+          StorageKeys.quickToolsFixedTagsCollapsedSections,
+          _collapsedSectionKeys.toList(),
+        );
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final state = ref.watch(fixedTagsNotifierProvider);
-    final positives = state.positiveEntries.sortedByOrder();
-    final negatives = state.negativeEntries.sortedByOrder();
+    final categories = ref.watch(tagLibraryPageCategoriesProvider);
+    final positiveSections = _fixedTagSections(
+      context,
+      state.positiveEntries.sortedByOrder(),
+      categories,
+    );
+    final negativeSections = _fixedTagSections(
+      context,
+      state.negativeEntries.sortedByOrder(),
+      categories,
+    );
 
     return Column(
       children: [
@@ -118,15 +171,13 @@ class _FixedTagsQuickList extends ConsumerWidget {
                   key: const ValueKey('generation-quick-tools-fixed-tags'),
                   padding: const EdgeInsets.symmetric(vertical: 4),
                   children: [
-                    if (positives.isNotEmpty) ...[
+                    if (positiveSections.isNotEmpty) ...[
                       _GroupLabel(text: context.l10n.fixedTags_positiveTitle),
-                      for (final entry in positives)
-                        _FixedTagSwitchTile(entry: entry),
+                      ..._buildSections(positiveSections, 'positive'),
                     ],
-                    if (negatives.isNotEmpty) ...[
+                    if (negativeSections.isNotEmpty) ...[
                       _GroupLabel(text: context.l10n.fixedTags_negativeTitle),
-                      for (final entry in negatives)
-                        _FixedTagSwitchTile(entry: entry),
+                      ..._buildSections(negativeSections, 'negative'),
                     ],
                   ],
                 ),
@@ -151,6 +202,193 @@ class _FixedTagsQuickList extends ConsumerWidget {
       ],
     );
   }
+
+  Iterable<Widget> _buildSections(
+    List<_FixedTagSection> sections,
+    String promptTypeKey,
+  ) sync* {
+    final colorScheme = Theme.of(context).colorScheme;
+    // 抽屉本身是 section 色面，分类卡片再高一级，分类之间靠色面和间距分开，
+    // 卡片内条目之间用细分隔线分开。
+    final cardColor = controlSurfaceColor(colorScheme);
+    for (final section in sections) {
+      final sectionKey = '$promptTypeKey:${section.id}';
+      final collapsed = _collapsedSectionKeys.contains(sectionKey);
+      yield Padding(
+        padding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
+        child: Material(
+          color: cardColor,
+          borderRadius: BorderRadius.circular(10),
+          clipBehavior: Clip.antiAlias,
+          child: Column(
+            children: [
+              _SectionHeader(
+                key: ValueKey('generation-quick-tools-section-$sectionKey'),
+                section: section,
+                collapsed: collapsed,
+                backgroundColor: Color.alphaBlend(
+                  section.color.withValues(alpha: 0.14),
+                  cardColor,
+                ),
+                onTap: () => _toggleSection(sectionKey),
+              ),
+              if (!collapsed)
+                for (var i = 0; i < section.entries.length; i++) ...[
+                  if (i > 0)
+                    Divider(
+                      height: 1,
+                      indent: 12,
+                      endIndent: 12,
+                      color: colorScheme.outlineVariant.withValues(alpha: 0.6),
+                    ),
+                  _FixedTagSwitchTile(entry: section.entries[i]),
+                ],
+            ],
+          ),
+        ),
+      );
+    }
+  }
+}
+
+const _uncategorizedSectionId = '__uncategorized__';
+
+class _FixedTagSection {
+  const _FixedTagSection({
+    required this.id,
+    required this.name,
+    required this.entries,
+    required this.color,
+  });
+
+  final String id;
+  final String name;
+  final List<FixedTagEntry> entries;
+  final Color color;
+
+  int get enabledCount => entries.where((entry) => entry.enabled).length;
+}
+
+List<_FixedTagSection> _fixedTagSections(
+  BuildContext context,
+  List<FixedTagEntry> entries,
+  List<TagLibraryCategory> categories,
+) {
+  final knownIds = {for (final category in categories) category.id};
+  final grouped = <String?, List<FixedTagEntry>>{};
+  for (final entry in entries) {
+    grouped.putIfAbsent(entry.categoryId, () => []).add(entry);
+  }
+
+  final sections = <_FixedTagSection>[];
+  for (final category in categories.sortedByOrder()) {
+    final sectionEntries = grouped[category.id];
+    if (sectionEntries == null || sectionEntries.isEmpty) continue;
+    sections.add(
+      _FixedTagSection(
+        id: category.id,
+        name: category.displayName,
+        entries: sectionEntries,
+        color: _categoryColor(category.id),
+      ),
+    );
+  }
+  for (final categoryId in grouped.keys) {
+    if (categoryId == null || knownIds.contains(categoryId)) continue;
+    sections.add(
+      _FixedTagSection(
+        id: categoryId,
+        name: context.l10n.fixedTags_unknownCategory,
+        entries: grouped[categoryId]!,
+        color: _categoryColor(categoryId),
+      ),
+    );
+  }
+  final uncategorized = grouped[null];
+  if (uncategorized != null && uncategorized.isNotEmpty) {
+    sections.add(
+      _FixedTagSection(
+        id: _uncategorizedSectionId,
+        name: context.l10n.fixedTags_uncategorized,
+        entries: uncategorized,
+        color: Theme.of(context).colorScheme.outline,
+      ),
+    );
+  }
+  return sections;
+}
+
+/// 与上游 `FixedTagsSidebar._categoryColor` 同一算法，同一分类两边颜色一致。
+Color _categoryColor(String categoryId) {
+  final hash = categoryId.codeUnits.fold<int>(
+    0,
+    (previous, codeUnit) => (previous * 31 + codeUnit) & 0x7fffffff,
+  );
+  return HSLColor.fromAHSL(1, (hash % 360).toDouble(), 0.58, 0.55).toColor();
+}
+
+class _SectionHeader extends StatelessWidget {
+  const _SectionHeader({
+    super.key,
+    required this.section,
+    required this.collapsed,
+    required this.backgroundColor,
+    required this.onTap,
+  });
+
+  final _FixedTagSection section;
+  final bool collapsed;
+  final Color backgroundColor;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final enabledCount = section.enabledCount;
+    return Material(
+      color: backgroundColor,
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(10, 10, 12, 10),
+          child: Row(
+            children: [
+              Icon(
+                collapsed
+                    ? Icons.chevron_right_rounded
+                    : Icons.expand_more_rounded,
+                size: 18,
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+              const SizedBox(width: 4),
+              Icon(Icons.folder_rounded, size: 16, color: section.color),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  section.name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.labelMedium?.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+              // 收起时也能看出这一类开着几条，切插件不必先展开。
+              Text(
+                '$enabledCount/${section.entries.length}',
+                style: theme.textTheme.labelSmall?.copyWith(
+                  color: enabledCount > 0
+                      ? theme.colorScheme.primary
+                      : theme.colorScheme.onSurfaceVariant,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 class _FixedTagSwitchTile extends ConsumerWidget {
@@ -166,7 +404,7 @@ class _FixedTagSwitchTile extends ConsumerWidget {
     return ListTile(
       dense: true,
       visualDensity: VisualDensity.compact,
-      contentPadding: const EdgeInsets.only(left: 16, right: 4),
+      contentPadding: const EdgeInsets.only(left: 12, right: 4),
       title: Text(
         entry.displayName,
         maxLines: 1,
@@ -401,12 +639,12 @@ class _GroupLabel extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 10, 16, 2),
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 8),
       child: Text(
         text,
-        style: theme.textTheme.labelSmall?.copyWith(
-          color: theme.colorScheme.outline,
-          fontWeight: FontWeight.w600,
+        style: theme.textTheme.labelMedium?.copyWith(
+          color: theme.colorScheme.onSurfaceVariant,
+          fontWeight: FontWeight.w700,
         ),
       ),
     );
