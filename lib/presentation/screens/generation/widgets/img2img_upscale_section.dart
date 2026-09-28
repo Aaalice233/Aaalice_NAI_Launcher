@@ -482,6 +482,7 @@ class _ScaleControl extends StatelessWidget {
             Expanded(child: Text(label, style: theme.textTheme.bodyMedium)),
             EditableDoubleField(
               value: value,
+              semanticLabel: label,
               min: UpscaleWorkflowSettings.minScale,
               max: UpscaleWorkflowSettings.maxScale,
               decimals: _decimals,
@@ -661,6 +662,7 @@ class _IntegerControl extends StatelessWidget {
             Expanded(child: Text(label, style: theme.textTheme.bodyMedium)),
             EditableDoubleField(
               value: current,
+              semanticLabel: label,
               min: min.toDouble(),
               max: max.toDouble(),
               decimals: _decimals,

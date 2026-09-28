@@ -3706,6 +3706,18 @@
       "seconds": {}
     }
   },
+  "settings_decreaseValue": "{field}を減らす",
+  "@settings_decreaseValue": {
+    "placeholders": {
+      "field": {}
+    }
+  },
+  "settings_increaseValue": "{field}を増やす",
+  "@settings_increaseValue": {
+    "placeholders": {
+      "field": {}
+    }
+  },
   "unit_times": "回",
   "unit_seconds": "秒",
   "settings_notificationSound": "完了音",
@@ -6451,6 +6463,8 @@
 
   "onlineGallery_videoLoadFailed": "動画を読み込めませんでした",
   "onlineGallery_videoPositionLabel": "再生位置",
+  "onlineGallery_videoPlay": "再生",
+  "onlineGallery_videoPause": "一時停止",
   "vibe_releaseToAddStyleReference": "離すとスタイル参照を追加",
   "router_backAgainToExit": "もう一度スワイプするか戻るボタンを押すと終了します",
   "router_pageNotFound": "ページが見つかりません: {error}",

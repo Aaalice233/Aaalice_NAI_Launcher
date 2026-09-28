@@ -400,6 +400,7 @@ class _VibeImageEncodeDialogState extends State<VibeImageEncodeDialog> {
             ),
             EditableDoubleField(
               value: _strength,
+              semanticLabel: context.l10n.vibe_strength,
               onChanged: (value) {
                 setState(() => _strength = value);
               },
@@ -449,6 +450,7 @@ class _VibeImageEncodeDialogState extends State<VibeImageEncodeDialog> {
             ),
             EditableDoubleField(
               value: _infoExtracted,
+              semanticLabel: context.l10n.vibe_infoExtracted,
               min: VibeReference.minInfoExtracted,
               max: 1.0,
               onChanged: (value) {

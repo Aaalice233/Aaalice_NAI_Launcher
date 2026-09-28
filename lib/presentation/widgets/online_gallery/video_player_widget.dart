@@ -311,13 +311,9 @@ class OnlineGalleryVideoControls extends StatelessWidget {
                   ),
                   child: Row(
                     children: [
-                      GestureDetector(
-                        onTap: onTogglePlayPause,
-                        child: Icon(
-                          isPlaying ? Icons.pause : Icons.play_arrow,
-                          color: Colors.white,
-                          size: 20,
-                        ),
+                      _PlayPauseToggle(
+                        isPlaying: isPlaying,
+                        onPressed: onTogglePlayPause,
                       ),
                       const SizedBox(width: 8),
                       Text(
@@ -373,6 +369,37 @@ class OnlineGalleryVideoControls extends StatelessWidget {
           ],
         );
       },
+    );
+  }
+}
+
+class _PlayPauseToggle extends StatelessWidget {
+  const _PlayPauseToggle({required this.isPlaying, required this.onPressed});
+
+  final bool isPlaying;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final label = isPlaying
+        ? context.l10n.onlineGallery_videoPause
+        : context.l10n.onlineGallery_videoPlay;
+    return Tooltip(
+      message: label,
+      excludeFromSemantics: true,
+      child: Semantics(
+        container: true,
+        button: true,
+        label: label,
+        child: GestureDetector(
+          onTap: onPressed,
+          child: Icon(
+            isPlaying ? Icons.pause : Icons.play_arrow,
+            color: Colors.white,
+            size: 20,
+          ),
+        ),
+      ),
     );
   }
 }

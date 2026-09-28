@@ -6,7 +6,7 @@ import '../../../core/watermark/watermark_font_catalog.dart';
 import '../../../data/models/watermark/watermark_settings.dart';
 import '../../adaptive/adaptive_presenter.dart';
 import '../../adaptive/content_sized_adaptive_form.dart';
-import '../../widgets/common/themed_slider.dart';
+import '../../widgets/common/labeled_slider_rows.dart';
 import '../../widgets/image_editor/widgets/color_picker.dart';
 
 class WatermarkEditorControls extends StatelessWidget {
@@ -224,38 +224,42 @@ class WatermarkEditorControls extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 8),
-          _RatioSlider(
-            label: context.l10n.watermark_letterSpacing,
-            value: text.letterSpacingRatio,
-            min: -0.02,
-            max: 0.08,
-            onChanged: (value) => onSettingsChanged(
-              settings.copyWith(
-                textStyle: text.copyWith(letterSpacingRatio: value),
+          LabeledSliderRows(
+            sliders: [
+              _ratioSlider(
+                label: context.l10n.watermark_letterSpacing,
+                value: text.letterSpacingRatio,
+                min: -0.02,
+                max: 0.08,
+                onChanged: (value) => onSettingsChanged(
+                  settings.copyWith(
+                    textStyle: text.copyWith(letterSpacingRatio: value),
+                  ),
+                ),
               ),
-            ),
-          ),
-          _RatioSlider(
-            label: context.l10n.watermark_stroke,
-            value: text.strokeWidthRatio,
-            min: 0,
-            max: 0.012,
-            onChanged: (value) => onSettingsChanged(
-              settings.copyWith(
-                textStyle: text.copyWith(strokeWidthRatio: value),
+              _ratioSlider(
+                label: context.l10n.watermark_stroke,
+                value: text.strokeWidthRatio,
+                min: 0,
+                max: 0.012,
+                onChanged: (value) => onSettingsChanged(
+                  settings.copyWith(
+                    textStyle: text.copyWith(strokeWidthRatio: value),
+                  ),
+                ),
               ),
-            ),
-          ),
-          _RatioSlider(
-            label: context.l10n.watermark_shadow,
-            value: text.shadowBlurRatio,
-            min: 0,
-            max: 0.04,
-            onChanged: (value) => onSettingsChanged(
-              settings.copyWith(
-                textStyle: text.copyWith(shadowBlurRatio: value),
+              _ratioSlider(
+                label: context.l10n.watermark_shadow,
+                value: text.shadowBlurRatio,
+                min: 0,
+                max: 0.04,
+                onChanged: (value) => onSettingsChanged(
+                  settings.copyWith(
+                    textStyle: text.copyWith(shadowBlurRatio: value),
+                  ),
+                ),
               ),
-            ),
+            ],
           ),
         ] else ...[
           SwitchListTile(
@@ -285,34 +289,44 @@ class WatermarkEditorControls extends StatelessWidget {
           ),
         ],
         const SizedBox(height: 12),
-        _RatioSlider(
-          label: context.l10n.watermark_opacity,
-          value: selectedLayer == WatermarkEditableLayer.text
-              ? text.opacity
-              : logo.opacity,
-          min: 0.05,
-          max: 1,
-          onChanged: (value) => onSettingsChanged(
-            selectedLayer == WatermarkEditableLayer.text
-                ? settings.copyWith(textStyle: text.copyWith(opacity: value))
-                : settings.copyWith(logoStyle: logo.copyWith(opacity: value)),
-          ),
-        ),
-        _RatioSlider(
-          label: context.l10n.watermark_size,
-          value: selectedPlacement.sizeRatio,
-          min: 0.02,
-          max: selectedLayer == WatermarkEditableLayer.text ? 0.25 : 0.6,
-          onChanged: (value) =>
-              _updatePlacement(selectedPlacement.copyWith(sizeRatio: value)),
-        ),
-        _RatioSlider(
-          label: context.l10n.watermark_margin,
-          value: selectedPlacement.marginRatio,
-          min: 0,
-          max: 0.2,
-          onChanged: (value) =>
-              _updatePlacement(selectedPlacement.copyWith(marginRatio: value)),
+        LabeledSliderRows(
+          sliders: [
+            _ratioSlider(
+              label: context.l10n.watermark_opacity,
+              value: selectedLayer == WatermarkEditableLayer.text
+                  ? text.opacity
+                  : logo.opacity,
+              min: 0.05,
+              max: 1,
+              onChanged: (value) => onSettingsChanged(
+                selectedLayer == WatermarkEditableLayer.text
+                    ? settings.copyWith(
+                        textStyle: text.copyWith(opacity: value),
+                      )
+                    : settings.copyWith(
+                        logoStyle: logo.copyWith(opacity: value),
+                      ),
+              ),
+            ),
+            _ratioSlider(
+              label: context.l10n.watermark_size,
+              value: selectedPlacement.sizeRatio,
+              min: 0.02,
+              max: selectedLayer == WatermarkEditableLayer.text ? 0.25 : 0.6,
+              onChanged: (value) => _updatePlacement(
+                selectedPlacement.copyWith(sizeRatio: value),
+              ),
+            ),
+            _ratioSlider(
+              label: context.l10n.watermark_margin,
+              value: selectedPlacement.marginRatio,
+              min: 0,
+              max: 0.2,
+              onChanged: (value) => _updatePlacement(
+                selectedPlacement.copyWith(marginRatio: value),
+              ),
+            ),
+          ],
         ),
         const SizedBox(height: 8),
         DropdownButtonFormField<WatermarkAnchor>(
@@ -514,61 +528,22 @@ class _WatermarkColorFormState extends State<_WatermarkColorForm> {
 
 enum WatermarkEditableLayer { text, logo }
 
-class _RatioSlider extends StatelessWidget {
-  const _RatioSlider({
-    required this.label,
-    required this.value,
-    required this.min,
-    required this.max,
-    required this.onChanged,
-  });
+LabeledSlider _ratioSlider({
+  required String label,
+  required double value,
+  required double min,
+  required double max,
+  required ValueChanged<double> onChanged,
+}) => LabeledSlider(
+  label: label,
+  value: value,
+  min: min,
+  max: max,
+  valueText: _percentText,
+  onChanged: onChanged,
+);
 
-  final String label;
-  final double value;
-  final double min;
-  final double max;
-  final ValueChanged<double> onChanged;
-
-  static String _percentText(double value) =>
-      '${(value * 100).toStringAsFixed(0)}%';
-
-  @override
-  Widget build(BuildContext context) => LayoutBuilder(
-    builder: (context, constraints) {
-      final percentage = Text(_percentText(value));
-      final slider = NamedSlider(
-        label: label,
-        valueText: _percentText,
-        value: value,
-        min: min,
-        max: max,
-        onChanged: onChanged,
-      );
-      if (constraints.maxWidth < 350 ||
-          MediaQuery.textScalerOf(context).scale(14) > 20) {
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(label),
-            Row(
-              children: [
-                Expanded(child: slider),
-                percentage,
-              ],
-            ),
-          ],
-        );
-      }
-      return Row(
-        children: [
-          SizedBox(width: 112, child: Text(label)),
-          Expanded(child: slider),
-          SizedBox(width: 52, child: percentage),
-        ],
-      );
-    },
-  );
-}
+String _percentText(double value) => '${(value * 100).toStringAsFixed(0)}%';
 
 class _WatermarkTextField extends StatefulWidget {
   const _WatermarkTextField({

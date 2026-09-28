@@ -14347,6 +14347,18 @@ abstract class AppLocalizations {
   /// **'{seconds} seconds'**
   String settings_queueRetryIntervalValue(Object seconds);
 
+  /// No description provided for @settings_decreaseValue.
+  ///
+  /// In en, this message translates to:
+  /// **'Decrease {field}'**
+  String settings_decreaseValue(Object field);
+
+  /// No description provided for @settings_increaseValue.
+  ///
+  /// In en, this message translates to:
+  /// **'Increase {field}'**
+  String settings_increaseValue(Object field);
+
   /// No description provided for @unit_times.
   ///
   /// In en, this message translates to:
@@ -22895,6 +22907,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Playback position'**
   String get onlineGallery_videoPositionLabel;
+
+  /// No description provided for @onlineGallery_videoPlay.
+  ///
+  /// In en, this message translates to:
+  /// **'Play'**
+  String get onlineGallery_videoPlay;
+
+  /// No description provided for @onlineGallery_videoPause.
+  ///
+  /// In en, this message translates to:
+  /// **'Pause'**
+  String get onlineGallery_videoPause;
 
   /// No description provided for @vibe_releaseToAddStyleReference.
   ///

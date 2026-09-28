@@ -3801,6 +3801,18 @@
       "seconds": {}
     }
   },
+  "settings_decreaseValue": "減少{field}",
+  "@settings_decreaseValue": {
+    "placeholders": {
+      "field": {}
+    }
+  },
+  "settings_increaseValue": "增加{field}",
+  "@settings_increaseValue": {
+    "placeholders": {
+      "field": {}
+    }
+  },
   "unit_times": "次",
   "unit_seconds": "秒",
   "settings_notificationSound": "完成音效",
@@ -6676,6 +6688,8 @@
   },
   "onlineGallery_videoLoadFailed": "影片載入失敗",
   "onlineGallery_videoPositionLabel": "播放進度",
+  "onlineGallery_videoPlay": "播放",
+  "onlineGallery_videoPause": "暫停",
   "vibe_releaseToAddStyleReference": "鬆開後新增風格參考",
   "router_backAgainToExit": "再滑一次或按返回鍵退出應用",
   "router_pageNotFound": "頁面未找到: {error}",

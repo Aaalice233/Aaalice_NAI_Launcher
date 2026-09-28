@@ -95,31 +95,28 @@ class _HSVColorPickerState extends State<HSVColorPicker> {
             ),
             const SizedBox(width: 8),
             Expanded(
-              child: Semantics(
-                textField: true,
-                label: widget.hexLabel,
-                child: ThemedInput(
-                  controller: _hexController,
-                  borderRadius: 4,
-                  style: TextStyle(
-                    color: colorScheme.onSurface,
-                    fontSize: 12,
-                    fontFamily: 'monospace',
-                  ),
-                  decoration: const InputDecoration(
-                    isDense: true,
-                    contentPadding: EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 8,
-                    ),
-                  ),
-                  onSubmitted: (value) {
-                    final color = _hexToColor(value);
-                    if (color != null) {
-                      _onColorChanged(HSVColor.fromColor(color));
-                    }
-                  },
+              child: ThemedInput(
+                controller: _hexController,
+                semanticLabel: widget.hexLabel,
+                borderRadius: 4,
+                style: TextStyle(
+                  color: colorScheme.onSurface,
+                  fontSize: 12,
+                  fontFamily: 'monospace',
                 ),
+                decoration: const InputDecoration(
+                  isDense: true,
+                  contentPadding: EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 8,
+                  ),
+                ),
+                onSubmitted: (value) {
+                  final color = _hexToColor(value);
+                  if (color != null) {
+                    _onColorChanged(HSVColor.fromColor(color));
+                  }
+                },
               ),
             ),
           ],
@@ -181,6 +178,7 @@ class _SVPanel extends StatelessWidget {
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) => Semantics(
+        slider: true,
         label: semanticLabel,
         value:
             '${(hsvColor.saturation * 100).round()}%, ${(hsvColor.value * 100).round()}%',
@@ -271,6 +269,7 @@ class _HueSlider extends StatelessWidget {
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) => Semantics(
+        slider: true,
         label: semanticLabel,
         value: '${hue.round()}°',
         increasedValue: '${(hue + 5).clamp(0, 360).round()}°',

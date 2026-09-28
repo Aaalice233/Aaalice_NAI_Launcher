@@ -7790,6 +7790,16 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
+  String settings_decreaseValue(Object field) {
+    return '减少$field';
+  }
+
+  @override
+  String settings_increaseValue(Object field) {
+    return '增加$field';
+  }
+
+  @override
   String get unit_times => '次';
 
   @override
@@ -12619,6 +12629,12 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get onlineGallery_videoPositionLabel => '播放进度';
+
+  @override
+  String get onlineGallery_videoPlay => '播放';
+
+  @override
+  String get onlineGallery_videoPause => '暂停';
 
   @override
   String get vibe_releaseToAddStyleReference => '松开后添加风格参考';
@@ -22900,6 +22916,16 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   }
 
   @override
+  String settings_decreaseValue(Object field) {
+    return '減少$field';
+  }
+
+  @override
+  String settings_increaseValue(Object field) {
+    return '增加$field';
+  }
+
+  @override
   String get unit_times => '次';
 
   @override
@@ -27729,6 +27755,12 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get onlineGallery_videoPositionLabel => '播放進度';
+
+  @override
+  String get onlineGallery_videoPlay => '播放';
+
+  @override
+  String get onlineGallery_videoPause => '暫停';
 
   @override
   String get vibe_releaseToAddStyleReference => '鬆開後新增風格參考';

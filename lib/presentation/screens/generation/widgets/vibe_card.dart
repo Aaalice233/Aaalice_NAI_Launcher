@@ -632,6 +632,7 @@ class _VibeCardState extends ConsumerState<VibeCard> {
             ),
             EditableDoubleField(
               value: value,
+              semanticLabel: label,
               min: fieldMin,
               max: fieldMax,
               decimals: decimals,
