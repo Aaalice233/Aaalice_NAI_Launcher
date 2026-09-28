@@ -15,6 +15,7 @@ import 'core/services/desktop_app_shutdown_service.dart';
 import 'core/services/interactive_work_gate.dart';
 import 'core/shortcuts/default_shortcuts.dart';
 import 'presentation/adaptive/interaction_policy.dart';
+import 'presentation/adaptive/ios_keyboard_dismissal.dart';
 import 'presentation/adaptive/window_size_class.dart';
 import 'presentation/router/app_router_config.dart';
 import 'presentation/router/app_routes.dart';
@@ -359,17 +360,19 @@ class NAILauncherApp extends ConsumerWidget {
                 systemNavigationBarIconBrightness: iconBrightness,
                 systemNavigationBarContrastEnforced: false,
               ),
-              child: MediaQuery(
-                data: mediaQuery.copyWith(
-                  textScaler: TextScaler.linear(effectiveScale),
-                ),
-                child: InteractionPolicyScope(
-                  initialPolicy: PlatformCapabilities.current.isMobile
-                      ? InteractionPolicy.touchFirst
-                      : InteractionPolicy.neutral,
-                  child: DesktopWindowFrame(
-                    child: LargestDisplayFeatureSubScreen(
-                      child: DiscordShareTaskOverlay(child: child!),
+              child: IosKeyboardDismissal(
+                child: MediaQuery(
+                  data: mediaQuery.copyWith(
+                    textScaler: TextScaler.linear(effectiveScale),
+                  ),
+                  child: InteractionPolicyScope(
+                    initialPolicy: PlatformCapabilities.current.isMobile
+                        ? InteractionPolicy.touchFirst
+                        : InteractionPolicy.neutral,
+                    child: DesktopWindowFrame(
+                      child: LargestDisplayFeatureSubScreen(
+                        child: DiscordShareTaskOverlay(child: child!),
+                      ),
                     ),
                   ),
                 ),
