@@ -8,6 +8,9 @@ import 'package:nai_launcher/presentation/screens/tag_library_page/widgets/expor
 import 'package:nai_launcher/presentation/providers/pending_prompt_provider.dart';
 import 'package:nai_launcher/presentation/screens/tag_library_page/widgets/import_dialog.dart';
 import 'package:nai_launcher/presentation/screens/tag_library_page/widgets/send_to_home_dialog.dart';
+import 'package:nai_launcher/presentation/widgets/common/surface_ink_well.dart';
+
+import '../../../helpers/ink_expectations.dart';
 
 void main() {
   testWidgets(
@@ -289,6 +292,43 @@ void main() {
       16,
     );
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('选择 ZIP 区域的悬停与按压反馈画在区域底色之上', (tester) async {
+    tester.view.physicalSize = const Size(1180, 800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+    await tester.pumpWidget(
+      _wrap(
+        Builder(
+          builder: (context) => FilledButton(
+            onPressed: () => ImportDialog.show(context),
+            child: const Text('导入'),
+          ),
+        ),
+      ),
+    );
+    await tester.tap(find.text('导入'));
+    await tester.pumpAndSettle();
+
+    final picker = find.ancestor(
+      of: find.byIcon(Icons.upload_file),
+      matching: find.byType(SurfaceInkWell),
+    );
+    final theme = Theme.of(tester.element(picker));
+    final fill = theme.colorScheme.surfaceContainerHighest;
+
+    await hoverOver(tester, picker);
+    expectInkOnTop(tester, picker, ink: theme.hoverColor, below: fill);
+
+    // 抬起会调起系统文件选择器，按压反馈确认后取消手势
+    final press = await pressAndHold(tester, picker);
+    expectInkOnTop(tester, picker, ink: theme.highlightColor, below: fill);
+    await press.cancel();
+    await tester.pumpAndSettle();
   });
 }
 

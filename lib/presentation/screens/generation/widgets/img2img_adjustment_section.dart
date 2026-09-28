@@ -10,6 +10,7 @@ import '../../../../data/models/image/image_params.dart';
 import '../../../providers/cost_estimate_provider.dart';
 import '../../../providers/generation/generation_params_notifier.dart';
 import '../../../providers/generation/image_workflow_controller.dart';
+import '../../../widgets/common/ink_host.dart';
 import '../../../widgets/common/themed_slider.dart';
 import 'img2img_panel_data.dart';
 
@@ -238,17 +239,14 @@ class _EnhancePanelState extends ConsumerState<_EnhancePanel> {
               onChanged: (value) =>
                   controller.updateEnhanceLevel(value.round()),
             ),
-            Material(
-              type: MaterialType.transparency,
-              child: SwitchListTile.adaptive(
-                contentPadding: EdgeInsets.zero,
-                title: Text(
-                  context.l10n.img2img_enhanceShowIndividualSettings,
-                  style: theme.textTheme.bodyMedium,
-                ),
-                value: enhance.showIndividualSettings,
-                onChanged: controller.toggleEnhanceIndividualSettings,
+            SwitchListTile.adaptive(
+              contentPadding: EdgeInsets.zero,
+              title: Text(
+                context.l10n.img2img_enhanceShowIndividualSettings,
+                style: theme.textTheme.bodyMedium,
               ),
+              value: enhance.showIndividualSettings,
+              onChanged: controller.toggleEnhanceIndividualSettings,
             ),
             const SizedBox(height: 8),
             Text(
@@ -377,6 +375,6 @@ class _SubPanel extends StatelessWidget {
       color: Theme.of(context).colorScheme.surfaceContainerHigh,
       borderRadius: BorderRadius.circular(10),
     ),
-    child: child,
+    child: InkHost(child: child),
   );
 }

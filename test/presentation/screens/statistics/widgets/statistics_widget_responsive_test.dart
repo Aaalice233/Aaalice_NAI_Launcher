@@ -10,6 +10,8 @@ import 'package:nai_launcher/presentation/screens/statistics/widgets/charts/heat
 import 'package:nai_launcher/presentation/screens/statistics/widgets/common/section_container.dart';
 import 'package:nai_launcher/presentation/themes/core/layered_surface_style.dart';
 
+import '../../../../helpers/ink_expectations.dart';
+
 void main() {
   testWidgets(
     'statistics cards keep tonal grouping when theme container roles collapse',
@@ -232,6 +234,52 @@ void main() {
       expect(tester.takeException(), isNull);
     },
   );
+
+  testWidgets('图表卡片里的图例条目悬停与按压反馈画在卡片色面之上', (tester) async {
+    tester.view.physicalSize = const Size(900, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(
+      _testApp(
+        const SizedBox(
+          width: 640,
+          child: ChartCard(
+            title: 'Ratios',
+            child: AspectRatioChart(
+              height: 160,
+              items: [
+                AspectRatioItem(
+                  ratio: '16:9',
+                  label: 'Landscape',
+                  count: 10,
+                  percentage: 100,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final card = find.byType(ChartCard);
+    final legend = find
+        .ancestor(of: find.text('16:9'), matching: find.byType(InkWell))
+        .first;
+    final theme = Theme.of(tester.element(legend));
+    // 指针进入卡片后卡片切到悬停色面
+    final fill = controlSurfaceColor(theme.colorScheme);
+
+    await hoverOver(tester, legend);
+    expectInkOnTop(tester, card, ink: theme.hoverColor, below: fill);
+
+    final press = await pressAndHold(tester, legend);
+    expectInkOnTop(tester, card, ink: theme.highlightColor, below: fill);
+    await press.up();
+    await tester.pumpAndSettle();
+  });
 
   testWidgets('interactive heatmap cells expose 48px touch targets', (
     tester,

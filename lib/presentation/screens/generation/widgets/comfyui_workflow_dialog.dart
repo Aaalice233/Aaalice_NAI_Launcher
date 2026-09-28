@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../widgets/common/image_viewport_surface.dart';
+import '../../../widgets/common/surface_ink_well.dart';
 import '../../../../core/comfyui/comfyui_models.dart';
 import '../../../../core/comfyui/workflow_template.dart';
 import '../../../../core/utils/localization_extension.dart';
@@ -293,15 +294,12 @@ class _ComfyUIWorkflowDialogState extends ConsumerState<ComfyUIWorkflowDialog> {
               ],
             )
           else
-            InkWell(
-              onTap: () => _pickImageForSlot(slot.id),
-              borderRadius: BorderRadius.circular(8),
-              child: Container(
-                height: 80,
-                decoration: BoxDecoration(
-                  color: theme.colorScheme.surfaceContainer,
-                  borderRadius: BorderRadius.circular(8),
-                ),
+            SizedBox(
+              height: 80,
+              child: SurfaceInkWell(
+                borderRadius: BorderRadius.circular(8),
+                color: theme.colorScheme.surfaceContainer,
+                onTap: () => _pickImageForSlot(slot.id),
                 child: Center(
                   child: Column(
                     mainAxisSize: MainAxisSize.min,

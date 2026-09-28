@@ -280,49 +280,48 @@ class _OverflowActionButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final menu = PopupMenuButton<String>(
+      key: const ValueKey('gallery-detail-action-overflow'),
+      tooltip: MaterialLocalizations.of(context).moreButtonTooltip,
+      position: PopupMenuPosition.under,
+      onSelected: (id) {
+        for (final entry in entries) {
+          if (entry.id == id) {
+            entry.onPressed?.call();
+            return;
+          }
+        }
+      },
+      itemBuilder: (context) => [
+        for (final entry in entries)
+          PopupMenuItem<String>(
+            value: entry.id,
+            enabled: entry.onPressed != null,
+            child: Row(
+              children: [
+                SizedBox.square(
+                  dimension: 22,
+                  child: entry.loading
+                      ? const CircularProgressIndicator(strokeWidth: 2)
+                      : Icon(entry.icon, size: 20),
+                ),
+                const SizedBox(width: 12),
+                Expanded(child: Text(entry.label)),
+              ],
+            ),
+          ),
+      ],
+      child: const SizedBox.square(dimension: 48, child: Icon(Icons.more_vert)),
+    );
     return Semantics(
       button: true,
       label: MaterialLocalizations.of(context).moreButtonTooltip,
-      child: PopupMenuButton<String>(
-        key: const ValueKey('gallery-detail-action-overflow'),
-        tooltip: MaterialLocalizations.of(context).moreButtonTooltip,
-        position: PopupMenuPosition.under,
-        onSelected: (id) {
-          for (final entry in entries) {
-            if (entry.id == id) {
-              entry.onPressed?.call();
-              return;
-            }
-          }
-        },
-        itemBuilder: (context) => [
-          for (final entry in entries)
-            PopupMenuItem<String>(
-              value: entry.id,
-              enabled: entry.onPressed != null,
-              child: Row(
-                children: [
-                  SizedBox.square(
-                    dimension: 22,
-                    child: entry.loading
-                        ? const CircularProgressIndicator(strokeWidth: 2)
-                        : Icon(entry.icon, size: 20),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(child: Text(entry.label)),
-                ],
-              ),
-            ),
-        ],
-        child: Material(
-          color: Theme.of(context).colorScheme.surfaceContainerHigh,
-          elevation: 3,
-          shape: const CircleBorder(),
-          child: const SizedBox.square(
-            dimension: 48,
-            child: Icon(Icons.more_vert),
-          ),
-        ),
+      child: Material(
+        color: Theme.of(context).colorScheme.surfaceContainerHigh,
+        elevation: 3,
+        shape: const CircleBorder(),
+        clipBehavior: Clip.antiAlias,
+        child: menu,
       ),
     );
   }

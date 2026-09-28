@@ -8,6 +8,7 @@ import '../../../adaptive/adaptive_presenter.dart';
 import '../../../providers/random_preset_provider.dart';
 import '../../../providers/tag_library_provider.dart';
 import '../../../themes/core/layered_surface_style.dart';
+import '../../common/ink_host.dart';
 import '../../common/themed_slider.dart';
 import '../../common/translated_tag_text.dart';
 import '../../../../data/models/prompt/random_tag_group.dart';
@@ -478,13 +479,15 @@ class _TagGroupEditDialogState extends ConsumerState<_TagGroupEditDialog>
                 borderRadius: BorderRadius.circular(10),
               ),
               clipBehavior: Clip.antiAlias,
-              child: TabBarView(
-                controller: _tabController,
-                children: [
-                  _buildBasicTab(context),
-                  _buildTagsTab(context),
-                  _buildDiyTab(context),
-                ],
+              child: InkHost(
+                child: TabBarView(
+                  controller: _tabController,
+                  children: [
+                    _buildBasicTab(context),
+                    _buildTagsTab(context),
+                    _buildDiyTab(context),
+                  ],
+                ),
               ),
             ),
           ),

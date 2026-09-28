@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import '../../../widgets/common/ink_host.dart';
 import '../../../widgets/common/model_family_icon.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:super_drag_and_drop/super_drag_and_drop.dart';
@@ -225,26 +226,28 @@ class _ReversePromptPanelState extends ConsumerState<ReversePromptPanel> {
               Positioned(
                 top: 0,
                 right: 0,
-                child: InkWell(
-                  onTap: () => ref
-                      .read(reversePromptProvider.notifier)
-                      .removeImage(image.id),
-                  borderRadius: BorderRadius.circular(24),
-                  child: SizedBox.square(
-                    dimension: 48,
-                    child: Align(
-                      alignment: Alignment.topRight,
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: Colors.black.withValues(alpha: 0.65),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        padding: const EdgeInsets.all(2),
-                        // 固定深色底必须搭配固定浅色图标，避免浅色主题下失去对比。
-                        child: const Icon(
-                          Icons.close,
-                          size: 14,
-                          color: Colors.white,
+                child: InkHost(
+                  child: InkWell(
+                    onTap: () => ref
+                        .read(reversePromptProvider.notifier)
+                        .removeImage(image.id),
+                    borderRadius: BorderRadius.circular(24),
+                    child: SizedBox.square(
+                      dimension: 48,
+                      child: Align(
+                        alignment: Alignment.topRight,
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: Colors.black.withValues(alpha: 0.65),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          padding: const EdgeInsets.all(2),
+                          // 固定深色底必须搭配固定浅色图标，避免浅色主题下失去对比。
+                          child: const Icon(
+                            Icons.close,
+                            size: 14,
+                            color: Colors.white,
+                          ),
                         ),
                       ),
                     ),

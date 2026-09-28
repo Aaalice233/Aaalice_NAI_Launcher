@@ -10,6 +10,9 @@ import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/adaptive/interaction_policy.dart';
 import 'package:nai_launcher/presentation/screens/vibe_library/widgets/vibe_export_dialog.dart';
 import 'package:nai_launcher/presentation/screens/vibe_library/widgets/vibe_export_dialog_advanced.dart';
+import 'package:nai_launcher/presentation/widgets/common/surface_ink_well.dart';
+
+import '../../../../helpers/ink_expectations.dart';
 
 void main() {
   testWidgets('单项导出入口在 320 宽 3x、SafeArea 和 IME 下可取消返回', (tester) async {
@@ -178,6 +181,39 @@ void main() {
     await tester.tap(find.text('导出为 PNG'));
     await tester.pumpAndSettle();
 
+    expect(find.text('选择外部 PNG 图片...'), findsOneWidget);
+  });
+
+  testWidgets('未选中的导出方式卡片，悬停与按压反馈画在卡片底色之上', (tester) async {
+    await tester.pumpWidget(
+      _wrap(
+        VibeExportDialogAdvanced(
+          entries: [
+            _buildEntry(
+              id: 'single',
+              displayName: 'Single',
+              rawImageData: _createInMemoryPngBytes(),
+            ),
+          ],
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final card = find.ancestor(
+      of: find.text('导出为 PNG'),
+      matching: find.byType(SurfaceInkWell),
+    );
+    final theme = Theme.of(tester.element(card));
+    final fill = theme.colorScheme.surfaceContainerLow;
+
+    await hoverOver(tester, card);
+    expectInkOnTop(tester, card, ink: theme.hoverColor, below: fill);
+
+    final press = await pressAndHold(tester, card);
+    expectInkOnTop(tester, card, ink: theme.highlightColor, below: fill);
+    await press.up();
+    await tester.pumpAndSettle();
     expect(find.text('选择外部 PNG 图片...'), findsOneWidget);
   });
 

@@ -6,6 +6,7 @@ import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/adaptive/adaptive_presenter.dart';
 import 'package:nai_launcher/presentation/adaptive/interaction_policy.dart';
 import 'package:nai_launcher/presentation/providers/image_generation_provider.dart';
+import 'package:nai_launcher/presentation/widgets/common/surface_ink_well.dart';
 import 'package:nai_launcher/presentation/widgets/common/themed_divider.dart';
 
 /// 批量设置按钮（批次大小）
@@ -113,7 +114,7 @@ class BatchSettingsButton extends ConsumerWidget {
                 runSpacing: 8,
                 children: [
                   for (int i = 1; i <= 4; i++)
-                    _buildBatchOption(context, theme, i, currentBatchSize, () {
+                    _buildBatchOption(theme, i, currentBatchSize, () {
                       ref.read(imagesPerRequestProvider.notifier).set(i);
                       setState(() => currentBatchSize = i);
                     }),
@@ -172,42 +173,30 @@ class BatchSettingsButton extends ConsumerWidget {
   }
 
   Widget _buildBatchOption(
-    BuildContext context,
     ThemeData theme,
     int value,
     int current,
     VoidCallback onTap,
   ) {
     final isSelected = value == current;
-    return Material(
-      color: Colors.transparent,
-      borderRadius: BorderRadius.circular(12),
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: onTap,
+    return SizedBox.square(
+      dimension: 48,
+      child: SurfaceInkWell(
         borderRadius: BorderRadius.circular(12),
-        child: AnimatedContainer(
-          duration: MediaQuery.disableAnimationsOf(context)
-              ? Duration.zero
-              : const Duration(milliseconds: 140),
-          width: 48,
-          height: 48,
-          decoration: BoxDecoration(
-            color: isSelected
-                ? theme.colorScheme.primary
-                : theme.colorScheme.surfaceContainerHighest,
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Center(
-            child: Text(
-              '$value',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: isSelected
-                    ? theme.colorScheme.onPrimary
-                    : theme.colorScheme.onSurface,
-              ),
+        color: isSelected
+            ? theme.colorScheme.primary
+            : theme.colorScheme.surfaceContainerHighest,
+        duration: const Duration(milliseconds: 140),
+        onTap: onTap,
+        child: Center(
+          child: Text(
+            '$value',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: isSelected
+                  ? theme.colorScheme.onPrimary
+                  : theme.colorScheme.onSurface,
             ),
           ),
         ),

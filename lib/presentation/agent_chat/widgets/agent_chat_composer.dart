@@ -13,6 +13,7 @@ import 'agent_chat_shared_widgets.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../data/models/prompt_assistant/prompt_assistant_models.dart';
 import '../../themes/core/layered_surface_style.dart';
+import '../../widgets/common/ink_host.dart';
 import '../models/agent_chat_slash_command.dart';
 import '../providers/agent_chat_state.dart';
 import 'agent_chat_header.dart';
@@ -159,43 +160,45 @@ class _AgentChatComposerState extends State<AgentChatComposer> {
             color: controlSurfaceColor(theme.colorScheme),
             borderRadius: BorderRadius.circular(18),
           ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              if (!viewData.compactWidth &&
-                  viewData.state.queuedMessages.isNotEmpty)
-                _queuedMessages(theme, l10n),
-              if (controller.isEditingUserMessage)
-                _messageEditHeader(theme, l10n),
-              if (slashMatches.isNotEmpty)
-                AgentChatSlashMenu(
-                  commands: slashMatches,
-                  highlightIndex: slashHighlight,
-                  onSelected: (command) =>
-                      _acceptSlashCommand(command, slashQuery!.end),
-                  onHighlightChanged: (index) =>
-                      setState(() => _slashHighlight = index),
+          child: InkHost(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                if (!viewData.compactWidth &&
+                    viewData.state.queuedMessages.isNotEmpty)
+                  _queuedMessages(theme, l10n),
+                if (controller.isEditingUserMessage)
+                  _messageEditHeader(theme, l10n),
+                if (slashMatches.isNotEmpty)
+                  AgentChatSlashMenu(
+                    commands: slashMatches,
+                    highlightIndex: slashHighlight,
+                    onSelected: (command) =>
+                        _acceptSlashCommand(command, slashQuery!.end),
+                    onHighlightChanged: (index) =>
+                        setState(() => _slashHighlight = index),
+                  ),
+                if (viewData.state.pendingResources.isNotEmpty ||
+                    controller.pendingImages.isNotEmpty)
+                  _attachmentCards(),
+                _editor(
+                  context,
+                  theme,
+                  l10n,
+                  slashMatches,
+                  slashHighlight,
+                  slashQuery?.end ?? 0,
                 ),
-              if (viewData.state.pendingResources.isNotEmpty ||
-                  controller.pendingImages.isNotEmpty)
-                _attachmentCards(),
-              _editor(
-                context,
-                theme,
-                l10n,
-                slashMatches,
-                slashHighlight,
-                slashQuery?.end ?? 0,
-              ),
-              if (viewData.compactWidth &&
-                  viewData.state.queuedMessages.isNotEmpty)
-                _queuedMessages(theme, l10n),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(8, 2, 8, 6),
-                child: _composerControls(theme, l10n),
-              ),
-            ],
+                if (viewData.compactWidth &&
+                    viewData.state.queuedMessages.isNotEmpty)
+                  _queuedMessages(theme, l10n),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(8, 2, 8, 6),
+                  child: _composerControls(theme, l10n),
+                ),
+              ],
+            ),
           ),
         ),
       ),

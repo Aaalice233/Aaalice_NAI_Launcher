@@ -9,6 +9,7 @@ import '../../agent_settings/providers/agent_settings_provider.dart';
 import '../../providers/generation/image_generation_selectors.dart';
 import '../../providers/image_generation_provider.dart';
 import '../../../core/agent/resources/agent_chat_resource_reference.dart';
+import '../../widgets/common/ink_host.dart';
 import '../providers/agent_chat_notifier.dart';
 import '../providers/agent_chat_surface_registry.dart';
 import 'agent_chat_composer.dart';
@@ -268,53 +269,60 @@ class _MobileAgentChatLayout extends StatelessWidget {
     return ColoredBox(
       key: const ValueKey('agent-chat-mobile-viewport'),
       color: backgroundColor,
-      child: Column(
-        children: [
-          AgentChatHeader(viewData: viewData, commands: commands),
-          Expanded(
-            child: LayoutBuilder(
-              builder: (context, constraints) {
-                // Keep decisions adjacent to the composer without allowing a
-                // long approval or error to displace input on an IME viewport.
-                final statusFraction = viewData.compactHeight ? 0.24 : 0.38;
-                final statusMaxHeight = (constraints.maxHeight * statusFraction)
-                    .clamp(0.0, 280.0);
-                return Column(
-                  children: [
-                    Expanded(
-                      child: AgentChatMessages(
+      child: InkHost(
+        child: Column(
+          children: [
+            AgentChatHeader(viewData: viewData, commands: commands),
+            Expanded(
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  // Keep decisions adjacent to the composer without allowing a
+                  // long approval or error to displace input on an IME viewport.
+                  final statusFraction = viewData.compactHeight ? 0.24 : 0.38;
+                  final statusMaxHeight =
+                      (constraints.maxHeight * statusFraction).clamp(
+                        0.0,
+                        280.0,
+                      );
+                  return Column(
+                    children: [
+                      Expanded(
+                        child: AgentChatMessages(
+                          viewData: viewData,
+                          commands: commands,
+                          controller: controller,
+                        ),
+                      ),
+                      _AgentChatStatusViewport(
+                        key: const ValueKey(
+                          'agent-chat-mobile-status-viewport',
+                        ),
+                        maxHeight: statusMaxHeight,
                         viewData: viewData,
                         commands: commands,
-                        controller: controller,
                       ),
-                    ),
-                    _AgentChatStatusViewport(
-                      key: const ValueKey('agent-chat-mobile-status-viewport'),
-                      maxHeight: statusMaxHeight,
-                      viewData: viewData,
-                      commands: commands,
-                    ),
-                    if (viewData.state.questionRequest case final request?)
-                      Expanded(
-                        flex: 2,
-                        child: Align(
-                          alignment: Alignment.bottomCenter,
-                          child: AgentChatQuestionCard(request: request),
+                      if (viewData.state.questionRequest case final request?)
+                        Expanded(
+                          flex: 2,
+                          child: Align(
+                            alignment: Alignment.bottomCenter,
+                            child: AgentChatQuestionCard(request: request),
+                          ),
+                        )
+                      else if (viewData.state.routeReady)
+                        ConstrainedBox(
+                          constraints: BoxConstraints(
+                            maxHeight: constraints.maxHeight * 0.82,
+                          ),
+                          child: _composer(),
                         ),
-                      )
-                    else if (viewData.state.routeReady)
-                      ConstrainedBox(
-                        constraints: BoxConstraints(
-                          maxHeight: constraints.maxHeight * 0.82,
-                        ),
-                        child: _composer(),
-                      ),
-                  ],
-                );
-              },
+                    ],
+                  );
+                },
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

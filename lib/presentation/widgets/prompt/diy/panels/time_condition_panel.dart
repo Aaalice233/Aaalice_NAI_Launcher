@@ -3,6 +3,7 @@ import 'package:nai_launcher/core/utils/localization_extension.dart';
 
 import '../../../../../data/models/prompt/time_condition.dart';
 import '../../../../widgets/common/elevated_card.dart';
+import '../../../../widgets/common/surface_ink_well.dart';
 import 'package:nai_launcher/presentation/widgets/common/themed_form_input.dart';
 
 /// 时间条件面板
@@ -286,38 +287,32 @@ class _TimeConditionPanelState extends State<TimeConditionPanel> {
               return Expanded(
                 child: Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 4),
-                  child: Material(
-                    color: Colors.transparent,
-                    child: InkWell(
-                      onTap: widget.readOnly
-                          ? null
-                          : () {
-                              _updateCondition(
-                                condition.copyWith(id: _condition.id),
-                              );
-                            },
-                      borderRadius: BorderRadius.circular(10),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 12,
-                        ),
-                        decoration: BoxDecoration(
-                          color: colorScheme.surfaceContainerHighest,
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: Column(
-                          children: [
-                            Text(emoji, style: const TextStyle(fontSize: 24)),
-                            const SizedBox(height: 4),
-                            Text(
-                              label,
-                              style: theme.textTheme.labelSmall?.copyWith(
-                                fontWeight: FontWeight.w600,
-                              ),
+                  child: SurfaceInkWell(
+                    borderRadius: BorderRadius.circular(10),
+                    color: colorScheme.surfaceContainerHighest,
+                    onTap: widget.readOnly
+                        ? null
+                        : () {
+                            _updateCondition(
+                              condition.copyWith(id: _condition.id),
+                            );
+                          },
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 12,
+                      ),
+                      child: Column(
+                        children: [
+                          Text(emoji, style: const TextStyle(fontSize: 24)),
+                          const SizedBox(height: 4),
+                          Text(
+                            label,
+                            style: theme.textTheme.labelSmall?.copyWith(
+                              fontWeight: FontWeight.w600,
                             ),
-                          ],
-                        ),
+                          ),
+                        ],
                       ),
                     ),
                   ),

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../adaptive/interaction_policy.dart';
 import '../../themes/core/input_surface_style.dart';
+import 'ink_host.dart';
 
 /// Shared deep surface for editable controls.
 ///
@@ -100,7 +101,7 @@ class InputSurfaceContainer extends StatelessWidget {
             strokeAlign: BorderSide.strokeAlignInside,
           ),
         ),
-        child: child,
+        child: InkHost(child: child),
       ),
     );
   }

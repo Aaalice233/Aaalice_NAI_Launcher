@@ -3,6 +3,7 @@ import 'package:nai_launcher/core/utils/localization_extension.dart';
 
 import '../../../common/themed_slider.dart';
 import '../../../common/elevated_card.dart';
+import '../../../common/surface_ink_well.dart';
 
 /// 全局强调配置面板
 ///
@@ -266,54 +267,42 @@ class EmphasisConfigPanel extends StatelessWidget {
               return Expanded(
                 child: Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 3),
-                  child: Material(
-                    color: Colors.transparent,
-                    child: InkWell(
-                      onTap: readOnly
-                          ? null
-                          : () => onBracketCountChanged(count),
-                      borderRadius: BorderRadius.circular(8),
-                      child: AnimatedContainer(
-                        duration: MediaQuery.disableAnimationsOf(context)
-                            ? Duration.zero
-                            : const Duration(milliseconds: 200),
-                        padding: const EdgeInsets.symmetric(vertical: 10),
-                        decoration: BoxDecoration(
-                          gradient: isSelected
-                              ? LinearGradient(
-                                  begin: Alignment.topLeft,
-                                  end: Alignment.bottomRight,
-                                  colors: [
-                                    colorScheme.primary,
-                                    colorScheme.primary.withValues(alpha: 0.8),
-                                  ],
-                                )
-                              : null,
-                          color: isSelected
-                              ? null
-                              : colorScheme.surfaceContainerHighest,
-                          borderRadius: BorderRadius.circular(8),
-                          boxShadow: isSelected
-                              ? [
-                                  BoxShadow(
-                                    color: colorScheme.primary.withValues(
-                                      alpha: 0.3,
-                                    ),
-                                    blurRadius: 8,
-                                    offset: const Offset(0, 2),
-                                  ),
-                                ]
-                              : null,
-                        ),
-                        child: Center(
-                          child: Text(
-                            '$count',
-                            style: theme.textTheme.labelLarge?.copyWith(
-                              fontWeight: FontWeight.bold,
-                              color: isSelected
-                                  ? colorScheme.onPrimary
-                                  : colorScheme.onSurface,
+                  child: SurfaceInkWell(
+                    borderRadius: BorderRadius.circular(8),
+                    gradient: isSelected
+                        ? LinearGradient(
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                            colors: [
+                              colorScheme.primary,
+                              colorScheme.primary.withValues(alpha: 0.8),
+                            ],
+                          )
+                        : null,
+                    color: isSelected
+                        ? null
+                        : colorScheme.surfaceContainerHighest,
+                    shadows: isSelected
+                        ? [
+                            BoxShadow(
+                              color: colorScheme.primary.withValues(alpha: 0.3),
+                              blurRadius: 8,
+                              offset: const Offset(0, 2),
                             ),
+                          ]
+                        : null,
+                    duration: const Duration(milliseconds: 200),
+                    onTap: readOnly ? null : () => onBracketCountChanged(count),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 10),
+                      child: Center(
+                        child: Text(
+                          '$count',
+                          style: theme.textTheme.labelLarge?.copyWith(
+                            fontWeight: FontWeight.bold,
+                            color: isSelected
+                                ? colorScheme.onPrimary
+                                : colorScheme.onSurface,
                           ),
                         ),
                       ),

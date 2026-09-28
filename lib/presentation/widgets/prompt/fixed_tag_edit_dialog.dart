@@ -16,6 +16,7 @@ import '../../themes/core/input_surface_style.dart';
 import '../../providers/tag_library_page_provider.dart';
 import '../autocomplete/autocomplete.dart';
 import '../common/adaptive_dialog_frame.dart';
+import '../common/ink_host.dart';
 import '../common/keyboard_dismiss_region.dart';
 import '../common/prefix_suffix_switch.dart';
 import '../common/horizontal_segmented_control.dart';
@@ -589,57 +590,59 @@ class _FixedTagEditDialogState extends ConsumerState<FixedTagEditDialog> {
               : theme.colorScheme.outlineVariant.withValues(alpha: 0.5),
         ),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          InkWell(
-            onTap: () => setState(() => _saveToLibrary = !_saveToLibrary),
-            borderRadius: BorderRadius.circular(6),
-            child: Row(
-              children: [
-                Checkbox(
-                  value: _saveToLibrary,
-                  onChanged: (value) =>
-                      setState(() => _saveToLibrary = value ?? false),
-                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                  visualDensity: VisualDensity.compact,
-                ),
-                const SizedBox(width: 6),
-                Icon(
-                  Icons.bookmark_add_outlined,
-                  size: 18,
-                  color: _saveToLibrary
-                      ? theme.colorScheme.primary
-                      : theme.colorScheme.outline,
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        context.l10n.fixedTags_saveToLibrary,
-                        style: theme.textTheme.bodyMedium?.copyWith(
-                          fontWeight: FontWeight.w500,
-                          color: _saveToLibrary
-                              ? theme.colorScheme.primary
-                              : null,
-                        ),
-                      ),
-                      Text(
-                        context.l10n.fixedTags_saveToLibraryHint,
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: theme.colorScheme.outline,
-                          fontSize: 11,
-                        ),
-                      ),
-                    ],
+      child: InkHost(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            InkWell(
+              onTap: () => setState(() => _saveToLibrary = !_saveToLibrary),
+              borderRadius: BorderRadius.circular(6),
+              child: Row(
+                children: [
+                  Checkbox(
+                    value: _saveToLibrary,
+                    onChanged: (value) =>
+                        setState(() => _saveToLibrary = value ?? false),
+                    materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    visualDensity: VisualDensity.compact,
                   ),
-                ),
-              ],
+                  const SizedBox(width: 6),
+                  Icon(
+                    Icons.bookmark_add_outlined,
+                    size: 18,
+                    color: _saveToLibrary
+                        ? theme.colorScheme.primary
+                        : theme.colorScheme.outline,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          context.l10n.fixedTags_saveToLibrary,
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            fontWeight: FontWeight.w500,
+                            color: _saveToLibrary
+                                ? theme.colorScheme.primary
+                                : null,
+                          ),
+                        ),
+                        Text(
+                          context.l10n.fixedTags_saveToLibraryHint,
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: theme.colorScheme.outline,
+                            fontSize: 11,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

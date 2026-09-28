@@ -35,6 +35,11 @@ import 'package:nai_launcher/presentation/widgets/common/image_detail/image_deta
 import 'package:nai_launcher/presentation/widgets/gallery/draggable_image_card.dart';
 import 'package:nai_launcher/presentation/providers/mobile_shell_overlay_provider.dart';
 import 'package:nai_launcher/presentation/screens/generation/mobile_layout.dart';
+import 'package:nai_launcher/presentation/screens/generation/widgets/generation_workspace_row.dart';
+import 'package:nai_launcher/presentation/screens/generation/widgets/right_panel.dart';
+import 'package:nai_launcher/presentation/themes/core/layered_surface_style.dart';
+
+import '../../../helpers/ink_expectations.dart';
 
 void main() {
   late Directory hiveDir;
@@ -1614,6 +1619,138 @@ void main() {
       await tester.pump(const Duration(seconds: 5));
     },
   );
+
+  testWidgets('mobile layout paints press feedback above its opaque surfaces', (
+    tester,
+  ) async {
+    final notifier = await _pumpInkProbe(
+      tester,
+      policy: const InteractionPolicy(
+        modality: InteractionModality.touch,
+        touchAvailable: true,
+        precisePointerAvailable: false,
+      ),
+      child: const SizedBox(width: 360, height: 720, child: AgentChatPanel()),
+    );
+    notifier
+      ..setRouteReady(true)
+      ..setError('Request failed');
+    await tester.pump();
+
+    final viewport = find.byKey(const ValueKey('agent-chat-mobile-viewport'));
+    final theme = Theme.of(tester.element(viewport));
+    final dismiss = find.byKey(const ValueKey('agent-chat-error-dismiss'));
+    final dismissPress = await pressAndHold(tester, dismiss);
+    expectInkOnTop(
+      tester,
+      viewport,
+      ink: theme.highlightColor,
+      below: theme.colorScheme.surface,
+    );
+    await dismissPress.cancel();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    final composer = find.byKey(const ValueKey('agent-chat-composer-surface'));
+    final attach = find.byKey(const ValueKey('agent-chat-more-actions'));
+    final attachPress = await pressAndHold(tester, attach);
+    expectInkOnTop(
+      tester,
+      composer,
+      ink: theme.highlightColor,
+      below: controlSurfaceColor(theme.colorScheme),
+    );
+    await attachPress.cancel();
+    await tester.pump(const Duration(milliseconds: 300));
+  });
+
+  testWidgets(
+    'desktop right panel paints agent hover feedback above its fill',
+    (tester) async {
+      final notifier = await _pumpInkProbe(
+        tester,
+        storage: {StorageKeys.rightPanelTab: 0},
+        child: const SizedBox(
+          width: 720,
+          height: 800,
+          child: RightPanel(
+            allocation: GenerationRightPanelAllocation(
+              width: 720,
+              expanded: true,
+              canExpand: true,
+            ),
+          ),
+        ),
+      );
+      notifier.setError('Request failed');
+      await tester.pump();
+
+      final panel = find.byKey(const ValueKey('generation-right-panel'));
+      final theme = Theme.of(tester.element(panel));
+      await hoverOver(
+        tester,
+        find.byKey(const ValueKey('agent-chat-error-dismiss')),
+      );
+      expectInkOnTop(
+        tester,
+        panel,
+        ink: theme.hoverColor,
+        below: theme.colorScheme.surface,
+      );
+    },
+  );
+}
+
+Future<_TestAgentChatNotifier> _pumpInkProbe(
+  WidgetTester tester, {
+  required Widget child,
+  InteractionPolicy? policy,
+  Map<String, Object?> storage = const {},
+}) async {
+  final tempDir = Directory.systemTemp.createTempSync('agent_chat_ink_');
+  final container = ProviderContainer(
+    overrides: [
+      localStorageServiceProvider.overrideWithValue(
+        _MemoryLocalStorage(storage),
+      ),
+      agentChatNotifierProvider.overrideWith(
+        (ref) => _TestAgentChatNotifier(
+          ref,
+          supportDir: tempDir,
+          workspaceDir: tempDir,
+        ),
+      ),
+    ],
+  );
+  addTearDown(() {
+    container.dispose();
+    if (tempDir.existsSync()) tempDir.deleteSync(recursive: true);
+  });
+  await tester.runAsync(() async {
+    container.read(agentChatNotifierProvider);
+    await _waitForInitialized(container);
+  });
+  addTearDown(() => tester.pumpWidget(const SizedBox.shrink()));
+  await tester.pumpWidget(
+    UncontrolledProviderScope(
+      container: container,
+      child: MaterialApp(
+        locale: const Locale('en'),
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: Scaffold(
+          body: Align(
+            alignment: Alignment.topLeft,
+            child: policy == null
+                ? child
+                : InteractionPolicyScope(initialPolicy: policy, child: child),
+          ),
+        ),
+      ),
+    ),
+  );
+  await tester.pump();
+  return container.read(agentChatNotifierProvider.notifier)
+      as _TestAgentChatNotifier;
 }
 
 Future<void> _waitForInitialized(ProviderContainer container) async {

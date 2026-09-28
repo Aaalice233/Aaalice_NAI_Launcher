@@ -8,6 +8,7 @@ import '../../../../data/models/tag_library/tag_library_entry.dart';
 import '../../../adaptive/interaction_policy.dart';
 import '../../../widgets/common/context_menu_anchor.dart';
 import '../../../widgets/common/library_classification_drag.dart';
+import '../../../widgets/common/surface_ink_well.dart';
 import '../../../widgets/gallery/gallery_album_tree_view.dart';
 import '../../../widgets/gallery/gallery_sidebar.dart';
 import '../../../widgets/gallery/library_sidebar_drag_item.dart';
@@ -387,20 +388,17 @@ class _CategoryItemState extends State<_CategoryItem> {
             ? (details) => _showContextMenu(context, details.globalPosition)
             : null,
         // 悬停色立即切换，避免鼠标快速移动时前后两行同时残留高亮。
-        child: Container(
-          margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 1),
-          decoration: BoxDecoration(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 1),
+          child: SurfaceInkWell(
+            borderRadius: BorderRadius.circular(8),
             color: widget.isSelected
                 ? theme.colorScheme.primaryContainer
                 : (_isHovering
                       ? theme.colorScheme.surfaceContainerHighest
                       : Colors.transparent),
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: InkWell(
-            onTap: widget.onTap,
             hoverColor: Colors.transparent,
-            borderRadius: BorderRadius.circular(8),
+            onTap: widget.onTap,
             child: ConstrainedBox(
               constraints: const BoxConstraints(minHeight: 48),
               child: Padding(

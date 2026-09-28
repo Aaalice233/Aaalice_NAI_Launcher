@@ -17,6 +17,7 @@ import '../../../../data/models/vibe/vibe_reference.dart';
 import '../../../adaptive/adaptive_presenter.dart';
 import '../../../providers/generation/generation_params_notifier.dart';
 import '../../../widgets/common/app_toast.dart';
+import '../../../widgets/common/surface_ink_well.dart';
 import '../../../widgets/library_export/library_export_controls.dart';
 import '../../../widgets/library_export/library_export_panel.dart';
 import '../../../widgets/library_export/library_selection_controller.dart';
@@ -407,19 +408,14 @@ class _VibeExportDialogState extends ConsumerState<VibeExportDialog> {
           const SizedBox(height: 8),
           ...formats.map((format) {
             final isSelected = _exportFormat == format;
-            return InkWell(
-              onTap: () => _setExportFormat(format),
+            return SurfaceInkWell(
               borderRadius: BorderRadius.circular(8),
-              child: Container(
+              color: isSelected
+                  ? theme.colorScheme.primaryContainer.withValues(alpha: 0.3)
+                  : theme.colorScheme.surfaceContainer,
+              onTap: () => _setExportFormat(format),
+              child: Padding(
                 padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(8),
-                  color: isSelected
-                      ? theme.colorScheme.primaryContainer.withValues(
-                          alpha: 0.3,
-                        )
-                      : theme.colorScheme.surfaceContainer,
-                ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [

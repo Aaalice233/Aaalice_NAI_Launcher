@@ -17,6 +17,7 @@ import '../../providers/generation/image_generation_selectors.dart';
 import '../../providers/image_generation_provider.dart';
 import '../common/composition_guide.dart';
 import '../common/decoded_memory_image.dart';
+import '../common/surface_ink_well.dart';
 import 'composition_guide_button.dart';
 
 /// 芯片显示信息：性别符号 + 显示名
@@ -602,20 +603,15 @@ class _CharacterChip extends StatelessWidget {
         ? colorScheme.primary
         : colorScheme.onSurfaceVariant;
 
-    return InkWell(
-      onTap: onTap,
+    return SurfaceInkWell(
       borderRadius: BorderRadius.circular(6),
-      child: AnimatedContainer(
-        duration: MediaQuery.disableAnimationsOf(context)
-            ? Duration.zero
-            : const Duration(milliseconds: 150),
+      color: selected
+          ? colorScheme.primary.withValues(alpha: 0.14)
+          : colorScheme.surfaceContainerLow,
+      duration: const Duration(milliseconds: 150),
+      onTap: onTap,
+      child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-        decoration: BoxDecoration(
-          color: selected
-              ? colorScheme.primary.withValues(alpha: 0.14)
-              : colorScheme.surfaceContainerLow,
-          borderRadius: BorderRadius.circular(6),
-        ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
