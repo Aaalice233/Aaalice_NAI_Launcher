@@ -25,12 +25,15 @@ import 'core/canvas_controller.dart';
 import 'core/editor_state.dart';
 import 'effects/image_editor_effects_controller.dart';
 import 'core/focused_selection_state.dart';
+import 'core/layer_role_policy.dart';
 import 'frame/editor_frame_commands.dart';
 import 'frame/editor_frame_controller.dart';
 import 'frame/focus_outpaint_export.dart';
 import 'frame/frame_geometry.dart';
 import 'frame/frame_tool_panel.dart';
+import 'layers/image_layer_source.dart';
 import 'layers/layer.dart';
+import 'layers/layer_role.dart';
 import 'painters/focused_overlay_painter.dart';
 import 'tools/frame_tool.dart';
 import 'tools/tool_base.dart';
@@ -89,16 +92,6 @@ class ImageEditorWorkspace extends StatefulWidget {
 
 class ImageEditorWorkspaceState extends State<ImageEditorWorkspace> {
   static const int _maxImportedImageBytes = 50 * 1024 * 1024;
-  static const Set<String> _inpaintToolIds = {
-    'brush',
-    'eraser',
-    'fill',
-    'magic_wand',
-    'rect_selection',
-    'ellipse_selection',
-    'lasso_selection',
-    FrameTool.toolId,
-  };
 
   ImageEditorController get _controller => widget.controller;
   EditorState get _state => _controller.editorState;
@@ -163,6 +156,9 @@ class ImageEditorWorkspaceState extends State<ImageEditorWorkspace> {
   late final ImageEditorEffectsController _effectsController;
   late final MagicWandController _magicWandController;
   late final EditorFrameController _frameController;
+  late final ImageLayerSource _imageSource = ImageLayerSource(
+    _state.layerManager,
+  );
 
   /// 当前压缩档位是按哪块交出区域算的
   Rect? _compressionPlanRegion;
@@ -314,6 +310,31 @@ class ImageEditorWorkspaceState extends State<ImageEditorWorkspace> {
     }
   }
 
+  /// 重绘会话启用图层角色：原图层是受保护的图片层，默认绘制层改为蒙版层
+  void _applyInpaintLayerRoles() {
+    if (!_isInpaintMode) return;
+    final maskName = context.l10n.editor_maskLayerName;
+    final drawingName = context.l10n.editor_defaultDrawingLayerName;
+    for (final layer in _state.layerManager.layers) {
+      if (layer.id != _sourceLayerId && layer.name == drawingName) {
+        layer.role = LayerRole.mask;
+        _state.layerManager.renameLayer(layer.id, maskName);
+      }
+    }
+    _state.setRolePolicy(
+      LayerRolePolicy.inpaint(protectedLayerId: _sourceLayerId),
+    );
+  }
+
+  /// 图层角色变化后当前工具可能不再可用，退回画笔
+  void _handleActiveLayerChanged() {
+    final tool = _state.currentTool;
+    if (tool != null && !tool.isAvailableIn(_state)) {
+      _state.setToolById('brush');
+    }
+    if (mounted) setState(() {});
+  }
+
   @override
   void initState() {
     super.initState();
@@ -350,6 +371,9 @@ class ImageEditorWorkspaceState extends State<ImageEditorWorkspace> {
     }
     _state.frameNotifier.addListener(_handleFrameChanged);
     _state.layerManager.addListener(_handleLayersChanged);
+    _state.layerManager.activeLayerNotifier.addListener(
+      _handleActiveLayerChanged,
+    );
     _state.setMagicWandHandler(
       (point, {required mode, required tolerance, required invert}) =>
           _magicWandController.apply(
@@ -389,6 +413,7 @@ class ImageEditorWorkspaceState extends State<ImageEditorWorkspace> {
         initialLayerName: context.l10n.editor_defaultDrawingLayerName,
       );
       _localizeDefaultLayerName();
+      _applyInpaintLayerRoles();
       _focusedSelectionState.canvasSize = size;
 
       // 加载已有蒙版（如果有）
@@ -405,9 +430,6 @@ class ImageEditorWorkspaceState extends State<ImageEditorWorkspace> {
     });
 
     if (_isInpaintMode) {
-      _state.setForegroundColor(const Color(0xFF60AAFF));
-      _state.setBrushOpacity(0.55);
-      _state.setBrushHardness(1.0);
       _state.setToolById(
         _focusedInpaintEnabled && widget.existingFocusRect == null
             ? 'rect_selection'
@@ -477,14 +499,14 @@ class ImageEditorWorkspaceState extends State<ImageEditorWorkspace> {
         _frameController.attachSource(
           Rect.fromLTWH(0, 0, image.width.toDouble(), image.height.toDouble()),
         );
-        sourceLayer.locked = true;
       }
 
       _localizeDefaultLayerName();
+      _applyInpaintLayerRoles();
 
       // Select the default drawing layer rather than the base image layer.
       final layer1 = _state.layerManager.layers.firstWhere(
-        (l) => l.name == defaultDrawingLayerName,
+        (l) => l.name == defaultDrawingLayerName || l.isMask,
         orElse: () => _state.layerManager.layers.last,
       );
       _state.layerManager.setActiveLayer(layer1.id);
@@ -495,6 +517,7 @@ class ImageEditorWorkspaceState extends State<ImageEditorWorkspace> {
       _loadExistingFocusSelection();
       // 蒙版按整张原图载入，必须先于取景框恢复
       _restoreExistingFrame();
+      _imageSource.captureBaseline();
     } catch (e) {
       if (!mounted || !_controller.accepts(operationEpoch)) return;
       AppLogger.w('Failed to load initial image: $e', 'ImageEditor');
@@ -503,6 +526,7 @@ class ImageEditorWorkspaceState extends State<ImageEditorWorkspace> {
         initialLayerName: defaultDrawingLayerName,
       );
       _localizeDefaultLayerName();
+      _applyInpaintLayerRoles();
       _focusedSelectionState.canvasSize = _state.canvasSize;
     } finally {
       decodedImage?.dispose();
@@ -611,6 +635,9 @@ class ImageEditorWorkspaceState extends State<ImageEditorWorkspace> {
     _state.setMagicWandHandler(null);
     _state.frameNotifier.removeListener(_handleFrameChanged);
     _state.layerManager.removeListener(_handleLayersChanged);
+    _state.layerManager.activeLayerNotifier.removeListener(
+      _handleActiveLayerChanged,
+    );
     _state.setFrameCommands(null);
     _frameController.dispose();
     super.dispose();
@@ -858,6 +885,7 @@ class ImageEditorWorkspaceState extends State<ImageEditorWorkspace> {
         ),
       );
 
+      await _state.pixelReadbacks.idle;
       final pasteBackCanvas = _isInpaintMode
           ? _frameController.pasteBackCanvas
           : null;
@@ -925,6 +953,7 @@ class ImageEditorWorkspaceState extends State<ImageEditorWorkspace> {
     if (!_isInpaintMode && hasImageChanges) {
       modifiedImage = await _exportMergedImageAtCompressionTarget();
     }
+    final hasSourceImageChanges = _isInpaintMode && _imageSource.hasChanges;
 
     final maskImage = await _exportResultMask(
       hasMaskChanges: hasMaskChanges,
@@ -940,6 +969,7 @@ class ImageEditorWorkspaceState extends State<ImageEditorWorkspace> {
       modifiedImage: modifiedImage,
       maskImage: maskImage,
       hasImageChanges: !_isInpaintMode && hasImageChanges,
+      hasSourceImageChanges: hasSourceImageChanges,
       hasMaskChanges:
           _isInpaintMode && (hasMaskChanges || useFocusedSelectionAsMask),
       focusAreaRect: focusAreaRect,
@@ -1003,28 +1033,27 @@ class ImageEditorWorkspaceState extends State<ImageEditorWorkspace> {
   Future<ImageEditorResult> _buildFocusOutpaintResult() async {
     final target = _activeCompressionTarget;
     final compressionApplied = _compressionApplied;
-    final sourceRect = _frameController.sourceRect;
-    final sourceBytes = _sourceLayerBytes;
-    if (sourceRect == null || sourceBytes == null) {
+    final canvas = _frameController.pasteBackCanvas;
+    if (canvas == null) {
       throw StateError('Unable to read current source image.');
     }
+    final source = await _resolveSourceImage(canvas);
     final frameMask = await ImageExporterNew.exportMaskRasterFromLayers(
-      _state.layerManager,
+      _state.layerManager.maskLayers,
       _state.frame,
-      excludedBaseImageLayerIds: {if (_sourceLayerId != null) _sourceLayerId!},
       additionalMaskRects: _frameController.outpaintMaskRects,
     );
     final export = await FocusOutpaintExporter(_controller.processingService)
         .export(
-          sourceImage: sourceBytes,
-          sourceRect: sourceRect,
+          sourceImage: source.bytes,
+          sourceRect: source.rect,
           frame: _state.frame,
           frameMask: frameMask,
           target: target,
         );
     final maskImage = export.maskImage;
     AppLogger.d(
-      'Export focus outpaint: source=$sourceRect, frame=${_state.frame}, '
+      'Export focus outpaint: source=${source.rect}, frame=${_state.frame}, '
           'canvas=${export.width}x${export.height}, crop=${export.crop}, '
           'masked=${maskImage != null}, compressionApplied=$compressionApplied',
       'ImageEditor',
@@ -1034,6 +1063,7 @@ class ImageEditorWorkspaceState extends State<ImageEditorWorkspace> {
       // 框内没有要生成的像素说明框落在原图内，整张画布就是原图
       return ImageEditorResult(
         minimumContextMegaPixels: _minimumContextMegaPixels,
+        hasSourceImageChanges: _imageSource.hasChanges,
         inpaintSourceImage: export.sourceImage,
         inpaintSourceWidth: export.width,
         inpaintSourceHeight: export.height,
@@ -1046,6 +1076,7 @@ class ImageEditorWorkspaceState extends State<ImageEditorWorkspace> {
     return ImageEditorResult(
       maskImage: maskImage,
       hasMaskChanges: true,
+      hasSourceImageChanges: _imageSource.hasChanges,
       minimumContextMegaPixels: _minimumContextMegaPixels,
       focusedInpaintEnabled: true,
       focusOutpaint: FocusOutpaintResult(
@@ -1068,19 +1099,33 @@ class ImageEditorWorkspaceState extends State<ImageEditorWorkspace> {
         : _state.layerManager.getLayerById(sourceLayerId)?.baseImageBytes;
   }
 
-  /// 按取景框从当前原图取出送去生成的源图，框外空白保持透明
+  /// 送出区域 [region] 对应的画面：图片层没改过时沿用原图字节与原图区域，
+  /// 改过则把区域内全部可见图片层重新合成，区域本身即新的原图区域
+  Future<({Uint8List bytes, Rect rect})> _resolveSourceImage(Rect region) async {
+    if (!_imageSource.hasChanges) {
+      final bytes = _sourceLayerBytes;
+      final rect = _frameController.sourceRect;
+      if (bytes == null || rect == null) {
+        throw StateError('Unable to read current source image.');
+      }
+      return (bytes: bytes, rect: rect);
+    }
+    return (bytes: await _imageSource.renderComposite(region), rect: region);
+  }
+
+  /// 按取景框从当前画面取出送去生成的源图，框外空白保持透明
   Future<Uint8List> _materializeFrameSource({
     int? targetWidth,
     int? targetHeight,
   }) async {
-    final frame = _frameController.virtualFrame;
-    final sourceBytes = _sourceLayerBytes;
-    if (frame == null || sourceBytes == null) {
-      throw Exception('Unable to read current source image.');
-    }
+    final frame = _state.frame;
+    final source = await _resolveSourceImage(frame);
     final result = await _controller.processingService.materializeOutpaint(
-      sourceImage: sourceBytes,
-      frame: frame,
+      sourceImage: source.bytes,
+      frame: EditorFrameGeometry.virtualFrame(
+        frame: frame,
+        sourceRect: source.rect,
+      ),
       targetWidth: targetWidth,
       targetHeight: targetHeight,
     );
@@ -1093,8 +1138,8 @@ class ImageEditorWorkspaceState extends State<ImageEditorWorkspace> {
   /// 只统计与取景框相交的蒙版；完全落在框外的内容不会送出
   bool _hasMaskContent() {
     final frame = _state.frame;
-    for (final layer in _state.layerManager.layers) {
-      if (!layer.visible || layer.id == _sourceLayerId) {
+    for (final layer in _state.layerManager.maskLayers) {
+      if (!layer.visible) {
         continue;
       }
       if (layer.hasContent && layer.contentBounds.overlaps(frame)) {
@@ -1133,11 +1178,8 @@ class ImageEditorWorkspaceState extends State<ImageEditorWorkspace> {
         frame: region,
       );
       final originalMask = await ImageExporterNew.exportMaskFromLayers(
-        _state.layerManager,
+        _state.layerManager.maskLayers,
         region,
-        excludedBaseImageLayerIds: {
-          if (_sourceLayerId != null) _sourceLayerId!,
-        },
         forceHardEdges: true,
         preferCpuHardEdgeExport: true,
       );
@@ -1174,7 +1216,7 @@ class ImageEditorWorkspaceState extends State<ImageEditorWorkspace> {
       // 超出取景框的蒙版图层保留，框外内容不随填充丢失
       _removeAllMaskLayers(
         preservedLayerIds: {
-          for (final layer in _state.layerManager.layers)
+          for (final layer in _state.layerManager.maskLayers)
             if (EditorFrameGeometry.exceedsFrame(layer.contentBounds, region))
               layer.id,
         },
@@ -1201,20 +1243,12 @@ class ImageEditorWorkspaceState extends State<ImageEditorWorkspace> {
     }
   }
 
-  int? _resolveMaskLayerInsertIndex() {
-    if (_sourceLayerId == null) {
-      return null;
-    }
-
-    final sourceIndex = _state.layerManager.layers.indexWhere(
-      (layer) => layer.id == _sourceLayerId,
+  /// 蒙版层总在全部图片层之上
+  int _resolveMaskLayerInsertIndex() {
+    return _state.rolePolicy.insertIndexFor(
+      _state.layerManager,
+      LayerRole.mask,
     );
-    if (sourceIndex == -1) {
-      return null;
-    }
-
-    // 蒙版图层应插入到底图上方，否则会被底图完全覆盖。
-    return sourceIndex;
   }
 
   /// [offset] 为蒙版图像左上角的文档坐标
@@ -1228,6 +1262,7 @@ class ImageEditorWorkspaceState extends State<ImageEditorWorkspace> {
       name: name,
       index: _resolveMaskLayerInsertIndex(),
       offset: offset,
+      role: LayerRole.mask,
     );
   }
 
@@ -1235,16 +1270,13 @@ class ImageEditorWorkspaceState extends State<ImageEditorWorkspace> {
     return _state.layerManager.addLayer(
       name: name,
       index: _resolveMaskLayerInsertIndex(),
+      role: LayerRole.mask,
     );
   }
 
   void _removeAllMaskLayers({Set<String> preservedLayerIds = const {}}) {
-    final removableLayerIds = _state.layerManager.layers
-        .where(
-          (layer) =>
-              layer.id != _sourceLayerId &&
-              !preservedLayerIds.contains(layer.id),
-        )
+    final removableLayerIds = _state.layerManager.maskLayers
+        .where((layer) => !preservedLayerIds.contains(layer.id))
         .map((layer) => layer.id)
         .toList(growable: false);
 
@@ -1342,7 +1374,7 @@ class ImageEditorWorkspaceState extends State<ImageEditorWorkspace> {
   }
 
   void _resetInpaintMask() {
-    if (!_isInpaintMode) {
+    if (!_isInpaintMode || !_state.isMaskLayerActive) {
       _state.clearActiveLayerWithHistory();
       return;
     }
@@ -1360,8 +1392,7 @@ class ImageEditorWorkspaceState extends State<ImageEditorWorkspace> {
   }
 
   Widget _buildDroppedImageLayerRegion(Widget child) {
-    if (_isInpaintMode ||
-        widget.debugDisableDropRegion ||
+    if (widget.debugDisableDropRegion ||
         !PlatformCapabilities.current.supportsExternalFileDrop) {
       return child;
     }
@@ -1390,7 +1421,7 @@ class ImageEditorWorkspaceState extends State<ImageEditorWorkspace> {
   }
 
   Future<void> _handleDroppedImageLayerDrop(PerformDropEvent event) async {
-    if (_isInpaintMode || _isImportingDroppedImage) {
+    if (_isImportingDroppedImage) {
       return;
     }
 
@@ -1425,7 +1456,7 @@ class ImageEditorWorkspaceState extends State<ImageEditorWorkspace> {
     String fileName,
     Uint8List imageBytes,
   ) async {
-    if (!mounted || _isInpaintMode) {
+    if (!mounted) {
       return;
     }
 
@@ -1451,10 +1482,11 @@ class ImageEditorWorkspaceState extends State<ImageEditorWorkspace> {
         return;
       }
 
-      final layer = await _state.layerManager.addLayerFromImage(
+      // 铺满当前取景框，作为图片层插在当前图层上方
+      final layer = await _state.layerCommands.addImageLayer(
         layerBytes,
         name: _droppedImageLayerName(fileName),
-        index: 0,
+        offset: _state.frame.topLeft,
       );
       if (!mounted) {
         return;
@@ -2052,13 +2084,12 @@ class ImageEditorWorkspaceState extends State<ImageEditorWorkspace> {
   Future<Uint8List> _exportInpaintLayerMaskAtCompressionTarget(
     List<Rect> additionalMaskRects,
   ) async {
-    final excludedSourceIds = {if (_sourceLayerId != null) _sourceLayerId!};
+    final maskLayers = _state.layerManager.maskLayers;
     final target = _activeCompressionTarget;
     final region = _state.frame;
     final raster = await ImageExporterNew.tryExportHardEdgeMaskRasterFromLayers(
-      _state.layerManager,
+      maskLayers,
       region,
-      excludedBaseImageLayerIds: excludedSourceIds,
       additionalMaskRects: additionalMaskRects,
     );
     if (raster != null) {
@@ -2072,9 +2103,8 @@ class ImageEditorWorkspaceState extends State<ImageEditorWorkspace> {
     }
 
     final mask = await ImageExporterNew.exportMaskFromLayers(
-      _state.layerManager,
+      maskLayers,
       region,
-      excludedBaseImageLayerIds: excludedSourceIds,
       forceHardEdges: true,
       additionalMaskRects: additionalMaskRects,
     );
@@ -2104,6 +2134,8 @@ class ImageEditorWorkspaceState extends State<ImageEditorWorkspace> {
         targetWidth: target.width,
         targetHeight: target.height,
       );
+    } else if (_imageSource.hasChanges) {
+      source = await _imageSource.renderComposite(_state.frame);
     } else {
       source = _inpaintWorkingSourceImage;
     }
@@ -2633,9 +2665,6 @@ class ImageEditorWorkspaceState extends State<ImageEditorWorkspace> {
                         ? _handleFillClosedMaskRegions
                         : null,
                     canFillMask: _isInpaintMode ? _hasMaskContent : null,
-                    allowedToolIds: _isInpaintMode
-                        ? ImageEditorWorkspaceState._inpaintToolIds
-                        : null,
                   ),
 
                   // 中间画布区域
@@ -2661,8 +2690,9 @@ class ImageEditorWorkspaceState extends State<ImageEditorWorkspace> {
                           // 工具设置面板
                           Expanded(flex: 2, child: _buildToolSettingsPanel()),
                           const ThemedDivider(height: 1),
-                          // 颜色面板
-                          if (!_isInpaintMode) ColorPanel(state: _state),
+                          // 颜色面板：蒙版层只用固定的蒙版色
+                          if (!_state.isMaskLayerActive)
+                            ColorPanel(state: _state),
                         ],
                       ),
                     ),
@@ -2754,9 +2784,6 @@ class ImageEditorWorkspaceState extends State<ImageEditorWorkspace> {
                     : null,
                 canFillMask: _isInpaintMode ? _hasMaskContent : null,
                 onLayersPressed: _showMobileLayerSheet,
-                allowedToolIds: _isInpaintMode
-                    ? ImageEditorWorkspaceState._inpaintToolIds
-                    : null,
               ),
             ],
           ),
@@ -3192,7 +3219,8 @@ class ImageEditorWorkspaceState extends State<ImageEditorWorkspace> {
                 ('Alt', context.l10n.editor_shortcutTemporaryColorPicker),
                 if (includeCloneStamp)
                   ('Alt + Click', context.l10n.editor_shortcutCloneStampSource),
-                if (includeFrameTool) ('V', context.l10n.editor_toolFrame),
+                ('V', context.l10n.editor_toolMove),
+                if (includeFrameTool) ('C', context.l10n.editor_toolFrame),
               ],
             ),
             _buildShortcutSection(
@@ -3264,6 +3292,8 @@ class ImageEditorWorkspaceState extends State<ImageEditorWorkspace> {
                   'Backspace',
                   context.l10n.editor_shortcutClearSelectionContent,
                 ),
+                ('← ↑ → ↓', context.l10n.editor_shortcutNudge),
+                ('Shift + ← ↑ → ↓', context.l10n.editor_shortcutNudgeFar),
                 ('Esc', context.l10n.editor_shortcutCancelCurrentAction),
               ],
             ),

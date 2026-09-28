@@ -124,7 +124,7 @@ class InpaintDraftFileRepository implements InpaintDraftRepository {
       }
       await _fileStore.verifyAsset(
         directory,
-        _sourceFileNameFor(draft.status),
+        await _currentSourceFileName(directory, draft),
         draft.source,
         'source',
       );
@@ -173,8 +173,9 @@ class InpaintDraftFileRepository implements InpaintDraftRepository {
 
   Future<Uint8List> _readSource(String id) async {
     final draft = await _requireDraft(id);
+    final directory = _draftDirectory(id);
     final file = File(
-      p.join(_draftDirectory(id).path, _sourceFileNameFor(draft.status)),
+      p.join(directory.path, await _currentSourceFileName(directory, draft)),
     );
     await _fileStore.recoverAtomicTarget(file);
     final bytes = await file.readAsBytes();
@@ -303,6 +304,40 @@ class InpaintDraftFileRepository implements InpaintDraftRepository {
   }
 
   @override
+  Future<InpaintDraft> cancelWithEditedSource(
+    String id, {
+    required Uint8List sourceBytes,
+    required Map<String, dynamic> parameterSnapshot,
+    required num estimatedAnlas,
+  }) {
+    return _serialized(id, () async {
+      final draft = await _requireDraft(id);
+      _requireStatus(draft, 'cancel with edited source', {
+        InpaintDraftStatus.editing,
+      });
+      final source = _fileStore.inspectImage(sourceBytes, label: 'source');
+      final snapshot = _normalizeSnapshot(parameterSnapshot);
+      _validateEstimatedAnlas(estimatedAnlas);
+      // source.image still backs the editing metadata, so the edited source
+      // goes to the ready slot and the cancelled metadata commits it there.
+      await _fileStore.atomicWriteBytes(
+        File(p.join(_draftDirectory(id).path, _readySourceFileName)),
+        sourceBytes,
+      );
+      return _save(
+        draft.copyWith(
+          status: InpaintDraftStatus.cancelled,
+          source: source,
+          clearMask: true,
+          parameterSnapshot: snapshot,
+          estimatedAnlas: estimatedAnlas,
+          updatedAt: _clock().toUtc(),
+        ),
+      );
+    });
+  }
+
+  @override
   Future<InpaintDraft> reEdit(String id) {
     return _serialized(id, () => _reEdit(id));
   }
@@ -318,14 +353,12 @@ class InpaintDraftFileRepository implements InpaintDraftRepository {
     });
     if (draft.status == InpaintDraftStatus.editing) return draft;
     if (draft.status != InpaintDraftStatus.submitted) {
-      if (draft.status == InpaintDraftStatus.ready ||
-          draft.status == InpaintDraftStatus.failed) {
-        final directory = _draftDirectory(id);
+      final directory = _draftDirectory(id);
+      final current = await _currentSourceFileName(directory, draft);
+      if (current != _sourceFileName) {
         await _fileStore.atomicWriteBytes(
           File(p.join(directory.path, _sourceFileName)),
-          await File(
-            p.join(directory.path, _readySourceFileName),
-          ).readAsBytes(),
+          await File(p.join(directory.path, current)).readAsBytes(),
         );
       }
       return _save(
@@ -538,6 +571,24 @@ class InpaintDraftFileRepository implements InpaintDraftRepository {
   Directory _draftDirectory(String id) {
     _validateId(id);
     return Directory(p.join(_rootDirectory.path, id));
+  }
+
+  /// A cancelled draft keeps its source in whichever slot matches the
+  /// committed checksum, so no transition rewrites a file that older
+  /// metadata still points at.
+  Future<String> _currentSourceFileName(
+    Directory directory,
+    InpaintDraft draft,
+  ) async {
+    final byStatus = _sourceFileNameFor(draft.status);
+    if (draft.status != InpaintDraftStatus.cancelled) return byStatus;
+    final file = File(p.join(directory.path, byStatus));
+    await _fileStore.recoverAtomicTarget(file);
+    if (await file.exists() &&
+        _fileStore.hasChecksum(await file.readAsBytes(), draft.source)) {
+      return byStatus;
+    }
+    return _readySourceFileName;
   }
 
   String _sourceFileNameFor(InpaintDraftStatus status) {

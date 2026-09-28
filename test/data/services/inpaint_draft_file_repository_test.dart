@@ -342,6 +342,80 @@ void main() {
     },
   );
 
+  group('cancelWithEditedSource', () {
+    test('keeps the edited source and drops the mask', () async {
+      final prepared = await _prepare(repository, width: 10, height: 6);
+      await repository.beginEditing(prepared.id);
+      final edited = _png(width: 12, height: 6, value: 30);
+
+      final cancelled = await repository.cancelWithEditedSource(
+        prepared.id,
+        sourceBytes: edited,
+        parameterSnapshot: const {'prompt': 'edited'},
+        estimatedAnlas: 4,
+      );
+
+      expect(cancelled.status, InpaintDraftStatus.cancelled);
+      expect(cancelled.mask, isNull);
+      expect(cancelled.source.width, 12);
+      expect(await repository.readSource(prepared.id), edited);
+      final restored = await repository.get(prepared.id);
+      expect(restored!.parameterSnapshot['prompt'], 'edited');
+      expect(restored.estimatedAnlas, 4);
+
+      final editing = await repository.reEdit(prepared.id);
+      expect(editing.status, InpaintDraftStatus.editing);
+      expect(await repository.readSource(prepared.id), edited);
+    });
+
+    test('never rewrites the file the editing metadata points at', () async {
+      final prepared = await _prepare(repository, width: 10, height: 6);
+      await repository.beginEditing(prepared.id);
+      final original = File(p.join(root.path, prepared.id, 'source.image'));
+      final originalBytes = await original.readAsBytes();
+
+      await repository.cancelWithEditedSource(
+        prepared.id,
+        sourceBytes: _png(width: 12, height: 6, value: 30),
+        parameterSnapshot: const {},
+        estimatedAnlas: 1,
+      );
+
+      expect(await original.readAsBytes(), originalBytes);
+    });
+
+    test('an interrupted edit leaves the editing draft intact', () async {
+      final prepared = await _prepare(repository);
+      await repository.beginEditing(prepared.id);
+      // 新底图已写入、元数据尚未提交时进程退出
+      await File(
+        p.join(root.path, prepared.id, 'source.ready.image'),
+      ).writeAsBytes(_png(value: 30));
+
+      final draft = await InpaintDraftFileRepository(
+        rootDirectory: root,
+      ).get(prepared.id);
+
+      expect(draft!.status, InpaintDraftStatus.editing);
+      expect(await repository.readSource(prepared.id), _png());
+    });
+
+    test('only applies to drafts that are being edited', () async {
+      final prepared = await _prepare(repository);
+
+      await expectLater(
+        repository.cancelWithEditedSource(
+          prepared.id,
+          sourceBytes: _png(value: 30),
+          parameterSnapshot: const {},
+          estimatedAnlas: 1,
+        ),
+        throwsA(isA<InpaintDraftTransitionException>()),
+      );
+      expect(await repository.readSource(prepared.id), _png());
+    });
+  });
+
   test('detects tampering and never accepts caller-controlled paths', () async {
     final draft = await _prepare(repository);
     final source = File(p.join(root.path, draft.id, 'source.image'));

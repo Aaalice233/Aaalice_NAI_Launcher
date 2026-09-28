@@ -1,13 +1,18 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:image/image.dart' as img;
 import 'package:nai_launcher/presentation/widgets/image_editor/core/editor_state.dart';
+import 'package:nai_launcher/presentation/widgets/image_editor/layers/layer.dart';
 import 'package:nai_launcher/presentation/widgets/image_editor/tools/clone_stamp_tool.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+import '../layers/layer_pixel_test_helpers.dart';
 
 void main() {
+  // EditorState 构造时会异步读取工具设置
+  setUp(() => SharedPreferences.setMockInitialValues({}));
+
   group('选取源点', () {
     testWidgets('选中工具即处于取源点状态，松开时才提交源点', (tester) async {
       final state = _editorState();
@@ -262,10 +267,9 @@ void main() {
       final bytes = await tester.runAsync(() async {
         final layer = await state.layerManager.addLayerFromImage(_splitPng());
         _tap(tool, state, const Offset(16, 32));
-        final applied = _nextHistoryChange(state);
         _stroke(tool, state, const [Offset(48, 32)]);
-        await applied.timeout(const Duration(seconds: 10));
-        return layer!.baseImageBytes!;
+        expect(state.historyManager.undoStackSize, 1, reason: '松手当帧写回');
+        return _encodedPixels(layer!);
       });
       await tester.pump();
 
@@ -275,22 +279,20 @@ void main() {
       _expectRed(result.getPixel(16, 32), reason: '源点本身不受影响');
     });
 
-    testWidgets('应用等待期间重设源点，本次合成仍用原取样参数', (tester) async {
+    testWidgets('松开后立即重设源点，已写回的一笔仍用原取样参数', (tester) async {
       final state = _editorState();
       final tool = CloneStampTool()..setSize(8);
 
       final bytes = await tester.runAsync(() async {
         final layer = await state.layerManager.addLayerFromImage(_splitPng());
         _tap(tool, state, const Offset(16, 32));
-        final applied = _nextHistoryChange(state);
         _stroke(tool, state, const [Offset(48, 32)]);
 
-        // 合成挂起在图层渲染上时重新取源点：旧快照被释放、对齐被清空
+        // 旧快照在写回图像光栅化之前就被释放、对齐被清空
         tool.setPickingSource(true);
         _tap(tool, state, const Offset(56, 8));
 
-        await applied.timeout(const Duration(seconds: 10));
-        return layer!.baseImageBytes!;
+        return _encodedPixels(layer!);
       });
       await tester.pump();
 
@@ -298,27 +300,63 @@ void main() {
       _expectRed(img.decodePng(bytes!)!.getPixel(48, 32));
     });
 
-    testWidgets('应用等待期间切换工具，本次合成仍完成', (tester) async {
+    testWidgets('松开后立即切换工具，已写回的一笔照常落地', (tester) async {
       final state = _editorState();
       final tool = CloneStampTool()..setSize(8);
 
       final bytes = await tester.runAsync(() async {
         final layer = await state.layerManager.addLayerFromImage(_splitPng());
         _tap(tool, state, const Offset(16, 32));
-        final applied = _nextHistoryChange(state);
         _stroke(tool, state, const [Offset(48, 32)]);
 
         tool.onDeactivateFast(state);
 
-        await applied.timeout(const Duration(seconds: 10));
-        return layer!.baseImageBytes!;
+        return _encodedPixels(layer!);
       });
       await tester.pump();
 
       expect(tool.canvasSnapshot, isNull);
       _expectRed(img.decodePng(bytes!)!.getPixel(48, 32));
     });
+
+    testWidgets('背靠背两笔都生效，且可逐笔撤销', (tester) async {
+      final state = _editorState();
+      final tool = CloneStampTool()..setSize(8);
+
+      await tester.runAsync(() async {
+        final layer = await state.layerManager.addLayerFromImage(_splitPng());
+        _tap(tool, state, const Offset(16, 32));
+        _stroke(tool, state, const [Offset(48, 32)]);
+        _stroke(tool, state, const [Offset(56, 48)]);
+
+        expect(state.historyManager.undoStackSize, 2);
+        var pixels = await LayerPixels.of(layer!, _canvas);
+        expect(pixels.at(48, 32), _red);
+        expect(pixels.at(56, 48), _red, reason: '第二笔没有被丢弃');
+
+        state.undo();
+        pixels = await LayerPixels.of(layer, _canvas);
+        expect(pixels.at(48, 32), _red, reason: '第一笔保留');
+        expect(pixels.at(56, 48), _blue, reason: '只撤掉第二笔');
+
+        state.undo();
+        pixels = await LayerPixels.of(layer, _canvas);
+        expect(pixels.at(48, 32), _blue);
+      });
+      await tester.pump();
+    });
   });
+}
+
+const _canvas = Rect.fromLTWH(0, 0, 64, 64);
+const _red = [255, 0, 0, 255];
+const _blue = [0, 0, 255, 255];
+
+Future<Uint8List> _encodedPixels(Layer layer) async {
+  final bytes = await layer.resolveBaseImageBytes().timeout(
+    const Duration(seconds: 10),
+  );
+  return bytes!;
 }
 
 EditorState _editorState() {
@@ -347,17 +385,6 @@ void _stroke(CloneStampTool tool, EditorState state, List<Offset> points) {
     _drag(tool, state, point);
   }
   _release(tool, state, points.last);
-}
-
-Future<void> _nextHistoryChange(EditorState state) {
-  final completer = Completer<void>();
-  void listener() {
-    state.historyManager.removeListener(listener);
-    completer.complete();
-  }
-
-  state.historyManager.addListener(listener);
-  return completer.future;
 }
 
 // 左半红、右半蓝，源点与落笔处颜色可区分

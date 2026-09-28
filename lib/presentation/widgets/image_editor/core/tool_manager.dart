@@ -8,6 +8,7 @@ import '../tools/eraser_tool.dart';
 import '../tools/fill_tool.dart';
 import '../tools/frame_tool.dart';
 import '../tools/magic_wand_tool.dart';
+import '../tools/move_tool.dart';
 import '../tools/selection/ellipse_selection_tool.dart';
 import '../tools/selection/lasso_selection_tool.dart';
 import '../tools/selection/rect_selection_tool.dart';
@@ -98,6 +99,7 @@ class ToolManager extends ChangeNotifier {
         'presetIndex',
         tool.selectedPresetIndex,
       );
+      settingsManager.setSetting(tool.id, 'maskSize', tool.maskSize);
     } else if (tool is EraserTool) {
       settingsManager.setSetting(tool.id, 'size', tool.size);
       settingsManager.setSetting(tool.id, 'hardness', tool.hardness);
@@ -123,6 +125,10 @@ class ToolManager extends ChangeNotifier {
       if (presetIndex is int) {
         // 直接设置预设索引，不触发额外操作
         tool.setSelectedPresetIndex(presetIndex);
+      }
+      final maskSize = settings['maskSize'];
+      if (maskSize is num) {
+        tool.setMaskSize(maskSize.toDouble());
       }
     } else if (tool is EraserTool) {
       final size = settings['size'];
@@ -250,6 +256,7 @@ class ToolManager extends ChangeNotifier {
       MagicWandTool(),
       BlurTool(),
       CloneStampTool(),
+      MoveTool(),
       RectSelectionTool(),
       EllipseSelectionTool(),
       LassoSelectionTool(),

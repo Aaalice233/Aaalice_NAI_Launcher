@@ -716,6 +716,58 @@ void main() {
       expect(submitted.isOutpaint, isTrue);
     });
 
+    test(
+      'an edited source without a mask is kept on the cancelled draft',
+      () async {
+        final toolbox = buildToolbox(paidAbovePixels: 512 * 512);
+        final tools = {for (final tool in toolbox.tools()) tool.name: tool};
+        final id = await createDraft(tools, await writeSource(512, 512));
+        final edited = _png(value: 90, width: 512, height: 512);
+
+        editorResult.complete(
+          ImageEditorResult(
+            hasSourceImageChanges: true,
+            inpaintSourceImage: edited,
+            inpaintSourceWidth: 512,
+            inpaintSourceHeight: 512,
+            outputWidth: 512,
+            outputHeight: 512,
+          ),
+        );
+        await _waitForStatus(repository, id, InpaintDraftStatus.cancelled);
+
+        final cancelled = (await repository.get(id))!;
+        expect(cancelled.mask, isNull);
+        expect(await repository.readSource(id), edited);
+        expect(requestSize(cancelled), (512, 512));
+        expect(cancelled.parameterSnapshot['prompt'], 'extend the scene');
+        expect(
+          await toolbox.estimateAnlasForDraft(id),
+          cancelled.estimatedAnlas,
+        );
+      },
+    );
+
+    test('an untouched source without a mask just cancels', () async {
+      final toolbox = buildToolbox(paidAbovePixels: 512 * 512);
+      final tools = {for (final tool in toolbox.tools()) tool.name: tool};
+      final source = await writeSource(512, 512);
+      final id = await createDraft(tools, source);
+
+      editorResult.complete(
+        ImageEditorResult(
+          inpaintSourceImage: _png(value: 90, width: 512, height: 512),
+          inpaintSourceWidth: 512,
+          inpaintSourceHeight: 512,
+          outputWidth: 512,
+          outputHeight: 512,
+        ),
+      );
+      await _waitForStatus(repository, id, InpaintDraftStatus.cancelled);
+
+      expect(await repository.readSource(id), await source.readAsBytes());
+    });
+
     test('confirmation gate follows the repriced draft', () async {
       final toolbox = buildToolbox(paidAbovePixels: 512 * 512);
       final tools = {for (final tool in toolbox.tools()) tool.name: tool};

@@ -95,6 +95,30 @@ void main() {
       expect(params.maskImage, isNull);
     });
 
+    test('an edited source without a mask stays in inpaint mode', () {
+      final edited = _png(width: 832, height: 1216);
+
+      ImageWorkflowLauncher.applyInpaintEditorResult(
+        workflow(),
+        ImageEditorResult(
+          hasSourceImageChanges: true,
+          inpaintSourceImage: edited,
+          inpaintSourceWidth: 832,
+          inpaintSourceHeight: 1216,
+          outputWidth: 832,
+          outputHeight: 1216,
+        ),
+        null,
+      );
+
+      final state = container.read(imageWorkflowControllerProvider);
+      final params = container.read(generationParamsNotifierProvider);
+      expect(state.mode, ImageWorkflowMode.inpaint);
+      expect(state.isOutpaint, isFalse);
+      expect(params.sourceImage, same(edited));
+      expect(params.maskImage, isNull);
+    });
+
     test('a plain outpaint result still disables focus', () {
       final outpaintSource = _png(width: 1216, height: 1216);
 

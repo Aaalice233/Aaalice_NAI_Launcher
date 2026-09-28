@@ -48,9 +48,11 @@ class StrokePreviewPainter extends CustomPainter {
     bool isEraser = false;
 
     if (tool is BrushTool) {
-      size = tool.settings.size;
-      opacity = tool.settings.opacity;
-      hardness = tool.settings.hardness;
+      final style = tool.strokeStyleFor(state);
+      size = style.size;
+      color = style.color;
+      opacity = style.opacity;
+      hardness = style.hardness;
     } else if (tool is EraserTool) {
       size = tool.size;
       hardness = tool.hardness;

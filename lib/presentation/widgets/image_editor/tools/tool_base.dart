@@ -55,6 +55,9 @@ abstract class EditorTool {
   /// 用于实现即时工具切换
   void onDeactivateFast(EditorState state) {}
 
+  /// 方向键微移；返回 true 表示工具已处理
+  bool onArrowNudge(EditorState state, Offset delta) => false;
+
   /// 延迟激活（在下一帧异步执行）
   /// 用于资源预热、缓存更新等耗时操作
   /// 不会阻塞工具切换

@@ -7,12 +7,14 @@ import 'package:nai_launcher/core/utils/hard_edge_mask_exporter.dart';
 import 'package:nai_launcher/core/utils/inpaint_outpaint_utils.dart';
 import 'package:nai_launcher/presentation/widgets/image_editor/core/editor_state.dart';
 import 'package:nai_launcher/presentation/widgets/image_editor/core/history_manager.dart';
+import 'package:nai_launcher/presentation/widgets/image_editor/core/layer_role_policy.dart';
 import 'package:nai_launcher/presentation/widgets/image_editor/export/image_exporter_new.dart';
 import 'package:nai_launcher/presentation/widgets/image_editor/frame/editor_frame_commands.dart';
 import 'package:nai_launcher/presentation/widgets/image_editor/frame/editor_frame_controller.dart';
 import 'package:nai_launcher/presentation/widgets/image_editor/image_editor_controller.dart';
 import 'package:nai_launcher/presentation/widgets/image_editor/image_editor_processing_service.dart';
 import 'package:nai_launcher/presentation/widgets/image_editor/layers/layer.dart';
+import 'package:nai_launcher/presentation/widgets/image_editor/layers/layer_role.dart';
 
 /// 扩图物化在当前 isolate 内完成，测试不依赖后台 isolate 调度
 class _InlineProcessingService extends ImageEditorProcessingService {
@@ -49,12 +51,13 @@ class _Harness {
     final state = session.editorState;
     final size = Size(width.toDouble(), height.toDouble());
     state.initNewCanvas(size, initialLayerName: 'mask');
-    final mask = state.layerManager.layers.single;
+    final mask = state.layerManager.layers.single..role = LayerRole.mask;
     final source = await state.layerManager.addLayerFromImage(
       _gradientPng(width, height),
       name: 'source',
     );
     session.sourceLayerId = source!.id;
+    state.setRolePolicy(LayerRolePolicy.inpaint(protectedLayerId: source.id));
     final frames = EditorFrameController(session: session, editorState: state);
     frames.attachSource(Offset.zero & size);
     return _Harness._(session, frames, source, mask);
@@ -67,16 +70,16 @@ class _Harness {
 
   Future<HardEdgeMaskRaster> maskRaster() async {
     final raster = await ImageExporterNew.tryExportHardEdgeMaskRasterFromLayers(
-      state.layerManager,
+      state.layerManager.maskLayers,
       state.frame,
-      excludedBaseImageLayerIds: {source.id},
     );
     return raster!;
   }
 
   Future<img.Image> materializedSource() async {
+    final sourceImage = await source.resolveBaseImageBytes();
     final result = await session.processingService.materializeOutpaint(
-      sourceImage: source.baseImageBytes!,
+      sourceImage: sourceImage!,
       frame: frames.virtualFrame!,
     );
     return img.decodePng(result.sourceImage)!;
@@ -193,13 +196,13 @@ void main() {
         name: 'imported',
         index: 0,
         offset: const Offset(-64, 100),
+        role: LayerRole.mask,
       );
 
       Future<img.Image> export({required bool preferCpu}) async {
         final bytes = await ImageExporterNew.exportMaskFromLayers(
-          h.state.layerManager,
+          h.state.layerManager.maskLayers,
           h.state.frame,
-          excludedBaseImageLayerIds: {h.source.id},
           forceHardEdges: true,
           preferCpuHardEdgeExport: preferCpu,
         );

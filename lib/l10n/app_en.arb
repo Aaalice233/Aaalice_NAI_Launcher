@@ -6332,6 +6332,32 @@
     }
   },
   "editor_toolFrame": "Frame",
+  "editor_toolMove": "Move",
+  "editor_moveLayerHint": "Drag to move the whole current layer.",
+  "editor_moveSelectionHint": "Drag to move the pixels of the current layer inside the selection.",
+  "editor_moveBaseLayerHint": "The base image cannot be moved as a whole. Make a selection first, then move the pixels inside it.",
+  "editor_moveNoLayer": "There is no layer to move.",
+  "editor_moveNudgeHint": "Arrow keys move 1 pixel; hold Shift to move 10 pixels.",
+  "editor_shortcutNudge": "Move 1 pixel",
+  "editor_shortcutNudgeFar": "Move 10 pixels",
+  "editor_maskBrushSettings": "Mask Brush",
+  "selection_clearPixels": "Delete Selected Pixels",
+  "selection_cutLayerName": "{name} Cut",
+  "@selection_cutLayerName": {
+    "placeholders": {
+      "name": {}
+    }
+  },
+  "layer_duplicateName": "{name} Copy",
+  "@layer_duplicateName": {
+    "placeholders": {
+      "name": {}
+    }
+  },
+  "layer_roleMask": "Mask",
+  "layer_addImage": "Add Image Layer",
+  "layer_addMask": "Add Mask Layer",
+  "img2img_inpaintSourceUpdated": "Base image edits saved. Paint a mask to start inpainting.",
   "editor_frameToolHint": "Drag inside the frame to move it, or drag its edges to resize. Content outside the frame is kept and dimmed; only the area inside is sent for generation. A moved frame keeps at least 64 px of overlap with the image.",
   "editor_frameSizeReadout": "Size: {width} x {height}",
   "@editor_frameSizeReadout": {

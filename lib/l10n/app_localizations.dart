@@ -22662,6 +22662,102 @@ abstract class AppLocalizations {
   /// **'Frame'**
   String get editor_toolFrame;
 
+  /// No description provided for @editor_toolMove.
+  ///
+  /// In en, this message translates to:
+  /// **'Move'**
+  String get editor_toolMove;
+
+  /// No description provided for @editor_moveLayerHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Drag to move the whole current layer.'**
+  String get editor_moveLayerHint;
+
+  /// No description provided for @editor_moveSelectionHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Drag to move the pixels of the current layer inside the selection.'**
+  String get editor_moveSelectionHint;
+
+  /// No description provided for @editor_moveBaseLayerHint.
+  ///
+  /// In en, this message translates to:
+  /// **'The base image cannot be moved as a whole. Make a selection first, then move the pixels inside it.'**
+  String get editor_moveBaseLayerHint;
+
+  /// No description provided for @editor_moveNoLayer.
+  ///
+  /// In en, this message translates to:
+  /// **'There is no layer to move.'**
+  String get editor_moveNoLayer;
+
+  /// No description provided for @editor_moveNudgeHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Arrow keys move 1 pixel; hold Shift to move 10 pixels.'**
+  String get editor_moveNudgeHint;
+
+  /// No description provided for @editor_shortcutNudge.
+  ///
+  /// In en, this message translates to:
+  /// **'Move 1 pixel'**
+  String get editor_shortcutNudge;
+
+  /// No description provided for @editor_shortcutNudgeFar.
+  ///
+  /// In en, this message translates to:
+  /// **'Move 10 pixels'**
+  String get editor_shortcutNudgeFar;
+
+  /// No description provided for @editor_maskBrushSettings.
+  ///
+  /// In en, this message translates to:
+  /// **'Mask Brush'**
+  String get editor_maskBrushSettings;
+
+  /// No description provided for @selection_clearPixels.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete Selected Pixels'**
+  String get selection_clearPixels;
+
+  /// No description provided for @selection_cutLayerName.
+  ///
+  /// In en, this message translates to:
+  /// **'{name} Cut'**
+  String selection_cutLayerName(Object name);
+
+  /// No description provided for @layer_duplicateName.
+  ///
+  /// In en, this message translates to:
+  /// **'{name} Copy'**
+  String layer_duplicateName(Object name);
+
+  /// No description provided for @layer_roleMask.
+  ///
+  /// In en, this message translates to:
+  /// **'Mask'**
+  String get layer_roleMask;
+
+  /// No description provided for @layer_addImage.
+  ///
+  /// In en, this message translates to:
+  /// **'Add Image Layer'**
+  String get layer_addImage;
+
+  /// No description provided for @layer_addMask.
+  ///
+  /// In en, this message translates to:
+  /// **'Add Mask Layer'**
+  String get layer_addMask;
+
+  /// No description provided for @img2img_inpaintSourceUpdated.
+  ///
+  /// In en, this message translates to:
+  /// **'Base image edits saved. Paint a mask to start inpainting.'**
+  String get img2img_inpaintSourceUpdated;
+
   /// No description provided for @editor_frameToolHint.
   ///
   /// In en, this message translates to:

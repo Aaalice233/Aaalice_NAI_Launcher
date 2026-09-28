@@ -237,7 +237,7 @@ void main() {
       expect(find.byType(FrameToolPanel), findsOneWidget, reason: reason);
 
       final desktop = find.byType(DesktopToolbar).evaluate().isNotEmpty;
-      final frameTool = find.byTooltip(desktop ? 'Frame (V)' : 'Frame');
+      final frameTool = find.byTooltip(desktop ? 'Frame (C)' : 'Frame');
       await tester.ensureVisible(frameTool);
       await tester.pumpAndSettle();
       expect(frameTool.hitTestable(), findsOneWidget, reason: reason);
@@ -310,15 +310,21 @@ void main() {
       final toolBefore = key.currentState!.debugCurrentToolId;
 
       expect(
-        find.byTooltip('Frame (V)'),
+        find.byTooltip('Frame (C)'),
         inpaint ? findsOneWidget : findsNothing,
       );
-      await tester.sendKeyEvent(LogicalKeyboardKey.keyV);
+      await tester.sendKeyEvent(LogicalKeyboardKey.keyC);
       await tester.pumpAndSettle();
       expect(
         key.currentState!.debugCurrentToolId,
         inpaint ? 'frame' : toolBefore,
       );
+
+      // V 与 PS 一致留给移动工具，两种会话都可用
+      expect(find.byTooltip('Move (V)'), findsOneWidget);
+      await tester.sendKeyEvent(LogicalKeyboardKey.keyV);
+      await tester.pumpAndSettle();
+      expect(key.currentState!.debugCurrentToolId, 'move');
     }
   });
 

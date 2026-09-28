@@ -512,8 +512,7 @@ class ManualInpaintToolbox implements InpaintDraftAuthoringHost {
       if (current == null || current.status != InpaintDraftStatus.editing) {
         return;
       }
-      final mask = result?.maskImage;
-      if (result == null || mask == null) {
+      if (result == null) {
         await notifyDraftChanged(await _repository.cancel(id));
         return;
       }
@@ -528,6 +527,20 @@ class ManualInpaintToolbox implements InpaintDraftAuthoringHost {
               isOutpaint: result.hasOutpaintChanges,
               compressionApplied: result.compressionApplied,
             );
+      final mask = result.maskImage;
+      if (mask == null) {
+        // 没有蒙版就无法提交；底图改过时先把改动存进草稿，不随取消丢掉
+        final cancelled = result.hasSourceImageChanges && replacement != null
+            ? await _repository.cancelWithEditedSource(
+                id,
+                sourceBytes: replacement,
+                parameterSnapshot: snapshot,
+                estimatedAnlas: _estimateDraftAnlas(snapshot, null),
+              )
+            : await _repository.cancel(id);
+        await notifyDraftChanged(cancelled);
+        return;
+      }
       final ready = await _repository.complete(
         id,
         sourceBytes: replacement ?? originalSource,

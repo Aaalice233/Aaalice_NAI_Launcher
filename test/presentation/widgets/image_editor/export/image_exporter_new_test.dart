@@ -5,6 +5,7 @@ import 'package:image/image.dart' as img;
 import 'package:nai_launcher/presentation/widgets/image_editor/core/history_manager.dart';
 import 'package:nai_launcher/presentation/widgets/image_editor/export/image_exporter_new.dart';
 import 'package:nai_launcher/presentation/widgets/image_editor/layers/layer_manager.dart';
+import 'package:nai_launcher/presentation/widgets/image_editor/layers/layer_role.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -31,8 +32,11 @@ void main() {
     ) async {
       await tester.runAsync(() async {
         final layerManager = LayerManager();
-        final sourceLayer = layerManager.addLayer(name: '底图');
-        final maskLayer = layerManager.addLayer(name: '蒙版');
+        layerManager.addLayer(name: '底图');
+        final maskLayer = layerManager.addLayer(
+          name: '蒙版',
+          role: LayerRole.mask,
+        );
 
         layerManager.addStrokeToLayer(
           maskLayer.id,
@@ -49,9 +53,8 @@ void main() {
         );
 
         final maskBytes = await ImageExporterNew.exportMaskFromLayers(
-          layerManager,
+          layerManager.maskLayers,
           const Rect.fromLTWH(0, 0, 64, 64),
-          excludedBaseImageLayerIds: {sourceLayer.id},
         );
 
         final decoded = img.decodePng(maskBytes)!;
@@ -85,7 +88,7 @@ void main() {
         );
 
         final maskBytes = await ImageExporterNew.exportMaskFromLayers(
-          layerManager,
+          layerManager.layers,
           const Rect.fromLTWH(0, 0, 64, 64),
           forceHardEdges: true,
         );
@@ -100,11 +103,28 @@ void main() {
     });
 
     testWidgets(
-        'should keep accidental strokes on source layer when excluding only the base image',
+        'should leave strokes painted on image layers out of the mask',
         (tester) async {
       await tester.runAsync(() async {
         final layerManager = LayerManager();
         final sourceLayer = layerManager.addLayer(name: '底图');
+        final maskLayer = layerManager.addLayer(
+          name: '蒙版',
+          role: LayerRole.mask,
+        );
+        layerManager.addStrokeToLayer(
+          maskLayer.id,
+          StrokeData(
+            points: const [
+              Offset(16, 48),
+              Offset(48, 48),
+            ],
+            size: 16,
+            color: Colors.white,
+            opacity: 1,
+            hardness: 1,
+          ),
+        );
 
         layerManager.addStrokeToLayer(
           sourceLayer.id,
@@ -121,14 +141,14 @@ void main() {
         );
 
         final maskBytes = await ImageExporterNew.exportMaskFromLayers(
-          layerManager,
+          layerManager.maskLayers,
           const Rect.fromLTWH(0, 0, 64, 64),
-          excludedBaseImageLayerIds: {sourceLayer.id},
         );
 
         final decoded = img.decodePng(maskBytes)!;
 
-        expect(decoded.getPixel(32, 16).r.toInt(), greaterThan(240));
+        expect(decoded.getPixel(32, 16).r.toInt(), equals(0));
+        expect(decoded.getPixel(32, 48).r.toInt(), greaterThan(240));
         expect(decoded.getPixel(2, 2).r.toInt(), equals(0));
 
         layerManager.dispose();
@@ -168,7 +188,7 @@ void main() {
         );
 
         final exportedBytes = await ImageExporterNew.exportMaskFromLayers(
-          layerManager,
+          layerManager.layers,
           const Rect.fromLTWH(0, 0, 64, 64),
         );
 
@@ -180,6 +200,70 @@ void main() {
         layerManager.dispose();
       });
     });
+
+    for (final preferCpu in [true, false]) {
+      testWidgets(
+          'eraser only clears its own mask layer (cpu: $preferCpu)', (
+        tester,
+      ) async {
+        await tester.runAsync(() async {
+          final layerManager = LayerManager();
+          addTearDown(layerManager.dispose);
+          final upper = layerManager.addLayer(
+            name: 'upper',
+            role: LayerRole.mask,
+          );
+          final lower = layerManager.addLayer(
+            name: 'lower',
+            role: LayerRole.mask,
+          );
+          layerManager.addStrokeToLayer(
+            lower.id,
+            StrokeData(
+              points: const [Offset(8, 32), Offset(56, 32)],
+              size: 16,
+              color: Colors.white,
+              opacity: 1,
+              hardness: 1,
+            ),
+          );
+          layerManager.addStrokeToLayer(
+            upper.id,
+            StrokeData(
+              points: const [Offset(32, 8), Offset(32, 56)],
+              size: 16,
+              color: Colors.white,
+              opacity: 1,
+              hardness: 1,
+            ),
+          );
+          layerManager.addStrokeToLayer(
+            upper.id,
+            StrokeData(
+              points: const [Offset(32, 32), Offset(32, 32)],
+              size: 20,
+              color: Colors.transparent,
+              opacity: 1,
+              hardness: 1,
+              isEraser: true,
+            ),
+          );
+
+          final bytes = await ImageExporterNew.exportMaskFromLayers(
+            layerManager.maskLayers,
+            const Rect.fromLTWH(0, 0, 64, 64),
+            forceHardEdges: true,
+            preferCpuHardEdgeExport: preferCpu,
+          );
+
+          final decoded = img.decodePng(bytes)!;
+          // 上层在交叉处被擦掉，下层的横线仍然保留
+          expect(decoded.getPixel(32, 32).r.toInt(), greaterThan(240));
+          expect(decoded.getPixel(32, 12).r.toInt(), greaterThan(240));
+          expect(decoded.getPixel(12, 32).r.toInt(), greaterThan(240));
+        });
+      });
+    }
   });
 }
 

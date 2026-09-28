@@ -6401,6 +6401,32 @@
     }
   },
   "editor_toolFrame": "取景框",
+  "editor_toolMove": "移动",
+  "editor_moveLayerHint": "拖动以移动整个当前图层。",
+  "editor_moveSelectionHint": "拖动以移动当前图层在选区内的像素。",
+  "editor_moveBaseLayerHint": "底图不能整体移动；先框选，再移动选区内的像素。",
+  "editor_moveNoLayer": "没有可移动的图层。",
+  "editor_moveNudgeHint": "方向键移动 1 像素，按住 Shift 移动 10 像素。",
+  "editor_shortcutNudge": "移动 1 像素",
+  "editor_shortcutNudgeFar": "移动 10 像素",
+  "editor_maskBrushSettings": "蒙版画笔",
+  "selection_clearPixels": "删除选区内容",
+  "selection_cutLayerName": "{name} 剪切",
+  "@selection_cutLayerName": {
+    "placeholders": {
+      "name": {}
+    }
+  },
+  "layer_duplicateName": "{name} 副本",
+  "@layer_duplicateName": {
+    "placeholders": {
+      "name": {}
+    }
+  },
+  "layer_roleMask": "蒙版",
+  "layer_addImage": "添加图片图层",
+  "layer_addMask": "添加蒙版图层",
+  "img2img_inpaintSourceUpdated": "底图修改已保存，涂上蒙版后即可局部重绘",
   "editor_frameToolHint": "在框内按住拖动可整体移动取景框，拖动边缘可调整尺寸。框外内容会保留并压暗显示，只有框内部分会送去生成；移动时至少与原图重叠 64 像素。",
   "editor_frameSizeReadout": "尺寸: {width} x {height}",
   "@editor_frameSizeReadout": {

@@ -7,12 +7,6 @@ import '../../tools/tool_base.dart';
 import '../../../../widgets/common/themed_divider.dart';
 import 'editor_toolbar_tools.dart';
 
-/// 检查是否可以清空当前图层
-bool _canClearActiveLayer(EditorState state) {
-  final layer = state.layerManager.activeLayer;
-  return layer != null && !layer.locked && layer.hasContent;
-}
-
 /// 桌面端垂直工具栏
 class DesktopToolbar extends StatelessWidget {
   final EditorState state;
@@ -21,7 +15,6 @@ class DesktopToolbar extends StatelessWidget {
   final VoidCallback? onClear;
   final VoidCallback? onFillMask;
   final bool Function()? canFillMask;
-  final Set<String>? allowedToolIds;
 
   const DesktopToolbar({
     super.key,
@@ -31,11 +24,7 @@ class DesktopToolbar extends StatelessWidget {
     this.onClear,
     this.onFillMask,
     this.canFillMask,
-    this.allowedToolIds,
   });
-
-  List<EditorTool> get _visibleTools =>
-      visibleEditorTools(state, allowedToolIds);
 
   @override
   Widget build(BuildContext context) {
@@ -59,12 +48,13 @@ class DesktopToolbar extends StatelessWidget {
             child: SingleChildScrollView(
               child: Column(
                 children: [
-                  // 工具按钮 - 监听工具切换
-                  ValueListenableBuilder<String?>(
-                    valueListenable: state.toolNotifier,
-                    builder: (context, currentToolId, _) {
+                  // 工具按钮 - 监听工具切换与当前图层
+                  ListenableBuilder(
+                    listenable: editorToolAvailability(state),
+                    builder: (context, _) {
+                      final currentToolId = state.toolNotifier.value;
                       return Column(
-                        children: _visibleTools
+                        children: visibleEditorTools(state)
                             .map(
                               (tool) => _ToolButton(
                                 tool: tool,
@@ -78,11 +68,12 @@ class DesktopToolbar extends StatelessWidget {
                     },
                   ),
                   const ThemedDivider(height: 16),
-                  // 撤销/重做/清空 - 监听历史管理器和图层管理器
+                  // 撤销/重做/清空 - 监听历史、图层内容与当前图层
                   ListenableBuilder(
                     listenable: Listenable.merge([
                       state.historyManager,
                       state.layerManager,
+                      state.layerManager.activeLayerNotifier,
                     ]),
                     builder: (context, _) {
                       return Column(
@@ -104,10 +95,8 @@ class DesktopToolbar extends StatelessWidget {
                           _ActionButton(
                             minimumExtent: minimumControlExtent,
                             icon: Icons.delete_outline,
-                            tooltip: onClear != null
-                                ? context.l10n.editor_resetMask
-                                : context.l10n.editor_clearLayer,
-                            enabled: _canClearActiveLayer(state),
+                            tooltip: clearToolbarTooltip(context, state),
+                            enabled: canClearFromToolbar(state),
                             onTap:
                                 onClear ??
                                 () => state.clearActiveLayerWithHistory(),

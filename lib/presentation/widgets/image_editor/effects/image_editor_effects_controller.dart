@@ -9,6 +9,7 @@ import '../core/editor_state.dart';
 import '../core/history_manager.dart';
 import '../image_editor_controller.dart';
 import '../layers/layer.dart';
+import '../layers/layer_patch_baker.dart';
 import 'editor_effects.dart';
 import 'effects_preview_dialog.dart';
 
@@ -92,12 +93,21 @@ class ImageEditorEffectsController {
         image.dispose();
         return;
       }
+      final BakedLayerImage baked;
+      try {
+        baked = LayerPatchBaker.replaceRegion(
+          layer,
+          patch: image,
+          patchRect: region,
+          extentLock: editorState.rolePolicy.extentLockFor(layer),
+        );
+      } finally {
+        image.dispose();
+      }
       editorState.historyManager.execute(
-        ReplaceLayerImageAction(
+        ReplaceLayerImageAction.baked(
           layerId: layer.id,
-          newImageBytes: result.bytes,
-          newImage: image,
-          newImageOffset: region.topLeft,
+          pixels: baked,
           actionDescription: effectLabel(context, selection.type),
         ),
         editorState,
