@@ -218,14 +218,35 @@ class AuthInterceptor extends Interceptor {
         _isRefreshing = true;
 
         try {
+          final sessionToken = await _ref
+              .read(secureStorageServiceProvider)
+              .getAccessToken();
+          if (!_wasSentWithSessionToken(err.requestOptions, sessionToken)) {
+            AppLogger.w(
+              '[AuthInterceptor] 401 belongs to a previous session, ignoring',
+              'DIO',
+            );
+            handler.next(err);
+            return;
+          }
+
           // 尝试刷新 token
           AppLogger.d('[AuthInterceptor] Attempting token refresh...', 'DIO');
           final tokenRefreshService = _ref.read(
             tokenRefreshServiceProvider.notifier,
           );
-          final refreshed = await tokenRefreshService.refreshCurrentToken();
+          final outcome = await tokenRefreshService.refreshCurrentToken();
 
-          if (refreshed) {
+          if (outcome == TokenRefreshOutcome.sessionChanged) {
+            AppLogger.w(
+              '[AuthInterceptor] Session changed during refresh, skipping logout',
+              'DIO',
+            );
+            handler.next(err);
+            return;
+          }
+
+          if (outcome == TokenRefreshOutcome.refreshed) {
             AppLogger.d(
               '[AuthInterceptor] Token refreshed, retrying request',
               'DIO',
@@ -266,10 +287,7 @@ class AuthInterceptor extends Interceptor {
               }
             }
           } else {
-            AppLogger.w(
-              '[AuthInterceptor] Token refresh returned false',
-              'DIO',
-            );
+            AppLogger.w('[AuthInterceptor] Token refresh failed', 'DIO');
           }
         } catch (e) {
           AppLogger.e(
@@ -280,6 +298,15 @@ class AuthInterceptor extends Interceptor {
           );
         } finally {
           _isRefreshing = false;
+        }
+
+        // 刷新期间会话可能已被退出或切换，登出只能作用于发出这个请求的会话
+        final latestSessionToken = await _ref
+            .read(secureStorageServiceProvider)
+            .getAccessToken();
+        if (!_wasSentWithSessionToken(err.requestOptions, latestSessionToken)) {
+          handler.next(err);
+          return;
         }
 
         // 刷新失败，执行登出
@@ -305,6 +332,15 @@ class AuthInterceptor extends Interceptor {
     }
 
     handler.next(err);
+  }
+
+  /// 401 只说明请求当时携带的 token 失效；会话已换成别的 token 时不能据此刷新或登出
+  bool _wasSentWithSessionToken(RequestOptions options, String? sessionToken) {
+    final sent = options.headers['Authorization']?.toString();
+    if (sent == null || sessionToken == null) return false;
+    final normalizedSession = _normalizeToken(sessionToken);
+    return normalizedSession.isNotEmpty &&
+        _normalizeToken(sent) == normalizedSession;
   }
 
   String _normalizeToken(String token) {

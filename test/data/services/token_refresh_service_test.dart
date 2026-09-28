@@ -12,49 +12,54 @@ import 'package:nai_launcher/data/services/token_refresh_service.dart';
 import 'package:nai_launcher/data/services/account_manager_provider.dart';
 
 void main() {
-  test('refreshes current credentials JWT through the image user host', () async {
-    final harness = _RefreshHarness.create();
-    addTearDown(harness.dispose);
+  test(
+    'refreshes current credentials JWT through the image user host',
+    () async {
+      final harness = _RefreshHarness.create();
+      addTearDown(harness.dispose);
 
-    final refreshed = await harness.container
-        .read(tokenRefreshServiceProvider.notifier)
-        .refreshCurrentToken();
+      final outcome = await harness.container
+          .read(tokenRefreshServiceProvider.notifier)
+          .refreshCurrentToken();
 
-    expect(refreshed, isTrue);
-    expect(harness.storage.savedAccessToken, _RefreshHarness.newToken);
-    expect(harness.storage.savedEmail, harness.account.email);
-    expect(harness.storage.savedExpiry, isNotNull);
-    expect(
-      harness.storage.savedExpiry!.isAfter(
-        DateTime.now().add(const Duration(days: 29)),
-      ),
-      isTrue,
-    );
-    expect(harness.accountManager.accountToken, _RefreshHarness.newToken);
-    expect(harness.adapter.requests, hasLength(1));
-    expect(
-      harness.adapter.requests.single.uri.toString(),
-      '${ApiConstants.imageBaseUrl}${ApiConstants.loginEndpoint}',
-    );
-    expect(
-      harness.adapter.requests.single.data,
-      {'key': _RefreshHarness.accessKey},
-    );
-  });
+      expect(outcome, TokenRefreshOutcome.refreshed);
+      expect(harness.storage.savedAccessToken, _RefreshHarness.newToken);
+      expect(harness.storage.savedEmail, harness.account.email);
+      expect(harness.storage.savedExpiry, isNotNull);
+      expect(
+        harness.storage.savedExpiry!.isAfter(
+          DateTime.now().add(const Duration(days: 29)),
+        ),
+        isTrue,
+      );
+      expect(harness.accountManager.accountToken, _RefreshHarness.newToken);
+      expect(harness.adapter.requests, hasLength(1));
+      expect(
+        harness.adapter.requests.single.uri.toString(),
+        '${ApiConstants.imageBaseUrl}${ApiConstants.loginEndpoint}',
+      );
+      expect(harness.adapter.requests.single.data, {
+        'key': _RefreshHarness.accessKey,
+      });
+    },
+  );
 
-  test('refreshes a selected credentials account and returns its new JWT', () async {
-    final harness = _RefreshHarness.create();
-    addTearDown(harness.dispose);
+  test(
+    'refreshes a selected credentials account and returns its new JWT',
+    () async {
+      final harness = _RefreshHarness.create();
+      addTearDown(harness.dispose);
 
-    final token = await harness.container
-        .read(tokenRefreshServiceProvider.notifier)
-        .refreshTokenForAccount(harness.account.id);
+      final token = await harness.container
+          .read(tokenRefreshServiceProvider.notifier)
+          .refreshTokenForAccount(harness.account.id);
 
-    expect(token, _RefreshHarness.newToken);
-    expect(harness.storage.savedAccessToken, _RefreshHarness.newToken);
-    expect(harness.accountManager.accountToken, _RefreshHarness.newToken);
-    expect(harness.adapter.requests, hasLength(1));
-  });
+      expect(token, _RefreshHarness.newToken);
+      expect(harness.storage.savedAccessToken, _RefreshHarness.newToken);
+      expect(harness.accountManager.accountToken, _RefreshHarness.newToken);
+      expect(harness.adapter.requests, hasLength(1));
+    },
+  );
 }
 
 class _RefreshHarness {
@@ -150,6 +155,18 @@ class _FakeSecureStorageService extends SecureStorageService {
     savedExpiry = expiry;
     savedEmail = email;
     currentToken = accessToken;
+  }
+
+  @override
+  Future<bool> replaceAuthIfCurrent({
+    required String expectedToken,
+    required String accessToken,
+    required DateTime expiry,
+    required String email,
+  }) async {
+    if (currentToken != expectedToken) return false;
+    await saveAuth(accessToken: accessToken, expiry: expiry, email: email);
+    return true;
   }
 }
 

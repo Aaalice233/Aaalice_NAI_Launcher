@@ -9,13 +9,24 @@ import '../models/auth/saved_account.dart';
 
 part 'token_refresh_service.g.dart';
 
+/// 刷新当前会话 token 的结果
+enum TokenRefreshOutcome {
+  /// 新 token 已写入当前会话
+  refreshed,
+
+  /// 无法刷新：不是 JWT、找不到对应账号、缺少 accessKey 或请求失败
+  failed,
+
+  /// 请求期间会话已被退出或切换，结果没有写入会话
+  sessionChanged,
+}
+
 /// Token 刷新服务
 ///
 /// 负责在 JWT token 过期时自动刷新，使用保存的 accessKey 重新获取 token。
 @Riverpod(keepAlive: true)
 class TokenRefreshService extends _$TokenRefreshService {
-  /// 是否正在刷新中（防止并发刷新）
-  bool _isRefreshing = false;
+  Future<TokenRefreshOutcome>? _inFlight;
 
   @override
   void build() {
@@ -23,32 +34,25 @@ class TokenRefreshService extends _$TokenRefreshService {
     AppLogger.d('TokenRefreshService initialized', 'TokenRefresh');
   }
 
-  /// 刷新当前账号的 token
-  ///
-  /// 返回 true 表示刷新成功，false 表示失败或不需要刷新
-  Future<bool> refreshCurrentToken() async {
-    // 避免并发刷新
-    if (_isRefreshing) {
-      AppLogger.d(
-        'Token refresh already in progress, skipping',
-        'TokenRefresh',
-      );
-      return false;
-    }
+  /// 刷新当前会话的 token，并发调用共享同一次刷新
+  Future<TokenRefreshOutcome> refreshCurrentToken() {
+    // 两个 Dio 各有拦截器，同时收到 401 时若第二个直接判失败会误触发登出
+    return _inFlight ??= _refreshCurrentTokenSafely().whenComplete(
+      () => _inFlight = null,
+    );
+  }
 
-    _isRefreshing = true;
+  Future<TokenRefreshOutcome> _refreshCurrentTokenSafely() async {
     try {
       return await _performRefresh();
     } catch (e, stack) {
       AppLogger.e('Token refresh failed: $e', e, stack, 'TokenRefresh');
-      return false;
-    } finally {
-      _isRefreshing = false;
+      return TokenRefreshOutcome.failed;
     }
   }
 
   /// 执行刷新逻辑
-  Future<bool> _performRefresh() async {
+  Future<TokenRefreshOutcome> _performRefresh() async {
     final storage = ref.read(secureStorageServiceProvider);
     final accountManager = ref.read(accountManagerNotifierProvider.notifier);
     final accounts = ref.read(accountManagerNotifierProvider).accounts;
@@ -57,7 +61,7 @@ class TokenRefreshService extends _$TokenRefreshService {
     final currentToken = await storage.getAccessToken();
     if (currentToken == null || currentToken.isEmpty) {
       AppLogger.w('No token to refresh', 'TokenRefresh');
-      return false;
+      return TokenRefreshOutcome.failed;
     }
 
     // 2. 检查是否为 JWT（Persistent Token 不需要刷新）
@@ -66,7 +70,7 @@ class TokenRefreshService extends _$TokenRefreshService {
         'Token is not JWT (probably pst-xxx), skip refresh',
         'TokenRefresh',
       );
-      return false;
+      return TokenRefreshOutcome.failed;
     }
 
     // 3. 查找对应的账号
@@ -81,7 +85,7 @@ class TokenRefreshService extends _$TokenRefreshService {
 
     if (currentAccount == null) {
       AppLogger.w('Cannot find account for current token', 'TokenRefresh');
-      return false;
+      return TokenRefreshOutcome.failed;
     }
 
     // 4. 只刷新 credentials 类型的账号
@@ -90,7 +94,7 @@ class TokenRefreshService extends _$TokenRefreshService {
         'Account type is ${currentAccount.accountType}, skip refresh',
         'TokenRefresh',
       );
-      return false;
+      return TokenRefreshOutcome.failed;
     }
 
     // 5. 获取保存的 accessKey
@@ -100,7 +104,7 @@ class TokenRefreshService extends _$TokenRefreshService {
         'No accessKey found for account ${currentAccount.id}, cannot refresh',
         'TokenRefresh',
       );
-      return false;
+      return TokenRefreshOutcome.failed;
     }
 
     // 6. 使用 accessKey 重新登录获取新 token
@@ -113,18 +117,27 @@ class TokenRefreshService extends _$TokenRefreshService {
     final loginResponse = await apiService.loginWithKey(accessKey);
     final newToken = loginResponse['accessToken'] as String;
 
-    // 7. 保存新 token 到全局存储
-    await storage.saveAuth(
+    // 7. 会话仍停在刷新前的 token 上时才写入全局存储
+    final applied = await storage.replaceAuthIfCurrent(
+      expectedToken: currentToken,
       accessToken: newToken,
       expiry: DateTime.now().add(const Duration(days: 30)),
       email: currentAccount.email,
     );
 
-    // 8. 更新账号管理器中的 token
+    // 8. 更新账号管理器中的 token；它按账号存放，会话已变也不会串到别的账号
     await accountManager.updateAccountToken(currentAccount.id, newToken);
 
+    if (!applied) {
+      AppLogger.w(
+        'Session changed during token refresh, result not applied',
+        'TokenRefresh',
+      );
+      return TokenRefreshOutcome.sessionChanged;
+    }
+
     AppLogger.d('Token refreshed successfully', 'TokenRefresh');
-    return true;
+    return TokenRefreshOutcome.refreshed;
   }
 
   /// 为指定账号刷新 token（用于 401 错误时的重试）
@@ -158,19 +171,23 @@ class TokenRefreshService extends _$TokenRefreshService {
         AppLogger.w('No accessKey for account $accountId', 'TokenRefresh');
         return null;
       }
+      final previousToken = await accountManager.getAccountToken(accountId);
 
       // 重新登录
       final apiService = ref.read(naiAuthApiServiceProvider);
       final loginResponse = await apiService.loginWithKey(accessKey);
       final newToken = loginResponse['accessToken'] as String;
 
-      // 保存新 token
-      await storage.saveAuth(
-        accessToken: newToken,
-        expiry: DateTime.now().add(const Duration(days: 30)),
-        email: account.email,
-      );
       await accountManager.updateAccountToken(accountId, newToken);
+      // 只有会话正停在该账号的旧 token 上才同步全局存储，否则会顶掉别的会话
+      if (previousToken != null) {
+        await storage.replaceAuthIfCurrent(
+          expectedToken: previousToken,
+          accessToken: newToken,
+          expiry: DateTime.now().add(const Duration(days: 30)),
+          email: account.email,
+        );
+      }
 
       AppLogger.d('Token refreshed for account $accountId', 'TokenRefresh');
       return newToken;
