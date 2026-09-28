@@ -102,6 +102,11 @@ class StorageKeys {
   static const String fixedTagsSidebarViewMode = 'fixed_tags_sidebar_view_mode';
   static const String fixedTagsNegativeHeight = 'fixed_tags_negative_height';
 
+  /// iOS 生成页快捷工具抽屉里被收起的固定词分节，元素为 `positive:<分类ID>` /
+  /// `negative:<分类ID>`。
+  static const String quickToolsFixedTagsCollapsedSections =
+      'quick_tools_fixed_tags_collapsed_sections';
+
   // Generation Workbench Panel Expansion State Keys (生图工作台面板展开状态)
   static const String advancedOptionsExpanded = 'advanced_options_expanded';
   static const String generationParamsMenuExpanded =
