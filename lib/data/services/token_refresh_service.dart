@@ -4,15 +4,14 @@ import '../../core/storage/secure_storage_service.dart';
 import '../../core/utils/app_logger.dart';
 import '../../core/utils/jwt_parser.dart';
 import '../../presentation/providers/account_manager_provider.dart';
+import '../datasources/remote/nai_auth_api_service.dart';
 import '../models/auth/saved_account.dart';
 
 part 'token_refresh_service.g.dart';
 
 /// Token 刷新服务
 ///
-/// 负责检查 JWT token 是否需要刷新。
-///
-/// 邮箱密码登录当前不可用，因此不再使用旧 accessKey 重新登录获取 token。
+/// 负责在 JWT token 过期时自动刷新，使用保存的 accessKey 重新获取 token。
 @Riverpod(keepAlive: true)
 class TokenRefreshService extends _$TokenRefreshService {
   /// 是否正在刷新中（防止并发刷新）
@@ -85,7 +84,7 @@ class TokenRefreshService extends _$TokenRefreshService {
       return false;
     }
 
-    // 4. 邮箱密码账号的旧刷新链路依赖 /user/login，当前不可用。
+    // 4. 只刷新 credentials 类型的账号
     if (currentAccount.accountType != AccountType.credentials) {
       AppLogger.d(
         'Account type is ${currentAccount.accountType}, skip refresh',
@@ -93,11 +92,39 @@ class TokenRefreshService extends _$TokenRefreshService {
       );
       return false;
     }
-    AppLogger.w(
-      'Credentials token refresh is unavailable; ask user to use Persistent API Token',
+
+    // 5. 获取保存的 accessKey
+    final accessKey = await storage.getAccountAccessKey(currentAccount.id);
+    if (accessKey == null || accessKey.isEmpty) {
+      AppLogger.w(
+        'No accessKey found for account ${currentAccount.id}, cannot refresh',
+        'TokenRefresh',
+      );
+      return false;
+    }
+
+    // 6. 使用 accessKey 重新登录获取新 token
+    AppLogger.d(
+      'Refreshing token for account: ${currentAccount.displayName}',
       'TokenRefresh',
     );
-    return false;
+
+    final apiService = ref.read(naiAuthApiServiceProvider);
+    final loginResponse = await apiService.loginWithKey(accessKey);
+    final newToken = loginResponse['accessToken'] as String;
+
+    // 7. 保存新 token 到全局存储
+    await storage.saveAuth(
+      accessToken: newToken,
+      expiry: DateTime.now().add(const Duration(days: 30)),
+      email: currentAccount.email,
+    );
+
+    // 8. 更新账号管理器中的 token
+    await accountManager.updateAccountToken(currentAccount.id, newToken);
+
+    AppLogger.d('Token refreshed successfully', 'TokenRefresh');
+    return true;
   }
 
   /// 为指定账号刷新 token（用于 401 错误时的重试）
@@ -105,6 +132,8 @@ class TokenRefreshService extends _$TokenRefreshService {
   /// 返回新 token，如果刷新失败返回 null
   Future<String?> refreshTokenForAccount(String accountId) async {
     try {
+      final storage = ref.read(secureStorageServiceProvider);
+      final accountManager = ref.read(accountManagerNotifierProvider.notifier);
       final accounts = ref.read(accountManagerNotifierProvider).accounts;
 
       // 获取账号信息
@@ -114,7 +143,7 @@ class TokenRefreshService extends _$TokenRefreshService {
         return null;
       }
 
-      // 邮箱密码账号的旧刷新链路依赖 /user/login，当前不可用。
+      // 只刷新 credentials 类型
       if (account.accountType != AccountType.credentials) {
         AppLogger.d(
           'Account type is ${account.accountType}, cannot refresh',
@@ -122,11 +151,29 @@ class TokenRefreshService extends _$TokenRefreshService {
         );
         return null;
       }
-      AppLogger.w(
-        'Credentials token refresh is unavailable for account $accountId',
-        'TokenRefresh',
+
+      // 获取 accessKey
+      final accessKey = await storage.getAccountAccessKey(accountId);
+      if (accessKey == null || accessKey.isEmpty) {
+        AppLogger.w('No accessKey for account $accountId', 'TokenRefresh');
+        return null;
+      }
+
+      // 重新登录
+      final apiService = ref.read(naiAuthApiServiceProvider);
+      final loginResponse = await apiService.loginWithKey(accessKey);
+      final newToken = loginResponse['accessToken'] as String;
+
+      // 保存新 token
+      await storage.saveAuth(
+        accessToken: newToken,
+        expiry: DateTime.now().add(const Duration(days: 30)),
+        email: account.email,
       );
-      return null;
+      await accountManager.updateAccountToken(accountId, newToken);
+
+      AppLogger.d('Token refreshed for account $accountId', 'TokenRefresh');
+      return newToken;
     } catch (e, stack) {
       AppLogger.e(
         'Failed to refresh token for account $accountId: $e',

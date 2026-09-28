@@ -1,7 +1,10 @@
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../data/services/tag_translation_service.dart';
+import '../../core/autocomplete/tag_translation_lookup.dart';
+import '../adaptive/interaction_policy.dart';
 
 /// 简单标签芯片组件
 ///
@@ -11,18 +14,37 @@ class SimpleTagChip extends ConsumerStatefulWidget {
   final String tag;
   final Color? color;
   final VoidCallback? onTap;
+  final GestureTapUpCallback? onSecondaryTapUp;
+
+  /// 长按回调。
+  ///
+  /// 偏离上游：上游只有 [onSecondaryTapUp]（右键），触屏没有右键，
+  /// 于是标签的「加入黑名单 / 输出过滤」菜单在 iOS 上完全不可达。
+  /// 不传时自动复用 [onSecondaryTapUp]，把长按位置合成成同形状的
+  /// [TapUpDetails] 交给同一个菜单回调——调用方不改也能在手机上用。
+  final GestureLongPressStartCallback? onLongPressStart;
   final String? translation;
   final bool autoTranslate;
   final int? category;
+  final bool isOutputFiltered;
+  final String? tooltip;
+  final VoidCallback? onDeleted;
+  final String? deleteTooltip;
 
   const SimpleTagChip({
     super.key,
     required this.tag,
     this.color,
     this.onTap,
+    this.onSecondaryTapUp,
+    this.onLongPressStart,
     this.translation,
     this.autoTranslate = true,
     this.category,
+    this.isOutputFiltered = false,
+    this.tooltip,
+    this.onDeleted,
+    this.deleteTooltip,
   });
 
   @override
@@ -52,39 +74,70 @@ class _SimpleTagChipState extends ConsumerState<SimpleTagChip> {
   }
 
   Future<void> _fetchTranslation() async {
-    final translationService = ref.read(tagTranslationServiceProvider);
+    final translationService = ref.read(tagTranslationLookupProvider);
     _autoTranslation = await translationService.translate(widget.tag);
     if (mounted) {
       setState(() {});
     }
   }
 
+  /// 长按走与右键相同的菜单：显式传入优先，否则复用
+  /// [SimpleTagChip.onSecondaryTapUp]（详见该字段的注释）。
+  GestureLongPressStartCallback? _resolveLongPressStart() {
+    final explicit = widget.onLongPressStart;
+    if (explicit != null) return explicit;
+
+    final secondary = widget.onSecondaryTapUp;
+    if (secondary == null) return null;
+
+    return (details) {
+      HapticFeedback.selectionClick();
+      // 菜单只用得到 globalPosition，长按位置直接转成同形状的 details
+      secondary(
+        TapUpDetails(
+          kind: PointerDeviceKind.touch,
+          globalPosition: details.globalPosition,
+          localPosition: details.localPosition,
+        ),
+      );
+    };
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final displayText = widget.tag.replaceAll('_', ' ');
-    final chipColor = widget.color ??
+    final chipColor =
+        widget.color ??
         (widget.category != null
             ? TagColors.fromCategory(widget.category!)
             : theme.colorScheme.primary);
     final translationText = widget.translation ?? _autoTranslation;
+    final interactionPolicy = context.interactionPolicy;
+    final deleteExtent = interactionPolicy.minimumControlExtent;
+    final stateColor = widget.isOutputFiltered
+        ? theme.colorScheme.error
+        : chipColor;
 
-    return MouseRegion(
+    final chip = MouseRegion(
       onEnter: (_) => setState(() => _isHovering = true),
       onExit: (_) => setState(() => _isHovering = false),
-      child: GestureDetector(
+      child: InkWell(
         onTap: widget.onTap,
+        onSecondaryTapUp: widget.onSecondaryTapUp,
+        borderRadius: BorderRadius.circular(4),
         child: AnimatedContainer(
-          duration: const Duration(milliseconds: 150),
+          duration: MediaQuery.disableAnimationsOf(context)
+              ? Duration.zero
+              : const Duration(milliseconds: 150),
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
           decoration: BoxDecoration(
             color: _isHovering
-                ? chipColor.withValues(alpha: 0.3)
-                : chipColor.withValues(alpha: 0.1),
+                ? stateColor.withValues(alpha: 0.22)
+                : stateColor.withValues(
+                    alpha: widget.isOutputFiltered ? 0.08 : 0.1,
+                  ),
             borderRadius: BorderRadius.circular(4),
-            border: Border.all(
-              color: chipColor.withValues(alpha: _isHovering ? 0.8 : 0.3),
-            ),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
@@ -94,13 +147,24 @@ class _SimpleTagChipState extends ConsumerState<SimpleTagChip> {
                   displayText,
                   style: TextStyle(
                     fontSize: 11,
-                    color: chipColor,
+                    color: stateColor,
                     fontWeight: FontWeight.w500,
+                    decoration: widget.isOutputFiltered
+                        ? TextDecoration.lineThrough
+                        : null,
                   ),
                   overflow: TextOverflow.ellipsis,
                   softWrap: false,
                 ),
               ),
+              if (widget.isOutputFiltered) ...[
+                const SizedBox(width: 4),
+                Icon(
+                  Icons.filter_alt_off_outlined,
+                  size: 12,
+                  color: theme.colorScheme.error,
+                ),
+              ],
               if (translationText != null) ...[
                 const SizedBox(width: 4),
                 Flexible(
@@ -115,51 +179,41 @@ class _SimpleTagChipState extends ConsumerState<SimpleTagChip> {
                   ),
                 ),
               ],
+              if (widget.onDeleted != null) ...[
+                const SizedBox(width: 3),
+                Tooltip(
+                  message: widget.deleteTooltip ?? '',
+                  child: SizedBox.square(
+                    dimension: deleteExtent,
+                    child: IconButton(
+                      onPressed: widget.onDeleted,
+                      padding: EdgeInsets.zero,
+                      constraints: BoxConstraints.tightFor(
+                        width: deleteExtent,
+                        height: deleteExtent,
+                      ),
+                      visualDensity: interactionPolicy.touchAvailable
+                          ? VisualDensity.standard
+                          : VisualDensity.compact,
+                      icon: Icon(Icons.close, size: 13, color: stateColor),
+                    ),
+                  ),
+                ),
+              ],
             ],
           ),
         ),
       ),
     );
-  }
-}
-
-/// 带 Tooltip 的简单标签芯片
-class SimpleTagChipWithTooltip extends StatelessWidget {
-  final String tag;
-  final Color? color;
-  final VoidCallback? onTap;
-  final String? translation;
-  final int? category;
-  final String? tooltipMessage;
-
-  const SimpleTagChipWithTooltip({
-    super.key,
-    required this.tag,
-    this.color,
-    this.onTap,
-    this.translation,
-    this.category,
-    this.tooltipMessage,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final chip = SimpleTagChip(
-      tag: tag,
-      color: color,
-      onTap: onTap,
-      translation: translation,
-      category: category,
-    );
-
-    if (tooltipMessage != null) {
-      return Tooltip(
-        message: tooltipMessage!,
-        child: chip,
-      );
-    }
-
-    return chip;
+    // InkWell 的 onLongPress 不带坐标，而标签菜单要用 globalPosition 定位，
+    // 所以长按识别器单独包在外层（与 InkWell 的 tap 在手势竞技场里互斥）。
+    final longPressStart = _resolveLongPressStart();
+    final interactiveChip = longPressStart == null
+        ? chip
+        : GestureDetector(onLongPressStart: longPressStart, child: chip);
+    return widget.tooltip == null
+        ? interactiveChip
+        : Tooltip(message: widget.tooltip!, child: interactiveChip);
   }
 }
 

@@ -1,3 +1,4 @@
+import '../../../selection/card_selection_scope.dart';
 import 'dart:async';
 import 'dart:io';
 
@@ -9,26 +10,40 @@ import 'package:go_router/go_router.dart';
 import 'package:path/path.dart' as p;
 
 import '../../../../core/utils/app_logger.dart';
+import '../../../../core/agent/resources/agent_chat_resource_reference.dart';
 import '../../../../core/utils/localization_extension.dart';
 import '../../../../core/utils/vibe_file_parser.dart';
 import '../../../../core/utils/vibe_performance_diagnostics.dart';
 import '../../../../data/models/vibe/vibe_empty_state_info.dart';
+import '../../../../data/models/vibe/vibe_library_category.dart';
 import '../../../../data/models/vibe/vibe_library_entry.dart';
 import '../../../../data/models/vibe/vibe_reference.dart';
 import '../../../../data/services/vibe_library_storage_service.dart';
 import '../../../providers/generation/generation_params_notifier.dart';
-import '../../../providers/selection_mode_provider.dart';
 import '../../../providers/vibe_library_category_provider.dart';
 import '../../../providers/vibe_library_provider.dart';
 import '../../../providers/vibe_library_selection_provider.dart';
-import '../../../router/app_router.dart';
+import '../../../router/app_routes.dart';
 import '../../../widgets/common/app_toast.dart';
-import '../../../widgets/common/pro_context_menu.dart';
+import '../../../widgets/common/frame_staggered_builder.dart';
 import '../../../widgets/common/themed_confirm_dialog.dart';
+import '../../../agent_chat/widgets/agent_resource_drop_region.dart';
 import 'vibe_card.dart';
+import 'category/vibe_category_destination_panel.dart';
 import 'vibe_detail_viewer.dart';
 import 'vibe_export_dialog.dart';
 import 'vibe_library_empty_view.dart';
+
+const vibeLibraryGridSpacing = 16.0;
+
+Map<String, String> buildVibeCategoryLabels(
+  List<VibeLibraryCategory> categories,
+) {
+  return {
+    for (final category in categories)
+      category.id: categories.getPathString(category.id),
+  };
+}
 
 /// Vibe 库内容视图
 ///
@@ -52,26 +67,51 @@ class _VibeLibraryContentViewState
     extends ConsumerState<VibeLibraryContentView> {
   /// GridView 的 PageStorageKey，用于保持滚动位置
   static const String _vibeLibraryGridKey = 'vibe_library_3d_grid';
+  final FrameStaggerController _frameStaggerController =
+      FrameStaggerController();
+  bool _exportDialogLocked = false;
+
+  @override
+  void dispose() {
+    _frameStaggerController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(vibeLibraryNotifierProvider);
     final selectionState = ref.watch(vibeLibrarySelectionNotifierProvider);
+    final categories = ref.watch(
+      vibeLibraryCategoryNotifierProvider.select((state) => state.categories),
+    );
+    final categoryLabels = buildVibeCategoryLabels(categories);
 
     // 使用 3D 卡片视图模式
-    return _build3DCardView(state, selectionState);
+    return CardSelectionScope(
+      selection: selectionState,
+      commands: ref.read(vibeLibrarySelectionNotifierProvider.notifier),
+      orderedIds: state.currentEntries.map((e) => e.id).toList(),
+      child: CardSelectionShortcuts(
+        child: _build3DCardView(state, selectionState, categoryLabels),
+      ),
+    );
   }
 
   /// 构建 3D 卡片视图
   Widget _build3DCardView(
     VibeLibraryState state,
     SelectionModeState selectionState,
+    Map<String, String> categoryLabels,
   ) {
     final entries = state.currentEntries;
 
     // 加载中状态
     if (state.isLoading) {
-      return const Center(child: CircularProgressIndicator());
+      return Center(
+        child: CircularProgressIndicator(
+          value: MediaQuery.disableAnimationsOf(context) ? 0.5 : null,
+        ),
+      );
     }
 
     // 空状态处理
@@ -108,58 +148,93 @@ class _VibeLibraryContentViewState
       addAutomaticKeepAlives: false,
       gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: widget.columns,
-        mainAxisSpacing: 16,
-        crossAxisSpacing: 16,
-        childAspectRatio: 1.0,
+        mainAxisSpacing: vibeLibraryGridSpacing,
+        crossAxisSpacing: vibeLibraryGridSpacing,
+        childAspectRatio: vibeCardAspectRatio,
       ),
       itemCount: entries.length,
       itemBuilder: (context, index) {
         final entry = entries[index];
         final isSelected = selectionState.selectedIds.contains(entry.id);
 
-        return VibeCard(
-          entry: entry,
-          width: widget.itemWidth,
-          height: widget.itemWidth,
-          isSelected: isSelected,
-          showFavoriteIndicator: true,
-          onTap: () {
-            if (selectionState.isActive) {
-              ref
-                  .read(vibeLibrarySelectionNotifierProvider.notifier)
-                  .toggle(entry.id);
-            } else {
-              _showVibeDetail(context, entry);
-            }
-          },
-          onLongPress: () {
-            if (!selectionState.isActive) {
-              ref
-                  .read(vibeLibrarySelectionNotifierProvider.notifier)
-                  .enterAndSelect(entry.id);
-            }
-          },
-          onSecondaryTapDown: (details) {
-            _showContextMenu(context, entry, details.globalPosition);
-          },
-          onFavoriteToggle: () {
-            ref
-                .read(vibeLibraryNotifierProvider.notifier)
-                .toggleFavorite(entry.id);
-          },
-          onSendToGeneration: () async {
-            final physicalKeys = HardwareKeyboard.instance.physicalKeysPressed;
-            final isShiftPressed =
-                physicalKeys.contains(PhysicalKeyboardKey.shiftLeft) ||
-                physicalKeys.contains(PhysicalKeyboardKey.shiftRight);
-            await _sendEntryToGeneration(context, entry, isShiftPressed);
-          },
-          onExport: () => unawaited(_exportSingleEntry(context, entry)),
-          onEdit: () => _showVibeDetail(context, entry),
-          onDelete: () => _deleteSingleEntry(context, entry),
+        return FrameStaggeredChild(
+          key: ValueKey<String>('vibe-grid-${entry.id}'),
+          controller: _frameStaggerController,
+          placeholder: DecoratedBox(
+            decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.surfaceContainerLow,
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+          child: AgentResourceDragSource(
+            enableAddToAgentAction: !selectionState.isActive,
+            reference: AgentChatResourceReference(
+              kind: AgentChatResourceKind.vibeLibraryEntry,
+              source: 'vibe_library',
+              resourceId: entry.id,
+              display: {'name': entry.displayName},
+            ),
+            child: VibeCard(
+              entry: entry,
+              width: widget.itemWidth,
+              height: computeVibeCardHeight(widget.itemWidth),
+              isSelected: isSelected,
+              selectionMode: selectionState.isActive,
+              showFavoriteIndicator: true,
+              categoryLabel: categoryLabels[entry.categoryId],
+              onTap: () {
+                if (selectionState.isActive) {
+                  ref
+                      .read(vibeLibrarySelectionNotifierProvider.notifier)
+                      .toggle(entry.id);
+                } else {
+                  _showVibeDetail(context, entry);
+                }
+              },
+              onLongPress: () {
+                if (!selectionState.isActive) {
+                  ref
+                      .read(vibeLibrarySelectionNotifierProvider.notifier)
+                      .enterAndSelect(entry.id);
+                }
+              },
+              onFavoriteToggle: () {
+                ref
+                    .read(vibeLibraryNotifierProvider.notifier)
+                    .toggleFavorite(entry.id);
+              },
+              onSendToGeneration: () async {
+                final physicalKeys =
+                    HardwareKeyboard.instance.physicalKeysPressed;
+                final isShiftPressed =
+                    physicalKeys.contains(PhysicalKeyboardKey.shiftLeft) ||
+                    physicalKeys.contains(PhysicalKeyboardKey.shiftRight);
+                await _sendEntryToGeneration(context, entry, isShiftPressed);
+              },
+              onExport: () => _exportSingleEntry(context, entry),
+              onEdit: () => _showVibeDetail(context, entry),
+              onClassify: () => _classifyEntry(entry),
+              onDelete: () => _deleteSingleEntry(context, entry),
+            ),
+          ),
         );
       },
     );
+  }
+
+  Future<void> _classifyEntry(VibeLibraryEntry entry) async {
+    final categories = ref.read(vibeLibraryCategoryNotifierProvider).categories;
+    final destination = await VibeCategoryDestinationPanel.show(
+      context,
+      categories: categories,
+    );
+    if (destination == null || !mounted) return;
+    await ref
+        .read(vibeLibraryNotifierProvider.notifier)
+        .updateEntryCategory(
+          entry.id,
+          destination.isEmpty ? null : destination,
+        );
   }
 
   /// 显示 Vibe 详情
@@ -174,16 +249,13 @@ class _VibeLibraryContentViewState
     var resolved = false;
     final storage = ref.read(vibeLibraryStorageServiceProvider);
     try {
-      final resolvedEntry = await resolveVibeDetailEntryForOpen(storage, entry);
-      resolved = true;
-      if (!mounted || !context.mounted) {
-        return;
-      }
+      final detailDataFuture = resolveVibeDetailDataForOpen(storage, entry);
 
       VibeDetailViewer.show(
         context,
-        entry: resolvedEntry,
-        heroTag: 'vibe_${resolvedEntry.id}',
+        entry: entry,
+        detailDataFuture: detailDataFuture,
+        heroTag: 'vibe_${entry.id}',
         callbacks: VibeDetailCallbacks(
           onSendToGeneration:
               (
@@ -225,68 +297,11 @@ class _VibeLibraryContentViewState
               },
         ),
       );
+      await detailDataFuture;
+      resolved = true;
     } finally {
       span.finish(details: {'resolved': resolved});
     }
-  }
-
-  /// 显示上下文菜单
-  void _showContextMenu(
-    BuildContext context,
-    VibeLibraryEntry entry,
-    Offset position,
-  ) {
-    final l10n = context.l10n;
-    final items = <ProMenuItem>[
-      ProMenuItem(
-        id: 'send_to_generation',
-        label: l10n.vibeLibrary_sendToGeneration,
-        icon: Icons.send,
-        onTap: () async => _sendEntryToGeneration(context, entry),
-      ),
-      ProMenuItem(
-        id: 'export',
-        label: l10n.vibeLibrary_export,
-        icon: Icons.download,
-        onTap: () => unawaited(_exportSingleEntry(context, entry)),
-      ),
-      ProMenuItem(
-        id: 'edit',
-        label: l10n.vibeLibrary_edit,
-        icon: Icons.edit,
-        onTap: () => _showVibeDetail(context, entry),
-      ),
-      const ProMenuItem.divider(),
-      ProMenuItem(
-        id: 'toggle_favorite',
-        label: entry.isFavorite
-            ? l10n.vibeLibrary_removeFromFavorites
-            : l10n.vibeLibrary_addToFavorites,
-        icon: entry.isFavorite ? Icons.favorite : Icons.favorite_border,
-        onTap: () {
-          ref
-              .read(vibeLibraryNotifierProvider.notifier)
-              .toggleFavorite(entry.id);
-        },
-      ),
-      ProMenuItem(
-        id: 'delete',
-        label: l10n.vibeLibrary_delete,
-        icon: Icons.delete_outline,
-        isDanger: true,
-        onTap: () => _deleteSingleEntry(context, entry),
-      ),
-    ];
-
-    Navigator.of(context).push(
-      _ContextMenuRoute(
-        position: position,
-        items: items,
-        onSelect: (item) {
-          // Item onTap is already called
-        },
-      ),
-    );
   }
 
   /// 发送单个条目到生成页面
@@ -586,6 +601,8 @@ class _VibeLibraryContentViewState
     BuildContext context,
     VibeLibraryEntry entry,
   ) async {
+    if (_exportDialogLocked) return;
+    _exportDialogLocked = true;
     final span = VibePerformanceDiagnostics.start(
       'content.exportSingleEntry',
       details: {'entryId': entry.id, 'isBundle': entry.isBundle},
@@ -604,12 +621,13 @@ class _VibeLibraryContentViewState
           .categories;
       categoryCount = categories.length;
 
-      showDialog<void>(
-        context: context,
-        builder: (context) =>
-            VibeExportDialog(entries: [actualEntry], categories: categories),
+      await VibeExportDialog.show(
+        context,
+        entries: [actualEntry],
+        categories: categories,
       );
     } finally {
+      _exportDialogLocked = false;
       span.finish(details: {'hydrated': hydrated, 'categories': categoryCount});
     }
   }
@@ -630,10 +648,10 @@ class _VibeLibraryContentViewState
     );
 
     if (confirmed) {
-      await ref.read(vibeLibraryNotifierProvider.notifier).deleteEntries([
-        entry.id,
-      ]);
-      if (context.mounted) {
+      final deleted = await ref
+          .read(vibeLibraryNotifierProvider.notifier)
+          .deleteEntry(entry.id);
+      if (deleted && context.mounted) {
         AppToast.success(
           context,
           context.l10n.toast_deletedNamed(entry.displayName),
@@ -786,18 +804,34 @@ class _VibeLibraryContentViewState
   }
 }
 
-double computeVibeGridCacheExtent(double itemWidth) => itemWidth * 1.5;
+double computeVibeGridCacheExtent(double itemWidth) =>
+    computeVibeCardHeight(itemWidth) * 0.5;
 
-Future<VibeLibraryEntry> resolveVibeDetailEntryForOpen(
+Future<VibeLibraryDetailData> resolveVibeDetailDataForOpen(
   VibeLibraryStorageService storage,
   VibeLibraryEntry entry,
 ) async {
-  return VibePerformanceDiagnostics.measure(
-    'content.resolveVibeDetailEntryForOpen',
-    () async => await storage.getEntry(entry.id) ?? entry,
-    details: {'entryId': entry.id, 'isBundle': entry.isBundle},
-    resultDetails: (entry) => {'resolvedId': entry.id},
-  );
+  try {
+    return await VibePerformanceDiagnostics.measure(
+      'content.resolveVibeDetailDataForOpen',
+      () async =>
+          await storage.getDetailData(entry.id) ??
+          VibeLibraryDetailData(entry: entry),
+      details: {'entryId': entry.id, 'isBundle': entry.isBundle},
+      resultDetails: (data) => {
+        'resolvedId': data.entry.id,
+        'bundleVibes': data.bundleVibes.length,
+      },
+    );
+  } catch (error, stackTrace) {
+    AppLogger.e(
+      'Failed to resolve Vibe detail data',
+      error,
+      stackTrace,
+      'VibeLibraryContent',
+    );
+    return VibeLibraryDetailData(entry: entry);
+  }
 }
 
 List<VibeReference> buildBundleVibesForGeneration(
@@ -826,84 +860,3 @@ List<VibeReference> buildBundleVibesForGeneration(
 }
 
 /// 自定义上下文菜单路由
-class _ContextMenuRoute extends PopupRoute {
-  final Offset position;
-  final List<ProMenuItem> items;
-  final void Function(ProMenuItem) onSelect;
-
-  _ContextMenuRoute({
-    required this.position,
-    required this.items,
-    required this.onSelect,
-  });
-
-  @override
-  Color? get barrierColor => null;
-
-  @override
-  bool get barrierDismissible => true;
-
-  @override
-  String? get barrierLabel => null;
-
-  @override
-  Widget buildPage(
-    BuildContext context,
-    Animation<double> animation,
-    Animation<double> secondaryAnimation,
-  ) {
-    return MediaQuery.removePadding(
-      context: context,
-      removeTop: true,
-      removeLeft: true,
-      removeRight: true,
-      removeBottom: true,
-      child: Builder(
-        builder: (context) {
-          // 计算调整后的位置以保持菜单在屏幕边界内
-          final screenSize = MediaQuery.of(context).size;
-          const menuWidth = 180.0;
-          final menuHeight =
-              items.where((i) => !i.isDivider).length * 36.0 +
-              items.where((i) => i.isDivider).length * 1.0;
-
-          double left = position.dx;
-          double top = position.dy;
-
-          // 调整水平位置，如果菜单超出屏幕
-          if (left + menuWidth > screenSize.width) {
-            left = screenSize.width - menuWidth - 16;
-          }
-
-          // 调整垂直位置，如果菜单超出屏幕
-          if (top + menuHeight > screenSize.height) {
-            top = screenSize.height - menuHeight - 16;
-          }
-
-          return GestureDetector(
-            behavior: HitTestBehavior.translucent,
-            onTap: () => Navigator.of(context).pop(),
-            child: Stack(
-              children: [
-                ProContextMenu(
-                  position: Offset(left, top),
-                  items: items,
-                  onSelect: (item) {
-                    onSelect(item);
-                    Navigator.of(context).pop();
-                    WidgetsBinding.instance.addPostFrameCallback((_) {
-                      item.onTap?.call();
-                    });
-                  },
-                ),
-              ],
-            ),
-          );
-        },
-      ),
-    );
-  }
-
-  @override
-  Duration get transitionDuration => Duration.zero;
-}

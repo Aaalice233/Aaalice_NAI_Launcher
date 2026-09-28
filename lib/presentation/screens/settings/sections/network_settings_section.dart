@@ -1,14 +1,17 @@
+import 'package:nai_launcher/presentation/widgets/common/horizontal_action_strip.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/network/proxy_service.dart';
+import '../../../../core/platform/platform_capabilities.dart';
 import '../../../../core/utils/localization_extension.dart';
 import '../../../../data/models/settings/proxy_settings.dart';
 import '../../../providers/proxy_settings_provider.dart';
 import '../../../widgets/common/app_toast.dart';
 import '../../../widgets/common/themed_input.dart';
 import '../widgets/settings_card.dart';
+import '../widgets/settings_page_layout.dart';
 
 /// 网络设置板块
 ///
@@ -46,6 +49,12 @@ class NetworkSettingsSectionState
     final proxySettings = ref.watch(proxySettingsNotifierProvider);
     final detectedProxy = ref.watch(detectedSystemProxyProvider);
     final l10n = context.l10n;
+    // 偏离上游：上游这一段无平台门控，auto/manual 选择器全平台渲染。移动端的
+    // auto 模式永远拿不到地址（ProxyService.getSystemProxyAddress 对 iOS/Android
+    // 返回 null），选中它等于静默失效，所以整段隐藏；ProxySettingsNotifier 已把
+    // 移动端的模式钉成 manual，下面的手动地址输入框照常显示。
+    final supportsAutomaticProxyDetection =
+        !PlatformCapabilities.current.isMobile;
 
     // 初始化手动代理输入框
     if (_hostController.text.isEmpty && proxySettings.manualHost != null) {
@@ -55,132 +64,175 @@ class NetworkSettingsSectionState
       _portController.text = proxySettings.manualPort.toString();
     }
 
-    return SettingsCard(
+    return SettingsPageLayout(
       title: l10n.settings_network,
-      icon: Icons.network_check,
-      child: Column(
-        children: [
-          // 启用代理开关
-          SwitchListTile(
-            secondary: const Icon(Icons.wifi_tethering),
-            title: Text(l10n.settings_enableProxy),
-            subtitle: Text(
-              proxySettings.enabled
-                  ? '${l10n.settings_proxyEnabled}: ${proxySettings.effectiveProxyAddress ?? l10n.settings_proxyNotDetected}'
-                  : l10n.settings_proxyDisabled,
-            ),
-            value: proxySettings.enabled,
-            onChanged: (value) async {
-              await ref
-                  .read(proxySettingsNotifierProvider.notifier)
-                  .setEnabled(value);
-              if (mounted) {
-                AppToast.info(
-                  // ignore: use_build_context_synchronously
-                  context,
-                  l10n.settings_proxyRestartHint,
-                );
-              }
-            },
-          ),
-
-          // 代理模式选择（仅在启用时显示）
-          if (proxySettings.enabled) ...[
-            ListTile(
-              leading: const Icon(Icons.security_outlined),
-              title: Text(l10n.settings_proxyTrafficDisclosure),
-            ),
-            ListTile(
-              leading: const Icon(Icons.settings_ethernet),
-              title: Text(l10n.settings_proxyMode),
-              subtitle: Text(
-                proxySettings.mode == ProxyMode.auto
-                    ? '${l10n.settings_proxyModeAuto} (${detectedProxy ?? l10n.settings_proxyNotDetected})'
-                    : l10n.settings_proxyModeManual,
-              ),
-              trailing: SegmentedButton<ProxyMode>(
-                segments: [
-                  ButtonSegment(
-                    value: ProxyMode.auto,
-                    label: Text(l10n.settings_auto),
-                  ),
-                  ButtonSegment(
-                    value: ProxyMode.manual,
-                    label: Text(l10n.settings_manual),
-                  ),
-                ],
-                selected: {proxySettings.mode},
-                onSelectionChanged: (set) async {
+      children: [
+        SettingsCard(
+          title: l10n.settings_networkProxySection,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // 启用代理开关
+              SwitchListTile(
+                secondary: const Icon(Icons.wifi_tethering),
+                title: Text(l10n.settings_enableProxy),
+                subtitle: Text(
+                  proxySettings.enabled
+                      ? '${l10n.settings_proxyEnabled}: ${proxySettings.effectiveProxyAddress ?? l10n.settings_proxyNotDetected}'
+                      : l10n.settings_proxyDisabled,
+                ),
+                value: proxySettings.enabled,
+                onChanged: (value) async {
                   await ref
                       .read(proxySettingsNotifierProvider.notifier)
-                      .setMode(set.first);
+                      .setEnabled(value);
+                  if (mounted) {
+                    AppToast.info(
+                      // ignore: use_build_context_synchronously
+                      context,
+                      l10n.settings_proxyRestartHint,
+                    );
+                  }
                 },
               ),
-            ),
 
-            // 手动模式输入框
-            if (proxySettings.mode == ProxyMode.manual)
-              Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 8,
+              // 代理模式选择（仅在启用时显示）
+              if (proxySettings.enabled) ...[
+                ListTile(
+                  leading: const Icon(Icons.security_outlined),
+                  title: Text(l10n.settings_proxyTrafficDisclosure),
                 ),
-                child: Row(
-                  children: [
-                    Expanded(
-                      flex: 3,
-                      child: ThemedInput(
-                        controller: _hostController,
-                        decoration: InputDecoration(
-                          labelText: l10n.settings_proxyHost,
-                          hintText: '127.0.0.1',
-                          border: const OutlineInputBorder(),
-                          isDense: true,
-                        ),
-                        onChanged: (_) => _saveManualProxy(),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      flex: 1,
-                      child: ThemedInput(
-                        controller: _portController,
-                        decoration: InputDecoration(
-                          labelText: l10n.settings_proxyPort,
-                          hintText: '7890',
-                          border: const OutlineInputBorder(),
-                          isDense: true,
-                        ),
-                        keyboardType: TextInputType.number,
-                        inputFormatters: [
-                          FilteringTextInputFormatter.digitsOnly,
+                if (supportsAutomaticProxyDetection)
+                  LayoutBuilder(
+                    builder: (context, constraints) {
+                      final selector = SegmentedButton<ProxyMode>(
+                        segments: [
+                          ButtonSegment(
+                            value: ProxyMode.auto,
+                            label: Text(l10n.settings_auto),
+                          ),
+                          ButtonSegment(
+                            value: ProxyMode.manual,
+                            label: Text(l10n.settings_manual),
+                          ),
                         ],
-                        onChanged: (_) => _saveManualProxy(),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+                        selected: {proxySettings.mode},
+                        onSelectionChanged: (set) async {
+                          await ref
+                              .read(proxySettingsNotifierProvider.notifier)
+                              .setMode(set.first);
+                        },
+                      );
+                      final tile = ListTile(
+                        leading: const Icon(Icons.settings_ethernet),
+                        title: Text(l10n.settings_proxyMode),
+                        subtitle: Text(
+                          proxySettings.mode == ProxyMode.auto
+                              ? '${l10n.settings_proxyModeAuto} (${detectedProxy ?? l10n.settings_proxyNotDetected})'
+                              : l10n.settings_proxyModeManual,
+                        ),
+                        trailing: constraints.maxWidth >= 560 ? selector : null,
+                      );
 
-            // 测试连接按钮
-            ListTile(
-              leading: const Icon(Icons.network_check),
-              title: Text(l10n.settings_testConnection),
-              subtitle: Text(_testResult ?? l10n.settings_testConnectionHint),
-              trailing: _isTesting
-                  ? const SizedBox(
-                      width: 24,
-                      height: 24,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : IconButton(
-                      icon: const Icon(Icons.play_arrow),
-                      onPressed: _testProxyConnection,
+                      if (constraints.maxWidth >= 560) {
+                        return tile;
+                      }
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          tile,
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                            child: Align(
+                              alignment: Alignment.centerLeft,
+                              child: HorizontalActionStrip(child: selector),
+                            ),
+                          ),
+                        ],
+                      );
+                    },
+                  ),
+
+                // 手动模式输入框
+                if (proxySettings.mode == ProxyMode.manual)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 8,
                     ),
-            ),
-          ],
-        ],
-      ),
+                    child: LayoutBuilder(
+                      builder: (context, constraints) {
+                        final hostInput = ThemedInput(
+                          controller: _hostController,
+                          decoration: InputDecoration(
+                            labelText: l10n.settings_proxyHost,
+                            hintText: '127.0.0.1',
+                            border: const OutlineInputBorder(),
+                            isDense: true,
+                          ),
+                          textInputAction: TextInputAction.next,
+                          onChanged: (_) => _saveManualProxy(),
+                        );
+                        final portInput = ThemedInput(
+                          controller: _portController,
+                          decoration: InputDecoration(
+                            labelText: l10n.settings_proxyPort,
+                            hintText: '7890',
+                            border: const OutlineInputBorder(),
+                            isDense: true,
+                          ),
+                          keyboardType: TextInputType.number,
+                          textInputAction: TextInputAction.done,
+                          inputFormatters: [
+                            FilteringTextInputFormatter.digitsOnly,
+                          ],
+                          onChanged: (_) => _saveManualProxy(),
+                          onSubmitted: (_) => _saveManualProxy(),
+                        );
+
+                        if (constraints.maxWidth < 440) {
+                          return Column(
+                            children: [
+                              hostInput,
+                              const SizedBox(height: 12),
+                              portInput,
+                            ],
+                          );
+                        }
+                        return Row(
+                          children: [
+                            Expanded(flex: 3, child: hostInput),
+                            const SizedBox(width: 12),
+                            Expanded(flex: 1, child: portInput),
+                          ],
+                        );
+                      },
+                    ),
+                  ),
+
+                // 测试连接按钮
+                ListTile(
+                  leading: const Icon(Icons.network_check),
+                  title: Text(l10n.settings_testConnection),
+                  subtitle: Text(
+                    _testResult ?? l10n.settings_testConnectionHint,
+                  ),
+                  trailing: _isTesting
+                      ? const SizedBox(
+                          width: 24,
+                          height: 24,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : IconButton(
+                          icon: const Icon(Icons.play_arrow),
+                          onPressed: _testProxyConnection,
+                        ),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ],
     );
   }
 

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:nai_launcher/core/utils/localization_extension.dart';
 
 import '../../../../../data/models/prompt/dependency_config.dart';
+import '../../../../adaptive/adaptive_presenter.dart';
 import '../../../../widgets/common/elevated_card.dart';
 import 'package:nai_launcher/presentation/widgets/common/themed_form_input.dart';
 import 'package:nai_launcher/presentation/widgets/common/themed_input.dart';
@@ -117,13 +119,13 @@ class _DependencyConfigPanelState extends State<DependencyConfigPanel> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                '依赖配置',
+                context.l10n.diy_dependencyTitle,
                 style: theme.textTheme.titleMedium?.copyWith(
                   fontWeight: FontWeight.bold,
                 ),
               ),
               Text(
-                '配置标签选择的依赖关系',
+                context.l10n.diy_dependencySubtitle,
                 style: theme.textTheme.bodySmall?.copyWith(
                   color: colorScheme.onSurfaceVariant,
                 ),
@@ -138,8 +140,10 @@ class _DependencyConfigPanelState extends State<DependencyConfigPanel> {
               onTap: () => widget.onConfigChanged(null),
               borderRadius: BorderRadius.circular(8),
               child: Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 6,
+                ),
                 decoration: BoxDecoration(
                   border: Border.all(
                     color: colorScheme.error.withValues(alpha: 0.5),
@@ -156,7 +160,7 @@ class _DependencyConfigPanelState extends State<DependencyConfigPanel> {
                     ),
                     const SizedBox(width: 4),
                     Text(
-                      '清除',
+                      context.l10n.common_clear,
                       style: theme.textTheme.labelMedium?.copyWith(
                         color: colorScheme.error,
                       ),
@@ -214,7 +218,7 @@ class _DependencyConfigPanelState extends State<DependencyConfigPanel> {
               ),
               const SizedBox(width: 10),
               Text(
-                '依赖类型',
+                context.l10n.diy_dependencyType,
                 style: theme.textTheme.titleSmall?.copyWith(
                   fontWeight: FontWeight.w600,
                 ),
@@ -240,7 +244,9 @@ class _DependencyConfigPanelState extends State<DependencyConfigPanel> {
                           : () => _updateConfig(_config.copyWith(type: type)),
                       borderRadius: BorderRadius.circular(10),
                       child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 200),
+                        duration: MediaQuery.disableAnimationsOf(context)
+                            ? Duration.zero
+                            : const Duration(milliseconds: 200),
                         padding: const EdgeInsets.symmetric(vertical: 12),
                         decoration: BoxDecoration(
                           gradient: isSelected
@@ -254,11 +260,6 @@ class _DependencyConfigPanelState extends State<DependencyConfigPanel> {
                               ? null
                               : colorScheme.surfaceContainerHighest,
                           borderRadius: BorderRadius.circular(10),
-                          border: Border.all(
-                            color: isSelected
-                                ? Colors.transparent
-                                : colorScheme.outline.withValues(alpha: 0.2),
-                          ),
                           boxShadow: isSelected
                               ? [
                                   BoxShadow(
@@ -305,9 +306,6 @@ class _DependencyConfigPanelState extends State<DependencyConfigPanel> {
             decoration: BoxDecoration(
               color: colorScheme.surfaceContainerLowest,
               borderRadius: BorderRadius.circular(8),
-              border: Border.all(
-                color: colorScheme.outline.withValues(alpha: 0.1),
-              ),
             ),
             child: Row(
               children: [
@@ -362,7 +360,7 @@ class _DependencyConfigPanelState extends State<DependencyConfigPanel> {
               ),
               const SizedBox(width: 10),
               Text(
-                '源类别',
+                context.l10n.diy_sourceCategory,
                 style: theme.textTheme.titleSmall?.copyWith(
                   fontWeight: FontWeight.w600,
                 ),
@@ -376,26 +374,15 @@ class _DependencyConfigPanelState extends State<DependencyConfigPanel> {
                   ? _config.sourceCategoryId
                   : null,
               decoration: InputDecoration(
-                hintText: '选择源类别',
+                hintText: context.l10n.diy_selectSourceCategory,
                 prefixIcon: Icon(
                   Icons.folder_outlined,
                   color: colorScheme.onSurfaceVariant,
                 ),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(10),
-                  borderSide: BorderSide(
-                    color: colorScheme.outline.withValues(alpha: 0.3),
-                  ),
-                ),
+                border: InputBorder.none,
               ),
               items: widget.availableCategories.map((category) {
-                return DropdownMenuItem(
-                  value: category,
-                  child: Text(category),
-                );
+                return DropdownMenuItem(value: category, child: Text(category));
               }).toList(),
               onChanged: widget.readOnly
                   ? null
@@ -411,8 +398,8 @@ class _DependencyConfigPanelState extends State<DependencyConfigPanel> {
             ThemedFormInput(
               initialValue: _config.sourceCategoryId,
               decoration: InputDecoration(
-                labelText: '源类别 ID',
-                hintText: '输入类别 ID',
+                labelText: context.l10n.diy_sourceCategoryId,
+                hintText: context.l10n.diy_enterCategoryId,
                 prefixIcon: Icon(
                   Icons.folder_outlined,
                   color: colorScheme.onSurfaceVariant,
@@ -458,7 +445,7 @@ class _DependencyConfigPanelState extends State<DependencyConfigPanel> {
               ),
               const SizedBox(width: 10),
               Text(
-                '映射规则',
+                context.l10n.diy_mappingRules,
                 style: theme.textTheme.titleSmall?.copyWith(
                   fontWeight: FontWeight.w600,
                 ),
@@ -491,7 +478,7 @@ class _DependencyConfigPanelState extends State<DependencyConfigPanel> {
                           ),
                           const SizedBox(width: 4),
                           Text(
-                            '添加',
+                            context.l10n.common_add,
                             style: theme.textTheme.labelMedium?.copyWith(
                               color: colorScheme.primary,
                               fontWeight: FontWeight.w600,
@@ -511,9 +498,6 @@ class _DependencyConfigPanelState extends State<DependencyConfigPanel> {
               decoration: BoxDecoration(
                 color: colorScheme.surfaceContainerLowest,
                 borderRadius: BorderRadius.circular(10),
-                border: Border.all(
-                  color: colorScheme.outline.withValues(alpha: 0.1),
-                ),
               ),
               child: Center(
                 child: Column(
@@ -525,7 +509,7 @@ class _DependencyConfigPanelState extends State<DependencyConfigPanel> {
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      '暂无映射规则',
+                      context.l10n.diy_noMappingRules,
                       style: theme.textTheme.bodyMedium?.copyWith(
                         color: colorScheme.onSurfaceVariant,
                       ),
@@ -550,9 +534,6 @@ class _DependencyConfigPanelState extends State<DependencyConfigPanel> {
                   decoration: BoxDecoration(
                     color: colorScheme.surfaceContainerLowest,
                     borderRadius: BorderRadius.circular(10),
-                    border: Border.all(
-                      color: colorScheme.outline.withValues(alpha: 0.1),
-                    ),
                   ),
                   child: Row(
                     children: [
@@ -563,8 +544,9 @@ class _DependencyConfigPanelState extends State<DependencyConfigPanel> {
                           vertical: 4,
                         ),
                         decoration: BoxDecoration(
-                          color: colorScheme.primaryContainer
-                              .withValues(alpha: 0.5),
+                          color: colorScheme.primaryContainer.withValues(
+                            alpha: 0.5,
+                          ),
                           borderRadius: BorderRadius.circular(6),
                         ),
                         child: Text(
@@ -589,8 +571,9 @@ class _DependencyConfigPanelState extends State<DependencyConfigPanel> {
                           vertical: 4,
                         ),
                         decoration: BoxDecoration(
-                          color: colorScheme.secondaryContainer
-                              .withValues(alpha: 0.5),
+                          color: colorScheme.secondaryContainer.withValues(
+                            alpha: 0.5,
+                          ),
                           borderRadius: BorderRadius.circular(6),
                         ),
                         child: Text(
@@ -610,7 +593,7 @@ class _DependencyConfigPanelState extends State<DependencyConfigPanel> {
                             color: colorScheme.error.withValues(alpha: 0.7),
                           ),
                           onPressed: () => _removeMappingRule(entry.key),
-                          tooltip: '删除规则',
+                          tooltip: context.l10n.diy_deleteRule,
                         ),
                     ],
                   ),
@@ -651,7 +634,7 @@ class _DependencyConfigPanelState extends State<DependencyConfigPanel> {
               ),
               const SizedBox(width: 10),
               Text(
-                '默认值',
+                context.l10n.diy_defaultValue,
                 style: theme.textTheme.titleSmall?.copyWith(
                   fontWeight: FontWeight.w600,
                 ),
@@ -662,27 +645,17 @@ class _DependencyConfigPanelState extends State<DependencyConfigPanel> {
           ThemedFormInput(
             initialValue: _config.defaultValue ?? '',
             decoration: InputDecoration(
-              hintText: '当没有匹配规则时使用',
+              hintText: context.l10n.diy_defaultValueHint,
               prefixIcon: Icon(
                 Icons.edit_note_rounded,
                 color: colorScheme.onSurfaceVariant,
               ),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(10),
-              ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(10),
-                borderSide: BorderSide(
-                  color: colorScheme.outline.withValues(alpha: 0.3),
-                ),
-              ),
+              border: InputBorder.none,
             ),
             readOnly: widget.readOnly,
             onChanged: (value) {
               _updateConfig(
-                _config.copyWith(
-                  defaultValue: value.isEmpty ? null : value,
-                ),
+                _config.copyWith(defaultValue: value.isEmpty ? null : value),
               );
             },
           ),
@@ -712,13 +685,13 @@ class _DependencyConfigPanelState extends State<DependencyConfigPanel> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  '启用依赖配置',
+                  context.l10n.diy_enableDependency,
                   style: theme.textTheme.titleSmall?.copyWith(
                     fontWeight: FontWeight.w600,
                   ),
                 ),
                 Text(
-                  '禁用后此配置不会生效',
+                  context.l10n.diy_enableDependencyHint,
                   style: theme.textTheme.bodySmall?.copyWith(
                     color: colorScheme.onSurfaceVariant,
                   ),
@@ -739,92 +712,32 @@ class _DependencyConfigPanelState extends State<DependencyConfigPanel> {
     );
   }
 
-  void _addMappingRule() {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-
-    showDialog(
+  Future<void> _addMappingRule() async {
+    final result = await AdaptivePresenter.showForm<_MappingRule>(
       context: context,
-      builder: (context) {
-        String key = '';
-        String value = '';
-
-        return AlertDialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(6),
-          ),
-          title: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: colorScheme.primaryContainer.withValues(alpha: 0.5),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Icon(
-                  Icons.add_link_rounded,
-                  color: colorScheme.primary,
-                ),
-              ),
-              const SizedBox(width: 12),
-              const Text('添加映射规则'),
-            ],
-          ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              ThemedInput(
-                decoration: InputDecoration(
-                  labelText: '源值',
-                  hintText: '例如: 1, 2, 3',
-                  prefixIcon: Icon(
-                    Icons.input_rounded,
-                    color: colorScheme.onSurfaceVariant,
-                  ),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                ),
-                onChanged: (v) => key = v,
-              ),
-              const SizedBox(height: 16),
-              ThemedInput(
-                decoration: InputDecoration(
-                  labelText: '结果值',
-                  hintText: '例如: 0-3, 0-2, 0-1',
-                  prefixIcon: Icon(
-                    Icons.output_rounded,
-                    color: colorScheme.onSurfaceVariant,
-                  ),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                ),
-                onChanged: (v) => value = v,
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('取消'),
+      titleBuilder: (context) => Row(
+        children: [
+          const Icon(Icons.add_link_rounded),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              context.l10n.diy_addMappingRule,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: Theme.of(context).textTheme.titleLarge,
             ),
-            FilledButton(
-              onPressed: () {
-                if (key.isNotEmpty && value.isNotEmpty) {
-                  final newRules =
-                      Map<String, String>.from(_config.mappingRules);
-                  newRules[key] = value;
-                  _updateConfig(_config.copyWith(mappingRules: newRules));
-                }
-                Navigator.pop(context);
-              },
-              child: const Text('添加'),
-            ),
-          ],
-        );
-      },
+          ),
+        ],
+      ),
+      dialogWidth: 480,
+      builder: (context, scrollController) =>
+          _MappingRuleForm(scrollController: scrollController),
     );
+    if (!mounted || result == null) return;
+
+    final newRules = Map<String, String>.from(_config.mappingRules);
+    newRules[result.source] = result.value;
+    _updateConfig(_config.copyWith(mappingRules: newRules));
   }
 
   void _removeMappingRule(String key) {
@@ -836,26 +749,174 @@ class _DependencyConfigPanelState extends State<DependencyConfigPanel> {
   String _getDependencyTypeLabel(DependencyType type) {
     switch (type) {
       case DependencyType.count:
-        return '数量';
+        return context.l10n.diy_dependencyCount;
       case DependencyType.exists:
-        return '存在';
+        return context.l10n.diy_dependencyExists;
       case DependencyType.value:
-        return '值';
+        return context.l10n.diy_dependencyValue;
       case DependencyType.excludes:
-        return '排斥';
+        return context.l10n.diy_dependencyExcludes;
     }
   }
 
   String _getDependencyTypeDescription(DependencyType type) {
     switch (type) {
       case DependencyType.count:
-        return '选择数量依赖源类别的结果数量';
+        return context.l10n.diy_dependencyCountDescription;
       case DependencyType.exists:
-        return '只有当源类别有选中标签时才生效';
+        return context.l10n.diy_dependencyExistsDescription;
       case DependencyType.value:
-        return '依赖源类别的特定标签值';
+        return context.l10n.diy_dependencyValueDescription;
       case DependencyType.excludes:
-        return '当源类别有选中标签时不生效';
+        return context.l10n.diy_dependencyExcludesDescription;
     }
+  }
+}
+
+class _MappingRule {
+  const _MappingRule({required this.source, required this.value});
+
+  final String source;
+  final String value;
+}
+
+class _MappingRuleForm extends StatefulWidget {
+  const _MappingRuleForm({required this.scrollController});
+
+  final ScrollController scrollController;
+
+  @override
+  State<_MappingRuleForm> createState() => _MappingRuleFormState();
+}
+
+class _MappingRuleFormState extends State<_MappingRuleForm> {
+  final _sourceController = TextEditingController();
+  final _valueController = TextEditingController();
+  final _sourceFocusNode = FocusNode();
+  final _valueFocusNode = FocusNode();
+
+  bool get _isValid =>
+      _sourceController.text.isNotEmpty && _valueController.text.isNotEmpty;
+
+  @override
+  void dispose() {
+    _sourceController.dispose();
+    _valueController.dispose();
+    _sourceFocusNode.dispose();
+    _valueFocusNode.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final largeText = MediaQuery.textScalerOf(context).scale(1) >= 2;
+    return Column(
+      key: const ValueKey('mapping-rule-form'),
+      children: [
+        Expanded(
+          child: SingleChildScrollView(
+            key: const ValueKey('mapping-rule-form-scroll'),
+            controller: widget.scrollController,
+            keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              children: [
+                ThemedInput(
+                  key: const ValueKey('mapping-rule-source'),
+                  controller: _sourceController,
+                  focusNode: _sourceFocusNode,
+                  autofocus: true,
+                  textInputAction: TextInputAction.next,
+                  decoration: InputDecoration(
+                    labelText: context.l10n.diy_sourceValue,
+                    hintText: context.l10n.diy_sourceValueHint,
+                    prefixIcon: largeText
+                        ? null
+                        : Icon(
+                            Icons.input_rounded,
+                            color: colorScheme.onSurfaceVariant,
+                          ),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                  onChanged: (_) => setState(() {}),
+                  onSubmitted: (_) => _valueFocusNode.requestFocus(),
+                ),
+                const SizedBox(height: 16),
+                ThemedInput(
+                  key: const ValueKey('mapping-rule-value'),
+                  controller: _valueController,
+                  focusNode: _valueFocusNode,
+                  textInputAction: TextInputAction.done,
+                  decoration: InputDecoration(
+                    labelText: context.l10n.diy_resultValue,
+                    hintText: context.l10n.diy_resultValueHint,
+                    prefixIcon: largeText
+                        ? null
+                        : Icon(
+                            Icons.output_rounded,
+                            color: colorScheme.onSurfaceVariant,
+                          ),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                  onChanged: (_) => setState(() {}),
+                  onSubmitted: (_) {
+                    if (_isValid) _submit();
+                  },
+                ),
+              ],
+            ),
+          ),
+        ),
+        const Divider(height: 1),
+        SafeArea(
+          top: false,
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final cancel = TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: Text(context.l10n.common_cancel),
+                );
+                final add = FilledButton(
+                  key: const ValueKey('mapping-rule-submit'),
+                  onPressed: _isValid ? _submit : null,
+                  child: Text(context.l10n.common_add),
+                );
+                final stackActions =
+                    MediaQuery.textScalerOf(context).scale(1) >= 2 ||
+                    constraints.maxWidth < 240;
+                if (stackActions) {
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [add, const SizedBox(height: 8), cancel],
+                  );
+                }
+                return Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [cancel, const SizedBox(width: 8), add],
+                );
+              },
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  void _submit() {
+    if (!_isValid) return;
+    Navigator.pop(
+      context,
+      _MappingRule(
+        source: _sourceController.text,
+        value: _valueController.text,
+      ),
+    );
   }
 }

@@ -1,13 +1,15 @@
 import 'dart:convert';
-import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
 
+import '../../../../core/platform/platform_capabilities.dart';
+import '../../../../core/services/android_media_store_service.dart';
 import '../../../../core/utils/localization_extension.dart';
 import '../../../../core/utils/image_save_utils.dart';
 import '../../../../data/models/gallery/nai_image_metadata.dart';
+import '../../../../data/models/fixed_tag/fixed_tag_usage_snapshot.dart';
 import '../../../../data/repositories/gallery_folder_repository.dart';
 import '../../../../data/services/image_metadata_service.dart';
 import '../../../providers/generation/generation_models.dart';
@@ -63,6 +65,8 @@ class GenerationSaveService {
         id: img.id,
         showSaveButton: img.canSave,
         showCopyButton: img.canSave,
+        preserveOriginalBytesOnSave: img.preserveOriginalBytesOnSave,
+        fixedTagUsageSnapshot: img.fixedTagUsageSnapshot,
       );
     }).toList();
 
@@ -96,40 +100,81 @@ class GenerationSaveService {
       final saveDirPath = await GalleryFolderRepository.instance.getRootPath();
       if (saveDirPath == null) return;
 
-      final fileName = 'NAI_${DateTime.now().millisecondsSinceEpoch}.png';
-      final filePath = p.join(saveDirPath, fileName);
-
       // 获取已有元数据（如果图像已包含）
       final existingMetadata = image.metadata;
+      final fixedTagUsageSnapshot = image is GeneratedImageDetailData
+          ? image.fixedTagUsageSnapshot
+          : existingMetadata?.fixedTagUsageSnapshot;
+      // 构建最终字节：明确要求保留原始字节的外部结果不做补写；
+      // 其他图像优先保留已有 NAI 元数据，缺失时再用已解析数据重建。
+      var finalBytes = imageBytes;
+      final hasEmbeddedMetadata = ImageSaveUtils.hasEmbeddedNovelAiMetadata(
+        imageBytes,
+      );
+      if (!image.preserveOriginalBytesOnSave &&
+          hasEmbeddedMetadata &&
+          fixedTagUsageSnapshot != null) {
+        finalBytes = await ImageSaveUtils.mergeFixedTagUsageMetadata(
+          imageBytes: imageBytes,
+          snapshot: fixedTagUsageSnapshot,
+        );
+      } else if (!image.preserveOriginalBytesOnSave &&
+          !hasEmbeddedMetadata &&
+          existingMetadata != null) {
+        finalBytes = await ImageSaveUtils.buildPrebuiltMetadataBytes(
+          imageBytes: imageBytes,
+          metadata: {
+            'Description': existingMetadata.prompt,
+            'Software': 'NovelAI',
+            'Source': existingMetadata.source ?? 'NovelAI Diffusion',
+            'Comment': jsonEncode(
+              buildCommentJsonFromMetadata(
+                existingMetadata,
+                fixedTagUsageSnapshot: fixedTagUsageSnapshot,
+              ),
+            ),
+          },
+        );
+      }
 
-      if (existingMetadata != null) {
-        if (ImageSaveUtils.hasEmbeddedNovelAiMetadata(imageBytes)) {
-          final file = File(filePath);
-          await file.writeAsBytes(imageBytes);
-        } else {
-          // 使用已有元数据重新嵌入（保持完整性）
-          await ImageSaveUtils.saveWithPrebuiltMetadata(
-            imageBytes: imageBytes,
-            filePath: filePath,
-            metadata: {
-              'Description': existingMetadata.prompt,
-              'Software': 'NovelAI',
-              'Source': existingMetadata.source ?? 'NovelAI Diffusion',
-              'Comment':
-                  jsonEncode(buildCommentJsonFromMetadata(existingMetadata)),
-            },
+      // 原子保存：日期分类路径 + 独占防冲突 + 失败清理，全部在工具内完成
+      final filePath = await ImageSaveUtils.saveBytesToDatedPath(
+        rootPath: saveDirPath,
+        bytes: finalBytes,
+        seed: await ImageSaveUtils.resolveSeed(
+          metadata: existingMetadata,
+          bytes: imageBytes,
+        ),
+      );
+
+      Object? systemGalleryError;
+      if (PlatformCapabilities.current.supportsSystemGalleryExport) {
+        try {
+          await AndroidMediaStoreService.savePng(
+            bytes: finalBytes,
+            fileName: p.basename(filePath),
           );
+        } catch (error) {
+          systemGalleryError = error;
         }
-      } else {
-        // 没有元数据，直接保存原始字节
-        final file = File(filePath);
-        await file.writeAsBytes(imageBytes);
       }
 
       ref.read(localGalleryNotifierProvider.notifier).refresh();
 
       if (context.mounted) {
-        AppToast.success(context, context.l10n.image_imageSaved(saveDirPath));
+        if (systemGalleryError != null) {
+          AppToast.warning(
+            context,
+            context.l10n.image_savedAppOnly(systemGalleryError.toString()),
+          );
+        } else {
+          AppToast.success(
+            context,
+            PlatformCapabilities.current.supportsSystemGalleryExport
+                ? context.l10n.image_savedToSystemGallery
+                : context.l10n.image_imageSaved(saveDirPath),
+          );
+        }
       }
     } catch (e) {
       if (context.mounted) {
@@ -140,8 +185,9 @@ class GenerationSaveService {
 
   /// 从元数据构建 Comment JSON
   static Map<String, dynamic> buildCommentJsonFromMetadata(
-    NaiImageMetadata metadata,
-  ) {
+    NaiImageMetadata metadata, {
+    FixedTagUsageSnapshot? fixedTagUsageSnapshot,
+  }) {
     final commentJson = <String, dynamic>{
       'prompt': metadata.prompt,
       'uc': metadata.negativePrompt,
@@ -157,6 +203,15 @@ class GenerationSaveService {
       'sampler': metadata.sampler ?? 'k_euler_ancestral',
       'sm': metadata.smea ?? false,
       'sm_dyn': metadata.smeaDyn ?? false,
+      if (fixedTagUsageSnapshot != null)
+        'aaalice_fixed_tags': fixedTagUsageSnapshot.toJson(),
+      if (fixedTagUsageSnapshot != null ||
+          metadata.hasRecordedFixedTagFields) ...{
+        'fixed_prefix': metadata.fixedPrefixTags,
+        'fixed_suffix': metadata.fixedSuffixTags,
+        'fixed_negative_prefix': metadata.fixedNegativePrefixTags,
+        'fixed_negative_suffix': metadata.fixedNegativeSuffixTags,
+      },
     };
 
     // 添加 Vibe 数据
@@ -165,10 +220,13 @@ class GenerationSaveService {
           .where((v) => v.vibeEncoding.isNotEmpty)
           .map((v) => v.vibeEncoding)
           .toList();
-      commentJson['reference_strength_multiple'] =
-          metadata.vibeReferences.map((v) => v.strength).toList();
-      commentJson['reference_information_extracted_multiple'] =
-          metadata.vibeReferences.map((v) => v.infoExtracted).toList();
+      commentJson['reference_strength_multiple'] = metadata.vibeReferences
+          .map((v) => v.strength)
+          .toList();
+      commentJson['reference_information_extracted_multiple'] = metadata
+          .vibeReferences
+          .map((v) => v.infoExtracted)
+          .toList();
     }
 
     return commentJson;

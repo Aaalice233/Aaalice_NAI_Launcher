@@ -1,8 +1,10 @@
 import 'dart:io';
 
+import 'package:hive_flutter/hive_flutter.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
+import '../constants/storage_keys.dart';
 import '../utils/app_logger.dart';
 import '../utils/hive_storage_helper.dart';
 import '../utils/vibe_library_path_helper.dart';
@@ -64,6 +66,8 @@ class DataMigrationService {
       AppLogger.i('图片存储路径: $imagePath', 'DataMigration');
       result.imageMigrated = true;
 
+      await _migrateAutocompleteSettings();
+
       onProgress?.call('数据迁移完成', 1.0);
       AppLogger.i('数据迁移流程完成', 'DataMigration');
 
@@ -75,11 +79,37 @@ class DataMigrationService {
       AppLogger.e('数据迁移失败: $e', 'DataMigration', stackTrace);
       result.error = e.toString();
 
-      _migratedThisSession = true;
-      _lastResult = result;
+      // 失败结果不能标记为本次进程已迁移，否则 Splash 的重试只会复用失败。
+      _migratedThisSession = false;
+      _lastResult = null;
 
       return result;
     }
+  }
+
+  Future<void> _migrateAutocompleteSettings() async {
+    if (!Hive.isBoxOpen(StorageKeys.settingsBox)) return;
+    final box = Hive.box(StorageKeys.settingsBox);
+    final version =
+        box.get(StorageKeys.autocompleteMigrationVersion, defaultValue: 0)
+            as int;
+    if (version >= 1) return;
+    for (final key in const [
+      StorageKeys.hfTranslationRefreshInterval,
+      StorageKeys.hfTranslationLastUpdate,
+      StorageKeys.danbooruTagsHotThreshold,
+      StorageKeys.danbooruTagsHotPreset,
+      StorageKeys.danbooruTagsLastUpdate,
+      StorageKeys.danbooruTagsRefreshInterval,
+      StorageKeys.danbooruTagsRefreshIntervalDays,
+    ]) {
+      await box.delete(key);
+    }
+    await box.put(StorageKeys.autocompleteMigrationVersion, 1);
+    AppLogger.i(
+      'Autocomplete settings migrated to unified pipeline',
+      'DataMigration',
+    );
   }
 
   /// 迁移图片存储
@@ -180,7 +210,10 @@ class DataMigrationService {
       for (final file in hiveFiles) {
         try {
           await file.delete();
-          AppLogger.i('已删除旧 Hive 文件: ${p.basename(file.path)}', 'DataMigration');
+          AppLogger.i(
+            '已删除旧 Hive 文件: ${p.basename(file.path)}',
+            'DataMigration',
+          );
         } catch (e) {
           AppLogger.w('删除旧 Hive 文件失败: ${file.path}', 'DataMigration');
         }
@@ -270,7 +303,8 @@ class MigrationResult {
   String? error;
 
   /// 是否全部成功
-  bool get isSuccess => hiveMigrated && vibeMigrated && imageMigrated && error == null;
+  bool get isSuccess =>
+      hiveMigrated && vibeMigrated && imageMigrated && error == null;
 
   @override
   String toString() {

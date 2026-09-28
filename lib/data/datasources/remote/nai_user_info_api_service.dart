@@ -22,6 +22,7 @@ class NAIUserInfoApiService {
   Future<Map<String, dynamic>> getUserSubscription({
     Duration? receiveTimeout,
     Duration? sendTimeout,
+    CancelToken? cancelToken,
   }) async {
     try {
       final response = await _dio.get(
@@ -30,6 +31,7 @@ class NAIUserInfoApiService {
           receiveTimeout: receiveTimeout ?? _timeout,
           sendTimeout: sendTimeout ?? _timeout,
         ),
+        cancelToken: cancelToken,
       );
 
       return response.data as Map<String, dynamic>;

@@ -4,6 +4,49 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/utils/localization_extension.dart';
 import '../../providers/gallery_scan_progress_provider.dart';
 
+const _galleryProgressFlexScale = 1000;
+const _galleryProgressStripeWidth = 8.0;
+const _galleryProgressStripeGap = 8.0;
+const _maxGalleryProgressStripeCount = 4096;
+
+/// Converts a visible progress ratio to a valid [FlexParentData.flex] value.
+///
+/// Tiny non-zero segments still need a flex of at least one. A zero flex is
+/// laid out as a non-flex child by [RenderFlex], which gives it an unbounded
+/// main-axis constraint.
+@visibleForTesting
+int galleryProgressSegmentFlex(double ratio) {
+  if (!ratio.isFinite || ratio <= 0) return 0;
+  return (ratio * _galleryProgressFlexScale)
+      .round()
+      .clamp(1, _galleryProgressFlexScale)
+      .toInt();
+}
+
+/// Returns a finite amount of stripe work for the supplied paint width.
+@visibleForTesting
+int galleryProgressStripeCountForWidth(double width) {
+  if (!width.isFinite || width <= 0) return 0;
+
+  const spacing = _galleryProgressStripeWidth + _galleryProgressStripeGap;
+  const maxWidthBeforeCap = (_maxGalleryProgressStripeCount - 1) * spacing;
+  if (width >= maxWidthBeforeCap) return _maxGalleryProgressStripeCount;
+
+  return ((width + spacing) / spacing).ceil();
+}
+
+/// Rejects invalid paint bounds before any stripe work is attempted.
+@visibleForTesting
+int galleryProgressStripeCountForSize(Size size) {
+  if (!size.width.isFinite ||
+      size.width <= 0 ||
+      !size.height.isFinite ||
+      size.height <= 0) {
+    return 0;
+  }
+  return galleryProgressStripeCountForWidth(size.width);
+}
+
 /// 画廊扫描进度面板
 ///
 /// 显示流式扫描的实时状态：
@@ -35,10 +78,6 @@ class GalleryScanProgressPanel extends ConsumerWidget {
       decoration: BoxDecoration(
         color: theme.colorScheme.surfaceContainerLowest,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: theme.colorScheme.outlineVariant.withValues(alpha: 0.3),
-          width: 1,
-        ),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -52,6 +91,7 @@ class GalleryScanProgressPanel extends ConsumerWidget {
                 height: 16,
                 child: CircularProgressIndicator(
                   strokeWidth: 2,
+                  value: MediaQuery.disableAnimationsOf(context) ? 0.72 : null,
                   valueColor: AlwaysStoppedAnimation<Color>(
                     theme.colorScheme.primary,
                   ),
@@ -86,10 +126,10 @@ class GalleryScanProgressPanel extends ConsumerWidget {
           ),
           const SizedBox(height: 10),
           // 彩色分段进度条
-          _buildSegmentedProgressBar(theme, scanState),
+          _buildSegmentedProgressBar(context, theme, scanState),
           const SizedBox(height: 6),
           // 进度条图例
-          _buildProgressLegend(theme, scanState),
+          _buildProgressLegend(context, theme, scanState),
           const SizedBox(height: 8),
           // 当前阶段标签
           Row(
@@ -98,8 +138,9 @@ class GalleryScanProgressPanel extends ConsumerWidget {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                 decoration: BoxDecoration(
-                  color:
-                      theme.colorScheme.primaryContainer.withValues(alpha: 0.5),
+                  color: theme.colorScheme.primaryContainer.withValues(
+                    alpha: 0.5,
+                  ),
                   borderRadius: BorderRadius.circular(4),
                 ),
                 child: Text(
@@ -286,6 +327,7 @@ class GalleryScanProgressPanel extends ConsumerWidget {
   /// - 红色：扫描错误
   /// - 灰色/默认：待处理
   Widget _buildSegmentedProgressBar(
+    BuildContext context,
     ThemeData theme,
     ScanProgressState scanState,
   ) {
@@ -297,12 +339,10 @@ class GalleryScanProgressPanel extends ConsumerWidget {
       return ClipRRect(
         borderRadius: BorderRadius.circular(4),
         child: LinearProgressIndicator(
-          value: null, // 不确定进度
+          value: MediaQuery.disableAnimationsOf(context) ? 0.72 : null,
           minHeight: 8,
           backgroundColor: theme.colorScheme.surfaceContainerHighest,
-          valueColor: AlwaysStoppedAnimation<Color>(
-            theme.colorScheme.primary,
-          ),
+          valueColor: AlwaysStoppedAnimation<Color>(theme.colorScheme.primary),
         ),
       );
     }
@@ -315,8 +355,10 @@ class GalleryScanProgressPanel extends ConsumerWidget {
 
     // 当前正在处理的部分 = 已处理 - 已分类
     final processingRatio =
-        (processedRatio - skippedRatio - withMetadataRatio - failedRatio)
-            .clamp(0.0, 1.0);
+        (processedRatio - skippedRatio - withMetadataRatio - failedRatio).clamp(
+          0.0,
+          1.0,
+        );
 
     // 待处理的部分
     final pendingRatio = (1.0 - processedRatio).clamp(0.0, 1.0);
@@ -328,61 +370,86 @@ class GalleryScanProgressPanel extends ConsumerWidget {
         child: Row(
           children: [
             // 绿色：跳过的（已扫描过，缓存命中）
-            if (skippedRatio > 0)
-              Expanded(
-                flex: (skippedRatio * 1000).round(),
-                child: Container(color: Colors.green.shade400),
-              ),
+            ..._buildProgressSegment(
+              ratio: skippedRatio,
+              child: Container(color: Colors.green.shade400),
+            ),
             // 蓝色：有元数据的（解析成功）
-            if (withMetadataRatio > 0)
-              Expanded(
-                flex: (withMetadataRatio * 1000).round(),
-                child: Container(color: Colors.blue.shade400),
-              ),
+            ..._buildProgressSegment(
+              ratio: withMetadataRatio,
+              child: Container(color: Colors.blue.shade400),
+            ),
             // 红色：扫描错误的
-            if (failedRatio > 0)
-              Expanded(
-                flex: (failedRatio * 1000).round(),
-                child: Container(color: Colors.red.shade400),
-              ),
+            ..._buildProgressSegment(
+              ratio: failedRatio,
+              child: Container(color: Colors.red.shade400),
+            ),
             // 紫色：正在处理的
-            if (processingRatio > 0)
-              Expanded(
-                flex: (processingRatio * 1000).round(),
-                child: Container(
-                  color: theme.colorScheme.primary,
-                  child: const _AnimatedStripes(),
-                ),
+            ..._buildProgressSegment(
+              ratio: processingRatio,
+              child: Container(
+                color: theme.colorScheme.primary,
+                child: const _AnimatedStripes(),
               ),
+            ),
             // 灰色：待处理的
-            if (pendingRatio > 0)
-              Expanded(
-                flex: (pendingRatio * 1000).round(),
-                child:
-                    Container(color: theme.colorScheme.surfaceContainerHighest),
+            ..._buildProgressSegment(
+              ratio: pendingRatio,
+              child: Container(
+                color: theme.colorScheme.surfaceContainerHighest,
               ),
+            ),
           ],
         ),
       ),
     );
   }
 
+  List<Widget> _buildProgressSegment({
+    required double ratio,
+    required Widget child,
+  }) {
+    final flex = galleryProgressSegmentFlex(ratio);
+    if (flex == 0) return const [];
+    return [Expanded(flex: flex, child: child)];
+  }
+
   /// 构建进度条图例
-  Widget _buildProgressLegend(ThemeData theme, ScanProgressState scanState) {
+  Widget _buildProgressLegend(
+    BuildContext context,
+    ThemeData theme,
+    ScanProgressState scanState,
+  ) {
     final stats = scanState.cacheStats;
+    final l10n = context.l10n;
 
     return Wrap(
       spacing: 12,
       runSpacing: 4,
       children: [
         if (stats.skipped > 0)
-          _buildLegendItem(Colors.green.shade400, '跳过 ${stats.skipped}'),
+          _buildLegendItem(
+            Colors.green.shade400,
+            l10n.galleryScan_skipped(stats.skipped),
+          ),
         if (stats.withMetadata > 0)
-          _buildLegendItem(Colors.blue.shade400, '有元数据 ${stats.withMetadata}'),
+          _buildLegendItem(
+            Colors.blue.shade400,
+            l10n.galleryScan_withMetadata(stats.withMetadata),
+          ),
         if (stats.failedMetadata > 0)
-          _buildLegendItem(Colors.red.shade400, '失败 ${stats.failedMetadata}'),
-        _buildLegendItem(theme.colorScheme.primary, '处理中'),
-        _buildLegendItem(theme.colorScheme.surfaceContainerHighest, '待处理'),
+          _buildLegendItem(
+            Colors.red.shade400,
+            l10n.galleryScan_failed(stats.failedMetadata),
+          ),
+        _buildLegendItem(
+          theme.colorScheme.primary,
+          l10n.galleryScan_processing,
+        ),
+        _buildLegendItem(
+          theme.colorScheme.surfaceContainerHighest,
+          l10n.galleryScan_pending,
+        ),
       ],
     );
   }
@@ -403,15 +470,15 @@ class GalleryScanProgressPanel extends ConsumerWidget {
         const SizedBox(width: 4),
         Text(
           label,
-          style: TextStyle(
-            fontSize: 10,
-            color: Colors.grey.shade600,
-          ),
+          style: TextStyle(fontSize: 10, color: Colors.grey.shade600),
         ),
       ],
     );
   }
 }
+
+@visibleForTesting
+Widget buildGalleryAnimatedStripesForTesting() => const _AnimatedStripes();
 
 /// 动画条纹效果（表示处理中）
 class _AnimatedStripes extends StatefulWidget {
@@ -424,6 +491,7 @@ class _AnimatedStripes extends StatefulWidget {
 class _AnimatedStripesState extends State<_AnimatedStripes>
     with SingleTickerProviderStateMixin {
   late AnimationController _controller;
+  bool? _disableAnimations;
 
   @override
   void initState() {
@@ -431,7 +499,23 @@ class _AnimatedStripesState extends State<_AnimatedStripes>
     _controller = AnimationController(
       duration: const Duration(milliseconds: 1000),
       vsync: this,
-    )..repeat();
+    );
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final disableAnimations = MediaQuery.disableAnimationsOf(context);
+    if (_disableAnimations == disableAnimations) return;
+
+    _disableAnimations = disableAnimations;
+    if (disableAnimations) {
+      _controller
+        ..stop()
+        ..value = 1;
+    } else {
+      _controller.repeat();
+    }
   }
 
   @override
@@ -442,45 +526,44 @@ class _AnimatedStripesState extends State<_AnimatedStripes>
 
   @override
   Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: _controller,
-      builder: (context, child) {
-        return CustomPaint(
-          size: const Size(double.infinity, 8),
-          painter: _StripesPainter(
-            progress: _controller.value,
-            color: Colors.white.withValues(alpha: 0.3),
-          ),
-        );
-      },
+    return RepaintBoundary(
+      child: CustomPaint(
+        painter: _StripesPainter(
+          progress: _controller,
+          color: Colors.white.withValues(alpha: 0.3),
+        ),
+        child: const SizedBox.expand(),
+      ),
     );
   }
 }
 
 /// 条纹绘制器
 class _StripesPainter extends CustomPainter {
-  final double progress;
+  final Animation<double> progress;
   final Color color;
 
-  _StripesPainter({required this.progress, required this.color});
+  _StripesPainter({required this.progress, required this.color})
+    : super(repaint: progress);
 
   @override
   void paint(Canvas canvas, Size size) {
+    final stripeCount = galleryProgressStripeCountForSize(size);
+    if (stripeCount == 0) return;
+
     final paint = Paint()
       ..color = color
       ..strokeWidth = 2
       ..strokeCap = StrokeCap.round;
 
-    const stripeWidth = 8.0;
-    const gap = 8.0;
-    final offset = progress * (stripeWidth + gap);
+    const spacing = _galleryProgressStripeWidth + _galleryProgressStripeGap;
+    final offset = progress.value * spacing;
 
-    for (double x = -stripeWidth;
-        x < size.width + stripeWidth;
-        x += stripeWidth + gap) {
+    for (var index = 0; index < stripeCount; index++) {
+      final x = -_galleryProgressStripeWidth + index * spacing;
       canvas.drawLine(
         Offset(x + offset, 0),
-        Offset(x + offset - stripeWidth / 2, size.height),
+        Offset(x + offset - _galleryProgressStripeWidth / 2, size.height),
         paint,
       );
     }
@@ -488,6 +571,6 @@ class _StripesPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant _StripesPainter oldDelegate) {
-    return oldDelegate.progress != progress;
+    return oldDelegate.progress != progress || oldDelegate.color != color;
   }
 }

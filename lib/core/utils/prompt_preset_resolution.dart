@@ -1,5 +1,6 @@
 import '../../data/models/prompt/prompt_preset_mode.dart';
 import '../constants/api_constants.dart';
+import 'prompt_edit_document.dart';
 
 class PromptPresetResolution {
   const PromptPresetResolution({
@@ -7,12 +8,16 @@ class PromptPresetResolution {
     required this.negativePrompt,
     required this.qualityToggle,
     required this.ucPreset,
+    required this.omitQualityTagHint,
+    required this.omitUcPresetTagHint,
   });
 
   final String prompt;
   final String negativePrompt;
   final bool qualityToggle;
   final int ucPreset;
+  final bool omitQualityTagHint;
+  final bool omitUcPresetTagHint;
 }
 
 PromptPresetResolution resolvePromptPresetSettings({
@@ -24,6 +29,14 @@ PromptPresetResolution resolvePromptPresetSettings({
   required String? ucPresetContent,
   required bool useCustomUcPreset,
 }) {
+  prompt = PromptEditDocument.effectiveText(prompt);
+  negativePrompt = PromptEditDocument.effectiveText(negativePrompt);
+  if (qualityContent != null) {
+    qualityContent = PromptEditDocument.effectiveText(qualityContent);
+  }
+  if (ucPresetContent != null) {
+    ucPresetContent = PromptEditDocument.effectiveText(ucPresetContent);
+  }
   final resolvedPrompt = switch (qualityMode) {
     PromptPresetMode.custom => _joinPromptParts([prompt, qualityContent]),
     PromptPresetMode.naiDefault || PromptPresetMode.none => prompt,
@@ -40,6 +53,8 @@ PromptPresetResolution resolvePromptPresetSettings({
     ucPreset: useCustomUcPreset
         ? UcPresets.noneApiValue
         : UcPresets.toApiValue(ucPresetType),
+    omitQualityTagHint: qualityMode == PromptPresetMode.custom,
+    omitUcPresetTagHint: useCustomUcPreset,
   );
 }
 

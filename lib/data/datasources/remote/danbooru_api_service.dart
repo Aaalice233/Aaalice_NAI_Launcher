@@ -7,8 +7,10 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 import '../../models/danbooru/danbooru_pool.dart';
 import '../../models/danbooru/danbooru_user.dart';
 import '../../models/online_gallery/danbooru_post.dart';
+import '../../models/online_gallery/gallery_blacklist.dart';
 import '../../models/tag/danbooru_tag.dart';
 import '../../models/tag/tag_suggestion.dart';
+import '../../../core/network/network_failure_diagnostics.dart';
 import '../../../core/utils/app_logger.dart';
 import '../../services/danbooru_auth_service.dart';
 
@@ -76,17 +78,16 @@ class DanbooruApiService {
 
   // ==================== 用户认证 ====================
 
-  Future<DanbooruUser?> verifyCredentials(DanbooruCredentials credentials) async {
+  Future<DanbooruUser?> verifyCredentials(
+    DanbooruCredentials credentials,
+  ) async {
     final authHeader = _buildAuthHeader(credentials);
     final response = await _dio.get(
       '$_baseUrl$_profileEndpoint',
       options: Options(
         receiveTimeout: _timeout,
         sendTimeout: _timeout,
-        headers: {
-          ..._getHeaders(),
-          'Authorization': authHeader,
-        },
+        headers: {..._getHeaders(), 'Authorization': authHeader},
       ),
     );
 
@@ -110,7 +111,7 @@ class DanbooruApiService {
     }
   }
 
-  Future<DanbooruUser?> getCurrentUser() async {
+  Future<DanbooruUser?> getCurrentUser({CancelToken? cancelToken}) async {
     if (_authHeader == null) return null;
 
     final response = await _dio.get(
@@ -120,6 +121,7 @@ class DanbooruApiService {
         sendTimeout: _timeout,
         headers: _getHeaders(),
       ),
+      cancelToken: cancelToken,
     );
 
     if (response.statusCode == 401) return null;
@@ -131,8 +133,10 @@ class DanbooruApiService {
 
   // ==================== 用户黑名单 ====================
 
-  Future<List<String>> fetchBlacklistedTags() async {
-    if (_authHeader == null) return [];
+  Future<List<String>> fetchBlacklistRules({CancelToken? cancelToken}) async {
+    if (_authHeader == null) {
+      throw StateError('Danbooru login required');
+    }
 
     final response = await _dio.get(
       '$_baseUrl$_profileEndpoint',
@@ -141,38 +145,50 @@ class DanbooruApiService {
         sendTimeout: _timeout,
         headers: _getHeaders(),
       ),
+      cancelToken: cancelToken,
     );
 
-    if (response.data is! Map<String, dynamic>) return [];
-    final profile = response.data as Map<String, dynamic>;
+    if (response.data is! Map) {
+      throw const FormatException('Danbooru profile response is not an object');
+    }
+    final profile = Map<String, dynamic>.from(response.data as Map);
     final raw = (profile['blacklisted_tags'] ?? '').toString();
-    if (raw.trim().isEmpty) return [];
-
     return raw
-        .split(RegExp(r'[\s,]+'))
-        .map((tag) => tag.trim())
-        .where((tag) => tag.isNotEmpty)
-        .toList();
+        .split(RegExp(r'\r?\n'))
+        .map((rule) => rule.trim())
+        .where((rule) => rule.isNotEmpty)
+        .toList(growable: false);
   }
 
-  Future<bool> updateBlacklistedTags(List<String> tags) async {
-    if (_authHeader == null) return false;
+  Future<void> updateBlacklistRules(
+    List<String> rules, {
+    CancelToken? cancelToken,
+    int? expectedUserId,
+  }) async {
+    if (_authHeader == null) throw StateError('Danbooru login required');
 
-    final normalized = tags
-        .map((tag) => tag.trim())
-        .where((tag) => tag.isNotEmpty)
-        .toSet()
-        .toList()
-      ..sort();
+    final normalized = rules
+        .map((rule) => rule.trim())
+        .where((rule) => rule.isNotEmpty)
+        .toList(growable: false);
+    final termCount = normalized.fold<int>(
+      0,
+      (count, rule) => count + rule.split(RegExp(r'\s+')).length,
+    );
+    final encoded = normalized.join('\n');
+    if (normalized.length > 5000 ||
+        termCount > 5000 ||
+        encoded.length > 100000) {
+      throw const FormatException('Danbooru blacklist exceeds server limits');
+    }
 
-    final user = await getCurrentUser();
-    if (user == null) return false;
+    final userId =
+        expectedUserId ?? (await getCurrentUser(cancelToken: cancelToken))?.id;
+    if (userId == null) throw StateError('Danbooru login is no longer valid');
 
-    final payload = {
-      'user[blacklisted_tags]': normalized.join('\n'),
-    };
+    final payload = {'user[blacklisted_tags]': encoded};
     final queryAuth = _getAuthQueryParams();
-    final userEndpoint = '$_baseUrl/users/${user.id}.json';
+    final userEndpoint = '$_baseUrl/users/$userId.json';
 
     try {
       await _dio.put(
@@ -185,24 +201,44 @@ class DanbooruApiService {
           headers: _getHeaders(),
           contentType: Headers.formUrlEncodedContentType,
         ),
+        cancelToken: cancelToken,
       );
-      return true;
-    } on DioException catch (e) {
-      if (e.response?.statusCode == 404 || e.response?.statusCode == 405) {
-        await _dio.patch(
-          userEndpoint,
-          queryParameters: queryAuth.isEmpty ? null : queryAuth,
-          data: payload,
-          options: Options(
-            receiveTimeout: _timeout,
-            sendTimeout: _timeout,
-            headers: _getHeaders(),
-            contentType: Headers.formUrlEncodedContentType,
-          ),
-        );
-        return true;
+    } on DioException catch (error) {
+      if (error.response?.statusCode != 404 &&
+          error.response?.statusCode != 405) {
+        rethrow;
       }
-      rethrow;
+      await _dio.patch(
+        userEndpoint,
+        queryParameters: queryAuth.isEmpty ? null : queryAuth,
+        data: payload,
+        options: Options(
+          receiveTimeout: _timeout,
+          sendTimeout: _timeout,
+          headers: _getHeaders(),
+          contentType: Headers.formUrlEncodedContentType,
+        ),
+        cancelToken: cancelToken,
+      );
+    }
+  }
+
+  Future<List<String>> fetchBlacklistedTags() async {
+    final rules = await fetchBlacklistRules();
+    return rules
+        .map(GalleryBlacklistTagNormalizer.simpleCloudRule)
+        .whereType<String>()
+        .toList(growable: false);
+  }
+
+  Future<bool> updateBlacklistedTags(List<String> tags) async {
+    final normalized = GalleryBlacklistTagNormalizer.normalizeAll(tags).toList()
+      ..sort();
+    try {
+      await updateBlacklistRules(normalized);
+      return true;
+    } on StateError {
+      return false;
     }
   }
 
@@ -259,19 +295,25 @@ class DanbooruApiService {
   // ==================== 收藏夹 ====================
 
   Future<List<DanbooruPost>> getFavorites({
+    String? username,
     int? userId,
     dynamic page = 1,
     int limit = 40,
   }) async {
-    final queryParams = <String, dynamic>{
-      'page': page,
-      'limit': limit.clamp(1, 200),
-      if (userId != null) 'search[user_id]': userId,
-    };
+    final user = username?.trim().isNotEmpty == true
+        ? username!.trim()
+        : userId?.toString();
+    if (user == null) return [];
 
+    // /favorites.json returns Favorite resources without embedded post data.
+    // ordfav returns complete posts in the user's favorite-time order.
     final response = await _dio.get(
-      '$_baseUrl$_favoritesEndpoint',
-      queryParameters: queryParams,
+      '$_baseUrl$_postsEndpoint',
+      queryParameters: {
+        'tags': 'ordfav:$user',
+        'page': page,
+        'limit': limit.clamp(1, 200),
+      },
       options: Options(
         receiveTimeout: _timeout,
         sendTimeout: _timeout,
@@ -281,9 +323,8 @@ class DanbooruApiService {
 
     if (response.data is List) {
       return (response.data as List)
-          .whereType<Map<String, dynamic>>()
-          .where((fav) => fav['post'] != null)
-          .map((fav) => DanbooruPost.fromJson(fav['post'] as Map<String, dynamic>))
+          .whereType<Map>()
+          .map((post) => DanbooruPost.fromJson(Map<String, dynamic>.from(post)))
           .toList();
     }
     return [];
@@ -347,7 +388,10 @@ class DanbooruApiService {
 
   // ==================== 标签自动补全 ====================
 
-  Future<List<DanbooruTag>> autocomplete(String query, {int limit = _defaultLimit}) async {
+  Future<List<DanbooruTag>> autocomplete(
+    String query, {
+    int limit = _defaultLimit,
+  }) async {
     if (query.trim().length < 2) return [];
 
     final response = await _dio.get(
@@ -366,13 +410,19 @@ class DanbooruApiService {
 
     if (response.data is List) {
       return (response.data as List)
-          .map((item) => DanbooruTag.fromAutocomplete(item as Map<String, dynamic>))
+          .map(
+            (item) =>
+                DanbooruTag.fromAutocomplete(item as Map<String, dynamic>),
+          )
           .toList();
     }
     return [];
   }
 
-  Future<List<TagSuggestion>> suggestTags(String query, {int limit = _defaultLimit}) async {
+  Future<List<TagSuggestion>> suggestTags(
+    String query, {
+    int limit = _defaultLimit,
+  }) async {
     final danbooruTags = await autocomplete(query, limit: limit);
     return danbooruTags.toTagSuggestions();
   }
@@ -461,7 +511,10 @@ class DanbooruApiService {
 
   // ==================== 艺术家搜索 ====================
 
-  Future<List<Map<String, dynamic>>> searchArtists(String query, {int limit = 20}) async {
+  Future<List<Map<String, dynamic>>> searchArtists(
+    String query, {
+    int limit = 20,
+  }) async {
     final response = await _dio.get(
       '$_baseUrl$_artistsEndpoint',
       queryParameters: {
@@ -480,7 +533,10 @@ class DanbooruApiService {
 
   // ==================== 图池搜索 ====================
 
-  Future<List<Map<String, dynamic>>> searchPools(String query, {int limit = 20}) async {
+  Future<List<Map<String, dynamic>>> searchPools(
+    String query, {
+    int limit = 20,
+  }) async {
     final response = await _dio.get(
       '$_baseUrl$_poolsEndpoint',
       queryParameters: {
@@ -497,7 +553,10 @@ class DanbooruApiService {
     return (response.data as List?)?.cast<Map<String, dynamic>>() ?? [];
   }
 
-  Future<List<DanbooruPool>> searchPoolsTyped(String query, {int limit = 20}) async {
+  Future<List<DanbooruPool>> searchPoolsTyped(
+    String query, {
+    int limit = 20,
+  }) async {
     final response = await _dio.get(
       '$_baseUrl$_poolsEndpoint',
       queryParameters: {
@@ -667,12 +726,16 @@ DanbooruApiService danbooruApiService(Ref ref) {
       sendTimeout: const Duration(seconds: 15),
     ),
   );
+  addNetworkFailureDiagnostics(dio, scope: 'Danbooru API');
+  ref.onDispose(dio.close);
 
   final service = DanbooruApiService(dio);
 
   // 监听认证状态变化并更新 auth header
   ref.watch(danbooruAuthProvider);
-  service.setAuthHeader(ref.read(danbooruAuthProvider.notifier).getAuthHeader());
+  service.setAuthHeader(
+    ref.read(danbooruAuthProvider.notifier).getAuthHeader(),
+  );
 
   return service;
 }

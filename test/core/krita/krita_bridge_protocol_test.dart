@@ -10,11 +10,7 @@ void main() {
   group('KritaBridgeProtocol', () {
     test('parses authenticated ping with matching secret', () {
       final result = KritaBridgeProtocol.decodeIncoming(
-        jsonEncode({
-          'type': 'ping',
-          'version': 1,
-          'secret': 'session-secret',
-        }),
+        jsonEncode({'type': 'ping', 'version': 1, 'secret': 'session-secret'}),
         sessionSecret: 'session-secret',
         authenticated: false,
       );
@@ -31,11 +27,7 @@ void main() {
         authenticated: false,
       );
       final wrong = KritaBridgeProtocol.decodeIncoming(
-        jsonEncode({
-          'type': 'ping',
-          'version': 1,
-          'secret': 'wrong-secret',
-        }),
+        jsonEncode({'type': 'ping', 'version': 1, 'secret': 'wrong-secret'}),
         sessionSecret: 'session-secret',
         authenticated: false,
       );
@@ -303,6 +295,28 @@ void main() {
       expect(mapping.selectionRect?.height, 300);
     });
 
+    test('clamps focused inpaint context to safe lower bound', () {
+      final result = KritaBridgeProtocol.decodeIncoming(
+        jsonEncode({
+          'type': 'inpaint',
+          'id': 'req-inpaint-min-context',
+          'image': base64Encode(_pngWithDimensions(1024, 768)),
+          'mask': base64Encode(_pngWithDimensions(1024, 768)),
+          'selection_rect': {'x': 200, 'y': 150, 'w': 400, 'h': 300},
+          'minimum_context_pixels': 0,
+          'focused_inpaint': true,
+        }),
+        sessionSecret: 'session-secret',
+        authenticated: true,
+      );
+
+      final mapping = (result.message! as KritaInpaintMessage).toImageParams(
+        const ImageParams(model: 'nai-diffusion-4-5-full-inpainting'),
+      );
+
+      expect(mapping.minimumContextPixels, 16);
+    });
+
     test('maps non-inpainting base models to matching inpainting models', () {
       final result = KritaBridgeProtocol.decodeIncoming(
         jsonEncode({
@@ -379,36 +393,38 @@ void main() {
       expect(result.error?.code, KritaBridgeErrorCode.invalidRequest);
     });
 
-    test('maps img2img request onto ImageParams without touching base settings',
-        () {
-      final result = KritaBridgeProtocol.decodeIncoming(
-        jsonEncode({
-          'type': 'img2img',
-          'id': 'req-img2img',
-          'image': base64Encode(_pngWithDimensions(512, 512)),
-          'prompt': 'sketch',
-          'negative_prompt': 'bad anatomy',
-          'strength': 0.35,
-          'noise': 0.2,
-        }),
-        sessionSecret: 'session-secret',
-        authenticated: true,
-      );
+    test(
+      'maps img2img request onto ImageParams without touching base settings',
+      () {
+        final result = KritaBridgeProtocol.decodeIncoming(
+          jsonEncode({
+            'type': 'img2img',
+            'id': 'req-img2img',
+            'image': base64Encode(_pngWithDimensions(512, 512)),
+            'prompt': 'sketch',
+            'negative_prompt': 'bad anatomy',
+            'strength': 0.35,
+            'noise': 0.2,
+          }),
+          sessionSecret: 'session-secret',
+          authenticated: true,
+        );
 
-      final mapping = (result.message! as KritaImg2ImgMessage).toImageParams(
-        const ImageParams(model: 'nai-diffusion-4-full', width: 1024),
-      );
+        final mapping = (result.message! as KritaImg2ImgMessage).toImageParams(
+          const ImageParams(model: 'nai-diffusion-4-full', width: 1024),
+        );
 
-      expect(mapping.params.action, ImageGenerationAction.img2img);
-      expect(mapping.params.sourceImage, _pngWithDimensions(512, 512));
-      expect(mapping.params.prompt, 'sketch');
-      expect(mapping.params.negativePrompt, 'bad anatomy');
-      expect(mapping.params.strength, 0.35);
-      expect(mapping.params.noise, 0.2);
-      expect(mapping.params.model, 'nai-diffusion-4-full');
-      expect(mapping.params.width, 1024);
-      expect(mapping.focusedInpaintEnabled, isFalse);
-    });
+        expect(mapping.params.action, ImageGenerationAction.img2img);
+        expect(mapping.params.sourceImage, _pngWithDimensions(512, 512));
+        expect(mapping.params.prompt, 'sketch');
+        expect(mapping.params.negativePrompt, 'bad anatomy');
+        expect(mapping.params.strength, 0.35);
+        expect(mapping.params.noise, 0.2);
+        expect(mapping.params.model, 'nai-diffusion-4-full');
+        expect(mapping.params.width, 1024);
+        expect(mapping.focusedInpaintEnabled, isFalse);
+      },
+    );
   });
 }
 

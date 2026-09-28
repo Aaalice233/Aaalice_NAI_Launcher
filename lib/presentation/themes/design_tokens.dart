@@ -30,32 +30,6 @@ abstract class DesignTokens {
   static const double spacingXl = 32.0;
 
   // ============================================
-  // 动画时长 (Animation Duration)
-  // ============================================
-
-  /// 快速动画 - 150ms (微交互)
-  static const Duration animationFast = Duration(milliseconds: 150);
-
-  /// 标准动画 - 200ms (常规过渡)
-  static const Duration animationNormal = Duration(milliseconds: 200);
-
-  /// 慢速动画 - 300ms (强调性过渡)
-  static const Duration animationSlow = Duration(milliseconds: 300);
-
-  // ============================================
-  // 动画曲线 (Animation Curves)
-  // ============================================
-
-  /// 进入动画曲线 - easeOut (快进慢出)
-  static const Curve curveEnter = Curves.easeOut;
-
-  /// 退出动画曲线 - easeIn (慢进快出)
-  static const Curve curveExit = Curves.easeIn;
-
-  /// 标准动画曲线 - easeInOut (两端缓动)
-  static const Curve curveStandard = Curves.easeInOut;
-
-  // ============================================
   // 毛玻璃参数 (Glassmorphism)
   // ============================================
 
@@ -96,19 +70,6 @@ abstract class DesignTokens {
 
   /// 大图标 - 32px
   static const double iconLg = 32.0;
-
-  // ============================================
-  // 响应式断点 (Responsive Breakpoints)
-  // ============================================
-
-  /// 移动端断点 - 600px
-  static const double breakpointMobile = 600.0;
-
-  /// 平板断点 - 900px
-  static const double breakpointTablet = 900.0;
-
-  /// 桌面端断点 - 1200px
-  static const double breakpointDesktop = 1200.0;
 
   // ============================================
   // Toast 参数

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
@@ -62,10 +64,14 @@ class TagLibraryState {
 @Riverpod(keepAlive: true)
 class TagLibraryNotifier extends _$TagLibraryNotifier {
   TagLibraryService? _service;
+  int _loadRevision = 0;
+  final Completer<void> _initialLoadCompleter = Completer<void>();
+
+  Future<void> get whenLoaded => _initialLoadCompleter.future;
 
   @override
   TagLibraryState build() {
-    _loadInitial();
+    unawaited(_loadInitial());
     return const TagLibraryState(isLoading: true);
   }
 
@@ -77,6 +83,7 @@ class TagLibraryNotifier extends _$TagLibraryNotifier {
 
   /// 初始加载
   Future<void> _loadInitial() async {
+    final revision = ++_loadRevision;
     try {
       await _libraryService.init();
 
@@ -85,6 +92,7 @@ class TagLibraryNotifier extends _$TagLibraryNotifier {
       final config = await _libraryService.loadSyncConfig();
       final filterConfig = await _libraryService.loadCategoryFilterConfig();
 
+      if (revision != _loadRevision) return;
       state = state.copyWith(
         library: library,
         syncConfig: config,
@@ -93,30 +101,36 @@ class TagLibraryNotifier extends _$TagLibraryNotifier {
         clearError: true,
       );
     } catch (e) {
-      state = state.copyWith(
-        library: _libraryService.getBuiltinLibrary(),
+      if (revision != _loadRevision) return;
+      state = TagLibraryState(
+        syncConfig: state.syncConfig,
+        categoryFilterConfig: state.categoryFilterConfig,
         isLoading: false,
         error: e.toString(),
       );
+    } finally {
+      if (revision == _loadRevision && !_initialLoadCompleter.isCompleted) {
+        _initialLoadCompleter.complete();
+      }
     }
   }
 
   /// 加载词库
   Future<void> loadLibrary() async {
-    state = state.copyWith(isLoading: true);
+    final revision = ++_loadRevision;
+    state = state.copyWith(isLoading: true, clearError: true);
 
     try {
       final library = await _libraryService.getAvailableLibrary();
+      if (revision != _loadRevision) return;
       state = state.copyWith(
         library: library,
         isLoading: false,
         clearError: true,
       );
     } catch (e) {
-      state = state.copyWith(
-        isLoading: false,
-        error: e.toString(),
-      );
+      if (revision != _loadRevision) return;
+      state = state.copyWith(isLoading: false, error: e.toString());
     }
   }
 
@@ -221,8 +235,10 @@ class TagLibraryNotifier extends _$TagLibraryNotifier {
 
   /// 设置指定分类的内置词库开关
   Future<void> setBuiltinEnabled(TagSubCategory category, bool enabled) async {
-    final newConfig =
-        state.categoryFilterConfig.setBuiltinEnabled(category, enabled);
+    final newConfig = state.categoryFilterConfig.setBuiltinEnabled(
+      category,
+      enabled,
+    );
     await updateCategoryFilterConfig(newConfig);
   }
 
@@ -253,10 +269,7 @@ class TagLibraryNotifier extends _$TagLibraryNotifier {
   Future<void> resetToBuiltin() async {
     await _libraryService.clearCache();
     final library = await _libraryService.getAvailableLibrary();
-    state = state.copyWith(
-      library: library,
-      clearError: true,
-    );
+    state = state.copyWith(library: library, clearError: true);
   }
 
   /// 合并 Pool 标签到当前词库
@@ -267,8 +280,10 @@ class TagLibraryNotifier extends _$TagLibraryNotifier {
   ) async {
     if (state.library == null || poolTags.isEmpty) return;
 
-    final mergedLibrary =
-        _libraryService.mergePoolTags(state.library!, poolTags);
+    final mergedLibrary = _libraryService.mergePoolTags(
+      state.library!,
+      poolTags,
+    );
     await _libraryService.saveLibrary(mergedLibrary);
     state = state.copyWith(library: mergedLibrary);
   }
@@ -281,8 +296,10 @@ class TagLibraryNotifier extends _$TagLibraryNotifier {
   ) async {
     if (state.library == null || tagGroupTags.isEmpty) return;
 
-    final mergedLibrary =
-        _libraryService.mergeTagGroupTags(state.library!, tagGroupTags);
+    final mergedLibrary = _libraryService.mergeTagGroupTags(
+      state.library!,
+      tagGroupTags,
+    );
     await _libraryService.saveLibrary(mergedLibrary);
     state = state.copyWith(library: mergedLibrary);
   }

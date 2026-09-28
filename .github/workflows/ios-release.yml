@@ -1,0 +1,164 @@
+name: iOS Release
+run-name: iOS unsigned IPA (${{ github.ref_name }})
+
+on:
+  # macOS runner minutes bill at 10x, so this never runs on a plain push:
+  # only a deliberate ios-v* tag or a manual dispatch starts a build.
+  workflow_dispatch:
+    inputs:
+      create_release:
+        description: Create a GitHub Release with the unsigned IPA attached
+        required: false
+        default: false
+        type: boolean
+  push:
+    tags:
+      - "ios-v*"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ios-release-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  FLUTTER_VERSION: "3.44.2"
+  PUB_HOSTED_URL: "https://pub.dev"
+
+jobs:
+  build-ios:
+    name: Build unsigned iOS IPA
+    # macos-15 ships Xcode 16.4 by default, which matches the Flutter 3.44.x
+    # toolchain and the iOS 16.0 deployment target. macos-latest is pinned
+    # here on purpose so a future macos-26/Xcode 26 rollout cannot silently
+    # change the SDK under an unsigned-IPA build.
+    runs-on: macos-15
+    timeout-minutes: 60
+
+    # The release step publishes the IPA onto an ios-v* tag.
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout without LFS payloads
+        uses: actions/checkout@v6
+        with:
+          lfs: false
+
+      - name: Download verified bundled database
+        shell: pwsh
+        run: ./scripts/prepare_bundled_database.ps1
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - name: Report Apple toolchain
+        # 纯信息收集：任何一条探针失败都不该掐掉整条流水线
+        continue-on-error: true
+        run: |
+          xcodebuild -version
+          xcrun --sdk iphoneos --show-sdk-version
+          pod --version
+
+      - name: Verify official Flutter dependency sources
+        shell: pwsh
+        run: ./scripts/verify_flutter_sources.ps1
+
+      - name: Resolve dependencies
+        run: flutter pub get --enforce-lockfile
+
+      - name: Validate bundled autocomplete databases
+        run: dart run tool/tag_catalog/verify_bundled_databases.dart
+
+      - name: Generate localizations
+        run: flutter gen-l10n
+
+      # Never pass --build-filter here: generated sources are gitignored, so a
+      # filtered run would delete every output outside the filter.
+      - name: Generate code
+        run: dart run build_runner build --delete-conflicting-outputs
+
+      - name: Build release-mode iOS app
+        run: flutter build ios --release --no-codesign
+
+      - name: Package unsigned IPA
+        id: artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          app='build/ios/iphoneos/Runner.app'
+          test -d "$app"
+          test -s "$app/Runner"
+
+          app_version="$(sed -nE 's/^version:[[:space:]]*([^[:space:]]+).*/\1/p' pubspec.yaml)"
+          if [[ ! "$app_version" =~ ^(.+)\+([0-9]+)$ ]]; then
+            echo "Unable to read an iOS version and numeric build number from pubspec.yaml." >&2
+            exit 1
+          fi
+          version="${BASH_REMATCH[1]}"
+
+          release_tag="$GITHUB_REF_NAME"
+          if [[ "$GITHUB_REF" != refs/tags/ios-v* ]]; then
+            release_tag="ios-v${version}"
+          fi
+
+          file_name="NAI_Launcher_iOS_${version}_${GITHUB_SHA::7}_unsigned.ipa"
+          rm -rf build/ios/Payload
+          mkdir -p build/ios/Payload dist
+          cp -R "$app" build/ios/Payload/
+          ditto -c -k --sequesterRsrc --keepParent \
+            build/ios/Payload "$GITHUB_WORKSPACE/dist/$file_name"
+          (cd dist && shasum -a 256 "$file_name" > "$file_name.sha256")
+
+          {
+            echo "path=dist/$file_name"
+            echo "file_name=$file_name"
+            echo "version=$version"
+            echo "release_tag=$release_tag"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Report artifact sizes
+        shell: bash
+        run: |
+          set -euo pipefail
+          app_size="$(du -sh build/ios/iphoneos/Runner.app | cut -f1)"
+          ipa_size="$(du -sh '${{ steps.artifact.outputs.path }}' | cut -f1)"
+          {
+            echo "## iOS artifact sizes"
+            echo
+            echo "- build/ios/iphoneos/Runner.app: $app_size"
+            echo "- ${{ steps.artifact.outputs.file_name }}: $ipa_size"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload unsigned IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: NAI-Launcher-iOS-${{ github.run_number }}-${{ github.sha }}
+          path: |
+            ${{ steps.artifact.outputs.path }}
+            ${{ steps.artifact.outputs.path }}.sha256
+          if-no-files-found: error
+          retention-days: 30
+          compression-level: 0
+
+      - name: Create GitHub release
+        if: ${{ startsWith(github.ref, 'refs/tags/ios-v') || (github.event_name == 'workflow_dispatch' && inputs.create_release) }}
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.artifact.outputs.release_tag }}
+          name: NAI Launcher iOS ${{ steps.artifact.outputs.release_tag }}
+          files: |
+            ${{ steps.artifact.outputs.path }}
+            ${{ steps.artifact.outputs.path }}.sha256
+          generate_release_notes: true
+          body: |
+            This release contains an UNSIGNED IPA.
+            You must self-sign or sideload it before it can run on a physical iOS device.
+            The app embeds a native asset dylib (nai_png_codec), so the signing tool
+            must re-sign every nested binary inside Payload/Runner.app, not just the
+            main executable.

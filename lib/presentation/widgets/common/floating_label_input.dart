@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../themes/core/input_surface_style.dart';
+
 /// 精致的浮动标签输入组件
 ///
 /// 使用 Flutter 内置的浮动标签功能，无需额外的外层容器
@@ -77,6 +79,9 @@ class FloatingLabelInput extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final labelText = required ? '$label *' : label;
+    final colors = Theme.of(context).colorScheme;
+    const radius = BorderRadius.all(Radius.circular(10));
+    final border = inputSurfaceBorder(colors, radius);
 
     return TextFormField(
       controller: controller,
@@ -96,6 +101,19 @@ class FloatingLabelInput extends StatelessWidget {
         prefixIcon: prefixIcon != null ? Icon(prefixIcon, size: 20) : null,
         suffixIcon: suffix,
         floatingLabelBehavior: FloatingLabelBehavior.auto,
+        filled: true,
+        fillColor: inputSurfaceFillColor(colors),
+        border: border,
+        enabledBorder: border,
+        disabledBorder: inputSurfaceBorder(colors, radius, enabled: false),
+        focusedBorder: inputSurfaceBorder(colors, radius, focused: true),
+        errorBorder: inputSurfaceBorder(colors, radius, error: true),
+        focusedErrorBorder: inputSurfaceBorder(
+          colors,
+          radius,
+          focused: true,
+          error: true,
+        ),
       ),
     );
   }

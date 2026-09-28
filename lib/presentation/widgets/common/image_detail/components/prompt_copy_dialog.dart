@@ -1,0 +1,454 @@
+import 'package:flutter/material.dart';
+
+import '../../../../../core/utils/localization_extension.dart';
+import '../../../../../data/models/gallery/nai_image_metadata.dart';
+import '../../../../../data/models/gallery/nai_prompt_export_codec.dart';
+import '../../../../adaptive/adaptive_presenter.dart';
+import '../../../../adaptive/content_sized_adaptive_form.dart';
+import '../../prompt_selection_tile.dart';
+
+/// Reuses the image-metadata prompt categories for both privacy-safe positive
+/// copying and complete/custom prompt export.
+class PromptCopyDialog extends StatefulWidget {
+  const PromptCopyDialog._({
+    required this.metadata,
+    required this.exportMode,
+    required this.scrollController,
+  });
+
+  final NaiImageMetadata metadata;
+  final bool exportMode;
+  final ScrollController scrollController;
+
+  static Future<String?> show(
+    BuildContext context, {
+    required NaiImageMetadata metadata,
+  }) => AdaptivePresenter.showForm<String>(
+    context: context,
+    dialogWidth: 480,
+    titleBuilder: (context) {
+      final theme = Theme.of(context);
+      return Row(
+        children: [
+          Icon(Icons.privacy_tip_outlined, color: theme.colorScheme.primary),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              context.l10n.detail_copyPromptTitle,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: theme.textTheme.titleLarge,
+            ),
+          ),
+        ],
+      );
+    },
+    builder: (context, scrollController) => PromptCopyDialog._(
+      metadata: metadata,
+      exportMode: false,
+      scrollController: scrollController,
+    ),
+  );
+
+  static Future<String?> showExport(
+    BuildContext context, {
+    required NaiImageMetadata metadata,
+  }) => AdaptivePresenter.showForm<String>(
+    context: context,
+    dialogWidth: 480,
+    titleBuilder: (context) => Text(
+      context.l10n.promptCopy_exportTitle,
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      style: Theme.of(context).textTheme.titleLarge,
+    ),
+    builder: (context, scrollController) => PromptCopyDialog._(
+      metadata: metadata,
+      exportMode: true,
+      scrollController: scrollController,
+    ),
+  );
+
+  @override
+  State<PromptCopyDialog> createState() => _PromptCopyDialogState();
+}
+
+class _PromptCopyDialogState extends State<PromptCopyDialog> {
+  late NaiImageMetadata _metadata;
+  var _includeMainPrompt = true;
+  var _includeCharacterPrompts = true;
+  var _includeQualityTags = false;
+  var _includeFixedTags = false;
+  late NaiPromptCopySelection _exportSelection;
+
+  @override
+  void initState() {
+    super.initState();
+    _metadata = widget.metadata;
+    _includeMainPrompt = _hasMainPrompt;
+    _includeCharacterPrompts = _hasCharacters;
+    _exportSelection = NaiPromptCopySelection.all(_metadata);
+  }
+
+  bool get _hasMainPrompt {
+    final body = _metadata.hasSeparatedFields
+        ? _metadata.mainPrompt
+        : _metadata.prompt;
+    return body.trim().isNotEmpty;
+  }
+
+  bool get _hasCharacters =>
+      _metadata.characterPrompts.any((prompt) => prompt.trim().isNotEmpty);
+  bool get _hasQualityTags => NaiPromptExportCodec.hasQualityTags(_metadata);
+  bool get _hasFixedTags => NaiPromptExportCodec.hasFixedPositive(_metadata);
+
+  bool get _canCopy => widget.exportMode
+      ? _exportSelection.hasSelection
+      : (_includeMainPrompt && _hasMainPrompt) ||
+            (_includeCharacterPrompts && _hasCharacters) ||
+            (_includeQualityTags && _hasQualityTags) ||
+            (_includeFixedTags && _hasFixedTags);
+
+  String _buildPrompt() => _metadata.buildPositivePromptSelection(
+    includeMainPrompt: _includeMainPrompt,
+    includeCharacterPrompts: _includeCharacterPrompts,
+    includeQualityTags: _includeQualityTags,
+    includeFixedTags: _includeFixedTags,
+  );
+
+  void _copy() {
+    final result = widget.exportMode
+        ? NaiPromptExportCodec.encode(_metadata, selection: _exportSelection)
+        : _buildPrompt();
+    if (result.isEmpty) return;
+    Navigator.of(context).pop(result);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ContentSizedAdaptiveForm(
+      scrollViewKey: const Key('prompt-copy-options-list'),
+      scrollController: widget.scrollController,
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
+      content: [
+        if (widget.exportMode) _buildExportOptions() else _buildSafeOptions(),
+        const SizedBox(height: 20),
+        Divider(height: 1, color: Theme.of(context).colorScheme.outlineVariant),
+        const SizedBox(height: 12),
+        _buildActions(),
+      ],
+    );
+  }
+
+  Widget _buildActions() {
+    return Wrap(
+      alignment: WrapAlignment.end,
+      spacing: 8,
+      runSpacing: 8,
+      children: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: Text(context.l10n.common_cancel),
+        ),
+        FilledButton.icon(
+          onPressed: _canCopy ? _copy : null,
+          icon: const Icon(Icons.copy, size: 18),
+          label: Text(context.l10n.common_copy),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSafeOptions() {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final fixedCount =
+        _metadata.fixedPrefixTags.length + _metadata.fixedSuffixTags.length;
+    final qualityCount =
+        _metadata.qualityTags.length +
+        (_metadata.hasRecordedTransparentBackgroundTag ? 1 : 0);
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text(
+          context.l10n.detail_copyPromptDescription,
+          style: theme.textTheme.bodyMedium?.copyWith(
+            color: colorScheme.onSurfaceVariant,
+            height: 1.45,
+          ),
+        ),
+        const SizedBox(height: 14),
+        Material(
+          color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.45),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          clipBehavior: Clip.antiAlias,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              PromptSelectionTile(
+                icon: Icons.subject,
+                title: context.l10n.detail_promptCategoryMain,
+                subtitle: context.l10n.detail_promptCategoryMainHint,
+                unavailableLabel: context.l10n.detail_promptCategoryUnavailable,
+                value: _includeMainPrompt,
+                enabled: _hasMainPrompt,
+                onChanged: (value) =>
+                    setState(() => _includeMainPrompt = value),
+              ),
+              const Divider(height: 1),
+              PromptSelectionTile(
+                icon: Icons.people_outline,
+                title: context.l10n.detail_promptCategoryCharacters,
+                subtitle: context.l10n.detail_promptCategoryCharactersHint,
+                unavailableLabel: context.l10n.detail_promptCategoryUnavailable,
+                count: _metadata.characterPrompts.length,
+                value: _includeCharacterPrompts,
+                enabled: _hasCharacters,
+                onChanged: (value) =>
+                    setState(() => _includeCharacterPrompts = value),
+              ),
+              const Divider(height: 1),
+              PromptSelectionTile(
+                icon: Icons.auto_awesome_outlined,
+                title: context.l10n.detail_promptCategoryQuality,
+                subtitle: context.l10n.detail_promptCategoryQualityHint,
+                unavailableLabel: context.l10n.detail_promptCategoryUnavailable,
+                count: qualityCount,
+                value: _includeQualityTags,
+                enabled: _hasQualityTags,
+                onChanged: (value) =>
+                    setState(() => _includeQualityTags = value),
+              ),
+              const Divider(height: 1),
+              PromptSelectionTile(
+                icon: Icons.push_pin_outlined,
+                title: context.l10n.detail_promptCategoryFixed,
+                subtitle: context.l10n.detail_promptCategoryFixedHint,
+                unavailableLabel: context.l10n.detail_promptCategoryUnavailable,
+                count: fixedCount,
+                value: _includeFixedTags,
+                enabled: _hasFixedTags,
+                warning: true,
+                onChanged: (value) => setState(() => _includeFixedTags = value),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 10),
+        Row(
+          children: [
+            Icon(
+              Icons.info_outline,
+              size: 15,
+              color: colorScheme.onSurfaceVariant,
+            ),
+            const SizedBox(width: 6),
+            Expanded(
+              child: Text(
+                context.l10n.detail_copyPromptDefaultHint,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildExportOptions() {
+    final characterCount = NaiPromptExportCodec.characterCount(_metadata);
+    final positiveCharacters = {
+      for (var index = 0; index < characterCount; index++)
+        if (NaiPromptExportCodec.characterPositive(_metadata, index).isNotEmpty)
+          index,
+    };
+    final negativeCharacters = {
+      for (var index = 0; index < characterCount; index++)
+        if (NaiPromptExportCodec.characterNegative(_metadata, index).isNotEmpty)
+          index,
+    };
+    final hasMainPositive = NaiPromptExportCodec.mainPositive(
+      _metadata,
+    ).isNotEmpty;
+    final hasMainNegative = NaiPromptExportCodec.mainNegative(
+      _metadata,
+    ).isNotEmpty;
+    final hasFixedPositive = NaiPromptExportCodec.hasFixedPositive(_metadata);
+    final hasFixedNegative = NaiPromptExportCodec.hasFixedNegative(_metadata);
+    final hasQuality = NaiPromptExportCodec.hasQualityTags(_metadata);
+    final positiveValues = <bool>[
+      if (hasMainPositive) _exportSelection.mainPositive,
+      if (hasFixedPositive) _exportSelection.fixedPositive,
+      if (hasQuality) _exportSelection.qualityTags,
+      for (final index in positiveCharacters)
+        _exportSelection.characterPositiveIndices.contains(index),
+    ];
+    final negativeValues = <bool>[
+      if (hasMainNegative) _exportSelection.mainNegative,
+      if (hasFixedNegative) _exportSelection.fixedNegative,
+      for (final index in negativeCharacters)
+        _exportSelection.characterNegativeIndices.contains(index),
+    ];
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        if (positiveValues.isNotEmpty) ...[
+          _parentTile(
+            label: context.l10n.promptCopy_allPositive,
+            values: positiveValues,
+            onChanged: (value) => _setAllPositive(
+              value,
+              positiveCharacters,
+              hasMainPositive: hasMainPositive,
+              hasFixedPositive: hasFixedPositive,
+              hasQuality: hasQuality,
+            ),
+          ),
+          if (hasMainPositive)
+            _childTile(
+              label: context.l10n.promptCopy_mainPositive,
+              value: _exportSelection.mainPositive,
+              onChanged: (value) =>
+                  _update(_exportSelection.copyWith(mainPositive: value)),
+            ),
+          if (hasFixedPositive)
+            _childTile(
+              label: context.l10n.promptCopy_fixedPositive,
+              value: _exportSelection.fixedPositive,
+              onChanged: (value) =>
+                  _update(_exportSelection.copyWith(fixedPositive: value)),
+            ),
+          if (hasQuality)
+            _childTile(
+              label: context.l10n.detail_promptCategoryQuality,
+              value: _exportSelection.qualityTags,
+              onChanged: (value) =>
+                  _update(_exportSelection.copyWith(qualityTags: value)),
+            ),
+          for (final index in positiveCharacters)
+            _childTile(
+              label: context.l10n.promptCopy_characterPositive(index + 1),
+              value: _exportSelection.characterPositiveIndices.contains(index),
+              onChanged: (value) => _setCharacterPositive(index, value),
+            ),
+        ],
+        if (negativeValues.isNotEmpty) ...[
+          if (positiveValues.isNotEmpty) const Divider(height: 24),
+          _parentTile(
+            label: context.l10n.promptCopy_allNegative,
+            values: negativeValues,
+            onChanged: (value) => _setAllNegative(
+              value,
+              negativeCharacters,
+              hasMainNegative: hasMainNegative,
+              hasFixedNegative: hasFixedNegative,
+            ),
+          ),
+          if (hasMainNegative)
+            _childTile(
+              label: context.l10n.promptCopy_mainNegative,
+              value: _exportSelection.mainNegative,
+              onChanged: (value) =>
+                  _update(_exportSelection.copyWith(mainNegative: value)),
+            ),
+          if (hasFixedNegative)
+            _childTile(
+              label: context.l10n.promptCopy_fixedNegative,
+              value: _exportSelection.fixedNegative,
+              onChanged: (value) =>
+                  _update(_exportSelection.copyWith(fixedNegative: value)),
+            ),
+          for (final index in negativeCharacters)
+            _childTile(
+              label: context.l10n.promptCopy_characterNegative(index + 1),
+              value: _exportSelection.characterNegativeIndices.contains(index),
+              onChanged: (value) => _setCharacterNegative(index, value),
+            ),
+        ],
+      ],
+    );
+  }
+
+  Widget _parentTile({
+    required String label,
+    required List<bool> values,
+    required ValueChanged<bool> onChanged,
+  }) {
+    final selectedCount = values.where((value) => value).length;
+    return CheckboxListTile(
+      value: selectedCount == 0
+          ? false
+          : selectedCount == values.length
+          ? true
+          : null,
+      tristate: true,
+      onChanged: (_) => onChanged(selectedCount != values.length),
+      title: Text(label, style: const TextStyle(fontWeight: FontWeight.w600)),
+      controlAffinity: ListTileControlAffinity.leading,
+      contentPadding: EdgeInsets.zero,
+    );
+  }
+
+  Widget _childTile({
+    required String label,
+    required bool value,
+    required ValueChanged<bool> onChanged,
+  }) => CheckboxListTile(
+    value: value,
+    onChanged: (next) => onChanged(next ?? value),
+    title: Text(label),
+    controlAffinity: ListTileControlAffinity.leading,
+    contentPadding: const EdgeInsetsDirectional.only(start: 24),
+    dense: true,
+  );
+
+  void _setAllPositive(
+    bool value,
+    Set<int> characterIndices, {
+    required bool hasMainPositive,
+    required bool hasFixedPositive,
+    required bool hasQuality,
+  }) => _update(
+    _exportSelection.copyWith(
+      mainPositive: hasMainPositive && value,
+      fixedPositive: hasFixedPositive && value,
+      qualityTags: hasQuality && value,
+      characterPositiveIndices: value ? characterIndices : const {},
+    ),
+  );
+
+  void _setAllNegative(
+    bool value,
+    Set<int> characterIndices, {
+    required bool hasMainNegative,
+    required bool hasFixedNegative,
+  }) => _update(
+    _exportSelection.copyWith(
+      mainNegative: hasMainNegative && value,
+      fixedNegative: hasFixedNegative && value,
+      characterNegativeIndices: value ? characterIndices : const {},
+    ),
+  );
+
+  void _setCharacterPositive(int index, bool value) {
+    final indices = {..._exportSelection.characterPositiveIndices};
+    value ? indices.add(index) : indices.remove(index);
+    _update(_exportSelection.copyWith(characterPositiveIndices: indices));
+  }
+
+  void _setCharacterNegative(int index, bool value) {
+    final indices = {..._exportSelection.characterNegativeIndices};
+    value ? indices.add(index) : indices.remove(index);
+    _update(_exportSelection.copyWith(characterNegativeIndices: indices));
+  }
+
+  void _update(NaiPromptCopySelection selection) {
+    setState(() => _exportSelection = selection);
+  }
+}

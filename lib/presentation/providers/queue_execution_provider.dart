@@ -4,12 +4,18 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../../core/constants/storage_keys.dart';
+import '../../core/platform/platform_capabilities.dart';
 import '../../core/storage/local_storage_service.dart';
 import '../../core/storage/queue_state_storage.dart';
+import '../../core/utils/app_logger.dart';
 import '../../data/models/queue/replication_task.dart';
+import '../../data/models/queue/replication_task_generation_snapshot.dart';
 import '../../data/models/queue/replication_task_status.dart';
 import '../../data/models/queue/failure_handling_strategy.dart';
+import 'character_prompt_provider.dart';
 import 'image_generation_provider.dart';
+import 'auth_provider.dart';
+import 'krita/krita_bridge_notifier.dart';
 import 'notification_settings_provider.dart';
 import 'replication_queue_provider.dart';
 import '../../core/services/notification_service.dart';
@@ -33,6 +39,8 @@ enum QueueExecutionStatus {
   /// 已完成
   completed,
 }
+
+enum QueueStartResult { started, empty, busy, authRequired }
 
 /// 队列执行状态
 class QueueExecutionState {
@@ -70,6 +78,7 @@ class QueueExecutionState {
     int? failedCount,
     int? skippedCount,
     String? currentTaskId,
+    bool clearCurrentTaskId = false,
     int? retryCount,
     List<String>? failedTaskIds,
     bool? autoExecuteEnabled,
@@ -83,7 +92,9 @@ class QueueExecutionState {
       completedCount: completedCount ?? this.completedCount,
       failedCount: failedCount ?? this.failedCount,
       skippedCount: skippedCount ?? this.skippedCount,
-      currentTaskId: currentTaskId ?? this.currentTaskId,
+      currentTaskId: clearCurrentTaskId
+          ? null
+          : (currentTaskId ?? this.currentTaskId),
       retryCount: retryCount ?? this.retryCount,
       failedTaskIds: failedTaskIds ?? this.failedTaskIds,
       autoExecuteEnabled: autoExecuteEnabled ?? this.autoExecuteEnabled,
@@ -161,18 +172,21 @@ class QueueSettings {
 @Riverpod(keepAlive: true)
 class QueueExecutionNotifier extends _$QueueExecutionNotifier {
   late final QueueStateStorage _stateStorage;
+  bool _generationTriggerPending = false;
+  Future<void> _pendingStateWrite = Future.value();
+  int _executionRevision = 0;
 
   @override
   QueueExecutionState build() {
     _stateStorage = ref.read(queueStateStorageProvider);
 
     // 使用 ref.listen 监听生成状态变化（不会触发 provider 重建，避免竞态条件）
-    ref.listen<ImageGenerationState>(
-      imageGenerationNotifierProvider,
-      (previous, next) {
-        _onGenerationStateChanged(previous, next);
-      },
-    );
+    ref.listen<ImageGenerationState>(imageGenerationNotifierProvider, (
+      previous,
+      next,
+    ) {
+      _onGenerationStateChanged(previous, next);
+    });
 
     // 同步加载持久化状态（Hive Box 已在 main.dart 中预先打开）
     return _loadFromStorageSync();
@@ -182,42 +196,67 @@ class QueueExecutionNotifier extends _$QueueExecutionNotifier {
   QueueExecutionState _loadFromStorageSync() {
     try {
       final data = _stateStorage.loadExecutionState();
+      final queueState = ref.read(replicationQueueNotifierProvider);
+      final currentTaskStillExists =
+          data.currentTaskId != null &&
+          queueState.tasks.any((task) => task.id == data.currentTaskId);
+      final shouldRecoverPaused =
+          queueState.tasks.isNotEmpty &&
+          (data.isPaused || currentTaskStillExists);
       return QueueExecutionState(
+        status: shouldRecoverPaused
+            ? QueueExecutionStatus.paused
+            : QueueExecutionStatus.idle,
+        completedCount: data.completedCount,
+        failedCount: data.failedCount,
+        skippedCount: data.skippedCount,
+        currentTaskId: currentTaskStillExists ? data.currentTaskId : null,
+        failedTaskIds: data.failedTaskIds,
         autoExecuteEnabled: data.autoExecuteEnabled,
         taskIntervalSeconds: data.taskIntervalSeconds,
         failureStrategy: data.failureStrategy,
+        totalTasksInSession:
+            data.completedCount +
+            data.failedCount +
+            data.skippedCount +
+            queueState.count,
       );
     } catch (e) {
       return const QueueExecutionState();
     }
   }
 
-  /// 保存状态到存储
-  Future<void> _saveToStorage() async {
-    await _stateStorage.saveExecutionState(
-      QueueExecutionStateData(
-        completedCount: state.completedCount,
-        failedCount: state.failedCount,
-        skippedCount: state.skippedCount,
-        autoExecuteEnabled: state.autoExecuteEnabled,
-        taskIntervalSeconds: state.taskIntervalSeconds,
-        failureStrategy: state.failureStrategy,
-        isPaused: state.isPaused,
-        currentTaskId: state.currentTaskId,
-        failedTaskIds: state.failedTaskIds,
-      ),
+  /// 序列化执行状态写入，确保停止或清空后的状态不会被旧任务覆盖。
+  Future<void> _saveToStorage() {
+    final snapshot = QueueExecutionStateData(
+      completedCount: state.completedCount,
+      failedCount: state.failedCount,
+      skippedCount: state.skippedCount,
+      autoExecuteEnabled: state.autoExecuteEnabled,
+      taskIntervalSeconds: state.taskIntervalSeconds,
+      failureStrategy: state.failureStrategy,
+      isPaused: state.isPaused,
+      currentTaskId: state.currentTaskId,
+      failedTaskIds: List<String>.unmodifiable(state.failedTaskIds),
     );
+    final operation = _pendingStateWrite.then(
+      (_) => _stateStorage.saveExecutionState(snapshot),
+    );
+    _pendingStateWrite = operation.catchError((_) {});
+    return operation;
   }
 
   /// 获取队列设置
   QueueSettings _getSettings() {
     final storage = ref.read(localStorageServiceProvider);
-    final retryCount = storage.getSetting<int>(
+    final retryCount =
+        storage.getSetting<int>(
           StorageKeys.queueRetryCount,
           defaultValue: 10,
         ) ??
         10;
-    final retryInterval = storage.getSetting<double>(
+    final retryInterval =
+        storage.getSetting<double>(
           StorageKeys.queueRetryInterval,
           defaultValue: 1.0,
         ) ??
@@ -250,6 +289,8 @@ class QueueExecutionNotifier extends _$QueueExecutionNotifier {
   }
 
   /// 暂停执行
+  ///
+  /// 已经提交给 NovelAI 的当前任务不会被取消；暂停会在该任务完成后生效。
   Future<void> pause() async {
     if (state.status != QueueExecutionStatus.running &&
         state.status != QueueExecutionStatus.ready) {
@@ -265,18 +306,53 @@ class QueueExecutionNotifier extends _$QueueExecutionNotifier {
 
     final queueState = ref.read(replicationQueueNotifierProvider);
     if (queueState.isEmpty) {
-      state = state.copyWith(status: QueueExecutionStatus.idle);
+      state = state.copyWith(
+        status: QueueExecutionStatus.idle,
+        clearCurrentTaskId: true,
+      );
       return;
     }
 
-    // 恢复到 ready 状态，等待用户点击生成或自动执行
-    state = state.copyWith(status: QueueExecutionStatus.ready);
-    await _saveToStorage();
+    if (!requireAuthenticatedAction(ref, AuthPromptReason.queueExecution)) {
+      return;
+    }
 
-    // 如果是自动执行模式，自动开始
-    if (state.autoExecuteEnabled) {
+    final firstTask = queueState.tasks.first;
+    if (state.currentTaskId == null || state.currentTaskId != firstTask.id) {
+      _processNextTask();
+    } else if (firstTask.status == ReplicationTaskStatus.running) {
+      // 当前请求仍在飞行时，恢复只解除“完成后暂停”，不能再次提交同一任务。
+      state = state.copyWith(status: QueueExecutionStatus.running);
+    } else {
+      state = state.copyWith(status: QueueExecutionStatus.ready);
+      _fillPrompt(firstTask);
+    }
+    await _saveToStorage();
+    if (state.status == QueueExecutionStatus.ready) {
       _triggerAutoGenerate();
     }
+  }
+
+  /// 从任意页面启动队列。
+  Future<QueueStartResult> startQueue() async {
+    final queueState = ref.read(replicationQueueNotifierProvider);
+    if (queueState.isEmpty) return QueueStartResult.empty;
+
+    if (!requireAuthenticatedAction(ref, AuthPromptReason.queueExecution)) {
+      return QueueStartResult.authRequired;
+    }
+
+    final generationState = ref.read(imageGenerationNotifierProvider);
+    final isKritaGenerating =
+        PlatformCapabilities.current.supportsKritaBridge &&
+        ref.read(kritaBridgeNotifierProvider).isBridgeGenerating;
+    if (generationState.isBusy || isKritaGenerating) {
+      return QueueStartResult.busy;
+    }
+
+    prepareNextTask();
+    _triggerAutoGenerate();
+    return QueueStartResult.started;
   }
 
   /// 准备执行队列（填充第一项提示词）
@@ -296,16 +372,20 @@ class QueueExecutionNotifier extends _$QueueExecutionNotifier {
 
     final nextTask = queueState.tasks.first;
 
-    // 记录会话开始，先更新状态为 ready
-    // 重要：必须在 _fillPrompt 之前更新状态，
-    // 这样 prompt_input 才能检测到队列正在执行，从而跳过同步
-    final isNewSession = state.totalTasksInSession == 0;
+    // 记录会话开始，先更新状态为 ready。完成后的新一轮队列必须重置
+    // 统计，否则进度会继续沿用上一轮结果。
+    final isNewSession = state.isIdle || state.isCompleted;
     state = state.copyWith(
       status: QueueExecutionStatus.ready,
       currentTaskId: nextTask.id,
       retryCount: 0,
-      totalTasksInSession:
-          isNewSession ? queueState.count : state.totalTasksInSession,
+      completedCount: isNewSession ? 0 : state.completedCount,
+      failedCount: isNewSession ? 0 : state.failedCount,
+      skippedCount: isNewSession ? 0 : state.skippedCount,
+      failedTaskIds: isNewSession ? const [] : state.failedTaskIds,
+      totalTasksInSession: isNewSession
+          ? queueState.count
+          : state.totalTasksInSession,
       sessionStartTime: isNewSession ? DateTime.now() : state.sessionStartTime,
     );
 
@@ -318,19 +398,132 @@ class QueueExecutionNotifier extends _$QueueExecutionNotifier {
 
   /// 填充提示词到主界面
   void _fillPrompt(ReplicationTask task) {
-    // 队列任务只回填用户基础正向提示词。
-    // 固定词、质量词和 UC 预设由生成链路统一组装，避免队列执行时重复拼接。
-    // 负向提示词沿用主界面设置，符合任务编辑器“负面提示词从主界面读取”的语义。
-    ref.read(generationParamsNotifierProvider.notifier).updatePrompt(
-          task.prompt,
-        );
+    // 队列任务只回填用户基础提示词；固定词、质量词和 UC 预设仍由生成链路统一组装。
+    final paramsNotifier = ref.read(generationParamsNotifierProvider.notifier);
+    paramsNotifier.updatePrompt(task.prompt);
+    if (task.applyNegativePrompt) {
+      paramsNotifier.updateNegativePrompt(task.negativePrompt);
+    }
+
+    final characterPrompts = task.characterPrompts;
+    if (characterPrompts != null) {
+      final notifier = ref.read(characterPromptNotifierProvider.notifier);
+      notifier.replaceAll([
+        for (var index = 0; index < characterPrompts.length; index++)
+          characterPrompts[index].toCharacterPrompt(
+            id: '${task.id}-character-$index',
+            index: index,
+          ),
+      ]);
+      notifier.setGlobalAiChoice(
+        !characterPrompts.any(
+          (character) =>
+              character.positionX != null && character.positionY != null,
+        ),
+      );
+    }
   }
 
-  /// 触发自动生成（自动执行模式下使用）
+  /// 触发队列当前任务生成。
+  ///
+  /// 执行入口必须由队列引擎持有，不能依赖生成页 Widget 是否挂载。
   void _triggerAutoGenerate() {
-    // 这里需要通过生成按钮或其他方式触发生成
-    // 由于生成逻辑在 ImageGenerationNotifier 中，我们只需要设置状态
-    // 实际的触发需要在 UI 层监听 ready 状态并自动点击生成
+    if (_generationTriggerPending) return;
+    _generationTriggerPending = true;
+    unawaited(_generateReadyTask());
+  }
+
+  Future<void> _generateReadyTask() async {
+    try {
+      await ref.read(generationCooldownProvider.notifier).waitUntilAvailable();
+
+      final generationNotifier = ref.read(
+        imageGenerationNotifierProvider.notifier,
+      );
+      // completed/error 会先于生成调用的 finally 对外可见。等待旧调用释放
+      // invocation 所有权，避免下一任务因 generate() 的并发保护而被静默丢弃。
+      await generationNotifier.waitUntilGenerationInvocationSettled();
+
+      if (state.status != QueueExecutionStatus.ready) return;
+      if (ref.read(imageGenerationNotifierProvider).isBusy ||
+          (PlatformCapabilities.current.supportsKritaBridge &&
+              ref.read(kritaBridgeNotifierProvider).isBridgeGenerating)) {
+        return;
+      }
+
+      final baseParams = ref.read(generationParamsNotifierProvider);
+      final queueState = ref.read(replicationQueueNotifierProvider);
+      ReplicationTask? task;
+      for (final candidate in queueState.tasks) {
+        if (candidate.id == state.currentTaskId) {
+          task = candidate;
+          break;
+        }
+      }
+      if (task == null) return;
+      final snapshot = task.generationSnapshot;
+      final batchSizeOverride = snapshot == null
+          ? null
+          : ReplicationTaskGenerationSnapshot.decodeBatchSize(snapshot);
+      final params = snapshot == null
+          ? baseParams.copyWith(
+              prompt: task.prompt,
+              negativePrompt: task.applyNegativePrompt
+                  ? task.negativePrompt
+                  : baseParams.negativePrompt,
+              model: task.model ?? baseParams.model,
+              sampler: task.sampler ?? baseParams.sampler,
+              steps: task.steps ?? baseParams.steps,
+              scale: task.cfgScale ?? baseParams.scale,
+              seed: task.seed ?? -1,
+              width: task.width ?? baseParams.width,
+              height: task.height ?? baseParams.height,
+              nSamples: 1,
+            )
+          : ReplicationTaskGenerationSnapshot.decode(snapshot).copyWith(
+              prompt: task.prompt,
+              negativePrompt: task.applyNegativePrompt
+                  ? task.negativePrompt
+                  : baseParams.negativePrompt,
+              nSamples: 1,
+            );
+
+      // generate() 在首次异步让出前会把状态切到 generating；此后由生成状态
+      // 本身阻止重复提交，不要让该锁跨越整次生成而吞掉下一任务的触发。
+      _generationTriggerPending = false;
+      await generationNotifier.generate(
+        params,
+        batchSizeOverride: batchSizeOverride,
+        preserveCharacterSnapshot: snapshot != null,
+      );
+    } on FormatException catch (error, stackTrace) {
+      final taskId = state.currentTaskId;
+      AppLogger.e(
+        'Queued generation snapshot is invalid',
+        error,
+        stackTrace,
+        'QueueExecution',
+      );
+      if (taskId != null) {
+        final message = 'Invalid generation snapshot: $error';
+        await ref
+            .read(replicationQueueNotifierProvider.notifier)
+            .updateTaskStatus(
+              taskId,
+              ReplicationTaskStatus.running,
+              errorMessage: message,
+            );
+        await _handleFailedTask(errorMessage: message, retryable: false);
+      } else {
+        state = state.copyWith(
+          status: QueueExecutionStatus.idle,
+          clearCurrentTaskId: true,
+        );
+        await _saveToStorage();
+      }
+    } finally {
+      _generationTriggerPending = false;
+    }
   }
 
   /// 开始执行队列
@@ -343,20 +536,36 @@ class QueueExecutionNotifier extends _$QueueExecutionNotifier {
 
     // 实际开始执行时，更新当前任务状态为 running
     if (state.currentTaskId != null) {
-      ref.read(replicationQueueNotifierProvider.notifier).updateTaskStatus(
+      ref
+          .read(replicationQueueNotifierProvider.notifier)
+          .updateTaskStatus(
             state.currentTaskId!,
             ReplicationTaskStatus.running,
           );
     }
   }
 
-  /// 停止执行队列
-  void stopExecution() {
+  /// 停止执行队列。已提交的生成请求继续完成，但不再推进队列。
+  Future<void> stopExecution() async {
+    _executionRevision++;
+    _generationTriggerPending = false;
+    final currentTaskId = state.currentTaskId;
     state = state.copyWith(
       status: QueueExecutionStatus.idle,
-      currentTaskId: null,
+      clearCurrentTaskId: true,
     );
-    _saveToStorage();
+    if (currentTaskId != null) {
+      await ref
+          .read(replicationQueueNotifierProvider.notifier)
+          .resetRunningTask(currentTaskId);
+    }
+    await _saveToStorage();
+  }
+
+  /// 原子停止执行状态后再清空待处理任务，避免运行中的回调复活旧队列。
+  Future<void> clearQueue() async {
+    await stopExecution();
+    await ref.read(replicationQueueNotifierProvider.notifier).clear();
   }
 
   /// 监听生成状态变化
@@ -368,8 +577,11 @@ class QueueExecutionNotifier extends _$QueueExecutionNotifier {
     if (previous?.status == GenerationStatus.generating &&
         next.status == GenerationStatus.completed) {
       // 判断是否为队列模式
-      final isQueueMode = state.status == QueueExecutionStatus.running ||
-          state.status == QueueExecutionStatus.ready;
+      final isQueueMode =
+          state.currentTaskId != null &&
+          (state.status == QueueExecutionStatus.running ||
+              state.status == QueueExecutionStatus.ready ||
+              state.status == QueueExecutionStatus.paused);
 
       if (isQueueMode) {
         // 队列模式：不播放单张完成音效，等队列全部完成后播放
@@ -405,7 +617,7 @@ class QueueExecutionNotifier extends _$QueueExecutionNotifier {
 
     // 生成取消
     if (next.status == GenerationStatus.cancelled) {
-      stopExecution();
+      unawaited(stopExecution());
       return;
     }
   }
@@ -425,26 +637,42 @@ class QueueExecutionNotifier extends _$QueueExecutionNotifier {
 
   /// 任务完成处理
   Future<void> _onTaskCompleted() async {
+    final revision = _executionRevision;
     final currentTaskId = state.currentTaskId;
-
-    // 更新任务状态为 completed
-    if (currentTaskId != null) {
-      ref.read(replicationQueueNotifierProvider.notifier).updateTaskStatus(
-            currentTaskId,
-            ReplicationTaskStatus.completed,
-          );
+    if (currentTaskId == null) {
+      AppLogger.e(
+        'Queue completion received without a current task ID',
+        null,
+        null,
+        'QueueExecution',
+      );
+      await stopExecution();
+      return;
     }
 
-    // 从队列移除已完成的任务
-    await ref.read(replicationQueueNotifierProvider.notifier).markCompleted();
+    final completed = await ref
+        .read(replicationQueueNotifierProvider.notifier)
+        .markCompleted(currentTaskId);
+    if (revision != _executionRevision) return;
+    if (!completed) {
+      AppLogger.e(
+        'Queue completion target no longer exists: $currentTaskId',
+        null,
+        null,
+        'QueueExecution',
+      );
+      await stopExecution();
+      return;
+    }
 
     state = state.copyWith(
       completedCount: state.completedCount + 1,
       retryCount: 0,
+      clearCurrentTaskId: state.isPaused,
     );
     await _saveToStorage();
 
-    // 检查是否暂停
+    // 运行中点击暂停表示“当前任务完成后暂停”。
     if (state.isPaused) return;
 
     // 等待任务间隔
@@ -453,6 +681,7 @@ class QueueExecutionNotifier extends _$QueueExecutionNotifier {
         Duration(milliseconds: (state.taskIntervalSeconds * 1000).toInt()),
       );
     }
+    if (revision != _executionRevision) return;
 
     _processNextTask();
   }
@@ -474,10 +703,7 @@ class QueueExecutionNotifier extends _$QueueExecutionNotifier {
       // 重新设置为 ready 状态，等待用户再次点击或自动执行
       state = state.copyWith(status: QueueExecutionStatus.ready);
 
-      // 自动执行模式下自动重试
-      if (state.autoExecuteEnabled) {
-        _triggerAutoGenerate();
-      }
+      _triggerAutoGenerate();
     } else {
       // 超过重试次数，根据策略处理
       await _handleFailedTask();
@@ -485,7 +711,10 @@ class QueueExecutionNotifier extends _$QueueExecutionNotifier {
   }
 
   /// 处理失败任务
-  Future<void> _handleFailedTask() async {
+  Future<void> _handleFailedTask({
+    String? errorMessage,
+    bool retryable = true,
+  }) async {
     final currentTaskId = state.currentTaskId;
     if (currentTaskId == null) {
       _processNextTask();
@@ -493,15 +722,34 @@ class QueueExecutionNotifier extends _$QueueExecutionNotifier {
     }
 
     final queueNotifier = ref.read(replicationQueueNotifierProvider.notifier);
-    final task = ref.read(replicationQueueNotifierProvider).tasks.firstWhere(
+    final task = ref
+        .read(replicationQueueNotifierProvider)
+        .tasks
+        .firstWhere(
           (t) => t.id == currentTaskId,
           orElse: () => ReplicationTask.create(prompt: ''),
         );
 
     switch (state.failureStrategy) {
       case FailureHandlingStrategy.autoRetry:
-        // 重新入队到末尾
-        await queueNotifier.remove(currentTaskId);
+        if (!retryable) {
+          await queueNotifier.moveToFailedPool(currentTaskId);
+          break;
+        }
+        // 重新入队到末尾。执行中的任务只能通过专用结算入口移除。
+        final removed = await queueNotifier.removeRunningTaskForRetry(
+          currentTaskId,
+        );
+        if (!removed) {
+          AppLogger.e(
+            'Queue retry target no longer exists: $currentTaskId',
+            null,
+            null,
+            'QueueExecution',
+          );
+          await stopExecution();
+          return;
+        }
         await queueNotifier.add(
           task.copyWith(
             status: ReplicationTaskStatus.pending,
@@ -521,6 +769,7 @@ class QueueExecutionNotifier extends _$QueueExecutionNotifier {
         await queueNotifier.updateTaskStatus(
           currentTaskId,
           ReplicationTaskStatus.failed,
+          errorMessage: errorMessage,
         );
         // 暂停执行
         state = state.copyWith(
@@ -553,7 +802,7 @@ class QueueExecutionNotifier extends _$QueueExecutionNotifier {
       // 队列清空，执行完成
       state = state.copyWith(
         status: QueueExecutionStatus.completed,
-        currentTaskId: null,
+        clearCurrentTaskId: true,
       );
       _saveToStorage();
 
@@ -575,37 +824,35 @@ class QueueExecutionNotifier extends _$QueueExecutionNotifier {
     // 填充下一个任务的提示词（此时状态已是 ready）
     _fillPrompt(nextTask);
 
-    // 注意：这里不更新任务状态，任务保持 pending 状态
-    // 只有在自动执行模式下自动触发生成时才更新为 running
-
-    // 自动执行模式下自动触发
-    if (state.autoExecuteEnabled) {
-      _triggerAutoGenerate();
-    }
+    // 注意：这里不更新任务状态，任务保持 pending 状态；生成状态切换后
+    // startExecution() 会将当前任务标记为 running。
+    _triggerAutoGenerate();
   }
 
   /// 手动重试指定的失败任务
-  Future<void> retryFailedTask(String taskId) async {
+  Future<bool> retryFailedTask(String taskId) async {
     final queueNotifier = ref.read(replicationQueueNotifierProvider.notifier);
-    await queueNotifier.retryFailedTask(taskId);
+    final requeued = await queueNotifier.retryFailedTask(taskId);
+    if (!requeued) return false;
 
-    // 移除出失败列表
     state = state.copyWith(
       failedTaskIds: state.failedTaskIds.where((id) => id != taskId).toList(),
     );
     await _saveToStorage();
+    return true;
   }
 
   /// 将失败任务重新入队
-  Future<void> requeueFailedTask(String taskId) async {
+  Future<bool> requeueFailedTask(String taskId) async {
     final queueNotifier = ref.read(replicationQueueNotifierProvider.notifier);
-    await queueNotifier.requeueFailedTask(taskId);
+    final requeued = await queueNotifier.requeueFailedTask(taskId);
+    if (!requeued) return false;
 
-    // 移除出失败列表
     state = state.copyWith(
       failedTaskIds: state.failedTaskIds.where((id) => id != taskId).toList(),
     );
     await _saveToStorage();
+    return true;
   }
 
   /// 清除所有失败任务
@@ -645,12 +892,14 @@ QueueSettings queueSettings(Ref ref) {
   final executionState = ref.watch(queueExecutionNotifierProvider);
 
   return QueueSettings(
-    retryCount: storage.getSetting<int>(
+    retryCount:
+        storage.getSetting<int>(
           StorageKeys.queueRetryCount,
           defaultValue: 10,
         ) ??
         10,
-    retryIntervalSeconds: storage.getSetting<double>(
+    retryIntervalSeconds:
+        storage.getSetting<double>(
           StorageKeys.queueRetryInterval,
           defaultValue: 1.0,
         ) ??

@@ -1,6 +1,8 @@
 import '../../data/models/character/character_prompt.dart' as ui_character;
 import '../../data/models/image/image_params.dart';
 import '../utils/app_logger.dart';
+import '../utils/character_prompt_block_parser.dart';
+import '../utils/prompt_edit_document.dart';
 
 /// 角色转换结果
 ///
@@ -39,22 +41,14 @@ class CharacterConversionResult {
   bool get hasCharacters => characters.isNotEmpty;
 }
 
-/// 别名解析器接口
-///
-/// 用于解析提示词中的别名引用
-abstract class AliasResolver {
-  /// 解析文本中的所有别名
-  ///
-  /// [text] 包含别名的原始文本
-  /// 返回解析后的文本
-  String resolveAliases(String text);
-}
+/// 别名解析函数。
+typedef AliasResolver = String Function(String text);
 
 /// 角色转换服务
 ///
 /// 负责将 UI 层的角色提示词配置转换为 API 层的格式，包括：
 /// - 过滤启用且有提示词的角色
-/// - 位置信息转换（自定义位置转 NAI 网格格式）
+/// - 位置信息转换（自定义位置转连续坐标）
 /// - 别名解析（角色提示词中的别名展开）
 ///
 /// 这是一个纯服务类，不依赖 Riverpod，便于单元测试和复用
@@ -65,9 +59,8 @@ class CharacterConversionService {
   /// 创建角色转换服务
   ///
   /// [aliasResolver] 别名解析器，用于解析角色提示词中的别名
-  CharacterConversionService({
-    AliasResolver? aliasResolver,
-  }) : _aliasResolver = aliasResolver;
+  CharacterConversionService({AliasResolver? aliasResolver})
+    : _aliasResolver = aliasResolver;
 
   /// 转换角色配置为 API 格式
   ///
@@ -79,9 +72,14 @@ class CharacterConversionService {
     ui_character.CharacterPromptConfig config, {
     bool resolveAliases = true,
   }) {
-    // 过滤出启用且有提示词的角色
+    // 仅负向角色也是有效角色，NovelAI 会把它映射到独立角色 UC。
     final enabledCharacters = config.characters
-        .where((c) => c.enabled && c.prompt.isNotEmpty)
+        .where(
+          (character) =>
+              character.enabled &&
+              (character.prompt.isNotEmpty ||
+                  character.negativePrompt.isNotEmpty),
+        )
         .toList();
 
     if (enabledCharacters.isEmpty) {
@@ -91,38 +89,52 @@ class CharacterConversionService {
     bool aliasesWereResolved = false;
 
     final apiCharacters = enabledCharacters.map((uiChar) {
-      // 计算位置字符串
-      String? position;
-      if (!config.globalAiChoice &&
-          uiChar.positionMode == ui_character.CharacterPositionMode.custom &&
-          uiChar.customPosition != null) {
-        position = uiChar.customPosition!.toNaiString();
+      double? positionX;
+      double? positionY;
+      if (!config.globalAiChoice) {
+        final position = config.resolvePosition(uiChar);
+        positionX = position.column;
+        positionY = position.row;
       }
 
-      // 解析角色提示词中的别名
-      String resolvedPrompt = uiChar.prompt;
-      String resolvedNegativePrompt = uiChar.negativePrompt;
+      // 先展开别名，再由共享解析器拆分角色词库扩展语法。这样通过
+      // `<词库名>` 添加的角色也不会把 `negative` 标记发送给 NovelAI。
+      String resolvedPromptSource = PromptEditDocument.effectiveText(
+        uiChar.prompt,
+      );
+      String resolvedNegativePrompt = PromptEditDocument.effectiveText(
+        uiChar.negativePrompt,
+      );
 
       if (resolveAliases) {
         final aliasResolver = _aliasResolver;
         if (aliasResolver != null) {
-          final promptWithAliases = aliasResolver.resolveAliases(uiChar.prompt);
-          final negativeWithAliases =
-              aliasResolver.resolveAliases(uiChar.negativePrompt);
+          final promptWithAliases = PromptEditDocument.effectiveText(
+            aliasResolver(resolvedPromptSource),
+          );
+          final negativeWithAliases = PromptEditDocument.effectiveText(
+            aliasResolver(resolvedNegativePrompt),
+          );
 
           if (promptWithAliases != uiChar.prompt ||
               negativeWithAliases != uiChar.negativePrompt) {
-            resolvedPrompt = promptWithAliases;
+            resolvedPromptSource = promptWithAliases;
             resolvedNegativePrompt = negativeWithAliases;
             aliasesWereResolved = true;
           }
         }
       }
 
+      final parsed = CharacterPromptBlockParser.parse(resolvedPromptSource);
+      resolvedNegativePrompt = parsed.mergeNegativePrompt(
+        resolvedNegativePrompt,
+      );
+
       return CharacterPrompt(
-        prompt: resolvedPrompt,
+        prompt: parsed.positivePrompt,
         negativePrompt: resolvedNegativePrompt,
-        position: position,
+        positionX: positionX,
+        positionY: positionY,
       );
     }).toList();
 
@@ -160,7 +172,11 @@ class CharacterConversionService {
   ///
   /// [config] UI 层的角色提示词配置
   bool hasEnabledCharacters(ui_character.CharacterPromptConfig config) {
-    return config.characters.any((c) => c.enabled && c.prompt.isNotEmpty);
+    return config.characters.any(
+      (character) =>
+          character.enabled &&
+          (character.prompt.isNotEmpty || character.negativePrompt.isNotEmpty),
+    );
   }
 
   /// 获取启用的角色数量
@@ -168,7 +184,12 @@ class CharacterConversionService {
   /// [config] UI 层的角色提示词配置
   int getEnabledCharacterCount(ui_character.CharacterPromptConfig config) {
     return config.characters
-        .where((c) => c.enabled && c.prompt.isNotEmpty)
+        .where(
+          (character) =>
+              character.enabled &&
+              (character.prompt.isNotEmpty ||
+                  character.negativePrompt.isNotEmpty),
+        )
         .length;
   }
 }

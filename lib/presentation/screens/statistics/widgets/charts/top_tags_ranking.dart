@@ -1,4 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:nai_launcher/core/utils/localization_extension.dart';
+
+import '../../../../adaptive/window_size_class.dart';
+import '../../../../widgets/common/translated_tag_text.dart';
 
 /// Tag ranking item data
 class TagRankItem {
@@ -34,30 +38,31 @@ class TopTagsRanking extends StatelessWidget {
   Widget build(BuildContext context) {
     final displayItems = items.take(maxItems).toList();
     if (displayItems.isEmpty) {
-      return const Center(
-        child: Text('No tag data available'),
-      );
+      return Center(child: Text(context.l10n.statistics_noTagData));
     }
 
-    final screenWidth = MediaQuery.of(context).size.width;
-    final isDesktop = screenWidth >= 900;
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final sizeClass = WindowSizeClass.fromWidth(constraints.maxWidth);
 
-    // Use grid for desktop, list for mobile
-    if (isDesktop && displayItems.length > 5) {
-      return _buildGrid(context, displayItems);
-    }
+        // Split only when this ranking itself has enough room for two columns.
+        if (sizeClass.isExpandedOrWider && displayItems.length > 5) {
+          return _buildGrid(context, displayItems);
+        }
 
-    return Column(
-      children: displayItems.asMap().entries.map((entry) {
-        final index = entry.key;
-        final item = entry.value;
-        return _TagRankRow(
-          rank: index + 1,
-          item: item,
-          showTrend: showTrend,
-          onTap: onItemTap != null ? () => onItemTap!(item) : null,
+        return Column(
+          children: displayItems.asMap().entries.map((entry) {
+            final index = entry.key;
+            final item = entry.value;
+            return _TagRankRow(
+              rank: index + 1,
+              item: item,
+              showTrend: showTrend,
+              onTap: onItemTap != null ? () => onItemTap!(item) : null,
+            );
+          }).toList(),
         );
-      }).toList(),
+      },
     );
   }
 
@@ -130,15 +135,12 @@ class _TagRankRow extends StatelessWidget {
           decoration: BoxDecoration(
             color: colorScheme.surfaceContainerLow.withValues(alpha: 0.3),
             borderRadius: BorderRadius.circular(10),
-            border: Border.all(
-              color: colorScheme.outlineVariant.withValues(alpha: 0.15),
-            ),
           ),
           child: Row(
             children: [
               // Rank number
-              SizedBox(
-                width: 28,
+              ConstrainedBox(
+                constraints: const BoxConstraints(minWidth: 28),
                 child: Text(
                   '#$rank',
                   style: theme.textTheme.labelMedium?.copyWith(
@@ -151,16 +153,16 @@ class _TagRankRow extends StatelessWidget {
               // Tag chip
               Expanded(
                 child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
                     color: rankColor.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(6),
-                    border: Border.all(
-                      color: rankColor.withValues(alpha: 0.3),
-                    ),
+                    border: Border.all(color: rankColor.withValues(alpha: 0.3)),
                   ),
-                  child: Text(
+                  child: TranslatedTagText(
                     item.tag,
                     style: theme.textTheme.bodySmall?.copyWith(
                       color: rankColor,
@@ -213,14 +215,14 @@ class _MiniTrendIndicator extends StatelessWidget {
     final color = isPositive
         ? Colors.green
         : isNegative
-            ? Colors.red
-            : Colors.grey;
+        ? Colors.red
+        : Colors.grey;
 
     final icon = isPositive
         ? Icons.north
         : isNegative
-            ? Icons.south
-            : Icons.remove;
+        ? Icons.south
+        : Icons.remove;
 
     return Icon(icon, size: 14, color: color);
   }

@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/utils/localization_extension.dart';
 import '../../../providers/layout_state_provider.dart';
 import 'collapsed_panel.dart';
+import 'generation_workspace_header.dart';
 import 'parameter_panel.dart';
 
 /// 左侧面板组件
@@ -12,43 +13,31 @@ import 'parameter_panel.dart';
 class LeftPanel extends ConsumerWidget {
   final bool isResizing;
 
-  const LeftPanel({
-    super.key,
-    this.isResizing = false,
-  });
+  const LeftPanel({super.key, this.isResizing = false});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final layoutState = ref.watch(layoutStateNotifierProvider);
 
-    final width =
-        layoutState.leftPanelExpanded ? layoutState.leftPanelWidth : 40.0;
+    final width = layoutState.leftPanelExpanded
+        ? layoutState.leftPanelWidth
+        : 40.0;
     final decoration = BoxDecoration(
       color: theme.colorScheme.surface,
-      border: Border(
-        right: BorderSide(
-          color: theme.dividerColor,
-          width: 1,
-        ),
-      ),
+      border: Border(right: BorderSide(color: theme.dividerColor, width: 1)),
     );
 
     final child = layoutState.leftPanelExpanded
-        ? Stack(
+        ? Column(
             children: [
-              const ParameterPanel(),
-              // 折叠按钮
-              Positioned(
-                top: 8,
-                right: 8,
-                child: CollapseButton(
-                  icon: Icons.chevron_left,
-                  onTap: () => ref
-                      .read(layoutStateNotifierProvider.notifier)
-                      .setLeftPanelExpanded(false),
-                ),
+              GenerationWorkspaceHeader(
+                key: const ValueKey('classic-generation-workspace-header'),
+                onCollapse: () => ref
+                    .read(layoutStateNotifierProvider.notifier)
+                    .setLeftPanelExpanded(false),
               ),
+              const Expanded(child: ParameterPanel(showCharacterEditor: true)),
             ],
           )
         : CollapsedPanel(
@@ -61,15 +50,13 @@ class LeftPanel extends ConsumerWidget {
 
     // 拖拽时不使用动画，避免粘滞感
     if (isResizing) {
-      return Container(
-        width: width,
-        decoration: decoration,
-        child: child,
-      );
+      return Container(width: width, decoration: decoration, child: child);
     }
 
     return AnimatedContainer(
-      duration: const Duration(milliseconds: 200),
+      duration: MediaQuery.disableAnimationsOf(context)
+          ? Duration.zero
+          : const Duration(milliseconds: 200),
       width: width,
       decoration: decoration,
       child: child,

@@ -5,27 +5,22 @@ import '../../../../../core/utils/localization_extension.dart';
 import '../../../../../data/models/tag_library/tag_library_category.dart';
 import '../../../../../data/models/tag_library/tag_library_entry.dart';
 import '../../../../providers/tag_library_page_provider.dart';
-import '../../../../providers/tag_library_selection_provider.dart';
-import '../entry_card.dart';
 import 'category_header.dart';
 
 /// 分组视图 - 按类别分组显示条目
 class GroupedEntriesView extends ConsumerWidget {
-  final void Function(TagLibraryEntry) onEdit;
-  final void Function(TagLibraryEntry) onDelete;
-  final void Function(TagLibraryEntry) onSend;
+  final ScrollController? scrollController;
+  final Widget Function(TagLibraryEntry) entryBuilder;
 
   const GroupedEntriesView({
     super.key,
-    required this.onEdit,
-    required this.onDelete,
-    required this.onSend,
+    this.scrollController,
+    required this.entryBuilder,
   });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(tagLibraryPageNotifierProvider);
-    final selectionState = ref.watch(tagLibrarySelectionNotifierProvider);
 
     // 按分类分组
     final grouped = _groupEntriesByCategory(
@@ -42,6 +37,7 @@ class GroupedEntriesView extends ConsumerWidget {
     }
 
     return CustomScrollView(
+      controller: scrollController,
       slivers: [
         for (final group in nonEmptyGroups) ...[
           // 吸顶分类标题
@@ -63,56 +59,15 @@ class GroupedEntriesView extends ConsumerWidget {
                 crossAxisSpacing: 12,
               ),
               delegate: SliverChildBuilderDelegate(
-                (context, index) => _buildEntryCard(
-                  context,
-                  ref,
-                  group.entries[index],
-                  selectionState,
-                ),
+                (context, index) => entryBuilder(group.entries[index]),
                 childCount: group.entries.length,
               ),
             ),
           ),
         ],
         // 底部留白
-        const SliverToBoxAdapter(
-          child: SizedBox(height: 32),
-        ),
+        const SliverToBoxAdapter(child: SizedBox(height: 32)),
       ],
-    );
-  }
-
-  /// 构建条目卡片
-  Widget _buildEntryCard(
-    BuildContext context,
-    WidgetRef ref,
-    TagLibraryEntry entry,
-    dynamic selectionState,
-  ) {
-    final isSelected = selectionState.isSelected(entry.id);
-
-    return EntryCard(
-      key: ValueKey(entry.id),
-      entry: entry,
-      categoryName: null, // 分组视图中不显示分类名称（已经在标题中）
-      enableDrag: !selectionState.isActive,
-      isSelectionMode: selectionState.isActive,
-      isSelected: isSelected,
-      onToggleSelection: () {
-        final notifier = ref.read(tagLibrarySelectionNotifierProvider.notifier);
-        if (!selectionState.isActive) {
-          notifier.enterAndSelect(entry.id);
-        } else {
-          notifier.toggle(entry.id);
-        }
-      },
-      onTap: () => onEdit(entry),
-      onDelete: () => onDelete(entry),
-      onEdit: () => onEdit(entry),
-      onSend: () => onSend(entry),
-      onToggleFavorite: () => ref
-          .read(tagLibraryPageNotifierProvider.notifier)
-          .toggleFavorite(entry.id),
     );
   }
 
@@ -134,20 +89,17 @@ class GroupedEntriesView extends ConsumerWidget {
     for (final category in sortedCategories) {
       // 只包含有条目的分类
       if (categoryIdsWithEntries.contains(category.id)) {
-        final categoryEntries =
-            entries.where((e) => e.categoryId == category.id).toList();
-        groups.add(
-          CategoryGroup(
-            category: category,
-            entries: categoryEntries,
-          ),
-        );
+        final categoryEntries = entries
+            .where((e) => e.categoryId == category.id)
+            .toList();
+        groups.add(CategoryGroup(category: category, entries: categoryEntries));
       }
     }
 
     // 处理未分类条目（categoryId 为 null）
-    final uncategorizedEntries =
-        entries.where((e) => e.categoryId == null).toList();
+    final uncategorizedEntries = entries
+        .where((e) => e.categoryId == null)
+        .toList();
     if (uncategorizedEntries.isNotEmpty) {
       groups.add(
         CategoryGroup(

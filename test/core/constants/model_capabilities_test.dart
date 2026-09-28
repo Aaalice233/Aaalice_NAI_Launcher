@@ -1,0 +1,604 @@
+import 'package:flutter_test/flutter_test.dart';
+import 'package:nai_launcher/core/constants/api_constants.dart';
+import 'package:nai_launcher/core/constants/model_capabilities.dart';
+
+void main() {
+  group('ModelCapabilityRegistry.of', () {
+    test('resolves the V5 staging key to the curated family', () {
+      final caps = ModelCapabilityRegistry.of(ImageModels.v5StagingKey);
+
+      expect(caps.id, ImageModels.animeDiffusionV5Curated);
+      expect(caps.tokenLimit, 703);
+    });
+
+    test('resolves the official V5 ids', () {
+      // 正式版把 Full 的上限从测试期的 1406 提到 1471。
+      expect(
+        ModelCapabilityRegistry.of(ImageModels.animeDiffusionV5Full).tokenLimit,
+        1471,
+      );
+      expect(
+        ModelCapabilityRegistry.of(
+          ImageModels.animeDiffusionV5Curated,
+        ).tokenLimit,
+        703,
+      );
+    });
+
+    test('maps inpainting variants onto their base family', () {
+      expect(
+        ModelCapabilityRegistry.of(ImageModels.animeDiffusionV45FullInpainting),
+        same(ModelCapabilityRegistry.of(ImageModels.animeDiffusionV45Full)),
+      );
+      expect(
+        ModelCapabilityRegistry.of(ImageModels.furryDiffusionV3Inpainting),
+        same(ModelCapabilityRegistry.of(ImageModels.furryDiffusionV3)),
+      );
+    });
+
+    test('keeps unregistered ids in the closest family instead of V1', () {
+      // 正式 ID 一旦带上后缀，仍然要走 V4 结构而不是静默降级到 legacy 路径。
+      final unknownV5 = ModelCapabilityRegistry.of('nai-diffusion-5-full-next');
+      expect(unknownV5.promptStructure, PromptStructure.v4);
+      expect(unknownV5.tokenLimit, 1471);
+
+      expect(
+        ModelCapabilityRegistry.of('nai-diffusion-4-5-curated-next').tokenLimit,
+        512,
+      );
+    });
+
+    test('does not confuse V4.5 ids with the V4 family', () {
+      expect(
+        ModelCapabilityRegistry.of('nai-diffusion-4-5-full-preview').id,
+        ImageModels.animeDiffusionV45Full,
+      );
+    });
+
+    test('falls back to the legacy family for unrecognised ids', () {
+      final caps = ModelCapabilityRegistry.of('totally-unknown-model');
+
+      expect(caps.promptStructure, PromptStructure.legacy);
+      expect(caps.anlasFormula, AnlasFormula.legacy);
+      expect(ModelCapabilityRegistry.tryOf('totally-unknown-model'), isNull);
+    });
+
+    test('tryOf accepts only verified exact model ids', () {
+      expect(
+        ModelCapabilityRegistry.tryOf(ImageModels.animeDiffusionV5Full),
+        same(ModelCapabilityRegistry.v5Full),
+      );
+      for (final model in [
+        'nai-diffusion-5-full-next',
+        'nai-diffusion-50-full',
+        'nai-diffusion-5-experimental',
+        'nai-diffusion-4-5-curated-next',
+        'nai-future-model',
+        'third-party-diffusion-5-test',
+      ]) {
+        expect(
+          ModelCapabilityRegistry.tryOf(model),
+          isNull,
+          reason: '$model has no verified random-profile mapping',
+        );
+      }
+    });
+  });
+
+  group('capability facts', () {
+    test(
+      'routes every model family to the matching official random recipe',
+      () {
+        expect(
+          ModelCapabilityRegistry.of(
+            ImageModels.animeDiffusionV3,
+          ).randomPromptProfile,
+          RandomPromptProfile.legacyAnime,
+        );
+        expect(
+          ModelCapabilityRegistry.of(ImageModels.furry).randomPromptProfile,
+          RandomPromptProfile.legacyAnime,
+        );
+        expect(
+          ModelCapabilityRegistry.of(
+            ImageModels.furryDiffusionV3,
+          ).randomPromptProfile,
+          RandomPromptProfile.furryV3,
+        );
+        for (final model in [
+          ImageModels.animeDiffusionV4Curated,
+          ImageModels.animeDiffusionV4CuratedInpainting,
+          ImageModels.animeDiffusionV4Full,
+          ImageModels.animeDiffusionV4FullInpainting,
+          ImageModels.animeDiffusionV45Curated,
+          ImageModels.animeDiffusionV45CuratedInpainting,
+          ImageModels.animeDiffusionV45Full,
+          ImageModels.animeDiffusionV45FullInpainting,
+          ImageModels.animeDiffusionV5Curated,
+          ImageModels.animeDiffusionV5CuratedInpainting,
+          ImageModels.animeDiffusionV5Full,
+          ImageModels.animeDiffusionV5FullInpainting,
+          ImageModels.v5StagingKey,
+        ]) {
+          expect(
+            ModelCapabilityRegistry.of(model).randomPromptProfile,
+            RandomPromptProfile.characterPrompts,
+            reason: '$model must reuse Character Prompts',
+          );
+        }
+      },
+    );
+
+    test('V5 uses the V4 prompt structure with params_version 4', () {
+      final caps = ModelCapabilityRegistry.of(ImageModels.v5StagingKey);
+
+      expect(caps.promptStructure, PromptStructure.v4);
+      expect(caps.paramsVersion, 4);
+      expect(
+        ModelCapabilityRegistry.of(
+          ImageModels.animeDiffusionV45Full,
+        ).paramsVersion,
+        3,
+      );
+    });
+
+    test('V5 inpainting maps to the official weights', () {
+      // 正式版：Full 有独立 inpainting；Curated 的重绘权重尚未就绪，
+      // 网页端映射到 V4.5 Curated Inpainting。
+      expect(
+        ImageModels.resolveInpaintingModel(ImageModels.animeDiffusionV5Full),
+        ImageModels.animeDiffusionV5FullInpainting,
+      );
+      expect(
+        ImageModels.resolveInpaintingModel(ImageModels.animeDiffusionV5Curated),
+        ImageModels.animeDiffusionV45CuratedInpainting,
+      );
+      // 测试期的 custom 键归一到 V5 Curated 后走同一条映射。
+      expect(
+        ImageModels.resolveInpaintingModel(ImageModels.v5StagingKey),
+        ImageModels.animeDiffusionV45CuratedInpainting,
+      );
+      expect(
+        ImageModels.resolveBaseModel(
+          ImageModels.animeDiffusionV5FullInpainting,
+        ),
+        ImageModels.animeDiffusionV5Full,
+      );
+      expect(
+        ModelCapabilityRegistry.of(ImageModels.animeDiffusionV5FullInpainting),
+        same(ModelCapabilityRegistry.of(ImageModels.animeDiffusionV5Full)),
+      );
+    });
+
+    test('V5 keeps vibe transfer and precise reference hidden', () {
+      final caps = ModelCapabilityRegistry.of(ImageModels.v5StagingKey);
+
+      expect(caps.supportsVibeTransfer, isFalse);
+      expect(caps.supportsPreciseReference, isFalse);
+      expect(ImageModels.isV45Model(ImageModels.v5StagingKey), isFalse);
+    });
+
+    test('V5 exposes the production feature set', () {
+      final caps = ModelCapabilityRegistry.of(ImageModels.v5StagingKey);
+
+      expect(caps.supportsTransparentBackground, isTrue);
+      // 正式站关闭端到端 ×2，并保留增强 max 档。
+      expect(caps.supportsE2eUpscale, isFalse);
+      expect(caps.supportsMaxEnhance, isTrue);
+      expect(caps.maxCharacters, 22);
+      expect(caps.supportsAutoText, isTrue);
+      expect(
+        ModelCapabilityRegistry.of(
+          ImageModels.animeDiffusionV45Full,
+        ).supportsAutoText,
+        isFalse,
+      );
+      // 正式版专属：计价 1.5 倍、Opus 免费受配额池限制。
+      expect(caps.anlasMultiplier, 1.5);
+      expect(caps.hasOpusUsageLimit, isTrue);
+      expect(
+        ModelCapabilityRegistry.of(
+          ImageModels.animeDiffusionV45Full,
+        ).supportsVarietyPlus,
+        isTrue,
+      );
+    });
+
+    test('V5 keeps the noise schedule and Variety+ the web client hides', () {
+      for (final model in [
+        ImageModels.animeDiffusionV5Curated,
+        ImageModels.animeDiffusionV5Full,
+      ]) {
+        final caps = ModelCapabilityRegistry.of(model);
+
+        expect(caps.supportsNoiseSchedule, isTrue, reason: model);
+        expect(caps.supportsVarietyPlus, isTrue, reason: model);
+        // Native 仍然跟 V4 家族一样不在候选里。
+        expect(caps.allowsNativeNoiseSchedule, isFalse, reason: model);
+      }
+    });
+
+    test('the Variety+ sigma base follows the model generation', () {
+      const legacySigma = 19.0;
+      const modernSigma = 58.0;
+
+      for (final model in [
+        ImageModels.animeDiffusionV3,
+        ImageModels.furryDiffusionV3,
+        ImageModels.animeDiffusionV4Curated,
+        ImageModels.animeDiffusionV4Full,
+      ]) {
+        expect(
+          ModelCapabilityRegistry.of(model).cfgDelaySigma,
+          legacySigma,
+          reason: model,
+        );
+      }
+
+      for (final model in [
+        ImageModels.animeDiffusionV45Curated,
+        ImageModels.animeDiffusionV45Full,
+        ImageModels.animeDiffusionV5Curated,
+        ImageModels.animeDiffusionV5Full,
+      ]) {
+        expect(
+          ModelCapabilityRegistry.of(model).cfgDelaySigma,
+          modernSigma,
+          reason: model,
+        );
+      }
+    });
+
+    test('only pre-V4 models keep Native in the noise schedule list', () {
+      expect(
+        ModelCapabilityRegistry.of(
+          ImageModels.animeDiffusionV3,
+        ).allowsNativeNoiseSchedule,
+        isTrue,
+      );
+      expect(
+        ModelCapabilityRegistry.of(
+          ImageModels.animeDiffusionV45Full,
+        ).allowsNativeNoiseSchedule,
+        isFalse,
+      );
+    });
+
+    test('the modern anlas formula covers V3 and newer', () {
+      for (final model in [
+        ImageModels.animeDiffusionV3,
+        ImageModels.furryDiffusionV3,
+        ImageModels.animeDiffusionV4Full,
+        ImageModels.animeDiffusionV45Full,
+        ImageModels.v5StagingKey,
+      ]) {
+        expect(
+          ModelCapabilityRegistry.of(model).anlasFormula,
+          AnlasFormula.modern,
+          reason: '$model should use the modern pricing formula',
+        );
+      }
+
+      expect(
+        ModelCapabilityRegistry.of(ImageModels.animeV2).anlasFormula,
+        AnlasFormula.legacy,
+      );
+    });
+
+    test('isV4Model covers every v4-structure family', () {
+      expect(ImageModels.isV4Model(ImageModels.animeDiffusionV4Full), isTrue);
+      expect(ImageModels.isV4Model(ImageModels.animeDiffusionV45Full), isTrue);
+      expect(ImageModels.isV4Model(ImageModels.v5StagingKey), isTrue);
+      expect(ImageModels.isV4Model(ImageModels.animeDiffusionV3), isFalse);
+    });
+
+    test('precise reference stays limited to the V4.5 family', () {
+      expect(
+        ModelCapabilityRegistry.of(
+          ImageModels.animeDiffusionV45Full,
+        ).supportsPreciseReference,
+        isTrue,
+      );
+      expect(
+        ModelCapabilityRegistry.of(
+          ImageModels.animeDiffusionV4Full,
+        ).supportsPreciseReference,
+        isFalse,
+      );
+    });
+
+    test('separates traditional V3 Vibe from V4 encoded Vibes', () {
+      expect(
+        ModelCapabilityRegistry.of(
+          ImageModels.animeDiffusionV45Full,
+        ).supportsVibeTransfer,
+        isTrue,
+      );
+      expect(
+        ModelCapabilityRegistry.of(
+          ImageModels.animeDiffusionV3,
+        ).supportsVibeTransfer,
+        isTrue,
+      );
+      expect(
+        ModelCapabilityRegistry.of(
+          ImageModels.furryDiffusionV3,
+        ).supportsVibeTransfer,
+        isTrue,
+      );
+      expect(
+        ModelCapabilityRegistry.of(
+          ImageModels.animeDiffusionV3,
+        ).supportsEncodedVibeTransfer,
+        isFalse,
+      );
+      expect(
+        ModelCapabilityRegistry.of(
+          ImageModels.animeDiffusionV45Full,
+        ).supportsEncodedVibeTransfer,
+        isTrue,
+      );
+    });
+
+    test('character positioning follows the character limit', () {
+      expect(
+        ModelCapabilityRegistry.of(
+          ImageModels.animeDiffusionV45Full,
+        ).supportsCharacterPositioning,
+        isTrue,
+      );
+      expect(
+        ModelCapabilityRegistry.of(
+          ImageModels.animeDiffusionV3,
+        ).supportsCharacterPositioning,
+        isFalse,
+      );
+    });
+  });
+
+  group('visibleModels', () {
+    test('lists the official V5 models by default', () {
+      final models = ImageModels.visibleModels();
+
+      expect(models.first, ImageModels.animeDiffusionV5Full);
+      expect(models, contains(ImageModels.animeDiffusionV5Curated));
+      expect(models, isNot(contains(ImageModels.v5StagingKey)));
+    });
+
+    test('migrates the staging key instead of listing it', () {
+      // 测试期选中的 custom 归一到 V5 Curated，不再单独出现在列表里。
+      final models = ImageModels.visibleModels(
+        current: ImageModels.v5StagingKey,
+      );
+
+      expect(models, isNot(contains(ImageModels.v5StagingKey)));
+      expect(models, contains(ImageModels.animeDiffusionV5Curated));
+      expect(models, equals(ImageModels.allModels));
+    });
+
+    test('keeps an unknown selection in the list', () {
+      final models = ImageModels.visibleModels(current: 'future-model');
+
+      expect(models.first, 'future-model');
+      expect(models.skip(1), equals(ImageModels.allModels));
+    });
+
+    test('does not duplicate a selection that is already visible', () {
+      final models = ImageModels.visibleModels(
+        current: ImageModels.animeDiffusionV45Full,
+      );
+
+      expect(
+        models
+            .where((model) => model == ImageModels.animeDiffusionV45Full)
+            .length,
+        1,
+      );
+    });
+
+    test('migrateLegacyModel maps custom onto V5 Curated', () {
+      expect(
+        ImageModels.migrateLegacyModel(ImageModels.v5StagingKey),
+        ImageModels.animeDiffusionV5Curated,
+      );
+      expect(
+        ImageModels.migrateLegacyModel(ImageModels.animeDiffusionV45Full),
+        ImageModels.animeDiffusionV45Full,
+      );
+    });
+  });
+
+  group('V5 generation defaults', () {
+    for (final capabilities in [
+      ModelCapabilityRegistry.v5Full,
+      ModelCapabilityRegistry.v5Curated,
+    ]) {
+      test('${capabilities.id} uses 28 steps and CFG 4', () {
+        expect(capabilities.defaultSteps, 28);
+        expect(capabilities.defaultScale, 4.0);
+      });
+    }
+  });
+
+  group('resolveModelSwitchFollowUps', () {
+    final v4 = ModelCapabilityRegistry.of(ImageModels.animeDiffusionV4Full);
+    final v45 = ModelCapabilityRegistry.of(ImageModels.animeDiffusionV45Full);
+    final v5 = ModelCapabilityRegistry.of(ImageModels.v5StagingKey);
+
+    test('follows the new defaults when the user has not touched them', () {
+      final followUps = resolveModelSwitchFollowUps(
+        from: v4,
+        to: v45,
+        currentScale: v4.defaultScale,
+        currentSteps: v4.defaultSteps,
+        currentNoiseSchedule: NoiseSchedules.karras,
+        currentVarietyPlus: false,
+      );
+
+      expect(followUps.scale, v45.defaultScale);
+      expect(followUps.steps, isNull, reason: '两者步数默认值相同，不需要改动');
+    });
+
+    test('keeps values the user adjusted', () {
+      final followUps = resolveModelSwitchFollowUps(
+        from: v4,
+        to: v45,
+        currentScale: 7.5,
+        currentSteps: 40,
+        currentNoiseSchedule: NoiseSchedules.karras,
+        currentVarietyPlus: false,
+      );
+
+      expect(followUps.isEmpty, isTrue);
+    });
+
+    test('follows V5 defaults when the V4.5 values are untouched', () {
+      final followUps = resolveModelSwitchFollowUps(
+        from: v45,
+        to: v5,
+        currentScale: v45.defaultScale,
+        currentSteps: v45.defaultSteps,
+        currentNoiseSchedule: NoiseSchedules.karras,
+        currentVarietyPlus: false,
+      );
+
+      expect(followUps.scale, v5.defaultScale);
+      expect(followUps.steps, v5.defaultSteps);
+    });
+
+    test('keeps adjusted values when switching from V4.5 to V5', () {
+      final followUps = resolveModelSwitchFollowUps(
+        from: v45,
+        to: v5,
+        currentScale: 7.5,
+        currentSteps: 40,
+        currentNoiseSchedule: NoiseSchedules.karras,
+        currentVarietyPlus: false,
+      );
+
+      expect(followUps.isEmpty, isTrue);
+    });
+
+    test('is empty when both models share the same defaults', () {
+      final followUps = resolveModelSwitchFollowUps(
+        from: v45,
+        to: ModelCapabilityRegistry.of(ImageModels.animeDiffusionV45Curated),
+        currentScale: v45.defaultScale,
+        currentSteps: v45.defaultSteps,
+        currentNoiseSchedule: NoiseSchedules.karras,
+        currentVarietyPlus: false,
+      );
+
+      expect(followUps.isEmpty, isTrue);
+    });
+
+    test('does nothing when the defaults are identical', () {
+      final followUps = resolveModelSwitchFollowUps(
+        from: v45,
+        to: v45,
+        currentScale: v45.defaultScale,
+        currentSteps: v45.defaultSteps,
+        currentNoiseSchedule: NoiseSchedules.karras,
+        currentVarietyPlus: false,
+      );
+
+      expect(followUps.isEmpty, isTrue);
+    });
+
+    test('tolerates float noise on the current scale', () {
+      final followUps = resolveModelSwitchFollowUps(
+        from: v45,
+        to: v5,
+        currentScale: v45.defaultScale + 0.0000001,
+        currentSteps: v45.defaultSteps,
+        currentNoiseSchedule: NoiseSchedules.karras,
+        currentVarietyPlus: false,
+      );
+
+      expect(followUps.scale, v5.defaultScale);
+    });
+
+    test('drops a leftover Native schedule when the target hides it', () {
+      final v3 = ModelCapabilityRegistry.of(ImageModels.animeDiffusionV3);
+
+      for (final target in [v45, v5]) {
+        final followUps = resolveModelSwitchFollowUps(
+          from: v3,
+          to: target,
+          currentScale: v3.defaultScale,
+          currentSteps: v3.defaultSteps,
+          currentNoiseSchedule: NoiseSchedules.native,
+          currentVarietyPlus: false,
+        );
+
+        expect(followUps.noiseSchedule, NoiseSchedules.karras);
+      }
+    });
+
+    test('keeps Native when switching between pre-V4 models', () {
+      final v3 = ModelCapabilityRegistry.of(ImageModels.animeDiffusionV3);
+      final followUps = resolveModelSwitchFollowUps(
+        from: v3,
+        to: ModelCapabilityRegistry.of(ImageModels.furryDiffusionV3),
+        currentScale: v3.defaultScale,
+        currentSteps: v3.defaultSteps,
+        currentNoiseSchedule: NoiseSchedules.native,
+        currentVarietyPlus: false,
+      );
+
+      expect(followUps.noiseSchedule, isNull);
+    });
+
+    test('leaves a schedule the target model accepts untouched', () {
+      final followUps = resolveModelSwitchFollowUps(
+        from: v45,
+        to: v5,
+        currentScale: v45.defaultScale,
+        currentSteps: v45.defaultSteps,
+        currentNoiseSchedule: NoiseSchedules.exponential,
+        currentVarietyPlus: false,
+      );
+
+      expect(followUps.noiseSchedule, isNull);
+    });
+
+    test('turns Variety+ off when switching to V5', () {
+      final followUps = resolveModelSwitchFollowUps(
+        from: v45,
+        to: v5,
+        currentScale: v45.defaultScale,
+        currentSteps: v45.defaultSteps,
+        currentNoiseSchedule: NoiseSchedules.karras,
+        currentVarietyPlus: true,
+      );
+
+      expect(followUps.varietyPlus, isFalse);
+    });
+
+    test('keeps Variety+ on when the target model recommends it', () {
+      final followUps = resolveModelSwitchFollowUps(
+        from: v4,
+        to: v45,
+        currentScale: v4.defaultScale,
+        currentSteps: v4.defaultSteps,
+        currentNoiseSchedule: NoiseSchedules.karras,
+        currentVarietyPlus: true,
+      );
+
+      expect(followUps.varietyPlus, isNull);
+    });
+
+    test('does not report a Variety+ change when it is already off', () {
+      final followUps = resolveModelSwitchFollowUps(
+        from: v45,
+        to: v5,
+        currentScale: v45.defaultScale,
+        currentSteps: v45.defaultSteps,
+        currentNoiseSchedule: NoiseSchedules.karras,
+        currentVarietyPlus: false,
+      );
+
+      expect(followUps.varietyPlus, isNull);
+    });
+  });
+}

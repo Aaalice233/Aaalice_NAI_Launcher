@@ -42,6 +42,14 @@ class PendingPromptState with _$PendingPromptState {
 
     /// 发送目标类型（词库条目使用）
     SendTargetType? targetType,
+
+    /// 原样填充：跳过 SD→NAI 语法转换与格式化。
+    ///
+    /// 偏离上游：上游没有这个字段，消费端一律
+    /// `NaiPromptFormatter.format(SdToNaiConverter.convert(...))`。但 AI TAG
+    /// 这类来源的提示词本身已经是 NAI 原生语法，再转一次会把自然语言描述压成
+    /// 下划线串、并把 `[...]` 降权改写坏。置 true 时主提示词与负面提示词原样落地。
+    @Default(false) bool raw,
   }) = _PendingPromptState;
 }
 
@@ -65,17 +73,20 @@ class PendingPromptNotifier extends _$PendingPromptNotifier {
   /// [negativePrompt] 负向提示词
   /// [clearOnConsume] 消费后是否自动清空（默认 true）
   /// [targetType] 发送目标类型（可选）
+  /// [raw] 原样填充，跳过 SD→NAI 转换与格式化（可选，偏离上游的定制）
   void set({
     String? prompt,
     String? negativePrompt,
     bool clearOnConsume = true,
     SendTargetType? targetType,
+    bool raw = false,
   }) {
     state = PendingPromptState(
       prompt: prompt,
       negativePrompt: negativePrompt,
       clearOnConsume: clearOnConsume,
       targetType: targetType,
+      raw: raw,
     );
   }
 

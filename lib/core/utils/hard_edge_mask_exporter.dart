@@ -25,6 +25,18 @@ class HardEdgeMaskExportInput {
   final List<HardEdgeMaskOperation> orderedOperations;
 }
 
+class HardEdgeMaskRaster {
+  const HardEdgeMaskRaster({
+    required this.mask,
+    required this.width,
+    required this.height,
+  });
+
+  final Uint8List mask;
+  final int width;
+  final int height;
+}
+
 class HardEdgeMaskStroke {
   const HardEdgeMaskStroke({
     required this.points,
@@ -54,25 +66,19 @@ abstract class HardEdgeMaskOperation {
 }
 
 class HardEdgeMaskBaseImageOperation extends HardEdgeMaskOperation {
-  const HardEdgeMaskBaseImageOperation({
-    required this.baseMask,
-  });
+  const HardEdgeMaskBaseImageOperation({required this.baseMask});
 
   final HardEdgeMaskBaseImage baseMask;
 }
 
 class HardEdgeMaskStrokeOperation extends HardEdgeMaskOperation {
-  const HardEdgeMaskStrokeOperation({
-    required this.stroke,
-  });
+  const HardEdgeMaskStrokeOperation({required this.stroke});
 
   final HardEdgeMaskStroke stroke;
 }
 
 class HardEdgeMaskRectOperation extends HardEdgeMaskOperation {
-  const HardEdgeMaskRectOperation({
-    required this.rect,
-  });
+  const HardEdgeMaskRectOperation({required this.rect});
 
   final Rect rect;
 }
@@ -86,7 +92,22 @@ class HardEdgeMaskExporter {
     return Isolate.run(() => export(input));
   }
 
+  static Future<HardEdgeMaskRaster> exportRasterAsync(
+    HardEdgeMaskExportInput input,
+  ) {
+    return Isolate.run(() => exportRaster(input));
+  }
+
   static Uint8List export(HardEdgeMaskExportInput input) {
+    final raster = exportRaster(input);
+    return InpaintMaskUtils.encodeBinaryMask(
+      raster.mask,
+      raster.width,
+      raster.height,
+    );
+  }
+
+  static HardEdgeMaskRaster exportRaster(HardEdgeMaskExportInput input) {
     if (input.width <= 0 || input.height <= 0) {
       throw ArgumentError('Mask dimensions must be positive.');
     }
@@ -115,15 +136,21 @@ class HardEdgeMaskExporter {
       _fillRect(mask, rect);
     }
 
-    return InpaintMaskUtils.normalizeMaskBytes(
-      Uint8List.fromList(img.encodePng(mask)),
+    final binaryMask = Uint8List(input.width * input.height);
+    var index = 0;
+    for (var y = 0; y < input.height; y++) {
+      for (var x = 0; x < input.width; x++) {
+        binaryMask[index++] = mask.getPixel(x, y).r.toInt() > 0 ? 1 : 0;
+      }
+    }
+    return HardEdgeMaskRaster(
+      mask: binaryMask,
+      width: input.width,
+      height: input.height,
     );
   }
 
-  static void _applyOperation(
-    img.Image mask,
-    HardEdgeMaskOperation operation,
-  ) {
+  static void _applyOperation(img.Image mask, HardEdgeMaskOperation operation) {
     if (operation is HardEdgeMaskBaseImageOperation) {
       _pasteBaseMask(mask, operation.baseMask);
       return;
@@ -140,10 +167,7 @@ class HardEdgeMaskExporter {
     throw ArgumentError('Unsupported hard-edge mask operation: $operation');
   }
 
-  static void _pasteBaseMask(
-    img.Image mask,
-    HardEdgeMaskBaseImage baseMask,
-  ) {
+  static void _pasteBaseMask(img.Image mask, HardEdgeMaskBaseImage baseMask) {
     final source = img.decodeImage(baseMask.bytes);
     if (source == null) {
       return;
@@ -237,14 +261,7 @@ class HardEdgeMaskExporter {
         (control.dy + next.dy) / 2,
       );
 
-      _drawQuadraticSegment(
-        mask,
-        current,
-        control,
-        end,
-        size,
-        masked: masked,
-      );
+      _drawQuadraticSegment(mask, current, control, end, size, masked: masked);
       current = end;
     }
 
@@ -328,8 +345,10 @@ class HardEdgeMaskExporter {
     final left = (center.dx - radius).floor().clamp(0, mask.width - 1).toInt();
     final top = (center.dy - radius).floor().clamp(0, mask.height - 1).toInt();
     final right = (center.dx + radius).ceil().clamp(0, mask.width - 1).toInt();
-    final bottom =
-        (center.dy + radius).ceil().clamp(0, mask.height - 1).toInt();
+    final bottom = (center.dy + radius)
+        .ceil()
+        .clamp(0, mask.height - 1)
+        .toInt();
 
     for (var y = top; y <= bottom; y++) {
       for (var x = left; x <= right; x++) {

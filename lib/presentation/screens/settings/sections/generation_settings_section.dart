@@ -1,31 +1,506 @@
+import 'package:nai_launcher/presentation/widgets/common/horizontal_action_strip.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/constants/storage_keys.dart';
+import '../../../../core/storage/local_storage_service.dart';
+import '../../../../core/utils/app_logger.dart';
 import '../../../../core/utils/localization_extension.dart';
+import '../../../providers/generation/generation_params_notifier.dart';
 import '../../../providers/generation/generation_settings_notifiers.dart';
+import '../../../providers/notification_settings_provider.dart';
+import '../../../themes/core/input_surface_style.dart';
+import '../../../widgets/common/app_toast.dart';
+import '../../../widgets/common/themed_input.dart';
 import '../widgets/settings_card.dart';
+import '../widgets/settings_page_layout.dart';
+
+/// 构建标准输入框装饰（自原队列设置迁入）
+InputDecoration _buildSettingsInputDecoration(
+  ThemeData theme, {
+  String? labelText,
+  String? hintText,
+}) {
+  return InputDecoration(
+    labelText: labelText,
+    hintText: hintText,
+    isDense: true,
+    filled: true,
+    fillColor: inputSurfaceFillColor(theme.colorScheme),
+    contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+    border: inputSurfaceBorder(theme.colorScheme, BorderRadius.circular(8)),
+    enabledBorder: inputSurfaceBorder(
+      theme.colorScheme,
+      BorderRadius.circular(8),
+    ),
+    focusedBorder: inputSurfaceBorder(
+      theme.colorScheme,
+      BorderRadius.circular(8),
+      focused: true,
+    ),
+  );
+}
+
+/// 构建标准滑条主题（自原队列设置迁入）
+SliderThemeData _buildSettingsSliderTheme(BuildContext context) {
+  return SliderTheme.of(context).copyWith(
+    trackHeight: 4,
+    thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 8),
+    overlayShape: const RoundSliderOverlayShape(overlayRadius: 16),
+  );
+}
 
 /// 生成设置板块
 ///
-/// 放置直接影响生成页操作入口的设置。
-class GenerationSettingsSection extends ConsumerWidget {
+/// 按生成任务流组织：输入行为 → 图像输出 → 失败重试 → 完成提醒。
+class GenerationSettingsSection extends ConsumerStatefulWidget {
   const GenerationSettingsSection({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<GenerationSettingsSection> createState() =>
+      _GenerationSettingsSectionState();
+}
+
+class _GenerationSettingsSectionState
+    extends ConsumerState<GenerationSettingsSection> {
+  late final TextEditingController _retryCountController;
+  late final TextEditingController _retryIntervalController;
+
+  @override
+  void initState() {
+    super.initState();
+    _retryCountController = TextEditingController();
+    _retryIntervalController = TextEditingController();
+  }
+
+  @override
+  void dispose() {
+    _retryCountController.dispose();
+    _retryIntervalController.dispose();
+    super.dispose();
+  }
+
+  void _updateRetryCount(int value) async {
+    final storage = ref.read(localStorageServiceProvider);
+    final clampedValue = value.clamp(1, 30);
+    await storage.setSetting(StorageKeys.queueRetryCount, clampedValue);
+    ref.invalidate(localStorageServiceProvider);
+  }
+
+  void _updateRetryInterval(double value) async {
+    final storage = ref.read(localStorageServiceProvider);
+    final clampedValue = value.clamp(0.5, 10.0);
+    await storage.setSetting(StorageKeys.queueRetryInterval, clampedValue);
+    ref.invalidate(localStorageServiceProvider);
+  }
+
+  Future<void> _selectCustomSound(NotificationSettingsNotifier notifier) async {
+    try {
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['mp3', 'wav', 'ogg', 'm4a'],
+      );
+      final selectedPath = result?.files.single.path;
+      if (selectedPath != null) {
+        await notifier.setCustomSoundPath(selectedPath);
+      }
+    } catch (error, stackTrace) {
+      AppLogger.e(
+        'Failed to import custom notification sound',
+        error,
+        stackTrace,
+        'GenerationSettings',
+      );
+      if (mounted) {
+        AppToast.error(
+          context,
+          context.l10n.settings_notificationSoundImportFailed,
+        );
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     final l10n = context.l10n;
     final showRandomTools = ref.watch(randomPromptToolsVisibilityProvider);
+    final promptWeightScrollEnabled = ref.watch(
+      promptWeightScrollSettingsProvider,
+    );
+    final straightAlpha = ref.watch(
+      generationParamsNotifierProvider.select((params) => params.straightAlpha),
+    );
+    final streamPreviewEnabled = ref.watch(
+      generationStreamPreviewSettingsProvider,
+    );
+    final storage = ref.watch(localStorageServiceProvider);
+    final notificationSettings = ref.watch(
+      notificationSettingsNotifierProvider,
+    );
+    final notificationNotifier = ref.read(
+      notificationSettingsNotifierProvider.notifier,
+    );
 
-    return SettingsCard(
+    final retryCount =
+        storage.getSetting<int>(
+          StorageKeys.queueRetryCount,
+          defaultValue: 10,
+        ) ??
+        10;
+    final retryInterval =
+        storage.getSetting<double>(
+          StorageKeys.queueRetryInterval,
+          defaultValue: 1.0,
+        ) ??
+        1.0;
+
+    if (_retryCountController.text != '$retryCount') {
+      _retryCountController.text = '$retryCount';
+    }
+    if (_retryIntervalController.text != retryInterval.toStringAsFixed(1)) {
+      _retryIntervalController.text = retryInterval.toStringAsFixed(1);
+    }
+
+    return SettingsPageLayout(
       title: l10n.settings_generation,
-      icon: Icons.tune_outlined,
-      child: SwitchListTile(
-        secondary: const Icon(Icons.casino_outlined),
-        title: Text(l10n.settings_showRandomPromptTools),
-        subtitle: Text(l10n.settings_showRandomPromptToolsSubtitle),
-        value: showRandomTools,
-        onChanged: (value) {
-          ref.read(randomPromptToolsVisibilityProvider.notifier).set(value);
+      children: [
+        SettingsCard(
+          title: l10n.settings_generationInputSection,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              SwitchListTile(
+                secondary: const Icon(Icons.casino_outlined),
+                title: Text(l10n.settings_showRandomPromptTools),
+                subtitle: Text(l10n.settings_showRandomPromptToolsSubtitle),
+                value: showRandomTools,
+                onChanged: (value) {
+                  ref
+                      .read(randomPromptToolsVisibilityProvider.notifier)
+                      .set(value);
+                },
+              ),
+              SwitchListTile(
+                secondary: const Icon(Icons.mouse_outlined),
+                title: Text(l10n.settings_enablePromptWeightScroll),
+                subtitle: Text(l10n.settings_enablePromptWeightScrollSubtitle),
+                value: promptWeightScrollEnabled,
+                onChanged: (value) async {
+                  final messenger = ScaffoldMessenger.maybeOf(context);
+                  try {
+                    await ref
+                        .read(promptWeightScrollSettingsProvider.notifier)
+                        .set(value);
+                  } catch (error) {
+                    messenger?.showSnackBar(
+                      SnackBar(
+                        content: Text(l10n.globalSettings_saveFailed('$error')),
+                      ),
+                    );
+                  }
+                },
+              ),
+            ],
+          ),
+        ),
+        SettingsCard(
+          title: l10n.settings_generationOutputSection,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              SwitchListTile(
+                secondary: const Icon(Icons.preview_outlined),
+                title: Text(l10n.settings_generationStreamPreview),
+                subtitle: Text(l10n.settings_generationStreamPreviewSubtitle),
+                value: streamPreviewEnabled,
+                onChanged: (value) async {
+                  final messenger = ScaffoldMessenger.maybeOf(context);
+                  try {
+                    await ref
+                        .read(generationStreamPreviewSettingsProvider.notifier)
+                        .set(value);
+                  } catch (error) {
+                    messenger?.showSnackBar(
+                      SnackBar(
+                        content: Text(l10n.globalSettings_saveFailed('$error')),
+                      ),
+                    );
+                  }
+                },
+              ),
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  final selector = SegmentedButton<bool>(
+                    key: const Key('settings-alpha-mode-selector'),
+                    segments: [
+                      ButtonSegment<bool>(
+                        value: true,
+                        label: Text(l10n.settings_alphaModeStraight),
+                      ),
+                      ButtonSegment<bool>(
+                        value: false,
+                        label: Text(l10n.settings_alphaModePremultiplied),
+                      ),
+                    ],
+                    selected: {straightAlpha},
+                    showSelectedIcon: false,
+                    onSelectionChanged: (selection) {
+                      ref
+                          .read(generationParamsNotifierProvider.notifier)
+                          .updateStraightAlpha(selection.single);
+                    },
+                  );
+                  final showInline =
+                      constraints.maxWidth >= 680 &&
+                      MediaQuery.textScalerOf(context).scale(1) <= 1.6;
+                  final tile = ListTile(
+                    leading: const Icon(Icons.layers_outlined),
+                    title: Text(l10n.settings_alphaModeTitle),
+                    subtitle: Text(
+                      straightAlpha
+                          ? l10n.settings_alphaModeStraightDescription
+                          : l10n.settings_alphaModePremultipliedDescription,
+                    ),
+                    trailing: showInline ? selector : null,
+                  );
+
+                  if (showInline) {
+                    return tile;
+                  }
+                  return Column(
+                    children: [
+                      tile,
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                        child: Align(
+                          alignment: Alignment.centerRight,
+                          child: HorizontalActionStrip(child: selector),
+                        ),
+                      ),
+                    ],
+                  );
+                },
+              ),
+            ],
+          ),
+        ),
+        SettingsCard(
+          title: l10n.settings_generationRetrySection,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _buildRetrySliderRow(
+                theme: theme,
+                label: l10n.settings_queueRetryCount,
+                valueLabel: l10n.settings_queueRetryCountMax(
+                  retryCount.toString(),
+                ),
+                value: retryCount.toDouble(),
+                min: 1,
+                max: 30,
+                unit: l10n.unit_times,
+                controller: _retryCountController,
+                onDecrease: retryCount > 1
+                    ? () => _updateRetryCount(retryCount - 1)
+                    : null,
+                onIncrease: retryCount < 30
+                    ? () => _updateRetryCount(retryCount + 1)
+                    : null,
+                onSliderChanged: (value) => _updateRetryCount(value.round()),
+                onSubmitted: (value) {
+                  final parsed = int.tryParse(value);
+                  if (parsed != null) {
+                    _updateRetryCount(parsed);
+                  } else {
+                    _retryCountController.text = '$retryCount';
+                  }
+                },
+              ),
+              _buildRetrySliderRow(
+                theme: theme,
+                label: l10n.settings_queueRetryInterval,
+                valueLabel: l10n.settings_queueRetryIntervalValue(
+                  retryInterval.toStringAsFixed(1),
+                ),
+                value: retryInterval,
+                min: 0.5,
+                max: 10.0,
+                unit: l10n.unit_seconds,
+                controller: _retryIntervalController,
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
+                onDecrease: retryInterval > 0.5
+                    ? () => _updateRetryInterval(retryInterval - 0.5)
+                    : null,
+                onIncrease: retryInterval < 10.0
+                    ? () => _updateRetryInterval(retryInterval + 0.5)
+                    : null,
+                onSliderChanged: (value) =>
+                    _updateRetryInterval((value * 2).round() / 2),
+                onSubmitted: (value) {
+                  final parsed = double.tryParse(value);
+                  if (parsed != null) {
+                    _updateRetryInterval(parsed);
+                  } else {
+                    _retryIntervalController.text = retryInterval
+                        .toStringAsFixed(1);
+                  }
+                },
+              ),
+            ],
+          ),
+        ),
+        SettingsCard(
+          title: l10n.settings_generationFeedbackSection,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              SwitchListTile(
+                secondary: const Icon(Icons.volume_up_outlined),
+                title: Text(l10n.settings_notificationSound),
+                subtitle: Text(l10n.settings_notificationSoundSubtitle),
+                value: notificationSettings.soundEnabled,
+                onChanged: (value) =>
+                    notificationNotifier.setSoundEnabled(value),
+              ),
+              if (notificationSettings.soundEnabled)
+                ListTile(
+                  leading: const Icon(Icons.audiotrack_outlined),
+                  title: Text(l10n.settings_notificationCustomSound),
+                  subtitle: Text(
+                    notificationSettings.customSoundPath != null
+                        ? Uri.file(
+                            notificationSettings.customSoundPath!,
+                          ).pathSegments.last
+                        : l10n.settings_notificationSelectSound,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (notificationSettings.customSoundPath != null)
+                        IconButton(
+                          icon: const Icon(Icons.close, size: 20),
+                          tooltip: l10n.settings_notificationResetSound,
+                          onPressed: () =>
+                              notificationNotifier.setCustomSoundPath(null),
+                        ),
+                      const Icon(Icons.chevron_right),
+                    ],
+                  ),
+                  onTap: () => _selectCustomSound(notificationNotifier),
+                ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildRetrySliderRow({
+    required ThemeData theme,
+    required String label,
+    required String valueLabel,
+    required double value,
+    required double min,
+    required double max,
+    required String unit,
+    required TextEditingController controller,
+    TextInputType keyboardType = TextInputType.number,
+    VoidCallback? onDecrease,
+    VoidCallback? onIncrease,
+    required ValueChanged<double> onSliderChanged,
+    required ValueChanged<String> onSubmitted,
+  }) {
+    final valueEditor = Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        SizedBox(
+          width: 64,
+          child: ThemedInput(
+            controller: controller,
+            keyboardType: keyboardType,
+            textAlign: TextAlign.center,
+            decoration: _buildSettingsInputDecoration(theme),
+            onSubmitted: onSubmitted,
+          ),
+        ),
+        const SizedBox(width: 8),
+        Flexible(child: Text(unit)),
+      ],
+    );
+    final slider = Row(
+      children: [
+        IconButton(
+          icon: const Icon(Icons.remove_circle_outline),
+          visualDensity: VisualDensity.compact,
+          onPressed: onDecrease,
+        ),
+        Expanded(
+          child: SliderTheme(
+            data: _buildSettingsSliderTheme(context),
+            child: Slider(
+              value: value,
+              min: min,
+              max: max,
+              onChanged: onSliderChanged,
+            ),
+          ),
+        ),
+        IconButton(
+          icon: const Icon(Icons.add_circle_outline),
+          visualDensity: VisualDensity.compact,
+          onPressed: onIncrease,
+        ),
+      ],
+    );
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final textScale = MediaQuery.textScalerOf(context).scale(1);
+          final useStackedLayout =
+              constraints.maxWidth < 600 || textScale > 1.6;
+          final labels = Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(label),
+              Text(
+                valueLabel,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.outline,
+                ),
+              ),
+            ],
+          );
+
+          if (useStackedLayout) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                labels,
+                const SizedBox(height: 4),
+                slider,
+                const SizedBox(height: 4),
+                Align(alignment: Alignment.centerRight, child: valueEditor),
+              ],
+            );
+          }
+          return Row(
+            children: [
+              SizedBox(width: 112, child: labels),
+              const SizedBox(width: 8),
+              Expanded(child: slider),
+              const SizedBox(width: 8),
+              valueEditor,
+            ],
+          );
         },
       ),
     );

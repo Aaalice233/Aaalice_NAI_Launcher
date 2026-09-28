@@ -2,12 +2,17 @@ import 'dart:convert';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
+import 'package:synchronized/synchronized.dart';
 
 import '../../core/storage/local_storage_service.dart';
 import '../../core/utils/app_logger.dart';
+import '../../data/models/tag_library/import_plan.dart';
 import '../../data/models/tag_library/tag_library_category.dart';
 import '../../data/models/tag_library/tag_library_entry.dart';
 import 'fixed_tags_provider.dart';
+import '../../data/models/gallery/gallery_tree_drop_slot.dart';
+import '../../data/models/gallery/library_tree_order.dart';
+import '../utils/library_category_counts.dart';
 
 part 'tag_library_page_provider.g.dart';
 
@@ -105,8 +110,9 @@ class TagLibraryPageState {
           selectedCategoryId!,
           ...categories.getDescendantIds(selectedCategoryId!),
         };
-        result =
-            result.where((e) => categoryIds.contains(e.categoryId)).toList();
+        result = result
+            .where((e) => categoryIds.contains(e.categoryId))
+            .toList();
       }
     }
 
@@ -139,18 +145,18 @@ class TagLibraryPageState {
   }
 
   /// 获取指定分类的条目数量
-  int getCategoryEntryCount(String categoryId) {
-    final categoryIds = {
-      categoryId,
-      ...categories.getDescendantIds(categoryId),
-    };
-    return entries.where((e) => categoryIds.contains(e.categoryId)).length;
-  }
+  Map<String, int> get categoryEntryCounts => libraryCategoryCounts({
+    for (final category in categories) category.id: category.parentId,
+  }, entries.map((entry) => entry.categoryId));
+
+  int getCategoryEntryCount(String categoryId) =>
+      categoryEntryCounts[categoryId] ?? 0;
 }
 
 /// 词库页面 Provider
 @Riverpod(keepAlive: true)
 class TagLibraryPageNotifier extends _$TagLibraryPageNotifier {
+  final _categoryMoveLock = Lock();
   late LocalStorageService _storage;
 
   @override
@@ -218,7 +224,7 @@ class TagLibraryPageNotifier extends _$TagLibraryPageNotifier {
   }
 
   /// 保存条目到存储
-  Future<void> _saveEntries() async {
+  Future<void> _saveEntries({bool rethrowError = false}) async {
     try {
       final json = jsonEncode(state.entries.map((e) => e.toJson()).toList());
       await _storage.setTagLibraryEntriesJson(json);
@@ -229,11 +235,12 @@ class TagLibraryPageNotifier extends _$TagLibraryPageNotifier {
         stack,
         'TagLibraryPageProvider',
       );
+      if (rethrowError) rethrow;
     }
   }
 
   /// 保存分类到存储
-  Future<void> _saveCategories() async {
+  Future<void> _saveCategories({bool rethrowError = false}) async {
     try {
       final json = jsonEncode(state.categories.map((e) => e.toJson()).toList());
       await _storage.setTagLibraryCategoriesJson(json);
@@ -244,6 +251,7 @@ class TagLibraryPageNotifier extends _$TagLibraryPageNotifier {
         stack,
         'TagLibraryPageProvider',
       );
+      if (rethrowError) rethrow;
     }
   }
 
@@ -260,6 +268,8 @@ class TagLibraryPageNotifier extends _$TagLibraryPageNotifier {
     List<String>? tags,
     String? categoryId,
     bool isFavorite = false,
+    bool preserveContentWhitespace = false,
+    bool failOnPersistenceError = false,
   }) async {
     final entry = TagLibraryEntry.create(
       name: name,
@@ -272,30 +282,57 @@ class TagLibraryPageNotifier extends _$TagLibraryPageNotifier {
       categoryId: categoryId,
       sortOrder: state.entries.length,
       isFavorite: isFavorite,
+      preserveContentWhitespace: preserveContentWhitespace,
     );
 
-    final newEntries = [...state.entries, entry];
+    final previousEntries = state.entries;
+    final newEntries = [...previousEntries, entry];
     state = state.copyWith(entries: newEntries);
-    await _saveEntries();
+    try {
+      await _saveEntries(rethrowError: failOnPersistenceError);
+    } catch (_) {
+      state = state.copyWith(entries: previousEntries);
+      rethrow;
+    }
 
     AppLogger.d('Added entry: ${entry.displayName}', 'TagLibraryPageProvider');
     return entry;
   }
 
   /// 更新条目（带同步）
-  /// 
+  ///
   /// 【新增】自动同步更新关联的固定词（双向同步）
-  Future<void> updateEntry(TagLibraryEntry updatedEntry) async {
-    await updateEntryWithoutSync(updatedEntry);
-    
+  Future<void> updateEntry(
+    TagLibraryEntry updatedEntry, {
+    bool failOnPersistenceError = false,
+  }) async {
+    // 偏离上游：先记下"修改前的内容"再落库。上游只把新条目交给
+    // syncFromTagLibrary，于是同步只能按 sourceEntryId 匹配，手动创建的固定词
+    // 永远收不到词库改名 / 改内容。把旧内容一起带下去，下游才能按内容认领它们
+    // 并补写关联。注意必须在 updateEntryWithoutSync 之前读，那之后 state 已是新值。
+    final previousIndex = state.entries.indexWhere(
+      (e) => e.id == updatedEntry.id,
+    );
+    final previousContent = previousIndex == -1
+        ? null
+        : state.entries[previousIndex].content;
+
+    await updateEntryWithoutSync(
+      updatedEntry,
+      failOnPersistenceError: failOnPersistenceError,
+    );
+
     // 【新增】同步更新关联的固定词
-    await _syncToFixedTags(updatedEntry);
+    await _syncToFixedTags(updatedEntry, previousContent: previousContent);
   }
-  
+
   /// 【新增】更新条目（不带同步）
-  /// 
+  ///
   /// 用于从固定词反向同步时，避免循环同步
-  Future<void> updateEntryWithoutSync(TagLibraryEntry updatedEntry) async {
+  Future<void> updateEntryWithoutSync(
+    TagLibraryEntry updatedEntry, {
+    bool failOnPersistenceError = false,
+  }) async {
     AppLogger.d(
       'updateEntryWithoutSync called: id=${updatedEntry.id}, name=${updatedEntry.name}',
       'TagLibraryPageProvider',
@@ -315,35 +352,59 @@ class TagLibraryPageNotifier extends _$TagLibraryPageNotifier {
       'TagLibraryPageProvider',
     );
 
-    final newEntries = [...state.entries];
+    final previousEntries = state.entries;
+    final newEntries = [...previousEntries];
     newEntries[index] = updatedEntry;
     state = state.copyWith(entries: newEntries);
-    await _saveEntries();
+    try {
+      await _saveEntries(rethrowError: failOnPersistenceError);
+    } catch (_) {
+      state = state.copyWith(entries: previousEntries);
+      rethrow;
+    }
 
     AppLogger.d(
       'Entry updated successfully: ${updatedEntry.id}',
       'TagLibraryPageProvider',
     );
   }
-  
+
   /// 【新增】同步更新关联的固定词
-  /// 
-  /// 当词库条目更新时，自动更新所有 sourceEntryId 匹配的固定词
-  Future<void> _syncToFixedTags(TagLibraryEntry entry) async {
+  ///
+  /// 当词库条目更新时，自动更新所有 sourceEntryId 匹配的固定词。
+  /// [previousContent] 见 [updateEntry]：用于认领未关联但内容一致的手动固定词。
+  Future<void> _syncToFixedTags(
+    TagLibraryEntry entry, {
+    String? previousContent,
+  }) async {
     try {
       final fixedTagsNotifier = ref.read(fixedTagsNotifierProvider.notifier);
-      await fixedTagsNotifier.syncFromTagLibrary(entry);
+      await fixedTagsNotifier.syncFromTagLibrary(
+        entry,
+        previousContent: previousContent,
+      );
     } catch (e) {
       AppLogger.w('Failed to sync to fixed tags: $e', 'TagLibraryPage');
     }
   }
 
   /// 删除条目
-  Future<void> deleteEntry(String entryId) async {
-    final newEntries =
-        state.entries.where((e) => e.id != entryId).toList().reindex();
+  Future<void> deleteEntry(
+    String entryId, {
+    bool failOnPersistenceError = false,
+  }) async {
+    final previousEntries = state.entries;
+    final newEntries = previousEntries
+        .where((entry) => entry.id != entryId)
+        .toList()
+        .reindex();
     state = state.copyWith(entries: newEntries);
-    await _saveEntries();
+    try {
+      await _saveEntries(rethrowError: failOnPersistenceError);
+    } catch (_) {
+      state = state.copyWith(entries: previousEntries);
+      rethrow;
+    }
   }
 
   /// 切换收藏状态
@@ -384,8 +445,10 @@ class TagLibraryPageNotifier extends _$TagLibraryPageNotifier {
 
   /// 批量删除条目
   Future<void> deleteEntries(List<String> entryIds) async {
-    final newEntries =
-        state.entries.where((e) => !entryIds.contains(e.id)).toList().reindex();
+    final newEntries = state.entries
+        .where((e) => !entryIds.contains(e.id))
+        .toList()
+        .reindex();
     state = state.copyWith(entries: newEntries);
     await _saveEntries();
   }
@@ -393,9 +456,9 @@ class TagLibraryPageNotifier extends _$TagLibraryPageNotifier {
   /// 根据ID获取条目
   TagLibraryEntry? getEntry(String entryId) {
     return state.entries.cast<TagLibraryEntry?>().firstWhere(
-          (e) => e?.id == entryId,
-          orElse: () => null,
-        );
+      (e) => e?.id == entryId,
+      orElse: () => null,
+    );
   }
 
   // ==================== 分类操作 ====================
@@ -443,8 +506,9 @@ class TagLibraryPageNotifier extends _$TagLibraryPageNotifier {
 
   /// 更新分类
   Future<void> updateCategory(TagLibraryCategory updatedCategory) async {
-    final index =
-        state.categories.indexWhere((c) => c.id == updatedCategory.id);
+    final index = state.categories.indexWhere(
+      (c) => c.id == updatedCategory.id,
+    );
     if (index == -1) return;
 
     final newCategories = [...state.categories];
@@ -479,7 +543,8 @@ class TagLibraryPageNotifier extends _$TagLibraryPageNotifier {
     state = state.copyWith(
       categories: newCategories,
       entries: newEntries,
-      clearSelectedCategory: state.selectedCategoryId != null &&
+      clearSelectedCategory:
+          state.selectedCategoryId != null &&
           categoryIds.contains(state.selectedCategoryId),
     );
 
@@ -526,49 +591,36 @@ class TagLibraryPageNotifier extends _$TagLibraryPageNotifier {
     await _saveCategories();
   }
 
-  /// 分类同级重排序
-  Future<void> reorderCategories(
-    String? parentId,
-    int oldIndex,
-    int newIndex,
-  ) async {
-    // 获取同父级的分类
-    final siblings = state.categories
-        .where((c) => c.parentId == parentId)
-        .toList()
-        .sortedByOrder();
-
-    if (oldIndex < 0 ||
-        oldIndex >= siblings.length ||
-        newIndex < 0 ||
-        newIndex >= siblings.length) {
-      return;
-    }
-
-    // 执行移动
-    final movedCategory = siblings.removeAt(oldIndex);
-    siblings.insert(newIndex, movedCategory);
-
-    // 更新 sortOrder
-    final updatedSiblings = siblings
-        .asMap()
-        .entries
-        .map((e) => e.value.copyWith(sortOrder: e.key))
-        .toList();
-
-    // 合并到完整分类列表
-    final otherCategories =
-        state.categories.where((c) => c.parentId != parentId).toList();
-
-    state =
-        state.copyWith(categories: [...otherCategories, ...updatedSiblings]);
-    await _saveCategories();
-
-    AppLogger.d(
-      'Reordered categories in parent $parentId: $oldIndex -> $newIndex',
-      'TagLibraryPageProvider',
+  Future<bool> moveCategoryToSlot(
+    String categoryId,
+    String? targetId,
+    GalleryTreeDropSlot slot, {
+    Map<String, int>? displayOrder,
+  }) => _categoryMoveLock.synchronized(() async {
+    final working = applyLibraryDisplayOrder(
+      state.categories,
+      displayOrder,
+      idOf: (c) => c.id,
+      withOrder: (c, order) => c.copyWith(sortOrder: order),
     );
-  }
+    final updated = moveLibraryTreeItem(
+      working,
+      sourceId: categoryId,
+      targetId: targetId,
+      slot: slot,
+      idOf: (c) => c.id,
+      parentOf: (c) => c.parentId,
+      orderOf: (c) => c.sortOrder,
+      withPlacement: (c, parent, order) =>
+          c.copyWith(parentId: parent, sortOrder: order),
+    );
+    if (updated == null) return false;
+    await _storage.setTagLibraryCategoriesJson(
+      jsonEncode(updated.map((c) => c.toJson()).toList()),
+    );
+    state = state.copyWith(categories: updated);
+    return true;
+  });
 
   /// 词条重排序（在当前筛选视图内）
   Future<void> reorderEntries(int oldIndex, int newIndex) async {
@@ -660,120 +712,183 @@ class TagLibraryPageNotifier extends _$TagLibraryPageNotifier {
 
   // ==================== 导入导出 ====================
 
-  /// 批量导入条目
-  ///
-  /// [entries] 要导入的条目列表
-  /// [categoryIdMapping] 分类ID映射（旧ID -> 新ID）
-  /// [keepIds] 是否保留原始ID（用于替换场景）
-  /// [nameSuffix] 名称后缀（用于重命名场景）
-  /// [updatedEntries] 更新缩略图路径后的条目映射（原始ID -> 更新后的条目）
-  Future<int> importEntries(
-    List<TagLibraryEntry> entries, {
-    Map<String, String>? categoryIdMapping,
-    bool keepIds = false,
-    String? nameSuffix,
-    Map<String, TagLibraryEntry>? updatedEntries,
+  /// 按导入计划应用：先删除被覆盖项，再写入计划确定的目标身份，最后统一持久化
+  Future<TagLibraryImportApplyResult> applyImportPlan(
+    TagLibraryImportPlan plan, {
+    Map<String, TagLibraryEntry> importedEntries = const {},
   }) async {
-    final newEntries = <TagLibraryEntry>[];
-    var startSortOrder = state.entries.length;
+    final previousState = state;
+    final removedCategoryIds = _replacedCategoryIds(plan);
+    final removedEntryIds = <String>{
+      for (final item in plan.entries)
+        if (item.replacedEntryId != null) item.replacedEntryId!,
+    };
 
-    for (final entry in entries) {
-      String? mappedCategoryId;
-      if (entry.categoryId != null && categoryIdMapping != null) {
-        mappedCategoryId = categoryIdMapping[entry.categoryId];
-      }
+    final keptCategories = _categoriesWithout(removedCategoryIds);
+    final keptEntries = _entriesWithout(removedEntryIds, removedCategoryIds);
+    final categories = _importedCategories(plan, keptCategories);
+    final entries = _importedEntries(
+      plan,
+      keptEntries,
+      categoryIds: {
+        ...keptCategories.map((c) => c.id),
+        ...categories.inserted.map((c) => c.id),
+      },
+      importedEntries: importedEntries,
+    );
 
-      final newName = nameSuffix != null && nameSuffix.isNotEmpty
-          ? '${entry.name}$nameSuffix'
-          : entry.name;
-
-      // 使用更新后的条目数据（包含正确的缩略图路径）
-      final sourceEntry = updatedEntries?[entry.id] ?? entry;
-
-      if (keepIds) {
-        // 保留原始ID（替换场景）
-        newEntries.add(
-          sourceEntry.copyWith(
-            name: newName,
-            categoryId: mappedCategoryId ?? entry.categoryId,
-            sortOrder: startSortOrder++,
-            updatedAt: DateTime.now(),
-          ),
-        );
-      } else {
-        // 创建新ID（正常导入场景）
-        newEntries.add(
-          TagLibraryEntry.create(
-            name: newName,
-            content: sourceEntry.content,
-            thumbnail: sourceEntry.thumbnail,
-            tags: sourceEntry.tags,
-            categoryId: mappedCategoryId ?? entry.categoryId,
-            sortOrder: startSortOrder++,
-            isFavorite: sourceEntry.isFavorite,
-          ),
-        );
-      }
+    state = state.copyWith(
+      categories: [...keptCategories, ...categories.inserted],
+      entries: [...keptEntries, ...entries.inserted],
+      clearSelectedCategory: removedCategoryIds.contains(
+        previousState.selectedCategoryId,
+      ),
+    );
+    try {
+      await _saveCategories(rethrowError: true);
+      await _saveEntries(rethrowError: true);
+    } catch (_) {
+      state = previousState;
+      await _saveCategories();
+      await _saveEntries();
+      rethrow;
     }
 
-    state = state.copyWith(entries: [...state.entries, ...newEntries]);
-    await _saveEntries();
-
-    return newEntries.length;
+    return TagLibraryImportApplyResult(
+      appliedCategoryIds: categories.inserted.map((c) => c.id).toList(),
+      appliedEntryIds: entries.inserted.map((e) => e.id).toList(),
+      rejected: [...categories.rejected, ...entries.rejected],
+    );
   }
 
-  /// 批量导入分类
-  ///
-  /// [categories] 要导入的分类列表
-  /// [keepIds] 是否保留原始ID（用于替换场景）
-  /// [nameSuffix] 名称后缀（用于重命名场景）
-  Future<Map<String, String>> importCategories(
-    List<TagLibraryCategory> categories, {
-    bool keepIds = false,
-    String? nameSuffix,
-  }) async {
-    // 返回旧ID到新ID的映射
-    final idMapping = <String, String>{};
-    final newCategories = <TagLibraryCategory>[];
-    var startSortOrder = state.categories.length;
+  Set<String> _replacedCategoryIds(TagLibraryImportPlan plan) {
+    final ids = <String>{};
+    for (final item in plan.categories) {
+      final replaced = item.replacedCategoryId;
+      if (replaced == null) continue;
+      ids
+        ..add(replaced)
+        ..addAll(state.categories.getDescendantIds(replaced));
+    }
+    return ids;
+  }
 
-    for (final category in categories) {
-      final newName = nameSuffix != null && nameSuffix.isNotEmpty
-          ? '${category.name}$nameSuffix'
-          : category.name;
+  List<TagLibraryCategory> _categoriesWithout(Set<String> removedIds) =>
+      removedIds.isEmpty
+      ? state.categories
+      : state.categories
+            .where((c) => !removedIds.contains(c.id))
+            .toList()
+            .reindex();
 
-      if (keepIds) {
-        // 保留原始ID（替换场景）
-        final parentId = category.parentId != null
-            ? idMapping[category.parentId]
-            : null;
-        newCategories.add(
-          category.copyWith(
-            name: newName,
-            parentId: parentId,
-            sortOrder: startSortOrder++,
+  List<TagLibraryEntry> _entriesWithout(
+    Set<String> removedIds,
+    Set<String> removedCategoryIds,
+  ) {
+    final orphaned = state.entries
+        .map(
+          (e) => removedCategoryIds.contains(e.categoryId)
+              ? e.copyWith(categoryId: null, updatedAt: DateTime.now())
+              : e,
+        )
+        .toList();
+    if (removedIds.isEmpty) return orphaned;
+    return orphaned.where((e) => !removedIds.contains(e.id)).toList().reindex();
+  }
+
+  _CategoryInserts _importedCategories(
+    TagLibraryImportPlan plan,
+    List<TagLibraryCategory> kept,
+  ) {
+    final takenIds = kept.map((c) => c.id).toSet();
+    final rejected = <TagLibraryImportRejection>[];
+    final inserted = <TagLibraryCategory>[];
+    var sortOrder = kept.length;
+
+    for (final item in plan.categories) {
+      final targetId = item.targetId;
+      if (!item.isApplied || targetId == null) continue;
+      if (!takenIds.add(targetId)) {
+        rejected.add(
+          TagLibraryImportRejection(
+            kind: TagLibraryImportItemKind.category,
+            sourceId: item.source.id,
+            targetId: targetId,
           ),
         );
-        idMapping[category.id] = category.id;
-      } else {
-        // 创建新ID（正常导入场景）
-        final newCategory = TagLibraryCategory.create(
-          name: newName,
-          parentId:
-              category.parentId != null ? idMapping[category.parentId] : null,
-          sortOrder: startSortOrder++,
-        );
-        idMapping[category.id] = newCategory.id;
-        newCategories.add(newCategory);
+        continue;
       }
+      inserted.add(
+        TagLibraryCategory(
+          id: targetId,
+          name: item.targetName,
+          parentId: item.targetParentId,
+          sortOrder: sortOrder++,
+          createdAt: item.source.createdAt,
+        ),
+      );
     }
 
-    state = state.copyWith(categories: [...state.categories, ...newCategories]);
-    await _saveCategories();
+    return (
+      inserted: [
+        for (final category in inserted)
+          category.parentId == null || takenIds.contains(category.parentId)
+              ? category
+              : category.copyWith(parentId: null),
+      ],
+      rejected: rejected,
+    );
+  }
 
-    return idMapping;
+  _EntryInserts _importedEntries(
+    TagLibraryImportPlan plan,
+    List<TagLibraryEntry> kept, {
+    required Set<String> categoryIds,
+    required Map<String, TagLibraryEntry> importedEntries,
+  }) {
+    final takenIds = kept.map((e) => e.id).toSet();
+    final rejected = <TagLibraryImportRejection>[];
+    final inserted = <TagLibraryEntry>[];
+    var sortOrder = kept.length;
+
+    for (final item in plan.entries) {
+      final targetId = item.targetId;
+      if (!item.isApplied || targetId == null) continue;
+      if (!takenIds.add(targetId)) {
+        rejected.add(
+          TagLibraryImportRejection(
+            kind: TagLibraryImportItemKind.entry,
+            sourceId: item.source.id,
+            targetId: targetId,
+          ),
+        );
+        continue;
+      }
+      final categoryId = item.targetCategoryId;
+      inserted.add(
+        (importedEntries[item.source.id] ?? item.source).copyWith(
+          id: targetId,
+          name: item.targetName,
+          categoryId: categoryIds.contains(categoryId) ? categoryId : null,
+          sortOrder: sortOrder++,
+          updatedAt: DateTime.now(),
+        ),
+      );
+    }
+
+    return (inserted: inserted, rejected: rejected);
   }
 }
+
+typedef _CategoryInserts = ({
+  List<TagLibraryCategory> inserted,
+  List<TagLibraryImportRejection> rejected,
+});
+
+typedef _EntryInserts = ({
+  List<TagLibraryEntry> inserted,
+  List<TagLibraryImportRejection> rejected,
+});
 
 // ==================== 便捷 Providers ====================
 

@@ -1,0 +1,238 @@
+import 'dart:convert';
+import 'dart:io';
+
+import 'package:crypto/crypto.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:sqlite3/sqlite3.dart';
+
+import '../../../tool/tag_catalog/build_tag_catalog.dart' as builder;
+
+void main() {
+  late Directory temp;
+
+  setUp(() async {
+    temp = await Directory.systemTemp.createTemp('tag_catalog_builder_test_');
+  });
+
+  tearDown(() async {
+    if (await temp.exists()) await temp.delete(recursive: true);
+  });
+
+  test(
+    'imports the complete merged catalog and deduplicates aliases',
+    () async {
+      final input = File('${temp.path}/tags.csv');
+      await input.writeAsString(
+        [
+          'tag_name,category,post_count,aliases',
+          'blue_eyes,0,100,"aqua_eyes,aqua_eyes,blue_eyes"',
+          'artist_name,1,20,"artist_alias"',
+          'e621_only,7,999,"furry_alias"',
+          'e621_species,12,500,"species_alias"',
+          'e621_lore,15,100,"lore_alias"',
+          'invalid_category,nope,10,"alias"',
+          ',0,10,"empty"',
+          'bad,0,not_a_number,""',
+        ].join('\n'),
+      );
+      final hash = await sha256.bind(input.openRead()).first;
+      final translations = File('${temp.path}/translations.json');
+      await translations.writeAsString(
+        jsonEncode({
+          'schemaVersion': 1,
+          'ffdkjBaseline': {'blobSha': 'baseline-sha'},
+          'entries': [
+            {'tag': 'missing_quality', 'zhCn': '缺失质量词', 'mode': 'missing'},
+            {'tag': 'extra', 'zhCn': '额外', 'mode': 'override'},
+          ],
+        }),
+      );
+      final translationHash = await sha256.bind(translations.openRead()).first;
+      final dataVersion = _dataVersion(hash, translationHash);
+      final lock = File('${temp.path}/lock.json');
+      await lock.writeAsString(
+        jsonEncode({
+          'commit': '1234567890abcdef',
+          'dataVersion': dataVersion,
+          'url': 'https://example.invalid/tags.csv',
+          'sha256': hash.toString(),
+          'expectedTagCount': 5,
+          'expectedAliasCount': 5,
+          'translations': {
+            'sha256': translationHash.toString(),
+            'expectedCount': 2,
+            'expectedOverrideCount': 1,
+            'overrideTags': ['extra'],
+            'ffdkjBaselineBlobSha': 'baseline-sha',
+          },
+        }),
+      );
+      final manifest = File('${temp.path}/manifest.json');
+      await manifest.writeAsString(
+        jsonEncode({'databases': <String, dynamic>{}}),
+      );
+      final output = '${temp.path}/catalog.db';
+
+      await builder.main([
+        '--input=${input.path}',
+        '--translation-input=${translations.path}',
+        '--output=$output',
+        '--lock=${lock.path}',
+        '--manifest=${manifest.path}',
+      ]);
+
+      final db = sqlite3.open(output, mode: OpenMode.readOnly);
+      try {
+        expect(
+          db
+              .select('SELECT name FROM tags ORDER BY name')
+              .map((row) => row['name']),
+          [
+            'artist_name',
+            'blue_eyes',
+            'e621_lore',
+            'e621_only',
+            'e621_species',
+          ],
+        );
+        expect(
+          db
+              .select('SELECT alias FROM aliases ORDER BY alias')
+              .map((row) => row['alias']),
+          [
+            'aqua_eyes',
+            'artist_alias',
+            'furry_alias',
+            'lore_alias',
+            'species_alias',
+          ],
+        );
+        expect(
+          db
+              .select('SELECT DISTINCT category FROM tags ORDER BY category')
+              .map((row) => row['category']),
+          [0, 1, 7, 12, 15],
+        );
+        expect(db.select('PRAGMA quick_check').first.values.first, 'ok');
+        expect(
+          db
+              .select(
+                'SELECT tag, zh_cn, mode FROM zh_translations ORDER BY tag',
+              )
+              .map((row) => [row['tag'], row['zh_cn'], row['mode']]),
+          [
+            ['extra', '额外', 1],
+            ['missing_quality', '缺失质量词', 0],
+          ],
+        );
+        expect(
+          db
+              .select("SELECT value FROM metadata WHERE key='source_sha256'")
+              .single['value'],
+          hash.toString(),
+        );
+      } finally {
+        db.dispose();
+      }
+
+      final firstOutputHash = await sha256.bind(File(output).openRead()).first;
+      await builder.main([
+        '--input=${input.path}',
+        '--translation-input=${translations.path}',
+        '--output=$output',
+        '--lock=${lock.path}',
+        '--manifest=${manifest.path}',
+      ]);
+      final secondOutputHash = await sha256.bind(File(output).openRead()).first;
+      expect(secondOutputHash, firstOutputHash);
+    },
+  );
+
+  test('rejects a source whose hash does not match the lock', () async {
+    final input = File('${temp.path}/tags.csv')
+      ..writeAsStringSync('tag,0,1,""');
+    final lock = File('${temp.path}/lock.json')
+      ..writeAsStringSync(
+        jsonEncode({
+          'commit': '1234567890abcdef',
+          'dataVersion': 'fedcba098765',
+          'url': 'https://example.invalid/tags.csv',
+          'sha256': List.filled(64, '0').join(),
+          'translations': {
+            'sha256': List.filled(64, '0').join(),
+            'expectedCount': 0,
+            'expectedOverrideCount': 0,
+            'overrideTags': <String>[],
+            'ffdkjBaselineBlobSha': 'baseline-sha',
+          },
+        }),
+      );
+    final manifest = File('${temp.path}/manifest.json')
+      ..writeAsStringSync(jsonEncode({'databases': <String, dynamic>{}}));
+
+    expect(
+      () => builder.main([
+        '--input=${input.path}',
+        '--output=${temp.path}/catalog.db',
+        '--lock=${lock.path}',
+        '--manifest=${manifest.path}',
+      ]),
+      throwsStateError,
+    );
+  });
+
+  test('rejects duplicate or ambiguous translation rows', () async {
+    final input = File('${temp.path}/tags.csv')
+      ..writeAsStringSync('blue_eyes,0,1,""');
+    final inputHash = await sha256.bind(input.openRead()).first;
+    final translations = File('${temp.path}/translations.json')
+      ..writeAsStringSync(
+        jsonEncode({
+          'schemaVersion': 1,
+          'ffdkjBaseline': {'blobSha': 'baseline-sha'},
+          'entries': [
+            {'tag': 'bad_quality', 'zhCn': '差/低质量', 'mode': 'missing'},
+            {'tag': 'bad_quality', 'zhCn': '差质量', 'mode': 'missing'},
+          ],
+        }),
+      );
+    final translationHash = await sha256.bind(translations.openRead()).first;
+    final dataVersion = _dataVersion(inputHash, translationHash);
+    final lock = File('${temp.path}/lock.json')
+      ..writeAsStringSync(
+        jsonEncode({
+          'commit': '1234567890abcdef',
+          'dataVersion': dataVersion,
+          'url': 'https://example.invalid/tags.csv',
+          'sha256': inputHash.toString(),
+          'expectedTagCount': 1,
+          'expectedAliasCount': 0,
+          'translations': {
+            'sha256': translationHash.toString(),
+            'expectedCount': 2,
+            'expectedOverrideCount': 0,
+            'overrideTags': <String>[],
+            'ffdkjBaselineBlobSha': 'baseline-sha',
+          },
+        }),
+      );
+    final manifest = File('${temp.path}/manifest.json')
+      ..writeAsStringSync(jsonEncode({'databases': <String, dynamic>{}}));
+
+    expect(
+      () => builder.main([
+        '--input=${input.path}',
+        '--translation-input=${translations.path}',
+        '--output=${temp.path}/catalog.db',
+        '--lock=${lock.path}',
+        '--manifest=${manifest.path}',
+      ]),
+      throwsStateError,
+    );
+  });
+}
+
+String _dataVersion(Digest sourceHash, Digest translationHash) => sha256
+    .convert(utf8.encode('$sourceHash:$translationHash'))
+    .toString()
+    .substring(0, 12);

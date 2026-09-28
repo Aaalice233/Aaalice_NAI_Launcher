@@ -1,7 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 
+import '../../../../data/models/prompt/random_category.dart';
 import '../../../../data/models/prompt/tag_scope.dart';
+import '../../../adaptive/interaction_policy.dart';
+import '../../../providers/random_preset_provider.dart';
+import '../../common/themed_input_dialog.dart';
 
 /// 作用域三选项开关
 ///
@@ -91,21 +96,18 @@ class _ScopeTripleSwitchState extends State<ScopeTripleSwitch> {
     final colorScheme = Theme.of(context).colorScheme;
     final l10n = AppLocalizations.of(context)!;
     final currentScope = _scopeOrder[_currentIndex];
-    final currentColor =
-        widget.enabled ? _scopeColors[currentScope]! : colorScheme.outline;
+    final currentColor = widget.enabled
+        ? _scopeColors[currentScope]!
+        : colorScheme.outline;
+    final controlExtent = context.interactionPolicy.minimumControlExtent;
 
     return Opacity(
       opacity: widget.enabled ? 1.0 : 0.6,
       child: Container(
-        height: 32,
+        constraints: BoxConstraints(minHeight: controlExtent),
         decoration: BoxDecoration(
           color: colorScheme.surfaceContainerHighest,
           borderRadius: BorderRadius.circular(8),
-          border: Border.all(
-            color: colorScheme.outline
-                .withValues(alpha: widget.enabled ? 0.1 : 0.05),
-            width: 1,
-          ),
         ),
         child: LayoutBuilder(
           builder: (context, constraints) {
@@ -114,7 +116,9 @@ class _ScopeTripleSwitchState extends State<ScopeTripleSwitch> {
               children: [
                 // 滑动高亮背景
                 AnimatedPositioned(
-                  duration: const Duration(milliseconds: 200),
+                  duration: MediaQuery.disableAnimationsOf(context)
+                      ? Duration.zero
+                      : const Duration(milliseconds: 200),
                   curve: Curves.easeOutCubic,
                   left: _currentIndex * itemWidth + 2,
                   top: 2,
@@ -122,24 +126,8 @@ class _ScopeTripleSwitchState extends State<ScopeTripleSwitch> {
                   width: itemWidth - 4,
                   child: Container(
                     decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                        colors: [
-                          currentColor.withValues(alpha: 0.9),
-                          currentColor.withValues(alpha: 0.7),
-                        ],
-                      ),
+                      color: currentColor.withValues(alpha: 0.18),
                       borderRadius: BorderRadius.circular(6),
-                      boxShadow: widget.enabled
-                          ? [
-                              BoxShadow(
-                                color: currentColor.withValues(alpha: 0.4),
-                                blurRadius: 8,
-                                offset: const Offset(0, 2),
-                              ),
-                            ]
-                          : null,
                     ),
                   ),
                 ),
@@ -156,9 +144,21 @@ class _ScopeTripleSwitchState extends State<ScopeTripleSwitch> {
                         message: tooltip,
                         preferBelow: false,
                         verticalOffset: 20,
-                        child: GestureDetector(
-                          onTap: () => _onTap(index),
-                          behavior: HitTestBehavior.opaque,
+                        child: TextButton(
+                          onPressed: widget.enabled
+                              ? () => _onTap(index)
+                              : null,
+                          style: TextButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(horizontal: 4),
+                            foregroundColor: isSelected
+                                ? currentColor
+                                : colorScheme.onSurfaceVariant,
+                            backgroundColor: Colors.transparent,
+                            minimumSize: Size(0, controlExtent),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                          ),
                           child: Center(
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
@@ -167,7 +167,7 @@ class _ScopeTripleSwitchState extends State<ScopeTripleSwitch> {
                                   icon,
                                   size: 14,
                                   color: isSelected
-                                      ? Colors.white
+                                      ? currentColor
                                       : colorScheme.onSurfaceVariant,
                                 ),
                                 const SizedBox(width: 3),
@@ -177,11 +177,9 @@ class _ScopeTripleSwitchState extends State<ScopeTripleSwitch> {
                                     overflow: TextOverflow.ellipsis,
                                     style: TextStyle(
                                       fontSize: 12,
-                                      fontWeight: isSelected
-                                          ? FontWeight.bold
-                                          : FontWeight.normal,
+                                      fontWeight: FontWeight.w500,
                                       color: isSelected
-                                          ? Colors.white
+                                          ? currentColor
                                           : colorScheme.onSurfaceVariant,
                                     ),
                                   ),
@@ -225,10 +223,12 @@ class ColorfulProbabilitySlider extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    final primaryColor =
-        enabled ? colorScheme.primary : colorScheme.onSurfaceVariant;
-    final secondaryColor =
-        enabled ? colorScheme.secondary : colorScheme.onSurfaceVariant;
+    final primaryColor = enabled
+        ? colorScheme.primary
+        : colorScheme.onSurfaceVariant;
+    final secondaryColor = enabled
+        ? colorScheme.secondary
+        : colorScheme.onSurfaceVariant;
 
     return Row(
       children: [
@@ -236,6 +236,7 @@ class ColorfulProbabilitySlider extends StatelessWidget {
           child: SliderTheme(
             data: SliderThemeData(
               trackHeight: 6,
+              tickMarkShape: SliderTickMarkShape.noTickMark,
               // 隐藏默认轨道，使用自定义背景
               activeTrackColor: Colors.transparent,
               inactiveTrackColor: Colors.transparent,
@@ -335,11 +336,7 @@ class ColorfulProbabilitySlider extends StatelessWidget {
 ///
 /// 放置在词组列表末尾，点击后打开添加词组对话框
 class AddTagGroupCard extends StatefulWidget {
-  const AddTagGroupCard({
-    super.key,
-    required this.onTap,
-    this.enabled = true,
-  });
+  const AddTagGroupCard({super.key, required this.onTap, this.enabled = true});
 
   final VoidCallback onTap;
 
@@ -361,8 +358,9 @@ class _AddTagGroupCardState extends State<AddTagGroupCard> {
     final l10n = AppLocalizations.of(context)!;
 
     return MouseRegion(
-      cursor:
-          isEnabled ? SystemMouseCursors.click : SystemMouseCursors.forbidden,
+      cursor: isEnabled
+          ? SystemMouseCursors.click
+          : SystemMouseCursors.forbidden,
       onEnter: isEnabled ? (_) => setState(() => _isHovered = true) : null,
       onExit: isEnabled ? (_) => setState(() => _isHovered = false) : null,
       child: GestureDetector(
@@ -378,7 +376,9 @@ class _AddTagGroupCardState extends State<AddTagGroupCard> {
                 children: [
                   // 图标
                   AnimatedContainer(
-                    duration: const Duration(milliseconds: 200),
+                    duration: MediaQuery.disableAnimationsOf(context)
+                        ? Duration.zero
+                        : const Duration(milliseconds: 200),
                     padding: const EdgeInsets.all(10),
                     decoration: BoxDecoration(
                       color: (_isHovered && isEnabled)
@@ -420,17 +420,49 @@ class _AddTagGroupCardState extends State<AddTagGroupCard> {
 }
 
 /// 添加类别按钮
-class AddCategoryButton extends StatefulWidget {
+class AddCategoryButton extends ConsumerStatefulWidget {
   const AddCategoryButton({super.key, this.onPressed});
 
   final VoidCallback? onPressed;
 
   @override
-  State<AddCategoryButton> createState() => _AddCategoryButtonState();
+  ConsumerState<AddCategoryButton> createState() => _AddCategoryButtonState();
 }
 
-class _AddCategoryButtonState extends State<AddCategoryButton> {
+class _AddCategoryButtonState extends ConsumerState<AddCategoryButton> {
   bool _isHovered = false;
+
+  /// 未传入上层流程时，按钮仍能完成标准的类别创建。
+  Future<void> _handlePressed() async {
+    final customHandler = widget.onPressed;
+    if (customHandler != null) {
+      customHandler();
+      return;
+    }
+
+    final l10n = AppLocalizations.of(context)!;
+    final name = await ThemedInputDialog.show(
+      context: context,
+      title: l10n.category_dialogTitle,
+      hintText: l10n.category_nameHint,
+      validator: (v) => v.trim().isEmpty ? l10n.category_nameRequired : null,
+    );
+    if (name == null || name.trim().isEmpty) return;
+
+    final preset = ref.read(randomPresetNotifierProvider).selectedPreset;
+    if (preset == null) return;
+    // 键名只在预设内用于标识，用序号保证可读且不与现有类别冲突
+    var index = preset.categories.length + 1;
+    var key = 'custom$index';
+    while (preset.findCategoryByKey(key) != null) {
+      index++;
+      key = 'custom$index';
+    }
+
+    await ref
+        .read(randomPresetNotifierProvider.notifier)
+        .addCategory(RandomCategory.create(name: name.trim(), key: key));
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -442,9 +474,12 @@ class _AddCategoryButtonState extends State<AddCategoryButton> {
       onEnter: (_) => setState(() => _isHovered = true),
       onExit: (_) => setState(() => _isHovered = false),
       child: GestureDetector(
-        onTap: widget.onPressed,
+        onTap: _handlePressed,
         child: AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
+          duration: MediaQuery.disableAnimationsOf(context)
+              ? Duration.zero
+              : const Duration(milliseconds: 200),
+          constraints: const BoxConstraints(minHeight: 48),
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
           decoration: BoxDecoration(
             gradient: _isHovered
@@ -514,8 +549,9 @@ class EmptyCategoryPlaceholder extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color:
-                    colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+                color: colorScheme.surfaceContainerHighest.withValues(
+                  alpha: 0.5,
+                ),
                 shape: BoxShape.circle,
               ),
               child: Icon(

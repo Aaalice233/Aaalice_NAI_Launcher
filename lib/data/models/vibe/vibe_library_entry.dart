@@ -37,17 +37,16 @@ class VibeLibraryEntry with _$VibeLibraryEntry {
     /// 原始图片数据 (仅 rawImage 模式使用)
     @HiveField(5) Uint8List? rawImageData,
 
-    /// Reference Strength (-1 到 1)
+    /// Reference Strength（数值输入不设前端上下限）
     @HiveField(6) @Default(0.6) double strength,
 
-    /// Information Extracted (0-1)
+    /// Information Extracted (0.01-1)
     @HiveField(7) @Default(0.7) double infoExtracted,
 
     /// 数据来源类型索引 (VibeSourceType 的索引)
     @HiveField(8)
     @Default(3)
     int sourceTypeIndex, // default to rawImage (index 3)
-
     /// 所属分类 ID
     @HiveField(9) String? categoryId,
 
@@ -89,6 +88,12 @@ class VibeLibraryEntry with _$VibeLibraryEntry {
 
     /// bundle 内部 vibe information extracted 参数缓存（与 bundledVibeNames 同索引）
     @HiveField(22) List<double>? bundledVibeInfoExtracted,
+
+    /// 当前预编码数据对应的 NovelAI 模型。
+    @HiveField(23) String? encodingModel,
+
+    /// bundle 内部预编码数据对应的模型（与 bundledVibeNames 同索引）。
+    @HiveField(24) List<String?>? bundledVibeEncodingModels,
   }) = _VibeLibraryEntry;
 
   /// 从 VibeReference 创建库条目
@@ -112,6 +117,7 @@ class VibeLibraryEntry with _$VibeLibraryEntry {
       rawImageData: normalizedVibeData.rawImageData,
       strength: normalizedVibeData.strength,
       infoExtracted: normalizedVibeData.infoExtracted,
+      encodingModel: normalizedVibeData.encodingModel,
       sourceTypeIndex: normalizedVibeData.sourceType.index,
       categoryId: categoryId,
       tags: tags ?? [],
@@ -137,12 +143,13 @@ class VibeLibraryEntry with _$VibeLibraryEntry {
     VibeSourceType sourceType = VibeSourceType.rawImage,
     double strength = 0.6,
     double infoExtracted = 0.7,
+    String? encodingModel,
   }) {
     final now = DateTime.now();
     final normalizedSourceType =
         vibeEncoding.isNotEmpty && sourceType == VibeSourceType.rawImage
-            ? VibeSourceType.naiv4vibe
-            : sourceType;
+        ? VibeSourceType.naiv4vibe
+        : sourceType;
     return VibeLibraryEntry(
       id: const Uuid().v4(),
       name: name.trim(),
@@ -159,6 +166,7 @@ class VibeLibraryEntry with _$VibeLibraryEntry {
       sourceTypeIndex: normalizedSourceType.index,
       strength: VibeReference.sanitizeStrength(strength),
       infoExtracted: VibeReference.sanitizeInfoExtracted(infoExtracted),
+      encodingModel: encodingModel,
     );
   }
 
@@ -171,6 +179,7 @@ class VibeLibraryEntry with _$VibeLibraryEntry {
       rawImageData: rawImageData,
       strength: strength,
       infoExtracted: infoExtracted,
+      encodingModel: encodingModel,
       sourceType: VibeSourceType.values[sourceTypeIndex],
     );
   }
@@ -186,6 +195,7 @@ class VibeLibraryEntry with _$VibeLibraryEntry {
       bundledVibeEncodings: null,
       bundledVibeStrengths: null,
       bundledVibeInfoExtracted: null,
+      bundledVibeEncodingModels: null,
     );
   }
 
@@ -238,6 +248,8 @@ class VibeLibraryEntry with _$VibeLibraryEntry {
     List<String>? bundledVibeEncodings,
     List<double>? bundledVibeStrengths,
     List<double>? bundledVibeInfoExtracted,
+    String? encodingModel,
+    List<String?>? bundledVibeEncodingModels,
     bool? isFavorite,
   }) {
     return copyWith(
@@ -260,6 +272,9 @@ class VibeLibraryEntry with _$VibeLibraryEntry {
       bundledVibeStrengths: bundledVibeStrengths ?? this.bundledVibeStrengths,
       bundledVibeInfoExtracted:
           bundledVibeInfoExtracted ?? this.bundledVibeInfoExtracted,
+      encodingModel: encodingModel ?? this.encodingModel,
+      bundledVibeEncodingModels:
+          bundledVibeEncodingModels ?? this.bundledVibeEncodingModels,
       isFavorite: isFavorite ?? this.isFavorite,
     );
   }
@@ -274,6 +289,7 @@ class VibeLibraryEntry with _$VibeLibraryEntry {
       rawImageData: normalizedVibeData.rawImageData,
       strength: normalizedVibeData.strength,
       infoExtracted: normalizedVibeData.infoExtracted,
+      encodingModel: normalizedVibeData.encodingModel,
       sourceTypeIndex: normalizedVibeData.sourceType.index,
     );
   }
@@ -284,10 +300,7 @@ class VibeLibraryEntry with _$VibeLibraryEntry {
 
   /// 记录使用
   VibeLibraryEntry recordUsage() {
-    return copyWith(
-      usedCount: usedCount + 1,
-      lastUsedAt: DateTime.now(),
-    );
+    return copyWith(usedCount: usedCount + 1, lastUsedAt: DateTime.now());
   }
 
   /// 切换收藏状态
@@ -336,10 +349,10 @@ extension VibeLibraryEntryListExtension on List<VibeLibraryEntry> {
   /// 按使用时间排序（最新的在前）
   List<VibeLibraryEntry> sortedByLastUsed() {
     return [...this]..sort((a, b) {
-        if (a.lastUsedAt == null) return b.lastUsedAt == null ? 0 : 1;
-        if (b.lastUsedAt == null) return -1;
-        return b.lastUsedAt!.compareTo(a.lastUsedAt!);
-      });
+      if (a.lastUsedAt == null) return b.lastUsedAt == null ? 0 : 1;
+      if (b.lastUsedAt == null) return -1;
+      return b.lastUsedAt!.compareTo(a.lastUsedAt!);
+    });
   }
 
   /// 按使用次数排序（最多的在前）
@@ -350,9 +363,9 @@ extension VibeLibraryEntryListExtension on List<VibeLibraryEntry> {
   /// 按名称排序
   List<VibeLibraryEntry> sortedByName() {
     return [...this]..sort(
-        (a, b) =>
-            a.displayName.toLowerCase().compareTo(b.displayName.toLowerCase()),
-      );
+      (a, b) =>
+          a.displayName.toLowerCase().compareTo(b.displayName.toLowerCase()),
+    );
   }
 
   /// 搜索

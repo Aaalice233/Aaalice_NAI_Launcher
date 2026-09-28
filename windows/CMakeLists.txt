@@ -1,5 +1,5 @@
 # Project-level configuration.
-cmake_minimum_required(VERSION 3.14)
+cmake_minimum_required(VERSION 3.15)
 project(nai_launcher LANGUAGES CXX)
 
 # The name of the executable created for the application. Change this to change
@@ -55,6 +55,7 @@ add_subdirectory(${FLUTTER_MANAGED_DIR})
 
 # Application build; see runner/CMakeLists.txt.
 add_subdirectory("runner")
+add_subdirectory("dlss")
 
 
 # Generated plugin build rules, which manage building the plugins and adding
@@ -78,6 +79,15 @@ set(INSTALL_BUNDLE_LIB_DIR "${CMAKE_INSTALL_PREFIX}")
 
 install(TARGETS ${BINARY_NAME} RUNTIME DESTINATION "${CMAKE_INSTALL_PREFIX}"
   COMPONENT Runtime)
+install(TARGETS aaalice_dlss_probe RUNTIME DESTINATION "${CMAKE_INSTALL_PREFIX}"
+  COMPONENT Runtime)
+install(TARGETS aaalice_dlss_worker aaalice_nr_bridge
+  RUNTIME DESTINATION "${CMAKE_INSTALL_PREFIX}" COMPONENT Runtime)
+install(FILES "${CMAKE_CURRENT_BINARY_DIR}/dlss/ngx-sdk/LICENSE.txt"
+  DESTINATION "${CMAKE_INSTALL_PREFIX}/licenses" RENAME "NVIDIA-DLSS.txt"
+  COMPONENT Runtime)
+install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/../licenses/dlss/dlss-com.txt"
+  DESTINATION "${CMAKE_INSTALL_PREFIX}/licenses" COMPONENT Runtime)
 
 install(FILES "${FLUTTER_ICU_DATA_FILE}" DESTINATION "${INSTALL_BUNDLE_DATA_DIR}"
   COMPONENT Runtime)

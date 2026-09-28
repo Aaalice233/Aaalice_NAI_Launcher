@@ -13,6 +13,28 @@ void main() {
       );
     });
 
+    test('runs startup scan when matching records remain unparsed', () {
+      expect(
+        chooseStartupIndexAction(
+          databaseImageCount: 43568,
+          fileSystemImageCount: 43568,
+          unparsedImageCount: 3,
+        ),
+        GalleryStartupIndexAction.fullScan,
+      );
+    });
+
+    test('runs startup scan when metadata status count is unavailable', () {
+      expect(
+        chooseStartupIndexAction(
+          databaseImageCount: 43568,
+          fileSystemImageCount: 43568,
+          unparsedImageCount: null,
+        ),
+        GalleryStartupIndexAction.fullScan,
+      );
+    });
+
     test('runs startup scan when database has not indexed the gallery', () {
       expect(
         chooseStartupIndexAction(

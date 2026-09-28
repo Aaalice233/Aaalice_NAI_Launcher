@@ -1,9 +1,11 @@
 import 'dart:convert';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../constants/storage_keys.dart';
+import '../utils/app_logger.dart';
 import '../../data/models/queue/replication_task.dart';
 import 'base_hive_storage.dart';
 
@@ -17,17 +19,20 @@ class ReplicationQueueStorage extends BaseHiveStorage<void> {
   ReplicationQueueStorage()
     : super(boxName: StorageKeys.replicationQueueBox, useLazyLoading: false);
 
+  Box<String> get _queueBox =>
+      Hive.box<String>(StorageKeys.replicationQueueBox);
+
   /// 保存队列到本地存储
   Future<void> save(List<ReplicationTask> tasks) async {
     final taskList = ReplicationTaskList(tasks: tasks);
     final jsonString = jsonEncode(taskList.toJson());
-    await box.put(StorageKeys.replicationQueueData, jsonString);
+    await _queueBox.put(StorageKeys.replicationQueueData, jsonString);
   }
 
   /// 从本地存储加载队列（同步加载）
   List<ReplicationTask> load() {
     try {
-      final jsonString = box.get(StorageKeys.replicationQueueData) as String?;
+      final jsonString = _queueBox.get(StorageKeys.replicationQueueData);
 
       if (jsonString == null || jsonString.isEmpty) {
         return [];
@@ -36,8 +41,8 @@ class ReplicationQueueStorage extends BaseHiveStorage<void> {
       final json = jsonDecode(jsonString) as Map<String, dynamic>;
       final taskList = ReplicationTaskList.fromJson(json);
       return taskList.tasks;
-    } catch (e) {
-      // 加载失败时返回空列表
+    } catch (error, stackTrace) {
+      AppLogger.e('Failed to restore replication queue', error, stackTrace);
       return [];
     }
   }
@@ -45,7 +50,7 @@ class ReplicationQueueStorage extends BaseHiveStorage<void> {
   /// 清空存储
   @override
   Future<void> clear() async {
-    await box.delete(StorageKeys.replicationQueueData);
+    await _queueBox.delete(StorageKeys.replicationQueueData);
   }
 }
 

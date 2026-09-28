@@ -1,22 +1,25 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../adaptive/interaction_policy.dart';
+import '../../themes/core/input_surface_style.dart';
+
 class EditableDoubleField extends StatefulWidget {
   const EditableDoubleField({
     super.key,
     required this.value,
-    required this.min,
-    required this.max,
     required this.onChanged,
+    this.min,
+    this.max,
     this.decimals = 2,
     this.width = 64,
     this.textStyle,
     this.enabled = true,
-  });
+  }) : assert(min == null || max == null || min <= max);
 
   final double value;
-  final double min;
-  final double max;
+  final double? min;
+  final double? max;
   final ValueChanged<double> onChanged;
   final int decimals;
   final double width;
@@ -63,12 +66,20 @@ class _EditableDoubleFieldState extends State<EditableDoubleField> {
 
   void _commit() {
     final parsed = double.tryParse(_controller.text.trim());
-    if (parsed == null) {
+    if (parsed == null || !parsed.isFinite) {
       _controller.text = _format(widget.value);
       return;
     }
 
-    final normalized = parsed.clamp(widget.min, widget.max).toDouble();
+    var normalized = parsed;
+    final min = widget.min;
+    final max = widget.max;
+    if (min != null && normalized < min) {
+      normalized = min;
+    }
+    if (max != null && normalized > max) {
+      normalized = max;
+    }
     if (normalized != widget.value) {
       widget.onChanged(normalized);
     }
@@ -80,41 +91,60 @@ class _EditableDoubleFieldState extends State<EditableDoubleField> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final textStyle = widget.textStyle ?? theme.textTheme.bodyLarge;
+    final textPainter = TextPainter(
+      text: TextSpan(text: _format(widget.value), style: textStyle),
+      textScaler: MediaQuery.textScalerOf(context),
+      textDirection: Directionality.of(context),
+      maxLines: 1,
+    )..layout();
+    final responsiveWidth = (textPainter.width + 16)
+        .clamp(widget.width, double.infinity)
+        .toDouble();
+
     return SizedBox(
-      width: widget.width,
-      child: TextField(
-        controller: _controller,
-        focusNode: _focusNode,
-        enabled: widget.enabled,
-        textAlign: TextAlign.right,
-        keyboardType: const TextInputType.numberWithOptions(
-          decimal: true,
-          signed: true,
+      width: responsiveWidth,
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+          minHeight: context.interactionPolicy.minimumControlExtent,
         ),
-        inputFormatters: [
-          FilteringTextInputFormatter.allow(RegExp(r'[-0-9.]')),
-        ],
-        decoration: InputDecoration(
-          isDense: true,
-          contentPadding:
-              const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-          filled: true,
-          fillColor: theme.colorScheme.primaryContainer.withValues(alpha: 0.5),
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(8),
-            borderSide: BorderSide.none,
+        child: TextField(
+          controller: _controller,
+          focusNode: _focusNode,
+          enabled: widget.enabled,
+          textAlign: TextAlign.right,
+          keyboardType: const TextInputType.numberWithOptions(
+            decimal: true,
+            signed: true,
           ),
-          enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(8),
-            borderSide: BorderSide.none,
+          inputFormatters: [
+            FilteringTextInputFormatter.allow(RegExp(r'[-0-9.]')),
+          ],
+          decoration: InputDecoration(
+            isDense: true,
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 8,
+              vertical: 6,
+            ),
+            filled: true,
+            fillColor: inputSurfaceFillColor(theme.colorScheme),
+            border: inputSurfaceBorder(
+              theme.colorScheme,
+              BorderRadius.circular(8),
+            ),
+            enabledBorder: inputSurfaceBorder(
+              theme.colorScheme,
+              BorderRadius.circular(8),
+            ),
+            focusedBorder: inputSurfaceBorder(
+              theme.colorScheme,
+              BorderRadius.circular(8),
+              focused: true,
+            ),
           ),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(8),
-            borderSide: BorderSide(color: theme.colorScheme.primary),
-          ),
+          style: widget.textStyle,
+          onSubmitted: (_) => _commit(),
         ),
-        style: widget.textStyle,
-        onSubmitted: (_) => _commit(),
       ),
     );
   }

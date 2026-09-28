@@ -2,8 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/shortcuts/shortcut_config.dart';
+import '../../../core/shortcuts/shortcut_key_mapping.dart';
 import '../../../core/shortcuts/shortcut_manager.dart';
+import '../../../core/shortcuts/shortcut_recording_policy.dart';
 import '../../../core/utils/localization_extension.dart';
+import '../../adaptive/interaction_policy.dart';
 import '../../providers/shortcuts_provider.dart';
 
 /// 快捷键绑定编辑器
@@ -39,17 +42,17 @@ class _ShortcutBindingEditorState extends ConsumerState<ShortcutBindingEditor> {
   bool _isRecording = false;
   String? _conflictId;
   Set<LogicalKeyboardKey> _pressedKeys = {};
+  final FocusNode _recordingFocusNode = FocusNode();
 
   @override
   void initState() {
     super.initState();
-    _controller = TextEditingController(
-      text: widget.binding.effectiveShortcut,
-    );
+    _controller = TextEditingController(text: widget.binding.effectiveShortcut);
   }
 
   @override
   void dispose() {
+    _recordingFocusNode.dispose();
     _controller.dispose();
     super.dispose();
   }
@@ -67,9 +70,12 @@ class _ShortcutBindingEditorState extends ConsumerState<ShortcutBindingEditor> {
 
   Widget _buildInlineEditor(ThemeData theme) {
     final l10n = context.l10n;
+    final controlExtent = context.interactionPolicy.minimumControlExtent;
 
-    return Row(
-      mainAxisSize: MainAxisSize.min,
+    return Wrap(
+      spacing: 4,
+      runSpacing: 4,
+      crossAxisAlignment: WrapCrossAlignment.center,
       children: [
         // 快捷键显示/输入
         GestureDetector(
@@ -124,20 +130,26 @@ class _ShortcutBindingEditorState extends ConsumerState<ShortcutBindingEditor> {
 
         // 操作按钮
         if (widget.binding.hasCustomShortcut) ...[
-          const SizedBox(width: 4),
           IconButton(
             icon: const Icon(Icons.refresh, size: 16),
             tooltip: l10n.shortcut_settings_reset_to_default,
             visualDensity: VisualDensity.compact,
+            constraints: BoxConstraints.tightFor(
+              width: controlExtent,
+              height: controlExtent,
+            ),
             onPressed: _resetToDefault,
           ),
         ],
         if (_controller.text.isNotEmpty) ...[
-          const SizedBox(width: 4),
           IconButton(
             icon: const Icon(Icons.clear, size: 16),
             tooltip: l10n.common_clear,
             visualDensity: VisualDensity.compact,
+            constraints: BoxConstraints.tightFor(
+              width: controlExtent,
+              height: controlExtent,
+            ),
             onPressed: _clear,
           ),
         ],
@@ -149,6 +161,7 @@ class _ShortcutBindingEditorState extends ConsumerState<ShortcutBindingEditor> {
     final l10n = context.l10n;
 
     return Focus(
+      focusNode: _recordingFocusNode,
       autofocus: true,
       onKeyEvent: _isRecording ? _handleKeyEvent : null,
       child: Column(
@@ -167,8 +180,8 @@ class _ShortcutBindingEditorState extends ConsumerState<ShortcutBindingEditor> {
                 color: _isRecording
                     ? theme.colorScheme.primary
                     : _conflictId != null
-                        ? theme.colorScheme.error
-                        : theme.colorScheme.outline.withValues(alpha: 0.3),
+                    ? theme.colorScheme.error
+                    : theme.colorScheme.outline.withValues(alpha: 0.3),
                 width: _isRecording || _conflictId != null ? 2 : 1,
               ),
             ),
@@ -208,25 +221,27 @@ class _ShortcutBindingEditorState extends ConsumerState<ShortcutBindingEditor> {
                               ],
                             )
                           : _controller.text.isEmpty
-                              ? Text(
-                                  l10n.shortcut_editor_clickToRecord,
-                                  style: theme.textTheme.titleMedium?.copyWith(
-                                    color: theme.colorScheme.outline,
-                                  ),
-                                )
-                              : Text(
-                                  AppShortcutManager.getDisplayLabel(
-                                    _controller.text,
-                                  ),
-                                  style:
-                                      theme.textTheme.headlineSmall?.copyWith(
-                                    fontFamily: 'monospace',
-                                    fontWeight: FontWeight.bold,
-                                    color: widget.binding.hasCustomShortcut
-                                        ? theme.colorScheme.primary
-                                        : theme.colorScheme.onSurface,
-                                  ),
-                                ),
+                          ? Text(
+                              l10n.shortcut_editor_clickToRecord,
+                              style: theme.textTheme.titleMedium?.copyWith(
+                                color: theme.colorScheme.outline,
+                              ),
+                            )
+                          : Text(
+                              AppShortcutManager.getDisplayLabel(
+                                _controller.text,
+                              ),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              textAlign: TextAlign.center,
+                              style: theme.textTheme.headlineSmall?.copyWith(
+                                fontFamily: 'monospace',
+                                fontWeight: FontWeight.bold,
+                                color: widget.binding.hasCustomShortcut
+                                    ? theme.colorScheme.primary
+                                    : theme.colorScheme.onSurface,
+                              ),
+                            ),
                     ),
                   ),
                 ),
@@ -268,33 +283,29 @@ class _ShortcutBindingEditorState extends ConsumerState<ShortcutBindingEditor> {
 
           const SizedBox(height: 16),
 
-          // 操作按钮
-          Row(
-            mainAxisAlignment: MainAxisAlignment.end,
-            children: [
-              // 重置按钮
-              if (widget.binding.hasCustomShortcut)
-                TextButton.icon(
-                  onPressed: _resetToDefault,
-                  icon: const Icon(Icons.refresh),
-                  label: Text(l10n.shortcut_settings_reset_to_default),
+          Align(
+            alignment: Alignment.centerRight,
+            child: Wrap(
+              alignment: WrapAlignment.end,
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                if (widget.binding.hasCustomShortcut)
+                  TextButton.icon(
+                    onPressed: _resetToDefault,
+                    icon: const Icon(Icons.refresh),
+                    label: Text(l10n.shortcut_settings_reset_to_default),
+                  ),
+                TextButton(
+                  onPressed: widget.onCancel,
+                  child: Text(l10n.common_cancel),
                 ),
-
-              const Spacer(),
-
-              // 取消按钮
-              TextButton(
-                onPressed: widget.onCancel,
-                child: Text(l10n.common_cancel),
-              ),
-              const SizedBox(width: 8),
-
-              // 保存按钮
-              FilledButton(
-                onPressed: _conflictId == null && _canSave() ? _save : null,
-                child: Text(l10n.common_save),
-              ),
-            ],
+                FilledButton(
+                  onPressed: _conflictId == null && _canSave() ? _save : null,
+                  child: Text(l10n.common_save),
+                ),
+              ],
+            ),
           ),
         ],
       ),
@@ -310,6 +321,7 @@ class _ShortcutBindingEditorState extends ConsumerState<ShortcutBindingEditor> {
       _isRecording = true;
       _pressedKeys = {};
     });
+    _recordingFocusNode.requestFocus();
   }
 
   void _stopRecording() {
@@ -369,25 +381,12 @@ class _ShortcutBindingEditorState extends ConsumerState<ShortcutBindingEditor> {
         modifiers.add(ShortcutModifier.meta);
       } else {
         // 主键
-        mainKey = _shortcutKeyFromLogical(key);
+        mainKey = key.shortcutKey;
       }
     }
 
-    // 需要至少一个修饰键和一个主键
-    if (modifiers.isEmpty || mainKey == null) {
-      // 允许单独的功能键
-      if (mainKey != null) {
-        final isFunctionKey = mainKey.logicalKey.startsWith('f') ||
-            mainKey == ShortcutKey.escape ||
-            mainKey == ShortcutKey.delete ||
-            mainKey == ShortcutKey.space ||
-            mainKey == ShortcutKey.enter;
-
-        if (!isFunctionKey) return;
-      } else {
-        return;
-      }
-    }
+    if (mainKey == null) return;
+    if (!ShortcutRecordingPolicy.allows(modifiers, mainKey)) return;
 
     // 构建快捷键字符串
     final parts = <String>[];
@@ -402,89 +401,16 @@ class _ShortcutBindingEditorState extends ConsumerState<ShortcutBindingEditor> {
     // 检查冲突
     final conflicts = ref
         .read(shortcutConfigNotifierProvider.notifier)
-        .findConflicts(shortcutString, excludeId: widget.binding.id);
+        .findConflicts(
+          shortcutString,
+          context: widget.binding.context,
+          excludeId: widget.binding.id,
+        );
 
     setState(() {
       _controller.text = shortcutString;
       _conflictId = conflicts.isNotEmpty ? conflicts.first : null;
     });
-  }
-
-  ShortcutKey? _shortcutKeyFromLogical(LogicalKeyboardKey key) {
-    // 字母键
-    if (key == LogicalKeyboardKey.keyA) return ShortcutKey.keyA;
-    if (key == LogicalKeyboardKey.keyB) return ShortcutKey.keyB;
-    if (key == LogicalKeyboardKey.keyC) return ShortcutKey.keyC;
-    if (key == LogicalKeyboardKey.keyD) return ShortcutKey.keyD;
-    if (key == LogicalKeyboardKey.keyE) return ShortcutKey.keyE;
-    if (key == LogicalKeyboardKey.keyF) return ShortcutKey.keyF;
-    if (key == LogicalKeyboardKey.keyG) return ShortcutKey.keyG;
-    if (key == LogicalKeyboardKey.keyH) return ShortcutKey.keyH;
-    if (key == LogicalKeyboardKey.keyI) return ShortcutKey.keyI;
-    if (key == LogicalKeyboardKey.keyJ) return ShortcutKey.keyJ;
-    if (key == LogicalKeyboardKey.keyK) return ShortcutKey.keyK;
-    if (key == LogicalKeyboardKey.keyL) return ShortcutKey.keyL;
-    if (key == LogicalKeyboardKey.keyM) return ShortcutKey.keyM;
-    if (key == LogicalKeyboardKey.keyN) return ShortcutKey.keyN;
-    if (key == LogicalKeyboardKey.keyO) return ShortcutKey.keyO;
-    if (key == LogicalKeyboardKey.keyP) return ShortcutKey.keyP;
-    if (key == LogicalKeyboardKey.keyQ) return ShortcutKey.keyQ;
-    if (key == LogicalKeyboardKey.keyR) return ShortcutKey.keyR;
-    if (key == LogicalKeyboardKey.keyS) return ShortcutKey.keyS;
-    if (key == LogicalKeyboardKey.keyT) return ShortcutKey.keyT;
-    if (key == LogicalKeyboardKey.keyU) return ShortcutKey.keyU;
-    if (key == LogicalKeyboardKey.keyV) return ShortcutKey.keyV;
-    if (key == LogicalKeyboardKey.keyW) return ShortcutKey.keyW;
-    if (key == LogicalKeyboardKey.keyX) return ShortcutKey.keyX;
-    if (key == LogicalKeyboardKey.keyY) return ShortcutKey.keyY;
-    if (key == LogicalKeyboardKey.keyZ) return ShortcutKey.keyZ;
-
-    // 数字键
-    if (key == LogicalKeyboardKey.digit0) return ShortcutKey.digit0;
-    if (key == LogicalKeyboardKey.digit1) return ShortcutKey.digit1;
-    if (key == LogicalKeyboardKey.digit2) return ShortcutKey.digit2;
-    if (key == LogicalKeyboardKey.digit3) return ShortcutKey.digit3;
-    if (key == LogicalKeyboardKey.digit4) return ShortcutKey.digit4;
-    if (key == LogicalKeyboardKey.digit5) return ShortcutKey.digit5;
-    if (key == LogicalKeyboardKey.digit6) return ShortcutKey.digit6;
-    if (key == LogicalKeyboardKey.digit7) return ShortcutKey.digit7;
-    if (key == LogicalKeyboardKey.digit8) return ShortcutKey.digit8;
-    if (key == LogicalKeyboardKey.digit9) return ShortcutKey.digit9;
-
-    // 功能键
-    if (key == LogicalKeyboardKey.f1) return ShortcutKey.f1;
-    if (key == LogicalKeyboardKey.f2) return ShortcutKey.f2;
-    if (key == LogicalKeyboardKey.f3) return ShortcutKey.f3;
-    if (key == LogicalKeyboardKey.f4) return ShortcutKey.f4;
-    if (key == LogicalKeyboardKey.f5) return ShortcutKey.f5;
-    if (key == LogicalKeyboardKey.f6) return ShortcutKey.f6;
-    if (key == LogicalKeyboardKey.f7) return ShortcutKey.f7;
-    if (key == LogicalKeyboardKey.f8) return ShortcutKey.f8;
-    if (key == LogicalKeyboardKey.f9) return ShortcutKey.f9;
-    if (key == LogicalKeyboardKey.f10) return ShortcutKey.f10;
-    if (key == LogicalKeyboardKey.f11) return ShortcutKey.f11;
-    if (key == LogicalKeyboardKey.f12) return ShortcutKey.f12;
-
-    // 特殊键
-    if (key == LogicalKeyboardKey.enter) return ShortcutKey.enter;
-    if (key == LogicalKeyboardKey.escape) return ShortcutKey.escape;
-    if (key == LogicalKeyboardKey.space) return ShortcutKey.space;
-    if (key == LogicalKeyboardKey.tab) return ShortcutKey.tab;
-    if (key == LogicalKeyboardKey.backspace) return ShortcutKey.backspace;
-    if (key == LogicalKeyboardKey.delete) return ShortcutKey.delete;
-    if (key == LogicalKeyboardKey.insert) return ShortcutKey.insert;
-    if (key == LogicalKeyboardKey.home) return ShortcutKey.home;
-    if (key == LogicalKeyboardKey.end) return ShortcutKey.end;
-    if (key == LogicalKeyboardKey.pageUp) return ShortcutKey.pageup;
-    if (key == LogicalKeyboardKey.pageDown) return ShortcutKey.pagedown;
-
-    // 方向键
-    if (key == LogicalKeyboardKey.arrowUp) return ShortcutKey.arrowup;
-    if (key == LogicalKeyboardKey.arrowDown) return ShortcutKey.arrowdown;
-    if (key == LogicalKeyboardKey.arrowLeft) return ShortcutKey.arrowleft;
-    if (key == LogicalKeyboardKey.arrowRight) return ShortcutKey.arrowright;
-
-    return null;
   }
 
   void _resetToDefault() {

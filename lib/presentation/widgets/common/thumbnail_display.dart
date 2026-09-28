@@ -1,7 +1,10 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+
 import 'package:image/image.dart' as img;
+
+import 'image_viewport_surface.dart';
 
 /// 缩略图显示组件
 ///
@@ -98,9 +101,10 @@ class _ThumbnailDisplayState extends State<ThumbnailDisplay> {
     // 容器尺寸
     final containerWidth = widget.width;
     final containerHeight = widget.height;
-    const containerAspectRatio = 2.5; // 与 EntryCard 一致
+    final containerAspectRatio = containerWidth / containerHeight;
 
-    // 计算图像相对于容器的缩放（模拟 BoxFit.cover 或类似效果）
+    // 按当前显示区域的实际比例铺满，避免组件用于非 200x80
+    // 区域时出现未被图像覆盖的边带。
     final imageAspectRatio = _imageSize!.width / _imageSize!.height;
 
     // 使用与裁剪对话框相同的逻辑计算"虚拟图像"尺寸
@@ -157,6 +161,8 @@ class _ThumbnailDisplayState extends State<ThumbnailDisplay> {
       ),
     );
 
+    image = ImageViewportSurface(child: image);
+
     if (widget.borderRadius != null) {
       image = ClipRRect(borderRadius: widget.borderRadius!, child: image);
     }
@@ -180,6 +186,8 @@ class _ThumbnailDisplayState extends State<ThumbnailDisplay> {
       ),
     );
 
+    image = ImageViewportSurface(child: image);
+
     if (widget.borderRadius != null) {
       image = ClipRRect(borderRadius: widget.borderRadius!, child: image);
     }
@@ -188,11 +196,11 @@ class _ThumbnailDisplayState extends State<ThumbnailDisplay> {
   }
 
   Widget _buildError() => Container(
-        width: widget.width,
-        height: widget.height,
-        color: Colors.grey.shade800,
-        child: const Icon(Icons.broken_image_outlined, color: Colors.white38),
-      );
+    width: widget.width,
+    height: widget.height,
+    color: ImageViewportSurface.background,
+    child: const Icon(Icons.broken_image_outlined, color: Colors.white38),
+  );
 
   static int? _decodeCacheExtent(
     double logicalExtent,

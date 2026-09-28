@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../constants/storage_keys.dart';
@@ -35,16 +36,16 @@ class QueueExecutionStateData {
   });
 
   Map<String, dynamic> toJson() => {
-        'completedCount': completedCount,
-        'failedCount': failedCount,
-        'skippedCount': skippedCount,
-        'autoExecuteEnabled': autoExecuteEnabled,
-        'taskIntervalSeconds': taskIntervalSeconds,
-        'failureStrategy': failureStrategy.index,
-        'isPaused': isPaused,
-        'currentTaskId': currentTaskId,
-        'failedTaskIds': failedTaskIds,
-      };
+    'completedCount': completedCount,
+    'failedCount': failedCount,
+    'skippedCount': skippedCount,
+    'autoExecuteEnabled': autoExecuteEnabled,
+    'taskIntervalSeconds': taskIntervalSeconds,
+    'failureStrategy': failureStrategy.index,
+    'isPaused': isPaused,
+    'currentTaskId': currentTaskId,
+    'failedTaskIds': failedTaskIds,
+  };
 
   factory QueueExecutionStateData.fromJson(Map<String, dynamic> json) {
     return QueueExecutionStateData(
@@ -94,16 +95,21 @@ class QueueStateStorage extends BaseHiveStorage<void> {
   QueueStateStorage()
     : super(boxName: StorageKeys.queueExecutionStateBox, useLazyLoading: false);
 
+  Box<String> get _queueStateBox =>
+      Hive.box<String>(StorageKeys.queueExecutionStateBox);
+
   /// 保存执行状态
   Future<void> saveExecutionState(QueueExecutionStateData state) async {
     final jsonString = jsonEncode(state.toJson());
-    await box.put(StorageKeys.queueExecutionStateData, jsonString);
+    await _queueStateBox.put(StorageKeys.queueExecutionStateData, jsonString);
   }
 
   /// 加载执行状态（同步加载）
   QueueExecutionStateData loadExecutionState() {
     try {
-      final jsonString = box.get(StorageKeys.queueExecutionStateData) as String?;
+      final jsonString = _queueStateBox.get(
+        StorageKeys.queueExecutionStateData,
+      );
 
       if (jsonString == null || jsonString.isEmpty) {
         return const QueueExecutionStateData();
@@ -120,13 +126,13 @@ class QueueStateStorage extends BaseHiveStorage<void> {
   Future<void> saveFailedTasks(List<ReplicationTask> tasks) async {
     final taskList = ReplicationTaskList(tasks: tasks);
     final jsonString = jsonEncode(taskList.toJson());
-    await box.put(StorageKeys.queueFailedTasksData, jsonString);
+    await _queueStateBox.put(StorageKeys.queueFailedTasksData, jsonString);
   }
 
   /// 加载失败任务列表（同步加载）
   List<ReplicationTask> loadFailedTasks() {
     try {
-      final jsonString = box.get(StorageKeys.queueFailedTasksData) as String?;
+      final jsonString = _queueStateBox.get(StorageKeys.queueFailedTasksData);
 
       if (jsonString == null || jsonString.isEmpty) {
         return [];

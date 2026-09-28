@@ -1,0 +1,130 @@
+import 'image_card_action.dart';
+import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart';
+
+import '../../../data/models/image/image_stream_chunk.dart';
+import '../../../data/models/image/image_postprocess_phase.dart';
+
+@immutable
+class ImageCardViewData {
+  const ImageCardViewData({
+    required this.imageBytes,
+    required this.index,
+    required this.isSelected,
+    required this.showIndex,
+    required this.isPreviewActive,
+    required this.imageIdentity,
+    required this.statusBadgeLabel,
+    required this.statusBadgeTooltip,
+    required this.dragPreparationReady,
+    required this.completionPreview,
+    required this.isFavorite,
+    required this.underlay,
+    required this.imageContent,
+    required this.isGenerating,
+    required this.progress,
+    required this.currentImage,
+    required this.totalImages,
+    required this.streamPreview,
+    required this.focusedPreviewPlacement,
+    required this.imageWidth,
+    required this.imageHeight,
+    required this.sourceFilePath,
+    this.postprocessPhase,
+  });
+
+  final Uint8List? imageBytes;
+  final int? index;
+  final bool isSelected;
+  final bool showIndex;
+  final bool isPreviewActive;
+  final Object? imageIdentity;
+  final String? statusBadgeLabel;
+  final String? statusBadgeTooltip;
+  final bool dragPreparationReady;
+  final StreamPreviewFrame? completionPreview;
+  final bool isFavorite;
+  final Widget? underlay;
+  final Widget? imageContent;
+  final bool isGenerating;
+  final double? progress;
+  final ImagePostprocessPhase? postprocessPhase;
+  final int? currentImage;
+  final int? totalImages;
+  final Uint8List? streamPreview;
+  final FocusedStreamPreviewPlacement? focusedPreviewPlacement;
+  final int? imageWidth;
+  final int? imageHeight;
+  final String? sourceFilePath;
+}
+
+@immutable
+class ImageCardCapabilities {
+  const ImageCardCapabilities({
+    required this.allowRepeatedModifierTaps,
+    required this.enableContextMenu,
+    required this.enableHoverScale,
+    required this.enableGlossEffect,
+    required this.hoverEffectsEnabled,
+    required this.shareWarmupEnabled,
+    required this.enableSaveAction,
+    required this.enableCopyAction,
+    required this.enableSelection,
+    this.selectionMode = false,
+    this.showSelectionOnHover = true,
+    required this.onTap,
+    required this.onDoubleTap,
+    required this.onLongPress,
+    required this.onSelectionChanged,
+    required this.onFullscreen,
+    required this.onUpscale,
+    required this.onReversePrompt,
+    required this.onImageToImage,
+    required this.onVibeTransfer,
+    required this.onPreciseReference,
+    required this.onSaveToPreciseRefLibrary,
+    required this.onEditImage,
+    required this.onInpaint,
+    required this.onGenerateVariations,
+    required this.onDirectorTools,
+    required this.onEnhance,
+    required this.onSendToKrita,
+    required this.onShareToDiscord,
+    required this.onOpenInExplorer,
+    required this.onSaveToLibrary,
+    required this.onFavoriteToggle,
+  });
+
+  final bool allowRepeatedModifierTaps;
+  final bool enableContextMenu;
+  final bool enableHoverScale;
+  final bool enableGlossEffect;
+  final bool hoverEffectsEnabled;
+  final bool shareWarmupEnabled;
+  final bool enableSaveAction;
+  final bool enableCopyAction;
+  final bool enableSelection;
+  final bool selectionMode;
+  final bool showSelectionOnHover;
+  final VoidCallback? onTap;
+  final VoidCallback? onDoubleTap;
+  final VoidCallback? onLongPress;
+  final ValueChanged<bool>? onSelectionChanged;
+  final ImageCardCallback? onFullscreen;
+  final ImageCardCallback? onUpscale;
+  final ImageCardCallback? onReversePrompt;
+  final ImageCardCallback? onImageToImage;
+  final ImageCardCallback? onVibeTransfer;
+  final ImageCardCallback? onPreciseReference;
+  final ImageCardCallback? onSaveToPreciseRefLibrary;
+  final ImageCardCallback? onEditImage;
+  final ImageCardCallback? onInpaint;
+  final ImageCardCallback? onGenerateVariations;
+  final ImageCardCallback? onDirectorTools;
+  final ImageCardCallback? onEnhance;
+  final ImageCardCallback? onSendToKrita;
+  final ImageCardCallback? onShareToDiscord;
+  final ImageCardCallback? onOpenInExplorer;
+  final void Function(Uint8List imageBytes, String prompt)? onSaveToLibrary;
+  final ImageCardCallback? onFavoriteToggle;
+}

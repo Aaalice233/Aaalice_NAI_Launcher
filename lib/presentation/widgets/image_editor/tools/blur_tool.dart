@@ -226,10 +226,7 @@ class BlurTool extends EditorTool {
                     style: theme.textTheme.bodySmall,
                   ),
                   const Spacer(),
-                  Text(
-                    '${_size.round()}',
-                    style: theme.textTheme.bodySmall,
-                  ),
+                  Text('${_size.round()}', style: theme.textTheme.bodySmall),
                 ],
               ),
               Slider(

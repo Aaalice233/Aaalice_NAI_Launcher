@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:nai_launcher/core/utils/localization_extension.dart';
 
@@ -8,20 +9,48 @@ import '../../../core/constants/storage_keys.dart';
 import '../../../core/storage/local_storage_service.dart';
 import '../../../data/models/tag_library/tag_library_category.dart';
 import '../../../data/models/tag_library/tag_library_entry.dart';
+import '../../adaptive/adaptive_presenter.dart';
+import '../../adaptive/interaction_policy.dart';
 import '../../providers/tag_library_page_provider.dart';
 import '../common/thumbnail_display.dart';
+import '../common/translated_tag_text.dart';
+import 'tag_library_entry_hover_preview.dart';
 
 /// 词库条目选择对话框
 ///
 /// 用于从词库中选择一个条目，返回选中的 [TagLibraryEntry]
 class TagLibraryPickerDialog extends ConsumerStatefulWidget {
-  /// 对话框标题
-  final String? title;
+  const TagLibraryPickerDialog({super.key});
 
-  const TagLibraryPickerDialog({
-    super.key,
-    this.title,
-  });
+  /// 统一使用自适应选择面呈现词库：紧凑宽度全屏，其他宽度保持有界。
+  static Future<TagLibraryEntry?> show(BuildContext context, {String? title}) {
+    final resolvedTitle = title ?? context.l10n.tagLibraryPicker_title;
+    return AdaptivePresenter.showForm<TagLibraryEntry>(
+      context: context,
+      titleBuilder: (context) => Row(
+        children: [
+          Icon(
+            Icons.library_books_outlined,
+            color: Theme.of(context).colorScheme.primary,
+            size: 24,
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              resolvedTitle,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: Theme.of(
+                context,
+              ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w600),
+            ),
+          ),
+        ],
+      ),
+      dialogWidth: 800,
+      builder: (context, scrollController) => const TagLibraryPickerDialog(),
+    );
+  }
 
   @override
   ConsumerState<TagLibraryPickerDialog> createState() =>
@@ -49,125 +78,79 @@ class _TagLibraryPickerDialogState
     final theme = Theme.of(context);
     final state = ref.watch(tagLibraryPageNotifierProvider);
 
-    return Dialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
-      child: Container(
-        width: 800,
-        height: 600,
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // 标题栏
-            _buildHeader(theme),
-            const SizedBox(height: 16),
-
-            // 搜索和筛选栏
-            _buildFilterBar(theme, state),
-            const SizedBox(height: 16),
-
-            // 条目网格
-            Expanded(
-              child: _buildEntryGrid(theme, state),
-            ),
-
-            const SizedBox(height: 16),
-
-            // 底部按钮
-            _buildFooter(theme),
-          ],
-        ),
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildFilterBar(theme, state),
+          const SizedBox(height: 16),
+          Expanded(child: _buildEntryGrid(theme, state)),
+          const SizedBox(height: 12),
+          _buildFooter(theme),
+        ],
       ),
-    );
-  }
-
-  Widget _buildHeader(ThemeData theme) {
-    return Row(
-      children: [
-        Icon(
-          Icons.library_books_outlined,
-          color: theme.colorScheme.primary,
-          size: 24,
-        ),
-        const SizedBox(width: 12),
-        Text(
-          widget.title ?? context.l10n.tagLibraryPicker_title,
-          style: theme.textTheme.titleLarge?.copyWith(
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        const Spacer(),
-        IconButton(
-          onPressed: () => Navigator.of(context).pop(),
-          icon: const Icon(Icons.close),
-          tooltip: context.l10n.common_close,
-        ),
-      ],
     );
   }
 
   Widget _buildFilterBar(ThemeData theme, TagLibraryPageState state) {
     final selectedCategoryId = _effectiveSelectedCategoryId(state);
-    return Row(
-      children: [
-        // 搜索框
-        Expanded(
-          flex: 2,
-          child: TextField(
-            decoration: InputDecoration(
-              hintText: context.l10n.tagLibraryPicker_searchHint,
-              prefixIcon: const Icon(Icons.search, size: 20),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(10),
-              ),
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: 16,
-                vertical: 12,
-              ),
-              isDense: true,
-            ),
-            onChanged: (value) {
-              setState(() => _searchQuery = value);
-            },
-          ),
+    final searchField = TextField(
+      textAlignVertical: TextAlignVertical.center,
+      decoration: InputDecoration(
+        hintText: context.l10n.tagLibraryPicker_searchHint,
+        prefixIcon: const Icon(Icons.search, size: 20),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 12,
         ),
-        const SizedBox(width: 12),
-
-        // 分类筛选
-        Expanded(
-          flex: 1,
-          child: DropdownButtonFormField<String?>(
-            initialValue: selectedCategoryId,
-            decoration: InputDecoration(
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(10),
-              ),
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: 16,
-                vertical: 12,
-              ),
-              isDense: true,
-            ),
-            hint: Text(context.l10n.tagLibraryPicker_allCategories),
-            items: [
-              DropdownMenuItem<String?>(
-                value: null,
-                child: Text(context.l10n.tagLibraryPicker_allCategories),
-              ),
-              ...state.categories.map(
-                (category) => DropdownMenuItem<String?>(
-                  value: category.id,
-                  child: Text(
-                    category.name,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-              ),
-            ],
-            onChanged: _setSelectedCategory,
+        isDense: true,
+      ),
+      onChanged: (value) => setState(() => _searchQuery = value),
+    );
+    final categoryField = DropdownButtonFormField<String?>(
+      initialValue: selectedCategoryId,
+      isExpanded: true,
+      decoration: InputDecoration(
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 12,
+        ),
+        isDense: true,
+      ),
+      hint: Text(context.l10n.tagLibraryPicker_allCategories),
+      items: [
+        DropdownMenuItem<String?>(
+          value: null,
+          child: Text(context.l10n.tagLibraryPicker_allCategories),
+        ),
+        ...state.categories.map(
+          (category) => DropdownMenuItem<String?>(
+            value: category.id,
+            child: Text(category.name, overflow: TextOverflow.ellipsis),
           ),
         ),
       ],
+      onChanged: _setSelectedCategory,
+    );
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        if (constraints.maxWidth < 560) {
+          return Column(
+            children: [searchField, const SizedBox(height: 10), categoryField],
+          );
+        }
+        return Row(
+          children: [
+            Expanded(flex: 2, child: searchField),
+            const SizedBox(width: 12),
+            Expanded(child: categoryField),
+          ],
+        );
+      },
     );
   }
 
@@ -182,8 +165,9 @@ class _TagLibraryPickerDialogState
         selectedCategoryId,
         ...state.categories.getDescendantIds(selectedCategoryId),
       };
-      entries =
-          entries.where((e) => categoryIds.contains(e.categoryId)).toList();
+      entries = entries
+          .where((e) => categoryIds.contains(e.categoryId))
+          .toList();
     }
 
     // 搜索过滤
@@ -207,29 +191,47 @@ class _TagLibraryPickerDialogState
               _searchQuery.isNotEmpty
                   ? context.l10n.tagLibrary_noSearchResults
                   : context.l10n.tagLibrary_empty,
-              style: TextStyle(
-                color: theme.colorScheme.outline,
-                fontSize: 14,
-              ),
+              style: TextStyle(color: theme.colorScheme.outline, fontSize: 14),
             ),
           ],
         ),
       );
     }
 
-    return GridView.builder(
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 4,
-        childAspectRatio: 0.85,
-        crossAxisSpacing: 12,
-        mainAxisSpacing: 12,
-      ),
-      itemCount: entries.length,
-      itemBuilder: (context, index) {
-        final entry = entries[index];
-        return _EntrySelectCard(
-          entry: entry,
-          onTap: () => Navigator.of(context).pop(entry),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        const spacing = 12.0;
+        const minimumCardWidth = 150.0;
+        final crossAxisCount =
+            ((constraints.maxWidth + spacing) / (minimumCardWidth + spacing))
+                .floor()
+                .clamp(1, 4);
+        // A lazy row sizes itself from its actual text, including translations
+        // that arrive later. Fixed-aspect tiles cannot reserve that height.
+        return ListView.separated(
+          itemCount: (entries.length / crossAxisCount).ceil(),
+          separatorBuilder: (context, index) => const SizedBox(height: spacing),
+          itemBuilder: (context, rowIndex) => Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              for (var column = 0; column < crossAxisCount; column++) ...[
+                if (column > 0) const SizedBox(width: spacing),
+                Expanded(
+                  child: rowIndex * crossAxisCount + column < entries.length
+                      ? _EntrySelectCard(
+                          key: ValueKey(
+                            'tag-library-picker-entry-${entries[rowIndex * crossAxisCount + column].id}',
+                          ),
+                          entry: entries[rowIndex * crossAxisCount + column],
+                          onTap: () => Navigator.of(
+                            context,
+                          ).pop(entries[rowIndex * crossAxisCount + column]),
+                        )
+                      : const SizedBox.shrink(),
+                ),
+              ],
+            ],
+          ),
         );
       },
     );
@@ -289,10 +291,7 @@ class _EntrySelectCard extends StatefulWidget {
   final TagLibraryEntry entry;
   final VoidCallback onTap;
 
-  const _EntrySelectCard({
-    required this.entry,
-    required this.onTap,
-  });
+  const _EntrySelectCard({super.key, required this.entry, required this.onTap});
 
   @override
   State<_EntrySelectCard> createState() => _EntrySelectCardState();
@@ -300,54 +299,68 @@ class _EntrySelectCard extends StatefulWidget {
 
 class _EntrySelectCardState extends State<_EntrySelectCard> {
   bool _isHovering = false;
+  bool _isFocused = false;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final entry = widget.entry;
 
-    return MouseRegion(
-      onEnter: (_) => setState(() => _isHovering = true),
-      onExit: (_) => setState(() => _isHovering = false),
-      cursor: SystemMouseCursors.click,
-      child: GestureDetector(
-        onTap: widget.onTap,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 150),
-          decoration: BoxDecoration(
-            color: theme.colorScheme.surfaceContainerHigh,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-              color: _isHovering
-                  ? theme.colorScheme.primary.withValues(alpha: 0.5)
-                  : theme.colorScheme.outlineVariant.withValues(alpha: 0.2),
-              width: 1.5,
+    return TagLibraryEntryHoverPreview(
+      entry: entry,
+      child: Semantics(
+        label: entry.displayName,
+        button: true,
+        child: FocusableActionDetector(
+          shortcuts: const {
+            SingleActivator(LogicalKeyboardKey.enter): ActivateIntent(),
+            SingleActivator(LogicalKeyboardKey.space): ActivateIntent(),
+          },
+          actions: {
+            ActivateIntent: CallbackAction<ActivateIntent>(
+              onInvoke: (_) {
+                widget.onTap();
+                return null;
+              },
             ),
-            boxShadow: _isHovering
-                ? [
-                    BoxShadow(
-                      color: theme.colorScheme.primary.withValues(alpha: 0.15),
-                      blurRadius: 12,
-                      offset: const Offset(0, 4),
+          },
+          onFocusChange: (focused) {
+            if (_isFocused != focused) setState(() => _isFocused = focused);
+          },
+          child: MouseRegion(
+            onEnter: (_) => setState(() => _isHovering = true),
+            onExit: (_) => setState(() => _isHovering = false),
+            cursor: SystemMouseCursors.click,
+            child: GestureDetector(
+              onTap: widget.onTap,
+              child: AnimatedContainer(
+                duration: MediaQuery.disableAnimationsOf(context)
+                    ? Duration.zero
+                    : const Duration(milliseconds: 120),
+                decoration: BoxDecoration(
+                  color: _isHovering
+                      ? theme.colorScheme.surfaceContainerHigh
+                      : theme.colorScheme.surfaceContainerLow,
+                  borderRadius: BorderRadius.circular(12),
+                  border:
+                      _isFocused &&
+                          context.interactionPolicy.keyboardNavigationActive
+                      ? Border.all(color: theme.colorScheme.primary)
+                      : null,
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    AspectRatio(
+                      aspectRatio: 1.4,
+                      child: _buildThumbnail(theme, entry),
                     ),
-                  ]
-                : null,
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // 预览图区域
-              Expanded(
-                flex: 3,
-                child: _buildThumbnail(theme, entry),
+                    _buildInfo(theme, entry),
+                  ],
+                ),
               ),
-
-              // 信息区域
-              Expanded(
-                flex: 2,
-                child: _buildInfo(theme, entry),
-              ),
-            ],
+            ),
           ),
         ),
       ),
@@ -370,8 +383,9 @@ class _EntrySelectCardState extends State<_EntrySelectCard> {
                 scale: entry.thumbnailScale,
                 width: constraints.maxWidth,
                 height: constraints.maxHeight,
-                borderRadius:
-                    const BorderRadius.vertical(top: Radius.circular(11)),
+                borderRadius: const BorderRadius.vertical(
+                  top: Radius.circular(11),
+                ),
               );
             },
           )
@@ -382,8 +396,9 @@ class _EntrySelectCardState extends State<_EntrySelectCard> {
         if (_isHovering)
           Positioned.fill(
             child: ClipRRect(
-              borderRadius:
-                  const BorderRadius.vertical(top: Radius.circular(11)),
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(11),
+              ),
               child: Container(
                 color: theme.colorScheme.primary.withValues(alpha: 0.1),
                 child: Center(
@@ -399,16 +414,16 @@ class _EntrySelectCardState extends State<_EntrySelectCard> {
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Icon(
+                        Icon(
                           Icons.check,
                           size: 16,
-                          color: Colors.white,
+                          color: theme.colorScheme.onPrimary,
                         ),
                         const SizedBox(width: 6),
                         Text(
                           context.l10n.common_select,
-                          style: const TextStyle(
-                            color: Colors.white,
+                          style: TextStyle(
+                            color: theme.colorScheme.onPrimary,
                             fontSize: 12,
                             fontWeight: FontWeight.w600,
                           ),
@@ -432,11 +447,7 @@ class _EntrySelectCardState extends State<_EntrySelectCard> {
                 color: Colors.red.shade400,
                 borderRadius: BorderRadius.circular(6),
               ),
-              child: const Icon(
-                Icons.favorite,
-                size: 12,
-                color: Colors.white,
-              ),
+              child: const Icon(Icons.favorite, size: 12, color: Colors.white),
             ),
           ),
       ],
@@ -474,15 +485,13 @@ class _EntrySelectCardState extends State<_EntrySelectCard> {
           const SizedBox(height: 4),
 
           // 内容预览
-          Expanded(
-            child: Text(
-              entry.contentPreview,
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
-              ),
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
+          TranslatedPromptText(
+            entry.contentPreview,
+            selectable: false,
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
             ),
+            maxLines: 2,
           ),
         ],
       ),

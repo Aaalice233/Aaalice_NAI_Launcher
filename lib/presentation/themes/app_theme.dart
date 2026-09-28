@@ -20,7 +20,6 @@ import 'presets/retro_wave_theme.dart';
 import 'presets/brutalist_theme.dart';
 import 'presets/apple_light_theme.dart';
 import 'presets/system_theme.dart';
-import 'theme_extension.dart';
 
 /// 风格类型枚举 - 16 套主题
 enum AppStyle {
@@ -34,7 +33,7 @@ enum AppStyle {
   midnightEditorial, // 午夜编辑
   zenMinimalist, // 禅意极简
   // 8 套重构主题 (原 styles/ 目录)
-  minimalGlass, // 原 herdingStyle - 金黄深青
+  minimalGlass, // 原 herdingStyle - 金黄深青层叠
   neoDark, // 原 linearStyle - Linear 风格
   proAi, // 原 invokeStyle - InvokeAI 风格
   social, // 原 discordStyle - Discord 风格
@@ -155,36 +154,70 @@ class AppTheme {
 
   /// 主题构建器映射
   static final _themeBuilders = <AppStyle, _ThemeBuilder>{
-    AppStyle.boldRetro:
-        _ThemeBuilder(BoldRetroTheme.light, BoldRetroTheme.dark),
-    AppStyle.grungeCollage:
-        _ThemeBuilder(GrungeCollageTheme.light, GrungeCollageTheme.dark),
-    AppStyle.fluidSaturated:
-        _ThemeBuilder(FluidSaturatedTheme.light, FluidSaturatedTheme.dark),
-    AppStyle.materialYou:
-        _ThemeBuilder(MaterialYouTheme.light, MaterialYouTheme.dark),
-    AppStyle.flatDesign:
-        _ThemeBuilder(FlatDesignTheme.light, FlatDesignTheme.dark),
-    AppStyle.handDrawn:
-        _ThemeBuilder(HandDrawnTheme.light, HandDrawnTheme.dark),
-    AppStyle.midnightEditorial: _ThemeBuilder(
-      MidnightEditorialTheme.light,
-      MidnightEditorialTheme.dark,
+    AppStyle.boldRetro: _ThemeBuilder(
+      () => BoldRetroTheme.light,
+      () => BoldRetroTheme.dark,
     ),
-    AppStyle.zenMinimalist:
-        _ThemeBuilder(ZenMinimalistTheme.light, ZenMinimalistTheme.dark),
-    AppStyle.minimalGlass:
-        _ThemeBuilder(MinimalGlassTheme.light, MinimalGlassTheme.dark),
-    AppStyle.neoDark: _ThemeBuilder(NeoDarkTheme.light, NeoDarkTheme.dark),
-    AppStyle.proAi: _ThemeBuilder(ProAiTheme.light, ProAiTheme.dark),
-    AppStyle.social: _ThemeBuilder(SocialTheme.light, SocialTheme.dark),
-    AppStyle.retroWave:
-        _ThemeBuilder(RetroWaveTheme.light, RetroWaveTheme.dark),
-    AppStyle.brutalist:
-        _ThemeBuilder(BrutalistTheme.light, BrutalistTheme.dark),
-    AppStyle.appleLight:
-        _ThemeBuilder(AppleLightTheme.light, AppleLightTheme.dark),
-    AppStyle.system: _ThemeBuilder(SystemTheme.light, SystemTheme.dark),
+    AppStyle.grungeCollage: _ThemeBuilder(
+      () => GrungeCollageTheme.light,
+      () => GrungeCollageTheme.dark,
+    ),
+    AppStyle.fluidSaturated: _ThemeBuilder(
+      () => FluidSaturatedTheme.light,
+      () => FluidSaturatedTheme.dark,
+    ),
+    AppStyle.materialYou: _ThemeBuilder(
+      () => MaterialYouTheme.light,
+      () => MaterialYouTheme.dark,
+    ),
+    AppStyle.flatDesign: _ThemeBuilder(
+      () => FlatDesignTheme.light,
+      () => FlatDesignTheme.dark,
+    ),
+    AppStyle.handDrawn: _ThemeBuilder(
+      () => HandDrawnTheme.light,
+      () => HandDrawnTheme.dark,
+    ),
+    AppStyle.midnightEditorial: _ThemeBuilder(
+      () => MidnightEditorialTheme.light,
+      () => MidnightEditorialTheme.dark,
+    ),
+    AppStyle.zenMinimalist: _ThemeBuilder(
+      () => ZenMinimalistTheme.light,
+      () => ZenMinimalistTheme.dark,
+    ),
+    AppStyle.minimalGlass: _ThemeBuilder(
+      () => MinimalGlassTheme.light,
+      () => MinimalGlassTheme.dark,
+    ),
+    AppStyle.neoDark: _ThemeBuilder(
+      () => NeoDarkTheme.light,
+      () => NeoDarkTheme.dark,
+    ),
+    AppStyle.proAi: _ThemeBuilder(
+      () => ProAiTheme.light,
+      () => ProAiTheme.dark,
+    ),
+    AppStyle.social: _ThemeBuilder(
+      () => SocialTheme.light,
+      () => SocialTheme.dark,
+    ),
+    AppStyle.retroWave: _ThemeBuilder(
+      () => RetroWaveTheme.light,
+      () => RetroWaveTheme.dark,
+    ),
+    AppStyle.brutalist: _ThemeBuilder(
+      () => BrutalistTheme.light,
+      () => BrutalistTheme.dark,
+    ),
+    AppStyle.appleLight: _ThemeBuilder(
+      () => AppleLightTheme.light,
+      () => AppleLightTheme.dark,
+    ),
+    AppStyle.system: _ThemeBuilder(
+      () => SystemTheme.light,
+      () => SystemTheme.dark,
+    ),
   };
 
   /// 获取指定风格的主题
@@ -197,8 +230,9 @@ class AppTheme {
     FontConfig? fontConfig,
   }) {
     final builder = _themeBuilders[style]!;
-    final baseTheme =
-        brightness == Brightness.light ? builder.light : builder.dark;
+    final baseTheme = brightness == Brightness.light
+        ? builder.light
+        : builder.dark;
 
     // 使用主题原生字体
     if (fontConfig == null || fontConfig.fontFamily.isEmpty) {
@@ -217,13 +251,15 @@ class AppTheme {
     FontConfig fontConfig,
   ) {
     final result = switch (fontConfig.source) {
-      FontSource.google =>
-        _buildGoogleFontTheme(baseTheme, fontConfig.fontFamily),
+      FontSource.google => _buildGoogleFontTheme(
+        baseTheme,
+        fontConfig.fontFamily,
+      ),
       FontSource.system => (
-          baseTheme.textTheme.apply(fontFamily: fontConfig.fontFamily),
-          baseTheme.primaryTextTheme.apply(fontFamily: fontConfig.fontFamily),
-          fontConfig.fontFamily,
-        ),
+        baseTheme.textTheme.apply(fontFamily: fontConfig.fontFamily),
+        baseTheme.primaryTextTheme.apply(fontFamily: fontConfig.fontFamily),
+        fontConfig.fontFamily,
+      ),
     };
 
     if (result == null) {
@@ -238,15 +274,32 @@ class AppTheme {
       textTheme: textTheme,
       primaryTextTheme: primaryTextTheme,
       tooltipTheme: _buildTooltipTheme(baseTheme, tooltipFontFamily),
+      chipTheme: _applyFontToChipTheme(baseTheme.chipTheme, textTheme),
+    );
+  }
+
+  /// 把用户字体同步到 Chip 的标签样式。
+  ///
+  /// Chip 对 `labelStyle` / `secondaryLabelStyle` 是"有则取之"而非合并：
+  /// 主题一旦设了这两项，就不会再回退到 `textTheme.labelLarge`，
+  /// 因此仅更新 textTheme 不足以让 Chip 跟随用户选择的字体。
+  static ChipThemeData _applyFontToChipTheme(
+    ChipThemeData chipTheme,
+    TextTheme textTheme,
+  ) {
+    final fontFamily = textTheme.labelLarge?.fontFamily;
+    if (fontFamily == null) return chipTheme;
+    return chipTheme.copyWith(
+      labelStyle: chipTheme.labelStyle?.copyWith(fontFamily: fontFamily),
+      secondaryLabelStyle: chipTheme.secondaryLabelStyle?.copyWith(
+        fontFamily: fontFamily,
+      ),
     );
   }
 
   /// 构建 Google Font 主题，返回 null 如果字体无效
   static (TextTheme textTheme, TextTheme primaryTextTheme, String? fontFamily)?
-      _buildGoogleFontTheme(
-    ThemeData baseTheme,
-    String fontName,
-  ) {
+  _buildGoogleFontTheme(ThemeData baseTheme, String fontName) {
     try {
       final fontFamily = GoogleFonts.getFont(fontName).fontFamily;
       return (
@@ -285,102 +338,31 @@ class AppTheme {
     );
   }
 
-  /// 构建统一的 Tooltip 样式
+  /// 保留主题预设的浮层样式，仅同步用户字体。
   static TooltipThemeData _buildTooltipTheme(
     ThemeData baseTheme,
     String? fontFamily,
   ) {
-    return TooltipThemeData(
-      decoration: BoxDecoration(
-        color: baseTheme.colorScheme.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(6),
-        border: Border.all(
-          color: baseTheme.dividerColor,
-          width: 1,
-        ),
-      ),
-      textStyle: TextStyle(
-        color: baseTheme.colorScheme.onSurface.withValues(alpha: 0.8),
-        fontSize: 12,
-        fontFamily: fontFamily,
-      ),
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      waitDuration: const Duration(milliseconds: 500),
+    final tooltipTheme = baseTheme.tooltipTheme;
+    return tooltipTheme.copyWith(
+      textStyle: (tooltipTheme.textStyle ?? baseTheme.textTheme.bodySmall)
+          ?.copyWith(fontFamily: fontFamily),
+      padding:
+          tooltipTheme.padding ??
+          const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      waitDuration:
+          tooltipTheme.waitDuration ?? const Duration(milliseconds: 500),
     );
-  }
-
-  /// 主题扩展构建器映射
-  static final _extensionBuilders =
-      <AppStyle, _ThemeBuilder<AppThemeExtension>>{
-    AppStyle.boldRetro: _ThemeBuilder(
-      BoldRetroTheme.lightExtension,
-      BoldRetroTheme.darkExtension,
-    ),
-    AppStyle.grungeCollage: _ThemeBuilder(
-      GrungeCollageTheme.lightExtension,
-      GrungeCollageTheme.darkExtension,
-    ),
-    AppStyle.fluidSaturated: _ThemeBuilder(
-      FluidSaturatedTheme.lightExtension,
-      FluidSaturatedTheme.darkExtension,
-    ),
-    AppStyle.materialYou: _ThemeBuilder(
-      MaterialYouTheme.lightExtension,
-      MaterialYouTheme.darkExtension,
-    ),
-    AppStyle.flatDesign: _ThemeBuilder(
-      FlatDesignTheme.lightExtension,
-      FlatDesignTheme.darkExtension,
-    ),
-    AppStyle.handDrawn: _ThemeBuilder(
-      HandDrawnTheme.lightExtension,
-      HandDrawnTheme.darkExtension,
-    ),
-    AppStyle.midnightEditorial: _ThemeBuilder(
-      MidnightEditorialTheme.lightExtension,
-      MidnightEditorialTheme.darkExtension,
-    ),
-    AppStyle.zenMinimalist: _ThemeBuilder(
-      ZenMinimalistTheme.lightExtension,
-      ZenMinimalistTheme.darkExtension,
-    ),
-    AppStyle.minimalGlass: _ThemeBuilder(
-      MinimalGlassTheme.lightExtension,
-      MinimalGlassTheme.darkExtension,
-    ),
-    AppStyle.neoDark:
-        _ThemeBuilder(NeoDarkTheme.lightExtension, NeoDarkTheme.darkExtension),
-    AppStyle.proAi:
-        _ThemeBuilder(ProAiTheme.lightExtension, ProAiTheme.darkExtension),
-    AppStyle.social:
-        _ThemeBuilder(SocialTheme.lightExtension, SocialTheme.darkExtension),
-    AppStyle.retroWave: _ThemeBuilder(
-      RetroWaveTheme.lightExtension,
-      RetroWaveTheme.darkExtension,
-    ),
-    AppStyle.brutalist: _ThemeBuilder(
-      BrutalistTheme.lightExtension,
-      BrutalistTheme.darkExtension,
-    ),
-    AppStyle.appleLight: _ThemeBuilder(
-      AppleLightTheme.lightExtension,
-      AppleLightTheme.darkExtension,
-    ),
-    AppStyle.system:
-        _ThemeBuilder(SystemTheme.lightExtension, SystemTheme.darkExtension),
-  };
-
-  /// 获取指定风格的主题扩展
-  static AppThemeExtension getExtension(AppStyle style, Brightness brightness) {
-    final builder = _extensionBuilders[style]!;
-    return brightness == Brightness.light ? builder.light : builder.dark;
   }
 }
 
-/// 主题构建器辅助类
-class _ThemeBuilder<T> {
-  final T light;
-  final T dark;
+class _ThemeBuilder {
+  _ThemeBuilder(this._buildLight, this._buildDark);
 
-  const _ThemeBuilder(this.light, this.dark);
+  final ThemeData Function() _buildLight;
+  final ThemeData Function() _buildDark;
+
+  // Only the selected preset and brightness should initialize fonts and styles.
+  late final ThemeData light = _buildLight();
+  late final ThemeData dark = _buildDark();
 }

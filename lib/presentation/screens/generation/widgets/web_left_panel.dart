@@ -1,0 +1,384 @@
+import 'dart:async';
+
+import 'package:flutter/material.dart';
+import '../../../widgets/common/model_family_icon.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import 'package:nai_launcher/core/utils/localization_extension.dart';
+import '../../../../core/constants/api_constants.dart';
+import '../../../providers/generation/generation_panel_expansion_provider.dart';
+import '../../../providers/image_generation_provider.dart';
+import '../../../providers/layout_state_provider.dart';
+import '../../../widgets/character/inline_character_section.dart';
+import 'collapsed_panel.dart';
+import 'generation_controls/generation_controls.dart';
+import 'generation_param_sections.dart';
+import 'generation_workspace_header.dart';
+import 'img2img_panel.dart';
+import 'precise_reference_panel.dart';
+import 'prompt_input.dart';
+import 'prompt_input_controller.dart';
+import 'reverse_prompt_panel.dart';
+import 'unified_reference_panel.dart';
+
+/// 官网式布局左栏
+///
+/// 一体式滚动列，自上而下：尺寸 → 种子 → 提示词（随内容自由增高）→
+/// 反推/图生图/风格迁移/精准参考。
+/// 参数（模型/采样器/噪声调度/步数/CFG/CFG Rescale）是独立的二级菜单：
+/// 触发条固定在钉底生成控制条上方，点击后面板向上弹出、
+/// 悬浮于滚动内容之上（官网式，不与提示词等模块同层）。
+class WebLeftPanel extends ConsumerStatefulWidget {
+  final ValueNotifier<bool> negativeModeNotifier;
+  final PromptInputController promptInputController;
+  final GlobalKey promptInputKey;
+  final bool isResizing;
+
+  const WebLeftPanel({
+    super.key,
+    required this.negativeModeNotifier,
+    required this.promptInputController,
+    required this.promptInputKey,
+    this.isResizing = false,
+  });
+
+  @override
+  ConsumerState<WebLeftPanel> createState() => _WebLeftPanelState();
+}
+
+class _WebLeftPanelState extends ConsumerState<WebLeftPanel>
+    with SingleTickerProviderStateMixin {
+  // 320px 的面板最小宽度包含右侧 1px 分隔线。
+  static const double _expandedContentMinWidth = 319;
+
+  /// 参数二级菜单是否挂载（动画收起完毕后卸载）。
+  bool _paramsMenuMounted = false;
+
+  late final AnimationController _menuController = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 220),
+  );
+  late final CurvedAnimation _menuAnimation = CurvedAnimation(
+    parent: _menuController,
+    curve: Curves.easeOutCubic,
+    reverseCurve: Curves.easeInCubic,
+  );
+  late final Animation<Offset> _menuSlide = Tween<Offset>(
+    begin: const Offset(0, 1),
+    end: Offset.zero,
+  ).animate(_menuAnimation);
+
+  @override
+  void initState() {
+    super.initState();
+    final restored = ref
+        .read(generationPanelExpansionProvider)
+        .isExpanded(GenerationWorkbenchPanel.generationParameters);
+    _paramsMenuMounted = restored;
+    _menuController.value = restored ? 1 : 0;
+    // 收起动画播完再卸载浮层
+    _menuController.addStatusListener((status) {
+      if (status == AnimationStatus.dismissed && mounted) {
+        setState(() => _paramsMenuMounted = false);
+      }
+    });
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final duration = MediaQuery.disableAnimationsOf(context)
+        ? Duration.zero
+        : const Duration(milliseconds: 220);
+    _menuController.duration = duration;
+    _menuController.reverseDuration = duration;
+  }
+
+  @override
+  void dispose() {
+    _menuAnimation.dispose();
+    _menuController.dispose();
+    super.dispose();
+  }
+
+  void _toggleParamsMenu() {
+    final opening =
+        _menuController.status == AnimationStatus.dismissed ||
+        _menuController.status == AnimationStatus.reverse;
+    _setParamsMenuExpanded(opening);
+  }
+
+  void _closeParamsMenu() => _setParamsMenuExpanded(false);
+
+  void _setParamsMenuExpanded(bool expanded) {
+    if (expanded && !_paramsMenuMounted) {
+      setState(() => _paramsMenuMounted = true);
+    }
+    if (expanded) {
+      _menuController.forward();
+    } else {
+      _menuController.reverse();
+    }
+    unawaited(
+      ref
+          .read(generationPanelExpansionProvider.notifier)
+          .setExpanded(GenerationWorkbenchPanel.generationParameters, expanded),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final layoutState = ref.watch(layoutStateNotifierProvider);
+
+    final width = layoutState.webLeftPanelExpanded
+        ? layoutState.webLeftPanelWidth
+        : 40.0;
+    final decoration = BoxDecoration(
+      color: theme.colorScheme.surface,
+      border: Border(right: BorderSide(color: theme.dividerColor, width: 1)),
+    );
+
+    final child = LayoutBuilder(
+      builder: (context, constraints) {
+        // AnimatedContainer 会先切换业务状态，再逐帧过渡实际宽度。
+        // 只有当前帧真正容得下完整内容时才构建展开态，避免其内部所有
+        // Row 在 40px 附近仍按桌面侧栏排版。
+        final showExpandedContent =
+            layoutState.webLeftPanelExpanded &&
+            constraints.maxWidth >= _expandedContentMinWidth;
+        if (showExpandedContent) {
+          return KeyedSubtree(
+            key: const ValueKey('web-left-panel-expanded-content'),
+            child: _buildExpanded(context, theme),
+          );
+        }
+        return CollapsedPanel(
+          key: const ValueKey('web-left-panel-compact-content'),
+          icon: Icons.edit_note,
+          label: context.l10n.generation_params,
+          onTap: () => ref
+              .read(layoutStateNotifierProvider.notifier)
+              .setWebLeftPanelExpanded(true),
+        );
+      },
+    );
+
+    // Keep the same subtree while dragging: replacing the container reparents
+    // the keyed prompt and its active OverlayPortal during layout.
+    return AnimatedContainer(
+      duration: widget.isResizing || MediaQuery.disableAnimationsOf(context)
+          ? Duration.zero
+          : const Duration(milliseconds: 200),
+      width: width,
+      decoration: decoration,
+      child: child,
+    );
+  }
+
+  Widget _buildExpanded(BuildContext context, ThemeData theme) {
+    final modelName = ref.watch(
+      generationParamsNotifierProvider.select(
+        (params) => ImageModels.modelDisplayNames[params.model] ?? params.model,
+      ),
+    );
+
+    return Column(
+      children: [
+        GenerationWorkspaceHeader(
+          key: const ValueKey('web-generation-workspace-header'),
+          onCollapse: () => ref
+              .read(layoutStateNotifierProvider.notifier)
+              .setWebLeftPanelExpanded(false),
+        ),
+
+        // 内容区 + 参数二级菜单浮层
+        Expanded(
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              return Stack(
+                children: [
+                  // 一体式滚动列
+                  // 用 SingleChildScrollView 而非 ListView：列内容有限，且需要
+                  // 保持子项 State（撤销历史、面板展开态）不随滚动销毁
+                  SingleChildScrollView(
+                    padding: const EdgeInsets.all(12),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        // 尺寸设置置顶：不会被长提示词推走
+                        const SizeSection(),
+                        const SizedBox(height: 10),
+
+                        // 种子：位于尺寸与提示词之间
+                        const SeedSection(),
+                        const SizedBox(height: 10),
+
+                        // 提示词：随内容自由增高（官网式）
+                        PromptInputWidget(
+                          key: widget.promptInputKey,
+                          controller: widget.promptInputController,
+                          autoGrow: true,
+                          showMaximizeButton: false,
+                          negativeModeNotifier: widget.negativeModeNotifier,
+                        ),
+                        const SizedBox(height: 10),
+
+                        // 角色区：内联在主提示词正下方（官网式，内容常显）
+                        const InlineCharacterSection(),
+                        const SizedBox(height: 10),
+
+                        // 功能面板：反推 / 图生图 / 风格迁移 / 精准参考
+                        const ReversePromptPanel(),
+                        const SizedBox(height: 8),
+                        const Img2ImgPanel(),
+                        const SizedBox(height: 8),
+                        const UnifiedReferencePanel(),
+                        const SizedBox(height: 8),
+                        const PreciseReferencePanel(),
+                      ],
+                    ),
+                  ),
+
+                  // 参数二级菜单：遮罩淡入淡出 + 抽屉从触发条上方拉出
+                  if (_paramsMenuMounted) ...[
+                    Positioned.fill(
+                      child: FadeTransition(
+                        opacity: _menuAnimation,
+                        child: GestureDetector(
+                          behavior: HitTestBehavior.opaque,
+                          onTap: _closeParamsMenu,
+                          child: ColoredBox(
+                            color: Colors.black.withValues(alpha: 0.25),
+                          ),
+                        ),
+                      ),
+                    ),
+                    Positioned(
+                      left: 0,
+                      right: 0,
+                      bottom: 0,
+                      child: ClipRect(
+                        child: SlideTransition(
+                          position: _menuSlide,
+                          child: ConstrainedBox(
+                            constraints: BoxConstraints(
+                              maxHeight: constraints.maxHeight - 12,
+                            ),
+                            child: Material(
+                              elevation: 8,
+                              borderRadius: const BorderRadius.vertical(
+                                top: Radius.circular(10),
+                              ),
+                              clipBehavior: Clip.antiAlias,
+                              color: theme.colorScheme.surface,
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  borderRadius: const BorderRadius.vertical(
+                                    top: Radius.circular(10),
+                                  ),
+                                  border: Border(
+                                    top: BorderSide(color: theme.dividerColor),
+                                    left: BorderSide(color: theme.dividerColor),
+                                    right: BorderSide(
+                                      color: theme.dividerColor,
+                                    ),
+                                  ),
+                                ),
+                                child: const SingleChildScrollView(
+                                  padding: EdgeInsets.all(12),
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.stretch,
+                                    children: [
+                                      ModelSection(),
+                                      SizedBox(height: 10),
+                                      SamplerSection(),
+                                      SizedBox(height: 10),
+                                      NoiseScheduleSection(),
+                                      SizedBox(height: 10),
+                                      StepsSection(),
+                                      CfgScaleSection(),
+                                      AdvancedSamplingOptions(),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
+              );
+            },
+          ),
+        ),
+
+        // 参数二级菜单触发条：固定在钉底控制条上方，永远一步可达
+        Material(
+          color: theme.colorScheme.surface,
+          child: InkWell(
+            onTap: _toggleParamsMenu,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              decoration: BoxDecoration(
+                border: Border(
+                  top: BorderSide(color: theme.dividerColor, width: 1),
+                ),
+              ),
+              child: Row(
+                children: [
+                  Text(
+                    context.l10n.generation_params,
+                    style: theme.textTheme.titleSmall,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Align(
+                      alignment: AlignmentDirectional.centerEnd,
+                      child: ModelNameLabel(
+                        modelId: ref.watch(
+                          generationParamsNotifierProvider.select(
+                            (params) => params.model,
+                          ),
+                        ),
+                        displayName: modelName,
+                        iconSize: 16,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.primary,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  // 箭头随抽屉开合旋转（收起朝上提示拉出方向）
+                  RotationTransition(
+                    turns: Tween<double>(
+                      begin: 0,
+                      end: 0.5,
+                    ).animate(_menuAnimation),
+                    child: const Icon(Icons.keyboard_arrow_up, size: 20),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+
+        // 钉底生成控制条（压扁）
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          decoration: BoxDecoration(
+            color: theme.colorScheme.surface.withValues(alpha: 0.5),
+            border: Border(
+              top: BorderSide(color: theme.dividerColor, width: 1),
+            ),
+          ),
+          child: const GenerationControls(compact: true),
+        ),
+      ],
+    );
+  }
+}

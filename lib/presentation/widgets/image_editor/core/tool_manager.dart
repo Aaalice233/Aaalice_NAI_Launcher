@@ -6,6 +6,7 @@ import '../tools/clone_stamp_tool.dart';
 import '../tools/color_picker_tool.dart';
 import '../tools/eraser_tool.dart';
 import '../tools/fill_tool.dart';
+import '../tools/magic_wand_tool.dart';
 import '../tools/selection/ellipse_selection_tool.dart';
 import '../tools/selection/lasso_selection_tool.dart';
 import '../tools/selection/rect_selection_tool.dart';
@@ -99,6 +100,9 @@ class ToolManager extends ChangeNotifier {
     } else if (tool is EraserTool) {
       settingsManager.setSetting(tool.id, 'size', tool.size);
       settingsManager.setSetting(tool.id, 'hardness', tool.hardness);
+    } else if (tool is MagicWandTool) {
+      settingsManager.setSetting(tool.id, 'tolerance', tool.tolerance);
+      settingsManager.setSetting(tool.id, 'invert', tool.invert);
     }
     // 异步保存到本地存储
     settingsManager.save();
@@ -127,6 +131,15 @@ class ToolManager extends ChangeNotifier {
       final hardness = settings['hardness'];
       if (hardness is num) {
         tool.setHardness(hardness.toDouble());
+      }
+    } else if (tool is MagicWandTool) {
+      final tolerance = settings['tolerance'];
+      if (tolerance is num) {
+        tool.setTolerance(tolerance.round());
+      }
+      final invert = settings['invert'];
+      if (invert is bool) {
+        tool.setInvert(invert);
       }
     }
   }
@@ -233,6 +246,7 @@ class ToolManager extends ChangeNotifier {
       BrushTool(),
       EraserTool(),
       FillTool(),
+      MagicWandTool(),
       BlurTool(),
       CloneStampTool(),
       RectSelectionTool(),

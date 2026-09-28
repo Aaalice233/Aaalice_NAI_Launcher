@@ -1,23 +1,83 @@
+import 'dart:convert';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
+import '../constants/api_constants.dart';
+import '../constants/model_capabilities.dart';
 import '../constants/storage_keys.dart';
+import '../platform/platform_capabilities.dart';
 
 part 'local_storage_service.g.dart';
 
+/// 配置导出文件的格式版本。
+///
+/// 0 = ios-v2 时期的无信封扁平 Map（导入侧仍然接受）；
+/// 1 = 当前格式，外层信封含版本号与导出时间。
+const int settingsExportFormatVersion = 1;
+
+/// 词库/固定词的内容类设置键。
+///
+/// 上游云同步把词库正文走独立 adapter，所以它们不在
+/// `portableSettingKeys` / `portablePromptSettingKeys` 里；而"本地配置导入"
+/// 的典型用途恰恰是把 PC 上的固定词与词库整份搬到手机，所以单列一组供调用方
+/// 拼进白名单。内容与 tool/export_content_settings.dart 的 contentKeys 一致，
+/// 改动时两边要一起改。
+const Set<String> contentSettingKeys = <String>{
+  StorageKeys.fixedTagsData,
+  StorageKeys.fixedTagLinksData,
+  StorageKeys.fixedTagCategoriesData,
+  StorageKeys.tagLibraryEntriesData,
+  StorageKeys.tagLibraryCategoriesData,
+};
+
+/// 一份已解析的配置导出文件。
+class SettingsExportFile {
+  const SettingsExportFile({
+    required this.formatVersion,
+    required this.exportedAt,
+    required this.settings,
+  });
+
+  static const String versionField = 'formatVersion';
+  static const String exportedAtField = 'exportedAt';
+  static const String payloadField = 'settings';
+
+  final int formatVersion;
+  final DateTime? exportedAt;
+  final Map<String, dynamic> settings;
+
+  /// 文件来自比当前实现更新的版本，导入前应当提醒用户。
+  bool get isNewerThanSupported => formatVersion > settingsExportFormatVersion;
+}
+
+/// 一次配置导入的结果。
+class SettingsImportResult {
+  const SettingsImportResult({
+    required this.importedKeys,
+    required this.skippedKeys,
+  });
+
+  /// 实际写入的键（已排序）。
+  final List<String> importedKeys;
+
+  /// 因不在白名单内而被跳过的键（已排序）。
+  final List<String> skippedKeys;
+
+  int get importedCount => importedKeys.length;
+  int get skippedCount => skippedKeys.length;
+}
+
 /// 本地存储服务 - 存储非敏感配置数据
 class LocalStorageService {
+  static const String _fallbackModel = ImageModels.animeDiffusionV5Full;
+
   /// 获取已打开的 settings box (在 main.dart 中预先打开)
   Box get _settingsBox => Hive.box(StorageKeys.settingsBox);
 
   /// 获取已打开的 history box (在 main.dart 中预先打开)
   Box get _historyBox => Hive.box(StorageKeys.historyBox);
-
-  /// 初始化存储 (boxes 已在 main.dart 中打开，此方法保留兼容性)
-  Future<void> init() async {
-    // Boxes 已在 main.dart 中预先打开
-  }
 
   // ==================== Settings ====================
 
@@ -34,9 +94,111 @@ class LocalStorageService {
     await _settingsBox.put(key, value);
   }
 
+  Future<void> setSettings(Map<String, Object?> values) async {
+    await _settingsBox.putAll(values);
+  }
+
   /// 删除设置
   Future<void> deleteSetting(String key) async {
     await _settingsBox.delete(key);
+  }
+
+  // ==================== 配置导出/导入 ====================
+  //
+  // 偏离上游：v4.2.1 全仓没有 exportSettings / importSettings，上游的配置迁移
+  // 只走云同步（lib/data/cloud_sync/app_cloud_sync_adapters.dart）。云同步在
+  // iOS 上只剩 GitHub / WebDAV 两个 provider 且必须先配好凭据，"把 PC 上的一份
+  // 配置直接搬到手机"这条离线路径没有替代品，所以这一组是我们的纯增量。
+  //
+  // 相对旧实现（ios-v2）加了两道保险：
+  //   1. 导出文件带格式版本号与导出时间，导入端能识别格式、日后能做迁移；
+  //   2. 导入按调用方给出的 key 白名单过滤。v4.2.1 起 StorageKeys 膨胀很多，
+  //      拿一份旧备份逐条 put 覆盖会把新版本才有的键连同窗口几何、设备本地
+  //      路径一起写坏，所以 [allowedKeys] 是必填参数——少传就编译不过，
+  //      不会出现"忘了过滤"的静默失效。
+
+  /// 导出全部设置为 JSON 可编码的 Map（跳过无法编码的值）。
+  ///
+  /// 这里刻意不做白名单过滤：导出文件同时承担"排查问题时的现场快照"，
+  /// 过滤发生在导入侧。
+  Map<String, dynamic> exportSettings() {
+    if (!Hive.isBoxOpen(StorageKeys.settingsBox)) {
+      return const {};
+    }
+    final result = <String, dynamic>{};
+    for (final key in _settingsBox.keys) {
+      final value = _settingsBox.get(key);
+      try {
+        jsonEncode(value);
+        result[key.toString()] = value;
+      } catch (_) {
+        // 非 JSON 可编码的值不参与导出
+      }
+    }
+    return result;
+  }
+
+  /// 构造带版本号信封的导出文档，调用方直接 jsonEncode 写盘即可。
+  Map<String, dynamic> buildSettingsExportDocument() {
+    return <String, dynamic>{
+      SettingsExportFile.versionField: settingsExportFormatVersion,
+      SettingsExportFile.exportedAtField: DateTime.now().toIso8601String(),
+      SettingsExportFile.payloadField: exportSettings(),
+    };
+  }
+
+  /// 解析一份导出文件的 JSON 文本。
+  ///
+  /// 同时接受两种形态：带信封的新格式，以及 ios-v2 时期与
+  /// tool/export_content_settings.dart 产出的扁平 Map（按版本 0 处理）。
+  static SettingsExportFile parseSettingsExport(String source) {
+    final decoded = jsonDecode(source);
+    if (decoded is! Map) {
+      throw const FormatException('settings export root is not an object');
+    }
+    final payload = decoded[SettingsExportFile.payloadField];
+    if (decoded.containsKey(SettingsExportFile.versionField) &&
+        payload is Map) {
+      final rawVersion = decoded[SettingsExportFile.versionField];
+      final exportedAt = decoded[SettingsExportFile.exportedAtField];
+      return SettingsExportFile(
+        formatVersion: rawVersion is int ? rawVersion : 0,
+        exportedAt: exportedAt is String ? DateTime.tryParse(exportedAt) : null,
+        settings: Map<String, dynamic>.from(payload),
+      );
+    }
+    // 旧的扁平格式
+    return SettingsExportFile(
+      formatVersion: 0,
+      exportedAt: null,
+      settings: Map<String, dynamic>.from(decoded),
+    );
+  }
+
+  /// 把导出的设置写回本地，仅接受 [allowedKeys] 中的键。
+  ///
+  /// 返回写入与跳过的明细，供 UI 在导入后如实告诉用户"有多少条没被采纳"。
+  Future<SettingsImportResult> importSettings(
+    Map<String, dynamic> data, {
+    required Set<String> allowedKeys,
+  }) async {
+    final accepted = <String, Object?>{};
+    final skippedKeys = <String>[];
+    for (final entry in data.entries) {
+      if (allowedKeys.contains(entry.key)) {
+        accepted[entry.key] = entry.value;
+      } else {
+        skippedKeys.add(entry.key);
+      }
+    }
+    if (accepted.isNotEmpty) {
+      await _settingsBox.putAll(accepted);
+    }
+    skippedKeys.sort();
+    return SettingsImportResult(
+      importedKeys: accepted.keys.toList()..sort(),
+      skippedKeys: skippedKeys,
+    );
   }
 
   // ==================== Theme ====================
@@ -92,6 +254,22 @@ class LocalStorageService {
     await setSetting(StorageKeys.locale, code);
   }
 
+  // ==================== Navigation ====================
+
+  /// 获取桌面主导航栏展开状态（默认收起）
+  bool getMainNavRailExpanded() {
+    return getSetting<bool>(
+          StorageKeys.mainNavRailExpanded,
+          defaultValue: false,
+        ) ??
+        false;
+  }
+
+  /// 保存桌面主导航栏展开状态
+  Future<void> setMainNavRailExpanded(bool expanded) async {
+    await setSetting(StorageKeys.mainNavRailExpanded, expanded);
+  }
+
   // ==================== Diagnostics ====================
 
   /// 获取是否记录文件日志 (默认关闭)
@@ -114,9 +292,9 @@ class LocalStorageService {
   String getDefaultModel() {
     return getSetting<String>(
           StorageKeys.defaultModel,
-          defaultValue: 'nai-diffusion-4-5-full',
+          defaultValue: _fallbackModel,
         ) ??
-        'nai-diffusion-4-5-full';
+        _fallbackModel;
   }
 
   /// 保存默认模型
@@ -140,7 +318,9 @@ class LocalStorageService {
 
   /// 获取默认步数
   int getDefaultSteps() {
-    return getSetting<int>(StorageKeys.defaultSteps, defaultValue: 28) ?? 28;
+    final fallback = ModelCapabilityRegistry.of(getDefaultModel()).defaultSteps;
+    return getSetting<int>(StorageKeys.defaultSteps, defaultValue: fallback) ??
+        fallback;
   }
 
   /// 保存默认步数
@@ -150,12 +330,13 @@ class LocalStorageService {
 
   /// 获取默认 Scale
   double getDefaultScale() {
+    final fallback = ModelCapabilityRegistry.of(getDefaultModel()).defaultScale;
     final value = getSetting(StorageKeys.defaultScale);
-    if (value == null) return 5.0;
+    if (value == null) return fallback;
     // 处理可能存储为 int 的情况
     if (value is int) return value.toDouble();
     if (value is double) return value;
-    return 5.0;
+    return fallback;
   }
 
   /// 保存默认 Scale
@@ -221,6 +402,20 @@ class LocalStorageService {
     await setSetting(StorageKeys.autoSaveImages, value);
   }
 
+  /// 获取透明图像的 Alpha 模式（true=Straight，false=Premultiplied）。
+  bool getImageStraightAlpha() {
+    return getSetting<bool>(
+          StorageKeys.imageStraightAlpha,
+          defaultValue: true,
+        ) ??
+        true;
+  }
+
+  /// 保存透明图像的 Alpha 模式。
+  Future<void> setImageStraightAlpha(bool value) async {
+    await setSetting(StorageKeys.imageStraightAlpha, value);
+  }
+
   // ==================== Quality Tags ====================
 
   /// 获取是否添加质量标签 (默认开启)
@@ -283,6 +478,20 @@ class LocalStorageService {
     await setSetting(StorageKeys.qualityPresetMode, value);
   }
 
+  /// 获取官方质量词档位（standard/light，默认 standard）
+  String getQualityPresetNaiTier() {
+    return getSetting<String>(
+          StorageKeys.qualityPresetNaiTier,
+          defaultValue: QualityTags.standardTier,
+        ) ??
+        QualityTags.standardTier;
+  }
+
+  /// 保存官方质量词档位
+  Future<void> setQualityPresetNaiTier(String value) async {
+    await setSetting(StorageKeys.qualityPresetNaiTier, value);
+  }
+
   /// 获取质量词预设自定义条目 ID
   String? getQualityPresetCustomId() {
     return getSetting<String>(StorageKeys.qualityPresetCustomId);
@@ -324,13 +533,21 @@ class LocalStorageService {
     await setSetting(StorageKeys.randomPromptMode, value);
   }
 
-  /// 获取是否显示随机提示词工具入口 (默认开启)
+  /// 获取是否显示随机提示词工具入口（桌面默认开启，移动端默认隐藏）
+  ///
+  /// 偏离上游：上游是全平台 `defaultValue: true`。手机上生成页工具条的横向空间
+  /// 非常紧张，抽卡（随机提示词）入口默认不占位，用户仍可在设置里手动打开。
+  ///
+  /// 注意这是移动端隐藏抽卡入口的唯一支点：mobile_layout.dart 与
+  /// prompt_input_toolbar.dart 仍在 watch randomPromptToolsVisibilityProvider，
+  /// 这里改回 true，手机上的开关就会重新出现。
   bool getShowRandomPromptTools() {
+    final defaultVisible = !PlatformCapabilities.current.isMobile;
     return getSetting<bool>(
           StorageKeys.showRandomPromptTools,
-          defaultValue: true,
+          defaultValue: defaultVisible,
         ) ??
-        true;
+        defaultVisible;
   }
 
   /// 保存是否显示随机提示词工具入口
@@ -338,18 +555,18 @@ class LocalStorageService {
     await setSetting(StorageKeys.showRandomPromptTools, value);
   }
 
-  /// 获取随机生成算法模式
-  String getRandomGenerationMode() {
-    return getSetting<String>(
-          StorageKeys.randomGenerationMode,
-          defaultValue: 'nai_official',
+  /// 获取生成时是否启用流式预览（默认开启）
+  bool getGenerationStreamPreviewEnabled() {
+    return getSetting<bool>(
+          StorageKeys.generationStreamPreviewEnabled,
+          defaultValue: true,
         ) ??
-        'nai_official';
+        true;
   }
 
-  /// 保存随机生成算法模式
-  Future<void> setRandomGenerationMode(String value) async {
-    await setSetting(StorageKeys.randomGenerationMode, value);
+  /// 保存生成时是否启用流式预览
+  Future<void> setGenerationStreamPreviewEnabled(bool value) async {
+    await setSetting(StorageKeys.generationStreamPreviewEnabled, value);
   }
 
   /// 获取每次请求生成的图片数量 (默认1，最大4)
@@ -419,6 +636,54 @@ class LocalStorageService {
   /// 保存是否启用SD语法自动转换
   Future<void> setSdSyntaxAutoConvert(bool value) async {
     await setSetting(StorageKeys.sdSyntaxAutoConvert, value);
+  }
+
+  // ==================== Resolve Alias On Copy ====================
+
+  /// 获取复制时是否展开词库别名 (默认关闭)
+  bool getResolveAliasOnCopy() {
+    return getSetting<bool>(
+          StorageKeys.resolveAliasOnCopy,
+          defaultValue: false,
+        ) ??
+        false;
+  }
+
+  /// 保存复制时是否展开词库别名
+  Future<void> setResolveAliasOnCopy(bool value) async {
+    await setSetting(StorageKeys.resolveAliasOnCopy, value);
+  }
+
+  // ==================== Prompt Regex Replace ====================
+
+  /// 获取正则替换规则（每项为一条规则的 JSON 字符串）
+  ///
+  /// 这里只存字符串，模型的序列化由调用方负责，避免存储层依赖数据模型。
+  List<String> getPromptRegexRules() {
+    final data = getSetting<List<dynamic>>(StorageKeys.promptRegexRules);
+    if (data == null) return const [];
+    return data.whereType<String>().toList();
+  }
+
+  /// 保存正则替换规则
+  Future<void> setPromptRegexRules(List<String> encodedRules) async {
+    await setSetting(StorageKeys.promptRegexRules, encodedRules);
+  }
+
+  // ==================== Prompt Weight Scroll ====================
+
+  /// 获取是否启用滚轮调整提示词权重（默认开启）
+  bool getEnablePromptWeightScroll() {
+    return getSetting<bool>(
+          StorageKeys.enablePromptWeightScroll,
+          defaultValue: true,
+        ) ??
+        true;
+  }
+
+  /// 保存是否启用滚轮调整提示词权重
+  Future<void> setEnablePromptWeightScroll(bool value) async {
+    await setSetting(StorageKeys.enablePromptWeightScroll, value);
   }
 
   // ==================== Cooccurrence Recommendation ====================
@@ -518,6 +783,31 @@ class LocalStorageService {
   /// 保存 Variety+ 设置
   Future<void> setLastVarietyPlus(bool value) async {
     await setSetting(StorageKeys.lastVarietyPlus, value);
+  }
+
+  /// 获取上次的透明背景开关 (仅 V5 生效)
+  bool getLastTransparentBackground() {
+    return getSetting<bool>(
+          StorageKeys.lastTransparentBackground,
+          defaultValue: false,
+        ) ??
+        false;
+  }
+
+  /// 保存透明背景开关
+  Future<void> setLastTransparentBackground(bool value) async {
+    await setSetting(StorageKeys.lastTransparentBackground, value);
+  }
+
+  /// 获取上次的端到端 ×2 放大开关 (仅 V5 生效)
+  bool getLastE2eUpscale() {
+    return getSetting<bool>(StorageKeys.lastE2eUpscale, defaultValue: false) ??
+        false;
+  }
+
+  /// 保存端到端 ×2 放大开关
+  Future<void> setLastE2eUpscale(bool value) async {
+    await setSetting(StorageKeys.lastE2eUpscale, value);
   }
 
   // ==================== Seed Lock ====================
@@ -630,6 +920,114 @@ class LocalStorageService {
     await setSetting(StorageKeys.promptMaximized, maximized);
   }
 
+  /// 获取生成页布局模式 (默认 'web_style')
+  String getGenerationLayoutMode() {
+    // 官网式布局体验更好，未主动设置过的用户默认使用官网式
+    return getSetting<String>(
+          StorageKeys.generationLayoutMode,
+          defaultValue: 'web_style',
+        ) ??
+        'web_style';
+  }
+
+  /// 保存生成页布局模式
+  Future<void> setGenerationLayoutMode(String mode) async {
+    await setSetting(StorageKeys.generationLayoutMode, mode);
+  }
+
+  /// 获取历史记录点击行为 (默认经典行为)
+  String getHistoryClickBehavior() {
+    return getSetting<String>(
+          StorageKeys.historyClickBehavior,
+          defaultValue: 'open_detail',
+        ) ??
+        'open_detail';
+  }
+
+  /// 保存历史记录点击行为
+  Future<void> setHistoryClickBehavior(String behavior) async {
+    await setSetting(StorageKeys.historyClickBehavior, behavior);
+  }
+
+  /// 获取预览区透明底色样式
+  ///
+  /// 未设置时返回 null，默认值与合法性由 `TransparencyBackgrounds` 归一化，
+  /// 避免在 core 层重复定义样式表。
+  String? getPreviewTransparencyBackground() {
+    return getSetting<String>(StorageKeys.previewTransparencyBackground);
+  }
+
+  /// 保存预览区透明底色样式
+  Future<void> setPreviewTransparencyBackground(String style) async {
+    await setSetting(StorageKeys.previewTransparencyBackground, style);
+  }
+
+  /// 获取构图参考线档位
+  ///
+  /// 未设置时返回 null，默认值与合法性由 `CompositionGuideMode` 解析，
+  /// 避免在 core 层重复定义档位表。
+  String? getCompositionGuideMode() {
+    return getSetting<String>(StorageKeys.compositionGuideMode);
+  }
+
+  /// 保存构图参考线档位
+  Future<void> setCompositionGuideMode(String mode) async {
+    await setSetting(StorageKeys.compositionGuideMode, mode);
+  }
+
+  /// 获取构图参考线自定义网格列数 (默认3)
+  int getCompositionGuideColumns() {
+    return getSetting<int>(
+          StorageKeys.compositionGuideColumns,
+          defaultValue: 3,
+        ) ??
+        3;
+  }
+
+  /// 保存构图参考线自定义网格列数
+  Future<void> setCompositionGuideColumns(int columns) async {
+    await setSetting(StorageKeys.compositionGuideColumns, columns);
+  }
+
+  /// 获取构图参考线自定义网格行数 (默认3)
+  int getCompositionGuideRows() {
+    return getSetting<int>(StorageKeys.compositionGuideRows, defaultValue: 3) ??
+        3;
+  }
+
+  /// 保存构图参考线自定义网格行数
+  Future<void> setCompositionGuideRows(int rows) async {
+    await setSetting(StorageKeys.compositionGuideRows, rows);
+  }
+
+  /// 获取官网式布局左栏宽度 (默认400)
+  double getWebLeftPanelWidth() {
+    return getSetting<double>(
+          StorageKeys.webLeftPanelWidth,
+          defaultValue: 400.0,
+        ) ??
+        400.0;
+  }
+
+  /// 保存官网式布局左栏宽度
+  Future<void> setWebLeftPanelWidth(double width) async {
+    await setSetting(StorageKeys.webLeftPanelWidth, width);
+  }
+
+  /// 获取官网式布局左栏展开状态 (默认展开)
+  bool getWebLeftPanelExpanded() {
+    return getSetting<bool>(
+          StorageKeys.webLeftPanelExpanded,
+          defaultValue: true,
+        ) ??
+        true;
+  }
+
+  /// 保存官网式布局左栏展开状态
+  Future<void> setWebLeftPanelExpanded(bool expanded) async {
+    await setSetting(StorageKeys.webLeftPanelExpanded, expanded);
+  }
+
   /// 获取固定词侧边栏展开状态 (默认收起)
   bool getFixedTagsSidebarExpanded() {
     return getSetting<bool>(
@@ -685,22 +1083,6 @@ class LocalStorageService {
   /// 保存负向固定词区域高度
   Future<void> setFixedTagsNegativeHeight(double height) async {
     await setSetting(StorageKeys.fixedTagsNegativeHeight, height);
-  }
-
-  // ==================== Character Panel Dock ====================
-
-  /// 获取角色面板停靠状态 (默认未停靠)
-  bool getCharacterPanelDocked() {
-    return getSetting<bool>(
-          StorageKeys.characterPanelDocked,
-          defaultValue: false,
-        ) ??
-        false;
-  }
-
-  /// 保存角色面板停靠状态
-  Future<void> setCharacterPanelDocked(bool docked) async {
-    await setSetting(StorageKeys.characterPanelDocked, docked);
   }
 
   // ==================== Lifecycle ====================
@@ -789,22 +1171,6 @@ class LocalStorageService {
     await setSetting(StorageKeys.tagLibraryViewMode, mode);
   }
 
-  // ==================== Floating Button Background ====================
-
-  /// 获取悬浮球背景图片路径
-  String? getFloatingButtonBackgroundImage() {
-    return getSetting<String>(StorageKeys.floatingButtonBackgroundImage);
-  }
-
-  /// 保存悬浮球背景图片路径
-  Future<void> setFloatingButtonBackgroundImage(String? path) async {
-    if (path != null) {
-      await setSetting(StorageKeys.floatingButtonBackgroundImage, path);
-    } else {
-      await deleteSetting(StorageKeys.floatingButtonBackgroundImage);
-    }
-  }
-
   // ==================== Update Check (更新检查相关) ====================
 
   /// 获取上次更新检查时间
@@ -814,7 +1180,7 @@ class LocalStorageService {
     return DateTime.fromMillisecondsSinceEpoch(timestamp);
   }
 
-  /// 保存上次更新检查时间
+  /// 保存上次成功完成更新检查的时间
   Future<void> setLastUpdateCheckTime(DateTime? time) async {
     if (time != null) {
       await setSetting(
@@ -823,6 +1189,25 @@ class LocalStorageService {
       );
     } else {
       await deleteSetting(StorageKeys.lastUpdateCheckTime);
+    }
+  }
+
+  /// 获取最近一次更新检查尝试时间
+  DateTime? getLastUpdateCheckAttemptTime() {
+    final timestamp = getSetting<int>(StorageKeys.lastUpdateCheckAttemptTime);
+    if (timestamp == null) return null;
+    return DateTime.fromMillisecondsSinceEpoch(timestamp);
+  }
+
+  /// 保存最近一次更新检查尝试时间
+  Future<void> setLastUpdateCheckAttemptTime(DateTime? time) async {
+    if (time != null) {
+      await setSetting(
+        StorageKeys.lastUpdateCheckAttemptTime,
+        time.millisecondsSinceEpoch,
+      );
+    } else {
+      await deleteSetting(StorageKeys.lastUpdateCheckAttemptTime);
     }
   }
 
@@ -837,6 +1222,39 @@ class LocalStorageService {
       await setSetting(StorageKeys.skippedUpdateVersion, version);
     } else {
       await deleteSetting(StorageKeys.skippedUpdateVersion);
+    }
+  }
+
+  /// 获取上次发现的新版本
+  String? getLastKnownUpdateVersion() {
+    return getSetting<String>(StorageKeys.lastKnownUpdateVersion);
+  }
+
+  /// 保存上次发现的新版本
+  Future<void> setLastKnownUpdateVersion(String? version) async {
+    if (version != null) {
+      await setSetting(StorageKeys.lastKnownUpdateVersion, version);
+    } else {
+      await deleteSetting(StorageKeys.lastKnownUpdateVersion);
+    }
+  }
+
+  /// 获取更新提示延后时间
+  DateTime? getUpdateRemindAfter() {
+    final timestamp = getSetting<int>(StorageKeys.updateRemindAfter);
+    if (timestamp == null) return null;
+    return DateTime.fromMillisecondsSinceEpoch(timestamp);
+  }
+
+  /// 保存更新提示延后时间
+  Future<void> setUpdateRemindAfter(DateTime? time) async {
+    if (time != null) {
+      await setSetting(
+        StorageKeys.updateRemindAfter,
+        time.millisecondsSinceEpoch,
+      );
+    } else {
+      await deleteSetting(StorageKeys.updateRemindAfter);
     }
   }
 
@@ -858,7 +1276,5 @@ class LocalStorageService {
 /// LocalStorageService Provider
 @riverpod
 LocalStorageService localStorageService(Ref ref) {
-  final service = LocalStorageService();
-  // 注意：需要在应用启动时调用 init()
-  return service;
+  return LocalStorageService();
 }

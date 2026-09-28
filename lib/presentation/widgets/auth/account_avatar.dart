@@ -1,8 +1,8 @@
-import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 
+import '../../../core/services/avatar_image_cache.dart';
 import '../../../data/models/auth/saved_account.dart';
 
 /// 账号头像组件
@@ -28,8 +28,9 @@ class AccountAvatar extends StatelessWidget {
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(size / 2),
-        splashColor:
-            Theme.of(context).colorScheme.primary.withValues(alpha: 0.2),
+        splashColor: Theme.of(
+          context,
+        ).colorScheme.primary.withValues(alpha: 0.2),
         customBorder: const CircleBorder(side: BorderSide.none),
         child: Padding(
           padding: EdgeInsets.all(showEditBadge ? size * 0.15 : 0),
@@ -48,30 +49,31 @@ class AccountAvatar extends StatelessWidget {
     final theme = Theme.of(context);
     final avatarPath = account.avatarPath;
 
-    // 如果有头像路径且文件存在，显示图片
-    if (avatarPath != null && avatarPath.isNotEmpty) {
-      final avatarFile = File(avatarPath);
-      if (avatarFile.existsSync()) {
-        // 使用 Image.memory 绕过 FileImage 缓存问题
-        // 因为 FileImage 会缓存同一路径的图片，导致更新后显示旧图片
-        return FutureBuilder<Uint8List>(
-          future: avatarFile.readAsBytes(),
-          builder: (context, snapshot) {
-            if (snapshot.hasData) {
-              return CircleAvatar(
-                radius: size / 2,
-                backgroundImage: MemoryImage(snapshot.data!),
-              );
-            }
-            // 加载中或失败时显示默认头像
-            return _buildDefaultAvatar(theme);
-          },
-        );
-      }
+    if (avatarPath == null || avatarPath.isEmpty) {
+      return _buildDefaultAvatar(theme);
     }
 
-    // 默认头像：显示昵称首字
-    return _buildDefaultAvatar(theme);
+    final cachedBytes = AvatarImageCache.instance.get(avatarPath);
+    if (cachedBytes != null) {
+      return CircleAvatar(
+        radius: size / 2,
+        backgroundImage: MemoryImage(cachedBytes),
+      );
+    }
+
+    return FutureBuilder<Uint8List?>(
+      future: AvatarImageCache.instance.load(avatarPath),
+      builder: (context, snapshot) {
+        final bytes = snapshot.data;
+        if (bytes != null) {
+          return CircleAvatar(
+            radius: size / 2,
+            backgroundImage: MemoryImage(bytes),
+          );
+        }
+        return _buildDefaultAvatar(theme);
+      },
+    );
   }
 
   Widget _buildDefaultAvatar(ThemeData theme) {
@@ -106,10 +108,7 @@ class AccountAvatar extends StatelessWidget {
         decoration: BoxDecoration(
           color: theme.colorScheme.primary,
           shape: BoxShape.circle,
-          border: Border.all(
-            color: theme.colorScheme.surface,
-            width: 2,
-          ),
+          border: Border.all(color: theme.colorScheme.surface, width: 2),
         ),
         child: Icon(
           Icons.camera_alt,
@@ -161,40 +160,39 @@ class AccountAvatarSmall extends StatelessWidget {
     final theme = Theme.of(context);
     final avatarPath = account.avatarPath;
 
-    // 如果有头像路径且文件存在，显示图片
-    if (avatarPath != null && avatarPath.isNotEmpty) {
-      final avatarFile = File(avatarPath);
-      if (avatarFile.existsSync()) {
-        // 使用 Image.memory 绕过 FileImage 缓存问题
-        return FutureBuilder<Uint8List>(
-          future: avatarFile.readAsBytes(),
-          builder: (context, snapshot) {
-            if (snapshot.hasData) {
-              return Container(
-                decoration: isSelected
-                    ? BoxDecoration(
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                          color: theme.colorScheme.primary,
-                          width: 2,
-                        ),
-                      )
-                    : null,
-                child: CircleAvatar(
-                  radius: size / 2,
-                  backgroundImage: MemoryImage(snapshot.data!),
-                ),
-              );
-            }
-            // 加载中或失败时显示默认头像
-            return _buildDefaultAvatar(theme, isSelected);
-          },
-        );
-      }
+    if (avatarPath == null || avatarPath.isEmpty) {
+      return _buildDefaultAvatar(theme, isSelected);
     }
 
-    // 默认头像：显示昵称首字
-    return _buildDefaultAvatar(theme, isSelected);
+    final cachedBytes = AvatarImageCache.instance.get(avatarPath);
+    if (cachedBytes != null) {
+      return _buildImageAvatar(theme, cachedBytes);
+    }
+
+    return FutureBuilder<Uint8List?>(
+      future: AvatarImageCache.instance.load(avatarPath),
+      builder: (context, snapshot) {
+        final bytes = snapshot.data;
+        return bytes == null
+            ? _buildDefaultAvatar(theme, isSelected)
+            : _buildImageAvatar(theme, bytes);
+      },
+    );
+  }
+
+  Widget _buildImageAvatar(ThemeData theme, Uint8List bytes) {
+    return Container(
+      decoration: isSelected
+          ? BoxDecoration(
+              shape: BoxShape.circle,
+              border: Border.all(color: theme.colorScheme.primary, width: 2),
+            )
+          : null,
+      child: CircleAvatar(
+        radius: size / 2,
+        backgroundImage: MemoryImage(bytes),
+      ),
+    );
   }
 
   Widget _buildDefaultAvatar(ThemeData theme, bool isSelected) {
@@ -223,10 +221,7 @@ class AccountAvatarSmall extends StatelessWidget {
       decoration: isSelected
           ? BoxDecoration(
               shape: BoxShape.circle,
-              border: Border.all(
-                color: theme.colorScheme.primary,
-                width: 2,
-              ),
+              border: Border.all(color: theme.colorScheme.primary, width: 2),
             )
           : null,
       child: CircleAvatar(

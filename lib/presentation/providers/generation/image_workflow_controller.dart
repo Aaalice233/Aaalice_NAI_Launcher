@@ -3,14 +3,16 @@ import 'dart:typed_data';
 import 'dart:ui';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:image/image.dart' as img;
 
+import '../../../core/comfyui/seedvr2_support.dart';
 import '../../../core/constants/api_constants.dart';
 import '../../../core/constants/storage_keys.dart';
 import '../../../core/storage/local_storage_service.dart';
 import '../../../core/utils/app_logger.dart';
+import '../../../core/utils/focused_inpaint_utils.dart';
 import '../../../core/utils/nai_resolution_adapter.dart';
 import '../../../data/models/image/image_params.dart';
+import 'generation_panel_expansion_provider.dart';
 import 'generation_params_notifier.dart';
 
 enum ImageWorkflowMode { base, inpaint, enhance, upscale }
@@ -27,8 +29,10 @@ String defaultComfyUpscaleModelForModule(ComfyUpscaleModule module) {
   };
 }
 
-const String comfySeedvr2UpscaleTemplateId = 'builtin_seedvr2_upscale';
-const String comfySeedvr2TiledUpscaleTemplateId =
+const String comfySeedvr2NativeUpscaleTemplateId =
+    'builtin_seedvr2_native_upscale';
+const String comfySeedvr2LegacyUpscaleTemplateId = 'builtin_seedvr2_upscale';
+const String comfySeedvr2LegacyTiledUpscaleTemplateId =
     'builtin_seedvr2_tiled_upscale';
 const String comfyModelUpscaleTemplateId = 'builtin_comfy_model_upscale';
 const String comfyRtxUpscaleTemplateId = 'builtin_rtx_upscale';
@@ -135,10 +139,18 @@ String selectPreferredUpscaleModel(
     return normalizedCurrent;
   }
 
-  for (final model in normalizedModels) {
-    final lower = model.toLowerCase();
-    if (lower.contains('3b') && lower.contains('q4')) {
-      return model;
+  const preferences = [
+    ['3b', 'int8'],
+    ['3b', 'fp8'],
+    ['3b', 'q4'],
+    ['7b', 'int8'],
+    ['7b', 'fp8'],
+    ['7b', 'fp16'],
+  ];
+  for (final preference in preferences) {
+    for (final model in normalizedModels) {
+      final lower = model.toLowerCase();
+      if (preference.every(lower.contains)) return model;
     }
   }
 
@@ -157,6 +169,29 @@ bool shouldAutoPersistResolvedUpscaleModel({
   return resolvedModel != currentModel;
 }
 
+/// 决定 SeedVR2 是否把 DiT 的输入输出组件（embedding 与归一化层）也卸载到
+/// CPU 内存。
+///
+/// 上游把这个开关描述为「在 blocks_to_swap 之上进一步压低显存」的手段，默认
+/// 关闭，只在显存确实吃紧时才建议打开；它同样要求 offload_device 已设置。
+/// 启动器此前把它固定为 true，导致用户即使把 [blocksToSwap] 调到 0，仍有一部分
+/// 权重留在内存里、每次前向都要经 PCIe 往返。
+///
+/// [blocksToSwap] 为用户在界面上设定的层数，范围见
+/// [UpscaleWorkflowSettings.minSeedvr2BlocksToSwap] 与
+/// [UpscaleWorkflowSettings.maxSeedvr2BlocksToSwap]。
+bool resolveSeedvr2SwapIoComponents(int blocksToSwap) {
+  return blocksToSwap >= seedvr2SwapIoComponentsThreshold;
+}
+
+/// [resolveSeedvr2SwapIoComponents] 启用输入输出组件卸载的层数阈值。
+///
+/// 取值落在默认档（[UpscaleWorkflowSettings.defaultSeedvr2BlocksToSwap]）与
+/// 上游给 8GB 显存的推荐档（32）之间：停在中低档位说明显存尚有余量，不值得
+/// 为有限的显存收益换来每次前向都要付的 PCIe 往返；用户主动调到该档位以上，
+/// 才说明显存确实吃紧、需要这个额外手段。
+const int seedvr2SwapIoComponentsThreshold = 24;
+
 /// 图生图「超分」子模式设置
 class UpscaleWorkflowSettings {
   const UpscaleWorkflowSettings({
@@ -165,30 +200,47 @@ class UpscaleWorkflowSettings {
     this.comfyScale = defaultComfyScale,
     this.comfyModel = defaultComfyModel,
     this.comfyRegularModel = defaultComfyRegularModel,
-    this.comfySeedvr2Model = defaultComfyModel,
+    this.comfySeedvr2NativeModel = defaultComfyModel,
+    this.comfySeedvr2LegacyModel = defaultLegacyComfyModel,
+    this.seedvr2Engine = ComfySeedvr2Engine.automatic,
     this.seedvr2VaeTileSize = defaultSeedvr2VaeTileSize,
     this.seedvr2Tiled = false,
     this.seedvr2TileSize = defaultSeedvr2TileSize,
+    this.seedvr2BlocksToSwap = defaultSeedvr2BlocksToSwap,
+    this.seedvr2EmbedNaiMetadata = false,
   });
 
   static const UpscaleBackend defaultBackend = UpscaleBackend.comfyui;
   static const ComfyUpscaleModule defaultComfyModule =
       ComfyUpscaleModule.seedvr2;
   static const double defaultComfyScale = 1.5;
-  static const String defaultComfyModel = 'seedvr2_ema_3b_q4.safetensors';
+  static const String defaultComfyModel = 'seedvr2_3b_int8_convrot.safetensors';
+  static const String defaultLegacyComfyModel =
+      'seedvr2_ema_3b_fp8_e4m3fn.safetensors';
   static const String defaultComfyRegularModel = '';
   static const int defaultSeedvr2VaeTileSize = 1024;
   static const int defaultSeedvr2TileSize = 1024;
+
+  /// SeedVR2 DiT 主干中放在 CPU 内存、推理时再逐层搬进显存的层数。
+  ///
+  /// 这个值决定权重在显存和内存之间怎么切分：调高省显存但吃内存并变慢，
+  /// 调低反之。默认取上游建议的起步值，保证 8GB 显存搭配默认的 3B 量化模型
+  /// 可以直接跑起来；显存充裕的用户可以在界面上调低以释放内存。
+  static const int defaultSeedvr2BlocksToSwap = 16;
 
   final UpscaleBackend backend;
   final ComfyUpscaleModule comfyModule;
   final double comfyScale;
   final String comfyModel;
   final String comfyRegularModel;
-  final String comfySeedvr2Model;
+  final String comfySeedvr2NativeModel;
+  final String comfySeedvr2LegacyModel;
+  final ComfySeedvr2Engine seedvr2Engine;
   final int seedvr2VaeTileSize;
   final bool seedvr2Tiled;
   final int seedvr2TileSize;
+  final int seedvr2BlocksToSwap;
+  final bool seedvr2EmbedNaiMetadata;
 
   static const double minScale = 1.0;
   static const double maxScale = 2.0;
@@ -196,6 +248,10 @@ class UpscaleWorkflowSettings {
   static const int maxSeedvr2VaeTileSize = 4096;
   static const int minSeedvr2TileSize = 256;
   static const int maxSeedvr2TileSize = 4096;
+  static const int minSeedvr2BlocksToSwap = 0;
+
+  /// 上游节点对 7B 模型的上限即为 36；更小的模型层数不足时会自行截断。
+  static const int maxSeedvr2BlocksToSwap = 36;
 
   UpscaleWorkflowSettings copyWith({
     UpscaleBackend? backend,
@@ -203,10 +259,14 @@ class UpscaleWorkflowSettings {
     double? comfyScale,
     String? comfyModel,
     String? comfyRegularModel,
-    String? comfySeedvr2Model,
+    String? comfySeedvr2NativeModel,
+    String? comfySeedvr2LegacyModel,
+    ComfySeedvr2Engine? seedvr2Engine,
     int? seedvr2VaeTileSize,
     bool? seedvr2Tiled,
     int? seedvr2TileSize,
+    int? seedvr2BlocksToSwap,
+    bool? seedvr2EmbedNaiMetadata,
   }) {
     return UpscaleWorkflowSettings(
       backend: backend ?? this.backend,
@@ -214,35 +274,69 @@ class UpscaleWorkflowSettings {
       comfyScale: comfyScale ?? this.comfyScale,
       comfyModel: comfyModel ?? this.comfyModel,
       comfyRegularModel: comfyRegularModel ?? this.comfyRegularModel,
-      comfySeedvr2Model: comfySeedvr2Model ?? this.comfySeedvr2Model,
+      comfySeedvr2NativeModel:
+          comfySeedvr2NativeModel ?? this.comfySeedvr2NativeModel,
+      comfySeedvr2LegacyModel:
+          comfySeedvr2LegacyModel ?? this.comfySeedvr2LegacyModel,
+      seedvr2Engine: seedvr2Engine ?? this.seedvr2Engine,
       seedvr2VaeTileSize: seedvr2VaeTileSize ?? this.seedvr2VaeTileSize,
       seedvr2Tiled: seedvr2Tiled ?? this.seedvr2Tiled,
       seedvr2TileSize: seedvr2TileSize ?? this.seedvr2TileSize,
+      seedvr2BlocksToSwap: seedvr2BlocksToSwap ?? this.seedvr2BlocksToSwap,
+      seedvr2EmbedNaiMetadata:
+          seedvr2EmbedNaiMetadata ?? this.seedvr2EmbedNaiMetadata,
     );
   }
 
-  String comfyModelForModule(ComfyUpscaleModule module) {
+  String get comfySeedvr2Model => comfySeedvr2ModelForBackend(null);
+
+  String comfySeedvr2ModelForBackend(ComfySeedvr2Backend? backend) {
+    final effectiveBackend =
+        backend ??
+        (seedvr2Engine == ComfySeedvr2Engine.legacy
+            ? ComfySeedvr2Backend.legacy
+            : ComfySeedvr2Backend.native);
+    return switch (effectiveBackend) {
+      ComfySeedvr2Backend.native => comfySeedvr2NativeModel,
+      ComfySeedvr2Backend.legacy => comfySeedvr2LegacyModel,
+    };
+  }
+
+  String comfyModelForModule(
+    ComfyUpscaleModule module, {
+    ComfySeedvr2Backend? seedvr2Backend,
+  }) {
     return switch (module) {
       ComfyUpscaleModule.regular => comfyRegularModel,
-      ComfyUpscaleModule.seedvr2 => comfySeedvr2Model,
+      ComfyUpscaleModule.seedvr2 => comfySeedvr2ModelForBackend(seedvr2Backend),
       ComfyUpscaleModule.rtx => comfyModel,
     };
   }
 
   UpscaleWorkflowSettings copyWithComfyModelForModule(
     ComfyUpscaleModule module,
-    String model,
-  ) {
+    String model, {
+    ComfySeedvr2Backend? seedvr2Backend,
+  }) {
     final normalizedModel = model.trim();
     return switch (module) {
       ComfyUpscaleModule.regular => copyWith(
         comfyModel: normalizedModel,
         comfyRegularModel: normalizedModel,
       ),
-      ComfyUpscaleModule.seedvr2 => copyWith(
-        comfyModel: normalizedModel,
-        comfySeedvr2Model: normalizedModel,
-      ),
+      ComfyUpscaleModule.seedvr2 => switch (seedvr2Backend ??
+          (seedvr2Engine == ComfySeedvr2Engine.legacy
+              ? ComfySeedvr2Backend.legacy
+              : ComfySeedvr2Backend.native)) {
+        ComfySeedvr2Backend.native => copyWith(
+          comfyModel: normalizedModel,
+          comfySeedvr2NativeModel: normalizedModel,
+        ),
+        ComfySeedvr2Backend.legacy => copyWith(
+          comfyModel: normalizedModel,
+          comfySeedvr2LegacyModel: normalizedModel,
+        ),
+      },
       ComfyUpscaleModule.rtx => copyWith(comfyModel: normalizedModel),
     };
   }
@@ -250,31 +344,38 @@ class UpscaleWorkflowSettings {
 
 class EnhanceWorkflowSettings {
   const EnhanceWorkflowSettings({
-    this.magnitude = 0.5,
+    this.level = EnhanceLevels.defaultLevel,
     this.showIndividualSettings = false,
     this.upscaleFactor = 1.0,
+    this.maxScale = false,
     this.strength = 0.5,
-    this.noise = 0.175,
+    this.noise = 0.0,
   });
 
-  final double magnitude;
+  /// 官网口径的 1-5 档幅度。
+  final int level;
   final bool showIndividualSettings;
   final double upscaleFactor;
+
+  /// max 档：不按倍率放大，交给服务端放到 3.14MP 上限。
+  final bool maxScale;
   final double strength;
   final double noise;
 
   EnhanceWorkflowSettings copyWith({
-    double? magnitude,
+    int? level,
     bool? showIndividualSettings,
     double? upscaleFactor,
+    bool? maxScale,
     double? strength,
     double? noise,
   }) {
     return EnhanceWorkflowSettings(
-      magnitude: magnitude ?? this.magnitude,
+      level: level ?? this.level,
       showIndividualSettings:
           showIndividualSettings ?? this.showIndividualSettings,
       upscaleFactor: upscaleFactor ?? this.upscaleFactor,
+      maxScale: maxScale ?? this.maxScale,
       strength: strength ?? this.strength,
       noise: noise ?? this.noise,
     );
@@ -286,11 +387,12 @@ class ImageWorkflowState {
     this.mode = ImageWorkflowMode.base,
     this.sourceWidth,
     this.sourceHeight,
+    this.sourceImageWidth,
+    this.sourceImageHeight,
     this.baseWidth,
     this.baseHeight,
-    this.baseStrength,
-    this.baseNoise,
-    this.baseModel,
+    this.enhanceEntryStrength,
+    this.enhanceEntryNoise,
     this.enhance = const EnhanceWorkflowSettings(),
     this.upscale = const UpscaleWorkflowSettings(),
     this.isPanelExpanded = false,
@@ -303,11 +405,14 @@ class ImageWorkflowState {
   final ImageWorkflowMode mode;
   final int? sourceWidth;
   final int? sourceHeight;
+  final int? sourceImageWidth;
+  final int? sourceImageHeight;
   final int? baseWidth;
   final int? baseHeight;
-  final double? baseStrength;
-  final double? baseNoise;
-  final String? baseModel;
+
+  // 只在进入增强时拍照：增强是唯一覆盖 strength/noise 的模式，提前拍会回写用户之后改的值
+  final double? enhanceEntryStrength;
+  final double? enhanceEntryNoise;
   final EnhanceWorkflowSettings enhance;
   final UpscaleWorkflowSettings upscale;
   final bool isPanelExpanded;
@@ -324,11 +429,12 @@ class ImageWorkflowState {
     ImageWorkflowMode? mode,
     int? sourceWidth,
     int? sourceHeight,
+    int? sourceImageWidth,
+    int? sourceImageHeight,
     int? baseWidth,
     int? baseHeight,
-    double? baseStrength,
-    double? baseNoise,
-    String? baseModel,
+    double? enhanceEntryStrength,
+    double? enhanceEntryNoise,
     EnhanceWorkflowSettings? enhance,
     UpscaleWorkflowSettings? upscale,
     bool? isPanelExpanded,
@@ -338,7 +444,11 @@ class ImageWorkflowState {
     Rect? focusedSelectionRect,
     bool clearSourceSize = false,
     bool clearBaseSnapshot = false,
+    bool clearEnhanceEntryParams = false,
     bool clearFocusedSelectionRect = false,
+    // 聚焦重绘归属于当前这张源图：换图或退出重绘时开关和选区必须一起归零，
+    // 只清选区会让下一次进重绘仍带着上一张图的聚焦状态。
+    bool resetFocusedInpaint = false,
   }) {
     return ImageWorkflowState(
       mode: mode ?? this.mode,
@@ -346,22 +456,30 @@ class ImageWorkflowState {
       sourceHeight: clearSourceSize
           ? null
           : (sourceHeight ?? this.sourceHeight),
+      sourceImageWidth: clearSourceSize
+          ? null
+          : (sourceImageWidth ?? this.sourceImageWidth),
+      sourceImageHeight: clearSourceSize
+          ? null
+          : (sourceImageHeight ?? this.sourceImageHeight),
       baseWidth: clearBaseSnapshot ? null : (baseWidth ?? this.baseWidth),
       baseHeight: clearBaseSnapshot ? null : (baseHeight ?? this.baseHeight),
-      baseStrength: clearBaseSnapshot
+      enhanceEntryStrength: clearBaseSnapshot || clearEnhanceEntryParams
           ? null
-          : (baseStrength ?? this.baseStrength),
-      baseNoise: clearBaseSnapshot ? null : (baseNoise ?? this.baseNoise),
-      baseModel: clearBaseSnapshot ? null : (baseModel ?? this.baseModel),
+          : (enhanceEntryStrength ?? this.enhanceEntryStrength),
+      enhanceEntryNoise: clearBaseSnapshot || clearEnhanceEntryParams
+          ? null
+          : (enhanceEntryNoise ?? this.enhanceEntryNoise),
       enhance: enhance ?? this.enhance,
       upscale: upscale ?? this.upscale,
       isPanelExpanded: isPanelExpanded ?? this.isPanelExpanded,
       isOutpaint: isOutpaint ?? this.isOutpaint,
-      focusedInpaintEnabled:
-          focusedInpaintEnabled ?? this.focusedInpaintEnabled,
+      focusedInpaintEnabled: resetFocusedInpaint
+          ? false
+          : (focusedInpaintEnabled ?? this.focusedInpaintEnabled),
       minimumContextMegaPixels:
           minimumContextMegaPixels ?? this.minimumContextMegaPixels,
-      focusedSelectionRect: clearFocusedSelectionRect
+      focusedSelectionRect: clearFocusedSelectionRect || resetFocusedInpaint
           ? null
           : (focusedSelectionRect ?? this.focusedSelectionRect),
     );
@@ -380,10 +498,12 @@ class ImageWorkflowController extends Notifier<ImageWorkflowState> {
   ImageWorkflowState _buildDefaultState({
     EnhanceWorkflowSettings? enhance,
     UpscaleWorkflowSettings? upscale,
+    bool? isPanelExpanded,
   }) {
     return ImageWorkflowState(
       enhance: enhance ?? const EnhanceWorkflowSettings(),
       upscale: upscale ?? const UpscaleWorkflowSettings(),
+      isPanelExpanded: isPanelExpanded ?? false,
     );
   }
 
@@ -394,7 +514,28 @@ class ImageWorkflowController extends Notifier<ImageWorkflowState> {
       _isDisposed = true;
       _sourceImageRequestId++;
     });
+    ref.listen<String>(
+      generationParamsNotifierProvider.select((params) => params.model),
+      (previous, next) {
+        if (previous != next && state.mode == ImageWorkflowMode.enhance) {
+          _applyEnhanceToParams();
+        }
+      },
+    );
+    ref.listen<bool>(
+      generationPanelExpansionProvider.select(
+        (value) => value.isExpanded(GenerationWorkbenchPanel.img2img),
+      ),
+      (previous, next) {
+        if (state.isPanelExpanded != next) {
+          state = state.copyWith(isPanelExpanded: next);
+        }
+      },
+    );
 
+    final persistedPanelExpanded = ref
+        .read(generationPanelExpansionProvider)
+        .isExpanded(GenerationWorkbenchPanel.img2img);
     final persistedScale = _readPersistedUpscaleScale();
     final legacyPersistedModel = _readPersistedStringSetting(
       StorageKeys.comfyuiUpscaleModel,
@@ -408,14 +549,32 @@ class ImageWorkflowController extends Notifier<ImageWorkflowState> {
       ComfyUpscaleModule.regular,
       legacyModel: legacyPersistedModel,
     );
-    final persistedSeedvr2Model = _readPersistedComfyModelForModule(
+    final previousSeedvr2Model = _readPersistedComfyModelForModule(
       ComfyUpscaleModule.seedvr2,
       legacyModel: legacyPersistedModel,
     );
+    final persistedSeedvr2Engine = _readPersistedSeedvr2Engine();
+    final persistedNativeModel = _readPersistedStringSetting(
+      StorageKeys.comfyuiUpscaleSeedvr2NativeModel,
+    );
+    final persistedLegacyModel = _readPersistedStringSetting(
+      StorageKeys.comfyuiUpscaleSeedvr2LegacyModel,
+    );
     final regularModel = persistedRegularModel.trim();
-    final seedvr2Model = persistedSeedvr2Model.trim().isNotEmpty
-        ? persistedSeedvr2Model.trim()
+    final previousModel = previousSeedvr2Model.trim();
+    final nativeModel = persistedNativeModel.trim().isNotEmpty
+        ? persistedNativeModel.trim()
+        : previousModel.isNotEmpty && !_isLegacySeedvr2ModelName(previousModel)
+        ? previousModel
         : UpscaleWorkflowSettings.defaultComfyModel;
+    final legacyModel = persistedLegacyModel.trim().isNotEmpty
+        ? persistedLegacyModel.trim()
+        : previousModel.isNotEmpty && _isLegacySeedvr2ModelName(previousModel)
+        ? previousModel
+        : UpscaleWorkflowSettings.defaultLegacyComfyModel;
+    final seedvr2Model = persistedSeedvr2Engine == ComfySeedvr2Engine.legacy
+        ? legacyModel
+        : nativeModel;
     final rtxModel = legacyPersistedModel.trim().isNotEmpty
         ? legacyPersistedModel.trim()
         : seedvr2Model;
@@ -442,20 +601,37 @@ class ImageWorkflowController extends Notifier<ImageWorkflowState> {
       min: UpscaleWorkflowSettings.minSeedvr2TileSize,
       max: UpscaleWorkflowSettings.maxSeedvr2TileSize,
     );
+    final persistedSeedvr2BlocksToSwap = _readPersistedIntSetting(
+      StorageKeys.comfyuiSeedvr2BlocksToSwap,
+      defaultValue: UpscaleWorkflowSettings.defaultSeedvr2BlocksToSwap,
+      min: UpscaleWorkflowSettings.minSeedvr2BlocksToSwap,
+      max: UpscaleWorkflowSettings.maxSeedvr2BlocksToSwap,
+    );
+    final persistedSeedvr2EmbedNaiMetadata =
+        _storage.getSetting<bool>(
+          StorageKeys.comfyuiSeedvr2EmbedNaiMetadata,
+          defaultValue: false,
+        ) ??
+        false;
     final persistedEnhance = _readPersistedEnhanceSettings();
 
     return _buildDefaultState(
       enhance: persistedEnhance,
+      isPanelExpanded: persistedPanelExpanded,
       upscale: UpscaleWorkflowSettings(
         backend: persistedBackend,
         comfyModule: persistedComfyModule,
         comfyScale: persistedScale,
         comfyModel: currentModel,
         comfyRegularModel: regularModel,
-        comfySeedvr2Model: seedvr2Model,
+        comfySeedvr2NativeModel: nativeModel,
+        comfySeedvr2LegacyModel: legacyModel,
+        seedvr2Engine: persistedSeedvr2Engine,
         seedvr2VaeTileSize: persistedSeedvr2VaeTileSize,
         seedvr2Tiled: persistedSeedvr2Tiled,
         seedvr2TileSize: persistedSeedvr2TileSize,
+        seedvr2BlocksToSwap: persistedSeedvr2BlocksToSwap,
+        seedvr2EmbedNaiMetadata: persistedSeedvr2EmbedNaiMetadata,
       ),
     );
   }
@@ -521,6 +697,24 @@ class ImageWorkflowController extends Notifier<ImageWorkflowState> {
         : ComfyUpscaleModule.regular;
   }
 
+  ComfySeedvr2Engine _readPersistedSeedvr2Engine() {
+    final rawValue = _storage.getSetting<String>(
+      StorageKeys.comfyuiSeedvr2Engine,
+      defaultValue: ComfySeedvr2Engine.automatic.name,
+    );
+    for (final engine in ComfySeedvr2Engine.values) {
+      if (engine.name == rawValue) return engine;
+    }
+    return ComfySeedvr2Engine.automatic;
+  }
+
+  static bool _isLegacySeedvr2ModelName(String model) {
+    final normalized = model.trim().toLowerCase();
+    return normalized.contains('seedvr2_ema_') ||
+        normalized.endsWith('.gguf') ||
+        normalized.contains('_q4');
+  }
+
   String _readPersistedComfyModelForModule(
     ComfyUpscaleModule module, {
     required String legacyModel,
@@ -567,7 +761,8 @@ class ImageWorkflowController extends Notifier<ImageWorkflowState> {
   }
 
   EnhanceWorkflowSettings _readPersistedEnhanceSettings() {
-    final rawMagnitude = _storage.getSetting(
+    final rawLevel = _storage.getSetting(StorageKeys.workflowEnhanceLevel);
+    final rawLegacyMagnitude = _storage.getSetting(
       StorageKeys.workflowEnhanceMagnitude,
     );
     final rawShowIndividual = _storage.getSetting<bool>(
@@ -576,6 +771,10 @@ class ImageWorkflowController extends Notifier<ImageWorkflowState> {
     );
     final rawUpscaleFactor = _storage.getSetting(
       StorageKeys.workflowEnhanceUpscaleFactor,
+    );
+    final rawMaxScale = _storage.getSetting<bool>(
+      StorageKeys.workflowEnhanceMaxScale,
+      defaultValue: const EnhanceWorkflowSettings().maxScale,
     );
     final rawStrength = _storage.getSetting(
       StorageKeys.workflowEnhanceStrength,
@@ -588,18 +787,29 @@ class ImageWorkflowController extends Notifier<ImageWorkflowState> {
       return fallback;
     }
 
+    // 档位化之前存的是 0-1 的连续 magnitude，用独立的新键避免两种量纲混淆；
+    // 新键缺失时按最接近的档位迁移旧值。
+    final level = switch (rawLevel) {
+      final int value => value,
+      final double value => value.round(),
+      _ =>
+        rawLegacyMagnitude == null
+            ? const EnhanceWorkflowSettings().level
+            : EnhanceLevels.fromLegacyMagnitude(
+                asDouble(rawLegacyMagnitude, 0.5),
+              ),
+    };
+
     return EnhanceWorkflowSettings(
-      magnitude: asDouble(
-        rawMagnitude,
-        const EnhanceWorkflowSettings().magnitude,
-      ).clamp(0.0, 1.0),
+      level: level.clamp(EnhanceLevels.minLevel, EnhanceLevels.maxLevel),
       showIndividualSettings:
           rawShowIndividual ??
           const EnhanceWorkflowSettings().showIndividualSettings,
       upscaleFactor: asDouble(
         rawUpscaleFactor,
         const EnhanceWorkflowSettings().upscaleFactor,
-      ).clamp(1.0, 1.5),
+      ).clamp(1.0, EnhanceScales.candidates.first),
+      maxScale: rawMaxScale ?? const EnhanceWorkflowSettings().maxScale,
       strength: asDouble(
         rawStrength,
         const EnhanceWorkflowSettings().strength,
@@ -614,7 +824,11 @@ class ImageWorkflowController extends Notifier<ImageWorkflowState> {
   void _persistUpscaleSettings(UpscaleWorkflowSettings settings) {
     final activeModel = settings.comfyModel.trim();
     final regularModel = settings.comfyRegularModel.trim();
-    final seedvr2Model = settings.comfySeedvr2Model.trim();
+    final seedvr2Model = settings.comfyModule == ComfyUpscaleModule.seedvr2
+        ? activeModel
+        : settings.comfySeedvr2Model.trim();
+    final nativeSeedvr2Model = settings.comfySeedvr2NativeModel.trim();
+    final legacySeedvr2Model = settings.comfySeedvr2LegacyModel.trim();
     if (activeModel.isNotEmpty) {
       unawaited(
         _storage.setSetting(StorageKeys.comfyuiUpscaleModel, activeModel),
@@ -633,6 +847,22 @@ class ImageWorkflowController extends Notifier<ImageWorkflowState> {
         _storage.setSetting(
           StorageKeys.comfyuiUpscaleSeedvr2Model,
           seedvr2Model,
+        ),
+      );
+    }
+    if (nativeSeedvr2Model.isNotEmpty) {
+      unawaited(
+        _storage.setSetting(
+          StorageKeys.comfyuiUpscaleSeedvr2NativeModel,
+          nativeSeedvr2Model,
+        ),
+      );
+    }
+    if (legacySeedvr2Model.isNotEmpty) {
+      unawaited(
+        _storage.setSetting(
+          StorageKeys.comfyuiUpscaleSeedvr2LegacyModel,
+          legacySeedvr2Model,
         ),
       );
     }
@@ -669,14 +899,29 @@ class ImageWorkflowController extends Notifier<ImageWorkflowState> {
         settings.seedvr2TileSize,
       ),
     );
+    unawaited(
+      _storage.setSetting(
+        StorageKeys.comfyuiSeedvr2BlocksToSwap,
+        settings.seedvr2BlocksToSwap,
+      ),
+    );
+    unawaited(
+      _storage.setSetting(
+        StorageKeys.comfyuiSeedvr2Engine,
+        settings.seedvr2Engine.name,
+      ),
+    );
+    unawaited(
+      _storage.setSetting(
+        StorageKeys.comfyuiSeedvr2EmbedNaiMetadata,
+        settings.seedvr2EmbedNaiMetadata,
+      ),
+    );
   }
 
   void _persistEnhanceSettings(EnhanceWorkflowSettings settings) {
     unawaited(
-      _storage.setSetting(
-        StorageKeys.workflowEnhanceMagnitude,
-        settings.magnitude,
-      ),
+      _storage.setSetting(StorageKeys.workflowEnhanceLevel, settings.level),
     );
     unawaited(
       _storage.setSetting(
@@ -688,6 +933,12 @@ class ImageWorkflowController extends Notifier<ImageWorkflowState> {
       _storage.setSetting(
         StorageKeys.workflowEnhanceUpscaleFactor,
         settings.upscaleFactor,
+      ),
+    );
+    unawaited(
+      _storage.setSetting(
+        StorageKeys.workflowEnhanceMaxScale,
+        settings.maxScale,
       ),
     );
     unawaited(
@@ -794,25 +1045,30 @@ class ImageWorkflowController extends Notifier<ImageWorkflowState> {
     _paramsNotifier.setSourceImage(effectiveBytes);
     _paramsNotifier.updateIsOutpaint(false);
 
-    final resolvedSize = _resolveImageSize(
+    final requestSize = _resolveImageSize(
       effectiveBytes,
       width: effectiveWidth,
       height: effectiveHeight,
     );
+    final sourceImageSize = importInfo == null
+        ? _resolveImageSize(effectiveBytes)
+        : (importInfo.originalWidth, importInfo.originalHeight);
     state = state.copyWith(
-      sourceWidth: resolvedSize?.$1,
-      sourceHeight: resolvedSize?.$2,
+      sourceWidth: requestSize?.$1,
+      sourceHeight: requestSize?.$2,
+      sourceImageWidth: sourceImageSize?.$1,
+      sourceImageHeight: sourceImageSize?.$2,
       isOutpaint: false,
-      clearFocusedSelectionRect: true,
+      resetFocusedInpaint: true,
     );
 
     switch (state.mode) {
       case ImageWorkflowMode.enhance:
-        _ensureBaseSnapshot();
+        _ensureBaseSizeSnapshot();
         _applyEnhanceToParams();
         break;
       case ImageWorkflowMode.upscale:
-        _ensureBaseSnapshot();
+        _ensureBaseSizeSnapshot();
         _applySourceSizeToParams();
         break;
       case ImageWorkflowMode.inpaint:
@@ -823,12 +1079,12 @@ class ImageWorkflowController extends Notifier<ImageWorkflowState> {
           mode: ImageWorkflowMode.base,
           isOutpaint: false,
           clearBaseSnapshot: true,
-          clearFocusedSelectionRect: true,
+          resetFocusedInpaint: true,
         );
         _paramsNotifier.updateAction(ImageGenerationAction.img2img);
         break;
       case ImageWorkflowMode.base:
-        _ensureBaseSnapshot();
+        _ensureBaseSizeSnapshot();
         _applySourceSizeToParams();
         _paramsNotifier.updateAction(ImageGenerationAction.img2img);
         break;
@@ -836,24 +1092,34 @@ class ImageWorkflowController extends Notifier<ImageWorkflowState> {
   }
 
   void clearSourceImage() {
-    if (state.baseWidth != null ||
-        state.baseHeight != null ||
-        state.baseModel != null) {
+    if (state.baseWidth != null || state.baseHeight != null) {
       _restoreBaseParams();
     } else if (ImageModels.isInpaintingModel(_params.model)) {
       _paramsNotifier.updateModel(
-        _resolveBaseModel(_params.model),
+        ImageModels.resolveBaseModel(_params.model),
         persist: false,
+        followDefaults: false,
       );
     }
 
     _paramsNotifier.clearImg2Img();
     _paramsNotifier.setMaskImage(null);
-    state = _buildDefaultState(enhance: state.enhance, upscale: state.upscale);
+    state = _buildDefaultState(
+      enhance: state.enhance,
+      upscale: state.upscale,
+      isPanelExpanded: state.isPanelExpanded,
+    );
   }
 
   void setPanelExpanded(bool value) {
-    state = state.copyWith(isPanelExpanded: value);
+    if (state.isPanelExpanded != value) {
+      state = state.copyWith(isPanelExpanded: value);
+    }
+    unawaited(
+      ref
+          .read(generationPanelExpansionProvider.notifier)
+          .setExpanded(GenerationWorkbenchPanel.img2img, value),
+    );
   }
 
   void setSourceImageDimensions(int? width, int? height) {
@@ -875,12 +1141,13 @@ class ImageWorkflowController extends Notifier<ImageWorkflowState> {
       _restoreBaseParams();
     }
 
-    _ensureBaseSnapshot();
+    _ensureBaseSizeSnapshot();
     state = state.copyWith(
       mode: ImageWorkflowMode.upscale,
       isPanelExpanded: true,
       isOutpaint: false,
     );
+    setPanelExpanded(true);
     _applySourceSizeToParams();
     _paramsNotifier.updateIsOutpaint(false);
     _paramsNotifier.updateAction(ImageGenerationAction.img2img);
@@ -891,18 +1158,7 @@ class ImageWorkflowController extends Notifier<ImageWorkflowState> {
       return;
     }
 
-    _restoreBaseParams();
-    state = state.copyWith(
-      mode: ImageWorkflowMode.base,
-      isOutpaint: false,
-      clearBaseSnapshot: true,
-    );
-    _paramsNotifier.updateIsOutpaint(false);
-    _paramsNotifier.updateAction(
-      _params.sourceImage != null
-          ? ImageGenerationAction.img2img
-          : ImageGenerationAction.generate,
-    );
+    enterBaseMode(clearMask: false);
   }
 
   void updateUpscaleComfyScale(double scale) {
@@ -916,10 +1172,14 @@ class ImageWorkflowController extends Notifier<ImageWorkflowState> {
     _persistUpscaleSettings(nextSettings);
   }
 
-  void updateUpscaleComfyModel(String model) {
+  void updateUpscaleComfyModel(
+    String model, {
+    ComfySeedvr2Backend? seedvr2Backend,
+  }) {
     final nextSettings = state.upscale.copyWithComfyModelForModule(
       state.upscale.comfyModule,
       model,
+      seedvr2Backend: seedvr2Backend,
     );
     state = state.copyWith(upscale: nextSettings);
     _persistUpscaleSettings(nextSettings);
@@ -936,6 +1196,18 @@ class ImageWorkflowController extends Notifier<ImageWorkflowState> {
 
   void updateUpscaleBackend(UpscaleBackend backend) {
     final nextSettings = state.upscale.copyWith(backend: backend);
+    state = state.copyWith(upscale: nextSettings);
+    _persistUpscaleSettings(nextSettings);
+  }
+
+  void updateSeedvr2Engine(ComfySeedvr2Engine engine) {
+    final backend = engine == ComfySeedvr2Engine.legacy
+        ? ComfySeedvr2Backend.legacy
+        : ComfySeedvr2Backend.native;
+    final nextSettings = state.upscale.copyWith(
+      seedvr2Engine: engine,
+      comfyModel: state.upscale.comfySeedvr2ModelForBackend(backend),
+    );
     state = state.copyWith(upscale: nextSettings);
     _persistUpscaleSettings(nextSettings);
   }
@@ -960,6 +1232,12 @@ class ImageWorkflowController extends Notifier<ImageWorkflowState> {
     _persistUpscaleSettings(nextSettings);
   }
 
+  void updateSeedvr2EmbedNaiMetadata(bool value) {
+    final nextSettings = state.upscale.copyWith(seedvr2EmbedNaiMetadata: value);
+    state = state.copyWith(upscale: nextSettings);
+    _persistUpscaleSettings(nextSettings);
+  }
+
   void updateSeedvr2TileSize(double value) {
     final nextSettings = state.upscale.copyWith(
       seedvr2TileSize: value
@@ -967,6 +1245,20 @@ class ImageWorkflowController extends Notifier<ImageWorkflowState> {
           .clamp(
             UpscaleWorkflowSettings.minSeedvr2TileSize,
             UpscaleWorkflowSettings.maxSeedvr2TileSize,
+          )
+          .toInt(),
+    );
+    state = state.copyWith(upscale: nextSettings);
+    _persistUpscaleSettings(nextSettings);
+  }
+
+  void updateSeedvr2BlocksToSwap(double value) {
+    final nextSettings = state.upscale.copyWith(
+      seedvr2BlocksToSwap: value
+          .round()
+          .clamp(
+            UpscaleWorkflowSettings.minSeedvr2BlocksToSwap,
+            UpscaleWorkflowSettings.maxSeedvr2BlocksToSwap,
           )
           .toInt(),
     );
@@ -982,13 +1274,43 @@ class ImageWorkflowController extends Notifier<ImageWorkflowState> {
   }
 
   void setMinimumContextMegaPixels(double value) {
-    state = state.copyWith(minimumContextMegaPixels: value.clamp(0.0, 192.0));
+    final context = value.clamp(16.0, 192.0);
+    final constrainedSelection = _constrainFocusedSelection(
+      state.focusedSelectionRect,
+      minimumContextMegaPixels: context,
+    );
+    state = state.copyWith(
+      minimumContextMegaPixels: context,
+      focusedSelectionRect: constrainedSelection,
+      clearFocusedSelectionRect:
+          state.focusedSelectionRect != null && constrainedSelection == null,
+    );
   }
 
   void setFocusedSelectionRect(Rect? rect) {
+    final constrainedSelection = _constrainFocusedSelection(
+      rect,
+      minimumContextMegaPixels: state.minimumContextMegaPixels,
+    );
     state = state.copyWith(
-      focusedSelectionRect: rect,
-      clearFocusedSelectionRect: rect == null,
+      focusedSelectionRect: constrainedSelection,
+      clearFocusedSelectionRect: constrainedSelection == null,
+    );
+  }
+
+  Rect? _constrainFocusedSelection(
+    Rect? rect, {
+    required double minimumContextMegaPixels,
+  }) {
+    if (rect == null) return null;
+    final width = state.sourceImageWidth ?? state.sourceWidth;
+    final height = state.sourceImageHeight ?? state.sourceHeight;
+    if (width == null || height == null) return rect;
+    return FocusedInpaintUtils.constrainSelectionRect(
+      sourceWidth: width,
+      sourceHeight: height,
+      selectionRect: rect,
+      minContextMegaPixels: minimumContextMegaPixels,
     );
   }
 
@@ -1001,18 +1323,25 @@ class ImageWorkflowController extends Notifier<ImageWorkflowState> {
     required Rect? focusedSelectionRect,
     required double minimumContextMegaPixels,
     bool forceDisableFocusedInpaint = false,
+    bool sourceIsOutpaint = true,
+    bool useExactSourceDimensions = false,
   }) {
-    final hasOutpaintSource = sourceImage != null;
-    if (hasOutpaintSource) {
+    final hasReplacementSource = sourceImage != null;
+    if (hasReplacementSource) {
       if (sourceWidth == null || sourceHeight == null) {
-        throw ArgumentError('Outpaint source dimensions are required');
+        throw ArgumentError(
+          sourceIsOutpaint
+              ? 'Outpaint source dimensions are required'
+              : 'Editor source dimensions are required',
+        );
       }
-      if (!NaiResolutionAdapter.isCompatible(sourceWidth, sourceHeight)) {
+      if (sourceIsOutpaint &&
+          !NaiResolutionAdapter.isCompatible(sourceWidth, sourceHeight)) {
         throw ArgumentError('Outpaint source dimensions must be 64-compatible');
       }
     }
 
-    if (_params.sourceImage == null && !hasOutpaintSource) {
+    if (_params.sourceImage == null && !hasReplacementSource) {
       return;
     }
 
@@ -1021,30 +1350,71 @@ class ImageWorkflowController extends Notifier<ImageWorkflowState> {
       _restoreBaseParams();
     }
 
-    if (hasOutpaintSource) {
+    NaiImportImageInfo? importInfo;
+    if (hasReplacementSource) {
       _paramsNotifier.setSourceImage(sourceImage);
+      if (!useExactSourceDimensions) {
+        importInfo = NaiResolutionAdapter.describeImageForImport(
+          sourceImage,
+          currentWidth: _params.width,
+          currentHeight: _params.height,
+          isStableDiffusionFamily: _usesStableDiffusionImportBounds(
+            _params.model,
+          ),
+        );
+      }
     }
 
-    _ensureBaseSnapshot();
+    // 编辑器已经明确给出输出尺寸，只在超出请求上限时收敛到最接近的合法尺寸。
+    final exactRequestSize = hasReplacementSource && importInfo == null
+        ? _clampToRequestLimits(sourceWidth!, sourceHeight!)
+        : null;
 
-    final effectiveFocusedSelectionRect = forceDisableFocusedInpaint
-        ? null
-        : focusedSelectionRect;
+    _ensureBaseSizeSnapshot();
+
+    final actualSourceWidth = hasReplacementSource
+        ? (importInfo?.originalWidth ?? sourceWidth)
+        : (state.sourceImageWidth ?? state.sourceWidth);
+    final actualSourceHeight = hasReplacementSource
+        ? (importInfo?.originalHeight ?? sourceHeight)
+        : (state.sourceImageHeight ?? state.sourceHeight);
+    final constrainedSelection = switch ((
+      forceDisableFocusedInpaint,
+      focusedSelectionRect,
+      actualSourceWidth,
+      actualSourceHeight,
+    )) {
+      (false, final Rect rect, final int width, final int height) =>
+        FocusedInpaintUtils.constrainSelectionRect(
+          sourceWidth: width,
+          sourceHeight: height,
+          selectionRect: rect,
+          minContextMegaPixels: minimumContextMegaPixels,
+        ),
+      _ => null,
+    };
     final effectiveFocusedInpaintEnabled =
         !forceDisableFocusedInpaint &&
         focusedInpaintEnabled &&
-        effectiveFocusedSelectionRect != null;
+        constrainedSelection != null;
     state = state.copyWith(
       mode: ImageWorkflowMode.inpaint,
-      sourceWidth: hasOutpaintSource ? sourceWidth : null,
-      sourceHeight: hasOutpaintSource ? sourceHeight : null,
+      sourceWidth: hasReplacementSource
+          ? (importInfo?.width ?? exactRequestSize?.width ?? sourceWidth)
+          : null,
+      sourceHeight: hasReplacementSource
+          ? (importInfo?.height ?? exactRequestSize?.height ?? sourceHeight)
+          : null,
+      sourceImageWidth: hasReplacementSource ? actualSourceWidth : null,
+      sourceImageHeight: hasReplacementSource ? actualSourceHeight : null,
       isPanelExpanded: true,
-      isOutpaint: hasOutpaintSource,
+      isOutpaint: hasReplacementSource && sourceIsOutpaint,
       focusedInpaintEnabled: effectiveFocusedInpaintEnabled,
-      minimumContextMegaPixels: minimumContextMegaPixels.clamp(0.0, 192.0),
-      focusedSelectionRect: effectiveFocusedSelectionRect,
+      minimumContextMegaPixels: minimumContextMegaPixels.clamp(16.0, 192.0),
+      focusedSelectionRect: constrainedSelection,
       clearFocusedSelectionRect: !effectiveFocusedInpaintEnabled,
     );
+    setPanelExpanded(true);
 
     _applySourceSizeToParams();
     _paramsNotifier.setMaskImage(maskImage);
@@ -1060,12 +1430,14 @@ class ImageWorkflowController extends Notifier<ImageWorkflowState> {
       _restoreBaseParams();
     }
 
-    _ensureBaseSnapshot();
+    _ensureBaseSizeSnapshot();
+    _captureEnhanceEntryParams();
     state = state.copyWith(
       mode: ImageWorkflowMode.enhance,
       isPanelExpanded: true,
       isOutpaint: false,
     );
+    setPanelExpanded(true);
     _paramsNotifier.updateIsOutpaint(false);
     _applyEnhanceToParams();
   }
@@ -1075,18 +1447,7 @@ class ImageWorkflowController extends Notifier<ImageWorkflowState> {
       return;
     }
 
-    _restoreBaseParams();
-    state = state.copyWith(
-      mode: ImageWorkflowMode.base,
-      isOutpaint: false,
-      clearBaseSnapshot: true,
-    );
-    _paramsNotifier.updateIsOutpaint(false);
-    _paramsNotifier.updateAction(
-      _params.sourceImage != null
-          ? ImageGenerationAction.img2img
-          : ImageGenerationAction.generate,
-    );
+    enterBaseMode(clearMask: false);
   }
 
   void enterInpaintMode() {
@@ -1101,17 +1462,19 @@ class ImageWorkflowController extends Notifier<ImageWorkflowState> {
       _restoreBaseParams();
     }
 
-    _ensureBaseSnapshot();
+    _ensureBaseSizeSnapshot();
     state = state.copyWith(
       mode: ImageWorkflowMode.inpaint,
       isPanelExpanded: true,
       isOutpaint: false,
     );
+    setPanelExpanded(true);
 
     _applySourceSizeToParams();
     _syncInpaintRequestState();
   }
 
+  /// 离开任一模式回到 base 的唯一实现：退出增强/超分都委托到这里，避免两条路径给出不同尺寸。
   void enterBaseMode({bool clearMask = true}) {
     final shouldRestoreBaseSnapshot =
         state.mode == ImageWorkflowMode.enhance ||
@@ -1130,7 +1493,7 @@ class ImageWorkflowController extends Notifier<ImageWorkflowState> {
       mode: ImageWorkflowMode.base,
       isOutpaint: false,
       clearBaseSnapshot: shouldRestoreBaseSnapshot,
-      clearFocusedSelectionRect: clearMask,
+      resetFocusedInpaint: clearMask,
     );
     _applySourceSizeToParams();
     _paramsNotifier.updateIsOutpaint(false);
@@ -1148,16 +1511,17 @@ class ImageWorkflowController extends Notifier<ImageWorkflowState> {
     }
   }
 
-  void updateEnhanceMagnitude(double value) {
-    final resolved = _resolveMagnitude(value);
+  void updateEnhanceLevel(int level) {
+    final clamped = level.clamp(EnhanceLevels.minLevel, EnhanceLevels.maxLevel);
+    final resolved = EnhanceLevels.resolve(clamped);
     final nextSettings = state.enhance.copyWith(
-      magnitude: value.clamp(0.0, 1.0),
+      level: clamped,
       strength: state.enhance.showIndividualSettings
           ? state.enhance.strength
-          : resolved.$1,
+          : resolved.strength,
       noise: state.enhance.showIndividualSettings
           ? state.enhance.noise
-          : resolved.$2,
+          : resolved.noise,
     );
     state = state.copyWith(enhance: nextSettings);
     _persistEnhanceSettings(nextSettings);
@@ -1168,11 +1532,11 @@ class ImageWorkflowController extends Notifier<ImageWorkflowState> {
   }
 
   void toggleEnhanceIndividualSettings(bool value) {
-    final resolved = _resolveMagnitude(state.enhance.magnitude);
+    final resolved = EnhanceLevels.resolve(state.enhance.level);
     final nextSettings = state.enhance.copyWith(
       showIndividualSettings: value,
-      strength: value ? state.enhance.strength : resolved.$1,
-      noise: value ? state.enhance.noise : resolved.$2,
+      strength: value ? state.enhance.strength : resolved.strength,
+      noise: value ? state.enhance.noise : resolved.noise,
     );
     state = state.copyWith(enhance: nextSettings);
     _persistEnhanceSettings(nextSettings);
@@ -1181,12 +1545,35 @@ class ImageWorkflowController extends Notifier<ImageWorkflowState> {
 
   void updateEnhanceUpscaleFactor(double factor) {
     final nextSettings = state.enhance.copyWith(
-      upscaleFactor: factor <= 1.0 ? 1.0 : 1.5,
+      upscaleFactor: EnhanceScales.resolveFactor(
+        factor,
+        sourceWidth: state.sourceWidth ?? state.baseWidth,
+        sourceHeight: state.sourceHeight ?? state.baseHeight,
+      ),
+      maxScale: false,
     );
     state = state.copyWith(enhance: nextSettings);
     _persistEnhanceSettings(nextSettings);
     _applyEnhanceToParams();
   }
+
+  /// 切到 max 档：不按倍率放大，服务端把结果放到 3.14MP 上限。
+  void selectEnhanceMaxScale() {
+    if (!isMaxEnhanceAvailable) {
+      return;
+    }
+    final nextSettings = state.enhance.copyWith(maxScale: true);
+    state = state.copyWith(enhance: nextSettings);
+    _persistEnhanceSettings(nextSettings);
+    _applyEnhanceToParams();
+  }
+
+  /// max 档在当前模型与源图尺寸下是否可用。
+  bool get isMaxEnhanceAvailable => E2eUpscale.allowsMaxEnhance(
+    _params.capabilities,
+    sourceWidth: state.sourceWidth ?? state.baseWidth,
+    sourceHeight: state.sourceHeight ?? state.baseHeight,
+  );
 
   void updateEnhanceIndividualSettings({double? strength, double? noise}) {
     final nextSettings = state.enhance.copyWith(
@@ -1199,24 +1586,30 @@ class ImageWorkflowController extends Notifier<ImageWorkflowState> {
     _applyEnhanceToParams();
   }
 
-  void _ensureBaseSnapshot() {
-    if (state.baseWidth != null &&
-        state.baseHeight != null &&
-        state.baseStrength != null &&
-        state.baseNoise != null) {
+  /// 尺寸在载入源图时就被源图尺寸覆盖，因此各模式共用一份、清空源图时还原。
+  void _ensureBaseSizeSnapshot() {
+    if (state.baseWidth != null && state.baseHeight != null) {
       return;
     }
 
     state = state.copyWith(
       baseWidth: _params.width,
       baseHeight: _params.height,
-      baseStrength: _params.strength,
-      baseNoise: _params.noise,
-      baseModel: _resolveBaseModel(_params.model),
+    );
+  }
+
+  void _captureEnhanceEntryParams() {
+    state = state.copyWith(
+      enhanceEntryStrength: _params.strength,
+      enhanceEntryNoise: _params.noise,
     );
   }
 
   void _restoreBaseParams() {
+    // 增强专属的一次性标记只属于增强请求，离开增强模式必须清掉，
+    // 否则后续普通生成会带着 max 档参数或自动补的降权词发出去。
+    _paramsNotifier.updateUpscaledEnhance(false);
+    _paramsNotifier.updateIsEnhanceRequest(false);
     if (state.baseWidth != null && state.baseHeight != null) {
       _paramsNotifier.updateSize(
         state.baseWidth!,
@@ -1224,14 +1617,17 @@ class ImageWorkflowController extends Notifier<ImageWorkflowState> {
         persist: false,
       );
     }
-    if (state.baseStrength != null) {
-      _paramsNotifier.updateStrength(state.baseStrength!);
+    final entryStrength = state.enhanceEntryStrength;
+    final entryNoise = state.enhanceEntryNoise;
+    if (entryStrength != null) {
+      _paramsNotifier.updateStrength(entryStrength);
     }
-    if (state.baseNoise != null) {
-      _paramsNotifier.updateNoise(state.baseNoise!);
+    if (entryNoise != null) {
+      _paramsNotifier.updateNoise(entryNoise);
     }
-    if (state.baseModel != null) {
-      _paramsNotifier.updateModel(state.baseModel!, persist: false);
+    // 回写即消费：留着会在后续转场里二次覆盖用户改过的值
+    if (entryStrength != null || entryNoise != null) {
+      state = state.copyWith(clearEnhanceEntryParams: true);
     }
   }
 
@@ -1242,21 +1638,43 @@ class ImageWorkflowController extends Notifier<ImageWorkflowState> {
 
     final baseWidth = state.sourceWidth ?? state.baseWidth ?? _params.width;
     final baseHeight = state.sourceHeight ?? state.baseHeight ?? _params.height;
-    final requestWidth = _normalizeDimension(
-      (baseWidth * state.enhance.upscaleFactor).round(),
-    );
-    final requestHeight = _normalizeDimension(
-      (baseHeight * state.enhance.upscaleFactor).round(),
+    // max 档按原尺寸发请求，由服务端等比放到面积上限；模型不支持或原图太大时
+    // 自动退回倍率档，避免 upscaled_enhance 发给不认识它的模型。
+    final useMaxScale = state.enhance.maxScale && isMaxEnhanceAvailable;
+    final factor = useMaxScale ? 1.0 : effectiveEnhanceFactor;
+    final targetSize = EnhanceScales.resolveTargetSize(
+      sourceWidth: baseWidth,
+      sourceHeight: baseHeight,
+      factor: factor,
     );
     final resolved = state.enhance.showIndividualSettings
-        ? (state.enhance.strength, state.enhance.noise)
-        : _resolveMagnitude(state.enhance.magnitude);
+        ? (strength: state.enhance.strength, noise: state.enhance.noise)
+        : EnhanceLevels.resolve(state.enhance.level);
 
-    _paramsNotifier.updateSize(requestWidth, requestHeight, persist: false);
-    _paramsNotifier.updateStrength(resolved.$1);
-    _paramsNotifier.updateNoise(resolved.$2);
+    _paramsNotifier.updateSize(
+      targetSize.width,
+      targetSize.height,
+      persist: false,
+    );
+    _paramsNotifier.updateStrength(resolved.strength);
+    _paramsNotifier.updateNoise(resolved.noise);
+    _paramsNotifier.updateUpscaledEnhance(useMaxScale);
+    _paramsNotifier.updateIsEnhanceRequest(true);
     _paramsNotifier.updateAction(ImageGenerationAction.img2img);
   }
+
+  /// 当前源图尺寸下可用的放大倍率。
+  List<double> get availableEnhanceFactors => EnhanceScales.availableFactors(
+    sourceWidth: state.sourceWidth ?? state.baseWidth,
+    sourceHeight: state.sourceHeight ?? state.baseHeight,
+  );
+
+  /// 持久化的倍率在当前源图不可用时回落到最大可用档。
+  double get effectiveEnhanceFactor => EnhanceScales.resolveFactor(
+    state.enhance.upscaleFactor,
+    sourceWidth: state.sourceWidth ?? state.baseWidth,
+    sourceHeight: state.sourceHeight ?? state.baseHeight,
+  );
 
   void _applySourceSizeToParams() {
     final width = state.sourceWidth;
@@ -1268,95 +1686,39 @@ class ImageWorkflowController extends Notifier<ImageWorkflowState> {
     _paramsNotifier.updateSize(width, height, persist: false);
   }
 
-  void _applyInpaintModel() {
-    final sourceModel = state.baseModel ?? _params.model;
-    _paramsNotifier.updateModel(
-      _resolveInpaintModel(sourceModel),
-      persist: false,
-    );
-  }
-
-  void _restoreBaseModel() {
-    final baseModel = state.baseModel ?? _resolveBaseModel(_params.model);
-    _paramsNotifier.updateModel(baseModel, persist: false);
-  }
-
   void _syncInpaintRequestState() {
     if (state.mode != ImageWorkflowMode.inpaint) {
       return;
     }
 
     if (_params.maskImage != null) {
-      _applyInpaintModel();
       _paramsNotifier.updateIsOutpaint(state.isOutpaint);
       _paramsNotifier.updateAction(ImageGenerationAction.infill);
       return;
     }
 
-    _restoreBaseModel();
     _paramsNotifier.updateIsOutpaint(false);
     _paramsNotifier.updateAction(ImageGenerationAction.img2img);
   }
 
-  String _resolveInpaintModel(String model) {
-    if (ImageModels.isInpaintingModel(model)) {
-      return model;
-    }
-
-    switch (model) {
-      case ImageModels.animeDiffusionV45Full:
-        return ImageModels.animeDiffusionV45FullInpainting;
-      case ImageModels.animeDiffusionV45Curated:
-        return ImageModels.animeDiffusionV45CuratedInpainting;
-      case ImageModels.animeDiffusionV4Full:
-        return ImageModels.animeDiffusionV4FullInpainting;
-      case ImageModels.animeDiffusionV4Curated:
-        return ImageModels.animeDiffusionV4CuratedInpainting;
-      case ImageModels.furryDiffusion:
-      case ImageModels.furryDiffusionV3:
-        return ImageModels.furryDiffusionV3Inpainting;
-      case ImageModels.animeDiffusionV3:
-      default:
-        return ImageModels.animeDiffusionV3Inpainting;
-    }
-  }
-
-  String _resolveBaseModel(String model) {
-    switch (model) {
-      case ImageModels.animeDiffusionV45FullInpainting:
-        return ImageModels.animeDiffusionV45Full;
-      case ImageModels.animeDiffusionV45CuratedInpainting:
-        return ImageModels.animeDiffusionV45Curated;
-      case ImageModels.animeDiffusionV4FullInpainting:
-        return ImageModels.animeDiffusionV4Full;
-      case ImageModels.animeDiffusionV4CuratedInpainting:
-        return ImageModels.animeDiffusionV4Curated;
-      case ImageModels.furryDiffusionV3Inpainting:
-        return ImageModels.furryDiffusionV3;
-      case ImageModels.animeDiffusionV3Inpainting:
-        return ImageModels.animeDiffusionV3;
-      default:
-        return model;
-    }
-  }
-
-  (double, double) _resolveMagnitude(double magnitude) {
-    final clamped = magnitude.clamp(0.0, 1.0);
-    // Magnitude 在 UI 中作为 Strength/Noise 的快捷联动值使用。
-    // 这里先采用保守映射，避免增强时默认噪声过高。
-    return (clamped, clamped * 0.35);
-  }
-
-  int _normalizeDimension(int value) {
-    final normalized = ((value + 32) ~/ 64) * 64;
-    return normalized.clamp(64, 4096);
-  }
-
   bool _usesStableDiffusionImportBounds(String model) {
-    final baseModel = _resolveBaseModel(model);
+    final baseModel = ImageModels.resolveBaseModel(model);
     return baseModel == ImageModels.animeCurated ||
         baseModel == ImageModels.animeFull ||
         baseModel == ImageModels.furry;
+  }
+
+  ({int width, int height}) _clampToRequestLimits(int width, int height) {
+    if (NaiResolutionAdapter.isGenerationCompatible(width, height)) {
+      return (width: width, height: height);
+    }
+    final closest = NaiResolutionAdapter.findClosestResolution(width, height);
+    AppLogger.i(
+      'Editor source clamped to request limits: '
+          '${width}x$height -> ${closest.width}x${closest.height}',
+      'ImageWorkflow',
+    );
+    return (width: closest.width, height: closest.height);
   }
 
   (int, int)? _resolveImageSize(
@@ -1368,10 +1730,6 @@ class ImageWorkflowController extends Notifier<ImageWorkflowState> {
       return (width, height);
     }
 
-    final decoded = img.decodeImage(imageBytes);
-    if (decoded == null) {
-      return null;
-    }
-    return (decoded.width, decoded.height);
+    return NaiResolutionAdapter.readImageSize(imageBytes);
   }
 }

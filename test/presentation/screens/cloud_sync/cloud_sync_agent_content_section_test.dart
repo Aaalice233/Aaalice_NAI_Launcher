@@ -1,0 +1,113 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:nai_launcher/core/agent/harness/harness_types.dart';
+import 'package:nai_launcher/core/agent/skill_catalog.dart';
+import 'package:nai_launcher/core/cloud_sync/content_selection.dart';
+import 'package:nai_launcher/l10n/app_localizations.dart';
+import 'package:nai_launcher/presentation/screens/cloud_sync/cloud_sync_agent_content_section.dart';
+
+void main() {
+  testWidgets(
+    'Agent content starts on and Skills allow explicit searchable selection',
+    (tester) async {
+      var selection = const CloudSyncContentSelection();
+      late StateSetter rebuild;
+      final skills = SkillCatalogSnapshot(
+        entries: [
+          _skill('shared', SkillSource.workspace, 'Workspace skill'),
+          _skill('shared', SkillSource.piUser, 'User skill'),
+          _skill('other', SkillSource.piUser, 'Other skill'),
+        ],
+        diagnostics: const [],
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          locale: const Locale('zh'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(
+            body: StatefulBuilder(
+              builder: (context, setState) {
+                rebuild = setState;
+                return SingleChildScrollView(
+                  child: CloudSyncAgentContentSection(
+                    selection: selection,
+                    skills: skills,
+                    onChanged: (value) {
+                      rebuild(() => selection = value);
+                    },
+                  ),
+                );
+              },
+            ),
+          ),
+        ),
+      );
+
+      expect(selection.includeAgentSystemPrompt, isTrue);
+      expect(selection.includeSkills, isTrue);
+      expect(find.text('自定义系统提示词'), findsOneWidget);
+      expect(selection.selectedSkillIds, isEmpty);
+      expect(find.text('已选择 0 个 Skill'), findsOneWidget);
+      expect(find.byKey(const ValueKey('cloud-sync-skill-list')), findsNothing);
+
+      await tester.tap(
+        find.byKey(const ValueKey('cloud-sync-skill-selection-entry')),
+      );
+      await tester.pumpAndSettle();
+      await tester.enterText(
+        find.widgetWithText(TextField, '搜索 Skill'),
+        'Workspace',
+      );
+      await tester.pumpAndSettle();
+      expect(find.textContaining('Workspace skill'), findsOneWidget);
+      expect(find.textContaining('User skill'), findsNothing);
+
+      await tester.tap(
+        find.byKey(const ValueKey('cloud-sync-skill-workspace:shared')),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('已选择 1 个 Skill'), findsOneWidget);
+
+      await tester.tap(find.byKey(const ValueKey('cloud-sync-skill-save')));
+      await tester.pumpAndSettle();
+      expect(selection.selectedSkillIds, {'workspace:shared'});
+
+      rebuild(
+        () => selection = selection.copyWith(
+          selectedSkillIds: {
+            ...selection.selectedSkillIds,
+            'commonUser:missing-skill',
+          },
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.textContaining('其中 1 个当前不可用'), findsOneWidget);
+      await tester.tap(
+        find.byKey(const ValueKey('cloud-sync-skill-selection-entry')),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('移除不可用项'));
+      await tester.pumpAndSettle();
+      expect(find.text('已选择 1 个 Skill'), findsOneWidget);
+      await tester.tap(find.byKey(const ValueKey('cloud-sync-skill-save')));
+      await tester.pumpAndSettle();
+      expect(selection.selectedSkillIds, {'workspace:shared'});
+    },
+  );
+}
+
+SkillCatalogEntry _skill(String name, SkillSource source, String description) =>
+    SkillCatalogEntry(
+      id: name,
+      skill: HarnessSkill(
+        name: name,
+        description: description,
+        content: description,
+        filePath: '/skills/$name/SKILL.md',
+      ),
+      source: source,
+      safePath: '${source.name}:/$name/SKILL.md',
+      enabled: true,
+    );

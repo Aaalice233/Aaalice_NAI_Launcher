@@ -90,8 +90,7 @@ bool editorEffectHasIntensity(EditorEffectType type) {
     EditorEffectType.rotateLeft ||
     EditorEffectType.rotateRight ||
     EditorEffectType.flipHorizontal ||
-    EditorEffectType.flipVertical =>
-      false,
+    EditorEffectType.flipVertical => false,
     _ => true,
   };
 }
@@ -119,12 +118,7 @@ class EditorEffectCropRect {
   final int height;
 
   Map<String, Object?> toMessage() {
-    return {
-      'x': x,
-      'y': y,
-      'width': width,
-      'height': height,
-    };
+    return {'x': x, 'y': y, 'width': width, 'height': height};
   }
 }
 
@@ -191,17 +185,11 @@ class EditorEffectResult {
   final int height;
 
   Map<String, Object?> toMessage() {
-    return {
-      'bytes': bytes,
-      'width': width,
-      'height': height,
-    };
+    return {'bytes': bytes, 'width': width, 'height': height};
   }
 }
 
-Map<String, Object?> runEditorEffectJobMessage(
-  Map<String, Object?> message,
-) {
+Map<String, Object?> runEditorEffectJobMessage(Map<String, Object?> message) {
   return runEditorEffectJob(EditorEffectJob.fromMessage(message)).toMessage();
 }
 
@@ -272,10 +260,7 @@ img.Image applyEditorImageEffect(
         brightness: (1.0 + intensity).clamp(0.0, 2.0),
       );
     case EditorEffectType.contrast:
-      return img.adjustColor(
-        work,
-        contrast: (1.0 + intensity).clamp(0.0, 2.0),
-      );
+      return img.adjustColor(work, contrast: (1.0 + intensity).clamp(0.0, 2.0));
     case EditorEffectType.saturation:
       return img.adjustColor(
         work,

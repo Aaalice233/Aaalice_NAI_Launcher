@@ -1,35 +1,51 @@
+import 'package:nai_launcher/presentation/widgets/common/horizontal_action_strip.dart';
 import 'package:flutter/material.dart';
+import 'package:nai_launcher/core/utils/localization_extension.dart';
 
 import '../../../../../data/models/prompt/conditional_branch.dart';
+import '../../../../adaptive/adaptive_presenter.dart';
+import '../../../../adaptive/window_size_class.dart';
 import '../panels/conditional_branch_panel.dart';
 
-/// 条件分支编辑弹窗
-///
-/// 用于编辑条件分支配置的完整弹窗
+/// 条件分支编辑弹窗。
 class ConditionalBranchDialog extends StatefulWidget {
-  /// 初始配置
-  final ConditionalBranchConfig? initialConfig;
-
-  /// 标题
-  final String title;
-
   const ConditionalBranchDialog({
     super.key,
     this.initialConfig,
-    this.title = '编辑条件分支',
+    this.title,
+    this.scrollController,
   });
 
-  /// 显示弹窗
+  final ConditionalBranchConfig? initialConfig;
+  final String? title;
+  final ScrollController? scrollController;
+
   static Future<ConditionalBranchConfig?> show(
     BuildContext context, {
     ConditionalBranchConfig? initialConfig,
-    String title = '编辑条件分支',
+    String? title,
   }) {
-    return showDialog<ConditionalBranchConfig>(
+    return AdaptivePresenter.showForm<ConditionalBranchConfig>(
       context: context,
-      builder: (context) => ConditionalBranchDialog(
+      dialogWidth: 600,
+      titleBuilder: (context) => Row(
+        children: [
+          const Icon(Icons.call_split),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              title ?? context.l10n.diy_editConditionalTitle,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: Theme.of(context).textTheme.titleLarge,
+            ),
+          ),
+        ],
+      ),
+      builder: (context, scrollController) => ConditionalBranchDialog(
         initialConfig: initialConfig,
         title: title,
+        scrollController: scrollController,
       ),
     );
   }
@@ -51,48 +67,99 @@ class _ConditionalBranchDialogState extends State<ConditionalBranchDialog> {
 
   @override
   Widget build(BuildContext context) {
-    return AlertDialog(
-      title: Row(
-        children: [
-          const Icon(Icons.call_split),
-          const SizedBox(width: 8),
-          Text(widget.title),
-        ],
-      ),
-      content: SizedBox(
-        width: 600,
-        child: SingleChildScrollView(
-          child: ConditionalBranchPanel(
-            config: _config,
-            onConfigChanged: (config) {
-              setState(() {
-                _config = config;
-                _hasChanges = true;
-              });
-            },
+    final compact = context.adaptiveWindow.isCompact;
+    return Column(
+      key: const ValueKey('conditional-branch-dialog'),
+      children: [
+        Expanded(
+          child: ListView(
+            key: ValueKey(
+              compact
+                  ? 'conditional-branch-compact-scroll'
+                  : 'conditional-branch-expanded-content',
+            ),
+            controller: widget.scrollController,
+            keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+            padding: EdgeInsets.all(compact ? 12 : 16),
+            children: [_buildResponsivePanel(compact)],
           ),
         ),
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: const Text('取消'),
-        ),
-        if (_config != null)
-          TextButton(
-            onPressed: () {
-              setState(() {
-                _config = null;
-                _hasChanges = true;
-              });
-            },
-            child: const Text('清除'),
+        const Divider(height: 1),
+        SafeArea(
+          top: false,
+          child: Padding(
+            padding: EdgeInsets.all(compact ? 12 : 16),
+            child: _buildActionBar(),
           ),
-        FilledButton(
-          onPressed: _hasChanges ? () => Navigator.pop(context, _config) : null,
-          child: const Text('保存'),
         ),
       ],
     );
   }
+
+  Widget _buildResponsivePanel(bool compact) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final scaledFormWidth = MediaQuery.textScalerOf(context).scale(280);
+        if (!compact || scaledFormWidth <= constraints.maxWidth) {
+          return _buildPanel();
+        }
+        return SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: SizedBox(width: scaledFormWidth, child: _buildPanel()),
+        );
+      },
+    );
+  }
+
+  Widget _buildPanel() {
+    return ConditionalBranchPanel(
+      config: _config,
+      onConfigChanged: (config) {
+        setState(() {
+          _config = config;
+          _hasChanges = true;
+        });
+      },
+    );
+  }
+
+  List<Widget> _buildActions() {
+    return [
+      TextButton(
+        onPressed: () => Navigator.pop(context),
+        child: Text(context.l10n.common_cancel),
+      ),
+      if (_config != null)
+        TextButton(onPressed: _clear, child: Text(context.l10n.common_clear)),
+      FilledButton(
+        onPressed: _hasChanges ? _save : null,
+        child: Text(context.l10n.common_save),
+      ),
+    ];
+  }
+
+  Widget _buildActionBar() {
+    final actions = _buildActions();
+    if (MediaQuery.textScalerOf(context).scale(1) < 2) {
+      return Wrap(
+        alignment: WrapAlignment.end,
+        spacing: 8,
+        runSpacing: 8,
+        children: actions,
+      );
+    }
+    return HorizontalActionStrip(
+      reverse: true,
+      child: Row(mainAxisSize: MainAxisSize.min, children: actions),
+    );
+  }
+
+  void _clear() {
+    setState(() {
+      _config = null;
+      _hasChanges = true;
+    });
+  }
+
+  void _save() => Navigator.pop(context, _config);
 }

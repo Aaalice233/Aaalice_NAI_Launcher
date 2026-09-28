@@ -192,8 +192,9 @@ class CanvasSnapshotManager {
         return false;
       }
 
-      final byteData =
-          await image.toByteData(format: ui.ImageByteFormat.rawRgba);
+      final byteData = await image.toByteData(
+        format: ui.ImageByteFormat.rawRgba,
+      );
 
       // 再次检查版本号
       if (_snapshotVersion != targetVersion) {
@@ -280,8 +281,10 @@ class CanvasSnapshotManager {
     final left = (centerX - halfRegion).clamp(0, canvasSize.width.toInt() - 1);
     final top = (centerY - halfRegion).clamp(0, canvasSize.height.toInt() - 1);
     final right = (centerX + halfRegion + 1).clamp(0, canvasSize.width.toInt());
-    final bottom =
-        (centerY + halfRegion + 1).clamp(0, canvasSize.height.toInt());
+    final bottom = (centerY + halfRegion + 1).clamp(
+      0,
+      canvasSize.height.toInt(),
+    );
     final width = right - left;
     final height = bottom - top;
 
@@ -335,8 +338,9 @@ class CanvasSnapshotManager {
         return false;
       }
 
-      final byteData =
-          await image.toByteData(format: ui.ImageByteFormat.rawRgba);
+      final byteData = await image.toByteData(
+        format: ui.ImageByteFormat.rawRgba,
+      );
       image.dispose();
       picture.dispose();
 

@@ -5,6 +5,7 @@ import 'dart:typed_data';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:nai_launcher/core/database/asset_database_manager.dart';
 import 'package:nai_launcher/core/database/database_manager.dart';
 import 'package:nai_launcher/core/database/database_providers.dart';
 import 'package:nai_launcher/core/database/data_source.dart';
@@ -29,6 +30,7 @@ void main() {
 
   setUp(() async {
     await _disposeDatabaseManagerIfNeeded();
+    AssetDatabaseManager.resetForTesting();
 
     tempDir = await Directory.systemTemp.createTemp('database_providers_test_');
     appSupportDir = await Directory(
@@ -39,12 +41,15 @@ void main() {
     );
 
     assetBytes = {
-      'assets/databases/translation.db': await _buildTranslationDatabaseBytes(
-        tempDir,
-      ),
-      'assets/databases/cooccurrence.db': await _buildCooccurrenceDatabaseBytes(
-        tempDir,
-      ),
+      'assets/databases/manifest.json': await File(
+        'assets/databases/manifest.json',
+      ).readAsBytes(),
+      'assets/databases/tag_catalog.db': await File(
+        'assets/databases/tag_catalog.db',
+      ).readAsBytes(),
+      'assets/data/cooccurrence_data_pack_manifest.json': await File(
+        'assets/data/cooccurrence_data_pack_manifest.json',
+      ).readAsBytes(),
     };
 
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
@@ -67,26 +72,25 @@ void main() {
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMessageHandler('flutter/assets', null);
     await _disposeDatabaseManagerIfNeeded();
-    if (await tempDir.exists()) {
-      await tempDir.delete(recursive: true);
-    }
+    await _deleteDirectoryWhenReleased(tempDir);
   });
 
   test(
-    'asset data source providers reuse DatabaseManager owned sources',
+    'optional co-occurrence provider is independent from DatabaseManager',
     () async {
       final container = ProviderContainer();
       try {
         final manager = await container.read(databaseManagerProvider.future);
-        final translation = await container.read(
-          translationDataSourceProvider.future,
-        );
         final cooccurrence = await container.read(
           cooccurrenceDataSourceProvider.future,
         );
 
-        expect(identical(translation, manager.translationDataSource), isTrue);
-        expect(identical(cooccurrence, manager.cooccurrenceDataSource), isTrue);
+        expect(manager.isInitialized, isTrue);
+        expect(await cooccurrence.getRelatedTags('1girl'), isEmpty);
+        expect(
+          (await cooccurrence.checkHealth()).status,
+          HealthStatus.degraded,
+        );
       } finally {
         container.dispose();
         await Future<void>.delayed(const Duration(milliseconds: 50));
@@ -95,19 +99,58 @@ void main() {
   );
 
   test(
-    'disposing provider container closes manager owned asset sources',
+    'provider container does not own the global database lifecycle',
     () async {
       final container = ProviderContainer();
 
-      final translation = await container.read(
-        translationDataSourceProvider.future,
+      final cooccurrence = await container.read(
+        cooccurrenceDataSourceProvider.future,
       );
-      expect((await translation.checkHealth()).status, HealthStatus.healthy);
+      expect((await cooccurrence.checkHealth()).status, HealthStatus.degraded);
 
       container.dispose();
       await Future<void>.delayed(const Duration(milliseconds: 50));
 
-      expect((await translation.checkHealth()).status, HealthStatus.corrupted);
+      expect((await cooccurrence.checkHealth()).status, HealthStatus.degraded);
+    },
+  );
+
+  test(
+    'concurrent DatabaseManager initialization shares one instance',
+    () async {
+      final results = await Future.wait([
+        DatabaseManager.initialize(),
+        DatabaseManager.initialize(),
+        DatabaseManager.initialize(),
+      ]);
+
+      expect(identical(results[0], results[1]), isTrue);
+      expect(identical(results[1], results[2]), isTrue);
+    },
+  );
+
+  test(
+    'failed DatabaseManager initialization can retry with a fresh instance',
+    () async {
+      final blockedPath = p.join(tempDir.path, 'not_a_directory');
+      await File(blockedPath).writeAsString('blocked');
+      PathProviderPlatform.instance = _TestPathProviderPlatform(
+        appSupportPath: blockedPath,
+      );
+
+      await expectLater(
+        DatabaseManager.initialize(),
+        throwsA(isA<FileSystemException>()),
+      );
+      expect(() => DatabaseManager.instance, throwsStateError);
+
+      PathProviderPlatform.instance = _TestPathProviderPlatform(
+        appSupportPath: appSupportDir.path,
+      );
+      final manager = await DatabaseManager.initialize();
+
+      expect(manager.isInitialized, isTrue);
+      expect(identical(DatabaseManager.instance, manager), isTrue);
     },
   );
 }
@@ -118,45 +161,17 @@ Future<void> _disposeDatabaseManagerIfNeeded() async {
   } catch (_) {}
 }
 
-Future<Uint8List> _buildTranslationDatabaseBytes(Directory tempDir) async {
-  final dbPath = p.join(tempDir.path, 'source_translation.db');
-  final db = await databaseFactoryFfi.openDatabase(dbPath);
-  try {
-    await db.execute(
-      'CREATE TABLE tags (id INTEGER PRIMARY KEY, name TEXT, type INTEGER, count INTEGER)',
-    );
-    await db.execute(
-      'CREATE TABLE translations (tag_id INTEGER, language TEXT, translation TEXT)',
-    );
-    await db.insert('tags', {'id': 1, 'name': 'solo', 'type': 0, 'count': 10});
-    await db.insert('translations', {
-      'tag_id': 1,
-      'language': 'zh',
-      'translation': '单人',
-    });
-  } finally {
-    await db.close();
+Future<void> _deleteDirectoryWhenReleased(Directory directory) async {
+  for (var attempt = 0; attempt < 20; attempt++) {
+    if (!await directory.exists()) return;
+    try {
+      await directory.delete(recursive: true);
+      return;
+    } on FileSystemException {
+      if (attempt == 19) rethrow;
+      await Future<void>.delayed(const Duration(milliseconds: 25));
+    }
   }
-  return File(dbPath).readAsBytes();
-}
-
-Future<Uint8List> _buildCooccurrenceDatabaseBytes(Directory tempDir) async {
-  final dbPath = p.join(tempDir.path, 'source_cooccurrence.db');
-  final db = await databaseFactoryFfi.openDatabase(dbPath);
-  try {
-    await db.execute(
-      'CREATE TABLE cooccurrences (tag1 TEXT, tag2 TEXT, count INTEGER, cooccurrence_score REAL)',
-    );
-    await db.insert('cooccurrences', {
-      'tag1': 'solo',
-      'tag2': '1girl',
-      'count': 5,
-      'cooccurrence_score': 0.5,
-    });
-  } finally {
-    await db.close();
-  }
-  return File(dbPath).readAsBytes();
 }
 
 class _TestPathProviderPlatform extends PathProviderPlatform {

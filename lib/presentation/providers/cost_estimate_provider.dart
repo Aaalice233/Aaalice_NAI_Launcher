@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
+import '../../core/constants/api_constants.dart';
 import '../../core/services/anlas_calculator.dart';
 import '../../core/utils/focused_inpaint_utils.dart';
 import '../../data/models/image/image_params.dart';
@@ -22,56 +23,102 @@ class _GenerationCostInput {
   final double strength;
 }
 
-int _resolvePreciseReferenceExtraCost(ImageParams params) {
-  if (!params.model.contains('diffusion-4-5')) {
-    return 0;
+/// Resolves the dimensions used by both Anlas and Opus quota calculations.
+({int width, int height}) resolveGenerationBillingSize({
+  required int width,
+  required int height,
+  required bool maxEnhance,
+}) {
+  if (!maxEnhance) {
+    return (width: width, height: height);
   }
-  return params.preciseReferenceCount * 5;
+  return E2eUpscale.resolveMaxEnhanceTargetSize(width, height);
 }
 
 _GenerationCostInput _resolveGenerationCostInput(
   ImageParams params,
   ImageWorkflowState workflow,
+  FocusedInpaintGeometry? focusedMaskGeometry,
 ) {
   if (workflow.focusedInpaintEnabled && params.isInpainting) {
     final focusedSelectionRect = workflow.focusedSelectionRect;
-    final focusedRequestSize = focusedSelectionRect == null
-        ? null
-        : FocusedInpaintUtils.resolveRequestSizeForSelection(
-            sourceWidth: workflow.sourceWidth ?? params.width,
-            sourceHeight: workflow.sourceHeight ?? params.height,
+    final focusedGeometry = focusedSelectionRect == null
+        ? focusedMaskGeometry
+        : FocusedInpaintUtils.resolveGeometryForSelection(
+            sourceWidth:
+                workflow.sourceImageWidth ??
+                workflow.sourceWidth ??
+                params.width,
+            sourceHeight:
+                workflow.sourceImageHeight ??
+                workflow.sourceHeight ??
+                params.height,
             selectionRect: focusedSelectionRect,
             minContextMegaPixels: workflow.minimumContextMegaPixels,
           );
-    if (focusedRequestSize != null) {
+    if (focusedGeometry != null) {
       return _GenerationCostInput(
-        width: focusedRequestSize.$1,
-        height: focusedRequestSize.$2,
-        strength: 1.0,
-      );
-    }
-
-    final focusedRequest = FocusedInpaintUtils.prepareRequest(
-      sourceImage: params.sourceImage!,
-      maskImage: params.maskImage!,
-      focusedSelectionRect: focusedSelectionRect,
-      minContextMegaPixels: workflow.minimumContextMegaPixels,
-    );
-    if (focusedRequest != null) {
-      return _GenerationCostInput(
-        width: focusedRequest.targetWidth,
-        height: focusedRequest.targetHeight,
-        strength: 1.0,
+        width: focusedGeometry.requestWidth,
+        height: focusedGeometry.requestHeight,
+        strength: params.inpaintStrength,
       );
     }
   }
 
-  return _GenerationCostInput(
+  // 增强 max 档：请求携带原图尺寸，但服务端按放大到 3.14MP 的面积计费。
+  final billingSize = resolveGenerationBillingSize(
     width: params.width,
     height: params.height,
-    strength: params.action == ImageGenerationAction.img2img
-        ? params.strength
-        : 1.0,
+    maxEnhance: params.effectiveUpscaledEnhance,
+  );
+
+  return _GenerationCostInput(
+    width: billingSize.width,
+    height: billingSize.height,
+    strength: switch (params.action) {
+      ImageGenerationAction.img2img => params.strength,
+      ImageGenerationAction.infill => params.inpaintStrength,
+      ImageGenerationAction.generate => 1.0,
+    },
+  );
+}
+
+/// 聚焦重绘"仅蒙版"场景下的请求尺寸（轻量路径）。
+///
+/// 只解码蒙版求外接矩形，不做完整 prepareRequest 的裁剪/缩放/PNG 编码。
+/// 依赖项用 select 收窄：蒙版引用与上下文参数不变时（例如只调整
+/// steps/prompt），Riverpod 直接复用缓存结果，不会重复解码蒙版。
+@riverpod
+FocusedInpaintGeometry? focusedInpaintMaskRequestSize(Ref ref) {
+  final needsMaskSize = ref.watch(
+    imageWorkflowControllerProvider.select(
+      (workflow) =>
+          workflow.focusedInpaintEnabled &&
+          workflow.focusedSelectionRect == null,
+    ),
+  );
+  final isInpainting = ref.watch(
+    generationParamsNotifierProvider.select((params) => params.isInpainting),
+  );
+  if (!needsMaskSize || !isInpainting) {
+    return null;
+  }
+
+  final maskImage = ref.watch(
+    generationParamsNotifierProvider.select((params) => params.maskImage),
+  );
+  if (maskImage == null) {
+    return null;
+  }
+
+  final minContextMegaPixels = ref.watch(
+    imageWorkflowControllerProvider.select(
+      (workflow) => workflow.minimumContextMegaPixels,
+    ),
+  );
+  return FocusedInpaintUtils.resolveGeometryForMask(
+    maskImage: maskImage,
+    minContextMegaPixels: minContextMegaPixels,
   );
 }
 
@@ -90,9 +137,14 @@ int estimatedCost(Ref ref) {
   final subscription = ref.watch(
     subscriptionNotifierProvider.select((state) => state.subscription),
   );
+  final subscriptionTier = subscription?.isOpus == true
+      ? AnlasCalculator.opusTier
+      : 0;
+  // V5 的 Opus 免费额度是随时间回充的配额池，透支后按正常价扣 Anlas。
+  final opusQuotaExhausted = subscription?.usage?.isNegative ?? false;
 
   if (workflow.isUpscale) {
-    if (workflow.upscale.backend == UpscaleBackend.comfyui) {
+    if (workflow.upscale.backend != UpscaleBackend.novelai) {
       return 0;
     }
 
@@ -101,8 +153,8 @@ int estimatedCost(Ref ref) {
     return AnlasCalculator.calculateNovelAiUpscaleCost(
       inputWidth: inputWidth,
       inputHeight: inputHeight,
-      scale: 4,
-      subscriptionTier: subscription?.tier ?? 0,
+      scale: 2,
+      subscriptionTier: subscriptionTier,
     );
   }
 
@@ -112,19 +164,28 @@ int estimatedCost(Ref ref) {
     return 0;
   }
 
-  final requestInput = _resolveGenerationCostInput(params, workflow);
+  final requestInput = _resolveGenerationCostInput(
+    params,
+    workflow,
+    ref.watch(focusedInpaintMaskRequestSizeProvider),
+  );
   return AnlasCalculator.calculateRequestCost(
     width: requestInput.width,
     height: requestInput.height,
     steps: params.steps,
     batchCount: batchCount,
     batchSize: batchSize,
-    smea: params.smea,
-    smeaDyn: params.smeaDyn,
+    smea: params.effectiveSmea,
+    smeaDyn: params.effectiveSmeaDyn,
     model: params.model,
-    subscriptionTier: subscription?.tier ?? 0,
+    subscriptionTier: subscriptionTier,
+    opusQuotaExhausted: opusQuotaExhausted,
     strength: requestInput.strength,
-    extraPerSampleCost: _resolvePreciseReferenceExtraCost(params),
+    extraPerSampleCost: AnlasCalculator.resolvePreciseReferenceExtraCost(
+      params,
+    ),
+    extraPerRequestCost: AnlasCalculator.resolveVibeReferenceExtraCost(params),
+    oneTimeCost: AnlasCalculator.resolveVibeEncodingCost(params),
   );
 }
 

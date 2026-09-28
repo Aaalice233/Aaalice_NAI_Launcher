@@ -9,25 +9,20 @@ import '../../../core/constants/storage_keys.dart';
 import '../../../core/krita/krita_bridge_server.dart';
 import '../../../core/utils/app_logger.dart';
 import '../../../data/datasources/remote/nai_image_generation_api_service.dart';
+import '../auth_provider.dart';
 import '../fixed_tags_provider.dart';
 import '../generation/image_workflow_controller.dart';
 import '../image_generation_provider.dart';
 import '../image_save_settings_provider.dart';
+import '../subscription_provider.dart';
 import 'krita_bridge_service.dart';
 
 typedef KritaBridgeServerFactory = KritaBridgeServer Function();
 typedef KritaBridgeEnabledPersister = FutureOr<void> Function(bool enabled);
-typedef KritaBridgeServiceFactory = KritaBridgeMessageService Function(
-  KritaBridgeServer server,
-);
+typedef KritaBridgeServiceFactory =
+    KritaBridgeMessageService Function(KritaBridgeServer server);
 
-enum KritaBridgeStatus {
-  disabled,
-  starting,
-  listening,
-  connected,
-  error,
-}
+enum KritaBridgeStatus { disabled, starting, listening, connected, error }
 
 class KritaBridgeState {
   const KritaBridgeState({
@@ -75,8 +70,9 @@ class KritaBridgeState {
       status: status ?? this.status,
       port: clearSession ? null : (port ?? this.port),
       secret: clearSession ? null : (secret ?? this.secret),
-      discoveryFilePath:
-          clearSession ? null : (discoveryFilePath ?? this.discoveryFilePath),
+      discoveryFilePath: clearSession
+          ? null
+          : (discoveryFilePath ?? this.discoveryFilePath),
       connectedClientLabel: clearSession || clearConnectedClientLabel
           ? null
           : (connectedClientLabel ?? this.connectedClientLabel),
@@ -93,10 +89,10 @@ class KritaBridgeNotifier extends StateNotifier<KritaBridgeState> {
     KritaBridgeServerFactory? serverFactory,
     KritaBridgeEnabledPersister? persistEnabled,
     KritaBridgeServiceFactory? serviceFactory,
-  })  : _serverFactory = serverFactory ?? (() => KritaBridgeServer()),
-        _persistEnabled = persistEnabled,
-        _serviceFactory = serviceFactory,
-        super(const KritaBridgeState());
+  }) : _serverFactory = serverFactory ?? (() => KritaBridgeServer()),
+       _persistEnabled = persistEnabled,
+       _serviceFactory = serviceFactory,
+       super(const KritaBridgeState());
 
   final KritaBridgeServerFactory _serverFactory;
   final KritaBridgeEnabledPersister? _persistEnabled;
@@ -143,8 +139,9 @@ class KritaBridgeNotifier extends StateNotifier<KritaBridgeState> {
         }
         unawaited(service.handle(message));
       });
-      _connectionSubscription =
-          server.authenticationChanges.listen((connected) {
+      _connectionSubscription = server.authenticationChanges.listen((
+        connected,
+      ) {
         if (!mounted || !state.enabled) {
           return;
         }
@@ -276,68 +273,77 @@ class KritaBridgeNotifier extends StateNotifier<KritaBridgeState> {
 
 final kritaBridgeNotifierProvider =
     StateNotifierProvider<KritaBridgeNotifier, KritaBridgeState>((ref) {
-  final box = Hive.box(StorageKeys.settingsBox);
-  final notifier = KritaBridgeNotifier(
-    persistEnabled: (enabled) =>
-        box.put(StorageKeys.kritaBridgeEnabled, enabled),
-    serviceFactory: (server) => KritaBridgeService(
-      readBaseParams: () => ref.read(generationParamsNotifierProvider),
-      readPromptSnapshot: (params) {
-        final fixedTags = ref.read(fixedTagsNotifierProvider);
-        return (
-          prompt: fixedTags.applyToPrompt(params.prompt),
-          negativePrompt: fixedTags.applyToNegativePrompt(
-            params.negativePrompt,
-          ),
-        );
-      },
-      readMinimumContextPixels: () => ref
-          .read(imageWorkflowControllerProvider)
-          .minimumContextMegaPixels
-          .round()
-          .clamp(0, 192)
-          .toInt(),
-      send: server.send,
-      isUiGenerating: () =>
-          ref.read(imageGenerationNotifierProvider).isGenerating,
-      generateStream: (request) {
-        final apiService = ref.read(naiImageGenerationApiServiceProvider);
-        return apiService.generateImageStream(
-          request.params,
-          focusedInpaintEnabled: request.focusedInpaintEnabled,
-          minimumContextMegaPixels: request.minimumContextPixels,
-          focusedSelectionRect: request.focusedSelectionRect,
-        );
-      },
-      generateFallback: (request) async {
-        final apiService = ref.read(naiImageGenerationApiServiceProvider);
-        return apiService.generateImageCancellable(
-          request.params,
-          onProgress: (_, __) {},
-          focusedInpaintEnabled: request.focusedInpaintEnabled,
-          minimumContextMegaPixels: request.minimumContextPixels,
-          focusedSelectionRect: request.focusedSelectionRect,
-        );
-      },
-      registerExternalImage: (image, {required params, addToDisplay}) => ref
-          .read(imageGenerationNotifierProvider.notifier)
-          .registerExternalImage(
-            image,
-            params: params,
-            saveToLocal: ref.read(imageSaveSettingsNotifierProvider).autoSave,
-            addToDisplay: addToDisplay ?? false,
-          ),
-      cancelGeneration: () =>
-          ref.read(naiImageGenerationApiServiceProvider).cancelGeneration(),
-    ),
-  );
-  final enabled =
-      box.get(StorageKeys.kritaBridgeEnabled, defaultValue: false) as bool;
-  if (enabled) {
-    unawaited(notifier.enable(persist: false));
-  }
-  ref.onDispose(() {
-    unawaited(notifier.close());
-  });
-  return notifier;
-});
+      final box = Hive.box(StorageKeys.settingsBox);
+      final notifier = KritaBridgeNotifier(
+        persistEnabled: (enabled) =>
+            box.put(StorageKeys.kritaBridgeEnabled, enabled),
+        serviceFactory: (server) => KritaBridgeService(
+          readBaseParams: () => ref.read(generationParamsNotifierProvider),
+          readPromptSnapshot: (params) {
+            final fixedTags = ref.read(fixedTagsNotifierProvider);
+            return (
+              prompt: fixedTags.applyToPrompt(params.prompt),
+              negativePrompt: fixedTags.applyToNegativePrompt(
+                params.negativePrompt,
+              ),
+            );
+          },
+          readMinimumContextPixels: () => ref
+              .read(imageWorkflowControllerProvider)
+              .minimumContextMegaPixels
+              .round()
+              .clamp(16, 192)
+              .toInt(),
+          readStreamPreviewEnabled: () =>
+              ref.read(generationStreamPreviewSettingsProvider),
+          send: server.send,
+          isUiGenerating: () =>
+              ref.read(imageGenerationNotifierProvider).isBusy,
+          authGuard: () =>
+              requireAuthenticatedAction(ref, AuthPromptReason.kritaBridge),
+          generateStream: (request) {
+            final apiService = ref.read(naiImageGenerationApiServiceProvider);
+            return apiService.generateImageStream(
+              request.params,
+              focusedInpaintEnabled: request.focusedInpaintEnabled,
+              minimumContextMegaPixels: request.minimumContextPixels,
+              focusedSelectionRect: request.focusedSelectionRect,
+            );
+          },
+          generateFallback: (request) async {
+            final apiService = ref.read(naiImageGenerationApiServiceProvider);
+            return apiService.generateImageArtifactsCancellable(
+              request.params,
+              onProgress: (_, __) {},
+              focusedInpaintEnabled: request.focusedInpaintEnabled,
+              minimumContextMegaPixels: request.minimumContextPixels,
+              focusedSelectionRect: request.focusedSelectionRect,
+            );
+          },
+          registerExternalImage: (image, {required params, addToDisplay}) => ref
+              .read(imageGenerationNotifierProvider.notifier)
+              .registerExternalImage(
+                image,
+                params: params,
+                saveToLocal: ref
+                    .read(imageSaveSettingsNotifierProvider)
+                    .autoSave,
+                addToDisplay: addToDisplay ?? false,
+              ),
+          cancelGeneration: () =>
+              ref.read(naiImageGenerationApiServiceProvider).cancelGeneration(),
+          schedulePostBillingRefresh: () => ref
+              .read(subscriptionNotifierProvider.notifier)
+              .schedulePostBillingRefresh(),
+        ),
+      );
+      final enabled =
+          box.get(StorageKeys.kritaBridgeEnabled, defaultValue: false) as bool;
+      if (enabled) {
+        unawaited(notifier.enable(persist: false));
+      }
+      ref.onDispose(() {
+        unawaited(notifier.close());
+      });
+      return notifier;
+    });

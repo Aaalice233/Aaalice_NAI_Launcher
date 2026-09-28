@@ -1,0 +1,258 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-09-04T05:47:22.549Z",
+  "title": "Design System: Aaalice NAI Launcher",
+  "extensions": {
+    "colorMeta": {
+      "primary": {
+        "role": "primary",
+        "displayName": "旧纸奶油",
+        "canonical": "#F0EAD6",
+        "tonalRamp": [
+          "color-mix(in srgb, #F0EAD6 20%, black)",
+          "color-mix(in srgb, #F0EAD6 35%, black)",
+          "color-mix(in srgb, #F0EAD6 50%, black)",
+          "color-mix(in srgb, #F0EAD6 70%, black)",
+          "#F0EAD6",
+          "color-mix(in srgb, #F0EAD6 85%, white)",
+          "color-mix(in srgb, #F0EAD6 65%, white)",
+          "color-mix(in srgb, #F0EAD6 35%, white)"
+        ]
+      },
+      "on-primary": {
+        "role": "neutral",
+        "displayName": "主色上的炭黑",
+        "canonical": "#1A1A1A",
+        "tonalRamp": ["#080808", "#101010", "#1A1A1A", "#343434", "#525252", "#7A7A7A", "#AFAFAF", "#E8E8E8"]
+      },
+      "primary-container": {
+        "role": "primary",
+        "displayName": "深褐容器",
+        "canonical": "#5C4A3D",
+        "tonalRamp": ["#17120F", "#2A221C", "#40342B", "#5C4A3D", "#7A6554", "#9D8571", "#C5AF9B", "#EEE2D7"]
+      },
+      "on-primary-container": {
+        "role": "neutral",
+        "displayName": "容器上的暖白",
+        "canonical": "#FFF5EE",
+        "tonalRamp": ["#332F2D", "#665E5A", "#998E88", "#CCBDB5", "#FFF5EE", "#FFF7F2", "#FFFAF7", "#FFFEFD"]
+      },
+      "secondary": {
+        "role": "secondary",
+        "displayName": "猩红信号",
+        "canonical": "#DC143C",
+        "tonalRamp": ["#2C040C", "#4D0715", "#7B0B22", "#A80F2E", "#DC143C", "#E84F6D", "#F18CA0", "#FAD1D9"]
+      },
+      "on-secondary": {
+        "role": "neutral",
+        "displayName": "信号上的白",
+        "canonical": "#FFFFFF",
+        "tonalRamp": ["#333333", "#555555", "#777777", "#999999", "#BBBBBB", "#D6D6D6", "#EBEBEB", "#FFFFFF"]
+      },
+      "tertiary": {
+        "role": "tertiary",
+        "displayName": "锈橙辅助",
+        "canonical": "#D2691E",
+        "tonalRamp": ["#2A1506", "#4A250B", "#763B11", "#A65318", "#D2691E", "#DF8B4E", "#EBB080", "#F6DDC8"]
+      },
+      "on-tertiary": {
+        "role": "neutral",
+        "displayName": "锈橙上的深褐",
+        "canonical": "#281406",
+        "tonalRamp": ["#080401", "#140A03", "#281406", "#4A2917", "#744B35", "#9F7560", "#CBA996", "#F2E2D8"]
+      },
+      "surface": {
+        "role": "neutral",
+        "displayName": "炭黑画布",
+        "canonical": "#1A1A1A",
+        "tonalRamp": ["#080808", "#101010", "#1A1A1A", "#252525", "#343434", "#525252", "#858585", "#D6D6D6"]
+      },
+      "on-surface": {
+        "role": "neutral",
+        "displayName": "旧纸正文",
+        "canonical": "#F0EAD6",
+        "tonalRamp": ["#302F2B", "#5B584F", "#858176", "#B0AB9D", "#D8D2BF", "#F0EAD6", "#F7F3E7", "#FDFBF6"]
+      },
+      "on-surface-variant": {
+        "role": "neutral",
+        "displayName": "暖灰元数据",
+        "canonical": "#D4CFC0",
+        "tonalRamp": ["#2A2926", "#504E48", "#76736B", "#9C988D", "#BDB8AB", "#D4CFC0", "#E5E1D8", "#F5F3EE"]
+      },
+      "outline": {
+        "role": "neutral",
+        "displayName": "石墨边界",
+        "canonical": "#525252",
+        "tonalRamp": ["#101010", "#202020", "#343434", "#525252", "#747474", "#989898", "#BEBEBE", "#E5E5E5"]
+      },
+      "error": {
+        "role": "error",
+        "displayName": "错误猩红",
+        "canonical": "#DC143C",
+        "tonalRamp": ["#2C040C", "#4D0715", "#7B0B22", "#A80F2E", "#DC143C", "#E84F6D", "#F18CA0", "#FAD1D9"]
+      },
+      "error-container": {
+        "role": "error",
+        "displayName": "深红错误容器",
+        "canonical": "#5C1A1A",
+        "tonalRamp": ["#170707", "#2D0D0D", "#461414", "#5C1A1A", "#7E3434", "#A25959", "#C88B8B", "#EECFCF"]
+      },
+      "on-error-container": {
+        "role": "error",
+        "displayName": "错误容器上的浅粉",
+        "canonical": "#FFDAD6",
+        "tonalRamp": ["#332B2B", "#665755", "#99827F", "#CCAEAB", "#FFDAD6", "#FFE5E2", "#FFEDEA", "#FFF8F7"]
+      }
+    },
+    "typographyMeta": {
+      "display-large": {"displayName": "Display Large", "purpose": "Rare large headings; not routine workspace chrome."},
+      "headline-small": {"displayName": "Page Headline", "purpose": "Page and major workspace titles."},
+      "title-medium": {"displayName": "Section Title", "purpose": "Sections, dialogs and grouped controls."},
+      "body-medium": {"displayName": "Working Body", "purpose": "Default readable UI copy and editable content."},
+      "label-medium": {"displayName": "Compact Label", "purpose": "Chips, metadata and dense controls."}
+    },
+    "shadows": [
+      {"name": "flat-rest", "value": "Flutter elevation 0; transparent shadow", "purpose": "Static cards and buttons at rest."},
+      {"name": "overlay-menu", "value": "Flutter elevation 8; rgba(0,0,0,0.15)", "purpose": "Popup menus and anchored menus."},
+      {"name": "dialog-layer", "value": "Flutter elevation 16; rgba(0,0,0,0.20)", "purpose": "Dialogs and bottom sheets."},
+      {"name": "tooltip-ambient", "value": "0 4px 8px rgba(0,0,0,0.15)", "purpose": "Short-lived tooltip separation."},
+      {"name": "image-rest", "value": "0 2px 6px rgba(0,0,0,0.08)", "purpose": "Image content separation at rest."},
+      {"name": "image-hover", "value": "0 6px 14px rgba(0,0,0,0.16)", "purpose": "Desktop image-card hover feedback."}
+    ],
+    "motion": [
+      {"name": "fixed-fast", "value": "150ms ease-out", "purpose": "Stable micro-interaction fallback with no spring, bounce or overshoot."},
+      {"name": "fixed-normal", "value": "200ms ease-in-out", "purpose": "Default state transition; prefer short fades or single-direction deceleration."},
+      {"name": "fixed-slow", "value": "300ms ease-in-out", "purpose": "Maximum emphasized panel or page transition without resetting tween origins."},
+      {"name": "grunge-fast", "value": "100ms", "purpose": "Default Grunge Collage runtime fast duration."},
+      {"name": "grunge-normal", "value": "200ms", "purpose": "Default Grunge Collage runtime normal duration."},
+      {"name": "grunge-slow", "value": "300ms", "purpose": "Default Grunge Collage runtime slow duration."}
+    ],
+    "breakpoints": [
+      {"name": "compact", "value": "600px"},
+      {"name": "expanded-shell", "value": "840px"},
+      {"name": "wide-content", "value": "1180px"}
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "The single high-emphasis action in a local task group.",
+      "html": "<button class=\"ds-btn-primary\">开始生成</button>",
+      "css": ".ds-btn-primary { min-height: 40px; padding: 12px 20px; border: 0; border-radius: 6px; background: #f0ead6; color: #1a1a1a; font: 500 14px 'Courier Prime', monospace; cursor: pointer; transition: background-color 150ms ease-out, opacity 150ms ease-out; } .ds-btn-primary:hover { background: color-mix(in srgb, #f0ead6 90%, white); } .ds-btn-primary:active { opacity: .84; } .ds-btn-primary:focus-visible { outline: 2px solid #dc143c; outline-offset: 2px; }"
+    },
+    {
+      "name": "Tonal Action",
+      "kind": "button",
+      "refersTo": "button-tonal",
+      "description": "A low-emphasis secondary action without a permanent outline.",
+      "html": "<button class=\"ds-btn-tonal\">保存预设</button>",
+      "css": ".ds-btn-tonal { min-height: 40px; padding: 12px 20px; border: 0; border-radius: 6px; background: #5c4a3d; color: #fff5ee; font: 500 14px 'Courier Prime', monospace; cursor: pointer; transition: background-color 150ms ease-out; } .ds-btn-tonal:hover { background: color-mix(in srgb, #5c4a3d 82%, #f0ead6); } .ds-btn-tonal:active { background: color-mix(in srgb, #5c4a3d 72%, black); } .ds-btn-tonal:focus-visible { outline: 2px solid #f0ead6; outline-offset: 2px; }"
+    },
+    {
+      "name": "Working Text Field",
+      "kind": "input",
+      "refersTo": "input-default",
+      "description": "A filled editing surface with geometry-stable state outlines.",
+      "html": "<label class=\"ds-field\"><span class=\"ds-field-label\">Prompt</span><textarea class=\"ds-input\" rows=\"3\">1girl, cinematic lighting</textarea></label>",
+      "css": ".ds-field { display: grid; gap: 4px; color: #d4cfc0; font: 500 12px 'Courier Prime', monospace; } .ds-input { min-width: 260px; padding: 10px 12px; border: 1px solid rgba(82,82,82,.32); border-radius: 8px; background: #1a1a1a; color: #f0ead6; font: 400 14px 'Courier Prime', monospace; resize: vertical; transition: border-color 150ms ease-out; } .ds-input:hover { border-color: rgba(82,82,82,.55); } .ds-input:focus-visible { border-color: rgba(240,234,214,.68); outline: 0; } .ds-input:invalid { border-color: rgba(220,20,60,.62); }"
+    },
+    {
+      "name": "Selected Filter Chip",
+      "kind": "chip",
+      "refersTo": "chip-selected",
+      "description": "A compact selected filter using a tonal primary container.",
+      "html": "<button class=\"ds-chip\" aria-pressed=\"true\">Questionable</button>",
+      "css": ".ds-chip { min-height: 28px; padding: 4px 8px; border: 0; border-radius: 4px; background: #5c4a3d; color: #fff5ee; font: 500 12px 'Courier Prime', monospace; cursor: pointer; transition: background-color 150ms ease-out; } .ds-chip:hover { background: color-mix(in srgb, #5c4a3d 82%, #f0ead6); } .ds-chip:active { opacity: .82; } .ds-chip:focus-visible { outline: 2px solid #f0ead6; outline-offset: 2px; }"
+    },
+    {
+      "name": "Active Navigation Item",
+      "kind": "nav",
+      "refersTo": "navigation-active",
+      "description": "A 48px desktop navigation item with calm selected emphasis.",
+      "html": "<button class=\"ds-nav-item\" aria-current=\"page\"><svg viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M3 5h18v14H3zM7 9h10v6H7z\" fill=\"currentColor\"/></svg><span>生成</span></button>",
+      "css": ".ds-nav-item { width: 180px; height: 48px; display: flex; align-items: center; gap: 8px; padding: 0 12px; border: 0; border-radius: 4px; background: #5c4a3d; color: #fff5ee; font: 500 14px 'Courier Prime', monospace; cursor: pointer; transition: background-color 150ms ease-out, opacity 100ms ease-out; } .ds-nav-item svg { width: 24px; height: 24px; flex: none; } .ds-nav-item:hover { background: color-mix(in srgb, #5c4a3d 84%, #f0ead6); } .ds-nav-item:active { opacity: .84; } .ds-nav-item:focus-visible { outline: 2px solid #f0ead6; outline-offset: 2px; }"
+    },
+    {
+      "name": "Section Card",
+      "kind": "card",
+      "refersTo": "card-section",
+      "description": "A flat, tonal section container for grouped working content.",
+      "html": "<section class=\"ds-card\"><h3>生成参数</h3><p>采样器、尺寸与质量设置</p></section>",
+      "css": ".ds-card { width: 280px; padding: 16px; border: 0; border-radius: 8px; background: #252525; color: #f0ead6; box-shadow: none; font-family: 'Courier Prime', monospace; } .ds-card h3 { margin: 0 0 8px; font: 500 16px 'Courier Prime', monospace; } .ds-card p { margin: 0; color: #d4cfc0; font-size: 12px; } .ds-card:focus-within { outline: 1px solid #f0ead6; outline-offset: -1px; }"
+    },
+    {
+      "name": "Collection Workspace Toolbar",
+      "kind": "custom",
+      "description": "A full-width section surface that anchors the page identity and collection actions without table-like dividers.",
+      "html": "<header class=\"ds-collection-toolbar\"><span class=\"ds-collection-title\"><svg viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M4 5h16v14H4zM7 8h10v2H7zm0 4h7v2H7z\" fill=\"currentColor\"/></svg>精准参考</span><span class=\"ds-collection-actions\"><button>导入</button><button>多选</button></span></header>",
+      "css": ".ds-collection-toolbar { min-height: 72px; display: flex; align-items: center; gap: 12px; padding: 12px 16px; border: 0; border-radius: 8px; background: #252525; color: #f0ead6; font-family: 'Courier Prime', monospace; } .ds-collection-title { display: flex; align-items: center; gap: 8px; flex: none; font: 600 16px 'Oswald', sans-serif; } .ds-collection-title svg { width: 20px; height: 20px; } .ds-collection-actions { margin-left: auto; display: flex; flex-wrap: wrap; gap: 8px; } .ds-collection-actions button { min-height: 40px; padding: 10px 16px; border: 0; border-radius: 6px; background: #343434; color: #f0ead6; font: 500 14px 'Courier Prime', monospace; transition: background-color 150ms ease-out, opacity 100ms ease-out; } .ds-collection-actions button:hover { background: #525252; } .ds-collection-actions button:active { opacity: .84; } .ds-collection-actions button:focus-visible { outline: 2px solid #f0ead6; outline-offset: 2px; }"
+    },
+    {
+      "name": "Hover Preview",
+      "kind": "custom",
+      "description": "An overlay surface whose image gutter and metadata remain visually continuous and distinct from the canvas.",
+      "html": "<aside class=\"ds-hover-preview\" role=\"dialog\" aria-label=\"悬浮预览\"><div class=\"ds-preview-image\">PREVIEW</div><div class=\"ds-preview-meta\"><strong>最终生效提示词</strong><span>1girl, cinematic lighting</span></div></aside>",
+      "css": ".ds-hover-preview { width: 320px; overflow: hidden; border: 0; border-radius: 12px; background: #343434; color: #f0ead6; box-shadow: 0 8px 24px rgba(0,0,0,.24); font-family: 'Courier Prime', monospace; } .ds-preview-image { min-height: 150px; display: grid; place-items: center; background: #2a2a2a; color: #d4cfc0; font-size: 12px; letter-spacing: .12em; } .ds-preview-meta { display: grid; gap: 8px; padding: 16px; background: inherit; } .ds-preview-meta strong { font: 500 16px 'Courier Prime', monospace; } .ds-preview-meta span { color: #d4cfc0; font-size: 13px; line-height: 1.45; } .ds-hover-preview:focus-within { outline: 2px solid #f0ead6; outline-offset: 2px; }"
+    },
+    {
+      "name": "Adaptive Modal Dialog",
+      "kind": "custom",
+      "description": "A centered, bounded desktop dialog that becomes a safe-area-aware bottom sheet on compact widths without changing task semantics.",
+      "html": "<section class=\"ds-dialog\" role=\"dialog\" aria-modal=\"true\" aria-labelledby=\"ds-dialog-title\"><header><h2 id=\"ds-dialog-title\">选择备份内容</h2></header><div class=\"ds-dialog-body\"><section><h3>创作资料</h3><label><input type=\"checkbox\" checked> 提示词与预设</label></section><section><h3>资源库</h3><label><input type=\"checkbox\"> 精准参考</label></section></div><footer><button class=\"ds-dialog-cancel\">取消</button><button class=\"ds-dialog-save\">保存</button></footer></section>",
+      "css": ".ds-dialog { width: min(560px, calc(100vw - 48px)); max-height: calc(100vh - 48px); display: grid; grid-template-rows: auto minmax(0, 1fr) auto; overflow: hidden; border: 0; border-radius: 24px; background: #343434; color: #f0ead6; box-shadow: 0 16px 40px rgba(0,0,0,.32); font-family: 'Courier Prime', monospace; } .ds-dialog > header { padding: 20px 24px; background: #252525; } .ds-dialog h2, .ds-dialog h3 { margin: 0; } .ds-dialog h2 { font: 600 22px 'Oswald', sans-serif; } .ds-dialog h3 { margin-bottom: 12px; font-size: 16px; } .ds-dialog-body { overflow-y: auto; display: grid; gap: 24px; padding: 24px; } .ds-dialog-body section { padding: 16px; border-radius: 8px; background: #252525; } .ds-dialog > footer { display: flex; justify-content: flex-end; gap: 8px; padding: 16px 24px; background: #252525; } .ds-dialog button { min-height: 40px; padding: 10px 16px; border: 0; border-radius: 6px; font: 500 14px 'Courier Prime', monospace; } .ds-dialog-cancel { background: transparent; color: #d4cfc0; } .ds-dialog-save { background: #f0ead6; color: #1a1a1a; } .ds-dialog button:focus-visible { outline: 2px solid #f0ead6; outline-offset: 2px; } @media (max-width: 839px) { .ds-dialog { width: 100%; max-height: calc(100vh - 24px); align-self: end; border-radius: 24px 24px 0 0; } }"
+    },
+    {
+      "name": "Image Card",
+      "kind": "custom",
+      "refersTo": "image-card",
+      "description": "The signature content card with paint-only hover lift and a shared, geometry-selected action layout.",
+      "html": "<article class=\"ds-image-card\" tabindex=\"0\" aria-label=\"查看生成结果\"><span class=\"ds-image-placeholder\">IMAGE</span><span class=\"ds-image-badge\">已收藏</span><span class=\"ds-image-actions\"><button class=\"ds-image-action\" aria-label=\"发送到生成\"><svg viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M3 20V4l19 8-19 8zm2-3 11.85-5L5 7v3.5l6 1.5-6 1.5V17z\" fill=\"currentColor\"/></svg></button><button class=\"ds-image-action ds-image-action-danger\" aria-label=\"删除\"><svg viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zm3.5-9h1v8h-1v-8zm4 0h1v8h-1v-8zM15.5 4l-1-1h-5l-1 1H5v2h14V4z\" fill=\"currentColor\"/></svg></button></span></article>",
+      "css": ".ds-image-card { position: relative; width: 220px; aspect-ratio: 3 / 4; overflow: hidden; padding: 0; border: 0; border-radius: 12px; background: #343434; color: #f0ead6; box-shadow: 0 2px 6px rgba(0,0,0,.08); cursor: pointer; transition: transform 100ms ease-out, box-shadow 100ms ease-out; } .ds-image-placeholder { position: absolute; inset: 0; display: grid; place-items: center; color: #d4cfc0; font: 500 12px 'Courier Prime', monospace; letter-spacing: .12em; } .ds-image-badge { position: absolute; top: 8px; left: 8px; padding: 4px 8px; border-radius: 4px; background: #5c4a3d; color: #fff5ee; font: 500 11px 'Courier Prime', monospace; } .ds-image-actions { position: absolute; top: 8px; right: 8px; display: grid; grid-auto-flow: column; grid-template-rows: repeat(3, 40px); gap: 4px; opacity: 0; pointer-events: none; transition: opacity 100ms ease-out; } .ds-image-card:hover .ds-image-actions, .ds-image-card:focus-within .ds-image-actions { opacity: 1; pointer-events: auto; } .ds-image-action { width: 40px; height: 40px; display: grid; place-items: center; padding: 0; border: 1px solid rgba(255,255,255,.2); border-radius: 50%; background: rgba(0,0,0,.56); color: #fff; cursor: pointer; transition: background-color 120ms ease-out, border-color 120ms ease-out; } .ds-image-action:hover, .ds-image-action:focus-visible { background: rgba(0,0,0,.72); border-color: rgba(255,255,255,.32); outline: 2px solid #f0ead6; outline-offset: 2px; } .ds-image-action-danger { color: #dc143c; } .ds-image-action svg { width: 16px; height: 16px; } .ds-image-card:hover { transform: scale(1.01); box-shadow: 0 6px 14px rgba(0,0,0,.16); } .ds-image-card:focus-visible { outline: 2px solid #f0ead6; outline-offset: 2px; } @media (prefers-reduced-motion: reduce) { .ds-image-card, .ds-image-actions, .ds-image-action { transition: none; } .ds-image-card:hover { transform: none; } }"
+    }
+  ],
+  "narrative": {
+    "northStar": "Quiet Layered Utility / 静谧层叠工具界面",
+    "overview": "Aaalice NAI Launcher 是高频创作工具，而不是视觉陈列品。Prompt、图像、参数、状态和操作是视觉主体；容器、主题装饰与品牌表达退到背景，只在帮助理解任务时出现。整体气质克制、专业、内容优先，默认状态安静，交互状态清楚而及时。\n\n系统以 Flutter Material 3 为行为基础，以 ColorScheme、TextTheme、AppThemeExtension 和公共组件表达稳定语义。主题可以改变颜色、字体、形状与轻量动效，但不能改变信息架构、操作顺序、密度边界、可访问性或桌面与 Android 的能力等价。默认 frontmatter 记录 Grunge Collage 暗色主题的真实锚点；其他主题必须沿用同一语义角色，而不是创建另一套组件规则。",
+    "keyCharacteristics": [
+      "内容优先，容器退后；先用排版、留白和低对比色面建立层级。",
+      "克制、直接、状态清楚；状态变化不改变组件几何尺寸。",
+      "tonal layered 深度：静态内容依赖色面，阴影留给浮层和图像交互。",
+      "桌面与移动端共享业务组件、状态和命令，但采用各自自然的导航与输入方式。",
+      "多主题共享同一信息层级、语义色、命中区和交互结果。"
+    ],
+    "rules": [
+      {"name": "The Content Before Container Rule", "body": "如果去掉边框后层级仍然清楚，就不要把边框加回来。", "section": "overview"},
+      {"name": "The Semantic Color Rule", "body": "页面只使用 ColorScheme 与具名业务语义；禁止散落固定颜色或把 secondary 当作错误色。", "section": "colors"},
+      {"name": "The Quiet Accent Rule", "body": "primary 只标记主操作、选择、焦点与关键进度，不能让所有按钮和标签同时高亮。", "section": "colors"},
+      {"name": "The Working Type Rule", "body": "排版服务于扫描和操作：标题靠字号、字重与留白建立层级，不靠描边、全大写或高饱和颜色。", "section": "typography"},
+      {"name": "The Capability Parity Rule", "body": "桌面 hover、右键与快捷键必须有移动端单击、长按、菜单或系统入口的等价路径；低频操作可以折叠，但不能静默消失。", "section": "layout"},
+      {"name": "The Local Constraint Rule", "body": "响应式判断使用局部 LayoutBuilder.constraints 与 capabilities；禁止按设备型号、FittedBox 缩小交互工具栏或在共享页面散落平台判断。", "section": "layout"},
+      {"name": "The Flat-at-Rest Rule", "body": "阴影不是默认装饰；只有浮层、状态反馈或图像内容需要与背景分离时才出现。", "section": "elevation"},
+      {"name": "The Semantic Shape Rule", "body": "页面选择形状角色，不复制圆角数字；硬编码只允许稳定的签名组件尺寸，并应逐步归并到主题或公共组件。", "section": "shapes"},
+      {"name": "The Image Action Layout Rule", "body": "所有图片类卡片按自身几何复用标准右上操作轨或底部工具条，并共享动作排序、覆盖色语义和跨端入口；动作增多时按标准方向换列或换行，不缩小、不裁切，也不创建页面专属的第二套布局与按钮外观。", "section": "components"}
+    ],
+    "dos": [
+      "**Do** 让 Prompt、图像、参数与主操作比容器和主题装饰更醒目。",
+      "**Do** 从公共组件、ColorScheme、TextTheme、AppThemeExtension 和稳定 spacing tokens 获取样式。",
+      "**Do** 保持 default、hover、pressed、selected、focused、disabled、loading 状态完整且几何稳定。",
+      "**Do** 为桌面鼠标、触控板、键盘和移动端触屏提供等价完成路径。",
+      "**Do** 在共享 UI 变更中至少覆盖 320、600、840、1180、1600px，并按需要补充 360/412 等实际设备宽度；同时检查 3 倍文字、短横屏、SafeArea、软键盘、系统返回和窗口缩放。",
+      "**Do** 使用 Semantics、清晰焦点、至少 WCAG AA 的正文对比度，以及不只依赖颜色的 selected / error / success 表达。",
+      "**Do** 让加载和错误原位呈现，局部刷新保留已有内容；超过约 300ms 的异步操作提供可见反馈。"
+    ],
+    "donts": [
+      "**Don't** 给普通卡片、工具按钮、导航项、chip 或已填充控件默认添加高对比完整描边。",
+      "**Don't** 叠加“大圆角卡片 + 图标底座 + 标题 + 副标题”，或用外框、内框和分隔线重复表达同一分组。",
+      "**Don't** 连续堆放近义标题，或把副标题当成每个控件的默认组成；信息不能帮助判断时直接删除。",
+      "**Don't** 在同一纵向流程里嵌套两个可滚动区域；长子列表拆成独立选择弹窗。",
+      "**Don't** 在页面散落固定颜色、圆角、间距和 Duration，或声明没有实际消费者的 token。",
+      "**Don't** 通过缩小文字、裁切、FittedBox、静默隐藏功能或复制业务流程得到移动版。",
+      "**Don't** 让 hover、右键、外接键盘或精细拖拽成为核心任务的唯一入口。",
+      "**Don't** 在高频功能控件上使用 bounce、elastic、持续漂浮或旋转；主题个性不能牺牲操作稳定性。",
+      "**Don't** 用 placeholder 代替标签、用 toast 承载必须阅读的信息，或用只读输入框伪装普通文本。",
+      "**Don't** 让主题改变信息架构、语义角色、命中区、响应式行为、可访问性或跨端操作结果。"
+    ]
+  }
+}

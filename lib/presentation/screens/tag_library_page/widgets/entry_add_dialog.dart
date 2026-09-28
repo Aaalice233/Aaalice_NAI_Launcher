@@ -1,7 +1,7 @@
+import 'dart:async';
 import 'dart:io';
-import 'dart:typed_data';
-
 import 'package:file_picker/file_picker.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:nai_launcher/core/utils/localization_extension.dart';
@@ -9,18 +9,27 @@ import 'package:path/path.dart' as path;
 import 'package:path_provider/path_provider.dart';
 import 'package:uuid/uuid.dart';
 
+import '../../../../core/constants/api_constants.dart';
+import '../../../../core/utils/thumbnail_image_normalizer.dart';
 import '../../../../data/models/tag_library/tag_library_category.dart';
 import '../../../../data/models/tag_library/tag_library_entry.dart';
+import '../../../adaptive/adaptive_presenter.dart';
+import '../../../adaptive/interaction_policy.dart';
+import '../../../prompt_assistant/providers/prompt_assistant_history_provider.dart';
+import '../../../prompt_assistant/widgets/prompt_assistant_overlay.dart';
+import '../../../widgets/prompt/prompt_editor_control_row.dart';
+import '../../../prompt_assistant/widgets/prompt_assistant_quick_settings.dart';
 import '../../../providers/image_generation_provider.dart';
 import '../../../providers/tag_library_page_provider.dart';
 import '../../../widgets/autocomplete/autocomplete.dart';
 import '../../../widgets/common/app_toast.dart';
 import '../../../widgets/common/safe_dropdown.dart';
-import '../../../widgets/common/thumbnail_display.dart';
 import '../../../widgets/common/themed_input.dart';
 import '../../../widgets/prompt/nai_syntax_controller.dart';
 import '../../../widgets/prompt/prompt_formatter_wrapper.dart';
+import '../../../widgets/prompt/tag_mode_prompt_field.dart';
 import 'thumbnail_crop_dialog.dart';
+import 'thumbnail_selection_preview.dart';
 
 /// 添加/编辑词库条目对话框
 class EntryAddDialog extends ConsumerStatefulWidget {
@@ -38,34 +47,44 @@ class EntryAddDialog extends ConsumerStatefulWidget {
 
   /// 初始条目名称（用于从拖拽图片创建时预填文件名）
   final String? initialName;
+  final ScrollController? _scrollController;
 
-  const EntryAddDialog({
-    super.key,
+  const EntryAddDialog._({
     required this.categories,
-    this.initialCategoryId,
-    this.entry,
-    this.initialContent,
-    this.initialImageBytes,
-    this.initialName,
-  });
+    required this.initialCategoryId,
+    required this.entry,
+    required this.initialContent,
+    required this.initialImageBytes,
+    required this.initialName,
+    required ScrollController scrollController,
+  }) : _scrollController = scrollController;
 
   /// 显示对话框的静态方法
   static Future<void> show(
     BuildContext context, {
     required List<TagLibraryCategory> categories,
     String? initialCategoryId,
+    TagLibraryEntry? entry,
     String? initialContent,
     Uint8List? initialImageBytes,
     String? initialName,
   }) {
-    return showDialog(
+    Widget title(BuildContext dialogContext) =>
+        _EntryAddDialogTitle(editing: entry != null);
+
+    return AdaptivePresenter.showForm<void>(
       context: context,
-      builder: (context) => EntryAddDialog(
+      titleBuilder: title,
+      dialogWidth: 700,
+      maxCenteredHeight: 680,
+      builder: (dialogContext, scrollController) => EntryAddDialog._(
         categories: categories,
         initialCategoryId: initialCategoryId,
+        entry: entry,
         initialContent: initialContent,
         initialImageBytes: initialImageBytes,
         initialName: initialName,
+        scrollController: scrollController,
       ),
     );
   }
@@ -74,16 +93,57 @@ class EntryAddDialog extends ConsumerStatefulWidget {
   ConsumerState<EntryAddDialog> createState() => _EntryAddDialogState();
 }
 
+class _EntryAddDialogTitle extends StatelessWidget {
+  const _EntryAddDialogTitle({required this.editing});
+
+  final bool editing;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Row(
+      children: [
+        Icon(
+          editing ? Icons.edit_outlined : Icons.add_box_outlined,
+          color: theme.colorScheme.primary,
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Text(
+            editing
+                ? context.l10n.tagLibrary_editEntry
+                : context.l10n.tagLibrary_addEntry,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: theme.textTheme.titleLarge?.copyWith(
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
 class _EntryAddDialogState extends ConsumerState<EntryAddDialog> {
   late final TextEditingController _nameController;
   late final NaiSyntaxController _contentController;
   late final TextEditingController _tagsController;
+  late final String _assistantSessionId;
+  Object get _modeId =>
+      widget.entry == null ? _contentController : _assistantSessionId;
   final _nameFocusNode = FocusNode();
   final _contentFocusNode = FocusNode();
   final _tagsFocusNode = FocusNode();
+  final _ownedScrollController = ScrollController();
+
+  ScrollController get _scrollController =>
+      widget._scrollController ?? _ownedScrollController;
 
   String? _selectedCategoryId;
   String? _thumbnailPath;
+  final Set<String> _temporaryThumbnailPaths = {};
+  int _thumbnailImportRevision = 0;
 
   // 预览图显示范围调整参数
   double _thumbnailOffsetX = 0.0;
@@ -91,6 +151,17 @@ class _EntryAddDialogState extends ConsumerState<EntryAddDialog> {
   double _thumbnailScale = 1.0;
 
   bool get _isEditing => widget.entry != null;
+
+  void _syncSyntaxHighlightSettings() {
+    _contentController.highlightEnabled = ref.watch(
+      highlightEmphasisSettingsProvider,
+    );
+    _contentController.numericEmphasisEnabled = ImageModels.isV4Model(
+      ref.watch(
+        generationParamsNotifierProvider.select((params) => params.model),
+      ),
+    );
+  }
 
   @override
   void initState() {
@@ -103,6 +174,9 @@ class _EntryAddDialogState extends ConsumerState<EntryAddDialog> {
     _nameController = TextEditingController(text: initialName);
     _contentController = NaiSyntaxController(text: initialContent);
     _tagsController = TextEditingController(text: entry?.tags.join(', ') ?? '');
+    _assistantSessionId = PromptHistorySessionIds.tagLibraryEntry(
+      entry?.id ?? 'draft-${identityHashCode(this)}',
+    );
     _selectedCategoryId = entry?.categoryId ?? widget.initialCategoryId;
     _thumbnailPath = entry?.thumbnail;
 
@@ -118,24 +192,60 @@ class _EntryAddDialogState extends ConsumerState<EntryAddDialog> {
 
     // 如果有初始图像字节数据，保存到临时文件
     if (widget.initialImageBytes != null && widget.entry == null) {
-      _saveImageBytesToTemp(widget.initialImageBytes!);
+      unawaited(_initializeThumbnail(widget.initialImageBytes!));
     }
   }
 
-  /// 将图像字节数据保存到临时文件
-  Future<void> _saveImageBytesToTemp(Uint8List bytes) async {
+  Future<void> _initializeThumbnail(Uint8List bytes) async {
     try {
-      final tempDir = await getTemporaryDirectory();
-      final fileName = 'temp_${DateTime.now().millisecondsSinceEpoch}.png';
-      final file = File('${tempDir.path}/$fileName');
-      await file.writeAsBytes(bytes);
-      if (mounted) {
-        setState(() {
-          _thumbnailPath = file.path;
-        });
-      }
+      await _saveImageBytesToTemp(bytes);
     } catch (e) {
       debugPrint('保存临时图像失败: $e');
+    }
+  }
+
+  /// 统一转换为 PNG，避免 TIFF、TGA 等格式无法由 Flutter 直接预览。
+  Future<void> _saveImageBytesToTemp(Uint8List bytes) async {
+    final importRevision = ++_thumbnailImportRevision;
+    final normalizedBytes = await compute(normalizeThumbnailImageToPng, bytes);
+    final tempDir = await getTemporaryDirectory();
+    final fileName = 'temp_${const Uuid().v4()}.png';
+    final file = File(path.join(tempDir.path, fileName));
+    await file.writeAsBytes(normalizedBytes);
+
+    if (!mounted || importRevision != _thumbnailImportRevision) {
+      await _deleteTemporaryThumbnail(file.path);
+      return;
+    }
+
+    final previousPath = _thumbnailPath;
+    _temporaryThumbnailPaths.add(file.path);
+    setState(() {
+      _thumbnailPath = file.path;
+    });
+
+    if (previousPath != null && _temporaryThumbnailPaths.remove(previousPath)) {
+      unawaited(_deleteTemporaryThumbnail(previousPath));
+    }
+  }
+
+  void _clearThumbnail() {
+    final previousPath = _thumbnailPath;
+    _thumbnailImportRevision++;
+    setState(() => _thumbnailPath = null);
+    if (previousPath != null && _temporaryThumbnailPaths.remove(previousPath)) {
+      unawaited(_deleteTemporaryThumbnail(previousPath));
+    }
+  }
+
+  Future<void> _deleteTemporaryThumbnail(String thumbnailPath) async {
+    try {
+      final file = File(thumbnailPath);
+      if (await file.exists()) {
+        await file.delete();
+      }
+    } catch (e) {
+      debugPrint('删除临时预览图失败: $e');
     }
   }
 
@@ -147,6 +257,11 @@ class _EntryAddDialogState extends ConsumerState<EntryAddDialog> {
 
   @override
   void dispose() {
+    _thumbnailImportRevision++;
+    for (final thumbnailPath in _temporaryThumbnailPaths) {
+      unawaited(_deleteTemporaryThumbnail(thumbnailPath));
+    }
+    _temporaryThumbnailPaths.clear();
     _contentController.removeListener(_onContentChanged);
     _nameController.dispose();
     _contentController.dispose();
@@ -154,221 +269,290 @@ class _EntryAddDialogState extends ConsumerState<EntryAddDialog> {
     _nameFocusNode.dispose();
     _contentFocusNode.dispose();
     _tagsFocusNode.dispose();
+    _ownedScrollController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return Dialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(
-          maxWidth: 700,
-          minWidth: 500,
-          maxHeight: 700,
-        ),
-        child: SingleChildScrollView(
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // 标题
-                Row(
-                  children: [
-                    Icon(
-                      _isEditing ? Icons.edit_outlined : Icons.add_box_outlined,
-                      color: theme.colorScheme.primary,
-                    ),
-                    const SizedBox(width: 12),
-                    Text(
-                      _isEditing
-                          ? context.l10n.tagLibrary_editEntry
-                          : context.l10n.tagLibrary_addEntry,
-                      style: theme.textTheme.titleLarge?.copyWith(
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    const Spacer(),
-                    IconButton(
-                      icon: const Icon(Icons.close),
-                      onPressed: () => Navigator.of(context).pop(),
-                    ),
-                  ],
-                ),
-
-                const SizedBox(height: 24),
-
-                // 主要内容区域 - 两列布局
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // 左侧 - 预览图
-                    _buildThumbnailSection(theme),
-                    const SizedBox(width: 24),
-
-                    // 右侧 - 表单
-                    Expanded(
-                      child: _buildFormSection(theme),
-                    ),
-                  ],
-                ),
-
-                const SizedBox(height: 16),
-
-                // 提示词内容
-                Text(
-                  context.l10n.tagLibrary_content,
-                  style: theme.textTheme.labelLarge,
-                ),
-                const SizedBox(height: 8),
-                SizedBox(
-                  height: 150,
-                  child: PromptFormatterWrapper(
-                    controller: _contentController,
-                    focusNode: _contentFocusNode,
-                    enableAutoFormat:
-                        ref.watch(autoFormatPromptSettingsProvider),
-                    child: AutocompleteWrapper.withAlias(
-                      controller: _contentController,
-                      focusNode: _contentFocusNode,
-                      ref: ref,
-                      config: const AutocompleteConfig(
-                        maxSuggestions: 15,
-                        showTranslation: true,
-                        showCategory: true,
-                        autoInsertComma: true,
-                      ),
-                      child: ThemedInput(
-                        controller: _contentController,
-                        decoration: InputDecoration(
-                          hintText: context.l10n.tagLibrary_contentHint,
-                          contentPadding: const EdgeInsets.all(12),
-                        ),
-                        maxLines: null,
-                        expands: true,
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Padding(
-                  padding: const EdgeInsets.only(left: 12),
-                  child: Text(
-                    context.l10n.fixedTags_syntaxHelp,
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: theme.colorScheme.outline,
-                    ),
-                    maxLines: 2,
-                  ),
-                ),
-
-                const SizedBox(height: 24),
-
-                // 操作按钮
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
-                    TextButton(
-                      onPressed: () => Navigator.of(context).pop(),
-                      child: Text(context.l10n.common_cancel),
-                    ),
-                    const SizedBox(width: 8),
-                    FilledButton(
-                      onPressed: _canSave() ? _save : null,
-                      child: Text(context.l10n.common_save),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
+    _syncSyntaxHighlightSettings();
+    return _buildContent(Theme.of(context));
   }
 
-  Widget _buildThumbnailSection(ThemeData theme) {
+  Widget _buildContent(ThemeData theme) {
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          context.l10n.tagLibrary_thumbnail,
-          style: theme.textTheme.labelLarge,
-        ),
-        const SizedBox(height: 8),
-        GestureDetector(
-          onTap: _thumbnailPath != null ? _showThumbnailOptions : _selectThumbnail,
-          child: Container(
-            width: 200,
-            height: 80,
-            decoration: BoxDecoration(
-              color: theme.colorScheme.surfaceContainerHighest,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(
-                color: theme.colorScheme.outlineVariant,
-                style: BorderStyle.solid,
+        Expanded(
+          child: ScrollbarTheme(
+            data: ScrollbarTheme.of(context).copyWith(
+              thumbColor: WidgetStatePropertyAll(
+                theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.38),
+              ),
+              mainAxisMargin: 12,
+              crossAxisMargin: 4,
+            ),
+            child: Scrollbar(
+              controller: _scrollController,
+              interactive: true,
+              thickness: 3,
+              radius: const Radius.circular(3),
+              child: ListView(
+                key: const Key('entry-add-dialog-scroll'),
+                controller: _scrollController,
+                keyboardDismissBehavior:
+                    ScrollViewKeyboardDismissBehavior.onDrag,
+                padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
+                children: [
+                  LayoutBuilder(
+                    builder: (context, constraints) {
+                      final stacked =
+                          constraints.maxWidth < 560 ||
+                          MediaQuery.textScalerOf(context).scale(1) >= 2;
+                      if (stacked) {
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            _buildThumbnailSection(theme, expand: true),
+                            const SizedBox(height: 24),
+                            _buildFormSection(theme),
+                          ],
+                        );
+                      }
+                      return Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _buildThumbnailSection(theme),
+                          const SizedBox(width: 24),
+                          Expanded(child: _buildFormSection(theme)),
+                        ],
+                      );
+                    },
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    context.l10n.tagLibrary_content,
+                    style: theme.textTheme.labelLarge,
+                  ),
+                  const SizedBox(height: 8),
+                  ConstrainedBox(
+                    key: const Key('entry-add-dialog-content-editor'),
+                    constraints: const BoxConstraints(minHeight: 176),
+                    child: TagModePromptField(
+                      sessionId: _modeId,
+                      fitContent: true,
+                      showModeSwitch: false,
+                      assistant: Positioned.fill(
+                        child: PromptAssistantOverlay(
+                          placement: PromptAssistantPlacement.viewport,
+                          sessionId: _assistantSessionId,
+                          controller: _contentController,
+                          iconOnly: true,
+                          tagModeSessionId: _modeId,
+                          supportsTagMode: true,
+                          stripFixedTagsFromInput: false,
+                          onOpenSettings: () =>
+                              PromptAssistantQuickSettings.show(context),
+                        ),
+                      ),
+                      controller: _contentController,
+                      sourceFocusNode: _contentFocusNode,
+                      child: PromptFormatterWrapper(
+                        controller: _contentController,
+                        focusNode: _contentFocusNode,
+                        enableAutoFormat: ref.watch(
+                          autoFormatPromptSettingsProvider,
+                        ),
+                        child: AutocompleteWrapper.withAlias(
+                          controller: _contentController.displayController,
+                          focusNode: _contentFocusNode,
+                          ref: ref,
+                          expands: false,
+                          config: const AutocompleteConfig(
+                            showTranslation: true,
+                            showCategory: true,
+                            autoInsertComma: true,
+                          ),
+                          child: ThemedInput(
+                            controller: _contentController.displayController,
+                            contextMenuBuilder: _contentController
+                                .displayController
+                                .buildContextMenu,
+                            focusNode: _contentFocusNode,
+                            decoration: InputDecoration(
+                              hintText: context.l10n.tagLibrary_contentHint,
+                              contentPadding: const EdgeInsets.fromLTRB(
+                                12,
+                                12,
+                                12,
+                                60,
+                              ),
+                            ),
+                            maxLines: null,
+                            minLines: 4,
+                            expands: false,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
-            child: _thumbnailPath != null
-                ? Stack(
-                    fit: StackFit.expand,
-                    children: [
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(11),
-                        child: _buildThumbnailImage(),
-                      ),
-                      Positioned(
-                        top: 4,
-                        right: 4,
-                        child: IconButton.filled(
-                          icon: const Icon(Icons.close, size: 16),
-                          style: IconButton.styleFrom(
-                            backgroundColor: Colors.black54,
-                            foregroundColor: Colors.white,
-                            minimumSize: const Size(24, 24),
-                            padding: EdgeInsets.zero,
-                          ),
-                          onPressed: () {
-                            setState(() => _thumbnailPath = null);
-                          },
-                        ),
-                      ),
-                    ],
-                  )
-                : Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(
-                        Icons.add_photo_alternate_outlined,
-                        size: 36,
-                        color: theme.colorScheme.outline,
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        context.l10n.tagLibrary_selectImage,
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: theme.colorScheme.outline,
-                        ),
-                      ),
-                    ],
-                  ),
           ),
         ),
-        const SizedBox(height: 8),
-        Text(
-          context.l10n.tagLibrary_thumbnailHint,
-          style: TextStyle(
-            fontSize: 11,
-            color: theme.colorScheme.outline,
+        Padding(
+          padding: const EdgeInsets.fromLTRB(20, 4, 20, 0),
+          child: _buildPromptFooter(theme),
+        ),
+        SafeArea(
+          top: false,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final stacked =
+                    constraints.maxWidth < 320 ||
+                    MediaQuery.textScalerOf(context).scale(1) >= 2;
+                final cancel = TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: Text(context.l10n.common_cancel),
+                );
+                final save = FilledButton(
+                  onPressed: _canSave() ? _save : null,
+                  child: Text(context.l10n.common_save),
+                );
+                if (stacked) {
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [save, cancel],
+                  );
+                }
+                return Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [cancel, const SizedBox(width: 8), save],
+                );
+              },
+            ),
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildPromptFooter(ThemeData theme) => Container(
+    key: const ValueKey('entry-add-dialog-content-footer'),
+    width: double.infinity,
+    padding: const EdgeInsets.only(left: 12, right: 4),
+    decoration: BoxDecoration(
+      color: theme.colorScheme.surfaceContainerLow.withValues(alpha: 0.72),
+      borderRadius: BorderRadius.circular(6),
+    ),
+    child: PromptEditorControlRow(
+      sessionId: _modeId,
+      leading: Text(
+        context.l10n.tagLibrary_characterNegativeSyntaxHelp,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: theme.textTheme.bodySmall?.copyWith(
+          color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.62),
+          fontSize: 12,
+        ),
+      ),
+    ),
+  );
+  Widget _buildThumbnailSection(ThemeData theme, {bool expand = false}) {
+    return SizedBox(
+      key: const Key('entry-add-dialog-thumbnail-section'),
+      width: expand ? double.infinity : 220,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            context.l10n.tagLibrary_thumbnail,
+            style: theme.textTheme.labelLarge,
+          ),
+          const SizedBox(height: 8),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final previewSize = constraints.maxWidth.clamp(0, 220).toDouble();
+              return Align(
+                alignment: AlignmentDirectional.centerStart,
+                child: SizedBox.square(
+                  key: const ValueKey('entry-thumbnail-square-preview'),
+                  dimension: previewSize,
+                  child: GestureDetector(
+                    onTap: _thumbnailPath != null
+                        ? _showThumbnailOptions
+                        : _selectThumbnail,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: theme.colorScheme.surfaceContainerHighest,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: _thumbnailPath != null
+                          ? Stack(
+                              fit: StackFit.expand,
+                              children: [
+                                ClipRRect(
+                                  borderRadius: BorderRadius.circular(11),
+                                  child: ThumbnailSelectionPreview(
+                                    imagePath: _thumbnailPath!,
+                                    offsetX: _thumbnailOffsetX,
+                                    offsetY: _thumbnailOffsetY,
+                                    scale: _thumbnailScale,
+                                  ),
+                                ),
+                                Positioned(
+                                  top: 4,
+                                  right: 4,
+                                  child: IconButton.filled(
+                                    icon: const Icon(Icons.close, size: 16),
+                                    style: IconButton.styleFrom(
+                                      backgroundColor: Colors.black54,
+                                      foregroundColor: Colors.white,
+                                      minimumSize: Size.square(
+                                        context
+                                            .interactionPolicy
+                                            .minimumControlExtent,
+                                      ),
+                                      padding: EdgeInsets.zero,
+                                    ),
+                                    onPressed: _clearThumbnail,
+                                  ),
+                                ),
+                              ],
+                            )
+                          : Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  Icons.add_photo_alternate_outlined,
+                                  size: 36,
+                                  color: theme.colorScheme.outline,
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  context.l10n.tagLibrary_selectImage,
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: theme.colorScheme.outline,
+                                  ),
+                                ),
+                              ],
+                            ),
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
+          const SizedBox(height: 8),
+          Text(
+            context.l10n.tagLibrary_thumbnailHint,
+            style: TextStyle(fontSize: 11, color: theme.colorScheme.outline),
+          ),
+        ],
+      ),
     );
   }
 
@@ -377,10 +561,7 @@ class _EntryAddDialogState extends ConsumerState<EntryAddDialog> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         // 名称
-        Text(
-          context.l10n.tagLibrary_name,
-          style: theme.textTheme.labelLarge,
-        ),
+        Text(context.l10n.tagLibrary_name, style: theme.textTheme.labelLarge),
         const SizedBox(height: 8),
         ThemedInput(
           controller: _nameController,
@@ -442,56 +623,24 @@ class _EntryAddDialogState extends ConsumerState<EntryAddDialog> {
         const SizedBox(height: 16),
 
         // 标签
-        Text(
-          context.l10n.tagLibrary_tags,
-          style: theme.textTheme.labelLarge,
-        ),
+        Text(context.l10n.tagLibrary_tags, style: theme.textTheme.labelLarge),
         const SizedBox(height: 8),
         AutocompleteWrapper(
           controller: _tagsController,
           focusNode: _tagsFocusNode,
-          asyncStrategy: LocalTagStrategy.create(
-            ref,
-            const AutocompleteConfig(
-              maxSuggestions: 10,
-              showTranslation: true,
-              showCategory: true,
-              autoInsertComma: true,
-            ),
+          config: const AutocompleteConfig(
+            showTranslation: true,
+            showCategory: true,
+            autoInsertComma: true,
           ),
           child: ThemedInput(
             controller: _tagsController,
+            focusNode: _tagsFocusNode,
             hintText: context.l10n.tagLibrary_tagsHint,
             helperText: context.l10n.tagLibrary_tagsHelper,
           ),
         ),
       ],
-    );
-  }
-
-  /// 构建带变换效果的预览图
-  /// 使用 ThumbnailDisplay 组件确保与 EntryCard 显示一致
-  Widget _buildThumbnailImage() {
-    if (_thumbnailPath == null) {
-      return Container(
-        color: Colors.grey.shade800,
-        child: const Center(
-          child: Icon(Icons.image_not_supported, color: Colors.white38),
-        ),
-      );
-    }
-
-    // 调试用
-    debugPrint('EntryAddDialog: offset=($_thumbnailOffsetX, $_thumbnailOffsetY), scale=$_thumbnailScale');
-    
-    // 使用 ThumbnailDisplay 组件确保与 EntryCard 显示一致
-    return ThumbnailDisplay(
-      imagePath: _thumbnailPath!,
-      offsetX: _thumbnailOffsetX,
-      offsetY: _thumbnailOffsetY,
-      scale: _thumbnailScale,
-      width: 200,
-      height: 80,
     );
   }
 
@@ -544,15 +693,32 @@ class _EntryAddDialogState extends ConsumerState<EntryAddDialog> {
   }
 
   Future<void> _selectThumbnail() async {
-    final result = await FilePicker.platform.pickFiles(
-      type: FileType.image,
-      allowMultiple: false,
-    );
+    try {
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: supportedThumbnailImageExtensions,
+        allowMultiple: false,
+      );
+      if (result == null) return;
 
-    if (result != null && result.files.single.path != null) {
-      setState(() {
-        _thumbnailPath = result.files.single.path;
-      });
+      final selectedFile = result.files.single;
+      final bytes =
+          selectedFile.bytes ??
+          (selectedFile.path == null
+              ? null
+              : await File(selectedFile.path!).readAsBytes());
+      if (bytes == null) {
+        throw const FileSystemException('无法读取所选图像');
+      }
+
+      await _saveImageBytesToTemp(bytes);
+    } catch (e) {
+      if (mounted) {
+        AppToast.error(
+          context,
+          context.l10n.imagePicker_fileSelectionFailed(e.toString()),
+        );
+      }
     }
   }
 
@@ -627,21 +793,23 @@ class _EntryAddDialogState extends ConsumerState<EntryAddDialog> {
     final tagsText = _tagsController.text.trim();
     final tags = tagsText.isNotEmpty
         ? tagsText
-            .split(',')
-            .map((t) => t.trim())
-            .where((t) => t.isNotEmpty)
-            .toList()
+              .split(',')
+              .map((t) => t.trim())
+              .where((t) => t.isNotEmpty)
+              .toList()
         : <String>[];
 
     if (content.isEmpty) return;
 
     // 获取旧的缩略图路径（用于后续清理）
-    final String? oldThumbnailPath =
-        _isEditing ? widget.entry?.thumbnail : null;
+    final String? oldThumbnailPath = _isEditing
+        ? widget.entry?.thumbnail
+        : null;
 
     // 处理缩略图：确保存储在应用目录内
-    final String? savedThumbnailPath =
-        await _ensureThumbnailInAppDir(_thumbnailPath);
+    final String? savedThumbnailPath = await _ensureThumbnailInAppDir(
+      _thumbnailPath,
+    );
 
     // 如果缩略图发生了变化，删除旧的
     if (oldThumbnailPath != null &&

@@ -50,7 +50,7 @@ enum TagGroupSourceType {
   @JsonValue('pool')
   pool,
 
-  /// 来自内置词库（NAI官方标签）
+  /// 来自经过来源校验的内置离线 catalog
   @JsonValue('builtin')
   builtin,
 }
@@ -236,12 +236,13 @@ class RandomTagGroup with _$RandomTagGroup {
   /// [builtinCategoryKey] 为 TagSubCategory 的 name，如 'hairColor', 'eyeColor' 等
   /// 实际标签从 TagLibrary 动态获取，不存储在 tags 字段中
   factory RandomTagGroup.fromBuiltin({
+    String? id,
     required String name,
     required String builtinCategoryKey,
     String emoji = '✨',
   }) {
     return RandomTagGroup(
-      id: const Uuid().v4(),
+      id: id ?? 'builtin_$builtinCategoryKey',
       name: name,
       emoji: emoji,
       sourceType: TagGroupSourceType.builtin,

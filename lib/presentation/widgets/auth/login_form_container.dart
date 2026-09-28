@@ -8,7 +8,7 @@ import 'credentials_login_form.dart';
 import 'third_party_api_login_card.dart';
 import 'token_login_card.dart';
 
-/// 登录表单容器 - 支持邮箱密码和 Token 两种登录模式
+/// 登录表单容器 - 支持 Token、邮箱密码和第三方站点登录
 class LoginFormContainer extends ConsumerWidget {
   /// 登录成功回调
   final VoidCallback? onLoginSuccess;
@@ -23,6 +23,9 @@ class LoginFormContainer extends ConsumerWidget {
             !AuthFeatureFlags.credentialsLoginEnabled
         ? AuthMode.token
         : currentMode;
+    final transitionDuration = MediaQuery.disableAnimationsOf(context)
+        ? Duration.zero
+        : const Duration(milliseconds: 300);
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -36,11 +39,11 @@ class LoginFormContainer extends ConsumerWidget {
           // 根据当前模式显示对应的登录表单
           // 使用 AnimatedSize 处理高度变化的平滑过渡
           AnimatedSize(
-            duration: const Duration(milliseconds: 300),
+            duration: transitionDuration,
             curve: Curves.easeOutCubic,
             alignment: Alignment.topCenter,
             child: AnimatedSwitcher(
-              duration: const Duration(milliseconds: 300),
+              duration: transitionDuration,
               // 使用更自然的曲线
               switchInCurve: Curves.easeOutCubic,
               switchOutCurve: Curves.easeInCubic,

@@ -49,127 +49,207 @@ void main() {
 
   group('buildPromptTokenCountPayload', () {
     test(
-        'positive payload should include request-aligned quality tags and raw enabled character prompts only',
-        () {
-      final payload = buildPromptTokenCountPayload(
-        target: PromptTokenCountTarget.positive,
-        prompt: '<hero>',
-        negativePrompt: '<bad>',
-        model: 'nai-diffusion-4-5-full',
-        fixedTagsState: FixedTagsState(
-          entries: [
-            FixedTagEntry.create(
-              name: 'prefix',
-              content: 'year 2025',
-              position: FixedTagPosition.prefix,
-              sortOrder: 0,
+      'positive payload should include request-aligned quality tags and raw enabled character prompts only',
+      () {
+        final payload = buildPromptTokenCountPayload(
+          target: PromptTokenCountTarget.positive,
+          prompt: '<hero>',
+          negativePrompt: '<bad>',
+          model: 'nai-diffusion-4-5-full',
+          fixedTagsState: FixedTagsState(
+            entries: [
+              FixedTagEntry.create(
+                name: 'prefix',
+                content: 'year 2025',
+                position: FixedTagPosition.prefix,
+                sortOrder: 0,
+              ),
+              FixedTagEntry.create(
+                name: 'suffix',
+                content: 'cinematic lighting',
+                position: FixedTagPosition.suffix,
+                sortOrder: 1,
+              ),
+            ],
+          ),
+          qualityToggle: true,
+          ucPreset: api.UcPresets.toApiValue(api.UcPresetType.heavy),
+          characters: [
+            CharacterPrompt.create(name: 'A', prompt: '<dress>'),
+            CharacterPrompt.create(
+              name: 'Positioned',
+              prompt: '<cape>',
+            ).copyWith(
+              positionMode: CharacterPositionMode.custom,
+              customPosition: const CharacterPosition(row: 0.0, column: 1.0),
             ),
-            FixedTagEntry.create(
-              name: 'suffix',
-              content: 'cinematic lighting',
-              position: FixedTagPosition.suffix,
-              sortOrder: 1,
-            ),
+            CharacterPrompt.create(
+              name: 'B',
+              prompt: 'ignored',
+            ).copyWith(enabled: false),
+            CharacterPrompt.create(name: 'C', prompt: ''),
           ],
-        ),
-        qualityToggle: true,
-        ucPreset: api.UcPresets.toApiValue(api.UcPresetType.heavy),
-        characters: [
-          CharacterPrompt.create(
-            name: 'A',
-            prompt: '<dress>',
-          ),
-          CharacterPrompt.create(
-            name: 'Positioned',
-            prompt: '<cape>',
-          ).copyWith(
-            positionMode: CharacterPositionMode.custom,
-            customPosition: const CharacterPosition(row: 0.0, column: 1.0),
-          ),
-          CharacterPrompt.create(
-            name: 'B',
-            prompt: 'ignored',
-          ).copyWith(enabled: false),
-          CharacterPrompt.create(
-            name: 'C',
-            prompt: '',
-          ),
-        ],
-        resolveAliases: _resolveAliases,
-      );
+          resolveAliases: _resolveAliases,
+        );
 
-      expect(
-        payload.mainText,
-        equals(
-          'year 2025, 1girl, cinematic lighting, location, very aesthetic, masterpiece, no text',
-        ),
-      );
-      expect(
-        payload.extraTexts,
-        equals(['blue dress', 'red cape']),
-      );
-      expect(
-        payload.breakdown.map((item) => item.label).toList(),
-        equals(['提示词', '固定词', '质量预设', '角色']),
-      );
-    });
+        expect(
+          payload.mainText,
+          equals(
+            'year 2025, 1girl, cinematic lighting, location, very aesthetic, masterpiece, no text',
+          ),
+        );
+        expect(payload.extraTexts, equals(['blue dress', 'red cape']));
+        expect(
+          payload.breakdown.map((item) => item.label).toList(),
+          equals(['提示词', '固定词', '质量预设', '角色']),
+        );
+      },
+    );
 
     test(
-        'negative payload should include request-aligned uc preset, negative prompt and character negatives',
-        () {
-      final payload = buildPromptTokenCountPayload(
-        target: PromptTokenCountTarget.negative,
-        prompt: '<hero>',
-        negativePrompt: '<bad>',
-        model: 'nai-diffusion-4-5-full',
-        fixedTagsState: FixedTagsState(
-          entries: [
-            FixedTagEntry.create(
-              name: 'negative-prefix',
-              content: 'bad anatomy',
-              position: FixedTagPosition.prefix,
-              promptType: FixedTagPromptType.negative,
-              sortOrder: 0,
-            ),
-            FixedTagEntry.create(
-              name: 'negative-suffix',
-              content: 'text',
-              position: FixedTagPosition.suffix,
-              promptType: FixedTagPromptType.negative,
-              sortOrder: 1,
-            ),
-          ],
-        ),
-        qualityToggle: true,
-        ucPreset: api.UcPresets.toApiValue(api.UcPresetType.light),
-        characters: [
-          CharacterPrompt.create(
-            name: 'A',
-            prompt: '1girl',
-            negativePrompt: '<charBad>',
+      'negative payload should include request-aligned uc preset, negative prompt and character negatives',
+      () {
+        final payload = buildPromptTokenCountPayload(
+          target: PromptTokenCountTarget.negative,
+          prompt: '<hero>',
+          negativePrompt: '<bad>',
+          model: 'nai-diffusion-4-5-full',
+          fixedTagsState: FixedTagsState(
+            entries: [
+              FixedTagEntry.create(
+                name: 'negative-prefix',
+                content: 'bad anatomy',
+                position: FixedTagPosition.prefix,
+                promptType: FixedTagPromptType.negative,
+                sortOrder: 0,
+              ),
+              FixedTagEntry.create(
+                name: 'negative-suffix',
+                content: 'text',
+                position: FixedTagPosition.suffix,
+                promptType: FixedTagPromptType.negative,
+                sortOrder: 1,
+              ),
+            ],
           ),
-          CharacterPrompt.create(
-            name: 'B',
-            prompt: '1boy',
-            negativePrompt: 'ignored',
-          ).copyWith(enabled: false),
+          qualityToggle: true,
+          ucPreset: api.UcPresets.toApiValue(api.UcPresetType.light),
+          characters: [
+            CharacterPrompt.create(
+              name: 'A',
+              prompt: '1girl',
+              negativePrompt: '<charBad>',
+            ),
+            CharacterPrompt.create(
+              name: 'B',
+              prompt: '1boy',
+              negativePrompt: 'ignored',
+            ).copyWith(enabled: false),
+          ],
+          resolveAliases: _resolveAliases,
+        );
+
+        expect(
+          payload.mainText,
+          equals(
+            'lowres, artistic error, scan artifacts, worst quality, bad quality, jpeg artifacts, multiple views, very displeasing, too many watermarks, negative space, blank page, bad anatomy, bad hands, text',
+          ),
+        );
+        expect(payload.extraTexts, equals(['extra fingers']));
+        expect(
+          payload.breakdown.map((item) => item.label).toList(),
+          equals(['负面提示词', '负面固定词', '负面预设', '角色负面']),
+        );
+      },
+    );
+
+    test('character negative blocks follow request prompt partitioning', () {
+      String resolveNegativeAlias(String text) =>
+          text == '<alice>' ? 'girl, blue eyes, negative(red hair)' : text;
+      final fixedTags = FixedTagsState(
+        entries: [
+          FixedTagEntry.create(
+            name: 'literal fixed tag',
+            content: 'negative(fixed literal)',
+            position: FixedTagPosition.suffix,
+          ),
         ],
+      );
+      const characters = [
+        CharacterPrompt(
+          id: 'alice',
+          name: 'Alice',
+          prompt: '<alice>',
+          negativePrompt: 'red hair',
+        ),
+      ];
+
+      final positive = buildPromptTokenCountPayload(
+        target: PromptTokenCountTarget.positive,
+        prompt: '<alice>',
+        negativePrompt: 'global uc',
+        model: api.ImageModels.animeDiffusionV45Full,
+        fixedTagsState: fixedTags,
+        qualityToggle: false,
+        ucPreset: api.UcPresets.noneApiValue,
+        characters: characters,
+        resolveAliases: resolveNegativeAlias,
+      );
+      final negative = buildPromptTokenCountPayload(
+        target: PromptTokenCountTarget.negative,
+        prompt: '<alice>',
+        negativePrompt: 'global uc',
+        model: api.ImageModels.animeDiffusionV45Full,
+        fixedTagsState: fixedTags,
+        qualityToggle: false,
+        ucPreset: api.UcPresets.noneApiValue,
+        characters: characters,
+        resolveAliases: resolveNegativeAlias,
+      );
+
+      expect(positive.mainText, 'girl, blue eyes, negative(fixed literal)');
+      expect(positive.extraTexts, ['girl, blue eyes']);
+      expect(negative.mainText, 'global uc');
+      expect(negative.extraTexts, ['red hair']);
+    });
+
+    test('positive V5 payload should count the generated text block', () {
+      final payload = buildPromptTokenCountPayload(
+        target: PromptTokenCountTarget.positive,
+        prompt: 'chinese text, "圣女"',
+        negativePrompt: '',
+        model: api.ImageModels.animeDiffusionV5Curated,
+        fixedTagsState: const FixedTagsState(),
+        qualityToggle: false,
+        ucPreset: api.UcPresets.noneApiValue,
+        characters: const [],
+        resolveAliases: _resolveAliases,
+      );
+
+      expect(payload.mainText, 'chinese text, "圣女", teXt: 圣女');
+      expect(payload.breakdown.map((item) => item.label), contains('文字转录'));
+    });
+
+    test('positive payload should include the effective enhance prompt', () {
+      final payload = buildPromptTokenCountPayload(
+        target: PromptTokenCountTarget.positive,
+        prompt: '1girl',
+        negativePrompt: '',
+        model: api.ImageModels.animeDiffusionV45Full,
+        fixedTagsState: const FixedTagsState(),
+        qualityToggle: true,
+        ucPreset: api.UcPresets.noneApiValue,
+        isEnhanceRequest: true,
+        characters: const [],
         resolveAliases: _resolveAliases,
       );
 
       expect(
         payload.mainText,
         equals(
-          'lowres, artistic error, scan artifacts, worst quality, bad quality, jpeg artifacts, multiple views, very displeasing, too many watermarks, negative space, blank page, bad anatomy, bad hands, text',
+          '1girl, location, very aesthetic, masterpiece, no text'
+          ', -2::upscaled, blurry::,',
         ),
-      );
-      expect(
-        payload.extraTexts,
-        equals(['extra fingers']),
-      );
-      expect(
-        payload.breakdown.map((item) => item.label).toList(),
-        equals(['负面提示词', '负面固定词', '负面预设', '角色负面']),
       );
     });
   });
@@ -206,6 +286,42 @@ void main() {
         api.UcPresetType.furryFocus,
       );
     });
+
+    test(
+      'should preserve the Light tier across a custom preset round trip',
+      () {
+        final container = ProviderContainer();
+        addTearDown(container.dispose);
+        final notifier = container.read(qualityPresetNotifierProvider.notifier);
+
+        notifier.setNaiTier(api.QualityTags.lightTier);
+        notifier.setCustomEntry('custom-quality');
+
+        expect(
+          container.read(qualityPresetNotifierProvider).naiTierId,
+          api.QualityTags.lightTier,
+        );
+        expect(
+          container.read(qualityPresetNotifierProvider).mode,
+          PromptPresetMode.custom,
+        );
+
+        notifier.removeCustomEntry('custom-quality');
+
+        expect(
+          container.read(qualityPresetNotifierProvider).mode,
+          PromptPresetMode.naiDefault,
+        );
+        expect(
+          container.read(qualityPresetNotifierProvider).naiTierId,
+          api.QualityTags.lightTier,
+        );
+        expect(
+          container.read(generationParamsNotifierProvider).qualityTier,
+          api.QualityTags.lightTier,
+        );
+      },
+    );
   });
 
   group('FixedTagsState link helpers', () {
@@ -287,7 +403,9 @@ void main() {
     );
     final initialCallCount = _FakePromptTokenEncoder.callCount;
 
-    container.read(generationParamsNotifierProvider.notifier).addVibeReference(
+    container
+        .read(generationParamsNotifierProvider.notifier)
+        .addVibeReference(
           const VibeReference(
             displayName: 'vibe',
             vibeEncoding: 'encoded',
@@ -299,6 +417,36 @@ void main() {
     await Future<void>.delayed(Duration.zero);
 
     expect(_FakePromptTokenEncoder.callCount, initialCallCount);
+  });
+
+  test('Enhance 请求状态变化会触发正面 token 重新计算', () async {
+    _FakePromptTokenEncoder.callCount = 0;
+    final service = PromptTokenCounterService(
+      encoder: _FakePromptTokenEncoder(),
+    );
+    final container = ProviderContainer(
+      overrides: [
+        localStorageServiceProvider.overrideWith((ref) {
+          return _TestLocalStorageService();
+        }),
+        promptTokenCounterServiceProvider.overrideWith((ref) async => service),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    await container.read(
+      promptTokenUsageProvider(PromptTokenCountTarget.positive).future,
+    );
+    final initialCallCount = _FakePromptTokenEncoder.callCount;
+
+    container
+        .read(generationParamsNotifierProvider.notifier)
+        .updateIsEnhanceRequest(true);
+    await container.read(
+      promptTokenUsageProvider(PromptTokenCountTarget.positive).future,
+    );
+
+    expect(_FakePromptTokenEncoder.callCount, greaterThan(initialCallCount));
   });
 }
 

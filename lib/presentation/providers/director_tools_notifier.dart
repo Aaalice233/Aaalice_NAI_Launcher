@@ -8,7 +8,9 @@ import '../../core/utils/app_logger.dart';
 import '../../core/services/anlas_calculator.dart';
 import '../../data/datasources/remote/nai_image_enhancement_api_service.dart';
 import '../../data/models/director/director_tool_type.dart';
+import 'auth_provider.dart';
 import 'image_generation_provider.dart';
+import 'subscription_provider.dart';
 
 /// Emotion 预设
 ///
@@ -61,7 +63,7 @@ class DirectorToolsState {
   final int imageWidth;
   final int imageHeight;
 
-  int estimatedAnlasCost({bool isOpus = true}) {
+  int estimatedAnlasCost({bool isOpus = false}) {
     if (imageWidth == 0 || imageHeight == 0) return 0;
     return AnlasCalculator.calculateAugmentCost(
       width: imageWidth,
@@ -100,8 +102,8 @@ class DirectorToolsState {
 
 final directorToolsNotifierProvider =
     NotifierProvider<DirectorToolsNotifier, DirectorToolsState>(
-  DirectorToolsNotifier.new,
-);
+      DirectorToolsNotifier.new,
+    );
 
 class DirectorToolsNotifier extends Notifier<DirectorToolsState> {
   @override
@@ -112,7 +114,7 @@ class DirectorToolsNotifier extends Notifier<DirectorToolsState> {
       sourceImage: sourceImage,
       prompt: initialPrompt ?? '',
     );
-    _resolveImageDimensions(sourceImage);
+    await _resolveImageDimensions(sourceImage);
   }
 
   Future<void> _resolveImageDimensions(Uint8List bytes) async {
@@ -160,9 +162,15 @@ class DirectorToolsNotifier extends Notifier<DirectorToolsState> {
   Future<void> runTool() async {
     final source = state.sourceImage;
     if (source == null) return;
+    if (!requireAuthenticatedAction(ref, AuthPromptReason.directorTools)) {
+      return;
+    }
 
-    state =
-        state.copyWith(isRunning: true, clearError: true, clearResult: true);
+    state = state.copyWith(
+      isRunning: true,
+      clearError: true,
+      clearResult: true,
+    );
 
     try {
       final service = ref.read(naiImageEnhancementApiServiceProvider);
@@ -197,6 +205,10 @@ class DirectorToolsNotifier extends Notifier<DirectorToolsState> {
       state = state.copyWith(result: result, isRunning: false);
     } catch (e) {
       state = state.copyWith(error: e.toString(), isRunning: false);
+    } finally {
+      ref
+          .read(subscriptionNotifierProvider.notifier)
+          .schedulePostBillingRefresh();
     }
   }
 

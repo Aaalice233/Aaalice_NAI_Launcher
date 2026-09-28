@@ -10,6 +10,7 @@ enum AppInstallationType {
   windowsInstaller,
   windowsPortable,
   macosPortable,
+  androidApk,
   unsupported,
 }
 
@@ -27,6 +28,14 @@ class AppInstallationService {
     if (Platform.isMacOS) {
       return AppInstallationType.macosPortable;
     }
+    if (Platform.isAndroid) {
+      return AppInstallationType.androidApk;
+    }
+    // iOS 刻意不加分支：自签侧载没有任何可用的安装通道，必须落到 unsupported，
+    // 由此 getReleaseAssetPreference() 返回 'unknown'，
+    // GitHubApiService._findPlatformAsset 会据此返回 null（见那里的注释），
+    // supportsInAppInstall 也保持 false。任何给 iOS 补分支的改动都会让更新链路
+    // 重新把桌面包推给 iPhone。
     return AppInstallationType.unsupported;
   }
 
@@ -35,12 +44,19 @@ class AppInstallationService {
       AppInstallationType.windowsInstaller => 'windows-installer',
       AppInstallationType.windowsPortable => 'windows-portable',
       AppInstallationType.macosPortable => 'macos',
+      AppInstallationType.androidApk => 'android-apk',
       AppInstallationType.unsupported => 'unknown',
     };
   }
 
-  bool get supportsInAppInstall =>
-      getInstallationType() == AppInstallationType.windowsInstaller;
+  /// Windows 由独立更新器替换应用；Android 下载并校验 APK 后交给
+  /// 系统安装界面确认。macOS 涉及签名与隔离属性，暂不支持自动替换。
+  bool get supportsInAppInstall {
+    final type = getInstallationType();
+    return type == AppInstallationType.windowsInstaller ||
+        type == AppInstallationType.windowsPortable ||
+        type == AppInstallationType.androidApk;
+  }
 
   bool _isInstalledWindowsApp() {
     final installLocation = readWindowsInstallLocation();

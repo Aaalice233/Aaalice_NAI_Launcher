@@ -6,11 +6,13 @@ import 'package:go_router/go_router.dart';
 import 'package:visibility_detector/visibility_detector.dart';
 
 import '../../../core/utils/app_logger.dart';
+import '../../../core/platform/platform_capabilities.dart';
 import '../../../core/utils/localization_extension.dart';
 import '../../../data/models/gallery/local_image_record.dart';
+import '../../providers/krita/krita_bridge_notifier.dart';
 import '../../providers/local_gallery_provider.dart';
 import '../../providers/reverse_prompt_provider.dart';
-import '../../router/app_router.dart';
+import '../../router/app_routes.dart';
 import '../../services/image_workflow_launcher.dart';
 import '../../providers/selection_mode_provider.dart';
 import '../common/app_toast.dart';
@@ -22,14 +24,16 @@ import '../common/image_detail/image_detail_data.dart';
 import '../common/shimmer_skeleton.dart';
 import 'gallery_grid.dart';
 import 'gallery_state_views.dart';
+import 'local_image_context_menu.dart';
 
 /// 画廊项目构建函数类型
-typedef GalleryItemBuilder<T> = Widget Function(
-  BuildContext context,
-  T item,
-  int index,
-  GalleryItemConfig config,
-);
+typedef GalleryItemBuilder<T> =
+    Widget Function(
+      BuildContext context,
+      T item,
+      int index,
+      GalleryItemConfig config,
+    );
 
 /// 画廊项目配置
 class GalleryItemConfig {
@@ -94,8 +98,12 @@ class GenericGalleryContentView<T> extends ConsumerStatefulWidget {
   final void Function(int page)? onLoadPage;
   final GlobalKey<GroupedGridViewState>? groupedGridViewKey;
   final Gallery3DViewConfig<T>? view3DConfig;
-  final void Function(LocalImageRecord record)? onSendToHome;
-  final void Function(LocalImageRecord record)? onSendToImg2Img;
+  final Future<void> Function(
+    LocalImageRecord record,
+    LocalImageContextAction action,
+  )?
+  onSendAction;
+  final bool isKritaConnected;
   final String? emptyTitle;
   final String? emptySubtitle;
   final IconData? emptyIcon;
@@ -122,8 +130,8 @@ class GenericGalleryContentView<T> extends ConsumerStatefulWidget {
     this.onLoadPage,
     this.groupedGridViewKey,
     this.view3DConfig,
-    this.onSendToHome,
-    this.onSendToImg2Img,
+    this.onSendAction,
+    this.isKritaConnected = false,
     this.emptyTitle,
     this.emptySubtitle,
     this.emptyIcon,
@@ -153,12 +161,33 @@ class _GenericGalleryContentViewState<T>
   final Set<int> _visibleIndices = {};
   late final AnimationController _emptyStateController;
   late final Animation<double> _emptyStateAnimation;
+  bool _motionPreferenceInitialized = false;
+  bool _disableAnimations = false;
 
   @override
   void initState() {
     super.initState();
     _initSkeletonDelay();
     _initEmptyStateAnimation();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final disableAnimations = MediaQuery.disableAnimationsOf(context);
+    if (_motionPreferenceInitialized &&
+        _disableAnimations == disableAnimations) {
+      return;
+    }
+    final isFirstUpdate = !_motionPreferenceInitialized;
+    _motionPreferenceInitialized = true;
+    _disableAnimations = disableAnimations;
+    if (disableAnimations) {
+      _emptyStateController.stop();
+      _emptyStateController.value = 1;
+    } else if (isFirstUpdate) {
+      _emptyStateController.forward();
+    }
   }
 
   @override
@@ -187,7 +216,6 @@ class _GenericGalleryContentViewState<T>
       parent: _emptyStateController,
       curve: Curves.easeOut,
     );
-    _emptyStateController.forward();
   }
 
   void _initSkeletonDelay() {
@@ -228,6 +256,7 @@ class _GenericGalleryContentViewState<T>
   }
 
   Widget _buildAnimatedEmptyState(Widget child) {
+    if (_disableAnimations) return child;
     return FadeTransition(
       opacity: _emptyStateAnimation,
       child: AnimatedBuilder(
@@ -302,15 +331,18 @@ class _GenericGalleryContentViewState<T>
                 widget.onEnterSelection?.call(record as T);
               }
             },
+            onSecondaryTapUp: widget.onContextMenu != null
+                ? (details) =>
+                      widget.onContextMenu!(record as T, details.globalPosition)
+                : null,
             onFavoriteToggle: () {
               widget.onFavoriteToggle?.call(record as T);
             },
-            onSendToHome: widget.onSendToHome != null
-                ? () => widget.onSendToHome!(record)
+            onSendAction: widget.onSendAction != null
+                ? (action) => widget.onSendAction!(record, action)
                 : null,
-            onSendToImg2Img: widget.onSendToImg2Img != null
-                ? () => widget.onSendToImg2Img!(record)
-                : null,
+            enableAddToAgent: !selectionState.isActive,
+            isKritaConnected: widget.isKritaConnected,
           ),
         );
       },
@@ -361,6 +393,7 @@ class _GenericGalleryContentViewState<T>
       duration: const Duration(milliseconds: 200),
       child: GridView.builder(
         key: const PageStorageKey<String>('gallery_grid_loading'),
+        padding: const EdgeInsets.all(12),
         gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
           crossAxisCount: widget.columns,
           mainAxisSpacing: 12,
@@ -399,7 +432,7 @@ class _GenericGalleryContentViewState<T>
       images: _convertToLocalImageRecords(state.currentImages),
       columns: widget.columns,
       spacing: 12,
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(12),
       selectedIndices: selectionState.isActive ? selectedIndices : null,
       enableDrag: !selectionState.isActive,
       onTap: (record, index) {
@@ -416,16 +449,11 @@ class _GenericGalleryContentViewState<T>
           );
         }
       },
-      onDoubleTap: (record, index) {
-        if (widget.onDoubleTap != null) {
-          widget.onDoubleTap!(state.currentImages[index], index);
-        } else if (widget.view3DConfig != null) {
-          widget.view3DConfig!.showDetailViewer(
-            widget.view3DConfig!.images,
-            index,
-          );
-        }
-      },
+      onDoubleTap: widget.onDoubleTap == null
+          ? null
+          : (record, index) {
+              widget.onDoubleTap!(state.currentImages[index], index);
+            },
       onLongPress: (record, index) {
         if (!selectionState.isActive) {
           widget.onEnterSelection?.call(state.currentImages[index]);
@@ -433,7 +461,7 @@ class _GenericGalleryContentViewState<T>
           widget.onLongPress?.call(state.currentImages[index], index);
         }
       },
-      onSecondaryTapDown: (record, index, details) {
+      onSecondaryTapUp: (record, index, details) {
         widget.onContextMenu?.call(
           state.currentImages[index],
           details.globalPosition,
@@ -442,12 +470,10 @@ class _GenericGalleryContentViewState<T>
       onFavoriteToggle: (record, index) {
         widget.onFavoriteToggle?.call(state.currentImages[index]);
       },
-      onSendToHome: widget.onSendToHome != null
-          ? (record, index) => widget.onSendToHome!(record)
+      onSendAction: widget.onSendAction != null
+          ? (record, index, action) => widget.onSendAction!(record, action)
           : null,
-      onSendToImg2Img: widget.onSendToImg2Img != null
-          ? (record, index) => widget.onSendToImg2Img!(record)
-          : null,
+      isKritaConnected: widget.isKritaConnected,
     );
   }
 
@@ -456,10 +482,6 @@ class _GenericGalleryContentViewState<T>
     return items as List<LocalImageRecord>;
   }
 }
-
-// ============================================
-// 向后兼容的 LocalImageRecord 专用版本
-// ============================================
 
 /// 本地画廊状态适配器
 class _LocalGalleryStateAdapter implements GalleryState<LocalImageRecord> {
@@ -506,15 +528,25 @@ class _LocalSelectionStateAdapter implements SelectionState {
   Set<String> get selectedIds => _state.selectedIds;
 }
 
-/// 向后兼容的画廊内容视图
+/// 本地画廊内容视图
 class LocalGalleryContentView extends ConsumerWidget {
   final bool use3DCardView;
   final int columns;
   final double itemWidth;
+
+  /// 全屏查看器（[ImageDetailCallbacks.onReuseMetadata]）专用的「复用参数」。
+  ///
+  /// 【偏离上游】这条回调**只**喂查看器，调用方传进来的实现走的是
+  /// 「成功后只弹 toast、不跳生成页」的分支；列表卡片菜单的「复用参数」
+  /// 走 [onSendAction] / [LocalImageContextAction.importMetadata]，仍是上游默认跳转。
+  /// 想给列表入口加行为时别复用这个字段。
   final void Function(LocalImageRecord record)? onReuseMetadata;
-  final void Function(LocalImageRecord record)? onSendToImg2Img;
   final void Function(LocalImageRecord record, Offset position)? onContextMenu;
-  final void Function(LocalImageRecord record)? onSendToHome;
+  final Future<void> Function(
+    LocalImageRecord record,
+    LocalImageContextAction action,
+  )?
+  onSendAction;
   final VoidCallback? onDeleted;
   final GlobalKey<GroupedGridViewState>? groupedGridViewKey;
 
@@ -524,9 +556,8 @@ class LocalGalleryContentView extends ConsumerWidget {
     required this.columns,
     required this.itemWidth,
     this.onReuseMetadata,
-    this.onSendToImg2Img,
     this.onContextMenu,
-    this.onSendToHome,
+    this.onSendAction,
     this.onDeleted,
     this.groupedGridViewKey,
   });
@@ -535,6 +566,13 @@ class LocalGalleryContentView extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(localGalleryNotifierProvider);
     final selectionState = ref.watch(localGallerySelectionNotifierProvider);
+    final isKritaConnected =
+        PlatformCapabilities.current.supportsKritaBridge &&
+        ref.watch(
+          kritaBridgeNotifierProvider.select(
+            (state) => state.status == KritaBridgeStatus.connected,
+          ),
+        );
 
     void showImageDetailViewer(
       List<LocalImageRecord> images,
@@ -561,8 +599,8 @@ class LocalGalleryContentView extends ConsumerWidget {
         showThumbnails: images.length > 1,
         callbacks: ImageDetailCallbacks(
           onReuseMetadata: onReuseMetadata != null
-              ? (data, _) =>
-                  onReuseMetadata?.call((data as LocalImageDetailData).record)
+              ? (data) async =>
+                    onReuseMetadata?.call((data as LocalImageDetailData).record)
               : null,
           onFavoriteToggle: (data) => ref
               .read(localGalleryNotifierProvider.notifier)
@@ -583,7 +621,9 @@ class LocalGalleryContentView extends ConsumerWidget {
           },
           onSendToReversePrompt: (data) async {
             try {
-              await ref.read(reversePromptProvider.notifier).addImage(
+              await ref
+                  .read(reversePromptProvider.notifier)
+                  .addImage(
                     await data.getImageBytes(),
                     name: data.fileInfo?.fileName ?? 'gallery-image',
                   );
@@ -623,10 +663,11 @@ class LocalGalleryContentView extends ConsumerWidget {
         onFavoriteToggle: () => ref
             .read(localGalleryNotifierProvider.notifier)
             .toggleFavorite(record.path),
-        onSendToHome:
-            onReuseMetadata != null ? () => onReuseMetadata!(record) : null,
-        onSendToImg2Img:
-            onSendToImg2Img != null ? () => onSendToImg2Img!(record) : null,
+        onSendAction: onSendAction != null
+            ? (action) => onSendAction!(record, action)
+            : null,
+        enableAddToAgent: !config.selectionMode,
+        isKritaConnected: isKritaConnected,
       ),
       onSelectionToggle: (record) => ref
           .read(localGallerySelectionNotifierProvider.notifier)
@@ -650,11 +691,8 @@ class LocalGalleryContentView extends ConsumerWidget {
         images: state.currentImages,
         showDetailViewer: showImageDetailViewer,
       ),
-      onSendToHome: onReuseMetadata,
-      onSendToImg2Img: onSendToImg2Img,
+      onSendAction: onSendAction,
+      isKritaConnected: isKritaConnected,
     );
   }
 }
-
-// 向后兼容的类型别名
-typedef GalleryContentView = LocalGalleryContentView;

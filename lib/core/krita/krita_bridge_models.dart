@@ -188,13 +188,13 @@ class KritaInpaintMessage extends KritaBridgeMessage {
   final bool focusedInpaint;
 
   KritaImageParamsMapping toImageParams(ImageParams baseParams) {
-    final clampedContext = minimumContextPixels.clamp(0, 192).toInt();
+    final clampedContext = minimumContextPixels.clamp(16, 192).toInt();
     final hasFocusedRect = focusedInpaint && selectionRect != null;
 
     return KritaImageParamsMapping(
       params: baseParams.copyWith(
         action: ImageGenerationAction.infill,
-        model: _resolveInpaintModel(baseParams.model),
+        model: ImageModels.resolveInpaintingModel(baseParams.model),
         sourceImage: image,
         maskImage: mask,
         prompt: prompt,
@@ -209,29 +209,6 @@ class KritaInpaintMessage extends KritaBridgeMessage {
       minimumContextPixels: clampedContext,
       selectionRect: selectionRect,
     );
-  }
-
-  String _resolveInpaintModel(String model) {
-    if (ImageModels.isInpaintingModel(model)) {
-      return model;
-    }
-
-    switch (model) {
-      case ImageModels.animeDiffusionV45Full:
-        return ImageModels.animeDiffusionV45FullInpainting;
-      case ImageModels.animeDiffusionV45Curated:
-        return ImageModels.animeDiffusionV45CuratedInpainting;
-      case ImageModels.animeDiffusionV4Full:
-        return ImageModels.animeDiffusionV4FullInpainting;
-      case ImageModels.animeDiffusionV4Curated:
-        return ImageModels.animeDiffusionV4CuratedInpainting;
-      case ImageModels.furryDiffusion:
-      case ImageModels.furryDiffusionV3:
-        return ImageModels.furryDiffusionV3Inpainting;
-      case ImageModels.animeDiffusionV3:
-      default:
-        return ImageModels.animeDiffusionV3Inpainting;
-    }
   }
 }
 

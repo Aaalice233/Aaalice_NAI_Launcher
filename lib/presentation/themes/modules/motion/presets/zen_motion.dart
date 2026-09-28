@@ -1,7 +1,7 @@
 /// Zen Motion - Calm, meditative animations
 ///
 /// Design Reference: docs/UI设计提示词合集/默认主题.txt
-/// - Animation duration: 1.2s for slow transitions
+/// - Restrained timing keeps the calm curve without delaying task feedback.
 /// - Curve: cubic-bezier(0.2, 0.8, 0.2, 1) - gentle ease-out
 library;
 
@@ -15,13 +15,13 @@ class ZenMotion extends BaseMotionModule {
   const ZenMotion();
 
   @override
-  Duration get fastDuration => const Duration(milliseconds: 400);
+  Duration get fastDuration => const Duration(milliseconds: 180);
 
   @override
-  Duration get normalDuration => const Duration(milliseconds: 800);
+  Duration get normalDuration => const Duration(milliseconds: 260);
 
   @override
-  Duration get slowDuration => const Duration(milliseconds: 1200);
+  Duration get slowDuration => const Duration(milliseconds: 300);
 
   @override
   Curve get enterCurve => _zenCurve;

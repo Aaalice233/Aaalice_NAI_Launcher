@@ -9,15 +9,29 @@ import 'app_installation_service.dart';
 
 part 'update_check_service.g.dart';
 
+enum UpdateCheckFailureType {
+  releaseNotFound,
+  rateLimited,
+  network,
+  unavailable,
+  invalidResponse,
+  unknown,
+}
+
 /// 更新检查异常
 class UpdateCheckException implements Exception {
-  /// 错误消息
+  /// 供日志使用的简短错误消息；用户文案由 UI 按 [type] 本地化。
   final String message;
+  final UpdateCheckFailureType type;
 
   /// 原始异常
   final Object? originalError;
 
-  const UpdateCheckException(this.message, {this.originalError});
+  const UpdateCheckException(
+    this.message, {
+    this.type = UpdateCheckFailureType.unknown,
+    this.originalError,
+  });
 
   @override
   String toString() =>
@@ -28,17 +42,35 @@ class UpdateCheckException implements Exception {
 ///
 /// 定义更新检查所需的存储操作
 abstract class UpdateCheckStorage {
-  /// 获取上次更新检查时间
+  /// 获取上次成功完成更新检查的时间
   DateTime? getLastUpdateCheckTime();
 
-  /// 保存上次更新检查时间
+  /// 保存上次成功完成更新检查的时间
   Future<void> setLastUpdateCheckTime(DateTime? time);
+
+  /// 获取最近一次更新检查尝试时间
+  DateTime? getLastUpdateCheckAttemptTime();
+
+  /// 保存最近一次更新检查尝试时间
+  Future<void> setLastUpdateCheckAttemptTime(DateTime? time);
 
   /// 获取跳过的更新版本
   String? getSkippedUpdateVersion();
 
   /// 保存跳过的更新版本
   Future<void> setSkippedUpdateVersion(String? version);
+
+  /// 获取上次发现的新版本
+  String? getLastKnownUpdateVersion();
+
+  /// 保存上次发现的新版本
+  Future<void> setLastKnownUpdateVersion(String? version);
+
+  /// 获取更新提示延后时间
+  DateTime? getUpdateRemindAfter();
+
+  /// 保存更新提示延后时间
+  Future<void> setUpdateRemindAfter(DateTime? time);
 
   /// 获取是否包含预发布版本
   bool getIncludePrereleaseUpdates();
@@ -50,7 +82,10 @@ abstract class UpdateCheckStorage {
 /// 内存存储实现（用于测试或无需持久化的场景）
 class _MemoryUpdateCheckStorage implements UpdateCheckStorage {
   DateTime? _lastUpdateCheckTime;
+  DateTime? _lastUpdateCheckAttemptTime;
   String? _skippedUpdateVersion;
+  String? _lastKnownUpdateVersion;
+  DateTime? _updateRemindAfter;
   bool _includePrereleaseUpdates = false;
 
   @override
@@ -58,12 +93,15 @@ class _MemoryUpdateCheckStorage implements UpdateCheckStorage {
 
   @override
   Future<void> setLastUpdateCheckTime(DateTime? time) async {
-    // 如果设置的时间是现在或未来，减去1微秒以确保严格早于后续调用
-    if (time != null && !time.isBefore(DateTime.now())) {
-      _lastUpdateCheckTime = time.subtract(const Duration(microseconds: 1));
-    } else {
-      _lastUpdateCheckTime = time;
-    }
+    _lastUpdateCheckTime = time;
+  }
+
+  @override
+  DateTime? getLastUpdateCheckAttemptTime() => _lastUpdateCheckAttemptTime;
+
+  @override
+  Future<void> setLastUpdateCheckAttemptTime(DateTime? time) async {
+    _lastUpdateCheckAttemptTime = time;
   }
 
   @override
@@ -72,6 +110,22 @@ class _MemoryUpdateCheckStorage implements UpdateCheckStorage {
   @override
   Future<void> setSkippedUpdateVersion(String? version) async {
     _skippedUpdateVersion = version;
+  }
+
+  @override
+  String? getLastKnownUpdateVersion() => _lastKnownUpdateVersion;
+
+  @override
+  Future<void> setLastKnownUpdateVersion(String? version) async {
+    _lastKnownUpdateVersion = version;
+  }
+
+  @override
+  DateTime? getUpdateRemindAfter() => _updateRemindAfter;
+
+  @override
+  Future<void> setUpdateRemindAfter(DateTime? time) async {
+    _updateRemindAfter = time;
   }
 
   @override
@@ -98,11 +152,36 @@ class _LocalStorageUpdateCheckStorage implements UpdateCheckStorage {
   }
 
   @override
+  DateTime? getLastUpdateCheckAttemptTime() =>
+      _storage.getLastUpdateCheckAttemptTime();
+
+  @override
+  Future<void> setLastUpdateCheckAttemptTime(DateTime? time) async {
+    await _storage.setLastUpdateCheckAttemptTime(time);
+  }
+
+  @override
   String? getSkippedUpdateVersion() => _storage.getSkippedUpdateVersion();
 
   @override
   Future<void> setSkippedUpdateVersion(String? version) async {
     await _storage.setSkippedUpdateVersion(version);
+  }
+
+  @override
+  String? getLastKnownUpdateVersion() => _storage.getLastKnownUpdateVersion();
+
+  @override
+  Future<void> setLastKnownUpdateVersion(String? version) async {
+    await _storage.setLastKnownUpdateVersion(version);
+  }
+
+  @override
+  DateTime? getUpdateRemindAfter() => _storage.getUpdateRemindAfter();
+
+  @override
+  Future<void> setUpdateRemindAfter(DateTime? time) async {
+    await _storage.setUpdateRemindAfter(time);
   }
 
   @override
@@ -117,7 +196,7 @@ class _LocalStorageUpdateCheckStorage implements UpdateCheckStorage {
 /// 更新检查服务
 ///
 /// 负责检查应用更新，支持：
-/// - 24小时检查间隔控制
+/// - 30分钟检查间隔控制
 /// - 版本跳过功能
 /// - 预发布版本包含开关
 class UpdateCheckService {
@@ -133,14 +212,22 @@ class UpdateCheckService {
   /// 当前安装形态检测服务
   final AppInstallationService _installationService;
 
+  final DateTime Function() _now;
+
   /// 默认仓库所有者
   static const String defaultOwner = 'Aaalice233';
 
   /// 默认仓库名称
   static const String defaultRepo = 'Aaalice_NAI_Launcher';
 
-  /// 默认检查间隔（24小时）
-  static const Duration defaultCheckInterval = Duration(hours: 24);
+  /// 前台使用期间定期发现启动后发布的新版本。
+  static const Duration defaultCheckInterval = Duration(minutes: 30);
+
+  /// 检查失败后的重试间隔
+  static const Duration failedCheckRetryInterval = Duration(minutes: 5);
+
+  /// “稍后提醒”的默认延后时间
+  static const Duration defaultReminderDelay = Duration(hours: 4);
 
   /// 当前检查间隔
   Duration _checkInterval = defaultCheckInterval;
@@ -149,18 +236,25 @@ class UpdateCheckService {
   ///
   /// [gitHubApiService] GitHub API 服务
   /// [packageInfo] 包信息
-  /// [storage] 可选的存储服务，如果不提供则使用内存存储
+  /// [storage] 可选的持久存储服务；[checkStorage] 用于测试或替代实现，
+  /// 两者不能同时提供。
   UpdateCheckService({
     required GitHubApiService gitHubApiService,
     required PackageInfo packageInfo,
     required AppInstallationService installationService,
     LocalStorageService? storage,
-  }) : _gitHubApiService = gitHubApiService,
+    UpdateCheckStorage? checkStorage,
+    DateTime Function()? now,
+  }) : assert(storage == null || checkStorage == null),
+       _gitHubApiService = gitHubApiService,
        _packageInfo = packageInfo,
        _installationService = installationService,
-       _storage = storage != null
-           ? _LocalStorageUpdateCheckStorage(storage)
-           : _MemoryUpdateCheckStorage();
+       _now = now ?? DateTime.now,
+       _storage =
+           checkStorage ??
+           (storage != null
+               ? _LocalStorageUpdateCheckStorage(storage)
+               : _MemoryUpdateCheckStorage());
 
   /// 获取当前检查间隔
   Duration get checkInterval => _checkInterval;
@@ -170,16 +264,48 @@ class UpdateCheckService {
     _checkInterval = interval;
   }
 
-  /// 检查是否应该执行更新检查
+  /// 检查是否应该执行周期更新检查。
   ///
-  /// 根据上次检查时间和当前间隔判断是否需要检查
+  /// 成功检查使用常规 30 分钟间隔；失败尝试只冷却 5 分钟。已经发现
+  /// 新版本时，“稍后提醒”到期会绕过常规间隔，及时恢复提示。
   Future<bool> shouldCheck() async {
+    final now = _now();
+    if (_isTemporarilySuppressed(now)) return false;
+
+    final knownVersion = _storage.getLastKnownUpdateVersion();
+    final skippedVersion = _storage.getSkippedUpdateVersion();
+    if (knownVersion != null &&
+        knownVersion != skippedVersion &&
+        VersionInfoComparator.isNewer(knownVersion, currentVersion)) {
+      return true;
+    }
+
     final lastCheckTime = _storage.getLastUpdateCheckTime();
     if (lastCheckTime == null) return true;
+    final lastAttempt = _storage.getLastUpdateCheckAttemptTime();
+    if (lastAttempt != null && lastAttempt.isAfter(lastCheckTime)) return true;
+    return now.difference(lastCheckTime) >= _checkInterval;
+  }
 
-    final now = DateTime.now();
-    final difference = now.difference(lastCheckTime);
-    return difference >= _checkInterval;
+  /// 每次应用启动都检查一次，不受上次成功检查的常规间隔影响。
+  ///
+  /// 用户明确选择“稍后提醒”或最近一次检查失败仍在冷却期时仍应保持安静。
+  Future<bool> shouldCheckOnStartup() async {
+    return !_isTemporarilySuppressed(_now());
+  }
+
+  bool _isTemporarilySuppressed(DateTime now) {
+    final remindAfter = _storage.getUpdateRemindAfter();
+    if (remindAfter != null && now.isBefore(remindAfter)) return true;
+
+    final lastAttempt = _storage.getLastUpdateCheckAttemptTime();
+    if (lastAttempt == null ||
+        now.difference(lastAttempt) >= failedCheckRetryInterval) {
+      return false;
+    }
+
+    final lastSuccess = _storage.getLastUpdateCheckTime();
+    return lastSuccess == null || lastAttempt.isAfter(lastSuccess);
   }
 
   /// 兼容性方法：检查是否应该检查更新（同 shouldCheck）
@@ -189,13 +315,11 @@ class UpdateCheckService {
   ///
   /// 返回 [VersionInfo] 如果有新版本，否则返回 null
   /// 如果版本被标记为跳过，则返回 null
-  Future<VersionInfo?> checkForUpdates() async {
+  Future<VersionInfo?> checkForUpdates({bool ignoreSkipped = false}) async {
+    final attemptTime = _now();
+    await _storage.setLastUpdateCheckAttemptTime(attemptTime);
+
     try {
-      final currentVersion = _packageInfo.version;
-
-      // 先记录检查时间
-      await markAsChecked();
-
       final latestRelease = await _gitHubApiService.fetchLatestRelease(
         owner: defaultOwner,
         repo: defaultRepo,
@@ -204,31 +328,58 @@ class UpdateCheckService {
         includePrerelease: shouldIncludePrerelease(),
       );
 
-      // 检查版本是否被跳过
-      if (await isVersionSkipped(latestRelease.version)) {
-        return null;
-      }
+      // 只有远端响应成功才进入常规检查冷却，网络失败不会吞掉一天提示。
+      await markAsChecked();
 
-      // 检查是否需要更新（使用服务内部的版本比较）
       if (VersionInfoComparator.isNewer(
         latestRelease.version,
         currentVersion,
       )) {
+        await _storage.setLastKnownUpdateVersion(latestRelease.version);
+        if (!ignoreSkipped && await isVersionSkipped(latestRelease.version)) {
+          return null;
+        }
         return latestRelease;
       }
 
+      await _storage.setLastKnownUpdateVersion(null);
+      await _storage.setUpdateRemindAfter(null);
       return null;
     } on GitHubApiException catch (e) {
-      throw UpdateCheckException('检查更新失败', originalError: e);
+      throw UpdateCheckException(
+        '检查更新失败',
+        type: switch (e.type) {
+          GitHubReleaseErrorType.notFound =>
+            UpdateCheckFailureType.releaseNotFound,
+          GitHubReleaseErrorType.rateLimited =>
+            UpdateCheckFailureType.rateLimited,
+          GitHubReleaseErrorType.network => UpdateCheckFailureType.network,
+          GitHubReleaseErrorType.unavailable =>
+            UpdateCheckFailureType.unavailable,
+          GitHubReleaseErrorType.invalidResponse =>
+            UpdateCheckFailureType.invalidResponse,
+          GitHubReleaseErrorType.unknown => UpdateCheckFailureType.unknown,
+        },
+        originalError: e,
+      );
     } catch (e) {
+      if (e is UpdateCheckException) rethrow;
       throw UpdateCheckException('检查更新时发生未知错误', originalError: e);
     }
   }
 
-  /// 标记为已检查（记录检查时间）
+  /// 当前应用完整版本。PackageInfo 将 pubspec 的 `+build` 拆到 buildNumber，
+  /// 必须重新组合后再与 Release manifest 比较，否则会把同一构建误判为更新。
+  String get currentVersion {
+    final version = _packageInfo.version.trim();
+    final buildNumber = _packageInfo.buildNumber.trim();
+    if (buildNumber.isEmpty || version.contains('+')) return version;
+    return '$version+$buildNumber';
+  }
+
+  /// 标记为成功完成检查
   Future<void> markAsChecked() async {
-    // 使用 microsecondsSinceEpoch 确保精度
-    await _storage.setLastUpdateCheckTime(DateTime.now());
+    await _storage.setLastUpdateCheckTime(_now());
   }
 
   /// 跳过指定版本
@@ -236,6 +387,7 @@ class UpdateCheckService {
   /// 跳过的版本将不会提示更新
   Future<void> skipVersion(String version) async {
     await _storage.setSkippedUpdateVersion(version);
+    await _storage.setUpdateRemindAfter(null);
   }
 
   /// 检查指定版本是否被跳过
@@ -244,9 +396,33 @@ class UpdateCheckService {
     return skippedVersion == version;
   }
 
-  /// 获取上次检查时间
+  /// 获取上次成功检查时间
   Future<DateTime?> getLastCheckTime() async {
     return _storage.getLastUpdateCheckTime();
+  }
+
+  /// 当前是否已到再次提示更新时间
+  bool isReminderDue() {
+    final remindAfter = _storage.getUpdateRemindAfter();
+    return remindAfter == null || !_now().isBefore(remindAfter);
+  }
+
+  /// 距离更新提示恢复还剩多久；没有延后状态时返回 null。
+  Duration? get reminderDelayRemaining {
+    final remindAfter = _storage.getUpdateRemindAfter();
+    if (remindAfter == null) return null;
+    final remaining = remindAfter.difference(_now());
+    return remaining.isNegative ? Duration.zero : remaining;
+  }
+
+  /// 延后当前更新提示
+  Future<void> remindLater({Duration delay = defaultReminderDelay}) async {
+    await _storage.setUpdateRemindAfter(_now().add(delay));
+  }
+
+  /// 清除更新提示延后状态
+  Future<void> clearReminder() async {
+    await _storage.setUpdateRemindAfter(null);
   }
 
   /// 获取是否包含预发布版本
@@ -262,11 +438,12 @@ class UpdateCheckService {
   /// 清除跳过的版本
   Future<void> clearSkippedVersion() async {
     await _storage.setSkippedUpdateVersion(null);
+    await _storage.setUpdateRemindAfter(null);
   }
 }
 
 /// UpdateCheckService Provider (internal async provider)
-@riverpod
+@Riverpod(keepAlive: true)
 Future<UpdateCheckService> _updateCheckServiceFuture(Ref ref) async {
   final gitHubApiService = ref.watch(gitHubApiServiceProvider);
   final localStorageService = ref.watch(localStorageServiceProvider);

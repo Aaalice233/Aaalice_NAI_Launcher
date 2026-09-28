@@ -1,12 +1,17 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:math' as math;
 import 'dart:ui';
 
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hive/hive.dart';
+import 'package:nai_launcher/core/autocomplete/tag_translation_lookup.dart';
 import 'package:nai_launcher/core/constants/storage_keys.dart';
+import 'package:nai_launcher/core/platform/platform_capabilities.dart';
 import 'package:nai_launcher/core/storage/local_storage_service.dart';
 import 'package:nai_launcher/data/models/fixed_tag/fixed_tag_entry.dart';
 import 'package:nai_launcher/data/models/fixed_tag/fixed_tag_link.dart';
@@ -14,14 +19,24 @@ import 'package:nai_launcher/data/models/fixed_tag/fixed_tag_prompt_type.dart';
 import 'package:nai_launcher/data/models/tag_library/tag_library_category.dart';
 import 'package:nai_launcher/data/models/tag_library/tag_library_entry.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
+import 'package:nai_launcher/presentation/adaptive/interaction_policy.dart';
+import 'package:nai_launcher/presentation/agent_chat/widgets/agent_resource_drop_region.dart';
+import 'package:nai_launcher/presentation/prompt_assistant/widgets/prompt_assistant_overlay.dart';
 import 'package:nai_launcher/presentation/providers/fixed_tags_provider.dart';
 import 'package:nai_launcher/presentation/providers/layout_state_provider.dart';
-import 'package:nai_launcher/presentation/screens/generation/generation_screen.dart';
 import 'package:nai_launcher/presentation/screens/generation/widgets/fixed_tags_sidebar.dart';
 import 'package:nai_launcher/presentation/screens/generation/widgets/sidebar_entry_tile.dart';
 import 'package:nai_launcher/presentation/screens/generation/widgets/sidebar_link_painter.dart';
+import 'package:nai_launcher/presentation/themes/prompt_semantic_colors.dart';
+import 'package:nai_launcher/presentation/widgets/common/tile_action_button.dart';
+import 'package:nai_launcher/presentation/widgets/common/themed_switch.dart';
+import 'package:nai_launcher/presentation/widgets/common/themed_input.dart';
 import 'package:nai_launcher/presentation/widgets/common/thumbnail_display.dart';
+import 'package:nai_launcher/presentation/widgets/common/translated_tag_text.dart';
+import 'package:nai_launcher/presentation/widgets/prompt/fixed_tag_edit_dialog.dart';
+import 'package:nai_launcher/presentation/widgets/prompt/fixed_tag_entry_tile.dart';
 import 'package:nai_launcher/presentation/widgets/prompt/fixed_tags_button.dart';
+import 'package:nai_launcher/presentation/widgets/prompt/fixed_tags_dialog.dart';
 
 void main() {
   late Directory hiveDir;
@@ -43,9 +58,980 @@ void main() {
     }
   });
 
+  testWidgets('management tile body toggles the entry switch', (tester) async {
+    final entry = FixedTagEntry.create(
+      name: 'clickable fixed tag',
+      content: 'masterpiece',
+      enabled: false,
+    );
+    final storage = _SidebarTestStorage(
+      fixedEntries: [entry],
+      categories: const [],
+      libraryEntries: const [],
+    );
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [localStorageServiceProvider.overrideWith((ref) => storage)],
+        child: const MaterialApp(
+          locale: Locale('zh'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(body: FixedTagsDialog()),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final tile = find.ancestor(
+      of: find.text('clickable fixed tag'),
+      matching: find.byType(FixedTagEntryTile),
+    );
+    final entrySwitch = find.descendant(
+      of: tile,
+      matching: find.byType(ThemedSwitch),
+    );
+    expect(tester.widget<ThemedSwitch>(entrySwitch).value, isFalse);
+
+    await tester.tap(find.text('clickable fixed tag'));
+    await tester.pumpAndSettle();
+
+    expect(tester.widget<ThemedSwitch>(entrySwitch).value, isTrue);
+  });
+
+  for (final width in [320.0, 600.0, 840.0, 1180.0, 1600.0]) {
+    for (final scale in [1.0, 3.0]) {
+      testWidgets(
+        'enabled-only filter at $width / ${scale}x preserves entry state',
+        (tester) async {
+          tester.view.devicePixelRatio = 1;
+          tester.view.physicalSize = Size(width, 1000);
+          addTearDown(tester.view.reset);
+          final storage = _SidebarTestStorage(
+            fixedEntries: [
+              for (final type in FixedTagPromptType.values)
+                for (final enabled in [true, false])
+                  FixedTagEntry.create(
+                    name: '${type.name}-$enabled',
+                    content: 'tag',
+                    promptType: type,
+                    enabled: enabled,
+                  ),
+            ],
+            categories: const [],
+            libraryEntries: const [],
+          );
+          await tester.pumpWidget(
+            ProviderScope(
+              overrides: [
+                localStorageServiceProvider.overrideWith((ref) => storage),
+              ],
+              child: MaterialApp(
+                locale: const Locale('zh'),
+                localizationsDelegates: AppLocalizations.localizationsDelegates,
+                supportedLocales: AppLocalizations.supportedLocales,
+                builder: (context, child) => MediaQuery(
+                  data: MediaQuery.of(
+                    context,
+                  ).copyWith(textScaler: TextScaler.linear(scale)),
+                  child: child!,
+                ),
+                home: const Scaffold(body: FixedTagsDialog()),
+              ),
+            ),
+          );
+          await tester.pumpAndSettle();
+          final filter = find.byKey(const ValueKey('fixed-tags-enabled-only'));
+          expect(filter.hitTestable(), findsOneWidget);
+          await tester.tap(filter);
+          await tester.pumpAndSettle();
+          expect(tester.widget<IconButton>(filter).isSelected, isTrue);
+          expect(find.text('positive-true'), findsOneWidget);
+          expect(find.text('positive-false'), findsNothing);
+          final negativeTab = find.byKey(
+            const ValueKey('fixed-tags-mobile-tab-negative'),
+          );
+          if (negativeTab.evaluate().isNotEmpty) {
+            await tester.tap(negativeTab);
+            await tester.pumpAndSettle();
+          }
+          expect(find.text('negative-true'), findsOneWidget);
+          expect(find.text('negative-false'), findsNothing);
+          await tester.tap(filter);
+          await tester.pumpAndSettle();
+          await tester.scrollUntilVisible(
+            find.text('negative-false'),
+            120,
+            scrollable: find
+                .descendant(
+                  of: find.byType(ReorderableListView).last,
+                  matching: find.byType(Scrollable),
+                )
+                .first,
+          );
+          expect(find.text('negative-false'), findsOneWidget);
+          final tile = find.ancestor(
+            of: find.text('negative-false'),
+            matching: find.byType(FixedTagEntryTile),
+          );
+          expect(
+            tester
+                .widget<ThemedSwitch>(
+                  find.descendant(
+                    of: tile,
+                    matching: find.byType(ThemedSwitch),
+                  ),
+                )
+                .value,
+            isFalse,
+          );
+          expect(tester.takeException(), isNull);
+        },
+      );
+    }
+  }
+
+  for (final width in const [320.0, 600.0, 840.0]) {
+    for (final viewMode in const ['list', 'grid']) {
+      for (final scale in const [1.0, 3.0]) {
+        testWidgets(
+          '$viewMode panes at $width / ${scale}x keep headers inside the card',
+          (tester) async {
+            await _pumpSidebar(
+              tester,
+              _paneHeaderStorage(viewMode: viewMode),
+              textScale: scale,
+              viewportSize: Size(width, 620),
+            );
+
+            // 这里只断言面板头，不断言条目：正文按需构建，窄屏大字号下条目本就
+            // 落在视口之外。条目渲染由本文件其余用例覆盖。
+            _expectPaneHeadersFit(tester);
+            expect(tester.takeException(), isNull);
+          },
+        );
+      }
+    }
+  }
+
+  // 顶部卡片在 3x 下吃掉大半高度，面板头分到的高度低于自然高度时必须自己收缩。
+  testWidgets('pane headers shrink instead of overflowing a short pane', (
+    tester,
+  ) async {
+    await _pumpSidebar(
+      tester,
+      _paneHeaderStorage(),
+      textScale: 3,
+      viewportSize: const Size(320, 600),
+    );
+
+    _expectPaneHeadersFit(tester);
+    expect(tester.takeException(), isNull);
+  });
+
+  // 空面板只按面板头预算，4x 下自然高度已到 84，写死 64 就会少留 20。
+  testWidgets('empty pane reserves a text-scaled header at 4x', (tester) async {
+    await _pumpSidebar(
+      tester,
+      _paneHeaderStorage(withNegative: false),
+      textScale: 4,
+      viewportSize: const Size(320, 860),
+    );
+
+    _expectPaneHeadersFit(tester);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('select-all action follows input hit targets', (tester) async {
+    tester.view.physicalSize = const Size(320, 700);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final storage = _SidebarTestStorage(
+      fixedEntries: const [],
+      categories: const [],
+      libraryEntries: const [],
+    );
+
+    Future<void> pump(InteractionPolicy policy) async {
+      await tester.pumpWidget(
+        ProviderScope(
+          key: ValueKey(policy),
+          overrides: [
+            localStorageServiceProvider.overrideWith((ref) => storage),
+          ],
+          child: MaterialApp(
+            locale: const Locale('zh'),
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            home: Scaffold(
+              body: InteractionPolicyScope(
+                key: ValueKey(policy),
+                initialPolicy: policy,
+                child: const FixedTagsDialog(),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+    }
+
+    const touchPolicy = InteractionPolicy.touchFirst;
+    await pump(touchPolicy);
+    final selectAll = find.byKey(
+      const ValueKey('fixed-tags-toggle-all-positive'),
+    );
+    expect(tester.getSize(selectAll), const Size(52, 48));
+    expect(
+      find.descendant(of: selectAll, matching: find.byType(ThemedSwitch)),
+      findsOneWidget,
+    );
+
+    await pump(
+      const InteractionPolicy(
+        modality: InteractionModality.pointer,
+        touchAvailable: false,
+        precisePointerAvailable: true,
+      ),
+    );
+    expect(tester.getSize(selectAll), const Size(52, 40));
+  });
+
+  testWidgets('mobile positive and negative headers use full-size switches', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(320, 700);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final storage = _SidebarTestStorage(
+      fixedEntries: [
+        FixedTagEntry.create(name: 'positive', content: 'masterpiece'),
+        FixedTagEntry.create(
+          name: 'negative',
+          content: 'lowres',
+          promptType: FixedTagPromptType.negative,
+        ),
+      ],
+      categories: const [],
+      libraryEntries: const [],
+    );
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [localStorageServiceProvider.overrideWith((ref) => storage)],
+        child: const InteractionPolicyScope(
+          initialPolicy: InteractionPolicy.touchFirst,
+          child: MaterialApp(
+            locale: Locale('zh'),
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            home: Scaffold(body: FixedTagsDialog()),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    for (final type in FixedTagPromptType.values) {
+      if (type == FixedTagPromptType.negative) {
+        await tester.tap(
+          find.byKey(const ValueKey('fixed-tags-mobile-tab-negative')),
+        );
+        await tester.pumpAndSettle();
+      }
+      final toggle = find.byKey(ValueKey('fixed-tags-toggle-all-${type.name}'));
+      expect(toggle, findsOneWidget);
+      expect(tester.getSize(toggle), const Size(52, 48));
+      final switchFinder = find.descendant(
+        of: toggle,
+        matching: find.byType(ThemedSwitch),
+      );
+      expect(tester.widget<ThemedSwitch>(switchFinder).value, isTrue);
+
+      await tester.tap(switchFinder);
+      await tester.pumpAndSettle();
+
+      expect(tester.widget<ThemedSwitch>(switchFinder).value, isFalse);
+    }
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('mobile entries scroll before a long-press starts reordering', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(320, 700);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final storage = _SidebarTestStorage(
+      fixedEntries: [
+        for (var index = 0; index < 20; index++)
+          FixedTagEntry.create(
+            name: 'mobile fixed tag $index',
+            content: 'tag_$index',
+          ),
+      ],
+      categories: const [],
+      libraryEntries: const [],
+    );
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [localStorageServiceProvider.overrideWith((ref) => storage)],
+        child: const InteractionPolicyScope(
+          initialPolicy: InteractionPolicy(
+            modality: InteractionModality.touch,
+            touchAvailable: true,
+            precisePointerAvailable: false,
+          ),
+          child: MaterialApp(
+            locale: Locale('zh'),
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            home: Scaffold(body: FixedTagsDialog()),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byType(ReorderableDelayedDragStartListener), findsWidgets);
+    expect(find.byType(ReorderableDragStartListener), findsNothing);
+    expect(find.byType(AgentResourceDragSource), findsNothing);
+
+    final firstCenter = tester.getCenter(find.text('mobile fixed tag 0'));
+    final thirdCenter = tester.getCenter(find.text('mobile fixed tag 2'));
+    final reorderGesture = await tester.startGesture(firstCenter);
+    await tester.pump(kLongPressTimeout + const Duration(milliseconds: 100));
+    await reorderGesture.moveTo(thirdCenter + const Offset(0, 24));
+    await tester.pump(const Duration(milliseconds: 300));
+    await reorderGesture.up();
+    await tester.pumpAndSettle();
+
+    final container = ProviderScope.containerOf(
+      tester.element(find.byType(FixedTagsDialog)),
+    );
+    expect(
+      container
+          .read(fixedTagsNotifierProvider)
+          .positiveEntries
+          .sortedByOrder()
+          .first
+          .name,
+      isNot('mobile fixed tag 0'),
+    );
+    expect(tester.takeException(), isNull);
+
+    final scrollable = find
+        .descendant(
+          of: find.byType(ReorderableListView),
+          matching: find.byType(Scrollable),
+        )
+        .first;
+    final position = tester.state<ScrollableState>(scrollable).position;
+    expect(position.pixels, 0);
+
+    await tester.drag(find.text('mobile fixed tag 0'), const Offset(0, -240));
+    await tester.pumpAndSettle();
+
+    expect(position.pixels, greaterThan(0));
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets(
-      'renders enabled categorized entries without duplicate key errors',
-      (tester) async {
+    'empty expanded management dialog keeps column creation actions visible',
+    (tester) async {
+      final storage = _SidebarTestStorage(
+        fixedEntries: const [],
+        categories: const [],
+        libraryEntries: const [],
+      );
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            localStorageServiceProvider.overrideWith((ref) => storage),
+          ],
+          child: const MaterialApp(
+            locale: Locale('zh'),
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            home: Scaffold(body: FixedTagsDialog()),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('正向固定词 · 0/0'), findsOneWidget);
+      expect(find.text('负向固定词 · 0/0'), findsOneWidget);
+      expect(find.text('新建'), findsNWidgets(2));
+      expect(find.text('词库'), findsNWidgets(2));
+      expect(find.text('暂无固定词'), findsNothing);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets('desktop fixed-tag manager opens as a centered dialog', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1600, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final storage = _SidebarTestStorage(
+      fixedEntries: const [],
+      categories: const [],
+      libraryEntries: const [],
+    )..fixedSidebarExpanded = false;
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [localStorageServiceProvider.overrideWith((ref) => storage)],
+        child: const MaterialApp(
+          locale: Locale('zh'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(body: Center(child: FixedTagsButton())),
+        ),
+      ),
+    );
+
+    await tester.tap(find.byType(FixedTagsButton));
+    await tester.pumpAndSettle();
+
+    final surface = find.byKey(const ValueKey('adaptive-centered-form'));
+    expect(surface, findsOneWidget);
+    final rect = tester.getRect(surface);
+    expect(rect.width, 980);
+    expect(rect.center, const Offset(800, 450));
+    expect(find.text('管理固定词'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('adaptive-panel-header-divider')),
+      findsNothing,
+    );
+    final headerRect = tester.getRect(
+      find.byKey(const ValueKey('fixed-tags-dialog-header')),
+    );
+    final closeRect = tester.getRect(find.byTooltip('关闭'));
+    expect(closeRect.center.dy, closeTo(headerRect.center.dy, 2));
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets(
+    'desktop manager labels the global switch and separates columns',
+    (tester) async {
+      tester.view.physicalSize = const Size(1600, 900);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      final storage = _SidebarTestStorage(
+        fixedEntries: [
+          FixedTagEntry.create(
+            name: 'positive',
+            content: 'masterpiece',
+            enabled: false,
+          ),
+          FixedTagEntry.create(
+            name: 'negative',
+            content: 'lowres',
+            enabled: false,
+            promptType: FixedTagPromptType.negative,
+          ),
+        ],
+        categories: const [],
+        libraryEntries: const [],
+      );
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            localStorageServiceProvider.overrideWith((ref) => storage),
+          ],
+          child: const MaterialApp(
+            locale: Locale('zh'),
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            home: Scaffold(body: FixedTagsDialog()),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final globalToggle = find.byKey(
+        const ValueKey('fixed-tags-global-toggle'),
+      );
+      expect(globalToggle, findsOneWidget);
+      expect(
+        find.descendant(of: globalToggle, matching: find.text('全开')),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(of: globalToggle, matching: find.byType(ThemedSwitch)),
+        findsOneWidget,
+      );
+
+      final divider = tester.widget<VerticalDivider>(
+        find.byKey(const ValueKey('fixed-tags-column-divider')),
+      );
+      final theme = Theme.of(tester.element(find.byType(FixedTagsDialog)));
+      expect(divider.thickness, 1);
+      expect(divider.width, 28);
+      expect(
+        divider.color,
+        theme.colorScheme.outlineVariant.withValues(alpha: 0.24),
+      );
+      final header = tester.widget<Container>(
+        find.byKey(const ValueKey('fixed-tags-dialog-header')),
+      );
+      final footer = tester.widget<Container>(
+        find.byKey(const ValueKey('fixed-tags-dialog-footer')),
+      );
+      final headerBorder = (header.decoration! as BoxDecoration).border!;
+      final footerBorder = (footer.decoration! as BoxDecoration).border!;
+      expect(headerBorder.bottom.color, divider.color);
+      expect(footerBorder.top.color, divider.color);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets('desktop fixed-tag editor keeps binary selectors horizontal', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1600, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final storage = _SidebarTestStorage(
+      fixedEntries: const [],
+      categories: const [],
+      libraryEntries: const [],
+    );
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [localStorageServiceProvider.overrideWith((ref) => storage)],
+        child: const MaterialApp(
+          locale: Locale('zh'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(body: FixedTagsDialog()),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('新建').first);
+    await tester.pumpAndSettle();
+
+    final promptTypeSelector = find.descendant(
+      of: find.byKey(const ValueKey('fixed-tag-prompt-type-selector')),
+      matching: find.byType(SegmentedButton<FixedTagPromptType>),
+    );
+    final positionSelector = find.descendant(
+      of: find.byKey(const ValueKey('fixed-tag-position-selector')),
+      matching: find.byType(SegmentedButton<FixedTagPosition>),
+    );
+    expect(
+      tester
+          .widget<SegmentedButton<FixedTagPromptType>>(promptTypeSelector)
+          .direction,
+      Axis.horizontal,
+    );
+    expect(
+      tester
+          .widget<SegmentedButton<FixedTagPosition>>(positionSelector)
+          .direction,
+      Axis.horizontal,
+    );
+    final weightControl = find.byKey(
+      const ValueKey('fixed-tag-weight-control'),
+    );
+    final weightHeader = find.byKey(const ValueKey('fixed-tag-weight-header'));
+    final weightValue = find.byKey(const ValueKey('fixed-tag-weight-value'));
+    final weightSliderRow = find.byKey(
+      const ValueKey('fixed-tag-weight-slider-row'),
+    );
+    expect(weightSliderRow, findsOneWidget);
+    expect(tester.getSize(weightControl).height, lessThan(100));
+    expect(
+      tester.getCenter(find.text('权重')).dy,
+      closeTo(tester.getCenter(weightValue).dy, 1),
+    );
+    expect(tester.getSize(weightHeader).width, 250);
+    final contentInput = find.byKey(const ValueKey('fixed-tag-content-input'));
+    final contentPadding = tester
+        .widget<ThemedInput>(contentInput)
+        .decoration!
+        .contentPadding!
+        .resolve(TextDirection.ltr);
+    expect(contentPadding, const EdgeInsets.all(12));
+    final contentFooter = find.byKey(
+      const ValueKey('fixed-tag-content-footer'),
+    );
+    final assistant = find.byType(PromptAssistantOverlay);
+    expect(contentFooter, findsOneWidget);
+    expect(assistant, findsOneWidget);
+    final assistantToolbar = find.byKey(
+      ValueKey(
+        'prompt_assistant_toolbar_${tester.widget<PromptAssistantOverlay>(assistant).sessionId}',
+      ),
+    );
+    final collapsedAssistantHeight = tester.getSize(assistantToolbar).height;
+    final inputRect = tester.getRect(contentInput);
+    expect(find.byKey(const ValueKey('tag-mode-button')), findsOneWidget);
+    expect(
+      tester.getTopLeft(contentFooter).dy,
+      closeTo(tester.getBottomLeft(contentInput).dy + 4, 1),
+    );
+    expect(
+      tester.widget<PromptAssistantOverlay>(assistant).placement,
+      PromptAssistantPlacement.viewport,
+    );
+    expect(
+      tester.widget<PromptAssistantOverlay>(assistant).stripFixedTagsFromInput,
+      false,
+    );
+    expect(
+      tester.getTopRight(assistantToolbar).dx,
+      closeTo(tester.getTopRight(contentInput).dx - 4, 1),
+    );
+    await tester.tap(
+      find.descendant(
+        of: assistant,
+        matching: find.byIcon(Icons.auto_awesome_rounded),
+      ),
+    );
+    await tester.pumpAndSettle();
+    final expandedAssistantRect = tester.getRect(assistantToolbar);
+    expect(tester.getRect(contentInput), inputRect);
+    expect(
+      expandedAssistantRect.height,
+      closeTo(collapsedAssistantHeight, .01),
+    );
+    final footerRect = tester.getRect(contentInput);
+    expect(expandedAssistantRect.left, greaterThanOrEqualTo(footerRect.left));
+    expect(expandedAssistantRect.right, lessThanOrEqualTo(footerRect.right));
+    expect(expandedAssistantRect.top, greaterThanOrEqualTo(footerRect.top));
+    expect(expandedAssistantRect.bottom, lessThanOrEqualTo(footerRect.bottom));
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets(
+    'mobile fixed-tag manager uses one adaptive column without overflow',
+    (tester) async {
+      tester.view.physicalSize = const Size(320, 700);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      final storage = _SidebarTestStorage(
+        fixedEntries: const [],
+        categories: const [],
+        libraryEntries: const [],
+      );
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            localStorageServiceProvider.overrideWith((ref) => storage),
+          ],
+          child: const MaterialApp(
+            locale: Locale('zh'),
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            home: Scaffold(body: FixedTagsDialog()),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(
+        find.byKey(const ValueKey('fixed-tags-mobile-tab-positive')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const ValueKey('fixed-tags-mobile-tab-negative')),
+        findsOneWidget,
+      );
+      expect(find.text('新建'), findsOneWidget);
+      expect(find.text('从词库添加'), findsOneWidget);
+      final dialogRect = tester.getRect(
+        find.byKey(const ValueKey('fixed-tags-dialog-surface')),
+      );
+      expect(dialogRect.left, 0);
+      expect(dialogRect.right, 320);
+      expect(tester.takeException(), isNull);
+
+      await tester.tap(
+        find.byKey(const ValueKey('fixed-tags-mobile-tab-negative')),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('新建'), findsOneWidget);
+      expect(find.text('从词库添加'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets(
+    'compact fixed-tag editor survives 3x text, SafeArea, IME and back',
+    (tester) async {
+      tester.view.physicalSize = const Size(320, 900);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      final storage = _SidebarTestStorage(
+        fixedEntries: const [],
+        categories: const [],
+        libraryEntries: const [],
+      );
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            localStorageServiceProvider.overrideWith((ref) => storage),
+          ],
+          child: MaterialApp(
+            locale: const Locale('zh'),
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            builder: (context, child) => MediaQuery(
+              data: MediaQuery.of(context).copyWith(
+                textScaler: const TextScaler.linear(3),
+                padding: const EdgeInsets.only(top: 24, bottom: 16),
+                viewPadding: const EdgeInsets.only(top: 24, bottom: 16),
+                viewInsets: const EdgeInsets.only(bottom: 180),
+              ),
+              child: child!,
+            ),
+            home: const Scaffold(body: FixedTagsDialog()),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('新建'));
+      await tester.pumpAndSettle();
+      expect(find.byType(FixedTagEditDialog), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey('adaptive-bottom-sheet')),
+        findsOneWidget,
+      );
+      final frameRect = tester.getRect(
+        find.byKey(const ValueKey('adaptive-bottom-sheet')),
+      );
+      expect(frameRect.top, greaterThanOrEqualTo(24));
+      expect(frameRect.bottom, lessThanOrEqualTo(720));
+      final promptTypeSelector = find.descendant(
+        of: find.byKey(const ValueKey('fixed-tag-prompt-type-selector')),
+        matching: find.byType(SegmentedButton<FixedTagPromptType>),
+      );
+      final positionSelector = find.descendant(
+        of: find.byKey(const ValueKey('fixed-tag-position-selector')),
+        matching: find.byType(SegmentedButton<FixedTagPosition>),
+      );
+      expect(
+        tester
+            .widget<SegmentedButton<FixedTagPromptType>>(promptTypeSelector)
+            .direction,
+        Axis.horizontal,
+      );
+      expect(
+        tester
+            .widget<SegmentedButton<FixedTagPosition>>(positionSelector)
+            .direction,
+        Axis.horizontal,
+      );
+      expect(tester.takeException(), isNull);
+
+      await tester.binding.handlePopRoute();
+      await tester.pumpAndSettle();
+      expect(find.byType(FixedTagEditDialog), findsNothing);
+      expect(find.byType(FixedTagsDialog), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'mobile fixed-tag cards keep actions and link management usable',
+    (tester) async {
+      tester.view.physicalSize = const Size(320, 700);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      final positive = FixedTagEntry.create(
+        name: '很长的正向固定词名称用于验证手机窄屏布局',
+        content: 'masterpiece, best quality, extremely detailed',
+      );
+      final negative = FixedTagEntry.create(
+        name: '负向固定词',
+        content: 'bad hands, low quality',
+        promptType: FixedTagPromptType.negative,
+      );
+      final storage = _SidebarTestStorage(
+        fixedEntries: [positive, negative],
+        categories: const [],
+        libraryEntries: const [],
+      );
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            localStorageServiceProvider.overrideWith((ref) => storage),
+          ],
+          child: const MaterialApp(
+            locale: Locale('zh'),
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            home: Scaffold(body: FixedTagsDialog()),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text(positive.name), findsOneWidget);
+      final tile = find.byKey(ValueKey('fixed-tag-entry-${positive.id}'));
+      final position = find.byKey(
+        ValueKey('fixed-tag-position-${positive.id}'),
+      );
+      expect(
+        tester.getCenter(position).dy,
+        closeTo(tester.getCenter(tile).dy, 0.1),
+      );
+      expect(tester.takeException(), isNull);
+
+      await tester.tap(
+        find.byKey(ValueKey('fixed-tag-mobile-link-${positive.id}')),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('管理联动'), findsOneWidget);
+      expect(find.text(negative.name), findsWidgets);
+      expect(tester.takeException(), isNull);
+
+      await tester.tap(
+        find.byKey(ValueKey('fixed-tag-link-option-${negative.id}')),
+      );
+      await tester.pumpAndSettle();
+
+      final container = ProviderScope.containerOf(
+        tester.element(find.byType(FixedTagsDialog)),
+      );
+      expect(container.read(fixedTagsNotifierProvider).links, hasLength(1));
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets(
+    'fixed-tag overlay stays scrollable at 320 3x with SafeArea and IME',
+    (tester) async {
+      tester.view.physicalSize = const Size(320, 900);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      final positiveEntries = [
+        for (var index = 0; index < 12; index++)
+          FixedTagEntry.create(
+            name: 'positive fixed tag $index',
+            content: 'positive_$index',
+          ),
+      ];
+      final negativeEntries = [
+        for (var index = 0; index < 12; index++)
+          FixedTagEntry.create(
+            name: 'negative fixed tag $index',
+            content: 'negative_$index',
+            promptType: FixedTagPromptType.negative,
+          ),
+      ];
+      final storage = _SidebarTestStorage(
+        fixedEntries: [...positiveEntries, ...negativeEntries],
+        categories: const [],
+        libraryEntries: const [],
+      )..fixedSidebarExpanded = false;
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            localStorageServiceProvider.overrideWith((ref) => storage),
+          ],
+          child: MaterialApp(
+            locale: const Locale('zh'),
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            builder: (context, child) => MediaQuery(
+              data: MediaQuery.of(context).copyWith(
+                textScaler: const TextScaler.linear(3),
+                padding: const EdgeInsets.only(top: 24, bottom: 16),
+                viewPadding: const EdgeInsets.only(top: 24, bottom: 16),
+                viewInsets: const EdgeInsets.only(bottom: 180),
+              ),
+              child: child!,
+            ),
+            home: const Scaffold(
+              body: SafeArea(child: Center(child: FixedTagsButton())),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byType(FixedTagsButton));
+      await tester.pumpAndSettle();
+      expect(
+        find.byKey(const ValueKey('fixed-tags-dialog-surface')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const ValueKey('fixed-tags-mobile-tab-positive')),
+        findsOneWidget,
+      );
+
+      final positiveList = tester.widget<ReorderableListView>(
+        find.byType(ReorderableListView),
+      );
+      await _jumpToEndUntilVisible(
+        tester,
+        positiveList.scrollController!,
+        find.text('positive fixed tag 11'),
+      );
+      expect(find.text('positive fixed tag 11').hitTestable(), findsOneWidget);
+
+      await tester.tap(
+        find.byKey(const ValueKey('fixed-tags-mobile-tab-negative')),
+      );
+      await tester.pumpAndSettle();
+      final negativeList = tester.widget<ReorderableListView>(
+        find.byType(ReorderableListView),
+      );
+      await _jumpToEndUntilVisible(
+        tester,
+        negativeList.scrollController!,
+        find.text('negative fixed tag 11'),
+      );
+      final lastNegative = find.text('negative fixed tag 11');
+      expect(lastNegative.hitTestable(), findsOneWidget);
+      await tester.tap(lastNegative);
+      await tester.pumpAndSettle();
+
+      final container = ProviderScope.containerOf(
+        tester.element(find.byType(FixedTagsDialog)),
+      );
+      expect(
+        container
+            .read(fixedTagsNotifierProvider)
+            .entries
+            .firstWhere((entry) => entry.id == negativeEntries.last.id)
+            .enabled,
+        isFalse,
+      );
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets('disabled positive entries remain grouped and searchable', (
+    tester,
+  ) async {
     final category = TagLibraryCategory.create(name: '画师');
     final enabled = FixedTagEntry.create(
       name: 'artist enabled',
@@ -78,19 +1064,13 @@ void main() {
 
     await tester.pumpWidget(
       ProviderScope(
-        overrides: [
-          localStorageServiceProvider.overrideWith((ref) => storage),
-        ],
+        overrides: [localStorageServiceProvider.overrideWith((ref) => storage)],
         child: const MaterialApp(
           locale: Locale('zh'),
           localizationsDelegates: AppLocalizations.localizationsDelegates,
           supportedLocales: AppLocalizations.supportedLocales,
           home: Scaffold(
-            body: SizedBox(
-              width: 340,
-              height: 620,
-              child: FixedTagsSidebar(),
-            ),
+            body: SizedBox(width: 340, height: 620, child: FixedTagsSidebar()),
           ),
         ),
       ),
@@ -105,12 +1085,27 @@ void main() {
       ),
       findsOneWidget,
     );
-    expect(
+    expect(find.text('quality'), findsOneWidget);
+
+    await tester.tap(
       find.descendant(
         of: find.byType(SidebarEntryTile),
-        matching: find.text('quality'),
+        matching: find.text('artist enabled'),
       ),
-      findsOneWidget,
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('artist enabled'), findsOneWidget);
+    final container = ProviderScope.containerOf(
+      tester.element(find.byType(FixedTagsSidebar)),
+    );
+    expect(
+      container
+          .read(fixedTagsNotifierProvider)
+          .entries
+          .firstWhere((entry) => entry.id == enabled.id)
+          .enabled,
+      isFalse,
     );
     expect(tester.takeException(), isNull);
 
@@ -135,7 +1130,9 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('category chips wrap when the sidebar is narrow', (tester) async {
+  testWidgets('folder groups support per-category and bulk collapse', (
+    tester,
+  ) async {
     final categories = [
       TagLibraryCategory.create(name: '质量词'),
       TagLibraryCategory.create(name: '画风'),
@@ -149,6 +1146,12 @@ void main() {
           content: 'tag ${category.name}',
           categoryId: category.id,
         ),
+      FixedTagEntry.create(
+        name: 'negative quality',
+        content: 'bad quality',
+        categoryId: categories.first.id,
+        promptType: FixedTagPromptType.negative,
+      ),
     ];
     final storage = _SidebarTestStorage(
       fixedEntries: entries,
@@ -158,18 +1161,625 @@ void main() {
 
     await tester.pumpWidget(
       ProviderScope(
-        overrides: [
-          localStorageServiceProvider.overrideWith((ref) => storage),
+        overrides: [localStorageServiceProvider.overrideWith((ref) => storage)],
+        child: const MaterialApp(
+          locale: Locale('zh'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(
+            body: SizedBox(width: 420, height: 620, child: FixedTagsSidebar()),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(const ValueKey('fixed-tags-positive-category-rail')),
+      findsNothing,
+    );
+    expect(
+      find.byKey(const ValueKey('fixed-tags-negative-category-rail')),
+      findsNothing,
+    );
+
+    final topCard = find.byKey(const ValueKey('fixed-tags-top-card'));
+    final positiveCard = find.byKey(const ValueKey('fixed-tags-positive-card'));
+    final negativeCard = find.byKey(const ValueKey('fixed-tags-negative-card'));
+    expect(topCard, findsOneWidget);
+    expect(positiveCard, findsOneWidget);
+    expect(negativeCard, findsOneWidget);
+    expect(
+      find.descendant(of: topCard, matching: find.byType(TextField)),
+      findsOneWidget,
+    );
+    expect(find.text('正向固定词'), findsOneWidget);
+    expect(find.text('负向固定词'), findsOneWidget);
+    final positiveExpandAll = find.byKey(
+      const ValueKey('fixed-tags-positive-expand-all'),
+    );
+    final positiveCollapseAll = find.byKey(
+      const ValueKey('fixed-tags-positive-collapse-all'),
+    );
+    expect(find.text('只看启用'), findsNWidgets(2));
+    expect(find.byTooltip('展开全部'), findsNWidgets(2));
+    expect(find.byTooltip('收起全部'), findsNWidgets(2));
+    expect(
+      tester.getCenter(positiveExpandAll).dy,
+      closeTo(tester.getCenter(find.text('正向固定词')).dy, 1),
+    );
+    expect(
+      tester.getCenter(positiveCollapseAll).dy,
+      closeTo(tester.getCenter(find.text('正向固定词')).dy, 1),
+    );
+    final positiveTitleRect = tester.getRect(find.text('正向固定词'));
+    final positiveCountRect = tester.getRect(
+      find.descendant(of: positiveCard, matching: find.text('4')),
+    );
+    expect(positiveCountRect.left - positiveTitleRect.right, lessThan(16));
+    expect(
+      positiveCountRect.right,
+      lessThan(tester.getRect(positiveExpandAll).left),
+    );
+    expect(
+      find.descendant(
+        of: negativeCard,
+        matching: find.byIcon(Icons.add_rounded),
+      ),
+      findsNothing,
+    );
+    expect(
+      tester.widget<Material>(positiveCard).color,
+      isNot(equals(tester.widget<Material>(negativeCard).color)),
+    );
+    expect(
+      tester.getRect(positiveCard).left,
+      tester.getRect(negativeCard).left,
+    );
+    expect(
+      tester.getRect(positiveCard).right,
+      tester.getRect(negativeCard).right,
+    );
+
+    final initialPositivePane = tester.getSize(
+      find.byKey(const ValueKey('fixed-tags-positive-pane')),
+    );
+    final initialNegativePane = tester.getSize(
+      find.byKey(const ValueKey('fixed-tags-negative-pane')),
+    );
+
+    final categoryHeader = find.byKey(
+      ValueKey('fixed-tags-positive-group-${categories.first.id}'),
+    );
+    expect(categoryHeader, findsOneWidget);
+    expect(
+      find.byKey(
+        ValueKey('fixed-tags-positive-group-${categories.first.id}-body'),
+      ),
+      findsOneWidget,
+    );
+    await tester.tap(categoryHeader);
+    await tester.pumpAndSettle();
+    expect(
+      find.byKey(
+        ValueKey('fixed-tags-positive-group-${categories.first.id}-body'),
+      ),
+      findsNothing,
+    );
+    expect(
+      tester.getSize(find.byKey(const ValueKey('fixed-tags-positive-pane'))),
+      initialPositivePane,
+    );
+    expect(
+      tester.getSize(find.byKey(const ValueKey('fixed-tags-negative-pane'))),
+      initialNegativePane,
+    );
+
+    final collapseAll = find.byKey(
+      const ValueKey('fixed-tags-negative-collapse-all'),
+    );
+    await tester.ensureVisible(collapseAll);
+    await tester.pump();
+    await tester.tap(collapseAll);
+    await tester.pumpAndSettle();
+    expect(
+      find.byKey(
+        ValueKey('fixed-tags-negative-group-${categories.first.id}-body'),
+      ),
+      findsNothing,
+    );
+    await tester.tap(
+      find.byKey(const ValueKey('fixed-tags-negative-expand-all')),
+    );
+    await tester.pumpAndSettle();
+    expect(
+      find.descendant(
+        of: find.byType(SidebarEntryTile),
+        matching: find.text('negative quality'),
+      ),
+      findsOneWidget,
+    );
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('persisted pane split and enabled prompt types stay distinct', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(420, 980);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final positive = FixedTagEntry.create(
+      name: '夏日狂想曲风格',
+      content: 'pixel art, makoto daibakuhatsu',
+      enabled: true,
+    );
+    final negatives = [
+      for (var index = 0; index < 5; index++)
+        FixedTagEntry.create(
+          name: '负向固定词 $index',
+          content: 'bad hands, lowres, artifact $index',
+          promptType: FixedTagPromptType.negative,
+          enabled: index == 0,
+        ),
+    ];
+    final storage = _SidebarTestStorage(
+      fixedEntries: [positive, ...negatives],
+      categories: const [],
+      libraryEntries: const [],
+    )..negativeHeight = 500;
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [localStorageServiceProvider.overrideWith((ref) => storage)],
+        child: const MaterialApp(
+          locale: Locale('zh'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(
+            body: SizedBox(width: 420, height: 980, child: FixedTagsSidebar()),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final positivePane = tester.getRect(
+      find.byKey(const ValueKey('fixed-tags-positive-pane')),
+    );
+    final negativePane = tester.getRect(
+      find.byKey(const ValueKey('fixed-tags-negative-pane')),
+    );
+    expect(negativePane.height, closeTo(500, 0.1));
+    expect(positivePane.height, greaterThan(64));
+    expect(find.text('已启用正向'), findsNothing);
+    expect(find.text('已启用负向'), findsNothing);
+    expect(
+      find.byKey(const ValueKey('fixed-tags-enabled-strip')),
+      findsNothing,
+    );
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets(
+    'pane divider drags from rendered height and persists only on release',
+    (tester) async {
+      tester.view.physicalSize = const Size(420, 760);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      final storage = _SidebarTestStorage(
+        fixedEntries: [
+          FixedTagEntry.create(name: 'positive', content: 'positive tag'),
+          FixedTagEntry.create(
+            name: 'negative',
+            content: 'negative tag',
+            promptType: FixedTagPromptType.negative,
+          ),
         ],
+        categories: const [],
+        libraryEntries: const [],
+      )..negativeHeight = 500;
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            localStorageServiceProvider.overrideWith((ref) => storage),
+          ],
+          child: const MaterialApp(
+            locale: Locale('zh'),
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            home: Scaffold(body: FixedTagsSidebar()),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final divider = find.byKey(
+        const ValueKey('fixed-tags-pane-resize-divider'),
+      );
+      final negativePane = find.byKey(
+        const ValueKey('fixed-tags-negative-pane'),
+      );
+      final initialHeight = tester.getSize(negativePane).height;
+      expect(initialHeight, lessThan(500));
+
+      final gesture = await tester.startGesture(tester.getCenter(divider));
+      await gesture.moveBy(const Offset(0, 32));
+      await tester.pump();
+
+      final draggedHeight = tester.getSize(negativePane).height;
+      expect(draggedHeight, lessThan(initialHeight - 20));
+      expect(storage.negativeHeightWriteCount, 0);
+      await tester.pump(const Duration(milliseconds: 150));
+      expect(
+        tester.getSize(
+          find.byKey(const ValueKey('fixed-tags-pane-resize-indicator')),
+        ),
+        const Size(48, 3),
+      );
+
+      await gesture.up();
+      await tester.pumpAndSettle();
+
+      expect(storage.negativeHeightWriteCount, 1);
+      expect(storage.negativeHeight, closeTo(draggedHeight, 0.1));
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets(
+    'positive and negative enabled-only filters toggle independently',
+    (tester) async {
+      final entries = [
+        FixedTagEntry.create(
+          name: '蜀山',
+          content: 'positive one',
+          enabled: true,
+        ),
+        FixedTagEntry.create(
+          name: '未启用正向',
+          content: 'positive two',
+          enabled: false,
+        ),
+        FixedTagEntry.create(
+          name: '大G-负面',
+          content: 'negative one',
+          promptType: FixedTagPromptType.negative,
+          enabled: true,
+        ),
+        FixedTagEntry.create(
+          name: '未启用负向',
+          content: 'negative two',
+          promptType: FixedTagPromptType.negative,
+          enabled: false,
+        ),
+      ];
+      final storage = _SidebarTestStorage(
+        fixedEntries: entries,
+        categories: const [],
+        libraryEntries: const [],
+      );
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            localStorageServiceProvider.overrideWith((ref) => storage),
+          ],
+          child: const MaterialApp(
+            locale: Locale('zh'),
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            home: Scaffold(
+              body: SizedBox(
+                width: 380,
+                height: 900,
+                child: FixedTagsSidebar(),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('蜀山'), findsOneWidget);
+      expect(find.text('未启用正向'), findsOneWidget);
+      expect(find.text('大G-负面'), findsOneWidget);
+      expect(find.text('未启用负向'), findsOneWidget);
+
+      await tester.tap(
+        find.byKey(const ValueKey('fixed-tags-positive-enabled-only')),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('蜀山'), findsOneWidget);
+      expect(find.text('未启用正向'), findsNothing);
+      expect(find.text('未启用负向'), findsOneWidget);
+
+      await tester.tap(
+        find.byKey(const ValueKey('fixed-tags-negative-enabled-only')),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('大G-负面'), findsOneWidget);
+      expect(find.text('未启用负向'), findsNothing);
+
+      await tester.tap(
+        find.byKey(const ValueKey('fixed-tags-positive-enabled-only')),
+      );
+      await tester.tap(
+        find.byKey(const ValueKey('fixed-tags-negative-enabled-only')),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('未启用正向'), findsOneWidget);
+      expect(find.text('未启用负向'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets('FixedTagsButton 预览区分正负面与前后缀', (tester) async {
+    final linkedPositive = FixedTagEntry.create(
+      name: '正面前缀条目',
+      content: 'best quality',
+      sourceEntryId: 'linked-positive-entry',
+      weight: 1.2,
+    );
+    final linkedNegative = FixedTagEntry.create(
+      name: '负面前缀条目',
+      content: 'lowres, worst quality, bad anatomy, watermark, text, blurry',
+      promptType: FixedTagPromptType.negative,
+      sourceEntryId: 'linked-negative-entry',
+    );
+    final storage = _SidebarTestStorage(
+      fixedEntries: [
+        linkedPositive,
+        FixedTagEntry.create(name: '正面前缀条目 2', content: 'detailed'),
+        FixedTagEntry.create(name: '正面前缀条目 3', content: 'masterpiece'),
+        FixedTagEntry.create(name: '正面前缀条目 4', content: 'sharp focus'),
+        FixedTagEntry.create(
+          name: '正面后缀条目',
+          content: 'cinematic lighting',
+          position: FixedTagPosition.suffix,
+        ),
+        linkedNegative,
+        FixedTagEntry.create(
+          name: '负面后缀条目',
+          content: 'watermark',
+          position: FixedTagPosition.suffix,
+          promptType: FixedTagPromptType.negative,
+        ),
+        FixedTagEntry.create(
+          name: '已禁用条目',
+          content: 'must not appear in active summary',
+          enabled: false,
+        ),
+      ],
+      categories: const [],
+      libraryEntries: const [],
+    );
+    storage.linksJson = jsonEncode([
+      FixedTagLink.create(
+        positiveEntryId: linkedPositive.id,
+        negativeEntryId: linkedNegative.id,
+      ).toJson(),
+    ]);
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [localStorageServiceProvider.overrideWith((ref) => storage)],
+        child: const MaterialApp(
+          locale: Locale('zh'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(body: Center(child: FixedTagsButton())),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+
+    final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+    await mouse.addPointer();
+    addTearDown(mouse.removePointer);
+    await mouse.moveTo(tester.getCenter(find.byType(FixedTagsButton)));
+    await tester.pump(const Duration(milliseconds: 300));
+    await tester.pumpAndSettle();
+
+    final positiveSection = find.byKey(
+      const ValueKey('fixed-tags-tooltip-positive'),
+    );
+    final negativeSection = find.byKey(
+      const ValueKey('fixed-tags-tooltip-negative'),
+    );
+    Finder richText(String value) =>
+        find.textContaining(value, findRichText: true);
+    expect(positiveSection, findsOneWidget);
+    expect(negativeSection, findsOneWidget);
+    expect(
+      find.descendant(of: positiveSection, matching: richText('正面 5')),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(of: negativeSection, matching: richText('负面 2')),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(of: positiveSection, matching: richText('前缀 4')),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(of: negativeSection, matching: richText('前缀 1')),
+      findsOneWidget,
+    );
+    for (final section in [positiveSection, negativeSection]) {
+      expect(
+        find.descendant(of: section, matching: richText('后缀 1')),
+        findsOneWidget,
+      );
+    }
+    for (final data in [
+      (section: positiveSection, labels: ('正面 5', '前缀 4', '后缀 1')),
+      (section: negativeSection, labels: ('负面 2', '前缀 1', '后缀 1')),
+    ]) {
+      final centers = [
+        tester
+            .getCenter(
+              find.descendant(
+                of: data.section,
+                matching: richText(data.labels.$1),
+              ),
+            )
+            .dy,
+        tester
+            .getCenter(
+              find.descendant(
+                of: data.section,
+                matching: richText(data.labels.$2),
+              ),
+            )
+            .dy,
+        tester
+            .getCenter(
+              find.descendant(
+                of: data.section,
+                matching: richText(data.labels.$3),
+              ),
+            )
+            .dy,
+      ];
+      expect(centers.reduce(math.max) - centers.reduce(math.min), lessThan(2));
+    }
+    expect(
+      find.descendant(of: positiveSection, matching: find.text('正面前缀条目')),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(of: negativeSection, matching: find.text('负面后缀条目')),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(of: positiveSection, matching: find.text('正面后缀条目')),
+      findsOneWidget,
+    );
+    expect(find.text('7/8 已启用'), findsOneWidget);
+    expect(find.text('1.2×'), findsOneWidget);
+    expect(find.text('已禁用条目'), findsNothing);
+    expect(find.text('1 个联动'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('fixed-tags-tooltip-links')),
+      findsOneWidget,
+    );
+    expect(find.byKey(const ValueKey('rich-tooltip-surface')), findsOneWidget);
+    expect(
+      find.descendant(
+        of: find.byKey(const ValueKey('rich-tooltip-surface')),
+        matching: find.byIcon(Icons.sync_alt_rounded),
+      ),
+      findsNothing,
+    );
+    for (final prompt in tester.widgetList<TranslatedPromptText>(
+      find.descendant(
+        of: find.byKey(const ValueKey('rich-tooltip-surface')),
+        matching: find.byType(TranslatedPromptText),
+      ),
+    )) {
+      expect(prompt.includeUntranslated, isTrue);
+      expect(prompt.maxLines, 1);
+    }
+
+    final positiveDecoration =
+        tester.widget<Container>(positiveSection).decoration! as BoxDecoration;
+    final negativeDecoration =
+        tester.widget<Container>(negativeSection).decoration! as BoxDecoration;
+    final semanticColors = Theme.of(
+      tester.element(positiveSection),
+    ).promptSemanticColors;
+    expect(
+      positiveDecoration.color,
+      semanticColors.positiveFixedTag.withValues(alpha: 0.08),
+    );
+    expect(
+      negativeDecoration.color,
+      semanticColors.negativeFixedTag.withValues(alpha: 0.08),
+    );
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('FixedTagsButton 桌面预览支持 3x 文本', (tester) async {
+    tester.view.physicalSize = const Size(1180, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final storage = _SidebarTestStorage(
+      fixedEntries: [
+        FixedTagEntry.create(
+          name: 'Long positive fixed tag name',
+          content: 'best quality, detailed background, cinematic lighting',
+        ),
+        FixedTagEntry.create(
+          name: 'Long negative fixed tag name',
+          content: 'lowres, worst quality, bad anatomy, watermark, blurry',
+          promptType: FixedTagPromptType.negative,
+        ),
+      ],
+      categories: const [],
+      libraryEntries: const [],
+    );
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [localStorageServiceProvider.overrideWith((ref) => storage)],
+        child: MaterialApp(
+          locale: const Locale('en'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          builder: (context, child) => MediaQuery(
+            data: MediaQuery.of(
+              context,
+            ).copyWith(textScaler: const TextScaler.linear(3)),
+            child: child!,
+          ),
+          home: const Scaffold(body: Center(child: FixedTagsButton())),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+
+    final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+    await mouse.addPointer();
+    addTearDown(mouse.removePointer);
+    await mouse.moveTo(tester.getCenter(find.byType(FixedTagsButton)));
+    await tester.pump(const Duration(milliseconds: 300));
+    await tester.pumpAndSettle();
+
+    final surface = find.byKey(const ValueKey('rich-tooltip-surface'));
+    expect(surface, findsOneWidget);
+    expect(tester.getRect(surface).width, lessThanOrEqualTo(1180));
+    expect(find.text('2/2 enabled'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('FixedTagsButton 经典工具栏紧凑模式不会拉伸', (tester) async {
+    final storage = _SidebarTestStorage(
+      fixedEntries: const [],
+      categories: const [],
+      libraryEntries: const [],
+    );
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [localStorageServiceProvider.overrideWith((ref) => storage)],
         child: const MaterialApp(
           locale: Locale('zh'),
           localizationsDelegates: AppLocalizations.localizationsDelegates,
           supportedLocales: AppLocalizations.supportedLocales,
           home: Scaffold(
             body: SizedBox(
-              width: 260,
-              height: 620,
-              child: FixedTagsSidebar(),
+              width: 1000,
+              child: Align(
+                alignment: Alignment.topLeft,
+                child: FixedTagsButton(compact: true),
+              ),
             ),
           ),
         ),
@@ -177,36 +1787,30 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    final wrappedChip = find.text('角色 1');
-    expect(wrappedChip, findsOneWidget);
-
-    final firstTop = tester.getTopLeft(find.text('已启用 4')).dy;
-    final wrappedTop = tester.getTopLeft(wrappedChip).dy;
-
-    expect(wrappedTop, greaterThan(firstTop + 20));
-    expect(tester.takeException(), isNull);
+    final surface = find.byKey(const Key('fixed-tags-button-surface'));
+    // Compact content keeps the shared touch target instead of shrinking it.
+    expect(tester.getSize(surface).height, 48);
+    expect(tester.getSize(surface).width, lessThan(100));
   });
 
-  testWidgets(
-      'FixedTagsButton long press toggles sidebar and tap keeps it open',
-      (tester) async {
+  testWidgets('header collapse button closes the fixed-tags sidebar', (
+    tester,
+  ) async {
     final storage = _SidebarTestStorage(
       fixedEntries: const [],
       categories: const [],
       libraryEntries: const [],
-    )..fixedSidebarExpanded = false;
+    );
 
     await tester.pumpWidget(
       ProviderScope(
-        overrides: [
-          localStorageServiceProvider.overrideWith((ref) => storage),
-        ],
+        overrides: [localStorageServiceProvider.overrideWith((ref) => storage)],
         child: const MaterialApp(
           locale: Locale('zh'),
           localizationsDelegates: AppLocalizations.localizationsDelegates,
           supportedLocales: AppLocalizations.supportedLocales,
           home: Scaffold(
-            body: Center(child: FixedTagsButton()),
+            body: SizedBox(width: 340, height: 620, child: FixedTagsSidebar()),
           ),
         ),
       ),
@@ -214,32 +1818,15 @@ void main() {
     await tester.pumpAndSettle();
 
     final container = ProviderScope.containerOf(
-      tester.element(find.byType(FixedTagsButton)),
+      tester.element(find.byType(FixedTagsSidebar)),
     );
-    expect(
-      container.read(layoutStateNotifierProvider).fixedTagsSidebarExpanded,
-      isFalse,
-    );
-
-    await tester.longPress(find.byType(FixedTagsButton));
-    await tester.pumpAndSettle();
-
     expect(
       container.read(layoutStateNotifierProvider).fixedTagsSidebarExpanded,
       isTrue,
     );
-    expect(storage.fixedSidebarExpanded, isTrue);
+    expect(find.byIcon(Icons.chevron_left_rounded), findsOneWidget);
 
-    await tester.tap(find.byType(FixedTagsButton));
-    await tester.pumpAndSettle();
-
-    expect(
-      container.read(layoutStateNotifierProvider).fixedTagsSidebarExpanded,
-      isTrue,
-    );
-    expect(storage.fixedSidebarExpanded, isTrue);
-
-    await tester.longPress(find.byType(FixedTagsButton));
+    await tester.tap(find.byKey(const ValueKey('fixed-tags-collapse-sidebar')));
     await tester.pumpAndSettle();
 
     expect(
@@ -250,165 +1837,258 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('GenerationScreen shows sidebar in narrow layout when expanded',
-      (tester) async {
-    final storage = _SidebarTestStorage(
-      fixedEntries: const [],
-      categories: const [],
-      libraryEntries: const [],
-    )..fixedSidebarExpanded = true;
+  testWidgets(
+    'FixedTagsButton long press toggles sidebar and tap keeps it open',
+    (tester) async {
+      final storage = _SidebarTestStorage(
+        fixedEntries: const [],
+        categories: const [],
+        libraryEntries: const [],
+      )..fixedSidebarExpanded = false;
 
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [
-          localStorageServiceProvider.overrideWith((ref) => storage),
-        ],
-        child: const MaterialApp(
-          locale: Locale('zh'),
-          localizationsDelegates: AppLocalizations.localizationsDelegates,
-          supportedLocales: AppLocalizations.supportedLocales,
-          home: Scaffold(
-            body: SizedBox(
-              width: 900,
-              height: 700,
-              child: GenerationScreen(),
-            ),
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            localStorageServiceProvider.overrideWith((ref) => storage),
+          ],
+          child: const MaterialApp(
+            locale: Locale('zh'),
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            home: Scaffold(body: Center(child: FixedTagsButton())),
           ),
         ),
-      ),
-    );
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 50));
+      );
+      await tester.pumpAndSettle();
 
-    expect(find.byType(FixedTagsSidebar), findsOneWidget);
-    expect(tester.takeException(), isNull);
-  });
+      final container = ProviderScope.containerOf(
+        tester.element(find.byType(FixedTagsButton)),
+      );
+      expect(
+        container.read(layoutStateNotifierProvider).fixedTagsSidebarExpanded,
+        isFalse,
+      );
 
-  testWidgets('list mode reorders from tile body without default drag handles',
-      (tester) async {
-    final first = FixedTagEntry.create(name: 'first', content: 'one');
-    final second = FixedTagEntry.create(name: 'second', content: 'two');
-    final storage = _SidebarTestStorage(
-      fixedEntries: [first, second],
-      categories: const [],
-      libraryEntries: const [],
-    );
+      await tester.longPress(find.byType(FixedTagsButton));
+      await tester.pumpAndSettle();
 
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [
-          localStorageServiceProvider.overrideWith((ref) => storage),
-        ],
-        child: const MaterialApp(
-          locale: Locale('zh'),
-          localizationsDelegates: AppLocalizations.localizationsDelegates,
-          supportedLocales: AppLocalizations.supportedLocales,
-          home: Scaffold(
-            body: SizedBox(
-              width: 340,
-              height: 620,
-              child: FixedTagsSidebar(),
-            ),
-          ),
-        ),
-      ),
-    );
-    await tester.pumpAndSettle();
+      expect(
+        container.read(layoutStateNotifierProvider).fixedTagsSidebarExpanded,
+        isTrue,
+      );
+      expect(storage.fixedSidebarExpanded, isTrue);
 
-    expect(find.byIcon(Icons.drag_handle), findsNothing);
+      await tester.tap(find.byType(FixedTagsButton));
+      await tester.pumpAndSettle();
 
-    final firstTileText = find.descendant(
-      of: find.byType(SidebarEntryTile),
-      matching: find.text('first'),
-    );
-    final secondTileText = find.descendant(
-      of: find.byType(SidebarEntryTile),
-      matching: find.text('second'),
-    );
-    final start = tester.getCenter(firstTileText);
-    final end = tester.getCenter(secondTileText);
-    final gesture = await tester.createGesture(kind: PointerDeviceKind.mouse);
-    await gesture.down(start);
-    await tester.pump();
-    await gesture.moveBy(end - start + const Offset(0, 64));
-    await gesture.up();
-    await tester.pumpAndSettle();
+      expect(
+        container.read(layoutStateNotifierProvider).fixedTagsSidebarExpanded,
+        isTrue,
+      );
+      expect(storage.fixedSidebarExpanded, isTrue);
 
-    final container = ProviderScope.containerOf(
-      tester.element(find.byType(FixedTagsSidebar)),
-    );
-    expect(
-      container
-          .read(fixedTagsNotifierProvider)
-          .positiveEntries
-          .map((entry) => entry.id),
-      [second.id, first.id],
-    );
-    expect(tester.takeException(), isNull);
-  });
+      await tester.longPress(find.byType(FixedTagsButton));
+      await tester.pumpAndSettle();
+
+      expect(
+        container.read(layoutStateNotifierProvider).fixedTagsSidebarExpanded,
+        isFalse,
+      );
+      expect(storage.fixedSidebarExpanded, isFalse);
+      expect(tester.takeException(), isNull);
+    },
+  );
 
   testWidgets(
-      'dropping a positive link anchor on a negative tile creates a link',
-      (tester) async {
-    final positive = FixedTagEntry.create(
-      name: 'artist',
-      content: 'artist:fuzichoco',
-      enabled: true,
-    );
-    final negative = FixedTagEntry.create(
-      name: 'negative',
-      content: 'bad hands',
-      promptType: FixedTagPromptType.negative,
-    );
-    final storage = _SidebarTestStorage(
-      fixedEntries: [positive, negative],
-      categories: const [],
-      libraryEntries: const [],
-    );
+    'list mode reorders from tile body without default drag handles',
+    (tester) async {
+      PlatformCapabilities.debugOverride = PlatformCapabilities.forPlatform(
+        TargetPlatform.windows,
+      );
+      addTearDown(() => PlatformCapabilities.debugOverride = null);
+      final first = FixedTagEntry.create(name: 'first', content: 'one');
+      final second = FixedTagEntry.create(name: 'second', content: 'two');
+      final storage = _SidebarTestStorage(
+        fixedEntries: [first, second],
+        categories: const [],
+        libraryEntries: const [],
+      );
 
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [
-          localStorageServiceProvider.overrideWith((ref) => storage),
-        ],
-        child: const MaterialApp(
-          locale: Locale('zh'),
-          localizationsDelegates: AppLocalizations.localizationsDelegates,
-          supportedLocales: AppLocalizations.supportedLocales,
-          home: Scaffold(
-            body: SizedBox(
-              width: 340,
-              height: 620,
-              child: FixedTagsSidebar(),
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            localStorageServiceProvider.overrideWith((ref) => storage),
+          ],
+          child: const MaterialApp(
+            locale: Locale('zh'),
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            home: Scaffold(
+              body: SizedBox(
+                width: 340,
+                height: 620,
+                child: FixedTagsSidebar(),
+              ),
             ),
           ),
         ),
-      ),
-    );
-    await tester.pumpAndSettle();
+      );
+      await tester.pumpAndSettle();
 
-    final linkIcons = find.byIcon(Icons.link_rounded);
-    expect(linkIcons, findsNWidgets(2));
+      expect(find.byIcon(Icons.drag_handle), findsNothing);
 
-    final start = tester.getCenter(linkIcons.first);
-    final negativeTile = find.ancestor(
-      of: find.text('negative'),
-      matching: find.byType(SidebarEntryTile),
-    );
-    final end = tester.getCenter(negativeTile);
-    await tester.dragFrom(start, end - start);
-    await tester.pumpAndSettle();
+      final firstTileText = find.descendant(
+        of: find.byType(SidebarEntryTile),
+        matching: find.text('first'),
+      );
+      final secondTileText = find.descendant(
+        of: find.byType(SidebarEntryTile),
+        matching: find.text('second'),
+      );
+      final start = tester.getCenter(firstTileText);
+      final end = tester.getCenter(secondTileText);
+      final gesture = await tester.createGesture(kind: PointerDeviceKind.mouse);
+      await gesture.down(start);
+      await tester.pump();
+      await gesture.moveBy(end - start + const Offset(0, 128));
+      await gesture.up();
+      await tester.pumpAndSettle();
 
-    final container = ProviderScope.containerOf(
-      tester.element(find.byType(FixedTagsSidebar)),
-    );
-    expect(container.read(fixedTagsNotifierProvider).links, hasLength(1));
-    expect(storage.linksJson, isNot('[]'));
-    expect(tester.takeException(), isNull);
-  });
+      final container = ProviderScope.containerOf(
+        tester.element(find.byType(FixedTagsSidebar)),
+      );
+      expect(
+        container
+            .read(fixedTagsNotifierProvider)
+            .positiveEntries
+            .map((entry) => entry.id),
+        [second.id, first.id],
+      );
+      expect(tester.takeException(), isNull);
+    },
+  );
 
-  testWidgets('dropping an existing link pair again removes the link',
-      (tester) async {
+  testWidgets(
+    'list rows keep identical heights and never render translations',
+    (tester) async {
+      PlatformCapabilities.debugOverride = PlatformCapabilities.forPlatform(
+        TargetPlatform.windows,
+      );
+      addTearDown(() => PlatformCapabilities.debugOverride = null);
+      final first = FixedTagEntry.create(name: 'first', content: 'masterpiece');
+      final second = FixedTagEntry.create(
+        name: 'second',
+        content: 'best quality',
+      );
+      final storage = _SidebarTestStorage(
+        fixedEntries: [first, second],
+        categories: const [],
+        libraryEntries: const [],
+      );
+      final lookup = TagTranslationLookup.fromResolver((tags) async {
+        return {
+          for (final tag in tags)
+            if (tag == 'masterpiece') tag: '杰作',
+        };
+      });
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            localStorageServiceProvider.overrideWith((ref) => storage),
+            tagTranslationLookupProvider.overrideWithValue(lookup),
+          ],
+          child: const MaterialApp(
+            locale: Locale('zh'),
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            home: Scaffold(
+              body: SizedBox(
+                width: 340,
+                height: 620,
+                child: FixedTagsSidebar(),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // 只有一条能查到译文；一旦重新渲染翻译，行高就会不一致。
+      expect(find.text('杰作'), findsNothing);
+      expect(tester.takeException(), isNull);
+      final tileHeights = tester
+          .widgetList<SidebarEntryTile>(find.byType(SidebarEntryTile))
+          .map((tile) => tester.getSize(find.byWidget(tile)).height)
+          .toList();
+      expect(tileHeights.toSet(), hasLength(1));
+    },
+  );
+
+  testWidgets(
+    'dropping a positive link anchor on a negative tile creates a link',
+    (tester) async {
+      final positive = FixedTagEntry.create(
+        name: 'artist',
+        content: 'artist:fuzichoco',
+        enabled: true,
+      );
+      final negative = FixedTagEntry.create(
+        name: 'negative',
+        content: 'bad hands',
+        promptType: FixedTagPromptType.negative,
+      );
+      final storage = _SidebarTestStorage(
+        fixedEntries: [positive, negative],
+        categories: const [],
+        libraryEntries: const [],
+      );
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            localStorageServiceProvider.overrideWith((ref) => storage),
+          ],
+          child: const MaterialApp(
+            locale: Locale('zh'),
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            home: Scaffold(
+              body: SizedBox(
+                width: 340,
+                height: 620,
+                child: FixedTagsSidebar(),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final linkIcons = find.byIcon(Icons.link_rounded);
+      expect(linkIcons, findsNWidgets(2));
+
+      final start = tester.getCenter(linkIcons.first);
+      final negativeTile = find.ancestor(
+        of: find.text('negative'),
+        matching: find.byType(SidebarEntryTile),
+      );
+      final end = tester.getCenter(negativeTile);
+      await tester.dragFrom(start, end - start);
+      await tester.pumpAndSettle();
+
+      final container = ProviderScope.containerOf(
+        tester.element(find.byType(FixedTagsSidebar)),
+      );
+      expect(container.read(fixedTagsNotifierProvider).links, hasLength(1));
+      expect(storage.linksJson, isNot('[]'));
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets('dropping an existing link pair again removes the link', (
+    tester,
+  ) async {
     final positive = FixedTagEntry.create(
       name: 'artist',
       content: 'artist:fuzichoco',
@@ -431,19 +2111,13 @@ void main() {
 
     await tester.pumpWidget(
       ProviderScope(
-        overrides: [
-          localStorageServiceProvider.overrideWith((ref) => storage),
-        ],
+        overrides: [localStorageServiceProvider.overrideWith((ref) => storage)],
         child: const MaterialApp(
           locale: Locale('zh'),
           localizationsDelegates: AppLocalizations.localizationsDelegates,
           supportedLocales: AppLocalizations.supportedLocales,
           home: Scaffold(
-            body: SizedBox(
-              width: 340,
-              height: 620,
-              child: FixedTagsSidebar(),
-            ),
+            body: SizedBox(width: 340, height: 620, child: FixedTagsSidebar()),
           ),
         ),
       ),
@@ -470,8 +2144,9 @@ void main() {
   });
 
   for (final viewMode in ['list', 'grid']) {
-    testWidgets('link drag preview follows the cursor in $viewMode mode',
-        (tester) async {
+    testWidgets('link drag preview follows the cursor in $viewMode mode', (
+      tester,
+    ) async {
       final positive = FixedTagEntry.create(
         name: 'artist',
         content: 'artist:fuzichoco',
@@ -509,7 +2184,16 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      final start = tester.getCenter(find.byIcon(Icons.link_rounded).first);
+      final positiveLink = find.descendant(
+        of: find.ancestor(
+          of: find.text('artist'),
+          matching: find.byType(SidebarEntryTile),
+        ),
+        matching: find.byIcon(Icons.link_rounded),
+      );
+      await tester.ensureVisible(positiveLink);
+      await tester.pumpAndSettle();
+      final start = tester.getCenter(positiveLink);
       final gesture = await tester.startGesture(
         start,
         kind: PointerDeviceKind.mouse,
@@ -526,73 +2210,299 @@ void main() {
     });
 
     testWidgets(
-        'dragging an existing link endpoint away removes the link in $viewMode mode',
-        (tester) async {
-      final positive = FixedTagEntry.create(
-        name: 'artist',
-        content: 'artist:fuzichoco',
-        enabled: true,
-      );
-      final negative = FixedTagEntry.create(
-        name: 'negative',
-        content: 'bad hands',
+      'dragging an existing link endpoint away removes the link in $viewMode mode',
+      (tester) async {
+        final positive = FixedTagEntry.create(
+          name: 'artist',
+          content: 'artist:fuzichoco',
+          enabled: true,
+        );
+        final negative = FixedTagEntry.create(
+          name: 'negative',
+          content: 'bad hands',
+          promptType: FixedTagPromptType.negative,
+        );
+        final existingLink = FixedTagLink.create(
+          positiveEntryId: positive.id,
+          negativeEntryId: negative.id,
+        );
+        final storage =
+            _SidebarTestStorage(
+                fixedEntries: [positive, negative],
+                categories: const [],
+                libraryEntries: const [],
+              )
+              ..fixedSidebarViewMode = viewMode
+              ..linksJson = jsonEncode([existingLink.toJson()]);
+
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: [
+              localStorageServiceProvider.overrideWith((ref) => storage),
+            ],
+            child: const MaterialApp(
+              locale: Locale('zh'),
+              localizationsDelegates: AppLocalizations.localizationsDelegates,
+              supportedLocales: AppLocalizations.supportedLocales,
+              home: Scaffold(
+                body: SizedBox(
+                  width: 340,
+                  height: 620,
+                  child: FixedTagsSidebar(),
+                ),
+              ),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        final container = ProviderScope.containerOf(
+          tester.element(find.byType(FixedTagsSidebar)),
+        );
+        expect(container.read(fixedTagsNotifierProvider).links, hasLength(1));
+
+        final negativeTile = find.ancestor(
+          of: find.text('negative'),
+          matching: find.byType(SidebarEntryTile),
+        );
+        final endpoint = find.descendant(
+          of: negativeTile,
+          matching: find.byIcon(Icons.link_rounded),
+        );
+        await tester.ensureVisible(endpoint);
+        await tester.pumpAndSettle();
+        final endpointCenter = tester.getCenter(endpoint);
+        final shortDrag = await tester.startGesture(
+          endpointCenter,
+          kind: PointerDeviceKind.mouse,
+        );
+        await shortDrag.moveBy(const Offset(12, 0));
+        await tester.pump();
+        await shortDrag.up();
+        await tester.pumpAndSettle();
+        expect(container.read(fixedTagsNotifierProvider).links, hasLength(1));
+
+        final refreshedEndpointCenter = tester.getCenter(
+          find.descendant(
+            of: negativeTile,
+            matching: find.byIcon(Icons.link_rounded),
+          ),
+        );
+        final detachDrag = await tester.startGesture(
+          refreshedEndpointCenter,
+          kind: PointerDeviceKind.mouse,
+        );
+        await detachDrag.moveBy(const Offset(72, 0));
+        await tester.pump();
+        await detachDrag.up();
+        await tester.pumpAndSettle();
+
+        expect(container.read(fixedTagsNotifierProvider).links, isEmpty);
+        expect(storage.linksJson, '[]');
+        expect(tester.takeException(), isNull);
+      },
+    );
+  }
+
+  testWidgets('touch layout exposes copy, edit and delete without hover', (
+    tester,
+  ) async {
+    final entry = FixedTagEntry.create(
+      name: 'touch entry',
+      content: 'tag',
+      enabled: true,
+    );
+    final storage = _SidebarTestStorage(
+      fixedEntries: [entry],
+      categories: const [],
+      libraryEntries: const [],
+    );
+
+    await _pumpSidebar(
+      tester,
+      storage,
+      interactionPolicy: const InteractionPolicy(
+        modality: InteractionModality.touch,
+        touchAvailable: true,
+        precisePointerAvailable: true,
+      ),
+    );
+
+    final actions = find.byKey(const ValueKey('sidebar-entry-actions'));
+    expect(actions, findsOneWidget);
+    await tester.ensureVisible(actions);
+    await tester.pumpAndSettle();
+
+    expect(find.byIcon(Icons.copy_rounded), findsOneWidget);
+    expect(find.byIcon(Icons.edit_rounded), findsOneWidget);
+    expect(find.byIcon(Icons.delete_outline_rounded), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets(
+    'sidebar edit uses an adaptive form at 320px, 3x text, SafeArea and IME',
+    (tester) async {
+      tester.view.physicalSize = const Size(320, 900);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      final existing = FixedTagEntry.create(
+        name: 'existing fixed tag',
+        content: 'original content',
+        weight: 1.4,
+        position: FixedTagPosition.suffix,
+        enabled: false,
         promptType: FixedTagPromptType.negative,
       );
-      final existingLink = FixedTagLink.create(
-        positiveEntryId: positive.id,
-        negativeEntryId: negative.id,
-      );
       final storage = _SidebarTestStorage(
-        fixedEntries: [positive, negative],
+        fixedEntries: [existing],
         categories: const [],
         libraryEntries: const [],
-      )
-        ..fixedSidebarViewMode = viewMode
-        ..linksJson = jsonEncode([existingLink.toJson()]);
+      );
 
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
             localStorageServiceProvider.overrideWith((ref) => storage),
           ],
-          child: const MaterialApp(
-            locale: Locale('zh'),
+          child: MaterialApp(
+            locale: const Locale('zh'),
             localizationsDelegates: AppLocalizations.localizationsDelegates,
             supportedLocales: AppLocalizations.supportedLocales,
-            home: Scaffold(
-              body: SizedBox(
-                width: 340,
-                height: 620,
-                child: FixedTagsSidebar(),
+            builder: (context, child) => MediaQuery(
+              data: MediaQuery.of(context).copyWith(
+                textScaler: const TextScaler.linear(3),
+                padding: const EdgeInsets.only(top: 24, bottom: 16),
+                viewPadding: const EdgeInsets.only(top: 24, bottom: 16),
+                viewInsets: const EdgeInsets.only(bottom: 180),
+              ),
+              child: child!,
+            ),
+            home: const Scaffold(
+              body: InteractionPolicyScope(
+                initialPolicy: InteractionPolicy(
+                  modality: InteractionModality.touch,
+                  touchAvailable: true,
+                  precisePointerAvailable: false,
+                ),
+                child: SafeArea(
+                  child: SizedBox(width: 320, child: FixedTagsSidebar()),
+                ),
               ),
             ),
           ),
         ),
       );
       await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+
+      final entryEdit = find.byIcon(Icons.edit_rounded);
+      await tester.ensureVisible(entryEdit);
+      await tester.pumpAndSettle();
+      await tester.tap(entryEdit);
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+
+      expect(
+        find.byKey(const ValueKey('adaptive-bottom-sheet')),
+        findsOneWidget,
+      );
+      final existingContentField = find.byWidgetPredicate(
+        (widget) =>
+            widget is EditableText &&
+            widget.controller.text == 'original content',
+      );
+      expect(existingContentField, findsOneWidget);
+      await tester.tap(find.text('保存').hitTestable());
+      await tester.pumpAndSettle();
 
       final container = ProviderScope.containerOf(
         tester.element(find.byType(FixedTagsSidebar)),
       );
-      expect(container.read(fixedTagsNotifierProvider).links, hasLength(1));
-
-      final endpoint = find.byIcon(Icons.link_rounded).last;
-      final endpointCenter = tester.getCenter(endpoint);
-      await tester.dragFrom(endpointCenter, const Offset(12, 0));
-      await tester.pumpAndSettle();
-      expect(container.read(fixedTagsNotifierProvider).links, hasLength(1));
-
-      await tester.dragFrom(endpointCenter, const Offset(72, 0));
-      await tester.pumpAndSettle();
-
-      expect(container.read(fixedTagsNotifierProvider).links, isEmpty);
-      expect(storage.linksJson, '[]');
+      final edited = container.read(fixedTagsNotifierProvider).entries.single;
+      expect(edited.id, existing.id);
+      expect(edited.content, 'original content');
+      expect(edited.weight, 1.4);
+      expect(edited.position, FixedTagPosition.suffix);
+      expect(edited.enabled, isFalse);
+      expect(edited.promptType, FixedTagPromptType.negative);
+      expect(find.byKey(const ValueKey('adaptive-bottom-sheet')), findsNothing);
       expect(tester.takeException(), isNull);
-    });
-  }
+    },
+  );
 
-  testWidgets('grid mode renders three tiles per row with library thumbnails',
-      (tester) async {
+  testWidgets(
+    'sidebar add returns every fixed-tag field through adaptive form',
+    (tester) async {
+      tester.view.physicalSize = const Size(320, 700);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      final negativeCategory = TagLibraryCategory.create(name: '负面质量');
+      final storage = _SidebarTestStorage(
+        fixedEntries: const [],
+        categories: [negativeCategory],
+        libraryEntries: const [],
+      );
+      await _pumpSidebar(tester, storage);
+
+      final addMenu = find.byWidgetPredicate(
+        (widget) => widget is PopupMenuButton && widget.tooltip == '添加',
+      );
+      await tester.tap(addMenu);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('新增负向固定词'));
+      await tester.pumpAndSettle();
+
+      expect(
+        find.byKey(const ValueKey('adaptive-bottom-sheet')),
+        findsOneWidget,
+      );
+      final contentField = find.byWidgetPredicate(
+        (widget) =>
+            widget is EditableText &&
+            widget.keyboardType == TextInputType.multiline,
+      );
+      expect(contentField, findsOneWidget);
+      final container = ProviderScope.containerOf(
+        tester.element(find.byType(FixedTagsSidebar)),
+      );
+      final categorySelector = find.byType(DropdownButtonFormField<String?>);
+      await tester.ensureVisible(categorySelector);
+      await tester.pumpAndSettle();
+      await tester.tap(categorySelector);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('负面质量').last);
+      await tester.pumpAndSettle();
+      await tester.enterText(contentField, ',');
+      await tester.pump();
+      await tester.tap(find.text('保存').hitTestable());
+      for (
+        var attempt = 0;
+        attempt < 10 &&
+            container.read(fixedTagsNotifierProvider).entries.isEmpty;
+        attempt++
+      ) {
+        await tester.pump(const Duration(milliseconds: 100));
+      }
+
+      final added = container.read(fixedTagsNotifierProvider).entries.single;
+      expect(added.content, ',');
+      expect(added.promptType, FixedTagPromptType.negative);
+      expect(added.position, FixedTagPosition.prefix);
+      expect(added.enabled, isTrue);
+      expect(added.weight, 1.0);
+      expect(added.categoryId, negativeCategory.id);
+      expect(tester.takeException(), isNull);
+
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pump();
+    },
+  );
+
+  testWidgets('grid mode preserves readable cards with library thumbnails', (
+    tester,
+  ) async {
     final libraryEntries = [
       TagLibraryEntry.create(
         name: 'thumb one',
@@ -626,53 +2536,603 @@ void main() {
 
     await tester.pumpWidget(
       ProviderScope(
-        overrides: [
-          localStorageServiceProvider.overrideWith((ref) => storage),
-        ],
+        overrides: [localStorageServiceProvider.overrideWith((ref) => storage)],
         child: const MaterialApp(
           locale: Locale('zh'),
           localizationsDelegates: AppLocalizations.localizationsDelegates,
           supportedLocales: AppLocalizations.supportedLocales,
           home: Scaffold(
-            body: SizedBox(
-              width: 360,
-              height: 620,
-              child: FixedTagsSidebar(),
-            ),
+            body: SizedBox(width: 360, height: 900, child: FixedTagsSidebar()),
           ),
         ),
       ),
     );
     await tester.pumpAndSettle();
 
-    expect(find.byType(ThumbnailDisplay), findsNWidgets(3));
-
     final tiles = find.byType(SidebarEntryTile);
-    expect(tiles, findsNWidgets(3));
-    final firstTop = tester.getTopLeft(tiles.at(0)).dy;
-    expect(tester.getTopLeft(tiles.at(1)).dy, closeTo(firstTop, 1));
-    expect(tester.getTopLeft(tiles.at(2)).dy, closeTo(firstTop, 1));
+    expect(tiles, findsAtLeastNWidgets(2));
+    final positiveGroupList = find.byKey(
+      const ValueKey('fixed-tags-positive-group-list'),
+    );
+    final controller = tester
+        .widget<CustomScrollView>(positiveGroupList)
+        .controller!;
+    controller.jumpTo(controller.position.maxScrollExtent);
+    await tester.pumpAndSettle();
+    expect(
+      find.descendant(
+        of: find.byType(SidebarEntryTile),
+        matching: find.text('thumb three'),
+      ),
+      findsOneWidget,
+    );
+    expect(find.byType(ThumbnailDisplay), findsAtLeastNWidgets(1));
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('SidebarEntryTile triggers edit action after hover',
-      (tester) async {
+  testWidgets(
+    'positive list keeps exact scroll metrics across uneven sections and search changes',
+    (tester) async {
+      final fixture = _buildUnevenPositiveFixture();
+      final storage = _SidebarTestStorage(
+        fixedEntries: fixture.entries,
+        categories: fixture.categories,
+        libraryEntries: const [],
+      );
+
+      await _pumpSidebar(tester, storage, textScale: 1.35);
+
+      final positiveScrollView = find.byKey(
+        const ValueKey('fixed-tags-positive-group-list'),
+      );
+      final controller = tester
+          .widget<CustomScrollView>(positiveScrollView)
+          .controller!;
+      final initialMax = await _expectStableScrollMetrics(
+        tester,
+        controller: controller,
+        scrollable: positiveScrollView,
+      );
+
+      controller.jumpTo(0);
+      await tester.enterText(find.byType(TextField), 'section-0-');
+      await tester.pumpAndSettle();
+
+      final filteredMax = controller.position.maxScrollExtent;
+      expect(filteredMax, lessThanOrEqualTo(12));
+      expect(filteredMax, lessThan(initialMax));
+      await tester.pump(const Duration(milliseconds: 200));
+      expect(controller.position.maxScrollExtent, filteredMax);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets(
+    'positive grid keeps exact scroll metrics across uneven sections',
+    (tester) async {
+      final fixture = _buildUnevenPositiveFixture();
+      final storage = _SidebarTestStorage(
+        fixedEntries: fixture.entries,
+        categories: fixture.categories,
+        libraryEntries: const [],
+      )..fixedSidebarViewMode = 'grid';
+
+      await _pumpSidebar(tester, storage);
+
+      final positiveScrollView = find.byKey(
+        const ValueKey('fixed-tags-positive-group-list'),
+      );
+      final controller = tester
+          .widget<CustomScrollView>(positiveScrollView)
+          .controller!;
+      await _expectStableScrollMetrics(
+        tester,
+        controller: controller,
+        scrollable: positiveScrollView,
+      );
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets(
+    'grid cards fit linked thumbnails and show raw prompts without overflow',
+    (tester) async {
+      final category = TagLibraryCategory.create(name: 'Quality');
+      final positiveLibrary = TagLibraryEntry.create(
+        name: 'positive',
+        content: 'masterpiece, best quality, detailed background',
+        categoryId: category.id,
+        thumbnail: 'missing-positive.png',
+      );
+      final negativeLibrary = TagLibraryEntry.create(
+        name: 'negative',
+        content: 'bad hands, low quality, blurry, watermark',
+        thumbnail: 'missing-negative.png',
+      );
+      final positive = FixedTagEntry.create(
+        name: positiveLibrary.name,
+        content: positiveLibrary.content,
+        enabled: false,
+        categoryId: category.id,
+        sourceEntryId: positiveLibrary.id,
+      );
+      final negative = FixedTagEntry.create(
+        name: negativeLibrary.name,
+        content: negativeLibrary.content,
+        enabled: false,
+        promptType: FixedTagPromptType.negative,
+        sourceEntryId: negativeLibrary.id,
+      );
+      final storage = _SidebarTestStorage(
+        fixedEntries: [positive, negative],
+        categories: [category],
+        libraryEntries: [positiveLibrary, negativeLibrary],
+      )..fixedSidebarViewMode = 'grid';
+      final lookup = TagTranslationLookup.fromResolver((tags) async {
+        return {for (final tag in tags) tag: '译文$tag'};
+      });
+
+      await _pumpSidebar(
+        tester,
+        storage,
+        interactionPolicy: const InteractionPolicy(
+          modality: InteractionModality.pointer,
+          touchAvailable: false,
+          precisePointerAvailable: true,
+        ),
+        translationLookup: lookup,
+      );
+
+      // 词典可用也不得渲染译文：侧栏条目只显示原文，翻译留给悬停预览。
+      expect(
+        find.byKey(const ValueKey('translated-prompt-translation')),
+        findsNothing,
+      );
+      expect(find.text(positiveLibrary.content), findsOneWidget);
+      expect(find.text(negativeLibrary.content), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets('negative list keeps exact scroll metrics while scrolling', (
+    tester,
+  ) async {
+    final entries = [
+      for (var index = 0; index < 32; index++)
+        FixedTagEntry.create(
+          name: 'negative-$index',
+          content: 'negative tag $index',
+          enabled: false,
+          promptType: FixedTagPromptType.negative,
+          sortOrder: index,
+        ),
+    ];
+    final storage = _SidebarTestStorage(
+      fixedEntries: entries,
+      categories: const [],
+      libraryEntries: const [],
+    );
+
+    await _pumpSidebar(tester, storage, textScale: 1.35);
+
+    final negativeList = find.byKey(
+      const ValueKey('fixed-tags-negative-group-list'),
+    );
+    expect(negativeList, findsOneWidget);
+    final controller = tester
+        .widget<CustomScrollView>(negativeList)
+        .controller!;
+    await _expectStableScrollMetrics(
+      tester,
+      controller: controller,
+      scrollable: negativeList,
+    );
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets(
+    'category folders collapse independently without hiding other sections',
+    (tester) async {
+      final near = TagLibraryCategory.create(name: 'Near', sortOrder: 0);
+      final far = TagLibraryCategory.create(name: 'Far', sortOrder: 1);
+      final entries = [
+        for (var index = 0; index < 30; index++)
+          FixedTagEntry.create(
+            name: 'near-$index',
+            content: 'near tag $index',
+            enabled: false,
+            categoryId: near.id,
+            sortOrder: index,
+          ),
+        FixedTagEntry.create(
+          name: 'far-entry',
+          content: 'far tag',
+          enabled: false,
+          categoryId: far.id,
+          sortOrder: 30,
+        ),
+      ];
+      final storage = _SidebarTestStorage(
+        fixedEntries: entries,
+        categories: [near, far],
+        libraryEntries: const [],
+      );
+
+      await _pumpSidebar(
+        tester,
+        storage,
+        interactionPolicy: const InteractionPolicy(
+          modality: InteractionModality.pointer,
+          touchAvailable: false,
+          precisePointerAvailable: true,
+        ),
+      );
+
+      final nearCategoryHeader = find.byKey(
+        ValueKey('fixed-tags-positive-group-${near.id}'),
+      );
+      await tester.ensureVisible(nearCategoryHeader);
+      await tester.pump();
+      await tester.tap(nearCategoryHeader);
+      await tester.pumpAndSettle();
+
+      expect(find.text('far-entry'), findsOneWidget);
+      expect(find.text('near-0'), findsNothing);
+      expect(
+        find.byKey(ValueKey('fixed-tags-positive-group-${far.id}')),
+        findsOneWidget,
+      );
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets(
+    'SidebarEntryTile shows the complete linked entry preview after hover',
+    (tester) async {
+      tester.view.physicalSize = const Size(1000, 600);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      final entry = FixedTagEntry.create(name: 'tile', content: 'tag');
+      final libraryEntry = TagLibraryEntry.create(
+        name: 'tile',
+        content: 'tag',
+        thumbnail: 'missing-preview.png',
+        thumbnailOffsetX: 0.25,
+        thumbnailOffsetY: -0.5,
+        thumbnailScale: 1.4,
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(
+            body: InteractionPolicyScope(
+              initialPolicy: const InteractionPolicy(
+                modality: InteractionModality.pointer,
+                touchAvailable: false,
+                precisePointerAvailable: true,
+              ),
+              child: Align(
+                alignment: Alignment.centerRight,
+                child: SizedBox(
+                  width: 280,
+                  child: SidebarEntryTile(
+                    entry: entry,
+                    libraryEntry: libraryEntry,
+                    categoryColor: Colors.blue,
+                    isListMode: true,
+                    onToggle: () {},
+                    onEdit: () {},
+                    onDelete: () {},
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+
+      final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+      await mouse.addPointer();
+      addTearDown(mouse.removePointer);
+      await mouse.moveTo(tester.getCenter(find.byType(SidebarEntryTile)));
+      await tester.pump(const Duration(milliseconds: 699));
+
+      const previewKey = ValueKey('tag-library-entry-preview-overlay');
+      expect(find.byKey(previewKey), findsNothing);
+
+      await tester.pump(const Duration(milliseconds: 1));
+
+      expect(find.byKey(previewKey), findsOneWidget);
+      final previewThumbnail = tester.widget<ThumbnailDisplay>(
+        find.descendant(
+          of: find.byKey(previewKey),
+          matching: find.byType(ThumbnailDisplay),
+        ),
+      );
+      expect(previewThumbnail.imagePath, libraryEntry.thumbnail);
+      expect(previewThumbnail.offsetX, libraryEntry.thumbnailOffsetX);
+      expect(previewThumbnail.offsetY, libraryEntry.thumbnailOffsetY);
+      expect(previewThumbnail.scale, libraryEntry.thumbnailScale);
+
+      final previewRect = tester.getRect(find.byKey(previewKey));
+      expect(previewRect.width, 320);
+      expect(previewRect.height, greaterThan(180));
+      expect(previewRect.left, greaterThanOrEqualTo(16));
+      expect(previewRect.right, lessThanOrEqualTo(984));
+      expect(previewRect.top, greaterThanOrEqualTo(16));
+      expect(previewRect.bottom, lessThanOrEqualTo(584));
+
+      await mouse.moveTo(const Offset(16, 16));
+      await tester.pump(const Duration(milliseconds: 121));
+
+      expect(find.byKey(previewKey), findsNothing);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets('SidebarEntryTile shows content preview without an image', (
+    tester,
+  ) async {
+    final entry = FixedTagEntry.create(name: 'tile', content: 'tag');
+    final libraryEntry = TagLibraryEntry.create(name: 'tile', content: 'tag');
+
+    await tester.pumpWidget(
+      MaterialApp(
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: Scaffold(
+          body: InteractionPolicyScope(
+            initialPolicy: const InteractionPolicy(
+              modality: InteractionModality.pointer,
+              touchAvailable: false,
+              precisePointerAvailable: true,
+            ),
+            child: Center(
+              child: SizedBox(
+                width: 280,
+                child: SidebarEntryTile(
+                  entry: entry,
+                  libraryEntry: libraryEntry,
+                  categoryColor: Colors.blue,
+                  isListMode: true,
+                  onToggle: () {},
+                  onEdit: () {},
+                  onDelete: () {},
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+    await mouse.addPointer();
+    addTearDown(mouse.removePointer);
+    await mouse.moveTo(tester.getCenter(find.byType(SidebarEntryTile)));
+    await tester.pump(const Duration(milliseconds: 700));
+
+    expect(
+      find.byKey(const ValueKey('tag-library-entry-preview-overlay')),
+      findsOneWidget,
+    );
+    expect(find.text('tile'), findsNWidgets(2));
+    expect(find.text('tag'), findsNWidgets(2));
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('SidebarEntryTile pointer actions stay live at 320', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(320, 300);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    var edited = 0;
+    var deleted = 0;
+    String? copiedText;
+    tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+      SystemChannels.platform,
+      (call) async {
+        if (call.method == 'Clipboard.setData') {
+          copiedText =
+              (call.arguments as Map<Object?, Object?>)['text'] as String?;
+        }
+        return null;
+      },
+    );
+    addTearDown(
+      () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        SystemChannels.platform,
+        null,
+      ),
+    );
+
+    final entry = FixedTagEntry.create(name: 'tile', content: 'copied tag');
+    await _pumpEntryTile(
+      tester,
+      entry: entry,
+      width: 288,
+      policy: const InteractionPolicy(
+        modality: InteractionModality.pointer,
+        touchAvailable: false,
+        precisePointerAvailable: true,
+      ),
+      onEdit: () => edited++,
+      onDelete: () => deleted++,
+    );
+
+    final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+    await mouse.addPointer(location: Offset.zero);
+    addTearDown(mouse.removePointer);
+    await mouse.moveTo(tester.getCenter(find.byType(SidebarEntryTile)));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const ValueKey('sidebar-entry-actions')), findsOneWidget);
+
+    // 合成 touch tap 不会更新鼠标命中，测不出指针路径的回归，必须用真实鼠标。
+    for (final icon in [
+      Icons.copy_rounded,
+      Icons.edit_rounded,
+      Icons.delete_outline_rounded,
+    ]) {
+      final target = tester.getCenter(find.byIcon(icon));
+      await mouse.moveTo(target);
+      await tester.pumpAndSettle();
+      await mouse.down(target);
+      await tester.pump();
+      await mouse.up();
+      await tester.pumpAndSettle();
+    }
+
+    expect(copiedText, 'copied tag');
+    expect(edited, 1);
+    expect(deleted, 1);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('SidebarEntryTile touch actions invoke edit and delete', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(320, 700);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    var edited = 0;
+    var deleted = 0;
+    await _pumpEntryTile(
+      tester,
+      entry: FixedTagEntry.create(name: 'tile', content: 'tag'),
+      width: 288,
+      policy: const InteractionPolicy(
+        modality: InteractionModality.touch,
+        touchAvailable: true,
+        precisePointerAvailable: false,
+      ),
+      onEdit: () => edited++,
+      onDelete: () => deleted++,
+    );
+
+    expect(find.byKey(const ValueKey('sidebar-entry-actions')), findsOneWidget);
+
+    // 触屏没有 hover，操作必须无条件可见且命中区不小于 44。
+    for (final icon in [Icons.edit_rounded, Icons.delete_outline_rounded]) {
+      final size = tester.getSize(
+        find.ancestor(
+          of: find.byIcon(icon),
+          matching: find.byType(TileActionButton),
+        ),
+      );
+      expect(size.width, greaterThanOrEqualTo(44));
+      expect(size.height, greaterThanOrEqualTo(44));
+      await tester.tap(find.byIcon(icon));
+      await tester.pumpAndSettle();
+    }
+
+    expect(edited, 1);
+    expect(deleted, 1);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets(
+    'SidebarEntryTile 3x actions invoke copy, edit and delete without overflow',
+    (tester) async {
+      tester.view.physicalSize = const Size(320, 700);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      var edited = 0;
+      var deleted = 0;
+      String? copiedText;
+      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        SystemChannels.platform,
+        (call) async {
+          if (call.method == 'Clipboard.setData') {
+            copiedText =
+                (call.arguments as Map<Object?, Object?>)['text'] as String?;
+          }
+          return null;
+        },
+      );
+      addTearDown(
+        () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+          SystemChannels.platform,
+          null,
+        ),
+      );
+
+      final entry = FixedTagEntry.create(name: 'tile', content: 'copied tag');
+      await _pumpEntryTile(
+        tester,
+        entry: entry,
+        width: 288,
+        textScale: 3,
+        policy: const InteractionPolicy(
+          modality: InteractionModality.pointer,
+          touchAvailable: false,
+          precisePointerAvailable: true,
+        ),
+        onEdit: () => edited++,
+        onDelete: () => deleted++,
+      );
+
+      expect(
+        find.byKey(const ValueKey('sidebar-entry-actions')),
+        findsOneWidget,
+      );
+      expect(find.byType(FittedBox), findsNothing);
+
+      for (final icon in [
+        Icons.copy_rounded,
+        Icons.edit_rounded,
+        Icons.delete_outline_rounded,
+      ]) {
+        await tester.tap(find.byIcon(icon));
+        await tester.pumpAndSettle();
+      }
+
+      expect(copiedText, 'copied tag');
+      expect(edited, 1);
+      expect(deleted, 1);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets('SidebarEntryTile triggers edit action after hover', (
+    tester,
+  ) async {
     var edited = false;
     final entry = FixedTagEntry.create(name: 'tile', content: 'tag');
 
     await tester.pumpWidget(
       MaterialApp(
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
         home: Scaffold(
-          body: Center(
-            child: SizedBox(
-              width: 320,
-              child: SidebarEntryTile(
-                entry: entry,
-                categoryColor: Colors.blue,
-                isListMode: true,
-                onToggle: () {},
-                onEdit: () => edited = true,
-                onDelete: () {},
+          body: InteractionPolicyScope(
+            initialPolicy: const InteractionPolicy(
+              modality: InteractionModality.pointer,
+              touchAvailable: false,
+              precisePointerAvailable: true,
+            ),
+            child: Center(
+              child: SizedBox(
+                width: 320,
+                child: SidebarEntryTile(
+                  entry: entry,
+                  categoryColor: Colors.blue,
+                  isListMode: true,
+                  onToggle: () {},
+                  onEdit: () => edited = true,
+                  onDelete: () {},
+                ),
               ),
             ),
           ),
@@ -689,10 +3149,296 @@ void main() {
     expect(find.byIcon(Icons.remove_rounded), findsNothing);
     expect(find.byIcon(Icons.add_rounded), findsNothing);
 
-    await tester.tap(find.byIcon(Icons.edit_rounded));
+    expect(find.byKey(const ValueKey('sidebar-entry-actions')), findsOneWidget);
+    final editCenter = tester.getCenter(find.byIcon(Icons.edit_rounded));
+    await gesture.moveTo(editCenter);
+    await tester.pumpAndSettle();
+    await gesture.down(editCenter);
+    await tester.pump();
+    await gesture.up();
+    await tester.pumpAndSettle();
 
     expect(edited, isTrue);
   });
+
+  testWidgets(
+    'SidebarEntryTile tolerates rapid hover reversal during action animation',
+    (tester) async {
+      final entry = FixedTagEntry.create(name: 'tile', content: 'tag');
+      await _pumpEntryTile(
+        tester,
+        entry: entry,
+        width: 320,
+        policy: const InteractionPolicy(
+          modality: InteractionModality.pointer,
+          touchAvailable: false,
+          precisePointerAvailable: true,
+        ),
+        onEdit: () {},
+        onDelete: () {},
+      );
+
+      final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+      await mouse.addPointer(location: Offset.zero);
+      addTearDown(mouse.removePointer);
+      final tileCenter = tester.getCenter(find.byType(SidebarEntryTile));
+      for (var index = 0; index < 3; index++) {
+        await mouse.moveTo(tileCenter);
+        await tester.pump(const Duration(milliseconds: 30));
+        await mouse.moveTo(Offset.zero);
+        await tester.pump(const Duration(milliseconds: 30));
+      }
+      await tester.pumpAndSettle();
+
+      expect(tester.takeException(), isNull);
+    },
+  );
+}
+
+Future<void> _jumpToEndUntilVisible(
+  WidgetTester tester,
+  ScrollController controller,
+  Finder target,
+) async {
+  for (var i = 0; i < 10 && target.evaluate().isEmpty; i++) {
+    controller.jumpTo(controller.position.maxScrollExtent);
+    await tester.pump();
+  }
+  expect(target, findsOneWidget);
+  await tester.ensureVisible(target);
+  await tester.pump();
+}
+
+Future<void> _pumpEntryTile(
+  WidgetTester tester, {
+  required FixedTagEntry entry,
+  required double width,
+  required InteractionPolicy policy,
+  required VoidCallback onEdit,
+  required VoidCallback onDelete,
+  double textScale = 1,
+}) async {
+  await tester.pumpWidget(
+    MaterialApp(
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      supportedLocales: AppLocalizations.supportedLocales,
+      builder: (context, child) => MediaQuery(
+        data: MediaQuery.of(
+          context,
+        ).copyWith(textScaler: TextScaler.linear(textScale)),
+        child: child!,
+      ),
+      home: Scaffold(
+        body: InteractionPolicyScope(
+          initialPolicy: policy,
+          child: Center(
+            child: SizedBox(
+              width: width,
+              child: SidebarEntryTile(
+                entry: entry,
+                categoryColor: Colors.blue,
+                isListMode: true,
+                onToggle: () {},
+                onEdit: onEdit,
+                onDelete: onDelete,
+              ),
+            ),
+          ),
+        ),
+      ),
+    ),
+  );
+  await tester.pumpAndSettle();
+}
+
+({List<TagLibraryCategory> categories, List<FixedTagEntry> entries})
+_buildUnevenPositiveFixture() {
+  const counts = [1, 18, 3, 24];
+  final categories = [
+    for (var index = 0; index < counts.length; index++)
+      TagLibraryCategory.create(name: 'Section $index', sortOrder: index),
+  ];
+  final entries = <FixedTagEntry>[
+    for (var sectionIndex = 0; sectionIndex < categories.length; sectionIndex++)
+      for (var entryIndex = 0; entryIndex < counts[sectionIndex]; entryIndex++)
+        FixedTagEntry.create(
+          name: 'section-$sectionIndex-entry-$entryIndex',
+          content: 'tag section-$sectionIndex-$entryIndex',
+          enabled: false,
+          categoryId: categories[sectionIndex].id,
+          sortOrder: entryIndex,
+        ),
+  ];
+  return (categories: categories, entries: entries);
+}
+
+_SidebarTestStorage _paneHeaderStorage({
+  String viewMode = 'list',
+  bool withNegative = true,
+}) {
+  final category = TagLibraryCategory.create(name: '分组', sortOrder: 0);
+  final types = withNegative
+      ? FixedTagPromptType.values
+      : const [FixedTagPromptType.positive];
+  return _SidebarTestStorage(
+    fixedEntries: [
+      for (final type in types)
+        for (var index = 0; index < 6; index++)
+          FixedTagEntry.create(
+            name: '${type.name}-$index',
+            content: 'tag $index',
+            enabled: false,
+            promptType: type,
+            categoryId: category.id,
+            sortOrder: index,
+          ),
+    ],
+    categories: [category],
+    libraryEntries: const [],
+  )..fixedSidebarViewMode = viewMode;
+}
+
+// 面板头收缩后仍不得越过卡片下沿，且两侧筛选入口保持完整命中区。
+void _expectPaneHeadersFit(WidgetTester tester) {
+  for (final prefix in const ['fixed-tags-positive', 'fixed-tags-negative']) {
+    final card = find.byKey(ValueKey('$prefix-card'));
+    expect(card, findsOneWidget);
+    final header = find
+        .descendant(of: card, matching: find.byType(ColoredBox))
+        .first;
+    expect(
+      tester.getRect(header).height,
+      lessThanOrEqualTo(tester.getRect(card).height),
+      reason: '$prefix 面板头超出了卡片高度',
+    );
+
+    final action = find.byKey(ValueKey('$prefix-enabled-only'));
+    expect(action.hitTestable(), findsOneWidget);
+    expect(
+      tester.getSize(action).height,
+      greaterThanOrEqualTo(40.0),
+      reason: '$prefix 的筛选入口被压缩到命中区以下',
+    );
+  }
+}
+
+Future<void> _pumpSidebar(
+  WidgetTester tester,
+  _SidebarTestStorage storage, {
+  double textScale = 1,
+  Size? viewportSize,
+  InteractionPolicy? interactionPolicy,
+  TagTranslationLookup? translationLookup,
+}) async {
+  final size = viewportSize ?? const Size(340, 620);
+  if (viewportSize != null) {
+    tester.view.physicalSize = viewportSize;
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+  }
+  await tester.pumpWidget(
+    ProviderScope(
+      overrides: [
+        localStorageServiceProvider.overrideWith((ref) => storage),
+        if (translationLookup != null)
+          tagTranslationLookupProvider.overrideWithValue(translationLookup),
+      ],
+      child: MaterialApp(
+        locale: const Locale('zh'),
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        builder: (context, child) {
+          return MediaQuery(
+            data: MediaQuery.of(
+              context,
+            ).copyWith(textScaler: TextScaler.linear(textScale)),
+            child: child!,
+          );
+        },
+        home: Scaffold(
+          body: InteractionPolicyScope(
+            initialPolicy: interactionPolicy,
+            child: SizedBox(
+              width: size.width,
+              height: size.height,
+              child: const FixedTagsSidebar(),
+            ),
+          ),
+        ),
+      ),
+    ),
+  );
+  await tester.pumpAndSettle();
+}
+
+Future<double> _expectStableScrollMetrics(
+  WidgetTester tester, {
+  required ScrollController controller,
+  required Finder scrollable,
+}) async {
+  expect(controller.hasClients, isTrue);
+  controller.jumpTo(0);
+  await tester.pump();
+
+  final initialMax = controller.position.maxScrollExtent;
+  final initialViewport = controller.position.viewportDimension;
+  final initialVisibleFraction =
+      initialViewport / (initialMax + initialViewport);
+  expect(initialMax, greaterThan(0));
+
+  await tester.sendEventToBinding(
+    PointerScrollEvent(
+      kind: PointerDeviceKind.mouse,
+      position: tester.getCenter(scrollable),
+      scrollDelta: const Offset(0, 120),
+    ),
+  );
+  await tester.pump();
+
+  expect(controller.offset, greaterThan(0));
+  _expectScrollMetrics(
+    controller,
+    maxScrollExtent: initialMax,
+    viewportDimension: initialViewport,
+    visibleFraction: initialVisibleFraction,
+  );
+
+  controller.jumpTo(0);
+  await tester.pump();
+  var previousOffset = controller.offset;
+  for (final fraction in const [0.2, 0.5, 0.8, 0.98]) {
+    final target = initialMax * fraction;
+    controller.jumpTo(target);
+    await tester.pump();
+
+    expect(controller.offset, greaterThan(previousOffset));
+    expect(controller.offset, closeTo(target, 0.01));
+    _expectScrollMetrics(
+      controller,
+      maxScrollExtent: initialMax,
+      viewportDimension: initialViewport,
+      visibleFraction: initialVisibleFraction,
+    );
+    previousOffset = controller.offset;
+  }
+
+  return initialMax;
+}
+
+void _expectScrollMetrics(
+  ScrollController controller, {
+  required double maxScrollExtent,
+  required double viewportDimension,
+  required double visibleFraction,
+}) {
+  final position = controller.position;
+  expect(position.maxScrollExtent, closeTo(maxScrollExtent, 0.01));
+  expect(position.viewportDimension, closeTo(viewportDimension, 0.01));
+  expect(
+    position.viewportDimension /
+        (position.maxScrollExtent + position.viewportDimension),
+    closeTo(visibleFraction, 0.0001),
+  );
 }
 
 bool _linkPainterHasPreview(WidgetTester tester) {
@@ -722,9 +3468,11 @@ class _SidebarTestStorage extends LocalStorageService {
   final List<TagLibraryEntry> libraryEntries;
 
   bool fixedSidebarExpanded = true;
+  bool promptMaximized = false;
   double fixedSidebarWidth = 320.0;
   String fixedSidebarViewMode = 'list';
   double negativeHeight = 180.0;
+  int negativeHeightWriteCount = 0;
   String linksJson = '[]';
 
   @override
@@ -743,7 +3491,12 @@ class _SidebarTestStorage extends LocalStorageService {
   double getPromptAreaHeight() => 200.0;
 
   @override
-  bool getPromptMaximized() => false;
+  bool getPromptMaximized() => promptMaximized;
+
+  @override
+  Future<void> setPromptMaximized(bool maximized) async {
+    promptMaximized = maximized;
+  }
 
   @override
   bool getFixedTagsSidebarExpanded() => fixedSidebarExpanded;
@@ -775,6 +3528,7 @@ class _SidebarTestStorage extends LocalStorageService {
   @override
   Future<void> setFixedTagsNegativeHeight(double height) async {
     negativeHeight = height;
+    negativeHeightWriteCount++;
   }
 
   @override
@@ -803,9 +3557,7 @@ class _SidebarTestStorage extends LocalStorageService {
 
   @override
   String? getTagLibraryCategoriesJson() {
-    return jsonEncode(
-      categories.map((category) => category.toJson()).toList(),
-    );
+    return jsonEncode(categories.map((category) => category.toJson()).toList());
   }
 
   @override

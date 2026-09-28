@@ -36,4 +36,16 @@ class ThemeNotifier extends _$ThemeNotifier {
     final nextIndex = (currentIndex + 1) % AppStyle.values.length;
     await setTheme(AppStyle.values[nextIndex]);
   }
+
+  /// 在「默认深色（拼贴朋克）/ Bold Retro（浅色）」两套之间快速切换。
+  ///
+  /// 偏离上游：上游只有按 [AppStyle.values] 顺序轮转的 [nextTheme]，16 个主题
+  /// 要按 15 次才能回到原处，手机上不可用。移动端「更多」面板的一键深浅快切
+  /// 需要一个确定的两态切换：日常只在这两套之间来回换，其余主题仍走
+  /// 外观 设置里的完整列表；当前处于其它主题时优先切到浅色。
+  Future<void> toggleQuickTheme() async {
+    await setTheme(
+      state == AppStyle.boldRetro ? AppStyle.grungeCollage : AppStyle.boldRetro,
+    );
+  }
 }

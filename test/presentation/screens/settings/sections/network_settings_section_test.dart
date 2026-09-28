@@ -2,10 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/core/constants/storage_keys.dart';
+import 'package:nai_launcher/core/platform/platform_capabilities.dart';
 import 'package:nai_launcher/core/storage/local_storage_service.dart';
+import 'package:nai_launcher/data/models/settings/proxy_settings.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/providers/proxy_settings_provider.dart';
 import 'package:nai_launcher/presentation/screens/settings/sections/network_settings_section.dart';
+import 'package:nai_launcher/presentation/widgets/common/themed_input.dart';
 
 void main() {
   testWidgets(
@@ -41,6 +44,95 @@ void main() {
       expect(find.textContaining('系统代理或手动代理'), findsOneWidget);
     },
   );
+
+  testWidgets('手动代理表单在 320–1600 宽度和 3x 文本下无溢出', (tester) async {
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    for (final width in const [320.0, 600.0, 840.0, 1180.0, 1600.0]) {
+      final storage = _MemoryLocalStorageService({
+        StorageKeys.proxyEnabled: true,
+        StorageKeys.proxyMode: 'manual',
+        StorageKeys.proxyManualHost: '127.0.0.1',
+        StorageKeys.proxyManualPort: 7890,
+      });
+      await tester.binding.setSurfaceSize(Size(width, 900));
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            localStorageServiceProvider.overrideWith((ref) => storage),
+            detectedSystemProxyProvider.overrideWith((ref) => null),
+          ],
+          child: MaterialApp(
+            locale: const Locale('zh'),
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            builder: (context, child) => MediaQuery(
+              data: MediaQuery.of(
+                context,
+              ).copyWith(textScaler: const TextScaler.linear(3)),
+              child: child!,
+            ),
+            home: const Scaffold(
+              body: SingleChildScrollView(
+                padding: EdgeInsets.all(12),
+                child: NetworkSettingsSection(),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+
+      expect(find.byType(ThemedInput), findsNWidgets(2));
+      expect(
+        tester
+            .widgetList<ThemedInput>(find.byType(ThemedInput))
+            .map((input) => input.textInputAction),
+        containsAll(const [TextInputAction.next, TextInputAction.done]),
+      );
+      expect(tester.takeException(), isNull, reason: 'width=$width');
+    }
+  });
+
+  testWidgets('移动端隐藏自动代理模式段，直接呈现手动地址输入', (tester) async {
+    addTearDown(() => PlatformCapabilities.debugOverride = null);
+
+    Future<void> pumpSection(TargetPlatform platform) async {
+      PlatformCapabilities.debugOverride = PlatformCapabilities.forPlatform(
+        platform,
+      );
+      await tester.pumpWidget(
+        ProviderScope(
+          // 换平台时重建整个容器，避免上一次 pump 缓存的 provider 状态串味。
+          key: ValueKey(platform),
+          overrides: [
+            localStorageServiceProvider.overrideWith(
+              (ref) =>
+                  _MemoryLocalStorageService({StorageKeys.proxyEnabled: true}),
+            ),
+            detectedSystemProxyProvider.overrideWith((ref) => null),
+          ],
+          child: const MaterialApp(
+            locale: Locale('zh'),
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            home: Scaffold(
+              body: SingleChildScrollView(child: NetworkSettingsSection()),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+    }
+
+    // 移动端：auto 模式在 iOS/Android 上拿不到系统代理地址，整段隐藏并固定走手动。
+    await pumpSection(TargetPlatform.iOS);
+    expect(find.byType(SegmentedButton<ProxyMode>), findsNothing);
+    expect(find.byType(ThemedInput), findsNWidgets(2));
+
+    // 桌面端仍保留上游的 auto/manual 选择器。
+    await pumpSection(TargetPlatform.windows);
+    expect(find.byType(SegmentedButton<ProxyMode>), findsOneWidget);
+  });
 }
 
 class _MemoryLocalStorageService extends LocalStorageService {

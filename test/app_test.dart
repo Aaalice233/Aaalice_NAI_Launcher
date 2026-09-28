@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -12,13 +13,16 @@ import 'package:mocktail/mocktail.dart';
 import 'package:nai_launcher/app.dart';
 import 'package:nai_launcher/core/comfyui/builtin_workflows.dart';
 import 'package:nai_launcher/core/comfyui/comfyui_url_utils.dart';
+import 'package:nai_launcher/core/comfyui/seedvr2_support.dart';
 import 'package:nai_launcher/core/comfyui/workflow_node_validator.dart';
+import 'package:nai_launcher/core/autocomplete/autocomplete_providers.dart';
+import 'package:nai_launcher/core/autocomplete/completion_models.dart';
 import 'package:nai_launcher/core/comfyui/workflow_template_manager.dart';
 import 'package:nai_launcher/core/constants/api_constants.dart';
 import 'package:nai_launcher/core/constants/storage_keys.dart';
-import 'package:nai_launcher/core/services/danbooru_tags_lazy_service.dart';
 import 'package:nai_launcher/core/shortcuts/default_shortcuts.dart';
 import 'package:nai_launcher/core/shortcuts/shortcut_config.dart';
+import 'package:nai_launcher/core/storage/local_storage_service.dart';
 import 'package:nai_launcher/core/utils/file_explorer_utils.dart';
 import 'package:nai_launcher/core/utils/nai_resolution_adapter.dart';
 import 'package:nai_launcher/data/models/fixed_tag/fixed_tag_entry.dart';
@@ -31,7 +35,6 @@ import 'package:nai_launcher/data/models/vibe/vibe_reference.dart';
 import 'package:nai_launcher/data/services/local_onnx_tagger_service.dart';
 import 'package:nai_launcher/data/services/statistics_service.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
-import 'package:nai_launcher/presentation/providers/danbooru_suggestion_provider.dart';
 import 'package:nai_launcher/presentation/providers/fixed_tags_provider.dart';
 import 'package:nai_launcher/presentation/providers/generation/image_workflow_controller.dart';
 import 'package:nai_launcher/presentation/providers/local_gallery_provider.dart';
@@ -42,6 +45,8 @@ import 'package:nai_launcher/presentation/providers/shortcuts_provider.dart';
 import 'package:nai_launcher/presentation/providers/tag_library_page_provider.dart';
 import 'package:nai_launcher/presentation/screens/online_gallery/online_gallery_screen.dart';
 import 'package:nai_launcher/presentation/prompt_assistant/models/prompt_assistant_models.dart';
+import 'package:nai_launcher/presentation/prompt_assistant/models/assistant_model_capability.dart';
+import 'package:nai_launcher/presentation/prompt_assistant/providers/prompt_assistant_config_provider.dart';
 import 'package:nai_launcher/presentation/prompt_assistant/providers/prompt_assistant_history_provider.dart';
 import 'package:nai_launcher/presentation/prompt_assistant/services/provider_adapters/prompt_assistant_adapter.dart';
 import 'package:nai_launcher/presentation/prompt_assistant/services/prompt_assistant_api_client.dart';
@@ -53,11 +58,8 @@ import 'package:nai_launcher/presentation/screens/vibe_library/widgets/vibe_expo
 import 'package:nai_launcher/presentation/utils/dropped_file_reader.dart';
 import 'package:nai_launcher/presentation/widgets/gallery/gallery_category_tree_view.dart';
 import 'package:nai_launcher/presentation/widgets/gallery/local_gallery_toolbar.dart';
-import 'package:nai_launcher/presentation/widgets/autocomplete/autocomplete_controller.dart';
-import 'package:nai_launcher/presentation/widgets/autocomplete/autocomplete_strategy.dart';
+import 'package:nai_launcher/presentation/widgets/autocomplete/autocomplete_config.dart';
 import 'package:nai_launcher/presentation/widgets/autocomplete/autocomplete_utils.dart';
-import 'package:nai_launcher/presentation/widgets/autocomplete/autocomplete_wrapper.dart';
-import 'package:nai_launcher/presentation/widgets/autocomplete/generic_suggestion_tile.dart';
 import 'package:nai_launcher/presentation/widgets/metadata/metadata_import_dialog.dart';
 import 'package:nai_launcher/presentation/widgets/prompt/unified/unified_prompt_config.dart';
 import 'package:nai_launcher/presentation/widgets/prompt/unified/unified_prompt_input.dart';
@@ -65,8 +67,7 @@ import 'package:nai_launcher/presentation/widgets/shortcuts/shortcut_aware_widge
 
 class _MockDio extends Mock implements Dio {}
 
-class _MockDanbooruTagsLazyService extends Mock
-    implements DanbooruTagsLazyService {}
+class _MockLocalStorageService extends Mock implements LocalStorageService {}
 
 /// 简单的 Widget 测试示例
 ///
@@ -80,11 +81,7 @@ void main() {
   group('Widget Tests', () {
     testWidgets('MaterialApp 创建', (tester) async {
       await tester.pumpWidget(
-        const MaterialApp(
-          home: Scaffold(
-            body: Text('Hello'),
-          ),
-        ),
+        const MaterialApp(home: Scaffold(body: Text('Hello'))),
       );
 
       expect(find.text('Hello'), findsOneWidget);
@@ -113,8 +110,8 @@ void main() {
 
     testWidgets('AppBootstrapEffects 监听 provider 变化时不重建子树', (tester) async {
       final anlasWatcherProvider = StateProvider<int>((ref) => 0);
-      final backgroundRefreshProvider = StateProvider<int>((ref) => 0);
       final kritaBridgeProvider = StateProvider<int>((ref) => 0);
+      final cooccurrenceDataPackProvider = StateProvider<int>((ref) => 0);
       var buildCount = 0;
 
       await tester.pumpWidget(
@@ -122,8 +119,9 @@ void main() {
           child: MaterialApp(
             home: AppBootstrapEffects(
               anlasWatcher: anlasWatcherProvider,
-              backgroundRefresh: backgroundRefreshProvider,
               kritaBridge: kritaBridgeProvider,
+              cooccurrenceDataPack: cooccurrenceDataPackProvider,
+              cloudSyncLifecycle: () async {},
               child: Builder(
                 builder: (context) {
                   buildCount++;
@@ -140,18 +138,74 @@ void main() {
       );
 
       expect(container.exists(anlasWatcherProvider), isTrue);
-      expect(container.exists(backgroundRefreshProvider), isTrue);
       expect(container.exists(kritaBridgeProvider), isTrue);
+      expect(container.exists(cooccurrenceDataPackProvider), isTrue);
       expect(buildCount, 1);
 
       container.read(anlasWatcherProvider.notifier).state = 1;
       await tester.pump();
-      container.read(backgroundRefreshProvider.notifier).state = 1;
-      await tester.pump();
       container.read(kritaBridgeProvider.notifier).state = 1;
+      await tester.pump();
+      container.read(cooccurrenceDataPackProvider.notifier).state = 1;
       await tester.pump();
 
       expect(buildCount, 1);
+    });
+
+    testWidgets('AppBootstrapEffects 在启动和 resumed 恢复云备份连接', (tester) async {
+      var calls = 0;
+      final inert = StateProvider<int>((ref) => 0);
+      await tester.pumpWidget(
+        ProviderScope(
+          child: MaterialApp(
+            home: AppBootstrapEffects(
+              anlasWatcher: inert,
+              kritaBridge: inert,
+              cooccurrenceDataPack: inert,
+              cloudSyncLifecycle: () async {
+                calls++;
+              },
+              child: const SizedBox.shrink(),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+      expect(calls, 1);
+
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+      await tester.pump();
+      expect(calls, 2);
+    });
+
+    testWidgets('云备份连接恢复未完成时跳过重复 resumed', (tester) async {
+      final release = Completer<void>();
+      var calls = 0;
+      final inert = StateProvider<int>((ref) => 0);
+      await tester.pumpWidget(
+        ProviderScope(
+          child: MaterialApp(
+            home: AppBootstrapEffects(
+              anlasWatcher: inert,
+              kritaBridge: inert,
+              cooccurrenceDataPack: inert,
+              cloudSyncLifecycle: () async {
+                calls++;
+                await release.future;
+              },
+              child: const SizedBox.shrink(),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+      expect(calls, 1);
+
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+      await tester.pump();
+      expect(calls, 1);
+      release.complete();
+      await tester.pump();
     });
 
     testWidgets('本地画廊搜索框 Ctrl+A 应选择文本而不是进入多选', (tester) async {
@@ -257,9 +311,7 @@ void main() {
           child: const MaterialApp(
             localizationsDelegates: AppLocalizations.localizationsDelegates,
             supportedLocales: AppLocalizations.supportedLocales,
-            home: Scaffold(
-              body: TagLibraryToolbar(),
-            ),
+            home: Scaffold(body: TagLibraryToolbar()),
           ),
         ),
       );
@@ -357,9 +409,7 @@ void main() {
             locale: const Locale('zh'),
             home: Scaffold(
               body: VibeExportDialog(
-                entries: [
-                  _buildVibeEntry(id: 'single', displayName: 'Single'),
-                ],
+                entries: [_buildVibeEntry(id: 'single', displayName: 'Single')],
                 categories: const [],
               ),
             ),
@@ -445,6 +495,42 @@ void main() {
       );
     });
 
+    test('treats spaces as tag separators in fuzzy searches', () {
+      expect(
+        buildOnlineGallerySearchQuery('foot_focus lo', fuzzyMatch: true),
+        '*foot_focus* *lo*',
+      );
+    });
+
+    testWidgets('updates autocomplete for a space separated second tag', (
+      tester,
+    ) async {
+      await _pumpOnlineGalleryScreen(tester);
+      await tester.pump();
+
+      final searchField = find.byWidgetPredicate(
+        (widget) =>
+            widget is TextField &&
+            widget.decoration?.hintText == 'Search tags...',
+      );
+
+      await tester.tap(searchField);
+      await tester.enterText(searchField, 'foot_focus');
+      await tester.pump(const Duration(milliseconds: 80));
+      expect(
+        find.byKey(const ValueKey('autocomplete-candidate-foot_focus')),
+        findsOneWidget,
+      );
+
+      await tester.enterText(searchField, 'foot_focus lo');
+      await tester.pump(const Duration(milliseconds: 80));
+
+      expect(
+        find.byKey(const ValueKey('autocomplete-candidate-long_hair')),
+        findsOneWidget,
+      );
+    });
+
     testWidgets('shows a fuzzy matching toggle in the search toolbar', (
       tester,
     ) async {
@@ -502,160 +588,20 @@ void main() {
       expect(apply('2::{rai}::', 10).$1, '2::{raiden_shogun}::, ');
     });
 
-    testWidgets('hides suggestions immediately after selecting an item', (
-      tester,
-    ) async {
-      final controller = TextEditingController();
-      final focusNode = FocusNode();
-      final strategy = _FakeAutocompleteStrategy();
-      addTearDown(controller.dispose);
-      addTearDown(focusNode.dispose);
-      addTearDown(strategy.dispose);
-
-      await tester.pumpWidget(
-        ProviderScope(
-          child: MaterialApp(
-            localizationsDelegates: AppLocalizations.localizationsDelegates,
-            supportedLocales: AppLocalizations.supportedLocales,
-            home: Scaffold(
-              body: AutocompleteWrapper(
-                controller: controller,
-                focusNode: focusNode,
-                strategy: strategy,
-                child: TextField(
-                  controller: controller,
-                  focusNode: focusNode,
-                ),
-              ),
-            ),
-          ),
-        ),
-      );
-
-      await tester.tap(find.byType(TextField));
-      await tester.enterText(find.byType(TextField), 'kan');
-      await tester.pump(const Duration(milliseconds: 80));
-      await tester.pump();
-
-      expect(find.byType(GenericSuggestionTile), findsOneWidget);
-
-      await tester.tap(find.text('kanzarin', findRichText: true));
-      await tester.pump();
-
-      expect(controller.text, 'kanzarin');
-      expect(find.byType(GenericSuggestionTile), findsNothing);
-
-      await tester.pump(const Duration(milliseconds: 350));
-      expect(find.byType(GenericSuggestionTile), findsNothing);
-    });
-
-    Future<void> pumpAutocompleteWrapper(
-      WidgetTester tester,
-      TextEditingController controller,
-      FocusNode focusNode,
-      AutocompleteStrategy strategy,
-    ) async {
-      await tester.pumpWidget(
-        ProviderScope(
-          child: MaterialApp(
-            localizationsDelegates: AppLocalizations.localizationsDelegates,
-            supportedLocales: AppLocalizations.supportedLocales,
-            home: Scaffold(
-              body: AutocompleteWrapper(
-                controller: controller,
-                focusNode: focusNode,
-                strategy: strategy,
-                child: TextField(
-                  controller: controller,
-                  focusNode: focusNode,
-                ),
-              ),
-            ),
-          ),
-        ),
-      );
-    }
-
-    Future<void> selectWrappedTag(
-      WidgetTester tester,
-      TextEditingController controller,
-      String text, {
-      int? cursorOffset,
-    }) async {
-      await tester.tap(find.byType(TextField));
-      await tester.enterText(find.byType(TextField), text);
-      controller.selection = TextSelection.collapsed(
-        offset: cursorOffset ?? text.length,
-      );
-      await tester.pump(const Duration(milliseconds: 80));
-      await tester.pump();
-
-      expect(find.byType(GenericSuggestionTile), findsOneWidget);
-
-      await tester.tap(find.text('raiden shogun', findRichText: true));
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 350));
-    }
-
-    testWidgets('keeps prompt syntax wrappers after selecting a local tag', (
-      tester,
-    ) async {
-      final controller = TextEditingController();
-      final focusNode = FocusNode();
-      final strategy = _FakeLocalTagAutocompleteStrategy();
-      addTearDown(controller.dispose);
-      addTearDown(focusNode.dispose);
-      addTearDown(strategy.dispose);
-
-      await pumpAutocompleteWrapper(tester, controller, focusNode, strategy);
-      await selectWrappedTag(tester, controller, '{rai}');
-      expect(controller.text, '{raiden_shogun}, ');
-      expect(find.byType(GenericSuggestionTile), findsNothing);
-
-      await selectWrappedTag(tester, controller, '[rai]');
-      expect(controller.text, '[raiden_shogun], ');
-      expect(find.byType(GenericSuggestionTile), findsNothing);
-
-      await selectWrappedTag(tester, controller, '(rai)');
-      expect(controller.text, '(raiden_shogun), ');
-      expect(find.byType(GenericSuggestionTile), findsNothing);
-
-      await selectWrappedTag(tester, controller, '{{rai}}');
-      expect(controller.text, '{{raiden_shogun}}, ');
-      expect(find.byType(GenericSuggestionTile), findsNothing);
-
-      await selectWrappedTag(tester, controller, '2::{rai}::');
-      expect(controller.text, '2::{raiden_shogun}::, ');
-      expect(find.byType(GenericSuggestionTile), findsNothing);
-    });
-
     testWidgets('keeps wrappers through the unified prompt input stack', (
       tester,
     ) async {
       final controller = TextEditingController();
       final focusNode = FocusNode();
-      final service = _MockDanbooruTagsLazyService();
       addTearDown(controller.dispose);
       addTearDown(focusNode.dispose);
-
-      when(
-        () => service.searchTags(
-          any(),
-          category: any(named: 'category'),
-          limit: any(named: 'limit'),
-        ),
-      ).thenAnswer(
-        (_) async => const [
-          LocalTag(tag: 'raiden_shogun', category: 4, count: 1000),
-        ],
-      );
 
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
-            danbooruTagsLazyServiceProvider.overrideWith((ref) async {
-              return service;
-            }),
+            autocompleteLocalSourcesProvider.overrideWithValue(const [
+              _FakeCompletionSource(),
+            ]),
           ],
           child: MaterialApp(
             localizationsDelegates: AppLocalizations.localizationsDelegates,
@@ -688,14 +634,17 @@ void main() {
       await tester.pump(const Duration(milliseconds: 250));
       await tester.pump();
 
-      expect(find.byType(GenericSuggestionTile), findsOneWidget);
+      final candidate = find.byKey(
+        const ValueKey('autocomplete-candidate-raiden_shogun'),
+      );
+      expect(candidate, findsOneWidget);
 
-      await tester.tap(find.text('raiden shogun', findRichText: true));
+      await tester.tap(candidate);
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 350));
 
       expect(controller.text, '{raiden_shogun}, ');
-      expect(find.byType(GenericSuggestionTile), findsNothing);
+      expect(candidate, findsNothing);
     });
   });
 
@@ -735,10 +684,10 @@ void main() {
     test('keeps a split Explorer select fallback for paths with spaces', () {
       const filePath = r'C:\Users\alice\NAI Launcher\history image.png';
 
-      expect(
-        FileExplorerUtils.windowsRevealFileArguments(filePath),
-        ['/select,', filePath],
-      );
+      expect(FileExplorerUtils.windowsRevealFileArguments(filePath), [
+        '/select,',
+        filePath,
+      ]);
     });
 
     test('normalizes extended-length drive paths for Windows Explorer', () {
@@ -803,9 +752,62 @@ void main() {
   });
 
   group('ComfyUI upscale workflows', () {
-    test('SeedVR2 workflow avoids optional helper nodes', () {
+    test('native SeedVR2 workflow uses the ComfyUI core node graph', () {
       final workflow = BuiltinWorkflows.all.firstWhere(
-        (workflow) => workflow.id == comfySeedvr2UpscaleTemplateId,
+        (workflow) => workflow.id == comfySeedvr2NativeUpscaleTemplateId,
+      );
+      final nodeTypes = extractWorkflowNodeTypes(workflow.workflowJson);
+
+      expect(
+        nodeTypes,
+        containsAll([
+          'SeedVR2Preprocess',
+          'SeedVR2Conditioning',
+          'SeedVR2PostProcessing',
+          'KSampler',
+        ]),
+      );
+      expect(nodeTypes, isNot(contains('SeedVR2VideoUpscaler')));
+      expect(nodeTypes, isNot(contains('SeedVR2LoadDiTModel')));
+      expect(nodeTypes, isNot(contains('SeedVR2LoadVAEModel')));
+      expect(workflow.workflowJson['9']['inputs']['steps'], 1);
+      expect(workflow.workflowJson['9']['inputs']['cfg'], 1.0);
+      expect(workflow.workflowJson['9']['inputs']['sampler_name'], 'euler');
+      expect(workflow.workflowJson['9']['inputs']['scheduler'], 'simple');
+    });
+
+    test('injects native SeedVR2 model, VAE, scale, tiles, and seed', () {
+      final manager = WorkflowTemplateManager();
+      final workflow = BuiltinWorkflows.all.firstWhere(
+        (workflow) => workflow.id == comfySeedvr2NativeUpscaleTemplateId,
+      );
+
+      final executable = manager.buildExecutableWorkflow(
+        template: workflow,
+        paramValues: const {
+          'scale': 1.75,
+          'dit_model': 'seedvr2_7b_sharp_int8_convrot.safetensors',
+          'vae_model': 'ema_vae_fp16.safetensors',
+          'vae_encode_tile_size': 768,
+          'vae_decode_tile_size': 768,
+          'seed': 1234,
+        },
+      );
+
+      expect(executable['3']['inputs']['scale_by'], 1.75);
+      expect(
+        executable['7']['inputs']['unet_name'],
+        'seedvr2_7b_sharp_int8_convrot.safetensors',
+      );
+      expect(executable['5']['inputs']['vae_name'], 'ema_vae_fp16.safetensors');
+      expect(executable['6']['inputs']['tile_size'], 768);
+      expect(executable['10']['inputs']['tile_size'], 768);
+      expect(executable['9']['inputs']['seed'], 1234);
+    });
+
+    test('legacy SeedVR2 workflow avoids optional helper nodes', () {
+      final workflow = BuiltinWorkflows.all.firstWhere(
+        (workflow) => workflow.id == comfySeedvr2LegacyUpscaleTemplateId,
       );
       final nodeTypes = extractWorkflowNodeTypes(workflow.workflowJson);
 
@@ -820,8 +822,10 @@ void main() {
     });
 
     test('injects SeedVR2 target resolution into the upscaler node', () {
-      final manager = WorkflowTemplateManager()..loadBuiltinTemplates();
-      final workflow = manager.getById(comfySeedvr2UpscaleTemplateId)!;
+      final manager = WorkflowTemplateManager();
+      final workflow = BuiltinWorkflows.all.firstWhere(
+        (workflow) => workflow.id == comfySeedvr2LegacyUpscaleTemplateId,
+      );
 
       final executable = manager.buildExecutableWorkflow(
         template: workflow,
@@ -832,8 +836,10 @@ void main() {
     });
 
     test('injects SeedVR2 VAE tile size into encode and decode fields', () {
-      final manager = WorkflowTemplateManager()..loadBuiltinTemplates();
-      final workflow = manager.getById(comfySeedvr2UpscaleTemplateId)!;
+      final manager = WorkflowTemplateManager();
+      final workflow = BuiltinWorkflows.all.firstWhere(
+        (workflow) => workflow.id == comfySeedvr2LegacyUpscaleTemplateId,
+      );
 
       final executable = manager.buildExecutableWorkflow(
         template: workflow,
@@ -847,9 +853,42 @@ void main() {
       expect(executable['7']['inputs']['decode_tile_size'], 768);
     });
 
+    test('injects SeedVR2 block swap settings into the DiT loader node', () {
+      final manager = WorkflowTemplateManager();
+      final workflow = BuiltinWorkflows.all.firstWhere(
+        (workflow) => workflow.id == comfySeedvr2LegacyUpscaleTemplateId,
+      );
+
+      final executable = manager.buildExecutableWorkflow(
+        template: workflow,
+        paramValues: const {'blocks_to_swap': 28, 'swap_io_components': true},
+      );
+
+      expect(executable['6']['inputs']['blocks_to_swap'], 28);
+      expect(executable['6']['inputs']['swap_io_components'], isTrue);
+      // sageattn / flash_attn 需要额外安装，发行默认值必须是 PyTorch 内置后端。
+      expect(executable['6']['inputs']['attention_mode'], 'sdpa');
+    });
+
+    test('injects SeedVR2 block swap settings into the tiled workflow', () {
+      final manager = WorkflowTemplateManager();
+      final workflow = BuiltinWorkflows.all.firstWhere(
+        (workflow) => workflow.id == comfySeedvr2LegacyTiledUpscaleTemplateId,
+      );
+
+      final executable = manager.buildExecutableWorkflow(
+        template: workflow,
+        paramValues: const {'blocks_to_swap': 0, 'swap_io_components': false},
+      );
+
+      expect(executable['6']['inputs']['blocks_to_swap'], 0);
+      expect(executable['6']['inputs']['swap_io_components'], isFalse);
+    });
+
     test('includes RTX upscale workflow using Nvidia RTX nodes', () {
-      final manager = WorkflowTemplateManager()..loadBuiltinTemplates();
-      final workflow = manager.getById('builtin_rtx_upscale')!;
+      final workflow = BuiltinWorkflows.all.firstWhere(
+        (workflow) => workflow.id == 'builtin_rtx_upscale',
+      );
       final nodeTypes = extractWorkflowNodeTypes(workflow.workflowJson);
 
       expect(nodeTypes, contains('RTXVideoSuperResolution'));
@@ -861,44 +900,69 @@ void main() {
     });
 
     test('includes SeedVR2 tiled workflow with tile size controls', () {
-      final manager = WorkflowTemplateManager()..loadBuiltinTemplates();
-      final workflow = manager.getById('builtin_seedvr2_tiled_upscale')!;
+      final manager = WorkflowTemplateManager();
+      final workflow = BuiltinWorkflows.all.firstWhere(
+        (workflow) => workflow.id == 'builtin_seedvr2_tiled_upscale',
+      );
 
       final executable = manager.buildExecutableWorkflow(
         template: workflow,
-        paramValues: const {
-          'tile_size': 1280,
-          'tile_upscale_resolution': 1536,
-        },
+        paramValues: const {'tile_size': 1280, 'tile_upscale_resolution': 1536},
       );
 
       expect(executable['8']['class_type'], 'SeedVR2TilingUpscaler');
       expect(executable['8']['inputs']['tile_width'], 1280);
       expect(executable['8']['inputs']['tile_height'], 1280);
       expect(executable['8']['inputs']['tile_upscale_resolution'], 1536);
+      expect(executable['8']['inputs']['resolution_target'], 'longest');
+      expect(executable['8']['inputs']['tile_batch_size'], 1);
     });
 
     test('detects missing ComfyUI node types before queueing workflow', () {
       final missing = findMissingWorkflowNodeTypes(
         workflow: {
-          '1': {
-            'class_type': 'LoadImage',
-            'inputs': <String, dynamic>{},
-          },
-          '18': {
-            'class_type': 'Float',
-            'inputs': <String, dynamic>{},
-          },
+          '1': {'class_type': 'LoadImage', 'inputs': <String, dynamic>{}},
+          '18': {'class_type': 'Float', 'inputs': <String, dynamic>{}},
         },
-        objectInfo: {
-          'LoadImage': <String, dynamic>{},
-        },
+        objectInfo: {'LoadImage': <String, dynamic>{}},
       );
 
       expect(missing, ['Float']);
+      expect(formatMissingWorkflowNodeTypesMessage(missing), contains('Float'));
+    });
+
+    test('detects required inputs added by updated ComfyUI nodes', () {
+      final missing = findMissingWorkflowRequiredInputs(
+        workflow: {
+          '8': {
+            'class_type': 'SeedVR2TilingUpscaler',
+            'inputs': {
+              'image': ['15', 0],
+            },
+          },
+        },
+        objectInfo: {
+          'SeedVR2TilingUpscaler': {
+            'input': {
+              'required': {
+                'image': ['IMAGE'],
+                'tile_batch_size': ['INT'],
+              },
+            },
+          },
+        },
+      );
+
+      expect(missing, [
+        (
+          nodeId: '8',
+          nodeType: 'SeedVR2TilingUpscaler',
+          inputName: 'tile_batch_size',
+        ),
+      ]);
       expect(
-        formatMissingWorkflowNodeTypesMessage(missing),
-        contains('Float'),
+        formatMissingWorkflowRequiredInputsMessage(missing),
+        contains('tile_batch_size'),
       );
     });
 
@@ -947,23 +1011,25 @@ void main() {
       );
     });
 
-    test('includes regular model upscale workflow with Lanczos final resize',
-        () {
-      final workflow = BuiltinWorkflows.all.firstWhere(
-        (workflow) => workflow.id == comfyModelUpscaleTemplateId,
-      );
+    test(
+      'includes regular model upscale workflow with Lanczos final resize',
+      () {
+        final workflow = BuiltinWorkflows.all.firstWhere(
+          (workflow) => workflow.id == comfyModelUpscaleTemplateId,
+        );
 
-      expect(workflow.workflowJson['2']['class_type'], 'UpscaleModelLoader');
-      expect(
-        workflow.workflowJson['3']['class_type'],
-        'ImageUpscaleWithModel',
-      );
-      expect(workflow.workflowJson['4']['class_type'], 'ImageScale');
-      expect(
-        workflow.workflowJson['4']['inputs']['upscale_method'],
-        'lanczos',
-      );
-    });
+        expect(workflow.workflowJson['2']['class_type'], 'UpscaleModelLoader');
+        expect(
+          workflow.workflowJson['3']['class_type'],
+          'ImageUpscaleWithModel',
+        );
+        expect(workflow.workflowJson['4']['class_type'], 'ImageScale');
+        expect(
+          workflow.workflowJson['4']['inputs']['upscale_method'],
+          'lanczos',
+        );
+      },
+    );
 
     test('classifies SeedVR2 and regular ComfyUI upscale models', () {
       expect(
@@ -1005,17 +1071,28 @@ void main() {
       }
     });
 
-    test('keeps separate model choices across local upscale modules', () async {
-      const seedvr2Model = 'seedvr2_ema_7b_fp16.safetensors';
+    test('keeps separate model choices across local upscale engines', () async {
+      const nativeSeedvr2Model = 'seedvr2_7b_sharp_int8_convrot.safetensors';
+      const legacySeedvr2Model = 'seedvr2_ema_7b_fp16.safetensors';
       const regularModel = '4x-UltraSharpV2.pth';
       final firstContainer = ProviderContainer();
 
       try {
-        final controller =
-            firstContainer.read(imageWorkflowControllerProvider.notifier);
+        final controller = firstContainer.read(
+          imageWorkflowControllerProvider.notifier,
+        );
 
         controller.updateComfyUpscaleModule(ComfyUpscaleModule.seedvr2);
-        controller.updateUpscaleComfyModel(seedvr2Model);
+        controller.updateSeedvr2Engine(ComfySeedvr2Engine.native);
+        controller.updateUpscaleComfyModel(
+          nativeSeedvr2Model,
+          seedvr2Backend: ComfySeedvr2Backend.native,
+        );
+        controller.updateSeedvr2Engine(ComfySeedvr2Engine.legacy);
+        controller.updateUpscaleComfyModel(
+          legacySeedvr2Model,
+          seedvr2Backend: ComfySeedvr2Backend.legacy,
+        );
         controller.updateComfyUpscaleModule(ComfyUpscaleModule.regular);
         controller.updateUpscaleComfyModel(regularModel);
         controller.updateComfyUpscaleModule(ComfyUpscaleModule.rtx);
@@ -1026,7 +1103,7 @@ void main() {
               .read(imageWorkflowControllerProvider)
               .upscale
               .comfyModel,
-          seedvr2Model,
+          legacySeedvr2Model,
         );
 
         controller.updateComfyUpscaleModule(ComfyUpscaleModule.regular);
@@ -1052,7 +1129,9 @@ void main() {
         expect(workflow.upscale.comfyModule, ComfyUpscaleModule.regular);
         expect(workflow.upscale.comfyModel, regularModel);
         expect(workflow.upscale.comfyRegularModel, regularModel);
-        expect(workflow.upscale.comfySeedvr2Model, seedvr2Model);
+        expect(workflow.upscale.comfySeedvr2NativeModel, nativeSeedvr2Model);
+        expect(workflow.upscale.comfySeedvr2LegacyModel, legacySeedvr2Model);
+        expect(workflow.upscale.seedvr2Engine, ComfySeedvr2Engine.legacy);
 
         secondContainer
             .read(imageWorkflowControllerProvider.notifier)
@@ -1063,10 +1142,63 @@ void main() {
               .read(imageWorkflowControllerProvider)
               .upscale
               .comfyModel,
-          seedvr2Model,
+          legacySeedvr2Model,
+        );
+
+        secondContainer
+            .read(imageWorkflowControllerProvider.notifier)
+            .updateSeedvr2Engine(ComfySeedvr2Engine.native);
+
+        expect(
+          secondContainer
+              .read(imageWorkflowControllerProvider)
+              .upscale
+              .comfyModel,
+          nativeSeedvr2Model,
         );
       } finally {
         secondContainer.dispose();
+      }
+    });
+
+    test('migrates the previous custom-node SeedVR2 model selection', () async {
+      const legacyModel = 'seedvr2_ema_7b_fp16.safetensors';
+      await Hive.box(
+        StorageKeys.settingsBox,
+      ).put(StorageKeys.comfyuiUpscaleSeedvr2Model, legacyModel);
+
+      final container = ProviderContainer();
+      try {
+        final upscale = container.read(imageWorkflowControllerProvider).upscale;
+
+        expect(upscale.seedvr2Engine, ComfySeedvr2Engine.automatic);
+        expect(upscale.comfySeedvr2LegacyModel, legacyModel);
+        expect(
+          upscale.comfySeedvr2NativeModel,
+          UpscaleWorkflowSettings.defaultComfyModel,
+        );
+      } finally {
+        container.dispose();
+      }
+    });
+
+    test('migrates a previous native-style SeedVR2 model selection', () async {
+      const nativeModel = 'seedvr2_7b_fp8_e4m3fn.safetensors';
+      await Hive.box(
+        StorageKeys.settingsBox,
+      ).put(StorageKeys.comfyuiUpscaleSeedvr2Model, nativeModel);
+
+      final container = ProviderContainer();
+      try {
+        final upscale = container.read(imageWorkflowControllerProvider).upscale;
+
+        expect(upscale.comfySeedvr2NativeModel, nativeModel);
+        expect(
+          upscale.comfySeedvr2LegacyModel,
+          UpscaleWorkflowSettings.defaultLegacyComfyModel,
+        );
+      } finally {
+        container.dispose();
       }
     });
   });
@@ -1174,6 +1306,8 @@ void main() {
         preventOverwrite: true,
         warnHighAnlasCost: true,
         highAnlasCostThreshold: 50,
+        limitGenerationInterval: true,
+        generationIntervalSeconds: 15,
       );
 
       expect(disabled.effectiveStripMetadataForCopyAndDrag, isFalse);
@@ -1181,6 +1315,7 @@ void main() {
       expect(disabled.effectiveWarnExternalImageSend, isFalse);
       expect(disabled.effectivePreventOverwrite, isFalse);
       expect(disabled.effectiveWarnHighAnlasCost, isFalse);
+      expect(disabled.effectiveGenerationIntervalSeconds, 0);
 
       final enabled = disabled.copyWith(protectionMode: true);
       expect(enabled.effectiveStripMetadataForCopyAndDrag, isTrue);
@@ -1188,6 +1323,7 @@ void main() {
       expect(enabled.effectiveWarnExternalImageSend, isTrue);
       expect(enabled.effectivePreventOverwrite, isTrue);
       expect(enabled.effectiveWarnHighAnlasCost, isTrue);
+      expect(enabled.effectiveGenerationIntervalSeconds, 15);
     });
 
     test('allows each protection feature to be disabled independently', () {
@@ -1199,6 +1335,8 @@ void main() {
         preventOverwrite: false,
         warnHighAnlasCost: false,
         highAnlasCostThreshold: 50,
+        limitGenerationInterval: false,
+        generationIntervalSeconds: 15,
       );
 
       expect(settings.effectiveStripMetadataForCopyAndDrag, isFalse);
@@ -1206,6 +1344,7 @@ void main() {
       expect(settings.effectiveWarnExternalImageSend, isFalse);
       expect(settings.effectivePreventOverwrite, isFalse);
       expect(settings.effectiveWarnHighAnlasCost, isFalse);
+      expect(settings.effectiveGenerationIntervalSeconds, 0);
     });
   });
 
@@ -1217,6 +1356,9 @@ void main() {
       expect(defaults.models, isEmpty);
 
       for (final taskType in AssistantTaskType.values) {
+        if (taskType == AssistantTaskType.chat) {
+          continue;
+        }
         expect(
           defaults.rules.any(
             (rule) => rule.taskType == taskType && rule.isDefault,
@@ -1289,8 +1431,7 @@ void main() {
           characterReplaceProviderId: 'pollinations',
           characterReplaceModel: 'openai-large',
         ).toJson(),
-        'rules': PromptAssistantConfigState.defaults()
-            .rules
+        'rules': PromptAssistantConfigState.defaults().rules
             .map((rule) => rule.toJson())
             .toList(),
       };
@@ -1310,49 +1451,51 @@ void main() {
     test(
       'hydrates reverse and character replacement routing from old config',
       () {
-        final oldConfig = PromptAssistantConfigState.defaults().copyWith(
-          providers: const [
-            ProviderConfig(
-              id: 'openai_custom',
-              name: 'OpenAI Compatible',
-              type: ProviderType.openaiCompatible,
-              baseUrl: 'https://example.invalid/v1',
-              enabled: true,
-            ),
-          ],
-          models: const [
-            ModelConfig(
-              providerId: 'openai_custom',
-              name: 'model-a',
-              displayName: 'model-a',
-              forTask: AssistantTaskType.llm,
-            ),
-            ModelConfig(
-              providerId: 'openai_custom',
-              name: 'model-a',
-              displayName: 'model-a',
-              forTask: AssistantTaskType.translate,
-            ),
-          ],
-          rules: PromptAssistantConfigState.defaults()
-              .rules
-              .where(
-                (rule) =>
-                    rule.taskType == AssistantTaskType.llm ||
-                    rule.taskType == AssistantTaskType.translate,
-              )
-              .toList(),
-        ).toJson()
-          ..['routing'] = const TaskRoutingConfig(
-            llmProviderId: 'openai_custom',
-            llmModel: 'model-a',
-            translateProviderId: 'openai_custom',
-            translateModel: 'model-a',
-            reverseProviderId: '',
-            reverseModel: '',
-            characterReplaceProviderId: '',
-            characterReplaceModel: '',
-          ).toJson();
+        final oldConfig =
+            PromptAssistantConfigState.defaults()
+                .copyWith(
+                  providers: const [
+                    ProviderConfig(
+                      id: 'openai_custom',
+                      name: 'OpenAI Compatible',
+                      type: ProviderType.openaiCompatible,
+                      baseUrl: 'https://example.invalid/v1',
+                      enabled: true,
+                    ),
+                  ],
+                  models: const [
+                    ModelConfig(
+                      providerId: 'openai_custom',
+                      name: 'model-a',
+                      displayName: 'model-a',
+                      forTask: AssistantTaskType.llm,
+                    ),
+                    ModelConfig(
+                      providerId: 'openai_custom',
+                      name: 'model-a',
+                      displayName: 'model-a',
+                      forTask: AssistantTaskType.translate,
+                    ),
+                  ],
+                  rules: PromptAssistantConfigState.defaults().rules
+                      .where(
+                        (rule) =>
+                            rule.taskType == AssistantTaskType.llm ||
+                            rule.taskType == AssistantTaskType.translate,
+                      )
+                      .toList(),
+                )
+                .toJson()
+              ..['routing'] = const TaskRoutingConfig(
+                llmProviderId: 'openai_custom',
+                llmModel: 'model-a',
+                translateProviderId: 'openai_custom',
+                translateModel: 'model-a',
+                reverseProviderId: '',
+                reverseModel: '',
+                characterReplaceProviderId: '',
+                characterReplaceModel: '',
+              ).toJson();
 
         final decoded = PromptAssistantConfigState.decode(
           PromptAssistantConfigState(
@@ -1420,55 +1563,57 @@ void main() {
       final defaults = PromptAssistantConfigState.defaults();
 
       final decoded = PromptAssistantConfigState.decode(
-        defaults.copyWith(
-          providers: const [
-            ProviderConfig(
-              id: providerId,
-              name: 'OpenAI Compatible',
-              type: ProviderType.openaiCompatible,
-              baseUrl: 'https://example.invalid/v1',
-              enabled: true,
-            ),
-          ],
-          models: const [
-            ModelConfig(
-              providerId: providerId,
-              name: modelName,
-              displayName: modelName,
-              forTask: AssistantTaskType.llm,
-            ),
-            ModelConfig(
-              providerId: providerId,
-              name: modelName,
-              displayName: modelName,
-              forTask: AssistantTaskType.translate,
-            ),
-            ModelConfig(
-              providerId: providerId,
-              name: 'default-model',
-              displayName: 'default-model',
-              forTask: AssistantTaskType.reverse,
-              isDefault: true,
-            ),
-            ModelConfig(
-              providerId: providerId,
-              name: 'default-model',
-              displayName: 'default-model',
-              forTask: AssistantTaskType.characterReplace,
-              isDefault: true,
-            ),
-          ],
-          routing: const TaskRoutingConfig(
-            llmProviderId: providerId,
-            llmModel: modelName,
-            translateProviderId: providerId,
-            translateModel: modelName,
-            reverseProviderId: providerId,
-            reverseModel: 'default-model',
-            characterReplaceProviderId: providerId,
-            characterReplaceModel: 'default-model',
-          ),
-        ).encode(),
+        defaults
+            .copyWith(
+              providers: const [
+                ProviderConfig(
+                  id: providerId,
+                  name: 'OpenAI Compatible',
+                  type: ProviderType.openaiCompatible,
+                  baseUrl: 'https://example.invalid/v1',
+                  enabled: true,
+                ),
+              ],
+              models: const [
+                ModelConfig(
+                  providerId: providerId,
+                  name: modelName,
+                  displayName: modelName,
+                  forTask: AssistantTaskType.llm,
+                ),
+                ModelConfig(
+                  providerId: providerId,
+                  name: modelName,
+                  displayName: modelName,
+                  forTask: AssistantTaskType.translate,
+                ),
+                ModelConfig(
+                  providerId: providerId,
+                  name: 'default-model',
+                  displayName: 'default-model',
+                  forTask: AssistantTaskType.reverse,
+                  isDefault: true,
+                ),
+                ModelConfig(
+                  providerId: providerId,
+                  name: 'default-model',
+                  displayName: 'default-model',
+                  forTask: AssistantTaskType.characterReplace,
+                  isDefault: true,
+                ),
+              ],
+              routing: const TaskRoutingConfig(
+                llmProviderId: providerId,
+                llmModel: modelName,
+                translateProviderId: providerId,
+                translateModel: modelName,
+                reverseProviderId: providerId,
+                reverseModel: 'default-model',
+                characterReplaceProviderId: providerId,
+                characterReplaceModel: 'default-model',
+              ),
+            )
+            .encode(),
       );
 
       for (final taskType in [
@@ -1484,32 +1629,143 @@ void main() {
         expect(decoded.routing.modelFor(taskType), modelName);
       }
     });
+
+    test('migrates legacy model sources without deleting default models', () {
+      final pulledModel = ModelConfig.fromJson({
+        'providerId': 'openai_custom',
+        'name': 'old-api-model',
+        'displayName': 'old-api-model',
+        'forTask': AssistantTaskType.llm.name,
+        'isDefault': false,
+      });
+      final defaultModel = ModelConfig.fromJson({
+        'providerId': 'openai_custom',
+        'name': 'default-model',
+        'displayName': 'default-model',
+        'forTask': AssistantTaskType.llm.name,
+        'isDefault': true,
+      });
+
+      expect(pulledModel.source, ModelSource.api);
+      expect(defaultModel.source, ModelSource.manual);
+    });
+
+    test('refresh replaces stale API models and keeps manual models', () async {
+      final localStorage = _MockLocalStorageService();
+      when(
+        () => localStorage.getSetting<String>(
+          StorageKeys.promptAssistantConfigJson,
+        ),
+      ).thenReturn(null);
+      when(
+        () => localStorage.setSetting<String>(
+          StorageKeys.promptAssistantConfigJson,
+          any(),
+        ),
+      ).thenAnswer((_) async {});
+
+      final container = ProviderContainer(
+        overrides: [
+          localStorageServiceProvider.overrideWithValue(localStorage),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      final notifier = container.read(promptAssistantConfigProvider.notifier);
+      const providerId = 'openai_custom';
+      await notifier.upsertProvider(
+        const ProviderConfig(
+          id: providerId,
+          name: 'OpenAI Compatible',
+          type: ProviderType.openaiCompatible,
+          baseUrl: 'https://example.invalid/v1',
+          enabled: true,
+        ),
+      );
+      await notifier.upsertModel(
+        const ModelConfig(
+          providerId: providerId,
+          name: 'old-api-model',
+          displayName: 'old-api-model',
+          forTask: AssistantTaskType.llm,
+          source: ModelSource.api,
+        ),
+      );
+      await notifier.upsertModel(
+        const ModelConfig(
+          providerId: providerId,
+          name: 'manual-model',
+          displayName: 'manual-model',
+          forTask: AssistantTaskType.llm,
+        ),
+      );
+      await notifier.setRouting(
+        container
+            .read(promptAssistantConfigProvider)
+            .routing
+            .copyWithTask(
+              taskType: AssistantTaskType.llm,
+              providerId: providerId,
+              model: 'old-api-model',
+            ),
+      );
+
+      final removed = await notifier.syncProviderModels(providerId, const [
+        'new-api-model',
+      ]);
+      final state = container.read(promptAssistantConfigProvider);
+
+      expect(removed, ['old-api-model']);
+      expect(
+        state.models.any((model) => model.name == 'old-api-model'),
+        isFalse,
+      );
+      expect(state.models.any((model) => model.name == 'manual-model'), isTrue);
+      for (final taskType in AssistantTaskType.values) {
+        expect(
+          state.models.any(
+            (model) =>
+                model.providerId == providerId &&
+                model.forTask == taskType &&
+                model.name == 'new-api-model' &&
+                model.source == ModelSource.api,
+          ),
+          isTrue,
+        );
+      }
+      expect(state.routing.modelFor(AssistantTaskType.llm), 'new-api-model');
+    });
   });
 
   group('Prompt assistant API client', () {
-    test('character replacement payload keeps source prompt as primary input',
-        () {
-      final payload =
-          PromptAssistantService.buildCharacterReplacementUserContent(
-        sourcePrompt: '1girl, sitting, classroom, looking at viewer',
-        characterName: 'target',
-        characterPrompt: 'target girl, silver hair, blue dress',
-      );
+    test(
+      'character replacement payload keeps source prompt as primary input',
+      () {
+        final payload =
+            PromptAssistantService.buildCharacterReplacementUserContent(
+              sourcePrompt: '1girl, sitting, classroom, looking at viewer',
+              characterName: 'target',
+              characterPrompt: 'target girl, silver hair, blue dress',
+            );
 
-      expect(payload, contains('Source prompt to replace'));
-      expect(payload, contains('1girl, sitting, classroom, looking at viewer'));
-      expect(payload, isNot(contains('源语境标签')));
-      expect(payload, contains('Target character prompt'));
-      expect(payload, contains('target girl, silver hair, blue dress'));
-      expect(
-        payload.indexOf('1girl, sitting, classroom'),
-        lessThan(payload.indexOf('target girl, silver hair')),
-      );
-      expect(
-        PromptAssistantService.characterReplacementInstruction,
-        contains('Do not output analysis'),
-      );
-    });
+        expect(payload, contains('Source prompt to replace'));
+        expect(
+          payload,
+          contains('1girl, sitting, classroom, looking at viewer'),
+        );
+        expect(payload, isNot(contains('源语境标签')));
+        expect(payload, contains('Target character prompt'));
+        expect(payload, contains('target girl, silver hair, blue dress'));
+        expect(
+          payload.indexOf('1girl, sitting, classroom'),
+          lessThan(payload.indexOf('target girl, silver hair')),
+        );
+        expect(
+          PromptAssistantService.characterReplacementInstruction,
+          contains('Do not output analysis'),
+        );
+      },
+    );
 
     test('sends chat requests as non-streaming JSON', () async {
       final dio = _MockDio();
@@ -1523,8 +1779,9 @@ void main() {
           cancelToken: any(named: 'cancelToken'),
         ),
       ).thenAnswer((invocation) async {
-        final payload =
-            Map<String, dynamic>.from(invocation.namedArguments[#data] as Map);
+        final payload = Map<String, dynamic>.from(
+          invocation.namedArguments[#data] as Map,
+        );
         final options = invocation.namedArguments[#options] as Options;
         expect(payload['stream'], isFalse);
         expect(payload.containsKey('temperature'), isFalse);
@@ -1545,19 +1802,20 @@ void main() {
       });
 
       final chunks = await client
-          .streamChat(
-            sessionId: 'test',
-            provider: const ProviderConfig(
-              id: 'openai_custom',
-              name: 'OpenAI Compatible',
-              type: ProviderType.openaiCompatible,
-              baseUrl: 'https://example.invalid/v1',
+          .complete(
+            request: const PromptAssistantRequest(
+              sessionId: 'test',
+              provider: ProviderConfig(
+                id: 'openai_custom',
+                name: 'OpenAI Compatible',
+                type: ProviderType.openaiCompatible,
+                baseUrl: 'https://example.invalid/v1',
+              ),
+              model: 'model-a',
+              systemPrompt: '',
+              userParts: [PromptAssistantTextPart('test')],
+              apiKey: 'key',
             ),
-            model: 'model-a',
-            messages: const [
-              {'role': 'user', 'content': 'test'},
-            ],
-            apiKey: 'key',
           )
           .toList();
 
@@ -1568,8 +1826,7 @@ void main() {
       expect(chunks.last.done, isTrue);
     });
 
-    test('throws a visible error when the non-stream response has no content',
-        () async {
+    test('supports bounded non-thinking JSON requests for DeepSeek', () async {
       final dio = _MockDio();
       final client = PromptAssistantApiClient(dio: dio);
 
@@ -1580,34 +1837,92 @@ void main() {
           options: any(named: 'options'),
           cancelToken: any(named: 'cancelToken'),
         ),
-      ).thenAnswer(
-        (_) async => Response<dynamic>(
-          data: const {'choices': <Object>[]},
-          requestOptions: RequestOptions(path: '/v1/chat/completions'),
+      ).thenAnswer((invocation) async {
+        final payload = Map<String, dynamic>.from(
+          invocation.namedArguments[#data] as Map,
+        );
+        expect(payload['response_format'], {'type': 'json_object'});
+        expect(payload['max_tokens'], 512);
+        expect(payload['thinking'], {'type': 'disabled'});
+        return Response<dynamic>(
+          data: const {
+            'choices': [
+              {
+                'message': {'content': '{"blue_eyes":"蓝眼睛"}'},
+              },
+            ],
+          },
+          requestOptions: RequestOptions(path: '/chat/completions'),
           statusCode: 200,
-        ),
-      );
+        );
+      });
 
-      expect(
-        () => client
-            .streamChat(
-              sessionId: 'test',
-              provider: const ProviderConfig(
-                id: 'openai_custom',
-                name: 'OpenAI Compatible',
-                type: ProviderType.openaiCompatible,
-                baseUrl: 'https://example.invalid/v1',
-              ),
-              model: 'model-a',
-              messages: const [
-                {'role': 'user', 'content': 'test'},
-              ],
+      final chunks = await client
+          .complete(
+            request: PromptAssistantRequest(
+              sessionId: 'tag-translation',
+              provider: ProviderPreset.deepseek.createConfig(),
+              model: 'deepseek-chat',
+              systemPrompt: 'Return one JSON object.',
+              userParts: const [PromptAssistantTextPart('["blue_eyes"]')],
               apiKey: 'key',
-            )
-            .drain<void>(),
-        throwsA(isA<StateError>()),
-      );
+              responseFormat: PromptAssistantResponseFormat.jsonObject,
+              maxOutputTokens: 512,
+              reasoningRequest: AssistantModelCatalog.resolveProvider(
+                provider: ProviderPreset.deepseek.createConfig(),
+                model: 'deepseek-chat',
+              ).resolveReasoningRequest(null),
+            ),
+          )
+          .toList();
+
+      expect(chunks.first.delta, '{"blue_eyes":"蓝眼睛"}');
+      expect(chunks.last.done, isTrue);
     });
+
+    test(
+      'throws a visible error when the non-stream response has no content',
+      () async {
+        final dio = _MockDio();
+        final client = PromptAssistantApiClient(dio: dio);
+
+        when(
+          () => dio.post<dynamic>(
+            any(),
+            data: any(named: 'data'),
+            options: any(named: 'options'),
+            cancelToken: any(named: 'cancelToken'),
+          ),
+        ).thenAnswer(
+          (_) async => Response<dynamic>(
+            data: const {'choices': <Object>[]},
+            requestOptions: RequestOptions(path: '/v1/chat/completions'),
+            statusCode: 200,
+          ),
+        );
+
+        expect(
+          () => client
+              .complete(
+                request: const PromptAssistantRequest(
+                  sessionId: 'test',
+                  provider: ProviderConfig(
+                    id: 'openai_custom',
+                    name: 'OpenAI Compatible',
+                    type: ProviderType.openaiCompatible,
+                    baseUrl: 'https://example.invalid/v1',
+                  ),
+                  model: 'model-a',
+                  systemPrompt: '',
+                  userParts: [PromptAssistantTextPart('test')],
+                  apiKey: 'key',
+                ),
+              )
+              .drain<void>(),
+          throwsA(isA<StateError>()),
+        );
+      },
+    );
 
     test('retries non-streaming on 400 without sampling params', () async {
       final dio = _MockDio();
@@ -1623,8 +1938,9 @@ void main() {
         ),
       ).thenAnswer((invocation) async {
         callCount++;
-        final payload =
-            Map<String, dynamic>.from(invocation.namedArguments[#data] as Map);
+        final payload = Map<String, dynamic>.from(
+          invocation.namedArguments[#data] as Map,
+        );
         expect(payload['stream'], isFalse);
         if (callCount == 1) {
           expect(payload.containsKey('temperature'), isFalse);
@@ -1655,19 +1971,20 @@ void main() {
       });
 
       final chunks = await client
-          .streamChat(
-            sessionId: 'test',
-            provider: const ProviderConfig(
-              id: 'openai_custom',
-              name: 'OpenAI Compatible',
-              type: ProviderType.openaiCompatible,
-              baseUrl: 'https://example.invalid/v1',
+          .complete(
+            request: const PromptAssistantRequest(
+              sessionId: 'test',
+              provider: ProviderConfig(
+                id: 'openai_custom',
+                name: 'OpenAI Compatible',
+                type: ProviderType.openaiCompatible,
+                baseUrl: 'https://example.invalid/v1',
+              ),
+              model: 'model-a',
+              systemPrompt: '',
+              userParts: [PromptAssistantTextPart('test')],
+              apiKey: 'key',
             ),
-            model: 'model-a',
-            messages: const [
-              {'role': 'user', 'content': 'test'},
-            ],
-            apiKey: 'key',
           )
           .toList();
 
@@ -1692,8 +2009,9 @@ void main() {
         ),
       ).thenAnswer((invocation) async {
         final endpoint = invocation.positionalArguments.first as String;
-        final payload =
-            Map<String, dynamic>.from(invocation.namedArguments[#data] as Map);
+        final payload = Map<String, dynamic>.from(
+          invocation.namedArguments[#data] as Map,
+        );
         expect(endpoint, 'https://api.openai.com/v1/responses');
         expect(payload['instructions'], isEmpty);
         expect(payload['input'], isA<List>());
@@ -1708,20 +2026,21 @@ void main() {
       });
 
       final chunks = await client
-          .streamChat(
-            sessionId: 'test',
-            provider: const ProviderConfig(
-              id: 'openai_responses',
-              name: 'OpenAI Responses',
-              protocol: ProviderProtocol.openaiResponses,
-              preset: ProviderPreset.openaiResponses,
-              baseUrl: 'https://api.openai.com/v1',
+          .complete(
+            request: const PromptAssistantRequest(
+              sessionId: 'test',
+              provider: ProviderConfig(
+                id: 'openai_responses',
+                name: 'OpenAI Responses',
+                protocol: ProviderProtocol.openaiResponses,
+                preset: ProviderPreset.openaiResponses,
+                baseUrl: 'https://api.openai.com/v1',
+              ),
+              model: 'gpt-4.1-mini',
+              systemPrompt: '',
+              userParts: [PromptAssistantTextPart('test')],
+              apiKey: 'key',
             ),
-            model: 'gpt-4.1-mini',
-            messages: const [
-              {'role': 'user', 'content': 'test'},
-            ],
-            apiKey: 'key',
           )
           .toList();
 
@@ -1753,20 +2072,21 @@ void main() {
       });
 
       final chunks = await client
-          .streamChat(
-            sessionId: 'test',
-            provider: const ProviderConfig(
-              id: 'lmstudio_responses',
-              name: 'LM Studio Responses',
-              protocol: ProviderProtocol.openaiResponses,
-              preset: ProviderPreset.lmStudioResponses,
-              baseUrl: 'http://localhost:1234/v1',
+          .complete(
+            request: const PromptAssistantRequest(
+              sessionId: 'test',
+              provider: ProviderConfig(
+                id: 'lmstudio_responses',
+                name: 'LM Studio Responses',
+                protocol: ProviderProtocol.openaiResponses,
+                preset: ProviderPreset.lmStudioResponses,
+                baseUrl: 'http://localhost:1234/v1',
+              ),
+              model: 'local-model',
+              systemPrompt: '',
+              userParts: [PromptAssistantTextPart('test')],
+              apiKey: null,
             ),
-            model: 'local-model',
-            messages: const [
-              {'role': 'user', 'content': 'test'},
-            ],
-            apiKey: null,
           )
           .toList();
 
@@ -1776,62 +2096,68 @@ void main() {
       );
     });
 
-    test('sends Anthropic messages with system and x-api-key headers',
-        () async {
-      final dio = _MockDio();
-      final client = PromptAssistantApiClient(dio: dio);
+    test(
+      'sends Anthropic messages with system and x-api-key headers',
+      () async {
+        final dio = _MockDio();
+        final client = PromptAssistantApiClient(dio: dio);
 
-      when(
-        () => dio.post<dynamic>(
-          any(),
-          data: any(named: 'data'),
-          options: any(named: 'options'),
-          cancelToken: any(named: 'cancelToken'),
-        ),
-      ).thenAnswer((invocation) async {
-        final endpoint = invocation.positionalArguments.first as String;
-        final payload =
-            Map<String, dynamic>.from(invocation.namedArguments[#data] as Map);
-        final options = invocation.namedArguments[#options] as Options;
-        expect(endpoint, 'https://api.anthropic.com/v1/messages');
-        expect(payload['system'], 'system prompt');
-        expect(options.headers?['x-api-key'], 'key');
-        expect(options.headers?['anthropic-version'], '2023-06-01');
-        return Response<dynamic>(
-          data: const {
-            'content': [
-              {'type': 'text', 'text': 'anthropic result'},
-            ],
-          },
-          requestOptions: RequestOptions(path: '/v1/messages'),
-          statusCode: 200,
+        when(
+          () => dio.post<dynamic>(
+            any(),
+            data: any(named: 'data'),
+            options: any(named: 'options'),
+            cancelToken: any(named: 'cancelToken'),
+          ),
+        ).thenAnswer((invocation) async {
+          final endpoint = invocation.positionalArguments.first as String;
+          final payload = Map<String, dynamic>.from(
+            invocation.namedArguments[#data] as Map,
+          );
+          final options = invocation.namedArguments[#options] as Options;
+          expect(endpoint, 'https://api.anthropic.com/v1/messages');
+          expect(payload['system'], 'system prompt');
+          expect(options.headers?['x-api-key'], 'key');
+          expect(options.headers?['anthropic-version'], '2023-06-01');
+          return Response<dynamic>(
+            data: const {
+              'content': [
+                {'type': 'text', 'text': 'anthropic result'},
+              ],
+            },
+            requestOptions: RequestOptions(path: '/v1/messages'),
+            statusCode: 200,
+          );
+        });
+
+        final chunks = await client
+            .complete(
+              request: const PromptAssistantRequest(
+                sessionId: 'test',
+                provider: ProviderConfig(
+                  id: 'anthropic',
+                  name: 'Anthropic',
+                  protocol: ProviderProtocol.anthropicMessages,
+                  preset: ProviderPreset.anthropic,
+                  baseUrl: 'https://api.anthropic.com',
+                ),
+                model: 'claude-sonnet-4-20250514',
+                systemPrompt: 'system prompt',
+                userParts: [PromptAssistantTextPart('test')],
+                apiKey: 'key',
+              ),
+            )
+            .toList();
+
+        expect(
+          chunks
+              .where((chunk) => !chunk.done)
+              .map((chunk) => chunk.delta)
+              .join(),
+          'anthropic result',
         );
-      });
-
-      final chunks = await client
-          .streamChat(
-            sessionId: 'test',
-            provider: const ProviderConfig(
-              id: 'anthropic',
-              name: 'Anthropic',
-              protocol: ProviderProtocol.anthropicMessages,
-              preset: ProviderPreset.anthropic,
-              baseUrl: 'https://api.anthropic.com',
-            ),
-            model: 'claude-sonnet-4-20250514',
-            messages: const [
-              {'role': 'system', 'content': 'system prompt'},
-              {'role': 'user', 'content': 'test'},
-            ],
-            apiKey: 'key',
-          )
-          .toList();
-
-      expect(
-        chunks.where((chunk) => !chunk.done).map((chunk) => chunk.delta).join(),
-        'anthropic result',
-      );
-    });
+      },
+    );
 
     test('sends Gemini generateContent payload', () async {
       final dio = _MockDio();
@@ -1846,15 +2172,17 @@ void main() {
         ),
       ).thenAnswer((invocation) async {
         final endpoint = invocation.positionalArguments.first as String;
-        final payload =
-            Map<String, dynamic>.from(invocation.namedArguments[#data] as Map);
+        final payload = Map<String, dynamic>.from(
+          invocation.namedArguments[#data] as Map,
+        );
         final options = invocation.namedArguments[#options] as Options;
         expect(
           endpoint,
           'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent',
         );
         expect(options.headers?['x-goog-api-key'], 'key');
-        expect(payload['system_instruction'], isA<Map>());
+        expect(options.receiveTimeout, const Duration(minutes: 5));
+        expect(payload['systemInstruction'], isA<Map>());
         return Response<dynamic>(
           data: const {
             'candidates': [
@@ -1873,21 +2201,21 @@ void main() {
       });
 
       final chunks = await client
-          .streamChat(
-            sessionId: 'test',
-            provider: const ProviderConfig(
-              id: 'gemini',
-              name: 'Gemini',
-              protocol: ProviderProtocol.geminiGenerateContent,
-              preset: ProviderPreset.gemini,
-              baseUrl: 'https://generativelanguage.googleapis.com',
+          .complete(
+            request: const PromptAssistantRequest(
+              sessionId: 'test',
+              provider: ProviderConfig(
+                id: 'gemini',
+                name: 'Gemini',
+                protocol: ProviderProtocol.geminiGenerateContent,
+                preset: ProviderPreset.gemini,
+                baseUrl: 'https://generativelanguage.googleapis.com',
+              ),
+              model: 'gemini-2.5-flash',
+              systemPrompt: 'system prompt',
+              userParts: [PromptAssistantTextPart('test')],
+              apiKey: 'key',
             ),
-            model: 'gemini-2.5-flash',
-            messages: const [
-              {'role': 'system', 'content': 'system prompt'},
-              {'role': 'user', 'content': 'test'},
-            ],
-            apiKey: 'key',
           )
           .toList();
 
@@ -1905,10 +2233,7 @@ void main() {
       expect(originalBytes.length, greaterThan(maxBytes));
 
       final optimized = await optimizePromptAssistantImagePartForUpload(
-        PromptAssistantImagePart(
-          bytes: originalBytes,
-          mimeType: 'image/png',
-        ),
+        PromptAssistantImagePart(bytes: originalBytes, mimeType: 'image/png'),
         maxBytes: maxBytes,
       );
       final optimizedImage = img.decodeImage(optimized.bytes)!;
@@ -1923,7 +2248,7 @@ void main() {
       );
     });
 
-    test('compresses legacy streamChat image payload before posting', () async {
+    test('compresses typed image payload before posting', () async {
       const maxBytes = 20 * 1024;
       final dio = _MockDio();
       final client = PromptAssistantApiClient(
@@ -1940,8 +2265,9 @@ void main() {
           cancelToken: any(named: 'cancelToken'),
         ),
       ).thenAnswer((invocation) async {
-        final payload =
-            Map<String, dynamic>.from(invocation.namedArguments[#data] as Map);
+        final payload = Map<String, dynamic>.from(
+          invocation.namedArguments[#data] as Map,
+        );
         final messages = payload['messages'] as List;
         final userMessage = messages.last as Map;
         final content = userMessage['content'] as List;
@@ -1966,31 +2292,26 @@ void main() {
       });
 
       final chunks = await client
-          .streamChat(
-            sessionId: 'test',
-            provider: const ProviderConfig(
-              id: 'openai_custom',
-              name: 'OpenAI Compatible',
-              type: ProviderType.openaiCompatible,
-              baseUrl: 'https://example.invalid/v1',
+          .complete(
+            request: PromptAssistantRequest(
+              sessionId: 'test',
+              provider: const ProviderConfig(
+                id: 'openai_custom',
+                name: 'OpenAI Compatible',
+                type: ProviderType.openaiCompatible,
+                baseUrl: 'https://example.invalid/v1',
+              ),
+              model: 'model-a',
+              systemPrompt: '',
+              userParts: [
+                const PromptAssistantTextPart('describe'),
+                PromptAssistantImagePart(
+                  bytes: originalBytes,
+                  mimeType: 'image/png',
+                ),
+              ],
+              apiKey: 'key',
             ),
-            model: 'model-a',
-            messages: [
-              {
-                'role': 'user',
-                'content': [
-                  {'type': 'text', 'text': 'describe'},
-                  {
-                    'type': 'image_url',
-                    'image_url': {
-                      'url':
-                          'data:image/png;base64,${base64Encode(originalBytes)}',
-                    },
-                  },
-                ],
-              },
-            ],
-            apiKey: 'key',
           )
           .toList();
 
@@ -2000,81 +2321,82 @@ void main() {
       );
     });
 
-    test('normalizes small PNG image payloads to JPEG before posting',
-        () async {
-      final dio = _MockDio();
-      final client = PromptAssistantApiClient(dio: dio);
-      final originalBytes = _buildNoisyPngBytes(width: 32, height: 24);
+    test(
+      'normalizes small PNG image payloads to JPEG before posting',
+      () async {
+        final dio = _MockDio();
+        final client = PromptAssistantApiClient(dio: dio);
+        final originalBytes = _buildNoisyPngBytes(width: 32, height: 24);
 
-      when(
-        () => dio.post<dynamic>(
-          any(),
-          data: any(named: 'data'),
-          options: any(named: 'options'),
-          cancelToken: any(named: 'cancelToken'),
-        ),
-      ).thenAnswer((invocation) async {
-        final payload =
-            Map<String, dynamic>.from(invocation.namedArguments[#data] as Map);
-        final messages = payload['messages'] as List;
-        final userMessage = messages.last as Map;
-        final content = userMessage['content'] as List;
-        final imagePart = content.last as Map;
-        final imageUrl = imagePart['image_url'] as Map;
-        final parsed = parseDataUriImage(imageUrl['url'] as String)!;
-        final decoded = img.decodeImage(parsed.bytes)!;
+        when(
+          () => dio.post<dynamic>(
+            any(),
+            data: any(named: 'data'),
+            options: any(named: 'options'),
+            cancelToken: any(named: 'cancelToken'),
+          ),
+        ).thenAnswer((invocation) async {
+          final payload = Map<String, dynamic>.from(
+            invocation.namedArguments[#data] as Map,
+          );
+          final messages = payload['messages'] as List;
+          final userMessage = messages.last as Map;
+          final content = userMessage['content'] as List;
+          final imagePart = content.last as Map;
+          final imageUrl = imagePart['image_url'] as Map;
+          final parsed = parseDataUriImage(imageUrl['url'] as String)!;
+          final decoded = img.decodeImage(parsed.bytes)!;
 
-        expect(parsed.mimeType, 'image/jpeg');
-        expect(decoded.width, 32);
-        expect(decoded.height, 24);
+          expect(parsed.mimeType, 'image/jpeg');
+          expect(decoded.width, 32);
+          expect(decoded.height, 24);
 
-        return Response<dynamic>(
-          data: const {
-            'choices': [
-              {
-                'message': {'content': 'normalized'},
-              },
-            ],
-          },
-          requestOptions: RequestOptions(path: '/v1/chat/completions'),
-          statusCode: 200,
-        );
-      });
+          return Response<dynamic>(
+            data: const {
+              'choices': [
+                {
+                  'message': {'content': 'normalized'},
+                },
+              ],
+            },
+            requestOptions: RequestOptions(path: '/v1/chat/completions'),
+            statusCode: 200,
+          );
+        });
 
-      final chunks = await client
-          .streamChat(
-            sessionId: 'test',
-            provider: const ProviderConfig(
-              id: 'openai_custom',
-              name: 'OpenAI Compatible',
-              type: ProviderType.openaiCompatible,
-              baseUrl: 'https://example.invalid/v1',
-            ),
-            model: 'model-a',
-            messages: [
-              {
-                'role': 'user',
-                'content': [
-                  {'type': 'text', 'text': 'describe'},
-                  {
-                    'type': 'image_url',
-                    'image_url': {
-                      'url':
-                          'data:image/png;base64,${base64Encode(originalBytes)}',
-                    },
-                  },
+        final chunks = await client
+            .complete(
+              request: PromptAssistantRequest(
+                sessionId: 'test',
+                provider: const ProviderConfig(
+                  id: 'openai_custom',
+                  name: 'OpenAI Compatible',
+                  type: ProviderType.openaiCompatible,
+                  baseUrl: 'https://example.invalid/v1',
+                ),
+                model: 'model-a',
+                systemPrompt: '',
+                userParts: [
+                  const PromptAssistantTextPart('describe'),
+                  PromptAssistantImagePart(
+                    bytes: originalBytes,
+                    mimeType: 'image/png',
+                  ),
                 ],
-              },
-            ],
-            apiKey: 'key',
-          )
-          .toList();
+                apiKey: 'key',
+              ),
+            )
+            .toList();
 
-      expect(
-        chunks.where((chunk) => !chunk.done).map((chunk) => chunk.delta).join(),
-        'normalized',
-      );
-    });
+        expect(
+          chunks
+              .where((chunk) => !chunk.done)
+              .map((chunk) => chunk.delta)
+              .join(),
+          'normalized',
+        );
+      },
+    );
 
     test('surfaces provider HTTP error bodies', () async {
       final dio = _MockDio();
@@ -2107,28 +2429,25 @@ void main() {
 
       await expectLater(
         client
-            .streamChat(
-              sessionId: 'test',
-              provider: const ProviderConfig(
-                id: 'openai_custom',
-                name: 'OpenAI Compatible',
-                type: ProviderType.openaiCompatible,
-                baseUrl: 'https://example.invalid/v1',
+            .complete(
+              request: const PromptAssistantRequest(
+                sessionId: 'test',
+                provider: ProviderConfig(
+                  id: 'openai_custom',
+                  name: 'OpenAI Compatible',
+                  type: ProviderType.openaiCompatible,
+                  baseUrl: 'https://example.invalid/v1',
+                ),
+                model: 'model-a',
+                systemPrompt: '',
+                userParts: [PromptAssistantTextPart('test')],
+                apiKey: 'key',
               ),
-              model: 'model-a',
-              messages: const [
-                {'role': 'user', 'content': 'test'},
-              ],
-              apiKey: 'key',
             )
             .drain<void>(),
         throwsA(
           isA<StateError>()
-              .having(
-                (e) => e.toString(),
-                'message',
-                contains('HTTP 503'),
-              )
+              .having((e) => e.toString(), 'message', contains('HTTP 503'))
               .having(
                 (e) => e.toString(),
                 'message',
@@ -2145,41 +2464,43 @@ void main() {
   });
 
   group('Prompt assistant fixed tag scope', () {
-    test('strips enabled fixed prefixes and suffixes before assistant tasks',
-        () {
-      final state = FixedTagsState(
-        entries: [
-          FixedTagEntry.create(
-            name: 'quality',
-            content: 'masterpiece, best quality',
-            position: FixedTagPosition.prefix,
-          ),
-          FixedTagEntry.create(
-            name: 'suffix',
-            content: 'highres',
-            position: FixedTagPosition.suffix,
-          ),
-          FixedTagEntry.create(
-            name: 'disabled',
-            content: 'keep_me',
-            enabled: false,
-            position: FixedTagPosition.prefix,
-          ),
-        ],
-      );
+    test(
+      'strips enabled fixed prefixes and suffixes before assistant tasks',
+      () {
+        final state = FixedTagsState(
+          entries: [
+            FixedTagEntry.create(
+              name: 'quality',
+              content: 'masterpiece, best quality',
+              position: FixedTagPosition.prefix,
+            ),
+            FixedTagEntry.create(
+              name: 'suffix',
+              content: 'highres',
+              position: FixedTagPosition.suffix,
+            ),
+            FixedTagEntry.create(
+              name: 'disabled',
+              content: 'keep_me',
+              enabled: false,
+              position: FixedTagPosition.prefix,
+            ),
+          ],
+        );
 
-      expect(
-        state.stripFromPrompt(
-          'masterpiece, best quality, 1girl, smile, highres',
-        ),
-        '1girl, smile',
-      );
-      expect(state.stripFromPrompt('1girl, smile'), '1girl, smile');
-      expect(
-        state.stripFromPrompt('keep_me, 1girl, highres'),
-        'keep_me, 1girl',
-      );
-    });
+        expect(
+          state.stripFromPrompt(
+            'masterpiece, best quality, 1girl, smile, highres',
+          ),
+          '1girl, smile',
+        );
+        expect(state.stripFromPrompt('1girl, smile'), '1girl, smile');
+        expect(
+          state.stripFromPrompt('keep_me, 1girl, highres'),
+          'keep_me, 1girl',
+        );
+      },
+    );
   });
 
   group('ONNX tagger categories', () {
@@ -2189,8 +2510,10 @@ void main() {
         isTrue,
       );
       expect(
-        const OnnxTaggerLabel(name: 'hakurei_reimu', category: 'Character')
-            .isCharacter,
+        const OnnxTaggerLabel(
+          name: 'hakurei_reimu',
+          category: 'Character',
+        ).isCharacter,
         isTrue,
       );
       expect(
@@ -2206,8 +2529,10 @@ void main() {
         isTrue,
       );
       expect(
-        const OnnxTaggerLabel(name: 'artist_name', category: 'Artist')
-            .labelCategory,
+        const OnnxTaggerLabel(
+          name: 'artist_name',
+          category: 'Artist',
+        ).labelCategory,
         OnnxTaggerLabelCategory.other,
       );
     });
@@ -2259,9 +2584,9 @@ Future<void> _pumpOnlineGalleryScreen(WidgetTester tester) async {
         onlineGalleryNotifierProvider.overrideWith(
           _FakeOnlineGalleryNotifier.new,
         ),
-        danbooruSuggestionNotifierProvider.overrideWith(
-          _FakeDanbooruSuggestionNotifier.new,
-        ),
+        autocompleteLocalSourcesProvider.overrideWithValue(const [
+          _FakeCompletionSource(),
+        ]),
       ],
       child: const MaterialApp(
         locale: Locale('en'),
@@ -2271,6 +2596,31 @@ Future<void> _pumpOnlineGalleryScreen(WidgetTester tester) async {
       ),
     ),
   );
+}
+
+class _FakeCompletionSource implements CompletionSource {
+  const _FakeCompletionSource();
+
+  @override
+  Future<List<CompletionCandidate>> search(CompletionQuery query) async {
+    final canonicalTag = switch (query.token) {
+      'rai' => 'raiden_shogun',
+      'lo' => 'long_hair',
+      _ => query.token,
+    };
+    if (canonicalTag.isEmpty) return const [];
+    return [
+      CompletionCandidate(
+        canonicalTag: canonicalTag,
+        category: canonicalTag == 'raiden_shogun'
+            ? TagCategory.character
+            : TagCategory.general,
+        postCount: 1000,
+        matchKind: CompletionMatchKind.englishPrefix,
+        sources: const {CompletionSourceKind.base},
+      ),
+    ];
+  }
 }
 
 class _FakeOnlineGalleryNotifier extends OnlineGalleryNotifier {
@@ -2303,121 +2653,10 @@ class _FakeOnlineGalleryNotifier extends OnlineGalleryNotifier {
   }
 }
 
-class _FakeDanbooruSuggestionNotifier extends DanbooruSuggestionNotifier {
-  @override
-  TagSuggestionState build() => const TagSuggestionState();
-
-  @override
-  void search(String query, {bool immediate = false}) {}
-
-  @override
-  void clear() {
-    state = const TagSuggestionState();
-  }
-}
-
-class _FakeAutocompleteStrategy extends AutocompleteStrategy<String> {
-  List<String> _suggestions = const [];
-
-  @override
-  List<String> get suggestions => _suggestions;
-
-  @override
-  bool get isLoading => false;
-
-  @override
-  Future<void> search(
-    String text,
-    int cursorPosition, {
-    bool immediate = false,
-  }) async {
-    _suggestions = const ['kanzarin'];
-    notifyListeners();
-  }
-
-  @override
-  void clear() {
-    _suggestions = const [];
-    notifyListeners();
-  }
-
-  @override
-  SuggestionData toSuggestionData(String item) {
-    return SuggestionData(
-      tag: item,
-      category: 4,
-      count: 606,
-    );
-  }
-
-  @override
-  (String, int) applySuggestion(
-    String item,
-    String text,
-    int cursorPosition,
-  ) {
-    return (item, item.length);
-  }
-}
-
-class _FakeLocalTagAutocompleteStrategy extends AutocompleteStrategy<LocalTag> {
-  List<LocalTag> _suggestions = const [];
-
-  @override
-  List<LocalTag> get suggestions => _suggestions;
-
-  @override
-  bool get isLoading => false;
-
-  @override
-  Future<void> search(
-    String text,
-    int cursorPosition, {
-    bool immediate = false,
-  }) async {
-    _suggestions = const [
-      LocalTag(tag: 'raiden_shogun', category: 4, count: 1000),
-    ];
-    notifyListeners();
-  }
-
-  @override
-  void clear() {
-    _suggestions = const [];
-    notifyListeners();
-  }
-
-  @override
-  SuggestionData toSuggestionData(LocalTag item) {
-    return SuggestionData(
-      tag: item.tag,
-      category: item.category,
-      count: item.count,
-      translation: item.translation,
-    );
-  }
-
-  @override
-  (String, int) applySuggestion(
-    LocalTag item,
-    String text,
-    int cursorPosition,
-  ) {
-    return AutocompleteUtils.applySuggestion(
-      text: text,
-      cursorPosition: cursorPosition,
-      suggestion: item,
-      config: const AutocompleteConfig(autoInsertComma: true),
-    );
-  }
-}
-
 class _FakeLocalGalleryNotifier extends LocalGalleryNotifier {
   @override
-  LocalGalleryState build() => const LocalGalleryState(
-        isInitialized: true,
-        totalPages: 1,
-      );
+  LocalGalleryState build() =>
+      const LocalGalleryState(isInitialized: true, totalPages: 1);
 
   @override
   Future<void> setSearchQuery(String query) async {}
@@ -2433,9 +2672,8 @@ class _FakeShortcutConfigNotifier extends ShortcutConfigNotifier {
 
 class _FakeTagLibraryPageNotifier extends TagLibraryPageNotifier {
   @override
-  TagLibraryPageState build() => const TagLibraryPageState(
-        searchQuery: 'rabbit',
-      );
+  TagLibraryPageState build() =>
+      const TagLibraryPageState(searchQuery: 'rabbit');
 }
 
 VibeLibraryEntry _buildVibeEntry({
@@ -2454,10 +2692,7 @@ VibeLibraryEntry _buildVibeEntry({
   );
 }
 
-Uint8List _buildNoisyPngBytes({
-  required int width,
-  required int height,
-}) {
+Uint8List _buildNoisyPngBytes({required int width, required int height}) {
   final image = img.Image(width: width, height: height);
   for (var y = 0; y < height; y++) {
     for (var x = 0; x < width; x++) {

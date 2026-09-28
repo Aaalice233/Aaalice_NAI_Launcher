@@ -3,32 +3,39 @@ import 'dart:convert';
 import 'dart:typed_data';
 import 'dart:ui';
 
+import 'package:image/image.dart' as img;
+
 import '../../../core/krita/krita_bridge_models.dart';
+import '../../../core/models/image_generation_artifact.dart';
 import '../../../core/utils/app_logger.dart';
-import '../../../core/utils/inpaint_mask_utils.dart';
+import '../../../core/utils/focused_inpaint_utils.dart';
+import '../../../core/utils/nai_resolution_adapter.dart';
 import '../../../data/models/image/image_params.dart';
 import '../../../data/models/image/image_stream_chunk.dart';
 
 typedef KritaBridgeBaseParamsReader = ImageParams Function();
 typedef KritaBridgePromptSnapshot = ({String prompt, String negativePrompt});
-typedef KritaBridgePromptSnapshotReader = KritaBridgePromptSnapshot Function(
-  ImageParams params,
-);
+typedef KritaBridgePromptSnapshotReader =
+    KritaBridgePromptSnapshot Function(ImageParams params);
 typedef KritaBridgeMinimumContextReader = int Function();
 typedef KritaBridgeBusyReader = bool Function();
+typedef KritaBridgeStreamPreviewReader = bool Function();
+typedef KritaBridgeAuthGuard = bool Function();
 typedef KritaBridgeSender = void Function(Map<String, dynamic> message);
-typedef KritaBridgeStreamGenerator = Stream<ImageStreamChunk> Function(
-  KritaBridgeGenerateRequest request,
-);
-typedef KritaBridgeFallbackGenerator = Future<List<Uint8List>> Function(
-  KritaBridgeGenerateRequest request,
-);
-typedef KritaBridgeExternalImageRegistrar = Future<String?> Function(
-  Uint8List image, {
-  required ImageParams params,
-  bool? addToDisplay,
-});
+typedef KritaBridgeStreamGenerator =
+    Stream<ImageStreamChunk> Function(KritaBridgeGenerateRequest request);
+typedef KritaBridgeFallbackGenerator =
+    Future<List<ImageGenerationArtifact>> Function(
+      KritaBridgeGenerateRequest request,
+    );
+typedef KritaBridgeExternalImageRegistrar =
+    Future<String?> Function(
+      Uint8List image, {
+      required ImageParams params,
+      bool? addToDisplay,
+    });
 typedef KritaBridgeCancelGeneration = void Function();
+typedef KritaBridgePostBillingRefresh = void Function();
 typedef KritaBridgeClock = DateTime Function();
 typedef KritaBridgeActiveRequestReporter = void Function(String? requestId);
 
@@ -62,38 +69,46 @@ class KritaBridgeService implements KritaBridgeMessageService {
     required KritaBridgeSender send,
     required KritaBridgeBusyReader isUiGenerating,
     required KritaBridgeStreamGenerator generateStream,
+    required KritaBridgeAuthGuard authGuard,
     required KritaBridgeFallbackGenerator generateFallback,
     required KritaBridgeExternalImageRegistrar registerExternalImage,
     required KritaBridgeCancelGeneration cancelGeneration,
+    KritaBridgePostBillingRefresh? schedulePostBillingRefresh,
     KritaBridgePromptSnapshotReader? readPromptSnapshot,
     KritaBridgeMinimumContextReader? readMinimumContextPixels,
+    KritaBridgeStreamPreviewReader? readStreamPreviewEnabled,
     KritaBridgeClock? clock,
     Duration failureCooldown = const Duration(seconds: 2),
-  })  : _readBaseParams = readBaseParams,
-        _readPromptSnapshot = readPromptSnapshot ??
-            ((params) => (
-                  prompt: params.prompt,
-                  negativePrompt: params.negativePrompt,
-                )),
-        _send = send,
-        _isUiGenerating = isUiGenerating,
-        _generateStream = generateStream,
-        _generateFallback = generateFallback,
-        _registerExternalImage = registerExternalImage,
-        _cancelGeneration = cancelGeneration,
-        _clock = clock ?? DateTime.now,
-        _failureCooldown = failureCooldown,
-        _readMinimumContextPixels = readMinimumContextPixels ?? (() => 88);
+  }) : _readBaseParams = readBaseParams,
+       _readPromptSnapshot =
+           readPromptSnapshot ??
+           ((params) =>
+               (prompt: params.prompt, negativePrompt: params.negativePrompt)),
+       _send = send,
+       _isUiGenerating = isUiGenerating,
+       _authGuard = authGuard,
+       _generateStream = generateStream,
+       _generateFallback = generateFallback,
+       _registerExternalImage = registerExternalImage,
+       _cancelGeneration = cancelGeneration,
+       _schedulePostBillingRefresh = schedulePostBillingRefresh ?? _noop,
+       _clock = clock ?? DateTime.now,
+       _failureCooldown = failureCooldown,
+       _readMinimumContextPixels = readMinimumContextPixels ?? (() => 88),
+       _readStreamPreviewEnabled = readStreamPreviewEnabled ?? (() => true);
 
   final KritaBridgeBaseParamsReader _readBaseParams;
   final KritaBridgePromptSnapshotReader _readPromptSnapshot;
   final KritaBridgeMinimumContextReader _readMinimumContextPixels;
+  final KritaBridgeStreamPreviewReader _readStreamPreviewEnabled;
   final KritaBridgeSender _send;
   final KritaBridgeBusyReader _isUiGenerating;
+  final KritaBridgeAuthGuard _authGuard;
   final KritaBridgeStreamGenerator _generateStream;
   final KritaBridgeFallbackGenerator _generateFallback;
   final KritaBridgeExternalImageRegistrar _registerExternalImage;
   final KritaBridgeCancelGeneration _cancelGeneration;
+  final KritaBridgePostBillingRefresh _schedulePostBillingRefresh;
   final KritaBridgeClock _clock;
   final Duration _failureCooldown;
 
@@ -176,17 +191,21 @@ class KritaBridgeService implements KritaBridgeMessageService {
 
     _cancelled = true;
     _cancelGeneration();
-    _send({
-      'type': 'cancelled',
-      'id': message.id,
-    });
+    _send({'type': 'cancelled', 'id': message.id});
     AppLogger.i('Cancelled Krita request: ${message.id}', _logTag);
   }
 
-  Future<void> _generate(
-    String id,
-    KritaImageParamsMapping mapping,
-  ) async {
+  Future<void> _generate(String id, KritaImageParamsMapping mapping) async {
+    if (!_authGuard()) {
+      AppLogger.w('Rejected unauthenticated Krita request: $id', _logTag);
+      _sendError(
+        id,
+        KritaBridgeErrorCode.authFailed,
+        _publicErrorMessage(KritaBridgeErrorCode.authFailed),
+      );
+      return;
+    }
+
     if (_isUiGenerating() || _isBridgeGenerating) {
       AppLogger.w('Rejected Krita request as busy: $id', _logTag);
       _sendError(
@@ -211,12 +230,30 @@ class KritaBridgeService implements KritaBridgeMessageService {
       return;
     }
 
+    final resolutionIssue = NaiResolutionAdapter.validateGenerationResolution(
+      mapping.params.width,
+      mapping.params.height,
+    );
+    if (resolutionIssue != null) {
+      _sendError(
+        id,
+        KritaBridgeErrorCode.invalidRequest,
+        '${resolutionIssue.width}x${resolutionIssue.height} cannot be used for '
+        'generation. Width and height must be multiples of 64, neither side '
+        'can exceed ${NaiResolutionAdapter.generationMaxSide}, and the total '
+        'pixel count cannot exceed ${NaiResolutionAdapter.officialMaxPixels}. '
+        'Use ${resolutionIssue.suggestedWidth}x'
+        '${resolutionIssue.suggestedHeight}.',
+      );
+      return;
+    }
+
     final request = KritaBridgeGenerateRequest(
       id: id,
       params: mapping.params.copyWith(nSamples: 1),
       focusedInpaintEnabled: mapping.focusedInpaintEnabled,
       minimumContextPixels: mapping.minimumContextPixels.toDouble(),
-      focusedSelectionRect: _toRect(mapping.selectionRect),
+      focusedSelectionRect: _resolveFocusedSelectionRect(mapping),
     );
 
     _isBridgeGenerating = true;
@@ -229,11 +266,11 @@ class KritaBridgeService implements KritaBridgeMessageService {
     );
 
     try {
-      final image = await _generateImage(request);
+      final artifact = await _generateImage(request);
       if (_cancelled) {
         return;
       }
-      if (image == null) {
+      if (artifact == null) {
         _startFailureCooldown();
         _sendError(
           id,
@@ -243,14 +280,16 @@ class KritaBridgeService implements KritaBridgeMessageService {
         return;
       }
 
-      final displayImage = _prepareHistoryImage(request, image);
-      final layerImage = _prepareLayerImageForKrita(request, image);
       final savedPath = await _registerExternalImage(
-        displayImage,
+        artifact.displayImageBytes,
         params: request.params,
         addToDisplay: true,
       );
-      _sendResult(request, layerImage, savedPath: savedPath);
+      _sendResult(
+        request,
+        artifact.transparentPatchBytes ?? artifact.displayImageBytes,
+        savedPath: savedPath,
+      );
       AppLogger.i('Completed Krita request: ${request.id}', _logTag);
     } catch (error) {
       if (!_cancelled) {
@@ -262,13 +301,10 @@ class KritaBridgeService implements KritaBridgeMessageService {
           _logTag,
         );
         _startFailureCooldown();
-        _sendError(
-          id,
-          code,
-          _publicErrorMessage(code),
-        );
+        _sendError(id, code, _publicErrorMessage(code));
       }
     } finally {
+      _schedulePostBillingRefresh();
       _isBridgeGenerating = false;
       _activeRequestId = null;
       _activeRequestReporter?.call(null);
@@ -276,8 +312,36 @@ class KritaBridgeService implements KritaBridgeMessageService {
     }
   }
 
-  Future<Uint8List?> _generateImage(KritaBridgeGenerateRequest request) async {
-    if (_shouldUseDirectFallback(request)) {
+  static void _noop() {}
+
+  Rect? _resolveFocusedSelectionRect(KritaImageParamsMapping mapping) {
+    final selection = _toRect(mapping.selectionRect);
+    final sourceImage = mapping.params.sourceImage;
+    if (!mapping.focusedInpaintEnabled ||
+        selection == null ||
+        sourceImage == null) {
+      return selection;
+    }
+    img.Image? decoded;
+    try {
+      decoded = img.decodeImage(sourceImage);
+    } catch (_) {
+      return selection;
+    }
+    if (decoded == null) return selection;
+    return FocusedInpaintUtils.constrainSelectionRect(
+          sourceWidth: decoded.width,
+          sourceHeight: decoded.height,
+          selectionRect: selection,
+          minContextMegaPixels: mapping.minimumContextPixels.toDouble(),
+        ) ??
+        selection;
+  }
+
+  Future<ImageGenerationArtifact?> _generateImage(
+    KritaBridgeGenerateRequest request,
+  ) async {
+    if (!_readStreamPreviewEnabled() || _shouldUseDirectFallback(request)) {
       final fallback = await _generateFallback(request);
       return fallback.isEmpty ? null : fallback.first;
     }
@@ -319,7 +383,7 @@ class KritaBridgeService implements KritaBridgeMessageService {
     }
 
     if (!streamingUnsupported && finalImage != null) {
-      return finalImage;
+      return ImageGenerationArtifact(displayImageBytes: finalImage);
     }
 
     final fallback = await _generateFallback(request);
@@ -357,45 +421,8 @@ class KritaBridgeService implements KritaBridgeMessageService {
       if (chunk.totalSteps != null) 'total_steps': chunk.totalSteps,
       'progress': chunk.progress.clamp(0.0, 1.0),
       if (chunk.previewImage != null)
-        'preview_image': base64Encode(
-          _prepareLayerImageForKrita(request, chunk.previewImage!),
-        ),
+        'preview_image': base64Encode(chunk.previewImage!),
     });
-  }
-
-  Uint8List _prepareHistoryImage(
-    KritaBridgeGenerateRequest request,
-    Uint8List image,
-  ) {
-    final sourceImage = request.params.sourceImage;
-    final maskImage = request.params.maskImage;
-    if (request.params.action != ImageGenerationAction.infill ||
-        sourceImage == null ||
-        maskImage == null) {
-      return image;
-    }
-
-    return InpaintMaskUtils.compositeGeneratedImage(
-      sourceImage: sourceImage,
-      maskImage: maskImage,
-      generatedImage: image,
-    );
-  }
-
-  Uint8List _prepareLayerImageForKrita(
-    KritaBridgeGenerateRequest request,
-    Uint8List image,
-  ) {
-    final maskImage = request.params.maskImage;
-    if (request.params.action != ImageGenerationAction.infill ||
-        maskImage == null) {
-      return image;
-    }
-
-    return InpaintMaskUtils.extractGeneratedPatch(
-      maskImage: maskImage,
-      generatedImage: image,
-    );
   }
 
   void _sendResult(
@@ -441,18 +468,8 @@ class KritaBridgeService implements KritaBridgeMessageService {
     };
   }
 
-  void _sendError(
-    String id,
-    KritaBridgeErrorCode code,
-    String message,
-  ) {
-    _send(
-      KritaBridgeError(
-        id: id,
-        code: code,
-        message: message,
-      ).toJson(),
-    );
+  void _sendError(String id, KritaBridgeErrorCode code, String message) {
+    _send(KritaBridgeError(id: id, code: code, message: message).toJson());
   }
 
   KritaBridgeErrorCode _mapErrorCode(Object error) {

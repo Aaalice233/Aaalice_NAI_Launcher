@@ -41,22 +41,24 @@ class SequentialStateService {
     await _ensureInitialized();
     if (itemCount <= 0) return 0;
 
-    final currentIndex = _box?.get(key, defaultValue: 0) ?? 0;
-    final nextIndex = (currentIndex + 1) % itemCount;
-    await _box?.put(key, nextIndex);
+    final cursor = _box?.get(key, defaultValue: 0) ?? 0;
+    await _box?.put(key, cursor + 1);
 
-    return currentIndex % itemCount;
+    return cursor % itemCount;
   }
 
   /// 获取下一个索引（同步版本，需要先调用 init）
   int getNextIndexSync(String key, int itemCount) {
     if (itemCount <= 0) return 0;
 
-    final currentIndex = _box?.get(key, defaultValue: 0) ?? 0;
-    final nextIndex = (currentIndex + 1) % itemCount;
-    _box?.put(key, nextIndex);
+    return getNextCursorSync(key) % itemCount;
+  }
 
-    return currentIndex % itemCount;
+  /// 返回单调递增游标，供调用方识别轮次并构造无重复随机轮。
+  int getNextCursorSync(String key) {
+    final cursor = _box?.get(key, defaultValue: 0) ?? 0;
+    _box?.put(key, cursor + 1);
+    return cursor;
   }
 
   /// 重置指定 key 的索引

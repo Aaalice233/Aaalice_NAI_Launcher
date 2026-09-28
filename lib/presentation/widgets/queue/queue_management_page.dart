@@ -1,17 +1,27 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:nai_launcher/core/utils/localization_extension.dart';
+import 'package:nai_launcher/data/models/queue/replication_task.dart';
+import 'package:nai_launcher/l10n/app_localizations.dart';
 
+import '../../adaptive/adaptive_presenter.dart';
+import '../../adaptive/interaction_policy.dart';
+import '../../adaptive/window_size_class.dart';
+import '../../providers/image_generation_provider.dart';
 import '../../providers/queue_execution_provider.dart';
 import '../../providers/replication_queue_provider.dart';
-import '../../router/app_router.dart';
+import '../common/app_toast.dart';
+import '../common/themed_confirm_dialog.dart';
 import 'execution_stats_panel.dart';
 import 'task_list_item.dart';
 import 'task_edit_dialog.dart';
 
 /// 队列管理页面 - 紧凑精致的现代化设计
 class QueueManagementPage extends ConsumerStatefulWidget {
-  const QueueManagementPage({super.key});
+  final VoidCallback? onClose;
+  final VoidCallback? onQueueStarted;
+
+  const QueueManagementPage({super.key, this.onClose, this.onQueueStarted});
 
   @override
   ConsumerState<QueueManagementPage> createState() =>
@@ -34,21 +44,15 @@ class _QueueManagementPageState extends ConsumerState<QueueManagementPage>
     super.dispose();
   }
 
-  /// 安全获取执行状态
-  QueueExecutionState _watchExecutionState() {
-    try {
-      return ref.watch(queueExecutionNotifierProvider);
-    } catch (e) {
-      return const QueueExecutionState();
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
     final theme = Theme.of(context);
     final queueState = ref.watch(replicationQueueNotifierProvider);
-    final executionState = _watchExecutionState();
+    final executionState = ref.watch(queueExecutionNotifierProvider);
+    final currentPrompt = ref.watch(
+      generationParamsNotifierProvider.select((params) => params.prompt),
+    );
 
     return Scaffold(
       appBar: AppBar(
@@ -77,24 +81,17 @@ class _QueueManagementPageState extends ConsumerState<QueueManagementPage>
               },
               isHighlighted: executionState.isPaused,
             ),
-          // 清空按钮 / 关闭悬浮球按钮
-          if (queueState.isEmpty && queueState.failedTasks.isEmpty)
-            // 队列为空时显示“关闭悬浮球”按钮
-            _buildActionButton(
-              icon: Icons.close_rounded,
-              tooltip: l10n.queue_closeFloatingButton,
-              onPressed: () {
-                ref.read(floatingButtonClosedProvider.notifier).state = true;
-                ref.read(queueManagementVisibleProvider.notifier).state = false;
-              },
-            )
-          else
-            // 队列非空时显示“清空队列”按钮
+          if (!queueState.isEmpty || queueState.failedTasks.isNotEmpty)
             _buildActionButton(
               icon: Icons.delete_sweep_rounded,
               tooltip: l10n.queue_clearQueue,
               onPressed: () => _confirmClearQueue(context),
             ),
+          _buildActionButton(
+            icon: Icons.close_rounded,
+            tooltip: l10n.common_close,
+            onPressed: widget.onClose,
+          ),
           const SizedBox(width: 4),
         ],
         bottom: PreferredSize(
@@ -102,32 +99,52 @@ class _QueueManagementPageState extends ConsumerState<QueueManagementPage>
           child: _buildTabBar(theme, l10n, queueState),
         ),
       ),
-      body: Column(
-        children: [
-          // 紧凑统计面板
-          const ExecutionStatsPanel(),
-
-          // 批量操作栏
-          AnimatedSize(
-            duration: const Duration(milliseconds: 200),
-            curve: Curves.easeOutCubic,
-            child: queueState.isSelectionMode
-                ? _buildBatchOperationBar(theme, l10n, queueState)
-                : const SizedBox.shrink(),
-          ),
-
-          // Tab内容
-          Expanded(
-            child: TabBarView(
-              controller: _tabController,
-              children: [
-                _buildPendingTab(theme, l10n, queueState),
-                _buildCompletedTab(theme, l10n, queueState),
-                _buildFailedTab(theme, l10n, queueState),
-              ],
-            ),
-          ),
-        ],
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          final textScale = MediaQuery.textScalerOf(context).scale(14) / 14;
+          final statsRatio = textScale > 1.3 ? 0.58 : 0.45;
+          final proposedStatsHeight = constraints.maxHeight * statsRatio;
+          final maxStatsHeight = constraints.maxHeight < 160
+              ? constraints.maxHeight
+              : proposedStatsHeight
+                    .clamp(160.0, constraints.maxHeight)
+                    .toDouble();
+          return Column(
+            children: [
+              ConstrainedBox(
+                constraints: BoxConstraints(maxHeight: maxStatsHeight),
+                child: SingleChildScrollView(
+                  child: ExecutionStatsPanel(
+                    onQueueStarted: widget.onQueueStarted,
+                    onAddCurrentTask:
+                        currentPrompt.trim().isEmpty || queueState.isFull
+                        ? null
+                        : _addCurrentTask,
+                  ),
+                ),
+              ),
+              AnimatedSize(
+                duration: MediaQuery.disableAnimationsOf(context)
+                    ? Duration.zero
+                    : const Duration(milliseconds: 200),
+                curve: Curves.easeOutCubic,
+                child: queueState.isSelectionMode
+                    ? _buildBatchOperationBar(theme, l10n, queueState)
+                    : const SizedBox.shrink(),
+              ),
+              Expanded(
+                child: TabBarView(
+                  controller: _tabController,
+                  children: [
+                    _buildPendingTab(theme, l10n, queueState),
+                    _buildCompletedTab(theme, l10n, queueState),
+                    _buildFailedTab(theme, l10n, queueState),
+                  ],
+                ),
+              ),
+            ],
+          );
+        },
       ),
     );
   }
@@ -165,13 +182,16 @@ class _QueueManagementPageState extends ConsumerState<QueueManagementPage>
   /// 构建Tab栏
   Widget _buildTabBar(
     ThemeData theme,
-    dynamic l10n,
+    AppLocalizations l10n,
     ReplicationQueueState queueState,
   ) {
+    final largeText = MediaQuery.textScalerOf(context).scale(14) > 18.2;
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 12),
       child: TabBar(
         controller: _tabController,
+        isScrollable: largeText,
+        tabAlignment: largeText ? TabAlignment.start : null,
         labelPadding: const EdgeInsets.symmetric(horizontal: 8),
         indicatorSize: TabBarIndicatorSize.tab,
         dividerColor: Colors.transparent,
@@ -245,9 +265,75 @@ class _QueueManagementPageState extends ConsumerState<QueueManagementPage>
   /// 构建批量操作栏
   Widget _buildBatchOperationBar(
     ThemeData theme,
-    dynamic l10n,
+    AppLocalizations l10n,
     ReplicationQueueState queueState,
   ) {
+    final interactionPolicy = context.interactionPolicy;
+    final selectedChip = Container(
+      constraints: BoxConstraints(
+        minHeight: interactionPolicy.minimumControlExtent,
+      ),
+      alignment: Alignment.center,
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.primaryContainer.withValues(alpha: 0.5),
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Text(
+        l10n.queue_selectedCount(queueState.selectedCount),
+        style: TextStyle(
+          color: theme.colorScheme.primary,
+          fontWeight: FontWeight.w500,
+          fontSize: 13,
+        ),
+      ),
+    );
+    final actions = <Widget>[
+      _buildCompactButton(
+        label: l10n.queue_selectAll,
+        onPressed: () =>
+            ref.read(replicationQueueNotifierProvider.notifier).selectAll(),
+      ),
+      _buildCompactButton(
+        label: l10n.queue_invertSelection,
+        onPressed: () => ref
+            .read(replicationQueueNotifierProvider.notifier)
+            .invertSelection(),
+      ),
+      _buildCompactButton(
+        label: l10n.queue_cancelSelection,
+        onPressed: () => ref
+            .read(replicationQueueNotifierProvider.notifier)
+            .exitSelectionMode(),
+      ),
+      FilledButton.icon(
+        onPressed: queueState.selectedCount == 0
+            ? null
+            : () => ref
+                  .read(replicationQueueNotifierProvider.notifier)
+                  .pinSelectedToTop(),
+        icon: const Icon(Icons.vertical_align_top_rounded, size: 16),
+        label: Text(l10n.queue_pinToTop),
+        style: FilledButton.styleFrom(
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          minimumSize: Size(0, interactionPolicy.minimumControlExtent),
+        ),
+      ),
+      FilledButton.tonalIcon(
+        onPressed: queueState.selectedCount == 0
+            ? null
+            : _confirmDeleteSelected,
+        icon: const Icon(Icons.delete_rounded, size: 16),
+        label: Text(l10n.queue_delete),
+        style: FilledButton.styleFrom(
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          minimumSize: Size(0, interactionPolicy.minimumControlExtent),
+          backgroundColor: Colors.red.withValues(alpha: 0.12),
+          foregroundColor: Colors.red,
+        ),
+      ),
+    ];
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
@@ -259,70 +345,21 @@ class _QueueManagementPageState extends ConsumerState<QueueManagementPage>
           ),
         ),
       ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-            decoration: BoxDecoration(
-              color: theme.colorScheme.primaryContainer.withValues(alpha: 0.5),
-              borderRadius: BorderRadius.circular(6),
-            ),
-            child: Text(
-              l10n.queue_selectedCount(queueState.selectedCount),
-              style: TextStyle(
-                color: theme.colorScheme.primary,
-                fontWeight: FontWeight.w500,
-                fontSize: 13,
-              ),
-            ),
-          ),
-          const Spacer(),
-          _buildCompactButton(
-            label: l10n.queue_selectAll,
-            onPressed: () =>
-                ref.read(replicationQueueNotifierProvider.notifier).selectAll(),
-          ),
-          _buildCompactButton(
-            label: l10n.queue_invertSelection,
-            onPressed: () => ref
-                .read(replicationQueueNotifierProvider.notifier)
-                .invertSelection(),
-          ),
-          _buildCompactButton(
-            label: l10n.queue_cancelSelection,
-            onPressed: () => ref
-                .read(replicationQueueNotifierProvider.notifier)
-                .exitSelectionMode(),
-          ),
-          const SizedBox(width: 8),
-          FilledButton.icon(
-            onPressed: queueState.selectedCount == 0
-                ? null
-                : () => ref
-                      .read(replicationQueueNotifierProvider.notifier)
-                      .pinSelectedToTop(),
-            icon: const Icon(Icons.vertical_align_top_rounded, size: 16),
-            label: Text(l10n.queue_pinToTop),
-            style: FilledButton.styleFrom(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 0),
-              minimumSize: const Size(0, 32),
-            ),
-          ),
-          const SizedBox(width: 6),
-          FilledButton.tonalIcon(
-            onPressed: queueState.selectedCount == 0
-                ? null
-                : _confirmDeleteSelected,
-            icon: const Icon(Icons.delete_rounded, size: 16),
-            label: Text(l10n.queue_delete),
-            style: FilledButton.styleFrom(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 0),
-              minimumSize: const Size(0, 32),
-              backgroundColor: Colors.red.withValues(alpha: 0.12),
-              foregroundColor: Colors.red,
-            ),
-          ),
-        ],
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final canUseSingleRow = WindowSizeClass.fromWidth(
+            constraints.maxWidth,
+          ).isExpandedOrWider;
+          if (canUseSingleRow) {
+            return Row(children: [selectedChip, const Spacer(), ...actions]);
+          }
+          return Wrap(
+            spacing: 6,
+            runSpacing: 6,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [selectedChip, ...actions],
+          );
+        },
       ),
     );
   }
@@ -332,11 +369,12 @@ class _QueueManagementPageState extends ConsumerState<QueueManagementPage>
     required String label,
     required VoidCallback onPressed,
   }) {
+    final interactionPolicy = context.interactionPolicy;
     return TextButton(
       onPressed: onPressed,
       style: TextButton.styleFrom(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-        minimumSize: const Size(0, 28),
+        minimumSize: Size(0, interactionPolicy.minimumControlExtent),
       ),
       child: Text(label),
     );
@@ -345,7 +383,7 @@ class _QueueManagementPageState extends ConsumerState<QueueManagementPage>
   /// 构建等待中Tab
   Widget _buildPendingTab(
     ThemeData theme,
-    dynamic l10n,
+    AppLocalizations l10n,
     ReplicationQueueState queueState,
   ) {
     if (queueState.isEmpty) {
@@ -391,6 +429,9 @@ class _QueueManagementPageState extends ConsumerState<QueueManagementPage>
           isSelected: queueState.selectedTaskIds.contains(task.id),
           onTap: () => _showTaskDetails(task),
           onEdit: () => _editTask(task),
+          onDelete: () => ref
+              .read(replicationQueueNotifierProvider.notifier)
+              .remove(task.id),
         );
       },
     );
@@ -399,7 +440,7 @@ class _QueueManagementPageState extends ConsumerState<QueueManagementPage>
   /// 构建已完成Tab
   Widget _buildCompletedTab(
     ThemeData theme,
-    dynamic l10n,
+    AppLocalizations l10n,
     ReplicationQueueState queueState,
   ) {
     if (queueState.completedTasks.isEmpty) {
@@ -410,25 +451,49 @@ class _QueueManagementPageState extends ConsumerState<QueueManagementPage>
       );
     }
 
-    return ListView.builder(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      itemCount: queueState.completedTasks.length,
-      itemBuilder: (context, index) {
-        final task = queueState
-            .completedTasks[queueState.completedTasks.length - 1 - index];
-        return TaskListItem(
-          task: task,
-          index: index,
-          onTap: () => _showTaskDetails(task),
-        );
-      },
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+          child: Align(
+            alignment: AlignmentDirectional.centerEnd,
+            child: TextButton.icon(
+              onPressed: _confirmClearCompletedTasks,
+              icon: const Icon(Icons.delete_sweep_rounded, size: 18),
+              label: Text(l10n.queue_clearCompletedTasks),
+              style: TextButton.styleFrom(
+                foregroundColor: theme.colorScheme.error,
+              ),
+            ),
+          ),
+        ),
+        Expanded(
+          child: ListView.builder(
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            itemCount: queueState.completedTasks.length,
+            itemBuilder: (context, index) {
+              final task = queueState
+                  .completedTasks[queueState.completedTasks.length - 1 - index];
+              return TaskListItem(
+                key: Key(task.id),
+                task: task,
+                index: index,
+                onTap: () => _showTaskDetails(task),
+                onDelete: () => ref
+                    .read(replicationQueueNotifierProvider.notifier)
+                    .removeCompletedTask(task.id),
+              );
+            },
+          ),
+        ),
+      ],
     );
   }
 
   /// 构建失败Tab
   Widget _buildFailedTab(
     ThemeData theme,
-    dynamic l10n,
+    AppLocalizations l10n,
     ReplicationQueueState queueState,
   ) {
     if (queueState.failedTasks.isEmpty) {
@@ -483,77 +548,139 @@ class _QueueManagementPageState extends ConsumerState<QueueManagementPage>
     final theme = Theme.of(context);
     final displayColor = color ?? theme.disabledColor;
 
-    return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: displayColor.withValues(alpha: 0.08),
-              shape: BoxShape.circle,
-            ),
-            child: Icon(
-              icon,
-              size: 48,
-              color: displayColor.withValues(alpha: 0.6),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final compact =
+            constraints.hasBoundedHeight && constraints.maxHeight < 180;
+        final verticalPadding = compact ? 4.0 : 12.0;
+        final minimumContentHeight = constraints.hasBoundedHeight
+            ? (constraints.maxHeight - verticalPadding * 2)
+                  .clamp(0.0, double.infinity)
+                  .toDouble()
+            : 0.0;
+
+        return SingleChildScrollView(
+          padding: EdgeInsets.symmetric(
+            horizontal: 16,
+            vertical: verticalPadding,
+          ),
+          child: ConstrainedBox(
+            constraints: BoxConstraints(minHeight: minimumContentHeight),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Container(
+                  padding: EdgeInsets.all(compact ? 12 : 20),
+                  decoration: BoxDecoration(
+                    color: displayColor.withValues(alpha: 0.08),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    icon,
+                    size: compact ? 32 : 48,
+                    color: displayColor.withValues(alpha: 0.6),
+                  ),
+                ),
+                SizedBox(height: compact ? 8 : 16),
+                Text(
+                  message,
+                  textAlign: TextAlign.center,
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+                  ),
+                ),
+                if (hint != null) ...[
+                  SizedBox(height: compact ? 4 : 6),
+                  Text(
+                    hint,
+                    textAlign: TextAlign.center,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.onSurface.withValues(alpha: 0.4),
+                    ),
+                  ),
+                ],
+              ],
             ),
           ),
-          const SizedBox(height: 16),
-          Text(
-            message,
-            style: theme.textTheme.titleMedium?.copyWith(
-              color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
-            ),
-          ),
-          if (hint != null) ...[
-            const SizedBox(height: 6),
-            Text(
-              hint,
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.onSurface.withValues(alpha: 0.4),
-              ),
-            ),
-          ],
-        ],
+        );
+      },
+    );
+  }
+
+  Future<void> _addCurrentTask() async {
+    final prompt = ref.read(generationParamsNotifierProvider).prompt.trim();
+    if (prompt.isEmpty) {
+      AppToast.warning(context, context.l10n.generation_pleaseInputPrompt);
+      return;
+    }
+
+    final added = await ref
+        .read(replicationQueueNotifierProvider.notifier)
+        .add(ReplicationTask.create(prompt: prompt));
+    if (!mounted) return;
+    if (!added) {
+      AppToast.warning(context, context.l10n.onlineGallery_queueFullMax);
+      return;
+    }
+
+    _tabController.animateTo(0);
+    AppToast.success(context, context.l10n.queue_taskAdded);
+  }
+
+  void _showTaskDetails(ReplicationTask task) {
+    AdaptivePresenter.showPanel<void>(
+      context: context,
+      title: context.l10n.queue_taskDetails,
+      builder: (context, scrollController) => QueueTaskDetailView(
+        task: task,
+        scrollController: scrollController,
+        framed: false,
       ),
     );
   }
 
-  void _showTaskDetails(task) {
-    // 显示任务详情
-  }
-
-  void _editTask(task) {
-    showDialog(
-      context: context,
-      builder: (context) => TaskEditDialog(task: task),
-    );
+  void _editTask(ReplicationTask task) {
+    TaskEditDialog.show(context: context, task: task);
   }
 
   Future<void> _confirmClearQueue(BuildContext context) async {
     final l10n = context.l10n;
-    final confirmed = await showDialog<bool>(
+    final confirmed = await ThemedConfirmDialog.show(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text(l10n.queue_confirmClear),
-        content: Text(l10n.queue_clearQueueConfirm),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: Text(l10n.common_cancel),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, true),
-            style: FilledButton.styleFrom(backgroundColor: Colors.red),
-            child: Text(l10n.common_confirm),
-          ),
-        ],
-      ),
+      title: l10n.queue_confirmClear,
+      content: l10n.queue_clearQueueConfirm,
+      confirmText: l10n.common_confirm,
+      cancelText: l10n.common_cancel,
+      type: ThemedConfirmDialogType.danger,
+      icon: Icons.delete_sweep_outlined,
     );
 
-    if (confirmed == true) {
-      await ref.read(replicationQueueNotifierProvider.notifier).clear();
+    if (confirmed && mounted) {
+      await ref.read(queueExecutionNotifierProvider.notifier).clearQueue();
+    }
+  }
+
+  Future<void> _confirmClearCompletedTasks() async {
+    final queueState = ref.read(replicationQueueNotifierProvider);
+    if (queueState.completedTasks.isEmpty) return;
+
+    final l10n = context.l10n;
+    final confirmed = await ThemedConfirmDialog.show(
+      context: context,
+      title: l10n.common_confirmClear,
+      content: l10n.common_clearAllItemsConfirm(
+        queueState.completedTasks.length,
+        l10n.queue_completedTasks,
+      ),
+      confirmText: l10n.common_confirm,
+      cancelText: l10n.common_cancel,
+      type: ThemedConfirmDialogType.danger,
+      icon: Icons.delete_sweep_outlined,
+    );
+
+    if (confirmed && mounted) {
+      ref.read(replicationQueueNotifierProvider.notifier).clearCompletedTasks();
     }
   }
 
@@ -562,26 +689,17 @@ class _QueueManagementPageState extends ConsumerState<QueueManagementPage>
     final selectedCount = ref
         .read(replicationQueueNotifierProvider)
         .selectedCount;
-    final confirmed = await showDialog<bool>(
+    final confirmed = await ThemedConfirmDialog.show(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text(l10n.common_confirmDelete),
-        content: Text(l10n.queue_confirmDeleteSelected(selectedCount)),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: Text(l10n.common_cancel),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, true),
-            style: FilledButton.styleFrom(backgroundColor: Colors.red),
-            child: Text(l10n.common_confirm),
-          ),
-        ],
-      ),
+      title: l10n.common_confirmDelete,
+      content: l10n.queue_confirmDeleteSelected(selectedCount),
+      confirmText: l10n.common_confirm,
+      cancelText: l10n.common_cancel,
+      type: ThemedConfirmDialogType.danger,
+      icon: Icons.delete_outline,
     );
 
-    if (confirmed == true) {
+    if (confirmed && mounted) {
       await ref
           .read(replicationQueueNotifierProvider.notifier)
           .deleteSelected();

@@ -2,6 +2,37 @@ import 'dart:typed_data';
 
 import 'danbooru_post.dart';
 
+DanbooruPost parseGelbooruPostJson(Map<String, dynamic> json) {
+  final imageUrl = asBooruString(json['image']);
+  final fileUrl = asBooruString(json['file_url']);
+  final previewUrl = asBooruString(json['preview_url']);
+  final sampleUrl = asBooruString(json['sample_url']);
+
+  return DanbooruPost(
+    id: parseBooruInt(json['id']) ?? 0,
+    site: 'gelbooru',
+    score: parseBooruInt(json['score']) ?? 0,
+    source: asBooruString(json['source']),
+    md5: asBooruString(json['md5']),
+    rating: normalizeBooruRating(json['rating']),
+    width: parseBooruInt(json['width']) ?? 0,
+    height: parseBooruInt(json['height']) ?? 0,
+    tagString: asBooruString(json['tags']),
+    fileExt: fileExtensionFromUrl(imageUrl.isNotEmpty ? imageUrl : fileUrl),
+    fileUrl: fileUrl.isEmpty ? null : fileUrl,
+    previewFileUrl: previewUrl.isEmpty ? null : previewUrl,
+    largeFileUrl: sampleUrl.isEmpty ? null : sampleUrl,
+  );
+}
+
+List<DanbooruPost> parseGelbooruPostList(List<dynamic> rawList) {
+  return rawList
+      .whereType<Map>()
+      .map((item) => parseGelbooruPostJson(Map<String, dynamic>.from(item)))
+      .where((post) => post.id > 0 && post.previewUrl.isNotEmpty)
+      .toList();
+}
+
 List<DanbooruPost> parseGelbooruHtmlPosts(String html) {
   final articles = RegExp(
     r'<article\b[^>]*\bthumbnail-preview\b[^>]*>.*?</article>',

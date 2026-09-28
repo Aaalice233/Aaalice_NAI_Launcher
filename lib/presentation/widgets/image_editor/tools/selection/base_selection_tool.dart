@@ -114,7 +114,10 @@ abstract class ShapeSelectionTool extends BaseSelectionTool {
 
     if (startPoint != null) {
       final currentPoint = event.localPosition;
-      final rect = Rect.fromPoints(startPoint!, currentPoint);
+      final candidate = Rect.fromPoints(startPoint!, currentPoint);
+      final rect = id == 'rect_selection'
+          ? state.constrainRectSelection(candidate, startPoint!)
+          : candidate;
       final path = createShapePath(rect);
       state.setPreviewPath(path);
     }
@@ -130,7 +133,10 @@ abstract class ShapeSelectionTool extends BaseSelectionTool {
 
     if (startPoint != null) {
       final endPoint = event.localPosition;
-      final rect = Rect.fromPoints(startPoint!, endPoint);
+      final candidate = Rect.fromPoints(startPoint!, endPoint);
+      final rect = id == 'rect_selection'
+          ? state.constrainRectSelection(candidate, startPoint!)
+          : candidate;
 
       if (rect.width > 2 && rect.height > 2) {
         final path = createShapePath(rect);
@@ -150,9 +156,7 @@ abstract class ShapeSelectionTool extends BaseSelectionTool {
   }
 
   void _startTransform(EditorState state, Offset pos) {
-    state.selectionManager.enterTransform(
-      _createPlaceholderImage(),
-    );
+    state.selectionManager.enterTransform(_createPlaceholderImage());
     _isDraggingSelection = true;
     _dragLastPoint = pos;
   }
@@ -246,8 +250,10 @@ class SelectionSettingsPanel extends StatelessWidget {
                 icon: const Icon(Icons.deselect, size: 16),
                 label: Text(context.l10n.selection_clear_selection),
                 style: OutlinedButton.styleFrom(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 8,
+                  ),
                   textStyle: theme.textTheme.bodySmall,
                 ),
               ),
@@ -256,8 +262,10 @@ class SelectionSettingsPanel extends StatelessWidget {
                 icon: const Icon(Icons.flip, size: 16),
                 label: Text(context.l10n.selection_invert_selection),
                 style: OutlinedButton.styleFrom(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 8,
+                  ),
                   textStyle: theme.textTheme.bodySmall,
                 ),
               ),

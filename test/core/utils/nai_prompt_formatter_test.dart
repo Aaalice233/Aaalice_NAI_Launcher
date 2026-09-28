@@ -1,0 +1,53 @@
+import 'package:flutter_test/flutter_test.dart';
+import 'package:nai_launcher/core/utils/nai_prompt_formatter.dart';
+
+void main() {
+  test('formatting preserves separators around consecutive disabled tags', () {
+    const source = 'cat, /*disabled:long hair*/, /*disabled:blue eyes*/, dog';
+    var formatted = source;
+    for (var i = 0; i < 5; i++) {
+      formatted = NaiPromptFormatter.format(formatted);
+      expect(formatted, source);
+    }
+    expect(
+      NaiPromptFormatter.format('/*disabled:cat*/, blue hair'),
+      '/*disabled:cat*/, blue_hair',
+    );
+  });
+
+  group('NaiPromptFormatter.format', () {
+    test('格式化标签时保留换行、空行和行首缩进', () {
+      const prompt = 'quality   tags， best quality,\n\n  blue hair, red eyes';
+
+      expect(
+        NaiPromptFormatter.format(prompt),
+        'quality_tags, best_quality,\n\n  blue_hair, red_eyes',
+      );
+    });
+
+    test('保留 CRLF 与各分组行末逗号', () {
+      const prompt = 'subject tag,\r\nclothing tag,\r\nbackground tag';
+
+      expect(
+        NaiPromptFormatter.format(prompt),
+        'subject_tag,\r\nclothing_tag,\r\nbackground_tag',
+      );
+    });
+
+    test('纯空白分隔行保持原样', () {
+      const prompt = 'first tag\n  \nsecond tag';
+
+      expect(NaiPromptFormatter.format(prompt), 'first_tag\n  \nsecond_tag');
+    });
+
+    test('格式化正负标签但不破坏 negative 块边界', () {
+      const prompt =
+          r'girl, alice \(wonderland\), negative(red hair, 1.2::blue eyes::)';
+
+      expect(
+        NaiPromptFormatter.format(prompt),
+        r'girl, alice_\(wonderland\), negative(red_hair, 1.2::blue_eyes::)',
+      );
+    });
+  });
+}

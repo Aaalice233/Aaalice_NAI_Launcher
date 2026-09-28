@@ -2,36 +2,82 @@ import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/data/models/vibe/vibe_library_entry.dart';
+import 'package:nai_launcher/data/models/vibe/vibe_library_category.dart';
 import 'package:nai_launcher/data/models/vibe/vibe_reference.dart';
 import 'package:nai_launcher/data/services/vibe_library_storage_service.dart';
+import 'package:nai_launcher/presentation/screens/vibe_library/widgets/vibe_card.dart';
 import 'package:nai_launcher/presentation/screens/vibe_library/widgets/vibe_library_content_view.dart';
 
 void main() {
+  test('workspace 和网格共用同一个间距', () {
+    expect(vibeLibraryGridSpacing, 16);
+  });
+
   test('首屏网格缓存范围应收敛，避免额外预构建过多卡片', () {
-    expect(computeVibeGridCacheExtent(200), 300);
-    expect(computeVibeGridCacheExtent(160), 240);
+    expect(computeVibeGridCacheExtent(200), 125);
+    expect(computeVibeGridCacheExtent(160), 100);
+  });
+
+  test('Vibe 库与选择器共用 4:5 图像卡片比例', () {
+    expect(vibeCardAspectRatio, 0.8);
+    expect(computeVibeCardHeight(200), 250);
+  });
+
+  test('分类标签保留完整层级路径，未分类条目不会得到标签', () {
+    final categories = [
+      VibeLibraryCategory(id: 'people', name: '人物', createdAt: DateTime(2026)),
+      VibeLibraryCategory(
+        id: 'female',
+        name: '女性角色',
+        parentId: 'people',
+        createdAt: DateTime(2026),
+      ),
+    ];
+
+    final labels = buildVibeCategoryLabels(categories);
+
+    expect(labels['people'], '人物');
+    expect(labels['female'], '人物 / 女性角色');
+    expect(labels[null], isNull);
+    expect(labels['missing'], isNull);
   });
 
   test('打开详情前应优先回读真实条目参数，而不是继续使用列表旧快照', () async {
     final staleEntry = _buildEntry(strength: 0.6, infoExtracted: 0.7);
     final actualEntry = _buildEntry(strength: 0.18, infoExtracted: 0.3);
-    final resolved = await resolveVibeDetailEntryForOpen(
+    final resolved = await resolveVibeDetailDataForOpen(
       _DetailEntryStorage(actualEntry),
       staleEntry,
     );
 
-    expect(resolved.strength, 0.18);
-    expect(resolved.infoExtracted, 0.3);
+    expect(resolved.entry.strength, 0.18);
+    expect(resolved.entry.infoExtracted, 0.3);
   });
 
   test('真实条目不可用时，打开详情仍回退使用当前列表条目', () async {
     final staleEntry = _buildEntry(strength: 0.6, infoExtracted: 0.7);
-    final resolved = await resolveVibeDetailEntryForOpen(
+    final resolved = await resolveVibeDetailDataForOpen(
       _DetailEntryStorage(null),
       staleEntry,
     );
 
-    expect(resolved, same(staleEntry));
+    expect(resolved.entry, same(staleEntry));
+    expect(resolved.bundleVibes, isEmpty);
+  });
+
+  test('打开 bundle 详情会把同一次解析得到的全部子项交给查看器', () async {
+    final entry = _buildEntry(strength: 0.6, infoExtracted: 0.7);
+    const bundleVibes = [
+      VibeReference(displayName: 'first', vibeEncoding: 'encoding-1'),
+      VibeReference(displayName: 'second', vibeEncoding: 'encoding-2'),
+    ];
+    final resolved = await resolveVibeDetailDataForOpen(
+      _DetailEntryStorage(entry, bundleVibes: bundleVibes),
+      entry,
+    );
+
+    expect(resolved.entry, same(entry));
+    expect(resolved.bundleVibes, same(bundleVibes));
   });
 
   test('发送 bundle 到生成页时默认保留每个子 Vibe 自己的参数', () {
@@ -136,10 +182,16 @@ VibeLibraryEntry _buildEntry({
 }
 
 class _DetailEntryStorage extends VibeLibraryStorageService {
-  _DetailEntryStorage(this.entry);
+  _DetailEntryStorage(this.entry, {this.bundleVibes = const []});
 
   final VibeLibraryEntry? entry;
+  final List<VibeReference> bundleVibes;
 
   @override
-  Future<VibeLibraryEntry?> getEntry(String id) async => entry;
+  Future<VibeLibraryDetailData?> getDetailData(String id) async {
+    final value = entry;
+    return value == null
+        ? null
+        : VibeLibraryDetailData(entry: value, bundleVibes: bundleVibes);
+  }
 }

@@ -1,3 +1,6 @@
+import 'dart:convert';
+
+import 'package:crypto/crypto.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
@@ -21,21 +24,19 @@ class SecureStorageService {
   /// 内存缓存 - 解决 Windows 上 secure storage 写入后立即读取为 null 的问题
   static final Map<String, String> _memoryCache = {};
 
-  SecureStorageService()
-      : _storage = const FlutterSecureStorage(
-          aOptions: AndroidOptions(
-            encryptedSharedPreferences: true,
-          ),
-          lOptions: LinuxOptions(),
-          // Windows: 使用默认配置
-          wOptions: WindowsOptions(),
-          // macOS: 使用传统 login keychain（useDataProtectionKeyChain: false）。
-          // data protection keychain 需要 keychain-access-groups entitlement，
-          // 而该 entitlement 要求开发者证书签名，ad-hoc 无证书时无法构建。
-          mOptions: MacOsOptions(
-            useDataProtectionKeyChain: false,
-          ),
-        );
+  SecureStorageService({FlutterSecureStorage? storage})
+    : _storage =
+          storage ??
+          const FlutterSecureStorage(
+            aOptions: AndroidOptions(encryptedSharedPreferences: true),
+            lOptions: LinuxOptions(),
+            // Windows: 使用默认配置
+            wOptions: WindowsOptions(),
+            // macOS: 使用传统 login keychain（useDataProtectionKeyChain: false）。
+            // data protection keychain 需要 keychain-access-groups entitlement，
+            // 而该 entitlement 要求开发者证书签名，ad-hoc 无证书时无法构建。
+            mOptions: MacOsOptions(useDataProtectionKeyChain: false),
+          );
 
   // ==================== Access Token ====================
 
@@ -167,8 +168,9 @@ class SecureStorageService {
 
   /// 获取账号 Token
   Future<String?> getAccountToken(String accountId) async {
-    final token =
-        await _storage.read(key: '${StorageKeys.accountTokenPrefix}$accountId');
+    final token = await _storage.read(
+      key: '${StorageKeys.accountTokenPrefix}$accountId',
+    );
     if (token == null || token.isEmpty) {
       return token;
     }
@@ -203,12 +205,170 @@ class SecureStorageService {
     await _storage.delete(key: key);
   }
 
+  Future<void> saveCloudSyncCredentials(String encodedCredentials) =>
+      _saveCloudSecret(StorageKeys.cloudSyncCredentials, encodedCredentials);
+
+  Future<String?> getCloudSyncCredentials() =>
+      _getCloudSecret(StorageKeys.cloudSyncCredentials);
+
+  String _cloudDriveIdentityKey(
+    String prefix,
+    String providerId,
+    String accountId,
+  ) {
+    final accountHash = sha256.convert(utf8.encode(accountId)).toString();
+    return '$prefix${providerId}_$accountHash';
+  }
+
+  String _cloudDriveOAuthSessionKey(String providerId, String accountId) =>
+      _cloudDriveIdentityKey(
+        StorageKeys.cloudDriveOAuthSessionPrefix,
+        providerId,
+        accountId,
+      );
+
+  Future<void> saveCloudDriveOAuthSession({
+    required String providerId,
+    required String accountId,
+    required String encodedSession,
+  }) => _saveCloudSecret(
+    _cloudDriveOAuthSessionKey(providerId, accountId),
+    encodedSession,
+  );
+
+  Future<String?> getCloudDriveOAuthSession({
+    required String providerId,
+    required String accountId,
+  }) => _getCloudSecret(_cloudDriveOAuthSessionKey(providerId, accountId));
+
+  Future<void> deleteCloudDriveOAuthSession({
+    required String providerId,
+    required String accountId,
+  }) => _deleteCloudSecret(_cloudDriveOAuthSessionKey(providerId, accountId));
+
+  Future<void> clearCloudSyncSecrets() async {
+    const keys = [StorageKeys.cloudSyncCredentials];
+    for (final key in keys) {
+      _memoryCache.remove(key);
+    }
+    await Future.wait(keys.map((key) => _storage.delete(key: key)));
+  }
+
+  Future<void> _deleteCloudSecret(String key) async {
+    await _storage.delete(key: key);
+    _memoryCache.remove(key);
+  }
+
+  Future<void> _saveCloudSecret(String key, String value) async {
+    try {
+      await _storage.write(key: key, value: value);
+      // Never let the Windows process cache make a failed write look durable.
+      _memoryCache[key] = value;
+    } catch (error) {
+      AppLogger.w(
+        'Failed to persist cloud sync secret: ${error.runtimeType}',
+        'SecureStorage',
+      );
+      rethrow;
+    }
+  }
+
+  Future<String?> _getCloudSecret(String key) async {
+    final cached = _memoryCache[key];
+    if (cached != null) return cached;
+    try {
+      final value = await _storage.read(key: key);
+      if (value != null) _memoryCache[key] = value;
+      return value;
+    } catch (error) {
+      AppLogger.w(
+        'Failed to read cloud sync secret: ${error.runtimeType}',
+        'SecureStorage',
+      );
+      rethrow;
+    }
+  }
+
+  // ==================== Online Gallery Credentials ====================
+
+  Future<void> saveDanbooruCredentials(String credentialsJson) async {
+    await _saveOnlineGalleryCredentials(
+      StorageKeys.onlineGalleryDanbooruCredentialsV1,
+      credentialsJson,
+    );
+  }
+
+  Future<String?> getDanbooruCredentials() {
+    return _getOnlineGalleryCredentials(
+      StorageKeys.onlineGalleryDanbooruCredentialsV1,
+    );
+  }
+
+  Future<void> deleteDanbooruCredentials() {
+    return _deleteOnlineGalleryCredentials(
+      StorageKeys.onlineGalleryDanbooruCredentialsV1,
+    );
+  }
+
+  Future<void> saveGelbooruCredentials(String credentialsJson) async {
+    await _saveOnlineGalleryCredentials(
+      StorageKeys.onlineGalleryGelbooruCredentialsV1,
+      credentialsJson,
+    );
+  }
+
+  Future<String?> getGelbooruCredentials() {
+    return _getOnlineGalleryCredentials(
+      StorageKeys.onlineGalleryGelbooruCredentialsV1,
+    );
+  }
+
+  Future<void> deleteGelbooruCredentials() {
+    return _deleteOnlineGalleryCredentials(
+      StorageKeys.onlineGalleryGelbooruCredentialsV1,
+    );
+  }
+
+  Future<void> _saveOnlineGalleryCredentials(
+    String key,
+    String credentialsJson,
+  ) async {
+    // Persist first. Caching a failed write could make a migration delete its
+    // only durable copy after a misleading read-back on Windows.
+    await _storage.write(key: key, value: credentialsJson);
+    _memoryCache[key] = credentialsJson;
+  }
+
+  Future<String?> _getOnlineGalleryCredentials(String key) async {
+    final cached = _memoryCache[key];
+    if (cached != null) return cached;
+
+    try {
+      final value = await _storage.read(key: key);
+      if (value != null) {
+        _memoryCache[key] = value;
+      }
+      return value;
+    } catch (e) {
+      AppLogger.w('Failed to read online gallery credentials', 'SecureStorage');
+      return null;
+    }
+  }
+
+  Future<void> _deleteOnlineGalleryCredentials(String key) async {
+    await _storage.delete(key: key);
+    _memoryCache.remove(key);
+  }
+
   // ==================== Prompt Assistant API Key ====================
 
   String _promptAssistantKey(String providerId) =>
       '${StorageKeys.promptAssistantApiKeyPrefix}$providerId';
 
-  Future<void> savePromptAssistantApiKey(String providerId, String apiKey) async {
+  Future<void> savePromptAssistantApiKey(
+    String providerId,
+    String apiKey,
+  ) async {
     final key = _promptAssistantKey(providerId);
     final value = apiKey.trim();
     _memoryCache[key] = value;
@@ -245,6 +405,53 @@ class SecureStorageService {
     }
   }
 
+  // ==================== Agent Web Access ====================
+
+  Future<void> saveAgentWebAccessExaApiKey(String apiKey) async {
+    final value = apiKey.trim();
+    if (value.isEmpty) {
+      await deleteAgentWebAccessExaApiKey();
+      return;
+    }
+    try {
+      await _storage.write(
+        key: StorageKeys.agentWebAccessExaApiKey,
+        value: value,
+      );
+      _memoryCache[StorageKeys.agentWebAccessExaApiKey] = value;
+    } catch (e) {
+      AppLogger.w('Failed to save Exa API key: $e', 'SecureStorage');
+      rethrow;
+    }
+  }
+
+  Future<String?> getAgentWebAccessExaApiKey() async {
+    final cached = _memoryCache[StorageKeys.agentWebAccessExaApiKey];
+    if (cached != null) return cached;
+    try {
+      final value = await _storage.read(
+        key: StorageKeys.agentWebAccessExaApiKey,
+      );
+      if (value != null) {
+        _memoryCache[StorageKeys.agentWebAccessExaApiKey] = value;
+      }
+      return value;
+    } catch (e) {
+      AppLogger.w('Failed to read Exa API key: $e', 'SecureStorage');
+      return null;
+    }
+  }
+
+  Future<void> deleteAgentWebAccessExaApiKey() async {
+    try {
+      await _storage.delete(key: StorageKeys.agentWebAccessExaApiKey);
+      _memoryCache.remove(StorageKeys.agentWebAccessExaApiKey);
+    } catch (e) {
+      AppLogger.w('Failed to delete Exa API key: $e', 'SecureStorage');
+      rethrow;
+    }
+  }
+
   // ==================== Account Access Key 存储 ====================
   // 用于 JWT token 刷新，accessKey 可用于重新获取 token
 
@@ -273,7 +480,7 @@ class SecureStorageService {
   String _normalizeToken(String token) {
     final trimmedToken = token.trim();
     final unquotedToken = _stripWrappingQuotes(trimmedToken);
-    
+
     // 循环移除所有 Bearer 前缀（处理重复添加的情况）
     var normalizedToken = unquotedToken;
     var previousToken = '';
@@ -283,10 +490,10 @@ class SecureStorageService {
           .replaceFirst(_bearerPrefixRegex, '')
           .trim();
     }
-    
+
     // 移除所有空白字符
     normalizedToken = normalizedToken.replaceAll(_allWhitespaceRegex, '');
-    
+
     // 验证 token 格式
     if (normalizedToken.startsWith('pst-') && normalizedToken.length < 14) {
       AppLogger.w(
@@ -294,7 +501,7 @@ class SecureStorageService {
         'SecureStorage',
       );
     }
-    
+
     return normalizedToken;
   }
 
@@ -302,8 +509,7 @@ class SecureStorageService {
     if (value.length >= 2) {
       final first = value[0];
       final last = value[value.length - 1];
-      if ((first == '"' && last == '"') ||
-          (first == '\'' && last == '\'')) {
+      if ((first == '"' && last == '"') || (first == '\'' && last == '\'')) {
         return value.substring(1, value.length - 1);
       }
     }

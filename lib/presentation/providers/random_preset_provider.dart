@@ -9,13 +9,13 @@ import 'package:uuid/uuid.dart';
 
 import '../../data/models/prompt/algorithm_config.dart';
 import '../../data/models/prompt/default_categories.dart';
+import '../../data/models/prompt/official_wordlist.dart';
 import '../../data/models/prompt/pool_mapping.dart';
 import '../../data/models/prompt/random_category.dart';
 import '../../data/models/prompt/random_preset.dart';
 import '../../data/models/prompt/random_tag_group.dart';
 import '../../data/models/prompt/tag_category.dart';
 import '../../data/models/prompt/tag_group_mapping.dart';
-import '../../data/services/wordlist_service.dart';
 import 'tag_library_provider.dart';
 
 part 'random_preset_provider.g.dart';
@@ -94,10 +94,7 @@ class RandomPresetNotifier extends _$RandomPresetNotifier {
       _box = await Hive.openBox<String>(_boxName);
       await _loadPresets();
     } catch (e) {
-      state = state.copyWith(
-        isLoading: false,
-        error: '加载预设失败: $e',
-      );
+      state = state.copyWith(isLoading: false, error: '加载预设失败: $e');
     } finally {
       if (_initCompleter != null && !_initCompleter!.isCompleted) {
         _initCompleter!.complete();
@@ -133,44 +130,62 @@ class RandomPresetNotifier extends _$RandomPresetNotifier {
       }
     }
 
-    // 确保有默认预设
-    if (!presets.any((p) => p.isDefault)) {
-      final defaultPreset = RandomPreset.defaultPreset();
-      presets.insert(0, defaultPreset);
-      await _savePreset(defaultPreset);
-    } else {
-      // 迁移旧版默认预设
-      final defaultIndex = presets.indexWhere((p) => p.isDefault);
-      if (defaultIndex != -1) {
-        var needsUpdate = false;
-        var updatedDefault = presets[defaultIndex];
-
-        // 如果 categories 为空，填充默认类别
-        if (updatedDefault.categories.isEmpty) {
-          updatedDefault = updatedDefault.copyWith(
-            categories: DefaultCategories.createDefault(),
-          );
-          needsUpdate = true;
-        }
-
-        if (needsUpdate) {
-          updatedDefault = updatedDefault.copyWith(version: 2);
-          presets[defaultIndex] = updatedDefault;
-          await _savePreset(updatedDefault);
-        }
+    // 默认项是官网 recipe 的只读入口，不再保留旧版词库模式或用户修改。
+    final storedSelectedId = _box.get(_selectedIdKey);
+    final storedDefaults = presets.where((preset) => preset.isDefault).toList();
+    final previousDefault = storedDefaults.firstOrNull;
+    final defaultPreset = RandomPreset.defaultPreset().copyWith(
+      createdAt: previousDefault?.createdAt,
+      updatedAt: previousDefault?.updatedAt,
+    );
+    final needsDefaultSave =
+        storedDefaults.length != 1 || previousDefault != defaultPreset;
+    for (final storedDefault in storedDefaults) {
+      presets.remove(storedDefault);
+      if (storedDefault.id != defaultPreset.id) {
+        await _deletePreset(storedDefault.id);
       }
+    }
+    presets.insert(0, defaultPreset);
+    if (needsDefaultSave) {
+      await _savePreset(defaultPreset);
+    }
+
+    // v4 expands the semantic stages while preserving every existing user
+    // setting and custom group. Only presets derived from the built-in recipe
+    // receive newly introduced stages.
+    for (var index = 0; index < presets.length; index++) {
+      final preset = presets[index];
+      if (preset.version >= 4) continue;
+      final categories = preset.isDefault || preset.isBasedOnDefault
+          ? DefaultCategories.mergeMissingBuiltins(preset.categories)
+          : preset.categories;
+      final migrated = preset.copyWith(version: 4, categories: categories);
+      presets[index] = migrated;
+      await _savePreset(migrated);
     }
 
     // 按创建时间排序，默认预设在最前
     presets.sort((a, b) {
       if (a.isDefault) return -1;
       if (b.isDefault) return 1;
-      return (a.createdAt ?? DateTime.now())
-          .compareTo(b.createdAt ?? DateTime.now());
+      return (a.createdAt ?? DateTime.now()).compareTo(
+        b.createdAt ?? DateTime.now(),
+      );
     });
 
-    // 获取上次选中的预设ID
-    final selectedId = _box.get(_selectedIdKey) ?? presets.first.id;
+    // 只恢复仍然存在的预设，避免删除或异常退出后留下失效选中项。
+    final normalizedStoredSelectedId =
+        storedDefaults.any((preset) => preset.id == storedSelectedId)
+        ? defaultPreset.id
+        : storedSelectedId;
+    final selectedId =
+        presets.any((preset) => preset.id == normalizedStoredSelectedId)
+        ? normalizedStoredSelectedId!
+        : presets.first.id;
+    if (storedSelectedId != selectedId) {
+      await _box.put(_selectedIdKey, selectedId);
+    }
 
     state = state.copyWith(
       presets: presets,
@@ -196,25 +211,6 @@ class RandomPresetNotifier extends _$RandomPresetNotifier {
     await _box.put(_selectedIdKey, id);
   }
 
-  /// 更新词库版本
-  ///
-  /// 当用户切换模型版本时，更新默认预设以匹配新版本
-  Future<void> updateWordlistVersion(WordlistType version) async {
-    await _ensureInitialized();
-    // 找到默认预设
-    final defaultIndex = state.presets.indexWhere((p) => p.isDefault);
-    if (defaultIndex == -1) return;
-
-    // 创建新版本的默认预设
-    final newDefault = RandomPreset.defaultPreset(version: version);
-
-    final newPresets = [...state.presets];
-    newPresets[defaultIndex] = newDefault;
-
-    state = state.copyWith(presets: newPresets);
-    await _savePreset(newDefault);
-  }
-
   /// 创建新预设
   Future<RandomPreset> createPreset({
     required String name,
@@ -223,21 +219,20 @@ class RandomPresetNotifier extends _$RandomPresetNotifier {
   }) async {
     await _ensureInitialized();
     final currentPreset = state.selectedPreset;
-    final isBasedOnDefault = copyFromCurrent &&
+    final isBasedOnDefault =
+        copyFromCurrent &&
         (currentPreset?.isDefault == true ||
             currentPreset?.isBasedOnDefault == true);
 
     final newPreset = copyFromCurrent && currentPreset != null
-        ? RandomPreset.copyFrom(currentPreset, name: name).copyWith(
-            isBasedOnDefault: isBasedOnDefault,
-          )
+        ? RandomPreset.copyFrom(
+            currentPreset,
+            name: name,
+          ).copyWith(isBasedOnDefault: isBasedOnDefault)
         : RandomPreset.create(name: name, description: description);
 
     final newPresets = [...state.presets, newPreset];
-    state = state.copyWith(
-      presets: newPresets,
-      selectedPresetId: newPreset.id,
-    );
+    state = state.copyWith(presets: newPresets, selectedPresetId: newPreset.id);
 
     await _savePreset(newPreset);
     await _box.put(_selectedIdKey, newPreset.id);
@@ -277,10 +272,7 @@ class RandomPresetNotifier extends _$RandomPresetNotifier {
   Future<void> addPreset(RandomPreset preset) async {
     await _ensureInitialized();
     final newPresets = [...state.presets, preset];
-    state = state.copyWith(
-      presets: newPresets,
-      selectedPresetId: preset.id,
-    );
+    state = state.copyWith(presets: newPresets, selectedPresetId: preset.id);
     await _savePreset(preset);
     await _box.put(_selectedIdKey, preset.id);
   }
@@ -305,7 +297,7 @@ class RandomPresetNotifier extends _$RandomPresetNotifier {
     );
 
     await _deletePreset(id);
-    if (newSelectedId != null && state.selectedPresetId != newSelectedId) {
+    if (newSelectedId != null) {
       await _box.put(_selectedIdKey, newSelectedId);
     }
   }
@@ -601,20 +593,18 @@ class RandomPresetNotifier extends _$RandomPresetNotifier {
   Future<void> updateSelectedGroupsWithTree(
     Set<String> selectedGroupTitles,
     Map<
-            String,
-            ({
-              String displayName,
-              TagSubCategory category,
-              bool includeChildren
-            })>
-        groupInfoMap,
+      String,
+      ({String displayName, TagSubCategory category, bool includeChildren})
+    >
+    groupInfoMap,
   ) async {
     await _ensureInitialized();
     final preset = state.selectedPreset;
     if (preset == null) return;
 
-    final existingGroupTitles =
-        preset.tagGroupMappings.map((m) => m.groupTitle).toSet();
+    final existingGroupTitles = preset.tagGroupMappings
+        .map((m) => m.groupTitle)
+        .toSet();
 
     // 更新现有映射的 enabled 状态
     final updatedMappings = preset.tagGroupMappings.map((m) {
@@ -626,8 +616,9 @@ class RandomPresetNotifier extends _$RandomPresetNotifier {
     }).toList();
 
     // 添加新的映射
-    final newGroupTitles =
-        selectedGroupTitles.difference(existingGroupTitles).toList();
+    final newGroupTitles = selectedGroupTitles
+        .difference(existingGroupTitles)
+        .toList();
 
     if (newGroupTitles.isNotEmpty) {
       for (final groupTitle in newGroupTitles) {
@@ -721,9 +712,10 @@ class RandomPresetNotifier extends _$RandomPresetNotifier {
   }
 }
 
-/// 计算真实的标签数量（包括内置词库）
+/// 计算当前预设实际使用的数据条目数量。
 ///
-/// 这个 Provider 会从 TagLibrary 获取内置词库的标签数量
+/// 官网默认预设执行的是锁定的 NovelAI 官方 recipe，因此不能把仅供
+/// “基于默认预设”复制使用的 catalog 模板统计成官网词库。
 /// 性能优化：使用 select 只监听必要的数据变化
 @riverpod
 int presetTotalTagCount(Ref ref) {
@@ -732,6 +724,7 @@ int presetTotalTagCount(Ref ref) {
     randomPresetNotifierProvider.select((s) => s.selectedPreset),
   );
   if (preset == null) return 0;
+  if (preset.isDefault) return officialWordlistTotalEntryCount;
 
   final library = ref.watch(
     tagLibraryNotifierProvider.select((s) => s.library),
@@ -748,11 +741,9 @@ int presetTotalTagCount(Ref ref) {
       } else if (group.sourceType == TagGroupSourceType.builtin) {
         // 内置词库类型：从 TagLibrary 获取标签数
         if (library != null && group.sourceId != null) {
-          final category =
-              TagSubCategory.values.cast<TagSubCategory?>().firstWhere(
-                    (c) => c?.name == group.sourceId,
-                    orElse: () => null,
-                  );
+          final category = TagSubCategory.values
+              .cast<TagSubCategory?>()
+              .firstWhere((c) => c?.name == group.sourceId, orElse: () => null);
           if (category != null) {
             totalCount += library.getCategory(category).length;
           }
@@ -787,9 +778,9 @@ int groupTagCount(Ref ref, RandomTagGroup group) {
     );
     if (library != null && group.sourceId != null) {
       final category = TagSubCategory.values.cast<TagSubCategory?>().firstWhere(
-            (c) => c?.name == group.sourceId,
-            orElse: () => null,
-          );
+        (c) => c?.name == group.sourceId,
+        orElse: () => null,
+      );
       if (category != null) {
         return library.getCategory(category).length;
       }

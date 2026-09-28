@@ -245,6 +245,7 @@
 				33CC110E2044A8840003C045 /* Bundle Framework */,
 				3399D490228B24CF009A79C7 /* ShellScript */,
 				408A9C7AED2965BB786D3958 /* [CP] Embed Pods Frameworks */,
+				7A0A0A0A0A0A0A0A0A0A0A01 /* Configure OAuth Callbacks */,
 			);
 			buildRules = (
 			);
@@ -430,6 +431,23 @@
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
 			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-Runner/Pods-Runner-frameworks.sh\"\n";
+			showEnvVarsInLog = 0;
+		};
+		7A0A0A0A0A0A0A0A0A0A0A01 /* Configure OAuth Callbacks */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputPaths = (
+				"$(PROJECT_DIR)/Runner/configure_oauth_callbacks.sh",
+			);
+			name = "Configure OAuth Callbacks";
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "/bin/sh \"$PROJECT_DIR/Runner/configure_oauth_callbacks.sh\"\n";
 			showEnvVarsInLog = 0;
 		};
 /* End PBXShellScriptBuildPhase section */

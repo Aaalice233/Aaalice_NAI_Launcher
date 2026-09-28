@@ -4,8 +4,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:nai_launcher/core/utils/localization_extension.dart';
 import 'package:nai_launcher/data/models/vibe/vibe_library_entry.dart';
 import 'package:nai_launcher/data/models/vibe/vibe_reference.dart';
+import 'package:nai_launcher/presentation/adaptive/adaptive_presenter.dart';
 import 'package:nai_launcher/presentation/providers/vibe_library_provider.dart';
+import '../../adaptive/content_sized_adaptive_form.dart';
 import 'app_toast.dart';
+import 'translated_tag_text.dart';
 
 /// 保存 Vibe 到库对话框
 ///
@@ -19,12 +22,14 @@ class SaveVibeDialog extends ConsumerStatefulWidget {
 
   /// 默认名称
   final String? defaultName;
+  final ScrollController? scrollController;
 
   const SaveVibeDialog({
     super.key,
     required this.vibe,
     this.vibes,
     this.defaultName,
+    this.scrollController,
   });
 
   /// 显示对话框
@@ -34,10 +39,32 @@ class SaveVibeDialog extends ConsumerStatefulWidget {
     List<VibeReference>? vibes,
     String? defaultName,
   }) async {
-    final result = await showDialog<bool>(
+    final result = await AdaptivePresenter.showForm<bool>(
       context: context,
-      builder: (context) =>
-          SaveVibeDialog(vibe: vibe, vibes: vibes, defaultName: defaultName),
+      dialogWidth: 440,
+      titleBuilder: (panelContext) => Row(
+        children: [
+          Icon(
+            Icons.style_outlined,
+            color: Theme.of(panelContext).colorScheme.primary,
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              panelContext.l10n.vibe_saveToLibrary_title,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: Theme.of(panelContext).textTheme.titleLarge,
+            ),
+          ),
+        ],
+      ),
+      builder: (_, scrollController) => SaveVibeDialog(
+        vibe: vibe,
+        vibes: vibes,
+        defaultName: defaultName,
+        scrollController: scrollController,
+      ),
     );
     return result ?? false;
   }
@@ -163,197 +190,184 @@ class _SaveVibeDialogState extends ConsumerState<SaveVibeDialog> {
 
     final hasMultipleVibes = widget.vibes != null && widget.vibes!.length > 1;
 
-    return AlertDialog(
-      title: Row(
-        children: [
-          Icon(Icons.style_outlined, color: colorScheme.primary),
-          const SizedBox(width: 8),
-          Text(l10n.vibe_saveToLibrary_title),
-        ],
-      ),
-      content: SizedBox(
-        width: 400,
-        child: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // 名称输入
-              TextField(
-                controller: _nameController,
+    return ContentSizedAdaptiveForm(
+      scrollController: widget.scrollController,
+      content: [
+        // 名称输入
+        TextField(
+          controller: _nameController,
+          decoration: InputDecoration(
+            labelText: l10n.vibe_saveToLibrary_nameLabel,
+            hintText: l10n.vibe_saveToLibrary_nameHint,
+            prefixIcon: const Icon(Icons.label_outline),
+          ),
+          enabled: !_isSaving,
+          autofocus: true,
+        ),
+        const SizedBox(height: 16),
+
+        // 分类选择
+        if (categories.isNotEmpty)
+          DropdownButtonFormField<String?>(
+            initialValue: _selectedCategoryId,
+            decoration: InputDecoration(
+              labelText: l10n.common_category,
+              prefixIcon: const Icon(Icons.folder_outlined),
+            ),
+            items: [
+              DropdownMenuItem<String?>(
+                value: null,
+                child: Text(l10n.vibeLibrary_uncategorized),
+              ),
+              ...categories.map((category) {
+                return DropdownMenuItem<String?>(
+                  value: category.id,
+                  child: Text(category.displayName),
+                );
+              }),
+            ],
+            onChanged: _isSaving
+                ? null
+                : (value) {
+                    setState(() {
+                      _selectedCategoryId = value;
+                    });
+                  },
+          ),
+        if (categories.isNotEmpty) const SizedBox(height: 16),
+
+        // 保存为组合选项（仅当有多个 vibes 时显示）
+        if (hasMultipleVibes)
+          CheckboxListTile(
+            title: Text(l10n.vibe_saveToLibrary_saveAsBundle),
+            subtitle: Text(
+              l10n.vibe_saveToLibrary_saveAsBundleDescription(
+                widget.vibes!.length,
+              ),
+            ),
+            value: _saveAsBundle,
+            onChanged: _isSaving
+                ? null
+                : (value) {
+                    setState(() {
+                      _saveAsBundle = value ?? false;
+                    });
+                  },
+            controlAffinity: ListTileControlAffinity.leading,
+            contentPadding: EdgeInsets.zero,
+          ),
+        if (hasMultipleVibes) const SizedBox(height: 16),
+
+        // 标签输入
+        Row(
+          children: [
+            Expanded(
+              child: TextField(
+                controller: _tagController,
                 decoration: InputDecoration(
-                  labelText: l10n.vibe_saveToLibrary_nameLabel,
-                  hintText: l10n.vibe_saveToLibrary_nameHint,
-                  prefixIcon: const Icon(Icons.label_outline),
+                  labelText: l10n.tagLibrary_tags,
+                  hintText: l10n.vibe_saveToLibrary_tagHint,
+                  prefixIcon: const Icon(Icons.tag),
                 ),
                 enabled: !_isSaving,
+                onSubmitted: (_) => _addTag(),
               ),
-              const SizedBox(height: 16),
+            ),
+            const SizedBox(width: 8),
+            IconButton(
+              onPressed: _isSaving ? null : _addTag,
+              icon: const Icon(Icons.add),
+              tooltip: l10n.tag_addTag,
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
 
-              // 分类选择
-              if (categories.isNotEmpty)
-                DropdownButtonFormField<String?>(
-                  initialValue: _selectedCategoryId,
-                  decoration: InputDecoration(
-                    labelText: l10n.common_category,
-                    prefixIcon: const Icon(Icons.folder_outlined),
-                  ),
-                  items: [
-                    DropdownMenuItem<String?>(
-                      value: null,
-                      child: Text(l10n.vibeLibrary_uncategorized),
-                    ),
-                    ...categories.map((category) {
-                      return DropdownMenuItem<String?>(
-                        value: category.id,
-                        child: Text(category.displayName),
-                      );
-                    }),
-                  ],
-                  onChanged: _isSaving
-                      ? null
-                      : (value) {
-                          setState(() {
-                            _selectedCategoryId = value;
-                          });
-                        },
+        // 标签列表
+        if (_tags.isNotEmpty)
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: _tags.map((tag) {
+              return Chip(
+                label: TranslatedTagText(tag),
+                deleteIcon: const Icon(Icons.close, size: 18),
+                onDeleted: _isSaving ? null : () => _removeTag(tag),
+                materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              );
+            }).toList(),
+          ),
+
+        // Vibe 信息预览
+        const SizedBox(height: 16),
+        Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                l10n.vibe_info,
+                style: theme.textTheme.labelSmall?.copyWith(
+                  color: colorScheme.primary,
+                  fontWeight: FontWeight.w600,
                 ),
-              if (categories.isNotEmpty) const SizedBox(height: 16),
-
-              // 保存为组合选项（仅当有多个 vibes 时显示）
-              if (hasMultipleVibes)
-                CheckboxListTile(
-                  title: Text(l10n.vibe_saveToLibrary_saveAsBundle),
-                  subtitle: Text(
-                    l10n.vibe_saveToLibrary_saveAsBundleDescription(
-                      widget.vibes!.length,
-                    ),
-                  ),
-                  value: _saveAsBundle,
-                  onChanged: _isSaving
-                      ? null
-                      : (value) {
-                          setState(() {
-                            _saveAsBundle = value ?? false;
-                          });
-                        },
-                  controlAffinity: ListTileControlAffinity.leading,
-                  contentPadding: EdgeInsets.zero,
-                ),
-              if (hasMultipleVibes) const SizedBox(height: 16),
-
-              // 标签输入
-              Row(
-                children: [
-                  Expanded(
-                    child: TextField(
-                      controller: _tagController,
-                      decoration: InputDecoration(
-                        labelText: l10n.tagLibrary_tags,
-                        hintText: l10n.vibe_saveToLibrary_tagHint,
-                        prefixIcon: const Icon(Icons.tag),
-                      ),
-                      enabled: !_isSaving,
-                      onSubmitted: (_) => _addTag(),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  IconButton(
-                    onPressed: _isSaving ? null : _addTag,
-                    icon: const Icon(Icons.add),
-                    tooltip: l10n.tag_addTag,
-                  ),
-                ],
               ),
               const SizedBox(height: 8),
-
-              // 标签列表
-              if (_tags.isNotEmpty)
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: _tags.map((tag) {
-                    return Chip(
-                      label: Text(tag),
-                      deleteIcon: const Icon(Icons.close, size: 18),
-                      onDeleted: _isSaving ? null : () => _removeTag(tag),
-                      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                    );
-                  }).toList(),
-                ),
-
-              // Vibe 信息预览
-              const SizedBox(height: 16),
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: colorScheme.surfaceContainerHighest.withValues(
-                    alpha: 0.5,
-                  ),
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(
-                    color: colorScheme.outline.withValues(alpha: 0.2),
-                  ),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      l10n.vibe_info,
-                      style: theme.textTheme.labelSmall?.copyWith(
-                        color: colorScheme.primary,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    _buildInfoRow(
-                      context,
-                      label: l10n.vibe_name,
-                      value: widget.vibe.displayName,
-                    ),
-                    _buildInfoRow(
-                      context,
-                      label: l10n.vibe_saveToLibrary_strength,
-                      value:
-                          '${(widget.vibe.strength * 100).toStringAsFixed(0)}%',
-                    ),
-                    _buildInfoRow(
-                      context,
-                      label: l10n.vibe_saveToLibrary_infoExtracted,
-                      value:
-                          '${(widget.vibe.infoExtracted * 100).toStringAsFixed(0)}%',
-                    ),
-                    _buildInfoRow(
-                      context,
-                      label: l10n.vibe_sourceType,
-                      value: context.vibeSourceTypeLabel(
-                        widget.vibe.sourceType,
-                      ),
-                    ),
-                  ],
-                ),
+              _buildInfoRow(
+                context,
+                label: l10n.vibe_name,
+                value: widget.vibe.displayName,
+              ),
+              _buildInfoRow(
+                context,
+                label: l10n.vibe_saveToLibrary_strength,
+                value: '${(widget.vibe.strength * 100).toStringAsFixed(0)}%',
+              ),
+              _buildInfoRow(
+                context,
+                label: l10n.vibe_saveToLibrary_infoExtracted,
+                value:
+                    '${(widget.vibe.infoExtracted * 100).toStringAsFixed(0)}%',
+              ),
+              _buildInfoRow(
+                context,
+                label: l10n.vibe_sourceType,
+                value: context.vibeSourceTypeLabel(widget.vibe.sourceType),
               ),
             ],
           ),
         ),
-      ),
-      actions: [
-        TextButton(
-          onPressed: _isSaving ? null : () => Navigator.of(context).pop(false),
-          child: Text(l10n.common_cancel),
-        ),
-        FilledButton(
-          onPressed: _isSaving ? null : _save,
-          child: _isSaving
-              ? SizedBox(
-                  width: 16,
-                  height: 16,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    color: colorScheme.onPrimary,
-                  ),
-                )
-              : Text(l10n.common_save),
+
+        const Divider(),
+        Wrap(
+          alignment: WrapAlignment.end,
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            TextButton(
+              onPressed: _isSaving
+                  ? null
+                  : () => Navigator.of(context).pop(false),
+              child: Text(l10n.common_cancel),
+            ),
+            FilledButton(
+              onPressed: _isSaving ? null : _save,
+              child: _isSaving
+                  ? SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: colorScheme.onPrimary,
+                      ),
+                    )
+                  : Text(l10n.common_save),
+            ),
+          ],
         ),
       ],
     );

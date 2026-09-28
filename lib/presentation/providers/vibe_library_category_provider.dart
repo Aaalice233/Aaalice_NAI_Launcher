@@ -1,9 +1,13 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
+import 'package:synchronized/synchronized.dart';
 
 import '../../core/utils/app_logger.dart';
 import '../../data/models/vibe/vibe_library_category.dart';
 import '../../data/services/vibe_library_storage_service.dart';
+import 'category_operation_error.dart';
+import '../../data/models/gallery/gallery_tree_drop_slot.dart';
+import '../../data/models/gallery/library_tree_order.dart';
 
 part 'vibe_library_category_provider.freezed.dart';
 part 'vibe_library_category_provider.g.dart';
@@ -25,7 +29,7 @@ class VibeLibraryCategoryState with _$VibeLibraryCategoryState {
     @Default(false) bool isSyncing,
 
     /// 错误信息
-    String? error,
+    CategoryOperationError? error,
   }) = _VibeLibraryCategoryState;
 
   const VibeLibraryCategoryState._();
@@ -36,9 +40,9 @@ class VibeLibraryCategoryState with _$VibeLibraryCategoryState {
       return null;
     }
     return categories.cast<VibeLibraryCategory?>().firstWhere(
-          (c) => c?.id == selectedCategoryId,
-          orElse: () => null,
-        );
+      (c) => c?.id == selectedCategoryId,
+      orElse: () => null,
+    );
   }
 
   /// 是否选中"全部"
@@ -55,6 +59,7 @@ class VibeLibraryCategoryState with _$VibeLibraryCategoryState {
 /// Vibe 库分类状态管理
 @riverpod
 class VibeLibraryCategoryNotifier extends _$VibeLibraryCategoryNotifier {
+  final _categoryMoveLock = Lock();
   VibeLibraryStorageService get _storageService =>
       ref.read(vibeLibraryStorageServiceProvider);
 
@@ -75,15 +80,15 @@ class VibeLibraryCategoryNotifier extends _$VibeLibraryCategoryNotifier {
       // 按排序顺序排列
       final sortedCategories = categories.sortedByOrder();
 
-      state = state.copyWith(
-        categories: sortedCategories,
-        isLoading: false,
-      );
+      state = state.copyWith(categories: sortedCategories, isLoading: false);
     } catch (e, stackTrace) {
       AppLogger.e('加载Vibe库分类失败', e, stackTrace);
       state = state.copyWith(
         isLoading: false,
-        error: 'Failed to load categories: $e',
+        error: CategoryOperationError(
+          CategoryOperationErrorCode.loadFailed,
+          details: e.toString(),
+        ),
       );
     }
   }
@@ -104,7 +109,11 @@ class VibeLibraryCategoryNotifier extends _$VibeLibraryCategoryNotifier {
     String? parentId,
   }) async {
     if (name.trim().isEmpty) {
-      state = state.copyWith(error: 'Category name cannot be empty');
+      state = state.copyWith(
+        error: const CategoryOperationError(
+          CategoryOperationErrorCode.nameEmpty,
+        ),
+      );
       return null;
     }
 
@@ -113,7 +122,11 @@ class VibeLibraryCategoryNotifier extends _$VibeLibraryCategoryNotifier {
       if (parentId != null) {
         final parentExists = await _storageService.categoryExists(parentId);
         if (!parentExists) {
-          state = state.copyWith(error: 'Parent category does not exist');
+          state = state.copyWith(
+            error: const CategoryOperationError(
+              CategoryOperationErrorCode.parentNotFound,
+            ),
+          );
           return null;
         }
       }
@@ -140,7 +153,12 @@ class VibeLibraryCategoryNotifier extends _$VibeLibraryCategoryNotifier {
       return category;
     } catch (e, stackTrace) {
       AppLogger.e('创建Vibe库分类失败', e, stackTrace);
-      state = state.copyWith(error: 'Failed to create category: $e');
+      state = state.copyWith(
+        error: CategoryOperationError(
+          CategoryOperationErrorCode.createFailed,
+          details: e.toString(),
+        ),
+      );
       return null;
     }
   }
@@ -151,13 +169,21 @@ class VibeLibraryCategoryNotifier extends _$VibeLibraryCategoryNotifier {
     String newName,
   ) async {
     if (newName.trim().isEmpty) {
-      state = state.copyWith(error: 'Category name cannot be empty');
+      state = state.copyWith(
+        error: const CategoryOperationError(
+          CategoryOperationErrorCode.nameEmpty,
+        ),
+      );
       return null;
     }
 
     final category = state.categories.findById(categoryId);
     if (category == null) {
-      state = state.copyWith(error: 'Category does not exist');
+      state = state.copyWith(
+        error: const CategoryOperationError(
+          CategoryOperationErrorCode.categoryNotFound,
+        ),
+      );
       return null;
     }
 
@@ -181,7 +207,12 @@ class VibeLibraryCategoryNotifier extends _$VibeLibraryCategoryNotifier {
       return null;
     } catch (e, stackTrace) {
       AppLogger.e('重命名Vibe库分类失败', e, stackTrace);
-      state = state.copyWith(error: 'Failed to rename category: $e');
+      state = state.copyWith(
+        error: CategoryOperationError(
+          CategoryOperationErrorCode.renameFailed,
+          details: e.toString(),
+        ),
+      );
       return null;
     }
   }
@@ -193,7 +224,11 @@ class VibeLibraryCategoryNotifier extends _$VibeLibraryCategoryNotifier {
   ) async {
     final category = state.categories.findById(categoryId);
     if (category == null) {
-      state = state.copyWith(error: 'Category does not exist');
+      state = state.copyWith(
+        error: const CategoryOperationError(
+          CategoryOperationErrorCode.categoryNotFound,
+        ),
+      );
       return null;
     }
 
@@ -201,16 +236,15 @@ class VibeLibraryCategoryNotifier extends _$VibeLibraryCategoryNotifier {
     if (newParentId != null &&
         state.categories.wouldCreateCycle(categoryId, newParentId)) {
       state = state.copyWith(
-        error: 'Cannot move a category under its descendant',
+        error: const CategoryOperationError(
+          CategoryOperationErrorCode.invalidMove,
+        ),
       );
       return null;
     }
 
     try {
-      final moved = await _storageService.moveCategory(
-        categoryId,
-        newParentId,
-      );
+      final moved = await _storageService.moveCategory(categoryId, newParentId);
 
       if (moved != null) {
         // 更新分类列表
@@ -226,7 +260,12 @@ class VibeLibraryCategoryNotifier extends _$VibeLibraryCategoryNotifier {
       return null;
     } catch (e, stackTrace) {
       AppLogger.e('移动Vibe库分类失败', e, stackTrace);
-      state = state.copyWith(error: 'Failed to move category: $e');
+      state = state.copyWith(
+        error: CategoryOperationError(
+          CategoryOperationErrorCode.moveFailed,
+          details: e.toString(),
+        ),
+      );
       return null;
     }
   }
@@ -238,7 +277,11 @@ class VibeLibraryCategoryNotifier extends _$VibeLibraryCategoryNotifier {
   }) async {
     final category = state.categories.findById(categoryId);
     if (category == null) {
-      state = state.copyWith(error: 'Category does not exist');
+      state = state.copyWith(
+        error: const CategoryOperationError(
+          CategoryOperationErrorCode.categoryNotFound,
+        ),
+      );
       return false;
     }
 
@@ -246,7 +289,9 @@ class VibeLibraryCategoryNotifier extends _$VibeLibraryCategoryNotifier {
     final children = state.categories.getChildren(categoryId);
     if (children.isNotEmpty) {
       state = state.copyWith(
-        error: 'Delete this category\'s subcategories first',
+        error: const CategoryOperationError(
+          CategoryOperationErrorCode.hasSubcategories,
+        ),
       );
       return false;
     }
@@ -259,8 +304,9 @@ class VibeLibraryCategoryNotifier extends _$VibeLibraryCategoryNotifier {
 
       if (success) {
         // 从列表中移除
-        final updatedCategories =
-            state.categories.where((c) => c.id != categoryId).toList();
+        final updatedCategories = state.categories
+            .where((c) => c.id != categoryId)
+            .toList();
 
         // 如果删除的是当前选中的分类，切换到"全部"
         final newSelectedId = state.selectedCategoryId == categoryId
@@ -279,60 +325,46 @@ class VibeLibraryCategoryNotifier extends _$VibeLibraryCategoryNotifier {
       return false;
     } catch (e, stackTrace) {
       AppLogger.e('删除Vibe库分类失败', e, stackTrace);
-      state = state.copyWith(error: 'Failed to delete category: $e');
+      state = state.copyWith(
+        error: CategoryOperationError(
+          CategoryOperationErrorCode.deleteFailed,
+          details: e.toString(),
+        ),
+      );
       return false;
     }
   }
 
-  /// 重新排序分类
-  Future<void> reorderCategories(
-    String? parentId,
-    int oldIndex,
-    int newIndex,
-  ) async {
-    try {
-      // 获取同级分类
-      final siblings = parentId == null
-          ? state.categories.rootCategories.sortedByOrder()
-          : state.categories.getChildren(parentId).sortedByOrder();
-
-      if (oldIndex < 0 ||
-          oldIndex >= siblings.length ||
-          newIndex < 0 ||
-          newIndex >= siblings.length) {
-        return;
-      }
-
-      // 重新排序
-      final reordered = [...siblings];
-      final item = reordered.removeAt(oldIndex);
-      reordered.insert(newIndex, item);
-
-      // 更新排序顺序
-      final updatedSiblings = reordered.asMap().entries.map((e) {
-        return e.value.copyWith(
-          sortOrder: e.key,
-        );
-      }).toList();
-
-      // 保存到存储
-      for (final category in updatedSiblings) {
-        await _storageService.saveCategory(category);
-      }
-
-      // 更新完整分类列表
-      final updatedCategories = state.categories.map((c) {
-        final updated = updatedSiblings.where((s) => s.id == c.id).firstOrNull;
-        return updated ?? c;
-      }).toList();
-
-      state = state.copyWith(categories: updatedCategories);
-      AppLogger.d('Vibe库分类重新排序完成');
-    } catch (e, stackTrace) {
-      AppLogger.e('重新排序Vibe库分类失败', e, stackTrace);
-      state = state.copyWith(error: 'Failed to reorder categories: $e');
-    }
-  }
+  Future<bool> moveCategoryToSlot(
+    String categoryId,
+    String targetId,
+    GalleryTreeDropSlot slot, {
+    Map<String, int>? displayOrder,
+  }) => _categoryMoveLock.synchronized(() async {
+    final storage = _storageService;
+    final working = applyLibraryDisplayOrder(
+      state.categories,
+      displayOrder,
+      idOf: (c) => c.id,
+      withOrder: (c, order) => c.copyWith(sortOrder: order),
+    );
+    final updated = moveLibraryTreeItem(
+      working,
+      sourceId: categoryId,
+      targetId: targetId,
+      slot: slot,
+      flat: true,
+      idOf: (c) => c.id,
+      parentOf: (c) => c.parentId,
+      orderOf: (c) => c.sortOrder,
+      withPlacement: (c, parent, order) =>
+          c.copyWith(parentId: parent, sortOrder: order),
+    );
+    if (updated == null) return false;
+    await storage.saveCategories(updated);
+    state = state.copyWith(categories: updated, error: null);
+    return true;
+  });
 
   /// 清除错误
   void clearError() {
@@ -346,10 +378,7 @@ class VibeLibraryCategoryNotifier extends _$VibeLibraryCategoryNotifier {
 
   /// 获取分类及其所有子分类的ID
   Set<String> getCategoryWithDescendants(String categoryId) {
-    return {
-      categoryId,
-      ...state.categories.getDescendantIds(categoryId),
-    };
+    return {categoryId, ...state.categories.getDescendantIds(categoryId)};
   }
 
   /// 获取指定分类下的所有条目ID（包括子分类）

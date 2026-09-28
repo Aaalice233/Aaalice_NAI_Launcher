@@ -1,12 +1,19 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import '../../../widgets/common/provider_icon.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/platform/platform_capabilities.dart';
 import '../../../../core/utils/localization_extension.dart';
+import '../../../adaptive/adaptive_presenter.dart';
 import '../../../prompt_assistant/models/prompt_assistant_models.dart';
 import '../../../prompt_assistant/providers/prompt_assistant_config_provider.dart';
 import '../../../prompt_assistant/services/prompt_assistant_service.dart';
+import '../../../widgets/common/themed_confirm_dialog.dart';
+import '../../../widgets/common/searchable_model_picker.dart';
+import '../widgets/prompt_assistant_settings_forms.dart';
+import '../widgets/assistant_task_thinking_field.dart';
 import '../widgets/settings_card.dart';
 
 class PromptAssistantSettingsSection extends ConsumerWidget {
@@ -17,33 +24,93 @@ class PromptAssistantSettingsSection extends ConsumerWidget {
     final state = ref.watch(promptAssistantConfigProvider);
     final notifier = ref.read(promptAssistantConfigProvider.notifier);
 
-    return SettingsCard(
-      title: 'Prompt Assistant',
-      icon: Icons.auto_awesome,
-      child: Column(
-        children: [
-          SwitchListTile(
-            value: state.enabled,
-            title: Text(context.l10n.promptAssistant_enableAssistant),
-            subtitle: Text(
-              context.l10n.promptAssistant_settingsInputSwitchSubtitle,
-            ),
-            onChanged: notifier.setEnabled,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        SettingsCard(
+          title: context.l10n.settings_integrationConnectionSection,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              SwitchListTile(
+                value: state.enabled,
+                title: Text(context.l10n.promptAssistant_enableAssistant),
+                subtitle: Text(
+                  context.l10n.promptAssistant_settingsInputSwitchSubtitle,
+                ),
+                onChanged: notifier.setEnabled,
+              ),
+              if (PlatformCapabilities
+                  .current
+                  .supportsDesktopOverlayInteractions)
+                SwitchListTile(
+                  value: state.desktopOverlayEnabled,
+                  title: Text(context.l10n.promptAssistant_desktopOverlayTitle),
+                  subtitle: Text(
+                    context.l10n.promptAssistant_desktopOverlaySubtitle,
+                  ),
+                  onChanged: notifier.setDesktopOverlayEnabled,
+                ),
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Text(context.l10n.promptAssistant_responseTimeoutTitle),
+                    const SizedBox(height: 4),
+                    Text(
+                      context.l10n.promptAssistant_responseTimeoutDescription,
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                    const SizedBox(height: 8),
+                    DropdownButton<int>(
+                      key: const ValueKey('prompt-assistant-response-timeout'),
+                      isExpanded: true,
+                      value: state.responseTimeoutSeconds,
+                      items: [
+                        for (final seconds
+                            in PromptAssistantConfigState
+                                .responseTimeoutChoices)
+                          DropdownMenuItem(
+                            value: seconds,
+                            child: Text(
+                              context.l10n.queue_minutes(seconds ~/ 60),
+                            ),
+                          ),
+                      ],
+                      onChanged: (value) {
+                        if (value != null) {
+                          notifier.setResponseTimeoutSeconds(value);
+                        }
+                      },
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
-          SwitchListTile(
-            value: state.desktopOverlayEnabled,
-            title: Text(context.l10n.promptAssistant_desktopOverlayTitle),
-            subtitle: Text(context.l10n.promptAssistant_desktopOverlaySubtitle),
-            onChanged: notifier.setDesktopOverlayEnabled,
-          ),
-          const Divider(),
-          _buildRouting(context, state, notifier),
-          const Divider(),
-          _buildProviders(context, ref, state, notifier),
-          const Divider(),
-          _buildRules(context, state, notifier),
-        ],
-      ),
+        ),
+        const SizedBox(height: 16),
+        SettingsCard(
+          key: const ValueKey('prompt-assistant-provider-section'),
+          title: context.l10n.promptAssistant_providerManagement,
+          description: context.l10n.promptAssistant_providerManagementSubtitle,
+          child: _buildProviders(context, ref, state, notifier),
+        ),
+        const SizedBox(height: 16),
+        SettingsCard(
+          key: const ValueKey('prompt-assistant-routing-section'),
+          title: context.l10n.promptAssistant_taskRouting,
+          description: context.l10n.promptAssistant_taskRoutingSubtitle,
+          child: _buildRouting(context, state, notifier),
+        ),
+        const SizedBox(height: 16),
+        SettingsCard(
+          title: context.l10n.promptAssistant_ruleTemplates,
+          description: context.l10n.promptAssistant_ruleTemplatesSubtitle,
+          child: _buildRules(context, state, notifier),
+        ),
+      ],
     );
   }
 
@@ -53,21 +120,22 @@ class PromptAssistantSettingsSection extends ConsumerWidget {
     PromptAssistantConfigNotifier notifier,
   ) {
     final providerItems = state.providers
-        .map((p) => DropdownMenuItem(value: p.id, child: Text(p.name)))
+        .map(
+          (p) => DropdownMenuItem(
+            value: p.id,
+            child: ProviderNameLabel(provider: p),
+          ),
+        )
         .toList();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        ListTile(
-          contentPadding: const EdgeInsets.symmetric(horizontal: 4),
-          title: Text(context.l10n.promptAssistant_taskRouting),
-          subtitle: Text(context.l10n.promptAssistant_taskRoutingSubtitle),
-        ),
         LayoutBuilder(
           builder: (context, constraints) {
             final twoCols = constraints.maxWidth > 860;
             final cards = AssistantTaskType.values
+                .where((taskType) => taskType != AssistantTaskType.chat)
                 .map(
                   (taskType) => _buildTaskRouteCardForTask(
                     context: context,
@@ -121,28 +189,54 @@ class PromptAssistantSettingsSection extends ConsumerWidget {
       providerId: providerId,
       taskType: taskType,
     );
-    final modelItems = models
+    final provider = state.providers
+        .where((provider) => provider.id == providerId)
+        .firstOrNull;
+    final providerName = provider?.name;
+    final modelOptions = models
         .map(
-          (m) => DropdownMenuItem(
-            value: m.name,
-            child: Text(m.displayName),
+          (model) => ModelPickerOption(
+            id: model.name,
+            modelId: model.name,
+            subtitleLeading: ProviderIcon(provider: provider, size: 14),
+            value: model.name,
+            title: model.displayName.trim().isEmpty
+                ? model.name
+                : model.displayName.trim(),
+            subtitle: model.displayName.trim() == model.name.trim()
+                ? (providerName ?? providerId)
+                : '${providerName ?? providerId} · ${model.name}',
+            searchTerms: [providerId],
           ),
         )
-        .toList();
+        .toList(growable: false);
     final hasRealModel = models.any(
       (m) => m.name.trim().isNotEmpty && m.name.trim() != 'default-model',
     );
-    final useCurrentModel = models.any((m) => m.name == modelName) &&
+    final useCurrentModel =
+        models.any((m) => m.name == modelName) &&
         !(modelName.trim() == 'default-model' && hasRealModel);
     final modelValue = useCurrentModel
         ? modelName
         : models.isNotEmpty
-            ? models.first.name
-            : null;
+        ? models.first.name
+        : null;
 
     return _buildTaskRouteCard(
       context: context,
       title: _assistantTaskLabel(context, taskType),
+      modelPickerKeyPrefix: 'prompt-route-${taskType.name}-model',
+      thinkingField: AssistantTaskThinkingField(
+        task: taskType,
+        provider: state.providers.where((p) => p.id == providerId).firstOrNull,
+        model: modelValue,
+        value: state.routing.thinkingFor(taskType),
+        onChanged: (level) => notifier.setRouting(
+          state.routing.copyWith(
+            thinkingLevels: {...state.routing.thinkingLevels, taskType: level},
+          ),
+        ),
+      ),
       providerValue: providerItems.any((item) => item.value == providerId)
           ? providerId
           : null,
@@ -171,8 +265,8 @@ class PromptAssistantSettingsSection extends ConsumerWidget {
         );
       },
       modelValue: modelValue,
-      modelItems: modelItems,
-      onModelChanged: modelItems.isEmpty
+      modelOptions: modelOptions,
+      onModelChanged: modelOptions.isEmpty
           ? null
           : (value) {
               if (value == null) return;
@@ -194,50 +288,62 @@ class PromptAssistantSettingsSection extends ConsumerWidget {
   Widget _buildTaskRouteCard({
     required BuildContext context,
     required String title,
+    required String modelPickerKeyPrefix,
+    required Widget thinkingField,
     required String? providerValue,
     required List<DropdownMenuItem<String>> providerItems,
     required ValueChanged<String?> onProviderChanged,
     required String? modelValue,
-    required List<DropdownMenuItem<String>> modelItems,
+    required List<ModelPickerOption<String>> modelOptions,
     required ValueChanged<String?>? onModelChanged,
   }) {
-    return Card(
+    final colors = Theme.of(context).colorScheme;
+    return Container(
       margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-      elevation: 0,
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              context.l10n.promptAssistant_taskRouteTitle(title),
-              style: Theme.of(context).textTheme.titleMedium,
+      padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
+      decoration: BoxDecoration(
+        color: colors.surfaceContainerLow,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            context.l10n.promptAssistant_taskRouteTitle(title),
+            style: Theme.of(context).textTheme.titleMedium,
+          ),
+          const SizedBox(height: 8),
+          DropdownButtonFormField<String>(
+            initialValue: providerValue,
+            isExpanded: true,
+            items: providerItems,
+            onChanged: onProviderChanged,
+            decoration: InputDecoration(
+              labelText: context.l10n.promptAssistant_provider,
+              isDense: true,
             ),
-            const SizedBox(height: 8),
-            DropdownButtonFormField<String>(
-              initialValue: providerValue,
-              isExpanded: true,
-              items: providerItems,
-              onChanged: onProviderChanged,
-              decoration: InputDecoration(
-                labelText: context.l10n.promptAssistant_provider,
-                isDense: true,
-              ),
+          ),
+          const SizedBox(height: 8),
+          SearchableModelPickerField<String>(
+            keyPrefix: modelPickerKeyPrefix,
+            pickerTitle: context.l10n.agentChat_modelPickerTitle,
+            searchLabel: context.l10n.agentChat_searchModels,
+            searchHint: context.l10n.agentChat_searchModelsHint,
+            clearSearchTooltip: context.l10n.agentChat_clearModelSearch,
+            emptyMessage: context.l10n.agentChat_noModelResults,
+            options: modelOptions,
+            selectedId: modelValue,
+            emptyLabel: context.l10n.promptAssistant_noModelsPullFirst,
+            enabled: onModelChanged != null,
+            onSelected: (value) => onModelChanged?.call(value),
+            decoration: InputDecoration(
+              labelText: context.l10n.promptAssistant_model,
+              isDense: true,
             ),
-            const SizedBox(height: 8),
-            DropdownButtonFormField<String>(
-              initialValue: modelValue,
-              isExpanded: true,
-              hint: Text(context.l10n.promptAssistant_noModelsPullFirst),
-              items: modelItems,
-              onChanged: onModelChanged,
-              decoration: InputDecoration(
-                labelText: context.l10n.promptAssistant_model,
-                isDense: true,
-              ),
-            ),
-          ],
-        ),
+          ),
+          const SizedBox(height: 8),
+          thinkingField,
+        ],
       ),
     );
   }
@@ -250,118 +356,147 @@ class PromptAssistantSettingsSection extends ConsumerWidget {
   ) {
     return Column(
       children: [
-        ListTile(
-          title: Text(context.l10n.promptAssistant_providerManagement),
-          subtitle:
-              Text(context.l10n.promptAssistant_providerManagementSubtitle),
-          trailing: IconButton(
-            icon: const Icon(Icons.add),
+        Align(
+          alignment: Alignment.centerLeft,
+          child: FilledButton.tonalIcon(
+            key: const ValueKey('prompt-assistant-add-provider'),
             onPressed: () => _showProviderDialog(context, notifier, state),
+            icon: const Icon(Icons.add),
+            label: Text(context.l10n.promptAssistant_addProvider),
           ),
         ),
+        const SizedBox(height: 8),
         ...state.providers.map((provider) {
           final hasApiKey = state.providerHasApiKey[provider.id] ?? false;
-          return Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.center,
+
+          Widget buildDetails() {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
               children: [
-                Switch(
+                ProviderNameLabel(
+                  provider: provider,
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  '${provider.protocol.label}  ${provider.baseUrl}',
+                  style: Theme.of(context).textTheme.bodyMedium,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  [
+                    hasApiKey
+                        ? context.l10n.promptAssistant_apiKeyConfigured
+                        : context.l10n.promptAssistant_apiKeyNotConfigured,
+                    provider.allowImageInput
+                        ? context.l10n.promptAssistant_supportsImageInput
+                        : context.l10n.promptAssistant_textOnly,
+                  ].join(' · '),
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+              ],
+            );
+          }
+
+          Widget buildActions() {
+            return Wrap(
+              spacing: 4,
+              runSpacing: 4,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              alignment: WrapAlignment.end,
+              children: [
+                TextButton.icon(
+                  onPressed: () => _showConnectionDialog(
+                    context,
+                    notifier,
+                    provider: provider,
+                  ),
+                  icon: const Icon(Icons.link, size: 16),
+                  label: Text(context.l10n.promptAssistant_connectionConfig),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.download_for_offline_outlined),
+                  tooltip: context.l10n.promptAssistant_pullModelList,
+                  onPressed: () =>
+                      _pullProviderModels(context, ref, notifier, provider.id),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.edit),
+                  tooltip: context.l10n.promptAssistant_editProvider,
+                  onPressed: () => _showProviderDialog(
+                    context,
+                    notifier,
+                    state,
+                    provider: provider,
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.delete_outline),
+                  tooltip: context.l10n.promptAssistant_deleteProvider,
+                  onPressed: () async {
+                    final confirmed = await ThemedConfirmDialog.showDelete(
+                      context: context,
+                      itemName: provider.name,
+                    );
+                    if (!confirmed || !context.mounted) return;
+                    await notifier.deleteProvider(provider.id);
+                  },
+                ),
+              ],
+            );
+          }
+
+          return Container(
+            key: ValueKey('prompt-assistant-provider-${provider.id}'),
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final useStackedLayout = constraints.maxWidth < 720;
+                final toggle = Switch(
                   value: provider.enabled,
                   onChanged: (value) {
                     notifier.upsertProvider(provider.copyWith(enabled: value));
                   },
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
+                );
+
+                if (useStackedLayout) {
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      Text(
-                        provider.name,
-                        style: Theme.of(context).textTheme.titleMedium,
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          toggle,
+                          const SizedBox(width: 8),
+                          Expanded(child: buildDetails()),
+                        ],
                       ),
-                      const SizedBox(height: 2),
-                      Text(
-                        '${provider.protocol.label}  ${provider.baseUrl}',
-                        style: Theme.of(context).textTheme.bodyMedium,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        [
-                          hasApiKey
-                              ? context.l10n.promptAssistant_apiKeyConfigured
-                              : context
-                                  .l10n.promptAssistant_apiKeyNotConfigured,
-                          provider.allowImageInput
-                              ? context.l10n.promptAssistant_supportsImageInput
-                              : context.l10n.promptAssistant_textOnly,
-                        ].join(' · '),
-                        style: Theme.of(context).textTheme.bodySmall,
+                      const SizedBox(height: 4),
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: buildActions(),
                       ),
                     ],
-                  ),
-                ),
-                const SizedBox(width: 8),
-                ConstrainedBox(
-                  constraints:
-                      const BoxConstraints(minWidth: 240, maxWidth: 360),
-                  child: Align(
-                    alignment: Alignment.centerRight,
-                    child: Wrap(
-                      spacing: 4,
-                      runSpacing: 4,
-                      crossAxisAlignment: WrapCrossAlignment.center,
-                      alignment: WrapAlignment.end,
-                      children: [
-                        TextButton.icon(
-                          onPressed: () => _showConnectionDialog(
-                            context,
-                            notifier,
-                            provider: provider,
-                          ),
-                          icon: const Icon(Icons.link, size: 16),
-                          label: Text(
-                            context.l10n.promptAssistant_connectionConfig,
-                          ),
-                        ),
-                        Icon(
-                          hasApiKey ? Icons.key : Icons.key_off,
-                          size: 18,
-                        ),
-                        IconButton(
-                          icon: const Icon(Icons.download_for_offline_outlined),
-                          tooltip: context.l10n.promptAssistant_pullModelList,
-                          onPressed: () => _pullProviderModels(
-                            context,
-                            ref,
-                            notifier,
-                            provider.id,
-                          ),
-                        ),
-                        IconButton(
-                          icon: const Icon(Icons.edit),
-                          tooltip: context.l10n.promptAssistant_editProvider,
-                          onPressed: () => _showProviderDialog(
-                            context,
-                            notifier,
-                            state,
-                            provider: provider,
-                          ),
-                        ),
-                        IconButton(
-                          icon: const Icon(Icons.delete_outline),
-                          tooltip: context.l10n.promptAssistant_deleteProvider,
-                          onPressed: () => notifier.deleteProvider(provider.id),
-                        ),
-                      ],
+                  );
+                }
+
+                return Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    toggle,
+                    const SizedBox(width: 8),
+                    Expanded(child: buildDetails()),
+                    const SizedBox(width: 8),
+                    ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 360),
+                      child: buildActions(),
                     ),
-                  ),
-                ),
-              ],
+                  ],
+                );
+              },
             ),
           );
         }),
@@ -388,61 +523,18 @@ class PromptAssistantSettingsSection extends ConsumerWidget {
         throw StateError(l10n.promptAssistant_emptyModelList);
       }
 
-      final latestState = ref.read(promptAssistantConfigProvider);
-      for (final task in AssistantTaskType.values) {
-        for (final name in modelNames) {
-          final exists = latestState.models.any(
-            (m) =>
-                m.providerId == providerId &&
-                m.forTask == task &&
-                m.name == name,
-          );
-          if (!exists) {
-            await notifier.upsertModel(
-              ModelConfig(
-                providerId: providerId,
-                name: name,
-                displayName: name,
-                forTask: task,
-              ),
-            );
-          }
-        }
-      }
-
-      final updated = ref.read(promptAssistantConfigProvider);
-      final modelSet = modelNames.toSet();
-      var routing = updated.routing;
-      var changed = false;
-
-      for (final taskType in AssistantTaskType.values) {
-        if (routing.providerIdFor(taskType) == providerId &&
-            !modelSet.contains(routing.modelFor(taskType))) {
-          routing = routing.copyWithTask(
-            taskType: taskType,
-            providerId: providerId,
-            model: modelNames.first,
-          );
-          changed = true;
-        }
-      }
-
-      if (changed) {
-        await notifier.setRouting(routing);
-      }
+      // 以接口返回的最新列表为准同步：新增缺失模型、清理已弃用的 API 模型、
+      // 保留手动/默认模型，并在需要时迁移受影响的任务路由。
+      await notifier.syncProviderModels(providerId, modelNames);
 
       messenger?.showSnackBar(
         SnackBar(
-          content: Text(
-            l10n.promptAssistant_modelsSynced(modelNames.length),
-          ),
+          content: Text(l10n.promptAssistant_modelsSynced(modelNames.length)),
         ),
       );
     } catch (e) {
       messenger?.showSnackBar(
-        SnackBar(
-          content: Text(l10n.promptAssistant_pullModelsFailed('$e')),
-        ),
+        SnackBar(content: Text(l10n.promptAssistant_pullModelsFailed('$e'))),
       );
     }
   }
@@ -452,13 +544,13 @@ class PromptAssistantSettingsSection extends ConsumerWidget {
     PromptAssistantConfigState state,
     PromptAssistantConfigNotifier notifier,
   ) {
-    final rules = [...state.rules]..sort((a, b) => a.order.compareTo(b.order));
+    final rules =
+        state.rules
+            .where((rule) => rule.taskType != AssistantTaskType.chat)
+            .toList()
+          ..sort((a, b) => a.order.compareTo(b.order));
     return Column(
       children: [
-        ListTile(
-          title: Text(context.l10n.promptAssistant_ruleTemplates),
-          subtitle: Text(context.l10n.promptAssistant_ruleTemplatesSubtitle),
-        ),
         ...rules.map(
           (rule) => ListTile(
             title: Text(_displayRuleName(context, rule)),
@@ -497,149 +589,45 @@ class PromptAssistantSettingsSection extends ConsumerWidget {
     PromptAssistantConfigState state, {
     ProviderConfig? provider,
   }) async {
-    final nameController = TextEditingController(text: provider?.name ?? '');
-    final baseController = TextEditingController(text: provider?.baseUrl ?? '');
-    final keyController = TextEditingController();
-    var preset = provider?.preset ??
-        (provider == null
-            ? ProviderPreset.openaiChat
-            : provider.protocol == ProviderProtocol.openaiResponses
-                ? ProviderPreset.openaiCompatibleResponses
-                : ProviderPreset.openaiCompatibleChat);
-    var allowImageInput =
-        provider?.allowImageInput ?? preset.defaultAllowImageInput;
-
-    void applyProtocol(ProviderPreset value) {
-      final previousPreset = preset;
-      final currentName = nameController.text.trim();
-      final currentBaseUrl = baseController.text.trim();
-      preset = value;
-      allowImageInput = value.defaultAllowImageInput;
-      if (provider == null) {
-        nameController.text = value.defaultName;
-        baseController.text = value.defaultBaseUrl;
-        return;
-      }
-      if (currentName.isEmpty || currentName == previousPreset.defaultName) {
-        nameController.text = value.defaultName;
-      }
-      if (currentBaseUrl.isEmpty ||
-          currentBaseUrl == previousPreset.defaultBaseUrl) {
-        baseController.text = value.defaultBaseUrl;
-      }
-    }
-
-    if (provider == null) {
-      applyProtocol(preset);
-    }
-
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) {
-        return StatefulBuilder(
-          builder: (context, setState) {
-            return AlertDialog(
-              title: Text(
-                provider == null
-                    ? context.l10n.promptAssistant_addProvider
-                    : context.l10n.promptAssistant_editProviderTitle,
-              ),
-              content: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    TextField(
-                      controller: nameController,
-                      decoration: InputDecoration(
-                        labelText: context.l10n.promptAssistant_name,
-                      ),
-                    ),
-                    DropdownButtonFormField<ProviderPreset>(
-                      initialValue: preset,
-                      items: ProviderPreset.values
-                          .map(
-                            (e) => DropdownMenuItem(
-                              value: e,
-                              child: Text(e.label),
-                            ),
-                          )
-                          .toList(),
-                      onChanged: (value) {
-                        if (value != null) {
-                          setState(() => applyProtocol(value));
-                        }
-                      },
-                      decoration: InputDecoration(
-                        labelText: context.l10n.promptAssistant_protocol,
-                      ),
-                    ),
-                    TextField(
-                      controller: baseController,
-                      decoration: const InputDecoration(labelText: 'Base URL'),
-                    ),
-                    SwitchListTile(
-                      value: allowImageInput,
-                      contentPadding: EdgeInsets.zero,
-                      title: Text(context.l10n.promptAssistant_allowImageInput),
-                      subtitle: Text(
-                        context.l10n.promptAssistant_allowImageInputSubtitle,
-                      ),
-                      onChanged: (value) {
-                        setState(() => allowImageInput = value);
-                      },
-                    ),
-                    TextField(
-                      controller: keyController,
-                      decoration: InputDecoration(
-                        labelText:
-                            context.l10n.promptAssistant_apiKeyLeaveEmpty,
-                      ),
-                      obscureText: true,
-                    ),
-                  ],
-                ),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(context, false),
-                  child: Text(context.l10n.common_cancel),
-                ),
-                FilledButton(
-                  onPressed: () => Navigator.pop(context, true),
-                  child: Text(context.l10n.common_save),
-                ),
-              ],
-            );
-          },
+    final result =
+        await AdaptivePresenter.showForm<PromptAssistantProviderFormResult>(
+          context: context,
+          dialogWidth: 520,
+          title: provider == null
+              ? context.l10n.promptAssistant_addProvider
+              : context.l10n.promptAssistant_editProviderTitle,
+          builder: (context, scrollController) => PromptAssistantProviderForm(
+            provider: provider,
+            scrollController: scrollController,
+          ),
         );
-      },
-    );
+    if (result == null) return;
 
-    if (confirmed != true) return;
-
-    final resolvedName = nameController.text.trim().isEmpty
-        ? preset.defaultName
-        : nameController.text.trim();
-    final resolvedId = provider?.id ??
+    final resolvedName = result.name.isEmpty
+        ? result.preset.defaultName
+        : result.name;
+    final resolvedId =
+        provider?.id ??
         _uniqueProviderId(
           state,
-          _providerIdFromName(resolvedName, fallback: preset.defaultId),
+          _providerIdFromName(resolvedName, fallback: result.preset.defaultId),
         );
     final next = ProviderConfig(
       id: resolvedId,
       name: resolvedName,
-      type: preset.legacyType,
-      protocol: preset.defaultProtocol,
-      preset: preset,
-      baseUrl: baseController.text.trim(),
+      type: result.preset.legacyType,
+      protocol: result.preset.defaultProtocol,
+      preset: result.preset,
+      baseUrl: result.baseUrl,
       enabled: provider?.enabled ?? true,
-      allowImageInput: allowImageInput,
+      allowImageInput: result.allowImageInput,
+      concurrency: result.concurrency,
     );
 
     await notifier.upsertProvider(next);
 
-    if (keyController.text.trim().isNotEmpty) {
-      await notifier.setProviderApiKey(resolvedId, keyController.text);
+    if (result.apiKey.trim().isNotEmpty) {
+      await notifier.setProviderApiKey(resolvedId, result.apiKey);
     }
 
     for (final taskType in AssistantTaskType.values) {
@@ -648,8 +636,9 @@ class PromptAssistantSettingsSection extends ConsumerWidget {
       );
       if (!hasModel) {
         final defaultModels = next.preset?.defaultModelNames ?? const [];
-        final modelName =
-            defaultModels.isNotEmpty ? defaultModels.first : 'default-model';
+        final modelName = defaultModels.isNotEmpty
+            ? defaultModels.first
+            : 'default-model';
         await notifier.upsertModel(
           ModelConfig(
             providerId: resolvedId,
@@ -668,8 +657,9 @@ class PromptAssistantSettingsSection extends ConsumerWidget {
       return baseId;
     }
     var index = 2;
-    while (
-        state.providers.any((provider) => provider.id == '${baseId}_$index')) {
+    while (state.providers.any(
+      (provider) => provider.id == '${baseId}_$index',
+    )) {
       index++;
     }
     return '${baseId}_$index';
@@ -690,100 +680,32 @@ class PromptAssistantSettingsSection extends ConsumerWidget {
     PromptAssistantConfigNotifier notifier, {
     required ProviderConfig provider,
   }) async {
-    final baseController = TextEditingController(text: provider.baseUrl);
-    final keyController = TextEditingController();
-    var clearApiKey = false;
-    var allowImageInput = provider.allowImageInput;
-
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) {
-        return StatefulBuilder(
-          builder: (context, setState) {
-            return AlertDialog(
-              title: Text(
-                context.l10n.promptAssistant_connectionTitle(provider.name),
-              ),
-              content: SizedBox(
-                width: 460,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    TextField(
-                      controller: baseController,
-                      decoration: InputDecoration(
-                        labelText: 'Base URL',
-                        hintText: context.l10n.promptAssistant_baseUrlHint,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    TextField(
-                      controller: keyController,
-                      decoration: InputDecoration(
-                        labelText:
-                            context.l10n.promptAssistant_apiKeyLeaveEmpty,
-                      ),
-                      obscureText: true,
-                    ),
-                    CheckboxListTile(
-                      value: clearApiKey,
-                      contentPadding: EdgeInsets.zero,
-                      title:
-                          Text(context.l10n.promptAssistant_clearCurrentApiKey),
-                      onChanged: (value) {
-                        setState(() => clearApiKey = value ?? false);
-                      },
-                    ),
-                    SwitchListTile(
-                      value: allowImageInput,
-                      contentPadding: EdgeInsets.zero,
-                      title: Text(context.l10n.promptAssistant_allowImageInput),
-                      subtitle: Text(
-                        provider.protocol.supportsImagePayload
-                            ? context.l10n
-                                .promptAssistant_protocolSupportsImagePayload
-                            : context
-                                .l10n.promptAssistant_protocolTextOnlyWarning,
-                      ),
-                      onChanged: (value) {
-                        setState(() => allowImageInput = value);
-                      },
-                    ),
-                  ],
-                ),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(context, false),
-                  child: Text(context.l10n.common_cancel),
-                ),
-                FilledButton(
-                  onPressed: () => Navigator.pop(context, true),
-                  child: Text(context.l10n.common_save),
-                ),
-              ],
-            );
-          },
+    final result =
+        await AdaptivePresenter.showForm<PromptAssistantConnectionFormResult>(
+          context: context,
+          dialogWidth: 520,
+          title: context.l10n.promptAssistant_connectionTitle(provider.name),
+          builder: (context, scrollController) => PromptAssistantConnectionForm(
+            provider: provider,
+            scrollController: scrollController,
+          ),
         );
-      },
-    );
-
-    if (confirmed != true) return;
+    if (result == null) return;
 
     await notifier.upsertProvider(
       provider.copyWith(
-        baseUrl: baseController.text.trim(),
-        allowImageInput: allowImageInput,
+        baseUrl: result.baseUrl,
+        allowImageInput: result.allowImageInput,
       ),
     );
 
-    if (clearApiKey) {
+    if (result.clearApiKey) {
       await notifier.setProviderApiKey(provider.id, '');
       return;
     }
 
-    if (keyController.text.trim().isNotEmpty) {
-      await notifier.setProviderApiKey(provider.id, keyController.text);
+    if (result.apiKey.trim().isNotEmpty) {
+      await notifier.setProviderApiKey(provider.id, result.apiKey);
     }
   }
 
@@ -792,92 +714,30 @@ class PromptAssistantSettingsSection extends ConsumerWidget {
     PromptAssistantConfigNotifier notifier, {
     PromptRuleTemplate? rule,
   }) async {
-    final nameController = TextEditingController(text: rule?.name ?? '');
-    final contentController = TextEditingController(text: rule?.content ?? '');
     final newRuleName = context.l10n.promptAssistant_newRule;
-    var taskType = rule?.taskType ?? AssistantTaskType.llm;
-
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) {
-        return StatefulBuilder(
-          builder: (context, setState) {
-            return AlertDialog(
-              title: Text(
-                rule == null
-                    ? context.l10n.promptAssistant_addRuleTitle
-                    : context.l10n.promptAssistant_editRuleTitle,
-              ),
-              content: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    TextField(
-                      controller: nameController,
-                      decoration: InputDecoration(
-                        labelText: context.l10n.promptAssistant_name,
-                      ),
-                    ),
-                    DropdownButtonFormField<AssistantTaskType>(
-                      initialValue: taskType,
-                      items: AssistantTaskType.values
-                          .map(
-                            (e) => DropdownMenuItem(
-                              value: e,
-                              child: Text(_assistantTaskLabel(context, e)),
-                            ),
-                          )
-                          .toList(),
-                      onChanged: (value) {
-                        if (value != null) setState(() => taskType = value);
-                      },
-                      decoration: InputDecoration(
-                        labelText: context.l10n.promptAssistant_taskType,
-                      ),
-                    ),
-                    TextField(
-                      controller: contentController,
-                      maxLines: 6,
-                      decoration: InputDecoration(
-                        labelText: context.l10n.promptAssistant_ruleContent,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              actions: [
-                if (rule != null && !rule.isDefault)
-                  TextButton(
-                    onPressed: () async {
-                      await notifier.removeRule(rule.id);
-                      if (context.mounted) Navigator.pop(context, false);
-                    },
-                    child: Text(context.l10n.common_delete),
-                  ),
-                TextButton(
-                  onPressed: () => Navigator.pop(context, false),
-                  child: Text(context.l10n.common_cancel),
-                ),
-                FilledButton(
-                  onPressed: () => Navigator.pop(context, true),
-                  child: Text(context.l10n.common_save),
-                ),
-              ],
-            );
-          },
+    final result =
+        await AdaptivePresenter.showForm<PromptAssistantRuleFormResult>(
+          context: context,
+          dialogWidth: 560,
+          title: rule == null
+              ? context.l10n.promptAssistant_addRuleTitle
+              : context.l10n.promptAssistant_editRuleTitle,
+          builder: (context, scrollController) => PromptAssistantRuleForm(
+            rule: rule,
+            scrollController: scrollController,
+          ),
         );
-      },
-    );
-
-    if (confirmed != true) return;
+    if (result == null) return;
+    if (result.deleted) {
+      await notifier.removeRule(rule!.id);
+      return;
+    }
 
     final next = PromptRuleTemplate(
       id: rule?.id ?? 'rule_${DateTime.now().millisecondsSinceEpoch}',
-      name: nameController.text.trim().isEmpty
-          ? newRuleName
-          : nameController.text.trim(),
-      taskType: taskType,
-      content: contentController.text.trim(),
+      name: result.name.isEmpty ? newRuleName : result.name,
+      taskType: result.taskType,
+      content: result.content,
       enabled: rule?.enabled ?? true,
       isDefault: rule?.isDefault ?? false,
       order: rule?.order ?? 100,
@@ -898,6 +758,8 @@ class PromptAssistantSettingsSection extends ConsumerWidget {
         return context.l10n.promptAssistant_taskCharacterReplace;
       case AssistantTaskType.custom:
         return context.l10n.promptAssistant_taskCustom;
+      case AssistantTaskType.chat:
+        return context.l10n.agentChat_tab;
     }
   }
 

@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
-import '../../../../themes/theme_extension.dart';
+import 'package:nai_launcher/presentation/themes/theme_extension.dart';
+
+import '../../../../adaptive/window_size_class.dart';
+import '../../../../themes/core/layered_surface_style.dart';
 
 /// Section header widget
 /// 章节标题组件
@@ -86,93 +89,81 @@ class _ChartCardState extends State<ChartCard> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
-    final extension = theme.extension<AppThemeExtension>();
-    final isDesktop = MediaQuery.of(context).size.width >= 900;
-    final shadowIntensity = extension?.shadowIntensity ?? 0.08;
     final isDark = theme.brightness == Brightness.dark;
     final accentColor = widget.accentColor ?? colorScheme.primary;
+    final reducedMotion = MediaQuery.disableAnimationsOf(context);
 
-    return MouseRegion(
-      onEnter: (_) => setState(() => _isHovered = true),
-      onExit: (_) => setState(() => _isHovered = false),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        curve: Curves.easeOutCubic,
-        transform: _isHovered
-            ? (Matrix4.identity()..translateByDouble(0.0, -2.0, 0, 1))
-            : Matrix4.identity(),
-        decoration: BoxDecoration(
-          // 深度层叠风格：使用主题中明确定义的最亮容器色
-          color: colorScheme.surfaceContainerHighest,
-          borderRadius: BorderRadius.circular(8),
-          // 多层阴影替代边框
-          boxShadow: widget.elevated
-              ? [
-                  BoxShadow(
-                    color: Colors.black.withValues(
-                      alpha:
-                          _isHovered ? shadowIntensity * 1.5 : shadowIntensity,
-                    ),
-                    blurRadius: _isHovered ? 16 : 12,
-                    offset: Offset(0, _isHovered ? 6 : 4),
-                  ),
-                  BoxShadow(
-                    color:
-                        Colors.black.withValues(alpha: shadowIntensity * 0.5),
-                    blurRadius: 6,
-                    offset: const Offset(0, 2),
-                  ),
-                ]
-              : null,
-        ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(8),
-          child: Padding(
-            padding: widget.padding ?? EdgeInsets.all(isDesktop ? 22 : 18),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                if (widget.title != null) ...[
-                  Row(
-                    children: [
-                      if (widget.titleIcon != null) ...[
-                        // 深度层叠风格：简洁图标容器
-                        Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                            color: accentColor.withValues(
-                              alpha: isDark ? 0.15 : 0.1,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final sizeClass = WindowSizeClass.fromWidth(constraints.maxWidth);
+        final useExpandedSpacing = sizeClass.isExpandedOrWider;
+
+        return MouseRegion(
+          onEnter: (_) => setState(() => _isHovered = true),
+          onExit: (_) => setState(() => _isHovered = false),
+          child: AnimatedContainer(
+            duration: reducedMotion
+                ? Duration.zero
+                : theme.appTheme.fastDuration,
+            curve: theme.appTheme.standardCurve,
+            decoration: BoxDecoration(
+              color: _isHovered
+                  ? controlSurfaceColor(colorScheme)
+                  : sectionSurfaceColor(colorScheme),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: Padding(
+                padding:
+                    widget.padding ??
+                    EdgeInsets.all(useExpandedSpacing ? 22 : 18),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (widget.title != null) ...[
+                      Row(
+                        children: [
+                          if (widget.titleIcon != null) ...[
+                            // 深度层叠风格：简洁图标容器
+                            Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: accentColor.withValues(
+                                  alpha: isDark ? 0.15 : 0.1,
+                                ),
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: Icon(
+                                widget.titleIcon,
+                                size: 18,
+                                color: accentColor,
+                              ),
                             ),
-                            borderRadius: BorderRadius.circular(6),
+                            const SizedBox(width: 12),
+                          ],
+                          Expanded(
+                            child: Text(
+                              widget.title!,
+                              style: theme.textTheme.titleMedium?.copyWith(
+                                fontWeight: FontWeight.w600,
+                                letterSpacing: -0.3,
+                              ),
+                            ),
                           ),
-                          child: Icon(
-                            widget.titleIcon,
-                            size: 18,
-                            color: accentColor,
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                      ],
-                      Expanded(
-                        child: Text(
-                          widget.title!,
-                          style: theme.textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.w600,
-                            letterSpacing: -0.3,
-                          ),
-                        ),
+                          if (widget.trailing != null) widget.trailing!,
+                        ],
                       ),
-                      if (widget.trailing != null) widget.trailing!,
+                      SizedBox(height: useExpandedSpacing ? 18 : 14),
                     ],
-                  ),
-                  SizedBox(height: isDesktop ? 18 : 14),
-                ],
-                widget.child,
-              ],
+                    widget.child,
+                  ],
+                ),
+              ),
             ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 }
@@ -207,7 +198,8 @@ class StatRow extends StatelessWidget {
         children: [
           Text(
             label,
-            style: labelStyle ??
+            style:
+                labelStyle ??
                 theme.textTheme.bodyMedium?.copyWith(
                   color: colorScheme.onSurfaceVariant,
                 ),
@@ -215,13 +207,15 @@ class StatRow extends StatelessWidget {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
             decoration: BoxDecoration(
-              color:
-                  (valueColor ?? colorScheme.primary).withValues(alpha: 0.08),
+              color: (valueColor ?? colorScheme.primary).withValues(
+                alpha: 0.08,
+              ),
               borderRadius: BorderRadius.circular(8),
             ),
             child: Text(
               value,
-              style: valueStyle ??
+              style:
+                  valueStyle ??
                   theme.textTheme.bodyMedium?.copyWith(
                     fontWeight: FontWeight.w600,
                     color: valueColor ?? colorScheme.onSurface,
@@ -263,45 +257,12 @@ class ChartEmptyState extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            // Animated icon container
-            TweenAnimationBuilder<double>(
-              tween: Tween(begin: 0.0, end: 1.0),
-              duration: const Duration(milliseconds: 600),
-              curve: Curves.easeOutBack,
-              builder: (context, value, child) {
-                return Transform.scale(
-                  scale: value,
-                  child: Container(
-                    padding: const EdgeInsets.all(20),
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                        colors: [
-                          colorScheme.surfaceContainerHighest,
-                          colorScheme.surfaceContainerHigh,
-                        ],
-                      ),
-                      shape: BoxShape.circle,
-                      boxShadow: [
-                        BoxShadow(
-                          color: colorScheme.primary.withValues(alpha: 0.1),
-                          blurRadius: 20,
-                          offset: const Offset(0, 8),
-                        ),
-                      ],
-                    ),
-                    child: Icon(
-                      icon,
-                      size: 48,
-                      color:
-                          colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
-                    ),
-                  ),
-                );
-              },
+            Icon(
+              icon,
+              size: 48,
+              color: colorScheme.onSurfaceVariant.withValues(alpha: 0.65),
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 20),
             Text(
               title,
               style: theme.textTheme.titleMedium?.copyWith(

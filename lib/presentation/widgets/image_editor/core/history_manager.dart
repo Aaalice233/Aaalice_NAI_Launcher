@@ -114,10 +114,7 @@ class AddStrokeAction extends EditorAction {
   final String layerId;
   final StrokeData stroke;
 
-  AddStrokeAction({
-    required this.layerId,
-    required this.stroke,
-  });
+  AddStrokeAction({required this.layerId, required this.stroke});
 
   @override
   void execute(EditorState state) {
@@ -256,10 +253,7 @@ class MergeLayerAction extends EditorAction {
   int? _bottomIndex;
   bool _executed = false;
 
-  MergeLayerAction({
-    required this.topLayerId,
-    required this.bottomLayerId,
-  });
+  MergeLayerAction({required this.topLayerId, required this.bottomLayerId});
 
   @override
   void execute(EditorState state) {
@@ -303,10 +297,7 @@ class ReorderLayerAction extends EditorAction {
   final int oldIndex;
   final int newIndex;
 
-  ReorderLayerAction({
-    required this.oldIndex,
-    required this.newIndex,
-  });
+  ReorderLayerAction({required this.oldIndex, required this.newIndex});
 
   @override
   void execute(EditorState state) {
@@ -334,10 +325,7 @@ class ResizeCanvasAction extends EditorAction {
   final CanvasResizeMode mode;
   Size? _previousSize;
 
-  ResizeCanvasAction({
-    required this.newSize,
-    required this.mode,
-  });
+  ResizeCanvasAction({required this.newSize, required this.mode});
 
   @override
   void execute(EditorState state) {

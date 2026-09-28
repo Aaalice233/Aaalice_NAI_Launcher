@@ -1,9 +1,11 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:nai_launcher/core/utils/localization_extension.dart';
 import 'package:video_player/video_player.dart';
 
-import '../../../core/cache/danbooru_image_cache_manager.dart';
+import '../../../core/cache/online_gallery_image_cache_manager.dart';
 import '../../../core/utils/app_logger.dart';
+import '../app_branch_visibility.dart';
 
 /// 简洁视频播放器组件
 ///
@@ -31,11 +33,29 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget> {
   String? _errorMessage;
   bool _showControls = true;
   bool _registeredActivePlayer = false;
+  bool _branchVisible = true;
+  bool _resumeWhenVisible = true;
 
   @override
   void initState() {
     super.initState();
     _initializePlayer();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final visible = AppBranchVisibility.of(context);
+    if (_branchVisible == visible) return;
+    _branchVisible = visible;
+    final controller = _controller;
+    if (controller == null || !_isInitialized) return;
+    if (!visible) {
+      _resumeWhenVisible = controller.value.isPlaying;
+      controller.pause();
+    } else if (_resumeWhenVisible) {
+      controller.play();
+    }
   }
 
   Future<void> _initializePlayer() async {
@@ -47,7 +67,9 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget> {
 
       await _controller!.initialize();
       _controller!.setLooping(true);
-      _controller!.play();
+      if (_branchVisible) {
+        _controller!.play();
+      }
 
       _registeredActivePlayer = true;
       _activeVideoPlayers++;
@@ -142,7 +164,7 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget> {
               const Icon(Icons.error_outline, color: Colors.white54, size: 48),
               const SizedBox(height: 12),
               Text(
-                '视频加载失败',
+                context.l10n.onlineGallery_videoLoadFailed,
                 style: TextStyle(
                   color: Colors.white.withValues(alpha: 0.7),
                   fontSize: 14,
@@ -171,8 +193,12 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget> {
     if (!_isInitialized || _controller == null) {
       return Container(
         color: Colors.black,
-        child: const Center(
-          child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+        child: Center(
+          child: CircularProgressIndicator(
+            value: MediaQuery.disableAnimationsOf(context) ? 0.75 : null,
+            color: Colors.white,
+            strokeWidth: 2,
+          ),
         ),
       );
     }
@@ -237,7 +263,9 @@ class OnlineGalleryVideoControls extends StatelessWidget {
           children: [
             AnimatedOpacity(
               opacity: showControls && !isPlaying ? 1.0 : 0.0,
-              duration: const Duration(milliseconds: 200),
+              duration: MediaQuery.disableAnimationsOf(context)
+                  ? Duration.zero
+                  : const Duration(milliseconds: 200),
               child: Center(
                 child: Container(
                   padding: const EdgeInsets.all(16),
@@ -259,7 +287,9 @@ class OnlineGalleryVideoControls extends StatelessWidget {
               bottom: 0,
               child: AnimatedOpacity(
                 opacity: showControls ? 1.0 : 0.0,
-                duration: const Duration(milliseconds: 200),
+                duration: MediaQuery.disableAnimationsOf(context)
+                    ? Duration.zero
+                    : const Duration(milliseconds: 200),
                 child: Container(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 12,
@@ -298,6 +328,7 @@ class OnlineGalleryVideoControls extends StatelessWidget {
                         child: SliderTheme(
                           data: SliderThemeData(
                             trackHeight: 3,
+                            tickMarkShape: SliderTickMarkShape.noTickMark,
                             thumbShape: const RoundSliderThumbShape(
                               enabledThumbRadius: 5,
                             ),

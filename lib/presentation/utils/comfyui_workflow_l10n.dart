@@ -8,7 +8,8 @@ extension LocalizedWorkflowTemplate on WorkflowTemplate {
     if (!isBuiltin) return name;
     final l10n = context.l10n;
     return switch (id) {
-      'builtin_seedvr2_upscale' => l10n.comfyWorkflow_seedvr2UpscaleName,
+      'builtin_seedvr2_native_upscale' => l10n.comfyWorkflow_seedvr2UpscaleName,
+      'builtin_seedvr2_upscale' => l10n.comfyWorkflow_seedvr2LegacyUpscaleName,
       'builtin_seedvr2_tiled_upscale' =>
         l10n.comfyWorkflow_seedvr2TiledUpscaleName,
       'builtin_comfy_model_upscale' => l10n.comfyWorkflow_modelUpscaleName,
@@ -21,7 +22,10 @@ extension LocalizedWorkflowTemplate on WorkflowTemplate {
     if (!isBuiltin) return description;
     final l10n = context.l10n;
     return switch (id) {
-      'builtin_seedvr2_upscale' => l10n.comfyWorkflow_seedvr2UpscaleDescription,
+      'builtin_seedvr2_native_upscale' =>
+        l10n.comfyWorkflow_seedvr2UpscaleDescription,
+      'builtin_seedvr2_upscale' =>
+        l10n.comfyWorkflow_seedvr2LegacyUpscaleDescription,
       'builtin_seedvr2_tiled_upscale' =>
         l10n.comfyWorkflow_seedvr2TiledUpscaleDescription,
       'builtin_comfy_model_upscale' =>
@@ -55,8 +59,11 @@ extension LocalizedWorkflowSlot on WorkflowSlot {
       ('target_resolution', 'new_resolution') =>
         l10n.comfyWorkflowSlot_targetLongSide,
       ('dit_model', _) ||
-      ('upscale_model', _) =>
-        l10n.comfyWorkflowSlot_upscaleModel,
+      ('upscale_model', _) => l10n.comfyWorkflowSlot_upscaleModel,
+      ('vae_encode_tile_size', _) => l10n.comfyWorkflowSlot_vaeEncodeTileSize,
+      ('vae_decode_tile_size', _) => l10n.comfyWorkflowSlot_vaeDecodeTileSize,
+      ('blocks_to_swap', _) => l10n.comfyWorkflowSlot_blocksToSwap,
+      ('swap_io_components', _) => l10n.comfyWorkflowSlot_swapIoComponents,
       ('seed', _) => l10n.comfyWorkflowSlot_randomSeed,
       ('output_image', _) => l10n.comfyWorkflowSlot_outputImage,
       ('tile_size', 'tile_width') => l10n.comfyWorkflowSlot_tileWidth,

@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:math';
 import 'dart:typed_data';
 
 import 'package:archive/archive.dart';
@@ -8,6 +7,7 @@ import 'package:flutter/foundation.dart';
 
 import '../../data/models/vibe/vibe_reference.dart';
 import 'app_logger.dart';
+import 'novelai_vibe_codec.dart';
 
 /// Vibe 图片嵌入器 - 在 PNG 中嵌入和提取 Vibe 元数据
 ///
@@ -35,8 +35,6 @@ class VibeImageEmbedder {
   static const String _textChunkType = 'tEXt';
   static const String _idatChunkType = 'IDAT';
   static const String _iendChunkType = 'IEND';
-  static const String _defaultVibeModel = 'nai-diffusion-4-full';
-
   static const int _minPngSize = 20; // 8 (signature) + 12 (minimum chunk)
   static const int _chunkHeaderSize = 12; // 4 (length) + 4 (type) + 4 (crc)
   static const Duration _embedTimeout = Duration(seconds: 10);
@@ -58,15 +56,19 @@ class VibeImageEmbedder {
     Uint8List imageBytes,
     VibeReference vibeReference, {
     String? thumbnailBase64,
+    String defaultModel = NovelAiVibeCodec.defaultModel,
   }) async {
-    return embedVibesToImage(imageBytes, [vibeReference]);
+    return embedVibesToImage(imageBytes, [
+      vibeReference,
+    ], defaultModel: defaultModel);
   }
 
   /// 嵌入多个 Vibes 到图片（bundle 格式）
   static Future<Uint8List> embedVibesToImage(
     Uint8List imageBytes,
-    List<VibeReference> vibeReferences,
-  ) async {
+    List<VibeReference> vibeReferences, {
+    String defaultModel = NovelAiVibeCodec.defaultModel,
+  }) async {
     if (vibeReferences.isEmpty) {
       throw ArgumentError('At least one vibe reference is required');
     }
@@ -77,6 +79,7 @@ class VibeImageEmbedder {
       final params = _EmbedVibesParams(
         imageBytes: imageBytes,
         vibeReferencesData: vibeReferences.map(_vibeReferenceToData).toList(),
+        defaultModel: defaultModel,
       );
 
       return await compute(_embedVibesIsolate, params).timeout(_embedTimeout);
@@ -108,9 +111,13 @@ class VibeImageEmbedder {
       _validatePngDimensions(params.imageBytes);
 
       final chunks = _parsePngChunks(params.imageBytes);
-      final vibeReferences =
-          params.vibeReferencesData.map(_vibeDataToReference).toList();
-      final naiData = _buildNaiVibeBundleData(vibeReferences);
+      final vibeReferences = params.vibeReferencesData
+          .map(_vibeDataToReference)
+          .toList();
+      final naiData = _buildNaiVibeBundleData(
+        vibeReferences,
+        defaultModel: params.defaultModel,
+      );
       final naiDataBase64 = base64.encode(utf8.encode(jsonEncode(naiData)));
       final vibeChunk = _buildITxtChunk(_naiDataKeyword, naiDataBase64);
 
@@ -213,51 +220,13 @@ class VibeImageEmbedder {
 
   /// Build NAI vibe bundle data (safe for Isolate use)
   static Map<String, dynamic> _buildNaiVibeBundleData(
-    List<VibeReference> references,
-  ) {
-    final now = DateTime.now().toIso8601String();
-    final vibes = references.map((ref) {
-      final thumbnailBase64 =
-          ref.thumbnail != null ? base64.encode(ref.thumbnail!) : null;
-      return {
-        'identifier': 'novelai-vibe-transfer',
-        'version': 1,
-        'type': 'image',
-        'image': thumbnailBase64 ?? '',
-        'id': _generateVibeId(),
-        'encodings': ref.vibeEncoding.isNotEmpty
-            ? {
-                _defaultVibeModel: {
-                  'vibe': {
-                    'encoding': ref.vibeEncoding,
-                  },
-                },
-              }
-            : {},
-        'name': ref.displayName,
-        'thumbnail': thumbnailBase64,
-        'createdAt': now,
-        'importInfo': {
-          'source': 'nai_launcher',
-          'importedAt': now,
-          'strength': ref.strength,
-          'information_extracted': ref.infoExtracted,
-        },
-      };
-    }).toList();
-
-    return {
-      'identifier': 'novelai-vibe-transfer-bundle',
-      'version': 1,
-      'vibes': vibes,
-    };
-  }
-
-  /// Generate vibe ID (safe for Isolate use)
-  static String _generateVibeId() {
-    final random = Random.secure();
-    final bytes = List<int>.generate(16, (_) => random.nextInt(256));
-    return bytes.map((b) => b.toRadixString(16).padLeft(2, '0')).join('');
+    List<VibeReference> references, {
+    required String defaultModel,
+  }) {
+    return NovelAiVibeCodec.buildBundleMap(
+      references,
+      fallbackModel: defaultModel,
+    );
   }
 
   /// Build iTXt chunk (safe for Isolate use)
@@ -350,15 +319,15 @@ class VibeImageEmbedder {
 
   /// 从图片提取 Vibes（使用 Isolate 避免阻塞 UI）
   static Future<({List<VibeReference> vibes, bool isBundle})>
-      extractVibeFromImage(
-    Uint8List imageBytes,
-  ) async {
+  extractVibeFromImage(Uint8List imageBytes) async {
     _validateFileSize(imageBytes.length, _maxFileSize, 'Input file');
     _validateFileSize(imageBytes.length, _maxPngFileSize, 'PNG file');
 
     try {
-      final result = await compute(_extractVibesFromImageIsolate, imageBytes)
-          .timeout(_extractTimeout);
+      final result = await compute(
+        _extractVibesFromImageIsolate,
+        imageBytes,
+      ).timeout(_extractTimeout);
 
       final vibes = result.vibesData.map(_vibeDataToReference).toList();
       return (vibes: vibes, isBundle: result.isBundle);
@@ -455,8 +424,10 @@ class VibeImageEmbedder {
       'displayName': vibe.displayName,
       'vibeEncoding': vibe.vibeEncoding,
       'thumbnail': vibe.thumbnail, // Uint8List 可以跨 Isolate 传递
+      'rawImageData': vibe.rawImageData,
       'strength': vibe.strength,
       'infoExtracted': vibe.infoExtracted,
+      'encodingModel': vibe.encodingModel,
       'sourceType': vibe.sourceType.name,
       'bundleSource': vibe.bundleSource,
     };
@@ -471,8 +442,10 @@ class VibeImageEmbedder {
     _validateFieldType<String>(data['displayName'], 'displayName');
     _validateFieldType<String>(data['vibeEncoding'], 'vibeEncoding');
     _validateFieldType<Uint8List>(data['thumbnail'], 'thumbnail');
+    _validateFieldType<Uint8List>(data['rawImageData'], 'rawImageData');
     _validateFieldType<num>(data['strength'], 'strength');
     _validateFieldType<num>(data['infoExtracted'], 'infoExtracted');
+    _validateFieldType<String>(data['encodingModel'], 'encodingModel');
     _validateFieldType<String>(data['bundleSource'], 'bundleSource');
 
     final displayName = data['displayName'] as String?;
@@ -482,8 +455,10 @@ class VibeImageEmbedder {
       displayName: (displayName?.isNotEmpty == true) ? displayName! : 'unknown',
       vibeEncoding: data['vibeEncoding'] as String? ?? '',
       thumbnail: data['thumbnail'] as Uint8List?,
+      rawImageData: data['rawImageData'] as Uint8List?,
       strength: (data['strength'] as num?)?.toDouble() ?? 0.6,
       infoExtracted: (data['infoExtracted'] as num?)?.toDouble() ?? 1.0,
+      encodingModel: data['encodingModel'] as String?,
       sourceType: _parseVibeSourceType(sourceTypeRaw),
       bundleSource: data['bundleSource'] as String?,
     );
@@ -674,15 +649,37 @@ class VibeImageEmbedder {
     final infoExtracted = importInfo is Map<String, dynamic>
         ? _parseDouble(importInfo['information_extracted'], 1.0)
         : 1.0;
+    final encodingModel = importInfo is Map<String, dynamic>
+        ? importInfo['model'] as String?
+        : null;
+    final rawImageData = _extractImageFromVibe(vibe);
 
     return VibeReference(
       displayName: name,
       vibeEncoding: encoding,
       thumbnail: thumbnail,
+      rawImageData: rawImageData,
       strength: VibeReference.sanitizeStrength(strength),
       infoExtracted: VibeReference.sanitizeInfoExtracted(infoExtracted),
+      encodingModel: encodingModel ?? _extractEncodingModelFromVibe(vibe),
       sourceType: VibeSourceType.png,
     );
+  }
+
+  static Uint8List? _extractImageFromVibe(Map<String, dynamic> vibe) {
+    final imageBase64 = vibe['image'] as String?;
+    if (imageBase64 == null || imageBase64.isEmpty) {
+      return null;
+    }
+    return _decodeBase64WithLimit(imageBase64, 'image');
+  }
+
+  static String? _extractEncodingModelFromVibe(Map<String, dynamic> vibe) {
+    final encodings = vibe['encodings'];
+    if (encodings is! Map || encodings.isEmpty) {
+      return null;
+    }
+    return NovelAiVibeCodec.modelForEncodingKey('${encodings.keys.first}');
   }
 
   /// 从 vibe 数据中提取缩略图
@@ -763,7 +760,24 @@ class VibeImageEmbedder {
       if (encoding is String) return encoding;
     }
 
-    for (final firstModel in encodings.values) {
+    final importInfo = vibe['importInfo'];
+    final importedModelValue = importInfo is Map<String, dynamic>
+        ? importInfo['model']
+        : null;
+    final importedModel = importedModelValue is String
+        ? NovelAiVibeCodec.normalizeModelOrNull(importedModelValue)
+        : null;
+    final preferredKey = importedModel == null
+        ? null
+        : NovelAiVibeCodec.encodingKeyForModel(importedModel);
+    final modelValues = <dynamic>[
+      if (preferredKey != null && encodings.containsKey(preferredKey))
+        encodings[preferredKey],
+      for (final entry in encodings.entries)
+        if (entry.key != preferredKey) entry.value,
+    ];
+
+    for (final firstModel in modelValues) {
       if (firstModel is! Map<String, dynamic>) continue;
 
       final modelVibe = firstModel['vibe'];
@@ -825,6 +839,7 @@ class VibeImageEmbedder {
     );
     final sourceType = _parseSourceType(dataRaw['sourceType'], vibeEncoding);
     final thumbnail = _extractThumbnailFromPayload(dataRaw);
+    final encodingModel = dataRaw['encodingModel'] as String?;
 
     return VibeReference(
       displayName: displayName,
@@ -832,6 +847,7 @@ class VibeImageEmbedder {
       thumbnail: thumbnail,
       strength: strength,
       infoExtracted: infoExtracted,
+      encodingModel: encodingModel,
       sourceType: sourceType,
     );
   }
@@ -963,10 +979,12 @@ class NoVibeDataException implements Exception {
 class _EmbedVibesParams {
   final Uint8List imageBytes;
   final List<Map<String, dynamic>> vibeReferencesData;
+  final String defaultModel;
 
   _EmbedVibesParams({
     required this.imageBytes,
     required this.vibeReferencesData,
+    required this.defaultModel,
   });
 }
 
@@ -975,10 +993,7 @@ class _ExtractVibeResult {
   final List<Map<String, dynamic>> vibesData;
   final bool isBundle;
 
-  _ExtractVibeResult({
-    required this.vibesData,
-    required this.isBundle,
-  });
+  _ExtractVibeResult({required this.vibesData, required this.isBundle});
 }
 
 class _PngChunk {

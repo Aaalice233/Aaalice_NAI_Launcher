@@ -7,20 +7,16 @@ import '../../../core/utils/app_logger.dart';
 import '../../../data/datasources/remote/nai_image_generation_api_service.dart';
 import '../../../data/models/image/image_params.dart';
 import 'generation_models.dart';
+import 'generation_settings_notifiers.dart';
 import 'image_generation_service.dart';
+import '../dlss_provider.dart';
 
 part 'batch_generation_notifier.g.dart';
 
 // ==================== 批量生成状态枚举 ====================
 
 /// 批量生成状态
-enum BatchGenerationStatus {
-  idle,
-  generating,
-  completed,
-  error,
-  cancelled,
-}
+enum BatchGenerationStatus { idle, generating, completed, error, cancelled }
 
 // ==================== 批量生成项 ====================
 
@@ -30,6 +26,7 @@ class BatchGenerationItem {
   final int index;
   final Uint8List? image;
   final bool isCompleted;
+  final bool isCancelled;
   final String? error;
   final double progress;
   final DateTime? startTime;
@@ -40,6 +37,7 @@ class BatchGenerationItem {
     required this.index,
     this.image,
     this.isCompleted = false,
+    this.isCancelled = false,
     this.error,
     this.progress = 0.0,
     this.startTime,
@@ -49,6 +47,7 @@ class BatchGenerationItem {
   BatchGenerationItem copyWith({
     Uint8List? image,
     bool? isCompleted,
+    bool? isCancelled,
     String? error,
     double? progress,
     DateTime? startTime,
@@ -59,6 +58,7 @@ class BatchGenerationItem {
       index: index,
       image: image ?? this.image,
       isCompleted: isCompleted ?? this.isCompleted,
+      isCancelled: isCancelled ?? this.isCancelled,
       error: error,
       progress: progress ?? this.progress,
       startTime: startTime ?? this.startTime,
@@ -75,7 +75,7 @@ class BatchGenerationItem {
 
   /// 是否正在生成
   bool get isGenerating =>
-      startTime != null && !isCompleted && error == null;
+      startTime != null && !isCompleted && !isCancelled && error == null;
 
   /// 是否失败
   bool get isFailed => error != null;
@@ -137,8 +137,9 @@ class BatchGenerationState {
       failedCount: failedCount ?? this.failedCount,
       batchWidth: batchWidth ?? this.batchWidth,
       batchHeight: batchHeight ?? this.batchHeight,
-      streamPreview:
-          clearStreamPreview ? null : (streamPreview ?? this.streamPreview),
+      streamPreview: clearStreamPreview
+          ? null
+          : (streamPreview ?? this.streamPreview),
       currentIndex: currentIndex ?? this.currentIndex,
     );
   }
@@ -157,19 +158,21 @@ class BatchGenerationState {
       items.isNotEmpty && completedCount + failedCount == items.length;
 
   /// 获取成功的图像列表
-  List<Uint8List> get successfulImages =>
-      items.where((i) => i.isCompleted && i.image != null)
-          .map((i) => i.image!)
-          .toList();
+  List<Uint8List> get successfulImages => items
+      .where((i) => i.isCompleted && i.image != null)
+      .map((i) => i.image!)
+      .toList();
 
   /// 获取生成的图像对象列表
   List<GeneratedImage> get generatedImages => items
       .where((i) => i.isCompleted && i.image != null)
-      .map((i) => GeneratedImage.create(
-            i.image!,
-            width: batchWidth ?? 832,
-            height: batchHeight ?? 1216,
-          ),)
+      .map(
+        (i) => GeneratedImage.create(
+          i.image!,
+          width: batchWidth ?? 832,
+          height: batchHeight ?? 1216,
+        ),
+      )
       .toList();
 }
 
@@ -184,28 +187,29 @@ class BatchGenerationState {
 /// - 取消支持
 @Riverpod(keepAlive: true)
 class BatchGenerationNotifier extends _$BatchGenerationNotifier {
-  ImageGenerationService? _service;
-  bool _isCancelled = false;
+  final Set<ImageGenerationService> _activeServices = {};
+  int _epoch = 0;
+  int? _cancelledEpoch;
 
   @override
   BatchGenerationState build() {
-    ref.onDispose(() {
-      _cleanup();
-    });
+    ref.onDispose(_invalidateActiveTasks);
     return const BatchGenerationState();
   }
 
-  /// 清理资源
-  void _cleanup() {
-    _service = null;
+  bool _isCurrent(int epoch) => epoch == _epoch;
+
+  int _beginEpoch() {
+    _invalidateActiveTasks();
+    return _epoch;
   }
 
-  /// 初始化生成服务
-  void _initializeService() {
-    if (_service == null) {
-      final apiService = ref.read(naiImageGenerationApiServiceProvider);
-      _service = ImageGenerationService(apiService: apiService);
+  void _invalidateActiveTasks() {
+    _epoch++;
+    for (final service in _activeServices.toList()) {
+      service.cancel();
     }
+    _activeServices.clear();
   }
 
   /// 开始批量生成
@@ -226,8 +230,8 @@ class BatchGenerationNotifier extends _$BatchGenerationNotifier {
       return;
     }
 
-    _isCancelled = false;
-    _initializeService();
+    final epoch = _beginEpoch();
+    final createService = _serviceFactory();
 
     // 初始化状态
     final items = List<BatchGenerationItem>.generate(
@@ -257,44 +261,41 @@ class BatchGenerationNotifier extends _$BatchGenerationNotifier {
     final futures = <Future<void>>[];
 
     for (int i = 0; i < count; i++) {
-      if (_isCancelled) break;
-
       futures.add(
-        semaphore.acquire(() => _generateSingle(params, i, count)),
+        semaphore.acquire(
+          () => _generateSingle(params, i, count, epoch, createService),
+        ),
       );
     }
 
     try {
       // 使用 eagerError: false 确保等待所有任务完成，即使某些任务失败
       await Future.wait(futures, eagerError: false);
+      if (!_isCurrent(epoch)) return;
 
-      if (_isCancelled) {
-        state = state.copyWith(
-          status: BatchGenerationStatus.cancelled,
-          clearStreamPreview: true,
-        );
-      } else {
-        final completed = state.items.where((i) => i.isCompleted).length;
-        final failed = state.items.where((i) => i.isFailed).length;
+      final completed = state.items.where((i) => i.isCompleted).length;
+      final failed = state.items.where((i) => i.isFailed).length;
+      final cancelled = state.items.where((i) => i.isCancelled).length;
 
-        state = state.copyWith(
-          status: failed == count
-              ? BatchGenerationStatus.error
-              : BatchGenerationStatus.completed,
-          overallProgress: 1.0,
-          completedCount: completed,
-          failedCount: failed,
-          clearStreamPreview: true,
-          errorMessage: failed == count ? '所有生成任务失败' : null,
-        );
+      state = state.copyWith(
+        status: _cancelledEpoch == epoch || cancelled > 0
+            ? BatchGenerationStatus.cancelled
+            : failed == count
+            ? BatchGenerationStatus.error
+            : BatchGenerationStatus.completed,
+        overallProgress: 1.0,
+        completedCount: completed,
+        failedCount: failed,
+        clearStreamPreview: true,
+        errorMessage: failed == count ? '所有生成任务失败' : null,
+      );
 
-        AppLogger.d(
-          'Batch generation completed: completed=$completed, failed=$failed',
-          'BatchGeneration',
-        );
-      }
+      AppLogger.d(
+        'Batch generation completed: completed=$completed, failed=$failed',
+        'BatchGeneration',
+      );
     } catch (e) {
-      if (!_isCancelled) {
+      if (_isCurrent(epoch)) {
         state = state.copyWith(
           status: BatchGenerationStatus.error,
           errorMessage: e.toString(),
@@ -304,23 +305,41 @@ class BatchGenerationNotifier extends _$BatchGenerationNotifier {
     }
   }
 
+  ImageGenerationService Function() _serviceFactory() {
+    final dlss = ref.read(dlssProvider);
+    final processor = dlss.automaticSnapshot();
+    final api = ref.read(naiImageGenerationApiServiceProvider);
+    final streamPreview = ref.read(generationStreamPreviewSettingsProvider);
+    var reported = false;
+    return () => ImageGenerationService(
+      apiService: api,
+      postprocess: processor,
+      onPostprocessError: (error) {
+        if (!reported) {
+          reported = true;
+          dlss.reportEnhancementError(error);
+        }
+      },
+      streamPreviewEnabled: streamPreview,
+    );
+  }
+
   /// 生成单个图像
   Future<void> _generateSingle(
     ImageParams params,
     int index,
     int total,
+    int epoch,
+    ImageGenerationService Function() createService,
   ) async {
-    if (_isCancelled) return;
+    if (!_isCurrent(epoch) || _cancelledEpoch == epoch) return;
 
     final startTime = DateTime.now();
 
     // 更新当前索引和开始时间
     _updateItem(
       index,
-      (current) => current.copyWith(
-        startTime: startTime,
-        progress: 0.0,
-      ),
+      (current) => current.copyWith(startTime: startTime, progress: 0.0),
     );
 
     state = state.copyWith(currentIndex: index + 1);
@@ -332,34 +351,42 @@ class BatchGenerationNotifier extends _$BatchGenerationNotifier {
         seed: params.seed == -1 ? -1 : params.seed + index,
       );
 
-      final result = await _service!.generateSingle(
-        singleParams,
-        onProgress: (current, total, progress, {previewImage}) {
-          if (_isCancelled) return;
+      final service = createService();
+      _activeServices.add(service);
+      late final ImageGenerationResult result;
+      try {
+        result = await service.generateSingle(
+          singleParams,
+          onProgress: (current, total, progress, {previewImage}) {
+            if (!_isCurrent(epoch)) return;
 
-          // 更新单个项目的进度
-          _updateItem(
-            index,
-            (current) => current.copyWith(progress: progress),
-          );
+            // 更新单个项目的进度
+            _updateItem(
+              index,
+              (current) => current.copyWith(progress: progress),
+              epoch,
+            );
 
-          // 更新总体进度
-          final overallProgress = (index + progress) / total;
-          state = state.copyWith(
-            overallProgress: overallProgress,
-            streamPreview: previewImage,
-          );
-        },
-      );
+            // 更新总体进度
+            final overallProgress = (index + progress) / total;
+            state = state.copyWith(
+              overallProgress: overallProgress,
+              streamPreview: previewImage,
+            );
+          },
+        );
+      } finally {
+        _activeServices.remove(service);
+      }
+      if (!_isCurrent(epoch)) return;
 
-      if (_isCancelled) return;
-
-      if (result.isSuccess && result.images.isNotEmpty) {
+      if (result.images.isNotEmpty) {
         _updateItem(
           index,
           (current) => current.copyWith(
             image: result.images.first.bytes,
             isCompleted: true,
+            isCancelled: false,
             endTime: DateTime.now(),
             progress: 1.0,
           ),
@@ -374,21 +401,25 @@ class BatchGenerationNotifier extends _$BatchGenerationNotifier {
           'BatchGeneration',
         );
       } else if (result.isCancelled) {
+        _updateItem(
+          index,
+          (current) =>
+              current.copyWith(isCancelled: true, endTime: DateTime.now()),
+          epoch,
+        );
         AppLogger.d('Image $index generation cancelled', 'BatchGeneration');
       } else {
         throw Exception(result.error ?? '生成失败');
       }
     } catch (e) {
-      if (_isCancelled) return;
+      if (!_isCurrent(epoch)) return;
 
       AppLogger.e('Failed to generate image $index: $e', 'BatchGeneration');
 
       _updateItem(
         index,
-        (current) => current.copyWith(
-          error: e.toString(),
-          endTime: DateTime.now(),
-        ),
+        (current) =>
+            current.copyWith(error: e.toString(), endTime: DateTime.now()),
       );
 
       // 更新失败计数
@@ -402,7 +433,12 @@ class BatchGenerationNotifier extends _$BatchGenerationNotifier {
   /// 注意：此方法使用 Riverpod 的原子更新模式，通过读取最新的 state 来确保
   /// 并发任务不会覆盖彼此的状态更新。每次更新都会基于当前最新的 state.items
   /// 进行复制和修改，而不是依赖于调用方传入的旧状态。
-  void _updateItem(int index, BatchGenerationItem Function(BatchGenerationItem current) updater) {
+  void _updateItem(
+    int index,
+    BatchGenerationItem Function(BatchGenerationItem current) updater, [
+    int? epoch,
+  ]) {
+    if (epoch != null && !_isCurrent(epoch)) return;
     final currentItems = state.items;
     if (index < 0 || index >= currentItems.length) return;
 
@@ -413,11 +449,18 @@ class BatchGenerationNotifier extends _$BatchGenerationNotifier {
 
   /// 取消批量生成
   void cancel() {
-    _isCancelled = true;
-    _service?.cancel();
-
+    // Keep this epoch while completed network images finish cancellation of NR.
+    // Starting another batch still invalidates the old epoch normally.
+    _cancelledEpoch = _epoch;
+    for (final service in _activeServices) {
+      service.cancel();
+    }
     state = state.copyWith(
       status: BatchGenerationStatus.cancelled,
+      items: [
+        for (final item in state.items)
+          item.isCompleted ? item : item.copyWith(isCancelled: true),
+      ],
       clearStreamPreview: true,
     );
 
@@ -426,8 +469,8 @@ class BatchGenerationNotifier extends _$BatchGenerationNotifier {
 
   /// 重置状态
   void reset() {
-    _isCancelled = false;
-    _service?.resetCancellation();
+    // reset 只清空本地状态，不应把仍由服务端处理的请求解释为用户取消。
+    _epoch++;
     state = const BatchGenerationState();
   }
 
@@ -452,6 +495,8 @@ class BatchGenerationNotifier extends _$BatchGenerationNotifier {
 
     if (failedIndices.isEmpty) return;
 
+    final epoch = _beginEpoch();
+    final createService = _serviceFactory();
     AppLogger.d(
       'Retrying ${failedIndices.length} failed items',
       'BatchGeneration',
@@ -461,10 +506,7 @@ class BatchGenerationNotifier extends _$BatchGenerationNotifier {
     for (final index in failedIndices) {
       _updateItem(
         index,
-        (current) => BatchGenerationItem(
-          id: current.id,
-          index: index,
-        ),
+        (current) => BatchGenerationItem(id: current.id, index: index),
       );
     }
 
@@ -479,20 +521,31 @@ class BatchGenerationNotifier extends _$BatchGenerationNotifier {
     final futures = <Future<void>>[];
 
     for (final index in failedIndices) {
-      if (_isCancelled) break;
       futures.add(
-        semaphore.acquire(() => _generateSingle(params, index, state.items.length)),
+        semaphore.acquire(
+          () => _generateSingle(
+            params,
+            index,
+            state.items.length,
+            epoch,
+            createService,
+          ),
+        ),
       );
     }
 
     await Future.wait(futures, eagerError: false);
 
-    if (!_isCancelled) {
+    if (_isCurrent(epoch)) {
       final completed = state.items.where((i) => i.isCompleted).length;
       final failed = state.items.where((i) => i.isFailed).length;
 
       state = state.copyWith(
-        status: failed == 0 ? BatchGenerationStatus.completed : BatchGenerationStatus.error,
+        status: _cancelledEpoch == epoch
+            ? BatchGenerationStatus.cancelled
+            : failed == 0
+            ? BatchGenerationStatus.completed
+            : BatchGenerationStatus.error,
         overallProgress: 1.0,
         completedCount: completed,
         failedCount: failed,
@@ -519,8 +572,9 @@ class BatchGenerationNotifier extends _$BatchGenerationNotifier {
 
   /// 计算平均生成耗时
   int? _calculateAverageDuration() {
-    final completedItems =
-        state.items.where((i) => i.isCompleted && i.durationMs != null);
+    final completedItems = state.items.where(
+      (i) => i.isCompleted && i.durationMs != null,
+    );
     if (completedItems.isEmpty) return null;
 
     final totalDuration = completedItems.fold<int>(

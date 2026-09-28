@@ -3,7 +3,9 @@ import 'package:flutter/material.dart';
 import '../../../core/utils/localization_extension.dart';
 import '../../../core/utils/nai_prompt_formatter.dart';
 import '../../../core/utils/sd_to_nai_converter.dart';
+import '../../utils/text_selection_utils.dart';
 import '../common/app_toast.dart';
+import 'tag_editor_scope.dart';
 
 /// 提示词格式化包装器
 /// 为任意输入组件提供失焦时自动格式化功能
@@ -89,13 +91,15 @@ class _PromptFormatterWrapperState extends State<PromptFormatterWrapper> {
 
   void _onFocusChanged() {
     if (!_focusNode.hasFocus) {
+      if (mounted && TagEditorScope.maybeOf(context)?.tagMode == true) return;
       _formatOnBlur();
     }
   }
 
   /// 失焦时格式化提示词
   void _formatOnBlur() {
-    var text = widget.controller.text;
+    final originalValue = widget.controller.value;
+    var text = originalValue.text;
     if (text.isEmpty) return;
 
     var changed = false;
@@ -124,7 +128,16 @@ class _PromptFormatterWrapperState extends State<PromptFormatterWrapper> {
     }
 
     if (changed) {
-      widget.controller.text = text;
+      final selection = TextSelectionUtils.preserveLineAndColumnSelection(
+        oldText: originalValue.text,
+        newText: text,
+        selection: originalValue.selection,
+      );
+      widget.controller.value = originalValue.copyWith(
+        text: text,
+        selection: selection,
+        composing: TextRange.empty,
+      );
       widget.onChanged?.call(text);
       if (mounted && messages.isNotEmpty) {
         AppToast.info(context, messages.join(' + '));
@@ -145,9 +158,6 @@ class _PromptFormatterWrapperState extends State<PromptFormatterWrapper> {
     }
 
     // 使用内部 focusNode 包装
-    return Focus(
-      focusNode: _focusNode,
-      child: widget.child,
-    );
+    return Focus(focusNode: _focusNode, child: widget.child);
   }
 }

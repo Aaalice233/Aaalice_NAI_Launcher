@@ -1,3 +1,4 @@
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -21,6 +22,7 @@ class BoxSelectionOverlay extends StatefulWidget {
 
   /// 框选结束回调
   final VoidCallback? onSelectionEnd;
+  final bool startOnEmptySpace;
 
   const BoxSelectionOverlay({
     super.key,
@@ -30,6 +32,7 @@ class BoxSelectionOverlay extends StatefulWidget {
     required this.onSelectionChanged,
     this.onSelectionStart,
     this.onSelectionEnd,
+    this.startOnEmptySpace = false,
   });
 
   @override
@@ -41,11 +44,12 @@ class _BoxSelectionOverlayState extends State<BoxSelectionOverlay> {
   Offset? _startPoint;
   Offset? _currentPoint;
   Set<int> _selectedIndices = {};
+  bool _downAllowed = false;
 
   bool get _isShiftPressed => HardwareKeyboard.instance.isShiftPressed;
 
   void _onPanStart(DragStartDetails details) {
-    if (!widget.enabled || !_isShiftPressed) return;
+    if (!widget.enabled || !_downAllowed) return;
 
     setState(() {
       _isSelecting = true;
@@ -102,6 +106,7 @@ class _BoxSelectionOverlayState extends State<BoxSelectionOverlay> {
       setState(() {
         _selectedIndices = newSelection;
       });
+      widget.onSelectionChanged(newSelection);
     }
   }
 
@@ -125,9 +130,26 @@ class _BoxSelectionOverlayState extends State<BoxSelectionOverlay> {
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onPanStart: _onPanStart,
-      onPanUpdate: _onPanUpdate,
-      onPanEnd: _onPanEnd,
+      // Competing tap handlers may resolve after movement; anchor the box at
+      // pointer-down so the first drag segment still selects crossed tags.
+      dragStartBehavior: DragStartBehavior.down,
+      onPanDown: widget.enabled
+          ? (details) {
+              _downAllowed = widget.startOnEmptySpace
+                  ? !widget.getTagRects().any(
+                      (rect) => rect.contains(details.localPosition),
+                    )
+                  : _isShiftPressed;
+            }
+          : null,
+      onPanStart: widget.enabled ? _onPanStart : null,
+      onPanUpdate: widget.enabled ? _onPanUpdate : null,
+      onPanEnd: widget.enabled ? _onPanEnd : null,
+      onPanCancel: widget.enabled
+          ? () {
+              if (_isSelecting) _onPanEnd(DragEndDetails());
+            }
+          : null,
       behavior: HitTestBehavior.translucent,
       child: Stack(
         children: [
@@ -154,10 +176,7 @@ class _SelectionBoxPainter extends CustomPainter {
   final Rect rect;
   final Color color;
 
-  _SelectionBoxPainter({
-    required this.rect,
-    required this.color,
-  });
+  _SelectionBoxPainter({required this.rect, required this.color});
 
   @override
   void paint(Canvas canvas, Size size) {

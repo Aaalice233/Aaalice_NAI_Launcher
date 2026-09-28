@@ -21,32 +21,33 @@ class EditorialPalette extends BaseColorModule {
 
   @override
   ColorScheme get lightScheme => const ColorScheme.light(
-        primary: Color(0xFFDC4A30),
-        onPrimary: Colors.white,
-        primaryContainer: Color(0xFFFFE6DE), // Light coral for contrast
-        onPrimaryContainer: Color(0xFF5C1A10), // Dark coral for text/icons
-        secondary: Color(0xFF2563EB),
-        onSecondary: Colors.white,
-        tertiary: Color(0xFFD97706),
-        surface: Color(0xFFFAFAFA),
-        onSurface: Color(0xFF171717),
-      );
+    primary: Color(0xFFDC4A30),
+    onPrimary: Color(0xFF160604),
+    primaryContainer: Color(0xFFFFE6DE), // Light coral for contrast
+    onPrimaryContainer: Color(0xFF5C1A10), // Dark coral for text/icons
+    secondary: Color(0xFF2563EB),
+    onSecondary: Colors.white,
+    tertiary: Color(0xFFD97706),
+    onTertiary: Color(0xFF3C2102),
+    surface: Color(0xFFFAFAFA),
+    onSurface: Color(0xFF171717),
+  );
 
   @override
   ColorScheme get darkScheme => const ColorScheme.dark(
-        primary: _primary,
-        onPrimary: Colors.black,
-        primaryContainer: Color(0xFF5C2A20), // Dark coral for contrast
-        onPrimaryContainer: Color(0xFFFFE6DE), // Light coral for text/icons
-        secondary: _secondary,
-        onSecondary: Colors.black,
-        tertiary: _tertiary,
-        surface: _surface,
-        onSurface: _onSurface,
-        onSurfaceVariant: Color(0xFF9CA3AF), // Gray-400 for better contrast
-        surfaceContainerHighest: _background,
-        outline: Color(0xFF525252), // Neutral-600 for better visibility
-      );
+    primary: _primary,
+    onPrimary: Colors.black,
+    primaryContainer: Color(0xFF5C2A20), // Dark coral for contrast
+    onPrimaryContainer: Color(0xFFFFE6DE), // Light coral for text/icons
+    secondary: _secondary,
+    onSecondary: Colors.black,
+    tertiary: _tertiary,
+    surface: _surface,
+    onSurface: _onSurface,
+    onSurfaceVariant: Color(0xFF9CA3AF), // Gray-400 for better contrast
+    surfaceContainerHighest: _background,
+    outline: Color(0xFF525252), // Neutral-600 for better visibility
+  );
 
   @override
   bool get supportsDarkMode => true;

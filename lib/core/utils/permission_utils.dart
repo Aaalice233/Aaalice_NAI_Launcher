@@ -7,41 +7,22 @@ import 'package:permission_handler/permission_handler.dart' as ph;
 class PermissionUtils {
   PermissionUtils._();
 
-  /// 检测是否为 Android 13 及以上版本
-  static Future<bool> _isAndroid13OrAbove() async {
-    if (!Platform.isAndroid) return false;
+  /// 应用图库位于应用自己的存储目录，导入由系统文件选择器授权，
+  /// 两者都不需要申请整库读取权限。
+  static Future<bool> requestGalleryPermission() async => true;
 
-    final deviceInfo = DeviceInfoPlugin();
-    final androidInfo = await deviceInfo.androidInfo;
-    return androidInfo.version.sdkInt >= 33; // Android 13 = API 33
-  }
+  static Future<bool> checkGalleryPermission() async => true;
 
-  /// 请求画廊权限 (兼容 Android 13)
-  static Future<bool> requestGalleryPermission() async {
-    if (!Platform.isAndroid) {
-      return true; // 桌面端无需权限
-    }
+  /// Android 9 及更早版本向公共 Pictures 目录写入时仍需旧存储权限。
+  /// Android 10 起通过 MediaStore 写入，不应申请照片读取权限。
+  static Future<bool> requestLegacyMediaWritePermission() async {
+    if (!Platform.isAndroid) return true;
 
-    final isAndroid13 = await _isAndroid13OrAbove();
-    final permission =
-        isAndroid13 ? ph.Permission.photos : ph.Permission.storage;
+    final androidInfo = await DeviceInfoPlugin().androidInfo;
+    if (androidInfo.version.sdkInt >= 29) return true;
 
-    final status = await permission.request();
-    return status.isGranted || status.isLimited;
-  }
-
-  /// 检查画廊权限状态
-  static Future<bool> checkGalleryPermission() async {
-    if (!Platform.isAndroid) {
-      return true;
-    }
-
-    final isAndroid13 = await _isAndroid13OrAbove();
-    final permission =
-        isAndroid13 ? ph.Permission.photos : ph.Permission.storage;
-
-    final status = await permission.status;
-    return status.isGranted || status.isLimited;
+    final status = await ph.Permission.storage.request();
+    return status.isGranted;
   }
 
   /// 打开应用设置页 (用户拒绝权限时)

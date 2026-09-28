@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:crypto/crypto.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
@@ -22,7 +23,6 @@ class HiveStorageHelper {
 
   /// 默认子目录名称
   static const String _defaultSubDir = 'hive';
-
 
   /// Settings box 中的自定义路径键名
   static const String _customHivePathKey = 'hive_storage_path';
@@ -61,7 +61,10 @@ class HiveStorageHelper {
     try {
       // 检查旧位置的 settings.hive 文件
       final appDir = await getApplicationDocumentsDirectory();
-      final oldSettingsPath = p.join(appDir.path, '${StorageKeys.settingsBox}.hive');
+      final oldSettingsPath = p.join(
+        appDir.path,
+        '${StorageKeys.settingsBox}.hive',
+      );
       final oldSettingsFile = File(oldSettingsPath);
 
       // 如果旧位置存在 settings.hive，说明还没有迁移，返回 null 使用默认路径
@@ -73,7 +76,10 @@ class HiveStorageHelper {
       // 注意：getApplicationSupportDirectory() 已经包含应用包名，不需要再加 NAI_Launcher
       final appSupportDir = await getApplicationSupportDirectory();
       final newPath = p.join(appSupportDir.path, _defaultSubDir);
-      final newSettingsPath = p.join(newPath, '${StorageKeys.settingsBox}.hive');
+      final newSettingsPath = p.join(
+        newPath,
+        '${StorageKeys.settingsBox}.hive',
+      );
       final newSettingsFile = File(newSettingsPath);
 
       if (await newSettingsFile.exists()) {
@@ -148,15 +154,29 @@ class HiveStorageHelper {
     }
   }
 
-  /// 从旧位置迁移数据
-  ///
+  /// 在首帧前只迁移启动设置，避免打开 settings box 后被 Windows 文件锁阻止覆盖。
+  Future<void> migrateSettingsFromOldLocation(String newPath) {
+    return _migrateFromOldLocation(
+      newPath,
+      includedHiveFileNames: {'${StorageKeys.settingsBox}.hive'},
+      failOnError: false,
+    );
+  }
+
+  /// 从旧位置迁移全部数据，由 [DataMigrationService] 在预热阶段调用。
+  Future<void> migrateFromOldLocation(String newPath) {
+    return _migrateFromOldLocation(newPath);
+  }
+
   /// 旧位置 1：Documents 根目录下的 .hive 文件（最早的版本）
   /// 旧位置 2：Documents/NAI_Launcher/hive/（中间版本）
   /// 旧位置 3：%APPDATA%/NAI_Launcher/hive/（beta2.1版本）
   /// 新位置：%APPDATA%/com.example/nai_launcher/hive/（当前版本）
-  ///
-  /// 由 [DataMigrationService] 在预热阶段调用
-  Future<void> migrateFromOldLocation(String newPath) async {
+  Future<void> _migrateFromOldLocation(
+    String newPath, {
+    Set<String>? includedHiveFileNames,
+    bool failOnError = true,
+  }) async {
     try {
       final appDir = await getApplicationDocumentsDirectory();
       final appSupportDir = await getApplicationSupportDirectory();
@@ -179,7 +199,9 @@ class HiveStorageHelper {
       for (final oldLocation in oldLocations) {
         if (oldLocation == newPath) continue; // 跳过新位置
 
-        final oldFiles = await _findOldHiveFiles(oldLocation);
+        final oldFiles = includedHiveFileNames == null
+            ? await _findOldHiveFiles(oldLocation)
+            : await _findNamedOldHiveFiles(oldLocation, includedHiveFileNames);
         for (final oldFile in oldFiles) {
           final fileName = p.basename(oldFile.path);
           // 如果同名文件已存在，保留修改时间更新的
@@ -207,8 +229,11 @@ class HiveStorageHelper {
       // 确保新目录存在
       await FileSystemUtils.ensureDirectory(newPath, logTag: 'HiveStorage');
 
-      // 迁移文件
+      // 只清理已成功复制，或确认新位置版本更新的旧文件。
       var migratedCount = 0;
+      final safeToCleanup = <String>{};
+      Object? firstMigrationError;
+      StackTrace? firstMigrationStackTrace;
       for (final entry in filesToMigrate.entries) {
         final fileName = entry.key;
         final oldFile = entry.value;
@@ -224,12 +249,21 @@ class HiveStorageHelper {
 
           final newSize = newFileStat.size;
           final oldSize = oldFileStat.size;
-          final shouldPreferOldBySize = oldSize > 0 &&
+          final shouldPreferOldBySize =
+              oldSize > 0 &&
               (newSize == 0 || (newSize <= 1024 && oldSize >= newSize * 4));
 
           if (!shouldPreferOldBySize &&
               newFileStat.modified.isAfter(oldFileStat.modified)) {
-            AppLogger.d('新位置已存在更新的 $fileName，跳过迁移', 'HiveStorage');
+            final contentsMatch =
+                newSize == oldSize &&
+                await _filesHaveSameContent(newFile, oldFile);
+            if (contentsMatch) {
+              safeToCleanup.add(fileName);
+              AppLogger.d('新位置已有相同的 $fileName，跳过迁移', 'HiveStorage');
+            } else {
+              AppLogger.w('新旧 $fileName 内容不同，保留旧文件且不覆盖较新的目标文件', 'HiveStorage');
+            }
             continue;
           }
 
@@ -241,15 +275,37 @@ class HiveStorageHelper {
           }
         }
 
+        final temporaryPath = '$newFilePath.migrating';
+        final temporaryFile = File(temporaryPath);
         try {
+          if (await temporaryFile.exists()) {
+            await temporaryFile.delete();
+          }
+          await oldFile.copy(temporaryPath);
+          if (await temporaryFile.length() != await oldFile.length()) {
+            throw FileSystemException('迁移临时文件大小校验失败', temporaryPath);
+          }
           if (await newFile.exists()) {
             await newFile.delete();
           }
-          await oldFile.copy(newFilePath);
+          await temporaryFile.rename(newFilePath);
           migratedCount++;
+          safeToCleanup.add(fileName);
           AppLogger.i('已迁移: $fileName', 'HiveStorage');
-        } catch (e) {
-          AppLogger.e('迁移失败 $fileName: $e', 'HiveStorage');
+        } catch (e, stackTrace) {
+          firstMigrationError ??= e;
+          firstMigrationStackTrace ??= stackTrace;
+          AppLogger.e('迁移失败 $fileName: $e', 'HiveStorage', stackTrace);
+          try {
+            if (await temporaryFile.exists()) {
+              await temporaryFile.delete();
+            }
+          } catch (cleanupError) {
+            AppLogger.w(
+              '清理迁移临时文件失败 $temporaryPath: $cleanupError',
+              'HiveStorage',
+            );
+          }
         }
       }
 
@@ -261,13 +317,22 @@ class HiveStorageHelper {
       final cleanedCount = await _cleanupMigratedOldFiles(
         oldLocations: oldLocations,
         newPath: newPath,
-        migratedHiveFileNames: filesToMigrate.keys.toSet(),
+        migratedHiveFileNames: safeToCleanup,
       );
       if (cleanedCount > 0) {
         AppLogger.i('旧位置清理完成: $cleanedCount 个文件', 'HiveStorage');
       }
+      if (firstMigrationError != null) {
+        Error.throwWithStackTrace(
+          firstMigrationError,
+          firstMigrationStackTrace ?? StackTrace.current,
+        );
+      }
     } catch (e, stackTrace) {
       AppLogger.e('迁移过程出错: $e', 'HiveStorage', stackTrace);
+      if (failOnError) {
+        Error.throwWithStackTrace(e, stackTrace);
+      }
     }
   }
 
@@ -292,8 +357,8 @@ class HiveStorageHelper {
         final shouldDelete = switch (ext) {
           '.hive' => migratedHiveFileNames.contains(fileName),
           '.lock' || '.crc' => migratedHiveFileNames.contains(
-              '${p.basenameWithoutExtension(fileName)}.hive',
-            ),
+            '${p.basenameWithoutExtension(fileName)}.hive',
+          ),
           _ => false,
         };
 
@@ -319,6 +384,24 @@ class HiveStorageHelper {
     }
 
     return deletedCount;
+  }
+
+  Future<bool> _filesHaveSameContent(File first, File second) async {
+    final firstDigest = await sha256.bind(first.openRead()).first;
+    final secondDigest = await sha256.bind(second.openRead()).first;
+    return firstDigest.toString() == secondDigest.toString();
+  }
+
+  Future<List<File>> _findNamedOldHiveFiles(
+    String appDirPath,
+    Set<String> fileNames,
+  ) async {
+    final files = <File>[];
+    for (final fileName in fileNames) {
+      final file = File(p.join(appDirPath, fileName));
+      if (await file.exists()) files.add(file);
+    }
+    return files;
   }
 
   /// 查找旧位置的 Hive 文件

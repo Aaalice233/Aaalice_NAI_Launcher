@@ -93,7 +93,7 @@ class NAILauncherBridgeDocker(DockWidget):
             self._minimum_context,
             self._minimum_context_slider,
             minimum_context_control,
-        ) = self._create_int_slider_control(minimum=0, maximum=192, value=88)
+        ) = self._create_int_slider_control(minimum=16, maximum=192, value=88)
         self._focused_inpaint = QCheckBox("Focused Inpaint")
         form.addRow("Prompt", self._prompt)
         form.addRow("Negative", self._negative_prompt)
@@ -340,8 +340,9 @@ class NAILauncherBridgeDocker(DockWidget):
         if not self._focused_inpaint.isChecked():
             return
         try:
-            selection_rect = canvas_io.active_selection_bounds()
-            if selection_rect is None:
+            minimum_context = self._minimum_context.value()
+            geometry = canvas_io.active_focus_geometry(minimum_context)
+            if geometry is None:
                 self._last_focus_preview_key = None
                 self._pending_focus_preview_key = None
                 self._focus_preview_write_timer.stop()
@@ -350,7 +351,7 @@ class NAILauncherBridgeDocker(DockWidget):
                 self._focus_rect_label.setText("Focus Frame: select inner repaint area")
                 return
 
-            minimum_context = self._minimum_context.value()
+            selection_rect = geometry["inner"]
             key = (
                 int(minimum_context),
                 int(selection_rect.get("x", 0)),
@@ -361,24 +362,17 @@ class NAILauncherBridgeDocker(DockWidget):
             if not force and key == self._last_focus_preview_key:
                 return
 
-            rects = canvas_io.active_focus_preview_rects(minimum_context)
-            if rects is None:
-                self._last_focus_preview_key = None
-                self._pending_focus_preview_key = None
-                self._focus_preview_write_timer.stop()
-                canvas_io.remove_focus_preview_layer()
-                self._last_focus_preview_error_text = None
-                self._focus_rect_label.setText("Focus Frame: select inner repaint area")
-                return
-
-            inner_rect, outer_rect = rects
+            inner_rect = geometry["inner"]
+            outer_rect = geometry["outer"]
+            request_size = geometry["request"]
             self._last_focus_preview_key = key
             self._pending_focus_preview_key = key
             self._last_focus_preview_error_text = None
             self._focus_rect_label.setText(
                 "Focus Frame: "
                 f"inner {self._format_rect(inner_rect)} / "
-                f"outer {self._format_rect(outer_rect)}"
+                f"outer {self._format_rect(outer_rect)} / "
+                f"request {request_size['w']}x{request_size['h']}"
             )
             if write_now:
                 self._write_focus_preview_layer(quiet=quiet)
@@ -413,12 +407,14 @@ class NAILauncherBridgeDocker(DockWidget):
             inner_rect, outer_rect = canvas_io.write_focus_preview(
                 self._minimum_context.value()
             )
+            request_size = canvas_io.focus_request_size_for_context(outer_rect)
             self._pending_focus_preview_key = None
             self._last_focus_preview_error_text = None
             self._focus_rect_label.setText(
                 "Focus Frame: "
                 f"inner {self._format_rect(inner_rect)} / "
-                f"outer {self._format_rect(outer_rect)}"
+                f"outer {self._format_rect(outer_rect)} / "
+                f"request {request_size['w']}x{request_size['h']}"
             )
             if not quiet:
                 self._set_status(
@@ -442,7 +438,9 @@ class NAILauncherBridgeDocker(DockWidget):
     ) -> Optional[Dict[str, int]]:
         if not focused_inpaint:
             return None
-        selection_rect = canvas_io.active_selection_bounds()
+        selection_rect = canvas_io.constrain_active_focus_selection(
+            self._minimum_context.value()
+        )
         if selection_rect is None:
             raise RuntimeError(
                 "请先框选内层重绘区域；Minimum Context 会自动推导外层 Focus 框"

@@ -86,11 +86,7 @@ class TagLibraryDropHandler {
     required String fileName,
     required String prompt,
   }) async {
-    return TagLibraryDropMenu.show(
-      context,
-      fileName: fileName,
-      prompt: prompt,
-    );
+    return TagLibraryDropMenu.show(context, fileName: fileName, prompt: prompt);
   }
 
   /// 显示错误提示
@@ -118,15 +114,13 @@ class TagLibraryDropHandler {
     if (!context.mounted) return;
 
     // 显示 EntryAddDialog，预填数据
-    await showDialog(
-      context: context,
-      builder: (dialogContext) => EntryAddDialog(
-        categories: state.categories,
-        initialCategoryId: state.selectedCategoryId,
-        initialContent: initialContent.isNotEmpty ? initialContent : null,
-        initialImageBytes: bytes,
-        initialName: defaultName,
-      ),
+    await EntryAddDialog.show(
+      context,
+      categories: state.categories,
+      initialCategoryId: state.selectedCategoryId,
+      initialContent: initialContent.isNotEmpty ? initialContent : null,
+      initialImageBytes: bytes,
+      initialName: defaultName,
     );
   }
 

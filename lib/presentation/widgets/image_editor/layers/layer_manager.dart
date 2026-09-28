@@ -83,9 +83,9 @@ class LayerManager extends ChangeNotifier {
 
     // 使用 firstWhere 的 orElse 避免异常
     final layer = _layers.cast<Layer?>().firstWhere(
-          (l) => l?.id == _activeLayerId,
-          orElse: () => null,
-        );
+      (l) => l?.id == _activeLayerId,
+      orElse: () => null,
+    );
 
     if (layer != null) return layer;
 
@@ -196,6 +196,18 @@ class LayerManager extends ChangeNotifier {
     _layers.add(layer);
     _setActiveLayerIdInternal(layer.id);
     _markStructureChanged();
+    return layer;
+  }
+
+  /// 替换图层底图(3D 图层再编辑用),保留图层其余状态
+  Future<Layer?> replaceLayerBaseImage(
+    String layerId,
+    Uint8List imageBytes,
+  ) async {
+    final layer = getLayerById(layerId);
+    if (layer == null) return null;
+    await layer.setBaseImage(imageBytes);
+    _markContentChanged();
     return layer;
   }
 
@@ -578,7 +590,12 @@ class LayerManager extends ChangeNotifier {
   /// 面板下方的图层渲染在上层（覆盖面板上方的图层）
   /// 使用 renderWithCache 优先利用缓存提升性能
   /// [viewportBounds] 视口边界，用于空间剔除优化（可选）
-  void renderAll(Canvas canvas, Size canvasSize, {Rect? viewportBounds}) {
+  void renderAll(
+    Canvas canvas,
+    Size canvasSize, {
+    Rect? viewportBounds,
+    FilterQuality filterQuality = FilterQuality.none,
+  }) {
     // 反向遍历：面板上方的图层先画（底层），面板下方的图层后画（顶层）
     for (final layer in _layers.reversed) {
       if (layer.visible) {
@@ -586,21 +603,26 @@ class LayerManager extends ChangeNotifier {
           canvas,
           canvasSize,
           viewportBounds: viewportBounds,
+          filterQuality: filterQuality,
         );
       }
     }
   }
 
   /// 导出合并后的图像
-  Future<ui.Image> exportMergedImage(Size canvasSize) async {
+  Future<ui.Image> exportMergedImage(
+    Size canvasSize, {
+    bool transparentBackground = false,
+  }) async {
     final recorder = ui.PictureRecorder();
     final canvas = Canvas(recorder);
 
-    // 绘制白色背景
-    canvas.drawRect(
-      Rect.fromLTWH(0, 0, canvasSize.width, canvasSize.height),
-      Paint()..color = Colors.white,
-    );
+    if (!transparentBackground) {
+      canvas.drawRect(
+        Rect.fromLTWH(0, 0, canvasSize.width, canvasSize.height),
+        Paint()..color = Colors.white,
+      );
+    }
 
     // 渲染所有图层
     renderAll(canvas, canvasSize);
@@ -761,16 +783,14 @@ class LayerManager extends ChangeNotifier {
     int centerX,
     int centerY,
     int gridSize,
-  ) =>
-      _snapshotManager.getMagnifierPixels(centerX, centerY, gridSize);
+  ) => _snapshotManager.getMagnifierPixels(centerX, centerY, gridSize);
 
   /// 更新区域快照（仅渲染光标周围的小区域）
   Future<bool> updateRegionalSnapshot(
     int centerX,
     int centerY,
     Size canvasSize,
-  ) =>
-      _snapshotManager.updateRegionalSnapshot(centerX, centerY, canvasSize);
+  ) => _snapshotManager.updateRegionalSnapshot(centerX, centerY, canvasSize);
 
   /// 获取区域缓存中的像素颜色（同步，O(1)）
   Color? getRegionalPixel(int x, int y) =>
@@ -781,8 +801,7 @@ class LayerManager extends ChangeNotifier {
     int centerX,
     int centerY,
     int gridSize,
-  ) =>
-      _snapshotManager.getRegionalMagnifierPixels(centerX, centerY, gridSize);
+  ) => _snapshotManager.getRegionalMagnifierPixels(centerX, centerY, gridSize);
 
   @override
   void dispose() {

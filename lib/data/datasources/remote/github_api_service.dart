@@ -1,6 +1,9 @@
+import 'dart:convert';
+
 import 'package:collection/collection.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:pub_semver/pub_semver.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../../models/version/release_asset_info.dart';
@@ -8,12 +11,26 @@ import '../../models/version/version_info.dart';
 
 part 'github_api_service.g.dart';
 
-/// GitHub API 异常
+enum GitHubReleaseErrorType {
+  notFound,
+  rateLimited,
+  network,
+  unavailable,
+  invalidResponse,
+  unknown,
+}
+
+/// GitHub Release 查询异常。面向用户的文案由 presentation 层按 [type] 本地化。
 class GitHubApiException implements Exception {
   final String message;
+  final GitHubReleaseErrorType type;
   final Object? originalError;
 
-  GitHubApiException(this.message, {this.originalError});
+  GitHubApiException(
+    this.message, {
+    this.type = GitHubReleaseErrorType.unknown,
+    this.originalError,
+  });
 
   @override
   String toString() => 'GitHubApiException: $message';
@@ -23,8 +40,11 @@ class GitHubApiException implements Exception {
 ///
 /// 用于获取 GitHub Releases 最新版本信息
 class GitHubApiService {
-  /// 默认 GitHub API 基础 URL
-  static const String defaultBaseUrl = 'https://api.github.com';
+  /// 保留既有构造方式；所有 Release 查询均使用不计匿名 API 配额的网页端点。
+  static const String defaultBaseUrl = 'https://github.com';
+
+  static const String _githubWebBaseUrl = 'https://github.com';
+  static const String _githubApiBaseUrl = 'https://api.github.com';
 
   /// 连接超时时间
   static const Duration connectTimeout = Duration(seconds: 10);
@@ -41,7 +61,7 @@ class GitHubApiService {
   /// [owner] 仓库所有者
   /// [repo] 仓库名称
   /// [currentVersion] 当前版本号（用于计算是否需要更新）
-  /// [platform] 目标发布资产（windows-installer, windows-portable, macos 等）
+  /// [platform] 目标发布资产（windows-installer、windows-portable、macos、android-apk 等）
   /// [includePrerelease] 是否允许预发布版本
   Future<VersionInfo> fetchLatestRelease({
     required String owner,
@@ -51,24 +71,22 @@ class GitHubApiService {
     bool includePrerelease = false,
   }) async {
     try {
-      final data = includePrerelease
-          ? await _fetchLatestFromReleaseList(owner, repo)
-          : await _fetchLatestStableRelease(owner, repo);
-
-      if (data == null) {
-        throw GitHubApiException('Release not found for $owner/$repo');
-      }
-
-      return await _parseReleaseData(data, currentVersion, platform);
+      final tag = includePrerelease
+          ? await _fetchLatestApplicationTagFromReleases(owner, repo)
+          : null;
+      return await _fetchReleaseManifest(
+        owner: owner,
+        repo: repo,
+        currentVersion: currentVersion,
+        platform: platform,
+        tag: tag,
+      );
     } on DioException catch (e) {
-      if (e.response?.statusCode == 404) {
-        throw GitHubApiException(
-          'Release not found for $owner/$repo',
-          originalError: e,
-        );
-      }
+      throw _mapDioException(e, owner: owner, repo: repo);
+    } on FormatException catch (e) {
       throw GitHubApiException(
-        'Failed to fetch release: ${e.message}',
+        'Release metadata is invalid for $owner/$repo',
+        type: GitHubReleaseErrorType.invalidResponse,
         originalError: e,
       );
     } catch (e) {
@@ -77,147 +95,266 @@ class GitHubApiService {
     }
   }
 
-  Future<Map<String, dynamic>?> _fetchLatestStableRelease(
-    String owner,
-    String repo,
-  ) async {
-    final response = await _dio.get<Map<String, dynamic>>(
-      '/repos/$owner/$repo/releases/latest',
-      options: _githubOptions(),
+  /// 直接读取 Release 资产，不消耗匿名 GitHub API 配额。
+  Future<VersionInfo> _fetchReleaseManifest({
+    required String owner,
+    required String repo,
+    required String currentVersion,
+    required String platform,
+    String? tag,
+  }) async {
+    final manifestUrl = tag == null
+        ? '$_githubWebBaseUrl/$owner/$repo/releases/latest/download/'
+              'release_manifest.json'
+        : '$_githubWebBaseUrl/$owner/$repo/releases/download/$tag/'
+              'release_manifest.json';
+    final response = await _dio.get<String>(
+      manifestUrl,
+      options: _releaseAssetOptions(),
     );
-    return response.data;
+    final body = response.data;
+    if (body == null || body.trim().isEmpty) {
+      throw GitHubApiException(
+        'Release manifest is empty for $owner/$repo',
+        type: GitHubReleaseErrorType.invalidResponse,
+      );
+    }
+
+    final decoded = jsonDecode(body);
+    if (decoded is! Map<String, dynamic>) {
+      throw GitHubApiException(
+        'Release manifest is not a JSON object for $owner/$repo',
+        type: GitHubReleaseErrorType.invalidResponse,
+      );
+    }
+    return _parseManifestData(
+      decoded,
+      owner: owner,
+      repo: repo,
+      currentVersion: currentVersion,
+      platform: platform,
+      expectedTag: tag,
+    );
   }
 
-  Future<Map<String, dynamic>?> _fetchLatestFromReleaseList(
+  Future<String?> _fetchLatestApplicationTagFromReleases(
     String owner,
     String repo,
   ) async {
-    final response = await _dio.get<List<dynamic>>(
-      '/repos/$owner/$repo/releases',
-      queryParameters: {'per_page': 20},
-      options: _githubOptions(),
-    );
+    const pageSize = 100;
+    for (var page = 1; ; page++) {
+      final response = await _dio.get<Object?>(
+        '$_githubApiBaseUrl/repos/$owner/$repo/releases',
+        queryParameters: {'per_page': pageSize, 'page': page},
+        options: Options(
+          connectTimeout: connectTimeout,
+          receiveTimeout: receiveTimeout,
+          headers: const {
+            'Accept': 'application/vnd.github+json',
+            'X-GitHub-Api-Version': '2022-11-28',
+            'User-Agent': 'Aaalice-NAI-Launcher',
+          },
+        ),
+      );
+      final responseData = response.data;
+      if (responseData is! List<dynamic>) {
+        throw GitHubApiException(
+          'Release list has an invalid response for $owner/$repo',
+          type: GitHubReleaseErrorType.invalidResponse,
+        );
+      }
+      final releases = responseData;
 
-    final releases = response.data ?? const [];
-    for (final release in releases) {
-      if (release is! Map<String, dynamic>) continue;
-      if (release['draft'] == true) continue;
-      return release;
+      // 保留 GitHub Release 的顺序，直接使用第一个非草稿应用版本，
+      // 不再根据 tag 的 SemVer 对发布顺序做二次重排。
+      for (final release in releases) {
+        if (release is! Map<String, dynamic> || release['draft'] == true) {
+          continue;
+        }
+        final tag = release['tag_name'];
+        if (tag is String && _isApplicationTag(tag)) return tag;
+      }
+      if (releases.length < pageSize) break;
     }
+
+    // 仓库可能暂时只有独立数据包 Release；此时仍检查最新正式版。
     return null;
   }
 
-  Options _githubOptions() {
+  Options _releaseAssetOptions() {
     return Options(
+      responseType: ResponseType.plain,
       connectTimeout: connectTimeout,
       receiveTimeout: receiveTimeout,
-      headers: {'Accept': 'application/vnd.github.v3+json'},
+      headers: {'Accept': 'application/octet-stream'},
     );
   }
 
-  Future<Map<String, dynamic>?> _fetchReleaseManifest(
-    List<ReleaseAssetInfo> githubAssets,
-  ) async {
-    final manifestAsset = githubAssets.where((asset) {
-      return asset.fileName.toLowerCase() == 'release_manifest.json';
-    }).firstOrNull;
-
-    if (manifestAsset == null || manifestAsset.downloadUrl.isEmpty) {
-      return null;
+  Future<VersionInfo> _parseManifestData(
+    Map<String, dynamic> manifest, {
+    required String owner,
+    required String repo,
+    required String currentVersion,
+    required String platform,
+    required String? expectedTag,
+  }) async {
+    final version = manifest['version'] as String? ?? '';
+    final tag = manifest['tag'] as String? ?? '';
+    try {
+      Version.parse(version);
+    } on FormatException {
+      throw GitHubApiException(
+        'Release manifest contains an invalid version',
+        type: GitHubReleaseErrorType.invalidResponse,
+      );
     }
 
-    final response = await _dio.get<Map<String, dynamic>>(
-      manifestAsset.downloadUrl,
-      options: Options(
-        connectTimeout: connectTimeout,
-        receiveTimeout: receiveTimeout,
-        headers: {'Accept': 'application/json'},
-      ),
-    );
-    return response.data;
-  }
+    final versionWithoutBuild = version.split('+').first;
+    if (tag != 'v$versionWithoutBuild' ||
+        (expectedTag != null && tag != expectedTag)) {
+      throw GitHubApiException(
+        'Release manifest tag does not match its version',
+        type: GitHubReleaseErrorType.invalidResponse,
+      );
+    }
 
-  /// 解析 Release 数据
-  Future<VersionInfo> _parseReleaseData(
-    Map<String, dynamic> data,
-    String currentVersion,
-    String platform,
-  ) async {
-    final tagName = data['tag_name'] as String? ?? '';
-    final version = _extractVersion(tagName);
-    final name = data['name'] as String? ?? '';
-    final body = data['body'] as String? ?? '';
-    final publishedAt = data['published_at'] as String? ?? '';
-    final htmlUrl = data['html_url'] as String? ?? '';
-    final assets = data['assets'] as List<dynamic>? ?? [];
-    final githubAssets = _parseGitHubAssets(assets);
-    final releaseAssets = await _mergeManifestAssets(githubAssets);
-    final primaryAsset = _findPlatformAsset(releaseAssets, platform);
+    final rawAssets = manifest['assets'];
+    if (rawAssets is! List || rawAssets.isEmpty) {
+      throw GitHubApiException(
+        'Release manifest contains no downloadable assets',
+        type: GitHubReleaseErrorType.invalidResponse,
+      );
+    }
+
+    final assets = <ReleaseAssetInfo>[];
+    for (final rawAsset in rawAssets) {
+      if (rawAsset is! Map<String, dynamic>) {
+        throw GitHubApiException(
+          'Release manifest contains an invalid asset entry',
+          type: GitHubReleaseErrorType.invalidResponse,
+        );
+      }
+      final asset = ReleaseAssetInfo.fromManifestAsset(rawAsset);
+      _validateManifestAsset(asset, owner: owner, repo: repo, tag: tag);
+      assets.add(asset);
+    }
+
+    final primaryAsset = _findPlatformAsset(assets, platform);
+    if (primaryAsset == null) {
+      throw GitHubApiException(
+        'Release manifest has no asset for platform $platform',
+        type: GitHubReleaseErrorType.invalidResponse,
+      );
+    }
+
+    final htmlUrl = '$_githubWebBaseUrl/$owner/$repo/releases/tag/$tag';
+    final embeddedNotes = manifest['releaseNotes'] as String?;
+    final releaseNotes = embeddedNotes?.trim().isNotEmpty == true
+        ? embeddedNotes!
+        : await _fetchReleaseNotes(owner: owner, repo: repo, tag: tag);
 
     return VersionInfo(
       version: version,
       currentVersion: currentVersion,
-      name: name,
-      releaseNotes: body,
-      publishedAt: publishedAt,
-      downloadUrl: primaryAsset?.downloadUrl ?? htmlUrl,
+      name: manifest['name'] as String? ?? 'NAI Launcher $tag',
+      releaseNotes: releaseNotes,
+      publishedAt: manifest['publishedAt'] as String? ?? '',
+      downloadUrl: primaryAsset.downloadUrl,
       htmlUrl: htmlUrl,
-      assets: releaseAssets,
+      assets: assets,
       primaryAsset: primaryAsset,
       isNewer: VersionInfoComparator.isNewer(version, currentVersion),
     );
   }
 
-  List<ReleaseAssetInfo> _parseGitHubAssets(List<dynamic> assets) {
-    return assets
-        .whereType<Map<String, dynamic>>()
-        .map(ReleaseAssetInfo.fromGitHubAsset)
-        .where((asset) => asset.downloadUrl.isNotEmpty)
-        .toList();
+  void _validateManifestAsset(
+    ReleaseAssetInfo asset, {
+    required String owner,
+    required String repo,
+    required String tag,
+  }) {
+    final uri = Uri.tryParse(asset.downloadUrl);
+    final expectedPathPrefix = '/$owner/$repo/releases/download/$tag/';
+    final validHash = RegExp(r'^[a-fA-F0-9]{64}$').hasMatch(asset.sha256 ?? '');
+    if (asset.fileName.isEmpty ||
+        asset.type == ReleaseAssetType.unknown ||
+        uri == null ||
+        uri.scheme != 'https' ||
+        uri.host.toLowerCase() != 'github.com' ||
+        !uri.path.startsWith(expectedPathPrefix) ||
+        uri.pathSegments.isEmpty ||
+        uri.pathSegments.last != asset.fileName ||
+        !validHash ||
+        (asset.size ?? 0) <= 0) {
+      throw GitHubApiException(
+        'Release manifest contains invalid asset metadata',
+        type: GitHubReleaseErrorType.invalidResponse,
+      );
+    }
   }
 
-  Future<List<ReleaseAssetInfo>> _mergeManifestAssets(
-    List<ReleaseAssetInfo> githubAssets,
-  ) async {
-    Map<String, dynamic>? manifest;
+  Future<String> _fetchReleaseNotes({
+    required String owner,
+    required String repo,
+    required String tag,
+  }) async {
+    final fileName = 'release_notes_$tag.md';
+    final url =
+        '$_githubWebBaseUrl/$owner/$repo/releases/download/$tag/$fileName';
     try {
-      manifest = await _fetchReleaseManifest(githubAssets);
-    } catch (_) {
-      manifest = null;
-    }
-
-    final manifestAssets = manifest?['assets'];
-    if (manifestAssets is! List) {
-      return githubAssets;
-    }
-
-    final githubByName = {
-      for (final asset in githubAssets) asset.fileName: asset,
-    };
-    final result = <ReleaseAssetInfo>[];
-
-    for (final entry in manifestAssets) {
-      if (entry is! Map<String, dynamic>) continue;
-      final fileName = entry['fileName'] as String? ?? entry['name'] as String?;
-      final githubAsset = fileName == null ? null : githubByName[fileName];
-      final asset = ReleaseAssetInfo.fromManifestAsset(
-        entry,
-        githubAsset: githubAsset,
+      final response = await _dio.get<String>(
+        url,
+        options: _releaseAssetOptions(),
       );
-      if (asset.downloadUrl.isNotEmpty) {
-        result.add(asset);
-      }
+      return response.data ?? '';
+    } on DioException {
+      // 更新清单和安装包仍可独立工作；发布说明缺失不应阻断更新。
+      return '';
     }
+  }
 
-    final manifestNames = result.map((asset) => asset.fileName).toSet();
-    for (final asset in githubAssets) {
-      if (asset.fileName == 'release_manifest.json') continue;
-      if (!manifestNames.contains(asset.fileName)) {
-        result.add(asset);
-      }
+  GitHubApiException _mapDioException(
+    DioException error, {
+    required String owner,
+    required String repo,
+  }) {
+    final statusCode = error.response?.statusCode;
+    if (statusCode == 404) {
+      return GitHubApiException(
+        'Release not found for $owner/$repo',
+        type: GitHubReleaseErrorType.notFound,
+        originalError: error,
+      );
     }
-
-    return result;
+    if (statusCode == 403 || statusCode == 429) {
+      return GitHubApiException(
+        'Release service rate limited the request',
+        type: GitHubReleaseErrorType.rateLimited,
+        originalError: error,
+      );
+    }
+    if (statusCode != null && statusCode >= 500) {
+      return GitHubApiException(
+        'Release service is temporarily unavailable',
+        type: GitHubReleaseErrorType.unavailable,
+        originalError: error,
+      );
+    }
+    if (error.type == DioExceptionType.connectionTimeout ||
+        error.type == DioExceptionType.sendTimeout ||
+        error.type == DioExceptionType.receiveTimeout ||
+        error.type == DioExceptionType.connectionError) {
+      return GitHubApiException(
+        'Unable to connect to the release service',
+        type: GitHubReleaseErrorType.network,
+        originalError: error,
+      );
+    }
+    return GitHubApiException(
+      'Failed to fetch release: ${error.message}',
+      type: GitHubReleaseErrorType.unknown,
+      originalError: error,
+    );
   }
 
   ReleaseAssetInfo? _findPlatformAsset(
@@ -236,6 +373,20 @@ class GitHubApiService {
     if (normalizedPlatform == 'macos') {
       return _firstAssetOfType(assets, ReleaseAssetType.macosPortable);
     }
+    if (normalizedPlatform == 'android-apk' ||
+        normalizedPlatform == 'android') {
+      return _firstAssetOfType(assets, ReleaseAssetType.androidApk);
+    }
+    // 【偏离上游】`unknown` 是 AppInstallationService 对「本平台没有发布资产」
+    // 的显式回答（iOS 自签侧载就走这里）。上游让它落进下面的兜底，等于把
+    // 第一个已知资产——通常是 Windows 安装器或 macOS zip——当成 iPhone 的更新
+    // 推过去，还会让 VersionInfo.supportsInAppInstall 误判为 true 而进入
+    // 必然失败的安装流程。宁可没有资产。
+    //
+    // 只拦 `unknown`，不动兜底本身：Linux 等未列出的平台仍保持上游行为。
+    if (normalizedPlatform == 'unknown') {
+      return null;
+    }
     return assets
         .where((asset) => asset.type != ReleaseAssetType.unknown)
         .firstOrNull;
@@ -248,12 +399,18 @@ class GitHubApiService {
     return assets.where((asset) => asset.type == type).firstOrNull;
   }
 
-  /// 从 tag_name 提取版本号（移除 v 前缀）
-  String _extractVersion(String tagName) {
-    if (tagName.startsWith('v')) {
-      return tagName.substring(1);
+  static bool _isApplicationTag(String tag) {
+    if (!RegExp(
+      r'^v\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$',
+    ).hasMatch(tag)) {
+      return false;
     }
-    return tagName;
+    try {
+      Version.parse(tag.substring(1));
+      return true;
+    } on FormatException {
+      return false;
+    }
   }
 }
 

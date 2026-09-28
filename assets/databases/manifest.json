@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "databases": {
+    "tag_catalog.db": {
+      "schemaVersion": 3,
+      "dataVersion": "125148ac88dc",
+      "sha256": "9b9693af5f6cfafda2ed8d85488b0a6c3741b0c589da935291b20dff439a2288",
+      "size": 46792704,
+      "release": {
+        "tag": "autocomplete-data-tag-catalog-125148ac-v1",
+        "url": "https://github.com/Aaalice233/Aaalice_NAI_Launcher/releases/download/autocomplete-data-tag-catalog-125148ac-v1/tag_catalog.db",
+        "prerelease": true,
+        "makeLatest": false
+      }
+    }
+  }
+}

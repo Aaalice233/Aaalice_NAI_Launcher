@@ -29,12 +29,6 @@ class _ThirdPartyApiLoginCardState
   bool _obscureToken = true;
 
   @override
-  void initState() {
-    super.initState();
-    ref.read(authNotifierProvider.notifier).clearError(delayMs: 0);
-  }
-
-  @override
   void dispose() {
     _mainApiController.dispose();
     _imageApiController.dispose();
@@ -136,14 +130,38 @@ class _ThirdPartyApiLoginCardState
               color: theme.colorScheme.onSurfaceVariant,
             ),
           ),
+          const SizedBox(height: 8),
+          Row(
+            key: const Key('third_party_streaming_hint'),
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(
+                Icons.info_outline,
+                size: 16,
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  l10n.auth_thirdPartyStreamingHint,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ),
+            ],
+          ),
           const SizedBox(height: 16),
           FilledButton.icon(
             onPressed: authState.isLoading ? null : _handleLogin,
             icon: authState.isLoading
-                ? const SizedBox(
+                ? SizedBox(
                     height: 18,
                     width: 18,
                     child: CircularProgressIndicator(
+                      value: MediaQuery.disableAnimationsOf(context)
+                          ? 0.75
+                          : null,
                       strokeWidth: 2,
                       color: Colors.white,
                     ),
@@ -272,6 +290,8 @@ class _ThirdPartyApiLoginCardState
       AuthErrorCode.tokenInvalid => context.l10n.auth_tokenInvalid,
       AuthErrorCode.credentialsLoginUnavailable =>
         context.l10n.auth_error_credentialsLoginUnavailable,
+      AuthErrorCode.endpointIncompatible =>
+        context.l10n.auth_error_endpointIncompatible,
       AuthErrorCode.serverError => context.l10n.auth_error_serverError,
       AuthErrorCode.unknown || null => context.l10n.auth_error_unknown,
     };

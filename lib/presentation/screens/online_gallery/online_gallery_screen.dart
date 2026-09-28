@@ -1,35 +1,31 @@
-import 'dart:async';
-import 'dart:math';
-
-import 'package:cached_network_image/cached_network_image.dart';
+import '../../widgets/common/image_card_batch_scope.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
-import 'package:nai_launcher/core/utils/localization_extension.dart';
-import 'package:path/path.dart' as path;
 
-import '../../../core/cache/danbooru_image_cache_manager.dart';
-import '../../../core/services/date_formatting_service.dart';
-import '../../../core/utils/file_picker_utils.dart';
-import '../../../data/datasources/remote/danbooru_api_service.dart';
-import '../../../data/models/online_gallery/danbooru_post.dart';
-import '../../../data/models/queue/replication_task.dart';
+import '../../../core/cache/cancellable_gallery_image_loader.dart';
+import '../../../core/cache/gallery_image_request.dart';
+import '../../../core/cache/online_gallery_prefetch_coordinator.dart';
+import '../../../core/network/critical_network_activity.dart';
+import '../../../core/utils/app_logger.dart';
+import '../../../core/utils/localization_extension.dart';
 import '../../../data/services/danbooru_auth_service.dart';
-
+import '../../../data/services/gelbooru_auth_service.dart';
 import '../../providers/online_gallery_provider.dart';
-import '../../providers/replication_queue_provider.dart';
 import '../../providers/selection_mode_provider.dart';
-import '../../widgets/danbooru_login_dialog.dart';
-import '../../widgets/danbooru_post_card.dart';
-import '../../widgets/online_gallery/post_detail_dialog.dart';
-import '../../widgets/online_gallery/blacklist_settings_panel.dart';
-
+import '../../widgets/app_branch_visibility.dart';
 import '../../widgets/common/app_toast.dart';
-import '../../widgets/bulk_action_bar.dart';
-import '../../widgets/common/themed_input.dart';
-import '../../widgets/autocomplete/autocomplete_wrapper.dart';
-import '../../widgets/autocomplete/strategies/danbooru_strategy.dart';
+import 'online_gallery_screen_commands.dart';
+import 'online_gallery_content.dart';
+import 'online_gallery_detail_launcher.dart';
+import 'online_gallery_pagination.dart';
+import 'online_gallery_screen_controller.dart';
+import 'online_gallery_scroll_prefetch_coordinator.dart';
+import 'online_gallery_selection_actions.dart';
+import 'online_gallery_view_model.dart';
+import 'widgets/online_gallery_toolbar/online_gallery_toolbar_bindings.dart';
+import 'widgets/online_gallery_toolbar/online_gallery_toolbar_feature.dart';
 
 /// 在线画廊页面
 class OnlineGalleryScreen extends ConsumerStatefulWidget {
@@ -41,26 +37,22 @@ class OnlineGalleryScreen extends ConsumerStatefulWidget {
 }
 
 class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
-    with AutomaticKeepAliveClientMixin {
-  final TextEditingController _searchController = TextEditingController();
-  final FocusNode _searchFocusNode = FocusNode();
-  final ScrollController _scrollController = ScrollController();
-  final TextEditingController _pageController = TextEditingController();
-  final FocusNode _pageFocusNode = FocusNode();
-  final _dateFormattingService = DateFormattingService();
-  final LayerLink _dateRangeLayerLink = LayerLink();
-
-  Timer? _searchDebounceTimer;
-  OverlayEntry? _dateRangeOverlayEntry;
-  bool _isEditingPage = false;
-  GalleryViewMode? _lastViewMode;
+    with AutomaticKeepAliveClientMixin, WidgetsBindingObserver {
+  late final OnlineGalleryScreenController _controller;
+  late final CancellableGalleryImageLoader _imageLoader;
+  late final OnlineGalleryScrollPrefetchCoordinator _scrollCoordinator;
+  late final OnlineGalleryDetailLauncher _detailLauncher;
+  late final OnlineGallerySelectionActions _selectionActions;
+  late final OnlineGalleryScreenCommands _commands;
+  late final ProviderSubscription<OnlineGalleryState> _gallerySubscription;
+  late final OnlineGalleryNotifier _galleryNotifier;
+  bool _appForeground = true;
+  bool _backgroundNetworkSyncScheduled = false;
+  bool _disposed = false;
+  int _pageJumpRevision = 0;
 
   @override
   bool get wantKeepAlive => true;
-
-  /// 获取 Gallery Notifier（简化重复代码）
-  OnlineGalleryNotifier get _galleryNotifier =>
-      ref.read(onlineGalleryNotifierProvider.notifier);
 
   /// 获取 Selection Notifier（简化重复代码）
   OnlineGallerySelectionNotifier get _selectionNotifier =>
@@ -69,1720 +61,407 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
   @override
   void initState() {
     super.initState();
-    // 添加滚动监听 - 无限滚动
-    _scrollController.addListener(_onScroll);
+    WidgetsBinding.instance.addObserver(this);
+    final lifecycleState = WidgetsBinding.instance.lifecycleState;
+    _appForeground = _isForegroundLifecycleState(lifecycleState);
+    _galleryNotifier = ref.read(onlineGalleryNotifierProvider.notifier);
+    _imageLoader = CancellableGalleryImageLoader();
+    _controller = OnlineGalleryScreenController(
+      prefetchCoordinator: OnlineGalleryPrefetchCoordinator(
+        preloader: _startImagePreload,
+      ),
+    );
+    CriticalNetworkActivityCoordinator.instance.addListener(
+      _handleCriticalNetworkActivity,
+    );
+    _controller.prefetchCoordinator.setAppForeground(_appForeground);
+    _handleCriticalNetworkActivity();
+    _detailLauncher = OnlineGalleryDetailLauncher(
+      context: context,
+      ref: ref,
+      controller: _controller,
+    );
+    _selectionActions = OnlineGallerySelectionActions(
+      context: context,
+      ref: ref,
+    );
+    _scrollCoordinator = OnlineGalleryScrollPrefetchCoordinator(
+      context: context,
+      ref: ref,
+      controller: _controller,
+      notifier: _galleryNotifier,
+    );
+    _commands = OnlineGalleryScreenCommands(
+      detailLauncher: _detailLauncher,
+      selectionActions: _selectionActions,
+    );
+    _gallerySubscription = ref.listenManual<OnlineGalleryState>(
+      onlineGalleryNotifierProvider,
+      (previous, next) {
+        if (previous != null &&
+            (previous.currentCacheKey != next.currentCacheKey ||
+                previous.randomEnabled != next.randomEnabled)) {
+          _selectionNotifier.exit();
+        }
+        _handleGalleryStateChanged(next);
+      },
+    );
+    _controller.scrollController.addListener(_scrollCoordinator.onScroll);
     // 添加页码焦点监听
-    _pageFocusNode.addListener(_onPageFocusChange);
+    _controller.pageFocusNode.addListener(
+      _controller.cancelPageEditingWhenUnfocused,
+    );
 
     // 只在首次进入（无数据）时加载，切换Tab回来时不再重新加载
     // 用户需要刷新时可点击刷新按钮
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final state = ref.read(onlineGalleryNotifierProvider);
-      // 同步搜索框文本
-      if (_searchController.text != state.searchQuery) {
-        _searchController.text = state.searchQuery;
-      }
+      _controller.synchronizeQueries(state);
+      final initialCache = state.randomEnabled
+          ? state.randomSession.cache
+          : state.currentCache;
+      _controller.restoreInitialPositionPending =
+          initialCache.scrollOffset > 0 || initialCache.anchorStableKey != null;
       // 首次加载
       if (state.posts.isEmpty && !state.isLoading) {
         _galleryNotifier.loadPosts();
       }
-      // 记录当前模式
-      _lastViewMode = state.viewMode;
+      // 记录当前查询，用于切换来源或筛选后恢复独立滚动位置。
+      _controller.lastViewMode = state.viewMode;
+      _controller.lastFavoritesSource = state.favoritesSourceId;
+      _controller.lastCacheKey = state.currentCacheKey;
+      _controller.lastRandomEnabled = state.randomEnabled;
+      _scrollCoordinator.scheduleAutoLoadIfUnderfilled(state);
     });
   }
 
-  /// 滚动监听 - 无限滚动加载更多
-  void _onScroll() {
-    if (_scrollController.position.pixels >=
-        _scrollController.position.maxScrollExtent - 200) {
-      _galleryNotifier.loadMore();
-    }
-  }
-
-  /// 保存当前滚动位置
-  void _saveScrollOffset() {
-    if (_scrollController.hasClients) {
-      _galleryNotifier.saveScrollOffset(_scrollController.offset);
-    }
-  }
-
-  /// 恢复滚动位置
-  void _restoreScrollOffset(double offset) {
-    if (_scrollController.hasClients && offset > 0) {
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final visible = AppBranchVisibility.of(context);
+    if (_controller.branchVisible == visible) return;
+    _controller.branchVisible = visible;
+    _controller.prefetchCoordinator.setPageVisible(visible);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _syncBackgroundNetworkActivity();
+    });
+    if (!visible) {
+      _controller.hoverController.dismiss();
+      _controller.scrollStopTimer?.cancel();
+      _controller.prefetchResumeTimer?.cancel();
+      _controller.setScrolling(false);
+      _controller.prefetchCoordinator.setScrolling(false);
+    } else {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (_scrollController.hasClients) {
-          _scrollController.jumpTo(offset);
-        }
+        if (!mounted || !_controller.branchVisible) return;
+        _scrollCoordinator.scheduleVisiblePrefetch();
+        _scrollCoordinator.scheduleAutoLoadIfUnderfilled(
+          ref.read(onlineGalleryNotifierProvider),
+        );
       });
     }
+  }
+
+  GalleryImagePreloadOperation _startImagePreload(
+    GalleryImageRequest request,
+  ) => _imageLoader.start(request);
+
+  void _handleCriticalNetworkActivity() {
+    _controller.prefetchCoordinator.setCriticalNetworkActive(
+      CriticalNetworkActivityCoordinator.instance.isActive,
+    );
+    _syncBackgroundNetworkActivity();
+  }
+
+  void _syncBackgroundNetworkActivity() {
+    if (_disposed) return;
+    if (SchedulerBinding.instance.schedulerPhase ==
+        SchedulerPhase.persistentCallbacks) {
+      if (_backgroundNetworkSyncScheduled) return;
+      _backgroundNetworkSyncScheduled = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _backgroundNetworkSyncScheduled = false;
+        if (!mounted || _disposed) return;
+        _applyBackgroundNetworkActivity();
+      });
+      return;
+    }
+    _applyBackgroundNetworkActivity();
+  }
+
+  void _applyBackgroundNetworkActivity() {
+    if (_disposed) return;
+    _galleryNotifier.setBackgroundNetworkPaused(
+      !_controller.branchVisible ||
+          !_appForeground ||
+          CriticalNetworkActivityCoordinator.instance.isActive,
+    );
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    _appForeground = _isForegroundLifecycleState(state);
+    _controller.prefetchCoordinator.setAppForeground(_appForeground);
+    _syncBackgroundNetworkActivity();
+    if (_appForeground && _controller.branchVisible) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted || !_controller.branchVisible) return;
+        _scrollCoordinator.scheduleVisiblePrefetch();
+        _scrollCoordinator.scheduleAutoLoadIfUnderfilled(
+          ref.read(onlineGalleryNotifierProvider),
+        );
+      });
+    }
+  }
+
+  bool _isForegroundLifecycleState(AppLifecycleState? state) =>
+      state == null ||
+      state == AppLifecycleState.resumed ||
+      state == AppLifecycleState.inactive;
+
+  Future<void> _goToPage(int page) async {
+    final revision = ++_pageJumpRevision;
+    final initialState = ref.read(onlineGalleryNotifierProvider);
+    final cacheKey = initialState.currentCacheKey;
+    final stopwatch = kDebugMode ? (Stopwatch()..start()) : null;
+    if (kDebugMode) {
+      AppLogger.i(
+        'pageJump start requested=$page current=${initialState.page} '
+            'posts=${initialState.posts.length} cache=${cacheKey.hashCode}',
+        'GalleryPerf',
+      );
+    }
+    _scrollCoordinator.beginPageJump();
+    try {
+      final target = await _galleryNotifier.goToPage(page);
+      if (kDebugMode) {
+        final loadedState = ref.read(onlineGalleryNotifierProvider);
+        AppLogger.i(
+          'pageJump target requested=$page targetIndex=${target?.itemIndex} '
+              'posts=${loadedState.posts.length} page=${loadedState.page} '
+              'loadMs=${stopwatch?.elapsedMilliseconds}',
+          'GalleryPerf',
+        );
+      }
+      bool isCurrent() {
+        return mounted &&
+            revision == _pageJumpRevision &&
+            ref.read(onlineGalleryNotifierProvider).currentCacheKey == cacheKey;
+      }
+
+      if (target == null || !isCurrent()) return;
+      await _scrollCoordinator.jumpToPageTarget(target, isCurrent: isCurrent);
+    } finally {
+      if (mounted && revision == _pageJumpRevision) {
+        _scrollCoordinator.endPageJump();
+      }
+      if (stopwatch != null) {
+        stopwatch.stop();
+        final position = _controller.scrollController.hasClients
+            ? _controller.scrollController.position
+            : null;
+        AppLogger.i(
+          'pageJump end requested=$page elapsedMs=${stopwatch.elapsedMilliseconds} '
+              'offset=${position?.pixels.toStringAsFixed(1)} '
+              'maxExtent=${position?.maxScrollExtent.toStringAsFixed(1)} '
+              'columns=${_controller.currentColumnCount} '
+              'itemWidth=${_controller.currentItemWidth?.toStringAsFixed(1)}',
+          'GalleryPerf',
+        );
+      }
+    }
+  }
+
+  void _handleGalleryStateChanged(OnlineGalleryState state) {
+    final browsingContextChanged =
+        (_controller.lastViewMode != null &&
+            _controller.lastViewMode != state.viewMode) ||
+        (_controller.lastCacheKey != null &&
+            _controller.lastCacheKey != state.currentCacheKey) ||
+        (state.viewMode == GalleryViewMode.favorites &&
+            _controller.lastFavoritesSource != null &&
+            _controller.lastFavoritesSource != state.favoritesSourceId) ||
+        (_controller.lastRandomEnabled != null &&
+            _controller.lastRandomEnabled != state.randomEnabled);
+    final randomReplaceStarted =
+        state.randomEnabled &&
+        state.isLoading &&
+        !state.isLoadingMore &&
+        !_controller.randomReplacePending;
+    if (randomReplaceStarted) _controller.randomReplacePending = true;
+    if (!state.randomEnabled || (!state.isLoading && !state.isLoadingMore)) {
+      _controller.randomReplacePending = false;
+    }
+    final initialPositionReady =
+        _controller.restoreInitialPositionPending &&
+        state.posts.isNotEmpty &&
+        !state.isLoading;
+    if (browsingContextChanged ||
+        randomReplaceStarted ||
+        initialPositionReady) {
+      if (browsingContextChanged) {
+        _pageJumpRevision++;
+        _scrollCoordinator.endPageJump();
+        _controller.synchronizeQueries(state);
+      }
+      _controller.hoverController.dismiss();
+      _controller.resetViewportTracking();
+      _controller.paginationDemand.resetScope(
+        state.randomEnabled
+            ? 'random:${state.randomSession.scopeKey}'
+            : state.currentCacheKey,
+      );
+      _controller.prefetchCoordinator.rotateGeneration();
+      if (browsingContextChanged || initialPositionReady) {
+        _scrollCoordinator.restoreScrollOffset(
+          state.randomEnabled ? state.randomSession.cache : state.currentCache,
+        );
+        _controller.restoreInitialPositionPending = false;
+      }
+    }
+    _controller.lastViewMode = state.viewMode;
+    _controller.lastFavoritesSource = state.favoritesSourceId;
+    _controller.lastCacheKey = state.currentCacheKey;
+    _controller.lastRandomEnabled = state.randomEnabled;
+    _scrollCoordinator.scheduleAutoLoadIfUnderfilled(state);
   }
 
   @override
   void dispose() {
-    _searchDebounceTimer?.cancel();
-    _hideDateRangePopup();
-    _scrollController.removeListener(_onScroll);
-    _pageFocusNode.removeListener(_onPageFocusChange);
-    _searchController.dispose();
-    _searchFocusNode.dispose();
-    _scrollController.dispose();
-    _pageController.dispose();
-    _pageFocusNode.dispose();
+    _disposed = true;
+    _pageJumpRevision++;
+    WidgetsBinding.instance.removeObserver(this);
+    CriticalNetworkActivityCoordinator.instance.removeListener(
+      _handleCriticalNetworkActivity,
+    );
+    _scrollCoordinator.saveScrollOffset();
+    _gallerySubscription.close();
+    _controller.scrollController.removeListener(_scrollCoordinator.onScroll);
+    _controller.pageFocusNode.removeListener(
+      _controller.cancelPageEditingWhenUnfocused,
+    );
+    _controller.dispose();
+    _imageLoader.dispose();
     super.dispose();
-  }
-
-  /// 页码焦点变化处理
-  void _onPageFocusChange() {
-    if (!_pageFocusNode.hasFocus && _isEditingPage) {
-      setState(() {
-        _isEditingPage = false;
-      });
-    }
-  }
-
-  /// 开始编辑页码
-  void _startEditingPage(int currentPage) {
-    setState(() {
-      _isEditingPage = true;
-      _pageController.text = currentPage.toString();
-      _pageController.selection = TextSelection(
-        baseOffset: 0,
-        extentOffset: _pageController.text.length,
-      );
-    });
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _pageFocusNode.requestFocus();
-    });
-  }
-
-  /// 提交页码跳转
-  void _submitPage() {
-    final input = _pageController.text.trim();
-    final parsed = int.tryParse(input);
-
-    setState(() => _isEditingPage = false);
-
-    if (parsed == null || parsed < 1) return;
-
-    final state = ref.read(onlineGalleryNotifierProvider);
-    if (parsed != state.page) {
-      _galleryNotifier.goToPage(parsed);
-    }
   }
 
   @override
   Widget build(BuildContext context) {
     super.build(context); // Required for AutomaticKeepAliveClientMixin
     final theme = Theme.of(context);
-    final state = ref.watch(onlineGalleryNotifierProvider);
+    ref.watch(
+      onlineGalleryNotifierProvider.select(
+        (value) => (
+          loading: (value.isLoading, value.isLoadingMore),
+          error: (value.error, value.errorCode, value.notice),
+          queries: (
+            value.searchQuery,
+            value.promptQuery,
+            value.popularQuery,
+            value.popularPromptQuery,
+            value.fuzzySearchEnabled,
+          ),
+          sources: (
+            value.sourceId,
+            value.popularSourceId,
+            value.favoritesSourceId,
+            value.viewMode,
+          ),
+          filters: (
+            value.selectedRatings,
+            value.popularScale,
+            value.popularDate,
+            value.aiTagTimeRange,
+            value.aiTagPopularPeriod,
+            value.dateRangeStart,
+            value.dateRangeEnd,
+          ),
+          cache: value.currentCache,
+          aiTagConfig: value.aiTagConfig,
+          random: (value.randomEnabled, value.randomSession),
+          artistHunt: value.artistHuntEnabled,
+        ),
+      ),
+    );
+    final state = ref.read(onlineGalleryNotifierProvider);
     final authState = ref.watch(danbooruAuthProvider);
-
-    // 检测模式切换，保存旧模式滚动位置，恢复新模式滚动位置
-    if (_lastViewMode != null && _lastViewMode != state.viewMode) {
-      // 模式已切换，恢复目标模式的滚动位置
-      _restoreScrollOffset(state.scrollOffset);
-    }
-    _lastViewMode = state.viewMode;
-
-    return Scaffold(
-      backgroundColor: theme.scaffoldBackgroundColor,
-      body: Column(
-        children: [
-          // 顶部工具栏
-          _buildToolbar(theme, state, authState),
-          // 图片网格
-          Expanded(child: _buildContent(theme, state)),
-          // 底部分页条
-          _buildPaginationBar(theme, state),
-        ],
-      ),
-    );
-  }
-
-  /// 构建底部分页条
-  Widget _buildPaginationBar(ThemeData theme, OnlineGalleryState state) {
-    if (state.posts.isEmpty && !state.isLoading) {
-      return const SizedBox.shrink();
-    }
-
-    return Container(
-      height: 48,
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surface,
-        border: Border(
-          top: BorderSide(color: theme.dividerColor.withValues(alpha: 0.3)),
-        ),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          // 上一页
-          IconButton(
-            onPressed: state.page > 1 && !state.isLoading
-                ? () => _galleryNotifier.goToPage(state.page - 1)
-                : null,
-            icon: const Icon(Icons.chevron_left, size: 24),
-            tooltip: context.l10n.onlineGallery_previousPage,
-          ),
-          const SizedBox(width: 8),
-          // 页码显示/输入
-          _isEditingPage
-              ? _buildPageInput(theme, state)
-              : _buildPageDisplay(theme, state),
-          const SizedBox(width: 8),
-          // 下一页
-          IconButton(
-            onPressed: state.hasMore && !state.isLoading
-                ? () => _galleryNotifier.goToPage(state.page + 1)
-                : null,
-            icon: const Icon(Icons.chevron_right, size: 24),
-            tooltip: context.l10n.onlineGallery_nextPage,
-          ),
-          const SizedBox(width: 24),
-          // 图片计数
-          Text(
-            context.l10n.onlineGallery_imageCount(
-              state.posts.length.toString(),
-            ),
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  /// 可点击的页码显示
-  Widget _buildPageDisplay(ThemeData theme, OnlineGalleryState state) {
-    return InkWell(
-      onTap: !state.isLoading ? () => _startEditingPage(state.page) : null,
-      borderRadius: BorderRadius.circular(16),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-        decoration: BoxDecoration(
-          color: theme.colorScheme.primaryContainer.withValues(alpha: 0.3),
-          borderRadius: BorderRadius.circular(16),
-        ),
-        child: state.isLoading
-            ? SizedBox(
-                width: 16,
-                height: 16,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  color: theme.colorScheme.primary,
-                ),
-              )
-            : Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    context.l10n.onlineGallery_pageN(state.page.toString()),
-                    style: theme.textTheme.labelLarge?.copyWith(
-                      color: theme.colorScheme.onSurface,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                  const SizedBox(width: 4),
-                  Icon(
-                    Icons.edit,
-                    size: 12,
-                    color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
-                  ),
-                ],
-              ),
-      ),
-    );
-  }
-
-  /// 页码输入框
-  Widget _buildPageInput(ThemeData theme, OnlineGalleryState state) {
-    return SizedBox(
-      width: 80,
-      child: ThemedInput(
-        controller: _pageController,
-        focusNode: _pageFocusNode,
-        keyboardType: TextInputType.number,
-        textAlign: TextAlign.center,
-        style: theme.textTheme.labelLarge?.copyWith(
-          fontWeight: FontWeight.w500,
-        ),
-        decoration: InputDecoration(
-          isDense: true,
-          contentPadding: const EdgeInsets.symmetric(
-            horizontal: 8,
-            vertical: 8,
-          ),
-          border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
-        ),
-        inputFormatters: [
-          FilteringTextInputFormatter.digitsOnly,
-          LengthLimitingTextInputFormatter(5),
-        ],
-        onSubmitted: (_) => _submitPage(),
-      ),
-    );
-  }
-
-  Widget _buildToolbar(
-    ThemeData theme,
-    OnlineGalleryState state,
-    DanbooruAuthState authState,
-  ) {
+    final gelbooruAuthState = ref.watch(gelbooruAuthProvider);
     final selectionState = ref.watch(onlineGallerySelectionNotifierProvider);
-
-    if (selectionState.isActive) {
-      final allPostIds = state.posts.map((p) => p.id.toString()).toList();
-      final isAllSelected =
-          allPostIds.isNotEmpty &&
-          allPostIds.every((id) => selectionState.selectedIds.contains(id));
-
-      return BulkActionBar(
-        selectedCount: selectionState.selectedIds.length,
-        isAllSelected: isAllSelected,
-        onExit: () => _selectionNotifier.exit(),
-        onSelectAll: () {
-          if (isAllSelected) {
-            _selectionNotifier.clearSelection();
-          } else {
-            _selectionNotifier.selectAll(allPostIds);
-          }
-        },
-        actions: [
-          BulkActionItem(
-            icon: Icons.playlist_add,
-            label: context.l10n.onlineGallery_addToQueue,
-            onPressed: _addSelectedToQueue,
-            color: theme.colorScheme.primary,
-          ),
-          BulkActionItem(
-            icon: Icons.favorite_border,
-            label: context.l10n.onlineGallery_bulkFavorite,
-            onPressed: _favoriteSelected,
-            color: theme.colorScheme.secondary,
-          ),
-          BulkActionItem(
-            icon: Icons.download,
-            label: context.l10n.onlineGallery_bulkDownload,
-            onPressed: _downloadSelected,
-            color: theme.colorScheme.tertiary,
-          ),
-        ],
-      );
-    }
-
-    return Container(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surface,
-        border: Border(
-          bottom: BorderSide(color: theme.dividerColor.withValues(alpha: 0.3)),
-        ),
-      ),
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final compact = constraints.maxWidth < 1440;
-
-          return Column(
-            children: [
-              // 第一行：模式切换 + 搜索框 + 用户
-              Row(
-                children: [
-                  // 模式切换（紧凑设计）
-                  _buildModeSelector(theme, state, authState),
-                  const SizedBox(width: 16),
-                  // 搜索框
-                  if (state.viewMode == GalleryViewMode.search)
-                    Expanded(child: _buildSearchField(theme))
-                  else
-                    const Spacer(),
-                  if (!compact) ...[
-                    const SizedBox(width: 12),
-                    // 筛选和操作
-                    _buildFilterAndActions(theme, state, authState),
-                  ],
-                ],
-              ),
-              if (compact) ...[
-                const SizedBox(height: 8),
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    child: _buildFilterAndActions(theme, state, authState),
-                  ),
-                ),
-              ],
-              // 第二行：排行榜选项（仅排行榜模式）
-              if (state.viewMode == GalleryViewMode.popular) ...[
-                const SizedBox(height: 8),
-                _buildPopularOptions(theme, state),
-              ],
-            ],
-          );
-        },
-      ),
-    );
-  }
-
-  Widget _buildModeSelector(
-    ThemeData theme,
-    OnlineGalleryState state,
-    DanbooruAuthState authState,
-  ) {
-    return Container(
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.4),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          _ModeButton(
-            icon: Icons.search,
-            label: context.l10n.onlineGallery_search,
-            isSelected: state.viewMode == GalleryViewMode.search,
-            onTap: () {
-              _saveScrollOffset();
-              _galleryNotifier.switchToSearch();
-            },
-            isFirst: true,
-          ),
-          _ModeButton(
-            icon: Icons.local_fire_department,
-            label: context.l10n.onlineGallery_popular,
-            isSelected: state.viewMode == GalleryViewMode.popular,
-            onTap: () {
-              _saveScrollOffset();
-              _galleryNotifier.switchToPopular();
-            },
-          ),
-          _ModeButton(
-            icon: Icons.favorite,
-            label: context.l10n.onlineGallery_favorites,
-            isSelected: state.viewMode == GalleryViewMode.favorites,
-            onTap: () {
-              if (!authState.isLoggedIn) {
-                _showLoginDialog(context);
-                return;
-              }
-              _saveScrollOffset();
-              _galleryNotifier.switchToFavorites();
-            },
-            isLast: true,
-            showBadge: !authState.isLoggedIn,
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildSearchField(ThemeData theme) {
-    return AutocompleteWrapper(
-      controller: _searchController,
-      focusNode: _searchFocusNode,
-      strategy: DanbooruStrategy.create(
-        ref,
-        replaceAll: false,
-        separator: ',',
-        appendSeparator: false,
-      ),
-      onSuggestionSelected: (value) {
-        // 选择补全建议后立即触发搜索
-        _searchDebounceTimer?.cancel();
-        _galleryNotifier.search(value);
-      },
-      child: Container(
-        height: 36,
-        constraints: const BoxConstraints(maxWidth: 400),
-        decoration: BoxDecoration(
-          color: theme.colorScheme.surfaceContainerHighest.withValues(
-            alpha: 0.4,
-          ),
-          borderRadius: BorderRadius.circular(18),
-        ),
-        child: TextField(
-          controller: _searchController,
-          focusNode: _searchFocusNode,
-          style: theme.textTheme.bodyMedium,
-          decoration: InputDecoration(
-            hintText: context.l10n.onlineGallery_searchTags,
-            hintStyle: TextStyle(
-              color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
-              fontSize: 13,
-            ),
-            prefixIcon: Icon(
-              Icons.search,
-              size: 18,
-              color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
-            ),
-            suffixIcon: _searchController.text.isNotEmpty
-                ? IconButton(
-                    icon: Icon(
-                      Icons.close,
-                      size: 16,
-                      color: theme.colorScheme.onSurfaceVariant.withValues(
-                        alpha: 0.6,
-                      ),
-                    ),
-                    onPressed: () {
-                      _searchController.clear();
-                      _galleryNotifier.search('');
-                      setState(() {});
-                    },
-                  )
-                : null,
-            border: InputBorder.none,
-            contentPadding: const EdgeInsets.symmetric(vertical: 8),
-            isDense: true,
-          ),
-          onChanged: (value) {
-            setState(() {}); // 仅更新清除按钮可见性，不触发搜索
-          },
-          onSubmitted: _galleryNotifier.search,
-        ),
-      ),
-    );
-  }
-
-  Widget _buildFilterAndActions(
-    ThemeData theme,
-    OnlineGalleryState state,
-    DanbooruAuthState authState,
-  ) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        // 数据源切换（仅搜索模式）
-        if (state.viewMode == GalleryViewMode.search) ...[
-          _SourceDropdown(
-            selected: state.source,
-            onChanged: _galleryNotifier.setSource,
-          ),
-          const SizedBox(width: 6),
-          _FuzzySearchToggle(
-            enabled: state.fuzzySearchEnabled,
-            onChanged: _galleryNotifier.setFuzzySearchEnabled,
-          ),
-          const SizedBox(width: 6),
-        ],
-        // 评级筛选
-        _RatingDropdown(
-          selectedRatings: state.selectedRatings,
-          onToggle: _galleryNotifier.toggleRating,
-        ),
-        // 日期范围筛选（仅搜索模式）
-        if (state.viewMode == GalleryViewMode.search) ...[
-          const SizedBox(width: 8),
-          _buildDateRangeButton(theme, state),
-        ],
-        const SizedBox(width: 8),
-        IconButton(
-          icon: const Icon(Icons.block),
-          tooltip: context.l10n.onlineGallery_blacklistTags,
-          onPressed: () => showOnlineGalleryBlacklistDialog(context, ref),
-        ),
-        const SizedBox(width: 8),
-        // 刷新按钮 (FilledButton.tonal)
-        FilledButton.tonalIcon(
-          onPressed: state.isLoading ? null : _galleryNotifier.refresh,
-          icon: state.isLoading
-              ? SizedBox(
-                  width: 16,
-                  height: 16,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    color: theme.colorScheme.onSecondaryContainer,
-                  ),
-                )
-              : const Icon(Icons.refresh, size: 18),
-          label: Text(context.l10n.onlineGallery_refresh),
-          style: FilledButton.styleFrom(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            visualDensity: VisualDensity.compact,
-          ),
-        ),
-        const SizedBox(width: 8),
-        // 多选模式切换
-        IconButton(
-          icon: const Icon(Icons.checklist),
-          tooltip: context.l10n.common_multiSelect,
-          onPressed: _selectionNotifier.enter,
-        ),
-        const SizedBox(width: 8),
-        // 用户
-        _buildUserButton(theme, authState),
-      ],
-    );
-  }
-
-  /// 构建日期范围筛选按钮
-  Widget _buildDateRangeButton(ThemeData theme, OnlineGalleryState state) {
-    final hasDateRange =
-        state.dateRangeStart != null || state.dateRangeEnd != null;
-
-    return CompositedTransformTarget(
-      link: _dateRangeLayerLink,
-      child: OutlinedButton.icon(
-        onPressed: () => _toggleDateRangePopup(state),
-        icon: Icon(
-          Icons.date_range,
-          size: 16,
-          color: hasDateRange ? theme.colorScheme.primary : null,
-        ),
-        label: Text(
-          hasDateRange
-              ? _dateFormattingService.formatDateRange(
-                  state.dateRangeStart,
-                  state.dateRangeEnd,
-                )
-              : context.l10n.onlineGallery_dateRange,
-          style: TextStyle(
-            fontSize: 12,
-            color: hasDateRange ? theme.colorScheme.primary : null,
-          ),
-        ),
-        style: OutlinedButton.styleFrom(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-          visualDensity: VisualDensity.compact,
-          side: hasDateRange
-              ? BorderSide(color: theme.colorScheme.primary)
-              : null,
-        ),
-      ),
-    );
-  }
-
-  void _toggleDateRangePopup(OnlineGalleryState state) {
-    if (_dateRangeOverlayEntry != null) {
-      _hideDateRangePopup();
-      return;
-    }
-    _showDateRangePopup(state);
-  }
-
-  void _showDateRangePopup(OnlineGalleryState state) {
-    final overlay = Overlay.of(context);
-    final theme = Theme.of(context);
-    final now = DateTime.now();
-
-    _dateRangeOverlayEntry = OverlayEntry(
-      builder: (overlayContext) {
-        return Stack(
-          children: [
-            Positioned.fill(
-              child: GestureDetector(
-                behavior: HitTestBehavior.translucent,
-                onTap: _hideDateRangePopup,
-                child: const SizedBox.expand(),
-              ),
-            ),
-            CompositedTransformFollower(
-              link: _dateRangeLayerLink,
-              showWhenUnlinked: false,
-              targetAnchor: Alignment.bottomLeft,
-              followerAnchor: Alignment.topLeft,
-              offset: const Offset(0, 8),
-              child: Material(
-                elevation: 12,
-                borderRadius: BorderRadius.circular(16),
-                clipBehavior: Clip.antiAlias,
-                color: theme.colorScheme.surface,
-                child: _DateRangePopup(
-                  initialStart: state.dateRangeStart,
-                  initialEnd: state.dateRangeEnd,
-                  firstDate: DateTime(2005),
-                  lastDate: now,
-                  onApply: (start, end) {
-                    _hideDateRangePopup();
-                    _galleryNotifier.setDateRange(start, end);
-                  },
-                  onClear: () {
-                    _hideDateRangePopup();
-                    _galleryNotifier.clearDateRange();
-                  },
-                  onClose: _hideDateRangePopup,
-                ),
-              ),
-            ),
-          ],
-        );
-      },
+    final viewModel = OnlineGalleryViewModel.from(
+      gallery: state,
+      selection: selectionState,
     );
 
-    overlay.insert(_dateRangeOverlayEntry!);
-  }
-
-  void _hideDateRangePopup() {
-    _dateRangeOverlayEntry?.remove();
-    _dateRangeOverlayEntry = null;
-  }
-
-  Widget _buildUserButton(ThemeData theme, DanbooruAuthState authState) {
-    if (authState.isLoggedIn) {
-      return PopupMenuButton<String>(
-        onSelected: (value) {
-          if (value == 'logout') {
-            ref.read(danbooruAuthProvider.notifier).logout();
-          }
-        },
-        offset: const Offset(0, 40),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-        itemBuilder: (context) => [
-          PopupMenuItem<String>(
-            enabled: false,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  authState.credentials?.username ?? '',
-                  style: theme.textTheme.titleSmall,
-                ),
-                if (authState.user != null)
-                  Text(
-                    authState.user!.levelName,
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-              ],
-            ),
-          ),
-          const PopupMenuDivider(),
-          PopupMenuItem<String>(
-            value: 'logout',
-            child: Row(
-              children: [
-                const Icon(Icons.logout, size: 18),
-                const SizedBox(width: 8),
-                Text(context.l10n.onlineGallery_logout),
-              ],
-            ),
-          ),
-        ],
-        child: Container(
-          width: 32,
-          height: 32,
-          decoration: BoxDecoration(
-            color: theme.colorScheme.primaryContainer,
-            shape: BoxShape.circle,
-          ),
-          child: Icon(
-            Icons.person,
-            size: 18,
-            color: theme.colorScheme.onPrimaryContainer,
-          ),
-        ),
-      );
-    }
-
-    return FilledButton.icon(
-      onPressed: () => _showLoginDialog(context),
-      icon: const Icon(Icons.login, size: 18),
-      label: Text(context.l10n.onlineGallery_login),
-      style: FilledButton.styleFrom(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        visualDensity: VisualDensity.compact,
-      ),
-    );
-  }
-
-  Widget _buildPopularOptions(ThemeData theme, OnlineGalleryState state) {
-    return Row(
-      children: [
-        // 时间范围
-        SegmentedButton<PopularScale>(
-          segments: [
-            ButtonSegment(
-              value: PopularScale.day,
-              label: Text(context.l10n.onlineGallery_dayRank),
-            ),
-            ButtonSegment(
-              value: PopularScale.week,
-              label: Text(context.l10n.onlineGallery_weekRank),
-            ),
-            ButtonSegment(
-              value: PopularScale.month,
-              label: Text(context.l10n.onlineGallery_monthRank),
-            ),
-          ],
-          selected: {state.popularScale},
-          onSelectionChanged: (selected) {
-            _galleryNotifier.setPopularScale(selected.first);
-          },
-          style: const ButtonStyle(
-            visualDensity: VisualDensity.compact,
-            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-          ),
-        ),
-        const SizedBox(width: 12),
-        // 日期
-        OutlinedButton.icon(
-          onPressed: () => _selectDate(context, state),
-          icon: const Icon(Icons.calendar_today, size: 14),
-          label: Text(
-            state.popularDate != null
-                ? _dateFormattingService.formatWithPattern(
-                    state.popularDate!,
-                    'yyyy-MM-dd',
-                  )
-                : context.l10n.onlineGallery_today,
-            style: const TextStyle(fontSize: 13),
-          ),
-          style: OutlinedButton.styleFrom(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            visualDensity: VisualDensity.compact,
-          ),
-        ),
-        if (state.popularDate != null) ...[
-          const SizedBox(width: 4),
-          IconButton(
-            onPressed: () => _galleryNotifier.setPopularDate(null),
-            icon: const Icon(Icons.close, size: 16),
-            tooltip: context.l10n.onlineGallery_clear,
-            style: IconButton.styleFrom(padding: const EdgeInsets.all(4)),
-          ),
-        ],
-        const Spacer(),
-        // 计数
-        Text(
-          context.l10n.onlineGallery_imageCount(state.posts.length.toString()),
-          style: theme.textTheme.bodySmall?.copyWith(
-            color: theme.colorScheme.onSurfaceVariant,
-          ),
-        ),
-      ],
-    );
-  }
-
-  Future<void> _selectDate(
-    BuildContext context,
-    OnlineGalleryState state,
-  ) async {
-    final now = DateTime.now();
-    final picked = await showDatePicker(
-      context: context,
-      initialDate: state.popularDate ?? now,
-      firstDate: DateTime(2005),
-      lastDate: now,
-    );
-    if (picked != null) {
-      _galleryNotifier.setPopularDate(picked);
-    }
-  }
-
-  void _showLoginDialog(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (context) => const DanbooruLoginDialog(),
-    );
-  }
-
-  Widget _buildContent(ThemeData theme, OnlineGalleryState state) {
-    return _buildPageContent(theme, state);
-  }
-
-  /// 构建错误状态
-  Widget _buildErrorState(ThemeData theme, OnlineGalleryState state) {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.error_outline, size: 48, color: theme.colorScheme.error),
-          const SizedBox(height: 12),
-          Text(
-            context.l10n.onlineGallery_loadFailed,
-            style: theme.textTheme.titleMedium,
-          ),
-          const SizedBox(height: 4),
-          Text(
-            state.error!,
-            style: theme.textTheme.bodySmall,
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 16),
-          FilledButton.icon(
-            onPressed: _galleryNotifier.refresh,
-            icon: const Icon(Icons.refresh, size: 18),
-            label: Text(context.l10n.common_retry),
-          ),
-        ],
-      ),
-    );
-  }
-
-  /// 构建空状态
-  Widget _buildEmptyState(ThemeData theme, OnlineGalleryState state) {
-    final isFavorites = state.viewMode == GalleryViewMode.favorites;
-    final icon = isFavorites
-        ? Icons.favorite_border
-        : Icons.image_not_supported_outlined;
-    final message = isFavorites
-        ? context.l10n.onlineGallery_favoritesEmpty
-        : context.l10n.onlineGallery_noResults;
-
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            icon,
-            size: 48,
-            color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
-          ),
-          const SizedBox(height: 12),
-          Text(message, style: theme.textTheme.titleMedium),
-        ],
-      ),
-    );
-  }
-
-  /// 构建图片网格
-  Widget _buildImageGrid(ThemeData theme, OnlineGalleryState state) {
-    final screenWidth = MediaQuery.of(context).size.width - 60;
-    final columnCount = (screenWidth / 200).floor().clamp(2, 8);
-    final itemWidth = (screenWidth - 24 - (columnCount - 1) * 6) / columnCount;
-
-    return MasonryGridView.count(
-      key: PageStorageKey<String>('online_gallery_${state.viewMode.name}'),
-      controller: _scrollController,
-      padding: const EdgeInsets.all(12),
-      crossAxisCount: columnCount,
-      mainAxisSpacing: 6,
-      crossAxisSpacing: 6,
-      itemCount:
-          state.posts.length + (state.hasMore || state.error != null ? 1 : 0),
-      itemBuilder: (context, index) =>
-          _buildGridItem(theme, state, index, itemWidth),
-    );
-  }
-
-  /// 构建网格项
-  Widget _buildGridItem(
-    ThemeData theme,
-    OnlineGalleryState state,
-    int index,
-    double itemWidth,
-  ) {
-    // 加载更多指示器/错误重试
-    if (index >= state.posts.length) {
-      return _buildLoadMoreIndicator(theme, state);
-    }
-
-    final post = state.posts[index];
-    final selectionState = ref.watch(onlineGallerySelectionNotifierProvider);
-
-    _prefetchImages(state, index);
-
-    return DanbooruPostCard(
-      post: post,
-      itemWidth: itemWidth,
-      isFavorited: state.favoritedPostIds.contains(post.id),
-      isFavoriteLoading: state.favoriteLoadingPostIds.contains(post.id),
-      selectionMode: selectionState.isActive,
-      isSelected: selectionState.selectedIds.contains(post.id.toString()),
-      canSelect: post.tags.isNotEmpty,
-      onTap: () => _showPostDetail(context, post),
-      onSelectionToggle: () => _selectionNotifier.toggle(post.id.toString()),
-      onLongPress: () {
-        if (!selectionState.isActive) {
-          _selectionNotifier.enterAndSelect(post.id.toString());
-        }
-      },
-      onTagTap: (tag) {
-        _searchController.text = tag;
-        _galleryNotifier.search(tag);
-      },
-      onFavoriteToggle: () => _handleFavoriteToggle(context, state, post),
-    );
-  }
-
-  /// 构建加载更多指示器
-  Widget _buildLoadMoreIndicator(ThemeData theme, OnlineGalleryState state) {
-    if (state.error != null) {
-      return Center(
-        child: TextButton(
-          onPressed: _galleryNotifier.loadMore,
-          child: Text(
-            context.l10n.onlineGallery_loadFailed,
-            style: TextStyle(color: theme.colorScheme.error),
-          ),
-        ),
-      );
-    }
-    return const Center(
-      child: Padding(
-        padding: EdgeInsets.all(16),
-        child: CircularProgressIndicator(),
-      ),
-    );
-  }
-
-  /// 构建页面显示内容（加载中、错误、空状态、网格）
-  Widget _buildPageContent(ThemeData theme, OnlineGalleryState state) {
-    if (state.isLoading && state.posts.isEmpty) {
-      return const Center(child: CircularProgressIndicator());
-    }
-    if (state.error != null && state.posts.isEmpty) {
-      return _buildErrorState(theme, state);
-    }
-    if (state.posts.isEmpty) {
-      return _buildEmptyState(theme, state);
-    }
-    return _buildImageGrid(theme, state);
-  }
-
-  /// 智能预加载图片
-  void _prefetchImages(OnlineGalleryState state, int currentIndex) {
-    const prefetchCount = 10;
-    for (var i = 1; i <= prefetchCount; i++) {
-      final nextIndex = currentIndex + i;
-      if (nextIndex < state.posts.length) {
-        final nextPost = state.posts[nextIndex];
-        if (nextPost.previewUrl.isNotEmpty) {
-          precacheImage(
-            CachedNetworkImageProvider(nextPost.previewUrl),
+    ref.listen<OnlineGalleryNotice?>(
+      onlineGalleryNotifierProvider.select((value) => value.notice),
+      (previous, next) {
+        if (next == null || next == previous) return;
+        if (next == OnlineGalleryNotice.gelbooruCredentialsInvalid) {
+          AppToast.warning(
             context,
+            context.l10n.onlineGallery_gelbooruCredentialsInvalid,
           );
+        } else if (next == OnlineGalleryNotice.tagDetailsIncomplete) {
+          AppToast.warning(
+            context,
+            context.l10n.onlineGallery_tagDetailsIncomplete,
+          );
+        } else if (next == OnlineGalleryNotice.randomDrawNoMatch) {
+          AppToast.info(context, context.l10n.onlineGallery_randomDrawNoMatch);
         }
-      }
-    }
-  }
-
-  void _showPostDetail(BuildContext context, DanbooruPost post) {
-    showPostDetailDialog(
-      context,
-      post: post,
-      onTagTap: (tag) {
-        _searchController.text = tag;
-        _galleryNotifier.search(tag);
+        _galleryNotifier.clearNotice();
       },
     );
-  }
-
-  /// 处理收藏切换
-  Future<void> _handleFavoriteToggle(
-    BuildContext context,
-    OnlineGalleryState state,
-    DanbooruPost post,
-  ) async {
-    final authState = ref.read(danbooruAuthProvider);
-    if (!authState.isLoggedIn) {
-      _showLoginDialog(context);
-      return;
-    }
-
-    final wasFavorited = state.favoritedPostIds.contains(post.id);
-    final success = await _galleryNotifier.toggleFavorite(post.id);
-
-    if (context.mounted && success) {
-      AppToast.info(
-        context,
-        wasFavorited
-            ? context.l10n.onlineGallery_unfavorited
-            : context.l10n.onlineGallery_favorited,
-      );
-    }
-  }
-
-  /// 批量加入队列
-  Future<void> _addSelectedToQueue() async {
-    final selectionState = ref.read(onlineGallerySelectionNotifierProvider);
-    final galleryState = ref.read(onlineGalleryNotifierProvider);
-
-    final selectedPosts = galleryState.posts
-        .where((p) => selectionState.selectedIds.contains(p.id.toString()))
-        .toList();
-
-    if (selectedPosts.isEmpty) return;
-
-    final tasks = selectedPosts
-        .where((p) => p.tags.isNotEmpty)
-        .map(
-          (p) => ReplicationTask.create(
-            prompt: p.tags.join(', '),
-            thumbnailUrl: p.previewUrl,
-            source: ReplicationTaskSource.online,
-          ),
-        )
-        .toList();
-
-    if (tasks.isEmpty) {
-      AppToast.info(context, context.l10n.onlineGallery_noTagInfo);
-      return;
-    }
-
-    final addedCount = await ref
-        .read(replicationQueueNotifierProvider.notifier)
-        .addAll(tasks);
-
-    if (mounted) {
-      AppToast.success(
-        context,
-        context.l10n.onlineGallery_addedTasksToQueue(addedCount),
-      );
-      _selectionNotifier.exit();
-    }
-  }
-
-  /// 批量收藏
-  Future<void> _favoriteSelected() async {
-    final selectionState = ref.read(onlineGallerySelectionNotifierProvider);
-    final galleryState = ref.read(onlineGalleryNotifierProvider);
-    final authState = ref.read(danbooruAuthProvider);
-
-    if (!authState.isLoggedIn) {
-      _showLoginDialog(context);
-      return;
-    }
-
-    final selectedIds = selectionState.selectedIds.toList();
-    if (selectedIds.isEmpty) return;
-
-    // 简单的批量收藏实现：逐个调用 toggleFavorite
-    // 注意：这可能会触发多次 API 调用，理想情况下应该有批量 API
-    // 这里为了简化，我们只对未收藏的进行收藏操作
-    int count = 0;
-    for (final idStr in selectedIds) {
-      // 检查widget是否仍然挂载，避免在widget disposed后继续操作
-      if (!mounted) return;
-
-      final id = int.tryParse(idStr);
-      if (id != null && !galleryState.favoritedPostIds.contains(id)) {
-        await _galleryNotifier.toggleFavorite(id);
-        count++;
-        await Future.delayed(const Duration(milliseconds: 100));
-      }
-    }
-
-    if (mounted) {
-      AppToast.info(context, context.l10n.onlineGallery_favoritedImages(count));
-      _selectionNotifier.exit();
-    }
-  }
-
-  /// 批量下载
-  Future<void> _downloadSelected() async {
-    final selectionState = ref.read(onlineGallerySelectionNotifierProvider);
-    final galleryState = ref.read(onlineGalleryNotifierProvider);
-
-    final selectedPosts = galleryState.posts
-        .where((p) => selectionState.selectedIds.contains(p.id.toString()))
-        .toList();
-
-    if (selectedPosts.isEmpty) return;
-
-    String? result;
-    try {
-      result = await FilePickerUtils.pickDirectoryModal(
-        dialogTitle: context.l10n.onlineGallery_chooseDownloadDirectory,
-      );
-    } catch (e) {
-      if (mounted) {
-        AppToast.error(
-          context,
-          context.l10n.onlineGallery_selectDownloadDirectoryFailed('$e'),
-        );
-      }
-      return;
-    }
-    if (result == null) return;
-
-    if (mounted) {
-      AppToast.info(
-        context,
-        context.l10n.onlineGallery_downloadSelectedStarted(
-          selectedPosts.length,
-        ),
-      );
-      _selectionNotifier.exit();
-    }
-
-    final (successCount, failCount) = await _downloadPosts(
-      selectedPosts,
-      result,
-    );
-
-    if (mounted) {
-      AppToast.success(
-        context,
-        context.l10n.onlineGallery_downloadSelectedCompleted(
-          successCount,
-          failCount,
-        ),
-      );
-    }
-  }
-
-  /// 下载帖子列表到指定目录
-  Future<(int success, int fail)> _downloadPosts(
-    List<DanbooruPost> posts,
-    String destinationDir,
-  ) async {
-    var successCount = 0;
-    var failCount = 0;
-    const batchSize = 10;
-
-    for (var i = 0; i < posts.length; i += batchSize) {
-      final batch = posts.sublist(i, min(i + batchSize, posts.length));
-      await Future.wait(
-        batch.map((post) async {
-          try {
-            final url = post.bestQualityUrl;
-            if (url.isEmpty) return;
-
-            final file = await DanbooruImageCacheManager.instance.getSingleFile(
-              url,
-              key: onlineGalleryImageCacheKeyForUrl(url),
-              headers: onlineGalleryImageHeadersForUrl(url),
-            );
-            final destination = path.join(
-              destinationDir,
-              path.basename(Uri.parse(url).path),
-            );
-            await file.copy(destination);
-            successCount++;
-          } catch (e) {
-            failCount++;
-            debugPrint('Download failed for post ${post.id}: $e');
+    return ImageCardBatchScope(
+      targetIds: selectionState.selectedIds,
+      actions: _commands.selectionActions.buildActions(
+        state,
+        selectionState.selectedIds,
+      ),
+      child: PopScope<void>(
+        canPop: !viewModel.isSelectionMode,
+        onPopInvokedWithResult: (didPop, _) {
+          if (!didPop && viewModel.isSelectionMode) {
+            _selectionNotifier.exit();
           }
-        }),
-      );
-    }
-
-    return (successCount, failCount);
-  }
-}
-
-/// 模式切换按钮
-class _ModeButton extends StatefulWidget {
-  final IconData icon;
-  final String label;
-  final bool isSelected;
-  final VoidCallback onTap;
-  final bool isFirst;
-  final bool isLast;
-  final bool showBadge;
-
-  const _ModeButton({
-    required this.icon,
-    required this.label,
-    required this.isSelected,
-    required this.onTap,
-    this.isFirst = false,
-    this.isLast = false,
-    this.showBadge = false,
-  });
-
-  @override
-  State<_ModeButton> createState() => _ModeButtonState();
-}
-
-class _ModeButtonState extends State<_ModeButton> {
-  bool _isHovering = false;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return MouseRegion(
-      onEnter: (_) => setState(() => _isHovering = true),
-      onExit: (_) => setState(() => _isHovering = false),
-      child: GestureDetector(
-        onTap: widget.onTap,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 120),
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-          decoration: BoxDecoration(
-            color: widget.isSelected
-                ? theme.colorScheme.primary
-                : (_isHovering
-                      ? theme.colorScheme.surfaceContainerHighest
-                      : Colors.transparent),
-            borderRadius: BorderRadius.horizontal(
-              left: widget.isFirst ? const Radius.circular(8) : Radius.zero,
-              right: widget.isLast ? const Radius.circular(8) : Radius.zero,
-            ),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
+        },
+        child: Scaffold(
+          backgroundColor: theme.scaffoldBackgroundColor,
+          body: Column(
             children: [
-              Icon(
-                widget.icon,
-                size: 18,
-                color: widget.isSelected
-                    ? theme.colorScheme.onPrimary
-                    : theme.colorScheme.onSurfaceVariant,
-              ),
-              const SizedBox(width: 6),
-              Text(
-                widget.label,
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: widget.isSelected
-                      ? FontWeight.w600
-                      : FontWeight.normal,
-                  color: widget.isSelected
-                      ? theme.colorScheme.onPrimary
-                      : theme.colorScheme.onSurfaceVariant,
+              OnlineGalleryToolbarFeature(
+                controller: _controller,
+                data: OnlineGalleryToolbarViewData(
+                  gallery: state,
+                  danbooruAuth: authState,
+                  gelbooruAuth: gelbooruAuthState,
+                  selection: selectionState,
+                ),
+                commands: OnlineGalleryToolbarCommands(
+                  gallery: _galleryNotifier,
+                  selection: _selectionNotifier,
+                  actions: _commands,
+                  saveScrollOffset: _scrollCoordinator.saveScrollOffset,
                 ),
               ),
-              if (widget.showBadge)
-                Container(
-                  margin: const EdgeInsets.only(left: 4),
-                  width: 6,
-                  height: 6,
-                  decoration: BoxDecoration(
-                    color: theme.colorScheme.error,
-                    shape: BoxShape.circle,
-                  ),
-                ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-/// 数据源下拉
-class _SourceDropdown extends StatelessWidget {
-  final String selected;
-  final Function(String) onChanged;
-
-  const _SourceDropdown({required this.selected, required this.onChanged});
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final sources = {
-      'danbooru': 'Danbooru',
-      'safebooru': 'Safebooru',
-      'gelbooru': 'Gelbooru',
-    };
-
-    return PopupMenuButton<String>(
-      onSelected: onChanged,
-      offset: const Offset(0, 36),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-      itemBuilder: (context) => sources.entries.map((e) {
-        final isSelected = selected == e.key;
-        return PopupMenuItem<String>(
-          value: e.key,
-          child: Row(
-            children: [
-              Text(
-                e.value,
-                style: TextStyle(
-                  fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+              // 图片网格
+              Expanded(
+                child: OnlineGalleryContent(
+                  state: state,
+                  controller: _controller,
+                  scrollCoordinator: _scrollCoordinator,
+                  commands: _commands,
                 ),
               ),
-              if (isSelected) ...[
-                const Spacer(),
-                Icon(Icons.check, size: 16, color: theme.colorScheme.primary),
-              ],
-            ],
-          ),
-        );
-      }).toList(),
-      child: Container(
-        height: 32,
-        padding: const EdgeInsets.symmetric(horizontal: 10),
-        decoration: BoxDecoration(
-          color: theme.colorScheme.surfaceContainerHighest.withValues(
-            alpha: 0.4,
-          ),
-          borderRadius: BorderRadius.circular(6),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              sources[selected] ?? selected,
-              style: TextStyle(
-                fontSize: 12,
-                color: theme.colorScheme.onSurfaceVariant,
-              ),
-            ),
-            const SizedBox(width: 4),
-            Icon(
-              Icons.arrow_drop_down,
-              size: 16,
-              color: theme.colorScheme.onSurfaceVariant,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-/// 模糊匹配开关
-class _FuzzySearchToggle extends StatelessWidget {
-  final bool enabled;
-  final ValueChanged<bool> onChanged;
-
-  const _FuzzySearchToggle({required this.enabled, required this.onChanged});
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return FilterChip(
-      selected: enabled,
-      showCheckmark: false,
-      label: Text(
-        context.l10n.onlineGallery_fuzzySearch,
-        style: const TextStyle(fontSize: 12),
-      ),
-      tooltip: context.l10n.onlineGallery_fuzzySearchTooltip,
-      onSelected: onChanged,
-      visualDensity: VisualDensity.compact,
-      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-      labelPadding: const EdgeInsets.symmetric(horizontal: 2),
-      padding: const EdgeInsets.symmetric(horizontal: 4),
-      selectedColor: theme.colorScheme.secondaryContainer,
-      backgroundColor: theme.colorScheme.surfaceContainerHighest.withValues(
-        alpha: 0.4,
-      ),
-      side: BorderSide(
-        color: enabled
-            ? theme.colorScheme.secondary.withValues(alpha: 0.7)
-            : Colors.transparent,
-      ),
-    );
-  }
-}
-
-class _DateRangePopup extends StatefulWidget {
-  final DateTime? initialStart;
-  final DateTime? initialEnd;
-  final DateTime firstDate;
-  final DateTime lastDate;
-  final void Function(DateTime start, DateTime end) onApply;
-  final VoidCallback onClear;
-  final VoidCallback onClose;
-
-  const _DateRangePopup({
-    required this.initialStart,
-    required this.initialEnd,
-    required this.firstDate,
-    required this.lastDate,
-    required this.onApply,
-    required this.onClear,
-    required this.onClose,
-  });
-
-  @override
-  State<_DateRangePopup> createState() => _DateRangePopupState();
-}
-
-class _DateRangePopupState extends State<_DateRangePopup> {
-  final _formKey = GlobalKey<FormState>();
-  late DateTime _start;
-  late DateTime _end;
-
-  @override
-  void initState() {
-    super.initState();
-    _start = _clampDate(
-      widget.initialStart ?? widget.lastDate.subtract(const Duration(days: 30)),
-    );
-    _end = _clampDate(widget.initialEnd ?? widget.lastDate);
-    _normalizeRange();
-  }
-
-  DateTime _clampDate(DateTime date) {
-    if (date.isBefore(widget.firstDate)) return widget.firstDate;
-    if (date.isAfter(widget.lastDate)) return widget.lastDate;
-    return DateTime(date.year, date.month, date.day);
-  }
-
-  void _normalizeRange() {
-    if (_start.isAfter(_end)) {
-      final previousStart = _start;
-      _start = _end;
-      _end = previousStart;
-    }
-  }
-
-  void _setLast30Days() {
-    setState(() {
-      _start = _clampDate(widget.lastDate.subtract(const Duration(days: 30)));
-      _end = _clampDate(widget.lastDate);
-    });
-  }
-
-  void _apply() {
-    final form = _formKey.currentState;
-    if (form == null || !form.validate()) return;
-
-    form.save();
-    _normalizeRange();
-    widget.onApply(_start, _end);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return SizedBox(
-      width: 340,
-      child: Padding(
-        padding: const EdgeInsets.all(14),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Icon(
-                    Icons.date_range_rounded,
-                    size: 18,
-                    color: theme.colorScheme.primary,
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    context.l10n.onlineGallery_dateRange,
-                    style: theme.textTheme.titleSmall?.copyWith(
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  const Spacer(),
-                  IconButton(
-                    onPressed: widget.onClose,
-                    icon: const Icon(Icons.close, size: 18),
-                    visualDensity: VisualDensity.compact,
-                    tooltip: context.l10n.common_close,
-                  ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              InputDatePickerFormField(
-                key: ValueKey('start_${_start.toIso8601String()}'),
-                initialDate: _start,
-                firstDate: widget.firstDate,
-                lastDate: widget.lastDate,
-                fieldLabelText: context.l10n.onlineGallery_startDate,
-                fieldHintText: 'yyyy-mm-dd',
-                errorFormatText: context.l10n.onlineGallery_invalidDateFormat,
-                errorInvalidText: context.l10n.onlineGallery_dateOutOfRange,
-                onDateSaved: (date) => _start = _clampDate(date),
-              ),
-              const SizedBox(height: 10),
-              InputDatePickerFormField(
-                key: ValueKey('end_${_end.toIso8601String()}'),
-                initialDate: _end,
-                firstDate: widget.firstDate,
-                lastDate: widget.lastDate,
-                fieldLabelText: context.l10n.onlineGallery_endDate,
-                fieldHintText: 'yyyy-mm-dd',
-                errorFormatText: context.l10n.onlineGallery_invalidDateFormat,
-                errorInvalidText: context.l10n.onlineGallery_dateOutOfRange,
-                onDateSaved: (date) => _end = _clampDate(date),
-              ),
-              const SizedBox(height: 12),
-              Align(
-                alignment: Alignment.centerRight,
-                child: Wrap(
-                  alignment: WrapAlignment.end,
-                  spacing: 8,
-                  runSpacing: 4,
-                  children: [
-                    TextButton(
-                      onPressed: _setLast30Days,
-                      child: Text(context.l10n.onlineGallery_last30Days),
-                    ),
-                    TextButton(
-                      onPressed: widget.onClear,
-                      child: Text(context.l10n.onlineGallery_clear),
-                    ),
-                    FilledButton(
-                      onPressed: _apply,
-                      child: Text(context.l10n.common_apply),
-                    ),
-                  ],
-                ),
+              // 底部分页条
+              OnlineGalleryPagination(
+                state: state,
+                controller: _controller,
+                notifier: _galleryNotifier,
+                onGoToPage: _goToPage,
               ),
             ],
           ),
-        ),
-      ),
-    );
-  }
-}
-
-/// 评级下拉
-class _RatingDropdown extends StatelessWidget {
-  final Set<String> selectedRatings;
-  final ValueChanged<String> onToggle;
-
-  const _RatingDropdown({
-    required this.selectedRatings,
-    required this.onToggle,
-  });
-
-  List<(String, String, Color?)> _getRatings(BuildContext context) => [
-    ('all', context.l10n.onlineGallery_all, null),
-    ('g', context.l10n.onlineGallery_ratingGeneral, Colors.green),
-    ('s', context.l10n.onlineGallery_ratingSensitive, Colors.amber),
-    ('q', context.l10n.onlineGallery_ratingQuestionable, Colors.orange),
-    ('e', context.l10n.onlineGallery_ratingExplicit, Colors.red),
-  ];
-
-  Color _ratingColor(String ratingCode) {
-    switch (ratingCode) {
-      case 'g':
-        return Colors.green;
-      case 's':
-        return Colors.amber;
-      case 'q':
-        return Colors.orange;
-      case 'e':
-        return Colors.red;
-      default:
-        return Colors.grey;
-    }
-  }
-
-  Widget _buildRatingIndicator(ThemeData theme, List<String> selectedCodes) {
-    if (selectedCodes.isEmpty) return const SizedBox.shrink();
-
-    final visibleCount = min(3, selectedCodes.length);
-    final hasMore = selectedCodes.length > visibleCount;
-
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        ...List.generate(visibleCount, (index) {
-          final code = selectedCodes[index];
-          return Padding(
-            padding: EdgeInsets.only(right: index == visibleCount - 1 ? 0 : 4),
-            child: Container(
-              width: 8,
-              height: 8,
-              decoration: BoxDecoration(
-                color: _ratingColor(code),
-                shape: BoxShape.circle,
-              ),
-            ),
-          );
-        }),
-        if (hasMore) ...[
-          const SizedBox(width: 4),
-          Text(
-            '+${selectedCodes.length - visibleCount}',
-            style: TextStyle(
-              fontSize: 10,
-              color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.8),
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ],
-      ],
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final ratings = _getRatings(context);
-    final isAllSelected =
-        selectedRatings.length == kAllRatings.length &&
-        selectedRatings.containsAll(kAllRatings);
-    final selectedCodesInOrder = [
-      'g',
-      's',
-      'q',
-      'e',
-    ].where(selectedRatings.contains).toList();
-    final selectedSpecific = ratings
-        .where((r) => r.$1 != 'all' && selectedRatings.contains(r.$1))
-        .toList();
-    final current = isAllSelected
-        ? ratings.first
-        : (selectedSpecific.isNotEmpty
-              ? selectedSpecific.first
-              : ratings.first);
-
-    String buttonText() {
-      if (isAllSelected) return current.$2;
-      if (selectedSpecific.length == 1) return selectedSpecific.first.$2;
-      if (selectedSpecific.length > 1) {
-        return '${selectedSpecific.first.$2} +${selectedSpecific.length - 1}';
-      }
-      return current.$2;
-    }
-
-    return PopupMenuButton<String>(
-      onSelected: onToggle,
-      offset: const Offset(0, 36),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-      itemBuilder: (menuContext) => ratings.map((r) {
-        final isSelected = r.$1 == 'all'
-            ? isAllSelected
-            : selectedRatings.contains(r.$1);
-        return PopupMenuItem<String>(
-          value: r.$1,
-          child: Row(
-            children: [
-              if (r.$3 != null)
-                Container(
-                  width: 8,
-                  height: 8,
-                  decoration: BoxDecoration(
-                    color: r.$3,
-                    shape: BoxShape.circle,
-                  ),
-                ),
-              if (r.$3 != null) const SizedBox(width: 8),
-              Text(
-                r.$2,
-                style: TextStyle(
-                  fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
-                ),
-              ),
-              if (isSelected) ...[
-                const Spacer(),
-                Icon(Icons.check, size: 16, color: theme.colorScheme.primary),
-              ],
-            ],
-          ),
-        );
-      }).toList(),
-      child: Container(
-        height: 32,
-        padding: const EdgeInsets.symmetric(horizontal: 10),
-        decoration: BoxDecoration(
-          color: theme.colorScheme.surfaceContainerHighest.withValues(
-            alpha: 0.4,
-          ),
-          borderRadius: BorderRadius.circular(6),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (current.$3 != null) ...[
-              _buildRatingIndicator(theme, selectedCodesInOrder),
-              const SizedBox(width: 6),
-            ],
-            Text(
-              buttonText(),
-              style: TextStyle(
-                fontSize: 12,
-                color: theme.colorScheme.onSurfaceVariant,
-              ),
-            ),
-            const SizedBox(width: 4),
-            Icon(
-              Icons.arrow_drop_down,
-              size: 16,
-              color: theme.colorScheme.onSurfaceVariant,
-            ),
-          ],
         ),
       ),
     );

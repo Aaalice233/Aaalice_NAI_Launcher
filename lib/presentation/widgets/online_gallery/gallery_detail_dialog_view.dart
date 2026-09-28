@@ -1,0 +1,375 @@
+import 'dart:math' as math;
+
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+
+import '../../../data/models/online_gallery/gallery_source.dart';
+import '../../adaptive/window_size_class.dart';
+import 'gallery_detail_action_rail.dart';
+import 'gallery_detail_controller.dart';
+import 'gallery_detail_info_panel.dart';
+import 'gallery_detail_media_viewer.dart';
+import 'gallery_detail_models.dart';
+import 'gallery_detail_primary_actions.dart';
+
+class GalleryDetailDialogView extends StatelessWidget {
+  const GalleryDetailDialogView({
+    super.key,
+    required this.controller,
+    required this.viewModel,
+    required this.actions,
+    this.embedded = false,
+  });
+
+  final GalleryDetailController controller;
+  final GalleryDetailViewModel viewModel;
+  final GalleryDetailActions actions;
+  final bool embedded;
+
+  @override
+  Widget build(BuildContext context) {
+    final metrics = context.adaptiveWindow;
+    return SafeArea(
+      child: LayoutBuilder(
+        builder: (context, safeConstraints) {
+          final unobscuredWidth = math.min(
+            safeConstraints.maxWidth,
+            metrics.unobscuredSize.width,
+          );
+          final unobscuredHeight = math.min(
+            safeConstraints.maxHeight,
+            metrics.unobscuredSize.height,
+          );
+          return Align(
+            alignment: Alignment.topCenter,
+            child: SizedBox(
+              width: unobscuredWidth,
+              height: unobscuredHeight,
+              child: MediaQuery.removeViewInsets(
+                context: context,
+                removeLeft: true,
+                removeTop: true,
+                removeRight: true,
+                removeBottom: true,
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    final horizontalInset = constraints.maxWidth < 600
+                        ? 8.0
+                        : 24.0;
+                    final verticalInset = constraints.maxHeight < 600
+                        ? 8.0
+                        : 24.0;
+                    final availableWidth = math.max(
+                      0.0,
+                      constraints.maxWidth - horizontalInset * 2,
+                    );
+                    final availableHeight = math.max(
+                      0.0,
+                      constraints.maxHeight - verticalInset * 2,
+                    );
+                    return KeyboardListener(
+                      focusNode: controller.keyboardFocusNode,
+                      autofocus: true,
+                      onKeyEvent: (event) => _handleKeyEvent(context, event),
+                      child: _GalleryDetailSurface(
+                        embedded: embedded,
+                        insetPadding: EdgeInsets.symmetric(
+                          horizontal: horizontalInset,
+                          vertical: verticalInset,
+                        ),
+                        child: SizedBox(
+                          width: math.min(1240, availableWidth),
+                          height: math.min(840, availableHeight),
+                          child: Column(
+                            children: [
+                              _GalleryDetailHeader(
+                                viewModel: viewModel,
+                                actions: actions,
+                              ),
+                              Divider(
+                                height: 1,
+                                color: Theme.of(context).dividerColor,
+                              ),
+                              Expanded(
+                                child: LayoutBuilder(
+                                  builder: (context, constraints) {
+                                    final mediaViewer =
+                                        GalleryDetailMediaViewer(
+                                          controller: controller,
+                                          viewModel: viewModel,
+                                          actions: actions,
+                                          actionRail: GalleryDetailActionRail(
+                                            viewModel: viewModel,
+                                            actions: actions,
+                                          ),
+                                        );
+                                    final infoPanel = GalleryDetailInfoPanel(
+                                      viewModel: viewModel,
+                                      actions: actions,
+                                      scrollController:
+                                          controller.infoScrollController,
+                                      primaryActions:
+                                          GalleryDetailPrimaryActions(
+                                            viewModel: viewModel,
+                                            actions: actions,
+                                          ),
+                                    );
+                                    final useVerticalLayout =
+                                        constraints.maxWidth < 840;
+                                    if (useVerticalLayout) {
+                                      final contentHeight = math.max(
+                                        0.0,
+                                        constraints.maxHeight - 1,
+                                      );
+                                      final mediaHeight = contentHeight < 228
+                                          ? contentHeight * 0.42
+                                          : math.min(
+                                              390.0,
+                                              math.max(
+                                                96.0,
+                                                contentHeight * 0.42,
+                                              ),
+                                            );
+                                      return Column(
+                                        children: [
+                                          SizedBox(
+                                            height: mediaHeight,
+                                            child: mediaViewer,
+                                          ),
+                                          Divider(
+                                            height: 1,
+                                            color: Theme.of(
+                                              context,
+                                            ).dividerColor,
+                                          ),
+                                          Expanded(child: infoPanel),
+                                        ],
+                                      );
+                                    }
+                                    return Row(
+                                      children: [
+                                        Expanded(flex: 7, child: mediaViewer),
+                                        VerticalDivider(
+                                          width: 1,
+                                          color: Theme.of(context).dividerColor,
+                                        ),
+                                        SizedBox(
+                                          width: constraints.maxWidth < 1050
+                                              ? 390
+                                              : 430,
+                                          child: infoPanel,
+                                        ),
+                                      ],
+                                    );
+                                  },
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  void _handleKeyEvent(BuildContext context, KeyEvent event) {
+    if (event is! KeyDownEvent) return;
+    if (event.logicalKey == LogicalKeyboardKey.escape) {
+      actions.close();
+    } else if (event.logicalKey == LogicalKeyboardKey.arrowLeft) {
+      actions.moveToMedia(viewModel.mediaIndex - 1);
+    } else if (event.logicalKey == LogicalKeyboardKey.arrowRight) {
+      actions.moveToMedia(viewModel.mediaIndex + 1);
+    }
+  }
+}
+
+class _GalleryDetailSurface extends StatelessWidget {
+  const _GalleryDetailSurface({
+    required this.embedded,
+    required this.insetPadding,
+    required this.child,
+  });
+
+  final bool embedded;
+  final EdgeInsets insetPadding;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    if (embedded) return child;
+    return Dialog(
+      insetPadding: insetPadding,
+      clipBehavior: Clip.antiAlias,
+      child: child,
+    );
+  }
+}
+
+class _GalleryDetailHeader extends StatelessWidget {
+  const _GalleryDetailHeader({required this.viewModel, required this.actions});
+
+  final GalleryDetailViewModel viewModel;
+  final GalleryDetailActions actions;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final title = viewModel.item.title?.trim();
+    final codexTitle = _metadataString('codexTitle');
+    final codexVersion = _metadataString('codexVersion');
+    final subtitleParts = [
+      if (codexTitle.isNotEmpty) codexTitle,
+      if (codexVersion.isNotEmpty) codexVersion,
+      if (viewModel.item.author?.trim().isNotEmpty == true)
+        viewModel.item.author!.trim(),
+      if (viewModel.item.createdAt.trim().isNotEmpty)
+        viewModel.item.createdAt.trim(),
+    ];
+    final fallbackTitle =
+        viewModel.item.sourceId == GallerySourceId.quickTagCloud
+        ? viewModel.labels.untitled
+        : '${viewModel.labels.sourceName} #${viewModel.item.sourceWorkId}';
+
+    final titleBlock = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          title?.isNotEmpty == true ? title! : fallbackTitle,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: theme.textTheme.titleMedium?.copyWith(
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        if (subtitleParts.isNotEmpty)
+          Text(
+            subtitleParts.join(' · '),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ),
+      ],
+    );
+    final headerActions = [
+      _favoriteButton(context),
+      IconButton(
+        onPressed: viewModel.hasSourceUrl ? actions.openSource : null,
+        icon: const Icon(Icons.open_in_new),
+        tooltip: viewModel.labels.openSource,
+      ),
+      IconButton(
+        onPressed: actions.close,
+        icon: const Icon(Icons.close),
+        tooltip: viewModel.labels.close,
+      ),
+    ];
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 10, 8, 10),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final scaledLabelHeight = MediaQuery.textScalerOf(context).scale(14);
+          final stackActions =
+              constraints.maxWidth < 520 || scaledLabelHeight > 30;
+          final badge = ConstrainedBox(
+            constraints: BoxConstraints(
+              maxWidth: stackActions
+                  ? constraints.maxWidth * 0.36
+                  : constraints.maxWidth * 0.24,
+            ),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+              decoration: BoxDecoration(
+                color: theme.colorScheme.primaryContainer,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text(
+                viewModel.labels.sourceName,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.labelMedium?.copyWith(
+                  color: theme.colorScheme.onPrimaryContainer,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+          );
+          final heading = Row(
+            children: [
+              badge,
+              const SizedBox(width: 12),
+              Expanded(child: titleBlock),
+            ],
+          );
+          if (stackActions) {
+            return Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                heading,
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: headerActions,
+                ),
+              ],
+            );
+          }
+          return Row(
+            children: [
+              Expanded(child: heading),
+              const SizedBox(width: 8),
+              ...headerActions,
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _favoriteButton(BuildContext context) {
+    final theme = Theme.of(context);
+    final loading =
+        viewModel.favoriteLoading || viewModel.favoriteActionPending;
+    return IconButton(
+      onPressed: loading || !viewModel.canToggleFavorite
+          ? null
+          : actions.toggleFavorite,
+      tooltip: viewModel.isFavorited
+          ? viewModel.labels.removeFavorite
+          : viewModel.labels.addFavorite,
+      icon: AnimatedSwitcher(
+        duration: MediaQuery.disableAnimationsOf(context)
+            ? Duration.zero
+            : const Duration(milliseconds: 140),
+        child: loading
+            ? SizedBox(
+                key: const ValueKey('favorite-loading'),
+                width: 19,
+                height: 19,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: theme.colorScheme.primary,
+                ),
+              )
+            : Icon(
+                viewModel.isFavorited ? Icons.favorite : Icons.favorite_border,
+                key: ValueKey(viewModel.isFavorited),
+                color: viewModel.isFavorited ? theme.colorScheme.primary : null,
+              ),
+      ),
+    );
+  }
+
+  String _metadataString(String key) =>
+      viewModel.detail.rawSourceMetadata[key]?.toString().trim() ?? '';
+}

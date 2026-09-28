@@ -1,6 +1,28 @@
 import 'dart:convert';
 
-enum AssistantTaskType { llm, translate, reverse, characterReplace, custom }
+import 'assistant_execution_settings.dart';
+
+enum AssistantTaskType {
+  llm,
+  translate,
+  reverse,
+  characterReplace,
+  custom,
+  chat,
+}
+
+/// Agent 工具权限。除 [fullAccess] 外，文件访问始终限制在 Agent 工作区内。
+enum AgentPermissionMode {
+  safe,
+  askBeforeSensitiveActions,
+  fullAccess;
+
+  static AgentPermissionMode fromName(String? value) =>
+      AgentPermissionMode.values.firstWhere(
+        (mode) => mode.name == value,
+        orElse: () => AgentPermissionMode.askBeforeSensitiveActions,
+      );
+}
 
 extension AssistantTaskTypeLabel on AssistantTaskType {
   String get label {
@@ -15,6 +37,8 @@ extension AssistantTaskTypeLabel on AssistantTaskType {
         return 'Character Replace';
       case AssistantTaskType.custom:
         return 'Custom';
+      case AssistantTaskType.chat:
+        return 'Chat';
     }
   }
 }
@@ -70,6 +94,19 @@ enum ProviderPreset {
   anthropic,
   gemini,
   deepseek,
+  openRouter,
+  xai,
+  mistral,
+  groq,
+  cerebras,
+  minimax,
+  minimaxCn,
+  kimiCoding,
+  moonshot,
+  moonshotCn,
+  qwenTokenPlan,
+  qwenTokenPlanCn,
+  qwenTokenPlanIndividual,
   lmStudioChat,
   lmStudioResponses,
   ollama,
@@ -93,6 +130,32 @@ extension ProviderPresetDefaults on ProviderPreset {
         return 'Gemini';
       case ProviderPreset.deepseek:
         return 'DeepSeek';
+      case ProviderPreset.openRouter:
+        return 'OpenRouter';
+      case ProviderPreset.xai:
+        return 'xAI';
+      case ProviderPreset.mistral:
+        return 'Mistral';
+      case ProviderPreset.groq:
+        return 'Groq';
+      case ProviderPreset.cerebras:
+        return 'Cerebras';
+      case ProviderPreset.minimax:
+        return 'MiniMax';
+      case ProviderPreset.minimaxCn:
+        return 'MiniMax CN';
+      case ProviderPreset.kimiCoding:
+        return 'Kimi Coding';
+      case ProviderPreset.moonshot:
+        return 'Moonshot AI';
+      case ProviderPreset.moonshotCn:
+        return 'Moonshot AI CN';
+      case ProviderPreset.qwenTokenPlan:
+        return 'Qwen Token Plan';
+      case ProviderPreset.qwenTokenPlanCn:
+        return 'Qwen Token Plan CN';
+      case ProviderPreset.qwenTokenPlanIndividual:
+        return 'Qwen Token Plan Individual';
       case ProviderPreset.lmStudioChat:
         return 'LM Studio Chat';
       case ProviderPreset.lmStudioResponses:
@@ -120,6 +183,32 @@ extension ProviderPresetDefaults on ProviderPreset {
         return 'gemini';
       case ProviderPreset.deepseek:
         return 'deepseek';
+      case ProviderPreset.openRouter:
+        return 'openrouter';
+      case ProviderPreset.xai:
+        return 'xai';
+      case ProviderPreset.mistral:
+        return 'mistral';
+      case ProviderPreset.groq:
+        return 'groq';
+      case ProviderPreset.cerebras:
+        return 'cerebras';
+      case ProviderPreset.minimax:
+        return 'minimax';
+      case ProviderPreset.minimaxCn:
+        return 'minimax-cn';
+      case ProviderPreset.kimiCoding:
+        return 'kimi-coding';
+      case ProviderPreset.moonshot:
+        return 'moonshotai';
+      case ProviderPreset.moonshotCn:
+        return 'moonshotai-cn';
+      case ProviderPreset.qwenTokenPlan:
+        return 'qwen-token-plan';
+      case ProviderPreset.qwenTokenPlanCn:
+        return 'qwen-token-plan-cn';
+      case ProviderPreset.qwenTokenPlanIndividual:
+        return 'qwen-token-plan-individual';
       case ProviderPreset.lmStudioChat:
         return 'lmstudio_chat';
       case ProviderPreset.lmStudioResponses:
@@ -147,6 +236,32 @@ extension ProviderPresetDefaults on ProviderPreset {
         return 'Gemini';
       case ProviderPreset.deepseek:
         return 'DeepSeek';
+      case ProviderPreset.openRouter:
+        return 'OpenRouter';
+      case ProviderPreset.xai:
+        return 'xAI';
+      case ProviderPreset.mistral:
+        return 'Mistral';
+      case ProviderPreset.groq:
+        return 'Groq';
+      case ProviderPreset.cerebras:
+        return 'Cerebras';
+      case ProviderPreset.minimax:
+        return 'MiniMax';
+      case ProviderPreset.minimaxCn:
+        return 'MiniMax CN';
+      case ProviderPreset.kimiCoding:
+        return 'Kimi Coding';
+      case ProviderPreset.moonshot:
+        return 'Moonshot AI';
+      case ProviderPreset.moonshotCn:
+        return 'Moonshot AI CN';
+      case ProviderPreset.qwenTokenPlan:
+        return 'Qwen Token Plan';
+      case ProviderPreset.qwenTokenPlanCn:
+        return 'Qwen Token Plan CN';
+      case ProviderPreset.qwenTokenPlanIndividual:
+        return 'Qwen Token Plan Individual';
       case ProviderPreset.lmStudioChat:
         return 'LM Studio Chat';
       case ProviderPreset.lmStudioResponses:
@@ -172,6 +287,33 @@ extension ProviderPresetDefaults on ProviderPreset {
         return 'https://generativelanguage.googleapis.com';
       case ProviderPreset.deepseek:
         return 'https://api.deepseek.com';
+      case ProviderPreset.openRouter:
+        return 'https://openrouter.ai/api/v1';
+      case ProviderPreset.xai:
+        return 'https://api.x.ai/v1';
+      case ProviderPreset.mistral:
+        return 'https://api.mistral.ai';
+      case ProviderPreset.groq:
+        return 'https://api.groq.com/openai/v1';
+      case ProviderPreset.cerebras:
+        return 'https://api.cerebras.ai/v1';
+      case ProviderPreset.minimax:
+        return 'https://api.minimax.io/anthropic';
+      case ProviderPreset.minimaxCn:
+        return 'https://api.minimaxi.com/anthropic';
+      case ProviderPreset.kimiCoding:
+        return 'https://api.kimi.com/coding';
+      case ProviderPreset.moonshot:
+        return 'https://api.moonshot.ai/v1';
+      case ProviderPreset.moonshotCn:
+        return 'https://api.moonshot.cn/v1';
+      case ProviderPreset.qwenTokenPlan:
+      case ProviderPreset.qwenTokenPlanIndividual:
+        return 'https://token-plan.ap-southeast-1.maas.aliyuncs.com/'
+            'compatible-mode/v1';
+      case ProviderPreset.qwenTokenPlanCn:
+        return 'https://token-plan.cn-beijing.maas.aliyuncs.com/'
+            'compatible-mode/v1';
       case ProviderPreset.lmStudioChat:
       case ProviderPreset.lmStudioResponses:
         return 'http://localhost:1234/v1';
@@ -187,14 +329,27 @@ extension ProviderPresetDefaults on ProviderPreset {
       case ProviderPreset.openaiChat:
       case ProviderPreset.openaiCompatibleChat:
       case ProviderPreset.deepseek:
+      case ProviderPreset.openRouter:
+      case ProviderPreset.mistral:
+      case ProviderPreset.groq:
+      case ProviderPreset.cerebras:
+      case ProviderPreset.moonshot:
+      case ProviderPreset.moonshotCn:
+      case ProviderPreset.qwenTokenPlan:
+      case ProviderPreset.qwenTokenPlanCn:
+      case ProviderPreset.qwenTokenPlanIndividual:
       case ProviderPreset.lmStudioChat:
       case ProviderPreset.pollinations:
         return ProviderProtocol.openaiChatCompletions;
       case ProviderPreset.openaiResponses:
       case ProviderPreset.openaiCompatibleResponses:
+      case ProviderPreset.xai:
       case ProviderPreset.lmStudioResponses:
         return ProviderProtocol.openaiResponses;
       case ProviderPreset.anthropic:
+      case ProviderPreset.minimax:
+      case ProviderPreset.minimaxCn:
+      case ProviderPreset.kimiCoding:
         return ProviderProtocol.anthropicMessages;
       case ProviderPreset.gemini:
         return ProviderProtocol.geminiGenerateContent;
@@ -206,14 +361,38 @@ extension ProviderPresetDefaults on ProviderPreset {
   List<String> get defaultModelNames {
     switch (this) {
       case ProviderPreset.openaiChat:
-      case ProviderPreset.openaiResponses:
         return const ['gpt-4.1-mini'];
+      case ProviderPreset.openaiResponses:
+        return const ['gpt-5.5'];
       case ProviderPreset.anthropic:
-        return const ['claude-sonnet-4-20250514'];
+        return const ['claude-opus-4-8'];
       case ProviderPreset.gemini:
-        return const ['gemini-2.5-flash'];
+        return const ['gemini-3.1-pro-preview'];
       case ProviderPreset.deepseek:
-        return const ['deepseek-v4-flash', 'deepseek-v4-pro'];
+        return const ['deepseek-v4-pro'];
+      case ProviderPreset.openRouter:
+        return const ['moonshotai/kimi-k2.6'];
+      case ProviderPreset.xai:
+        return const ['grok-4.6'];
+      case ProviderPreset.mistral:
+        return const ['devstral-medium-latest'];
+      case ProviderPreset.groq:
+        return const ['openai/gpt-oss-120b'];
+      case ProviderPreset.cerebras:
+        return const ['gpt-oss-120b'];
+      case ProviderPreset.minimax:
+      case ProviderPreset.minimaxCn:
+        return const ['MiniMax-M2.7'];
+      case ProviderPreset.kimiCoding:
+        return const ['kimi-for-coding'];
+      case ProviderPreset.moonshot:
+      case ProviderPreset.moonshotCn:
+        return const ['kimi-k2.6'];
+      case ProviderPreset.qwenTokenPlan:
+      case ProviderPreset.qwenTokenPlanCn:
+        return const ['qwen3.7-max'];
+      case ProviderPreset.qwenTokenPlanIndividual:
+        return const ['qwen3.8-max'];
       case ProviderPreset.pollinations:
         return const ['openai-large'];
       case ProviderPreset.openaiCompatibleChat:
@@ -239,6 +418,19 @@ extension ProviderPresetDefaults on ProviderPreset {
       case ProviderPreset.anthropic:
       case ProviderPreset.gemini:
       case ProviderPreset.deepseek:
+      case ProviderPreset.openRouter:
+      case ProviderPreset.xai:
+      case ProviderPreset.mistral:
+      case ProviderPreset.groq:
+      case ProviderPreset.cerebras:
+      case ProviderPreset.minimax:
+      case ProviderPreset.minimaxCn:
+      case ProviderPreset.kimiCoding:
+      case ProviderPreset.moonshot:
+      case ProviderPreset.moonshotCn:
+      case ProviderPreset.qwenTokenPlan:
+      case ProviderPreset.qwenTokenPlanCn:
+      case ProviderPreset.qwenTokenPlanIndividual:
         return true;
     }
   }
@@ -251,10 +443,23 @@ extension ProviderPresetDefaults on ProviderPreset {
       case ProviderPreset.openaiCompatibleResponses:
       case ProviderPreset.anthropic:
       case ProviderPreset.gemini:
+      case ProviderPreset.openRouter:
+      case ProviderPreset.xai:
+      case ProviderPreset.kimiCoding:
+      case ProviderPreset.moonshot:
+      case ProviderPreset.moonshotCn:
+      case ProviderPreset.qwenTokenPlanIndividual:
       case ProviderPreset.lmStudioChat:
       case ProviderPreset.lmStudioResponses:
         return true;
       case ProviderPreset.deepseek:
+      case ProviderPreset.mistral:
+      case ProviderPreset.groq:
+      case ProviderPreset.cerebras:
+      case ProviderPreset.minimax:
+      case ProviderPreset.minimaxCn:
+      case ProviderPreset.qwenTokenPlan:
+      case ProviderPreset.qwenTokenPlanCn:
       case ProviderPreset.ollama:
       case ProviderPreset.pollinations:
         return false;
@@ -262,8 +467,9 @@ extension ProviderPresetDefaults on ProviderPreset {
   }
 
   ProviderConfig createConfig({String? id}) {
-    final resolvedId =
-        (id == null || id.trim().isEmpty) ? defaultId : id.trim();
+    final resolvedId = (id == null || id.trim().isEmpty)
+        ? defaultId
+        : id.trim();
     return ProviderConfig(
       id: resolvedId,
       name: defaultName,
@@ -289,6 +495,19 @@ extension ProviderPresetDefaults on ProviderPreset {
       case ProviderPreset.anthropic:
       case ProviderPreset.gemini:
       case ProviderPreset.deepseek:
+      case ProviderPreset.openRouter:
+      case ProviderPreset.xai:
+      case ProviderPreset.mistral:
+      case ProviderPreset.groq:
+      case ProviderPreset.cerebras:
+      case ProviderPreset.minimax:
+      case ProviderPreset.minimaxCn:
+      case ProviderPreset.kimiCoding:
+      case ProviderPreset.moonshot:
+      case ProviderPreset.moonshotCn:
+      case ProviderPreset.qwenTokenPlan:
+      case ProviderPreset.qwenTokenPlanCn:
+      case ProviderPreset.qwenTokenPlanIndividual:
       case ProviderPreset.lmStudioChat:
       case ProviderPreset.lmStudioResponses:
         return ProviderType.openaiCompatible;
@@ -297,6 +516,7 @@ extension ProviderPresetDefaults on ProviderPreset {
 }
 
 class ProviderConfig {
+  final AssistantConcurrencySettings concurrency;
   final String id;
   final String name;
   final ProviderType type;
@@ -307,6 +527,7 @@ class ProviderConfig {
   final bool allowImageInput;
 
   const ProviderConfig({
+    this.concurrency = const AssistantConcurrencySettings(),
     required this.id,
     required this.name,
     this.type = ProviderType.openaiCompatible,
@@ -318,6 +539,7 @@ class ProviderConfig {
   });
 
   ProviderConfig copyWith({
+    AssistantConcurrencySettings? concurrency,
     String? id,
     String? name,
     ProviderType? type,
@@ -329,6 +551,7 @@ class ProviderConfig {
     bool? allowImageInput,
   }) {
     return ProviderConfig(
+      concurrency: concurrency ?? this.concurrency,
       id: id ?? this.id,
       name: name ?? this.name,
       type: type ?? this.type,
@@ -341,15 +564,16 @@ class ProviderConfig {
   }
 
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'name': name,
-        'type': type.name,
-        'protocol': protocol.name,
-        'preset': preset?.name,
-        'baseUrl': baseUrl,
-        'enabled': enabled,
-        'allowImageInput': allowImageInput,
-      };
+    'id': id,
+    'name': name,
+    'type': type.name,
+    'protocol': protocol.name,
+    'preset': preset?.name,
+    'baseUrl': baseUrl,
+    'enabled': enabled,
+    'allowImageInput': allowImageInput,
+    'concurrency': concurrency.toJson(),
+  };
 
   factory ProviderConfig.fromJson(Map<String, dynamic> json) {
     final type = ProviderType.values.firstWhere(
@@ -363,6 +587,9 @@ class ProviderConfig {
       preset: preset,
     );
     return ProviderConfig(
+      concurrency: AssistantConcurrencySettings.fromJson(
+        json['concurrency'] as Map<String, dynamic>? ?? const {},
+      ),
       id: json['id'] as String,
       name: json['name'] as String,
       type: type,
@@ -370,7 +597,8 @@ class ProviderConfig {
       preset: preset ?? _inferPreset(type, json['id'] as String?, protocol),
       baseUrl: json['baseUrl'] as String? ?? '',
       enabled: json['enabled'] as bool? ?? true,
-      allowImageInput: json['allowImageInput'] as bool? ??
+      allowImageInput:
+          json['allowImageInput'] as bool? ??
           (preset?.defaultAllowImageInput ?? protocol.supportsImagePayload),
     );
   }
@@ -378,9 +606,9 @@ class ProviderConfig {
   static ProviderPreset? _decodePreset(String? value) {
     if (value == null || value.isEmpty) return null;
     return ProviderPreset.values.cast<ProviderPreset?>().firstWhere(
-          (preset) => preset?.name == value,
-          orElse: () => null,
-        );
+      (preset) => preset?.name == value,
+      orElse: () => null,
+    );
   }
 
   static ProviderProtocol _decodeProtocol(
@@ -446,6 +674,21 @@ class ProviderConfig {
   }
 }
 
+/// 模型条目的来源，用于刷新模型列表时区分“可回收的 API 模型”与
+/// “用户/预设手动模型”，避免弃用模型残留，也避免误删手动模型。
+enum ModelSource {
+  /// 通过供应商 `/models` 接口拉取；刷新时若不在最新列表里可安全清理。
+  api,
+
+  /// 用户手动添加，或添加供应商时自动创建的默认/占位模型；刷新时永不删除。
+  manual;
+
+  static ModelSource fromName(String? value) => ModelSource.values.firstWhere(
+    (source) => source.name == value,
+    orElse: () => ModelSource.manual,
+  );
+}
+
 class ModelConfig {
   final String providerId;
   final String name;
@@ -453,12 +696,18 @@ class ModelConfig {
   final AssistantTaskType forTask;
   final bool isDefault;
 
+  /// 该模型是自动拉取（[ModelSource.api]）还是手动/默认（[ModelSource.manual]）。
+  /// 默认 [ModelSource.manual]：只有明确从接口拉取的路径才标记为 api，
+  /// 因此手动、预设、占位、测试构造的模型天然免于被刷新清理。
+  final ModelSource source;
+
   const ModelConfig({
     required this.providerId,
     required this.name,
     required this.displayName,
     required this.forTask,
     this.isDefault = false,
+    this.source = ModelSource.manual,
   });
 
   bool get isPlaceholder =>
@@ -470,6 +719,7 @@ class ModelConfig {
     String? displayName,
     AssistantTaskType? forTask,
     bool? isDefault,
+    ModelSource? source,
   }) {
     return ModelConfig(
       providerId: providerId ?? this.providerId,
@@ -477,16 +727,18 @@ class ModelConfig {
       displayName: displayName ?? this.displayName,
       forTask: forTask ?? this.forTask,
       isDefault: isDefault ?? this.isDefault,
+      source: source ?? this.source,
     );
   }
 
   Map<String, dynamic> toJson() => {
-        'providerId': providerId,
-        'name': name,
-        'displayName': displayName,
-        'forTask': forTask.name,
-        'isDefault': isDefault,
-      };
+    'providerId': providerId,
+    'name': name,
+    'displayName': displayName,
+    'forTask': forTask.name,
+    'isDefault': isDefault,
+    'source': source.name,
+  };
 
   factory ModelConfig.fromJson(Map<String, dynamic> json) {
     return ModelConfig(
@@ -498,11 +750,25 @@ class ModelConfig {
         orElse: () => AssistantTaskType.llm,
       ),
       isDefault: json['isDefault'] as bool? ?? false,
+      // 来源迁移（关键决策点）：
+      // - 新数据带有 'source' 键 → 直接采用。
+      // - 旧数据（升级前保存，无该键）→ 按 isDefault 推断：默认/占位模型
+      //   视为 manual 永久保留；其余视为 api，让升级后第一次“刷新模型”
+      //   就能清掉历史遗留的弃用模型，无需用户手动逐条删除。
+      source: json.containsKey('source')
+          ? ModelSource.fromName(json['source'] as String?)
+          : ((json['isDefault'] as bool? ?? false)
+                ? ModelSource.manual
+                : ModelSource.api),
     );
   }
 }
 
 class TaskRoutingConfig {
+  final Map<AssistantTaskType, AssistantThinkingLevel> thinkingLevels;
+
+  AssistantThinkingLevel thinkingFor(AssistantTaskType task) =>
+      thinkingLevels[task] ?? AssistantThinkingLevel.automatic;
   final String llmProviderId;
   final String llmModel;
   final String translateProviderId;
@@ -513,8 +779,11 @@ class TaskRoutingConfig {
   final String characterReplaceModel;
   final String customProviderId;
   final String customModel;
+  final String chatProviderId;
+  final String chatModel;
 
   const TaskRoutingConfig({
+    this.thinkingLevels = const {},
     required this.llmProviderId,
     required this.llmModel,
     required this.translateProviderId,
@@ -525,9 +794,12 @@ class TaskRoutingConfig {
     required this.characterReplaceModel,
     this.customProviderId = '',
     this.customModel = '',
+    this.chatProviderId = '',
+    this.chatModel = '',
   });
 
   TaskRoutingConfig copyWith({
+    Map<AssistantTaskType, AssistantThinkingLevel>? thinkingLevels,
     String? llmProviderId,
     String? llmModel,
     String? translateProviderId,
@@ -538,8 +810,11 @@ class TaskRoutingConfig {
     String? characterReplaceModel,
     String? customProviderId,
     String? customModel,
+    String? chatProviderId,
+    String? chatModel,
   }) {
     return TaskRoutingConfig(
+      thinkingLevels: thinkingLevels ?? this.thinkingLevels,
       llmProviderId: llmProviderId ?? this.llmProviderId,
       llmModel: llmModel ?? this.llmModel,
       translateProviderId: translateProviderId ?? this.translateProviderId,
@@ -552,6 +827,8 @@ class TaskRoutingConfig {
           characterReplaceModel ?? this.characterReplaceModel,
       customProviderId: customProviderId ?? this.customProviderId,
       customModel: customModel ?? this.customModel,
+      chatProviderId: chatProviderId ?? this.chatProviderId,
+      chatModel: chatModel ?? this.chatModel,
     );
   }
 
@@ -567,6 +844,8 @@ class TaskRoutingConfig {
         return characterReplaceProviderId;
       case AssistantTaskType.custom:
         return customProviderId;
+      case AssistantTaskType.chat:
+        return chatProviderId;
     }
   }
 
@@ -582,6 +861,8 @@ class TaskRoutingConfig {
         return characterReplaceModel;
       case AssistantTaskType.custom:
         return customModel;
+      case AssistantTaskType.chat:
+        return chatModel;
     }
   }
 
@@ -590,14 +871,25 @@ class TaskRoutingConfig {
     required String providerId,
     required String model,
   }) {
+    if (providerIdFor(taskType) != providerId || modelFor(taskType) != model) {
+      final nextLevels = {...thinkingLevels}..remove(taskType);
+      return copyWith(
+        thinkingLevels: nextLevels,
+      )._copyRoute(taskType, providerId, model);
+    }
+    return _copyRoute(taskType, providerId, model);
+  }
+
+  TaskRoutingConfig _copyRoute(
+    AssistantTaskType taskType,
+    String providerId,
+    String model,
+  ) {
     switch (taskType) {
       case AssistantTaskType.llm:
         return copyWith(llmProviderId: providerId, llmModel: model);
       case AssistantTaskType.translate:
-        return copyWith(
-          translateProviderId: providerId,
-          translateModel: model,
-        );
+        return copyWith(translateProviderId: providerId, translateModel: model);
       case AssistantTaskType.reverse:
         return copyWith(reverseProviderId: providerId, reverseModel: model);
       case AssistantTaskType.characterReplace:
@@ -607,26 +899,44 @@ class TaskRoutingConfig {
         );
       case AssistantTaskType.custom:
         return copyWith(customProviderId: providerId, customModel: model);
+      case AssistantTaskType.chat:
+        return copyWith(chatProviderId: providerId, chatModel: model);
     }
   }
 
   Map<String, dynamic> toJson() => {
-        'llmProviderId': llmProviderId,
-        'llmModel': llmModel,
-        'translateProviderId': translateProviderId,
-        'translateModel': translateModel,
-        'reverseProviderId': reverseProviderId,
-        'reverseModel': reverseModel,
-        'characterReplaceProviderId': characterReplaceProviderId,
-        'characterReplaceModel': characterReplaceModel,
-        'customProviderId': customProviderId,
-        'customModel': customModel,
-      };
+    'thinkingLevels': {
+      for (final entry in thinkingLevels.entries)
+        entry.key.name: entry.value.name,
+    },
+    'llmProviderId': llmProviderId,
+    'llmModel': llmModel,
+    'translateProviderId': translateProviderId,
+    'translateModel': translateModel,
+    'reverseProviderId': reverseProviderId,
+    'reverseModel': reverseModel,
+    'characterReplaceProviderId': characterReplaceProviderId,
+    'characterReplaceModel': characterReplaceModel,
+    'customProviderId': customProviderId,
+    'customModel': customModel,
+    'chatProviderId': chatProviderId,
+    'chatModel': chatModel,
+  };
 
   factory TaskRoutingConfig.fromJson(Map<String, dynamic> json) {
     final llmProviderId = _routingString(json, 'llmProviderId');
     final llmModel = _routingString(json, 'llmModel');
+    final thinking =
+        json['thinkingLevels'] as Map<String, dynamic>? ?? const {};
     return TaskRoutingConfig(
+      thinkingLevels: {
+        for (final task in AssistantTaskType.values)
+          if (thinking.containsKey(task.name))
+            task: AssistantThinkingLevel.values.firstWhere(
+              (level) => level.name == thinking[task.name],
+              orElse: () => AssistantThinkingLevel.automatic,
+            ),
+      },
       llmProviderId: llmProviderId,
       llmModel: llmModel,
       translateProviderId: _routingString(json, 'translateProviderId'),
@@ -653,6 +963,8 @@ class TaskRoutingConfig {
         fallback: llmProviderId,
       ),
       customModel: _routingString(json, 'customModel', fallback: llmModel),
+      chatProviderId: _routingString(json, 'chatProviderId'),
+      chatModel: _routingString(json, 'chatModel'),
     );
   }
 }
@@ -710,14 +1022,14 @@ class PromptRuleTemplate {
   }
 
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'name': name,
-        'taskType': taskType.name,
-        'content': content,
-        'enabled': enabled,
-        'isDefault': isDefault,
-        'order': order,
-      };
+    'id': id,
+    'name': name,
+    'taskType': taskType.name,
+    'content': content,
+    'enabled': enabled,
+    'isDefault': isDefault,
+    'order': order,
+  };
 
   factory PromptRuleTemplate.fromJson(Map<String, dynamic> json) {
     return PromptRuleTemplate(
@@ -755,9 +1067,14 @@ class AssistantOperationResult {
 }
 
 class PromptAssistantConfigState {
+  static const defaultResponseTimeoutSeconds = 300;
+  static const responseTimeoutChoices = [60, 120, 300, 600, 900, 1800];
+
+  final int responseTimeoutSeconds;
   final bool enabled;
   final bool desktopOverlayEnabled;
   final bool streamOutput;
+  final AgentPermissionMode agentPermissionMode;
   final List<ProviderConfig> providers;
   final List<ModelConfig> models;
   final TaskRoutingConfig routing;
@@ -765,9 +1082,11 @@ class PromptAssistantConfigState {
   final Map<String, bool> providerHasApiKey;
 
   const PromptAssistantConfigState({
+    this.responseTimeoutSeconds = defaultResponseTimeoutSeconds,
     required this.enabled,
     required this.desktopOverlayEnabled,
     required this.streamOutput,
+    this.agentPermissionMode = AgentPermissionMode.askBeforeSensitiveActions,
     required this.providers,
     required this.models,
     required this.routing,
@@ -780,6 +1099,7 @@ class PromptAssistantConfigState {
       enabled: true,
       desktopOverlayEnabled: true,
       streamOutput: false,
+      agentPermissionMode: AgentPermissionMode.askBeforeSensitiveActions,
       providers: [],
       models: [],
       routing: TaskRoutingConfig(
@@ -841,9 +1161,11 @@ class PromptAssistantConfigState {
   }
 
   PromptAssistantConfigState copyWith({
+    int? responseTimeoutSeconds,
     bool? enabled,
     bool? desktopOverlayEnabled,
     bool? streamOutput,
+    AgentPermissionMode? agentPermissionMode,
     List<ProviderConfig>? providers,
     List<ModelConfig>? models,
     TaskRoutingConfig? routing,
@@ -851,10 +1173,13 @@ class PromptAssistantConfigState {
     Map<String, bool>? providerHasApiKey,
   }) {
     return PromptAssistantConfigState(
+      responseTimeoutSeconds:
+          responseTimeoutSeconds ?? this.responseTimeoutSeconds,
       enabled: enabled ?? this.enabled,
       desktopOverlayEnabled:
           desktopOverlayEnabled ?? this.desktopOverlayEnabled,
       streamOutput: false,
+      agentPermissionMode: agentPermissionMode ?? this.agentPermissionMode,
       providers: providers ?? this.providers,
       models: models ?? this.models,
       routing: routing ?? this.routing,
@@ -864,15 +1189,17 @@ class PromptAssistantConfigState {
   }
 
   Map<String, dynamic> toJson() => {
-        'schemaVersion': 2,
-        'enabled': enabled,
-        'desktopOverlayEnabled': desktopOverlayEnabled,
-        'streamOutput': false,
-        'providers': providers.map((e) => e.toJson()).toList(),
-        'models': models.map((e) => e.toJson()).toList(),
-        'routing': routing.toJson(),
-        'rules': rules.map((e) => e.toJson()).toList(),
-      };
+    'schemaVersion': 2,
+    'responseTimeoutSeconds': responseTimeoutSeconds,
+    'enabled': enabled,
+    'desktopOverlayEnabled': desktopOverlayEnabled,
+    'streamOutput': false,
+    'agentPermissionMode': agentPermissionMode.name,
+    'providers': providers.map((e) => e.toJson()).toList(),
+    'models': models.map((e) => e.toJson()).toList(),
+    'routing': routing.toJson(),
+    'rules': rules.map((e) => e.toJson()).toList(),
+  };
 
   String encode() => jsonEncode(toJson());
 
@@ -887,28 +1214,40 @@ class PromptAssistantConfigState {
     );
   }
 
-  factory PromptAssistantConfigState.decode(String raw) {
+  factory PromptAssistantConfigState.decode(
+    String raw, {
+    bool migrateLegacyChatRouting = false,
+  }) {
     final json = jsonDecode(raw) as Map<String, dynamic>;
     final defaults = PromptAssistantConfigState.defaults();
 
     final providersRaw = json['providers'];
     var providers = providersRaw is List && providersRaw.isNotEmpty
         ? providersRaw
-            .map((e) => ProviderConfig.fromJson(e as Map<String, dynamic>))
-            .toList()
+              .map((e) => ProviderConfig.fromJson(e as Map<String, dynamic>))
+              .toList()
         : defaults.providers;
 
     final modelsRaw = json['models'];
     var decodedModels = modelsRaw is List && modelsRaw.isNotEmpty
         ? modelsRaw
-            .map((e) => ModelConfig.fromJson(e as Map<String, dynamic>))
-            .toList()
+              .map((e) => ModelConfig.fromJson(e as Map<String, dynamic>))
+              .toList()
         : defaults.models;
 
     var routing = TaskRoutingConfig.fromJson(
       (json['routing'] as Map?)?.cast<String, dynamic>() ??
           defaults.routing.toJson(),
     );
+
+    if (migrateLegacyChatRouting &&
+        routing.chatProviderId.isEmpty &&
+        routing.chatModel.isEmpty) {
+      routing = routing.copyWith(
+        chatProviderId: routing.llmProviderId,
+        chatModel: routing.llmModel,
+      );
+    }
 
     if (_isUntouchedLegacyPollinationsDefault(
       providers: providers,
@@ -945,15 +1284,25 @@ class PromptAssistantConfigState {
     final rulesRaw = json['rules'];
     final decodedRules = rulesRaw is List && rulesRaw.isNotEmpty
         ? rulesRaw
-            .map((e) => PromptRuleTemplate.fromJson(e as Map<String, dynamic>))
-            .toList()
+              .map(
+                (e) => PromptRuleTemplate.fromJson(e as Map<String, dynamic>),
+              )
+              .toList()
         : defaults.rules;
     final rules = _mergeDefaultRules(decodedRules, defaults.rules);
 
     return PromptAssistantConfigState(
+      responseTimeoutSeconds:
+          json['responseTimeoutSeconds'] is int &&
+              responseTimeoutChoices.contains(json['responseTimeoutSeconds'])
+          ? json['responseTimeoutSeconds'] as int
+          : defaultResponseTimeoutSeconds,
       enabled: json['enabled'] as bool? ?? true,
       desktopOverlayEnabled: json['desktopOverlayEnabled'] as bool? ?? true,
       streamOutput: false,
+      agentPermissionMode: AgentPermissionMode.fromName(
+        json['agentPermissionMode'] as String?,
+      ),
       providers: providers,
       models: models,
       routing: routing,
@@ -972,7 +1321,8 @@ class PromptAssistantConfigState {
     final providerIds = providers.map((provider) => provider.id).toSet();
     final isSinglePollinationsDefault =
         providerIds.length == 1 && providerIds.contains('pollinations');
-    final isOldThreeProviderDefault = providerIds.length == 3 &&
+    final isOldThreeProviderDefault =
+        providerIds.length == 3 &&
         providerIds.contains('pollinations') &&
         providerIds.contains('openai_custom') &&
         providerIds.contains('ollama');
@@ -1004,7 +1354,10 @@ class PromptAssistantConfigState {
       return false;
     }
     for (final taskType in AssistantTaskType.values) {
-      if (taskType == AssistantTaskType.custom) continue;
+      if (taskType == AssistantTaskType.custom ||
+          taskType == AssistantTaskType.chat) {
+        continue;
+      }
       if (routing.providerIdFor(taskType) != 'pollinations' ||
           routing.modelFor(taskType) != 'openai-large') {
         return false;
@@ -1091,11 +1444,13 @@ class PromptAssistantConfigState {
       }
 
       final routedModel = next.modelFor(taskType);
-      final hasRoutedModel =
-          candidates.any((candidate) => candidate.name == routedModel);
+      final hasRoutedModel = candidates.any(
+        (candidate) => candidate.name == routedModel,
+      );
       final isPlaceholderRoute =
           routedModel.trim().isEmpty || routedModel.trim() == 'default-model';
-      final shouldReplacePlaceholder = isPlaceholderRoute &&
+      final shouldReplacePlaceholder =
+          isPlaceholderRoute &&
           candidates.any((candidate) => !candidate.isPlaceholder);
 
       if (!hasRoutedModel || shouldReplacePlaceholder) {

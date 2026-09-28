@@ -1,0 +1,170 @@
+import 'dart:convert';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:nai_launcher/data/services/dlss/dlss_options.dart';
+import 'package:nai_launcher/data/services/dlss/dlss_presets.dart';
+
+void main() {
+  test(
+    'fresh settings choose material and saved color settings stay intact',
+    () {
+      final fresh = DlssPresetState.fromJson({});
+      expect(fresh.selectedId, 'material-light');
+      expect(fresh.modified, isFalse);
+      expect(fresh.options.toJson(), DlssPresetState.defaultOptions.toJson());
+      final saved = DlssPresetState().select('color-light');
+      final restored = DlssPresetState.fromJson(saved.toJson());
+      expect(restored.selectedId, 'color-light');
+      expect(restored.modified, isFalse);
+      expect(restored.options.toJson(), const DlssOptions().toJson());
+      final legacy = DlssPresetState.fromJson(const DlssOptions().toJson());
+      expect(legacy.selectedId, 'color-light');
+      expect(legacy.modified, isFalse);
+    },
+  );
+  test(
+    'default selects material lighting while color preservation remains available',
+    () {
+      final state = DlssPresetState();
+      expect(state.selectedId, DlssPresetState.defaultId);
+      expect(state.modified, isFalse);
+      expect(state.options.toJson(), {
+        'style': 'cinematic',
+        'intensity': 1.0,
+        'localStructure': 1.8,
+        'localTone': 1.4,
+        'detail': 1.0,
+        'color': 0.65,
+        'skin': 1.0,
+        'autoMask': true,
+        'scale': 2.0,
+      });
+      expect(DlssPresetState.builtIns, hasLength(7));
+      expect(DlssPresetState.builtIns.first.id, 'material-light');
+      expect(DlssPresetState.builtIns.last.id, 'cinematic-light');
+      expect(DlssPresetState.builtIns.last.options.color, 1);
+      for (final id in ['color-light', 'material-light', 'cinematic-light']) {
+        final saved = state
+            .select(id)
+            .withOptions(const DlssOptions(intensity: 0.6));
+        final restored = DlssPresetState.fromJson(saved.toJson());
+        expect(restored.selectedId, id);
+        expect(restored.options.toJson(), saved.options.toJson());
+      }
+      for (final preset in DlssPresetState.builtIns) {
+        expect(preset.options.validate, returnsNormally);
+        expect(
+          () => state.update(preset.id, saveOptions: true),
+          throwsStateError,
+        );
+        expect(
+          () => state.update(preset.id, name: 'changed'),
+          throwsStateError,
+        );
+        expect(() => state.remove(preset.id), throwsStateError);
+      }
+    },
+  );
+  test(
+    'variants only change their intended parameters from the D baseline',
+    () {
+      final baseline = const DlssOptions().toJson();
+      const differences = {
+        'color-light': <String>{},
+        'material-light': {
+          'localStructure',
+          'localTone',
+          'skin',
+          'detail',
+          'color',
+        },
+        'soft-light': {'detail', 'color'},
+        'natural-light': {'style', 'color'},
+        'cinematic-soft': {'localTone', 'detail', 'color'},
+        'crisp-light': {'localStructure', 'detail', 'color'},
+        'cinematic-light': {'color'},
+      };
+      for (final preset in DlssPresetState.builtIns) {
+        final values = preset.options.toJson();
+        expect(
+          values.keys.where((key) => values[key] != baseline[key]).toSet(),
+          differences[preset.id],
+        );
+        expect(preset.options.scale, 2);
+      }
+    },
+  );
+  test(
+    'custom preset CRUD keeps draft changes separate from saved definitions',
+    () {
+      final draft = const DlssOptions().copyWith(intensity: 0.7);
+      var state = DlssPresetState()
+          .withOptions(draft)
+          .create('custom-one', '  人像  ');
+      expect(state.selected.name, '人像');
+      expect(state.modified, isFalse);
+      state = state.withOptions(draft.copyWith(localTone: 0.4));
+      expect(state.modified, isTrue);
+      expect(state.selected.options.localTone, isNot(0.4));
+      state = state
+          .update('custom-one', saveOptions: true)
+          .update('custom-one', name: '场景');
+      expect(state.selected.options.localTone, 0.4);
+      expect(state.selected.name, '场景');
+      expect(state.modified, isFalse);
+      state = state.remove('custom-one');
+      expect(state.customPresets, isEmpty);
+      expect(state.selectedId, DlssPresetState.defaultId);
+      expect(state.options.localTone, 0.4);
+      expect(state.modified, isTrue);
+      state = state.select(DlssPresetState.defaultId);
+      expect(state.options.toJson(), DlssPresetState.defaultOptions.toJson());
+    },
+  );
+  test(
+    'selection, unsaved preset edits, and custom definitions round-trip together',
+    () {
+      final state = DlssPresetState()
+          .create('my-id', '我的预设')
+          .withOptions(const DlssOptions(scale: 1));
+      final restored = DlssPresetState.fromJson(
+        jsonDecode(jsonEncode(state.toJson())) as Map<String, dynamic>,
+      );
+      expect(restored.toJson(), state.toJson());
+      expect(restored.selectedId, 'my-id');
+      expect(restored.modified, isTrue);
+      // Plain parameter readers can still recover the current draft.
+      expect(
+        DlssOptions.fromJson(state.toJson()).toJson(),
+        state.options.toJson(),
+      );
+      final optionsOnly = DlssPresetState.fromJson(
+        const DlssOptions(style: 'natural', scale: 1).toJson(),
+      );
+      expect(optionsOnly.options.style, 'natural');
+      expect(optionsOnly.options.scale, 1);
+    },
+  );
+  test(
+    'imports cannot replace built-ins or introduce duplicate identities',
+    () {
+      final state = DlssPresetState().create('my-id', 'Texture');
+      expect(() => state.create('other', 'texture'), throwsFormatException);
+      expect(() => state.create('other', ' '), throwsFormatException);
+      final malicious = state.toJson();
+      malicious['customPresets'] = [
+        {
+          'id': DlssPresetState.defaultId,
+          'name': 'Override',
+          'options': const DlssOptions().toJson(),
+        },
+      ];
+      expect(() => DlssPresetState.fromJson(malicious), throwsFormatException);
+      final duplicate = state.toJson();
+      duplicate['customPresets'] = [
+        state.selected.toJson(),
+        state.selected.toJson(),
+      ];
+      expect(() => DlssPresetState.fromJson(duplicate), throwsFormatException);
+    },
+  );
+}

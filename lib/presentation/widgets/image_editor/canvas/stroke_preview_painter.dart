@@ -11,14 +11,13 @@ import '../tools/eraser_tool.dart';
 /// This overlay is visual-only. It must not mutate layers, history, snapshots,
 /// export state, or raster caches.
 class StrokePreviewPainter extends CustomPainter {
-  StrokePreviewPainter({
-    required this.state,
-  }) : super(
-          repaint: Listenable.merge([
-            state.strokePreviewNotifier,
-            state.canvasController,
-          ]),
-        );
+  StrokePreviewPainter({required this.state})
+    : super(
+        repaint: Listenable.merge([
+          state.strokePreviewNotifier,
+          state.canvasController,
+        ]),
+      );
 
   final EditorState state;
 

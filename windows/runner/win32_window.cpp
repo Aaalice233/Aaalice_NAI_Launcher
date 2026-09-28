@@ -1,7 +1,9 @@
 #include "win32_window.h"
 
+#include <commctrl.h>
 #include <dwmapi.h>
 #include <flutter_windows.h>
+#include <uiautomation.h>
 
 #include "resource.h"
 
@@ -28,6 +30,38 @@ constexpr const wchar_t kGetPreferredBrightnessRegValue[] = L"AppsUseLightTheme"
 
 // The number of Win32Window objects that currently exist.
 static int g_active_window_count = 0;
+
+constexpr UINT_PTR kFlutterAccessibilityCrashGuardSubclassId = 1;
+constexpr UINT kResizeChildContentMessage = WM_APP + 0x31A;
+
+bool IsFlutterAccessibilityRootRequest(LPARAM lparam) {
+  const DWORD object_id =
+      static_cast<DWORD>(static_cast<DWORD_PTR>(lparam));
+  return object_id == static_cast<DWORD>(OBJID_CLIENT) ||
+         object_id == static_cast<DWORD>(UiaRootObjectId);
+}
+
+LRESULT CALLBACK FlutterAccessibilityCrashGuardProc(
+    HWND window,
+    UINT message,
+    WPARAM wparam,
+    LPARAM lparam,
+    UINT_PTR subclass_id,
+    DWORD_PTR /* reference_data */) {
+  // Flutter 3.44 can corrupt its accessibility tree when a Windows UIA client
+  // remains attached during a resize. Block only the root accessibility
+  // requests until https://github.com/flutter/flutter/issues/175041 is fixed.
+  if (message == WM_GETOBJECT && IsFlutterAccessibilityRootRequest(lparam)) {
+    return 0;
+  }
+
+  if (message == WM_NCDESTROY) {
+    RemoveWindowSubclass(window, FlutterAccessibilityCrashGuardProc,
+                         subclass_id);
+  }
+
+  return DefSubclassProc(window, message, wparam, lparam);
+}
 
 using EnableNonClientDpiScaling = BOOL __stdcall(HWND hwnd);
 
@@ -198,14 +232,18 @@ Win32Window::MessageHandler(HWND hwnd,
       return 0;
     }
     case WM_SIZE: {
-      RECT rect = GetClientArea();
-      if (child_content_ != nullptr) {
-        // Size and position the child window.
-        MoveWindow(child_content_, rect.left, rect.top, rect.right - rect.left,
-                   rect.bottom - rect.top, TRUE);
-      }
+      QueueChildContentResize();
       return 0;
     }
+
+    case WM_WINDOWPOSCHANGED:
+      QueueChildContentResize();
+      break;
+
+    case kResizeChildContentMessage:
+      child_resize_pending_ = false;
+      ResizeChildContent();
+      return 0;
 
     case WM_ACTIVATE:
       if (child_content_ != nullptr) {
@@ -238,15 +276,85 @@ Win32Window* Win32Window::GetThisFromHandle(HWND const window) noexcept {
       GetWindowLongPtr(window, GWLP_USERDATA));
 }
 
-void Win32Window::SetChildContent(HWND content) {
+bool Win32Window::SetChildContent(HWND content) {
+  if (!SetWindowSubclass(content, FlutterAccessibilityCrashGuardProc,
+                         kFlutterAccessibilityCrashGuardSubclassId, 0)) {
+    return false;
+  }
+
   child_content_ = content;
   SetParent(content, window_handle_);
-  RECT frame = GetClientArea();
-
-  MoveWindow(content, frame.left, frame.top, frame.right - frame.left,
-             frame.bottom - frame.top, true);
+  ResizeChildContent();
 
   SetFocus(child_content_);
+  return true;
+}
+
+void Win32Window::QueueChildContentResize() {
+  if (child_resize_pending_ || window_handle_ == nullptr ||
+      child_content_ == nullptr) {
+    return;
+  }
+  child_resize_pending_ = true;
+  PostMessage(window_handle_, kResizeChildContentMessage, 0, 0);
+}
+
+void Win32Window::ResizeChildContent() {
+  if (window_handle_ == nullptr || child_content_ == nullptr) {
+    return;
+  }
+
+  // The top-level message has already passed through HandleTopLevelWindowProc,
+  // so Flutter still receives its hidden lifecycle event. Keep the child HWND
+  // at its last bounds while iconic instead of forwarding minimize geometry.
+  if (IsIconic(window_handle_)) {
+    return;
+  }
+
+  RECT frame = GetClientArea();
+  const LONG width = frame.right - frame.left;
+  const LONG height = frame.bottom - frame.top;
+  if (width > 0 && height > 0) {
+    last_valid_client_rect_ = frame;
+    has_last_valid_client_rect_ = true;
+  } else {
+    // Restore can briefly expose an empty client area before the real client
+    // rect arrives. Reuse the last valid bounds until the queued resize from
+    // WM_SIZE or WM_WINDOWPOSCHANGED aligns the child to the restored window.
+    if (!has_last_valid_client_rect_) {
+      return;
+    }
+    frame = last_valid_client_rect_;
+  }
+
+  MoveWindow(child_content_, frame.left, frame.top, frame.right - frame.left,
+             frame.bottom - frame.top, TRUE);
+}
+
+void Win32Window::SynchronizeChildContentMetrics() {
+  if (window_handle_ == nullptr || child_content_ == nullptr ||
+      IsIconic(window_handle_)) {
+    return;
+  }
+
+  ResizeChildContent();
+
+  RECT frame = {};
+  if (!GetClientRect(child_content_, &frame)) {
+    return;
+  }
+  const LONG width = frame.right - frame.left;
+  const LONG height = frame.bottom - frame.top;
+  if (width <= 0 || height <= 0) {
+    return;
+  }
+
+  // MoveWindow may not emit WM_SIZE when the child already has the requested
+  // bounds. Flutter recalculates GetDpiScale while processing WM_SIZE, so an
+  // explicit message also repairs a stale pixel ratio without visible jitter.
+  SendMessage(child_content_, WM_SIZE, SIZE_RESTORED,
+              MAKELPARAM(static_cast<WORD>(width),
+                         static_cast<WORD>(height)));
 }
 
 RECT Win32Window::GetClientArea() {

@@ -3,7 +3,7 @@ import 'package:flutter/rendering.dart';
 
 import '../../../core/utils/tag_normalizer.dart';
 import '../../../data/models/tag/local_tag.dart';
-import 'autocomplete_controller.dart';
+import 'autocomplete_config.dart';
 
 /// 自动补全工具类
 /// 提供标签提取、光标定位、建议应用等公共方法
@@ -136,18 +136,21 @@ class AutocompleteUtils {
     // 添加前导空格（如果前面有内容）
     final needsInsertedLeadingSpace =
         leadingWhitespace.isEmpty && prefix.isNotEmpty && !prefix.endsWith(' ');
-    final effectiveLeadingWhitespace =
-        needsInsertedLeadingSpace ? ' ' : leadingWhitespace;
+    final effectiveLeadingWhitespace = needsInsertedLeadingSpace
+        ? ' '
+        : leadingWhitespace;
 
     // 添加逗号和空格（如果配置了自动插入）
-    final trailingComma = config.autoInsertComma &&
+    final trailingComma =
+        config.autoInsertComma &&
             (suffix.isEmpty || !suffix.trimLeft().startsWith(','))
         ? ', '
         : '';
 
     final newText =
         '$prefix$effectiveLeadingWhitespace$wrappedTagName$trailingComma$suffix';
-    final newCursorPosition = prefix.length +
+    final newCursorPosition =
+        prefix.length +
         effectiveLeadingWhitespace.length +
         wrappedTagName.length +
         trailingComma.length;
@@ -296,6 +299,37 @@ class AutocompleteUtils {
     return '${suffix.substring(0, insertIndex)}::${suffix.substring(insertIndex)}';
   }
 
+  /// 判断实际文本输入组件是否支持多行。
+  static bool isMultilineTextInput({
+    required BuildContext context,
+    int? maxLines,
+    bool expands = false,
+  }) {
+    final renderEditable = _findRenderEditable(context);
+    if (renderEditable != null) {
+      return renderEditable.maxLines != 1;
+    }
+    return expands || (maxLines ?? 1) > 1;
+  }
+
+  static double getPreferredLineHeight({
+    required BuildContext context,
+    TextStyle? textStyle,
+  }) {
+    final renderEditable = _findRenderEditable(context);
+    if (renderEditable != null) return renderEditable.preferredLineHeight;
+    final effectiveStyle = textStyle ?? DefaultTextStyle.of(context).style;
+    return (effectiveStyle.fontSize ?? 14) * (effectiveStyle.height ?? 1.2);
+  }
+
+  static void revealCaret(BuildContext context) {
+    final editable = _findRenderEditable(context);
+    final selection = editable?.selection;
+    if (editable == null || selection == null || !selection.isValid) return;
+    final caret = editable.getLocalRectForCaret(selection.extent);
+    editable.showOnScreen(rect: caret.inflate(8));
+  }
+
   /// 计算光标在文本框内的位置
   /// 用于多行文本框的浮层定位
   static Offset getCursorOffset({
@@ -315,32 +349,24 @@ class AutocompleteUtils {
     }
 
     // 尝试找到 RenderEditable 以获取精确的光标位置
-    RenderEditable? renderEditable;
-    void findRenderEditable(Element element) {
-      if (renderEditable != null) return;
-      if (element.renderObject is RenderEditable) {
-        renderEditable = element.renderObject as RenderEditable;
-        return;
-      }
-      element.visitChildren(findRenderEditable);
-    }
-
-    (context as Element).visitChildren(findRenderEditable);
+    final renderEditable = _findRenderEditable(context);
 
     if (renderEditable != null) {
       // 使用 RenderEditable 获取精确的光标位置
-      final caretRect = renderEditable!.getLocalRectForCaret(
-        TextPosition(offset: cursorPosition),
+      final caretRect = renderEditable.getLocalRectForCaret(
+        TextPosition(
+          offset: renderEditable.selection?.baseOffset ?? cursorPosition,
+        ),
       );
 
       // 获取 RenderEditable 相对于 renderBox 的位置
-      final editableBox = renderEditable!;
+      final editableBox = renderEditable;
       final editableOffset = editableBox.localToGlobal(
         Offset.zero,
         ancestor: renderBox,
       );
 
-      final lineHeight = renderEditable!.preferredLineHeight;
+      final lineHeight = renderEditable.preferredLineHeight;
 
       // 返回光标位置（在光标下方显示补全框）
       return Offset(
@@ -359,11 +385,13 @@ class AutocompleteUtils {
     final horizontalPadding = contentPadding is EdgeInsets
         ? contentPadding.left + contentPadding.right
         : 24.0;
-    final leftPadding =
-        contentPadding is EdgeInsets ? contentPadding.left : 12.0;
+    final leftPadding = contentPadding is EdgeInsets
+        ? contentPadding.left
+        : 12.0;
     final topPadding = contentPadding is EdgeInsets ? contentPadding.top : 12.0;
-    final bottomPadding =
-        contentPadding is EdgeInsets ? contentPadding.bottom : 12.0;
+    final bottomPadding = contentPadding is EdgeInsets
+        ? contentPadding.bottom
+        : 12.0;
 
     final availableWidth = renderBox.size.width - horizontalPadding;
 
@@ -387,13 +415,32 @@ class AutocompleteUtils {
       scrollOffset = cursorOffset.dy - visibleHeight + lineHeight;
     }
 
-    final visibleCursorY =
-        (cursorOffset.dy - scrollOffset).clamp(0.0, visibleHeight - lineHeight);
+    final visibleCursorY = (cursorOffset.dy - scrollOffset).clamp(
+      0.0,
+      visibleHeight - lineHeight,
+    );
 
     return Offset(
       leftPadding + cursorOffset.dx,
       topPadding + visibleCursorY + lineHeight,
     );
+  }
+
+  static RenderEditable? _findRenderEditable(BuildContext context) {
+    RenderEditable? result;
+
+    void visit(Element element) {
+      if (result != null) return;
+      final renderObject = element.renderObject;
+      if (renderObject is RenderEditable) {
+        result = renderObject;
+        return;
+      }
+      element.visitChildren(visit);
+    }
+
+    (context as Element).visitChildren(visit);
+    return result;
   }
 }
 

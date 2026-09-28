@@ -1,228 +1,440 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:crypto/crypto.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
+import '../platform/platform_capabilities.dart';
+import '../services/android_asset_copy_service.dart';
 import '../utils/app_logger.dart';
 
-/// 资产数据库管理器
-///
-/// 管理预打包的数据库文件（translation.db, cooccurrence.db）：
-/// 1. 首次启动时从 assets 复制到应用目录
-/// 2. 提供只读数据库连接
-/// 3. 处理数据库版本更新
 class AssetDatabaseManager {
   static final AssetDatabaseManager _instance = AssetDatabaseManager._();
   static AssetDatabaseManager get instance => _instance;
 
   AssetDatabaseManager._();
 
-  // 数据库文件名
-  static const String translationDb = 'translation.db';
-  static const String cooccurrenceDb = 'cooccurrence.db';
-  static const String _assetDatabaseVersion = 'asset-db-v1';
+  static const String tagCatalogDb = 'tag_catalog.db';
+  static const String _manifestAsset = 'assets/databases/manifest.json';
+  static const Set<String> _knownLegacyCooccurrenceHashes = {
+    '59cb3227183722ca0a6aefbaf74d3cf7c98081707f406c08df3b647ad95d76f8',
+    'd23335978b12f0cbbdb526e745e17985943f93fb53caafe7242f4948aa69bae9',
+  };
 
-  // 数据库路径
-  String? _translationDbPath;
-  String? _cooccurrenceDbPath;
+  String? _tagCatalogDbPath;
+  static Future<void>? _initialization;
+  static bool _initialized = false;
 
-  /// 获取翻译数据库路径
-  String get translationDbPath {
-    if (_translationDbPath == null) {
-      throw StateError(
-        'AssetDatabaseManager not initialized. Call initialize() first.',
-      );
-    }
-    return _translationDbPath!;
+  String get tagCatalogDbPath => _requirePath(_tagCatalogDbPath);
+
+  static Future<void> initialize() {
+    if (_initialized) return Future.value();
+    return _initialization ??= _initialize()
+        .then((_) {
+          _initialized = true;
+        })
+        .whenComplete(() {
+          _initialization = null;
+        });
   }
 
-  /// 获取共现数据库路径
-  String get cooccurrenceDbPath {
-    if (_cooccurrenceDbPath == null) {
-      throw StateError(
-        'AssetDatabaseManager not initialized. Call initialize() first.',
-      );
-    }
-    return _cooccurrenceDbPath!;
+  @visibleForTesting
+  static void resetForTesting() {
+    _initialized = false;
+    _initialization = null;
+    _instance._tagCatalogDbPath = null;
   }
 
-  /// 初始化资产数据库
-  ///
-  /// 将预打包的数据库从 assets 复制到应用支持目录
-  static Future<void> initialize() async {
-    AppLogger.i('Initializing asset databases...', 'AssetDatabaseManager');
-
+  static Future<void> _initialize() async {
     final appDir = await getApplicationSupportDirectory();
     final assetDbDir = Directory(p.join(appDir.path, 'asset_databases'));
+    await assetDbDir.create(recursive: true);
 
-    if (!await assetDbDir.exists()) {
-      await assetDbDir.create(recursive: true);
-    }
+    final manifest =
+        jsonDecode(await rootBundle.loadString(_manifestAsset))
+            as Map<String, dynamic>;
+    final databases = manifest['databases'] as Map<String, dynamic>;
 
-    // 复制翻译数据库
-    await _copyAssetDatabase(
-      assetPath: 'assets/databases/$translationDb',
-      targetPath: p.join(assetDbDir.path, translationDb),
-      name: 'translation',
+    final catalogPath = p.join(assetDbDir.path, tagCatalogDb);
+    await _install(
+      fileName: tagCatalogDb,
+      targetPath: catalogPath,
+      metadata: Map<String, dynamic>.from(databases[tagCatalogDb] as Map),
+      requiredTables: const {
+        'metadata': {'key', 'value'},
+        'tags': {'id', 'name', 'category', 'post_count'},
+        'aliases': {'id', 'tag_id', 'alias'},
+        'tag_search': {'term', 'search_key', 'tag_id', 'kind'},
+        'zh_translations': {'tag', 'zh_cn', 'mode'},
+      },
     );
-    _instance._translationDbPath = p.join(assetDbDir.path, translationDb);
-
-    // 复制共现数据库
-    await _copyAssetDatabase(
-      assetPath: 'assets/databases/$cooccurrenceDb',
-      targetPath: p.join(assetDbDir.path, cooccurrenceDb),
-      name: 'cooccurrence',
-    );
-    _instance._cooccurrenceDbPath = p.join(assetDbDir.path, cooccurrenceDb);
-
+    await _migrateLegacyAutocompleteData(appDir, assetDbDir);
+    await _migrateBundledCooccurrence(assetDbDir);
+    await _removeLegacyTranslationDatabase(assetDbDir);
+    _instance._tagCatalogDbPath = catalogPath;
     AppLogger.i('Asset databases initialized', 'AssetDatabaseManager');
   }
 
-  /// 从 assets 复制数据库文件
-  static Future<void> _copyAssetDatabase({
-    required String assetPath,
+  static Future<void> _install({
+    required String fileName,
     required String targetPath,
-    required String name,
+    required Map<String, dynamic> metadata,
+    required Map<String, Set<String>> requiredTables,
   }) async {
-    final targetFile = File(targetPath);
+    final expectedHash = metadata['sha256'] as String;
+    final target = File(targetPath);
+    final state = File('$targetPath.install.json');
+    var existingUsable = false;
+    if (await target.exists()) {
+      try {
+        await _validateDatabase(
+          target.path,
+          requiredTables: requiredTables,
+          verifyIntegrity: false,
+        );
+        existingUsable = true;
 
-    if (await targetFile.exists()) {
-      final existingLength = await targetFile.length();
-      final versionFile = _versionFileFor(targetPath);
-      final version = await _readVersion(versionFile);
-      if (existingLength > 0 &&
-          (version == _assetDatabaseVersion || version == null)) {
-        if (version == null) {
-          await _writeVersion(versionFile);
+        final expectedSize = metadata['size'] as int;
+        if (await _stateMatches(
+          state,
+          target: target,
+          hash: expectedHash,
+          size: expectedSize,
+        )) {
+          await _validateDatabase(
+            target.path,
+            requiredTables: requiredTables,
+            expectedSchemaVersion: metadata['schemaVersion'] as int?,
+            expectedDataVersion: metadata['dataVersion'] as String?,
+            verifyIntegrity: false,
+          );
+          return;
         }
-        AppLogger.i('$name database up to date', 'AssetDatabaseManager');
-        return;
+
+        if (await target.length() == expectedSize &&
+            (await sha256.bind(target.openRead()).first).toString() ==
+                expectedHash) {
+          await _validateDatabase(
+            target.path,
+            requiredTables: requiredTables,
+            expectedSchemaVersion: metadata['schemaVersion'] as int?,
+            expectedDataVersion: metadata['dataVersion'] as String?,
+          );
+          await _writeInstallState(
+            state,
+            target: target,
+            hash: expectedHash,
+            metadata: metadata,
+          );
+          return;
+        }
+      } catch (error) {
+        AppLogger.w(
+          'Existing $fileName is not usable and will be replaced: $error',
+          'AssetDatabaseManager',
+        );
+        existingUsable = false;
       }
-      AppLogger.i(
-        '$name database updating from assets...',
-        'AssetDatabaseManager',
-      );
-    } else {
-      AppLogger.i(
-        '$name database not found, copying from assets...',
-        'AssetDatabaseManager',
-      );
     }
 
+    final temp = File('$targetPath.installing');
+    final backup = File('$targetPath.backup');
+    await temp.deleteIfExists();
     try {
-      final bytes = await _loadAssetBytes(assetPath);
-      await targetFile.writeAsBytes(bytes, flush: true);
-      await _writeVersion(_versionFileFor(targetPath));
-
-      final size = await targetFile.length();
-      AppLogger.i(
-        '$name database copied: ${_formatSize(size)}',
-        'AssetDatabaseManager',
+      await _copyBundledDatabase(fileName: fileName, target: temp);
+      final actualHash = await sha256.bind(temp.openRead()).first;
+      if (actualHash.toString() != expectedHash) {
+        throw StateError('$fileName SHA256 mismatch');
+      }
+      await _validateDatabase(
+        temp.path,
+        requiredTables: requiredTables,
+        expectedSchemaVersion: metadata['schemaVersion'] as int?,
+        expectedDataVersion: metadata['dataVersion'] as String?,
       );
-    } catch (e) {
+
+      await backup.deleteIfExists();
+      if (await target.exists()) await target.rename(backup.path);
+      try {
+        await temp.rename(target.path);
+        await _writeInstallState(
+          state,
+          target: target,
+          hash: expectedHash,
+          metadata: metadata,
+        );
+        await backup.deleteIfExists();
+      } catch (_) {
+        await target.deleteIfExists();
+        if (await backup.exists()) await backup.rename(target.path);
+        rethrow;
+      }
+    } catch (error, stack) {
       AppLogger.e(
-        'Failed to copy $name database',
-        e,
-        null,
+        'Failed to install $fileName; keeping previous database',
+        error,
+        stack,
         'AssetDatabaseManager',
       );
-      if (!await targetFile.exists()) rethrow;
+      if (!existingUsable) rethrow;
+    } finally {
+      await temp.deleteIfExists();
     }
   }
 
-  static File _versionFileFor(String targetPath) => File('$targetPath.version');
+  static Future<void> _copyBundledDatabase({
+    required String fileName,
+    required File target,
+  }) async {
+    final assetKey = 'assets/databases/$fileName';
+    if (PlatformCapabilities.operatingSystem.isAndroid) {
+      await AndroidAssetCopyService.copyAssetToFile(
+        assetKey: assetKey,
+        target: target,
+      );
+      return;
+    }
 
-  static Future<String?> _readVersion(File versionFile) async {
+    final bytes = await rootBundle.load(assetKey);
+    await target.writeAsBytes(
+      bytes.buffer.asUint8List(bytes.offsetInBytes, bytes.lengthInBytes),
+      flush: true,
+    );
+  }
+
+  static Future<void> _validateDatabase(
+    String path, {
+    required Map<String, Set<String>> requiredTables,
+    int? expectedSchemaVersion,
+    String? expectedDataVersion,
+    bool verifyIntegrity = true,
+  }) async {
+    final file = File(path);
+    final header = await file
+        .openRead(0, 16)
+        .fold<List<int>>(<int>[], (bytes, chunk) => bytes..addAll(chunk));
+    if (!ascii.decode(header).startsWith('SQLite format 3')) {
+      throw StateError('Invalid SQLite header: $path');
+    }
+
+    final db = await databaseFactoryFfi.openDatabase(
+      path,
+      options: OpenDatabaseOptions(readOnly: true, singleInstance: false),
+    );
     try {
-      if (!await versionFile.exists()) {
-        return null;
+      for (final entry in requiredTables.entries) {
+        final table = await db.rawQuery(
+          "SELECT name FROM sqlite_master WHERE (type='table' OR type='view') AND name=?",
+          [entry.key],
+        );
+        if (table.isEmpty) throw StateError('Missing table ${entry.key}');
+        final columns = await db.rawQuery('PRAGMA table_info("${entry.key}")');
+        final names = columns.map((row) => row['name'] as String).toSet();
+        if (!names.containsAll(entry.value)) {
+          throw StateError('Invalid columns for ${entry.key}: $names');
+        }
       }
-      final version = await versionFile.readAsString(encoding: utf8);
-      return version.trim().isEmpty ? null : version.trim();
-    } catch (_) {
-      return null;
+      if (verifyIntegrity) {
+        final quickCheck = await db.rawQuery('PRAGMA quick_check');
+        if (quickCheck.first.values.first != 'ok') {
+          throw StateError('SQLite quick_check failed: $quickCheck');
+        }
+      }
+      if (expectedSchemaVersion != null &&
+          requiredTables.containsKey('metadata')) {
+        final metadata = await db.rawQuery(
+          'SELECT key, value FROM metadata WHERE key IN (?, ?)',
+          ['schema_version', 'data_version'],
+        );
+        final values = {
+          for (final row in metadata)
+            row['key'] as String: row['value'] as String,
+        };
+        if (values['schema_version'] != '$expectedSchemaVersion' ||
+            values['data_version'] != expectedDataVersion) {
+          throw StateError('Catalog metadata does not match manifest');
+        }
+      }
+    } finally {
+      await db.close();
     }
   }
 
-  static Future<void> _writeVersion(File versionFile) async {
-    await versionFile.writeAsString(
-      _assetDatabaseVersion,
+  static Future<bool> _stateMatches(
+    File state, {
+    required File target,
+    required String hash,
+    required int size,
+  }) async {
+    try {
+      if (!await state.exists()) return false;
+      final data =
+          jsonDecode(await state.readAsString()) as Map<String, dynamic>;
+      final stat = await target.stat();
+      return data['sha256'] == hash &&
+          data['size'] == size &&
+          data['modifiedMillis'] == stat.modified.millisecondsSinceEpoch &&
+          stat.size == size;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  static Future<void> _writeInstallState(
+    File state, {
+    required File target,
+    required String hash,
+    required Map<String, dynamic> metadata,
+  }) async {
+    final stat = await target.stat();
+    await state.writeAsString(
+      jsonEncode({
+        'sha256': hash,
+        'size': stat.size,
+        'modifiedMillis': stat.modified.millisecondsSinceEpoch,
+        'schemaVersion': metadata['schemaVersion'],
+        'dataVersion': metadata['dataVersion'],
+      }),
       encoding: utf8,
       flush: true,
     );
   }
 
-  /// 加载 asset 字节数据
-  static Future<List<int>> _loadAssetBytes(String path) async {
-    final byteData = await rootBundle.load(path);
-    return byteData.buffer.asUint8List(
-      byteData.offsetInBytes,
-      byteData.lengthInBytes,
-    );
-  }
-
-  /// 格式化文件大小
-  static String _formatSize(int bytes) {
-    if (bytes < 1024 * 1024) {
-      return '${(bytes / 1024).toStringAsFixed(1)} KB';
+  static Future<void> _removeLegacyTranslationDatabase(Directory dir) async {
+    for (final suffix in ['', '.version', '.install.json', '.backup']) {
+      await File(p.join(dir.path, 'translation.db$suffix')).deleteIfExists();
     }
-    return '${(bytes / 1024 / 1024).toStringAsFixed(2)} MB';
   }
 
-  /// 打开翻译数据库（只读）
-  Future<Database> openTranslationDatabase() async {
-    return _openReadOnlyDatabase(translationDbPath, 'translation');
-  }
+  static Future<void> _migrateBundledCooccurrence(Directory dir) async {
+    final marker = File(p.join(dir.path, '.cooccurrence-external-v2-migrated'));
+    if (await marker.exists()) return;
 
-  /// 打开共现数据库（只读）
-  Future<Database> openCooccurrenceDatabase() async {
-    return _openReadOnlyDatabase(cooccurrenceDbPath, 'cooccurrence');
-  }
+    final database = File(p.join(dir.path, 'cooccurrence.db'));
+    final installMetadata = File('${database.path}.install.json');
+    String? recognizedHash;
+    if (await installMetadata.exists()) {
+      try {
+        final metadata =
+            jsonDecode(await installMetadata.readAsString())
+                as Map<String, dynamic>;
+        final hash = metadata['sha256'] as String?;
+        if (hash != null && _knownLegacyCooccurrenceHashes.contains(hash)) {
+          recognizedHash = hash;
+        }
+      } catch (error) {
+        AppLogger.w(
+          'Unable to read legacy co-occurrence metadata: $error',
+          'AssetDatabaseManager',
+        );
+      }
+    }
+    if (recognizedHash == null && await database.exists()) {
+      final hash = (await sha256.bind(database.openRead()).first).toString();
+      if (_knownLegacyCooccurrenceHashes.contains(hash)) {
+        recognizedHash = hash;
+      }
+    }
 
-  /// 打开只读数据库
-  Future<Database> _openReadOnlyDatabase(String path, String name) async {
-    AppLogger.d(
-      'Opening $name database (read-only): $path',
-      'AssetDatabaseManager',
+    if (recognizedHash != null) {
+      for (final suffix in [
+        '',
+        '.install.json',
+        '.installing',
+        '.backup',
+        '.version',
+      ]) {
+        await File('${database.path}$suffix').deleteIfExists();
+      }
+      AppLogger.i(
+        'Removed verified legacy bundled co-occurrence database',
+        'AssetDatabaseManager',
+      );
+    } else if (await database.exists() || await installMetadata.exists()) {
+      AppLogger.w(
+        'Preserving unknown legacy co-occurrence files in ${dir.path}',
+        'AssetDatabaseManager',
+      );
+    }
+    await marker.writeAsString(
+      'cooccurrence-external-v2',
+      encoding: utf8,
+      flush: true,
     );
+  }
 
-    return await databaseFactoryFfi.openDatabase(
+  static Future<void> _migrateLegacyAutocompleteData(
+    Directory appDir,
+    Directory assetDbDir,
+  ) async {
+    final marker = File(p.join(assetDbDir.path, '.autocomplete-v1-migrated'));
+    if (await marker.exists()) return;
+    await _removeLegacyTranslationDatabase(assetDbDir);
+    final runtimeDb = p.join(appDir.path, 'databases', 'danbooru.db');
+    final runtimeDbFile = File(runtimeDb);
+    if (await runtimeDbFile.exists()) {
+      final db = await databaseFactoryFfi.openDatabase(
+        runtimeDb,
+        options: OpenDatabaseOptions(singleInstance: false),
+      );
+      try {
+        // danbooru.db also stores the local gallery. Only the obsolete tag
+        // cache is disposable during the autocomplete migration.
+        await db.execute('DROP TABLE IF EXISTS danbooru_tags');
+      } finally {
+        await db.close();
+      }
+    }
+    await File('$runtimeDb.version').deleteIfExists();
+    await marker.writeAsString(
+      DateTime.now().toUtc().toIso8601String(),
+      encoding: utf8,
+      flush: true,
+    );
+  }
+
+  Future<Database> openTagCatalogDatabase() async {
+    await AssetDatabaseManager.initialize();
+    return _openReadOnlyDatabase(tagCatalogDbPath, 'tag catalog');
+  }
+
+  Future<Database> _openReadOnlyDatabase(String path, String name) async {
+    AppLogger.d('Opening $name database (read-only): $path');
+    return databaseFactoryFfi.openDatabase(
       path,
       options: OpenDatabaseOptions(readOnly: true, singleInstance: false),
     );
   }
 
-  /// 检查数据库是否存在
-  Future<bool> checkDatabasesExist() async {
-    final transExists = await File(translationDbPath).exists();
-    final coocExists = await File(cooccurrenceDbPath).exists();
+  Future<bool> checkDatabasesExist() async => File(tagCatalogDbPath).exists();
 
-    AppLogger.i(
-      'Database check - translation: $transExists, cooccurrence: $coocExists',
-      'AssetDatabaseManager',
-    );
-
-    return transExists && coocExists;
-  }
-
-  /// 获取数据库文件大小信息
   Future<Map<String, dynamic>> getDatabaseInfo() async {
-    Future<Map<String, dynamic>> getFileInfo(String path) async {
+    Future<Map<String, dynamic>> info(String path) async {
       final file = File(path);
-      final exists = await file.exists();
       return {
         'path': path,
-        'exists': exists,
-        'size': exists ? await file.length() : 0,
+        'exists': await file.exists(),
+        'size': await file.exists() ? await file.length() : 0,
       };
     }
 
-    return {
-      'translation': await getFileInfo(translationDbPath),
-      'cooccurrence': await getFileInfo(cooccurrenceDbPath),
-    };
+    return {'tagCatalog': await info(tagCatalogDbPath)};
+  }
+
+  static String _requirePath(String? path) {
+    if (path == null) {
+      throw StateError('AssetDatabaseManager is not initialized');
+    }
+    return path;
+  }
+}
+
+extension on File {
+  Future<void> deleteIfExists() async {
+    if (await exists()) await delete();
   }
 }

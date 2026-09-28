@@ -1,18 +1,17 @@
 import 'package:flutter/material.dart';
 
-import '../../../../../core/utils/localization_extension.dart';
-import '../../core/editor_state.dart';
 import '../../../../../core/utils/app_logger.dart';
-import 'package:nai_launcher/presentation/widgets/common/themed_input.dart';
+import '../../../../../core/utils/localization_extension.dart';
+import '../../../../adaptive/adaptive_presenter.dart';
+import '../../../../adaptive/content_sized_adaptive_form.dart';
+import '../../../../widgets/common/themed_input.dart';
+import '../../core/editor_state.dart';
 
 /// 颜色面板
 class ColorPanel extends StatelessWidget {
   final EditorState state;
 
-  const ColorPanel({
-    super.key,
-    required this.state,
-  });
+  const ColorPanel({super.key, required this.state});
 
   @override
   Widget build(BuildContext context) {
@@ -65,7 +64,8 @@ class ColorPanel extends StatelessWidget {
                       children: _quickColors.map((color) {
                         return _QuickColorButton(
                           color: color,
-                          isSelected: state.foregroundColor.toARGB32() ==
+                          isSelected:
+                              state.foregroundColor.toARGB32() ==
                               color.toARGB32(),
                           onTap: () => state.setForegroundColor(color),
                         );
@@ -97,11 +97,19 @@ class ColorPanel extends StatelessWidget {
     Color initialColor,
     ValueChanged<Color> onColorChanged,
   ) {
-    showDialog(
+    AdaptivePresenter.showForm<void>(
       context: context,
-      builder: (context) => _ColorPickerDialog(
+      dialogWidth: 440,
+      titleBuilder: (context) => Text(
+        context.l10n.editor_colorPickerTitle,
+        maxLines: 2,
+        overflow: TextOverflow.ellipsis,
+        style: Theme.of(context).textTheme.titleLarge,
+      ),
+      builder: (context, scrollController) => _ColorPickerDialog(
         initialColor: initialColor,
         onColorChanged: onColorChanged,
+        scrollController: scrollController,
       ),
     );
   }
@@ -169,6 +177,7 @@ class _ColorPreview extends StatelessWidget {
             left: 0,
             top: 0,
             child: GestureDetector(
+              key: const Key('color_panel_foreground_preview'),
               onTap: onForegroundTap,
               child: Container(
                 width: 32,
@@ -201,7 +210,13 @@ class _ColorPreview extends StatelessWidget {
                     ),
                   ],
                 ),
-                child: const Icon(Icons.swap_horiz, size: 14),
+                // 底色写死为白，图标也必须写死深色，
+                // 否则在深色主题下会继承成近白色，变成白底白图标。
+                child: const Icon(
+                  Icons.swap_horiz,
+                  size: 14,
+                  color: Colors.black87,
+                ),
               ),
             ),
           ),
@@ -247,10 +262,12 @@ class _QuickColorButton extends StatelessWidget {
 class _ColorPickerDialog extends StatefulWidget {
   final Color initialColor;
   final ValueChanged<Color> onColorChanged;
+  final ScrollController scrollController;
 
   const _ColorPickerDialog({
     required this.initialColor,
     required this.onColorChanged,
+    required this.scrollController,
   });
 
   @override
@@ -284,158 +301,99 @@ class _ColorPickerDialogState extends State<_ColorPickerDialog> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    return AlertDialog(
-      title: Text(context.l10n.editor_colorPickerTitle),
-      content: SizedBox(
-        width: 300,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
+    return ContentSizedAdaptiveForm(
+      scrollController: widget.scrollController,
+      scrollViewKey: const Key('color_picker_scroll'),
+      content: [
+        _AdaptiveColorSurface(
+          hsvColor: _hsvColor,
+          onSVChanged: _updateSV,
+          onHueChanged: _updateHue,
+        ),
+        const SizedBox(height: 16),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // 色相选择
-            SizedBox(
-              height: 200,
+            Container(
+              width: 48,
+              height: 48,
+              decoration: BoxDecoration(
+                color: _hsvColor.toColor(),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: theme.dividerColor),
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: ThemedInput(
+                key: const Key('color_picker_hex'),
+                controller: _hexController,
+                decoration: const InputDecoration(
+                  prefixText: '#',
+                  labelText: 'HEX',
+                  isDense: true,
+                ),
+                onSubmitted: _parseHex,
+              ),
+            ),
+          ],
+        ),
+      ],
+      footer: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Divider(height: 1),
+          SafeArea(
+            top: false,
+            child: Padding(
+              padding: const EdgeInsets.all(12),
               child: Row(
                 children: [
-                  // 饱和度-明度选择器
                   Expanded(
-                    child: GestureDetector(
-                      onPanDown: (details) => _updateSV(
-                        details.localPosition,
-                        const Size(200, 200),
-                      ),
-                      onPanUpdate: (details) => _updateSV(
-                        details.localPosition,
-                        const Size(200, 200),
-                      ),
-                      child: CustomPaint(
-                        painter: _SVPicker(hue: _hsvColor.hue),
-                        child: Stack(
-                          children: [
-                            Positioned(
-                              left: _hsvColor.saturation * 200 - 8,
-                              top: (1 - _hsvColor.value) * 200 - 8,
-                              child: Container(
-                                width: 16,
-                                height: 16,
-                                decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  border:
-                                      Border.all(color: Colors.white, width: 2),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color:
-                                          Colors.black.withValues(alpha: 0.3),
-                                      blurRadius: 2,
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
+                    child: TextButton(
+                      key: const Key('color_picker_cancel'),
+                      onPressed: () => Navigator.pop(context),
+                      child: Text(
+                        context.l10n.common_cancel,
+                        textAlign: TextAlign.center,
                       ),
                     ),
                   ),
-                  const SizedBox(width: 16),
-                  // 色相条
-                  GestureDetector(
-                    onPanDown: (details) =>
-                        _updateHue(details.localPosition.dy, 200),
-                    onPanUpdate: (details) =>
-                        _updateHue(details.localPosition.dy, 200),
-                    child: SizedBox(
-                      width: 20,
-                      height: 200,
-                      child: CustomPaint(
-                        painter: _HuePicker(),
-                        child: Stack(
-                          children: [
-                            Positioned(
-                              top: _hsvColor.hue / 360 * 200 - 2,
-                              left: -2,
-                              right: -2,
-                              child: Container(
-                                height: 4,
-                                decoration: BoxDecoration(
-                                  border:
-                                      Border.all(color: Colors.white, width: 1),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: FilledButton(
+                      key: const Key('color_picker_confirm'),
+                      onPressed: () {
+                        widget.onColorChanged(_hsvColor.toColor());
+                        Navigator.pop(context);
+                      },
+                      child: Text(
+                        context.l10n.common_confirm,
+                        textAlign: TextAlign.center,
                       ),
                     ),
                   ),
                 ],
               ),
             ),
-
-            const SizedBox(height: 16),
-
-            // 颜色预览和HEX输入
-            Row(
-              children: [
-                Container(
-                  width: 48,
-                  height: 48,
-                  decoration: BoxDecoration(
-                    color: _hsvColor.toColor(),
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: theme.dividerColor),
-                  ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: ThemedInput(
-                    controller: _hexController,
-                    decoration: const InputDecoration(
-                      prefixText: '#',
-                      labelText: 'HEX',
-                      isDense: true,
-                    ),
-                    onSubmitted: _parseHex,
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: Text(context.l10n.common_cancel),
-        ),
-        FilledButton(
-          onPressed: () {
-            widget.onColorChanged(_hsvColor.toColor());
-            Navigator.pop(context);
-          },
-          child: Text(context.l10n.common_confirm),
-        ),
-      ],
     );
   }
 
   void _updateSV(Offset position, Size size) {
     setState(() {
       _hsvColor = _hsvColor
-          .withSaturation(
-            (position.dx / size.width).clamp(0.0, 1.0),
-          )
-          .withValue(
-            (1 - position.dy / size.height).clamp(0.0, 1.0),
-          );
+          .withSaturation((position.dx / size.width).clamp(0.0, 1.0))
+          .withValue((1 - position.dy / size.height).clamp(0.0, 1.0));
       _updateHexController();
     });
   }
 
   void _updateHue(double y, double height) {
     setState(() {
-      _hsvColor = _hsvColor.withHue(
-        (y / height * 360).clamp(0.0, 360.0),
-      );
+      _hsvColor = _hsvColor.withHue((y / height * 360).clamp(0.0, 360.0));
       _updateHexController();
     });
   }
@@ -461,6 +419,106 @@ class _ColorPickerDialogState extends State<_ColorPickerDialog> {
     } catch (e) {
       AppLogger.w('Invalid hex color format: $value', 'ColorPanel');
     }
+  }
+}
+
+class _AdaptiveColorSurface extends StatelessWidget {
+  const _AdaptiveColorSurface({
+    required this.hsvColor,
+    required this.onSVChanged,
+    required this.onHueChanged,
+  });
+
+  final HSVColor hsvColor;
+  final void Function(Offset position, Size size) onSVChanged;
+  final void Function(double y, double height) onHueChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        const hueWidth = 24.0;
+        const gap = 12.0;
+        final surfaceWidth = constraints.maxWidth - hueWidth - gap;
+        final surfaceSize = Size(surfaceWidth, surfaceWidth);
+
+        return SizedBox(
+          key: const Key('color_picker_surface'),
+          height: surfaceSize.height,
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              SizedBox(
+                width: surfaceSize.width,
+                child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onPanDown: (details) =>
+                      onSVChanged(details.localPosition, surfaceSize),
+                  onPanUpdate: (details) =>
+                      onSVChanged(details.localPosition, surfaceSize),
+                  child: CustomPaint(
+                    painter: _SVPicker(hue: hsvColor.hue),
+                    child: Stack(
+                      clipBehavior: Clip.none,
+                      children: [
+                        Positioned(
+                          left: hsvColor.saturation * surfaceSize.width - 8,
+                          top: (1 - hsvColor.value) * surfaceSize.height - 8,
+                          child: Container(
+                            width: 16,
+                            height: 16,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              border: Border.all(color: Colors.white, width: 2),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withValues(alpha: 0.3),
+                                  blurRadius: 2,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: gap),
+              GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onPanDown: (details) =>
+                    onHueChanged(details.localPosition.dy, surfaceSize.height),
+                onPanUpdate: (details) =>
+                    onHueChanged(details.localPosition.dy, surfaceSize.height),
+                child: SizedBox(
+                  width: hueWidth,
+                  child: CustomPaint(
+                    painter: _HuePicker(),
+                    child: Stack(
+                      clipBehavior: Clip.none,
+                      children: [
+                        Positioned(
+                          top: hsvColor.hue / 360 * surfaceSize.height - 2,
+                          left: -2,
+                          right: -2,
+                          child: Container(
+                            height: 4,
+                            decoration: BoxDecoration(
+                              border: Border.all(color: Colors.white),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
   }
 }
 

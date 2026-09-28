@@ -1,0 +1,46 @@
+{
+  "manifestVersion": 1,
+  "schemaVersion": 2,
+  "dataVersion": "2dadc5bfcbcc-v2",
+  "release": {
+    "tag": "autocomplete-data-cooccurrence-2dadc5bf-v2",
+    "url": "https://github.com/Aaalice233/Aaalice_NAI_Launcher/releases/download/autocomplete-data-cooccurrence-2dadc5bf-v2/cooccurrence-v2.db.gz",
+    "prerelease": true,
+    "makeLatest": false
+  },
+  "archive": {
+    "name": "cooccurrence-v2.db.gz",
+    "size": 31804631,
+    "sha256": "63c87b92e2ae7ff7206a5ecb0012a616284fec0795a77b9e3098d64cc21ee63a"
+  },
+  "database": {
+    "name": "cooccurrence-v2.db",
+    "size": 82505728,
+    "sha256": "df5e58d94d00db9e000aa7a9962e0aaf9b1615a78985fdb11a6b1c203d103a50"
+  },
+  "counts": {
+    "tagCount": 31060,
+    "sourcePairCount": 3236959,
+    "selfRelationCount": 0,
+    "directedEdgeCount": 6473918
+  },
+  "provenance": {
+    "dataset": "newtextdoc1111/danbooru-tag-csv",
+    "sourceRevision": "2dadc5bfcbcc7f255e68e9003ed543fb1b97904f",
+    "sourceFile": "danbooru_tags_cooccurrence.csv",
+    "sourceUrl": "https://huggingface.co/datasets/newtextdoc1111/danbooru-tag-csv/resolve/2dadc5bfcbcc7f255e68e9003ed543fb1b97904f/danbooru_tags_cooccurrence.csv",
+    "sourceSize": 103263669,
+    "sourceSha256": "29bf95d3dd2f4b1038ac26b3fee371ebbe67d9b622b32d274c9486dbde56077a",
+    "sourceRecordCount": 3236959,
+    "license": "MIT",
+    "licenseUrl": "https://github.com/newtextdoc1111/danbooru-tag-csv/blob/2dadc5bfcbcc7f255e68e9003ed543fb1b97904f/LICENSE"
+  },
+  "verification": {
+    "quickCheck": "ok",
+    "queryPlan": [
+      "SEARCH source USING COVERING INDEX sqlite_autoindex_tags_1 (name=?)",
+      "SEARCH edge USING PRIMARY KEY (source_tag_id=? AND count>?)",
+      "SEARCH target USING INTEGER PRIMARY KEY (rowid=?)"
+    ]
+  }
+}

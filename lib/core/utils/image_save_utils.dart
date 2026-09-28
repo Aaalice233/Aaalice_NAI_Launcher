@@ -2,10 +2,14 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
-import 'package:image/image.dart' as img;
+import 'package:path/path.dart' as p;
 
 import '../../data/models/gallery/nai_image_metadata.dart';
+import '../../data/models/fixed_tag/fixed_tag_usage_snapshot.dart';
+import '../../data/models/fixed_tag/fixed_tag_entry.dart';
+import '../../data/models/fixed_tag/fixed_tag_prompt_type.dart';
 import '../../data/models/image/image_params.dart';
+import '../../data/services/image_metadata_service.dart';
 import '../../data/services/metadata/unified_metadata_parser.dart';
 import '../constants/api_constants.dart';
 import '../enums/precise_ref_type.dart';
@@ -37,10 +41,21 @@ class ImageSaveUtils {
     List<String>? fixedSuffixTags,
     List<String>? fixedNegativePrefixTags,
     List<String>? fixedNegativeSuffixTags,
+    FixedTagUsageSnapshot? fixedTagUsageSnapshot,
     List<Map<String, dynamic>>? charCaptions,
     List<Map<String, dynamic>>? charNegCaptions,
     bool useCoords = false,
   }) {
+    final qualityTagHint = QualityTags.toTagHint(
+      model: params.model,
+      enabled: params.qualityToggle,
+      tier: params.qualityTier,
+      omit: params.omitQualityTagHint,
+    );
+    final ucPresetTagHint = UcPresets.toTagHint(
+      params.ucPreset,
+      omit: params.omitUcPresetTagHint,
+    );
     final commentJson = <String, dynamic>{
       'prompt': params.prompt,
       'uc': params.negativePrompt,
@@ -59,6 +74,8 @@ class ImageSaveUtils {
       'model': params.model,
       'quality_toggle': params.qualityToggle,
       'uc_preset': params.ucPreset,
+      if (qualityTagHint != null) 'tag_hint_qt': qualityTagHint,
+      if (ucPresetTagHint != null) 'tag_hint_uc_preset': ucPresetTagHint,
       // NAI官方格式字段
       'version': params.isV4Model ? 1 : 'v3',
       'legacy_v3_extend': false,
@@ -66,20 +83,37 @@ class ImageSaveUtils {
       if (params.isImg2Img) ...{
         'strength': params.strength,
         'noise': params.noise,
+        'extra_noise_seed': actualSeed - 1,
       },
+      // V5 专属参数：官网写回元数据时保留 upscale 与透明背景，只剔除
+      // upscaled_enhance（增强 max 档是一次性动作，不属于图片参数）。
+      if (params.capabilities.supportsTransparentBackground) ...{
+        'straight_alpha': params.straightAlpha,
+        if (params.transparentBackground)
+          'tag_hint_transparent_background': true,
+      },
+      if (params.effectiveE2eUpscale)
+        'upscale': {'declared_blur_sigma': E2eUpscale.declaredBlurSigma},
     };
 
-    if (fixedPrefixTags?.isNotEmpty == true) {
-      commentJson['fixed_prefix'] = fixedPrefixTags;
+    if (fixedTagUsageSnapshot != null) {
+      commentJson['aaalice_fixed_tags'] = fixedTagUsageSnapshot.toJson();
     }
-    if (fixedSuffixTags?.isNotEmpty == true) {
-      commentJson['fixed_suffix'] = fixedSuffixTags;
+    if (fixedTagUsageSnapshot != null || fixedPrefixTags?.isNotEmpty == true) {
+      commentJson['fixed_prefix'] = fixedPrefixTags ?? const <String>[];
     }
-    if (fixedNegativePrefixTags?.isNotEmpty == true) {
-      commentJson['fixed_negative_prefix'] = fixedNegativePrefixTags;
+    if (fixedTagUsageSnapshot != null || fixedSuffixTags?.isNotEmpty == true) {
+      commentJson['fixed_suffix'] = fixedSuffixTags ?? const <String>[];
     }
-    if (fixedNegativeSuffixTags?.isNotEmpty == true) {
-      commentJson['fixed_negative_suffix'] = fixedNegativeSuffixTags;
+    if (fixedTagUsageSnapshot != null ||
+        fixedNegativePrefixTags?.isNotEmpty == true) {
+      commentJson['fixed_negative_prefix'] =
+          fixedNegativePrefixTags ?? const <String>[];
+    }
+    if (fixedTagUsageSnapshot != null ||
+        fixedNegativeSuffixTags?.isNotEmpty == true) {
+      commentJson['fixed_negative_suffix'] =
+          fixedNegativeSuffixTags ?? const <String>[];
     }
 
     // V4多角色提示词
@@ -152,7 +186,7 @@ class ImageSaveUtils {
     return {
       'Description': params.prompt,
       'Software': 'NovelAI',
-      'Source': _getModelSourceName(params.model),
+      'Source': getModelSourceName(params.model),
       'Comment': jsonEncode(commentJson),
     };
   }
@@ -169,6 +203,7 @@ class ImageSaveUtils {
     List<String>? fixedSuffixTags,
     List<String>? fixedNegativePrefixTags,
     List<String>? fixedNegativeSuffixTags,
+    FixedTagUsageSnapshot? fixedTagUsageSnapshot,
     List<Map<String, dynamic>>? charCaptions,
     List<Map<String, dynamic>>? charNegCaptions,
     bool useCoords = false,
@@ -200,6 +235,7 @@ class ImageSaveUtils {
       fixedSuffixTags: fixedSuffixTags,
       fixedNegativePrefixTags: fixedNegativePrefixTags,
       fixedNegativeSuffixTags: fixedNegativeSuffixTags,
+      fixedTagUsageSnapshot: fixedTagUsageSnapshot,
       charCaptions: charCaptions,
       charNegCaptions: charNegCaptions,
       useCoords: useCoords,
@@ -219,12 +255,66 @@ class ImageSaveUtils {
             model: params.model,
             qualityToggle: params.qualityToggle,
             ucPreset: params.ucPreset,
+            transparentBackground: params.transparentBackground,
+            qualityTier: params.qualityTier,
           ).effectivePrompt,
-      source: existingMetadata?.source ?? _getModelSourceName(params.model),
+      source: existingMetadata?.source ?? getModelSourceName(params.model),
       software: existingMetadata?.software ?? 'NovelAI',
       useStealth: useStealth,
     );
   }
+
+  /// Adds Launcher fixed-tag provenance without replacing existing NAI fields.
+  static Future<Uint8List> mergeFixedTagUsageMetadata({
+    required Uint8List imageBytes,
+    required FixedTagUsageSnapshot snapshot,
+    bool useStealth = false,
+  }) async {
+    final existing = _extractEmbeddedPngMetadata(imageBytes);
+    if (existing?.commentJson == null) return imageBytes;
+    final commentJson = <String, dynamic>{
+      ...existing!.commentJson,
+      'aaalice_fixed_tags': snapshot.toJson(),
+      'fixed_prefix': _fixedTagContents(
+        snapshot,
+        FixedTagPromptType.positive,
+        FixedTagPosition.prefix,
+      ),
+      'fixed_suffix': _fixedTagContents(
+        snapshot,
+        FixedTagPromptType.positive,
+        FixedTagPosition.suffix,
+      ),
+      'fixed_negative_prefix': _fixedTagContents(
+        snapshot,
+        FixedTagPromptType.negative,
+        FixedTagPosition.prefix,
+      ),
+      'fixed_negative_suffix': _fixedTagContents(
+        snapshot,
+        FixedTagPromptType.negative,
+        FixedTagPosition.suffix,
+      ),
+    };
+    return _embedNaiAlignedMetadata(
+      imageBytes: imageBytes,
+      commentJson: commentJson,
+      description: existing.description,
+      source: existing.source,
+      software: existing.software,
+      useStealth: useStealth,
+    );
+  }
+
+  static List<String> _fixedTagContents(
+    FixedTagUsageSnapshot snapshot,
+    FixedTagPromptType promptType,
+    FixedTagPosition position,
+  ) => snapshot
+      .entriesFor(promptType: promptType, position: position)
+      .map((entry) => entry.renderedContent)
+      .where((content) => content.isNotEmpty)
+      .toList(growable: false);
 
   /// 保存图像并嵌入完整元数据
   ///
@@ -251,6 +341,7 @@ class ImageSaveUtils {
     List<String>? fixedSuffixTags,
     List<String>? fixedNegativePrefixTags,
     List<String>? fixedNegativeSuffixTags,
+    FixedTagUsageSnapshot? fixedTagUsageSnapshot,
     List<Map<String, dynamic>>? charCaptions,
     List<Map<String, dynamic>>? charNegCaptions,
     bool useCoords = false,
@@ -265,6 +356,7 @@ class ImageSaveUtils {
       fixedSuffixTags: fixedSuffixTags,
       fixedNegativePrefixTags: fixedNegativePrefixTags,
       fixedNegativeSuffixTags: fixedNegativeSuffixTags,
+      fixedTagUsageSnapshot: fixedTagUsageSnapshot,
       charCaptions: charCaptions,
       charNegCaptions: charNegCaptions,
       useCoords: useCoords,
@@ -293,19 +385,32 @@ class ImageSaveUtils {
   /// [filePath] - 目标文件路径
   /// [metadata] - 预构建的元数据Map
   /// [useStealth] - 是否使用stealth编码
+  /// 仅构建嵌入预置元数据的字节（不写文件），供原子保存接口使用。
+  static Future<Uint8List> buildPrebuiltMetadataBytes({
+    required Uint8List imageBytes,
+    required Map<String, dynamic> metadata,
+    bool useStealth = false,
+  }) async {
+    final normalized = _normalizePrebuiltMetadata(metadata);
+    return _embedNaiAlignedMetadata(
+      imageBytes: imageBytes,
+      commentJson: normalized.commentJson,
+      description: normalized.description,
+      software: normalized.software,
+      source: normalized.source,
+      useStealth: useStealth,
+    );
+  }
+
   static Future<File> saveWithPrebuiltMetadata({
     required Uint8List imageBytes,
     required String filePath,
     required Map<String, dynamic> metadata,
     bool useStealth = false,
   }) async {
-    final normalized = _normalizePrebuiltMetadata(metadata);
-    final embeddedBytes = await _embedNaiAlignedMetadata(
+    final embeddedBytes = await buildPrebuiltMetadataBytes(
       imageBytes: imageBytes,
-      commentJson: normalized.commentJson,
-      description: normalized.description,
-      software: normalized.software,
-      source: normalized.source,
+      metadata: metadata,
       useStealth: useStealth,
     );
 
@@ -362,7 +467,9 @@ class ImageSaveUtils {
         smeaDyn: metadata.smeaDyn ?? false,
         varietyPlus: metadata.varietyPlus ?? false,
         qualityToggle: metadata.qualityToggle ?? false,
+        qualityTier: metadata.qualityTier ?? QualityTags.standardTier,
         ucPreset: metadata.ucPreset ?? UcPresets.noneApiValue,
+        transparentBackground: metadata.transparentBackground ?? false,
       );
 
       // 恢复Vibe数据
@@ -394,15 +501,29 @@ class ImageSaveUtils {
   }
 
   /// 获取模型显示名称
-  static String _getModelSourceName(String model) {
-    if (model.contains('diffusion-4-5')) {
-      return 'NovelAI Diffusion V4.5';
+  static String getModelSourceName(String model) {
+    if (model.contains('diffusion-5') || model == ImageModels.v5StagingKey) {
+      // 官方解析按已知 Full 指纹区分，其余 V5 一律归 Curated；
+      // Full 带上网页端的真实指纹保证自家图能被官网与启动器双向识别。
+      return model.contains('diffusion-5-full')
+          ? 'NovelAI Diffusion V5 657484A5'
+          : 'NovelAI Diffusion V5';
+    } else if (model.contains('diffusion-4-5')) {
+      return model.contains('curated')
+          ? 'NovelAI Diffusion V4.5 Curated'
+          : 'NovelAI Diffusion V4.5 Full';
     } else if (model.contains('diffusion-4')) {
-      return 'NovelAI Diffusion V4';
+      return model.contains('curated')
+          ? 'NovelAI Diffusion V4 Curated'
+          : 'NovelAI Diffusion V4 Full';
+    } else if (model.contains('furry') && model.contains('-3')) {
+      return 'NovelAI Furry Diffusion V3';
     } else if (model.contains('diffusion-3')) {
       return 'NovelAI Diffusion V3';
     } else if (model.contains('diffusion-2')) {
       return 'NovelAI Diffusion V2';
+    } else if (model.contains('furry')) {
+      return 'NovelAI Furry Diffusion';
     }
     return 'NovelAI';
   }
@@ -413,13 +534,7 @@ class ImageSaveUtils {
     }
 
     try {
-      final decoder = img.PngDecoder();
-      final info = decoder.startDecode(bytes);
-      if (info is! img.PngInfo) {
-        return null;
-      }
-
-      final textData = info.textData;
+      final textData = UnifiedMetadataParser.extractPngTextData(bytes);
       final rawComment = textData['Comment'];
       if (rawComment == null || rawComment.isEmpty) {
         return null;
@@ -556,6 +671,95 @@ class ImageSaveUtils {
       }
     } catch (_) {
       // noop
+    }
+    return null;
+  }
+
+  /// 原子保存图片到日期分类目录：<根目录>/yyyy-MM-dd/<文件名>.png
+  ///
+  /// 所有图库保存入口必须走这里：路径选择、独占防冲突、写入、
+  /// 失败清理都在一个方法内完成，调用方无需感知占位文件。
+  /// - [preferredFileName] 存在时使用清理后的文件名；适用于水印等派生副本
+  /// - 否则 [seed] 为 null 或小于 0 时用毫秒时间戳代替，保证文件名唯一
+  /// - 独占创建原子保留路径，并发保存不会拿到同一路径后相互覆盖
+  /// - 写入失败时删除占位文件后重新抛出，不留空 PNG 进图库扫描
+  /// - 仅名称冲突（候选已存在）才追加 -2、-3 序号；目录只读、磁盘满等
+  ///   不可恢复错误直接抛出，避免无限循环
+  static Future<String> saveBytesToDatedPath({
+    required String rootPath,
+    required Uint8List bytes,
+    int? seed,
+    String? preferredFileName,
+    DateTime? now,
+  }) async {
+    final time = now ?? DateTime.now();
+    String two(int v) => v.toString().padLeft(2, '0');
+    final dateFolder = '${time.year}-${two(time.month)}-${two(time.day)}';
+    final dir = Directory(p.join(rootPath, dateFolder));
+    if (!await dir.exists()) {
+      await dir.create(recursive: true);
+    }
+    final preferredStem = preferredFileName == null
+        ? ''
+        : p
+              .basenameWithoutExtension(p.basename(preferredFileName))
+              .replaceAll(RegExp(r'[<>:"/\\|?*\x00-\x1F]'), '_')
+              .trim();
+    final seedPart = (seed != null && seed >= 0)
+        ? '$seed'
+        : '${time.millisecondsSinceEpoch}';
+    final baseName = preferredStem.isNotEmpty
+        ? preferredStem
+        : '${two(time.hour)}-${two(time.minute)}-${two(time.second)}-$seedPart';
+    var candidate = p.join(dir.path, '$baseName.png');
+    var suffix = 2;
+    File file;
+    while (true) {
+      try {
+        // 阶段一：独占创建。仅此阶段捕获“路径已存在”，
+        // 其他 FileSystemException（权限、只读等）直接抛出，避免无限循环。
+        file = await File(candidate).create(exclusive: true);
+        break;
+      } on FileSystemException {
+        if (!await File(candidate).exists()) rethrow;
+        candidate = p.join(dir.path, '$baseName-$suffix.png');
+        suffix++;
+      }
+    }
+    // 阶段二：写入。失败时尽力删除占位文件，再抛出原始写入异常。
+    // 写入异常不进入创建阶段的冲突重试，避免清理失败时误判为名称冲突而循环。
+    try {
+      await file.writeAsBytes(bytes);
+    } catch (e) {
+      try {
+        await file.delete();
+      } catch (_) {
+        // 清理失败不掩盖原始写入异常
+      }
+      rethrow;
+    }
+    return candidate;
+  }
+
+  /// 解析图片的真实 seed：优先用已有元数据，否则从 PNG 字节解析。
+  ///
+  /// 用于保存入口的日期分类文件名，保证非自动保存路径（详情页保存、
+  /// 历史补存、批量保存、定位前补存等）也能拿到真实 seed。
+  /// 解析不到时返回 null，由调用方决定文件名兜底。
+  static Future<int?> resolveSeed({
+    NaiImageMetadata? metadata,
+    Uint8List? bytes,
+  }) async {
+    if (metadata?.seed != null && metadata!.seed! >= 0) {
+      return metadata.seed;
+    }
+    if (bytes != null) {
+      final extracted = await ImageMetadataService().getMetadataFromBytes(
+        bytes,
+      );
+      if (extracted?.seed != null && extracted!.seed! >= 0) {
+        return extracted.seed;
+      }
     }
     return null;
   }

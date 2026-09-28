@@ -2,14 +2,25 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/core/utils/inpaint_outpaint_utils.dart';
+import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/widgets/image_editor/widgets/panels/shift_edges_dialog.dart';
 
 Widget _wrapDialog({
   required int sourceWidth,
   required int sourceHeight,
   ValueChanged<ShiftEdgesResult?>? onResult,
+  TextScaler textScaler = TextScaler.noScaling,
+  EdgeInsets viewInsets = EdgeInsets.zero,
 }) {
   return MaterialApp(
+    localizationsDelegates: AppLocalizations.localizationsDelegates,
+    supportedLocales: AppLocalizations.supportedLocales,
+    builder: (context, child) => MediaQuery(
+      data: MediaQuery.of(
+        context,
+      ).copyWith(textScaler: textScaler, viewInsets: viewInsets),
+      child: child!,
+    ),
     home: Builder(
       builder: (context) => Scaffold(
         body: Center(
@@ -84,14 +95,8 @@ void main() {
     expect(result!.appliedEdges.bottom, 248);
     expect(result!.width, 1472);
     expect(result!.height, 1664);
-    expect(
-      result!.horizontalSnapTarget,
-      OutpaintHorizontalSnapTarget.right,
-    );
-    expect(
-      result!.verticalSnapTarget,
-      OutpaintVerticalSnapTarget.bottom,
-    );
+    expect(result!.horizontalSnapTarget, OutpaintHorizontalSnapTarget.right);
+    expect(result!.verticalSnapTarget, OutpaintVerticalSnapTarget.bottom);
   });
 
   testWidgets('disables confirm for empty or oversized applied dimensions', (
@@ -111,6 +116,38 @@ void main() {
     await tester.enterText(find.byKey(const Key('shift_edges_right')), '4000');
     await tester.pump();
     expect(confirm().onPressed, isNull);
+  });
+
+  testWidgets('320px, 3x text, and IME keep scrolling form actions reachable', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(320, 640);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    await tester.pumpWidget(
+      _wrapDialog(
+        sourceWidth: 1024,
+        sourceHeight: 1216,
+        textScaler: const TextScaler.linear(3),
+        viewInsets: const EdgeInsets.only(bottom: 200),
+      ),
+    );
+    await _openDialog(tester);
+
+    expect(find.byKey(const ValueKey('adaptive-bottom-sheet')), findsOneWidget);
+    expect(find.byKey(const Key('shift_edges_scroll')), findsOneWidget);
+    expect(find.byKey(const Key('shift_edges_cancel')), findsOneWidget);
+    expect(find.byKey(const Key('shift_edges_confirm')), findsOneWidget);
+
+    final confirmRect = tester.getRect(
+      find.byKey(const Key('shift_edges_confirm')),
+    );
+    expect(confirmRect.bottom, lessThanOrEqualTo(440));
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('escape cancels and enter confirms when valid', (tester) async {

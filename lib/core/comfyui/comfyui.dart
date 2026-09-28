@@ -12,6 +12,7 @@ export 'comfyui_models.dart';
 export 'comfyui_url_utils.dart';
 export 'comfyui_websocket_service.dart'
     show ComfyUIWebSocketService, ComfyUIImageFrame;
+export 'seedvr2_support.dart';
 export 'workflow_analyzer.dart';
 export 'workflow_node_validator.dart';
 export 'workflow_template.dart';

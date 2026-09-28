@@ -1,15 +1,23 @@
 import 'dart:convert';
-import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:nai_launcher/core/utils/localization_extension.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
-import 'package:path_provider/path_provider.dart';
 
+import '../../../core/services/file_export_service.dart';
 import '../../../data/models/gallery/gallery_statistics.dart';
-
+import '../../adaptive/adaptive_presenter.dart';
 import '../common/app_toast.dart';
+
+typedef StatisticsExportWriter =
+    Future<String?> Function({
+      required String text,
+      required String fileName,
+      required String dialogTitle,
+      required String mimeType,
+      required List<String> allowedExtensions,
+    });
 
 /// Statistics Export Dialog
 ///
@@ -26,21 +34,34 @@ class StatisticsExportDialog extends ConsumerStatefulWidget {
   /// The statistics data to export
   final GalleryStatistics statistics;
 
+  @visibleForTesting
+  final StatisticsExportWriter? exportWriter;
+
   const StatisticsExportDialog({
     super.key,
     required this.statistics,
+    this.exportWriter,
   });
 
   /// Show the export dialog
   static Future<void> show(
     BuildContext context, {
     required GalleryStatistics statistics,
-  }) {
-    return showDialog(
+  }) async {
+    final mediaQuery = MediaQuery.of(context);
+    final availableHeight =
+        mediaQuery.size.height -
+        mediaQuery.viewInsets.vertical -
+        mediaQuery.padding.vertical;
+    final effectiveTextScale = mediaQuery.textScaler.scale(16) / 16;
+    final needsTallPanel = availableHeight < 500 || effectiveTextScale > 1.5;
+
+    await AdaptivePresenter.showPanel<void>(
       context: context,
-      builder: (context) => StatisticsExportDialog(
-        statistics: statistics,
-      ),
+      title: context.l10n.common_export,
+      initialChildSize: needsTallPanel ? 0.9 : 0.62,
+      minChildSize: needsTallPanel ? 0.72 : 0.48,
+      builder: (context, _) => StatisticsExportDialog(statistics: statistics),
     );
   }
 
@@ -58,103 +79,119 @@ class _StatisticsExportDialogState
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final l10n = context.l10n;
+    final scrollController = PrimaryScrollController.maybeOf(context);
 
-    return AlertDialog(
-      title: Row(
+    return LayoutBuilder(
+      builder: (context, constraints) => Column(
         children: [
-          Icon(Icons.download_outlined, color: theme.colorScheme.primary),
-          const SizedBox(width: 8),
-          Text(l10n.common_export),
-        ],
-      ),
-      content: SizedBox(
-        width: 450,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Export format selection
-            Text(
-              l10n.bulkExport_format,
-              style: theme.textTheme.titleSmall?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-            const SizedBox(height: 12),
-            _buildFormatOption(
-              theme,
-              l10n.bulkExport_jsonFormat,
-              'json',
-              Icons.code,
-            ),
-            const SizedBox(height: 8),
-            _buildFormatOption(
-              theme,
-              l10n.bulkExport_csvFormat,
-              'csv',
-              Icons.table_chart,
-            ),
-            const SizedBox(height: 16),
-            // Export info
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color:
-                    theme.colorScheme.primaryContainer.withValues(alpha: 0.3),
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(
-                  color: theme.colorScheme.primary.withValues(alpha: 0.3),
-                ),
-              ),
-              child: Row(
+          Expanded(
+            child: SingleChildScrollView(
+              controller: scrollController,
+              padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Icon(
-                    Icons.info_outline,
-                    size: 16,
-                    color: theme.colorScheme.primary,
+                  Text(
+                    l10n.bulkExport_format,
+                    style: theme.textTheme.titleSmall?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                      fontWeight: FontWeight.w500,
+                    ),
                   ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      _getExportInfo(l10n),
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: theme.colorScheme.onSurfaceVariant,
+                  const SizedBox(height: 12),
+                  _buildFormatOption(
+                    theme,
+                    l10n.bulkExport_jsonFormat,
+                    'json',
+                    Icons.code,
+                  ),
+                  const SizedBox(height: 8),
+                  _buildFormatOption(
+                    theme,
+                    l10n.bulkExport_csvFormat,
+                    'csv',
+                    Icons.table_chart,
+                  ),
+                  const SizedBox(height: 16),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.primaryContainer.withValues(
+                        alpha: 0.3,
                       ),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Icon(
+                          Icons.info_outline,
+                          size: 18,
+                          color: theme.colorScheme.primary,
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            _getExportInfo(l10n),
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: theme.colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ],
               ),
             ),
-          ],
-        ),
-      ),
-      actions: [
-        TextButton(
-          onPressed: _isExporting ? null : () => Navigator.of(context).pop(),
-          child: Text(l10n.common_cancel),
-        ),
-        ElevatedButton(
-          onPressed: _isExporting ? null : _handleExport,
-          child: _isExporting
-              ? SizedBox(
-                  width: 16,
-                  height: 16,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    color: theme.colorScheme.onPrimary,
+          ),
+          ConstrainedBox(
+            constraints: BoxConstraints(
+              maxHeight: constraints.maxHeight * 0.55,
+            ),
+            child: SingleChildScrollView(
+              child: SafeArea(
+                top: false,
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
+                  child: Align(
+                    alignment: AlignmentDirectional.centerEnd,
+                    child: Wrap(
+                      alignment: WrapAlignment.end,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        TextButton(
+                          key: const Key('statistics-export-cancel'),
+                          onPressed: _isExporting
+                              ? null
+                              : () => Navigator.of(context).pop(),
+                          child: Text(l10n.common_cancel),
+                        ),
+                        FilledButton.icon(
+                          key: const Key('statistics-export-submit'),
+                          onPressed: _isExporting ? null : _handleExport,
+                          icon: _isExporting
+                              ? SizedBox.square(
+                                  dimension: 18,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: theme.colorScheme.onPrimary,
+                                  ),
+                                )
+                              : const Icon(Icons.download, size: 18),
+                          label: Text(l10n.common_export),
+                        ),
+                      ],
+                    ),
                   ),
-                )
-              : Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(Icons.download, size: 18),
-                    const SizedBox(width: 8),
-                    Text(l10n.common_export),
-                  ],
                 ),
-        ),
-      ],
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -169,20 +206,25 @@ class _StatisticsExportDialogState
     final isDark = theme.brightness == Brightness.dark;
 
     return InkWell(
-      onTap: () {
-        setState(() {
-          _selectedFormat = value;
-        });
-      },
+      key: Key('statistics-export-format-$value'),
+      onTap: _isExporting
+          ? null
+          : () {
+              setState(() {
+                _selectedFormat = value;
+              });
+            },
       borderRadius: BorderRadius.circular(8),
       child: Container(
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
           color: isSelected
-              ? theme.colorScheme.primaryContainer
-                  .withValues(alpha: isDark ? 0.3 : 0.5)
-              : theme.colorScheme.surfaceContainerHighest
-                  .withValues(alpha: isDark ? 0.3 : 0.2),
+              ? theme.colorScheme.primaryContainer.withValues(
+                  alpha: isDark ? 0.3 : 0.5,
+                )
+              : theme.colorScheme.surfaceContainerHighest.withValues(
+                  alpha: isDark ? 0.3 : 0.2,
+                ),
           borderRadius: BorderRadius.circular(8),
           border: Border.all(
             color: isSelected
@@ -226,11 +268,9 @@ class _StatisticsExportDialogState
 
   /// Get export info text based on selected format
   String _getExportInfo(AppLocalizations l10n) {
-    if (_selectedFormat == 'json') {
-      return l10n.bulkExport_includeMetadataHint;
-    } else {
-      return 'Export statistics in spreadsheet-compatible format';
-    }
+    return _selectedFormat == 'json'
+        ? l10n.statistics_exportJsonHint
+        : l10n.statistics_exportCsvHint;
   }
 
   /// Handle export action
@@ -251,29 +291,22 @@ class _StatisticsExportDialogState
         fileName = 'statistics_${_getDateTimeString()}.csv';
       }
 
-      // Get the downloads directory
-      final directory = await getDownloadsDirectory();
+      final extension = _selectedFormat;
+      final exportWriter = widget.exportWriter ?? FileExportService.saveText;
+      final savedLocation = await exportWriter(
+        text: fileContent,
+        fileName: fileName,
+        dialogTitle: context.l10n.common_export,
+        mimeType: extension == 'json' ? 'application/json' : 'text/csv',
+        allowedExtensions: [extension],
+      );
+      if (savedLocation == null || !mounted) return;
 
-      if (directory == null) {
-        if (!mounted) return;
-        _showErrorDialog('Unable to access downloads directory');
-        return;
-      }
-
-      // Write the file
-      final file = File('${directory.path}/$fileName');
-      await file.writeAsString(fileContent);
-
-      if (!mounted) return;
-
-      // Close the dialog
       Navigator.of(context).pop();
-
-      // Show success message
-      _showSuccessSnackBar(fileName);
+      AppToast.success(context, context.l10n.toast_savedTo(savedLocation));
     } catch (e) {
       if (!mounted) return;
-      _showErrorDialog('Export failed: ${e.toString()}');
+      AppToast.error(context, context.l10n.toast_exportFailed(e.toString()));
     } finally {
       if (mounted) {
         setState(() {
@@ -482,35 +515,5 @@ class _StatisticsExportDialogState
   String _getDateTimeString() {
     final now = DateTime.now();
     return '${now.year}${now.month.toString().padLeft(2, '0')}${now.day.toString().padLeft(2, '0')}_${now.hour.toString().padLeft(2, '0')}${now.minute.toString().padLeft(2, '0')}${now.second.toString().padLeft(2, '0')}';
-  }
-
-  /// Show error dialog
-  void _showErrorDialog(String message) {
-    final theme = Theme.of(context);
-    final l10n = context.l10n;
-
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        icon: Icon(
-          Icons.error_outline,
-          color: theme.colorScheme.error,
-          size: 48,
-        ),
-        title: Text(l10n.localGallery_exportFailed),
-        content: Text(message),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: Text(l10n.common_close),
-          ),
-        ],
-      ),
-    );
-  }
-
-  /// Show success snackbar
-  void _showSuccessSnackBar(String fileName) {
-    AppToast.info(context, 'Statistics exported to $fileName');
   }
 }

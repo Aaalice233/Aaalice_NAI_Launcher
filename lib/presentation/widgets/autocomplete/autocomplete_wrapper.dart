@@ -1,91 +1,33 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
-import '../../../core/utils/alias_parser.dart';
-import '../../../core/utils/tag_normalizer.dart';
-import '../../providers/locale_provider.dart';
-import 'autocomplete_controller.dart';
-import 'autocomplete_strategy.dart';
+import '../../../core/autocomplete/autocomplete_providers.dart';
+import '../../../core/autocomplete/autocomplete_settings.dart';
+import '../../../core/autocomplete/cooccurrence_data_pack_provider.dart';
+import '../../../core/autocomplete/completion_models.dart';
+import '../../../core/autocomplete/completion_orchestrator.dart';
+import '../../../core/autocomplete/prompt_token_parser.dart';
+import '../../../core/utils/app_logger.dart';
+import '../../../core/utils/localization_extension.dart';
+import '../../adaptive/interaction_policy.dart';
+import '../../router/app_routes.dart';
+import 'autocomplete_config.dart';
+import 'autocomplete_overlay_handle.dart';
 import 'autocomplete_utils.dart';
-import 'generic_autocomplete_overlay.dart';
-import 'strategies/alias_strategy.dart';
-import 'strategies/cooccurrence_strategy.dart';
-import 'strategies/local_tag_strategy.dart';
+import 'completion_overlay.dart';
 
-/// 自动补全包装器
-///
-/// 为任意输入组件提供自动补全功能
-/// 通过策略模式支持不同的数据源
-///
-/// 使用示例：
-/// ```dart
-/// // 本地标签补全
-/// AutocompleteWrapper(
-///   controller: _controller,
-///   strategy: LocalTagStrategy.create(ref, config),
-///   child: ThemedInput(controller: _controller),
-/// )
-///
-/// // 本地标签 + 别名补全
-/// AutocompleteWrapper(
-///   controller: _controller,
-///   strategy: CompositeStrategy(
-///     strategies: [
-///       LocalTagStrategy.create(ref, config),
-///       AliasStrategy.create(ref),
-///     ],
-///     strategySelector: defaultStrategySelector,
-///   ),
-///   child: ThemedInput(controller: _controller),
-/// )
-/// ```
+/// Unified local-first autocomplete shared by every tag and prompt field.
 class AutocompleteWrapper extends ConsumerStatefulWidget {
-  /// 被包装的输入组件
-  final Widget child;
-
-  /// 文本控制器
-  final TextEditingController controller;
-
-  /// 焦点节点（可选，如果不提供则自动管理）
-  final FocusNode? focusNode;
-
-  /// 补全策略（同步）
-  final AutocompleteStrategy? strategy;
-
-  /// 异步补全策略（优先于 strategy）
-  final Future<AutocompleteStrategy>? asyncStrategy;
-
-  /// 是否启用自动补全
-  final bool enabled;
-
-  /// 文本变化回调
-  final ValueChanged<String>? onChanged;
-
-  /// 选择补全建议后的回调（传递更新后的完整文本）
-  final ValueChanged<String>? onSuggestionSelected;
-
-  /// 文本样式（用于计算光标位置）
-  final TextStyle? textStyle;
-
-  /// 内边距（用于计算光标位置）
-  final EdgeInsetsGeometry? contentPadding;
-
-  /// 最大行数（用于判断是否为多行输入框）
-  final int? maxLines;
-
-  /// 是否扩展填满可用空间
-  final bool expands;
-
   const AutocompleteWrapper({
     super.key,
     required this.child,
     required this.controller,
-    this.strategy,
-    this.asyncStrategy,
     this.focusNode,
     this.enabled = true,
     this.onChanged,
@@ -94,12 +36,25 @@ class AutocompleteWrapper extends ConsumerStatefulWidget {
     this.contentPadding,
     this.maxLines,
     this.expands = false,
-  }) : assert(
-          strategy != null || asyncStrategy != null,
-          'A strategy or asyncStrategy must be provided',
-        );
+    this.config,
+    this.overlayHandle,
+  });
 
-  /// 便捷构造：使用本地标签策略
+  final Widget child;
+  final TextEditingController controller;
+  final FocusNode? focusNode;
+  final bool enabled;
+  final ValueChanged<String>? onChanged;
+
+  /// Receives the complete updated field value after a suggestion is applied.
+  final ValueChanged<String>? onSuggestionSelected;
+  final TextStyle? textStyle;
+  final EdgeInsetsGeometry? contentPadding;
+  final int? maxLines;
+  final bool expands;
+  final AutocompleteConfig? config;
+  final AutocompleteOverlayHandle? overlayHandle;
+
   factory AutocompleteWrapper.localTag({
     Key? key,
     required Widget child,
@@ -118,7 +73,6 @@ class AutocompleteWrapper extends ConsumerStatefulWidget {
     return AutocompleteWrapper(
       key: key,
       controller: controller,
-      asyncStrategy: LocalTagStrategy.create(ref, config),
       focusNode: focusNode,
       enabled: enabled,
       onChanged: onChanged,
@@ -127,11 +81,11 @@ class AutocompleteWrapper extends ConsumerStatefulWidget {
       contentPadding: contentPadding,
       maxLines: maxLines,
       expands: expands,
+      config: config,
       child: child,
     );
   }
 
-  /// 便捷构造：使用本地标签 + 别名策略
   factory AutocompleteWrapper.withAlias({
     Key? key,
     required Widget child,
@@ -147,18 +101,11 @@ class AutocompleteWrapper extends ConsumerStatefulWidget {
     int? maxLines,
     bool expands = false,
   }) {
-    return AutocompleteWrapper(
+    return AutocompleteWrapper.localTag(
       key: key,
       controller: controller,
-      asyncStrategy: LocalTagStrategy.create(ref, config).then(
-        (localTagStrategy) => CompositeStrategy(
-          strategies: [
-            localTagStrategy,
-            AliasStrategy.create(ref),
-          ],
-          strategySelector: defaultStrategySelector,
-        ),
-      ),
+      ref: ref,
+      config: config,
       focusNode: focusNode,
       enabled: enabled,
       onChanged: onChanged,
@@ -176,567 +123,809 @@ class AutocompleteWrapper extends ConsumerStatefulWidget {
       _AutocompleteWrapperState();
 }
 
-/// 默认策略选择器
-///
-/// 策略优先级：
-/// 1. 别名模式（<xxx>）- 最高优先级
-/// 2. 共现标签推荐（tag, 且后面没有新输入）- 中等优先级
-/// 3. 本地标签搜索（用户正在输入）- 默认
-AutocompleteStrategy? defaultStrategySelector(
-  List<AutocompleteStrategy> strategies,
-  String text,
-  int cursorPosition,
-) {
-  // 1. 优先检测别名模式
-  final (isTypingAlias, _, _) =
-      AliasParser.detectPartialAlias(text, cursorPosition);
-  if (isTypingAlias) {
-    return _findStrategyByType<AliasStrategy>(strategies);
-  }
-
-  // 2. 检测共现标签推荐条件
-  if (_shouldTriggerCooccurrence(text, cursorPosition)) {
-    return _findStrategyByType<CooccurrenceStrategy>(strategies);
-  }
-
-  // 3. 默认使用本地标签策略
-  return _findStrategyByType<LocalTagStrategy>(strategies) ??
-      (strategies.isNotEmpty ? strategies.first : null);
-}
-
-/// 按类型查找策略
-T? _findStrategyByType<T extends AutocompleteStrategy>(
-  List<AutocompleteStrategy> strategies,
-) {
-  for (final strategy in strategies) {
-    if (strategy is T) return strategy;
-  }
-  return null;
-}
-
-/// 检测是否应该触发共现标签推荐
-/// 条件：光标前有 "tag," 模式且后面没有新输入
-bool _shouldTriggerCooccurrence(String text, int cursorPosition) {
-  if (cursorPosition <= 0 || cursorPosition > text.length) {
-    return false;
-  }
-
-  final beforeCursor = text.substring(0, cursorPosition);
-  final lastCommaIndex = _findLastComma(beforeCursor);
-
-  // 必须有逗号才触发
-  if (lastCommaIndex < 0) return false;
-
-  // 逗号后到光标前必须为空（只有空白字符）
-  final afterComma = beforeCursor.substring(lastCommaIndex + 1);
-  if (afterComma.trim().isNotEmpty) return false;
-
-  // 提取逗号前面的标签
-  final tag = _extractTagBeforeComma(beforeCursor, lastCommaIndex);
-  return tag.length >= 2;
-}
-
-/// 查找最后一个逗号位置
-int _findLastComma(String text) {
-  for (var i = text.length - 1; i >= 0; i--) {
-    final char = text[i];
-    if (char == ',' || char == '，') return i;
-  }
-  return -1;
-}
-
-/// 提取逗号前的标签文本
-String _extractTagBeforeComma(String text, int commaIndex) {
-  var prevSeparatorIndex = -1;
-  for (var i = commaIndex - 1; i >= 0; i--) {
-    final char = text[i];
-    if (char == ',' || char == '，' || char == '|') {
-      prevSeparatorIndex = i;
-      break;
-    }
-  }
-
-  final tag = text.substring(prevSeparatorIndex + 1, commaIndex).trim();
-  return TagNormalizer.normalizeAutocompleteTag(tag);
-}
-
 class _AutocompleteWrapperState extends ConsumerState<AutocompleteWrapper> {
-  late FocusNode _focusNode;
-  bool _ownsFocusNode = false;
-
-  bool _showSuggestions = false;
-  int _selectedIndex = -1;
-  OverlayEntry? _overlayEntry;
-  final LayerLink _layerLink = LayerLink();
+  final GlobalKey _anchorKey = GlobalKey(debugLabel: 'autocomplete-anchor');
   final ScrollController _scrollController = ScrollController();
+  Timer? _visibleTranslationDebounce;
+  OverlayEntry? _overlayEntry;
+  FocusNode? _ownedFocusNode;
+  CompletionOrchestrator? _orchestrator;
+  String? _selectedId;
+  int _selectedIndex = -1;
+  bool _applyingSuggestion = false;
+  bool _cursorMetricsScheduled = false;
+  bool _wasComposing = false;
+  bool _descendantHasFocus = false;
+  TextEditingValue? _lastObservedValue;
+  bool? _keepEmptyQueryVisible;
+  final Set<int> _relatedClickPointers = <int>{};
+  final Set<int> _regularClickPointers = <int>{};
+  Offset? _cursorOffset;
+  double _caretLineHeight = 0;
+  String? _pinnedRelatedTag;
 
-  // 用于防抖隐藏菜单的计时器
-  Timer? _hideTimer;
+  FocusNode get _focusNode => widget.focusNode ?? _ownedFocusNode!;
 
-  Timer? _selectionResetTimer;
+  bool get _hasInputFocus => _focusNode.hasFocus || _descendantHasFocus;
 
-  // 防止键盘事件重复处理（选择建议后短暂忽略键盘事件）
-  bool _isSelecting = false;
-
-  // 用于防抖文本变化触发的搜索
-  Timer? _searchDebounceTimer;
-
-  // 防抖延迟时间
-  static const Duration _searchDebounceDelay = Duration(milliseconds: 50);
-
-  // 异步策略加载
-  AutocompleteStrategy? _resolvedStrategy;
-
-  AutocompleteStrategy? get _effectiveStrategy =>
-      widget.strategy ?? _resolvedStrategy;
+  bool get _supportsNewlines => widget.expands || (widget.maxLines ?? 1) > 1;
 
   @override
   void initState() {
     super.initState();
-    _initFocusNode();
+    if (widget.focusNode == null) _ownedFocusNode = FocusNode();
+    _lastObservedValue = widget.controller.value;
+    final composing = widget.controller.value.composing;
+    _wasComposing = composing.isValid && !composing.isCollapsed;
     widget.controller.addListener(_onTextChanged);
-    _initStrategy();
-  }
-
-  void _initStrategy() {
-    if (widget.strategy != null) {
-      _resolvedStrategy = widget.strategy;
-      _resolvedStrategy!.addListener(_onStrategyChanged);
-    } else if (widget.asyncStrategy != null) {
-      widget.asyncStrategy!.then((strategy) {
-        if (mounted) {
-          setState(() {
-            _resolvedStrategy = strategy;
-          });
-          strategy.addListener(_onStrategyChanged);
-        }
-      });
-    }
-  }
-
-  void _initFocusNode() {
-    if (widget.focusNode != null) {
-      _focusNode = widget.focusNode!;
-    } else {
-      _focusNode = FocusNode();
-      _ownsFocusNode = true;
-    }
     _focusNode.addListener(_onFocusChanged);
+    _scrollController.addListener(_onCompletionScrolled);
+    WidgetsBinding.instance.addPostFrameCallback((_) => _initializeUnified());
+  }
+
+  void _onCompletionScrolled() {
+    _visibleTranslationDebounce?.cancel();
+    _visibleTranslationDebounce = Timer(
+      const Duration(milliseconds: 300),
+      _translateSettledViewport,
+    );
+  }
+
+  void _translateSettledViewport() {
+    _visibleTranslationDebounce = null;
+    final orchestrator = _orchestrator;
+    if (orchestrator == null || !_scrollController.hasClients) return;
+    final position = _scrollController.position;
+    if (!position.hasContentDimensions || position.viewportDimension <= 0) {
+      return;
+    }
+    final itemExtent = effectiveAutocompleteCandidateExtent(context);
+    final firstIndex = (position.pixels / itemExtent).floor();
+    final lastIndex =
+        ((position.pixels + position.viewportDimension - 0.5) / itemExtent)
+            .floor();
+    orchestrator.translateVisibleCandidates(
+      firstIndex: firstIndex,
+      lastIndex: lastIndex,
+      settings: ref.read(autocompleteSettingsProvider),
+    );
+  }
+
+  void _initializeUnified() {
+    if (!mounted || _orchestrator != null) return;
+    _orchestrator = ref.read(autocompleteServicesProvider).createOrchestrator()
+      ..addListener(_onCompletionStateChanged);
+    _updateCursorMetrics();
+  }
+
+  void _scheduleCursorMetricsUpdate() {
+    if (_cursorMetricsScheduled) return;
+    _cursorMetricsScheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _cursorMetricsScheduled = false;
+      _updateCursorMetrics();
+    });
+  }
+
+  void _updateCursorMetrics() {
+    if (!mounted) return;
+    final anchorContext = _anchorKey.currentContext;
+    if (anchorContext == null) return;
+    if (_overlayEntry != null && _hasInputFocus) {
+      AutocompleteUtils.revealCaret(anchorContext);
+    }
+    final isMultiline = AutocompleteUtils.isMultilineTextInput(
+      context: anchorContext,
+      maxLines: widget.maxLines,
+      expands: widget.expands,
+    );
+    final nextOffset = isMultiline
+        ? AutocompleteUtils.getCursorOffset(
+            context: anchorContext,
+            controller: widget.controller,
+            textStyle: widget.textStyle,
+            contentPadding: widget.contentPadding,
+            maxLines: widget.maxLines,
+            expands: widget.expands,
+          )
+        : null;
+    final nextLineHeight = isMultiline
+        ? AutocompleteUtils.getPreferredLineHeight(
+            context: anchorContext,
+            textStyle: widget.textStyle,
+          )
+        : 0.0;
+    if (_cursorOffset == nextOffset && _caretLineHeight == nextLineHeight) {
+      return;
+    }
+    _cursorOffset = nextOffset;
+    _caretLineHeight = nextLineHeight;
+    _overlayEntry?.markNeedsBuild();
   }
 
   @override
-  void didUpdateWidget(AutocompleteWrapper oldWidget) {
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _scheduleCursorMetricsUpdate();
+  }
+
+  @override
+  void reassemble() {
+    super.reassemble();
+    _lastObservedValue = widget.controller.value;
+    final composing = widget.controller.value.composing;
+    _wasComposing = composing.isValid && !composing.isCollapsed;
+  }
+
+  @override
+  void didUpdateWidget(covariant AutocompleteWrapper oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.controller != widget.controller) {
       oldWidget.controller.removeListener(_onTextChanged);
+      _lastObservedValue = widget.controller.value;
+      final composing = widget.controller.value.composing;
+      _wasComposing = composing.isValid && !composing.isCollapsed;
       widget.controller.addListener(_onTextChanged);
     }
+    _scheduleCursorMetricsUpdate();
     if (oldWidget.focusNode != widget.focusNode) {
-      _focusNode.removeListener(_onFocusChanged);
-      if (_ownsFocusNode) {
-        _focusNode.dispose();
-      }
-      _initFocusNode();
-    }
-    if (oldWidget.strategy != widget.strategy ||
-        oldWidget.asyncStrategy != widget.asyncStrategy) {
-      oldWidget.strategy?.removeListener(_onStrategyChanged);
-      _resolvedStrategy?.removeListener(_onStrategyChanged);
-      _initStrategy();
-    }
-  }
-
-  @override
-  void dispose() {
-    _hideTimer?.cancel();
-    _selectionResetTimer?.cancel();
-    _searchDebounceTimer?.cancel();
-    _removeOverlay();
-    _focusNode.removeListener(_onFocusChanged);
-    widget.controller.removeListener(_onTextChanged);
-    widget.strategy?.removeListener(_onStrategyChanged);
-    _resolvedStrategy?.removeListener(_onStrategyChanged);
-    _scrollController.dispose();
-    if (_ownsFocusNode) {
-      _focusNode.dispose();
-    }
-    super.dispose();
-  }
-
-  void _onFocusChanged() {
-    if (!_focusNode.hasFocus) {
-      // 延迟隐藏，给点击事件处理留出时间
-      // 如果点击的是 Overlay 中的建议项，点击事件会在失去焦点后处理
-      Future.delayed(const Duration(milliseconds: 150), () {
-        if (mounted && !_focusNode.hasFocus) {
-          _hideSuggestions();
-        }
-      });
+      final oldFocus = oldWidget.focusNode ?? _ownedFocusNode;
+      oldFocus?.removeListener(_onFocusChanged);
+      if (oldWidget.focusNode == null) _ownedFocusNode?.dispose();
+      _ownedFocusNode = widget.focusNode == null ? FocusNode() : null;
+      _focusNode.addListener(_onFocusChanged);
     }
   }
 
   void _onTextChanged() {
-    if (!widget.enabled) return;
-
-    final text = widget.controller.text;
-    final cursorPosition = widget.controller.selection.baseOffset;
-
-    // 检查是否正在进行 IME 组合输入
-    final composing = widget.controller.value.composing;
-    if (composing.isValid && !composing.isCollapsed) {
-      widget.onChanged?.call(text);
+    final value = widget.controller.value;
+    final previousValue = _lastObservedValue;
+    _lastObservedValue = value;
+    if (previousValue == null) {
+      _recoverAfterStateReload(value);
       return;
     }
 
-    // 取消之前的防抖计时器
-    _searchDebounceTimer?.cancel();
-
-    if (_isSelecting) {
-      widget.onChanged?.call(text);
-      return;
-    }
-
-    // 使用防抖延迟搜索，避免快速连续变化（如长按滑动选择文本）时频繁触发
-    _searchDebounceTimer = Timer(_searchDebounceDelay, () {
-      if (!mounted) return;
-      // 委托给策略处理搜索
-      _effectiveStrategy?.search(text, cursorPosition);
-    });
-
-    widget.onChanged?.call(text);
-  }
-
-  void _onStrategyChanged() {
-    // 取消之前的隐藏计时器
-    if (_hideTimer?.isActive == true) {
-      _hideTimer?.cancel();
-    }
-
-    final strategy = _effectiveStrategy;
-    if (strategy == null) return;
-
-    if (strategy.hasSuggestions) {
-      // 有建议时确保取消隐藏计时器
-      if (_hideTimer?.isActive == true) {
-        _hideTimer?.cancel();
-      }
-      if (!_showSuggestions) {
-        _showSuggestionsOverlay();
-      }
-      // 确保 selectedIndex 在有效范围内
-      final suggestionsLength = strategy.suggestions.length;
-      if (_selectedIndex >= suggestionsLength) {
-        _selectedIndex = suggestionsLength > 0 ? 0 : -1;
-      } else if (_selectedIndex < 0 && suggestionsLength > 0) {
-        _selectedIndex = 0;
-      }
-    } else if (!strategy.isLoading && _showSuggestions) {
-      // 延迟隐藏，给策略切换留出时间
-      // 如果150ms内又有新建议，取消隐藏
-      _hideTimer = Timer(const Duration(milliseconds: 300), () {
-        if (mounted &&
-            !_effectiveStrategy!.hasSuggestions &&
-            _showSuggestions) {
-          _hideSuggestions();
-        }
-      });
-    }
-    setState(() {});
-    _overlayEntry?.markNeedsBuild();
-  }
-
-  void _showSuggestionsOverlay() {
-    if (_showSuggestions) {
-      _overlayEntry?.markNeedsBuild();
-      return;
-    }
-
-    setState(() {
-      _showSuggestions = true;
-      _selectedIndex = 0;
-    });
-
-    _overlayEntry = _createOverlayEntry();
-    Overlay.of(context).insert(_overlayEntry!);
-  }
-
-  void _hideSuggestions({bool force = false}) {
-    if (!_showSuggestions) {
-      return;
-    }
-
-    // 如果选择建议期间，不要隐藏（避免清空刚加载的共现策略）
-    if (_isSelecting && !force) {
-      return;
-    }
-
-    setState(() {
-      _showSuggestions = false;
-      _selectedIndex = -1;
-    });
-
-    _removeOverlay();
-    _effectiveStrategy?.clear();
-  }
-
-  void _removeOverlay() {
-    _overlayEntry?.remove();
-    _overlayEntry = null;
-  }
-
-  OverlayEntry _createOverlayEntry() {
-    final locale = ref.read(localeNotifierProvider);
-
-    return OverlayEntry(
-      builder: (context) {
-        // 每次 builder 调用时重新获取最新的 renderBox 和 size
-        final renderBox = this.context.findRenderObject() as RenderBox?;
-        if (renderBox == null) {
-          return const SizedBox.shrink();
-        }
-        final size = renderBox.size;
-
-        // 对于多行文本框，使用光标位置；否则使用文本框底部
-        final isMultiline = widget.expands || (widget.maxLines ?? 1) > 1;
-        final cursorOffset = isMultiline
-            ? AutocompleteUtils.getCursorOffset(
-                context: this.context,
-                controller: widget.controller,
-                textStyle: widget.textStyle,
-                contentPadding: widget.contentPadding,
-                maxLines: widget.maxLines,
-                expands: widget.expands,
-              )
-            : null;
-
-        // 计算偏移量
-        final offset = isMultiline && cursorOffset != null
-            ? Offset(
-                cursorOffset.dx.clamp(0, size.width - 300),
-                cursorOffset.dy + 4,
-              )
-            : Offset(0, size.height + 4);
-
-        // 获取当前建议列表
-        final strategy = _effectiveStrategy;
-        if (strategy == null) {
-          return const SizedBox.shrink();
-        }
-        final suggestions = strategy.suggestions;
-        final suggestionsLength = suggestions.length;
-
-        // 获取配置
-        final config = _getConfig();
-
-        return Positioned(
-          width: size.width.clamp(280.0, 400.0),
-          child: CompositedTransformFollower(
-            link: _layerLink,
-            showWhenUnlinked: false,
-            offset: offset,
-            // 包装 Listener 以支持滚轮选择
-            child: Listener(
-              onPointerSignal: (event) {
-                if (event is PointerScrollEvent && suggestionsLength > 0) {
-                  // 滚轮向下滚动（正值）选择下一个，向上滚动（负值）选择上一个
-                  if (event.scrollDelta.dy > 0) {
-                    setState(() {
-                      _selectedIndex = (_selectedIndex + 1) % suggestionsLength;
-                    });
-                  } else if (event.scrollDelta.dy < 0) {
-                    setState(() {
-                      _selectedIndex = _selectedIndex <= 0
-                          ? suggestionsLength - 1
-                          : _selectedIndex - 1;
-                    });
-                  }
-                  _overlayEntry?.markNeedsBuild();
-                  _scrollToSelected();
-                }
-              },
-              child: GenericAutocompleteOverlay(
-                suggestions: suggestions
-                    .map((item) => strategy.toSuggestionData(item))
-                    .toList(),
-                selectedIndex: _selectedIndex,
-                onSelect: (index) {
-                  if (index >= 0 && index < suggestions.length) {
-                    _selectSuggestion(suggestions[index]);
-                  }
-                },
-                config: config,
-                isLoading: strategy.isLoading,
-                scrollController: _scrollController,
-                languageCode: locale.languageCode,
-              ),
-            ),
-          ),
+    final text = value.text;
+    final textChanged = text != previousValue.text;
+    final activeTokenChanged =
+        textChanged &&
+        PromptTokenParser.editChangesActiveToken(
+          previousText: previousValue.text,
+          previousCursorPosition: _cursorPosition(previousValue),
+          currentText: text,
+          currentCursorPosition: _cursorPosition(value),
+          splitOnSpaces: widget.config?.treatSpacesAsSeparators ?? false,
         );
-      },
+    final composingRange = value.composing;
+    final isComposing = composingRange.isValid && !composingRange.isCollapsed;
+    final compositionCommitted = _wasComposing && !isComposing;
+    _wasComposing = isComposing;
+
+    if (_applyingSuggestion) return;
+    _scheduleCursorMetricsUpdate();
+    if (textChanged) widget.onChanged?.call(text);
+
+    // NaiSyntaxController also notifies listeners when only its paint cache or
+    // search highlighting changes. Ignore those identical value notifications;
+    // only a real caret/selection move should dismiss an unpinned popup.
+    if (!textChanged && !compositionCommitted) {
+      final selectionChanged = value.selection != previousValue.selection;
+      final composingChanged = value.composing != previousValue.composing;
+      if (!selectionChanged && !composingChanged) return;
+      // Click-opened and related popups own their pointer lifecycle: pointer-up
+      // either opens the newly clicked tag or explicitly closes the popup, and
+      // caret movement keys are handled below. Ignoring controller selection
+      // synchronization here prevents the tap recognizer's delayed caret update
+      // from closing the menu it just opened.
+      if (_keepEmptyQueryVisible ?? false) return;
+      if (_pinnedRelatedTag == null) _dismissOverlay('selection changed');
+      return;
+    }
+    if (isComposing) {
+      if (_pinnedRelatedTag == null) _dismissOverlay('composition started');
+      return;
+    }
+    if (textChanged && !activeTokenChanged) {
+      _closeOverlay();
+      return;
+    }
+    if (_hasInputFocus) {
+      _startQuery(
+        related: _pinnedRelatedTag != null,
+        relatedTagOverride: _pinnedRelatedTag,
+      );
+    }
+  }
+
+  void _recoverAfterStateReload(TextEditingValue value) {
+    final composing = value.composing;
+    _wasComposing = composing.isValid && !composing.isCollapsed;
+    if (_applyingSuggestion || _wasComposing || !_hasInputFocus) {
+      return;
+    }
+    widget.onChanged?.call(value.text);
+    _startQuery(
+      related: _pinnedRelatedTag != null,
+      relatedTagOverride: _pinnedRelatedTag,
     );
   }
 
-  /// 获取配置（从策略中提取或使用默认配置）
-  AutocompleteConfig _getConfig() {
-    final strategy = _effectiveStrategy;
-    if (strategy == null) return const AutocompleteConfig();
+  int _cursorPosition(TextEditingValue value) => value.selection.isValid
+      ? value.selection.extentOffset
+      : value.text.length;
 
-    if (strategy is LocalTagStrategy) {
-      return strategy.config;
-    }
-    if (strategy is CompositeStrategy) {
-      final localTagStrategy = strategy.getStrategy<LocalTagStrategy>();
-      if (localTagStrategy != null) {
-        return localTagStrategy.config;
-      }
-    }
-    return const AutocompleteConfig();
+  void _onFocusChanged() => _handleEffectiveFocusChanged();
+
+  void _onDescendantFocusChanged(bool hasFocus) {
+    _descendantHasFocus = hasFocus;
+    _handleEffectiveFocusChanged();
   }
 
-  void _selectSuggestion(dynamic suggestion) {
-    // 防止重复处理
-    if (_isSelecting) {
+  void _handleEffectiveFocusChanged() {
+    if (!_hasInputFocus) {
+      if (_pinnedRelatedTag == null) _dismissOverlay('focus lost');
       return;
     }
-    _isSelecting = true;
+    _scheduleCursorMetricsUpdate();
+  }
 
-    final strategy = _effectiveStrategy;
-    if (strategy == null) {
-      _isSelecting = false;
-      return;
-    }
-
-    final text = widget.controller.text;
-    final cursorPosition = widget.controller.selection.baseOffset;
-
-    if (cursorPosition < 0 || cursorPosition > text.length) {
-      _isSelecting = false;
-      return;
-    }
-
-    final (newText, newCursorPosition) = strategy.applySuggestion(
-      suggestion,
-      text,
-      cursorPosition,
+  void _startQuery({
+    bool related = false,
+    String? relatedTagOverride,
+    bool resetPinnedRelatedTag = false,
+    bool keepEmptyVisible = false,
+  }) {
+    if (!mounted || !widget.enabled) return;
+    final settings = ref.read(autocompleteSettingsProvider);
+    _maybePromptZhDictionary(settings);
+    final config = widget.config;
+    final selection = widget.controller.selection;
+    final cursorPosition = selection.isValid
+        ? selection.extentOffset
+        : widget.controller.text.length;
+    final fallbackQuery = PromptTokenParser.parse(
+      text: widget.controller.text,
+      cursorPosition: cursorPosition,
+      limit: config?.maxSuggestions ?? settings.resultLimit,
+      locale: Localizations.localeOf(context).toLanguageTag(),
+      splitOnSpaces: config?.treatSpacesAsSeparators ?? false,
     );
-
-    widget.controller.value = TextEditingValue(
-      text: newText,
-      selection: TextSelection.collapsed(offset: newCursorPosition),
+    var query = related
+        ? PromptTokenParser.parseRelated(
+            text: widget.controller.text,
+            cursorPosition: cursorPosition,
+            limit: config?.maxSuggestions ?? settings.resultLimit,
+            locale: Localizations.localeOf(context).toLanguageTag(),
+            splitOnSpaces: config?.treatSpacesAsSeparators ?? false,
+          )
+        : fallbackQuery;
+    if (resetPinnedRelatedTag) _pinnedRelatedTag = null;
+    if (query != null && relatedTagOverride != null) {
+      query = query.copyWith(relatedTag: relatedTagOverride);
+    }
+    if (query == null) {
+      _dismissOverlay();
+      return;
+    }
+    _keepEmptyQueryVisible =
+        keepEmptyVisible ||
+        query.relatedTag != null ||
+        query.categoryFilter != null;
+    _orchestrator?.query(
+      query,
+      settings,
+      relatedFallbackQuery: related && relatedTagOverride == null
+          ? fallbackQuery
+          : null,
     );
+  }
 
-    _hideSuggestions(force: true);
-
-    // 通知外部选择了补全建议
-    widget.onSuggestionSelected?.call(newText);
-
-    // 延迟重置标志，防止同一键盘事件触发多次
-    // 延长到 300ms，确保共现菜单显示后不会立即被选择
-    _selectionResetTimer?.cancel();
-    _selectionResetTimer = Timer(const Duration(milliseconds: 300), () {
-      _isSelecting = false;
+  void _maybePromptZhDictionary(AutocompleteSettings settings) {
+    if (!settings.showTranslations || settings.zhInstallPromptDismissed) return;
+    if (!Localizations.localeOf(
+      context,
+    ).languageCode.toLowerCase().startsWith('zh')) {
+      return;
+    }
+    final dictionary = ref.read(zhDictionaryServiceProvider);
+    if (dictionary.state.isInstalled || dictionary.state.isBusy) return;
+    ref.read(autocompleteSettingsProvider.notifier).dismissZhInstallPrompt();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+        SnackBar(
+          content: Text(context.l10n.autocomplete_zhInstallPrompt),
+          action: SnackBarAction(
+            label: context.l10n.autocomplete_install,
+            onPressed: () => dictionary.installOrUpdate(),
+          ),
+        ),
+      );
     });
   }
 
-  KeyEventResult _handleKeyEvent(FocusNode node, KeyEvent event) {
-    // 正在选择建议时，忽略键盘事件（防止重复触发）
-    if (_isSelecting) {
+  void _onCompletionStateChanged() {
+    if (!mounted) return;
+    final state = _orchestrator!.state;
+    final candidates = state.candidates;
+    final hasVisibleState =
+        candidates.isNotEmpty ||
+        state.isLocalLoading ||
+        state.isRemoteLoading ||
+        state.localError?.isNotEmpty == true ||
+        state.remoteError?.isNotEmpty == true ||
+        state.translationError?.isNotEmpty == true ||
+        state.query?.relatedTag != null ||
+        ((_keepEmptyQueryVisible ?? false) && state.query != null);
+    if (!hasVisibleState || (!_hasInputFocus && _pinnedRelatedTag == null)) {
+      if (_overlayEntry != null) {
+        AppLogger.d(
+          'Removing popup from state: visible=$hasVisibleState '
+              'related=${state.query?.relatedTag ?? ''} '
+              'localLoading=${state.isLocalLoading} '
+              'remoteLoading=${state.isRemoteLoading} '
+              'focused=$_hasInputFocus',
+          'Autocomplete',
+        );
+      }
+      _removeOverlay();
+      return;
+    }
+    if (candidates.isEmpty) {
+      _selectedIndex = -1;
+      _selectedId = null;
+      _showOrUpdateOverlay();
+      return;
+    }
+    final stableIndex = _selectedId == null
+        ? -1
+        : candidates.indexWhere((value) => value.stableId == _selectedId);
+    if (stableIndex >= 0) {
+      _selectedIndex = stableIndex;
+    } else {
+      _selectedIndex = candidates.indexWhere((value) => !value.isExisting);
+      if (_selectedIndex < 0) _selectedIndex = 0;
+      _selectedId = candidates[_selectedIndex].stableId;
+    }
+    _showOrUpdateOverlay();
+  }
+
+  void _showOrUpdateOverlay() {
+    final currentEntry = _overlayEntry;
+    if (currentEntry != null) {
+      currentEntry.markNeedsBuild();
+      return;
+    }
+    final entry = OverlayEntry(builder: _buildOverlay);
+    _overlayEntry = entry;
+    Overlay.of(context, rootOverlay: true).insert(entry);
+    widget.overlayHandle?.attach(_closeOverlay);
+  }
+
+  Widget _buildOverlay(BuildContext overlayContext) {
+    final anchor = _anchorKey.currentContext?.findRenderObject();
+    final rootOverlay = Overlay.of(context, rootOverlay: true);
+    final theater = rootOverlay.context.findRenderObject();
+    if (anchor is! RenderBox ||
+        theater is! RenderBox ||
+        !anchor.attached ||
+        !theater.attached ||
+        !anchor.hasSize ||
+        !theater.hasSize) {
+      return const SizedBox.shrink();
+    }
+    final targetRect =
+        anchor.localToGlobal(Offset.zero, ancestor: theater) & anchor.size;
+    final cursorOffset = _cursorOffset;
+    final caretLeft = cursorOffset == null
+        ? targetRect.left
+        : targetRect.left + cursorOffset.dx;
+    final caretBottom = cursorOffset == null
+        ? targetRect.bottom
+        : targetRect.top + cursorOffset.dy;
+    final caretTop = cursorOffset == null
+        ? targetRect.top
+        : caretBottom - _caretLineHeight;
+    final screen = theater.size;
+    const viewportInset = 8.0;
+    const caretGap = 8.0;
+    final touchCompact =
+        context.interactionPolicy.touchAvailable && screen.width < 600;
+    final flutterView = View.of(overlayContext);
+    final rawKeyboardInset =
+        flutterView.viewInsets.bottom / flutterView.devicePixelRatio;
+    final keyboardInset = math
+        .max(MediaQuery.viewInsetsOf(overlayContext).bottom, rawKeyboardInset)
+        .clamp(0.0, screen.height);
+    // Overlay coordinates may already be inside a resized Scaffold. Translate
+    // the window's keyboard edge instead of subtracting its inset twice.
+    final overlayOrigin = theater.localToGlobal(Offset.zero);
+    final logicalWindowHeight =
+        flutterView.physicalSize.height / flutterView.devicePixelRatio;
+    final safeInsets = MediaQuery.viewPaddingOf(overlayContext);
+    final visibleTop = math.max(
+      viewportInset,
+      safeInsets.top - overlayOrigin.dy + viewportInset,
+    );
+    final visibleBottom = math.min(
+      screen.height,
+      logicalWindowHeight -
+          keyboardInset -
+          overlayOrigin.dy -
+          (keyboardInset > 0 ? 0 : safeInsets.bottom),
+    );
+    final below = math.max(
+      visibleBottom - viewportInset - caretBottom - caretGap,
+      0.0,
+    );
+    final above = math.max(
+      math.min(caretTop, visibleBottom) - caretGap - visibleTop,
+      0.0,
+    );
+    final placeBelow = below >= 180 || below >= above;
+    final availableHeight = placeBelow ? below : above;
+    if (availableHeight < 44) {
+      return const SizedBox.shrink();
+    }
+    final maxHeight = math.min(availableHeight, touchCompact ? 320.0 : 410.0);
+
+    // Phone completion is a stable edge-aligned panel. Roomy viewports retain
+    // the editor-style footprint and keep some leading text visible.
+    final availableWidth = math.max(screen.width - viewportInset * 2, 0.0);
+    final responsiveWidth = touchCompact
+        ? availableWidth
+        : math.max(360.0, availableWidth * 0.62);
+    final width = math.min(672.0, math.min(availableWidth, responsiveWidth));
+    final leadingContext = math.min(width * 0.12, 72.0);
+    final maxLeft = screen.width - viewportInset - width;
+    final left = touchCompact
+        ? viewportInset
+        : (caretLeft - leadingContext).clamp(viewportInset, maxLeft);
+    final settings = ref.read(autocompleteSettingsProvider);
+    final dictionaryState = ref.read(zhDictionaryServiceProvider).state;
+    final cooccurrenceDataPackState = ref.read(
+      cooccurrenceDataPackServiceProvider,
+    );
+
+    return Positioned(
+      left: left,
+      top: placeBelow ? caretBottom + caretGap : null,
+      bottom: placeBelow ? null : screen.height - caretTop + caretGap,
+      width: width,
+      child: TextFieldTapRegion(
+        child: CompletionOverlay(
+          state: _orchestrator!.state,
+          selectedIndex: _selectedIndex,
+          maxHeight: maxHeight,
+          scrollController: _scrollController,
+          settings: settings,
+          dictionaryState: dictionaryState,
+          cooccurrenceDataPackState: cooccurrenceDataPackState,
+          showAliases:
+              settings.showAliases && (widget.config?.showTranslation ?? true),
+          showTranslations:
+              settings.showTranslations &&
+              (widget.config?.showTranslation ?? true),
+          showCategory: widget.config?.showCategory ?? true,
+          showCount: widget.config?.showCount ?? true,
+          onSelected: _selectIndex,
+          onClose: _closeOverlay,
+          onOpenSettings: _openAutocompleteSettings,
+          isRelatedPinned: _pinnedRelatedTag != null,
+          onToggleRelatedPin: _orchestrator!.state.query?.relatedTag == null
+              ? null
+              : _toggleRelatedPin,
+        ),
+      ),
+    );
+  }
+
+  KeyEventResult _onKeyEvent(FocusNode node, KeyEvent event) {
+    if (event is! KeyDownEvent && event is! KeyRepeatEvent) {
+      return KeyEventResult.ignored;
+    }
+    final keyboard = HardwareKeyboard.instance;
+    final relatedShortcut =
+        event.logicalKey == LogicalKeyboardKey.space &&
+        keyboard.isShiftPressed &&
+        (keyboard.isControlPressed || keyboard.isMetaPressed);
+    if (relatedShortcut) {
+      _startQuery(related: true, resetPinnedRelatedTag: true);
       return KeyEventResult.handled;
     }
-
-    // 补全菜单未显示时，不阻止任何键
-    if (!_showSuggestions) {
+    if (_overlayEntry == null) return KeyEventResult.ignored;
+    if (event.logicalKey == LogicalKeyboardKey.enter &&
+        keyboard.isShiftPressed &&
+        _supportsNewlines) {
+      if (event is KeyDownEvent) _closeOverlay();
       return KeyEventResult.ignored;
     }
-
-    final strategy = _effectiveStrategy;
-    if (strategy == null) return KeyEventResult.ignored;
-
-    final suggestions = strategy.suggestions;
-    final suggestionsLength = suggestions.length;
-
-    // 没有建议时，不阻止任何键
-    if (suggestionsLength == 0) {
+    if (event.logicalKey == LogicalKeyboardKey.escape) {
+      if (event is KeyDownEvent) _closeOverlay();
+      return KeyEventResult.handled;
+    }
+    final movesTextCaret =
+        event.logicalKey == LogicalKeyboardKey.arrowLeft ||
+        event.logicalKey == LogicalKeyboardKey.arrowRight ||
+        event.logicalKey == LogicalKeyboardKey.home ||
+        event.logicalKey == LogicalKeyboardKey.end;
+    if (movesTextCaret) {
+      if (event is KeyDownEvent) _dismissOverlay('keyboard caret move');
       return KeyEventResult.ignored;
     }
-
-    // 只处理 KeyDownEvent 和 KeyRepeatEvent（长按）
-    if (event is KeyDownEvent || event is KeyRepeatEvent) {
-      if (event.logicalKey == LogicalKeyboardKey.arrowDown) {
-        setState(() {
-          _selectedIndex = (_selectedIndex + 1) % suggestionsLength;
-        });
-        _overlayEntry?.markNeedsBuild();
-        _scrollToSelected();
-        return KeyEventResult.handled;
-      } else if (event.logicalKey == LogicalKeyboardKey.arrowUp) {
-        setState(() {
-          _selectedIndex =
-              _selectedIndex <= 0 ? suggestionsLength - 1 : _selectedIndex - 1;
-        });
-        _overlayEntry?.markNeedsBuild();
-        _scrollToSelected();
-        return KeyEventResult.handled;
-      } else if (event.logicalKey == LogicalKeyboardKey.enter ||
-          event.logicalKey == LogicalKeyboardKey.tab) {
-        if (event is KeyDownEvent &&
-            _selectedIndex >= 0 &&
-            _selectedIndex < suggestionsLength) {
-          _selectSuggestion(suggestions[_selectedIndex]);
-          return KeyEventResult.handled;
-        }
-        return KeyEventResult.ignored;
-      } else if (event.logicalKey == LogicalKeyboardKey.escape) {
-        if (event is KeyDownEvent) {
-          _hideSuggestions();
-        }
+    final candidates = _orchestrator?.state.candidates ?? const [];
+    if (candidates.isEmpty) return KeyEventResult.ignored;
+    if (event.logicalKey == LogicalKeyboardKey.arrowDown) {
+      _moveSelection(1, candidates);
+      return KeyEventResult.handled;
+    }
+    if (event.logicalKey == LogicalKeyboardKey.arrowUp) {
+      _moveSelection(-1, candidates);
+      return KeyEventResult.handled;
+    }
+    if (event.logicalKey == LogicalKeyboardKey.enter ||
+        event.logicalKey == LogicalKeyboardKey.tab) {
+      if (event is KeyDownEvent) {
+        _selectIndex(_selectedIndex);
         return KeyEventResult.handled;
       }
+      return KeyEventResult.ignored;
     }
     return KeyEventResult.ignored;
   }
 
-  void _scrollToSelected() {
-    if (_selectedIndex < 0) return;
+  void _moveSelection(int delta, List<CompletionCandidate> candidates) {
+    _selectedIndex = (_selectedIndex + delta) % candidates.length;
+    if (_selectedIndex < 0) _selectedIndex += candidates.length;
+    _selectedId = candidates[_selectedIndex].stableId;
+    _overlayEntry?.markNeedsBuild();
+    _ensureSelectionVisible();
+  }
+
+  void _ensureSelectionVisible() {
     if (!_scrollController.hasClients) return;
+    final position = _scrollController.position;
+    if (!position.hasContentDimensions) return;
 
-    const itemHeight = 32.0;
-    final targetOffset = _selectedIndex * itemHeight;
-    final maxOffset = _scrollController.position.maxScrollExtent;
+    final itemExtent = effectiveAutocompleteCandidateExtent(context);
+    final itemTop = _selectedIndex * itemExtent;
+    final itemBottom = itemTop + itemExtent;
+    final viewportTop = position.pixels;
+    final viewportBottom = viewportTop + position.viewportDimension;
+    double? target;
 
-    if (targetOffset < _scrollController.offset) {
-      _scrollController.animateTo(
-        targetOffset,
-        duration: const Duration(milliseconds: 100),
-        curve: Curves.easeOut,
-      );
-    } else if (targetOffset > _scrollController.offset + 200) {
-      _scrollController.animateTo(
-        (targetOffset - 200).clamp(0.0, maxOffset),
-        duration: const Duration(milliseconds: 100),
-        curve: Curves.easeOut,
+    if (itemTop < viewportTop) {
+      target = itemTop;
+    } else if (itemBottom > viewportBottom) {
+      target = itemBottom - position.viewportDimension;
+    }
+    if (target == null) return;
+
+    final boundedTarget = target.clamp(
+      position.minScrollExtent,
+      position.maxScrollExtent,
+    );
+    if ((boundedTarget - position.pixels).abs() < 0.5) return;
+    // Keyboard repeat is a high-frequency interaction. Match the reference
+    // plugin's immediate edge scroll instead of starting overlapping animations
+    // that make the list appear to bounce between rows.
+    _scrollController.jumpTo(boundedTarget);
+  }
+
+  void _selectIndex(int index) {
+    final state = _orchestrator?.state;
+    if (state?.query == null ||
+        index < 0 ||
+        index >= state!.candidates.length) {
+      return;
+    }
+    final candidate = state.candidates[index];
+    if (candidate.isExisting) return;
+    final query = state.query!;
+    final settings = ref.read(autocompleteSettingsProvider);
+    final completedTag = query.kind == CompletionQueryKind.tag
+        ? candidate.canonicalTag
+        : null;
+    final applied = PromptTokenParser.apply(
+      text: widget.controller.text,
+      query: query,
+      canonicalTag: candidate.canonicalTag,
+      autoInsertComma:
+          settings.autoInsertComma && (widget.config?.autoInsertComma ?? true),
+      replaceUnderscores:
+          settings.replaceUnderscores ||
+          (widget.config?.replaceUnderscoreWithSpace ?? false),
+    );
+    _applyingSuggestion = true;
+    widget.controller.value = TextEditingValue(
+      text: applied.text,
+      selection: TextSelection.collapsed(offset: applied.cursorPosition),
+    );
+    _applyingSuggestion = false;
+    _scheduleCursorMetricsUpdate();
+    widget.onChanged?.call(applied.text);
+    widget.onSuggestionSelected?.call(applied.text);
+    _selectedId = null;
+    _dismissOverlay();
+    final nextRelatedTag = _pinnedRelatedTag ?? completedTag;
+    if (settings.relatedTagsEnabled && nextRelatedTag != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && _hasInputFocus) {
+          _startQuery(related: true, relatedTagOverride: nextRelatedTag);
+        }
+      });
+    }
+  }
+
+  void _onPointerDown(PointerDownEvent event) {
+    final keyboard = HardwareKeyboard.instance;
+    final isPrimaryClick = event.buttons == kPrimaryButton;
+    final requestsRelated = keyboard.isControlPressed || keyboard.isMetaPressed;
+    if (isPrimaryClick && requestsRelated) {
+      _relatedClickPointers.add(event.pointer);
+      _regularClickPointers.remove(event.pointer);
+    } else if (isPrimaryClick) {
+      _regularClickPointers.add(event.pointer);
+      _relatedClickPointers.remove(event.pointer);
+    } else {
+      _relatedClickPointers.remove(event.pointer);
+      _regularClickPointers.remove(event.pointer);
+    }
+  }
+
+  void _onPointerUp(PointerUpEvent event) {
+    _scheduleCursorMetricsUpdate();
+    final keyboard = HardwareKeyboard.instance;
+    final startedAsRelated = _relatedClickPointers.remove(event.pointer);
+    final startedAsRegular = _regularClickPointers.remove(event.pointer);
+    final isPrimaryClick = startedAsRelated || startedAsRegular;
+    final requestsRelated =
+        isPrimaryClick &&
+        (startedAsRelated ||
+            keyboard.isControlPressed ||
+            keyboard.isMetaPressed);
+    if (requestsRelated) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && _hasInputFocus) {
+          _startQuery(
+            related: true,
+            resetPinnedRelatedTag: true,
+            keepEmptyVisible: true,
+          );
+        }
+      });
+      return;
+    }
+
+    final settings = ref.read(autocompleteSettingsProvider);
+    final selection = widget.controller.selection;
+    if (!startedAsRegular ||
+        !settings.openOnTagClick ||
+        !selection.isValid ||
+        !selection.isCollapsed) {
+      if (_pinnedRelatedTag == null) {
+        _dismissOverlay('pointer interaction without an open intent');
+      }
+      return;
+    }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && _hasInputFocus) {
+        _startQuery(resetPinnedRelatedTag: true, keepEmptyVisible: true);
+      }
+    });
+  }
+
+  void _onPointerCancel(PointerCancelEvent event) {
+    _relatedClickPointers.remove(event.pointer);
+    _regularClickPointers.remove(event.pointer);
+  }
+
+  void _toggleRelatedPin() {
+    final relatedTag = _orchestrator?.state.query?.relatedTag;
+    if (relatedTag == null) return;
+    _pinnedRelatedTag = _pinnedRelatedTag == null ? relatedTag : null;
+    _overlayEntry?.markNeedsBuild();
+  }
+
+  void _closeOverlay() {
+    _pinnedRelatedTag = null;
+    _dismissOverlay('explicit close');
+  }
+
+  void _dismissOverlay([String reason = 'query replaced']) {
+    _keepEmptyQueryVisible = false;
+    final state = _orchestrator?.state;
+    if (_overlayEntry != null || state?.query != null) {
+      AppLogger.d(
+        'Closing popup: reason=$reason '
+            'query=${state?.query?.token ?? ''} '
+            'related=${state?.query?.relatedTag ?? ''} '
+            'localLoading=${state?.isLocalLoading ?? false} '
+            'remoteLoading=${state?.isRemoteLoading ?? false} '
+            'focused=$_hasInputFocus',
+        'Autocomplete',
       );
     }
+    _orchestrator?.cancel();
+    _removeOverlay();
+  }
+
+  void _removeOverlay() {
+    final entry = _overlayEntry;
+    if (entry == null) return;
+    _overlayEntry = null;
+    widget.overlayHandle?.detach(_closeOverlay);
+    entry.remove();
+    entry.dispose();
+  }
+
+  void _openAutocompleteSettings() {
+    _closeOverlay();
+    _focusNode.unfocus();
+    // Let the root overlay entry detach before GoRouter replaces its anchor.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      context.go('${AppRoutes.settings}?section=storage');
+    });
+  }
+
+  void _disposeOrchestrator() {
+    _orchestrator?.removeListener(_onCompletionStateChanged);
+    _orchestrator?.dispose();
+    _orchestrator = null;
+  }
+
+  @override
+  void dispose() {
+    _visibleTranslationDebounce?.cancel();
+    widget.controller.removeListener(_onTextChanged);
+    _focusNode.removeListener(_onFocusChanged);
+    _removeOverlay();
+    _ownedFocusNode?.dispose();
+    _disposeOrchestrator();
+    _scrollController.dispose();
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    // 如果未启用自动补全，直接返回子组件
-    if (!widget.enabled) {
-      return widget.child;
-    }
-
-    // 使用 Focus widget 拦截键盘事件
-    // 只在补全菜单显示时注册 onKeyEvent，避免干扰系统快捷键（如 Win+V）
-    return CompositedTransformTarget(
-      link: _layerLink,
+    ref.listen<AutocompleteSettings>(autocompleteSettingsProvider, (_, next) {
+      if (!next.enabled) {
+        _dismissOverlay('autocomplete disabled');
+        return;
+      }
+      if (!next.relatedTagsEnabled) _pinnedRelatedTag = null;
+      final activeRelatedTag = _orchestrator?.state.query?.relatedTag;
+      final relatedTag = _pinnedRelatedTag ?? activeRelatedTag;
+      if (_hasInputFocus && (_overlayEntry != null || relatedTag != null)) {
+        _startQuery(
+          related: relatedTag != null,
+          relatedTagOverride: relatedTag,
+          keepEmptyVisible: _keepEmptyQueryVisible ?? false,
+        );
+      }
+    });
+    ref.listen(zhDictionaryServiceProvider, (_, __) {
+      _overlayEntry?.markNeedsBuild();
+    });
+    return SizedBox(
+      key: _anchorKey,
       child: Focus(
-        skipTraversal: true,
-        canRequestFocus: false,
-        onKeyEvent: _showSuggestions
-            ? (node, event) => _handleKeyEvent(node, event)
-            : null,
-        child: widget.child,
+        onFocusChange: _onDescendantFocusChanged,
+        onKeyEvent: _onKeyEvent,
+        child: Listener(
+          onPointerDown: _onPointerDown,
+          onPointerUp: _onPointerUp,
+          onPointerCancel: _onPointerCancel,
+          child: NotificationListener<ScrollNotification>(
+            onNotification: (_) {
+              _scheduleCursorMetricsUpdate();
+              return false;
+            },
+            child: widget.child,
+          ),
+        ),
       ),
     );
   }

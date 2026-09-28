@@ -43,8 +43,7 @@ class _ThemedRadioState<T> extends State<ThemedRadio<T>>
   late Animation<double> _scale;
 
   bool _isHovered = false;
-  // ignore: unused_field - used in GestureDetector callbacks for future press effects
-  bool _isPressed = false;
+  bool _disableAnimations = false;
 
   bool get _isSelected => widget.value == widget.groupValue;
 
@@ -56,10 +55,19 @@ class _ThemedRadioState<T> extends State<ThemedRadio<T>>
       vsync: this,
       value: _isSelected ? 1.0 : 0.0,
     );
-    _scale = CurvedAnimation(
-      parent: _controller,
-      curve: Curves.easeOutBack,
-    );
+    _scale = CurvedAnimation(parent: _controller, curve: Curves.easeOutCubic);
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final disableAnimations = MediaQuery.disableAnimationsOf(context);
+    if (_disableAnimations == disableAnimations) return;
+    _disableAnimations = disableAnimations;
+    if (disableAnimations) {
+      _controller.stop();
+      _controller.value = _isSelected ? 1 : 0;
+    }
   }
 
   @override
@@ -67,7 +75,9 @@ class _ThemedRadioState<T> extends State<ThemedRadio<T>>
     super.didUpdateWidget(oldWidget);
     final wasSelected = oldWidget.value == oldWidget.groupValue;
     if (wasSelected != _isSelected) {
-      if (_isSelected) {
+      if (_disableAnimations) {
+        _controller.value = _isSelected ? 1 : 0;
+      } else if (_isSelected) {
         _controller.forward();
       } else {
         _controller.reverse();
@@ -96,8 +106,8 @@ class _ThemedRadioState<T> extends State<ThemedRadio<T>>
     final borderColor = _isSelected
         ? activeColorBase
         : (_isHovered
-            ? theme.colorScheme.primary.withValues(alpha: 0.5)
-            : theme.colorScheme.outline.withValues(alpha: 0.5));
+              ? theme.colorScheme.primary.withValues(alpha: 0.5)
+              : theme.colorScheme.outline.withValues(alpha: 0.5));
 
     // 背景色
     final backgroundColor = isDark
@@ -108,28 +118,25 @@ class _ThemedRadioState<T> extends State<ThemedRadio<T>>
     final opacity = widget.enabled ? 1.0 : 0.5;
 
     return MouseRegion(
-      cursor:
-          widget.enabled ? SystemMouseCursors.click : SystemMouseCursors.basic,
+      cursor: widget.enabled
+          ? SystemMouseCursors.click
+          : SystemMouseCursors.basic,
       onEnter: (_) => setState(() => _isHovered = true),
       onExit: (_) => setState(() => _isHovered = false),
       child: GestureDetector(
-        onTapDown: (_) => setState(() => _isPressed = true),
-        onTapUp: (_) => setState(() => _isPressed = false),
-        onTapCancel: () => setState(() => _isPressed = false),
         onTap: _handleTap,
         child: Opacity(
           opacity: opacity,
           child: AnimatedContainer(
-            duration: const Duration(milliseconds: 150),
+            duration: _disableAnimations
+                ? Duration.zero
+                : const Duration(milliseconds: 150),
             width: widget.size,
             height: widget.size,
             decoration: BoxDecoration(
               color: backgroundColor,
               shape: BoxShape.circle,
-              border: Border.all(
-                color: borderColor,
-                width: 1.5,
-              ),
+              border: Border.all(color: borderColor, width: 1.5),
             ),
             child: _buildInnerDot(activeColorBase),
           ),
@@ -139,148 +146,32 @@ class _ThemedRadioState<T> extends State<ThemedRadio<T>>
   }
 
   Widget _buildInnerDot(Color activeColor) {
+    Widget buildDot(double scale) {
+      if (scale == 0) return const SizedBox.shrink();
+      final dotSize = widget.size * 0.45 * scale;
+      return Center(
+        child: Container(
+          width: dotSize,
+          height: dotSize,
+          decoration: BoxDecoration(
+            color: activeColor,
+            shape: BoxShape.circle,
+            boxShadow: [
+              BoxShadow(
+                color: activeColor.withValues(alpha: 0.3),
+                blurRadius: 4,
+                offset: const Offset(0, 1),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    if (_disableAnimations) return buildDot(_isSelected ? 1 : 0);
     return AnimatedBuilder(
       animation: _scale,
-      builder: (context, child) {
-        if (_scale.value == 0) return const SizedBox.shrink();
-        final dotSize = widget.size * 0.45 * _scale.value;
-        return Center(
-          child: Container(
-            width: dotSize,
-            height: dotSize,
-            decoration: BoxDecoration(
-              color: activeColor,
-              shape: BoxShape.circle,
-              boxShadow: [
-                BoxShadow(
-                  color: activeColor.withValues(alpha: 0.3),
-                  blurRadius: 4,
-                  offset: const Offset(0, 1),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
-}
-
-/// 带标签的主题化单选框
-class ThemedRadioListTile<T> extends StatelessWidget {
-  final T value;
-  final T? groupValue;
-  final ValueChanged<T?>? onChanged;
-  final Widget title;
-  final Widget? subtitle;
-  final bool enabled;
-  final ListTileControlAffinity controlAffinity;
-  final EdgeInsetsGeometry? contentPadding;
-
-  const ThemedRadioListTile({
-    super.key,
-    required this.value,
-    required this.groupValue,
-    required this.onChanged,
-    required this.title,
-    this.subtitle,
-    this.enabled = true,
-    this.controlAffinity = ListTileControlAffinity.leading,
-    this.contentPadding,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return _SelectListTile(
-      control: ThemedRadio<T>(
-        value: value,
-        groupValue: groupValue,
-        onChanged: onChanged,
-        enabled: enabled,
-      ),
-      title: title,
-      subtitle: subtitle,
-      enabled: enabled,
-      controlAffinity: controlAffinity,
-      contentPadding: contentPadding,
-      onTap: enabled && onChanged != null ? () => onChanged!(value) : null,
-    );
-  }
-}
-
-/// 选择列表项基础组件
-class _SelectListTile extends StatelessWidget {
-  final Widget control;
-  final Widget title;
-  final Widget? subtitle;
-  final bool enabled;
-  final ListTileControlAffinity controlAffinity;
-  final EdgeInsetsGeometry? contentPadding;
-  final VoidCallback? onTap;
-
-  const _SelectListTile({
-    required this.control,
-    required this.title,
-    this.subtitle,
-    required this.enabled,
-    required this.controlAffinity,
-    this.contentPadding,
-    this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      child: Padding(
-        padding: contentPadding ??
-            const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        child: Row(
-          children: [
-            if (controlAffinity == ListTileControlAffinity.leading) ...[
-              control,
-              const SizedBox(width: 12),
-            ],
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  DefaultTextStyle(
-                    style: Theme.of(context).textTheme.bodyLarge!.copyWith(
-                          color: enabled
-                              ? null
-                              : Theme.of(context)
-                                  .textTheme
-                                  .bodyLarge!
-                                  .color!
-                                  .withValues(alpha: 0.5),
-                        ),
-                    child: title,
-                  ),
-                  if (subtitle != null) ...[
-                    const SizedBox(height: 2),
-                    DefaultTextStyle(
-                      style: Theme.of(context).textTheme.bodySmall!.copyWith(
-                            color: Theme.of(context)
-                                .textTheme
-                                .bodySmall!
-                                .color!
-                                .withValues(alpha: enabled ? 0.7 : 0.4),
-                          ),
-                      child: subtitle!,
-                    ),
-                  ],
-                ],
-              ),
-            ),
-            if (controlAffinity == ListTileControlAffinity.trailing) ...[
-              const SizedBox(width: 12),
-              control,
-            ],
-          ],
-        ),
-      ),
+      builder: (context, child) => buildDot(_scale.value),
     );
   }
 }

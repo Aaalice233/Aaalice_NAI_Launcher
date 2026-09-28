@@ -1,0 +1,219 @@
+import 'dart:io';
+
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:nai_launcher/core/services/update_installer_service.dart';
+import 'package:nai_launcher/data/models/version/release_asset_info.dart';
+import 'package:nai_launcher/data/models/version/version_info.dart';
+import 'package:nai_launcher/l10n/app_localizations.dart';
+import 'package:nai_launcher/presentation/providers/update_provider.dart';
+import 'package:nai_launcher/presentation/widgets/common/update_notice_banner.dart';
+
+class _FakeUpdateNotifier extends UpdateStateNotifier {
+  _FakeUpdateNotifier(this.initialState);
+
+  final UpdateState initialState;
+
+  @override
+  UpdateState build() => initialState;
+
+  @override
+  Future<void> remindLater({Duration? delay}) async {
+    state = state.copyWith(notificationVisible: false);
+  }
+}
+
+void main() {
+  const asset = ReleaseAssetInfo(
+    type: ReleaseAssetType.windowsPortable,
+    platform: 'windows',
+    fileName: 'update.zip',
+    downloadUrl: 'https://example.com/update.zip',
+    sha256: 'abc',
+    size: 100,
+  );
+  const info = VersionInfo(
+    version: '2.0.0+33',
+    currentVersion: '1.0.0+32',
+    assets: [asset],
+    primaryAsset: asset,
+    isNewer: true,
+  );
+
+  Widget app(
+    UpdateState state, {
+    double textScale = 1,
+    VoidCallback? onPageTap,
+  }) {
+    return ProviderScope(
+      overrides: [
+        updateStateNotifierProvider.overrideWith(
+          () => _FakeUpdateNotifier(state),
+        ),
+      ],
+      child: MaterialApp(
+        locale: const Locale('zh'),
+        supportedLocales: AppLocalizations.supportedLocales,
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        builder: (context, child) => MediaQuery(
+          data: MediaQuery.of(
+            context,
+          ).copyWith(textScaler: TextScaler.linear(textScale)),
+          child: child!,
+        ),
+        home: Scaffold(
+          body: Stack(
+            children: [
+              Positioned.fill(
+                child: ColoredBox(
+                  key: const ValueKey('underlying-page'),
+                  color: Colors.white,
+                  child: Align(
+                    alignment: Alignment.bottomCenter,
+                    child: TextButton(
+                      onPressed: onPageTap,
+                      child: const Text('page action'),
+                    ),
+                  ),
+                ),
+              ),
+              const UpdateNoticeOverlay(),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  testWidgets('shows a persistent available update notice and can snooze it', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      app(
+        const UpdateState(
+          status: UpdateStatus.available,
+          versionInfo: info,
+          notificationVisible: true,
+        ),
+      ),
+    );
+
+    expect(find.text('新版本 v2.0.0 可用'), findsOneWidget);
+    expect(find.textContaining('+33'), findsNothing);
+    expect(find.text('查看更新'), findsOneWidget);
+    final pageRect = tester.getRect(
+      find.byKey(const ValueKey('underlying-page')),
+    );
+    expect(pageRect, const Rect.fromLTWH(0, 0, 800, 600));
+
+    await tester.tap(find.byIcon(Icons.close_rounded));
+    await tester.pump();
+
+    expect(find.text('新版本 v2.0.0 可用'), findsNothing);
+    expect(
+      tester.getRect(find.byKey(const ValueKey('underlying-page'))),
+      pageRect,
+    );
+  });
+
+  testWidgets('overlay leaves page actions reachable at all widths', (
+    tester,
+  ) async {
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    for (final width in [320.0, 600.0, 840.0, 1180.0, 1600.0]) {
+      await tester.binding.setSurfaceSize(Size(width, 360));
+      var tapped = false;
+      await tester.pumpWidget(
+        app(
+          const UpdateState(
+            status: UpdateStatus.available,
+            versionInfo: info,
+            notificationVisible: true,
+          ),
+          textScale: 3,
+          onPageTap: () => tapped = true,
+        ),
+      );
+      await tester.pump();
+      await tester.tap(find.text('page action'));
+      expect(tapped, isTrue);
+      await tester.ensureVisible(find.text('查看更新'));
+      expect(find.text('查看更新').hitTestable(), findsOneWidget);
+      expect(tester.takeException(), isNull, reason: 'width=$width');
+      await tester.pumpWidget(const SizedBox.shrink());
+    }
+  });
+
+  testWidgets('uses a stacked compact layout without horizontal overflow', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(360, 800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(
+      app(
+        const UpdateState(
+          status: UpdateStatus.available,
+          versionInfo: info,
+          notificationVisible: true,
+        ),
+      ),
+    );
+
+    expect(tester.takeException(), isNull);
+    final actionSize = tester.getSize(
+      find.widgetWithText(FilledButton, '查看更新'),
+    );
+    expect(actionSize.width, greaterThan(280));
+  });
+
+  testWidgets('uses the stacked layout at 3x text scale', (tester) async {
+    tester.view.physicalSize = const Size(640, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(
+      app(
+        const UpdateState(
+          status: UpdateStatus.available,
+          versionInfo: info,
+          notificationVisible: true,
+        ),
+        textScale: 3,
+      ),
+    );
+
+    expect(tester.takeException(), isNull);
+    final action = find.widgetWithText(FilledButton, '查看更新');
+    expect(action, findsOneWidget);
+    expect(tester.getSize(action).width, greaterThan(500));
+    expect(find.text('新版本 v2.0.0 可用'), findsOneWidget);
+  });
+
+  testWidgets('distinguishes a verified package ready to install', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      app(
+        UpdateState(
+          status: UpdateStatus.downloaded,
+          versionInfo: info,
+          downloadedUpdate: DownloadedUpdate(
+            file: File('update.zip'),
+            asset: asset,
+            version: '2.0.0',
+          ),
+          notificationVisible: true,
+        ),
+      ),
+    );
+
+    expect(find.text('新版本 v2.0.0 已准备好'), findsOneWidget);
+    expect(find.textContaining('+33'), findsNothing);
+    expect(find.text('立即安装'), findsOneWidget);
+  });
+}

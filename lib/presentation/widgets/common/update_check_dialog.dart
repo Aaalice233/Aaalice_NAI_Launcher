@@ -1,31 +1,139 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:markdown/markdown.dart' as md;
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../../core/constants/community_links.dart';
+import '../../../core/platform/platform_capabilities.dart';
+import '../../../core/services/update_check_service.dart';
+import '../../../core/utils/byte_format.dart';
+import '../../../core/utils/in_app_release_notes.dart';
 import '../../../core/utils/localization_extension.dart';
 import '../../../data/models/version/version_info.dart';
+import '../../adaptive/adaptive_presenter.dart';
+import '../../adaptive/window_size_class.dart';
+import '../../providers/queue_execution_provider.dart';
 import '../../providers/update_provider.dart';
+import 'adaptive_dialog_frame.dart';
 import 'app_toast.dart';
+
+/// Release 页面。iOS 侧载版只能从这里取新版 IPA 自行签名。
+const String _releasesPageUrl = '${CommunityLinks.github}/releases';
+
+/// 当前平台是否存在可用的应用内更新通道。
+///
+/// 【偏离上游】上游这个文件里只有 `requiresExternalInstallerFlow`（= isAndroid）
+/// 用来区分「Android 交系统安装器」与「Windows 就地替换」，没有任何一路判断
+/// 会考虑「根本没有本平台安装包」的情况。
+///
+/// 判定必须写成「**iOS 才禁用**」而不是「非 Windows 就禁用」：上游 4.x 新增了
+/// Android APK 应用内安装，后者会误伤 Android。
+bool get _hasInAppUpdateChannel =>
+    PlatformCapabilities.current.supportsAutomaticUpdateCheck;
 
 /// 更新检查弹窗组件
 ///
 /// 显示更新提示的 UI 组件，支持：
 /// - 显示当前版本和最新版本
-/// - 使用 flutter_markdown 渲染 Release body（Markdown）
+/// - 使用 GitHub Flavored Markdown 完整渲染 Release body
 /// - 按钮: [稍后提醒] [忽略此版本] [下载并安装/前往下载]
 /// - 加载状态指示器（检查中）
 /// - 错误状态显示
 class UpdateCheckDialog extends ConsumerWidget {
-  const UpdateCheckDialog({super.key});
+  const UpdateCheckDialog({super.key, this.presentationManaged = false});
+
+  final bool presentationManaged;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(updateStateProvider);
+    final actions = _buildActions(context, ref, state);
+    final mediaQuery = MediaQuery.of(context);
 
-    return AlertDialog(
-      title: Text(_getTitle(context, state)),
-      content: SizedBox(width: 480, child: _buildContent(context, state)),
-      actions: _buildActions(context, ref, state),
+    final content = AdaptiveDialogFrame(
+      maxWidth: 620,
+      maxHeight: 680,
+      reservedVerticalSpace: 24,
+      scaleReservedVerticalSpace: true,
+      horizontalMargin: 12,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final sizeClass = WindowSizeClass.fromWidth(constraints.maxWidth);
+          final compact = sizeClass.isCompact;
+          final useSingleColumnActions =
+              constraints.maxWidth < 260 || mediaQuery.textScaler.scale(1) >= 2;
+          final padding = EdgeInsets.all(compact ? 16 : 24);
+          final title = Text(
+            _getTitle(context, state),
+            style: Theme.of(context).textTheme.headlineSmall,
+          );
+          final content = _buildContent(context, ref, state);
+          final actionPanel = SizedBox(
+            width: double.infinity,
+            child: _ResponsiveDialogActions(
+              compact: compact,
+              singleColumn: useSingleColumnActions,
+              children: actions,
+            ),
+          );
+          final scrollWholeDialog =
+              mediaQuery.textScaler.scale(1) >= 2 ||
+              constraints.maxHeight < 400;
+
+          if (scrollWholeDialog) {
+            return SingleChildScrollView(
+              padding: padding,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  title,
+                  const SizedBox(height: 12),
+                  content,
+                  if (actions.isNotEmpty) ...[
+                    const SizedBox(height: 12),
+                    actionPanel,
+                  ],
+                ],
+              ),
+            );
+          }
+
+          return Padding(
+            padding: padding,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                title,
+                const SizedBox(height: 12),
+                Flexible(
+                  child: state.status == UpdateStatus.available
+                      ? content
+                      : SingleChildScrollView(child: content),
+                ),
+                if (actions.isNotEmpty) ...[
+                  const SizedBox(height: 12),
+                  ConstrainedBox(
+                    constraints: BoxConstraints(
+                      maxHeight:
+                          constraints.maxHeight * (compact ? 0.48 : 0.36),
+                    ),
+                    child: SingleChildScrollView(child: actionPanel),
+                  ),
+                ],
+              ],
+            ),
+          );
+        },
+      ),
+    );
+
+    if (presentationManaged) return content;
+    return Dialog(
+      insetPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+      child: content,
     );
   }
 
@@ -35,15 +143,21 @@ class UpdateCheckDialog extends ConsumerWidget {
       UpdateStatus.checking => context.l10n.updateChecking,
       UpdateStatus.available => context.l10n.updateAvailable,
       UpdateStatus.downloading => context.l10n.updateDownloading,
+      UpdateStatus.downloaded => context.l10n.updateDownloaded,
       UpdateStatus.installing => context.l10n.updateInstalling,
       UpdateStatus.upToDate => context.l10n.updateUpToDate,
-      UpdateStatus.error => context.l10n.updateError,
+      UpdateStatus.error =>
+        state.downloadedUpdate != null
+            ? context.l10n.updateInstallFailed
+            : state.versionInfo != null
+            ? context.l10n.updateDownloadFailed
+            : context.l10n.updateError,
       UpdateStatus.idle => context.l10n.updateChecking,
     };
   }
 
   /// 构建弹窗内容
-  Widget _buildContent(BuildContext context, UpdateState state) {
+  Widget _buildContent(BuildContext context, WidgetRef ref, UpdateState state) {
     return switch (state.status) {
       UpdateStatus.checking => _buildLoadingContent(context),
       UpdateStatus.available => _buildUpdateAvailableContent(
@@ -51,21 +165,27 @@ class UpdateCheckDialog extends ConsumerWidget {
         state.versionInfo!,
       ),
       UpdateStatus.downloading => _buildDownloadContent(context, state),
+      UpdateStatus.downloaded => _buildDownloadedContent(context, ref, state),
       UpdateStatus.installing => _buildInstallingContent(context),
       UpdateStatus.upToDate => _buildUpToDateContent(context),
-      UpdateStatus.error => _buildErrorContent(context, state.errorMessage),
+      UpdateStatus.error => _buildErrorContent(context, state),
       UpdateStatus.idle => _buildLoadingContent(context),
     };
   }
 
   /// 构建加载状态内容
   Widget _buildLoadingContent(BuildContext context) {
-    return const SizedBox(
+    return SizedBox(
       height: 120,
       child: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
-          children: [CircularProgressIndicator(), SizedBox(height: 16)],
+          children: [
+            CircularProgressIndicator(
+              value: MediaQuery.disableAnimationsOf(context) ? 0.72 : null,
+            ),
+            const SizedBox(height: 16),
+          ],
         ),
       ),
     );
@@ -77,81 +197,126 @@ class UpdateCheckDialog extends ConsumerWidget {
     VersionInfo versionInfo,
   ) {
     final theme = Theme.of(context);
+    final releaseNotes = extractInAppReleaseNotes(
+      versionInfo.releaseNotes ?? '',
+    );
+    final releaseNotesBackground = theme.colorScheme.surfaceContainerLowest;
+    final releaseNotesForeground = _readableForeground(releaseNotesBackground);
 
-    return SingleChildScrollView(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // 版本信息
-          Row(
-            children: [
-              Expanded(
-                child: _buildVersionInfoTile(
-                  context,
-                  label: context.l10n.currentVersion,
-                  value: versionInfo.currentVersion ?? '',
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final stackVersionTiles =
+            MediaQuery.textScalerOf(context).scale(1) >= 2;
+        final currentVersionTile = _buildVersionInfoTile(
+          context,
+          label: context.l10n.currentVersion,
+          value: versionInfo.displayCurrentVersion,
+        );
+        final latestVersionTile = _buildVersionInfoTile(
+          context,
+          label: context.l10n.latestVersion,
+          value: versionInfo.displayVersion,
+          isHighlighted: true,
+        );
+        final versionSummary = Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (stackVersionTiles) ...[
+              currentVersionTile,
+              const SizedBox(height: 8),
+              latestVersionTile,
+            ] else
+              IntrinsicHeight(
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Expanded(child: currentVersionTile),
+                    const Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 6),
+                      child: Icon(Icons.arrow_forward_rounded, size: 18),
+                    ),
+                    Expanded(child: latestVersionTile),
+                  ],
                 ),
               ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: _buildVersionInfoTile(
-                  context,
-                  label: context.l10n.latestVersion,
-                  value: versionInfo.version,
-                  isHighlighted: true,
+            // 【偏离上游】上游无条件展示 primaryAsset 卡片。iOS 上这张卡描述的
+            // 一定是桌面/安卓包（本平台没有发布资产），展示它等于诱导用户在
+            // Safari 里下一个装不上的文件，改为只指向 Release 页面。
+            if (!_hasInAppUpdateChannel) ...[
+              const SizedBox(height: 8),
+              ListTile(
+                key: const ValueKey('update-manual-release-hint'),
+                contentPadding: EdgeInsets.zero,
+                leading: const Icon(Icons.open_in_new),
+                title: Text(context.l10n.goToDownload),
+                subtitle: Text(context.l10n.updatePortableManualHint),
+              ),
+            ] else if (versionInfo.primaryAsset != null) ...[
+              const SizedBox(height: 8),
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: Icon(
+                  versionInfo.supportsInAppInstall
+                      ? Icons.system_update_alt
+                      : Icons.open_in_new,
+                ),
+                title: Text(
+                  versionInfo.primaryAsset!.label ??
+                      context.l10n.common_download,
+                ),
+                subtitle: Text(
+                  versionInfo.primaryAsset!.description ??
+                      context.l10n.updatePortableManualHint,
+                ),
+              ),
+            ],
+          ],
+        );
+
+        if (releaseNotes.isEmpty) {
+          return SingleChildScrollView(child: versionSummary);
+        }
+
+        return SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              versionSummary,
+              const SizedBox(height: 12),
+              Text(
+                context.l10n.releaseNotes,
+                style: theme.textTheme.titleSmall?.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Container(
+                key: const ValueKey('update-release-notes-region'),
+                constraints: const BoxConstraints(maxHeight: 380),
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: releaseNotesBackground,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Scrollbar(
+                  child: SingleChildScrollView(
+                    key: const ValueKey('update-release-notes-scroll-view'),
+                    child: _buildReleaseNotes(
+                      context,
+                      versionInfo,
+                      releaseNotes,
+                      backgroundColor: releaseNotesBackground,
+                      foregroundColor: releaseNotesForeground,
+                    ),
+                  ),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 16),
-          if (versionInfo.primaryAsset != null) ...[
-            ListTile(
-              contentPadding: EdgeInsets.zero,
-              leading: Icon(
-                versionInfo.supportsInAppInstall
-                    ? Icons.system_update_alt
-                    : Icons.open_in_new,
-              ),
-              title: Text(
-                versionInfo.primaryAsset!.label ?? context.l10n.common_download,
-              ),
-              subtitle: Text(
-                versionInfo.primaryAsset!.description ??
-                    context.l10n.updatePortableManualHint,
-              ),
-            ),
-            const SizedBox(height: 8),
-          ],
-          // 更新日志
-          if (versionInfo.releaseNotes != null &&
-              versionInfo.releaseNotes!.isNotEmpty) ...[
-            Text(
-              context.l10n.releaseNotes,
-              style: theme.textTheme.titleSmall?.copyWith(
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Container(
-              constraints: const BoxConstraints(maxHeight: 240),
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: theme.colorScheme.surfaceContainerLowest,
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(
-                  color: theme.colorScheme.outlineVariant.withValues(
-                    alpha: 0.5,
-                  ),
-                ),
-              ),
-              child: SingleChildScrollView(
-                child: _buildReleaseNotes(versionInfo.releaseNotes!),
-              ),
-            ),
-          ],
-        ],
-      ),
+        );
+      },
     );
   }
 
@@ -159,18 +324,104 @@ class UpdateCheckDialog extends ConsumerWidget {
   Widget _buildDownloadContent(BuildContext context, UpdateState state) {
     final progress = state.downloadProgress.clamp(0.0, 1.0);
     final percent = (progress * 100).round();
+    final theme = Theme.of(context);
 
     return SizedBox(
-      height: 120,
+      height: 140,
       child: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            LinearProgressIndicator(value: progress == 0 ? null : progress),
+            LinearProgressIndicator(
+              value: progress == 0
+                  ? (MediaQuery.disableAnimationsOf(context) ? 0.72 : null)
+                  : progress,
+            ),
             const SizedBox(height: 16),
             Text(context.l10n.updateDownloadingProgress(percent)),
+            if (state.totalBytes > 0) ...[
+              const SizedBox(height: 6),
+              Text(
+                context.l10n.updateDownloadSizeSpeed(
+                  formatBytes(state.downloadedBytes),
+                  formatBytes(state.totalBytes),
+                  formatBytesPerSecond(state.downloadSpeedBytesPerSecond),
+                ),
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ],
           ],
         ),
+      ),
+    );
+  }
+
+  /// 构建下载完成、等待安装确认的内容
+  Widget _buildDownloadedContent(
+    BuildContext context,
+    WidgetRef ref,
+    UpdateState state,
+  ) {
+    final theme = Theme.of(context);
+    final queueState = ref.watch(queueExecutionNotifierProvider);
+    final hasActiveQueue = queueState.isRunning || queueState.isPaused;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            Icons.check_circle_outline,
+            size: 48,
+            color: theme.colorScheme.primary,
+          ),
+          const SizedBox(height: 14),
+          Text(
+            PlatformCapabilities.current.requiresExternalInstallerFlow
+                ? context.l10n.updateAndroidDownloadedHint(
+                    state.versionInfo?.displayVersion ?? '',
+                  )
+                : context.l10n.updateDownloadedHint(
+                    state.versionInfo?.displayVersion ?? '',
+                  ),
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          if (hasActiveQueue) ...[
+            const SizedBox(height: 14),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: theme.colorScheme.errorContainer.withValues(alpha: 0.55),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.warning_amber_rounded,
+                    size: 20,
+                    color: theme.colorScheme.onErrorContainer,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      context.l10n.updateActiveTasksWarning,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.onErrorContainer,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ],
       ),
     );
   }
@@ -183,9 +434,16 @@ class UpdateCheckDialog extends ConsumerWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const CircularProgressIndicator(),
+            CircularProgressIndicator(
+              value: MediaQuery.disableAnimationsOf(context) ? 0.72 : null,
+            ),
             const SizedBox(height: 16),
-            Text(context.l10n.updateInstallingHint),
+            Text(
+              PlatformCapabilities.current.requiresExternalInstallerFlow
+                  ? context.l10n.updateAndroidInstallingHint
+                  : context.l10n.updateInstallingHint,
+              textAlign: TextAlign.center,
+            ),
           ],
         ),
       ),
@@ -208,13 +466,9 @@ class UpdateCheckDialog extends ConsumerWidget {
             ? theme.colorScheme.primaryContainer.withValues(alpha: 0.5)
             : theme.colorScheme.surfaceContainerLow,
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(
-          color: isHighlighted
-              ? theme.colorScheme.primary.withValues(alpha: 0.3)
-              : theme.colorScheme.outlineVariant.withValues(alpha: 0.3),
-        ),
       ),
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
@@ -238,14 +492,156 @@ class UpdateCheckDialog extends ConsumerWidget {
 
   /// 构建发布说明内容
   ///
-  /// 使用简单的文本渲染，因为 flutter_markdown 可能未添加依赖
-  /// 如果后续需要完整 Markdown 支持，可以添加 flutter_markdown 包
-  Widget _buildReleaseNotes(String releaseNotes) {
-    // 简单的 Markdown 渲染
-    return SelectableText(
-      releaseNotes,
-      style: const TextStyle(fontSize: 14, height: 1.6),
+  /// 完整渲染 GitHub Flavored Markdown：标题、嵌套列表、任务列表、
+  /// 表格、引用、分隔线、删除线、行内/围栏代码、链接与远程图片。
+  Widget _buildReleaseNotes(
+    BuildContext context,
+    VersionInfo versionInfo,
+    String releaseNotes, {
+    required Color backgroundColor,
+    required Color foregroundColor,
+  }) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final versionTag = versionInfo.displayVersion.startsWith('v')
+        ? versionInfo.displayVersion
+        : 'v${versionInfo.displayVersion}';
+    final rawContentBase = Uri.parse(
+      'https://raw.githubusercontent.com/Aaalice233/'
+      'Aaalice_NAI_Launcher/$versionTag/',
     );
+    final codeBackground = colorScheme.surfaceContainerHighest;
+    final codeForeground = _readableForeground(codeBackground);
+    final quoteBackground = colorScheme.surfaceContainerHigh;
+    final quoteForeground = _readableForeground(quoteBackground);
+    final linkColor = _ensureContrast(
+      colorScheme.primary,
+      backgroundColor,
+      foregroundColor,
+    );
+
+    return MarkdownBody(
+      data: releaseNotes,
+      selectable: true,
+      extensionSet: md.ExtensionSet.gitHubWeb,
+      imageDirectory: rawContentBase.toString(),
+      styleSheet: MarkdownStyleSheet.fromTheme(theme).copyWith(
+        p: theme.textTheme.bodyMedium?.copyWith(
+          color: foregroundColor,
+          height: 1.55,
+        ),
+        a: theme.textTheme.bodyMedium?.copyWith(
+          color: linkColor,
+          decoration: TextDecoration.underline,
+          decorationColor: linkColor.withValues(alpha: 0.55),
+        ),
+        h1: theme.textTheme.titleLarge?.copyWith(
+          color: foregroundColor,
+          fontWeight: FontWeight.w700,
+          height: 1.35,
+        ),
+        h2: theme.textTheme.titleMedium?.copyWith(
+          color: foregroundColor,
+          fontWeight: FontWeight.w700,
+          height: 1.4,
+        ),
+        h3: theme.textTheme.titleSmall?.copyWith(
+          color: foregroundColor,
+          fontWeight: FontWeight.w700,
+          height: 1.4,
+        ),
+        h4: theme.textTheme.bodyLarge?.copyWith(color: foregroundColor),
+        h5: theme.textTheme.bodyLarge?.copyWith(color: foregroundColor),
+        h6: theme.textTheme.bodyLarge?.copyWith(color: foregroundColor),
+        h1Padding: const EdgeInsets.only(top: 10, bottom: 6),
+        h2Padding: const EdgeInsets.only(top: 9, bottom: 5),
+        h3Padding: const EdgeInsets.only(top: 7, bottom: 4),
+        blockSpacing: 10,
+        listIndent: 22,
+        listBullet: theme.textTheme.bodyMedium?.copyWith(
+          color: foregroundColor,
+        ),
+        blockquote: theme.textTheme.bodyMedium?.copyWith(
+          color: quoteForeground,
+        ),
+        code: theme.textTheme.bodySmall?.copyWith(
+          fontFamily: 'monospace',
+          color: codeForeground,
+          backgroundColor: codeBackground,
+        ),
+        codeblockPadding: const EdgeInsets.all(12),
+        codeblockDecoration: BoxDecoration(
+          color: codeBackground,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: colorScheme.outlineVariant),
+        ),
+        blockquotePadding: const EdgeInsets.fromLTRB(12, 8, 10, 8),
+        blockquoteDecoration: BoxDecoration(
+          color: quoteBackground,
+          borderRadius: BorderRadius.circular(6),
+          border: Border(
+            left: BorderSide(color: colorScheme.primary, width: 3),
+          ),
+        ),
+        tableHead: theme.textTheme.bodyMedium?.copyWith(
+          color: foregroundColor,
+          fontWeight: FontWeight.w700,
+        ),
+        tableBody: theme.textTheme.bodyMedium?.copyWith(color: foregroundColor),
+        tableBorder: TableBorder.all(color: colorScheme.outlineVariant),
+        tableCellsPadding: const EdgeInsets.symmetric(
+          horizontal: 10,
+          vertical: 7,
+        ),
+        // flutter_markdown_plus 只在列宽为 Fixed/Intrinsic 时才给表格套横向滚动
+        // 容器；上游只设了 tableScrollbarThumbVisibility，保持默认的
+        // FlexColumnWidth 会让窄屏表格逐字换行，滚动条设置形同虚设。
+        tableColumnWidth: const IntrinsicColumnWidth(),
+        tableScrollbarThumbVisibility: true,
+        horizontalRuleDecoration: BoxDecoration(
+          border: Border(top: BorderSide(color: colorScheme.outlineVariant)),
+        ),
+      ),
+      onTapLink: (text, href, title) async {
+        if (href == null || href.isEmpty || href.startsWith('#')) return;
+        final uri = _resolveReleaseUri(href, versionTag);
+        if (uri != null && await canLaunchUrl(uri)) {
+          await launchUrl(uri, mode: LaunchMode.externalApplication);
+        } else if (context.mounted) {
+          AppToast.error(context, context.l10n.cannotOpenUrl);
+        }
+      },
+    );
+  }
+
+  Color _readableForeground(Color background) {
+    return ThemeData.estimateBrightnessForColor(background) == Brightness.dark
+        ? Colors.white
+        : Colors.black;
+  }
+
+  Color _ensureContrast(Color candidate, Color background, Color fallback) {
+    final lighter = candidate.computeLuminance() > background.computeLuminance()
+        ? candidate.computeLuminance()
+        : background.computeLuminance();
+    final darker = candidate.computeLuminance() > background.computeLuminance()
+        ? background.computeLuminance()
+        : candidate.computeLuminance();
+    return (lighter + 0.05) / (darker + 0.05) >= 4.5 ? candidate : fallback;
+  }
+
+  Uri? _resolveReleaseUri(String href, String versionTag) {
+    final uri = Uri.tryParse(href);
+    if (uri == null) return null;
+    if (uri.hasScheme) {
+      return const {'http', 'https', 'mailto'}.contains(uri.scheme)
+          ? uri
+          : null;
+    }
+    return Uri.parse(
+      'https://github.com/Aaalice233/Aaalice_NAI_Launcher/blob/'
+      '$versionTag/',
+    ).resolveUri(uri);
   }
 
   /// 构建已是最新内容
@@ -276,26 +672,46 @@ class UpdateCheckDialog extends ConsumerWidget {
     );
   }
 
-  /// 构建错误内容
-  Widget _buildErrorContent(BuildContext context, String? errorMessage) {
+  /// 构建错误内容。内部异常只写日志，弹窗始终显示简短、可执行的文案。
+  Widget _buildErrorContent(BuildContext context, UpdateState state) {
     final theme = Theme.of(context);
+    final message = switch (state.checkFailureType) {
+      UpdateCheckFailureType.releaseNotFound =>
+        context.l10n.updateErrorReleaseNotReady,
+      UpdateCheckFailureType.rateLimited => context.l10n.updateErrorServerBusy,
+      UpdateCheckFailureType.network => context.l10n.updateErrorNetwork,
+      UpdateCheckFailureType.unavailable =>
+        context.l10n.updateErrorServiceUnavailable,
+      UpdateCheckFailureType.invalidResponse =>
+        context.l10n.updateErrorInvalidMetadata,
+      UpdateCheckFailureType.unknown ||
+      null => state.errorMessage ?? context.l10n.updateErrorUnknown,
+    };
 
-    return SizedBox(
-      height: 120,
-      child: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.error_outline, size: 48, color: theme.colorScheme.error),
-            const SizedBox(height: 16),
-            Text(
-              errorMessage ?? context.l10n.updateError,
-              style: theme.textTheme.bodyLarge?.copyWith(
+    return ConstrainedBox(
+      constraints: const BoxConstraints(minHeight: 120, maxHeight: 220),
+      child: SingleChildScrollView(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.error_outline,
+                size: 48,
                 color: theme.colorScheme.error,
               ),
-              textAlign: TextAlign.center,
-            ),
-          ],
+              const SizedBox(height: 16),
+              Text(
+                message,
+                style: theme.textTheme.bodyLarge?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                  height: 1.45,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -317,9 +733,9 @@ class UpdateCheckDialog extends ConsumerWidget {
       UpdateStatus.available => [
         // 稍后提醒
         TextButton(
-          onPressed: () {
-            // 关闭弹窗，保持状态
-            Navigator.of(context).pop();
+          onPressed: () async {
+            await ref.read(updateStateProvider.notifier).remindLater();
+            if (context.mounted) Navigator.of(context).pop();
           },
           child: Text(context.l10n.remindMeLater),
         ),
@@ -334,14 +750,17 @@ class UpdateCheckDialog extends ConsumerWidget {
           },
           child: Text(context.l10n.skipThisVersion),
         ),
+        OutlinedButton.icon(
+          onPressed: () => _openReleasePage(context, state.versionInfo),
+          icon: const Icon(Icons.open_in_new_rounded, size: 18),
+          label: Text(context.l10n.viewReleasePage),
+        ),
         // 下载并安装 / 前往下载
         FilledButton(
           onPressed: () async {
             final versionInfo = state.versionInfo;
-            if (versionInfo?.supportsInAppInstall == true) {
-              await ref
-                  .read(updateStateProvider.notifier)
-                  .downloadAndInstallUpdate();
+            if (_supportsInAppInstall(versionInfo)) {
+              await ref.read(updateStateProvider.notifier).downloadUpdate();
               return;
             }
             await _openDownloadUrl(context, versionInfo);
@@ -350,13 +769,39 @@ class UpdateCheckDialog extends ConsumerWidget {
             }
           },
           child: Text(
-            state.versionInfo?.supportsInAppInstall == true
-                ? context.l10n.updateDownloadAndInstall
+            _supportsInAppInstall(state.versionInfo)
+                ? context.l10n.updateDownload
                 : context.l10n.goToDownload,
           ),
         ),
       ],
-      UpdateStatus.downloading || UpdateStatus.installing => const [],
+      UpdateStatus.downloading => [
+        TextButton(
+          onPressed: () {
+            ref.read(updateStateProvider.notifier).cancelDownload();
+            AppToast.info(context, context.l10n.updateDownloadCancelled);
+          },
+          child: Text(context.l10n.common_cancel),
+        ),
+      ],
+      UpdateStatus.downloaded => [
+        TextButton(
+          onPressed: () async {
+            await ref.read(updateStateProvider.notifier).remindLater();
+            if (context.mounted) Navigator.of(context).pop();
+          },
+          child: Text(context.l10n.updateInstallLater),
+        ),
+        FilledButton(
+          onPressed: () => _confirmInstall(context, ref),
+          child: Text(
+            PlatformCapabilities.current.requiresExternalInstallerFlow
+                ? context.l10n.updateInstallNow
+                : context.l10n.updateInstallAndRestart,
+          ),
+        ),
+      ],
+      UpdateStatus.installing => const [],
       UpdateStatus.upToDate => [
         FilledButton(
           onPressed: () => Navigator.of(context).pop(),
@@ -368,9 +813,24 @@ class UpdateCheckDialog extends ConsumerWidget {
           onPressed: () => Navigator.of(context).pop(),
           child: Text(context.l10n.common_close),
         ),
+        // 下载失败时提供浏览器手动下载的退路
+        if (state.versionInfo != null)
+          TextButton(
+            onPressed: () => _openDownloadUrl(context, state.versionInfo),
+            child: Text(context.l10n.goToDownload),
+          ),
         FilledButton(
           onPressed: () {
-            ref.read(updateStateProvider.notifier).checkForUpdates();
+            final notifier = ref.read(updateStateProvider.notifier);
+            // 已有版本信息说明是下载/安装阶段出错，直接重试下载；
+            // 否则重新走检查更新流程。
+            if (state.downloadedUpdate != null) {
+              _confirmInstall(context, ref);
+            } else if (_supportsInAppInstall(state.versionInfo)) {
+              notifier.downloadUpdate();
+            } else {
+              notifier.checkForUpdates(manual: true);
+            }
           },
           child: Text(context.l10n.common_retry),
         ),
@@ -384,11 +844,80 @@ class UpdateCheckDialog extends ConsumerWidget {
     };
   }
 
+  Future<void> _confirmInstall(BuildContext context, WidgetRef ref) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        key: const ValueKey('update-install-confirmation'),
+        scrollable: true,
+        insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+        constraints: const BoxConstraints(maxWidth: 440),
+        title: Text(context.l10n.updateInstallConfirmationTitle),
+        content: Text(
+          PlatformCapabilities.current.requiresExternalInstallerFlow
+              ? context.l10n.updateAndroidInstallConfirmationBody
+              : context.l10n.updateInstallConfirmationBody,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: Text(context.l10n.common_cancel),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: Text(
+              PlatformCapabilities.current.requiresExternalInstallerFlow
+                  ? context.l10n.updateInstallNow
+                  : context.l10n.updateInstallAndRestart,
+            ),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true && context.mounted) {
+      await ref.read(updateStateProvider.notifier).installDownloadedUpdate();
+      final status = ref.read(updateStateProvider).status;
+      if (context.mounted &&
+          status != UpdateStatus.error &&
+          PlatformCapabilities.current.requiresExternalInstallerFlow) {
+        Navigator.of(context).pop();
+      }
+    }
+  }
+
+  Future<void> _openReleasePage(
+    BuildContext context,
+    VersionInfo? versionInfo,
+  ) async {
+    final url = versionInfo?.htmlUrl;
+    if (url == null || url.isEmpty) return;
+
+    final uri = Uri.tryParse(url);
+    if (uri != null && await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } else if (context.mounted) {
+      AppToast.error(context, context.l10n.cannotOpenUrl);
+    }
+  }
+
+  /// 是否真的可以走应用内下载+安装。
+  ///
+  /// 【偏离上游】上游直接读 `versionInfo.supportsInAppInstall`，该字段只反映
+  /// 「这个资产能不能装」，不反映「本平台有没有资产」。iOS 上 primaryAsset 已被
+  /// `GitHubApiService._findPlatformAsset` 置空，但一旦哪天兜底又把桌面包匹配
+  /// 进来，按这个字段走下载分支就必然抛异常且重试无解——这里再挡一层。
+  bool _supportsInAppInstall(VersionInfo? versionInfo) =>
+      _hasInAppUpdateChannel && versionInfo?.supportsInAppInstall == true;
+
   Future<void> _openDownloadUrl(
     BuildContext context,
     VersionInfo? versionInfo,
   ) async {
-    final url = versionInfo?.downloadUrl ?? versionInfo?.htmlUrl;
+    // 【偏离上游】上游优先用 downloadUrl（= 某个具体安装包的直链）。
+    // iOS 上那个直链指向桌面资产，只能打开 Release 页面让用户自取 IPA 重新签名。
+    final url = _hasInAppUpdateChannel
+        ? (versionInfo?.downloadUrl ?? versionInfo?.htmlUrl)
+        : (versionInfo?.htmlUrl ?? _releasesPageUrl);
     if (url == null) return;
 
     final uri = Uri.parse(url);
@@ -401,10 +930,101 @@ class UpdateCheckDialog extends ConsumerWidget {
 
   /// 显示更新检查弹窗
   static Future<void> show(BuildContext context) {
-    return showDialog<void>(
+    return AdaptivePresenter.showForm<void>(
       context: context,
       barrierDismissible: false,
-      builder: (context) => const UpdateCheckDialog(),
+      showHeader: false,
+      dialogWidth: 680,
+      builder: (context, scrollController) =>
+          const UpdateCheckDialog(presentationManaged: true),
+    );
+  }
+}
+
+class _ResponsiveDialogActions extends StatelessWidget {
+  const _ResponsiveDialogActions({
+    required this.compact,
+    required this.singleColumn,
+    required this.children,
+  });
+
+  final bool compact;
+  final bool singleColumn;
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context) {
+    const spacing = 8.0;
+    if (!compact) {
+      return SizedBox(
+        key: const ValueKey('update-dialog-actions'),
+        child: _ActionRow(children: children),
+      );
+    }
+    if (children.length <= 2) {
+      return Wrap(
+        key: const ValueKey('update-dialog-actions'),
+        alignment: WrapAlignment.end,
+        runAlignment: WrapAlignment.end,
+        spacing: spacing,
+        runSpacing: spacing,
+        children: children,
+      );
+    }
+
+    final theme = Theme.of(context);
+    ButtonStyle withTouchHeight(ButtonStyle? style) =>
+        (style ?? const ButtonStyle()).copyWith(
+          minimumSize: const WidgetStatePropertyAll(Size(0, 48)),
+        );
+
+    return Theme(
+      data: theme.copyWith(
+        textButtonTheme: TextButtonThemeData(
+          style: withTouchHeight(theme.textButtonTheme.style),
+        ),
+        outlinedButtonTheme: OutlinedButtonThemeData(
+          style: withTouchHeight(theme.outlinedButtonTheme.style),
+        ),
+        filledButtonTheme: FilledButtonThemeData(
+          style: withTouchHeight(theme.filledButtonTheme.style),
+        ),
+      ),
+      child: Column(
+        key: const ValueKey('update-dialog-actions'),
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (singleColumn)
+            for (var index = 0; index < children.length; index++) ...[
+              if (index > 0) const SizedBox(height: spacing),
+              SizedBox(width: double.infinity, child: children[index]),
+            ]
+          else ...[
+            _ActionRow(children: children.take(2).toList()),
+            const SizedBox(height: spacing),
+            _ActionRow(children: children.skip(2).toList()),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _ActionRow extends StatelessWidget {
+  const _ActionRow({required this.children});
+
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        for (var index = 0; index < children.length; index++) ...[
+          if (index > 0) const SizedBox(width: 8),
+          Expanded(child: children[index]),
+        ],
+      ],
     );
   }
 }

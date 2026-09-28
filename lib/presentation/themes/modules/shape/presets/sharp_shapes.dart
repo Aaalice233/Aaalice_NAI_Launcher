@@ -21,7 +21,7 @@ class SharpShapes extends BaseShapeModule {
 
   @override
   ShapeBorder get cardShape => RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(mediumRadius),
+        borderRadius: BorderRadius.circular(largeRadius),
       );
 
   @override

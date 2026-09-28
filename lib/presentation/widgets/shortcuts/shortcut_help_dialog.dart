@@ -1,3 +1,4 @@
+import 'package:nai_launcher/presentation/widgets/common/horizontal_action_strip.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -5,19 +6,39 @@ import 'package:nai_launcher/core/utils/localization_extension.dart';
 import '../../../core/shortcuts/default_shortcuts.dart';
 import '../../../core/shortcuts/shortcut_config.dart';
 import '../../../core/shortcuts/shortcut_manager.dart';
-import '../../../presentation/router/app_router.dart';
+import '../../../presentation/router/app_routes.dart';
 import '../../../presentation/screens/settings/widgets/shortcut_settings_panel.dart';
+import '../../adaptive/adaptive_presenter.dart';
 import '../../providers/shortcuts_provider.dart';
+import 'shortcut_display_names.dart';
 
 /// 快捷键帮助对话框
 /// 显示所有可用的快捷键
 class ShortcutHelpDialog extends ConsumerStatefulWidget {
-  const ShortcutHelpDialog({super.key});
+  const ShortcutHelpDialog({super.key, this.scrollController});
 
-  static Future<void> show(BuildContext context) async {
-    await showDialog(
+  final ScrollController? scrollController;
+
+  static Future<void> show(BuildContext context) {
+    return AdaptivePresenter.showForm<void>(
       context: context,
-      builder: (context) => const ShortcutHelpDialog(),
+      titleBuilder: (context) => Row(
+        children: [
+          Icon(Icons.keyboard, color: Theme.of(context).colorScheme.primary),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              context.l10n.shortcut_help_title,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: Theme.of(context).textTheme.titleLarge,
+            ),
+          ),
+        ],
+      ),
+      dialogWidth: 800,
+      builder: (context, scrollController) =>
+          ShortcutHelpDialog(scrollController: scrollController),
     );
   }
 
@@ -36,150 +57,121 @@ class _ShortcutHelpDialogState extends ConsumerState<ShortcutHelpDialog> {
     super.dispose();
   }
 
+  void _openShortcutSettings() {
+    final router = GoRouter.of(context);
+    final rootNavigator = Navigator.of(context, rootNavigator: true);
+    Navigator.pop(context);
+    router.go(AppRoutes.settings);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (rootNavigator.mounted) {
+        ShortcutSettingsPanel.show(rootNavigator.context);
+      }
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final bindingsByContext = ref.watch(shortcutsByContextProvider);
 
-    return Dialog(
-      child: Container(
-        constraints: const BoxConstraints(maxWidth: 800, maxHeight: 700),
-        child: Column(
-          children: [
-            // 标题栏
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: Row(
-                children: [
-                  Icon(
-                    Icons.keyboard,
-                    color: theme.colorScheme.primary,
-                  ),
-                  const SizedBox(width: 12),
-                  Text(
-                    context.l10n.shortcut_help_title,
-                    style: theme.textTheme.titleLarge,
-                  ),
-                  const Spacer(),
-                  // 搜索框
-                  SizedBox(
-                    width: 200,
-                    child: TextField(
-                      controller: _searchController,
-                      decoration: InputDecoration(
-                        hintText: context.l10n.shortcut_help_search,
-                        prefixIcon: const Icon(Icons.search, size: 20),
-                        isDense: true,
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 8,
-                        ),
-                      ),
-                      onChanged: (value) {
-                        setState(() {
-                          _searchQuery = value.toLowerCase();
-                        });
-                      },
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  IconButton(
-                    icon: const Icon(Icons.close),
-                    onPressed: () => Navigator.pop(context),
-                  ),
-                ],
-              ),
-            ),
-
-            // 上下文筛选标签
-            SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Row(
-                children: [
-                  FilterChip(
-                    label: Text(context.l10n.shortcut_help_all),
-                    selected: _selectedContext == null,
-                    onSelected: (_) {
-                      setState(() {
-                        _selectedContext = null;
-                      });
-                    },
-                  ),
-                  const SizedBox(width: 8),
-                  ...ShortcutContext.values.map((shortcutContext) {
-                    return Padding(
-                      padding: const EdgeInsets.only(right: 8),
-                      child: FilterChip(
-                        label: Text(_getContextDisplayName(shortcutContext)),
-                        selected: _selectedContext == shortcutContext,
-                        onSelected: (_) {
-                          setState(() {
-                            _selectedContext = shortcutContext;
-                          });
-                        },
-                      ),
-                    );
-                  }),
-                ],
-              ),
-            ),
-
-            const Divider(),
-
-            // 快捷键列表
-            Expanded(
-              child: _buildShortcutsList(bindingsByContext),
-            ),
-
-            // 底部提示
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: theme.colorScheme.surfaceContainerHighest,
-                borderRadius: const BorderRadius.vertical(
-                  bottom: Radius.circular(4),
+    return SingleChildScrollView(
+      key: const ValueKey('shortcut-help-scroll'),
+      controller: widget.scrollController,
+      keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+      child: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: TextField(
+              key: const ValueKey('shortcut-help-search'),
+              controller: _searchController,
+              textAlignVertical: TextAlignVertical.center,
+              decoration: InputDecoration(
+                hintText: context.l10n.shortcut_help_search,
+                prefixIcon: const Icon(Icons.search, size: 20),
+                isDense: true,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 8,
                 ),
               ),
-              child: Row(
-                children: [
-                  Icon(
-                    Icons.info_outline,
-                    size: 16,
-                    color: theme.colorScheme.outline,
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      context.l10n.shortcut_help_tip,
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: theme.colorScheme.outline,
+              onChanged: (value) {
+                setState(() => _searchQuery = value.toLowerCase());
+              },
+            ),
+          ),
+          HorizontalActionStrip(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Row(
+              children: [
+                FilterChip(
+                  label: Text(context.l10n.shortcut_help_all),
+                  selected: _selectedContext == null,
+                  onSelected: (_) => setState(() => _selectedContext = null),
+                ),
+                const SizedBox(width: 8),
+                ...ShortcutContext.values.map((shortcutContext) {
+                  return Padding(
+                    padding: const EdgeInsets.only(right: 8),
+                    child: FilterChip(
+                      label: Text(
+                        shortcutContextDisplayName(
+                          context.l10n,
+                          shortcutContext,
+                        ),
+                      ),
+                      selected: _selectedContext == shortcutContext,
+                      onSelected: (_) =>
+                          setState(() => _selectedContext = shortcutContext),
+                    ),
+                  );
+                }),
+              ],
+            ),
+          ),
+          const Divider(),
+          _buildShortcutsList(bindingsByContext),
+          Container(
+            padding: const EdgeInsets.all(16),
+            color: theme.colorScheme.surfaceContainerHighest,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(
+                      Icons.info_outline,
+                      size: 16,
+                      color: theme.colorScheme.outline,
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        context.l10n.shortcut_help_tip,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.outline,
+                        ),
                       ),
                     ),
-                  ),
-                  TextButton.icon(
-                    onPressed: () {
-                      Navigator.pop(context);
-                      // 导航到设置页面并打开快捷键设置面板
-                      context.go(AppRoutes.settings);
-                      // 使用微任务确保页面导航完成后再打开面板
-                      Future.microtask(() {
-                        if (context.mounted) {
-                          ShortcutSettingsPanel.show(context);
-                        }
-                      });
-                    },
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: TextButton.icon(
+                    onPressed: _openShortcutSettings,
                     icon: const Icon(Icons.settings, size: 16),
                     label: Text(context.l10n.shortcuts_customize),
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -191,10 +183,14 @@ class _ShortcutHelpDialogState extends ConsumerState<ShortcutHelpDialog> {
       return _buildSearchResults();
     }
 
-    final contextsToShow =
-        _selectedContext != null ? [_selectedContext!] : ShortcutContext.values;
+    final contextsToShow = _selectedContext != null
+        ? [_selectedContext!]
+        : ShortcutContext.values;
 
     return ListView.builder(
+      primary: false,
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       itemCount: contextsToShow.length,
       itemBuilder: (context, index) {
@@ -235,7 +231,7 @@ class _ShortcutHelpDialogState extends ConsumerState<ShortcutHelpDialog> {
               ),
               const SizedBox(width: 8),
               Text(
-                _getContextDisplayName(shortcutContext),
+                shortcutContextDisplayName(context.l10n, shortcutContext),
                 style: theme.textTheme.titleMedium?.copyWith(
                   fontWeight: FontWeight.bold,
                   color: theme.colorScheme.primary,
@@ -267,7 +263,10 @@ class _ShortcutHelpDialogState extends ConsumerState<ShortcutHelpDialog> {
     if (shortcut == null) return const SizedBox.shrink();
 
     final shortcutLabel = AppShortcutManager.getDisplayLabel(shortcut);
-    final actionName = _getActionDisplayName(binding);
+    final actionName = shortcutActionDisplayName(
+      context.l10n,
+      binding.actionKey,
+    );
 
     return Container(
       margin: const EdgeInsets.only(bottom: 4),
@@ -276,15 +275,9 @@ class _ShortcutHelpDialogState extends ConsumerState<ShortcutHelpDialog> {
         color: theme.colorScheme.surfaceContainerLowest,
         borderRadius: BorderRadius.circular(6),
       ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Text(
-              actionName,
-              style: theme.textTheme.bodyMedium,
-            ),
-          ),
-          Container(
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final shortcutChip = Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
             decoration: BoxDecoration(
               color: theme.colorScheme.surfaceContainerHighest,
@@ -295,14 +288,37 @@ class _ShortcutHelpDialogState extends ConsumerState<ShortcutHelpDialog> {
             ),
             child: Text(
               shortcutLabel,
+              overflow: TextOverflow.ellipsis,
               style: theme.textTheme.bodySmall?.copyWith(
                 fontFamily: 'monospace',
                 fontWeight: FontWeight.w600,
                 color: theme.colorScheme.primary,
               ),
             ),
-          ),
-        ],
+          );
+          final stacks =
+              constraints.maxWidth < 360 ||
+              MediaQuery.textScalerOf(context).scale(1) >= 2;
+          if (stacks) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(actionName, style: theme.textTheme.bodyMedium),
+                const SizedBox(height: 8),
+                shortcutChip,
+              ],
+            );
+          }
+          return Row(
+            children: [
+              Expanded(
+                child: Text(actionName, style: theme.textTheme.bodyMedium),
+              ),
+              const SizedBox(width: 8),
+              Flexible(child: shortcutChip),
+            ],
+          );
+        },
       ),
     );
   }
@@ -324,8 +340,8 @@ class _ShortcutHelpDialogState extends ConsumerState<ShortcutHelpDialog> {
             Text(
               context.l10n.shortcut_settings_no_matches,
               style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                    color: Theme.of(context).colorScheme.outline,
-                  ),
+                color: Theme.of(context).colorScheme.outline,
+              ),
             ),
           ],
         ),
@@ -333,176 +349,15 @@ class _ShortcutHelpDialogState extends ConsumerState<ShortcutHelpDialog> {
     }
 
     return ListView.builder(
+      primary: false,
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
       padding: const EdgeInsets.all(16),
       itemCount: searchResults.length,
       itemBuilder: (context, index) {
         return _buildShortcutItem(searchResults[index]);
       },
     );
-  }
-
-  String _getActionDisplayName(ShortcutBinding binding) {
-    final l10n = context.l10n;
-    final key = binding.actionKey;
-
-    // 使用 switch 从 ARB 文件获取本地化文本
-    switch (key) {
-      case 'shortcut_action_navigate_to_generation':
-        return l10n.shortcut_action_navigate_to_generation;
-      case 'shortcut_action_navigate_to_local_gallery':
-        return l10n.shortcut_action_navigate_to_local_gallery;
-      case 'shortcut_action_navigate_to_online_gallery':
-        return l10n.shortcut_action_navigate_to_online_gallery;
-      case 'shortcut_action_navigate_to_random_config':
-        return l10n.shortcut_action_navigate_to_random_config;
-      case 'shortcut_action_navigate_to_tag_library':
-        return l10n.shortcut_action_navigate_to_tag_library;
-      case 'shortcut_action_navigate_to_statistics':
-        return l10n.shortcut_action_navigate_to_statistics;
-      case 'shortcut_action_navigate_to_settings':
-        return l10n.shortcut_action_navigate_to_settings;
-      case 'shortcut_action_generate_image':
-        return l10n.shortcut_action_generate_image;
-      case 'shortcut_action_cancel_generation':
-        return l10n.shortcut_action_cancel_generation;
-      case 'shortcut_action_add_to_queue':
-        return l10n.shortcut_action_add_to_queue;
-      case 'shortcut_action_random_prompt':
-        return l10n.shortcut_action_random_prompt;
-      case 'shortcut_action_clear_prompt':
-        return l10n.shortcut_action_clear_prompt;
-      case 'shortcut_action_toggle_prompt_mode':
-        return l10n.shortcut_action_toggle_prompt_mode;
-      case 'shortcut_action_open_tag_library':
-        return l10n.shortcut_action_open_tag_library;
-      case 'shortcut_action_save_image':
-        return l10n.shortcut_action_save_image;
-      case 'shortcut_action_upscale_image':
-        return l10n.shortcut_action_upscale_image;
-      case 'shortcut_action_copy_image':
-        return l10n.shortcut_action_copy_image;
-      case 'shortcut_action_fullscreen_preview':
-        return l10n.shortcut_action_fullscreen_preview;
-      case 'shortcut_action_open_params_panel':
-        return l10n.shortcut_action_open_params_panel;
-      case 'shortcut_action_open_history_panel':
-        return l10n.shortcut_action_open_history_panel;
-      case 'shortcut_action_reuse_params':
-        return l10n.shortcut_action_reuse_params;
-      case 'shortcut_action_previous_image':
-        return l10n.shortcut_action_previous_image;
-      case 'shortcut_action_next_image':
-        return l10n.shortcut_action_next_image;
-      case 'shortcut_action_zoom_in':
-        return l10n.shortcut_action_zoom_in;
-      case 'shortcut_action_zoom_out':
-        return l10n.shortcut_action_zoom_out;
-      case 'shortcut_action_reset_zoom':
-        return l10n.shortcut_action_reset_zoom;
-      case 'shortcut_action_toggle_fullscreen':
-        return l10n.shortcut_action_toggle_fullscreen;
-      case 'shortcut_action_close_viewer':
-        return l10n.shortcut_action_close_viewer;
-      case 'shortcut_action_toggle_favorite':
-        return l10n.shortcut_action_toggle_favorite;
-      case 'shortcut_action_copy_prompt':
-        return l10n.shortcut_action_copy_prompt;
-      case 'shortcut_action_reuse_gallery_params':
-        return l10n.shortcut_action_reuse_gallery_params;
-      case 'shortcut_action_delete_image':
-        return l10n.shortcut_action_delete_image;
-      case 'shortcut_action_previous_page':
-        return l10n.shortcut_action_previous_page;
-      case 'shortcut_action_next_page':
-        return l10n.shortcut_action_next_page;
-      case 'shortcut_action_refresh_gallery':
-        return l10n.shortcut_action_refresh_gallery;
-      case 'shortcut_action_focus_search':
-        return l10n.shortcut_action_focus_search;
-      case 'shortcut_action_enter_selection_mode':
-        return l10n.shortcut_action_enter_selection_mode;
-      case 'shortcut_action_open_filter_panel':
-        return l10n.shortcut_action_open_filter_panel;
-      case 'shortcut_action_clear_filter':
-        return l10n.shortcut_action_clear_filter;
-      case 'shortcut_action_toggle_category_panel':
-        return l10n.shortcut_action_toggle_category_panel;
-      case 'shortcut_action_jump_to_date':
-        return l10n.shortcut_action_jump_to_date;
-      case 'shortcut_action_open_folder':
-        return l10n.shortcut_action_open_folder;
-      case 'shortcut_action_select_all_tags':
-        return l10n.shortcut_action_select_all_tags;
-      case 'shortcut_action_deselect_all_tags':
-        return l10n.shortcut_action_deselect_all_tags;
-      case 'shortcut_action_new_category':
-        return l10n.shortcut_action_new_category;
-      case 'shortcut_action_new_tag':
-        return l10n.shortcut_action_new_tag;
-      case 'shortcut_action_search_tags':
-        return l10n.shortcut_action_search_tags;
-      case 'shortcut_action_batch_delete_tags':
-        return l10n.shortcut_action_batch_delete_tags;
-      case 'shortcut_action_batch_copy_tags':
-        return l10n.shortcut_action_batch_copy_tags;
-      case 'shortcut_action_send_to_home':
-        return l10n.shortcut_action_send_to_home;
-      case 'shortcut_action_exit_selection_mode':
-        return l10n.shortcut_action_exit_selection_mode;
-      case 'shortcut_action_sync_danbooru':
-        return l10n.shortcut_action_sync_danbooru;
-      case 'shortcut_action_generate_preview':
-        return l10n.shortcut_action_generate_preview;
-      case 'shortcut_action_search_presets':
-        return l10n.shortcut_action_search_presets;
-      case 'shortcut_action_new_preset':
-        return l10n.shortcut_action_new_preset;
-      case 'shortcut_action_duplicate_preset':
-        return l10n.shortcut_action_duplicate_preset;
-      case 'shortcut_action_delete_preset':
-        return l10n.shortcut_action_delete_preset;
-      case 'shortcut_action_close_config':
-        return l10n.shortcut_action_close_config;
-      case 'shortcut_action_minimize_to_tray':
-        return l10n.shortcut_action_minimize_to_tray;
-      case 'shortcut_action_quit_app':
-        return l10n.shortcut_action_quit_app;
-      case 'shortcut_action_show_shortcut_help':
-        return l10n.shortcut_action_show_shortcut_help;
-      case 'shortcut_action_toggle_queue':
-        return l10n.shortcut_action_toggle_queue;
-      case 'shortcut_action_toggle_queue_pause':
-        return l10n.shortcut_action_toggle_queue_pause;
-      case 'shortcut_action_toggle_theme':
-        return l10n.shortcut_action_toggle_theme;
-      default:
-        return key.replaceAll('shortcut_action_', '');
-    }
-  }
-
-  String _getContextDisplayName(ShortcutContext shortcutContext) {
-    final l10n = context.l10n;
-
-    switch (shortcutContext) {
-      case ShortcutContext.global:
-        return l10n.shortcut_context_global;
-      case ShortcutContext.generation:
-        return l10n.shortcut_context_generation;
-      case ShortcutContext.gallery:
-        return l10n.shortcut_context_gallery;
-      case ShortcutContext.viewer:
-        return l10n.shortcut_context_viewer;
-      case ShortcutContext.tagLibrary:
-        return l10n.shortcut_context_tag_library;
-      case ShortcutContext.randomConfig:
-        return l10n.shortcut_context_random_config;
-      case ShortcutContext.settings:
-        return l10n.shortcut_context_settings;
-      case ShortcutContext.input:
-        return l10n.shortcut_context_input;
-      case ShortcutContext.vibeDetail:
-        return l10n.shortcut_context_vibe_detail;
-    }
   }
 }
 

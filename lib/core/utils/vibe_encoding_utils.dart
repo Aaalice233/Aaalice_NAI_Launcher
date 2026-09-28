@@ -44,12 +44,16 @@ class VibeEncodingUtils {
         _parseDouble(data['infoExtracted'], 0.7),
       );
       final sourceType = _parseSourceType(data['sourceType'], vibeEncoding);
+      final encodingModel = data['encodingModel'] is String
+          ? data['encodingModel'] as String
+          : null;
 
       return VibeReference(
         displayName: displayName,
         vibeEncoding: vibeEncoding,
         strength: strength,
         infoExtracted: infoExtracted,
+        encodingModel: encodingModel,
         sourceType: sourceType,
       );
     } on VibeEncodingException {
@@ -92,6 +96,8 @@ class VibeEncodingUtils {
         'strength': vibe.strength,
         'infoExtracted': vibe.infoExtracted,
         'vibeEncoding': vibe.vibeEncoding,
+        'encodingModel': vibe.encodingModel,
+        'sourceType': vibe.sourceType.name,
       },
     };
   }

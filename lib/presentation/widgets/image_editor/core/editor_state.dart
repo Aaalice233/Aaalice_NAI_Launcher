@@ -16,6 +16,16 @@ import 'selection_manager.dart';
 import 'stroke_manager.dart';
 import 'tool_manager.dart';
 
+enum MagicWandSelectionMode { colorArea, smartObject }
+
+typedef MagicWandHandler =
+    Future<void> Function(
+      Offset canvasPoint, {
+      required MagicWandSelectionMode mode,
+      required int tolerance,
+      required bool invert,
+    });
+
 /// 编辑器全局状态（协调器）
 /// 协调各 Manager 之间的交互，提供统一的 API 给 UI 层
 class EditorState extends ChangeNotifier {
@@ -56,8 +66,9 @@ class EditorState extends ChangeNotifier {
   final ValueNotifier<EditorTool?> toolChangeNotifier = ValueNotifier(null);
 
   /// 画布尺寸通知器（仅画布尺寸相关 UI 监听）
-  final ValueNotifier<Size> canvasSizeNotifier =
-      ValueNotifier(const Size(1024, 1024));
+  final ValueNotifier<Size> canvasSizeNotifier = ValueNotifier(
+    const Size(1024, 1024),
+  );
 
   /// 光标位置通知器（仅光标绘制器监听）
   /// 避免光标移动触发整个 UI 重建
@@ -68,6 +79,8 @@ class EditorState extends ChangeNotifier {
   /// 画布尺寸
   Size _canvasSize = const Size(1024, 1024);
   Size get canvasSize => _canvasSize;
+  Rect Function(Rect candidate, Offset fixedAnchor)? _rectSelectionConstraint;
+  MagicWandHandler? _magicWandHandler;
 
   // ===== 内部状态 =====
 
@@ -109,6 +122,34 @@ class EditorState extends ChangeNotifier {
   // 选区代理
   Path? get selectionPath => selectionManager.selectionPath;
   Path? get previewPath => selectionManager.previewPath;
+
+  void setRectSelectionConstraint(
+    Rect Function(Rect candidate, Offset fixedAnchor)? constraint,
+  ) {
+    _rectSelectionConstraint = constraint;
+  }
+
+  Rect constrainRectSelection(Rect candidate, Offset fixedAnchor) {
+    return _rectSelectionConstraint?.call(candidate, fixedAnchor) ?? candidate;
+  }
+
+  void setMagicWandHandler(MagicWandHandler? handler) {
+    _magicWandHandler = handler;
+  }
+
+  Future<void> applyMagicWand(
+    Offset canvasPoint, {
+    required MagicWandSelectionMode mode,
+    required int tolerance,
+    required bool invert,
+  }) async {
+    await _magicWandHandler?.call(
+      canvasPoint,
+      mode: mode,
+      tolerance: tolerance,
+      invert: invert,
+    );
+  }
 
   // 笔画代理
   List<Offset> get currentStrokePoints => strokeManager.currentStrokePoints;
@@ -390,10 +431,7 @@ class EditorState extends ChangeNotifier {
     final layer = layerManager.activeLayer;
     if (layer == null || layer.locked || !layer.hasContent) return;
 
-    historyManager.execute(
-      ClearLayerAction(layerId: layer.id),
-      this,
-    );
+    historyManager.execute(ClearLayerAction(layerId: layer.id), this);
   }
 
   /// 调整画布大小（支持撤销）
@@ -402,10 +440,7 @@ class EditorState extends ChangeNotifier {
     if (_canvasSize == newSize) return;
 
     historyManager.execute(
-      ResizeCanvasAction(
-        newSize: newSize,
-        mode: mode,
-      ),
+      ResizeCanvasAction(newSize: newSize, mode: mode),
       this,
     );
   }
@@ -431,8 +466,9 @@ class EditorState extends ChangeNotifier {
     layerImg.dispose();
 
     final cutPng = await cutImg.toByteData(format: ui.ImageByteFormat.png);
-    final remainPng =
-        await remainImg.toByteData(format: ui.ImageByteFormat.png);
+    final remainPng = await remainImg.toByteData(
+      format: ui.ImageByteFormat.png,
+    );
     if (cutPng == null || remainPng == null) {
       cutImg.dispose();
       remainImg.dispose();
@@ -551,6 +587,14 @@ class EditorState extends ChangeNotifier {
   }
 
   void _notifyRenderChange() => notifyRenderChange();
+
+  /// 光标位置未变但视觉参数变了（如 Shift 拖拽调笔刷半径）时强制光标层重绘
+  void notifyCursorVisualChange() {
+    if (_isDisposed) return;
+
+    // ignore: invalid_use_of_protected_member, invalid_use_of_visible_for_testing_member
+    cursorNotifier.notifyListeners();
+  }
 
   void _notifyStrokePreviewChange() {
     if (_isDisposed) return;
@@ -713,6 +757,7 @@ class EditorState extends ChangeNotifier {
   void dispose() {
     _isDisposed = true;
     _pendingStrokePreviewChange = false;
+    _magicWandHandler = null;
 
     // 移除监听器
     layerManager.removeListener(_onLayerChanged);

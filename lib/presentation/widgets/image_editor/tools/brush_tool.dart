@@ -25,11 +25,8 @@ class BrushPreset {
     required this.hardness,
   });
 
-  BrushSettings toSettings() => BrushSettings(
-        size: size,
-        opacity: opacity,
-        hardness: hardness,
-      );
+  BrushSettings toSettings() =>
+      BrushSettings(size: size, opacity: opacity, hardness: hardness);
 }
 
 /// 默认笔刷预设列表
@@ -323,8 +320,9 @@ class _BrushSettingsPanelState extends State<_BrushSettingsPanel> {
                         onTap: () {
                           setState(() {
                             widget.tool.applyPreset(preset, index);
-                            _sizeController.text =
-                                preset.size.round().toString();
+                            _sizeController.text = preset.size
+                                .round()
+                                .toString();
                           });
                           widget.onSettingsChanged();
                         },
@@ -421,13 +419,12 @@ class _BrushPresetButton extends StatelessWidget {
           width: 56,
           padding: const EdgeInsets.all(4),
           decoration: BoxDecoration(
-            color: isSelected ? theme.colorScheme.primaryContainer : null,
-            border: Border.all(
-              color: isSelected
-                  ? theme.colorScheme.primary
-                  : theme.colorScheme.outlineVariant,
-              width: isSelected ? 2 : 1,
-            ),
+            color: isSelected
+                ? theme.colorScheme.primary.withValues(alpha: 0.12)
+                : theme.colorScheme.surfaceContainer,
+            border: isSelected
+                ? Border.all(color: theme.colorScheme.primary, width: 1)
+                : null,
             borderRadius: BorderRadius.circular(8),
           ),
           child: Column(
@@ -513,10 +510,7 @@ class _SettingRow extends StatelessWidget {
         children: [
           SizedBox(
             width: 60,
-            child: Text(
-              label,
-              style: theme.textTheme.bodySmall,
-            ),
+            child: Text(label, style: theme.textTheme.bodySmall),
           ),
           Expanded(
             child: SliderTheme(

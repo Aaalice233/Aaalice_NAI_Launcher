@@ -2,13 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../../core/utils/localization_extension.dart';
-import 'inset_shadow_container.dart';
+import '../../adaptive/interaction_policy.dart';
+import 'input_surface_container.dart';
 import 'themed_confirm_dialog.dart';
+import 'themed_text_selection_toolbar.dart';
 
 /// 统一样式的输入框组件
 ///
-/// 使用 [InsetShadowContainer] 包装，提供立体感效果。
-/// 支持单行和多行模式，统一圆角和样式。
+/// 使用共享深色填充与清晰、无发光的主题色聚焦轮廓。
+/// 支持单行和多行模式，统一圆角和状态样式。
 class ThemedInput extends StatefulWidget {
   /// 文本控制器
   final TextEditingController? controller;
@@ -33,6 +35,9 @@ class ThemedInput extends StatefulWidget {
 
   /// 是否自动扩展
   final bool expands;
+
+  /// 文本输入框内部滚动行为
+  final ScrollPhysics? scrollPhysics;
 
   /// 键盘操作类型
   final TextInputAction? textInputAction;
@@ -79,6 +84,12 @@ class ThemedInput extends StatefulWidget {
   /// 提示文字样式
   final TextStyle? hintStyle;
 
+  /// 覆盖共享输入色面，供大面积编辑器使用更明确的层级。
+  final Color? surfaceColor;
+
+  /// 是否显示内侧错误发光状态。
+  final bool hasError;
+
   /// 是否自动获取焦点
   final bool autofocus;
 
@@ -117,7 +128,8 @@ class ThemedInput extends StatefulWidget {
   final Widget Function(
     BuildContext context,
     EditableTextState editableTextState,
-  )? contextMenuBuilder;
+  )?
+  contextMenuBuilder;
 
   /// Whether to add a native Ctrl+Y redo shortcut for plain text fields.
   final bool enableNativeRedoShortcut;
@@ -132,6 +144,7 @@ class ThemedInput extends StatefulWidget {
     this.maxLines = 1,
     this.minLines,
     this.expands = false,
+    this.scrollPhysics,
     this.textInputAction,
     this.keyboardType,
     this.onChanged,
@@ -150,6 +163,8 @@ class ThemedInput extends StatefulWidget {
     this.maxLength,
     this.style,
     this.hintStyle,
+    this.surfaceColor,
+    this.hasError = false,
     this.autofocus = false,
     this.onTap,
     this.onEditingComplete,
@@ -176,6 +191,7 @@ class ThemedInput extends StatefulWidget {
     this.maxLines,
     this.minLines = 3,
     this.expands = false,
+    this.scrollPhysics,
     this.textInputAction,
     this.keyboardType = TextInputType.multiline,
     this.onChanged,
@@ -191,6 +207,8 @@ class ThemedInput extends StatefulWidget {
     this.maxLength,
     this.style,
     this.hintStyle,
+    this.surfaceColor,
+    this.hasError = false,
     this.autofocus = false,
     this.onTap,
     this.onEditingComplete,
@@ -212,12 +230,17 @@ class ThemedInput extends StatefulWidget {
 
 class _ThemedInputState extends State<ThemedInput> {
   late TextEditingController _effectiveController;
+  late FocusNode _effectiveFocusNode;
+  bool _ownsFocusNode = false;
   bool _hasContent = false;
 
   @override
   void initState() {
     super.initState();
     _effectiveController = widget.controller ?? TextEditingController();
+    _effectiveFocusNode = widget.focusNode ?? FocusNode();
+    _ownsFocusNode = widget.focusNode == null;
+    _effectiveFocusNode.addListener(_onFocusChanged);
     _hasContent = _effectiveController.text.isNotEmpty;
     if (widget.showClearButton) {
       _effectiveController.addListener(_onTextChanged);
@@ -240,6 +263,13 @@ class _ThemedInputState extends State<ThemedInput> {
         _effectiveController.addListener(_onTextChanged);
       }
     }
+    if (widget.focusNode != oldWidget.focusNode) {
+      _effectiveFocusNode.removeListener(_onFocusChanged);
+      if (_ownsFocusNode) _effectiveFocusNode.dispose();
+      _effectiveFocusNode = widget.focusNode ?? FocusNode();
+      _ownsFocusNode = widget.focusNode == null;
+      _effectiveFocusNode.addListener(_onFocusChanged);
+    }
   }
 
   @override
@@ -250,7 +280,13 @@ class _ThemedInputState extends State<ThemedInput> {
     if (widget.controller == null) {
       _effectiveController.dispose();
     }
+    _effectiveFocusNode.removeListener(_onFocusChanged);
+    if (_ownsFocusNode) _effectiveFocusNode.dispose();
     super.dispose();
+  }
+
+  void _onFocusChanged() {
+    if (mounted) setState(() {});
   }
 
   void _onTextChanged() {
@@ -302,6 +338,7 @@ class _ThemedInputState extends State<ThemedInput> {
       disabledBorder: InputBorder.none,
       errorBorder: InputBorder.none,
       focusedErrorBorder: InputBorder.none,
+      filled: false,
       contentPadding: widget.contentPadding,
       prefixIcon: widget.prefixIcon,
       suffixIcon: widget.suffixIcon,
@@ -331,8 +368,6 @@ class _ThemedInputState extends State<ThemedInput> {
         suffixStyle: widget.decoration!.suffixStyle,
         counter: widget.decoration!.counter,
         counterStyle: widget.decoration!.counterStyle,
-        filled: widget.decoration!.filled,
-        fillColor: widget.decoration!.fillColor,
         contentPadding:
             widget.decoration!.contentPadding ?? widget.contentPadding,
         isDense: widget.decoration!.isDense,
@@ -342,10 +377,11 @@ class _ThemedInputState extends State<ThemedInput> {
     final field = TextField(
       controller: _effectiveController,
       undoController: widget.undoController,
-      focusNode: widget.focusNode,
+      focusNode: _effectiveFocusNode,
       maxLines: widget.maxLines,
       minLines: widget.minLines,
       expands: widget.expands,
+      scrollPhysics: widget.scrollPhysics,
       textInputAction: widget.textInputAction,
       keyboardType: widget.keyboardType,
       onChanged: widget.onChanged,
@@ -361,10 +397,16 @@ class _ThemedInputState extends State<ThemedInput> {
       style: widget.style,
       autofocus: widget.autofocus,
       textAlign: widget.textAlign,
-      textAlignVertical: widget.textAlignVertical,
+      textAlignVertical:
+          widget.textAlignVertical ??
+          (widget.maxLines == 1 && !widget.expands
+              ? TextAlignVertical.center
+              : null),
       cursorColor: widget.cursorColor,
       decoration: inputDecoration,
-      contextMenuBuilder: widget.contextMenuBuilder,
+      // 不传时用带主题字体的默认实现：Flutter 自带的工具栏按钮会绕开
+      // 主题字体，右键菜单会一直是系统默认字体。
+      contextMenuBuilder: widget.contextMenuBuilder ?? themedContextMenuBuilder,
     );
 
     final textField = widget.enableNativeRedoShortcut
@@ -379,23 +421,29 @@ class _ThemedInputState extends State<ThemedInput> {
 
     Widget content = textField;
 
-    // 如果需要显示清空按钮，使用 Stack 包装
-    if (widget.showClearButton && _hasContent) {
+    // 需要清空按钮时恒用 Stack 包装、仅切换按钮显隐：
+    // 若按「空/非空」增删 Stack 层，输入框会在删空瞬间因父链结构变化
+    // 而整体重建，焦点与键盘输入连接被打断（光标消失、需重新点击）
+    if (widget.showClearButton) {
       content = Stack(
         children: [
           textField,
-          Positioned(
-            top: 4,
-            right: 4,
-            child: _ClearButton(onPressed: _handleClear),
-          ),
+          if (_hasContent)
+            Positioned(
+              top: 4,
+              right: 4,
+              child: _ClearButton(onPressed: _handleClear),
+            ),
         ],
       );
     }
 
-    final container = InsetShadowContainer(
+    final container = InputSurfaceContainer(
       borderRadius: widget.borderRadius,
-      enabled: widget.enabled ? null : false,
+      enabled: widget.enabled,
+      isFocused: _effectiveFocusNode.hasFocus,
+      hasError: widget.hasError || inputDecoration.errorText != null,
+      backgroundColor: widget.surfaceColor,
       child: content,
     );
 
@@ -411,10 +459,7 @@ class _ThemedInputState extends State<ThemedInput> {
             padding: const EdgeInsets.only(left: 12),
             child: Text(
               widget.helperText!,
-              style: TextStyle(
-                fontSize: 12,
-                color: theme.colorScheme.outline,
-              ),
+              style: TextStyle(fontSize: 12, color: theme.colorScheme.outline),
             ),
           ),
         ],
@@ -433,22 +478,17 @@ class _ClearButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    return Material(
-      color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.8),
-      shape: const CircleBorder(),
-      child: InkWell(
-        onTap: onPressed,
-        customBorder: const CircleBorder(),
-        child: Padding(
-          padding: const EdgeInsets.all(4),
-          child: Icon(
-            Icons.close,
-            size: 14,
-            color: colorScheme.onSurfaceVariant,
-          ),
-        ),
-      ),
+    final interactionPolicy = context.interactionPolicy;
+    final extent = interactionPolicy.touchAvailable
+        ? interactionPolicy.minimumControlExtent
+        : 32.0;
+    return IconButton(
+      onPressed: onPressed,
+      icon: const Icon(Icons.close, size: 16),
+      tooltip: MaterialLocalizations.of(context).deleteButtonTooltip,
+      visualDensity: VisualDensity.compact,
+      constraints: BoxConstraints.tightFor(width: extent, height: extent),
+      padding: EdgeInsets.zero,
     );
   }
 }

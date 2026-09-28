@@ -5,11 +5,15 @@ part 'weighted_tag.g.dart';
 
 /// 标签来源
 enum TagSource {
-  /// NAI 官方固定标签
+  /// 旧版本内置标签。保留该值用于读取现有用户数据。
   @JsonValue('nai')
   nai,
 
-  /// Danbooru 补充标签
+  /// 完整离线 catalog 中的标签。
+  @JsonValue('catalog')
+  catalog,
+
+  /// 运行时同步的 Danbooru 补充标签。
   @JsonValue('danbooru')
   danbooru,
 
@@ -20,8 +24,7 @@ enum TagSource {
 
 /// 带权重的标签模型
 ///
-/// 用于实现加权随机选择算法，复刻 NovelAI 官网的随机提示词功能
-/// 参考: docs/NAI随机提示词功能分析.md
+/// 用于实现可复现的加权随机选择。
 @freezed
 class WeightedTag with _$WeightedTag {
   const WeightedTag._();
@@ -31,7 +34,7 @@ class WeightedTag with _$WeightedTag {
     required String tag,
 
     /// 权重（越高被选中概率越大）
-    /// 官网使用 post_count / 100000 作为权重
+    /// catalog 标签使用帖子量的对数缩放权重
     required int weight,
 
     /// 条件依赖列表（可选）
@@ -41,7 +44,7 @@ class WeightedTag with _$WeightedTag {
     /// 中文翻译（可选）
     String? translation,
 
-    /// 标签来源（默认为 NAI）
+    /// 标签来源。旧数据缺少该字段时保持原来的 `nai` 兼容值。
     @Default(TagSource.nai) TagSource source,
   }) = _WeightedTag;
 
@@ -64,7 +67,7 @@ class WeightedTag with _$WeightedTag {
     );
   }
 
-  /// 简单创建（用于内置词库，默认为 NAI 来源）
+  /// 简单创建（旧调用方默认保持兼容来源）
   factory WeightedTag.simple(
     String tag,
     int weight, [

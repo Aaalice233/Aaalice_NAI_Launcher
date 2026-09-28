@@ -22,12 +22,15 @@ enum VibeSourceType {
 
 extension VibeSourceTypeExtension on VibeSourceType {
   /// 显示名称
+  ///
+  /// 说的是数据来源的文件格式，与编码使用的模型无关：V4.5 的 Vibe 同样存放在
+  /// NovelAI 的 `.naiv4vibe` 文件里，所以这里不带模型版本号。
   String get displayLabel {
     switch (this) {
       case VibeSourceType.png:
         return 'PNG';
       case VibeSourceType.naiv4vibe:
-        return 'V4 Vibe';
+        return 'Vibe File';
       case VibeSourceType.naiv4vibebundle:
         return 'Bundle';
       case VibeSourceType.rawImage:
@@ -43,13 +46,14 @@ extension VibeSourceTypeExtension on VibeSourceType {
 /// 2. 原始图片模式: 需要服务端编码，消耗 2 Anlas/张
 @freezed
 class VibeReference with _$VibeReference {
-  static const double minStrength = -1.0;
-  static const double maxStrength = 1.0;
-  static const double minInfoExtracted = 0.0;
+  static const double defaultStrength = 0.6;
+  static const double minSliderStrength = 0.01;
+  static const double maxSliderStrength = 1.0;
+  static const double minInfoExtracted = 0.01;
   static const double maxInfoExtracted = 1.0;
 
   static double sanitizeStrength(double value) {
-    return value.clamp(minStrength, maxStrength).toDouble();
+    return value.isFinite ? value : defaultStrength;
   }
 
   static double sanitizeInfoExtracted(double value) {
@@ -71,13 +75,16 @@ class VibeReference with _$VibeReference {
     @JsonKey(includeFromJson: false, includeToJson: false)
     Uint8List? rawImageData,
 
-    /// Reference Strength (-1 到 1)
+    /// Reference Strength（数值输入不设前端上下限，滑条范围 0.01-1）
     /// 控制 vibe 对生成图像的影响强度
     @Default(0.6) double strength,
 
     /// Information Extracted (0 到 1)
     /// 对于可重新编码的 Vibe，控制从参考图中提取多少信息
     @Default(0.7) double infoExtracted,
+
+    /// 生成当前预编码数据时使用的 NovelAI 模型。
+    String? encodingModel,
 
     /// 数据来源类型
     @Default(VibeSourceType.rawImage) VibeSourceType sourceType,
@@ -101,13 +108,19 @@ class VibeReference with _$VibeReference {
 
   bool get hasVibeEncoding => vibeEncoding.isNotEmpty;
 
-  VibeReference withEncodedVibe(String encoding) {
+  bool needsEncodingForModel(String model) {
+    return canReencodeFromRawSource &&
+        (!hasVibeEncoding || encodingModel != model);
+  }
+
+  VibeReference withEncodedVibe(String encoding, {String? model}) {
     if (encoding.isEmpty) {
       return copyWith(vibeEncoding: encoding);
     }
 
     return copyWith(
       vibeEncoding: encoding,
+      encodingModel: model ?? encodingModel,
       sourceType: VibeSourceType.naiv4vibe,
     );
   }

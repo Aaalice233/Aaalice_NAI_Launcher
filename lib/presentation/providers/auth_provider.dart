@@ -11,7 +11,6 @@ import '../../core/network/nai_api_endpoint_service.dart';
 import '../../core/storage/secure_storage_service.dart';
 import '../../core/utils/app_logger.dart';
 import '../../data/datasources/remote/nai_auth_api_service.dart';
-import '../../data/datasources/remote/nai_user_info_api_service.dart';
 import '../../data/models/auth/saved_account.dart';
 import 'account_manager_provider.dart';
 
@@ -20,6 +19,82 @@ part 'auth_provider.g.dart';
 /// 认证状态
 enum AuthStatus { initial, loading, authenticated, unauthenticated, error }
 
+/// 需要认证后才能继续的在线操作。
+enum AuthPromptReason {
+  imageGeneration,
+  queueExecution,
+  directorTools,
+  novelAiUpscale,
+  kritaBridge,
+  vibeEncoding,
+  sessionExpired,
+}
+
+/// 发给主界面的登录提示请求。
+///
+/// [id] 单调递增，确保连续点击在线操作时 Riverpod 仍会发出新事件。
+class AuthPromptRequest {
+  const AuthPromptRequest({required this.id, required this.reason});
+
+  final int id;
+  final AuthPromptReason reason;
+}
+
+class AuthPromptRequestNotifier extends Notifier<AuthPromptRequest?> {
+  int _nextId = 0;
+
+  @override
+  AuthPromptRequest? build() => null;
+
+  void publish(AuthPromptReason reason) {
+    state = AuthPromptRequest(id: ++_nextId, reason: reason);
+  }
+
+  void consume(int id) {
+    if (state?.id == id) {
+      state = null;
+    }
+  }
+}
+
+final authPromptRequestProvider =
+    NotifierProvider<AuthPromptRequestNotifier, AuthPromptRequest?>(
+      AuthPromptRequestNotifier.new,
+    );
+
+void publishAuthPrompt(Ref ref, AuthPromptReason reason) {
+  ref.read(authPromptRequestProvider.notifier).publish(reason);
+}
+
+bool _requireAuthenticatedAction({
+  required AuthState authState,
+  required AuthPromptReason reason,
+  required void Function(AuthPromptReason reason) publish,
+}) {
+  if (authState.isAuthenticated) return true;
+  publish(reason);
+  return false;
+}
+
+/// 在线操作的统一认证门禁。
+///
+/// 返回 false 时只发布登录提示，不修改用户正在编辑的业务状态。
+bool requireAuthenticatedAction(Ref ref, AuthPromptReason reason) {
+  return _requireAuthenticatedAction(
+    authState: ref.read(authNotifierProvider),
+    reason: reason,
+    publish: (reason) => publishAuthPrompt(ref, reason),
+  );
+}
+
+bool requireAuthenticatedWidgetAction(WidgetRef ref, AuthPromptReason reason) {
+  return _requireAuthenticatedAction(
+    authState: ref.read(authNotifierProvider),
+    reason: reason,
+    publish: ref.read(authPromptRequestProvider.notifier).publish,
+  );
+}
+
 /// 认证错误码
 enum AuthErrorCode {
   networkTimeout,
@@ -27,6 +102,7 @@ enum AuthErrorCode {
   authFailed,
   tokenInvalid,
   credentialsLoginUnavailable,
+  endpointIncompatible,
   serverError,
   unknown,
 }
@@ -40,6 +116,11 @@ class AuthState {
   final int? httpStatusCode;
   final Map<String, dynamic>? subscriptionInfo;
 
+  /// 当前会话端点不提供 `/user/subscription`（部分第三方站点）。
+  ///
+  /// 运行时态：每次登录/自动登录由 Token 验证结果重新推导，不落盘。
+  final bool subscriptionUnsupported;
+
   const AuthState({
     this.status = AuthStatus.initial,
     this.accountId,
@@ -47,6 +128,7 @@ class AuthState {
     this.errorCode,
     this.httpStatusCode,
     this.subscriptionInfo,
+    this.subscriptionUnsupported = false,
   });
 
   AuthState copyWith({
@@ -56,6 +138,7 @@ class AuthState {
     AuthErrorCode? errorCode,
     int? httpStatusCode,
     Map<String, dynamic>? subscriptionInfo,
+    bool? subscriptionUnsupported,
     bool clearError = false,
   }) {
     return AuthState(
@@ -67,6 +150,8 @@ class AuthState {
           ? null
           : (httpStatusCode ?? this.httpStatusCode),
       subscriptionInfo: subscriptionInfo ?? this.subscriptionInfo,
+      subscriptionUnsupported:
+          subscriptionUnsupported ?? this.subscriptionUnsupported,
     );
   }
 
@@ -76,6 +161,10 @@ class AuthState {
 
   /// 从异常解析错误码
   static (AuthErrorCode, int?) parseError(Object e) {
+    if (e is NaiEndpointIncompatibleException) {
+      return (AuthErrorCode.endpointIncompatible, e.statusCode);
+    }
+
     if (e is DioException) {
       final statusCode = e.response?.statusCode;
 
@@ -141,6 +230,16 @@ class AuthState {
   }
 }
 
+/// 把自动登录失败保留成可恢复状态，供主界面显示原因和重试入口。
+AuthState autoLoginFailureState(Object error) {
+  final (errorCode, httpStatusCode) = AuthState.parseError(error);
+  return AuthState(
+    status: AuthStatus.error,
+    errorCode: errorCode,
+    httpStatusCode: httpStatusCode,
+  );
+}
+
 /// 添加账号结果
 class AddAccountResult {
   final bool success;
@@ -171,13 +270,15 @@ class AddAccountResult {
 @Riverpod(keepAlive: true)
 class AuthNotifier extends _$AuthNotifier {
   static const String _autoLoginKey = 'auto_login';
+  late Future<void> _initialization;
 
   @override
   AuthState build() {
-    // 初始化时检查已存储的认证状态
-    _checkExistingAuth();
+    _initialization = _checkExistingAuth();
     return const AuthState(status: AuthStatus.loading);
   }
+
+  Future<void> get whenInitialized => _initialization;
 
   /// 检查已存储的认证状态
   Future<void> _checkExistingAuth() async {
@@ -240,7 +341,7 @@ class AuthNotifier extends _$AuthNotifier {
           final endpoint = accountManagerNotifier.getAccountApiEndpoint(
             matchedAccount.id,
           );
-          final subscriptionInfo = await apiService
+          final validation = await apiService
               .validateToken(
                 token,
                 endpoint: endpoint,
@@ -262,7 +363,8 @@ class AuthNotifier extends _$AuthNotifier {
             status: AuthStatus.authenticated,
             accountId: matchedAccount.id,
             displayName: matchedAccount.displayName,
-            subscriptionInfo: subscriptionInfo,
+            subscriptionInfo: validation.subscriptionInfo,
+            subscriptionUnsupported: validation.subscriptionUnsupported,
           );
           AppLogger.auth(
             'Token validation successful, account: ${matchedAccount.displayName}',
@@ -270,7 +372,7 @@ class AuthNotifier extends _$AuthNotifier {
           return; // 已登录，直接返回
         }
 
-        final subscriptionInfo = await apiService
+        final validation = await apiService
             .validateToken(token)
             .timeout(
               const Duration(seconds: 5),
@@ -285,7 +387,7 @@ class AuthNotifier extends _$AuthNotifier {
         AppLogger.w(
           'Token valid but no matching account found, clearing and trying auto-login...',
         );
-        if (subscriptionInfo.isNotEmpty) {
+        if (validation.subscriptionInfo?.isNotEmpty ?? false) {
           endpointService.resetToOfficial();
         }
         await storage.clearAuth();
@@ -321,7 +423,7 @@ class AuthNotifier extends _$AuthNotifier {
       if (accountToken != null && accountToken.isNotEmpty) {
         try {
           final apiService = ref.read(naiAuthApiServiceProvider);
-          Map<String, dynamic> subscriptionInfo;
+          TokenValidationResult validation;
 
           // 根据账号类型选择验证方式
           // 使用较短超时（5秒），在网络不可用时快速失败
@@ -331,7 +433,7 @@ class AuthNotifier extends _$AuthNotifier {
             AppLogger.auth(
               'Auto-login: validating access token for credentials account...',
             );
-            subscriptionInfo = await apiService
+            validation = await apiService
                 .validateToken(accountToken, endpoint: accountEndpoint)
                 .timeout(
                   validationTimeout,
@@ -349,7 +451,7 @@ class AuthNotifier extends _$AuthNotifier {
                 !NAIAuthApiService.isValidTokenFormat(accountToken)) {
               throw Exception('Token 格式无效，应以 pst- 开头');
             }
-            subscriptionInfo = await apiService
+            validation = await apiService
                 .validateToken(
                   accountToken,
                   endpoint: accountEndpoint,
@@ -376,7 +478,8 @@ class AuthNotifier extends _$AuthNotifier {
             status: AuthStatus.authenticated,
             accountId: lastUsedAccount.id,
             displayName: lastUsedAccount.displayName,
-            subscriptionInfo: subscriptionInfo,
+            subscriptionInfo: validation.subscriptionInfo,
+            subscriptionUnsupported: validation.subscriptionUnsupported,
           );
 
           // 更新最后使用时间
@@ -391,25 +494,15 @@ class AuthNotifier extends _$AuthNotifier {
           AppLogger.w(
             'Auto-login failed for ${lastUsedAccount.displayName}: $e',
           );
-          // 自动登录失败，设置错误状态
-          final (errorCode, httpStatusCode) = AuthState.parseError(e);
-
-          // 如果是网络错误，设置为未认证而不是错误，允许后续手动登录或重试
-          if (errorCode == AuthErrorCode.networkTimeout ||
-              errorCode == AuthErrorCode.networkError) {
+          final failedState = autoLoginFailureState(e);
+          if (failedState.errorCode == AuthErrorCode.networkTimeout ||
+              failedState.errorCode == AuthErrorCode.networkError) {
             AppLogger.w(
-              'Auto-login failed due to network error, showing login page',
+              'Auto-login failed due to network error, showing recovery actions',
               'Auth',
             );
-            state = const AuthState(status: AuthStatus.unauthenticated);
-          } else {
-            // 非网络错误（如认证失败），显示错误状态
-            state = AuthState(
-              status: AuthStatus.error,
-              errorCode: errorCode,
-              httpStatusCode: httpStatusCode,
-            );
           }
+          state = failedState;
           return;
         }
       }
@@ -422,8 +515,9 @@ class AuthNotifier extends _$AuthNotifier {
   /// 重新尝试自动登录
   /// 在网络恢复后由外部调用
   Future<void> retryAutoLogin() async {
-    // 只在未认证状态下才尝试自动登录
-    if (state.status == AuthStatus.unauthenticated) {
+    // 未认证或上次自动登录失败时均可重试。
+    if (state.status == AuthStatus.unauthenticated ||
+        state.status == AuthStatus.error) {
       AppLogger.auth('Retrying auto-login...');
 
       // 短暂延迟，确保之前的请求已经超时完成
@@ -431,7 +525,8 @@ class AuthNotifier extends _$AuthNotifier {
       await Future.delayed(const Duration(milliseconds: 500));
 
       // 再次检查状态，可能延迟期间状态已改变
-      if (state.status != AuthStatus.unauthenticated) {
+      if (state.status != AuthStatus.unauthenticated &&
+          state.status != AuthStatus.error) {
         AppLogger.auth('Auth status changed during delay, skipping retry');
         return;
       }
@@ -483,7 +578,7 @@ class AuthNotifier extends _$AuthNotifier {
 
       // 3. 验证 Token 有效性
       AppLogger.auth('Validating token...');
-      final subscriptionInfo = await apiService.validateToken(
+      final validation = await apiService.validateToken(
         token,
         endpoint: NaiApiEndpointConfig.official,
       );
@@ -509,7 +604,8 @@ class AuthNotifier extends _$AuthNotifier {
         status: AuthStatus.authenticated,
         accountId: accountId,
         displayName: displayName,
-        subscriptionInfo: subscriptionInfo,
+        subscriptionInfo: validation.subscriptionInfo,
+        subscriptionUnsupported: validation.subscriptionUnsupported,
       );
 
       await _enableAutoLoginForSavedSession();
@@ -582,12 +678,16 @@ class AuthNotifier extends _$AuthNotifier {
       AppLogger.auth(
         'Validating third-party token at ${apiEndpoint.mainBaseUrl}...',
       );
-      final subscriptionInfo = await apiService.validateToken(
+      final validation = await apiService.validateToken(
         normalizedToken,
         endpoint: apiEndpoint,
         allowAnyTokenFormat: true,
       );
-      AppLogger.auth('Third-party token validation successful');
+      AppLogger.auth(
+        validation.subscriptionUnsupported
+            ? 'Third-party token accepted; site has no /user/subscription'
+            : 'Third-party token validation successful',
+      );
 
       await storage.saveAuth(
         accessToken: normalizedToken,
@@ -601,7 +701,8 @@ class AuthNotifier extends _$AuthNotifier {
         status: AuthStatus.authenticated,
         accountId: accountId,
         displayName: displayName,
-        subscriptionInfo: subscriptionInfo,
+        subscriptionInfo: validation.subscriptionInfo,
+        subscriptionUnsupported: validation.subscriptionUnsupported,
       );
 
       await _enableAutoLoginForSavedSession();
@@ -703,7 +804,7 @@ class AuthNotifier extends _$AuthNotifier {
 
       // 直接验证 token（credentials 类型不需要检查 pst- 格式）
       AppLogger.auth('Validating access token for credentials account...');
-      final subscriptionInfo = await apiService.validateToken(
+      final validation = await apiService.validateToken(
         accessToken,
         endpoint: NaiApiEndpointConfig.official,
       );
@@ -721,7 +822,8 @@ class AuthNotifier extends _$AuthNotifier {
         status: AuthStatus.authenticated,
         accountId: accountId,
         displayName: displayName,
-        subscriptionInfo: subscriptionInfo,
+        subscriptionInfo: validation.subscriptionInfo,
+        subscriptionUnsupported: validation.subscriptionUnsupported,
       );
 
       AppLogger.auth('Credentials account login successful');
@@ -790,7 +892,7 @@ class AuthNotifier extends _$AuthNotifier {
 
       // 3. 获取订阅信息
       AppLogger.auth('Fetching subscription info...');
-      final subscriptionInfo = await apiService.validateToken(
+      final validation = await apiService.validateToken(
         accessToken,
         endpoint: NaiApiEndpointConfig.official,
       );
@@ -825,7 +927,8 @@ class AuthNotifier extends _$AuthNotifier {
         status: AuthStatus.authenticated,
         accountId: accountId,
         displayName: effectiveDisplayName,
-        subscriptionInfo: subscriptionInfo,
+        subscriptionInfo: validation.subscriptionInfo,
+        subscriptionUnsupported: validation.subscriptionUnsupported,
       );
 
       AppLogger.auth('Credentials login successful for: $email');
@@ -897,7 +1000,7 @@ class AuthNotifier extends _$AuthNotifier {
       final accessToken = loginResponse['accessToken'] as String;
 
       // 3. 获取订阅信息
-      final subscriptionInfo = await apiService.validateToken(
+      final validation = await apiService.validateToken(
         accessToken,
         endpoint: NaiApiEndpointConfig.official,
       );
@@ -931,7 +1034,8 @@ class AuthNotifier extends _$AuthNotifier {
         status: AuthStatus.authenticated,
         accountId: accountId,
         displayName: effectiveDisplayName,
-        subscriptionInfo: subscriptionInfo,
+        subscriptionInfo: validation.subscriptionInfo,
+        subscriptionUnsupported: validation.subscriptionUnsupported,
       );
 
       await _enableAutoLoginForSavedSession();
@@ -973,22 +1077,14 @@ class AuthNotifier extends _$AuthNotifier {
         '[AuthNotifier] state set to error: errorCode=$errorCode',
         'AUTH',
       );
+      if (errorCode == AuthErrorCode.authFailed ||
+          errorCode == AuthErrorCode.tokenInvalid ||
+          httpStatusCode == 401) {
+        publishAuthPrompt(ref, AuthPromptReason.sessionExpired);
+      }
     } else {
       state = const AuthState(status: AuthStatus.unauthenticated);
       AppLogger.w('[AuthNotifier] state set to unauthenticated', 'AUTH');
-    }
-  }
-
-  /// 刷新订阅信息
-  Future<void> refreshSubscription() async {
-    if (!state.isAuthenticated) return;
-
-    try {
-      final apiService = ref.read(naiUserInfoApiServiceProvider);
-      final subscriptionInfo = await apiService.getUserSubscription();
-      state = state.copyWith(subscriptionInfo: subscriptionInfo);
-    } catch (e) {
-      AppLogger.e('Failed to refresh subscription: $e');
     }
   }
 

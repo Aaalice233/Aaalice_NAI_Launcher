@@ -1,20 +1,37 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:window_manager/window_manager.dart';
 
+import 'core/autocomplete/cooccurrence_data_pack_provider.dart';
+import 'core/cache/gallery_cache_manager.dart';
+import 'core/cache/local_gallery_thumbnail_provider.dart';
+import 'core/utils/app_logger.dart';
+import 'core/platform/platform_capabilities.dart';
+import 'core/services/desktop_app_shutdown_service.dart';
+import 'core/services/interactive_work_gate.dart';
 import 'core/shortcuts/default_shortcuts.dart';
-import 'presentation/router/app_router.dart';
+import 'presentation/adaptive/interaction_policy.dart';
+import 'presentation/adaptive/window_size_class.dart';
+import 'presentation/router/app_router_config.dart';
+import 'presentation/router/app_routes.dart';
+import 'presentation/router/shell_panels_overlay.dart';
 import 'presentation/providers/theme_provider.dart';
 import 'presentation/providers/font_provider.dart';
 import 'presentation/providers/font_scale_provider.dart';
 import 'presentation/providers/locale_provider.dart';
-import 'presentation/providers/background_refresh_provider.dart';
+import 'presentation/providers/cloud_sync/cloud_sync_provider_wiring.dart';
 import 'presentation/providers/krita/krita_bridge_notifier.dart';
+import 'presentation/providers/image_generation_provider.dart';
 import 'presentation/providers/queue_execution_provider.dart';
 import 'presentation/providers/subscription_provider.dart'
     hide anlasBalanceProvider;
 import 'presentation/themes/app_theme.dart';
+import 'presentation/widgets/common/desktop_window_frame.dart';
+import 'presentation/widgets/discord_share/discord_share_task_overlay.dart';
 import 'presentation/widgets/shortcuts/shortcut_aware_widget.dart';
 import 'presentation/widgets/shortcuts/shortcut_help_dialog.dart';
 
@@ -24,15 +41,17 @@ import 'presentation/widgets/shortcuts/shortcut_help_dialog.dart';
 class AppBootstrapEffects extends ConsumerStatefulWidget {
   final Widget child;
   final ProviderListenable<dynamic>? anlasWatcher;
-  final ProviderListenable<dynamic>? backgroundRefresh;
   final ProviderListenable<dynamic>? kritaBridge;
+  final ProviderListenable<dynamic>? cooccurrenceDataPack;
+  final Future<void> Function()? cloudSyncLifecycle;
 
   const AppBootstrapEffects({
     super.key,
     required this.child,
     this.anlasWatcher,
-    this.backgroundRefresh,
     this.kritaBridge,
+    this.cooccurrenceDataPack,
+    this.cloudSyncLifecycle,
   });
 
   @override
@@ -40,38 +59,184 @@ class AppBootstrapEffects extends ConsumerStatefulWidget {
       _AppBootstrapEffectsState();
 }
 
-class _AppBootstrapEffectsState extends ConsumerState<AppBootstrapEffects> {
+class _AppBootstrapEffectsState extends ConsumerState<AppBootstrapEffects>
+    with WidgetsBindingObserver {
   ProviderSubscription<dynamic>? _anlasWatcherSubscription;
-  ProviderSubscription<dynamic>? _backgroundRefreshSubscription;
   ProviderSubscription<dynamic>? _kritaBridgeSubscription;
+  ProviderSubscription<dynamic>? _cooccurrenceDataPackSubscription;
+  bool _queuePausedForBackground = false;
+  bool _cloudSyncLifecycleRunning = false;
 
   @override
   void initState() {
     super.initState();
-    _anlasWatcherSubscription = ref.listenManual(
-      widget.anlasWatcher ?? anlasBalanceWatcherProvider,
+    WidgetsBinding.instance.addObserver(this);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _anlasWatcherSubscription = ref.listenManual(
+        widget.anlasWatcher ?? anlasBalanceWatcherProvider,
+        (_, __) {},
+      );
+      final usesTestOverrides =
+          widget.kritaBridge != null || widget.cooccurrenceDataPack != null;
+      if (usesTestOverrides) {
+        _mountInjectedEffects();
+      } else {
+        unawaited(_mountProductionIdleEffects());
+      }
+      unawaited(_restoreCloudBackupConnection());
+    });
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    final isForeground = state == AppLifecycleState.resumed;
+    ref
+        .read(subscriptionNotifierProvider.notifier)
+        .setAppForeground(isForeground);
+    LocalGalleryThumbnailProvider.setAppForeground(isForeground);
+
+    if (state == AppLifecycleState.resumed) {
+      InteractiveWorkGate.instance.markInteraction();
+      unawaited(_resumeQueueAfterBackground());
+      unawaited(_restoreCloudBackupConnection());
+    } else if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.hidden ||
+        state == AppLifecycleState.detached) {
+      unawaited(_persistAndPauseForBackground());
+    }
+  }
+
+  void _mountInjectedEffects() {
+    if (widget.kritaBridge != null ||
+        PlatformCapabilities.current.supportsKritaBridge) {
+      _kritaBridgeSubscription = ref.listenManual(
+        widget.kritaBridge ?? kritaBridgeNotifierProvider,
+        (_, __) {},
+      );
+    }
+    _cooccurrenceDataPackSubscription = ref.listenManual(
+      widget.cooccurrenceDataPack ?? cooccurrenceDataPackStartupProvider,
       (_, __) {},
     );
-    _backgroundRefreshSubscription = ref.listenManual(
-      widget.backgroundRefresh ?? backgroundRefreshNotifierProvider,
-      (_, __) {},
+  }
+
+  Future<void> _mountProductionIdleEffects() async {
+    await _runProductionIdleEffect(
+      'Krita bridge',
+      minimumDelay: const Duration(seconds: 10),
+      action: () async {
+        if (!mounted || !PlatformCapabilities.current.supportsKritaBridge) {
+          return;
+        }
+        _kritaBridgeSubscription = ref.listenManual(
+          kritaBridgeNotifierProvider,
+          (_, __) {},
+        );
+      },
     );
-    _kritaBridgeSubscription = ref.listenManual(
-      widget.kritaBridge ?? kritaBridgeNotifierProvider,
-      (_, __) {},
+    await _runProductionIdleEffect(
+      'co-occurrence data pack',
+      action: () async {
+        if (!mounted) return;
+        _cooccurrenceDataPackSubscription = ref.listenManual(
+          cooccurrenceDataPackStartupProvider,
+          (_, __) {},
+        );
+        await ref.read(cooccurrenceDataPackStartupProvider.future);
+      },
+    );
+  }
+
+  Future<void> _runProductionIdleEffect(
+    String name, {
+    Duration minimumDelay = Duration.zero,
+    required Future<void> Function() action,
+  }) async {
+    try {
+      await InteractiveWorkGate.instance.runWhenIdle(
+        minimumDelay: minimumDelay,
+        priority: InteractiveWorkPriority.maintenance,
+        action: action,
+      );
+    } catch (error, stackTrace) {
+      AppLogger.e('$name initialization failed', error, stackTrace, 'Startup');
+    }
+  }
+
+  Future<void> _persistAndPauseForBackground() async {
+    final queueState = ref.read(queueExecutionNotifierProvider);
+    if (!_queuePausedForBackground &&
+        (queueState.isRunning || queueState.isReady)) {
+      _queuePausedForBackground = true;
+      await ref.read(queueExecutionNotifierProvider.notifier).pause();
+    }
+
+    await ref
+        .read(generationParamsNotifierProvider.notifier)
+        .saveGenerationState();
+    if (ref.exists(imageGenerationNotifierProvider)) {
+      await ref
+          .read(imageGenerationNotifierProvider.notifier)
+          .flushGenerationHistory();
+    }
+  }
+
+  Future<void> _resumeQueueAfterBackground() async {
+    if (!_queuePausedForBackground) return;
+    _queuePausedForBackground = false;
+    await ref.read(queueExecutionNotifierProvider.notifier).resume();
+  }
+
+  Future<void> _restoreCloudBackupConnection() async {
+    if (_cloudSyncLifecycleRunning) return;
+    _cloudSyncLifecycleRunning = true;
+    try {
+      final override = widget.cloudSyncLifecycle;
+      if (override != null) {
+        await override();
+        return;
+      }
+
+      if (!mounted) return;
+      await ref.read(cloudSyncApplicationServiceProvider).restorePersisted();
+    } catch (error) {
+      AppLogger.w(
+        'Cloud backup connection restore failed: $error',
+        'CloudSync',
+      );
+    } finally {
+      _cloudSyncLifecycleRunning = false;
+    }
+  }
+
+  @override
+  void didHaveMemoryPressure() {
+    PaintingBinding.instance.imageCache
+      ..clear()
+      ..clearLiveImages();
+    unawaited(
+      GalleryCacheManager().clearL1MemoryCache().catchError((Object error) {
+        AppLogger.w(
+          'Failed to release gallery memory after system pressure: $error',
+          'AppLifecycle',
+        );
+      }),
     );
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _anlasWatcherSubscription?.close();
-    _backgroundRefreshSubscription?.close();
     _kritaBridgeSubscription?.close();
+    _cooccurrenceDataPackSubscription?.close();
     super.dispose();
   }
 
   @override
-  Widget build(BuildContext context) => widget.child;
+  Widget build(BuildContext context) =>
+      InteractiveActivityObserver(child: widget.child);
 }
 
 /// NAI Launcher 主应用
@@ -119,15 +284,18 @@ class NAILauncherApp extends ConsumerWidget {
       ShortcutIds.showShortcutHelp: () {
         ShortcutHelpDialog.show(context);
       },
-      ShortcutIds.minimizeToTray: () {
-        windowManager.hide();
-      },
-      ShortcutIds.quitApp: () {
-        windowManager.close();
+      if (PlatformCapabilities.current.supportsDesktopWindowControls) ...{
+        ShortcutIds.minimizeToTray: () {
+          windowManager.hide();
+        },
+        ShortcutIds.quitApp: () {
+          unawaited(DesktopAppShutdownService.shutdownAndExit(0));
+        },
       },
       ShortcutIds.toggleQueue: () {
-        final isVisible = ref.read(queueManagementVisibleProvider);
-        ref.read(queueManagementVisibleProvider.notifier).state = !isVisible;
+        final activePanel = ref.read(shellPanelProvider);
+        ref.read(shellPanelProvider.notifier).state =
+            activePanel == ShellPanel.queue ? null : ShellPanel.queue;
       },
       ShortcutIds.toggleQueuePause: () {
         final executionState = ref.read(queueExecutionNotifierProvider);
@@ -148,6 +316,7 @@ class NAILauncherApp extends ConsumerWidget {
         child: MaterialApp.router(
           title: 'NAI Launcher',
           debugShowCheckedModeBanner: false,
+          restorationScopeId: 'nai_launcher',
 
           // 主题 (fontFamily 为空时使用主题原生字体)
           theme: AppTheme.getTheme(
@@ -161,7 +330,6 @@ class NAILauncherApp extends ConsumerWidget {
             fontConfig: fontType.fontFamily.isEmpty ? null : fontType,
           ),
           themeMode: ThemeMode.dark, // 默认深色模式
-
           // 国际化
           locale: locale,
           supportedLocales: AppLocalizations.supportedLocales,
@@ -172,11 +340,40 @@ class NAILauncherApp extends ConsumerWidget {
 
           // 字体缩放全局应用
           builder: (context, child) {
-            return MediaQuery(
-              data: MediaQuery.of(context).copyWith(
-                textScaler: TextScaler.linear(fontScale),
+            final mediaQuery = MediaQuery.of(context);
+            final platformScale = mediaQuery.textScaler.scale(16) / 16;
+            final effectiveScale = (platformScale * fontScale)
+                .clamp(0.8, 3.0)
+                .toDouble();
+            final brightness = Theme.of(context).brightness;
+            final iconBrightness = brightness == Brightness.dark
+                ? Brightness.light
+                : Brightness.dark;
+            return AnnotatedRegion<SystemUiOverlayStyle>(
+              value: SystemUiOverlayStyle(
+                statusBarColor: Colors.transparent,
+                statusBarIconBrightness: iconBrightness,
+                statusBarBrightness: brightness,
+                systemNavigationBarColor: Colors.transparent,
+                systemNavigationBarDividerColor: Colors.transparent,
+                systemNavigationBarIconBrightness: iconBrightness,
+                systemNavigationBarContrastEnforced: false,
               ),
-              child: child!,
+              child: MediaQuery(
+                data: mediaQuery.copyWith(
+                  textScaler: TextScaler.linear(effectiveScale),
+                ),
+                child: InteractionPolicyScope(
+                  initialPolicy: PlatformCapabilities.current.isMobile
+                      ? InteractionPolicy.touchFirst
+                      : InteractionPolicy.neutral,
+                  child: DesktopWindowFrame(
+                    child: LargestDisplayFeatureSubScreen(
+                      child: DiscordShareTaskOverlay(child: child!),
+                    ),
+                  ),
+                ),
+              ),
             );
           },
         ),

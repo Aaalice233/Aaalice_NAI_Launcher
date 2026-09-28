@@ -20,36 +20,37 @@ class FlatPalette extends BaseColorModule {
 
   @override
   ColorScheme get lightScheme => const ColorScheme.light(
-        primary: _primary,
-        onPrimary: Colors.white,
-        primaryContainer: Color(0xFFDCE7FF), // Light blue for contrast
-        onPrimaryContainer: Color(0xFF0C3170), // Dark blue for text/icons
-        secondary: _secondary,
-        onSecondary: Colors.white,
-        tertiary: _tertiary,
-        onTertiary: Colors.black,
-        surface: _surface,
-        onSurface: Color(0xFF1F2937),
-        surfaceContainerHighest: Color(0xFFF3F4F6),
-        outline: Color(0xFFD1D5DB),
-        error: _error,
-      );
+    primary: _primary,
+    onPrimary: Color(0xFF03183B),
+    primaryContainer: Color(0xFFDCE7FF), // Light blue for contrast
+    onPrimaryContainer: Color(0xFF0C3170), // Dark blue for text/icons
+    secondary: _secondary,
+    onSecondary: Color(0xFF053827),
+    tertiary: _tertiary,
+    onTertiary: Colors.black,
+    surface: _surface,
+    onSurface: Color(0xFF1F2937),
+    surfaceContainerHighest: Color(0xFFF3F4F6),
+    outline: Color(0xFFD1D5DB),
+    error: _error,
+    onError: Color(0xFF380505),
+  );
 
   @override
   ColorScheme get darkScheme => const ColorScheme.dark(
-        primary: Color(0xFF60A5FA),
-        onPrimary: Color(0xFF1E3A8A),
-        primaryContainer: Color(0xFF1A3A6E), // Dark blue for contrast
-        onPrimaryContainer: Color(0xFFDCE7FF), // Light blue for text/icons
-        secondary: Color(0xFF34D399),
-        onSecondary: Color(0xFF064E3B),
-        tertiary: Color(0xFFFBBF24),
-        surface: Color(0xFF111827),
-        onSurface: Color(0xFFF9FAFB),
-        surfaceContainerHighest: Color(0xFF1F2937),
-        outline: Color(0xFF4B5563),
-        error: Color(0xFFF87171),
-      );
+    primary: Color(0xFF60A5FA),
+    onPrimary: Color(0xFF03336D),
+    primaryContainer: Color(0xFF1A3A6E), // Dark blue for contrast
+    onPrimaryContainer: Color(0xFFDCE7FF), // Light blue for text/icons
+    secondary: Color(0xFF34D399),
+    onSecondary: Color(0xFF064E3B),
+    tertiary: Color(0xFFFBBF24),
+    surface: Color(0xFF111827),
+    onSurface: Color(0xFFF9FAFB),
+    surfaceContainerHighest: Color(0xFF1F2937),
+    outline: Color(0xFF4B5563),
+    error: Color(0xFFF87171),
+  );
 
   @override
   bool get supportsDarkMode => true;

@@ -4,10 +4,7 @@ import 'package:flutter/material.dart';
 
 /// 选区变换状态
 class SelectionTransform {
-  const SelectionTransform({
-    this.offset = Offset.zero,
-    this.scale = 1.0,
-  });
+  const SelectionTransform({this.offset = Offset.zero, this.scale = 1.0});
 
   final Offset offset;
   final double scale;
@@ -69,8 +66,9 @@ class SelectionManager extends ChangeNotifier {
 
   /// 保存选区历史
   void _saveHistory() {
-    _selectionHistory
-        .add(_selectionPath != null ? Path.from(_selectionPath!) : null);
+    _selectionHistory.add(
+      _selectionPath != null ? Path.from(_selectionPath!) : null,
+    );
     _selectionRedoStack.clear();
     while (_selectionHistory.length > _maxSelectionHistory) {
       _selectionHistory.removeAt(0);
@@ -120,8 +118,11 @@ class SelectionManager extends ChangeNotifier {
       _saveHistory();
       final fullRect = Path()
         ..addRect(Rect.fromLTWH(0, 0, canvasSize.width, canvasSize.height));
-      _selectionPath =
-          Path.combine(PathOperation.difference, fullRect, _selectionPath!);
+      _selectionPath = Path.combine(
+        PathOperation.difference,
+        fullRect,
+        _selectionPath!,
+      );
       selectionNotifier.value = _selectionPath;
       notifyListeners();
     }
@@ -130,8 +131,9 @@ class SelectionManager extends ChangeNotifier {
   /// 撤销选区
   bool undoSelection() {
     if (_selectionHistory.isNotEmpty) {
-      _selectionRedoStack
-          .add(_selectionPath != null ? Path.from(_selectionPath!) : null);
+      _selectionRedoStack.add(
+        _selectionPath != null ? Path.from(_selectionPath!) : null,
+      );
       _selectionPath = _selectionHistory.removeLast();
       selectionNotifier.value = _selectionPath;
       notifyListeners();
@@ -143,8 +145,9 @@ class SelectionManager extends ChangeNotifier {
   /// 重做选区
   bool redoSelection() {
     if (_selectionRedoStack.isNotEmpty) {
-      _selectionHistory
-          .add(_selectionPath != null ? Path.from(_selectionPath!) : null);
+      _selectionHistory.add(
+        _selectionPath != null ? Path.from(_selectionPath!) : null,
+      );
       _selectionPath = _selectionRedoStack.removeLast();
       selectionNotifier.value = _selectionPath;
       notifyListeners();
@@ -174,9 +177,7 @@ class SelectionManager extends ChangeNotifier {
   /// 更新变换偏移
   void updateTransformOffset(Offset delta) {
     if (!_isTransforming) return;
-    _transform = _transform.copyWith(
-      offset: _transform.offset + delta,
-    );
+    _transform = _transform.copyWith(offset: _transform.offset + delta);
     notifyListeners();
   }
 

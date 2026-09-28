@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/constants/app_version.dart';
 import '../../../core/utils/localization_extension.dart';
+import '../../adaptive/adaptive_layout.dart';
 import '../../providers/warmup_provider.dart';
 import '../../utils/warmup_message_localizer.dart';
 
@@ -20,6 +21,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
   late AnimationController _breathController;
   late Animation<double> _breathAnimation;
   late Animation<double> _glowAnimation;
+  bool? _motionEnabled;
 
   @override
   void initState() {
@@ -29,7 +31,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
     _breathController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 2000),
-    )..repeat(reverse: true);
+    );
 
     _breathAnimation = Tween<double>(begin: 0.95, end: 1.05).animate(
       CurvedAnimation(parent: _breathController, curve: Curves.easeInOut),
@@ -38,6 +40,21 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
     _glowAnimation = Tween<double>(begin: 0.3, end: 0.8).animate(
       CurvedAnimation(parent: _breathController, curve: Curves.easeInOut),
     );
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final motionEnabled = !MediaQuery.disableAnimationsOf(context);
+    if (_motionEnabled == motionEnabled) return;
+    _motionEnabled = motionEnabled;
+    if (motionEnabled) {
+      _breathController.repeat(reverse: true);
+    } else {
+      _breathController
+        ..stop()
+        ..value = 0.5;
+    }
   }
 
   @override
@@ -58,47 +75,54 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
       backgroundColor: backgroundColor,
       body: Stack(
         children: [
-          // 背景装饰
           _buildBackground(primaryColor, backgroundColor),
-
-          // 主内容
-          Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Spacer(flex: 3),
-
-                // Logo 动画
-                _buildLogo(primaryColor),
-
-                const SizedBox(height: 24),
-
-                // 应用名称
-                _buildTitle(theme, primaryColor),
-
-                const Spacer(flex: 2),
-
-                // 进度区域
-                _buildProgressSection(
-                  theme,
-                  primaryColor,
-                  progress,
-                  warmupState.subTaskMessage,
+          SafeArea(
+            child: AdaptiveSlotLayout(
+              builder: (context, areas) => SingleChildScrollView(
+                key: const ValueKey('splash_scroll_view'),
+                padding: EdgeInsets.fromLTRB(
+                  areas.horizontalPadding,
+                  16,
+                  areas.horizontalPadding,
+                  48,
                 ),
-
-                const SizedBox(height: 48),
-              ],
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(
+                    minHeight: (areas.constraints.maxHeight - 64)
+                        .clamp(0.0, double.infinity)
+                        .toDouble(),
+                  ),
+                  child: AdaptiveContentBounds(
+                    maxWidth: 640,
+                    alignment: Alignment.center,
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        _buildLogo(primaryColor),
+                        const SizedBox(height: 24),
+                        _buildTitle(theme, primaryColor),
+                        const SizedBox(height: 48),
+                        _buildProgressSection(
+                          theme,
+                          primaryColor,
+                          progress,
+                          warmupState.subTaskMessage,
+                          warmupState.error,
+                        ),
+                        const SizedBox(height: 16),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
             ),
           ),
-
-          // 版本号显示在右下角
           Positioned(
-            right: 16,
-            bottom: 16,
+            right: 16 + MediaQuery.paddingOf(context).right,
+            bottom: 16 + MediaQuery.paddingOf(context).bottom,
             child: Text(
               AppVersion.versionName,
-              style: TextStyle(
-                fontSize: 12,
+              style: theme.textTheme.bodySmall?.copyWith(
                 color: theme.colorScheme.onSurface.withValues(alpha: 0.3),
                 fontWeight: FontWeight.w500,
               ),
@@ -177,6 +201,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
           ).createShader(bounds),
           child: const Text(
             'NAI Launcher',
+            textAlign: TextAlign.center,
             style: TextStyle(
               fontSize: 32,
               fontWeight: FontWeight.bold,
@@ -188,6 +213,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
         const SizedBox(height: 8),
         Text(
           'NovelAI Image Generation',
+          textAlign: TextAlign.center,
           style: TextStyle(
             fontSize: 14,
             color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
@@ -203,6 +229,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
     Color primaryColor,
     WarmupProgress progress,
     String? subTaskMessage,
+    String? error,
   ) {
     final l10n = context.l10n;
     final translatedTask = WarmupMessageLocalizer.localizeTask(
@@ -211,84 +238,117 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
     );
     final percentage = (progress.progress * 100).toInt();
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 48),
+    return AdaptiveContentBounds(
+      maxWidth: 520,
       child: Column(
         children: [
-          // 进度条 + 百分比
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Flexible(
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 260),
-                  child: _buildProgressBar(
-                    theme,
-                    primaryColor,
-                    progress.progress,
-                  ),
+          if (error != null) ...[
+            Icon(Icons.error_outline, color: theme.colorScheme.error, size: 28),
+            const SizedBox(height: 12),
+            ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 520),
+              child: Text(
+                WarmupMessageLocalizer.localizeError(l10n, error),
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 13,
+                  color: theme.colorScheme.onSurface.withValues(alpha: 0.75),
                 ),
               ),
-              const SizedBox(width: 12),
-              // 百分比文字（使用等宽数字特性）
-              SizedBox(
-                width: 42,
-                child: Text(
-                  '$percentage%',
-                  textAlign: TextAlign.right,
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: primaryColor,
-                    fontFeatures: const [FontFeature.tabularFigures()],
-                  ),
-                ),
-              ),
-            ],
-          ),
-
-          const SizedBox(height: 16),
-
-          // 当前任务（带加载指示器）
-          AnimatedSwitcher(
-            duration: const Duration(milliseconds: 200),
-            child: Row(
-              key: ValueKey(progress.currentTask),
+            ),
+            const SizedBox(height: 16),
+            FilledButton.icon(
+              key: const ValueKey('warmup_retry'),
+              onPressed: () {
+                ref.read(warmupNotifierProvider.notifier).retry();
+              },
+              icon: const Icon(Icons.refresh),
+              label: Text(l10n.common_retry),
+            ),
+          ] else ...[
+            // 进度条 + 百分比
+            Row(
               mainAxisAlignment: MainAxisAlignment.center,
-              mainAxisSize: MainAxisSize.min,
               children: [
-                if (!progress.isComplete) ...[
-                  SizedBox(
-                    width: 14,
-                    height: 14,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: theme.colorScheme.onSurface.withValues(alpha: 0.4),
+                Flexible(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 260),
+                    child: _buildProgressBar(
+                      theme,
+                      primaryColor,
+                      progress.progress,
                     ),
                   ),
-                  const SizedBox(width: 8),
-                ],
-                Text(
-                  translatedTask,
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+                ),
+                const SizedBox(width: 12),
+                // 百分比文字（使用等宽数字特性）
+                ConstrainedBox(
+                  constraints: const BoxConstraints(minWidth: 42),
+                  child: Text(
+                    '$percentage%',
+                    textAlign: TextAlign.right,
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: primaryColor,
+                      fontFeatures: const [FontFeature.tabularFigures()],
+                    ),
                   ),
                 ),
               ],
             ),
-          ),
 
-          // 子任务进度（如"下载中... 50%"）
-          if (subTaskMessage != null && !progress.isComplete) ...[
-            const SizedBox(height: 8),
-            Text(
-              WarmupMessageLocalizer.localizeSubTask(l10n, subTaskMessage),
-              style: TextStyle(
-                fontSize: 11,
-                color: theme.colorScheme.onSurface.withValues(alpha: 0.4),
+            const SizedBox(height: 16),
+
+            // 当前任务（带加载指示器）
+            AnimatedSwitcher(
+              duration: const Duration(milliseconds: 200),
+              child: Row(
+                key: ValueKey(progress.currentTask),
+                mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (!progress.isComplete) ...[
+                    SizedBox(
+                      width: 14,
+                      height: 14,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: theme.colorScheme.onSurface.withValues(
+                          alpha: 0.4,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                  ],
+                  Flexible(
+                    child: Text(
+                      translatedTask,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: theme.colorScheme.onSurface.withValues(
+                          alpha: 0.6,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
+
+            // 子任务进度（如"下载中... 50%"）
+            if (subTaskMessage != null && !progress.isComplete) ...[
+              const SizedBox(height: 8),
+              Text(
+                WarmupMessageLocalizer.localizeSubTask(l10n, subTaskMessage),
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 11,
+                  color: theme.colorScheme.onSurface.withValues(alpha: 0.4),
+                ),
+              ),
+            ],
           ],
         ],
       ),

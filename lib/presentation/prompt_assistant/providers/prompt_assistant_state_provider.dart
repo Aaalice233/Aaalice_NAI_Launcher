@@ -22,21 +22,23 @@ class PromptAssistantOperationState {
     String? action,
     String? error,
     bool clearError = false,
+    bool clearAction = false,
   }) {
     return PromptAssistantOperationState(
       expanded: expanded ?? this.expanded,
       hovering: hovering ?? this.hovering,
       processing: processing ?? this.processing,
-      action: action ?? this.action,
+      action: clearAction ? null : (action ?? this.action),
       error: clearError ? null : (error ?? this.error),
     );
   }
 }
 
-final promptAssistantStateProvider = StateNotifierProvider<
-    PromptAssistantStateNotifier, Map<String, PromptAssistantOperationState>>(
-  (ref) => PromptAssistantStateNotifier(),
-);
+final promptAssistantStateProvider =
+    StateNotifierProvider<
+      PromptAssistantStateNotifier,
+      Map<String, PromptAssistantOperationState>
+    >((ref) => PromptAssistantStateNotifier());
 
 class PromptAssistantStateNotifier
     extends StateNotifier<Map<String, PromptAssistantOperationState>> {
@@ -61,26 +63,25 @@ class PromptAssistantStateNotifier
   void startProcessing(String sessionId, String action) {
     _put(
       sessionId,
-      getState(sessionId).copyWith(
-        processing: true,
-        action: action,
-        clearError: true,
-      ),
+      getState(
+        sessionId,
+      ).copyWith(processing: true, action: action, clearError: true),
     );
   }
 
   void finishProcessing(String sessionId) {
     _put(
       sessionId,
-      getState(sessionId).copyWith(processing: false, action: null),
+      getState(sessionId).copyWith(processing: false, clearAction: true),
     );
   }
 
   void setError(String sessionId, String error) {
     _put(
       sessionId,
-      getState(sessionId)
-          .copyWith(processing: false, action: null, error: error),
+      getState(
+        sessionId,
+      ).copyWith(processing: false, clearAction: true, error: error),
     );
   }
 }

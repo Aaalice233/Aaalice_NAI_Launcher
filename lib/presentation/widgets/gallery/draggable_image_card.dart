@@ -3,18 +3,54 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:super_drag_and_drop/super_drag_and_drop.dart';
+import 'package:path/path.dart' as p;
 
 import '../../../core/utils/drag_drop_utils.dart';
-import '../../../core/utils/image_share_sanitizer.dart';
+import '../../../core/utils/app_logger.dart';
 import '../../../core/utils/localization_extension.dart';
 import '../../../data/models/gallery/local_image_record.dart';
 import '../../providers/share_image_settings_provider.dart';
+import '../../providers/copy_drag_watermark_provider.dart';
 
-/// 可拖拽图像卡片组件
-///
-/// 基于 super_drag_and_drop 实现，支持将本地图像拖拽到其他应用
-/// 支持 PNG 图像数据和文件 URI 格式
+import '../../selection/card_selection.dart';
+import '../../selection/card_selection_scope.dart';
+import '../../utils/card_image_drag_factory.dart';
+import '../common/card_drag_source.dart';
+
+Widget _buildGalleryDragFeedback({
+  required BuildContext context,
+  required WidgetRef ref,
+  required LocalImageRecord record,
+  required Uint8List? previewBytes,
+  required ImageProvider? previewProvider,
+  required double width,
+  required String hintText,
+  required bool enableFeedback,
+  required Widget fallbackChild,
+}) {
+  AppLogger.d('Building drag preview', 'GalleryDrag');
+  final stripMetadata = ref
+      .read(shareImageSettingsProvider)
+      .effectiveStripMetadataForCopyAndDrag;
+  if (stripMetadata) {
+    return buildProtectedImageDragFeedback(
+      Theme.of(context),
+      width: width,
+      hintText: hintText,
+    );
+  }
+
+  if (!enableFeedback) return fallbackChild;
+
+  return buildImageDragFeedback(
+    Theme.of(context),
+    ImageDragData.fromRecord(record, previewBytes: previewBytes),
+    width: width,
+    hintText: hintText,
+    previewProvider: previewProvider,
+  );
+}
+
 class DraggableImageCard extends ConsumerStatefulWidget {
   /// 图像记录数据
   final LocalImageRecord record;
@@ -27,6 +63,9 @@ class DraggableImageCard extends ConsumerStatefulWidget {
 
   /// 可选的预览图像数据（字节）
   final Uint8List? previewBytes;
+
+  /// 可选的内部拖拽标记；为空时保持图库分类拖拽语义。
+  final Object? localData;
 
   /// 是否启用拖拽反馈预览
   final bool enableFeedback;
@@ -46,6 +85,7 @@ class DraggableImageCard extends ConsumerStatefulWidget {
     required this.child,
     this.enabled = true,
     this.previewBytes,
+    this.localData,
     this.enableFeedback = true,
     this.feedbackWidth = 280,
     this.feedbackHint,
@@ -59,15 +99,17 @@ class DraggableImageCard extends ConsumerStatefulWidget {
   static Widget Function(Widget child) createDragWrapper({
     required LocalImageRecord record,
     Uint8List? previewBytes,
+    Object? localData,
     bool enableFeedback = true,
     double feedbackWidth = 280,
     String? feedbackHint,
     double dragOpacity = 0.3,
   }) {
     return (Widget child) {
-      return _DragWrapper(
+      return DraggableImageCard(
         record: record,
         previewBytes: previewBytes,
+        localData: localData,
         feedbackWidth: feedbackWidth,
         feedbackHint: feedbackHint,
         enableFeedback: enableFeedback,
@@ -79,370 +121,64 @@ class DraggableImageCard extends ConsumerStatefulWidget {
 }
 
 class _DraggableImageCardState extends ConsumerState<DraggableImageCard> {
-  bool _isDragging = false;
-  Uint8List? _previewBytes;
-  ImageProvider? _previewProvider;
-
-  @override
-  void initState() {
-    super.initState();
-    _initializePreview();
-  }
-
-  @override
-  void didUpdateWidget(covariant DraggableImageCard oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.previewBytes != widget.previewBytes ||
-        oldWidget.record.path != widget.record.path) {
-      _initializePreview();
-    }
-  }
-
-  void _initializePreview() {
-    if (widget.previewBytes != null) {
-      _setPreviewBytes(widget.previewBytes!);
-      return;
-    }
-
-    if (widget.record.path.isNotEmpty) {
-      _previewBytes = null;
-      _previewProvider = FileImage(File(widget.record.path));
-      return;
-    }
-
-    _previewBytes = null;
-    _previewProvider = null;
-  }
-
-  void _setPreviewBytes(Uint8List bytes) {
-    final provider = MemoryImage(bytes);
-    _previewBytes = bytes;
-    _previewProvider = provider;
-    if (mounted) {
-      setState(() {});
-      precacheImage(provider, context);
-    }
+  CardDragResource _resource(String path, {bool current = false}) {
+    final stripMetadata = ref
+        .read(shareImageSettingsProvider)
+        .effectiveStripMetadataForCopyAndDrag;
+    final fileName = path.isEmpty ? 'shared.png' : p.basename(path);
+    return imageCardDragResource(
+      id: path,
+      fileName: fileName,
+      filePath: path,
+      bytes: current ? widget.previewBytes : null,
+      stripMetadata: stripMetadata,
+      transform: ref.read(copyDragWatermarkProvider),
+      localData: current && widget.localData != null
+          ? widget.localData
+          : {
+              'source': 'gallery_internal',
+              'path': path,
+              if (stripMetadata) 'externalPayload': 'gallery_sanitized',
+            },
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    if (!widget.enabled) {
-      return widget.child;
-    }
-
-    return Listener(
-      onPointerDown: (_) {
-        setState(() => _isDragging = true);
-      },
-      onPointerUp: (_) {
-        setState(() => _isDragging = false);
-      },
-      onPointerCancel: (_) {
-        setState(() => _isDragging = false);
-      },
-      child: DragItemWidget(
-        allowedOperations: () => [DropOperation.copy],
-        dragItemProvider: (request) => _createDragItem(),
-        // 关键修复：每次调用时动态构建，确保使用最新的预览状态
-        liftBuilder: widget.enableFeedback
-            ? (context, child) {
-                final theme = Theme.of(context);
-                final dragData = ImageDragData.fromRecord(
-                  widget.record,
-                  previewBytes: _previewBytes,
-                );
-                return buildImageDragFeedback(
-                  theme,
-                  dragData,
-                  width: widget.feedbackWidth,
-                  hintText:
-                      widget.feedbackHint ??
-                      context.l10n.localGallery_dragToShare,
-                  previewProvider: _previewProvider,
-                );
-              }
-            : null,
-        dragBuilder: widget.enableFeedback
-            ? (context, child) {
-                final theme = Theme.of(context);
-                final dragData = ImageDragData.fromRecord(
-                  widget.record,
-                  previewBytes: _previewBytes,
-                );
-                return buildImageDragFeedback(
-                  theme,
-                  dragData,
-                  width: widget.feedbackWidth,
-                  hintText:
-                      widget.feedbackHint ??
-                      context.l10n.localGallery_dragToShare,
-                  previewProvider: _previewProvider,
-                );
-              }
-            : null,
-        child: DraggableWidget(
-          child: Opacity(
-            opacity: _isDragging ? widget.dragOpacity : 1.0,
-            child: widget.child,
-          ),
-        ),
+    final selection = CardSelectionScope.maybeOf(context);
+    final previewBytes = widget.previewBytes;
+    final ImageProvider? preview = previewBytes != null
+        ? MemoryImage(previewBytes)
+        : widget.record.path.isEmpty
+        ? null
+        : FileImage(File(widget.record.path));
+    return CardDragSource(
+      enabled: widget.enabled,
+      dragOpacity: widget.dragOpacity,
+      resource: () => _resource(widget.record.path, current: true),
+      snapshot: (source) => [
+        for (final id
+            in selection == null
+                ? [source.id]
+                : CardSelection.targets(
+                    selection.selection,
+                    source.id,
+                    selection.orderedIds,
+                  ))
+          if (id == source.id) source else _resource(id),
+      ],
+      feedbackBuilder: (context, child) => _buildGalleryDragFeedback(
+        context: context,
+        ref: ref,
+        record: widget.record,
+        previewBytes: previewBytes,
+        previewProvider: preview,
+        width: widget.feedbackWidth,
+        hintText: widget.feedbackHint ?? context.l10n.localGallery_dragToShare,
+        enableFeedback: widget.enableFeedback,
+        fallbackChild: child,
       ),
+      child: widget.child,
     );
   }
-
-  Future<DragItem> _createDragItem() async {
-    final fileName = widget.record.path.split(RegExp(r'[/\\]')).last;
-    final filePath = widget.record.path;
-    final stripMetadata = ref
-        .read(shareImageSettingsProvider)
-        .effectiveStripMetadataForCopyAndDrag;
-
-    final item = DragItem(
-      suggestedName: fileName,
-      localData: {
-        'source': 'gallery_internal',
-        'path': filePath,
-        if (stripMetadata) 'externalPayload': 'gallery_sanitized',
-      },
-    );
-
-    if (stripMetadata) {
-      final dragBytes = await _readOriginalBytes(
-        filePath: filePath,
-        fallbackBytes: widget.previewBytes ?? _previewBytes,
-      );
-      if (dragBytes != null) {
-        final sanitized = await ImageShareSanitizer.sanitizeForShare(
-          dragBytes,
-          fileName: fileName.isEmpty ? 'shared.png' : fileName,
-        );
-        item.add(Formats.png(sanitized.bytes));
-
-        final tempFile = await ImageShareSanitizer.writeTempShareFile(
-          sanitized,
-        );
-        item.add(Formats.fileUri(tempFile.uri));
-      }
-      return item;
-    }
-
-    if (filePath.isNotEmpty) {
-      try {
-        item.add(Formats.fileUri(Uri.file(filePath)));
-      } catch (e) {
-        debugPrint('Failed to create file URI for drag: $e');
-      }
-      return item;
-    }
-
-    final dragBytes = widget.previewBytes ?? _previewBytes;
-    if (dragBytes != null) {
-      item.add(Formats.png(dragBytes));
-    }
-
-    return item;
-  }
-}
-
-/// 内部拖拽包装组件
-class _DragWrapper extends ConsumerStatefulWidget {
-  final LocalImageRecord record;
-  final Uint8List? previewBytes;
-  final double feedbackWidth;
-  final String? feedbackHint;
-  final bool enableFeedback;
-  final double dragOpacity;
-  final Widget child;
-
-  const _DragWrapper({
-    required this.record,
-    required this.previewBytes,
-    required this.feedbackWidth,
-    required this.feedbackHint,
-    required this.enableFeedback,
-    required this.dragOpacity,
-    required this.child,
-  });
-
-  @override
-  ConsumerState<_DragWrapper> createState() => _DragWrapperState();
-}
-
-class _DragWrapperState extends ConsumerState<_DragWrapper> {
-  bool _isDragging = false;
-  Uint8List? _previewBytes;
-  ImageProvider? _previewProvider;
-
-  @override
-  void initState() {
-    super.initState();
-    _initializePreview();
-  }
-
-  @override
-  void didUpdateWidget(covariant _DragWrapper oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.previewBytes != widget.previewBytes ||
-        oldWidget.record.path != widget.record.path) {
-      _initializePreview();
-    }
-  }
-
-  void _initializePreview() {
-    if (widget.previewBytes != null) {
-      _setPreviewBytes(widget.previewBytes!);
-      return;
-    }
-
-    if (widget.record.path.isNotEmpty) {
-      _previewBytes = null;
-      _previewProvider = FileImage(File(widget.record.path));
-      return;
-    }
-
-    _previewBytes = null;
-    _previewProvider = null;
-  }
-
-  void _setPreviewBytes(Uint8List bytes) {
-    final provider = MemoryImage(bytes);
-    _previewBytes = bytes;
-    _previewProvider = provider;
-    if (mounted) {
-      setState(() {});
-      precacheImage(provider, context);
-    }
-  }
-
-  Future<DragItem> _createDragItem() async {
-    final fileName = widget.record.path.split(RegExp(r'[/\\]')).last;
-    final filePath = widget.record.path;
-    final stripMetadata = ref
-        .read(shareImageSettingsProvider)
-        .effectiveStripMetadataForCopyAndDrag;
-
-    final item = DragItem(
-      suggestedName: fileName,
-      localData: {
-        'source': 'gallery_internal',
-        'path': filePath,
-        if (stripMetadata) 'externalPayload': 'gallery_sanitized',
-      },
-    );
-
-    if (stripMetadata) {
-      final dragBytes = await _readOriginalBytes(
-        filePath: filePath,
-        fallbackBytes: widget.previewBytes ?? _previewBytes,
-      );
-      if (dragBytes != null) {
-        final sanitized = await ImageShareSanitizer.sanitizeForShare(
-          dragBytes,
-          fileName: fileName.isEmpty ? 'shared.png' : fileName,
-        );
-        item.add(Formats.png(sanitized.bytes));
-
-        final tempFile = await ImageShareSanitizer.writeTempShareFile(
-          sanitized,
-        );
-        item.add(Formats.fileUri(tempFile.uri));
-      }
-      return item;
-    }
-
-    if (filePath.isNotEmpty) {
-      try {
-        item.add(Formats.fileUri(Uri.file(filePath)));
-      } catch (e) {
-        debugPrint('Failed to create file URI for drag: $e');
-      }
-      return item;
-    }
-
-    final dragBytes = widget.previewBytes ?? _previewBytes;
-    if (dragBytes != null) {
-      item.add(Formats.png(dragBytes));
-    }
-
-    return item;
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Listener(
-      onPointerDown: (_) {
-        setState(() => _isDragging = true);
-      },
-      onPointerUp: (_) {
-        setState(() => _isDragging = false);
-      },
-      onPointerCancel: (_) {
-        setState(() => _isDragging = false);
-      },
-      child: DragItemWidget(
-        allowedOperations: () => [DropOperation.copy],
-        dragItemProvider: (request) => _createDragItem(),
-        // 关键修复：每次调用时动态构建，确保使用最新的预览状态
-        liftBuilder: widget.enableFeedback
-            ? (context, child) {
-                final theme = Theme.of(context);
-                final dragData = ImageDragData.fromRecord(
-                  widget.record,
-                  previewBytes: _previewBytes,
-                );
-                return buildImageDragFeedback(
-                  theme,
-                  dragData,
-                  width: widget.feedbackWidth,
-                  hintText:
-                      widget.feedbackHint ??
-                      context.l10n.localGallery_dragToShare,
-                  previewProvider: _previewProvider,
-                );
-              }
-            : null,
-        dragBuilder: widget.enableFeedback
-            ? (context, child) {
-                final theme = Theme.of(context);
-                final dragData = ImageDragData.fromRecord(
-                  widget.record,
-                  previewBytes: _previewBytes,
-                );
-                return buildImageDragFeedback(
-                  theme,
-                  dragData,
-                  width: widget.feedbackWidth,
-                  hintText:
-                      widget.feedbackHint ??
-                      context.l10n.localGallery_dragToShare,
-                  previewProvider: _previewProvider,
-                );
-              }
-            : null,
-        child: DraggableWidget(
-          child: Opacity(
-            opacity: _isDragging ? widget.dragOpacity : 1.0,
-            child: widget.child,
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-Future<Uint8List?> _readOriginalBytes({
-  required String filePath,
-  Uint8List? fallbackBytes,
-}) async {
-  if (filePath.isNotEmpty) {
-    try {
-      final file = File(filePath);
-      if (await file.exists()) {
-        return await file.readAsBytes();
-      }
-    } catch (e) {
-      debugPrint('Failed to read original image bytes for drag: $e');
-    }
-  }
-  return fallbackBytes;
 }

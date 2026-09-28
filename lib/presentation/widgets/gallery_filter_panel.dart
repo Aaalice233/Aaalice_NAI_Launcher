@@ -1,10 +1,14 @@
 import 'package:flutter/material.dart';
+import 'common/model_family_icon.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:nai_launcher/core/utils/localization_extension.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
+import 'package:nai_launcher/presentation/adaptive/adaptive_presenter.dart';
+import 'package:nai_launcher/presentation/adaptive/interaction_policy.dart';
+import 'package:nai_launcher/presentation/widgets/common/themed_input.dart';
 
 import '../providers/local_gallery_provider.dart';
-import 'package:nai_launcher/presentation/widgets/common/themed_input.dart';
 
 /// Gallery Filter Panel Widget - Modern UI Design
 /// 画廊筛选面板组件 - 现代化UI设计
@@ -12,14 +16,15 @@ import 'package:nai_launcher/presentation/widgets/common/themed_input.dart';
 /// Provides advanced filtering options for the local gallery
 /// 为本地画廊提供高级筛选选项
 class GalleryFilterPanel extends ConsumerStatefulWidget {
-  const GalleryFilterPanel({super.key});
+  const GalleryFilterPanel({super.key, this.scrollController});
+
+  final ScrollController? scrollController;
 
   @override
   ConsumerState<GalleryFilterPanel> createState() => _GalleryFilterPanelState();
 }
 
-class _GalleryFilterPanelState extends ConsumerState<GalleryFilterPanel>
-    with SingleTickerProviderStateMixin {
+class _GalleryFilterPanelState extends ConsumerState<GalleryFilterPanel> {
   final TextEditingController _modelController = TextEditingController();
   final TextEditingController _samplerController = TextEditingController();
   final TextEditingController _minStepsController = TextEditingController();
@@ -27,10 +32,6 @@ class _GalleryFilterPanelState extends ConsumerState<GalleryFilterPanel>
   final TextEditingController _minCfgController = TextEditingController();
   final TextEditingController _maxCfgController = TextEditingController();
   final TextEditingController _resolutionController = TextEditingController();
-
-  late AnimationController _animController;
-  late Animation<double> _fadeAnimation;
-  late Animation<Offset> _slideAnimation;
 
   // 常用预设
   static const List<String> _commonResolutions = [
@@ -60,29 +61,6 @@ class _GalleryFilterPanelState extends ConsumerState<GalleryFilterPanel>
   void initState() {
     super.initState();
 
-    // 动画控制器
-    _animController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 300),
-    );
-
-    _fadeAnimation = CurvedAnimation(
-      parent: _animController,
-      curve: Curves.easeOut,
-    );
-
-    _slideAnimation = Tween<Offset>(
-      begin: const Offset(0, 0.1),
-      end: Offset.zero,
-    ).animate(
-      CurvedAnimation(
-        parent: _animController,
-        curve: Curves.easeOutCubic,
-      ),
-    );
-
-    _animController.forward();
-
     // Initialize with current filter values
     final state = ref.read(localGalleryNotifierProvider);
     _modelController.text = state.filterCriteria.filterModel ?? '';
@@ -100,7 +78,6 @@ class _GalleryFilterPanelState extends ConsumerState<GalleryFilterPanel>
 
   @override
   void dispose() {
-    _animController.dispose();
     _modelController.dispose();
     _samplerController.dispose();
     _minStepsController.dispose();
@@ -145,10 +122,7 @@ class _GalleryFilterPanelState extends ConsumerState<GalleryFilterPanel>
     notifier.setFilterCfg(minCfg, maxCfg);
     notifier.setFilterResolution(resolution);
 
-    // Close the panel with animation
-    _animController.reverse().then((_) {
-      Navigator.of(context).pop();
-    });
+    Navigator.of(context).pop();
   }
 
   /// Reset all advanced filters
@@ -191,277 +165,185 @@ class _GalleryFilterPanelState extends ConsumerState<GalleryFilterPanel>
     final isDark = theme.brightness == Brightness.dark;
     final colorScheme = theme.colorScheme;
 
-    return SlideTransition(
-      position: _slideAnimation,
-      child: FadeTransition(
-        opacity: _fadeAnimation,
-        child: Container(
-          width: 460,
-          constraints: const BoxConstraints(maxHeight: 600),
-          decoration: BoxDecoration(
-            color:
-                isDark ? colorScheme.surfaceContainerHigh : colorScheme.surface,
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(
-              color: isDark
-                  ? colorScheme.outline.withValues(alpha: 0.2)
-                  : colorScheme.outline.withValues(alpha: 0.1),
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: isDark ? 0.4 : 0.15),
-                blurRadius: 30,
-                offset: const Offset(0, 10),
-                spreadRadius: 0,
-              ),
-            ],
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // Header with gradient
-              _buildHeader(theme, l10n, isDark, colorScheme),
-
-              // Filters content
-              Flexible(
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.all(20),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Model filter card
-                      _buildFilterCard(
-                        theme: theme,
-                        isDark: isDark,
-                        colorScheme: colorScheme,
-                        icon: Icons.auto_awesome,
-                        iconColor: Colors.purple,
-                        title: l10n.localGallery_filterByModel,
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            _buildModernTextField(
-                              controller: _modelController,
-                              hintText: l10n.localGallery_modelHint,
-                              theme: theme,
-                              isDark: isDark,
-                              colorScheme: colorScheme,
-                            ),
-                            const SizedBox(height: 10),
-                            _buildPresetChips(
-                              presets: _commonModels,
-                              controller: _modelController,
-                              theme: theme,
-                              colorScheme: colorScheme,
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-
-                      // Sampler filter card
-                      _buildFilterCard(
-                        theme: theme,
-                        isDark: isDark,
-                        colorScheme: colorScheme,
-                        icon: Icons.timeline,
-                        iconColor: Colors.blue,
-                        title: l10n.localGallery_filterBySampler,
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            _buildModernTextField(
-                              controller: _samplerController,
-                              hintText: l10n.localGallery_samplerHint,
-                              theme: theme,
-                              isDark: isDark,
-                              colorScheme: colorScheme,
-                            ),
-                            const SizedBox(height: 10),
-                            _buildPresetChips(
-                              presets: _commonSamplers,
-                              controller: _samplerController,
-                              theme: theme,
-                              colorScheme: colorScheme,
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-
-                      // Steps and CFG in a row
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          // Steps filter
-                          Expanded(
-                            child: _buildFilterCard(
-                              theme: theme,
-                              isDark: isDark,
-                              colorScheme: colorScheme,
-                              icon: Icons.layers,
-                              iconColor: Colors.orange,
-                              title: l10n.localGallery_filterBySteps,
-                              compact: true,
-                              child: _buildRangeInput(
-                                minController: _minStepsController,
-                                maxController: _maxStepsController,
-                                theme: theme,
-                                isDark: isDark,
-                                colorScheme: colorScheme,
-                                isInteger: true,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          // CFG filter
-                          Expanded(
-                            child: _buildFilterCard(
-                              theme: theme,
-                              isDark: isDark,
-                              colorScheme: colorScheme,
-                              icon: Icons.tune,
-                              iconColor: Colors.teal,
-                              title: l10n.localGallery_filterByCfg,
-                              compact: true,
-                              child: _buildRangeInput(
-                                minController: _minCfgController,
-                                maxController: _maxCfgController,
-                                theme: theme,
-                                isDark: isDark,
-                                colorScheme: colorScheme,
-                                isInteger: false,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 16),
-
-                      // Resolution filter card
-                      _buildFilterCard(
-                        theme: theme,
-                        isDark: isDark,
-                        colorScheme: colorScheme,
-                        icon: Icons.aspect_ratio,
-                        iconColor: Colors.green,
-                        title: l10n.localGallery_filterByResolution,
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            _buildModernTextField(
-                              controller: _resolutionController,
-                              hintText: l10n.localGallery_resolutionHint,
-                              theme: theme,
-                              isDark: isDark,
-                              colorScheme: colorScheme,
-                            ),
-                            const SizedBox(height: 10),
-                            _buildPresetChips(
-                              presets: _commonResolutions,
-                              controller: _resolutionController,
-                              theme: theme,
-                              colorScheme: colorScheme,
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-
-              // Action buttons
-              _buildActionButtons(theme, l10n, isDark, colorScheme),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  /// Build header with gradient background
-  Widget _buildHeader(
-    ThemeData theme,
-    AppLocalizations l10n,
-    bool isDark,
-    ColorScheme colorScheme,
-  ) {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(20, 16, 12, 16),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: isDark
-              ? [
-                  colorScheme.primary.withValues(alpha: 0.15),
-                  colorScheme.secondary.withValues(alpha: 0.1),
-                ]
-              : [
-                  colorScheme.primary.withValues(alpha: 0.08),
-                  colorScheme.secondary.withValues(alpha: 0.05),
-                ],
-        ),
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: colorScheme.primary.withValues(alpha: 0.15),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Icon(
-              Icons.filter_list_rounded,
-              color: colorScheme.primary,
-              size: 22,
-            ),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
+    return Column(
+      children: [
+        Expanded(
+          child: SingleChildScrollView(
+            key: const ValueKey('galleryFilterScrollView'),
+            controller: widget.scrollController,
+            padding: const EdgeInsets.all(20),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  l10n.localGallery_advancedFilters,
-                  style: theme.textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w600,
-                    color: colorScheme.onSurface,
+                  l10n.localGallery_filterSubtitle,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: colorScheme.onSurfaceVariant,
                   ),
                 ),
-                Text(
-                  l10n.localGallery_filterSubtitle,
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: colorScheme.onSurfaceVariant,
+                const SizedBox(height: 16),
+                // Model filter card
+                _buildFilterCard(
+                  theme: theme,
+                  isDark: isDark,
+                  colorScheme: colorScheme,
+                  icon: Icons.auto_awesome,
+                  iconColor: Colors.purple,
+                  title: l10n.localGallery_filterByModel,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildModernTextField(
+                        controller: _modelController,
+                        isModel: true,
+                        hintText: l10n.localGallery_modelHint,
+                        theme: theme,
+                        isDark: isDark,
+                        colorScheme: colorScheme,
+                      ),
+                      const SizedBox(height: 10),
+                      _buildPresetChips(
+                        presets: _commonModels,
+                        isModel: true,
+                        controller: _modelController,
+                        theme: theme,
+                        colorScheme: colorScheme,
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
+
+                // Sampler filter card
+                _buildFilterCard(
+                  theme: theme,
+                  isDark: isDark,
+                  colorScheme: colorScheme,
+                  icon: Icons.timeline,
+                  iconColor: Colors.blue,
+                  title: l10n.localGallery_filterBySampler,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildModernTextField(
+                        controller: _samplerController,
+                        hintText: l10n.localGallery_samplerHint,
+                        theme: theme,
+                        isDark: isDark,
+                        colorScheme: colorScheme,
+                      ),
+                      const SizedBox(height: 10),
+                      _buildPresetChips(
+                        presets: _commonSamplers,
+                        controller: _samplerController,
+                        theme: theme,
+                        colorScheme: colorScheme,
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
+
+                // Keep each numeric range readable on narrow dialogs.
+                LayoutBuilder(
+                  builder: (context, constraints) {
+                    final stepsFilter = _buildFilterCard(
+                      theme: theme,
+                      isDark: isDark,
+                      colorScheme: colorScheme,
+                      icon: Icons.layers,
+                      iconColor: Colors.orange,
+                      title: l10n.localGallery_filterBySteps,
+                      compact: true,
+                      child: _buildRangeInput(
+                        minController: _minStepsController,
+                        maxController: _maxStepsController,
+                        theme: theme,
+                        isDark: isDark,
+                        colorScheme: colorScheme,
+                        isInteger: true,
+                      ),
+                    );
+                    final cfgFilter = _buildFilterCard(
+                      theme: theme,
+                      isDark: isDark,
+                      colorScheme: colorScheme,
+                      icon: Icons.tune,
+                      iconColor: Colors.teal,
+                      title: l10n.localGallery_filterByCfg,
+                      compact: true,
+                      child: _buildRangeInput(
+                        minController: _minCfgController,
+                        maxController: _maxCfgController,
+                        theme: theme,
+                        isDark: isDark,
+                        colorScheme: colorScheme,
+                        isInteger: false,
+                      ),
+                    );
+
+                    if (constraints.maxWidth < 360) {
+                      return Column(
+                        key: const ValueKey('galleryFilterNarrowRangeGroups'),
+                        children: [
+                          stepsFilter,
+                          const SizedBox(height: 12),
+                          cfgFilter,
+                        ],
+                      );
+                    }
+
+                    return Row(
+                      key: const ValueKey('galleryFilterWideRangeGroups'),
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(child: stepsFilter),
+                        const SizedBox(width: 12),
+                        Expanded(child: cfgFilter),
+                      ],
+                    );
+                  },
+                ),
+                const SizedBox(height: 16),
+
+                // Resolution filter card
+                _buildFilterCard(
+                  theme: theme,
+                  isDark: isDark,
+                  colorScheme: colorScheme,
+                  icon: Icons.aspect_ratio,
+                  iconColor: Colors.green,
+                  title: l10n.localGallery_filterByResolution,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildModernTextField(
+                        controller: _resolutionController,
+                        hintText: l10n.localGallery_resolutionHint,
+                        theme: theme,
+                        isDark: isDark,
+                        colorScheme: colorScheme,
+                      ),
+                      const SizedBox(height: 10),
+                      _buildPresetChips(
+                        presets: _commonResolutions,
+                        controller: _resolutionController,
+                        theme: theme,
+                        colorScheme: colorScheme,
+                      ),
+                    ],
                   ),
                 ),
               ],
             ),
           ),
-          IconButton(
-            icon: Icon(
-              Icons.close_rounded,
-              color: colorScheme.onSurfaceVariant,
-            ),
-            onPressed: () {
-              _animController.reverse().then((_) {
-                Navigator.of(context).pop();
-              });
-            },
-            tooltip: l10n.common_close,
-            style: IconButton.styleFrom(
-              backgroundColor:
-                  colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
-            ),
-          ),
-        ],
-      ),
+        ),
+        _buildActionButtons(theme, l10n, isDark, colorScheme),
+      ],
     );
   }
 
-  /// Build a modern filter card
+  /// Build a grouped filter surface.
   Widget _buildFilterCard({
     required ThemeData theme,
     required bool isDark,
@@ -479,9 +361,6 @@ class _GalleryFilterPanelState extends ConsumerState<GalleryFilterPanel>
             ? colorScheme.surfaceContainerHighest.withValues(alpha: 0.4)
             : colorScheme.surfaceContainerLowest,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(
-          color: colorScheme.outline.withValues(alpha: isDark ? 0.15 : 0.08),
-        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -494,11 +373,7 @@ class _GalleryFilterPanelState extends ConsumerState<GalleryFilterPanel>
                   color: iconColor.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: Icon(
-                  icon,
-                  size: 16,
-                  color: iconColor,
-                ),
+                child: Icon(icon, size: 16, color: iconColor),
               ),
               const SizedBox(width: 10),
               Expanded(
@@ -520,58 +395,52 @@ class _GalleryFilterPanelState extends ConsumerState<GalleryFilterPanel>
     );
   }
 
-  /// Build a modern text field
+  /// Build a filter text field.
   Widget _buildModernTextField({
+    bool isModel = false,
     required TextEditingController controller,
     required String hintText,
     required ThemeData theme,
     required bool isDark,
     required ColorScheme colorScheme,
   }) {
-    return Container(
-      decoration: BoxDecoration(
-        color: isDark
-            ? colorScheme.surface.withValues(alpha: 0.5)
-            : colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(
-          color: colorScheme.outline.withValues(alpha: isDark ? 0.2 : 0.1),
+    return ThemedInput(
+      controller: controller,
+      style: theme.textTheme.bodyMedium?.copyWith(color: colorScheme.onSurface),
+      decoration: InputDecoration(
+        prefixIcon: isModel && controller.text.isNotEmpty
+            ? Padding(
+                padding: const EdgeInsets.all(12),
+                child: ModelFamilyIcon(modelId: controller.text),
+              )
+            : null,
+        hintText: hintText,
+        hintStyle: TextStyle(
+          color: colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
+          fontSize: 13,
         ),
+        border: InputBorder.none,
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 14,
+          vertical: 12,
+        ),
+        isDense: true,
+        suffixIcon: controller.text.isNotEmpty
+            ? IconButton(
+                icon: Icon(
+                  Icons.clear_rounded,
+                  size: 18,
+                  color: colorScheme.onSurfaceVariant,
+                ),
+                onPressed: () {
+                  setState(() {
+                    controller.clear();
+                  });
+                },
+              )
+            : null,
       ),
-      child: ThemedInput(
-        controller: controller,
-        style: theme.textTheme.bodyMedium?.copyWith(
-          color: colorScheme.onSurface,
-        ),
-        decoration: InputDecoration(
-          hintText: hintText,
-          hintStyle: TextStyle(
-            color: colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
-            fontSize: 13,
-          ),
-          border: InputBorder.none,
-          contentPadding: const EdgeInsets.symmetric(
-            horizontal: 14,
-            vertical: 12,
-          ),
-          isDense: true,
-          suffixIcon: controller.text.isNotEmpty
-              ? IconButton(
-                  icon: Icon(
-                    Icons.clear_rounded,
-                    size: 18,
-                    color: colorScheme.onSurfaceVariant,
-                  ),
-                  onPressed: () {
-                    setState(() {
-                      controller.clear();
-                    });
-                  },
-                )
-              : null,
-        ),
-        onChanged: (_) => setState(() {}),
-      ),
+      onChanged: (_) => setState(() {}),
     );
   }
 
@@ -589,7 +458,7 @@ class _GalleryFilterPanelState extends ConsumerState<GalleryFilterPanel>
         Expanded(
           child: _buildCompactTextField(
             controller: minController,
-            hintText: 'Min',
+            hintText: context.l10n.common_minimum,
             theme: theme,
             isDark: isDark,
             colorScheme: colorScheme,
@@ -608,7 +477,7 @@ class _GalleryFilterPanelState extends ConsumerState<GalleryFilterPanel>
         Expanded(
           child: _buildCompactTextField(
             controller: maxController,
-            hintText: 'Max',
+            hintText: context.l10n.common_maximum,
             theme: theme,
             isDark: isDark,
             colorScheme: colorScheme,
@@ -630,17 +499,10 @@ class _GalleryFilterPanelState extends ConsumerState<GalleryFilterPanel>
     bool isNumber = false,
     bool isInteger = true,
   }) {
-    return Container(
-      height: 40,
-      decoration: BoxDecoration(
-        color: isDark
-            ? colorScheme.surface.withValues(alpha: 0.5)
-            : colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(
-          color: colorScheme.outline.withValues(alpha: isDark ? 0.2 : 0.1),
-        ),
-      ),
+    final policyExtent = context.interactionPolicy.minimumControlExtent;
+    final minimumHeight = policyExtent < 44 ? 44.0 : policyExtent;
+    return ConstrainedBox(
+      constraints: BoxConstraints(minHeight: minimumHeight),
       child: ThemedInput(
         controller: controller,
         textAlign: TextAlign.center,
@@ -677,6 +539,7 @@ class _GalleryFilterPanelState extends ConsumerState<GalleryFilterPanel>
 
   /// Build preset chips
   Widget _buildPresetChips({
+    bool isModel = false,
     required List<String> presets,
     required TextEditingController controller,
     required ThemeData theme,
@@ -699,29 +562,38 @@ class _GalleryFilterPanelState extends ConsumerState<GalleryFilterPanel>
           },
           borderRadius: BorderRadius.circular(6),
           child: AnimatedContainer(
-            duration: const Duration(milliseconds: 150),
+            duration: MediaQuery.disableAnimationsOf(context)
+                ? Duration.zero
+                : const Duration(milliseconds: 150),
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
             decoration: BoxDecoration(
               color: isSelected
                   ? colorScheme.primary.withValues(alpha: 0.15)
                   : colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
               borderRadius: BorderRadius.circular(6),
-              border: Border.all(
-                color: isSelected
-                    ? colorScheme.primary.withValues(alpha: 0.5)
-                    : colorScheme.outline.withValues(alpha: 0.1),
-              ),
             ),
-            child: Text(
-              preset,
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: isSelected
-                    ? colorScheme.primary
-                    : colorScheme.onSurfaceVariant,
-                fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
-                fontSize: 11,
-              ),
-            ),
+            child: isModel
+                ? ModelNameLabel(
+                    modelId: preset,
+                    iconSize: 14,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: isSelected
+                          ? colorScheme.primary
+                          : colorScheme.onSurfaceVariant,
+                      fontWeight: FontWeight.w500,
+                      fontSize: 11,
+                    ),
+                  )
+                : Text(
+                    preset,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: isSelected
+                          ? colorScheme.primary
+                          : colorScheme.onSurfaceVariant,
+                      fontWeight: FontWeight.w500,
+                      fontSize: 11,
+                    ),
+                  ),
           ),
         );
       }).toList(),
@@ -743,25 +615,32 @@ class _GalleryFilterPanelState extends ConsumerState<GalleryFilterPanel>
             : colorScheme.surfaceContainerLowest.withValues(alpha: 0.8),
         borderRadius: const BorderRadius.vertical(bottom: Radius.circular(20)),
       ),
-      child: Row(
-        children: [
-          // Active filter indicator
-          if (_hasActiveFilters)
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-              decoration: BoxDecoration(
-                color: colorScheme.tertiary.withValues(alpha: 0.15),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    Icons.filter_alt,
-                    size: 14,
-                    color: colorScheme.tertiary,
-                  ),
-                  const SizedBox(width: 4),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final textScale = MediaQuery.textScalerOf(context).scale(14) / 14;
+          final stackActions = constraints.maxWidth < 400 || textScale > 1.5;
+          final activeIndicator = Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            decoration: BoxDecoration(
+              color: colorScheme.tertiary.withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Row(
+              mainAxisSize: stackActions ? MainAxisSize.max : MainAxisSize.min,
+              children: [
+                Icon(Icons.filter_alt, size: 14, color: colorScheme.tertiary),
+                const SizedBox(width: 4),
+                if (stackActions)
+                  Expanded(
+                    child: Text(
+                      l10n.localGallery_activeFiltersSet,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: colorScheme.tertiary,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  )
+                else
                   Text(
                     l10n.localGallery_activeFiltersSet,
                     style: theme.textTheme.bodySmall?.copyWith(
@@ -769,14 +648,10 @@ class _GalleryFilterPanelState extends ConsumerState<GalleryFilterPanel>
                       fontWeight: FontWeight.w500,
                     ),
                   ),
-                ],
-              ),
+              ],
             ),
-
-          const Spacer(),
-
-          // Reset button
-          TextButton.icon(
+          );
+          final resetButton = TextButton.icon(
             onPressed: _hasActiveFilters ? _resetFilters : null,
             icon: Icon(
               Icons.refresh_rounded,
@@ -793,11 +668,8 @@ class _GalleryFilterPanelState extends ConsumerState<GalleryFilterPanel>
                     : colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
               ),
             ),
-          ),
-          const SizedBox(width: 12),
-
-          // Apply button
-          FilledButton.icon(
+          );
+          final applyButton = FilledButton.icon(
             onPressed: _applyFilters,
             icon: const Icon(Icons.check_rounded, size: 18),
             label: Text(l10n.localGallery_applyFilters),
@@ -807,24 +679,45 @@ class _GalleryFilterPanelState extends ConsumerState<GalleryFilterPanel>
                 borderRadius: BorderRadius.circular(10),
               ),
             ),
-          ),
-        ],
+          );
+
+          if (stackActions) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                if (_hasActiveFilters) ...[
+                  activeIndicator,
+                  const SizedBox(height: 8),
+                ],
+                resetButton,
+                const SizedBox(height: 8),
+                applyButton,
+              ],
+            );
+          }
+
+          return Row(
+            children: [
+              if (_hasActiveFilters) activeIndicator,
+              const Spacer(),
+              resetButton,
+              const SizedBox(width: 12),
+              applyButton,
+            ],
+          );
+        },
       ),
     );
   }
 }
 
-/// Show filter panel as a dialog
-/// 以对话框形式显示筛选面板
-void showGalleryFilterPanel(BuildContext context) {
-  showDialog(
+/// Show the filters through the shared adaptive form presenter.
+Future<void> showGalleryFilterPanel(BuildContext context) {
+  return AdaptivePresenter.showForm<void>(
     context: context,
-    barrierColor: Colors.black54,
-    builder: (context) => const Center(
-      child: Material(
-        color: Colors.transparent,
-        child: GalleryFilterPanel(),
-      ),
-    ),
+    title: context.l10n.localGallery_advancedFilters,
+    dialogWidth: 460,
+    builder: (context, scrollController) =>
+        GalleryFilterPanel(scrollController: scrollController),
   );
 }

@@ -1,11 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/utils/character_prompt_block_parser.dart';
 import '../../../../core/utils/comfyui_prompt_parser/pipe_parser.dart';
 import '../../../../core/utils/localization_extension.dart';
 import '../../../../core/utils/sd_to_nai_converter.dart';
 import '../../../../data/models/tag_library/tag_library_entry.dart';
 import '../../../../presentation/providers/pending_prompt_provider.dart';
+import '../../../adaptive/adaptive_presenter.dart';
+import '../../../widgets/common/adaptive_dialog_frame.dart';
+import '../../../widgets/common/translated_tag_text.dart';
 
 // 使用现有的 SendTargetType 从 pending_prompt_provider.dart
 
@@ -14,10 +18,7 @@ class SendOptions {
   final SendTargetType targetType;
   final bool sendAsAlias;
 
-  const SendOptions({
-    required this.targetType,
-    this.sendAsAlias = false,
-  });
+  const SendOptions({required this.targetType, this.sendAsAlias = false});
 }
 
 /// 发送到主页对话框
@@ -28,19 +29,40 @@ class SendOptions {
 /// 3. 别名解析开关
 class SendToHomeDialog extends ConsumerStatefulWidget {
   final TagLibraryEntry entry;
+  final ScrollController? scrollController;
 
   const SendToHomeDialog({
     super.key,
     required this.entry,
+    this.scrollController,
   });
 
   static Future<SendOptions?> show(
     BuildContext context, {
     required TagLibraryEntry entry,
   }) {
-    return showDialog<SendOptions>(
+    return AdaptivePresenter.showForm<SendOptions>(
       context: context,
-      builder: (context) => SendToHomeDialog(entry: entry),
+      titleBuilder: (panelContext) => Row(
+        children: [
+          Icon(
+            Icons.send_outlined,
+            color: Theme.of(panelContext).colorScheme.primary,
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              panelContext.l10n.sendToHome_dialogTitle,
+              style: Theme.of(
+                panelContext,
+              ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w600),
+            ),
+          ),
+        ],
+      ),
+      dialogWidth: 480,
+      builder: (panelContext, scrollController) =>
+          SendToHomeDialog(entry: entry, scrollController: scrollController),
     );
   }
 
@@ -62,7 +84,11 @@ class _SendToHomeDialogState extends ConsumerState<SendToHomeDialog> {
   }
 
   /// 检测是否为竖线格式
-  bool get _isPipeFormat => PipeParser.isPipeFormat(widget.entry.content);
+  CharacterPromptBlockParseResult get _promptParts =>
+      CharacterPromptBlockParser.parse(widget.entry.content);
+
+  bool get _isPipeFormat =>
+      PipeParser.isPipeFormat(_promptParts.positivePrompt);
 
   /// 获取发送内容
   /// 如果 sendAsAlias 为 true，返回 <条目名> 形式
@@ -73,7 +99,7 @@ class _SendToHomeDialogState extends ConsumerState<SendToHomeDialog> {
       return '<${widget.entry.name}>';
     }
     // 应用 SD→NAI 转换和格式化
-    return SdToNaiConverter.convert(widget.entry.content);
+    return SdToNaiConverter.convert(_promptParts.positivePrompt);
   }
 
   /// 解析竖线格式结果
@@ -95,89 +121,66 @@ class _SendToHomeDialogState extends ConsumerState<SendToHomeDialog> {
     final theme = Theme.of(context);
     final parsed = _parsedResult;
 
-    return Dialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 480, maxHeight: 700),
-        child: Padding(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // 标题
-              Row(
-                children: [
-                  Icon(
-                    Icons.send_outlined,
-                    color: theme.colorScheme.primary,
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      context.l10n.sendToHome_dialogTitle,
-                      style: theme.textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.close, size: 20),
-                    onPressed: () => Navigator.of(context).pop(),
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(),
-                  ),
-                ],
-              ),
-
-              const SizedBox(height: 16),
-
-              // 发送目标选项
-              _buildTargetOptions(theme),
-
-              const SizedBox(height: 16),
-
-              // 别名解析开关
-              _buildAliasToggle(theme),
-
-              const Divider(height: 24),
-
-              // 预览区域
-              _buildPreviewSection(theme, parsed),
-
-              const SizedBox(height: 16),
-
-              // 操作按钮
-              Row(
-                children: [
-                  Expanded(
-                    child: TextButton(
-                      onPressed: () => Navigator.of(context).pop(),
-                      child: Text(context.l10n.common_cancel),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    flex: 2,
-                    child: FilledButton.icon(
-                      onPressed: () {
-                        Navigator.of(context).pop(
-                          SendOptions(
-                            targetType: _selectedTarget,
-                            sendAsAlias: _sendAsAlias,
-                          ),
-                        );
-                      },
-                      icon: const Icon(Icons.send, size: 18),
-                      label: Text(context.l10n.sendToHome_send),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
+    return AdaptiveDialogFrame(
+      key: const ValueKey('send-to-home-dialog-frame'),
+      maxWidth: 480,
+      maxHeight: 700,
+      reservedVerticalSpace: 0,
+      horizontalMargin: 0,
+      child: SingleChildScrollView(
+        key: const ValueKey('send-to-home-dialog-scroll'),
+        controller: widget.scrollController,
+        keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildTargetOptions(theme),
+            const SizedBox(height: 16),
+            _buildAliasToggle(theme),
+            const Divider(height: 24),
+            _buildPreviewSection(theme, parsed),
+            const SizedBox(height: 16),
+            _buildActions(),
+          ],
         ),
       ),
+    );
+  }
+
+  Widget _buildActions() {
+    final cancelButton = TextButton(
+      onPressed: () => Navigator.of(context).pop(),
+      child: Text(context.l10n.common_cancel),
+    );
+    final sendButton = FilledButton.icon(
+      onPressed: () {
+        Navigator.of(context).pop(
+          SendOptions(targetType: _selectedTarget, sendAsAlias: _sendAsAlias),
+        );
+      },
+      icon: const Icon(Icons.send, size: 18),
+      label: Text(context.l10n.sendToHome_send),
+    );
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final textScale = MediaQuery.textScalerOf(context).scale(14) / 14;
+        if (constraints.maxWidth < 360 || textScale > 1.5) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [cancelButton, const SizedBox(height: 8), sendButton],
+          );
+        }
+        return Row(
+          children: [
+            Expanded(child: cancelButton),
+            const SizedBox(width: 12),
+            Expanded(flex: 2, child: sendButton),
+          ],
+        );
+      },
     );
   }
 
@@ -297,45 +300,36 @@ class _SendToHomeDialogState extends ConsumerState<SendToHomeDialog> {
 
   /// 构建预览区域
   Widget _buildPreviewSection(ThemeData theme, ParsedResult parsed) {
-    return Flexible(
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: theme.colorScheme.surfaceContainerHigh,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: theme.colorScheme.outlineVariant.withValues(alpha: 0.5),
-          ),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(
-                  Icons.preview_outlined,
-                  size: 16,
-                  color: theme.colorScheme.primary,
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  context.l10n.sendToHome_preview,
-                  style: theme.textTheme.labelLarge?.copyWith(
-                    color: theme.colorScheme.primary,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Expanded(
-              child: SingleChildScrollView(
-                child: _buildPreviewContent(theme, parsed),
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerHigh,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                Icons.preview_outlined,
+                size: 16,
+                color: theme.colorScheme.primary,
               ),
-            ),
-          ],
-        ),
+              const SizedBox(width: 8),
+              Text(
+                context.l10n.sendToHome_preview,
+                style: theme.textTheme.labelLarge?.copyWith(
+                  color: theme.colorScheme.primary,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          _buildPreviewContent(theme, parsed),
+        ],
       ),
     );
   }
@@ -348,21 +342,22 @@ class _SendToHomeDialogState extends ConsumerState<SendToHomeDialog> {
     }
 
     return switch (_selectedTarget) {
-      SendTargetType.smartDecompose =>
-        _buildSmartDecomposePreview(theme, parsed),
+      SendTargetType.smartDecompose => _buildSmartDecomposePreview(
+        theme,
+        parsed,
+      ),
       SendTargetType.mainPrompt => _PreviewItem(
-          label: context.l10n.naiAlgorithm_mainPrompt,
-          content: _processedContent,
-          color: theme.colorScheme.primary,
-        ),
+        label: context.l10n.naiAlgorithm_mainPrompt,
+        content: _processedContent,
+        color: theme.colorScheme.primary,
+      ),
       SendTargetType.replaceCharacter ||
-      SendTargetType.appendCharacter =>
-        _buildCharacterPreview(parsed),
+      SendTargetType.appendCharacter => _buildCharacterPreview(parsed),
       SendTargetType.fixedTag => _PreviewItem(
-          label: context.l10n.fixedTags_label,
-          content: _processedContent,
-          color: Colors.orange,
-        ),
+        label: context.l10n.fixedTags_label,
+        content: _processedContent,
+        color: Colors.orange,
+      ),
     };
   }
 
@@ -370,17 +365,17 @@ class _SendToHomeDialogState extends ConsumerState<SendToHomeDialog> {
   Widget _buildAliasPreview(ThemeData theme) {
     final (label, color) = switch (_selectedTarget) {
       SendTargetType.mainPrompt => (
-          context.l10n.naiAlgorithm_mainPrompt,
-          theme.colorScheme.primary,
-        ),
+        context.l10n.naiAlgorithm_mainPrompt,
+        theme.colorScheme.primary,
+      ),
       SendTargetType.smartDecompose => (
-          context.l10n.sendToHome_smartDecompose,
-          theme.colorScheme.tertiary,
-        ),
+        context.l10n.sendToHome_smartDecompose,
+        theme.colorScheme.tertiary,
+      ),
       SendTargetType.replaceCharacter || SendTargetType.appendCharacter => (
-          context.l10n.sendToHome_characterPrompt,
-          theme.colorScheme.tertiary
-        ),
+        context.l10n.sendToHome_characterPrompt,
+        theme.colorScheme.tertiary,
+      ),
       SendTargetType.fixedTag => (context.l10n.fixedTags_label, Colors.orange),
     };
     return _PreviewItem(label: label, content: _processedContent, color: color);
@@ -397,12 +392,12 @@ class _SendToHomeDialogState extends ConsumerState<SendToHomeDialog> {
           color: theme.colorScheme.primary,
         ),
         ...parsed.characters.asMap().entries.map(
-              (e) => _PreviewItem(
-                label: context.l10n.sendToHome_characterIndex(e.key + 1),
-                content: e.value,
-                color: theme.colorScheme.secondary,
-              ),
-            ),
+          (e) => _PreviewItem(
+            label: context.l10n.sendToHome_characterIndex(e.key + 1),
+            content: e.value,
+            color: theme.colorScheme.secondary,
+          ),
+        ),
       ],
     );
   }
@@ -410,17 +405,31 @@ class _SendToHomeDialogState extends ConsumerState<SendToHomeDialog> {
   /// 构建角色预览
   Widget _buildCharacterPreview(ParsedResult parsed) {
     final hasCharacters = _isPipeFormat && parsed.characters.isNotEmpty;
-    final content =
-        hasCharacters ? parsed.characters.join('\n| ') : _processedContent;
+    final content = hasCharacters
+        ? parsed.characters.join('\n| ')
+        : _processedContent;
     final label = hasCharacters
-        ? context.l10n.sendToHome_characterPromptCount(
-            parsed.characters.length,
-          )
+        ? context.l10n.sendToHome_characterPromptCount(parsed.characters.length)
         : context.l10n.sendToHome_characterPrompt;
-    return _PreviewItem(
-      label: label,
-      content: content,
-      color: Theme.of(context).colorScheme.tertiary,
+    final theme = Theme.of(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _PreviewItem(
+          label: label,
+          content: content,
+          color: theme.colorScheme.tertiary,
+        ),
+        if (_promptParts.hasNegativeBlock &&
+            _promptParts.negativePrompt.isNotEmpty) ...[
+          const SizedBox(height: 12),
+          _PreviewItem(
+            label: context.l10n.prompt_negativePrompt,
+            content: _promptParts.negativePrompt,
+            color: theme.colorScheme.error,
+          ),
+        ],
+      ],
     );
   }
 }
@@ -430,10 +439,7 @@ class ParsedResult {
   final String mainPrompt;
   final List<String> characters;
 
-  ParsedResult({
-    required this.mainPrompt,
-    required this.characters,
-  });
+  ParsedResult({required this.mainPrompt, required this.characters});
 }
 
 /// 目标选项卡片
@@ -486,11 +492,7 @@ class _TargetOptionTile extends StatelessWidget {
                       color: iconColor.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(8),
                     ),
-                    child: Icon(
-                      icon,
-                      color: iconColor,
-                      size: 20,
-                    ),
+                    child: Icon(icon, color: iconColor, size: 20),
                   ),
                   if (isRecommended)
                     Positioned(
@@ -578,11 +580,8 @@ class _PreviewItem extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
-        color: theme.colorScheme.surface,
+        color: theme.colorScheme.surfaceContainerLow,
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(
-          color: color.withValues(alpha: 0.3),
-        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -592,10 +591,7 @@ class _PreviewItem extends StatelessWidget {
               Container(
                 width: 8,
                 height: 8,
-                decoration: BoxDecoration(
-                  color: color,
-                  shape: BoxShape.circle,
-                ),
+                decoration: BoxDecoration(color: color, shape: BoxShape.circle),
               ),
               const SizedBox(width: 6),
               Text(
@@ -608,18 +604,24 @@ class _PreviewItem extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 6),
-          Text(
-            content.isEmpty ? '(空)' : content,
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: content.isEmpty
-                  ? theme.colorScheme.outline
-                  : theme.colorScheme.onSurface,
-              fontFamily: 'monospace',
-              height: 1.4,
+          if (content.isEmpty)
+            Text(
+              context.l10n.common_emptyValue,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.outline,
+              ),
+            )
+          else
+            TranslatedPromptText(
+              content,
+              selectable: false,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurface,
+                fontFamily: 'monospace',
+                height: 1.4,
+              ),
+              maxLines: 5,
             ),
-            maxLines: 5,
-            overflow: TextOverflow.ellipsis,
-          ),
         ],
       ),
     );

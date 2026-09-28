@@ -1,0 +1,1452 @@
+import 'dart:async';
+import 'dart:io';
+
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:path_provider/path_provider.dart';
+
+import '../../../core/agent/agent.dart';
+import '../../../core/agent/context_usage.dart';
+import '../../../core/agent/audit/jsonl_audit_sink.dart';
+import '../../../core/agent/harness/compaction/compaction.dart';
+import '../../../core/agent/harness/harness_types.dart';
+import '../../../core/agent/harness/harness_messages.dart';
+import '../../../core/agent/harness/session/session_jsonl.dart';
+import '../../../core/agent/harness/session/session.dart';
+import '../../../core/agent/harness/session/session_types.dart'
+    as session_types;
+import '../../../core/agent/harness/skills.dart';
+import '../../../core/agent/resources/agent_chat_resource_draft_store.dart';
+import '../../../core/agent/resources/agent_chat_resource_reference.dart';
+import '../../../core/agent/skill_catalog.dart';
+import '../../../core/storage/local_storage_service.dart';
+import '../../../core/services/android_foreground_task_service.dart';
+import '../../../core/utils/app_logger.dart';
+import '../../../data/models/agent/agent_settings.dart';
+import '../../../data/models/interaction/user_question.dart';
+import '../../../data/models/inpaint/inpaint_draft.dart';
+import '../../../data/repositories/gallery_folder_repository.dart';
+import '../../agent_settings/providers/agent_settings_provider.dart';
+import '../models/agent_chat_compaction_outcome.dart';
+import '../models/agent_chat_slash_syntax.dart';
+import '../../prompt_assistant/models/prompt_assistant_models.dart';
+import '../../prompt_assistant/models/agent_protocol.dart';
+import '../../prompt_assistant/providers/prompt_assistant_config_provider.dart';
+import '../../prompt_assistant/providers/web_access_provider.dart';
+import '../../prompt_assistant/services/prompt_assistant_service.dart';
+import '../../providers/fixed_tags_provider.dart';
+import '../../providers/precise_ref_library_provider.dart';
+import '../../providers/tag_library_page_provider.dart';
+import '../../providers/vibe_library_provider.dart';
+import '../../router/app_router_config.dart';
+import '../services/agent_api_client.dart';
+import '../services/agent_chat_draft_controller.dart';
+import '../services/agent_chat_event_controller.dart';
+import '../services/agent_chat_session_controller.dart';
+import '../services/agent_chat_session_recovery.dart';
+import '../../prompt_assistant/models/assistant_model_capability.dart';
+import '../services/agent_stream_bridge.dart';
+import '../services/agent_system_prompt.dart';
+import '../services/agent_resource_resolver.dart';
+import '../services/generation_preparation_runtime.dart';
+import '../services/manual_inpaint_toolbox.dart';
+import '../services/queue_toolbox.dart';
+import '../services/agent_tool_permission_controller.dart';
+import '../services/agent_tool_registry_builder.dart';
+import '../services/agent_user_question_controller.dart';
+import 'agent_chat_state.dart';
+
+export 'agent_chat_state.dart';
+export '../services/agent_api_client.dart';
+
+typedef AgentWireCompletion =
+    Stream<AgentWireEvent> Function(AgentChatRequest request);
+
+final agentChatNotifierProvider =
+    StateNotifierProvider<AgentChatNotifier, AgentChatState>((ref) {
+      return AgentChatNotifier(ref, initializeImmediately: false);
+    });
+
+/// 聊天 agent 编排层：
+/// - 底层 Agent loop（core/agent）驱动多轮对话与工具执行；
+/// - 会话经 [Session]/[JsonlSessionRepo] 持久化为 JSONL 树；
+/// - 上下文压缩经 [prepareCompaction]/[compact]（自动阈值 + 手动触发）；
+/// - skills 经目录发现加载，并以 XML 清单注入系统提示词。
+class AgentChatNotifier extends StateNotifier<AgentChatState> {
+  AgentChatNotifier(
+    this._ref, {
+    List<HarnessSkill>? presetSkills,
+    Directory? supportDir,
+    Directory? workspaceDir,
+    JsonlSessionRepo? sessionRepo,
+    AgentWireCompletion? completeRequest,
+    Map<String, String>? skillEnvironment,
+    Future<Directory?> Function()? imageProjectDirectoryResolver,
+    bool initializeImmediately = true,
+  }) : _providedSupportDir = supportDir,
+       _providedWorkspaceDir = workspaceDir,
+       _providedSessionRepo = sessionRepo,
+       _completeRequest = completeRequest,
+       _skillEnvironment = skillEnvironment,
+       _imageProjectDirectoryResolver = imageProjectDirectoryResolver,
+       super(const AgentChatState()) {
+    _ref.listen<WebAccessConfigState>(webAccessConfigProvider, (_, _) {
+      unawaited(_refreshWebAccessTools());
+    });
+    _ref.listen<PromptAssistantConfigState>(promptAssistantConfigProvider, (
+      previous,
+      next,
+    ) {
+      _refreshRoute();
+    });
+    _ref.listen<AgentSettingsState>(agentSettingsProvider, (_, _) {
+      _queueSettingsRefresh();
+    });
+    for (final provider in [
+      fixedTagsNotifierProvider,
+      tagLibraryPageNotifierProvider,
+      vibeLibraryNotifierProvider,
+      preciseRefLibraryNotifierProvider,
+    ]) {
+      _ref.listen(provider, (_, _) {
+        unawaited(refreshPendingResourceAvailability());
+      });
+    }
+    _presetSkills = presetSkills;
+    if (initializeImmediately) {
+      ensureInitialized();
+    }
+  }
+
+  final Ref _ref;
+  final Directory? _providedSupportDir;
+  final Directory? _providedWorkspaceDir;
+  final JsonlSessionRepo? _providedSessionRepo;
+  final AgentWireCompletion? _completeRequest;
+  final Map<String, String>? _skillEnvironment;
+  final Future<Directory?> Function()? _imageProjectDirectoryResolver;
+  late final List<HarnessSkill>? _presetSkills;
+  late Directory _supportDir;
+  late Directory _workspaceDir;
+  late AgentChatDraftController _draftController;
+  bool _draftControllerInitialized = false;
+  late AgentChatEventController _eventController;
+  AgentChatSessionController? _sessionControllerValue;
+  AgentToolPermissionController? _permissionController;
+  AgentUserQuestionController? _questionController;
+  late AgentToolRegistryBuilder _toolRegistryBuilder;
+  late ManualInpaintToolbox _manualInpaintToolbox;
+  late AgentApiClient _client;
+  final Map<String, HarnessSkill> _skills = {};
+  final List<SkillDiagnostic> _skillDiagnostics = [];
+  final GenerationPreparationRuntime _generationPreparationRuntime =
+      GenerationPreparationRuntime();
+  final QueueControlRuntime _queueControlRuntime = QueueControlRuntime();
+  Future<void>? _initializing;
+  bool _usesPresetSkills = false;
+  bool _runtimeReady = false;
+  Future<void> _settingsRefresh = Future<void>.value();
+  Future<void> _sendDispatch = Future<void>.value();
+  bool _settingsApplyPending = false;
+  bool _preparingRun = false;
+  AgentPermissionMode? _activePermissionMode;
+  AgentSettings? _activeAgentSettings;
+  (ProviderConfig, String, String?)? _routeCache;
+  (ProviderConfig, String, String?)? _activeRoute;
+
+  LocalStorageService get _local => _ref.read(localStorageServiceProvider);
+  AgentChatSessionController get _sessionController => _sessionControllerValue!;
+  Future<void> get whenInitialized => ensureInitialized();
+
+  Future<void> ensureInitialized() =>
+      _initializing ??= _init(presetSkills: _presetSkills);
+
+  Future<void> _init({List<HarnessSkill>? presetSkills}) async {
+    final providedSupportDir = _providedSupportDir;
+    if (providedSupportDir != null) {
+      _supportDir = providedSupportDir;
+    } else {
+      try {
+        _supportDir = await getApplicationSupportDirectory();
+      } catch (e) {
+        AppLogger.w('agent chat init failed: $e', 'AgentChat');
+        _supportDir = Directory.systemTemp;
+      }
+    }
+    final sessionRepository =
+        _providedSessionRepo ?? JsonlSessionRepo(_supportDir);
+    final resourceDraftStore = AgentChatResourceDraftStore(
+      File(
+        '${_supportDir.path}${Platform.pathSeparator}agent'
+        '${Platform.pathSeparator}resource-drafts-v1.json',
+      ),
+    );
+    final auditSink = JsonlAgentAuditSink(
+      File(
+        '${_supportDir.path}${Platform.pathSeparator}agent'
+        '${Platform.pathSeparator}audit-v1.jsonl',
+      ),
+    );
+    // 文件工具工作区（read 的 cwd 与相对路径根）。
+    // 默认指向图片导出根目录（自定义保存路径或 Documents/NAI_Launcher/
+    // images），让 Agent 能直接按相对路径读取生成的图片；解析失败时
+    // 回退到应用支持目录下的 agent/workspace。
+    Directory? workspaceDir = _providedWorkspaceDir;
+    if (workspaceDir == null) {
+      try {
+        workspaceDir = await _resolveCurrentImageProjectDirectory();
+      } catch (e) {
+        AppLogger.w('resolve image export dir failed: $e', 'AgentChat');
+      }
+    }
+    _workspaceDir =
+        workspaceDir ??
+        Directory(
+          '${_supportDir.path}${Platform.pathSeparator}agent'
+          '${Platform.pathSeparator}workspace',
+        );
+    try {
+      await _workspaceDir.create(recursive: true);
+    } catch (e) {
+      AppLogger.w('agent workspace create failed: $e', 'AgentChat');
+    }
+    _manualInpaintToolbox = ManualInpaintToolbox(
+      _ref,
+      supportDirectory: _supportDir,
+      workspaceDir: _workspaceDir.path,
+      navigator: () =>
+          _ref.read(appRouterProvider).routerDelegate.navigatorKey.currentState,
+      activeSessionId: () => state.activeSessionId,
+      onDraftChanged: _recordManualInpaintDraftUpdate,
+    );
+    AgentResourceResolver createResourceResolver() => AgentResourceResolver(
+      _ref,
+      loadInpaintDraftImage: _manualInpaintToolbox.loadDraftImage,
+    );
+    _draftController = AgentChatDraftController(
+      resourceStore: resourceDraftStore,
+      localStorage: _local,
+      readState: () => state,
+      writeState: (next) => state = next,
+      createResourceResolver: createResourceResolver,
+      isMounted: () => mounted,
+    );
+    _draftControllerInitialized = true;
+    _permissionController = AgentToolPermissionController(
+      auditSink: auditSink,
+      estimateAnlas: _estimatePreparedAnlas,
+      onApprovalChanged: (request) {
+        final boundRequest = request?.bind(
+          turnId: _sessionControllerValue?.activeTurnId,
+          itemId: 'call:${request.toolCallId}',
+        );
+        state = request == null
+            ? state.copyWith(
+                clearApprovalRequest: true,
+                workPhase: AgentChatWorkPhase.usingTools,
+              )
+            : state.copyWith(
+                approvalRequest: boundRequest,
+                workPhase: AgentChatWorkPhase.awaitingApproval,
+              );
+      },
+      isMounted: () => mounted,
+    );
+    _questionController = AgentUserQuestionController(
+      onChanged: (request) {
+        if (!mounted) return;
+        state = state.copyWith(
+          questionRequest: request,
+          clearQuestionRequest: request == null,
+        );
+      },
+    );
+    _toolRegistryBuilder = AgentToolRegistryBuilder(
+      questionController: _questionController!,
+      ref: _ref,
+      workspaceDir: _workspaceDir.path,
+      skills: _skills,
+      skillDiagnostics: _skillDiagnostics,
+      reloadSkills: reloadSkills,
+      generationRuntime: _generationPreparationRuntime,
+      queueRuntime: _queueControlRuntime,
+      manualInpaintToolbox: _manualInpaintToolbox,
+      messages: () =>
+          _sessionControllerValue?.agent?.state.messages ?? const [],
+      activeSessionId: () => state.activeSessionId,
+      isMounted: () => mounted,
+    );
+    _sessionControllerValue = AgentChatSessionController(
+      repository: sessionRepository,
+      localStorage: _local,
+      draftController: _draftController,
+      workspaceDir: _workspaceDir.path,
+      buildAgent: _buildAgent,
+      buildSystemPrompt: _buildSystemPrompt,
+      readState: () => state,
+      writeState: (next) => state = next,
+      isMounted: () => mounted,
+    );
+    _eventController = AgentChatEventController(
+      sessionController: _sessionController,
+      permissionController: _permissionController!,
+      readState: () => state,
+      writeState: (next) => state = next,
+      isMounted: () => mounted,
+    );
+
+    _usesPresetSkills = presetSkills != null;
+    if (presetSkills != null) {
+      for (final skill in presetSkills) {
+        _skills[skill.name] = skill;
+      }
+    } else {
+      await _loadSkillsFromDisk();
+    }
+
+    _client = AgentApiClient(_ref.read(promptAssistantDioProvider));
+    _runtimeReady = true;
+    _refreshRoute();
+    await _sessionController.restoreLastSession();
+    _refreshRoute();
+    state = state.copyWith(
+      initialized: true,
+      skills: _skills.values.toList(growable: false),
+    );
+  }
+
+  Future<Agent> _buildAgent() async {
+    final permissionMode = _ref
+        .read(agentSettingsProvider)
+        .settings
+        .chat
+        .permissionMode;
+    final fullAccess = permissionMode == AgentPermissionMode.fullAccess;
+    final capability = _modelCapability(_routeCache);
+    final agent = Agent(
+      AgentOptions(
+        streamFn: _streamFn,
+        initialSystemPrompt: await _buildSystemPrompt(),
+        initialModel: capability.model,
+        // 提示词工具（含 read_skill）+ 只读文件工具 + 生成/反推/队列工具
+        // + 标签检索工具。
+        initialTools: _buildTools(fullAccess: fullAccess),
+        convertToLlm: (messages) async => harnessConvertToLlm(messages),
+        transformContext: (messages, signal) async =>
+            (await _compactContext(messages, signal)).messages,
+        beforeToolCall: _beforeToolCall,
+        toolExecution: ToolExecutionMode.sequential,
+      ),
+    );
+    agent.subscribe(_handleEvent);
+    return agent;
+  }
+
+  Future<BeforeToolCallResult?> _beforeToolCall(
+    BeforeToolCallContext context,
+    AbortSignal? signal,
+  ) => _permissionController!.beforeToolCall(context, signal);
+
+  bool resolveToolApproval(String toolCallId, bool approved) =>
+      _permissionController?.resolveApproval(toolCallId, approved) ?? false;
+
+  Future<void> setPermissionMode(AgentPermissionMode mode) async {
+    if (!canManageAgentChatSessions(state)) {
+      return;
+    }
+    await _ref.read(agentSettingsProvider.notifier).setPermissionMode(mode);
+    await _settingsRefresh;
+  }
+
+  List<AgentTool> _buildTools({required bool fullAccess}) {
+    final permissionMode =
+        _activePermissionMode ??
+        _ref.read(agentSettingsProvider).settings.chat.permissionMode;
+    final registry = _toolRegistryBuilder.build(
+      fullAccess: fullAccess,
+      permissionMode: permissionMode,
+    );
+    _permissionController!.configure(registry);
+    return registry.tools;
+  }
+
+  Future<void> _refreshWebAccessTools() async {
+    if (_runActive) {
+      _queueSettingsRefresh();
+      return;
+    }
+    final agent = _sessionControllerValue?.agent;
+    if (agent == null) return;
+    final mode = _ref.read(agentSettingsProvider).settings.chat.permissionMode;
+    agent.state.tools = _buildTools(
+      fullAccess: mode == AgentPermissionMode.fullAccess,
+    );
+    agent.setSystemPrompt(await _buildSystemPrompt());
+  }
+
+  Future<void> _loadSkillsFromDisk({
+    Map<String, bool>? skillEnabledOverrides,
+  }) async {
+    try {
+      final loaded = await _scanCurrentSkills(
+        skillEnabledOverrides: skillEnabledOverrides,
+      );
+      if (!mounted) return;
+      _skills.clear();
+      _skillDiagnostics
+        ..clear()
+        ..addAll([for (final item in loaded.diagnostics) item.diagnostic]);
+      _skills.addAll(loaded.enabledSkillMap());
+    } catch (e) {
+      AppLogger.w('agent skills load failed: $e', 'AgentChat');
+    }
+  }
+
+  Future<SkillCatalogSnapshot> _scanCurrentSkills({
+    Map<String, bool>? skillEnabledOverrides,
+  }) async {
+    final resolvedOverrides =
+        skillEnabledOverrides ??
+        _ref.read(agentSettingsProvider).settings.skillEnabledOverrides;
+    Directory? skillWorkspace = _providedWorkspaceDir;
+    if (_providedWorkspaceDir == null) {
+      try {
+        skillWorkspace = await _resolveCurrentImageProjectDirectory();
+      } catch (error) {
+        AppLogger.w(
+          'resolve current image project for Skills failed: $error',
+          'AgentChat',
+        );
+      }
+    }
+    return const SkillCatalogService().scan(
+      roots: SkillCatalogService.roots(
+        workspaceDirectory: skillWorkspace,
+        supportDirectory: _supportDir,
+        environment: _skillEnvironment,
+      ),
+      skillEnabledOverrides: resolvedOverrides,
+    );
+  }
+
+  Future<Directory?> _resolveCurrentImageProjectDirectory() async {
+    final resolver = _imageProjectDirectoryResolver;
+    if (resolver != null) return resolver();
+    final currentRoot = await GalleryFolderRepository.instance.getRootPath();
+    if (currentRoot == null || currentRoot.isEmpty) return null;
+    return Directory(currentRoot);
+  }
+
+  Future<int> reloadSkills() async {
+    await ensureInitialized();
+    if (!_usesPresetSkills) {
+      await _loadSkillsFromDisk(
+        skillEnabledOverrides: _activeAgentSettings?.skillEnabledOverrides,
+      );
+    }
+    if (!mounted) return _skills.length;
+    state = state.copyWith(skills: _skills.values.toList(growable: false));
+    final agent = _sessionController.agent;
+    if (agent != null) {
+      final mode = _ref
+          .read(agentSettingsProvider)
+          .settings
+          .chat
+          .permissionMode;
+      agent.state.tools = _buildTools(
+        fullAccess: mode == AgentPermissionMode.fullAccess,
+      );
+      agent.setSystemPrompt(
+        await _buildSystemPrompt(settingsOverride: _activeAgentSettings),
+      );
+    }
+    return _skills.length;
+  }
+
+  Future<void> _applyAgentSettings() async {
+    if (!mounted) return;
+    _settingsApplyPending = true;
+    if (!_runtimeReady || _runActive) return;
+    if (!_usesPresetSkills) await _loadSkillsFromDisk();
+    if (!mounted) return;
+    _refreshRoute();
+    final agent = _sessionControllerValue?.agent;
+    if (agent != null) {
+      final mode = _ref
+          .read(agentSettingsProvider)
+          .settings
+          .chat
+          .permissionMode;
+      agent.state.tools = _buildTools(
+        fullAccess: mode == AgentPermissionMode.fullAccess,
+      );
+      agent.setSystemPrompt(await _buildSystemPrompt());
+    }
+    if (mounted) {
+      state = state.copyWith(skills: _skills.values.toList(growable: false));
+    }
+    _settingsApplyPending = false;
+  }
+
+  bool get _runActive =>
+      _preparingRun || state.status == AgentChatRunStatus.running;
+
+  void _queueSettingsRefresh() {
+    if (!mounted) return;
+    _settingsApplyPending = true;
+    _settingsRefresh = _settingsRefresh
+        .catchError((Object error) {
+          AppLogger.w('agent settings refresh failed: $error', 'AgentChat');
+        })
+        .then((_) async {
+          if (!mounted) return;
+          await _applyAgentSettings();
+        });
+  }
+
+  /// 代理 compaction：上下文超阈值时折叠旧消息为摘要消息
+  /// （消息空间实现。
+  /// [force] 为 true 时跳过 token 阈值检查，供用户手动压缩。
+  Future<({List<AgentMessage> messages, AgentChatCompactionOutcome outcome})>
+  _compactContext(
+    List<AgentMessage> messages,
+    AbortSignal? signal, {
+    bool force = false,
+  }) async {
+    ({List<AgentMessage> messages, AgentChatCompactionOutcome outcome}) skip(
+      AgentChatCompactionSkipReason reason,
+    ) => (messages: messages, outcome: AgentChatCompactionSkipped(reason));
+
+    try {
+      final route = _activeRoute ?? _routeCache ?? _resolveRoute();
+      final session = _sessionController.session;
+      if (route == null || session == null) {
+        return skip(AgentChatCompactionSkipReason.unavailable);
+      }
+      final contextWindow = _modelCapability(route).model.contextWindow;
+      if (contextWindow <= 0) {
+        return skip(AgentChatCompactionSkipReason.unavailable);
+      }
+      const settings = defaultCompactionSettings;
+      // 自动压缩不值得为极短会话去查询整条分支；手动触发由下面的真实谓词判定。
+      if (!force && messages.length <= 8) {
+        return skip(AgentChatCompactionSkipReason.nothingToCompact);
+      }
+      final estimate = estimateContextTokens(messages);
+      if (!force && !shouldCompact(estimate.tokens, contextWindow, settings)) {
+        return skip(AgentChatCompactionSkipReason.nothingToCompact);
+      }
+
+      state = state.copyWith(compacting: true);
+      final entries = await session.findEntriesOnBranch(
+        const session_types.EntryQuery(
+          order: session_types.EntryOrder.oldestFirst,
+        ),
+      );
+      final prep = prepareCompaction(entries, settings);
+      final preparation = prep.valueOrNull;
+      // prepareCompaction 对「全部历史都在保留窗口内」仍返回一份空 preparation，
+      // 而 compact 会拿空列表去请求摘要并用结果覆盖上下文，必须在此挡掉。
+      if (preparation == null || !_hasSummarizableHistory(preparation)) {
+        state = state.copyWith(compacting: false);
+        return skip(AgentChatCompactionSkipReason.nothingToCompact);
+      }
+      final result = await compact(
+        preparation,
+        _completeSimple,
+        Model(
+          id: route.$2,
+          name: route.$2,
+          api: route.$1.protocol.name,
+          provider: route.$1.id,
+          contextWindow: contextWindow,
+        ),
+        signal: signal,
+      );
+      final compactResult = result.valueOrNull;
+      state = state.copyWith(compacting: false);
+      if (compactResult == null) {
+        final error = result.errorOrNull;
+        return (
+          messages: messages,
+          outcome: AgentChatCompactionFailed(
+            error == null ? '' : error.message,
+          ),
+        );
+      }
+
+      final entry =
+          await session.appendEntry(
+                session_types.CompactionEntry(
+                  id: session.idGenerator(),
+                  summary: compactResult.summary,
+                  retainedTail: compactResult.retainedTail,
+                  tokensBefore: compactResult.tokensBefore,
+                  details: compactResult.details,
+                  usage: compactResult.usage,
+                ),
+                'main',
+              )
+              as session_types.CompactionEntry;
+      final compressed = <AgentMessage>[
+        createCompactionSummaryMessage(
+          entry.summary,
+          entry.tokensBefore,
+          entry.timestamp,
+          retainedTailLength: compactResult.retainedTail.length,
+        ),
+        ...compactResult.retainedTail,
+      ];
+      messages
+        ..clear()
+        ..addAll(compressed);
+      _sessionController.agent?.state.messages = List.of(compressed);
+      if (compactResult.usage != null) {
+        _sessionController.totalUsage =
+            _sessionController.totalUsage + compactResult.usage!;
+      }
+      final contextUsage = resolveAgentContextUsage(
+        compressed,
+        contextWindow: contextWindow,
+      );
+      state = state.copyWith(
+        messages: List.of(compressed),
+        totalUsage: _sessionController.totalUsage,
+        lastRequestUsage: compactResult.usage,
+        clearLastRequestUsage: compactResult.usage == null,
+        contextUsage: contextUsage,
+      );
+      return (
+        messages: messages,
+        outcome: AgentChatCompactionDone(
+          tokensBefore: compactResult.tokensBefore,
+          tokensAfter: contextUsage.tokens ?? compactResult.tokensBefore,
+        ),
+      );
+    } catch (e) {
+      AppLogger.w('agent compaction skipped: $e', 'AgentChat');
+      state = state.copyWith(compacting: false);
+      return (messages: messages, outcome: AgentChatCompactionFailed('$e'));
+    }
+  }
+
+  /// compaction 是否真有历史要折叠。
+  bool _hasSummarizableHistory(CompactionPreparation preparation) =>
+      preparation.messagesToSummarize.isNotEmpty ||
+      (preparation.isSplitTurn && preparation.turnPrefixMessages.isNotEmpty);
+
+  /// completeSimple：经 StreamFn 收敛的一次性调用。
+  Future<AssistantMessage> _completeSimple(
+    Model model,
+    Context context, [
+    SimpleStreamOptions? options,
+  ]) {
+    return completeSimpleViaStreamFn(_streamFn, model, context, options);
+  }
+
+  /// StreamFn：解析路由 → 线请求 → 适配器流 → 桥接。
+  AssistantMessageEventStream _streamFn(
+    Model model,
+    Context context, [
+    SimpleStreamOptions? options,
+  ]) {
+    // Pi passes the aborted run signal into the next response boundary after
+    // an interrupted tool. Do not create a fresh transport request for it.
+    if (options?.signal case final AbortSignal signal when signal.aborted) {
+      return _errorStream('aborted', stopReason: StopReason.aborted);
+    }
+    try {
+      final route = _activeRoute ?? _routeCache;
+      if (route == null) {
+        return _errorStream('No LLM provider configured for chat.');
+      }
+      final capability = _modelCapability(route);
+      final request = AgentChatRequest(
+        sessionId: 'agent_chat',
+        provider: route.$1,
+        model: route.$2,
+        systemPrompt: context.systemPrompt,
+        messages: List.unmodifiable(context.messages),
+        tools: [
+          for (final tool in context.tools ?? const <Tool>[])
+            Tool(
+              name: tool.name,
+              description: tool.description,
+              parameters: Map.unmodifiable(
+                Map<String, dynamic>.from(tool.parameters),
+              ),
+            ),
+        ],
+        apiKey: route.$3,
+        maxOutputTokens: _clampMaxOutputTokens(
+          capability,
+          context.messages,
+          options?.maxTokens,
+        ),
+        modelMaxOutputTokens: capability.metadata.maxOutputTokens,
+        reasoning: options?.reasoning,
+        reasoningRequest: capability.resolveReasoningRequest(
+          options?.reasoning,
+        ),
+      );
+      final wireEvents =
+          _completeRequest?.call(request) ?? _client.complete(request);
+      final signal = options?.signal;
+      if (signal is AbortSignal) {
+        signal.addListener((_) => _client.cancel('agent_chat'));
+      }
+      return agentWireEventStream(
+        wireEvents,
+        provider: request.provider.id,
+        model: request.model,
+      );
+    } catch (e) {
+      return _errorStream(e.toString());
+    }
+  }
+
+  static int? _clampMaxOutputTokens(
+    AgentChatModelCapability capability,
+    List<Message> messages,
+    int? requested,
+  ) {
+    final modelMax = capability.metadata.maxOutputTokens;
+    if (requested == null && modelMax <= 0) return null;
+
+    var result = requested ?? modelMax;
+    if (modelMax > 0 && result > modelMax) result = modelMax;
+
+    final contextWindow = capability.metadata.contextWindow;
+    if (contextWindow > 0) {
+      const contextSafetyTokens = 4096;
+      final used = estimateContextTokens(messages).tokens;
+      final available = contextWindow - used - contextSafetyTokens;
+      final contextMax = available < 1 ? 1 : available;
+      if (result > contextMax) result = contextMax;
+    }
+    return result < 1 ? 1 : result;
+  }
+
+  static AssistantMessageEventStream _errorStream(
+    String message, {
+    StopReason stopReason = StopReason.error,
+  }) {
+    final stream = EventStream<AssistantMessageEvent, AssistantMessage>();
+    final failure = AssistantMessage(
+      content: const [],
+      stopReason: stopReason,
+      errorMessage: message,
+      timestamp: DateTime.now().millisecondsSinceEpoch,
+    );
+    scheduleMicrotask(() {
+      stream.push(AmStart(partial: failure));
+      stream.push(AmError(partial: failure, error: message));
+      stream.end(failure);
+    });
+    return stream;
+  }
+
+  (ProviderConfig, String, String?)? _resolveRoute() {
+    final config = _ref.read(promptAssistantConfigProvider);
+    final enabled = config.providers.where((p) => p.enabled).toList();
+    if (enabled.isEmpty) {
+      return null;
+    }
+    final modelReference = _ref
+        .read(agentSettingsProvider)
+        .settings
+        .chat
+        .modelReference;
+    if (!modelReference.isConfigured) return null;
+    final provider = enabled
+        .where((item) => item.id == modelReference.providerId)
+        .firstOrNull;
+    if (provider == null) return null;
+    final models = config.modelsForProviderTask(
+      providerId: provider.id,
+      taskType: AssistantTaskType.chat,
+    );
+    final model = modelReference.model.trim();
+    if (!models.any((item) => !item.isPlaceholder && item.name == model)) {
+      return null;
+    }
+    return (provider, model, null);
+  }
+
+  AgentChatModelCapability _modelCapability(
+    (ProviderConfig, String, String?)? route,
+  ) {
+    if (route == null) return AgentChatModelCapability.unavailable;
+    return AgentChatModelCapability.resolve(
+      route.$1,
+      route.$2,
+      contextWindowOverride: _contextWindowOverride(route),
+    );
+  }
+
+  int? _contextWindowOverride((ProviderConfig, String, String?) route) => _ref
+      .read(agentSettingsProvider)
+      .settings
+      .chat
+      .contextWindowOverrideFor(route.$1.id, route.$2);
+
+  Future<String> _buildSystemPrompt({
+    String? customInstructionsOverride,
+    AgentSystemPromptMode? modeOverride,
+    Iterable<HarnessSkill>? skillsOverride,
+    AgentSettings? settingsOverride,
+  }) async {
+    // Provider state must be captured before the API-key await because the
+    // owning container may be disposed while secure storage is responding.
+    final agentSettings =
+        settingsOverride ?? _ref.read(agentSettingsProvider).settings;
+    // 路由缓存 + API Key 解析（短期 token 每次运行刷新）。
+    final route = _activeRoute ?? _routeCache ?? _resolveRoute();
+    if (route != null) {
+      final apiKey = await _ref
+          .read(promptAssistantConfigProvider.notifier)
+          .getProviderApiKey(route.$1.id);
+      final resolvedRoute = (route.$1, route.$2, apiKey);
+      if (_activeRoute != null) {
+        _activeRoute = resolvedRoute;
+      } else {
+        _routeCache = resolvedRoute;
+      }
+    }
+    final skillBlock = formatSkillsForSystemPrompt(
+      (skillsOverride ?? _skills.values).toList(growable: false),
+    );
+    return buildAgentSystemPrompt(
+      workspacePath: _workspaceDir.path,
+      webAccessEnabled: agentSettings.chat.webAccessEnabled,
+      skillBlock: skillBlock,
+      customInstructions: agentSettings.chat.behaviorInstructions(
+        customPromptOverride: customInstructionsOverride,
+        modeOverride: modeOverride,
+      ),
+      mode: modeOverride ?? agentSettings.chat.systemPromptMode,
+    );
+  }
+
+  Future<String> buildSystemPromptPreview({
+    String? customInstructions,
+    AgentSystemPromptMode? mode,
+  }) async {
+    await ensureInitialized();
+    await _settingsRefresh;
+    final previewSkills = _usesPresetSkills
+        ? _skills.values
+        : (await _scanCurrentSkills()).enabledSkillMap().values;
+    return _buildSystemPrompt(
+      customInstructionsOverride: customInstructions,
+      modeOverride: mode,
+      skillsOverride: previewSkills,
+    );
+  }
+
+  void _refreshRoute() {
+    _routeCache = _resolveRoute();
+    if (_routeCache == null) {
+      final hasProvider = _ref
+          .read(promptAssistantConfigProvider)
+          .providers
+          .any((p) => p.enabled);
+      state = state.copyWith(
+        routeReady: false,
+        routeLabel: '',
+        routeError: hasProvider
+            ? 'The chat task has no usable model. Pick a model in Settings.'
+            : 'No LLM provider configured. Add one in Settings > '
+                  'Integrations.',
+        contextUsage: resolveAgentContextUsage(
+          _sessionControllerValue?.agent?.state.messages ?? state.messages,
+          contextWindow: null,
+        ),
+        availableThinkingLevels: const [],
+      );
+      return;
+    }
+    final capability = _modelCapability(_routeCache);
+    final currentLevel = capability.levels.contains(state.thinkingLevel)
+        ? state.thinkingLevel
+        : capability.levels.firstOrNull ?? ThinkingLevel.off;
+    final agent = _sessionControllerValue?.agent;
+    if (agent != null) {
+      agent.state.model = capability.model;
+      agent.state.thinkingLevel = currentLevel;
+    }
+    state = state.copyWith(
+      routeReady: true,
+      routeLabel: '${_routeCache!.$1.name} / ${_routeCache!.$2}',
+      routeError: '',
+      contextUsage: resolveAgentContextUsage(
+        _sessionControllerValue?.agent?.state.messages ?? state.messages,
+        contextWindow: capability.model.contextWindow,
+      ),
+      availableThinkingLevels: capability.levels,
+      thinkingLevel: currentLevel,
+    );
+  }
+
+  Future<void> setThinkingLevel(ThinkingLevel level) async {
+    if (!canManageAgentChatSessions(state) ||
+        !state.availableThinkingLevels.contains(level)) {
+      return;
+    }
+    final agent = _sessionControllerValue?.agent;
+    final session = _sessionControllerValue?.session;
+    if (agent == null ||
+        session == null ||
+        agent.state.thinkingLevel == level) {
+      return;
+    }
+    agent.state.thinkingLevel = level;
+    await session.appendEntry(
+      session_types.ThinkingLevelEntry(
+        id: session.idGenerator(),
+        thinkingLevel: level.name,
+      ),
+      'main',
+    );
+    if (mounted) state = state.copyWith(thinkingLevel: level);
+  }
+
+  // -------------------------------------------------------------------------
+  // 会话管理
+  // -------------------------------------------------------------------------
+
+  Future<int?> _estimatePreparedAnlas(
+    String toolName,
+    Map<String, dynamic> args,
+  ) async {
+    if (toolName == 'submit_generation' ||
+        toolName == 'generate_image' ||
+        toolName == 'queue_image_task') {
+      final id = args['preparation_id'];
+      if (id is String) {
+        return _generationPreparationRuntime.get(id)?.estimatedAnlas;
+      }
+    }
+    if (toolName == 'submit_manual_inpaint_draft') {
+      final id = args['draft_id'];
+      return id is String
+          ? await _manualInpaintToolbox.estimateAnlasForDraft(id)
+          : null;
+    }
+    if (toolName == 'start_generation_queue' ||
+        toolName == 'resume_generation_queue') {
+      final id = args['queue_preparation_id'];
+      return id is String ? _queueControlRuntime.get(id)?.estimatedAnlas : null;
+    }
+    return null;
+  }
+
+  Future<void> addPendingResource(AgentChatResourceReference reference) async {
+    await ensureInitialized();
+    await _draftController.addPendingResource(reference);
+  }
+
+  Future<void> removePendingResource(int index) {
+    if (!_draftControllerInitialized) return Future<void>.value();
+    return _draftController.removePendingResource(index);
+  }
+
+  Future<void> clearPendingResources() {
+    if (!_draftControllerInitialized) return Future<void>.value();
+    return _draftController.clearPendingResources();
+  }
+
+  void setComposerText(String value) {
+    if (!_draftControllerInitialized) {
+      if (value != state.composerText) {
+        state = state.copyWith(composerText: value);
+      }
+      return;
+    }
+    _draftController.setComposerText(value);
+  }
+
+  Future<void> clearComposerText() {
+    if (!_draftControllerInitialized) {
+      state = state.copyWith(composerText: '');
+      return Future<void>.value();
+    }
+    return _draftController.clearComposerText();
+  }
+
+  Future<void> refreshPendingResourceAvailability() {
+    if (!_draftControllerInitialized) {
+      if (mounted && state.unavailableResourceKeys.isNotEmpty) {
+        state = state.copyWith(unavailableResourceKeys: const {});
+      }
+      return Future<void>.value();
+    }
+    return _draftController.refreshPendingResourceAvailability();
+  }
+
+  Future<bool> validatePendingResourcesForSend() {
+    if (!_draftControllerInitialized) return Future<bool>.value(true);
+    return _draftController.validatePendingResourcesForSend();
+  }
+
+  Future<void> _recordManualInpaintDraftUpdate(
+    String ownerSessionId,
+    InpaintDraft draft,
+  ) => _sessionController.recordManualInpaintDraftUpdate(ownerSessionId, draft);
+
+  Future<ResolvedAgentResource?> resolveResourcePreview(
+    AgentChatResourceReference reference,
+  ) async {
+    await ensureInitialized();
+    return _draftController.resolveResourcePreview(reference);
+  }
+
+  Future<void> newSession() async {
+    await ensureInitialized();
+    final inheritedThinkingLevel = state.thinkingLevel;
+    await _sessionController.newSession();
+    _refreshRoute();
+    if (state.availableThinkingLevels.contains(inheritedThinkingLevel) &&
+        state.thinkingLevel != inheritedThinkingLevel) {
+      await setThinkingLevel(inheritedThinkingLevel);
+    }
+  }
+
+  Future<void> switchSession(String sessionId) async {
+    await ensureInitialized();
+    await _sessionController.switchSession(sessionId);
+    _refreshRoute();
+  }
+
+  /// 将主分支回退到最后一条用户消息之前，并返回该消息供输入框恢复。
+  ///
+  /// 原条目仍保留在会话树中，只移动 main lane 指针；后续发送会从回退点
+  /// 建立新分支，与 `/rewind` 的语义一致。
+  Future<UserMessage?> rewindLastUserMessage() async {
+    await ensureInitialized();
+    return _sessionController.rewindLastUserMessage();
+  }
+
+  Future<void> loadEarlierHistory() async {
+    await ensureInitialized();
+    return _sessionController.loadEarlierHistory();
+  }
+
+  /// 删除指定会话；删除当前会话时自动切到最近剩余会话（无则新建）。
+  Future<void> deleteSession(String sessionId) async {
+    await ensureInitialized();
+    return _sessionController.deleteSession(sessionId);
+  }
+
+  /// 重命名会话（持久化 name 记录，列表即时刷新）。
+  Future<void> renameSession(String sessionId, String name) async {
+    await ensureInitialized();
+    return _sessionController.renameSession(sessionId, name);
+  }
+
+  /// 切换聊天模型：写入 chat 任务路由并持久化，随后刷新本地路由缓存。
+  Future<void> selectChatModel(String providerId, String model) async {
+    if (!canManageAgentChatSessions(state) ||
+        providerId.isEmpty ||
+        model.isEmpty) {
+      return;
+    }
+    final config = _ref.read(promptAssistantConfigProvider);
+    if (!config.providers.any((p) => p.id == providerId && p.enabled)) {
+      return;
+    }
+    await _ref
+        .read(agentSettingsProvider.notifier)
+        .setModelReference(
+          AgentModelReference(providerId: providerId, model: model),
+        );
+    await _settingsRefresh;
+    _refreshRoute();
+  }
+
+  // -------------------------------------------------------------------------
+  // 运行
+  // -------------------------------------------------------------------------
+
+  /// 发送一条用户消息；[images] 为可选的内联图片附件（base64）。
+  Future<void> send(String text, {List<ImageContent>? images}) async {
+    final trimmed = text.trim();
+    final hasImages = images != null && images.isNotEmpty;
+    if (trimmed.isEmpty && !hasImages) {
+      return;
+    }
+    final message = _buildUserMessage(trimmed, hasImages ? images : null);
+    await _sendMessage(message);
+  }
+
+  /// 发送已按输入位置排列的文本与图片内容块。
+  Future<bool> sendContent(
+    List<UserContent> content, {
+    bool followUp = false,
+    Future<void> Function()? onAccepted,
+  }) async {
+    final normalized = <UserContent>[
+      for (final block in content)
+        if (block is! UserTextContent || block.text.trim().isNotEmpty) block,
+    ];
+    if (normalized.isEmpty) {
+      return false;
+    }
+    return _sendMessage(
+      UserMessage(content: normalized),
+      followUp: followUp,
+      onAccepted: onAccepted,
+    );
+  }
+
+  Future<bool> prepareEditedSend() async {
+    if (state.sessionTransitioning || _runActive) return false;
+    await ensureInitialized();
+    if (state.sessionTransitioning || _runActive) return false;
+    if (!await validatePendingResourcesForSend()) return false;
+    await _settingsRefresh;
+    if (_settingsApplyPending) await _applyAgentSettings();
+    _refreshRoute();
+    return state.routeReady && _sessionController.agent != null;
+  }
+
+  Future<AgentChatRewindCheckpoint?> beginEditedMessageRewind() async {
+    await ensureInitialized();
+    return _sessionController.beginRewindLastUserMessage();
+  }
+
+  Future<void> restoreEditedMessageRewind(
+    AgentChatRewindCheckpoint checkpoint,
+  ) async {
+    await ensureInitialized();
+    return _sessionController.restoreRewindCheckpoint(checkpoint);
+  }
+
+  /// 开头 `/名称` 命中的已启用技能。解析放在发送这一刻，才能保证用的是与
+  /// 当前工具注册表同一份 `_skills`；重试重发同一条文本时也会重新命中。
+  HarnessSkill? _invokedSkill(UserMessage message) {
+    final token = parseLeadingSlashToken(message.text);
+    if (token == null) return null;
+    // 键是技能目录名的原始大小写，菜单也原样插入，所以两边都折叠后再比。
+    final wanted = token.name.toLowerCase();
+    for (final entry in _skills.entries) {
+      if (entry.key.toLowerCase() == wanted) return entry.value;
+    }
+    return null;
+  }
+
+  Future<bool> _sendMessage(
+    UserMessage message, {
+    bool followUp = false,
+    Future<void> Function()? onAccepted,
+  }) async {
+    if (state.sessionTransitioning) {
+      return false;
+    }
+    await ensureInitialized();
+    final previousDispatch = _sendDispatch;
+    final dispatchDone = Completer<void>();
+    _sendDispatch = dispatchDone.future;
+    Future<void>? run;
+    Agent? runAgent;
+    var ownsRun = false;
+    Future<void> Function()? releaseForeground;
+
+    try {
+      await previousDispatch;
+      if (state.sessionTransitioning) return false;
+      final dispatchSessionId = state.activeSessionId;
+      if (!await validatePendingResourcesForSend()) return false;
+      if (state.sessionTransitioning ||
+          state.activeSessionId != dispatchSessionId) {
+        return false;
+      }
+      final agent = _sessionController.agent;
+      if (agent == null) {
+        state = state.copyWith(
+          error: 'Agent chat is still initializing. Try again in a moment.',
+        );
+        return false;
+      }
+      final attachedResources = List<AgentChatResourceReference>.of(
+        state.pendingResources,
+      );
+      final invokedSkill = _invokedSkill(message);
+      final promptMessage = attachedResources.isEmpty && invokedSkill == null
+          ? message
+          : _draftController.promptEnvelope(
+              message,
+              references: attachedResources,
+              skill: invokedSkill,
+            );
+
+      if (_runActive) {
+        await _sessionController.acceptQueuedPrompt(
+          promptMessage,
+          followUp
+              ? session_types.QueueKind.followUp
+              : session_types.QueueKind.steer,
+          enqueue: () {
+            if (followUp) {
+              agent.followUp(promptMessage);
+            } else {
+              agent.steer(promptMessage);
+            }
+          },
+        );
+        await _draftController.consumePendingResources(attachedResources);
+        state = state.copyWith(queuedMessages: _queuedMessages(agent));
+        await onAccepted?.call();
+        return true;
+      }
+
+      ownsRun = true;
+      _preparingRun = true;
+      state = state.copyWith(
+        status: AgentChatRunStatus.running,
+        error: '',
+        activities: const [],
+        clearStreamingMessage: true,
+        workPhase: AgentChatWorkPhase.preparing,
+      );
+      await _settingsRefresh;
+      if (_settingsApplyPending) await _applyAgentSettings();
+      _refreshRoute();
+      if (!state.routeReady) {
+        state = state.copyWith(
+          error: state.routeError.isNotEmpty
+              ? state.routeError
+              : 'No LLM provider configured. Open Settings to add one.',
+        );
+        _preparingRun = false;
+        state = state.copyWith(
+          status: AgentChatRunStatus.idle,
+          workPhase: AgentChatWorkPhase.idle,
+        );
+        return false;
+      }
+      final agentSettings = _ref.read(agentSettingsProvider).settings;
+      final permissionMode = agentSettings.chat.permissionMode;
+      _activeAgentSettings = agentSettings;
+      _activePermissionMode = permissionMode;
+      _activeRoute = _routeCache;
+      releaseForeground = await _ref
+          .read(androidForegroundTaskServiceProvider)
+          .acquire();
+      final capability = _modelCapability(_activeRoute);
+      agent.state.model = capability.model;
+      if (!capability.levels.contains(agent.state.thinkingLevel)) {
+        agent.state.thinkingLevel =
+            capability.levels.firstOrNull ?? ThinkingLevel.off;
+      }
+      agent.state.tools = _buildTools(
+        fullAccess: permissionMode == AgentPermissionMode.fullAccess,
+      );
+      agent.setSystemPrompt(
+        await _buildSystemPrompt(settingsOverride: agentSettings),
+      );
+      final resumeSuspendedRun = _sessionController.hasSuspendedRun;
+      AgentChatSuspendedRecovery? recovery;
+      if (resumeSuspendedRun) {
+        recovery = await _sessionController.restoreSuspendedRun();
+        agent.state.messages.addAll(
+          recovery.transcriptEntries.map((entry) => entry.message),
+        );
+        await _sessionController.acceptQueuedPrompt(
+          promptMessage,
+          session_types.QueueKind.steer,
+          enqueue: () {},
+        );
+      } else {
+        _sessionController.prepareRunPrompt(promptMessage);
+        await _sessionController.startTurn();
+      }
+      if (!resumeSuspendedRun) {
+        run = agent.prompt(promptMessage);
+      } else if (agent.state.messages.isEmpty) {
+        for (final queued in recovery!.followUpMessages) {
+          agent.followUp(queued.message);
+        }
+        run = agent.prompt([
+          ...recovery.steeringMessages.map((queued) => queued.message),
+          promptMessage,
+        ]);
+      } else {
+        for (final queued in recovery!.steeringMessages) {
+          agent.steer(queued.message);
+        }
+        for (final queued in recovery.followUpMessages) {
+          agent.followUp(queued.message);
+        }
+        agent.steer(promptMessage);
+        run = agent.continueRun();
+      }
+      runAgent = agent;
+      _preparingRun = false;
+      await _draftController.consumePendingResources(attachedResources);
+      await onAccepted?.call();
+    } catch (e, stackTrace) {
+      _preparingRun = false;
+      AppLogger.e('Agent dispatch failed', e, stackTrace, 'AgentChat');
+      if (ownsRun && run == null) {
+        _activePermissionMode = null;
+        _activeAgentSettings = null;
+        _activeRoute = null;
+        state = state.copyWith(
+          status: AgentChatRunStatus.idle,
+          workPhase: AgentChatWorkPhase.idle,
+        );
+      }
+      state = state.copyWith(error: e.toString());
+      if (ownsRun && run == null && _settingsApplyPending) {
+        _queueSettingsRefresh();
+      }
+    } finally {
+      if (run == null) await _releaseForegroundTask(releaseForeground);
+      if (!dispatchDone.isCompleted) dispatchDone.complete();
+    }
+
+    if (run == null || runAgent == null) return false;
+    var succeeded = true;
+    try {
+      await run;
+    } catch (e, stackTrace) {
+      succeeded = false;
+      AppLogger.e('Agent run failed', e, stackTrace, 'AgentChat');
+      state = state.copyWith(error: e.toString());
+    } finally {
+      if (!await _releaseForegroundTask(releaseForeground)) succeeded = false;
+      _activePermissionMode = null;
+      _activeAgentSettings = null;
+      _activeRoute = null;
+      if (mounted) {
+        state = state.copyWith(
+          status: AgentChatRunStatus.idle,
+          clearStreamingMessage: true,
+          queuedMessages: _queuedMessages(runAgent),
+          workPhase: AgentChatWorkPhase.idle,
+        );
+      }
+      if (_settingsApplyPending) _queueSettingsRefresh();
+    }
+    return succeeded;
+  }
+
+  Future<bool> _releaseForegroundTask(Future<void> Function()? release) async {
+    try {
+      await release?.call();
+      return true;
+    } catch (error, stackTrace) {
+      AppLogger.e(
+        'Agent foreground cleanup failed',
+        error,
+        stackTrace,
+        'AgentChat',
+      );
+      if (mounted) state = state.copyWith(error: error.toString());
+      return false;
+    }
+  }
+
+  List<AgentQueuedMessage> _queuedMessages(Agent agent) => [
+    for (final entry in agent.steeringQueue)
+      AgentQueuedMessage(
+        kind: AgentQueuedMessageKind.steering,
+        id: entry.id,
+        message: entry.message,
+      ),
+    for (final entry in agent.followUpQueue)
+      AgentQueuedMessage(
+        kind: AgentQueuedMessageKind.followUp,
+        id: entry.id,
+        message: entry.message,
+      ),
+  ];
+
+  Future<AgentMessage?> removeQueuedMessage(AgentQueuedMessage queued) async {
+    final agent = _sessionController.agent;
+    if (agent == null) return null;
+    await _sessionController.cancelQueuedPrompt(queued.message);
+    final message = switch (queued.kind) {
+      AgentQueuedMessageKind.steering => agent.removeSteeringById(queued.id),
+      AgentQueuedMessageKind.followUp => agent.removeFollowUpById(queued.id),
+    };
+    state = state.copyWith(queuedMessages: _queuedMessages(agent));
+    return message;
+  }
+
+  Future<void> clearQueuedMessages() async {
+    final agent = _sessionController.agent;
+    if (agent == null) return;
+    for (final queued in _queuedMessages(agent)) {
+      await _sessionController.cancelQueuedPrompt(queued.message);
+    }
+    agent.clearAllQueues();
+    state = state.copyWith(queuedMessages: const []);
+  }
+
+  /// 组装用户消息：文本在前，图片附件随后（与 agent.prompt 的
+  /// 字符串+images 归一化结果一致）。
+  UserMessage _buildUserMessage(String text, List<ImageContent>? images) {
+    final content = <UserContent>[
+      if (text.isNotEmpty) UserTextContent(text),
+      if (images != null)
+        for (final image in images) UserImageContent(image),
+    ];
+    return UserMessage(content: content);
+  }
+
+  /// 关闭错误提示条。
+  void dismissError() {
+    state = state.copyWith(error: '');
+  }
+
+  Future<void> abort() async {
+    final agent = _sessionController.agent;
+    if (agent == null) {
+      return;
+    }
+    state = state.copyWith(workPhase: AgentChatWorkPhase.stopping);
+    agent.abort();
+    _permissionController?.cancelApproval();
+    _questionController?.cancel();
+    _client.cancel('agent_chat');
+    await agent.waitForIdle();
+  }
+
+  /// 手动 compaction。
+  Future<AgentChatCompactionOutcome> compactNow() async {
+    final agent = _sessionController.agent;
+    if (agent == null || state.status == AgentChatRunStatus.running) {
+      return const AgentChatCompactionSkipped(
+        AgentChatCompactionSkipReason.busy,
+      );
+    }
+    final result = await _compactContext(
+      List.of(agent.state.messages),
+      null,
+      force: true,
+    );
+    if (result.outcome is AgentChatCompactionDone) {
+      agent.state.messages = List.of(result.messages);
+      state = state.copyWith(messages: List.of(result.messages));
+    }
+    return result.outcome;
+  }
+
+  Future<void> _handleEvent(AgentEvent event, AbortSignal signal) =>
+      _eventController.handle(event, signal);
+
+  @override
+  void dispose() {
+    _sessionControllerValue?.agent?.abort();
+    _questionController?.cancel();
+    _permissionController?.dispose();
+    _sessionControllerValue?.agent?.clearAllQueues();
+    super.dispose();
+  }
+
+  bool resolveUserQuestions(
+    String toolCallId,
+    List<UserQuestionAnswer>? answers,
+  ) => _questionController?.resolve(toolCallId, answers) ?? false;
+}

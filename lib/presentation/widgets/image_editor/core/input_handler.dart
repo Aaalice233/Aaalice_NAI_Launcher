@@ -105,6 +105,9 @@ class InputHandler {
   final EditorState state;
   final KeyboardState keyboard = KeyboardState();
   final GestureState gesture = GestureState();
+  final Set<int> _activeTouchPointers = <int>{};
+  int? _drawingPointerId;
+  PointerDeviceKind? _drawingPointerKind;
 
   /// 焦点节点引用（用于检查焦点状态）
   final FocusNode focusNode;
@@ -117,6 +120,48 @@ class InputHandler {
     required this.focusNode,
     required this.onStateChanged,
   });
+
+  /// Alt 按下或拾色器工具生效时，画布改用跟随光标的放大镜覆盖层
+  bool get isColorPickerActive =>
+      state.currentTool?.id == 'color_picker' || keyboard.isAltPressed;
+
+  /// 更新光标位置。
+  ///
+  /// 位置变化只写 cursorNotifier 驱动光标层重绘；只有光标层挂载与否发生翻转、
+  /// 或放大镜覆盖层需要跟随定位时才请求 widget 重建，避免每个指针事件都重排画布子树。
+  void _setCursorPosition(Offset? position, {bool forceRepaint = false}) {
+    final wasVisible = gesture.cursorPosition != null;
+    gesture.cursorPosition = position;
+    if (forceRepaint && state.cursorNotifier.value == position) {
+      state.notifyCursorVisualChange();
+    } else {
+      state.cursorNotifier.value = position;
+    }
+    if (wasVisible != (position != null) || isColorPickerActive) {
+      onStateChanged();
+    }
+  }
+
+  /// 复位只能靠 pointerUp 退出的瞬时手势状态。
+  ///
+  /// 指针被画布按坐标抑制时收不到成对的 up，不兜底会让笔刷尺寸模式和中键平移永久卡住；
+  /// 平移与绘制指针另有 scaleEnd / pointerCancel 出口，这里不动，避免误伤并发手势。
+  void cancelTransientGestures() {
+    var changed = false;
+    if (gesture.isBrushSizeMode) {
+      gesture.isBrushSizeMode = false;
+      gesture.brushSizeStartPosition = null;
+      changed = true;
+    }
+    if (gesture.isMiddleButtonPanning) {
+      gesture.isMiddleButtonPanning = false;
+      gesture.lastPanPosition = null;
+      changed = true;
+    }
+    if (changed) {
+      onStateChanged();
+    }
+  }
 
   /// 处理键盘事件
   KeyEventResult handleKeyEvent(FocusNode node, KeyEvent event) {
@@ -274,9 +319,7 @@ class InputHandler {
 
   /// 处理鼠标悬停
   void handlePointerHover(PointerHoverEvent event) {
-    gesture.cursorPosition = event.localPosition;
-    state.cursorNotifier.value = gesture.cursorPosition;
-    onStateChanged();
+    _setCursorPosition(event.localPosition);
 
     // 触发工具的悬停事件
     final tool = state.currentTool;
@@ -285,16 +328,34 @@ class InputHandler {
         event.localPosition,
         canvasSize: state.canvasSize,
       );
-      tool.onPointerHover(
-        PointerHoverEvent(position: canvasPosition),
-        state,
-      );
+      tool.onPointerHover(PointerHoverEvent(position: canvasPosition), state);
     }
   }
 
   /// 处理指针按下
   void handlePointerDown(PointerDownEvent event) {
     keyboard.syncFromHardware();
+
+    if (event.kind == PointerDeviceKind.touch) {
+      _activeTouchPointers.add(event.pointer);
+      if (_drawingPointerKind == PointerDeviceKind.stylus ||
+          _drawingPointerKind == PointerDeviceKind.invertedStylus) {
+        return;
+      }
+      if (_activeTouchPointers.length > 1) {
+        _cancelDrawingPointer();
+        gesture.isPanning = true;
+        gesture.lastPanPosition = null;
+        gesture.initialScale = state.canvasController.scale;
+        onStateChanged();
+        return;
+      }
+    } else if ((event.kind == PointerDeviceKind.stylus ||
+            event.kind == PointerDeviceKind.invertedStylus) &&
+        _drawingPointerKind == PointerDeviceKind.touch) {
+      _cancelDrawingPointer();
+    }
+
     gesture.isPrimaryButtonDown = (event.buttons & kPrimaryButton) != 0;
 
     // 中键平移
@@ -331,16 +392,24 @@ class InputHandler {
           event.localPosition,
           canvasSize: state.canvasSize,
         );
-        tool.onPointerDown(
-          PointerDownEvent(position: canvasPosition),
-          state,
-        );
+        _drawingPointerId = event.pointer;
+        _drawingPointerKind = event.kind;
+        tool.onPointerDown(PointerDownEvent(position: canvasPosition), state);
       }
     }
   }
 
   /// 处理指针抬起
   void handlePointerUp(PointerUpEvent event) {
+    if (event.kind == PointerDeviceKind.touch) {
+      _activeTouchPointers.remove(event.pointer);
+      if ((_drawingPointerKind == PointerDeviceKind.stylus ||
+              _drawingPointerKind == PointerDeviceKind.invertedStylus) &&
+          _drawingPointerId != event.pointer) {
+        return;
+      }
+    }
+
     // 结束中键平移
     if (gesture.isMiddleButtonPanning) {
       gesture.isMiddleButtonPanning = false;
@@ -358,19 +427,46 @@ class InputHandler {
     }
 
     // 直接调用工具的 onPointerUp（使用原始指针事件，避免 GestureDetector 延迟）
-    if (gesture.isPrimaryButtonDown && !gesture.isPanning) {
+    final finishesDrawing = _drawingPointerId == event.pointer;
+    if (finishesDrawing && !gesture.isPanning) {
       final tool = state.currentTool;
       if (tool != null) {
         final canvasPosition = state.canvasController.screenToCanvas(
           event.localPosition,
           canvasSize: state.canvasSize,
         );
-        tool.onPointerUp(
-          PointerUpEvent(position: canvasPosition),
-          state,
-        );
+        tool.onPointerUp(PointerUpEvent(position: canvasPosition), state);
       }
+    }
+    if (finishesDrawing) {
+      _drawingPointerId = null;
+      _drawingPointerKind = null;
       gesture.isPrimaryButtonDown = false;
+    }
+  }
+
+  /// 处理被系统取消的指针，避免残留半条笔画或卡住平移状态。
+  void handlePointerCancel(PointerCancelEvent event) {
+    if (event.kind == PointerDeviceKind.touch) {
+      _activeTouchPointers.remove(event.pointer);
+    }
+    if (_drawingPointerId == event.pointer) {
+      _cancelDrawingPointer();
+    }
+    // 笔刷尺寸模式和中键平移只在 pointerUp 里退出，取消事件不兜底就会永久卡住
+    if (gesture.isBrushSizeMode) {
+      gesture.isBrushSizeMode = false;
+      gesture.brushSizeStartPosition = null;
+      onStateChanged();
+    }
+    if (gesture.isMiddleButtonPanning) {
+      gesture.isMiddleButtonPanning = false;
+      gesture.lastPanPosition = null;
+      onStateChanged();
+    }
+    if (_activeTouchPointers.isEmpty) {
+      gesture.isPanning = false;
+      gesture.lastPanPosition = null;
     }
   }
 
@@ -381,9 +477,7 @@ class InputHandler {
       final delta = event.position - gesture.lastPanPosition!;
       state.canvasController.pan(delta);
       gesture.lastPanPosition = event.position;
-      gesture.cursorPosition = event.localPosition;
-      state.cursorNotifier.value = gesture.cursorPosition;
-      onStateChanged();
+      _setCursorPosition(event.localPosition);
       return;
     }
 
@@ -394,19 +488,24 @@ class InputHandler {
       final sizeFactor = 1.0 + deltaX / 200.0;
       final newSize = (gesture.initialBrushSize * sizeFactor).clamp(1.0, 500.0);
       state.setBrushSize(newSize);
-      gesture.cursorPosition = gesture.brushSizeStartPosition;
-      state.cursorNotifier.value = gesture.cursorPosition;
-      onStateChanged();
+      // 位置钉在锚点不动，必须显式重绘才能让光标环跟上新半径
+      _setCursorPosition(gesture.brushSizeStartPosition, forceRepaint: true);
+      return;
+    }
+
+    if (event.kind == PointerDeviceKind.touch &&
+        (_activeTouchPointers.length > 1 ||
+            (_drawingPointerKind == PointerDeviceKind.stylus ||
+                _drawingPointerKind == PointerDeviceKind.invertedStylus))) {
       return;
     }
 
     // 正常模式 - 更新光标位置
-    gesture.cursorPosition = event.localPosition;
-    state.cursorNotifier.value = gesture.cursorPosition;
-    onStateChanged();
+    _setCursorPosition(event.localPosition);
 
     // 直接调用工具的 onPointerMove（使用原始指针事件，避免 GestureDetector 延迟）
-    if (gesture.isPrimaryButtonDown &&
+    if (_drawingPointerId == event.pointer &&
+        gesture.isPrimaryButtonDown &&
         !gesture.isPanning &&
         !keyboard.isSpacePressed) {
       final tool = state.currentTool;
@@ -415,10 +514,7 @@ class InputHandler {
           event.localPosition,
           canvasSize: state.canvasSize,
         );
-        tool.onPointerMove(
-          PointerMoveEvent(position: canvasPosition),
-          state,
-        );
+        tool.onPointerMove(PointerMoveEvent(position: canvasPosition), state);
       }
     }
   }
@@ -426,9 +522,7 @@ class InputHandler {
   /// 处理鼠标退出
   void handleMouseExit(PointerExitEvent event) {
     if (HardwareKeyboard.instance.isAltPressed) return;
-    gesture.cursorPosition = null;
-    state.cursorNotifier.value = gesture.cursorPosition;
-    onStateChanged();
+    _setCursorPosition(null);
   }
 
   /// 处理缩放/平移手势开始
@@ -462,26 +556,33 @@ class InputHandler {
     }
 
     // 更新光标位置
-    gesture.cursorPosition = details.localFocalPoint;
-    state.cursorNotifier.value = gesture.cursorPosition;
-    onStateChanged();
+    _setCursorPosition(details.localFocalPoint);
     // 工具事件已移至 handlePointerDown 直接处理
   }
 
   /// 处理缩放/平移手势更新
   void handleScaleUpdate(ScaleUpdateDetails details) {
+    // 有些平台不会在第二根手指落下时重新发送 scale start。
+    if (!gesture.isPanning && details.pointerCount > 1) {
+      _cancelDrawingPointer();
+      gesture.isPanning = true;
+      gesture.lastPanPosition = null;
+      gesture.initialScale = state.canvasController.scale;
+      onStateChanged();
+    }
+
     // 笔刷大小调整模式
     if (gesture.isBrushSizeMode) {
       if (gesture.brushSizeStartPosition != null) {
         final deltaX =
             details.localFocalPoint.dx - gesture.brushSizeStartPosition!.dx;
         final sizeFactor = 1.0 + deltaX / 200.0;
-        final newSize =
-            (gesture.initialBrushSize * sizeFactor).clamp(1.0, 500.0);
+        final newSize = (gesture.initialBrushSize * sizeFactor).clamp(
+          1.0,
+          500.0,
+        );
         state.setBrushSize(newSize);
-        gesture.cursorPosition = gesture.brushSizeStartPosition;
-        state.cursorNotifier.value = gesture.cursorPosition;
-        onStateChanged();
+        _setCursorPosition(gesture.brushSizeStartPosition, forceRepaint: true);
       }
       return;
     }
@@ -491,8 +592,8 @@ class InputHandler {
       if (gesture.lastPanPosition != null) {
         final delta = details.focalPoint - gesture.lastPanPosition!;
         state.canvasController.pan(delta);
-        gesture.lastPanPosition = details.focalPoint;
       }
+      gesture.lastPanPosition = details.focalPoint;
 
       // 双指缩放
       if (details.pointerCount > 1 && details.scale != 1.0) {
@@ -506,9 +607,7 @@ class InputHandler {
     }
 
     // 更新光标位置
-    gesture.cursorPosition = details.localFocalPoint;
-    state.cursorNotifier.value = gesture.cursorPosition;
-    onStateChanged();
+    _setCursorPosition(details.localFocalPoint);
     // 工具事件已移至 handlePointerMove 直接处理
   }
 
@@ -526,6 +625,15 @@ class InputHandler {
       return;
     }
     // 工具事件已移至 handlePointerUp 直接处理
+  }
+
+  void _cancelDrawingPointer() {
+    if (_drawingPointerId != null) {
+      state.cancelStroke();
+    }
+    _drawingPointerId = null;
+    _drawingPointerKind = null;
+    gesture.isPrimaryButtonDown = false;
   }
 
   /// 获取当前光标样式
@@ -551,10 +659,13 @@ class InputHandler {
     switch (tool.id) {
       case 'brush':
       case 'eraser':
-        return SystemMouseCursors.none;
+        // 自绘光标环要走完整渲染管线、必然滞后于真实指针；
+        // 保留系统十字作为不滞后的锚点，光标环只表示笔刷直径。
+        return SystemMouseCursors.precise;
       case 'rect_selection':
       case 'ellipse_selection':
       case 'lasso_selection':
+      case 'magic_wand':
         return SystemMouseCursors.precise;
       case 'color_picker':
         return SystemMouseCursors.precise;

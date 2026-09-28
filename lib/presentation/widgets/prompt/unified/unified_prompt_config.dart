@@ -1,6 +1,6 @@
 import 'dart:ui';
 
-import '../../../widgets/autocomplete/autocomplete_controller.dart';
+import '../../../widgets/autocomplete/autocomplete_config.dart';
 
 /// 统一提示词输入配置
 ///
@@ -19,6 +19,9 @@ class UnifiedPromptConfig {
   /// 启用后，在文本模式下对 NAI 语法进行着色显示。
   final bool enableSyntaxHighlight;
 
+  /// 当前模型是否支持官网的数值强调语法。
+  final bool numericEmphasisEnabled;
+
   /// 是否启用自动格式化（失焦时）
   ///
   /// 启用后，当输入框失去焦点时自动格式化提示词文本。
@@ -29,11 +32,23 @@ class UnifiedPromptConfig {
   /// 启用后，自动将 Stable Diffusion 语法转换为 NAI 语法。
   final bool enableSdSyntaxAutoConvert;
 
+  /// 是否启用提示词正则替换
+  ///
+  /// 失焦时按用户配置的正则规则改写提示词，执行顺序早于
+  /// SD 语法转换和自动格式化。
+  ///
+  /// 是否真的发生替换取决于用户配了几条启用中的规则，
+  /// 因此默认开启；这里的开关只用于让某个输入框整体退出该行为。
+  final bool enableRegexReplace;
+
   /// 是否启用 ComfyUI 多角色语法导入
   ///
   /// 启用后，粘贴 ComfyUI Prompt Control 格式的多角色提示词时
   /// 会弹出导入确认框，支持转换为 NAI 多角色格式。
   final bool enableComfyuiImport;
+
+  /// 是否显示支持原文编辑与本地汉化的标签模式入口。
+  final bool enableTagMode;
 
   // ==================== 外观选项 ====================
 
@@ -77,9 +92,12 @@ class UnifiedPromptConfig {
   const UnifiedPromptConfig({
     this.enableAutocomplete = true,
     this.enableSyntaxHighlight = true,
+    this.numericEmphasisEnabled = true,
     this.enableAutoFormat = true,
     this.enableSdSyntaxAutoConvert = false,
+    this.enableRegexReplace = true,
     this.enableComfyuiImport = false,
+    this.enableTagMode = false,
     this.compact = false,
     this.readOnly = false,
     this.maxHeight,
@@ -100,10 +118,10 @@ class UnifiedPromptConfig {
     enableSyntaxHighlight: true,
     enableAutoFormat: true,
     enableSdSyntaxAutoConvert: false,
+    enableTagMode: true,
     compact: false,
     readOnly: false,
     autocompleteConfig: AutocompleteConfig(
-      maxSuggestions: 15,
       showTranslation: true,
       showCategory: true,
       autoInsertComma: true,
@@ -118,10 +136,10 @@ class UnifiedPromptConfig {
     enableSyntaxHighlight: true,
     enableAutoFormat: true,
     enableSdSyntaxAutoConvert: false,
+    enableTagMode: true,
     compact: true,
     readOnly: false,
     autocompleteConfig: AutocompleteConfig(
-      maxSuggestions: 10,
       showTranslation: true,
       autoInsertComma: true,
     ),
@@ -137,10 +155,10 @@ class UnifiedPromptConfig {
     enableAutoFormat: true,
     enableSdSyntaxAutoConvert: false,
     enableComfyuiImport: true,
+    enableTagMode: true,
     compact: false,
     readOnly: false,
     autocompleteConfig: AutocompleteConfig(
-      maxSuggestions: 15,
       showTranslation: true,
       showCategory: true,
       autoInsertComma: true,
@@ -151,9 +169,12 @@ class UnifiedPromptConfig {
   UnifiedPromptConfig copyWith({
     bool? enableAutocomplete,
     bool? enableSyntaxHighlight,
+    bool? numericEmphasisEnabled,
     bool? enableAutoFormat,
     bool? enableSdSyntaxAutoConvert,
+    bool? enableRegexReplace,
     bool? enableComfyuiImport,
+    bool? enableTagMode,
     bool? compact,
     bool? readOnly,
     double? maxHeight,
@@ -168,10 +189,14 @@ class UnifiedPromptConfig {
       enableAutocomplete: enableAutocomplete ?? this.enableAutocomplete,
       enableSyntaxHighlight:
           enableSyntaxHighlight ?? this.enableSyntaxHighlight,
+      numericEmphasisEnabled:
+          numericEmphasisEnabled ?? this.numericEmphasisEnabled,
       enableAutoFormat: enableAutoFormat ?? this.enableAutoFormat,
       enableSdSyntaxAutoConvert:
           enableSdSyntaxAutoConvert ?? this.enableSdSyntaxAutoConvert,
+      enableRegexReplace: enableRegexReplace ?? this.enableRegexReplace,
       enableComfyuiImport: enableComfyuiImport ?? this.enableComfyuiImport,
+      enableTagMode: enableTagMode ?? this.enableTagMode,
       compact: compact ?? this.compact,
       readOnly: readOnly ?? this.readOnly,
       maxHeight: maxHeight ?? this.maxHeight,
@@ -190,9 +215,12 @@ class UnifiedPromptConfig {
     return other is UnifiedPromptConfig &&
         other.enableAutocomplete == enableAutocomplete &&
         other.enableSyntaxHighlight == enableSyntaxHighlight &&
+        other.numericEmphasisEnabled == numericEmphasisEnabled &&
         other.enableAutoFormat == enableAutoFormat &&
         other.enableSdSyntaxAutoConvert == enableSdSyntaxAutoConvert &&
+        other.enableRegexReplace == enableRegexReplace &&
         other.enableComfyuiImport == enableComfyuiImport &&
+        other.enableTagMode == enableTagMode &&
         other.compact == compact &&
         other.readOnly == readOnly &&
         other.maxHeight == maxHeight &&
@@ -207,9 +235,12 @@ class UnifiedPromptConfig {
     return Object.hash(
       enableAutocomplete,
       enableSyntaxHighlight,
+      numericEmphasisEnabled,
       enableAutoFormat,
       enableSdSyntaxAutoConvert,
+      enableRegexReplace,
       enableComfyuiImport,
+      enableTagMode,
       compact,
       readOnly,
       maxHeight,

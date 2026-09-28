@@ -9,9 +9,13 @@ part 'tag_library.g.dart';
 
 /// 词库来源
 enum TagLibrarySource {
-  /// NAI 官方固定词库
+  /// 旧版本内置词库。保留该值用于读取现有用户数据。
   @JsonValue('nai')
   nai,
+
+  /// 完整离线 catalog 的确定性语义索引。
+  @JsonValue('catalog')
+  catalog,
 
   /// 从 Danbooru 拉取
   @JsonValue('danbooru')
@@ -48,6 +52,15 @@ class TagLibrary with _$TagLibrary {
 
     /// 词库来源
     required TagLibrarySource source,
+
+    /// 可审计的数据版本与来源信息。旧版持久化数据没有这些字段。
+    String? dataVersion,
+    String? sourceUrl,
+    String? sourceCommit,
+    String? sourceLicense,
+    DateTime? sourceVersionDate,
+    int? sourceCatalogTagCount,
+    int? sourceCatalogAliasCount,
 
     /// 是否包含 Danbooru 补充标签
     @Default(false) bool hasDanbooruSupplement,
@@ -87,10 +100,7 @@ class TagLibrary with _$TagLibrary {
   TagLibrary setCategory(TagSubCategory category, List<WeightedTag> tags) {
     final newCategories = Map<String, List<WeightedTag>>.from(categories);
     newCategories[category.name] = tags;
-    return copyWith(
-      categories: newCategories,
-      lastUpdated: DateTime.now(),
-    );
+    return copyWith(categories: newCategories, lastUpdated: DateTime.now());
   }
 
   /// 合并另一个词库
@@ -145,9 +155,9 @@ class TagLibrary with _$TagLibrary {
     for (final entry in categories.entries) {
       // 尝试解析分类名称
       final category = TagSubCategory.values.cast<TagSubCategory?>().firstWhere(
-            (c) => c?.name == entry.key,
-            orElse: () => null,
-          );
+        (c) => c?.name == entry.key,
+        orElse: () => null,
+      );
 
       // 如果分类配置启用了 Danbooru 补充，计入全部标签
       // 否则只计入非 Danbooru 来源的标签
@@ -189,9 +199,9 @@ class TagLibrary with _$TagLibrary {
     final result = <TagSubCategory>{};
     for (final entry in categories.entries) {
       final category = TagSubCategory.values.cast<TagSubCategory?>().firstWhere(
-            (c) => c?.name == entry.key,
-            orElse: () => null,
-          );
+        (c) => c?.name == entry.key,
+        orElse: () => null,
+      );
       if (category != null && entry.value.any((t) => t.isDanbooruSupplement)) {
         result.add(category);
       }

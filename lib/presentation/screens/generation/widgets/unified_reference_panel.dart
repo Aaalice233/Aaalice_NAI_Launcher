@@ -1,4 +1,5 @@
 import 'dart:async';
+import '../../../utils/card_drop_reader.dart';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
@@ -6,6 +7,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../../../core/constants/model_capabilities.dart';
 import '../../../../core/utils/app_logger.dart';
 import '../../../../core/utils/localization_extension.dart';
 import '../../../../core/utils/vibe_performance_diagnostics.dart';
@@ -15,6 +17,7 @@ import '../../../widgets/common/themed_divider.dart';
 import '../../../../data/models/vibe/vibe_library_entry.dart';
 import '../../../../data/models/vibe/vibe_reference.dart';
 import '../../../../data/services/vibe_library_storage_service.dart';
+import '../../../providers/generation/generation_panel_expansion_provider.dart';
 import '../../../providers/generation/generation_params_selectors.dart';
 import '../../../providers/image_generation_provider.dart';
 import '../../../providers/vibe_library_provider.dart';
@@ -49,7 +52,8 @@ class UnifiedReferencePanel extends ConsumerStatefulWidget {
 }
 
 class _UnifiedReferencePanelState extends ConsumerState<UnifiedReferencePanel> {
-  bool _isExpanded = false;
+  static const _panel = GenerationWorkbenchPanel.vibeTransfer;
+
   bool _isRecentCollapsed = true;
   List<VibeLibraryEntry> _recentEntries = [];
 
@@ -162,12 +166,11 @@ class _UnifiedReferencePanelState extends ConsumerState<UnifiedReferencePanel> {
   }
 
   /// 添加 Vibe（从局部拖拽区域）
-  Future<int> _importDroppedVibeFile(String fileName, Uint8List bytes) async {
+  Future<int> _importDroppedVibeResources(
+    List<CardDroppedResource> resources,
+  ) async {
     final handler = VibeImportHandler(ref: ref, context: context);
-    final addedCount = await handler.importDroppedFile(
-      fileName: fileName,
-      bytes: bytes,
-    );
+    final addedCount = await handler.importDroppedResources(resources);
     if (addedCount > 0) {
       await _loadRecentEntries();
     }
@@ -288,6 +291,9 @@ class _UnifiedReferencePanelState extends ConsumerState<UnifiedReferencePanel> {
   }) async {
     final notifier = ref.read(generationParamsNotifierProvider.notifier);
     final model = ref.read(generationParamsNotifierProvider).model;
+    if (!ModelCapabilityRegistry.of(model).supportsEncodedVibeTransfer) {
+      return null;
+    }
 
     return await notifier.encodeVibeWithCache(
       imageData,
@@ -328,14 +334,21 @@ class _UnifiedReferencePanelState extends ConsumerState<UnifiedReferencePanel> {
       generationParamsNotifierProvider.select(selectVibePanelViewData),
     );
     final vibes = panelData.vibes;
+    final isExpanded = ref.watch(
+      generationPanelExpansionProvider.select(
+        (value) => value.isExpanded(_panel),
+      ),
+    );
     final hasVibes = vibes.isNotEmpty;
-    final showBackground = hasVibes && !_isExpanded;
+    final showBackground = hasVibes && !isExpanded;
 
     return CollapsibleImagePanel(
       title: context.l10n.vibe_title,
       icon: Icons.auto_fix_high,
-      isExpanded: _isExpanded,
-      onToggle: () => setState(() => _isExpanded = !_isExpanded),
+      isExpanded: isExpanded,
+      onToggle: () => unawaited(
+        ref.read(generationPanelExpansionProvider.notifier).toggle(_panel),
+      ),
       hasData: hasVibes,
       backgroundImage: _buildBackgroundImage(vibes),
       headerActions: hasVibes
@@ -363,7 +376,7 @@ class _UnifiedReferencePanelState extends ConsumerState<UnifiedReferencePanel> {
           ),
         ),
       ),
-      child: Padding(
+      childBuilder: (context) => Padding(
         padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -383,7 +396,7 @@ class _UnifiedReferencePanelState extends ConsumerState<UnifiedReferencePanel> {
               onClearAll: _clearAllVibes,
               onSaveToLibrary: _saveToLibrary,
               onImportFromLibrary: _importFromLibrary,
-              onImportDroppedFile: _importDroppedVibeFile,
+              onImportDroppedResources: _importDroppedVibeResources,
               onEncode: _encodeVibe,
               recentEntries: _recentEntries,
               isRecentCollapsed: _isRecentCollapsed,

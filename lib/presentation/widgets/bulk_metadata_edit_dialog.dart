@@ -2,16 +2,20 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:nai_launcher/core/utils/bulk_tag_edit_utils.dart';
+import 'package:nai_launcher/core/utils/localization_extension.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 
+import '../adaptive/adaptive_presenter.dart';
 import '../providers/bulk_operation_provider.dart';
+import '../providers/local_gallery_provider.dart';
 import '../providers/selection_mode_provider.dart';
 import 'bulk_progress_dialog.dart';
 import '../widgets/common/themed_divider.dart';
 import '../widgets/common/app_toast.dart';
-import '../widgets/autocomplete/autocomplete_controller.dart';
+import '../widgets/common/translated_tag_text.dart';
+import '../widgets/autocomplete/autocomplete_config.dart';
 import '../widgets/autocomplete/autocomplete_wrapper.dart';
-import '../widgets/autocomplete/strategies/local_tag_strategy.dart';
 import 'package:nai_launcher/presentation/widgets/common/themed_input.dart';
 
 /// Bulk Metadata Edit Dialog Widget
@@ -20,7 +24,14 @@ import 'package:nai_launcher/presentation/widgets/common/themed_input.dart';
 /// Provides bulk metadata editing options for selected images
 /// 为选中的图片提供批量元数据编辑选项
 class BulkMetadataEditDialog extends ConsumerStatefulWidget {
-  const BulkMetadataEditDialog({super.key});
+  const BulkMetadataEditDialog({
+    super.key,
+    this.scrollController,
+    this.targetIds,
+  });
+
+  final ScrollController? scrollController;
+  final Set<String>? targetIds;
 
   @override
   ConsumerState<BulkMetadataEditDialog> createState() =>
@@ -31,115 +42,114 @@ class _BulkMetadataEditDialogState
     extends ConsumerState<BulkMetadataEditDialog> {
   final TextEditingController _tagsToAddController = TextEditingController();
   final TextEditingController _tagsToRemoveController = TextEditingController();
-  final TextEditingController _promptController = TextEditingController();
-  final TextEditingController _negativePromptController =
-      TextEditingController();
 
   final FocusNode _tagsToAddFocus = FocusNode();
   final FocusNode _tagsToRemoveFocus = FocusNode();
 
   final List<String> _chipsToAdd = [];
   final List<String> _chipsToRemove = [];
+  late final Set<String> _targetIds;
+
+  @override
+  void initState() {
+    super.initState();
+    _targetIds = Set.unmodifiable(
+      widget.targetIds ??
+          ref.read(localGallerySelectionNotifierProvider).selectedIds,
+    );
+  }
 
   @override
   void dispose() {
     _tagsToAddController.dispose();
     _tagsToRemoveController.dispose();
-    _promptController.dispose();
-    _negativePromptController.dispose();
     _tagsToAddFocus.dispose();
     _tagsToRemoveFocus.dispose();
     super.dispose();
   }
 
-  /// Apply bulk metadata edit
-  void _applyEdit() async {
-    final selectionState = ref.read(localGallerySelectionNotifierProvider);
-    final selectedIds = selectionState.selectedIds;
+  Future<void> _applyEdit() async {
+    _addTagToAdd();
+    _addTagToRemove();
 
+    final selectedIds = _targetIds;
     if (selectedIds.isEmpty) {
       Navigator.of(context).pop();
       return;
     }
 
-    // Parse tags to add (comma or newline separated)
-    final tagsToAdd = _parseTagInput(_chipsToAdd);
-    final tagsToRemove = _parseTagInput(_chipsToRemove);
-
-    if (tagsToAdd.isEmpty && tagsToRemove.isEmpty) {
-      // Show error dialog if no changes
-      AppToast.warning(context, 'Please add tags to add or remove');
+    final operationState = ref.read(bulkOperationNotifierProvider);
+    if (operationState.isOperationInProgress) {
+      AppToast.warning(
+        context,
+        context.l10n.bulkProgress_operationAlreadyInProgress,
+      );
       return;
     }
 
-    // Close dialog
-    Navigator.of(context).pop();
+    final tagsToAdd = parseBulkTagInput(_chipsToAdd);
+    final tagsToRemove = parseBulkTagInput(_chipsToRemove);
+    if (tagsToAdd.isEmpty && tagsToRemove.isEmpty) {
+      AppToast.warning(context, context.l10n.bulkMetadataEdit_noChanges);
+      return;
+    }
 
-    if (!mounted) return;
-
-    // Show progress dialog first (it will watch the operation state)
-    // 首先显示进度对话框（它将监听操作状态）
-    unawaited(BulkProgressDialog.show(context));
-
-    // Start bulk edit operation (the progress dialog will show the progress)
-    // 执行批量编辑操作（进度对话框将显示进度）
+    final navigator = Navigator.of(context, rootNavigator: true);
+    final progressContext = navigator.context;
+    final gallery = ref.read(localGalleryNotifierProvider.notifier);
     final notifier = ref.read(bulkOperationNotifierProvider.notifier);
-    await notifier.bulkEditMetadata(
+    navigator.pop();
+
+    final operation = notifier.bulkEditMetadata(
       selectedIds.toList(),
       tagsToAdd: tagsToAdd,
       tagsToRemove: tagsToRemove,
     );
-  }
+    unawaited(BulkProgressDialog.show(progressContext));
 
-  /// Parse tag input from list of strings
-  List<String> _parseTagInput(List<String> input) {
-    final result = <String>[];
-    for (final item in input) {
-      // Split by comma or newline
-      final parts = item.split(RegExp(r'[,,\n]'));
-      for (final part in parts) {
-        final tag = part.trim();
-        if (tag.isNotEmpty && !result.contains(tag)) {
-          result.add(tag);
-        }
+    try {
+      final result = await operation;
+      if (result.success > 0) {
+        await gallery.refresh(scan: false);
       }
+    } on Object {
+      // BulkOperationNotifier exposes the localized failure in progress state.
     }
-    return result;
   }
 
-  /// Add tag to "add" list
   void _addTagToAdd() {
-    final text = _tagsToAddController.text.trim();
-    if (text.isEmpty) return;
-
-    setState(() {
-      // Split by comma or newline and add all tags
-      final tags = text.split(RegExp(r'[,,\n]'));
-      for (final tag in tags) {
-        final trimmed = tag.trim();
-        if (trimmed.isNotEmpty && !_chipsToAdd.contains(trimmed)) {
-          _chipsToAdd.add(trimmed);
-        }
-      }
-      _tagsToAddController.clear();
-    });
+    _commitTags(
+      controller: _tagsToAddController,
+      target: _chipsToAdd,
+      opposite: _chipsToRemove,
+    );
   }
 
-  /// Add tag to "remove" list
   void _addTagToRemove() {
-    final text = _tagsToRemoveController.text.trim();
-    if (text.isEmpty) return;
+    _commitTags(
+      controller: _tagsToRemoveController,
+      target: _chipsToRemove,
+      opposite: _chipsToAdd,
+    );
+  }
+
+  void _commitTags({
+    required TextEditingController controller,
+    required List<String> target,
+    required List<String> opposite,
+  }) {
+    final tags = parseBulkTagInput([controller.text]);
+    if (tags.isEmpty) return;
 
     setState(() {
-      // Split by comma or newline and add all tags
-      final tags = text.split(RegExp(r'[,,\n]'));
       for (final tag in tags) {
-        final trimmed = tag.trim();
-        if (trimmed.isNotEmpty && !_chipsToRemove.contains(trimmed)) {
-          _chipsToRemove.add(trimmed);
+        final key = canonicalBulkTagKey(tag);
+        opposite.removeWhere((item) => canonicalBulkTagKey(item) == key);
+        if (!target.any((item) => canonicalBulkTagKey(item) == key)) {
+          target.add(tag);
         }
       }
-      _tagsToRemoveController.clear();
+      controller.clear();
     });
   }
 
@@ -161,192 +171,106 @@ class _BulkMetadataEditDialogState
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final l10n = AppLocalizations.of(context)!;
-    final isDark = theme.brightness == Brightness.dark;
-    final selectionState = ref.watch(localGallerySelectionNotifierProvider);
-    final selectedCount = selectionState.selectedIds.length;
-
-    return AlertDialog(
-      backgroundColor: Colors.transparent,
-      content: Container(
-        width: 500,
-        constraints: const BoxConstraints(maxHeight: 600),
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: isDark
-              ? theme.colorScheme.surfaceContainerHigh
-              : theme.colorScheme.surface,
-          borderRadius: const BorderRadius.all(Radius.circular(16)),
-          border: Border.all(
-            color: theme.dividerColor.withValues(alpha: isDark ? 0.3 : 0.2),
-          ),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Header
-            Row(
-              children: [
-                Icon(
-                  Icons.edit_outlined,
-                  color: theme.colorScheme.primary,
-                  size: 20,
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    'Bulk Edit Metadata ($selectedCount images)',
-                    style: theme.textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-                IconButton(
-                  icon: const Icon(Icons.close),
-                  onPressed: () => Navigator.of(context).pop(),
-                  tooltip: l10n.common_close,
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            const ThemedDivider(),
-            const SizedBox(height: 16),
-
-            // Scrollable content
-            Expanded(
-              child: SingleChildScrollView(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Tags to Add section
-                    _buildEditSection(
-                      theme,
-                      'Tags to Add',
-                      Icons.add_circle_outline,
-                      [
-                        _buildTagInputField(
-                          theme,
-                          _tagsToAddController,
-                          _tagsToAddFocus,
-                          'Enter tags to add...',
-                          _addTagToAdd,
-                        ),
-                        const SizedBox(height: 8),
-                        _buildChipsList(
-                          theme,
-                          _chipsToAdd,
-                          Colors.green,
-                          _removeTagToAdd,
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 20),
-
-                    // Tags to Remove section
-                    _buildEditSection(
-                      theme,
-                      'Tags to Remove',
-                      Icons.remove_circle_outline,
-                      [
-                        _buildTagInputField(
-                          theme,
-                          _tagsToRemoveController,
-                          _tagsToRemoveFocus,
-                          'Enter tags to remove...',
-                          _addTagToRemove,
-                        ),
-                        const SizedBox(height: 8),
-                        _buildChipsList(
-                          theme,
-                          _chipsToRemove,
-                          Colors.red,
-                          _removeTagToRemove,
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 20),
-
-                    // Prompt section (disabled for now)
-                    _buildEditSection(
-                      theme,
-                      'Prompt (Not Implemented)',
-                      Icons.edit_note_outlined,
-                      [
-                        Container(
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: theme.colorScheme.surfaceContainerHighest
-                                .withValues(alpha: 0.3),
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(
-                              color: theme.dividerColor.withValues(alpha: 0.2),
-                            ),
-                          ),
-                          child: Row(
-                            children: [
-                              Icon(
-                                Icons.info_outline,
-                                size: 16,
-                                color: theme.colorScheme.outline,
-                              ),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: Text(
-                                  'Bulk prompt editing will be available in a future update',
-                                  style: theme.textTheme.bodySmall?.copyWith(
-                                    color: theme.colorScheme.outline,
-                                    fontStyle: FontStyle.italic,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
+    return SingleChildScrollView(
+      key: const ValueKey('bulk-metadata-edit-scroll'),
+      controller: widget.scrollController,
+      keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildEditSection(
+            theme,
+            l10n.bulkMetadataEdit_tagsToAdd,
+            Icons.add_circle_outline,
+            [
+              _buildTagInputField(
+                theme,
+                _tagsToAddController,
+                _tagsToAddFocus,
+                l10n.bulkMetadataEdit_tagsToAddHint,
+                _addTagToAdd,
               ),
-            ),
+              const SizedBox(height: 8),
+              _buildChipsList(
+                theme,
+                _chipsToAdd,
+                Colors.green,
+                _removeTagToAdd,
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
+          _buildEditSection(
+            theme,
+            l10n.bulkMetadataEdit_tagsToRemove,
+            Icons.remove_circle_outline,
+            [
+              _buildTagInputField(
+                theme,
+                _tagsToRemoveController,
+                _tagsToRemoveFocus,
+                l10n.bulkMetadataEdit_tagsToRemoveHint,
+                _addTagToRemove,
+              ),
+              const SizedBox(height: 8),
+              _buildChipsList(
+                theme,
+                _chipsToRemove,
+                Colors.red,
+                _removeTagToRemove,
+              ),
+            ],
+          ),
 
-            const SizedBox(height: 16),
-            const ThemedDivider(),
-            const SizedBox(height: 16),
+          const SizedBox(height: 16),
+          const ThemedDivider(),
+          const SizedBox(height: 16),
 
-            // Action buttons
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: () => Navigator.of(context).pop(),
-                    icon: const Icon(Icons.close, size: 18),
-                    label: Text(l10n.common_cancel),
-                    style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 12,
-                      ),
-                    ),
+          // Action buttons
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final textScale = MediaQuery.textScalerOf(context).scale(14) / 14;
+              final stackActions = constraints.maxWidth / textScale < 300;
+              final cancel = OutlinedButton.icon(
+                onPressed: () => Navigator.of(context).pop(),
+                icon: const Icon(Icons.close, size: 18),
+                label: Text(l10n.common_cancel),
+                style: OutlinedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 12,
                   ),
                 ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: ElevatedButton.icon(
-                    onPressed: _applyEdit,
-                    icon: const Icon(Icons.check, size: 18),
-                    label: const Text('Apply Changes'),
-                    style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 12,
-                      ),
-                    ),
+              );
+              final apply = ElevatedButton.icon(
+                onPressed: _applyEdit,
+                icon: const Icon(Icons.check, size: 18),
+                label: Text(context.l10n.common_apply),
+                style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 12,
                   ),
                 ),
-              ],
-            ),
-          ],
-        ),
+              );
+              if (stackActions) {
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [apply, const SizedBox(height: 8), cancel],
+                );
+              }
+              return Row(
+                children: [
+                  Expanded(child: cancel),
+                  const SizedBox(width: 12),
+                  Expanded(child: apply),
+                ],
+              );
+            },
+          ),
+        ],
       ),
     );
   }
@@ -363,17 +287,17 @@ class _BulkMetadataEditDialogState
       children: [
         Row(
           children: [
-            Icon(
-              icon,
-              size: 16,
-              color: theme.colorScheme.onSurfaceVariant,
-            ),
+            Icon(icon, size: 16, color: theme.colorScheme.onSurfaceVariant),
             const SizedBox(width: 6),
-            Text(
-              label,
-              style: theme.textTheme.titleSmall?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
-                fontWeight: FontWeight.w500,
+            Expanded(
+              child: Text(
+                label,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.titleSmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                  fontWeight: FontWeight.w500,
+                ),
               ),
             ),
           ],
@@ -398,13 +322,15 @@ class _BulkMetadataEditDialogState
       children: [
         Expanded(
           child: Container(
-            height: 40,
+            constraints: const BoxConstraints(minHeight: 40),
             decoration: BoxDecoration(
               color: isDark
-                  ? theme.colorScheme.surfaceContainerHighest
-                      .withValues(alpha: 0.6)
-                  : theme.colorScheme.surfaceContainerHighest
-                      .withValues(alpha: 0.4),
+                  ? theme.colorScheme.surfaceContainerHighest.withValues(
+                      alpha: 0.6,
+                    )
+                  : theme.colorScheme.surfaceContainerHighest.withValues(
+                      alpha: 0.4,
+                    ),
               borderRadius: BorderRadius.circular(8),
               border: Border.all(
                 color: theme.dividerColor.withValues(alpha: isDark ? 0.2 : 0.1),
@@ -413,17 +339,14 @@ class _BulkMetadataEditDialogState
             child: AutocompleteWrapper(
               controller: controller,
               focusNode: focusNode,
-              asyncStrategy: LocalTagStrategy.create(
-                ref,
-                const AutocompleteConfig(
-                  maxSuggestions: 10,
-                  showTranslation: true,
-                  showCategory: true,
-                  autoInsertComma: false,
-                ),
+              config: const AutocompleteConfig(
+                showTranslation: true,
+                showCategory: true,
+                autoInsertComma: false,
               ),
               child: ThemedInput(
                 controller: controller,
+                focusNode: focusNode,
                 style: theme.textTheme.bodyMedium?.copyWith(
                   color: theme.colorScheme.onSurface,
                 ),
@@ -451,9 +374,9 @@ class _BulkMetadataEditDialogState
         IconButton(
           onPressed: onAdd,
           icon: const Icon(Icons.add, size: 20),
-          tooltip: 'Add tag',
+          tooltip: context.l10n.tag_addTag,
           style: IconButton.styleFrom(
-            backgroundColor: theme.colorScheme.primary.withValues(alpha: 0.1),
+            backgroundColor: Colors.transparent,
             foregroundColor: theme.colorScheme.primary,
           ),
         ),
@@ -477,7 +400,7 @@ class _BulkMetadataEditDialogState
       runSpacing: 6,
       children: chips.map((tag) {
         return Chip(
-          label: Text(
+          label: TranslatedTagText(
             tag,
             style: theme.textTheme.bodySmall?.copyWith(
               color: color.withValues(alpha: 0.9),
@@ -486,9 +409,7 @@ class _BulkMetadataEditDialogState
           deleteIconColor: color,
           onDeleted: () => onRemove(tag),
           backgroundColor: color.withValues(alpha: 0.1),
-          side: BorderSide(
-            color: color.withValues(alpha: 0.3),
-          ),
+          side: BorderSide(color: color.withValues(alpha: 0.3)),
           padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
         );
       }).toList(),
@@ -498,9 +419,48 @@ class _BulkMetadataEditDialogState
 
 /// Show bulk metadata edit dialog
 /// 显示批量元数据编辑对话框
-void showBulkMetadataEditDialog(BuildContext context) {
-  showDialog(
+Future<void> showBulkMetadataEditDialog(
+  BuildContext context, {
+  Set<String>? targetIds,
+}) {
+  final snapshot = Set<String>.unmodifiable(
+    targetIds ??
+        ProviderScope.containerOf(
+          context,
+          listen: false,
+        ).read(localGallerySelectionNotifierProvider).selectedIds,
+  );
+  return AdaptivePresenter.showForm<void>(
     context: context,
-    builder: (context) => const BulkMetadataEditDialog(),
+    dialogWidth: 500,
+    titleBuilder: (panelContext) => Consumer(
+      builder: (context, ref, _) {
+        final selectedCount = snapshot.length;
+        return Row(
+          children: [
+            Icon(
+              Icons.edit_outlined,
+              color: Theme.of(context).colorScheme.primary,
+              size: 20,
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                context.l10n.bulkMetadataEdit_title(selectedCount),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: Theme.of(
+                  context,
+                ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w600),
+              ),
+            ),
+          ],
+        );
+      },
+    ),
+    builder: (panelContext, scrollController) => BulkMetadataEditDialog(
+      scrollController: scrollController,
+      targetIds: snapshot,
+    ),
   );
 }

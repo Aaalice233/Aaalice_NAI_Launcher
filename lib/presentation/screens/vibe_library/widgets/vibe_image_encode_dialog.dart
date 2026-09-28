@@ -1,10 +1,16 @@
 import 'package:flutter/material.dart';
+
+import 'package:nai_launcher/presentation/themes/core/input_surface_style.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 
+import '../../../widgets/common/image_viewport_surface.dart';
 import '../../../../core/utils/app_logger.dart';
 import '../../../../core/utils/localization_extension.dart';
 import '../../../../data/models/vibe/vibe_reference.dart';
+import '../../../adaptive/adaptive_presenter.dart';
+import '../../../adaptive/content_sized_adaptive_form.dart';
+import '../../../widgets/common/adaptive_dialog_frame.dart';
 import '../../../widgets/common/editable_double_field.dart';
 import '../../../widgets/common/themed_slider.dart';
 
@@ -13,10 +19,10 @@ class VibeImageEncodeConfig {
   /// Vibe 名称
   final String name;
 
-  /// Strength 参数（-1.0-1.0）
+  /// Strength 参数（数值输入不设前端上下限）
   final double strength;
 
-  /// Info Extracted 参数（0.0-1.0）
+  /// Info Extracted 参数（0.01-1.0）
   final double infoExtracted;
 
   const VibeImageEncodeConfig({
@@ -41,19 +47,62 @@ class VibeImageEncodeDialog extends StatefulWidget {
   /// 默认名称
   final String? defaultName;
 
-  const VibeImageEncodeDialog({super.key, this.thumbnail, this.defaultName});
+  /// 是否需要调用 V4+ 预编码接口。
+  final bool encodeImage;
+  final bool _presented;
+  final ScrollController? _scrollController;
+
+  const VibeImageEncodeDialog({
+    super.key,
+    this.thumbnail,
+    this.defaultName,
+    this.encodeImage = true,
+  }) : _presented = false,
+       _scrollController = null;
+
+  const VibeImageEncodeDialog._presented({
+    required this.thumbnail,
+    required this.defaultName,
+    required this.encodeImage,
+    required ScrollController scrollController,
+  }) : _presented = true,
+       _scrollController = scrollController;
 
   /// 显示对话框的便捷方法
   static Future<VibeImageEncodeConfig?> show({
     required BuildContext context,
     required Uint8List imageBytes,
     required String fileName,
+    bool encodeImage = true,
   }) {
-    return showDialog<VibeImageEncodeConfig>(
+    return AdaptivePresenter.showForm<VibeImageEncodeConfig>(
       context: context,
       barrierDismissible: false,
-      builder: (context) =>
-          VibeImageEncodeDialog(thumbnail: imageBytes, defaultName: fileName),
+      titleBuilder: (panelContext) => Row(
+        children: [
+          Icon(
+            Icons.image_search,
+            color: Theme.of(panelContext).colorScheme.primary,
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              encodeImage
+                  ? panelContext.l10n.vibe_encodeImageTitle
+                  : panelContext.l10n.vibe_saveToLibrary_title,
+              style: Theme.of(panelContext).textTheme.titleLarge,
+            ),
+          ),
+        ],
+      ),
+      dialogWidth: 400,
+      builder: (panelContext, scrollController) =>
+          VibeImageEncodeDialog._presented(
+            thumbnail: imageBytes,
+            defaultName: fileName,
+            encodeImage: encodeImage,
+            scrollController: scrollController,
+          ),
     );
   }
 
@@ -147,50 +196,72 @@ class _VibeImageEncodeDialogState extends State<VibeImageEncodeDialog> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    return KeyboardListener(
+    final content = KeyboardListener(
       focusNode: _keyboardFocusNode,
       onKeyEvent: _handleKeyEvent,
-      child: Dialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 400, minWidth: 320),
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // 标题栏
-                _buildHeader(theme),
-                const SizedBox(height: 24),
-
-                // 缩略图预览
-                _buildThumbnailPreview(theme),
-                const SizedBox(height: 24),
-
-                // 名称输入框
-                _buildNameInput(theme),
-                const SizedBox(height: 24),
-
-                // Strength 滑块
-                _buildStrengthSlider(theme),
-                const SizedBox(height: 16),
-
-                // Info Extracted 滑块
-                _buildInfoExtractedSlider(theme),
-                const SizedBox(height: 16),
-
-                // Anlas 提示
-                _buildAnlasHint(theme),
-                const SizedBox(height: 24),
-
-                // 底部按钮
-                _buildFooter(theme),
-              ],
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final compact = constraints.maxWidth < 380;
+          final padding = compact ? 16.0 : 24.0;
+          return SingleChildScrollView(
+            key: const Key('vibe-image-encode-frame'),
+            controller: widget._scrollController,
+            padding: EdgeInsets.all(padding),
+            keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+            child: _buildFormContent(
+              theme,
+              compact: compact,
+              includeHeader: !widget._presented,
             ),
-          ),
-        ),
+          );
+        },
       ),
+    );
+
+    if (widget._presented) {
+      return content;
+    }
+
+    return Dialog(
+      insetPadding: const EdgeInsets.all(12),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      clipBehavior: Clip.antiAlias,
+      child: AdaptiveDialogFrame(
+        maxWidth: 400,
+        maxHeight: 720,
+        reservedVerticalSpace: 0,
+        horizontalMargin: 0,
+        child: SafeArea(child: content),
+      ),
+    );
+  }
+
+  Widget _buildFormContent(
+    ThemeData theme, {
+    required bool compact,
+    required bool includeHeader,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (includeHeader) ...[
+          _buildHeader(theme),
+          SizedBox(height: compact ? 16 : 24),
+        ],
+        _buildThumbnailPreview(theme, compact: compact),
+        SizedBox(height: compact ? 16 : 24),
+        _buildNameInput(theme),
+        SizedBox(height: compact ? 16 : 24),
+        _buildStrengthSlider(theme),
+        const SizedBox(height: 16),
+        _buildInfoExtractedSlider(theme),
+        if (widget.encodeImage) ...[
+          const SizedBox(height: 16),
+          _buildAnlasHint(theme),
+        ],
+        SizedBox(height: compact ? 16 : 24),
+        _buildFooter(theme),
+      ],
     );
   }
 
@@ -202,7 +273,9 @@ class _VibeImageEncodeDialogState extends State<VibeImageEncodeDialog> {
         const SizedBox(width: 12),
         Expanded(
           child: Text(
-            context.l10n.vibe_encodeImageTitle,
+            widget.encodeImage
+                ? context.l10n.vibe_encodeImageTitle
+                : context.l10n.vibe_saveToLibrary_title,
             style: theme.textTheme.titleLarge?.copyWith(
               fontWeight: FontWeight.w600,
             ),
@@ -213,15 +286,15 @@ class _VibeImageEncodeDialogState extends State<VibeImageEncodeDialog> {
   }
 
   /// 构建缩略图预览
-  Widget _buildThumbnailPreview(ThemeData theme) {
+  Widget _buildThumbnailPreview(ThemeData theme, {required bool compact}) {
+    final extent = compact ? 160.0 : 200.0;
     return Center(
       child: Container(
-        width: 200,
-        height: 200,
+        width: extent,
+        height: extent,
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(12),
-          color: theme.colorScheme.surfaceContainerHighest,
-          border: Border.all(color: theme.colorScheme.outlineVariant),
+          color: ImageViewportSurface.background,
         ),
         clipBehavior: Clip.antiAlias,
         child: widget.thumbnail != null
@@ -243,12 +316,16 @@ class _VibeImageEncodeDialogState extends State<VibeImageEncodeDialog> {
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        Icon(Icons.image, size: 48, color: theme.colorScheme.outline),
+        const Icon(
+          Icons.image,
+          size: 48,
+          color: ImageViewportSurface.mutedForeground,
+        ),
         const SizedBox(height: 8),
         Text(
           context.l10n.vibe_imagePreview,
           style: theme.textTheme.bodySmall?.copyWith(
-            color: theme.colorScheme.outline,
+            color: ImageViewportSurface.mutedForeground,
           ),
         ),
       ],
@@ -260,12 +337,16 @@ class _VibeImageEncodeDialogState extends State<VibeImageEncodeDialog> {
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        Icon(Icons.broken_image, size: 48, color: theme.colorScheme.outline),
+        const Icon(
+          Icons.broken_image,
+          size: 48,
+          color: ImageViewportSurface.mutedForeground,
+        ),
         const SizedBox(height: 8),
         Text(
           context.l10n.vibe_previewLoadFailed,
           style: theme.textTheme.bodySmall?.copyWith(
-            color: theme.colorScheme.outline,
+            color: ImageViewportSurface.mutedForeground,
           ),
         ),
       ],
@@ -284,7 +365,7 @@ class _VibeImageEncodeDialogState extends State<VibeImageEncodeDialog> {
         prefixIcon: const Icon(Icons.label_outline),
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
         filled: true,
-        fillColor: theme.colorScheme.surfaceContainerHighest,
+        fillColor: inputSurfaceFillColor(theme.colorScheme),
       ),
       textInputAction: TextInputAction.done,
       onSubmitted: (_) => _confirm(),
@@ -298,7 +379,9 @@ class _VibeImageEncodeDialogState extends State<VibeImageEncodeDialog> {
 
   /// 构建 Strength 滑块
   Widget _buildStrengthSlider(ThemeData theme) {
-    final sliderValue = _strength.clamp(0.0, 1.0).toDouble();
+    final sliderValue = _strength
+        .clamp(VibeReference.minSliderStrength, VibeReference.maxSliderStrength)
+        .toDouble();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -317,8 +400,6 @@ class _VibeImageEncodeDialogState extends State<VibeImageEncodeDialog> {
             ),
             EditableDoubleField(
               value: _strength,
-              min: VibeReference.minStrength,
-              max: 1.0,
               onChanged: (value) {
                 setState(() => _strength = value);
               },
@@ -335,9 +416,9 @@ class _VibeImageEncodeDialogState extends State<VibeImageEncodeDialog> {
           onChanged: (value) {
             setState(() => _strength = value);
           },
-          min: 0.0,
-          max: 1.0,
-          divisions: 40,
+          min: VibeReference.minSliderStrength,
+          max: VibeReference.maxSliderStrength,
+          divisions: 99,
         ),
       ],
     );
@@ -385,8 +466,8 @@ class _VibeImageEncodeDialogState extends State<VibeImageEncodeDialog> {
             setState(() => _infoExtracted = value);
           },
           min: VibeReference.minInfoExtracted,
-          max: 1.0,
-          divisions: 20,
+          max: VibeReference.maxInfoExtracted,
+          divisions: 99,
         ),
       ],
     );
@@ -423,20 +504,28 @@ class _VibeImageEncodeDialogState extends State<VibeImageEncodeDialog> {
 
   /// 构建底部按钮
   Widget _buildFooter(ThemeData theme) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.end,
+    return Wrap(
+      alignment: WrapAlignment.end,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      spacing: 8,
+      runSpacing: 8,
       children: [
         // 取消按钮
         TextButton(
           onPressed: () => Navigator.of(context).pop(),
           child: Text(context.l10n.common_cancel),
         ),
-        const SizedBox(width: 8),
         // 开始编码按钮
         FilledButton.icon(
           onPressed: _confirm,
-          icon: const Icon(Icons.play_arrow),
-          label: Text(context.l10n.vibe_encodeStartButton),
+          icon: Icon(
+            widget.encodeImage ? Icons.play_arrow : Icons.save_outlined,
+          ),
+          label: Text(
+            widget.encodeImage
+                ? context.l10n.vibe_encodeStartButton
+                : context.l10n.common_save,
+          ),
         ),
       ],
     );
@@ -510,11 +599,13 @@ enum VibeEncodeErrorAction { skip, retry }
 class VibeImageEncodeErrorDialog extends StatelessWidget {
   final String fileName;
   final String errorMessage;
+  final ScrollController? scrollController;
 
   const VibeImageEncodeErrorDialog({
     super.key,
     required this.fileName,
     required this.errorMessage,
+    this.scrollController,
   });
 
   static Future<VibeEncodeErrorAction?> show({
@@ -522,12 +613,29 @@ class VibeImageEncodeErrorDialog extends StatelessWidget {
     required String fileName,
     required String errorMessage,
   }) {
-    return showDialog<VibeEncodeErrorAction>(
+    return AdaptivePresenter.showForm<VibeEncodeErrorAction>(
       context: context,
       barrierDismissible: false,
-      builder: (context) => VibeImageEncodeErrorDialog(
+      titleBuilder: (panelContext) => Row(
+        children: [
+          Icon(
+            Icons.error_outline,
+            color: Theme.of(panelContext).colorScheme.error,
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              panelContext.l10n.vibe_import_encodingFailed,
+              style: Theme.of(panelContext).textTheme.titleLarge,
+            ),
+          ),
+        ],
+      ),
+      dialogWidth: 440,
+      builder: (panelContext, scrollController) => VibeImageEncodeErrorDialog(
         fileName: fileName,
         errorMessage: errorMessage,
+        scrollController: scrollController,
       ),
     );
   }
@@ -537,33 +645,39 @@ class VibeImageEncodeErrorDialog extends StatelessWidget {
     final theme = Theme.of(context);
     final l10n = context.l10n;
 
-    return AlertDialog(
-      icon: Icon(Icons.error_outline, color: theme.colorScheme.error, size: 32),
-      title: Text(l10n.vibe_import_encodingFailed),
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(l10n.vibe_encodeErrorImage(fileName)),
-          const SizedBox(height: 8),
-          Text(
-            l10n.vibe_encodeErrorMessage(errorMessage),
-            style: TextStyle(color: theme.colorScheme.error),
+    return ContentSizedAdaptiveForm(
+      scrollViewKey: const Key('vibe-image-encode-error-content'),
+      scrollController: scrollController,
+      padding: const EdgeInsets.all(20),
+      content: [
+        Text(l10n.vibe_encodeErrorImage(fileName)),
+        const SizedBox(height: 8),
+        SelectableText(
+          l10n.vibe_encodeErrorMessage(errorMessage),
+          style: theme.textTheme.bodyMedium?.copyWith(
+            color: theme.colorScheme.error,
+            height: 1.5,
           ),
-        ],
-      ),
-      actions: [
-        TextButton.icon(
-          onPressed: () =>
-              Navigator.of(context).pop(VibeEncodeErrorAction.skip),
-          icon: const Icon(Icons.skip_next),
-          label: Text(l10n.vibe_encodeSkipImage),
         ),
-        FilledButton.icon(
-          onPressed: () =>
-              Navigator.of(context).pop(VibeEncodeErrorAction.retry),
-          icon: const Icon(Icons.refresh),
-          label: Text(l10n.common_retry),
+        const SizedBox(height: 24),
+        Wrap(
+          alignment: WrapAlignment.end,
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            TextButton.icon(
+              onPressed: () =>
+                  Navigator.of(context).pop(VibeEncodeErrorAction.skip),
+              icon: const Icon(Icons.skip_next),
+              label: Text(l10n.vibe_encodeSkipImage),
+            ),
+            FilledButton.icon(
+              onPressed: () =>
+                  Navigator.of(context).pop(VibeEncodeErrorAction.retry),
+              icon: const Icon(Icons.refresh),
+              label: Text(l10n.common_retry),
+            ),
+          ],
         ),
       ],
     );

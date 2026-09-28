@@ -1,15 +1,26 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../../../core/utils/localization_extension.dart';
 import '../../../../data/models/fixed_tag/fixed_tag_entry.dart';
+import '../../../../data/models/fixed_tag/fixed_tag_prompt_type.dart';
 import '../../../../data/models/tag_library/tag_library_entry.dart';
+import '../../../adaptive/interaction_policy.dart';
+import '../../../themes/core/layered_surface_style.dart';
+import '../../../themes/prompt_semantic_colors.dart';
 import '../../../widgets/common/app_toast.dart';
 import '../../../widgets/common/thumbnail_display.dart';
+import '../../../widgets/common/tile_action_button.dart';
+import '../../../widgets/tag_library/tag_library_entry_hover_preview.dart';
 
 typedef SidebarDragHandleBuilder = Widget Function(Widget child);
 
-/// 固定词侧边栏条目卡片。
+/// A fixed-tag row or preview card.
+///
+/// List and grid presentations share the same action, status, and text
+/// building blocks so their capabilities cannot drift apart.
 class SidebarEntryTile extends StatefulWidget {
   const SidebarEntryTile({
     super.key,
@@ -19,7 +30,6 @@ class SidebarEntryTile extends StatefulWidget {
     required this.onToggle,
     required this.onEdit,
     required this.onDelete,
-    this.categoryName,
     this.linkAnchor,
     this.libraryEntry,
     this.dragHandleBuilder,
@@ -31,7 +41,6 @@ class SidebarEntryTile extends StatefulWidget {
   final VoidCallback onToggle;
   final VoidCallback onEdit;
   final VoidCallback onDelete;
-  final String? categoryName;
   final Widget? linkAnchor;
   final TagLibraryEntry? libraryEntry;
   final SidebarDragHandleBuilder? dragHandleBuilder;
@@ -42,267 +51,287 @@ class SidebarEntryTile extends StatefulWidget {
 
 class _SidebarEntryTileState extends State<SidebarEntryTile> {
   bool _isHovering = false;
+  bool _isFocused = false;
+
+  bool get _hasThumbnail =>
+      !widget.isListMode && (widget.libraryEntry?.hasThumbnail ?? false);
+
+  // 操作按钮常驻，未聚焦时压暗，让行高和文本宽度不随指针移动跳变。
+  bool get _actionsHighlighted =>
+      _isHovering ||
+      _isFocused ||
+      !context.interactionPolicy.precisePointerAvailable;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final entry = widget.entry;
-    final enabled = entry.enabled;
-    final foreground = enabled
-        ? theme.colorScheme.onSurface
-        : theme.colorScheme.onSurfaceVariant;
-    final background = enabled
-        ? widget.categoryColor.withValues(alpha: 0.12)
-        : theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.45);
-    final borderColor = enabled
-        ? widget.categoryColor.withValues(alpha: 0.55)
-        : theme.colorScheme.outlineVariant.withValues(alpha: 0.55);
-    final hasThumbnailBackground = _hasThumbnailBackground;
-    final contentPadding = EdgeInsets.symmetric(
-      horizontal: widget.isListMode ? 10 : 8,
-      vertical: widget.isListMode ? 8 : 10,
-    );
-    final contentForeground =
-        hasThumbnailBackground ? Colors.white : foreground;
-
-    return MouseRegion(
-      onEnter: (_) => setState(() => _isHovering = true),
-      onExit: (_) => setState(() => _isHovering = false),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(10),
-        onTap: widget.onToggle,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 120),
+    final tile = Semantics(
+      selected: widget.entry.enabled,
+      child: MouseRegion(
+        onEnter: (_) {
+          if (context.interactionPolicy.precisePointerAvailable) {
+            setState(() => _isHovering = true);
+          }
+        },
+        onExit: (_) => setState(() => _isHovering = false),
+        child: Material(
+          color: _backgroundColor(theme),
+          borderRadius: BorderRadius.circular(widget.isListMode ? 6 : 10),
           clipBehavior: Clip.antiAlias,
-          decoration: BoxDecoration(
-            color: background,
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: borderColor),
-          ),
-          child: Stack(
-            children: [
-              if (hasThumbnailBackground)
-                Positioned.fill(
-                  child: _buildThumbnailBackground(widget.libraryEntry!),
-                ),
-              if (hasThumbnailBackground)
-                Positioned.fill(
-                  child: DecoratedBox(
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                        colors: [
-                          Colors.black.withValues(alpha: 0.26),
-                          Colors.black.withValues(alpha: 0.58),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              Padding(
-                padding: contentPadding,
-                child: widget.isListMode
-                    ? _buildListContent(theme, contentForeground)
-                    : _buildGridContent(theme, contentForeground),
-              ),
-            ],
+          child: InkWell(
+            borderRadius: BorderRadius.circular(widget.isListMode ? 6 : 10),
+            onFocusChange: (focused) => setState(() => _isFocused = focused),
+            onTap: widget.onToggle,
+            child: AnimatedContainer(
+              duration: MediaQuery.disableAnimationsOf(context)
+                  ? Duration.zero
+                  : const Duration(milliseconds: 120),
+              color: _isHovering
+                  ? theme.colorScheme.onSurface.withValues(alpha: 0.045)
+                  : Colors.transparent,
+              child: widget.isListMode
+                  ? _buildListContent(theme)
+                  : _buildCardContent(theme),
+            ),
           ),
         ),
       ),
     );
+
+    final libraryEntry = widget.libraryEntry;
+    if (libraryEntry == null ||
+        !context.interactionPolicy.precisePointerAvailable) {
+      return tile;
+    }
+    return TagLibraryEntryHoverPreview(entry: libraryEntry, child: tile);
   }
 
-  bool get _hasThumbnailBackground =>
-      !widget.isListMode && (widget.libraryEntry?.hasThumbnail ?? false);
-
-  Widget _buildThumbnailBackground(TagLibraryEntry libraryEntry) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final width =
-            constraints.maxWidth.isFinite ? constraints.maxWidth : 220.0;
-        final height =
-            constraints.maxHeight.isFinite ? constraints.maxHeight : 130.0;
-        return ThumbnailDisplay(
-          imagePath: libraryEntry.thumbnail!,
-          offsetX: libraryEntry.thumbnailOffsetX,
-          offsetY: libraryEntry.thumbnailOffsetY,
-          scale: libraryEntry.thumbnailScale,
-          width: width,
-          height: height,
-        );
-      },
-    );
+  Color _backgroundColor(ThemeData theme) {
+    final resting = controlSurfaceColor(theme.colorScheme);
+    return widget.entry.enabled
+        ? Color.alphaBlend(_statusColor(theme).withValues(alpha: 0.22), resting)
+        : resting;
   }
 
-  Widget _buildListContent(ThemeData theme, Color foreground) {
-    return Row(
-      children: [
-        _buildStatusDot(),
-        const SizedBox(width: 8),
-        if (widget.linkAnchor != null) ...[
-          widget.linkAnchor!,
-          const SizedBox(width: 6),
-        ],
-        Expanded(child: _buildDragRegion(_buildText(theme, foreground))),
-        AnimatedSwitcher(
-          duration: const Duration(milliseconds: 120),
-          child: _isHovering
-              ? _buildActions(theme)
-              : _buildWeightBadge(theme, key: const ValueKey('weight')),
-        ),
+  Color _statusColor(ThemeData theme) =>
+      widget.entry.promptType == FixedTagPromptType.positive
+      ? theme.promptSemanticColors.positiveFixedTag
+      : theme.promptSemanticColors.negativeFixedTag;
+
+  Widget _buildListContent(ThemeData theme) {
+    final leading = [
+      _buildStatusIcon(theme),
+      const SizedBox(width: 7),
+      if (widget.linkAnchor != null) ...[
+        widget.linkAnchor!,
+        const SizedBox(width: 4),
       ],
+    ];
+    final label = _buildDragRegion(
+      _buildText(theme, maxLines: 1, includeWeight: true),
+    );
+    // 大字号下行内操作会把名称和权重挤没，整体换到第二行而不是收进菜单。
+    final stacksActions = MediaQuery.textScalerOf(context).scale(14) >= 20;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+      child: stacksActions
+          ? Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Row(
+                  children: [
+                    ...leading,
+                    Expanded(child: label),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: _buildActions(theme),
+                ),
+              ],
+            )
+          : Row(
+              children: [
+                ...leading,
+                Expanded(child: label),
+                const SizedBox(width: 6),
+                _buildActions(theme),
+              ],
+            ),
     );
   }
 
-  Widget _buildGridContent(ThemeData theme, Color foreground) {
+  Widget _buildCardContent(ThemeData theme) {
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Row(
-          children: [
-            _buildStatusDot(),
-            const Spacer(),
-            if (widget.linkAnchor != null) widget.linkAnchor!,
-          ],
-        ),
-        const SizedBox(height: 8),
+        if (_hasThumbnail)
+          Expanded(flex: 3, child: _buildThumbnail(widget.libraryEntry!)),
         Expanded(
-          child: _buildDragRegion(
-            _buildText(
-              theme,
-              foreground,
-              maxLines: widget.categoryName == null ? 2 : 1,
+          flex: _hasThumbnail ? 5 : 1,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(9, 8, 7, 7),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: _buildDragRegion(
+                    _buildText(
+                      theme,
+                      maxLines: _hasThumbnail ? 1 : 2,
+                      includeWeight: true,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 5),
+                Row(
+                  children: [
+                    if (widget.linkAnchor != null) widget.linkAnchor!,
+                    const Spacer(),
+                    _buildActions(theme),
+                  ],
+                ),
+              ],
             ),
           ),
         ),
-        const SizedBox(height: 8),
-        Align(
-          alignment: Alignment.centerRight,
-          child: _isHovering
-              ? FittedBox(
-                  fit: BoxFit.scaleDown,
-                  alignment: Alignment.centerRight,
-                  child: _buildActions(theme),
-                )
-              : _buildWeightBadge(theme, key: const ValueKey('grid-weight')),
-        ),
       ],
+    );
+  }
+
+  Widget _buildThumbnail(TagLibraryEntry libraryEntry) {
+    return LayoutBuilder(
+      builder: (context, constraints) => ThumbnailDisplay(
+        imagePath: libraryEntry.thumbnail!,
+        offsetX: libraryEntry.thumbnailOffsetX,
+        offsetY: libraryEntry.thumbnailOffsetY,
+        scale: libraryEntry.thumbnailScale,
+        width: constraints.maxWidth,
+        height: constraints.maxHeight,
+      ),
     );
   }
 
   Widget _buildDragRegion(Widget child) {
     final builder = widget.dragHandleBuilder;
     if (builder == null) return child;
-    return MouseRegion(
-      cursor: SystemMouseCursors.grab,
-      child: builder(child),
-    );
+    return MouseRegion(cursor: SystemMouseCursors.grab, child: builder(child));
   }
 
   Widget _buildText(
-    ThemeData theme,
-    Color foreground, {
-    int maxLines = 1,
+    ThemeData theme, {
+    required int maxLines,
+    bool includeWeight = false,
   }) {
-    final entry = widget.entry;
-    final hasThumbnailBackground = _hasThumbnailBackground;
-    final secondaryColor = hasThumbnailBackground
-        ? Colors.white.withValues(alpha: 0.82)
+    final foreground = widget.entry.enabled
+        ? theme.colorScheme.onSurface
         : theme.colorScheme.onSurfaceVariant;
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          entry.displayName,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: theme.textTheme.labelLarge?.copyWith(
-            color: foreground,
-            fontWeight: entry.enabled ? FontWeight.w700 : FontWeight.w500,
-          ),
+        Row(
+          children: [
+            if (!widget.isListMode) ...[
+              _buildStatusIcon(theme),
+              const SizedBox(width: 7),
+            ],
+            Expanded(
+              child: Text(
+                widget.entry.displayName,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.labelLarge?.copyWith(
+                  color: foreground,
+                  fontWeight: widget.entry.enabled
+                      ? FontWeight.w700
+                      : FontWeight.w500,
+                ),
+              ),
+            ),
+            // 权重宽度随字号增长，留成 Flexible 兜底，任何窄行都不会溢出。
+            if (includeWeight) ...[
+              const SizedBox(width: 6),
+              Flexible(child: _buildWeight(theme)),
+            ],
+          ],
         ),
-        const SizedBox(height: 2),
+        if (widget.isListMode) const SizedBox(height: 1),
         Text(
-          entry.content,
+          widget.entry.content,
           maxLines: maxLines,
           overflow: TextOverflow.ellipsis,
           style: theme.textTheme.bodySmall?.copyWith(
-            color: secondaryColor,
+            color: theme.colorScheme.onSurfaceVariant,
           ),
         ),
-        if (widget.categoryName != null && !widget.isListMode) ...[
-          const SizedBox(height: 6),
-          Text(
-            widget.categoryName!,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: theme.textTheme.labelSmall?.copyWith(
-              color: hasThumbnailBackground
-                  ? Colors.white.withValues(alpha: 0.88)
-                  : widget.categoryColor,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ],
       ],
     );
   }
 
-  Widget _buildStatusDot() {
-    return Container(
-      width: 9,
-      height: 9,
-      decoration: BoxDecoration(
-        color: widget.entry.enabled
-            ? widget.categoryColor
-            : Theme.of(context).colorScheme.outline,
-        shape: BoxShape.circle,
-      ),
+  Widget _buildStatusIcon(ThemeData theme) {
+    return Icon(
+      widget.entry.enabled ? Icons.check_circle : Icons.radio_button_unchecked,
+      size: 18,
+      color: widget.entry.enabled
+          ? widget.categoryColor
+          : theme.colorScheme.onSurfaceVariant,
     );
   }
 
-  Widget _buildWeightBadge(ThemeData theme, {Key? key}) {
-    return Container(
-      key: key,
-      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surface.withValues(alpha: 0.75),
-        borderRadius: BorderRadius.circular(99),
-      ),
+  Widget _buildWeight(ThemeData theme) {
+    return MediaQuery.withClampedTextScaling(
+      maxScaleFactor: 1.5,
       child: Text(
         widget.entry.weight.toStringAsFixed(2),
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
         style: theme.textTheme.labelSmall?.copyWith(
           color: theme.colorScheme.onSurfaceVariant,
-          fontWeight: FontWeight.w600,
+          fontWeight: FontWeight.w700,
+          fontFeatures: const [FontFeature.tabularFigures()],
         ),
       ),
     );
   }
 
   Widget _buildActions(ThemeData theme) {
-    return Row(
-      key: const ValueKey('actions'),
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        _ActionButton(
-          icon: Icons.copy_rounded,
-          tooltip: '复制内容',
-          onPressed: _copyContent,
-        ),
-        _ActionButton(
-          icon: Icons.edit_rounded,
-          tooltip: '编辑',
-          onPressed: widget.onEdit,
-        ),
-        _ActionButton(
-          icon: Icons.delete_outline_rounded,
-          tooltip: '删除',
-          color: theme.colorScheme.error,
-          onPressed: widget.onDelete,
-        ),
-      ],
+    final resting = theme.colorScheme.onSurfaceVariant;
+    return AnimatedOpacity(
+      key: const ValueKey('sidebar-entry-actions'),
+      opacity: _actionsHighlighted ? 1 : 0.4,
+      duration: MediaQuery.disableAnimationsOf(context)
+          ? Duration.zero
+          : const Duration(milliseconds: 120),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          TileActionButton(
+            icon: Icons.copy_rounded,
+            tooltip: context.l10n.common_copy,
+            color: resting,
+            hoverColor: theme.colorScheme.primary,
+            onPressed: () => unawaited(_copyContent()),
+          ),
+          TileActionButton(
+            icon: Icons.edit_rounded,
+            tooltip: context.l10n.common_edit,
+            color: resting,
+            hoverColor: theme.colorScheme.primary,
+            onPressed: widget.onEdit,
+          ),
+          TileActionButton(
+            icon: Icons.delete_outline_rounded,
+            tooltip: context.l10n.common_delete,
+            color: resting,
+            hoverColor: theme.colorScheme.error,
+            onPressed: widget.onDelete,
+          ),
+        ],
+      ),
     );
   }
 
@@ -310,39 +339,5 @@ class _SidebarEntryTileState extends State<SidebarEntryTile> {
     await Clipboard.setData(ClipboardData(text: widget.entry.content));
     if (!mounted) return;
     AppToast.info(context, context.l10n.common_copied);
-  }
-}
-
-class _ActionButton extends StatelessWidget {
-  const _ActionButton({
-    required this.icon,
-    required this.tooltip,
-    required this.onPressed,
-    this.color,
-  });
-
-  final IconData icon;
-  final String tooltip;
-  final VoidCallback onPressed;
-  final Color? color;
-
-  @override
-  Widget build(BuildContext context) {
-    return Tooltip(
-      message: tooltip,
-      waitDuration: const Duration(milliseconds: 300),
-      child: InkResponse(
-        radius: 16,
-        onTap: onPressed,
-        child: Padding(
-          padding: const EdgeInsets.all(3),
-          child: Icon(
-            icon,
-            size: 15,
-            color: color ?? Theme.of(context).colorScheme.onSurfaceVariant,
-          ),
-        ),
-      ),
-    );
   }
 }

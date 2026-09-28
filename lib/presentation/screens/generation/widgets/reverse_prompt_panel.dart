@@ -1,22 +1,28 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import '../../../widgets/common/model_family_icon.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:super_drag_and_drop/super_drag_and_drop.dart';
 
+import '../../../../core/platform/platform_capabilities.dart';
 import '../../../../data/models/character/character_prompt.dart';
-import '../../../../data/models/tag_library/tag_library_entry.dart';
 import '../../../../data/services/local_onnx_model_service.dart';
+import '../../../providers/generation/generation_panel_expansion_provider.dart';
 import '../../../providers/generation/generation_params_notifier.dart';
 import '../../../providers/reverse_prompt_provider.dart';
 import '../../../providers/tag_library_page_provider.dart';
 import '../../../prompt_assistant/providers/prompt_assistant_history_provider.dart';
 import '../../../utils/asset_protection_guard.dart';
-import '../../../utils/dropped_file_reader.dart';
+import '../../../utils/card_drop_reader.dart';
+import '../../../utils/clipboard_image.dart';
+import '../../../widgets/common/image_card_action.dart';
 import '../../../../core/utils/localization_extension.dart';
 import '../../../widgets/common/app_toast.dart';
+import '../../../widgets/common/translated_tag_text.dart';
 import '../../../widgets/common/collapsible_image_panel.dart';
 import '../../../widgets/common/decoded_memory_image.dart';
 import '../../../widgets/common/themed_divider.dart';
@@ -30,21 +36,29 @@ class ReversePromptPanel extends ConsumerStatefulWidget {
 }
 
 class _ReversePromptPanelState extends ConsumerState<ReversePromptPanel> {
-  bool _isExpanded = false;
+  static const _panel = GenerationWorkbenchPanel.reversePrompt;
+
   bool _isDragging = false;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final state = ref.watch(reversePromptProvider);
+    final isExpanded = ref.watch(
+      generationPanelExpansionProvider.select(
+        (value) => value.isExpanded(_panel),
+      ),
+    );
     final hasImages = state.images.isNotEmpty;
-    final showBackground = hasImages && !_isExpanded;
+    final showBackground = hasImages && !isExpanded;
 
     return CollapsibleImagePanel(
       title: context.l10n.reversePrompt_title,
       icon: Icons.manage_search_rounded,
-      isExpanded: _isExpanded,
-      onToggle: () => setState(() => _isExpanded = !_isExpanded),
+      isExpanded: isExpanded,
+      onToggle: () => unawaited(
+        ref.read(generationPanelExpansionProvider.notifier).toggle(_panel),
+      ),
       hasData: hasImages || state.finalPrompt.isNotEmpty,
       backgroundImage: showBackground
           ? DecodedMemoryImage(
@@ -53,14 +67,14 @@ class _ReversePromptPanelState extends ConsumerState<ReversePromptPanel> {
               decodeScale: 0.75,
             )
           : null,
-      badge: _buildBadge(context, state, showBackground),
-      child: Padding(
+      badge: hasImages ? _buildBadge(context, state, showBackground) : null,
+      childBuilder: (context) => Padding(
         padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             const ThemedDivider(),
-            _buildDropArea(theme, state),
+            _buildDropArea(state),
             if (hasImages) ...[
               const SizedBox(height: 10),
               _buildImageStrip(state),
@@ -135,9 +149,7 @@ class _ReversePromptPanelState extends ConsumerState<ReversePromptPanel> {
         borderRadius: BorderRadius.circular(12),
       ),
       child: Text(
-        state.images.isEmpty
-            ? context.l10n.reversePrompt_pending
-            : context.l10n.reversePrompt_imageCount(state.images.length),
+        context.l10n.reversePrompt_imageCount(state.images.length),
         style: theme.textTheme.labelSmall?.copyWith(
           color: showBackground
               ? Colors.white
@@ -147,12 +159,53 @@ class _ReversePromptPanelState extends ConsumerState<ReversePromptPanel> {
     );
   }
 
-  Widget _buildDropArea(ThemeData theme, ReversePromptState state) {
+  Widget _buildDropArea(ReversePromptState state) {
+    final button = FilledButton.tonalIcon(
+      onPressed: state.isProcessing ? null : _pickImages,
+      icon: Icon(
+        _isDragging ? Icons.file_download_rounded : Icons.add_photo_alternate,
+        size: 18,
+      ),
+      label: Text(
+        _isDragging
+            ? context.l10n.reversePrompt_dropToAdd
+            : context.l10n.reversePrompt_addOrDropImages,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+      ),
+    );
+    // 偏离上游：上游这里只有"添加 / 拖入图片"一个按钮，因为桌面端还能把图直接
+    // 拖进窗口。没有 OS 级文件拖入的平台（iOS / Android）上"从别处复制一张图"
+    // 在反推面板无处落地——只能先存成文件再用文件选择器捞回来。
+    // 所以在没有外部拖放能力时，旁边补一个剪贴板入口。
+    // 与 precise_reference_panel / img2img_source_section 的做法保持一致。
+    if (!PlatformCapabilities.current.supportsExternalFileDrop) {
+      return Row(
+        children: [
+          Expanded(child: button),
+          const SizedBox(width: 8),
+          Expanded(
+            child: FilledButton.tonalIcon(
+              key: const Key('reverse-prompt-panel-paste-from-clipboard'),
+              onPressed: state.isProcessing ? null : _pasteImageFromClipboard,
+              icon: const Icon(Icons.content_paste_go, size: 18),
+              label: Text(
+                context.l10n.generation_pasteImageFromClipboard,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ),
+        ],
+      );
+    }
+
     return DropRegion(
-      formats: Formats.standardFormats,
+      formats: cardDropFormats,
       hitTestBehavior: HitTestBehavior.opaque,
       onDropOver: (event) {
-        if (event.session.allowedOperations.contains(DropOperation.copy)) {
+        if (event.session.allowedOperations.contains(DropOperation.copy) &&
+            const CardDropPolicy().accepts(event.session.items)) {
           if (!_isDragging) {
             setState(() => _isDragging = true);
           }
@@ -167,20 +220,9 @@ class _ReversePromptPanelState extends ConsumerState<ReversePromptPanel> {
       },
       onPerformDrop: (event) async {
         setState(() => _isDragging = false);
-        unawaited(_handleDrop(event));
+        await _handleDrop(event);
       },
-      child: OutlinedButton.icon(
-        onPressed: state.isProcessing ? null : _pickImages,
-        icon: Icon(
-          _isDragging ? Icons.file_download_rounded : Icons.add_photo_alternate,
-          size: 18,
-        ),
-        label: Text(
-          _isDragging
-              ? context.l10n.reversePrompt_dropToAdd
-              : context.l10n.reversePrompt_addOrDropImages,
-        ),
-      ),
+      child: button,
     );
   }
 
@@ -208,19 +250,31 @@ class _ReversePromptPanelState extends ConsumerState<ReversePromptPanel> {
                 ),
               ),
               Positioned(
-                top: 2,
-                right: 2,
+                top: 0,
+                right: 0,
                 child: InkWell(
                   onTap: () => ref
                       .read(reversePromptProvider.notifier)
                       .removeImage(image.id),
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: Colors.black.withValues(alpha: 0.65),
-                      borderRadius: BorderRadius.circular(10),
+                  borderRadius: BorderRadius.circular(24),
+                  child: SizedBox.square(
+                    dimension: 48,
+                    child: Align(
+                      alignment: Alignment.topRight,
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: Colors.black.withValues(alpha: 0.65),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        padding: const EdgeInsets.all(2),
+                        // 固定深色底必须搭配固定浅色图标，避免浅色主题下失去对比。
+                        child: const Icon(
+                          Icons.close,
+                          size: 14,
+                          color: Colors.white,
+                        ),
+                      ),
                     ),
-                    padding: const EdgeInsets.all(2),
-                    child: const Icon(Icons.close, size: 14),
                   ),
                 ),
               ),
@@ -250,8 +304,9 @@ class _ReversePromptPanelState extends ConsumerState<ReversePromptPanel> {
         FilterChip(
           label: Text(context.l10n.reversePrompt_characterReplace),
           selected: state.useCharacterReplace,
-          onSelected:
-              state.isProcessing ? null : notifier.setUseCharacterReplace,
+          onSelected: state.isProcessing
+              ? null
+              : notifier.setUseCharacterReplace,
         ),
       ],
     );
@@ -264,8 +319,8 @@ class _ReversePromptPanelState extends ConsumerState<ReversePromptPanel> {
         final models = snapshot.data ?? const <LocalOnnxModelDescriptor>[];
         final selected =
             models.any((m) => m.path == state.selectedTaggerModelPath)
-                ? state.selectedTaggerModelPath
-                : null;
+            ? state.selectedTaggerModelPath
+            : null;
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
@@ -276,15 +331,15 @@ class _ReversePromptPanelState extends ConsumerState<ReversePromptPanel> {
                   .map(
                     (model) => DropdownMenuItem(
                       value: model.path,
-                      child: Text(model.name),
+                      child: ModelNameLabel(modelId: model.name),
                     ),
                   )
                   .toList(),
               onChanged: state.isProcessing
                   ? null
                   : ref
-                      .read(reversePromptProvider.notifier)
-                      .setSelectedTaggerModelPath,
+                        .read(reversePromptProvider.notifier)
+                        .setSelectedTaggerModelPath,
               decoration: InputDecoration(
                 labelText: context.l10n.reversePrompt_localTaggerModel,
                 hintText: context.l10n.reversePrompt_localTaggerModelHint,
@@ -298,8 +353,8 @@ class _ReversePromptPanelState extends ConsumerState<ReversePromptPanel> {
               onChanged: state.isProcessing
                   ? null
                   : ref
-                      .read(reversePromptProvider.notifier)
-                      .setTaggerGeneralThreshold,
+                        .read(reversePromptProvider.notifier)
+                        .setTaggerGeneralThreshold,
             ),
             _ThresholdSlider(
               label: context.l10n.reversePrompt_characterThreshold,
@@ -307,14 +362,14 @@ class _ReversePromptPanelState extends ConsumerState<ReversePromptPanel> {
               onChanged: state.isProcessing
                   ? null
                   : ref
-                      .read(reversePromptProvider.notifier)
-                      .setTaggerCharacterThreshold,
+                        .read(reversePromptProvider.notifier)
+                        .setTaggerCharacterThreshold,
             ),
             Text(
               context.l10n.reversePrompt_taggerFilterHint,
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: Colors.white70,
-                  ),
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
             ),
           ],
         );
@@ -336,8 +391,8 @@ class _ReversePromptPanelState extends ConsumerState<ReversePromptPanel> {
           Text(
             context.l10n.reversePrompt_replacementEmptyHint,
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: Colors.white70,
-                ),
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
           ),
           const SizedBox(height: 8),
           Align(
@@ -347,8 +402,9 @@ class _ReversePromptPanelState extends ConsumerState<ReversePromptPanel> {
                   ? null
                   : _selectReverseCharacterFromLibrary,
               icon: const Icon(Icons.library_books_outlined, size: 18),
-              label:
-                  Text(context.l10n.reversePrompt_selectReplacementCharacter),
+              label: Text(
+                context.l10n.reversePrompt_selectReplacementCharacter,
+              ),
             ),
           ),
         ],
@@ -359,11 +415,8 @@ class _ReversePromptPanelState extends ConsumerState<ReversePromptPanel> {
     return Container(
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+        color: theme.colorScheme.surfaceContainerHigh,
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(
-          color: theme.colorScheme.outlineVariant.withValues(alpha: 0.4),
-        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -381,18 +434,20 @@ class _ReversePromptPanelState extends ConsumerState<ReversePromptPanel> {
             ],
           ),
           const SizedBox(height: 6),
-          Text(
+          TranslatedPromptText(
             selectedCharacter.prompt,
+            selectable: false,
             maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            style: theme.textTheme.bodySmall?.copyWith(color: Colors.white70),
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
           ),
           const SizedBox(height: 8),
           Wrap(
             spacing: 8,
             runSpacing: 8,
             children: [
-              OutlinedButton.icon(
+              FilledButton.tonalIcon(
                 onPressed: state.isProcessing
                     ? null
                     : _selectReverseCharacterFromLibrary,
@@ -403,8 +458,8 @@ class _ReversePromptPanelState extends ConsumerState<ReversePromptPanel> {
                 onPressed: state.isProcessing
                     ? null
                     : ref
-                        .read(reversePromptCharacterProvider.notifier)
-                        .clearReplacementCharacter,
+                          .read(reversePromptCharacterProvider.notifier)
+                          .clearReplacementCharacter,
                 icon: const Icon(Icons.close_rounded, size: 16),
                 label: Text(context.l10n.common_clear),
               ),
@@ -416,11 +471,9 @@ class _ReversePromptPanelState extends ConsumerState<ReversePromptPanel> {
   }
 
   Future<void> _selectReverseCharacterFromLibrary() async {
-    final entry = await showDialog<TagLibraryEntry>(
-      context: context,
-      builder: (context) => TagLibraryPickerDialog(
-        title: context.l10n.reversePrompt_selectReplacementTargetTitle,
-      ),
+    final entry = await TagLibraryPickerDialog.show(
+      context,
+      title: context.l10n.reversePrompt_selectReplacementTargetTitle,
     );
 
     if (entry == null) {
@@ -428,7 +481,9 @@ class _ReversePromptPanelState extends ConsumerState<ReversePromptPanel> {
     }
 
     ref.read(tagLibraryPageNotifierProvider.notifier).recordUsage(entry.id);
-    ref.read(reversePromptCharacterProvider.notifier).setReplacementCharacter(
+    ref
+        .read(reversePromptCharacterProvider.notifier)
+        .setReplacementCharacter(
           CharacterPrompt.create(
             name: entry.displayName,
             prompt: entry.content,
@@ -460,13 +515,14 @@ class _ReversePromptPanelState extends ConsumerState<ReversePromptPanel> {
           ),
         ),
         const SizedBox(width: 8),
-        OutlinedButton.icon(
+        FilledButton.tonalIcon(
           onPressed: state.finalPrompt.trim().isEmpty
               ? null
               : () {
                   final prompt = state.finalPrompt.trim();
-                  final currentPrompt =
-                      ref.read(generationParamsNotifierProvider).prompt;
+                  final currentPrompt = ref
+                      .read(generationParamsNotifierProvider)
+                      .prompt;
                   ref
                       .read(promptAssistantHistoryProvider.notifier)
                       .recordExternalChange(
@@ -525,26 +581,55 @@ class _ReversePromptPanelState extends ConsumerState<ReversePromptPanel> {
     }
   }
 
-  Future<void> _handleDrop(PerformDropEvent event) async {
-    var handledAny = false;
-    for (final item in event.session.items) {
-      final reader = item.dataReader;
-      if (reader == null) {
-        continue;
+  /// 从系统剪贴板取一张图加进反推队列。
+  ///
+  /// 复用 L11 已就绪的 [readImageBytesFromClipboard]（PNG/JPEG/WEBP/BMP），
+  /// 拿到字节后走与拖入、文件选择完全相同的 `addImage`，不另起一套入队逻辑。
+  Future<void> _pasteImageFromClipboard() async {
+    final Uint8List? bytes;
+    try {
+      bytes = await readImageBytesFromClipboard();
+    } catch (error) {
+      if (mounted) {
+        AppToast.error(
+          context,
+          '${context.l10n.reversePrompt_dropUnreadable}: $error',
+        );
       }
-      final file = await DroppedFileReader.read(
-        reader,
-        logTag: 'ReversePromptDrop',
-      );
-      if (file != null) {
-        handledAny = true;
-        await ref
-            .read(reversePromptProvider.notifier)
-            .addImage(file.bytes, name: file.fileName);
-      }
+      return;
     }
-    if (!handledAny && mounted) {
-      AppToast.warning(context, context.l10n.reversePrompt_dropUnreadable);
+    if (!mounted) return;
+    if (bytes == null || bytes.isEmpty) {
+      AppToast.info(context, context.l10n.generation_clipboardNoImage);
+      return;
+    }
+    await ref
+        .read(reversePromptProvider.notifier)
+        .addImage(bytes, name: 'clipboard.png');
+  }
+
+  Future<void> _handleDrop(PerformDropEvent event) async {
+    final notifier = ref.read(reversePromptProvider.notifier);
+    try {
+      final resources = await readCardDrop(context, event.session.items);
+      final result = await ImageCardBatchResult.execute(resources, (
+        resource,
+      ) async {
+        final file = resource.image;
+        await notifier.addImage(file.bytes, name: file.fileName);
+      });
+      if (result.failures.isNotEmpty) {
+        throw StateError(
+          '${result.failures.length}/${resources.length}: ${result.failures.values.map((failure) => failure.error).join('; ')}',
+        );
+      }
+    } catch (error) {
+      if (mounted) {
+        AppToast.error(
+          context,
+          '${context.l10n.reversePrompt_dropUnreadable}: $error',
+        );
+      }
     }
   }
 
@@ -590,10 +675,7 @@ class _ThresholdSlider extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        SizedBox(
-          width: 104,
-          child: Text('$label ${value.toStringAsFixed(2)}'),
-        ),
+        SizedBox(width: 104, child: Text('$label ${value.toStringAsFixed(2)}')),
         Expanded(
           child: Slider(
             value: value,
@@ -609,10 +691,7 @@ class _ThresholdSlider extends StatelessWidget {
 }
 
 class _PromptOutputBlock extends StatelessWidget {
-  const _PromptOutputBlock({
-    required this.title,
-    required this.text,
-  });
+  const _PromptOutputBlock({required this.title, required this.text});
 
   final String title;
   final String text;
@@ -631,10 +710,7 @@ class _PromptOutputBlock extends StatelessWidget {
         children: [
           Text(title, style: theme.textTheme.labelMedium),
           const SizedBox(height: 4),
-          SelectableText(
-            text,
-            style: theme.textTheme.bodySmall,
-          ),
+          TranslatedPromptText(text, style: theme.textTheme.bodySmall),
         ],
       ),
     );

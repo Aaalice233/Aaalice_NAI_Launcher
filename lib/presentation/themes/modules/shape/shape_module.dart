@@ -9,7 +9,6 @@ export 'presets/pill_shapes.dart';
 export 'presets/sharp_shapes.dart';
 export 'presets/fluid_shapes.dart';
 export 'presets/wobbly_shapes.dart';
-export 'presets/layered_shapes.dart';
 
 /// Base implementation of [ShapeModule].
 abstract class BaseShapeModule implements ShapeModule {
@@ -17,8 +16,6 @@ abstract class BaseShapeModule implements ShapeModule {
 
   /// Helper to create RoundedRectangleBorder.
   static ShapeBorder roundedShape(double radius) {
-    return RoundedRectangleBorder(
-      borderRadius: BorderRadius.circular(radius),
-    );
+    return RoundedRectangleBorder(borderRadius: BorderRadius.circular(radius));
   }
 }

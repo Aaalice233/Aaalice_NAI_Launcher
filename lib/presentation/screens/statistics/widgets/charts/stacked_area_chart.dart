@@ -1,5 +1,7 @@
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
+import 'package:nai_launcher/core/utils/localization_extension.dart';
+
 import '../../utils/chart_colors.dart';
 
 /// Stacked area chart data series
@@ -45,6 +47,8 @@ class _StackedAreaChartState extends State<StackedAreaChart>
     with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   late Animation<double> _animation;
+  bool _entranceStarted = false;
+  bool? _disableAnimations;
 
   @override
   void initState() {
@@ -57,7 +61,24 @@ class _StackedAreaChartState extends State<StackedAreaChart>
       parent: _controller,
       curve: Curves.easeOutCubic,
     );
-    _controller.forward();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final disableAnimations = MediaQuery.disableAnimationsOf(context);
+    if (_disableAnimations == disableAnimations) return;
+    _disableAnimations = disableAnimations;
+
+    if (disableAnimations) {
+      _controller
+        ..stop()
+        ..value = 1;
+      _entranceStarted = true;
+    } else if (!_entranceStarted) {
+      _entranceStarted = true;
+      _controller.forward();
+    }
   }
 
   @override
@@ -75,7 +96,7 @@ class _StackedAreaChartState extends State<StackedAreaChart>
         height: widget.height,
         child: Center(
           child: Text(
-            'No data available',
+            context.l10n.statistics_noData,
             style: theme.textTheme.bodyMedium?.copyWith(
               color: theme.colorScheme.onSurfaceVariant,
             ),
@@ -91,9 +112,7 @@ class _StackedAreaChartState extends State<StackedAreaChart>
           children: [
             SizedBox(
               height: widget.height,
-              child: LineChart(
-                _buildChartData(theme),
-              ),
+              child: LineChart(_buildChartData(theme)),
             ),
             if (widget.showLegend) ...[
               const SizedBox(height: 16),
@@ -138,7 +157,8 @@ class _StackedAreaChartState extends State<StackedAreaChart>
     // Build line chart bars (reversed order for proper stacking)
     final lineBarsData = <LineChartBarData>[];
     for (int i = widget.series.length - 1; i >= 0; i--) {
-      final color = widget.series[i].color ??
+      final color =
+          widget.series[i].color ??
           ChartColors.getColorForIndex(
             i,
             palette: ChartColors.stackedAreaPalette,
@@ -200,9 +220,7 @@ class _StackedAreaChartState extends State<StackedAreaChart>
                 padding: const EdgeInsets.only(top: 8),
                 child: Text(
                   widget.xLabels![index],
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    fontSize: 10,
-                  ),
+                  style: theme.textTheme.bodySmall?.copyWith(fontSize: 10),
                 ),
               );
             },
@@ -223,9 +241,7 @@ class _StackedAreaChartState extends State<StackedAreaChart>
             },
           ),
         ),
-        topTitles: const AxisTitles(
-          sideTitles: SideTitles(showTitles: false),
-        ),
+        topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
         rightTitles: const AxisTitles(
           sideTitles: SideTitles(showTitles: false),
         ),
@@ -243,7 +259,8 @@ class _StackedAreaChartState extends State<StackedAreaChart>
                 return null;
               }
               final series = widget.series[seriesIndex];
-              final color = series.color ??
+              final color =
+                  series.color ??
                   ChartColors.getColorForIndex(
                     seriesIndex,
                     palette: ChartColors.stackedAreaPalette,
@@ -271,7 +288,8 @@ class _StackedAreaChartState extends State<StackedAreaChart>
       children: widget.series.asMap().entries.map((entry) {
         final index = entry.key;
         final series = entry.value;
-        final color = series.color ??
+        final color =
+            series.color ??
             ChartColors.getColorForIndex(
               index,
               palette: ChartColors.stackedAreaPalette,
@@ -289,10 +307,7 @@ class _StackedAreaChartState extends State<StackedAreaChart>
               ),
             ),
             const SizedBox(width: 4),
-            Text(
-              series.name,
-              style: theme.textTheme.bodySmall,
-            ),
+            Text(series.name, style: theme.textTheme.bodySmall),
           ],
         );
       }).toList(),

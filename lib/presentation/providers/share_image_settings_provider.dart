@@ -7,20 +7,26 @@ class ShareImageSettings {
   const ShareImageSettings({
     this.protectionMode = false,
     this.stripMetadataForCopyAndDrag = true,
+    this.watermarkForCopyAndDrag = false,
     this.confirmDangerousActions = true,
     this.warnExternalImageSend = true,
     this.preventOverwrite = true,
     this.warnHighAnlasCost = true,
     this.highAnlasCostThreshold = 50,
+    this.limitGenerationInterval = false,
+    this.generationIntervalSeconds = 5,
   });
 
   final bool protectionMode;
   final bool stripMetadataForCopyAndDrag;
+  final bool watermarkForCopyAndDrag;
   final bool confirmDangerousActions;
   final bool warnExternalImageSend;
   final bool preventOverwrite;
   final bool warnHighAnlasCost;
   final int highAnlasCostThreshold;
+  final bool limitGenerationInterval;
+  final int generationIntervalSeconds;
 
   bool get effectiveStripMetadataForCopyAndDrag =>
       protectionMode && stripMetadataForCopyAndDrag;
@@ -36,22 +42,27 @@ class ShareImageSettings {
   bool get effectiveWarnHighAnlasCost =>
       protectionMode && warnHighAnlasCost && highAnlasCostThreshold > 0;
 
-  @Deprecated('Use protectionMode instead.')
-  bool get assetProtectionMode => protectionMode;
+  int get effectiveGenerationIntervalSeconds =>
+      protectionMode && limitGenerationInterval ? generationIntervalSeconds : 0;
 
   ShareImageSettings copyWith({
     bool? protectionMode,
     bool? stripMetadataForCopyAndDrag,
+    bool? watermarkForCopyAndDrag,
     bool? confirmDangerousActions,
     bool? warnExternalImageSend,
     bool? preventOverwrite,
     bool? warnHighAnlasCost,
     int? highAnlasCostThreshold,
+    bool? limitGenerationInterval,
+    int? generationIntervalSeconds,
   }) {
     return ShareImageSettings(
       protectionMode: protectionMode ?? this.protectionMode,
       stripMetadataForCopyAndDrag:
           stripMetadataForCopyAndDrag ?? this.stripMetadataForCopyAndDrag,
+      watermarkForCopyAndDrag:
+          watermarkForCopyAndDrag ?? this.watermarkForCopyAndDrag,
       confirmDangerousActions:
           confirmDangerousActions ?? this.confirmDangerousActions,
       warnExternalImageSend:
@@ -60,61 +71,87 @@ class ShareImageSettings {
       warnHighAnlasCost: warnHighAnlasCost ?? this.warnHighAnlasCost,
       highAnlasCostThreshold:
           highAnlasCostThreshold ?? this.highAnlasCostThreshold,
+      limitGenerationInterval:
+          limitGenerationInterval ?? this.limitGenerationInterval,
+      generationIntervalSeconds:
+          generationIntervalSeconds ?? this.generationIntervalSeconds,
     );
   }
 }
 
 final shareImageSettingsProvider =
     NotifierProvider<ShareImageSettingsNotifier, ShareImageSettings>(
-  ShareImageSettingsNotifier.new,
-);
+      ShareImageSettingsNotifier.new,
+    );
 
 class ShareImageSettingsNotifier extends Notifier<ShareImageSettings> {
   LocalStorageService get _storage => ref.read(localStorageServiceProvider);
 
   @override
   ShareImageSettings build() {
-    final protectionMode = _storage.getSetting<bool>(
-          StorageKeys.protectionMode,
-        ) ??
+    final protectionMode =
+        _storage.getSetting<bool>(StorageKeys.protectionMode) ??
         _storage.getSetting<bool>(
           StorageKeys.assetProtectionMode,
           defaultValue: false,
         ) ??
         false;
+    final generationIntervalSeconds =
+        (_storage.getSetting<int>(
+                  StorageKeys.protectionGenerationIntervalSeconds,
+                  defaultValue: 5,
+                ) ??
+                5)
+            .clamp(1, 3600)
+            .toInt();
 
     return ShareImageSettings(
       protectionMode: protectionMode,
-      stripMetadataForCopyAndDrag: _storage.getSetting<bool>(
+      watermarkForCopyAndDrag:
+          _storage.getSetting<bool>(StorageKeys.shareWatermark) ?? false,
+      stripMetadataForCopyAndDrag:
+          _storage.getSetting<bool>(
             StorageKeys.shareStripMetadata,
             defaultValue: true,
           ) ??
           true,
-      confirmDangerousActions: _storage.getSetting<bool>(
+      confirmDangerousActions:
+          _storage.getSetting<bool>(
             StorageKeys.protectionConfirmDangerousActions,
             defaultValue: true,
           ) ??
           true,
-      warnExternalImageSend: _storage.getSetting<bool>(
+      warnExternalImageSend:
+          _storage.getSetting<bool>(
             StorageKeys.protectionWarnExternalImageSend,
             defaultValue: true,
           ) ??
           true,
-      preventOverwrite: _storage.getSetting<bool>(
+      preventOverwrite:
+          _storage.getSetting<bool>(
             StorageKeys.protectionPreventOverwrite,
             defaultValue: true,
           ) ??
           true,
-      warnHighAnlasCost: _storage.getSetting<bool>(
+      warnHighAnlasCost:
+          _storage.getSetting<bool>(
             StorageKeys.protectionWarnHighAnlasCost,
             defaultValue: true,
           ) ??
           true,
-      highAnlasCostThreshold: _storage.getSetting<int>(
+      highAnlasCostThreshold:
+          _storage.getSetting<int>(
             StorageKeys.protectionHighAnlasCostThreshold,
             defaultValue: 50,
           ) ??
           50,
+      limitGenerationInterval:
+          _storage.getSetting<bool>(
+            StorageKeys.protectionLimitGenerationInterval,
+            defaultValue: false,
+          ) ??
+          false,
+      generationIntervalSeconds: generationIntervalSeconds,
     );
   }
 
@@ -127,6 +164,11 @@ class ShareImageSettingsNotifier extends Notifier<ShareImageSettings> {
   Future<void> setStripMetadataForCopyAndDrag(bool value) async {
     state = state.copyWith(stripMetadataForCopyAndDrag: value);
     await _storage.setSetting(StorageKeys.shareStripMetadata, value);
+  }
+
+  Future<void> setWatermarkForCopyAndDrag(bool value) async {
+    await _storage.setSetting(StorageKeys.shareWatermark, value);
+    state = state.copyWith(watermarkForCopyAndDrag: value);
   }
 
   Future<void> setConfirmDangerousActions(bool value) async {
@@ -164,8 +206,20 @@ class ShareImageSettingsNotifier extends Notifier<ShareImageSettings> {
     );
   }
 
-  @Deprecated('Use setProtectionMode instead.')
-  Future<void> setAssetProtectionMode(bool value) async {
-    await setProtectionMode(value);
+  Future<void> setLimitGenerationInterval(bool value) async {
+    state = state.copyWith(limitGenerationInterval: value);
+    await _storage.setSetting(
+      StorageKeys.protectionLimitGenerationInterval,
+      value,
+    );
+  }
+
+  Future<void> setGenerationIntervalSeconds(int value) async {
+    final clamped = value.clamp(1, 3600).toInt();
+    state = state.copyWith(generationIntervalSeconds: clamped);
+    await _storage.setSetting(
+      StorageKeys.protectionGenerationIntervalSeconds,
+      clamped,
+    );
   }
 }

@@ -8,6 +8,13 @@ void main() {
     SharedPreferences.setMockInitialValues({});
   });
 
+  test('defaults login mode to API Token', () {
+    final container = ProviderContainer();
+    addTearDown(container.dispose);
+
+    expect(container.read(authModeProvider), AuthMode.token);
+  });
+
   test('defaults auto login to enabled when no preference exists', () async {
     final container = ProviderContainer();
     addTearDown(container.dispose);

@@ -27,13 +27,6 @@ class _TokenLoginCardState extends ConsumerState<TokenLoginCard> {
   bool _obscureToken = true;
 
   @override
-  void initState() {
-    super.initState();
-    // 清除可能残留的全局错误状态
-    ref.read(authNotifierProvider.notifier).clearError(delayMs: 0);
-  }
-
-  @override
   void dispose() {
     _tokenController.dispose();
     _nicknameController.dispose();
@@ -119,21 +112,27 @@ class _TokenLoginCardState extends ConsumerState<TokenLoginCard> {
           const SizedBox(height: 16),
 
           // 登录按钮
-          FilledButton.icon(
-            onPressed: authState.isLoading ? null : _handleLogin,
-            icon: authState.isLoading
-                ? const SizedBox(
-                    height: 18,
-                    width: 18,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: Colors.white,
-                    ),
-                  )
-                : const Icon(Icons.login),
-            label: Text(context.l10n.auth_validateAndLogin),
-            style: FilledButton.styleFrom(
-              padding: const EdgeInsets.symmetric(vertical: 16),
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton.icon(
+              onPressed: authState.isLoading ? null : _handleLogin,
+              icon: authState.isLoading
+                  ? SizedBox(
+                      height: 18,
+                      width: 18,
+                      child: CircularProgressIndicator(
+                        value: MediaQuery.disableAnimationsOf(context)
+                            ? 0.75
+                            : null,
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
+                    )
+                  : const Icon(Icons.login_rounded),
+              label: Text(context.l10n.auth_validateAndLogin),
+              style: FilledButton.styleFrom(
+                minimumSize: const Size.fromHeight(52),
+              ),
             ),
           ),
 
@@ -220,11 +219,16 @@ class _TokenLoginCardState extends ConsumerState<TokenLoginCard> {
                     color: theme.colorScheme.primary,
                   ),
                   const SizedBox(width: 4),
-                  Text(
-                    context.l10n.auth_tokenGuide,
-                    style: TextStyle(
-                      color: theme.colorScheme.primary,
-                      fontSize: 13,
+                  Flexible(
+                    child: Text(
+                      context.l10n.auth_tokenGuide,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: theme.colorScheme.primary,
+                        fontSize: 13,
+                      ),
                     ),
                   ),
                 ],

@@ -27,9 +27,24 @@ void main() {
       });
 
       expect(windowsAsset.type, ReleaseAssetType.windowsPortable);
-      expect(windowsAsset.supportsInAppInstall, isFalse);
+      expect(windowsAsset.supportsInAppInstall, isTrue);
       expect(macosAsset.type, ReleaseAssetType.macosPortable);
+      expect(macosAsset.supportsInAppInstall, isFalse);
       expect(macosAsset.platform, 'macos');
+    });
+
+    test('detects Android APK as a verified system-installed update', () {
+      final asset = ReleaseAssetInfo.fromGitHubAsset({
+        'name': 'NAI_Launcher_Android_1.0.0+17.apk',
+        'browser_download_url': 'https://example.com/launcher.apk',
+        'size': 456,
+      });
+
+      expect(asset.type, ReleaseAssetType.androidApk);
+      expect(asset.platform, 'android');
+      expect(asset.supportsInAppInstall, isTrue);
+      expect(asset.typeId, 'android-apk');
+      expect(asset.label, 'Android APK');
     });
 
     test('merges manifest metadata with GitHub asset', () {

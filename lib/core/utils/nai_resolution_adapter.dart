@@ -3,7 +3,9 @@ import 'dart:typed_data';
 
 import 'package:image/image.dart' as img;
 
+import '../constants/api_constants.dart';
 import 'isolate_pool.dart';
+import 'pica_lanczos_resizer.dart';
 
 /// NovelAI 分辨率适配器
 ///
@@ -11,8 +13,12 @@ import 'isolate_pool.dart';
 class NaiResolutionAdapter {
   NaiResolutionAdapter._();
 
+  // NovelAI web build ae6a6aa-production, verified 2026-07-16.
   /// 当前官网图像生成请求的最大像素面积。
-  static const int officialMaxPixels = 3145728;
+  static const int officialMaxPixels = ApiConstants.maxImagePixels;
+
+  /// 当前官网图像编辑器工作画布的最长边限制。
+  static const int officialEditorMaxSide = 2560;
 
   /// 当前官网普通 NAI 模型导入基准边。
   static const int officialNaiTargetLongSide = 1216;
@@ -23,6 +29,7 @@ class NaiResolutionAdapter {
   static const int officialStableDiffusionTargetShortSide = 512;
 
   static const int _officialGridSize = 64;
+  static const int generationMaxSide = 4096;
 
   /// 检查尺寸是否已经兼容 NAI（宽高均为 64 的倍数）
   static bool isCompatible(int width, int height) {
@@ -32,6 +39,60 @@ class NaiResolutionAdapter {
   /// 检查尺寸是否可被官网导入逻辑直接使用。
   static bool isOfficialImportCompatible(int width, int height) {
     return isCompatible(width, height) && width * height <= officialMaxPixels;
+  }
+
+  /// 检查尺寸是否可直接用于图像生成请求。
+  static bool isGenerationCompatible(int width, int height) {
+    return isOfficialImportCompatible(width, height) &&
+        width <= generationMaxSide &&
+        height <= generationMaxSide;
+  }
+
+  /// 返回非法生成尺寸及其最接近的合法替代值；合法时返回 null。
+  static NaiGenerationResolutionIssue? validateGenerationResolution(
+    int width,
+    int height,
+  ) {
+    if (isGenerationCompatible(width, height)) return null;
+    final suggested = findClosestResolution(width, height);
+    return NaiGenerationResolutionIssue(
+      width: width,
+      height: height,
+      suggestedWidth: suggested.width,
+      suggestedHeight: suggested.height,
+    );
+  }
+
+  /// 计算导入后应使用的请求分辨率。
+  ///
+  /// 面积在上限内时保持原尺寸只做 64 对齐，超限时收敛到最接近的合法尺寸；
+  /// SD 族旧模型没有高分辨率可用，仍走官网基准边。
+  static ({int width, int height, double scaleFactor}) findImportResolution(
+    int sourceWidth,
+    int sourceHeight, {
+    int? currentWidth,
+    int? currentHeight,
+    bool isStableDiffusionFamily = false,
+  }) {
+    final reused = _reuseCurrentRequestSize(
+      sourceWidth,
+      sourceHeight,
+      currentWidth: currentWidth,
+      currentHeight: currentHeight,
+    );
+    if (reused != null) return reused;
+
+    if (isStableDiffusionFamily) {
+      return findOfficialImportResolution(
+        sourceWidth,
+        sourceHeight,
+        currentWidth: currentWidth,
+        currentHeight: currentHeight,
+        isStableDiffusionFamily: true,
+      );
+    }
+
+    return findClosestResolution(sourceWidth, sourceHeight);
   }
 
   /// 按当前 NovelAI Web 的 Image2Image 导入逻辑计算目标分辨率。
@@ -47,8 +108,15 @@ class NaiResolutionAdapter {
     int? currentHeight,
     bool isStableDiffusionFamily = false,
   }) {
-    final sourceAspect = sourceWidth / sourceHeight;
-    final isLandscape = sourceAspect > 1;
+    final reused = _reuseCurrentRequestSize(
+      sourceWidth,
+      sourceHeight,
+      currentWidth: currentWidth,
+      currentHeight: currentHeight,
+    );
+    if (reused != null) return reused;
+
+    final isLandscape = sourceWidth / sourceHeight > 1;
 
     var orientedWidth = sourceWidth;
     var orientedHeight = sourceHeight;
@@ -59,28 +127,6 @@ class NaiResolutionAdapter {
     }
 
     final orientedAspect = orientedWidth / orientedHeight;
-    final currentMatchesAspect =
-        currentWidth != null &&
-        currentHeight != null &&
-        currentWidth / currentHeight == sourceAspect;
-    final fitsCurrent =
-        currentWidth != null &&
-        currentHeight != null &&
-        orientedWidth <= currentWidth &&
-        orientedHeight <= currentHeight;
-
-    if (currentMatchesAspect && fitsCurrent) {
-      return (
-        width: currentWidth,
-        height: currentHeight,
-        scaleFactor: _combinedScale(
-          sourceWidth,
-          sourceHeight,
-          currentWidth,
-          currentHeight,
-        ),
-      );
-    }
 
     if (!isOfficialImportCompatible(orientedWidth, orientedHeight)) {
       final targetLongSide = isStableDiffusionFamily
@@ -135,57 +181,58 @@ class NaiResolutionAdapter {
     );
   }
 
-  /// 找到最接近的 NAI 兼容分辨率
+  /// 找到最接近的合法生成分辨率。
   ///
-  /// 策略：
-  ///   1. 先检查是否已经是 64 倍数 → 直接返回
-  ///   2. 将宽高分别舍入到最近的 64 倍数
-  ///   3. 在 4 种组合（floor/ceil × floor/ceil）中选面积变化和宽高比偏移最小的
-  ///   4. 保证结果 >= 64 且 <= 4096
+  /// 候选值同时满足 64-grid、最长边和总像素限制。穷举最多 4096 个
+  /// grid 组合，避免零值、负数或超大输入产生仍不可用的建议。
   static ({int width, int height, double scaleFactor}) findClosestResolution(
     int sourceWidth,
     int sourceHeight,
   ) {
-    if (isCompatible(sourceWidth, sourceHeight)) {
+    if (isGenerationCompatible(sourceWidth, sourceHeight)) {
       return (width: sourceWidth, height: sourceHeight, scaleFactor: 1.0);
     }
 
-    // 对宽高分别做 floor/ceil 到 64 倍数，取最优组合
-    final wFloor = _floorTo64(sourceWidth);
-    final wCeil = _ceilTo64(sourceWidth);
-    final hFloor = _floorTo64(sourceHeight);
-    final hCeil = _ceilTo64(sourceHeight);
-
-    final candidates = [
-      (wFloor, hFloor),
-      (wFloor, hCeil),
-      (wCeil, hFloor),
-      (wCeil, hCeil),
-    ];
-
-    var bestW = wFloor;
-    var bestH = hFloor;
+    final normalizedWidth = sourceWidth.clamp(1, generationMaxSide);
+    final normalizedHeight = sourceHeight.clamp(1, generationMaxSide);
+    final sourceAspect = normalizedWidth / normalizedHeight;
+    var bestWidth = _officialGridSize;
+    var bestHeight = _officialGridSize;
     var bestScore = double.infinity;
 
-    for (final (cw, ch) in candidates) {
-      if (cw < 64 || ch < 64 || cw > 4096 || ch > 4096) continue;
-
-      // 评分 = 面积变化比 + 宽高比偏移（加权）
-      final areaRatio = (cw * ch) / (sourceWidth * sourceHeight);
-      final arSource = sourceWidth / sourceHeight;
-      final arCandidate = cw / ch;
-      final arDiff = (arSource - arCandidate).abs() / arSource;
-      final score = (areaRatio - 1.0).abs() + arDiff * 2.0;
-
-      if (score < bestScore) {
-        bestScore = score;
-        bestW = cw;
-        bestH = ch;
+    for (
+      var candidateWidth = _officialGridSize;
+      candidateWidth <= generationMaxSide;
+      candidateWidth += _officialGridSize
+    ) {
+      for (
+        var candidateHeight = _officialGridSize;
+        candidateHeight <= generationMaxSide;
+        candidateHeight += _officialGridSize
+      ) {
+        if (!isGenerationCompatible(candidateWidth, candidateHeight)) {
+          continue;
+        }
+        final widthDifference =
+            (candidateWidth - normalizedWidth).abs() / normalizedWidth;
+        final heightDifference =
+            (candidateHeight - normalizedHeight).abs() / normalizedHeight;
+        final candidateAspect = candidateWidth / candidateHeight;
+        final aspectDifference =
+            (candidateAspect - sourceAspect).abs() / sourceAspect;
+        final score = widthDifference + heightDifference + aspectDifference * 2;
+        if (score < bestScore) {
+          bestScore = score;
+          bestWidth = candidateWidth;
+          bestHeight = candidateHeight;
+        }
       }
     }
 
-    final scale = _combinedScale(sourceWidth, sourceHeight, bestW, bestH);
-    return (width: bestW, height: bestH, scaleFactor: scale);
+    final scale = sourceWidth > 0 && sourceHeight > 0
+        ? _combinedScale(sourceWidth, sourceHeight, bestWidth, bestHeight)
+        : 1.0;
+    return (width: bestWidth, height: bestHeight, scaleFactor: scale);
   }
 
   /// 将图像字节数据适配到最近的 NAI 兼容分辨率
@@ -209,12 +256,16 @@ class NaiResolutionAdapter {
     int? currentHeight,
     bool isStableDiffusionFamily = false,
   }) {
-    final decoded = img.decodeImage(imageBytes);
-    if (decoded == null) return null;
+    img.Image? decoded;
+    final imageSize = readImageSize(imageBytes);
+    if (imageSize == null) {
+      decoded = img.decodeImage(imageBytes);
+      if (decoded == null) return null;
+    }
 
-    final srcW = decoded.width;
-    final srcH = decoded.height;
-    final target = findOfficialImportResolution(
+    final srcW = imageSize?.$1 ?? decoded!.width;
+    final srcH = imageSize?.$2 ?? decoded!.height;
+    final target = findImportResolution(
       srcW,
       srcH,
       currentWidth: currentWidth,
@@ -222,7 +273,7 @@ class NaiResolutionAdapter {
       isStableDiffusionFamily: isStableDiffusionFamily,
     );
 
-    if (srcW == target.width && srcH == target.height && _isPng(imageBytes)) {
+    if (srcW == target.width && srcH == target.height) {
       return NaiAdaptedImage(
         bytes: imageBytes,
         width: srcW,
@@ -233,7 +284,9 @@ class NaiResolutionAdapter {
       );
     }
 
-    final resized = _copyResizeLanczos3(
+    decoded ??= img.decodeImage(imageBytes);
+    if (decoded == null) return null;
+    final resized = PicaLanczosResizer.resizeImage(
       decoded,
       width: target.width,
       height: target.height,
@@ -261,12 +314,12 @@ class NaiResolutionAdapter {
     int? currentHeight,
     bool isStableDiffusionFamily = false,
   }) {
-    final decoded = img.decodeImage(imageBytes);
-    if (decoded == null) return null;
+    final imageSize = readImageSize(imageBytes);
+    if (imageSize == null) return null;
 
-    final srcW = decoded.width;
-    final srcH = decoded.height;
-    final target = findOfficialImportResolution(
+    final srcW = imageSize.$1;
+    final srcH = imageSize.$2;
+    final target = findImportResolution(
       srcW,
       srcH,
       currentWidth: currentWidth,
@@ -291,6 +344,11 @@ class NaiResolutionAdapter {
     required int targetWidth,
     required int targetHeight,
   }) {
+    // 先读元数据：尺寸已匹配时不解码、不重采样也不重新编码。
+    if (_imageSizeMatches(imageBytes, targetWidth, targetHeight)) {
+      return imageBytes;
+    }
+
     final img.Image? decoded;
     try {
       decoded = img.decodeImage(imageBytes);
@@ -299,19 +357,18 @@ class NaiResolutionAdapter {
     }
     if (decoded == null) return null;
 
-    if (decoded.width == targetWidth &&
-        decoded.height == targetHeight &&
-        _isPng(imageBytes)) {
+    if (decoded.width == targetWidth && decoded.height == targetHeight) {
       return imageBytes;
     }
 
-    final resized = _copyResizeLanczos3(
+    final resized = PicaLanczosResizer.resizeImage(
       decoded,
       width: targetWidth,
       height: targetHeight,
     );
 
-    return Uint8List.fromList(img.encodePng(resized));
+    // 仅作为请求载体、不落盘：用最快压缩等级换编码时间（像素无损）。
+    return Uint8List.fromList(img.encodePng(resized, level: 1));
   }
 
   /// 异步版本，适合大图在 isolate 中处理
@@ -348,12 +405,100 @@ class NaiResolutionAdapter {
     );
   }
 
+  /// 构造官网编辑器语义下的独立工作图。
+  ///
+  /// 最长边超过 2560 时先等比缩小；Inpaint/Mask 编辑随后把宽高
+  /// 分别向上对齐到 64，并将图像绘制到完整工作画布。
+  static NaiEditorImage? prepareImageForEditor(
+    Uint8List imageBytes, {
+    required bool alignForInpaint,
+  }) {
+    img.Image? decoded;
+    final imageSize = readImageSize(imageBytes);
+    if (imageSize == null) {
+      decoded = img.decodeImage(imageBytes);
+      if (decoded == null) return null;
+    }
+
+    final originalWidth = imageSize?.$1 ?? decoded!.width;
+    final originalHeight = imageSize?.$2 ?? decoded!.height;
+    var width = originalWidth;
+    var height = originalHeight;
+    final longestSide = math.max(width, height);
+    if (longestSide > officialEditorMaxSide) {
+      final scale = officialEditorMaxSide / longestSide;
+      width = math.max(1, (width * scale).round());
+      height = math.max(1, (height * scale).round());
+    }
+    if (alignForInpaint) {
+      width = _ceilToGrid(width);
+      height = _ceilToGrid(height);
+    }
+
+    final wasNormalized = width != originalWidth || height != originalHeight;
+    if (!wasNormalized) {
+      return NaiEditorImage(
+        bytes: imageBytes,
+        width: width,
+        height: height,
+        originalWidth: originalWidth,
+        originalHeight: originalHeight,
+        wasNormalized: false,
+        resizeMode: NaiEditorResizeMode.passthrough,
+      );
+    }
+
+    // Small Inpaint sources only need ceil64. The editor materializes this
+    // branch once with Canvas FilterQuality.medium on the UI isolate.
+    if (longestSide <= officialEditorMaxSide) {
+      return NaiEditorImage(
+        bytes: imageBytes,
+        width: width,
+        height: height,
+        originalWidth: originalWidth,
+        originalHeight: originalHeight,
+        wasNormalized: true,
+        resizeMode: NaiEditorResizeMode.medium,
+      );
+    }
+
+    decoded ??= img.decodeImage(imageBytes);
+    if (decoded == null) return null;
+    final resized = PicaLanczosResizer.resizeImage(
+      decoded,
+      width: width,
+      height: height,
+    );
+    return NaiEditorImage(
+      bytes: Uint8List.fromList(img.encodePng(resized, level: 1)),
+      width: width,
+      height: height,
+      originalWidth: originalWidth,
+      originalHeight: originalHeight,
+      wasNormalized: true,
+      resizeMode: NaiEditorResizeMode.picaLanczos3,
+    );
+  }
+
+  static Future<NaiEditorImage?> prepareImageForEditorAsync(
+    Uint8List imageBytes, {
+    required bool alignForInpaint,
+  }) {
+    return ComputeGate().runIsolate(
+      () => prepareImageForEditor(imageBytes, alignForInpaint: alignForInpaint),
+    );
+  }
+
   /// 异步请求归一化版本，避免大图 Lanczos3 resize 阻塞 UI isolate。
   static Future<Uint8List?> normalizeImageForRequestAsync(
     Uint8List imageBytes, {
     required int targetWidth,
     required int targetHeight,
   }) {
+    // 尺寸已匹配时直接短路，连 isolate 往返都省掉。
+    if (_imageSizeMatches(imageBytes, targetWidth, targetHeight)) {
+      return Future.value(imageBytes);
+    }
     return ComputeGate().runIsolate(
       () => normalizeImageForRequest(
         imageBytes,
@@ -365,14 +510,47 @@ class NaiResolutionAdapter {
 
   // ==================== 内部方法 ====================
 
-  static int _floorTo64(int value) {
-    final result = (value ~/ 64) * 64;
-    return result.clamp(64, 4096);
+  /// 源图比例与当前请求尺寸一致且不更大时，官网会沿用当前尺寸并在发送前放大源图。
+  static ({int width, int height, double scaleFactor})? _reuseCurrentRequestSize(
+    int sourceWidth,
+    int sourceHeight, {
+    required int? currentWidth,
+    required int? currentHeight,
+  }) {
+    if (currentWidth == null || currentHeight == null) return null;
+
+    final sourceAspect = sourceWidth / sourceHeight;
+    if (currentWidth / currentHeight != sourceAspect) return null;
+
+    var orientedWidth = sourceWidth;
+    var orientedHeight = sourceHeight;
+    if (sourceAspect > 1) {
+      final temp = orientedWidth;
+      orientedWidth = orientedHeight;
+      orientedHeight = temp;
+    }
+    if (orientedWidth > currentWidth || orientedHeight > currentHeight) {
+      return null;
+    }
+
+    return (
+      width: currentWidth,
+      height: currentHeight,
+      scaleFactor: _combinedScale(
+        sourceWidth,
+        sourceHeight,
+        currentWidth,
+        currentHeight,
+      ),
+    );
   }
 
-  static int _ceilTo64(int value) {
-    final result = ((value + 63) ~/ 64) * 64;
-    return result.clamp(64, 4096);
+  static int _ceilToGrid(int value) {
+    return math.max(
+      _officialGridSize,
+      ((value + _officialGridSize - 1) ~/ _officialGridSize) *
+          _officialGridSize,
+    );
   }
 
   static int _nearestOfficialGrid(double value) {
@@ -395,123 +573,73 @@ class NaiResolutionAdapter {
         bytes[7] == 0x0A;
   }
 
+  static bool _imageSizeMatches(Uint8List bytes, int width, int height) {
+    final size = readImageSize(bytes);
+    return size != null && size.$1 == width && size.$2 == height;
+  }
+
+  /// 只解析编码头获取画布尺寸，不解码任何像素帧。
+  static (int, int)? readImageSize(Uint8List bytes) {
+    final pngSize = _tryReadPngSize(bytes);
+    if (pngSize != null) {
+      return pngSize;
+    }
+    try {
+      final decoder = img.findDecoderForData(bytes);
+      final info = decoder?.startDecode(bytes);
+      if (info == null || info.width <= 0 || info.height <= 0) {
+        return null;
+      }
+      return (info.width, info.height);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// 从 PNG IHDR 直接读取宽高（签名 8 字节 + 长度 4 字节 + 'IHDR' + w/h）。
+  /// 非 PNG 或头部异常时返回 null，由调用方回退到完整解码。
+  static (int, int)? _tryReadPngSize(Uint8List bytes) {
+    if (bytes.length < 24 || !_isPng(bytes)) {
+      return null;
+    }
+    if (bytes[12] != 0x49 ||
+        bytes[13] != 0x48 ||
+        bytes[14] != 0x44 ||
+        bytes[15] != 0x52) {
+      return null;
+    }
+    final width =
+        (bytes[16] << 24) | (bytes[17] << 16) | (bytes[18] << 8) | bytes[19];
+    final height =
+        (bytes[20] << 24) | (bytes[21] << 16) | (bytes[22] << 8) | bytes[23];
+    if (width <= 0 || height <= 0) {
+      return null;
+    }
+    return (width, height);
+  }
+
   static double _combinedScale(int srcW, int srcH, int dstW, int dstH) {
     final scaleW = dstW / srcW;
     final scaleH = dstH / srcH;
     return (scaleW + scaleH) / 2.0;
   }
-
-  static img.Image _copyResizeLanczos3(
-    img.Image source, {
-    required int width,
-    required int height,
-  }) {
-    if (source.width == width && source.height == height) {
-      return source.clone();
-    }
-
-    final target = img.Image(
-      width: width,
-      height: height,
-      numChannels: source.hasAlpha ? 4 : 3,
-    );
-    final xContributions = _buildLanczosContributions(source.width, width);
-    final yContributions = _buildLanczosContributions(source.height, height);
-
-    for (var y = 0; y < height; y++) {
-      final ySamples = yContributions[y];
-
-      for (var x = 0; x < width; x++) {
-        final xSamples = xContributions[x];
-
-        var red = 0.0;
-        var green = 0.0;
-        var blue = 0.0;
-        var alpha = 0.0;
-
-        for (final ySample in ySamples) {
-          for (final xSample in xSamples) {
-            final weight = xSample.weight * ySample.weight;
-            final pixel = source.getPixel(xSample.index, ySample.index);
-
-            red += pixel.r * weight;
-            green += pixel.g * weight;
-            blue += pixel.b * weight;
-            alpha += pixel.a * weight;
-          }
-        }
-
-        target.setPixelRgba(
-          x,
-          y,
-          _clampChannel(red),
-          _clampChannel(green),
-          _clampChannel(blue),
-          _clampChannel(alpha),
-        );
-      }
-    }
-
-    return target;
-  }
-
-  static List<List<_LanczosSample>> _buildLanczosContributions(
-    int sourceSize,
-    int targetSize,
-  ) {
-    final scale = sourceSize / targetSize;
-    return List.generate(targetSize, (targetIndex) {
-      final sourcePosition = (targetIndex + 0.5) * scale - 0.5;
-      final sampleStart = (sourcePosition - 3).ceil();
-      final sampleEnd = (sourcePosition + 3).floor();
-      final samples = <_LanczosSample>[];
-      var totalWeight = 0.0;
-
-      for (var sample = sampleStart; sample <= sampleEnd; sample++) {
-        final weight = _lanczos3(sourcePosition - sample);
-        if (weight == 0) continue;
-
-        final clampedSample = sample.clamp(0, sourceSize - 1);
-        samples.add(_LanczosSample(clampedSample, weight));
-        totalWeight += weight;
-      }
-
-      if (totalWeight.abs() < 1e-12) {
-        final nearest = sourcePosition.round().clamp(0, sourceSize - 1);
-        return [_LanczosSample(nearest, 1)];
-      }
-
-      return [
-        for (final sample in samples)
-          _LanczosSample(sample.index, sample.weight / totalWeight),
-      ];
-    });
-  }
-
-  static double _lanczos3(double value) {
-    final distance = value.abs();
-    if (distance == 0) return 1;
-    if (distance >= 3) return 0;
-    return _sinc(distance) * _sinc(distance / 3);
-  }
-
-  static double _sinc(double value) {
-    if (value == 0) return 1;
-    final radians = math.pi * value;
-    return math.sin(radians) / radians;
-  }
-
-  static int _clampChannel(double value) {
-    if (value.isNaN) return 0;
-    return value.round().clamp(0, 255);
-  }
 }
 
-class _LanczosSample {
-  const _LanczosSample(this.index, this.weight);
+class NaiGenerationResolutionIssue {
+  const NaiGenerationResolutionIssue({
+    required this.width,
+    required this.height,
+    required this.suggestedWidth,
+    required this.suggestedHeight,
+  });
 
-  final int index;
-  final double weight;
+  final int width;
+  final int height;
+  final int suggestedWidth;
+  final int suggestedHeight;
+
+  String get errorCode =>
+      'GENERATION_ERROR_INVALID_RESOLUTION|$width|$height|$suggestedWidth|$suggestedHeight';
 }
 
 /// 适配后的图像数据
@@ -568,4 +696,26 @@ class NaiImportImageInfo {
     if (!sizeChanged) return '无需调整';
     return '$originalWidth×$originalHeight → $width×$height';
   }
+}
+
+enum NaiEditorResizeMode { passthrough, medium, picaLanczos3 }
+
+class NaiEditorImage {
+  const NaiEditorImage({
+    required this.bytes,
+    required this.width,
+    required this.height,
+    required this.originalWidth,
+    required this.originalHeight,
+    required this.wasNormalized,
+    required this.resizeMode,
+  });
+
+  final Uint8List bytes;
+  final int width;
+  final int height;
+  final int originalWidth;
+  final int originalHeight;
+  final bool wasNormalized;
+  final NaiEditorResizeMode resizeMode;
 }

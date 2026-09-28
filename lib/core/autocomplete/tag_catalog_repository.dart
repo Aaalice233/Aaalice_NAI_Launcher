@@ -1,0 +1,418 @@
+import 'package:sqflite_common_ffi/sqflite_ffi.dart';
+
+import '../database/asset_database_manager.dart';
+import 'completion_models.dart';
+
+enum BundledTranslationMode {
+  missing(0),
+  override(1);
+
+  const BundledTranslationMode(this.databaseValue);
+
+  final int databaseValue;
+}
+
+class TagCatalogRecord {
+  const TagCatalogRecord({
+    required this.canonicalTag,
+    required this.category,
+    required this.postCount,
+  });
+
+  final String canonicalTag;
+  final TagCategory category;
+  final int postCount;
+}
+
+class TagCatalogRepository implements CompletionSource {
+  TagCatalogRepository({Database? database}) : _database = database;
+
+  Database? _database;
+  Future<Database>? _opening;
+
+  Future<void> initialize() async {
+    if (_database != null) return;
+    final opening = _opening ??= AssetDatabaseManager.instance
+        .openTagCatalogDatabase();
+    try {
+      _database = await opening;
+    } finally {
+      if (identical(_opening, opening)) _opening = null;
+    }
+  }
+
+  @override
+  Future<List<CompletionCandidate>> search(CompletionQuery query) async {
+    final normalized = query.token.trim().toLowerCase();
+    if ((normalized.isEmpty && query.categoryFilter == null) ||
+        query.isChinese) {
+      return const [];
+    }
+    await initialize();
+
+    final requestedLimit =
+        normalized.length == 1 && CompletionResultLimits.isAll(query.limit)
+        ? CompletionResultLimits.oneCharacter
+        : query.limit;
+    final categoryValues = _catalogCategoryValues(query.categoryFilter);
+    final categoryClause = categoryValues.isEmpty
+        ? ''
+        : 'AND t.category IN (${List.filled(categoryValues.length, '?').join(',')})';
+    final List<Map<String, Object?>> rows;
+    if (normalized.isEmpty) {
+      rows = await _database!.rawQuery(
+        '''
+        SELECT t.name AS term, 0 AS kind, t.id, t.name, t.category, t.post_count
+        FROM tags t
+        WHERE 1 = 1 $categoryClause
+        ORDER BY t.post_count DESC, t.name ASC
+        LIMIT ?
+        ''',
+        [...categoryValues, requestedLimit],
+      );
+    } else {
+      final expression = _ftsExpression(normalized);
+      if (expression.isEmpty) return const [];
+      rows = await _database!.rawQuery(
+        '''
+      SELECT f.term, f.kind, t.id, t.name, t.category, t.post_count
+      FROM tag_search f
+      JOIN tags t ON t.id = f.tag_id
+      WHERE tag_search MATCH ? $categoryClause
+      ORDER BY bm25(tag_search), t.post_count DESC, t.name ASC
+      LIMIT ?
+      ''',
+        [expression, ...categoryValues, (requestedLimit * 5).clamp(20, 500000)],
+      );
+    }
+
+    final byId = <int, Map<String, Object?>>{};
+    for (final row in rows) {
+      final id = row['id'] as int;
+      final current = byId[id];
+      if (current == null ||
+          _rowMatchPriority(row, normalized) <
+              _rowMatchPriority(current, normalized)) {
+        byId[id] = row;
+      }
+    }
+    if (byId.isEmpty) return const [];
+
+    final aliasesById = await _loadAliases(byId.keys.toList());
+    final candidates = byId.values
+        .map((row) {
+          final category = TagCategory.fromCatalog(row['category'] as int);
+          if (category == null) return null;
+          final term = row['term'] as String;
+          final kind = row['kind'] as int;
+          final matchKind = _matchKind(term, kind, normalized);
+          return CompletionCandidate(
+            canonicalTag: row['name'] as String,
+            category: category,
+            postCount: row['post_count'] as int,
+            aliases: aliasesById[row['id'] as int] ?? const [],
+            matchedAlias: kind == 1 ? term : null,
+            matchKind: matchKind,
+            sources: const {CompletionSourceKind.base},
+          );
+        })
+        .whereType<CompletionCandidate>()
+        .toList();
+    candidates.sort((a, b) {
+      final match = a.matchKind.index.compareTo(b.matchKind.index);
+      if (match != 0) return match;
+      final count = b.postCount.compareTo(a.postCount);
+      if (count != 0) return count;
+      return a.canonicalTag.compareTo(b.canonicalTag);
+    });
+    return candidates.take(requestedLimit).toList(growable: false);
+  }
+
+  Future<Map<int, List<String>>> _loadAliases(List<int> ids) async {
+    if (ids.isEmpty) return const {};
+    final result = <int, List<String>>{};
+    // SQLite builds use different host-parameter limits. Fixed-size batches
+    // keep exhaustive searches portable while avoiding one query per row.
+    for (var offset = 0; offset < ids.length; offset += 400) {
+      final chunk = ids.skip(offset).take(400).toList(growable: false);
+      final placeholders = List.filled(chunk.length, '?').join(',');
+      final rows = await _database!.rawQuery(
+        'SELECT tag_id, alias FROM aliases WHERE tag_id IN ($placeholders) ORDER BY alias',
+        chunk,
+      );
+      for (final row in rows) {
+        result
+            .putIfAbsent(row['tag_id'] as int, () => <String>[])
+            .add(row['alias'] as String);
+      }
+    }
+    return result;
+  }
+
+  Future<int?> postCount(String canonicalTag) async {
+    final records = await recordsByCanonicalTag([canonicalTag]);
+    return records[canonicalTag.trim().toLowerCase()]?.postCount;
+  }
+
+  Future<Map<String, TagCatalogRecord>> resolveExactTags(
+    Iterable<String> terms,
+  ) async {
+    final normalized = terms
+        .map(
+          (term) => term.trim().toLowerCase().replaceAll(RegExp(r'\s+'), '_'),
+        )
+        .where((term) => term.isNotEmpty)
+        .toSet()
+        .toList(growable: false);
+    if (normalized.isEmpty) return const {};
+    await initialize();
+
+    final result = <String, TagCatalogRecord>{};
+    for (var offset = 0; offset < normalized.length; offset += 400) {
+      final chunk = normalized.skip(offset).take(400).toList(growable: false);
+      final placeholders = List.filled(chunk.length, '?').join(',');
+      final rows = await _database!.rawQuery(
+        '''
+        SELECT t.name AS term, t.name, t.category, t.post_count, 0 AS kind
+        FROM tags t
+        WHERE t.name IN ($placeholders)
+        UNION ALL
+        SELECT a.alias AS term, t.name, t.category, t.post_count, 1 AS kind
+        FROM aliases a
+        JOIN tags t ON t.id = a.tag_id
+        WHERE a.alias IN ($placeholders)
+        ORDER BY kind ASC, post_count DESC
+        ''',
+        [...chunk, ...chunk],
+      );
+      for (final row in rows) {
+        final term = row['term'] as String;
+        if (result.containsKey(term)) continue;
+        final category = TagCategory.fromCatalog(row['category'] as int);
+        if (category == null) continue;
+        result[term] = TagCatalogRecord(
+          canonicalTag: row['name'] as String,
+          category: category,
+          postCount: row['post_count'] as int,
+        );
+      }
+    }
+    return result;
+  }
+
+  Future<Map<String, TagCatalogRecord>> recordsByCanonicalTag(
+    Iterable<String> canonicalTags,
+  ) async {
+    final names = canonicalTags
+        .map((tag) => tag.trim().toLowerCase())
+        .where((tag) => tag.isNotEmpty)
+        .toSet()
+        .toList(growable: false);
+    if (names.isEmpty) return const {};
+    await initialize();
+
+    final result = <String, TagCatalogRecord>{};
+    for (var offset = 0; offset < names.length; offset += 400) {
+      final chunk = names.skip(offset).take(400).toList(growable: false);
+      final placeholders = List.filled(chunk.length, '?').join(',');
+      final rows = await _database!.rawQuery(
+        'SELECT name, category, post_count FROM tags '
+        'WHERE name IN ($placeholders)',
+        chunk,
+      );
+      for (final row in rows) {
+        final category = TagCategory.fromCatalog(
+          (row['category'] as num).toInt(),
+        );
+        if (category == null) continue;
+        final name = row['name'] as String;
+        result[name] = TagCatalogRecord(
+          canonicalTag: name,
+          category: category,
+          postCount: (row['post_count'] as num).toInt(),
+        );
+      }
+    }
+    return result;
+  }
+
+  Future<Map<String, String>> resolveTranslations(
+    Iterable<String> terms, {
+    required BundledTranslationMode mode,
+  }) async {
+    final normalized = terms
+        .map((term) => term.trim().toLowerCase().replaceAll(' ', '_'))
+        .where((term) => term.isNotEmpty)
+        .toSet()
+        .toList(growable: false);
+    if (normalized.isEmpty) return const {};
+    await initialize();
+
+    final result = <String, String>{};
+    for (var offset = 0; offset < normalized.length; offset += 400) {
+      final chunk = normalized.skip(offset).take(400).toList(growable: false);
+      final placeholders = List.filled(chunk.length, '?').join(',');
+      final rows = await _database!.rawQuery(
+        'SELECT tag, zh_cn FROM zh_translations '
+        'WHERE mode = ? AND tag IN ($placeholders)',
+        [mode.databaseValue, ...chunk],
+      );
+      for (final row in rows) {
+        result[row['tag'] as String] = (row['zh_cn'] as String).trim();
+      }
+    }
+    return result;
+  }
+
+  /// Searches the compact bundled translation index by either tag or Chinese
+  /// label. Records missing from the full tag catalog remain usable with safe
+  /// general-category defaults instead of disappearing from autocomplete.
+  Future<List<CompletionCandidate>> searchTranslations(
+    CompletionQuery query,
+  ) async {
+    final token = query.token.trim().toLowerCase();
+    if (token.isEmpty) return const [];
+    await initialize();
+
+    final requestedLimit =
+        token.runes.length == 1 && CompletionResultLimits.isAll(query.limit)
+        ? CompletionResultLimits.oneCharacter
+        : query.limit;
+    final escaped = _escapeLike(token);
+    final field = query.isChinese ? 'zh_cn' : 'tag';
+    final rows = await _database!.rawQuery(
+      '''
+      SELECT tag, zh_cn,
+        CASE
+          WHEN $field = ? THEN 0
+          WHEN $field LIKE ? ESCAPE '\\' THEN 1
+          ELSE 2
+        END AS match_rank
+      FROM zh_translations
+      WHERE $field = ?
+         OR $field LIKE ? ESCAPE '\\'
+         OR $field LIKE ? ESCAPE '\\'
+      ORDER BY match_rank, tag ASC
+      LIMIT ?
+      ''',
+      [token, '$escaped%', token, '$escaped%', '%$escaped%', requestedLimit],
+    );
+    if (rows.isEmpty) return const [];
+
+    final records = await recordsByCanonicalTag(
+      rows.map((row) => row['tag'] as String),
+    );
+    final candidates = <CompletionCandidate>[];
+    for (final row in rows) {
+      final tag = row['tag'] as String;
+      final record = records[tag];
+      final category = record?.category ?? TagCategory.general;
+      if (query.categoryFilter != null && query.categoryFilter != category) {
+        continue;
+      }
+      final rank = (row['match_rank'] as num).toInt();
+      candidates.add(
+        CompletionCandidate(
+          canonicalTag: tag,
+          category: category,
+          postCount: record?.postCount ?? 0,
+          translation: row['zh_cn'] as String,
+          matchKind: query.isChinese
+              ? rank == 0
+                    ? CompletionMatchKind.chineseExact
+                    : rank == 1
+                    ? CompletionMatchKind.chinesePrefix
+                    : CompletionMatchKind.chineseContains
+              : rank == 0
+              ? CompletionMatchKind.englishExact
+              : rank == 1
+              ? CompletionMatchKind.englishPrefix
+              : CompletionMatchKind.fullText,
+          sources: const {CompletionSourceKind.base},
+        ),
+      );
+    }
+    return candidates;
+  }
+
+  Future<Map<String, String>> metadata() async {
+    await initialize();
+    final rows = await _database!.rawQuery('SELECT key, value FROM metadata');
+    return {
+      for (final row in rows) row['key'] as String: row['value'] as String,
+    };
+  }
+
+  Future<Map<TagCategory, int>> categoryCounts() async {
+    await initialize();
+    final rows = await _database!.rawQuery(
+      'SELECT category, COUNT(*) AS count FROM tags GROUP BY category',
+    );
+    final counts = <TagCategory, int>{};
+    for (final row in rows) {
+      final category = TagCategory.fromCatalog(row['category'] as int);
+      if (category == null) continue;
+      final count = row['count'] as int;
+      counts.update(
+        category,
+        (current) => current + count,
+        ifAbsent: () => count,
+      );
+    }
+    return counts;
+  }
+
+  Future<void> dispose() async {
+    await _opening;
+    await _database?.close();
+    _database = null;
+  }
+
+  static String _ftsExpression(String value) {
+    final normalized = value.replaceAll('_', ' ');
+    final tokens = normalized
+        .split(RegExp(r'[^a-z0-9]+'))
+        .where((token) => token.isNotEmpty)
+        .toList();
+    return tokens.map((token) => '"${token.replaceAll('"', '""')}"*').join(' ');
+  }
+
+  static String _escapeLike(String value) => value
+      .replaceAll(r'\', r'\\')
+      .replaceAll('%', r'\%')
+      .replaceAll('_', r'\_');
+
+  static CompletionMatchKind _matchKind(String term, int kind, String query) {
+    if (query.isEmpty) return CompletionMatchKind.fullText;
+    final normalizedTerm = term.toLowerCase();
+    if (kind == 0) {
+      return normalizedTerm == query
+          ? CompletionMatchKind.englishExact
+          : normalizedTerm.startsWith(query)
+          ? CompletionMatchKind.englishPrefix
+          : CompletionMatchKind.fullText;
+    }
+    return normalizedTerm == query
+        ? CompletionMatchKind.aliasExact
+        : normalizedTerm.startsWith(query)
+        ? CompletionMatchKind.aliasPrefix
+        : CompletionMatchKind.fullText;
+  }
+
+  static int _rowMatchPriority(Map<String, Object?> row, String query) {
+    return _matchKind(row['term'] as String, row['kind'] as int, query).index;
+  }
+
+  static List<int> _catalogCategoryValues(TagCategory? category) =>
+      switch (category) {
+        TagCategory.general => const [0, 7],
+        TagCategory.artist => const [1, 8],
+        TagCategory.copyright => const [3, 10],
+        TagCategory.character => const [4, 11],
+        TagCategory.meta => const [5, 14],
+        TagCategory.contributor => const [9],
+        TagCategory.species => const [12],
+        TagCategory.lore => const [15],
+        TagCategory.library || null => const [],
+      };
+}

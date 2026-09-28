@@ -4,6 +4,9 @@ import '../../core/storage/local_storage_service.dart';
 
 part 'layout_state_provider.g.dart';
 
+const fixedTagsNegativePaneMinHeight = 60.0;
+const fixedTagsNegativePaneMaxHeight = 500.0;
+
 /// UI布局状态数据类
 class LayoutState {
   final bool leftPanelExpanded;
@@ -12,10 +15,13 @@ class LayoutState {
   final double rightPanelWidth;
   final double promptAreaHeight;
   final bool promptMaximized;
+  final bool mainNavRailExpanded;
   final bool fixedTagsSidebarExpanded;
   final double fixedTagsSidebarWidth;
   final String fixedTagsSidebarViewMode;
   final double fixedTagsNegativeHeight;
+  final double webLeftPanelWidth;
+  final bool webLeftPanelExpanded;
 
   const LayoutState({
     this.leftPanelExpanded = true,
@@ -24,10 +30,13 @@ class LayoutState {
     this.rightPanelWidth = 280.0,
     this.promptAreaHeight = 200.0,
     this.promptMaximized = false,
+    this.mainNavRailExpanded = false,
     this.fixedTagsSidebarExpanded = false,
     this.fixedTagsSidebarWidth = 280.0,
     this.fixedTagsSidebarViewMode = 'list',
     this.fixedTagsNegativeHeight = 180.0,
+    this.webLeftPanelWidth = 400.0,
+    this.webLeftPanelExpanded = true,
   });
 
   /// 复制并更新部分字段
@@ -38,10 +47,13 @@ class LayoutState {
     double? rightPanelWidth,
     double? promptAreaHeight,
     bool? promptMaximized,
+    bool? mainNavRailExpanded,
     bool? fixedTagsSidebarExpanded,
     double? fixedTagsSidebarWidth,
     String? fixedTagsSidebarViewMode,
     double? fixedTagsNegativeHeight,
+    double? webLeftPanelWidth,
+    bool? webLeftPanelExpanded,
   }) {
     return LayoutState(
       leftPanelExpanded: leftPanelExpanded ?? this.leftPanelExpanded,
@@ -50,6 +62,7 @@ class LayoutState {
       rightPanelWidth: rightPanelWidth ?? this.rightPanelWidth,
       promptAreaHeight: promptAreaHeight ?? this.promptAreaHeight,
       promptMaximized: promptMaximized ?? this.promptMaximized,
+      mainNavRailExpanded: mainNavRailExpanded ?? this.mainNavRailExpanded,
       fixedTagsSidebarExpanded:
           fixedTagsSidebarExpanded ?? this.fixedTagsSidebarExpanded,
       fixedTagsSidebarWidth:
@@ -58,6 +71,8 @@ class LayoutState {
           fixedTagsSidebarViewMode ?? this.fixedTagsSidebarViewMode,
       fixedTagsNegativeHeight:
           fixedTagsNegativeHeight ?? this.fixedTagsNegativeHeight,
+      webLeftPanelWidth: webLeftPanelWidth ?? this.webLeftPanelWidth,
+      webLeftPanelExpanded: webLeftPanelExpanded ?? this.webLeftPanelExpanded,
     );
   }
 }
@@ -65,6 +80,8 @@ class LayoutState {
 /// UI布局状态 Notifier
 @riverpod
 class LayoutStateNotifier extends _$LayoutStateNotifier {
+  Future<void> _mainNavRailPersistence = Future<void>.value();
+
   @override
   LayoutState build() {
     // 从本地存储加载布局状态
@@ -77,10 +94,13 @@ class LayoutStateNotifier extends _$LayoutStateNotifier {
       rightPanelWidth: storage.getRightPanelWidth(),
       promptAreaHeight: storage.getPromptAreaHeight(),
       promptMaximized: storage.getPromptMaximized(),
+      mainNavRailExpanded: storage.getMainNavRailExpanded(),
       fixedTagsSidebarExpanded: storage.getFixedTagsSidebarExpanded(),
       fixedTagsSidebarWidth: storage.getFixedTagsSidebarWidth(),
       fixedTagsSidebarViewMode: storage.getFixedTagsSidebarViewMode(),
       fixedTagsNegativeHeight: storage.getFixedTagsNegativeHeight(),
+      webLeftPanelWidth: storage.getWebLeftPanelWidth(),
+      webLeftPanelExpanded: storage.getWebLeftPanelExpanded(),
     );
   }
 
@@ -148,6 +168,28 @@ class LayoutStateNotifier extends _$LayoutStateNotifier {
     await storage.setPromptMaximized(maximized);
   }
 
+  /// 设置桌面主导航栏展开状态
+  Future<void> setMainNavRailExpanded(bool expanded) async {
+    state = state.copyWith(mainNavRailExpanded: expanded);
+
+    final storage = ref.read(localStorageServiceProvider);
+    final write = _mainNavRailPersistence.then(
+      (_) => storage.setMainNavRailExpanded(expanded),
+    );
+    // A failed write must not block later clicks; this invocation still
+    // awaits `write` directly so its storage error remains observable.
+    _mainNavRailPersistence = write.then<void>(
+      (_) {},
+      onError: (Object _, StackTrace __) {},
+    );
+    await write;
+  }
+
+  /// 切换桌面主导航栏展开状态
+  Future<void> toggleMainNavRail() async {
+    await setMainNavRailExpanded(!state.mainNavRailExpanded);
+  }
+
   /// 设置固定词侧边栏展开状态
   Future<void> setFixedTagsSidebarExpanded(bool expanded) async {
     state = state.copyWith(fixedTagsSidebarExpanded: expanded);
@@ -181,10 +223,29 @@ class LayoutStateNotifier extends _$LayoutStateNotifier {
 
   /// 设置负向固定词区域高度
   Future<void> setFixedTagsNegativeHeight(double height) async {
-    final clamped = height.clamp(60.0, 500.0).toDouble();
+    final clamped = height
+        .clamp(fixedTagsNegativePaneMinHeight, fixedTagsNegativePaneMaxHeight)
+        .toDouble();
     state = state.copyWith(fixedTagsNegativeHeight: clamped);
 
     final storage = ref.read(localStorageServiceProvider);
     await storage.setFixedTagsNegativeHeight(clamped);
+  }
+
+  /// 设置官网式布局左栏宽度
+  Future<void> setWebLeftPanelWidth(double width) async {
+    final clamped = width.clamp(320.0, 560.0).toDouble();
+    state = state.copyWith(webLeftPanelWidth: clamped);
+
+    final storage = ref.read(localStorageServiceProvider);
+    await storage.setWebLeftPanelWidth(clamped);
+  }
+
+  /// 设置官网式布局左栏展开状态
+  Future<void> setWebLeftPanelExpanded(bool expanded) async {
+    state = state.copyWith(webLeftPanelExpanded: expanded);
+
+    final storage = ref.read(localStorageServiceProvider);
+    await storage.setWebLeftPanelExpanded(expanded);
   }
 }

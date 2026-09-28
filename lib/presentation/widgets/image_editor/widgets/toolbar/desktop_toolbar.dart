@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../../core/utils/localization_extension.dart';
+import '../../../../adaptive/interaction_policy.dart';
 import '../../core/editor_state.dart';
 import '../../tools/tool_base.dart';
 import '../../../../widgets/common/themed_divider.dart';
@@ -44,82 +45,94 @@ class DesktopToolbar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final minimumControlExtent = context.interactionPolicy.minimumControlExtent;
 
     return Container(
-      width: 48,
+      width: minimumControlExtent + 8,
       decoration: BoxDecoration(
         color: theme.colorScheme.surface,
         border: Border(
           right: BorderSide(
-            color: theme.dividerColor,
-            width: 1,
+            color: theme.colorScheme.outlineVariant.withValues(alpha: 0.24),
           ),
         ),
       ),
       child: Column(
         children: [
           const SizedBox(height: 8),
-
-          // 工具按钮 - 监听工具切换
-          ValueListenableBuilder<String?>(
-            valueListenable: state.toolNotifier,
-            builder: (context, currentToolId, _) {
-              return Column(
-                children: _visibleTools
-                    .map(
-                      (tool) => _ToolButton(
-                        tool: tool,
-                        isSelected: tool.id == currentToolId,
-                        onTap: () => state.setTool(tool),
-                      ),
-                    )
-                    .toList(),
-              );
-            },
-          ),
-
-          const ThemedDivider(height: 16),
-
-          // 撤销/重做/清空 - 监听历史管理器和图层管理器
-          ListenableBuilder(
-            listenable:
-                Listenable.merge([state.historyManager, state.layerManager]),
-            builder: (context, _) {
-              return Column(
+          Expanded(
+            child: SingleChildScrollView(
+              child: Column(
                 children: [
-                  _ActionButton(
-                    icon: Icons.undo,
-                    tooltip: context.l10n.editor_shortcutUndo,
-                    enabled: state.canUndo,
-                    onTap: onUndo ?? () => state.undo(),
+                  // 工具按钮 - 监听工具切换
+                  ValueListenableBuilder<String?>(
+                    valueListenable: state.toolNotifier,
+                    builder: (context, currentToolId, _) {
+                      return Column(
+                        children: _visibleTools
+                            .map(
+                              (tool) => _ToolButton(
+                                tool: tool,
+                                isSelected: tool.id == currentToolId,
+                                minimumExtent: minimumControlExtent,
+                                onTap: () => state.setTool(tool),
+                              ),
+                            )
+                            .toList(),
+                      );
+                    },
                   ),
-                  _ActionButton(
-                    icon: Icons.redo,
-                    tooltip: context.l10n.editor_shortcutRedo,
-                    enabled: state.canRedo,
-                    onTap: onRedo ?? () => state.redo(),
+                  const ThemedDivider(height: 16),
+                  // 撤销/重做/清空 - 监听历史管理器和图层管理器
+                  ListenableBuilder(
+                    listenable: Listenable.merge([
+                      state.historyManager,
+                      state.layerManager,
+                    ]),
+                    builder: (context, _) {
+                      return Column(
+                        children: [
+                          _ActionButton(
+                            minimumExtent: minimumControlExtent,
+                            icon: Icons.undo,
+                            tooltip: context.l10n.editor_shortcutUndo,
+                            enabled: state.canUndo,
+                            onTap: onUndo ?? () => state.undo(),
+                          ),
+                          _ActionButton(
+                            minimumExtent: minimumControlExtent,
+                            icon: Icons.redo,
+                            tooltip: context.l10n.editor_shortcutRedo,
+                            enabled: state.canRedo,
+                            onTap: onRedo ?? () => state.redo(),
+                          ),
+                          _ActionButton(
+                            minimumExtent: minimumControlExtent,
+                            icon: Icons.delete_outline,
+                            tooltip: onClear != null
+                                ? context.l10n.editor_resetMask
+                                : context.l10n.editor_clearLayer,
+                            enabled: _canClearActiveLayer(state),
+                            onTap:
+                                onClear ??
+                                () => state.clearActiveLayerWithHistory(),
+                          ),
+                          if (onFillMask != null)
+                            _ActionButton(
+                              minimumExtent: minimumControlExtent,
+                              icon: Icons.format_color_fill,
+                              tooltip: context.l10n.editor_fillClosedRegion,
+                              enabled: canFillMask?.call() ?? false,
+                              onTap: onFillMask!,
+                            ),
+                        ],
+                      );
+                    },
                   ),
-                  _ActionButton(
-                    icon: Icons.delete_outline,
-                    tooltip: onClear != null
-                        ? context.l10n.editor_resetMask
-                        : context.l10n.editor_clearLayer,
-                    enabled: _canClearActiveLayer(state),
-                    onTap: onClear ?? () => state.clearActiveLayerWithHistory(),
-                  ),
-                  if (onFillMask != null)
-                    _ActionButton(
-                      icon: Icons.format_color_fill,
-                      tooltip: context.l10n.editor_fillClosedRegion,
-                      enabled: canFillMask?.call() ?? false,
-                      onTap: onFillMask!,
-                    ),
                 ],
-              );
-            },
+              ),
+            ),
           ),
-
-          const Spacer(),
 
           // 缩放控制 - 监听画布控制器
           ListenableBuilder(
@@ -128,6 +141,7 @@ class DesktopToolbar extends StatelessWidget {
               return Column(
                 children: [
                   _ActionButton(
+                    minimumExtent: minimumControlExtent,
                     icon: Icons.zoom_in,
                     tooltip: context.l10n.editor_zoomIn,
                     onTap: () => state.canvasController.zoomIn(),
@@ -140,11 +154,13 @@ class DesktopToolbar extends StatelessWidget {
                     ),
                   ),
                   _ActionButton(
+                    minimumExtent: minimumControlExtent,
                     icon: Icons.zoom_out,
                     tooltip: context.l10n.editor_zoomOut,
                     onTap: () => state.canvasController.zoomOut(),
                   ),
                   _ActionButton(
+                    minimumExtent: minimumControlExtent,
                     icon: Icons.fit_screen,
                     tooltip: context.l10n.editor_fitToWindow,
                     onTap: () =>
@@ -167,10 +183,12 @@ class _ToolButton extends StatelessWidget {
   final EditorTool tool;
   final bool isSelected;
   final VoidCallback onTap;
+  final double minimumExtent;
 
   const _ToolButton({
     required this.tool,
     required this.isSelected,
+    required this.minimumExtent,
     required this.onTap,
   });
 
@@ -191,8 +209,8 @@ class _ToolButton extends StatelessWidget {
             onTap: onTap,
             borderRadius: BorderRadius.circular(8),
             child: Container(
-              width: 40,
-              height: 40,
+              width: minimumExtent,
+              height: minimumExtent,
               alignment: Alignment.center,
               child: Icon(
                 tool.icon,
@@ -216,8 +234,9 @@ class _ToolButton extends StatelessWidget {
   }
 
   String _buildTooltipMessage(BuildContext context) {
-    final shortcut =
-        tool.shortcutKey != null ? ' (${_getShortcutLabel(tool)})' : '';
+    final shortcut = tool.shortcutKey != null
+        ? ' (${_getShortcutLabel(tool)})'
+        : '';
     final base = '${_localizedToolName(context)}$shortcut';
 
     if (tool.id == 'color_picker') {
@@ -232,6 +251,7 @@ class _ToolButton extends StatelessWidget {
       'brush' => context.l10n.editor_toolBrush,
       'eraser' => context.l10n.editor_toolEraser,
       'fill' => context.l10n.editor_toolFill,
+      'magic_wand' => context.l10n.editor_toolMagicWand,
       'line' => context.l10n.editor_toolLine,
       'rect_selection' => context.l10n.editor_toolRectSelect,
       'ellipse_selection' => context.l10n.editor_toolEllipseSelect,
@@ -250,11 +270,13 @@ class _ActionButton extends StatelessWidget {
   final String tooltip;
   final VoidCallback onTap;
   final bool enabled;
+  final double minimumExtent;
 
   const _ActionButton({
     required this.icon,
     required this.tooltip,
     required this.onTap,
+    required this.minimumExtent,
     this.enabled = true,
   });
 
@@ -273,8 +295,8 @@ class _ActionButton extends StatelessWidget {
             onTap: enabled ? onTap : null,
             borderRadius: BorderRadius.circular(8),
             child: Container(
-              width: 40,
-              height: 40,
+              width: minimumExtent,
+              height: minimumExtent,
               alignment: Alignment.center,
               child: Icon(
                 icon,

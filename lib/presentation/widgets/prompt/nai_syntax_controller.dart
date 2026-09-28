@@ -1,31 +1,49 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/utils/alias_parser.dart';
+import '../../../core/utils/character_prompt_block_parser.dart';
+import '../../../core/utils/prompt_edit_document.dart';
+import 'prompt_display_controller.dart';
 
 /// NAI 语法高亮控制器
 /// 继承 TextEditingController，重写 buildTextSpan 实现语法着色
 class NaiSyntaxController extends TextEditingController {
-  /// 是否启用高亮
-  bool highlightEnabled;
+  PromptDisplayController? _displayController;
+  PromptDisplayController get displayController =>
+      _displayController ??= PromptDisplayController(this);
 
-  // 静态正则表达式，编译一次复用多次
-  // 支持三种格式：
-  // 1. weight::content::  - 完整格式 (数字::内容::)
-  // 2. weight::content    - 只有开头权重 (数字::内容)
-  // 3. content::          - 只有结尾 :: (内容::)
-  static final RegExp _weightPatternFull =
-      RegExp(r'(-?\d+\.?\d*)::(.+?)::(?=,|\s|$)');
-  static final RegExp _weightPatternLeading =
-      RegExp(r'(-?\d+\.?\d*)::([a-z0-9_:]+)(?=,|\s|$)');
-  static final RegExp _weightPatternTrailing = RegExp(r'([a-z0-9_:]+)::$');
+  @override
+  void dispose() {
+    _displayController?.dispose();
+    super.dispose();
+  }
 
-  /// NAI 动态随机语法 ||A|B|C|| 或 ||n$$A|B|C||
-  static final RegExp _dynamicRandomPattern =
-      RegExp(r'\|\|([^|]+(?:\|[^|]+)*)\|\|');
+  bool _highlightEnabled;
+  bool _numericEmphasisEnabled;
+
+  static final RegExp _numericPrefixPattern = RegExp(r'-?\d*\.?\d*$');
+
+  /// 是否启用官网强调高亮。
+  bool get highlightEnabled => _highlightEnabled;
+
+  set highlightEnabled(bool value) {
+    if (_highlightEnabled == value) return;
+    _highlightEnabled = value;
+    clearCache();
+  }
+
+  /// 当前模型是否支持 `N::text::` 数值强调（官网仅在 V4+ 启用）。
+  bool get numericEmphasisEnabled => _numericEmphasisEnabled;
+
+  set numericEmphasisEnabled(bool value) {
+    if (_numericEmphasisEnabled == value) return;
+    _numericEmphasisEnabled = value;
+    clearCache();
+  }
 
   // 缓存：避免每次光标移动都重新解析
   String? _cachedText;
-  bool? _cachedIsDark;
+  int? _cachedColorSignature;
   List<TextSpan>? _cachedSpans;
 
   List<TextRange> _searchMatches = const [];
@@ -40,7 +58,41 @@ class NaiSyntaxController extends TextEditingController {
   /// 是否存在语法错误
   bool get hasSyntaxErrors => _syntaxErrors.isNotEmpty;
 
-  NaiSyntaxController({super.text, this.highlightEnabled = true});
+  /// Tag surfaces use the same source-position emphasis as the text editor,
+  /// without search, alias or negative-block decorations changing weight color.
+  Map<int, Color> emphasisColorsAt(ThemeData theme, Iterable<int> offsets) {
+    if (!highlightEnabled || text.isEmpty) return const {};
+    final marks = List<_HighlightMark?>.filled(text.length, null);
+    var active = text;
+    final disabled = PromptEditDocument.disabledRanges(
+      text,
+      allowIncomplete: true,
+    );
+    for (final range in disabled.reversed) {
+      active = active.replaceRange(
+        range.$1,
+        range.$2,
+        ' ' * (range.$2 - range.$1),
+      );
+    }
+    _applyOfficialEmphasis(active, marks, []);
+    for (final range in disabled) {
+      marks.fillRange(range.$1, range.$2, null);
+    }
+    final colors = NaiSyntaxColors.fromTheme(theme);
+    return {
+      for (final offset in offsets)
+        if (offset >= 0 && offset < marks.length && marks[offset] != null)
+          offset: colors._getBackgroundColor(marks[offset]!),
+    };
+  }
+
+  NaiSyntaxController({
+    super.text,
+    bool highlightEnabled = true,
+    bool numericEmphasisEnabled = true,
+  }) : _highlightEnabled = highlightEnabled,
+       _numericEmphasisEnabled = numericEmphasisEnabled;
 
   bool get _hasSearchHighlights => _searchMatches.isNotEmpty;
 
@@ -67,7 +119,7 @@ class NaiSyntaxController extends TextEditingController {
   /// 清除缓存（当主题变化等情况时调用）
   void clearCache() {
     _cachedText = null;
-    _cachedIsDark = null;
+    _cachedColorSignature = null;
     _cachedSpans = null;
   }
 
@@ -79,39 +131,101 @@ class NaiSyntaxController extends TextEditingController {
   }) {
     final baseStyle = style ?? const TextStyle();
 
-    // 如果禁用高亮，直接返回普通文本
-    if (!highlightEnabled && !_hasSearchHighlights) {
-      return TextSpan(text: text, style: baseStyle);
-    }
-
     final theme = Theme.of(context);
     final colors = NaiSyntaxColors.fromTheme(theme);
-    final isDark = theme.brightness == Brightness.dark;
 
     // 检查缓存是否有效（文本未变化且主题未变化）
+    final List<TextSpan> resolvedSpans;
     if (_cachedText == text &&
-        _cachedIsDark == isDark &&
+        _cachedColorSignature == colors.cacheSignature &&
         _cachedSpans != null) {
-      return TextSpan(style: baseStyle, children: _cachedSpans);
+      resolvedSpans = _cachedSpans!;
+    } else {
+      // 官网的竖线提示独立于“高亮强调”开关，搜索高亮也需要继续叠加。
+      final spans = _parseAndHighlight(
+        text,
+        baseStyle,
+        colors,
+        includeEmphasis: highlightEnabled,
+      );
+      resolvedSpans = _applySearchHighlights(spans, baseStyle, colors);
+
+      // 更新缓存
+      _cachedText = text;
+      _cachedColorSignature = colors.cacheSignature;
+      _cachedSpans = resolvedSpans;
     }
 
-    // 解析并高亮文本
-    final spans = highlightEnabled
-        ? _parseAndHighlight(text, baseStyle, colors)
-        : [
-            TextSpan(
-              text: text,
-              style: baseStyle.copyWith(height: 1.35),
-            ),
-          ];
-    final resolvedSpans = _applySearchHighlights(spans, baseStyle, colors);
+    // 预编辑区叠加在缓存之后：它每敲一下就变，进缓存键等于每帧重新解析全文。
+    return TextSpan(
+      style: baseStyle,
+      children: _applyComposingUnderline(
+        resolvedSpans,
+        baseStyle,
+        withComposing,
+      ),
+    );
+  }
 
-    // 更新缓存
-    _cachedText = text;
-    _cachedIsDark = isDark;
-    _cachedSpans = resolvedSpans;
+  /// 给输入法预编辑区加下划线，语法着色照旧，只标出尚未上屏的部分。
+  List<TextSpan> _applyComposingUnderline(
+    List<TextSpan> spans,
+    TextStyle baseStyle,
+    bool withComposing,
+  ) {
+    if (!withComposing || !value.isComposingRangeValid) {
+      return spans;
+    }
+    final composing = value.composing;
 
-    return TextSpan(style: baseStyle, children: resolvedSpans);
+    final underlined = <TextSpan>[];
+    var globalOffset = 0;
+
+    for (final span in spans) {
+      final spanText = span.text;
+      if (spanText == null || spanText.isEmpty) {
+        underlined.add(span);
+        continue;
+      }
+
+      final spanStart = globalOffset;
+      final spanEnd = spanStart + spanText.length;
+      globalOffset = spanEnd;
+      if (composing.end <= spanStart || composing.start >= spanEnd) {
+        underlined.add(span);
+        continue;
+      }
+
+      // 预编辑区可能横跨任意着色片段，按它的边界再切一次，避免下划线漫延。
+      final spanStyle = span.style ?? baseStyle;
+      final cuts = <int>[
+        spanStart,
+        if (composing.start > spanStart && composing.start < spanEnd)
+          composing.start,
+        if (composing.end > spanStart && composing.end < spanEnd) composing.end,
+        spanEnd,
+      ];
+      for (var i = 0; i + 1 < cuts.length; i++) {
+        final start = cuts[i];
+        final end = cuts[i + 1];
+        final composed = start >= composing.start && end <= composing.end;
+        underlined.add(
+          TextSpan(
+            text: spanText.substring(start - spanStart, end - spanStart),
+            style: composed
+                ? spanStyle.copyWith(
+                    decoration: TextDecoration.combine([
+                      if (spanStyle.decoration != null) spanStyle.decoration!,
+                      TextDecoration.underline,
+                    ]),
+                  )
+                : spanStyle,
+          ),
+        );
+      }
+    }
+
+    return underlined;
   }
 
   List<TextSpan> _applySearchHighlights(
@@ -145,10 +259,7 @@ class NaiSyntaxController extends TextEditingController {
           final nextStart = _nextSearchStartAfter(absoluteOffset, spanEnd);
           highlighted.add(
             TextSpan(
-              text: spanText.substring(
-                localOffset,
-                nextStart - spanStart,
-              ),
+              text: spanText.substring(localOffset, nextStart - spanStart),
               style: span.style ?? baseStyle,
             ),
           );
@@ -199,502 +310,449 @@ class NaiSyntaxController extends TextEditingController {
     return fallback;
   }
 
-  /// 解析文本并生成带背景色的 TextSpan 列表
   List<TextSpan> _parseAndHighlight(
     String text,
     TextStyle baseStyle,
-    NaiSyntaxColors colors,
-  ) {
+    NaiSyntaxColors colors, {
+    required bool includeEmphasis,
+  }) {
     if (text.isEmpty) {
       _syntaxErrors = [];
       return [];
     }
 
-    final spans = <TextSpan>[];
-    final matches = <_SyntaxMatch>[];
-
-    // 使用栈算法解析括号（支持嵌套）
-    _parseNestedBrackets(text, matches);
-
-    // 收集语法错误
-    _syntaxErrors = matches
-        .where((m) => m.type == _SyntaxType.error && m.errorMessage != null)
-        .map((m) => m.errorMessage!)
-        .toList();
-
-    // 匹配权重语法，支持三种格式
-    // 格式1: weight::content:: (完整格式)
-    for (final match in _weightPatternFull.allMatches(text)) {
-      final weightStr = match.group(1)!;
-      final content = match.group(2)!;
-      final weight = double.tryParse(weightStr) ?? 1.0;
-
-      // 主体部分: 数字::内容
-      final mainPart = '$weightStr::$content';
-      matches.add(
-        _SyntaxMatch(
-          start: match.start,
-          end: match.start + mainPart.length,
-          text: mainPart,
-          type: _SyntaxType.weightMain,
-          weight: weight,
-        ),
-      );
-
-      // 结尾部分: ::
-      matches.add(
-        _SyntaxMatch(
-          start: match.end - 2,
-          end: match.end,
-          text: '::',
-          type: _SyntaxType.weightTrailing,
-          weight: weight,
-        ),
+    final backgroundMarks = List<_HighlightMark?>.filled(text.length, null);
+    final pipeMarks = List<_PipeMark?>.filled(text.length, null);
+    final negativeMarks = List<_NegativeMark?>.filled(text.length, null);
+    final errors = <String>[];
+    final disabled = PromptEditDocument.disabledRanges(
+      text,
+      allowIncomplete: true,
+    );
+    var active = text;
+    for (final range in disabled.reversed) {
+      active = active.replaceRange(
+        range.$1,
+        range.$2,
+        ' ' * (range.$2 - range.$1),
       );
     }
 
-    // 格式2: weight::content (只有开头权重)
-    final leadingMatches = _weightPatternLeading.allMatches(text).toList();
-    for (final match in leadingMatches) {
-      // 跳过已被完整格式匹配的部分
-      if (text.substring(match.end).startsWith('::')) continue;
-
-      final weightStr = match.group(1)!;
-      final weight = double.tryParse(weightStr) ?? 1.0;
-
-      // 整个部分: 数字::内容
-      matches.add(
-        _SyntaxMatch(
-          start: match.start,
-          end: match.end,
-          text: match.group(0)!,
-          type: _SyntaxType.weightMain,
-          weight: weight,
-        ),
-      );
+    if (includeEmphasis) {
+      _applyOfficialEmphasis(active, backgroundMarks, errors);
+      _applyAliasHighlights(active, backgroundMarks);
     }
+    _applyOfficialPipeHighlights(active, pipeMarks);
+    _applyCharacterNegativeHighlights(active, negativeMarks, errors);
+    _syntaxErrors = errors;
 
-    // 格式3: content:: (只有结尾 ::，无开头权重)
-    for (final match in _weightPatternTrailing.allMatches(text)) {
-      // 跳过已被前面规则匹配的部分（检查前面是否有 ::）
-      if (match.start >= 2 &&
-          text.substring(match.start - 2, match.start) == '::') {
-        continue;
+    final spans = _buildHighlightedSpans(
+      text,
+      baseStyle,
+      colors,
+      backgroundMarks,
+      pipeMarks,
+      negativeMarks,
+    );
+    return _styleDisabled(spans, disabled, baseStyle);
+  }
+
+  List<TextSpan> _styleDisabled(
+    List<TextSpan> spans,
+    List<(int, int)> ranges,
+    TextStyle baseStyle,
+  ) {
+    if (ranges.isEmpty) return spans;
+    final result = <TextSpan>[];
+    var offset = 0;
+    for (final span in spans) {
+      final content = span.text ?? '';
+      final end = offset + content.length;
+      final cuts = <int>{offset, end};
+      for (final range in ranges) {
+        if (range.$1 > offset && range.$1 < end) cuts.add(range.$1);
+        if (range.$2 > offset && range.$2 < end) cuts.add(range.$2);
       }
-      final content = match.group(1)!;
-
-      // 内容部分（使用权重=1的颜色，即无颜色/透明）
-      matches.add(
-        _SyntaxMatch(
-          start: match.start,
-          end: match.end - 2,
-          text: content,
-          type: _SyntaxType.weightMain,
-          weight: 1.0, // 权重=1表示无增强/减弱
-        ),
-      );
-
-      // 结尾 :: 部分（绿色）
-      matches.add(
-        _SyntaxMatch(
-          start: match.end - 2,
-          end: match.end,
-          text: '::',
-          type: _SyntaxType.weightTrailing,
-          weight: 1.0,
-        ),
-      );
-    }
-
-    // 匹配别名语法 <xxx>
-    final aliasRefs = AliasParser.parse(text);
-    for (final ref in aliasRefs) {
-      matches.add(
-        _SyntaxMatch(
-          start: ref.start,
-          end: ref.end,
-          text: ref.rawText,
-          type: _SyntaxType.alias,
-        ),
-      );
-    }
-
-    // 匹配 NAI 动态随机语法 ||A|B|C|| 的边界符和分隔符
-    // 只着色 || 和 | ，内部内容由其他规则处理（如别名 <xxx>）
-    _parseDynamicRandomSyntax(text, matches);
-
-    // 按起始位置排序
-    matches.sort((a, b) => a.start.compareTo(b.start));
-
-    // 移除重叠的匹配（保留先出现的）
-    final filteredMatches = <_SyntaxMatch>[];
-    int lastEnd = 0;
-    for (final match in matches) {
-      if (match.start >= lastEnd) {
-        filteredMatches.add(match);
-        lastEnd = match.end;
-      }
-    }
-
-    // 构建 TextSpan 列表
-    int currentIndex = 0;
-    for (final match in filteredMatches) {
-      // 添加匹配前的普通文本
-      if (match.start > currentIndex) {
-        spans.add(
+      final sorted = cuts.toList()..sort();
+      for (var i = 0; i + 1 < sorted.length; i++) {
+        final disabled = ranges.any(
+          (range) => sorted[i] >= range.$1 && sorted[i] < range.$2,
+        );
+        result.add(
           TextSpan(
-            text: text.substring(currentIndex, match.start),
-            style: baseStyle.copyWith(height: 1.35),
+            text: content.substring(sorted[i] - offset, sorted[i + 1] - offset),
+            style: disabled
+                ? baseStyle.copyWith(
+                    decoration: TextDecoration.lineThrough,
+                    color: baseStyle.color?.withValues(alpha: 0.7),
+                  )
+                : span.style,
           ),
         );
       }
-
-      // 添加带背景色的高亮文本
-      spans.add(
-        TextSpan(
-          text: match.text,
-          style: baseStyle.copyWith(
-            backgroundColor: colors._getBackgroundColor(match),
-            height: 1.35, // 增加行高，使高亮行之间有间隙
-          ),
-        ),
-      );
-
-      currentIndex = match.end;
+      offset = end;
     }
-
-    // 添加剩余的普通文本
-    if (currentIndex < text.length) {
-      spans.add(
-        TextSpan(
-          text: text.substring(currentIndex),
-          style: baseStyle.copyWith(height: 1.35),
-        ),
-      );
-    }
-
-    return spans.isEmpty
-        ? [TextSpan(text: text, style: baseStyle.copyWith(height: 1.35))]
-        : spans;
+    return result;
   }
 
-  /// 使用栈算法解析嵌套括号
-  /// 支持 {a{b}c} 等嵌套结构
-  void _parseNestedBrackets(String text, List<_SyntaxMatch> matches) {
-    final braceStack = <_BracketInfo>[]; // 花括号栈
-    final bracketStack = <_BracketInfo>[]; // 方括号栈
-
-    for (int i = 0; i < text.length; i++) {
-      final char = text[i];
-
-      if (char == '{') {
-        // 记录开括号位置和当前深度
-        final depth = braceStack.length + 1;
-        braceStack.add(_BracketInfo(char, i, depth));
-      } else if (char == '}') {
-        if (braceStack.isNotEmpty) {
-          // 找到匹配的开括号
-          final openBracket = braceStack.removeLast();
-          final matchText = text.substring(openBracket.position, i + 1);
-          matches.add(
-            _SyntaxMatch(
-              start: openBracket.position,
-              end: i + 1,
-              text: matchText,
-              type: _SyntaxType.brace,
-              depth: openBracket.depth.clamp(1, 5),
-            ),
-          );
-        } else {
-          // 没有匹配的开括号 - 语法错误
-          matches.add(
-            _SyntaxMatch(
-              start: i,
-              end: i + 1,
-              text: char,
-              type: _SyntaxType.error,
-              errorMessage: '未匹配的闭括号 "}"',
-            ),
-          );
-        }
-      } else if (char == '[') {
-        // 记录开括号位置和当前深度
-        final depth = bracketStack.length + 1;
-        bracketStack.add(_BracketInfo(char, i, depth));
-      } else if (char == ']') {
-        if (bracketStack.isNotEmpty) {
-          // 找到匹配的开括号
-          final openBracket = bracketStack.removeLast();
-          final matchText = text.substring(openBracket.position, i + 1);
-          matches.add(
-            _SyntaxMatch(
-              start: openBracket.position,
-              end: i + 1,
-              text: matchText,
-              type: _SyntaxType.bracket,
-              depth: openBracket.depth.clamp(1, 5),
-            ),
-          );
-        } else {
-          // 没有匹配的开括号 - 语法错误
-          matches.add(
-            _SyntaxMatch(
-              start: i,
-              end: i + 1,
-              text: char,
-              type: _SyntaxType.error,
-              errorMessage: '未匹配的闭括号 "]"',
-            ),
-          );
-        }
-      }
-    }
-
-    // 处理未闭合的开括号 - 语法错误
-    for (final unclosed in braceStack) {
-      matches.add(
-        _SyntaxMatch(
-          start: unclosed.position,
-          end: unclosed.position + 1,
-          text: '{',
-          type: _SyntaxType.error,
-          errorMessage: '未闭合的括号 "{"',
-        ),
+  void _applyCharacterNegativeHighlights(
+    String text,
+    List<_NegativeMark?> marks,
+    List<String> errors,
+  ) {
+    final parsed = CharacterPromptBlockParser.parse(text);
+    for (final block in parsed.blocks) {
+      _fillNegativeMarks(
+        marks,
+        block.contentRange.start,
+        block.contentRange.end,
+        _NegativeMark.content,
+      );
+      _fillNegativeMarks(
+        marks,
+        block.keywordRange.start,
+        block.keywordRange.end,
+        _NegativeMark.keyword,
+      );
+      _fillNegativeMarks(
+        marks,
+        block.openingBoundaryRange.start,
+        block.openingBoundaryRange.end,
+        _NegativeMark.boundary,
+      );
+      _fillNegativeMarks(
+        marks,
+        block.closingBoundaryRange.start,
+        block.closingBoundaryRange.end,
+        _NegativeMark.boundary,
       );
     }
-    for (final unclosed in bracketStack) {
-      matches.add(
-        _SyntaxMatch(
-          start: unclosed.position,
-          end: unclosed.position + 1,
-          text: '[',
-          type: _SyntaxType.error,
-          errorMessage: '未闭合的括号 "["',
-        ),
-      );
+    if (parsed.issues.contains(CharacterPromptBlockIssue.unclosedBlock)) {
+      errors.add('negative(...) 块未闭合');
+    }
+    if (parsed.issues.contains(CharacterPromptBlockIssue.repeatedBlock)) {
+      errors.add('只能使用一个 negative(...) 块');
+    }
+    if (parsed.issues.contains(CharacterPromptBlockIssue.emptyBlock)) {
+      errors.add('negative(...) 块不能为空');
     }
   }
 
-  /// 解析 NAI 动态随机语法 ||A|B|C||
-  /// 只着色边界符 || 和分隔符 |，内部内容由其他规则处理
-  void _parseDynamicRandomSyntax(String text, List<_SyntaxMatch> matches) {
-    for (final match in _dynamicRandomPattern.allMatches(text)) {
-      final content = match.group(1)!;
-      final startPos = match.start;
+  void _fillNegativeMarks(
+    List<_NegativeMark?> marks,
+    int start,
+    int end,
+    _NegativeMark mark,
+  ) {
+    final safeStart = start.clamp(0, marks.length);
+    final safeEnd = end.clamp(safeStart, marks.length);
+    for (var index = safeStart; index < safeEnd; index++) {
+      marks[index] = mark;
+    }
+  }
 
-      // 着色开始的 ||
-      matches.add(
-        _SyntaxMatch(
-          start: startPos,
-          end: startPos + 2,
-          text: '||',
-          type: _SyntaxType.dynamicRandom,
-        ),
-      );
+  /// 官网按字符执行权重动作；括号不要求成对，`::` 会重置全部状态。
+  void _applyOfficialEmphasis(
+    String text,
+    List<_HighlightMark?> marks,
+    List<String> errors,
+  ) {
+    var emphasis = 1.0;
+    var index = 0;
 
-      // 解析内部内容，找出分隔符 |
-      // 注意：需要跳过别名 <xxx> 内部的 |
-      final contentStart = startPos + 2;
-      var angleBracketDepth = 0;
+    while (index < text.length) {
+      if (_numericEmphasisEnabled &&
+          index + 1 < text.length &&
+          text[index] == ':' &&
+          text[index + 1] == ':') {
+        final prefix = text.substring(0, index);
+        final numberMatch = _numericPrefixPattern.firstMatch(prefix)!;
+        final numberText = numberMatch.group(0)!;
+        final numberStart = index - numberText.length;
+        final previousEmphasis = emphasis;
 
-      for (var i = 0; i < content.length; i++) {
-        final char = content[i];
+        emphasis = _parseOfficialNumericWeight(numberText) ?? 1.0;
+        final mark = emphasis == 1.0
+            ? const _HighlightMark(_HighlightTone.mid, 0.5)
+            : _markForEmphasis(emphasis);
+        _fillMarks(marks, numberStart, index + 2, mark);
 
-        if (char == '<') {
-          angleBracketDepth++;
-        } else if (char == '>') {
-          angleBracketDepth = (angleBracketDepth - 1).clamp(0, 100);
-        } else if (char == '|' && angleBracketDepth == 0) {
-          // 找到分隔符 |
-          final separatorPos = contentStart + i;
-          matches.add(
-            _SyntaxMatch(
-              start: separatorPos,
-              end: separatorPos + 1,
-              text: '|',
-              type: _SyntaxType.dynamicRandom,
-            ),
-          );
+        if (emphasis.abs() > 70) {
+          errors.add('数值权重绝对值过大：$numberText::');
         }
+        if (emphasis == 1.0 && previousEmphasis == 1.0) {
+          _collectNumericPlacementErrors(text, index, errors);
+        }
+
+        index += 2;
+        continue;
       }
 
-      // 着色结束的 ||
-      matches.add(
-        _SyntaxMatch(
-          start: match.end - 2,
-          end: match.end,
-          text: '||',
-          type: _SyntaxType.dynamicRandom,
-        ),
-      );
+      switch (text[index]) {
+        case '{':
+          emphasis *= 1.05;
+          break;
+        case '}':
+          emphasis /= 1.05;
+          break;
+        case '[':
+          emphasis /= 1.05;
+          break;
+        case ']':
+          emphasis *= 1.05;
+          break;
+      }
+
+      marks[index] = _markForEmphasis(emphasis);
+      index++;
     }
   }
-}
 
-/// 语法类型
-enum _SyntaxType {
-  brace, // {} 花括号
-  bracket, // [] 方括号
-  weightMain, // 权重主体 (数字::内容)
-  weightTrailing, // 权重结尾 (::)
-  error, // 语法错误（不匹配的括号）
-  alias, // <xxx> 别名引用
-  dynamicRandom, // ||A|B|| 动态随机语法
-}
+  double? _parseOfficialNumericWeight(String value) {
+    if (value.isEmpty) return null;
+    if (value == '-' || value == '-.' || value == '.') return 0;
+    return double.tryParse(value);
+  }
 
-/// 语法匹配结果
-class _SyntaxMatch {
-  final int start;
-  final int end;
-  final String text;
-  final _SyntaxType type;
-  final int depth; // 括号深度 (1-5)
-  final double weight; // 权重值
-  final String? errorMessage; // 错误信息（仅 error 类型）
+  void _collectNumericPlacementErrors(
+    String text,
+    int separatorStart,
+    List<String> errors,
+  ) {
+    final before = text.substring(0, separatorStart);
+    final spacedBefore = RegExp(
+      r'(?:^|[\s,])(-?\d*\.?\d* )$',
+    ).firstMatch(before);
+    final beforeValue = spacedBefore?.group(1)?.trim() ?? '';
+    final parsedBefore = double.tryParse(beforeValue);
+    if (beforeValue.isNotEmpty &&
+        parsedBefore != null &&
+        parsedBefore.abs() < 21) {
+      errors.add('权重数字与 :: 之间不能有空格：$beforeValue ::');
+    }
 
-  _SyntaxMatch({
-    required this.start,
-    required this.end,
-    required this.text,
-    required this.type,
-    this.depth = 1,
-    this.weight = 1.0,
-    this.errorMessage,
-  });
-}
+    final after = text.substring(separatorStart + 2);
+    final misplacedAfter = RegExp(r'^ ?-?\d*\.?\d*').firstMatch(after);
+    final afterValue = misplacedAfter?.group(0)?.trim() ?? '';
+    final parsedAfter = double.tryParse(afterValue);
+    if (afterValue.isNotEmpty &&
+        parsedAfter != null &&
+        parsedAfter.abs() < 21 &&
+        !RegExp(r'^ ?[\d.\-]*::').hasMatch(after)) {
+      errors.add('数值权重应写在 :: 前：::$afterValue');
+    }
+  }
 
-/// 括号信息（用于栈算法）
-class _BracketInfo {
-  final String char;
-  final int position;
-  final int depth; // 当前嵌套深度
+  _HighlightMark? _markForEmphasis(double emphasis) {
+    if ((emphasis - 1.0).abs() < 0.01) return null;
 
-  _BracketInfo(this.char, this.position, this.depth);
-}
-
-/// NAI 语法背景色配置（参考 NovelAI 官网样式）
-///
-/// 颜色规则：
-/// - 权重 > 1（增强）：橙/红色系，偏离越大越亮
-/// - 权重 < 1（减弱）：蓝/紫色系，偏离越大越亮
-/// - 结尾 :: ：绿色，表示权重=1的基准标记
-/// - 花括号 {} ：橙色系（同增强）
-/// - 方括号 [] ：蓝色系（同减弱）
-class NaiSyntaxColors {
-  /// 是否为深色主题
-  final bool isDark;
-
-  /// 结尾 :: 的颜色（绿色，表示权重=1基准）
-  final Color trailingColonBg;
-
-  const NaiSyntaxColors._({
-    required this.isDark,
-    required this.trailingColonBg,
-  });
-
-  /// 从主题创建颜色配置
-  factory NaiSyntaxColors.fromTheme(ThemeData theme) {
-    final isDark = theme.brightness == Brightness.dark;
-
-    return NaiSyntaxColors._(
-      isDark: isDark,
-      // 结尾 :: - 绿色 HSL(140, 60%, 40%)
-      trailingColonBg: isDark
-          ? const Color(0x5022C55E) // 深色主题：半透明绿色
-          : const Color(0x4516A34A), // 浅色主题：稍深一点的绿色
+    final normalizationDistance = emphasis > 0 ? 1.0 : 0.5;
+    final intensity = ((emphasis - 1.0).abs() / normalizationDistance).clamp(
+      0.0,
+      1.0,
+    );
+    final opacityClass = (40 * (0.2 + 0.4 * intensity)).round();
+    return _HighlightMark(
+      emphasis > 1.0 ? _HighlightTone.high : _HighlightTone.low,
+      opacityClass / 40,
     );
   }
 
-  /// 花括号颜色（深度1-5，线性变亮）
-  /// 橙色系：HSL(30, 80%, L)
-  Color _getBraceColor(int depth) {
-    // 深度 1 -> L=25%, 深度 5 -> L=50%
-    final lightness = 0.25 + (depth - 1) * 0.0625;
-    final alpha = isDark ? 0.55 : 0.50;
-    return HSLColor.fromAHSL(alpha, 30, 0.80, lightness.clamp(0.25, 0.50))
-        .toColor();
-  }
-
-  /// 方括号颜色（深度1-5，线性变亮）
-  /// 蓝色系：HSL(220, 70%, L)
-  Color _getBracketColor(int depth) {
-    // 深度 1 -> L=25%, 深度 5 -> L=50%
-    final lightness = 0.25 + (depth - 1) * 0.0625;
-    final alpha = isDark ? 0.55 : 0.50;
-    return HSLColor.fromAHSL(alpha, 220, 0.70, lightness.clamp(0.25, 0.50))
-        .toColor();
-  }
-
-  /// 根据权重生成动态颜色（线性变亮）
-  ///
-  /// 权重 > 1：橙/红色系 HSL(30, 80%, L)
-  /// 权重 < 1：蓝色系 HSL(220, 70%, L)
-  ///
-  /// 亮度线性映射：
-  /// - 偏离度 0 (权重=1) -> L = 25% (较暗)
-  /// - 偏离度 2 (权重=3或0.1) -> L = 55% (较亮)
-  Color _getWeightColor(double weight) {
-    // 计算偏离度（线性）
-    final deviation = (weight - 1.0).abs();
-
-    // 亮度映射：偏离度 0 -> 25%, 偏离度 2+ -> 55%
-    final lightness = (0.25 + (deviation / 2.0) * 0.30).clamp(0.25, 0.55);
-
-    // 透明度
-    final alpha = isDark ? 0.55 : 0.50;
-
-    if (weight > 1.0) {
-      // 橙/红色系：HSL(30, 80%, L)
-      return HSLColor.fromAHSL(alpha, 30, 0.80, lightness).toColor();
-    } else if (weight < 1.0) {
-      // 蓝色系：HSL(220, 70%, L)
-      return HSLColor.fromAHSL(alpha, 220, 0.70, lightness).toColor();
-    }
-
-    return Colors.transparent;
-  }
-
-  /// 根据匹配获取背景色
-  Color _getBackgroundColor(_SyntaxMatch match) {
-    switch (match.type) {
-      case _SyntaxType.brace:
-        return _getBraceColor(match.depth);
-      case _SyntaxType.bracket:
-        return _getBracketColor(match.depth);
-      case _SyntaxType.weightMain:
-        return _getWeightColor(match.weight);
-      case _SyntaxType.weightTrailing:
-        // 结尾 :: 使用绿色
-        return trailingColonBg;
-      case _SyntaxType.error:
-        // 语法错误：红色背景
-        return _getErrorColor();
-      case _SyntaxType.alias:
-        // 别名：青色背景
-        return _getAliasColor();
-      case _SyntaxType.dynamicRandom:
-        // 动态随机：紫色/洋红色背景
-        return _getDynamicRandomColor();
+  void _fillMarks(
+    List<_HighlightMark?> marks,
+    int start,
+    int end,
+    _HighlightMark? mark,
+  ) {
+    final safeStart = start.clamp(0, marks.length);
+    final safeEnd = end.clamp(safeStart, marks.length);
+    for (var index = safeStart; index < safeEnd; index++) {
+      marks[index] = mark;
     }
   }
 
-  /// 别名颜色（青色系 HSL(180, 60%, 35%)）
-  Color _getAliasColor() {
-    final alpha = isDark ? 0.55 : 0.50;
-    return HSLColor.fromAHSL(alpha, 180, 0.60, 0.35).toColor();
+  void _applyAliasHighlights(String text, List<_HighlightMark?> marks) {
+    const aliasMark = _HighlightMark(_HighlightTone.alias, 1.0);
+    for (final ref in AliasParser.parse(text)) {
+      _fillMarks(marks, ref.start, ref.end, aliasMark);
+    }
   }
 
-  /// 错误颜色（红色背景）
-  Color _getErrorColor() {
-    final alpha = isDark ? 0.50 : 0.45;
-    // 红色系：HSL(0, 70%, 40%)
-    return HSLColor.fromAHSL(alpha, 0, 0.70, 0.40).toColor();
+  /// 官网用独立装饰器标记每个 `|`，不要求随机段已经闭合。
+  void _applyOfficialPipeHighlights(String text, List<_PipeMark?> marks) {
+    var index = 0;
+    while (index < text.length) {
+      if (text[index] != '|') {
+        index++;
+        continue;
+      }
+      if (index + 1 < text.length && text[index + 1] == '|') {
+        marks[index] = _PipeMark.double;
+        marks[index + 1] = _PipeMark.double;
+        index += 2;
+        continue;
+      }
+      marks[index] = _PipeMark.single;
+      index++;
+    }
   }
 
-  /// 动态随机语法颜色（紫色/洋红色 HSL(280, 60%, 35%)）
-  Color _getDynamicRandomColor() {
-    final alpha = isDark ? 0.55 : 0.50;
-    return HSLColor.fromAHSL(alpha, 280, 0.60, 0.35).toColor();
+  List<TextSpan> _buildHighlightedSpans(
+    String text,
+    TextStyle baseStyle,
+    NaiSyntaxColors colors,
+    List<_HighlightMark?> backgroundMarks,
+    List<_PipeMark?> pipeMarks,
+    List<_NegativeMark?> negativeMarks,
+  ) {
+    final spans = <TextSpan>[];
+    var start = 0;
+    var decoration = _SpanDecoration(
+      backgroundMarks[0],
+      pipeMarks[0],
+      negativeMarks[0],
+    );
+
+    for (var index = 1; index <= text.length; index++) {
+      final nextDecoration = index == text.length
+          ? null
+          : _SpanDecoration(
+              backgroundMarks[index],
+              pipeMarks[index],
+              negativeMarks[index],
+            );
+      if (nextDecoration == decoration) continue;
+
+      spans.add(
+        TextSpan(
+          text: text.substring(start, index),
+          style: colors._applyDecoration(baseStyle, decoration),
+        ),
+      );
+      start = index;
+      if (nextDecoration != null) decoration = nextDecoration;
+    }
+
+    return spans;
+  }
+}
+
+enum _HighlightTone { high, low, mid, alias }
+
+enum _PipeMark { single, double }
+
+enum _NegativeMark { keyword, boundary, content }
+
+class _HighlightMark {
+  final _HighlightTone tone;
+  final double opacity;
+
+  const _HighlightMark(this.tone, this.opacity);
+
+  @override
+  bool operator ==(Object other) =>
+      other is _HighlightMark && other.tone == tone && other.opacity == opacity;
+
+  @override
+  int get hashCode => Object.hash(tone, opacity);
+}
+
+class _SpanDecoration {
+  final _HighlightMark? background;
+  final _PipeMark? pipe;
+  final _NegativeMark? negative;
+
+  const _SpanDecoration(this.background, this.pipe, this.negative);
+
+  @override
+  bool operator ==(Object other) =>
+      other is _SpanDecoration &&
+      other.background == background &&
+      other.pipe == pipe &&
+      other.negative == negative;
+
+  @override
+  int get hashCode => Object.hash(background, pipe, negative);
+}
+
+/// 官网强调高亮的默认主题色。
+class NaiSyntaxColors {
+  final bool isDark;
+  final Color highIntensityColor;
+  final Color lowIntensityColor;
+  final Color midIntensityColor;
+  final Color pipeColor;
+  final Color negativeColor;
+
+  const NaiSyntaxColors._({
+    required this.isDark,
+    required this.highIntensityColor,
+    required this.lowIntensityColor,
+    required this.midIntensityColor,
+    required this.pipeColor,
+    required this.negativeColor,
+  });
+
+  factory NaiSyntaxColors.fromTheme(ThemeData theme) {
+    return NaiSyntaxColors._(
+      isDark: theme.brightness == Brightness.dark,
+      highIntensityColor: const Color(0xFFED5807),
+      lowIntensityColor: const Color(0xFF079CED),
+      midIntensityColor: const Color(0xFF7ACC29),
+      pipeColor: theme.colorScheme.onSurface,
+      negativeColor: Color.alphaBlend(
+        theme.colorScheme.error.withValues(alpha: 0.58),
+        theme.colorScheme.onSurfaceVariant,
+      ),
+    );
+  }
+
+  int get cacheSignature => Object.hash(
+    isDark,
+    highIntensityColor,
+    lowIntensityColor,
+    midIntensityColor,
+    pipeColor,
+    negativeColor,
+  );
+
+  TextStyle _applyDecoration(TextStyle baseStyle, _SpanDecoration decoration) {
+    var style = baseStyle.copyWith(height: 1.35);
+    final mark = decoration.background;
+    if (mark != null) {
+      style = style.copyWith(backgroundColor: _getBackgroundColor(mark));
+    }
+    if (decoration.negative != null) {
+      style = style.copyWith(
+        color: negativeColor,
+        fontWeight: decoration.negative == _NegativeMark.content
+            ? style.fontWeight
+            : FontWeight.w600,
+      );
+    }
+    if (decoration.pipe != null) {
+      style = style.copyWith(
+        color: decoration.negative == null ? pipeColor : negativeColor,
+        fontWeight: FontWeight.w800,
+      );
+    }
+    return style;
+  }
+
+  Color _getBackgroundColor(_HighlightMark mark) {
+    final baseColor = switch (mark.tone) {
+      _HighlightTone.high => highIntensityColor,
+      _HighlightTone.low => lowIntensityColor,
+      _HighlightTone.mid => midIntensityColor,
+      _HighlightTone.alias => HSLColor.fromAHSL(
+        isDark ? 0.55 : 0.50,
+        180,
+        0.60,
+        0.35,
+      ).toColor(),
+    };
+    if (mark.tone == _HighlightTone.alias) return baseColor;
+    return baseColor.withAlpha((mark.opacity * 255).round());
   }
 
   Color _getSearchColor(bool active) {

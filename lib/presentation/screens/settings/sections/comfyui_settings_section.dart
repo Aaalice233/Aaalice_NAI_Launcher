@@ -6,7 +6,9 @@ import '../../../../core/comfyui/workflow_template.dart';
 import '../../../../core/utils/localization_extension.dart';
 import '../../../utils/comfyui_workflow_l10n.dart';
 import '../../../providers/comfyui/comfyui_provider.dart';
+import '../../../providers/generation/image_workflow_controller.dart';
 import '../../../widgets/common/app_toast.dart';
+import '../../../widgets/common/themed_confirm_dialog.dart';
 import '../../../widgets/common/themed_input.dart';
 import '../widgets/settings_card.dart';
 import '../widgets/workflow_import_wizard.dart';
@@ -38,6 +40,11 @@ class _ComfyUISettingsSectionState
     final settings = ref.watch(comfyUISettingsProvider);
     final connStatus = ref.watch(comfyUIConnectionProvider);
     final workflows = ref.watch(comfyUIWorkflowsProvider);
+    final seedvr2EmbedNaiMetadata = ref.watch(
+      imageWorkflowControllerProvider.select(
+        (state) => state.upscale.seedvr2EmbedNaiMetadata,
+      ),
+    );
 
     if (_urlController.text.isEmpty ||
         _urlController.text != settings.serverUrl) {
@@ -48,11 +55,12 @@ class _ComfyUISettingsSectionState
     final builtinWorkflows = workflows.where((t) => t.isBuiltin).toList();
 
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         SettingsCard(
-          title: 'ComfyUI',
-          icon: Icons.auto_fix_high,
+          title: context.l10n.settings_integrationConnectionSection,
           child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               SwitchListTile(
                 secondary: const Icon(Icons.power),
@@ -72,40 +80,60 @@ class _ComfyUISettingsSectionState
               ),
               if (settings.enabled) ...[
                 Padding(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: ThemedInput(
-                          controller: _urlController,
-                          decoration: InputDecoration(
-                            labelText: context.l10n.settings_comfyUiServerUrl,
-                            hintText: 'http://127.0.0.1:8188',
-                            border: const OutlineInputBorder(),
-                            isDense: true,
-                            prefixIcon: const Icon(Icons.dns_outlined),
-                          ),
-                          onChanged: (value) {
-                            ref
-                                .read(comfyUISettingsProvider.notifier)
-                                .setServerUrl(value);
-                          },
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 8,
+                  ),
+                  child: LayoutBuilder(
+                    builder: (context, constraints) {
+                      final urlField = ThemedInput(
+                        controller: _urlController,
+                        decoration: InputDecoration(
+                          labelText: context.l10n.settings_comfyUiServerUrl,
+                          hintText: 'http://127.0.0.1:8188',
+                          border: const OutlineInputBorder(),
+                          isDense: true,
+                          prefixIcon: const Icon(Icons.dns_outlined),
                         ),
-                      ),
-                      const SizedBox(width: 12),
-                      FilledButton.tonal(
+                        onChanged: (value) {
+                          ref
+                              .read(comfyUISettingsProvider.notifier)
+                              .setServerUrl(value);
+                        },
+                      );
+                      final testButton = FilledButton.tonal(
                         onPressed: _isTesting ? null : _testConnection,
                         child: _isTesting
                             ? const SizedBox(
                                 width: 16,
                                 height: 16,
-                                child:
-                                    CircularProgressIndicator(strokeWidth: 2),
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
                               )
                             : Text(context.l10n.settings_testConnection),
-                      ),
-                    ],
+                      );
+                      if (constraints.maxWidth < 520) {
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            urlField,
+                            const SizedBox(height: 12),
+                            Align(
+                              alignment: Alignment.centerLeft,
+                              child: testButton,
+                            ),
+                          ],
+                        );
+                      }
+                      return Row(
+                        children: [
+                          Expanded(child: urlField),
+                          const SizedBox(width: 12),
+                          testButton,
+                        ],
+                      );
+                    },
                   ),
                 ),
                 if (_testResult != null)
@@ -159,6 +187,19 @@ class _ComfyUISettingsSectionState
                       child: Text(context.l10n.settings_comfyUiDisconnect),
                     ),
                   ),
+                SwitchListTile(
+                  secondary: const Icon(Icons.description_outlined),
+                  title: Text(
+                    context.l10n.settings_comfyUiSeedvr2EmbedNaiMetadata,
+                  ),
+                  subtitle: Text(
+                    context.l10n.settings_comfyUiSeedvr2EmbedNaiMetadataHint,
+                  ),
+                  value: seedvr2EmbedNaiMetadata,
+                  onChanged: ref
+                      .read(imageWorkflowControllerProvider.notifier)
+                      .updateSeedvr2EmbedNaiMetadata,
+                ),
                 const SizedBox(height: 8),
               ],
             ],
@@ -185,15 +226,17 @@ class _ComfyUISettingsSectionState
                         Icon(
                           Icons.inventory_2,
                           size: 16,
-                          color: theme.colorScheme.onSurface
-                              .withValues(alpha: 0.5),
+                          color: theme.colorScheme.onSurface.withValues(
+                            alpha: 0.5,
+                          ),
                         ),
                         const SizedBox(width: 8),
                         Text(
                           context.l10n.settings_comfyUiBuiltinWorkflows,
                           style: theme.textTheme.labelMedium?.copyWith(
-                            color: theme.colorScheme.onSurface
-                                .withValues(alpha: 0.5),
+                            color: theme.colorScheme.onSurface.withValues(
+                              alpha: 0.5,
+                            ),
                           ),
                         ),
                       ],
@@ -204,22 +247,26 @@ class _ComfyUISettingsSectionState
 
                 // 用户自定义工作流
                 Padding(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 8,
+                  ),
                   child: Row(
                     children: [
                       Icon(
                         Icons.person,
                         size: 16,
-                        color:
-                            theme.colorScheme.onSurface.withValues(alpha: 0.5),
+                        color: theme.colorScheme.onSurface.withValues(
+                          alpha: 0.5,
+                        ),
                       ),
                       const SizedBox(width: 8),
                       Text(
                         context.l10n.settings_comfyUiCustomWorkflows,
                         style: theme.textTheme.labelMedium?.copyWith(
-                          color: theme.colorScheme.onSurface
-                              .withValues(alpha: 0.5),
+                          color: theme.colorScheme.onSurface.withValues(
+                            alpha: 0.5,
+                          ),
                         ),
                       ),
                       const Spacer(),
@@ -240,8 +287,9 @@ class _ComfyUISettingsSectionState
                     child: Text(
                       context.l10n.settings_comfyUiNoCustomWorkflows,
                       style: theme.textTheme.bodySmall?.copyWith(
-                        color:
-                            theme.colorScheme.onSurface.withValues(alpha: 0.4),
+                        color: theme.colorScheme.onSurface.withValues(
+                          alpha: 0.4,
+                        ),
                       ),
                     ),
                   )
@@ -294,32 +342,19 @@ class _ComfyUISettingsSectionState
   }
 
   Future<void> _confirmDeleteWorkflow(WorkflowTemplate template) async {
-    final confirmed = await showDialog<bool>(
+    final confirmed = await ThemedConfirmDialog.show(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text(context.l10n.settings_comfyUiDeleteWorkflowTitle),
-        content: Text(
-          context.l10n.settings_comfyUiDeleteWorkflowContent(
-            template.localizedName(context),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: Text(context.l10n.common_cancel),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            style: FilledButton.styleFrom(
-              backgroundColor: Theme.of(context).colorScheme.error,
-            ),
-            child: Text(context.l10n.common_delete),
-          ),
-        ],
+      title: context.l10n.settings_comfyUiDeleteWorkflowTitle,
+      content: context.l10n.settings_comfyUiDeleteWorkflowContent(
+        template.localizedName(context),
       ),
+      confirmText: context.l10n.common_delete,
+      cancelText: context.l10n.common_cancel,
+      type: ThemedConfirmDialogType.danger,
+      icon: Icons.delete_outline,
     );
 
-    if (confirmed == true && mounted) {
+    if (confirmed && mounted) {
       await ref
           .read(comfyUIWorkflowsProvider.notifier)
           .removeCustomTemplate(template.id);
@@ -339,8 +374,9 @@ class _ComfyUISettingsSectionState
     });
 
     try {
-      final ok =
-          await ref.read(comfyUIConnectionProvider.notifier).testConnection();
+      final ok = await ref
+          .read(comfyUIConnectionProvider.notifier)
+          .testConnection();
       if (mounted) {
         setState(() {
           _testResult = ok ? 'ok' : context.l10n.settings_comfyUiNoResponse;
@@ -349,14 +385,16 @@ class _ComfyUISettingsSectionState
         if (ok) {
           AppToast.success(
             context,
-            'ComfyUI ${context.l10n.settings_comfyUiConnectionSuccess}',
+            context.l10n.settings_comfyUiConnectionSuccessFull,
           );
         }
       }
     } catch (e) {
       if (mounted) {
         setState(() {
-          _testResult = e.toString();
+          _testResult = context.l10n.settings_comfyUiConnectionFailed(
+            e.toString(),
+          );
           _isTesting = false;
         });
       }

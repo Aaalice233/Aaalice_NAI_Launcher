@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:nai_launcher/l10n/app_localizations.dart';
 
 /// 导演工具类型
 enum DirectorToolType {
@@ -34,20 +35,20 @@ extension DirectorToolTypeExtension on DirectorToolType {
     }
   }
 
-  String labelKey(dynamic l10n) {
+  String labelKey(AppLocalizations l10n) {
     switch (this) {
       case DirectorToolType.removeBackground:
-        return l10n.img2img_directorRemoveBackground as String;
+        return l10n.img2img_directorRemoveBackground;
       case DirectorToolType.extractLineArt:
-        return l10n.img2img_directorLineArt as String;
+        return l10n.img2img_directorLineArt;
       case DirectorToolType.toSketch:
-        return l10n.img2img_directorSketch as String;
+        return l10n.img2img_directorSketch;
       case DirectorToolType.colorize:
-        return l10n.img2img_directorColorize as String;
+        return l10n.img2img_directorColorize;
       case DirectorToolType.fixEmotion:
-        return l10n.img2img_directorEmotion as String;
+        return l10n.img2img_directorEmotion;
       case DirectorToolType.declutter:
-        return l10n.img2img_directorDeclutter as String;
+        return l10n.img2img_directorDeclutter;
     }
   }
 }

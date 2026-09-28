@@ -1,13 +1,19 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../widgets/common/image_viewport_surface.dart';
 import '../../../../core/shortcuts/default_shortcuts.dart';
+import '../../../../core/utils/app_logger.dart';
 import '../../../../core/utils/localization_extension.dart';
 import '../../../../data/models/vibe/vibe_library_entry.dart';
 import '../../../../data/models/vibe/vibe_reference.dart';
 import '../../../../data/services/vibe_library_storage_service.dart';
+import '../../../adaptive/adaptive_presenter.dart';
+import '../../../adaptive/content_sized_adaptive_form.dart';
+import '../../../adaptive/window_size_class.dart';
 import '../../../providers/vibe_library_provider.dart';
 import '../../../widgets/common/app_toast.dart';
 import '../../../widgets/shortcuts/shortcut_aware_widget.dart';
@@ -57,6 +63,104 @@ class VibeDetailCallbacks {
   });
 }
 
+class _VibeRenameForm extends StatefulWidget {
+  const _VibeRenameForm({
+    required this.initialValue,
+    required this.scrollController,
+  });
+
+  final String initialValue;
+  final ScrollController scrollController;
+
+  static Future<String?> show(
+    BuildContext context, {
+    required String initialValue,
+  }) {
+    return AdaptivePresenter.showForm<String>(
+      context: context,
+      title: context.l10n.shortcut_action_vibe_detail_rename,
+      dialogWidth: 440,
+      builder: (panelContext, scrollController) => _VibeRenameForm(
+        initialValue: initialValue,
+        scrollController: scrollController,
+      ),
+    );
+  }
+
+  @override
+  State<_VibeRenameForm> createState() => _VibeRenameFormState();
+}
+
+class _VibeRenameFormState extends State<_VibeRenameForm> {
+  late final TextEditingController _controller;
+  String? _errorText;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController(text: widget.initialValue);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _validate(String value) {
+    setState(() {
+      _errorText = value.trim().isEmpty ? context.l10n.vibe_nameRequired : null;
+    });
+  }
+
+  void _submit() {
+    final trimmed = _controller.text.trim();
+    if (trimmed.isEmpty) {
+      _validate(_controller.text);
+      return;
+    }
+    Navigator.of(context).pop(trimmed);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ContentSizedAdaptiveForm(
+      scrollViewKey: const ValueKey('vibe-rename-form'),
+      scrollController: widget.scrollController,
+      padding: const EdgeInsets.all(20),
+      content: [
+        TextField(
+          key: const ValueKey('vibe-rename-field'),
+          controller: _controller,
+          autofocus: true,
+          decoration: InputDecoration(
+            labelText: context.l10n.vibe_saveToLibrary_nameHint,
+            errorText: _errorText,
+          ),
+          onChanged: _validate,
+          onSubmitted: (_) => _submit(),
+        ),
+        const SizedBox(height: 20),
+        Wrap(
+          alignment: WrapAlignment.end,
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: Text(context.l10n.common_cancel),
+            ),
+            FilledButton(
+              onPressed: _submit,
+              child: Text(context.l10n.common_confirm),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
 /// 沉浸式毛玻璃 Vibe 详情查看器
 ///
 /// 重构特性：
@@ -70,6 +174,12 @@ class VibeDetailViewer extends ConsumerStatefulWidget {
   /// Vibe 条目数据
   final VibeLibraryEntry entry;
 
+  /// 后台加载的完整详情数据；非空时先显示响应式加载层。
+  final Future<VibeLibraryDetailData>? detailDataFuture;
+
+  /// 已随详情条目一次解析完成的 Bundle 子项。
+  final List<VibeReference> bundleVibes;
+
   /// 回调函数
   final VibeDetailCallbacks? callbacks;
 
@@ -79,6 +189,8 @@ class VibeDetailViewer extends ConsumerStatefulWidget {
   const VibeDetailViewer({
     super.key,
     required this.entry,
+    this.detailDataFuture,
+    this.bundleVibes = const [],
     this.callbacks,
     this.heroTag,
   });
@@ -87,14 +199,24 @@ class VibeDetailViewer extends ConsumerStatefulWidget {
   static Future<void> show(
     BuildContext context, {
     required VibeLibraryEntry entry,
+    Future<VibeLibraryDetailData>? detailDataFuture,
+    List<VibeReference> bundleVibes = const [],
     VibeDetailCallbacks? callbacks,
     String? heroTag,
   }) {
-    return showDialog<void>(
+    return AdaptivePresenter.showForm<void>(
       context: context,
-      barrierColor: Colors.transparent,
-      builder: (context) => VibeDetailViewer(
+      titleBuilder: (panelContext) => Text(
+        entry.displayName,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: Theme.of(panelContext).textTheme.titleLarge,
+      ),
+      dialogWidth: 960,
+      builder: (panelContext, _) => VibeDetailViewer(
         entry: entry,
+        detailDataFuture: detailDataFuture,
+        bundleVibes: bundleVibes,
         callbacks: callbacks,
         heroTag: heroTag,
       ),
@@ -111,8 +233,10 @@ class _VibeDetailViewerState extends ConsumerState<VibeDetailViewer> {
   late double _infoExtracted;
   List<double>? _bundleStrengths;
   List<double>? _bundleInfoExtracted;
+  late List<VibeReference> _bundleVibes;
   final Map<int, Uint8List> _bundleChildRawImageBytes = {};
   final Set<int> _bundleChildImageLoads = {};
+  bool _isLoadingDetailData = false;
   bool _isRenaming = false;
   bool _isSavingParams = false;
 
@@ -160,11 +284,17 @@ class _VibeDetailViewerState extends ConsumerState<VibeDetailViewer> {
   void initState() {
     super.initState();
     _entry = widget.entry;
+    _bundleVibes = widget.bundleVibes;
     _hydrateBundleParamCache(_entry);
     _selectFirstBundleChildIfNeeded();
     _syncDisplayedParamsWithSelection();
-    unawaited(_loadSelectedBundleImage());
-    unawaited(_loadActualEntry());
+    final detailDataFuture = widget.detailDataFuture;
+    if (detailDataFuture == null) {
+      unawaited(_loadSelectedBundleImage());
+    } else {
+      _isLoadingDetailData = true;
+      unawaited(_loadDetailData(detailDataFuture));
+    }
   }
 
   void _hydrateBundleParamCache(VibeLibraryEntry entry) {
@@ -277,6 +407,13 @@ class _VibeDetailViewerState extends ConsumerState<VibeDetailViewer> {
   Uint8List? get _imageBytes {
     // Bundle 模式：主预览优先使用子 Vibe 原图，底部画廊条才使用缩略图。
     if (_entry.isBundle && _selectedSubVibeIndex >= 0) {
+      if (_selectedSubVibeIndex < _bundleVibes.length) {
+        final bundledRaw = _bundleVibes[_selectedSubVibeIndex].rawImageData;
+        if (bundledRaw != null && bundledRaw.isNotEmpty) {
+          return bundledRaw;
+        }
+      }
+
       final loadedRaw = _bundleChildRawImageBytes[_selectedSubVibeIndex];
       if (loadedRaw != null && loadedRaw.isNotEmpty) {
         return loadedRaw;
@@ -334,62 +471,9 @@ class _VibeDetailViewerState extends ConsumerState<VibeDetailViewer> {
     final callback = widget.callbacks?.onRename;
     if (callback == null || _isRenaming) return;
 
-    final newName = await showDialog<String>(
-      context: context,
-      builder: (context) {
-        final controller = TextEditingController(text: _entry.displayName);
-        String? errorText;
-
-        return StatefulBuilder(
-          builder: (context, setState) {
-            void validate(String value) {
-              setState(() {
-                errorText = value.trim().isEmpty
-                    ? context.l10n.vibe_nameRequired
-                    : null;
-              });
-            }
-
-            return AlertDialog(
-              title: Text(context.l10n.shortcut_action_vibe_detail_rename),
-              content: TextField(
-                controller: controller,
-                autofocus: true,
-                decoration: InputDecoration(
-                  hintText: context.l10n.vibe_saveToLibrary_nameHint,
-                  errorText: errorText,
-                ),
-                onChanged: validate,
-                onSubmitted: (value) {
-                  final trimmed = value.trim();
-                  if (trimmed.isNotEmpty) {
-                    Navigator.of(context).pop(trimmed);
-                  } else {
-                    validate(value);
-                  }
-                },
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.of(context).pop(),
-                  child: Text(context.l10n.common_cancel),
-                ),
-                FilledButton(
-                  onPressed: () {
-                    final trimmed = controller.text.trim();
-                    if (trimmed.isEmpty) {
-                      validate(controller.text);
-                      return;
-                    }
-                    Navigator.of(context).pop(trimmed);
-                  },
-                  child: Text(context.l10n.common_confirm),
-                ),
-              ],
-            );
-          },
-        );
-      },
+    final newName = await _VibeRenameForm.show(
+      context,
+      initialValue: _entry.displayName,
     );
 
     if (!mounted || newName == null) return;
@@ -483,20 +567,33 @@ class _VibeDetailViewerState extends ConsumerState<VibeDetailViewer> {
     }
   }
 
-  Future<void> _loadActualEntry() async {
-    final actualEntry = await ref
-        .read(vibeLibraryStorageServiceProvider)
-        .getEntry(_entry.id);
-    if (!mounted || actualEntry == null) return;
+  Future<void> _loadDetailData(
+    Future<VibeLibraryDetailData> detailDataFuture,
+  ) async {
+    VibeLibraryDetailData detailData;
+    try {
+      detailData = await detailDataFuture;
+    } catch (error, stackTrace) {
+      AppLogger.e(
+        'Failed to load Vibe detail data',
+        error,
+        stackTrace,
+        'VibeDetailViewer',
+      );
+      detailData = VibeLibraryDetailData(entry: _entry);
+    }
+    if (!mounted) return;
+
     setState(() {
-      _entry = actualEntry;
-      final maxIndex = (_entry.bundledVibeNames?.length ?? 1) - 1;
-      if (_selectedSubVibeIndex > maxIndex) {
-        _selectedSubVibeIndex = maxIndex >= 0 ? 0 : -1;
-      }
-      _hydrateBundleParamCache(actualEntry);
+      _entry = detailData.entry;
+      _bundleVibes = detailData.bundleVibes;
+      _bundleChildRawImageBytes.clear();
+      _bundleChildImageLoads.clear();
+      _selectedSubVibeIndex = -1;
+      _hydrateBundleParamCache(_entry);
       _selectFirstBundleChildIfNeeded();
       _syncDisplayedParamsWithSelection();
+      _isLoadingDetailData = false;
     });
     unawaited(_loadSelectedBundleImage());
   }
@@ -511,6 +608,15 @@ class _VibeDetailViewerState extends ConsumerState<VibeDetailViewer> {
     }
 
     _bundleChildImageLoads.add(index);
+    if (index < _bundleVibes.length) {
+      _bundleChildImageLoads.remove(index);
+      return;
+    }
+    if (index == 0 && _entry.rawImageData?.isNotEmpty == true) {
+      _bundleChildImageLoads.remove(index);
+      return;
+    }
+
     final entryId = _entry.id;
     final childVibe = await ref
         .read(vibeLibraryStorageServiceProvider)
@@ -546,11 +652,14 @@ class _VibeDetailViewerState extends ConsumerState<VibeDetailViewer> {
 
   @override
   Widget build(BuildContext context) {
-    final isDesktop = MediaQuery.sizeOf(context).width > 800;
+    if (_isLoadingDetailData) {
+      return _buildLoadingView();
+    }
+
     final isBundle = _entry.isBundle;
 
-    return Dialog.fullscreen(
-      backgroundColor: Colors.transparent,
+    return ColoredBox(
+      color: ImageViewportSurface.background,
       child: ShortcutAwareWidget(
         contextType: ShortcutContext.vibeDetail,
         autofocus: true,
@@ -573,7 +682,16 @@ class _VibeDetailViewerState extends ConsumerState<VibeDetailViewer> {
             SafeArea(
               child: Padding(
                 padding: EdgeInsets.only(bottom: isBundle ? 100.0 : 0.0),
-                child: isDesktop ? _buildDesktopLayout() : _buildMobileLayout(),
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    final sizeClass = WindowSizeClass.fromWidth(
+                      constraints.maxWidth,
+                    );
+                    return sizeClass.isExpandedOrWider
+                        ? _buildExpandedLayout()
+                        : _buildCompactLayout(constraints);
+                  },
+                ),
               ),
             ),
 
@@ -601,8 +719,49 @@ class _VibeDetailViewerState extends ConsumerState<VibeDetailViewer> {
     );
   }
 
-  /// 桌面端布局：左 60% 预览 + 右 40% 参数面板
-  Widget _buildDesktopLayout() {
+  Widget _buildLoadingView() {
+    return ColoredBox(
+      color: ImageViewportSurface.background,
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          const VibeDetailBackground(),
+          Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                CircularProgressIndicator(
+                  color: Colors.white,
+                  value: MediaQuery.disableAnimationsOf(context) ? 0.5 : null,
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  context.l10n.common_loading,
+                  style: const TextStyle(color: Colors.white70),
+                ),
+              ],
+            ),
+          ),
+          SafeArea(
+            child: Align(
+              alignment: Alignment.topLeft,
+              child: Padding(
+                padding: const EdgeInsets.all(12),
+                child: IconButton(
+                  tooltip: context.l10n.common_close,
+                  onPressed: _close,
+                  icon: const Icon(Icons.close, color: Colors.white),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Expanded 布局：左 60% 预览 + 右 40% 参数面板。
+  Widget _buildExpandedLayout() {
     return Row(
       children: [
         Expanded(
@@ -618,19 +777,60 @@ class _VibeDetailViewerState extends ConsumerState<VibeDetailViewer> {
     );
   }
 
-  /// 移动端布局：上下分栏
-  Widget _buildMobileLayout() {
+  /// 紧凑布局：竖向空间不足时并排，否则上下分栏。
+  Widget _buildCompactLayout(BoxConstraints constraints) {
+    final useHorizontal = constraints.maxWidth > constraints.maxHeight * 1.15;
+    final preview = VibePreviewDropZone(
+      imageBytes: _imageBytes,
+      onThumbnailChanged: _handleThumbnailChanged,
+      onClose: _close,
+    );
+    final textScale = MediaQuery.textScalerOf(context).scale(14) / 14;
+    if (!useHorizontal && (constraints.maxHeight < 560 || textScale > 1.8)) {
+      return DefaultTabController(
+        length: 2,
+        child: Column(
+          children: [
+            Material(
+              color: ImageViewportSurface.background,
+              child: TabBar(
+                tabs: [
+                  Tab(
+                    icon: Tooltip(
+                      message: context.l10n.vibeBulkTag_actionPreview,
+                      child: const Icon(Icons.image_outlined),
+                    ),
+                  ),
+                  Tab(
+                    icon: Tooltip(
+                      message: context.l10n.generation_params,
+                      child: const Icon(Icons.tune),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Expanded(
+              child: TabBarView(children: [preview, _buildParamPanel()]),
+            ),
+          ],
+        ),
+      );
+    }
+    if (useHorizontal) {
+      return Row(
+        children: [
+          Expanded(flex: 6, child: preview),
+          Expanded(flex: 5, child: _buildParamPanel()),
+        ],
+      );
+    }
+
+    final isShort = constraints.maxHeight < 700;
     return Column(
       children: [
-        Expanded(
-          flex: 6,
-          child: VibePreviewDropZone(
-            imageBytes: _imageBytes,
-            onThumbnailChanged: _handleThumbnailChanged,
-            onClose: _close,
-          ),
-        ),
-        Expanded(flex: 4, child: _buildParamPanel()),
+        Expanded(flex: isShort ? 4 : 6, child: preview),
+        Expanded(flex: isShort ? 6 : 5, child: _buildParamPanel()),
       ],
     );
   }
@@ -638,8 +838,10 @@ class _VibeDetailViewerState extends ConsumerState<VibeDetailViewer> {
   Widget _buildParamPanel() {
     final bundleParamHint = _entry.isBundle
         ? _selectedSubVibeIndex >= 0
-              ? 'Showing import parameters for child Vibe ${_selectedSubVibeIndex + 1}.'
-              : 'Showing Bundle default parameters. Click a child item below to view its parameters.'
+              ? context.l10n.vibeDetail_bundleChildParameters(
+                  _selectedSubVibeIndex + 1,
+                )
+              : context.l10n.vibeDetail_bundleDefaultParameters
         : null;
 
     return VibeDetailParamPanel(

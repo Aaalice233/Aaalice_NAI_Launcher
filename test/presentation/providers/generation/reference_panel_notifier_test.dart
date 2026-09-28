@@ -6,11 +6,14 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:nai_launcher/core/constants/storage_keys.dart';
 import 'package:nai_launcher/data/datasources/remote/nai_image_enhancement_api_service.dart';
+import 'package:nai_launcher/data/models/user/user_subscription.dart';
 import 'package:nai_launcher/data/models/vibe/vibe_library_entry.dart';
 import 'package:nai_launcher/data/models/vibe/vibe_reference.dart';
 import 'package:nai_launcher/data/services/vibe_library_storage_service.dart';
+import 'package:nai_launcher/presentation/providers/auth_provider.dart';
 import 'package:nai_launcher/presentation/providers/generation/generation_params_notifier.dart';
 import 'package:nai_launcher/presentation/providers/generation/reference_panel_notifier.dart';
+import 'package:nai_launcher/presentation/providers/subscription_provider.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -50,11 +53,15 @@ void main() {
 
     final container = ProviderContainer(
       overrides: [
+        authNotifierProvider.overrideWith(_AuthenticatedAuthNotifier.new),
         naiImageEnhancementApiServiceProvider.overrideWithValue(
           _FakeEnhancementApiService(),
         ),
         vibeLibraryStorageServiceProvider.overrideWithValue(
           _FakeVibeLibraryStorageService(),
+        ),
+        subscriptionNotifierProvider.overrideWith(
+          _TestSubscriptionNotifier.new,
         ),
       ],
     );
@@ -63,20 +70,17 @@ void main() {
     final notifier = container.read(referencePanelNotifierProvider.notifier);
     final raw = Uint8List.fromList(const [1, 2, 3, 4]);
 
-    final encoded = await notifier.encodeVibesNow(
-      [
-        VibeReference(
-          displayName: 'raw-vibe',
-          vibeEncoding: '',
-          rawImageData: raw,
-          thumbnail: raw,
-          strength: -0.4,
-          infoExtracted: 0.2,
-          sourceType: VibeSourceType.rawImage,
-        ),
-      ],
-      model: 'nai-diffusion-4-full',
-    );
+    final encoded = await notifier.encodeVibesNow([
+      VibeReference(
+        displayName: 'raw-vibe',
+        vibeEncoding: '',
+        rawImageData: raw,
+        thumbnail: raw,
+        strength: -0.4,
+        infoExtracted: 0.2,
+        sourceType: VibeSourceType.rawImage,
+      ),
+    ], model: 'nai-diffusion-4-full');
 
     expect(encoded, isNotNull);
     expect(encoded!.single.vibeEncoding, 'nai-diffusion-4-full|0.2|1');
@@ -117,13 +121,32 @@ void main() {
     final added = await notifier.addLibraryVibe(staleEntry);
 
     expect(added, isTrue);
-    final vibe =
-        container.read(generationParamsNotifierProvider).vibeReferencesV4.single;
+    final vibe = container
+        .read(generationParamsNotifierProvider)
+        .vibeReferencesV4
+        .single;
     expect(vibe.vibeEncoding, 'actual-encoding');
     expect(vibe.rawImageData, actualEntry.rawImageData);
     expect(vibe.infoExtracted, 0.25);
     expect(vibe.strength, -0.35);
   });
+}
+
+class _AuthenticatedAuthNotifier extends AuthNotifier {
+  @override
+  AuthState build() => const AuthState(status: AuthStatus.authenticated);
+}
+
+class _TestSubscriptionNotifier extends SubscriptionNotifier {
+  @override
+  SubscriptionState build() {
+    return const SubscriptionState.loaded(
+      UserSubscription(tier: 1, active: true),
+    );
+  }
+
+  @override
+  void schedulePostBillingRefresh({Duration delay = Duration.zero}) {}
 }
 
 class _FakeEnhancementApiService extends NAIImageEnhancementApiService {
@@ -149,6 +172,13 @@ class _FakeVibeLibraryStorageService extends VibeLibraryStorageService {
 
   @override
   Future<List<VibeLibraryEntry>> getRecentEntries({int limit = 20}) async {
+    return [];
+  }
+
+  @override
+  Future<List<VibeLibraryEntry>> getRecentDisplayEntries({
+    int limit = 20,
+  }) async {
     return [];
   }
 

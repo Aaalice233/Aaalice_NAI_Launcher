@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
-import '../../../../widgets/common/themed_divider.dart';
+
+import '../../../../adaptive/window_size_class.dart';
+import '../../../../themes/core/layered_surface_style.dart';
 
 /// Container for statistics sections with consistent styling
 class SectionContainer extends StatelessWidget {
@@ -9,7 +11,6 @@ class SectionContainer extends StatelessWidget {
   final Widget child;
   final Widget? trailing;
   final EdgeInsetsGeometry? padding;
-  final bool showDivider;
 
   const SectionContainer({
     super.key,
@@ -19,63 +20,64 @@ class SectionContainer extends StatelessWidget {
     required this.child,
     this.trailing,
     this.padding,
-    this.showDivider = true,
   });
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
-    final screenWidth = MediaQuery.of(context).size.width;
-    final isDesktop = screenWidth >= 900;
 
-    return Container(
-      key: sectionKey,
-      padding: padding ??
-          EdgeInsets.symmetric(
-            horizontal: isDesktop ? 24 : 16,
-            vertical: isDesktop ? 24 : 20,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final sizeClass = WindowSizeClass.fromWidth(constraints.maxWidth);
+        final useExpandedSpacing = sizeClass.isExpandedOrWider;
+
+        return Container(
+          key: sectionKey,
+          padding:
+              padding ??
+              EdgeInsets.symmetric(
+                horizontal: useExpandedSpacing ? 24 : 16,
+                vertical: useExpandedSpacing ? 24 : 20,
+              ),
+          decoration: BoxDecoration(
+            color: sectionSurfaceColor(colorScheme),
+            borderRadius: BorderRadius.circular(8),
           ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Section header
-          Row(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: colorScheme.primaryContainer.withValues(alpha: 0.5),
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: Icon(
-                  icon,
-                  size: 20,
-                  color: colorScheme.primary,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text(
-                  title,
-                  style: theme.textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.bold,
+              // Section header
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: colorScheme.primaryContainer.withValues(
+                        alpha: 0.5,
+                      ),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Icon(icon, size: 20, color: colorScheme.primary),
                   ),
-                ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      title,
+                      style: theme.textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                  if (trailing != null) trailing!,
+                ],
               ),
-              if (trailing != null) trailing!,
+              const SizedBox(height: 20),
+              child,
             ],
           ),
-          const SizedBox(height: 20),
-          // Section content
-          child,
-          // Bottom divider
-          if (showDivider) ...[
-            const SizedBox(height: 24),
-            const ThemedDivider(height: 1),
-          ],
-        ],
-      ),
+        );
+      },
     );
   }
 }
@@ -101,15 +103,14 @@ class StatsGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final screenWidth = MediaQuery.of(context).size.width;
-    final columns = screenWidth >= 900
-        ? desktopColumns
-        : screenWidth >= 600
-            ? tabletColumns
-            : mobileColumns;
-
     return LayoutBuilder(
       builder: (context, constraints) {
+        final sizeClass = WindowSizeClass.fromWidth(constraints.maxWidth);
+        final columns = sizeClass.isExpandedOrWider
+            ? desktopColumns
+            : sizeClass.isMedium
+            ? tabletColumns
+            : mobileColumns;
         final itemWidth =
             (constraints.maxWidth - (columns - 1) * spacing) / columns;
 
@@ -117,10 +118,7 @@ class StatsGrid extends StatelessWidget {
           spacing: spacing,
           runSpacing: runSpacing,
           children: children.map((child) {
-            return SizedBox(
-              width: itemWidth,
-              child: child,
-            );
+            return SizedBox(width: itemWidth, child: child);
           }).toList(),
         );
       },
@@ -147,27 +145,29 @@ class ResponsiveTwoColumn extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final screenWidth = MediaQuery.of(context).size.width;
-    final isDesktop = screenWidth >= 900;
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final sizeClass = WindowSizeClass.fromWidth(constraints.maxWidth);
+        if (sizeClass.isExpandedOrWider) {
+          return Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(flex: leftFlex.toInt(), child: left),
+              SizedBox(width: spacing),
+              Expanded(flex: rightFlex.toInt(), child: right),
+            ],
+          );
+        }
 
-    if (isDesktop) {
-      return Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Expanded(flex: leftFlex.toInt(), child: left),
-          SizedBox(width: spacing),
-          Expanded(flex: rightFlex.toInt(), child: right),
-        ],
-      );
-    }
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        left,
-        SizedBox(height: spacing),
-        right,
-      ],
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            left,
+            SizedBox(height: spacing),
+            right,
+          ],
+        );
+      },
     );
   }
 }

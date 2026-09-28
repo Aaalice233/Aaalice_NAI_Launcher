@@ -25,8 +25,8 @@ if ! command -v git-lfs >/dev/null 2>&1; then
   exit 1
 fi
 
-git lfs pull --include="assets/databases/*.db"
-for db in assets/databases/translation.db assets/databases/cooccurrence.db; do
+git lfs pull --include="assets/databases/tag_catalog.db"
+for db in assets/databases/tag_catalog.db; do
   if [ ! -f "$db" ]; then
     echo "[ERROR] 缺少数据库文件：$db"
     exit 1

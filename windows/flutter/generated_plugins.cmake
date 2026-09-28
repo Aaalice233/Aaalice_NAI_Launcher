@@ -5,12 +5,14 @@
 list(APPEND FLUTTER_PLUGIN_LIST
   audioplayers_windows
   emoji_picker_flutter
+  flutter_inappwebview_windows
   flutter_secure_storage_windows
+  gal
   irondash_engine_context
   media_kit_libs_windows_video
   media_kit_video
   permission_handler_windows
-  screen_retriever
+  screen_retriever_windows
   share_plus
   sqlite3_flutter_libs
   super_native_extensions
@@ -22,7 +24,7 @@ list(APPEND FLUTTER_PLUGIN_LIST
 
 list(APPEND FLUTTER_FFI_PLUGIN_LIST
   jni
-  onnxruntime
+  onnxruntime_v2
 )
 
 set(PLUGIN_BUNDLED_LIBRARIES)

@@ -3,8 +3,8 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 import '../../core/storage/replication_queue_storage.dart';
 import '../../core/storage/queue_state_storage.dart';
 import '../../data/models/queue/replication_task.dart';
+import '../../data/models/queue/replication_task_generation_snapshot.dart';
 import '../../data/models/queue/replication_task_status.dart';
-import '../router/app_router.dart';
 
 part 'replication_queue_provider.g.dart';
 
@@ -71,9 +71,16 @@ class ReplicationQueueState {
   /// 选中的任务数量
   int get selectedCount => selectedTaskIds.length;
 
+  Iterable<ReplicationTask> get selectableTasks =>
+      tasks.where((task) => task.status == ReplicationTaskStatus.pending);
+
   /// 是否全选
-  bool get isAllSelected =>
-      tasks.isNotEmpty && selectedTaskIds.length == tasks.length;
+  bool get isAllSelected {
+    final selectableIds = selectableTasks.map((task) => task.id).toSet();
+    return selectableIds.isNotEmpty &&
+        selectedTaskIds.containsAll(selectableIds) &&
+        selectedTaskIds.length == selectableIds.length;
+  }
 }
 
 /// 复刻队列状态管理 Provider
@@ -84,6 +91,8 @@ class ReplicationQueueState {
 class ReplicationQueueNotifier extends _$ReplicationQueueNotifier {
   late final ReplicationQueueStorage _storage;
   late final QueueStateStorage _stateStorage;
+  Future<void> _pendingTaskWrite = Future.value();
+  Future<void> _pendingFailedTaskWrite = Future.value();
 
   @override
   ReplicationQueueState build() {
@@ -118,14 +127,21 @@ class ReplicationQueueNotifier extends _$ReplicationQueueNotifier {
     }
   }
 
-  /// 保存队列到存储
-  Future<void> _saveToStorage() async {
-    await _storage.save(state.tasks);
+  /// 序列化持久化写入，避免运行状态变化与清空操作并发时旧快照回写。
+  Future<void> _saveToStorage() {
+    final snapshot = List<ReplicationTask>.unmodifiable(state.tasks);
+    final operation = _pendingTaskWrite.then((_) => _storage.save(snapshot));
+    _pendingTaskWrite = operation.catchError((_) {});
+    return operation;
   }
 
-  /// 保存失败任务到存储
-  Future<void> _saveFailedTasks() async {
-    await _stateStorage.saveFailedTasks(state.failedTasks);
+  Future<void> _saveFailedTasks() {
+    final snapshot = List<ReplicationTask>.unmodifiable(state.failedTasks);
+    final operation = _pendingFailedTaskWrite.then(
+      (_) => _stateStorage.saveFailedTasks(snapshot),
+    );
+    _pendingFailedTaskWrite = operation.catchError((_) {});
+    return operation;
   }
 
   /// 添加单个任务到队列
@@ -137,9 +153,6 @@ class ReplicationQueueNotifier extends _$ReplicationQueueNotifier {
     }
     state = state.copyWith(tasks: [...state.tasks, task]);
     await _saveToStorage();
-
-    // 添加任务时重置悬浮球关闭状态，确保悬浮球可见
-    ref.read(floatingButtonClosedProvider.notifier).state = false;
 
     return true;
   }
@@ -157,36 +170,62 @@ class ReplicationQueueNotifier extends _$ReplicationQueueNotifier {
     state = state.copyWith(tasks: [...state.tasks, ...toAdd]);
     await _saveToStorage();
 
-    // 添加任务时重置悬浮球关闭状态，确保悬浮球可见
-    ref.read(floatingButtonClosedProvider.notifier).state = false;
-
     return toAdd.length;
   }
 
-  /// 移除指定任务
-  Future<void> remove(String taskId) async {
+  /// 移除指定的待执行任务。运行中的任务只能由执行引擎结算。
+  Future<bool> remove(String taskId) async {
+    final index = state.tasks.indexWhere((task) => task.id == taskId);
+    if (index < 0 ||
+        state.tasks[index].status == ReplicationTaskStatus.running) {
+      return false;
+    }
+
     state = state.copyWith(
-      tasks: state.tasks.where((t) => t.id != taskId).toList(),
+      tasks: state.tasks.where((task) => task.id != taskId).toList(),
       selectedTaskIds: state.selectedTaskIds.difference({taskId}),
     );
     await _saveToStorage();
+    return true;
   }
 
-  /// 重新排序任务
-  Future<void> reorder(int oldIndex, int newIndex) async {
+  /// 执行失败后的内部结算入口，允许移除当前运行任务后重新排队。
+  Future<bool> removeRunningTaskForRetry(String taskId) async {
+    final index = state.tasks.indexWhere((task) => task.id == taskId);
+    if (index < 0 ||
+        state.tasks[index].status != ReplicationTaskStatus.running) {
+      return false;
+    }
+
+    state = state.copyWith(
+      tasks: state.tasks.where((task) => task.id != taskId).toList(),
+      selectedTaskIds: state.selectedTaskIds.difference({taskId}),
+    );
+    await _saveToStorage();
+    return true;
+  }
+
+  /// 重新排序待执行任务；当前运行任务始终保留在其前方。
+  Future<bool> reorder(int oldIndex, int newIndex) async {
     if (oldIndex < 0 ||
         oldIndex >= state.tasks.length ||
         newIndex < 0 ||
-        newIndex > state.tasks.length) {
-      return;
+        newIndex > state.tasks.length ||
+        state.tasks[oldIndex].status != ReplicationTaskStatus.pending) {
+      return false;
     }
 
     final tasks = List<ReplicationTask>.from(state.tasks);
     final task = tasks.removeAt(oldIndex);
-    tasks.insert(newIndex, task);
+    final runningPrefixLength = tasks
+        .takeWhile((item) => item.status == ReplicationTaskStatus.running)
+        .length;
+    final insertionIndex = newIndex.clamp(runningPrefixLength, tasks.length);
+    tasks.insert(insertionIndex, task);
 
     state = state.copyWith(tasks: tasks);
     await _saveToStorage();
+    return true;
   }
 
   /// 清空队列
@@ -196,7 +235,9 @@ class ReplicationQueueNotifier extends _$ReplicationQueueNotifier {
       selectedTaskIds: {},
       isSelectionMode: false,
     );
-    await _storage.clear();
+    final operation = _pendingTaskWrite.then((_) => _storage.clear());
+    _pendingTaskWrite = operation.catchError((_) {});
+    await operation;
   }
 
   /// 获取队列中的下一个任务（不移除）
@@ -205,67 +246,146 @@ class ReplicationQueueNotifier extends _$ReplicationQueueNotifier {
     return state.tasks.first;
   }
 
-  /// 标记任务已完成（移除第一个任务）
-  Future<void> markCompleted() async {
-    if (state.isEmpty) return;
+  /// 按 ID 原子结算任务，禁止在目标缺失时回退到队首。
+  Future<bool> markCompleted(String taskId) async {
+    final taskIndex = state.tasks.indexWhere((task) => task.id == taskId);
+    if (taskIndex < 0 ||
+        state.tasks[taskIndex].status != ReplicationTaskStatus.running) {
+      return false;
+    }
 
-    final completedTask = state.tasks.first.copyWith(
+    final completedTask = state.tasks[taskIndex].copyWith(
       status: ReplicationTaskStatus.completed,
       completedAt: DateTime.now(),
     );
+    final remainingTasks = List<ReplicationTask>.from(state.tasks)
+      ..removeAt(taskIndex);
+    final completedTasks = [...state.completedTasks, completedTask];
+    if (completedTasks.length > 100) {
+      completedTasks.removeRange(0, completedTasks.length - 100);
+    }
 
     state = state.copyWith(
-      tasks: state.tasks.sublist(1),
-      completedTasks: [...state.completedTasks.take(99), completedTask],
+      tasks: remainingTasks,
+      completedTasks: completedTasks,
+      selectedTaskIds: state.selectedTaskIds.difference({taskId}),
     );
     await _saveToStorage();
+    return true;
   }
 
-  /// 更新任务状态
-  Future<void> updateTaskStatus(
+  void removeCompletedTask(String taskId) {
+    state = state.copyWith(
+      completedTasks: state.completedTasks
+          .where((task) => task.id != taskId)
+          .toList(),
+    );
+  }
+
+  void clearCompletedTasks() {
+    state = state.copyWith(completedTasks: const []);
+  }
+
+  /// 更新任务状态。
+  Future<bool> updateTaskStatus(
     String taskId,
     ReplicationTaskStatus status, {
     String? errorMessage,
   }) async {
-    final tasks = state.tasks.map((t) {
-      if (t.id == taskId) {
-        return t.copyWith(
-          status: status,
-          errorMessage: errorMessage,
-          startedAt: status == ReplicationTaskStatus.running
-              ? DateTime.now()
-              : t.startedAt,
-          completedAt: status.isTerminal ? DateTime.now() : t.completedAt,
+    final taskIndex = state.tasks.indexWhere((task) => task.id == taskId);
+    if (taskIndex < 0) return false;
+
+    final tasks = List<ReplicationTask>.from(state.tasks);
+    final task = tasks[taskIndex];
+    tasks[taskIndex] = task.copyWith(
+      status: status,
+      errorMessage: errorMessage,
+      startedAt: status == ReplicationTaskStatus.running
+          ? DateTime.now()
+          : status == ReplicationTaskStatus.pending
+          ? null
+          : task.startedAt,
+      completedAt: status.isTerminal ? DateTime.now() : null,
+    );
+
+    state = state.copyWith(tasks: tasks);
+    await _saveToStorage();
+    return true;
+  }
+
+  /// 取消或终止执行时把仍锁定的运行任务恢复为可再次执行的待处理状态。
+  Future<bool> resetRunningTask(String taskId) async {
+    final taskIndex = state.tasks.indexWhere((task) => task.id == taskId);
+    if (taskIndex < 0 ||
+        state.tasks[taskIndex].status != ReplicationTaskStatus.running) {
+      return false;
+    }
+
+    final tasks = List<ReplicationTask>.from(state.tasks);
+    tasks[taskIndex] = tasks[taskIndex].copyWith(
+      status: ReplicationTaskStatus.pending,
+      errorMessage: null,
+      startedAt: null,
+      completedAt: null,
+    );
+    state = state.copyWith(tasks: tasks);
+    await _saveToStorage();
+    return true;
+  }
+
+  /// 更新待执行任务。执行快照启动后不可被编辑覆盖。
+  Future<bool> updateTask(ReplicationTask updatedTask) async {
+    final taskIndex = state.tasks.indexWhere(
+      (task) => task.id == updatedTask.id,
+    );
+    if (taskIndex < 0 ||
+        state.tasks[taskIndex].status != ReplicationTaskStatus.pending) {
+      return false;
+    }
+
+    final previousTask = state.tasks[taskIndex];
+    Map<String, dynamic>? generationSnapshot = updatedTask.generationSnapshot;
+    if (generationSnapshot != null &&
+        (previousTask.prompt != updatedTask.prompt ||
+            previousTask.negativePrompt != updatedTask.negativePrompt)) {
+      try {
+        generationSnapshot = ReplicationTaskGenerationSnapshot.withTaskText(
+          generationSnapshot,
+          prompt: updatedTask.prompt,
+          negativePrompt: updatedTask.negativePrompt,
         );
+      } on FormatException {
+        return false;
       }
-      return t;
-    }).toList();
+    }
+    final tasks = List<ReplicationTask>.from(state.tasks);
+    tasks[taskIndex] = updatedTask.copyWith(
+      generationSnapshot: generationSnapshot,
+      status: ReplicationTaskStatus.pending,
+      startedAt: null,
+      completedAt: null,
+    );
 
     state = state.copyWith(tasks: tasks);
     await _saveToStorage();
+    return true;
   }
 
-  /// 更新任务
-  Future<void> updateTask(ReplicationTask updatedTask) async {
-    final tasks = state.tasks.map((t) {
-      if (t.id == updatedTask.id) {
-        return updatedTask;
-      }
-      return t;
-    }).toList();
-
-    state = state.copyWith(tasks: tasks);
-    await _saveToStorage();
-  }
-
-  /// 将任务移到队首（置顶）
+  /// 将待执行任务移到运行任务之后的首位。
   Future<void> pinToTop(String taskId) async {
-    final taskIndex = state.tasks.indexWhere((t) => t.id == taskId);
-    if (taskIndex <= 0) return; // 已经在队首或不存在
+    final taskIndex = state.tasks.indexWhere((task) => task.id == taskId);
+    if (taskIndex < 0 ||
+        state.tasks[taskIndex].status != ReplicationTaskStatus.pending) {
+      return;
+    }
 
     final tasks = List<ReplicationTask>.from(state.tasks);
     final task = tasks.removeAt(taskIndex);
-    tasks.insert(0, task);
+    final insertionIndex = tasks
+        .takeWhile((item) => item.status == ReplicationTaskStatus.running)
+        .length;
+    if (taskIndex == insertionIndex) return;
+    tasks.insert(insertionIndex, task);
 
     state = state.copyWith(tasks: tasks);
     await _saveToStorage();
@@ -278,7 +398,7 @@ class ReplicationQueueNotifier extends _$ReplicationQueueNotifier {
       orElse: () => ReplicationTask.create(prompt: ''),
     );
 
-    if (task.prompt.isEmpty) return;
+    if (!_hasGeneratableContent(task)) return;
 
     final failedTask = task.copyWith(
       status: ReplicationTaskStatus.failed,
@@ -294,52 +414,61 @@ class ReplicationQueueNotifier extends _$ReplicationQueueNotifier {
     await _saveFailedTasks();
   }
 
-  /// 从失败池重试任务（移回队首）
-  Future<void> retryFailedTask(String taskId) async {
-    final task = state.failedTasks.firstWhere(
-      (t) => t.id == taskId,
-      orElse: () => ReplicationTask.create(prompt: ''),
-    );
+  /// 从失败池重试任务（移到当前运行任务之后）。
+  Future<bool> retryFailedTask(String taskId) async {
+    final taskIndex = state.failedTasks.indexWhere((task) => task.id == taskId);
+    if (taskIndex < 0 || state.isFull) return false;
 
-    if (task.prompt.isEmpty || state.isFull) return;
-
-    final retriedTask = task.copyWith(
+    final retriedTask = state.failedTasks[taskIndex].copyWith(
       status: ReplicationTaskStatus.pending,
       retryCount: 0,
       errorMessage: null,
+      startedAt: null,
+      completedAt: null,
     );
+    if (!_hasGeneratableContent(retriedTask)) return false;
 
+    final tasks = List<ReplicationTask>.from(state.tasks);
+    final insertionIndex = tasks
+        .takeWhile((item) => item.status == ReplicationTaskStatus.running)
+        .length;
+    tasks.insert(insertionIndex, retriedTask);
     state = state.copyWith(
-      tasks: [retriedTask, ...state.tasks],
-      failedTasks: state.failedTasks.where((t) => t.id != taskId).toList(),
+      tasks: tasks,
+      failedTasks: state.failedTasks
+          .where((task) => task.id != taskId)
+          .toList(),
     );
 
     await _saveToStorage();
     await _saveFailedTasks();
+    return true;
   }
 
-  /// 从失败池重新入队（移到队尾）
-  Future<void> requeueFailedTask(String taskId) async {
-    final task = state.failedTasks.firstWhere(
-      (t) => t.id == taskId,
-      orElse: () => ReplicationTask.create(prompt: ''),
-    );
+  /// 从失败池重新入队（移到队尾）。
+  Future<bool> requeueFailedTask(String taskId) async {
+    final taskIndex = state.failedTasks.indexWhere((task) => task.id == taskId);
+    if (taskIndex < 0 || state.isFull) return false;
 
-    if (task.prompt.isEmpty || state.isFull) return;
-
-    final requeuedTask = task.copyWith(
+    final requeuedTask = state.failedTasks[taskIndex].copyWith(
       status: ReplicationTaskStatus.pending,
       retryCount: 0,
       errorMessage: null,
+      startedAt: null,
+      completedAt: null,
     );
+    if (!_hasGeneratableContent(requeuedTask)) return false;
 
     state = state.copyWith(
       tasks: [...state.tasks, requeuedTask],
-      failedTasks: state.failedTasks.where((t) => t.id != taskId).toList(),
+      failedTasks: state.failedTasks
+          .where((task) => task.id != taskId)
+          .toList(),
     );
 
     await _saveToStorage();
     await _saveFailedTasks();
+    return true;
   }
 
   /// 清空失败任务池
@@ -371,8 +500,14 @@ class ReplicationQueueNotifier extends _$ReplicationQueueNotifier {
     state = state.copyWith(isSelectionMode: false, selectedTaskIds: {});
   }
 
-  /// 切换任务选中状态
+  /// 切换待执行任务的选中状态。
   void toggleTaskSelection(String taskId) {
+    final task = state.tasks.cast<ReplicationTask?>().firstWhere(
+      (item) => item?.id == taskId,
+      orElse: () => null,
+    );
+    if (task?.status != ReplicationTaskStatus.pending) return;
+
     final newSelected = Set<String>.from(state.selectedTaskIds);
     if (newSelected.contains(taskId)) {
       newSelected.remove(taskId);
@@ -382,17 +517,18 @@ class ReplicationQueueNotifier extends _$ReplicationQueueNotifier {
     state = state.copyWith(selectedTaskIds: newSelected);
   }
 
-  /// 全选
+  /// 全选待执行任务。
   void selectAll() {
     state = state.copyWith(
-      selectedTaskIds: state.tasks.map((t) => t.id).toSet(),
+      selectedTaskIds: state.selectableTasks.map((task) => task.id).toSet(),
     );
   }
 
-  /// 反选
+  /// 反选待执行任务。
   void invertSelection() {
-    final allIds = state.tasks.map((t) => t.id).toSet();
-    final newSelected = allIds.difference(state.selectedTaskIds);
+    final allIds = state.selectableTasks.map((task) => task.id).toSet();
+    final selectedIds = state.selectedTaskIds.intersection(allIds);
+    final newSelected = allIds.difference(selectedIds);
     state = state.copyWith(selectedTaskIds: newSelected);
   }
 
@@ -401,13 +537,17 @@ class ReplicationQueueNotifier extends _$ReplicationQueueNotifier {
     state = state.copyWith(selectedTaskIds: {});
   }
 
-  /// 批量删除选中的任务
+  /// 批量删除选中的待执行任务。
   Future<void> deleteSelected() async {
     if (state.selectedTaskIds.isEmpty) return;
 
     state = state.copyWith(
       tasks: state.tasks
-          .where((t) => !state.selectedTaskIds.contains(t.id))
+          .where(
+            (task) =>
+                task.status != ReplicationTaskStatus.pending ||
+                !state.selectedTaskIds.contains(task.id),
+          )
           .toList(),
       selectedTaskIds: {},
       isSelectionMode: false,
@@ -415,19 +555,30 @@ class ReplicationQueueNotifier extends _$ReplicationQueueNotifier {
     await _saveToStorage();
   }
 
-  /// 批量置顶选中的任务
+  /// 批量置顶选中的待执行任务，运行任务保持在最前方。
   Future<void> pinSelectedToTop() async {
     if (state.selectedTaskIds.isEmpty) return;
 
+    final runningTasks = state.tasks
+        .where((task) => task.status == ReplicationTaskStatus.running)
+        .toList();
     final selectedTasks = state.tasks
-        .where((t) => state.selectedTaskIds.contains(t.id))
+        .where(
+          (task) =>
+              task.status == ReplicationTaskStatus.pending &&
+              state.selectedTaskIds.contains(task.id),
+        )
         .toList();
     final otherTasks = state.tasks
-        .where((t) => !state.selectedTaskIds.contains(t.id))
+        .where(
+          (task) =>
+              task.status != ReplicationTaskStatus.running &&
+              !selectedTasks.any((selected) => selected.id == task.id),
+        )
         .toList();
 
     state = state.copyWith(
-      tasks: [...selectedTasks, ...otherTasks],
+      tasks: [...runningTasks, ...selectedTasks, ...otherTasks],
       selectedTaskIds: {},
       isSelectionMode: false,
     );
@@ -443,11 +594,20 @@ class ReplicationQueueNotifier extends _$ReplicationQueueNotifier {
       orElse: () => ReplicationTask.create(prompt: ''),
     );
 
-    if (task.prompt.isEmpty) return false;
+    if (!_hasGeneratableContent(task)) return false;
 
+    Map<String, dynamic>? generationSnapshot;
+    try {
+      generationSnapshot = task.generationSnapshot == null
+          ? null
+          : ReplicationTaskGenerationSnapshot.clone(task.generationSnapshot!);
+    } on FormatException {
+      return false;
+    }
     final newTask = ReplicationTask.create(
       prompt: task.prompt,
       negativePrompt: task.negativePrompt,
+      applyNegativePrompt: task.applyNegativePrompt,
       thumbnailUrl: task.thumbnailUrl,
       source: task.source,
       seed: task.seed,
@@ -457,6 +617,8 @@ class ReplicationQueueNotifier extends _$ReplicationQueueNotifier {
       model: task.model,
       width: task.width,
       height: task.height,
+      characterPrompts: task.characterPrompts,
+      generationSnapshot: generationSnapshot,
     );
 
     final taskIndex = state.tasks.indexWhere((t) => t.id == taskId);
@@ -466,6 +628,20 @@ class ReplicationQueueNotifier extends _$ReplicationQueueNotifier {
     state = state.copyWith(tasks: tasks);
     await _saveToStorage();
     return true;
+  }
+
+  bool _hasGeneratableContent(ReplicationTask task) {
+    if (task.prompt.trim().isNotEmpty) return true;
+    if (task.applyNegativePrompt && task.negativePrompt.trim().isNotEmpty) {
+      return true;
+    }
+    return task.characterPrompts?.any(
+          (character) =>
+              character.enabled &&
+              (character.prompt.trim().isNotEmpty ||
+                  character.negativePrompt.trim().isNotEmpty),
+        ) ??
+        false;
   }
 
   /// 设置加载状态（用于持久化加载）

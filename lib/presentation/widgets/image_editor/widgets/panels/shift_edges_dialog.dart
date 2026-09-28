@@ -1,7 +1,10 @@
+import 'package:nai_launcher/presentation/widgets/common/horizontal_action_strip.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../../../../core/utils/inpaint_outpaint_utils.dart';
+import '../../../../../core/utils/localization_extension.dart';
+import '../../../../adaptive/adaptive_presenter.dart';
 import '../../../../widgets/common/themed_input.dart';
 
 class ShiftEdgesResult {
@@ -25,11 +28,13 @@ class ShiftEdgesResult {
 class ShiftEdgesDialog extends StatefulWidget {
   final int sourceWidth;
   final int sourceHeight;
+  final ScrollController? scrollController;
 
   const ShiftEdgesDialog({
     super.key,
     required this.sourceWidth,
     required this.sourceHeight,
+    this.scrollController,
   });
 
   static Future<ShiftEdgesResult?> show(
@@ -37,11 +42,19 @@ class ShiftEdgesDialog extends StatefulWidget {
     required int sourceWidth,
     required int sourceHeight,
   }) {
-    return showDialog<ShiftEdgesResult>(
+    return AdaptivePresenter.showForm<ShiftEdgesResult>(
       context: context,
-      builder: (context) => ShiftEdgesDialog(
+      dialogWidth: 480,
+      titleBuilder: (context) => Text(
+        context.l10n.editor_shiftEdges,
+        maxLines: 2,
+        overflow: TextOverflow.ellipsis,
+        style: Theme.of(context).textTheme.titleLarge,
+      ),
+      builder: (context, scrollController) => ShiftEdgesDialog(
         sourceWidth: sourceWidth,
         sourceHeight: sourceHeight,
+        scrollController: scrollController,
       ),
     );
   }
@@ -100,83 +113,102 @@ class _ShiftEdgesDialogState extends State<ShiftEdgesDialog> {
             },
           ),
         },
-        child: AlertDialog(
-          title: const Text('Shift Edges'),
-          content: SizedBox(
-            width: 360,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Text(
-                  'Current: ${widget.sourceWidth} x ${widget.sourceHeight}',
-                  style: theme.textTheme.bodyMedium,
-                ),
-                const SizedBox(height: 16),
-                Row(
-                  children: [
-                    Expanded(
-                      child: _EdgeInput(
-                        key: const Key('shift_edges_left'),
-                        label: 'Left',
-                        controller: _leftController,
-                        errorText: _edgeErrorText(_leftController.text),
-                        onChanged: _handleChanged,
-                      ),
+        child: Column(
+          children: [
+            Expanded(
+              child: ListView(
+                key: const Key('shift_edges_scroll'),
+                controller: widget.scrollController,
+                keyboardDismissBehavior:
+                    ScrollViewKeyboardDismissBehavior.onDrag,
+                padding: const EdgeInsets.all(16),
+                children: [
+                  Text(
+                    context.l10n.editor_currentSize(
+                      widget.sourceWidth,
+                      widget.sourceHeight,
                     ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: _EdgeInput(
-                        key: const Key('shift_edges_right'),
-                        label: 'Right',
-                        controller: _rightController,
-                        errorText: _edgeErrorText(_rightController.text),
-                        onChanged: _handleChanged,
-                      ),
+                    style: theme.textTheme.bodyMedium,
+                  ),
+                  const SizedBox(height: 16),
+                  _EdgeInputRow(
+                    first: _EdgeInput(
+                      key: const Key('shift_edges_left'),
+                      label: context.l10n.editor_edgeLeft,
+                      controller: _leftController,
+                      errorText: _edgeErrorText(_leftController.text),
+                      onChanged: _handleChanged,
                     ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    Expanded(
-                      child: _EdgeInput(
-                        key: const Key('shift_edges_top'),
-                        label: 'Top',
-                        controller: _topController,
-                        errorText: _edgeErrorText(_topController.text),
-                        onChanged: _handleChanged,
-                      ),
+                    second: _EdgeInput(
+                      key: const Key('shift_edges_right'),
+                      label: context.l10n.editor_edgeRight,
+                      controller: _rightController,
+                      errorText: _edgeErrorText(_rightController.text),
+                      onChanged: _handleChanged,
                     ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: _EdgeInput(
-                        key: const Key('shift_edges_bottom'),
-                        label: 'Bottom',
-                        controller: _bottomController,
-                        errorText: _edgeErrorText(_bottomController.text),
-                        onChanged: _handleChanged,
-                      ),
+                  ),
+                  const SizedBox(height: 12),
+                  _EdgeInputRow(
+                    first: _EdgeInput(
+                      key: const Key('shift_edges_top'),
+                      label: context.l10n.editor_edgeTop,
+                      controller: _topController,
+                      errorText: _edgeErrorText(_topController.text),
+                      onChanged: _handleChanged,
                     ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                _SizeSummary(preview: preview),
-              ],
+                    second: _EdgeInput(
+                      key: const Key('shift_edges_bottom'),
+                      label: context.l10n.editor_edgeBottom,
+                      controller: _bottomController,
+                      errorText: _edgeErrorText(_bottomController.text),
+                      onChanged: _handleChanged,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  _SizeSummary(preview: preview),
+                ],
+              ),
             ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel'),
-            ),
-            FilledButton(
-              onPressed: _canConfirm(preview) ? () => _confirm(preview) : null,
-              child: const Text('Shift Edges'),
+            const Divider(height: 1),
+            SafeArea(
+              top: false,
+              child: Padding(
+                padding: const EdgeInsets.all(12),
+                child: _buildActions(preview),
+              ),
             ),
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildActions(_ShiftEdgesPreview preview) {
+    final cancel = TextButton(
+      key: const Key('shift_edges_cancel'),
+      onPressed: () => Navigator.pop(context),
+      child: Text(context.l10n.common_cancel, textAlign: TextAlign.center),
+    );
+    final confirm = FilledButton(
+      key: const Key('shift_edges_confirm'),
+      onPressed: _canConfirm(preview) ? () => _confirm(preview) : null,
+      child: Text(context.l10n.editor_shiftEdges, textAlign: TextAlign.center),
+    );
+    if (MediaQuery.textScalerOf(context).scale(1) >= 2) {
+      return HorizontalActionStrip(
+        reverse: true,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [cancel, const SizedBox(width: 8), confirm],
+        ),
+      );
+    }
+    return Row(
+      children: [
+        Expanded(child: cancel),
+        const SizedBox(width: 8),
+        Expanded(child: confirm),
+      ],
     );
   }
 
@@ -243,10 +275,10 @@ class _ShiftEdgesDialogState extends State<ShiftEdgesDialog> {
   String? _edgeErrorText(String value) {
     final parsed = int.tryParse(value.trim());
     if (parsed == null) {
-      return 'Enter a number';
+      return context.l10n.editor_enterNumber;
     }
     if (parsed < 0) {
-      return 'Must be 0 or more';
+      return context.l10n.editor_nonNegativeNumber;
     }
     return null;
   }
@@ -285,6 +317,33 @@ class _ShiftEdgesDialogState extends State<ShiftEdgesDialog> {
   }
 }
 
+class _EdgeInputRow extends StatelessWidget {
+  const _EdgeInputRow({required this.first, required this.second});
+
+  final Widget first;
+  final Widget second;
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final minimumFieldWidth = MediaQuery.textScalerOf(context).scale(104);
+        if (constraints.maxWidth >= minimumFieldWidth * 2 + 12) {
+          return Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(child: first),
+              const SizedBox(width: 12),
+              Expanded(child: second),
+            ],
+          );
+        }
+        return Column(children: [first, const SizedBox(height: 12), second]);
+      },
+    );
+  }
+}
+
 class _EdgeInput extends StatelessWidget {
   final String label;
   final TextEditingController controller;
@@ -310,9 +369,7 @@ class _EdgeInput extends StatelessWidget {
         errorText: errorText,
       ),
       keyboardType: TextInputType.number,
-      inputFormatters: [
-        FilteringTextInputFormatter.digitsOnly,
-      ],
+      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
       onChanged: onChanged,
     );
   }
@@ -326,24 +383,28 @@ class _SizeSummary extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final hasOversizedAppliedDimensions = preview.isValid &&
+    final l10n = context.l10n;
+    final hasOversizedAppliedDimensions =
+        preview.isValid &&
         (preview.appliedWidth > _ShiftEdgesDialogState._maxDimension ||
             preview.appliedHeight > _ShiftEdgesDialogState._maxDimension);
 
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerHighest,
+        color: theme.colorScheme.surfaceContainer,
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: theme.colorScheme.outlineVariant),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             preview.isValid
-                ? 'Requested: ${preview.requestedWidth} x ${preview.requestedHeight}'
-                : 'Requested: invalid',
+                ? l10n.editor_requestedSize(
+                    preview.requestedWidth,
+                    preview.requestedHeight,
+                  )
+                : l10n.editor_requestedSizeInvalid,
             style: theme.textTheme.bodyMedium?.copyWith(
               fontFamily: 'monospace',
             ),
@@ -351,8 +412,11 @@ class _SizeSummary extends StatelessWidget {
           const SizedBox(height: 6),
           Text(
             preview.isValid
-                ? 'Applied: ${preview.appliedWidth} x ${preview.appliedHeight}'
-                : 'Applied: invalid',
+                ? l10n.editor_appliedSize(
+                    preview.appliedWidth,
+                    preview.appliedHeight,
+                  )
+                : l10n.editor_appliedSizeInvalid,
             style: theme.textTheme.bodyMedium?.copyWith(
               color: hasOversizedAppliedDimensions
                   ? theme.colorScheme.error
@@ -364,11 +428,13 @@ class _SizeSummary extends StatelessWidget {
           const SizedBox(height: 6),
           Text(
             preview.isValid
-                ? 'Applied edges: L ${preview.appliedEdges.left}, '
-                    'T ${preview.appliedEdges.top}, '
-                    'R ${preview.appliedEdges.right}, '
-                    'B ${preview.appliedEdges.bottom}'
-                : 'Applied edges: invalid',
+                ? l10n.editor_appliedEdges(
+                    preview.appliedEdges.left,
+                    preview.appliedEdges.top,
+                    preview.appliedEdges.right,
+                    preview.appliedEdges.bottom,
+                  )
+                : l10n.editor_appliedEdgesInvalid,
             style: theme.textTheme.bodySmall?.copyWith(
               color: theme.colorScheme.onSurfaceVariant,
               fontFamily: 'monospace',
@@ -377,7 +443,9 @@ class _SizeSummary extends StatelessWidget {
           if (hasOversizedAppliedDimensions) ...[
             const SizedBox(height: 8),
             Text(
-              'Applied dimensions must not exceed 4096.',
+              l10n.editor_appliedDimensionLimit(
+                _ShiftEdgesDialogState._maxDimension,
+              ),
               style: theme.textTheme.bodySmall?.copyWith(
                 color: theme.colorScheme.error,
               ),

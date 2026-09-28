@@ -2,13 +2,23 @@ import 'dart:convert';
 import 'dart:math';
 import 'dart:typed_data';
 
+import '../../constants/api_constants.dart';
 import '../../enums/precise_ref_type.dart';
 import '../../utils/app_logger.dart';
+import '../../utils/character_center_resolver.dart';
 import '../../utils/inpaint_mask_utils.dart';
 import '../../utils/nai_resolution_adapter.dart';
 import '../../utils/nai_api_utils.dart';
+import '../../utils/novelai_auto_text.dart';
 import '../../utils/prompt_semantics_utils.dart';
+import '../../utils/prompt_edit_document.dart';
 import '../../../data/models/image/image_params.dart';
+
+/// Variety+ sigma 缩放的基准潜空间体积：4 通道 × 104 × 152（832×1216 的潜空间）。
+const int _cfgDelayReferenceLatents = 4 * 104 * 152;
+
+/// 官网当前所有图像模型共用的请求参数版本。
+const int _officialParamsVersion = 4;
 
 typedef EncodeVibeFn =
     Future<String> Function(
@@ -25,6 +35,8 @@ class NAIImageRequestBuildResult {
     required this.requestParameters,
     required this.requestData,
     this.vibeEncodingMap = const {},
+    this.normalizedSourceImageBytes,
+    this.inpaintMaskArtifacts,
   });
 
   final int seed;
@@ -33,6 +45,8 @@ class NAIImageRequestBuildResult {
   final Map<String, dynamic> requestParameters;
   final Map<String, dynamic> requestData;
   final Map<int, String> vibeEncodingMap;
+  final Uint8List? normalizedSourceImageBytes;
+  final NovelAiInpaintMaskArtifacts? inpaintMaskArtifacts;
 }
 
 class NAIImageRequestBuilder {
@@ -42,7 +56,7 @@ class NAIImageRequestBuilder {
     List<PreciseReference>? preciseReferences,
   }) : _preciseReferences =
            (preciseReferences ??
-                   (params.isV45Model
+                   (params.capabilities.supportsPreciseReference
                        ? params.preciseReferences
                        : <PreciseReference>[]))
                .where((reference) => reference.enabled)
@@ -58,17 +72,26 @@ class NAIImageRequestBuilder {
     required String effectiveNegativePrompt,
     required bool isStream,
   }) {
+    final noiseSchedule = params.capabilities.supportsNoiseSchedule
+        ? NoiseSchedules.resolve(
+            params.noiseSchedule,
+            allowNative: params.capabilities.allowsNativeNoiseSchedule,
+          )
+        : NoiseSchedules.karras;
+    final usesBrownianEulerAncestral =
+        sampler == Samplers.kEulerAncestral &&
+        noiseSchedule != NoiseSchedules.native;
     final requestParameters = <String, dynamic>{
-      'params_version': params.paramsVersion,
+      'params_version': _officialParamsVersion,
       'width': params.width,
       'height': params.height,
       'scale': NAIApiUtils.toJsonNumber(params.scale),
       'sampler': sampler,
       'steps': params.steps,
       'n_samples': params.nSamples,
-      'ucPreset': params.ucPreset,
-      'qualityToggle': params.qualityToggle,
-      'autoSmea': false,
+      'ucPresetId': _resolveUcPresetId(),
+      'qualityPresetId': _resolveQualityPresetId(),
+      if (params.isV4Model) 'autoSmea': false,
       'dynamic_thresholding': params.isV3Model && params.decrisp,
       'controlnet_strength': 1,
       'legacy': false,
@@ -76,42 +99,116 @@ class NAIImageRequestBuilder {
           ? false
           : params.addOriginalImage,
       'cfg_rescale': NAIApiUtils.toJsonNumber(params.cfgRescale),
-      'noise_schedule': params.isV4Model
-          ? (params.noiseSchedule == 'native' ? 'karras' : params.noiseSchedule)
-          : params.noiseSchedule,
-      'normalize_reference_strength_multiple': true,
-      'inpaintImg2ImgStrength': NAIApiUtils.toJsonNumber(
-        params.inpaintStrength,
-      ),
+      'noise_schedule': noiseSchedule,
+      if (params.isV4Model || params.inpaintStrength != 1.0)
+        'inpaintImg2ImgStrength': NAIApiUtils.toJsonNumber(
+          params.inpaintStrength,
+        ),
       'seed': seed,
-      'negative_prompt': effectiveNegativePrompt,
-      'deliberate_euler_ancestral_bug': false,
-      'prefer_brownian': true,
+      if (effectiveNegativePrompt.isEmpty)
+        'uc': ''
+      else
+        'negative_prompt': effectiveNegativePrompt,
+      if (usesBrownianEulerAncestral) 'deliberate_euler_ancestral_bug': false,
+      if (usesBrownianEulerAncestral) 'prefer_brownian': true,
+      'image_format': 'png',
       if (isStream) 'stream': 'msgpack',
     };
 
-    requestParameters['skip_cfg_above_sigma'] = params.varietyPlus
-        ? 58.0 * sqrt(4.0 * (params.width / 8) * (params.height / 8) / 63232)
-        : null;
+    // sigma 基数按模型取（V4.5 起 58，更早 19），再按潜空间面积缩放。
+    if (params.varietyPlus && params.capabilities.supportsVarietyPlus) {
+      requestParameters['skip_cfg_above_sigma'] =
+          params.capabilities.cfgDelaySigma *
+          sqrt(
+            4.0 *
+                (params.width ~/ 8) *
+                (params.height ~/ 8) /
+                _cfgDelayReferenceLatents,
+          );
+    } else if (params.capabilities.supportsVarietyPlus &&
+        params.capabilities.retainsVarietyPlus) {
+      requestParameters['skip_cfg_above_sigma'] = null;
+    }
+
+    if (params.capabilities.supportsTransparentBackground) {
+      // 官网把 Alpha 模式作为账号级设置，只要模型支持透明就随请求下发。
+      requestParameters['straight_alpha'] = params.straightAlpha;
+      if (params.transparentBackground) {
+        requestParameters['tag_hint_transparent_background'] = true;
+      }
+    }
+
+    // 官网每个请求都带质量/负面预设的数字提示（0=none 1=standard 2=heavy
+    // 3=light 4=humanFocus 5=furryFocus）。自定义预设映射不到官方编号，
+    // 与官网删除 undefined 的行为一致，直接不发。
+    final qtHint = _resolveQualityTagHint();
+    if (qtHint != null) {
+      requestParameters['tag_hint_qt'] = qtHint;
+    }
+    final ucHint = _resolveUcPresetTagHint();
+    if (ucHint != null) {
+      requestParameters['tag_hint_uc_preset'] = ucHint;
+    }
+
+    if (params.effectiveE2eUpscale) {
+      requestParameters['upscale'] = {
+        'declared_blur_sigma': E2eUpscale.declaredBlurSigma,
+      };
+    }
+
+    if (params.effectiveUpscaledEnhance) {
+      requestParameters['upscaled_enhance'] = true;
+    }
 
     if (!params.isV4Model) {
-      final resolution = params.width * params.height;
-      final autoSmea = resolution > 1024 * 1024;
-
-      final isDdim = params.sampler.contains('ddim');
-      final effectiveSmea = isDdim
-          ? false
-          : (params.smeaAuto ? autoSmea : params.smea);
-      final effectiveSmeaDyn = isDdim
-          ? false
-          : (params.smeaAuto ? false : params.smeaDyn);
-
-      requestParameters['sm'] = effectiveSmea;
-      requestParameters['sm_dyn'] = effectiveSmeaDyn;
-      requestParameters['uc'] = effectiveNegativePrompt;
+      requestParameters['sm'] = params.effectiveSmea;
+      requestParameters['sm_dyn'] = params.effectiveSmeaDyn;
     }
 
     return requestParameters;
+  }
+
+  String _resolveQualityPresetId() {
+    if (!params.qualityToggle) return 'none';
+    return QualityTags.tiersForModel(params.model).contains(params.qualityTier)
+        ? params.qualityTier
+        : QualityTags.standardTier;
+  }
+
+  String _resolveUcPresetId() {
+    return switch (params.ucPreset) {
+      UcPresets.heavyApiValue => 'heavy',
+      UcPresets.lightApiValue => 'light',
+      UcPresets.humanFocusApiValue => 'humanFocus',
+      UcPresets.noneApiValue => 'none',
+      UCPresets.furryFocus => 'furryFocus',
+      _ => 'none',
+    };
+  }
+
+  /// 质量预设的官网数字编号。
+  ///
+  /// 自定义质量词在进入构造前已并入 prompt（qualityToggle=false），
+  /// 此时按 none 上报，与官网“预设未参与解析”的语义一致。
+  int? _resolveQualityTagHint() {
+    return QualityTags.toTagHint(
+      model: params.model,
+      enabled: params.qualityToggle,
+      tier: params.qualityTier,
+      omit: params.omitQualityTagHint,
+    );
+  }
+
+  /// 负面预设的官网数字编号。
+  ///
+  /// [ImageParams.ucPreset] 存的是请求 `ucPreset` 字段的旧版取值
+  /// （0=heavy 1=light 2=humanFocus 3=none 7=furryFocus），这里换算成
+  /// tag hint 的编号体系。
+  int? _resolveUcPresetTagHint() {
+    return UcPresets.toTagHint(
+      params.ucPreset,
+      omit: params.omitUcPresetTagHint,
+    );
   }
 
   void buildV4Parameters(
@@ -119,28 +216,40 @@ class NAIImageRequestBuilder {
     required String effectivePrompt,
     required String effectiveNegativePrompt,
   }) {
-    requestParameters['params_version'] = 3;
+    PromptEditDocument.requireEffective(
+      effectivePrompt,
+      field: 'effectivePrompt',
+    );
+    PromptEditDocument.requireEffective(
+      effectiveNegativePrompt,
+      field: 'effectiveNegativePrompt',
+    );
+    for (final character in params.characters) {
+      PromptEditDocument.requireEffective(
+        character.prompt,
+        field: 'character.prompt',
+      );
+      PromptEditDocument.requireEffective(
+        character.negativePrompt,
+        field: 'character.negativePrompt',
+      );
+    }
+    requestParameters['params_version'] = _officialParamsVersion;
     requestParameters['use_coords'] = params.useCoords;
     requestParameters['legacy_v3_extend'] = false;
     requestParameters['legacy_uc'] = false;
+    requestParameters['normalize_reference_strength_multiple'] =
+        params.normalizeVibeStrength;
 
     final charCaptions = <Map<String, dynamic>>[];
     final negativeCharCaptions = <Map<String, dynamic>>[];
     final characterPrompts = <Map<String, dynamic>>[];
 
-    for (final char in params.characters) {
-      double x = 0, y = 0;
-      if (char.position != null && char.position!.length >= 2) {
-        final letter = char.position![0].toUpperCase();
-        final digit = char.position![1];
-        x = 0.5 + 0.2 * (letter.codeUnitAt(0) - 'C'.codeUnitAt(0));
-        y = 0.5 + 0.2 * (int.tryParse(digit) ?? 3) - 0.5 - 0.4;
-        x = x.clamp(0.1, 0.9);
-        y = y.clamp(0.1, 0.9);
-      } else if (char.positionX != null && char.positionY != null) {
-        x = char.positionX!;
-        y = char.positionY!;
-      }
+    for (var index = 0; index < params.characters.length; index++) {
+      final char = params.characters[index];
+      final center = _resolveCharacterCenter(index);
+      final x = center.x;
+      final y = center.y;
 
       charCaptions.add({
         'centers': [
@@ -184,6 +293,29 @@ class NAIImageRequestBuilder {
     requestParameters['characterPrompts'] = characterPrompts;
   }
 
+  ({double x, double y}) _resolveCharacterCenter(int index) {
+    return CharacterCenterResolver.resolve(
+      params.characters[index],
+      index: index,
+      total: params.characters.length,
+      useCoords: params.useCoords,
+    );
+  }
+
+  List<NovelAiAutoTextCharacter> _buildAutoTextCharacters() {
+    return List<NovelAiAutoTextCharacter>.generate(params.characters.length, (
+      index,
+    ) {
+      final character = params.characters[index];
+      final center = _resolveCharacterCenter(index);
+      return NovelAiAutoTextCharacter(
+        prompt: character.prompt,
+        centerX: center.x,
+        centerY: center.y,
+      );
+    }, growable: false);
+  }
+
   Future<Map<int, String>> buildVibeTransferParameters(
     Map<String, dynamic> requestParameters, {
     required bool isStream,
@@ -199,7 +331,41 @@ class NAIImageRequestBuilder {
       // Vibe Transfer payload 会触发服务端 500，因此局部重绘时跳过。
       return vibeEncodingMap;
     }
+    if (!params.capabilities.supportsVibeTransfer) {
+      // V5 测试期尚未开放 Vibe Transfer，附带相关参数会被服务端拒绝。
+      return vibeEncodingMap;
+    }
     if (!params.hasVibeReferencesV4) {
+      return vibeEncodingMap;
+    }
+
+    if (!params.capabilities.supportsEncodedVibeTransfer) {
+      final enabledVibes = params.enabledVibeReferencesV4;
+      final missingSourceVibes = enabledVibes
+          .where((vibe) => !vibe.canReencodeFromRawSource)
+          .toList(growable: false);
+      if (missingSourceVibes.isNotEmpty) {
+        final names = missingSourceVibes
+            .map((vibe) => vibe.displayName)
+            .join(', ');
+        throw StateError('V3 Vibe Transfer requires source image data: $names');
+      }
+
+      final rawImageVibes = enabledVibes;
+      if (rawImageVibes.isEmpty) {
+        return vibeEncodingMap;
+      }
+
+      requestParameters['reference_image_multiple'] = rawImageVibes
+          .map((vibe) => base64Encode(vibe.rawImageData!))
+          .toList(growable: false);
+      requestParameters['reference_strength_multiple'] = rawImageVibes
+          .map((vibe) => vibe.strength)
+          .toList(growable: false);
+      requestParameters['reference_information_extracted_multiple'] =
+          rawImageVibes
+              .map((vibe) => vibe.infoExtracted)
+              .toList(growable: false);
       return vibeEncodingMap;
     }
 
@@ -217,13 +383,7 @@ class NAIImageRequestBuilder {
           continue;
         }
 
-        if (vibe.vibeEncoding.isNotEmpty) {
-          allEncodings.add(vibe.vibeEncoding);
-          allStrengths.add(vibe.strength);
-          allInfoExtracted.add(vibe.infoExtracted);
-          vibeEncodingMap[i] = vibe.vibeEncoding;
-          AppLogger.d('V4 Vibe: Using pre-encoded vibe at index $i', 'ImgGen');
-        } else if (vibe.rawImageData != null) {
+        if (vibe.needsEncodingForModel(params.model)) {
           AppLogger.d(
             'V4 Vibe: Encoding rawImage at index $i (2 Anlas)...',
             'ImgGen',
@@ -255,6 +415,12 @@ class NAIImageRequestBuilder {
               'ImgGen',
             );
           }
+        } else if (vibe.vibeEncoding.isNotEmpty) {
+          allEncodings.add(vibe.vibeEncoding);
+          allStrengths.add(vibe.strength);
+          allInfoExtracted.add(vibe.infoExtracted);
+          vibeEncodingMap[i] = vibe.vibeEncoding;
+          AppLogger.d('V4 Vibe: Using pre-encoded vibe at index $i', 'ImgGen');
         }
       }
 
@@ -275,11 +441,12 @@ class NAIImageRequestBuilder {
 
     final encodedVibes = params.vibeReferencesV4
         .where((v) => v.enabled)
+        .where((v) => !v.needsEncodingForModel(params.model))
         .where((v) => v.vibeEncoding.isNotEmpty)
         .toList();
     final rawImageVibes = params.vibeReferencesV4
         .where((v) => v.enabled)
-        .where((v) => v.vibeEncoding.isEmpty && v.rawImageData != null)
+        .where((v) => v.needsEncodingForModel(params.model))
         .toList();
 
     final allEncodings = <String>[];
@@ -393,18 +560,79 @@ class NAIImageRequestBuilder {
     required String sampler,
     bool isStream = false,
   }) async {
+    PromptEditDocument.requireEffective(params.prompt, field: 'prompt');
+    PromptEditDocument.requireEffective(
+      params.negativePrompt,
+      field: 'negativePrompt',
+    );
+    for (var i = 0; i < params.characters.length; i++) {
+      PromptEditDocument.requireEffective(
+        params.characters[i].prompt,
+        field: 'characters[$i].prompt',
+      );
+      PromptEditDocument.requireEffective(
+        params.characters[i].negativePrompt,
+        field: 'characters[$i].negativePrompt',
+      );
+    }
     if (sampler.isEmpty) {
       throw ArgumentError.value(sampler, 'sampler', 'Sampler cannot be empty');
     }
 
+    final characterLimit = params.capabilities.maxCharacters;
+    if (params.characters.isNotEmpty && characterLimit == 0) {
+      throw ArgumentError.value(
+        params.characters.length,
+        'characters',
+        'Model ${params.model} does not support character prompts',
+      );
+    }
+    if (params.characters.length > characterLimit) {
+      throw ArgumentError.value(
+        params.characters.length,
+        'characters',
+        'Model ${params.model} supports at most $characterLimit characters',
+      );
+    }
+    if (params.useCoords) {
+      for (var index = 0; index < params.characters.length; index++) {
+        final character = params.characters[index];
+        final x = character.positionX;
+        final y = character.positionY;
+        if (x == null ||
+            y == null ||
+            !x.isFinite ||
+            !y.isFinite ||
+            x < 0 ||
+            x > 1 ||
+            y < 0 ||
+            y > 1) {
+          throw ArgumentError.value(
+            character,
+            'characters[$index]',
+            'Coordinate mode requires finite x/y centers between 0 and 1',
+          );
+        }
+      }
+    }
+
     final seed = params.seed == -1 ? Random().nextInt(4294967295) : params.seed;
 
+    final baseModel = ImageModels.resolveBaseModel(params.model);
+    final requestModel = params.action == ImageGenerationAction.infill
+        ? ImageModels.resolveInpaintingModel(baseModel)
+        : params.model;
     final promptSemantics = buildPromptSemanticsSnapshot(
       prompt: params.prompt,
       negativePrompt: params.negativePrompt,
-      model: params.model,
+      model: baseModel,
       qualityToggle: params.qualityToggle,
       ucPreset: params.ucPreset,
+      isEnhanceRequest: params.shouldApplyEnhancePromptAddition,
+      transparentBackground: params.transparentBackground,
+      qualityTier: params.qualityTier,
+      characters: _buildAutoTextCharacters(),
+      useCoords: params.useCoords,
     );
     final effectivePrompt = promptSemantics.effectivePrompt;
     final effectiveNegativePrompt = promptSemantics.effectiveNegativePrompt;
@@ -415,6 +643,8 @@ class NAIImageRequestBuilder {
       effectiveNegativePrompt: effectiveNegativePrompt,
       isStream: isStream,
     );
+    Uint8List? normalizedSourceImageBytes;
+    NovelAiInpaintMaskArtifacts? inpaintMaskArtifacts;
 
     if (params.isV4Model) {
       buildV4Parameters(
@@ -429,28 +659,48 @@ class NAIImageRequestBuilder {
       final normalizedSource = await _normalizeRequestSourceImage(
         params.sourceImage!,
       );
+      normalizedSourceImageBytes = normalizedSource;
       requestParameters['image'] = base64Encode(normalizedSource);
       requestParameters['strength'] = params.strength;
       requestParameters['noise'] = params.noise;
+      requestParameters['color_correct'] = false;
     }
 
     if (params.action == ImageGenerationAction.infill &&
         params.sourceImage != null &&
         params.maskImage != null) {
-      final normalizedMask = InpaintMaskUtils.prepareNovelAiRequestMaskBytes(
-        params.maskImage!,
-        targetWidth: params.width,
-        targetHeight: params.height,
-        closingIterations: params.inpaintMaskClosingIterations,
-        expansionIterations: params.inpaintMaskExpansionIterations,
-      );
-      final normalizedSource = await _normalizeRequestSourceImage(
+      final maskArtifactsFuture =
+          InpaintMaskUtils.prepareNovelAiInpaintMaskArtifactsAsync(
+            params.maskImage!,
+            targetWidth: params.width,
+            targetHeight: params.height,
+            closingIterations: params.inpaintMaskClosingIterations,
+            expansionIterations: params.inpaintMaskExpansionIterations,
+          );
+      final normalizedSourceFuture = _normalizeRequestSourceImage(
         params.sourceImage!,
       );
+      final normalizedSource = await normalizedSourceFuture;
+      inpaintMaskArtifacts = await maskArtifactsFuture;
+      normalizedSourceImageBytes = normalizedSource;
       requestParameters['image'] = base64Encode(normalizedSource);
-      requestParameters['mask'] = base64Encode(normalizedMask);
+      requestParameters['mask'] = base64Encode(
+        inpaintMaskArtifacts.requestMaskBytes,
+      );
       requestParameters['strength'] = NAIApiUtils.toJsonNumber(params.strength);
       requestParameters['noise'] = NAIApiUtils.toJsonNumber(params.noise);
+      if (ImageModels.supportsImg2ImgInpainting(requestModel) &&
+          params.inpaintStrength != 1.0) {
+        requestParameters['img2img'] = {
+          'strength': NAIApiUtils.toJsonNumber(params.inpaintStrength),
+          'color_correct': true,
+        };
+      }
+    }
+
+    if (requestParameters.containsKey('image')) {
+      // 官网对带底图的请求固定 extra_noise_seed = seed - 1，缺发时服务端自选加噪种子，同种子无法复现。
+      requestParameters['extra_noise_seed'] = seed - 1;
     }
 
     final vibeEncodingMap = await buildVibeTransferParameters(
@@ -462,7 +712,7 @@ class NAIImageRequestBuilder {
 
     final requestData = <String, dynamic>{
       'input': effectivePrompt,
-      'model': params.model,
+      'model': requestModel,
       'action': params.action.value,
       'parameters': requestParameters,
       'use_new_shared_trial': true,
@@ -475,6 +725,8 @@ class NAIImageRequestBuilder {
       requestParameters: requestParameters,
       requestData: requestData,
       vibeEncodingMap: vibeEncodingMap,
+      normalizedSourceImageBytes: normalizedSourceImageBytes,
+      inpaintMaskArtifacts: inpaintMaskArtifacts,
     );
   }
 }

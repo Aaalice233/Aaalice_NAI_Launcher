@@ -3,8 +3,12 @@ import 'package:flutter/material.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/utils/localization_extension.dart';
+import '../../../adaptive/adaptive_presenter.dart';
 import '../../../providers/random_preset_provider.dart';
 import '../../../providers/tag_library_provider.dart';
+import '../../../themes/core/layered_surface_style.dart';
+import '../../common/translated_tag_text.dart';
 import '../../../../data/models/prompt/random_tag_group.dart';
 import '../../../../data/models/prompt/tag_category.dart';
 import '../diy/panels/conditional_branch_panel.dart';
@@ -12,9 +16,7 @@ import '../diy/panels/dependency_config_panel.dart';
 import '../diy/panels/visibility_rule_panel.dart';
 import '../diy/panels/time_condition_panel.dart';
 import '../diy/panels/post_process_rule_panel.dart';
-import '../../common/elevated_card.dart';
 import 'random_config_l10n.dart';
-import 'random_manager_widgets.dart';
 
 /// 词组卡片组件
 ///
@@ -28,6 +30,7 @@ class TagGroupCard extends ConsumerStatefulWidget {
     required this.presetId,
     this.isPresetDefault = false,
     this.onTap,
+    this.dragHandle,
   });
 
   final RandomTagGroup tagGroup;
@@ -36,6 +39,7 @@ class TagGroupCard extends ConsumerStatefulWidget {
   final String presetId;
   final bool isPresetDefault;
   final VoidCallback? onTap;
+  final Widget? dragHandle;
 
   @override
   ConsumerState<TagGroupCard> createState() => _TagGroupCardState();
@@ -47,154 +51,145 @@ class _TagGroupCardState extends ConsumerState<TagGroupCard> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
+    final colors = theme.colorScheme;
     final l10n = AppLocalizations.of(context)!;
     final tagGroup = widget.tagGroup;
-    final hasDiyAbility = tagGroup.hasConditionalBranch ||
-        tagGroup.hasDependency ||
-        tagGroup.hasVisibilityRules ||
-        tagGroup.hasTimeCondition ||
-        tagGroup.hasPostProcessRules ||
-        tagGroup.emphasisProbability > 0;
-
-    // 获取标签预览内容
-    final tooltipText = _buildTagPreview(l10n, tagGroup);
+    final reduceMotion = MediaQuery.disableAnimationsOf(context);
+    final tagCount = ref.watch(groupTagCountProvider(tagGroup));
 
     return Tooltip(
-      message: tooltipText,
+      message: _buildTagPreview(l10n, tagGroup),
       waitDuration: const Duration(milliseconds: 500),
       preferBelow: false,
-      child: MouseRegion(
-        onEnter: (_) => setState(() => _isHovered = true),
-        onExit: (_) => setState(() => _isHovered = false),
-        cursor: SystemMouseCursors.click,
-        child: GestureDetector(
-          onTap: widget.onTap ?? () => _showEditDialog(context),
-          child: Opacity(
-            opacity: tagGroup.enabled ? 1.0 : 0.5,
-            child: ElevatedCard(
-              elevation: CardElevation.level1,
-              hoverElevation: CardElevation.level2,
-              enableHoverEffect: false, // 外层 MouseRegion 已处理
-              borderRadius: 8,
-              gradientBorder: tagGroup.enabled && _isHovered && hasDiyAbility
-                  ? CardGradients.primary(colorScheme)
-                  : null,
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 200),
-                curve: Curves.easeOutCubic,
-                width: 135,
-                padding: const EdgeInsets.all(12),
-                transform: Matrix4.identity()
-                  ..translateByDouble(0.0, _isHovered ? -2.0 : 0.0, 0, 1),
-                transformAlignment: Alignment.center,
-                decoration: BoxDecoration(
-                  color: _isHovered
-                      ? colorScheme.surfaceContainerHighest
-                      : colorScheme.surfaceContainerHigh,
-                  borderRadius: BorderRadius.circular(8),
-                  boxShadow: _isHovered
-                      ? [
-                          BoxShadow(
-                            color: colorScheme.primary.withValues(alpha: 0.15),
-                            blurRadius: 12,
-                            offset: const Offset(0, 4),
-                          ),
-                        ]
-                      : null,
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // 第一行：emoji + 名称 + 开关
-                    Row(
+      child: Opacity(
+        opacity: tagGroup.enabled ? 1 : 0.55,
+        child: MouseRegion(
+          onEnter: (_) => setState(() => _isHovered = true),
+          onExit: (_) => setState(() => _isHovered = false),
+          child: AnimatedContainer(
+            duration: reduceMotion
+                ? Duration.zero
+                : const Duration(milliseconds: 120),
+            curve: Curves.easeOutCubic,
+            decoration: BoxDecoration(
+              color: _isHovered
+                  ? Color.alphaBlend(
+                      colors.onSurface.withValues(alpha: 0.035),
+                      controlSurfaceColor(colors),
+                    )
+                  : controlSurfaceColor(colors),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Material(
+              color: Colors.transparent,
+              borderRadius: BorderRadius.circular(8),
+              clipBehavior: Clip.antiAlias,
+              child: InkWell(
+                onTap: widget.onTap ?? () => _showEditDialog(context),
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(minHeight: 54),
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(12, 7, 4, 7),
+                    child: Row(
                       children: [
-                        if (tagGroup.emoji.isNotEmpty)
-                          Container(
-                            padding: const EdgeInsets.all(2),
-                            decoration: BoxDecoration(
-                              color: colorScheme.primaryContainer
-                                  .withValues(alpha: 0.3),
-                              borderRadius: BorderRadius.circular(4),
+                        if (widget.dragHandle != null)
+                          IconTheme(
+                            data: IconThemeData(
+                              size: 18,
+                              color: colors.onSurfaceVariant,
                             ),
-                            child: Text(
-                              tagGroup.emoji,
-                              style: const TextStyle(fontSize: 13),
+                            child: SizedBox(
+                              width: 28,
+                              height: 40,
+                              child: Center(child: widget.dragHandle),
                             ),
+                          )
+                        else
+                          Icon(
+                            _sourceIcon(tagGroup.sourceType),
+                            size: 18,
+                            color: colors.onSurfaceVariant,
                           ),
-                        if (tagGroup.emoji.isNotEmpty) const SizedBox(width: 6),
+                        const SizedBox(width: 10),
                         Expanded(
-                          child: Text(
-                            l10n.randomTagGroupName(tagGroup),
-                            style: theme.textTheme.bodySmall?.copyWith(
-                              fontWeight: FontWeight.bold,
-                              decoration: tagGroup.enabled
-                                  ? null
-                                  : TextDecoration.lineThrough,
-                              color: tagGroup.enabled
-                                  ? null
-                                  : colorScheme.onSurfaceVariant,
-                            ),
-                            overflow: TextOverflow.ellipsis,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                l10n.randomTagGroupName(tagGroup),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: theme.textTheme.bodyMedium?.copyWith(
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                '$tagCount · ${(tagGroup.probability * 100).round()}%',
+                                style: theme.textTheme.labelSmall?.copyWith(
+                                  color: colors.onSurfaceVariant,
+                                  fontFeatures: const [
+                                    FontFeature.tabularFigures(),
+                                  ],
+                                ),
+                              ),
+                            ],
                           ),
                         ),
-                        const SizedBox(width: 4),
-                        // 启用开关（移到右侧）
-                        SizedBox(
-                          width: 28,
-                          height: 20,
-                          child: Transform.scale(
-                            scale: 0.6,
-                            child: Switch(
-                              value: tagGroup.enabled,
-                              onChanged: widget.isPresetDefault
-                                  ? null
-                                  : (value) {
-                                      ref
-                                          .read(
-                                            randomPresetNotifierProvider
-                                                .notifier,
-                                          )
-                                          .toggleGroupEnabled(
-                                            widget.categoryKey,
-                                            tagGroup.id,
-                                          );
-                                    },
+                        ..._buildCapabilityIndicators(tagGroup, colors),
+                        Switch(
+                          value: tagGroup.enabled,
+                          onChanged: widget.isPresetDefault
+                              ? null
+                              : (_) => ref
+                                    .read(randomPresetNotifierProvider.notifier)
+                                    .toggleGroupEnabled(
+                                      widget.categoryKey,
+                                      tagGroup.id,
+                                    ),
+                        ),
+                        PopupMenuButton<_TagGroupAction>(
+                          tooltip: l10n.randomManager_moreActions,
+                          onSelected: (action) {
+                            if (action == _TagGroupAction.edit) {
+                              _showEditDialog(context);
+                            } else {
+                              _deleteGroup(context);
+                            }
+                          },
+                          itemBuilder: (context) => [
+                            PopupMenuItem(
+                              value: _TagGroupAction.edit,
+                              child: ListTile(
+                                dense: true,
+                                contentPadding: EdgeInsets.zero,
+                                leading: const Icon(Icons.tune_rounded),
+                                title: Text(l10n.common_edit),
+                              ),
                             ),
-                          ),
+                            if (!widget.isPresetDefault)
+                              PopupMenuItem(
+                                value: _TagGroupAction.delete,
+                                child: ListTile(
+                                  dense: true,
+                                  contentPadding: EdgeInsets.zero,
+                                  leading: Icon(
+                                    Icons.delete_outline_rounded,
+                                    color: colors.error,
+                                  ),
+                                  title: Text(
+                                    l10n.common_delete,
+                                    style: TextStyle(color: colors.error),
+                                  ),
+                                ),
+                              ),
+                          ],
+                          icon: const Icon(Icons.more_horiz_rounded, size: 19),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 8),
-                    // 第二行：概率进度条 + 百分比
-                    ProbabilityBar(
-                      probability: tagGroup.probability,
-                      isHovered: _isHovered,
-                      height: 4.0,
-                      useBadgeStyle: false,
-                    ),
-                    const SizedBox(height: 6),
-                    // 第三行：标签数量 + DIY 图标
-                    Row(
-                      children: [
-                        Icon(
-                          Icons.label_outline,
-                          size: 12,
-                          color: colorScheme.onSurfaceVariant,
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          '${ref.watch(groupTagCountProvider(tagGroup))}',
-                          style: theme.textTheme.labelSmall?.copyWith(
-                            color: colorScheme.onSurfaceVariant,
-                          ),
-                        ),
-                        const Spacer(),
-                        // DIY 能力图标
-                        ..._buildDiyIcons(tagGroup),
-                      ],
-                    ),
-                  ],
+                  ),
                 ),
               ),
             ),
@@ -204,128 +199,147 @@ class _TagGroupCardState extends ConsumerState<TagGroupCard> {
     );
   }
 
-  /// 构建标签预览文本
-  String _buildTagPreview(
-    AppLocalizations l10n,
-    RandomTagGroup tagGroup,
+  List<Widget> _buildCapabilityIndicators(
+    RandomTagGroup group,
+    ColorScheme colors,
   ) {
-    List<String> tags = [];
+    final indicators = <IconData>[
+      if (group.hasConditionalBranch) Icons.call_split_rounded,
+      if (group.hasDependency) Icons.link_rounded,
+      if (group.hasVisibilityRules) Icons.visibility_outlined,
+      if (group.hasTimeCondition) Icons.schedule_rounded,
+      if (group.hasPostProcessRules) Icons.auto_fix_high_outlined,
+      if (group.emphasisProbability > 0) Icons.bolt_outlined,
+    ];
+    return indicators
+        .take(3)
+        .map(
+          (icon) => Padding(
+            padding: const EdgeInsets.only(left: 5),
+            child: Icon(icon, size: 15, color: colors.secondary),
+          ),
+        )
+        .toList(growable: false);
+  }
+
+  IconData _sourceIcon(TagGroupSourceType type) {
+    return switch (type) {
+      TagGroupSourceType.builtin => Icons.inventory_2_outlined,
+      TagGroupSourceType.custom => Icons.edit_note_rounded,
+      TagGroupSourceType.tagGroup => Icons.cloud_sync_outlined,
+      TagGroupSourceType.pool => Icons.collections_outlined,
+    };
+  }
+
+  Future<void> _deleteGroup(BuildContext context) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(context.l10n.randomManager_deleteTagGroupTitle),
+        content: Text(
+          context.l10n.randomManager_deleteTagGroupConfirm(
+            context.l10n.randomTagGroupName(widget.tagGroup),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: Text(context.l10n.common_cancel),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: FilledButton.styleFrom(
+              backgroundColor: Theme.of(context).colorScheme.error,
+            ),
+            child: Text(context.l10n.common_delete),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    await ref
+        .read(randomPresetNotifierProvider.notifier)
+        .removeGroupFromCategory(widget.categoryKey, widget.tagGroup.id);
+  }
+
+  /// 构建标签预览文本
+  String _buildTagPreview(AppLocalizations l10n, RandomTagGroup tagGroup) {
+    Iterable<String> tags;
+    var count = 0;
 
     if (tagGroup.sourceType == TagGroupSourceType.builtin) {
-      // 内置词库类型：从 TagLibrary 获取
-      final libraryState = ref.read(tagLibraryNotifierProvider);
-      if (libraryState.library != null && tagGroup.sourceId != null) {
-        final category =
-            TagSubCategory.values.cast<TagSubCategory?>().firstWhere(
-                  (c) => c?.name == tagGroup.sourceId,
-                  orElse: () => null,
-                );
-        if (category != null) {
-          tags = libraryState.library!
-              .getCategory(category)
-              .map((t) => t.tag)
-              .toList();
-        }
-      }
+      final library = ref.read(tagLibraryNotifierProvider).library;
+      final sourceId = tagGroup.sourceId;
+      final category = sourceId == null
+          ? null
+          : TagSubCategory.values.cast<TagSubCategory?>().firstWhere(
+              (item) => item?.name == sourceId,
+              orElse: () => null,
+            );
+      final entries = category == null || library == null
+          ? null
+          : library.getCategory(category);
+      count = entries?.length ?? 0;
+      tags = entries?.take(10).map((item) => item.tag) ?? const [];
     } else {
-      // 其他类型：使用 tags 字段
-      tags = tagGroup.tags.map((t) => t.tag).toList();
+      count = tagGroup.tags.length;
+      tags = tagGroup.tags.take(10).map((item) => item.tag);
     }
 
-    if (tags.isEmpty) return l10n.naiMode_noTags;
-
-    // 显示前10个标签
-    const maxShow = 10;
-    final preview = tags.take(maxShow).join(', ');
-    if (tags.length > maxShow) {
-      return '$preview ... (${l10n.tagGroup_tagCount(tags.length.toString())})';
+    if (count == 0) return l10n.naiMode_noTags;
+    final preview = tags.join(', ');
+    if (count > 10) {
+      return '$preview … (${l10n.tagGroup_tagCount(count.toString())})';
     }
     return preview;
   }
 
-  List<Widget> _buildDiyIcons(RandomTagGroup tagGroup) {
-    final l10n = AppLocalizations.of(context)!;
-    final icons = <Widget>[];
-
-    if (tagGroup.hasConditionalBranch) {
-      icons.add(
-        _DiyIcon(
-          icon: Icons.call_split,
-          tooltip: l10n.randomManager_editHint(
-            l10n.randomManager_conditionalBranch,
-          ),
-          onTap: () => _openDiyPanel(context, 'conditionalBranch'),
-        ),
-      );
-    }
-    if (tagGroup.hasDependency) {
-      icons.add(
-        _DiyIcon(
-          icon: Icons.link,
-          tooltip: l10n.randomManager_editHint(
-            l10n.randomManager_dependencyConfig,
-          ),
-          onTap: () => _openDiyPanel(context, 'dependency'),
-        ),
-      );
-    }
-    if (tagGroup.hasVisibilityRules) {
-      icons.add(
-        _DiyIcon(
-          icon: Icons.visibility,
-          tooltip: l10n.randomManager_editHint(
-            l10n.randomManager_visibilityRules,
-          ),
-          onTap: () => _openDiyPanel(context, 'visibility'),
-        ),
-      );
-    }
-    if (tagGroup.hasTimeCondition) {
-      icons.add(
-        _DiyIcon(
-          icon: Icons.calendar_today,
-          tooltip: l10n.randomManager_editHint(
-            l10n.randomManager_timeCondition,
-          ),
-          onTap: () => _openDiyPanel(context, 'timeCondition'),
-        ),
-      );
-    }
-    if (tagGroup.hasPostProcessRules) {
-      icons.add(
-        _DiyIcon(
-          icon: Icons.build,
-          tooltip: l10n.randomManager_editHint(
-            l10n.randomManager_postProcessRules,
-          ),
-          onTap: () => _openDiyPanel(context, 'postProcess'),
-        ),
-      );
-    }
-    if (tagGroup.emphasisProbability > 0) {
-      icons.add(
-        _DiyIcon(
-          icon: Icons.bolt,
-          tooltip: l10n.randomManager_emphasisProbabilityValue(
-            (tagGroup.emphasisProbability * 100).toStringAsFixed(0),
-          ),
-          onTap: () => _showEditDialog(context), // 强调概率在主编辑对话框中
-        ),
-      );
-    }
-
-    return icons;
-  }
-
-  void _openDiyPanel(BuildContext context, String panelType) {
-    // 所有 DIY 功能都在编辑对话框的第二个选项卡 (index=1)
-    _showEditDialog(context, initialTabIndex: 1);
-  }
-
   void _showEditDialog(BuildContext context, {int initialTabIndex = 0}) {
-    showDialog(
+    AdaptivePresenter.showForm<void>(
       context: context,
-      builder: (context) => _TagGroupEditDialog(
+      dialogWidth: 640,
+      titleBuilder: (panelContext) {
+        final compactTitle =
+            MediaQuery.textScalerOf(panelContext).scale(1) >= 2;
+        return Row(
+          children: [
+            Icon(
+              Icons.tune_rounded,
+              size: 20,
+              color: Theme.of(panelContext).colorScheme.primary,
+            ),
+            const SizedBox(width: 11),
+            Expanded(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    panelContext.l10n.randomManager_editTagGroup,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(panelContext).textTheme.titleMedium
+                        ?.copyWith(fontWeight: FontWeight.w600),
+                  ),
+                  if (!compactTitle)
+                    Text(
+                      panelContext.l10n.randomTagGroupName(widget.tagGroup),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(panelContext).textTheme.bodySmall
+                          ?.copyWith(
+                            color: Theme.of(
+                              panelContext,
+                            ).colorScheme.onSurfaceVariant,
+                          ),
+                    ),
+                ],
+              ),
+            ),
+          ],
+        );
+      },
+      builder: (panelContext, scrollController) => _TagGroupEditDialog(
         tagGroup: widget.tagGroup,
         categoryId: widget.categoryId,
         presetId: widget.presetId,
@@ -336,68 +350,7 @@ class _TagGroupCardState extends ConsumerState<TagGroupCard> {
   }
 }
 
-class _DiyIcon extends StatefulWidget {
-  const _DiyIcon({
-    required this.icon,
-    required this.tooltip,
-    this.onTap,
-  });
-
-  final IconData icon;
-  final String tooltip;
-  final VoidCallback? onTap;
-
-  @override
-  State<_DiyIcon> createState() => _DiyIconState();
-}
-
-class _DiyIconState extends State<_DiyIcon> {
-  bool _isHovered = false;
-
-  @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    return MouseRegion(
-      onEnter: (_) => setState(() => _isHovered = true),
-      onExit: (_) => setState(() => _isHovered = false),
-      cursor: widget.onTap != null
-          ? SystemMouseCursors.click
-          : SystemMouseCursors.basic,
-      child: GestureDetector(
-        onTap: widget.onTap,
-        child: Tooltip(
-          message: widget.tooltip,
-          child: Padding(
-            padding: const EdgeInsets.only(left: 3),
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 150),
-              padding: const EdgeInsets.all(2),
-              decoration: BoxDecoration(
-                color: _isHovered
-                    ? colorScheme.primary.withValues(alpha: 0.25)
-                    : colorScheme.secondaryContainer.withValues(alpha: 0.5),
-                borderRadius: BorderRadius.circular(3),
-                boxShadow: _isHovered
-                    ? [
-                        BoxShadow(
-                          color: colorScheme.primary.withValues(alpha: 0.2),
-                          blurRadius: 4,
-                        ),
-                      ]
-                    : null,
-              ),
-              child: Icon(
-                widget.icon,
-                size: 11,
-                color: _isHovered ? colorScheme.primary : colorScheme.secondary,
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
+enum _TagGroupAction { edit, delete }
 
 /// 词组编辑对话框
 class _TagGroupEditDialog extends ConsumerStatefulWidget {
@@ -429,8 +382,9 @@ class _TagGroupEditDialogState extends ConsumerState<_TagGroupEditDialog>
   /// 获取当前预设的类别名称列表
   List<String> get _availableCategories {
     final state = ref.read(randomPresetNotifierProvider);
-    final preset =
-        state.presets.firstWhereOrNull((p) => p.id == widget.presetId);
+    final preset = state.presets.firstWhereOrNull(
+      (p) => p.id == widget.presetId,
+    );
     if (preset == null) return [];
     return preset.categories.map((c) => c.name).toList();
   }
@@ -459,126 +413,69 @@ class _TagGroupEditDialogState extends ConsumerState<_TagGroupEditDialog>
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
     final l10n = AppLocalizations.of(context)!;
+    final compactTabs = MediaQuery.textScalerOf(context).scale(1) >= 2;
 
-    return Dialog(
-      backgroundColor: Colors.transparent,
-      child: Container(
-        width: 620,
-        height: 620,
-        decoration: BoxDecoration(
-          color: colorScheme.surface,
-          borderRadius: BorderRadius.circular(8),
-          boxShadow: [
-            BoxShadow(
-              color: colorScheme.shadow.withValues(alpha: 0.08),
-              blurRadius: 8,
-              offset: const Offset(0, 4),
-            ),
-            BoxShadow(
-              color: colorScheme.shadow.withValues(alpha: 0.16),
-              blurRadius: 24,
-              offset: const Offset(0, 12),
-            ),
+    Widget editorTab(IconData icon, String label) {
+      if (compactTabs) {
+        return Tab(
+          icon: Tooltip(
+            message: label,
+            child: Icon(icon, size: 20, semanticLabel: label),
+          ),
+        );
+      }
+      return Tab(
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 17),
+            const SizedBox(width: 8),
+            Text(label),
           ],
         ),
-        child: Column(
-          children: [
-            // 标题栏 - 渐变背景
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [
-                    colorScheme.primaryContainer.withValues(alpha: 0.3),
-                    colorScheme.secondaryContainer.withValues(alpha: 0.2),
-                  ],
-                ),
-                borderRadius:
-                    const BorderRadius.vertical(top: Radius.circular(8)),
-                border: Border(
-                  bottom: BorderSide(
-                    color: colorScheme.outlineVariant.withValues(alpha: 0.2),
-                  ),
-                ),
-              ),
-              child: Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: colorScheme.primary.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Icon(
-                      Icons.edit_note,
-                      color: colorScheme.primary,
-                      size: 20,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Text(
-                    l10n.randomManager_editTagGroup,
-                    style: theme.textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const Spacer(),
-                  IconButton(
-                    onPressed: () => Navigator.pop(context),
-                    icon: const Icon(Icons.close),
-                    iconSize: 20,
-                    style: IconButton.styleFrom(
-                      backgroundColor: colorScheme.surfaceContainerHighest
-                          .withValues(alpha: 0.5),
-                    ),
-                  ),
-                ],
-              ),
+      );
+    }
+
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+          child: Container(
+            decoration: BoxDecoration(
+              color: sectionSurfaceColor(colorScheme),
+              borderRadius: BorderRadius.circular(10),
             ),
-            // 标签页
-            TabBar(
+            child: TabBar(
               controller: _tabController,
+              isScrollable: true,
+              tabAlignment: TabAlignment.start,
+              dividerColor: Colors.transparent,
+              indicatorSize: TabBarIndicatorSize.tab,
               tabs: [
-                Tab(
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(Icons.list_alt, size: 16),
-                      const SizedBox(width: 6),
-                      Text(l10n.randomManager_basicTab),
-                    ],
+                editorTab(Icons.tune_rounded, l10n.randomManager_basicTab),
+                editorTab(
+                  Icons.sell_outlined,
+                  l10n.randomManager_tagsTab(
+                    ref.watch(groupTagCountProvider(_editingTagGroup)),
                   ),
                 ),
-                Tab(
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(Icons.label_outline, size: 16),
-                      const SizedBox(width: 6),
-                      Text(
-                        l10n.randomManager_tagsTab(
-                          ref.watch(groupTagCountProvider(_editingTagGroup)),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                Tab(
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(Icons.auto_awesome, size: 16),
-                      const SizedBox(width: 6),
-                      Text(l10n.randomManager_diyAbilitiesTab),
-                    ],
-                  ),
+                editorTab(
+                  Icons.account_tree_outlined,
+                  l10n.randomManager_diyAbilitiesTab,
                 ),
               ],
             ),
-            // 内容
-            Expanded(
+          ),
+        ),
+        Expanded(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Container(
+              decoration: BoxDecoration(
+                color: sectionSurfaceColor(colorScheme),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              clipBehavior: Clip.antiAlias,
               child: TabBarView(
                 controller: _tabController,
                 children: [
@@ -588,44 +485,37 @@ class _TagGroupEditDialogState extends ConsumerState<_TagGroupEditDialog>
                 ],
               ),
             ),
-            // 底部按钮
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: colorScheme.surfaceContainerHighest,
-                borderRadius:
-                    const BorderRadius.vertical(bottom: Radius.circular(8)),
-                border: Border(
-                  top: BorderSide(
-                    color: colorScheme.outlineVariant.withValues(alpha: 0.2),
+          ),
+        ),
+        SafeArea(
+          top: false,
+          child: Container(
+            color: sectionSurfaceColor(colorScheme),
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 14),
+            child: Wrap(
+              alignment: WrapAlignment.end,
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: Text(
+                    widget.isPresetDefault
+                        ? l10n.common_close
+                        : l10n.common_cancel,
                   ),
                 ),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  OutlinedButton(
-                    onPressed: () => Navigator.pop(context),
-                    child: Text(
-                      widget.isPresetDefault
-                          ? AppLocalizations.of(context)!.common_close
-                          : AppLocalizations.of(context)!.common_cancel,
-                    ),
+                if (!widget.isPresetDefault)
+                  FilledButton.icon(
+                    onPressed: _saveChanges,
+                    icon: const Icon(Icons.check_rounded, size: 18),
+                    label: Text(l10n.common_save),
                   ),
-                  if (!widget.isPresetDefault) ...[
-                    const SizedBox(width: 12),
-                    FilledButton.icon(
-                      onPressed: _saveChanges,
-                      icon: const Icon(Icons.check, size: 18),
-                      label: Text(AppLocalizations.of(context)!.common_save),
-                    ),
-                  ],
-                ],
-              ),
+              ],
             ),
-          ],
+          ),
         ),
-      ),
+      ],
     );
   }
 
@@ -646,7 +536,6 @@ class _TagGroupEditDialogState extends ConsumerState<_TagGroupEditDialog>
             enabled: !isReadOnly,
             decoration: InputDecoration(
               labelText: l10n.randomManager_tagGroupName,
-              border: const OutlineInputBorder(),
               suffixIcon: isReadOnly
                   ? Icon(
                       Icons.lock_outline,
@@ -665,100 +554,131 @@ class _TagGroupEditDialogState extends ConsumerState<_TagGroupEditDialog>
           ),
           const SizedBox(height: 16),
           // 概率
-          Row(
-            children: [
-              Text(
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final stacked =
+                  constraints.maxWidth < 420 ||
+                  MediaQuery.textScalerOf(context).scale(1) >= 2;
+              final label = Text(
                 '${l10n.randomManager_probability}:',
                 style: theme.textTheme.bodyMedium,
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Opacity(
-                  opacity: isReadOnly ? 0.6 : 1.0,
-                  child: Slider(
-                    value: _editingTagGroup.probability,
-                    min: 0,
-                    max: 1,
-                    divisions: 20,
-                    label: '${(_editingTagGroup.probability * 100).toInt()}%',
-                    onChanged: isReadOnly
-                        ? null
-                        : (value) {
-                            setState(() {
-                              _editingTagGroup =
-                                  _editingTagGroup.copyWith(probability: value);
-                            });
-                          },
-                  ),
+              );
+              final slider = Opacity(
+                opacity: isReadOnly ? 0.6 : 1.0,
+                child: Slider(
+                  value: _editingTagGroup.probability,
+                  min: 0,
+                  max: 1,
+                  divisions: 20,
+                  label: '${(_editingTagGroup.probability * 100).toInt()}%',
+                  onChanged: isReadOnly
+                      ? null
+                      : (value) {
+                          setState(() {
+                            _editingTagGroup = _editingTagGroup.copyWith(
+                              probability: value,
+                            );
+                          });
+                        },
                 ),
-              ),
-              SizedBox(
-                width: 48,
-                child: Text(
-                  '${(_editingTagGroup.probability * 100).toInt()}%',
-                  textAlign: TextAlign.right,
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
+              );
+              final value = Text(
+                '${(_editingTagGroup.probability * 100).toInt()}%',
+                textAlign: TextAlign.right,
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
                 ),
-              ),
-            ],
+              );
+              if (stacked) {
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    label,
+                    Row(
+                      children: [
+                        Expanded(child: slider),
+                        value,
+                      ],
+                    ),
+                  ],
+                );
+              }
+              return Row(
+                children: [
+                  label,
+                  const SizedBox(width: 16),
+                  Expanded(child: slider),
+                  SizedBox(width: 48, child: value),
+                ],
+              );
+            },
           ),
           const SizedBox(height: 16),
           // 选择模式
-          Row(
-            children: [
-              Text(
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final label = Text(
                 '${l10n.randomManager_selectionMode}:',
                 style: theme.textTheme.bodyMedium,
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: DropdownButton<SelectionMode>(
-                  value: _editingTagGroup.selectionMode,
-                  isExpanded: true,
-                  items: SelectionMode.values.map((mode) {
-                    final (label, desc) = switch (mode) {
-                      SelectionMode.single => (
-                          l10n.randomManager_selectionSingle,
-                          l10n.randomManager_selectionSingleDesc,
-                        ),
-                      SelectionMode.all => (
-                          l10n.randomManager_selectionAll,
-                          l10n.randomManager_selectionAllDesc,
-                        ),
-                      SelectionMode.multipleNum => (
-                          l10n.randomManager_selectionMultipleCount,
-                          l10n.randomManager_selectionMultipleCountDesc,
-                        ),
-                      SelectionMode.multipleProb => (
-                          l10n.randomManager_selectionMultipleProbability,
-                          l10n.randomManager_selectionMultipleProbabilityDesc,
-                        ),
-                      SelectionMode.sequential => (
-                          l10n.randomManager_selectionSequential,
-                          l10n.randomManager_selectionSequentialDesc,
-                        ),
-                    };
-                    return DropdownMenuItem(
-                      value: mode,
-                      child: Text('$label - $desc'),
-                    );
-                  }).toList(),
-                  onChanged: isReadOnly
-                      ? null
-                      : (mode) {
-                          if (mode != null) {
-                            setState(() {
-                              _editingTagGroup = _editingTagGroup.copyWith(
-                                selectionMode: mode,
-                              );
-                            });
-                          }
-                        },
-                ),
-              ),
-            ],
+              );
+              final selector = DropdownButton<SelectionMode>(
+                value: _editingTagGroup.selectionMode,
+                isExpanded: true,
+                items: SelectionMode.values.map((mode) {
+                  final (label, desc) = switch (mode) {
+                    SelectionMode.single => (
+                      l10n.randomManager_selectionSingle,
+                      l10n.randomManager_selectionSingleDesc,
+                    ),
+                    SelectionMode.all => (
+                      l10n.randomManager_selectionAll,
+                      l10n.randomManager_selectionAllDesc,
+                    ),
+                    SelectionMode.multipleNum => (
+                      l10n.randomManager_selectionMultipleCount,
+                      l10n.randomManager_selectionMultipleCountDesc,
+                    ),
+                    SelectionMode.multipleProb => (
+                      l10n.randomManager_selectionMultipleProbability,
+                      l10n.randomManager_selectionMultipleProbabilityDesc,
+                    ),
+                    SelectionMode.sequential => (
+                      l10n.randomManager_selectionSequential,
+                      l10n.randomManager_selectionSequentialDesc,
+                    ),
+                  };
+                  return DropdownMenuItem(
+                    value: mode,
+                    child: Text('$label - $desc'),
+                  );
+                }).toList(),
+                onChanged: isReadOnly
+                    ? null
+                    : (mode) {
+                        if (mode != null) {
+                          setState(() {
+                            _editingTagGroup = _editingTagGroup.copyWith(
+                              selectionMode: mode,
+                            );
+                          });
+                        }
+                      },
+              );
+              if (constraints.maxWidth < 420 ||
+                  MediaQuery.textScalerOf(context).scale(1) >= 2) {
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [label, const SizedBox(height: 8), selector],
+                );
+              }
+              return Row(
+                children: [
+                  label,
+                  const SizedBox(width: 16),
+                  Expanded(child: selector),
+                ],
+              );
+            },
           ),
         ],
       ),
@@ -779,11 +699,12 @@ class _TagGroupEditDialogState extends ConsumerState<_TagGroupEditDialog>
       // 内置词库类型：从 TagLibrary 获取
       final libraryState = ref.watch(tagLibraryNotifierProvider);
       if (libraryState.library != null && _editingTagGroup.sourceId != null) {
-        final category =
-            TagSubCategory.values.cast<TagSubCategory?>().firstWhere(
-                  (c) => c?.name == _editingTagGroup.sourceId,
-                  orElse: () => null,
-                );
+        final category = TagSubCategory.values
+            .cast<TagSubCategory?>()
+            .firstWhere(
+              (c) => c?.name == _editingTagGroup.sourceId,
+              orElse: () => null,
+            );
         if (category != null) {
           tagList = libraryState.library!
               .getCategory(category)
@@ -816,7 +737,7 @@ class _TagGroupEditDialogState extends ConsumerState<_TagGroupEditDialog>
             child: Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: colorScheme.surfaceContainerHighest,
+                color: controlSurfaceColor(colorScheme),
                 borderRadius: BorderRadius.circular(8),
                 boxShadow: [
                   BoxShadow(
@@ -841,7 +762,7 @@ class _TagGroupEditDialogState extends ConsumerState<_TagGroupEditDialog>
                         final tag = tagList[index];
                         return Padding(
                           padding: const EdgeInsets.symmetric(vertical: 4),
-                          child: Text(
+                          child: TranslatedTagText(
                             tag,
                             style: theme.textTheme.bodyMedium,
                           ),
@@ -866,11 +787,7 @@ class _TagGroupEditDialogState extends ConsumerState<_TagGroupEditDialog>
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(
-              Icons.lock_outline,
-              size: 48,
-              color: colorScheme.outline,
-            ),
+            Icon(Icons.lock_outline, size: 48, color: colorScheme.outline),
             const SizedBox(height: 16),
             Text(
               l10n.diyNotAvailableForDefault,
@@ -957,7 +874,7 @@ class _TagGroupEditDialogState extends ConsumerState<_TagGroupEditDialog>
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: colorScheme.surfaceContainerHighest,
+              color: controlSurfaceColor(colorScheme),
               borderRadius: BorderRadius.circular(8),
               boxShadow: [
                 BoxShadow(
@@ -967,65 +884,71 @@ class _TagGroupEditDialogState extends ConsumerState<_TagGroupEditDialog>
                 ),
               ],
             ),
-            child: Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(6),
-                  decoration: BoxDecoration(
-                    color: colorScheme.tertiaryContainer.withValues(alpha: 0.5),
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: Icon(
-                    Icons.bolt,
-                    size: 18,
-                    color: colorScheme.tertiary,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Text(
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final label = Text(
                   '${l10n.randomManager_emphasisProbability}:',
                   style: theme.textTheme.bodyMedium,
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: SliderTheme(
-                    data: SliderTheme.of(context).copyWith(
-                      trackHeight: 4,
-                      activeTrackColor: colorScheme.tertiary,
-                      inactiveTrackColor:
-                          colorScheme.tertiaryContainer.withValues(alpha: 0.3),
-                      thumbColor: colorScheme.tertiary,
-                      overlayColor: colorScheme.tertiary.withValues(alpha: 0.1),
-                    ),
-                    child: Slider(
-                      value: _editingTagGroup.emphasisProbability,
-                      min: 0,
-                      max: 0.1,
-                      divisions: 10,
-                      label:
-                          '${(_editingTagGroup.emphasisProbability * 100).toInt()}%',
-                      onChanged: (value) {
-                        setState(() {
-                          _editingTagGroup = _editingTagGroup.copyWith(
-                            emphasisProbability: value,
-                          );
-                        });
-                      },
-                    ),
+                );
+                final slider = SliderTheme(
+                  data: SliderTheme.of(context).copyWith(
+                    trackHeight: 4,
+                    activeTrackColor: colorScheme.tertiary,
+                    inactiveTrackColor: colorScheme.tertiaryContainer
+                        .withValues(alpha: 0.3),
+                    thumbColor: colorScheme.tertiary,
+                    overlayColor: colorScheme.tertiary.withValues(alpha: 0.1),
                   ),
-                ),
-                SizedBox(
-                  width: 48,
-                  child: Text(
-                    '${(_editingTagGroup.emphasisProbability * 100).toInt()}%',
-                    textAlign: TextAlign.right,
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
-                      color: colorScheme.tertiary,
-                    ),
+                  child: Slider(
+                    value: _editingTagGroup.emphasisProbability,
+                    min: 0,
+                    max: 0.1,
+                    divisions: 10,
+                    label:
+                        '${(_editingTagGroup.emphasisProbability * 100).toInt()}%',
+                    onChanged: (value) {
+                      setState(() {
+                        _editingTagGroup = _editingTagGroup.copyWith(
+                          emphasisProbability: value,
+                        );
+                      });
+                    },
                   ),
-                ),
-              ],
+                );
+                final value = Text(
+                  '${(_editingTagGroup.emphasisProbability * 100).toInt()}%',
+                  textAlign: TextAlign.right,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: colorScheme.tertiary,
+                  ),
+                );
+                if (constraints.maxWidth < 420 ||
+                    MediaQuery.textScalerOf(context).scale(1) >= 2) {
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      label,
+                      Row(
+                        children: [
+                          Expanded(child: slider),
+                          value,
+                        ],
+                      ),
+                    ],
+                  );
+                }
+                return Row(
+                  children: [
+                    Icon(Icons.bolt, size: 18, color: colorScheme.tertiary),
+                    const SizedBox(width: 12),
+                    label,
+                    const SizedBox(width: 16),
+                    Expanded(child: slider),
+                    SizedBox(width: 48, child: value),
+                  ],
+                );
+              },
             ),
           ),
         ],
@@ -1033,105 +956,147 @@ class _TagGroupEditDialogState extends ConsumerState<_TagGroupEditDialog>
     );
   }
 
-  /// 显示条件分支编辑对话框
+  /// 显示条件分支编辑面板
   void _showConditionalBranchDialog() {
-    showDialog(
-      context: context,
-      builder: (context) => _DiyConfigDialog(
-        title: AppLocalizations.of(context)!.randomManager_conditionalBranch,
-        child: ConditionalBranchPanel(
-          config: _editingTagGroup.conditionalBranchConfig,
-          onConfigChanged: (config) {
-            setState(() {
-              _editingTagGroup = _editingTagGroup.copyWith(
-                conditionalBranchConfig: config,
-              );
-            });
-          },
-        ),
+    _showDiyConfigForm(
+      title: AppLocalizations.of(context)!.randomManager_conditionalBranch,
+      child: ConditionalBranchPanel(
+        config: _editingTagGroup.conditionalBranchConfig,
+        onConfigChanged: (config) {
+          setState(() {
+            _editingTagGroup = _editingTagGroup.copyWith(
+              conditionalBranchConfig: config,
+            );
+          });
+        },
       ),
     );
   }
 
-  /// 显示依赖配置编辑对话框
+  /// 显示依赖配置编辑面板
   void _showDependencyConfigDialog() {
-    showDialog(
-      context: context,
-      builder: (context) => _DiyConfigDialog(
-        title: AppLocalizations.of(context)!.randomManager_dependencyConfig,
-        child: DependencyConfigPanel(
-          config: _editingTagGroup.dependencyConfig,
-          onConfigChanged: (config) {
-            setState(() {
-              _editingTagGroup = _editingTagGroup.copyWith(
-                dependencyConfig: config,
-              );
-            });
-          },
-          availableCategories: _availableCategories,
-        ),
+    _showDiyConfigForm(
+      title: AppLocalizations.of(context)!.randomManager_dependencyConfig,
+      child: DependencyConfigPanel(
+        config: _editingTagGroup.dependencyConfig,
+        onConfigChanged: (config) {
+          setState(() {
+            _editingTagGroup = _editingTagGroup.copyWith(
+              dependencyConfig: config,
+            );
+          });
+        },
+        availableCategories: _availableCategories,
       ),
     );
   }
 
-  /// 显示可见性规则编辑对话框
+  /// 显示可见性规则编辑面板
   void _showVisibilityRuleDialog() {
-    showDialog(
-      context: context,
-      builder: (context) => _DiyConfigDialog(
-        title: AppLocalizations.of(context)!.randomManager_visibilityRules,
-        child: VisibilityRulePanel(
-          rules: _editingTagGroup.visibilityRules,
-          onRulesChanged: (rules) {
-            setState(() {
-              _editingTagGroup = _editingTagGroup.copyWith(
-                visibilityRules: rules,
-              );
-            });
-          },
-          availableCategories: _availableCategories,
-        ),
+    _showDiyConfigForm(
+      title: AppLocalizations.of(context)!.randomManager_visibilityRules,
+      child: VisibilityRulePanel(
+        rules: _editingTagGroup.visibilityRules,
+        onRulesChanged: (rules) {
+          setState(() {
+            _editingTagGroup = _editingTagGroup.copyWith(
+              visibilityRules: rules,
+            );
+          });
+        },
+        availableCategories: _availableCategories,
       ),
     );
   }
 
-  /// 显示时间条件编辑对话框
+  /// 显示时间条件编辑面板
   void _showTimeConditionDialog() {
-    showDialog(
-      context: context,
-      builder: (context) => _DiyConfigDialog(
-        title: AppLocalizations.of(context)!.randomManager_timeCondition,
-        child: TimeConditionPanel(
-          condition: _editingTagGroup.timeCondition,
-          onConditionChanged: (condition) {
-            setState(() {
-              _editingTagGroup = _editingTagGroup.copyWith(
-                timeCondition: condition,
-              );
-            });
-          },
-        ),
+    _showDiyConfigForm(
+      title: AppLocalizations.of(context)!.randomManager_timeCondition,
+      child: TimeConditionPanel(
+        condition: _editingTagGroup.timeCondition,
+        onConditionChanged: (condition) {
+          setState(() {
+            _editingTagGroup = _editingTagGroup.copyWith(
+              timeCondition: condition,
+            );
+          });
+        },
       ),
     );
   }
 
-  /// 显示后处理规则编辑对话框
+  /// 显示后处理规则编辑面板
   void _showPostProcessRuleDialog() {
-    showDialog(
+    _showDiyConfigForm(
+      title: AppLocalizations.of(context)!.randomManager_postProcessRules,
+      child: PostProcessRulePanel(
+        rules: _editingTagGroup.postProcessRules,
+        onRulesChanged: (rules) {
+          setState(() {
+            _editingTagGroup = _editingTagGroup.copyWith(
+              postProcessRules: rules,
+            );
+          });
+        },
+        availableCategories: _availableCategories,
+      ),
+    );
+  }
+
+  Future<void> _showDiyConfigForm({
+    required String title,
+    required Widget child,
+  }) {
+    return AdaptivePresenter.showForm<void>(
       context: context,
-      builder: (context) => _DiyConfigDialog(
-        title: AppLocalizations.of(context)!.randomManager_postProcessRules,
-        child: PostProcessRulePanel(
-          rules: _editingTagGroup.postProcessRules,
-          onRulesChanged: (rules) {
-            setState(() {
-              _editingTagGroup = _editingTagGroup.copyWith(
-                postProcessRules: rules,
-              );
-            });
-          },
-          availableCategories: _availableCategories,
-        ),
+      dialogWidth: 620,
+      titleBuilder: (panelContext) => Row(
+        children: [
+          Icon(
+            Icons.auto_awesome,
+            color: Theme.of(panelContext).colorScheme.secondary,
+            size: 20,
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              title,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: Theme.of(
+                panelContext,
+              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
+            ),
+          ),
+        ],
+      ),
+      builder: (panelContext, scrollController) => Column(
+        children: [
+          Expanded(
+            child: ListView(
+              controller: scrollController,
+              keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+              padding: const EdgeInsets.all(16),
+              children: [child],
+            ),
+          ),
+          const Divider(height: 1),
+          SafeArea(
+            top: false,
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Align(
+                alignment: AlignmentDirectional.centerEnd,
+                child: FilledButton.icon(
+                  onPressed: () => Navigator.pop(panelContext),
+                  icon: const Icon(Icons.check, size: 18),
+                  label: Text(panelContext.l10n.common_confirm),
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -1140,8 +1105,9 @@ class _TagGroupEditDialogState extends ConsumerState<_TagGroupEditDialog>
     final notifier = ref.read(randomPresetNotifierProvider.notifier);
     final state = ref.read(randomPresetNotifierProvider);
     final preset = state.presets.firstWhere((p) => p.id == widget.presetId);
-    final category =
-        preset.categories.firstWhere((c) => c.id == widget.categoryId);
+    final category = preset.categories.firstWhere(
+      (c) => c.id == widget.categoryId,
+    );
     final updatedCategory = category.updateGroup(_editingTagGroup);
     notifier.updateCategory(updatedCategory);
     Navigator.pop(context);
@@ -1181,14 +1147,16 @@ class _DiySectionState extends State<_DiySection> {
       onEnter: (_) => setState(() => _isHovered = true),
       onExit: (_) => setState(() => _isHovered = false),
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
+        duration: MediaQuery.disableAnimationsOf(context)
+            ? Duration.zero
+            : const Duration(milliseconds: 200),
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
           color: widget.enabled
               ? colorScheme.primaryContainer.withValues(alpha: 0.3)
               : _isHovered
-                  ? colorScheme.surfaceContainerHighest
-                  : colorScheme.surfaceContainerHigh,
+              ? colorScheme.surfaceContainerHighest
+              : colorScheme.surfaceContainerHigh,
           borderRadius: BorderRadius.circular(6),
           boxShadow: [
             BoxShadow(
@@ -1200,9 +1168,12 @@ class _DiySectionState extends State<_DiySection> {
             ),
           ],
         ),
-        child: Row(
-          children: [
-            Container(
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final stackContent =
+                constraints.maxWidth < 420 ||
+                MediaQuery.textScalerOf(context).scale(1) >= 2;
+            final icon = Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
                 color: widget.enabled
@@ -1217,208 +1188,71 @@ class _DiySectionState extends State<_DiySection> {
                     ? colorScheme.primary
                     : colorScheme.onSurfaceVariant,
               ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    widget.title,
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
-                      color: widget.enabled
-                          ? colorScheme.primary
-                          : colorScheme.onSurface,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    widget.description,
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            if (widget.enabled)
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(4),
-                    decoration: BoxDecoration(
-                      color: colorScheme.primary.withValues(alpha: 0.1),
-                      shape: BoxShape.circle,
-                    ),
-                    child: Icon(
-                      Icons.check,
-                      color: colorScheme.primary,
-                      size: 16,
-                    ),
-                  ),
-                  if (widget.onEdit != null) ...[
-                    const SizedBox(width: 8),
-                    FilledButton.tonal(
-                      onPressed: widget.onEdit,
-                      style: FilledButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 6,
-                        ),
-                        minimumSize: Size.zero,
-                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                      ),
-                      child: Text(AppLocalizations.of(context)!.common_edit),
-                    ),
-                  ],
-                ],
-              )
-            else
-              OutlinedButton(
-                onPressed: widget.onAdd,
-                style: OutlinedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 6,
-                  ),
-                  minimumSize: Size.zero,
-                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                ),
-                child: Text(AppLocalizations.of(context)!.common_add),
-              ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-/// DIY 配置对话框
-class _DiyConfigDialog extends StatelessWidget {
-  const _DiyConfigDialog({
-    required this.title,
-    required this.child,
-  });
-
-  final String title;
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-
-    return Dialog(
-      backgroundColor: Colors.transparent,
-      child: Container(
-        width: 620,
-        height: 560,
-        decoration: BoxDecoration(
-          color: colorScheme.surface,
-          borderRadius: BorderRadius.circular(8),
-          boxShadow: [
-            BoxShadow(
-              color: colorScheme.shadow.withValues(alpha: 0.08),
-              blurRadius: 8,
-              offset: const Offset(0, 4),
-            ),
-            BoxShadow(
-              color: colorScheme.shadow.withValues(alpha: 0.16),
-              blurRadius: 24,
-              offset: const Offset(0, 12),
-            ),
-          ],
-        ),
-        child: Column(
-          children: [
-            // 标题栏 - 渐变背景
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [
-                    colorScheme.secondaryContainer.withValues(alpha: 0.3),
-                    colorScheme.tertiaryContainer.withValues(alpha: 0.2),
-                  ],
-                ),
-                borderRadius:
-                    const BorderRadius.vertical(top: Radius.circular(8)),
-                border: Border(
-                  bottom: BorderSide(
-                    color: colorScheme.outlineVariant.withValues(alpha: 0.2),
+            );
+            final description = Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  widget.title,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: widget.enabled
+                        ? colorScheme.primary
+                        : colorScheme.onSurface,
                   ),
                 ),
-              ),
-              child: Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: colorScheme.secondary.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Icon(
-                      Icons.auto_awesome,
-                      color: colorScheme.secondary,
-                      size: 20,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Text(
-                    title,
-                    style: theme.textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const Spacer(),
-                  IconButton(
-                    onPressed: () => Navigator.pop(context),
-                    icon: const Icon(Icons.close),
-                    iconSize: 20,
-                    style: IconButton.styleFrom(
-                      backgroundColor: colorScheme.surfaceContainerHighest
-                          .withValues(alpha: 0.5),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            // 内容
-            Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.all(20),
-                child: child,
-              ),
-            ),
-            // 底部按钮
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: colorScheme.surfaceContainerHighest,
-                borderRadius:
-                    const BorderRadius.vertical(bottom: Radius.circular(8)),
-                border: Border(
-                  top: BorderSide(
-                    color: colorScheme.outlineVariant.withValues(alpha: 0.2),
+                const SizedBox(height: 2),
+                Text(
+                  widget.description,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: colorScheme.onSurfaceVariant,
                   ),
                 ),
+              ],
+            );
+            final action = FilledButton.tonal(
+              key: ValueKey('tag-group-diy-action-${widget.title}'),
+              onPressed: widget.enabled ? widget.onEdit : widget.onAdd,
+              child: Text(
+                widget.enabled
+                    ? AppLocalizations.of(context)!.common_edit
+                    : AppLocalizations.of(context)!.common_add,
               ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.end,
+            );
+
+            if (stackContent) {
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  FilledButton.icon(
-                    onPressed: () => Navigator.pop(context),
-                    icon: const Icon(Icons.check, size: 18),
-                    label: Text(AppLocalizations.of(context)!.common_confirm),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      icon,
+                      const SizedBox(width: 12),
+                      Expanded(child: description),
+                    ],
                   ),
+                  const SizedBox(height: 12),
+                  action,
                 ],
-              ),
-            ),
-          ],
+              );
+            }
+            return Row(
+              children: [
+                icon,
+                const SizedBox(width: 12),
+                Expanded(child: description),
+                if (widget.enabled) ...[
+                  const SizedBox(width: 8),
+                  Icon(Icons.check, color: colorScheme.primary, size: 20),
+                ],
+                if (!widget.enabled || widget.onEdit != null) ...[
+                  const SizedBox(width: 8),
+                  action,
+                ],
+              ],
+            );
+          },
         ),
       ),
     );

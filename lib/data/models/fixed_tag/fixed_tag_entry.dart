@@ -4,6 +4,7 @@ import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:uuid/uuid.dart';
 
 import 'fixed_tag_prompt_type.dart';
+import '../../../core/utils/prompt_edit_document.dart';
 
 part 'fixed_tag_entry.freezed.dart';
 part 'fixed_tag_entry.g.dart';
@@ -57,6 +58,12 @@ class FixedTagEntry with _$FixedTagEntry {
     /// 如果不为 null，表示此固定词是从词库关联过来的
     String? sourceEntryId,
 
+    /// 导入的历史版本对应的原固定词 ID。
+    String? importedFromFixedTagId,
+
+    /// 历史版本对应的固定词快照指纹，用于避免重复创建。
+    String? importedSnapshotFingerprint,
+
     /// 排序顺序
     @Default(0) int sortOrder,
 
@@ -80,6 +87,8 @@ class FixedTagEntry with _$FixedTagEntry {
     FixedTagPromptType promptType = FixedTagPromptType.positive,
     String? categoryId,
     String? sourceEntryId, // 【新增】来源词库条目ID
+    String? importedFromFixedTagId,
+    String? importedSnapshotFingerprint,
     int sortOrder = 0,
   }) {
     final now = DateTime.now();
@@ -93,6 +102,8 @@ class FixedTagEntry with _$FixedTagEntry {
       promptType: promptType,
       categoryId: categoryId,
       sourceEntryId: sourceEntryId, // 【新增】
+      importedFromFixedTagId: importedFromFixedTagId,
+      importedSnapshotFingerprint: importedSnapshotFingerprint,
       sortOrder: sortOrder,
       createdAt: now,
       updatedAt: now,
@@ -177,6 +188,8 @@ class FixedTagEntry with _$FixedTagEntry {
     FixedTagPromptType? promptType,
     String? categoryId,
     String? sourceEntryId,
+    String? importedFromFixedTagId,
+    String? importedSnapshotFingerprint,
     int? sortOrder,
   }) {
     return copyWith(
@@ -188,6 +201,10 @@ class FixedTagEntry with _$FixedTagEntry {
       promptType: promptType ?? this.promptType,
       categoryId: categoryId ?? this.categoryId,
       sourceEntryId: sourceEntryId ?? this.sourceEntryId,
+      importedFromFixedTagId:
+          importedFromFixedTagId ?? this.importedFromFixedTagId,
+      importedSnapshotFingerprint:
+          importedSnapshotFingerprint ?? this.importedSnapshotFingerprint,
       sortOrder: sortOrder ?? this.sortOrder,
       updatedAt: DateTime.now(),
     );
@@ -195,10 +212,7 @@ class FixedTagEntry with _$FixedTagEntry {
 
   /// 切换启用状态
   FixedTagEntry toggleEnabled() {
-    return copyWith(
-      enabled: !enabled,
-      updatedAt: DateTime.now(),
-    );
+    return copyWith(enabled: !enabled, updatedAt: DateTime.now());
   }
 
   /// 切换位置
@@ -208,6 +222,22 @@ class FixedTagEntry with _$FixedTagEntry {
       updatedAt: DateTime.now(),
     );
   }
+}
+
+String _applyEnabledEntries(
+  String userPrompt, {
+  required List<FixedTagEntry> prefixes,
+  required List<FixedTagEntry> suffixes,
+}) {
+  final parts =
+      <String>[
+            ...prefixes.sortedByOrder().map((entry) => entry.weightedContent),
+            userPrompt,
+            ...suffixes.sortedByOrder().map((entry) => entry.weightedContent),
+          ]
+          .map(PromptEditDocument.effectiveText)
+          .where((part) => part.trim().isNotEmpty);
+  return parts.join(', ');
 }
 
 /// 固定词列表扩展
@@ -221,60 +251,60 @@ extension FixedTagEntryListExtension on List<FixedTagEntry> {
       where((e) => e.promptType == FixedTagPromptType.negative).toList();
 
   /// 获取启用的条目
-  List<FixedTagEntry> get enabled =>
-      where((e) => e.enabled && e.promptType == FixedTagPromptType.positive)
-          .toList();
+  List<FixedTagEntry> get enabled => where(
+    (e) => e.enabled && e.promptType == FixedTagPromptType.positive,
+  ).toList();
 
   /// 获取禁用的条目
-  List<FixedTagEntry> get disabled =>
-      where((e) => !e.enabled && e.promptType == FixedTagPromptType.positive)
-          .toList();
+  List<FixedTagEntry> get disabled => where(
+    (e) => !e.enabled && e.promptType == FixedTagPromptType.positive,
+  ).toList();
 
   /// 获取前缀条目
   List<FixedTagEntry> get prefixes => where(
-        (e) =>
-            e.promptType == FixedTagPromptType.positive &&
-            e.position == FixedTagPosition.prefix,
-      ).toList();
+    (e) =>
+        e.promptType == FixedTagPromptType.positive &&
+        e.position == FixedTagPosition.prefix,
+  ).toList();
 
   /// 获取后缀条目
   List<FixedTagEntry> get suffixes => where(
-        (e) =>
-            e.promptType == FixedTagPromptType.positive &&
-            e.position == FixedTagPosition.suffix,
-      ).toList();
+    (e) =>
+        e.promptType == FixedTagPromptType.positive &&
+        e.position == FixedTagPosition.suffix,
+  ).toList();
 
   /// 获取启用的前缀条目
   List<FixedTagEntry> get enabledPrefixes => where(
-        (e) =>
-            e.enabled &&
-            e.promptType == FixedTagPromptType.positive &&
-            e.position == FixedTagPosition.prefix,
-      ).toList();
+    (e) =>
+        e.enabled &&
+        e.promptType == FixedTagPromptType.positive &&
+        e.position == FixedTagPosition.prefix,
+  ).toList();
 
   /// 获取启用的后缀条目
   List<FixedTagEntry> get enabledSuffixes => where(
-        (e) =>
-            e.enabled &&
-            e.promptType == FixedTagPromptType.positive &&
-            e.position == FixedTagPosition.suffix,
-      ).toList();
+    (e) =>
+        e.enabled &&
+        e.promptType == FixedTagPromptType.positive &&
+        e.position == FixedTagPosition.suffix,
+  ).toList();
 
   /// 获取启用的负向前缀条目
   List<FixedTagEntry> get negativeEnabledPrefixes => where(
-        (e) =>
-            e.enabled &&
-            e.promptType == FixedTagPromptType.negative &&
-            e.position == FixedTagPosition.prefix,
-      ).toList();
+    (e) =>
+        e.enabled &&
+        e.promptType == FixedTagPromptType.negative &&
+        e.position == FixedTagPosition.prefix,
+  ).toList();
 
   /// 获取启用的负向后缀条目
   List<FixedTagEntry> get negativeEnabledSuffixes => where(
-        (e) =>
-            e.enabled &&
-            e.promptType == FixedTagPromptType.negative &&
-            e.position == FixedTagPosition.suffix,
-      ).toList();
+    (e) =>
+        e.enabled &&
+        e.promptType == FixedTagPromptType.negative &&
+        e.position == FixedTagPosition.suffix,
+  ).toList();
 
   /// 按排序顺序排列
   List<FixedTagEntry> sortedByOrder() {
@@ -300,42 +330,27 @@ extension FixedTagEntryListExtension on List<FixedTagEntry> {
     return sorted;
   }
 
-  /// 应用到提示词
-  ///
-  /// 将所有启用的固定词按位置应用到用户提示词
-  String applyToPrompt(String userPrompt) {
-    final enabledPrefixContents = enabledPrefixes
-        .sortedByOrder()
-        .map((e) => e.weightedContent)
-        .where((c) => c.isNotEmpty)
-        .toList();
+  /// 将所有启用的正向固定词按位置和顺序应用到提示词。
+  String applyToPrompt(String userPrompt) => _applyEnabledEntries(
+    userPrompt,
+    prefixes: enabledPrefixes,
+    suffixes: enabledSuffixes,
+  );
 
-    final enabledSuffixContents = enabledSuffixes
-        .sortedByOrder()
-        .map((e) => e.weightedContent)
-        .where((c) => c.isNotEmpty)
-        .toList();
-
-    final parts = <String>[
-      ...enabledPrefixContents,
-      userPrompt,
-      ...enabledSuffixContents,
-    ].where((s) => s.isNotEmpty).toList();
-
-    return parts.join(', ');
-  }
+  /// 将所有启用的负向固定词按位置和顺序应用到负向提示词。
+  String applyToNegativePrompt(String userPrompt) => _applyEnabledEntries(
+    userPrompt,
+    prefixes: negativeEnabledPrefixes,
+    suffixes: negativeEnabledSuffixes,
+  );
 
   /// 更新排序顺序
   ///
   /// 根据列表当前顺序重新分配 sortOrder
   List<FixedTagEntry> reindex() {
-    return asMap()
-        .entries
+    return asMap().entries
         .map(
-          (e) => e.value.copyWith(
-            sortOrder: e.key,
-            updatedAt: DateTime.now(),
-          ),
+          (e) => e.value.copyWith(sortOrder: e.key, updatedAt: DateTime.now()),
         )
         .toList();
   }

@@ -1,22 +1,32 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
+
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:nai_launcher/core/utils/localization_extension.dart';
 
+import '../image_viewport_surface.dart';
+import '../../../../core/platform/platform_capabilities.dart';
+import '../../../../core/services/ios_photo_library_service.dart';
+import '../../../../core/services/native_share_service.dart';
 import '../../../../core/shortcuts/shortcuts.dart';
 import '../../../../core/utils/app_logger.dart';
 import '../../../../core/utils/image_share_sanitizer.dart';
 import '../../../../core/utils/window_focus_tracker.dart';
-import '../../../../data/models/metadata/metadata_import_options.dart';
+import '../../../../core/windowing/workspace_side_panel_contract.dart';
+import '../../../../data/models/gallery/nai_image_metadata.dart';
+import '../../../adaptive/adaptive_presenter.dart';
 import '../../../providers/share_image_settings_provider.dart';
+import '../../../providers/copy_drag_watermark_provider.dart';
+import '../../../screens/mosaic/mosaic_editor_launcher.dart';
+import '../../../screens/watermark/watermark_editor_launcher.dart';
 import '../../../utils/clipboard_image.dart';
 import '../../shortcuts/shortcuts.dart';
 import '../app_toast.dart';
-import '../../metadata/metadata_import_dialog.dart';
+import '../horizontal_resize_handle.dart';
+import '../resizable_pane.dart';
 import 'components/detail_image_page.dart';
 import 'components/detail_metadata_panel.dart';
+import 'components/prompt_copy_dialog.dart';
 import 'components/detail_thumbnail_bar.dart';
 import 'components/detail_top_bar.dart';
 import 'image_detail_data.dart';
@@ -27,11 +37,7 @@ class ImageDetailCallbacks {
   final void Function(ImageDetailData image)? onFavoriteToggle;
 
   /// 复用元数据回调
-  /// 接收图像数据和用户选择的导入选项
-  final void Function(
-    ImageDetailData image,
-    MetadataImportOptions options,
-  )? onReuseMetadata;
+  final Future<void> Function(ImageDetailData image)? onReuseMetadata;
 
   /// 保存回调
   final Future<void> Function(ImageDetailData image)? onSave;
@@ -106,18 +112,20 @@ class ImageDetailViewer extends ConsumerStatefulWidget {
     ImageDetailCallbacks? callbacks,
     String? heroTagPrefix,
   }) {
-    final isWindows = Platform.isWindows;
-    final transitionDuration =
-        isWindows ? Duration.zero : const Duration(milliseconds: 300);
-    final reverseTransitionDuration =
-        isWindows ? Duration.zero : const Duration(milliseconds: 250);
+    final isWindows = PlatformCapabilities.current.isWindows;
+    final transitionDuration = isWindows
+        ? Duration.zero
+        : const Duration(milliseconds: 300);
+    final reverseTransitionDuration = isWindows
+        ? Duration.zero
+        : const Duration(milliseconds: 250);
 
     return Navigator.of(context).push(
       PageRouteBuilder(
         // Windows + 外部截图工具 + 焦点切换下，透明路由和快照过渡更容易触发
         // Flutter 引擎原生崩溃；Windows 走纯黑不透明且无动画路径。
         opaque: isWindows,
-        barrierColor: Colors.black,
+        barrierColor: ImageViewportSurface.background,
         allowSnapshotting: !isWindows,
         transitionDuration: transitionDuration,
         reverseTransitionDuration: reverseTransitionDuration,
@@ -134,16 +142,28 @@ class ImageDetailViewer extends ConsumerStatefulWidget {
             return viewer;
           }
           return FadeTransition(
-            opacity: CurvedAnimation(
-              parent: animation,
-              curve: Curves.easeOut,
-            ),
+            opacity: CurvedAnimation(parent: animation, curve: Curves.easeOut),
             child: viewer,
           );
         },
       ),
     );
   }
+
+  /// 复制/拖拽时该带哪个图像变换。
+  ///
+  /// 【偏离上游】上游 `_copyImageToClipboard` 无条件把
+  /// `copyDragWatermarkProvider` 的 transform 交给 sanitizer
+  /// （v4.2.1 新增的「复制/拖拽时加水印」，默认关闭）。
+  /// 「去除元数据」和「加水印」是两个正交开关：用户点的
+  /// 「复制（去除元数据）」只承诺产出没有元数据的副本，不应该顺带把水印烙进去。
+  /// 抽成具名函数是为了让这条规则可被测试钉住——下次跟上游时，
+  /// 一旦有人把两个开关合并回去，测试会直接红。
+  @visibleForTesting
+  static ShareImageTransform? copyTransformFor({
+    required bool? stripMetadataOverride,
+    required ShareImageTransform? watermark,
+  }) => stripMetadataOverride == true ? null : watermark;
 
   /// 打开单图模式（无缩略图条）
   static Future<void> showSingle(
@@ -172,6 +192,9 @@ class _ImageDetailViewerState extends ConsumerState<ImageDetailViewer> {
   static const Duration _windowsEscFocusCooldown = Duration(milliseconds: 1200);
   static const Duration _windowsEscBounceCooldown = Duration(seconds: 4);
   static const Duration _closeRequestThrottle = Duration(milliseconds: 700);
+  static const double _initialMetadataPanelWidth = 420;
+  static const double _minimumMetadataPanelWidth = 320;
+  static const double _minimumImagePaneWidth = 480;
 
   late PageController _pageController;
   late ScrollController _thumbnailController;
@@ -179,9 +202,22 @@ class _ImageDetailViewerState extends ConsumerState<ImageDetailViewer> {
   // 始终显示控制栏（不自动收起）
   final bool _showControls = true;
   final _focusNode = FocusNode();
-  final Map<int, TransformationController> _transformationControllers = {};
+  final Map<String, TransformationController> _transformationControllers = {};
   bool _isClosing = false;
   DateTime? _lastCloseRequestedAt;
+  late final ResizablePaneController _metadataPanelWidthController;
+
+  /// 元数据文件解析兜底（identifier → 进行中的解析 / 结果）。
+  ///
+  /// 【偏离上游】上游详情页只读 [ImageDetailData.metadata]，即本地图库数据库
+  /// 里的快照。刚生成尚未被后台扫描入库、或 **iOS 覆盖安装后应用容器 UUID 变化
+  /// 导致快照里的绝对路径失效** 时，快照是 null，顶栏的「复用参数」按钮会
+  /// 直接消失。上游只把点击后的行为改成了文件级解析
+  /// （`local_gallery_action_coordinator` 的 `resolveLocalGalleryMetadata`），
+  /// 没有修按钮显隐——这是 iOS 特有问题，上游不会修。
+  /// 这里从图片自身异步解析补齐，并把结果回灌给 [DetailTopBar.metadataOverride]。
+  final Map<String, Future<NaiImageMetadata?>> _metadataFutures = {};
+  final Map<String, NaiImageMetadata?> _resolvedMetadata = {};
 
   @override
   void initState() {
@@ -189,11 +225,54 @@ class _ImageDetailViewerState extends ConsumerState<ImageDetailViewer> {
     _currentIndex = widget.initialIndex;
     _pageController = PageController(initialPage: _currentIndex);
     _thumbnailController = ScrollController();
+    _metadataPanelWidthController = ResizablePaneController(
+      initialWidth: _initialMetadataPanelWidth,
+    );
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _scrollToThumbnail(_currentIndex, animate: false);
       _focusNode.requestFocus();
+      _prefetchCurrentMetadata();
     });
+  }
+
+  /// 当前可用元数据：快照有数据就用快照，否则用文件解析的兜底结果。
+  NaiImageMetadata? _metadataOf(ImageDetailData data) {
+    final snapshot = data.metadata;
+    if (snapshot != null && snapshot.hasData) return snapshot;
+    return _resolvedMetadata[data.identifier] ?? snapshot;
+  }
+
+  /// 从图片自身异步解析元数据（每张图只解析一次，结果缓存）。
+  Future<NaiImageMetadata?> _resolveMetadata(ImageDetailData data) {
+    return _metadataFutures.putIfAbsent(data.identifier, () {
+      return data
+          .getMetadataAsync()
+          .then((result) {
+            if (mounted) {
+              setState(() => _resolvedMetadata[data.identifier] = result);
+            }
+            return result;
+          })
+          .catchError((Object error) {
+            AppLogger.w(
+              'Metadata fallback parse failed for ${data.identifier}: $error',
+              'ImageDetailViewer',
+            );
+            return Future<NaiImageMetadata?>.value(null);
+          });
+    });
+  }
+
+  /// 快照缺失时提前触发解析，让顶栏按钮显隐尽快收敛。
+  void _prefetchCurrentMetadata() {
+    if (_currentIndex < 0 || _currentIndex >= widget.images.length) return;
+    final data = widget.images[_currentIndex];
+    final snapshot = data.metadata;
+    if ((snapshot == null || !snapshot.hasData) &&
+        !_metadataFutures.containsKey(data.identifier)) {
+      _resolveMetadata(data);
+    }
   }
 
   void _scrollToThumbnail(int index, {bool animate = true}) {
@@ -203,9 +282,9 @@ class _ImageDetailViewerState extends ConsumerState<ImageDetailViewer> {
     const thumbnailMargin = 8.0;
     const totalWidth = thumbnailWidth + thumbnailMargin;
 
-    final screenWidth = MediaQuery.of(context).size.width;
+    final viewportWidth = _thumbnailController.position.viewportDimension;
     final targetOffset =
-        (index * totalWidth) - (screenWidth / 2) + (totalWidth / 2);
+        (index * totalWidth) - (viewportWidth / 2) + (totalWidth / 2);
     final maxOffset = _thumbnailController.position.maxScrollExtent;
 
     final offset = targetOffset.clamp(0.0, maxOffset);
@@ -231,9 +310,15 @@ class _ImageDetailViewerState extends ConsumerState<ImageDetailViewer> {
     );
   }
 
+  void _jumpToPage(int index) {
+    if (index < 0 || index >= widget.images.length) return;
+    _pageController.jumpToPage(index);
+  }
+
   void _onPageChanged(int index) {
     setState(() => _currentIndex = index);
     _scrollToThumbnail(index);
+    _prefetchCurrentMetadata();
   }
 
   KeyEventResult _handleKeyEvent(FocusNode node, KeyEvent event) {
@@ -276,7 +361,7 @@ class _ImageDetailViewerState extends ConsumerState<ImageDetailViewer> {
   }
 
   bool _shouldSuppressEscCloseOnWindows() {
-    if (!Platform.isWindows) return false;
+    if (!PlatformCapabilities.current.isWindows) return false;
     if (WindowFocusTracker.isWithinCooldown(_windowsEscFocusCooldown)) {
       return true;
     }
@@ -325,10 +410,11 @@ class _ImageDetailViewerState extends ConsumerState<ImageDetailViewer> {
 
   /// 获取当前图片的 TransformationController
   TransformationController get _currentTransformController {
-    if (!_transformationControllers.containsKey(_currentIndex)) {
-      _transformationControllers[_currentIndex] = TransformationController();
-    }
-    return _transformationControllers[_currentIndex]!;
+    final identifier = _currentImage.identifier;
+    return _transformationControllers.putIfAbsent(
+      identifier,
+      TransformationController.new,
+    );
   }
 
   /// 放大
@@ -397,19 +483,41 @@ class _ImageDetailViewerState extends ConsumerState<ImageDetailViewer> {
   }
 
   /// 复制 Prompt
-  void _copyPrompt() {
-    final metadata = _currentImage.metadata;
-    final prompt = metadata?.prompt;
-    if (prompt != null && prompt.isNotEmpty) {
-      Clipboard.setData(ClipboardData(text: prompt));
-      if (context.mounted) {
-        AppToast.success(context, context.l10n.toast_imagePromptCopied);
-      }
-    } else {
+  Future<void> _copyPrompt() async {
+    // 与顶栏显隐口径一致：快照缺失时用兜底解析结果，否则 iOS 覆盖安装后
+    // 按钮显示了却提示「没有提示词」。
+    final metadata = _metadataOf(_currentImage);
+    if (metadata == null || metadata.fullPrompt.isEmpty) {
       if (context.mounted) {
         AppToast.warning(context, context.l10n.toast_imageHasNoPrompt);
       }
+      return;
     }
+
+    final prompt = await PromptCopyDialog.show(context, metadata: metadata);
+    if (prompt == null || !mounted) return;
+
+    await Clipboard.setData(ClipboardData(text: prompt));
+    if (mounted) {
+      AppToast.success(context, context.l10n.toast_imagePromptCopied);
+    }
+  }
+
+  Future<void> _showMetadataPanel() {
+    return AdaptivePresenter.showPanel<void>(
+      context: context,
+      title: context.l10n.detail_imageDetails,
+      initialChildSize: 0.88,
+      minChildSize: 0.55,
+      maxChildSize: 0.96,
+      builder: (panelContext, _) => LayoutBuilder(
+        builder: (context, constraints) => DetailMetadataPanel(
+          currentImage: _currentImage,
+          expandedWidth: constraints.maxWidth,
+          collapsible: false,
+        ),
+      ),
+    );
   }
 
   /// 复用参数
@@ -430,9 +538,6 @@ class _ImageDetailViewerState extends ConsumerState<ImageDetailViewer> {
 
   @override
   Widget build(BuildContext context) {
-    final screenWidth = MediaQuery.of(context).size.width;
-    final isDesktop = screenWidth > 800;
-
     // 定义快捷键映射
     final shortcuts = <String, VoidCallback>{
       // 上一张
@@ -466,26 +571,53 @@ class _ImageDetailViewerState extends ConsumerState<ImageDetailViewer> {
         focusNode: _focusNode,
         onKeyEvent: _handleKeyEvent,
         child: Scaffold(
-          backgroundColor: Colors.black,
-          body: isDesktop && widget.showMetadataPanel
-              ? Row(
-                  children: [
-                    Expanded(
-                      child: _buildMainContent(),
-                    ),
-                    DetailMetadataPanel(
+          backgroundColor: ImageViewportSurface.background,
+          body: LayoutBuilder(
+            builder: (context, constraints) {
+              final showSideMetadata = constraints.maxWidth >= 1100;
+              if (!showSideMetadata || !widget.showMetadataPanel) {
+                return _buildMainContent(
+                  showMetadataAction: widget.showMetadataPanel,
+                );
+              }
+
+              final maximumPanelWidth =
+                  WorkspaceSidePanelContract.constrainedWorkspaceWidth(
+                    workspaceWidth: constraints.maxWidth,
+                    preferredWidth: WorkspaceSidePanelContract.maximumWidth,
+                    occupiedWidth: ResizeHandle.defaultWidth,
+                    minimumPrimaryWidth: _minimumImagePaneWidth,
+                    minimumWidth: _minimumMetadataPanelWidth,
+                  );
+              return Row(
+                children: [
+                  Expanded(child: _buildMainContent(showMetadataAction: false)),
+                  ResizeHandle(
+                    key: const ValueKey('image-detail-metadata-resize-handle'),
+                    onDrag: (delta) =>
+                        _metadataPanelWidthController.resizeBy(-delta),
+                  ),
+                  ResizablePane(
+                    controller: _metadataPanelWidthController,
+                    minimumWidth: _minimumMetadataPanelWidth,
+                    maximumWidth: maximumPanelWidth,
+                    child: DetailMetadataPanel(
                       currentImage: _currentImage,
                       initialExpanded: true,
+                      collapsible: false,
+                      fillAvailableWidth: true,
                     ),
-                  ],
-                )
-              : _buildMainContent(),
+                  ),
+                ],
+              );
+            },
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildMainContent() {
+  Widget _buildMainContent({required bool showMetadataAction}) {
     final showThumbnails = widget.showThumbnails && widget.images.length > 1;
 
     return Stack(
@@ -500,23 +632,24 @@ class _ImageDetailViewerState extends ConsumerState<ImageDetailViewer> {
             final data = widget.images[index];
             final heroTag =
                 widget.heroTagPrefix != null && index == _currentIndex
-                    ? '${widget.heroTagPrefix}_${data.identifier}'
-                    : null;
-            // 确保每个页面都有 TransformationController
-            if (!_transformationControllers.containsKey(index)) {
-              _transformationControllers[index] = TransformationController();
-            }
+                ? '${widget.heroTagPrefix}_${data.identifier}'
+                : null;
+            final transformationController = _transformationControllers
+                .putIfAbsent(data.identifier, TransformationController.new);
             return DetailImagePage(
+              key: ValueKey(data.identifier),
               data: data,
               heroTag: heroTag,
-              transformationController: _transformationControllers[index],
+              transformationController: transformationController,
             );
           },
         ),
 
         // 顶部控制栏
         AnimatedPositioned(
-          duration: const Duration(milliseconds: 200),
+          duration: MediaQuery.disableAnimationsOf(context)
+              ? Duration.zero
+              : const Duration(milliseconds: 200),
           top: _showControls ? 0 : -100,
           left: 0,
           right: 0,
@@ -524,7 +657,10 @@ class _ImageDetailViewerState extends ConsumerState<ImageDetailViewer> {
             currentIndex: _currentIndex,
             totalImages: widget.images.length,
             currentImage: _currentImage,
+            // 数据库快照缺失时用文件解析的兜底结果驱动按钮显隐（iOS 覆盖安装）
+            metadataOverride: _metadataOf(_currentImage),
             onClose: () => _requestClose('top-bar-close'),
+            onShowMetadata: showMetadataAction ? _showMetadataPanel : null,
             onReuseMetadata: widget.callbacks?.onReuseMetadata != null
                 ? () => _handleReuseMetadata(context)
                 : null,
@@ -534,26 +670,45 @@ class _ImageDetailViewerState extends ConsumerState<ImageDetailViewer> {
             onSave: widget.callbacks?.onSave != null
                 ? () => widget.callbacks!.onSave!(_currentImage)
                 : null,
+            // 上游的复制：跟随 shareImageSettingsProvider（默认带元数据）
             onCopyImage: _currentImage.showCopyButton
                 ? () => _copyImageToClipboard(context)
                 : null,
+            // 【偏离上游】常驻的「复制（去除元数据）」：硬传 override，
+            // 不读 shareImageSettingsProvider，也不带水印 transform。
+            onCopyImageClean: _currentImage.showCopyButton
+                ? () => _copyImageToClipboard(
+                    context,
+                    stripMetadataOverride: true,
+                  )
+                : null,
+            // 【偏离上游】显式的「保存到相册」，只在 iOS 出现，
+            // 绝不接 image_generation_provider 的 publishToSystemGallery 自动回调。
+            onSaveToAlbum: IosPhotoLibraryService.isSupported
+                ? () => _saveToPhotoAlbum(context)
+                : null,
+            onShare: PlatformCapabilities.current.supportsNativeShare
+                ? () => _shareImage(context)
+                : null,
+            onWatermark: () => _openWatermarkEditor(context),
+            onMosaic: () => _openMosaicEditor(context),
             onSendToImg2Img: widget.callbacks?.onSendToImg2Img != null
                 ? () => widget.callbacks!.onSendToImg2Img!(_currentImage)
                 : null,
             onSendToReversePrompt:
                 widget.callbacks?.onSendToReversePrompt != null
-                    ? () => widget.callbacks!.onSendToReversePrompt!(
-                          _currentImage,
-                        )
-                    : null,
+                ? () => widget.callbacks!.onSendToReversePrompt!(_currentImage)
+                : null,
           ),
         ),
 
         // 底部缩略图栏
         if (showThumbnails)
           AnimatedPositioned(
-            duration: const Duration(milliseconds: 200),
-            bottom: _showControls ? 0 : -140,
+            duration: MediaQuery.disableAnimationsOf(context)
+                ? Duration.zero
+                : const Duration(milliseconds: 200),
+            bottom: _showControls ? 0 : -100,
             left: 0,
             right: 0,
             child: _buildBottomBar(),
@@ -591,91 +746,93 @@ class _ImageDetailViewerState extends ConsumerState<ImageDetailViewer> {
   }
 
   Widget _buildBottomBar() {
-    final metadata = _currentImage.metadata;
-
     return Container(
-      height: 140,
+      height: 100,
+      alignment: Alignment.bottomCenter,
       decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.bottomCenter,
           end: Alignment.topCenter,
-          colors: [
-            Colors.black.withValues(alpha: 0.8),
-            Colors.transparent,
-          ],
+          colors: [Colors.black.withValues(alpha: 0.8), Colors.transparent],
         ),
       ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // 元数据信息
-          if (metadata != null)
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              child: _buildMetadataInfo(metadata),
-            ),
-
-          // 缩略图条
-          DetailThumbnailBar(
-            images: widget.images,
-            currentIndex: _currentIndex,
-            scrollController: _thumbnailController,
-            onTap: _goToPage,
-          ),
-        ],
+      child: DetailThumbnailBar(
+        images: widget.images,
+        currentIndex: _currentIndex,
+        scrollController: _thumbnailController,
+        onTap: _jumpToPage,
       ),
     );
   }
 
-  Widget _buildMetadataInfo(dynamic metadata) {
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          if (metadata.seed != null) _buildInfoChip('Seed: ${metadata.seed}'),
-          if (metadata.steps != null) _buildInfoChip('${metadata.steps} steps'),
-          if (metadata.scale != null) _buildInfoChip('CFG: ${metadata.scale}'),
-          if (metadata.sampler != null) _buildInfoChip(metadata.displaySampler),
-          if (metadata.width != null && metadata.height != null)
-            _buildInfoChip('${metadata.width}×${metadata.height}'),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildInfoChip(String text) {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 4),
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.15),
-        borderRadius: BorderRadius.circular(4),
-      ),
-      child: Text(
-        text,
-        style: const TextStyle(
-          color: Colors.white,
-          fontSize: 12,
-        ),
-      ),
-    );
-  }
-
-  /// 复制图像到剪贴板
-  Future<void> _copyImageToClipboard(BuildContext context) async {
+  /// 保存当前图像到系统相册（显式动作，iOS）
+  ///
+  /// 【偏离上游】上游没有这条路径：Android 侧是保存/出图即无条件发布到系统相册
+  /// （`publishToSystemGallery` 等约 10 个调用点由
+  /// `PlatformCapabilities.supportsSystemGalleryExport` 统一放行，无开关可关）。
+  /// 用户点名要求保存只写应用自管的本地图库，进相册必须由用户主动点，
+  /// 所以这里走独立的 [IosPhotoLibraryService]，由
+  /// `supportsExplicitPhotoLibraryExport` 门控，**不接任何自动保存回调**。
+  Future<void> _saveToPhotoAlbum(BuildContext context) async {
     final l10n = context.l10n;
     try {
       final imageBytes = await _currentImage.getImageBytes();
-      final fileName = _currentImage.fileInfo?.fileName ?? 'shared.png';
-      final stripMetadata = ref
-          .read(shareImageSettingsProvider)
-          .effectiveStripMetadataForCopyAndDrag;
-      final shareImage = await ImageShareSanitizer.prepareForCopyOrDrag(
-        imageBytes,
-        fileName: fileName,
-        stripMetadata: stripMetadata,
+      final result = await IosPhotoLibraryService.saveImageBytes(
+        bytes: imageBytes,
+        fileName: _currentImage.fileInfo?.fileName,
       );
+      if (!context.mounted) return;
+      switch (result.outcome) {
+        case PhotoLibrarySaveOutcome.saved:
+          AppToast.success(context, l10n.image_savedToAlbum);
+        case PhotoLibrarySaveOutcome.permissionDenied:
+          AppToast.warning(context, l10n.image_albumPermissionDenied);
+        case PhotoLibrarySaveOutcome.unsupported:
+        case PhotoLibrarySaveOutcome.failed:
+          AppToast.error(
+            context,
+            l10n.image_saveToAlbumFailed('${result.error ?? result.outcome}'),
+          );
+      }
+    } catch (error) {
+      if (context.mounted) {
+        AppToast.error(context, l10n.image_saveToAlbumFailed('$error'));
+      }
+    }
+  }
+
+  /// 复制图像到剪贴板
+  ///
+  /// [stripMetadataOverride] 为 null 时跟随上游的全局「分享保护」设置；
+  /// 传 true 是用户点名的「复制（去除元数据）」常驻动作，绕过全局开关。
+  Future<void> _copyImageToClipboard(
+    BuildContext context, {
+    bool? stripMetadataOverride,
+  }) async {
+    final l10n = context.l10n;
+    final transform = ImageDetailViewer.copyTransformFor(
+      stripMetadataOverride: stripMetadataOverride,
+      watermark: ref.read(copyDragWatermarkProvider),
+    );
+    // 【偏离上游】上游只有 effectiveStripMetadataForCopyAndDrag 这一个来源，
+    // 而它 = assetProtectionMode && stripMetadataForCopyAndDrag，
+    // assetProtectionMode 默认 false，所以上游默认复制是**带**元数据的。
+    // override 为 true 时直接绕过全局开关。
+    final stripMetadata =
+        stripMetadataOverride ??
+        ref
+            .read(shareImageSettingsProvider)
+            .effectiveStripMetadataForCopyAndDrag;
+    try {
+      final imageBytes = await _currentImage.getImageBytes();
+      final fileName = _currentImage.fileInfo?.fileName ?? 'shared.png';
+      final shareImage =
+          await ImageShareSanitizer.prepareForCopyOrDragInBackground(
+            imageBytes,
+            fileName: fileName,
+            stripMetadata: stripMetadata,
+            transform: transform,
+          );
 
       // 跨平台复制到剪贴板（原 Windows 端走 PowerShell + System.Drawing，
       // macOS/Linux 不可用）。统一规范化为 PNG，避免 jpg/webp 原始字节被当成
@@ -692,24 +849,82 @@ class _ImageDetailViewerState extends ConsumerState<ImageDetailViewer> {
     }
   }
 
+  Future<void> _openWatermarkEditor(BuildContext context) async {
+    final fileInfo = _currentImage.fileInfo;
+    if (fileInfo != null) {
+      await WatermarkEditorLauncher.openForLocalPath(
+        context: context,
+        path: fileInfo.path,
+      );
+      return;
+    }
+    final bytes = await _currentImage.getImageBytes();
+    if (!context.mounted) return;
+    await WatermarkEditorLauncher.open(
+      context: context,
+      sourceBytes: bytes,
+      sourceFileName: 'image.png',
+    );
+  }
+
+  Future<void> _openMosaicEditor(BuildContext context) async {
+    final fileInfo = _currentImage.fileInfo;
+    if (fileInfo != null) {
+      await MosaicEditorLauncher.openForLocalPath(
+        context: context,
+        path: fileInfo.path,
+      );
+      return;
+    }
+    final bytes = await _currentImage.getImageBytes();
+    if (!context.mounted) return;
+    await MosaicEditorLauncher.open(
+      context: context,
+      sourceBytes: bytes,
+      sourceFileName: 'image.png',
+    );
+  }
+
+  Future<void> _shareImage(BuildContext context) async {
+    final l10n = context.l10n;
+    try {
+      final imageBytes = await _currentImage.getImageBytes();
+      final fileName = _currentImage.fileInfo?.fileName ?? 'shared.png';
+      final stripMetadata = ref
+          .read(shareImageSettingsProvider)
+          .effectiveStripMetadataForCopyAndDrag;
+      final shareImage = await ImageShareSanitizer.prepareForCopyOrDrag(
+        imageBytes,
+        fileName: fileName,
+        stripMetadata: stripMetadata,
+      );
+      if (!context.mounted) return;
+      final renderBox = context.findRenderObject() as RenderBox?;
+      final origin = renderBox == null
+          ? null
+          : renderBox.localToGlobal(Offset.zero) & renderBox.size;
+      await NativeShareService.shareImage(
+        bytes: shareImage.bytes,
+        fileName: shareImage.fileName,
+        sharePositionOrigin: origin,
+      );
+    } catch (error) {
+      if (context.mounted) {
+        AppToast.error(context, l10n.image_shareFailed(error.toString()));
+      }
+    }
+  }
+
   /// 处理复用元数据
   Future<void> _handleReuseMetadata(BuildContext context) async {
-    final metadata = _currentImage.metadata;
+    final metadata = _metadataOf(_currentImage);
     if (metadata == null || !metadata.hasData) {
       AppToast.warning(context, context.l10n.toast_imageHasNoMetadata);
       return;
     }
 
-    // 显示参数选择对话框
-    final options = await MetadataImportDialog.show(
-      context,
-      metadata: metadata,
-    );
-
-    if (options == null || !context.mounted) return; // 用户取消
-
-    // 调用回调并传递选项
-    widget.callbacks?.onReuseMetadata?.call(_currentImage, options);
+    await widget.callbacks?.onReuseMetadata?.call(_currentImage);
+    if (!context.mounted) return;
 
     // 关闭图像详情页
     if (context.mounted) {
@@ -719,6 +934,7 @@ class _ImageDetailViewerState extends ConsumerState<ImageDetailViewer> {
 
   @override
   void dispose() {
+    _metadataPanelWidthController.dispose();
     for (final controller in _transformationControllers.values) {
       controller.dispose();
     }
@@ -735,10 +951,7 @@ class _NavigationButton extends StatelessWidget {
   final IconData icon;
   final VoidCallback onPressed;
 
-  const _NavigationButton({
-    required this.icon,
-    required this.onPressed,
-  });
+  const _NavigationButton({required this.icon, required this.onPressed});
 
   @override
   Widget build(BuildContext context) {
@@ -750,11 +963,7 @@ class _NavigationButton extends StatelessWidget {
         borderRadius: BorderRadius.circular(8),
         child: Padding(
           padding: const EdgeInsets.all(12),
-          child: Icon(
-            icon,
-            color: Colors.white,
-            size: 32,
-          ),
+          child: Icon(icon, color: Colors.white, size: 32),
         ),
       ),
     );

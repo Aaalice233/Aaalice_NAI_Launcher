@@ -71,6 +71,13 @@ class ShortcutConfig with _$ShortcutConfig {
     return ShortcutConfig(bindings: bindings);
   }
 
+  /// Adds newly introduced defaults without changing any stored binding.
+  ShortcutConfig mergedWithDefaults() {
+    final defaults = ShortcutConfig.createDefault().bindings;
+    if (defaults.keys.every(bindings.containsKey)) return this;
+    return copyWith(bindings: {...defaults, ...bindings});
+  }
+
   /// 获取指定ID的快捷键绑定
   ShortcutBinding? getBinding(String id) => bindings[id];
 
@@ -95,9 +102,7 @@ class ShortcutConfig with _$ShortcutConfig {
     final binding = bindings[id];
     if (binding == null) return this;
 
-    return copyWith(
-      bindings: {...bindings, id: binding.resetToDefault()},
-    );
+    return copyWith(bindings: {...bindings, id: binding.resetToDefault()});
   }
 
   /// 设置自定义快捷键
@@ -106,7 +111,10 @@ class ShortcutConfig with _$ShortcutConfig {
     if (binding == null) return this;
 
     return copyWith(
-      bindings: {...bindings, id: binding.copyWith(customShortcut: shortcut)},
+      bindings: {
+        ...bindings,
+        id: binding.copyWith(customShortcut: shortcut),
+      },
     );
   }
 
@@ -116,18 +124,31 @@ class ShortcutConfig with _$ShortcutConfig {
     if (binding == null) return this;
 
     return copyWith(
-      bindings: {...bindings, id: binding.copyWith(enabled: enabled)},
+      bindings: {
+        ...bindings,
+        id: binding.copyWith(enabled: enabled),
+      },
     );
   }
 
   /// 检查快捷键是否有冲突
   /// 返回冲突的快捷键ID列表
-  List<String> findConflicts(String shortcut, {String? excludeId}) {
+  List<String> findConflicts(
+    String shortcut, {
+    required ShortcutContext context,
+    String? excludeId,
+  }) {
     final conflicts = <String>[];
 
     for (final entry in bindings.entries) {
       if (entry.key == excludeId) continue;
       if (!entry.value.enabled) continue;
+      final otherContext = entry.value.context;
+      if (context != ShortcutContext.global &&
+          otherContext != ShortcutContext.global &&
+          otherContext != context) {
+        continue;
+      }
 
       final effective = entry.value.effectiveShortcut;
       if (effective != null &&
@@ -220,12 +241,7 @@ class ParsedShortcut {
 }
 
 /// 修饰键枚举
-enum ShortcutModifier {
-  control,
-  alt,
-  shift,
-  meta,
-}
+enum ShortcutModifier { control, alt, shift, meta }
 
 /// 快捷键键枚举
 enum ShortcutKey {
@@ -375,11 +391,7 @@ class ShortcutParser {
 
     if (key == null) return null;
 
-    return ParsedShortcut(
-      modifiers: modifiers,
-      key: key,
-      raw: shortcut,
-    );
+    return ParsedShortcut(modifiers: modifiers, key: key, raw: shortcut);
   }
 
   /// 尝试解析别名

@@ -2,8 +2,10 @@ import 'dart:typed_data';
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
+import 'package:nai_launcher/core/utils/localization_extension.dart';
 
 import '../../../../themes/design_tokens.dart';
+import '../../../../themes/theme_extension.dart';
 import '../../../../widgets/common/decoded_memory_image.dart';
 
 /// Bundle 画廊条
@@ -64,7 +66,7 @@ class BundleGalleryStrip extends StatelessWidget {
           child: Row(
             children: [
               // 左侧固定"使用全部"按钮
-              _buildUseAllButton(theme),
+              _buildUseAllButton(context, theme),
 
               // 分隔线
               Container(
@@ -84,6 +86,25 @@ class BundleGalleryStrip extends StatelessWidget {
                   itemBuilder: _buildVibeItem,
                 ),
               ),
+              if (onLongPressSetCover != null) ...[
+                Container(
+                  width: 1,
+                  height: 64,
+                  color: theme.colorScheme.outlineVariant.withValues(
+                    alpha: 0.3,
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                  child: IconButton(
+                    onPressed: selectedIndex >= 0
+                        ? () => onLongPressSetCover!(selectedIndex)
+                        : null,
+                    tooltip: context.l10n.vibeDetail_setAsCover,
+                    icon: const Icon(Icons.wallpaper_rounded),
+                  ),
+                ),
+              ],
             ],
           ),
         ),
@@ -92,14 +113,16 @@ class BundleGalleryStrip extends StatelessWidget {
   }
 
   /// "使用全部"按钮
-  Widget _buildUseAllButton(ThemeData theme) {
+  Widget _buildUseAllButton(BuildContext context, ThemeData theme) {
     final isSelected = selectedIndex == -1;
+    final motion = theme.appTheme;
+    final reducedMotion = MediaQuery.disableAnimationsOf(context);
 
     return GestureDetector(
       onTap: onUseAll,
       child: AnimatedContainer(
-        duration: DesignTokens.animationNormal,
-        curve: DesignTokens.curveStandard,
+        duration: reducedMotion ? Duration.zero : motion.normalDuration,
+        curve: motion.standardCurve,
         width: 72,
         margin: const EdgeInsets.symmetric(
           horizontal: DesignTokens.spacingXs,
@@ -108,8 +131,9 @@ class BundleGalleryStrip extends StatelessWidget {
         decoration: BoxDecoration(
           color: isSelected
               ? theme.colorScheme.primaryContainer.withValues(alpha: 0.5)
-              : theme.colorScheme.surfaceContainerHighest
-                  .withValues(alpha: 0.3),
+              : theme.colorScheme.surfaceContainerHighest.withValues(
+                  alpha: 0.3,
+                ),
           borderRadius: DesignTokens.borderRadiusLg,
           border: Border.all(
             color: isSelected
@@ -130,7 +154,7 @@ class BundleGalleryStrip extends StatelessWidget {
             ),
             const SizedBox(height: DesignTokens.spacingXxs),
             Text(
-              '全部',
+              context.l10n.vibeDetail_useAll,
               style: theme.textTheme.labelSmall?.copyWith(
                 color: isSelected
                     ? theme.colorScheme.primary
@@ -147,6 +171,8 @@ class BundleGalleryStrip extends StatelessWidget {
   /// 子 vibe 缩略图项
   Widget _buildVibeItem(BuildContext context, int index) {
     final theme = Theme.of(context);
+    final motion = theme.appTheme;
+    final reducedMotion = MediaQuery.disableAnimationsOf(context);
     final isSelected = selectedIndex == index;
     final preview = vibePreviews != null && index < vibePreviews!.length
         ? vibePreviews![index]
@@ -165,10 +191,13 @@ class BundleGalleryStrip extends StatelessWidget {
           : null,
       child: Tooltip(
         message:
-            vibeNames[index] + (onLongPressSetCover != null ? '\n长按设为封面' : ''),
+            vibeNames[index] +
+            (onLongPressSetCover != null
+                ? '\n${context.l10n.vibeDetail_longPressSetCover}'
+                : ''),
         child: AnimatedContainer(
-          duration: DesignTokens.animationNormal,
-          curve: DesignTokens.curveStandard,
+          duration: reducedMotion ? Duration.zero : motion.normalDuration,
+          curve: motion.standardCurve,
           width: itemExtent,
           height: itemExtent,
           margin: EdgeInsets.symmetric(
@@ -178,8 +207,9 @@ class BundleGalleryStrip extends StatelessWidget {
           decoration: BoxDecoration(
             borderRadius: DesignTokens.borderRadiusLg,
             border: Border.all(
-              color:
-                  isSelected ? theme.colorScheme.primary : Colors.transparent,
+              color: isSelected
+                  ? theme.colorScheme.primary
+                  : Colors.transparent,
               width: isSelected ? 2 : 1,
             ),
             boxShadow: isSelected

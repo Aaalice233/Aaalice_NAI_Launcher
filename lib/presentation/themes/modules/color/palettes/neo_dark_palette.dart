@@ -22,21 +22,21 @@ class NeoDarkPalette extends BaseColorModule {
 
   @override
   ColorScheme get darkScheme => const ColorScheme.dark(
-        primary: _primary,
-        onPrimary: Colors.white,
-        primaryContainer: Color(0xFF2A2855), // Dark indigo for contrast
-        onPrimaryContainer: Color(0xFFE0E0FF), // Light indigo for text/icons
-        secondary: _secondary,
-        onSecondary: Colors.white,
-        tertiary: Color(0xFFF472B6),
-        onTertiary: Colors.white,
-        surface: _surface,
-        onSurface: Color(0xFFEDEDEF),
-        onSurfaceVariant: Color(0xFFA1A1AA), // Zinc-400 for secondary text
-        surfaceContainerHighest: _card,
-        outline: Color(0xFF52525B), // Zinc-600 for borders
-        error: Color(0xFFEF4444),
-      );
+    primary: _primary,
+    onPrimary: Colors.white,
+    primaryContainer: Color(0xFF2A2855), // Dark indigo for contrast
+    onPrimaryContainer: Color(0xFFE0E0FF), // Light indigo for text/icons
+    secondary: _secondary,
+    onSecondary: Color(0xFF0F022B),
+    tertiary: Color(0xFFF472B6),
+    onTertiary: Color(0xFF68083A),
+    surface: _surface,
+    onSurface: Color(0xFFEDEDEF),
+    onSurfaceVariant: Color(0xFFA1A1AA), // Zinc-400 for secondary text
+    surfaceContainerHighest: _card,
+    outline: Color(0xFF52525B), // Zinc-600 for borders
+    error: Color(0xFFEF4444),
+  );
 
   @override
   bool get supportsDarkMode => true;

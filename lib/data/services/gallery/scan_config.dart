@@ -204,6 +204,12 @@ class ScanConfig {
     return supportedExtensions.any((e) => ext.endsWith(e));
   }
 
+  /// Scanner enumeration, pre-counting, and caller-side discovery must all
+  /// use this predicate so progress totals describe the same file set.
+  bool acceptsGalleryImagePath(String path) {
+    return isSupportedExtension(path) && !isThumbnailPath(path);
+  }
+
   /// 检查路径是否为缩略图路径
   bool isThumbnailPath(String path) {
     final separator = Platform.pathSeparator;

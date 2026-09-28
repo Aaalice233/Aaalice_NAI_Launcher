@@ -6,14 +6,45 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:nai_launcher/core/utils/localization_extension.dart';
 
 import '../../../../data/models/tag_library/import_models.dart';
+import '../../../../data/models/tag_library/import_plan.dart';
+import '../../../../data/services/tag_library_import_planner.dart';
 import '../../../../data/services/tag_library_io_service.dart';
+import '../../../adaptive/adaptive_presenter.dart';
+import '../../../adaptive/interaction_policy.dart';
 import '../../../providers/tag_library_page_provider.dart';
-
 import '../../../widgets/common/app_toast.dart';
+import '../../../widgets/common/translated_tag_text.dart';
 
 /// 导入对话框
 class ImportDialog extends ConsumerStatefulWidget {
-  const ImportDialog({super.key});
+  const ImportDialog._();
+
+  static Future<void> show(BuildContext context) {
+    return AdaptivePresenter.showForm<void>(
+      context: context,
+      titleBuilder: (panelContext) => Row(
+        children: [
+          Icon(
+            Icons.file_download_outlined,
+            color: Theme.of(panelContext).colorScheme.primary,
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              panelContext.l10n.tagLibrary_import,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: Theme.of(
+                panelContext,
+              ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w600),
+            ),
+          ),
+        ],
+      ),
+      dialogWidth: 700,
+      builder: (context, _) => const ImportDialog._(),
+    );
+  }
 
   @override
   ConsumerState<ImportDialog> createState() => _ImportDialogState();
@@ -38,95 +69,78 @@ class _ImportDialogState extends ConsumerState<ImportDialog> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    return Dialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 700, maxHeight: 800),
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // 标题
-              Row(
-                children: [
-                  Icon(
-                    Icons.file_download_outlined,
-                    color: theme.colorScheme.primary,
-                  ),
-                  const SizedBox(width: 12),
-                  Text(
-                    context.l10n.tagLibrary_import,
-                    style: theme.textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  const Spacer(),
-                  if (!_isImporting)
-                    IconButton(
-                      icon: const Icon(Icons.close),
-                      onPressed: () => Navigator.of(context).pop(),
-                    ),
-                ],
+    if (_isImporting) {
+      return Padding(
+        key: const Key('tag-library-import-content'),
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            LinearProgressIndicator(value: _progress),
+            const SizedBox(height: 12),
+            Text(
+              _progressMessage,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.outline,
               ),
+            ),
+          ],
+        ),
+      );
+    }
 
-              const SizedBox(height: 24),
+    if (_preview == null) {
+      return SingleChildScrollView(
+        key: const Key('tag-library-import-content'),
+        keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+        padding: const EdgeInsets.all(16),
+        child: _buildFileSelection(theme),
+      );
+    }
 
-              if (_isImporting) ...[
-                // 导入进度
-                LinearProgressIndicator(value: _progress),
-                const SizedBox(height: 12),
-                Text(
-                  _progressMessage,
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.colorScheme.outline,
+    return Padding(
+      key: const Key('tag-library-import-content'),
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(child: _buildPreview(theme)),
+
+          const SizedBox(height: 16),
+
+          Wrap(
+            alignment: WrapAlignment.end,
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              TextButton(
+                onPressed: () {
+                  setState(() {
+                    _selectedFile = null;
+                    _preview = null;
+                    _conflicts = [];
+                    _conflictResolutions.clear();
+                  });
+                },
+                child: Text(context.l10n.tagLibrary_reselect),
+              ),
+              FilledButton.icon(
+                onPressed:
+                    _selectedEntryIds.isNotEmpty ||
+                        _selectedCategoryIds.isNotEmpty
+                    ? _import
+                    : null,
+                icon: const Icon(Icons.file_download),
+                label: Text(
+                  context.l10n.tagLibrary_selectedImportCount(
+                    _selectedEntryIds.length + _selectedCategoryIds.length,
                   ),
                 ),
-              ] else if (_preview == null) ...[
-                // 选择文件
-                _buildFileSelection(theme),
-              ] else ...[
-                // 预览和选择
-                Expanded(child: _buildPreview(theme)),
-
-                const SizedBox(height: 16),
-
-                // 操作按钮
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
-                    TextButton(
-                      onPressed: () {
-                        setState(() {
-                          _selectedFile = null;
-                          _preview = null;
-                          _conflicts = [];
-                          _conflictResolutions.clear();
-                        });
-                      },
-                      child: Text(context.l10n.tagLibrary_reselect),
-                    ),
-                    const SizedBox(width: 8),
-                    FilledButton.icon(
-                      onPressed: _selectedEntryIds.isNotEmpty ||
-                              _selectedCategoryIds.isNotEmpty
-                          ? _import
-                          : null,
-                      icon: const Icon(Icons.file_download),
-                      label: Text(
-                        context.l10n.tagLibrary_selectedImportCount(
-                          _selectedEntryIds.length +
-                              _selectedCategoryIds.length,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
+              ),
             ],
           ),
-        ),
+        ],
       ),
     );
   }
@@ -145,15 +159,15 @@ class _ImportDialogState extends ConsumerState<ImportDialog> {
             decoration: BoxDecoration(
               color: theme.colorScheme.surfaceContainerHighest,
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(
-                color: theme.colorScheme.outlineVariant,
-                style: BorderStyle.solid,
-              ),
             ),
             child: Column(
               children: [
                 if (_isLoading)
-                  const CircularProgressIndicator()
+                  CircularProgressIndicator(
+                    value: MediaQuery.disableAnimationsOf(context)
+                        ? 0.72
+                        : null,
+                  )
                 else ...[
                   Icon(
                     Icons.upload_file,
@@ -265,8 +279,9 @@ class _ImportDialogState extends ConsumerState<ImportDialog> {
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color:
-                    theme.colorScheme.tertiaryContainer.withValues(alpha: 0.5),
+                color: theme.colorScheme.tertiaryContainer.withValues(
+                  alpha: 0.5,
+                ),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Row(
@@ -303,8 +318,9 @@ class _ImportDialogState extends ConsumerState<ImportDialog> {
                 onPressed: () {
                   setState(() {
                     _selectedEntryIds.addAll(preview.entries.map((e) => e.id));
-                    _selectedCategoryIds
-                        .addAll(preview.categories.map((c) => c.id));
+                    _selectedCategoryIds.addAll(
+                      preview.categories.map((c) => c.id),
+                    );
                   });
                 },
                 child: Text(context.l10n.common_selectAll),
@@ -401,6 +417,7 @@ class _ImportDialogState extends ConsumerState<ImportDialog> {
                 subtitle: isConflict
                     ? _getConflictSubtitle(resolution)
                     : entry.contentPreview,
+                translateSubtitle: !isConflict,
                 isSelected: _selectedEntryIds.contains(entry.id),
                 isConflict: isConflict,
                 resolution: resolution,
@@ -432,6 +449,7 @@ class _ImportDialogState extends ConsumerState<ImportDialog> {
     required ThemeData theme,
     required String title,
     required String? subtitle,
+    bool translateSubtitle = false,
     required bool isSelected,
     required bool isConflict,
     required ConflictResolution resolution,
@@ -448,10 +466,7 @@ class _ImportDialogState extends ConsumerState<ImportDialog> {
       ),
       child: Row(
         children: [
-          Checkbox(
-            value: isSelected,
-            onChanged: onChanged,
-          ),
+          Checkbox(value: isSelected, onChanged: onChanged),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -465,16 +480,26 @@ class _ImportDialogState extends ConsumerState<ImportDialog> {
                   overflow: TextOverflow.ellipsis,
                 ),
                 if (subtitle != null)
-                  Text(
-                    subtitle,
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: isConflict
-                          ? theme.colorScheme.tertiary
-                          : theme.colorScheme.outline,
+                  if (translateSubtitle)
+                    TranslatedPromptText(
+                      subtitle,
+                      selectable: false,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.outline,
+                      ),
+                      maxLines: 1,
+                    )
+                  else
+                    Text(
+                      subtitle,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: isConflict
+                            ? theme.colorScheme.tertiary
+                            : theme.colorScheme.outline,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
               ],
             ),
           ),
@@ -577,6 +602,11 @@ class _ImportDialogState extends ConsumerState<ImportDialog> {
         ),
       ],
       child: Container(
+        constraints: BoxConstraints(
+          minHeight: context.interactionPolicy.shouldExposeTouchAlternatives
+              ? 48
+              : 0,
+        ),
         margin: const EdgeInsets.only(right: 8),
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
         decoration: BoxDecoration(
@@ -694,9 +724,13 @@ class _ImportDialogState extends ConsumerState<ImportDialog> {
   }
 
   Future<void> _import() async {
-    if (_selectedFile == null || _preview == null) return;
+    final file = _selectedFile;
+    final preview = _preview;
+    if (file == null || preview == null) return;
 
     final l10n = context.l10n;
+    final state = ref.read(tagLibraryPageNotifierProvider);
+    final notifier = ref.read(tagLibraryPageNotifierProvider.notifier);
 
     setState(() {
       _isImporting = true;
@@ -705,18 +739,22 @@ class _ImportDialogState extends ConsumerState<ImportDialog> {
     });
 
     try {
-      final state = ref.read(tagLibraryPageNotifierProvider);
-      final service = TagLibraryIOService();
-
-      final result = await service.executeImport(
-        zipFile: _selectedFile!,
-        preview: _preview!,
+      final plan = const TagLibraryImportPlanner().plan(
+        preview: preview,
         selectedEntryIds: _selectedEntryIds,
         selectedCategoryIds: _selectedCategoryIds,
+        conflicts: _conflicts,
         conflictResolutions: _conflictResolutions,
         existingEntries: state.entries,
         existingCategories: state.categories,
+        renameSuffix: ' (${l10n.common_import})',
+      );
+
+      final result = await TagLibraryIOService().executeImport(
+        zipFile: file,
+        plan: plan,
         onProgress: (progress, message) {
+          if (!mounted) return;
           setState(() {
             _progress = progress;
             _progressMessage = message;
@@ -724,127 +762,14 @@ class _ImportDialogState extends ConsumerState<ImportDialog> {
         },
       );
 
-      // 导入到 provider
-      final notifier = ref.read(tagLibraryPageNotifierProvider.notifier);
-
-      // 首先处理需要替换（覆盖）的分类 - 先删除现有分类
-      for (final conflict in _conflicts.where(
-        (c) =>
-            c.isCategoryConflict &&
-            _selectedCategoryIds.contains(c.importId) &&
-            _conflictResolutions[c.importId] == ConflictResolution.overwrite,
-      )) {
-        await notifier.deleteCategory(conflict.existingId);
-      }
-
-      // 处理需要替换（覆盖）的条目 - 先删除现有条目
-      for (final conflict in _conflicts.where(
-        (c) =>
-            c.isEntryConflict &&
-            _selectedEntryIds.contains(c.importId) &&
-            _conflictResolutions[c.importId] == ConflictResolution.overwrite,
-      )) {
-        await notifier.deleteEntry(conflict.existingId);
-      }
-
-      // 筛选要导入的分类（根据冲突解决策略处理）
-      final categoriesToImport = _preview!.categories.where((c) {
-        if (!_selectedCategoryIds.contains(c.id)) return false;
-        final resolution = _conflictResolutions[c.id];
-        return resolution != ConflictResolution.skip;
-      }).toList();
-
-      // 确定是否有分类需要保留ID（替换场景）
-      final categoriesNeedKeepIds = categoriesToImport.any((c) {
-        final resolution = _conflictResolutions[c.id];
-        return resolution == ConflictResolution.overwrite;
-      });
-
-      // 确定分类是否需要添加后缀（重命名场景）
-      final categoryNameSuffix = categoriesToImport.any((c) {
-        final resolution = _conflictResolutions[c.id];
-        return resolution == ConflictResolution.rename;
-      })
-          ? ' (${l10n.common_import})'
-          : null;
-
-      // 导入分类并获取 ID 映射
-      final categoryIdMapping = await notifier.importCategories(
-        categoriesToImport,
-        keepIds: categoriesNeedKeepIds,
-        nameSuffix: categoryNameSuffix,
+      final applied = await notifier.applyImportPlan(
+        plan,
+        importedEntries: result.updatedEntries,
       );
 
-      // 筛选要导入的条目（根据冲突解决策略处理）
-      final entriesToImport = _preview!.entries.where((e) {
-        if (!_selectedEntryIds.contains(e.id)) return false;
-        final resolution = _conflictResolutions[e.id];
-        return resolution != ConflictResolution.skip;
-      }).toList();
-
-      // 确定是否有条目需要保留ID（替换场景）
-      final entriesNeedKeepIds = entriesToImport.any((e) {
-        final resolution = _conflictResolutions[e.id];
-        return resolution == ConflictResolution.overwrite;
-      });
-
-      // 确定条目是否需要添加后缀（重命名场景）
-      final entryNameSuffix = entriesToImport.any((e) {
-        final resolution = _conflictResolutions[e.id];
-        return resolution == ConflictResolution.rename;
-      })
-          ? ' (${l10n.common_import})'
-          : null;
-
-      // 导入条目（使用更新后的缩略图路径）
-      await notifier.importEntries(
-        entriesToImport,
-        categoryIdMapping: categoryIdMapping,
-        keepIds: entriesNeedKeepIds,
-        nameSuffix: entryNameSuffix,
-        updatedEntries: result.updatedEntries,
-      );
-
-      if (mounted) {
-        Navigator.of(context).pop();
-        final messages = <String>[];
-        if (result.importedEntries > 0) {
-          messages.add(
-            context.l10n.tagLibrary_importedEntriesCount(
-              result.importedEntries,
-            ),
-          );
-        }
-        if (result.importedCategories > 0) {
-          messages.add(
-            context.l10n.tagLibrary_importedCategoriesCount(
-              result.importedCategories,
-            ),
-          );
-        }
-        if (result.renamedCount > 0) {
-          messages
-              .add(context.l10n.tagLibrary_renamedCount(result.renamedCount));
-        }
-        if (result.overwrittenCount > 0) {
-          messages.add(
-            context.l10n.tagLibrary_overwrittenCount(result.overwrittenCount),
-          );
-        }
-        if (result.skippedConflicts > 0) {
-          messages.add(
-            context.l10n.tagLibrary_skippedCount(result.skippedConflicts),
-          );
-        }
-        AppToast.info(
-          context,
-          messages.isEmpty
-              ? context.l10n.tagLibrary_importCompleted
-              : context.l10n.tagLibrary_importSuccessSummary(
-                  messages.join(', '),
-                ),
-        );
-      }
+      if (!mounted) return;
+      Navigator.of(context).pop();
+      AppToast.info(context, _importSummary(result, applied));
     } catch (e) {
       if (mounted) {
         setState(() => _isImporting = false);
@@ -854,6 +779,30 @@ class _ImportDialogState extends ConsumerState<ImportDialog> {
         );
       }
     }
+  }
+
+  String _importSummary(
+    ImportResult result,
+    TagLibraryImportApplyResult applied,
+  ) {
+    final l10n = context.l10n;
+    final messages = <String>[
+      if (result.importedEntries > 0)
+        l10n.tagLibrary_importedEntriesCount(result.importedEntries),
+      if (result.importedCategories > 0)
+        l10n.tagLibrary_importedCategoriesCount(result.importedCategories),
+      if (result.renamedCount > 0)
+        l10n.tagLibrary_renamedCount(result.renamedCount),
+      if (result.overwrittenCount > 0)
+        l10n.tagLibrary_overwrittenCount(result.overwrittenCount),
+      if (result.skippedConflicts > 0)
+        l10n.tagLibrary_skippedCount(result.skippedConflicts),
+      if (applied.rejected.isNotEmpty)
+        l10n.tagLibrary_importRejectedCount(applied.rejected.length),
+    ];
+    return messages.isEmpty
+        ? l10n.tagLibrary_importCompleted
+        : l10n.tagLibrary_importSuccessSummary(messages.join(', '));
   }
 }
 

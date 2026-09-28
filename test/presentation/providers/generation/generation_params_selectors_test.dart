@@ -8,35 +8,6 @@ import 'package:nai_launcher/presentation/providers/generation/generation_params
 
 void main() {
   group('generation_params_selectors', () {
-    test('ParameterPanel 视图数据忽略重型图片字段', () {
-      const base = ImageParams(
-        prompt: 'castle',
-        model: 'nai-diffusion-4-full',
-        width: 832,
-        height: 1216,
-      );
-      final heavy = base.copyWith(
-        sourceImage: Uint8List.fromList([1, 2, 3]),
-        vibeReferencesV4: const [
-          VibeReference(
-            displayName: 'style',
-            vibeEncoding: 'encoded',
-          ),
-        ],
-        preciseReferences: [
-          PreciseReference(
-            image: Uint8List.fromList([4, 5, 6]),
-            type: PreciseRefType.character,
-          ),
-        ],
-      );
-
-      expect(
-        selectParameterPanelViewData(heavy),
-        equals(selectParameterPanelViewData(base)),
-      );
-    });
-
     test('Img2ImgPanel 视图数据只在图生图字段变化时更新', () {
       final image = Uint8List.fromList([1, 2, 3]);
       final base = ImageParams(

@@ -9,6 +9,7 @@ import '../../../core/comfyui/comfyui.dart';
 import '../../../core/comfyui/object_info_parser.dart';
 import '../../../core/constants/storage_keys.dart';
 import '../../../core/utils/app_logger.dart';
+import '../../../l10n/app_localizations.dart';
 
 part 'comfyui_provider.g.dart';
 
@@ -19,10 +20,12 @@ class ComfyUISettings extends _$ComfyUISettings {
   @override
   ComfyUISettingsState build() {
     final box = Hive.box(StorageKeys.settingsBox);
-    final storedServerUrl = box.get(
-      StorageKeys.comfyuiServerUrl,
-      defaultValue: 'http://127.0.0.1:8188',
-    ) as String;
+    final storedServerUrl =
+        box.get(
+              StorageKeys.comfyuiServerUrl,
+              defaultValue: 'http://127.0.0.1:8188',
+            )
+            as String;
     final serverUrl = normalizeComfyUIBaseUrl(storedServerUrl);
     if (serverUrl != storedServerUrl) {
       box.put(StorageKeys.comfyuiServerUrl, serverUrl);
@@ -94,8 +97,9 @@ class ComfyUIConnection extends _$ComfyUIConnection {
 
     state = ComfyUIConnectionStatus.connecting;
     final ok = await _manager!.connect();
-    state =
-        ok ? ComfyUIConnectionStatus.connected : ComfyUIConnectionStatus.error;
+    state = ok
+        ? ComfyUIConnectionStatus.connected
+        : ComfyUIConnectionStatus.error;
 
     if (ok) {
       _manager!.statusStream.listen((s) {
@@ -211,7 +215,7 @@ class ComfyUITask extends _$ComfyUITask {
         AppLogger.w('Connection attempt failed before execute', _tag);
         state = state.copyWith(
           status: ComfyUITaskStatus.failed,
-          errorMessage: '无法连接到 ComfyUI 服务器',
+          errorCode: ComfyUITaskErrorCode.connectionFailed,
         );
         return null;
       }
@@ -226,7 +230,7 @@ class ComfyUITask extends _$ComfyUITask {
       );
       state = state.copyWith(
         status: ComfyUITaskStatus.failed,
-        errorMessage: 'ComfyUI 连接不可用',
+        errorCode: ComfyUITaskErrorCode.connectionUnavailable,
       );
       return null;
     }
@@ -236,14 +240,16 @@ class ComfyUITask extends _$ComfyUITask {
       AppLogger.w('Workflow template not found: $templateId', _tag);
       state = state.copyWith(
         status: ComfyUITaskStatus.failed,
-        errorMessage: '未找到工作流模板: $templateId',
+        errorCode: ComfyUITaskErrorCode.workflowNotFound,
+        errorDetails: templateId,
       );
       return null;
     }
 
     try {
-      final outputNodeIds =
-          template.outputSlots.map((slot) => slot.nodeId).toSet();
+      final outputNodeIds = template.outputSlots
+          .map((slot) => slot.nodeId)
+          .toSet();
 
       // 1. 上传图像
       state = state.copyWith(status: ComfyUITaskStatus.uploading, progress: 0);
@@ -312,22 +318,27 @@ class ComfyUITask extends _$ComfyUITask {
       state = state.copyWith(status: ComfyUITaskStatus.running);
 
       final images = template.usesWebSocketOutput
-          ? await _waitForWebSocketResult(
-              conn,
-              result.promptId,
-              outputNodeIds,
-            )
-          : await _waitForHttpResult(
-              conn,
-              result.promptId,
-              outputNodeIds,
-            );
+          ? await _waitForWebSocketResult(conn, result.promptId, outputNodeIds)
+          : await _waitForHttpResult(conn, result.promptId, outputNodeIds);
       AppLogger.i(
         'Workflow result collected: template=$templateId, '
         'promptId=${result.promptId}, ${_summarizeOutputImages(images)}',
         _tag,
       );
       return images;
+    } on _ComfyUITaskLocalizedException catch (e, stackTrace) {
+      AppLogger.e(
+        'Task execution failed: template=$templateId',
+        e,
+        stackTrace,
+        _tag,
+      );
+      state = state.copyWith(
+        status: ComfyUITaskStatus.failed,
+        errorCode: e.code,
+        errorDetails: e.details,
+      );
+      return null;
     } catch (e, stackTrace) {
       AppLogger.e(
         'Task execution failed: template=$templateId',
@@ -337,7 +348,8 @@ class ComfyUITask extends _$ComfyUITask {
       );
       state = state.copyWith(
         status: ComfyUITaskStatus.failed,
-        errorMessage: e.toString(),
+        errorCode: ComfyUITaskErrorCode.executionFailed,
+        errorDetails: e.toString(),
       );
       return null;
     }
@@ -383,7 +395,10 @@ class ComfyUITask extends _$ComfyUITask {
       } else if (progress.status == ComfyUITaskStatus.failed) {
         if (!completer.isCompleted) {
           completer.completeError(
-            ComfyUIApiException(progress.errorMessage ?? '执行失败'),
+            _ComfyUITaskLocalizedException(
+              ComfyUITaskErrorCode.executionFailed,
+              details: progress.errorMessage,
+            ),
           );
         }
       }
@@ -392,7 +407,9 @@ class ComfyUITask extends _$ComfyUITask {
     try {
       var result = await completer.future.timeout(
         const Duration(minutes: 10),
-        onTimeout: () => throw const ComfyUIApiException('超分超时（10分钟）'),
+        onTimeout: () => throw const _ComfyUITaskLocalizedException(
+          ComfyUITaskErrorCode.timeout,
+        ),
       );
       // SaveImageWebsocket 在部分版本/节点下可能未推送二进制帧，改从 history+view 拉取
       if (result.isEmpty) {
@@ -405,8 +422,10 @@ class ComfyUITask extends _$ComfyUITask {
           AppLogger.w('WS 无图像且 history 拉取失败: $e', _tag);
         }
       }
-      state =
-          state.copyWith(status: ComfyUITaskStatus.completed, progress: 1.0);
+      state = state.copyWith(
+        status: ComfyUITaskStatus.completed,
+        progress: 1.0,
+      );
       return result;
     } finally {
       await imageSub.cancel();
@@ -441,7 +460,10 @@ class ComfyUITask extends _$ComfyUITask {
       } else if (progress.status == ComfyUITaskStatus.failed) {
         if (!completer.isCompleted) {
           completer.completeError(
-            ComfyUIApiException(progress.errorMessage ?? '执行失败'),
+            _ComfyUITaskLocalizedException(
+              ComfyUITaskErrorCode.executionFailed,
+              details: progress.errorMessage,
+            ),
           );
         }
       }
@@ -450,7 +472,9 @@ class ComfyUITask extends _$ComfyUITask {
     try {
       await completer.future.timeout(
         const Duration(minutes: 10),
-        onTimeout: () => throw const ComfyUIApiException('任务超时（10分钟）'),
+        onTimeout: () => throw const _ComfyUITaskLocalizedException(
+          ComfyUITaskErrorCode.timeout,
+        ),
       );
 
       AppLogger.d(
@@ -465,8 +489,10 @@ class ComfyUITask extends _$ComfyUITask {
         'Got ${images.length} images from history (sizes: ${images.map((i) => i.length).toList()})',
         _tag,
       );
-      state =
-          state.copyWith(status: ComfyUITaskStatus.completed, progress: 1.0);
+      state = state.copyWith(
+        status: ComfyUITaskStatus.completed,
+        progress: 1.0,
+      );
       return images;
     } finally {
       await imageSub.cancel();
@@ -481,21 +507,43 @@ class ComfyUITask extends _$ComfyUITask {
   }
 }
 
-/// 从 ComfyUI object_info 获取可用于超分的模型列表。
-///
-/// 包含：
-/// - SeedVR2LoadDiTModel 的 DiT 模型
-/// - UpscaleModelLoader 的普通超分模型（.pth/.pt/.safetensors 等）
+/// 从 ComfyUI object_info 获取超分模型和 SeedVR2 后端能力。
 @riverpod
 class ComfyUISeedvr2Models extends _$ComfyUISeedvr2Models {
   static const _tag = 'ComfyUIUpscaleModels';
-  static const _seedvr2NodeClass = 'SeedVR2LoadDiTModel';
+  static const _nativeModelNodeClass = 'UNETLoader';
+  static const _nativeVaeNodeClass = 'VAELoader';
+  static const _legacyModelNodeClass = 'SeedVR2LoadDiTModel';
   static const _upscaleNodeClass = 'UpscaleModelLoader';
-  static const _fallback = ['seedvr2_ema_7b_fp16.safetensors'];
+  static const _fallback = ['seedvr2_3b_int8_convrot.safetensors'];
+  static const _nativeRequiredNodeClasses = {
+    'LoadImage',
+    'JoinImageWithAlpha',
+    'ImageScaleBy',
+    'SeedVR2Preprocess',
+    'VAELoader',
+    'VAEEncodeTiled',
+    'UNETLoader',
+    'SeedVR2Conditioning',
+    'KSampler',
+    'VAEDecodeTiled',
+    'SeedVR2PostProcessing',
+    'SaveImage',
+  };
+  static const _legacyRequiredNodeClasses = {
+    'LoadImage',
+    'SeedVR2LoadDiTModel',
+    'SeedVR2LoadVAEModel',
+    'SeedVR2VideoUpscaler',
+    'SaveImage',
+  };
+
   bool _isFetching = false;
   bool _hasFetchedFromServer = false;
+  ComfySeedvr2Capabilities _capabilities = const ComfySeedvr2Capabilities();
 
   bool get hasFetchedFromServer => _hasFetchedFromServer;
+  ComfySeedvr2Capabilities get capabilities => _capabilities;
 
   @override
   List<String> build() {
@@ -503,6 +551,7 @@ class ComfyUISeedvr2Models extends _$ComfyUISeedvr2Models {
       if (!next.enabled) {
         _hasFetchedFromServer = false;
         _isFetching = false;
+        _capabilities = const ComfySeedvr2Capabilities();
         state = _fallback;
         return;
       }
@@ -511,18 +560,20 @@ class ComfyUISeedvr2Models extends _$ComfyUISeedvr2Models {
       final enabledChanged = prev?.enabled != next.enabled;
       if (serverChanged || enabledChanged) {
         _hasFetchedFromServer = false;
+        _capabilities = const ComfySeedvr2Capabilities();
+        state = _fallback;
         _scheduleAutoFetch(force: true);
       }
     });
 
-    ref.listen<ComfyUIConnectionStatus>(
-      comfyUIConnectionProvider,
-      (previous, next) {
-        if (next == ComfyUIConnectionStatus.connected) {
-          _scheduleAutoFetch();
-        }
-      },
-    );
+    ref.listen<ComfyUIConnectionStatus>(comfyUIConnectionProvider, (
+      previous,
+      next,
+    ) {
+      if (next == ComfyUIConnectionStatus.connected) {
+        _scheduleAutoFetch();
+      }
+    });
 
     if (ref.read(comfyUISettingsProvider).enabled) {
       _scheduleAutoFetch();
@@ -567,32 +618,77 @@ class ComfyUISeedvr2Models extends _$ComfyUISeedvr2Models {
     }
 
     try {
-      final seedvr2Models = await _fetchModelsFromNode(
-        conn!,
-        nodeClass: _seedvr2NodeClass,
-        candidateFields: const ['model', 'dit_model', 'dit_model_name'],
+      final nodeClasses = <String>{
+        ..._nativeRequiredNodeClasses,
+        ..._legacyRequiredNodeClasses,
+        'SeedVR2TilingUpscaler',
+        _upscaleNodeClass,
+      };
+      final nodeInfoEntries = await Future.wait(
+        nodeClasses.map((nodeClass) async {
+          final info = await _fetchNodeInfo(conn!, nodeClass: nodeClass);
+          return MapEntry(nodeClass, info);
+        }),
       );
-      final normalUpscaleModels = await _fetchModelsFromNode(
-        conn,
+      final nodeInfo = Map<String, Map<String, dynamic>?>.fromEntries(
+        nodeInfoEntries,
+      );
+
+      final nativeModels = _extractModelsFromNodeInfo(
+        nodeInfo[_nativeModelNodeClass],
+        nodeClass: _nativeModelNodeClass,
+        candidateFields: const ['unet_name'],
+      ).where(_isSeedvr2Model).toList(growable: false);
+      final legacyModels = _extractModelsFromNodeInfo(
+        nodeInfo[_legacyModelNodeClass],
+        nodeClass: _legacyModelNodeClass,
+        candidateFields: const ['model', 'dit_model', 'dit_model_name'],
+      ).where(_isSeedvr2Model).toList(growable: false);
+      final nativeVaeModels = _extractModelsFromNodeInfo(
+        nodeInfo[_nativeVaeNodeClass],
+        nodeClass: _nativeVaeNodeClass,
+        candidateFields: const ['vae_name'],
+      ).where(_isSeedvr2Vae).toList(growable: false);
+      final normalUpscaleModels = _extractModelsFromNodeInfo(
+        nodeInfo[_upscaleNodeClass],
         nodeClass: _upscaleNodeClass,
         candidateFields: const ['model_name', 'upscale_model', 'model'],
       );
 
-      final models = <String>[
-        ...seedvr2Models,
-        for (final model in normalUpscaleModels)
-          if (!seedvr2Models.contains(model)) model,
-      ];
+      _capabilities = ComfySeedvr2Capabilities(
+        nativeNodesAvailable: _nativeRequiredNodeClasses.every(
+          (nodeClass) => _hasNode(nodeInfo[nodeClass], nodeClass),
+        ),
+        legacyNodesAvailable: _legacyRequiredNodeClasses.every(
+          (nodeClass) => _hasNode(nodeInfo[nodeClass], nodeClass),
+        ),
+        legacyTilingAvailable: _hasNode(
+          nodeInfo['SeedVR2TilingUpscaler'],
+          'SeedVR2TilingUpscaler',
+        ),
+        nativeModels: _deduplicate(nativeModels),
+        legacyModels: _deduplicate(legacyModels),
+        nativeVaeModels: _deduplicate(nativeVaeModels),
+      );
 
-      if (models.isNotEmpty) {
-        AppLogger.i(
-          'Found ${seedvr2Models.length} SeedVR2 and '
-          '${normalUpscaleModels.length} regular upscale model(s)',
-          _tag,
-        );
-        state = models;
-        _hasFetchedFromServer = true;
-      } else {
+      final models = _deduplicate([
+        ...nativeModels,
+        ...legacyModels,
+        ...normalUpscaleModels,
+      ]);
+      state = models;
+      _hasFetchedFromServer = true;
+      AppLogger.i(
+        'Found nativeSeedVR2=${nativeModels.length}, '
+        'legacySeedVR2=${legacyModels.length}, '
+        'nativeVae=${nativeVaeModels.length}, '
+        'regular=${normalUpscaleModels.length}; '
+        'nativeUsable=${_capabilities.nativeUsable}, '
+        'legacyUsable=${_capabilities.legacyUsable}, '
+        'legacyTiling=${_capabilities.legacyTilingAvailable}',
+        _tag,
+      );
+      if (models.isEmpty) {
         AppLogger.w('Could not extract any ComfyUI upscale model list', _tag);
       }
     } catch (e, st) {
@@ -603,72 +699,78 @@ class ComfyUISeedvr2Models extends _$ComfyUISeedvr2Models {
     }
   }
 
-  Future<List<String>> _fetchModelsFromNode(
+  Future<Map<String, dynamic>?> _fetchNodeInfo(
     ComfyUIConnectionManager conn, {
     required String nodeClass,
-    required Iterable<String> candidateFields,
   }) async {
     try {
       final info = await conn.api!.getObjectInfo(nodeClass);
-      AppLogger.d(
-        '$nodeClass object_info raw keys: ${info.keys.toList()}',
-        _tag,
-      );
-
-      final node = info[nodeClass] as Map<String, dynamic>?;
-      if (node == null) {
-        AppLogger.w(
-          'Node "$nodeClass" not found. Available: ${info.keys.take(10)}',
-          _tag,
-        );
-        return const [];
-      }
-
-      final input = node['input'] as Map<String, dynamic>?;
-      if (input == null) {
-        AppLogger.w('$nodeClass has no "input" key. Keys: ${node.keys}', _tag);
-        return const [];
-      }
-
-      final required = input['required'] as Map<String, dynamic>?;
-      if (required == null) {
-        AppLogger.w(
-          '$nodeClass has no required inputs. Keys: ${input.keys}',
-          _tag,
-        );
-        return const [];
-      }
-
-      AppLogger.d(
-        '$nodeClass required fields: ${required.keys.toList()}',
-        _tag,
-      );
-      final models = extractChoiceListFromCandidateFields(
-        required,
-        candidateFields,
-      );
-
-      if (models != null && models.isNotEmpty) {
-        return models;
-      }
-
-      AppLogger.w('Could not extract model list from $nodeClass', _tag);
-      for (final entry in required.entries) {
-        AppLogger.d(
-          '  ${entry.key}: ${entry.value.runtimeType} = '
-          '${_truncate(entry.value.toString(), 200)}',
-          _tag,
-        );
-      }
-      return const [];
+      return info;
     } catch (e) {
-      AppLogger.w('Failed to fetch models from $nodeClass: $e', _tag);
-      return const [];
+      AppLogger.d('Node $nodeClass is unavailable: $e', _tag);
+      return null;
     }
   }
 
-  static String _truncate(String s, int maxLen) =>
-      s.length <= maxLen ? s : '${s.substring(0, maxLen)}...';
+  List<String> _extractModelsFromNodeInfo(
+    Map<String, dynamic>? info, {
+    required String nodeClass,
+    required Iterable<String> candidateFields,
+  }) {
+    final node = info?[nodeClass] as Map<String, dynamic>?;
+    final input = node?['input'] as Map<String, dynamic>?;
+    final required = input?['required'] as Map<String, dynamic>?;
+    if (required == null) return const [];
+
+    final models = extractChoiceListFromCandidateFields(
+      required,
+      candidateFields,
+    );
+    if (models != null && models.isNotEmpty) return models;
+
+    AppLogger.d(
+      'Could not extract model list from $nodeClass; fields='
+      '${required.keys.toList()}',
+      _tag,
+    );
+    return const [];
+  }
+
+  static bool _hasNode(Map<String, dynamic>? info, String nodeClass) =>
+      info?[nodeClass] is Map<String, dynamic>;
+
+  static bool _isSeedvr2Model(String model) =>
+      model.trim().toLowerCase().contains('seedvr2');
+
+  static bool _isSeedvr2Vae(String model) {
+    final normalized = model.trim().toLowerCase().replaceAll('\\', '/');
+    return normalized.contains('seedvr2') ||
+        normalized.endsWith('/ema_vae_fp16.safetensors') ||
+        normalized == 'ema_vae_fp16.safetensors';
+  }
+
+  static List<String> _deduplicate(Iterable<String> values) {
+    final seen = <String>{};
+    return [
+      for (final value in values)
+        if (value.trim().isNotEmpty && seen.add(value.trim())) value.trim(),
+    ];
+  }
+}
+
+enum ComfyUITaskErrorCode {
+  connectionFailed,
+  connectionUnavailable,
+  workflowNotFound,
+  executionFailed,
+  timeout,
+}
+
+class _ComfyUITaskLocalizedException implements Exception {
+  const _ComfyUITaskLocalizedException(this.code, {this.details});
+
+  final ComfyUITaskErrorCode code;
+  final String? details;
 }
 
 class ComfyUITaskState {
@@ -678,6 +780,8 @@ class ComfyUITaskState {
   final int totalSteps;
   final String? promptId;
   final String? errorMessage;
+  final ComfyUITaskErrorCode? errorCode;
+  final String? errorDetails;
 
   /// WebSocket 推送的中间步骤预览图
   final Uint8List? previewImage;
@@ -689,6 +793,8 @@ class ComfyUITaskState {
     this.totalSteps = 0,
     this.promptId,
     this.errorMessage,
+    this.errorCode,
+    this.errorDetails,
     this.previewImage,
   });
 
@@ -699,6 +805,23 @@ class ComfyUITaskState {
 
   bool get hasPreview => previewImage != null && previewImage!.isNotEmpty;
 
+  String? localizedError(AppLocalizations l10n) {
+    return switch (errorCode) {
+      ComfyUITaskErrorCode.connectionFailed =>
+        l10n.comfyTask_errorConnectionFailed,
+      ComfyUITaskErrorCode.connectionUnavailable =>
+        l10n.comfyTask_errorConnectionUnavailable,
+      ComfyUITaskErrorCode.workflowNotFound =>
+        l10n.comfyTask_errorWorkflowNotFound(errorDetails ?? ''),
+      ComfyUITaskErrorCode.executionFailed =>
+        errorDetails == null || errorDetails!.isEmpty
+            ? l10n.comfyTask_errorExecutionFailedGeneric
+            : l10n.comfyTask_errorExecutionFailed(errorDetails!),
+      ComfyUITaskErrorCode.timeout => l10n.comfyTask_errorTimeout,
+      null => errorMessage,
+    };
+  }
+
   ComfyUITaskState copyWith({
     ComfyUITaskStatus? status,
     double? progress,
@@ -706,6 +829,8 @@ class ComfyUITaskState {
     int? totalSteps,
     String? promptId,
     String? errorMessage,
+    ComfyUITaskErrorCode? errorCode,
+    String? errorDetails,
     Uint8List? previewImage,
     bool clearPreview = false,
   }) {
@@ -716,6 +841,8 @@ class ComfyUITaskState {
       totalSteps: totalSteps ?? this.totalSteps,
       promptId: promptId ?? this.promptId,
       errorMessage: errorMessage,
+      errorCode: errorCode,
+      errorDetails: errorDetails,
       previewImage: clearPreview ? null : (previewImage ?? this.previewImage),
     );
   }

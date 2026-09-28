@@ -1,25 +1,35 @@
+import '../../selection/card_selection_scope.dart';
+import '../common/image_card_frame.dart';
+import 'dart:async';
 import 'dart:io';
-import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../core/cache/thumbnail_cache_service.dart';
+import '../../../core/cache/local_gallery_thumbnail_provider.dart';
+import '../../../core/mosaic/mosaic_derivative_registry.dart';
+import '../../../core/storage/local_storage_service.dart';
+import '../../adaptive/interaction_policy.dart';
 import '../../../core/utils/app_logger.dart';
 import '../../../core/utils/image_share_sanitizer.dart';
 import '../../../core/utils/localization_extension.dart';
+import '../../../core/watermark/watermark_derivative_registry.dart';
 import '../../../data/models/gallery/local_image_record.dart';
-import '../../../data/services/thumbnail_service.dart';
+import '../../providers/mosaic_settings_provider.dart';
 import '../../providers/share_image_settings_provider.dart';
-import '../../services/image_workflow_launcher.dart';
-import '../../themes/theme_extension.dart';
+import '../../providers/copy_drag_watermark_provider.dart';
+import '../../providers/watermark_settings_provider.dart';
 import '../../utils/clipboard_image.dart';
 import '../common/app_toast.dart';
-import '../common/floating_action_buttons.dart';
+import '../common/card_action_buttons.dart';
+import '../common/image_card_action.dart';
+import '../common/image_card_action_region.dart';
+import 'local_image_context_menu.dart';
+import 'local_image_hover_preview.dart';
 
-enum _ImageLoadState { idle, loading, loaded, error }
-
-/// Steam风格本地图片卡片，包含边缘发光、光泽扫过、悬停动画效果
+/// 本地图片卡片，提供稳定的选择、快捷操作和键盘交互。
 class LocalImageCard3D extends ConsumerStatefulWidget {
   final LocalImageRecord record;
   final double width;
@@ -27,12 +37,13 @@ class LocalImageCard3D extends ConsumerStatefulWidget {
   final VoidCallback? onTap;
   final VoidCallback? onDoubleTap;
   final VoidCallback? onLongPress;
-  final void Function(TapDownDetails)? onSecondaryTapDown;
+  final void Function(TapUpDetails)? onSecondaryTapUp;
   final bool isSelected;
   final bool showFavoriteIndicator;
   final VoidCallback? onFavoriteToggle;
-  final VoidCallback? onSendToHome;
-  final VoidCallback? onSendToImg2Img;
+  final Future<void> Function(LocalImageContextAction action)? onSendAction;
+  final bool enableAddToAgent;
+  final bool isKritaConnected;
   final bool isVisible;
   final int priority;
 
@@ -48,12 +59,13 @@ class LocalImageCard3D extends ConsumerStatefulWidget {
     this.onTap,
     this.onDoubleTap,
     this.onLongPress,
-    this.onSecondaryTapDown,
+    this.onSecondaryTapUp,
     this.isSelected = false,
     this.showFavoriteIndicator = true,
     this.onFavoriteToggle,
-    this.onSendToHome,
-    this.onSendToImg2Img,
+    this.onSendAction,
+    this.enableAddToAgent = true,
+    this.isKritaConnected = false,
     this.isVisible = false,
     this.priority = 5,
     this.dragWrapper,
@@ -63,150 +75,105 @@ class LocalImageCard3D extends ConsumerStatefulWidget {
   ConsumerState<LocalImageCard3D> createState() => _LocalImageCard3DState();
 }
 
-class _LocalImageCard3DState extends ConsumerState<LocalImageCard3D>
-    with TickerProviderStateMixin {
+class _LocalImageCard3DState extends ConsumerState<LocalImageCard3D> {
   bool _isHovered = false;
-  late AnimationController _glossController;
-  late Animation<double> _glossAnimation;
-  String? _thumbnailPath;
-  String? _displayPath;
-  ThumbnailCacheService? _thumbnailService;
-  _ImageLoadState _loadState = _ImageLoadState.idle;
-  bool _isLoadingThumbnail = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _glossController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 800),
-    );
-    _glossAnimation = Tween<double>(begin: -1.5, end: 1.5).animate(
-      CurvedAnimation(parent: _glossController, curve: Curves.easeInOut),
-    );
-    _initAndLoadThumbnail();
-  }
+  bool _isFocused = false;
+  bool _isCopyingImage = false;
+  bool _suppressCardTap = false;
+  bool _hasDecodedFrame = false;
+  LocalGalleryThumbnailProvider? _imageProvider;
 
   @override
   void didUpdateWidget(LocalImageCard3D oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.priority != widget.priority ||
-        (oldWidget.isVisible != widget.isVisible && widget.isVisible)) {
-      if (_thumbnailPath == null && !_isLoadingThumbnail) {
-        _loadThumbnail();
-      }
+    if (oldWidget.record.path != widget.record.path ||
+        oldWidget.record.size != widget.record.size ||
+        oldWidget.record.modifiedAt != widget.record.modifiedAt ||
+        oldWidget.width != widget.width ||
+        oldWidget.height != widget.height) {
+      _cancelPendingImage();
+      _imageProvider = null;
+      _hasDecodedFrame = false;
     }
   }
 
-  Future<void> _initAndLoadThumbnail() async {
-    _thumbnailService = ThumbnailCacheService.instance;
-    await _thumbnailService!.init();
-    await _loadThumbnail();
+  @override
+  void dispose() {
+    _cancelPendingImage();
+    super.dispose();
   }
 
-  Future<void> _loadThumbnail() async {
-    if (_isLoadingThumbnail) return;
-
-    _isLoadingThumbnail = true;
-    final path = widget.record.path;
-    final fileName = path.split(Platform.pathSeparator).last;
-
-    // 只在调试模式下记录日志，避免影响性能
-    // AppLogger.i('[CardLoad] START: $fileName, priority=${widget.priority}', 'LocalImageCard3D');
-
-    try {
-      setState(() => _loadState = _ImageLoadState.loading);
-
-      final originalFile = File(path);
-      if (!await originalFile.exists()) {
-        AppLogger.e(
-          '[CardLoad] Original file NOT FOUND: $path',
-          'LocalImageCard3D',
-        );
-        if (mounted) {
-          setState(() => _loadState = _ImageLoadState.error);
-        }
-        return;
-      }
-
-      final existingPath = await _thumbnailService?.getThumbnailPath(path);
-      if (existingPath != null && await File(existingPath).exists()) {
-        // AppLogger.i('[CardLoad] Using existing thumbnail: $fileName', 'LocalImageCard3D');
-        if (mounted) {
-          setState(() {
-            _thumbnailPath = existingPath;
-            _displayPath = existingPath;
-            _loadState = _ImageLoadState.loaded;
-          });
-        }
-        return;
-      }
-
-      final thumbnailService = ThumbnailService.instance;
-      await thumbnailService.initialize();
-      thumbnailService.updateVisibility(
-        path,
-        isVisible: widget.isVisible,
-        priority: widget.priority,
+  void _cancelPendingImage() {
+    final provider = _imageProvider;
+    if (provider != null && !_hasDecodedFrame) {
+      unawaited(
+        LocalGalleryThumbnailMemoryCache.instance.cancelPending(provider),
       );
-
-      final generatedPath = await thumbnailService.getThumbnail(
-        path,
-        size: ThumbnailSize.small,
-        priority: widget.priority,
-      );
-
-      if (!mounted || widget.record.path != path) return;
-
-      if (generatedPath != null) {
-        setState(() {
-          _thumbnailPath = generatedPath;
-          _displayPath = generatedPath;
-          _loadState = _ImageLoadState.loaded;
-        });
-      } else {
-        setState(() {
-          _displayPath = path;
-          _loadState = _ImageLoadState.loaded;
-        });
-      }
-    } catch (e, stack) {
-      AppLogger.e('[CardLoad] ERROR: $fileName', e, stack, 'LocalImageCard3D');
-      if (mounted) {
-        setState(() {
-          _displayPath = path;
-          _loadState = _ImageLoadState.loaded;
-        });
-      }
-    } finally {
-      _isLoadingThumbnail = false;
     }
+  }
+
+  LocalGalleryThumbnailProvider _providerForCurrentLayout() {
+    final target = LocalGalleryThumbnailTarget.fromLogicalSize(
+      logicalWidth: widget.width,
+      logicalHeight: widget.height ?? widget.width,
+      devicePixelRatio: MediaQuery.devicePixelRatioOf(context),
+    );
+    final source = LocalGallerySourceIdentity.fromRecord(
+      path: widget.record.path,
+      size: widget.record.size,
+      modifiedAt: widget.record.modifiedAt,
+    );
+    final current = _imageProvider;
+    if (current != null &&
+        current.source == source &&
+        current.target == target &&
+        current.fit == LocalGalleryThumbnailFit.cover) {
+      return current;
+    }
+
+    if (current != null && !_hasDecodedFrame) {
+      unawaited(
+        LocalGalleryThumbnailMemoryCache.instance.cancelPending(current),
+      );
+    }
+    final provider = LocalGalleryThumbnailProvider(
+      source: source,
+      target: target,
+    );
+    LocalGalleryThumbnailMemoryCache.instance.register(provider);
+    _imageProvider = provider;
+    _hasDecodedFrame = false;
+    return provider;
+  }
+
+  void _retryImage() {
+    final provider = _imageProvider;
+    if (provider != null) {
+      _cancelPendingImage();
+      PaintingBinding.instance.imageCache.evict(provider.cacheKey);
+    }
+    setState(() {
+      _imageProvider = null;
+      _hasDecodedFrame = false;
+    });
   }
 
   void _onHoverEnter(PointerEvent event) {
     setState(() => _isHovered = true);
-    _glossController.forward(from: 0.0);
   }
 
   void _onHoverExit(PointerEvent event) {
     setState(() => _isHovered = false);
   }
 
-  Future<void> _openUpscale() async {
-    try {
-      final bytes = await File(widget.record.path).readAsBytes();
-      if (mounted) {
-        ImageWorkflowLauncher.openUpscale(ref, bytes);
-        AppToast.info(context, context.l10n.gallery_upscalePanelLoaded);
-      }
-    } catch (e) {
-      if (mounted) {
-        AppToast.error(context, context.l10n.gallery_readImageFailed('$e'));
-      }
-    }
-  }
-
   Future<void> _copyImageToClipboard() async {
+    if (_isCopyingImage) return;
+    setState(() => _isCopyingImage = true);
+    final transform = ref.read(copyDragWatermarkProvider);
+    final stripMetadata = ref
+        .read(shareImageSettingsProvider)
+        .effectiveStripMetadataForCopyAndDrag;
+
     try {
       final sourceFile = File(widget.record.path);
       if (!await sourceFile.exists()) {
@@ -214,18 +181,18 @@ class _LocalImageCard3DState extends ConsumerState<LocalImageCard3D>
         return;
       }
 
-      final stripMetadata = ref
-          .read(shareImageSettingsProvider)
-          .effectiveStripMetadataForCopyAndDrag;
       final sourceParts = sourceFile.path.split(RegExp(r'[/\\]'));
-      final sourceName =
-          sourceParts.isNotEmpty ? sourceParts.last : 'shared.png';
+      final sourceName = sourceParts.isNotEmpty
+          ? sourceParts.last
+          : 'shared.png';
       final originalBytes = await sourceFile.readAsBytes();
-      final shareImage = await ImageShareSanitizer.prepareForCopyOrDrag(
-        originalBytes,
-        fileName: sourceName,
-        stripMetadata: stripMetadata,
-      );
+      final shareImage =
+          await ImageShareSanitizer.prepareForCopyOrDragInBackground(
+            originalBytes,
+            fileName: sourceName,
+            stripMetadata: stripMetadata,
+            transform: transform,
+          );
 
       // 跨平台复制到剪贴板（原 Windows 端走 PowerShell + System.Drawing，
       // macOS/Linux 不可用）。统一规范化为 PNG，避免 jpg/webp 原始字节被当成
@@ -239,144 +206,124 @@ class _LocalImageCard3DState extends ConsumerState<LocalImageCard3D>
       if (mounted) {
         AppToast.error(context, context.l10n.gallery_copyFailed('$e'));
       }
+    } finally {
+      if (mounted) setState(() => _isCopyingImage = false);
     }
   }
 
-  (_EffectIntensity, Color) _getEffectConfig(BuildContext context) {
-    final theme = Theme.of(context);
-    final extension = theme.extension<AppThemeExtension>();
+  void _handleCardTap() {
+    if (!_suppressCardTap &&
+        CardSelectionScope.handleTap(context, widget.record.path)) {
+      return;
+    }
+    if (_suppressCardTap || _isCopyingImage) {
+      _suppressCardTap = false;
+      return;
+    }
+    widget.onTap?.call();
+  }
 
-    final intensity =
-        switch ((extension?.enableNeonGlow, extension?.isLightTheme)) {
-      (true, _) => (edgeGlow: 1.3, gloss: 1.0),
-      (_, true) => (edgeGlow: 0.6, gloss: 1.0),
-      _ => (edgeGlow: 1.0, gloss: 0.8),
-    };
-
-    final glowColor = extension?.glowColor ?? theme.colorScheme.primary;
-    return (
-      _EffectIntensity(edgeGlow: intensity.edgeGlow, gloss: intensity.gloss),
-      glowColor
-    );
+  void _handleCardTapCancel() {
+    _suppressCardTap = false;
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) => ImageCardActionRegion(
+    resourceId: widget.record.path,
+    actions: _buildActions(),
+    builder: _buildCard,
+  );
+
+  Widget _buildCard(BuildContext context, List<ImageCardAction> actions) {
     final theme = Theme.of(context);
     final cardHeight = widget.height ?? widget.width;
     final colorScheme = theme.colorScheme;
-    final (intensity, glowColor) = _getEffectConfig(context);
+    final interactionPolicy = context.interactionPolicy;
+    final isTouch = interactionPolicy.usesTouchActionMenu;
+    final selectionMode =
+        CardSelectionScope.maybeOf(context)?.selection.isActive ?? false;
+    final aspectRatio = widget.width / cardHeight;
+    final buttonDirection = aspectRatio > 1.3 ? Axis.horizontal : Axis.vertical;
+    final interactive = widget.onTap != null;
+    final fileName = widget.record.path.split(RegExp(r'[/\\]')).last;
 
     Widget cardContent = GestureDetector(
-      onTap: widget.onTap,
+      onTap: widget.onTap == null ? null : _handleCardTap,
+      onTapCancel: _handleCardTapCancel,
       onDoubleTap: widget.onDoubleTap,
       onLongPress: widget.onLongPress,
-      onSecondaryTapDown: widget.onSecondaryTapDown,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 150),
-        curve: Curves.easeOut,
-        transform: Matrix4.identity()
-          ..scaleByDouble(
-            _isHovered ? 1.03 : 1.0,
-            _isHovered ? 1.03 : 1.0,
-            _isHovered ? 1.03 : 1.0,
-            1,
-          ),
-        transformAlignment: Alignment.center,
-        child: Container(
-          width: widget.width,
-          height: cardHeight,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(12),
-            border: widget.isSelected
-                ? Border.all(color: colorScheme.primary, width: 3)
-                : _isHovered
-                    ? Border.all(
-                        color: colorScheme.primary.withValues(alpha: 0.3),
-                        width: 2,
-                      )
-                    : null,
-            boxShadow: [
-              BoxShadow(
-                color: _isHovered
-                    ? Colors.black.withValues(alpha: 0.35)
-                    : Colors.black.withValues(alpha: 0.12),
-                blurRadius: _isHovered ? 28 : 10,
-                offset: Offset(0, _isHovered ? 14 : 4),
-                spreadRadius: _isHovered ? 2 : 0,
+      onSecondaryTapUp: widget.onSendAction == null
+          ? widget.onSecondaryTapUp
+          : null,
+      child: ImageCardFrame(
+        hovered: _isHovered && interactive,
+        focused: _isFocused,
+        selected: widget.isSelected,
+        width: widget.width,
+        height: cardHeight,
+        clipRadius: 10,
+        hoverScaleEnabled: interactive,
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            _buildImageLayer(),
+            if (!selectionMode)
+              Positioned(
+                key: const ValueKey('local-image-card-actions'),
+                top: 4,
+                right: 4,
+                left: buttonDirection == Axis.horizontal && !isTouch ? 4 : null,
+                child: _buildActionButtons(
+                  actions,
+                  buttonDirection,
+                  cardHeight,
+                ),
               ),
-              if (_isHovered)
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.15),
-                  blurRadius: 40,
-                  offset: const Offset(0, 20),
-                  spreadRadius: -4,
+            if (widget.isSelected)
+              Positioned(
+                top: 8,
+                left: 8,
+                child: _buildSelectionIndicator(colorScheme),
+              ),
+            if (widget.isSelected)
+              Positioned.fill(
+                child: IgnorePointer(
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: colorScheme.primary.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
                 ),
-            ],
-          ),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(10),
-            child: Stack(
-              fit: StackFit.expand,
-              children: [
-                _buildImageLayer(),
-                if (_isHovered)
-                  Positioned.fill(
-                    child: TweenAnimationBuilder<double>(
-                      tween: Tween(begin: 0.0, end: 1.0),
-                      duration: const Duration(milliseconds: 200),
-                      curve: Curves.easeOut,
-                      builder: (context, value, child) => _EdgeGlowOverlay(
-                        glowColor: glowColor,
-                        intensity: value * intensity.edgeGlow,
-                      ),
-                    ),
-                  ),
-                if (_isHovered)
-                  Positioned.fill(
-                    child: RepaintBoundary(
-                      child: AnimatedBuilder(
-                        animation: _glossAnimation,
-                        builder: (context, child) => _GlossOverlay(
-                          progress: _glossAnimation.value,
-                          intensity: intensity.gloss,
-                        ),
-                      ),
-                    ),
-                  ),
-                Positioned(
-                  top: 8,
-                  right: 8,
-                  child: _buildActionButtons(),
-                ),
-                if (widget.isSelected)
-                  Positioned(
-                    top: 8,
-                    left: 8,
-                    child: _buildSelectionIndicator(colorScheme),
-                  ),
-                if (widget.isSelected)
-                  Positioned.fill(
-                    child: IgnorePointer(
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: colorScheme.primary.withValues(alpha: 0.15),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                    ),
-                  ),
-                if (_isHovered && widget.record.metadata != null)
-                  Positioned(
-                    bottom: 0,
-                    left: 0,
-                    right: 0,
-                    child: _buildMetadataPreview(theme),
-                  ),
-              ],
-            ),
-          ),
+              ),
+          ],
         ),
+      ),
+    );
+
+    cardContent = Semantics(
+      label: fileName,
+      button: interactive,
+      enabled: interactive,
+      selected: widget.isSelected,
+      child: FocusableActionDetector(
+        enabled: interactive,
+        shortcuts: const {
+          SingleActivator(LogicalKeyboardKey.enter): ActivateIntent(),
+          SingleActivator(LogicalKeyboardKey.space): ActivateIntent(),
+        },
+        onFocusChange: (focused) {
+          if (_isFocused != focused) setState(() => _isFocused = focused);
+        },
+        actions: {
+          ActivateIntent: CallbackAction<ActivateIntent>(
+            onInvoke: (_) {
+              _handleCardTap();
+              return null;
+            },
+          ),
+        },
+        child: cardContent,
       ),
     );
 
@@ -386,21 +333,39 @@ class _LocalImageCard3DState extends ConsumerState<LocalImageCard3D>
       cardContent = widget.dragWrapper!(cardContent);
     }
 
-    return MouseRegion(
-      onEnter: _onHoverEnter,
-      onExit: _onHoverExit,
-      cursor: SystemMouseCursors.click,
-      child: cardContent,
+    // 【偏离上游：上游没有这个门控】
+    // 上游无条件挂 MouseRegion + LocalImageHoverPreview：卡片缩放抬升
+    // （ImageCardFrame.hovered）和 280ms 延时悬浮预览卡都只由 _isHovered 驱动，
+    // 而 _isHovered 只由 MouseRegion 的 enter/exit 设置，没有任何指针类型判断。
+    // 上游之所以在 Android 上没炸，是 card_action_buttons.dart 在
+    // usesTouchActionMenu 时提前返回常驻 more 菜单、根本不读 visible —— 那只盖住了
+    // 按钮显隐这一条，缩放与悬浮预览卡两条至今无门控。
+    // Flutter 的 MouseTracker 只接受 mouse 与 **stylus** 两种设备
+    // （rendering/mouse_tracker.dart 的 kind 过滤），所以 iPad + Apple Pencil 悬停
+    // 会真的触发 enter：手写笔悬停时弹出一张 360pt 宽的预览卡盖住刚要点的图，
+    // 是 iOS 上特有的坏体验。
+    // 这里按 interactionPolicy.precisePointerAvailable 门控：只有本会话确实观察到
+    // 鼠标/触控板才启用 hover 呈现。stylus 在 InteractionPolicy.withPointerDevice
+    // 里归入 touch 且不置该位，因此手写笔悬停不会打开这条路径。
+    // 该位单调递增（只会 false→true，永不回落），所以不存在「先为真后转假」
+    // 把 _isHovered 卡在 true 的残留状态。
+    final pointerHoverEnabled = interactionPolicy.precisePointerAvailable;
+    return LocalImageHoverPreview(
+      record: widget.record,
+      enabled: !selectionMode && pointerHoverEnabled,
+      child: MouseRegion(
+        key: const ValueKey('local-image-card-hover-region'),
+        onEnter: pointerHoverEnabled ? _onHoverEnter : null,
+        onExit: pointerHoverEnabled ? _onHoverExit : null,
+        cursor: interactive && pointerHoverEnabled
+            ? SystemMouseCursors.click
+            : MouseCursor.defer,
+        child: cardContent,
+      ),
     );
   }
 
-  Widget _buildImageLayer() => switch (_loadState) {
-        _ImageLoadState.error => _buildErrorPlaceholder(),
-        _ImageLoadState.loading when _displayPath == null =>
-          _buildLoadingPlaceholder(),
-        _ when _displayPath != null => _buildOptimizedImage(_displayPath!),
-        _ => _buildLoadingPlaceholder(),
-      };
+  Widget _buildImageLayer() => _buildOptimizedImage();
 
   Widget _buildLoadingPlaceholder() {
     return Container(
@@ -415,6 +380,7 @@ class _LocalImageCard3DState extends ConsumerState<LocalImageCard3D>
               child: CircularProgressIndicator(
                 strokeWidth: 2,
                 color: Colors.grey[600],
+                value: MediaQuery.disableAnimationsOf(context) ? 0.72 : null,
               ),
             ),
             const SizedBox(height: 8),
@@ -443,7 +409,7 @@ class _LocalImageCard3DState extends ConsumerState<LocalImageCard3D>
             ),
             const SizedBox(height: 4),
             TextButton.icon(
-              onPressed: _loadThumbnail,
+              onPressed: _retryImage,
               icon: Icon(Icons.refresh, color: Colors.red[300], size: 16),
               label: Text(
                 context.l10n.common_retry,
@@ -451,7 +417,10 @@ class _LocalImageCard3DState extends ConsumerState<LocalImageCard3D>
               ),
               style: TextButton.styleFrom(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                minimumSize: Size.zero,
+                minimumSize: Size(
+                  0,
+                  context.interactionPolicy.minimumControlExtent,
+                ),
                 tapTargetSize: MaterialTapTargetSize.shrinkWrap,
               ),
             ),
@@ -461,524 +430,145 @@ class _LocalImageCard3DState extends ConsumerState<LocalImageCard3D>
     );
   }
 
-  Widget _buildOptimizedImage(String imagePath) {
-    final pixelRatio = MediaQuery.of(context).devicePixelRatio;
-    final cacheWidth = (widget.width * pixelRatio * 1.5).toInt();
-    final cacheHeight =
-        ((widget.height ?? widget.width) * pixelRatio * 1.5).toInt();
-
-    return Image.file(
-      File(imagePath),
+  Widget _buildOptimizedImage() {
+    final provider = _providerForCurrentLayout();
+    return Image(
+      key: ValueKey(provider.cacheKey),
+      image: provider,
       fit: BoxFit.cover,
-      cacheWidth: cacheWidth,
-      cacheHeight: cacheHeight,
+      filterQuality: FilterQuality.medium,
       gaplessPlayback: true,
       frameBuilder: (context, child, frame, wasSynchronouslyLoaded) {
-        if (wasSynchronouslyLoaded || frame != null) return child;
-        return Container(
-          color: Colors.grey[850],
-          child: const Center(
-            child: SizedBox(
-              width: 24,
-              height: 24,
-              child: CircularProgressIndicator(
-                strokeWidth: 2,
-                color: Colors.white38,
-              ),
-            ),
-          ),
-        );
+        if (wasSynchronouslyLoaded || frame != null) {
+          LocalGalleryThumbnailMemoryCache.instance.releasePendingOwner(
+            provider,
+          );
+          if (identical(_imageProvider, provider)) {
+            _hasDecodedFrame = true;
+          }
+          return child;
+        }
+        if (identical(_imageProvider, provider)) {
+          _hasDecodedFrame = false;
+        }
+        return _buildLoadingPlaceholder();
       },
       errorBuilder: (context, error, stackTrace) {
-        AppLogger.w(
-          'Image load failed, attempting fallback: $imagePath',
+        LocalGalleryThumbnailMemoryCache.instance.releasePendingOwner(provider);
+        AppLogger.e(
+          'Local gallery thumbnail decode failed: ${widget.record.path}',
+          error,
+          stackTrace,
           'LocalImageCard3D',
         );
-        return _buildErrorFallback(imagePath);
+        return _buildErrorPlaceholder();
       },
     );
   }
 
-  Widget _buildErrorFallback(String failedPath) {
-    if (failedPath != widget.record.path) {
-      return Image.file(
-        File(widget.record.path),
-        fit: BoxFit.cover,
-        gaplessPlayback: true,
-        errorBuilder: (_, __, ___) => _buildErrorPlaceholder(),
-      );
-    }
-    return _buildErrorPlaceholder();
-  }
-
-  Widget _buildActionButtons() {
-    return FloatingActionButtons(
-      isVisible: _isHovered,
-      buttons: [
-        FloatingActionButtonData(
-          icon:
-              widget.record.isFavorite ? Icons.favorite : Icons.favorite_border,
-          onTap: widget.onFavoriteToggle,
+  List<ImageCardAction> _buildActions() {
+    final l10n = context.l10n;
+    final watermarkEnabled = ref.watch(
+      watermarkSettingsProvider.select((s) => s.configuration.enabled),
+    );
+    final mosaicEnabled = ref.watch(
+      mosaicSettingsProvider.select((s) => s.configuration.enabled),
+    );
+    final storage = ref.read(localStorageServiceProvider);
+    final metadata = widget.record.metadata;
+    return [
+      if (widget.onDoubleTap != null || widget.onTap != null)
+        ImageCardAction(
+          id: ImageCardActionId.viewDetail,
+          icon: Icons.open_in_full,
+          label: l10n.image_viewDetail,
+          invoke: widget.onDoubleTap ?? widget.onTap!,
+          showOnHover: false,
+        ),
+      if (widget.onFavoriteToggle != null)
+        ImageCardAction(
+          id: ImageCardActionId.favorite,
+          icon: widget.record.isFavorite
+              ? Icons.favorite
+              : Icons.favorite_border,
+          label: widget.record.isFavorite
+              ? l10n.common_unfavorite
+              : l10n.common_favorite,
           iconColor: widget.record.isFavorite ? Colors.red : Colors.white,
-          visible: widget.onFavoriteToggle != null,
+          invoke: widget.onFavoriteToggle!,
         ),
-        FloatingActionButtonData(
-          icon: Icons.copy,
-          onTap: _copyImageToClipboard,
-        ),
-        FloatingActionButtonData(
-          icon: Icons.send,
-          onTap: () => _showSendToHomeMenu(context),
-          visible:
-              widget.onSendToHome != null || widget.onSendToImg2Img != null,
-        ),
-      ],
-    );
-  }
-
-  void _showSendToHomeMenu(BuildContext context) {
-    final RenderBox? button = context.findRenderObject() as RenderBox?;
-    if (button == null) return;
-
-    final offset = button.localToGlobal(Offset.zero);
-    final screenSize = MediaQuery.of(context).size;
-
-    const menuWidth = 160.0;
-    double left = offset.dx - menuWidth - 8;
-    double top = offset.dy;
-
-    if (left < 8) left = offset.dx + button.size.width + 8;
-    if (top + 150 > screenSize.height) top = screenSize.height - 150;
-
-    showDialog<void>(
-      context: context,
-      barrierColor: Colors.transparent,
-      useRootNavigator: true,
-      builder: (dialogContext) => _SendToHomeMenu(
-        position: Offset(left, top),
-        onSendToTxt2Img: widget.onSendToHome != null
-            ? () {
-                Navigator.of(dialogContext).pop();
-                widget.onSendToHome!();
-              }
-            : null,
-        onSendToImg2Img: widget.onSendToImg2Img != null
-            ? () {
-                Navigator.of(dialogContext).pop();
-                widget.onSendToImg2Img!();
-              }
-            : null,
-        onUpscale: () {
-          Navigator.of(dialogContext).pop();
-          _openUpscale();
-        },
+      ImageCardAction(
+        id: ImageCardActionId.copy,
+        icon: Icons.copy,
+        label: l10n.shortcut_action_copy_image,
+        isLoading: _isCopyingImage,
+        invoke: _copyImageToClipboard,
       ),
-    );
+      if (widget.onSendAction != null)
+        ...LocalImageContextMenu.buildActions(
+          context,
+          onAction: widget.onSendAction!,
+          hasImportableMetadata: metadata?.hasData == true,
+          hasPrompt: true,
+          hasSeed: metadata?.seed != null,
+          isKritaConnected: widget.isKritaConnected,
+          watermarkEnabled: watermarkEnabled,
+          isWatermarkDerivative: WatermarkDerivativeRegistry(
+            storage,
+          ).isDerivative(widget.record.path),
+          mosaicEnabled: mosaicEnabled,
+          isMosaicDerivative: MosaicDerivativeRegistry(
+            storage,
+          ).isDerivative(widget.record.path),
+        ).where(
+          (a) =>
+              widget.enableAddToAgent || a.id != ImageCardActionId.addToAgent,
+        ),
+      if (widget.onLongPress != null)
+        ImageCardAction(
+          id: ImageCardActionId.select,
+          icon: Icons.check_circle_outline,
+          label: l10n.common_multiSelect,
+          invoke: widget.onLongPress!,
+          showOnHover: false,
+        ),
+    ];
   }
+
+  Widget _buildActionButtons(
+    List<ImageCardAction> actions,
+    Axis direction,
+    double cardHeight,
+  ) => Listener(
+    behavior: HitTestBehavior.opaque,
+    onPointerDown: (_) => _suppressCardTap = true,
+    onPointerUp: (_) {
+      scheduleMicrotask(() => _suppressCardTap = false);
+    },
+    onPointerCancel: (_) => _suppressCardTap = false,
+    child: CardActionButtons(
+      availableSize: Size(widget.width - 8, cardHeight - 8),
+      visible: _isHovered || _isFocused,
+      direction: direction,
+      buttons: actions,
+      groupMenus: {
+        ImageCardActionGroup.use: (
+          icon: Icons.send,
+          label: context.l10n.localGallery_moreImageActions,
+        ),
+      },
+    ),
+  );
 
   Widget _buildSelectionIndicator(ColorScheme colorScheme) {
-    return TweenAnimationBuilder<double>(
-      tween: Tween(begin: 0.0, end: 1.0),
-      duration: const Duration(milliseconds: 150),
-      curve: Curves.easeOutBack,
-      builder: (context, value, child) =>
-          Transform.scale(scale: value, child: child),
-      child: Container(
-        width: 28,
-        height: 28,
-        decoration: BoxDecoration(
-          color: colorScheme.primary,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: Colors.white, width: 2),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.2),
-              blurRadius: 4,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
-        child: Icon(Icons.check, color: colorScheme.onPrimary, size: 18),
-      ),
-    );
-  }
-
-  Widget _buildMetadataPreview(ThemeData theme) {
-    final metadata = widget.record.metadata;
-    if (metadata == null) return const SizedBox.shrink();
-
     return Container(
-      padding: const EdgeInsets.all(8),
+      width: 28,
+      height: 28,
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.bottomCenter,
-          end: Alignment.topCenter,
-          colors: [
-            Colors.black.withValues(alpha: 0.85),
-            Colors.black.withValues(alpha: 0.4),
-            Colors.transparent,
-          ],
-          stops: const [0.0, 0.6, 1.0],
-        ),
+        color: colorScheme.primary,
+        borderRadius: BorderRadius.circular(14),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          if (metadata.model != null)
-            Text(
-              metadata.model!,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 11,
-                fontWeight: FontWeight.w500,
-              ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-          const SizedBox(height: 2),
-          Wrap(
-            spacing: 4,
-            runSpacing: 2,
-            children: [
-              if (metadata.seed != null)
-                _buildMetadataChip('Seed: ${metadata.seed}'),
-              if (metadata.steps != null)
-                _buildMetadataChip('${metadata.steps} steps'),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildMetadataChip(String text) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.2),
-        borderRadius: BorderRadius.circular(4),
-      ),
-      child:
-          Text(text, style: const TextStyle(color: Colors.white, fontSize: 10)),
-    );
-  }
-
-  @override
-  void dispose() {
-    _glossController.dispose();
-    super.dispose();
-  }
-}
-
-class _EffectIntensity {
-  final double edgeGlow;
-  final double gloss;
-
-  const _EffectIntensity({required this.edgeGlow, required this.gloss});
-}
-
-class _EdgeGlowOverlay extends StatelessWidget {
-  final Color glowColor;
-  final double intensity;
-
-  const _EdgeGlowOverlay({required this.glowColor, this.intensity = 1.0});
-
-  @override
-  Widget build(BuildContext context) {
-    return IgnorePointer(
-      child: CustomPaint(
-        size: Size.infinite,
-        painter: _EdgeGlowPainter(glowColor: glowColor, intensity: intensity),
-      ),
-    );
-  }
-}
-
-class _EdgeGlowPainter extends CustomPainter {
-  final Color glowColor;
-  final double intensity;
-
-  _EdgeGlowPainter({required this.glowColor, required this.intensity});
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final rect = Rect.fromLTWH(0, 0, size.width, size.height);
-    final rrect = RRect.fromRectAndRadius(rect, const Radius.circular(12));
-
-    for (int i = 0; i < 3; i++) {
-      final inset = (i + 1) * 1.5;
-      final innerRRect = RRect.fromRectAndRadius(
-        rect.deflate(inset),
-        Radius.circular(math.max(0, 12 - inset)),
-      );
-
-      final paint = Paint()
-        ..color = glowColor.withValues(alpha: 0.12 * intensity * (3 - i) / 3)
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 2.0
-        ..maskFilter = MaskFilter.blur(BlurStyle.normal, (3 - i) * 2.0);
-
-      canvas.drawRRect(innerRRect, paint);
-    }
-
-    final borderPaint = Paint()
-      ..color = glowColor.withValues(alpha: 0.25 * intensity)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.0
-      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 1.0);
-
-    canvas.drawRRect(rrect, borderPaint);
-    _drawCornerHighlights(canvas, size);
-  }
-
-  void _drawCornerHighlights(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = glowColor.withValues(alpha: 0.3 * intensity)
-      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4.0);
-
-    const radius = 3.0;
-    const offset = 16.0;
-
-    final corners = [
-      const Offset(offset, offset),
-      Offset(size.width - offset, offset),
-      Offset(offset, size.height - offset),
-      Offset(size.width - offset, size.height - offset),
-    ];
-
-    for (final corner in corners) {
-      canvas.drawCircle(corner, radius, paint);
-    }
-  }
-
-  @override
-  bool shouldRepaint(_EdgeGlowPainter oldDelegate) {
-    return oldDelegate.glowColor != glowColor ||
-        oldDelegate.intensity != intensity;
-  }
-}
-
-class _GlossOverlay extends StatelessWidget {
-  final double progress;
-  final double intensity;
-
-  const _GlossOverlay({required this.progress, this.intensity = 1.0});
-
-  @override
-  Widget build(BuildContext context) {
-    return IgnorePointer(
-      child: CustomPaint(
-        size: Size.infinite,
-        painter: _GlossPainter(progress: progress, intensity: intensity),
-      ),
-    );
-  }
-}
-
-class _GlossPainter extends CustomPainter {
-  final double progress;
-  final double intensity;
-
-  _GlossPainter({required this.progress, required this.intensity});
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final mainPaint = Paint()
-      ..shader = LinearGradient(
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
-        colors: [
-          Colors.transparent,
-          Colors.white.withValues(alpha: 0.06 * intensity),
-          Colors.white.withValues(alpha: 0.15 * intensity),
-          Colors.white.withValues(alpha: 0.06 * intensity),
-          Colors.transparent,
-        ],
-        stops: const [0.0, 0.35, 0.5, 0.65, 1.0],
-      ).createShader(
-        Rect.fromLTWH(
-          size.width * progress - size.width * 0.5,
-          size.height * progress - size.height * 0.5,
-          size.width,
-          size.height,
-        ),
-      );
-
-    canvas.drawRect(Offset.zero & size, mainPaint);
-
-    final pearlPaint = Paint()
-      ..shader = LinearGradient(
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
-        colors: [
-          Colors.transparent,
-          const Color(0xFFB8E6F5).withValues(alpha: 0.03 * intensity),
-          const Color(0xFFFFF5E1).withValues(alpha: 0.05 * intensity),
-          const Color(0xFFE6B8F5).withValues(alpha: 0.03 * intensity),
-          Colors.transparent,
-        ],
-        stops: const [0.0, 0.3, 0.5, 0.7, 1.0],
-      ).createShader(
-        Rect.fromLTWH(
-          size.width * progress - size.width * 0.6,
-          size.height * progress - size.height * 0.6,
-          size.width * 1.2,
-          size.height * 1.2,
-        ),
-      )
-      ..blendMode = BlendMode.screen;
-
-    canvas.drawRect(Offset.zero & size, pearlPaint);
-  }
-
-  @override
-  bool shouldRepaint(_GlossPainter oldDelegate) {
-    return oldDelegate.progress != progress ||
-        oldDelegate.intensity != intensity;
-  }
-}
-
-class _SendToHomeMenu extends StatelessWidget {
-  final Offset position;
-  final VoidCallback? onSendToTxt2Img;
-  final VoidCallback? onSendToImg2Img;
-  final VoidCallback? onUpscale;
-
-  const _SendToHomeMenu({
-    required this.position,
-    this.onSendToTxt2Img,
-    this.onSendToImg2Img,
-    this.onUpscale,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return Material(
-      type: MaterialType.transparency,
-      child: Stack(
-        children: [
-          Positioned.fill(
-            child: GestureDetector(
-              onTap: () => Navigator.of(context).pop(),
-              behavior: HitTestBehavior.translucent,
-              child: Container(color: Colors.transparent),
-            ),
-          ),
-          Positioned(
-            left: position.dx,
-            top: position.dy,
-            child: Container(
-              width: 160,
-              decoration: BoxDecoration(
-                color: theme.colorScheme.surface,
-                borderRadius: BorderRadius.circular(12),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.2),
-                    blurRadius: 16,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  _buildMenuItem(
-                    context,
-                    icon: Icons.text_fields,
-                    label: context.l10n.gallery_textToImage,
-                    subtitle: context.l10n.gallery_applyParams,
-                    onTap: onSendToTxt2Img,
-                  ),
-                  Divider(height: 1, color: theme.colorScheme.outlineVariant),
-                  _buildMenuItem(
-                    context,
-                    icon: Icons.image,
-                    label: context.l10n.gallery_sendToImg2Img,
-                    subtitle: onSendToImg2Img == null
-                        ? context.l10n.gallery_unavailable
-                        : context.l10n.gallery_loadSourceImage,
-                    enabled: onSendToImg2Img != null,
-                    onTap: onSendToImg2Img,
-                  ),
-                  Divider(height: 1, color: theme.colorScheme.outlineVariant),
-                  _buildMenuItem(
-                    context,
-                    icon: Icons.zoom_in,
-                    label: context.l10n.gallery_upscale,
-                    subtitle: context.l10n.gallery_superResolutionUpscale,
-                    onTap: onUpscale,
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildMenuItem(
-    BuildContext context, {
-    required IconData icon,
-    required String label,
-    required String subtitle,
-    required VoidCallback? onTap,
-    bool enabled = true,
-  }) {
-    final theme = Theme.of(context);
-    final color = enabled
-        ? theme.colorScheme.onSurface
-        : theme.colorScheme.onSurface.withValues(alpha: 0.38);
-
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          child: Row(
-            children: [
-              Icon(
-                icon,
-                size: 20,
-                color: enabled
-                    ? theme.colorScheme.primary
-                    : theme.colorScheme.onSurface.withValues(alpha: 0.38),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      label,
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        color: color,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                    Text(
-                      subtitle,
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: enabled
-                            ? theme.colorScheme.onSurfaceVariant
-                            : color,
-                        fontSize: 11,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
+      child: Icon(Icons.check, color: colorScheme.onPrimary, size: 18),
     );
   }
 }

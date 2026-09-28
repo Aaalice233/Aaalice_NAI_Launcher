@@ -5,6 +5,7 @@ import '../../core/constants/api_constants.dart';
 import '../../core/storage/local_storage_service.dart';
 import '../../data/models/prompt/prompt_preset_mode.dart';
 import '../../data/models/tag_library/tag_library_entry.dart';
+import 'generation/generation_params_notifier.dart';
 import 'tag_library_page_provider.dart';
 
 part 'quality_preset_provider.g.dart';
@@ -14,6 +15,9 @@ class QualityPresetState {
   /// 当前预设模式
   final PromptPresetMode mode;
 
+  /// 官方质量词档位（standard/light，light 仅 V5 提供）
+  final String naiTierId;
+
   /// 当前选中的自定义条目 ID（mode 为 custom 时有效）
   final String? customEntryId;
 
@@ -22,20 +26,24 @@ class QualityPresetState {
 
   const QualityPresetState({
     this.mode = PromptPresetMode.naiDefault,
+    this.naiTierId = QualityTags.standardTier,
     this.customEntryId,
     this.customEntryIds = const [],
   });
 
   QualityPresetState copyWith({
     PromptPresetMode? mode,
+    String? naiTierId,
     String? customEntryId,
     bool clearCustomEntryId = false,
     List<String>? customEntryIds,
   }) {
     return QualityPresetState(
       mode: mode ?? this.mode,
-      customEntryId:
-          clearCustomEntryId ? null : (customEntryId ?? this.customEntryId),
+      naiTierId: naiTierId ?? this.naiTierId,
+      customEntryId: clearCustomEntryId
+          ? null
+          : (customEntryId ?? this.customEntryId),
       customEntryIds: customEntryIds ?? this.customEntryIds,
     );
   }
@@ -65,10 +73,13 @@ class QualityPresetNotifier extends _$QualityPresetNotifier {
     final customId = _storage.getQualityPresetCustomId();
 
     // 如果新格式有数据，使用新格式
+    final naiTier = _storage.getQualityPresetNaiTier();
+
     if (modeIndex > 0 || customId != null) {
       final mode = PromptPresetMode.values[modeIndex.clamp(0, 2)];
       return QualityPresetState(
         mode: mode,
+        naiTierId: naiTier,
         customEntryId: customId,
         customEntryIds: customIds,
       );
@@ -78,6 +89,7 @@ class QualityPresetNotifier extends _$QualityPresetNotifier {
     final oldEnabled = _storage.getAddQualityTags();
     return QualityPresetState(
       mode: oldEnabled ? PromptPresetMode.naiDefault : PromptPresetMode.none,
+      naiTierId: naiTier,
       customEntryIds: customIds,
     );
   }
@@ -89,6 +101,19 @@ class QualityPresetNotifier extends _$QualityPresetNotifier {
       clearCustomEntryId: true,
     );
     _save();
+    _syncQualityTierToGenerationParams();
+  }
+
+  /// 切换官方质量词档位（standard/light）
+  void setNaiTier(String tierId) {
+    state = state.copyWith(
+      mode: PromptPresetMode.naiDefault,
+      naiTierId: tierId,
+      clearCustomEntryId: true,
+    );
+    _save();
+    // 请求构造与元数据快照读取 params 上的档位，保持双向同步。
+    _syncQualityTierToGenerationParams();
   }
 
   /// 设置为无
@@ -108,7 +133,7 @@ class QualityPresetNotifier extends _$QualityPresetNotifier {
       newIds.add(entryId);
     }
 
-    state = QualityPresetState(
+    state = state.copyWith(
       mode: PromptPresetMode.custom,
       customEntryId: entryId,
       customEntryIds: newIds,
@@ -135,10 +160,12 @@ class QualityPresetNotifier extends _$QualityPresetNotifier {
 
     // 如果删除的是当前选中的条目，切换到 NAI 默认
     if (state.customEntryId == entryId) {
-      state = QualityPresetState(
+      state = state.copyWith(
         mode: PromptPresetMode.naiDefault,
+        clearCustomEntryId: true,
         customEntryIds: newIds,
       );
+      _syncQualityTierToGenerationParams();
     } else {
       state = state.copyWith(customEntryIds: newIds);
     }
@@ -148,11 +175,18 @@ class QualityPresetNotifier extends _$QualityPresetNotifier {
   /// 保存到本地存储
   void _save() {
     _storage.setQualityPresetMode(state.mode.index);
+    _storage.setQualityPresetNaiTier(state.naiTierId);
     _storage.setQualityPresetCustomId(state.customEntryId);
     _storage.setQualityPresetCustomIds(state.customEntryIds);
 
     // 同步更新旧格式（保持向后兼容）
     _storage.setAddQualityTags(state.mode != PromptPresetMode.none);
+  }
+
+  void _syncQualityTierToGenerationParams() {
+    ref
+        .read(generationParamsNotifierProvider.notifier)
+        .updateQualityTier(state.naiTierId);
   }
 
   /// 获取实际应用的质量词内容
@@ -162,16 +196,16 @@ class QualityPresetNotifier extends _$QualityPresetNotifier {
   String? getEffectiveContent(String model) {
     switch (state.mode) {
       case PromptPresetMode.naiDefault:
-        return QualityTags.getQualityTags(model);
+        return QualityTags.getQualityTagsForTier(model, state.naiTierId);
       case PromptPresetMode.none:
         return null;
       case PromptPresetMode.custom:
         if (state.customEntryId == null) return null;
         final entries = ref.read(tagLibraryPageNotifierProvider).entries;
         final entry = entries.cast<TagLibraryEntry?>().firstWhere(
-              (e) => e?.id == state.customEntryId,
-              orElse: () => null,
-            );
+          (e) => e?.id == state.customEntryId,
+          orElse: () => null,
+        );
         return entry?.content;
     }
   }
@@ -185,9 +219,9 @@ TagLibraryEntry? currentQualityEntry(Ref ref) {
 
   final entries = ref.watch(tagLibraryPageNotifierProvider).entries;
   return entries.cast<TagLibraryEntry?>().firstWhere(
-        (e) => e?.id == config.customEntryId,
-        orElse: () => null,
-      );
+    (e) => e?.id == config.customEntryId,
+    orElse: () => null,
+  );
 }
 
 /// 所有已添加的质量词自定义条目列表
@@ -199,9 +233,9 @@ List<TagLibraryEntry> qualityCustomEntries(Ref ref) {
   return config.customEntryIds
       .map(
         (id) => allEntries.cast<TagLibraryEntry?>().firstWhere(
-              (e) => e?.id == id,
-              orElse: () => null,
-            ),
+          (e) => e?.id == id,
+          orElse: () => null,
+        ),
       )
       .whereType<TagLibraryEntry>()
       .toList();

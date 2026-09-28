@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'dart:io';
 
 import 'package:collection/collection.dart';
@@ -17,23 +16,23 @@ import '../../../../data/models/vibe/vibe_library_entry.dart';
 import '../../../../data/models/vibe/vibe_reference.dart';
 import '../../../../data/services/vibe_file_storage_service.dart';
 import '../../../../data/services/vibe_library_storage_service.dart';
+import '../../../adaptive/adaptive_presenter.dart';
+import '../../../utils/card_drop_reader.dart';
 import '../../../providers/image_generation_provider.dart';
 import '../../../providers/vibe_library_provider.dart';
 import '../../../widgets/common/app_toast.dart';
+import '../../../widgets/common/editable_double_field.dart';
 import '../../vibe_library/widgets/vibe_selector_dialog.dart';
 
 /// Vibe 导入处理器
 ///
 /// 封装 Vibe 文件导入相关逻辑，包括：
 /// - 从文件系统选择并导入 Vibe 文件
-/// - 即时编码处理
+/// - 将原始图片加入列表，按用户最终参数延迟编码
 /// - 保存到 Vibe 库
 /// - 从 Vibe 库导入
 class VibeImportHandler {
-  VibeImportHandler({
-    required this.ref,
-    required this.context,
-  });
+  VibeImportHandler({required this.ref, required this.context});
 
   final WidgetRef ref;
   final BuildContext context;
@@ -43,7 +42,7 @@ class VibeImportHandler {
   /// 从文件系统选择并导入 Vibe 文件
   ///
   /// 支持格式：png, jpg, jpeg, webp, naiv4vibe, naiv4vibebundle
-  /// 对于原始图片，会显示编码确认对话框
+  /// 原始图片会直接加入列表，用户可调整参数后主动编码或在生成时自动编码。
   Future<void> importFromFiles() async {
     final span = VibePerformanceDiagnostics.start(
       'importHandler.importFromFiles',
@@ -52,8 +51,6 @@ class VibeImportHandler {
     var parsedFiles = 0;
     var parsedVibes = 0;
     var addedVibes = 0;
-    var encodedFiles = 0;
-    var autoSavedFiles = 0;
     try {
       // 使用 withData: false 提高文件选择器打开速度
       // 通过路径异步读取文件内容，避免阻塞 UI
@@ -90,48 +87,9 @@ class VibeImportHandler {
 
           if (bytes != null) {
             try {
-              var vibes = await VibeFileParser.parseFile(fileName, bytes);
+              final vibes = await VibeFileParser.parseFile(fileName, bytes);
               parsedFiles++;
               parsedVibes += vibes.length;
-
-              // 检查是否需要编码
-              final needsEncoding = vibes.any(
-                (v) => v.sourceType == VibeSourceType.rawImage,
-              );
-
-              // 如果需要编码，显示确认对话框
-              var encodeNow = false;
-              var autoSaveToLibrary = false;
-              if (needsEncoding && context.mounted) {
-                final dialogResult = await _showEncodingConfirmDialog(fileName);
-
-                if (dialogResult == null || !dialogResult.$1) {
-                  continue; // 用户取消，跳过此文件
-                }
-                encodeNow = dialogResult.$2;
-                autoSaveToLibrary = dialogResult.$3;
-
-                // 如果需要提前编码
-                if (encodeNow && context.mounted) {
-                  final encodedVibes = await _encodeVibesNow(vibes);
-                  if (!context.mounted) continue;
-                  if (encodedVibes != null) {
-                    vibes = encodedVibes;
-                    encodedFiles++;
-                    // 编码成功后自动保存到库
-                    if (autoSaveToLibrary && context.mounted) {
-                      await _saveEncodedVibesToLibrary(encodedVibes, fileName);
-                      autoSavedFiles++;
-                    }
-                  } else {
-                    // 编码失败，询问是否继续添加未编码的
-                    final continueAnyway = await _showEncodingFailedDialog();
-                    if (continueAnyway != true) {
-                      continue; // 跳过此文件
-                    }
-                  }
-                }
-              }
 
               notifier.addVibeReferences(vibes);
               addedVibes += vibes.length;
@@ -161,483 +119,60 @@ class VibeImportHandler {
           'parsedFiles': parsedFiles,
           'parsedVibes': parsedVibes,
           'addedVibes': addedVibes,
-          'encodedFiles': encodedFiles,
-          'autoSavedFiles': autoSavedFiles,
         },
       );
     }
   }
 
-  /// 导入已经由拖拽读取到的单个 Vibe/图片文件。
-  ///
-  /// 用于局部 DropRegion，保留与“从文件添加”一致的解析和编码确认行为。
-  Future<int> importDroppedFile({
-    required String fileName,
-    required Uint8List bytes,
-  }) async {
-    final span = VibePerformanceDiagnostics.start(
-      'importHandler.importDroppedFile',
-      details: {'fileName': fileName},
-    );
-    var parsedVibes = 0;
-    var addedVibes = 0;
-    var encoded = false;
-    try {
-      final notifier = ref.read(generationParamsNotifierProvider.notifier);
-      var vibes = await VibeFileParser.parseFile(fileName, bytes);
-      parsedVibes = vibes.length;
-
-      final needsEncoding = vibes.any(
-        (v) => v.sourceType == VibeSourceType.rawImage,
-      );
-
-      if (needsEncoding && context.mounted) {
-        final dialogResult = await _showEncodingConfirmDialog(fileName);
-        if (dialogResult == null || !dialogResult.$1) {
-          return 0;
-        }
-
-        final encodeNow = dialogResult.$2;
-        final autoSaveToLibrary = dialogResult.$3;
-        if (encodeNow && context.mounted) {
-          final encodedVibes = await _encodeVibesNow(vibes);
-          if (!context.mounted) {
-            return 0;
-          }
-
-          if (encodedVibes != null) {
-            vibes = encodedVibes;
-            encoded = true;
-            if (autoSaveToLibrary && context.mounted) {
-              await _saveEncodedVibesToLibrary(encodedVibes, fileName);
-            }
-          } else {
-            final continueAnyway = await _showEncodingFailedDialog();
-            if (continueAnyway != true) {
-              return 0;
-            }
-          }
-        }
-      }
-
-      final beforeCount =
-          ref.read(generationParamsNotifierProvider).vibeReferencesV4.length;
-      notifier.addVibeReferences(vibes);
-      await notifier.saveGenerationState();
-
-      final afterCount =
-          ref.read(generationParamsNotifierProvider).vibeReferencesV4.length;
-      if (afterCount > beforeCount) {
-        addedVibes = afterCount - beforeCount;
-      }
-      return addedVibes;
-    } catch (e) {
-      AppLogger.e('Failed to parse dropped file: $fileName', e, null, _tag);
-      if (context.mounted) {
-        AppToast.error(
-          context,
-          context.l10n.vibe_import_fileParseFailed,
-        );
-      }
-      return 0;
-    } finally {
-      span.finish(
-        details: {
-          'parsedVibes': parsedVibes,
-          'addedVibes': addedVibes,
-          'encoded': encoded,
-        },
-      );
-    }
-  }
-
-  /// 显示编码确认对话框
-  Future<(bool confirmed, bool encode, bool autoSave)?>
-      _showEncodingConfirmDialog(
-    String fileName,
+  /// Resolve and validate the complete set before changing generation inputs.
+  Future<int> importDroppedResources(
+    List<CardDroppedResource> resources,
   ) async {
-    final l10n = context.l10n;
-    return showDialog<(bool confirmed, bool encode, bool autoSave)>(
-      context: context,
-      builder: (context) {
-        // 默认都勾选
-        var encodeChecked = true;
-        var autoSaveChecked = true;
-        return StatefulBuilder(
-          builder: (context, setState) {
-            // 根据勾选状态动态确定按钮文本
-            final confirmButtonText = encodeChecked
-                ? l10n.vibe_import_encodeNow
-                : l10n.vibe_addImageOnly;
-
-            return AlertDialog(
-              title: Text(l10n.vibe_import_noEncodingData),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(fileName),
-                  const SizedBox(height: 8),
-                  Text(
-                    l10n.vibe_import_encodingCost,
-                    style: TextStyle(
-                      color: Theme.of(context).colorScheme.primary,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    l10n.vibe_import_confirmCost,
-                    style: Theme.of(context).textTheme.bodySmall,
-                  ),
-                  const SizedBox(height: 16),
-                  // 提前编码复选框
-                  InkWell(
-                    onTap: () {
-                      setState(() {
-                        encodeChecked = !encodeChecked;
-                        if (!encodeChecked) {
-                          autoSaveChecked = false;
-                        }
-                      });
-                    },
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Checkbox(
-                          value: encodeChecked,
-                          onChanged: (value) {
-                            setState(() {
-                              encodeChecked = value ?? false;
-                              if (!encodeChecked) {
-                                autoSaveChecked = false;
-                              }
-                            });
-                          },
-                          visualDensity: VisualDensity.compact,
-                        ),
-                        const SizedBox(width: 4),
-                        Expanded(
-                          child: Text(
-                            l10n.vibe_import_encodeNow,
-                            style: Theme.of(context).textTheme.bodyMedium,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  // 自动保存到库复选框（仅在提前编码时可用）
-                  InkWell(
-                    onTap: encodeChecked
-                        ? () {
-                            setState(() {
-                              autoSaveChecked = !autoSaveChecked;
-                            });
-                          }
-                        : null,
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Checkbox(
-                          value: autoSaveChecked,
-                          onChanged: encodeChecked
-                              ? (value) {
-                                  setState(() {
-                                    autoSaveChecked = value ?? false;
-                                  });
-                                }
-                              : null,
-                          visualDensity: VisualDensity.compact,
-                        ),
-                        const SizedBox(width: 4),
-                        Expanded(
-                          child: Text(
-                            l10n.vibe_import_autoSave,
-                            style: Theme.of(context)
-                                .textTheme
-                                .bodyMedium
-                                ?.copyWith(
-                                  color: encodeChecked
-                                      ? null
-                                      : Theme.of(context)
-                                          .colorScheme
-                                          .onSurface
-                                          .withValues(alpha: 0.4),
-                                ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () =>
-                      Navigator.of(context).pop((false, false, false)),
-                  child: Text(context.l10n.common_cancel),
-                ),
-                ElevatedButton(
-                  onPressed: () => Navigator.of(context)
-                      .pop((true, encodeChecked, autoSaveChecked)),
-                  child: Text(confirmButtonText),
-                ),
-              ],
-            );
-          },
-        );
-      },
-    );
-  }
-
-  /// 显示编码失败对话框
-  Future<bool?> _showEncodingFailedDialog() async {
-    final l10n = context.l10n;
-    return showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(l10n.vibe_import_encodingFailed),
-        content: Text(l10n.vibe_import_encodingFailedMessage),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: Text(l10n.common_cancel),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            child: Text(l10n.common_continue),
-          ),
-        ],
-      ),
-    );
-  }
-
-  /// 立即编码 Vibes（调用 API）
-  Future<List<VibeReference>?> _encodeVibesNow(
-    List<VibeReference> vibes,
-  ) async {
-    final span = VibePerformanceDiagnostics.start(
-      'importHandler.encodeVibesNow',
-      details: {
-        'inputVibes': vibes.length,
-        'rawImageVibes': vibes
-            .where(
-              (v) =>
-                  v.sourceType == VibeSourceType.rawImage &&
-                  v.rawImageData != null,
-            )
-            .length,
-      },
-    );
-    var encodedCount = 0;
-    var returnedCount = 0;
     final notifier = ref.read(generationParamsNotifierProvider.notifier);
-    final params = ref.read(generationParamsNotifierProvider);
-    final model = params.model;
-
-    // 显示编码进度对话框，使用 rootNavigator 确保正确关闭
-    final dialogCompleter = Completer<void>();
-    BuildContext? dialogContext;
-
-    unawaited(
-      showDialog(
-        context: context,
-        barrierDismissible: false,
-        useRootNavigator: true,
-        builder: (ctx) {
-          dialogContext = ctx;
-          dialogCompleter.complete();
-          return AlertDialog(
-            content: Row(
-              children: [
-                const CircularProgressIndicator(),
-                const SizedBox(width: 16),
-                Text(context.l10n.vibe_import_encodingInProgress),
-              ],
-            ),
-          );
-        },
-      ),
-    );
-
-    // 等待对话框显示完成
-    await dialogCompleter.future;
-
-    void closeDialog() {
-      if (dialogContext != null && dialogContext!.mounted) {
-        Navigator.of(dialogContext!).pop();
-      }
-    }
-
-    try {
-      final encodedVibes = <VibeReference>[];
-      for (final vibe in vibes) {
-        if (vibe.sourceType == VibeSourceType.rawImage &&
-            vibe.rawImageData != null) {
-          // 添加 30 秒超时保护，防止 API 无限卡住
-          final encoding = await notifier
-              .encodeVibeWithCache(
-            vibe.rawImageData!,
-            model: model,
-            informationExtracted: vibe.infoExtracted,
-            vibeName: vibe.displayName,
-          )
-              .timeout(
-            const Duration(seconds: 30),
-            onTimeout: () {
-              AppLogger.w(
-                'Vibe encoding timeout: ${vibe.displayName}',
-                _tag,
-              );
-              return null;
-            },
-          );
-
-          if (encoding != null) {
-            encodedVibes.add(
-              buildEncodedImportVibe(vibe, encoding),
-            );
-            encodedCount++;
-          } else {
-            // 编码失败，保留原始 vibe
-            encodedVibes.add(vibe);
-          }
-        } else {
-          // 不需要编码或已有编码
-          encodedVibes.add(vibe);
+    final storage = ref.read(vibeLibraryStorageServiceProvider);
+    final groups = <({List<VibeReference> vibes, String? libraryId})>[];
+    for (final resource in resources) {
+      final entry = resource.vibe;
+      final List<VibeReference> vibes;
+      if (entry == null) {
+        final file = resource.image;
+        vibes = await VibeFileParser.parseFile(file.fileName, file.bytes);
+      } else if (entry.isBundle) {
+        final path = entry.filePath;
+        if (path == null) {
+          throw StateError('Vibe Bundle file is unavailable: ${entry.id}');
         }
-      }
-
-      closeDialog();
-
-      // 检查是否全部编码成功
-      final allEncoded = encodedVibes.every(
-        (v) =>
-            v.sourceType != VibeSourceType.rawImage ||
-            v.vibeEncoding.isNotEmpty,
-      );
-      returnedCount = encodedVibes.length;
-
-      if (allEncoded) {
-        if (context.mounted) {
-          AppToast.success(context, context.l10n.vibe_import_encodingComplete);
+        vibes = (await VibeFileStorageService().extractVibesFromBundle(path))
+            .map((vibe) => vibe.copyWith(bundleSource: entry.displayName))
+            .toList();
+        if (vibes.length != entry.bundledVibeCount) {
+          throw StateError('Vibe Bundle contents are incomplete: ${entry.id}');
         }
-        return encodedVibes;
       } else {
-        if (context.mounted) {
-          AppToast.warning(context, context.l10n.vibe_import_partialFailed);
-        }
-        return encodedVibes;
+        vibes = [entry.toVibeReference()];
       }
-    } on TimeoutException catch (e) {
-      AppLogger.e('Vibe encoding timeout', e, null, _tag);
-      closeDialog();
-      if (context.mounted) {
-        AppToast.error(context, context.l10n.vibe_import_timeout);
+      if (vibes.isEmpty) {
+        throw StateError('The dropped resource contains no Vibes');
       }
-      return null;
-    } catch (e, stackTrace) {
-      AppLogger.e('Failed to encode vibes', e, stackTrace, _tag);
-      closeDialog();
-      return null;
-    } finally {
-      span.finish(
-        details: {
-          'encoded': encodedCount,
-          'returnedVibes': returnedCount,
-        },
+      groups.add((vibes: vibes, libraryId: entry?.id));
+    }
+    if (!context.mounted) return 0;
+    final all = groups.expand((group) => group.vibes).toList();
+    notifier.validateVibeReferenceBatch(all);
+    // No asynchronous gap between validation and applying the ordered groups.
+    for (final group in groups) {
+      notifier.addVibeReferences(
+        group.vibes,
+        recordUsage: group.libraryId == null,
       );
     }
-  }
-
-  /// 保存已编码的 Vibes 到库
-  ///
-  /// 会检查库中是否已存在相同的 vibe，如果存在则只更新使用记录
-  Future<void> _saveEncodedVibesToLibrary(
-    List<VibeReference> vibes,
-    String baseName,
-  ) async {
-    final span = VibePerformanceDiagnostics.start(
-      'importHandler.saveEncodedVibesToLibrary',
-      details: {
-        'vibes': vibes.length,
-      },
-    );
-    final storageService = ref.read(vibeLibraryStorageServiceProvider);
-    var savedCount = 0;
-    var reusedCount = 0;
-
-    try {
-      for (final vibe in vibes) {
-        // 检查是否已存在相同的 vibe
-        final existingEntry = await _findExistingEntry(storageService, vibe);
-
-        AppLogger.d(
-          'Saving Vibe: name=${vibe.displayName}, encoding=${vibe.vibeEncoding.substring(0, vibe.vibeEncoding.length > 20 ? 20 : vibe.vibeEncoding.length)}..., existing=${existingEntry?.id ?? "null"}',
-          _tag,
-        );
-
-        if (existingEntry != null) {
-          // 已存在：更新使用记录
-          await storageService.incrementUsedCount(existingEntry.id);
-          reusedCount++;
-          AppLogger.d(
-            'Vibe already exists, updating usage: ${existingEntry.id}',
-            _tag,
-          );
-        } else {
-          // 不存在：创建新条目
-          final entry = VibeLibraryEntry.fromVibeReference(
-            name: vibes.length == 1
-                ? baseName
-                : '$baseName - ${vibe.displayName}',
-            vibeData: vibe,
-          );
-          await storageService.saveEntry(entry);
-          savedCount++;
-          AppLogger.i(
-            'New Vibe saved: ${entry.id}, name=${entry.name}',
-            _tag,
-          );
-        }
+    await notifier.saveGenerationState();
+    for (final group in groups) {
+      if (group.libraryId != null) {
+        await storage.incrementUsedCount(group.libraryId!);
       }
-
-      if (context.mounted) {
-        final message = _buildSaveMessage(savedCount, reusedCount);
-        AppToast.success(context, message);
-        // 通知 Vibe 库刷新
-        ref.read(vibeLibraryNotifierProvider.notifier).reload();
-      }
-    } catch (e, stackTrace) {
-      AppLogger.e(
-        'Failed to save encoded vibes to library',
-        e,
-        stackTrace,
-        _tag,
-      );
-      if (context.mounted) {
-        AppToast.error(context, context.l10n.vibe_saveToLibrary_saveFailed);
-      }
-    } finally {
-      span.finish(
-        details: {
-          'saved': savedCount,
-          'reused': reusedCount,
-        },
-      );
     }
-  }
-
-  /// 在库中查找已存在的相同 vibe 条目
-  ///
-  /// 基于 vibeEncoding 或缩略图哈希进行匹配
-  /// 返回匹配的条目，如果没有找到返回 null
-  Future<VibeLibraryEntry?> _findExistingEntry(
-    VibeLibraryStorageService storageService,
-    VibeReference vibe,
-  ) async {
-    return storageService.findMatchingEntry(vibe);
+    return all.length;
   }
 
   /// 从库导入 Vibes
@@ -675,8 +210,10 @@ class VibeImportHandler {
 
       // 处理每个选中的条目（支持 bundle 展开）
       for (final selectedEntry in result.selectedEntries) {
-        final currentCount =
-            ref.read(generationParamsNotifierProvider).vibeReferencesV4.length;
+        final currentCount = ref
+            .read(generationParamsNotifierProvider)
+            .vibeReferencesV4
+            .length;
         if (currentCount >= 16) break;
 
         var addedForEntry = 0;
@@ -719,10 +256,7 @@ class VibeImportHandler {
       }
 
       if (context.mounted) {
-        AppToast.success(
-          context,
-          context.l10n.vibe_import_result(totalAdded),
-        );
+        AppToast.success(context, context.l10n.vibe_import_result(totalAdded));
       }
     } catch (e, stackTrace) {
       AppLogger.e('Failed to import from library', e, stackTrace, _tag);
@@ -768,8 +302,10 @@ class VibeImportHandler {
       },
     );
     final notifier = ref.read(generationParamsNotifierProvider.notifier);
-    final currentCount =
-        ref.read(generationParamsNotifierProvider).vibeReferencesV4.length;
+    final currentCount = ref
+        .read(generationParamsNotifierProvider)
+        .vibeReferencesV4
+        .length;
     final availableSlots = maxCount - currentCount;
     var extractedCount = 0;
 
@@ -777,8 +313,9 @@ class VibeImportHandler {
       if (availableSlots <= 0 || entry.filePath == null) return 0;
 
       final fileStorage = VibeFileStorageService();
-      final extractLimit =
-          entry.bundledVibeCount.clamp(0, availableSlots).toInt();
+      final extractLimit = entry.bundledVibeCount
+          .clamp(0, availableSlots)
+          .toInt();
       final extractedVibes = await fileStorage.extractVibesFromBundle(
         entry.filePath!,
         limit: extractLimit,
@@ -787,11 +324,7 @@ class VibeImportHandler {
       if (extractedVibes.isNotEmpty) {
         // 设置 bundle 来源
         final vibesWithSource = extractedVibes
-            .map(
-              (vibe) => vibe.copyWith(
-                bundleSource: entry.displayName,
-              ),
-            )
+            .map((vibe) => vibe.copyWith(bundleSource: entry.displayName))
             .toList();
         notifier.addVibeReferences(vibesWithSource, recordUsage: false);
 
@@ -846,110 +379,23 @@ class VibeImportHandler {
     final overwriteCandidate = await ref
         .read(vibeLibraryStorageServiceProvider)
         .findOverwriteCandidate(vibes);
-    final showInfoExtractedControl =
-        shouldShowInfoExtractedForLibrarySave(vibes);
+    final showInfoExtractedControl = shouldShowInfoExtractedForLibrarySave(
+      vibes,
+    );
 
     if (!context.mounted) {
       nameController.dispose();
       return;
     }
 
-    final result = await showDialog<
-        (
-          bool confirmed,
-          double strength,
-          double infoExtracted,
-          bool overwriteOriginal
-        )?>(
+    final result = await showVibeLibrarySaveForm(
       context: context,
-      builder: (context) {
-        var strengthValue = firstVibe.strength;
-        var infoExtractedValue = firstVibe.infoExtracted;
-        var overwriteOriginal = false;
-
-        return StatefulBuilder(
-          builder: (context, setState) {
-            return AlertDialog(
-              title: Text(l10n.vibe_saveToLibrary_title),
-              content: SizedBox(
-                width: 400,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(l10n.vibe_saveToLibrary_savingCount(vibes.length)),
-                    const SizedBox(height: 16),
-                    // 名称输入
-                    TextField(
-                      controller: nameController,
-                      decoration: InputDecoration(
-                        labelText: l10n.vibe_saveToLibrary_nameLabel,
-                        hintText: l10n.vibe_saveToLibrary_nameHint,
-                        border: const OutlineInputBorder(),
-                      ),
-                      autofocus: true,
-                    ),
-                    const SizedBox(height: 24),
-                    // Reference Strength 滑条
-                    _buildDialogSlider(
-                      context,
-                      label: l10n.vibe_saveToLibrary_strength,
-                      value: strengthValue,
-                      onChanged: (value) =>
-                          setState(() => strengthValue = value),
-                    ),
-                    if (showInfoExtractedControl) ...[
-                      const SizedBox(height: 16),
-                      _buildDialogSlider(
-                        context,
-                        label: l10n.vibe_saveToLibrary_infoExtracted,
-                        value: infoExtractedValue,
-                        onChanged: (value) =>
-                            setState(() => infoExtractedValue = value),
-                      ),
-                    ],
-                    if (overwriteCandidate != null) ...[
-                      const SizedBox(height: 16),
-                      CheckboxListTile(
-                        value: overwriteOriginal,
-                        dense: true,
-                        contentPadding: EdgeInsets.zero,
-                        title: const Text('直接替换原 Vibe 参数'),
-                        subtitle: Text(
-                          '仅覆盖 ${overwriteCandidate.displayName} 的库内参数，默认不勾选',
-                        ),
-                        onChanged: (value) =>
-                            setState(() => overwriteOriginal = value ?? false),
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.of(context).pop(null),
-                  child: Text(l10n.common_cancel),
-                ),
-                ElevatedButton(
-                  onPressed: () {
-                    if (nameController.text.trim().isNotEmpty) {
-                      Navigator.of(context).pop(
-                        (
-                          true,
-                          strengthValue,
-                          infoExtractedValue,
-                          overwriteOriginal,
-                        ),
-                      );
-                    }
-                  },
-                  child: Text(l10n.common_save),
-                ),
-              ],
-            );
-          },
-        );
-      },
+      vibeCount: vibes.length,
+      nameController: nameController,
+      initialStrength: firstVibe.strength,
+      initialInfoExtracted: firstVibe.infoExtracted,
+      showInfoExtractedControl: showInfoExtractedControl,
+      overwriteCandidate: overwriteCandidate,
     );
 
     if (result != null && result.$1 && context.mounted) {
@@ -963,19 +409,20 @@ class VibeImportHandler {
         var savedCount = 0;
         var reusedCount = 0;
         final generationParams = ref.read(generationParamsNotifierProvider);
-        final paramsNotifier =
-            ref.read(generationParamsNotifierProvider.notifier);
+        final paramsNotifier = ref.read(
+          generationParamsNotifierProvider.notifier,
+        );
 
         for (final vibe in vibes) {
-          final preparedVibe =
-              await paramsNotifier.prepareVibeForLibraryParamSave(
-            vibe,
-            strength: strength,
-            infoExtracted: infoExtracted,
-            model: generationParams.model,
-          );
+          final preparedVibe = await paramsNotifier
+              .prepareVibeForLibraryParamSave(
+                vibe,
+                strength: strength,
+                infoExtracted: infoExtracted,
+                model: generationParams.model,
+              );
           if (preparedVibe == null) {
-            throw StateError('Vibe 重新编码失败: ${vibe.displayName}');
+            throw StateError(l10n.vibe_import_reencodeFailed(vibe.displayName));
           }
 
           // 使用用户设置的参数创建新的 vibe
@@ -989,7 +436,8 @@ class VibeImportHandler {
             reusedCount++;
           }
 
-          final shouldOverwrite = overwriteOriginal &&
+          final shouldOverwrite =
+              overwriteOriginal &&
               overwriteCandidate != null &&
               vibes.length == 1;
           final entry = shouldOverwrite
@@ -1005,8 +453,9 @@ class VibeImportHandler {
                       overwriteCandidate.thumbnail ?? vibeWithParams.thumbnail,
                 )
               : VibeLibraryEntry.fromVibeReference(
-                  name:
-                      vibes.length == 1 ? name : '$name - ${vibe.displayName}',
+                  name: vibes.length == 1
+                      ? name
+                      : '$name - ${vibe.displayName}',
                   vibeData: vibeWithParams,
                 );
           await storageService.saveEntry(entry);
@@ -1041,43 +490,191 @@ class VibeImportHandler {
       return l10n.vibe_saveToLibrary_reused(reusedCount);
     }
   }
+}
 
-  /// 构建对话框中的滑条
-  Widget _buildDialogSlider(
-    BuildContext context, {
-    required String label,
-    required double value,
-    required ValueChanged<double> onChanged,
-  }) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            Expanded(
-              child: Text(
-                label,
-                style: const TextStyle(fontWeight: FontWeight.w500),
+typedef VibeLibrarySaveFormResult = (
+  bool confirmed,
+  double strength,
+  double infoExtracted,
+  bool overwriteOriginal,
+);
+
+/// 显示保存到 Vibe 库的多字段自适应表单。
+Future<VibeLibrarySaveFormResult?> showVibeLibrarySaveForm({
+  required BuildContext context,
+  required int vibeCount,
+  required TextEditingController nameController,
+  required double initialStrength,
+  required double initialInfoExtracted,
+  required bool showInfoExtractedControl,
+  VibeLibraryEntry? overwriteCandidate,
+}) {
+  var strengthValue = initialStrength;
+  var infoExtractedValue = initialInfoExtracted;
+  var overwriteOriginal = false;
+
+  return AdaptivePresenter.showForm<VibeLibrarySaveFormResult>(
+    context: context,
+    title: context.l10n.vibe_saveToLibrary_title,
+    dialogWidth: 440,
+    builder: (panelContext, scrollController) => StatefulBuilder(
+      builder: (panelContext, setState) => Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Flexible(
+            fit: FlexFit.loose,
+            child: SingleChildScrollView(
+              key: const ValueKey('vibe-library-save-form-scroll'),
+              controller: scrollController,
+              keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    panelContext.l10n.vibe_saveToLibrary_savingCount(vibeCount),
+                  ),
+                  const SizedBox(height: 16),
+                  TextField(
+                    key: const ValueKey('vibe-library-save-name'),
+                    controller: nameController,
+                    decoration: InputDecoration(
+                      labelText: panelContext.l10n.vibe_saveToLibrary_nameLabel,
+                      hintText: panelContext.l10n.vibe_saveToLibrary_nameHint,
+                    ),
+                    autofocus: true,
+                  ),
+                  const SizedBox(height: 24),
+                  _buildVibeLibraryDialogSlider(
+                    panelContext,
+                    label: panelContext.l10n.vibe_saveToLibrary_strength,
+                    value: strengthValue,
+                    min: VibeReference.minSliderStrength,
+                    max: VibeReference.maxSliderStrength,
+                    unboundedInput: true,
+                    onChanged: (value) => setState(() => strengthValue = value),
+                  ),
+                  if (showInfoExtractedControl) ...[
+                    const SizedBox(height: 16),
+                    _buildVibeLibraryDialogSlider(
+                      panelContext,
+                      label: panelContext.l10n.vibe_saveToLibrary_infoExtracted,
+                      value: infoExtractedValue,
+                      min: VibeReference.minInfoExtracted,
+                      max: VibeReference.maxInfoExtracted,
+                      onChanged: (value) =>
+                          setState(() => infoExtractedValue = value),
+                    ),
+                  ],
+                  if (overwriteCandidate != null) ...[
+                    const SizedBox(height: 16),
+                    CheckboxListTile(
+                      key: const ValueKey('vibe-library-save-overwrite'),
+                      value: overwriteOriginal,
+                      dense: true,
+                      contentPadding: EdgeInsets.zero,
+                      title: Text(
+                        panelContext.l10n.vibe_import_overwriteOriginalParams,
+                      ),
+                      subtitle: Text(
+                        panelContext.l10n
+                            .vibe_import_overwriteOriginalParamsHint(
+                              overwriteCandidate.displayName,
+                            ),
+                      ),
+                      onChanged: (value) =>
+                          setState(() => overwriteOriginal = value ?? false),
+                    ),
+                  ],
+                ],
               ),
             ),
-            Text(
-              value.toStringAsFixed(2),
-              style: const TextStyle(
-                fontFeatures: [FontFeature.tabularFigures()],
+          ),
+          Divider(
+            height: 1,
+            color: Theme.of(panelContext).colorScheme.outlineVariant,
+          ),
+          SafeArea(
+            top: false,
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Wrap(
+                alignment: WrapAlignment.end,
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  TextButton(
+                    key: const ValueKey('vibe-library-save-cancel'),
+                    onPressed: () => Navigator.of(panelContext).pop(),
+                    child: Text(panelContext.l10n.common_cancel),
+                  ),
+                  FilledButton(
+                    key: const ValueKey('vibe-library-save-confirm'),
+                    onPressed: () {
+                      if (nameController.text.trim().isEmpty) return;
+                      Navigator.of(panelContext).pop((
+                        true,
+                        strengthValue,
+                        infoExtractedValue,
+                        overwriteOriginal,
+                      ));
+                    },
+                    child: Text(panelContext.l10n.common_save),
+                  ),
+                ],
               ),
             ),
-          ],
-        ),
-        Slider(
-          value: value,
-          min: 0.0,
-          max: 1.0,
-          divisions: 100,
-          onChanged: onChanged,
-        ),
-      ],
-    );
-  }
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
+Widget _buildVibeLibraryDialogSlider(
+  BuildContext context, {
+  required String label,
+  required double value,
+  required double min,
+  required double max,
+  required ValueChanged<double> onChanged,
+  bool unboundedInput = false,
+}) {
+  final sliderValue = value.clamp(min, max).toDouble();
+
+  return Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Row(
+        children: [
+          Expanded(
+            child: Text(
+              label,
+              style: const TextStyle(fontWeight: FontWeight.w500),
+            ),
+          ),
+          EditableDoubleField(
+            value: value,
+            min: unboundedInput ? null : min,
+            max: unboundedInput ? null : max,
+            decimals: 2,
+            width: 64,
+            onChanged: onChanged,
+            textStyle: const TextStyle(
+              fontFeatures: [FontFeature.tabularFigures()],
+            ),
+          ),
+        ],
+      ),
+      Slider(
+        value: sliderValue,
+        min: min,
+        max: max,
+        divisions: 99,
+        onChanged: onChanged,
+      ),
+    ],
+  );
 }
 
 VibeLibraryEntry? findOriginalLibraryEntryForOverwrite(
@@ -1092,8 +689,10 @@ VibeLibraryEntry? findOriginalLibraryEntryForOverwrite(
   return entries.firstWhereOrNull((entry) {
     final sameDisplayName = entry.displayName == vibe.displayName;
     final sameEncoding = entry.vibeEncoding == vibe.vibeEncoding;
-    final sameRawImage =
-        const ListEquality<int>().equals(entry.rawImageData, vibe.rawImageData);
+    final sameRawImage = const ListEquality<int>().equals(
+      entry.rawImageData,
+      vibe.rawImageData,
+    );
     return sameDisplayName && (sameEncoding || sameRawImage);
   });
 }
@@ -1107,7 +706,8 @@ bool shouldShowInfoExtractedForLibrarySave(List<VibeReference> vibes) {
 
 VibeReference buildEncodedImportVibe(
   VibeReference vibe,
-  String encoding,
-) {
-  return vibe.withEncodedVibe(encoding);
+  String encoding, {
+  String? model,
+}) {
+  return vibe.withEncodedVibe(encoding, model: model);
 }

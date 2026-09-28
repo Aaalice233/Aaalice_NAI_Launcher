@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../core/services/auth_error_service.dart';
 import '../../../core/services/avatar_service.dart';
@@ -7,13 +8,17 @@ import '../../../core/services/date_formatting_service.dart';
 import '../../../core/utils/app_logger.dart';
 import '../../../core/utils/localization_extension.dart';
 import '../../../data/models/auth/saved_account.dart';
+import '../../adaptive/adaptive_layout.dart';
+import '../../adaptive/adaptive_presenter.dart';
 import '../../providers/account_manager_provider.dart';
+import '../../providers/auth_mode_provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../widgets/auth/account_avatar.dart';
 import '../../widgets/auth/login_form_container.dart';
 import '../../widgets/auth/network_troubleshooting_dialog.dart';
 import '../../widgets/common/app_toast.dart';
 import '../../widgets/common/themed_divider.dart';
+import '../../widgets/common/update_notice_banner.dart';
 
 /// 登录页面 - QQ 风格
 class LoginScreen extends ConsumerStatefulWidget {
@@ -24,8 +29,6 @@ class LoginScreen extends ConsumerStatefulWidget {
 }
 
 class _LoginScreenState extends ConsumerState<LoginScreen> {
-  static const double _wideScreenBreakpoint = 800;
-
   final _avatarService = AvatarService();
   final _authErrorService = AuthErrorService();
   final _dateFormattingService = DateFormattingService();
@@ -84,36 +87,79 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     });
 
     return Scaffold(
-      body: LayoutBuilder(
-        builder: (context, constraints) {
-          final isWideScreen = constraints.maxWidth >= _wideScreenBreakpoint;
-
-          return Center(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(24),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  _Header(theme: theme),
-                  const SizedBox(height: 32),
-                  _buildMainContent(
-                    context,
-                    theme,
-                    isWideScreen,
-                    isLoading,
-                    accounts,
-                  ),
-                  const SizedBox(height: 16),
-                  if (_showTroubleshootingButton) _TroubleshootingButton(),
-                  const SizedBox(height: 24),
-                  _LoginTip(theme: theme),
-                ],
+      body: SafeArea(
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            SizedBox.expand(
+              child: AdaptiveSlotLayout(
+                builder: (context, areas) {
+                  final isWideScreen = areas.sizeClass.isExpandedOrWider;
+                  return SingleChildScrollView(
+                    key: const ValueKey('login_scroll_view'),
+                    keyboardDismissBehavior:
+                        ScrollViewKeyboardDismissBehavior.onDrag,
+                    padding: EdgeInsets.symmetric(
+                      horizontal: areas.horizontalPadding,
+                      vertical: 24,
+                    ),
+                    child: ConstrainedBox(
+                      constraints: BoxConstraints(
+                        minHeight: (areas.constraints.maxHeight - 48)
+                            .clamp(0.0, double.infinity)
+                            .toDouble(),
+                      ),
+                      child: AdaptiveContentBounds(
+                        maxWidth: 620,
+                        alignment: Alignment.center,
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            _Header(theme: theme),
+                            const SizedBox(height: 32),
+                            _buildMainContent(
+                              context,
+                              theme,
+                              isWideScreen,
+                              isLoading,
+                              accounts,
+                            ),
+                            const SizedBox(height: 12),
+                            TextButton.icon(
+                              key: const Key('auth-skip-login-button'),
+                              onPressed: _continueWithoutLogin,
+                              icon: const Icon(Icons.arrow_forward_rounded),
+                              label: Text(
+                                context.l10n.auth_continueWithoutLogin,
+                                textAlign: TextAlign.center,
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+                            if (_showTroubleshootingButton)
+                              _TroubleshootingButton(),
+                            const SizedBox(height: 24),
+                            _LoginTip(theme: theme),
+                          ],
+                        ),
+                      ),
+                    ),
+                  );
+                },
               ),
             ),
-          );
-        },
+            const UpdateNoticeOverlay(),
+          ],
+        ),
       ),
     );
+  }
+
+  void _continueWithoutLogin() {
+    if (context.canPop()) {
+      context.pop();
+      return;
+    }
+    context.goNamed('home');
   }
 
   Widget _buildMainContent(
@@ -155,9 +201,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       _removeLoadingOverlay();
     }
 
-    // 监听登录成功
+    // 登录页既可能是根路由，也可能从业务页 push 打开；成功后主动完成
+    // 返回，避免只依赖全局 redirect 时已认证账号仍停留在登录页。
     if (next.isAuthenticated && !(previous?.isAuthenticated ?? false)) {
       _hideTroubleshootingButton();
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        _continueWithoutLogin();
+      });
     }
 
     // 监听登录错误
@@ -184,7 +235,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       state.httpStatusCode,
     );
 
-    final isNetworkError = state.errorCode == AuthErrorCode.networkTimeout ||
+    final isNetworkError =
+        state.errorCode == AuthErrorCode.networkTimeout ||
         state.errorCode == AuthErrorCode.networkError;
 
     if (isNetworkError && mounted) {
@@ -256,60 +308,45 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       });
     final defaultAccount = sortedAccounts.first;
 
-    showDialog(
+    AdaptivePresenter.showPanel<void>(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: Row(
-          children: [
-            Text(context.l10n.auth_selectAccount),
-            const Spacer(),
-            IconButton(
-              icon: const Icon(Icons.close),
-              onPressed: () => Navigator.pop(dialogContext),
+      title: context.l10n.auth_selectAccount,
+      initialChildSize: 0.72,
+      minChildSize: 0.42,
+      builder: (panelContext, scrollController) => ListView(
+        controller: scrollController,
+        padding: const EdgeInsets.only(bottom: 24),
+        children: [
+          ...accounts.map(
+            (account) => _AccountListItem(
+              account: account,
+              isSelected: account.id == currentAccount.id,
+              isDefault: account.id == defaultAccount.id,
+              createdDate: _dateFormattingService.formatDate(account.createdAt),
+              onTap: () {
+                Navigator.pop(panelContext);
+                _handleQuickLogin(context, ref, account);
+              },
+              onDelete: () => _showDeleteAccountDialog(context, ref, account),
             ),
-          ],
-        ),
-        titlePadding: const EdgeInsets.fromLTRB(24, 16, 8, 0),
-        contentPadding: const EdgeInsets.symmetric(vertical: 8),
-        content: SizedBox(
-          width: 350,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              ...accounts.map(
-                (account) => _AccountListItem(
-                  account: account,
-                  isSelected: account.id == currentAccount.id,
-                  isDefault: account.id == defaultAccount.id,
-                  createdDate:
-                      _dateFormattingService.formatDate(account.createdAt),
-                  onTap: () {
-                    Navigator.pop(dialogContext);
-                    _handleQuickLogin(context, ref, account);
-                  },
-                  onDelete: () =>
-                      _showDeleteAccountDialog(context, ref, account),
-                ),
-              ),
-              const ThemedDivider(),
-              ListTile(
-                leading: CircleAvatar(
-                  backgroundColor:
-                      Theme.of(context).colorScheme.primaryContainer,
-                  child: Icon(
-                    Icons.add,
-                    color: Theme.of(context).colorScheme.primary,
-                  ),
-                ),
-                title: Text(context.l10n.auth_addAccount),
-                onTap: () {
-                  Navigator.pop(dialogContext);
-                  _showAddAccountDialog(context);
-                },
-              ),
-            ],
           ),
-        ),
+          const ThemedDivider(),
+          ListTile(
+            minTileHeight: 56,
+            leading: CircleAvatar(
+              backgroundColor: Theme.of(context).colorScheme.primaryContainer,
+              child: Icon(
+                Icons.add,
+                color: Theme.of(context).colorScheme.primary,
+              ),
+            ),
+            title: Text(context.l10n.auth_addAccount),
+            onTap: () {
+              Navigator.pop(panelContext);
+              _showAddAccountDialog(context);
+            },
+          ),
+        ],
       ),
     );
   }
@@ -325,8 +362,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: Text(context.l10n.auth_deleteAccount),
-        content:
-            Text(context.l10n.auth_deleteAccountConfirm(account.displayName)),
+        content: Text(
+          context.l10n.auth_deleteAccountConfirm(account.displayName),
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext),
@@ -351,37 +389,19 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   }
 
   void _showAddAccountDialog(BuildContext context) {
-    showDialog(
+    ref.read(authModeNotifierProvider.notifier).reset();
+    AdaptivePresenter.showPanel<void>(
       context: context,
-      builder: (dialogContext) => Dialog(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 450),
-          child: Padding(
-            padding: const EdgeInsets.all(8),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Row(
-                  children: [
-                    const SizedBox(width: 16),
-                    Text(
-                      context.l10n.auth_addAccount,
-                      style: Theme.of(context).textTheme.titleLarge,
-                    ),
-                    const Spacer(),
-                    IconButton(
-                      icon: const Icon(Icons.close),
-                      onPressed: () => Navigator.pop(dialogContext),
-                    ),
-                  ],
-                ),
-                LoginFormContainer(
-                  onLoginSuccess: () => Navigator.pop(dialogContext),
-                ),
-              ],
-            ),
-          ),
-        ),
+      title: context.l10n.auth_addAccount,
+      initialChildSize: 0.9,
+      minChildSize: 0.62,
+      builder: (panelContext, scrollController) => ListView(
+        controller: scrollController,
+        shrinkWrap: true,
+        padding: const EdgeInsets.fromLTRB(8, 16, 8, 32),
+        children: [
+          LoginFormContainer(onLoginSuccess: () => Navigator.pop(panelContext)),
+        ],
       ),
     );
   }
@@ -391,42 +411,40 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     WidgetRef ref,
     SavedAccount account,
   ) {
-    showModalBottomSheet(
+    AdaptivePresenter.showPanel<void>(
       context: context,
-      builder: (sheetContext) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
+      title: context.l10n.settings_changeAvatar,
+      initialChildSize: account.avatarPath == null ? 0.32 : 0.42,
+      minChildSize: 0.28,
+      maxChildSize: 0.62,
+      builder: (panelContext, scrollController) => ListView(
+        controller: scrollController,
+        shrinkWrap: true,
+        padding: const EdgeInsets.only(bottom: 24),
+        children: [
+          ListTile(
+            minTileHeight: 56,
+            leading: const Icon(Icons.photo_library),
+            title: Text(context.l10n.auth_selectFromGallery),
+            onTap: () {
+              Navigator.pop(panelContext);
+              _pickImageFromGallery(context, ref, account);
+            },
+          ),
+          if (account.avatarPath != null)
             ListTile(
-              leading: const Icon(Icons.photo_library),
-              title: Text(context.l10n.auth_selectFromGallery),
-              onTap: () {
-                Navigator.pop(sheetContext);
-                _pickImageFromGallery(context, ref, account);
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.camera_alt),
-              title: Text(context.l10n.auth_takePhoto),
-              onTap: () {
-                Navigator.pop(sheetContext);
-                _pickImageFromGallery(context, ref, account);
-              },
-            ),
-            if (account.avatarPath != null)
-              ListTile(
-                leading: Icon(Icons.delete_outline, color: Colors.red.shade400),
-                title: Text(
-                  context.l10n.auth_removeAvatar,
-                  style: TextStyle(color: Colors.red.shade400),
-                ),
-                onTap: () {
-                  Navigator.pop(sheetContext);
-                  _removeAvatar(context, ref, account);
-                },
+              minTileHeight: 56,
+              leading: Icon(Icons.delete_outline, color: Colors.red.shade400),
+              title: Text(
+                context.l10n.auth_removeAvatar,
+                style: TextStyle(color: Colors.red.shade400),
               ),
-          ],
-        ),
+              onTap: () {
+                Navigator.pop(panelContext);
+                _removeAvatar(context, ref, account);
+              },
+            ),
+        ],
       ),
     );
   }
@@ -510,8 +528,9 @@ class _Header extends StatelessWidget {
         const SizedBox(height: 20),
         Text(
           context.l10n.app_title,
-          style: theme.textTheme.headlineMedium
-              ?.copyWith(fontWeight: FontWeight.bold),
+          style: theme.textTheme.headlineMedium?.copyWith(
+            fontWeight: FontWeight.bold,
+          ),
           textAlign: TextAlign.center,
         ),
         const SizedBox(height: 8),
@@ -579,12 +598,6 @@ class _AccountSwitcherSkeleton extends StatelessWidget {
       constraints: BoxConstraints(maxWidth: isWideScreen ? 550 : 420),
       child: Card(
         elevation: 0,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-          side: BorderSide(
-            color: theme.colorScheme.outline.withValues(alpha: 0.2),
-          ),
-        ),
         child: Padding(
           padding: const EdgeInsets.all(24),
           child: isWideScreen ? _buildWideLayout() : _buildMobileLayout(),
@@ -683,12 +696,6 @@ class _QuickLoginView extends ConsumerWidget {
       constraints: BoxConstraints(maxWidth: isWideScreen ? 550 : 420),
       child: Card(
         elevation: 0,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-          side: BorderSide(
-            color: theme.colorScheme.outline.withValues(alpha: 0.2),
-          ),
-        ),
         child: Padding(
           padding: const EdgeInsets.all(24),
           child: isWideScreen
@@ -732,8 +739,10 @@ class _QuickLoginView extends ConsumerWidget {
               const SizedBox(height: 16),
               SizedBox(
                 width: double.infinity,
-                child:
-                    _QuickLoginButton(account: account, onLogin: onQuickLogin),
+                child: _QuickLoginButton(
+                  account: account,
+                  onLogin: onQuickLogin,
+                ),
               ),
               const SizedBox(height: 16),
               const ThemedDivider(),
@@ -821,8 +830,9 @@ class _AccountSelectorButton extends StatelessWidget {
             Flexible(
               child: Text(
                 account.displayName,
-                style: theme.textTheme.titleLarge
-                    ?.copyWith(fontWeight: FontWeight.bold),
+                style: theme.textTheme.titleLarge?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
                 overflow: TextOverflow.ellipsis,
               ),
             ),
@@ -843,10 +853,7 @@ class _QuickLoginButton extends ConsumerWidget {
   final SavedAccount account;
   final void Function(SavedAccount) onLogin;
 
-  const _QuickLoginButton({
-    required this.account,
-    required this.onLogin,
-  });
+  const _QuickLoginButton({required this.account, required this.onLogin});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -855,10 +862,11 @@ class _QuickLoginButton extends ConsumerWidget {
     return FilledButton.icon(
       onPressed: authState.isLoading ? null : () => onLogin(account),
       icon: authState.isLoading
-          ? const SizedBox(
+          ? SizedBox(
               height: 18,
               width: 18,
               child: CircularProgressIndicator(
+                value: MediaQuery.disableAnimationsOf(context) ? 0.75 : null,
                 strokeWidth: 2,
                 color: Colors.white,
               ),
@@ -915,15 +923,20 @@ class _AccountListItem extends StatelessWidget {
               ),
               child: Text(
                 context.l10n.common_default,
-                style:
-                    TextStyle(fontSize: 10, color: theme.colorScheme.primary),
+                style: TextStyle(
+                  fontSize: 10,
+                  color: theme.colorScheme.primary,
+                ),
               ),
             ),
           if (isSelected)
             Padding(
               padding: const EdgeInsets.only(left: 8),
-              child:
-                  Icon(Icons.check, color: theme.colorScheme.primary, size: 20),
+              child: Icon(
+                Icons.check,
+                color: theme.colorScheme.primary,
+                size: 20,
+              ),
             ),
         ],
       ),
@@ -959,6 +972,7 @@ class _LoadingOverlayState extends State<_LoadingOverlay>
     with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   late Animation<double> _fadeAnimation;
+  bool? _disableAnimations;
 
   @override
   void initState() {
@@ -967,10 +981,26 @@ class _LoadingOverlayState extends State<_LoadingOverlay>
       vsync: this,
       duration: const Duration(milliseconds: 200),
     );
-    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeOut),
-    );
-    _controller.forward();
+    _fadeAnimation = Tween<double>(
+      begin: 0.0,
+      end: 1.0,
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOut));
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final disableAnimations = MediaQuery.disableAnimationsOf(context);
+    if (_disableAnimations == disableAnimations) return;
+
+    _disableAnimations = disableAnimations;
+    if (disableAnimations) {
+      _controller
+        ..stop()
+        ..value = 1;
+    } else if (_controller.value == 0) {
+      _controller.forward();
+    }
   }
 
   @override
@@ -1000,16 +1030,22 @@ class _LoadingOverlayState extends State<_LoadingOverlay>
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const SizedBox(
+                    SizedBox(
                       width: 40,
                       height: 40,
-                      child: CircularProgressIndicator(strokeWidth: 3),
+                      child: CircularProgressIndicator(
+                        value: MediaQuery.disableAnimationsOf(context)
+                            ? 0.75
+                            : null,
+                        strokeWidth: 3,
+                      ),
                     ),
                     const SizedBox(height: 16),
                     Text(
                       context.l10n.auth_loggingIn,
-                      style: theme.textTheme.titleMedium
-                          ?.copyWith(fontWeight: FontWeight.w500),
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w500,
+                      ),
                     ),
                     const SizedBox(height: 8),
                     Text(
@@ -1051,6 +1087,7 @@ class _ShimmerBoxState extends State<_ShimmerBox>
     with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   late Animation<double> _animation;
+  bool? _disableAnimations;
 
   @override
   void initState() {
@@ -1058,10 +1095,26 @@ class _ShimmerBoxState extends State<_ShimmerBox>
     _controller = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1500),
-    )..repeat();
+    );
     _animation = Tween<double>(begin: -2.0, end: 2.0).animate(
       CurvedAnimation(parent: _controller, curve: Curves.easeInOutSine),
     );
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final disableAnimations = MediaQuery.disableAnimationsOf(context);
+    if (_disableAnimations == disableAnimations) return;
+
+    _disableAnimations = disableAnimations;
+    if (disableAnimations) {
+      _controller
+        ..stop()
+        ..value = 0;
+    } else {
+      _controller.repeat();
+    }
   }
 
   @override
@@ -1072,9 +1125,11 @@ class _ShimmerBoxState extends State<_ShimmerBox>
 
   @override
   Widget build(BuildContext context) {
-    final baseColor = widget.color?.withValues(alpha: 0.3) ??
+    final baseColor =
+        widget.color?.withValues(alpha: 0.3) ??
         widget.theme.colorScheme.surfaceContainerHighest;
-    final highlightColor = widget.color?.withValues(alpha: 0.1) ??
+    final highlightColor =
+        widget.color?.withValues(alpha: 0.1) ??
         widget.theme.colorScheme.surface;
 
     return AnimatedBuilder(
@@ -1110,6 +1165,7 @@ class _ShimmerCircleAvatarState extends State<_ShimmerCircleAvatar>
     with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   late Animation<double> _animation;
+  bool? _disableAnimations;
 
   @override
   void initState() {
@@ -1117,10 +1173,26 @@ class _ShimmerCircleAvatarState extends State<_ShimmerCircleAvatar>
     _controller = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1500),
-    )..repeat();
+    );
     _animation = Tween<double>(begin: -2.0, end: 2.0).animate(
       CurvedAnimation(parent: _controller, curve: Curves.easeInOutSine),
     );
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final disableAnimations = MediaQuery.disableAnimationsOf(context);
+    if (_disableAnimations == disableAnimations) return;
+
+    _disableAnimations = disableAnimations;
+    if (disableAnimations) {
+      _controller
+        ..stop()
+        ..value = 0;
+    } else {
+      _controller.repeat();
+    }
   }
 
   @override

@@ -4,8 +4,7 @@ import '../models/prompt/weighted_tag.dart';
 
 /// 加权随机选择器
 ///
-/// 提供基于权重的随机选择算法，复刻 NovelAI 官网的随机提示词功能。
-/// 参考: docs/NAI随机提示词功能分析.md
+/// 提供可复现、无偏且能安全处理重复项和无效权重的随机选择算法。
 ///
 /// 主要功能：
 /// - 从标签列表中进行加权随机选择（支持条件过滤）
@@ -43,7 +42,7 @@ import '../models/prompt/weighted_tag.dart';
 /// final count = selector.selectInt(weights);
 /// ```
 class WeightedSelector {
-  /// 加权随机选择算法（复刻官网 ty 函数）
+  /// 基于整数累积权重的无偏随机选择算法
   ///
   /// 从标签列表中基于权重随机选择一个标签，支持条件过滤。
   /// 权重越高，被选中的概率越大。
@@ -77,34 +76,35 @@ class WeightedSelector {
 
     random ??= Random();
 
-    // 1. 过滤符合条件的标签
-    final filtered = tags.where((t) {
-      if (t.conditions == null || t.conditions!.isEmpty) return true;
-      return t.conditions!.any((c) => context?.contains(c) ?? false);
-    }).toList();
+    final mergedWeights = <String, ({String tag, int weight})>{};
+    for (final candidate in tags) {
+      final conditions = candidate.conditions;
+      final isEligible =
+          conditions == null ||
+          conditions.isEmpty ||
+          conditions.any((condition) => context?.contains(condition) ?? false);
+      if (!isEligible || candidate.weight <= 0) continue;
 
-    if (filtered.isEmpty) {
-      // 如果没有符合条件的标签，返回第一个标签
-      return tags.first.tag;
+      final key = candidate.tag.trim().toLowerCase();
+      if (key.isEmpty) continue;
+      final existing = mergedWeights[key];
+      mergedWeights[key] = (
+        tag: existing?.tag ?? candidate.tag,
+        weight: (existing?.weight ?? 0) + candidate.weight,
+      );
+    }
+    if (mergedWeights.isEmpty) {
+      throw StateError('No eligible tags with a positive weight');
     }
 
-    // 2. 计算总权重
-    final totalWeight = filtered.fold<int>(0, (sum, t) => sum + t.weight);
-
-    // 3. 生成 [1, totalWeight] 范围内的随机数
-    final target = random.nextInt(totalWeight) + 1;
-
-    // 4. 累加权重直到超过随机数
-    var cumulative = 0;
-    for (final tag in filtered) {
-      cumulative += tag.weight;
-      if (target <= cumulative) {
-        return tag.tag;
-      }
+    final candidates = mergedWeights.values.toList(growable: false);
+    final totalWeight = candidates.fold<int>(0, (sum, tag) => sum + tag.weight);
+    var target = random.nextInt(totalWeight);
+    for (final candidate in candidates) {
+      if (target < candidate.weight) return candidate.tag;
+      target -= candidate.weight;
     }
-
-    // 不应该到达这里，但作为防御性编程
-    return filtered.last.tag;
+    throw StateError('Weighted selection exhausted unexpectedly');
   }
 
   /// 从整数权重列表中选择（用于角色数量等）
@@ -138,18 +138,19 @@ class WeightedSelector {
 
     random ??= Random();
 
-    final totalWeight = weights.fold<int>(0, (sum, w) => sum + w[1]);
-    final target = random.nextInt(totalWeight) + 1;
-
-    var cumulative = 0;
-    for (final w in weights) {
-      cumulative += w[1];
-      if (target <= cumulative) {
-        return w[0];
-      }
+    final eligible = weights
+        .where((entry) => entry.length >= 2 && entry[1] > 0)
+        .toList(growable: false);
+    if (eligible.isEmpty) {
+      throw StateError('No integer choices with a positive weight');
     }
-
-    return weights.last[0];
+    final totalWeight = eligible.fold<int>(0, (sum, entry) => sum + entry[1]);
+    var target = random.nextInt(totalWeight);
+    for (final entry in eligible) {
+      if (target < entry[1]) return entry[0];
+      target -= entry[1];
+    }
+    throw StateError('Integer weighted selection exhausted unexpectedly');
   }
 
   /// 从整数权重列表中选择动态类型（用于性别等）
@@ -181,17 +182,24 @@ class WeightedSelector {
 
     random ??= Random();
 
-    final totalWeight = weights.fold<int>(0, (sum, w) => sum + w[1] as int);
-    final target = random.nextInt(totalWeight) + 1;
-
-    var cumulative = 0;
-    for (final w in weights) {
-      cumulative += w[1] as int;
-      if (target <= cumulative) {
-        return w[0] as T;
-      }
+    final eligible = weights
+        .where((entry) {
+          return entry.length >= 2 && entry[1] is int && (entry[1] as int) > 0;
+        })
+        .toList(growable: false);
+    if (eligible.isEmpty) {
+      throw StateError('No dynamic choices with a positive weight');
     }
-
-    return weights.last[0] as T;
+    final totalWeight = eligible.fold<int>(
+      0,
+      (sum, entry) => sum + entry[1] as int,
+    );
+    var target = random.nextInt(totalWeight);
+    for (final entry in eligible) {
+      final weight = entry[1] as int;
+      if (target < weight) return entry[0] as T;
+      target -= weight;
+    }
+    throw StateError('Dynamic weighted selection exhausted unexpectedly');
   }
 }

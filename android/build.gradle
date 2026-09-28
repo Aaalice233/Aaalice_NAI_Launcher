@@ -8,6 +8,16 @@ allprojects {
 rootProject.buildDir = "../build"
 subprojects {
     project.buildDir = "${rootProject.buildDir}/${project.name}"
+
+    // Some desktop-first plugins still declare Android API 31 even though
+    // their current AndroidX dependencies require API 34+. Compiling every
+    // Android library against the app's SDK keeps the plugin graph coherent;
+    // this does not change any plugin's minSdk or runtime behavior.
+    project.plugins.withId("com.android.library") {
+        project.androidComponents.finalizeDsl { androidExtension ->
+            androidExtension.compileSdk = 36
+        }
+    }
 }
 subprojects {
     project.evaluationDependsOn(":app")

@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import '../../../../widgets/common/model_family_icon.dart';
+import 'package:nai_launcher/core/utils/localization_extension.dart';
 
 /// Model ranking item data
 class ModelRankItem {
@@ -32,9 +34,7 @@ class ModelRankingList extends StatelessWidget {
   Widget build(BuildContext context) {
     final displayItems = items.take(maxItems).toList();
     if (displayItems.isEmpty) {
-      return const Center(
-        child: Text('No model data available'),
-      );
+      return Center(child: Text(context.l10n.statistics_noData));
     }
 
     return Column(
@@ -56,11 +56,7 @@ class _ModelRankRow extends StatelessWidget {
   final ModelRankItem item;
   final VoidCallback? onTap;
 
-  const _ModelRankRow({
-    required this.rank,
-    required this.item,
-    this.onTap,
-  });
+  const _ModelRankRow({required this.rank, required this.item, this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -87,9 +83,6 @@ class _ModelRankRow extends StatelessWidget {
           decoration: BoxDecoration(
             color: colorScheme.surfaceContainerLow.withValues(alpha: 0.5),
             borderRadius: BorderRadius.circular(6),
-            border: Border.all(
-              color: colorScheme.outlineVariant.withValues(alpha: 0.2),
-            ),
           ),
           child: Row(
             children: [
@@ -117,13 +110,12 @@ class _ModelRankRow extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      item.name,
+                    ModelNameLabel(
+                      modelId: item.name,
                       style: theme.textTheme.bodyMedium?.copyWith(
                         fontWeight: FontWeight.w600,
                       ),
                       maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
                     ),
                     const SizedBox(height: 6),
                     // Progress bar
@@ -189,14 +181,14 @@ class _TrendBadge extends StatelessWidget {
     final color = isPositive
         ? Colors.green
         : isNegative
-            ? Colors.red
-            : Colors.grey;
+        ? Colors.red
+        : Colors.grey;
 
     final icon = isPositive
         ? Icons.arrow_upward
         : isNegative
-            ? Icons.arrow_downward
-            : Icons.remove;
+        ? Icons.arrow_downward
+        : Icons.remove;
 
     return Row(
       mainAxisSize: MainAxisSize.min,

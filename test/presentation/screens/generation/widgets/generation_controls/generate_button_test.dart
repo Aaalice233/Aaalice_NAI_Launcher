@@ -5,6 +5,7 @@ import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/providers/cost_estimate_provider.dart';
 import 'package:nai_launcher/presentation/providers/image_generation_provider.dart';
 import 'package:nai_launcher/presentation/screens/generation/widgets/generation_controls/generate_button.dart';
+import 'package:nai_launcher/presentation/widgets/common/anlas_cost_badge.dart';
 
 void main() {
   late AppLocalizations l10n;
@@ -17,10 +18,12 @@ void main() {
     WidgetTester tester, {
     required bool isGenerating,
     required bool showCancel,
+    int cooldownRemainingSeconds = 0,
     ImageGenerationState generationState = const ImageGenerationState(),
     VoidCallback? onGenerate,
     VoidCallback? onCancel,
     VoidCallback? onSkipCurrent,
+    bool showCost = true,
   }) async {
     await tester.pumpWidget(
       ProviderScope(
@@ -38,9 +41,11 @@ void main() {
                 isGenerating: isGenerating,
                 showCancel: showCancel,
                 generationState: generationState,
+                cooldownRemainingSeconds: cooldownRemainingSeconds,
                 onGenerate: onGenerate ?? () {},
                 onCancel: onCancel ?? () {},
                 onSkipCurrent: onSkipCurrent ?? () {},
+                showCost: showCost,
               ),
             ),
           ),
@@ -49,8 +54,9 @@ void main() {
     );
   }
 
-  testWidgets('idle: shows generate label and triggers onGenerate on tap',
-      (tester) async {
+  testWidgets('idle: shows generate label and triggers onGenerate on tap', (
+    tester,
+  ) async {
     var generateCalled = false;
     var cancelCalled = false;
     await pumpButton(
@@ -70,8 +76,9 @@ void main() {
     expect(cancelCalled, isFalse);
   });
 
-  testWidgets('generating: shows stop-all label and triggers onCancel on tap',
-      (tester) async {
+  testWidgets('generating: keeps filled style and triggers onCancel on tap', (
+    tester,
+  ) async {
     var generateCalled = false;
     var cancelCalled = false;
     await pumpButton(
@@ -82,73 +89,115 @@ void main() {
       onCancel: () => cancelCalled = true,
     );
 
-    expect(find.text(l10n.generation_stopAllGeneration), findsOneWidget);
+    expect(find.text(l10n.common_cancel), findsOneWidget);
     expect(find.byIcon(Icons.stop_circle_outlined), findsOneWidget);
+    expect(find.byType(FilledButton), findsOneWidget);
+    expect(find.byType(OutlinedButton), findsNothing);
 
-    await tester.tap(find.byType(OutlinedButton));
+    await tester.tap(find.byType(FilledButton));
     expect(cancelCalled, isTrue);
     expect(generateCalled, isFalse);
   });
 
-  testWidgets('generating multiple images: shows skip-current progress and stop-all',
-      (tester) async {
-    await pumpButton(
-      tester,
-      isGenerating: true,
-      showCancel: true,
-      generationState: const ImageGenerationState(
-        currentImage: 2,
-        totalImages: 4,
-      ),
-    );
+  testWidgets('idle and cancel states keep the same button size', (
+    tester,
+  ) async {
+    await pumpButton(tester, isGenerating: false, showCancel: false);
+    final idleSize = tester.getSize(find.byType(FilledButton));
 
-    expect(find.text('${l10n.generation_skipCurrentBatch} 2/4'), findsOneWidget);
-    expect(find.text(l10n.generation_stopAllGeneration), findsOneWidget);
-    expect(find.byIcon(Icons.skip_next), findsOneWidget);
-    expect(find.byIcon(Icons.stop_circle_outlined), findsOneWidget);
+    await pumpButton(tester, isGenerating: true, showCancel: true);
+    await tester.pumpAndSettle();
+    final cancelSize = tester.getSize(find.byType(FilledButton));
+
+    expect(cancelSize, idleSize);
   });
 
-  testWidgets('generating multiple images: skip button triggers onSkipCurrent',
-      (tester) async {
-    var skipCalled = false;
-    var cancelCalled = false;
+  testWidgets('cooldown: shows countdown and disables generation', (
+    tester,
+  ) async {
+    var generateCalled = false;
     await pumpButton(
       tester,
-      isGenerating: true,
-      showCancel: true,
-      generationState: const ImageGenerationState(
-        currentImage: 2,
-        totalImages: 4,
-      ),
-      onSkipCurrent: () => skipCalled = true,
-      onCancel: () => cancelCalled = true,
-    );
-
-    await tester.tap(
-      find.widgetWithText(
-        OutlinedButton,
-        '${l10n.generation_skipCurrentBatch} 2/4',
-      ),
-    );
-
-    expect(skipCalled, isTrue);
-    expect(cancelCalled, isFalse);
-  });
-
-  testWidgets('generating without cancel (bridge busy): keeps generating label',
-      (tester) async {
-    await pumpButton(
-      tester,
-      isGenerating: true,
+      isGenerating: false,
       showCancel: false,
+      cooldownRemainingSeconds: 8,
+      onGenerate: () => generateCalled = true,
     );
 
-    expect(find.text(l10n.generation_generating), findsOneWidget);
-    expect(find.byIcon(Icons.stop_circle_outlined), findsNothing);
+    expect(find.text(l10n.generation_cooldownRemaining(8)), findsOneWidget);
+    expect(find.byIcon(Icons.hourglass_bottom_outlined), findsOneWidget);
+
+    final button = tester.widget<FilledButton>(find.byType(FilledButton));
+    expect(button.onPressed, isNull);
+    await tester.tap(find.byType(FilledButton));
+    expect(generateCalled, isFalse);
   });
 
-  testWidgets('generating without cancel does not trigger onCancel on tap',
-      (tester) async {
+  testWidgets(
+    'generating multiple images: shows skip-current progress and cancel',
+    (tester) async {
+      await pumpButton(
+        tester,
+        isGenerating: true,
+        showCancel: true,
+        generationState: const ImageGenerationState(
+          currentImage: 2,
+          totalImages: 4,
+        ),
+      );
+
+      expect(
+        find.text('${l10n.generation_skipCurrentBatch} 2/4'),
+        findsOneWidget,
+      );
+      expect(find.text(l10n.common_cancel), findsOneWidget);
+      expect(find.byIcon(Icons.skip_next), findsOneWidget);
+      expect(find.byIcon(Icons.stop_circle_outlined), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'generating multiple images: skip button triggers onSkipCurrent',
+    (tester) async {
+      var skipCalled = false;
+      var cancelCalled = false;
+      await pumpButton(
+        tester,
+        isGenerating: true,
+        showCancel: true,
+        generationState: const ImageGenerationState(
+          currentImage: 2,
+          totalImages: 4,
+        ),
+        onSkipCurrent: () => skipCalled = true,
+        onCancel: () => cancelCalled = true,
+      );
+
+      await tester.tap(
+        find.widgetWithText(
+          OutlinedButton,
+          '${l10n.generation_skipCurrentBatch} 2/4',
+        ),
+      );
+
+      expect(skipCalled, isTrue);
+      expect(cancelCalled, isFalse);
+    },
+  );
+
+  testWidgets(
+    'generating without cancel (bridge busy): keeps generating label',
+    (tester) async {
+      await pumpButton(tester, isGenerating: true, showCancel: false);
+
+      expect(find.text(l10n.generation_generating), findsOneWidget);
+      expect(find.byIcon(Icons.stop_circle_outlined), findsNothing);
+    },
+  );
+
+  testWidgets('generating without cancel does not trigger onCancel on tap', (
+    tester,
+  ) async {
     var generateCalled = false;
     var cancelCalled = false;
     await pumpButton(
@@ -163,5 +212,18 @@ void main() {
 
     expect(generateCalled, isFalse);
     expect(cancelCalled, isFalse);
+  });
+
+  testWidgets('upscale mode owner can hide the regular generate cost badge', (
+    tester,
+  ) async {
+    await pumpButton(
+      tester,
+      isGenerating: false,
+      showCancel: false,
+      showCost: false,
+    );
+
+    expect(find.byType(AnlasCostBadge), findsNothing);
   });
 }

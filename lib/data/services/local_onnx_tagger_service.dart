@@ -10,14 +10,16 @@ import 'package:csv/csv.dart';
 import 'package:ffi/ffi.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image/image.dart' as img;
-import 'package:onnxruntime/onnxruntime.dart';
+import 'package:onnxruntime_v2/onnxruntime_v2.dart';
 import 'package:path/path.dart' as p;
 // ignore: implementation_imports
-import 'package:onnxruntime/src/bindings/onnxruntime_bindings_generated.dart'
+import 'package:onnxruntime_v2/src/bindings/onnxruntime_bindings_generated.dart'
     as bg;
 
+import '../../core/platform/platform_capabilities.dart';
 import '../../core/utils/isolate_pool.dart';
 import 'local_onnx_model_service.dart';
+import 'local_onnx_tagger_preprocessor.dart';
 
 final localOnnxTaggerServiceProvider = Provider<LocalOnnxTaggerService>((ref) {
   return const LocalOnnxTaggerService();
@@ -78,39 +80,11 @@ class OnnxTaggerResult {
   String get prompt => tags.map((tag) => tag.name).join(', ');
 }
 
-class _OnnxImageInput {
-  const _OnnxImageInput({required this.data, required this.shape});
-
-  final Float32List data;
-  final List<int> shape;
-}
-
 enum OnnxSessionLoadMode { externalDataFile, patchedSingleFile }
-
-class OnnxLetterboxLayout {
-  const OnnxLetterboxLayout({
-    required this.canvasWidth,
-    required this.canvasHeight,
-    required this.resizedWidth,
-    required this.resizedHeight,
-    required this.offsetX,
-    required this.offsetY,
-  });
-
-  final int canvasWidth;
-  final int canvasHeight;
-  final int resizedWidth;
-  final int resizedHeight;
-  final int offsetX;
-  final int offsetY;
-
-  int get canvasPixels => canvasWidth * canvasHeight;
-}
 
 class LocalOnnxTaggerService {
   const LocalOnnxTaggerService();
 
-  static const int defaultInputSize = 448;
   static const int _opsetPatchTailBytes = 4096;
 
   static OnnxLetterboxLayout debugLetterboxLayoutForTesting({
@@ -118,7 +92,7 @@ class LocalOnnxTaggerService {
     required int sourceHeight,
     required int inputSize,
   }) {
-    return _computeLetterboxLayout(
+    return LocalOnnxTaggerPreprocessor.computeLetterboxLayout(
       sourceWidth: sourceWidth,
       sourceHeight: sourceHeight,
       inputSize: inputSize,
@@ -129,6 +103,27 @@ class LocalOnnxTaggerService {
     LocalOnnxModelDescriptor model,
   ) {
     return _resolveSessionLoadMode(model);
+  }
+
+  /// 单次推理允许使用的 intra-op 线程数。
+  ///
+  /// 【偏离上游】上游无条件 `setIntraOpNumThreads(1)`。桌面端单线程够用，
+  /// 但手机 CPU 单核性能远低于桌面，写死 1 会让本地反推耗时翻倍。
+  /// 移动端放开到 `min(4, CPU 核数)`：既吃满大核，又不至于在小核上抢占调度
+  /// （推理本身已在独立 isolate 里串行跑，见 [tagImage] 的 ComputeGate）。
+  static int resolveIntraOpThreadCount(
+    PlatformCapabilities capabilities, {
+    int? processorCount,
+  }) {
+    if (!capabilities.isMobile) {
+      return 1;
+    }
+    final cores = processorCount ?? Platform.numberOfProcessors;
+    return math.max(1, math.min(4, cores));
+  }
+
+  Future<String> debugEnsurePatchedModelPathForTesting(String modelPath) {
+    return _ensurePatchedSingleFileModelPath(modelPath);
   }
 
   Future<OnnxTaggerResult> tagImage({
@@ -175,11 +170,14 @@ class LocalOnnxTaggerService {
       throw StateError('无法解码图片');
     }
 
-    final inputSize = _resolveInputSize(model);
-    final input = _preprocessImage(decoded, inputSize, model);
+    final input = LocalOnnxTaggerPreprocessor.preprocess(decoded, model);
+    // 这里跑在 `ComputeGate` 派生出来的独立 isolate 里，`debugDefaultTargetPlatform`
+    // 那套 override 不会跨 isolate 传播，所以用纯 dart:io 的 `operatingSystem`。
     final options = OrtSessionOptions()
       ..setInterOpNumThreads(1)
-      ..setIntraOpNumThreads(1)
+      ..setIntraOpNumThreads(
+        resolveIntraOpThreadCount(PlatformCapabilities.operatingSystem),
+      )
       ..setSessionGraphOptimizationLevel(GraphOptimizationLevel.ortEnableAll);
     final runOptions = OrtRunOptions();
     final inputOrt = OrtValueTensor.createTensorWithDataList(
@@ -196,7 +194,7 @@ class LocalOnnxTaggerService {
       final inputs = {inputName: inputOrt};
       outputs = session.run(runOptions, inputs, outputNames);
       final scores = outputs.isNotEmpty
-          ? _normalizeScores(_flattenScores(outputs.first?.value))
+          ? _normalizeScores(_flattenScores(outputs.first?.value), model)
           : <double>[];
       return OnnxTaggerResult(
         model: model,
@@ -214,7 +212,7 @@ class LocalOnnxTaggerService {
       }
       inputOrt.release();
       runOptions.release();
-      session?.release();
+      if (session != null) await session.release();
       options.release();
     }
   }
@@ -344,6 +342,25 @@ class LocalOnnxTaggerService {
   Future<String> _ensurePatchedSingleFileModelPath(String modelPath) async {
     final source = File(modelPath);
     final stat = await source.stat();
+
+    // 【偏离上游】上游读到这里就无条件走「整份复制到临时目录再改尾部 4KB」。
+    // 绝大多数模型的 opset 本来就在支持范围内，补丁是 no-op，等于每次反推都把
+    // 一个 GB 级文件原样复制一遍——手机磁盘和寿命都吃不消。
+    // 因此先只读尾部 4KB 试补，结果与原字节一致时直接加载原文件。
+    final tailStart = math.max(0, stat.size - _opsetPatchTailBytes);
+    final tailBuilder = BytesBuilder(copy: false);
+    await for (final chunk in source.openRead(tailStart)) {
+      tailBuilder.add(chunk);
+    }
+    final originalTail = tailBuilder.takeBytes();
+    // `_patchUnsupportedOpsetImports` 是原地改写，必须先留一份原始副本再比对。
+    final patchedTail = _patchUnsupportedOpsetImports(
+      Uint8List.fromList(originalTail),
+    );
+    if (_bytesEqual(originalTail, patchedTail)) {
+      return modelPath;
+    }
+
     final cacheDirectory = Directory(
       p.join(Directory.systemTemp.path, 'nai_launcher_onnx_cache'),
     );
@@ -364,7 +381,12 @@ class LocalOnnxTaggerService {
       '${target.path}.${DateTime.now().microsecondsSinceEpoch}.partial',
     );
     try {
-      await _copyPatchedSingleFileModel(source, partial);
+      await _copyPatchedSingleFileModel(
+        source,
+        partial,
+        tailStart: tailStart,
+        patchedTail: patchedTail,
+      );
       if (await target.exists()) {
         await target.delete();
       }
@@ -391,14 +413,14 @@ class LocalOnnxTaggerService {
     return digest.toString().substring(0, 16);
   }
 
-  Future<void> _copyPatchedSingleFileModel(File source, File target) async {
-    final length = await source.length();
-    final tailStart = math.max(0, length - _opsetPatchTailBytes);
-    final tail = BytesBuilder(copy: false);
-    await for (final chunk in source.openRead(tailStart)) {
-      tail.add(chunk);
-    }
-    final patchedTail = _patchUnsupportedOpsetImports(tail.takeBytes());
+  /// 【偏离上游】上游在这里自己读尾部并做补丁。补丁结果改由调用方先算出来
+  /// （才能在 no-op 时整段跳过复制），所以尾部偏移与补丁后的字节作为参数传入。
+  Future<void> _copyPatchedSingleFileModel(
+    File source,
+    File target, {
+    required int tailStart,
+    required Uint8List patchedTail,
+  }) async {
     final sink = target.openWrite();
     try {
       await for (final chunk in source.openRead(0, tailStart)) {
@@ -408,6 +430,18 @@ class LocalOnnxTaggerService {
     } finally {
       await sink.close();
     }
+  }
+
+  bool _bytesEqual(Uint8List a, Uint8List b) {
+    if (a.length != b.length) {
+      return false;
+    }
+    for (var i = 0; i < a.length; i++) {
+      if (a[i] != b[i]) {
+        return false;
+      }
+    }
+    return true;
   }
 
   static OnnxSessionLoadMode _resolveSessionLoadMode(
@@ -420,7 +454,8 @@ class LocalOnnxTaggerService {
   }
 
   String _resolveInputName(OrtSession session, LocalOnnxModelDescriptor model) {
-    if (_isClTaggerV2(model) && session.inputNames.contains('pixel_values')) {
+    if (model.kind == LocalOnnxModelKind.clTaggerV2 &&
+        session.inputNames.contains('pixel_values')) {
       return 'pixel_values';
     }
     return session.inputNames.isNotEmpty ? session.inputNames.first : 'input';
@@ -430,136 +465,11 @@ class LocalOnnxTaggerService {
     OrtSession session,
     LocalOnnxModelDescriptor model,
   ) {
-    if (_isClTaggerV2(model) && session.outputNames.contains('logits')) {
+    if (model.kind == LocalOnnxModelKind.clTaggerV2 &&
+        session.outputNames.contains('logits')) {
       return const ['logits'];
     }
     return null;
-  }
-
-  int _resolveInputSize(LocalOnnxModelDescriptor model) {
-    final lower = model.name.toLowerCase();
-    if (_isClTaggerV2(model)) {
-      return 384;
-    }
-    if (_isClTagger(model)) {
-      return 448;
-    }
-    final match = RegExp(
-      r'(?:^|[^0-9])(224|256|384|448|512)(?:[^0-9]|$)',
-    ).firstMatch(lower);
-    if (match != null) {
-      return int.parse(match.group(1)!);
-    }
-    return defaultInputSize;
-  }
-
-  bool _isClTaggerV2(LocalOnnxModelDescriptor model) {
-    final lowerName = model.name.toLowerCase();
-    final lowerPath = model.path.toLowerCase();
-    final lowerLabels = model.labelsPath?.toLowerCase() ?? '';
-    return lowerName.contains('cl_tagger_v2') ||
-        lowerName.contains('cl-tagger-v2') ||
-        lowerPath.contains('cl_tagger_v2') ||
-        lowerPath.contains('cl-tagger-v2') ||
-        lowerLabels.endsWith('model_vocabulary.json');
-  }
-
-  bool _isClTagger(LocalOnnxModelDescriptor model) {
-    final lowerName = model.name.toLowerCase();
-    return model.kind == LocalOnnxModelKind.clTagger ||
-        lowerName.contains('cl_tagger');
-  }
-
-  _OnnxImageInput _preprocessImage(
-    img.Image source,
-    int inputSize,
-    LocalOnnxModelDescriptor model,
-  ) {
-    final layout = _computeLetterboxLayout(
-      sourceWidth: source.width,
-      sourceHeight: source.height,
-      inputSize: inputSize,
-    );
-    final resizedSource = img.copyResize(
-      source,
-      width: layout.resizedWidth,
-      height: layout.resizedHeight,
-      interpolation: img.Interpolation.cubic,
-    );
-    final resized = img.Image(
-      width: layout.canvasWidth,
-      height: layout.canvasHeight,
-    );
-    img.fill(resized, color: img.ColorRgb8(255, 255, 255));
-    img.compositeImage(
-      resized,
-      resizedSource,
-      dstX: layout.offsetX,
-      dstY: layout.offsetY,
-    );
-
-    final data = Float32List(inputSize * inputSize * 3);
-    if (_isClTaggerV2(model)) {
-      final planeSize = inputSize * inputSize;
-      var rOffset = 0;
-      var gOffset = planeSize;
-      var bOffset = planeSize * 2;
-      for (var y = 0; y < inputSize; y++) {
-        for (var x = 0; x < inputSize; x++) {
-          final pixel = resized.getPixel(x, y);
-          data[rOffset++] = pixel.r.toDouble() / 127.5 - 1.0;
-          data[gOffset++] = pixel.g.toDouble() / 127.5 - 1.0;
-          data[bOffset++] = pixel.b.toDouble() / 127.5 - 1.0;
-        }
-      }
-      return _OnnxImageInput(data: data, shape: [1, 3, inputSize, inputSize]);
-    }
-
-    if (_isClTagger(model)) {
-      final planeSize = inputSize * inputSize;
-      var bOffset = 0;
-      var gOffset = planeSize;
-      var rOffset = planeSize * 2;
-      for (var y = 0; y < inputSize; y++) {
-        for (var x = 0; x < inputSize; x++) {
-          final pixel = resized.getPixel(x, y);
-          data[bOffset++] = pixel.b.toDouble() / 255.0;
-          data[gOffset++] = pixel.g.toDouble() / 255.0;
-          data[rOffset++] = pixel.r.toDouble() / 255.0;
-        }
-      }
-      return _OnnxImageInput(data: data, shape: [1, 3, inputSize, inputSize]);
-    }
-
-    var offset = 0;
-    for (var y = 0; y < inputSize; y++) {
-      for (var x = 0; x < inputSize; x++) {
-        final pixel = resized.getPixel(x, y);
-        data[offset++] = pixel.b.toDouble();
-        data[offset++] = pixel.g.toDouble();
-        data[offset++] = pixel.r.toDouble();
-      }
-    }
-    return _OnnxImageInput(data: data, shape: [1, inputSize, inputSize, 3]);
-  }
-
-  static OnnxLetterboxLayout _computeLetterboxLayout({
-    required int sourceWidth,
-    required int sourceHeight,
-    required int inputSize,
-  }) {
-    final longestSide = math.max(1, math.max(sourceWidth, sourceHeight));
-    final scale = inputSize / longestSide;
-    final resizedWidth = math.max(1, (sourceWidth * scale).round());
-    final resizedHeight = math.max(1, (sourceHeight * scale).round());
-    return OnnxLetterboxLayout(
-      canvasWidth: inputSize,
-      canvasHeight: inputSize,
-      resizedWidth: math.min(inputSize, resizedWidth),
-      resizedHeight: math.min(inputSize, resizedHeight),
-      offsetX: (inputSize - resizedWidth) ~/ 2,
-      offsetY: (inputSize - resizedHeight) ~/ 2,
-    );
   }
 
   List<double> _flattenScores(Object? value) {
@@ -581,11 +491,13 @@ class LocalOnnxTaggerService {
     return scores;
   }
 
-  List<double> _normalizeScores(List<double> scores) {
-    if (scores.any((score) => score < 0 || score > 1)) {
-      return scores.map((score) => 1 / (1 + math.exp(-score))).toList();
-    }
-    return scores;
+  List<double> _normalizeScores(
+    List<double> scores,
+    LocalOnnxModelDescriptor model,
+  ) {
+    return LocalOnnxTaggerPreprocessor.profileFor(
+      model,
+    ).normalizeScores(scores);
   }
 
   Uint8List _patchUnsupportedOpsetImports(Uint8List bytes) {

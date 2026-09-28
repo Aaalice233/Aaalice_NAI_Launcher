@@ -1,23 +1,36 @@
+import '../../../widgets/common/image_card_inline_actions.dart';
 import 'dart:async';
 import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:super_drag_and_drop/super_drag_and_drop.dart';
 
+import '../../../widgets/common/image_viewport_surface.dart';
 import '../../../../../core/enums/precise_ref_type.dart';
 import '../../../../../core/extensions/precise_ref_type_extensions.dart';
+import '../../../../core/platform/platform_capabilities.dart';
 import '../../../../core/utils/localization_extension.dart';
 import '../../../../data/models/image/image_params.dart';
+import '../../../../data/services/precise_ref_library_storage_service.dart';
+import '../../../providers/generation/generation_panel_expansion_provider.dart';
 import '../../../providers/image_generation_provider.dart';
-import '../../../utils/dropped_file_reader.dart';
+import '../../../providers/precise_ref_library_provider.dart';
+import '../../../utils/card_drop_reader.dart';
+import '../../../utils/clipboard_image.dart';
+import '../../../widgets/common/image_card_action.dart';
+import '../../../utils/precise_ref_library_import_helper.dart';
 import '../../../widgets/common/app_toast.dart';
+import '../../../widgets/common/editable_double_field.dart';
 import '../../../widgets/common/hover_image_preview.dart';
+import '../../../widgets/common/precise_reference_type_dialog.dart';
 import '../../../widgets/common/themed_divider.dart';
 import '../../../widgets/common/collapsible_image_panel.dart';
 import '../../../widgets/common/decoded_memory_image.dart';
+import '../../precise_ref_library/widgets/precise_ref_selector_dialog.dart';
 
 const double _disabledPreciseReferenceCardOpacity = 0.48;
 
@@ -38,7 +51,8 @@ class PreciseReferencePanel extends ConsumerStatefulWidget {
 }
 
 class _PreciseReferencePanelState extends ConsumerState<PreciseReferencePanel> {
-  bool _isExpanded = false;
+  static const _panel = GenerationWorkbenchPanel.preciseReference;
+
   bool _isFileDraggingOver = false;
   bool _isProcessingDroppedFiles = false;
 
@@ -50,23 +64,32 @@ class _PreciseReferencePanelState extends ConsumerState<PreciseReferencePanel> {
         (params) => params.preciseReferences,
       ),
     );
+    final isExpanded = ref.watch(
+      generationPanelExpansionProvider.select(
+        (value) => value.isExpanded(_panel),
+      ),
+    );
     final hasReferences = references.isNotEmpty;
     final activeReferenceCount = references
         .where((reference) => reference.enabled)
         .length;
     final hasActiveReferences = activeReferenceCount > 0;
-    final isV4Model = ref.watch(
-      generationParamsNotifierProvider.select((params) => params.isV4Model),
+    final supportsPreciseReference = ref.watch(
+      generationParamsNotifierProvider.select(
+        (params) => params.capabilities.supportsPreciseReference,
+      ),
     );
 
     // 判断是否显示背景（折叠且有数据时显示）
-    final showBackground = hasReferences && !_isExpanded;
+    final showBackground = hasReferences && !isExpanded;
 
     return CollapsibleImagePanel(
       title: context.l10n.preciseRef_title,
       icon: Icons.person_pin,
-      isExpanded: _isExpanded,
-      onToggle: () => setState(() => _isExpanded = !_isExpanded),
+      isExpanded: isExpanded,
+      onToggle: () => unawaited(
+        ref.read(generationPanelExpansionProvider.notifier).toggle(_panel),
+      ),
       hasData: hasReferences,
       backgroundImage: showBackground
           ? (references.length == 1
@@ -116,12 +139,6 @@ class _PreciseReferencePanelState extends ConsumerState<PreciseReferencePanel> {
                       ? Colors.orange.withValues(alpha: 0.9)
                       : Colors.orange.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(4),
-                  border: Border.all(
-                    color: showBackground
-                        ? Colors.orange.shade300
-                        : Colors.orange.shade400,
-                    width: 1,
-                  ),
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
@@ -149,7 +166,7 @@ class _PreciseReferencePanelState extends ConsumerState<PreciseReferencePanel> {
               ),
             )
           : null,
-      child: Padding(
+      childBuilder: (context) => Padding(
         padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -157,7 +174,7 @@ class _PreciseReferencePanelState extends ConsumerState<PreciseReferencePanel> {
             const ThemedDivider(),
 
             // 非 V4 模型提示
-            if (!isV4Model) ...[
+            if (!supportsPreciseReference) ...[
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
@@ -204,6 +221,8 @@ class _PreciseReferencePanelState extends ConsumerState<PreciseReferencePanel> {
                   index: index,
                   reference: references[index],
                   onRemove: () => _removeReference(index),
+                  onSaveToLibrary: () =>
+                      _saveSingleReferenceToLibrary(references[index]),
                   onEnabledChanged: (value) =>
                       _updateReferenceEnabled(index, value),
                   onTypeChanged: (type) => _updateReferenceType(index, type),
@@ -217,20 +236,42 @@ class _PreciseReferencePanelState extends ConsumerState<PreciseReferencePanel> {
             ],
 
             // 添加按钮
-            _buildAddReferenceDropTarget(
-              isV4Model: isV4Model,
-              child: OutlinedButton.icon(
-                onPressed: isV4Model ? _addReference : null,
-                icon: Icon(
-                  _isFileDraggingOver ? Icons.file_download_rounded : Icons.add,
-                  size: 18,
+            _buildAddReferenceRow(supportsPreciseReference),
+
+            // 库操作：从库导入 / 保存到库
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Expanded(
+                  child: TextButton.icon(
+                    key: const Key('precise-ref-panel-from-library'),
+                    onPressed: supportsPreciseReference
+                        ? _importFromLibrary
+                        : null,
+                    icon: const Icon(Icons.photo_library_outlined, size: 16),
+                    label: Text(
+                      context.l10n.preciseRefLib_fromLibrary,
+                      style: const TextStyle(fontSize: 12),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
                 ),
-                label: Text(
-                  _isFileDraggingOver
-                      ? context.l10n.preciseRef_dropToAdd
-                      : context.l10n.preciseRef_addReference,
+                const SizedBox(width: 8),
+                Expanded(
+                  child: TextButton.icon(
+                    key: const Key('precise-ref-panel-save-to-library'),
+                    onPressed: hasReferences ? _saveReferencesToLibrary : null,
+                    icon: const Icon(Icons.bookmark_add_outlined, size: 16),
+                    label: Text(
+                      context.l10n.preciseRefLib_saveCurrentToLibrary,
+                      style: const TextStyle(fontSize: 12),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
                 ),
-              ),
+              ],
             ),
 
             // 清除全部按钮
@@ -251,22 +292,104 @@ class _PreciseReferencePanelState extends ConsumerState<PreciseReferencePanel> {
     );
   }
 
+  /// 「添加参考」按钮区域。
+  ///
+  /// 偏离上游：上游只有一个「添加参考」按钮（外面套 DropRegion），因为桌面端
+  /// 还能把图直接拖进来。没有 OS 级文件拖入的平台在它旁边补一个剪贴板入口，
+  /// 否则「从别处复制一张图」在这里无处落地。
+  ///
+  /// 注意 DropRegion 在两条分支里都保留：上游的它同时接收应用内卡片拖拽
+  /// （cardDropFormats + CardDropPolicy），触屏上长按拖卡片是可用的，整段摘掉
+  /// 会连带丢掉这个能力——这与我们上一轮在 v1.8.1 上的做法不同，当时上游还没有
+  /// 卡片内拖。
+  Widget _buildAddReferenceRow(bool supportsPreciseReference) {
+    final addButton = _buildAddReferenceDropTarget(
+      supportsPreciseReference: supportsPreciseReference,
+      child: FilledButton.tonalIcon(
+        onPressed: supportsPreciseReference ? _addReference : null,
+        icon: Icon(
+          _isFileDraggingOver ? Icons.file_download_rounded : Icons.add,
+          size: 18,
+        ),
+        label: Text(
+          _isFileDraggingOver
+              ? context.l10n.preciseRef_dropToAdd
+              : context.l10n.preciseRef_addReference,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
+      ),
+    );
+    if (PlatformCapabilities.current.supportsExternalFileDrop) {
+      return addButton;
+    }
+    return Row(
+      children: [
+        Expanded(child: addButton),
+        const SizedBox(width: 8),
+        Expanded(
+          child: FilledButton.tonalIcon(
+            key: const Key('precise-ref-panel-paste-from-clipboard'),
+            onPressed: supportsPreciseReference
+                ? _pasteReferenceFromClipboard
+                : null,
+            icon: const Icon(Icons.content_paste_go, size: 18),
+            label: Text(
+              context.l10n.generation_pasteImageFromClipboard,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// 从系统剪贴板取图作为精准参考。
+  ///
+  /// 取到字节后复用上游的 [_applyDroppedReferences]，类型选择、批量结果与
+  /// toast 全部与拖入一致，不另起一套。
+  Future<void> _pasteReferenceFromClipboard() async {
+    if (_isProcessingDroppedFiles) return;
+    final Uint8List? bytes;
+    try {
+      bytes = await readImageBytesFromClipboard();
+    } catch (error) {
+      if (mounted) {
+        AppToast.error(context, context.l10n.img2img_selectFailed('$error'));
+      }
+      return;
+    }
+    if (!mounted) return;
+    if (bytes == null || bytes.isEmpty) {
+      AppToast.info(context, context.l10n.generation_clipboardNoImage);
+      return;
+    }
+    setState(() => _isProcessingDroppedFiles = true);
+    await _applyDroppedReferences([
+      CardDroppedResource(
+        file: DroppedFileData(fileName: 'clipboard.png', bytes: bytes),
+      ),
+    ]);
+  }
+
   Widget _buildAddReferenceDropTarget({
-    required bool isV4Model,
+    required bool supportsPreciseReference,
     required Widget child,
   }) {
-    if (!isV4Model) {
+    if (!supportsPreciseReference) {
       return child;
     }
 
     return DropRegion(
-      formats: Formats.standardFormats,
+      formats: cardDropFormats,
       hitTestBehavior: HitTestBehavior.opaque,
       onDropOver: (event) {
         if (_isProcessingDroppedFiles) {
           return DropOperation.none;
         }
-        if (event.session.allowedOperations.contains(DropOperation.copy)) {
+        if (event.session.allowedOperations.contains(DropOperation.copy) &&
+            const CardDropPolicy().accepts(event.session.items)) {
           if (!_isFileDraggingOver) {
             setState(() => _isFileDraggingOver = true);
           }
@@ -281,10 +404,12 @@ class _PreciseReferencePanelState extends ConsumerState<PreciseReferencePanel> {
       },
       onPerformDrop: (event) async {
         setState(() => _isFileDraggingOver = false);
-        unawaited(_handleDroppedReferences(event));
+        await _handleDroppedReferences(event);
       },
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 150),
+        duration: MediaQuery.disableAnimationsOf(context)
+            ? Duration.zero
+            : const Duration(milliseconds: 150),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(10),
           border: _isFileDraggingOver
@@ -299,9 +424,109 @@ class _PreciseReferencePanelState extends ConsumerState<PreciseReferencePanel> {
     );
   }
 
+  /// 从精准参考库导入条目（套用条目记住的类型与参数）
+  Future<void> _importFromLibrary() async {
+    final selected = await PreciseRefSelectorDialog.show(context);
+    if (selected == null || selected.isEmpty || !mounted) return;
+
+    final storage = ref.read(preciseRefLibraryStorageServiceProvider);
+    final notifier = ref.read(generationParamsNotifierProvider.notifier);
+    final libraryNotifier = ref.read(
+      preciseRefLibraryNotifierProvider.notifier,
+    );
+
+    final futures = <Future<void>>[];
+    var added = 0;
+    for (final entry in selected) {
+      final bytes = await storage.readImageBytes(entry.id);
+      if (bytes == null) continue;
+      futures.add(
+        notifier.addPreciseReferenceFromImage(
+          bytes,
+          type: entry.type,
+          strength: entry.strength,
+          fidelity: entry.fidelity,
+        ),
+      );
+      unawaited(libraryNotifier.recordUsage(entry.id));
+      added++;
+    }
+    await Future.wait(futures);
+
+    if (!mounted) return;
+    if (added > 0) {
+      AppToast.success(context, context.l10n.preciseRef_addedCount(added));
+    }
+    if (added < selected.length) {
+      AppToast.warning(context, context.l10n.preciseRefLib_imageMissing);
+    }
+  }
+
+  /// 把单张参考图（含类型与参数）保存到精准参考库
+  Future<void> _saveSingleReferenceToLibrary(PreciseReference reference) async {
+    try {
+      final entry = await ref
+          .read(preciseRefLibraryNotifierProvider.notifier)
+          .importFromBytes(
+            reference.image,
+            name: defaultPreciseRefName(),
+            type: reference.type,
+            strength: reference.strength,
+            fidelity: reference.fidelity,
+          );
+      if (!mounted) return;
+      AppToast.success(context, context.l10n.preciseRefLib_saved(entry.name));
+    } catch (e) {
+      if (!mounted) return;
+      AppToast.error(context, preciseRefImportErrorMessage(context, e));
+    }
+  }
+
+  /// 把当前参考图（含各自类型与参数）保存到精准参考库
+  Future<void> _saveReferencesToLibrary() async {
+    final references = ref
+        .read(generationParamsNotifierProvider)
+        .preciseReferences;
+    if (references.isEmpty) return;
+
+    final PreciseRefLibraryBatchImportResult batch;
+    try {
+      batch = await ref
+          .read(preciseRefLibraryNotifierProvider.notifier)
+          .importMany([
+            for (final reference in references)
+              PreciseRefLibraryImportSource(
+                loadBytes: () async => reference.image,
+                name: defaultPreciseRefName(),
+                type: reference.type,
+                strength: reference.strength,
+                fidelity: reference.fidelity,
+              ),
+          ]);
+    } catch (e) {
+      if (!mounted) return;
+      AppToast.error(context, preciseRefImportErrorMessage(context, e));
+      return;
+    }
+
+    if (!mounted) return;
+    if (batch.importedCount > 0) {
+      AppToast.success(
+        context,
+        context.l10n.preciseRefLib_saveCurrentCount(batch.importedCount),
+      );
+    }
+    if (batch.failedCount > 0) {
+      AppToast.error(
+        context,
+        context.l10n.preciseRefLib_importFailedCount(batch.failedCount),
+      );
+    }
+  }
+
   Future<void> _addReference() async {
     // 先选择类型
-    final selectedType = await _showTypeSelectorDialog();
+    final selectedType = await PreciseReferenceTypeDialog.show(context);
     if (selectedType == null) return; // 用户取消了类型选择
 
     try {
@@ -343,70 +568,61 @@ class _PreciseReferencePanelState extends ConsumerState<PreciseReferencePanel> {
   }
 
   Future<void> _handleDroppedReferences(PerformDropEvent event) async {
-    if (_isProcessingDroppedFiles) {
-      return;
-    }
-
+    if (_isProcessingDroppedFiles) return;
     setState(() => _isProcessingDroppedFiles = true);
     try {
-      final files = <DroppedFileData>[];
-      for (final item in event.session.items) {
-        final reader = item.dataReader;
-        if (reader == null) {
-          continue;
-        }
+      final resources = await readCardDrop(context, event.session.items);
+      // The type chooser opens only after the native read session returns.
+      unawaited(Future<void>(() => _applyDroppedReferences(resources)));
+    } catch (error) {
+      if (!mounted) return;
+      setState(() => _isProcessingDroppedFiles = false);
+      AppToast.error(context, context.l10n.img2img_selectFailed('$error'));
+    }
+  }
 
-        final file = await DroppedFileReader.read(
-          reader,
-          logTag: 'PreciseReferenceDrop',
-        );
-        if (file != null) {
-          files.add(file);
-        }
-      }
-
-      if (!mounted) {
-        return;
-      }
-
-      if (files.isEmpty) {
-        AppToast.warning(context, context.l10n.preciseRef_dropNoReadableImage);
-        return;
-      }
-
-      final selectedType = await _showTypeSelectorDialog();
-      if (selectedType == null || !mounted) {
-        return;
-      }
-
-      final notifier = ref.read(generationParamsNotifierProvider.notifier);
-      final addOperations = files.map(
-        (file) => notifier.addPreciseReferenceFromImage(
-          file.bytes,
-          type: selectedType,
-          strength: 1.0,
-          fidelity: 1.0,
-        ),
+  Future<void> _applyDroppedReferences(
+    List<CardDroppedResource> resources,
+  ) async {
+    if (!mounted) return;
+    final notifier = ref.read(generationParamsNotifierProvider.notifier);
+    final library = ref.read(preciseRefLibraryNotifierProvider.notifier);
+    try {
+      final needsType = resources.any(
+        (resource) => resource.preciseReference == null,
       );
-      await Future.wait(addOperations);
-
-      if (mounted) {
-        AppToast.success(
-          context,
-          context.l10n.preciseRef_addedCount(files.length),
+      final type = needsType
+          ? await PreciseReferenceTypeDialog.show(context)
+          : null;
+      if (!mounted || needsType && type == null) return;
+      final result = await ImageCardBatchResult.execute(resources, (
+        resource,
+      ) async {
+        final entry = resource.preciseReference;
+        await notifier.addPreciseReferenceFromImage(
+          resource.image.bytes,
+          type: entry?.type ?? type!,
+          strength: entry?.strength ?? 1,
+          fidelity: entry?.fidelity ?? 1,
+        );
+        if (entry != null) await library.recordUsage(entry.id);
+      });
+      if (!mounted) return;
+      if (result.failures.isNotEmpty) {
+        throw StateError(
+          '${result.failures.length}/${resources.length}: ${result.failures.values.map((failure) => failure.error).join('; ')}',
         );
       }
-    } catch (e) {
+      AppToast.success(
+        context,
+        context.l10n.preciseRef_addedCount(result.succeeded.length),
+      );
+    } catch (error) {
       if (mounted) {
-        AppToast.error(
-          context,
-          context.l10n.img2img_selectFailed(e.toString()),
-        );
+        AppToast.error(context, context.l10n.img2img_selectFailed('$error'));
       }
     } finally {
-      if (mounted) {
-        setState(() => _isProcessingDroppedFiles = false);
-      }
+      if (mounted) setState(() => _isProcessingDroppedFiles = false);
     }
   }
 
@@ -421,41 +637,6 @@ class _PreciseReferencePanelState extends ConsumerState<PreciseReferencePanel> {
     }
 
     return File(path).readAsBytes();
-  }
-
-  /// 显示类型选择对话框
-  Future<PreciseRefType?> _showTypeSelectorDialog() async {
-    return showDialog<PreciseRefType>(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: Text(context.l10n.preciseRef_referenceType),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: PreciseRefType.values.map((type) {
-              return ListTile(
-                leading: Icon(type.icon),
-                title: Text(
-                  type.getDisplayName(
-                    character: context.l10n.preciseRef_typeCharacter,
-                    style: context.l10n.preciseRef_typeStyle,
-                    characterAndStyle:
-                        context.l10n.preciseRef_typeCharacterAndStyle,
-                  ),
-                ),
-                onTap: () => Navigator.of(context).pop(type),
-              );
-            }).toList(),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: Text(context.l10n.common_cancel),
-            ),
-          ],
-        );
-      },
-    );
   }
 
   void _removeReference(int index) {
@@ -507,6 +688,7 @@ class _PreciseReferenceCard extends StatelessWidget {
   final int index;
   final PreciseReference reference;
   final VoidCallback onRemove;
+  final ImageCardCallback onSaveToLibrary;
   final ValueChanged<bool> onEnabledChanged;
   final ValueChanged<PreciseRefType> onTypeChanged;
   final ValueChanged<double> onStrengthChanged;
@@ -516,6 +698,7 @@ class _PreciseReferenceCard extends StatelessWidget {
     required this.index,
     required this.reference,
     required this.onRemove,
+    required this.onSaveToLibrary,
     required this.onEnabledChanged,
     required this.onTypeChanged,
     required this.onStrengthChanged,
@@ -536,7 +719,9 @@ class _PreciseReferenceCard extends StatelessWidget {
       child: AnimatedOpacity(
         key: ValueKey('precise-reference-enabled-opacity-$index'),
         opacity: reference.enabled ? 1.0 : _disabledPreciseReferenceCardOpacity,
-        duration: const Duration(milliseconds: 160),
+        duration: MediaQuery.disableAnimationsOf(context)
+            ? Duration.zero
+            : const Duration(milliseconds: 160),
         curve: Curves.easeOut,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -561,20 +746,27 @@ class _PreciseReferenceCard extends StatelessWidget {
                   ),
                 ),
 
-                // 右侧：删除按钮
-                SizedBox(
-                  height: 28,
-                  width: 28,
-                  child: IconButton(
-                    padding: EdgeInsets.zero,
-                    icon: Icon(
-                      Icons.delete_outline,
-                      size: 18,
-                      color: theme.colorScheme.error,
+                // 纵向排列保留 48dp 触控范围，同时避免压缩窄屏参数区。
+                ImageCardInlineActions(
+                  direction: Axis.vertical,
+                  actions: [
+                    ImageCardAction(
+                      id: ImageCardActionId.saveToLibrary,
+                      key: Key('precise-reference-save-to-library-$index'),
+                      icon: Icons.bookmark_add_outlined,
+                      iconColor: theme.colorScheme.primary,
+                      label: context.l10n.preciseRefLib_saveCurrentToLibrary,
+                      invoke: onSaveToLibrary,
                     ),
-                    onPressed: onRemove,
-                    tooltip: context.l10n.preciseRef_remove,
-                  ),
+                    ImageCardAction(
+                      id: ImageCardActionId.delete,
+                      icon: Icons.delete_outline,
+                      iconColor: theme.colorScheme.error,
+                      label: context.l10n.preciseRef_remove,
+                      invoke: onRemove,
+                      isDanger: true,
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -610,7 +802,7 @@ class _PreciseReferenceCard extends StatelessWidget {
       child: Container(
         width: 64,
         height: 64,
-        color: theme.colorScheme.surfaceContainerHighest,
+        color: ImageViewportSurface.background,
         child: DecodedMemoryImage(
           bytes: reference.image,
           fit: BoxFit.cover,
@@ -627,34 +819,36 @@ class _PreciseReferenceCard extends StatelessWidget {
   }
 
   Widget _buildPlaceholder(ThemeData theme) {
-    return Center(
-      child: Icon(Icons.person, size: 24, color: theme.colorScheme.outline),
+    return const Center(
+      child: Icon(
+        Icons.person,
+        size: 24,
+        color: ImageViewportSurface.mutedForeground,
+      ),
     );
   }
 
   Widget _buildEnabledToggle(BuildContext context, ThemeData theme) {
     return Row(
-      mainAxisSize: MainAxisSize.min,
       children: [
-        Text(
-          context.l10n.reference_enabled,
-          style: theme.textTheme.bodySmall?.copyWith(
-            color: theme.colorScheme.onSurface.withValues(alpha: 0.8),
+        Expanded(
+          child: Text(
+            context.l10n.reference_enabled,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSurface.withValues(alpha: 0.8),
+            ),
           ),
         ),
-        const SizedBox(width: 8),
         Tooltip(
           message: reference.enabled
               ? context.l10n.reference_disable
               : context.l10n.reference_enable,
-          child: Transform.scale(
-            scale: 0.78,
-            child: Switch(
-              key: ValueKey('precise-reference-enabled-switch-$index'),
-              value: reference.enabled,
-              onChanged: onEnabledChanged,
-              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-            ),
+          child: Switch(
+            key: ValueKey('precise-reference-enabled-switch-$index'),
+            value: reference.enabled,
+            onChanged: onEnabledChanged,
           ),
         ),
       ],
@@ -667,7 +861,6 @@ class _PreciseReferenceCard extends StatelessWidget {
       isDense: true,
       decoration: InputDecoration(
         labelText: context.l10n.preciseRef_referenceType,
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(6)),
         contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       ),
       items: PreciseRefType.values.map((type) {
@@ -698,6 +891,8 @@ class _PreciseReferenceCard extends StatelessWidget {
     required double value,
     required ValueChanged<double> onChanged,
   }) {
+    final sliderValue = value.clamp(0.0, 1.0).toDouble();
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -712,9 +907,12 @@ class _PreciseReferenceCard extends StatelessWidget {
                 ),
               ),
             ),
-            Text(
-              value.toStringAsFixed(2),
-              style: theme.textTheme.bodySmall?.copyWith(
+            EditableDoubleField(
+              value: value,
+              decimals: 2,
+              width: 64,
+              onChanged: onChanged,
+              textStyle: theme.textTheme.bodySmall?.copyWith(
                 fontFeatures: const [FontFeature.tabularFigures()],
               ),
             ),
@@ -728,10 +926,10 @@ class _PreciseReferenceCard extends StatelessWidget {
             overlayShape: const RoundSliderOverlayShape(overlayRadius: 12),
           ),
           child: Slider(
-            value: value,
+            value: sliderValue,
             min: 0.0,
             max: 1.0,
-            divisions: 100,
+            divisions: 20,
             onChanged: onChanged,
           ),
         ),

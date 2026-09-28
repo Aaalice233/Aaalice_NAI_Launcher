@@ -7,6 +7,7 @@ import 'package:uuid/uuid.dart';
 import '../../../../core/utils/app_logger.dart';
 import '../../../../core/utils/hard_edge_mask_exporter.dart';
 import '../core/history_manager.dart';
+import 'model3d_layer_data.dart';
 
 /// 画布调整模式
 enum CanvasResizeMode {
@@ -206,6 +207,9 @@ class Layer {
   /// 如果图层与视口不相交，则可以跳过渲染
   Rect? get bounds => _bounds;
 
+  /// 3D 模型图层元数据(null = 普通图层)
+  Model3dLayerData? model3d;
+
   Layer({
     String? id,
     this.name = 'New Layer',
@@ -217,6 +221,9 @@ class Layer {
 
   /// 是否有基础图像
   bool get hasBaseImage => _baseImage != null;
+
+  /// 是否为 3D 模型图层
+  bool get hasModel3d => model3d != null;
 
   /// 是否有内容
   bool get hasContent => _baseImage != null || _strokes.isNotEmpty;
@@ -335,11 +342,13 @@ class Layer {
     }
 
     _baseImageOffset += delta;
-    final translatedStrokes = _strokes.map((stroke) {
-      return stroke.copyWith(
-        points: stroke.points.map((point) => point + delta).toList(),
-      );
-    }).toList(growable: false);
+    final translatedStrokes = _strokes
+        .map((stroke) {
+          return stroke.copyWith(
+            points: stroke.points.map((point) => point + delta).toList(),
+          );
+        })
+        .toList(growable: false);
 
     _strokes
       ..clear()
@@ -452,14 +461,19 @@ class Layer {
   }
 
   /// 绘制图层内容到画布
-  void render(Canvas canvas, Size canvasSize) {
+  void render(
+    Canvas canvas,
+    Size canvasSize, {
+    FilterQuality filterQuality = FilterQuality.none,
+  }) {
     if (!visible) return;
 
     // 保存当前状态
     canvas.save();
 
     // 应用不透明度和混合模式
-    final layerPaint = Paint();
+    final layerPaint = Paint()..filterQuality = filterQuality;
+    final imagePaint = Paint()..filterQuality = filterQuality;
     if (opacity < 1.0) {
       layerPaint.color = Color.fromRGBO(255, 255, 255, opacity);
     }
@@ -470,13 +484,15 @@ class Layer {
     // BlendMode.clear 需要在隔离的 saveLayer 中绘制，否则会擦穿到下层。
     // 当存在 baseImage 时，已光栅化的 eraser 也需要 saveLayer，
     // 因为 rasterizedImage 是在透明画布上绘制的，clear 对透明像素无效。
-    final hasEraserInPending =
-        _strokes.skip(_rasterizedStrokeCount).any((s) => s.isEraser);
+    final hasEraserInPending = _strokes
+        .skip(_rasterizedStrokeCount)
+        .any((s) => s.isEraser);
     final hasAnyEraser = _strokes.any((s) => s.isEraser);
     final eraserNeedsSaveLayer =
         hasEraserInPending || (hasAnyEraser && _baseImage != null);
 
-    final needsLayer = opacity < 1.0 ||
+    final needsLayer =
+        opacity < 1.0 ||
         blendMode != LayerBlendMode.normal ||
         eraserNeedsSaveLayer;
     if (needsLayer) {
@@ -488,21 +504,21 @@ class Layer {
 
     // 优先使用合成缓存
     if (_compositedCache != null && !_needsComposite) {
-      canvas.drawImage(_compositedCache!, Offset.zero, Paint());
+      canvas.drawImage(_compositedCache!, Offset.zero, imagePaint);
     } else if (hasAnyEraser && _baseImage != null) {
       // eraser + baseImage: 必须在 saveLayer 中先绘制 base 再绘制全部笔画，
       // 这样 BlendMode.clear 才能正确擦除 base 的像素。
-      _drawBaseImage(canvas, Paint());
+      _drawBaseImage(canvas, imagePaint);
       for (final stroke in _strokes) {
         _drawStroke(canvas, stroke);
       }
     } else {
       // 绘制基础图像
-      _drawBaseImage(canvas, Paint());
+      _drawBaseImage(canvas, imagePaint);
 
       // 使用光栅化缓存绘制已处理的笔画
       if (_rasterizedImage != null && _rasterizedStrokeCount > 0) {
-        canvas.drawImage(_rasterizedImage!, Offset.zero, Paint());
+        canvas.drawImage(_rasterizedImage!, Offset.zero, imagePaint);
       }
 
       // 绘制未光栅化的笔画
@@ -519,7 +535,12 @@ class Layer {
   }
 
   /// 使用缓存渲染（优先使用缓存，性能更好）
-  void renderWithCache(Canvas canvas, Size canvasSize, {Rect? viewportBounds}) {
+  void renderWithCache(
+    Canvas canvas,
+    Size canvasSize, {
+    Rect? viewportBounds,
+    FilterQuality filterQuality = FilterQuality.none,
+  }) {
     if (!visible) return;
 
     // 空间剔除优化：如果图层边界与视口不相交，则跳过渲染
@@ -536,7 +557,7 @@ class Layer {
 
     canvas.save();
 
-    final layerPaint = Paint();
+    final layerPaint = Paint()..filterQuality = filterQuality;
     if (opacity < 1.0) {
       layerPaint.color = Color.fromRGBO(255, 255, 255, opacity);
     }
@@ -549,7 +570,7 @@ class Layer {
       canvas.drawImage(_compositedCache!, Offset.zero, layerPaint);
     } else {
       // 否则走正常渲染流程
-      render(canvas, canvasSize);
+      render(canvas, canvasSize, filterQuality: filterQuality);
     }
 
     canvas.restore();
@@ -591,8 +612,9 @@ class Layer {
         maxX + radius,
         maxY + radius,
       );
-      bounds =
-          bounds == null ? strokeBounds : bounds.expandToInclude(strokeBounds);
+      bounds = bounds == null
+          ? strokeBounds
+          : bounds.expandToInclude(strokeBounds);
     }
 
     return bounds ?? Rect.zero;
@@ -688,8 +710,9 @@ class Layer {
       } else {
         // 检查待光栅化的笔画中是否有橡皮擦
         // BlendMode.clear 需要在已有内容上操作，所以橡皮擦需要完整重绘
-        final hasEraserInPending =
-            _strokes.skip(_rasterizedStrokeCount).any((s) => s.isEraser);
+        final hasEraserInPending = _strokes
+            .skip(_rasterizedStrokeCount)
+            .any((s) => s.isEraser);
 
         // 如果有橡皮擦，需要完整重绘（不能增量）
         final needsFullRedraw =
@@ -902,6 +925,7 @@ class Layer {
     for (final stroke in _strokes) {
       cloned.addStroke(stroke.copyWith());
     }
+    cloned.model3d = model3d;
     return cloned;
   }
 
@@ -915,6 +939,7 @@ class Layer {
       await cloned.setBaseImage(cloned._baseImageBytes!);
       cloned.setBaseImageOffset(baseImageOffset);
     }
+    cloned.model3d = model3d;
 
     return cloned;
   }

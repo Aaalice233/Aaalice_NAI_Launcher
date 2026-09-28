@@ -1,0 +1,4 @@
+# Keep one stuck test from blocking the entire suite. Expensive image/editor
+# integration belongs in runtime verification rather than unbounded widget tests.
+timeout: 30s
+concurrency: 4

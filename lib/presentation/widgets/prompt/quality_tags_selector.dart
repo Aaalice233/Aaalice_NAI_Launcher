@@ -1,3 +1,5 @@
+import '../common/delayed_rich_tooltip.dart';
+import '../common/rich_tooltip_surface.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:nai_launcher/core/utils/localization_extension.dart';
@@ -6,6 +8,9 @@ import '../../../core/constants/api_constants.dart';
 import '../../../data/models/prompt/prompt_preset_mode.dart';
 import '../../../data/models/tag_library/tag_library_entry.dart';
 import '../../providers/quality_preset_provider.dart';
+import '../common/translated_tag_text.dart';
+import '../../themes/prompt_semantic_colors.dart';
+import 'prompt_control_button.dart';
 import '../tag_library/tag_library_picker_dialog.dart';
 import 'components/library_entry_menu_item.dart';
 
@@ -19,7 +24,14 @@ class QualityTagsSelector extends ConsumerStatefulWidget {
   const QualityTagsSelector({
     super.key,
     required this.model,
+    this.compact = false,
+    this.iconOnly = false,
+    this.maxLabelWidth,
   });
+
+  final bool compact;
+  final bool iconOnly;
+  final double? maxLabelWidth;
 
   @override
   ConsumerState<QualityTagsSelector> createState() =>
@@ -27,7 +39,6 @@ class QualityTagsSelector extends ConsumerStatefulWidget {
 }
 
 class _QualityTagsSelectorState extends ConsumerState<QualityTagsSelector> {
-  bool _isHovering = false;
   final _layerLink = LayerLink();
   final _buttonKey = GlobalKey();
   OverlayEntry? _previewOverlay;
@@ -44,90 +55,51 @@ class _QualityTagsSelectorState extends ConsumerState<QualityTagsSelector> {
     final presetState = ref.watch(qualityPresetNotifierProvider);
     final customEntries = ref.watch(qualityCustomEntriesProvider);
     final isEnabled = presetState.mode != PromptPresetMode.none;
-
-    return MouseRegion(
-      onEnter: (_) => setState(() => _isHovering = true),
-      onExit: (_) => setState(() => _isHovering = false),
-      cursor: SystemMouseCursors.click,
-      child: Tooltip(
-        richMessage: WidgetSpan(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 320),
-            child: _buildTooltipContent(theme, presetState, customEntries),
+    return DelayedRichTooltip(
+      content: RichTooltipSurface(
+        maxWidth: 320,
+        child: _buildTooltipContent(theme, presetState, customEntries),
+      ),
+      child: CompositedTransformTarget(
+        key: _buttonKey,
+        link: _layerLink,
+        child: PromptControlButton(
+          color: theme.promptSemanticColors.positiveQuality,
+          active: isEnabled,
+          onPressed: () => _showMenu(context, presetState, customEntries),
+          padding: EdgeInsets.symmetric(
+            horizontal: widget.compact ? 8 : 10,
+            vertical: widget.compact ? 4 : 6,
           ),
-        ),
-        preferBelow: true,
-        verticalOffset: 20,
-        waitDuration: const Duration(milliseconds: 300),
-        decoration: BoxDecoration(
-          color: theme.colorScheme.surfaceContainerHighest,
-          borderRadius: BorderRadius.circular(8),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.2),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
-        padding: const EdgeInsets.all(12),
-        child: GestureDetector(
-          onTap: () => _showMenu(context, presetState, customEntries),
-          child: CompositedTransformTarget(
-            key: _buttonKey,
-            link: _layerLink,
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 150),
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(
-                color: isEnabled
-                    ? (_isHovering
-                        ? Colors.green.withValues(alpha: 0.2)
-                        : Colors.green.withValues(alpha: 0.1))
-                    : (_isHovering
-                        ? theme.colorScheme.surfaceContainerHighest
-                        : Colors.transparent),
-                borderRadius: BorderRadius.circular(6),
-                border: Border.all(
-                  color: isEnabled
-                      ? Colors.green.withValues(alpha: 0.3)
-                      : Colors.transparent,
-                ),
+          builder: (colors) => Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                isEnabled ? Icons.auto_awesome : Icons.auto_awesome_outlined,
+                size: 16,
+                color: colors.accent,
               ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    isEnabled
-                        ? Icons.auto_awesome
-                        : Icons.auto_awesome_outlined,
-                    size: 14,
-                    color: isEnabled
-                        ? Colors.green.shade700
-                        : theme.colorScheme.onSurface.withValues(alpha: 0.5),
+              if (!widget.iconOnly) ...[
+                const SizedBox(width: 4),
+                ConstrainedBox(
+                  constraints: BoxConstraints(
+                    maxWidth: widget.maxLabelWidth ?? double.infinity,
                   ),
-                  const SizedBox(width: 4),
-                  Text(
+                  child: Text(
                     _getDisplayLabel(context, presetState, customEntries),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                     style: TextStyle(
-                      fontSize: 11,
+                      fontSize: 12,
                       fontWeight: isEnabled ? FontWeight.w600 : FontWeight.w500,
-                      color: isEnabled
-                          ? Colors.green.shade700
-                          : theme.colorScheme.onSurface.withValues(alpha: 0.5),
+                      color: colors.foreground,
                     ),
                   ),
-                  const SizedBox(width: 2),
-                  Icon(
-                    Icons.arrow_drop_down,
-                    size: 14,
-                    color: isEnabled
-                        ? Colors.green.shade700
-                        : theme.colorScheme.onSurface.withValues(alpha: 0.5),
-                  ),
-                ],
-              ),
-            ),
+                ),
+                const SizedBox(width: 2),
+                Icon(Icons.arrow_drop_down, size: 14, color: colors.accent),
+              ],
+            ],
           ),
         ),
       ),
@@ -143,7 +115,10 @@ class _QualityTagsSelectorState extends ConsumerState<QualityTagsSelector> {
         _buttonKey.currentContext!.findRenderObject() as RenderBox;
     final RenderBox overlay =
         Overlay.of(context).context.findRenderObject() as RenderBox;
-    final Offset buttonPosition = button.localToGlobal(Offset.zero);
+    final Offset buttonPosition = button.localToGlobal(
+      Offset.zero,
+      ancestor: overlay,
+    );
     final Size buttonSize = button.size;
 
     // 菜单位置：按钮正下方，左边缘对齐
@@ -179,9 +154,9 @@ class _QualityTagsSelectorState extends ConsumerState<QualityTagsSelector> {
       case PromptPresetMode.custom:
         // 找到当前选中的条目
         final currentEntry = customEntries.cast<TagLibraryEntry?>().firstWhere(
-              (e) => e?.id == state.customEntryId,
-              orElse: () => null,
-            );
+          (e) => e?.id == state.customEntryId,
+          orElse: () => null,
+        );
         if (currentEntry != null) {
           // 截断名称
           final name = currentEntry.displayName;
@@ -199,32 +174,39 @@ class _QualityTagsSelectorState extends ConsumerState<QualityTagsSelector> {
     final theme = Theme.of(context);
     final items = <PopupMenuEntry<String>>[];
 
-    // NAI 默认
-    items.add(
-      PopupMenuItem<String>(
-        value: 'nai_default',
-        child: Row(
-          children: [
-            if (state.mode == PromptPresetMode.naiDefault)
-              Icon(Icons.check, size: 16, color: theme.colorScheme.primary)
-            else
-              const SizedBox(width: 16),
-            const SizedBox(width: 8),
-            Text(
-              context.l10n.qualityTags_naiDefault,
-              style: TextStyle(
-                fontWeight: state.mode == PromptPresetMode.naiDefault
-                    ? FontWeight.w600
-                    : FontWeight.normal,
-                color: state.mode == PromptPresetMode.naiDefault
-                    ? theme.colorScheme.primary
-                    : null,
+    // NAI 默认（V5 提供 standard/light 两档官方质量词）
+    final tiers = QualityTags.tiersForModel(widget.model);
+    for (final tier in tiers) {
+      final selected =
+          state.mode == PromptPresetMode.naiDefault &&
+          (tiers.length == 1 || state.naiTierId == tier);
+      final label = tiers.length == 1
+          ? context.l10n.qualityTags_naiDefault
+          : tier == QualityTags.lightTier
+          ? context.l10n.qualityTags_naiDefaultLight
+          : context.l10n.qualityTags_naiDefaultStandard;
+      items.add(
+        PopupMenuItem<String>(
+          value: 'nai_tier_$tier',
+          child: Row(
+            children: [
+              if (selected)
+                Icon(Icons.check, size: 16, color: theme.colorScheme.primary)
+              else
+                const SizedBox(width: 16),
+              const SizedBox(width: 8),
+              Text(
+                label,
+                style: TextStyle(
+                  fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
+                  color: selected ? theme.colorScheme.primary : null,
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
-      ),
-    );
+      );
+    }
 
     // 无
     items.add(
@@ -266,9 +248,7 @@ class _QualityTagsSelectorState extends ConsumerState<QualityTagsSelector> {
             const SizedBox(width: 8),
             Text(
               context.l10n.qualityTags_addFromLibrary,
-              style: TextStyle(
-                color: theme.colorScheme.primary,
-              ),
+              style: TextStyle(color: theme.colorScheme.primary),
             ),
           ],
         ),
@@ -279,7 +259,8 @@ class _QualityTagsSelectorState extends ConsumerState<QualityTagsSelector> {
     if (customEntries.isNotEmpty) {
       items.add(const PopupMenuDivider());
       for (final entry in customEntries) {
-        final isSelected = state.mode == PromptPresetMode.custom &&
+        final isSelected =
+            state.mode == PromptPresetMode.custom &&
             state.customEntryId == entry.id;
         items.add(
           LibraryEntryMenuItem(
@@ -304,6 +285,16 @@ class _QualityTagsSelectorState extends ConsumerState<QualityTagsSelector> {
       case 'nai_default':
         ref.read(qualityPresetNotifierProvider.notifier).setNaiDefault();
         break;
+      case 'nai_tier_standard':
+        ref
+            .read(qualityPresetNotifierProvider.notifier)
+            .setNaiTier(QualityTags.standardTier);
+        break;
+      case 'nai_tier_light':
+        ref
+            .read(qualityPresetNotifierProvider.notifier)
+            .setNaiTier(QualityTags.lightTier);
+        break;
       case 'none':
         ref.read(qualityPresetNotifierProvider.notifier).setNone();
         break;
@@ -322,11 +313,9 @@ class _QualityTagsSelectorState extends ConsumerState<QualityTagsSelector> {
   }
 
   Future<void> _showTagLibraryPicker() async {
-    final entry = await showDialog<TagLibraryEntry>(
-      context: context,
-      builder: (context) => TagLibraryPickerDialog(
-        title: context.l10n.qualityTags_selectFromLibrary,
-      ),
+    final entry = await TagLibraryPickerDialog.show(
+      context,
+      title: context.l10n.qualityTags_selectFromLibrary,
     );
     if (entry != null) {
       ref.read(qualityPresetNotifierProvider.notifier).setCustomEntry(entry.id);
@@ -341,28 +330,28 @@ class _QualityTagsSelectorState extends ConsumerState<QualityTagsSelector> {
     if (state.mode == PromptPresetMode.none) {
       return Text(
         context.l10n.qualityTags_disabled,
-        style: TextStyle(
-          color: theme.colorScheme.onSurface,
-          fontSize: 12,
-        ),
+        style: TextStyle(color: theme.colorScheme.onSurface, fontSize: 12),
       );
     }
 
     String content;
     if (state.mode == PromptPresetMode.custom && state.customEntryId != null) {
       final currentEntry = customEntries.cast<TagLibraryEntry?>().firstWhere(
-            (e) => e?.id == state.customEntryId,
-            orElse: () => null,
-          );
-      content = currentEntry?.content ??
-          QualityTags.getQualityTags(widget.model) ??
+        (e) => e?.id == state.customEntryId,
+        orElse: () => null,
+      );
+      content =
+          currentEntry?.content ??
+          QualityTags.getQualityTagsForTier(widget.model, state.naiTierId) ??
           QualityTags.getQualityTags(ImageModels.animeDiffusionV45Full) ??
           '';
     } else {
-      content = QualityTags.getQualityTags(widget.model) ??
+      content =
+          QualityTags.getQualityTagsForTier(widget.model, state.naiTierId) ??
           QualityTags.getQualityTags(ImageModels.animeDiffusionV45Full) ??
           '';
     }
+    final previewColor = theme.promptSemanticColors.positiveQuality;
 
     return Column(
       mainAxisSize: MainAxisSize.min,
@@ -370,17 +359,17 @@ class _QualityTagsSelectorState extends ConsumerState<QualityTagsSelector> {
       children: [
         Text(
           context.l10n.qualityTags_addToEnd,
-          style: TextStyle(
+          style: theme.textTheme.labelMedium?.copyWith(
             color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
-            fontSize: 11,
           ),
         ),
-        const SizedBox(height: 4),
-        Text(
+        const SizedBox(height: 6),
+        TranslatedPromptText(
           ', $content',
-          style: TextStyle(
-            color: Colors.green.shade700,
-            fontSize: 11,
+          selectable: false,
+          style: theme.textTheme.bodyMedium?.copyWith(
+            color: previewColor,
+            height: 1.4,
           ),
         ),
       ],

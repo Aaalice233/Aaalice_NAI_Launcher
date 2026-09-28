@@ -6,6 +6,7 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 import '../../core/storage/local_storage_service.dart';
 import '../../core/utils/app_logger.dart';
 import '../../data/models/fixed_tag/fixed_tag_entry.dart';
+import '../../data/models/fixed_tag/fixed_tag_usage_snapshot.dart';
 import '../../data/models/fixed_tag/fixed_tag_link.dart';
 import '../../data/models/fixed_tag/fixed_tag_prompt_type.dart';
 import '../../data/models/tag_library/tag_library_entry.dart';
@@ -147,52 +148,13 @@ class FixedTagsState {
   /// 应用固定词到提示词
   ///
   /// 将所有启用的固定词按位置应用到用户提示词
-  String applyToPrompt(String userPrompt) {
-    final enabledPrefixContents = enabledPrefixes
-        .sortedByOrder()
-        .map((e) => e.weightedContent)
-        .where((c) => c.isNotEmpty)
-        .toList();
-
-    final enabledSuffixContents = enabledSuffixes
-        .sortedByOrder()
-        .map((e) => e.weightedContent)
-        .where((c) => c.isNotEmpty)
-        .toList();
-
-    final parts = <String>[
-      ...enabledPrefixContents,
-      userPrompt,
-      ...enabledSuffixContents,
-    ].where((s) => s.isNotEmpty).toList();
-
-    return parts.join(', ');
-  }
+  String applyToPrompt(String userPrompt) => entries.applyToPrompt(userPrompt);
 
   /// 应用负向固定词到负向提示词。
   ///
   /// 语义与正向固定词一致：前缀 + 用户主体 + 后缀。
-  String applyToNegativePrompt(String userNegativePrompt) {
-    final enabledPrefixContents = negativeEnabledPrefixes
-        .sortedByOrder()
-        .map((e) => e.weightedContent)
-        .where((c) => c.isNotEmpty)
-        .toList();
-
-    final enabledSuffixContents = negativeEnabledSuffixes
-        .sortedByOrder()
-        .map((e) => e.weightedContent)
-        .where((c) => c.isNotEmpty)
-        .toList();
-
-    final parts = <String>[
-      ...enabledPrefixContents,
-      userNegativePrompt,
-      ...enabledSuffixContents,
-    ].where((s) => s.isNotEmpty).toList();
-
-    return parts.join(', ');
-  }
+  String applyToNegativePrompt(String userNegativePrompt) =>
+      entries.applyToNegativePrompt(userNegativePrompt);
 
   /// 获取某个正向固定词联动的负向固定词。
   List<FixedTagEntry> linkedNegativesOf(String positiveId) {
@@ -310,6 +272,36 @@ class FixedTagsState {
   }
 }
 
+/// 解析固定词对应的词库条目。
+///
+/// 新数据优先使用稳定来源 ID；旧数据没有来源 ID 时，沿用侧边栏既有的
+/// 内容、名称匹配规则，以恢复词库预览兼容性。
+TagLibraryEntry? resolveFixedTagLibraryEntry(
+  FixedTagEntry fixedEntry,
+  List<TagLibraryEntry> libraryEntries,
+) {
+  final sourceEntryId = fixedEntry.sourceEntryId;
+  if (sourceEntryId != null && sourceEntryId.isNotEmpty) {
+    for (final libraryEntry in libraryEntries) {
+      if (libraryEntry.id == sourceEntryId) return libraryEntry;
+    }
+  }
+
+  final content = fixedEntry.content.trim();
+  if (content.isNotEmpty) {
+    for (final libraryEntry in libraryEntries) {
+      if (libraryEntry.content.trim() == content) return libraryEntry;
+    }
+  }
+
+  final name = fixedEntry.name.trim();
+  if (name.isEmpty) return null;
+  for (final libraryEntry in libraryEntries) {
+    if (libraryEntry.name.trim() == name) return libraryEntry;
+  }
+  return null;
+}
+
 /// 从词库条目推断固定词分类。
 List<FixedTagEntry> inferFixedTagCategories(
   List<FixedTagEntry> fixedEntries,
@@ -329,6 +321,22 @@ List<FixedTagEntry> inferFixedTagCategories(
                 categoryId: entryById[entry.sourceEntryId]!.categoryId,
               ),
   ];
+}
+
+/// 排除已经从词库添加到固定词列表的条目。
+List<TagLibraryEntry> filterUnlinkedLibraryEntries({
+  required List<TagLibraryEntry> libraryEntries,
+  required List<FixedTagEntry> fixedEntries,
+}) {
+  final linkedEntryIds = fixedEntries
+      .map((entry) => entry.sourceEntryId)
+      .whereType<String>()
+      .toSet();
+  if (linkedEntryIds.isEmpty) return libraryEntries;
+
+  return libraryEntries
+      .where((entry) => !linkedEntryIds.contains(entry.id))
+      .toList();
 }
 
 /// 在筛选后的可见条目内重排，保持隐藏条目的相对位置。
@@ -572,6 +580,29 @@ class FixedTagsNotifier extends _$FixedTagsNotifier {
     String? sourceEntryId, // 【新增】来源词库条目ID
     String? categoryId,
   }) async {
+    final duplicateIndex = sourceEntryId == null || sourceEntryId.isEmpty
+        ? -1
+        : state.entries.indexWhere(
+            (entry) =>
+                entry.sourceEntryId == sourceEntryId &&
+                entry.promptType == promptType &&
+                entry.position == position,
+          );
+    if (duplicateIndex >= 0) {
+      final duplicate = state.entries[duplicateIndex];
+      if (enabled && !duplicate.enabled) {
+        final reenabled = duplicate.copyWith(
+          enabled: true,
+          updatedAt: DateTime.now(),
+        );
+        final entries = [...state.entries]..[duplicateIndex] = reenabled;
+        _commitState(state.copyWith(entries: entries));
+        await _saveEntries();
+        return reenabled;
+      }
+      return duplicate;
+    }
+
     final entry = FixedTagEntry.create(
       name: name,
       content: content,
@@ -590,6 +621,84 @@ class FixedTagsNotifier extends _$FixedTagsNotifier {
 
     AppLogger.d('Added fixed tag: ${entry.displayName}', 'FixedTagsProvider');
     return entry;
+  }
+
+  /// Atomically restores the enabled entries for the selected prompt scopes.
+  Future<void> restoreUsageSnapshot({
+    required FixedTagUsageSnapshot snapshot,
+    required Set<FixedTagScope> scopes,
+    required String Function(String name) buildImageVersionName,
+  }) async {
+    if (scopes.isEmpty) return;
+
+    final now = DateTime.now();
+    final fingerprint = snapshot.fingerprint;
+    final nextEntries = [
+      for (final entry in state.entries)
+        if (scopes.contains(FixedTagScope(entry.promptType, entry.position)) &&
+            entry.enabled)
+          entry.copyWith(enabled: false, updatedAt: now)
+        else
+          entry,
+    ];
+
+    for (final usage in snapshot.entries) {
+      final scope = FixedTagScope(usage.promptType, usage.position);
+      if (!scopes.contains(scope) || usage.content.trim().isEmpty) continue;
+
+      final originalIndex = usage.fixedTagId == null
+          ? -1
+          : nextEntries.indexWhere((entry) => entry.id == usage.fixedTagId);
+      final hasChangedOriginal =
+          originalIndex >= 0 &&
+          !_matchesUsage(nextEntries[originalIndex], usage);
+      var index = hasChangedOriginal ? -1 : originalIndex;
+      if (hasChangedOriginal) {
+        index = nextEntries.indexWhere(
+          (entry) =>
+              entry.importedFromFixedTagId == usage.fixedTagId &&
+              entry.importedSnapshotFingerprint == fingerprint &&
+              _matchesUsage(entry, usage),
+        );
+      }
+      if (index < 0 && !hasChangedOriginal) {
+        index = nextEntries.indexWhere((entry) => _matchesUsage(entry, usage));
+      }
+
+      if (index >= 0) {
+        nextEntries[index] = nextEntries[index].copyWith(
+          enabled: true,
+          updatedAt: now,
+        );
+        continue;
+      }
+
+      nextEntries.add(
+        FixedTagEntry.create(
+          name: hasChangedOriginal
+              ? buildImageVersionName(usage.name)
+              : usage.name,
+          content: usage.content,
+          weight: usage.weight,
+          position: usage.position,
+          promptType: usage.promptType,
+          enabled: true,
+          importedFromFixedTagId: hasChangedOriginal ? usage.fixedTagId : null,
+          importedSnapshotFingerprint: hasChangedOriginal ? fingerprint : null,
+          sortOrder: nextEntries.length,
+        ),
+      );
+    }
+
+    _commitState(state.copyWith(entries: nextEntries));
+    await _saveEntries();
+  }
+
+  static bool _matchesUsage(FixedTagEntry entry, FixedTagUsageEntry usage) {
+    return entry.promptType == usage.promptType &&
+        entry.position == usage.position &&
+        entry.content.trim() == usage.content.trim() &&
+        (entry.weight - usage.weight).abs() < 0.000001;
   }
 
   /// 更新固定词
@@ -643,10 +752,33 @@ class FixedTagsNotifier extends _$FixedTagsNotifier {
 
   /// 【新增】从词库同步更新固定词
   ///
-  /// 当词库条目更新时，更新所有 sourceEntryId 匹配的固定词
-  Future<void> syncFromTagLibrary(TagLibraryEntry tagEntry) async {
+  /// 当词库条目更新时，更新所有 sourceEntryId 匹配的固定词。
+  ///
+  /// 偏离上游：上游只按 `sourceEntryId` 匹配，于是"手动敲进去的固定词"和
+  /// "词库里同一个词"永远是两份互不相干的数据——用户在词库里改了名字或内容，
+  /// 固定词那边纹丝不动，而且没有任何提示，只能自己再改一遍。
+  /// 我们额外接受 [previousContent]（词库条目"修改前"的内容）：未关联
+  /// (`sourceEntryId == null`) 且内容与修改前一致的固定词视为同一个词，
+  /// 一并同步并补写 `sourceEntryId` 收养它，之后就走上游的正常双向同步。
+  /// 该参数为空时行为与上游完全一致，所以其他调用点不受影响。
+  ///
+  /// 与上游新增的 `resolveFixedTagImport` / `fixedTagResolution` 无交集：
+  /// 那条链路是"从图片元数据导入时决定固定词归属"，在 image_metadata_import
+  /// 流程里，不经过本方法。
+  Future<void> syncFromTagLibrary(
+    TagLibraryEntry tagEntry, {
+    String? previousContent,
+  }) async {
+    final prev = previousContent?.trim();
     final entriesToSync = state.entries
-        .where((e) => e.sourceEntryId == tagEntry.id)
+        .where(
+          (e) =>
+              e.sourceEntryId == tagEntry.id ||
+              (e.sourceEntryId == null &&
+                  prev != null &&
+                  prev.isNotEmpty &&
+                  e.content.trim() == prev),
+        )
         .toList();
 
     if (entriesToSync.isEmpty) return;
@@ -660,6 +792,9 @@ class FixedTagsNotifier extends _$FixedTagsNotifier {
           name: tagEntry.name,
           content: tagEntry.content,
           categoryId: tagEntry.categoryId,
+          // 补写关联：被"按修改前内容"收养的固定词从此有了 sourceEntryId，
+          // 后续更新走上游原本的 sourceEntryId 匹配。
+          sourceEntryId: tagEntry.id,
           updatedAt: DateTime.now(),
         );
       }

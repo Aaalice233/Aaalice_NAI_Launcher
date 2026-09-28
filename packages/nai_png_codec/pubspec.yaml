@@ -1,0 +1,11 @@
+name: nai_png_codec
+description: Local native PNG sanitization for Aaalice NAI Launcher.
+version: 0.1.0
+publish_to: none
+environment:
+  sdk: '>=3.10.7 <4.0.0'
+dependencies:
+  ffi: ^2.2.0
+  hooks: ^2.0.2
+  code_assets: ^1.2.1
+  native_toolchain_c: 0.19.2

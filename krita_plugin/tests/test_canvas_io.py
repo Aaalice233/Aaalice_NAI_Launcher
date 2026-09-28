@@ -162,12 +162,55 @@ class FakeSelectionWithQByteArrayLikePixel(FakeSelection):
         return FakeQByteArrayLike(super().pixelData(x, y, width, height))
 
 
+class FakeMutableSelection:
+    def __init__(self, rect=None):
+        self.rect = rect or {"x": 0, "y": 0, "w": 0, "h": 0}
+
+    def select(self, x, y, width, height, opacity):
+        if opacity != 255:
+            raise AssertionError("focused selection must be fully opaque")
+        self.rect = {"x": x, "y": y, "w": width, "h": height}
+
+    def x(self):
+        return self.rect["x"]
+
+    def y(self):
+        return self.rect["y"]
+
+    def width(self):
+        return self.rect["w"]
+
+    def height(self):
+        return self.rect["h"]
+
+    def pixelData(self, _x, _y, width, height):
+        return bytes([255]) * (width * height)
+
+
 class FakeSelectionDoc:
     def __init__(self, selection):
         self._selection = selection
 
     def selection(self):
         return self._selection
+
+
+class FakeSelectionReplaceDoc(FakeSizedDoc):
+    def __init__(self, width, height, selection):
+        super().__init__(width, height)
+        self._selection = selection
+        self.set_selection_calls = []
+        self.refresh_count = 0
+
+    def selection(self):
+        return self._selection
+
+    def setSelection(self, selection):
+        self._selection = selection
+        self.set_selection_calls.append(selection.rect.copy())
+
+    def refreshProjection(self):
+        self.refresh_count += 1
 
 
 class FakeOpenedDocument:
@@ -408,6 +451,17 @@ class CanvasIOMaskTests(unittest.TestCase):
             {"x": 34, "y": 44, "w": 52, "h": 62},
         )
 
+    def test_focus_context_rect_enforces_minimum_context(self):
+        self.assertEqual(
+            canvas_io.focus_context_rect_for_selection(
+                {"x": 50, "y": 60, "w": 20, "h": 30},
+                200,
+                180,
+                0,
+            ),
+            {"x": 34, "y": 44, "w": 52, "h": 62},
+        )
+
     def test_focus_context_rect_matches_launcher_focused_crop_golden_case(self):
         self.assertEqual(
             canvas_io.focus_context_rect_for_selection(
@@ -429,6 +483,87 @@ class CanvasIOMaskTests(unittest.TestCase):
             ),
             {"x": 0, "y": 0, "w": 84, "h": 90},
         )
+
+    def test_focus_request_size_upscales_small_crop_to_one_megapixel(self):
+        self.assertEqual(
+            canvas_io.focus_request_size_for_context(
+                {"x": 0, "y": 0, "w": 512, "h": 512}
+            ),
+            {"w": 1024, "h": 1024, "mode": "upscale_to_target"},
+        )
+
+    def test_focus_request_size_preserves_paid_crop_and_floors_to_grid(self):
+        self.assertEqual(
+            canvas_io.focus_request_size_for_context(
+                {"x": 0, "y": 0, "w": 1300, "h": 1000}
+            ),
+            {"w": 1280, "h": 960, "mode": "preserve_crop"},
+        )
+
+    def test_focus_request_size_accepts_side_longer_than_2048(self):
+        self.assertEqual(
+            canvas_io.focus_request_size_for_context(
+                {"x": 0, "y": 0, "w": 3072, "h": 1024}
+            ),
+            {"w": 3072, "h": 1024, "mode": "preserve_crop"},
+        )
+
+    def test_focus_selection_constraint_keeps_exact_total_area_boundary(self):
+        selection = {"x": 0, "y": 0, "w": 2048, "h": 1536}
+
+        self.assertEqual(
+            canvas_io.constrain_focus_selection_rect(
+                selection, 2048, 1536, 88
+            ),
+            selection,
+        )
+
+    def test_focus_selection_constraint_shrinks_outer_rect_above_limit(self):
+        constrained = canvas_io.constrain_focus_selection_rect(
+            {"x": 0, "y": 0, "w": 2400, "h": 1600},
+            2400,
+            1600,
+            88,
+        )
+        context = canvas_io.focus_context_rect_for_selection(
+            constrained, 2400, 1600, 88
+        )
+
+        self.assertLessEqual(
+            context["w"] * context["h"],
+            canvas_io.FOCUS_MAX_REQUEST_AREA_PIXELS,
+        )
+        self.assertLess(constrained["w"], 2400)
+        self.assertLess(constrained["h"], 1600)
+
+    def test_active_focus_constraint_replaces_native_selection_once(self):
+        original_doc = canvas_io.active_document
+        original_factory = canvas_io._create_krita_selection
+        try:
+            doc = FakeSelectionReplaceDoc(
+                2400,
+                1600,
+                FakeMutableSelection({"x": 0, "y": 0, "w": 2400, "h": 1600}),
+            )
+            canvas_io.active_document = lambda: doc
+            canvas_io._create_krita_selection = FakeMutableSelection
+
+            constrained = canvas_io.constrain_active_focus_selection(88)
+            second = canvas_io.constrain_active_focus_selection(88)
+
+            self.assertEqual(len(doc.set_selection_calls), 1)
+            self.assertEqual(doc.refresh_count, 1)
+            self.assertEqual(constrained, second)
+            context = canvas_io.focus_context_rect_for_selection(
+                constrained, doc.width(), doc.height(), 88
+            )
+            self.assertLessEqual(
+                context["w"] * context["h"],
+                canvas_io.FOCUS_MAX_REQUEST_AREA_PIXELS,
+            )
+        finally:
+            canvas_io.active_document = original_doc
+            canvas_io._create_krita_selection = original_factory
 
     def test_rgba8888_to_krita_bgra_preserves_alpha_and_swaps_color_channels(self):
         self.assertEqual(

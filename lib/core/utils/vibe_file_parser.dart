@@ -1,11 +1,14 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
+import 'dart:isolate';
 
 import 'package:flutter/foundation.dart';
 import 'package:image/image.dart' as img;
 
 import '../../data/models/vibe/vibe_reference.dart';
 import 'app_logger.dart';
+import 'novelai_vibe_codec.dart';
 
 // 注意：已移除 png_chunks_extract 依赖，使用 image 包替代
 // image 包的 PngDecoder.startDecode() 提供纯 Dart 的 PNG chunks 解析
@@ -20,12 +23,15 @@ import 'app_logger.dart';
 class VibeFileParser {
   /// PNG iTXt 块中的 Vibe 编码关键字（官方格式）
   static const String _iTXtKeyword = 'NovelAI_Vibe_Encoding_Base64';
-  
+
   /// NAI 官方 iTXt 关键字（嵌入图片使用）
   static const String _naiDataKeyword = 'naidata';
 
   /// 最大处理的文件大小（20MB）
   static const int _maxFileSize = 20 * 1024 * 1024;
+
+  /// 大型 Bundle 的 JSON 与 Base64 解码必须离开 UI isolate。
+  static const int _backgroundBundleParseThreshold = 1024 * 1024;
 
   /// 解析超时时间
   static const Duration _parseTimeout = Duration(seconds: 5);
@@ -208,12 +214,7 @@ class VibeFileParser {
       ).timeout(_parseTimeout);
       return result;
     } catch (e, stack) {
-      AppLogger.e(
-        'Failed to extract bundle from PNG',
-        e,
-        stack,
-        'VibeParser',
-      );
+      AppLogger.e('Failed to extract bundle from PNG', e, stack, 'VibeParser');
       return [];
     }
   }
@@ -246,26 +247,23 @@ class VibeFileParser {
           // naidata 格式：Base64 编码的 JSON bundle
           try {
             final jsonBytes = base64.decode(content);
-            final jsonData = jsonDecode(utf8.decode(jsonBytes))
-                as Map<String, dynamic>;
+            final jsonData =
+                jsonDecode(utf8.decode(jsonBytes)) as Map<String, dynamic>;
 
             final vibes = jsonData['vibes'] as List<dynamic>?;
             if (vibes != null && vibes.isNotEmpty) {
               for (var i = 0; i < vibes.length; i++) {
                 final vibeJson = vibes[i] as Map<String, dynamic>;
-                final extractedEncoding =
-                    _extractEncodingFromNaiVibe(vibeJson);
+                final extractedEncoding = _extractEncodingFromNaiVibe(vibeJson);
 
-                if (extractedEncoding != null &&
-                    extractedEncoding.isNotEmpty) {
-                  final name = vibeJson['name'] as String? ??
-                      '${params.fileName}#$i';
+                if (extractedEncoding != null && extractedEncoding.isNotEmpty) {
+                  final name =
+                      vibeJson['name'] as String? ?? '${params.fileName}#$i';
                   double strength = params.defaultStrength;
                   var infoExtracted = 0.7;
                   final importInfo =
                       vibeJson['importInfo'] as Map<String, dynamic>?;
-                  if (importInfo != null &&
-                      importInfo['strength'] != null) {
+                  if (importInfo != null && importInfo['strength'] != null) {
                     strength = (importInfo['strength'] as num).toDouble();
                   }
                   infoExtracted = _extractInformationExtracted(
@@ -274,8 +272,8 @@ class VibeFileParser {
                   );
 
                   // 提取 vibe 自己的缩略图，如果没有则使用原图
-                  final thumbnail = _extractThumbnailFromJson(vibeJson) ??
-                      params.bytes;
+                  final thumbnail =
+                      _extractThumbnailFromJson(vibeJson) ?? params.bytes;
                   final rawImageData = _extractRawImageFromJson(vibeJson);
 
                   results.add(
@@ -286,6 +284,7 @@ class VibeFileParser {
                       rawImageData: rawImageData,
                       strength: VibeReference.sanitizeStrength(strength),
                       infoExtracted: infoExtracted,
+                      encodingModel: _extractEncodingModelFromJson(vibeJson),
                       sourceType: VibeSourceType.png,
                     ),
                   );
@@ -324,8 +323,7 @@ class VibeFileParser {
             final name = jsonData['name'] as String? ?? params.fileName;
             double strength = params.defaultStrength;
             var infoExtracted = 0.7;
-            final importInfo =
-                jsonData['importInfo'] as Map<String, dynamic>?;
+            final importInfo = jsonData['importInfo'] as Map<String, dynamic>?;
             if (importInfo != null && importInfo['strength'] != null) {
               strength = (importInfo['strength'] as num).toDouble();
             }
@@ -342,6 +340,7 @@ class VibeFileParser {
                 rawImageData: _extractRawImageFromJson(jsonData),
                 strength: VibeReference.sanitizeStrength(strength),
                 infoExtracted: infoExtracted,
+                encodingModel: _extractEncodingModelFromJson(jsonData),
                 sourceType: VibeSourceType.png,
               ),
             );
@@ -401,7 +400,8 @@ class VibeFileParser {
           // naidata 格式：Base64 编码的 JSON bundle
           try {
             final jsonBytes = base64.decode(iTxtContent);
-            final jsonData = jsonDecode(utf8.decode(jsonBytes)) as Map<String, dynamic>;
+            final jsonData =
+                jsonDecode(utf8.decode(jsonBytes)) as Map<String, dynamic>;
 
             // 从 bundle 中提取第一个 vibe
             final vibes = jsonData['vibes'] as List<dynamic>?;
@@ -413,7 +413,8 @@ class VibeFileParser {
                 final name = firstVibe['name'] as String? ?? params.fileName;
                 double strength = params.defaultStrength;
                 var infoExtracted = 0.7;
-                final importInfo = firstVibe['importInfo'] as Map<String, dynamic>?;
+                final importInfo =
+                    firstVibe['importInfo'] as Map<String, dynamic>?;
                 if (importInfo != null && importInfo['strength'] != null) {
                   strength = (importInfo['strength'] as num).toDouble();
                 }
@@ -429,6 +430,7 @@ class VibeFileParser {
                   rawImageData: _extractRawImageFromJson(firstVibe),
                   strength: VibeReference.sanitizeStrength(strength),
                   infoExtracted: infoExtracted,
+                  encodingModel: _extractEncodingModelFromJson(firstVibe),
                   sourceType: VibeSourceType.png,
                 );
               }
@@ -477,6 +479,7 @@ class VibeFileParser {
               rawImageData: _extractRawImageFromJson(jsonData) ?? params.bytes,
               strength: VibeReference.sanitizeStrength(strength),
               infoExtracted: infoExtracted,
+              encodingModel: _extractEncodingModelFromJson(jsonData),
               sourceType: VibeSourceType.png,
             );
           }
@@ -510,7 +513,9 @@ class VibeFileParser {
   /// 从 textData 中提取嵌入的 JSON 数据
   ///
   /// 检查 textData 中是否包含 JSON 数据
-  static String? _extractEmbeddedJsonFromTextData(Map<String, String> textData) {
+  static String? _extractEmbeddedJsonFromTextData(
+    Map<String, String> textData,
+  ) {
     for (final entry in textData.entries) {
       final text = entry.value;
       try {
@@ -535,33 +540,16 @@ class VibeFileParser {
     return null;
   }
 
-  /// 从 NAI vibe 数据中提取 encoding
-  /// 
-  /// NAI 格式: encodings: {model: {hash: {encoding: "..."}}}
+  /// 从 NAI vibe 数据中提取 encoding。
   static String? _extractEncodingFromNaiVibe(Map<String, dynamic> vibe) {
-    final encodings = vibe['encodings'] as Map<String, dynamic>?;
-    if (encodings == null) return null;
-
-    // 获取第一个模型的 encoding
-    final firstModel = encodings.values.firstOrNull as Map<String, dynamic>?;
-    if (firstModel == null) return null;
-
-    // NAI 格式: {hash: {encoding: "..."}} 或 {vibe: {encoding: "..."}}
-    final hashData = firstModel.values.firstOrNull;
-    if (hashData is Map<String, dynamic>) {
-      return hashData['encoding'] as String?;
-    }
-    
-    // 也可能是直接的 encoding 字段
-    if (firstModel.containsKey('encoding')) {
-      return firstModel['encoding'] as String?;
-    }
-
-    return null;
+    return _extractEncodingDetails(vibe)?.encoding;
   }
 
   /// 从导入信息中提取强度值
-  static double _extractStrength(Map<String, dynamic>? importInfo, double defaultValue) {
+  static double _extractStrength(
+    Map<String, dynamic>? importInfo,
+    double defaultValue,
+  ) {
     final strengthValue = importInfo?['strength'];
     return switch (strengthValue) {
       final double v => v,
@@ -581,8 +569,8 @@ class VibeFileParser {
       final double v => VibeReference.sanitizeInfoExtracted(v),
       final int v => VibeReference.sanitizeInfoExtracted(v.toDouble()),
       final String v => VibeReference.sanitizeInfoExtracted(
-          double.tryParse(v) ?? defaultValue,
-        ),
+        double.tryParse(v) ?? defaultValue,
+      ),
       _ => defaultValue,
     };
   }
@@ -608,6 +596,7 @@ class VibeFileParser {
     final rawImageData = _extractRawImageFromJson(jsonData);
     final thumbnail = _extractThumbnailFromJson(jsonData);
     final type = jsonData['type'] as String?;
+    final encodingDetails = _extractEncodingDetails(jsonData);
 
     if (type == 'image') {
       if (rawImageData == null || rawImageData.isEmpty) {
@@ -619,17 +608,19 @@ class VibeFileParser {
 
       return VibeReference(
         displayName: name,
-        vibeEncoding: '',
+        vibeEncoding: encodingDetails?.encoding ?? '',
         thumbnail: thumbnail,
         rawImageData: rawImageData,
         strength: VibeReference.sanitizeStrength(strength),
         infoExtracted: infoExtracted,
-        sourceType: VibeSourceType.rawImage,
+        encodingModel: encodingDetails?.model,
+        sourceType: encodingDetails == null
+            ? VibeSourceType.rawImage
+            : VibeSourceType.naiv4vibe,
       );
     }
 
-    final vibeEncoding = _extractEncodingFromJson(jsonData);
-    if (vibeEncoding == null) {
+    if (encodingDetails == null) {
       final hasEncodings = jsonData.containsKey('encodings');
       throw ArgumentError(
         '文件缺少有效的 Vibe encoding: $fileName '
@@ -640,20 +631,28 @@ class VibeFileParser {
 
     return VibeReference(
       displayName: name,
-      vibeEncoding: vibeEncoding,
+      vibeEncoding: encodingDetails.encoding,
       thumbnail: thumbnail,
       rawImageData: rawImageData,
       strength: VibeReference.sanitizeStrength(strength),
       infoExtracted: infoExtracted,
+      encodingModel: encodingDetails.model,
       sourceType: VibeSourceType.naiv4vibe,
     );
   }
 
   /// 从 JSON 数据中提取缩略图
-  static Uint8List? _extractThumbnailFromJson(Map<String, dynamic> jsonData) {
+  static Uint8List? _extractThumbnailFromJson(
+    Map<String, dynamic> jsonData, {
+    Uint8List? rawImageData,
+  }) {
     try {
       final thumbnailBase64 = jsonData['thumbnail'] as String?;
       if (thumbnailBase64 != null && thumbnailBase64.isNotEmpty) {
+        final imageBase64 = jsonData['image'] as String?;
+        if (rawImageData != null && thumbnailBase64 == imageBase64) {
+          return rawImageData;
+        }
         final base64Data = _extractBase64FromDataUri(thumbnailBase64);
         if (base64Data != null) {
           return base64Decode(base64Data);
@@ -712,7 +711,57 @@ class VibeFileParser {
     String fileName,
     Uint8List bytes, {
     double defaultStrength = 0.6,
+  }) {
+    if (bytes.length < _backgroundBundleParseThreshold) {
+      return Future.value(
+        _parseBundleBytesSync(
+          fileName,
+          bytes,
+          defaultStrength: defaultStrength,
+        ),
+      );
+    }
+
+    return Isolate.run(
+      () => _parseBundleBytesSync(
+        fileName,
+        bytes,
+        defaultStrength: defaultStrength,
+      ),
+      debugName: 'VibeFileParser.fromBundle',
+    );
+  }
+
+  /// 从文件读取并解析 Bundle；大文件连文件读取也在后台 isolate 完成。
+  static Future<List<VibeReference>> fromBundleFile(
+    String filePath, {
+    required String fileName,
+    double defaultStrength = 0.6,
   }) async {
+    final file = File(filePath);
+    final fileLength = await file.length();
+    if (fileLength < _backgroundBundleParseThreshold) {
+      return _parseBundleBytesSync(
+        fileName,
+        await file.readAsBytes(),
+        defaultStrength: defaultStrength,
+      );
+    }
+
+    return Isolate.run(() {
+      return _parseBundleBytesSync(
+        fileName,
+        File(filePath).readAsBytesSync(),
+        defaultStrength: defaultStrength,
+      );
+    }, debugName: 'VibeFileParser.fromBundleFile');
+  }
+
+  static List<VibeReference> _parseBundleBytesSync(
+    String fileName,
+    Uint8List bytes, {
+    required double defaultStrength,
+  }) {
     final jsonString = utf8.decode(bytes);
     final bundleData = jsonDecode(jsonString) as Map<String, dynamic>;
     final vibesList = bundleData['vibes'] as List<dynamic>? ?? [];
@@ -743,19 +792,28 @@ class VibeFileParser {
           0.7,
         );
 
-        final vibeEncoding = _extractEncodingFromJson(vibeJson);
-        if (vibeEncoding != null) {
-          final thumbnail = _extractThumbnailFromJson(vibeJson);
-          final rawImageData = _extractRawImageFromJson(vibeJson);
+        final encodingDetails = _extractEncodingDetails(vibeJson);
+        final rawImageData = _extractRawImageFromJson(vibeJson);
+        if (encodingDetails != null ||
+            (rawImageData != null && rawImageData.isNotEmpty)) {
+          final thumbnail = _extractThumbnailFromJson(
+            vibeJson,
+            rawImageData: rawImageData,
+          );
           results.add(
             VibeReference(
               displayName: name,
-              vibeEncoding: vibeEncoding,
+              vibeEncoding: encodingDetails?.encoding ?? '',
               thumbnail: thumbnail,
               rawImageData: rawImageData,
               strength: VibeReference.sanitizeStrength(strength),
               infoExtracted: infoExtracted,
-              sourceType: VibeSourceType.naiv4vibebundle,
+              encodingModel:
+                  encodingDetails?.model ??
+                  _extractEncodingModelFromJson(vibeJson),
+              sourceType: encodingDetails == null
+                  ? VibeSourceType.rawImage
+                  : VibeSourceType.naiv4vibebundle,
             ),
           );
         }
@@ -778,25 +836,96 @@ class VibeFileParser {
 
   /// 从 JSON 数据中提取 Vibe 编码
   static String? _extractEncodingFromJson(Map<String, dynamic> jsonData) {
-    final encodingsMap = jsonData['encodings'] as Map<String, dynamic>?;
-    if (encodingsMap == null) return null;
+    return _extractEncodingDetails(jsonData)?.encoding;
+  }
 
-    // 遍历 encodings 找到第一个有效的 encoding
-    for (var modelKey in encodingsMap.keys) {
-      final modelEncodings = encodingsMap[modelKey] as Map<String, dynamic>?;
-      if (modelEncodings == null) continue;
+  static String? _extractEncodingModelFromJson(Map<String, dynamic> jsonData) {
+    final encodingModel = _extractEncodingDetails(jsonData)?.model;
+    if (encodingModel != null) {
+      return encodingModel;
+    }
+    final importInfo = jsonData['importInfo'];
+    final model = importInfo is Map ? importInfo['model'] : null;
+    return model is String
+        ? NovelAiVibeCodec.normalizeModelOrNull(model)
+        : null;
+  }
 
-      for (var typeKey in modelEncodings.keys) {
-        final typeEncodingInfo =
-            modelEncodings[typeKey] as Map<String, dynamic>?;
-        if (typeEncodingInfo != null &&
-            typeEncodingInfo.containsKey('encoding')) {
-          final dynamic encodingValue = typeEncodingInfo['encoding'];
-          if (encodingValue is String && encodingValue.isNotEmpty) {
-            return encodingValue;
+  static ({String encoding, String? model})? _extractEncodingDetails(
+    Map<String, dynamic> jsonData,
+  ) {
+    final encodingsValue = jsonData['encodings'];
+    if (encodingsValue is! Map) {
+      return null;
+    }
+
+    final importInfo = jsonData['importInfo'];
+    final importedModel = importInfo is Map && importInfo['model'] is String
+        ? NovelAiVibeCodec.normalizeModelOrNull(importInfo['model'] as String)
+        : null;
+    final preferredModelKey = importedModel == null
+        ? null
+        : NovelAiVibeCodec.encodingKeyForModel(importedModel);
+    final informationExtracted = importInfo is Map
+        ? switch (importInfo['information_extracted']) {
+            final num value => value.toDouble(),
+            final String value => double.tryParse(value),
+            _ => null,
           }
+        : null;
+
+    final modelEntries = encodingsValue.entries.toList(growable: false);
+    if (preferredModelKey != null) {
+      modelEntries.sort((left, right) {
+        if (left.key == preferredModelKey) return -1;
+        if (right.key == preferredModelKey) return 1;
+        return 0;
+      });
+    }
+
+    for (final modelEntry in modelEntries) {
+      final modelEncodings = modelEntry.value;
+      if (modelEncodings is! Map) {
+        continue;
+      }
+
+      MapEntry<dynamic, dynamic>? fallback;
+      MapEntry<dynamic, dynamic>? unknown;
+      MapEntry<dynamic, dynamic>? matchingParams;
+      for (final variant in modelEncodings.entries) {
+        final value = variant.value;
+        if (value is! Map) {
+          continue;
+        }
+        final encoding = value['encoding'];
+        if (encoding is! String || encoding.isEmpty) {
+          continue;
+        }
+        fallback ??= variant;
+        if (variant.key == 'unknown') {
+          unknown ??= variant;
+        }
+        final params = value['params'];
+        final parameterValue = params is Map
+            ? params['information_extracted']
+            : null;
+        if (informationExtracted != null &&
+            parameterValue is num &&
+            parameterValue.toDouble() == informationExtracted) {
+          matchingParams ??= variant;
         }
       }
+
+      final selected = matchingParams ?? unknown ?? fallback;
+      if (selected == null) {
+        continue;
+      }
+      final selectedValue = selected.value as Map;
+      final modelKey = modelEntry.key.toString();
+      return (
+        encoding: selectedValue['encoding'] as String,
+        model: NovelAiVibeCodec.modelForEncodingKey(modelKey) ?? importedModel,
+      );
     }
 
     return null;

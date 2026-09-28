@@ -22,21 +22,22 @@ class MinimalGlassPalette extends BaseColorModule {
 
   @override
   ColorScheme get darkScheme => const ColorScheme.dark(
-        primary: _primary,
-        onPrimary: Color(0xFF1A1A1A),
-        primaryContainer: Color(0xFF3D3220), // Dark gold/brown for contrast
-        onPrimaryContainer: Color(0xFFFFECC0), // Light gold for text/icons
-        secondary: _secondary,
-        onSecondary: Colors.white,
-        tertiary: Color(0xFFE1E6EB),
-        onTertiary: Color(0xFF1A1A1A),
-        surface: _surface,
-        onSurface: Color(0xFFA2AFB9),
-        onSurfaceVariant: Color(0xFF8BA3B5), // Cyan-tinted light gray
-        surfaceContainerHighest: _card,
-        outline: Color(0xFF3D5A6C), // Cyan-tinted border
-        error: Color(0xFFC62828),
-      );
+    primary: _primary,
+    onPrimary: Color(0xFF1A1A1A),
+    primaryContainer: Color(0xFF3D3220), // Dark gold/brown for contrast
+    onPrimaryContainer: Color(0xFFFFECC0), // Light gold for text/icons
+    secondary: _secondary,
+    onSecondary: Color(0xFF04212A),
+    tertiary: Color(0xFFE1E6EB),
+    onTertiary: Color(0xFF1A1A1A),
+    surface: _surface,
+    onSurface: Color(0xFFA2AFB9),
+    onSurfaceVariant: Color(0xFF8BA3B5), // Cyan-tinted light gray
+    surfaceContainerHighest: _card,
+    outline: Color(0xFF3D5A6C), // Cyan-tinted border
+    error: Color(0xFFC62828),
+    onError: Color(0xFFFAE6E6),
+  );
 
   @override
   bool get supportsDarkMode => true;

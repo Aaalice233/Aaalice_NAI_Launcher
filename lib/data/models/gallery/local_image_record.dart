@@ -12,6 +12,7 @@ enum MetadataStatus {
   success, // 解析成功
   failed, // 解析失败
   none, // 未解析
+  transientFailure, // worker/IO/超时等临时故障，普通扫描会自动重试
 }
 
 /// 本地图片记录模型

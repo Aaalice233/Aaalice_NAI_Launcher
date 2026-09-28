@@ -4,14 +4,110 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:image/image.dart' as img;
+import 'package:nai_launcher/core/comfyui/seedvr2_support.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/core/storage/local_storage_service.dart';
 import 'package:nai_launcher/presentation/providers/comfyui/comfyui_provider.dart';
+import 'package:nai_launcher/presentation/providers/cost_estimate_provider.dart';
 import 'package:nai_launcher/presentation/providers/generation/image_workflow_controller.dart';
+import 'package:nai_launcher/presentation/providers/generation/novel_ai_upscale_task_provider.dart';
 import 'package:nai_launcher/presentation/screens/generation/widgets/img2img_panel.dart';
+
+import '../../../../helpers/light_theme_contrast.dart';
 
 void main() {
   group('Img2ImgPanel', () {
+    testWidgets('空面板在 320 到 1600 与 3x 文本下无溢出', (tester) async {
+      for (final width in [320.0, 600.0, 840.0, 1600.0]) {
+        await tester.binding.setSurfaceSize(Size(width, 900));
+        final container = ProviderContainer();
+        await tester.pumpWidget(
+          UncontrolledProviderScope(
+            container: container,
+            child: MaterialApp(
+              locale: const Locale('zh'),
+              supportedLocales: AppLocalizations.supportedLocales,
+              localizationsDelegates: AppLocalizations.localizationsDelegates,
+              builder: (context, child) => MediaQuery(
+                data: MediaQuery.of(
+                  context,
+                ).copyWith(textScaler: const TextScaler.linear(3)),
+                child: child!,
+              ),
+              home: const Scaffold(body: Img2ImgPanel()),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        expect(find.byType(Img2ImgPanel), findsOneWidget);
+        expect(tester.takeException(), isNull, reason: 'width=$width');
+        container.dispose();
+      }
+      await tester.binding.setSurfaceSize(null);
+    });
+
+    testWidgets('源图像上传与绘制内容在 320 和 600 宽度下整体居中', (tester) async {
+      for (final width in [320.0, 600.0]) {
+        await tester.binding.setSurfaceSize(Size(width, 600));
+        final container = ProviderContainer();
+        container
+            .read(imageWorkflowControllerProvider.notifier)
+            .setPanelExpanded(true);
+        await tester.pumpWidget(
+          UncontrolledProviderScope(
+            container: container,
+            child: MaterialApp(
+              locale: const Locale('zh'),
+              supportedLocales: AppLocalizations.supportedLocales,
+              localizationsDelegates: AppLocalizations.localizationsDelegates,
+              builder: (context, child) => MediaQuery(
+                data: MediaQuery.of(
+                  context,
+                ).copyWith(textScaler: const TextScaler.linear(3)),
+                child: child!,
+              ),
+              home: const Scaffold(body: Img2ImgPanel()),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        for (final target in const [
+          (
+            key: ValueKey('img2img-upload-source'),
+            icon: Icons.upload_file,
+            label: '上传图片',
+          ),
+          (
+            key: ValueKey('img2img-draw-source'),
+            icon: Icons.brush,
+            label: '绘制草图',
+          ),
+        ]) {
+          final card = find.byKey(target.key);
+          final cardRect = tester.getRect(card);
+          final iconRect = tester.getRect(
+            find.descendant(of: card, matching: find.byIcon(target.icon)),
+          );
+          final labelRect = tester.getRect(
+            find.descendant(of: card, matching: find.text(target.label)),
+          );
+          final contentCenter = (iconRect.left + labelRect.right) / 2;
+
+          expect(cardRect.height, greaterThanOrEqualTo(48));
+          expect(
+            contentCenter,
+            closeTo(cardRect.center.dx, 0.5),
+            reason: '${target.label} not centered at width=$width',
+          );
+        }
+        expect(tester.takeException(), isNull, reason: 'width=$width');
+        container.dispose();
+      }
+      await tester.binding.setSurfaceSize(null);
+    });
+
     testWidgets('点击导演工具会导航到独立页面而不抛异常', (tester) async {
       final container = ProviderContainer();
       addTearDown(container.dispose);
@@ -110,7 +206,7 @@ void main() {
 
       await tester.pumpAndSettle();
 
-      expect(find.text('seedvr2_ema_7b_fp16'), findsOneWidget);
+      expect(find.text('seedvr2_7b_sharp_int8_convrot'), findsOneWidget);
       expect(find.textContaining('SeedVR2 ·'), findsNothing);
 
       await tester.tap(find.text('普通模型'));
@@ -118,6 +214,161 @@ void main() {
 
       expect(find.text('4x-UltraSharpV2'), findsOneWidget);
       expect(find.textContaining('普通模型 ·'), findsNothing);
+    });
+
+    testWidgets('NovelAI 超分点数显示在开始超分按钮内', (tester) async {
+      final container = ProviderContainer(
+        overrides: [
+          localStorageServiceProvider.overrideWith(
+            (ref) => _MemoryLocalStorageService(),
+          ),
+          comfyUISettingsProvider.overrideWith(_EnabledComfyUISettings.new),
+          comfyUISeedvr2ModelsProvider.overrideWith(
+            _FixedComfyUIUpscaleModels.new,
+          ),
+          isFreeGenerationProvider.overrideWith((ref) => false),
+          estimatedCostProvider.overrideWith((ref) => 10),
+          isBalanceInsufficientProvider.overrideWith((ref) => false),
+        ],
+      );
+      addTearDown(container.dispose);
+      await tester.binding.setSurfaceSize(const Size(1400, 1600));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+
+      final controller = container.read(
+        imageWorkflowControllerProvider.notifier,
+      );
+      controller.replaceSourceImage(_testImageBytes);
+      controller.updateUpscaleBackend(UpscaleBackend.novelai);
+      controller.enterUpscaleMode();
+      controller.setPanelExpanded(true);
+
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: const MaterialApp(
+            locale: Locale('zh'),
+            supportedLocales: AppLocalizations.supportedLocales,
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            home: Scaffold(body: Img2ImgPanel()),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final expectedCost = container.read(estimatedCostProvider);
+      final startButton = find.widgetWithText(FilledButton, '开始超分');
+      final costBadge = find.byKey(const ValueKey('upscale_anlas_cost_badge'));
+
+      expect(expectedCost, greaterThan(0));
+      expect(startButton, findsOneWidget);
+      expect(
+        find.descendant(of: startButton, matching: costBadge),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(
+          of: costBadge,
+          matching: find.text(expectedCost.toString()),
+        ),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('NovelAI 超分离开页面后返回仍显示运行状态', (tester) async {
+      final container = ProviderContainer(
+        overrides: [
+          localStorageServiceProvider.overrideWith(
+            (ref) => _MemoryLocalStorageService(),
+          ),
+          comfyUISettingsProvider.overrideWith(_EnabledComfyUISettings.new),
+          comfyUISeedvr2ModelsProvider.overrideWith(
+            _FixedComfyUIUpscaleModels.new,
+          ),
+          novelAiUpscaleTaskProvider.overrideWith(
+            _TestNovelAiUpscaleTaskNotifier.new,
+          ),
+          isFreeGenerationProvider.overrideWith((ref) => false),
+          estimatedCostProvider.overrideWith((ref) => 10),
+          isBalanceInsufficientProvider.overrideWith((ref) => false),
+        ],
+      );
+      var containerDisposed = false;
+      addTearDown(() {
+        if (!containerDisposed) container.dispose();
+      });
+      await tester.binding.setSurfaceSize(const Size(1400, 1600));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+
+      final controller = container.read(
+        imageWorkflowControllerProvider.notifier,
+      );
+      controller.replaceSourceImage(_testImageBytes);
+      controller.updateUpscaleBackend(UpscaleBackend.novelai);
+      controller.enterUpscaleMode();
+      controller.setPanelExpanded(true);
+      await tester.pump(const Duration(milliseconds: 1));
+      final taskNotifier =
+          container.read(novelAiUpscaleTaskProvider.notifier)
+              as _TestNovelAiUpscaleTaskNotifier;
+      taskNotifier.start();
+
+      Future<void> pumpPanel() => tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: const MaterialApp(
+            locale: Locale('zh'),
+            supportedLocales: AppLocalizations.supportedLocales,
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            home: Scaffold(body: Img2ImgPanel()),
+          ),
+        ),
+      );
+
+      await pumpPanel();
+      await tester.pump(const Duration(milliseconds: 1));
+      expect(find.byType(LinearProgressIndicator), findsOneWidget);
+
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pump(const Duration(milliseconds: 1));
+      expect(container.read(novelAiUpscaleTaskProvider).isRunning, isTrue);
+
+      await pumpPanel();
+      await tester.pump(const Duration(milliseconds: 1));
+      expect(find.byType(LinearProgressIndicator), findsOneWidget);
+      expect(
+        tester
+            .widget<FilledButton>(find.widgetWithText(FilledButton, '开始超分'))
+            .onPressed,
+        isNull,
+      );
+
+      await tester.pumpWidget(const SizedBox.shrink());
+      container.dispose();
+      containerDisposed = true;
+      await tester.pump(const Duration(milliseconds: 1));
+    });
+
+    testWidgets('浅色主题下展开面板不应出现贴在面板底色上的近白色文字', (tester) async {
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+
+      final controller = container.read(
+        imageWorkflowControllerProvider.notifier,
+      );
+      controller.replaceSourceImage(_testImageBytes);
+      controller.enterInpaintMode();
+      // 展开后背景图不再渲染，内容直接贴在 Card 表面上，
+      // 此时任何白色文字在浅色主题下都不可读。
+      controller.setPanelExpanded(true);
+
+      await pumpPanelInLightTheme(
+        tester,
+        container: container,
+        panel: const Img2ImgPanel(),
+      );
+
+      expectNoUnreadableLightText(tester, panelName: 'Img2ImgPanel（重绘模式）');
     });
   });
 }
@@ -135,8 +386,24 @@ class _EnabledComfyUISettings extends ComfyUISettings {
 
 class _FixedComfyUIUpscaleModels extends ComfyUISeedvr2Models {
   @override
+  bool get hasFetchedFromServer => true;
+
+  @override
+  ComfySeedvr2Capabilities get capabilities => const ComfySeedvr2Capabilities(
+    nativeNodesAvailable: true,
+    legacyNodesAvailable: true,
+    nativeModels: ['seedvr2_7b_sharp_int8_convrot.safetensors'],
+    legacyModels: ['seedvr2_ema_7b_fp16.safetensors'],
+    nativeVaeModels: ['ema_vae_fp16.safetensors'],
+  );
+
+  @override
   List<String> build() {
-    return const ['seedvr2_ema_7b_fp16.safetensors', '4x-UltraSharpV2.pth'];
+    return const [
+      'seedvr2_7b_sharp_int8_convrot.safetensors',
+      'seedvr2_ema_7b_fp16.safetensors',
+      '4x-UltraSharpV2.pth',
+    ];
   }
 
   @override
@@ -160,5 +427,16 @@ class _MemoryLocalStorageService extends LocalStorageService {
   @override
   Future<void> deleteSetting(String key) async {
     _values.remove(key);
+  }
+}
+
+class _TestNovelAiUpscaleTaskNotifier extends NovelAiUpscaleTaskNotifier {
+  @override
+  NovelAiUpscaleTaskState build() => const NovelAiUpscaleTaskState();
+
+  void start() {
+    state = const NovelAiUpscaleTaskState(
+      status: NovelAiUpscaleTaskStatus.running,
+    );
   }
 }

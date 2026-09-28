@@ -29,10 +29,10 @@ class FileImageDetailData implements ImageDetailData {
     String? id,
     NaiImageMetadata? initialMetadata,
     bool showCopyButton = true,
-  })  : _cachedBytes = cachedBytes,
-        _id = id ?? filePath,
-        _initialMetadata = initialMetadata,
-        _showCopyButton = showCopyButton;
+  }) : _cachedBytes = cachedBytes,
+       _id = id ?? filePath,
+       _initialMetadata = initialMetadata,
+       _showCopyButton = showCopyButton;
 
   @override
   ImageProvider getImageProvider() {
@@ -57,16 +57,16 @@ class FileImageDetailData implements ImageDetailData {
           targetHeight = _maxImageDimension;
         }
 
-        return ResizeImage(
-          fileImage,
-          width: targetWidth,
-          height: targetHeight,
-        );
+        return ResizeImage(fileImage, width: targetWidth, height: targetHeight);
       }
     }
 
     return fileImage;
   }
+
+  @override
+  Future<ImageProvider?> getPlaceholderProvider() =>
+      downscaledFilePlaceholder(filePath);
 
   @override
   Future<Uint8List> getImageBytes() async {
@@ -92,6 +92,7 @@ class FileImageDetailData implements ImageDetailData {
   ///
   /// **前台高优先级调用** - 用户主动打开详情页时使用
   /// 不受后台预加载队列影响，立即开始解析
+  @override
   Future<NaiImageMetadata?> getMetadataAsync() async {
     AppLogger.i(
       '[MetadataFlow] getMetadataAsync START: path=$filePath',
@@ -186,4 +187,7 @@ class FileImageDetailData implements ImageDetailData {
 
   @override
   bool get showFavoriteButton => true;
+
+  @override
+  bool get preserveOriginalBytesOnSave => false;
 }

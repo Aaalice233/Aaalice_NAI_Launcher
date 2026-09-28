@@ -6,6 +6,60 @@ import '../utils/app_logger.dart';
 import 'comfyui_models.dart';
 import 'comfyui_url_utils.dart';
 
+String formatComfyUIErrorResponse(Object? responseData, {String? fallback}) {
+  if (responseData is String && responseData.trim().isNotEmpty) {
+    return responseData.trim();
+  }
+
+  if (responseData is Map) {
+    final nodeDetails = <String>[];
+    final nodeErrors = responseData['node_errors'];
+    if (nodeErrors is Map) {
+      for (final entry in nodeErrors.entries) {
+        final nodeError = entry.value;
+        if (nodeError is! Map) continue;
+        final nodeType = nodeError['class_type']?.toString();
+        final errors = nodeError['errors'];
+        if (errors is! List) continue;
+
+        for (final error in errors.whereType<Map>()) {
+          final message = error['message']?.toString().trim() ?? '';
+          final details = error['details']?.toString().trim() ?? '';
+          final description = [
+            if (message.isNotEmpty) message,
+            if (details.isNotEmpty && details != message) details,
+          ].join(': ');
+          if (description.isEmpty) continue;
+          final nodeLabel = nodeType == null || nodeType.isEmpty
+              ? '节点 ${entry.key}'
+              : '节点 ${entry.key} ($nodeType)';
+          nodeDetails.add('$nodeLabel: $description');
+        }
+      }
+    }
+    if (nodeDetails.isNotEmpty) {
+      return nodeDetails.join('；');
+    }
+
+    final error = responseData['error'];
+    if (error is Map) {
+      final type = error['type']?.toString().trim() ?? '';
+      final message = error['message']?.toString().trim() ?? '';
+      final details = error['details']?.toString().trim() ?? '';
+      final parts = [
+        if (type.isNotEmpty) type,
+        if (message.isNotEmpty && message != type) message,
+        if (details.isNotEmpty && details != message) details,
+      ];
+      if (parts.isNotEmpty) return parts.join(': ');
+    } else if (error != null && error.toString().trim().isNotEmpty) {
+      return error.toString().trim();
+    }
+  }
+
+  return fallback?.trim().isNotEmpty == true ? fallback!.trim() : '未知错误';
+}
+
 /// ComfyUI HTTP API 服务
 ///
 /// 封装 ComfyUI 服务端的 REST 端点：
@@ -22,16 +76,16 @@ class ComfyUIApiService {
   final String baseUrl;
 
   ComfyUIApiService({required String baseUrl})
-      : this._(normalizeComfyUIBaseUrl(baseUrl));
+    : this._(normalizeComfyUIBaseUrl(baseUrl));
 
   ComfyUIApiService._(this.baseUrl)
-      : _dio = Dio(
-          BaseOptions(
-            baseUrl: baseUrl,
-            connectTimeout: const Duration(seconds: 10),
-            receiveTimeout: const Duration(seconds: 300),
-          ),
-        );
+    : _dio = Dio(
+        BaseOptions(
+          baseUrl: baseUrl,
+          connectTimeout: const Duration(seconds: 10),
+          receiveTimeout: const Duration(seconds: 300),
+        ),
+      );
 
   /// 测试连接是否可用
   Future<bool> testConnection() async {
@@ -76,10 +130,7 @@ class ComfyUIApiService {
     try {
       final response = await _dio.post(
         '/prompt',
-        data: {
-          'prompt': workflow,
-          'client_id': clientId,
-        },
+        data: {'prompt': workflow, 'client_id': clientId},
       );
       final data = response.data as Map<String, dynamic>;
       return ComfyUIPromptResult(
@@ -187,8 +238,9 @@ class ComfyUIApiService {
   /// [nodeClass] 为 null 时返回全部节点信息
   Future<Map<String, dynamic>> getObjectInfo([String? nodeClass]) async {
     try {
-      final path =
-          nodeClass != null ? '/object_info/$nodeClass' : '/object_info';
+      final path = nodeClass != null
+          ? '/object_info/$nodeClass'
+          : '/object_info';
       final response = await _dio.get(path);
       return response.data as Map<String, dynamic>;
     } catch (e) {
@@ -214,21 +266,12 @@ class ComfyUIApiService {
   String _extractErrorDetail(DioException e) {
     if (e.response?.data != null) {
       try {
-        if (e.response!.data is Map) {
-          final data = e.response!.data as Map<String, dynamic>;
-          return data['error']?.toString() ??
-              data['node_errors']?.toString() ??
-              e.message ??
-              '未知错误';
-        }
-        if (e.response!.data is String) {
-          return e.response!.data as String;
-        }
-      } catch (e) {
-        AppLogger.d(
-          'Failed to parse ComfyUI error response: $e',
-          _tag,
+        return formatComfyUIErrorResponse(
+          e.response!.data,
+          fallback: e.message,
         );
+      } catch (e) {
+        AppLogger.d('Failed to parse ComfyUI error response: $e', _tag);
       }
     }
     if (e.type == DioExceptionType.connectionTimeout ||

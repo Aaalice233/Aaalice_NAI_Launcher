@@ -1,12 +1,22 @@
+import 'dart:async';
+
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:nai_launcher/core/utils/localization_extension.dart';
 
+import '../prompt/prompt_weight_editing.dart';
+import '../../adaptive/interaction_policy.dart';
+import '../../../core/utils/prompt_edit_document.dart';
+import '../prompt/prompt_action_overlay.dart';
+import '../prompt/prompt_weight_controls.dart';
+import '../prompt/prompt_translation_caption.dart';
+import '../prompt/tag_editor_scope.dart';
+
 /// 权重调整工具条包装器
 ///
 /// 为任意文本输入框提供权重调整功能
-/// 使用 CompositedTransform 实现精确定位
+/// 使用 OverlayPortal 的布局信息跟随选区并避让屏幕边界
 ///
 /// 使用示例：
 /// ```dart
@@ -32,12 +42,16 @@ class WeightAdjustToolbarWrapper extends StatefulWidget {
   /// 是否启用权重调整
   final bool enabled;
 
+  /// 是否允许通过鼠标滚轮调整权重
+  final bool enableWheelAdjustment;
+
   const WeightAdjustToolbarWrapper({
     super.key,
     required this.child,
     required this.controller,
     this.focusNode,
     this.enabled = true,
+    this.enableWheelAdjustment = true,
   });
 
   @override
@@ -47,12 +61,15 @@ class WeightAdjustToolbarWrapper extends StatefulWidget {
 
 class _WeightAdjustToolbarWrapperState
     extends State<WeightAdjustToolbarWrapper> {
-  final LayerLink _layerLink = LayerLink();
+  final OverlayPortalController _overlayController = OverlayPortalController(
+    debugLabel: 'prompt-weight-toolbar',
+  );
   final GlobalKey _textFieldKey = GlobalKey();
-  OverlayEntry? _overlayEntry;
   late FocusNode _focusNode;
   bool _ownsFocusNode = false;
   bool _isInteractingWithToolbar = false;
+  bool _toolbarVisible = false;
+  Timer? _blurTimer;
 
   @override
   void initState() {
@@ -74,11 +91,21 @@ class _WeightAdjustToolbarWrapperState
   @override
   void didUpdateWidget(WeightAdjustToolbarWrapper oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (oldWidget.enabled && !widget.enabled) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && !widget.enabled) _hideToolbar();
+      });
+    }
+    if (!oldWidget.enabled && widget.enabled) {
+      _scheduleControllerSelectionSync(widget.controller);
+    }
     if (oldWidget.controller != widget.controller) {
       oldWidget.controller.removeListener(_onSelectionChanged);
       widget.controller.addListener(_onSelectionChanged);
+      _scheduleControllerSelectionSync(widget.controller);
     }
     if (oldWidget.focusNode != widget.focusNode) {
+      _blurTimer?.cancel();
       _focusNode.removeListener(_onFocusChanged);
       if (_ownsFocusNode) {
         _focusNode.dispose();
@@ -89,7 +116,9 @@ class _WeightAdjustToolbarWrapperState
 
   @override
   void dispose() {
-    _hideToolbar();
+    _blurTimer?.cancel();
+    _isInteractingWithToolbar = false;
+    _toolbarVisible = false;
     widget.controller.removeListener(_onSelectionChanged);
     _focusNode.removeListener(_onFocusChanged);
     if (_ownsFocusNode) {
@@ -99,8 +128,9 @@ class _WeightAdjustToolbarWrapperState
   }
 
   void _onFocusChanged() {
+    _blurTimer?.cancel();
     if (!_focusNode.hasFocus && !_isInteractingWithToolbar) {
-      Future.delayed(const Duration(milliseconds: 200), () {
+      _blurTimer = Timer(const Duration(milliseconds: 200), () {
         if (mounted && !_focusNode.hasFocus && !_isInteractingWithToolbar) {
           _hideToolbar();
         }
@@ -111,488 +141,307 @@ class _WeightAdjustToolbarWrapperState
   void _onSelectionChanged() {
     if (!widget.enabled || _isInteractingWithToolbar) return;
 
+    _syncToolbarWithControllerSelection();
+  }
+
+  void _syncToolbarWithControllerSelection() {
+    if (!widget.enabled) return;
+
     final selection = widget.controller.selection;
-    final hasSelection = selection.isValid &&
+    final hasSelection =
+        selection.isValid &&
         selection.start != selection.end &&
         selection.start >= 0 &&
         selection.end <= widget.controller.text.length;
 
-    if (hasSelection && _overlayEntry == null) {
+    if (hasSelection && !_toolbarVisible) {
       _showToolbar();
-    } else if (!hasSelection && _overlayEntry != null) {
+    } else if (!hasSelection && _toolbarVisible) {
       _hideToolbar();
-    } else if (hasSelection && _overlayEntry != null) {
-      _overlayEntry?.markNeedsBuild();
+    } else if (hasSelection && _toolbarVisible && mounted) {
+      setState(() {});
     }
   }
 
+  void _scheduleControllerSelectionSync(
+    TextEditingController updatedController,
+  ) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && identical(widget.controller, updatedController)) {
+        _syncToolbarWithControllerSelection();
+      }
+    });
+  }
+
   void _showToolbar() {
-    if (_overlayEntry != null) return;
-
-    _overlayEntry = OverlayEntry(
-      builder: (context) => _WeightAdjustToolbar(
-        controller: widget.controller,
-        layerLink: _layerLink,
-        textFieldKey: _textFieldKey,
-        onClose: _hideToolbar,
-        onInteractingChanged: (interacting) {
-          _isInteractingWithToolbar = interacting;
-        },
-      ),
-    );
-
-    Overlay.of(context).insert(_overlayEntry!);
+    if (_toolbarVisible) return;
+    _toolbarVisible = true;
+    _overlayController.show();
   }
 
   void _hideToolbar() {
     _isInteractingWithToolbar = false;
-    _overlayEntry?.remove();
-    _overlayEntry = null;
+    if (!_toolbarVisible) return;
+    _toolbarVisible = false;
+    _overlayController.hide();
   }
 
   void _adjustWeightByStep(double step) {
-    final result = _WeightSelectionEditor.parseSelection(widget.controller);
-    _WeightSelectionEditor.applyWeight(
+    if (!PromptWeightEditing.protectNegativeBlockSyntax(widget.controller)) {
+      return;
+    }
+    final result = PromptWeightEditing.parseSelection(widget.controller);
+    PromptWeightEditing.applyWeight(
       widget.controller,
       (result.weight + step).clamp(0.1, 3.0),
     );
-    _overlayEntry?.markNeedsBuild();
+    if (mounted && _toolbarVisible) {
+      setState(() {});
+    }
   }
 
   void _handlePointerSignal(PointerSignalEvent event) {
     if (event is! PointerScrollEvent ||
         event.scrollDelta.dy == 0 ||
         !widget.enabled ||
-        !_WeightSelectionEditor.hasSelection(widget.controller)) {
+        !widget.enableWheelAdjustment ||
+        !PromptWeightEditing.hasSelection(widget.controller) ||
+        !PromptWeightEditing.protectNegativeBlockSyntax(widget.controller)) {
       return;
     }
 
-    _adjustWeightByStep(event.scrollDelta.dy < 0 ? 0.05 : -0.05);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Listener(
-      onPointerSignal: _handlePointerSignal,
-      child: CompositedTransformTarget(
-        link: _layerLink,
-        child: KeyedSubtree(
-          key: _textFieldKey,
-          child: widget.child,
-        ),
-      ),
-    );
-  }
-}
-
-/// 权重解析结果
-class _WeightParseResult {
-  final String baseText;
-  final double weight;
-
-  const _WeightParseResult({
-    required this.baseText,
-    required this.weight,
-  });
-}
-
-class _WeightSelectionEditor {
-  static bool hasSelection(TextEditingController controller) {
-    final selection = controller.selection;
-    return selection.isValid &&
-        selection.start != selection.end &&
-        selection.start >= 0 &&
-        selection.end <= controller.text.length;
-  }
-
-  static _WeightParseResult parseSelection(TextEditingController controller) {
-    final text = controller.text;
-    final selection = controller.selection;
-    final start = selection.start;
-    final end = selection.end;
-
-    if (start < 0 || end > text.length || start >= end) {
-      return const _WeightParseResult(baseText: '', weight: 1.0);
-    }
-
-    final selectedText = text.substring(start, end);
-    return parseWeightSyntax(selectedText);
-  }
-
-  static _WeightParseResult parseWeightSyntax(String text) {
-    var baseText = text;
-    var weight = 1.0;
-
-    final trimmed = text.trim();
-
-    // NAI 数值权重语法: weight::text:: 或 weight::text
-    final naiWeightMatch = RegExp(
-      r'^(-?\d+\.?\d*)::(.+?)(?:::$|$)',
-    ).firstMatch(trimmed);
-
-    if (naiWeightMatch != null) {
-      final weightValue = double.tryParse(naiWeightMatch.group(1)!);
-      if (weightValue != null) {
-        weight = weightValue;
-        baseText = naiWeightMatch.group(2)!.trim();
-        return _WeightParseResult(baseText: baseText, weight: weight);
-      }
-    }
-
-    // 括号权重语法 {text} 或 [text]
-    var braceCount = 0;
-    var bracketCount = 0;
-
-    var i = 0;
-    while (i < trimmed.length) {
-      if (trimmed[i] == '{') {
-        braceCount++;
-        i++;
-      } else if (trimmed[i] == '[') {
-        bracketCount++;
-        i++;
-      } else {
-        break;
-      }
-    }
-
-    var j = trimmed.length - 1;
-    var closeBraceCount = 0;
-    var closeBracketCount = 0;
-    while (j >= i) {
-      if (trimmed[j] == '}') {
-        closeBraceCount++;
-        j--;
-      } else if (trimmed[j] == ']') {
-        closeBracketCount++;
-        j--;
-      } else {
-        break;
-      }
-    }
-
-    final effectiveBraces =
-        braceCount < closeBraceCount ? braceCount : closeBraceCount;
-    final effectiveBrackets =
-        bracketCount < closeBracketCount ? bracketCount : closeBracketCount;
-
-    if (effectiveBraces > 0) {
-      weight = 1.0 + (effectiveBraces * 0.05);
-      baseText = trimmed
-          .substring(effectiveBraces, trimmed.length - effectiveBraces)
-          .trim();
-    } else if (effectiveBrackets > 0) {
-      weight = 1.0 - (effectiveBrackets * 0.05);
-      baseText = trimmed
-          .substring(effectiveBrackets, trimmed.length - effectiveBrackets)
-          .trim();
-    }
-
-    return _WeightParseResult(
-      baseText: baseText.trim(),
-      weight: weight.clamp(0.1, 3.0),
-    );
-  }
-
-  static bool applyWeight(
-    TextEditingController controller,
-    double newWeight,
-  ) {
-    final result = parseSelection(controller);
-    final baseText = result.baseText;
-
-    if (baseText.isEmpty) return false;
-
-    String newText;
-    if (newWeight == 1.0) {
-      newText = baseText;
-    } else {
-      newText = '${newWeight.toStringAsFixed(2)}::$baseText::';
-    }
-
-    final text = controller.text;
-    final selection = controller.selection;
-    final newTextValue = text.substring(0, selection.start) +
-        newText +
-        text.substring(selection.end);
-
-    controller.text = newTextValue;
-
-    final newSelectionEnd = selection.start + newText.length;
-    controller.selection = TextSelection(
-      baseOffset: selection.start,
-      extentOffset: newSelectionEnd,
-    );
-
-    return true;
-  }
-}
-
-/// 权重调整工具条
-class _WeightAdjustToolbar extends StatefulWidget {
-  final TextEditingController controller;
-  final LayerLink layerLink;
-  final GlobalKey textFieldKey;
-  final VoidCallback onClose;
-  final ValueChanged<bool> onInteractingChanged;
-
-  const _WeightAdjustToolbar({
-    required this.controller,
-    required this.layerLink,
-    required this.textFieldKey,
-    required this.onClose,
-    required this.onInteractingChanged,
-  });
-
-  @override
-  State<_WeightAdjustToolbar> createState() => _WeightAdjustToolbarState();
-}
-
-class _WeightAdjustToolbarState extends State<_WeightAdjustToolbar> {
-  final TextEditingController _weightController = TextEditingController();
-
-  @override
-  void initState() {
-    super.initState();
-    _updateWeightDisplay();
-  }
-
-  @override
-  void didUpdateWidget(_WeightAdjustToolbar oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    _updateWeightDisplay();
-  }
-
-  void _updateWeightDisplay() {
-    final result = _WeightSelectionEditor.parseSelection(widget.controller);
-    _weightController.text = result.weight.toStringAsFixed(2);
-  }
-
-  void _applyWeight(double newWeight) {
-    if (!_WeightSelectionEditor.applyWeight(widget.controller, newWeight)) {
-      return;
-    }
-
-    setState(() {
-      _weightController.text = newWeight.toStringAsFixed(2);
+    GestureBinding.instance.pointerSignalResolver.register(event, (
+      resolvedEvent,
+    ) {
+      final scrollEvent = resolvedEvent as PointerScrollEvent;
+      _adjustWeightByStep(scrollEvent.scrollDelta.dy < 0 ? 0.05 : -0.05);
+      scrollEvent.respond(allowPlatformDefault: false);
     });
   }
 
-  void _adjustWeightByStep(double step) {
-    final currentWeight = double.tryParse(_weightController.text) ?? 1.0;
-    _applyWeight((currentWeight + step).clamp(0.1, 3.0));
-  }
-
-  void _handlePointerSignal(PointerSignalEvent event) {
-    if (event is! PointerScrollEvent || event.scrollDelta.dy == 0) {
-      return;
-    }
-    _adjustWeightByStep(event.scrollDelta.dy < 0 ? 0.05 : -0.05);
-  }
-
-  Offset _calculateOffset() {
-    final textFieldContext = widget.textFieldKey.currentContext;
-    if (textFieldContext == null) {
-      return const Offset(0, -52);
-    }
-
-    final textFieldRenderBox =
-        textFieldContext.findRenderObject() as RenderBox?;
-    if (textFieldRenderBox == null) {
-      return const Offset(0, -52);
-    }
-
-    RenderEditable? findRenderEditable(Element element) {
-      RenderEditable? result;
-      void search(Element e) {
-        if (result != null) return;
-        if (e.renderObject is RenderEditable) {
-          result = e.renderObject as RenderEditable;
-          return;
-        }
-        e.visitChildren(search);
-      }
-
-      search(element);
-      return result;
-    }
-
-    final renderEditable = findRenderEditable(textFieldContext as Element);
-    if (renderEditable == null) {
-      return const Offset(0, -52);
-    }
-
-    final selection = widget.controller.selection;
-    if (!selection.isValid || selection.start < 0) {
-      return const Offset(0, -52);
-    }
-
-    final caretPosition = TextPosition(offset: selection.start);
-    final caretRect = renderEditable.getLocalRectForCaret(caretPosition);
-
-    const toolbarHeight = 48.0;
-    const verticalPadding = 4.0;
-
-    return Offset(
-      caretRect.left,
-      caretRect.top - toolbarHeight - verticalPadding,
+  @override
+  Widget build(BuildContext context) {
+    return Listener(
+      onPointerSignal: _handlePointerSignal,
+      child: OverlayPortal.overlayChildLayoutBuilder(
+        controller: _overlayController,
+        overlayChildBuilder: _buildToolbarOverlay,
+        child: KeyedSubtree(key: _textFieldKey, child: widget.child),
+      ),
     );
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-    final l10n = context.l10n;
+  Widget _buildToolbarOverlay(
+    BuildContext context,
+    OverlayChildLayoutInfo layoutInfo,
+  ) {
+    final childRect = MatrixUtils.transformRect(
+      layoutInfo.childPaintTransform,
+      Offset.zero & layoutInfo.childSize,
+    );
+    var caretRect = Rect.fromLTWH(
+      childRect.left,
+      childRect.top,
+      0,
+      childRect.height,
+    );
+    final textFieldContext = _textFieldKey.currentContext;
+    final textFieldRenderBox =
+        textFieldContext?.findRenderObject() as RenderBox?;
+    if (textFieldContext is Element && textFieldRenderBox != null) {
+      RenderEditable? renderEditable;
+      void findEditable(Element element) {
+        if (renderEditable != null) return;
+        if (element.renderObject case final RenderEditable editable) {
+          renderEditable = editable;
+          return;
+        }
+        element.visitChildren(findEditable);
+      }
 
-    return Listener(
-      onPointerDown: (_) => widget.onInteractingChanged(true),
-      onPointerUp: (_) => widget.onInteractingChanged(false),
-      onPointerSignal: _handlePointerSignal,
-      child: CompositedTransformFollower(
-        link: widget.layerLink,
-        showWhenUnlinked: false,
-        offset: _calculateOffset(),
-        child: Align(
-          alignment: Alignment.topLeft,
-          child: SizedBox(
-            width: 220,
-            height: 48,
-            child: Material(
-              elevation: 8,
-              borderRadius: BorderRadius.circular(8),
-              color: colorScheme.surfaceContainerHigh,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(
-                    color: colorScheme.outline.withValues(alpha: 0.2),
-                  ),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    _WeightButton(
-                      icon: Icons.remove,
-                      onPressed: () => _adjustWeightByStep(-0.05),
-                      tooltip: l10n.tooltip_decreaseWeight,
-                    ),
-                    Expanded(
-                      child: Container(
-                        margin: const EdgeInsets.symmetric(horizontal: 4),
-                        child: TextField(
-                          controller: _weightController,
-                          textAlign: TextAlign.center,
-                          keyboardType: const TextInputType.numberWithOptions(
-                            decimal: true,
-                            signed: true,
-                          ),
-                          style: theme.textTheme.bodyMedium?.copyWith(
-                            fontWeight: FontWeight.w600,
-                            fontFeatures: const [FontFeature.tabularFigures()],
-                          ),
-                          decoration: InputDecoration(
-                            isDense: true,
-                            contentPadding: const EdgeInsets.symmetric(
-                              horizontal: 4,
-                              vertical: 6,
-                            ),
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(4),
-                              borderSide: BorderSide(
-                                color:
-                                    colorScheme.outline.withValues(alpha: 0.5),
-                              ),
-                            ),
-                            enabledBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(4),
-                              borderSide: BorderSide(
-                                color:
-                                    colorScheme.outline.withValues(alpha: 0.3),
-                              ),
-                            ),
-                            focusedBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(4),
-                              borderSide: BorderSide(
-                                color: colorScheme.primary,
-                                width: 1.5,
-                              ),
-                            ),
-                          ),
-                          onSubmitted: (value) {
-                            final newWeight = double.tryParse(value) ?? 1.0;
-                            _applyWeight(newWeight.clamp(0.1, 3.0));
-                          },
-                        ),
-                      ),
-                    ),
-                    _WeightButton(
-                      icon: Icons.add,
-                      onPressed: () => _adjustWeightByStep(0.05),
-                      tooltip: l10n.tooltip_increaseWeight,
-                    ),
-                    Container(
-                      width: 1,
-                      height: 20,
-                      margin: const EdgeInsets.symmetric(horizontal: 8),
-                      color: colorScheme.outline.withValues(alpha: 0.3),
-                    ),
-                    _WeightButton(
-                      icon: Icons.refresh,
-                      onPressed: () => _applyWeight(1.0),
-                      tooltip: l10n.tooltip_resetWeight,
-                    ),
-                    _WeightButton(
-                      icon: Icons.close,
-                      onPressed: widget.onClose,
-                      tooltip: l10n.common_close,
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ),
-      ),
+      findEditable(textFieldContext);
+      final editable = renderEditable;
+      final selection = editable?.selection ?? widget.controller.selection;
+      if (editable != null && selection.isValid && selection.start >= 0) {
+        final localCaretRect = editable.getLocalRectForCaret(
+          TextPosition(offset: selection.start),
+        );
+        final editableToField = editable.getTransformTo(textFieldRenderBox);
+        final caretInField = MatrixUtils.transformRect(
+          editableToField,
+          localCaretRect,
+        );
+        caretRect = MatrixUtils.transformRect(
+          layoutInfo.childPaintTransform,
+          caretInField,
+        );
+      }
+    }
+
+    return _WeightAdjustToolbar(
+      controller: widget.controller,
+      caretRect: caretRect,
+      overlaySize: layoutInfo.overlaySize,
+      onClose: _hideToolbar,
+      enableWheelAdjustment: widget.enableWheelAdjustment,
+      onInteractingChanged: (interacting) {
+        _isInteractingWithToolbar = interacting;
+      },
     );
   }
 }
 
-/// 权重调整按钮
-class _WeightButton extends StatelessWidget {
-  final IconData icon;
-  final VoidCallback onPressed;
-  final String? tooltip;
-
-  const _WeightButton({
-    required this.icon,
-    required this.onPressed,
-    this.tooltip,
+class WeightAdjustScrollPhysics extends ScrollPhysics {
+  const WeightAdjustScrollPhysics({
+    required this.controllerProvider,
+    super.parent,
   });
+
+  /// Resolves lazily because Flutter can retain same-type physics on rebuild.
+  final ValueGetter<TextEditingController> controllerProvider;
+
+  @override
+  WeightAdjustScrollPhysics applyTo(ScrollPhysics? ancestor) {
+    return WeightAdjustScrollPhysics(
+      controllerProvider: controllerProvider,
+      parent: buildParent(ancestor),
+    );
+  }
+
+  @override
+  bool shouldAcceptUserOffset(ScrollMetrics position) {
+    if (PromptWeightEditing.hasSelection(controllerProvider())) {
+      return false;
+    }
+    return super.shouldAcceptUserOffset(position);
+  }
+}
+
+bool supportsPromptWeightScrollPhysics(InteractionPolicy interactionPolicy) {
+  return interactionPolicy.precisePointerAvailable;
+}
+
+class _WeightAdjustToolbar extends StatelessWidget {
+  const _WeightAdjustToolbar({
+    required this.controller,
+    required this.caretRect,
+    required this.overlaySize,
+    required this.onClose,
+    required this.enableWheelAdjustment,
+    required this.onInteractingChanged,
+  });
+  final TextEditingController controller;
+  final Rect caretRect;
+  final Size overlaySize;
+  final VoidCallback onClose;
+  final bool enableWheelAdjustment;
+  final ValueChanged<bool> onInteractingChanged;
+
+  void _weight(double value) {
+    if (PromptWeightEditing.protectNegativeBlockSyntax(controller)) {
+      PromptWeightEditing.applyWeight(controller, value);
+    }
+  }
+
+  void _step(double step) => _weight(
+    (PromptWeightEditing.parseSelection(controller).weight + step).clamp(
+      0.1,
+      3.0,
+    ),
+  );
+  void _wheel(PointerSignalEvent event) {
+    if (!enableWheelAdjustment ||
+        event is! PointerScrollEvent ||
+        event.scrollDelta.dy == 0) {
+      return;
+    }
+    GestureBinding.instance.pointerSignalResolver.register(event, (resolved) {
+      final scroll = resolved as PointerScrollEvent;
+      _step(scroll.scrollDelta.dy < 0 ? 0.05 : -0.05);
+      scroll.respond(allowPlatformDefault: false);
+    });
+  }
+
+  void _toggle(PromptEditSpan span) {
+    final replacement = span.disabled
+        ? span.text
+        : PromptEditDocument.disable(span.raw);
+    controller.value = TextEditingValue(
+      text: controller.text.replaceRange(span.start, span.end, replacement),
+      selection: TextSelection(
+        baseOffset: span.start,
+        extentOffset: span.start + replacement.length,
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-
-    return Tooltip(
-      message: tooltip ?? '',
-      child: MouseRegion(
-        cursor: SystemMouseCursors.click,
-        child: GestureDetector(
-          behavior: HitTestBehavior.opaque,
-          onTap: onPressed,
-          child: Container(
-            width: 28,
-            height: 28,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(4),
-            ),
-            alignment: Alignment.center,
-            child: Icon(
-              icon,
-              size: 18,
-              color: colorScheme.onSurfaceVariant,
+    final selection = controller.selection;
+    final session = TagEditorScope.maybeOf(context);
+    final tags = session?.textSelectionTags ?? [];
+    final enable = tags.isNotEmpty && tags.every((tag) => tag.span.disabled);
+    final selected = PromptEditDocument.singleSelected(
+      controller.text,
+      selection.start,
+      selection.end,
+    );
+    final caption = selected == null
+        ? null
+        : PromptWeightEditing.parseWeightSyntax(selected.text).baseText;
+    return PromptActionOverlay(
+      anchor: caretRect,
+      overlaySize: overlaySize,
+      child: TextFieldTapRegion(
+        child: Listener(
+          onPointerDown: (_) => onInteractingChanged(true),
+          onPointerUp: (_) => onInteractingChanged(false),
+          onPointerCancel: (_) => onInteractingChanged(false),
+          onPointerSignal: _wheel,
+          child: PromptActionSurface(
+            key: const ValueKey('weight_adjust_toolbar_surface'),
+            child: Padding(
+              padding: const EdgeInsets.all(6),
+              child: PromptWeightControls(
+                onClose: onClose,
+                caption:
+                    caption != null &&
+                        Localizations.localeOf(context).languageCode == 'zh'
+                    ? PromptTranslationCaption(text: caption)
+                    : null,
+                weight: PromptWeightEditing.parseSelection(controller).weight,
+                onWeight: _weight,
+                onStep: _step,
+                trailing: [
+                  if (tags.isNotEmpty)
+                    IconButton(
+                      key: const ValueKey('text-selection-enabled-button'),
+                      tooltip: enable
+                          ? context.l10n.tagMode_enable
+                          : context.l10n.tagMode_disable,
+                      onPressed: () => session!.setTextSelectionEnabled(enable),
+                      icon: Icon(
+                        enable
+                            ? Icons.visibility_off_outlined
+                            : Icons.visibility_outlined,
+                        size: 18,
+                      ),
+                    )
+                  else if (session == null && selected != null)
+                    IconButton(
+                      tooltip: selected.disabled
+                          ? context.l10n.tagMode_enable
+                          : context.l10n.tagMode_disable,
+                      onPressed: () => _toggle(selected),
+                      icon: Icon(
+                        selected.disabled
+                            ? Icons.visibility_outlined
+                            : Icons.visibility_off_outlined,
+                        size: 18,
+                      ),
+                    ),
+                ],
+              ),
             ),
           ),
         ),

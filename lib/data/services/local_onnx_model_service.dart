@@ -1,12 +1,30 @@
+import 'dart:convert';
 import 'dart:io';
 
+import 'package:archive/archive_io.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
+import 'package:path_provider/path_provider.dart';
 
 import '../../core/constants/storage_keys.dart';
+import '../../core/platform/platform_capabilities.dart';
 import '../../core/storage/local_storage_service.dart';
+import '../../core/utils/app_logger.dart';
 
-enum LocalOnnxModelKind { wd14Tagger, clTagger, unknown }
+enum LocalOnnxModelKind {
+  wd14Tagger,
+  clTagger,
+  clTaggerV2,
+  animeTimmEva02,
+  unknown,
+}
+
+class LocalOnnxImportSource {
+  const LocalOnnxImportSource({required this.name, required this.path});
+
+  final String name;
+  final String path;
+}
 
 class LocalOnnxModelDescriptor {
   const LocalOnnxModelDescriptor({
@@ -31,6 +49,13 @@ final localOnnxModelServiceProvider = Provider<LocalOnnxModelService>((ref) {
 class LocalOnnxModelService {
   const LocalOnnxModelService(this._storage);
 
+  static const int _archiveFileCountLimit = 64;
+  static const int _archiveExpandedBytesLimit = 4 * 1024 * 1024 * 1024;
+  static const int _archiveEntryBytesLimit = 2 * 1024 * 1024 * 1024;
+
+  /// iOS 自管 tagger 模型目录名，位于应用 Documents 下，「文件」App 可见。
+  static const String iosTaggerFolderName = 'tagger_models';
+
   final LocalStorageService _storage;
 
   String get taggerDirectory =>
@@ -40,15 +65,477 @@ class LocalOnnxModelService {
     await _storage.setSetting(StorageKeys.onnxTaggerModelDirectory, path);
   }
 
-  Future<List<LocalOnnxModelDescriptor>> scanTaggerModels() {
-    return _scanModels(
-      taggerDirectory,
-      allowedKinds: const {
-        LocalOnnxModelKind.wd14Tagger,
-        LocalOnnxModelKind.clTagger,
-        LocalOnnxModelKind.unknown,
-      },
+  /// 应用自管的 tagger 模型目录（ZIP 导入、事务落地、中断恢复的落点）。
+  ///
+  /// 【偏离上游】上游一律返回 `applicationSupport/models/onnx_taggers`。
+  /// 那个位置在 iOS 上是 `Library/Application Support`，**「文件」App 完全看不见**，
+  /// 而用户正是靠「文件」App 手动投放 GB 级模型的（Info.plist 的
+  /// `UIFileSharingEnabled` + `LSSupportsOpeningDocumentsInPlace` 只暴露 Documents）。
+  /// 因此 iOS 换成 `Documents/tagger_models`：上游整条导入链路原样复用，
+  /// 只是落点与用户手动投放的目录**合并成同一个**，而不是各自为政。
+  Future<String> getManagedTaggerDirectory() async {
+    if (PlatformCapabilities.current.isIOS) {
+      final documentsDirectory = await getApplicationDocumentsDirectory();
+      return p.join(documentsDirectory.path, iosTaggerFolderName);
+    }
+    final supportDirectory = await getApplicationSupportDirectory();
+    return p.join(supportDirectory.path, 'models', 'onnx_taggers');
+  }
+
+  /// 解析本次实际应当扫描/展示的目录。
+  ///
+  /// 【上游没有这个方法】iOS 沙盒容器路径每次重装都会变化，写进设置项的绝对路径
+  /// 重装后即指向一个不存在的旧容器；`FilePicker.getDirectoryPath` 返回的
+  /// security-scoped 授权同样不跨启动持久化。所以 iOS 永远按当前容器重新推导
+  /// `Documents/tagger_models` 并自动创建（保证「文件」App 里那个文件夹一直在），
+  /// 其余平台沿用用户设置的目录。
+  Future<String> resolveTaggerDirectory() async {
+    if (!PlatformCapabilities.current.isIOS) {
+      return taggerDirectory;
+    }
+    final directory = Directory(await getManagedTaggerDirectory());
+    await directory.create(recursive: true);
+    return directory.path;
+  }
+
+  Future<int> importTaggerSelections(
+    List<LocalOnnxImportSource> sources,
+  ) async {
+    if (sources.isEmpty) return 0;
+    if (!sources.any(
+      (source) => p.extension(source.name).toLowerCase() == '.zip',
+    )) {
+      return importTaggerFiles(sources);
+    }
+
+    final temporaryDirectory = await getTemporaryDirectory();
+    final extractionDirectory = Directory(
+      p.join(
+        temporaryDirectory.path,
+        'onnx-tagger-import-${DateTime.now().microsecondsSinceEpoch}',
+      ),
     );
+    final expandedSources = <LocalOnnxImportSource>[];
+    var extractionCreated = false;
+    try {
+      for (var index = 0; index < sources.length; index++) {
+        final source = sources[index];
+        if (p.extension(source.name).toLowerCase() != '.zip') {
+          expandedSources.add(source);
+          continue;
+        }
+        extractionCreated = true;
+        expandedSources.addAll(
+          await _extractTaggerArchive(
+            source,
+            Directory(p.join(extractionDirectory.path, '$index')),
+          ),
+        );
+      }
+      return await importTaggerFiles(expandedSources);
+    } finally {
+      if (extractionCreated && await extractionDirectory.exists()) {
+        await extractionDirectory.delete(recursive: true);
+      }
+    }
+  }
+
+  Future<List<LocalOnnxImportSource>> _extractTaggerArchive(
+    LocalOnnxImportSource source,
+    Directory outputDirectory,
+  ) async {
+    final sourceFile = File(source.path);
+    if (!await sourceFile.exists()) {
+      throw FileSystemException(
+        'Selected model archive is unavailable',
+        source.path,
+      );
+    }
+
+    final input = InputFileStream(source.path);
+    late final Archive archive;
+    try {
+      archive = ZipDecoder().decodeBuffer(input);
+    } catch (error) {
+      input.closeSync();
+      throw FormatException('Invalid ONNX model ZIP: $error');
+    }
+
+    if (archive.files.isEmpty ||
+        archive.files.length > _archiveFileCountLimit) {
+      for (final entry in archive.files) {
+        entry.closeSync();
+      }
+      input.closeSync();
+      throw const FormatException('ONNX model ZIP has an invalid file count');
+    }
+
+    final extracted = <LocalOnnxImportSource>[];
+    final selectedNames = <String>{};
+    final budget = _OnnxArchiveExtractionBudget(
+      entryBytesLimit: _archiveEntryBytesLimit,
+      expandedBytesLimit: _archiveExpandedBytesLimit,
+    );
+    try {
+      for (final entry in archive.files) {
+        final source = await _extractTaggerArchiveEntry(
+          entry,
+          outputDirectory: outputDirectory,
+          selectedNames: selectedNames,
+          budget: budget,
+        );
+        if (source != null) extracted.add(source);
+      }
+    } finally {
+      for (final entry in archive.files) {
+        entry.closeSync();
+      }
+      input.closeSync();
+    }
+    if (extracted.isEmpty) {
+      throw const FormatException(
+        'ONNX model ZIP contains no supported model files',
+      );
+    }
+    return extracted;
+  }
+
+  Future<LocalOnnxImportSource?> _extractTaggerArchiveEntry(
+    ArchiveFile entry, {
+    required Directory outputDirectory,
+    required Set<String> selectedNames,
+    required _OnnxArchiveExtractionBudget budget,
+  }) async {
+    if (entry.isSymbolicLink) {
+      throw FormatException(
+        'Symbolic links are not allowed in ONNX model ZIPs: ${entry.name}',
+      );
+    }
+    if (!entry.isFile) return null;
+
+    final fileName = _sanitizeImportedFileName(entry.name);
+    if (!_isSupportedImportFile(fileName)) return null;
+    budget.reserveDeclared(entry.size, entry.name);
+    if (!selectedNames.add(fileName.toLowerCase())) {
+      throw FormatException(
+        'Duplicate model file name in ONNX model ZIP: $fileName',
+      );
+    }
+
+    await outputDirectory.create(recursive: true);
+    final outputPath = p.join(outputDirectory.path, fileName);
+    final output = OutputFileStream(outputPath, bufferSize: 64 * 1024);
+    try {
+      entry.clear();
+      entry.decompress(output);
+      await output.close();
+    } catch (error) {
+      await output.close();
+      throw FormatException(
+        'Cannot extract ${entry.name} from ONNX model ZIP: $error',
+      );
+    }
+    if (output.length != entry.size) {
+      throw FormatException(
+        'ONNX model ZIP entry has an invalid size: ${entry.name}',
+      );
+    }
+    return LocalOnnxImportSource(name: fileName, path: outputPath);
+  }
+
+  Future<int> importTaggerFiles(List<LocalOnnxImportSource> sources) async {
+    if (sources.isEmpty) return 0;
+
+    final managedDirectory = Directory(await getManagedTaggerDirectory());
+    await managedDirectory.create(recursive: true);
+    await _recoverInterruptedImports(managedDirectory);
+
+    final entries = <_OnnxImportEntry>[];
+    final selectedNames = <String>{};
+    for (final source in sources) {
+      final sourceFile = File(source.path);
+      if (!await sourceFile.exists()) {
+        throw FileSystemException(
+          'Selected model file is unavailable',
+          source.path,
+        );
+      }
+
+      final fileName = _sanitizeImportedFileName(source.name);
+      if (!_isSupportedImportFile(fileName)) continue;
+      if (!selectedNames.add(fileName.toLowerCase())) {
+        throw FormatException('Duplicate imported file name: $fileName');
+      }
+      entries.add(
+        _OnnxImportEntry(
+          source: sourceFile,
+          fileName: fileName,
+          hadDestination: await File(
+            p.join(managedDirectory.path, fileName),
+          ).exists(),
+        ),
+      );
+    }
+
+    if (entries.isEmpty) {
+      throw const FormatException(
+        'No supported ONNX model files were selected',
+      );
+    }
+    final hasSelectedModel = entries.any(
+      (entry) => p.extension(entry.fileName).toLowerCase() == '.onnx',
+    );
+    if (!hasSelectedModel && !await _containsOnnxModel(managedDirectory)) {
+      throw const FormatException('At least one .onnx model file is required');
+    }
+
+    final transaction = Directory(
+      p.join(
+        managedDirectory.path,
+        '.import-${DateTime.now().microsecondsSinceEpoch}',
+      ),
+    );
+    final stagedDirectory = Directory(p.join(transaction.path, 'staged'));
+    final backupDirectory = Directory(p.join(transaction.path, 'backup'));
+    final manifest = File(p.join(transaction.path, 'manifest.json'));
+    await stagedDirectory.create(recursive: true);
+    await backupDirectory.create(recursive: true);
+
+    final previousDirectory = taggerDirectory;
+    var transactionFinished = false;
+    await _writeImportManifest(
+      manifest,
+      phase: 'staging',
+      entries: entries,
+      previousDirectory: previousDirectory,
+    );
+
+    try {
+      for (final entry in entries) {
+        final staged = File(p.join(stagedDirectory.path, entry.fileName));
+        await entry.source.copy(staged.path);
+        if (await staged.length() != await entry.source.length()) {
+          throw FileSystemException(
+            'Imported model copy is incomplete',
+            entry.source.path,
+          );
+        }
+      }
+
+      await _writeImportManifest(
+        manifest,
+        phase: 'committing',
+        entries: entries,
+        previousDirectory: previousDirectory,
+      );
+      for (final entry in entries) {
+        final destination = File(p.join(managedDirectory.path, entry.fileName));
+        final staged = File(p.join(stagedDirectory.path, entry.fileName));
+        final backup = File(p.join(backupDirectory.path, entry.fileName));
+        if (await destination.exists()) {
+          await destination.rename(backup.path);
+        }
+        await staged.rename(destination.path);
+      }
+
+      await setTaggerDirectory(managedDirectory.path);
+      await _writeImportManifest(
+        manifest,
+        phase: 'committed',
+        entries: entries,
+        previousDirectory: previousDirectory,
+      );
+      transactionFinished = true;
+      return entries.length;
+    } catch (_) {
+      await _rollbackImport(
+        managedDirectory: managedDirectory,
+        transaction: transaction,
+        entries: entries,
+      );
+      if (taggerDirectory != previousDirectory) {
+        await setTaggerDirectory(previousDirectory);
+      }
+      transactionFinished = true;
+      rethrow;
+    } finally {
+      if (transactionFinished && await transaction.exists()) {
+        try {
+          await transaction.delete(recursive: true);
+        } catch (error, stackTrace) {
+          AppLogger.e(
+            'Failed to clean completed ONNX import transaction',
+            error,
+            stackTrace,
+            'LocalOnnxModelService',
+          );
+        }
+      }
+    }
+  }
+
+  Future<void> _writeImportManifest(
+    File manifest, {
+    required String phase,
+    required List<_OnnxImportEntry> entries,
+    required String previousDirectory,
+  }) {
+    return manifest.writeAsString(
+      jsonEncode({
+        'phase': phase,
+        'previousDirectory': previousDirectory,
+        'entries': [
+          for (final entry in entries)
+            {
+              'fileName': entry.fileName,
+              'hadDestination': entry.hadDestination,
+            },
+        ],
+      }),
+      flush: true,
+    );
+  }
+
+  Future<void> _rollbackImport({
+    required Directory managedDirectory,
+    required Directory transaction,
+    required List<_OnnxImportEntry> entries,
+  }) async {
+    final stagedDirectory = Directory(p.join(transaction.path, 'staged'));
+    final backupDirectory = Directory(p.join(transaction.path, 'backup'));
+    for (final entry in entries.reversed) {
+      final destination = File(p.join(managedDirectory.path, entry.fileName));
+      final staged = File(p.join(stagedDirectory.path, entry.fileName));
+      final backup = File(p.join(backupDirectory.path, entry.fileName));
+      if (await backup.exists()) {
+        if (await destination.exists()) await destination.delete();
+        await backup.rename(destination.path);
+      } else if (!entry.hadDestination &&
+          !await staged.exists() &&
+          await destination.exists()) {
+        await destination.delete();
+      }
+    }
+  }
+
+  Future<void> _recoverInterruptedImports(Directory managedDirectory) async {
+    await for (final entity in managedDirectory.list(followLinks: false)) {
+      if (entity is! Directory ||
+          !p.basename(entity.path).startsWith('.import-')) {
+        continue;
+      }
+
+      final manifest = File(p.join(entity.path, 'manifest.json'));
+      if (!await manifest.exists()) {
+        await entity.delete(recursive: true);
+        continue;
+      }
+
+      late final Map<String, dynamic> data;
+      try {
+        data =
+            jsonDecode(await manifest.readAsString()) as Map<String, dynamic>;
+      } catch (error) {
+        throw StateError(
+          'Cannot recover interrupted ONNX import ${entity.path}: $error',
+        );
+      }
+
+      final phase = data['phase'] as String?;
+      if (phase == 'committing') {
+        final rawEntries = data['entries'];
+        if (rawEntries is! List) {
+          throw StateError('Invalid ONNX import manifest: ${entity.path}');
+        }
+        final entries = rawEntries.map((rawEntry) {
+          if (rawEntry is! Map ||
+              rawEntry['fileName'] is! String ||
+              rawEntry['hadDestination'] is! bool) {
+            throw StateError('Invalid ONNX import manifest: ${entity.path}');
+          }
+          final fileName = _sanitizeImportedFileName(
+            rawEntry['fileName'] as String,
+          );
+          return _OnnxImportEntry(
+            source: File(''),
+            fileName: fileName,
+            hadDestination: rawEntry['hadDestination'] as bool,
+          );
+        }).toList();
+        await _rollbackImport(
+          managedDirectory: managedDirectory,
+          transaction: entity,
+          entries: entries,
+        );
+        final previousDirectory = data['previousDirectory'] as String? ?? '';
+        if (taggerDirectory != previousDirectory) {
+          await setTaggerDirectory(previousDirectory);
+        }
+      } else if (phase != 'staging' && phase != 'committed') {
+        throw StateError('Invalid ONNX import phase in ${entity.path}');
+      }
+      await entity.delete(recursive: true);
+    }
+  }
+
+  Future<int> managedFileCount() async {
+    final directory = Directory(await getManagedTaggerDirectory());
+    if (!await directory.exists()) return 0;
+    await _recoverInterruptedImports(directory);
+    return directory
+        .list(followLinks: false)
+        .where(
+          (entity) => entity is File && _isSupportedImportFile(entity.path),
+        )
+        .length;
+  }
+
+  Future<void> clearManagedTaggerFiles() async {
+    final managedDirectory = Directory(await getManagedTaggerDirectory());
+    if (await managedDirectory.exists()) {
+      await managedDirectory.delete(recursive: true);
+    }
+    if (p.equals(taggerDirectory, managedDirectory.path)) {
+      await setTaggerDirectory('');
+    }
+  }
+
+  Future<List<LocalOnnxModelDescriptor>> scanTaggerModels() async {
+    final managedDirectory = Directory(await getManagedTaggerDirectory());
+    if (await managedDirectory.exists()) {
+      await _recoverInterruptedImports(managedDirectory);
+    }
+
+    // 【偏离上游】上游只扫描 `taggerDirectory` 这一个设置项里的路径。
+    // iOS 上必须是「设置项 ∪ Documents/tagger_models」而不是二选一：
+    // 设置项里的绝对路径跨重装失效，而用户完全可能在任何一次应用内导入之前，
+    // 就先用「文件」App 把模型放进了固定目录——只扫其中一边都会让模型凭空消失。
+    final directories = <String>{taggerDirectory};
+    if (PlatformCapabilities.current.isIOS) {
+      directories.add(await resolveTaggerDirectory());
+    }
+
+    const allowedKinds = <LocalOnnxModelKind>{
+      LocalOnnxModelKind.wd14Tagger,
+      LocalOnnxModelKind.clTagger,
+      LocalOnnxModelKind.clTaggerV2,
+      LocalOnnxModelKind.animeTimmEva02,
+      LocalOnnxModelKind.unknown,
+    };
+    final result = <LocalOnnxModelDescriptor>[];
+    final seenPaths = <String>{};
+    for (final directory in directories) {
+      for (final descriptor in await _scanModels(
+        directory,
+        allowedKinds: allowedKinds,
+      )) {
+        if (seenPaths.add(p.canonicalize(descriptor.path))) {
+          result.add(descriptor);
+        }
+      }
+    }
+    result.sort((a, b) => a.name.compareTo(b.name));
+    return result;
   }
 
   Future<List<LocalOnnxModelDescriptor>> _scanModels(
@@ -70,7 +557,8 @@ class LocalOnnxModelService {
       if (entity is! File) continue;
       if (p.extension(entity.path).toLowerCase() != '.onnx') continue;
 
-      final kind = _inferKind(entity.path);
+      final labelsPath = await _findLabelsFile(entity.path);
+      final kind = _inferKind(entity.path, labelsPath);
       if (!allowedKinds.contains(kind)) continue;
 
       result.add(
@@ -78,7 +566,7 @@ class LocalOnnxModelService {
           name: p.basename(entity.path),
           path: entity.path,
           kind: kind,
-          labelsPath: await _findLabelsFile(entity.path),
+          labelsPath: labelsPath,
         ),
       );
     }
@@ -87,8 +575,47 @@ class LocalOnnxModelService {
     return result;
   }
 
-  LocalOnnxModelKind _inferKind(String filePath) {
+  String _sanitizeImportedFileName(String value) {
+    final baseName = p
+        .basename(value)
+        .replaceAll(RegExp(r'[\x00-\x1f/\\]'), '_');
+    if (baseName.isEmpty || baseName == '.' || baseName == '..') {
+      throw const FormatException('Invalid model file name');
+    }
+    return baseName;
+  }
+
+  bool _isSupportedImportFile(String fileName) {
+    return const {
+      '.onnx',
+      '.data',
+      '.csv',
+      '.txt',
+      '.json',
+    }.contains(p.extension(fileName).toLowerCase());
+  }
+
+  Future<bool> _containsOnnxModel(Directory directory) async {
+    await for (final entity in directory.list(followLinks: false)) {
+      if (entity is File && p.extension(entity.path).toLowerCase() == '.onnx') {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  LocalOnnxModelKind _inferKind(String filePath, String? labelsPath) {
+    final lowerPath = filePath.toLowerCase();
     final lower = p.basenameWithoutExtension(filePath).toLowerCase();
+    final lowerLabels = labelsPath?.toLowerCase() ?? '';
+    if (lowerPath.contains('cl_tagger_v2') ||
+        lowerPath.contains('cl-tagger-v2') ||
+        lowerLabels.endsWith('model_vocabulary.json')) {
+      return LocalOnnxModelKind.clTaggerV2;
+    }
+    if (lowerPath.contains('eva02_large_patch14')) {
+      return LocalOnnxModelKind.animeTimmEva02;
+    }
     if (lower.contains('wd14') ||
         lower.contains('wd-v1-4') ||
         lower.contains('wd-v1-5') ||
@@ -129,6 +656,7 @@ class LocalOnnxModelService {
       'labels.txt',
       'classes.txt',
       'tag_mapping.json',
+      'model_vocabulary.json',
     ]) {
       final candidate = p.join(directory, name);
       if (await File(candidate).exists()) {
@@ -136,5 +664,38 @@ class LocalOnnxModelService {
       }
     }
     return null;
+  }
+}
+
+class _OnnxImportEntry {
+  const _OnnxImportEntry({
+    required this.source,
+    required this.fileName,
+    required this.hadDestination,
+  });
+
+  final File source;
+  final String fileName;
+  final bool hadDestination;
+}
+
+class _OnnxArchiveExtractionBudget {
+  _OnnxArchiveExtractionBudget({
+    required this.entryBytesLimit,
+    required this.expandedBytesLimit,
+  });
+
+  final int entryBytesLimit;
+  final int expandedBytesLimit;
+  var _declaredBytes = 0;
+
+  void reserveDeclared(int count, String entryName) {
+    if (count < 0 || count > entryBytesLimit) {
+      throw FormatException('ONNX model ZIP entry is too large: $entryName');
+    }
+    _declaredBytes += count;
+    if (_declaredBytes > expandedBytesLimit) {
+      throw const FormatException('Expanded ONNX model ZIP is too large');
+    }
   }
 }

@@ -3,7 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:nai_launcher/core/utils/localization_extension.dart';
 
-import '../../../../../../data/models/vibe/vibe_reference.dart';
+import '../../../../adaptive/interaction_policy.dart';
+import '../../../../../data/models/vibe/vibe_reference.dart';
 import '../../app_toast.dart';
 
 /// Vibe Transfer 数据展示组件
@@ -89,7 +90,9 @@ class _VibeSectionState extends State<VibeSection> {
           crossFadeState: _isExpanded && hasVibes
               ? CrossFadeState.showSecond
               : CrossFadeState.showFirst,
-          duration: const Duration(milliseconds: 200),
+          duration: MediaQuery.disableAnimationsOf(context)
+              ? Duration.zero
+              : const Duration(milliseconds: 200),
         ),
       ],
     );
@@ -174,7 +177,9 @@ class _VibeSectionState extends State<VibeSection> {
             tooltip: context.l10n.detail_copyAllVibeData,
             style: IconButton.styleFrom(
               padding: const EdgeInsets.all(6),
-              minimumSize: const Size(28, 28),
+              minimumSize: Size.square(
+                context.interactionPolicy.minimumControlExtent,
+              ),
             ),
           ),
         ],
@@ -225,9 +230,8 @@ class _VibeCard extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
+        color: colorScheme.surfaceContainerLow,
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: colorScheme.outline.withValues(alpha: 0.1)),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -306,7 +310,9 @@ class _VibeCard extends StatelessWidget {
               tooltip: context.l10n.detail_saveToVibeLibrary,
               style: IconButton.styleFrom(
                 padding: const EdgeInsets.all(6),
-                minimumSize: const Size(32, 32),
+                minimumSize: Size.square(
+                  context.interactionPolicy.minimumControlExtent,
+                ),
               ),
             ),
         ],
@@ -364,9 +370,8 @@ class _VibeCard extends StatelessWidget {
       width: 60,
       height: 60,
       decoration: BoxDecoration(
-        color: colorScheme.surfaceContainerHighest,
+        color: colorScheme.surfaceContainer,
         borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: colorScheme.outline.withValues(alpha: 0.2)),
       ),
       child: Icon(
         Icons.image_outlined,

@@ -51,10 +51,6 @@ __pycache__/
 *.swo
 *~
 
-# 本地 Codex/agent 指令
-AGENTS.md
-
-
 # ===========================================================================
 # 操作系统产物
 # ===========================================================================
@@ -81,12 +77,17 @@ Desktop.ini
 # Android
 **/android/**/gradle-wrapper.jar
 **/android/.gradle
+**/android/.kotlin/
+**/android/.cxx/
+**/android/.externalNativeBuild/
 **/android/captures/
 **/android/gradlew
 **/android/gradlew.bat
 **/android/local.properties
 **/android/**/GeneratedPluginRegistrant.*
 **/android/key.properties
+*.apk
+*.aab
 *.jks
 *.keystore
 
@@ -165,12 +166,20 @@ cert_thumbprint.txt
 # 日志和临时文件
 # ===========================================================================
 
-# 日志文件
+# 日志、覆盖率和编辑残留
 *.log
+*.lcov
+coverage/
+*.bak
+*.orig
+*.rej
 
 # 临时目录
 logs/
 logs/security/
+tool/.tmp/
+tool/tag_catalog/.cache/
+tool/tag_catalog/.tmp/
 
 
 # ===========================================================================
@@ -178,17 +187,23 @@ logs/security/
 # ===========================================================================
 
 # AI 编程助手
-.codex
 .serena/
 .playwright-mcp/
 .spec-workflow/
 .qoder/
 .codex_tmp/
-.codex/
+/.codex-remote-attachments/
+.codex/*
+!.codex/config.toml
 .kiro
 .claude/
 .gemini/
 .specstory/
+.orca/
+.pi-analyze-worktree/
+.pi/openai-codex-images/
+.pi/goals/
+.pi/.goals-pool-snapshot.json
 
 # GSD (Get Shit Done) 工作流
 .planning/
@@ -206,6 +221,7 @@ logs/security/
 .opencode/
 test_results/
 test_hive/
+/test_output.txt
 
 # 测试源码默认纳入版本控制；只忽略测试运行产生的临时输出。
 test/**/.dart_tool/
@@ -270,7 +286,4 @@ mask_upload_*.md
 flutter_windows.zip
 dist/*.zip
 dist/*.exe
-.claude_settings.json
-/docs/
-.worktrees/
 .kimi/

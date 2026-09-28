@@ -5,14 +5,19 @@ import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:image/image.dart' as img;
+import 'package:nai_launcher/core/constants/api_constants.dart';
 import 'package:nai_launcher/core/constants/storage_keys.dart';
 import 'package:nai_launcher/core/enums/precise_ref_type.dart';
+import 'package:nai_launcher/core/services/anlas_calculator.dart';
 import 'package:nai_launcher/core/storage/local_storage_service.dart';
 import 'package:nai_launcher/core/utils/nai_api_utils.dart';
 import 'package:nai_launcher/data/datasources/remote/nai_image_enhancement_api_service.dart';
+import 'package:nai_launcher/data/models/user/user_subscription.dart';
 import 'package:nai_launcher/data/models/vibe/vibe_reference.dart';
 import 'package:nai_launcher/data/services/vibe_library_storage_service.dart';
+import 'package:nai_launcher/presentation/providers/auth_provider.dart';
 import 'package:nai_launcher/presentation/providers/generation/generation_params_notifier.dart';
+import 'package:nai_launcher/presentation/providers/subscription_provider.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 void main() {
@@ -41,8 +46,70 @@ void main() {
     await Hive.box(StorageKeys.historyBox).clear();
   });
 
+  test('build should use the V5 generation defaults on first use', () {
+    final container = ProviderContainer();
+    addTearDown(container.dispose);
+
+    final params = container.read(generationParamsNotifierProvider);
+
+    expect(params.model, ImageModels.animeDiffusionV5Full);
+    expect(params.steps, 28);
+    expect(params.scale, 4.0);
+    expect(params.sampler, Samplers.kEulerAncestral);
+  });
+
+  // 定制回归（偏离上游）：上游 updatePrompt/updateNegativePrompt 一律
+  // Future.microtask 延迟写入，同一事件内连续两次输入会留下过期写入并与
+  // prompt_input 的回写监听形成永久振荡。非构建阶段必须同步落地。
+  test('prompt updates apply synchronously outside the build phase', () {
+    final container = ProviderContainer();
+    addTearDown(container.dispose);
+    final notifier = container.read(generationParamsNotifierProvider.notifier);
+
+    notifier
+      ..updatePrompt('first')
+      ..updatePrompt('second')
+      ..updateNegativePrompt('negative');
+
+    final params = container.read(generationParamsNotifierProvider);
+    expect(params.prompt, 'second');
+    expect(params.negativePrompt, 'negative');
+  });
+
+  test('build should preserve stored generation preferences', () async {
+    final storage = LocalStorageService();
+    await storage.setDefaultModel(ImageModels.animeDiffusionV45Curated);
+    await storage.setDefaultSteps(31);
+    await storage.setDefaultScale(6.5);
+    await storage.setDefaultSampler(Samplers.kDpmpp2sAncestral);
+
+    final container = ProviderContainer();
+    addTearDown(container.dispose);
+    final notifier = container.read(generationParamsNotifierProvider.notifier);
+    var params = container.read(generationParamsNotifierProvider);
+
+    expect(params.model, ImageModels.animeDiffusionV45Curated);
+    expect(params.steps, 31);
+    expect(params.scale, 6.5);
+    expect(params.sampler, Samplers.kDpmpp2sAncestral);
+
+    notifier.updateModel(
+      ImageModels.animeDiffusionV5Full,
+      persist: false,
+      followDefaults: false,
+    );
+    notifier.reset();
+    params = container.read(generationParamsNotifierProvider);
+
+    expect(params.model, ImageModels.animeDiffusionV45Curated);
+    expect(params.steps, 31);
+    expect(params.scale, 6.5);
+    expect(params.sampler, Samplers.kDpmpp2sAncestral);
+  });
+
   test('build should restore persisted variety plus state', () async {
     final storage = LocalStorageService();
+    await storage.setDefaultModel(ImageModels.animeDiffusionV45Full);
     await storage.setLastVarietyPlus(true);
 
     final container = ProviderContainer();
@@ -65,16 +132,40 @@ void main() {
     expect(storage.getLastVarietyPlus(), isTrue);
   });
 
+  test('alpha mode should default to straight and persist changes', () async {
+    final container = ProviderContainer();
+    addTearDown(container.dispose);
+
+    expect(
+      container.read(generationParamsNotifierProvider).straightAlpha,
+      isTrue,
+    );
+
+    container
+        .read(generationParamsNotifierProvider.notifier)
+        .updateStraightAlpha(false);
+
+    expect(
+      container.read(generationParamsNotifierProvider).straightAlpha,
+      isFalse,
+    );
+    expect(LocalStorageService().getImageStraightAlpha(), isFalse);
+  });
+
   test('encodeVibeWithCache 会区分 model 和 informationExtracted', () async {
     final apiService = _FakeEnhancementApiService();
+    final subscriptionNotifier = _TestSubscriptionNotifier();
     final container = ProviderContainer(
       overrides: [
+        authNotifierProvider.overrideWith(_AuthenticatedAuthNotifier.new),
         naiImageEnhancementApiServiceProvider.overrideWithValue(apiService),
+        subscriptionNotifierProvider.overrideWith(() => subscriptionNotifier),
       ],
     );
     addTearDown(container.dispose);
 
     final notifier = container.read(generationParamsNotifierProvider.notifier);
+    expect(container.exists(subscriptionNotifierProvider), isFalse);
     final imageData = Uint8List.fromList([1, 2, 3, 4]);
 
     final first = await notifier.encodeVibeWithCache(
@@ -108,6 +199,118 @@ void main() {
     expect(repeatFirst, first);
     expect(apiService.callCount, 3);
     expect(apiService.requestedInformationExtracted, [0.2, 0.5, 0.5]);
+    expect(subscriptionNotifier.refreshScheduleCount, 3);
+  });
+
+  test('Vibe 编码失败也调度计费刷新以核对服务端余额', () async {
+    final apiService = _FakeEnhancementApiService(shouldFail: true);
+    final subscriptionNotifier = _TestSubscriptionNotifier();
+    final container = ProviderContainer(
+      overrides: [
+        authNotifierProvider.overrideWith(_AuthenticatedAuthNotifier.new),
+        naiImageEnhancementApiServiceProvider.overrideWithValue(apiService),
+        subscriptionNotifierProvider.overrideWith(() => subscriptionNotifier),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    final encoding = await container
+        .read(generationParamsNotifierProvider.notifier)
+        .encodeVibeWithCache(
+          Uint8List.fromList([9, 8, 7]),
+          model: ImageModels.animeDiffusionV4Full,
+          informationExtracted: 0.7,
+          vibeName: 'failed-vibe',
+        );
+
+    expect(encoding, isNull);
+    expect(apiService.callCount, 1);
+    expect(subscriptionNotifier.refreshScheduleCount, 1);
+  });
+
+  for (final status in [AuthStatus.unauthenticated, AuthStatus.loading]) {
+    test('Vibe cache miss 在 $status 时拒绝 API 调用', () async {
+      final apiService = _FakeEnhancementApiService();
+      final container = ProviderContainer(
+        overrides: [
+          authNotifierProvider.overrideWith(() => _TestAuthNotifier(status)),
+          naiImageEnhancementApiServiceProvider.overrideWithValue(apiService),
+        ],
+      );
+      addTearDown(container.dispose);
+      final notifier = container.read(
+        generationParamsNotifierProvider.notifier,
+      );
+
+      final encoding = await notifier.encodeVibeWithCache(
+        Uint8List.fromList([7, 8, 9]),
+        model: ImageModels.animeDiffusionV4Full,
+        informationExtracted: 0.7,
+        vibeName: 'private-vibe',
+      );
+
+      expect(encoding, isNull);
+      expect(apiService.callCount, 0);
+      expect(notifier.vibeEncodingCacheSize, 0);
+      expect(
+        container.read(authPromptRequestProvider)?.reason,
+        AuthPromptReason.vibeEncoding,
+      );
+    });
+  }
+
+  test('Vibe cache hit 可在未登录时匿名复用', () async {
+    final apiService = _FakeEnhancementApiService();
+    final subscriptionNotifier = _TestSubscriptionNotifier();
+    final container = ProviderContainer(
+      overrides: [
+        authNotifierProvider.overrideWith(_UnauthenticatedAuthNotifier.new),
+        naiImageEnhancementApiServiceProvider.overrideWithValue(apiService),
+        subscriptionNotifierProvider.overrideWith(() => subscriptionNotifier),
+      ],
+    );
+    addTearDown(container.dispose);
+    final notifier = container.read(generationParamsNotifierProvider.notifier);
+    final image = Uint8List.fromList([4, 3, 2, 1]);
+    notifier.storeVibeEncodingInCache(
+      image,
+      'cached-encoding',
+      model: ImageModels.animeDiffusionV4Full,
+      informationExtracted: 0.7,
+    );
+
+    final encoding = await notifier.encodeVibeWithCache(
+      image,
+      model: ImageModels.animeDiffusionV4Full,
+      informationExtracted: 0.7,
+      vibeName: 'cached-vibe',
+    );
+
+    expect(encoding, 'cached-encoding');
+    expect(apiService.callCount, 0);
+    expect(subscriptionNotifier.refreshScheduleCount, 0);
+    expect(container.read(authPromptRequestProvider), isNull);
+  });
+
+  test('V3 原图 Vibe 不调用预编码接口', () async {
+    final apiService = _FakeEnhancementApiService();
+    final container = ProviderContainer(
+      overrides: [
+        naiImageEnhancementApiServiceProvider.overrideWithValue(apiService),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    final encoding = await container
+        .read(generationParamsNotifierProvider.notifier)
+        .encodeVibeWithCache(
+          Uint8List.fromList([1, 2, 3]),
+          model: ImageModels.animeDiffusionV3,
+          vibeName: 'v3-raw',
+        );
+
+    expect(encoding, isNull);
+    expect(apiService.callCount, 0);
   });
 
   test('更新信息提取后，可重新编码的 Vibe 会回到待编码状态', () async {
@@ -137,7 +340,42 @@ void main() {
     expect(updated.vibeEncoding, isEmpty);
   });
 
+  test('V3 下修改信息提取会使旧 V4 编码失效', () async {
+    final container = ProviderContainer();
+    addTearDown(container.dispose);
+
+    final notifier = container.read(generationParamsNotifierProvider.notifier);
+    notifier.addVibeReference(
+      VibeReference(
+        displayName: 'V4 encoded vibe',
+        vibeEncoding: 'encoded-for-v4',
+        encodingModel: ImageModels.animeDiffusionV4Full,
+        rawImageData: Uint8List.fromList([9, 8, 7]),
+        infoExtracted: 0.7,
+        sourceType: VibeSourceType.naiv4vibe,
+      ),
+    );
+    notifier.updateModel(ImageModels.animeDiffusionV3);
+
+    notifier.updateVibeReference(0, infoExtracted: 0.3);
+    notifier.updateModel(ImageModels.animeDiffusionV4Full);
+
+    final updated = container
+        .read(generationParamsNotifierProvider)
+        .vibeReferencesV4
+        .single;
+    expect(updated.vibeEncoding, isEmpty);
+    expect(updated.encodingModel, isNull);
+    expect(
+      updated.needsEncodingForModel(ImageModels.animeDiffusionV4Full),
+      isTrue,
+    );
+  });
+
   test('信息提取切回已有缓存值时，会直接恢复缓存编码', () async {
+    await LocalStorageService().setDefaultModel(
+      ImageModels.animeDiffusionV45Full,
+    );
     final container = ProviderContainer();
     addTearDown(container.dispose);
 
@@ -188,6 +426,9 @@ void main() {
   });
 
   test('导入时自带的预编码 Vibe 会自动记住原始编码参数', () async {
+    await LocalStorageService().setDefaultModel(
+      ImageModels.animeDiffusionV45Full,
+    );
     final container = ProviderContainer();
     addTearDown(container.dispose);
 
@@ -219,6 +460,88 @@ void main() {
         .vibeReferencesV4
         .single;
     expect(updated.vibeEncoding, 'original-encoding');
+  });
+
+  test('缺少编码模型的预编码 Vibe 会补齐为当前模型，不再虚报编码费', () async {
+    final container = ProviderContainer();
+    addTearDown(container.dispose);
+
+    final notifier = container.read(generationParamsNotifierProvider.notifier);
+    notifier.updateModel(ImageModels.animeDiffusionV45Full, persist: false);
+
+    final raw = Uint8List.fromList([4, 5, 6]);
+    // 只带 iTXt 编码的 PNG 解析不出编码模型，encodingModel 会是 null。
+    notifier.addVibeReferences([
+      VibeReference(
+        displayName: 'PNG Vibe',
+        vibeEncoding: 'encoding-without-model',
+        rawImageData: raw,
+        thumbnail: raw,
+        sourceType: VibeSourceType.png,
+      ),
+    ], recordUsage: false);
+
+    final params = container.read(generationParamsNotifierProvider);
+    final vibe = params.vibeReferencesV4.single;
+
+    expect(vibe.encodingModel, ImageModels.animeDiffusionV45Full);
+    expect(vibe.needsEncodingForModel(params.model), isFalse);
+    expect(AnlasCalculator.usesVibeReferences(params), isTrue);
+    expect(AnlasCalculator.resolveVibeEncodingCost(params), 0);
+  });
+
+  test('setVibeReferences 替换导入时同样补齐编码模型', () async {
+    final container = ProviderContainer();
+    addTearDown(container.dispose);
+
+    final notifier = container.read(generationParamsNotifierProvider.notifier);
+    notifier.updateModel(ImageModels.animeDiffusionV45Full, persist: false);
+
+    final raw = Uint8List.fromList([1, 1, 2]);
+    // Shift+点击库条目走的是替换而不是追加。
+    notifier.setVibeReferences([
+      VibeReference(
+        displayName: 'Library Vibe',
+        vibeEncoding: 'encoding-without-model',
+        rawImageData: raw,
+        thumbnail: raw,
+        sourceType: VibeSourceType.naiv4vibe,
+      ),
+    ]);
+
+    final params = container.read(generationParamsNotifierProvider);
+    expect(
+      params.vibeReferencesV4.single.encodingModel,
+      ImageModels.animeDiffusionV45Full,
+    );
+    expect(AnlasCalculator.resolveVibeEncodingCost(params), 0);
+  });
+
+  test('已经记录编码模型的 Vibe 不会被改写，换模型仍会计费', () async {
+    final container = ProviderContainer();
+    addTearDown(container.dispose);
+
+    final notifier = container.read(generationParamsNotifierProvider.notifier);
+    notifier.updateModel(ImageModels.animeDiffusionV45Full, persist: false);
+
+    final raw = Uint8List.fromList([7, 7, 7]);
+    notifier.addVibeReferences([
+      VibeReference(
+        displayName: 'V4 Vibe',
+        vibeEncoding: 'encoded-for-v4',
+        rawImageData: raw,
+        thumbnail: raw,
+        encodingModel: ImageModels.animeDiffusionV4Full,
+        sourceType: VibeSourceType.naiv4vibe,
+      ),
+    ], recordUsage: false);
+
+    final params = container.read(generationParamsNotifierProvider);
+    final vibe = params.vibeReferencesV4.single;
+
+    expect(vibe.encodingModel, ImageModels.animeDiffusionV4Full);
+    expect(vibe.needsEncodingForModel(params.model), isTrue);
+    expect(AnlasCalculator.resolveVibeEncodingCost(params), 2);
   });
 
   test('没有原图数据的预编码 Vibe 改信息提取时不会错误清空编码', () async {
@@ -271,10 +594,17 @@ void main() {
   });
 
   test('显式保存参数时，可重新编码的 Vibe 会生成持久化编码', () async {
+    await LocalStorageService().setDefaultModel(
+      ImageModels.animeDiffusionV45Full,
+    );
     final apiService = _FakeEnhancementApiService();
     final container = ProviderContainer(
       overrides: [
+        authNotifierProvider.overrideWith(_AuthenticatedAuthNotifier.new),
         naiImageEnhancementApiServiceProvider.overrideWithValue(apiService),
+        subscriptionNotifierProvider.overrideWith(
+          _TestSubscriptionNotifier.new,
+        ),
       ],
     );
     addTearDown(container.dispose);
@@ -301,11 +631,41 @@ void main() {
     expect(apiService.requestedInformationExtracted, [0.5]);
   });
 
+  test('V3 下显式保存新的信息提取值会清除旧 V4 编码', () async {
+    final container = ProviderContainer();
+    addTearDown(container.dispose);
+
+    final prepared = await container
+        .read(generationParamsNotifierProvider.notifier)
+        .prepareVibeForLibraryParamSave(
+          VibeReference(
+            displayName: 'Persisted V4 Vibe',
+            vibeEncoding: 'encoded-before',
+            encodingModel: ImageModels.animeDiffusionV4Full,
+            rawImageData: Uint8List.fromList([1, 3, 5, 7]),
+            infoExtracted: 0.2,
+            sourceType: VibeSourceType.naiv4vibe,
+          ),
+          strength: 0.6,
+          infoExtracted: 0.5,
+          model: ImageModels.animeDiffusionV3,
+        );
+
+    expect(prepared, isNotNull);
+    expect(prepared!.infoExtracted, 0.5);
+    expect(prepared.vibeEncoding, isEmpty);
+    expect(prepared.encodingModel, isNull);
+  });
+
   test('生成前自动编码会把原图 Vibe 提升为预编码状态', () async {
     final apiService = _FakeEnhancementApiService();
     final container = ProviderContainer(
       overrides: [
+        authNotifierProvider.overrideWith(_AuthenticatedAuthNotifier.new),
         naiImageEnhancementApiServiceProvider.overrideWithValue(apiService),
+        subscriptionNotifierProvider.overrideWith(
+          _TestSubscriptionNotifier.new,
+        ),
       ],
     );
     addTearDown(container.dispose);
@@ -333,6 +693,72 @@ void main() {
     expect(prepared.single.vibeEncoding, 'nai-diffusion-4-full|0.3|1');
     expect(prepared.single.sourceType, VibeSourceType.naiv4vibe);
     expect(prepared.single.rawImageData, raw);
+  });
+
+  test('切换模型后会重新编码仍有原图来源的 Vibe', () async {
+    final apiService = _FakeEnhancementApiService();
+    final container = ProviderContainer(
+      overrides: [
+        authNotifierProvider.overrideWith(_AuthenticatedAuthNotifier.new),
+        naiImageEnhancementApiServiceProvider.overrideWithValue(apiService),
+        subscriptionNotifierProvider.overrideWith(
+          _TestSubscriptionNotifier.new,
+        ),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    final notifier = container.read(generationParamsNotifierProvider.notifier);
+    final raw = Uint8List.fromList([2, 4, 6, 8]);
+    final prepared = await notifier.ensureVibeReferencesEncoded(
+      [
+        VibeReference(
+          displayName: 'Stale Vibe',
+          vibeEncoding: 'encoded-for-v4',
+          rawImageData: raw,
+          thumbnail: raw,
+          infoExtracted: 0.3,
+          encodingModel: 'nai-diffusion-4-full',
+          sourceType: VibeSourceType.naiv4vibe,
+        ),
+      ],
+      model: 'nai-diffusion-4-5-full',
+      syncCurrentState: false,
+    );
+
+    expect(prepared.single.vibeEncoding, 'nai-diffusion-4-5-full|0.3|1');
+    expect(prepared.single.encodingModel, 'nai-diffusion-4-5-full');
+    expect(apiService.callCount, 1);
+  });
+
+  test('生成前不会编码已禁用的原图 Vibe', () async {
+    final apiService = _FakeEnhancementApiService();
+    final container = ProviderContainer(
+      overrides: [
+        naiImageEnhancementApiServiceProvider.overrideWithValue(apiService),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    final notifier = container.read(generationParamsNotifierProvider.notifier);
+    final raw = Uint8List.fromList([9, 7, 5, 3]);
+    final prepared = await notifier.ensureVibeReferencesEncoded(
+      [
+        VibeReference(
+          displayName: 'Disabled Raw Vibe',
+          vibeEncoding: '',
+          rawImageData: raw,
+          thumbnail: raw,
+          sourceType: VibeSourceType.rawImage,
+          enabled: false,
+        ),
+      ],
+      model: 'nai-diffusion-4-full',
+      syncCurrentState: false,
+    );
+
+    expect(prepared.single.vibeEncoding, isEmpty);
+    expect(apiService.callCount, 0);
   });
 
   test('手动写入编码时会把原图 Vibe 提升为预编码状态', () async {
@@ -434,7 +860,7 @@ void main() {
   });
 
   test(
-    'addPreciseReferenceFromImage stores request-ready normalized PNG',
+    'addPreciseReferenceFromImage stages original bytes before normalization',
     () async {
       final container = ProviderContainer(
         overrides: [
@@ -449,13 +875,21 @@ void main() {
         generationParamsNotifierProvider.notifier,
       );
 
-      await notifier.addPreciseReferenceFromImage(
-        _validPngBytes(width: 8, height: 4),
+      final original = _validPngBytes(width: 8, height: 4);
+      final normalization = notifier.addPreciseReferenceFromImage(
+        original,
         type: PreciseRefType.character,
         strength: 0.7,
         fidelity: 0.9,
       );
 
+      final staged = container
+          .read(generationParamsNotifierProvider)
+          .preciseReferences
+          .single;
+      expect(identical(staged.image, original), isTrue);
+
+      await normalization;
       final reference = container
           .read(generationParamsNotifierProvider)
           .preciseReferences
@@ -473,14 +907,210 @@ void main() {
       expect(reference.fidelity, 0.9);
     },
   );
+
+  group('updateModel default follow-up', () {
+    test('should adopt the new model defaults when untouched', () async {
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+
+      final notifier = container.read(
+        generationParamsNotifierProvider.notifier,
+      );
+      notifier.updateModel(ImageModels.animeDiffusionV4Full);
+      notifier.updateScale(5.5);
+
+      notifier.updateModel(ImageModels.animeDiffusionV45Full);
+
+      final params = container.read(generationParamsNotifierProvider);
+      expect(params.model, ImageModels.animeDiffusionV45Full);
+      expect(params.scale, 5.0);
+    });
+
+    test('should adopt V5 defaults from V4.5 when untouched', () async {
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+
+      final notifier = container.read(
+        generationParamsNotifierProvider.notifier,
+      );
+      notifier.updateModel(ImageModels.animeDiffusionV45Full);
+      notifier.updateScale(5.0);
+
+      notifier.updateModel(ImageModels.v5StagingKey);
+
+      final params = container.read(generationParamsNotifierProvider);
+      expect(params.model, ImageModels.v5StagingKey);
+      expect(params.scale, 4.0);
+      expect(params.steps, 28);
+    });
+
+    test('should keep a scale the user adjusted', () async {
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+
+      final notifier = container.read(
+        generationParamsNotifierProvider.notifier,
+      );
+      notifier.updateModel(ImageModels.animeDiffusionV4Full);
+      notifier.updateScale(7.5);
+
+      notifier.updateModel(ImageModels.animeDiffusionV45Full);
+
+      expect(container.read(generationParamsNotifierProvider).scale, 7.5);
+    });
+
+    test('should turn Variety+ off when switching to V5', () async {
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+
+      final notifier = container.read(
+        generationParamsNotifierProvider.notifier,
+      );
+      notifier.updateModel(ImageModels.animeDiffusionV45Full);
+      notifier.updateVarietyPlus(true);
+
+      notifier.updateModel(ImageModels.animeDiffusionV5Curated);
+
+      expect(
+        container.read(generationParamsNotifierProvider).varietyPlus,
+        isFalse,
+      );
+    });
+
+    test(
+      'should keep Variety+ on when switching between V4 and V4.5',
+      () async {
+        final container = ProviderContainer();
+        addTearDown(container.dispose);
+
+        final notifier = container.read(
+          generationParamsNotifierProvider.notifier,
+        );
+        notifier.updateModel(ImageModels.animeDiffusionV4Full);
+        notifier.updateVarietyPlus(true);
+
+        notifier.updateModel(ImageModels.animeDiffusionV45Full);
+
+        expect(
+          container.read(generationParamsNotifierProvider).varietyPlus,
+          isTrue,
+        );
+      },
+    );
+
+    test('should drop a stored Variety+ when restoring a V5 session', () async {
+      // 恢复走的是 build 而不是 updateModel，存档里可能留着别的模型开的开关。
+      final seed = ProviderContainer();
+      final storage = seed.read(localStorageServiceProvider);
+      final previousModel = storage.getDefaultModel();
+      final previousVarietyPlus = storage.getLastVarietyPlus();
+      addTearDown(() async {
+        await storage.setDefaultModel(previousModel);
+        await storage.setLastVarietyPlus(previousVarietyPlus);
+        seed.dispose();
+      });
+
+      await storage.setDefaultModel(ImageModels.animeDiffusionV5Curated);
+      await storage.setLastVarietyPlus(true);
+
+      final restored = ProviderContainer();
+      addTearDown(restored.dispose);
+
+      final params = restored.read(generationParamsNotifierProvider);
+      expect(params.model, ImageModels.animeDiffusionV5Curated);
+      expect(params.varietyPlus, isFalse);
+    });
+
+    test('should keep an adjusted V4.5 scale when switching to V5', () async {
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+
+      final notifier = container.read(
+        generationParamsNotifierProvider.notifier,
+      );
+      notifier.updateModel(ImageModels.animeDiffusionV45Full);
+      notifier.updateScale(7.5);
+
+      notifier.updateModel(ImageModels.v5StagingKey);
+
+      expect(container.read(generationParamsNotifierProvider).scale, 7.5);
+    });
+
+    test('should skip the follow-up for metadata imports', () async {
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+
+      final notifier = container.read(
+        generationParamsNotifierProvider.notifier,
+      );
+      notifier.updateModel(ImageModels.animeDiffusionV4Full);
+      notifier.updateScale(5.5);
+
+      notifier.updateModel(
+        ImageModels.animeDiffusionV45Full,
+        followDefaults: false,
+      );
+
+      expect(container.read(generationParamsNotifierProvider).scale, 5.5);
+    });
+
+    test('should skip the V5 follow-up for metadata imports', () async {
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+
+      final notifier = container.read(
+        generationParamsNotifierProvider.notifier,
+      );
+      notifier.updateModel(ImageModels.animeDiffusionV45Full);
+      notifier.updateScale(5.0);
+
+      notifier.updateModel(ImageModels.v5StagingKey, followDefaults: false);
+
+      expect(container.read(generationParamsNotifierProvider).scale, 5.0);
+    });
+  });
 }
 
 Uint8List _validPngBytes({required int width, required int height}) =>
     Uint8List.fromList(img.encodePng(img.Image(width: width, height: height)));
 
-class _FakeEnhancementApiService extends NAIImageEnhancementApiService {
-  _FakeEnhancementApiService() : super(Dio());
+class _TestAuthNotifier extends AuthNotifier {
+  _TestAuthNotifier(this.authStatus);
 
+  final AuthStatus authStatus;
+
+  @override
+  AuthState build() => AuthState(status: authStatus);
+}
+
+class _AuthenticatedAuthNotifier extends _TestAuthNotifier {
+  _AuthenticatedAuthNotifier() : super(AuthStatus.authenticated);
+}
+
+class _UnauthenticatedAuthNotifier extends _TestAuthNotifier {
+  _UnauthenticatedAuthNotifier() : super(AuthStatus.unauthenticated);
+}
+
+class _TestSubscriptionNotifier extends SubscriptionNotifier {
+  int refreshScheduleCount = 0;
+
+  @override
+  SubscriptionState build() {
+    return const SubscriptionState.loaded(
+      UserSubscription(tier: 1, active: true),
+    );
+  }
+
+  @override
+  void schedulePostBillingRefresh({Duration delay = Duration.zero}) {
+    refreshScheduleCount++;
+  }
+}
+
+class _FakeEnhancementApiService extends NAIImageEnhancementApiService {
+  _FakeEnhancementApiService({this.shouldFail = false}) : super(Dio());
+
+  final bool shouldFail;
   int callCount = 0;
   final List<double> requestedInformationExtracted = [];
 
@@ -492,6 +1122,7 @@ class _FakeEnhancementApiService extends NAIImageEnhancementApiService {
   }) async {
     callCount++;
     requestedInformationExtracted.add(informationExtracted);
+    if (shouldFail) throw StateError('Vibe encoding failed');
     return '$model|$informationExtracted|$callCount';
   }
 }

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
+import 'package:nai_launcher/core/utils/localization_extension.dart';
+import 'package:nai_launcher/presentation/themes/theme_extension.dart';
 
 /// Weekday bar chart for showing activity distribution across days
 class WeekdayBarChart extends StatefulWidget {
@@ -23,17 +25,6 @@ class WeekdayBarChart extends StatefulWidget {
 class _WeekdayBarChartState extends State<WeekdayBarChart> {
   int? _touchedIndex;
 
-  static const _defaultDayLabels = [
-    'Mon',
-    'Tue',
-    'Wed',
-    'Thu',
-    'Fri',
-    'Sat',
-    'Sun',
-  ];
-  static const _defaultDayLabelsCN = ['周一', '周二', '周三', '周四', '周五', '周六', '周日'];
-
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -43,7 +34,7 @@ class _WeekdayBarChartState extends State<WeekdayBarChart> {
     if (widget.weekdayData.isEmpty) {
       return SizedBox(
         height: widget.height,
-        child: const Center(child: Text('No data')),
+        child: Center(child: Text(context.l10n.statistics_noData)),
       );
     }
 
@@ -51,10 +42,7 @@ class _WeekdayBarChartState extends State<WeekdayBarChart> {
         ? 1.0
         : widget.weekdayData.values.reduce((a, b) => a > b ? a : b).toDouble();
 
-    // Detect locale for labels
-    final locale = Localizations.localeOf(context).languageCode;
-    final dayLabels = widget.dayLabels ??
-        (locale == 'zh' ? _defaultDayLabelsCN : _defaultDayLabels);
+    final dayLabels = widget.dayLabels ?? _localizedWeekdays(context);
 
     return SizedBox(
       height: widget.height,
@@ -107,10 +95,11 @@ class _WeekdayBarChartState extends State<WeekdayBarChart> {
                         color: isTouched
                             ? color
                             : isWeekend
-                                ? colorScheme.error.withValues(alpha: 0.7)
-                                : colorScheme.onSurfaceVariant,
-                        fontWeight:
-                            isTouched ? FontWeight.bold : FontWeight.normal,
+                            ? colorScheme.error.withValues(alpha: 0.7)
+                            : colorScheme.onSurfaceVariant,
+                        fontWeight: isTouched
+                            ? FontWeight.bold
+                            : FontWeight.normal,
                       ),
                     ),
                   );
@@ -171,8 +160,8 @@ class _WeekdayBarChartState extends State<WeekdayBarChart> {
                   color: isTouched
                       ? color
                       : isWeekend
-                          ? colorScheme.error.withValues(alpha: 0.6)
-                          : color.withValues(alpha: 0.6),
+                      ? colorScheme.error.withValues(alpha: 0.6)
+                      : color.withValues(alpha: 0.6),
                   width: 28,
                   borderRadius: const BorderRadius.vertical(
                     top: Radius.circular(6),
@@ -180,8 +169,9 @@ class _WeekdayBarChartState extends State<WeekdayBarChart> {
                   backDrawRodData: BackgroundBarChartRodData(
                     show: true,
                     toY: maxValue * 1.2,
-                    color: colorScheme.surfaceContainerHighest
-                        .withValues(alpha: 0.2),
+                    color: colorScheme.surfaceContainerHighest.withValues(
+                      alpha: 0.2,
+                    ),
                   ),
                 ),
               ],
@@ -191,6 +181,16 @@ class _WeekdayBarChartState extends State<WeekdayBarChart> {
       ),
     );
   }
+
+  List<String> _localizedWeekdays(BuildContext context) => [
+    context.l10n.statistics_monday,
+    context.l10n.statistics_tuesday,
+    context.l10n.statistics_wednesday,
+    context.l10n.statistics_thursday,
+    context.l10n.statistics_friday,
+    context.l10n.statistics_saturday,
+    context.l10n.statistics_sunday,
+  ];
 }
 
 /// Weekday summary widget showing most/least active days
@@ -198,30 +198,7 @@ class _WeekdayBarChartState extends State<WeekdayBarChart> {
 class WeekdaySummary extends StatelessWidget {
   final Map<int, int> weekdayData;
 
-  const WeekdaySummary({
-    super.key,
-    required this.weekdayData,
-  });
-
-  static const _dayNames = {
-    1: 'Monday',
-    2: 'Tuesday',
-    3: 'Wednesday',
-    4: 'Thursday',
-    5: 'Friday',
-    6: 'Saturday',
-    7: 'Sunday',
-  };
-
-  static const _dayNamesCN = {
-    1: '周一',
-    2: '周二',
-    3: '周三',
-    4: '周四',
-    5: '周五',
-    6: '周六',
-    7: '周日',
-  };
+  const WeekdaySummary({super.key, required this.weekdayData});
 
   @override
   Widget build(BuildContext context) {
@@ -234,14 +211,21 @@ class WeekdaySummary extends StatelessWidget {
 
     final mostActive = sorted.first;
     final leastActive = sorted.last;
-    final locale = Localizations.localeOf(context).languageCode;
-    final dayNames = locale == 'zh' ? _dayNamesCN : _dayNames;
+    final dayNames = {
+      1: context.l10n.statistics_monday,
+      2: context.l10n.statistics_tuesday,
+      3: context.l10n.statistics_wednesday,
+      4: context.l10n.statistics_thursday,
+      5: context.l10n.statistics_friday,
+      6: context.l10n.statistics_saturday,
+      7: context.l10n.statistics_sunday,
+    };
 
     return Row(
       children: [
         Expanded(
           child: _DaySummaryCard(
-            label: locale == 'zh' ? '最活跃' : 'Most Active',
+            label: context.l10n.statistics_mostActiveDay,
             dayName: dayNames[mostActive.key] ?? '',
             count: mostActive.value,
             color: const Color(0xFF10B981), // Emerald green
@@ -252,7 +236,7 @@ class WeekdaySummary extends StatelessWidget {
         const SizedBox(width: 12),
         Expanded(
           child: _DaySummaryCard(
-            label: locale == 'zh' ? '最不活跃' : 'Least Active',
+            label: context.l10n.statistics_leastActiveDay,
             dayName: dayNames[leastActive.key] ?? '',
             count: leastActive.value,
             color: const Color(0xFFF59E0B), // Amber
@@ -294,12 +278,14 @@ class _DaySummaryCardState extends State<_DaySummaryCard> {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
     final isDark = theme.brightness == Brightness.dark;
+    final reducedMotion = MediaQuery.disableAnimationsOf(context);
 
     return MouseRegion(
       onEnter: (_) => setState(() => _isHovered = true),
       onExit: (_) => setState(() => _isHovered = false),
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
+        duration: reducedMotion ? Duration.zero : theme.appTheme.fastDuration,
+        curve: theme.appTheme.standardCurve,
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
           gradient: LinearGradient(
@@ -313,17 +299,8 @@ class _DaySummaryCardState extends State<_DaySummaryCard> {
           borderRadius: BorderRadius.circular(8),
           border: Border.all(
             color: widget.color.withValues(alpha: _isHovered ? 0.4 : 0.2),
-            width: _isHovered ? 1.5 : 1,
+            width: 1,
           ),
-          boxShadow: _isHovered
-              ? [
-                  BoxShadow(
-                    color: widget.color.withValues(alpha: 0.15),
-                    blurRadius: 12,
-                    offset: const Offset(0, 4),
-                  ),
-                ]
-              : null,
         ),
         child: Row(
           children: [

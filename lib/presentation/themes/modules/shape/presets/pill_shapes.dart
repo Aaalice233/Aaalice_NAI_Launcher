@@ -11,17 +11,17 @@ class PillShapes extends BaseShapeModule {
   double get smallRadius => 20.0;
 
   @override
-  double get mediumRadius => 28.0;
+  double get mediumRadius => 24.0;
 
   @override
-  double get largeRadius => 100.0; // Fully rounded
+  double get largeRadius => 28.0;
 
   @override
   double get menuRadius => 0.0;
 
   @override
   ShapeBorder get cardShape => RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(mediumRadius),
+        borderRadius: BorderRadius.circular(largeRadius),
       );
 
   @override

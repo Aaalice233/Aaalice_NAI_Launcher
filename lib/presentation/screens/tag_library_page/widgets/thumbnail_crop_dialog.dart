@@ -1,10 +1,14 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+
 import 'package:flutter/gestures.dart';
 
+import '../../../widgets/common/image_viewport_surface.dart';
 import '../../../../core/utils/localization_extension.dart';
 import '../../../../l10n/app_localizations.dart';
+import '../../../adaptive/adaptive_presenter.dart';
+import 'thumbnail_selection_preview.dart';
 
 /// 缩略图裁剪调整结果
 class ThumbnailCropResult {
@@ -55,17 +59,17 @@ class _ThumbnailCropDialogState extends State<ThumbnailCropDialog> {
   double _cropX = 0.0; // 裁剪框中心 X（相对于图像中心）
   double _cropY = 0.0; // 裁剪框中心 Y（相对于图像中心）
   double _cropScale = 1.0; // 裁剪框缩放（1.0 = 完整显示图像）
+  double _gestureStartScale = 1.0;
+  Offset? _lastGestureFocalPoint;
 
-  // 显示区域尺寸
-  static const double _displayWidth = 640.0;
-  static const double _displayHeight = 360.0;
-
-  // EntryCard 比例
-  static const double _cardAspectRatio = 2.5; // 200 / 80
+  // 桌面端保持原有高效预览尺寸，紧凑窗口由实际 constraints 决定。
+  static const Size _desktopDisplaySize = Size(640, 360);
 
   @override
   void initState() {
     super.initState();
+    _cropX = widget.initialOffsetX.clamp(-1.0, 1.0);
+    _cropY = widget.initialOffsetY.clamp(-1.0, 1.0);
     _cropScale = widget.initialScale.clamp(1.0, 3.0);
     _loadImageSize();
   }
@@ -73,88 +77,68 @@ class _ThumbnailCropDialogState extends State<ThumbnailCropDialog> {
   /// 加载图像尺寸
   void _loadImageSize() {
     final imageProvider = FileImage(File(widget.imagePath));
-    imageProvider.resolve(const ImageConfiguration()).addListener(
-      ImageStreamListener((ImageInfo info, bool synchronousCall) {
-        if (mounted) {
-          setState(() {
-            _imageSize = Size(
-              info.image.width.toDouble(),
-              info.image.height.toDouble(),
-            );
-            // 根据初始 offset 计算裁剪框位置
-            _cropX = widget.initialOffsetX;
-            _cropY = widget.initialOffsetY;
-          });
-        }
-      }),
-    );
+    imageProvider
+        .resolve(const ImageConfiguration())
+        .addListener(
+          ImageStreamListener((info, _) {
+            if (!mounted) return;
+            setState(() {
+              _imageSize = Size(
+                info.image.width.toDouble(),
+                info.image.height.toDouble(),
+              );
+            });
+          }),
+        );
   }
 
-  /// 计算图像在显示区域中的尺寸（保持比例）
-  Size get _displayedImageSize {
-    if (_imageSize == null) return const Size(_displayWidth, _displayHeight);
-
-    final imageAspectRatio = _imageSize!.width / _imageSize!.height;
-    const displayAspectRatio = _displayWidth / _displayHeight;
-
-    if (imageAspectRatio > displayAspectRatio) {
-      // 图像更宽，以宽度为准
-      const width = _displayWidth;
-      final height = width / imageAspectRatio;
-      return Size(width, height);
-    } else {
-      // 图像更高，以高度为准
-      const height = _displayHeight;
-      final width = height * imageAspectRatio;
-      return Size(width, height);
-    }
+  /// 计算图像在当前预览区域中的尺寸（保持比例）
+  Size _displayedImageSize(Size displaySize) {
+    if (_imageSize == null) return displaySize;
+    return displayedThumbnailImageSize(_imageSize!, displaySize);
   }
 
   /// 计算裁剪框尺寸
-  Size get _cropBoxSize {
-    final displayedSize = _displayedImageSize;
-
-    // 裁剪框的比例是 EntryCard 的比例
-    // 当 scale = 1.0 时，裁剪框尽可能大但保持比例
-    // 当 scale > 1.0 时，裁剪框变小（放大图像）
-
-    // 基础裁剪框尺寸（scale = 1.0）
-    double baseWidth, baseHeight;
-
-    if (displayedSize.width / displayedSize.height > _cardAspectRatio) {
-      // 图像比裁剪框更宽，以高度为准
-      baseHeight = displayedSize.height;
-      baseWidth = baseHeight * _cardAspectRatio;
-    } else {
-      // 图像比裁剪框更高，以宽度为准
-      baseWidth = displayedSize.width;
-      baseHeight = baseWidth / _cardAspectRatio;
-    }
-
-    // 根据缩放调整裁剪框大小
-    final scaleFactor = 1.0 / _cropScale;
-    return Size(baseWidth * scaleFactor, baseHeight * scaleFactor);
+  Size _cropBoxSize(Size displayedSize) {
+    return thumbnailCropBoxSize(displayedSize, _cropScale);
   }
 
-  /// 处理拖拽
-  void _onPanUpdate(DragUpdateDetails details) {
+  void _onScaleStart(ScaleStartDetails details) {
+    _gestureStartScale = _cropScale;
+    _lastGestureFocalPoint = details.localFocalPoint;
+  }
+
+  void _onScaleUpdate(ScaleUpdateDetails details, Size displaySize) {
     if (_imageSize == null) return;
 
-    setState(() {
-      // 将像素偏移转换为相对偏移（-1.0 ~ 1.0）
-      final displayedSize = _displayedImageSize;
-      final maxOffsetX = (displayedSize.width - _cropBoxSize.width) / 2;
-      final maxOffsetY = (displayedSize.height - _cropBoxSize.height) / 2;
+    final previousFocalPoint = _lastGestureFocalPoint;
+    final focalDelta = previousFocalPoint == null
+        ? Offset.zero
+        : details.localFocalPoint - previousFocalPoint;
+    _lastGestureFocalPoint = details.localFocalPoint;
 
-      if (maxOffsetX > 0) {
-        _cropX += details.delta.dx / maxOffsetX;
-        _cropX = _cropX.clamp(-1.0, 1.0);
-      }
-      if (maxOffsetY > 0) {
-        _cropY += details.delta.dy / maxOffsetY;
-        _cropY = _cropY.clamp(-1.0, 1.0);
-      }
+    setState(() {
+      _cropScale = (_gestureStartScale * details.scale).clamp(1.0, 3.0);
+      _moveCropBy(focalDelta, displaySize);
     });
+  }
+
+  void _onScaleEnd(ScaleEndDetails details) {
+    _lastGestureFocalPoint = null;
+  }
+
+  void _moveCropBy(Offset delta, Size displaySize) {
+    final displayedSize = _displayedImageSize(displaySize);
+    final cropSize = _cropBoxSize(displayedSize);
+    final maxOffsetX = (displayedSize.width - cropSize.width) / 2;
+    final maxOffsetY = (displayedSize.height - cropSize.height) / 2;
+
+    if (maxOffsetX > 0) {
+      _cropX = (_cropX + delta.dx / maxOffsetX).clamp(-1.0, 1.0);
+    }
+    if (maxOffsetY > 0) {
+      _cropY = (_cropY + delta.dy / maxOffsetY).clamp(-1.0, 1.0);
+    }
   }
 
   /// 重置
@@ -169,11 +153,7 @@ class _ThumbnailCropDialogState extends State<ThumbnailCropDialog> {
   /// 确认
   void _confirm() {
     widget.onConfirm(
-      ThumbnailCropResult(
-        offsetX: _cropX,
-        offsetY: _cropY,
-        scale: _cropScale,
-      ),
+      ThumbnailCropResult(offsetX: _cropX, offsetY: _cropY, scale: _cropScale),
     );
     Navigator.of(context).pop();
   }
@@ -183,76 +163,69 @@ class _ThumbnailCropDialogState extends State<ThumbnailCropDialog> {
     final l10n = context.l10n;
     final theme = Theme.of(context);
 
-    return Dialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: SizedBox(
-        width: 720,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // 标题栏
-            _buildHeader(theme, l10n),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final textScale = MediaQuery.textScalerOf(context).scale(1);
+        final compact = constraints.maxWidth < 600;
+        final short = constraints.maxHeight < 400;
+        final compactActions =
+            constraints.maxWidth < 360 ||
+            constraints.maxHeight < 360 ||
+            textScale >= 2;
 
-            // 调整区域
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  // 提示文字
-                  _buildHint(theme, l10n),
-                  const SizedBox(height: 12),
-
-                  // 图像调整区域 - 使用 AbsorbPointer 防止滚轮事件传播
-                  AbsorbPointer(
-                    absorbing: false,
-                    child: ScrollConfiguration(
-                      behavior: const _NoScrollBehavior(),
-                      child: _buildAdjustArea(),
+        return Align(
+          child: SizedBox(
+            key: const ValueKey('thumbnail-crop-frame'),
+            width: constraints.maxWidth.clamp(0, 720).toDouble(),
+            height: constraints.maxHeight.clamp(0, 566).toDouble(),
+            child: Column(
+              children: [
+                Expanded(
+                  child: Padding(
+                    padding: EdgeInsets.fromLTRB(
+                      compact ? 12 : 16,
+                      short ? 8 : 12,
+                      compact ? 12 : 16,
+                      short ? 8 : 12,
+                    ),
+                    child: Column(
+                      children: [
+                        if (!short) ...[
+                          _buildHint(theme, l10n),
+                          const SizedBox(height: 12),
+                        ],
+                        Expanded(
+                          child: LayoutBuilder(
+                            builder: (context, previewConstraints) {
+                              final displaySize = Size(
+                                previewConstraints.maxWidth.clamp(
+                                  1,
+                                  _desktopDisplaySize.width,
+                                ),
+                                previewConstraints.maxHeight.clamp(
+                                  1,
+                                  _desktopDisplaySize.height,
+                                ),
+                              );
+                              return Center(
+                                child: ScrollConfiguration(
+                                  behavior: const _NoScrollBehavior(),
+                                  child: _buildAdjustArea(displaySize),
+                                ),
+                              );
+                            },
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                ],
-              ),
-            ),
-
-            // 底部按钮
-            _buildFooter(theme, l10n),
-          ],
-        ),
-      ),
-    );
-  }
-
-  /// 构建标题栏
-  Widget _buildHeader(ThemeData theme, AppLocalizations l10n) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-      decoration: BoxDecoration(
-        border: Border(
-          bottom: BorderSide(color: theme.colorScheme.outlineVariant),
-        ),
-      ),
-      child: Row(
-        children: [
-          Icon(
-            Icons.crop_free,
-            color: theme.colorScheme.primary,
-          ),
-          const SizedBox(width: 12),
-          Text(
-            l10n.tagLibrary_adjustThumbnailTitle,
-            style: theme.textTheme.titleMedium?.copyWith(
-              fontWeight: FontWeight.w600,
+                ),
+                _buildFooter(theme, l10n, compactActions: compactActions),
+              ],
             ),
           ),
-          const Spacer(),
-          IconButton(
-            onPressed: () => Navigator.of(context).pop(),
-            icon: const Icon(Icons.close),
-            tooltip: l10n.common_cancel,
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
 
@@ -260,11 +233,7 @@ class _ThumbnailCropDialogState extends State<ThumbnailCropDialog> {
   Widget _buildHint(ThemeData theme, AppLocalizations l10n) {
     return Row(
       children: [
-        Icon(
-          Icons.touch_app,
-          size: 16,
-          color: theme.colorScheme.outline,
-        ),
+        Icon(Icons.touch_app, size: 16, color: theme.colorScheme.outline),
         const SizedBox(width: 8),
         Expanded(
           child: Text(
@@ -279,117 +248,100 @@ class _ThumbnailCropDialogState extends State<ThumbnailCropDialog> {
   }
 
   /// 构建调整区域
-  Widget _buildAdjustArea() {
+  Widget _buildAdjustArea(Size displaySize) {
+    final decoration = BoxDecoration(
+      borderRadius: BorderRadius.circular(12),
+      color: ImageViewportSurface.background,
+    );
     if (_imageSize == null) {
       return Container(
-        width: _displayWidth,
-        height: _displayHeight,
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(12),
-          color: Colors.grey.shade900,
+        key: const ValueKey('thumbnail-crop-preview'),
+        width: displaySize.width,
+        height: displaySize.height,
+        decoration: decoration,
+        child: Center(
+          child: CircularProgressIndicator(
+            value: MediaQuery.disableAnimationsOf(context) ? 0.72 : null,
+          ),
         ),
-        child: const Center(child: CircularProgressIndicator()),
       );
     }
 
-    final displayedSize = _displayedImageSize;
-    final cropSize = _cropBoxSize;
+    final displayedSize = _displayedImageSize(displaySize);
+    final cropSize = _cropBoxSize(displayedSize);
+    final imageOffsetX = (displaySize.width - displayedSize.width) / 2;
+    final imageOffsetY = (displaySize.height - displayedSize.height) / 2;
+    final cropRect = thumbnailCropRect(
+      displayedSize: displayedSize,
+      cropBoxSize: cropSize,
+      offsetX: _cropX,
+      offsetY: _cropY,
+    );
 
-    // 图像在显示区域中的偏移（居中）
-    final imageOffsetX = (_displayWidth - displayedSize.width) / 2;
-    final imageOffsetY = (_displayHeight - displayedSize.height) / 2;
-
-    // 裁剪框位置（相对于显示区域左上角）
-    // 图像居中偏移 + 基础居中位置 + 用户拖拽偏移
-    // 公式: imageOffset + (displayed - crop) / 2 + _crop * (displayed - crop) / 2
-    //      = imageOffset + (displayed - crop) / 2 * (1 + _crop)
-    final cropLeft = imageOffsetX +
-        (displayedSize.width - cropSize.width) / 2 * (1 + _cropX);
-    final cropTop = imageOffsetY +
-        (displayedSize.height - cropSize.height) / 2 * (1 + _cropY);
-
-    return Container(
-      width: _displayWidth,
-      height: _displayHeight,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(12),
-        color: Colors.grey.shade900,
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(12),
-        child: Stack(
-          children: [
-            // 背景图像（居中显示）
-            Positioned(
-              left: imageOffsetX,
-              top: imageOffsetY,
-              child: Image.file(
-                File(widget.imagePath),
-                fit: BoxFit.contain,
-                width: displayedSize.width,
-                height: displayedSize.height,
-                errorBuilder: (_, __, ___) => Container(
-                  width: displayedSize.width,
-                  height: displayedSize.height,
-                  color: Colors.grey.shade800,
-                  child: const Center(
-                    child: Icon(
-                      Icons.broken_image,
-                      size: 48,
-                      color: Colors.white38,
+    return Listener(
+      onPointerSignal: (event) {
+        if (event is! PointerScrollEvent) return;
+        final scaleDelta = event.scrollDelta.dy > 0 ? -0.1 : 0.1;
+        final newScale = (_cropScale + scaleDelta).clamp(1.0, 3.0);
+        if (newScale != _cropScale) {
+          setState(() => _cropScale = newScale);
+        }
+      },
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onScaleStart: _onScaleStart,
+        onScaleUpdate: (details) => _onScaleUpdate(details, displaySize),
+        onScaleEnd: _onScaleEnd,
+        child: Container(
+          key: const ValueKey('thumbnail-crop-preview'),
+          width: displaySize.width,
+          height: displaySize.height,
+          decoration: decoration,
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(12),
+            child: Stack(
+              children: [
+                Positioned(
+                  left: imageOffsetX,
+                  top: imageOffsetY,
+                  child: Image.file(
+                    File(widget.imagePath),
+                    key: const ValueKey('thumbnail-crop-image'),
+                    fit: BoxFit.contain,
+                    width: displayedSize.width,
+                    height: displayedSize.height,
+                    errorBuilder: (_, __, ___) => Container(
+                      width: displayedSize.width,
+                      height: displayedSize.height,
+                      color: ImageViewportSurface.background,
+                      child: const Center(
+                        child: Icon(
+                          Icons.broken_image,
+                          size: 48,
+                          color: Colors.white38,
+                        ),
+                      ),
                     ),
                   ),
                 ),
-              ),
-            ),
-
-            // 遮罩层（裁剪框外的暗色区域）
-            Positioned(
-              left: imageOffsetX,
-              top: imageOffsetY,
-              child: CustomPaint(
-                size: Size(displayedSize.width, displayedSize.height),
-                painter: _CropOverlayPainter(
-                  cropBoxSize: cropSize,
-                  offsetX: _cropX,
-                  offsetY: _cropY,
+                Positioned(
+                  left: imageOffsetX,
+                  top: imageOffsetY,
+                  child: CustomPaint(
+                    size: displayedSize,
+                    painter: _CropOverlayPainter(cropRect: cropRect),
+                  ),
                 ),
-              ),
-            ),
-
-            // 可拖拽的裁剪框
-            Positioned(
-              left: cropLeft,
-              top: cropTop,
-              child: NotificationListener<ScrollNotification>(
-                onNotification: (notification) {
-                  return true;
-                },
-                child: GestureDetector(
-                  onPanUpdate: _onPanUpdate,
-                  child: Listener(
-                    onPointerSignal: (PointerSignalEvent event) {
-                      if (event is PointerScrollEvent) {
-                        final delta = event.scrollDelta.dy;
-                        final scaleDelta = delta > 0 ? -0.1 : 0.1;
-                        final newScale =
-                            (_cropScale + scaleDelta).clamp(1.0, 3.0);
-                        if (newScale != _cropScale) {
-                          setState(() {
-                            _cropScale = newScale;
-                          });
-                        }
-                      }
-                    },
-                    behavior: HitTestBehavior.opaque,
+                Positioned(
+                  left: imageOffsetX + cropRect.left,
+                  top: imageOffsetY + cropRect.top,
+                  child: IgnorePointer(
                     child: Container(
+                      key: const ValueKey('thumbnail-crop-selection'),
                       width: cropSize.width,
                       height: cropSize.height,
                       decoration: BoxDecoration(
-                        border: Border.all(
-                          color: Colors.white,
-                          width: 2,
-                        ),
+                        border: Border.all(color: Colors.white, width: 2),
                         boxShadow: [
                           BoxShadow(
                             color: Colors.black.withValues(alpha: 0.5),
@@ -407,46 +359,71 @@ class _ThumbnailCropDialogState extends State<ThumbnailCropDialog> {
                     ),
                   ),
                 ),
-              ),
+              ],
             ),
-          ],
+          ),
         ),
       ),
     );
   }
 
   /// 构建底部按钮
-  Widget _buildFooter(ThemeData theme, AppLocalizations l10n) {
+  Widget _buildFooter(
+    ThemeData theme,
+    AppLocalizations l10n, {
+    required bool compactActions,
+  }) {
+    final actions = compactActions
+        ? <Widget>[
+            IconButton(
+              onPressed: _reset,
+              icon: const Icon(Icons.restart_alt),
+              tooltip: l10n.common_reset,
+            ),
+            IconButton(
+              onPressed: () => Navigator.of(context).pop(),
+              icon: const Icon(Icons.close),
+              tooltip: l10n.common_cancel,
+            ),
+            IconButton(
+              onPressed: _confirm,
+              icon: const Icon(Icons.check),
+              tooltip: l10n.common_confirm,
+            ),
+          ]
+        : <Widget>[
+            TextButton.icon(
+              onPressed: _reset,
+              icon: const Icon(Icons.restart_alt),
+              label: Text(l10n.common_reset),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: Text(l10n.common_cancel),
+            ),
+            FilledButton.icon(
+              onPressed: _confirm,
+              icon: const Icon(Icons.check),
+              label: Text(l10n.common_confirm),
+            ),
+          ];
+
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      padding: EdgeInsets.symmetric(
+        horizontal: compactActions ? 12 : 16,
+        vertical: compactActions ? 4 : 8,
+      ),
       decoration: BoxDecoration(
         border: Border(
           top: BorderSide(color: theme.colorScheme.outlineVariant),
         ),
       ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.end,
-        children: [
-          // 重置按钮
-          TextButton.icon(
-            onPressed: _reset,
-            icon: const Icon(Icons.restart_alt),
-            label: Text(l10n.common_reset),
-          ),
-          const SizedBox(width: 8),
-          // 取消按钮
-          OutlinedButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: Text(l10n.common_cancel),
-          ),
-          const SizedBox(width: 8),
-          // 确认按钮
-          FilledButton.icon(
-            onPressed: _confirm,
-            icon: const Icon(Icons.check),
-            label: Text(l10n.common_confirm),
-          ),
-        ],
+      child: Wrap(
+        alignment: WrapAlignment.end,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        spacing: 8,
+        runSpacing: 8,
+        children: actions,
       ),
     );
   }
@@ -454,15 +431,9 @@ class _ThumbnailCropDialogState extends State<ThumbnailCropDialog> {
 
 /// 裁剪框遮罩绘制器
 class _CropOverlayPainter extends CustomPainter {
-  final Size cropBoxSize;
-  final double offsetX;
-  final double offsetY;
+  final Rect cropRect;
 
-  _CropOverlayPainter({
-    required this.cropBoxSize,
-    required this.offsetX,
-    required this.offsetY,
-  });
+  _CropOverlayPainter({required this.cropRect});
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -470,43 +441,23 @@ class _CropOverlayPainter extends CustomPainter {
       ..color = Colors.black.withValues(alpha: 0.5)
       ..style = PaintingStyle.fill;
 
-    // 计算裁剪框位置（中心对齐）
-    final centerX = size.width / 2;
-    final centerY = size.height / 2;
-
-    final maxOffsetX = (size.width - cropBoxSize.width) / 2;
-    final maxOffsetY = (size.height - cropBoxSize.height) / 2;
-
-    final cropLeft = centerX - cropBoxSize.width / 2 + offsetX * maxOffsetX;
-    final cropTop = centerY - cropBoxSize.height / 2 + offsetY * maxOffsetY;
-    final cropRight = cropLeft + cropBoxSize.width;
-    final cropBottom = cropTop + cropBoxSize.height;
-
     // 绘制整个背景，然后挖空中间
     canvas.saveLayer(Rect.fromLTWH(0, 0, size.width, size.height), Paint());
 
     // 绘制半透明背景
-    canvas.drawRect(
-      Rect.fromLTWH(0, 0, size.width, size.height),
-      paint,
-    );
+    canvas.drawRect(Rect.fromLTWH(0, 0, size.width, size.height), paint);
 
     // 使用混合模式清除中间区域
     final clearPaint = Paint()..blendMode = BlendMode.clear;
 
-    canvas.drawRect(
-      Rect.fromLTRB(cropLeft, cropTop, cropRight, cropBottom),
-      clearPaint,
-    );
+    canvas.drawRect(cropRect, clearPaint);
 
     canvas.restore();
   }
 
   @override
   bool shouldRepaint(covariant _CropOverlayPainter oldDelegate) {
-    return oldDelegate.cropBoxSize != cropBoxSize ||
-        oldDelegate.offsetX != offsetX ||
-        oldDelegate.offsetY != offsetY;
+    return oldDelegate.cropRect != cropRect;
   }
 }
 
@@ -545,9 +496,27 @@ Future<void> showThumbnailCropDialog({
   double initialScale = 1.0,
   required ValueChanged<ThumbnailCropResult> onConfirm,
 }) async {
-  await showDialog<void>(
+  await AdaptivePresenter.showForm<void>(
     context: context,
-    builder: (context) => ThumbnailCropDialog(
+    titleBuilder: (panelContext) => Row(
+      children: [
+        Icon(
+          Icons.crop_free,
+          color: Theme.of(panelContext).colorScheme.primary,
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Text(
+            panelContext.l10n.tagLibrary_adjustThumbnailTitle,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: Theme.of(panelContext).textTheme.titleLarge,
+          ),
+        ),
+      ],
+    ),
+    dialogWidth: 720,
+    builder: (_, __) => ThumbnailCropDialog(
       imagePath: imagePath,
       initialOffsetX: initialOffsetX,
       initialOffsetY: initialOffsetY,

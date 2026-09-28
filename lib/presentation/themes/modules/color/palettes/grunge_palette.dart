@@ -21,38 +21,40 @@ class GrungePalette extends BaseColorModule {
 
   @override
   ColorScheme get lightScheme => const ColorScheme.light(
-        primary: _secondary, // Invert: dark primary on light bg
-        onPrimary: Colors.white,
-        primaryContainer: Color(0xFFE8E4DC), // Light warm gray for contrast
-        onPrimaryContainer: Color(0xFF1A1A1A), // Dark gray for text/icons
-        secondary: _accent,
-        onSecondary: Colors.white,
-        tertiary: Color(0xFF8B4513), // Rust brown
-        surface: _surface,
-        onSurface: _secondary,
-        onSurfaceVariant: Color(0xFF6B5B4F), // Warm brown-gray
-        surfaceContainerHighest: _background,
-        outline: Color(0xFFD4CFC0), // Old paper border
-        error: _accent,
-      );
+    primary: _secondary, // Invert: dark primary on light bg
+    onPrimary: Colors.white,
+    primaryContainer: Color(0xFFE8E4DC), // Light warm gray for contrast
+    onPrimaryContainer: Color(0xFF1A1A1A), // Dark gray for text/icons
+    secondary: _accent,
+    onSecondary: Colors.white,
+    tertiary: Color(0xFF8B4513), // Rust brown
+    surface: _surface,
+    onSurface: _secondary,
+    onSurfaceVariant: Color(0xFF6B5B4F), // Warm brown-gray
+    surfaceContainerHighest: _background,
+    outline: Color(0xFFD4CFC0), // Old paper border
+    error: _accent,
+  );
 
   @override
   ColorScheme get darkScheme => const ColorScheme.dark(
-        primary: _primary,
-        onPrimary: _secondary,
-        primaryContainer: Color(0xFF5C4A3D), // Dark warm brown for contrast
-        onPrimaryContainer: Color(0xFFFFF5EE), // Light cream for text/icons
-        secondary: _accent,
-        onSecondary: Colors.white,
-        tertiary: Color(0xFFD2691E),
-        surface: Color(0xFF1A1A1A),
-        onSurface: _primary,
-        onSurfaceVariant: Color(0xFFD4CFC0), // Old paper tint
-        outline: Color(0xFF525252), // Neutral-600
-        error: _accent,
-        errorContainer: Color(0xFF5C1A1A), // Dark red for error container
-        onErrorContainer: Color(0xFFFFDAD6), // Light pink for error text
-      );
+    primary: _primary,
+    onPrimary: _secondary,
+    primaryContainer: Color(0xFF5C4A3D), // Dark warm brown for contrast
+    onPrimaryContainer: Color(0xFFFFF5EE), // Light cream for text/icons
+    secondary: _accent,
+    onSecondary: Colors.white,
+    tertiary: Color(0xFFD2691E),
+    onTertiary: Color(0xFF281406),
+    surface: Color(0xFF1A1A1A),
+    onSurface: _primary,
+    onSurfaceVariant: Color(0xFFD4CFC0), // Old paper tint
+    outline: Color(0xFF525252), // Neutral-600
+    error: _accent,
+    onError: Color(0xFFFEF1F4),
+    errorContainer: Color(0xFF5C1A1A), // Dark red for error container
+    onErrorContainer: Color(0xFFFFDAD6), // Light pink for error text
+  );
 
   @override
   bool get supportsDarkMode => true;

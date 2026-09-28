@@ -743,8 +743,9 @@ class _ColorPickerSettingsPanel extends StatelessWidget {
                   },
                   style: ButtonStyle(
                     visualDensity: VisualDensity.compact,
-                    textStyle:
-                        WidgetStatePropertyAll(theme.textTheme.bodySmall),
+                    textStyle: WidgetStatePropertyAll(
+                      theme.textTheme.bodySmall,
+                    ),
                   ),
                 ),
               ),
@@ -779,8 +780,9 @@ class _ColorPickerSettingsPanel extends StatelessWidget {
                   },
                   style: ButtonStyle(
                     visualDensity: VisualDensity.compact,
-                    textStyle:
-                        WidgetStatePropertyAll(theme.textTheme.bodySmall),
+                    textStyle: WidgetStatePropertyAll(
+                      theme.textTheme.bodySmall,
+                    ),
                   ),
                 ),
               ),
@@ -865,11 +867,7 @@ class _ColorPickerMagnifier extends StatelessWidget {
               ),
             ),
             // 连接线
-            Container(
-              width: 2,
-              height: 8,
-              color: Colors.white,
-            ),
+            Container(width: 2, height: 8, color: Colors.white),
             // 颜色信息卡片
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -886,8 +884,10 @@ class _ColorPickerMagnifier extends StatelessWidget {
                     decoration: BoxDecoration(
                       color: color,
                       borderRadius: BorderRadius.circular(2),
-                      border:
-                          Border.all(color: Colors.grey.shade400, width: 0.5),
+                      border: Border.all(
+                        color: Colors.grey.shade400,
+                        width: 0.5,
+                      ),
                     ),
                   ),
                   const SizedBox(width: 4),

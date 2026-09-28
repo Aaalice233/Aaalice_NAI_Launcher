@@ -1,22 +1,45 @@
+import '../common/delayed_rich_tooltip.dart';
 import 'package:flutter/material.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/utils/character_prompt_block_parser.dart';
 import '../../../data/models/character/character_prompt.dart';
-import '../../providers/character_panel_dock_provider.dart';
 import '../../providers/character_prompt_provider.dart';
-import '../common/app_toast.dart';
-import 'character_editor_dialog.dart';
+import '../../providers/tag_library_page_provider.dart';
+import '../tag_library/tag_library_picker_dialog.dart';
 import 'character_tooltip_content.dart';
+
+enum _CharacterAddAction {
+  female(CharacterGender.female),
+  male(CharacterGender.male),
+  other(CharacterGender.other),
+  library(null);
+
+  const _CharacterAddAction(this.gender);
+
+  final CharacterGender? gender;
+}
 
 /// 多人角色提示词触发按钮
 ///
-/// 显示在提示词区域工具栏中，点击打开角色编辑对话框。
-/// 当存在角色时，显示角色数量徽章。
-///
-/// Requirements: 1.1, 5.3
+/// 显示在提示词区域工具栏中，作为内联角色区的状态指示器：
+/// - 有角色时点击选中第一个角色进入编辑（角色区常显于布局中）
+/// - 无角色时点击弹出添加菜单（女/男/其他/词库）
+/// - 当存在角色时，显示角色数量徽章
 class CharacterPromptButton extends ConsumerWidget {
-  const CharacterPromptButton({super.key});
+  const CharacterPromptButton({
+    super.key,
+    this.onManage,
+    this.compact = false,
+    this.iconOnly = false,
+  });
+
+  /// When supplied, the button opens an existing-character manager instead of
+  /// acting as another add shortcut. The manager owns its own add action.
+  final VoidCallback? onManage;
+  final bool compact;
+  final bool iconOnly;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -25,76 +48,165 @@ class CharacterPromptButton extends ConsumerWidget {
     final hasCharacters = characterCount > 0;
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
-    final isDocked = ref.watch(characterPanelDockProvider);
 
-    return _CharacterTooltipWrapper(
-      config: config,
-      child: Stack(
-        clipBehavior: Clip.none,
+    final buttonContent = Container(
+      constraints: BoxConstraints(minHeight: compact ? 36 : 48),
+      padding: EdgeInsets.symmetric(
+        horizontal: compact ? 8 : 10,
+        vertical: compact ? 4 : 6,
+      ),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(10),
+        color: hasCharacters
+            ? colorScheme.primary.withValues(alpha: 0.12)
+            : colorScheme.surfaceContainerLow,
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          Material(
-            color: Colors.transparent,
-            child: InkWell(
-              onTap: () {
-                if (isDocked) {
-                  // 停靠模式下提示用户面板已显示在图像区域
-                  AppToast.info(
-                    context,
-                    AppLocalizations.of(context)!.characterEditor_dockedHint,
-                  );
-                } else {
-                  CharacterEditorDialog.show(context);
-                }
-              },
-              borderRadius: BorderRadius.circular(8),
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(
-                    color: hasCharacters
-                        ? colorScheme.primary.withValues(alpha: 0.5)
-                        : colorScheme.outline.withValues(alpha: 0.3),
-                    width: 1,
-                  ),
-                  color: hasCharacters
-                      ? colorScheme.primary.withValues(alpha: 0.1)
-                      : Colors.transparent,
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    _DynamicCharacterIcon(
-                      characters: config.characters,
-                      size: 18,
-                      emptyColor: colorScheme.onSurfaceVariant,
-                    ),
-                    const SizedBox(width: 6),
-                    Text(
-                      AppLocalizations.of(context)!.character_buttonLabel,
-                      style: theme.textTheme.labelMedium?.copyWith(
-                        color: hasCharacters
-                            ? colorScheme.primary
-                            : colorScheme.onSurfaceVariant,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ],
-                ),
+          _DynamicCharacterIcon(
+            characters: config.characters,
+            size: 18,
+            emptyColor: colorScheme.onSurfaceVariant,
+          ),
+          if (!iconOnly) ...[
+            const SizedBox(width: 6),
+            Text(
+              AppLocalizations.of(context)!.character_buttonLabel,
+              style: theme.textTheme.labelMedium?.copyWith(
+                color: hasCharacters
+                    ? colorScheme.primary
+                    : colorScheme.onSurfaceVariant,
+                fontWeight: FontWeight.w500,
               ),
             ),
-          ),
-          // 按钮右上角角标
-          if (hasCharacters)
-            Positioned(
-              right: -4,
-              top: -4,
-              child: _CharacterCountBadge(count: characterCount),
+          ],
+          if (hasCharacters) ...[
+            const SizedBox(width: 5),
+            _CharacterCountBadge(
+              key: const ValueKey('character-count-badge'),
+              count: characterCount,
             ),
+          ],
         ],
       ),
     );
+
+    return _CharacterTooltipWrapper(
+      config: config,
+      child: Material(
+        color: Colors.transparent,
+        child: onManage == null
+            ? _AddCharacterMenu(child: buttonContent)
+            : InkWell(
+                onTap: onManage,
+                borderRadius: BorderRadius.circular(10),
+                child: buttonContent,
+              ),
+      ),
+    );
+  }
+}
+
+/// 无角色时的添加菜单包装
+class _AddCharacterMenu extends ConsumerWidget {
+  final Widget child;
+
+  const _AddCharacterMenu({required this.child});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
+    final l10n = AppLocalizations.of(context)!;
+
+    return PopupMenuButton<_CharacterAddAction>(
+      tooltip: '',
+      padding: EdgeInsets.zero,
+      onSelected: (action) => _handleAdd(context, ref, action),
+      itemBuilder: (context) => [
+        PopupMenuItem(
+          value: _CharacterAddAction.female,
+          child: _menuRow(
+            Icons.female,
+            l10n.characterEditor_addFemale,
+            const Color(0xFFEC4899),
+          ),
+        ),
+        PopupMenuItem(
+          value: _CharacterAddAction.male,
+          child: _menuRow(
+            Icons.male,
+            l10n.characterEditor_addMale,
+            const Color(0xFF3B82F6),
+          ),
+        ),
+        PopupMenuItem(
+          value: _CharacterAddAction.other,
+          child: _menuRow(
+            Icons.transgender,
+            l10n.characterEditor_addOther,
+            const Color(0xFF8B5CF6),
+          ),
+        ),
+        PopupMenuItem(
+          value: _CharacterAddAction.library,
+          child: _menuRow(
+            Icons.library_books_outlined,
+            l10n.characterEditor_addFromLibrary,
+            theme.colorScheme.tertiary,
+          ),
+        ),
+      ],
+      child: child,
+    );
+  }
+
+  Widget _menuRow(IconData icon, String label, Color color) {
+    return Row(
+      children: [
+        Icon(icon, size: 18, color: color),
+        const SizedBox(width: 10),
+        Text(label),
+      ],
+    );
+  }
+
+  Future<void> _handleAdd(
+    BuildContext context,
+    WidgetRef ref,
+    _CharacterAddAction action,
+  ) async {
+    final notifier = ref.read(characterPromptNotifierProvider.notifier);
+    final gender = action.gender;
+
+    if (gender != null) {
+      notifier.addCharacter(gender);
+      _selectLast(ref);
+      return;
+    }
+
+    final entry = await TagLibraryPickerDialog.show(context);
+    if (entry != null) {
+      final parsed = CharacterPromptBlockParser.parse(entry.content);
+      ref.read(tagLibraryPageNotifierProvider.notifier).recordUsage(entry.id);
+      notifier.addCharacter(
+        CharacterGender.female,
+        name: entry.displayName,
+        prompt: parsed.positivePrompt,
+        negativePrompt: parsed.hasNegativeBlock ? parsed.negativePrompt : null,
+        thumbnailPath: entry.thumbnail,
+      );
+      _selectLast(ref);
+    }
+  }
+
+  /// 新增后直接选中进入编辑，省一次点击
+  void _selectLast(WidgetRef ref) {
+    final characters = ref.read(characterPromptNotifierProvider).characters;
+    if (characters.isNotEmpty) {
+      ref.read(selectedCharacterIdProvider.notifier).select(characters.last.id);
+    }
   }
 }
 
@@ -102,7 +214,7 @@ class CharacterPromptButton extends ConsumerWidget {
 class _CharacterCountBadge extends StatelessWidget {
   final int count;
 
-  const _CharacterCountBadge({required this.count});
+  const _CharacterCountBadge({super.key, required this.count});
 
   @override
   Widget build(BuildContext context) {
@@ -110,10 +222,7 @@ class _CharacterCountBadge extends StatelessWidget {
     final colorScheme = theme.colorScheme;
 
     return Container(
-      constraints: const BoxConstraints(
-        minWidth: 14,
-        minHeight: 14,
-      ),
+      constraints: const BoxConstraints(minWidth: 14, minHeight: 14),
       padding: const EdgeInsets.all(2),
       decoration: BoxDecoration(
         color: colorScheme.primary,
@@ -129,64 +238,6 @@ class _CharacterCountBadge extends StatelessWidget {
             height: 1,
           ),
         ),
-      ),
-    );
-  }
-}
-
-/// 紧凑版角色提示词按钮（仅图标）
-///
-/// 用于空间受限的工具栏
-class CharacterPromptIconButton extends ConsumerWidget {
-  const CharacterPromptIconButton({super.key});
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final config = ref.watch(characterPromptNotifierProvider);
-    final characterCount = config.characters.length;
-    final hasCharacters = characterCount > 0;
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-
-    return _CharacterTooltipWrapper(
-      config: config,
-      child: Stack(
-        clipBehavior: Clip.none,
-        children: [
-          IconButton(
-            onPressed: () => CharacterEditorDialog.show(context),
-            icon: _DynamicCharacterIcon(
-              characters: config.characters,
-              size: 24,
-              emptyColor: colorScheme.onSurfaceVariant,
-            ),
-          ),
-          if (hasCharacters)
-            Positioned(
-              right: 4,
-              top: 4,
-              child: Container(
-                padding: const EdgeInsets.all(4),
-                decoration: BoxDecoration(
-                  color: colorScheme.primary,
-                  shape: BoxShape.circle,
-                ),
-                constraints: const BoxConstraints(
-                  minWidth: 16,
-                  minHeight: 16,
-                ),
-                child: Text(
-                  characterCount.toString(),
-                  style: theme.textTheme.labelSmall?.copyWith(
-                    color: colorScheme.onPrimary,
-                    fontWeight: FontWeight.w600,
-                    fontSize: 10,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-              ),
-            ),
-        ],
       ),
     );
   }
@@ -208,15 +259,15 @@ class _DynamicCharacterIcon extends StatelessWidget {
     required this.emptyColor,
   });
 
-  /// 根据性别获取对应颜色
+  /// 根据性别获取对应颜色（与角色卡配色一致）
   static Color getGenderColor(CharacterGender gender) {
     switch (gender) {
       case CharacterGender.female:
-        return const Color(0xFFE91E63); // 粉色
+        return const Color(0xFFEC4899); // 粉色
       case CharacterGender.male:
-        return const Color(0xFF2196F3); // 蓝色
+        return const Color(0xFF3B82F6); // 蓝色
       case CharacterGender.other:
-        return const Color(0xFF9E9E9E); // 灰色
+        return const Color(0xFF8B5CF6); // 紫色
     }
   }
 
@@ -258,7 +309,8 @@ class _DynamicCharacterIcon extends StatelessWidget {
               child: CustomPaint(
                 size: Size(personWidth, size),
                 painter: _FilledPersonPainter(
-                  color: getGenderColor(displayCharacters[i].gender),
+                  // 颜色跟随提示词首 tag 推导的有效性别
+                  color: getGenderColor(displayCharacters[i].effectiveGender),
                 ),
               ),
             ),
@@ -292,11 +344,7 @@ class _EmptyPersonPainter extends CustomPainter {
     final headCenterY = startY + headRadius;
 
     // 绘制头部（圆形）
-    canvas.drawCircle(
-      Offset(centerX, headCenterY),
-      headRadius,
-      paint,
-    );
+    canvas.drawCircle(Offset(centerX, headCenterY), headRadius, paint);
 
     // 绘制身体（简化的圆角矩形躯干）
     final bodyTop = headCenterY + headRadius + gap;
@@ -344,11 +392,7 @@ class _FilledPersonPainter extends CustomPainter {
     final headCenterY = startY + headRadius;
 
     // 绘制头部（圆形）
-    canvas.drawCircle(
-      Offset(centerX, headCenterY),
-      headRadius,
-      paint,
-    );
+    canvas.drawCircle(Offset(centerX, headCenterY), headRadius, paint);
 
     // 绘制身体（简化的圆角矩形躯干）
     final bodyTop = headCenterY + headRadius + gap;
@@ -380,34 +424,12 @@ class _CharacterTooltipWrapper extends StatelessWidget {
   final CharacterPromptConfig config;
   final Widget child;
 
-  const _CharacterTooltipWrapper({
-    required this.config,
-    required this.child,
-  });
+  const _CharacterTooltipWrapper({required this.config, required this.child});
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-
-    return Tooltip(
-      richMessage: WidgetSpan(
-        child: CharacterTooltipContent(config: config),
-      ),
-      decoration: BoxDecoration(
-        color: colorScheme.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.2),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      waitDuration: const Duration(milliseconds: 400),
-      showDuration: const Duration(seconds: 8),
-      preferBelow: true,
+    return DelayedRichTooltip(
+      content: CharacterTooltipContent(config: config),
       child: child,
     );
   }

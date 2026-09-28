@@ -4,12 +4,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../autocomplete/autocomplete_providers.dart';
+import '../autocomplete/tag_catalog_repository.dart';
+import '../autocomplete/zh_dictionary_service.dart';
 import '../constants/storage_keys.dart';
-import '../utils/app_logger.dart';
 import '../database/database.dart' hide Recommendation;
 import '../database/services/services.dart';
-import 'danbooru_tags_lazy_service.dart';
-import 'translation/translation_providers.dart';
+import '../utils/app_logger.dart';
 
 part 'smart_tag_recommendation_service.g.dart';
 
@@ -35,16 +36,16 @@ class RecommendedTag {
 /// 使用 Jaccard 相似度算法推荐相关标签
 class SmartTagRecommendationService {
   final CooccurrenceService _cooccurrenceService;
-  final DanbooruTagsLazyService _danbooruService;
-  final Ref _ref;
+  final TagCatalogRepository _catalog;
+  final ZhDictionaryService _dictionary;
 
   /// 是否启用智能推荐
   bool _isEnabled = true;
 
   SmartTagRecommendationService(
     this._cooccurrenceService,
-    this._danbooruService,
-    this._ref,
+    this._catalog,
+    this._dictionary,
   );
 
   /// 是否启用
@@ -118,11 +119,13 @@ class SmartTagRecommendationService {
         inputTag,
         limit: 50, // 获取更多候选以便后续筛选
       );
-      AppLogger.d('Found ${relatedTags.length} related tags for "$inputTag": ${relatedTags.take(5).map((t) => '"${t.tag}"').join(', ')}', 'SmartRec');
+      AppLogger.d(
+        'Found ${relatedTags.length} related tags for "$inputTag": ${relatedTags.take(5).map((t) => '"${t.tag}"').join(', ')}',
+        'SmartRec',
+      );
 
-      // 获取输入标签的使用次数
-      final inputTagData = await _danbooruService.get(inputTag);
-      final inputTagCount = inputTagData?.count ?? 1000; // 默认值
+      // 使用随应用提供的 catalog 热度，不再依赖旧全量在线缓存。
+      final inputTagCount = await _catalog.postCount(inputTag) ?? 1000;
 
       for (final related in relatedTags) {
         // 跳过已在输入中的标签
@@ -130,9 +133,7 @@ class SmartTagRecommendationService {
         // 跳过排除列表中的标签
         if (excludeTags?.contains(related.tag) == true) continue;
 
-        // 获取相关标签的使用次数
-        final relatedTagData = await _danbooruService.get(related.tag);
-        final relatedTagCount = relatedTagData?.count ?? 1000;
+        final relatedTagCount = await _catalog.postCount(related.tag) ?? 1000;
 
         // 计算 Jaccard 相似度
         final cooccurrence = related.count;
@@ -161,6 +162,11 @@ class SmartTagRecommendationService {
 
     if (candidateScores.isEmpty) return [];
 
+    final translations = await _dictionary.resolve(
+      candidateScores.keys.toList(),
+      locale: 'zh-CN',
+    );
+
     // 计算最终分数：考虑匹配多个输入标签的加成
     final results = <RecommendedTag>[];
     for (final candidate in candidateScores.values) {
@@ -169,16 +175,12 @@ class SmartTagRecommendationService {
       final finalScore =
           (candidate.totalScore / candidate.matchCount) * matchBonus;
 
-      // 获取翻译
-      final translationService = await _ref.read(unifiedTranslationServiceProvider.future);
-      final translation = await translationService.getTranslation(candidate.tag);
-
       results.add(
         RecommendedTag(
           tag: candidate.tag,
           score: min(finalScore, 1.0), // 限制最大分数为 1.0
           cooccurrence: candidate.totalCooccurrence,
-          translation: translation,
+          translation: translations[candidate.tag],
         ),
       );
     }
@@ -194,10 +196,7 @@ class SmartTagRecommendationService {
     String tag, {
     int limit = 10,
   }) async {
-    return getRecommendations(
-      inputTags: [tag],
-      limit: limit,
-    );
+    return getRecommendations(inputTags: [tag], limit: limit);
   }
 
   /// 检查共现数据是否可用（同步快速检查）
@@ -205,15 +204,24 @@ class SmartTagRecommendationService {
   /// 注意：实时查询，不缓存，确保后台导入完成后能立即使用
   bool get isDataAvailable {
     // 实时检查，确保后台导入完成后立即可用
-    final hasData = _cooccurrenceService.isLoaded && _cooccurrenceService.hasData;
-    AppLogger.d('[isDataAvailable] isLoaded=${_cooccurrenceService.isLoaded}, hasData=${_cooccurrenceService.hasData}, result=$hasData', 'SmartRec');
+    final hasData =
+        _cooccurrenceService.isLoaded && _cooccurrenceService.hasData;
+    AppLogger.d(
+      '[isDataAvailable] isLoaded=${_cooccurrenceService.isLoaded}, hasData=${_cooccurrenceService.hasData}, result=$hasData',
+      'SmartRec',
+    );
     return hasData;
   }
 
   /// 异步检查共现数据是否可用（更精确，查询实际记录数）
   Future<bool> checkDataAvailableAsync() async {
-    final hasData = _cooccurrenceService.isLoaded && await _cooccurrenceService.hasDataAsync();
-    AppLogger.d('[checkDataAvailableAsync] isLoaded=${_cooccurrenceService.isLoaded}, hasData=$hasData', 'SmartRec');
+    final hasData =
+        _cooccurrenceService.isLoaded &&
+        await _cooccurrenceService.hasDataAsync();
+    AppLogger.d(
+      '[checkDataAvailableAsync] isLoaded=${_cooccurrenceService.isLoaded}, hasData=$hasData',
+      'SmartRec',
+    );
     return hasData;
   }
 }
@@ -235,13 +243,15 @@ class _CandidateScore {
 
 /// SmartTagRecommendationService Provider
 @Riverpod(keepAlive: true)
-Future<SmartTagRecommendationService> smartTagRecommendationService(Ref ref) async {
-  final cooccurrenceService = await ref.watch(cooccurrenceServiceProvider.future);
-  final danbooruService = await ref.watch(danbooruTagsLazyServiceProvider.future);
-
+Future<SmartTagRecommendationService> smartTagRecommendationService(
+  Ref ref,
+) async {
+  final cooccurrenceService = await ref.watch(
+    cooccurrenceServiceProvider.future,
+  );
   return SmartTagRecommendationService(
     cooccurrenceService,
-    danbooruService,
-    ref,
+    ref.watch(tagCatalogRepositoryProvider),
+    ref.watch(zhDictionaryServiceProvider),
   );
 }

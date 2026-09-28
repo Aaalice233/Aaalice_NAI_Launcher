@@ -5,6 +5,17 @@ class PromptHistorySessionIds {
 
   static const String generationPrompt = 'generation_prompt_main';
   static const String generationNegative = 'generation_prompt_negative';
+
+  static String characterPrompt(String characterId) =>
+      'generation_character_${characterId}_prompt';
+
+  static String characterNegative(String characterId) =>
+      'generation_character_${characterId}_negative';
+
+  static String fixedTag(String entryId) => 'fixed_tag_${entryId}_prompt';
+
+  static String tagLibraryEntry(String entryId) =>
+      'tag_library_${entryId}_prompt';
 }
 
 class PromptHistoryStack {
