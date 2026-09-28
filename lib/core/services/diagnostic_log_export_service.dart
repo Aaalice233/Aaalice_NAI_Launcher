@@ -13,6 +13,7 @@ import '../utils/app_logger.dart';
 import '../utils/fatal_diagnostics.dart';
 import 'diagnostic_agent_audit.dart';
 import 'file_export_service.dart';
+import 'update_installer_service.dart';
 
 final diagnosticLogExportServiceProvider = Provider<DiagnosticLogExportService>(
   (ref) => DiagnosticLogExportService(),
@@ -38,6 +39,7 @@ class DiagnosticLogExportService {
   DiagnosticLogExportService({
     Future<List<File>> Function()? loadLogFiles,
     Future<List<File>> Function()? loadCrashFiles,
+    Future<List<File>> Function()? loadUpdaterFiles,
     Future<File?> Function()? loadAgentAuditFile,
     Future<File?> Function()? loadMcpAuditFile,
     Future<void> Function()? flushLogs,
@@ -50,6 +52,7 @@ class DiagnosticLogExportService {
        assert(maxTotalSourceBytes > 0),
        _loadLogFiles = loadLogFiles ?? AppLogger.getLogFiles,
        _loadCrashFiles = loadCrashFiles ?? _defaultCrashFiles,
+       _loadUpdaterFiles = loadUpdaterFiles ?? _defaultUpdaterFiles,
        _loadAgentAuditFile = loadAgentAuditFile ?? _defaultAgentAuditFile,
        _loadMcpAuditFile = loadMcpAuditFile ?? _defaultMcpAuditFile,
        _flushLogs = flushLogs ?? AppLogger.flush,
@@ -66,6 +69,7 @@ class DiagnosticLogExportService {
 
   final Future<List<File>> Function() _loadLogFiles;
   final Future<List<File>> Function() _loadCrashFiles;
+  final Future<List<File>> Function() _loadUpdaterFiles;
   final Future<File?> Function() _loadAgentAuditFile;
   final Future<File?> Function() _loadMcpAuditFile;
   final Future<void> Function() _flushLogs;
@@ -161,6 +165,7 @@ class DiagnosticLogExportService {
     final candidates = <File>[
       ...await _loadLogFiles(),
       ...await _loadCrashFiles(),
+      ...await _loadUpdaterFiles(),
     ];
     final files = <File>[];
     final seenPaths = <String>{};
@@ -435,6 +440,29 @@ class DiagnosticLogExportService {
       final rightTime = right.lastModifiedSync();
       return rightTime.compareTo(leftTime);
     });
+    return files.take(10).toList(growable: false);
+  }
+
+  /// 更新脚本在应用进程之外运行，安装失败的唯一线索就在这批文件里。
+  static Future<List<File>> _defaultUpdaterFiles() async {
+    final directory = await UpdateInstallerService.resolveUpdateDirectory();
+    if (!await directory.exists()) return const [];
+
+    // 同目录还放着几百 MB 的更新包与 .part 续传文件，只收文本证据。
+    const diagnosticExtensions = {'.log', '.json'};
+    final files = await directory
+        .list(followLinks: false)
+        .where(
+          (entry) =>
+              entry is File &&
+              diagnosticExtensions.contains(p.extension(entry.path)),
+        )
+        .cast<File>()
+        .toList();
+    files.sort(
+      (left, right) =>
+          right.lastModifiedSync().compareTo(left.lastModifiedSync()),
+    );
     return files.take(10).toList(growable: false);
   }
 

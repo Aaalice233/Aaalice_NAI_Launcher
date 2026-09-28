@@ -53,6 +53,7 @@ void main() {
     final service = DiagnosticLogExportService(
       loadLogFiles: () async => [logFile],
       loadCrashFiles: () async => const [],
+      loadUpdaterFiles: () async => const [],
       flushLogs: () async => flushed = true,
       exportArchive: (sourcePath, fileName, dialogTitle) async {
         expect(fileName, 'nai-launcher-diagnostics-20260221-123456.zip');
@@ -129,7 +130,8 @@ void main() {
       late Uint8List bytes;
       final service = DiagnosticLogExportService(
         loadLogFiles: () async => [],
-        loadCrashFiles: () async => [],
+        loadCrashFiles: () async => const [],
+        loadUpdaterFiles: () async => const [],
         flushLogs: () async {},
         diagnosticsMetadata: () => 'test',
         exportArchive: (path, _, _) async {
@@ -185,6 +187,7 @@ void main() {
     final service = DiagnosticLogExportService(
       loadLogFiles: () async => [older, newer],
       loadCrashFiles: () async => const [],
+      loadUpdaterFiles: () async => const [],
       flushLogs: () async {},
       exportArchive: (sourcePath, _, _) async {
         archivePath = p.join(tempDirectory.path, 'bounded.zip');
@@ -236,6 +239,7 @@ void main() {
       final service = DiagnosticLogExportService(
         loadLogFiles: () async => [source],
         loadCrashFiles: () async => const [],
+        loadUpdaterFiles: () async => const [],
         flushLogs: () async {},
         exportArchive: (sourcePath, _, _) async {
           archivePath = p.join(tempDirectory.path, 'partial-tail.zip');
@@ -276,6 +280,7 @@ void main() {
       final service = DiagnosticLogExportService(
         loadLogFiles: () async => [source],
         loadCrashFiles: () async => const [],
+        loadUpdaterFiles: () async => const [],
         flushLogs: () async {},
         exportArchive: (sourcePath, _, _) async {
           archivePath = p.join(tempDirectory.path, 'private-key-tail.zip');
@@ -335,6 +340,7 @@ void main() {
     final service = DiagnosticLogExportService(
       loadLogFiles: () async => const [],
       loadCrashFiles: () async => const [],
+      loadUpdaterFiles: () async => const [],
       flushLogs: () async {},
       exportArchive: (sourcePath, fileName, dialogTitle) async {
         exporterCalled = true;
@@ -348,6 +354,69 @@ void main() {
     expect(exporterCalled, isFalse);
   });
 
+  test('includes updater evidence and leaves update packages out', () async {
+    final updateDirectory = Directory(
+      p.join(tempDirectory.path, 'nai_launcher_updates'),
+    )..createSync();
+    await File(
+      p.join(updateDirectory.path, 'update_4.2.1.log'),
+    ).writeAsString('[2026-09-27] Installer exited with code 3.\n');
+    await File(
+      p.join(updateDirectory.path, 'update_result.json'),
+    ).writeAsString('{"success":false,"version":"4.2.1"}');
+    await File(
+      p.join(updateDirectory.path, 'update_started.json'),
+    ).writeAsString('{"version":"4.2.1","appPid":1234}');
+    // 同目录的安装包体积可达几百 MB，绝不能进诊断包。
+    await File(
+      p.join(updateDirectory.path, 'setup.exe'),
+    ).writeAsBytes(List<int>.filled(4096, 7));
+    await File(
+      p.join(updateDirectory.path, 'setup.exe.part'),
+    ).writeAsBytes(List<int>.filled(4096, 7));
+
+    late Uint8List exportedBytes;
+    final service = DiagnosticLogExportService(
+      loadLogFiles: () async => const [],
+      loadCrashFiles: () async => const [],
+      loadUpdaterFiles: () async => updateDirectory
+          .listSync()
+          .whereType<File>()
+          .where(
+            (file) => const {
+              '.log',
+              '.json',
+            }.contains(p.extension(file.path)),
+          )
+          .toList(),
+      flushLogs: () async {},
+      exportArchive: (sourcePath, fileName, dialogTitle) async {
+        exportedBytes = await File(sourcePath).readAsBytes();
+        return true;
+      },
+      diagnosticsMetadata: () => 'test',
+    );
+
+    final result = await service.export(dialogTitle: 'Export logs');
+
+    expect(result.status, DiagnosticLogExportStatus.exported);
+    final names = ZipDecoder()
+        .decodeBytes(exportedBytes)
+        .files
+        .map((file) => file.name)
+        .toList();
+    expect(
+      names,
+      containsAll([
+        'logs/update_4.2.1.log',
+        'logs/update_result.json',
+        'logs/update_started.json',
+      ]),
+    );
+    expect(names, isNot(contains('logs/setup.exe')));
+    expect(names, isNot(contains('logs/setup.exe.part')));
+  });
+
   test('reports cancellation from the platform exporter', () async {
     final logFile = await File(
       p.join(tempDirectory.path, 'app.log'),
@@ -355,6 +424,7 @@ void main() {
     final service = DiagnosticLogExportService(
       loadLogFiles: () async => [logFile],
       loadCrashFiles: () async => const [],
+      loadUpdaterFiles: () async => const [],
       flushLogs: () async {},
       exportArchive: (sourcePath, fileName, dialogTitle) async => false,
       diagnosticsMetadata: () => 'test',

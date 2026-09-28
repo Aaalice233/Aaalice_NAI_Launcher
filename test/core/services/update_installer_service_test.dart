@@ -7,6 +7,7 @@ import 'package:nai_launcher/core/services/app_installation_service.dart';
 import 'package:nai_launcher/core/services/update_installer_service.dart';
 import 'package:nai_launcher/data/models/version/release_asset_info.dart';
 import 'package:nai_launcher/data/models/version/version_info.dart';
+import 'package:path/path.dart' as p;
 
 class _SupportedInstallationService extends AppInstallationService {
   @override
@@ -267,6 +268,10 @@ void main() {
             executable = command;
             arguments = commandArguments;
             processMode = mode;
+            // 代替真实脚本写出启动标记，应用只在确认接管后才退出。
+            await File(
+              '${updateDir.path}/update_started.json',
+            ).writeAsString('{"version":"1.8.2"}');
           },
           shutdownHandler: (_) async {
             events.add('shutdown');
@@ -368,6 +373,190 @@ void main() {
       },
       skip: !Platform.isWindows,
     );
+
+    test(
+      'keeps the application running when the updater never starts',
+      () async {
+        final updateDir = Directory('${tempDir.path}/updates')..createSync();
+        final installer = File('${updateDir.path}/setup.exe');
+        await installer.writeAsString('verified installer');
+        final hash = await UpdateInstallerService.calculateSha256(installer);
+        var shutdownCalled = false;
+        final service = UpdateInstallerService(
+          dio: Dio(),
+          installationService: _SupportedInstallationService(),
+          updateDirectory: updateDir,
+          // 进程创建成功但脚本被策略或安全软件拦下，什么标记都不会出现。
+          processStarter: (_, _, _) async {},
+          updaterStartTimeout: const Duration(milliseconds: 200),
+          shutdownHandler: (_) async {
+            shutdownCalled = true;
+          },
+        );
+        final asset = ReleaseAssetInfo(
+          type: ReleaseAssetType.windowsInstaller,
+          platform: 'windows',
+          fileName: 'setup.exe',
+          downloadUrl: 'https://example.com/setup.exe',
+          sha256: hash,
+          size: await installer.length(),
+        );
+
+        await expectLater(
+          service.installAndRestart(
+            DownloadedUpdate(file: installer, asset: asset, version: '1.8.2'),
+          ),
+          throwsA(
+            isA<UpdateInstallException>().having(
+              (error) => error.message,
+              'message',
+              contains('更新程序没有响应'),
+            ),
+          ),
+        );
+        expect(shutdownCalled, isFalse);
+      },
+      skip: !Platform.isWindows,
+    );
+
+    test(
+      'ignores a stale start marker left by an earlier version',
+      () async {
+        final updateDir = Directory('${tempDir.path}/updates')..createSync();
+        final installer = File('${updateDir.path}/setup.exe');
+        await installer.writeAsString('verified installer');
+        final hash = await UpdateInstallerService.calculateSha256(installer);
+        await File(
+          '${updateDir.path}/update_started.json',
+        ).writeAsString('{"version":"1.7.0"}');
+        var shutdownCalled = false;
+        final service = UpdateInstallerService(
+          dio: Dio(),
+          installationService: _SupportedInstallationService(),
+          updateDirectory: updateDir,
+          processStarter: (_, _, _) async {},
+          updaterStartTimeout: const Duration(milliseconds: 200),
+          shutdownHandler: (_) async {
+            shutdownCalled = true;
+          },
+        );
+        final asset = ReleaseAssetInfo(
+          type: ReleaseAssetType.windowsInstaller,
+          platform: 'windows',
+          fileName: 'setup.exe',
+          downloadUrl: 'https://example.com/setup.exe',
+          sha256: hash,
+          size: await installer.length(),
+        );
+
+        await expectLater(
+          service.installAndRestart(
+            DownloadedUpdate(file: installer, asset: asset, version: '1.8.2'),
+          ),
+          throwsA(isA<UpdateInstallException>()),
+        );
+        expect(shutdownCalled, isFalse);
+      },
+      skip: !Platform.isWindows,
+    );
+
+    test(
+      'a real PowerShell run satisfies the start handshake',
+      () async {
+        final updateDir = Directory('${tempDir.path}/updates')..createSync();
+        final installer = File('${updateDir.path}/setup.exe');
+        await installer.writeAsString('verified installer');
+        final hash = await UpdateInstallerService.calculateSha256(installer);
+        Process? updater;
+        var shutdownCalled = false;
+        final service = UpdateInstallerService(
+          dio: Dio(),
+          installationService: _SupportedInstallationService(),
+          updateDirectory: updateDir,
+          // 真实执行生成的脚本，但保留句柄以便用例结束时收掉它。
+          processStarter: (command, commandArguments, mode) async {
+            updater = await Process.start(command, commandArguments, mode: mode);
+          },
+          updaterStartTimeout: const Duration(seconds: 15),
+          shutdownHandler: (_) async {
+            shutdownCalled = true;
+          },
+        );
+        final asset = ReleaseAssetInfo(
+          type: ReleaseAssetType.windowsInstaller,
+          platform: 'windows',
+          fileName: 'setup.exe',
+          downloadUrl: 'https://example.com/setup.exe',
+          sha256: hash,
+          size: await installer.length(),
+        );
+
+        try {
+          // 脚本会一直等这个仍在运行的测试进程退出，握手必须早于等待完成。
+          await service.installAndRestart(
+            DownloadedUpdate(file: installer, asset: asset, version: '1.8.2'),
+          );
+
+          expect(shutdownCalled, isTrue);
+          final result = await service.consumeExecutionResult();
+          expect(result, isNotNull);
+          expect(result!.success, isFalse);
+          expect(result.version, '1.8.2');
+        } finally {
+          updater?.kill(ProcessSignal.sigkill);
+        }
+      },
+      skip: !Platform.isWindows,
+    );
+
+    test('reports an interrupted install instead of no result', () async {
+      final updateDir = Directory('${tempDir.path}/updates')..createSync();
+      final marker = File('${updateDir.path}/update_started.json');
+      await marker.writeAsString('{"version":"2.0.0","appPid":1234}');
+      final service = UpdateInstallerService(
+        dio: Dio(),
+        installationService: _SupportedInstallationService(),
+        updateDirectory: updateDir,
+      );
+
+      final result = await service.consumeExecutionResult();
+
+      expect(result, isNotNull);
+      expect(result!.success, isFalse);
+      expect(result.version, '2.0.0');
+      expect(await marker.exists(), isFalse);
+      expect(await service.consumeExecutionResult(), isNull);
+    });
+
+    test('a recorded result wins over a leftover start marker', () async {
+      final updateDir = Directory('${tempDir.path}/updates')..createSync();
+      final marker = File('${updateDir.path}/update_started.json');
+      await marker.writeAsString('{"version":"2.0.0"}');
+      await File('${updateDir.path}/update_result.json').writeAsString(
+        '{"success":true,"version":"2.0.0","message":"installed"}',
+      );
+      final service = UpdateInstallerService(
+        dio: Dio(),
+        installationService: _SupportedInstallationService(),
+        updateDirectory: updateDir,
+      );
+
+      final result = await service.consumeExecutionResult();
+
+      expect(result!.success, isTrue);
+      expect(await marker.exists(), isFalse);
+    });
+
+    test('exposes the update directory diagnostics export looks in', () async {
+      final directory = await UpdateInstallerService.resolveUpdateDirectory();
+
+      expect(p.basename(directory.path), 'nai_launcher_updates');
+      expect(
+        p.equals(p.dirname(directory.path), Directory.systemTemp.path),
+        isTrue,
+        reason: directory.path,
+      );
+    }, skip: Platform.isAndroid);
 
     test('DownloadedUpdate identifies portable zip packages', () {
       const portableAsset = ReleaseAssetInfo(

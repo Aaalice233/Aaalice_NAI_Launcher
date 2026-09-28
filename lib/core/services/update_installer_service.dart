@@ -109,8 +109,8 @@ class UpdateExecutionResult {
 /// Windows 应用内更新服务。
 ///
 /// 下载使用 `.part` 文件和 HTTP Range 真正续传；完整包必须同时通过
-/// 长度与 SHA256 校验。安装由独立脚本在应用优雅退出后执行，并留下
-/// 可在下次启动读取的结果与日志。
+/// 长度与 SHA256 校验。安装由独立脚本执行，应用确认脚本写出启动标记
+/// 后才退出，并留下可在下次启动读取的结果与日志。
 class UpdateInstallerService {
   final VerifiedResumableDownloader _downloader;
   final AppInstallationService _installationService;
@@ -118,12 +118,16 @@ class UpdateInstallerService {
   final AppShutdownHandler _shutdownHandler;
   final UpdateSha256Calculator _sha256Calculator;
   final UpdateProcessStarter _processStarter;
+  final Duration _updaterStartTimeout;
   final Directory? _updateDirectoryOverride;
 
   static const Duration _staleFileAge = Duration(days: 14);
   static const String _updateDirectoryName = 'nai_launcher_updates';
   static const String _pendingMetadataName = 'pending_update.json';
   static const String _resultMetadataName = 'update_result.json';
+  static const String _startedMarkerName = 'update_started.json';
+  static const Duration _defaultUpdaterStartTimeout = Duration(seconds: 10);
+  static const Duration _updaterStartPollInterval = Duration(milliseconds: 100);
 
   UpdateInstallerService({
     required Dio dio,
@@ -133,6 +137,7 @@ class UpdateInstallerService {
         DesktopAppShutdownService.shutdownAndExit,
     UpdateSha256Calculator? sha256Calculator,
     UpdateProcessStarter processStarter = startUpdateProcess,
+    Duration updaterStartTimeout = _defaultUpdaterStartTimeout,
     Directory? updateDirectory,
   }) : _downloader = VerifiedResumableDownloader(
          dio: dio,
@@ -144,6 +149,7 @@ class UpdateInstallerService {
        _shutdownHandler = shutdownHandler,
        _sha256Calculator = sha256Calculator ?? calculateSha256,
        _processStarter = processStarter,
+       _updaterStartTimeout = updaterStartTimeout,
        _updateDirectoryOverride = updateDirectory;
 
   bool get supportsInAppInstall => _installationService.supportsInAppInstall;
@@ -304,9 +310,12 @@ class UpdateInstallerService {
   }
 
   /// 读取并消费独立更新脚本的结果。
+  ///
+  /// 返回 `null` 只表示这台设备没有执行过安装。脚本启动后被中断的情况
+  /// 归一化成失败结果，否则调用方会把中断当成"更新包还等着安装"。
   Future<UpdateExecutionResult?> consumeExecutionResult() async {
     final resultFile = await _resultMetadataFile();
-    if (!await resultFile.exists()) return null;
+    if (!await resultFile.exists()) return _consumeInterruptedStart();
 
     try {
       final data = jsonDecode(await resultFile.readAsString());
@@ -322,7 +331,25 @@ class UpdateInstallerService {
       return null;
     } finally {
       await _deleteQuietly(resultFile);
+      await _deleteQuietly(await _startedMarkerFile());
     }
+  }
+
+  Future<UpdateExecutionResult?> _consumeInterruptedStart() async {
+    final marker = await _startedMarkerFile();
+    final version = await _readStartedVersion(marker);
+    if (version == null) return null;
+
+    await _deleteQuietly(marker);
+    AppLogger.w(
+      'Updater script started for $version but left no result',
+      'UpdateInstaller',
+    );
+    return UpdateExecutionResult(
+      success: false,
+      version: version,
+      message: '上次更新安装没有执行完成，可以重试或手动运行安装包',
+    );
   }
 
   /// 启动平台更新流程。Windows 交给独立脚本并退出；Android 交给系统
@@ -360,6 +387,10 @@ class UpdateInstallerService {
       throw const UpdateInstallException('当前平台不支持应用内自动更新');
     }
 
+    // 上一轮留下的标记会让这次的启动确认直接通过，必须先清掉。
+    final startedMarker = await _startedMarkerFile();
+    await _deleteQuietly(startedMarker);
+
     final scriptFile = await _writeUpdateScript(update);
     AppLogger.i(
       'Launching update script: ${scriptFile.path} '
@@ -388,7 +419,46 @@ class UpdateInstallerService {
       throw UpdateInstallException('启动更新程序失败', originalError: error);
     }
 
+    if (!await _awaitUpdaterStart(startedMarker, update.version)) {
+      AppLogger.e(
+        'Updater script did not start within $_updaterStartTimeout',
+        null,
+        null,
+        'UpdateInstaller',
+      );
+      throw const UpdateInstallException(
+        '更新程序没有响应，可能被系统策略或安全软件拦截；'
+        '请手动运行下载好的安装包完成更新',
+      );
+    }
+
     await _shutdownHandler(0);
+  }
+
+  /// 等待脚本写出启动标记。
+  ///
+  /// 进程创建成功不代表脚本被执行：组策略锁定的 ExecutionPolicy、安全
+  /// 软件拦截或 AppLocker 都会让 PowerShell 直接退出。确认不到就不能退出
+  /// 应用，否则用户只会看到应用关闭后版本原样不变。
+  Future<bool> _awaitUpdaterStart(File marker, String version) async {
+    final deadline = DateTime.now().add(_updaterStartTimeout);
+    while (true) {
+      if (await _readStartedVersion(marker) == version) return true;
+      if (!DateTime.now().isBefore(deadline)) return false;
+      await Future<void>.delayed(_updaterStartPollInterval);
+    }
+  }
+
+  Future<String?> _readStartedVersion(File marker) async {
+    try {
+      if (!await marker.exists()) return null;
+      final data = jsonDecode(await marker.readAsString());
+      if (data is! Map<String, dynamic>) return null;
+      return data['version'] as String?;
+    } catch (_) {
+      // 标记可能正在写入，下一轮重读即可。
+      return null;
+    }
   }
 
   Future<File> _writeUpdateScript(DownloadedUpdate update) async {
@@ -398,6 +468,7 @@ class UpdateInstallerService {
     );
     final resultFile = await _resultMetadataFile();
     final pendingFile = await _pendingMetadataFile();
+    final startedFile = await _startedMarkerFile();
     final logFile = File(
       p.join(updateDir.path, 'update_${update.version}.log'),
     );
@@ -429,6 +500,7 @@ class UpdateInstallerService {
             ),
             resultPath: resultFile.path,
             pendingMetadataPath: pendingFile.path,
+            startedMarkerPath: startedFile.path,
             logPath: logFile.path,
           )
         : WindowsUpdateScript.buildInstallerScript(
@@ -438,6 +510,7 @@ class UpdateInstallerService {
             executablePath: executablePath,
             resultPath: resultFile.path,
             pendingMetadataPath: pendingFile.path,
+            startedMarkerPath: startedFile.path,
             logPath: logFile.path,
           );
 
@@ -484,16 +557,18 @@ class UpdateInstallerService {
     return equalsSha256(await _sha256Calculator(file), expected);
   }
 
+  /// 更新包、脚本日志与执行结果所在目录。
+  ///
+  /// 诊断导出要按同一规则定位这批文件，推导逻辑只能有这一处。
+  static Future<Directory> resolveUpdateDirectory() async {
+    final temporaryRoot = Platform.isAndroid
+        ? await getTemporaryDirectory()
+        : Directory.systemTemp;
+    return Directory(p.join(temporaryRoot.path, _updateDirectoryName));
+  }
+
   Future<Directory> _ensureUpdateDir() async {
-    final Directory updateDir;
-    if (_updateDirectoryOverride != null) {
-      updateDir = _updateDirectoryOverride;
-    } else {
-      final temporaryRoot = Platform.isAndroid
-          ? await getTemporaryDirectory()
-          : Directory.systemTemp;
-      updateDir = Directory(p.join(temporaryRoot.path, _updateDirectoryName));
-    }
+    final updateDir = _updateDirectoryOverride ?? await resolveUpdateDirectory();
     await updateDir.create(recursive: true);
     return updateDir;
   }
@@ -506,6 +581,11 @@ class UpdateInstallerService {
   Future<File> _resultMetadataFile() async {
     final directory = await _ensureUpdateDir();
     return File(p.join(directory.path, _resultMetadataName));
+  }
+
+  Future<File> _startedMarkerFile() async {
+    final directory = await _ensureUpdateDir();
+    return File(p.join(directory.path, _startedMarkerName));
   }
 
   Future<void> _cleanupStaleFiles(Directory directory) async {
