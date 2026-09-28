@@ -4,6 +4,7 @@ import 'dart:math';
 
 import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:nai_launcher/core/cache/online_gallery_image_cache_manager.dart';
 import 'package:nai_launcher/data/datasources/remote/danbooru_api_service.dart';
 import 'package:nai_launcher/data/datasources/remote/gelbooru_api_service.dart';
 import 'package:nai_launcher/data/datasources/remote/online_gallery/ai_tag_gallery_source_adapter.dart';
@@ -863,6 +864,66 @@ void main() {
         expect(detail.item.tagsComplete, isTrue);
       },
     );
+
+    test('sends the same-origin Referer on every AI TAG API call', () async {
+      final http = _RecordingHttpAdapter((request) {
+        if (request.uri.path == '/api/config') return _configJson;
+        if (request.uri.path == '/api/work/504') {
+          return {
+            'work': _aiWork(504),
+            'images': [_aiImage('504_p0')],
+          };
+        }
+        return {
+          'page': 1,
+          'page_size': 60,
+          'total': 1,
+          'items': [_aiWork(504)],
+        };
+      });
+      final adapter = AiTagGallerySourceAdapter(
+        dio: Dio()..httpClientAdapter = http,
+      );
+
+      await adapter.getConfig();
+      await adapter.search(
+        const GallerySearchRequest(cursor: '1', pageSize: 60, query: 'NAI'),
+      );
+      await adapter.search(
+        const GallerySearchRequest(cursor: '1', pageSize: 60, query: 'NAI'),
+        noCache: true,
+      );
+      await adapter.ranking(
+        const GalleryRankingRequest(
+          cursor: '1',
+          pageSize: 60,
+          kind: GalleryRankingKind.aiTagMonthly,
+          period: 'current',
+        ),
+      );
+      await adapter.detail(
+        const GalleryItem(id: 504, sourceId: GallerySourceId.aiTag),
+      );
+
+      expect(
+        http.requests.map((request) => request.uri.path),
+        containsAll([
+          '/api/config',
+          '/api/ai_works_search',
+          '/api/rank/monthly/real',
+          '/api/work/504',
+        ]),
+      );
+      for (final request in http.requests) {
+        expect(
+          request.headers['Referer'],
+          aiTagReferer,
+          reason: '${request.uri.path} must carry the AI TAG Referer',
+        );
+      }
+      // 尾部斜杠是 Cloudflare 规则的匹配条件，去掉会让所有 /api 请求返回 403。
+      expect(aiTagReferer, endsWith('/'));
+    });
   });
 }
 
