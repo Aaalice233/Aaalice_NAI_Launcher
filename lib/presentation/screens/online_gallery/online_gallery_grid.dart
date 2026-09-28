@@ -6,6 +6,7 @@ import 'package:flutter/rendering.dart'
 import 'package:visibility_detector/visibility_detector.dart';
 
 import '../../widgets/common/image_viewport_surface.dart';
+import '../../../core/platform/platform_capabilities.dart';
 import '../../../core/cache/online_gallery_preload_policy.dart';
 import '../../providers/online_gallery_provider.dart';
 import 'online_gallery_masonry_layout.dart';
@@ -196,6 +197,10 @@ class OnlineGalleryGrid extends StatelessWidget {
         return CustomScrollView(
           key: ValueKey<String>('online-gallery-scroll:$viewportScope'),
           controller: controller.scrollController,
+          // iOS 没有收起键盘的系统手势，滑动画廊时收起搜索框的键盘。
+          keyboardDismissBehavior: PlatformCapabilities.current.isIOS
+              ? ScrollViewKeyboardDismissBehavior.onDrag
+              : null,
           scrollCacheExtent: ScrollCacheExtent.pixels(
             OnlineGalleryPreloadPolicy.cacheExtent(viewportHeight),
           ),
