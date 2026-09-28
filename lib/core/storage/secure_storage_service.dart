@@ -135,6 +135,22 @@ class SecureStorageService {
     ]);
   }
 
+  /// 仅当会话仍停在 [expectedToken] 时写入新的认证信息，返回是否已写入
+  Future<bool> replaceAuthIfCurrent({
+    required String expectedToken,
+    required String accessToken,
+    required DateTime expiry,
+    required String email,
+  }) async {
+    // 比对与写入内存缓存之间不能有 await，否则退出登录或切换账号会插进来
+    final current = _memoryCache[StorageKeys.accessToken];
+    if (current == null || current != _normalizeToken(expectedToken)) {
+      return false;
+    }
+    await saveAuth(accessToken: accessToken, expiry: expiry, email: email);
+    return true;
+  }
+
   /// 清除所有认证信息
   Future<void> clearAuth() async {
     // 清除内存缓存
