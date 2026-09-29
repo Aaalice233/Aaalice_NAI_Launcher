@@ -382,11 +382,7 @@ class _LocalGalleryShell extends ConsumerWidget {
       columns: viewModel.columns,
       itemWidth: viewModel.itemWidth,
       groupedGridViewKey: groupedGridViewKey,
-      // 【偏离上游】这条回调只喂全屏查看器（LocalGalleryContentView 内部
-      // 只把它挂到 ImageDetailCallbacks.onReuseMetadata），所以走
-      // 「只弹 toast、不跳生成页」的查看器专用入口；列表卡片右键菜单的
-      // 「复用参数」走下面的 onSendAction → routeImageAction，仍是上游默认跳转。
-      onReuseMetadata: actions.importImageMetadataFromViewer,
+      onReuseMetadata: actions.importImageMetadata,
       onSendAction: (record, action) => actions.routeImageAction(
         LocalGalleryImageAction(record: record, action: action),
       ),

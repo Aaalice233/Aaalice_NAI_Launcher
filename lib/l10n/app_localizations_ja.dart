@@ -14881,45 +14881,6 @@ class AppLocalizationsJa extends AppLocalizations {
   String get image_savedToAlbum => '写真に保存しました';
 
   @override
-  String get more_switchTheme => 'テーマ切り替え';
-
-  @override
-  String get settings_configExportFailed => '設定の書き出しに失敗しました';
-
-  @override
-  String get settings_configExported => '設定を書き出しました';
-
-  @override
-  String get settings_configImportFailed => '設定の読み込みに失敗しました';
-
-  @override
-  String get settings_configImported => '設定を読み込みました';
-
-  @override
-  String get settings_exportConfig => '設定を書き出す';
-
-  @override
-  String get settings_exportConfigSubtitle =>
-      'この端末の設定を JSON ファイルとして保存し、別の端末へ持ち運べます';
-
-  @override
-  String get settings_importConfig => '設定を読み込む';
-
-  @override
-  String get settings_importConfigConfirmMessage =>
-      'ファイル内の同名設定はこの端末の値を上書きします。このバージョンが認識しない項目はスキップされ、ウインドウサイズや保存先などの端末固有の値は読み込まれません。 読み込んだ設定はアプリを再起動すると反映されます。';
-
-  @override
-  String get settings_importConfigConfirmTitle => 'この端末の設定を上書きしますか？';
-
-  @override
-  String get settings_importConfigNewerFormat =>
-      'このファイルは新しいバージョンのアプリで書き出されています。一部の項目は適用されない可能性があります。';
-
-  @override
-  String get settings_importConfigSubtitle => '書き出した JSON ファイルから設定を復元します';
-
-  @override
   String get settings_localOnnxTaggerFolderIosHint =>
       '「ファイル」App でモデルを配置：このiPhone内 → NAI Launcher → tagger_models（.onnx とラベルファイル）。右のアイコンでフォルダーを開きます';
 

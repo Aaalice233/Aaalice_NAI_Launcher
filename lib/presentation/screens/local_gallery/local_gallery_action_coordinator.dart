@@ -154,23 +154,13 @@ class LocalGalleryActionCoordinator {
     required WidgetRef ref,
     required BuildContext Function() context,
     required bool Function() mounted,
-    // 【偏离上游】下面两个是测试注入口，生产路径全部走默认值（= 上游行为）。
-    // 「复用参数」现在有两条行为不同的入口（见 importImageMetadataFromViewer），
-    // 这条分叉必须能被测试钉住，否则下次跟上游时会被静默抹平。
-    ImageMetadataImportWorkflow? metadataImportWorkflow,
-    LocalGalleryMetadataLoader? metadataLoader,
   }) : _ref = ref,
        _context = context,
-       _mounted = mounted,
-       _metadataImportWorkflow =
-           metadataImportWorkflow ?? ImageMetadataImportWorkflow.shared,
-       _metadataLoader = metadataLoader;
+       _mounted = mounted;
 
   final WidgetRef _ref;
   final BuildContext Function() _context;
   final bool Function() _mounted;
-  final ImageMetadataImportWorkflow _metadataImportWorkflow;
-  final LocalGalleryMetadataLoader? _metadataLoader;
 
   WatermarkDerivativeRegistry get _watermarkRegistry =>
       WatermarkDerivativeRegistry(_ref.read(localStorageServiceProvider));
@@ -803,27 +793,9 @@ class LocalGalleryActionCoordinator {
     }
   }
 
-  /// 全屏查看器里触发的「复用参数」。
-  ///
-  /// 【偏离上游】上游只有 [importImageMetadata] 一条路径，成功后一律
-  /// `context.go(AppRoutes.home)` 跳到生成页。用户在全屏看图时点这个按钮，
-  /// 期待的是「参数先收着，我继续翻图」，被路由跳走等于强行打断浏览。
-  /// 所以查看器这条入口单独走 `openGenerationPage: false`，
-  /// 列表卡片菜单 / 拖放 / 其它入口保持上游默认（那些场景点完就是要去生成页）。
-  Future<void> importImageMetadataFromViewer(LocalImageRecord record) =>
-      importImageMetadata(record, openGenerationPage: false);
-
-  Future<void> importImageMetadata(
-    LocalImageRecord record, {
-    // 成功应用参数后是否跳转生成页。默认 true = 上游行为；
-    // 只有全屏查看器那条入口传 false，见 importImageMetadataFromViewer。
-    bool openGenerationPage = true,
-  }) async {
+  Future<void> importImageMetadata(LocalImageRecord record) async {
     try {
-      final metadata = await resolveLocalGalleryMetadata(
-        record,
-        loadFromFile: _metadataLoader,
-      );
+      final metadata = await resolveLocalGalleryMetadata(record);
       if (!_mounted()) return;
       if (metadata == null) {
         AppToast.warning(
@@ -832,11 +804,10 @@ class LocalGalleryActionCoordinator {
         );
         return;
       }
-      await _metadataImportWorkflow.run(
+      await ImageMetadataImportWorkflow.shared.run(
         context: _context(),
         read: _ref.read,
         metadata: metadata,
-        openGenerationPage: openGenerationPage,
       );
     } catch (error, stackTrace) {
       AppLogger.e('导入图片元数据失败', error, stackTrace, 'LocalGallery');

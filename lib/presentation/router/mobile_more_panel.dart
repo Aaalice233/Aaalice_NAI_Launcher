@@ -14,7 +14,6 @@ import '../providers/account_manager_provider.dart';
 import '../providers/auth_mode_provider.dart';
 import '../providers/auth_provider.dart';
 import '../providers/replication_queue_provider.dart';
-import '../providers/theme_provider.dart';
 import '../providers/update_provider.dart';
 import '../services/mobile_image_metadata_importer.dart';
 import '../widgets/auth/login_form_container.dart';
@@ -218,19 +217,6 @@ Future<void> showMobileMorePanel({
                       AppBranch.settings,
                     ),
                   ),
-                  // 偏离上游：上游的条目表里没有任何主题项，换主题只能进
-                  // 设置 → 外观 逐个挑（或用桌面端的 nextTheme 在 16 个主题里轮转）。
-                  // 移动端要的是一键深浅快切，所以这里直接调 toggleQuickTheme，
-                  // 且不关闭面板——方便连点比较两套配色。
-                  _MobileMoreDestination(
-                    key: const ValueKey('mobile-more-theme'),
-                    icon: Icons.palette_outlined,
-                    label: panelContext.l10n.more_switchTheme,
-                    trailing: const Icon(Icons.brightness_6_outlined),
-                    onTap: () => ref
-                        .read(themeNotifierProvider.notifier)
-                        .toggleQuickTheme(),
-                  ),
                 ],
               ),
             ),
@@ -391,7 +377,6 @@ class _MobileMoreDestination extends StatelessWidget {
     this.badgeCount = 0,
     this.showBadge = false,
     this.selected = false,
-    this.trailing,
   });
 
   final IconData icon;
@@ -400,9 +385,6 @@ class _MobileMoreDestination extends StatelessWidget {
   final int badgeCount;
   final bool showBadge;
   final bool selected;
-
-  /// 覆盖默认的 chevron。原地生效（不跳转）的条目用它，避免 chevron 误导成导航。
-  final Widget? trailing;
 
   @override
   Widget build(BuildContext context) {
@@ -423,11 +405,9 @@ class _MobileMoreDestination extends StatelessWidget {
         maxLines: largeText ? null : 1,
         overflow: largeText ? TextOverflow.visible : TextOverflow.ellipsis,
       ),
-      trailing:
-          trailing ??
-          (selected
-              ? const Icon(Icons.check_rounded)
-              : const Icon(Icons.chevron_right)),
+      trailing: selected
+          ? const Icon(Icons.check_rounded)
+          : const Icon(Icons.chevron_right),
       selected: selected,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       onTap: onTap,

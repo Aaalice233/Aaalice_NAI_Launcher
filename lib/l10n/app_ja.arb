@@ -7047,54 +7047,6 @@
   "@image_savedToAlbum": {
       "description": "Toast shown after the image was written to the system photo library."
   },
-  "more_switchTheme": "テーマ切り替え",
-  "@more_switchTheme": {
-      "description": "Mobile \"more\" panel entry that toggles between the default dark theme and the Bold Retro light theme in one tap."
-  },
-  "settings_configExportFailed": "設定の書き出しに失敗しました",
-  "@settings_configExportFailed": {
-      "description": "Error toast prefix when the configuration export fails; the underlying error text is appended in code."
-  },
-  "settings_configExported": "設定を書き出しました",
-  "@settings_configExported": {
-      "description": "Success toast after writing the configuration export file."
-  },
-  "settings_configImportFailed": "設定の読み込みに失敗しました",
-  "@settings_configImportFailed": {
-      "description": "Error toast prefix when the configuration import fails; the underlying error text is appended in code."
-  },
-  "settings_configImported": "設定を読み込みました",
-  "@settings_configImported": {
-      "description": "Success toast after importing a configuration file; the applied/skipped counts are appended in code."
-  },
-  "settings_exportConfig": "設定を書き出す",
-  "@settings_exportConfig": {
-      "description": "Storage settings tile that writes every local app setting to a JSON file. Local (offline) counterpart of cloud sync, which needs GitHub/WebDAV credentials before it can move a config between devices."
-  },
-  "settings_exportConfigSubtitle": "この端末の設定を JSON ファイルとして保存し、別の端末へ持ち運べます",
-  "@settings_exportConfigSubtitle": {
-      "description": "Subtitle for settings_exportConfig."
-  },
-  "settings_importConfig": "設定を読み込む",
-  "@settings_importConfig": {
-      "description": "Storage settings tile that restores settings from a previously exported JSON file."
-  },
-  "settings_importConfigConfirmMessage": "ファイル内の同名設定はこの端末の値を上書きします。このバージョンが認識しない項目はスキップされ、ウインドウサイズや保存先などの端末固有の値は読み込まれません。 読み込んだ設定はアプリを再起動すると反映されます。",
-  "@settings_importConfigConfirmMessage": {
-      "description": "Body of the import confirmation dialog, explaining the allow-list filtering."
-  },
-  "settings_importConfigConfirmTitle": "この端末の設定を上書きしますか？",
-  "@settings_importConfigConfirmTitle": {
-      "description": "Title of the confirmation dialog shown before a configuration import is applied."
-  },
-  "settings_importConfigNewerFormat": "このファイルは新しいバージョンのアプリで書き出されています。一部の項目は適用されない可能性があります。",
-  "@settings_importConfigNewerFormat": {
-      "description": "Extra warning line in the import confirmation dialog when the export file's format version is newer than this build supports."
-  },
-  "settings_importConfigSubtitle": "書き出した JSON ファイルから設定を復元します",
-  "@settings_importConfigSubtitle": {
-      "description": "Subtitle for settings_importConfig."
-  },
   "settings_localOnnxTaggerFolderIosHint": "「ファイル」App でモデルを配置：このiPhone内 → NAI Launcher → tagger_models（.onnx とラベルファイル）。右のアイコンでフォルダーを開きます",
   "@settings_localOnnxTaggerFolderIosHint": {
       "description": "iOS-only subtitle for the local ONNX tagger model folder tile, explaining that models are dropped into Documents/tagger_models through the Files app."

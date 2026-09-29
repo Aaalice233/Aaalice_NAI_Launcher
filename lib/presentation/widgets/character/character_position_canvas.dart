@@ -213,12 +213,12 @@ class _CharacterPositionCanvasViewState
                     ),
                   )
                 else
-                  for (final character in config.characters)
+                  for (var i = 0; i < config.characters.length; i++)
                     _buildAnchor(
                       context,
                       config,
-                      character,
-                      _enabledOrdinal(config.characters, character),
+                      config.characters[i],
+                      i,
                       size,
                     ),
                 // 参考线压在锚点之上，才看得清锚点落在哪条线的哪一侧
@@ -279,12 +279,11 @@ class _CharacterPositionCanvasViewState
     );
   }
 
-  /// 锚点。[displayNumber] 为 1 起的启用序号，未启用时为 null（不显示编号）。
   Widget _buildAnchor(
     BuildContext context,
     CharacterPromptConfig config,
     CharacterPrompt character,
-    int? displayNumber,
+    int index,
     Size canvasSize,
   ) {
     final selectedId = ref.watch(selectedCharacterIdProvider);
@@ -360,7 +359,7 @@ class _CharacterPositionCanvasViewState
             onPanCancel: () => _commitDrag(character),
             child: _AnchorDot(
               character: character,
-              displayNumber: displayNumber,
+              index: index,
               diameter: diameter,
               emphasized: isSelected || isDragging,
             ),
@@ -414,24 +413,6 @@ class _MoveAnchorIntent extends Intent {
 
   final double dx;
   final double dy;
-}
-
-/// 角色在「启用角色」序列中的 1 起序号；未启用返回 null。
-///
-/// 偏离上游：上游的锚点与芯片都用 config.characters 的原始下标编号，
-/// 但位置是 CharacterPromptConfig.resolvePosition 按 enabled 子序列算的
-/// （character_prompt.dart 的 enabledCharacters.indexWhere）。中间禁用一个
-/// 角色时，锚点落的位置对、写在上面的编号却与成图对不上。这里只改编号口径，
-/// 保留上游「禁用角色仍然画出来但变暗」的设计。
-int? _enabledOrdinal(List<CharacterPrompt> characters, CharacterPrompt target) {
-  if (!target.enabled) return null;
-  var ordinal = 0;
-  for (final character in characters) {
-    if (!character.enabled) continue;
-    ordinal++;
-    if (character.id == target.id) return ordinal;
-  }
-  return null;
 }
 
 /// 位置模式分段（AI 选择 / 自定义 / 画布入口）
@@ -580,8 +561,7 @@ class _ChipBar extends ConsumerWidget {
             for (var i = 0; i < characters.length; i++) ...[
               _CharacterChip(
                 character: characters[i],
-                // 与锚点同一套编号口径，见 _enabledOrdinal 的注释
-                displayNumber: _enabledOrdinal(characters, characters[i]),
+                index: i,
                 selected: characters[i].id == selectedId,
                 onTap: () => ref
                     .read(selectedCharacterIdProvider.notifier)
@@ -599,15 +579,13 @@ class _ChipBar extends ConsumerWidget {
 /// 单个角色切换芯片：序号 + 性别符号（依提示词首 tag）+ 显示名
 class _CharacterChip extends StatelessWidget {
   final CharacterPrompt character;
-
-  /// 1 起的启用序号；未启用为 null（不显示编号）
-  final int? displayNumber;
+  final int index;
   final bool selected;
   final VoidCallback onTap;
 
   const _CharacterChip({
     required this.character,
-    required this.displayNumber,
+    required this.index,
     required this.selected,
     required this.onTap,
   });
@@ -638,14 +616,13 @@ class _CharacterChip extends StatelessWidget {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            if (displayNumber != null)
-              Text(
-                '$displayNumber',
-                style: theme.textTheme.labelMedium?.copyWith(
-                  color: foreground,
-                  fontWeight: FontWeight.w600,
-                ),
+            Text(
+              '${index + 1}',
+              style: theme.textTheme.labelMedium?.copyWith(
+                color: foreground,
+                fontWeight: FontWeight.w600,
               ),
+            ),
             if (display.genderIcon != null) ...[
               const SizedBox(width: 3),
               Icon(display.genderIcon, size: 14, color: foreground),
@@ -674,15 +651,13 @@ class _CharacterChip extends StatelessWidget {
 /// 锚点圆点：性别色填充（词库角色显示圆形缩略图）+ 序号 + 白描边
 class _AnchorDot extends StatelessWidget {
   final CharacterPrompt character;
-
-  /// 1 起的启用序号；未启用为 null（不显示编号，见 _enabledOrdinal）
-  final int? displayNumber;
+  final int index;
   final double diameter;
   final bool emphasized;
 
   const _AnchorDot({
     required this.character,
-    required this.displayNumber,
+    required this.index,
     required this.diameter,
     required this.emphasized,
   });
@@ -736,18 +711,17 @@ class _AnchorDot extends StatelessWidget {
               ),
               errorBuilder: (context, error, stack) => const SizedBox.shrink(),
             ),
-          if (displayNumber != null)
-            Center(
-              child: Text(
-                '$displayNumber',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: diameter * 0.4,
-                  fontWeight: FontWeight.w600,
-                  shadows: const [Shadow(color: Colors.black87, blurRadius: 4)],
-                ),
+          Center(
+            child: Text(
+              '${index + 1}',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: diameter * 0.4,
+                fontWeight: FontWeight.w600,
+                shadows: const [Shadow(color: Colors.black87, blurRadius: 4)],
               ),
             ),
+          ),
         ],
       ),
     );

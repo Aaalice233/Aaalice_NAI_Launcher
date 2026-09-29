@@ -187,41 +187,6 @@ void main() {
     expect(reports, [(ImageMetadataImportResult.applied, 1)]);
     expect(openedGeneration, isTrue);
   });
-
-  // 【偏离上游】上游没有任何调用点传 openGenerationPage: false；
-  // 全屏查看器里的「复用参数」靠它做到只弹 toast、不把用户从看图跳走。
-  testWidgets('openGenerationPage: false applies without opening generation', (
-    tester,
-  ) async {
-    var openedGeneration = false;
-    final reports = <(ImageMetadataImportResult, int)>[];
-    final workflow = ImageMetadataImportWorkflow(
-      metadataReader: (bytes) async => const NaiImageMetadata(prompt: '1girl'),
-      optionsPicker: (context, metadata) async =>
-          const MetadataImportOptions(importPrompt: true),
-      metadataApplier: (read, metadata, options, l10n) async => 1,
-      resultReporter: (context, result, appliedCount) {
-        reports.add((result, appliedCount));
-      },
-      generationPageOpener: (context) => openedGeneration = true,
-    );
-
-    await _pumpAction(
-      tester,
-      action: (context, ref) => workflow.run(
-        context: context,
-        read: ref.read,
-        bytes: Uint8List.fromList([1]),
-        openGenerationPage: false,
-      ),
-    );
-
-    await tester.tap(find.text('run'));
-    await tester.pumpAndSettle();
-
-    expect(reports, [(ImageMetadataImportResult.applied, 1)]);
-    expect(openedGeneration, isFalse);
-  });
 }
 
 typedef _TestAction =
