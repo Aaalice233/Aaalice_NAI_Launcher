@@ -15289,49 +15289,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get image_savedToAlbum => 'Saved to Photos';
 
   @override
-  String get more_switchTheme => 'Switch Theme';
-
-  @override
-  String get settings_configExportFailed =>
-      'Could not export the configuration';
-
-  @override
-  String get settings_configExported => 'Configuration exported';
-
-  @override
-  String get settings_configImportFailed =>
-      'Could not import the configuration';
-
-  @override
-  String get settings_configImported => 'Configuration imported';
-
-  @override
-  String get settings_exportConfig => 'Export configuration';
-
-  @override
-  String get settings_exportConfigSubtitle =>
-      'Save the local settings to a JSON file you can carry to another device';
-
-  @override
-  String get settings_importConfig => 'Import configuration';
-
-  @override
-  String get settings_importConfigConfirmMessage =>
-      'Matching settings in this file replace the ones on this device. Entries this version does not recognise are skipped, and device-local values such as window size and storage paths are never imported. Imported values take effect after you restart the app.';
-
-  @override
-  String get settings_importConfigConfirmTitle =>
-      'Overwrite the settings on this device?';
-
-  @override
-  String get settings_importConfigNewerFormat =>
-      'This file was exported by a newer version of the app. Some entries may not be applied.';
-
-  @override
-  String get settings_importConfigSubtitle =>
-      'Restore settings from an exported JSON file';
-
-  @override
   String get settings_localOnnxTaggerFolderIosHint =>
       'Add models via the Files app: On My iPhone → NAI Launcher → tagger_models (.onnx plus label files). Tap the folder icon to open it';
 

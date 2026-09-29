@@ -75,9 +75,6 @@ class ImageMetadataImportWorkflow {
     required ProviderReader read,
     Uint8List? bytes,
     NaiImageMetadata? metadata,
-    // 【勿删】上游全仓没有任何调用点传 false，看着像可以清掉的死参数；
-    // 我们的全屏查看器入口（LocalGalleryActionCoordinator
-    // .importImageMetadataFromViewer）正是靠它做到「只弹 toast、不跳生成页」。
     bool openGenerationPage = true,
   }) async {
     assert(bytes != null || metadata != null);

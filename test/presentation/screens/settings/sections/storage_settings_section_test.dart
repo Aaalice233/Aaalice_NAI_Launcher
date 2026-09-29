@@ -1,6 +1,4 @@
-import 'dart:convert';
 import 'dart:io';
-import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
@@ -12,7 +10,6 @@ import 'package:nai_launcher/core/autocomplete/cooccurrence_data_pack_service.da
 import 'package:nai_launcher/core/cache/gallery_cache_manager.dart';
 import 'package:nai_launcher/core/constants/storage_keys.dart';
 import 'package:nai_launcher/core/platform/platform_capabilities.dart';
-import 'package:nai_launcher/core/services/file_export_service.dart';
 import 'package:nai_launcher/core/storage/local_storage_service.dart';
 import 'package:nai_launcher/data/services/local_onnx_model_service.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
@@ -21,7 +18,6 @@ import 'package:nai_launcher/presentation/screens/settings/sections/storage_sett
 import 'package:nai_launcher/presentation/screens/settings/widgets/cache_statistics_tile.dart';
 import 'package:nai_launcher/presentation/screens/settings/widgets/data_source_cache_settings.dart';
 import 'package:nai_launcher/presentation/screens/settings/widgets/settings_card.dart';
-import 'package:path/path.dart' as p;
 import 'package:path_provider_platform_interface/path_provider_platform_interface.dart';
 
 void main() {
@@ -248,153 +244,16 @@ void main() {
     await tester.pump();
     await tester.pump();
 
-    // 6 张上游卡片 + 我们增量的「配置备份」无标题卡片。
     final settingsCards = find.byType(SettingsCard);
-    expect(settingsCards, findsNWidgets(7));
+    expect(settingsCards, findsNWidgets(6));
 
     final primaryRect = tester.getRect(settingsCards.first);
-    for (var index = 1; index < 7; index++) {
+    for (var index = 1; index < 6; index++) {
       final sectionRect = tester.getRect(settingsCards.at(index));
       expect(sectionRect.left, primaryRect.left);
       expect(sectionRect.right, primaryRect.right);
       expect(sectionRect.width, primaryRect.width);
     }
-  });
-  // ===== 配置导出/导入（上游没有的增量入口，服务层见 LocalStorageService）=====
-
-  testWidgets('导出配置写出带版本信封的 JSON，并统一走 FileExportService', (tester) async {
-    await tester.binding.setSurfaceSize(const Size(1000, 2400));
-    addTearDown(() => tester.binding.setSurfaceSize(null));
-    // Hive 落盘同样是真实 I/O，必须在 runAsync 里完成。
-    await tester.runAsync(
-      () => Hive.box(StorageKeys.settingsBox).put(StorageKeys.themeType, 3),
-    );
-    final outputPath =
-        '${tempDir.path}${Platform.pathSeparator}exported_config.json';
-    final picker = _ConfigFilePicker(saveFilePath: outputPath);
-    _installFilePicker(picker);
-    // 固定成桌面分支，这样在 macOS CI 上也走「另存为对话框」这条可观测路径。
-    FileExportService.debugPlatformOverride = PlatformCapabilities.forPlatform(
-      TargetPlatform.windows,
-    );
-    addTearDown(() => FileExportService.debugPlatformOverride = null);
-
-    await tester.pumpWidget(_buildSubject(storage));
-    await tester.pump();
-
-    // 真实落盘走真实事件循环，必须在 runAsync 里完成。
-    await tester.runAsync(() async {
-      await tester.tap(find.text('导出配置'));
-      await Future<void>.delayed(const Duration(milliseconds: 200));
-    });
-    await tester.pump();
-
-    expect(picker.saveFileExtensions, const ['json']);
-    final written = await tester.runAsync(
-      () => File(outputPath).readAsString(),
-    );
-    final decoded = jsonDecode(written!) as Map<String, dynamic>;
-    expect(decoded['formatVersion'], settingsExportFormatVersion);
-    expect(decoded['exportedAt'], isA<String>());
-    expect(
-      (decoded['settings'] as Map)[StorageKeys.themeType],
-      3,
-      reason: '导出内容必须来自真实设置，而不是空壳文档',
-    );
-    expect(find.text('配置已导出'), findsOneWidget);
-  });
-
-  testWidgets('导入配置先确认，再按白名单过滤并如实报告采纳条数', (tester) async {
-    await tester.binding.setSurfaceSize(const Size(1000, 2400));
-    addTearDown(() => tester.binding.setSurfaceSize(null));
-    final box = Hive.box(StorageKeys.settingsBox);
-    final importPath =
-        '${tempDir.path}${Platform.pathSeparator}import_config.json';
-    await tester.runAsync(
-      () => File(importPath).writeAsString(
-        jsonEncode({
-          'formatVersion': settingsExportFormatVersion,
-          'exportedAt': '2026-01-01T00:00:00.000',
-          'settings': {
-            StorageKeys.themeType: 4,
-            // 白名单之外的设备本地值，必须被跳过。
-            'not_a_portable_key_v1': 'device-local',
-          },
-        }),
-      ),
-    );
-    _installFilePicker(_ConfigFilePicker(pickFilePath: importPath));
-
-    await tester.pumpWidget(_buildSubject(storage));
-    await tester.pump();
-
-    await tester.runAsync(() async {
-      await tester.tap(find.text('导入配置'));
-      await Future<void>.delayed(const Duration(milliseconds: 200));
-    });
-    await tester.pumpAndSettle();
-
-    // 导入会覆盖本机现有值，写回前必须有一次明确确认。
-    expect(find.text('确认覆盖本机设置？'), findsOneWidget);
-    expect(box.get(StorageKeys.themeType), isNull);
-
-    await tester.tap(find.text('确定'));
-    await tester.runAsync(
-      () => Future<void>.delayed(const Duration(milliseconds: 200)),
-    );
-    await tester.pumpAndSettle();
-
-    expect(box.get(StorageKeys.themeType), 4);
-    expect(box.get('not_a_portable_key_v1'), isNull);
-    // 计数是白名单在工作的唯一用户可见证据。
-    expect(find.text('配置已导入: 1/2'), findsOneWidget);
-  });
-
-  testWidgets('导入更新格式的文件时，确认弹窗追加一行提醒', (tester) async {
-    await tester.binding.setSurfaceSize(const Size(1000, 2400));
-    addTearDown(() => tester.binding.setSurfaceSize(null));
-    final importPath =
-        '${tempDir.path}${Platform.pathSeparator}import_newer_config.json';
-    await tester.runAsync(
-      () => File(importPath).writeAsString(
-        jsonEncode({
-          'formatVersion': settingsExportFormatVersion + 1,
-          'settings': {StorageKeys.themeType: 4},
-        }),
-      ),
-    );
-    _installFilePicker(_ConfigFilePicker(pickFilePath: importPath));
-
-    await tester.pumpWidget(_buildSubject(storage));
-    await tester.pump();
-
-    await tester.runAsync(() async {
-      await tester.tap(find.text('导入配置'));
-      await Future<void>.delayed(const Duration(milliseconds: 200));
-    });
-    await tester.pumpAndSettle();
-
-    expect(find.textContaining('该文件来自更新版本的应用'), findsOneWidget);
-
-    await tester.tap(find.text('取消'));
-    await tester.pumpAndSettle();
-    expect(
-      Hive.box(StorageKeys.settingsBox).get(StorageKeys.themeType),
-      isNull,
-    );
-  });
-}
-
-void _installFilePicker(FilePicker picker) {
-  FilePicker? original;
-  try {
-    original = FilePicker.platform;
-  } catch (_) {
-    original = null;
-  }
-  FilePicker.platform = picker;
-  addTearDown(() {
-    if (original != null) FilePicker.platform = original;
   });
 }
 
@@ -494,52 +353,6 @@ class _RecordingFilePicker extends FilePicker {
     this.allowedExtensions = allowedExtensions;
     this.allowMultiple = allowMultiple;
     return null;
-  }
-}
-
-/// 配置导出/导入用的假 FilePicker：导出记录另存为参数并返回固定落地路径，
-/// 导入返回一份预置的 JSON 文件。
-class _ConfigFilePicker extends FilePicker {
-  _ConfigFilePicker({this.saveFilePath, this.pickFilePath});
-
-  final String? saveFilePath;
-  final String? pickFilePath;
-  List<String>? saveFileExtensions;
-
-  @override
-  Future<String?> saveFile({
-    String? dialogTitle,
-    String? fileName,
-    String? initialDirectory,
-    FileType type = FileType.any,
-    List<String>? allowedExtensions,
-    Uint8List? bytes,
-    bool lockParentWindow = false,
-  }) async {
-    saveFileExtensions = allowedExtensions;
-    return saveFilePath;
-  }
-
-  @override
-  Future<FilePickerResult?> pickFiles({
-    String? dialogTitle,
-    String? initialDirectory,
-    FileType type = FileType.any,
-    List<String>? allowedExtensions,
-    Function(FilePickerStatus)? onFileLoading,
-    bool allowCompression = true,
-    int compressionQuality = 30,
-    bool allowMultiple = false,
-    bool withData = false,
-    bool withReadStream = false,
-    bool lockParentWindow = false,
-    bool readSequential = false,
-  }) async {
-    final path = pickFilePath;
-    if (path == null) return null;
-    return FilePickerResult([
-      PlatformFile(path: path, name: p.basename(path), size: 0),
-    ]);
   }
 }
 

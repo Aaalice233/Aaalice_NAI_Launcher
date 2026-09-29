@@ -503,13 +503,9 @@ class OnlineGalleryDetailLauncher {
     GenerationTransferConfiguration? configuration,
     Set<GenerationTransferSetting>? configurationSettings,
   }) {
-    // 偏离上游：上游无条件 replaceAll(_codexCharacters(...))，解析不出角色时
-    // 等价于 replaceAll([])，会把用户已经配置好的角色面板整个清空。「发送到
-    // 文生图」是增量行为，解析结果为空就保持角色面板不动。
-    final characters = _codexCharacters(item, projection);
-    if (characters.isNotEmpty) {
-      ref.read(characterPromptNotifierProvider.notifier).replaceAll(characters);
-    }
+    ref
+        .read(characterPromptNotifierProvider.notifier)
+        .replaceAll(_codexCharacters(item, projection));
     ref
         .read(generationPromptTransferServiceProvider)
         .replaceMainPrompt(

@@ -14618,43 +14618,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get image_savedToAlbum => '已保存到相册';
 
   @override
-  String get more_switchTheme => '切换主题';
-
-  @override
-  String get settings_configExportFailed => '导出配置失败';
-
-  @override
-  String get settings_configExported => '配置已导出';
-
-  @override
-  String get settings_configImportFailed => '导入配置失败';
-
-  @override
-  String get settings_configImported => '配置已导入';
-
-  @override
-  String get settings_exportConfig => '导出配置';
-
-  @override
-  String get settings_exportConfigSubtitle => '把本机设置保存为 JSON 文件，可带到另一台设备';
-
-  @override
-  String get settings_importConfig => '导入配置';
-
-  @override
-  String get settings_importConfigConfirmMessage =>
-      '文件里的同名设置会覆盖本机当前值。本版本不认识的条目会被跳过，窗口大小、存储路径等设备本地值不会被导入。 导入的设置需要重启应用后才会生效。';
-
-  @override
-  String get settings_importConfigConfirmTitle => '确认覆盖本机设置？';
-
-  @override
-  String get settings_importConfigNewerFormat => '该文件来自更新版本的应用，部分条目可能无法应用。';
-
-  @override
-  String get settings_importConfigSubtitle => '从导出的 JSON 文件恢复设置';
-
-  @override
   String get settings_localOnnxTaggerFolderIosHint =>
       '用「文件」App 放入模型：我的 iPhone → NAI Launcher → tagger_models（.onnx 与词表文件），点右侧图标打开该文件夹';
 
@@ -29285,43 +29248,6 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get image_savedToAlbum => '已儲存至相簿';
-
-  @override
-  String get more_switchTheme => '切換主題';
-
-  @override
-  String get settings_configExportFailed => '匯出設定失敗';
-
-  @override
-  String get settings_configExported => '設定已匯出';
-
-  @override
-  String get settings_configImportFailed => '匯入設定失敗';
-
-  @override
-  String get settings_configImported => '設定已匯入';
-
-  @override
-  String get settings_exportConfig => '匯出設定';
-
-  @override
-  String get settings_exportConfigSubtitle => '把本機設定儲存為 JSON 檔案，可帶到另一台裝置';
-
-  @override
-  String get settings_importConfig => '匯入設定';
-
-  @override
-  String get settings_importConfigConfirmMessage =>
-      '檔案裡的同名設定會覆寫本機目前值。本版本不認識的項目會被略過，視窗大小、儲存路徑等裝置本機值不會被匯入。 匯入的設定需要重新啟動應用程式後才會生效。';
-
-  @override
-  String get settings_importConfigConfirmTitle => '確認覆寫本機設定？';
-
-  @override
-  String get settings_importConfigNewerFormat => '此檔案來自較新版本的應用程式，部分項目可能無法套用。';
-
-  @override
-  String get settings_importConfigSubtitle => '從匯出的 JSON 檔案還原設定';
 
   @override
   String get settings_localOnnxTaggerFolderIosHint =>

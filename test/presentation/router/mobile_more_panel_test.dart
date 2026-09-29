@@ -7,11 +7,7 @@ import 'package:nai_launcher/data/models/auth/saved_account.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/providers/account_manager_provider.dart';
 import 'package:nai_launcher/presentation/providers/auth_provider.dart';
-import 'package:nai_launcher/presentation/providers/theme_provider.dart';
 import 'package:nai_launcher/presentation/router/mobile_more_panel.dart';
-import 'package:nai_launcher/presentation/themes/app_theme.dart';
-
-import '../../helpers/light_theme_contrast.dart';
 
 class _MockNavigationShell extends Mock implements StatefulNavigationShell {
   @override
@@ -168,70 +164,6 @@ void main() {
       find.descendant(of: addAccount, matching: find.text('添加账号')),
       findsOneWidget,
     );
-  });
-
-  testWidgets('「更多」面板的主题入口一键在深浅两套之间切换且不关闭面板', (tester) async {
-    tester.view.devicePixelRatio = 1;
-    tester.view.physicalSize = const Size(400, 900);
-    addTearDown(tester.view.reset);
-
-    final navigationShell = _MockNavigationShell();
-    final container = createStorageFreeContainer(
-      overrides: [
-        accountManagerNotifierProvider.overrideWith(
-          _EmptyAccountManagerNotifier.new,
-        ),
-      ],
-    );
-    addTearDown(container.dispose);
-
-    await tester.pumpWidget(
-      UncontrolledProviderScope(
-        container: container,
-        child: MaterialApp(
-          locale: const Locale('zh'),
-          supportedLocales: AppLocalizations.supportedLocales,
-          localizationsDelegates: AppLocalizations.localizationsDelegates,
-          home: Consumer(
-            builder: (context, ref, child) => Scaffold(
-              body: Center(
-                child: ElevatedButton(
-                  onPressed: () => showMobileMorePanel(
-                    context: context,
-                    ref: ref,
-                    navigationShell: navigationShell,
-                    onImportImageMetadata: (context, ref) async {},
-                  ),
-                  child: const Text('open'),
-                ),
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-
-    await tester.tap(find.text('open'));
-    await tester.pumpAndSettle();
-
-    final themeEntry = find.byKey(const ValueKey('mobile-more-theme'));
-    await tester.scrollUntilVisible(
-      themeEntry,
-      100,
-      scrollable: find.byType(Scrollable).first,
-    );
-    await tester.pumpAndSettle();
-
-    expect(container.read(themeNotifierProvider), AppStyle.grungeCollage);
-    await tester.tap(themeEntry);
-    await tester.pumpAndSettle();
-    expect(container.read(themeNotifierProvider), AppStyle.boldRetro);
-
-    // 面板保持打开，可以连点比较两套配色。
-    expect(themeEntry, findsOneWidget);
-    await tester.tap(themeEntry);
-    await tester.pumpAndSettle();
-    expect(container.read(themeNotifierProvider), AppStyle.grungeCollage);
   });
 }
 
