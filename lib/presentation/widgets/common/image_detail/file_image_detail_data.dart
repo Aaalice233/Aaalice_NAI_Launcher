@@ -90,7 +90,6 @@ class FileImageDetailData implements ImageDetailData {
   /// 异步获取元数据（从文件解析）
   ///
   /// **前台高优先级调用** - 用户主动打开详情页时使用
-  /// 不受后台预加载队列影响，立即开始解析
   Future<NaiImageMetadata?> getMetadataAsync() async {
     AppLogger.i(
       '[MetadataFlow] getMetadataAsync START: path=$filePath',
@@ -116,7 +115,7 @@ class FileImageDetailData implements ImageDetailData {
       return cached;
     }
 
-    // 3. 前台立即解析（高优先级，不受后台队列影响）
+    // 3. 前台高优先级解析
     AppLogger.i(
       '[MetadataFlow] No cache, calling getMetadataImmediate...',
       'FileImageDetailData',
@@ -127,11 +126,6 @@ class FileImageDetailData implements ImageDetailData {
       'FileImageDetailData',
     );
     return result;
-  }
-
-  /// 预加载元数据（后台使用）
-  void preloadMetadata() {
-    ImageMetadataService().preload(filePath);
   }
 
   @override

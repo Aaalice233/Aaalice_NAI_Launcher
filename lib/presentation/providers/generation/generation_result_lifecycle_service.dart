@@ -221,7 +221,6 @@ class GenerationResultLifecycleService {
       } catch (error) {
         AppLogger.w('统计缓存增量更新失败: $error', 'AutoSave');
       }
-      preloadMetadata(updated.where((image) => image.filePath != null));
     }
     return GenerationSaveResult(
       updated,
@@ -255,17 +254,6 @@ class GenerationResultLifecycleService {
       deletedPaths: List.unmodifiable(deleted),
       failures: Map.unmodifiable(failures),
     );
-  }
-
-  void preloadMetadata(Iterable<GeneratedImage> images) {
-    final service = ImageMetadataService();
-    for (final image in images) {
-      service.enqueuePreload(
-        taskId: image.id,
-        filePath: image.filePath,
-        bytes: image.filePath == null ? image.bytes : null,
-      );
-    }
   }
 
   (int, int)? _resolveImageSize(Uint8List bytes, {int? width, int? height}) {
