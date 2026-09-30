@@ -990,9 +990,12 @@ void main() {
           );
 
       await notifier.generate(params);
+      // 重绘快照在后台 isolate 合成，落地后才进历史。
+      await notifier.flushGenerationHistory();
 
       final state = container.read(imageGenerationNotifierProvider);
       expect(state.status, GenerationStatus.error);
+      expect(state.errorMessage, contains('focused stream failed'));
       expect(state.history, hasLength(1));
       final snapshot = img.decodeImage(state.history.single.bytes)!;
       expect((snapshot.width, snapshot.height), (256, 256));
