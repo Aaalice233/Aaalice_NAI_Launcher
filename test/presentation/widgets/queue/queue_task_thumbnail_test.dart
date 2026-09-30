@@ -1,7 +1,13 @@
+import 'dart:io';
+
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:nai_launcher/core/cache/gallery_image_request.dart';
+import 'package:nai_launcher/core/cache/local_file_image.dart';
 import 'package:nai_launcher/presentation/widgets/queue/queue_task_thumbnail.dart';
+
+import '../../../helpers/real_async_pump.dart';
 
 void main() {
   testWidgets('renders persisted local and legacy remote thumbnail sources', (
@@ -29,5 +35,51 @@ void main() {
       ),
     );
     expect(find.byType(CachedNetworkImage), findsOneWidget);
+  });
+
+  testWidgets('local sources keep size hints and fall back when missing', (
+    tester,
+  ) async {
+    final directory = Directory.systemTemp.createTempSync(
+      'queue_task_thumbnail_test_',
+    );
+    addTearDown(() => directory.deleteSync(recursive: true));
+    final source = '${directory.path}/missing.webp';
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Center(
+          child: QueueTaskThumbnail(
+            source: source,
+            width: 120,
+            height: 80,
+            fit: BoxFit.contain,
+          ),
+        ),
+      ),
+    );
+
+    final image = tester.widget<Image>(find.byType(Image));
+    final resized = image.image as ResizeImage;
+    expect(resized.imageProvider, LocalFileImage(source));
+    expect(
+      resized.width,
+      GalleryImageSizing.gridTargetWidth(
+        layoutWidth: 120,
+        devicePixelRatio: tester.view.devicePixelRatio,
+      ),
+    );
+    expect(resized.height, isNull);
+    expect((image.width, image.height, image.fit), (120, 80, BoxFit.contain));
+
+    await pumpUntilRealAsync(
+      tester,
+      () => find.byIcon(Icons.broken_image_rounded).evaluate().isNotEmpty,
+    );
+    expect(
+      tester.getSize(find.byType(QueueTaskThumbnail)),
+      const Size(120, 80),
+    );
+    expect(tester.takeException(), isNull);
   });
 }

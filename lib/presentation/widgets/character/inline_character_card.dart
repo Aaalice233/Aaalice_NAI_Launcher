@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/cache/local_file_image.dart';
 import '../../../core/utils/character_prompt_block_parser.dart';
 import '../../../data/models/character/character_prompt.dart';
 import '../../providers/character_position_canvas_provider.dart';
@@ -612,11 +613,10 @@ class _HeaderThumbnail extends StatelessWidget {
         return Stack(
           fit: StackFit.expand,
           children: [
-            Image.file(
-              File(path),
+            Image(
+              image: LocalFileImage.withCacheSize(path, cacheWidth: cacheWidth),
               fit: BoxFit.cover,
               alignment: const Alignment(0, -0.4),
-              cacheWidth: cacheWidth,
               errorBuilder: (context, error, stack) => ColoredBox(
                 color: Theme.of(
                   context,

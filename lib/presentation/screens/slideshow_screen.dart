@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:io';
 
 import 'package:flutter/material.dart';
 
@@ -8,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../widgets/common/image_viewport_surface.dart';
+import '../../core/cache/local_file_image.dart';
 import '../../core/utils/localization_extension.dart';
 import '../../data/models/gallery/local_image_record.dart';
 import '../adaptive/adaptive_layout.dart';
@@ -18,7 +18,7 @@ const int _maxSlideshowImageDimension = 4096;
 
 ImageProvider buildSlideshowImageProvider(String path) {
   return ResizeImage(
-    FileImage(File(path)),
+    LocalFileImage(path),
     width: _maxSlideshowImageDimension,
     height: _maxSlideshowImageDimension,
     policy: ResizeImagePolicy.fit,

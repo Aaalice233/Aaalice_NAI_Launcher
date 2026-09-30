@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import 'package:flutter/widgets.dart';
 import 'package:path/path.dart' as p;
 
+import '../../../../core/cache/local_file_image.dart';
 import '../../../../core/utils/app_logger.dart';
 import '../../../../data/models/gallery/nai_image_metadata.dart';
 import '../../../../data/services/image_metadata_service.dart';
@@ -39,7 +40,7 @@ class FileImageDetailData implements ImageDetailData {
 
   @override
   ImageProvider getImageProvider() {
-    final fileImage = FileImage(File(filePath));
+    final fileImage = LocalFileImage(filePath);
 
     // 尝试从初始元数据或缓存获取元数据以进行缩放优化
     final cachedMetadata =

@@ -1,5 +1,4 @@
 import 'package:nai_launcher/presentation/widgets/common/horizontal_action_strip.dart';
-import 'dart:io';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -7,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/cache/local_file_image.dart';
 import '../../../data/models/character/character_prompt.dart';
 import '../../adaptive/interaction_policy.dart';
 import '../../providers/character_position_canvas_provider.dart';
@@ -724,14 +724,16 @@ class _AnchorDot extends StatelessWidget {
         fit: StackFit.expand,
         children: [
           if (hasThumbnail)
-            Image.file(
-              File(character.thumbnailPath!),
-              fit: BoxFit.cover,
-              cacheWidth: DecodedMemoryImage.resolveCacheDimension(
-                logicalSize: math.max(diameter, 40),
-                constrainedSize: null,
-                pixelRatio: MediaQuery.devicePixelRatioOf(context),
+            Image(
+              image: LocalFileImage.withCacheSize(
+                character.thumbnailPath!,
+                cacheWidth: DecodedMemoryImage.resolveCacheDimension(
+                  logicalSize: math.max(diameter, 40),
+                  constrainedSize: null,
+                  pixelRatio: MediaQuery.devicePixelRatioOf(context),
+                ),
               ),
+              fit: BoxFit.cover,
               errorBuilder: (context, error, stack) => const SizedBox.shrink(),
             ),
           if (displayNumber != null)

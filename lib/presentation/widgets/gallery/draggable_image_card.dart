@@ -1,10 +1,10 @@
-import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
 
+import '../../../core/cache/local_file_image.dart';
 import '../../../core/utils/drag_drop_utils.dart';
 import '../../../core/utils/app_logger.dart';
 import '../../../core/utils/localization_extension.dart';
@@ -151,7 +151,7 @@ class _DraggableImageCardState extends ConsumerState<DraggableImageCard> {
         ? MemoryImage(previewBytes)
         : widget.record.path.isEmpty
         ? null
-        : FileImage(File(widget.record.path));
+        : LocalFileImage(widget.record.path);
     return CardDragSource(
       enabled: widget.enabled,
       dragOpacity: widget.dragOpacity,

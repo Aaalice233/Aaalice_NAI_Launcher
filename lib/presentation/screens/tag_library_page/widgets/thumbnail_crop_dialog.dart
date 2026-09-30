@@ -1,10 +1,9 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
 
 import 'package:flutter/gestures.dart';
 
 import '../../../widgets/common/image_viewport_surface.dart';
+import '../../../../core/cache/local_file_image.dart';
 import '../../../../core/utils/localization_extension.dart';
 import '../../../../l10n/app_localizations.dart';
 import '../../../adaptive/adaptive_presenter.dart';
@@ -76,7 +75,7 @@ class _ThumbnailCropDialogState extends State<ThumbnailCropDialog> {
 
   /// 加载图像尺寸
   void _loadImageSize() {
-    final imageProvider = FileImage(File(widget.imagePath));
+    final imageProvider = LocalFileImage(widget.imagePath);
     imageProvider
         .resolve(const ImageConfiguration())
         .addListener(
@@ -304,9 +303,9 @@ class _ThumbnailCropDialogState extends State<ThumbnailCropDialog> {
                 Positioned(
                   left: imageOffsetX,
                   top: imageOffsetY,
-                  child: Image.file(
-                    File(widget.imagePath),
+                  child: Image(
                     key: const ValueKey('thumbnail-crop-image'),
+                    image: LocalFileImage(widget.imagePath),
                     fit: BoxFit.contain,
                     width: displayedSize.width,
                     height: displayedSize.height,

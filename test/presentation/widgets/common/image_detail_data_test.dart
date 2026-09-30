@@ -6,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:hive/hive.dart';
 import 'package:image/image.dart' as img;
 import 'package:mocktail/mocktail.dart';
+import 'package:nai_launcher/core/cache/local_file_image.dart';
 import 'package:nai_launcher/data/models/gallery/local_image_record.dart';
 import 'package:nai_launcher/data/models/gallery/nai_image_metadata.dart';
 import 'package:nai_launcher/data/services/image_metadata_service.dart';
@@ -131,6 +132,10 @@ void main() {
     expect(resized.width, 4096);
     expect(resized.height, 4096);
     expect(resized.policy, ResizeImagePolicy.fit);
+    expect(
+      resized.imageProvider,
+      const LocalFileImage('C:\\tmp\\large_plain.png'),
+    );
   });
 
   group('local detail metadata resolution', () {
@@ -193,4 +198,48 @@ void main() {
       verifyNever(() => executor.parseFile(any()));
     });
   });
+
+  test(
+    'detail providers key file images by identity and keep the 4096 cap',
+    () {
+      const wide = NaiImageMetadata(width: 6000, height: 3000);
+      const tall = NaiImageMetadata(width: 3000, height: 6000);
+      const small = NaiImageMetadata(width: 1024, height: 1536);
+      final providers = <(ImageProvider, int?, int?)>[
+        (
+          LocalImageDetailData(
+            LocalImageRecord(
+              path: 'C:/tmp/wide.png',
+              metadata: wide,
+              size: 1,
+              modifiedAt: DateTime(2026),
+            ),
+          ).getImageProvider(),
+          4096,
+          null,
+        ),
+        (
+          FileImageDetailData(
+            filePath: 'C:/tmp/tall.png',
+            initialMetadata: tall,
+          ).getImageProvider(),
+          null,
+          4096,
+        ),
+      ];
+
+      for (final (provider, width, height) in providers) {
+        final resized = provider as ResizeImage;
+        expect((resized.width, resized.height), (width, height));
+        expect(resized.imageProvider, isA<LocalFileImage>());
+      }
+      expect(
+        FileImageDetailData(
+          filePath: 'C:/tmp/small.png',
+          initialMetadata: small,
+        ).getImageProvider(),
+        const LocalFileImage('C:/tmp/small.png'),
+      );
+    },
+  );
 }

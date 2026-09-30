@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_markdown_plus/flutter_markdown_plus.dart' as md;
 
+import '../../../core/cache/local_file_image.dart';
 import '../../adaptive/interaction_policy.dart';
 import '../../themes/core/layered_surface_style.dart';
 import 'agent_chat_code_block.dart';
@@ -229,8 +230,8 @@ class AgentChatMarkdownImage extends StatelessWidget {
       final file = scheme == 'file'
           ? File.fromUri(uri)
           : File(uri.toFilePath(windows: Platform.isWindows));
-      return Image.file(
-        file,
+      return Image(
+        image: LocalFileImage(file.path),
         fit: BoxFit.contain,
         gaplessPlayback: true,
         filterQuality: FilterQuality.medium,

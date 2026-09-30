@@ -1,4 +1,3 @@
-import 'dart:io';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -8,6 +7,7 @@ import 'package:go_router/go_router.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 
 import '../widgets/common/image_viewport_surface.dart';
+import '../../core/cache/local_file_image.dart';
 import '../../core/utils/localization_extension.dart';
 import '../../data/models/gallery/local_image_record.dart';
 import '../adaptive/adaptive_layout.dart';
@@ -200,8 +200,8 @@ class _ImageComparisonScreenState extends ConsumerState<ImageComparisonScreen> {
             child: InteractiveViewer(
               minScale: 0.5,
               maxScale: 4.0,
-              child: Image.file(
-                File(image.path),
+              child: Image(
+                image: LocalFileImage(image.path),
                 fit: BoxFit.contain,
                 errorBuilder: (context, error, stackTrace) {
                   return Container(

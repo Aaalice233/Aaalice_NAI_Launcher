@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
 
 import '../../../core/agent/resources/agent_chat_resource_reference.dart';
+import '../../../core/cache/local_file_image.dart';
 import '../../../core/utils/localization_extension.dart';
 import '../../../data/models/gallery/local_image_record.dart';
 import '../../../data/services/gallery/local_gallery_service.dart';
@@ -967,8 +968,8 @@ class _PickerItem extends StatelessWidget {
     final preview = imageBytes != null
         ? Image.memory(imageBytes!, fit: BoxFit.cover)
         : imageFile != null
-        ? Image.file(
-            imageFile!,
+        ? Image(
+            image: LocalFileImage(imageFile!.path),
             fit: BoxFit.cover,
             errorBuilder: (_, __, ___) => fallbackPreview,
           )

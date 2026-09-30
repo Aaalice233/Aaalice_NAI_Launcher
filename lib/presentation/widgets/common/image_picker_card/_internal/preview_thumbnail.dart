@@ -3,6 +3,7 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 
+import '../../../../../core/cache/local_file_image.dart';
 import '../../image_viewport_surface.dart';
 import '../../decoded_memory_image.dart';
 
@@ -76,12 +77,14 @@ class PreviewThumbnail extends StatelessWidget {
             return ClipRRect(
               borderRadius: BorderRadius.circular(borderRadius),
               child: ImageViewportSurface(
-                child: Image.file(
-                  File(imagePath!),
+                child: Image(
+                  image: LocalFileImage.withCacheSize(
+                    imagePath!,
+                    cacheWidth: cacheSize,
+                    cacheHeight: cacheSize,
+                  ),
                   width: size,
                   height: size,
-                  cacheWidth: cacheSize,
-                  cacheHeight: cacheSize,
                   fit: BoxFit.cover,
                   errorBuilder: (context, error, stackTrace) =>
                       _buildFallback(theme),
