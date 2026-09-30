@@ -5915,6 +5915,14 @@
       }
     }
   },
+  "diy_presetVersionTooNew": "此預設由較新版本的應用程式匯出（資料版本 {version}），請更新應用程式後再匯入",
+  "@diy_presetVersionTooNew": {
+    "placeholders": {
+      "version": {
+        "type": "int"
+      }
+    }
+  },
   "diy_presetExportTitle": "匯出預設",
   "diy_presetImportTitle": "匯入預設",
   "diy_unknown": "未知",

@@ -12552,6 +12552,11 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String diy_presetVersionTooNew(int version) {
+    return 'This preset was exported by a newer app version (data version $version). Update the app, then import it again';
+  }
+
+  @override
   String get diy_presetExportTitle => 'Export Preset';
 
   @override

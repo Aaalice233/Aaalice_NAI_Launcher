@@ -406,11 +406,16 @@ class RandomPreset with _$RandomPreset {
     };
   }
 
+  /// 当前应用写出的预设数据版本
+  static const currentVersion = 4;
+
   /// 从导出的 JSON 导入
+  ///
+  /// 接受不高于 [currentVersion] 的导出文件；缺少版本号的旧文件按 2 处理
   static RandomPreset fromExportJson(Map<String, dynamic> json) {
     final version = json['version'] as int? ?? 2;
-    if (version > 2) {
-      throw FormatException('不支持的预设版本: $version，请更新应用后重试');
+    if (version > currentVersion) {
+      throw RandomPresetVersionException(version);
     }
 
     final now = DateTime.now();
@@ -444,7 +449,8 @@ class RandomPreset with _$RandomPreset {
       name: json['name'] as String? ?? '导入的预设',
       description: json['description'] as String?,
       isDefault: false,
-      version: 2,
+      // 低于当前版本的会在加载时走与本地存量相同的迁移
+      version: version,
       algorithmConfig: json['algorithmConfig'] != null
           ? AlgorithmConfig.fromJson(
               json['algorithmConfig'] as Map<String, dynamic>,
@@ -462,4 +468,12 @@ class RandomPreset with _$RandomPreset {
       updatedAt: now,
     );
   }
+}
+
+/// 导入的预设由更高版本的应用导出，需要先更新应用
+class RandomPresetVersionException extends FormatException {
+  RandomPresetVersionException(this.version)
+    : super('不支持的预设版本: $version，请更新应用后重试');
+
+  final int version;
 }

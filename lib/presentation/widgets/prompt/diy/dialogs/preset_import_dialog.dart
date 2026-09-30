@@ -124,6 +124,12 @@ class _PresetImportDialogState extends State<PresetImportDialog> {
         _error = null;
         _isExportError = false;
       });
+    } on RandomPresetVersionException catch (e) {
+      setState(() {
+        _previewPreset = null;
+        _error = context.l10n.diy_presetVersionTooNew(e.version);
+        _isExportError = false;
+      });
     } catch (e) {
       setState(() {
         _previewPreset = null;

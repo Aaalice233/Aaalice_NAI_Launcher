@@ -12238,6 +12238,11 @@ class AppLocalizationsJa extends AppLocalizations {
   }
 
   @override
+  String diy_presetVersionTooNew(int version) {
+    return 'このプリセットは新しいバージョンのアプリで書き出されています（データバージョン $version）。アプリを更新してからインポートしてください';
+  }
+
+  @override
   String get diy_presetExportTitle => 'プリセットをエクスポート';
 
   @override
