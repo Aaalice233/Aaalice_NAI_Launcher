@@ -12603,6 +12603,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get diy_targetCategory => 'Target Category';
 
   @override
+  String get diy_targetCurrentGroup => 'This tag group';
+
+  @override
   String get diy_conditionType => 'Condition Type';
 
   @override

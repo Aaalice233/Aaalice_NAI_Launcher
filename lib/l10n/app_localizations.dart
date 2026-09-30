@@ -21924,6 +21924,12 @@ abstract class AppLocalizations {
   /// **'Target Category'**
   String get diy_targetCategory;
 
+  /// No description provided for @diy_targetCurrentGroup.
+  ///
+  /// In en, this message translates to:
+  /// **'This tag group'**
+  String get diy_targetCurrentGroup;
+
   /// No description provided for @diy_conditionType.
   ///
   /// In en, this message translates to:

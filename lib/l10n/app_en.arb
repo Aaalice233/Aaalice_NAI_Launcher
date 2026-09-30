@@ -6094,6 +6094,7 @@
   "diy_noVisibilityRulesHint": "Add rules to control category visibility from the current composition",
   "diy_notSet": "Not set",
   "diy_targetCategory": "Target Category",
+  "diy_targetCurrentGroup": "This tag group",
   "diy_conditionType": "Condition Type",
   "diy_conditionValue": "Condition Value",
   "diy_conditionValueHint": "Tag name or value",

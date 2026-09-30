@@ -5847,6 +5847,7 @@
   "diy_noVisibilityRulesHint": "添加规则以根据当前构图控制类别可见性",
   "diy_notSet": "未设置",
   "diy_targetCategory": "目标类别",
+  "diy_targetCurrentGroup": "本词组",
   "diy_conditionType": "条件类型",
   "diy_conditionValue": "条件值",
   "diy_conditionValueHint": "标签名或值",

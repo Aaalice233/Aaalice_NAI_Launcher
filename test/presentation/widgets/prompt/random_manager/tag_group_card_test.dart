@@ -321,6 +321,59 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('以本词组 ID 为目标的存量可见性规则显示为本词组，也可重新选作目标', (tester) async {
+    final notifier = _EditablePresetNotifier(_referenceCategories);
+    await _pumpReferenceCard(
+      tester,
+      notifier: notifier,
+      group: _referenceGroup.copyWith(
+        visibilityRules: const [
+          VisibilityRule(
+            id: 'self',
+            name: '只控制本词组',
+            sourceCategoryId: 'cat-hair',
+            targetCategoryId: 'reference',
+            conditionValue: 'portrait',
+          ),
+        ],
+      ),
+    );
+    await _openDiyForm(tester, '可见性规则', groupName: _referenceGroup.name);
+
+    final form = _formSurfaces().last;
+    expect(find.descendant(of: form, matching: find.text('本词组')), findsOne);
+    expect(
+      find.descendant(of: form, matching: find.textContaining('已失效')),
+      findsNothing,
+    );
+
+    await tester.tap(find.descendant(of: form, matching: find.text('只控制本词组')));
+    await tester.pumpAndSettle();
+    final target = find
+        .descendant(
+          of: form,
+          matching: find.byType(DropdownButtonFormField<String>),
+        )
+        .last;
+    expect(find.descendant(of: target, matching: find.text('本词组')), findsOne);
+
+    await tester.tap(target);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('服装').last);
+    await tester.pumpAndSettle();
+    await tester.tap(target);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('本词组').last);
+    await tester.pumpAndSettle();
+
+    await _confirmAndSave(tester);
+    expect(
+      notifier.savedGroup.visibilityRules.single.targetCategoryId,
+      'reference',
+    );
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('后处理移除类别按 ID 多选，已失效的目标可以移除', (tester) async {
     final notifier = _EditablePresetNotifier(_referenceCategories);
     await _pumpReferenceCard(

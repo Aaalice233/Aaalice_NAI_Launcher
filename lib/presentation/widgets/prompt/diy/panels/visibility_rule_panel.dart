@@ -24,6 +24,9 @@ class VisibilityRulePanel extends StatefulWidget {
   /// 可选的类别
   final List<DiyCategoryOption> categoryOptions;
 
+  /// 规则所属词组的 ID；目标选它时规则只控制该词组
+  final String? ownerGroupId;
+
   /// 是否只读
   final bool readOnly;
 
@@ -32,6 +35,7 @@ class VisibilityRulePanel extends StatefulWidget {
     required this.rules,
     required this.onRulesChanged,
     this.categoryOptions = const [],
+    this.ownerGroupId,
     this.readOnly = false,
   });
 
@@ -291,7 +295,10 @@ class _VisibilityRulePanelState extends State<VisibilityRulePanel> {
                                   borderRadius: BorderRadius.circular(4),
                                 ),
                                 child: Text(
-                                  _categoryLabel(rule.sourceCategoryId),
+                                  _categoryLabel(
+                                    rule.sourceCategoryId,
+                                    widget.categoryOptions,
+                                  ),
                                   style: theme.textTheme.labelSmall?.copyWith(
                                     color: colorScheme.primary,
                                   ),
@@ -313,7 +320,10 @@ class _VisibilityRulePanelState extends State<VisibilityRulePanel> {
                                   borderRadius: BorderRadius.circular(4),
                                 ),
                                 child: Text(
-                                  _categoryLabel(rule.targetCategoryId),
+                                  _categoryLabel(
+                                    rule.targetCategoryId,
+                                    _targetOptions,
+                                  ),
                                   style: theme.textTheme.labelSmall?.copyWith(
                                     color: colorScheme.secondary,
                                   ),
@@ -418,6 +428,7 @@ class _VisibilityRulePanelState extends State<VisibilityRulePanel> {
             label: context.l10n.diy_sourceCategory,
             icon: Icons.folder_outlined,
             value: rule.sourceCategoryId,
+            options: widget.categoryOptions,
             onChanged: (value) {
               _updateRule(index, rule.copyWith(sourceCategoryId: value));
             },
@@ -428,6 +439,7 @@ class _VisibilityRulePanelState extends State<VisibilityRulePanel> {
             label: context.l10n.diy_targetCategory,
             icon: Icons.folder_special_outlined,
             value: rule.targetCategoryId,
+            options: _targetOptions,
             onChanged: (value) {
               _updateRule(index, rule.copyWith(targetCategoryId: value));
             },
@@ -560,17 +572,31 @@ class _VisibilityRulePanelState extends State<VisibilityRulePanel> {
     );
   }
 
+  // 目标为类别时作用于该类别全部词组，目标为本词组时只控制规则所属的词组
+  List<DiyCategoryOption> get _targetOptions {
+    final ownerGroupId = widget.ownerGroupId;
+    return [
+      if (ownerGroupId != null && ownerGroupId.isNotEmpty)
+        DiyCategoryOption(
+          id: ownerGroupId,
+          label: context.l10n.diy_targetCurrentGroup,
+        ),
+      ...widget.categoryOptions,
+    ];
+  }
+
   Widget _buildCategoryDropdown({
     required String label,
     required IconData icon,
     required String value,
+    required List<DiyCategoryOption> options,
     required ValueChanged<String> onChanged,
   }) {
     final colorScheme = Theme.of(context).colorScheme;
 
     return DiyCategoryDropdown(
       value: value,
-      options: widget.categoryOptions,
+      options: options,
       readOnly: widget.readOnly,
       decoration: InputDecoration(
         labelText: label,
@@ -581,9 +607,9 @@ class _VisibilityRulePanelState extends State<VisibilityRulePanel> {
     );
   }
 
-  String _categoryLabel(String reference) {
+  String _categoryLabel(String reference, List<DiyCategoryOption> options) {
     if (reference.isEmpty) return context.l10n.diy_notSet;
-    for (final option in widget.categoryOptions) {
+    for (final option in options) {
       if (option.id == reference) return option.label;
     }
     return context.l10n.diy_categoryUnavailable(reference);
