@@ -84,7 +84,7 @@ class NaiGenerationResponseProcessor {
     Uint8List zipBytes,
     NaiGenerationResponseContext context,
   ) async {
-    final images = ZipUtils.extractAllImages(zipBytes);
+    final images = await ZipUtils.extractAllImagesAsync(zipBytes);
     final artifacts = await Future.wait(
       images.map((image) => composeImage(image, context)),
     );
@@ -171,7 +171,12 @@ class NaiGenerationResponseProcessor {
       try {
         final bytes = Uint8List.fromList(buffer);
         if (_isZip(bytes)) {
-          final images = ZipUtils.extractAllImages(bytes);
+          final images = await ZipUtils.extractAllImagesAsync(bytes);
+          // 解压在后台进行，期间取消的请求与流式阶段一样以取消收尾
+          if (cancelToken.isCancelled) {
+            yield ImageStreamChunk.error('Cancelled');
+            return;
+          }
           for (var index = 0; index < images.length; index += 1) {
             final artifact = await composeImage(images[index], context);
             yield ImageStreamChunk.complete(
