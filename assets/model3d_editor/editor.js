@@ -173,6 +173,8 @@ renderer.setAnimationLoop(() => {
 // ---- 模型加载 ----
 function clearCurrentModel() {
   if (!ctx.modelRoot) return;
+  disposeBoneMarkers();
+  transformControls.detach(); // 加载失败走不到 applyMode,gizmo 不能留在已移除的模型上
   scene.remove(ctx.modelRoot);
   ctx.modelRoot.traverse((obj) => {
     if (obj.isSkinnedMesh && obj.skeleton) obj.skeleton.dispose();
@@ -295,9 +297,19 @@ const markerMaterial = new THREE.MeshBasicMaterial({
 const markerSelectedColor = new THREE.Color(0xffc24f);
 let selectedMarker = null;
 
-function rebuildBoneMarkers() {
+function disposeBoneMarkers() {
+  const geometries = new Set();
+  for (const marker of boneMarkers.children) {
+    geometries.add(marker.geometry);
+    marker.material.dispose();
+  }
+  for (const geometry of geometries) geometry.dispose();
   boneMarkers.clear();
   selectedMarker = null;
+}
+
+function rebuildBoneMarkers() {
+  disposeBoneMarkers();
   if (!ctx.modelRoot) return;
   const box = new THREE.Box3().setFromObject(ctx.modelRoot);
   const radius = Math.max(box.getSize(new THREE.Vector3()).length() * 0.008, 0.006);
