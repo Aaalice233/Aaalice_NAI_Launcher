@@ -12091,6 +12091,14 @@ class AppLocalizationsJa extends AppLocalizations {
       'キャラクターがいない（キャラクター数が 0）場合のみ適用します';
 
   @override
+  String get diy_dependencyOverridesSelectionCount =>
+      'このタググループの選択モードは「複数のカウント」ではありません。依存で得た数が選択モードの数を上書きします：重みに従って重複なくその数だけ抽選し、候補が足りない場合はすべて選びます。一致するマッピングも既定値もない場合は抽選しません。';
+
+  @override
+  String get diy_dependencyOverridesSequentialCount =>
+      'このタググループの選択モードは「シーケンシャル」です。依存で得た数が選択モードの数を上書きします：ローテーション順にその数だけ取り、候補が足りない場合はすべて選びます。一致するマッピングも既定値もない場合は抽選しません。';
+
+  @override
   String get diy_conditionalDefaultName => '条件分岐';
 
   @override

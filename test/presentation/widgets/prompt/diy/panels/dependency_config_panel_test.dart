@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/data/models/prompt/dependency_config.dart';
 import 'package:nai_launcher/data/models/prompt/diy_category_references.dart';
+import 'package:nai_launcher/data/models/prompt/random_tag_group.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/widgets/common/surface_ink_well.dart';
 import 'package:nai_launcher/presentation/widgets/common/themed_input.dart';
@@ -176,6 +177,35 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('数量与值依赖在“多选数量”以外的模式下写明会覆盖该模式的数量', (tester) async {
+    Future<void> pump(DependencyType type, SelectionMode mode) => _pumpPanel(
+      tester,
+      config: DependencyConfig(type: type, sourceCategoryId: 'characters'),
+      selectionMode: mode,
+      onChanged: (_) {},
+    );
+
+    for (final mode in [
+      SelectionMode.single,
+      SelectionMode.all,
+      SelectionMode.multipleProb,
+    ]) {
+      await pump(DependencyType.count, mode);
+      expect(find.text(_overridesCount), findsOneWidget, reason: '$mode');
+      await pump(DependencyType.value, mode);
+      expect(find.text(_overridesCount), findsOneWidget, reason: '$mode');
+    }
+
+    await pump(DependencyType.count, SelectionMode.sequential);
+    expect(find.text(_overridesSequential), findsOneWidget);
+
+    await pump(DependencyType.count, SelectionMode.multipleNum);
+    expect(find.text(_overridesCount), findsNothing);
+    await pump(DependencyType.exists, SelectionMode.single);
+    expect(find.text(_overridesCount), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('已保存的角色数量存在依赖按名称显示，不标记为已失效', (tester) async {
     await _pumpPanel(
       tester,
@@ -198,12 +228,18 @@ void main() {
   });
 }
 
+const _overridesCount =
+    '本词组的选择模式不是“多选数量”，依赖得出的数量会覆盖选择模式的数量：按权重不重复抽取这么多个，可选项不足时全部选取；没有匹配的映射且未设默认值时不抽取';
+const _overridesSequential =
+    '本词组的选择模式是顺序轮替，依赖得出的数量会覆盖选择模式的数量：按轮替顺序取这么多个，可选项不足时全部选取；没有匹配的映射且未设默认值时不抽取';
+
 Future<void> _pumpPanel(
   WidgetTester tester, {
   double textScale = 1,
   DependencyConfig config = const DependencyConfig(
     sourceCategoryId: 'characters',
   ),
+  SelectionMode? selectionMode,
   required ValueChanged<DependencyConfig?> onChanged,
 }) async {
   await tester.pumpWidget(
@@ -224,6 +260,7 @@ Future<void> _pumpPanel(
             categoryOptions: const [
               DiyCategoryOption(id: 'characters', label: 'Characters'),
             ],
+            selectionMode: selectionMode,
             onConfigChanged: onChanged,
           ),
         ),
