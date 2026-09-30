@@ -183,7 +183,7 @@ double-frame layer when Focused Inpaint is disabled.
 - Stale discovery file: restart Launcher; the plugin ignores discovery files whose `pid` no longer belongs to a running process.
 - Wrong secret or authentication error: click `重生成会话` in Launcher settings, then reconnect from Krita.
 - Large canvas rejected: resize the document to `4096x4096` or smaller for V1.
-- Empty inpaint mask: create a non-empty Krita selection before pressing `Inpaint`.
+- Empty inpaint mask: create a non-empty Krita selection before pressing `Inpaint`. If Launcher still reports an empty mask for an existing selection, the selection is too thin or too small to survive NovelAI's 8-pixel mask grid; thicken or enlarge it.
 - QtWebSockets import error: the plugin falls back to the bundled stdlib WebSocket client. If connection still fails, regenerate the Launcher bridge session and reconnect.
 - Generation stream interrupted: retry after checking Launcher logs; the bridge reports this when NovelAI streaming ends without a final image.
 

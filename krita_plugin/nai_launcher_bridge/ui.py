@@ -864,7 +864,7 @@ class NAILauncherBridgeDocker(DockWidget):
             "streaming_unsupported": "当前生成模式不支持流式预览",
             "server_error": "NovelAI 服务返回错误",
             "busy": "Launcher 正在生成，请等待当前任务结束",
-            "empty_mask": "蒙版为空，请先标记重绘区域",
+            "empty_mask": "蒙版为空或过细，请标记重绘区域，或加粗、扩大选区",
             "payload_too_large": "画布数据过大，无法通过 V1 桥接发送",
             "unsupported_document_format": "当前 Krita 文档格式暂不支持写回",
         }
