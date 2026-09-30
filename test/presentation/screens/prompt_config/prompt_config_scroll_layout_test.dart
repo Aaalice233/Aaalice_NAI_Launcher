@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/data/models/prompt/default_categories.dart';
@@ -259,7 +260,76 @@ RenderAdaptivePinnedHeaderSliver _pinnedSliverOf(
   return node;
 }
 
+FocusNode _searchFocus(WidgetTester tester) => tester
+    .widget<EditableText>(
+      find.descendant(
+        of: _searchField(),
+        matching: find.byType(EditableText, skipOffstage: false),
+      ),
+    )
+    .focusNode;
+
+Future<void> _pressFind(
+  WidgetTester tester,
+  LogicalKeyboardKey modifier,
+) async {
+  await tester.sendKeyDownEvent(modifier);
+  await tester.sendKeyEvent(LogicalKeyboardKey.keyF);
+  await tester.sendKeyUpEvent(modifier);
+  await tester.pumpAndSettle();
+}
+
 void main() {
+  for (final (size, textScale) in [
+    (const Size(320, 900), 1.0),
+    (const Size(840, 900), 1.0),
+    (const Size(1600, 900), 3.0),
+    (_landscape, 1.0),
+  ]) {
+    testWidgets('紧凑排布 $size、${textScale}x 在预览与算法分区按搜索快捷键时切回配方分区并聚焦搜索框', (
+      tester,
+    ) async {
+      await _pumpScreen(tester, size: size, textScale: textScale);
+      final l10n = _l10n(tester);
+      expect(_key('random-manager-compact-sections'), findsOneWidget);
+      for (final (section, modifier) in [
+        (l10n.randomManager_previewGeneration, LogicalKeyboardKey.controlLeft),
+        (l10n.randomManager_inspectorTitle, LogicalKeyboardKey.metaLeft),
+      ]) {
+        await _selectSection(tester, section);
+        expect(_searchFocus(tester).hasFocus, isFalse, reason: section);
+
+        await _pressFind(tester, modifier);
+        expect(_searchFocus(tester).hasFocus, isTrue, reason: section);
+        expect(
+          _key('random-manager-generate-sample').hitTestable(),
+          findsNothing,
+          reason: '$section 已切回配方分区',
+        );
+        await revealOnScreen(tester, _searchField());
+        expectReachable(tester, _searchField(), reason: '$section 搜索框');
+      }
+      expect(tester.takeException(), isNull);
+    });
+  }
+
+  testWidgets('宽屏排布按搜索快捷键只聚焦搜索框，不改动紧凑排布记住的分区', (tester) async {
+    await _pumpScreen(tester, size: const Size(840, 900));
+    final l10n = _l10n(tester);
+    await _selectSection(tester, l10n.randomManager_previewGeneration);
+    await _resize(tester, size: const Size(1180, 900));
+    expect(_key('random-manager-compact-sections'), findsNothing);
+
+    await _pressFind(tester, LogicalKeyboardKey.controlLeft);
+    expect(_searchFocus(tester).hasFocus, isTrue);
+
+    await _resize(tester, size: const Size(840, 900));
+    final generate = _key('random-manager-generate-sample');
+    await revealOnScreen(tester, generate);
+    expectReachable(tester, generate, reason: '仍停在预览分区');
+    expect(tester.takeException(), isNull);
+  });
+
   for (final locale in ['zh', 'en']) {
     for (final textScale in [1.0, 3.0]) {
       testWidgets('随机词库在 320–1600 宽度、$locale、${textScale}x 文字下无溢出且各分区操作可达', (
