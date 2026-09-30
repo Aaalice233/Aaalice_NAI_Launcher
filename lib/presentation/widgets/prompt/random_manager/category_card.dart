@@ -17,13 +17,7 @@ import 'random_config_l10n.dart';
 import 'tag_group_card.dart';
 
 export 'add_tag_group_dialog.dart' show AddTagGroupDialog;
-export 'category_card_widgets.dart'
-    show
-        ScopeTripleSwitch,
-        AddTagGroupCard,
-        AddCategoryButton,
-        EmptyCategoryPlaceholder,
-        CategoryStats;
+export 'category_card_widgets.dart' show AddCategoryButton;
 
 class CategoryCard extends ConsumerStatefulWidget {
   const CategoryCard({
