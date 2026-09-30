@@ -3,7 +3,7 @@ import hashlib
 import os
 import socket
 import threading
-from typing import Callable, Optional
+from typing import Callable, List, Optional, Union
 from urllib.parse import urlparse
 
 
@@ -13,6 +13,11 @@ OPCODE_TEXT = 0x1
 OPCODE_CLOSE = 0x8
 OPCODE_PING = 0x9
 OPCODE_PONG = 0xA
+RECV_CHUNK_BYTES = 4096
+# A multiple of 4, so every full block reuses the same mask integer.
+MASK_BLOCK_BYTES = 64 * 1024
+
+BytesLike = Union[bytes, bytearray, memoryview]
 
 
 class ParsedFrame:
@@ -20,6 +25,20 @@ class ParsedFrame:
         self.opcode = opcode
         self.payload = payload
         self.consumed = consumed
+
+
+class FrameHeader:
+    def __init__(
+        self,
+        opcode: int,
+        mask_key: Optional[bytes],
+        payload_start: int,
+        payload_end: int,
+    ) -> None:
+        self.opcode = opcode
+        self.mask_key = mask_key
+        self.payload_start = payload_start
+        self.payload_end = payload_end
 
 
 def accept_key(client_key: str) -> str:
@@ -50,13 +69,44 @@ def encode_frame(payload: bytes, *, opcode: int, mask: bool = False) -> bytes:
         return header + payload
 
     key = os.urandom(4)
-    masked = bytes(byte ^ key[index % 4] for index, byte in enumerate(payload))
-    return header + key + masked
+    return b"".join([header, key, *_masked_blocks(payload, key)])
 
 
-def parse_frame(data: bytes, *, expect_masked: bool) -> ParsedFrame:
-    if len(data) < 2:
-        raise ValueError("Incomplete WebSocket frame header")
+def apply_mask(data: BytesLike, mask_key: bytes) -> bytes:
+    return b"".join(_masked_blocks(data, mask_key))
+
+
+def _masked_blocks(data: BytesLike, mask_key: bytes) -> List[bytes]:
+    # Big-int XOR runs in C; blocking keeps temporaries from scaling with the frame.
+    with memoryview(data) as view:
+        length = len(view)
+        if length == 0:
+            return []
+        block_size = min(length, MASK_BLOCK_BYTES)
+        block_mask = _repeated_mask(mask_key, block_size)
+        blocks = []
+        for start in range(0, length, block_size):
+            with view[start : start + block_size] as block:
+                size = len(block)
+                if size == block_size:
+                    mask = block_mask
+                else:
+                    mask = _repeated_mask(mask_key, size)
+                masked = int.from_bytes(block, "big") ^ mask
+                blocks.append(masked.to_bytes(size, "big"))
+        return blocks
+
+
+def _repeated_mask(mask_key: bytes, size: int) -> int:
+    return int.from_bytes((mask_key * (size // 4 + 1))[:size], "big")
+
+
+def read_frame_header(
+    data: BytesLike, *, expect_masked: bool
+) -> Optional[FrameHeader]:
+    available = len(data)
+    if available < 2:
+        return None
 
     first = data[0]
     second = data[1]
@@ -71,36 +121,71 @@ def parse_frame(data: bytes, *, expect_masked: bool) -> ParsedFrame:
         raise ValueError("Unexpected WebSocket mask bit")
 
     length = second & 0x7F
-    offset = 2
     if length == 126:
-        if len(data) < offset + 2:
-            raise ValueError("Incomplete WebSocket extended length")
-        length = int.from_bytes(data[offset : offset + 2], "big")
-        offset += 2
+        length_end = 4
     elif length == 127:
-        if len(data) < offset + 8:
-            raise ValueError("Incomplete WebSocket extended length")
-        length = int.from_bytes(data[offset : offset + 8], "big")
-        offset += 8
+        length_end = 10
+    else:
+        length_end = 2
+    header_end = length_end + 4 if masked else length_end
+    if available < header_end:
+        return None
 
-    mask_key = b""
-    if masked:
-        if len(data) < offset + 4:
-            raise ValueError("Incomplete WebSocket mask")
-        mask_key = data[offset : offset + 4]
-        offset += 4
+    if length_end > 2:
+        length = int.from_bytes(data[2:length_end], "big")
+    mask_key = bytes(data[length_end:header_end]) if masked else None
+    return FrameHeader(
+        opcode=opcode,
+        mask_key=mask_key,
+        payload_start=header_end,
+        payload_end=header_end + length,
+    )
 
-    end = offset + length
-    if len(data) < end:
+
+def parse_frame(data: BytesLike, *, expect_masked: bool) -> ParsedFrame:
+    header = read_frame_header(data, expect_masked=expect_masked)
+    if header is None:
+        raise ValueError("Incomplete WebSocket frame header")
+    if len(data) < header.payload_end:
         raise ValueError("Incomplete WebSocket payload")
+    return _materialize_frame(data, header)
 
-    payload = data[offset:end]
-    if masked:
-        payload = bytes(
-            byte ^ mask_key[index % 4] for index, byte in enumerate(payload)
-        )
 
-    return ParsedFrame(opcode=opcode, payload=payload, consumed=end)
+def _materialize_frame(data: BytesLike, header: FrameHeader) -> ParsedFrame:
+    with memoryview(data)[header.payload_start : header.payload_end] as payload_view:
+        if header.mask_key is None:
+            payload = bytes(payload_view)
+        else:
+            payload = apply_mask(payload_view, header.mask_key)
+    return ParsedFrame(
+        opcode=header.opcode,
+        payload=payload,
+        consumed=header.payload_end,
+    )
+
+
+class FrameBuffer:
+    def __init__(self, *, expect_masked: bool) -> None:
+        self._data = bytearray()
+        self._expect_masked = expect_masked
+        self._header: Optional[FrameHeader] = None
+
+    def feed(self, chunk: BytesLike) -> None:
+        self._data += chunk
+
+    def pop_frame(self) -> Optional[ParsedFrame]:
+        header = self._header
+        if header is None:
+            header = read_frame_header(self._data, expect_masked=self._expect_masked)
+            if header is None:
+                return None
+            self._header = header
+        if len(self._data) < header.payload_end:
+            return None
+        frame = _materialize_frame(self._data, header)
+        del self._data[: header.payload_end]
+        self._header = None
+        return frame
 
 
 class FallbackWebSocketClient:
@@ -235,26 +320,21 @@ class FallbackWebSocketClient:
             raise ValueError("WebSocket handshake accept key mismatch")
 
     def _read_loop(self, sock: socket.socket) -> None:
-        buffer = bytearray()
+        frames = FrameBuffer(expect_masked=False)
         while not self._closed:
-            chunk = sock.recv(4096)
+            chunk = sock.recv(RECV_CHUNK_BYTES)
             if not chunk:
                 return
-            buffer.extend(chunk)
-            while buffer:
-                try:
-                    frame = parse_frame(bytes(buffer), expect_masked=False)
-                except ValueError as error:
-                    if str(error).startswith("Incomplete "):
-                        break
-                    raise
-                del buffer[: frame.consumed]
+            frames.feed(chunk)
+            frame = frames.pop_frame()
+            while frame is not None:
                 if frame.opcode == OPCODE_TEXT:
                     self._on_text_message(frame.payload.decode("utf-8"))
                 elif frame.opcode == OPCODE_CLOSE:
                     return
                 elif frame.opcode == OPCODE_PING:
                     self._send_control(OPCODE_PONG, frame.payload)
+                frame = frames.pop_frame()
 
     def _send_control(self, opcode: int, payload: bytes) -> None:
         sock = self._socket
