@@ -3,11 +3,19 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:hive/hive.dart';
 import 'package:image/image.dart' as img;
+import 'package:mocktail/mocktail.dart';
 import 'package:nai_launcher/data/models/gallery/local_image_record.dart';
 import 'package:nai_launcher/data/models/gallery/nai_image_metadata.dart';
+import 'package:nai_launcher/data/services/image_metadata_service.dart';
+import 'package:nai_launcher/data/services/metadata/isolate_metadata_service.dart';
+import 'package:nai_launcher/data/services/metadata/metadata_parse_executor.dart';
+import 'package:nai_launcher/data/services/metadata/unified_metadata_parser.dart';
 import 'package:nai_launcher/presentation/widgets/common/image_detail/file_image_detail_data.dart';
 import 'package:nai_launcher/presentation/widgets/common/image_detail/image_detail_data.dart';
+
+class _MockParseExecutor extends Mock implements MetadataParseExecutor {}
 
 void main() {
   test(
@@ -123,5 +131,66 @@ void main() {
     expect(resized.width, 4096);
     expect(resized.height, 4096);
     expect(resized.policy, ResizeImagePolicy.fit);
+  });
+
+  group('local detail metadata resolution', () {
+    late Directory directory;
+    late _MockParseExecutor executor;
+    final service = ImageMetadataService();
+
+    setUp(() async {
+      directory = await Directory.systemTemp.createTemp('local_detail_');
+      Hive.init(directory.path);
+      await service.initialize();
+      executor = _MockParseExecutor();
+      service.debugSetParseExecutorForTesting(executor);
+    });
+
+    tearDown(() async {
+      service.debugSetParseExecutorForTesting(null);
+      await service.clearCache();
+      await Hive.close();
+      await directory.delete(recursive: true);
+    });
+
+    LocalImageRecord recordFor(File file, {NaiImageMetadata? metadata}) {
+      return LocalImageRecord(
+        path: file.path,
+        metadata: metadata,
+        size: file.lengthSync(),
+        modifiedAt: DateTime(2026),
+      );
+    }
+
+    test('an image without metadata is parsed exactly once', () async {
+      final file = File('${directory.path}/plain.png')
+        ..writeAsBytesSync(img.encodePng(img.Image(width: 4, height: 4)));
+      when(() => executor.parseFile(any())).thenAnswer(
+        (_) async => MetadataParseResult.failed(const [
+          'NovelAI stealth_pngcomp',
+        ], 'No NovelAI stealth_pngcomp metadata found'),
+      );
+
+      final metadata = await LocalImageDetailData(
+        recordFor(file),
+      ).getMetadataAsync();
+
+      expect(metadata, isNull);
+      verify(() => executor.parseFile(file.path)).called(1);
+      expect(IsolateMetadataService.instance.getStatistics()['totalTasks'], 0);
+    });
+
+    test('record metadata is returned without parsing the file', () async {
+      final file = File('${directory.path}/recorded.png')
+        ..writeAsBytesSync(img.encodePng(img.Image(width: 4, height: 4)));
+      const recorded = NaiImageMetadata(prompt: 'from record');
+
+      final metadata = await LocalImageDetailData(
+        recordFor(file, metadata: recorded),
+      ).getMetadataAsync();
+
+      expect(metadata?.prompt, 'from record');
+      verifyNever(() => executor.parseFile(any()));
+    });
   });
 }

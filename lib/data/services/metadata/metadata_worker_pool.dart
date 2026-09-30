@@ -273,53 +273,6 @@ class MetadataWorkerPool {
     return _executeTask(worker, task, stopwatch);
   }
 
-  /// 快速解析（用于详情页）
-  ///
-  /// 使用较小的读取限制和较短超时，优先响应速度
-  Future<NaiImageMetadata?> parseForDetailView(String filePath) async {
-    final stopwatch = Stopwatch()..start();
-
-    AppLogger.i(
-      '[IsolateMetadata] Detail view parse START: $filePath',
-      'IsolateMetadataService',
-    );
-
-    try {
-      final result = await parseMetadata(
-        filePath,
-        config: const IsolateParseConfig(
-          timeout: Duration(seconds: 3),
-          useGradualRead: true,
-        ),
-      );
-
-      stopwatch.stop();
-
-      if (result.success) {
-        AppLogger.i(
-          '[IsolateMetadata] Detail view parse COMPLETED (${stopwatch.elapsedMilliseconds}ms): success',
-          'IsolateMetadataService',
-        );
-        return result.metadata;
-      } else {
-        AppLogger.w(
-          '[IsolateMetadata] Detail view parse FAILED (${stopwatch.elapsedMilliseconds}ms): ${result.error}',
-          'IsolateMetadataService',
-        );
-        return null;
-      }
-    } catch (e) {
-      stopwatch.stop();
-      AppLogger.e(
-        '[IsolateMetadata] Detail view parse ERROR (${stopwatch.elapsedMilliseconds}ms)',
-        e,
-        null,
-        'IsolateMetadataService',
-      );
-      return null;
-    }
-  }
-
   /// 完整解析（用于编辑等场景）
   ///
   /// 使用完整文件读取和较长超时，确保获取完整元数据
