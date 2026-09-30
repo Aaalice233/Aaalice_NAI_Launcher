@@ -527,6 +527,54 @@ void main() {
     );
   });
 
+  testWidgets('删除词组确认在短横屏与最窄屏放大文字下正文可滚动、取消与删除均可点', (tester) async {
+    // flutter_test 字体下英文约为真实宽度两倍，确认正文最长，作为压力场景
+    final l10n = lookupAppLocalizations(const Locale('en'));
+    for (final size in const [Size(740, 360), Size(320, 568)]) {
+      tester.view.physicalSize = size;
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      await tester.pumpWidget(const SizedBox.shrink());
+      await _pumpCard(
+        tester,
+        locale: const Locale('en'),
+        mediaQuery: (data) =>
+            data.copyWith(textScaler: const TextScaler.linear(3)),
+      );
+
+      await tester.tap(find.byIcon(Icons.more_horiz_rounded));
+      await tester.pumpAndSettle();
+      final deleteItem = find.text(l10n.common_delete).last;
+      await tester.ensureVisible(deleteItem);
+      await tester.pumpAndSettle();
+      await tester.tap(deleteItem);
+      await tester.pumpAndSettle();
+
+      final reason = 'size=$size';
+      expect(
+        find.text(l10n.randomManager_deleteTagGroupTitle),
+        findsOneWidget,
+        reason: reason,
+      );
+      expect(tester.takeException(), isNull, reason: reason);
+      for (final label in [l10n.common_cancel, l10n.common_delete]) {
+        final button = find.ancestor(
+          of: find.descendant(
+            of: find.byType(AlertDialog),
+            matching: find.text(label),
+          ),
+          matching: find.byWidgetPredicate(
+            (widget) => widget is ButtonStyleButton,
+          ),
+        );
+        expect(button.hitTestable(), findsOneWidget, reason: '$label $reason');
+      }
+      await tester.tap(find.text(l10n.common_cancel));
+      await tester.pumpAndSettle();
+    }
+  });
+
   testWidgets('编辑弹窗标签栏的悬停反馈画在分组底色之上', (tester) async {
     tester.view.physicalSize = const Size(1180, 900);
     tester.view.devicePixelRatio = 1;
@@ -558,6 +606,7 @@ void main() {
 Future<void> _pumpCard(
   WidgetTester tester, {
   RandomTagGroup group = _group,
+  Locale locale = const Locale('zh'),
   MediaQueryData Function(MediaQueryData data)? mediaQuery,
 }) async {
   await tester.pumpWidget(
@@ -568,7 +617,7 @@ Future<void> _pumpCard(
         ),
       ],
       child: MaterialApp(
-        locale: const Locale('zh'),
+        locale: locale,
         localizationsDelegates: AppLocalizations.localizationsDelegates,
         supportedLocales: AppLocalizations.supportedLocales,
         builder: (context, child) => MediaQuery(

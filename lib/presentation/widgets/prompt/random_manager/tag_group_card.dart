@@ -242,6 +242,7 @@ class _TagGroupCardState extends ConsumerState<TagGroupCard> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
+        scrollable: true,
         title: Text(context.l10n.randomManager_deleteTagGroupTitle),
         content: Text(
           context.l10n.randomManager_deleteTagGroupConfirm(

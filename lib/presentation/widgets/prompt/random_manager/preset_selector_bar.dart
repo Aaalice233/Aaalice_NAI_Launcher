@@ -95,7 +95,10 @@ class PresetSelectorBar extends ConsumerWidget {
                 )
               : Row(
                   key: const ValueKey('random-manager-heading-row'),
-                  children: [title, const Spacer(), menu],
+                  children: [
+                    Expanded(child: title),
+                    menu,
+                  ],
                 );
           return Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -316,6 +319,7 @@ class PresetSelectorBar extends ConsumerWidget {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
+        scrollable: true,
         title: Text(context.l10n.config_deletePreset),
         content: Text(
           context.l10n.randomManager_deletePresetConfirm(preset.name),
@@ -350,6 +354,7 @@ class PresetSelectorBar extends ConsumerWidget {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
+        scrollable: true,
         title: Text(context.l10n.randomManager_resetDefaultTitle),
         content: Text(context.l10n.randomManager_resetDefaultContent),
         actions: [
