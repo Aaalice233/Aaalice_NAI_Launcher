@@ -5923,8 +5923,13 @@
   "diy_dependencyType": "依存タイプ",
   "diy_sourceCategory": "ソースカテゴリ",
   "diy_selectSourceCategory": "ソースカテゴリを選択",
-  "diy_sourceCategoryId": "ソースカテゴリ ID",
-  "diy_enterCategoryId": "カテゴリ ID を入力",
+  "diy_sourceCharacterCount": "キャラクター数",
+  "diy_categoryUnavailable": "無効：{reference}",
+  "@diy_categoryUnavailable": {
+    "placeholders": {
+      "reference": {"type": "String"}
+    }
+  },
   "diy_mappingRules": "マッピングルール",
   "diy_noMappingRules": "マッピングルールはありません",
   "diy_deleteRule": "ルールを削除",
@@ -6010,7 +6015,6 @@
   "diy_triggerTags": "トリガータグ",
   "diy_commaSeparatedTagsHint": "カンマ区切りのタグリスト",
   "diy_targetCategories": "対象カテゴリ",
-  "diy_commaSeparatedCategoryIdsHint": "カンマ区切りのカテゴリ ID リスト",
   "diy_targetTags": "対象タグ",
   "diy_actionRemoveTags": "タグを削除",
   "diy_actionReplaceTags": "タグを置換",

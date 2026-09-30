@@ -12007,10 +12007,12 @@ class AppLocalizationsJa extends AppLocalizations {
   String get diy_selectSourceCategory => 'ソースカテゴリを選択';
 
   @override
-  String get diy_sourceCategoryId => 'ソースカテゴリ ID';
+  String get diy_sourceCharacterCount => 'キャラクター数';
 
   @override
-  String get diy_enterCategoryId => 'カテゴリ ID を入力';
+  String diy_categoryUnavailable(String reference) {
+    return '無効：$reference';
+  }
 
   @override
   String get diy_mappingRules => 'マッピングルール';
@@ -12182,9 +12184,6 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get diy_targetCategories => '対象カテゴリ';
-
-  @override
-  String get diy_commaSeparatedCategoryIdsHint => 'カンマ区切りのカテゴリ ID リスト';
 
   @override
   String get diy_targetTags => '対象タグ';

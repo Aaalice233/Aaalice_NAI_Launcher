@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:nai_launcher/core/utils/localization_extension.dart';
 
 import '../../../../../data/models/prompt/dependency_config.dart';
+import '../../../../../data/models/prompt/diy_category_references.dart';
 import '../../../../adaptive/adaptive_presenter.dart';
 import '../../../../widgets/common/elevated_card.dart';
 import '../../../../widgets/common/surface_ink_well.dart';
+import '../diy_category_field.dart';
 import 'package:nai_launcher/presentation/widgets/common/themed_form_input.dart';
 import 'package:nai_launcher/presentation/widgets/common/themed_input.dart';
 
@@ -19,8 +21,8 @@ class DependencyConfigPanel extends StatefulWidget {
   /// 配置变更回调
   final ValueChanged<DependencyConfig?> onConfigChanged;
 
-  /// 可选的源类别列表
-  final List<String> availableCategories;
+  /// 可选的源类别
+  final List<DiyCategoryOption> categoryOptions;
 
   /// 是否只读
   final bool readOnly;
@@ -29,7 +31,7 @@ class DependencyConfigPanel extends StatefulWidget {
     super.key,
     this.config,
     required this.onConfigChanged,
-    this.availableCategories = const [],
+    this.categoryOptions = const [],
     this.readOnly = false,
   });
 
@@ -361,54 +363,41 @@ class _DependencyConfigPanelState extends State<DependencyConfigPanel> {
             ],
           ),
           const SizedBox(height: 12),
-          if (widget.availableCategories.isNotEmpty)
-            DropdownButtonFormField<String>(
-              initialValue: _config.sourceCategoryId.isNotEmpty
-                  ? _config.sourceCategoryId
-                  : null,
-              decoration: InputDecoration(
-                hintText: context.l10n.diy_selectSourceCategory,
-                prefixIcon: Icon(
-                  Icons.folder_outlined,
-                  color: colorScheme.onSurfaceVariant,
-                ),
-                border: InputBorder.none,
+          DiyCategoryDropdown(
+            value: _config.sourceCategoryId,
+            options: _sourceOptions,
+            readOnly: widget.readOnly,
+            decoration: InputDecoration(
+              hintText: context.l10n.diy_selectSourceCategory,
+              prefixIcon: Icon(
+                Icons.folder_outlined,
+                color: colorScheme.onSurfaceVariant,
               ),
-              items: widget.availableCategories.map((category) {
-                return DropdownMenuItem(value: category, child: Text(category));
-              }).toList(),
-              onChanged: widget.readOnly
-                  ? null
-                  : (value) {
-                      if (value != null) {
-                        _updateConfig(
-                          _config.copyWith(sourceCategoryId: value),
-                        );
-                      }
-                    },
-            )
-          else
-            ThemedFormInput(
-              initialValue: _config.sourceCategoryId,
-              decoration: InputDecoration(
-                labelText: context.l10n.diy_sourceCategoryId,
-                hintText: context.l10n.diy_enterCategoryId,
-                prefixIcon: Icon(
-                  Icons.folder_outlined,
-                  color: colorScheme.onSurfaceVariant,
-                ),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(10),
-                ),
-              ),
-              readOnly: widget.readOnly,
-              onChanged: (value) {
-                _updateConfig(_config.copyWith(sourceCategoryId: value));
-              },
+              border: InputBorder.none,
             ),
+            onChanged: (value) {
+              _updateConfig(_config.copyWith(sourceCategoryId: value));
+            },
+          ),
         ],
       ),
     );
+  }
+
+  // 角色人数只在数量与值依赖中可被读取，存在/排斥依赖只看类别结果
+  List<DiyCategoryOption> get _sourceOptions {
+    final offersCharacterCount =
+        _config.type == DependencyType.count ||
+        _config.type == DependencyType.value ||
+        _config.sourceCategoryId == characterCountReference;
+    return [
+      if (offersCharacterCount)
+        DiyCategoryOption(
+          id: characterCountReference,
+          label: context.l10n.diy_sourceCharacterCount,
+        ),
+      ...widget.categoryOptions,
+    ];
   }
 
   Widget _buildMappingRulesEditor() {

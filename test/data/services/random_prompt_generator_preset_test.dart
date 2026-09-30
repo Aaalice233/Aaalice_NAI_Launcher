@@ -207,6 +207,45 @@ void main() {
     expect(result.mainPrompt, isNot(contains('santa hat')));
   });
 
+  test('dependencies resolve category ids distinct from keys', () async {
+    final preset = _preset([
+      _category(
+        id: 'cat-pose-id',
+        key: 'pose',
+        groups: [
+          _group(id: 'pose_group', tags: ['portrait']),
+        ],
+      ),
+      _category(
+        id: 'cat-extra-id',
+        key: 'extra',
+        groups: [
+          _group(
+            id: 'needs_pose',
+            tags: ['hat'],
+            dependencyConfig: const DependencyConfig(
+              type: DependencyType.exists,
+              sourceCategoryId: 'cat-pose-id',
+            ),
+          ),
+          _group(
+            id: 'excluded_by_pose',
+            tags: ['scarf'],
+            dependencyConfig: const DependencyConfig(
+              type: DependencyType.excludes,
+              sourceCategoryId: 'cat-pose-id',
+            ),
+          ),
+        ],
+      ),
+    ]);
+
+    final result = await generator.generateFromPreset(preset: preset, seed: 1);
+
+    expect(result.mainPrompt, contains('hat'));
+    expect(result.mainPrompt, isNot(contains('scarf')));
+  });
+
   test('dependency config controls multiple selection count', () async {
     final preset = _preset([
       _category(

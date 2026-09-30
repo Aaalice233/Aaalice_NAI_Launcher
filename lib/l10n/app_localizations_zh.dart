@@ -11787,10 +11787,12 @@ class AppLocalizationsZh extends AppLocalizations {
   String get diy_selectSourceCategory => '选择源类别';
 
   @override
-  String get diy_sourceCategoryId => '源类别 ID';
+  String get diy_sourceCharacterCount => '角色数量';
 
   @override
-  String get diy_enterCategoryId => '输入类别 ID';
+  String diy_categoryUnavailable(String reference) {
+    return '已失效：$reference';
+  }
 
   @override
   String get diy_mappingRules => '映射规则';
@@ -11962,9 +11964,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get diy_targetCategories => '目标类别';
-
-  @override
-  String get diy_commaSeparatedCategoryIdsHint => '用逗号分隔类别 ID';
 
   @override
   String get diy_targetTags => '目标标签';
@@ -26808,10 +26807,12 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get diy_selectSourceCategory => '選擇源類別';
 
   @override
-  String get diy_sourceCategoryId => '源類別 ID';
+  String get diy_sourceCharacterCount => '角色數量';
 
   @override
-  String get diy_enterCategoryId => '輸入類別 ID';
+  String diy_categoryUnavailable(String reference) {
+    return '已失效：$reference';
+  }
 
   @override
   String get diy_mappingRules => '對映規則';
@@ -26983,9 +26984,6 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get diy_targetCategories => '目標類別';
-
-  @override
-  String get diy_commaSeparatedCategoryIdsHint => '用逗號分隔類別 ID';
 
   @override
   String get diy_targetTags => '目標標籤';

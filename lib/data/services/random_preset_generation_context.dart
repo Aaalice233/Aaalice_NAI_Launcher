@@ -1,3 +1,5 @@
+import '../models/prompt/diy_category_references.dart';
+
 /// Runtime context shared across one `RandomPreset` generation.
 ///
 /// The context is intentionally mutable and scoped to one generation call. It
@@ -13,7 +15,10 @@ class RandomPresetGenerationContext {
   })  : generationTime = generationTime ?? DateTime.now(),
         categoryTags = categoryTags ?? <String, List<String>>{},
         variables = variables ?? <String, String>{} {
-    this.variables.putIfAbsent('character_count', () => '$characterCount');
+    this.variables.putIfAbsent(
+      characterCountReference,
+      () => '$characterCount',
+    );
     if (characterGender != null) {
       this.variables['character_gender'] = characterGender!;
     }
@@ -65,12 +70,12 @@ class RandomPresetGenerationContext {
   }
 
   int countFor(String key) {
-    if (key == 'character_count') return characterCount;
+    if (key == characterCountReference) return characterCount;
     return categoryTags[key]?.length ?? 0;
   }
 
   String firstValueFor(String key) {
-    if (key == 'character_count') return '$characterCount';
+    if (key == characterCountReference) return '$characterCount';
     final values = categoryTags[key];
     return variables[key] ??
         (values == null || values.isEmpty ? '' : values.first);

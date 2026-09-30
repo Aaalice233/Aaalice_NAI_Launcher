@@ -4,6 +4,7 @@ import 'package:nai_launcher/core/utils/localization_extension.dart';
 import '../../../../../data/models/prompt/visibility_rule.dart';
 import '../../../../widgets/common/themed_divider.dart';
 import '../../../../widgets/common/elevated_card.dart';
+import '../diy_category_field.dart';
 import 'package:nai_launcher/presentation/widgets/common/themed_form_input.dart';
 
 /// 可见性规则面板
@@ -17,8 +18,8 @@ class VisibilityRulePanel extends StatefulWidget {
   /// 规则变更回调
   final ValueChanged<List<VisibilityRule>> onRulesChanged;
 
-  /// 可选的类别列表
-  final List<String> availableCategories;
+  /// 可选的类别
+  final List<DiyCategoryOption> categoryOptions;
 
   /// 是否只读
   final bool readOnly;
@@ -27,7 +28,7 @@ class VisibilityRulePanel extends StatefulWidget {
     super.key,
     required this.rules,
     required this.onRulesChanged,
-    this.availableCategories = const [],
+    this.categoryOptions = const [],
     this.readOnly = false,
   });
 
@@ -311,9 +312,7 @@ class _VisibilityRulePanelState extends State<VisibilityRulePanel> {
                                   borderRadius: BorderRadius.circular(4),
                                 ),
                                 child: Text(
-                                  rule.sourceCategoryId.isNotEmpty
-                                      ? rule.sourceCategoryId
-                                      : context.l10n.diy_notSet,
+                                  _categoryLabel(rule.sourceCategoryId),
                                   style: theme.textTheme.labelSmall?.copyWith(
                                     color: colorScheme.primary,
                                   ),
@@ -340,9 +339,7 @@ class _VisibilityRulePanelState extends State<VisibilityRulePanel> {
                                   borderRadius: BorderRadius.circular(4),
                                 ),
                                 child: Text(
-                                  rule.targetCategoryId.isNotEmpty
-                                      ? rule.targetCategoryId
-                                      : context.l10n.diy_notSet,
+                                  _categoryLabel(rule.targetCategoryId),
                                   style: theme.textTheme.labelSmall?.copyWith(
                                     color: colorScheme.secondary,
                                   ),
@@ -514,7 +511,6 @@ class _VisibilityRulePanelState extends State<VisibilityRulePanel> {
             label: context.l10n.diy_sourceCategory,
             icon: Icons.folder_outlined,
             value: rule.sourceCategoryId,
-            color: colorScheme.primary,
             onChanged: (value) {
               _updateRule(index, rule.copyWith(sourceCategoryId: value));
             },
@@ -525,7 +521,6 @@ class _VisibilityRulePanelState extends State<VisibilityRulePanel> {
             label: context.l10n.diy_targetCategory,
             icon: Icons.folder_special_outlined,
             value: rule.targetCategoryId,
-            color: colorScheme.secondary,
             onChanged: (value) {
               _updateRule(index, rule.copyWith(targetCategoryId: value));
             },
@@ -660,41 +655,29 @@ class _VisibilityRulePanelState extends State<VisibilityRulePanel> {
     required String label,
     required IconData icon,
     required String value,
-    required Color color,
     required ValueChanged<String> onChanged,
   }) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
+    final colorScheme = Theme.of(context).colorScheme;
 
-    if (widget.availableCategories.isNotEmpty) {
-      return DropdownButtonFormField<String>(
-        initialValue: value.isNotEmpty ? value : null,
-        decoration: InputDecoration(
-          labelText: label,
-          prefixIcon: Icon(icon, color: colorScheme.onSurfaceVariant),
-          border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-        ),
-        items: widget.availableCategories.map((category) {
-          return DropdownMenuItem(value: category, child: Text(category));
-        }).toList(),
-        onChanged: widget.readOnly
-            ? null
-            : (v) {
-                if (v != null) onChanged(v);
-              },
-      );
-    }
-
-    return ThemedFormInput(
-      initialValue: value,
+    return DiyCategoryDropdown(
+      value: value,
+      options: widget.categoryOptions,
+      readOnly: widget.readOnly,
       decoration: InputDecoration(
         labelText: label,
         prefixIcon: Icon(icon, color: colorScheme.onSurfaceVariant),
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
       ),
-      readOnly: widget.readOnly,
       onChanged: onChanged,
     );
+  }
+
+  String _categoryLabel(String reference) {
+    if (reference.isEmpty) return context.l10n.diy_notSet;
+    for (final option in widget.categoryOptions) {
+      if (option.id == reference) return option.label;
+    }
+    return context.l10n.diy_categoryUnavailable(reference);
   }
 
   String _getConditionTypeLabel(VisibilityConditionType type) {

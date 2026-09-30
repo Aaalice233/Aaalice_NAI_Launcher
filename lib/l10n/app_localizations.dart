@@ -21414,17 +21414,17 @@ abstract class AppLocalizations {
   /// **'Select a source category'**
   String get diy_selectSourceCategory;
 
-  /// No description provided for @diy_sourceCategoryId.
+  /// No description provided for @diy_sourceCharacterCount.
   ///
   /// In en, this message translates to:
-  /// **'Source Category ID'**
-  String get diy_sourceCategoryId;
+  /// **'Character count'**
+  String get diy_sourceCharacterCount;
 
-  /// No description provided for @diy_enterCategoryId.
+  /// No description provided for @diy_categoryUnavailable.
   ///
   /// In en, this message translates to:
-  /// **'Enter a category ID'**
-  String get diy_enterCategoryId;
+  /// **'Unavailable: {reference}'**
+  String diy_categoryUnavailable(String reference);
 
   /// No description provided for @diy_mappingRules.
   ///
@@ -21743,12 +21743,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Target Categories'**
   String get diy_targetCategories;
-
-  /// No description provided for @diy_commaSeparatedCategoryIdsHint.
-  ///
-  /// In en, this message translates to:
-  /// **'Comma-separated category ID list'**
-  String get diy_commaSeparatedCategoryIdsHint;
 
   /// No description provided for @diy_targetTags.
   ///

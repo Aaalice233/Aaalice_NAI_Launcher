@@ -4,6 +4,7 @@ import 'package:uuid/uuid.dart';
 import 'algorithm_config.dart';
 import 'default_categories.dart';
 import 'default_tag_group_mappings.dart';
+import 'diy_category_references.dart';
 import 'pool_mapping.dart';
 import 'random_category.dart';
 import 'random_tag_group.dart';
@@ -121,15 +122,26 @@ class RandomPreset with _$RandomPreset {
   /// 从现有预设复制创建新预设
   factory RandomPreset.copyFrom(RandomPreset source, {required String name}) {
     final now = DateTime.now();
+    final copiedCategories = source.categories
+        .map((c) => c.deepCopy())
+        .toList();
+    // 深拷贝会换新类别 ID，DIY 规则按 ID 引用类别，需同步指向副本
+    final copiedCategoryIds = {
+      for (var i = 0; i < copiedCategories.length; i++)
+        source.categories[i].id: copiedCategories[i].id,
+    };
+    String remap(String reference) => copiedCategoryIds[reference] ?? reference;
     return RandomPreset(
       id: const Uuid().v4(),
       name: name,
       description: source.description,
       isDefault: false,
       version: source.version,
-      algorithmConfig: source.algorithmConfig,
+      algorithmConfig: source.algorithmConfig.mapCategoryReferences(remap),
       categoryProbabilities: source.categoryProbabilities,
-      categories: source.categories.map((c) => c.deepCopy()).toList(),
+      categories: copiedCategories
+          .map((c) => c.mapCategoryReferences(remap))
+          .toList(),
       tagGroupMappings: source.tagGroupMappings
           .map(
             (m) => m.copyWith(
