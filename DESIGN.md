@@ -356,7 +356,7 @@ Compact/Medium 下没有持久侧栏时，页面名称保留在主工具栏，�
 
 ## 视觉与交互验收
 
-用户要求自动化验收时，按 [aaalice-runtime-verify](.agents/skills/aaalice-runtime-verify/SKILL.md) 自动启动或复用热重载，Windows 使用 Computer Use 操作并查看当前 Debug App，Android 使用 ADB 操作与截图。工具准备、授权边界和日志流程由技能维护；本节只定义应观察的设计结果。
+用户要求自动化验收时，按 [aaalice-runtime-verify](.agents/skills/aaalice-runtime-verify/SKILL.md) 启动或复用热重载并完成真实操作与截图；操作工具、授权边界和日志流程均以该技能为准，本节只定义应观察的设计结果。
 
 - 按本次相关页面、子部件、状态和展开层级建立矩阵，实际打开菜单、弹窗、筛选和编辑态，确认操作结果；不能只访问顶级页面。
 - 当前 Agent 逐张查看截图，检查页面四边、工具栏首尾、标题层级、文字/图标对比、对齐间距、命中区、裁切遮挡与滚动可达性；不以截图文件存在、UI 树或日志正常代替视觉检查。

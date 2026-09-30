@@ -791,7 +791,6 @@ int groupTagCount(Ref ref, RandomTagGroup group) {
     return 0;
   }
 
-  // TagGroup/Pool 类型：从缓存服务获取（返回已同步的数量）
-  // 这里暂时返回 0，因为实际数量在 tagGroupMappings 中
+  // TagGroup/Pool 类型只统计内嵌 tags，Pool 不内嵌标签故为 0
   return group.tagCount;
 }
