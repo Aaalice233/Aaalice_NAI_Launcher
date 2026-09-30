@@ -761,11 +761,12 @@ class _ImageDetailViewerState extends ConsumerState<ImageDetailViewer> {
       final stripMetadata = ref
           .read(shareImageSettingsProvider)
           .effectiveStripMetadataForCopyAndDrag;
-      final shareImage = await ImageShareSanitizer.prepareForCopyOrDrag(
-        imageBytes,
-        fileName: fileName,
-        stripMetadata: stripMetadata,
-      );
+      final shareImage =
+          await ImageShareSanitizer.prepareForCopyOrDragInBackground(
+            imageBytes,
+            fileName: fileName,
+            stripMetadata: stripMetadata,
+          );
       if (!context.mounted) return;
       final renderBox = context.findRenderObject() as RenderBox?;
       final origin = renderBox == null

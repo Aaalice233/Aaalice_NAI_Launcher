@@ -265,6 +265,72 @@ void main() {
         expect(result.bytes, orderedEquals(bytes));
       },
     );
+
+    test(
+      'background copy preparation matches the synchronous result',
+      () async {
+        final orientedJpeg = Uint8List.fromList(
+          img.encodeJpg(
+            img.Image(width: 6, height: 4)..exif.imageIfd.orientation = 6,
+          ),
+        );
+        final png = _buildPngWithTextChunks({'Comment': '{"prompt":"x"}'});
+        final cases = [
+          (orientedJpeg, 'photo.heic', false),
+          (orientedJpeg, 'photo', false),
+          (Uint8List.fromList(const [9, 8, 7, 6]), 'broken.heic', false),
+          (orientedJpeg, 'photo.jpg', true),
+          (png, 'sample.png', true),
+        ];
+
+        for (final (bytes, fileName, stripMetadata) in cases) {
+          final expected = await ImageShareSanitizer.prepareForCopyOrDrag(
+            bytes,
+            fileName: fileName,
+            stripMetadata: stripMetadata,
+          );
+          final result =
+              await ImageShareSanitizer.prepareForCopyOrDragInBackground(
+                bytes,
+                fileName: fileName,
+                stripMetadata: stripMetadata,
+              );
+
+          final reason = '$fileName strip=$stripMetadata';
+          expect(result.bytes, orderedEquals(expected.bytes), reason: reason);
+          expect(result.fileName, expected.fileName, reason: reason);
+          expect(result.mimeType, expected.mimeType, reason: reason);
+        }
+      },
+    );
+
+    test(
+      'background copy preparation passes clipboard formats through',
+      () async {
+        final png = _buildPngWithTextChunks({'Comment': '{"prompt":"x"}'});
+
+        final result =
+            await ImageShareSanitizer.prepareForCopyOrDragInBackground(
+              png,
+              fileName: 'sample.png',
+              stripMetadata: false,
+            );
+
+        expect(result.bytes, same(png));
+        expect(result.fileName, 'sample.png');
+      },
+    );
+
+    test('background copy preparation keeps sanitize errors', () async {
+      await expectLater(
+        ImageShareSanitizer.prepareForCopyOrDragInBackground(
+          Uint8List.fromList(const [9, 8, 7, 6]),
+          fileName: 'broken.jpg',
+          stripMetadata: true,
+        ),
+        throwsA(isA<ImageSanitizeException>()),
+      );
+    });
   });
 
   group('ShareImageTransferCache', () {

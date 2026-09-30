@@ -243,7 +243,10 @@ final class ImageResourceActionService {
     if (loaded.error case final error?) return error;
     final KritaOutboundImage outbound;
     try {
-      outbound = KritaOutboundImage.prepare(loaded.bytes!, name: loaded.label!);
+      outbound = await KritaOutboundImage.prepareInBackground(
+        loaded.bytes!,
+        name: loaded.label!,
+      );
     } on Object {
       return agentToolError(
         'krita_unsupported_image',

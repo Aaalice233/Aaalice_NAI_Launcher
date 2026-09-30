@@ -458,18 +458,10 @@ class ShareImagePreparationService extends ChangeNotifier {
     required String fileName,
     required bool stripMetadata,
   }) {
-    if (stripMetadata) {
-      return ImageShareSanitizer.prepareForCopyOrDragInBackground(
-        bytes,
-        fileName: fileName,
-        stripMetadata: true,
-      );
-    }
-
-    return ImageShareSanitizer.prepareForCopyOrDrag(
+    return ImageShareSanitizer.prepareForCopyOrDragInBackground(
       bytes,
       fileName: fileName,
-      stripMetadata: false,
+      stripMetadata: stripMetadata,
     );
   }
 
@@ -592,7 +584,7 @@ class ImageShareSanitizer {
       return sanitizeForShare(bytes, fileName: normalizedFileName);
     }
 
-    if (!_clipboardFriendlyExtensions.contains(extension)) {
+    if (!_isClipboardFriendly(normalizedFileName)) {
       return _normalizeWithoutProtection(bytes, fileName: normalizedFileName);
     }
 
@@ -618,7 +610,7 @@ class ImageShareSanitizer {
       );
       return transform.apply(image, stripMetadata: stripMetadata);
     }
-    if (!stripMetadata) {
+    if (!stripMetadata && _isClipboardFriendly(fileName)) {
       return prepareForCopyOrDrag(
         bytes,
         fileName: fileName,
@@ -632,7 +624,7 @@ class ImageShareSanitizer {
       return prepareForCopyOrDrag(
         materializedBytes,
         fileName: fileName,
-        stripMetadata: true,
+        stripMetadata: stripMetadata,
       );
     });
   }
@@ -726,6 +718,11 @@ class ImageShareSanitizer {
       return 'shared.png';
     }
     return normalized;
+  }
+
+  static bool _isClipboardFriendly(String fileName) {
+    final extension = p.extension(_normalizeShareFileName(fileName));
+    return _clipboardFriendlyExtensions.contains(extension.toLowerCase());
   }
 
   static String _mimeTypeForExtension(String extension) {
