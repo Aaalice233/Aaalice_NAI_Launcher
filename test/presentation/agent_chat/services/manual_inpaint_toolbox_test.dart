@@ -11,6 +11,7 @@ import 'package:nai_launcher/core/agent/agent_types.dart';
 import 'package:nai_launcher/core/agent/resources/agent_chat_resource_reference.dart';
 import 'package:nai_launcher/core/agent/resources/agent_chat_resource_reference_codec.dart';
 import 'package:nai_launcher/core/utils/display_thumbnail_utils.dart';
+import 'package:nai_launcher/core/utils/inpaint_mask_utils.dart';
 import 'package:nai_launcher/data/models/image/image_params.dart';
 import 'package:nai_launcher/data/models/inpaint/inpaint_draft.dart';
 import 'package:nai_launcher/data/models/inpaint/inpaint_draft_status.dart';
@@ -21,6 +22,7 @@ import 'package:nai_launcher/presentation/providers/generation/generation_params
 import 'package:nai_launcher/presentation/widgets/image_editor/image_editor_types.dart';
 
 import '../../../helpers/exif_orientation_fixture.dart';
+import '../../../helpers/shared_compute_gate.dart';
 
 final _refProvider = Provider<Ref>((ref) => ref);
 
@@ -693,9 +695,44 @@ void main() {
         final drafts = await repository.list();
         expect(drafts, hasLength(1));
         expect(drafts.single.status, InpaintDraftStatus.ready);
-        expect(await repository.readMask(drafts.single.id), isNotNull);
+        final mask = InpaintMaskUtils.decodeBinaryMask(
+          (await repository.readMask(drafts.single.id))!,
+        )!;
+        final coverage =
+            InpaintMaskUtils.countMaskedPixels(mask.mask) /
+            (mask.width * mask.height);
+        expect(
+          result.details['maskCoverage'],
+          double.parse(coverage.toStringAsFixed(4)),
+        );
       },
     );
+
+    test('authored regions rasterize behind the compute gate', () async {
+      final toolbox = await buildToolbox();
+      final tools = {for (final tool in toolbox.tools()) tool.name: tool};
+      markObservedPath(sourceFile.path);
+
+      final result = await expectQueuedBehindSharedComputeGate(
+        () => tools['create_inpaint_mask']!.execute('c5', {
+          'source_image': 'source.png',
+          'prompt': 'remove nothing',
+          'regions': const [
+            {
+              'shape': 'rect',
+              'mode': 'subtract',
+              'x': 0.2,
+              'y': 0.2,
+              'width': 0.3,
+              'height': 0.3,
+            },
+          ],
+        }),
+      );
+
+      expect(result.details['code'], 'empty_mask');
+      expect(await repository.list(), isEmpty);
+    });
   });
 
   group('editor results', () {

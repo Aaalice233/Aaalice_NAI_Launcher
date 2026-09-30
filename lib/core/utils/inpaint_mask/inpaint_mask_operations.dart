@@ -231,6 +231,30 @@ class InpaintMaskUtils {
     return ComputeGate().runIsolate(() => decodeBinaryMask(bytes));
   }
 
+  /// 在后台解码为 0/1 二值蒙版并数出被覆盖的像素。
+  static Future<({Uint8List mask, int width, int height, int maskedPixels})?>
+  decodeBinaryMaskWithCoverageAsync(Uint8List bytes) {
+    return ComputeGate().runIsolate(() {
+      final decoded = decodeBinaryMask(bytes);
+      if (decoded == null) return null;
+      return (
+        mask: decoded.mask,
+        width: decoded.width,
+        height: decoded.height,
+        maskedPixels: countMaskedPixels(decoded.mask),
+      );
+    });
+  }
+
+  /// 0/1 二值蒙版中被覆盖的像素数。
+  static int countMaskedPixels(Uint8List binaryMask) {
+    var total = 0;
+    for (final value in binaryMask) {
+      total += value;
+    }
+    return total;
+  }
+
   /// 将 0/1 二值蒙版渲染为黑白 RGBA 图像（白=蒙版区域），不做 PNG 编码。
   static img.Image binaryMaskToImage(
     Uint8List binaryMask,

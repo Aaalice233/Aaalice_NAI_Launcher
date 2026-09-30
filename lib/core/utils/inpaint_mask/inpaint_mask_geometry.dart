@@ -88,6 +88,23 @@ abstract final class InpaintMaskGeometry {
     return expandBinary(mask, width: width, height: height, radius: radius);
   }
 
+  /// [rasterizeBinary] 的后台 isolate 版本，同时数出被覆盖的像素；
+  /// 几何非法时抛出同样的 [InpaintMaskGeometryException]。
+  static Future<({Uint8List mask, int maskedPixels})> rasterizeBinaryAsync({
+    required List<InpaintMaskRegion> regions,
+    required int width,
+    required int height,
+    double expandRatio = 0,
+  }) => ComputeGate().runIsolate(() {
+    final mask = rasterizeBinary(
+      regions: regions,
+      width: width,
+      height: height,
+      expandRatio: expandRatio,
+    );
+    return (mask: mask, maskedPixels: InpaintMaskUtils.countMaskedPixels(mask));
+  });
+
   static Uint8List rasterizeToPng({
     required List<InpaintMaskRegion> regions,
     required int width,
