@@ -521,16 +521,17 @@ class RandomPromptGenerator {
     required RandomPresetGenerationContext context,
   }) async {
     // 过滤启用且符合条件的词组
-    final enabledGroups = category.groups.where((g) {
-      if (!g.enabled) return false;
-      if (!g.isApplicableToScope(targetScope)) return false;
-      if (characterGender != null && !g.isApplicableToGender(characterGender)) {
-        return false;
-      }
-      if (!g.isTimeConditionActive(context.generationTime)) return false;
-      if (!g.checkVisibility(context.tagContext)) return false;
-      return rules.isDependencySatisfied(g, context);
-    }).toList();
+    final enabledGroups = category.groups
+        .where(
+          (g) => _isGroupEligible(
+            g,
+            rules,
+            context,
+            targetScope: targetScope,
+            characterGender: characterGender,
+          ),
+        )
+        .toList();
     if (enabledGroups.isEmpty) return [];
 
     // 根据 groupSelectionMode 选择词组
@@ -559,6 +560,7 @@ class RandomPromptGenerator {
         effectiveGroup,
         category,
         random,
+        rules,
         context,
       );
       results.addAll(tags);
@@ -570,6 +572,25 @@ class RandomPromptGenerator {
     }
 
     return results;
+  }
+
+  /// 顶层词组与子词组共用的参与条件：启用、作用域、性别、时间、可见性与依赖
+  bool _isGroupEligible(
+    RandomTagGroup group,
+    RandomPresetRules rules,
+    RandomPresetGenerationContext context, {
+    TagScope targetScope = TagScope.all,
+    String? characterGender,
+  }) {
+    if (!group.enabled) return false;
+    if (!group.isApplicableToScope(targetScope)) return false;
+    if (characterGender != null &&
+        !group.isApplicableToGender(characterGender)) {
+      return false;
+    }
+    if (!group.isTimeConditionActive(context.generationTime)) return false;
+    if (!group.checkVisibility(context.tagContext)) return false;
+    return rules.isDependencySatisfied(group, context);
   }
 
   RandomTagGroup _applyDependencySelectionCount(
@@ -593,6 +614,7 @@ class RandomPromptGenerator {
     RandomTagGroup group,
     RandomCategory category,
     Random random,
+    RandomPresetRules rules,
     RandomPresetGenerationContext context,
   ) async {
     final branchConfig = group.conditionalBranchConfig;
@@ -617,6 +639,7 @@ class RandomPromptGenerator {
             branchGroup,
             category,
             random,
+            rules,
             context,
           );
         }
@@ -625,7 +648,7 @@ class RandomPromptGenerator {
 
     // 处理嵌套配置
     if (group.nodeType == TagGroupNodeType.config) {
-      return _generateFromNestedGroup(group, category, random, context);
+      return _generateFromNestedGroup(group, category, random, rules, context);
     }
 
     // Pool 类型使用专门的生成逻辑
@@ -768,13 +791,25 @@ class RandomPromptGenerator {
   }
 
   /// 从嵌套词组生成标签（递归）
+  ///
+  /// 子词组与顶层词组一样求值性别、时间、可见性与依赖，作用域随父词组
   Future<List<String>> _generateFromNestedGroup(
     RandomTagGroup group,
     RandomCategory category,
     Random random,
+    RandomPresetRules rules,
     RandomPresetGenerationContext context,
   ) async {
-    final enabledChildren = group.children.where((c) => c.enabled).toList();
+    final enabledChildren = group.children
+        .where(
+          (child) => _isGroupEligible(
+            child,
+            rules,
+            context,
+            characterGender: context.characterGender,
+          ),
+        )
+        .toList();
     if (enabledChildren.isEmpty) return [];
 
     // 根据 selectionMode 选择子词组
@@ -794,9 +829,10 @@ class RandomPromptGenerator {
 
       // 递归生成
       final childTags = await _generateFromGroup(
-        child,
+        _applyDependencySelectionCount(child, rules, context, random),
         category,
         random,
+        rules,
         context,
       );
       results.addAll(childTags);
@@ -992,6 +1028,7 @@ class RandomPromptGenerator {
             group,
             category,
             random,
+            rules,
             context,
           );
           context.addCategoryTags(

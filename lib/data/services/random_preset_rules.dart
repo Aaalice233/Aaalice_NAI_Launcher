@@ -127,20 +127,15 @@ class RandomPresetRules {
     }
   }
 
-  // 子词组生成时不求值可见性，这里与之一致只收集顶层词组的规则
   static Map<String, VisibilityRuleSet> _collectCategoryVisibilityRules(
     List<RandomCategory> categories,
   ) {
     final categoryIds = {for (final category in categories) category.id};
     final rulesByTarget = <String, List<VisibilityRule>>{};
-    for (final category in categories) {
-      if (!category.enabled) continue;
-      for (final group in category.groups) {
-        if (!group.enabled) continue;
-        for (final rule in group.visibilityRules) {
-          if (!categoryIds.contains(rule.targetCategoryId)) continue;
-          rulesByTarget.putIfAbsent(rule.targetCategoryId, () => []).add(rule);
-        }
+    for (final group in _activeGroups(categories)) {
+      for (final rule in group.visibilityRules) {
+        if (!categoryIds.contains(rule.targetCategoryId)) continue;
+        rulesByTarget.putIfAbsent(rule.targetCategoryId, () => []).add(rule);
       }
     }
     return {
