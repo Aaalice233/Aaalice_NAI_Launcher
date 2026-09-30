@@ -11,6 +11,7 @@ import '../../data/models/image/image_params.dart';
 import '../../data/services/fixed_tag/fixed_tag_usage_record_store.dart';
 import '../../data/services/image_metadata_service.dart';
 import '../../data/services/metadata/hash_calculator.dart';
+import '../../data/services/metadata/metadata_parse_executor.dart';
 import '../../data/services/metadata/unified_metadata_parser.dart';
 import '../constants/api_constants.dart';
 import '../enums/image_model_mode.dart';
@@ -189,10 +190,7 @@ class ImageSaveUtils {
   }) async {
     final existingMetadata = _extractEmbeddedPngMetadata(imageBytes);
     if (preserveExistingNovelAiMetadata &&
-        await _hasReadableNovelAiMetadataInBackground(
-          imageBytes,
-          existingMetadata,
-        )) {
+        await _hasReadableNovelAiMetadataOffUi(imageBytes, existingMetadata)) {
       AppLogger.i(
         'Preserving existing NovelAI metadata without rewriting image bytes',
         'ImageSaveUtils',
@@ -481,24 +479,23 @@ class ImageSaveUtils {
     Uint8List imageBytes,
     _EmbeddedPngMetadata? embeddedMetadata,
   ) {
-    return embeddedMetadata != null || _parsesAsNovelAiMetadata(imageBytes);
+    return embeddedMetadata != null ||
+        _isNovelAiResult(UnifiedMetadataParser.parseFromPng(imageBytes));
   }
 
-  // 缺少文本块时解析会整图解码查找 stealth 数据，只把这一步放到后台。
-  static Future<bool> _hasReadableNovelAiMetadataInBackground(
+  // 文本块在当前 isolate 就能判断，只有 stealth 整图解码交给后台。
+  static Future<bool> _hasReadableNovelAiMetadataOffUi(
     Uint8List imageBytes,
     _EmbeddedPngMetadata? embeddedMetadata,
   ) async {
     if (embeddedMetadata != null) return true;
-    return ComputeGate().runCompute(
-      _parsesAsNovelAiMetadata,
-      imageBytes,
-      debugLabel: 'detect-novelai-metadata',
-    );
+    final result =
+        UnifiedMetadataParser.parseFromPngWithoutPixelDecode(imageBytes) ??
+        await const MetadataParseExecutor().parseBytes(imageBytes);
+    return _isNovelAiResult(result);
   }
 
-  static bool _parsesAsNovelAiMetadata(Uint8List imageBytes) {
-    final result = UnifiedMetadataParser.parseFromPng(imageBytes);
+  static bool _isNovelAiResult(MetadataParseResult result) {
     if (!result.success) {
       return false;
     }
@@ -674,7 +671,7 @@ class ImageSaveUtils {
     final rebuilt =
         !preserveOriginalBytes &&
         metadata != null &&
-        !await _hasReadableNovelAiMetadataInBackground(
+        !await _hasReadableNovelAiMetadataOffUi(
           imageBytes,
           _extractEmbeddedPngMetadata(imageBytes),
         );

@@ -57,6 +57,15 @@ class UnifiedMetadataParser {
     useCache: useCache,
   );
 
+  /// Null means the answer needs the stealth pixel decode; run [parseFromImage]
+  /// off the UI isolate in that case.
+  static MetadataParseResult? parseFromImageWithoutPixelDecode(
+    Uint8List bytes,
+  ) => _service.parseFromImageWithoutPixelDecode(bytes);
+
+  static MetadataParseResult? parseFromPngWithoutPixelDecode(Uint8List bytes) =>
+      _service.parseFromPngWithoutPixelDecode(bytes);
+
   static MetadataParseResult parseFromWebp(
     Uint8List bytes, {
     String? filePathForLog,
