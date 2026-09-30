@@ -8,12 +8,14 @@ import '../../../../core/utils/localization_extension.dart';
 import '../../../adaptive/adaptive_pinned_header_sliver.dart';
 import '../../../adaptive/adaptive_presenter.dart';
 import '../../../adaptive/content_sized_adaptive_form.dart';
+import '../../../adaptive/interaction_policy.dart';
 import '../../../providers/random_preset_provider.dart';
 import '../../../../data/models/prompt/random_category.dart';
 import '../../../../data/models/prompt/random_tag_group.dart';
 import '../../../../data/models/prompt/weighted_tag.dart';
 import '../../common/emoji_picker_dialog.dart';
 import '../../common/hover_preview_card.dart';
+import '../../common/surface_ink_well.dart';
 import '../../common/tab_swipe_detector.dart';
 import 'danbooru_preview_content.dart';
 import 'random_config_l10n.dart';
@@ -696,6 +698,7 @@ class _DanbooruListTile extends StatefulWidget {
 
 class _DanbooruListTileState extends State<_DanbooruListTile> {
   bool _isHovered = false;
+  bool _hasFocus = false;
 
   Widget _buildPreviewContent(BuildContext context) {
     if (widget.itemType == DanbooruItemType.tagGroup &&
@@ -714,70 +717,88 @@ class _DanbooruListTileState extends State<_DanbooruListTile> {
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     final theme = Theme.of(context);
+    // 触屏没有悬停，外部打开入口常驻；指针下在悬停、焦点位于本行或已选中时显示
+    final showOpenExternal =
+        context.interactionPolicy.shouldExposeTouchAlternatives ||
+        _isHovered ||
+        _hasFocus ||
+        widget.isSelected;
 
-    final tile = MouseRegion(
-      cursor: SystemMouseCursors.click,
-      onEnter: (_) => setState(() => _isHovered = true),
-      onExit: (_) => setState(() => _isHovered = false),
-      child: GestureDetector(
-        onTap: widget.onTap,
-        child: AnimatedContainer(
-          duration: MediaQuery.disableAnimationsOf(context)
-              ? Duration.zero
-              : const Duration(milliseconds: 150),
-          margin: const EdgeInsets.only(bottom: 6),
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-          decoration: BoxDecoration(
-            color: widget.isSelected
-                ? colorScheme.primaryContainer
-                : _isHovered
-                ? colorScheme.surfaceContainerHigh
-                : colorScheme.surfaceContainerHighest,
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Row(
-            children: [
-              Icon(
-                widget.isSelected
-                    ? Icons.check_circle
-                    : Icons.radio_button_unchecked,
-                size: 20,
-                color: widget.isSelected
-                    ? colorScheme.primary
-                    : colorScheme.onSurfaceVariant,
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+    final tile = Padding(
+      padding: const EdgeInsets.only(bottom: 6),
+      child: Focus(
+        canRequestFocus: false,
+        skipTraversal: true,
+        includeSemantics: false,
+        onFocusChange: (hasFocus) => setState(() => _hasFocus = hasFocus),
+        child: MouseRegion(
+          onEnter: (_) => setState(() => _isHovered = true),
+          onExit: (_) => setState(() => _isHovered = false),
+          child: Semantics(
+            container: true,
+            button: true,
+            selected: widget.isSelected,
+            child: SurfaceInkWell(
+              borderRadius: BorderRadius.circular(8),
+              color: widget.isSelected
+                  ? colorScheme.primaryContainer
+                  : colorScheme.surfaceContainerHighest,
+              duration: const Duration(milliseconds: 150),
+              onTap: widget.onTap,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 10,
+                ),
+                child: Row(
                   children: [
-                    Text(
-                      widget.label,
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        fontWeight: widget.isSelected
-                            ? FontWeight.bold
-                            : FontWeight.normal,
+                    Icon(
+                      widget.isSelected
+                          ? Icons.check_circle
+                          : Icons.radio_button_unchecked,
+                      size: 20,
+                      color: widget.isSelected
+                          ? colorScheme.primary
+                          : colorScheme.onSurfaceVariant,
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            widget.label,
+                            style: theme.textTheme.bodyMedium?.copyWith(
+                              fontWeight: widget.isSelected
+                                  ? FontWeight.bold
+                                  : FontWeight.normal,
+                            ),
+                          ),
+                          Text(
+                            widget.subtitle,
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                    Text(
-                      widget.subtitle,
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: colorScheme.onSurfaceVariant,
+                    // 隐藏时仍占位，悬停显示不会改变标题可用宽度与行高
+                    Visibility(
+                      visible: showOpenExternal,
+                      maintainSize: true,
+                      maintainAnimation: true,
+                      maintainState: true,
+                      child: IconButton(
+                        icon: const Icon(Icons.open_in_new, size: 18),
+                        onPressed: widget.onOpenExternal,
+                        tooltip: context.l10n.randomManager_openInDanbooru,
                       ),
                     ),
                   ],
                 ),
               ),
-              if (_isHovered || widget.isSelected)
-                IconButton(
-                  icon: const Icon(Icons.open_in_new, size: 18),
-                  onPressed: widget.onOpenExternal,
-                  tooltip: context.l10n.randomManager_openInDanbooru,
-                  style: IconButton.styleFrom(
-                    backgroundColor: Colors.transparent,
-                  ),
-                ),
-            ],
+            ),
           ),
         ),
       ),
