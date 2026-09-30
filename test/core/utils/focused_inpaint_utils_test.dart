@@ -678,38 +678,35 @@ void main() {
       });
     });
 
-    test(
-      'resolvePreviewCrop should prefer explicit focused selection rect',
-      () {
-        final source = img.Image(width: 1000, height: 1000);
-        img.fill(source, color: img.ColorRgb8(0, 0, 0));
+    test('prepareRequest should prefer explicit focused selection rect', () {
+      final source = img.Image(width: 1000, height: 1000);
+      img.fill(source, color: img.ColorRgb8(0, 0, 0));
 
-        final mask = img.Image(width: 1000, height: 1000);
-        img.fill(mask, color: img.ColorRgb8(0, 0, 0));
-        for (var y = 620; y < 700; y++) {
-          for (var x = 700; x < 780; x++) {
-            mask.setPixelRgb(x, y, 255, 255, 255);
-          }
+      final mask = img.Image(width: 1000, height: 1000);
+      img.fill(mask, color: img.ColorRgb8(0, 0, 0));
+      for (var y = 620; y < 700; y++) {
+        for (var x = 700; x < 780; x++) {
+          mask.setPixelRgb(x, y, 255, 255, 255);
         }
+      }
 
-        final maskDrivenCrop = FocusedInpaintUtils.resolvePreviewCrop(
-          sourceImage: Uint8List.fromList(img.encodePng(source)),
-          maskImage: Uint8List.fromList(img.encodePng(mask)),
-          minContextMegaPixels: 32,
-        )!;
-        final focusedCrop = FocusedInpaintUtils.resolvePreviewCrop(
-          sourceImage: Uint8List.fromList(img.encodePng(source)),
-          maskImage: Uint8List.fromList(img.encodePng(mask)),
-          focusedSelectionRect: const Rect.fromLTWH(120, 160, 240, 280),
-          minContextMegaPixels: 48,
-        )!;
+      final maskDrivenCrop = FocusedInpaintUtils.prepareRequest(
+        sourceImage: Uint8List.fromList(img.encodePng(source)),
+        maskImage: Uint8List.fromList(img.encodePng(mask)),
+        minContextMegaPixels: 32,
+      )!.crop;
+      final focusedCrop = FocusedInpaintUtils.prepareRequest(
+        sourceImage: Uint8List.fromList(img.encodePng(source)),
+        maskImage: Uint8List.fromList(img.encodePng(mask)),
+        focusedSelectionRect: const Rect.fromLTWH(120, 160, 240, 280),
+        minContextMegaPixels: 48,
+      )!.crop;
 
-        expect(maskDrivenCrop.x, greaterThan(400));
-        expect(maskDrivenCrop.y, greaterThan(300));
-        expect(focusedCrop.x, lessThan(400));
-        expect(focusedCrop.y, lessThan(400));
-      },
-    );
+      expect(maskDrivenCrop.x, greaterThan(400));
+      expect(maskDrivenCrop.y, greaterThan(300));
+      expect(focusedCrop.x, lessThan(400));
+      expect(focusedCrop.y, lessThan(400));
+    });
 
     test(
       'resolveContextCropForSelection should expand selection by the requested context band',
@@ -789,41 +786,48 @@ void main() {
     );
 
     test(
-      'resolveRequestSizeForMask should match prepareRequest for irregular masks',
+      'mask extent geometry should match prepareRequest for irregular masks',
       () {
-        final source = img.Image(width: 1024, height: 768);
-        img.fill(source, color: img.ColorRgb8(0, 0, 0));
-        final mask = _buildIrregularMask(width: 1024, height: 768);
-        final sourceBytes = Uint8List.fromList(img.encodePng(source));
-        final maskBytes = Uint8List.fromList(img.encodePng(mask));
+        // 宽幅画布配大上下文时裁切区会被画布高度截住
+        for (final (width, height, minContext) in const [
+          (1024, 768, 88.0),
+          (1536, 640, 192.0),
+        ]) {
+          final source = img.Image(width: width, height: height);
+          img.fill(source, color: img.ColorRgb8(0, 0, 0));
+          final mask = _buildIrregularMask(width: width, height: height);
+          final sourceBytes = Uint8List.fromList(img.encodePng(source));
+          final maskBytes = Uint8List.fromList(img.encodePng(mask));
 
-        final lightweightSize = FocusedInpaintUtils.resolveRequestSizeForMask(
-          maskImage: maskBytes,
-          minContextMegaPixels: 88,
-        );
-        final request = FocusedInpaintUtils.prepareRequest(
-          sourceImage: sourceBytes,
-          maskImage: maskBytes,
-          minContextMegaPixels: 88,
-        );
+          final extent = FocusedInpaintUtils.resolveMaskExtent(maskBytes);
+          final lightweight = FocusedInpaintUtils.resolveGeometryForMaskExtent(
+            extent!,
+            minContextMegaPixels: minContext,
+          );
+          final request = FocusedInpaintUtils.prepareRequest(
+            sourceImage: sourceBytes,
+            maskImage: maskBytes,
+            minContextMegaPixels: minContext,
+          );
 
-        expect(lightweightSize, isNotNull);
-        expect(request, isNotNull);
-        expect(lightweightSize!.$1, equals(request!.targetWidth));
-        expect(lightweightSize.$2, equals(request.targetHeight));
+          expect(lightweight, isNotNull);
+          expect(request, isNotNull);
+          expect(lightweight!.requestWidth, equals(request!.targetWidth));
+          expect(lightweight.requestHeight, equals(request.targetHeight));
+          expect(lightweight.contextCrop.rect, request.crop.rect);
+        }
       },
     );
 
-    test('resolveRequestSizeForMask should return null for empty masks', () {
+    test('resolveMaskExtent should return null for empty masks', () {
       final mask = img.Image(width: 320, height: 240);
       img.fill(mask, color: img.ColorRgb8(0, 0, 0));
 
-      final size = FocusedInpaintUtils.resolveRequestSizeForMask(
-        maskImage: Uint8List.fromList(img.encodePng(mask)),
-        minContextMegaPixels: 88,
+      final extent = FocusedInpaintUtils.resolveMaskExtent(
+        Uint8List.fromList(img.encodePng(mask)),
       );
 
-      expect(size, isNull);
+      expect(extent, isNull);
     });
 
     test(

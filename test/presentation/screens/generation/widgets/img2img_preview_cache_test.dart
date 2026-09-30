@@ -345,13 +345,16 @@ void main() {
       final data = resolveDefaults();
 
       expect(data.maskOverlayBytes, InpaintMaskUtils.maskToEditorOverlay(mask));
-      final syncFrame = FocusedInpaintUtils.resolvePreviewFrame(
+      final request = FocusedInpaintUtils.prepareRequest(
         sourceImage: source,
         maskImage: mask,
         minContextMegaPixels: 88,
       )!;
-      expect(data.focusedFrame!.contextCrop.rect, syncFrame.contextCrop.rect);
-      expect(data.focusedFrame!.focusBounds.rect, syncFrame.focusBounds.rect);
+      expect(data.focusedFrame!.contextCrop.rect, request.crop.rect);
+      expect(
+        data.focusedFrame!.focusBounds.rect,
+        request.geometry.focusBounds.rect,
+      );
     });
   });
 }
