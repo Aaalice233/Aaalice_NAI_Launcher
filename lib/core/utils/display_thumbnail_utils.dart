@@ -3,13 +3,14 @@ import 'dart:typed_data';
 
 import 'package:image/image.dart' as img;
 
+import 'decoded_image_size.dart';
 import 'exif_orientation.dart';
 import 'isolate_pool.dart';
 
 /// 展示用缩略图压缩工具
 ///
 /// 与 Vibe 库使用相同的压缩策略：最长边 256px、JPEG q78，
-/// 超过 64KB 的原图在后台 Isolate 中压缩，避免阻塞 UI。
+/// 像素尺寸或体积超出缩略图规格的原图在后台 Isolate 中压缩，避免阻塞 UI。
 class DisplayThumbnailUtils {
   DisplayThumbnailUtils._();
 
@@ -61,10 +62,27 @@ class DisplayThumbnailUtils {
       return null;
     }
 
-    if (sourceBytes.length <= inlineLimitBytes) {
+    if (_fitsInline(sourceBytes)) {
       return resizeSync(sourceBytes);
     }
 
     return ComputeGate().runIsolate(() => resizeSync(sourceBytes));
+  }
+
+  // 平涂大图（如整幅二值蒙版）的 PNG 只有几十 KB，字节数代表不了解码开销
+  static bool _fitsInline(Uint8List sourceBytes) {
+    if (sourceBytes.length > inlineLimitBytes) {
+      return false;
+    }
+    final size = DecodedImageSize.readHeader(sourceBytes);
+    if (size != null) {
+      return math.max(size.$1, size.$2) <= maxDimension;
+    }
+    // 认不出格式的数据会立即解码失败；认得出却读不到尺寸的交给后台
+    try {
+      return img.findDecoderForData(sourceBytes) == null;
+    } catch (_) {
+      return true;
+    }
   }
 }
