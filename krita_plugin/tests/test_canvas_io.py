@@ -358,13 +358,6 @@ class FakeRawSelection:
         return self._data
 
 
-def _qgray(rgb):
-    red = (rgb >> 16) & 0xFF
-    green = (rgb >> 8) & 0xFF
-    blue = rgb & 0xFF
-    return (red * 11 + green * 16 + blue * 5) // 32
-
-
 class FakeGrayImage:
     Format_Grayscale8 = 1
     PNG_HEADER = b"fake-gray8-png"
@@ -390,12 +383,10 @@ class FakeGrayImage:
         self._width = width
         self._height = height
 
-    def fill(self, value):
-        self._pixels[:] = bytes([value & 0xFF]) * len(self._pixels)
-
-    def setPixel(self, x, y, rgb):
-        if 0 <= x < self._width and 0 <= y < self._height:
-            self._pixels[y * self._width + x] = _qgray(rgb)
+    def setPixel(self, _x, _y, _rgb):
+        raise AssertionError(
+            "Grayscale8 setPixel converts through QRgb and differs across Qt builds"
+        )
 
     def copy(self, x, y, width, height):
         result = FakeGrayImage(width, height, FakeGrayImage.Format_Grayscale8)
@@ -484,17 +475,22 @@ def _per_pixel_selection_mask_png(doc):
     selection = doc.selection()
     if selection is None or selection.width() <= 0 or selection.height() <= 0:
         raise RuntimeError("Create a Krita selection before inpaint")
-    image = FakeGrayImage(doc.width(), doc.height(), FakeGrayImage.Format_Grayscale8)
-    image.fill(0)
+    width = doc.width()
+    height = doc.height()
+    pixels = bytearray(width * height)
     has_repaint_pixels = False
     for y in range(selection.y(), selection.y() + selection.height()):
         for x in range(selection.x(), selection.x() + selection.width()):
             raw = bytes(selection.pixelData(x, y, 1, 1))
             if raw and raw[0] > 0:
-                image.setPixel(x, y, 255)
                 has_repaint_pixels = True
+                if 0 <= x < width and 0 <= y < height:
+                    pixels[y * width + x] = 255
     if not has_repaint_pixels:
         raise RuntimeError("Inpaint mask is empty")
+    image = FakeGrayImage(
+        bytes(pixels), width, height, width, FakeGrayImage.Format_Grayscale8
+    )
     buffer = FakeProjectionBuffer()
     image.save(buffer, "PNG")
     return bytes(buffer.data())
@@ -1169,10 +1165,19 @@ class CanvasIOSelectionMaskTests(unittest.TestCase):
         self.assertEqual((width, height), (64, 64))
         row_4 = pixels[4 * 64 + 3 : 4 * 64 + 7]
         row_5 = pixels[5 * 64 + 3 : 5 * 64 + 7]
-        selected = canvas_io.SELECTION_MASK_GRAY
-        self.assertEqual(row_4, bytes([0, selected, selected, selected]))
-        self.assertEqual(row_5, bytes([selected, selected, selected, 0]))
+        self.assertEqual(row_4, bytes([0, 255, 255, 255]))
+        self.assertEqual(row_5, bytes([255, 255, 255, 0]))
         self.assertEqual(pixels.count(0), 64 * 64 - 6)
+
+    def test_mask_writes_255_for_every_selected_value_without_qrgb_setpixel(self):
+        doc = FakeMaskDoc(64, 64, FakeCoverageSelection(0, 0, 16, 16, bytes(range(256))))
+
+        _width, _height, pixels = _fake_png_pixels(self._export(doc))
+
+        selection_rows = b"".join(pixels[row * 64 : row * 64 + 16] for row in range(16))
+        self.assertEqual(selection_rows, b"\x00" + b"\xff" * 255)
+        self.assertEqual(set(pixels), {0, 255})
+        self.assertEqual(pixels.count(255), 255)
 
     def test_mask_selection_outside_canvas_exports_blank_mask_like_per_pixel(self):
         doc = FakeMaskDoc(
@@ -1213,10 +1218,7 @@ class CanvasIOSelectionMaskTests(unittest.TestCase):
             self._export(FakeMaskDoc(64, 64, selection))
         )
 
-        self.assertEqual(
-            pixels.count(canvas_io.SELECTION_MASK_GRAY),
-            13,
-        )
+        self.assertEqual(pixels.count(255), 13)
         self.assertEqual(pixels[6 * 64 + 2 : 6 * 64 + 7], bytes(5))
 
     def test_mask_reads_selection_pixels_in_one_call(self):
@@ -1235,13 +1237,9 @@ class CanvasIOSelectionMaskTests(unittest.TestCase):
             self._export(FakeMaskDoc(64, 64, selection))
         )
 
-        selected = canvas_io.SELECTION_MASK_GRAY
-        self.assertEqual(pixels[20 * 64 + 10 : 20 * 64 + 14], bytes([selected]) * 4)
-        self.assertEqual(
-            pixels[21 * 64 + 10 : 21 * 64 + 14],
-            bytes([selected, selected, 0, selected]),
-        )
-        self.assertEqual(pixels.count(selected), 11)
+        self.assertEqual(pixels[20 * 64 + 10 : 20 * 64 + 14], b"\xff" * 4)
+        self.assertEqual(pixels[21 * 64 + 10 : 21 * 64 + 14], b"\xff\xff\x00\xff")
+        self.assertEqual(pixels.count(255), 11)
 
     def test_mask_python_work_does_not_grow_with_selection_area(self):
         small = FakeMaskDoc(64, 64, FakeCoverageSelection(5, 5, 1, 1, b"\xff"))

@@ -13,8 +13,9 @@ MAX_V1_CANVAS_EDGE = 4096
 PREVIEW_LAYER_NAME = "NAI Preview"
 FOCUS_PREVIEW_LAYER_NAME = "NAI Focus Preview"
 MASK_SOURCE_SELECTION = "selection"
-SELECTION_MASK_GRAY = 39
-_SELECTION_TO_MASK_GRAY = bytes([0]) + bytes([SELECTION_MASK_GRAY]) * 255
+# The launcher only keeps mask coverage above 155 when building NovelAI requests.
+SELECTED_MASK_VALUE = 255
+_SELECTION_TO_MASK = bytes([0]) + bytes([SELECTED_MASK_VALUE]) * 255
 # NovelAI web build d7e955f-production, verified 2026-07-14.
 FOCUS_DIMENSION_STEP = 64
 FOCUS_TARGET_AREA_PIXELS = 1048576
@@ -533,7 +534,7 @@ def _selection_mask_image(selection, canvas_width: int, canvas_height: int):
     coverage = bytes(selection.pixelData(x, y, width, height))[:required]
     if coverage.count(0) == len(coverage):
         return None
-    mask = coverage.ljust(required, b"\x00").translate(_SELECTION_TO_MASK_GRAY)
+    mask = coverage.ljust(required, b"\x00").translate(_SELECTION_TO_MASK)
     selection_mask = QImage(mask, width, height, width, QImage.Format_Grayscale8)
     return selection_mask.copy(-x, -y, canvas_width, canvas_height)
 
