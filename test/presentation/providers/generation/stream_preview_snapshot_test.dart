@@ -367,6 +367,8 @@ void main() {
     notifier.cancel();
     await stream.close();
     await generation;
+    // 重绘快照在后台 isolate 合成，落地后才进历史。
+    await notifier.flushGenerationHistory();
 
     final state = container.read(imageGenerationNotifierProvider);
     expect(state.status, GenerationStatus.cancelled);
