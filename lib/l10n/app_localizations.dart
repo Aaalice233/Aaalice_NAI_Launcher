@@ -11547,41 +11547,11 @@ abstract class AppLocalizations {
   /// **'Redo failed: {error}'**
   String bulkProgress_errorRedoFailed(String error);
 
-  /// No description provided for @collectionSelect_dialogTitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Select Collection'**
-  String get collectionSelect_dialogTitle;
-
   /// No description provided for @collectionSelect_filterHint.
   ///
   /// In en, this message translates to:
   /// **'Search collections...'**
   String get collectionSelect_filterHint;
-
-  /// No description provided for @collectionSelect_noCollections.
-  ///
-  /// In en, this message translates to:
-  /// **'No collections'**
-  String get collectionSelect_noCollections;
-
-  /// No description provided for @collectionSelect_createCollectionHint.
-  ///
-  /// In en, this message translates to:
-  /// **'Create a collection first'**
-  String get collectionSelect_createCollectionHint;
-
-  /// No description provided for @collectionSelect_noFilterResults.
-  ///
-  /// In en, this message translates to:
-  /// **'No matching collections found'**
-  String get collectionSelect_noFilterResults;
-
-  /// No description provided for @collectionSelect_imageCount.
-  ///
-  /// In en, this message translates to:
-  /// **'{count} images'**
-  String collectionSelect_imageCount(int count);
 
   /// No description provided for @statistics_chartTopTags.
   ///
@@ -16535,102 +16505,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Failed to reorder categories: {error}'**
   String categoryError_reorderFailed(String error);
-
-  /// No description provided for @vibeBulk_errorEntryNotFoundOrDeleteFailed.
-  ///
-  /// In en, this message translates to:
-  /// **'{item} was not found or could not be deleted'**
-  String vibeBulk_errorEntryNotFoundOrDeleteFailed(String item);
-
-  /// No description provided for @vibeBulk_errorDeleteFailed.
-  ///
-  /// In en, this message translates to:
-  /// **'Failed to delete {item}: {error}'**
-  String vibeBulk_errorDeleteFailed(String item, String error);
-
-  /// No description provided for @vibeBulk_errorEntryNotFound.
-  ///
-  /// In en, this message translates to:
-  /// **'Entry not found: {item}'**
-  String vibeBulk_errorEntryNotFound(String item);
-
-  /// No description provided for @vibeBulk_errorMoveFailed.
-  ///
-  /// In en, this message translates to:
-  /// **'Failed to move {item}: {error}'**
-  String vibeBulk_errorMoveFailed(String item, String error);
-
-  /// No description provided for @vibeBulk_errorFavoriteFailed.
-  ///
-  /// In en, this message translates to:
-  /// **'Failed to update favorite status: {item}'**
-  String vibeBulk_errorFavoriteFailed(String item);
-
-  /// No description provided for @vibeBulk_errorFavoriteFailedWithDetails.
-  ///
-  /// In en, this message translates to:
-  /// **'Failed to update favorite status for {item}: {error}'**
-  String vibeBulk_errorFavoriteFailedWithDetails(String item, String error);
-
-  /// No description provided for @vibeBulk_errorAddTagsFailed.
-  ///
-  /// In en, this message translates to:
-  /// **'Failed to add tags: {item}'**
-  String vibeBulk_errorAddTagsFailed(String item);
-
-  /// No description provided for @vibeBulk_errorAddTagsFailedWithDetails.
-  ///
-  /// In en, this message translates to:
-  /// **'Failed to add tags to {item}: {error}'**
-  String vibeBulk_errorAddTagsFailedWithDetails(String item, String error);
-
-  /// No description provided for @vibeBulk_errorRemoveTagsFailed.
-  ///
-  /// In en, this message translates to:
-  /// **'Failed to remove tags: {item}'**
-  String vibeBulk_errorRemoveTagsFailed(String item);
-
-  /// No description provided for @vibeBulk_errorRemoveTagsFailedWithDetails.
-  ///
-  /// In en, this message translates to:
-  /// **'Failed to remove tags from {item}: {error}'**
-  String vibeBulk_errorRemoveTagsFailedWithDetails(String item, String error);
-
-  /// No description provided for @vibeBulk_errorExportNoFile.
-  ///
-  /// In en, this message translates to:
-  /// **'Export failed because no file was created'**
-  String get vibeBulk_errorExportNoFile;
-
-  /// No description provided for @vibeBulk_errorExportFailed.
-  ///
-  /// In en, this message translates to:
-  /// **'Export failed: {error}'**
-  String vibeBulk_errorExportFailed(String error);
-
-  /// No description provided for @vibeBulk_errorFileNotFound.
-  ///
-  /// In en, this message translates to:
-  /// **'File not found: {item}'**
-  String vibeBulk_errorFileNotFound(String item);
-
-  /// No description provided for @vibeBulk_errorNoVibeData.
-  ///
-  /// In en, this message translates to:
-  /// **'No valid Vibe data was found in {item}'**
-  String vibeBulk_errorNoVibeData(String item);
-
-  /// No description provided for @vibeBulk_errorImportFailed.
-  ///
-  /// In en, this message translates to:
-  /// **'Failed to import Vibe from {item}: {error}'**
-  String vibeBulk_errorImportFailed(String item, String error);
-
-  /// No description provided for @vibeBulk_errorProcessFileFailed.
-  ///
-  /// In en, this message translates to:
-  /// **'Failed to process {item}: {error}'**
-  String vibeBulk_errorProcessFileFailed(String item, String error);
 
   /// No description provided for @vibeBulkTag_actionPreview.
   ///

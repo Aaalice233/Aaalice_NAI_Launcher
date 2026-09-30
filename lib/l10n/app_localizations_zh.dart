@@ -6257,24 +6257,7 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
-  String get collectionSelect_dialogTitle => '选择集合';
-
-  @override
   String get collectionSelect_filterHint => '搜索集合...';
-
-  @override
-  String get collectionSelect_noCollections => '暂无集合';
-
-  @override
-  String get collectionSelect_createCollectionHint => '请先创建一个集合';
-
-  @override
-  String get collectionSelect_noFilterResults => '没有找到匹配的集合';
-
-  @override
-  String collectionSelect_imageCount(int count) {
-    return '$count 张图片';
-  }
 
   @override
   String get statistics_chartTopTags => '热门标签';
@@ -9018,84 +9001,6 @@ class AppLocalizationsZh extends AppLocalizations {
   @override
   String categoryError_reorderFailed(String error) {
     return '重新排序分类失败：$error';
-  }
-
-  @override
-  String vibeBulk_errorEntryNotFoundOrDeleteFailed(String item) {
-    return '未找到 $item 或删除失败';
-  }
-
-  @override
-  String vibeBulk_errorDeleteFailed(String item, String error) {
-    return '删除 $item 失败：$error';
-  }
-
-  @override
-  String vibeBulk_errorEntryNotFound(String item) {
-    return '未找到条目：$item';
-  }
-
-  @override
-  String vibeBulk_errorMoveFailed(String item, String error) {
-    return '移动 $item 失败：$error';
-  }
-
-  @override
-  String vibeBulk_errorFavoriteFailed(String item) {
-    return '更新收藏状态失败：$item';
-  }
-
-  @override
-  String vibeBulk_errorFavoriteFailedWithDetails(String item, String error) {
-    return '更新 $item 的收藏状态失败：$error';
-  }
-
-  @override
-  String vibeBulk_errorAddTagsFailed(String item) {
-    return '添加标签失败：$item';
-  }
-
-  @override
-  String vibeBulk_errorAddTagsFailedWithDetails(String item, String error) {
-    return '为 $item 添加标签失败：$error';
-  }
-
-  @override
-  String vibeBulk_errorRemoveTagsFailed(String item) {
-    return '移除标签失败：$item';
-  }
-
-  @override
-  String vibeBulk_errorRemoveTagsFailedWithDetails(String item, String error) {
-    return '从 $item 移除标签失败：$error';
-  }
-
-  @override
-  String get vibeBulk_errorExportNoFile => '导出失败：未创建文件';
-
-  @override
-  String vibeBulk_errorExportFailed(String error) {
-    return '导出失败：$error';
-  }
-
-  @override
-  String vibeBulk_errorFileNotFound(String item) {
-    return '未找到文件：$item';
-  }
-
-  @override
-  String vibeBulk_errorNoVibeData(String item) {
-    return '$item 中没有有效的 Vibe 数据';
-  }
-
-  @override
-  String vibeBulk_errorImportFailed(String item, String error) {
-    return '从 $item 导入 Vibe 失败：$error';
-  }
-
-  @override
-  String vibeBulk_errorProcessFileFailed(String item, String error) {
-    return '处理 $item 失败：$error';
   }
 
   @override
@@ -21373,24 +21278,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   }
 
   @override
-  String get collectionSelect_dialogTitle => '選擇集合';
-
-  @override
   String get collectionSelect_filterHint => '搜尋集合...';
-
-  @override
-  String get collectionSelect_noCollections => '暫無集合';
-
-  @override
-  String get collectionSelect_createCollectionHint => '請先建立一個集合';
-
-  @override
-  String get collectionSelect_noFilterResults => '沒有找到匹配的集合';
-
-  @override
-  String collectionSelect_imageCount(int count) {
-    return '$count 張圖片';
-  }
 
   @override
   String get statistics_chartTopTags => '熱門標籤';
@@ -24134,84 +24022,6 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   @override
   String categoryError_reorderFailed(String error) {
     return '重新排序分類失敗：$error';
-  }
-
-  @override
-  String vibeBulk_errorEntryNotFoundOrDeleteFailed(String item) {
-    return '未找到 $item 或刪除失敗';
-  }
-
-  @override
-  String vibeBulk_errorDeleteFailed(String item, String error) {
-    return '刪除 $item 失敗：$error';
-  }
-
-  @override
-  String vibeBulk_errorEntryNotFound(String item) {
-    return '未找到條目：$item';
-  }
-
-  @override
-  String vibeBulk_errorMoveFailed(String item, String error) {
-    return '移動 $item 失敗：$error';
-  }
-
-  @override
-  String vibeBulk_errorFavoriteFailed(String item) {
-    return '更新收藏狀態失敗：$item';
-  }
-
-  @override
-  String vibeBulk_errorFavoriteFailedWithDetails(String item, String error) {
-    return '更新 $item 的收藏狀態失敗：$error';
-  }
-
-  @override
-  String vibeBulk_errorAddTagsFailed(String item) {
-    return '新增標籤失敗：$item';
-  }
-
-  @override
-  String vibeBulk_errorAddTagsFailedWithDetails(String item, String error) {
-    return '為 $item 新增標籤失敗：$error';
-  }
-
-  @override
-  String vibeBulk_errorRemoveTagsFailed(String item) {
-    return '移除標籤失敗：$item';
-  }
-
-  @override
-  String vibeBulk_errorRemoveTagsFailedWithDetails(String item, String error) {
-    return '從 $item 移除標籤失敗：$error';
-  }
-
-  @override
-  String get vibeBulk_errorExportNoFile => '匯出失敗：未建立檔案';
-
-  @override
-  String vibeBulk_errorExportFailed(String error) {
-    return '匯出失敗：$error';
-  }
-
-  @override
-  String vibeBulk_errorFileNotFound(String item) {
-    return '未找到檔案：$item';
-  }
-
-  @override
-  String vibeBulk_errorNoVibeData(String item) {
-    return '$item 中沒有有效的 Vibe 資料';
-  }
-
-  @override
-  String vibeBulk_errorImportFailed(String item, String error) {
-    return '從 $item 匯入 Vibe 失敗：$error';
-  }
-
-  @override
-  String vibeBulk_errorProcessFileFailed(String item, String error) {
-    return '處理 $item 失敗：$error';
   }
 
   @override

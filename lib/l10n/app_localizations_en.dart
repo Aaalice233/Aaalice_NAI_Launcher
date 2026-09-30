@@ -6532,26 +6532,7 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get collectionSelect_dialogTitle => 'Select Collection';
-
-  @override
   String get collectionSelect_filterHint => 'Search collections...';
-
-  @override
-  String get collectionSelect_noCollections => 'No collections';
-
-  @override
-  String get collectionSelect_createCollectionHint =>
-      'Create a collection first';
-
-  @override
-  String get collectionSelect_noFilterResults =>
-      'No matching collections found';
-
-  @override
-  String collectionSelect_imageCount(int count) {
-    return '$count images';
-  }
 
   @override
   String get statistics_chartTopTags => 'Top Tags';
@@ -9380,85 +9361,6 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String categoryError_reorderFailed(String error) {
     return 'Failed to reorder categories: $error';
-  }
-
-  @override
-  String vibeBulk_errorEntryNotFoundOrDeleteFailed(String item) {
-    return '$item was not found or could not be deleted';
-  }
-
-  @override
-  String vibeBulk_errorDeleteFailed(String item, String error) {
-    return 'Failed to delete $item: $error';
-  }
-
-  @override
-  String vibeBulk_errorEntryNotFound(String item) {
-    return 'Entry not found: $item';
-  }
-
-  @override
-  String vibeBulk_errorMoveFailed(String item, String error) {
-    return 'Failed to move $item: $error';
-  }
-
-  @override
-  String vibeBulk_errorFavoriteFailed(String item) {
-    return 'Failed to update favorite status: $item';
-  }
-
-  @override
-  String vibeBulk_errorFavoriteFailedWithDetails(String item, String error) {
-    return 'Failed to update favorite status for $item: $error';
-  }
-
-  @override
-  String vibeBulk_errorAddTagsFailed(String item) {
-    return 'Failed to add tags: $item';
-  }
-
-  @override
-  String vibeBulk_errorAddTagsFailedWithDetails(String item, String error) {
-    return 'Failed to add tags to $item: $error';
-  }
-
-  @override
-  String vibeBulk_errorRemoveTagsFailed(String item) {
-    return 'Failed to remove tags: $item';
-  }
-
-  @override
-  String vibeBulk_errorRemoveTagsFailedWithDetails(String item, String error) {
-    return 'Failed to remove tags from $item: $error';
-  }
-
-  @override
-  String get vibeBulk_errorExportNoFile =>
-      'Export failed because no file was created';
-
-  @override
-  String vibeBulk_errorExportFailed(String error) {
-    return 'Export failed: $error';
-  }
-
-  @override
-  String vibeBulk_errorFileNotFound(String item) {
-    return 'File not found: $item';
-  }
-
-  @override
-  String vibeBulk_errorNoVibeData(String item) {
-    return 'No valid Vibe data was found in $item';
-  }
-
-  @override
-  String vibeBulk_errorImportFailed(String item, String error) {
-    return 'Failed to import Vibe from $item: $error';
-  }
-
-  @override
-  String vibeBulk_errorProcessFileFailed(String item, String error) {
-    return 'Failed to process $item: $error';
   }
 
   @override

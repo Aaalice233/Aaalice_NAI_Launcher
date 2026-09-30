@@ -2951,19 +2951,7 @@
       "error": {"type": "String"}
     }
   },
-  "collectionSelect_dialogTitle": "コレクションを選択してください",
   "collectionSelect_filterHint": "コレクションを検索...",
-  "collectionSelect_noCollections": "コレクションはありません",
-  "collectionSelect_createCollectionHint": "最初にコレクションを作成してください",
-  "collectionSelect_noFilterResults": "一致するコレクションが見つかりませんでした",
-  "collectionSelect_imageCount": "{count} 画像",
-  "@collectionSelect_imageCount": {
-    "placeholders": {
-      "count": {
-        "type": "int"
-      }
-    }
-  },
   "statistics_chartTopTags": "トップのタグ",
   "statistics_chartAspectRatio": "アスペクト比の分布",
   "statistics_chartActivityHeatmap": "アクティビティ ヒートマップ",
@@ -4411,104 +4399,6 @@
   "categoryError_reorderFailed": "カテゴリの並べ替えに失敗しました: {error}",
   "@categoryError_reorderFailed": {
     "placeholders": {
-      "error": {"type": "String"}
-    }
-  },
-  "vibeBulk_errorEntryNotFoundOrDeleteFailed": "{item} が見つからないか、削除できませんでした",
-  "@vibeBulk_errorEntryNotFoundOrDeleteFailed": {
-    "placeholders": {
-      "item": {"type": "String"}
-    }
-  },
-  "vibeBulk_errorDeleteFailed": "{item} の削除に失敗しました: {error}",
-  "@vibeBulk_errorDeleteFailed": {
-    "placeholders": {
-      "item": {"type": "String"},
-      "error": {"type": "String"}
-    }
-  },
-  "vibeBulk_errorEntryNotFound": "エントリが見つかりません: {item}",
-  "@vibeBulk_errorEntryNotFound": {
-    "placeholders": {
-      "item": {"type": "String"}
-    }
-  },
-  "vibeBulk_errorMoveFailed": "{item} の移動に失敗しました: {error}",
-  "@vibeBulk_errorMoveFailed": {
-    "placeholders": {
-      "item": {"type": "String"},
-      "error": {"type": "String"}
-    }
-  },
-  "vibeBulk_errorFavoriteFailed": "お気に入り状態の更新に失敗しました: {item}",
-  "@vibeBulk_errorFavoriteFailed": {
-    "placeholders": {
-      "item": {"type": "String"}
-    }
-  },
-  "vibeBulk_errorFavoriteFailedWithDetails": "{item} のお気に入り状態の更新に失敗しました: {error}",
-  "@vibeBulk_errorFavoriteFailedWithDetails": {
-    "placeholders": {
-      "item": {"type": "String"},
-      "error": {"type": "String"}
-    }
-  },
-  "vibeBulk_errorAddTagsFailed": "タグの追加に失敗しました: {item}",
-  "@vibeBulk_errorAddTagsFailed": {
-    "placeholders": {
-      "item": {"type": "String"}
-    }
-  },
-  "vibeBulk_errorAddTagsFailedWithDetails": "{item} へのタグ追加に失敗しました: {error}",
-  "@vibeBulk_errorAddTagsFailedWithDetails": {
-    "placeholders": {
-      "item": {"type": "String"},
-      "error": {"type": "String"}
-    }
-  },
-  "vibeBulk_errorRemoveTagsFailed": "タグの削除に失敗しました: {item}",
-  "@vibeBulk_errorRemoveTagsFailed": {
-    "placeholders": {
-      "item": {"type": "String"}
-    }
-  },
-  "vibeBulk_errorRemoveTagsFailedWithDetails": "{item} からのタグ削除に失敗しました: {error}",
-  "@vibeBulk_errorRemoveTagsFailedWithDetails": {
-    "placeholders": {
-      "item": {"type": "String"},
-      "error": {"type": "String"}
-    }
-  },
-  "vibeBulk_errorExportNoFile": "ファイルが作成されなかったため、エクスポートに失敗しました",
-  "vibeBulk_errorExportFailed": "エクスポートに失敗しました: {error}",
-  "@vibeBulk_errorExportFailed": {
-    "placeholders": {
-      "error": {"type": "String"}
-    }
-  },
-  "vibeBulk_errorFileNotFound": "ファイルが見つかりません: {item}",
-  "@vibeBulk_errorFileNotFound": {
-    "placeholders": {
-      "item": {"type": "String"}
-    }
-  },
-  "vibeBulk_errorNoVibeData": "{item} に有効な Vibe データが見つかりません",
-  "@vibeBulk_errorNoVibeData": {
-    "placeholders": {
-      "item": {"type": "String"}
-    }
-  },
-  "vibeBulk_errorImportFailed": "{item} からの Vibe インポートに失敗しました: {error}",
-  "@vibeBulk_errorImportFailed": {
-    "placeholders": {
-      "item": {"type": "String"},
-      "error": {"type": "String"}
-    }
-  },
-  "vibeBulk_errorProcessFileFailed": "{item} の処理に失敗しました: {error}",
-  "@vibeBulk_errorProcessFileFailed": {
-    "placeholders": {
-      "item": {"type": "String"},
       "error": {"type": "String"}
     }
   },

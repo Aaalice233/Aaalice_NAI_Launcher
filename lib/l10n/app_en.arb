@@ -2992,19 +2992,7 @@
       "error": {"type": "String"}
     }
   },
-  "collectionSelect_dialogTitle": "Select Collection",
   "collectionSelect_filterHint": "Search collections...",
-  "collectionSelect_noCollections": "No collections",
-  "collectionSelect_createCollectionHint": "Create a collection first",
-  "collectionSelect_noFilterResults": "No matching collections found",
-  "collectionSelect_imageCount": "{count} images",
-  "@collectionSelect_imageCount": {
-    "placeholders": {
-      "count": {
-        "type": "int"
-      }
-    }
-  },
 
   "statistics_chartTopTags": "Top Tags",
   "statistics_chartAspectRatio": "Aspect Ratio Distribution",
@@ -4461,104 +4449,6 @@
   "categoryError_reorderFailed": "Failed to reorder categories: {error}",
   "@categoryError_reorderFailed": {
     "placeholders": {
-      "error": {"type": "String"}
-    }
-  },
-  "vibeBulk_errorEntryNotFoundOrDeleteFailed": "{item} was not found or could not be deleted",
-  "@vibeBulk_errorEntryNotFoundOrDeleteFailed": {
-    "placeholders": {
-      "item": {"type": "String"}
-    }
-  },
-  "vibeBulk_errorDeleteFailed": "Failed to delete {item}: {error}",
-  "@vibeBulk_errorDeleteFailed": {
-    "placeholders": {
-      "item": {"type": "String"},
-      "error": {"type": "String"}
-    }
-  },
-  "vibeBulk_errorEntryNotFound": "Entry not found: {item}",
-  "@vibeBulk_errorEntryNotFound": {
-    "placeholders": {
-      "item": {"type": "String"}
-    }
-  },
-  "vibeBulk_errorMoveFailed": "Failed to move {item}: {error}",
-  "@vibeBulk_errorMoveFailed": {
-    "placeholders": {
-      "item": {"type": "String"},
-      "error": {"type": "String"}
-    }
-  },
-  "vibeBulk_errorFavoriteFailed": "Failed to update favorite status: {item}",
-  "@vibeBulk_errorFavoriteFailed": {
-    "placeholders": {
-      "item": {"type": "String"}
-    }
-  },
-  "vibeBulk_errorFavoriteFailedWithDetails": "Failed to update favorite status for {item}: {error}",
-  "@vibeBulk_errorFavoriteFailedWithDetails": {
-    "placeholders": {
-      "item": {"type": "String"},
-      "error": {"type": "String"}
-    }
-  },
-  "vibeBulk_errorAddTagsFailed": "Failed to add tags: {item}",
-  "@vibeBulk_errorAddTagsFailed": {
-    "placeholders": {
-      "item": {"type": "String"}
-    }
-  },
-  "vibeBulk_errorAddTagsFailedWithDetails": "Failed to add tags to {item}: {error}",
-  "@vibeBulk_errorAddTagsFailedWithDetails": {
-    "placeholders": {
-      "item": {"type": "String"},
-      "error": {"type": "String"}
-    }
-  },
-  "vibeBulk_errorRemoveTagsFailed": "Failed to remove tags: {item}",
-  "@vibeBulk_errorRemoveTagsFailed": {
-    "placeholders": {
-      "item": {"type": "String"}
-    }
-  },
-  "vibeBulk_errorRemoveTagsFailedWithDetails": "Failed to remove tags from {item}: {error}",
-  "@vibeBulk_errorRemoveTagsFailedWithDetails": {
-    "placeholders": {
-      "item": {"type": "String"},
-      "error": {"type": "String"}
-    }
-  },
-  "vibeBulk_errorExportNoFile": "Export failed because no file was created",
-  "vibeBulk_errorExportFailed": "Export failed: {error}",
-  "@vibeBulk_errorExportFailed": {
-    "placeholders": {
-      "error": {"type": "String"}
-    }
-  },
-  "vibeBulk_errorFileNotFound": "File not found: {item}",
-  "@vibeBulk_errorFileNotFound": {
-    "placeholders": {
-      "item": {"type": "String"}
-    }
-  },
-  "vibeBulk_errorNoVibeData": "No valid Vibe data was found in {item}",
-  "@vibeBulk_errorNoVibeData": {
-    "placeholders": {
-      "item": {"type": "String"}
-    }
-  },
-  "vibeBulk_errorImportFailed": "Failed to import Vibe from {item}: {error}",
-  "@vibeBulk_errorImportFailed": {
-    "placeholders": {
-      "item": {"type": "String"},
-      "error": {"type": "String"}
-    }
-  },
-  "vibeBulk_errorProcessFileFailed": "Failed to process {item}: {error}",
-  "@vibeBulk_errorProcessFileFailed": {
-    "placeholders": {
-      "item": {"type": "String"},
       "error": {"type": "String"}
     }
   },
