@@ -24,10 +24,10 @@ class AdaptivePresenter {
   /// Presents dialog-style editing flows in a content-sized bottom sheet on
   /// compact panes and in a bounded, centered surface on wider panes.
   ///
-  /// With [headerScrollsWithContent], the [ContentSizedAdaptiveForm] returned
-  /// by [builder] hosts the header in its scroll view: pinned while the panel
-  /// has room, scrolling away on short viewports so a tall title cannot starve
-  /// the form.
+  /// With [headerScrollsWithContent], the body returned by [builder] hosts the
+  /// header in its scroll view through [AdaptivePanelHeaderScope] (as
+  /// [ContentSizedAdaptiveForm] does): pinned while the panel has room,
+  /// scrolling away on short viewports so a tall title cannot starve the form.
   static Future<T?> showForm<T>({
     required BuildContext context,
     String? title,

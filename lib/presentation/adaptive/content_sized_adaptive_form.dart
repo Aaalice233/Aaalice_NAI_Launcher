@@ -59,8 +59,9 @@ class ContentSizedAdaptiveForm extends StatelessWidget {
   }
 }
 
-/// Hands the panel header of [AdaptivePresenter.showForm] to the
-/// [ContentSizedAdaptiveForm] below it, which then owns the only scroll view.
+/// Hands the panel header of [AdaptivePresenter.showForm] to the body below
+/// it, which places it first in its only scroll view; [ContentSizedAdaptiveForm]
+/// does so automatically.
 class AdaptivePanelHeaderScope extends InheritedWidget {
   const AdaptivePanelHeaderScope({
     super.key,
