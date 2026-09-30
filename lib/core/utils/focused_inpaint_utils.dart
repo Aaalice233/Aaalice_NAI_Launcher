@@ -301,45 +301,6 @@ class FocusedInpaintUtils {
     )?.focusBounds.rect;
   }
 
-  static FocusedInpaintCrop? resolvePreviewCrop({
-    required Uint8List sourceImage,
-    Uint8List? maskImage,
-    Rect? focusedSelectionRect,
-    required double minContextMegaPixels,
-  }) {
-    return resolvePreviewFrame(
-      sourceImage: sourceImage,
-      maskImage: maskImage,
-      focusedSelectionRect: focusedSelectionRect,
-      minContextMegaPixels: minContextMegaPixels,
-    )?.contextCrop;
-  }
-
-  static FocusedInpaintFrame? resolvePreviewFrame({
-    required Uint8List sourceImage,
-    Uint8List? maskImage,
-    Rect? focusedSelectionRect,
-    required double minContextMegaPixels,
-  }) {
-    final decodedSource = ExifOrientation.decodeUpright(sourceImage);
-    if (decodedSource == null) {
-      return null;
-    }
-
-    final maskBounds = _resolveMaskBounds(maskImage);
-    final focusRect = focusedSelectionRect ?? maskBounds?.rect;
-    if (focusRect == null) {
-      return null;
-    }
-
-    return resolveGeometryForSelection(
-      sourceWidth: decodedSource.width,
-      sourceHeight: decodedSource.height,
-      selectionRect: focusRect,
-      minContextMegaPixels: minContextMegaPixels,
-    );
-  }
-
   static FocusedInpaintCrop? resolveContextCropForSelection({
     required int sourceWidth,
     required int sourceHeight,
@@ -458,21 +419,6 @@ class FocusedInpaintUtils {
         minContextMegaPixels: minContextMegaPixels,
       ),
     );
-  }
-
-  static (int, int)? resolveRequestSizeForMask({
-    required Uint8List maskImage,
-    required double minContextMegaPixels,
-  }) {
-    final geometry = resolveGeometryForMask(
-      maskImage: maskImage,
-      minContextMegaPixels: minContextMegaPixels,
-    );
-    if (geometry == null) {
-      return null;
-    }
-
-    return (geometry.requestWidth, geometry.requestHeight);
   }
 
   /// [contextCrop] 给定时按它原样裁切（取景框），不再从选区或蒙版推导上下文
@@ -694,14 +640,6 @@ class FocusedInpaintUtils {
       width: maxX - minX + 1,
       height: maxY - minY + 1,
     );
-  }
-
-  static FocusedInpaintCrop? _resolveMaskBounds(Uint8List? maskImage) {
-    if (maskImage == null) {
-      return null;
-    }
-
-    return resolveMaskExtent(maskImage)?.bounds;
   }
 
   static FocusedInpaintCrop? _resolveSelectionBounds(
