@@ -537,6 +537,165 @@ void main() {
     expect(result.mainPrompt, contains('plain clothes'));
     expect(result.mainPrompt, isNot(contains('school uniform')));
   });
+
+  group('词组上的可见性规则', () {
+    VisibilityRule hideLowerWhen(
+      String tag, {
+      String source = 'cat-pose',
+      String target = 'cat-lower',
+    }) => VisibilityRule(
+      id: 'hide_lower',
+      name: 'Hide lower',
+      sourceCategoryId: source,
+      targetCategoryId: target,
+      conditionValue: tag,
+      visibleWhenMatched: false,
+    );
+
+    RandomPreset lowerBodyPreset({
+      required String pose,
+      required List<VisibilityRule> ownerRules,
+      bool ownerEnabled = true,
+      List<VisibilityRule> shoesRules = const [],
+    }) => _preset([
+      _category(
+        id: 'cat-pose',
+        key: 'pose',
+        name: '姿势',
+        groups: [
+          _group(id: 'pose_group', tags: [pose]),
+        ],
+      ),
+      _category(
+        id: 'cat-lower',
+        key: 'lower',
+        name: '下装',
+        groups: [
+          _group(id: 'shoes', tags: ['boots'], visibilityRules: shoesRules),
+          _group(id: 'pants', tags: ['jeans']),
+        ],
+      ),
+      _category(
+        id: 'cat-extra',
+        key: 'extra',
+        groups: [
+          _group(
+            id: 'owner',
+            tags: ['smile'],
+            enabled: ownerEnabled,
+            visibilityRules: ownerRules,
+          ),
+        ],
+      ),
+    ]);
+
+    test('目标为类别时作用于该类别下全部词组', () async {
+      final result = await generator.generateFromPreset(
+        preset: lowerBodyPreset(
+          pose: 'portrait',
+          ownerRules: [hideLowerWhen('portrait')],
+        ),
+        seed: 1,
+      );
+
+      final tags = _promptTags(result.mainPrompt);
+      expect(tags, containsAll(['portrait', 'smile']));
+      expect(tags, isNot(contains('boots')));
+      expect(tags, isNot(contains('jeans')));
+    });
+
+    test('条件不成立时目标类别照常生成', () async {
+      final result = await generator.generateFromPreset(
+        preset: lowerBodyPreset(
+          pose: 'full body',
+          ownerRules: [hideLowerWhen('portrait')],
+        ),
+        seed: 1,
+      );
+
+      expect(
+        _promptTags(result.mainPrompt),
+        containsAll(['full body', 'boots', 'jeans', 'smile']),
+      );
+    });
+
+    test('按类别名称或键名保存的存量引用在生成时同样生效', () async {
+      final result = await generator.generateFromPreset(
+        preset: lowerBodyPreset(
+          pose: 'portrait',
+          ownerRules: [hideLowerWhen('portrait', source: 'pose', target: '下装')],
+        ),
+        seed: 1,
+      );
+
+      final tags = _promptTags(result.mainPrompt);
+      expect(tags, isNot(contains('boots')));
+      expect(tags, isNot(contains('jeans')));
+    });
+
+    test('默认的"条件匹配时可见"只在条件成立时生成目标', () async {
+      VisibilityRule showLowerWhenFullBody() => const VisibilityRule(
+        id: 'show_lower',
+        name: 'Show lower',
+        sourceCategoryId: 'cat-pose',
+        targetCategoryId: 'cat-lower',
+        conditionValue: 'full body',
+      );
+
+      final portrait = await generator.generateFromPreset(
+        preset: lowerBodyPreset(
+          pose: 'portrait',
+          ownerRules: [showLowerWhenFullBody()],
+        ),
+        seed: 1,
+      );
+      final fullBody = await generator.generateFromPreset(
+        preset: lowerBodyPreset(
+          pose: 'full body',
+          ownerRules: [showLowerWhenFullBody()],
+        ),
+        seed: 1,
+      );
+
+      expect(_promptTags(portrait.mainPrompt), isNot(contains('boots')));
+      expect(_promptTags(portrait.mainPrompt), isNot(contains('jeans')));
+      expect(
+        _promptTags(fullBody.mainPrompt),
+        containsAll(['boots', 'jeans']),
+      );
+    });
+
+    test('以本词组 ID 为目标的存量规则仍只控制该词组', () async {
+      final result = await generator.generateFromPreset(
+        preset: lowerBodyPreset(
+          pose: 'portrait',
+          ownerRules: const [],
+          shoesRules: [hideLowerWhen('portrait', target: 'shoes')],
+        ),
+        seed: 1,
+      );
+
+      final tags = _promptTags(result.mainPrompt);
+      expect(tags, isNot(contains('boots')));
+      expect(tags, contains('jeans'));
+    });
+
+    test('停用的词组不再施加它的类别规则', () async {
+      final result = await generator.generateFromPreset(
+        preset: lowerBodyPreset(
+          pose: 'portrait',
+          ownerRules: [hideLowerWhen('portrait')],
+          ownerEnabled: false,
+        ),
+        seed: 1,
+      );
+
+      expect(
+        _promptTags(result.mainPrompt),
+        containsAll(['boots', 'jeans']),
+      );
+    });
+  });
 }
 
 class _MockTagLibraryService extends Mock implements TagLibraryService {}
@@ -571,12 +730,13 @@ RandomCategory _category({
   required String id,
   required String key,
   required List<RandomTagGroup> groups,
+  String? name,
   TagScope scope = TagScope.global,
 }) {
   return RandomCategory(
     id: id,
     key: key,
-    name: key,
+    name: name ?? key,
     groupSelectionMode: SelectionMode.all,
     shuffle: false,
     scope: scope,
@@ -587,10 +747,12 @@ RandomCategory _category({
 RandomTagGroup _group({
   required String id,
   List<String> tags = const [],
+  bool enabled = true,
   SelectionMode selectionMode = SelectionMode.all,
   int multipleNum = 1,
   DependencyConfig? dependencyConfig,
   TimeCondition? timeCondition,
+  List<VisibilityRule> visibilityRules = const [],
   List<PostProcessRule> postProcessRules = const [],
   double emphasisProbability = 0,
   int emphasisBracketCount = 1,
@@ -598,6 +760,7 @@ RandomTagGroup _group({
   return RandomTagGroup(
     id: id,
     name: id,
+    enabled: enabled,
     selectionMode: selectionMode,
     multipleNum: multipleNum,
     shuffle: false,
@@ -606,11 +769,15 @@ RandomTagGroup _group({
         .toList(),
     dependencyConfig: dependencyConfig,
     timeCondition: timeCondition,
+    visibilityRules: visibilityRules,
     postProcessRules: postProcessRules,
     emphasisProbability: emphasisProbability,
     emphasisBracketCount: emphasisBracketCount,
   );
 }
+
+List<String> _promptTags(String prompt) =>
+    prompt.split(',').map((tag) => tag.trim()).toList();
 
 const _noHumanConfig = CharacterCountConfig(
   categories: [

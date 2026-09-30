@@ -271,11 +271,40 @@ class RandomTagGroup with _$RandomTagGroup {
   bool get isNested => nodeType == TagGroupNodeType.config;
 
   /// 深拷贝分组（生成新的ID，包含嵌套）
+  ///
+  /// 以本词组 ID 为目标的可见性规则与指向子词组的条件分支随副本改写
   RandomTagGroup deepCopy() {
+    final copyId = const Uuid().v4();
+    final copiedChildren = children.map((c) => c.deepCopy()).toList();
+    final childIds = {
+      for (var i = 0; i < children.length; i++)
+        children[i].id: copiedChildren[i].id,
+    };
+    final branchConfig = conditionalBranchConfig;
     return copyWith(
-      id: const Uuid().v4(),
+      id: copyId,
       tags: tags.map((t) => t.copyWith()).toList(),
-      children: children.map((c) => c.deepCopy()).toList(),
+      children: copiedChildren,
+      visibilityRules: visibilityRules
+          .map(
+            (rule) => rule.targetCategoryId == id
+                ? rule.copyWith(targetCategoryId: copyId)
+                : rule,
+          )
+          .toList(),
+      conditionalBranchConfig: branchConfig == null
+          ? null
+          : branchConfig.copyWith(
+              branches: branchConfig.branches
+                  .map(
+                    (branch) => branch.copyWith(
+                      tagGroupIds: branch.tagGroupIds
+                          .map((groupId) => childIds[groupId] ?? groupId)
+                          .toList(),
+                    ),
+                  )
+                  .toList(),
+            ),
     );
   }
 
@@ -347,13 +376,13 @@ class RandomTagGroup with _$RandomTagGroup {
     return timeCondition!.isActive(date);
   }
 
-  /// 检查可见性规则
+  /// 检查以本词组 ID 为目标的可见性规则
   ///
+  /// 目标为类别的规则作用于该类别下全部词组，由生成器按类别统一求值
   /// [context] 当前上下文，包含已选择的标签
   bool checkVisibility(Map<String, List<String>> context) {
     if (visibilityRules.isEmpty) return true;
 
-    // 创建规则集并检查
     final ruleSet = VisibilityRuleSet(rules: visibilityRules);
     return ruleSet.isCategoryVisible(id, context);
   }

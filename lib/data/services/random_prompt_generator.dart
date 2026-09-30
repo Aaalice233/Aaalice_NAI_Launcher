@@ -21,6 +21,7 @@ import 'bracket_formatter.dart';
 import 'character_count_resolver.dart';
 import 'no_repeat_round_sampler.dart';
 import 'random_preset_generation_context.dart';
+import 'random_preset_rules.dart';
 import 'sequential_state_service.dart';
 import 'strategies/catalog_random_generator_strategy.dart';
 import 'tag_library_service.dart';
@@ -202,12 +203,13 @@ class RandomPromptGenerator {
           : category.count,
     );
     context.addVariable('character_count_category', category.id);
+    final rules = RandomPresetRules(preset);
 
     // 3. 根据人数分支处理
     if (category.count == 0) {
       // 无人场景
       return _generateNoHumanFromPreset(
-        preset,
+        rules,
         random,
         seed,
         tagOption,
@@ -217,18 +219,12 @@ class RandomPromptGenerator {
 
     if (!isV4Model) {
       // 非 V4 模型：传统单提示词模式
-      return _generateLegacyFromPreset(
-        preset,
-        random,
-        seed,
-        tagOption,
-        context,
-      );
+      return _generateLegacyFromPreset(rules, random, seed, tagOption, context);
     }
 
     // V4+ 模型：多角色模式
     return _generateMultiCharacterFromPreset(
-      preset,
+      rules,
       random,
       seed,
       tagOption,
@@ -265,7 +261,7 @@ class RandomPromptGenerator {
 
   /// 从预设生成多角色结果（V4+ 模型）
   Future<RandomPromptResult> _generateMultiCharacterFromPreset(
-    RandomPreset preset,
+    RandomPresetRules rules,
     Random random,
     int? seed,
     CharacterTagOption? tagOption,
@@ -281,7 +277,7 @@ class RandomPromptGenerator {
 
     // 2. 生成全局标签（scope: global 或 all）
     final globalTags = await _generateFromPresetCategories(
-      preset,
+      rules,
       random,
       targetScope: TagScope.global,
       context: context,
@@ -303,7 +299,7 @@ class RandomPromptGenerator {
 
         // 生成角色特征标签（scope: character，按性别过滤）
         final characterFeatures = await _generateFromPresetCategories(
-          preset,
+          rules,
           random,
           targetScope: TagScope.character,
           characterGender: slotTag.characterTag,
@@ -325,7 +321,7 @@ class RandomPromptGenerator {
     } else {
       // 无槽位配置时，生成单角色（兼容旧配置）
       final charTags = await _generateFromPresetCategories(
-        preset,
+        rules,
         random,
         targetScope: TagScope.character,
         context: context.forCharacter('girl'),
@@ -355,7 +351,7 @@ class RandomPromptGenerator {
 
   /// 从预设生成传统单提示词结果（非 V4 模型）
   Future<RandomPromptResult> _generateLegacyFromPreset(
-    RandomPreset preset,
+    RandomPresetRules rules,
     Random random,
     int? seed,
     CharacterTagOption? tagOption,
@@ -377,7 +373,7 @@ class RandomPromptGenerator {
 
     // 生成所有类别的标签（不区分 scope）
     final tags = await _generateFromPresetCategories(
-      preset,
+      rules,
       random,
       context: context,
     );
@@ -391,7 +387,7 @@ class RandomPromptGenerator {
 
   /// 从预设生成无人场景结果
   Future<RandomPromptResult> _generateNoHumanFromPreset(
-    RandomPreset preset,
+    RandomPresetRules rules,
     Random random,
     int? seed,
     CharacterTagOption? tagOption,
@@ -408,7 +404,7 @@ class RandomPromptGenerator {
 
     // 仅生成全局标签（背景、场景、风格等）
     final globalTags = await _generateFromPresetCategories(
-      preset,
+      rules,
       random,
       targetScope: TagScope.global,
       context: context,
@@ -439,12 +435,13 @@ class RandomPromptGenerator {
   /// [targetScope] 目标作用域，用于过滤类别和词组
   /// [characterGender] 角色性别（槽位名称），用于过滤性别限定的类别和词组（仅角色提示词时传入）
   Future<List<String>> _generateFromPresetCategories(
-    RandomPreset preset,
+    RandomPresetRules rules,
     Random random, {
     TagScope targetScope = TagScope.all,
     String? characterGender,
     RandomPresetGenerationContext? context,
   }) async {
+    final preset = rules.preset;
     final results = <String>[];
     final generationContext = context ?? RandomPresetGenerationContext();
 
@@ -458,16 +455,7 @@ class RandomPromptGenerator {
       // 跳过禁用的类别
       if (!category.enabled) continue;
 
-      if (!preset.algorithmConfig.isCategoryGloballyVisible(
-            category.id,
-            generationContext.tagContext,
-          ) ||
-          !preset.algorithmConfig.isCategoryGloballyVisible(
-            category.key,
-            generationContext.tagContext,
-          )) {
-        continue;
-      }
+      if (!rules.isCategoryVisible(category, generationContext)) continue;
 
       // 作用域过滤
       if (!category.isApplicableToScope(targetScope)) continue;
