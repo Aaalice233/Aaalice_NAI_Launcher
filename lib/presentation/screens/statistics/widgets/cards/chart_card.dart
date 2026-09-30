@@ -124,37 +124,12 @@ class _ChartCardState extends State<ChartCard> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       if (widget.title != null) ...[
-                        Row(
-                          children: [
-                            if (widget.titleIcon != null) ...[
-                              // 深度层叠风格：简洁图标容器
-                              Container(
-                                padding: const EdgeInsets.all(8),
-                                decoration: BoxDecoration(
-                                  color: accentColor.withValues(
-                                    alpha: isDark ? 0.15 : 0.1,
-                                  ),
-                                  borderRadius: BorderRadius.circular(6),
-                                ),
-                                child: Icon(
-                                  widget.titleIcon,
-                                  size: 18,
-                                  color: accentColor,
-                                ),
-                              ),
-                              const SizedBox(width: 12),
-                            ],
-                            Expanded(
-                              child: Text(
-                                widget.title!,
-                                style: theme.textTheme.titleMedium?.copyWith(
-                                  fontWeight: FontWeight.w600,
-                                  letterSpacing: -0.3,
-                                ),
-                              ),
-                            ),
-                            if (widget.trailing != null) widget.trailing!,
-                          ],
+                        _ChartCardHeader(
+                          title: widget.title!,
+                          icon: widget.titleIcon,
+                          accentColor: accentColor,
+                          isDark: isDark,
+                          trailing: widget.trailing,
                         ),
                         SizedBox(height: useExpandedSpacing ? 18 : 14),
                       ],
@@ -167,6 +142,71 @@ class _ChartCardState extends State<ChartCard> {
           ),
         );
       },
+    );
+  }
+}
+
+class _ChartCardHeader extends StatelessWidget {
+  final String title;
+  final IconData? icon;
+  final Color accentColor;
+  final bool isDark;
+  final Widget? trailing;
+
+  const _ChartCardHeader({
+    required this.title,
+    required this.icon,
+    required this.accentColor,
+    required this.isDark,
+    this.trailing,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final titleText = Text(
+      title,
+      style: theme.textTheme.titleMedium?.copyWith(
+        fontWeight: FontWeight.w600,
+        letterSpacing: -0.3,
+      ),
+    );
+    final icon = this.icon;
+    final leading = [
+      if (icon != null) ...[
+        // 深度层叠风格：简洁图标容器
+        Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: accentColor.withValues(alpha: isDark ? 0.15 : 0.1),
+            borderRadius: BorderRadius.circular(6),
+          ),
+          child: Icon(icon, size: 18, color: accentColor),
+        ),
+        const SizedBox(width: 12),
+      ],
+    ];
+
+    final trailing = this.trailing;
+    if (trailing == null) {
+      return Row(children: [...leading, Expanded(child: titleText)]);
+    }
+    // 尾部控件放不下时换到标题下一行，标题和控件都不截断
+    return SizedBox(
+      width: double.infinity,
+      child: Wrap(
+        alignment: WrapAlignment.spaceBetween,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        spacing: 12,
+        runSpacing: 8,
+        children: [
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [...leading, Flexible(child: titleText)],
+          ),
+          trailing,
+        ],
+      ),
     );
   }
 }

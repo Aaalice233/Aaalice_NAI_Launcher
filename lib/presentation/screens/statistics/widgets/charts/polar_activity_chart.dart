@@ -363,27 +363,29 @@ class _PeakTimeIndicatorState extends State<PeakTimeIndicator> {
               child: Icon(timeIcon, color: primaryColor, size: 24),
             ),
             const SizedBox(width: 14),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  widget.label ?? context.l10n.statistics_peakActivity,
-                  style: theme.textTheme.labelSmall?.copyWith(
-                    color: colorScheme.onSurfaceVariant,
-                    fontWeight: FontWeight.w500,
+            Flexible(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    widget.label ?? context.l10n.statistics_peakActivity,
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      color: colorScheme.onSurfaceVariant,
+                      fontWeight: FontWeight.w500,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  '${widget.peakHour.toString().padLeft(2, '0')}:00 - $timeLabel',
-                  style: theme.textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: primaryColor,
-                    letterSpacing: -0.3,
+                  const SizedBox(height: 4),
+                  Text(
+                    '${widget.peakHour.toString().padLeft(2, '0')}:00 - $timeLabel',
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: primaryColor,
+                      letterSpacing: -0.3,
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ],
         ),

@@ -82,8 +82,6 @@ class _StatisticsScreenState extends ConsumerState<StatisticsScreen> {
               Expanded(
                 child: Text(
                   l10n.statistics_title,
-                  maxLines: stackActions ? 2 : 1,
-                  overflow: TextOverflow.ellipsis,
                   style: theme.textTheme.titleLarge?.copyWith(
                     fontWeight: FontWeight.w600,
                   ),
@@ -107,7 +105,7 @@ class _StatisticsScreenState extends ConsumerState<StatisticsScreen> {
                   tooltip: l10n.common_export,
                   icon: const Icon(Icons.download_outlined),
                 ),
-              const AnimatedRefreshButton(),
+              AnimatedRefreshButton(iconOnly: stackActions),
             ],
           );
           if (stackActions) {

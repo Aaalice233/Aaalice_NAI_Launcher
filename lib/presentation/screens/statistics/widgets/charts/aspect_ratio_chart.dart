@@ -102,62 +102,62 @@ class _AspectRatioChartState extends State<AspectRatioChart> {
           : theme.appTheme.fastDuration,
     );
 
+    if (!widget.showLegend) {
+      return SizedBox(height: widget.height, child: chart);
+    }
+
     return LayoutBuilder(
       builder: (context, constraints) {
-        final textScale = MediaQuery.textScalerOf(context).scale(14) / 14;
-        final stackLegend =
-            constraints.maxWidth / textScale.clamp(1.0, 3.0) < 360;
-        if (widget.showLegend && stackLegend) {
+        final textScale =
+            (MediaQuery.textScalerOf(context).scale(14) / 14).clamp(1.0, 3.0);
+        if (constraints.maxWidth / textScale < 360) {
           return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               SizedBox(height: widget.height, child: chart),
               const SizedBox(height: 12),
-              ConstrainedBox(
-                constraints: BoxConstraints(maxHeight: widget.height),
-                child: _buildLegend(context),
-              ),
+              _buildLegend(),
             ],
           );
         }
-        return SizedBox(
-          height: widget.height,
-          child: Row(
-            children: [
-              Expanded(flex: 2, child: chart),
-              if (widget.showLegend) ...[
-                const SizedBox(width: 12),
-                SizedBox(width: 140, child: _buildLegend(context)),
-              ],
-            ],
-          ),
+        // The legend grows with text size; a fixed width pushes counts out.
+        return Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: SizedBox(height: widget.height, child: chart),
+            ),
+            const SizedBox(width: 12),
+            SizedBox(
+              width: _legendBaseWidth * textScale,
+              child: _buildLegend(),
+            ),
+          ],
         );
       },
     );
   }
 
-  Widget _buildLegend(BuildContext context) {
-    return ListView.separated(
-      shrinkWrap: true,
-      padding: const EdgeInsets.only(right: 8),
-      itemCount: widget.items.length,
-      separatorBuilder: (_, __) => const SizedBox(height: 4),
-      itemBuilder: (context, index) {
-        final item = widget.items[index];
-        final color =
-            item.color ?? _defaultColors[index % _defaultColors.length];
-        final isTouched = _touchedIndex == index;
+  static const double _legendBaseWidth = 140;
 
-        return _AspectRatioLegendItem(
-          item: item,
-          color: color,
-          isHighlighted: isTouched,
-          onTap: () {
-            setState(() {
-              _touchedIndex = _touchedIndex == index ? null : index;
-            });
-          },
-        );
-      },
+  Widget _buildLegend() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        for (final (index, item) in widget.items.indexed) ...[
+          if (index > 0) const SizedBox(height: 4),
+          _AspectRatioLegendItem(
+            item: item,
+            color: item.color ?? _defaultColors[index % _defaultColors.length],
+            isHighlighted: _touchedIndex == index,
+            onTap: () {
+              setState(() {
+                _touchedIndex = _touchedIndex == index ? null : index;
+              });
+            },
+          ),
+        ],
+      ],
     );
   }
 }
@@ -204,34 +204,40 @@ class _AspectRatioLegendItem extends StatelessWidget {
             // Aspect ratio preview box
             _AspectRatioPreview(ratio: item.ratio, color: color, size: 20),
             const SizedBox(width: 6),
-            // Info
+            // Info and count; the count drops below the info when narrow
             Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
+              child: Wrap(
+                alignment: WrapAlignment.spaceBetween,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                spacing: 8,
                 children: [
-                  Text(
-                    item.ratio,
-                    style: theme.textTheme.labelSmall?.copyWith(
-                      fontWeight: FontWeight.w600,
-                    ),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        item.ratio,
+                        style: theme.textTheme.labelSmall?.copyWith(
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      Text(
+                        item.label,
+                        style: theme.textTheme.labelSmall?.copyWith(
+                          color: colorScheme.onSurfaceVariant,
+                          fontSize: 10,
+                        ),
+                      ),
+                    ],
                   ),
                   Text(
-                    item.label,
+                    '${item.count}',
                     style: theme.textTheme.labelSmall?.copyWith(
-                      color: colorScheme.onSurfaceVariant,
-                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                      color: color,
                     ),
                   ),
                 ],
-              ),
-            ),
-            // Count
-            Text(
-              '${item.count}',
-              style: theme.textTheme.labelSmall?.copyWith(
-                fontWeight: FontWeight.bold,
-                color: color,
               ),
             ),
           ],

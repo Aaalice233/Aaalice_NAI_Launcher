@@ -12,6 +12,7 @@ import '../../../../../data/services/anlas_statistics_service.dart';
 import '../../../../adaptive/adaptive_presenter.dart';
 import '../../../../adaptive/content_sized_adaptive_form.dart';
 import '../cards/chart_card.dart';
+import '../common/stat_pair_layout.dart';
 
 enum AnlasStatisticsPeriod { week, month, threeMonths, year, all, custom }
 
@@ -142,30 +143,23 @@ class _AnlasCostCardState extends ConsumerState<AnlasCostCard> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: _StatBox(
-                      label: l10n.statistics_totalAnlasCost,
-                      value: _formatAnlas(periodStats.totalCost),
-                      valueKey: const ValueKey('anlas-period-total'),
-                      isDark: isDark,
-                      colorScheme: colorScheme,
-                      textTheme: theme.textTheme,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: _StatBox(
-                      label: l10n.statistics_avgDailyCost,
-                      value: _formatAnlas(periodStats.averageDailyCost),
-                      valueKey: const ValueKey('anlas-period-average'),
-                      isDark: isDark,
-                      colorScheme: colorScheme,
-                      textTheme: theme.textTheme,
-                    ),
-                  ),
-                ],
+              StatPairLayout(
+                first: _StatBox(
+                  label: l10n.statistics_totalAnlasCost,
+                  value: _formatAnlas(periodStats.totalCost),
+                  valueKey: const ValueKey('anlas-period-total'),
+                  isDark: isDark,
+                  colorScheme: colorScheme,
+                  textTheme: theme.textTheme,
+                ),
+                second: _StatBox(
+                  label: l10n.statistics_avgDailyCost,
+                  value: _formatAnlas(periodStats.averageDailyCost),
+                  valueKey: const ValueKey('anlas-period-average'),
+                  isDark: isDark,
+                  colorScheme: colorScheme,
+                  textTheme: theme.textTheme,
+                ),
               ),
               const SizedBox(height: 10),
               _buildPeriodSummary(context, l10n, periodStats),
@@ -231,7 +225,6 @@ class _AnlasCostCardState extends ConsumerState<AnlasCostCard> {
         );
       }).toList(),
       child: Container(
-        constraints: const BoxConstraints(maxWidth: 132),
         padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
         decoration: BoxDecoration(
           color: Colors.amber.withValues(alpha: 0.1),
@@ -244,8 +237,6 @@ class _AnlasCostCardState extends ConsumerState<AnlasCostCard> {
             Flexible(
               child: Text(
                 _selectedPeriodLabel(l10n),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
                 style: Theme.of(
                   context,
                 ).textTheme.labelMedium?.copyWith(fontWeight: FontWeight.w600),

@@ -1,8 +1,11 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/themes/theme_extension.dart';
 
 import '../../../../adaptive/interaction_policy.dart';
+import '../../../../utils/single_line_text_width.dart';
 import '../../utils/chart_colors.dart';
 
 /// Heatmap chart widget for displaying activity distribution
@@ -112,6 +115,16 @@ class _HeatmapChartState extends State<HeatmapChart>
       l10n.statistics_saturday,
       l10n.statistics_sunday,
     ];
+    final dayLabelStyle = theme.textTheme.bodySmall?.copyWith(
+      fontSize: 10,
+      fontWeight: FontWeight.w500,
+      color: colorScheme.onSurfaceVariant.withValues(alpha: 0.8),
+    );
+    // Rows must fit the weekday labels, or large text stacks them onto
+    // neighbouring rows.
+    final rowExtent = widget.showDayLabels
+        ? math.max(cellExtent, _dayLabelHeight(dayLabelStyle, dayLabels))
+        : cellExtent;
 
     return AnimatedBuilder(
       animation: _animation,
@@ -125,27 +138,26 @@ class _HeatmapChartState extends State<HeatmapChart>
               children: [
                 // Day labels (vertical, on left side)
                 if (widget.showDayLabels)
-                  SizedBox(
-                    width: 36,
-                    child: Column(
-                      children: List.generate(7, (dayIndex) {
-                        return SizedBox(
-                          height: cellExtent,
-                          child: Center(
-                            child: Text(
-                              dayLabels[dayIndex],
-                              style: theme.textTheme.bodySmall?.copyWith(
-                                fontSize: 10,
-                                fontWeight: FontWeight.w500,
-                                color: colorScheme.onSurfaceVariant.withValues(
-                                  alpha: 0.8,
+                  ConstrainedBox(
+                    constraints: const BoxConstraints(minWidth: 36),
+                    child: Padding(
+                      padding: const EdgeInsetsDirectional.only(end: 6),
+                      child: Column(
+                        children: [
+                          for (final label in dayLabels)
+                            SizedBox(
+                              height: rowExtent,
+                              child: Center(
+                                child: Text(
+                                  label,
+                                  style: dayLabelStyle,
+                                  maxLines: 1,
+                                  softWrap: false,
                                 ),
                               ),
-                              textAlign: TextAlign.right,
                             ),
-                          ),
-                        );
-                      }),
+                        ],
+                      ),
                     ),
                   ),
                 // Grid
@@ -211,8 +223,9 @@ class _HeatmapChartState extends State<HeatmapChart>
                                           value,
                                         )
                                       : null,
-                                  child: SizedBox.square(
-                                    dimension: cellExtent,
+                                  child: SizedBox(
+                                    width: cellExtent,
+                                    height: rowExtent,
                                     child: Center(
                                       child: AnimatedContainer(
                                         duration: _reducedMotion
@@ -271,31 +284,38 @@ class _HeatmapChartState extends State<HeatmapChart>
     ColorScheme colorScheme,
     AppLocalizations l10n,
   ) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.start,
+    return Wrap(
+      crossAxisAlignment: WrapCrossAlignment.center,
+      spacing: 4,
+      runSpacing: 4,
       children: [
         _buildLegendLabel(theme, l10n.statistics_heatmapLess, colorScheme),
-        const SizedBox(width: 4),
-        ...List.generate(5, (index) {
-          final value = index / 4;
-          final color = index == 0
-              ? colorScheme.surfaceContainerHighest.withValues(alpha: 0.5)
-              : ChartColors.getHeatmapColor(value);
-          return Container(
-            width: 14,
-            height: 14,
-            margin: const EdgeInsets.symmetric(horizontal: 2),
-            decoration: BoxDecoration(
-              color: color,
-              borderRadius: BorderRadius.circular(3),
-            ),
-          );
-        }),
-        const SizedBox(width: 4),
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: List.generate(5, (index) {
+            final value = index / 4;
+            final color = index == 0
+                ? colorScheme.surfaceContainerHighest.withValues(alpha: 0.5)
+                : ChartColors.getHeatmapColor(value);
+            return Container(
+              width: 14,
+              height: 14,
+              margin: const EdgeInsets.symmetric(horizontal: 2),
+              decoration: BoxDecoration(
+                color: color,
+                borderRadius: BorderRadius.circular(3),
+              ),
+            );
+          }),
+        ),
         _buildLegendLabel(theme, l10n.statistics_heatmapMore, colorScheme),
       ],
     );
   }
+
+  double _dayLabelHeight(TextStyle? style, List<String> labels) => labels
+      .map((label) => singleLineTextSize(context, label, style).height)
+      .reduce(math.max);
 
   Widget _buildLegendLabel(
     ThemeData theme,
