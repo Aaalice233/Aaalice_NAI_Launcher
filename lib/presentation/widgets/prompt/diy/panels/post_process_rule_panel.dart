@@ -76,8 +76,28 @@ class _PostProcessRulePanelState extends State<PostProcessRulePanel> {
     _setRules([..._rules, newRule], selectedIndex: _rules.length);
   }
 
-  void _addPresetRule(PostProcessRule rule) {
-    _setRules([..._rules, rule], selectedIndex: _selectedIndex);
+  void _addPresetRule(_PresetRule preset) {
+    final targets = _categoryIdsForKeys(preset.targetCategoryKeys);
+    final rule = preset.create(targets);
+    // 目标没能全部定位到本预设的类别时直接展开编辑，让用户补选要移除的类别
+    final needsTargets =
+        targets.isEmpty || targets.length < preset.targetCategoryKeys.length;
+    _setRules([
+      ..._rules,
+      rule,
+    ], selectedIndex: needsTargets ? _rules.length : _selectedIndex);
+  }
+
+  List<String> _categoryIdsForKeys(List<String> keys) {
+    final ids = <String>[];
+    for (final key in keys) {
+      final matches = widget.categoryOptions
+          .where((option) => option.key == key)
+          .toList();
+      // 键名重复时无法确定指向哪个类别，留给用户选择
+      if (matches.length == 1) ids.add(matches.single.id);
+    }
+    return ids;
   }
 
   void _removeRule(int index) {
@@ -147,23 +167,27 @@ class _PostProcessRulePanelState extends State<PostProcessRulePanel> {
     final colorScheme = theme.colorScheme;
 
     final presets = [
-      (
-        '😴',
-        context.l10n.diy_sleepingRule,
-        () => PostProcessRule.sleepingRule().copyWith(
-          name: context.l10n.diy_sleepingRule,
-          description: context.l10n.diy_sleepingRuleDescription,
-        ),
-        Colors.indigo,
+      _PresetRule(
+        emoji: '😴',
+        label: context.l10n.diy_sleepingRule,
+        color: Colors.indigo,
+        targetCategoryKeys: PostProcessRule.sleepingTargetCategoryKeys,
+        create: (targets) =>
+            PostProcessRule.sleepingRule(targetCategoryIds: targets).copyWith(
+              name: context.l10n.diy_sleepingRule,
+              description: context.l10n.diy_sleepingRuleDescription,
+            ),
       ),
-      (
-        '🧜',
-        context.l10n.diy_mermaidRule,
-        () => PostProcessRule.mermaidRule().copyWith(
-          name: context.l10n.diy_mermaidRule,
-          description: context.l10n.diy_mermaidRuleDescription,
-        ),
-        Colors.teal,
+      _PresetRule(
+        emoji: '🧜',
+        label: context.l10n.diy_mermaidRule,
+        color: Colors.teal,
+        targetCategoryKeys: PostProcessRule.mermaidTargetCategoryKeys,
+        create: (targets) =>
+            PostProcessRule.mermaidRule(targetCategoryIds: targets).copyWith(
+              name: context.l10n.diy_mermaidRule,
+              description: context.l10n.diy_mermaidRuleDescription,
+            ),
       ),
     ];
 
@@ -185,11 +209,10 @@ class _PostProcessRulePanelState extends State<PostProcessRulePanel> {
             builder: (context, constraints) {
               final stackPresets = constraints.maxWidth < 480;
 
-              Widget buildPresetButton(
-                (String, String, PostProcessRule Function(), Color) preset,
-              ) {
-                final (emoji, label, ruleFactory, color) = preset;
-                final side = BorderSide(color: color.withValues(alpha: 0.3));
+              Widget buildPresetButton(_PresetRule preset) {
+                final side = BorderSide(
+                  color: preset.color.withValues(alpha: 0.3),
+                );
                 return Padding(
                   padding: EdgeInsets.symmetric(
                     horizontal: stackPresets ? 0 : 4,
@@ -199,18 +222,21 @@ class _PostProcessRulePanelState extends State<PostProcessRulePanel> {
                     borderRadius: BorderRadius.circular(10),
                     color: colorScheme.surfaceContainerHighest,
                     side: side,
-                    onTap: () => _addPresetRule(ruleFactory()),
+                    onTap: () => _addPresetRule(preset),
                     child: Container(
                       width: double.infinity,
                       padding: EdgeInsets.all(12 + side.width),
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Text(emoji, style: const TextStyle(fontSize: 18)),
+                          Text(
+                            preset.emoji,
+                            style: const TextStyle(fontSize: 18),
+                          ),
                           const SizedBox(width: 8),
                           Flexible(
                             child: Text(
-                              label,
+                              preset.label,
                               textAlign: TextAlign.center,
                               softWrap: true,
                               style: theme.textTheme.labelMedium?.copyWith(
@@ -658,4 +684,21 @@ class _PostProcessRulePanelState extends State<PostProcessRulePanel> {
       _getActionLabel(rule.action),
     );
   }
+}
+
+/// 预设规则按类别键名声明目标，添加时再定位到当前预设的类别 ID
+class _PresetRule {
+  const _PresetRule({
+    required this.emoji,
+    required this.label,
+    required this.color,
+    required this.targetCategoryKeys,
+    required this.create,
+  });
+
+  final String emoji;
+  final String label;
+  final Color color;
+  final List<String> targetCategoryKeys;
+  final PostProcessRule Function(List<String> targetCategoryIds) create;
 }

@@ -200,17 +200,6 @@ class AlgorithmConfig with _$AlgorithmConfig {
     return globalTimeConditions!.isActive(date);
   }
 
-  /// 应用全局后处理规则
-  List<String> applyGlobalPostProcessRules(
-    List<String> tags,
-    Map<String, List<String>> context, {
-    Map<String, String>? variables,
-  }) {
-    if (globalPostProcessRules == null) return tags;
-    return globalPostProcessRules!
-        .applyAll(tags, context, variables: variables);
-  }
-
   /// 检查类别全局可见性
   bool isCategoryGloballyVisible(
     String categoryId,

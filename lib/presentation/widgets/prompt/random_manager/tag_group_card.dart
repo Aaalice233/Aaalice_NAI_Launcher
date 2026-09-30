@@ -406,6 +406,7 @@ class _TagGroupEditDialogState extends ConsumerState<_TagGroupEditDialog>
       for (var i = 0; i < categories.length; i++)
         DiyCategoryOption(
           id: categories[i].id,
+          key: categories[i].key,
           label: labels.where((label) => label == labels[i]).length > 1
               ? '${labels[i]} (${categories[i].key})'
               : labels[i],

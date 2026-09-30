@@ -1,3 +1,4 @@
+import 'package:collection/collection.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
 
 part 'post_process_rule.freezed.dart';
@@ -71,23 +72,41 @@ class PostProcessRule with _$PostProcessRule {
   factory PostProcessRule.fromJson(Map<String, dynamic> json) =>
       _$PostProcessRuleFromJson(json);
 
+  /// 睡眠规则移除的类别键名：瞳色所在的默认类别
+  static const sleepingTargetCategoryKeys = ['eyeColor'];
+
+  /// 美人鱼规则没有默认目标：腿部服装与上装同属默认的服装类别，整类移除会连上装一起删掉
+  static const mermaidTargetCategoryKeys = <String>[];
+
   /// 创建睡眠规则（移除眼睛颜色）
-  factory PostProcessRule.sleepingRule({String? id}) => PostProcessRule(
+  ///
+  /// [targetCategoryIds] 为 [sleepingTargetCategoryKeys] 在当前预设中对应的类别 ID
+  factory PostProcessRule.sleepingRule({
+    String? id,
+    List<String> targetCategoryIds = const [],
+  }) =>
+      PostProcessRule(
         id: id ?? 'sleeping_rule',
         name: '睡眠规则',
         triggerTags: ['sleeping', 'zzz', 'closed eyes'],
         action: PostProcessAction.removeCategory,
-        targetCategoryIds: ['eye_color'],
+        targetCategoryIds: targetCategoryIds,
         description: '当角色睡觉时，移除眼睛颜色描述',
       );
 
   /// 创建美人鱼规则（不穿腿部服装）
-  factory PostProcessRule.mermaidRule({String? id}) => PostProcessRule(
+  ///
+  /// [targetCategoryIds] 为用户在当前预设中选定的腿部服装类别 ID
+  factory PostProcessRule.mermaidRule({
+    String? id,
+    List<String> targetCategoryIds = const [],
+  }) =>
+      PostProcessRule(
         id: id ?? 'mermaid_rule',
         name: '美人鱼规则',
         triggerTags: ['mermaid', 'centaur', 'lamia'],
         action: PostProcessAction.removeCategory,
-        targetCategoryIds: ['legwear', 'footwear', 'pants', 'skirt'],
+        targetCategoryIds: targetCategoryIds,
         description: '美人鱼、半人马、蛇女等不穿腿部服装',
       );
 
@@ -166,10 +185,13 @@ class PostProcessRule with _$PostProcessRule {
         break;
 
       case PostProcessAction.removeCategory:
-        // 移除类别中的所有标签
+        // 触发标签本身也可能来自目标类别（如 closed eyes 属于眼睛），整类移除时要保留它
+        final triggers = triggerTags.toSet();
         for (final categoryId in targetCategoryIds) {
-          final categoryTags = context[categoryId] ?? [];
-          result.removeWhere((t) => categoryTags.contains(t));
+          final categoryTags = (context[categoryId] ?? const []).toSet();
+          result.removeWhere(
+            (t) => categoryTags.contains(t) && !triggers.contains(t),
+          );
         }
         break;
     }
@@ -219,9 +241,9 @@ class PostProcessRuleSet with _$PostProcessRuleSet {
     Map<String, List<String>> context, {
     Map<String, String>? variables,
   }) {
-    // 按优先级排序
-    final sortedRules = rules.where((r) => r.enabled).toList()
-      ..sort((a, b) => b.priority.compareTo(a.priority));
+    // 同优先级按列表顺序执行：规则依次改写标签，先后顺序影响结果
+    final sortedRules = rules.where((r) => r.enabled).toList();
+    mergeSort(sortedRules, compare: (a, b) => b.priority.compareTo(a.priority));
 
     var result = tags;
 
