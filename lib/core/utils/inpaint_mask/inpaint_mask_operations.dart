@@ -23,6 +23,10 @@ class InpaintMaskUtils {
     return mask == null ? bytes : BinaryMaskCodec.encode(mask);
   }
 
+  static Future<Uint8List> normalizeMaskBytesAsync(Uint8List bytes) {
+    return ComputeGate().runIsolate(() => normalizeMaskBytes(bytes));
+  }
+
   /// 将蒙版按最近邻重采样到编辑器工作画布，保持硬边和二值语义。
   static Uint8List resizeMaskBytes(
     Uint8List bytes, {
@@ -207,6 +211,11 @@ class InpaintMaskUtils {
     final decoded = BinaryMaskCodec.decode(bytes);
     if (decoded == null) return null;
     return (mask: decoded.pixels, width: decoded.width, height: decoded.height);
+  }
+
+  static Future<({Uint8List mask, int width, int height})?>
+  decodeBinaryMaskAsync(Uint8List bytes) {
+    return ComputeGate().runIsolate(() => decodeBinaryMask(bytes));
   }
 
   /// 将 0/1 二值蒙版渲染为黑白 RGBA 图像（白=蒙版区域），不做 PNG 编码。
