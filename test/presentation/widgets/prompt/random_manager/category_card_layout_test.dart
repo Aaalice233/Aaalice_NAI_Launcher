@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:nai_launcher/data/models/prompt/conditional_branch.dart';
 import 'package:nai_launcher/data/models/prompt/random_category.dart';
 import 'package:nai_launcher/data/models/prompt/random_preset.dart';
 import 'package:nai_launcher/data/models/prompt/random_tag_group.dart';
@@ -36,6 +37,18 @@ const _category = RandomCategory(
       id: 'group',
       name: 'Group',
       tags: [WeightedTag(tag: 'blonde_hair', weight: 1)],
+    ),
+    // 让 Group 只经由分支输出，列表里显示说明徽标
+    RandomTagGroup(
+      id: 'owner',
+      name: 'Owner',
+      conditionalBranchConfig: ConditionalBranchConfig(
+        id: 'owner-branches',
+        name: 'Owner branches',
+        branches: [
+          ConditionalBranch(name: 'Pick', tagGroupIds: ['group']),
+        ],
+      ),
     ),
   ],
 );
@@ -266,6 +279,19 @@ Future<void> _expectCategoryCardUsable(
         .first,
     container: _card(),
     reason: 'group menu $reason',
+  );
+  final badge = _l10n.randomManager_branchOutputBadge('Owner');
+  await _expectTextComplete(
+    tester,
+    find.text(badge),
+    container: _card(),
+    reason: 'branch badge text $reason',
+  );
+  await _expectReachable(
+    tester,
+    _button(badge),
+    container: _card(),
+    reason: 'branch badge $reason',
   );
   expect(tester.takeException(), isNull, reason: reason);
 }

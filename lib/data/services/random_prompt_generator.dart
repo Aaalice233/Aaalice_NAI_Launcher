@@ -10,6 +10,7 @@ import '../datasources/local/tag_group_cache_service.dart';
 import '../models/character/character_prompt.dart';
 import '../models/prompt/category_filter_config.dart';
 import '../models/prompt/character_count_config.dart';
+import '../models/prompt/conditional_branch.dart';
 import '../models/prompt/random_category.dart';
 import '../models/prompt/random_preset.dart';
 import '../models/prompt/random_prompt_result.dart';
@@ -520,16 +521,18 @@ class RandomPromptGenerator {
     required RandomPresetRules rules,
     required RandomPresetGenerationContext context,
   }) async {
-    // 过滤启用且符合条件的词组
+    // 过滤启用且符合条件的词组；由启用分支输出的词组只经由分支生成
     final enabledGroups = category.groups
         .where(
-          (g) => _isGroupEligible(
-            g,
-            rules,
-            context,
-            targetScope: targetScope,
-            characterGender: characterGender,
-          ),
+          (g) =>
+              !rules.isBranchOwned(category, g) &&
+              _isGroupEligible(
+                g,
+                rules,
+                context,
+                targetScope: targetScope,
+                characterGender: characterGender,
+              ),
         )
         .toList();
     if (enabledGroups.isEmpty) return [];
@@ -602,7 +605,8 @@ class RandomPromptGenerator {
 
   /// 从单个词组生成标签（支持递归嵌套）
   ///
-  /// [selectionCount] 为依赖给出的抽取数量，覆盖选择模式的数量
+  /// [selectionCount] 为依赖给出的抽取数量，覆盖选择模式的数量；
+  /// [branchPath] 为正在经由分支展开的词组，分支不会再输出它们
   Future<List<String>> _generateFromGroup(
     RandomTagGroup group,
     RandomCategory category,
@@ -610,6 +614,7 @@ class RandomPromptGenerator {
     RandomPresetRules rules,
     RandomPresetGenerationContext context, {
     int? selectionCount,
+    Set<String> branchPath = const {},
   }) async {
     final branchConfig = group.conditionalBranchConfig;
     final branch = branchConfig != null && branchConfig.enabled
@@ -619,25 +624,24 @@ class RandomPromptGenerator {
           )
         : null;
     if (branch != null) {
+      // 分支条件按词组 ID 引用；名称保留给按名称保存的存量条件
       context.addVariable(group.name, branch.name);
-      if (branch.tagGroupIds.isNotEmpty && group.children.isNotEmpty) {
-        final branchChildren = group.children
-            .where((child) => branch.tagGroupIds.contains(child.id))
-            .toList();
-        if (branchChildren.isNotEmpty) {
-          final branchGroup = group.copyWith(
-            nodeType: TagGroupNodeType.config,
-            children: branchChildren,
-          );
-          return _generateFromNestedGroup(
-            branchGroup,
-            category,
-            random,
-            rules,
-            context,
-            selectionCount: selectionCount,
-          );
-        }
+      context.addVariable(group.id, branch.name);
+      final targets = _branchTargets(group, branch, category, branchPath);
+      if (targets.isNotEmpty) {
+        final branchGroup = group.copyWith(
+          nodeType: TagGroupNodeType.config,
+          children: targets,
+        );
+        return _generateFromNestedGroup(
+          branchGroup,
+          category,
+          random,
+          rules,
+          context,
+          selectionCount: selectionCount,
+          branchPath: {...branchPath, group.id},
+        );
       }
     }
 
@@ -650,6 +654,7 @@ class RandomPromptGenerator {
         rules,
         context,
         selectionCount: selectionCount,
+        branchPath: branchPath,
       );
     }
 
@@ -704,6 +709,32 @@ class RandomPromptGenerator {
     }
 
     return bracketedTags;
+  }
+
+  /// 分支输出的词组：本词组的子词组在前，同类别的其他词组在后
+  ///
+  /// 已在展开路径上的词组不再输出，存量数据里的循环引用因此不会无限展开
+  List<RandomTagGroup> _branchTargets(
+    RandomTagGroup group,
+    ConditionalBranch branch,
+    RandomCategory category,
+    Set<String> branchPath,
+  ) {
+    final targetIds = branch.tagGroupIds.toSet()
+      ..remove(group.id)
+      ..removeAll(branchPath);
+    if (targetIds.isEmpty) return const [];
+    final children = group.children
+        .where((child) => targetIds.contains(child.id))
+        .toList();
+    final childIds = {for (final child in children) child.id};
+    return [
+      ...children,
+      ...category.groups.where(
+        (sibling) =>
+            targetIds.contains(sibling.id) && !childIds.contains(sibling.id),
+      ),
+    ];
   }
 
   /// 从 Pool 类型词组生成标签
@@ -811,6 +842,7 @@ class RandomPromptGenerator {
     RandomPresetRules rules,
     RandomPresetGenerationContext context, {
     int? selectionCount,
+    Set<String> branchPath = const {},
   }) async {
     final enabledChildren = group.children
         .where(
@@ -848,6 +880,7 @@ class RandomPromptGenerator {
         rules,
         context,
         selectionCount: _dependentSelectionCount(child, rules, context, random),
+        branchPath: branchPath,
       );
       results.addAll(childTags);
     }

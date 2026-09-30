@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/utils/localization_extension.dart';
+import '../../../../data/models/prompt/conditional_branch_targets.dart';
 import '../../../../data/models/prompt/random_category.dart';
 import '../../../../data/models/prompt/tag_scope.dart';
 import '../../../adaptive/compact_control_metrics.dart';
@@ -237,6 +238,7 @@ class _CategoryEditor extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
+    final branchOutputs = category.branchReferences(activeOnly: true);
     return Padding(
       padding: const EdgeInsets.fromLTRB(14, 2, 14, 14),
       child: Column(
@@ -332,6 +334,7 @@ class _CategoryEditor extends StatelessWidget {
                     categoryKey: category.key,
                     presetId: presetId,
                     isPresetDefault: readOnly,
+                    branchOutputBy: branchOutputs[group.id] ?? const [],
                     dragHandle: readOnly
                         ? null
                         : ReorderableDragStartListener(

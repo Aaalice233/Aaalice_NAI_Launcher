@@ -1,3 +1,4 @@
+import '../models/prompt/conditional_branch_targets.dart';
 import '../models/prompt/diy_category_references.dart';
 import '../models/prompt/post_process_rule.dart';
 import '../models/prompt/random_category.dart';
@@ -8,7 +9,8 @@ import 'random_preset_generation_context.dart';
 
 /// 一次预设生成中 DIY 规则的作用范围与求值：类别引用统一换成 ID，
 /// 词组上以类别为目标的可见性规则归到目标类别，词组后处理与全局规则一起作用于整轮结果，
-/// 依赖按源的结果数或已选值求值（角色数量源读取本次生成的人数）。
+/// 依赖按源的结果数或已选值求值（角色数量源读取本次生成的人数），
+/// 由启用分支输出的词组不参与类别的常规抽取。
 class RandomPresetRules {
   factory RandomPresetRules(RandomPreset preset) {
     final resolver = DiyCategoryReferenceResolver(preset.categories);
@@ -25,6 +27,10 @@ class RandomPresetRules {
     return RandomPresetRules._(
       resolved,
       _collectCategoryVisibilityRules(resolved.categories),
+      {
+        for (final category in resolved.categories)
+          category.id: category.branchOwnedGroupIds,
+      },
       PostProcessRuleSet(
         rules: [
           ...?resolved.algorithmConfig.globalPostProcessRules?.rules,
@@ -35,13 +41,23 @@ class RandomPresetRules {
     );
   }
 
-  RandomPresetRules._(this.preset, this._categoryVisibility, this._postProcess);
+  RandomPresetRules._(
+    this.preset,
+    this._categoryVisibility,
+    this._branchOwnedGroupIds,
+    this._postProcess,
+  );
 
   /// 类别引用已换成 ID 的预设，生成全程使用它
   final RandomPreset preset;
 
   final Map<String, VisibilityRuleSet> _categoryVisibility;
+  final Map<String, Set<String>> _branchOwnedGroupIds;
   final PostProcessRuleSet _postProcess;
+
+  /// 词组是否只经由同类别启用分支输出
+  bool isBranchOwned(RandomCategory category, RandomTagGroup group) =>
+      _branchOwnedGroupIds[category.id]?.contains(group.id) ?? false;
 
   bool isCategoryVisible(
     RandomCategory category,

@@ -9393,6 +9393,30 @@ abstract class AppLocalizations {
   /// **'Delete tag group \"{name}\"? This action cannot be undone.'**
   String randomManager_deleteTagGroupConfirm(Object name);
 
+  /// No description provided for @randomManager_branchOutputBadge.
+  ///
+  /// In en, this message translates to:
+  /// **'Output by a branch of “{name}”'**
+  String randomManager_branchOutputBadge(String name);
+
+  /// No description provided for @randomManager_branchOutputBadgeMultiple.
+  ///
+  /// In en, this message translates to:
+  /// **'Output by {count} branches, including “{name}”'**
+  String randomManager_branchOutputBadgeMultiple(String name, int count);
+
+  /// No description provided for @randomManager_branchOutputTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'This group is not drawn on its own; it is output only when a branch that references it is chosen. It returns to normal drawing once those branches are disabled or deleted. Tap to open the branch.'**
+  String get randomManager_branchOutputTooltip;
+
+  /// No description provided for @randomManager_deleteBranchTargetWarning.
+  ///
+  /// In en, this message translates to:
+  /// **'Branches of “{names}” reference this group. After deletion, that entry in those branches will show as unavailable.'**
+  String randomManager_deleteBranchTargetWarning(String names);
+
   /// No description provided for @randomManager_tagGroupCount.
   ///
   /// In en, this message translates to:
@@ -21665,6 +21689,132 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Enable This Branch'**
   String get diy_enableBranch;
+
+  /// No description provided for @diy_branchTargets.
+  ///
+  /// In en, this message translates to:
+  /// **'Output tag groups'**
+  String get diy_branchTargets;
+
+  /// No description provided for @diy_branchTargetsHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Selected groups are output only when this branch is chosen, drawn with this group\'s selection mode. With none selected, this group\'s own tags are output.'**
+  String get diy_branchTargetsHint;
+
+  /// No description provided for @diy_branchTargetsEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No other tag groups in this category'**
+  String get diy_branchTargetsEmpty;
+
+  /// No description provided for @diy_branchTargetChild.
+  ///
+  /// In en, this message translates to:
+  /// **'Child: {name}'**
+  String diy_branchTargetChild(String name);
+
+  /// No description provided for @diy_branchTargetCycle.
+  ///
+  /// In en, this message translates to:
+  /// **'Would create a loop'**
+  String get diy_branchTargetCycle;
+
+  /// No description provided for @diy_branchTargetCycleHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Greyed-out groups already output this group directly or indirectly; selecting them would create a loop'**
+  String get diy_branchTargetCycleHint;
+
+  /// No description provided for @diy_branchTargetCount.
+  ///
+  /// In en, this message translates to:
+  /// **'Outputs {count} groups'**
+  String diy_branchTargetCount(int count);
+
+  /// No description provided for @diy_branchConditions.
+  ///
+  /// In en, this message translates to:
+  /// **'Conditions'**
+  String get diy_branchConditions;
+
+  /// No description provided for @diy_branchConditionsHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Only categories and branches generated before this group can be referenced. Values are compared as tags, ignoring case, underscores, and weight syntax. A branch without conditions is always eligible.'**
+  String get diy_branchConditionsHint;
+
+  /// No description provided for @diy_addCondition.
+  ///
+  /// In en, this message translates to:
+  /// **'Add condition'**
+  String get diy_addCondition;
+
+  /// No description provided for @diy_deleteCondition.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete condition'**
+  String get diy_deleteCondition;
+
+  /// No description provided for @diy_conditionSource.
+  ///
+  /// In en, this message translates to:
+  /// **'Variable'**
+  String get diy_conditionSource;
+
+  /// No description provided for @diy_conditionValueRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter a value'**
+  String get diy_conditionValueRequired;
+
+  /// No description provided for @diy_conditionLogicAll.
+  ///
+  /// In en, this message translates to:
+  /// **'Match all'**
+  String get diy_conditionLogicAll;
+
+  /// No description provided for @diy_conditionLogicAny.
+  ///
+  /// In en, this message translates to:
+  /// **'Match any'**
+  String get diy_conditionLogicAny;
+
+  /// No description provided for @diy_conditionSourceGender.
+  ///
+  /// In en, this message translates to:
+  /// **'Character gender'**
+  String get diy_conditionSourceGender;
+
+  /// No description provided for @diy_conditionSourceBranch.
+  ///
+  /// In en, this message translates to:
+  /// **'Branch of {name}'**
+  String diy_conditionSourceBranch(String name);
+
+  /// No description provided for @diy_conditionValueHintCategory.
+  ///
+  /// In en, this message translates to:
+  /// **'e.g. blue eyes'**
+  String get diy_conditionValueHintCategory;
+
+  /// No description provided for @diy_conditionValueHintGender.
+  ///
+  /// In en, this message translates to:
+  /// **'e.g. girl, boy'**
+  String get diy_conditionValueHintGender;
+
+  /// No description provided for @diy_conditionValueHintCount.
+  ///
+  /// In en, this message translates to:
+  /// **'e.g. 1, 2, 3'**
+  String get diy_conditionValueHintCount;
+
+  /// No description provided for @diy_conditionValueHintBranch.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter a branch name'**
+  String get diy_conditionValueHintBranch;
 
   /// No description provided for @diy_ruleDefaultName.
   ///

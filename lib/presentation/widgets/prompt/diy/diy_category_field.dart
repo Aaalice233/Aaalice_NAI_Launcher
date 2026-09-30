@@ -88,6 +88,8 @@ class DiyCategoryMultiSelect extends StatelessWidget {
     required this.onChanged,
     this.decoration = const InputDecoration(),
     this.readOnly = false,
+    this.disabledIds = const {},
+    this.disabledReason,
   });
 
   final List<String> values;
@@ -95,6 +97,10 @@ class DiyCategoryMultiSelect extends StatelessWidget {
   final ValueChanged<List<String>> onChanged;
   final InputDecoration decoration;
   final bool readOnly;
+
+  /// 不可新选的候选；已选中的仍可取消，悬停时显示 [disabledReason]
+  final Set<String> disabledIds;
+  final String? disabledReason;
 
   @override
   Widget build(BuildContext context) {
@@ -115,20 +121,7 @@ class DiyCategoryMultiSelect extends StatelessWidget {
               spacing: 8,
               runSpacing: 8,
               children: [
-                for (final option in options)
-                  FilterChip(
-                    label: _CategoryLabel(option.label),
-                    selected: values.contains(option.id),
-                    onSelected: readOnly
-                        ? null
-                        : (selected) => onChanged(
-                            selected
-                                ? [...values, option.id]
-                                : values
-                                      .where((id) => id != option.id)
-                                      .toList(),
-                          ),
-                  ),
+                for (final option in options) _optionChip(option),
                 for (final id in unavailable)
                   InputChip(
                     label: _CategoryLabel(
@@ -145,6 +138,26 @@ class DiyCategoryMultiSelect extends StatelessWidget {
               ],
             ),
     );
+  }
+
+  Widget _optionChip(DiyCategoryOption option) {
+    final selected = values.contains(option.id);
+    final blocked = !selected && disabledIds.contains(option.id);
+    final chip = FilterChip(
+      label: _CategoryLabel(option.label),
+      selected: selected,
+      onSelected: readOnly || blocked
+          ? null
+          : (selected) => onChanged(
+              selected
+                  ? [...values, option.id]
+                  : values.where((id) => id != option.id).toList(),
+            ),
+    );
+    final reason = disabledReason;
+    return blocked && reason != null
+        ? Tooltip(message: reason, child: chip)
+        : chip;
   }
 }
 

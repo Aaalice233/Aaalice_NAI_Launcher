@@ -8,7 +8,9 @@ import '../../../common/surface_ink_well.dart';
 import '../../../../widgets/common/themed_divider.dart';
 import '../../../../widgets/common/elevated_card.dart';
 import '../diy_badges.dart';
+import '../diy_category_field.dart';
 import '../diy_panel_header.dart';
+import 'branch_conditions_editor.dart';
 import 'package:nai_launcher/presentation/widgets/common/themed_form_input.dart';
 
 /// 条件分支配置面板
@@ -22,6 +24,18 @@ class ConditionalBranchPanel extends StatefulWidget {
   /// 配置变更回调
   final ValueChanged<ConditionalBranchConfig?> onConfigChanged;
 
+  /// 分支可输出的词组：本词组的子词组与同类别的其他词组
+  final List<DiyCategoryOption> targetOptions;
+
+  /// 选中后会形成循环引用的词组
+  final Set<String> cyclicTargetIds;
+
+  /// 分支条件可引用的变量
+  final List<BranchConditionSource> conditionSources;
+
+  /// 打开时直接编辑的分支
+  final int? initialSelectedIndex;
+
   /// 是否只读
   final bool readOnly;
 
@@ -29,6 +43,10 @@ class ConditionalBranchPanel extends StatefulWidget {
     super.key,
     this.config,
     required this.onConfigChanged,
+    this.targetOptions = const [],
+    this.cyclicTargetIds = const {},
+    this.conditionSources = const [],
+    this.initialSelectedIndex,
     this.readOnly = false,
   });
 
@@ -46,6 +64,10 @@ class _ConditionalBranchPanelState extends State<ConditionalBranchPanel> {
     super.initState();
     _usesDefaultConfig = widget.config == null;
     _config = widget.config ?? const ConditionalBranchConfig(id: '', name: '');
+    final initial = widget.initialSelectedIndex;
+    if (initial != null && initial >= 0 && initial < _config.branches.length) {
+      _selectedIndex = initial;
+    }
   }
 
   @override
@@ -405,6 +427,15 @@ class _ConditionalBranchPanelState extends State<ConditionalBranchPanel> {
                               fontWeight: FontWeight.w600,
                             ),
                           ),
+                          if (branch.tagGroupIds.isNotEmpty)
+                            Text(
+                              context.l10n.diy_branchTargetCount(
+                                branch.tagGroupIds.length,
+                              ),
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                color: colorScheme.onSurfaceVariant,
+                              ),
+                            ),
                           if (branch.conditions.isNotEmpty)
                             Text(
                               context.l10n.diy_conditionCount(
@@ -454,6 +485,56 @@ class _ConditionalBranchPanelState extends State<ConditionalBranchPanel> {
 
   static String _probabilityText(double probability) =>
       '${probability.round()}%';
+
+  Widget _buildTargetsEditor(int index, ConditionalBranch branch) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final l10n = context.l10n;
+    final blocksCycle = widget.targetOptions.any(
+      (option) =>
+          widget.cyclicTargetIds.contains(option.id) &&
+          !branch.tagGroupIds.contains(option.id),
+    );
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        DiySectionTitle(
+          icon: Icons.alt_route_rounded,
+          accent: colorScheme.secondary,
+          container: colorScheme.secondaryContainer,
+          title: l10n.diy_branchTargets,
+        ),
+        const SizedBox(height: 12),
+        DiyCategoryMultiSelect(
+          values: branch.tagGroupIds,
+          options: widget.targetOptions,
+          disabledIds: widget.cyclicTargetIds,
+          disabledReason: l10n.diy_branchTargetCycle,
+          readOnly: widget.readOnly,
+          decoration: InputDecoration(
+            hintText: widget.targetOptions.isEmpty
+                ? l10n.diy_branchTargetsEmpty
+                : null,
+            helperText: l10n.diy_branchTargetsHint,
+            helperMaxLines: 4,
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+          ),
+          onChanged: (ids) =>
+              _updateBranch(index, branch.copyWith(tagGroupIds: ids)),
+        ),
+        if (blocksCycle) ...[
+          const SizedBox(height: 8),
+          Text(
+            l10n.diy_branchTargetCycleHint,
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: colorScheme.onSurfaceVariant,
+            ),
+          ),
+        ],
+      ],
+    );
+  }
 
   Widget _buildBranchEditor(int index) {
     final theme = Theme.of(context);
@@ -528,6 +609,19 @@ class _ConditionalBranchPanelState extends State<ConditionalBranchPanel> {
                       ),
               ),
             ],
+          ),
+          const SizedBox(height: 16),
+          _buildTargetsEditor(index, branch),
+          const SizedBox(height: 16),
+          BranchConditionsEditor(
+            conditions: branch.conditions,
+            logicType: branch.logicType,
+            sources: widget.conditionSources,
+            readOnly: widget.readOnly,
+            onChanged: (conditions, logicType) => _updateBranch(
+              index,
+              branch.copyWith(conditions: conditions, logicType: logicType),
+            ),
           ),
           const SizedBox(height: 12),
           // 启用开关

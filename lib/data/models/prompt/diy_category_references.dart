@@ -8,6 +8,9 @@ import 'visibility_rule.dart';
 /// 代表角色人数的特殊引用，依赖源与生成变量共用，不指向任何类别
 const characterCountReference = 'character_count';
 
+/// 生成角色提示词时记录角色性别（槽位名称）的变量
+const characterGenderVariable = 'character_gender';
+
 /// 把 DIY 规则中的类别引用解析为预设内的类别
 ///
 /// 规则按类别 ID 存储；生成器同样认得类别键名；存量数据里还有按类别名称保存的引用。
