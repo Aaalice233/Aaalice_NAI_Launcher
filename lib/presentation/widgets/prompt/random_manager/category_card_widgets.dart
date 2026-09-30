@@ -382,14 +382,16 @@ class _AddCategoryButtonState extends ConsumerState<AddCategoryButton> {
                     : colorScheme.onSurfaceVariant,
               ),
               const SizedBox(width: 6),
-              Text(
-                l10n.randomManager_addCategory,
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w500,
-                  color: _isHovered
-                      ? colorScheme.primary
-                      : colorScheme.onSurfaceVariant,
+              Flexible(
+                child: Text(
+                  l10n.randomManager_addCategory,
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
+                    color: _isHovered
+                        ? colorScheme.primary
+                        : colorScheme.onSurfaceVariant,
+                  ),
                 ),
               ),
             ],
