@@ -3,7 +3,10 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/core/utils/inpaint_outpaint_utils.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
+import 'package:nai_launcher/presentation/widgets/common/input_surface_container.dart';
 import 'package:nai_launcher/presentation/widgets/image_editor/widgets/panels/shift_edges_dialog.dart';
+
+import '../../../../../helpers/text_layout_expectations.dart';
 
 Widget _wrapDialog({
   required int sourceWidth,
@@ -175,4 +178,61 @@ void main() {
     expect(result, isNotNull);
     expect(result!.requestedEdges.right, 64);
   });
+
+  testWidgets(
+    'invalid edge shows its error below the field at 320/600 and 3x',
+    (tester) async {
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+
+      for (final width in [320.0, 600.0]) {
+        for (final scale in [1.0, 3.0]) {
+          final reason = 'width=$width scale=$scale';
+          tester.view.physicalSize = Size(width, 900);
+          await tester.pumpWidget(const SizedBox.shrink());
+          await tester.pumpWidget(
+            _wrapDialog(
+              sourceWidth: 1024,
+              sourceHeight: 1216,
+              textScaler: TextScaler.linear(scale),
+            ),
+          );
+          await _openDialog(tester);
+
+          final left = find.byKey(const Key('shift_edges_left'));
+          await tester.ensureVisible(left);
+          await tester.enterText(left, '');
+          await tester.pump();
+
+          final error = find.descendant(
+            of: left,
+            matching: find.text('Enter a number'),
+          );
+          final surface = find.descendant(
+            of: left,
+            matching: find.byType(InputSurfaceContainer),
+          );
+          expect(error, findsOneWidget, reason: reason);
+          expect(
+            find.descendant(of: surface, matching: find.text('Enter a number')),
+            findsNothing,
+            reason: reason,
+          );
+          expect(
+            tester.widget<InputSurfaceContainer>(surface).hasError,
+            isTrue,
+          );
+          await tester.ensureVisible(error);
+          await tester.pump();
+          expect(
+            tester.getTopLeft(error).dy,
+            greaterThanOrEqualTo(tester.getBottomLeft(surface).dy),
+            reason: reason,
+          );
+          expectFullyVisible(tester, error, reason: reason);
+          expect(tester.takeException(), isNull, reason: reason);
+        }
+      }
+    },
+  );
 }
