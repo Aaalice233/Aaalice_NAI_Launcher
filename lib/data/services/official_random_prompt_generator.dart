@@ -4,12 +4,14 @@ import '../../core/constants/model_capabilities.dart';
 import '../models/character/character_prompt.dart';
 import '../models/prompt/official_wordlist.dart';
 import '../models/prompt/random_prompt_result.dart';
+import 'official_wordlist_errata.dart';
 import 'wordlist_service.dart';
 
 /// Executes the three random-prompt recipes from the source-locked NovelAI
 /// frontend. Where upstream discards a filter result or records the wrong
 /// entry field, the asset's declared intent is applied instead, so flags such
-/// as `nolegs`, `legs` and `feet` actually gate the picks.
+/// as `nolegs`, `legs` and `feet` actually gate the picks. Records listed in
+/// [officialWordlistErrata] are corrected when the wordlist is loaded.
 class OfficialRandomPromptGenerator {
   const OfficialRandomPromptGenerator(this._wordlistService);
 
@@ -25,7 +27,9 @@ class OfficialRandomPromptGenerator {
       RandomPromptProfile.furryV3 => WordlistType.furry,
       RandomPromptProfile.characterPrompts => WordlistType.v4,
     };
-    final library = await _wordlistService.getOfficialWordlist(type);
+    final library = correctedOfficialWordlist(
+      await _wordlistService.getOfficialWordlist(type),
+    );
     final engine = _OfficialRecipeEngine(library, Random(seed));
     final prompts = switch (profile) {
       RandomPromptProfile.legacyAnime => [

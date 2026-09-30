@@ -331,6 +331,58 @@ void main() {
         expect(role.wears(eyeColors), isFalse, reason: role.prompt);
       }
     });
+
+    test('corrected eye-hiding records never come with an eye color', () {
+      final eyeColors = _values(library, 'dN');
+      final hidingEyes = roles
+          .where(
+            (role) => role.tags.any(
+              const {'sleeping', '^_^', 'opaque glasses'}.contains,
+            ),
+          )
+          .toList();
+
+      expect(hidingEyes.length, greaterThan(10));
+      for (final role in hidingEyes) {
+        expect(role.wears(eyeColors), isFalse, reason: role.prompt);
+      }
+    });
+
+    test('corrected socks are drawn only with visible feet', () {
+      final socks = roles.where((role) => role.tags.contains('socks')).toList();
+
+      expect(socks, isNotEmpty);
+      for (final role in socks) {
+        expect(role.framing, 'full body', reason: role.prompt);
+      }
+    });
+  });
+
+  test('a scene with the corrected ocean holds no other location', () async {
+    final library = await service.getOfficialWordlist(WordlistType.v4);
+    // Scene types such as cityscape repeat a location without its flag.
+    final locations = _valuesWhere(
+      library,
+      'dz',
+      (entry) => entry.stringFieldValues(4).contains('location'),
+    ).difference(_values(library, 'dn'));
+    var oceans = 0;
+    for (var seed = 0; seed < 8000; seed++) {
+      final result = await generator.generate(
+        profile: RandomPromptProfile.characterPrompts,
+        seed: seed,
+      );
+      final tags = result.mainPrompt
+          .split(', ')
+          .map((tag) => tag.replaceAll(RegExp(r'^\{|\}$'), ''))
+          .toList();
+      if (!tags.contains('ocean')) continue;
+      oceans++;
+      expect(tags.where(locations.contains), [
+        'ocean',
+      ], reason: result.mainPrompt);
+    }
+    expect(oceans, greaterThan(5));
   });
 
   group('upstream filters take effect in Legacy and Furry', () {
