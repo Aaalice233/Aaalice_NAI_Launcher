@@ -146,23 +146,24 @@ class _RecipeSummary extends ConsumerWidget {
       runSpacing: 6,
       crossAxisAlignment: WrapCrossAlignment.center,
       children: [
-        Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              '$enabledCount/${preset.categoryCount}',
-              style: theme.textTheme.labelLarge?.copyWith(
-                fontFeatures: const [FontFeature.tabularFigures()],
+        // 计数与类别名写成同一段文字，窄屏放大文字时整体换行
+        Text.rich(
+          TextSpan(
+            children: [
+              TextSpan(
+                text: '$enabledCount/${preset.categoryCount} ',
+                style: theme.textTheme.labelLarge?.copyWith(
+                  fontFeatures: const [FontFeature.tabularFigures()],
+                ),
               ),
-            ),
-            const SizedBox(width: 6),
-            Text(
-              context.l10n.randomManager_categories,
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: colors.onSurfaceVariant,
+              TextSpan(
+                text: context.l10n.randomManager_categories,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: colors.onSurfaceVariant,
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
         _InlineMetric(
           icon: Icons.layers_outlined,

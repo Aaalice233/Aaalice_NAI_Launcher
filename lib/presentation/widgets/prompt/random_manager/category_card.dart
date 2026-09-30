@@ -4,9 +4,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/utils/localization_extension.dart';
 import '../../../../data/models/prompt/random_category.dart';
 import '../../../../data/models/prompt/tag_scope.dart';
+import '../../../adaptive/compact_control_metrics.dart';
+import '../../../adaptive/interaction_policy.dart';
 import '../../../providers/random_preset_provider.dart';
 import '../../../themes/core/layered_surface_style.dart';
-import '../../common/themed_slider.dart';
+import '../../common/horizontal_segmented_control.dart';
+import '../../common/labeled_slider_rows.dart';
 import 'add_tag_group_dialog.dart';
 import 'probability_text.dart';
 import 'random_config_l10n.dart';
@@ -259,7 +262,11 @@ class _CategoryEditor extends StatelessWidget {
                   onChanged: (value) =>
                       onCategoryChanged(category.copyWith(probability: value)),
                 );
-                if (constraints.maxWidth >= 620) {
+                // 放大文字后分段按钮本身就接近整行宽，同行排不下概率滑块
+                final sideBySide =
+                    constraints.maxWidth >= 620 &&
+                    MediaQuery.textScalerOf(context).scale(1) <= 1.5;
+                if (sideBySide) {
                   return Row(
                     children: [
                       scope,
@@ -271,7 +278,7 @@ class _CategoryEditor extends StatelessWidget {
                 return Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    Align(alignment: Alignment.centerLeft, child: scope),
+                    HorizontalSegmentedControl(child: scope),
                     const SizedBox(height: 10),
                     probability,
                   ],
@@ -280,7 +287,11 @@ class _CategoryEditor extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 16),
-          Row(
+          // 标题与添加按钮排不下同一行时，按钮换到标题下方
+          Wrap(
+            alignment: WrapAlignment.spaceBetween,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            runSpacing: 4,
             children: [
               Text(
                 context.l10n.randomManager_tagGroupList,
@@ -288,7 +299,6 @@ class _CategoryEditor extends StatelessWidget {
                   context,
                 ).textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w600),
               ),
-              const Spacer(),
               if (!readOnly)
                 TextButton.icon(
                   onPressed: onAddGroup,
@@ -375,8 +385,11 @@ class _ScopeSelector extends StatelessWidget {
       onSelectionChanged: enabled
           ? (selection) => onChanged(selection.first)
           : null,
-      style: const ButtonStyle(
-        visualDensity: VisualDensity(horizontal: -2, vertical: -2),
+      // 触屏保留 48 高的命中区，精确指针下维持紧凑
+      style: ButtonStyle(
+        visualDensity: CompactControlMetrics.forPolicy(
+          context.interactionPolicy,
+        ).density,
       ),
     );
   }
@@ -396,34 +409,18 @@ class _ProbabilityEditor extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final colors = theme.colorScheme;
-    return Row(
-      children: [
-        Text(
-          context.l10n.randomManager_probability,
-          style: theme.textTheme.labelMedium?.copyWith(
-            color: colors.onSurfaceVariant,
-          ),
-        ),
-        const SizedBox(width: 8),
-        Expanded(
-          child: NamedSlider(
-            label: context.l10n.randomManager_probability,
-            valueText: formatProbabilityPercent,
-            value: value,
-            divisions: 20,
-            onChanged: enabled ? onChanged : null,
-          ),
-        ),
-        SizedBox(
-          width: 42,
-          child: Text(
-            formatProbabilityPercent(value),
-            textAlign: TextAlign.end,
-            style: theme.textTheme.labelMedium?.copyWith(
-              fontFeatures: const [FontFeature.tabularFigures()],
-            ),
-          ),
+    return LabeledSliderRows(
+      labelStyle: theme.textTheme.labelMedium?.copyWith(
+        color: theme.colorScheme.onSurfaceVariant,
+      ),
+      valueStyle: theme.textTheme.labelMedium,
+      sliders: [
+        LabeledSlider(
+          label: context.l10n.randomManager_probability,
+          value: value,
+          divisions: 20,
+          valueText: formatProbabilityPercent,
+          onChanged: enabled ? onChanged : null,
         ),
       ],
     );
