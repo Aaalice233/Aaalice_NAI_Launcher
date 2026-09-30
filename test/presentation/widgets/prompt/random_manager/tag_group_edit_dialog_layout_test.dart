@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -188,11 +189,12 @@ Future<void> _selectTab(WidgetTester tester, IconData icon) async {
   await tester.pumpAndSettle();
 }
 
-// 步长取半个视口：矮视口里比控件还高的操作栏会在一步之内盖过目标
+// 每步实际滚动半个视口：矮视口里比控件还高的操作栏会在一步之内盖过目标；
+// 横滑切页与纵向滚动同时竞争手势，拖动开头的触摸容差不计入滚动
 Future<void> _scrollEditorUntilVisible(WidgetTester tester, Finder target) {
   return tester.scrollUntilVisible(
     target,
-    tester.getSize(_editorScrollable()).height / 2,
+    tester.getSize(_editorScrollable()).height / 2 + kTouchSlop,
     scrollable: _editorScrollable(),
     maxScrolls: 200,
   );
@@ -489,5 +491,131 @@ void main() {
     await _selectTab(tester, Icons.account_tree_outlined);
     expect(_editorPosition(tester).pixels, 0);
     expect(tester.takeException(), isNull);
+  });
+
+  group('横滑切换标签页', () {
+    int tabIndex(WidgetTester tester) => tester
+        .widget<TabBar>(find.byType(TabBar, skipOffstage: false))
+        .controller!
+        .index;
+
+    Future<void> flingOn(
+      WidgetTester tester,
+      Finder target,
+      Offset offset, {
+      PointerDeviceKind deviceKind = PointerDeviceKind.touch,
+    }) async {
+      await tester.ensureVisible(target);
+      await tester.pumpAndSettle();
+      await tester.flingFrom(
+        tester.getCenter(target),
+        offset,
+        1000,
+        deviceKind: deviceKind,
+      );
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('正文上甩动切到相邻标签页，方向与原 TabBarView 一致', (tester) async {
+      await _openEditor(tester, size: const Size(412, 700), textScale: 1);
+      await _selectTab(tester, Icons.sell_outlined);
+      expect(tabIndex(tester), 1);
+
+      await flingOn(tester, _tagText(2), const Offset(-200, 0));
+      expect(tabIndex(tester), 2);
+      await flingOn(
+        tester,
+        find.byKey(ValueKey('tag-group-diy-action-${_diyTitles.first}')),
+        const Offset(200, 0),
+      );
+      expect(tabIndex(tester), 1);
+      await flingOn(tester, _tagText(2), const Offset(200, 0));
+      expect(tabIndex(tester), 0);
+      // 第一页再向右甩不越界
+      await flingOn(
+        tester,
+        find.text('${_l10n.randomManager_selectionMode}:'),
+        const Offset(200, 0),
+      );
+      expect(tabIndex(tester), 0);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('慢速拖过正文一半宽度才切页，操作栏随正文滚动时同样生效', (tester) async {
+      await _openEditor(tester, size: _landscape, textScale: 1);
+      await _setKeyboard(tester, _keyboardInset);
+      expect(_actionsScrollWithContent(), isTrue);
+      await _selectTab(tester, Icons.sell_outlined);
+      final width = tester.getSize(_editorScrollable()).width;
+
+      await _scrollEditorUntilVisible(tester, _tagText(0));
+      await tester.ensureVisible(_tagText(0));
+      await tester.pumpAndSettle();
+      await tester.timedDrag(
+        _tagText(0),
+        Offset(-width * 0.3, 0),
+        const Duration(seconds: 2),
+      );
+      await tester.pumpAndSettle();
+      expect(tabIndex(tester), 1, reason: '不到一半宽度的慢速拖动不切页');
+
+      await tester.ensureVisible(_tagText(0));
+      await tester.pumpAndSettle();
+      await tester.timedDrag(
+        _tagText(0),
+        Offset(-width * 0.6, 0),
+        const Duration(seconds: 2),
+      );
+      await tester.pumpAndSettle();
+      expect(tabIndex(tester), 2);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('纵向滑动只滚动正文，不切换标签页', (tester) async {
+      await _openEditor(tester, size: const Size(412, 700), textScale: 1);
+      await _selectTab(tester, Icons.sell_outlined);
+      await flingOn(tester, _tagText(4), const Offset(0, -300));
+      expect(tabIndex(tester), 1);
+      expect(_editorPosition(tester).pixels, greaterThan(0));
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('从滑块、名称输入框或标签栏开始的横拖不切换标签页', (tester) async {
+      await _openEditor(tester, size: const Size(412, 700), textScale: 1);
+      final probability = find.descendant(
+        of: _editorSurface(),
+        matching: find.byType(Slider),
+      );
+      final before = tester.widget<Slider>(probability).value;
+      await flingOn(tester, probability, const Offset(-200, 0));
+      expect(tabIndex(tester), 0, reason: '滑块');
+      expect(tester.widget<Slider>(probability).value, lessThan(before));
+
+      await flingOn(tester, _nameField(), const Offset(-200, 0));
+      expect(tabIndex(tester), 0, reason: '名称输入框');
+
+      final tabBar = tester.getRect(find.byType(TabBar));
+      await tester.flingFrom(
+        Offset(tabBar.right - 8, tabBar.center.dy),
+        const Offset(-200, 0),
+        1000,
+      );
+      await tester.pumpAndSettle();
+      expect(tabIndex(tester), 0, reason: '标签栏');
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('鼠标拖动不切换标签页，与原 TabBarView 的拖动设备一致', (tester) async {
+      await _openEditor(tester, size: const Size(1180, 900), textScale: 1);
+      await _selectTab(tester, Icons.sell_outlined);
+      await flingOn(
+        tester,
+        _tagText(2),
+        const Offset(-300, 0),
+        deviceKind: PointerDeviceKind.mouse,
+      );
+      expect(tabIndex(tester), 1);
+      expect(tester.takeException(), isNull);
+    });
   });
 }
