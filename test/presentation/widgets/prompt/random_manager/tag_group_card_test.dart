@@ -124,7 +124,7 @@ void main() {
       firstEdit.hitTestable(),
       findsOneWidget,
       reason:
-          'action=${tester.getRect(firstEdit)} scroll=${tester.getRect(find.byType(SingleChildScrollView).last)}',
+          'action=${tester.getRect(firstEdit)} scroll=${tester.getRect(find.byKey(const ValueKey('tag-group-editor-scroll')))}',
     );
     await tester.tap(firstEdit);
     await tester.pumpAndSettle();
@@ -516,9 +516,7 @@ void main() {
     final selector = find.byType(DropdownButton<SelectionMode>);
     await tester.ensureVisible(selector);
     await tester.pumpAndSettle();
-    final section = find
-        .ancestor(of: find.byType(TabBarView), matching: find.byType(Container))
-        .first;
+    final section = find.byKey(const ValueKey('tag-group-editor-surface'));
     final theme = Theme.of(tester.element(selector));
     await hoverOver(tester, selector);
     expectInkOnTop(
@@ -526,6 +524,33 @@ void main() {
       section,
       ink: theme.hoverColor,
       below: sectionSurfaceColor(theme.colorScheme),
+    );
+  });
+
+  testWidgets('编辑弹窗标签栏的悬停反馈画在分组底色之上', (tester) async {
+    tester.view.physicalSize = const Size(1180, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    await _pumpCard(tester);
+    await tester.tap(find.text('包含全部复杂配置的超长词组名称'));
+    await tester.pumpAndSettle();
+
+    final diyTab = find.descendant(
+      of: find.byType(TabBar),
+      matching: find.byIcon(Icons.account_tree_outlined),
+    );
+    final colors = Theme.of(tester.element(diyTab)).colorScheme;
+    await hoverOver(tester, diyTab);
+    // 固定标签栏自带不透明底色，墨水必须画在这层底色之上
+    expectInkOnTop(
+      tester,
+      find
+          .ancestor(of: find.byType(TabBar), matching: find.byType(ColoredBox))
+          .first,
+      // Material 3 标签栏未选中项的默认悬停色
+      ink: colors.onSurface.withValues(alpha: 0.08),
+      below: sectionSurfaceColor(colors),
     );
   });
 }
