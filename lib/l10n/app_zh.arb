@@ -5830,6 +5830,12 @@
       "error": {"type": "String"}
     }
   },
+  "diy_presetVersionTooNew": "该预设由更新版本的应用导出（数据版本 {version}），请更新应用后再导入",
+  "@diy_presetVersionTooNew": {
+    "placeholders": {
+      "version": {"type": "int"}
+    }
+  },
   "diy_presetExportTitle": "导出预设",
   "diy_presetImportTitle": "导入预设",
   "diy_unknown": "未知",

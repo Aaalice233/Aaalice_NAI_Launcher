@@ -1,5 +1,8 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:nai_launcher/data/models/prompt/random_preset.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/widgets/prompt/diy/dialogs/preset_import_dialog.dart';
 
@@ -63,9 +66,51 @@ void main() {
     expect(tester.getRect(panel).center.dy, moreOrLessEquals(450));
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets('导出的当前版本预设可以再次导入，更高版本提示更新应用', (tester) async {
+    tester.view.physicalSize = const Size(1180, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    RandomPreset? imported;
+    await _pumpLauncher(tester, onImported: (preset) => imported = preset);
+    await tester.tap(find.text('open'));
+    await tester.pumpAndSettle();
+
+    final input = find.byType(EditableText);
+    await tester.enterText(
+      input,
+      jsonEncode({'name': '未来', 'version': RandomPreset.currentVersion + 1}),
+    );
+    await tester.pump();
+    expect(
+      find.text(
+        '该预设由更新版本的应用导出（数据版本 ${RandomPreset.currentVersion + 1}），请更新应用后再导入',
+      ),
+      findsOneWidget,
+    );
+
+    final exported = RandomPreset.create(name: '往返预设').toExportJson();
+    await tester.enterText(input, jsonEncode(exported));
+    await tester.pump();
+    expect(find.textContaining('请更新应用'), findsNothing);
+
+    await tester.tap(find.byType(FilledButton));
+    await tester.pumpAndSettle();
+    expect(imported?.name, '往返预设');
+    expect(imported?.version, RandomPreset.currentVersion);
+    expect(tester.takeException(), isNull);
+  });
 }
 
-Future<void> _pumpLauncher(WidgetTester tester, {double textScale = 1}) async {
+Future<void> _pumpLauncher(
+  WidgetTester tester, {
+  double textScale = 1,
+  ValueChanged<RandomPreset?>? onImported,
+}) async {
   await tester.pumpWidget(
     MaterialApp(
       locale: const Locale('zh'),
@@ -80,7 +125,10 @@ Future<void> _pumpLauncher(WidgetTester tester, {double textScale = 1}) async {
       home: Builder(
         builder: (context) => Scaffold(
           body: TextButton(
-            onPressed: () => PresetImportDialog.showImport(context),
+            onPressed: () async {
+              final preset = await PresetImportDialog.showImport(context);
+              onImported?.call(preset);
+            },
             child: const Text('open'),
           ),
         ),

@@ -6077,6 +6077,12 @@
       "error": {"type": "String"}
     }
   },
+  "diy_presetVersionTooNew": "This preset was exported by a newer app version (data version {version}). Update the app, then import it again",
+  "@diy_presetVersionTooNew": {
+    "placeholders": {
+      "version": {"type": "int"}
+    }
+  },
   "diy_presetExportTitle": "Export Preset",
   "diy_presetImportTitle": "Import Preset",
   "diy_unknown": "Unknown",

@@ -12018,6 +12018,11 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
+  String diy_presetVersionTooNew(int version) {
+    return '该预设由更新版本的应用导出（数据版本 $version），请更新应用后再导入';
+  }
+
+  @override
   String get diy_presetExportTitle => '导出预设';
 
   @override
@@ -27054,6 +27059,11 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   @override
   String diy_presetInvalidData(String error) {
     return '無效的預設資料：$error';
+  }
+
+  @override
+  String diy_presetVersionTooNew(int version) {
+    return '此預設由較新版本的應用程式匯出（資料版本 $version），請更新應用程式後再匯入';
   }
 
   @override

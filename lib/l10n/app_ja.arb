@@ -6046,6 +6046,12 @@
       "error": {"type": "String"}
     }
   },
+  "diy_presetVersionTooNew": "このプリセットは新しいバージョンのアプリで書き出されています（データバージョン {version}）。アプリを更新してからインポートしてください",
+  "@diy_presetVersionTooNew": {
+    "placeholders": {
+      "version": {"type": "int"}
+    }
+  },
   "diy_presetExportTitle": "プリセットをエクスポート",
   "diy_presetImportTitle": "プリセットをインポート",
   "diy_unknown": "不明",
