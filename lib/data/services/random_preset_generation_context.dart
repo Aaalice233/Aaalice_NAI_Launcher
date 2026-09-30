@@ -74,6 +74,11 @@ class RandomPresetGenerationContext {
     return categoryTags[key]?.length ?? 0;
   }
 
+  List<String> valuesFor(String key) {
+    if (key == characterCountReference) return ['$characterCount'];
+    return categoryTags[key] ?? const [];
+  }
+
   String firstValueFor(String key) {
     if (key == characterCountReference) return '$characterCount';
     final values = categoryTags[key];

@@ -11855,6 +11855,22 @@ class AppLocalizationsZh extends AppLocalizations {
   String get diy_dependencyExcludesDescription => '源类别中存在已选标签时不生效';
 
   @override
+  String get diy_dependencyCountCharacterCountDescription =>
+      '根据本次生成的角色数量决定结果数量';
+
+  @override
+  String get diy_dependencyExistsCharacterCountDescription =>
+      '仅在画面中有角色（角色数量大于 0）时生效';
+
+  @override
+  String get diy_dependencyValueCharacterCountDescription =>
+      '依赖本次生成的角色数量取值，如 1、2、3';
+
+  @override
+  String get diy_dependencyExcludesCharacterCountDescription =>
+      '仅在无人画面（角色数量为 0）时生效';
+
+  @override
   String get diy_conditionalDefaultName => '条件分支配置';
 
   @override
@@ -26873,6 +26889,22 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get diy_dependencyExcludesDescription => '源類別中存在已選標籤時不生效';
+
+  @override
+  String get diy_dependencyCountCharacterCountDescription =>
+      '根據本次生成的角色數量決定結果數量';
+
+  @override
+  String get diy_dependencyExistsCharacterCountDescription =>
+      '僅在畫面中有角色（角色數量大於 0）時生效';
+
+  @override
+  String get diy_dependencyValueCharacterCountDescription =>
+      '依賴本次生成的角色數量取值，如 1、2、3';
+
+  @override
+  String get diy_dependencyExcludesCharacterCountDescription =>
+      '僅在無人畫面（角色數量為 0）時生效';
 
   @override
   String get diy_conditionalDefaultName => '條件分支配置';

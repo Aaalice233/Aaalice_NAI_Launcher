@@ -6,9 +6,11 @@ import 'package:nai_launcher/data/models/prompt/algorithm_config.dart';
 import 'package:nai_launcher/data/models/prompt/character_count_config.dart';
 import 'package:nai_launcher/data/models/prompt/conditional_branch.dart';
 import 'package:nai_launcher/data/models/prompt/dependency_config.dart';
+import 'package:nai_launcher/data/models/prompt/diy_category_references.dart';
 import 'package:nai_launcher/data/models/prompt/post_process_rule.dart';
 import 'package:nai_launcher/data/models/prompt/random_category.dart';
 import 'package:nai_launcher/data/models/prompt/random_preset.dart';
+import 'package:nai_launcher/data/models/prompt/random_prompt_result.dart';
 import 'package:nai_launcher/data/models/prompt/random_tag_group.dart';
 import 'package:nai_launcher/data/models/prompt/tag_category.dart';
 import 'package:nai_launcher/data/models/prompt/tag_library.dart';
@@ -836,6 +838,168 @@ void main() {
       final tags = _promptTags(result.mainPrompt);
       expect(tags, containsAll(['mermaid', 'seashell bra']));
       expect(tags, isNot(contains('thighhighs')));
+    });
+  });
+
+  group('依赖配置', () {
+    RandomPreset characterCountPreset(CharacterCountConfig countConfig) =>
+        _preset(
+          [
+            _category(
+              id: 'cat-scene',
+              key: 'scene',
+              groups: [
+                _group(
+                  id: 'with_people',
+                  tags: ['crowd'],
+                  dependencyConfig: const DependencyConfig(
+                    type: DependencyType.exists,
+                    sourceCategoryId: characterCountReference,
+                  ),
+                ),
+                _group(
+                  id: 'empty_scene',
+                  tags: ['scenery'],
+                  dependencyConfig: const DependencyConfig(
+                    type: DependencyType.excludes,
+                    sourceCategoryId: characterCountReference,
+                  ),
+                ),
+              ],
+            ),
+          ],
+          algorithmConfig: AlgorithmConfig(characterCountConfig: countConfig),
+          forceNoHumanConfig: false,
+        );
+
+    test('角色数量源：存在依赖只在有角色时生成，排斥依赖只在无人时生成', () async {
+      final solo = await generator.generateFromPreset(
+        preset: characterCountPreset(_soloGirlConfig),
+        seed: 1,
+      );
+      final noHumans = await generator.generateFromPreset(
+        preset: characterCountPreset(_noHumanConfig),
+        seed: 1,
+      );
+
+      expect(_promptTags(solo.mainPrompt), contains('crowd'));
+      expect(_promptTags(solo.mainPrompt), isNot(contains('scenery')));
+      expect(_promptTags(noHumans.mainPrompt), contains('scenery'));
+      expect(_promptTags(noHumans.mainPrompt), isNot(contains('crowd')));
+    });
+
+    test('存在依赖满足时保留词组自己的多选数量', () async {
+      final preset = _preset([
+        _category(
+          id: 'cat-pose',
+          key: 'pose',
+          groups: [
+            _group(id: 'pose_group', tags: ['standing']),
+          ],
+        ),
+        _category(
+          id: 'cat-accessory',
+          key: 'accessory',
+          groups: [
+            _group(
+              id: 'accessories',
+              tags: ['ribbon', 'hat', 'necklace'],
+              selectionMode: SelectionMode.multipleNum,
+              multipleNum: 2,
+              dependencyConfig: const DependencyConfig(
+                type: DependencyType.exists,
+                sourceCategoryId: 'cat-pose',
+              ),
+            ),
+          ],
+        ),
+      ]);
+
+      final result = await generator.generateFromPreset(
+        preset: preset,
+        seed: 1,
+      );
+
+      expect(
+        _promptTags(
+          result.mainPrompt,
+        ).where((tag) => ['ribbon', 'hat', 'necklace'].contains(tag)),
+        hasLength(2),
+      );
+    });
+
+    RandomPreset dependentAccessoryPreset({
+      required List<String> expressionTags,
+      required DependencyConfig dependency,
+    }) => _preset([
+      _category(
+        id: 'cat-expression',
+        key: 'expression',
+        groups: [_group(id: 'expression_group', tags: expressionTags)],
+      ),
+      _category(
+        id: 'cat-accessory',
+        key: 'accessory',
+        groups: [
+          _group(
+            id: 'accessories',
+            tags: ['ribbon', 'hat', 'necklace'],
+            selectionMode: SelectionMode.multipleNum,
+            multipleNum: 3,
+            dependencyConfig: dependency,
+          ),
+        ],
+      ),
+    ]);
+
+    int accessoryCount(RandomPromptResult result) => _promptTags(
+      result.mainPrompt,
+    ).where((tag) => ['ribbon', 'hat', 'necklace'].contains(tag)).length;
+
+    test('数量依赖以类别源的已选标签数查映射', () async {
+      final result = await generator.generateFromPreset(
+        preset: dependentAccessoryPreset(
+          expressionTags: ['smile', 'blush'],
+          dependency: const DependencyConfig(
+            sourceCategoryId: 'cat-expression',
+            mappingRules: {'2': '1'},
+          ),
+        ),
+        seed: 1,
+      );
+
+      expect(accessoryCount(result), 1);
+    });
+
+    test('存量的数量依赖按标签名映射时仍按已选标签生效', () async {
+      final result = await generator.generateFromPreset(
+        preset: dependentAccessoryPreset(
+          expressionTags: ['smile'],
+          dependency: const DependencyConfig(
+            sourceCategoryId: 'cat-expression',
+            mappingRules: {'smile': '2'},
+          ),
+        ),
+        seed: 1,
+      );
+
+      expect(accessoryCount(result), 2);
+    });
+
+    test('值依赖匹配类别源的任一已选标签', () async {
+      final result = await generator.generateFromPreset(
+        preset: dependentAccessoryPreset(
+          expressionTags: ['smile', 'blush'],
+          dependency: const DependencyConfig(
+            type: DependencyType.value,
+            sourceCategoryId: 'cat-expression',
+            mappingRules: {'blush': '2'},
+          ),
+        ),
+        seed: 1,
+      );
+
+      expect(accessoryCount(result), 2);
     });
   });
 }

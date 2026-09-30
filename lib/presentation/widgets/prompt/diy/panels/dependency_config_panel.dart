@@ -315,21 +315,13 @@ class _DependencyConfigPanelState extends State<DependencyConfigPanel> {
     );
   }
 
-  // 角色人数只在数量与值依赖中可被读取，存在/排斥依赖只看类别结果
-  List<DiyCategoryOption> get _sourceOptions {
-    final offersCharacterCount =
-        _config.type == DependencyType.count ||
-        _config.type == DependencyType.value ||
-        _config.sourceCategoryId == characterCountReference;
-    return [
-      if (offersCharacterCount)
-        DiyCategoryOption(
-          id: characterCountReference,
-          label: context.l10n.diy_sourceCharacterCount,
-        ),
-      ...widget.categoryOptions,
-    ];
-  }
+  List<DiyCategoryOption> get _sourceOptions => [
+    DiyCategoryOption(
+      id: characterCountReference,
+      label: context.l10n.diy_sourceCharacterCount,
+    ),
+    ...widget.categoryOptions,
+  ];
 
   Widget _buildMappingRulesEditor() {
     final theme = Theme.of(context);
@@ -610,16 +602,28 @@ class _DependencyConfigPanelState extends State<DependencyConfigPanel> {
     }
   }
 
+  // 角色数量源读取的是本次生成的人数而非类别结果，说明要按源区分
   String _getDependencyTypeDescription(DependencyType type) {
+    final l10n = context.l10n;
+    final fromCharacterCount =
+        _config.sourceCategoryId == characterCountReference;
     switch (type) {
       case DependencyType.count:
-        return context.l10n.diy_dependencyCountDescription;
+        return fromCharacterCount
+            ? l10n.diy_dependencyCountCharacterCountDescription
+            : l10n.diy_dependencyCountDescription;
       case DependencyType.exists:
-        return context.l10n.diy_dependencyExistsDescription;
+        return fromCharacterCount
+            ? l10n.diy_dependencyExistsCharacterCountDescription
+            : l10n.diy_dependencyExistsDescription;
       case DependencyType.value:
-        return context.l10n.diy_dependencyValueDescription;
+        return fromCharacterCount
+            ? l10n.diy_dependencyValueCharacterCountDescription
+            : l10n.diy_dependencyValueDescription;
       case DependencyType.excludes:
-        return context.l10n.diy_dependencyExcludesDescription;
+        return fromCharacterCount
+            ? l10n.diy_dependencyExcludesCharacterCountDescription
+            : l10n.diy_dependencyExcludesDescription;
     }
   }
 }

@@ -21546,6 +21546,30 @@ abstract class AppLocalizations {
   /// **'Do not apply when the source category has a selected tag'**
   String get diy_dependencyExcludesDescription;
 
+  /// No description provided for @diy_dependencyCountCharacterCountDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Use the number of characters in this generation to determine the result count'**
+  String get diy_dependencyCountCharacterCountDescription;
+
+  /// No description provided for @diy_dependencyExistsCharacterCountDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Apply only when the image has characters (character count above 0)'**
+  String get diy_dependencyExistsCharacterCountDescription;
+
+  /// No description provided for @diy_dependencyValueCharacterCountDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Depend on the character count in this generation, such as 1, 2, or 3'**
+  String get diy_dependencyValueCharacterCountDescription;
+
+  /// No description provided for @diy_dependencyExcludesCharacterCountDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Apply only when the image has no characters (character count is 0)'**
+  String get diy_dependencyExcludesCharacterCountDescription;
+
   /// No description provided for @diy_conditionalDefaultName.
   ///
   /// In en, this message translates to:

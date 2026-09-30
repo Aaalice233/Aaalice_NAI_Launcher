@@ -5981,6 +5981,10 @@
   "diy_dependencyExistsDescription": "Apply only when the source category has at least one selected tag",
   "diy_dependencyValueDescription": "Depend on a specific selected tag value in the source category",
   "diy_dependencyExcludesDescription": "Do not apply when the source category has a selected tag",
+  "diy_dependencyCountCharacterCountDescription": "Use the number of characters in this generation to determine the result count",
+  "diy_dependencyExistsCharacterCountDescription": "Apply only when the image has characters (character count above 0)",
+  "diy_dependencyValueCharacterCountDescription": "Depend on the character count in this generation, such as 1, 2, or 3",
+  "diy_dependencyExcludesCharacterCountDescription": "Apply only when the image has no characters (character count is 0)",
 
   "diy_conditionalDefaultName": "Conditional Branches",
   "diy_branchDefaultName": "Branch {index}",

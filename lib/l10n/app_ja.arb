@@ -5950,6 +5950,10 @@
   "diy_dependencyExistsDescription": "ソースカテゴリでタグが選択されている場合のみ適用します",
   "diy_dependencyValueDescription": "ソースカテゴリで選択された特定のタグ値に依存します",
   "diy_dependencyExcludesDescription": "ソースカテゴリでタグが選択されている場合は適用しません",
+  "diy_dependencyCountCharacterCountDescription": "今回生成するキャラクター数から結果数を決定します",
+  "diy_dependencyExistsCharacterCountDescription": "キャラクターがいる（キャラクター数が 1 以上）場合のみ適用します",
+  "diy_dependencyValueCharacterCountDescription": "今回生成するキャラクター数の値（1、2、3 など）に依存します",
+  "diy_dependencyExcludesCharacterCountDescription": "キャラクターがいない（キャラクター数が 0）場合のみ適用します",
 
   "diy_conditionalDefaultName": "条件分岐",
   "diy_branchDefaultName": "分岐 {index}",

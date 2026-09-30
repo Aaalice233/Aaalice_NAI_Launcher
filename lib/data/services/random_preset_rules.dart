@@ -6,10 +6,9 @@ import '../models/prompt/random_tag_group.dart';
 import '../models/prompt/visibility_rule.dart';
 import 'random_preset_generation_context.dart';
 
-/// 一次预设生成中 DIY 规则的作用范围与求值。
-///
-/// 类别引用统一换成类别 ID；词组上以类别为目标的可见性规则归到目标类别，
-/// 词组上的后处理规则与全局规则一起作用于整轮生成结果。
+/// 一次预设生成中 DIY 规则的作用范围与求值：类别引用统一换成 ID，
+/// 词组上以类别为目标的可见性规则归到目标类别，词组后处理与全局规则一起作用于整轮结果，
+/// 依赖按源的结果数或已选值求值（角色数量源读取本次生成的人数）。
 class RandomPresetRules {
   factory RandomPresetRules(RandomPreset preset) {
     final resolver = DiyCategoryReferenceResolver(preset.categories);
@@ -54,6 +53,48 @@ class RandomPresetRules {
     return config.isCategoryGloballyVisible(category.id, tags) &&
         config.isCategoryGloballyVisible(category.key, tags) &&
         (groupRules == null || groupRules.isCategoryVisible(category.id, tags));
+  }
+
+  bool isDependencySatisfied(
+    RandomTagGroup group,
+    RandomPresetGenerationContext context,
+  ) {
+    final dependency = group.dependencyConfig;
+    if (dependency == null || !dependency.enabled) return true;
+    return dependency.isSatisfiedBy(
+      context.countFor(dependency.sourceCategoryId),
+    );
+  }
+
+  /// 数量与值依赖算出的选取数量；词组不受依赖控制数量时为 null
+  int? dependentSelectionCount(
+    RandomTagGroup group,
+    RandomPresetGenerationContext context,
+    int Function() randomInt,
+  ) {
+    final dependency = group.dependencyConfig;
+    if (dependency == null ||
+        !dependency.enabled ||
+        !dependency.controlsSelectionCount) {
+      return null;
+    }
+
+    final source = dependency.sourceCategoryId;
+    final variable = dependency.sourceVariable;
+    if (variable != null) {
+      final value = context.firstValueFor(variable);
+      return dependency.getCount(
+        value.isEmpty ? '${context.countFor(source)}' : value,
+        randomInt,
+      );
+    }
+    return dependency.getCountForResult(
+      dependency.getResultForSource(
+        sourceCount: context.countFor(source),
+        sourceValues: context.valuesFor(source),
+      ),
+      randomInt,
+    );
   }
 
   List<String> applyPostProcess(

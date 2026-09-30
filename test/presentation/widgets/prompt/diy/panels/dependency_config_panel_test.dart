@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/data/models/prompt/dependency_config.dart';
+import 'package:nai_launcher/data/models/prompt/diy_category_references.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/widgets/common/surface_ink_well.dart';
 import 'package:nai_launcher/presentation/widgets/common/themed_input.dart';
@@ -137,11 +138,72 @@ void main() {
     await press.up();
     await tester.pump();
   });
+
+  testWidgets('存在与排斥依赖可选角色数量源，并按人数说明生效条件', (tester) async {
+    tester.view.physicalSize = const Size(1180, 1600);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    DependencyConfig? changedConfig;
+    await _pumpPanel(
+      tester,
+      config: const DependencyConfig(
+        type: DependencyType.exists,
+        sourceCategoryId: 'characters',
+      ),
+      onChanged: (config) => changedConfig = config,
+    );
+    expect(find.text('仅在源类别中存在已选标签时生效'), findsOneWidget);
+
+    final dropdown = find.byType(DropdownButtonFormField<String>);
+    await tester.ensureVisible(dropdown);
+    await tester.tap(dropdown);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('角色数量').last);
+    await tester.pumpAndSettle();
+
+    expect(changedConfig?.sourceCategoryId, characterCountReference);
+    expect(changedConfig?.type, DependencyType.exists);
+    expect(find.text('仅在画面中有角色（角色数量大于 0）时生效'), findsOneWidget);
+
+    await tester.tap(find.text('排斥'));
+    await tester.pump();
+    expect(changedConfig?.type, DependencyType.excludes);
+    expect(find.text('仅在无人画面（角色数量为 0）时生效'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('已保存的角色数量存在依赖按名称显示，不标记为已失效', (tester) async {
+    await _pumpPanel(
+      tester,
+      config: const DependencyConfig(
+        type: DependencyType.exists,
+        sourceCategoryId: characterCountReference,
+      ),
+      onChanged: (_) {},
+    );
+
+    expect(
+      find.descendant(
+        of: find.byType(DropdownButtonFormField<String>),
+        matching: find.text('角色数量'),
+      ),
+      findsOneWidget,
+    );
+    expect(find.textContaining('已失效'), findsNothing);
+    expect(find.text('仅在画面中有角色（角色数量大于 0）时生效'), findsOneWidget);
+  });
 }
 
 Future<void> _pumpPanel(
   WidgetTester tester, {
   double textScale = 1,
+  DependencyConfig config = const DependencyConfig(
+    sourceCategoryId: 'characters',
+  ),
   required ValueChanged<DependencyConfig?> onChanged,
 }) async {
   await tester.pumpWidget(
@@ -158,7 +220,7 @@ Future<void> _pumpPanel(
       home: Scaffold(
         body: SingleChildScrollView(
           child: DependencyConfigPanel(
-            config: const DependencyConfig(sourceCategoryId: 'characters'),
+            config: config,
             categoryOptions: const [
               DiyCategoryOption(id: 'characters', label: 'Characters'),
             ],
