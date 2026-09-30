@@ -5802,6 +5802,10 @@
   "diy_dependencyExistsDescription": "僅在源類別中存在已選標籤時生效",
   "diy_dependencyValueDescription": "依賴源類別中選定的特定標籤值",
   "diy_dependencyExcludesDescription": "源類別中存在已選標籤時不生效",
+  "diy_dependencyCountCharacterCountDescription": "根據本次生成的角色數量決定結果數量",
+  "diy_dependencyExistsCharacterCountDescription": "僅在畫面中有角色（角色數量大於 0）時生效",
+  "diy_dependencyValueCharacterCountDescription": "依賴本次生成的角色數量取值，如 1、2、3",
+  "diy_dependencyExcludesCharacterCountDescription": "僅在無人畫面（角色數量為 0）時生效",
   "diy_conditionalDefaultName": "條件分支配置",
   "diy_branchDefaultName": "分支 {index}",
   "@diy_branchDefaultName": {

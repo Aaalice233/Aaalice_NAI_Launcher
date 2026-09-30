@@ -12385,6 +12385,22 @@ class AppLocalizationsEn extends AppLocalizations {
       'Do not apply when the source category has a selected tag';
 
   @override
+  String get diy_dependencyCountCharacterCountDescription =>
+      'Use the number of characters in this generation to determine the result count';
+
+  @override
+  String get diy_dependencyExistsCharacterCountDescription =>
+      'Apply only when the image has characters (character count above 0)';
+
+  @override
+  String get diy_dependencyValueCharacterCountDescription =>
+      'Depend on the character count in this generation, such as 1, 2, or 3';
+
+  @override
+  String get diy_dependencyExcludesCharacterCountDescription =>
+      'Apply only when the image has no characters (character count is 0)';
+
+  @override
   String get diy_conditionalDefaultName => 'Conditional Branches';
 
   @override

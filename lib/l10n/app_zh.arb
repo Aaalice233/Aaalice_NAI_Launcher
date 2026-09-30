@@ -5734,6 +5734,10 @@
   "diy_dependencyExistsDescription": "仅在源类别中存在已选标签时生效",
   "diy_dependencyValueDescription": "依赖源类别中选定的特定标签值",
   "diy_dependencyExcludesDescription": "源类别中存在已选标签时不生效",
+  "diy_dependencyCountCharacterCountDescription": "根据本次生成的角色数量决定结果数量",
+  "diy_dependencyExistsCharacterCountDescription": "仅在画面中有角色（角色数量大于 0）时生效",
+  "diy_dependencyValueCharacterCountDescription": "依赖本次生成的角色数量取值，如 1、2、3",
+  "diy_dependencyExcludesCharacterCountDescription": "仅在无人画面（角色数量为 0）时生效",
 
   "diy_conditionalDefaultName": "条件分支配置",
   "diy_branchDefaultName": "分支 {index}",

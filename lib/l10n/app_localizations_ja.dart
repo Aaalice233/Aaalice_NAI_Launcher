@@ -12075,6 +12075,22 @@ class AppLocalizationsJa extends AppLocalizations {
   String get diy_dependencyExcludesDescription => 'ソースカテゴリでタグが選択されている場合は適用しません';
 
   @override
+  String get diy_dependencyCountCharacterCountDescription =>
+      '今回生成するキャラクター数から結果数を決定します';
+
+  @override
+  String get diy_dependencyExistsCharacterCountDescription =>
+      'キャラクターがいる（キャラクター数が 1 以上）場合のみ適用します';
+
+  @override
+  String get diy_dependencyValueCharacterCountDescription =>
+      '今回生成するキャラクター数の値（1、2、3 など）に依存します';
+
+  @override
+  String get diy_dependencyExcludesCharacterCountDescription =>
+      'キャラクターがいない（キャラクター数が 0）場合のみ適用します';
+
+  @override
   String get diy_conditionalDefaultName => '条件分岐';
 
   @override
