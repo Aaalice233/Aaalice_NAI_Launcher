@@ -413,9 +413,6 @@ class _VisibilityRulePanelState extends State<VisibilityRulePanel> {
                 Icons.label_outline_rounded,
                 color: colorScheme.onSurfaceVariant,
               ),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(10),
-              ),
             ),
             readOnly: widget.readOnly,
             onChanged: (value) {
@@ -484,9 +481,6 @@ class _VisibilityRulePanelState extends State<VisibilityRulePanel> {
               prefixIcon: Icon(
                 Icons.text_fields_rounded,
                 color: colorScheme.onSurfaceVariant,
-              ),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(10),
               ),
             ),
             readOnly: widget.readOnly,
