@@ -12713,6 +12713,17 @@ class AppLocalizationsEn extends AppLocalizations {
       'Activate automatically during the same date range every year';
 
   @override
+  String get diy_repeatOnceHint =>
+      'Activate only during the date range of the selected year';
+
+  @override
+  String get diy_year => 'Year';
+
+  @override
+  String get diy_yearUnsetHint =>
+      'No year selected yet, so it currently activates every year';
+
+  @override
   String get diy_currentlyActive => 'Currently Active';
 
   @override

@@ -22128,6 +22128,24 @@ abstract class AppLocalizations {
   /// **'Activate automatically during the same date range every year'**
   String get diy_repeatYearlyHint;
 
+  /// No description provided for @diy_repeatOnceHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Activate only during the date range of the selected year'**
+  String get diy_repeatOnceHint;
+
+  /// No description provided for @diy_year.
+  ///
+  /// In en, this message translates to:
+  /// **'Year'**
+  String get diy_year;
+
+  /// No description provided for @diy_yearUnsetHint.
+  ///
+  /// In en, this message translates to:
+  /// **'No year selected yet, so it currently activates every year'**
+  String get diy_yearUnsetHint;
+
   /// No description provided for @diy_currentlyActive.
   ///
   /// In en, this message translates to:

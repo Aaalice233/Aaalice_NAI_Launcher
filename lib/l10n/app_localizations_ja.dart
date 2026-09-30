@@ -12390,6 +12390,15 @@ class AppLocalizationsJa extends AppLocalizations {
   String get diy_repeatYearlyHint => '毎年同じ日付範囲で自動的に有効化します';
 
   @override
+  String get diy_repeatOnceHint => '選択した年の日付範囲内でのみ有効化します';
+
+  @override
+  String get diy_year => '年';
+
+  @override
+  String get diy_yearUnsetHint => '年が未選択のため、現在は毎年有効化されます';
+
+  @override
   String get diy_currentlyActive => '現在有効';
 
   @override

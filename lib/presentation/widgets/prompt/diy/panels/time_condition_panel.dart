@@ -44,7 +44,7 @@ class _TimeConditionPanelState extends State<TimeConditionPanel> {
   @override
   void initState() {
     super.initState();
-    _hasCondition = widget.condition != null;
+    _hasCondition = widget.condition?.enabled ?? false;
     _usesDefaultCondition = widget.condition == null;
     _condition =
         widget.condition ??
@@ -70,7 +70,7 @@ class _TimeConditionPanelState extends State<TimeConditionPanel> {
   void didUpdateWidget(TimeConditionPanel oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.condition != widget.condition) {
-      _hasCondition = widget.condition != null;
+      _hasCondition = widget.condition?.enabled ?? false;
       _usesDefaultCondition = widget.condition == null;
       if (widget.condition != null) {
         _condition = widget.condition!;
@@ -164,7 +164,11 @@ class _TimeConditionPanelState extends State<TimeConditionPanel> {
                 : (value) {
                     setState(() {
                       _hasCondition = value;
+                      if (value) {
+                        _condition = _condition.copyWith(enabled: true);
+                      }
                     });
+                    // 关闭时移除条件而不是写 enabled: false，旧版本会把停用的条件当作永不生效
                     widget.onConditionChanged(value ? _condition : null);
                   },
           ),
@@ -421,13 +425,13 @@ class _TimeConditionPanelState extends State<TimeConditionPanel> {
     final monthField = _buildNumberDropdown(
       label: context.l10n.diy_month,
       value: month,
-      count: 12,
+      options: _monthOptions,
       onChanged: onMonthChanged,
     );
     final dayField = _buildNumberDropdown(
       label: context.l10n.diy_day,
       value: day,
-      count: 31,
+      options: _dayOptions,
       onChanged: onDayChanged,
     );
 
@@ -482,11 +486,29 @@ class _TimeConditionPanelState extends State<TimeConditionPanel> {
     );
   }
 
+  static final _monthOptions = [
+    for (var month = 1; month <= 12; month++) month,
+  ];
+  static final _dayOptions = [for (var day = 1; day <= 31; day++) day];
+  static const _selectableYearsAhead = 10;
+
+  /// 从今年起的可选年份；已保存的往年也列出，保证当前值可见
+  List<int> _yearOptions() {
+    final currentYear = DateTime.now().year;
+    final savedYear = _condition.specificYear;
+    return {
+      if (savedYear != null) savedYear,
+      for (var offset = 0; offset <= _selectableYearsAhead; offset++)
+        currentYear + offset,
+    }.toList()..sort();
+  }
+
   Widget _buildNumberDropdown({
     required String label,
-    required int value,
-    required int count,
+    required int? value,
+    required List<int> options,
     required ValueChanged<int> onChanged,
+    String? helperText,
   }) {
     return DropdownButtonFormField<int>(
       initialValue: value,
@@ -494,6 +516,8 @@ class _TimeConditionPanelState extends State<TimeConditionPanel> {
       iconSize: _fieldIconSize,
       decoration: InputDecoration(
         labelText: label,
+        helperText: helperText,
+        helperMaxLines: 3,
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
         contentPadding: _fieldPadding,
         isDense: true,
@@ -503,8 +527,8 @@ class _TimeConditionPanelState extends State<TimeConditionPanel> {
         ),
       ),
       items: [
-        for (var number = 1; number <= count; number++)
-          DropdownMenuItem(value: number, child: Text('$number')),
+        for (final option in options)
+          DropdownMenuItem(value: option, child: Text('$option')),
       ],
       onChanged: widget.readOnly ? null : (selected) => onChanged(selected!),
     );
@@ -575,7 +599,9 @@ class _TimeConditionPanelState extends State<TimeConditionPanel> {
                         style: theme.textTheme.titleSmall,
                       ),
                       Text(
-                        context.l10n.diy_repeatYearlyHint,
+                        _condition.recurring
+                            ? context.l10n.diy_repeatYearlyHint
+                            : context.l10n.diy_repeatOnceHint,
                         style: theme.textTheme.bodySmall?.copyWith(
                           color: colorScheme.onSurfaceVariant,
                         ),
@@ -585,52 +611,39 @@ class _TimeConditionPanelState extends State<TimeConditionPanel> {
                 ),
                 Switch(
                   value: _condition.recurring,
-                  onChanged: widget.readOnly
-                      ? null
-                      : (value) {
-                          _updateCondition(
-                            _condition.copyWith(recurring: value),
-                          );
-                        },
+                  onChanged: widget.readOnly ? null : _setRecurring,
                 ),
               ],
             ),
           ),
-          Divider(height: 1, color: colorScheme.outline.withValues(alpha: 0.1)),
-          // 启用开关
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            child: Row(
-              children: [
-                Icon(
-                  _condition.enabled
-                      ? Icons.check_circle_rounded
-                      : Icons.cancel_rounded,
-                  size: 20,
-                  color: _condition.enabled
-                      ? colorScheme.primary
-                      : colorScheme.outline,
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    context.l10n.common_enabled,
-                    style: theme.textTheme.titleSmall,
-                  ),
-                ),
-                Switch(
-                  value: _condition.enabled,
-                  onChanged: widget.readOnly
-                      ? null
-                      : (value) {
-                          _updateCondition(_condition.copyWith(enabled: value));
-                        },
-                ),
-              ],
+          if (!_condition.recurring)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
+              child: _buildNumberDropdown(
+                label: context.l10n.diy_year,
+                value: _condition.specificYear,
+                options: _yearOptions(),
+                helperText: _condition.specificYear == null
+                    ? context.l10n.diy_yearUnsetHint
+                    : null,
+                onChanged: (year) {
+                  _updateCondition(_condition.copyWith(specificYear: year));
+                },
+              ),
             ),
-          ),
         ],
       ),
+    );
+  }
+
+  void _setRecurring(bool recurring) {
+    _updateCondition(
+      recurring
+          ? _condition.copyWith(recurring: true)
+          : _condition.copyWith(
+              recurring: false,
+              specificYear: _condition.specificYear ?? DateTime.now().year,
+            ),
     );
   }
 

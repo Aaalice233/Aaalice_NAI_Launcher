@@ -209,6 +209,44 @@ void main() {
     expect(result.mainPrompt, isNot(contains('santa hat')));
   });
 
+  test('停用的时间条件不限制词组，关闭每年重复后只在所选年份生效', () async {
+    final preset = _preset([
+      _category(
+        id: 'seasonal',
+        key: 'seasonal',
+        groups: [
+          _group(
+            id: 'disabled',
+            tags: ['santa hat'],
+            timeCondition: TimeCondition.christmas().copyWith(enabled: false),
+          ),
+          _group(
+            id: 'only_2026',
+            tags: ['snowman'],
+            timeCondition: TimeCondition.christmas().copyWith(
+              recurring: false,
+              specificYear: 2026,
+            ),
+          ),
+        ],
+      ),
+    ]);
+
+    Future<List<String>> tagsAt(DateTime time) async => _promptTags(
+      (await generator.generateFromPreset(
+        preset: preset,
+        seed: 1,
+        generationTime: time,
+      )).mainPrompt,
+    );
+
+    final january = await tagsAt(DateTime(2026, 1, 1));
+    expect(january, contains('santa hat'));
+    expect(january, isNot(contains('snowman')));
+    expect(await tagsAt(DateTime(2026, 12, 25)), contains('snowman'));
+    expect(await tagsAt(DateTime(2027, 12, 25)), isNot(contains('snowman')));
+  });
+
   test('dependencies resolve category ids distinct from keys', () async {
     final preset = _preset([
       _category(
