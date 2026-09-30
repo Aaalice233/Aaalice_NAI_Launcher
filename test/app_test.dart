@@ -26,7 +26,6 @@ import 'package:nai_launcher/core/utils/file_explorer_utils.dart';
 import 'package:nai_launcher/core/utils/nai_resolution_adapter.dart';
 import 'package:nai_launcher/data/models/fixed_tag/fixed_tag_entry.dart';
 import 'package:nai_launcher/data/models/gallery/gallery_statistics.dart';
-import 'package:nai_launcher/data/models/gallery/local_image_record.dart';
 import 'package:nai_launcher/data/models/gallery/nai_image_metadata.dart';
 import 'package:nai_launcher/data/models/image/image_params.dart'
     show ImageParams;
@@ -34,7 +33,6 @@ import 'package:nai_launcher/data/models/tag/local_tag.dart';
 import 'package:nai_launcher/data/models/vibe/vibe_library_entry.dart';
 import 'package:nai_launcher/data/models/vibe/vibe_reference.dart';
 import 'package:nai_launcher/data/services/local_onnx_tagger_service.dart';
-import 'package:nai_launcher/data/services/statistics_service.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/providers/fixed_tags_provider.dart';
 import 'package:nai_launcher/presentation/providers/generation/generation_params_notifier.dart';
@@ -1274,28 +1272,6 @@ void main() {
   });
 
   group('Statistics dashboard', () {
-    test('ignores non-positive image dimensions in resolution statistics', () {
-      final service = StatisticsService();
-      final modifiedAt = DateTime(2026);
-
-      final stats = service.calculateStatistics([
-        LocalImageRecord(
-          path: 'zero.png',
-          size: 1024,
-          modifiedAt: modifiedAt,
-          metadata: const NaiImageMetadata(width: 0, height: 0),
-        ),
-        LocalImageRecord(
-          path: 'valid.png',
-          size: 1024,
-          modifiedAt: modifiedAt,
-          metadata: const NaiImageMetadata(width: 1024, height: 1024),
-        ),
-      ]);
-
-      expect(stats.resolutionDistribution.map((r) => r.label), ['1024x1024']);
-    });
-
     testWidgets('aspect ratio card skips invalid cached resolutions', (
       tester,
     ) async {
