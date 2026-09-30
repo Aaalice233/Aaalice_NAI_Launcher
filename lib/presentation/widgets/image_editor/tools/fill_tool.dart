@@ -4,6 +4,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../../../core/utils/isolate_pool.dart';
 import '../../../../core/utils/localization_extension.dart';
 import '../core/editor_state.dart';
 import '../core/editor_tool_groups.dart';
@@ -56,43 +57,40 @@ class FillTool extends EditorTool {
   void onPointerUp(PointerUpEvent event, EditorState state) {}
 
   static Future<void> _fill(EditorState state, _FillRequest request) async {
-    final pixels = await _readCurrentPixels(state, request.region);
-    if (pixels == null || state.isDisposed) return;
-    final layer = state.layerManager.getLayerById(request.layerId);
-    if (layer == null || layer.locked) return;
-
-    final fillPoints = request.floodFill(pixels);
-    if (fillPoints.isEmpty) return;
-
-    final stroke = StrokeData(
-      points: fillPoints,
-      size: 1,
-      color: request.color,
-      opacity: request.opacity,
-      hardness: 1.0,
-      isEraser: false,
-    );
-
-    state.historyManager.execute(
-      AddStrokeAction(layerId: layer.id, stroke: stroke),
-      state,
-    );
-  }
-
-  /// 回读期间画面被其他操作改过就重读，填充范围始终对应写回那一刻的画面
-  static Future<Uint8List?> _readCurrentPixels(
-    EditorState state,
-    Rect region,
-  ) async {
     while (!state.isDisposed) {
       final version = state.layerManager.snapshotVersion;
-      final pixels = await _readPixels(state, region);
-      if (pixels == null || version == state.layerManager.snapshotVersion) {
-        return pixels;
-      }
+      final pixels = await _readPixels(state, request.region);
+      if (pixels == null || state.isDisposed) return;
+      final fillPoints = await _floodFillInBackground(request, pixels);
+      // 回读或计算期间画面被其他操作改过就重来，填充范围始终对应写回那一刻的画面
+      if (version != state.layerManager.snapshotVersion) continue;
+      if (state.isDisposed) return;
+
+      final layer = state.layerManager.getLayerById(request.layerId);
+      if (layer == null || layer.locked) return;
+      if (fillPoints.isEmpty) return;
+
+      final stroke = StrokeData(
+        points: fillPoints,
+        size: 1,
+        color: request.color,
+        opacity: request.opacity,
+        hardness: 1.0,
+        isEraser: false,
+      );
+
+      state.historyManager.execute(
+        AddStrokeAction(layerId: layer.id, stroke: stroke),
+        state,
+      );
+      return;
     }
-    return null;
   }
+
+  static Future<List<Offset>> _floodFillInBackground(
+    _FillRequest request,
+    Uint8List pixels,
+  ) => ComputeGate().runIsolate(() => request.floodFill(pixels));
 
   static Future<Uint8List?> _readPixels(EditorState state, Rect region) async {
     final recorder = ui.PictureRecorder();

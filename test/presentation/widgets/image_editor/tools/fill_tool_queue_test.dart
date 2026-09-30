@@ -8,6 +8,7 @@ import 'package:nai_launcher/presentation/widgets/image_editor/layers/layer.dart
 import 'package:nai_launcher/presentation/widgets/image_editor/tools/fill_tool.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../../../helpers/shared_compute_gate.dart';
 import '../layers/layer_pixel_test_helpers.dart';
 
 const _canvas = Rect.fromLTWH(0, 0, 64, 64);
@@ -108,6 +109,63 @@ void main() {
 
       expect(second.strokes, isEmpty);
       expect(first.strokes.single.color, _blue);
+    });
+  });
+
+  testWidgets('the flood fill waits for the shared compute gate', (
+    tester,
+  ) async {
+    await tester.runAsync(() async {
+      final (state, layer) = await _canvasWith(_splitImage);
+      final tool = FillTool()..setTolerance(0);
+      state.setForegroundColor(_green);
+
+      final release = holdSharedComputeGate();
+      try {
+        _tap(tool, state, const Offset(48, 32));
+        await Future<void>.delayed(const Duration(milliseconds: 250));
+        expect(layer.strokes, isEmpty, reason: '填充计算须经 ComputeGate 排队');
+      } finally {
+        await release();
+      }
+      await _settle(state);
+
+      expect(layer.strokes.single.points, hasLength(64 * 32));
+      expect(
+        layer.strokes.single.points.every((point) => point.dx >= 32),
+        isTrue,
+      );
+    });
+  });
+
+  testWidgets('changes made while the fill computes are included', (
+    tester,
+  ) async {
+    await tester.runAsync(() async {
+      final (state, layer) = await _canvasWith(null);
+      final tool = FillTool()..setTolerance(0);
+      state.setForegroundColor(_blue);
+
+      final release = holdSharedComputeGate();
+      try {
+        _tap(tool, state, const Offset(10, 32));
+        // 回读已完成、填充计算正在闸门后排队时画一道隔墙
+        await Future<void>.delayed(const Duration(milliseconds: 250));
+        state.historyManager.execute(
+          AddStrokeAction(layerId: layer.id, stroke: _wall()),
+          state,
+        );
+      } finally {
+        await release();
+      }
+      await _settle(state);
+
+      expect(state.historyManager.undoStackSize, 2);
+      final fill = layer.strokes.last;
+      expect(fill.color, _blue);
+      expect(fill.points.length, inExclusiveRange(0, 64 * 32));
+      final pixels = await LayerPixels.of(layer, _canvas);
+      expect(pixels.alphaAt(48, 32), 0, reason: '隔墙右侧不被填充');
     });
   });
 }
