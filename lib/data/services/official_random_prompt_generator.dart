@@ -98,6 +98,10 @@ class OfficialRandomPromptGenerator {
     required Set<String> globalState,
     required String gender,
   }) => _initialCharacterState(globalState, gender);
+
+  /// Exposes whether the legwear a role drew keeps its toes covered.
+  static bool legwearHidesToesForTest(List<String> legwear) =>
+      _legwearHidesToes(legwear);
 }
 
 class _OfficialRecipeEngine {
@@ -856,6 +860,7 @@ class _OfficialRecipeEngine {
       ('bodysuit', 5),
       ('normal clothes', 40),
     ], state);
+    var feetCovered = false;
     switch (clothingType) {
       case 'uniform':
         tags.add(characterChoice('dM', state));
@@ -867,32 +872,10 @@ class _OfficialRecipeEngine {
         tags.add(characterChoice('dS', state));
         break;
       case 'normal clothes':
-        if (gender.startsWith('f') && chance(0.5)) {
-          tags.add(characterChoice('dk', state));
-          if (chance(0.2)) tags.add(characterChoice('dC', state));
-        }
-        final useDress = gender.startsWith('f') && chance(0.2);
-        if (useDress) {
-          final value = _coloredCharacterChoice('dv', state);
-          if (value.isNotEmpty) tags.add(value);
-        } else {
-          if (chance(0.85)) {
-            final value = _coloredCharacterChoice('dj', state);
-            if (value.isNotEmpty) tags.add(value);
-          }
-          if (state.contains('legs')) {
-            if (chance(0.85)) {
-              final value = _coloredCharacterChoice('dA', state);
-              if (value.isNotEmpty) tags.add(value);
-            }
-            if (state.contains('feet') && chance(0.6)) {
-              final value = _coloredCharacterChoice('dI', state);
-              if (value.isNotEmpty) tags.add(value);
-            }
-          }
-        }
+        feetCovered = _dressInSeparates(tags, state, gender);
         break;
     }
+    _markBarefoot(state, feetCovered: feetCovered);
     if (chance(0.6)) tags.add(characterChoice('dR', state));
     if (chance(0.4)) tags.add(characterChoice('dE', state));
     final miscCount = _characterPromptCount(totalCharacterCount, state);
@@ -900,6 +883,39 @@ class _OfficialRecipeEngine {
       tags.add(characterChoice('dT', state));
     }
     return tags.where((tag) => tag.isNotEmpty).toList(growable: false);
+  }
+
+  /// Returns whether footwear or legwear hiding the toes was drawn.
+  bool _dressInSeparates(List<String> tags, Set<String> state, String gender) {
+    final legwear = <String>[];
+    if (gender.startsWith('f') && chance(0.5)) {
+      legwear.add(characterChoice('dk', state));
+      if (chance(0.2)) legwear.add(characterChoice('dC', state));
+      tags.addAll(legwear);
+    }
+    var wearsFootwear = false;
+    final useDress = gender.startsWith('f') && chance(0.2);
+    if (useDress) {
+      final value = _coloredCharacterChoice('dv', state);
+      if (value.isNotEmpty) tags.add(value);
+    } else {
+      if (chance(0.85)) {
+        final value = _coloredCharacterChoice('dj', state);
+        if (value.isNotEmpty) tags.add(value);
+      }
+      if (state.contains('legs')) {
+        if (chance(0.85)) {
+          final value = _coloredCharacterChoice('dA', state);
+          if (value.isNotEmpty) tags.add(value);
+        }
+        if (state.contains('feet') && chance(0.6)) {
+          final value = _coloredCharacterChoice('dI', state);
+          if (value.isNotEmpty) tags.add(value);
+          wearsFootwear = value.isNotEmpty;
+        }
+      }
+    }
+    return wearsFootwear || _legwearHidesToes(legwear);
   }
 
   int _characterPromptCount(int count, Set<String> state) {
@@ -1012,6 +1028,18 @@ Set<String> _initialCharacterState(Set<String> globalState, String gender) {
 void _dropLegFlagsForLeglessBody(Set<String> state) {
   if (state.contains('nolegs')) state.removeAll(const {'legs', 'feet'});
 }
+
+// The asset requires barefoot for toenail polish, yet nothing provides it.
+void _markBarefoot(Set<String> state, {required bool feetCovered}) {
+  if (state.contains('feet') && !feetCovered) state.add('barefoot');
+}
+
+// No legwear record declares toe coverage; only a named opening uncovers toes.
+bool _legwearHidesToes(List<String> legwear) =>
+    legwear.any((value) => value.isNotEmpty) &&
+    !legwear.any((value) => _toeOpenings.any(value.contains));
+
+const _toeOpenings = ['toeless', 'stirrup'];
 
 bool _joinsBlockedTag(OfficialWordlistEntry entry, Set<String> blockedTags) =>
     blockedTags.isNotEmpty && entry.text.split(', ').any(blockedTags.contains);
