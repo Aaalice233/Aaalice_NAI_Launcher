@@ -909,6 +909,7 @@ class _TagGroupEditDialogState extends ConsumerState<TagGroupEditDialog>
     return AdaptivePresenter.showForm<void>(
       context: context,
       dialogWidth: 620,
+      headerScrollsWithContent: true,
       titleBuilder: (panelContext) => Row(
         children: [
           Icon(

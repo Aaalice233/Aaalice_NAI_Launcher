@@ -20,6 +20,7 @@ import 'package:nai_launcher/presentation/widgets/drop/global_drop_handler.dart'
 import 'package:nai_launcher/presentation/widgets/drop/image_destination_dialog.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../../helpers/adaptive_panel_expectations.dart';
 import '../../../helpers/webp_metadata_fixture.dart';
 
 void main() {
@@ -122,6 +123,7 @@ void main() {
         findsOneWidget,
       );
       expect(find.byType(AlertDialog), findsNothing);
+      expectPanelHeaderScrollsWithContent(tester);
       await tester.enterText(
         find.byKey(const ValueKey('drop-vibe-library-name-field')),
         '新名称',

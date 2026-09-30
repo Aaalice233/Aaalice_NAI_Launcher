@@ -15,6 +15,7 @@ class ZipExportMetadataDialog extends StatefulWidget {
       context: context,
       title: context.l10n.localGallery_zipMetadataTitle,
       dialogWidth: 520,
+      headerScrollsWithContent: true,
       builder: (panelContext, scrollController) =>
           ZipExportMetadataDialog(scrollController: scrollController),
     );

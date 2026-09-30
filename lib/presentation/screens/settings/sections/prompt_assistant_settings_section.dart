@@ -393,6 +393,7 @@ class PromptAssistantSettingsSection extends ConsumerWidget {
         await AdaptivePresenter.showForm<PromptAssistantRuleFormResult>(
           context: context,
           dialogWidth: 560,
+          headerScrollsWithContent: true,
           title: rule == null
               ? context.l10n.promptAssistant_addRuleTitle
               : context.l10n.promptAssistant_editRuleTitle,

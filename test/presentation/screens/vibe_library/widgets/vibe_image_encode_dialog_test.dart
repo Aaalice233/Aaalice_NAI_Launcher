@@ -5,6 +5,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/screens/vibe_library/widgets/vibe_image_encode_dialog.dart';
 
+import '../../../../helpers/adaptive_panel_expectations.dart';
+import '../../../../helpers/reachability_expectations.dart';
+
 void main() {
   for (final width in [320.0, 600.0, 840.0, 1180.0, 1600.0]) {
     testWidgets(
@@ -90,6 +93,72 @@ void main() {
     expect(result, isNull);
     expect(find.byType(VibeImageEncodeDialog), findsNothing);
   });
+
+  for (final (size, textScale, keyboard) in [
+    (const Size(320, 568), 3.0, 220.0),
+    (const Size(740, 360), 1.0, 160.0),
+    (const Size(1180, 900), 1.0, 0.0),
+  ]) {
+    testWidgets('编码失败面板在 $size、${textScale}x、键盘 $keyboard 下标题随正文滚动且两个操作可达', (
+      tester,
+    ) async {
+      await _setViewport(
+        tester,
+        size,
+        padding: const FakeViewPadding(top: 24, bottom: 16),
+        viewInsets: FakeViewPadding(bottom: keyboard),
+      );
+      VibeEncodeErrorAction? result;
+      await tester.pumpWidget(
+        MaterialApp(
+          locale: const Locale('zh'),
+          supportedLocales: AppLocalizations.supportedLocales,
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          builder: (context, child) => MediaQuery(
+            data: MediaQuery.of(
+              context,
+            ).copyWith(textScaler: TextScaler.linear(textScale)),
+            child: child!,
+          ),
+          home: Scaffold(
+            body: Builder(
+              builder: (context) => TextButton(
+                onPressed: () async {
+                  result = await VibeImageEncodeErrorDialog.show(
+                    context: context,
+                    fileName: 'broken-vibe.png',
+                    errorMessage: 'decoder rejected the image header',
+                  );
+                },
+                child: const Text('打开错误'),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.tap(find.text('打开错误'));
+      await tester.pumpAndSettle();
+
+      expectPanelHeaderScrollsWithContent(tester);
+      final scroll = find.byKey(const Key('vibe-image-encode-error-content'));
+      for (final action in ['跳过此图', '重试']) {
+        final button = find.ancestor(
+          of: find.text(action),
+          matching: find.byWidgetPredicate(
+            (widget) => widget is ButtonStyleButton,
+          ),
+        );
+        await scrollUntilBuilt(tester, button, scroll);
+        await revealOnScreen(tester, button);
+        expectReachable(tester, button, reason: '$size $action');
+      }
+      expect(tester.takeException(), isNull);
+
+      await tester.tap(find.text('重试'));
+      await tester.pumpAndSettle();
+      expect(result, VibeEncodeErrorAction.retry);
+    });
+  }
 }
 
 Future<void> _setViewport(

@@ -22,6 +22,8 @@ import 'package:nai_launcher/presentation/screens/settings/widgets/data_source_c
 import 'package:nai_launcher/presentation/screens/settings/widgets/settings_card.dart';
 import 'package:path_provider_platform_interface/path_provider_platform_interface.dart';
 
+import '../../../../helpers/adaptive_panel_expectations.dart';
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -282,6 +284,7 @@ void main() {
 
     final form = find.byKey(const ValueKey('adaptive-bottom-sheet'));
     expect(form, findsOneWidget);
+    expectPanelHeaderScrollsWithContent(tester);
     expect(find.byType(Dialog), findsNothing);
     final rect = tester.getRect(form);
     expect(rect.top, greaterThanOrEqualTo(24));

@@ -16,6 +16,7 @@ class PreciseReferenceTypeDialog extends StatelessWidget {
       context: context,
       title: context.l10n.preciseRef_referenceType,
       dialogWidth: 420,
+      headerScrollsWithContent: true,
       builder: (context, controller) =>
           PreciseReferenceTypeDialog(scrollController: controller),
     );

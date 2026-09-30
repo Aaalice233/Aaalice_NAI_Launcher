@@ -642,6 +642,7 @@ class VibeImageEncodeErrorDialog extends StatelessWidget {
         ],
       ),
       dialogWidth: 440,
+      headerScrollsWithContent: true,
       builder: (panelContext, scrollController) => VibeImageEncodeErrorDialog(
         fileName: fileName,
         errorMessage: errorMessage,

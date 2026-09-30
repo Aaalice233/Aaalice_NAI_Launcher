@@ -40,6 +40,7 @@ class SaveAsPresetDialog extends ConsumerStatefulWidget {
     final result = await AdaptivePresenter.showForm<bool>(
       context: context,
       dialogWidth: 460,
+      headerScrollsWithContent: true,
       titleBuilder: (panelContext) => Row(
         children: [
           Icon(

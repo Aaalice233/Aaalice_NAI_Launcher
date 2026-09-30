@@ -9,6 +9,8 @@ import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/providers/random_preset_provider.dart';
 import 'package:nai_launcher/presentation/widgets/common/save_as_preset_dialog.dart';
 
+import '../../../helpers/adaptive_panel_expectations.dart';
+
 void main() {
   testWidgets('保存保留所选标签、顺序和随机算法配置', (tester) async {
     final notifier = _CapturePresets();
@@ -38,7 +40,7 @@ void main() {
       200,
       scrollable: find
           .descendant(
-            of: find.byType(ListView),
+            of: find.byWidgetPredicate((widget) => widget is ScrollView),
             matching: find.byType(Scrollable),
           )
           .first,
@@ -114,14 +116,18 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byKey(const ValueKey('adaptive-bottom-sheet')), findsOneWidget);
-    expect(find.byType(ListView), findsOneWidget);
+    expect(
+      find.byWidgetPredicate((widget) => widget is ScrollView),
+      findsOneWidget,
+    );
+    expectPanelHeaderScrollsWithContent(tester);
     final save = find.text('保存');
     await tester.scrollUntilVisible(
       save,
       200,
       scrollable: find
           .descendant(
-            of: find.byType(ListView),
+            of: find.byWidgetPredicate((widget) => widget is ScrollView),
             matching: find.byType(Scrollable),
           )
           .first,

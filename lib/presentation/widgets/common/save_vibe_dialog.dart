@@ -42,6 +42,7 @@ class SaveVibeDialog extends ConsumerStatefulWidget {
     final result = await AdaptivePresenter.showForm<bool>(
       context: context,
       dialogWidth: 440,
+      headerScrollsWithContent: true,
       titleBuilder: (panelContext) => Row(
         children: [
           Icon(

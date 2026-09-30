@@ -18,6 +18,8 @@ import 'package:nai_launcher/presentation/screens/vibe_library/widgets/vibe_deta
 import 'package:nai_launcher/presentation/screens/vibe_library/widgets/vibe_detail_viewer.dart';
 import 'package:nai_launcher/presentation/widgets/common/decoded_memory_image.dart';
 
+import '../../../../helpers/adaptive_panel_expectations.dart';
+
 void main() {
   testWidgets('关闭详情页不会自动保存参数', (tester) async {
     tester.view.physicalSize = const Size(1400, 1800);
@@ -311,6 +313,7 @@ void main() {
           .onRename!();
       await tester.pumpAndSettle();
       expect(find.byKey(const ValueKey('vibe-rename-form')), findsOneWidget);
+      expectPanelHeaderScrollsWithContent(tester);
       final renameSurface = tester.getRect(
         find.byKey(const ValueKey('adaptive-bottom-sheet')).last,
       );

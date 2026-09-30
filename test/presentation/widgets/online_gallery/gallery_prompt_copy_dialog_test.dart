@@ -4,6 +4,8 @@ import 'package:nai_launcher/data/models/online_gallery/gallery_prompt_projectio
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/widgets/online_gallery/gallery_prompt_copy_dialog.dart';
 
+import '../../../helpers/adaptive_panel_expectations.dart';
+
 void main() {
   testWidgets('options and copy footer fit 320x568 with 3x text and IME', (
     tester,
@@ -63,8 +65,14 @@ void main() {
     expect(rect.top, greaterThanOrEqualTo(16));
     expect(rect.right, lessThanOrEqualTo(320 - 14));
     expect(rect.bottom, lessThanOrEqualTo(568 - 240));
-    final listView = tester.widget<ListView>(find.byType(ListView));
-    final scrollController = listView.controller!;
+    expectPanelHeaderScrollsWithContent(tester);
+    final scrollView = tester.widget<ScrollView>(
+      find.descendant(
+        of: surface,
+        matching: find.byWidgetPredicate((widget) => widget is ScrollView),
+      ),
+    );
+    final scrollController = scrollView.controller!;
     expect(scrollController.hasClients, isTrue);
     for (var i = 0; i < 20 && find.text('Copy').evaluate().isEmpty; i++) {
       scrollController.jumpTo(scrollController.position.maxScrollExtent);

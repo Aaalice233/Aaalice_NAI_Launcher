@@ -8,6 +8,8 @@ import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/screens/statistics/widgets/dashboard/anlas_cost_card.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../../../../helpers/adaptive_panel_expectations.dart';
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -70,6 +72,7 @@ void main() {
       findsOneWidget,
     );
     expect(find.byType(AlertDialog), findsNothing);
+    expectPanelHeaderScrollsWithContent(tester);
     await tester.enterText(
       find.byKey(const ValueKey('anlas-custom-days-field')),
       '10',

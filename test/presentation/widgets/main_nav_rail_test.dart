@@ -15,6 +15,8 @@ import 'package:nai_launcher/presentation/widgets/navigation/main_nav_rail.dart'
 import 'package:nai_launcher/presentation/widgets/settings/account_profile_sheet.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
+import '../../helpers/adaptive_panel_expectations.dart';
+
 class _MockNavigationShell extends Mock implements StatefulNavigationShell {
   @override
   String toString({DiagnosticLevel minLevel = DiagnosticLevel.info}) =>
@@ -397,13 +399,18 @@ void main() {
     final surface = find.byKey(const ValueKey('adaptive-bottom-sheet'));
     expect(surface, findsOneWidget);
     expect(find.byKey(const Key('main-nav-add-account-form')), findsOneWidget);
+    expectPanelHeaderScrollsWithContent(tester);
     var rect = tester.getRect(surface);
     expect(rect.left, greaterThanOrEqualTo(12));
     expect(rect.top, greaterThanOrEqualTo(24));
     expect(rect.right, lessThanOrEqualTo(308));
     expect(rect.bottom, lessThanOrEqualTo(900));
     expect(
-      tester.widget<ListView>(find.byType(ListView).last).controller,
+      tester
+          .widget<ScrollView>(
+            find.byKey(const Key('main-nav-add-account-form')),
+          )
+          .controller,
       isNotNull,
     );
     expect(tester.takeException(), isNull);

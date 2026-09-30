@@ -71,6 +71,7 @@ class _AnlasCostCardState extends ConsumerState<AnlasCostCard> {
         context: context,
         title: AppLocalizations.of(context)!.statistics_customPeriodTitle,
         dialogWidth: 420,
+        headerScrollsWithContent: true,
         builder: (context, scrollController) => _CustomDaysForm(
           initialDays: _customDays,
           maxDays: _maxCustomDays,

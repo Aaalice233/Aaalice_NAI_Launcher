@@ -377,6 +377,7 @@ class _CooccurrenceDataPackStatus extends ConsumerWidget {
     final confirmed = await AdaptivePresenter.showForm<bool>(
       context: context,
       title: context.l10n.autocomplete_cooccurrenceRemoveTitle,
+      headerScrollsWithContent: true,
       builder: (context, scrollController) => StatefulBuilder(
         builder: (context, setState) => ContentSizedAdaptiveForm(
           scrollController: scrollController,

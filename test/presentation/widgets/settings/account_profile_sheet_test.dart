@@ -11,6 +11,8 @@ import 'package:nai_launcher/data/services/saved_account_removal_service.dart';
 import 'package:nai_launcher/presentation/widgets/auth/account_avatar.dart';
 import 'package:nai_launcher/presentation/widgets/settings/account_profile_sheet.dart';
 
+import '../../../helpers/adaptive_panel_expectations.dart';
+
 final _account = SavedAccount(
   id: 'account-1',
   email: 'token_1787796794404',
@@ -290,6 +292,7 @@ void main() {
     expect(find.byKey(const ValueKey('adaptive-bottom-sheet')), findsOneWidget);
     expect(find.byType(Dialog), findsNothing);
     expect(find.textContaining('token_'), findsNothing);
+    expectPanelHeaderScrollsWithContent(tester);
     await tester.scrollUntilVisible(
       find.text('Token 账号'),
       100,

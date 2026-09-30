@@ -26,6 +26,7 @@ class PromptCopyDialog extends StatefulWidget {
   }) => AdaptivePresenter.showForm<String>(
     context: context,
     dialogWidth: 480,
+    headerScrollsWithContent: true,
     titleBuilder: (context) {
       final theme = Theme.of(context);
       return Row(
@@ -56,6 +57,7 @@ class PromptCopyDialog extends StatefulWidget {
   }) => AdaptivePresenter.showForm<String>(
     context: context,
     dialogWidth: 480,
+    headerScrollsWithContent: true,
     titleBuilder: (context) => Text(
       context.l10n.promptCopy_exportTitle,
       maxLines: 1,

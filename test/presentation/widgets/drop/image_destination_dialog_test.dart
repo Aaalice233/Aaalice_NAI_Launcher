@@ -12,6 +12,8 @@ import 'package:nai_launcher/presentation/providers/replication_queue_provider.d
 import 'package:nai_launcher/presentation/providers/tag_library_page_provider.dart';
 import 'package:nai_launcher/presentation/widgets/drop/image_destination_dialog.dart';
 
+import '../../../helpers/adaptive_panel_expectations.dart';
+
 void main() {
   testWidgets('prompt surfaces do not inherit a second theme fill', (
     tester,
@@ -331,6 +333,7 @@ void main() {
           find.byKey(const ValueKey('metadata-error-details-text')),
           findsOneWidget,
         );
+        expectPanelHeaderScrollsWithContent(tester);
         final detailsScrollable = find
             .descendant(
               of: find.byKey(const ValueKey('metadata-error-details-scroll')),

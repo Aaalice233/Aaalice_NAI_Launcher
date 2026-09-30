@@ -15,6 +15,9 @@ import 'package:nai_launcher/presentation/providers/random_preset_provider.dart'
 import 'package:nai_launcher/presentation/widgets/common/surface_ink_well.dart';
 import 'package:nai_launcher/presentation/widgets/prompt/random_manager/tag_group_card.dart';
 
+import '../../../../helpers/adaptive_panel_expectations.dart';
+import '../../../../helpers/reachability_expectations.dart';
+
 // flutter_test 字体每个字形 1em，英文宽度约为真实两倍，作为最窄的压力场景
 const _locale = Locale('en');
 const _widths = [320.0, 600.0, 840.0, 1180.0, 1600.0];
@@ -336,6 +339,7 @@ Future<void> _expectFormUsable(
       .descendant(of: form, matching: find.byType(Scrollable))
       .first;
   expect(tester.takeException(), isNull, reason: 'open $reason');
+  expectPanelHeaderScrollsWithContent(tester);
 
   for (final entry in formCase.controls.entries) {
     final controls = find.descendant(of: form, matching: entry.key());
@@ -346,8 +350,7 @@ Future<void> _expectFormUsable(
     );
     for (var i = 0; i < entry.value; i++) {
       final control = controls.at(i);
-      await tester.ensureVisible(control);
-      await tester.pump();
+      await revealOnScreen(tester, control);
       final formRect = tester.getRect(form);
       final rect = tester.getRect(control);
       final label = '${tester.widget(control).runtimeType} #$i $reason';

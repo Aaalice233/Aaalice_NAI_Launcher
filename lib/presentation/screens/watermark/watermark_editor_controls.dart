@@ -438,6 +438,7 @@ class WatermarkEditorControls extends StatelessWidget {
       context: context,
       title: context.l10n.editor_toolColorPicker,
       dialogWidth: 440,
+      headerScrollsWithContent: true,
       builder: (panelContext, scrollController) => _WatermarkColorForm(
         initial: initial,
         scrollController: scrollController,

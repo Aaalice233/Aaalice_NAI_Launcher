@@ -14,6 +14,8 @@ import 'package:nai_launcher/presentation/screens/settings/sections/privacy_sett
 import 'package:nai_launcher/presentation/screens/settings/widgets/settings_card.dart';
 import 'package:nai_launcher/presentation/widgets/online_gallery/blacklist_settings_panel.dart';
 
+import '../../../../helpers/adaptive_panel_expectations.dart';
+
 void main() {
   late Directory hiveDir;
 
@@ -159,6 +161,7 @@ void main() {
       findsOne,
     );
     await tester.ensureVisible(find.text('保存'));
+    expectPanelHeaderScrollsWithContent(tester);
     expect(find.text('保存'), findsOneWidget);
     final panelRect = tester.getRect(panel);
     expect(panelRect.left, greaterThanOrEqualTo(safePadding.left));

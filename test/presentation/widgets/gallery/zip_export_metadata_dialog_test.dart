@@ -3,6 +3,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/widgets/gallery/zip_export_metadata_dialog.dart';
 
+import '../../../helpers/adaptive_panel_expectations.dart';
+
 void main() {
   testWidgets('returns the selected metadata export option', (tester) async {
     bool? result;
@@ -27,6 +29,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.textContaining('原始图片文件不会被修改'), findsOneWidget);
+    expectPanelHeaderScrollsWithContent(tester);
     await tester.tap(find.text('移除全部元数据'));
     await tester.tap(find.text('导出'));
     await tester.pumpAndSettle();

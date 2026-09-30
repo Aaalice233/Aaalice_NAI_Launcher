@@ -1522,6 +1522,7 @@ class _AccountAvatarButtonState extends State<_AccountAvatarButton> {
       context: context,
       title: context.l10n.auth_addAccount,
       dialogWidth: 450,
+      headerScrollsWithContent: true,
       builder: (panelContext, scrollController) => ContentSizedAdaptiveForm(
         scrollViewKey: const Key('main-nav-add-account-form'),
         scrollController: scrollController,

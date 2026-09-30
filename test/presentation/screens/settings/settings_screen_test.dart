@@ -29,6 +29,8 @@ import 'package:nai_launcher/presentation/themes/core/layered_surface_style.dart
 import 'package:nai_launcher/presentation/widgets/common/desktop_window_frame.dart';
 import 'package:window_manager/window_manager.dart';
 
+import '../../../helpers/adaptive_panel_expectations.dart';
+
 class _NoopDesktopWindowController implements DesktopWindowController {
   @override
   void addListener(WindowListener listener) {}
@@ -451,6 +453,7 @@ void main() {
     );
     expect(find.byType(AlertDialog), findsNothing);
     expect(find.text('OpenAI Chat Completions'), findsOneWidget);
+    expectPanelHeaderScrollsWithContent(tester);
     expect(tester.takeException(), isNull);
 
     final selectedProtocolRect = tester.getRect(
@@ -487,6 +490,25 @@ void main() {
       findsOneWidget,
     );
     expect(tester.takeException(), isNull);
+
+    for (final (trigger, dialogKey) in [
+      ('连接配置', 'prompt-assistant-connection-dialog'),
+      ('新增规则', 'prompt-assistant-rule-dialog'),
+    ]) {
+      await tester.scrollUntilVisible(
+        find.text(trigger),
+        200,
+        scrollable: contentScrollable,
+      );
+      await tester.tap(find.text(trigger));
+      await tester.pumpAndSettle();
+      expect(find.byKey(ValueKey(dialogKey)), findsOneWidget);
+      expectPanelHeaderScrollsWithContent(tester, reason: dialogKey);
+      expect(tester.takeException(), isNull, reason: dialogKey);
+      await tester.binding.handlePopRoute();
+      await tester.pumpAndSettle();
+      expect(find.byKey(ValueKey(dialogKey)), findsNothing);
+    }
 
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pumpAndSettle();
