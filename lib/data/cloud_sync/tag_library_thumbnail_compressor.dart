@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import 'package:image/image.dart' as img;
 
 import '../../core/utils/exif_orientation.dart';
+import '../../core/utils/isolate_pool.dart';
 import '../../core/utils/pica_lanczos_resizer.dart';
 
 class CompressedTagThumbnail {
@@ -20,12 +21,22 @@ class TagLibraryThumbnailCompressor {
   static const int maximumEdge = 512;
   static const int targetBytes = 256 * 1024;
 
+  /// 读完源图后在后台 isolate 解码、缩放并编码。
   Future<CompressedTagThumbnail> compress(Stream<List<int>> source) async {
     final builder = BytesBuilder(copy: false);
     await for (final chunk in source) {
       builder.add(chunk);
     }
-    final decoded = ExifOrientation.decodeUpright(builder.takeBytes());
+    return _compressInBackground(builder.takeBytes());
+  }
+
+  static Future<CompressedTagThumbnail> _compressInBackground(
+    Uint8List bytes,
+  ) => ComputeGate().runIsolate(() => compressBytes(bytes));
+
+  /// 同步压缩，供后台 isolate 调用；源图无法解码时抛出 [FormatException]。
+  static CompressedTagThumbnail compressBytes(Uint8List bytes) {
+    final decoded = ExifOrientation.decodeUpright(bytes);
     if (decoded == null) {
       throw const FormatException('Tag thumbnail is not a supported image');
     }
@@ -73,7 +84,7 @@ class TagLibraryThumbnailCompressor {
     }
   }
 
-  img.Image _flattenAlpha(img.Image source) {
+  static img.Image _flattenAlpha(img.Image source) {
     if (!source.hasAlpha) return source;
     final background = img.Image(
       width: source.width,
