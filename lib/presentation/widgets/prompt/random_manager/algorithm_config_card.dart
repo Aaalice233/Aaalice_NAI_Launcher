@@ -9,7 +9,6 @@ import '../../../providers/random_preset_provider.dart';
 import '../../../themes/core/layered_surface_style.dart';
 import '../../common/ink_host.dart';
 import '../../common/labeled_slider_rows.dart';
-import '../../common/themed_slider.dart';
 import 'probability_text.dart';
 import 'random_config_l10n.dart';
 
@@ -229,7 +228,13 @@ class _DistributionSummary extends StatelessWidget {
       (total, option) => total + option.weight,
     );
 
+    final metricStyle = Theme.of(context).textTheme.labelSmall?.copyWith(
+      color: colors.onSurfaceVariant,
+      fontFeatures: const [FontFeature.tabularFigures()],
+    );
+
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         _SegmentBar(
           values: countCategories.map((item) => item.weight).toList(),
@@ -242,37 +247,31 @@ class _DistributionSummary extends StatelessWidget {
           ],
         ),
         const SizedBox(height: 8),
-        Row(
+        // 每项人数与权重整体换行，窄屏放大文字时不截断
+        Wrap(
+          key: const ValueKey('random-manager-algorithm-summary'),
+          spacing: 12,
+          runSpacing: 2,
+          crossAxisAlignment: WrapCrossAlignment.center,
           children: [
-            Expanded(
-              child: Text(
-                countCategories
-                    .take(4)
-                    .map(
-                      (category) =>
-                          '${context.l10n.characterCountLabel(category)} ${category.weight}',
-                    )
-                    .join('  ·  '),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                  color: colors.onSurfaceVariant,
-                  fontFeatures: const [FontFeature.tabularFigures()],
-                ),
-              ),
-            ),
-            if (genderTotal > 0) ...[
-              const SizedBox(width: 8),
-              Icon(Icons.wc_rounded, size: 14, color: colors.onSurfaceVariant),
-              const SizedBox(width: 3),
+            for (final category in countCategories.take(4))
               Text(
-                genderTotal.toString(),
-                style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                  color: colors.onSurfaceVariant,
-                  fontFeatures: const [FontFeature.tabularFigures()],
-                ),
+                '${context.l10n.characterCountLabel(category)} ${category.weight}',
+                style: metricStyle,
               ),
-            ],
+            if (genderTotal > 0)
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.wc_rounded,
+                    size: 14,
+                    color: colors.onSurfaceVariant,
+                  ),
+                  const SizedBox(width: 3),
+                  Text(genderTotal.toString(), style: metricStyle),
+                ],
+              ),
           ],
         ),
       ],
@@ -407,39 +406,21 @@ class _ExpandedConfig extends StatelessWidget {
                   ),
           ),
           const SizedBox(height: 4),
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  context.l10n.randomManager_globalEmphasisProbability,
-                  style: Theme.of(context).textTheme.bodyMedium,
-                ),
-              ),
-              SizedBox(
-                width: 140,
-                child: NamedSlider(
-                  label: context.l10n.randomManager_globalEmphasisProbability,
-                  valueText: formatProbabilityPercent,
-                  value: config.globalEmphasisProbability,
-                  min: 0,
-                  max: 0.1,
-                  divisions: 10,
-                  onChanged: readOnly
-                      ? null
-                      : (value) => onConfigChanged(
-                          config.copyWith(globalEmphasisProbability: value),
-                        ),
-                ),
-              ),
-              SizedBox(
-                width: 34,
-                child: Text(
-                  formatProbabilityPercent(config.globalEmphasisProbability),
-                  textAlign: TextAlign.end,
-                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                    fontFeatures: const [FontFeature.tabularFigures()],
-                  ),
-                ),
+          LabeledSliderRows(
+            labelStyle: Theme.of(context).textTheme.bodyMedium,
+            valueStyle: Theme.of(context).textTheme.labelSmall,
+            sliders: [
+              LabeledSlider(
+                label: context.l10n.randomManager_globalEmphasisProbability,
+                value: config.globalEmphasisProbability,
+                max: 0.1,
+                divisions: 10,
+                valueText: formatProbabilityPercent,
+                onChanged: readOnly
+                    ? null
+                    : (value) => onConfigChanged(
+                        config.copyWith(globalEmphasisProbability: value),
+                      ),
               ),
             ],
           ),
@@ -462,11 +443,13 @@ class _SectionLabel extends StatelessWidget {
       children: [
         Icon(icon, size: 16, color: colors.onSurfaceVariant),
         const SizedBox(width: 6),
-        Text(
-          label,
-          style: Theme.of(
-            context,
-          ).textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w600),
+        Expanded(
+          child: Text(
+            label,
+            style: Theme.of(
+              context,
+            ).textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w600),
+          ),
         ),
       ],
     );
