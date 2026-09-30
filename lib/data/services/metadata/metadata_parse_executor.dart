@@ -11,7 +11,7 @@ class MetadataParseExecutor {
 
   Future<MetadataParseResult> parseFile(String path) {
     return ComputeGate().runCompute(
-      _parseFileInBackground,
+      UnifiedMetadataParser.parseFromFile,
       path,
       debugLabel: 'image_metadata_from_file',
     );
@@ -24,13 +24,4 @@ class MetadataParseExecutor {
       debugLabel: 'image_metadata_from_bytes',
     );
   }
-}
-
-// 解析器的静态结果缓存随一次性 isolate 销毁，写入只是白费。
-MetadataParseResult _parseFileInBackground(String path) {
-  return UnifiedMetadataParser.parseFromFile(
-    path,
-    useGradualRead: true,
-    useCache: false,
-  );
 }

@@ -493,7 +493,7 @@ Future<_ArtifactScan> _scanArtifact(
   String? metadataSource;
   var metadataContainsPrompt = false;
   if (UnifiedMetadataParser.isPngHeader(bytes)) {
-    final result = UnifiedMetadataParser.parseFromPng(bytes, useCache: false);
+    final result = UnifiedMetadataParser.parseFromPng(bytes);
     metadataSource = result.sourceFormat;
     metadataContainsPrompt =
         result.rawData?.contains(sentinel.promptToken) == true;
@@ -747,7 +747,7 @@ final class _Sentinel {
     if (crypto.sha256.convert(bytes).toString() != sha256) {
       throw StateError('Sentinel $payload SHA-256 does not match its manifest');
     }
-    final result = UnifiedMetadataParser.parseFromPng(bytes, useCache: false);
+    final result = UnifiedMetadataParser.parseFromPng(bytes);
     if (!result.success || result.rawData?.contains(promptToken) != true) {
       throw StateError('Sentinel $payload failed metadata self-check');
     }

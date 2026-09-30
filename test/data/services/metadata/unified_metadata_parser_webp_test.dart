@@ -239,7 +239,6 @@ void main() {
       final result = UnifiedMetadataParser.parseFromFile(
         file.path,
         useGradualRead: false,
-        useCache: false,
       );
 
       expect(result.success, isTrue, reason: result.errorMessage);

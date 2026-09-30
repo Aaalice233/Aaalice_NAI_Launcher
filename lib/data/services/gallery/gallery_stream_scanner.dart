@@ -597,7 +597,6 @@ class GalleryStreamScanner {
         config: const IsolateParseConfig(
           timeout: Duration(seconds: 10),
           useGradualRead: false,
-          useCache: false,
         ),
       );
       final metadata = parseResult.metadata;
