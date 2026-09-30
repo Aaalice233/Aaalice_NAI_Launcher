@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:isolate';
 import 'dart:math' as math;
 import 'dart:typed_data';
 import 'dart:ui' as ui;
@@ -309,9 +310,9 @@ class MosaicRenderService {
 
       var metadataPreserved = false;
       if (request.preserveMetadata) {
-        final transfer = _preserveSupportedMetadata(
-          source: request.sourceBytes,
-          targetPng: outputBytes,
+        final transfer = await _preserveMetadataInBackground(
+          request.sourceBytes,
+          outputBytes,
         );
         outputBytes = transfer.bytes;
         metadataPreserved = transfer.preserved;
@@ -526,6 +527,17 @@ class MosaicRenderService {
     });
   }
 }
+
+// 源图缺文本元数据时解析会整图解码查找 stealth 数据。
+Future<_MetadataTransfer> _preserveMetadataInBackground(
+  Uint8List source,
+  Uint8List targetPng,
+) => Isolate.run(
+  () => MosaicRenderService._preserveSupportedMetadata(
+    source: source,
+    targetPng: targetPng,
+  ),
+);
 
 class _MetadataTransfer {
   const _MetadataTransfer({required this.bytes, required this.preserved});

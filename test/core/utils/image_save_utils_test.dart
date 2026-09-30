@@ -21,6 +21,8 @@ import 'package:nai_launcher/data/services/metadata/image_metadata_container_cod
 import 'package:nai_launcher/data/services/metadata/unified_metadata_parser.dart';
 import 'package:path/path.dart' as p;
 
+import '../../helpers/stealth_png_fixture.dart';
+
 void main() {
   group('ComfyuiPromptParser pipe syntax', () {
     test('should parse single-line whitespace pipe character prompts', () {
@@ -621,6 +623,19 @@ void main() {
         p.basename(saved.path),
         '08-09-10-${now.millisecondsSinceEpoch}.png',
       );
+    });
+
+    test('stealth-only NovelAI bytes are recognised and kept', () async {
+      final stealth = await stealthOnlyNovelAiPng('stealth prompt');
+
+      final prepared = await ImageSaveUtils.prepareResultBytes(
+        imageBytes: stealth,
+        preserveOriginalBytes: false,
+        metadata: const NaiImageMetadata(prompt: 'must not replace', seed: 1),
+      );
+
+      expect(prepared.bytes, orderedEquals(stealth));
+      expect(UnifiedMetadataParser.extractPngTextData(prepared.bytes), isEmpty);
     });
 
     test('field projection keeps vibe arrays aligned without raw comment', () async {

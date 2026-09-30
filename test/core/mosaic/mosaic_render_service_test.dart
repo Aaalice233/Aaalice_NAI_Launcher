@@ -14,6 +14,8 @@ import 'package:nai_launcher/data/services/fixed_tag/fixed_tag_usage_record_stor
 import 'package:nai_launcher/data/services/metadata/hash_calculator.dart';
 import 'package:nai_launcher/data/services/metadata/unified_metadata_parser.dart';
 
+import '../../helpers/stealth_png_fixture.dart';
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -165,6 +167,41 @@ void main() {
       }
       expect(result.metadataPreserved, preserve);
     }
+  });
+
+  test('stealth-only metadata is preserved as text on request', () async {
+    final result = await MosaicRenderService.render(
+      MosaicRenderRequest(
+        sourceBytes: await stealthOnlyNovelAiPng('stealth prompt'),
+        settings: solid,
+        regions: const [full],
+        preserveMetadata: true,
+      ),
+    );
+
+    final metadata = UnifiedMetadataParser.extractPngTextData(result.bytes);
+    expect(metadata['Comment'], contains('stealth prompt'));
+    expect(result.metadataPreserved, isTrue);
+  });
+
+  test('a damaged source comment still fails the export', () async {
+    final source = UnifiedMetadataParser.embedTextChunkOnly(
+      _source(),
+      'Comment',
+      '{"prompt":',
+    );
+
+    await expectLater(
+      MosaicRenderService.render(
+        MosaicRenderRequest(
+          sourceBytes: source,
+          settings: solid,
+          regions: const [full],
+          preserveMetadata: true,
+        ),
+      ),
+      throwsA(isA<MosaicRenderException>()),
+    );
   });
 
   test(
