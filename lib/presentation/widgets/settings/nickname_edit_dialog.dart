@@ -76,7 +76,6 @@ class _NicknameEditDialogState extends State<NicknameEditDialog> {
     super.initState();
     _controller = TextEditingController(text: widget.account.nickname);
     _focusNode = FocusNode();
-    _validateNickname(widget.account.nickname);
   }
 
   @override

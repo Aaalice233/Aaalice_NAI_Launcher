@@ -220,6 +220,44 @@ void main() {
       }
     },
   );
+
+  testWidgets('opens for empty or over-long nicknames without errors', (
+    tester,
+  ) async {
+    for (final nickname in ['', 'x' * 65]) {
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pumpWidget(
+        testApp(
+          home: Builder(
+            builder: (context) => Scaffold(
+              body: FilledButton(
+                onPressed: () => NicknameEditDialog.show(
+                  context: context,
+                  account: account.copyWith(nickname: nickname),
+                  onSave: (_) {},
+                ),
+                child: const Text('Edit'),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.tap(find.text('Edit'));
+      await tester.pumpAndSettle();
+
+      final reason = 'length=${nickname.length}';
+      expect(tester.takeException(), isNull, reason: reason);
+      expect(find.byType(NicknameEditDialog), findsOneWidget, reason: reason);
+      expect(_surfaceHasError(tester), isFalse, reason: reason);
+      expect(
+        tester
+            .widget<FilledButton>(find.widgetWithText(FilledButton, 'Save'))
+            .onPressed,
+        isNull,
+        reason: reason,
+      );
+    }
+  });
 }
 
 bool _surfaceHasError(WidgetTester tester) => tester
