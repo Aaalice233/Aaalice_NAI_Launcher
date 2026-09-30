@@ -38,6 +38,18 @@ class StatisticsData {
   }
 }
 
+/// Whether cached statistics can be shown as-is; caches missing newer
+/// aggregates still load but are shown only after a fresh aggregation.
+bool hasCompleteDashboardStatistics(GalleryStatistics statistics) {
+  if (statistics.totalImages == 0) return true;
+  return statistics.dailyTrends.isNotEmpty &&
+      statistics.hourlyDistribution.isNotEmpty &&
+      statistics.weekdayDistribution.isNotEmpty &&
+      // Pre-parameter caches have samplers but no parameter distribution.
+      (statistics.samplerDistribution.isEmpty ||
+          statistics.parameterDistribution.isNotEmpty);
+}
+
 @Riverpod(keepAlive: true)
 class StatisticsNotifier extends _$StatisticsNotifier {
   Future<void>? _loadFuture;
@@ -86,7 +98,7 @@ class StatisticsNotifier extends _$StatisticsNotifier {
         final cachedStatistics = cacheService.getCache();
         if (cachedStatistics != null &&
             cacheService.isCacheValid(imageCount) &&
-            _hasCompleteDashboardData(cachedStatistics)) {
+            hasCompleteDashboardStatistics(cachedStatistics)) {
           state = StatisticsData(
             statistics: cachedStatistics,
             isLoading: true,
@@ -127,13 +139,6 @@ class StatisticsNotifier extends _$StatisticsNotifier {
       );
       state = state.copyWith(error: e.toString(), isLoading: false);
     }
-  }
-
-  bool _hasCompleteDashboardData(GalleryStatistics statistics) {
-    if (statistics.totalImages == 0) return true;
-    return statistics.dailyTrends.isNotEmpty &&
-        statistics.hourlyDistribution.isNotEmpty &&
-        statistics.weekdayDistribution.isNotEmpty;
   }
 
   Future<ds.GalleryDataSource> _getDataSource() async {
@@ -183,7 +188,7 @@ class StatisticsNotifier extends _$StatisticsNotifier {
       final cachedStatistics = cacheService.getCache();
       if (cachedStatistics != null &&
           cacheService.isCacheValid(imageCount) &&
-          _hasCompleteDashboardData(cachedStatistics)) {
+          hasCompleteDashboardStatistics(cachedStatistics)) {
         _needsRefreshAfterWarmup = true;
         state = StatisticsData(
           statistics: cachedStatistics,

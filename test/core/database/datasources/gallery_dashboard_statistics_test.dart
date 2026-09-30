@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/core/database/connection_pool_holder.dart';
 import 'package:nai_launcher/core/database/datasources/gallery_data_source.dart';
 import 'package:nai_launcher/core/utils/app_logger.dart';
+import 'package:nai_launcher/data/models/gallery/gallery_parameter.dart';
 import 'package:nai_launcher/data/models/gallery/nai_image_metadata.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
@@ -141,4 +142,139 @@ void main() {
       });
     },
   );
+
+  test('aggregates five generation parameters and lists recent images', () async {
+    final now = DateTime.now();
+    final yesterday = now.subtract(const Duration(days: 1));
+    final twoDaysAgo = now.subtract(const Duration(days: 2));
+    final threeDaysAgo = now.subtract(const Duration(days: 3));
+    final fortyDaysAgo = now.subtract(const Duration(days: 40));
+
+    final recentId = await _addImage(
+      dataSource,
+      '/test/recent.png',
+      yesterday,
+      const NaiImageMetadata(
+        prompt: 'recent',
+        sampler: 'k_euler',
+        steps: 28,
+        scale: 5,
+        width: 832,
+        height: 1216,
+        model: 'model-a',
+        smea: true,
+        smeaDyn: true,
+        noiseSchedule: 'karras',
+        cfgRescale: 0,
+      ),
+    );
+    await dataSource.toggleFavorite(recentId);
+    await dataSource.setImageTags(recentId, const ['b-tag', 'a-tag']);
+    await _addImage(
+      dataSource,
+      '/test/second.png',
+      twoDaysAgo,
+      const NaiImageMetadata(
+        prompt: 'second',
+        sampler: 'k_euler_ancestral',
+        steps: 28,
+        scale: 5.5,
+        noiseSchedule: 'exponential',
+      ),
+    );
+    await _addImage(dataSource, '/test/plain.png', threeDaysAgo, null);
+    await _addImage(
+      dataSource,
+      '/test/old.png',
+      fortyDaysAgo,
+      const NaiImageMetadata(
+        prompt: 'old',
+        sampler: 'k_euler',
+        steps: 23,
+        scale: 5,
+        noiseSchedule: '',
+        cfgRescale: 0.2,
+      ),
+    );
+    await _addImage(
+      dataSource,
+      '/test/deleted.png',
+      yesterday,
+      const NaiImageMetadata(
+        prompt: 'deleted',
+        sampler: 'ddim',
+        steps: 50,
+        scale: 7,
+        noiseSchedule: 'native',
+        cfgRescale: 0.7,
+      ),
+    );
+    await dataSource.markAsDeleted('/test/deleted.png');
+
+    final snapshot = await dataSource.getDashboardStatistics();
+
+    // SMEA and SMEA DYN are deliberately left out.
+    expect(snapshot.parameterCounts, {
+      GalleryParameter.sampler: {'k_euler': 2, 'k_euler_ancestral': 1},
+      GalleryParameter.steps: {'28': 2, '23': 1},
+      GalleryParameter.scale: {'5.0': 2, '5.5': 1},
+      GalleryParameter.noiseSchedule: {'karras': 1, 'exponential': 1},
+      GalleryParameter.cfgRescale: {'0.0': 1, '0.2': 1},
+    });
+    expect(
+      snapshot.samplerCounts,
+      snapshot.parameterCounts[GalleryParameter.sampler],
+    );
+
+    expect(snapshot.recentImages.map((image) => image.path), [
+      '/test/recent.png',
+      '/test/second.png',
+      '/test/plain.png',
+    ]);
+    final recent = snapshot.recentImages.first;
+    expect(
+      recent.modifiedAt,
+      DateTime.fromMillisecondsSinceEpoch(yesterday.millisecondsSinceEpoch),
+    );
+    expect(recent.size, 1024);
+    expect(recent.isFavorite, isTrue);
+    expect(recent.tags, ['a-tag', 'b-tag']);
+    expect(recent.hasMetadata, isTrue);
+    expect((recent.width, recent.height), (832, 1216));
+    expect((recent.model, recent.sampler), ('model-a', 'k_euler'));
+    expect((recent.steps, recent.scale), (28, 5.0));
+    final plain = snapshot.recentImages.last;
+    expect(plain.hasMetadata, isFalse);
+    expect(plain.isFavorite, isFalse);
+    expect(plain.tags, isEmpty);
+    expect(plain.width, isNull);
+  });
+
+  test('an empty gallery yields empty parameter and activity data', () async {
+    final snapshot = await dataSource.getDashboardStatistics();
+
+    expect(snapshot.totalImages, 0);
+    expect(snapshot.recentImages, isEmpty);
+    expect(
+      snapshot.parameterCounts.values.every((counts) => counts.isEmpty),
+      isTrue,
+    );
+  });
+}
+
+Future<int> _addImage(
+  GalleryDataSource dataSource,
+  String path,
+  DateTime modifiedAt,
+  NaiImageMetadata? metadata,
+) async {
+  final id = await dataSource.upsertImage(
+    filePath: path,
+    fileName: path.split('/').last,
+    fileSize: 1024,
+    createdAt: modifiedAt,
+    modifiedAt: modifiedAt,
+  );
+  if (metadata != null) await dataSource.upsertMetadata(id, metadata);
+  return id;
 }

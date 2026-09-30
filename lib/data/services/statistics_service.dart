@@ -3,6 +3,7 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../models/gallery/daily_trend_statistics.dart';
 import '../models/gallery/gallery_dashboard_snapshot.dart';
+import '../models/gallery/gallery_parameter.dart';
 import '../models/gallery/gallery_statistics.dart';
 
 part 'statistics_service.g.dart';
@@ -70,7 +71,7 @@ class StatisticsService {
         snapshot.samplerCounts,
         totalImages,
         (label, count, percentage) => SamplerStatistics(
-          samplerName: _formatSamplerName(label),
+          samplerName: formatSamplerName(label),
           count: count,
           percentage: percentage,
         ),
@@ -90,6 +91,22 @@ class StatisticsService {
         (label, count, percentage) =>
             TagStatistics(tagName: label, count: count, percentage: percentage),
       ),
+      parameterDistribution: [
+        for (final parameter in GalleryParameter.values)
+          ..._sortedStatistics<ParameterStatistics>(
+            snapshot.parameterCounts[parameter] ?? const {},
+            totalImages,
+            (value, count, percentage) => ParameterStatistics(
+              parameterName: parameter.key,
+              value: value,
+              count: count,
+              percentage: percentage,
+            ),
+          ),
+      ],
+      recentActivity: [
+        for (final image in snapshot.recentImages) _activityEntry(image),
+      ],
       dailyTrends: dailyTrends,
       hourlyDistribution: snapshot.hourlyCounts,
       weekdayDistribution: snapshot.weekdayCounts,
@@ -118,8 +135,24 @@ class StatisticsService {
     }).toList();
   }
 
+  /// 最近活动的一条记录，键名与导出、统计缓存里的 recentActivity 一致
+  Map<String, dynamic> _activityEntry(GalleryRecentImage image) => {
+    'path': image.path,
+    'size': image.size,
+    'modifiedAt': image.modifiedAt.toIso8601String(),
+    'isFavorite': image.isFavorite,
+    'tags': image.tags,
+    'hasMetadata': image.hasMetadata,
+    'width': image.width,
+    'height': image.height,
+    'model': image.model,
+    'sampler': image.sampler,
+    'steps': image.steps,
+    'scale': image.scale,
+  };
+
   /// 格式化采样器名称 (k_euler_ancestral -> Euler Ancestral)
-  String _formatSamplerName(String sampler) {
+  static String formatSamplerName(String sampler) {
     return sampler
         .replaceAll('k_', '')
         .replaceAll('_', ' ')
