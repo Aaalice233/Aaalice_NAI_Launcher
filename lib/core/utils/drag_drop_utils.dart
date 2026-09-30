@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 
 import '../../data/models/gallery/local_image_record.dart';
+import '../cache/local_file_image.dart';
 
 const protectedDragFeedbackMarkerKey = ValueKey<String>(
   'protected-drag-feedback-marker',
@@ -347,8 +348,8 @@ Widget _buildImageSection(ThemeData theme, ImageDragData dragData) {
   if (dragData.path.isNotEmpty) {
     final file = File(dragData.path);
     if (file.existsSync()) {
-      return Image.file(
-        file,
+      return Image(
+        image: LocalFileImage(file.path),
         fit: BoxFit.contain,
         filterQuality: FilterQuality.high,
         errorBuilder: (_, __, ___) => _buildPlaceholder(theme, dragData),

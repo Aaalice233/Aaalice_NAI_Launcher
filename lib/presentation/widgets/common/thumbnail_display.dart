@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import 'package:image/image.dart' as img;
 
+import '../../../core/cache/local_file_image.dart';
 import 'image_viewport_surface.dart';
 
 /// 缩略图显示组件
@@ -147,12 +148,17 @@ class _ThumbnailDisplayState extends State<ThumbnailDisplay> {
           maxHeight: virtualHeight,
           child: Transform.translate(
             offset: Offset(-shiftX, -shiftY),
-            child: Image.file(
-              File(widget.imagePath),
+            child: Image(
+              image: LocalFileImage.withCacheSize(
+                widget.imagePath,
+                cacheWidth: _decodeCacheExtent(virtualWidth, devicePixelRatio),
+                cacheHeight: _decodeCacheExtent(
+                  virtualHeight,
+                  devicePixelRatio,
+                ),
+              ),
               width: virtualWidth,
               height: virtualHeight,
-              cacheWidth: _decodeCacheExtent(virtualWidth, devicePixelRatio),
-              cacheHeight: _decodeCacheExtent(virtualHeight, devicePixelRatio),
               fit: BoxFit.cover,
               errorBuilder: (_, __, ___) => _buildError(),
             ),
@@ -176,10 +182,12 @@ class _ThumbnailDisplayState extends State<ThumbnailDisplay> {
       child: SizedBox(
         width: widget.width,
         height: widget.height,
-        child: Image.file(
-          File(widget.imagePath),
-          cacheWidth: _decodeCacheExtent(widget.width, devicePixelRatio),
-          cacheHeight: _decodeCacheExtent(widget.height, devicePixelRatio),
+        child: Image(
+          image: LocalFileImage.withCacheSize(
+            widget.imagePath,
+            cacheWidth: _decodeCacheExtent(widget.width, devicePixelRatio),
+            cacheHeight: _decodeCacheExtent(widget.height, devicePixelRatio),
+          ),
           fit: BoxFit.cover,
           errorBuilder: (_, __, ___) => _buildError(),
         ),

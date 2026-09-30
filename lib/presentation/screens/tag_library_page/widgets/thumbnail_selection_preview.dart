@@ -1,7 +1,6 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
 
+import '../../../../core/cache/local_file_image.dart';
 import '../../../widgets/common/image_viewport_surface.dart';
 
 const double tagLibraryCardAspectRatio = 2.5;
@@ -97,8 +96,8 @@ class _ThumbnailSelectionPreviewState extends State<ThumbnailSelectionPreview> {
     _removeImageListener();
     _imageSize = null;
     _imageLoadFailed = false;
-    final stream = FileImage(
-      File(widget.imagePath),
+    final stream = LocalFileImage(
+      widget.imagePath,
     ).resolve(const ImageConfiguration());
     late final ImageStreamListener listener;
     listener = ImageStreamListener(
@@ -191,8 +190,8 @@ class _ThumbnailSelectionPreviewState extends State<ThumbnailSelectionPreview> {
               top: imageOffset.dy,
               width: displayedSize.width,
               height: displayedSize.height,
-              child: Image.file(
-                File(widget.imagePath),
+              child: Image(
+                image: LocalFileImage(widget.imagePath),
                 fit: BoxFit.contain,
                 errorBuilder: (_, __, ___) => Center(
                   child: Icon(

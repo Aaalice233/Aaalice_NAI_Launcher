@@ -1,9 +1,8 @@
-import 'dart:io';
-
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 
 import '../../../core/cache/gallery_image_request.dart';
+import '../../../core/cache/local_file_image.dart';
 import '../../../core/cache/online_gallery_image_cache_manager.dart';
 
 class QueueTaskThumbnail extends StatelessWidget {
@@ -41,9 +40,8 @@ class QueueTaskThumbnail extends StatelessWidget {
       );
     }
 
-    return Image.file(
-      File(source),
-      cacheWidth: cacheWidth,
+    return Image(
+      image: LocalFileImage.withCacheSize(source, cacheWidth: cacheWidth),
       width: width,
       height: height,
       fit: fit,

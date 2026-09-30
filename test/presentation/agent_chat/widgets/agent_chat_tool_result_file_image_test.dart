@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:image/image.dart' as image_lib;
+import 'package:nai_launcher/core/cache/local_file_image.dart';
 import 'package:nai_launcher/data/models/gallery/local_image_record.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/agent_chat/widgets/agent_chat_tool_result_file_image.dart';
@@ -46,7 +47,7 @@ void main() {
         expect(info.aspect, 4.0);
         expect(info.record.path, path);
         expect(info.record.size, File(path).lengthSync());
-        expect(agentChatToolResultAspectCache.get(path), 4.0);
+        expect(agentChatToolResultAspectCache.get(path)?.aspect, 4.0);
       },
     );
 
@@ -66,25 +67,47 @@ void main() {
       expect(info.aspect, 4 / 3);
     });
 
-    test('reuses the cached ratio instead of reading the header', () async {
+    test('reuses the cached ratio of the same file identity', () async {
       final path = writePng('wide.png', width: 8, height: 2);
-      agentChatToolResultAspectCache.put(path, 0.5);
+      agentChatToolResultAspectCache.put(path, (
+        identity: LocalFileIdentity.statSync(path)!,
+        aspect: 0.5,
+      ));
 
       final info = (await resolveAgentChatToolResultImage(path))!;
 
       expect(info.aspect, 0.5);
     });
+
+    test('rereads the ratio after the file is replaced in place', () async {
+      final path = writePng('replaced.png', width: 8, height: 2);
+      File(path).setLastModifiedSync(DateTime(2026, 1, 1, 12));
+      expect((await resolveAgentChatToolResultImage(path))!.aspect, 4.0);
+
+      writePng('replaced.png', width: 2, height: 8);
+      File(path).setLastModifiedSync(DateTime(2026, 1, 1, 12, 0, 1));
+      final info = (await resolveAgentChatToolResultImage(path))!;
+
+      expect(info.aspect, 0.25);
+      expect(agentChatToolResultAspectCache.get(path)?.aspect, 0.25);
+    });
   });
 
   test('aspect cache drops the oldest entries beyond its bound', () {
     for (var index = 0; index < 300; index++) {
-      agentChatToolResultAspectCache.put('path-$index', 1 + index / 100);
+      agentChatToolResultAspectCache.put('path-$index', (
+        identity: _anyIdentity,
+        aspect: 1 + index / 100,
+      ));
     }
 
     expect(agentChatToolResultAspectCache.size, 256);
     expect(agentChatToolResultAspectCache.get('path-0'), isNull);
     expect(agentChatToolResultAspectCache.get('path-43'), isNull);
-    expect(agentChatToolResultAspectCache.get('path-299'), 1 + 299 / 100);
+    expect(
+      agentChatToolResultAspectCache.get('path-299')?.aspect,
+      1 + 299 / 100,
+    );
   });
 
   group('AgentChatToolResultFileImage', () {
@@ -127,7 +150,10 @@ void main() {
     testWidgets('a cached ratio is shown before the probe answers', (
       tester,
     ) async {
-      agentChatToolResultAspectCache.put('a.png', 2.5);
+      agentChatToolResultAspectCache.put('a.png', (
+        identity: _anyIdentity,
+        aspect: 2.5,
+      ));
 
       await pumpCard(tester, 'a.png');
 
@@ -192,6 +218,12 @@ void main() {
     });
   });
 }
+
+const _anyIdentity = LocalFileIdentity(
+  size: 1,
+  modifiedMicros: 0,
+  changedMicros: 0,
+);
 
 AgentChatToolResultImageInfo _info(
   String path, {

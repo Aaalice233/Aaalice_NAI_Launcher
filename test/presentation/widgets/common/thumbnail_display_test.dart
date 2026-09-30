@@ -3,7 +3,10 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:image/image.dart' as img;
+import 'package:nai_launcher/core/cache/local_file_image.dart';
 import 'package:nai_launcher/presentation/widgets/common/thumbnail_display.dart';
+
+import '../../../helpers/real_async_pump.dart';
 
 void main() {
   testWidgets('adds decode size hints while image dimensions are loading', (
@@ -27,6 +30,37 @@ void main() {
 
     expect(resized.width, 300);
     expect(resized.height, 120);
+    expect(
+      resized.imageProvider,
+      const LocalFileImage('missing-thumbnail.png'),
+    );
+    expect(image.fit, BoxFit.cover);
+  });
+
+  testWidgets('a missing thumbnail file falls back to the error placeholder', (
+    tester,
+  ) async {
+    final directory = Directory.systemTemp.createTempSync(
+      'thumbnail_display_missing_test_',
+    );
+    addTearDown(() => directory.deleteSync(recursive: true));
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: ThumbnailDisplay(
+          imagePath: '${directory.path}/missing.png',
+          width: 120,
+          height: 48,
+        ),
+      ),
+    );
+    await pumpUntilRealAsync(
+      tester,
+      () => find.byIcon(Icons.broken_image_outlined).evaluate().isNotEmpty,
+    );
+
+    expect(find.byIcon(Icons.broken_image_outlined), findsOneWidget);
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('adds decode size hints for cropped thumbnails', (tester) async {

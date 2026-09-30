@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:nai_launcher/core/cache/local_file_image.dart';
 import 'package:nai_launcher/core/storage/local_storage_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -349,7 +350,7 @@ void main() {
 Future<void> _cacheFileImage(WidgetTester tester, File file) async {
   await tester.runAsync(() async {
     final completed = Completer<void>();
-    final stream = FileImage(file).resolve(ImageConfiguration.empty);
+    final stream = LocalFileImage(file.path).resolve(ImageConfiguration.empty);
     late final ImageStreamListener listener;
     listener = ImageStreamListener(
       (_, __) {

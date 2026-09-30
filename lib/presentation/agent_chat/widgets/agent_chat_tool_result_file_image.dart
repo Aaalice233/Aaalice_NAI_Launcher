@@ -7,6 +7,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/cache/local_file_image.dart';
 import '../../../core/database/utils/lru_cache.dart';
 import '../../../core/utils/nai_resolution_adapter.dart';
 import '../../../data/models/gallery/local_image_record.dart';
@@ -21,11 +22,15 @@ import '../../widgets/common/image_detail/file_image_detail_data.dart';
 import '../../widgets/gallery/draggable_image_card.dart';
 import '../../widgets/gallery/local_image_context_menu.dart';
 
-// 宽高比按路径命中；固定上限避免长会话里无界增长
+typedef AgentChatToolResultAspect = ({
+  LocalFileIdentity identity,
+  double aspect,
+});
+
+// 首帧按路径取宽高比，探测时文件身份不符就重读；固定上限避免长会话里无界增长
 @visibleForTesting
-final LRUCache<String, double> agentChatToolResultAspectCache = LRUCache(
-  maxSize: 256,
-);
+final LRUCache<String, AgentChatToolResultAspect>
+agentChatToolResultAspectCache = LRUCache(maxSize: 256);
 
 const Map<String, Object> _agentChatImageDragLocalData = {
   'source': 'agent_chat_internal',
@@ -52,17 +57,22 @@ class AgentChatToolResultImageInfo {
 typedef AgentChatToolResultImageResolver =
     Future<AgentChatToolResultImageInfo?> Function(String path);
 
-/// 文件不存在时返回 null；宽高比优先命中缓存，未命中才读文件头。
+/// 文件不存在时返回 null；同一文件身份的宽高比命中缓存，否则读文件头。
 Future<AgentChatToolResultImageInfo?> resolveAgentChatToolResultImage(
   String path,
 ) async {
   final file = File(path);
   final stat = await file.stat();
-  if (stat.type != FileSystemEntityType.file) return null;
-  final aspect =
-      agentChatToolResultAspectCache.get(path) ??
-      await _readAspect(file, stat.size);
-  agentChatToolResultAspectCache.put(path, aspect);
+  final identity = LocalFileIdentity.fromStat(stat);
+  if (identity == null) return null;
+  final cached = agentChatToolResultAspectCache.get(path);
+  final aspect = cached != null && cached.identity == identity
+      ? cached.aspect
+      : await _readAspect(file, stat.size);
+  agentChatToolResultAspectCache.put(path, (
+    identity: identity,
+    aspect: aspect,
+  ));
   return AgentChatToolResultImageInfo(
     record: LocalImageRecord(
       path: path,
@@ -174,7 +184,8 @@ class _AgentChatToolResultFileImageState
   void _resetForPath() {
     _missingFile = false;
     _aspect =
-        agentChatToolResultAspectCache.get(widget.path) ?? _fallbackAspect;
+        agentChatToolResultAspectCache.get(widget.path)?.aspect ??
+        _fallbackAspect;
     _record = LocalImageRecord(
       path: widget.path,
       size: 0,
@@ -254,8 +265,8 @@ class _AgentChatToolResultFileImageState
                       ),
                       child: ClipRRect(
                         borderRadius: BorderRadius.circular(8),
-                        child: Image.file(
-                          File(widget.path),
+                        child: Image(
+                          image: LocalFileImage(widget.path),
                           fit: BoxFit.contain,
                           gaplessPlayback: true,
                           filterQuality: FilterQuality.medium,

@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import 'package:flutter/widgets.dart';
 import 'package:path/path.dart' as p;
 
+import '../../../../core/cache/local_file_image.dart';
 import '../../../../data/models/gallery/local_image_record.dart';
 import '../../../../data/models/gallery/nai_image_metadata.dart';
 import '../../../../data/models/fixed_tag/fixed_tag_usage_snapshot.dart';
@@ -81,7 +82,7 @@ class LocalImageDetailData implements ImageDetailData {
   @override
   ImageProvider getImageProvider() {
     final meta = metadata;
-    final fileImage = FileImage(File(record.path));
+    final fileImage = LocalFileImage(record.path);
 
     // 无元数据时无法预判尺寸，仍要限制解码上限以避免超大图片撑爆内存。
     if (meta == null) {
