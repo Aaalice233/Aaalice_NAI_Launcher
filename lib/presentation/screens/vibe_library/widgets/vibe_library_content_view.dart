@@ -85,14 +85,15 @@ class _VibeLibraryContentViewState
       vibeLibraryCategoryNotifierProvider.select((state) => state.categories),
     );
     final categoryLabels = buildVibeCategoryLabels(categories);
+    final entries = state.currentEntries;
 
     // 使用 3D 卡片视图模式
     return CardSelectionScope(
       selection: selectionState,
       commands: ref.read(vibeLibrarySelectionNotifierProvider.notifier),
-      orderedIds: state.currentEntries.map((e) => e.id).toList(),
+      orderedIds: entries.map((e) => e.id).toList(),
       child: CardSelectionShortcuts(
-        child: _build3DCardView(state, selectionState, categoryLabels),
+        child: _build3DCardView(state, entries, selectionState, categoryLabels),
       ),
     );
   }
@@ -100,11 +101,10 @@ class _VibeLibraryContentViewState
   /// 构建 3D 卡片视图
   Widget _build3DCardView(
     VibeLibraryState state,
+    List<VibeLibraryEntry> entries,
     SelectionModeState selectionState,
     Map<String, String> categoryLabels,
   ) {
-    final entries = state.currentEntries;
-
     // 加载中状态
     if (state.isLoading) {
       return Center(

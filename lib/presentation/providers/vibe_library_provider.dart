@@ -7,6 +7,7 @@ import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../../core/utils/app_logger.dart';
+import '../../core/utils/last_result_memo.dart';
 import '../../data/models/vibe/vibe_library_category.dart';
 import '../../data/models/vibe/vibe_library_entry.dart';
 import '../../data/models/vibe/vibe_reference.dart';
@@ -17,6 +18,21 @@ import '../../data/services/vibe_library_storage_service.dart';
 
 part 'vibe_library_provider.freezed.dart';
 part 'vibe_library_provider.g.dart';
+
+typedef _VibeLibraryCriteria = ({
+  List<VibeLibraryEntry> entries,
+  String searchQuery,
+  String? categoryId,
+  bool favoritesOnly,
+  VibeLibrarySortOrder sortOrder,
+  bool sortDescending,
+});
+
+typedef _VibeLibraryPage = ({
+  List<VibeLibraryEntry> filtered,
+  int currentPage,
+  int pageSize,
+});
 
 @freezed
 class VibeLibraryState with _$VibeLibraryState {
@@ -41,33 +57,32 @@ class VibeLibraryState with _$VibeLibraryState {
 
   const VibeLibraryState._();
 
-  List<VibeLibraryEntry> get filteredEntries {
-    var result = List<VibeLibraryEntry>.of(entries);
-    if (searchQuery.isNotEmpty) result = result.search(searchQuery);
-    if (selectedCategoryId != null) {
-      result = result.getByCategory(selectedCategoryId!);
-    }
-    if (favoritesOnly) result = result.favorites;
-    final sorted = switch (sortOrder) {
-      VibeLibrarySortOrder.createdAt => result.sortedByCreatedAt(),
-      VibeLibrarySortOrder.lastUsed => result.sortedByLastUsed(),
-      VibeLibrarySortOrder.usedCount => result.sortedByUsedCount(),
-      VibeLibrarySortOrder.name => result.sortedByName(),
-    };
-    return List.unmodifiable(sortDescending ? sorted : sorted.reversed);
+  // 按输入而非实例记忆，进度/加载等无关字段变化不重排；entries 按底层列表身份判等
+  static final _filteredMemo =
+      LastResultMemo<_VibeLibraryCriteria, List<VibeLibraryEntry>>();
+  static final _pageMemo =
+      LastResultMemo<_VibeLibraryPage, List<VibeLibraryEntry>>();
+
+  List<VibeLibraryEntry> get filteredEntries => _filteredMemo.resolve((
+    entries: entries,
+    searchQuery: searchQuery,
+    categoryId: selectedCategoryId,
+    favoritesOnly: favoritesOnly,
+    sortOrder: sortOrder,
+    sortDescending: sortDescending,
+  ), _filterAndSort);
+
+  List<VibeLibraryEntry> get currentEntries => _pageMemo.resolve((
+    filtered: filteredEntries,
+    currentPage: currentPage,
+    pageSize: pageSize,
+  ), _slicePage);
+
+  int get totalPages {
+    final count = filteredCount;
+    return count == 0 ? 0 : (count / pageSize).ceil();
   }
 
-  List<VibeLibraryEntry> get currentEntries {
-    final filtered = filteredEntries;
-    final start = currentPage * pageSize;
-    if (start < 0 || start >= filtered.length) return const [];
-    return List.unmodifiable(
-      filtered.sublist(start, min(start + pageSize, filtered.length)),
-    );
-  }
-
-  int get totalPages =>
-      filteredCount == 0 ? 0 : (filteredCount / pageSize).ceil();
   int get totalCount => entries.length;
   int get filteredCount => filteredEntries.length;
   bool get hasFilters =>
@@ -91,6 +106,34 @@ class VibeLibraryState with _$VibeLibraryState {
   }
 
   Set<String> get allTags => {for (final entry in entries) ...entry.tags};
+
+  static List<VibeLibraryEntry> _filterAndSort(_VibeLibraryCriteria criteria) {
+    var result = criteria.entries;
+    if (criteria.searchQuery.isNotEmpty) {
+      result = result.search(criteria.searchQuery);
+    }
+    final categoryId = criteria.categoryId;
+    if (categoryId != null) result = result.getByCategory(categoryId);
+    if (criteria.favoritesOnly) result = result.favorites;
+    final sorted = switch (criteria.sortOrder) {
+      VibeLibrarySortOrder.createdAt => result.sortedByCreatedAt(),
+      VibeLibrarySortOrder.lastUsed => result.sortedByLastUsed(),
+      VibeLibrarySortOrder.usedCount => result.sortedByUsedCount(),
+      VibeLibrarySortOrder.name => result.sortedByName(),
+    };
+    return List.unmodifiable(
+      criteria.sortDescending ? sorted : sorted.reversed,
+    );
+  }
+
+  static List<VibeLibraryEntry> _slicePage(_VibeLibraryPage page) {
+    final filtered = page.filtered;
+    final start = page.currentPage * page.pageSize;
+    if (start < 0 || start >= filtered.length) return const [];
+    return List.unmodifiable(
+      filtered.sublist(start, min(start + page.pageSize, filtered.length)),
+    );
+  }
 }
 
 enum VibeLibrarySortOrder { createdAt, lastUsed, usedCount, name }

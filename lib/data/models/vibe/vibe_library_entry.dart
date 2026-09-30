@@ -362,10 +362,12 @@ extension VibeLibraryEntryListExtension on List<VibeLibraryEntry> {
 
   /// 按名称排序
   List<VibeLibraryEntry> sortedByName() {
-    return [...this]..sort(
-      (a, b) =>
-          a.displayName.toLowerCase().compareTo(b.displayName.toLowerCase()),
-    );
+    // 小写键每项只算一次：放进比较器会在 n log n 次比较里反复分配字符串
+    final keyed = [
+      for (final entry in this)
+        (key: entry.displayName.toLowerCase(), entry: entry),
+    ]..sort((a, b) => a.key.compareTo(b.key));
+    return [for (final item in keyed) item.entry];
   }
 
   /// 搜索
