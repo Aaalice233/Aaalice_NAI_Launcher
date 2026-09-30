@@ -1,13 +1,12 @@
 import 'dart:convert';
-import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:hive/hive.dart';
-import 'package:path/path.dart' as p;
 
 import '../../core/constants/storage_keys.dart';
 import '../../core/utils/app_logger.dart';
 import '../../data/services/image_metadata_service.dart';
+import '../../data/services/metadata/metadata_cache_evictor.dart';
 import '../database/datasources/gallery_data_source.dart';
 
 /// 缓存层级类型
@@ -139,24 +138,6 @@ class CacheStatistics {
   }
 }
 
-/// 缓存清理策略
-enum CacheCleanupStrategy {
-  /// 清理所有层级
-  all,
-
-  /// 仅清理内存缓存
-  memoryOnly,
-
-  /// 仅清理 Hive 缓存
-  hiveOnly,
-
-  /// 仅清理数据库缓存（谨慎使用）
-  databaseOnly,
-
-  /// 自动清理（根据大小阈值）
-  auto,
-}
-
 /// 画廊缓存管理器
 ///
 /// 提供统一接口管理三层缓存：
@@ -165,10 +146,8 @@ enum CacheCleanupStrategy {
 /// - L3: SQLite 数据库 (GalleryDataSource)
 ///
 /// 特性：
-/// - 精确的缓存统计（包含字节数估算）
-/// - 自动缓存清理（基于大小和时间）
-/// - 缓存序列化/压缩
-/// - 分层清理策略
+/// - 缓存统计（L1 按实际条目估算字节数，L2 读取 box 文件大小）
+/// - 分层清理；L2 的容量淘汰由 [L2CacheCleaner] 负责
 class GalleryCacheManager {
   static final GalleryCacheManager _instance = GalleryCacheManager._internal();
   factory GalleryCacheManager() => _instance;
@@ -187,9 +166,6 @@ class GalleryCacheManager {
 
   /// 统计信息缓存有效期
   static const Duration _statisticsCacheValidity = Duration(seconds: 30);
-
-  /// 自动清理大小阈值（MB）
-  static const int _autoCleanupThresholdMB = 500;
 
   /// 注册缓存清除回调
   void registerOnCacheCleared(VoidCallback callback) {
@@ -247,47 +223,6 @@ class GalleryCacheManager {
     _notifyCacheCleared();
     _invalidateStatisticsCache();
     AppLogger.i('All cache layers cleared', 'GalleryCacheManager');
-  }
-
-  /// 根据策略清理缓存
-  Future<void> clearByStrategy(CacheCleanupStrategy strategy) async {
-    switch (strategy) {
-      case CacheCleanupStrategy.all:
-        await clearAll();
-      case CacheCleanupStrategy.memoryOnly:
-        await clearL1MemoryCache();
-      case CacheCleanupStrategy.hiveOnly:
-        await clearL2HiveCache();
-      case CacheCleanupStrategy.databaseOnly:
-        await clearL3DatabaseCache();
-      case CacheCleanupStrategy.auto:
-        await _autoCleanup();
-    }
-    _invalidateStatisticsCache();
-  }
-
-  /// 自动清理缓存
-  Future<void> _autoCleanup() async {
-    final stats = await getStatistics();
-
-    // 如果 L2 Hive 缓存超过阈值，触发清理
-    if (stats.l2HiveBytes > _autoCleanupThresholdMB * 1024 * 1024) {
-      AppLogger.i(
-        'Auto cleanup triggered: L2 cache ${(stats.l2HiveBytes / 1024 / 1024).toStringAsFixed(1)}MB exceeds threshold ${_autoCleanupThresholdMB}MB',
-        'GalleryCacheManager',
-      );
-      await L2CacheCleaner().performCleanup();
-    }
-
-    // 如果 L1 内存缓存过大，清理内存
-    if (stats.l1MemoryBytes > 100 * 1024 * 1024) {
-      // 100MB
-      AppLogger.i(
-        'Auto cleanup triggered: L1 cache ${(stats.l1MemoryBytes / 1024 / 1024).toStringAsFixed(1)}MB exceeds threshold 100MB',
-        'GalleryCacheManager',
-      );
-      await clearL1MemoryCache();
-    }
   }
 
   /// 清除 L1 内存缓存
@@ -361,12 +296,15 @@ class GalleryCacheManager {
     // 获取 L1 缓存统计
     final l1Size = imageService.memoryCacheSize;
     final l1HitRate = imageService.memoryCacheHitRate;
-    final l1Bytes = await _estimateMemoryCacheBytes();
+    final l1Bytes = imageService.memoryCacheEstimatedBytes;
 
     // 获取 L2 缓存统计
     final l2Size = await imageService.persistentCacheSize;
     final l2HitRate = imageService.persistentCacheHitRate;
-    final l2Bytes = await _getHiveCacheBytes();
+    final persistentBox = imageService.persistentBox;
+    final l2Bytes = persistentBox == null
+        ? 0
+        : await MetadataCacheEvictor.fileBytes(persistentBox);
 
     // 获取 L3 数据库统计
     final imageCount = await dataSource.countImages();
@@ -390,64 +328,6 @@ class GalleryCacheManager {
       totalHitRate: totalHitRate.isFinite ? totalHitRate : 0.0,
       lastUpdated: DateTime.now(),
     );
-  }
-
-  /// 估算内存缓存字节数
-  Future<int> _estimateMemoryCacheBytes() async {
-    try {
-      // 获取 Hive 缓存目录大小作为估算参考
-      final appDir = await _getAppDirectory();
-      if (appDir == null) return 0;
-
-      final metadataCacheDir = Directory(p.join(appDir, 'metadata_cache'));
-      if (!await metadataCacheDir.exists()) return 0;
-
-      int totalBytes = 0;
-      await for (final entity in metadataCacheDir.list()) {
-        if (entity is File) {
-          totalBytes += await entity.length();
-        }
-      }
-      return totalBytes ~/ 10; // 内存缓存约为磁盘缓存的 1/10
-    } catch (e) {
-      return 0;
-    }
-  }
-
-  /// 获取 Hive 缓存字节数
-  Future<int> _getHiveCacheBytes() async {
-    try {
-      final appDir = await _getAppDirectory();
-      if (appDir == null) return 0;
-
-      final metadataCacheDir = Directory(p.join(appDir, 'metadata_cache'));
-      if (!await metadataCacheDir.exists()) return 0;
-
-      int totalBytes = 0;
-      await for (final entity in metadataCacheDir.list()) {
-        if (entity is File) {
-          totalBytes += await entity.length();
-        }
-      }
-      return totalBytes;
-    } catch (e) {
-      return 0;
-    }
-  }
-
-  /// 获取应用目录
-  Future<String?> _getAppDirectory() async {
-    try {
-      // 尝试从 Hive 路径推断
-      final box = Hive.box(StorageKeys.settingsBox);
-      final path = box.path;
-      if (path != null) {
-        return p.dirname(path);
-      }
-    } catch (_) {
-      // 忽略错误
-    }
-    return null;
   }
 
   Future<int> _getMetadataCount(GalleryDataSource dataSource) async {
@@ -483,117 +363,65 @@ class GalleryCacheManager {
       return null;
     }
   }
-
-  /// 压缩缓存数据
-  ///
-  /// 将 Hive 缓存压缩以节省磁盘空间
-  Future<bool> compressCache() async {
-    try {
-      final box = ImageMetadataService().persistentBox;
-      if (box == null || !box.isOpen) {
-        AppLogger.w(
-          'Persistent box not available for compression',
-          'GalleryCacheManager',
-        );
-        return false;
-      }
-
-      AppLogger.i('Starting cache compression...', 'GalleryCacheManager');
-
-      int compressedCount = 0;
-      final keysToRemove = <String>[];
-
-      for (final key in box.keys) {
-        if (key is! String) continue;
-        if (key.startsWith('_')) continue;
-
-        final value = box.get(key);
-        if (value == null) continue;
-
-        // 检查是否有重复或过期数据
-        final paths = ImageMetadataService().getPathsForHash(key);
-        bool hasValidPaths = false;
-        for (final path in paths) {
-          if (await File(path).exists()) {
-            hasValidPaths = true;
-            break;
-          }
-        }
-
-        if (!hasValidPaths) {
-          keysToRemove.add(key);
-        }
-      }
-
-      // 批量删除无效条目
-      for (final key in keysToRemove) {
-        await box.delete(key);
-        compressedCount++;
-      }
-
-      // 尝试压缩 Hive 文件
-      try {
-        await box.compact();
-      } catch (_) {
-        // 压缩可能被某些平台不支持，忽略错误
-      }
-
-      AppLogger.i(
-        'Cache compression completed: $compressedCount entries removed',
-        'GalleryCacheManager',
-      );
-      _invalidateStatisticsCache();
-      return true;
-    } catch (e, stack) {
-      AppLogger.e('Failed to compress cache', e, stack, 'GalleryCacheManager');
-      return false;
-    }
-  }
 }
 
 /// L2 Hive 缓存清理器
 ///
-/// 定期清理策略：
-/// 1. 应用启动时检查
-/// 2. 每7天执行一次完整清理
-/// 3. 清理不存在的文件对应的缓存条目
-/// 4. 支持基于大小的自动清理
+/// - 每 7 天压缩一次 box，回收覆盖和删除留下的失效帧
+/// - 每小时最多检查一次 box 文件大小，超过阈值时按写入时间淘汰最旧条目，
+///   降到目标水位后压缩
+///
+/// 调度时间记在 settings box，只属于本机，不参与云同步。
 class L2CacheCleaner {
+  L2CacheCleaner({
+    Box<String>? Function()? cacheBox,
+    Future<Box<dynamic>> Function()? settingsBox,
+    DateTime Function()? clock,
+    this.sizeThresholdBytes = _defaultSizeThresholdMB * _bytesPerMB,
+    this.evictor = const MetadataCacheEvictor(),
+  }) : _cacheBox = cacheBox ?? _metadataCacheBox,
+       _settingsBox = settingsBox ?? _openSettingsBox,
+       _clock = clock ?? DateTime.now;
+
   static const String _lastCleanupKey = 'l2_cache_last_cleanup';
   static const String _lastSizeCheckKey = 'l2_cache_last_size_check';
   static const Duration _cleanupInterval = Duration(days: 7);
   static const Duration _sizeCheckInterval = Duration(hours: 1);
 
-  /// 缓存大小阈值（MB）
-  static const int _sizeThresholdMB = 500;
-  static const int _automaticCleanupHardLimitMB = 2048;
+  static const int _bytesPerMB = 1024 * 1024;
+  static const int _defaultSizeThresholdMB = 500;
+  // 留出余量，避免每次小幅增长都重新扫描并重写整个文件
+  static const double _targetRatio = 0.8;
+
+  final Box<String>? Function() _cacheBox;
+  final Future<Box<dynamic>> Function() _settingsBox;
+  final DateTime Function() _clock;
+
+  /// box 文件超过该字节数时触发淘汰
+  final int sizeThresholdBytes;
+  final MetadataCacheEvictor evictor;
+
+  /// 淘汰后的目标文件字节数
+  int get targetBytes => (sizeThresholdBytes * _targetRatio).floor();
 
   /// 检查并执行清理
   Future<void> checkAndClean() async {
     try {
-      final box = await _getSettingsBox();
-      final lastCleanup = box.get(_lastCleanupKey);
-      final lastCleanupTime = lastCleanup != null
-          ? DateTime.fromMillisecondsSinceEpoch(int.parse(lastCleanup))
-          : DateTime(2000);
-      final now = DateTime.now();
+      final box = _availableCacheBox();
+      if (box == null) return;
+      final settings = await _settingsBox();
+      final now = _clock();
 
-      // 检查是否需要定期清理
-      if (now.difference(lastCleanupTime) > _cleanupInterval) {
-        if (await _shouldSkipAutomaticCleanupForSize()) {
-          await box.put(_lastCleanupKey, now.millisecondsSinceEpoch.toString());
-          return;
-        }
-
-        AppLogger.i(
-          'L2 cache cleanup due (last: $lastCleanupTime)',
-          'L2CacheCleaner',
+      if (_isDue(settings, _lastCleanupKey, _cleanupInterval, now)) {
+        await box.compact();
+        await settings.put(_lastCleanupKey, '${now.millisecondsSinceEpoch}');
+      }
+      if (_isDue(settings, _lastSizeCheckKey, _sizeCheckInterval, now)) {
+        await enforceSizeLimit();
+        await settings.put(
+          _lastSizeCheckKey,
+          '${now.millisecondsSinceEpoch}',
         );
-        await performCleanup(compactAfterCleanup: false);
-        await box.put(_lastCleanupKey, now.millisecondsSinceEpoch.toString());
-      } else {
-        // 检查是否需要基于大小的清理
-        await _checkSizeAndClean(box);
       }
     } catch (e, stack) {
       AppLogger.e(
@@ -605,166 +433,59 @@ class L2CacheCleaner {
     }
   }
 
-  /// 基于大小检查并清理
-  Future<void> _checkSizeAndClean(Box box) async {
-    try {
-      final lastCheck = box.get(_lastSizeCheckKey);
-      final lastCheckTime = lastCheck != null
-          ? DateTime.fromMillisecondsSinceEpoch(int.parse(lastCheck))
-          : DateTime(2000);
-      final now = DateTime.now();
+  /// box 文件超过阈值时淘汰最旧条目；未超过阈值或缓存未就绪时返回 null
+  Future<MetadataCacheEvictionResult?> enforceSizeLimit() async {
+    final box = _availableCacheBox();
+    if (box == null) return null;
+    final bytes = await MetadataCacheEvictor.fileBytes(box);
+    if (bytes <= sizeThresholdBytes) return null;
 
-      if (now.difference(lastCheckTime) < _sizeCheckInterval) {
-        return; // 检查太频繁，跳过
-      }
-
-      // 获取缓存大小
-      final cacheSizeMB = await _getCacheSizeMB();
-
-      if (cacheSizeMB > _sizeThresholdMB) {
-        if (cacheSizeMB > _automaticCleanupHardLimitMB) {
-          AppLogger.w(
-            'L2 cache size ($cacheSizeMB MB) exceeds automatic cleanup hard limit '
-                '($_automaticCleanupHardLimitMB MB); skipping background cleanup to avoid UI stalls. '
-                'Use manual cache clear if disk space needs to be reclaimed.',
-            'L2CacheCleaner',
-          );
-          await box.put(
-            _lastSizeCheckKey,
-            now.millisecondsSinceEpoch.toString(),
-          );
-          return;
-        }
-
-        AppLogger.i(
-          'L2 cache size ($cacheSizeMB MB) exceeds threshold ($_sizeThresholdMB MB), performing cleanup',
-          'L2CacheCleaner',
-        );
-        await performCleanup(compactAfterCleanup: false);
-      }
-
-      await box.put(_lastSizeCheckKey, now.millisecondsSinceEpoch.toString());
-    } catch (e) {
-      // 忽略错误
-    }
-  }
-
-  /// 获取缓存大小（MB）
-  Future<int> _getCacheSizeMB() async {
-    try {
-      final bytes = await GalleryCacheManager().getStatistics().then(
-            (s) => s.l2HiveBytes,
-          );
-      return bytes ~/ (1024 * 1024);
-    } catch (_) {
-      return 0;
-    }
-  }
-
-  Future<bool> _shouldSkipAutomaticCleanupForSize() async {
-    final cacheSizeMB = await _getCacheSizeMB();
-    if (cacheSizeMB <= _automaticCleanupHardLimitMB) {
-      return false;
-    }
-
-    AppLogger.w(
-      'Skipping scheduled L2 cleanup because cache is $cacheSizeMB MB, above '
-          'the automatic cleanup hard limit ($_automaticCleanupHardLimitMB MB). '
-          'This avoids a long Hive scan/compact on the UI process.',
+    final stopwatch = Stopwatch()..start();
+    final result = await evictor.evictToTarget(box, targetBytes: targetBytes);
+    AppLogger.i(
+      'L2 cache evicted ${result.evictedEntries} of '
+          '${result.scannedEntries} entries: '
+          '${_formatMB(result.bytesBefore)} MB -> '
+          '${_formatMB(result.bytesAfter)} MB (threshold '
+          '${_formatMB(sizeThresholdBytes)} MB) in '
+          '${stopwatch.elapsedMilliseconds} ms',
       'L2CacheCleaner',
     );
-    return true;
+    return result;
   }
 
-  /// 执行清理
-  Future<void> performCleanup({bool compactAfterCleanup = true}) async {
-    try {
-      final box = ImageMetadataService().persistentBox;
-
-      if (box == null || !box.isOpen) {
-        AppLogger.w(
-          'Persistent box not available for cleanup',
-          'L2CacheCleaner',
-        );
-        return;
-      }
-
-      final keysToDelete = <String>[];
-      int checkedCount = 0;
-      int freedEntries = 0;
-
-      for (final key in box.keys) {
-        if (key is! String) continue;
-        // 跳过版本键
-        if (key.startsWith('_')) continue;
-
-        checkedCount++;
-
-        // 获取该哈希对应的所有路径
-        final paths = ImageMetadataService().getPathsForHash(key);
-
-        bool anyExists = false;
-        for (final path in paths) {
-          try {
-            if (await File(path).exists()) {
-              anyExists = true;
-              break;
-            }
-          } catch (_) {
-            // 忽略文件访问错误
-          }
-        }
-
-        // 如果没有文件存在，标记为待删除
-        if (!anyExists && paths.isNotEmpty) {
-          keysToDelete.add(key);
-        }
-
-        // 每检查 100 个条目，让出时间片
-        if (checkedCount % 100 == 0) {
-          await Future.delayed(Duration.zero);
-        }
-      }
-
-      // 批量删除
-      for (final key in keysToDelete) {
-        await box.delete(key);
-        freedEntries++;
-
-        // 每删除 50 个条目，让出时间片
-        if (freedEntries % 50 == 0) {
-          await Future.delayed(Duration.zero);
-        }
-      }
-
-      if (compactAfterCleanup) {
-        // 尝试压缩
-        try {
-          await box.compact();
-        } catch (_) {
-          // 忽略压缩错误
-        }
-      }
-
-      AppLogger.i(
-        'L2 cache cleaned: $freedEntries entries removed, $checkedCount checked, '
-            'compacted=$compactAfterCleanup',
-        'L2CacheCleaner',
-      );
-    } catch (e, stack) {
-      AppLogger.e(
-        'Failed to perform L2 cache cleanup',
-        e,
-        stack,
-        'L2CacheCleaner',
-      );
-    }
+  Box<String>? _availableCacheBox() {
+    final box = _cacheBox();
+    if (box != null && box.isOpen) return box;
+    AppLogger.w('Persistent box not available for cleanup', 'L2CacheCleaner');
+    return null;
   }
 
-  Future<Box> _getSettingsBox() async {
+  static bool _isDue(
+    Box<dynamic> settings,
+    String key,
+    Duration interval,
+    DateTime now,
+  ) {
+    final lastMillis = int.tryParse('${settings.get(key) ?? ''}');
+    if (lastMillis == null) return true;
+    final elapsed = now.difference(
+      DateTime.fromMillisecondsSinceEpoch(lastMillis),
+    );
+    // 系统时间回拨后记录落在未来，不能因此长期不检查
+    return elapsed.isNegative || elapsed >= interval;
+  }
+
+  static String _formatMB(int bytes) =>
+      (bytes / _bytesPerMB).toStringAsFixed(1);
+
+  static Box<String>? _metadataCacheBox() =>
+      ImageMetadataService().persistentBox;
+
+  static Future<Box<dynamic>> _openSettingsBox() async {
     if (Hive.isBoxOpen(StorageKeys.settingsBox)) {
       return Hive.box(StorageKeys.settingsBox);
     }
-    return await Hive.openBox(StorageKeys.settingsBox);
+    return Hive.openBox(StorageKeys.settingsBox);
   }
 }

@@ -567,6 +567,9 @@ class ImageMetadataService {
   /// L1 内存缓存命中率
   double get memoryCacheHitRate => _cacheManager.memoryHitRate;
 
+  /// L1 内存缓存估算字节数
+  int get memoryCacheEstimatedBytes => _cacheManager.estimatedMemoryBytes;
+
   /// L2 持久化缓存大小
   Future<int> get persistentCacheSize async => _cacheManager.persistentSize;
 

@@ -12,6 +12,7 @@ import 'package:nai_launcher/data/services/fixed_tag/fixed_tag_usage_record_stor
 import 'package:nai_launcher/data/services/gallery/local_gallery_repository.dart';
 import 'package:nai_launcher/data/services/image_metadata_service.dart';
 import 'package:nai_launcher/data/services/metadata/hash_calculator.dart';
+import 'package:nai_launcher/data/services/metadata/metadata_cache_entry_codec.dart';
 import 'package:nai_launcher/data/services/metadata/unified_metadata_parser.dart';
 
 import '../../../helpers/fixed_tag_usage_fixture.dart';
@@ -22,8 +23,9 @@ const _imageId = 11;
 
 Map<String, dynamic>? _cachedMetadataJson(String hash) {
   final raw = ImageMetadataService().persistentBox?.get(hash);
-  if (raw == null) return null;
-  return jsonDecode(raw) as Map<String, dynamic>;
+  final json = raw == null ? null : MetadataCacheEntryCodec.metadataJsonOf(raw);
+  if (json == null) return null;
+  return jsonDecode(json) as Map<String, dynamic>;
 }
 
 void main() {
