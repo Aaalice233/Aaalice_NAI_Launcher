@@ -8,6 +8,7 @@ import 'package:archive/archive_io.dart' show InputFileStream, ZipFileEncoder;
 import 'package:path/path.dart' as path;
 
 import 'image_share_sanitizer.dart';
+import 'isolate_pool.dart';
 
 class ZipCreationProgress {
   const ZipCreationProgress({
@@ -107,6 +108,11 @@ class ZipUtils {
     }
 
     return images;
+  }
+
+  /// [extractAllImages] 的后台 isolate 版本，经 [ComputeGate] 排队。
+  static Future<List<Uint8List>> extractAllImagesAsync(Uint8List zipBytes) {
+    return ComputeGate().runIsolate(() => extractAllImages(zipBytes));
   }
 
   /// 从 ZIP 中提取图片及其文件名

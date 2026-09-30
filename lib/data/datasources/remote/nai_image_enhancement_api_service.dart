@@ -83,7 +83,7 @@ class NAIImageEnhancementApiService {
         onReceiveProgress: onProgress,
       );
 
-      return _extractUpscaleResult(response.data as Uint8List);
+      return await _extractUpscaleResult(response.data as Uint8List);
     } on DioException catch (e) {
       final status = e.response?.statusCode;
       const legacyFallbackStatuses = {400, 404, 405, 422};
@@ -129,7 +129,7 @@ class NAIImageEnhancementApiService {
         onReceiveProgress: onProgress,
       );
 
-      return _extractUpscaleResult(response.data as Uint8List);
+      return await _extractUpscaleResult(response.data as Uint8List);
     } on DioException catch (e) {
       AppLogger.w('Legacy upscale failed: ${e.message}', 'NAIEnhancement');
       throw Exception('图像放大失败: ${_mapDioError(e)}');
@@ -148,8 +148,8 @@ class NAIImageEnhancementApiService {
     return size;
   }
 
-  Uint8List _extractUpscaleResult(Uint8List raw) {
-    final images = ZipUtils.extractAllImages(raw);
+  Future<Uint8List> _extractUpscaleResult(Uint8List raw) async {
+    final images = await ZipUtils.extractAllImagesAsync(raw);
     if (images.isNotEmpty) return images.first;
     return raw;
   }
@@ -248,7 +248,9 @@ class NAIImageEnhancementApiService {
         ),
       );
 
-      final images = ZipUtils.extractAllImages(response.data as Uint8List);
+      final images = await ZipUtils.extractAllImagesAsync(
+        response.data as Uint8List,
+      );
       if (images.isEmpty) {
         throw Exception('No images found in augment response');
       }

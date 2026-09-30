@@ -8,6 +8,8 @@ import 'package:nai_launcher/core/utils/image_share_sanitizer.dart';
 import 'package:nai_launcher/core/utils/zip_utils.dart';
 import 'package:nai_launcher/data/services/metadata/unified_metadata_parser.dart';
 
+import '../../helpers/shared_compute_gate.dart';
+
 void main() {
   late Directory tempDirectory;
   late File sourceFile;
@@ -132,6 +134,35 @@ void main() {
       ),
       isEmpty,
     );
+  });
+
+  group('extractAllImagesAsync', () {
+    test('matches the sync extraction behind the shared gate', () async {
+      final archive = Archive()
+        ..addFile(ArchiveFile('image_1.png', 3, [1, 2, 3]))
+        ..addFile(ArchiveFile('notes.txt', 2, [9, 9]))
+        ..addFile(ArchiveFile('image_0.JPG', 4, [4, 5, 6, 7]))
+        ..addFile(ArchiveFile('image_2.jpeg', 2, [8, 8]));
+      final zipBytes = Uint8List.fromList(ZipEncoder().encode(archive)!);
+
+      final images = await expectQueuedBehindSharedComputeGate(
+        () => ZipUtils.extractAllImagesAsync(zipBytes),
+      );
+
+      final expected = ZipUtils.extractAllImages(zipBytes);
+      expect(images, hasLength(3));
+      for (var index = 0; index < expected.length; index++) {
+        expect(images[index], orderedEquals(expected[index]));
+      }
+      expect(images.first, orderedEquals([1, 2, 3]));
+    });
+
+    test('returns an empty list for unreadable archives', () async {
+      expect(
+        await ZipUtils.extractAllImagesAsync(Uint8List.fromList([0x50, 1, 2])),
+        isEmpty,
+      );
+    });
   });
 }
 
