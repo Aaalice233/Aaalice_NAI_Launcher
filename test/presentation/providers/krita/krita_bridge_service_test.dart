@@ -2,15 +2,24 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
 
+import 'package:archive/archive.dart';
+import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:image/image.dart' as img;
+import 'package:nai_launcher/core/constants/api_constants.dart';
 import 'package:nai_launcher/core/krita/krita_bridge_models.dart';
 import 'package:nai_launcher/core/models/image_generation_artifact.dart';
+import 'package:nai_launcher/core/network/nai_api_endpoint_service.dart';
+import 'package:nai_launcher/core/network/request_builders/nai_image_request_builder.dart';
 import 'package:nai_launcher/core/utils/focused_inpaint_utils.dart';
 import 'package:nai_launcher/core/utils/inpaint_mask_utils.dart';
+import 'package:nai_launcher/data/datasources/remote/nai_image_enhancement_api_service.dart';
+import 'package:nai_launcher/data/datasources/remote/nai_image_generation_api_service.dart';
 import 'package:nai_launcher/data/models/image/image_params.dart';
 import 'package:nai_launcher/data/models/image/image_stream_chunk.dart';
 import 'package:nai_launcher/presentation/providers/krita/krita_bridge_service.dart';
+
+import '../../../helpers/browser_multipart_reader.dart';
 
 void main() {
   group('KritaBridgeService', () {
@@ -1039,6 +1048,313 @@ void main() {
       await generation;
     });
   });
+
+  group('KritaBridgeService inbound selection masks', () {
+    const canvasSize = 256;
+    const selection = KritaSelectionRect(x: 112, y: 112, width: 32, height: 32);
+
+    test(
+      'old 39/0 and new 255/0 plugin masks send the same request mask',
+      () async {
+        final oldPlugin = await _captureKritaRequestMask(
+          _kritaSelectionMaskPng(canvasSize, selection, selectedValue: 39),
+        );
+        final newPlugin = await _captureKritaRequestMask(
+          _kritaSelectionMaskPng(canvasSize, selection, selectedValue: 255),
+        );
+
+        expect(oldPlugin, orderedEquals(newPlugin));
+        final decoded = img.decodeImage(oldPlugin)!;
+        expect(decoded.getPixel(128, 128).r.toInt(), 255);
+        expect(decoded.getPixel(0, 0).r.toInt(), 0);
+      },
+    );
+
+    test('255/0 plugin masks keep the unbridged request mask bytes', () async {
+      final mask = _kritaSelectionMaskPng(
+        canvasSize,
+        selection,
+        selectedValue: 255,
+      );
+      final bridged = await _captureKritaRequestMask(mask);
+      final direct = await NAIImageRequestBuilder(
+        params: ImageParams(
+          prompt: 'repair',
+          action: ImageGenerationAction.infill,
+          model: ImageModels.animeDiffusionV45Full,
+          width: canvasSize,
+          height: canvasSize,
+          sourceImage: _solidPng(canvasSize, canvasSize, 10, 20, 30),
+          maskImage: mask,
+        ),
+        encodeVibe: _unusedEncodeVibe,
+      ).build(sampler: Samplers.kEulerAncestral);
+
+      expect(
+        bridged,
+        orderedEquals(base64Decode(direct.requestParameters['mask'] as String)),
+      );
+    });
+
+    test(
+      'focused selections send the same request mask for both plugin values',
+      () async {
+        final oldPlugin = await _captureKritaRequestMask(
+          _kritaSelectionMaskPng(canvasSize, selection, selectedValue: 39),
+          focusedSelection: selection,
+        );
+        final newPlugin = await _captureKritaRequestMask(
+          _kritaSelectionMaskPng(canvasSize, selection, selectedValue: 255),
+          focusedSelection: selection,
+        );
+
+        expect(oldPlugin, orderedEquals(newPlugin));
+        final decoded = img.decodeImage(oldPlugin)!;
+        expect(
+          decoded.getPixel(decoded.width ~/ 2, decoded.height ~/ 2).r.toInt(),
+          255,
+        );
+      },
+    );
+
+    test(
+      'cancel while the mask is binarized never starts generation',
+      () async {
+        final sent = <Map<String, dynamic>>[];
+        var generateCalls = 0;
+        final service = KritaBridgeService(
+          readBaseParams: () => const ImageParams(),
+          send: sent.add,
+          isUiGenerating: () => false,
+          authGuard: () => true,
+          generateStream: (_) {
+            generateCalls++;
+            return const Stream.empty();
+          },
+          generateFallback: (_) async {
+            generateCalls++;
+            return const [];
+          },
+          registerExternalImage: (_, {required params, addToDisplay}) async =>
+              null,
+          cancelGeneration: () {},
+        );
+
+        final generation = service.handle(
+          KritaInpaintMessage(
+            id: 'cancel-while-binarizing',
+            image: _solidPng(canvasSize, canvasSize, 10, 20, 30),
+            mask: _kritaSelectionMaskPng(
+              canvasSize,
+              selection,
+              selectedValue: 39,
+            ),
+            prompt: '',
+            negativePrompt: '',
+            strength: 0.7,
+            noise: 0,
+            inpaintStrength: 1,
+            minimumContextPixels: 88,
+            maskClosingIterations: 0,
+            maskExpansionIterations: 0,
+            focusedInpaint: false,
+          ),
+        );
+        await service.handle(
+          const KritaCancelMessage(id: 'cancel-while-binarizing'),
+        );
+        await generation;
+
+        expect(generateCalls, 0);
+        expect(sent.single['type'], 'cancelled');
+        expect(service.isBridgeGenerating, isFalse);
+      },
+    );
+
+    for (final focused in [false, true]) {
+      test(
+        'old plugin masks write back a visible patch (focused: $focused)',
+        () async {
+          final sent = await _runKritaInpaint(
+            _kritaSelectionMaskPng(canvasSize, selection, selectedValue: 39),
+            focusedSelection: focused ? selection : null,
+            respondWithImage: true,
+          );
+
+          expect(sent.single['type'], 'result');
+          final patch = img.decodeImage(
+            base64Decode(sent.single['image'] as String),
+          )!;
+          expect(patch.width, canvasSize);
+          expect(patch.getPixel(128, 128).a.toInt(), 255);
+          expect(patch.getPixel(128, 128).r.toInt(), 200);
+          expect(patch.getPixel(0, 0).a.toInt(), 0);
+        },
+      );
+    }
+  });
+}
+
+/// Mirrors the plugin's Grayscale8 export: one channel, unselected pixels 0.
+Uint8List _kritaSelectionMaskPng(
+  int canvasSize,
+  KritaSelectionRect selection, {
+  required int selectedValue,
+}) {
+  final image = img.Image(
+    width: canvasSize,
+    height: canvasSize,
+    numChannels: 1,
+  );
+  for (var y = selection.y; y < selection.y + selection.height; y++) {
+    for (var x = selection.x; x < selection.x + selection.width; x++) {
+      image.setPixelR(x, y, selectedValue);
+    }
+  }
+  return Uint8List.fromList(img.encodePng(image));
+}
+
+Future<Uint8List> _captureKritaRequestMask(
+  Uint8List mask, {
+  KritaSelectionRect? focusedSelection,
+}) async {
+  final adapter = _RecordingGenerationAdapter();
+  await _runKritaInpaint(
+    mask,
+    focusedSelection: focusedSelection,
+    adapter: adapter,
+  );
+  return _multipartPart(adapter.requests.single, 'mask');
+}
+
+Future<List<Map<String, dynamic>>> _runKritaInpaint(
+  Uint8List mask, {
+  KritaSelectionRect? focusedSelection,
+  bool respondWithImage = false,
+  _RecordingGenerationAdapter? adapter,
+}) async {
+  final effectiveAdapter =
+      adapter ??
+      _RecordingGenerationAdapter(respondWithImage: respondWithImage);
+  final dio = Dio()..httpClientAdapter = effectiveAdapter;
+  final endpointService = NaiApiEndpointService();
+  final api = NAIImageGenerationApiService(
+    dio,
+    NAIImageEnhancementApiService(dio, endpointService),
+    endpointService,
+  );
+  final size = img.decodeImage(mask)!;
+  final sent = <Map<String, dynamic>>[];
+  final service = KritaBridgeService(
+    readBaseParams: () => ImageParams(
+      model: ImageModels.animeDiffusionV45Full,
+      width: size.width,
+      height: size.height,
+    ),
+    send: sent.add,
+    isUiGenerating: () => false,
+    authGuard: () => true,
+    generateStream: (request) => api.generateImageStream(
+      request.params,
+      focusedInpaintEnabled: request.focusedInpaintEnabled,
+      minimumContextMegaPixels: request.minimumContextPixels,
+      focusedSelectionRect: request.focusedSelectionRect,
+    ),
+    generateFallback: (request) => api.generateImageArtifactsCancellable(
+      request.params,
+      onProgress: (_, _) {},
+      focusedInpaintEnabled: request.focusedInpaintEnabled,
+      minimumContextMegaPixels: request.minimumContextPixels,
+      focusedSelectionRect: request.focusedSelectionRect,
+    ),
+    registerExternalImage: (_, {required params, addToDisplay}) async => null,
+    cancelGeneration: api.cancelGeneration,
+    failureCooldown: Duration.zero,
+  );
+
+  await service.handle(
+    KritaInpaintMessage(
+      id: 'inbound-mask',
+      image: _solidPng(size.width, size.height, 10, 20, 30),
+      mask: mask,
+      prompt: 'repair',
+      negativePrompt: '',
+      strength: 0.7,
+      noise: 0,
+      inpaintStrength: 1,
+      minimumContextPixels: 88,
+      maskClosingIterations: 0,
+      maskExpansionIterations: 0,
+      focusedInpaint: focusedSelection != null,
+      selectionRect: focusedSelection,
+    ),
+  );
+  return sent;
+}
+
+Uint8List _multipartPart(RequestOptions options, String name) {
+  final contentType =
+      options.contentType ?? options.headers['content-type'] as String;
+  return parseBrowserMultipart(
+    options.data as Uint8List,
+    boundaryOf(contentType),
+  ).firstWhere((part) => part.name == name).bytes;
+}
+
+Future<String> _unusedEncodeVibe(
+  Uint8List image, {
+  required String model,
+  double informationExtracted = 1,
+}) => throw UnimplementedError();
+
+/// Records generation uploads; answers with a solid image of the request size
+/// or with a server error so the bridge settles without real network access.
+class _RecordingGenerationAdapter implements HttpClientAdapter {
+  _RecordingGenerationAdapter({this.respondWithImage = false});
+
+  final bool respondWithImage;
+  final List<RequestOptions> requests = [];
+
+  @override
+  Future<ResponseBody> fetch(
+    RequestOptions options,
+    Stream<Uint8List>? requestStream,
+    Future<void>? cancelFuture,
+  ) async {
+    requests.add(options);
+    if (!respondWithImage) {
+      return ResponseBody.fromString(
+        '{"message":"recorded"}',
+        500,
+        headers: {
+          Headers.contentTypeHeader: ['application/json'],
+        },
+      );
+    }
+    final request =
+        jsonDecode(utf8.decode(_multipartPart(options, 'request')))
+            as Map<String, dynamic>;
+    final parameters = request['parameters'] as Map<String, dynamic>;
+    final generated = _solidPng(
+      parameters['width'] as int,
+      parameters['height'] as int,
+      200,
+      210,
+      220,
+    );
+    final archive = Archive()
+      ..addFile(ArchiveFile('image.png', generated.length, generated));
+    return ResponseBody.fromBytes(
+      ZipEncoder().encode(archive) ?? const <int>[],
+      200,
+      headers: {
+        Headers.contentTypeHeader: ['application/x-zip-compressed'],
+      },
+    );
+  }
+
+  @override
+  void close({bool force = false}) {}
 }
 
 void expectNoSensitiveBridgeData(Map<String, dynamic> message) {

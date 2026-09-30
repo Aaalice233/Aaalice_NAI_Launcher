@@ -440,6 +440,83 @@ void main() {
     },
   );
 
+  test('queue_image_task stores a low-gray mask_ref as a 0/255 mask', () async {
+    final container = ProviderContainer(
+      overrides: [
+        replicationQueueNotifierProvider.overrideWith(
+          _TestReplicationQueueNotifier.new,
+        ),
+        generationParamsNotifierProvider.overrideWith(
+          _TestGenerationParamsNotifier.new,
+        ),
+        characterPromptNotifierProvider.overrideWith(
+          _TestCharacterPromptNotifier.new,
+        ),
+        subscriptionNotifierProvider.overrideWith(
+          _TestSubscriptionNotifier.new,
+        ),
+        imagesPerRequestProvider.overrideWith(_TestImagesPerRequest.new),
+      ],
+    );
+    addTearDown(container.dispose);
+    AgentChatResourceReference galleryImage(String id) =>
+        AgentChatResourceReference(
+          kind: AgentChatResourceKind.localGalleryImage,
+          source: 'local_gallery',
+          resourceId: id,
+          display: {'title': id},
+        );
+    final lowGrayMask = image_lib.Image(width: 64, height: 64, numChannels: 1);
+    for (var y = 16; y < 48; y++) {
+      for (var x = 16; x < 48; x++) {
+        lowGrayMask.setPixelR(x, y, 39);
+      }
+    }
+    final toolbox = GenerationToolbox(
+      _makeRef(container),
+      resourceResolver: _TestResourceResolver(
+        _makeRef(container),
+        bytesByResourceId: {
+          'source-1': Uint8List.fromList(
+            image_lib.encodePng(image_lib.Image(width: 64, height: 64)),
+          ),
+          'mask-1': Uint8List.fromList(image_lib.encodePng(lowGrayMask)),
+        },
+      ),
+    );
+    final tool = toolbox.tools().firstWhere(
+      (candidate) => candidate.name == 'queue_image_task',
+    );
+
+    final prepared = await tool.execute('prepare-mask', {
+      'prompt': '1girl',
+      'source_ref': AgentChatResourceReferenceCodec.encodeJsonMap(
+        galleryImage('source-1'),
+      ),
+      'mask_ref': AgentChatResourceReferenceCodec.encodeJsonMap(
+        galleryImage('mask-1'),
+      ),
+      'auto_start': false,
+    });
+    final submitted = await tool.execute('submit-mask', {
+      'preparation_id': _json(prepared)['preparation_id'],
+      'confirmed': true,
+    });
+
+    expect(submitted.isError, isFalse);
+    final restored = ReplicationTaskGenerationSnapshot.decode(
+      container
+          .read(replicationQueueNotifierProvider)
+          .tasks
+          .single
+          .generationSnapshot!,
+    );
+    expect(restored.action, ImageGenerationAction.infill);
+    final mask = image_lib.decodeImage(restored.maskImage!)!;
+    expect(mask.getPixel(32, 32).r.toInt(), 255);
+    expect(mask.getPixel(0, 0).r.toInt(), 0);
+  });
+
   test(
     'queue_image_task persists prompt text resolved during preparation',
     () async {
@@ -1733,10 +1810,12 @@ class _TestResourceResolver extends AgentResourceResolver {
     super.ref, {
     this.textByResourceId = const {},
     this.canonicalByResourceId = const {},
+    this.bytesByResourceId = const {},
   });
 
   final Map<String, String> textByResourceId;
   final Map<String, AgentChatResourceReference> canonicalByResourceId;
+  final Map<String, Uint8List> bytesByResourceId;
 
   @override
   Future<ResolvedAgentResource?> resolve(
@@ -1744,7 +1823,9 @@ class _TestResourceResolver extends AgentResourceResolver {
   ) async => ResolvedAgentResource(
     reference: canonicalByResourceId[requested.resourceId] ?? requested,
     label: 'source',
-    bytes: Uint8List.fromList([1, 2, 3, 4]),
+    bytes:
+        bytesByResourceId[requested.resourceId] ??
+        Uint8List.fromList([1, 2, 3, 4]),
     text: textByResourceId[requested.resourceId],
   );
 }
