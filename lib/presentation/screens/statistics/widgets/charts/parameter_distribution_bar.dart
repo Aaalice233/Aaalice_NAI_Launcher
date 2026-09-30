@@ -252,29 +252,25 @@ class _HorizontalBarRow extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Expanded(
-                  child: Tooltip(
-                    message: item.label,
-                    waitDuration: const Duration(milliseconds: 500),
-                    child: Text(
-                      item.label,
-                      style: theme.textTheme.bodySmall,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+            // The count drops below the label when both do not fit; labels
+            // wrap instead of being truncated.
+            SizedBox(
+              width: double.infinity,
+              child: Wrap(
+                alignment: WrapAlignment.spaceBetween,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                spacing: 8,
+                runSpacing: 2,
+                children: [
+                  Text(item.label, style: theme.textTheme.bodySmall),
+                  Text(
+                    '${item.count}',
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  '${item.count}',
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ],
+                ],
+              ),
             ),
             const SizedBox(height: 4),
             Stack(
@@ -289,7 +285,9 @@ class _HorizontalBarRow extends StatelessWidget {
                   ),
                 ),
                 FractionallySizedBox(
-                  widthFactor: (item.count / maxValue).clamp(0.0, 1.0),
+                  widthFactor: maxValue > 0
+                      ? (item.count / maxValue).clamp(0.0, 1.0)
+                      : 0,
                   child: Container(
                     height: 20,
                     decoration: BoxDecoration(

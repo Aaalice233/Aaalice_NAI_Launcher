@@ -4,6 +4,7 @@ import 'package:nai_launcher/l10n/app_localizations.dart';
 import '../../../../../data/models/gallery/gallery_statistics.dart';
 import '../../utils/utils.dart';
 import '../cards/chart_card.dart';
+import '../common/stat_pair_layout.dart';
 
 /// 其他统计卡片 - 显示平均文件大小和有元数据的图片数
 /// Other stats card - displays average file size and images with metadata
@@ -18,34 +19,29 @@ class OtherStatsCard extends StatelessWidget {
     final colorScheme = theme.colorScheme;
     final l10n = AppLocalizations.of(context)!;
 
+    final averageSize = _StatItem(
+      label: l10n.statistics_averageFileSize,
+      value: StatisticsFormatter.formatBytes(
+        stats.totalImages > 0 ? stats.totalSizeBytes ~/ stats.totalImages : 0,
+      ),
+      colorScheme: colorScheme,
+      textTheme: theme.textTheme,
+    );
+    final withMetadata = _StatItem(
+      label: l10n.statistics_withMetadata,
+      value: '${stats.imagesWithMetadata}',
+      colorScheme: colorScheme,
+      textTheme: theme.textTheme,
+    );
+
     return ChartCard(
       title: l10n.statistics_additionalStats,
       titleIcon: Icons.insights_outlined,
       accentColor: Colors.orange,
-      child: Row(
-        children: [
-          Expanded(
-            child: _StatItem(
-              label: l10n.statistics_averageFileSize,
-              value: StatisticsFormatter.formatBytes(
-                stats.totalImages > 0
-                    ? stats.totalSizeBytes ~/ stats.totalImages
-                    : 0,
-              ),
-              colorScheme: colorScheme,
-              textTheme: theme.textTheme,
-            ),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: _StatItem(
-              label: l10n.statistics_withMetadata,
-              value: '${stats.imagesWithMetadata}',
-              colorScheme: colorScheme,
-              textTheme: theme.textTheme,
-            ),
-          ),
-        ],
+      child: StatPairLayout(
+        first: averageSize,
+        second: withMetadata,
+        spacing: 16,
       ),
     );
   }

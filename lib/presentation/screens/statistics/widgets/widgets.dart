@@ -3,6 +3,7 @@ export 'dashboard/dashboard_widgets.dart';
 
 // Common widgets exports
 export 'common/section_container.dart';
+export 'common/stat_pair_layout.dart';
 
 // Animated widgets exports
 export 'animated/animated_number.dart';

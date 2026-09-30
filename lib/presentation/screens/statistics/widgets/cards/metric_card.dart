@@ -99,49 +99,70 @@ class _MetricCardState extends State<MetricCard> {
     );
   }
 
-  /// 紧凑单行布局
+  /// 紧凑布局：放得下时标签与数值同一行，放不下时数值换到下一行
   Widget _buildCompactLayout(
     ThemeData theme,
     ColorScheme colorScheme,
     Color effectiveIconColor,
     bool isDark,
   ) {
-    return Row(
-      children: [
-        // Icon container
-        Container(
-          padding: const EdgeInsets.all(8),
-          decoration: BoxDecoration(
-            color: effectiveIconColor.withValues(alpha: isDark ? 0.15 : 0.1),
-            borderRadius: BorderRadius.circular(6),
+    final value = Text(
+      widget.value,
+      style: theme.textTheme.titleLarge?.copyWith(
+        fontWeight: FontWeight.bold,
+        color: colorScheme.onSurface,
+        letterSpacing: -0.3,
+        fontFeatures: const [FontFeature.tabularFigures()],
+      ),
+    );
+
+    // 撑满宽度，spaceBetween 才能把同一行里的数值推到右侧
+    return SizedBox(
+      width: double.infinity,
+      child: Wrap(
+        alignment: WrapAlignment.spaceBetween,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        spacing: 12,
+        runSpacing: 8,
+        children: [
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: effectiveIconColor.withValues(
+                    alpha: isDark ? 0.15 : 0.1,
+                  ),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Icon(widget.icon, size: 18, color: effectiveIconColor),
+              ),
+              const SizedBox(width: 12),
+              Flexible(
+                child: Text(
+                  widget.label,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: colorScheme.onSurfaceVariant,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+            ],
           ),
-          child: Icon(widget.icon, size: 18, color: effectiveIconColor),
-        ),
-        const SizedBox(width: 12),
-        // Label
-        Text(
-          widget.label,
-          style: theme.textTheme.bodyMedium?.copyWith(
-            color: colorScheme.onSurfaceVariant,
-            fontWeight: FontWeight.w500,
-          ),
-        ),
-        const Spacer(),
-        // Value
-        Text(
-          widget.value,
-          style: theme.textTheme.titleLarge?.copyWith(
-            fontWeight: FontWeight.bold,
-            color: colorScheme.onSurface,
-            letterSpacing: -0.3,
-            fontFeatures: const [FontFeature.tabularFigures()],
-          ),
-        ),
-        if (widget.trend != null) ...[
-          const SizedBox(width: 10),
-          TrendIndicator(data: widget.trend!),
+          if (widget.trend == null)
+            value
+          else
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Flexible(child: value),
+                const SizedBox(width: 10),
+                TrendIndicator(data: widget.trend!),
+              ],
+            ),
         ],
-      ],
+      ),
     );
   }
 
@@ -176,8 +197,6 @@ class _MetricCardState extends State<MetricCard> {
                   color: colorScheme.onSurfaceVariant,
                   fontWeight: FontWeight.w500,
                 ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
               ),
             ),
           ],
@@ -196,8 +215,6 @@ class _MetricCardState extends State<MetricCard> {
                   letterSpacing: -0.5,
                   fontFeatures: const [FontFeature.tabularFigures()],
                 ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
               ),
             ),
             if (widget.trend != null) TrendIndicator(data: widget.trend!),

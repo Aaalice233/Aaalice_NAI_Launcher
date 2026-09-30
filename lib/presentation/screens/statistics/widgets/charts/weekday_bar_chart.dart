@@ -1,7 +1,19 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:nai_launcher/core/utils/localization_extension.dart';
 import 'package:nai_launcher/presentation/themes/theme_extension.dart';
+
+import '../../../../utils/single_line_text_width.dart';
+import '../common/stat_pair_layout.dart';
+import 'parameter_distribution_bar.dart';
+
+typedef _AxisExtents = ({
+  double dayLabelWidth,
+  double leftReserved,
+  double bottomReserved,
+});
 
 /// Weekday bar chart for showing activity distribution across days
 class WeekdayBarChart extends StatefulWidget {
@@ -44,7 +56,41 @@ class _WeekdayBarChartState extends State<WeekdayBarChart> {
 
     final dayLabels = widget.dayLabels ?? _localizedWeekdays(context);
 
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final axis = _measureAxis(
+          theme.textTheme.labelSmall,
+          dayLabels,
+          maxValue,
+        );
+        final slotWidth = (constraints.maxWidth - axis.leftReserved) / 7;
+        // When a day's slot cannot hold its label or bar, rows keep every
+        // label and count readable instead of overlapping them.
+        if (slotWidth < math.max(axis.dayLabelWidth, _barWidth) + _slotGap) {
+          return _buildRows(dayLabels, color, colorScheme);
+        }
+        return _buildBarChart(
+          theme,
+          colorScheme,
+          color,
+          maxValue,
+          dayLabels,
+          axis,
+        );
+      },
+    );
+  }
+
+  Widget _buildBarChart(
+    ThemeData theme,
+    ColorScheme colorScheme,
+    Color color,
+    double maxValue,
+    List<String> dayLabels,
+    _AxisExtents axis,
+  ) {
     return SizedBox(
+      key: const ValueKey('weekday-distribution-bars'),
       height: widget.height,
       child: BarChart(
         BarChartData(
@@ -79,7 +125,7 @@ class _WeekdayBarChartState extends State<WeekdayBarChart> {
             bottomTitles: AxisTitles(
               sideTitles: SideTitles(
                 showTitles: true,
-                reservedSize: 32,
+                reservedSize: axis.bottomReserved,
                 getTitlesWidget: (value, meta) {
                   final index = value.toInt();
                   if (index < 0 || index >= 7) {
@@ -88,7 +134,7 @@ class _WeekdayBarChartState extends State<WeekdayBarChart> {
                   final isTouched = _touchedIndex == index;
                   final isWeekend = index >= 5;
                   return Padding(
-                    padding: const EdgeInsets.only(top: 8),
+                    padding: const EdgeInsets.only(top: _bottomLabelPadding),
                     child: Text(
                       dayLabels[index],
                       style: theme.textTheme.labelSmall?.copyWith(
@@ -109,7 +155,7 @@ class _WeekdayBarChartState extends State<WeekdayBarChart> {
             leftTitles: AxisTitles(
               sideTitles: SideTitles(
                 showTitles: true,
-                reservedSize: 36,
+                reservedSize: axis.leftReserved,
                 getTitlesWidget: (value, meta) {
                   if (value == meta.max) return const SizedBox.shrink();
                   return Text(
@@ -162,7 +208,7 @@ class _WeekdayBarChartState extends State<WeekdayBarChart> {
                       : isWeekend
                       ? colorScheme.error.withValues(alpha: 0.6)
                       : color.withValues(alpha: 0.6),
-                  width: 28,
+                  width: _barWidth,
                   borderRadius: const BorderRadius.vertical(
                     top: Radius.circular(6),
                   ),
@@ -179,6 +225,63 @@ class _WeekdayBarChartState extends State<WeekdayBarChart> {
           }),
         ),
       ),
+    );
+  }
+
+  static const double _barWidth = 28;
+  static const double _slotGap = 4;
+  static const double _minLeftReserved = 36;
+  static const double _minBottomReserved = 32;
+  static const double _axisLabelGap = 8;
+  static const double _bottomLabelPadding = 8;
+
+  _AxisExtents _measureAxis(
+    TextStyle? style,
+    List<String> dayLabels,
+    double maxValue,
+  ) {
+    final dayStyle = (style ?? const TextStyle()).copyWith(
+      fontWeight: FontWeight.bold,
+    );
+    final daySizes = [
+      for (final label in dayLabels) singleLineTextSize(context, label, dayStyle),
+    ];
+    final valueWidth = singleLineTextWidth(
+      context,
+      (maxValue * 1.2).toInt().toString(),
+      style,
+    );
+    return (
+      dayLabelWidth: daySizes.map((size) => size.width).reduce(math.max),
+      leftReserved: math.max(_minLeftReserved, valueWidth + _axisLabelGap),
+      bottomReserved: math.max(
+        _minBottomReserved,
+        daySizes.map((size) => size.height).reduce(math.max) +
+            _bottomLabelPadding,
+      ),
+    );
+  }
+
+  Widget _buildRows(
+    List<String> dayLabels,
+    Color color,
+    ColorScheme colorScheme,
+  ) {
+    final total = widget.weekdayData.values.fold<int>(0, (a, b) => a + b);
+    return ParameterDistributionBar(
+      key: const ValueKey('weekday-distribution-rows'),
+      horizontal: true,
+      items: [
+        for (var index = 0; index < 7; index++)
+          ParameterBarItem(
+            label: dayLabels[index],
+            count: widget.weekdayData[index + 1] ?? 0,
+            percentage: total > 0
+                ? (widget.weekdayData[index + 1] ?? 0) / total * 100
+                : 0,
+            color: index >= 5 ? colorScheme.error : color,
+          ),
+      ],
     );
   }
 
@@ -221,31 +324,24 @@ class WeekdaySummary extends StatelessWidget {
       7: context.l10n.statistics_sunday,
     };
 
-    return Row(
-      children: [
-        Expanded(
-          child: _DaySummaryCard(
-            label: context.l10n.statistics_mostActiveDay,
-            dayName: dayNames[mostActive.key] ?? '',
-            count: mostActive.value,
-            color: const Color(0xFF10B981), // Emerald green
-            secondaryColor: const Color(0xFF34D399),
-            icon: Icons.trending_up_rounded,
-          ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: _DaySummaryCard(
-            label: context.l10n.statistics_leastActiveDay,
-            dayName: dayNames[leastActive.key] ?? '',
-            count: leastActive.value,
-            color: const Color(0xFFF59E0B), // Amber
-            secondaryColor: const Color(0xFFFBBF24),
-            icon: Icons.trending_down_rounded,
-          ),
-        ),
-      ],
+    final most = _DaySummaryCard(
+      label: context.l10n.statistics_mostActiveDay,
+      dayName: dayNames[mostActive.key] ?? '',
+      count: mostActive.value,
+      color: const Color(0xFF10B981), // Emerald green
+      secondaryColor: const Color(0xFF34D399),
+      icon: Icons.trending_up_rounded,
     );
+    final least = _DaySummaryCard(
+      label: context.l10n.statistics_leastActiveDay,
+      dayName: dayNames[leastActive.key] ?? '',
+      count: leastActive.value,
+      color: const Color(0xFFF59E0B), // Amber
+      secondaryColor: const Color(0xFFFBBF24),
+      icon: Icons.trending_down_rounded,
+    );
+
+    return StatPairLayout(first: most, second: least);
   }
 }
 
@@ -313,40 +409,53 @@ class _DaySummaryCardState extends State<_DaySummaryCard> {
               child: Icon(widget.icon, color: widget.color, size: 20),
             ),
             const SizedBox(width: 12),
+            // The count drops below the day when both do not fit
             Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+              child: Wrap(
+                alignment: WrapAlignment.spaceBetween,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                spacing: 8,
+                runSpacing: 6,
                 children: [
-                  Text(
-                    widget.label,
-                    style: theme.textTheme.labelSmall?.copyWith(
-                      color: colorScheme.onSurfaceVariant,
-                      fontWeight: FontWeight.w500,
-                    ),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        widget.label,
+                        style: theme.textTheme.labelSmall?.copyWith(
+                          color: colorScheme.onSurfaceVariant,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        widget.dayName,
+                        style: theme.textTheme.titleSmall?.copyWith(
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: -0.3,
+                        ),
+                      ),
+                    ],
                   ),
-                  const SizedBox(height: 2),
-                  Text(
-                    widget.dayName,
-                    style: theme.textTheme.titleSmall?.copyWith(
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: -0.3,
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 6,
+                    ),
+                    decoration: BoxDecoration(
+                      color: widget.color.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Text(
+                      '${widget.count}',
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: widget.color,
+                      ),
                     ),
                   ),
                 ],
-              ),
-            ),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-              decoration: BoxDecoration(
-                color: widget.color.withValues(alpha: 0.15),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Text(
-                '${widget.count}',
-                style: theme.textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
-                  color: widget.color,
-                ),
               ),
             ),
           ],
