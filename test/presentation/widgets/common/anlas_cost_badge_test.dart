@@ -66,6 +66,26 @@ void main() {
       expect(find.text('10'), findsOneWidget);
     });
 
+    testWidgets('shows a placeholder while the cost is computing', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            isFreeGenerationProvider.overrideWith((ref) => false),
+            estimatedCostProvider.overrideWith((ref) => null),
+            isBalanceInsufficientProvider.overrideWith((ref) => false),
+          ],
+          child: const MaterialApp(
+            home: Scaffold(body: AnlasCostBadge(isGenerating: false)),
+          ),
+        ),
+      );
+
+      expect(find.text('--'), findsOneWidget);
+      expect(find.text('null'), findsNothing);
+    });
+
     testWidgets('shows error color when balance insufficient', (tester) async {
       await tester.pumpWidget(
         ProviderScope(

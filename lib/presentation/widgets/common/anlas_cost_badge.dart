@@ -48,7 +48,8 @@ class AnlasCostBadge extends ConsumerWidget {
         borderRadius: BorderRadius.circular(6),
       ),
       child: Text(
-        '$cost',
+        // 聚焦重绘的蒙版几何仍在后台计算
+        cost == null ? '--' : '$cost',
         style: TextStyle(
           color: badgeTextColor,
           fontSize: 11,

@@ -88,10 +88,10 @@ class AnlasBalanceChip extends ConsumerWidget {
     WidgetRef ref,
     ThemeData theme,
     int balance,
-    int estimatedCost,
+    int? estimatedCost,
     bool compact,
   ) {
-    final isInsufficient = balance < estimatedCost;
+    final isInsufficient = estimatedCost != null && balance < estimatedCost;
     final formatter = NumberFormat('#,###');
 
     Color textColor;

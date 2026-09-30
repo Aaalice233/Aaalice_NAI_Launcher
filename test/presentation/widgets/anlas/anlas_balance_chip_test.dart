@@ -79,6 +79,27 @@ void main() {
     expect(stub.fetches, 1);
   });
 
+  testWidgets('消耗仍在计算时余额芯片不显示不足警告', (tester) async {
+    const emptyWallet = SubscriptionState.loaded(
+      UserSubscription(tier: 1, active: true),
+    );
+    Color iconColor() =>
+        tester.widget<Icon>(find.byIcon(Icons.diamond_outlined)).color!;
+
+    await _pumpChip(tester, _SubscriptionStub(emptyWallet), estimatedCost: 10);
+    final colors = Theme.of(
+      tester.element(find.byType(SurfaceInkWell)),
+    ).colorScheme;
+    expect(iconColor(), colors.error);
+
+    await _pumpChip(
+      tester,
+      _SubscriptionStub(emptyWallet),
+      estimatedCost: null,
+    );
+    expect(iconColor(), colors.primary);
+  });
+
   testWidgets('加载中的芯片不响应悬停', (tester) async {
     await _pumpChip(
       tester,
@@ -92,12 +113,17 @@ void main() {
   });
 }
 
-Future<void> _pumpChip(WidgetTester tester, _SubscriptionStub stub) async {
+Future<void> _pumpChip(
+  WidgetTester tester,
+  _SubscriptionStub stub, {
+  int? estimatedCost = 0,
+}) async {
   await tester.pumpWidget(
     ProviderScope(
+      key: UniqueKey(),
       overrides: [
         subscriptionNotifierProvider.overrideWith(() => stub),
-        estimatedCostProvider.overrideWith((ref) => 0),
+        estimatedCostProvider.overrideWith((ref) => estimatedCost),
       ],
       child: const MaterialApp(
         localizationsDelegates: AppLocalizations.localizationsDelegates,
