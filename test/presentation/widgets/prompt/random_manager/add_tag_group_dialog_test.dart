@@ -1,8 +1,13 @@
+import 'dart:ui' show Tristate;
+
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/data/models/prompt/random_category.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
+import 'package:nai_launcher/presentation/adaptive/interaction_policy.dart';
 import 'package:nai_launcher/presentation/widgets/common/adaptive_dialog_frame.dart';
 import 'package:nai_launcher/presentation/widgets/prompt/random_manager/add_tag_group_dialog.dart';
 
@@ -319,25 +324,206 @@ void main() {
       expect(tester.takeException(), isNull);
     },
   );
+
+  group('Danbooru 条目', () {
+    const sources = [
+      ('Tag Group', 'Hair Color'),
+      ('Danbooru Pool', 'Arknights'),
+    ];
+
+    for (final textScale in [1.0, 3.0]) {
+      testWidgets('触屏下 $textScale x 各宽度条目按可聚焦按钮朗读，外部打开入口无需悬停即可点按', (
+        tester,
+      ) async {
+        final semantics = tester.ensureSemantics();
+        for (final width in [320.0, 600.0, 840.0, 1180.0, 1600.0]) {
+          await _pumpDanbooruHost(
+            tester,
+            category: category,
+            size: Size(width, 900),
+            textScale: textScale,
+            interactionPolicy: InteractionPolicy.touchFirst,
+          );
+          await tester.tap(find.text('Open'));
+          await tester.pumpAndSettle();
+          for (final (source, label) in sources) {
+            final reason = 'width=$width ${textScale}x $source';
+            await _selectSource(tester, source);
+            await _expectReachableInForm(tester, _tile(label), reason);
+
+            final node = _tileSemantics(label);
+            expect(node, findsOne, reason: '$reason 条目按按钮朗读');
+            final flags = node.evaluate().single.flagsCollection;
+            expect(flags.isFocused, isNot(Tristate.none), reason: reason);
+            expect(flags.isSelected, Tristate.isFalse, reason: reason);
+
+            await revealOnScreen(tester, _openInDanbooru(label));
+            expectReachable(
+              tester,
+              _openInDanbooru(label),
+              reason: '$reason 未选中且未悬停时外部打开入口可点按',
+            );
+          }
+          expect(tester.takeException(), isNull);
+          await tester.binding.handlePopRoute();
+          await tester.pumpAndSettle();
+        }
+        semantics.dispose();
+      });
+    }
+
+    for (final (source, label) in sources) {
+      testWidgets('指针下 $source 条目悬停或焦点落在本行时才显示外部打开入口且行高不变，键盘可选中', (
+        tester,
+      ) async {
+        // 整个用例只用一个鼠标设备点击，触摸会让交互策略转为触屏
+        final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+        await mouse.addPointer(location: Offset.zero);
+        addTearDown(mouse.removePointer);
+        Future<void> click(Finder target) async {
+          await revealOnScreen(tester, target);
+          final center = tester.getCenter(target);
+          await mouse.moveTo(center);
+          await mouse.down(center);
+          await mouse.up();
+          await mouse.moveTo(Offset.zero);
+          await tester.pumpAndSettle();
+        }
+
+        await _pumpDanbooruHost(
+          tester,
+          category: category,
+          size: const Size(1180, 900),
+          textScale: 1,
+          interactionPolicy: InteractionPolicy.neutral,
+        );
+        await click(find.text('Open'));
+        await click(_sourceTab(source));
+        await _expectReachableInForm(tester, _tile(label), source);
+        final restingSize = tester.getSize(_tile(label));
+        expect(_openInDanbooru(label).hitTestable(), findsNothing);
+
+        await mouse.moveTo(tester.getCenter(_tile(label)));
+        await tester.pump();
+        expect(_openInDanbooru(label).hitTestable(), findsOne);
+        expect(tester.getSize(_tile(label)), restingSize);
+        // 悬停预览在 300ms 后请求网络，移开前只推进单帧
+        await mouse.moveTo(Offset.zero);
+        await tester.pump();
+        expect(_openInDanbooru(label).hitTestable(), findsNothing);
+
+        var presses = 0;
+        while (!_focusWithin(_tile(label)) && presses < 60) {
+          await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+          await tester.pump();
+          presses++;
+        }
+        expect(_focusWithin(_tile(label)), isTrue, reason: 'Tab 能落到条目上');
+        expect(_openInDanbooru(label).hitTestable(), findsOne);
+
+        await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+        await tester.pump();
+        expect(
+          _focusWithin(_openInDanbooru(label)),
+          isTrue,
+          reason: '外部打开入口可用 Tab 到达',
+        );
+        expect(_openInDanbooru(label).hitTestable(), findsOne);
+
+        await tester.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);
+        await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+        await tester.sendKeyUpEvent(LogicalKeyboardKey.shiftLeft);
+        await tester.pump();
+        await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+        await tester.pumpAndSettle();
+        expect(
+          find.descendant(
+            of: _tile(label),
+            matching: find.byIcon(Icons.check_circle),
+          ),
+          findsOne,
+          reason: 'Enter 选中条目',
+        );
+        expect(tester.takeException(), isNull);
+      });
+    }
+  });
+}
+
+Finder _openInDanbooru(String label) => find.descendant(
+  of: _tile(label),
+  matching: find.byWidgetPredicate(
+    (widget) => widget is IconButton && widget.tooltip == 'View in Danbooru',
+    skipOffstage: false,
+  ),
+);
+
+SemanticsFinder _tileSemantics(String label) => find.semantics.byPredicate(
+  (node) => node.flagsCollection.isButton && node.label.contains(label),
+);
+
+bool _focusWithin(Finder target) {
+  final focused = FocusManager.instance.primaryFocus?.context;
+  final targets = target.evaluate().toSet();
+  if (focused == null || targets.isEmpty) return false;
+  if (targets.contains(focused)) return true;
+  var found = false;
+  focused.visitAncestorElements((element) {
+    found = targets.contains(element);
+    return !found;
+  });
+  return found;
+}
+
+Future<void> _pumpDanbooruHost(
+  WidgetTester tester, {
+  required RandomCategory category,
+  required Size size,
+  required double textScale,
+  required InteractionPolicy interactionPolicy,
+}) {
+  tester.view.physicalSize = size;
+  tester.view.devicePixelRatio = 1;
+  addTearDown(tester.view.reset);
+  return _pumpHost(
+    tester,
+    category: category,
+    mediaQuery: (data) =>
+        data.copyWith(textScaler: TextScaler.linear(textScale)),
+    interactionPolicy: interactionPolicy,
+  );
 }
 
 Future<void> _pumpHost(
   WidgetTester tester, {
   required RandomCategory category,
   MediaQueryData Function(MediaQueryData data)? mediaQuery,
+  InteractionPolicy? interactionPolicy,
 }) {
+  Widget wrap(BuildContext context, Widget child) {
+    final policyScoped = interactionPolicy == null
+        ? child
+        : InteractionPolicyScope(
+            initialPolicy: interactionPolicy,
+            child: child,
+          );
+    return mediaQuery == null
+        ? policyScoped
+        : MediaQuery(
+            data: mediaQuery(MediaQuery.of(context)),
+            child: policyScoped,
+          );
+  }
+
   return tester.pumpWidget(
     ProviderScope(
       child: MaterialApp(
         locale: const Locale('en'),
         supportedLocales: AppLocalizations.supportedLocales,
         localizationsDelegates: AppLocalizations.localizationsDelegates,
-        builder: mediaQuery == null
+        builder: mediaQuery == null && interactionPolicy == null
             ? null
-            : (context, child) => MediaQuery(
-                data: mediaQuery(MediaQuery.of(context)),
-                child: child!,
-              ),
+            : (context, child) => wrap(context, child!),
         home: Scaffold(
           body: Builder(
             builder: (context) => FilledButton(
