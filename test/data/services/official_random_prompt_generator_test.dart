@@ -296,13 +296,7 @@ void main() {
       final legwear = _values(library, 'dk');
       final footwear = _values(library, 'dI');
       final bottoms = _values(library, 'dA');
-      final legless = roles
-          .where(
-            (role) => role.tags.any(
-              const {'mermaid', 'lamia', 'centaur', 'scylla'}.contains,
-            ),
-          )
-          .toList();
+      final legless = roles.where((role) => role.isLegless).toList();
 
       expect(legless.length, greaterThan(40));
       expect(legless.where((role) => role.showsLegs).length, greaterThan(10));
@@ -383,6 +377,117 @@ void main() {
       ], reason: result.mainPrompt);
     }
     expect(oceans, greaterThan(5));
+  });
+
+  test('legwear hides the toes unless a value names an opening', () async {
+    final library = await service.getOfficialWordlist(WordlistType.v4);
+    final legwear = _values(library, 'dk');
+    final decorations = _values(library, 'dC');
+
+    for (final value in legwear) {
+      expect(
+        OfficialRandomPromptGenerator.legwearHidesToesForTest([value]),
+        isTrue,
+        reason: value,
+      );
+    }
+    for (final decoration in decorations) {
+      expect(
+        OfficialRandomPromptGenerator.legwearHidesToesForTest([
+          'thighhighs',
+          decoration,
+        ]),
+        isTrue,
+        reason: decoration,
+      );
+    }
+    for (final opened in [
+      ['thighhighs', 'toeless legwear'],
+      ['stirrup legwear'],
+      <String>[],
+      [''],
+    ]) {
+      expect(
+        OfficialRandomPromptGenerator.legwearHidesToesForTest(opened),
+        isFalse,
+        reason: '$opened',
+      );
+    }
+  });
+
+  group('toenail polish follows bare feet', () {
+    late OfficialWordlist library;
+    late List<_Role> girls;
+    late Set<String> footwear;
+    late Set<String> legwear;
+
+    setUpAll(() async {
+      // At its asset weight the record is 1 of 496 and too rare to observe.
+      final content = await _assetWithRecordWeight(
+        groupId: 'dT',
+        value: 'toenail polish',
+        weight: 100000,
+      );
+      final boosted = WordlistService(assetBundle: _StringAssetBundle(content));
+      library = await boosted.getOfficialWordlist(WordlistType.v4);
+      final roles = await _sampleRoles(
+        OfficialRandomPromptGenerator(boosted),
+        library,
+        seeds: 8000,
+      );
+      girls = roles.where((role) => role.gender == 'girl').toList();
+      footwear = _values(library, 'dI');
+      legwear = _values(library, 'dk');
+    });
+
+    bool paintsToenails(_Role role) => role.tags.contains('toenail polish');
+
+    test('visible bare feet can show toenail polish', () {
+      final barefoot = girls
+          .where(
+            (role) =>
+                role.framing == 'full body' &&
+                !role.isLegless &&
+                !role.wears(footwear) &&
+                !role.wears(legwear),
+          )
+          .toList();
+
+      expect(barefoot.length, greaterThan(100));
+      expect(
+        barefoot.where(paintsToenails).length,
+        greaterThan(barefoot.length ~/ 2),
+      );
+    });
+
+    test('footwear or toe-covering legwear hides toenail polish', () {
+      final covered = girls
+          .where(
+            (role) =>
+                role.framing == 'full body' &&
+                (role.wears(footwear) || role.wears(legwear)),
+          )
+          .toList();
+
+      expect(covered.length, greaterThan(100));
+      expect(covered.where(paintsToenails), isEmpty);
+    });
+
+    test('hidden feet never show toenail polish', () {
+      final hidden = girls.where((role) => role.framing != 'full body');
+
+      expect(hidden.length, greaterThan(1000));
+      expect(hidden.where(paintsToenails), isEmpty);
+    });
+
+    test('legless species never show toenail polish', () {
+      final legless = girls
+          .where((role) => role.framing == 'full body' && role.isLegless)
+          .toList();
+
+      expect(legless.length, greaterThan(5));
+      expect(legless.where(paintsToenails), isEmpty);
+    });
   });
 
   group('upstream filters take effect in Legacy and Furry', () {
@@ -540,6 +645,8 @@ const _furryLeglessSpecies = {
   'lamia',
 };
 
+const _characterLeglessSpecies = {'mermaid', 'lamia', 'centaur', 'scylla'};
+
 const _characterFramings = {
   'portrait',
   'upper body',
@@ -587,6 +694,8 @@ class _Role {
 
   bool get showsLegs => framing == 'cowboy shot' || framing == 'full body';
 
+  bool get isLegless => tags.any(_characterLeglessSpecies.contains);
+
   bool wears(Set<String> values) => _wears(tags, values, colors);
 }
 
@@ -624,6 +733,27 @@ Future<RandomPromptResult> _firstCharacterResult(
     if (result.characters.isNotEmpty) return result;
   }
   fail('Character Prompts produced no character in 200 deterministic seeds');
+}
+
+Future<String> _assetWithRecordWeight({
+  required String groupId,
+  required String value,
+  required int weight,
+}) async {
+  final json =
+      jsonDecode(await File(officialWordlistAssetPath).readAsString())
+          as Map<String, dynamic>;
+  final generator = (json['generators'] as List<dynamic>)
+      .cast<Map<String, dynamic>>()
+      .singleWhere((generator) => generator['id'] == 'characterPrompts');
+  final group = (generator['groups'] as List<dynamic>)
+      .cast<Map<String, dynamic>>()
+      .singleWhere((group) => group['id'] == groupId);
+  final record = (group['entries'] as List<dynamic>)
+      .cast<List<dynamic>>()
+      .singleWhere((record) => record.first == value);
+  record[1] = weight;
+  return jsonEncode(json);
 }
 
 class _StringAssetBundle extends CachingAssetBundle {
