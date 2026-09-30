@@ -19,15 +19,17 @@ class ParameterBarItem {
 
 /// Parameter distribution bar chart widget
 class ParameterDistributionBar extends StatefulWidget {
-  final String title;
+  final String? title;
   final List<ParameterBarItem> items;
+
+  /// Vertical chart height; horizontal bars size to their rows.
   final double height;
   final bool horizontal;
   final ValueChanged<ParameterBarItem>? onItemTap;
 
   const ParameterDistributionBar({
     super.key,
-    required this.title,
+    this.title,
     required this.items,
     this.height = 200,
     this.horizontal = false,
@@ -58,22 +60,26 @@ class _ParameterDistributionBarState extends State<ParameterDistributionBar> {
         .map((e) => e.count.toDouble())
         .reduce((a, b) => a > b ? a : b);
 
+    final chart = widget.horizontal
+        ? _buildHorizontalBars(maxValue, colorScheme)
+        : SizedBox(
+            height: widget.height,
+            child: _buildVerticalBars(maxValue, colorScheme, theme),
+          );
+    final title = widget.title;
+    if (title == null) return chart;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          widget.title,
+          title,
           style: theme.textTheme.titleSmall?.copyWith(
             fontWeight: FontWeight.w600,
           ),
         ),
         const SizedBox(height: 12),
-        SizedBox(
-          height: widget.height,
-          child: widget.horizontal
-              ? _buildHorizontalBars(maxValue, colorScheme, theme)
-              : _buildVerticalBars(maxValue, colorScheme, theme),
-        ),
+        chart,
       ],
     );
   }
@@ -201,30 +207,21 @@ class _ParameterDistributionBarState extends State<ParameterDistributionBar> {
     );
   }
 
-  Widget _buildHorizontalBars(
-    double maxValue,
-    ColorScheme colorScheme,
-    ThemeData theme,
-  ) {
-    return Align(
-      alignment: Alignment.topLeft,
-      child: ListView.separated(
-        shrinkWrap: true,
-        physics: const NeverScrollableScrollPhysics(),
-        itemCount: widget.items.length,
-        separatorBuilder: (_, __) => const SizedBox(height: 8),
-        itemBuilder: (context, index) {
-          final item = widget.items[index];
-          return _HorizontalBarRow(
+  Widget _buildHorizontalBars(double maxValue, ColorScheme colorScheme) {
+    final onItemTap = widget.onItemTap;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        for (final (index, item) in widget.items.indexed) ...[
+          if (index > 0) const SizedBox(height: 8),
+          _HorizontalBarRow(
             item: item,
             maxValue: maxValue,
             color: item.color ?? colorScheme.primary,
-            onTap: widget.onItemTap != null
-                ? () => widget.onItemTap!(item)
-                : null,
-          );
-        },
-      ),
+            onTap: onItemTap == null ? null : () => onItemTap(item),
+          ),
+        ],
+      ],
     );
   }
 }

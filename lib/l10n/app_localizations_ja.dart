@@ -5924,7 +5924,10 @@ class AppLocalizationsJa extends AppLocalizations {
   String get statistics_favorites => 'お気に入り';
 
   @override
-  String get statistics_samplerDistribution => 'サンプラー分布';
+  String get statistics_parameterDistribution => 'パラメータ分布';
+
+  @override
+  String get statistics_parameterOther => 'その他';
 
   @override
   String get statistics_additionalStats => '追加の統計';

@@ -5817,7 +5817,10 @@ class AppLocalizationsZh extends AppLocalizations {
   String get statistics_favorites => '收藏';
 
   @override
-  String get statistics_samplerDistribution => '采样器分布';
+  String get statistics_parameterDistribution => '参数分布';
+
+  @override
+  String get statistics_parameterOther => '其他';
 
   @override
   String get statistics_additionalStats => '其他统计';
@@ -20931,7 +20934,10 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get statistics_favorites => '收藏';
 
   @override
-  String get statistics_samplerDistribution => '取樣器分佈';
+  String get statistics_parameterDistribution => '參數分佈';
+
+  @override
+  String get statistics_parameterOther => '其他';
 
   @override
   String get statistics_additionalStats => '其他統計';
