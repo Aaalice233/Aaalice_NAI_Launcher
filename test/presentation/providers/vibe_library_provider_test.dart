@@ -7,6 +7,7 @@ import 'package:nai_launcher/data/models/vibe/vibe_library_entry.dart';
 import 'package:nai_launcher/data/models/vibe/vibe_reference.dart';
 import 'package:nai_launcher/data/services/vibe_library_storage_service.dart';
 import 'package:nai_launcher/presentation/providers/vibe_library_provider.dart';
+import 'package:nai_launcher/presentation/providers/vibe_library_selection_provider.dart';
 
 void main() {
   test(
@@ -275,6 +276,265 @@ void main() {
       reason: '首屏不应先经历“数据已到但当前页为空”的额外状态切换，否则会放大首次打开卡顿',
     );
   });
+
+  group('派生列表按输入记忆', () {
+    final entries = _derivedFixture();
+
+    test('进度、加载、错误和分类元数据变化复用同一份筛选结果与当前页', () {
+      final base = VibeLibraryState(
+        entries: entries,
+        pageSize: 10,
+        currentPage: 1,
+      );
+      final filtered = base.filteredEntries;
+      final page = base.currentEntries;
+
+      final unrelatedChanges = {
+        'same state': base,
+        'isLoading': base.copyWith(isLoading: true),
+        'isInitializing': base.copyWith(isInitializing: true),
+        'bulk progress': base.copyWith(
+          isBulkOperating: true,
+          bulkOperationProgress: 0.5,
+          bulkOperationType: VibeLibraryBulkOperationType.delete,
+        ),
+        'error': base.copyWith(error: 'boom'),
+        'categories': base.copyWith(
+          categories: [
+            VibeLibraryCategory(
+              id: 'cat',
+              name: 'Cat',
+              createdAt: DateTime(2026),
+            ),
+          ],
+        ),
+      };
+      for (final MapEntry(key: change, value: state)
+          in unrelatedChanges.entries) {
+        expect(state.filteredEntries, same(filtered), reason: change);
+        expect(state.currentEntries, same(page), reason: change);
+        expect(state.totalPages, 5, reason: change);
+        expect(state.filteredCount, entries.length, reason: change);
+      }
+    });
+
+    test('翻页和改页大小只重新切片，不重新筛选排序', () {
+      final base = VibeLibraryState(entries: entries, pageSize: 10);
+      final filtered = base.filteredEntries;
+
+      final third = base.copyWith(currentPage: 2);
+      expect(third.filteredEntries, same(filtered));
+      expect(
+        third.currentEntries.map((entry) => entry.id),
+        filtered.sublist(20, 30).map((entry) => entry.id),
+      );
+
+      final resized = base.copyWith(pageSize: 20);
+      expect(resized.filteredEntries, same(filtered));
+      expect(resized.totalPages, 3);
+      expect(resized.currentEntries, hasLength(20));
+    });
+
+    test('筛选、排序输入或 entries 变化时重新计算且结果与逐项实现一致', () {
+      final base = VibeLibraryState(entries: entries);
+      final filtered = base.filteredEntries;
+
+      final inputChanges = {
+        'searchQuery': base.copyWith(searchQuery: 'MIXED'),
+        'selectedCategoryId': base.copyWith(selectedCategoryId: 'cat'),
+        'favoritesOnly': base.copyWith(favoritesOnly: true),
+        'sortOrder': base.copyWith(sortOrder: VibeLibrarySortOrder.name),
+        'sortDescending': base.copyWith(sortDescending: false),
+        'entries': base.copyWith(entries: List.of(entries)),
+      };
+      for (final MapEntry(key: change, value: state) in inputChanges.entries) {
+        final recomputed = state.filteredEntries;
+        expect(recomputed, isNot(same(filtered)), reason: change);
+        expect(
+          recomputed.map((entry) => entry.id),
+          _referenceFilteredIds(state),
+          reason: change,
+        );
+      }
+    });
+
+    test('所有筛选与排序组合都与逐项实现一致', () {
+      for (final sortOrder in VibeLibrarySortOrder.values) {
+        for (final sortDescending in [true, false]) {
+          for (final searchQuery in ['', 'mixed']) {
+            for (final categoryId in [null, 'cat']) {
+              for (final favoritesOnly in [false, true]) {
+                final state = VibeLibraryState(
+                  entries: entries,
+                  sortOrder: sortOrder,
+                  sortDescending: sortDescending,
+                  searchQuery: searchQuery,
+                  selectedCategoryId: categoryId,
+                  favoritesOnly: favoritesOnly,
+                );
+                expect(
+                  state.filteredEntries.map((entry) => entry.id),
+                  _referenceFilteredIds(state),
+                  reason:
+                      '$sortOrder desc=$sortDescending q=$searchQuery '
+                      'cat=$categoryId fav=$favoritesOnly',
+                );
+              }
+            }
+          }
+        }
+      }
+    });
+
+    test('分页边界：空库、整页、末页不满、越界与负页码', () {
+      const empty = VibeLibraryState(pageSize: 10);
+      expect(empty.filteredCount, 0);
+      expect(empty.totalPages, 0);
+      expect(empty.currentEntries, isEmpty);
+
+      final twenty = VibeLibraryState(
+        entries: entries.take(20).toList(),
+        pageSize: 10,
+      );
+      expect(twenty.totalPages, 2);
+      expect(twenty.copyWith(currentPage: 1).currentEntries, hasLength(10));
+      expect(twenty.copyWith(currentPage: 2).currentEntries, isEmpty);
+
+      final partial = VibeLibraryState(entries: entries, pageSize: 10);
+      expect(partial.totalPages, 5);
+      final last = partial.copyWith(currentPage: 4);
+      expect(last.currentEntries, hasLength(entries.length - 40));
+      expect(
+        last.currentEntries.map((entry) => entry.id),
+        partial.filteredEntries.skip(40).map((entry) => entry.id),
+      );
+      expect(partial.copyWith(currentPage: 5).currentEntries, isEmpty);
+      expect(partial.copyWith(currentPage: -1).currentEntries, isEmpty);
+      expect(
+        () => last.currentEntries.add(entries.first),
+        throwsUnsupportedError,
+      );
+    });
+
+    test('只改变选择状态时库状态与派生列表都保持原实例', () async {
+      final container = ProviderContainer(
+        overrides: [
+          vibeLibraryStorageServiceProvider.overrideWithValue(
+            _FixedEntriesStorageService(entries),
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+      await container
+          .read(vibeLibraryNotifierProvider.notifier)
+          .loadFromCache(showLoading: false);
+      final state = container.read(vibeLibraryNotifierProvider);
+      final filtered = state.filteredEntries;
+      final page = state.currentEntries;
+
+      final selection = container.read(
+        vibeLibrarySelectionNotifierProvider.notifier,
+      );
+      selection.enterAndSelect(page.first.id);
+      selection.selectAll(page.map((entry) => entry.id));
+      selection.exit();
+
+      final after = container.read(vibeLibraryNotifierProvider);
+      expect(after, same(state));
+      expect(after.filteredEntries, same(filtered));
+      expect(after.currentEntries, same(page));
+    });
+
+    test('批量操作的进度状态序列全程复用同一份派生列表', () async {
+      final container = ProviderContainer(
+        overrides: [
+          vibeLibraryStorageServiceProvider.overrideWithValue(
+            _FixedEntriesStorageService(entries),
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+      final notifier = container.read(vibeLibraryNotifierProvider.notifier);
+      await notifier.loadFromCache(showLoading: false);
+      final filtered = container
+          .read(vibeLibraryNotifierProvider)
+          .filteredEntries;
+      final emitted = <VibeLibraryState>[];
+      final subscription = container.listen(
+        vibeLibraryNotifierProvider,
+        (_, next) => emitted.add(next),
+      );
+      addTearDown(subscription.close);
+
+      final deleted = await notifier.bulkDeleteEntries(
+        entries.take(12).map((entry) => entry.id).toList(),
+      );
+
+      expect(deleted, 0);
+      expect(emitted.length, greaterThan(2));
+      expect(emitted.any((state) => state.isBulkOperating), isTrue);
+      for (final state in emitted) {
+        expect(state.filteredEntries, same(filtered));
+      }
+    });
+  });
+}
+
+List<VibeLibraryEntry> _derivedFixture() {
+  const names = ['beta', 'Alpha', 'alpha', 'Mixed Case', 'MIXED', 'zeta', ''];
+  return [
+    for (var index = 0; index < 45; index++)
+      VibeLibraryEntry(
+        id: 'derived-$index',
+        name: names[index % names.length],
+        vibeDisplayName: 'Display ${44 - index}',
+        vibeEncoding: 'enc-$index',
+        sourceTypeIndex: VibeSourceType.naiv4vibe.index,
+        categoryId: index % 3 == 0 ? 'cat' : null,
+        tags: index % 4 == 0 ? const ['mixed-tag'] : const [],
+        isFavorite: index.isEven,
+        usedCount: index % 5,
+        lastUsedAt: index % 6 == 0 ? null : DateTime(2026, 1, 1, index % 7),
+        createdAt: DateTime(2026, 1, 1).add(Duration(minutes: index * 7 % 45)),
+      ),
+  ];
+}
+
+List<String> _referenceFilteredIds(VibeLibraryState state) {
+  var result = List<VibeLibraryEntry>.of(state.entries);
+  if (state.searchQuery.isNotEmpty) result = result.search(state.searchQuery);
+  if (state.selectedCategoryId != null) {
+    result = result.getByCategory(state.selectedCategoryId!);
+  }
+  if (state.favoritesOnly) result = result.favorites;
+  final sorted = switch (state.sortOrder) {
+    VibeLibrarySortOrder.createdAt => result.sortedByCreatedAt(),
+    VibeLibrarySortOrder.lastUsed => result.sortedByLastUsed(),
+    VibeLibrarySortOrder.usedCount => result.sortedByUsedCount(),
+    VibeLibrarySortOrder.name =>
+      [...result]..sort(
+        (a, b) =>
+            a.displayName.toLowerCase().compareTo(b.displayName.toLowerCase()),
+      ),
+  };
+  return (state.sortDescending ? sorted : sorted.reversed)
+      .map((entry) => entry.id)
+      .toList();
+}
+
+class _FixedEntriesStorageService extends VibeLibraryStorageService {
+  _FixedEntriesStorageService(this.entries);
+
+  final List<VibeLibraryEntry> entries;
+
+  @override
+  Future<List<VibeLibraryEntry>> getDisplayEntries() async => List.of(entries);
+
+  @override
+  Future<List<VibeLibraryCategory>> getAllCategories() async => const [];
+
+  @override
+  Future<bool> deleteEntry(String id) async => false;
 }
 
 VibeLibraryEntry _entry(String id, String name, DateTime createdAt) {

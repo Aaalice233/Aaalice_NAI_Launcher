@@ -93,33 +93,7 @@ class VibeLibraryWorkspace extends StatelessWidget {
                   );
                 },
               ),
-              footer:
-                  !libraryState.isLoading &&
-                      libraryState.filteredEntries.isNotEmpty &&
-                      libraryState.totalPages > 0
-                  ? LayoutBuilder(
-                      builder: (context, constraints) => PaginationBar(
-                        currentPage: libraryState.currentPage,
-                        totalPages: libraryState.totalPages,
-                        totalItems: libraryState.filteredCount,
-                        itemsPerPage: libraryState.pageSize,
-                        itemsPerPageOptions: const [20, 50, 100],
-                        onPageChanged: (page) =>
-                            onCommand(ChangePageCommand(page)),
-                        onItemsPerPageChanged: (size) =>
-                            onCommand(ChangePageSizeCommand(size)),
-                        showItemsPerPage: true,
-                        showTotalInfo: true,
-                        compact: constraints.maxWidth < 680,
-                        loading: libraryState.isLoading,
-                        totalIcon: Icons.auto_awesome_outlined,
-                        totalItemsLabel: context.l10n.vibeLibrary_totalCount(
-                          libraryState.filteredCount.toString(),
-                        ),
-                        tonalCard: true,
-                      ),
-                    )
-                  : null,
+              footer: _buildFooter(),
             ),
             if (controller.isDragging) const _DropOverlay(),
             if (controller.isImporting)
@@ -151,6 +125,34 @@ class VibeLibraryWorkspace extends StatelessWidget {
           child: content,
         );
       },
+    );
+  }
+
+  Widget? _buildFooter() {
+    if (libraryState.isLoading) return null;
+    final filteredCount = libraryState.filteredCount;
+    if (filteredCount == 0) return null;
+    final totalPages = libraryState.totalPages;
+    if (totalPages <= 0) return null;
+    return LayoutBuilder(
+      builder: (context, constraints) => PaginationBar(
+        currentPage: libraryState.currentPage,
+        totalPages: totalPages,
+        totalItems: filteredCount,
+        itemsPerPage: libraryState.pageSize,
+        itemsPerPageOptions: const [20, 50, 100],
+        onPageChanged: (page) => onCommand(ChangePageCommand(page)),
+        onItemsPerPageChanged: (size) => onCommand(ChangePageSizeCommand(size)),
+        showItemsPerPage: true,
+        showTotalInfo: true,
+        compact: constraints.maxWidth < 680,
+        loading: libraryState.isLoading,
+        totalIcon: Icons.auto_awesome_outlined,
+        totalItemsLabel: context.l10n.vibeLibrary_totalCount(
+          filteredCount.toString(),
+        ),
+        tonalCard: true,
+      ),
     );
   }
 }
