@@ -1,4 +1,5 @@
 import importlib.util
+import random
 import sys
 import types
 import unittest
@@ -343,6 +344,86 @@ class FakeLoadedQImage:
         return FakeImageBits(self._data)
 
 
+class FakeRawSelection:
+    def __init__(self, data):
+        self._data = data
+
+    def x(self):
+        return 0
+
+    def y(self):
+        return 0
+
+    def pixelData(self, _x, _y, _width, _height):
+        return self._data
+
+
+def _per_pixel_rgba8888_to_krita_bgra(raw):
+    converted = bytearray(len(raw))
+    for offset in range(0, len(raw), 4):
+        red = raw[offset]
+        green = raw[offset + 1]
+        blue = raw[offset + 2]
+        alpha = raw[offset + 3]
+        converted[offset] = blue
+        converted[offset + 1] = green
+        converted[offset + 2] = red
+        converted[offset + 3] = alpha
+    return bytes(converted)
+
+
+def _per_pixel_draw_rect_outline_bgra(
+    raw, canvas_width, canvas_height, rect, color, *, thickness
+):
+    def set_pixel(x, y):
+        offset = (y * canvas_width + x) * 4
+        raw[offset : offset + 4] = bytes(color)
+
+    x = max(0, min(canvas_width - 1, int(rect["x"])))
+    y = max(0, min(canvas_height - 1, int(rect["y"])))
+    right = max(x, min(canvas_width - 1, x + int(rect["w"]) - 1))
+    bottom = max(y, min(canvas_height - 1, y + int(rect["h"]) - 1))
+    for offset in range(max(1, thickness)):
+        top_y = y + offset
+        bottom_y = bottom - offset
+        left_x = x + offset
+        right_x = right - offset
+        if top_y <= bottom:
+            for px in range(left_x, right_x + 1):
+                set_pixel(px, top_y)
+        if bottom_y >= y:
+            for px in range(left_x, right_x + 1):
+                set_pixel(px, bottom_y)
+        if left_x <= right:
+            for py in range(top_y, bottom_y + 1):
+                set_pixel(left_x, py)
+        if right_x >= x:
+            for py in range(top_y, bottom_y + 1):
+                set_pixel(right_x, py)
+
+
+def _per_pixel_selection_is_filled(raw, required):
+    return len(raw) >= required and all(value > 0 for value in raw[:required])
+
+
+def _python_line_events(function, *args, **kwargs):
+    events = 0
+
+    def tracer(_frame, event, _arg):
+        nonlocal events
+        if event == "line":
+            events += 1
+        return tracer
+
+    previous = sys.gettrace()
+    sys.settrace(tracer)
+    try:
+        function(*args, **kwargs)
+    finally:
+        sys.settrace(previous)
+    return events
+
+
 class CanvasIOMaskTests(unittest.TestCase):
     def test_has_active_document_returns_false_without_document(self):
         self.assertFalse(canvas_io.has_active_document())
@@ -674,6 +755,178 @@ class CanvasIOMaskTests(unittest.TestCase):
         finally:
             canvas_io._write_png_as_layer = original_write_layer
             canvas_io.Krita = original_krita
+
+
+class CanvasIOPixelBufferTests(unittest.TestCase):
+    def test_rgba8888_to_krita_bgra_matches_per_pixel_swap_on_random_pixels(self):
+        rng = random.Random(20260930)
+        for pixel_count in (0, 1, 2, 3, 63, 64, 65, 4095, 4096, 4097, 65 * 63):
+            raw = rng.randbytes(pixel_count * 4)
+            with self.subTest(pixel_count=pixel_count):
+                self.assertEqual(
+                    canvas_io._rgba8888_to_krita_bgra(raw),
+                    _per_pixel_rgba8888_to_krita_bgra(raw),
+                )
+
+    def test_rgba8888_to_krita_bgra_matches_per_pixel_swap_for_uniform_alpha(self):
+        rng = random.Random(4096)
+        pixel_count = 64 * 64
+        for alpha in (0, 255):
+            raw = bytearray(rng.randbytes(pixel_count * 4))
+            raw[3::4] = bytes([alpha]) * pixel_count
+            with self.subTest(alpha=alpha):
+                converted = canvas_io._rgba8888_to_krita_bgra(bytes(raw))
+                self.assertEqual(converted, _per_pixel_rgba8888_to_krita_bgra(raw))
+                self.assertEqual(converted[3::4], bytes([alpha]) * pixel_count)
+
+    def test_rgba8888_to_krita_bgra_accepts_bytearray_and_returns_bytes(self):
+        raw = bytearray(random.Random(7).randbytes(16 * 4))
+
+        converted = canvas_io._rgba8888_to_krita_bgra(raw)
+
+        self.assertIs(type(converted), bytes)
+        self.assertEqual(converted, _per_pixel_rgba8888_to_krita_bgra(raw))
+
+    def test_rgba8888_to_krita_bgra_rejects_partial_pixel_like_per_pixel_swap(self):
+        for length in (1, 2, 3, 5, 6, 7, 4097, 4098, 4099):
+            raw = bytes(index % 256 for index in range(length))
+            with self.subTest(length=length):
+                with self.assertRaises(IndexError):
+                    _per_pixel_rgba8888_to_krita_bgra(raw)
+                with self.assertRaises(IndexError):
+                    canvas_io._rgba8888_to_krita_bgra(raw)
+
+    def test_rgba8888_to_krita_bgra_python_work_does_not_grow_with_pixels(self):
+        small = bytes(4)
+        large = bytes(256 * 256 * 4)
+
+        self.assertEqual(
+            _python_line_events(canvas_io._rgba8888_to_krita_bgra, small),
+            _python_line_events(canvas_io._rgba8888_to_krita_bgra, large),
+        )
+        self.assertGreater(
+            _python_line_events(_per_pixel_rgba8888_to_krita_bgra, bytes(64 * 4)),
+            _python_line_events(_per_pixel_rgba8888_to_krita_bgra, small),
+        )
+
+    def test_rect_outline_matches_per_pixel_drawing(self):
+        rng = random.Random(20260930)
+        for canvas_width, canvas_height in (
+            (1, 1),
+            (1, 9),
+            (9, 1),
+            (7, 5),
+            (16, 16),
+            (33, 17),
+        ):
+            for _ in range(60):
+                rect = {
+                    "x": rng.randint(-5, canvas_width + 5),
+                    "y": rng.randint(-5, canvas_height + 5),
+                    "w": rng.randint(-3, canvas_width + 6),
+                    "h": rng.randint(-3, canvas_height + 6),
+                }
+                thickness = rng.randint(0, 5)
+                color = tuple(rng.randrange(256) for _ in range(4))
+                background = rng.randbytes(canvas_width * canvas_height * 4)
+                expected = bytearray(background)
+                actual = bytearray(background)
+                _per_pixel_draw_rect_outline_bgra(
+                    expected,
+                    canvas_width,
+                    canvas_height,
+                    rect,
+                    color,
+                    thickness=thickness,
+                )
+                canvas_io._draw_rect_outline_bgra(
+                    actual,
+                    canvas_width,
+                    canvas_height,
+                    rect,
+                    color,
+                    thickness=thickness,
+                )
+                with self.subTest(
+                    canvas=(canvas_width, canvas_height),
+                    rect=rect,
+                    thickness=thickness,
+                ):
+                    self.assertEqual(actual, expected)
+
+    def test_rect_outline_layer_matches_per_pixel_drawing(self):
+        doc = FakeLayerDoc(40, 30)
+        inner_rect = {"x": 12, "y": 9, "w": 10, "h": 7}
+        outer_rect = {"x": 4, "y": 2, "w": 30, "h": 22}
+        expected = bytearray(40 * 30 * 4)
+        _per_pixel_draw_rect_outline_bgra(
+            expected, 40, 30, outer_rect, (255, 190, 0, 210), thickness=2
+        )
+        _per_pixel_draw_rect_outline_bgra(
+            expected, 40, 30, inner_rect, (255, 255, 255, 235), thickness=2
+        )
+
+        canvas_io._write_rect_outline_layer(
+            doc,
+            inner_rect=inner_rect,
+            outer_rect=outer_rect,
+            name=canvas_io.FOCUS_PREVIEW_LAYER_NAME,
+        )
+
+        self.assertEqual(
+            doc.layers[0].pixel_data_calls,
+            [(bytes(expected), 0, 0, 40, 30)],
+        )
+
+    def test_rect_outline_python_work_does_not_grow_with_rect_size(self):
+        raw = bytearray(256 * 256 * 4)
+
+        def draw(size):
+            canvas_io._draw_rect_outline_bgra(
+                raw,
+                256,
+                256,
+                {"x": 8, "y": 8, "w": size, "h": size},
+                (1, 2, 3, 4),
+                thickness=2,
+            )
+
+        self.assertEqual(_python_line_events(draw, 8), _python_line_events(draw, 240))
+
+    def test_selection_bounds_filled_matches_per_pixel_check(self):
+        rng = random.Random(20260930)
+        width = 9
+        height = 7
+        required = width * height
+        filled = bytes(rng.randint(1, 255) for _ in range(required))
+        cases = [
+            filled,
+            filled + b"\x00" * 5,
+            b"\x00" + filled[1:],
+            filled[:-1] + b"\x00",
+            filled[:30] + b"\x00" + filled[31:],
+            filled[:-1],
+            b"",
+        ]
+        for data in cases:
+            with self.subTest(data=data):
+                self.assertEqual(
+                    canvas_io._selection_bounds_are_filled(
+                        FakeRawSelection(data), width, height
+                    ),
+                    _per_pixel_selection_is_filled(data, required),
+                )
+
+    def test_selection_bounds_filled_python_work_does_not_grow_with_area(self):
+        small = FakeRawSelection(b"\xff")
+        large = FakeRawSelection(b"\xff" * (256 * 256))
+
+        self.assertEqual(
+            _python_line_events(canvas_io._selection_bounds_are_filled, small, 1, 1),
+            _python_line_events(
+                canvas_io._selection_bounds_are_filled, large, 256, 256
+            ),
+        )
 
 
 if __name__ == "__main__":

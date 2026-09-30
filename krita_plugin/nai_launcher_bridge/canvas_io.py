@@ -455,47 +455,61 @@ def _draw_rect_outline_bgra(
     y = max(0, min(canvas_height - 1, int(rect["y"])))
     right = max(x, min(canvas_width - 1, x + int(rect["w"]) - 1))
     bottom = max(y, min(canvas_height - 1, y + int(rect["h"]) - 1))
+    pixel = bytes(color)
     for offset in range(max(1, thickness)):
         top_y = y + offset
         bottom_y = bottom - offset
         left_x = x + offset
         right_x = right - offset
         if top_y <= bottom:
-            for px in range(left_x, right_x + 1):
-                _set_bgra(raw, canvas_width, px, top_y, color)
+            _fill_row_bgra(raw, canvas_width, top_y, left_x, right_x, pixel)
         if bottom_y >= y:
-            for px in range(left_x, right_x + 1):
-                _set_bgra(raw, canvas_width, px, bottom_y, color)
+            _fill_row_bgra(raw, canvas_width, bottom_y, left_x, right_x, pixel)
         if left_x <= right:
-            for py in range(top_y, bottom_y + 1):
-                _set_bgra(raw, canvas_width, left_x, py, color)
+            _fill_column_bgra(raw, canvas_width, left_x, top_y, bottom_y, pixel)
         if right_x >= x:
-            for py in range(top_y, bottom_y + 1):
-                _set_bgra(raw, canvas_width, right_x, py, color)
+            _fill_column_bgra(raw, canvas_width, right_x, top_y, bottom_y, pixel)
 
 
-def _set_bgra(
+def _fill_row_bgra(
+    raw: bytearray,
+    canvas_width: int,
+    y: int,
+    left_x: int,
+    right_x: int,
+    pixel: bytes,
+) -> None:
+    count = right_x - left_x + 1
+    if count <= 0:
+        return
+    start = (y * canvas_width + left_x) * 4
+    raw[start : start + count * 4] = pixel * count
+
+
+def _fill_column_bgra(
     raw: bytearray,
     canvas_width: int,
     x: int,
-    y: int,
-    color: tuple[int, int, int, int],
+    top_y: int,
+    bottom_y: int,
+    pixel: bytes,
 ) -> None:
-    offset = (y * canvas_width + x) * 4
-    raw[offset : offset + 4] = bytes(color)
+    count = bottom_y - top_y + 1
+    if count <= 0:
+        return
+    row_stride = canvas_width * 4
+    start = (top_y * canvas_width + x) * 4
+    stop = start + (count - 1) * row_stride + 4
+    for channel in range(4):
+        raw[start + channel : stop : row_stride] = pixel[channel : channel + 1] * count
 
 
 def _rgba8888_to_krita_bgra(raw: bytes) -> bytes:
-    converted = bytearray(len(raw))
-    for offset in range(0, len(raw), 4):
-        red = raw[offset]
-        green = raw[offset + 1]
-        blue = raw[offset + 2]
-        alpha = raw[offset + 3]
-        converted[offset] = blue
-        converted[offset + 1] = green
-        converted[offset + 2] = red
-        converted[offset + 3] = alpha
+    if len(raw) % 4:
+        raise IndexError("RGBA8888 buffer ends with a partial pixel")
+    converted = bytearray(raw)
+    converted[0::4] = raw[2::4]
+    converted[2::4] = raw[0::4]
     return bytes(converted)
 
 
@@ -513,7 +527,7 @@ def _selection_bounds_are_filled(selection, width: int, height: int) -> bool:
     required = width * height
     if len(raw) < required:
         return False
-    return all(value > 0 for value in raw[:required])
+    return 0 not in raw[:required]
 
 
 def _selection_pixel_value(selection, x: int, y: int) -> int:
