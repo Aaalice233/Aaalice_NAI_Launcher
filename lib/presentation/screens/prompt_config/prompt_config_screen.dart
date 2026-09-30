@@ -3,12 +3,16 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/utils/localization_extension.dart';
+import '../../adaptive/adaptive_pinned_header_sliver.dart';
 import '../../adaptive/adaptive_presenter.dart';
+import '../../adaptive/compact_control_metrics.dart';
+import '../../adaptive/interaction_policy.dart';
 import '../../providers/random_preset_provider.dart';
 import '../../providers/tag_library_provider.dart';
 import '../../themes/core/input_surface_style.dart';
 import '../../themes/core/layered_surface_style.dart';
 import '../../widgets/common/app_toast.dart';
+import '../../widgets/common/horizontal_segmented_control.dart';
 import '../../widgets/prompt/diy/dialogs/preset_import_dialog.dart';
 import '../../widgets/prompt/global_settings_dialog.dart';
 import '../../widgets/prompt/random_manager/algorithm_config_card.dart';
@@ -27,6 +31,9 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
   final _searchController = TextEditingController();
   final _searchFocusNode = FocusNode();
   final _previewController = PreviewGeneratorController();
+  // 宽屏与紧凑排布互换时保留标题栏与类别列表（搜索焦点、展开状态、滚动位置）
+  final _headerKey = GlobalKey();
+  final _categoryListKey = GlobalKey();
   String _query = '';
   int _compactSection = 0;
 
@@ -68,16 +75,14 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
           child: Scaffold(
             backgroundColor: colors.surface,
             body: SafeArea(
-              child: Column(
-                children: [
-                  _StudioHeader(onImportExport: _showImportExportActions),
-                  Expanded(
-                    child: _buildBody(
-                      presetState: presetState,
-                      libraryState: libraryState,
-                    ),
+              child: LayoutBuilder(
+                builder: (context, constraints) => _buildWorkspace(
+                  maxWidth: constraints.maxWidth,
+                  unavailableState: _buildUnavailableState(
+                    presetState: presetState,
+                    libraryState: libraryState,
                   ),
-                ],
+                ),
               ),
             ),
           ),
@@ -86,7 +91,54 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
     );
   }
 
-  Widget _buildBody({
+  Widget _buildWorkspace({required double maxWidth, Widget? unavailableState}) {
+    final header = KeyedSubtree(
+      key: _headerKey,
+      child: _StudioHeader(onImportExport: _showImportExportActions),
+    );
+    final textScale = MediaQuery.textScalerOf(context).scale(14) / 14;
+    if (useExpandedPromptConfigLayout(maxWidth, textScale)) {
+      return Column(
+        children: [
+          header,
+          Expanded(
+            child: unavailableState != null
+                ? _SectionScrollView(
+                    slivers: [_UnavailableStateSliver(child: unavailableState)],
+                  )
+                : _ExpandedWorkspace(
+                    categoryList: _buildCategoryList(showShortcutHint: true),
+                    inspectorWidth: maxWidth >= 1500 ? 420 : 370,
+                    onGlobalSettings: _showGlobalSettings,
+                    previewController: _previewController,
+                  ),
+          ),
+        ],
+      );
+    }
+
+    if (unavailableState != null) {
+      return _SectionScrollView(
+        slivers: [
+          _WorkspaceChromeSliver(child: header),
+          _UnavailableStateSliver(child: unavailableState),
+        ],
+      );
+    }
+    return _CompactWorkspace(
+      header: header,
+      recipeBuilder: (leadingSlivers) => _buildCategoryList(
+        showShortcutHint: false,
+        leadingSlivers: leadingSlivers,
+      ),
+      onGlobalSettings: _showGlobalSettings,
+      previewController: _previewController,
+      selectedSection: _compactSection,
+      onSectionSelected: (value) => setState(() => _compactSection = value),
+    );
+  }
+
+  Widget? _buildUnavailableState({
     required RandomPresetState presetState,
     required TagLibraryState libraryState,
   }) {
@@ -107,46 +159,24 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
         title: context.l10n.randomManager_selectPresetRequired,
       );
     }
+    return null;
+  }
 
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final textScale = MediaQuery.textScalerOf(context).scale(14) / 14;
-        if (useExpandedPromptConfigLayout(constraints.maxWidth, textScale)) {
-          return Padding(
-            padding: const EdgeInsets.all(16),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Expanded(
-                  child: _RecipeWorkspace(
-                    query: _query,
-                    searchController: _searchController,
-                    searchFocusNode: _searchFocusNode,
-                    onQueryChanged: _updateQuery,
-                  ),
-                ),
-                const SizedBox(width: 16),
-                _InspectorPanel(
-                  width: constraints.maxWidth >= 1500 ? 420 : 370,
-                  onGlobalSettings: _showGlobalSettings,
-                  previewController: _previewController,
-                ),
-              ],
-            ),
-          );
-        }
-
-        return _CompactWorkspace(
-          query: _query,
-          searchController: _searchController,
-          searchFocusNode: _searchFocusNode,
-          onQueryChanged: _updateQuery,
-          onGlobalSettings: _showGlobalSettings,
-          previewController: _previewController,
-          selectedSection: _compactSection,
-          onSectionSelected: (value) => setState(() => _compactSection = value),
-        );
-      },
+  Widget _buildCategoryList({
+    required bool showShortcutHint,
+    List<Widget> leadingSlivers = const [],
+  }) {
+    return CategoryCardList(
+      key: _categoryListKey,
+      query: _query,
+      leadingSlivers: leadingSlivers,
+      overviewHeader: _RecipeOverviewHeader(
+        query: _query,
+        searchController: _searchController,
+        searchFocusNode: _searchFocusNode,
+        onQueryChanged: _updateQuery,
+        showShortcutHint: showShortcutHint,
+      ),
     );
   }
 
@@ -361,117 +391,216 @@ class _StudioHeader extends StatelessWidget {
   }
 }
 
-class _RecipeWorkspace extends StatelessWidget {
-  const _RecipeWorkspace({
-    required this.query,
-    required this.searchController,
-    required this.searchFocusNode,
-    required this.onQueryChanged,
+class _ExpandedWorkspace extends StatelessWidget {
+  const _ExpandedWorkspace({
+    required this.categoryList,
+    required this.inspectorWidth,
+    required this.onGlobalSettings,
+    required this.previewController,
   });
 
-  final String query;
-  final TextEditingController searchController;
-  final FocusNode searchFocusNode;
-  final ValueChanged<String> onQueryChanged;
+  final Widget categoryList;
+  final double inspectorWidth;
+  final VoidCallback onGlobalSettings;
+  final PreviewGeneratorController previewController;
 
   @override
   Widget build(BuildContext context) {
-    return CategoryCardList(
-      query: query,
-      overviewHeader: _RecipeOverviewHeader(
-        query: query,
-        searchController: searchController,
-        searchFocusNode: searchFocusNode,
-        onQueryChanged: onQueryChanged,
+    return Padding(
+      padding: const EdgeInsets.all(16),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Expanded(child: categoryList),
+          const SizedBox(width: 16),
+          _InspectorPanel(
+            width: inspectorWidth,
+            onGlobalSettings: onGlobalSettings,
+            previewController: previewController,
+          ),
+        ],
       ),
     );
   }
 }
 
-class _CompactWorkspace extends StatelessWidget {
+class _CompactWorkspace extends StatefulWidget {
   const _CompactWorkspace({
-    required this.query,
-    required this.searchController,
-    required this.searchFocusNode,
-    required this.onQueryChanged,
+    required this.header,
+    required this.recipeBuilder,
     required this.onGlobalSettings,
     required this.previewController,
     required this.selectedSection,
     required this.onSectionSelected,
   });
 
-  final String query;
-  final TextEditingController searchController;
-  final FocusNode searchFocusNode;
-  final ValueChanged<String> onQueryChanged;
+  final Widget header;
+  final Widget Function(List<Widget> leadingSlivers) recipeBuilder;
   final VoidCallback onGlobalSettings;
   final PreviewGeneratorController previewController;
   final int selectedSection;
   final ValueChanged<int> onSectionSelected;
 
   @override
+  State<_CompactWorkspace> createState() => _CompactWorkspaceState();
+}
+
+class _CompactWorkspaceState extends State<_CompactWorkspace> {
+  // 标题栏与分区切换只放在当前分区的滚动视图里，换分区时整体迁移并保留焦点
+  final _chromeKey = GlobalKey();
+
+  @override
   Widget build(BuildContext context) {
-    final pages = <Widget>[
-      CategoryCardList(
-        query: query,
-        overviewHeader: _RecipeOverviewHeader(
-          query: query,
-          searchController: searchController,
-          searchFocusNode: searchFocusNode,
-          onQueryChanged: onQueryChanged,
-          showShortcutHint: false,
-        ),
-      ),
-      ListView(
-        keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-        padding: const EdgeInsets.fromLTRB(12, 12, 12, 24),
-        children: [
-          PreviewGeneratorPanel(controller: previewController, inline: true),
-        ],
-      ),
-      ListView(
-        padding: const EdgeInsets.fromLTRB(12, 12, 12, 24),
-        children: [AlgorithmConfigCard(onGlobalSettings: onGlobalSettings)],
-      ),
-    ];
-    return Column(
-      children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(12, 10, 12, 0),
-          child: SegmentedButton<int>(
-            key: const ValueKey('random-manager-compact-sections'),
-            segments: [
-              ButtonSegment(
-                value: 0,
-                icon: const Icon(Icons.layers_outlined, size: 17),
-                label: Text(context.l10n.randomManager_recipeTitle),
+    final chrome = _WorkspaceChromeSliver(
+      child: KeyedSubtree(
+        key: _chromeKey,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            widget.header,
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 10, 12, 2),
+              child: HorizontalSegmentedControl(
+                child: _SectionSwitcher(
+                  selectedSection: widget.selectedSection,
+                  onSectionSelected: widget.onSectionSelected,
+                ),
               ),
-              ButtonSegment(
-                value: 1,
-                icon: const Icon(Icons.preview_outlined, size: 17),
-                label: Text(context.l10n.randomManager_previewGeneration),
-              ),
-              ButtonSegment(
-                value: 2,
-                icon: const Icon(Icons.tune_rounded, size: 17),
-                label: Text(context.l10n.randomManager_inspectorTitle),
-              ),
-            ],
-            selected: {selectedSection},
-            showSelectedIcon: false,
-            onSelectionChanged: (selection) =>
-                onSectionSelected(selection.first),
-            style: const ButtonStyle(
-              visualDensity: VisualDensity(horizontal: -2, vertical: -1),
             ),
-          ),
+          ],
         ),
-        const SizedBox(height: 2),
-        Expanded(
-          child: IndexedStack(index: selectedSection, children: pages),
+      ),
+    );
+    List<Widget> leadingFor(int section) =>
+        section == widget.selectedSection ? [chrome] : const [];
+
+    return IndexedStack(
+      index: widget.selectedSection,
+      children: [
+        widget.recipeBuilder(leadingFor(0)),
+        _SectionScrollView(
+          slivers: [
+            ...leadingFor(1),
+            _SectionBodySliver(
+              child: PreviewGeneratorPanel(
+                controller: widget.previewController,
+                inline: true,
+              ),
+            ),
+          ],
+        ),
+        _SectionScrollView(
+          slivers: [
+            ...leadingFor(2),
+            _SectionBodySliver(
+              child: AlgorithmConfigCard(
+                onGlobalSettings: widget.onGlobalSettings,
+              ),
+            ),
+          ],
         ),
       ],
     );
+  }
+}
+
+class _SectionSwitcher extends StatelessWidget {
+  const _SectionSwitcher({
+    required this.selectedSection,
+    required this.onSectionSelected,
+  });
+
+  final int selectedSection;
+  final ValueChanged<int> onSectionSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    return SegmentedButton<int>(
+      key: const ValueKey('random-manager-compact-sections'),
+      segments: [
+        ButtonSegment(
+          value: 0,
+          icon: const Icon(Icons.layers_outlined, size: 17),
+          label: Text(context.l10n.randomManager_recipeTitle),
+        ),
+        ButtonSegment(
+          value: 1,
+          icon: const Icon(Icons.preview_outlined, size: 17),
+          label: Text(context.l10n.randomManager_previewGeneration),
+        ),
+        ButtonSegment(
+          value: 2,
+          icon: const Icon(Icons.tune_rounded, size: 17),
+          label: Text(context.l10n.randomManager_inspectorTitle),
+        ),
+      ],
+      selected: {selectedSection},
+      showSelectedIcon: false,
+      onSelectionChanged: (selection) => onSectionSelected(selection.first),
+      // 触屏保留 48 高的命中区，精确指针下维持紧凑
+      style: ButtonStyle(
+        visualDensity: CompactControlMetrics.forPolicy(
+          context.interactionPolicy,
+        ).density,
+      ),
+    );
+  }
+}
+
+/// 页面顶部区域：高度允许时固定在滚动视图顶端，否则随内容一起滚动
+class _WorkspaceChromeSliver extends StatelessWidget {
+  const _WorkspaceChromeSliver({required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return AdaptivePinnedHeaderSliver(
+      // 固定时内容从下方滚过，用画布色遮住间距处的内容
+      child: ColoredBox(
+        color: Theme.of(context).colorScheme.surface,
+        child: child,
+      ),
+    );
+  }
+}
+
+class _SectionScrollView extends StatelessWidget {
+  const _SectionScrollView({required this.slivers});
+
+  final List<Widget> slivers;
+
+  @override
+  Widget build(BuildContext context) {
+    return CustomScrollView(
+      keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+      slivers: slivers,
+    );
+  }
+}
+
+class _SectionBodySliver extends StatelessWidget {
+  const _SectionBodySliver({required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return SliverPadding(
+      padding: const EdgeInsets.fromLTRB(12, 12, 12, 24),
+      sliver: SliverToBoxAdapter(child: child),
+    );
+  }
+}
+
+class _UnavailableStateSliver extends StatelessWidget {
+  const _UnavailableStateSliver({required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return SliverFillRemaining(hasScrollBody: false, child: child);
   }
 }
 
