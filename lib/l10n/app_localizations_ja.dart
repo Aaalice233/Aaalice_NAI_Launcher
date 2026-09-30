@@ -4266,19 +4266,7 @@ class AppLocalizationsJa extends AppLocalizations {
   String get tooltip_increaseWeight => 'ウェイトを上げる [+5%]';
 
   @override
-  String get tooltip_edit => '編集';
-
-  @override
   String get tooltip_copy => 'コピー';
-
-  @override
-  String get tooltip_delete => '削除';
-
-  @override
-  String get tooltip_enable => '有効にする';
-
-  @override
-  String get tooltip_disable => '無効にする';
 
   @override
   String get tooltip_resetWeight => 'クリックして 100% にリセットします';
@@ -4378,33 +4366,6 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get weight_title => 'ウェイト';
-
-  @override
-  String get weight_reset => 'リセット';
-
-  @override
-  String get weight_done => '完了';
-
-  @override
-  String get weight_noBrackets => '括弧なし';
-
-  @override
-  String get weight_editTag => 'タグを編集';
-
-  @override
-  String get weight_tagName => 'タグ名';
-
-  @override
-  String get weight_tagNameHint => 'タグ名を入力してください...';
-
-  @override
-  String get tag_enable => '有効にする';
-
-  @override
-  String get tag_disable => '無効にする';
-
-  @override
-  String get tag_delete => '削除';
 
   @override
   String get tag_addTag => 'タグを追加';
@@ -11471,200 +11432,6 @@ class AppLocalizationsJa extends AppLocalizations {
   String get pagination_itemUnit => 'アイテム';
 
   @override
-  String get diyGuide_title => 'DIY 機能ガイド';
-
-  @override
-  String get diyGuide_subtitle => '高度な機能を学び、独自のライブラリを作成します';
-
-  @override
-  String get diyGuide_intro =>
-      'このガイドでは、DIY システムの中核となる概念と高度な機能について説明し、強力な動的プロンプト ライブラリの構築に役立ちます。';
-
-  @override
-  String get diyGuide_exampleLabel => '例';
-
-  @override
-  String get diyGuide_hierarchyTitle => '階層';
-
-  @override
-  String get diyGuide_hierarchyDescription =>
-      'DIY システムは、3 レベルのカテゴリ構造を使用してプロンプトを整理し、管理と検索を容易にします。';
-
-  @override
-  String get diyGuide_hierarchyExample =>
-      'カテゴリ: キャラクターの特徴\n  -> グループ: ヘアスタイル\n      -> タグ: ロングヘア、ショートヘア、ツインテール';
-
-  @override
-  String get diyGuide_selectionModeTitle => '選択モード';
-
-  @override
-  String get diyGuide_selectionModeDescription => 'グループから選択されるタグの数を制御します。';
-
-  @override
-  String get diyGuide_selectionModeExample =>
-      '• ランダム: ランダムな髪の色など、毎回 1 つのアイテムを選択します\n• すべて: 固定機能セットなど、グループ内のすべてのタグを選択します。';
-
-  @override
-  String get diyGuide_weightTitle => 'ウェイト制御';
-
-  @override
-  String get diyGuide_weightDescription => '生成中の特定のプロンプトの影響を調整します。';
-
-  @override
-  String get diyGuide_weightExample =>
-      '• ブースト: masterpiece を中括弧で囲む = 1.05x ウェイト\n• 強力なブースト: masterpiece を三重中括弧で囲む = 1.16x ウェイト\n• 弱体化: [bad hands] = 0.95x ウェイト';
-
-  @override
-  String get diyGuide_genderTitle => '性別制限';
-
-  @override
-  String get diyGuide_genderDescription =>
-      '互換性のない生成された機能を避けるために、タグを特定のキャラクターの性別に制限します。';
-
-  @override
-  String get diyGuide_genderExample =>
-      '• 女性: スカートなどの女性キャラクターのみ\n• 男性: ひげなどの男性キャラクターのみ\n• 任意: T シャツなどの普遍的なもの';
-
-  @override
-  String get diyGuide_scopeTitle => '範囲';
-
-  @override
-  String get diyGuide_scopeDescription =>
-      'タグをキャラクター、背景、または画像全体のどれに適用するかを定義します。';
-
-  @override
-  String get diyGuide_scopeExample =>
-      '• キャラクター: 目や髪などのキャラクターの特徴\n• 背景: 青空や屋内などの環境の説明\n• グローバル: アート スタイルと品質タグ (最高品質など)';
-
-  @override
-  String get diyGuide_conditionalTitle => '条件分岐';
-
-  @override
-  String get diyGuide_conditionalDescription =>
-      '選択したタグまたはその他の条件に基づいて、後のタグを動的に選択します。';
-
-  @override
-  String get diyGuide_conditionalExample =>
-      '「雨」を選択した場合\n  次に、「傘」と「濡れた服」を追加します\n  ELSE「晴れ」を追加';
-
-  @override
-  String get diyGuide_dependenciesTitle => '依存関係';
-
-  @override
-  String get diyGuide_dependenciesDescription =>
-      'タグ間のリンクを作成し、1 つのタグが選択されたときに関連タグが自動的に導入されるようにします。';
-
-  @override
-  String get diyGuide_dependenciesExample =>
-      '「JK制服」を選択 -> 「学校背景」と「スクールバッグ」を自動追加';
-
-  @override
-  String get diyGuide_visibilityTitle => '可視性ルール';
-
-  @override
-  String get diyGuide_visibilityDescription =>
-      'タグが UI にいつ表示されるか、または生成中にアクティブになるかを制御します。';
-
-  @override
-  String get diyGuide_visibilityExample =>
-      '「魔法少女」カテゴリが選択されている場合に「魔法の杖」オプション グループのみを表示します';
-
-  @override
-  String get diyGuide_timeTitle => '時間条件';
-
-  @override
-  String get diyGuide_timeDescription =>
-      'リアルタイムまたは設定されたシミュレート時間に基づいて特定のタグをトリガーします。';
-
-  @override
-  String get diyGuide_timeExample =>
-      '• 06:00-18:00 -> \"daylight\" を追加\n• 18:00-06:00 -> \"night\" を追加';
-
-  @override
-  String get diyGuide_postProcessingTitle => '後処理ルール';
-
-  @override
-  String get diyGuide_postProcessingDescription =>
-      'プロンプト生成の最終段階でテキストの置換またはクリーンアップを実行します。';
-
-  @override
-  String get diyGuide_postProcessingExample =>
-      'より特徴的な説明のために、すべての「青い目」を「紺碧の目」に置き換えます。';
-
-  @override
-  String get diyGuide_emphasisTitle => '強調確率';
-
-  @override
-  String get diyGuide_emphasisDescription => '出力の多様性を高めるためにタグに重み構文をランダムに追加します。';
-
-  @override
-  String get diyGuide_emphasisExample =>
-      '確率を 30% に設定します。出力の約 1/3 は重み付きタグを使用し、2/3 はプレーン タグを出力します。';
-
-  @override
-  String get naiRules_title => 'NAI ランダム ルール';
-
-  @override
-  String get naiRules_characterCountProbability => 'キャラクター数の確率';
-
-  @override
-  String get naiRules_solo => '1人（ソロ）';
-
-  @override
-  String get naiRules_duo => '2名（デュオ）';
-
-  @override
-  String get naiRules_trio => '3人（トリオ）';
-
-  @override
-  String get naiRules_group => '4名（グループ）';
-
-  @override
-  String get naiRules_genderRules => '性別ルール';
-
-  @override
-  String get naiRules_female => '女性';
-
-  @override
-  String get naiRules_male => '男性';
-
-  @override
-  String get naiRules_mixed => '混合 / その他';
-
-  @override
-  String get naiRules_categoryProbability => 'カテゴリの確率';
-
-  @override
-  String get naiRules_dynamicTagWeightTitle => '動的タグ重み調整';
-
-  @override
-  String get naiRules_dynamicTagWeightSubtitle =>
-      'アクション、服装、表情、背景などの複数の要素をランダムに組み合わせて、画像のテーマに基づいてカテゴリの重みを調整します。';
-
-  @override
-  String get naiRules_specialMechanisms => '特別なメカニズム';
-
-  @override
-  String get naiRules_tagStrengthening => 'タグ強化';
-
-  @override
-  String get naiRules_seasonalLibraryTitle => '季節ライブラリ';
-
-  @override
-  String get naiRules_seasonalLibrarySubtitle =>
-      '季節の服装、天候、照明、雰囲気などの季節の特徴を自動的に照合します。';
-
-  @override
-  String get naiRules_v4CharacterPositioning => 'V4 複数キャラクター配置';
-
-  @override
-  String get naiRules_smartPositionTitle => 'スマートな位置の割り当て';
-
-  @override
-  String get naiRules_smartPositionSubtitle =>
-      'V4 モデルでは、キャラクター配置構文を使用して複数キャラクターの配置を正確に制御します。';
-
-  @override
   String get comfyImport_detectedTitle => 'ComfyUI の複数キャラクタープロンプトを検出しました';
 
   @override
@@ -12320,9 +12087,6 @@ class AppLocalizationsJa extends AppLocalizations {
   }
 
   @override
-  String get diy_editDependencyTitle => '依存関係を編集';
-
-  @override
   String get diy_dependencyTitle => '依存関係設定';
 
   @override
@@ -12402,9 +12166,6 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get diy_dependencyExcludesDescription => 'ソースカテゴリでタグが選択されている場合は適用しません';
-
-  @override
-  String get diy_editConditionalTitle => '条件分岐を編集';
 
   @override
   String get diy_conditionalDefaultName => '条件分岐';
@@ -12544,37 +12305,6 @@ class AppLocalizationsJa extends AppLocalizations {
   }
 
   @override
-  String get diy_emphasisTitle => 'グローバル強調';
-
-  @override
-  String get diy_emphasisSubtitle => 'タグの強調効果を調整';
-
-  @override
-  String get diy_emphasisProbability => '強調確率';
-
-  @override
-  String diy_emphasisProbabilityHint(String percent) {
-    return '選択された各タグに $percent% の確率で強調括弧が追加されます';
-  }
-
-  @override
-  String get diy_bracketCount => '括弧の階層数';
-
-  @override
-  String diy_bracketLayers(int count) {
-    return '$count 層';
-  }
-
-  @override
-  String get diy_effectPreview => '効果プレビュー';
-
-  @override
-  String get diy_exampleTag => 'タグの例';
-
-  @override
-  String get diy_emphasisExplanation => '強調括弧はタグの重みを増やし、階層が多いほど重みが高くなります';
-
-  @override
   String diy_presetExportFailed(String error) {
     return 'プリセットのエクスポートに失敗しました: $error';
   }
@@ -12664,9 +12394,6 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get diy_conditionValueNotInList => '値がリストに含まれない';
-
-  @override
-  String get diy_editTimeConditionTitle => '時間条件を編集';
 
   @override
   String get diy_timeDefaultName => '時間条件';

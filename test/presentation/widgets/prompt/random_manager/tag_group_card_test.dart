@@ -138,6 +138,77 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('依赖配置表单在最窄屏、安全区和键盘组合下字段与动作均可达', (tester) async {
+    tester.view.physicalSize = const Size(320, 640);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await _pumpCard(
+      tester,
+      group: _group.copyWith(
+        dependencyConfig: const DependencyConfig(sourceCategoryId: 'Category'),
+      ),
+      mediaQuery: (data) => data.copyWith(
+        padding: const EdgeInsets.fromLTRB(12, 24, 12, 16),
+        viewPadding: const EdgeInsets.fromLTRB(12, 24, 12, 16),
+        viewInsets: const EdgeInsets.only(bottom: 180),
+      ),
+    );
+    await _openDiyForm(tester, '依赖配置');
+
+    final sheets = find.byKey(const ValueKey('adaptive-bottom-sheet'));
+    expect(sheets, findsNWidgets(2));
+    final form = sheets.last;
+    final formRect = tester.getRect(form);
+    expect(formRect.left, greaterThanOrEqualTo(0));
+    expect(formRect.right, lessThanOrEqualTo(320));
+
+    for (final target in [
+      find.byType(DropdownButtonFormField<String>),
+      find.byType(EditableText),
+      find.byIcon(Icons.block_rounded),
+      find.byIcon(Icons.add_rounded),
+      find.byType(Switch),
+    ]) {
+      final inForm = find.descendant(of: form, matching: target).first;
+      await tester.ensureVisible(inForm);
+      await tester.pump();
+      expect(tester.getRect(inForm).overlaps(formRect), isTrue);
+      expect(tester.takeException(), isNull);
+    }
+
+    final confirm = find.descendant(of: form, matching: find.text('确定'));
+    expect(confirm.hitTestable(), findsOneWidget);
+    await tester.tap(confirm);
+    await tester.pumpAndSettle();
+
+    expect(sheets, findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('宽屏 DIY 配置表单使用受限宽度的居中弹窗并保留确认动作', (tester) async {
+    tester.view.physicalSize = const Size(1600, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await _pumpCard(tester);
+    await _openDiyForm(tester, '条件分支');
+
+    final forms = find.byKey(const ValueKey('adaptive-centered-form'));
+    expect(forms, findsNWidgets(2));
+    final formRect = tester.getRect(forms.last);
+    expect(formRect.width, lessThanOrEqualTo(620));
+    expect(formRect.center.dx, moreOrLessEquals(800));
+    expect(
+      find.descendant(of: forms.last, matching: find.text('确定')).hitTestable(),
+      findsOneWidget,
+    );
+    expect(find.byType(Dialog), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('概率滑块以字段名朗读，读数与界面一致且按四舍五入显示', (tester) async {
     // 0.1 分 10 格的第 7 格插值结果，截断取整会显示成 6%
     const group = RandomTagGroup(
@@ -231,6 +302,56 @@ void main() {
       below: sectionSurfaceColor(theme.colorScheme),
     );
   });
+}
+
+Future<void> _pumpCard(
+  WidgetTester tester, {
+  RandomTagGroup group = _group,
+  MediaQueryData Function(MediaQueryData data)? mediaQuery,
+}) async {
+  await tester.pumpWidget(
+    ProviderScope(
+      overrides: [
+        randomPresetNotifierProvider.overrideWith(
+          _FixedRandomPresetNotifier.new,
+        ),
+      ],
+      child: MaterialApp(
+        locale: const Locale('zh'),
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        builder: (context, child) => MediaQuery(
+          data: (mediaQuery ?? (data) => data)(MediaQuery.of(context)),
+          child: child!,
+        ),
+        home: Scaffold(
+          body: TagGroupCard(
+            tagGroup: group,
+            categoryId: 'category',
+            categoryKey: 'category',
+            presetId: 'preset',
+          ),
+        ),
+      ),
+    ),
+  );
+}
+
+Future<void> _openDiyForm(WidgetTester tester, String section) async {
+  await tester.tap(find.text('包含全部复杂配置的超长词组名称'));
+  await tester.pumpAndSettle();
+
+  final diyTab = find.byIcon(Icons.account_tree_outlined);
+  await tester.ensureVisible(diyTab);
+  await tester.pumpAndSettle();
+  await tester.tap(diyTab);
+  await tester.pumpAndSettle();
+
+  final action = find.byKey(ValueKey('tag-group-diy-action-$section'));
+  await tester.ensureVisible(action);
+  await tester.pumpAndSettle();
+  await tester.tap(action);
+  await tester.pumpAndSettle();
 }
 
 SemanticsNode _sliderNode(String label) {

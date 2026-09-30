@@ -4,79 +4,11 @@ import 'package:nai_launcher/data/models/prompt/dependency_config.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/widgets/common/surface_ink_well.dart';
 import 'package:nai_launcher/presentation/widgets/common/themed_input.dart';
-import 'package:nai_launcher/presentation/widgets/prompt/diy/dialogs/dependency_config_dialog.dart';
 import 'package:nai_launcher/presentation/widgets/prompt/diy/panels/dependency_config_panel.dart';
 
 import '../../../../../helpers/ink_expectations.dart';
 
 void main() {
-  testWidgets('320px、3x 文本、SafeArea 与 IME 下字段和动作均可达', (tester) async {
-    tester.view.physicalSize = const Size(320, 640);
-    tester.view.devicePixelRatio = 1;
-    tester.view.padding = const FakeViewPadding(top: 24, bottom: 24);
-    tester.view.viewInsets = const FakeViewPadding(bottom: 180);
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-      tester.view.resetPadding();
-      tester.view.resetViewInsets();
-    });
-
-    await _pumpLauncher(tester, textScale: 3);
-    await tester.tap(find.byKey(const ValueKey('open-dependency-dialog')));
-    await tester.pumpAndSettle();
-
-    expect(
-      find.byKey(const ValueKey('dependency-config-scroll')),
-      findsOneWidget,
-    );
-    expect(tester.takeException(), isNull);
-
-    final dialog = tester.getRect(
-      find.byKey(const ValueKey('dependency-config-dialog')),
-    );
-    expect(dialog.left, greaterThanOrEqualTo(0));
-    expect(dialog.right, lessThanOrEqualTo(320));
-
-    final fields = [
-      find.byType(DropdownButtonFormField<String>),
-      find.byType(EditableText),
-    ];
-    for (final field in fields) {
-      expect(field, findsOneWidget);
-      await tester.ensureVisible(field);
-      await tester.pump();
-      expect(tester.getRect(field).overlaps(dialog), isTrue);
-      expect(tester.takeException(), isNull);
-    }
-
-    for (final action in [
-      find.byIcon(Icons.block_rounded),
-      find.byIcon(Icons.add_rounded),
-      find.byType(Switch),
-    ]) {
-      await tester.ensureVisible(action.first);
-      await tester.pump();
-      expect(tester.getRect(action.first).overlaps(dialog), isTrue);
-      expect(tester.takeException(), isNull);
-    }
-
-    final dependencyType = find.byIcon(Icons.block_rounded);
-    await tester.ensureVisible(dependencyType);
-    await tester.pump();
-    await tester.tap(dependencyType);
-    await tester.pump();
-
-    final save = find.widgetWithText(FilledButton, '保存');
-    expect(save, findsOneWidget);
-    expect(tester.getRect(save).bottom, lessThanOrEqualTo(460));
-    await tester.tap(save);
-    await tester.pumpAndSettle();
-
-    expect(find.byType(DependencyConfigDialog), findsNothing);
-    expect(tester.takeException(), isNull);
-  });
-
   testWidgets('320px、3x、IME 与 SafeArea 下映射规则全屏编辑并保留输入状态', (tester) async {
     tester.view.physicalSize = const Size(320, 640);
     tester.view.devicePixelRatio = 1;
@@ -166,29 +98,6 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('Expanded 使用受限宽度居中弹窗且保留完整动作', (tester) async {
-    tester.view.physicalSize = const Size(1600, 900);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
-
-    await _pumpLauncher(tester);
-    await tester.tap(find.byKey(const ValueKey('open-dependency-dialog')));
-    await tester.pumpAndSettle();
-
-    final dialog = tester.getRect(
-      find.byKey(const ValueKey('dependency-config-dialog')),
-    );
-    expect(dialog.width, lessThanOrEqualTo(560));
-    expect(dialog.center.dx, moreOrLessEquals(800));
-    expect(find.widgetWithText(TextButton, '取消'), findsOneWidget);
-    expect(find.widgetWithText(TextButton, '清除'), findsWidgets);
-    expect(find.widgetWithText(FilledButton, '保存'), findsOneWidget);
-    expect(tester.takeException(), isNull);
-  });
-
   testWidgets('依赖类型选项的悬停与按压反馈画在选项底色与选中渐变之上', (tester) async {
     tester.view.physicalSize = const Size(1200, 900);
     tester.view.devicePixelRatio = 1;
@@ -264,41 +173,5 @@ Future<void> _pumpPanel(
   );
   await tester.pump();
   await tester.ensureVisible(find.byIcon(Icons.add_rounded));
-  await tester.pump();
-}
-
-Future<void> _pumpLauncher(WidgetTester tester, {double textScale = 1}) async {
-  await tester.pumpWidget(
-    MaterialApp(
-      locale: const Locale('zh'),
-      supportedLocales: AppLocalizations.supportedLocales,
-      localizationsDelegates: AppLocalizations.localizationsDelegates,
-      builder: (context, child) => MediaQuery(
-        data: MediaQuery.of(
-          context,
-        ).copyWith(textScaler: TextScaler.linear(textScale)),
-        child: child!,
-      ),
-      home: Scaffold(
-        body: Builder(
-          builder: (context) => Center(
-            child: FilledButton(
-              key: const ValueKey('open-dependency-dialog'),
-              onPressed: () => DependencyConfigDialog.show(
-                context,
-                initialConfig: const DependencyConfig(
-                  sourceCategoryId: 'characters',
-                  mappingRules: {'1': '0-3'},
-                  defaultValue: '0',
-                ),
-                availableCategories: const ['characters', 'outfits'],
-              ),
-              child: const Text('打开'),
-            ),
-          ),
-        ),
-      ),
-    ),
-  );
   await tester.pump();
 }

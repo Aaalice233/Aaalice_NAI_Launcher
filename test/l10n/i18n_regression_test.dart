@@ -205,10 +205,6 @@ void main() {
     expect(chinese.diy_branchDefaultName(2), '分支 2');
     expect(japanese.statistics_monday, '月');
     expect(chinese.common_enabled, '已启用');
-    expect(
-      english.diy_emphasisProbabilityHint('10.0'),
-      'Each selected tag has a 10.0% chance of receiving emphasis brackets',
-    );
     expect(english.networkError_requestFailed(429), 'Request failed (429)');
     expect(
       japanese.networkError_connectionTimeout,

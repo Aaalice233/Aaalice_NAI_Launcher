@@ -179,12 +179,6 @@ class PromptTag with _$PromptTag {
     }
     return '';
   }
-
-  /// 获取权重百分比显示
-  String get weightPercentText => formatWeightPercent(weight);
-
-  static String formatWeightPercent(double weight) =>
-      '${(weight * 100).round()}%';
 }
 
 /// 标签列表扩展

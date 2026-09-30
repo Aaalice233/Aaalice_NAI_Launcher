@@ -1832,11 +1832,7 @@
   "tooltip_fullscreenEdit": "全屏编辑",
   "tooltip_decreaseWeight": "减少权重 [-5%]",
   "tooltip_increaseWeight": "增加权重 [+5%]",
-  "tooltip_edit": "编辑",
   "tooltip_copy": "复制",
-  "tooltip_delete": "删除",
-  "tooltip_enable": "启用",
-  "tooltip_disable": "禁用",
   "tooltip_resetWeight": "点击重置为100%",
 
   "upscale_scale": "放大倍数",
@@ -1871,16 +1867,7 @@
   "gelbooru_unknownError": "Gelbooru 验证失败，请稍后重试。",
 
   "weight_title": "权重",
-  "weight_reset": "重置",
-  "weight_done": "完成",
-  "weight_noBrackets": "无括号",
-  "weight_editTag": "编辑标签",
-  "weight_tagName": "标签名称",
-  "weight_tagNameHint": "输入标签名称...",
 
-  "tag_enable": "启用",
-  "tag_disable": "禁用",
-  "tag_delete": "删除",
   "tag_addTag": "添加标签",
 
   "tagCategory_artist": "艺术家",
@@ -5507,65 +5494,6 @@
   "pagination_itemsPerPage": "每页",
   "pagination_itemUnit": "项",
 
-  "diyGuide_title": "DIY 功能指南",
-  "diyGuide_subtitle": "了解高级功能，创建专属词库",
-  "diyGuide_intro": "本指南介绍了 DIY 系统的核心概念和高级功能，帮助您构建强大的动态提示词库。",
-  "diyGuide_exampleLabel": "示例",
-  "diyGuide_hierarchyTitle": "层级结构 (Hierarchy)",
-  "diyGuide_hierarchyDescription": "DIY 系统采用三级分类结构来组织提示词，便于管理和检索。",
-  "diyGuide_hierarchyExample": "Category (分类): 角色特征\n  -> Group (分组): 发型\n      -> Tag (标签): 长发, 短发, 双马尾",
-  "diyGuide_selectionModeTitle": "选择模式 (Selection Mode)",
-  "diyGuide_selectionModeDescription": "决定从一个分组(Group)中选取多少个标签。",
-  "diyGuide_selectionModeExample": "• Random (随机): 每次随机选取一个 (如：随机发色)\n• All (全选): 选取组内所有标签 (如：固定特征组合)",
-  "diyGuide_weightTitle": "权重控制 (Weight)",
-  "diyGuide_weightDescription": "调整特定提示词在生成过程中的影响力。",
-  "diyGuide_weightExample": "• 增强: 用花括号包裹 masterpiece = 1.05 倍权重\n• 强力增强: 三层花括号包裹 masterpiece = 1.16 倍权重\n• 减弱: [bad hands] = 0.95 倍权重",
-  "diyGuide_genderTitle": "性别限制 (Gender)",
-  "diyGuide_genderDescription": "限制标签仅对特定性别的角色生效，避免生成错误的特征。",
-  "diyGuide_genderExample": "• Female: 仅女性角色可用 (如：裙子)\n• Male: 仅男性角色可用 (如：胡须)\n• Any: 通用 (如：T恤)",
-  "diyGuide_scopeTitle": "作用域 (Scope)",
-  "diyGuide_scopeDescription": "定义标签是作用于角色本身、背景环境还是全局画面。",
-  "diyGuide_scopeExample": "• Character: 角色特征 (眼睛, 头发)\n• Background: 环境描述 (蓝天, 室内)\n• Global: 画风, 质量词 (best quality)",
-  "diyGuide_conditionalTitle": "条件分支 (Conditional)",
-  "diyGuide_conditionalDescription": "基于已选标签或其他条件来动态决定后续标签。",
-  "diyGuide_conditionalExample": "IF (已选 \"下雨\")\n  THEN 添加 \"雨伞\", \"湿衣服\"\n  ELSE 添加 \"晴朗\"",
-  "diyGuide_dependenciesTitle": "依赖引用 (Dependencies)",
-  "diyGuide_dependenciesDescription": "建立标签间的关联，选中一个标签时自动引入相关联的其他标签。",
-  "diyGuide_dependenciesExample": "选中 \"JK制服\" -> 自动引入 \"学校背景\", \"书包\"",
-  "diyGuide_visibilityTitle": "可见性规则 (Visibility)",
-  "diyGuide_visibilityDescription": "控制标签在界面上的显示条件，或在生成时的生效条件。",
-  "diyGuide_visibilityExample": "仅当选中 \"魔法少女\" 分类时，显示 \"魔杖\" 选项组",
-  "diyGuide_timeTitle": "时间条件 (Time)",
-  "diyGuide_timeDescription": "根据现实时间或设定的模拟时间触发特定标签。",
-  "diyGuide_timeExample": "• 06:00-18:00 -> 添加 \"daylight\"\n• 18:00-06:00 -> 添加 \"night\"",
-  "diyGuide_postProcessingTitle": "后处理规则 (Post-processing)",
-  "diyGuide_postProcessingDescription": "在提示词生成最后阶段进行文本替换或清理。",
-  "diyGuide_postProcessingExample": "将所有 \"blue eyes\" 替换为 \"azure eyes\" 以获得更独特的描述",
-  "diyGuide_emphasisTitle": "强调概率 (Emphasis)",
-  "diyGuide_emphasisDescription": "为标签随机添加权重符号的概率，增加结果的多样性。",
-  "diyGuide_emphasisExample": "设置 30% 概率: 约有 1/3 的机会输出加权 tag，2/3 的机会输出普通 tag",
-
-  "naiRules_title": "NAI 随机规则说明",
-  "naiRules_characterCountProbability": "角色数量概率",
-  "naiRules_solo": "1人 (Solo)",
-  "naiRules_duo": "2人 (Duo)",
-  "naiRules_trio": "3人 (Trio)",
-  "naiRules_group": "4人 (Group)",
-  "naiRules_genderRules": "性别规则",
-  "naiRules_female": "女性 (Female)",
-  "naiRules_male": "男性 (Male)",
-  "naiRules_mixed": "混合/其他 (Mixed)",
-  "naiRules_categoryProbability": "类别概率",
-  "naiRules_dynamicTagWeightTitle": "标签权重动态调整",
-  "naiRules_dynamicTagWeightSubtitle": "包含动作、服饰、表情、背景等多个维度的随机组合，根据画面主题动态调整各类别的抽取权重",
-  "naiRules_specialMechanisms": "特殊机制",
-  "naiRules_tagStrengthening": "强调机制 (Tag Strengthening)",
-  "naiRules_seasonalLibraryTitle": "季节词库",
-  "naiRules_seasonalLibrarySubtitle": "自动匹配季节特征，包含季节性服饰、天气、光照效果和环境氛围",
-  "naiRules_v4CharacterPositioning": "V4 多角色位置",
-  "naiRules_smartPositionTitle": "智能位置分配",
-  "naiRules_smartPositionSubtitle": "在 V4 模型下，使用 character positioning 语法精确控制多角色站位",
-
   "comfyImport_detectedTitle": "检测到 ComfyUI 多角色提示词",
   "comfyImport_characterList": "角色列表 ({count})",
   "@comfyImport_characterList": {
@@ -5884,7 +5812,6 @@
     }
   },
 
-  "diy_editDependencyTitle": "编辑依赖配置",
   "diy_dependencyTitle": "依赖配置",
   "diy_dependencySubtitle": "配置标签选择之间的依赖关系",
   "diy_dependencyType": "依赖类型",
@@ -5913,7 +5840,6 @@
   "diy_dependencyValueDescription": "依赖源类别中选定的特定标签值",
   "diy_dependencyExcludesDescription": "源类别中存在已选标签时不生效",
 
-  "diy_editConditionalTitle": "编辑条件分支",
   "diy_conditionalDefaultName": "条件分支配置",
   "diy_branchDefaultName": "分支 {index}",
   "@diy_branchDefaultName": {
@@ -5993,26 +5919,6 @@
     }
   },
 
-  "diy_emphasisTitle": "全局强调配置",
-  "diy_emphasisSubtitle": "调整标签强调效果",
-  "diy_emphasisProbability": "强调概率",
-  "diy_emphasisProbabilityHint": "每个选中的标签有 {percent}% 的概率被添加强调括号",
-  "@diy_emphasisProbabilityHint": {
-    "placeholders": {
-      "percent": {"type": "String"}
-    }
-  },
-  "diy_bracketCount": "括号层数",
-  "diy_bracketLayers": "{count} 层",
-  "@diy_bracketLayers": {
-    "placeholders": {
-      "count": {"type": "int"}
-    }
-  },
-  "diy_effectPreview": "效果预览",
-  "diy_exampleTag": "示例标签",
-  "diy_emphasisExplanation": "强调括号会增加标签的权重，层数越多权重越高",
-
   "diy_presetExportFailed": "导出预设失败：{error}",
   "@diy_presetExportFailed": {
     "placeholders": {
@@ -6054,7 +5960,6 @@
   "diy_conditionValueInList": "值在列表中",
   "diy_conditionValueNotInList": "值不在列表中",
 
-  "diy_editTimeConditionTitle": "编辑时间条件",
   "diy_timeDefaultName": "时间条件",
   "diy_timeTitle": "时间条件",
   "diy_timeSubtitle": "在指定日期范围内激活",
