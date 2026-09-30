@@ -5931,6 +5931,7 @@
   "diy_noVisibilityRulesHint": "新增規則以根據當前構圖控制類別可見性",
   "diy_notSet": "未設定",
   "diy_targetCategory": "目標類別",
+  "diy_targetCurrentGroup": "本片語",
   "diy_conditionType": "條件型別",
   "diy_conditionValue": "條件值",
   "diy_conditionValueHint": "標籤名或值",

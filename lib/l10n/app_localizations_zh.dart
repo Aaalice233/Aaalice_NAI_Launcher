@@ -12066,6 +12066,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get diy_targetCategory => '目标类别';
 
   @override
+  String get diy_targetCurrentGroup => '本词组';
+
+  @override
   String get diy_conditionType => '条件类型';
 
   @override
@@ -27100,6 +27103,9 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get diy_targetCategory => '目標類別';
+
+  @override
+  String get diy_targetCurrentGroup => '本片語';
 
   @override
   String get diy_conditionType => '條件型別';

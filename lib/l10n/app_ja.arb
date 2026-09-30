@@ -6063,6 +6063,7 @@
   "diy_noVisibilityRulesHint": "ルールを追加して現在の構成からカテゴリの表示を制御します",
   "diy_notSet": "未設定",
   "diy_targetCategory": "対象カテゴリ",
+  "diy_targetCurrentGroup": "このタググループ",
   "diy_conditionType": "条件タイプ",
   "diy_conditionValue": "条件値",
   "diy_conditionValueHint": "タグ名または値",
