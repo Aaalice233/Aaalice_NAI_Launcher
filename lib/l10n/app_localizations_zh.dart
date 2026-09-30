@@ -4182,19 +4182,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get tooltip_increaseWeight => '增加权重 [+5%]';
 
   @override
-  String get tooltip_edit => '编辑';
-
-  @override
   String get tooltip_copy => '复制';
-
-  @override
-  String get tooltip_delete => '删除';
-
-  @override
-  String get tooltip_enable => '启用';
-
-  @override
-  String get tooltip_disable => '禁用';
 
   @override
   String get tooltip_resetWeight => '点击重置为100%';
@@ -4293,33 +4281,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get weight_title => '权重';
-
-  @override
-  String get weight_reset => '重置';
-
-  @override
-  String get weight_done => '完成';
-
-  @override
-  String get weight_noBrackets => '无括号';
-
-  @override
-  String get weight_editTag => '编辑标签';
-
-  @override
-  String get weight_tagName => '标签名称';
-
-  @override
-  String get weight_tagNameHint => '输入标签名称...';
-
-  @override
-  String get tag_enable => '启用';
-
-  @override
-  String get tag_disable => '禁用';
-
-  @override
-  String get tag_delete => '删除';
 
   @override
   String get tag_addTag => '添加标签';
@@ -11274,191 +11235,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get pagination_itemUnit => '项';
 
   @override
-  String get diyGuide_title => 'DIY 功能指南';
-
-  @override
-  String get diyGuide_subtitle => '了解高级功能，创建专属词库';
-
-  @override
-  String get diyGuide_intro => '本指南介绍了 DIY 系统的核心概念和高级功能，帮助您构建强大的动态提示词库。';
-
-  @override
-  String get diyGuide_exampleLabel => '示例';
-
-  @override
-  String get diyGuide_hierarchyTitle => '层级结构 (Hierarchy)';
-
-  @override
-  String get diyGuide_hierarchyDescription => 'DIY 系统采用三级分类结构来组织提示词，便于管理和检索。';
-
-  @override
-  String get diyGuide_hierarchyExample =>
-      'Category (分类): 角色特征\n  -> Group (分组): 发型\n      -> Tag (标签): 长发, 短发, 双马尾';
-
-  @override
-  String get diyGuide_selectionModeTitle => '选择模式 (Selection Mode)';
-
-  @override
-  String get diyGuide_selectionModeDescription => '决定从一个分组(Group)中选取多少个标签。';
-
-  @override
-  String get diyGuide_selectionModeExample =>
-      '• Random (随机): 每次随机选取一个 (如：随机发色)\n• All (全选): 选取组内所有标签 (如：固定特征组合)';
-
-  @override
-  String get diyGuide_weightTitle => '权重控制 (Weight)';
-
-  @override
-  String get diyGuide_weightDescription => '调整特定提示词在生成过程中的影响力。';
-
-  @override
-  String get diyGuide_weightExample =>
-      '• 增强: 用花括号包裹 masterpiece = 1.05 倍权重\n• 强力增强: 三层花括号包裹 masterpiece = 1.16 倍权重\n• 减弱: [bad hands] = 0.95 倍权重';
-
-  @override
-  String get diyGuide_genderTitle => '性别限制 (Gender)';
-
-  @override
-  String get diyGuide_genderDescription => '限制标签仅对特定性别的角色生效，避免生成错误的特征。';
-
-  @override
-  String get diyGuide_genderExample =>
-      '• Female: 仅女性角色可用 (如：裙子)\n• Male: 仅男性角色可用 (如：胡须)\n• Any: 通用 (如：T恤)';
-
-  @override
-  String get diyGuide_scopeTitle => '作用域 (Scope)';
-
-  @override
-  String get diyGuide_scopeDescription => '定义标签是作用于角色本身、背景环境还是全局画面。';
-
-  @override
-  String get diyGuide_scopeExample =>
-      '• Character: 角色特征 (眼睛, 头发)\n• Background: 环境描述 (蓝天, 室内)\n• Global: 画风, 质量词 (best quality)';
-
-  @override
-  String get diyGuide_conditionalTitle => '条件分支 (Conditional)';
-
-  @override
-  String get diyGuide_conditionalDescription => '基于已选标签或其他条件来动态决定后续标签。';
-
-  @override
-  String get diyGuide_conditionalExample =>
-      'IF (已选 \"下雨\")\n  THEN 添加 \"雨伞\", \"湿衣服\"\n  ELSE 添加 \"晴朗\"';
-
-  @override
-  String get diyGuide_dependenciesTitle => '依赖引用 (Dependencies)';
-
-  @override
-  String get diyGuide_dependenciesDescription =>
-      '建立标签间的关联，选中一个标签时自动引入相关联的其他标签。';
-
-  @override
-  String get diyGuide_dependenciesExample =>
-      '选中 \"JK制服\" -> 自动引入 \"学校背景\", \"书包\"';
-
-  @override
-  String get diyGuide_visibilityTitle => '可见性规则 (Visibility)';
-
-  @override
-  String get diyGuide_visibilityDescription => '控制标签在界面上的显示条件，或在生成时的生效条件。';
-
-  @override
-  String get diyGuide_visibilityExample => '仅当选中 \"魔法少女\" 分类时，显示 \"魔杖\" 选项组';
-
-  @override
-  String get diyGuide_timeTitle => '时间条件 (Time)';
-
-  @override
-  String get diyGuide_timeDescription => '根据现实时间或设定的模拟时间触发特定标签。';
-
-  @override
-  String get diyGuide_timeExample =>
-      '• 06:00-18:00 -> 添加 \"daylight\"\n• 18:00-06:00 -> 添加 \"night\"';
-
-  @override
-  String get diyGuide_postProcessingTitle => '后处理规则 (Post-processing)';
-
-  @override
-  String get diyGuide_postProcessingDescription => '在提示词生成最后阶段进行文本替换或清理。';
-
-  @override
-  String get diyGuide_postProcessingExample =>
-      '将所有 \"blue eyes\" 替换为 \"azure eyes\" 以获得更独特的描述';
-
-  @override
-  String get diyGuide_emphasisTitle => '强调概率 (Emphasis)';
-
-  @override
-  String get diyGuide_emphasisDescription => '为标签随机添加权重符号的概率，增加结果的多样性。';
-
-  @override
-  String get diyGuide_emphasisExample =>
-      '设置 30% 概率: 约有 1/3 的机会输出加权 tag，2/3 的机会输出普通 tag';
-
-  @override
-  String get naiRules_title => 'NAI 随机规则说明';
-
-  @override
-  String get naiRules_characterCountProbability => '角色数量概率';
-
-  @override
-  String get naiRules_solo => '1人 (Solo)';
-
-  @override
-  String get naiRules_duo => '2人 (Duo)';
-
-  @override
-  String get naiRules_trio => '3人 (Trio)';
-
-  @override
-  String get naiRules_group => '4人 (Group)';
-
-  @override
-  String get naiRules_genderRules => '性别规则';
-
-  @override
-  String get naiRules_female => '女性 (Female)';
-
-  @override
-  String get naiRules_male => '男性 (Male)';
-
-  @override
-  String get naiRules_mixed => '混合/其他 (Mixed)';
-
-  @override
-  String get naiRules_categoryProbability => '类别概率';
-
-  @override
-  String get naiRules_dynamicTagWeightTitle => '标签权重动态调整';
-
-  @override
-  String get naiRules_dynamicTagWeightSubtitle =>
-      '包含动作、服饰、表情、背景等多个维度的随机组合，根据画面主题动态调整各类别的抽取权重';
-
-  @override
-  String get naiRules_specialMechanisms => '特殊机制';
-
-  @override
-  String get naiRules_tagStrengthening => '强调机制 (Tag Strengthening)';
-
-  @override
-  String get naiRules_seasonalLibraryTitle => '季节词库';
-
-  @override
-  String get naiRules_seasonalLibrarySubtitle =>
-      '自动匹配季节特征，包含季节性服饰、天气、光照效果和环境氛围';
-
-  @override
-  String get naiRules_v4CharacterPositioning => 'V4 多角色位置';
-
-  @override
-  String get naiRules_smartPositionTitle => '智能位置分配';
-
-  @override
-  String get naiRules_smartPositionSubtitle =>
-      '在 V4 模型下，使用 character positioning 语法精确控制多角色站位';
-
-  @override
   String get comfyImport_detectedTitle => '检测到 ComfyUI 多角色提示词';
 
   @override
@@ -12091,9 +11867,6 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
-  String get diy_editDependencyTitle => '编辑依赖配置';
-
-  @override
   String get diy_dependencyTitle => '依赖配置';
 
   @override
@@ -12173,9 +11946,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get diy_dependencyExcludesDescription => '源类别中存在已选标签时不生效';
-
-  @override
-  String get diy_editConditionalTitle => '编辑条件分支';
 
   @override
   String get diy_conditionalDefaultName => '条件分支配置';
@@ -12315,37 +12085,6 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
-  String get diy_emphasisTitle => '全局强调配置';
-
-  @override
-  String get diy_emphasisSubtitle => '调整标签强调效果';
-
-  @override
-  String get diy_emphasisProbability => '强调概率';
-
-  @override
-  String diy_emphasisProbabilityHint(String percent) {
-    return '每个选中的标签有 $percent% 的概率被添加强调括号';
-  }
-
-  @override
-  String get diy_bracketCount => '括号层数';
-
-  @override
-  String diy_bracketLayers(int count) {
-    return '$count 层';
-  }
-
-  @override
-  String get diy_effectPreview => '效果预览';
-
-  @override
-  String get diy_exampleTag => '示例标签';
-
-  @override
-  String get diy_emphasisExplanation => '强调括号会增加标签的权重，层数越多权重越高';
-
-  @override
   String diy_presetExportFailed(String error) {
     return '导出预设失败：$error';
   }
@@ -12435,9 +12174,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get diy_conditionValueNotInList => '值不在列表中';
-
-  @override
-  String get diy_editTimeConditionTitle => '编辑时间条件';
 
   @override
   String get diy_timeDefaultName => '时间条件';
@@ -19562,19 +19298,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get tooltip_increaseWeight => '增加權重 [+5%]';
 
   @override
-  String get tooltip_edit => '編輯';
-
-  @override
   String get tooltip_copy => '複製';
-
-  @override
-  String get tooltip_delete => '刪除';
-
-  @override
-  String get tooltip_enable => '啟用';
-
-  @override
-  String get tooltip_disable => '禁用';
 
   @override
   String get tooltip_resetWeight => '點選重置為100%';
@@ -19673,33 +19397,6 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get weight_title => '權重';
-
-  @override
-  String get weight_reset => '重置';
-
-  @override
-  String get weight_done => '完成';
-
-  @override
-  String get weight_noBrackets => '無括號';
-
-  @override
-  String get weight_editTag => '編輯標籤';
-
-  @override
-  String get weight_tagName => '標籤名稱';
-
-  @override
-  String get weight_tagNameHint => '輸入標籤名稱...';
-
-  @override
-  String get tag_enable => '啟用';
-
-  @override
-  String get tag_disable => '禁用';
-
-  @override
-  String get tag_delete => '刪除';
 
   @override
   String get tag_addTag => '新增標籤';
@@ -26654,191 +26351,6 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get pagination_itemUnit => '項';
 
   @override
-  String get diyGuide_title => 'DIY 功能指南';
-
-  @override
-  String get diyGuide_subtitle => '瞭解高階功能，建立專屬詞庫';
-
-  @override
-  String get diyGuide_intro => '本指南介紹了 DIY 系統的核心概念和高階功能，幫助您構建強大的動態提示詞庫。';
-
-  @override
-  String get diyGuide_exampleLabel => '示例';
-
-  @override
-  String get diyGuide_hierarchyTitle => '層級結構 (Hierarchy)';
-
-  @override
-  String get diyGuide_hierarchyDescription => 'DIY 系統採用三級分類結構來組織提示詞，便於管理和檢索。';
-
-  @override
-  String get diyGuide_hierarchyExample =>
-      'Category (分類): 角色特徵\n  -> Group (分組): 髮型\n      -> Tag (標籤): 長髮, 短髮, 雙馬尾';
-
-  @override
-  String get diyGuide_selectionModeTitle => '選擇模式 (Selection Mode)';
-
-  @override
-  String get diyGuide_selectionModeDescription => '決定從一個分組(Group)中選取多少個標籤。';
-
-  @override
-  String get diyGuide_selectionModeExample =>
-      '• Random (隨機): 每次隨機選取一個 (如：隨機發色)\n• All (全選): 選取組內所有標籤 (如：固定特徵組合)';
-
-  @override
-  String get diyGuide_weightTitle => '權重控制 (Weight)';
-
-  @override
-  String get diyGuide_weightDescription => '調整特定提示詞在生成過程中的影響力。';
-
-  @override
-  String get diyGuide_weightExample =>
-      '• 增強: 用花括號包裹 masterpiece = 1.05 倍權重\n• 強力增強: 三層花括號包裹 masterpiece = 1.16 倍權重\n• 減弱: [bad hands] = 0.95 倍權重';
-
-  @override
-  String get diyGuide_genderTitle => '性別限制 (Gender)';
-
-  @override
-  String get diyGuide_genderDescription => '限制標籤僅對特定性別的角色生效，避免生成錯誤的特徵。';
-
-  @override
-  String get diyGuide_genderExample =>
-      '• Female: 僅女性角色可用 (如：裙子)\n• Male: 僅男性角色可用 (如：鬍鬚)\n• Any: 通用 (如：T恤)';
-
-  @override
-  String get diyGuide_scopeTitle => '作用域 (Scope)';
-
-  @override
-  String get diyGuide_scopeDescription => '定義標籤是作用於角色本身、背景環境還是全域性畫面。';
-
-  @override
-  String get diyGuide_scopeExample =>
-      '• Character: 角色特徵 (眼睛, 頭髮)\n• Background: 環境描述 (藍天, 室內)\n• Global: 畫風, 質量詞 (best quality)';
-
-  @override
-  String get diyGuide_conditionalTitle => '條件分支 (Conditional)';
-
-  @override
-  String get diyGuide_conditionalDescription => '基於已選標籤或其他條件來動態決定後續標籤。';
-
-  @override
-  String get diyGuide_conditionalExample =>
-      'IF (已選 \"下雨\")\n  THEN 新增 \"雨傘\", \"溼衣服\"\n  ELSE 新增 \"晴朗\"';
-
-  @override
-  String get diyGuide_dependenciesTitle => '依賴引用 (Dependencies)';
-
-  @override
-  String get diyGuide_dependenciesDescription =>
-      '建立標籤間的關聯，選中一個標籤時自動引入相關聯的其他標籤。';
-
-  @override
-  String get diyGuide_dependenciesExample =>
-      '選中 \"JK制服\" -> 自動引入 \"學校背景\", \"書包\"';
-
-  @override
-  String get diyGuide_visibilityTitle => '可見性規則 (Visibility)';
-
-  @override
-  String get diyGuide_visibilityDescription => '控制標籤在介面上的顯示條件，或在生成時的生效條件。';
-
-  @override
-  String get diyGuide_visibilityExample => '僅當選中 \"魔法少女\" 分類時，顯示 \"魔杖\" 選項組';
-
-  @override
-  String get diyGuide_timeTitle => '時間條件 (Time)';
-
-  @override
-  String get diyGuide_timeDescription => '根據現實時間或設定的模擬時間觸發特定標籤。';
-
-  @override
-  String get diyGuide_timeExample =>
-      '• 06:00-18:00 -> 新增 \"daylight\"\n• 18:00-06:00 -> 新增 \"night\"';
-
-  @override
-  String get diyGuide_postProcessingTitle => '後處理規則 (Post-processing)';
-
-  @override
-  String get diyGuide_postProcessingDescription => '在提示詞生成最後階段進行文字替換或清理。';
-
-  @override
-  String get diyGuide_postProcessingExample =>
-      '將所有 \"blue eyes\" 替換為 \"azure eyes\" 以獲得更獨特的描述';
-
-  @override
-  String get diyGuide_emphasisTitle => '強調機率 (Emphasis)';
-
-  @override
-  String get diyGuide_emphasisDescription => '為標籤隨機新增權重符號的機率，增加結果的多樣性。';
-
-  @override
-  String get diyGuide_emphasisExample =>
-      '設定 30% 機率: 約有 1/3 的機會輸出加權 tag，2/3 的機會輸出普通 tag';
-
-  @override
-  String get naiRules_title => 'NAI 隨機規則說明';
-
-  @override
-  String get naiRules_characterCountProbability => '角色數量機率';
-
-  @override
-  String get naiRules_solo => '1人 (Solo)';
-
-  @override
-  String get naiRules_duo => '2人 (Duo)';
-
-  @override
-  String get naiRules_trio => '3人 (Trio)';
-
-  @override
-  String get naiRules_group => '4人 (Group)';
-
-  @override
-  String get naiRules_genderRules => '性別規則';
-
-  @override
-  String get naiRules_female => '女性 (Female)';
-
-  @override
-  String get naiRules_male => '男性 (Male)';
-
-  @override
-  String get naiRules_mixed => '混合/其他 (Mixed)';
-
-  @override
-  String get naiRules_categoryProbability => '類別機率';
-
-  @override
-  String get naiRules_dynamicTagWeightTitle => '標籤權重動態調整';
-
-  @override
-  String get naiRules_dynamicTagWeightSubtitle =>
-      '包含動作、服飾、表情、背景等多個維度的隨機組合，根據畫面主題動態調整各類別的抽取權重';
-
-  @override
-  String get naiRules_specialMechanisms => '特殊機制';
-
-  @override
-  String get naiRules_tagStrengthening => '強調機制 (Tag Strengthening)';
-
-  @override
-  String get naiRules_seasonalLibraryTitle => '季節詞庫';
-
-  @override
-  String get naiRules_seasonalLibrarySubtitle =>
-      '自動匹配季節特徵，包含季節性服飾、天氣、光照效果和環境氛圍';
-
-  @override
-  String get naiRules_v4CharacterPositioning => 'V4 多角色位置';
-
-  @override
-  String get naiRules_smartPositionTitle => '智慧位置分配';
-
-  @override
-  String get naiRules_smartPositionSubtitle =>
-      '在 V4 模型下，使用 character positioning 語法精確控制多角色站位';
-
-  @override
   String get comfyImport_detectedTitle => '檢測到 ComfyUI 多角色提示詞';
 
   @override
@@ -27471,9 +26983,6 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   }
 
   @override
-  String get diy_editDependencyTitle => '編輯依賴配置';
-
-  @override
   String get diy_dependencyTitle => '依賴配置';
 
   @override
@@ -27553,9 +27062,6 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get diy_dependencyExcludesDescription => '源類別中存在已選標籤時不生效';
-
-  @override
-  String get diy_editConditionalTitle => '編輯條件分支';
 
   @override
   String get diy_conditionalDefaultName => '條件分支配置';
@@ -27695,37 +27201,6 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   }
 
   @override
-  String get diy_emphasisTitle => '全域性強調配置';
-
-  @override
-  String get diy_emphasisSubtitle => '調整標籤強調效果';
-
-  @override
-  String get diy_emphasisProbability => '強調機率';
-
-  @override
-  String diy_emphasisProbabilityHint(String percent) {
-    return '每個選中的標籤有 $percent% 的機率被新增強調括號';
-  }
-
-  @override
-  String get diy_bracketCount => '括號層數';
-
-  @override
-  String diy_bracketLayers(int count) {
-    return '$count 層';
-  }
-
-  @override
-  String get diy_effectPreview => '效果預覽';
-
-  @override
-  String get diy_exampleTag => '示例標籤';
-
-  @override
-  String get diy_emphasisExplanation => '強調括號會增加標籤的權重，層數越多權重越高';
-
-  @override
   String diy_presetExportFailed(String error) {
     return '匯出預設失敗：$error';
   }
@@ -27815,9 +27290,6 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get diy_conditionValueNotInList => '值不在列表中';
-
-  @override
-  String get diy_editTimeConditionTitle => '編輯時間條件';
 
   @override
   String get diy_timeDefaultName => '時間條件';

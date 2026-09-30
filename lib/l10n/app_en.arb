@@ -1925,11 +1925,7 @@
   "tooltip_fullscreenEdit": "Fullscreen Edit",
   "tooltip_decreaseWeight": "Decrease Weight [-5%]",
   "tooltip_increaseWeight": "Increase Weight [+5%]",
-  "tooltip_edit": "Edit",
   "tooltip_copy": "Copy",
-  "tooltip_delete": "Delete",
-  "tooltip_enable": "Enable",
-  "tooltip_disable": "Disable",
   "tooltip_resetWeight": "Click to reset to 100%",
 
   "upscale_scale": "Scale Factor",
@@ -1964,16 +1960,7 @@
   "gelbooru_unknownError": "Gelbooru verification failed. Try again later.",
 
   "weight_title": "Weight",
-  "weight_reset": "Reset",
-  "weight_done": "Done",
-  "weight_noBrackets": "No brackets",
-  "weight_editTag": "Edit Tag",
-  "weight_tagName": "Tag Name",
-  "weight_tagNameHint": "Enter tag name...",
 
-  "tag_enable": "Enable",
-  "tag_disable": "Disable",
-  "tag_delete": "Delete",
   "tag_addTag": "Add Tag",
 
   "tagCategory_artist": "Artist",
@@ -5714,65 +5701,6 @@
   "pagination_itemsPerPage": "Per page",
   "pagination_itemUnit": "items",
 
-  "diyGuide_title": "DIY Feature Guide",
-  "diyGuide_subtitle": "Learn advanced features and create your own library",
-  "diyGuide_intro": "This guide explains the core concepts and advanced features of the DIY system, helping you build powerful dynamic prompt libraries.",
-  "diyGuide_exampleLabel": "Example",
-  "diyGuide_hierarchyTitle": "Hierarchy",
-  "diyGuide_hierarchyDescription": "The DIY system uses a three-level category structure to organize prompts for easier management and lookup.",
-  "diyGuide_hierarchyExample": "Category: Character features\n  -> Group: Hairstyle\n      -> Tag: long hair, short hair, twintails",
-  "diyGuide_selectionModeTitle": "Selection Mode",
-  "diyGuide_selectionModeDescription": "Controls how many tags are selected from a group.",
-  "diyGuide_selectionModeExample": "• Random: select one item each time, such as a random hair color\n• All: select every tag in the group, such as a fixed feature set",
-  "diyGuide_weightTitle": "Weight Control",
-  "diyGuide_weightDescription": "Adjusts the influence of specific prompts during generation.",
-  "diyGuide_weightExample": "• Boost: curly brackets around masterpiece = 1.05x weight\n• Strong boost: triple curly brackets around masterpiece = 1.16x weight\n• Weaken: [bad hands] = 0.95x weight",
-  "diyGuide_genderTitle": "Gender Restriction",
-  "diyGuide_genderDescription": "Limits tags to specific character genders to avoid incompatible generated features.",
-  "diyGuide_genderExample": "• Female: only female characters, such as skirt\n• Male: only male characters, such as beard\n• Any: universal, such as T-shirt",
-  "diyGuide_scopeTitle": "Scope",
-  "diyGuide_scopeDescription": "Defines whether a tag applies to the character, background, or the whole image.",
-  "diyGuide_scopeExample": "• Character: character features, such as eyes and hair\n• Background: environment descriptions, such as blue sky and indoors\n• Global: art style and quality tags, such as best quality",
-  "diyGuide_conditionalTitle": "Conditional Branch",
-  "diyGuide_conditionalDescription": "Dynamically chooses later tags based on selected tags or other conditions.",
-  "diyGuide_conditionalExample": "IF selected \"rain\"\n  THEN add \"umbrella\" and \"wet clothes\"\n  ELSE add \"sunny\"",
-  "diyGuide_dependenciesTitle": "Dependencies",
-  "diyGuide_dependenciesDescription": "Creates links between tags so related tags are automatically introduced when one tag is selected.",
-  "diyGuide_dependenciesExample": "Selecting \"JK uniform\" -> automatically adds \"school background\" and \"school bag\"",
-  "diyGuide_visibilityTitle": "Visibility Rules",
-  "diyGuide_visibilityDescription": "Controls when tags are shown in the UI or become active during generation.",
-  "diyGuide_visibilityExample": "Only show the \"magic wand\" option group when the \"magical girl\" category is selected",
-  "diyGuide_timeTitle": "Time Condition",
-  "diyGuide_timeDescription": "Triggers specific tags based on real time or configured simulated time.",
-  "diyGuide_timeExample": "• 06:00-18:00 -> add \"daylight\"\n• 18:00-06:00 -> add \"night\"",
-  "diyGuide_postProcessingTitle": "Post-processing Rules",
-  "diyGuide_postProcessingDescription": "Runs text replacement or cleanup at the final stage of prompt generation.",
-  "diyGuide_postProcessingExample": "Replace every \"blue eyes\" with \"azure eyes\" for a more distinctive description",
-  "diyGuide_emphasisTitle": "Emphasis Probability",
-  "diyGuide_emphasisDescription": "Randomly adds weight syntax to tags to increase output variety.",
-  "diyGuide_emphasisExample": "Set a 30% probability: about 1/3 of outputs use a weighted tag and 2/3 output the plain tag",
-
-  "naiRules_title": "NAI Random Rules",
-  "naiRules_characterCountProbability": "Character Count Probability",
-  "naiRules_solo": "1 person (Solo)",
-  "naiRules_duo": "2 people (Duo)",
-  "naiRules_trio": "3 people (Trio)",
-  "naiRules_group": "4 people (Group)",
-  "naiRules_genderRules": "Gender Rules",
-  "naiRules_female": "Female",
-  "naiRules_male": "Male",
-  "naiRules_mixed": "Mixed / Other",
-  "naiRules_categoryProbability": "Category Probability",
-  "naiRules_dynamicTagWeightTitle": "Dynamic Tag Weight Adjustment",
-  "naiRules_dynamicTagWeightSubtitle": "Randomly combines multiple dimensions such as action, clothing, expression, and background, then adjusts category weights based on the image theme.",
-  "naiRules_specialMechanisms": "Special Mechanisms",
-  "naiRules_tagStrengthening": "Tag Strengthening",
-  "naiRules_seasonalLibraryTitle": "Seasonal Library",
-  "naiRules_seasonalLibrarySubtitle": "Automatically matches seasonal features, including seasonal clothing, weather, lighting, and atmosphere.",
-  "naiRules_v4CharacterPositioning": "V4 Multi-character Positioning",
-  "naiRules_smartPositionTitle": "Smart Position Assignment",
-  "naiRules_smartPositionSubtitle": "With V4 models, character positioning syntax is used to precisely control multi-character placement.",
-
   "comfyImport_detectedTitle": "Detected ComfyUI multi-character prompt",
   "comfyImport_characterList": "Character List ({count})",
   "@comfyImport_characterList": {
@@ -6131,7 +6059,6 @@
     }
   },
 
-  "diy_editDependencyTitle": "Edit Dependency",
   "diy_dependencyTitle": "Dependency Settings",
   "diy_dependencySubtitle": "Configure dependencies between tag selections",
   "diy_dependencyType": "Dependency Type",
@@ -6160,7 +6087,6 @@
   "diy_dependencyValueDescription": "Depend on a specific selected tag value in the source category",
   "diy_dependencyExcludesDescription": "Do not apply when the source category has a selected tag",
 
-  "diy_editConditionalTitle": "Edit Conditional Branches",
   "diy_conditionalDefaultName": "Conditional Branches",
   "diy_branchDefaultName": "Branch {index}",
   "@diy_branchDefaultName": {
@@ -6240,26 +6166,6 @@
     }
   },
 
-  "diy_emphasisTitle": "Global Emphasis",
-  "diy_emphasisSubtitle": "Adjust tag emphasis effects",
-  "diy_emphasisProbability": "Emphasis Probability",
-  "diy_emphasisProbabilityHint": "Each selected tag has a {percent}% chance of receiving emphasis brackets",
-  "@diy_emphasisProbabilityHint": {
-    "placeholders": {
-      "percent": {"type": "String"}
-    }
-  },
-  "diy_bracketCount": "Bracket Layers",
-  "diy_bracketLayers": "{count} layers",
-  "@diy_bracketLayers": {
-    "placeholders": {
-      "count": {"type": "int"}
-    }
-  },
-  "diy_effectPreview": "Effect Preview",
-  "diy_exampleTag": "example tag",
-  "diy_emphasisExplanation": "Emphasis brackets increase tag weight; more layers apply a higher weight",
-
   "diy_presetExportFailed": "Failed to export preset: {error}",
   "@diy_presetExportFailed": {
     "placeholders": {
@@ -6301,7 +6207,6 @@
   "diy_conditionValueInList": "Value Is in List",
   "diy_conditionValueNotInList": "Value Is Not in List",
 
-  "diy_editTimeConditionTitle": "Edit Time Condition",
   "diy_timeDefaultName": "Time Condition",
   "diy_timeTitle": "Time Condition",
   "diy_timeSubtitle": "Activate within a specific date range",
