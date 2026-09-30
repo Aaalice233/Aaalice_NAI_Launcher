@@ -189,7 +189,10 @@ class ImageSaveUtils {
   }) async {
     final existingMetadata = _extractEmbeddedPngMetadata(imageBytes);
     if (preserveExistingNovelAiMetadata &&
-        _hasReadableNovelAiMetadata(imageBytes, existingMetadata)) {
+        await _hasReadableNovelAiMetadataInBackground(
+          imageBytes,
+          existingMetadata,
+        )) {
       AppLogger.i(
         'Preserving existing NovelAI metadata without rewriting image bytes',
         'ImageSaveUtils',
@@ -478,10 +481,23 @@ class ImageSaveUtils {
     Uint8List imageBytes,
     _EmbeddedPngMetadata? embeddedMetadata,
   ) {
-    if (embeddedMetadata != null) {
-      return true;
-    }
+    return embeddedMetadata != null || _parsesAsNovelAiMetadata(imageBytes);
+  }
 
+  // 缺少文本块时解析会整图解码查找 stealth 数据，只把这一步放到后台。
+  static Future<bool> _hasReadableNovelAiMetadataInBackground(
+    Uint8List imageBytes,
+    _EmbeddedPngMetadata? embeddedMetadata,
+  ) async {
+    if (embeddedMetadata != null) return true;
+    return ComputeGate().runCompute(
+      _parsesAsNovelAiMetadata,
+      imageBytes,
+      debugLabel: 'detect-novelai-metadata',
+    );
+  }
+
+  static bool _parsesAsNovelAiMetadata(Uint8List imageBytes) {
     final result = UnifiedMetadataParser.parseFromPng(imageBytes);
     if (!result.success) {
       return false;
@@ -658,7 +674,10 @@ class ImageSaveUtils {
     final rebuilt =
         !preserveOriginalBytes &&
         metadata != null &&
-        !hasEmbeddedNovelAiMetadata(imageBytes);
+        !await _hasReadableNovelAiMetadataInBackground(
+          imageBytes,
+          _extractEmbeddedPngMetadata(imageBytes),
+        );
     if (!rebuilt) return PreparedResultImage._(imageBytes, null);
     return PreparedResultImage._(
       await _embedOwnMetadata(imageBytes: imageBytes, metadata: metadata),
