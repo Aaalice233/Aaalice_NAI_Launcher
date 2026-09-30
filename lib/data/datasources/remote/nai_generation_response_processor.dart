@@ -1,3 +1,4 @@
+import 'dart:collection';
 import 'dart:convert';
 import 'dart:typed_data';
 import 'dart:ui';
@@ -99,7 +100,7 @@ class NaiGenerationResponseProcessor {
     NaiGenerationResponseContext context, {
     required CancelToken cancelToken,
   }) async* {
-    final buffer = <int>[];
+    final frames = _LengthPrefixedFrameBuffer();
     final completedSamples = <int>{};
     final expectedSamples = context.originalParams.nSamples <= 0
         ? 1
@@ -111,15 +112,13 @@ class NaiGenerationResponseProcessor {
         yield ImageStreamChunk.error('Cancelled');
         return;
       }
-      buffer.addAll(chunk);
+      frames.add(chunk);
 
-      while (buffer.length >= 4) {
-        final messageLength = _readLength(buffer);
-        if (buffer.length < 4 + messageLength) break;
-        final messageBytes = Uint8List.fromList(
-          buffer.sublist(4, 4 + messageLength),
-        );
-        buffer.removeRange(0, 4 + messageLength);
+      for (
+        var messageBytes = frames.takeFrame();
+        messageBytes != null;
+        messageBytes = frames.takeFrame()
+      ) {
         messageCount += 1;
 
         try {
@@ -167,9 +166,9 @@ class NaiGenerationResponseProcessor {
       }
     }
 
-    if (buffer.isNotEmpty) {
+    if (frames.isNotEmpty) {
       try {
-        final bytes = Uint8List.fromList(buffer);
+        final bytes = frames.takeRemaining();
         if (_isZip(bytes)) {
           final images = await ZipUtils.extractAllImagesAsync(bytes);
           // 解压在后台进行，期间取消的请求与流式阶段一样以取消收尾
@@ -354,5 +353,69 @@ class NaiGenerationResponseProcessor {
     if (value is int) return value;
     if (value is num) return value.toInt();
     return null;
+  }
+}
+
+/// 按块累积流式响应，按 4 字节大端长度前缀切出完整帧。
+///
+/// 帧内容整段复制到新缓冲区，与此前逐字节复制得到的结果一致，但不再逐元素搬运。
+class _LengthPrefixedFrameBuffer {
+  final _chunks = ListQueue<Uint8List>();
+  int _headOffset = 0;
+  int _length = 0;
+
+  bool get isNotEmpty => _length > 0;
+
+  void add(Uint8List chunk) {
+    if (chunk.isEmpty) return;
+    _chunks.add(chunk);
+    _length += chunk.length;
+  }
+
+  /// 下一帧已完整到达时取出帧内容（不含长度前缀），否则返回 null。
+  Uint8List? takeFrame() {
+    if (_length < 4) return null;
+    final messageLength =
+        (_byteAt(0) << 24) |
+        (_byteAt(1) << 16) |
+        (_byteAt(2) << 8) |
+        _byteAt(3);
+    if (_length < 4 + messageLength) return null;
+    _advance(4);
+    return _take(messageLength);
+  }
+
+  Uint8List takeRemaining() => _take(_length);
+
+  int _byteAt(int index) {
+    var remaining = _headOffset + index;
+    for (final chunk in _chunks) {
+      if (remaining < chunk.length) return chunk[remaining];
+      remaining -= chunk.length;
+    }
+    throw RangeError.index(index, this, 'index', null, _length);
+  }
+
+  Uint8List _take(int count) {
+    final bytes = Uint8List(count);
+    _advance(count, into: bytes);
+    return bytes;
+  }
+
+  void _advance(int count, {Uint8List? into}) {
+    var consumed = 0;
+    while (consumed < count) {
+      final chunk = _chunks.first;
+      final available = chunk.length - _headOffset;
+      final step = available < count - consumed ? available : count - consumed;
+      into?.setRange(consumed, consumed + step, chunk, _headOffset);
+      consumed += step;
+      _headOffset += step;
+      if (_headOffset == chunk.length) {
+        _chunks.removeFirst();
+        _headOffset = 0;
+      }
+    }
+    _length -= count;
   }
 }
