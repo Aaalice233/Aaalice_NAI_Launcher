@@ -5,6 +5,7 @@ import 'package:hive/hive.dart';
 import '../../../core/constants/storage_keys.dart';
 import '../../../core/utils/app_logger.dart';
 import '../../models/gallery/nai_image_metadata.dart';
+import 'metadata_cache_entry_codec.dart';
 
 /// 元数据缓存管理器
 ///
@@ -78,7 +79,10 @@ class MetadataCacheManager {
   NaiImageMetadata? getFromPersistent(String hash) {
     try {
       final box = _getBox();
-      final jsonString = box.get(hash);
+      final raw = box.get(hash);
+      final jsonString = raw == null
+          ? null
+          : MetadataCacheEntryCodec.metadataJsonOf(raw);
       if (jsonString == null) {
         _persistentCacheMisses++;
         return null;
@@ -104,7 +108,13 @@ class MetadataCacheManager {
     // L2 持久化缓存
     try {
       final box = _getBox();
-      await box.put(hash, jsonEncode(metadata.toJson()));
+      await box.put(
+        hash,
+        MetadataCacheEntryCodec.encode(
+          jsonEncode(metadata.toJson()),
+          writtenAtMillis: DateTime.now().millisecondsSinceEpoch,
+        ),
+      );
     } catch (e) {
       AppLogger.w(
         'Failed to save to persistent cache: $e',
@@ -168,6 +178,18 @@ class MetadataCacheManager {
 
   /// 内存缓存大小
   int get memorySize => _memoryCache.length;
+
+  /// 内存缓存估算字节数：按各条目序列化后的字符数计 UTF-16 宽度
+  int get estimatedMemoryBytes {
+    final box = _persistentBox;
+    final openBox = box != null && box.isOpen ? box : null;
+    var codeUnits = 0;
+    for (final entry in _memoryCache.entries) {
+      final stored = openBox?.get(entry.key);
+      codeUnits += stored?.length ?? jsonEncode(entry.value.toJson()).length;
+    }
+    return codeUnits * 2;
+  }
 
   /// 持久化缓存大小
   int get persistentSize {
@@ -245,6 +267,8 @@ class _LRUCache<K, V> {
   _LRUCache({required this.capacity});
 
   int get length => _map.length;
+
+  Iterable<MapEntry<K, V>> get entries => _map.entries;
 
   V? get(K key) {
     final value = _map.remove(key);
