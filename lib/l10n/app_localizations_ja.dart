@@ -4732,6 +4732,14 @@ class AppLocalizationsJa extends AppLocalizations {
   }
 
   @override
+  String get generation_emptyInpaintMask => 'インペイントマスクがサンプリング後に空になりました';
+
+  @override
+  String generation_emptyInpaintMaskHint(int gridSize) {
+    return 'マスクが細すぎるか小さすぎるため、$gridSize ピクセル単位のグリッドでサンプリングすると再描画する領域が残りません。マスクを太くするか広げてから、もう一度お試しください。';
+  }
+
+  @override
   String get api_error_429 => '同時実行制限に達しました';
 
   @override

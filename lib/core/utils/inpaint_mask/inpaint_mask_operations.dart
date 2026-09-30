@@ -720,6 +720,9 @@ class InpaintMaskUtils {
         requestHeight: targetHeight,
         latentWidth: latentWidth,
         latentHeight: latentHeight,
+        latentGridSize: latentGridSize,
+        // Undecodable bytes are forwarded untouched, so emptiness is unknown.
+        isLatentMaskEmpty: false,
       );
     }
 
@@ -829,6 +832,8 @@ class InpaintMaskUtils {
       requestHeight: targetHeight,
       latentWidth: latentWidth,
       latentHeight: latentHeight,
+      latentGridSize: latentGridSize,
+      isLatentMaskEmpty: !latentBinaryMask.contains(1),
     );
   }
 

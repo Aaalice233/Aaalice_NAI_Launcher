@@ -2059,6 +2059,15 @@
       }
     }
   },
+  "generation_emptyInpaintMask": "重繪蒙版取樣後為空",
+  "generation_emptyInpaintMaskHint": "蒙版太細或太小，按 {gridSize} 像素網格取樣後沒有留下可重繪的區域。請加粗或擴大蒙版後重試。",
+  "@generation_emptyInpaintMaskHint": {
+    "placeholders": {
+      "gridSize": {
+        "type": "int"
+      }
+    }
+  },
   "api_error_429": "併發限制",
   "api_error_429_hint": "請求過於頻繁，請稍後重試（常見於合租賬號）",
   "api_error_401": "認證失敗",

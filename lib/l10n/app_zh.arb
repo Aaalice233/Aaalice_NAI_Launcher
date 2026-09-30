@@ -2031,6 +2031,13 @@
       "suggestedHeight": { "type": "int" }
     }
   },
+  "generation_emptyInpaintMask": "重绘蒙版采样后为空",
+  "generation_emptyInpaintMaskHint": "蒙版太细或太小，按 {gridSize} 像素网格采样后没有留下可重绘的区域。请加粗或扩大蒙版后重试。",
+  "@generation_emptyInpaintMaskHint": {
+    "placeholders": {
+      "gridSize": { "type": "int" }
+    }
+  },
 
   "api_error_429": "并发限制",
   "api_error_429_hint": "请求过于频繁，请稍后重试（常见于合租账号）",

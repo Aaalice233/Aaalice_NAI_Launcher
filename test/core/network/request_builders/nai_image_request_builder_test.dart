@@ -7,6 +7,7 @@ import 'package:nai_launcher/core/constants/api_constants.dart';
 import 'package:nai_launcher/core/enums/image_model_mode.dart';
 import 'package:nai_launcher/core/enums/precise_ref_type.dart';
 import 'package:nai_launcher/core/network/request_builders/nai_image_request_builder.dart';
+import 'package:nai_launcher/core/utils/inpaint_mask_utils.dart';
 import 'package:nai_launcher/core/utils/nai_api_utils.dart';
 import 'package:nai_launcher/data/models/image/image_params.dart';
 import 'package:nai_launcher/data/models/vibe/vibe_reference.dart';
@@ -1421,6 +1422,58 @@ void main() {
       },
     );
 
+    test('should reject infill masks that sample to no latent cell', () async {
+      img.Image blackMask({int channels = 4}) {
+        final mask = img.Image(width: 128, height: 128, numChannels: channels);
+        if (channels == 4) {
+          img.fill(mask, color: img.ColorRgba8(0, 0, 0, 255));
+        }
+        return mask;
+      }
+
+      final thinLine = blackMask();
+      for (var y = 0; y < 128; y++) {
+        thinLine.setPixelRgba(10, y, 255, 255, 255, 255);
+      }
+      final lowGrayPluginMask = blackMask(channels: 1);
+      for (var y = 32; y < 96; y++) {
+        for (var x = 32; x < 96; x++) {
+          lowGrayPluginMask.setPixelR(x, y, 39);
+        }
+      }
+      final masks = {
+        'thin line': thinLine,
+        'raw 39 gray selection': lowGrayPluginMask,
+        'all black': blackMask(),
+      };
+
+      for (final entry in masks.entries) {
+        final builder = NAIImageRequestBuilder(
+          params: ImageParams(
+            action: ImageGenerationAction.infill,
+            model: 'nai-diffusion-4-5-full',
+            width: 128,
+            height: 128,
+            sourceImage: _validPngBytes(width: 128, height: 128),
+            maskImage: Uint8List.fromList(img.encodePng(entry.value)),
+          ),
+          encodeVibe: _fakeEncodeVibe,
+        );
+
+        await expectLater(
+          builder.build(sampler: 'k_euler'),
+          throwsA(
+            isA<EmptyInpaintMaskException>().having(
+              (error) => error.latentGridSize,
+              'latentGridSize',
+              8,
+            ),
+          ),
+          reason: entry.key,
+        );
+      }
+    });
+
     test(
       'should normalize infill source image to request dimensions',
       () async {
@@ -1430,7 +1483,7 @@ void main() {
           width: 128,
           height: 128,
           sourceImage: _validPngBytes(width: 256, height: 128),
-          maskImage: _validPngBytes(width: 128, height: 128),
+          maskImage: _solidPngBytes(width: 128, height: 128),
         );
 
         final builder = NAIImageRequestBuilder(

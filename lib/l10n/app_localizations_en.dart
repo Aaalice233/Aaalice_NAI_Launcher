@@ -4850,6 +4850,15 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get generation_emptyInpaintMask =>
+      'Inpaint mask is empty after sampling';
+
+  @override
+  String generation_emptyInpaintMaskHint(int gridSize) {
+    return 'The mask is too thin or too small: nothing is left to repaint after sampling it on the $gridSize-pixel grid. Make the mask thicker or larger and try again.';
+  }
+
+  @override
   String get api_error_429 => 'Concurrency limit reached';
 
   @override

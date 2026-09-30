@@ -31,7 +31,6 @@ import '../../../../data/models/image/image_stream_chunk.dart';
 import '../../../providers/alias_resolver_service.dart';
 import '../../../../data/services/image_metadata_service.dart';
 import '../../../adaptive/window_size_class.dart';
-import '../../../providers/generation/generation_error_classifier.dart';
 import '../../../providers/generation/generation_params_selectors.dart';
 import '../../../providers/generation/image_generation_selectors.dart';
 import '../../../providers/generation/generation_view_state_provider.dart';
@@ -42,7 +41,6 @@ import '../../../providers/character_prompt_provider.dart';
 import '../../../providers/fixed_tags_provider.dart';
 import '../../../providers/image_generation_provider.dart';
 import '../../../providers/preview_transparency_provider.dart';
-import '../../../providers/prompt_config_provider.dart';
 import '../../../providers/reverse_prompt_provider.dart';
 import '../../../providers/tag_library_page_provider.dart';
 import '../../../providers/shortcuts_provider.dart';
@@ -54,6 +52,7 @@ import '../../../widgets/common/image_detail/image_detail_viewer.dart';
 import '../../../widgets/common/selectable_image_card.dart';
 import '../../../widgets/common/transparency_background.dart';
 import '../../../widgets/discord_share/discord_share_dialog.dart';
+import '../../../widgets/generation/generation_error_text.dart';
 import '../../../widgets/image_editor/image_editor_screen.dart';
 import '../../../utils/fixed_tag_metadata_matcher.dart';
 import '../../../utils/image_detail_opener.dart';
@@ -533,122 +532,50 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> {
     BuildContext context,
   ) {
     // 解析错误代码和详情
-    final (errorTitle, errorHint) = _parseApiError(message, context);
+    final (errorTitle, errorHint) = describeGenerationError(context, message);
 
-    return Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        Icon(Icons.error_outline, size: 64, color: theme.colorScheme.error),
-        const SizedBox(height: 16),
-        Text(
-          errorTitle,
-          style: theme.textTheme.titleMedium?.copyWith(
-            color: theme.colorScheme.error,
+    // 窄屏或大字号下提示会超出预览区高度，内容放不下时改为滚动。
+    return LayoutBuilder(
+      builder: (context, constraints) => SingleChildScrollView(
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            minWidth: constraints.maxWidth,
+            minHeight: constraints.maxHeight,
+          ),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                Icons.error_outline,
+                size: 64,
+                color: theme.colorScheme.error,
+              ),
+              const SizedBox(height: 16),
+              Text(
+                errorTitle,
+                style: theme.textTheme.titleMedium?.copyWith(
+                  color: theme.colorScheme.error,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              if (errorHint != null) ...[
+                const SizedBox(height: 8),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 32),
+                  child: Text(
+                    errorHint,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+              ],
+            ],
           ),
         ),
-        if (errorHint != null) ...[
-          const SizedBox(height: 8),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 32),
-            child: Text(
-              errorHint,
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
-              ),
-              textAlign: TextAlign.center,
-            ),
-          ),
-        ],
-      ],
+      ),
     );
-  }
-
-  /// 解析 API 错误代码，返回 (标题, 提示)
-  (String, String?) _parseApiError(String? message, BuildContext context) {
-    if (message == null || message.isEmpty) {
-      return (context.l10n.generation_generationFailed, null);
-    }
-
-    if (isStreamingGenerationUnsupportedError(message)) {
-      return (
-        context.l10n.generation_streamingUnsupported,
-        context.l10n.generation_streamingUnsupportedHint,
-      );
-    }
-
-    // 取消操作
-    if (message == 'Cancelled') {
-      return (context.l10n.generation_cancelGeneration, null);
-    }
-
-    // 解析错误代码格式: "ERROR_CODE|详情"
-    final parts = message.split('|');
-    final errorCode = parts[0];
-    final details = parts.length > 1 ? parts[1] : null;
-
-    switch (errorCode) {
-      case 'AUTH_REQUIRED':
-        return (
-          context.l10n.settings_notLoggedIn,
-          context.l10n.settings_goToLoginPage,
-        );
-      case UnsupportedRandomPromptModelException.errorCode:
-        return (
-          context.l10n.randomPrompt_unsupportedModel,
-          context.l10n.randomPrompt_unsupportedModelHint,
-        );
-      case 'GENERATION_ERROR_INVALID_RESOLUTION':
-        if (parts.length >= 5) {
-          final width = int.tryParse(parts[1]);
-          final height = int.tryParse(parts[2]);
-          final suggestedWidth = int.tryParse(parts[3]);
-          final suggestedHeight = int.tryParse(parts[4]);
-          if (width != null &&
-              height != null &&
-              suggestedWidth != null &&
-              suggestedHeight != null) {
-            return (
-              context.l10n.generation_invalidResolution,
-              context.l10n.generation_invalidResolutionHint(
-                width,
-                height,
-                suggestedWidth,
-                suggestedHeight,
-              ),
-            );
-          }
-        }
-        return (context.l10n.generation_invalidResolution, message);
-      case 'API_ERROR_429':
-        return (context.l10n.api_error_429, context.l10n.api_error_429_hint);
-      case 'API_ERROR_401':
-        return (context.l10n.api_error_401, context.l10n.api_error_401_hint);
-      case 'API_ERROR_402':
-        return (context.l10n.api_error_402, context.l10n.api_error_402_hint);
-      case 'API_ERROR_400':
-        return ('${context.l10n.common_error} (400)', details);
-      case 'API_ERROR_500':
-        return (context.l10n.api_error_500, context.l10n.api_error_500_hint);
-      case 'API_ERROR_503':
-        return (context.l10n.api_error_503, context.l10n.api_error_503_hint);
-      case 'API_ERROR_TIMEOUT':
-        return (
-          context.l10n.api_error_timeout,
-          context.l10n.api_error_timeout_hint,
-        );
-      case 'API_ERROR_NETWORK':
-        return (
-          context.l10n.api_error_network,
-          context.l10n.api_error_network_hint,
-        );
-      default:
-        // 未知错误或其他 HTTP 错误
-        if (errorCode.startsWith('API_ERROR_HTTP_')) {
-          final code = errorCode.replaceFirst('API_ERROR_HTTP_', '');
-          return ('${context.l10n.common_error} (HTTP $code)', details);
-        }
-        return (context.l10n.generation_generationFailed, message);
-    }
   }
 
   Widget _buildImageView(

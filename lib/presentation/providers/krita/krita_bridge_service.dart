@@ -488,6 +488,9 @@ class KritaBridgeService implements KritaBridgeMessageService {
   }
 
   KritaBridgeErrorCode _mapErrorCode(Object error) {
+    if (EmptyInpaintMaskException.tryParse(error) != null) {
+      return KritaBridgeErrorCode.emptyMask;
+    }
     final message = error.toString().toLowerCase();
     if (message.contains('401') ||
         message.contains('unauthorized') ||

@@ -74,6 +74,8 @@ class NovelAiInpaintMaskArtifacts {
     required this.requestHeight,
     required this.latentWidth,
     required this.latentHeight,
+    required this.latentGridSize,
+    required this.isLatentMaskEmpty,
   });
 
   final Uint8List requestMaskBytes;
@@ -83,4 +85,6 @@ class NovelAiInpaintMaskArtifacts {
   final int requestHeight;
   final int latentWidth;
   final int latentHeight;
+  final int latentGridSize;
+  final bool isLatentMaskEmpty;
 }
