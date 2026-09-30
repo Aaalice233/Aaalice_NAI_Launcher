@@ -5064,6 +5064,25 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
+  String randomManager_branchOutputBadge(String name) {
+    return '由「$name」的条件分支输出';
+  }
+
+  @override
+  String randomManager_branchOutputBadgeMultiple(String name, int count) {
+    return '由「$name」等 $count 处条件分支输出';
+  }
+
+  @override
+  String get randomManager_branchOutputTooltip =>
+      '这个词组不参与类别的常规抽取，只在引用它的分支被选中时输出；停用或删除这些分支后恢复常规抽取。点按可跳转到该分支';
+
+  @override
+  String randomManager_deleteBranchTargetWarning(String names) {
+    return '「$names」的条件分支引用了这个词组，删除后这些分支里的这一项会显示为已失效';
+  }
+
+  @override
   String randomManager_tagGroupCount(Object count) {
     return '$count 个词组';
   }
@@ -11927,6 +11946,77 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get diy_enableBranch => '启用此分支';
+
+  @override
+  String get diy_branchTargets => '输出的词组';
+
+  @override
+  String get diy_branchTargetsHint =>
+      '选中的词组只在该分支被选中时输出，并按本词组的选择模式从中抽取；不选时输出本词组自己的标签';
+
+  @override
+  String get diy_branchTargetsEmpty => '本类别没有其他词组';
+
+  @override
+  String diy_branchTargetChild(String name) {
+    return '子词组：$name';
+  }
+
+  @override
+  String get diy_branchTargetCycle => '会形成循环引用';
+
+  @override
+  String get diy_branchTargetCycleHint => '灰色的词组已经直接或间接输出本词组，选择会形成循环引用';
+
+  @override
+  String diy_branchTargetCount(int count) {
+    return '输出 $count 个词组';
+  }
+
+  @override
+  String get diy_branchConditions => '条件';
+
+  @override
+  String get diy_branchConditionsHint =>
+      '只能引用在本词组之前生成的类别和分支；条件值按标签比较，忽略大小写、下划线与权重写法。没有条件时分支总是可选';
+
+  @override
+  String get diy_addCondition => '添加条件';
+
+  @override
+  String get diy_deleteCondition => '删除条件';
+
+  @override
+  String get diy_conditionSource => '变量';
+
+  @override
+  String get diy_conditionValueRequired => '请填写条件值';
+
+  @override
+  String get diy_conditionLogicAll => '全部满足';
+
+  @override
+  String get diy_conditionLogicAny => '任一满足';
+
+  @override
+  String get diy_conditionSourceGender => '角色性别';
+
+  @override
+  String diy_conditionSourceBranch(String name) {
+    return '$name 的分支';
+  }
+
+  @override
+  String get diy_conditionValueHintCategory => '如 blue eyes';
+
+  @override
+  String get diy_conditionValueHintGender => '如 girl、boy';
+
+  @override
+  String get diy_conditionValueHintCount => '如 1、2、3';
+
+  @override
+  String get diy_conditionValueHintBranch => '填写分支名称';
 
   @override
   String diy_ruleDefaultName(int index) {
@@ -20125,6 +20215,25 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   }
 
   @override
+  String randomManager_branchOutputBadge(String name) {
+    return '由「$name」的條件分支輸出';
+  }
+
+  @override
+  String randomManager_branchOutputBadgeMultiple(String name, int count) {
+    return '由「$name」等 $count 處條件分支輸出';
+  }
+
+  @override
+  String get randomManager_branchOutputTooltip =>
+      '這個片語不參與類別的常規抽取，只在參照它的分支被選中時輸出；停用或刪除這些分支後恢復常規抽取。點按可跳轉到該分支';
+
+  @override
+  String randomManager_deleteBranchTargetWarning(String names) {
+    return '「$names」的條件分支參照了這個片語，刪除後這些分支裡的這一項會顯示為已失效';
+  }
+
+  @override
   String randomManager_tagGroupCount(Object count) {
     return '$count 個片語';
   }
@@ -26988,6 +27097,77 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get diy_enableBranch => '啟用此分支';
+
+  @override
+  String get diy_branchTargets => '輸出的片語';
+
+  @override
+  String get diy_branchTargetsHint =>
+      '選中的片語只在該分支被選中時輸出，並按本片語的選擇模式從中抽取；不選時輸出本片語自己的標籤';
+
+  @override
+  String get diy_branchTargetsEmpty => '本類別沒有其他片語';
+
+  @override
+  String diy_branchTargetChild(String name) {
+    return '子片語：$name';
+  }
+
+  @override
+  String get diy_branchTargetCycle => '會形成循環參照';
+
+  @override
+  String get diy_branchTargetCycleHint => '灰色的片語已經直接或間接輸出本片語，選擇會形成循環參照';
+
+  @override
+  String diy_branchTargetCount(int count) {
+    return '輸出 $count 個片語';
+  }
+
+  @override
+  String get diy_branchConditions => '條件';
+
+  @override
+  String get diy_branchConditionsHint =>
+      '只能參照在本片語之前生成的類別和分支；條件值按標籤比較，忽略大小寫、底線與權重寫法。沒有條件時分支總是可選';
+
+  @override
+  String get diy_addCondition => '新增條件';
+
+  @override
+  String get diy_deleteCondition => '刪除條件';
+
+  @override
+  String get diy_conditionSource => '變數';
+
+  @override
+  String get diy_conditionValueRequired => '請填寫條件值';
+
+  @override
+  String get diy_conditionLogicAll => '全部滿足';
+
+  @override
+  String get diy_conditionLogicAny => '任一滿足';
+
+  @override
+  String get diy_conditionSourceGender => '角色性別';
+
+  @override
+  String diy_conditionSourceBranch(String name) {
+    return '$name 的分支';
+  }
+
+  @override
+  String get diy_conditionValueHintCategory => '如 blue eyes';
+
+  @override
+  String get diy_conditionValueHintGender => '如 girl、boy';
+
+  @override
+  String get diy_conditionValueHintCount => '如 1、2、3';
+
+  @override
+  String get diy_conditionValueHintBranch => '填寫分支名稱';
 
   @override
   String diy_ruleDefaultName(int index) {

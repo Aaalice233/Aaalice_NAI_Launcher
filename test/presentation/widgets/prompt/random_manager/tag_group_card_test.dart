@@ -3,6 +3,7 @@ import 'package:flutter/semantics.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/data/models/prompt/conditional_branch.dart';
+import 'package:nai_launcher/data/models/prompt/conditional_branch_targets.dart';
 import 'package:nai_launcher/data/models/prompt/dependency_config.dart';
 import 'package:nai_launcher/data/models/prompt/post_process_rule.dart';
 import 'package:nai_launcher/data/models/prompt/random_category.dart';
@@ -575,6 +576,132 @@ void main() {
     }
   });
 
+  group('条件分支输出同类别词组', () {
+    const owner = RandomTagGroup(
+      id: 'reference',
+      name: '引用词组',
+      conditionalBranchConfig: ConditionalBranchConfig(
+        id: 'outfit',
+        name: '服装类型',
+        branches: [
+          ConditionalBranch(name: '制服', tagGroupIds: ['sailor', 'deleted']),
+        ],
+      ),
+    );
+    const sailor = RandomTagGroup(id: 'sailor', name: '水手服');
+    // 已输出引用词组，再被它选为目标会形成循环
+    const blazer = RandomTagGroup(
+      id: 'blazer',
+      name: '西装',
+      conditionalBranchConfig: ConditionalBranchConfig(
+        id: 'back',
+        name: 'back',
+        branches: [
+          ConditionalBranch(name: '回到引用词组', tagGroupIds: ['reference']),
+        ],
+      ),
+    );
+    const categories = [
+      RandomCategory(
+        id: 'cat-hair',
+        name: '发色',
+        key: 'hairColor',
+        groups: [owner, sailor, blazer],
+      ),
+      RandomCategory(id: 'cat-outfit', name: '服装', key: 'custom2'),
+    ];
+
+    testWidgets('分支可选同类别词组与条件，循环目标不可选，已删除的目标显示为已失效', (tester) async {
+      final notifier = _EditablePresetNotifier(categories);
+      await _pumpReferenceCard(tester, notifier: notifier, group: owner);
+      await _openDiyForm(tester, '条件分支', groupName: owner.name);
+
+      final form = _formSurfaces().last;
+      await tester.tap(
+        find.descendant(of: form, matching: find.text('制服')).last,
+      );
+      await tester.pumpAndSettle();
+
+      FilterChip chip(String label) => tester.widget<FilterChip>(
+        find.ancestor(of: find.text(label), matching: find.byType(FilterChip)),
+      );
+      expect(chip('水手服').selected, isTrue);
+      expect(chip('西装').onSelected, isNull);
+      expect(find.byTooltip('会形成循环引用'), findsOneWidget);
+      expect(find.text('灰色的词组已经直接或间接输出本词组，选择会形成循环引用'), findsOneWidget);
+
+      final missing = find.ancestor(
+        of: find.text('已失效：deleted'),
+        matching: find.byType(InputChip),
+      );
+      await tester.ensureVisible(missing);
+      await tester.tap(
+        find.descendant(of: missing, matching: find.byTooltip('删除')),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('已失效：deleted'), findsNothing);
+
+      final addCondition = find.text('添加条件');
+      await tester.ensureVisible(addCondition);
+      await tester.tap(addCondition);
+      await tester.pumpAndSettle();
+      expect(find.text('请填写条件值'), findsOneWidget);
+      await tester.enterText(
+        find.descendant(of: form, matching: find.byType(EditableText)).last,
+        'blonde',
+      );
+      await tester.pumpAndSettle();
+
+      await _confirmAndSave(tester);
+      final branch =
+          notifier.savedGroup.conditionalBranchConfig!.branches.single;
+      expect(branch.tagGroupIds, ['sailor']);
+      expect(branch.conditions, {'cat-hair': 'blonde'});
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('被分支输出的词组显示徽标，点按打开引用它的分支', (tester) async {
+      final notifier = _EditablePresetNotifier(categories);
+      final references = categories.first.branchReferences(activeOnly: true);
+      await _pumpReferenceCard(
+        tester,
+        notifier: notifier,
+        group: sailor,
+        branchOutputBy: references['sailor']!,
+      );
+
+      final badge = find.text('由「引用词组」的条件分支输出');
+      expect(badge, findsOneWidget);
+      expect(
+        find.byTooltip(
+          '这个词组不参与类别的常规抽取，只在引用它的分支被选中时输出；停用或删除这些分支后恢复常规抽取。点按可跳转到该分支',
+        ),
+        findsOneWidget,
+      );
+
+      await tester.tap(badge);
+      await tester.pumpAndSettle();
+
+      expect(find.text('编辑：制服'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('删除被分支引用的词组前提示引用它的分支会显示为已失效', (tester) async {
+      final notifier = _EditablePresetNotifier(categories);
+      await _pumpReferenceCard(tester, notifier: notifier, group: sailor);
+
+      await tester.tap(find.byIcon(Icons.more_horiz_rounded));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('删除').last);
+      await tester.pumpAndSettle();
+
+      expect(
+        find.text('「引用词组」的条件分支引用了这个词组，删除后这些分支里的这一项会显示为已失效'),
+        findsOneWidget,
+      );
+    });
+  });
+
   testWidgets('编辑弹窗标签栏的悬停反馈画在分组底色之上', (tester) async {
     tester.view.physicalSize = const Size(1180, 900);
     tester.view.devicePixelRatio = 1;
@@ -678,6 +805,7 @@ Future<void> _pumpReferenceCard(
   WidgetTester tester, {
   required _EditablePresetNotifier notifier,
   required RandomTagGroup group,
+  List<BranchReference> branchOutputBy = const [],
 }) async {
   tester.view.physicalSize = const Size(1180, 900);
   tester.view.devicePixelRatio = 1;
@@ -696,6 +824,7 @@ Future<void> _pumpReferenceCard(
             categoryId: 'cat-hair',
             categoryKey: 'hairColor',
             presetId: 'preset',
+            branchOutputBy: branchOutputBy,
           ),
         ),
       ),

@@ -2384,6 +2384,26 @@
       "name": {}
     }
   },
+  "randomManager_branchOutputBadge": "由「{name}」的條件分支輸出",
+  "@randomManager_branchOutputBadge": {
+    "placeholders": {
+      "name": {"type": "String"}
+    }
+  },
+  "randomManager_branchOutputBadgeMultiple": "由「{name}」等 {count} 處條件分支輸出",
+  "@randomManager_branchOutputBadgeMultiple": {
+    "placeholders": {
+      "name": {"type": "String"},
+      "count": {"type": "int"}
+    }
+  },
+  "randomManager_branchOutputTooltip": "這個片語不參與類別的常規抽取，只在參照它的分支被選中時輸出；停用或刪除這些分支後恢復常規抽取。點按可跳轉到該分支",
+  "randomManager_deleteBranchTargetWarning": "「{names}」的條件分支參照了這個片語，刪除後這些分支裡的這一項會顯示為已失效",
+  "@randomManager_deleteBranchTargetWarning": {
+    "placeholders": {
+      "names": {"type": "String"}
+    }
+  },
   "randomManager_tagGroupCount": "{count} 個片語",
   "@randomManager_tagGroupCount": {
     "placeholders": {
@@ -5850,6 +5870,42 @@
   "diy_branchName": "分支名稱",
   "diy_probability": "機率",
   "diy_enableBranch": "啟用此分支",
+  "diy_branchTargets": "輸出的片語",
+  "diy_branchTargetsHint": "選中的片語只在該分支被選中時輸出，並按本片語的選擇模式從中抽取；不選時輸出本片語自己的標籤",
+  "diy_branchTargetsEmpty": "本類別沒有其他片語",
+  "diy_branchTargetChild": "子片語：{name}",
+  "@diy_branchTargetChild": {
+    "placeholders": {
+      "name": {"type": "String"}
+    }
+  },
+  "diy_branchTargetCycle": "會形成循環參照",
+  "diy_branchTargetCycleHint": "灰色的片語已經直接或間接輸出本片語，選擇會形成循環參照",
+  "diy_branchTargetCount": "輸出 {count} 個片語",
+  "@diy_branchTargetCount": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "diy_branchConditions": "條件",
+  "diy_branchConditionsHint": "只能參照在本片語之前生成的類別和分支；條件值按標籤比較，忽略大小寫、底線與權重寫法。沒有條件時分支總是可選",
+  "diy_addCondition": "新增條件",
+  "diy_deleteCondition": "刪除條件",
+  "diy_conditionSource": "變數",
+  "diy_conditionValueRequired": "請填寫條件值",
+  "diy_conditionLogicAll": "全部滿足",
+  "diy_conditionLogicAny": "任一滿足",
+  "diy_conditionSourceGender": "角色性別",
+  "diy_conditionSourceBranch": "{name} 的分支",
+  "@diy_conditionSourceBranch": {
+    "placeholders": {
+      "name": {"type": "String"}
+    }
+  },
+  "diy_conditionValueHintCategory": "如 blue eyes",
+  "diy_conditionValueHintGender": "如 girl、boy",
+  "diy_conditionValueHintCount": "如 1、2、3",
+  "diy_conditionValueHintBranch": "填寫分支名稱",
   "diy_ruleDefaultName": "規則 {index}",
   "@diy_ruleDefaultName": {
     "placeholders": {

@@ -20,7 +20,7 @@ class RandomPresetGenerationContext {
       () => '$characterCount',
     );
     if (characterGender != null) {
-      this.variables['character_gender'] = characterGender!;
+      this.variables[characterGenderVariable] = characterGender!;
     }
   }
 

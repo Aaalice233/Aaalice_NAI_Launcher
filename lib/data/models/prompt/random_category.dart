@@ -109,10 +109,22 @@ class RandomCategory with _$RandomCategory {
       : 0;
 
   /// 深拷贝类别（生成新的ID）
+  ///
+  /// 分支按 ID 引用同类别的其他词组，副本里改为指向对应的新词组
   RandomCategory deepCopy() {
+    final copiedGroups = groups.map((g) => g.deepCopy()).toList();
+    final groupIds = {
+      for (var i = 0; i < groups.length; i++) groups[i].id: copiedGroups[i].id,
+    };
     return copyWith(
       id: const Uuid().v4(),
-      groups: groups.map((g) => g.deepCopy()).toList(),
+      groups: copiedGroups
+          .map(
+            (group) => group.mapBranchTargets(
+              (groupId) => groupIds[groupId] ?? groupId,
+            ),
+          )
+          .toList(),
     );
   }
 

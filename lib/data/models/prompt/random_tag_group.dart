@@ -280,7 +280,6 @@ class RandomTagGroup with _$RandomTagGroup {
       for (var i = 0; i < children.length; i++)
         children[i].id: copiedChildren[i].id,
     };
-    final branchConfig = conditionalBranchConfig;
     return copyWith(
       id: copyId,
       tags: tags.map((t) => t.copyWith()).toList(),
@@ -292,19 +291,23 @@ class RandomTagGroup with _$RandomTagGroup {
                 : rule,
           )
           .toList(),
-      conditionalBranchConfig: branchConfig == null
-          ? null
-          : branchConfig.copyWith(
-              branches: branchConfig.branches
-                  .map(
-                    (branch) => branch.copyWith(
-                      tagGroupIds: branch.tagGroupIds
-                          .map((groupId) => childIds[groupId] ?? groupId)
-                          .toList(),
-                    ),
-                  )
-                  .toList(),
-            ),
+    ).mapBranchTargets((groupId) => childIds[groupId] ?? groupId);
+  }
+
+  /// 改写各分支输出的词组 ID
+  RandomTagGroup mapBranchTargets(String Function(String groupId) map) {
+    final branchConfig = conditionalBranchConfig;
+    if (branchConfig == null) return this;
+    return copyWith(
+      conditionalBranchConfig: branchConfig.copyWith(
+        branches: branchConfig.branches
+            .map(
+              (branch) => branch.copyWith(
+                tagGroupIds: branch.tagGroupIds.map(map).toList(),
+              ),
+            )
+            .toList(),
+      ),
     );
   }
 

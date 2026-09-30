@@ -5297,6 +5297,25 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String randomManager_branchOutputBadge(String name) {
+    return 'Output by a branch of “$name”';
+  }
+
+  @override
+  String randomManager_branchOutputBadgeMultiple(String name, int count) {
+    return 'Output by $count branches, including “$name”';
+  }
+
+  @override
+  String get randomManager_branchOutputTooltip =>
+      'This group is not drawn on its own; it is output only when a branch that references it is chosen. It returns to normal drawing once those branches are disabled or deleted. Tap to open the branch.';
+
+  @override
+  String randomManager_deleteBranchTargetWarning(String names) {
+    return 'Branches of “$names” reference this group. After deletion, that entry in those branches will show as unavailable.';
+  }
+
+  @override
   String randomManager_tagGroupCount(Object count) {
     return '$count tag groups';
   }
@@ -12458,6 +12477,78 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get diy_enableBranch => 'Enable This Branch';
+
+  @override
+  String get diy_branchTargets => 'Output tag groups';
+
+  @override
+  String get diy_branchTargetsHint =>
+      'Selected groups are output only when this branch is chosen, drawn with this group\'s selection mode. With none selected, this group\'s own tags are output.';
+
+  @override
+  String get diy_branchTargetsEmpty => 'No other tag groups in this category';
+
+  @override
+  String diy_branchTargetChild(String name) {
+    return 'Child: $name';
+  }
+
+  @override
+  String get diy_branchTargetCycle => 'Would create a loop';
+
+  @override
+  String get diy_branchTargetCycleHint =>
+      'Greyed-out groups already output this group directly or indirectly; selecting them would create a loop';
+
+  @override
+  String diy_branchTargetCount(int count) {
+    return 'Outputs $count groups';
+  }
+
+  @override
+  String get diy_branchConditions => 'Conditions';
+
+  @override
+  String get diy_branchConditionsHint =>
+      'Only categories and branches generated before this group can be referenced. Values are compared as tags, ignoring case, underscores, and weight syntax. A branch without conditions is always eligible.';
+
+  @override
+  String get diy_addCondition => 'Add condition';
+
+  @override
+  String get diy_deleteCondition => 'Delete condition';
+
+  @override
+  String get diy_conditionSource => 'Variable';
+
+  @override
+  String get diy_conditionValueRequired => 'Enter a value';
+
+  @override
+  String get diy_conditionLogicAll => 'Match all';
+
+  @override
+  String get diy_conditionLogicAny => 'Match any';
+
+  @override
+  String get diy_conditionSourceGender => 'Character gender';
+
+  @override
+  String diy_conditionSourceBranch(String name) {
+    return 'Branch of $name';
+  }
+
+  @override
+  String get diy_conditionValueHintCategory => 'e.g. blue eyes';
+
+  @override
+  String get diy_conditionValueHintGender => 'e.g. girl, boy';
+
+  @override
+  String get diy_conditionValueHintCount => 'e.g. 1, 2, 3';
+
+  @override
+  String get diy_conditionValueHintBranch => 'Enter a branch name';
 
   @override
   String diy_ruleDefaultName(int index) {

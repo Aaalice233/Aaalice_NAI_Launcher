@@ -13,16 +13,20 @@ import '../../../themes/core/layered_surface_style.dart';
 import '../../common/ink_host.dart';
 import '../../common/themed_slider.dart';
 import '../../common/translated_tag_text.dart';
+import '../../../../data/models/prompt/conditional_branch.dart';
+import '../../../../data/models/prompt/conditional_branch_targets.dart';
 import '../../../../data/models/prompt/diy_category_references.dart';
 import '../../../../data/models/prompt/random_category.dart';
 import '../../../../data/models/prompt/random_tag_group.dart';
 import '../../../../data/models/prompt/tag_category.dart';
 import '../diy/diy_category_field.dart';
+import '../diy/panels/branch_conditions_editor.dart';
 import '../diy/panels/conditional_branch_panel.dart';
 import '../diy/panels/dependency_config_panel.dart';
 import '../diy/panels/visibility_rule_panel.dart';
 import '../diy/panels/time_condition_panel.dart';
 import '../diy/panels/post_process_rule_panel.dart';
+import 'branch_output_badge.dart';
 import 'probability_text.dart';
 import 'random_config_l10n.dart';
 
@@ -39,6 +43,7 @@ class TagGroupCard extends ConsumerStatefulWidget {
     this.isPresetDefault = false,
     this.onTap,
     this.dragHandle,
+    this.branchOutputBy = const [],
   });
 
   final RandomTagGroup tagGroup;
@@ -48,6 +53,9 @@ class TagGroupCard extends ConsumerStatefulWidget {
   final bool isPresetDefault;
   final VoidCallback? onTap;
   final Widget? dragHandle;
+
+  /// 输出本词组的启用分支；非空时本词组不参与类别的常规抽取
+  final List<BranchReference> branchOutputBy;
 
   @override
   ConsumerState<TagGroupCard> createState() => _TagGroupCardState();
@@ -142,6 +150,15 @@ class _TagGroupCardState extends ConsumerState<TagGroupCard> {
                                   ],
                                 ),
                               ),
+                              if (widget.branchOutputBy.isNotEmpty)
+                                BranchOutputBadge(
+                                  references: widget.branchOutputBy,
+                                  onOpen: (reference) => _showEditDialog(
+                                    context,
+                                    group: reference.owner,
+                                    initialBranchIndex: reference.branchIndex,
+                                  ),
+                                ),
                             ],
                           ),
                         ),
@@ -240,15 +257,37 @@ class _TagGroupCardState extends ConsumerState<TagGroupCard> {
   }
 
   Future<void> _deleteGroup(BuildContext context) async {
+    // 删除后引用它的分支保留这一项并显示为已失效，这里先告知
+    final branchOwners = {
+      for (final reference
+          in _category?.branchReferences()[widget.tagGroup.id] ??
+              const <BranchReference>[])
+        context.l10n.randomTagGroupName(reference.owner),
+    };
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         scrollable: true,
         title: Text(context.l10n.randomManager_deleteTagGroupTitle),
-        content: Text(
-          context.l10n.randomManager_deleteTagGroupConfirm(
-            context.l10n.randomTagGroupName(widget.tagGroup),
-          ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              context.l10n.randomManager_deleteTagGroupConfirm(
+                context.l10n.randomTagGroupName(widget.tagGroup),
+              ),
+            ),
+            if (branchOwners.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              Text(
+                context.l10n.randomManager_deleteBranchTargetWarning(
+                  branchOwners.join(', '),
+                ),
+                style: TextStyle(color: Theme.of(context).colorScheme.error),
+              ),
+            ],
+          ],
         ),
         actions: [
           TextButton(
@@ -270,6 +309,13 @@ class _TagGroupCardState extends ConsumerState<TagGroupCard> {
         .read(randomPresetNotifierProvider.notifier)
         .removeGroupFromCategory(widget.categoryKey, widget.tagGroup.id);
   }
+
+  RandomCategory? get _category => ref
+      .read(randomPresetNotifierProvider)
+      .presets
+      .firstWhereOrNull((preset) => preset.id == widget.presetId)
+      ?.categories
+      .firstWhereOrNull((category) => category.id == widget.categoryId);
 
   /// 构建标签预览文本
   String _buildTagPreview(AppLocalizations l10n, RandomTagGroup tagGroup) {
@@ -303,7 +349,14 @@ class _TagGroupCardState extends ConsumerState<TagGroupCard> {
     return preview;
   }
 
-  void _showEditDialog(BuildContext context, {int initialTabIndex = 0}) {
+  /// [group] 为空时编辑本词组；[initialBranchIndex] 打开后直接编辑该分支
+  void _showEditDialog(
+    BuildContext context, {
+    RandomTagGroup? group,
+    int initialTabIndex = 0,
+    int? initialBranchIndex,
+  }) {
+    final editingGroup = group ?? widget.tagGroup;
     AdaptivePresenter.showForm<void>(
       context: context,
       dialogWidth: 640,
@@ -332,7 +385,7 @@ class _TagGroupCardState extends ConsumerState<TagGroupCard> {
                   ),
                   if (!compactTitle)
                     Text(
-                      panelContext.l10n.randomTagGroupName(widget.tagGroup),
+                      panelContext.l10n.randomTagGroupName(editingGroup),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: Theme.of(panelContext).textTheme.bodySmall
@@ -349,12 +402,13 @@ class _TagGroupCardState extends ConsumerState<TagGroupCard> {
         );
       },
       builder: (panelContext, scrollController) => _TagGroupEditDialog(
-        tagGroup: widget.tagGroup,
+        tagGroup: editingGroup,
         categoryId: widget.categoryId,
         presetId: widget.presetId,
         scrollController: scrollController,
         isPresetDefault: widget.isPresetDefault,
         initialTabIndex: initialTabIndex,
+        initialBranchIndex: initialBranchIndex,
       ),
     );
   }
@@ -371,6 +425,7 @@ class _TagGroupEditDialog extends ConsumerStatefulWidget {
     required this.scrollController,
     this.isPresetDefault = false,
     this.initialTabIndex = 0,
+    this.initialBranchIndex,
   });
 
   final RandomTagGroup tagGroup;
@@ -379,6 +434,9 @@ class _TagGroupEditDialog extends ConsumerStatefulWidget {
   final ScrollController scrollController;
   final bool isPresetDefault;
   final int initialTabIndex;
+
+  /// 打开后直接进入 DIY 页编辑该分支
+  final int? initialBranchIndex;
 
   @override
   ConsumerState<_TagGroupEditDialog> createState() =>
@@ -422,10 +480,13 @@ class _TagGroupEditDialogState extends ConsumerState<_TagGroupEditDialog>
   @override
   void initState() {
     super.initState();
+    final initialBranchIndex = widget.initialBranchIndex;
     _tabController = TabController(
       length: 3,
       vsync: this,
-      initialIndex: widget.initialTabIndex,
+      initialIndex: initialBranchIndex == null
+          ? widget.initialTabIndex
+          : _diyTabIndex,
     );
     _nameController = TextEditingController(text: widget.tagGroup.name);
     // 存量规则可能按类别名称或键名引用，打开时统一换成 ID，保存后生成器才能匹配
@@ -433,6 +494,122 @@ class _TagGroupEditDialogState extends ConsumerState<_TagGroupEditDialog>
     _editingTagGroup = widget.tagGroup.mapCategoryReferences(
       resolver.canonicalId,
     );
+    if (initialBranchIndex != null && !widget.isPresetDefault) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          _showConditionalBranchDialog(initialBranchIndex: initialBranchIndex);
+        }
+      });
+    }
+  }
+
+  static const _diyTabIndex = 2;
+
+  RandomCategory? get _editingCategory => _presetCategories.firstWhereOrNull(
+    (category) => category.id == widget.categoryId,
+  );
+
+  /// 分支可输出本词组的子词组，以及同类别中的其他词组
+  List<DiyCategoryOption> get _branchTargetOptions {
+    final l10n = AppLocalizations.of(context)!;
+    return [
+      for (final child in _editingTagGroup.children)
+        DiyCategoryOption(
+          id: child.id,
+          label: l10n.diy_branchTargetChild(l10n.randomTagGroupName(child)),
+        ),
+      for (final group in _editingCategory?.groups ?? const <RandomTagGroup>[])
+        if (group.id != _editingTagGroup.id)
+          DiyCategoryOption(
+            id: group.id,
+            label: l10n.randomTagGroupName(group),
+          ),
+    ];
+  }
+
+  Set<String> get _cyclicBranchTargetIds {
+    final category = _editingCategory;
+    if (category == null) return const {};
+    return {
+      for (final group in category.groups)
+        if (category.branchTargetCreatesCycle(_editingTagGroup.id, group.id))
+          group.id,
+    };
+  }
+
+  /// 分支条件可引用的变量；按类别键名或词组名称保存的存量条件对应到同一来源
+  List<BranchConditionSource> get _branchConditionSources {
+    final l10n = AppLocalizations.of(context)!;
+    final categoryOptions = _categoryOptions;
+    final branchGroups = [
+      for (final category in _presetCategories)
+        for (final group in category.groups)
+          if (group.id != _editingTagGroup.id &&
+              group.conditionalBranchConfig != null)
+            group,
+    ];
+    String branchLabel(RandomTagGroup group) =>
+        l10n.diy_conditionSourceBranch(l10n.randomTagGroupName(group));
+    final sources = [
+      for (final option in categoryOptions)
+        BranchConditionSource(
+          id: option.id,
+          label: option.label,
+          kind: BranchConditionSourceKind.category,
+        ),
+      BranchConditionSource(
+        id: characterGenderVariable,
+        label: l10n.diy_conditionSourceGender,
+        kind: BranchConditionSourceKind.characterGender,
+      ),
+      BranchConditionSource(
+        id: characterCountReference,
+        label: l10n.diy_sourceCharacterCount,
+        kind: BranchConditionSourceKind.characterCount,
+      ),
+      for (final group in branchGroups)
+        BranchConditionSource(
+          id: group.id,
+          label: branchLabel(group),
+          kind: BranchConditionSourceKind.branch,
+        ),
+    ];
+    final knownIds = {for (final source in sources) source.id};
+    final usedKeys = {
+      for (final branch
+          in _editingTagGroup.conditionalBranchConfig?.branches ??
+              const <ConditionalBranch>[])
+        ...branch.conditions.keys,
+    }.where((key) => !knownIds.contains(key));
+    for (final key in usedKeys) {
+      final category = _presetCategories.firstWhereOrNull(
+        (category) => category.key == key,
+      );
+      final categoryLabel = categoryOptions
+          .firstWhereOrNull((option) => option.id == category?.id)
+          ?.label;
+      if (categoryLabel != null) {
+        sources.add(
+          BranchConditionSource(
+            id: key,
+            label: categoryLabel,
+            kind: BranchConditionSourceKind.category,
+          ),
+        );
+        continue;
+      }
+      final group = branchGroups.firstWhereOrNull((group) => group.name == key);
+      if (group != null) {
+        sources.add(
+          BranchConditionSource(
+            id: key,
+            label: branchLabel(group),
+            kind: BranchConditionSourceKind.branch,
+          ),
+        );
+      }
+    }
+    return sources;
   }
 
   @override
@@ -1130,7 +1307,7 @@ class _TagGroupEditDialogState extends ConsumerState<_TagGroupEditDialog>
   }
 
   /// 显示条件分支编辑面板
-  void _showConditionalBranchDialog() {
+  void _showConditionalBranchDialog({int? initialBranchIndex}) {
     _showDiyConfigForm(
       title: AppLocalizations.of(context)!.randomManager_conditionalBranch,
       child: ConditionalBranchPanel(
@@ -1142,6 +1319,10 @@ class _TagGroupEditDialogState extends ConsumerState<_TagGroupEditDialog>
             );
           });
         },
+        targetOptions: _branchTargetOptions,
+        cyclicTargetIds: _cyclicBranchTargetIds,
+        conditionSources: _branchConditionSources,
+        initialSelectedIndex: initialBranchIndex,
       ),
     );
   }

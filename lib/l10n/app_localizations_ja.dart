@@ -5162,6 +5162,25 @@ class AppLocalizationsJa extends AppLocalizations {
   }
 
   @override
+  String randomManager_branchOutputBadge(String name) {
+    return '「$name」の条件分岐から出力';
+  }
+
+  @override
+  String randomManager_branchOutputBadgeMultiple(String name, int count) {
+    return '「$name」など $count 件の条件分岐から出力';
+  }
+
+  @override
+  String get randomManager_branchOutputTooltip =>
+      'このタググループは通常の抽選に参加せず、参照している分岐が選ばれたときだけ出力されます。それらの分岐を無効化または削除すると通常の抽選に戻ります。タップすると分岐を開きます。';
+
+  @override
+  String randomManager_deleteBranchTargetWarning(String names) {
+    return '「$names」の条件分岐がこのタググループを参照しています。削除すると、それらの分岐のこの項目は無効として表示されます。';
+  }
+
+  @override
   String randomManager_tagGroupCount(Object count) {
     return '$count タグ グループ';
   }
@@ -12147,6 +12166,78 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get diy_enableBranch => 'この分岐を有効化';
+
+  @override
+  String get diy_branchTargets => '出力するタググループ';
+
+  @override
+  String get diy_branchTargetsHint =>
+      '選択したタググループはこの分岐が選ばれたときだけ出力され、このタググループの選択モードで抽選されます。未選択のときはこのタググループ自身のタグを出力します。';
+
+  @override
+  String get diy_branchTargetsEmpty => 'このカテゴリーに他のタググループはありません';
+
+  @override
+  String diy_branchTargetChild(String name) {
+    return '子：$name';
+  }
+
+  @override
+  String get diy_branchTargetCycle => '循環参照になります';
+
+  @override
+  String get diy_branchTargetCycleHint =>
+      'グレーのタググループはすでにこのタググループを直接または間接に出力しているため、選ぶと循環参照になります';
+
+  @override
+  String diy_branchTargetCount(int count) {
+    return '$count 個のタググループを出力';
+  }
+
+  @override
+  String get diy_branchConditions => '条件';
+
+  @override
+  String get diy_branchConditionsHint =>
+      'このタググループより前に生成されるカテゴリーと分岐のみ参照できます。値はタグとして比較され、大文字小文字・アンダースコア・重み記法は無視されます。条件のない分岐は常に選択対象です。';
+
+  @override
+  String get diy_addCondition => '条件を追加';
+
+  @override
+  String get diy_deleteCondition => '条件を削除';
+
+  @override
+  String get diy_conditionSource => '変数';
+
+  @override
+  String get diy_conditionValueRequired => '値を入力してください';
+
+  @override
+  String get diy_conditionLogicAll => 'すべて満たす';
+
+  @override
+  String get diy_conditionLogicAny => 'いずれかを満たす';
+
+  @override
+  String get diy_conditionSourceGender => 'キャラクターの性別';
+
+  @override
+  String diy_conditionSourceBranch(String name) {
+    return '$name の分岐';
+  }
+
+  @override
+  String get diy_conditionValueHintCategory => '例：blue eyes';
+
+  @override
+  String get diy_conditionValueHintGender => '例：girl、boy';
+
+  @override
+  String get diy_conditionValueHintCount => '例：1、2、3';
+
+  @override
+  String get diy_conditionValueHintBranch => '分岐名を入力';
 
   @override
   String diy_ruleDefaultName(int index) {

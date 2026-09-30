@@ -2313,6 +2313,26 @@
       "name": {}
     }
   },
+  "randomManager_branchOutputBadge": "「{name}」の条件分岐から出力",
+  "@randomManager_branchOutputBadge": {
+    "placeholders": {
+      "name": {"type": "String"}
+    }
+  },
+  "randomManager_branchOutputBadgeMultiple": "「{name}」など {count} 件の条件分岐から出力",
+  "@randomManager_branchOutputBadgeMultiple": {
+    "placeholders": {
+      "name": {"type": "String"},
+      "count": {"type": "int"}
+    }
+  },
+  "randomManager_branchOutputTooltip": "このタググループは通常の抽選に参加せず、参照している分岐が選ばれたときだけ出力されます。それらの分岐を無効化または削除すると通常の抽選に戻ります。タップすると分岐を開きます。",
+  "randomManager_deleteBranchTargetWarning": "「{names}」の条件分岐がこのタググループを参照しています。削除すると、それらの分岐のこの項目は無効として表示されます。",
+  "@randomManager_deleteBranchTargetWarning": {
+    "placeholders": {
+      "names": {"type": "String"}
+    }
+  },
   "randomManager_tagGroupCount": "{count} タグ グループ",
   "@randomManager_tagGroupCount": {
     "placeholders": {
@@ -5991,6 +6011,42 @@
   "diy_branchName": "分岐名",
   "diy_probability": "確率",
   "diy_enableBranch": "この分岐を有効化",
+  "diy_branchTargets": "出力するタググループ",
+  "diy_branchTargetsHint": "選択したタググループはこの分岐が選ばれたときだけ出力され、このタググループの選択モードで抽選されます。未選択のときはこのタググループ自身のタグを出力します。",
+  "diy_branchTargetsEmpty": "このカテゴリーに他のタググループはありません",
+  "diy_branchTargetChild": "子：{name}",
+  "@diy_branchTargetChild": {
+    "placeholders": {
+      "name": {"type": "String"}
+    }
+  },
+  "diy_branchTargetCycle": "循環参照になります",
+  "diy_branchTargetCycleHint": "グレーのタググループはすでにこのタググループを直接または間接に出力しているため、選ぶと循環参照になります",
+  "diy_branchTargetCount": "{count} 個のタググループを出力",
+  "@diy_branchTargetCount": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "diy_branchConditions": "条件",
+  "diy_branchConditionsHint": "このタググループより前に生成されるカテゴリーと分岐のみ参照できます。値はタグとして比較され、大文字小文字・アンダースコア・重み記法は無視されます。条件のない分岐は常に選択対象です。",
+  "diy_addCondition": "条件を追加",
+  "diy_deleteCondition": "条件を削除",
+  "diy_conditionSource": "変数",
+  "diy_conditionValueRequired": "値を入力してください",
+  "diy_conditionLogicAll": "すべて満たす",
+  "diy_conditionLogicAny": "いずれかを満たす",
+  "diy_conditionSourceGender": "キャラクターの性別",
+  "diy_conditionSourceBranch": "{name} の分岐",
+  "@diy_conditionSourceBranch": {
+    "placeholders": {
+      "name": {"type": "String"}
+    }
+  },
+  "diy_conditionValueHintCategory": "例：blue eyes",
+  "diy_conditionValueHintGender": "例：girl、boy",
+  "diy_conditionValueHintCount": "例：1、2、3",
+  "diy_conditionValueHintBranch": "分岐名を入力",
 
   "diy_ruleDefaultName": "ルール {index}",
   "@diy_ruleDefaultName": {

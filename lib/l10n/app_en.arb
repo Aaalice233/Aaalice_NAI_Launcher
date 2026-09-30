@@ -2343,6 +2343,26 @@
       "name": {}
     }
   },
+  "randomManager_branchOutputBadge": "Output by a branch of “{name}”",
+  "@randomManager_branchOutputBadge": {
+    "placeholders": {
+      "name": {"type": "String"}
+    }
+  },
+  "randomManager_branchOutputBadgeMultiple": "Output by {count} branches, including “{name}”",
+  "@randomManager_branchOutputBadgeMultiple": {
+    "placeholders": {
+      "name": {"type": "String"},
+      "count": {"type": "int"}
+    }
+  },
+  "randomManager_branchOutputTooltip": "This group is not drawn on its own; it is output only when a branch that references it is chosen. It returns to normal drawing once those branches are disabled or deleted. Tap to open the branch.",
+  "randomManager_deleteBranchTargetWarning": "Branches of “{names}” reference this group. After deletion, that entry in those branches will show as unavailable.",
+  "@randomManager_deleteBranchTargetWarning": {
+    "placeholders": {
+      "names": {"type": "String"}
+    }
+  },
   "randomManager_tagGroupCount": "{count} tag groups",
   "@randomManager_tagGroupCount": {
     "placeholders": {
@@ -6022,6 +6042,42 @@
   "diy_branchName": "Branch Name",
   "diy_probability": "Probability",
   "diy_enableBranch": "Enable This Branch",
+  "diy_branchTargets": "Output tag groups",
+  "diy_branchTargetsHint": "Selected groups are output only when this branch is chosen, drawn with this group's selection mode. With none selected, this group's own tags are output.",
+  "diy_branchTargetsEmpty": "No other tag groups in this category",
+  "diy_branchTargetChild": "Child: {name}",
+  "@diy_branchTargetChild": {
+    "placeholders": {
+      "name": {"type": "String"}
+    }
+  },
+  "diy_branchTargetCycle": "Would create a loop",
+  "diy_branchTargetCycleHint": "Greyed-out groups already output this group directly or indirectly; selecting them would create a loop",
+  "diy_branchTargetCount": "Outputs {count} groups",
+  "@diy_branchTargetCount": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "diy_branchConditions": "Conditions",
+  "diy_branchConditionsHint": "Only categories and branches generated before this group can be referenced. Values are compared as tags, ignoring case, underscores, and weight syntax. A branch without conditions is always eligible.",
+  "diy_addCondition": "Add condition",
+  "diy_deleteCondition": "Delete condition",
+  "diy_conditionSource": "Variable",
+  "diy_conditionValueRequired": "Enter a value",
+  "diy_conditionLogicAll": "Match all",
+  "diy_conditionLogicAny": "Match any",
+  "diy_conditionSourceGender": "Character gender",
+  "diy_conditionSourceBranch": "Branch of {name}",
+  "@diy_conditionSourceBranch": {
+    "placeholders": {
+      "name": {"type": "String"}
+    }
+  },
+  "diy_conditionValueHintCategory": "e.g. blue eyes",
+  "diy_conditionValueHintGender": "e.g. girl, boy",
+  "diy_conditionValueHintCount": "e.g. 1, 2, 3",
+  "diy_conditionValueHintBranch": "Enter a branch name",
 
   "diy_ruleDefaultName": "Rule {index}",
   "@diy_ruleDefaultName": {
