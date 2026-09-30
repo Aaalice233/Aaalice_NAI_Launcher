@@ -11871,6 +11871,14 @@ class AppLocalizationsZh extends AppLocalizations {
       '仅在无人画面（角色数量为 0）时生效';
 
   @override
+  String get diy_dependencyOverridesSelectionCount =>
+      '本词组的选择模式不是“多选数量”，依赖得出的数量会覆盖选择模式的数量：按权重不重复抽取这么多个，可选项不足时全部选取；没有匹配的映射且未设默认值时不抽取';
+
+  @override
+  String get diy_dependencyOverridesSequentialCount =>
+      '本词组的选择模式是顺序轮替，依赖得出的数量会覆盖选择模式的数量：按轮替顺序取这么多个，可选项不足时全部选取；没有匹配的映射且未设默认值时不抽取';
+
+  @override
   String get diy_conditionalDefaultName => '条件分支配置';
 
   @override
@@ -26922,6 +26930,14 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   @override
   String get diy_dependencyExcludesCharacterCountDescription =>
       '僅在無人畫面（角色數量為 0）時生效';
+
+  @override
+  String get diy_dependencyOverridesSelectionCount =>
+      '本片語的選擇模式不是「多選數量」，依賴得出的數量會覆蓋選擇模式的數量：按權重不重複抽取這麼多個，可選項不足時全部選取；沒有符合的對應且未設預設值時不抽取';
+
+  @override
+  String get diy_dependencyOverridesSequentialCount =>
+      '本片語的選擇模式是順序輪替，依賴得出的數量會覆蓋選擇模式的數量：按輪替順序取這麼多個，可選項不足時全部選取；沒有符合的對應且未設預設值時不抽取';
 
   @override
   String get diy_conditionalDefaultName => '條件分支配置';

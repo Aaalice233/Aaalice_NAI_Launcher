@@ -550,18 +550,13 @@ class RandomPromptGenerator {
       if (random.nextDouble() > group.probability) continue;
 
       // 从词组生成标签
-      final effectiveGroup = _applyDependencySelectionCount(
-        group,
-        rules,
-        context,
-        random,
-      );
       final tags = await _generateFromGroup(
-        effectiveGroup,
+        group,
         category,
         random,
         rules,
         context,
+        selectionCount: _dependentSelectionCount(group, rules, context, random),
       );
       results.addAll(tags);
     }
@@ -593,30 +588,29 @@ class RandomPromptGenerator {
     return rules.isDependencySatisfied(group, context);
   }
 
-  RandomTagGroup _applyDependencySelectionCount(
+  /// 数量与值依赖得出的抽取数量，在任何选择模式下都覆盖模式自身的数量
+  int? _dependentSelectionCount(
     RandomTagGroup group,
     RandomPresetRules rules,
     RandomPresetGenerationContext context,
     Random random,
-  ) {
-    if (group.selectionMode != SelectionMode.multipleNum) return group;
-
-    final count = rules.dependentSelectionCount(
-      group,
-      context,
-      () => random.nextInt(1 << 30),
-    );
-    return count == null ? group : group.copyWith(multipleNum: count);
-  }
+  ) => rules.dependentSelectionCount(
+    group,
+    context,
+    () => random.nextInt(1 << 30),
+  );
 
   /// 从单个词组生成标签（支持递归嵌套）
+  ///
+  /// [selectionCount] 为依赖给出的抽取数量，覆盖选择模式的数量
   Future<List<String>> _generateFromGroup(
     RandomTagGroup group,
     RandomCategory category,
     Random random,
     RandomPresetRules rules,
-    RandomPresetGenerationContext context,
-  ) async {
+    RandomPresetGenerationContext context, {
+    int? selectionCount,
+  }) async {
     final branchConfig = group.conditionalBranchConfig;
     final branch = branchConfig != null && branchConfig.enabled
         ? branchConfig.selectBranch(
@@ -641,6 +635,7 @@ class RandomPromptGenerator {
             random,
             rules,
             context,
+            selectionCount: selectionCount,
           );
         }
       }
@@ -648,12 +643,24 @@ class RandomPromptGenerator {
 
     // 处理嵌套配置
     if (group.nodeType == TagGroupNodeType.config) {
-      return _generateFromNestedGroup(group, category, random, rules, context);
+      return _generateFromNestedGroup(
+        group,
+        category,
+        random,
+        rules,
+        context,
+        selectionCount: selectionCount,
+      );
     }
 
     // Pool 类型使用专门的生成逻辑
     if (group.sourceType == TagGroupSourceType.pool) {
-      return _generateFromPoolGroup(group, category, random);
+      return _generateFromPoolGroup(
+        group,
+        category,
+        random,
+        postCount: selectionCount,
+      );
     }
 
     // 获取标签列表：对于同步类型的组从缓存读取，否则使用内嵌标签
@@ -668,6 +675,7 @@ class RandomPromptGenerator {
       random,
       (t) => t.weight.toDouble(), // 使用标签权重
       sequentialKey: 'grp_${group.id}',
+      countOverride: selectionCount,
     );
 
     // 确定括号范围
@@ -708,8 +716,9 @@ class RandomPromptGenerator {
   Future<List<String>> _generateFromPoolGroup(
     RandomTagGroup group,
     RandomCategory category,
-    Random random,
-  ) async {
+    Random random, {
+    int? postCount,
+  }) async {
     final sourceId = group.sourceId;
     if (sourceId == null || sourceId.isEmpty) {
       AppLogger.w('Pool ${group.name} has no sourceId', 'RandomGen');
@@ -729,19 +738,21 @@ class RandomPromptGenerator {
       return [];
     }
 
-    // 根据 selectionMode 决定选择几个帖子
-    final postCount = switch (group.selectionMode) {
-      SelectionMode.single => 1,
-      SelectionMode.all => poolEntry.posts.length,
-      SelectionMode.multipleNum => group.poolPostCount,
-      SelectionMode.multipleProb => 1, // Pool 不适用概率模式，默认选1个
-      SelectionMode.sequential => 1, // 顺序模式也选1个
-    };
+    // 依赖给出数量时按它选帖子，否则根据 selectionMode 决定
+    final selectedPostCount =
+        postCount ??
+        switch (group.selectionMode) {
+          SelectionMode.single => 1,
+          SelectionMode.all => poolEntry.posts.length,
+          SelectionMode.multipleNum => group.poolPostCount,
+          SelectionMode.multipleProb => 1, // Pool 不适用概率模式，默认选1个
+          SelectionMode.sequential => 1, // 顺序模式也选1个
+        };
 
     // 从缓存随机获取帖子
     final selectedPosts = _poolCacheService.getRandomPosts(
       poolId,
-      postCount,
+      selectedPostCount,
       random,
     );
     if (selectedPosts.isEmpty) {
@@ -798,8 +809,9 @@ class RandomPromptGenerator {
     RandomCategory category,
     Random random,
     RandomPresetRules rules,
-    RandomPresetGenerationContext context,
-  ) async {
+    RandomPresetGenerationContext context, {
+    int? selectionCount,
+  }) async {
     final enabledChildren = group.children
         .where(
           (child) => _isGroupEligible(
@@ -820,6 +832,7 @@ class RandomPromptGenerator {
       random,
       (c) => 1.0, // 子词组默认等权重
       sequentialKey: 'nested_${group.id}',
+      countOverride: selectionCount,
     );
 
     final results = <String>[];
@@ -829,11 +842,12 @@ class RandomPromptGenerator {
 
       // 递归生成
       final childTags = await _generateFromGroup(
-        _applyDependencySelectionCount(child, rules, context, random),
+        child,
         category,
         random,
         rules,
         context,
+        selectionCount: _dependentSelectionCount(child, rules, context, random),
       );
       results.addAll(childTags);
     }
@@ -856,6 +870,8 @@ class RandomPromptGenerator {
   /// - sequential: 顺序轮替（持久化）
   ///
   /// [sequentialKey] 用于 sequential 模式的持久化 key
+  /// [countOverride] 依赖给出的数量：轮替模式按轮替顺序取这么多个，
+  /// 其余模式按权重不重复抽取；超过可选数量时全部选取
   List<T> _selectItems<T>(
     List<T> items,
     SelectionMode mode,
@@ -863,8 +879,18 @@ class RandomPromptGenerator {
     Random random,
     double Function(T) weightGetter, {
     String? sequentialKey,
+    int? countOverride,
   }) {
     if (items.isEmpty) return [];
+    if (countOverride != null) {
+      return mode == SelectionMode.sequential
+          ? _getSequentialItems(
+              items,
+              sequentialKey ?? 'default',
+              countOverride,
+            )
+          : _selectByCount(items, countOverride, random, weightGetter);
+    }
 
     return switch (mode) {
       SelectionMode.single => [
@@ -970,6 +996,23 @@ class RandomPromptGenerator {
     );
   }
 
+  /// 按轮替顺序取 [count] 个不重复的项目
+  List<T> _getSequentialItems<T>(List<T> items, String key, int count) {
+    final distinctCount = items.toSet().length;
+    final target = min(count, distinctCount);
+    final selected = <T>[];
+    // 跨轮时新一轮可能先给出已取到的项目；每轮含全部项目，两轮之内必然取满
+    for (
+      var attempt = 0;
+      selected.length < target && attempt < distinctCount * 2;
+      attempt++
+    ) {
+      final item = _getSequentialItem(items, key);
+      if (!selected.contains(item)) selected.add(item);
+    }
+    return selected;
+  }
+
   /// 应用权重括号
   ///
   /// [bracketMin] 最小括号层数（可为负数）
@@ -1030,6 +1073,12 @@ class RandomPromptGenerator {
             random,
             rules,
             context,
+            selectionCount: _dependentSelectionCount(
+              group,
+              rules,
+              context,
+              random,
+            ),
           );
           context.addCategoryTags(
             category.key,

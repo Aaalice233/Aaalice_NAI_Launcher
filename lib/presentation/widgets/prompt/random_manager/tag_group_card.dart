@@ -1160,6 +1160,7 @@ class _TagGroupEditDialogState extends ConsumerState<_TagGroupEditDialog>
           });
         },
         categoryOptions: _categoryOptions,
+        selectionMode: _editingTagGroup.selectionMode,
       ),
     );
   }

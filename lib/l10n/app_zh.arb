@@ -5738,6 +5738,8 @@
   "diy_dependencyExistsCharacterCountDescription": "仅在画面中有角色（角色数量大于 0）时生效",
   "diy_dependencyValueCharacterCountDescription": "依赖本次生成的角色数量取值，如 1、2、3",
   "diy_dependencyExcludesCharacterCountDescription": "仅在无人画面（角色数量为 0）时生效",
+  "diy_dependencyOverridesSelectionCount": "本词组的选择模式不是“多选数量”，依赖得出的数量会覆盖选择模式的数量：按权重不重复抽取这么多个，可选项不足时全部选取；没有匹配的映射且未设默认值时不抽取",
+  "diy_dependencyOverridesSequentialCount": "本词组的选择模式是顺序轮替，依赖得出的数量会覆盖选择模式的数量：按轮替顺序取这么多个，可选项不足时全部选取；没有匹配的映射且未设默认值时不抽取",
 
   "diy_conditionalDefaultName": "条件分支配置",
   "diy_branchDefaultName": "分支 {index}",

@@ -21570,6 +21570,18 @@ abstract class AppLocalizations {
   /// **'Apply only when the image has no characters (character count is 0)'**
   String get diy_dependencyExcludesCharacterCountDescription;
 
+  /// No description provided for @diy_dependencyOverridesSelectionCount.
+  ///
+  /// In en, this message translates to:
+  /// **'This group does not use Multiple Count mode. The count from this dependency overrides the selection mode: that many items are drawn by weight without repeats, or all of them if there are fewer. Nothing is drawn when no mapping matches and no default is set.'**
+  String get diy_dependencyOverridesSelectionCount;
+
+  /// No description provided for @diy_dependencyOverridesSequentialCount.
+  ///
+  /// In en, this message translates to:
+  /// **'This group uses Sequential mode. The count from this dependency overrides the selection mode: that many items are taken in rotation order, or all of them if there are fewer. Nothing is drawn when no mapping matches and no default is set.'**
+  String get diy_dependencyOverridesSequentialCount;
+
   /// No description provided for @diy_conditionalDefaultName.
   ///
   /// In en, this message translates to:

@@ -5,6 +5,7 @@ import 'package:nai_launcher/core/utils/localization_extension.dart';
 
 import '../../../../../data/models/prompt/dependency_config.dart';
 import '../../../../../data/models/prompt/diy_category_references.dart';
+import '../../../../../data/models/prompt/random_tag_group.dart';
 import '../../../../adaptive/adaptive_presenter.dart';
 import '../../../../utils/single_line_text_width.dart';
 import '../../../../widgets/common/elevated_card.dart';
@@ -29,6 +30,9 @@ class DependencyConfigPanel extends StatefulWidget {
   /// 可选的源类别
   final List<DiyCategoryOption> categoryOptions;
 
+  /// 所属词组的选择模式，用于说明数量依赖如何覆盖该模式的数量
+  final SelectionMode? selectionMode;
+
   /// 是否只读
   final bool readOnly;
 
@@ -37,6 +41,7 @@ class DependencyConfigPanel extends StatefulWidget {
     this.config,
     required this.onConfigChanged,
     this.categoryOptions = const [],
+    this.selectionMode,
     this.readOnly = false,
   });
 
@@ -144,35 +149,56 @@ class _DependencyConfigPanelState extends State<DependencyConfigPanel> {
           const SizedBox(height: 12),
           _buildTypeOptions(typeIcons, typeColors),
           const SizedBox(height: 12),
-          // 描述
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: colorScheme.surfaceContainerLowest,
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Row(
-              children: [
-                Icon(
-                  Icons.info_outline_rounded,
-                  size: 16,
-                  color: colorScheme.onSurfaceVariant,
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    _getDependencyTypeDescription(_config.type),
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                ),
-              ],
+          _buildNote(
+            Icons.info_outline_rounded,
+            _getDependencyTypeDescription(_config.type),
+          ),
+          if (_selectionCountOverrideNote case final note?) ...[
+            const SizedBox(height: 8),
+            _buildNote(Icons.tune_rounded, note),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildNote(IconData icon, String text) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    return Container(
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: colorScheme.surfaceContainerLowest,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, size: 16, color: colorScheme.onSurfaceVariant),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              text,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: colorScheme.onSurfaceVariant,
+              ),
             ),
           ),
         ],
       ),
     );
+  }
+
+  /// 数量与值依赖在“多选数量”以外的模式下覆盖模式自身的数量
+  String? get _selectionCountOverrideNote {
+    final mode = widget.selectionMode;
+    if (!_config.controlsSelectionCount ||
+        mode == null ||
+        mode == SelectionMode.multipleNum) {
+      return null;
+    }
+    return mode == SelectionMode.sequential
+        ? context.l10n.diy_dependencyOverridesSequentialCount
+        : context.l10n.diy_dependencyOverridesSelectionCount;
   }
 
   // 四种类型是互斥模式：放得下时等宽排满一行，否则整行横向滚动，不竖排也不截断标签

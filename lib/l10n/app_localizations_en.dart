@@ -12401,6 +12401,14 @@ class AppLocalizationsEn extends AppLocalizations {
       'Apply only when the image has no characters (character count is 0)';
 
   @override
+  String get diy_dependencyOverridesSelectionCount =>
+      'This group does not use Multiple Count mode. The count from this dependency overrides the selection mode: that many items are drawn by weight without repeats, or all of them if there are fewer. Nothing is drawn when no mapping matches and no default is set.';
+
+  @override
+  String get diy_dependencyOverridesSequentialCount =>
+      'This group uses Sequential mode. The count from this dependency overrides the selection mode: that many items are taken in rotation order, or all of them if there are fewer. Nothing is drawn when no mapping matches and no default is set.';
+
+  @override
   String get diy_conditionalDefaultName => 'Conditional Branches';
 
   @override
