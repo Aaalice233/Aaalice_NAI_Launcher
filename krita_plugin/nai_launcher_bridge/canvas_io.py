@@ -13,6 +13,8 @@ MAX_V1_CANVAS_EDGE = 4096
 PREVIEW_LAYER_NAME = "NAI Preview"
 FOCUS_PREVIEW_LAYER_NAME = "NAI Focus Preview"
 MASK_SOURCE_SELECTION = "selection"
+SELECTION_MASK_GRAY = 39
+_SELECTION_TO_MASK_GRAY = bytes([0]) + bytes([SELECTION_MASK_GRAY]) * 255
 # NovelAI web build d7e955f-production, verified 2026-07-14.
 FOCUS_DIMENSION_STEP = 64
 FOCUS_TARGET_AREA_PIXELS = 1048576
@@ -111,16 +113,8 @@ def export_active_selection_mask_png() -> bytes:
     if selection is None or selection.width() <= 0 or selection.height() <= 0:
         raise RuntimeError("Create a Krita selection before inpaint")
 
-    image = QImage(doc.width(), doc.height(), QImage.Format_Grayscale8)
-    image.fill(0)
-    has_repaint_pixels = False
-    for y in range(selection.y(), selection.y() + selection.height()):
-        for x in range(selection.x(), selection.x() + selection.width()):
-            if _selection_pixel_value(selection, x, y) > 0:
-                image.setPixel(x, y, 255)
-                has_repaint_pixels = True
-
-    if not has_repaint_pixels:
+    image = _selection_mask_image(selection, doc.width(), doc.height())
+    if image is None:
         raise RuntimeError("Inpaint mask is empty")
 
     buffer = QBuffer()
@@ -530,11 +524,18 @@ def _selection_bounds_are_filled(selection, width: int, height: int) -> bool:
     return 0 not in raw[:required]
 
 
-def _selection_pixel_value(selection, x: int, y: int) -> int:
-    raw = bytes(selection.pixelData(x, y, 1, 1))
-    if not raw:
-        return 0
-    return raw[0]
+def _selection_mask_image(selection, canvas_width: int, canvas_height: int):
+    x = selection.x()
+    y = selection.y()
+    width = selection.width()
+    height = selection.height()
+    required = width * height
+    coverage = bytes(selection.pixelData(x, y, width, height))[:required]
+    if coverage.count(0) == len(coverage):
+        return None
+    mask = coverage.ljust(required, b"\x00").translate(_SELECTION_TO_MASK_GRAY)
+    selection_mask = QImage(mask, width, height, width, QImage.Format_Grayscale8)
+    return selection_mask.copy(-x, -y, canvas_width, canvas_height)
 
 
 def _remove_layers_named(doc, name: str) -> None:
