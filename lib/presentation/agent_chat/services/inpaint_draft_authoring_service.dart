@@ -116,9 +116,9 @@ class InpaintDraftAuthoringService {
     );
     if (notObserved != null) return notObserved;
 
-    final Uint8List maskBinary;
+    final ({Uint8List mask, int maskedPixels}) rasterized;
     try {
-      maskBinary = InpaintMaskGeometry.rasterizeBinary(
+      rasterized = await InpaintMaskGeometry.rasterizeBinaryAsync(
         regions: request.regions,
         width: width,
         height: height,
@@ -128,7 +128,7 @@ class InpaintDraftAuthoringService {
       return agentToolError('invalid_regions', error.message);
     }
 
-    final maskedPixels = maskBinary.fold<int>(0, (total, v) => total + v);
+    final maskedPixels = rasterized.maskedPixels;
     if (maskedPixels == 0) {
       return agentToolError(
         'empty_mask',
@@ -144,7 +144,8 @@ class InpaintDraftAuthoringService {
 
     return _commit(
       source: resource.bytes,
-      maskBinary: maskBinary,
+      maskBinary: rasterized.mask,
+      maskedPixels: maskedPixels,
       width: width,
       height: height,
       prompt: prompt,
@@ -215,9 +216,10 @@ class InpaintDraftAuthoringService {
       return agentToolError('expand_failed', '$error');
     }
 
-    final decodedMask = await InpaintMaskUtils.decodeBinaryMaskAsync(
-      expanded.maskImage,
-    );
+    final decodedMask =
+        await InpaintMaskUtils.decodeBinaryMaskWithCoverageAsync(
+          expanded.maskImage,
+        );
     if (decodedMask == null) {
       return agentToolError(
         'expand_failed',
@@ -228,6 +230,7 @@ class InpaintDraftAuthoringService {
     return _commit(
       source: expanded.sourceImage,
       maskBinary: decodedMask.mask,
+      maskedPixels: decodedMask.maskedPixels,
       width: decodedMask.width,
       height: decodedMask.height,
       prompt: prompt,
@@ -253,6 +256,7 @@ class InpaintDraftAuthoringService {
   Future<AgentToolResult> _commit({
     required Uint8List source,
     required Uint8List maskBinary,
+    required int maskedPixels,
     required int width,
     required int height,
     required String prompt,
@@ -329,8 +333,7 @@ class InpaintDraftAuthoringService {
         'ok': true,
         'draft': manualInpaintDraftJson(ready),
         'maskCoverage': double.parse(
-          (maskBinary.fold<int>(0, (total, v) => total + v) / (width * height))
-              .toStringAsFixed(4),
+          (maskedPixels / (width * height)).toStringAsFixed(4),
         ),
         'focusedInpaint': focusedEnabled,
         ...extraDetails,

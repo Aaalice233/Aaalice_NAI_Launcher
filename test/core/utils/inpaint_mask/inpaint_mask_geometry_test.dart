@@ -6,6 +6,8 @@ import 'package:image/image.dart' as img;
 import 'package:nai_launcher/core/utils/inpaint_mask/inpaint_mask_geometry.dart';
 import 'package:nai_launcher/core/utils/inpaint_mask/inpaint_mask_operations.dart';
 
+import '../../../helpers/shared_compute_gate.dart';
+
 Uint8List _rasterize(
   List<InpaintMaskRegion> regions, {
   int width = 16,
@@ -258,6 +260,54 @@ void main() {
           radius: 1,
         ),
         throwsA(isA<InpaintMaskGeometryException>()),
+      );
+    });
+  });
+
+  group('InpaintMaskGeometry.rasterizeBinaryAsync', () {
+    const regions = [
+      InpaintMaskRegion.ellipse(Rect.fromLTRB(0.1, 0.2, 0.6, 0.7)),
+      InpaintMaskRegion.rect(
+        Rect.fromLTRB(0.3, 0.3, 0.4, 0.4),
+        mode: InpaintMaskRegionMode.subtract,
+      ),
+    ];
+
+    test('matches the sync mask and counts its pixels', () async {
+      final expected = _rasterize(
+        regions,
+        width: 40,
+        height: 30,
+        expandRatio: 0.05,
+      );
+
+      final result = await expectQueuedBehindSharedComputeGate(
+        () => InpaintMaskGeometry.rasterizeBinaryAsync(
+          regions: regions,
+          width: 40,
+          height: 30,
+          expandRatio: 0.05,
+        ),
+      );
+
+      expect(result.mask, expected);
+      expect(result.maskedPixels, _countMasked(expected));
+    });
+
+    test('rethrows geometry errors from the isolate', () async {
+      await expectLater(
+        InpaintMaskGeometry.rasterizeBinaryAsync(
+          regions: const [],
+          width: 8,
+          height: 8,
+        ),
+        throwsA(
+          isA<InpaintMaskGeometryException>().having(
+            (error) => error.message,
+            'message',
+            'at least one region is required',
+          ),
+        ),
       );
     });
   });

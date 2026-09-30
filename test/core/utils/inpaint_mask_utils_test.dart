@@ -123,6 +123,33 @@ void main() {
       );
     });
 
+    test('decodeBinaryMaskWithCoverageAsync counts off the UI', () async {
+      final source = img.Image(width: 6, height: 4);
+      img.fill(source, color: img.ColorRgba8(0, 0, 0, 255));
+      source
+        ..setPixelRgba(0, 0, 255, 255, 255, 255)
+        ..setPixelRgba(5, 3, 255, 255, 255, 255)
+        ..setPixelRgba(2, 1, 255, 255, 255, 255);
+      final bytes = Uint8List.fromList(img.encodePng(source));
+      final syncResult = InpaintMaskUtils.decodeBinaryMask(bytes)!;
+
+      final asyncResult = (await expectQueuedBehindSharedComputeGate(
+        () => InpaintMaskUtils.decodeBinaryMaskWithCoverageAsync(bytes),
+      ))!;
+
+      expect(asyncResult.width, syncResult.width);
+      expect(asyncResult.height, syncResult.height);
+      expect(asyncResult.mask, syncResult.mask);
+      expect(asyncResult.maskedPixels, 3);
+      expect(InpaintMaskUtils.countMaskedPixels(syncResult.mask), 3);
+      expect(
+        await InpaintMaskUtils.decodeBinaryMaskWithCoverageAsync(
+          Uint8List.fromList([1, 2, 3, 4]),
+        ),
+        isNull,
+      );
+    });
+
     test('encodeBinaryMaskAsync should match the sync encode', () async {
       final binaryMask = Uint8List.fromList([0, 1, 1, 0, 1, 0]);
 
