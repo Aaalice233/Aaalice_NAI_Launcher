@@ -129,22 +129,57 @@ class ImageMetadataParserService {
       }
     }
 
+    final result = _parsePng(
+      bytes,
+      stopwatch,
+      filePathForLog: filePathForLog,
+      includeStealth: true,
+    )!;
+    if (useCache && result.success) _resultCache[cacheKey] = result;
+    _updateStatistics(result, stopwatch.elapsed);
+    return result;
+  }
+
+  /// Returns the same result as [parseFromImage] without any pixel decode, or
+  /// null when that result depends on the stealth payload in the PNG pixels.
+  MetadataParseResult? parseFromImageWithoutPixelDecode(Uint8List bytes) {
+    if (ImageMetadataContainerCodec.isPngHeader(bytes)) {
+      return parseFromPngWithoutPixelDecode(bytes);
+    }
+    return parseFromImage(bytes);
+  }
+
+  /// PNG-only counterpart of [parseFromImageWithoutPixelDecode].
+  MetadataParseResult? parseFromPngWithoutPixelDecode(Uint8List bytes) {
+    final stopwatch = Stopwatch()..start();
+    final result = _parsePng(bytes, stopwatch, includeStealth: false);
+    if (result != null) {
+      statistics.totalAttempts++;
+      _updateStatistics(result, stopwatch.elapsed);
+    }
+    return result;
+  }
+
+  MetadataParseResult? _parsePng(
+    Uint8List bytes,
+    Stopwatch stopwatch, {
+    String? filePathForLog,
+    required bool includeStealth,
+  }) {
     final fileInfo = filePathForLog != null ? 'file=$filePathForLog, ' : '';
     try {
       if (!ImageMetadataContainerCodec.isPngHeader(bytes)) {
-        final result = MetadataParseResult.failed(
+        return MetadataParseResult.failed(
           const [],
           'Not a valid PNG file header, ${fileInfo}bytes length=${bytes.length}',
           parseTime: stopwatch.elapsed,
           bytesRead: bytes.length,
         );
-        _updateStatistics(result, stopwatch.elapsed);
-        return result;
       }
 
       final info = img.PngDecoder().startDecode(bytes);
       if (info == null) {
-        final result = MetadataParseResult.failed(
+        return MetadataParseResult.failed(
           const [],
           bytes.length < 1024 * 1024
               ? 'Failed to decode PNG (incomplete data?)'
@@ -152,50 +187,45 @@ class ImageMetadataParserService {
           parseTime: stopwatch.elapsed,
           bytesRead: bytes.length,
         );
-        _updateStatistics(result, stopwatch.elapsed);
-        return result;
       }
 
       final pngInfo = info as img.PngInfo;
-      var result = _parseTextData(
+      final result = _parseTextData(
         ImageMetadataContainerCodec.extractPngTextData(
           bytes,
           decoderTextData: pngInfo.textData,
         ),
       );
-      if (!result.success) {
-        final stealthText =
-            ImageMetadataContainerCodec.extractStealthMetadataText(bytes);
-        if (stealthText != null) {
-          final stealthResult = _parseTextData({'Comment': stealthText});
-          if (stealthResult.success && stealthResult.metadata != null) {
-            result = MetadataParseResult.success(
-              stealthResult.metadata!,
-              'NovelAI stealth_pngcomp',
-              stealthText,
-              [...result.triedParsers, 'NovelAI stealth_pngcomp'],
-              parseTime: stopwatch.elapsed,
-              bytesRead: bytes.length,
-            );
-          }
+      if (result.success) return result;
+      if (!includeStealth) return null;
+
+      final stealthText = ImageMetadataContainerCodec.extractStealthMetadataText(
+        bytes,
+      );
+      if (stealthText != null) {
+        final stealthResult = _parseTextData({'Comment': stealthText});
+        if (stealthResult.success && stealthResult.metadata != null) {
+          return MetadataParseResult.success(
+            stealthResult.metadata!,
+            'NovelAI stealth_pngcomp',
+            stealthText,
+            [...result.triedParsers, 'NovelAI stealth_pngcomp'],
+            parseTime: stopwatch.elapsed,
+            bytesRead: bytes.length,
+          );
         }
       }
-
-      if (useCache && result.success) _resultCache[cacheKey] = result;
-      _updateStatistics(result, stopwatch.elapsed);
       return result;
     } catch (error, stackTrace) {
       final message =
           'Error parsing metadata from PNG (${fileInfo}bytes=${bytes.length}): $error';
       PortableLogger.e(message, error, stackTrace, _tag);
-      final result = MetadataParseResult.failed(
+      return MetadataParseResult.failed(
         const [],
         message,
         parseTime: stopwatch.elapsed,
         bytesRead: bytes.length,
       );
-      _updateStatistics(result, stopwatch.elapsed);
-      return result;
     }
   }
 
