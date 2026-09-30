@@ -36,7 +36,9 @@ class Img2ImgSourcePreview extends StatefulWidget {
 }
 
 class _Img2ImgSourcePreviewState extends State<Img2ImgSourcePreview> {
-  final Img2ImgPreviewCache _cache = Img2ImgPreviewCache();
+  late final Img2ImgPreviewCache _cache = Img2ImgPreviewCache(
+    onUpdated: _handleDerivedDataReady,
+  );
   Img2ImgPreviewDerivedData _data = const Img2ImgPreviewDerivedData();
 
   @override
@@ -49,6 +51,17 @@ class _Img2ImgSourcePreviewState extends State<Img2ImgSourcePreview> {
   void didUpdateWidget(covariant Img2ImgSourcePreview oldWidget) {
     super.didUpdateWidget(oldWidget);
     _resolve();
+  }
+
+  @override
+  void dispose() {
+    _cache.dispose();
+    super.dispose();
+  }
+
+  void _handleDerivedDataReady() {
+    if (!mounted) return;
+    setState(_resolve);
   }
 
   void _resolve() {
