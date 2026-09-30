@@ -6,6 +6,8 @@ import 'package:archive/archive.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/core/agent/skill_archive_service.dart';
 
+import '../../helpers/shared_compute_gate.dart';
+
 void main() {
   late Directory temp;
   const service = SkillArchiveService();
@@ -50,6 +52,26 @@ void main() {
       await File('${target.path}/demo/references/guide.txt').readAsString(),
       'guide',
     );
+  });
+
+  test('extracts archives behind the shared compute gate', () async {
+    final source = Directory('${temp.path}/source/gated');
+    await source.create(recursive: true);
+    final manifest = File('${source.path}/SKILL.md');
+    await manifest.writeAsString(_skill('gated', 'Gated skill'));
+    final bytes = await service.exportSkills([
+      (name: 'gated', manifest: manifest),
+    ]);
+
+    final preview = await expectQueuedBehindSharedComputeGate(
+      () => service.previewImport(
+        bytes: bytes,
+        targetDirectory: Directory('${temp.path}/target'),
+      ),
+    );
+
+    expect(preview.items.single.name, 'gated');
+    expect(preview.items.single.description, 'Gated skill');
   });
 
   test('imports an archive that records directory entries', () async {

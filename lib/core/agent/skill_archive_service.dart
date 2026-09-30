@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import 'package:archive/archive.dart';
 import 'package:path/path.dart' as p;
 
+import '../utils/isolate_pool.dart';
 import 'private_data_guard.dart';
 import 'skill_archive_extractor.dart';
 import 'skill_catalog.dart';
@@ -350,13 +351,26 @@ class SkillArchiveService {
   Future<Map<String, ExtractedSkillGroup>> _extract(
     Uint8List bytes,
     Directory outputRoot,
-  ) => SkillArchiveExtractor(
-    archiveBytesLimit: archiveBytesLimit,
-    expandedBytesLimit: expandedBytesLimit,
-    fileBytesLimit: fileBytesLimit,
-    fileCountLimit: fileCountLimit,
-    maxPathDepth: maxPathDepth,
-  ).extract(bytes: bytes, outputRoot: outputRoot);
+  ) => _extractInBackground(
+    SkillArchiveExtractor(
+      archiveBytesLimit: archiveBytesLimit,
+      expandedBytesLimit: expandedBytesLimit,
+      fileBytesLimit: fileBytesLimit,
+      fileCountLimit: fileCountLimit,
+      maxPathDepth: maxPathDepth,
+    ),
+    bytes,
+    outputRoot.path,
+  );
+
+  // 解压、CRC 与隐私文本扫描都是整包工作，云同步恢复也走这里，统一放到后台
+  static Future<Map<String, ExtractedSkillGroup>> _extractInBackground(
+    SkillArchiveExtractor extractor,
+    Uint8List bytes,
+    String outputPath,
+  ) => ComputeGate().runIsolate(
+    () => extractor.extract(bytes: bytes, outputRoot: Directory(outputPath)),
+  );
 
   Future<SkillManifestMetadata> _validateExtractedManifest(
     String skillName,
