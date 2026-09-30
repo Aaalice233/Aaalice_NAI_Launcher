@@ -247,6 +247,99 @@ void main() {
     expect(await tagsAt(DateTime(2027, 12, 25)), isNot(contains('snowman')));
   });
 
+  test('变量展开得到的标签同样受按类别与按标签的后处理规则约束', () async {
+    final preset = _preset(
+      [
+        _category(
+          id: 'palette-id',
+          key: 'palette',
+          groups: [
+            _group(id: 'eye_color', tags: ['blue eyes']),
+          ],
+        ).copyWith(enabled: false),
+        _category(
+          id: 'accents-id',
+          key: 'accents',
+          groups: [
+            _group(id: 'accent', tags: ['red ribbon', 'star earrings']),
+          ],
+        ).copyWith(enabled: false),
+        _category(
+          id: 'look',
+          key: 'look',
+          groups: [
+            _group(id: 'look_group', tags: ['__palette__', '__accent__']),
+            _group(id: 'state_group', tags: ['sleeping']),
+          ],
+        ),
+      ],
+      algorithmConfig: const AlgorithmConfig(
+        globalPostProcessRules: PostProcessRuleSet(
+          rules: [
+            PostProcessRule(
+              id: 'sleeping_hides_palette',
+              name: 'Sleeping hides palette',
+              triggerTags: ['sleeping'],
+              action: PostProcessAction.removeCategory,
+              targetCategoryIds: ['palette-id'],
+            ),
+            PostProcessRule(
+              id: 'sleeping_drops_earrings',
+              name: 'Sleeping drops earrings',
+              triggerTags: ['sleeping'],
+              targetTags: ['star_earrings'],
+            ),
+          ],
+        ),
+      ),
+    );
+
+    final result = await generator.generateFromPreset(preset: preset, seed: 1);
+    final tags = _promptTags(result.mainPrompt);
+
+    expect(tags, containsAll(['sleeping', 'red ribbon']));
+    expect(tags, isNot(contains('blue eyes')));
+    expect(tags, isNot(contains('star earrings')));
+    expect(result.mainPrompt, isNot(contains('__')));
+  });
+
+  test('变量在本轮生成的时间下展开', () async {
+    final preset = _preset([
+      _category(
+        id: 'seasonal',
+        key: 'seasonal',
+        groups: [
+          _group(
+            id: 'christmas',
+            tags: ['santa hat'],
+            timeCondition: TimeCondition.christmas(),
+          ),
+        ],
+      ).copyWith(enabled: false),
+      _category(
+        id: 'look',
+        key: 'look',
+        groups: [
+          _group(id: 'look_group', tags: ['__seasonal__', 'smile']),
+        ],
+      ),
+    ]);
+
+    Future<List<String>> tagsAt(DateTime time) async => _promptTags(
+      (await generator.generateFromPreset(
+        preset: preset,
+        seed: 1,
+        generationTime: time,
+      )).mainPrompt,
+    );
+
+    expect(await tagsAt(DateTime(2026, 12, 24)), contains('santa hat'));
+    final summer = await tagsAt(DateTime(2026, 7, 1));
+    expect(summer, contains('smile'));
+    expect(summer, isNot(contains('santa hat')));
+    expect(summer.where((tag) => tag.contains('__')), isEmpty);
+  });
+
   test('dependencies resolve category ids distinct from keys', () async {
     final preset = _preset([
       _category(
