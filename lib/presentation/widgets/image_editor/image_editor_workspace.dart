@@ -423,7 +423,7 @@ class ImageEditorWorkspaceState extends State<ImageEditorWorkspace> {
       _focusedSelectionState.canvasSize = size;
 
       // 加载已有蒙版（如果有）
-      await _loadExistingMask();
+      await _loadExistingMask(operationEpoch);
       if (!mounted || !_controller.accepts(operationEpoch)) return;
       _loadExistingFocusSelection();
     }
@@ -518,7 +518,7 @@ class ImageEditorWorkspaceState extends State<ImageEditorWorkspace> {
       _state.layerManager.setActiveLayer(layer1.id);
 
       // 加载已有蒙版
-      await _loadExistingMask();
+      await _loadExistingMask(operationEpoch);
       if (!mounted || !_controller.accepts(operationEpoch)) return;
       _loadExistingFocusSelection();
       // 蒙版按整张原图载入，必须先于取景框恢复
@@ -552,16 +552,19 @@ class ImageEditorWorkspaceState extends State<ImageEditorWorkspace> {
     );
   }
 
-  Future<void> _loadExistingMask() async {
+  Future<void> _loadExistingMask(int operationEpoch) async {
     if (widget.existingMask == null) return;
 
     try {
-      final resizedMask = InpaintMaskUtils.resizeMaskBytes(
+      final resizedMask = await InpaintMaskUtils.resizeMaskBytesAsync(
         widget.existingMask!,
         targetWidth: _state.canvasSize.width.round(),
         targetHeight: _state.canvasSize.height.round(),
       );
-      final overlayBytes = InpaintMaskUtils.maskToEditorOverlay(resizedMask);
+      final overlayBytes = await InpaintMaskUtils.maskToEditorOverlayAsync(
+        resizedMask,
+      );
+      if (!mounted || !_controller.accepts(operationEpoch)) return;
 
       // 将已有蒙版添加为图层
       final layer = await _addMaskLayerAboveSource(

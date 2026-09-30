@@ -171,9 +171,12 @@ class ImageWorkflowLauncher {
 
     final effectiveMask =
         result.maskImage != null &&
-            InpaintMaskUtils.hasMaskedPixels(result.maskImage!)
+            await InpaintMaskUtils.hasMaskedPixelsAsync(result.maskImage!)
         ? result.maskImage
         : null;
+    if (!context.mounted || (isCurrent != null && !isCurrent())) {
+      return false;
+    }
     applyInpaintEditorResult(workflowNotifier, result, effectiveMask);
     if (effectiveMask != null) {
       AppToast.success(context, context.l10n.img2img_inpaintMaskReady);

@@ -68,6 +68,61 @@ void main() {
       expect(asyncResult, syncResult);
     });
 
+    test('hasMaskedPixelsAsync should match the sync check', () async {
+      final empty = img.Image(width: 4, height: 4);
+      img.fill(empty, color: img.ColorRgba8(0, 0, 0, 255));
+      final masked = img.Image.from(empty)
+        ..setPixelRgba(2, 1, 255, 255, 255, 255);
+      final inputs = [
+        Uint8List.fromList(img.encodePng(empty)),
+        Uint8List.fromList(img.encodePng(masked)),
+        Uint8List.fromList([1, 2, 3, 4]),
+      ];
+
+      for (final bytes in inputs) {
+        expect(
+          await InpaintMaskUtils.hasMaskedPixelsAsync(bytes),
+          InpaintMaskUtils.hasMaskedPixels(bytes),
+        );
+      }
+      expect(await InpaintMaskUtils.hasMaskedPixelsAsync(inputs[1]), isTrue);
+    });
+
+    test('decodeBinaryMaskAsync should match the sync decode', () async {
+      final source = img.Image(width: 5, height: 3);
+      img.fill(source, color: img.ColorRgba8(0, 0, 0, 255));
+      source.setPixelRgba(4, 2, 255, 255, 255, 255);
+      final bytes = Uint8List.fromList(img.encodePng(source));
+
+      final syncResult = InpaintMaskUtils.decodeBinaryMask(bytes)!;
+      final asyncResult = (await InpaintMaskUtils.decodeBinaryMaskAsync(
+        bytes,
+      ))!;
+
+      expect(asyncResult.width, syncResult.width);
+      expect(asyncResult.height, syncResult.height);
+      expect(asyncResult.mask, syncResult.mask);
+      expect(
+        await InpaintMaskUtils.decodeBinaryMaskAsync(
+          Uint8List.fromList([1, 2, 3, 4]),
+        ),
+        isNull,
+      );
+    });
+
+    test('encodeBinaryMaskAsync should match the sync encode', () async {
+      final binaryMask = Uint8List.fromList([0, 1, 1, 0, 1, 0]);
+
+      expect(
+        await InpaintMaskUtils.encodeBinaryMaskAsync(binaryMask, 3, 2),
+        InpaintMaskUtils.encodeBinaryMask(binaryMask, 3, 2),
+      );
+      await expectLater(
+        InpaintMaskUtils.encodeBinaryMaskAsync(binaryMask, 4, 2),
+        throwsArgumentError,
+      );
+    });
+
     test(
       'prepareInpaintMaskBytes should close pinholes and expand mask edges',
       () {

@@ -416,6 +416,47 @@ void main() {
     });
   });
 
+  test(
+    'only new assets are fully decoded; stored PNGs are checked by header',
+    () async {
+      final decoded = <Uint8List>[];
+      final counted = InpaintDraftFileRepository(
+        rootDirectory: root,
+        idGenerator: ids.next,
+        clock: () => DateTime.utc(2026, 3, 14, 12),
+        fileStore: InpaintDraftFileStore(
+          decodeImageSize: (bytes) async {
+            decoded.add(bytes);
+            final image = img.decodeImage(bytes);
+            return image == null ? null : (image.width, image.height);
+          },
+        ),
+      );
+      final prepared = await _prepare(counted);
+      await counted.beginEditing(prepared.id);
+      await counted.complete(
+        prepared.id,
+        sourceBytes: _png(value: 60),
+        maskBytes: _png(value: 220),
+        parameterSnapshot: const {},
+        estimatedAnlas: 1,
+      );
+      expect(decoded, hasLength(3));
+      decoded.clear();
+
+      await counted.get(prepared.id);
+      await counted.readSource(prepared.id);
+      await counted.readMask(prepared.id);
+      await counted.beginSubmission(prepared.id);
+      await counted.restoreReady(prepared.id, message: 'rejected');
+      await counted.markFailed(prepared.id, message: 'rejected');
+      final cancelled = await counted.cancel(prepared.id);
+
+      expect(cancelled.status, InpaintDraftStatus.cancelled);
+      expect(decoded, isEmpty);
+    },
+  );
+
   test('detects tampering and never accepts caller-controlled paths', () async {
     final draft = await _prepare(repository);
     final source = File(p.join(root.path, draft.id, 'source.image'));

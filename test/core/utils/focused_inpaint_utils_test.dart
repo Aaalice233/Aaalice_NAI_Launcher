@@ -826,6 +826,40 @@ void main() {
     });
 
     test(
+      'resolveGeometryForMaskAsync should match the sync geometry',
+      () async {
+        final mask = _buildIrregularMask(width: 640, height: 480);
+        final maskBytes = Uint8List.fromList(img.encodePng(mask));
+        final empty = img.Image(width: 64, height: 48);
+        img.fill(empty, color: img.ColorRgb8(0, 0, 0));
+
+        final syncGeometry = FocusedInpaintUtils.resolveGeometryForMask(
+          maskImage: maskBytes,
+          minContextMegaPixels: 40,
+        )!;
+        final asyncGeometry =
+            await FocusedInpaintUtils.resolveGeometryForMaskAsync(
+              maskImage: maskBytes,
+              minContextMegaPixels: 40,
+            );
+
+        expect(asyncGeometry, isNotNull);
+        expect(asyncGeometry!.requestWidth, syncGeometry.requestWidth);
+        expect(asyncGeometry.requestHeight, syncGeometry.requestHeight);
+        expect(asyncGeometry.requestMode, syncGeometry.requestMode);
+        expect(asyncGeometry.focusBounds.rect, syncGeometry.focusBounds.rect);
+        expect(asyncGeometry.contextCrop.rect, syncGeometry.contextCrop.rect);
+        expect(
+          await FocusedInpaintUtils.resolveGeometryForMaskAsync(
+            maskImage: Uint8List.fromList(img.encodePng(empty)),
+            minContextMegaPixels: 40,
+          ),
+          isNull,
+        );
+      },
+    );
+
+    test(
       'prepareRequestAsync should match the sync path across the isolate boundary',
       () async {
         final source = img.Image(width: 640, height: 480);
