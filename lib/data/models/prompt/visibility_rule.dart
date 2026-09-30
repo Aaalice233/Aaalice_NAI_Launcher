@@ -2,6 +2,8 @@ import 'dart:math' as math;
 
 import 'package:freezed_annotation/freezed_annotation.dart';
 
+import 'rule_tag_match.dart';
+
 part 'visibility_rule.freezed.dart';
 part 'visibility_rule.g.dart';
 
@@ -78,31 +80,32 @@ class VisibilityRule with _$VisibilityRule {
   /// [context] 当前上下文，包含已选择的标签
   /// 返回 true 如果条件匹配
   bool checkCondition(Map<String, List<String>> context) {
-    final sourceValues = context[sourceCategoryId] ?? [];
-    final sourceSet = sourceValues.toSet();
+    // 生成结果可能带权重括号，用户输入可能用下划线，按比较键匹配
+    final sourceValues = (context[sourceCategoryId] ?? const <String>[])
+        .map(ruleTagMatchKey)
+        .toList();
+    final expected = ruleTagMatchKey(conditionValue);
 
     switch (conditionType) {
       case VisibilityConditionType.tagExists:
-        return sourceSet.contains(conditionValue);
+        return sourceValues.contains(expected);
 
       case VisibilityConditionType.tagNotExists:
-        return !sourceSet.contains(conditionValue);
+        return !sourceValues.contains(expected);
 
       case VisibilityConditionType.valueEquals:
-        return sourceValues.isNotEmpty && sourceValues.first == conditionValue;
+        return sourceValues.isNotEmpty && sourceValues.first == expected;
 
       case VisibilityConditionType.valueNotEquals:
-        return sourceValues.isEmpty || sourceValues.first != conditionValue;
+        return sourceValues.isEmpty || sourceValues.first != expected;
 
       case VisibilityConditionType.valueInList:
-        final expectedValues =
-            conditionValue.split(',').map((s) => s.trim()).toSet();
-        return sourceValues.any((v) => expectedValues.contains(v));
+        final expectedValues = ruleTagMatchKeysOfList(conditionValue);
+        return sourceValues.any(expectedValues.contains);
 
       case VisibilityConditionType.valueNotInList:
-        final excludedValues =
-            conditionValue.split(',').map((s) => s.trim()).toSet();
-        return !sourceValues.any((v) => excludedValues.contains(v));
+        final excludedValues = ruleTagMatchKeysOfList(conditionValue);
+        return !sourceValues.any(excludedValues.contains);
     }
   }
 

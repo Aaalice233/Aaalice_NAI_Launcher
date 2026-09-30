@@ -1,6 +1,8 @@
 import 'package:collection/collection.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
 
+import 'rule_tag_match.dart';
+
 part 'post_process_rule.freezed.dart';
 part 'post_process_rule.g.dart';
 
@@ -122,10 +124,10 @@ class PostProcessRule with _$PostProcessRule {
   }) {
     if (!enabled) return false;
 
-    // 检查触发标签
+    // 检查触发标签：生成结果可能带权重括号，用户输入可能用下划线
     if (triggerTags.isNotEmpty) {
-      final tagSet = selectedTags.toSet();
-      if (triggerTags.any((t) => tagSet.contains(t))) {
+      final selected = ruleTagMatchKeys(selectedTags);
+      if (ruleTagMatchKeys(triggerTags).any(selected.contains)) {
         return true;
       }
     }
@@ -165,14 +167,16 @@ class PostProcessRule with _$PostProcessRule {
     switch (action) {
       case PostProcessAction.remove:
         // 移除目标标签
-        result.removeWhere((t) => targetTags.contains(t));
+        final targets = ruleTagMatchKeys(targetTags);
+        result.removeWhere((t) => targets.contains(ruleTagMatchKey(t)));
         break;
 
       case PostProcessAction.replace:
         // 替换目标标签
         if (replacementTag != null) {
+          final targets = ruleTagMatchKeys(targetTags);
           for (var i = 0; i < result.length; i++) {
-            if (targetTags.contains(result[i])) {
+            if (targets.contains(ruleTagMatchKey(result[i]))) {
               result[i] = replacementTag!;
             }
           }
@@ -186,12 +190,15 @@ class PostProcessRule with _$PostProcessRule {
 
       case PostProcessAction.removeCategory:
         // 触发标签本身也可能来自目标类别（如 closed eyes 属于眼睛），整类移除时要保留它
-        final triggers = triggerTags.toSet();
+        final triggers = ruleTagMatchKeys(triggerTags);
         for (final categoryId in targetCategoryIds) {
-          final categoryTags = (context[categoryId] ?? const []).toSet();
-          result.removeWhere(
-            (t) => categoryTags.contains(t) && !triggers.contains(t),
+          final categoryTags = ruleTagMatchKeys(
+            context[categoryId] ?? const [],
           );
+          result.removeWhere((t) {
+            final key = ruleTagMatchKey(t);
+            return categoryTags.contains(key) && !triggers.contains(key);
+          });
         }
         break;
     }
