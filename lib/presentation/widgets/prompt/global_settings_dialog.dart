@@ -406,6 +406,7 @@ class _GlobalSettingsDialogState extends ConsumerState<GlobalSettingsDialog> {
     final weightField = SizedBox(
       width: 76,
       child: ThemedFormInput(
+        key: ValueKey(option.id),
         initialValue: '${option.weight}',
         keyboardType: TextInputType.number,
         textAlign: TextAlign.center,

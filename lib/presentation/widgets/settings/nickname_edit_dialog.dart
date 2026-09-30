@@ -128,7 +128,7 @@ class _NicknameEditDialogState extends State<NicknameEditDialog> {
 
   @override
   Widget build(BuildContext context) {
-    final error = _hasInteracted ? _errorText : null;
+    final error = _hasInteracted && _errorText.isNotEmpty ? _errorText : null;
 
     return LayoutBuilder(
       builder: (context, constraints) {
