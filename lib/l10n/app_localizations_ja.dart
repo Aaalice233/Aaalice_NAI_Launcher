@@ -6368,24 +6368,7 @@ class AppLocalizationsJa extends AppLocalizations {
   }
 
   @override
-  String get collectionSelect_dialogTitle => 'コレクションを選択してください';
-
-  @override
   String get collectionSelect_filterHint => 'コレクションを検索...';
-
-  @override
-  String get collectionSelect_noCollections => 'コレクションはありません';
-
-  @override
-  String get collectionSelect_createCollectionHint => '最初にコレクションを作成してください';
-
-  @override
-  String get collectionSelect_noFilterResults => '一致するコレクションが見つかりませんでした';
-
-  @override
-  String collectionSelect_imageCount(int count) {
-    return '$count 画像';
-  }
 
   @override
   String get statistics_chartTopTags => 'トップのタグ';
@@ -9157,84 +9140,6 @@ class AppLocalizationsJa extends AppLocalizations {
   @override
   String categoryError_reorderFailed(String error) {
     return 'カテゴリの並べ替えに失敗しました: $error';
-  }
-
-  @override
-  String vibeBulk_errorEntryNotFoundOrDeleteFailed(String item) {
-    return '$item が見つからないか、削除できませんでした';
-  }
-
-  @override
-  String vibeBulk_errorDeleteFailed(String item, String error) {
-    return '$item の削除に失敗しました: $error';
-  }
-
-  @override
-  String vibeBulk_errorEntryNotFound(String item) {
-    return 'エントリが見つかりません: $item';
-  }
-
-  @override
-  String vibeBulk_errorMoveFailed(String item, String error) {
-    return '$item の移動に失敗しました: $error';
-  }
-
-  @override
-  String vibeBulk_errorFavoriteFailed(String item) {
-    return 'お気に入り状態の更新に失敗しました: $item';
-  }
-
-  @override
-  String vibeBulk_errorFavoriteFailedWithDetails(String item, String error) {
-    return '$item のお気に入り状態の更新に失敗しました: $error';
-  }
-
-  @override
-  String vibeBulk_errorAddTagsFailed(String item) {
-    return 'タグの追加に失敗しました: $item';
-  }
-
-  @override
-  String vibeBulk_errorAddTagsFailedWithDetails(String item, String error) {
-    return '$item へのタグ追加に失敗しました: $error';
-  }
-
-  @override
-  String vibeBulk_errorRemoveTagsFailed(String item) {
-    return 'タグの削除に失敗しました: $item';
-  }
-
-  @override
-  String vibeBulk_errorRemoveTagsFailedWithDetails(String item, String error) {
-    return '$item からのタグ削除に失敗しました: $error';
-  }
-
-  @override
-  String get vibeBulk_errorExportNoFile => 'ファイルが作成されなかったため、エクスポートに失敗しました';
-
-  @override
-  String vibeBulk_errorExportFailed(String error) {
-    return 'エクスポートに失敗しました: $error';
-  }
-
-  @override
-  String vibeBulk_errorFileNotFound(String item) {
-    return 'ファイルが見つかりません: $item';
-  }
-
-  @override
-  String vibeBulk_errorNoVibeData(String item) {
-    return '$item に有効な Vibe データが見つかりません';
-  }
-
-  @override
-  String vibeBulk_errorImportFailed(String item, String error) {
-    return '$item からの Vibe インポートに失敗しました: $error';
-  }
-
-  @override
-  String vibeBulk_errorProcessFileFailed(String item, String error) {
-    return '$item の処理に失敗しました: $error';
   }
 
   @override

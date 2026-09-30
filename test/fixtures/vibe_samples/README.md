@@ -5,7 +5,7 @@
 相关入口：
 
 - [vibe_import_service.dart](../../../lib/data/services/vibe_import_service.dart)
-- [vibe_export_service.dart](../../../lib/data/services/vibe_export_service.dart)
+- [vibe_export_utils.dart](../../../lib/core/utils/vibe_export_utils.dart)
 - [vibe_metadata_service.dart](../../../lib/data/services/vibe_metadata_service.dart)
 - [vibe_import_service_test.dart](../../data/services/vibe_import_service_test.dart)
 - [vibe_export_utils_test.dart](../../core/utils/vibe_export_utils_test.dart)

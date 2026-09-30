@@ -2,35 +2,26 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/data/models/gallery/gallery_album.dart';
-import 'package:nai_launcher/data/models/gallery/image_collection.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
-import 'package:nai_launcher/presentation/providers/collection_provider.dart';
 import 'package:nai_launcher/presentation/providers/gallery_album_provider.dart';
-import 'package:nai_launcher/presentation/widgets/collection_select_dialog.dart';
 import 'package:nai_launcher/presentation/widgets/gallery/album_select_dialog.dart';
 
 void main() {
   const widths = [320.0, 600.0, 840.0, 1180.0, 1600.0];
 
   for (final width in widths) {
-    testWidgets(
-      'album and collection empty states fit 3x at ${width.toInt()}px',
-      (tester) async {
-        await tester.binding.setSurfaceSize(Size(width, 900));
-        addTearDown(() => tester.binding.setSurfaceSize(null));
+    testWidgets('album empty state fits 3x at ${width.toInt()}px', (
+      tester,
+    ) async {
+      await tester.binding.setSurfaceSize(Size(width, 900));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
 
-        await _pump(tester, child: const AlbumSelectDialog());
-        expect(find.text('Cancel'), findsOneWidget);
-        await _scrollAlbumBody(tester);
-        expect(find.byIcon(Icons.photo_album_outlined), findsOneWidget);
-        expect(tester.takeException(), isNull);
-
-        await _pump(tester, child: CollectionSelectDialog(theme: ThemeData()));
-        expect(find.text('Cancel'), findsOneWidget);
-        expect(find.byIcon(Icons.folder_outlined), findsOneWidget);
-        expect(tester.takeException(), isNull);
-      },
-    );
+      await _pump(tester, child: const AlbumSelectDialog());
+      expect(find.text('Cancel'), findsOneWidget);
+      await _scrollAlbumBody(tester);
+      expect(find.byIcon(Icons.photo_album_outlined), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
   }
 
   testWidgets('album controls remain reachable at 320px height', (
@@ -97,9 +88,7 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('album and collection search-empty states remain reachable', (
-    tester,
-  ) async {
+  testWidgets('album search-empty state remains reachable', (tester) async {
     await tester.binding.setSurfaceSize(const Size(320, 900));
     addTearDown(() => tester.binding.setSurfaceSize(null));
 
@@ -112,16 +101,6 @@ void main() {
     await tester.pump();
     await _scrollAlbumBody(tester);
     expect(find.byIcon(Icons.search_off_outlined), findsOneWidget);
-    expect(tester.takeException(), isNull);
-
-    await _pump(
-      tester,
-      collectionState: CollectionState(collections: [_collection]),
-      child: CollectionSelectDialog(theme: ThemeData()),
-    );
-    await tester.enterText(find.byType(TextField), 'missing');
-    await tester.pump();
-    expect(find.text('No matching collections found'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
@@ -137,46 +116,47 @@ void main() {
       viewInsets: const EdgeInsets.only(bottom: 320),
     ),
   ]) {
-    testWidgets(
-      'collection dialog remains usable at 3x with ${scenario.name}',
-      (tester) async {
-        await tester.binding.setSurfaceSize(scenario.size);
-        addTearDown(() => tester.binding.setSurfaceSize(null));
+    testWidgets('album dialog remains usable at 3x with ${scenario.name}', (
+      tester,
+    ) async {
+      await tester.binding.setSurfaceSize(scenario.size);
+      addTearDown(() => tester.binding.setSurfaceSize(null));
 
-        await _pump(
-          tester,
-          collectionState: CollectionState(collections: [_collection]),
-          viewInsets: scenario.viewInsets,
-          child: CollectionSelectDialog(theme: ThemeData()),
-        );
+      await _pump(
+        tester,
+        albumState: GalleryAlbumState(albums: [_album]),
+        viewInsets: scenario.viewInsets,
+        child: const AlbumSelectDialog(),
+      );
 
-        final scrollView = find.byKey(const Key('collection-select-scroll'));
-        var searchField = find.byType(TextField);
-        expect(searchField.hitTestable(), findsOneWidget);
+      final scrollView = find.byKey(const Key('album-select-scroll'));
+      var searchField = find.byType(TextField);
+      expect(searchField.hitTestable(), findsOneWidget);
 
-        await tester.enterText(searchField, 'missing');
-        await tester.pump();
-        final emptyState = find.text('No matching collections found');
-        await tester.ensureVisible(emptyState);
-        await tester.pump();
-        expect(emptyState.hitTestable(), findsOneWidget);
+      await tester.enterText(searchField, 'missing');
+      await tester.pump();
+      final emptyState = find.byIcon(Icons.search_off_outlined);
+      await tester.ensureVisible(emptyState);
+      await tester.pump();
+      expect(emptyState.hitTestable(), findsOneWidget);
 
-        await tester.drag(scrollView, const Offset(0, 1000));
+      await tester.drag(scrollView, const Offset(0, 1000));
+      await tester.pump();
+      searchField = find.byType(TextField);
+      expect(searchField, findsOneWidget);
+      await tester.enterText(searchField, '');
+      await tester.pump();
+      final album = find.text('Portraits');
+      await tester.ensureVisible(album);
+      await tester.pump();
+      expect(album.hitTestable(), findsOneWidget);
+      for (final action in [find.text('New Album'), find.text('Cancel')]) {
+        await tester.ensureVisible(action);
         await tester.pump();
-        searchField = find.byType(TextField);
-        expect(searchField, findsOneWidget);
-        await tester.enterText(searchField, '');
-        await tester.pump();
-        final collection = find.text('Landscapes');
-        await tester.ensureVisible(collection);
-        await tester.pump();
-        expect(collection.hitTestable(), findsOneWidget);
-        await tester.ensureVisible(find.text('Cancel'));
-        await tester.pump();
-        expect(find.text('Cancel').hitTestable(), findsOneWidget);
-        expect(tester.takeException(), isNull);
-      },
-    );
+        expect(action.hitTestable(), findsOneWidget);
+      }
+      expect(tester.takeException(), isNull);
+    });
   }
 }
 
@@ -185,13 +165,6 @@ final _album = GalleryAlbum(
   name: 'Portraits',
   createdAt: DateTime(2026),
   updatedAt: DateTime(2026),
-);
-
-final _collection = ImageCollection(
-  id: 'collection',
-  name: 'Landscapes',
-  description: 'Wide landscape references',
-  createdAt: DateTime(2026),
 );
 
 Future<void> _scrollAlbumBody(WidgetTester tester) async {
@@ -209,7 +182,6 @@ Future<void> _pump(
   WidgetTester tester, {
   required Widget child,
   GalleryAlbumState albumState = const GalleryAlbumState(),
-  CollectionState collectionState = const CollectionState(),
   TextScaler textScaler = const TextScaler.linear(3),
   EdgeInsets viewInsets = EdgeInsets.zero,
 }) async {
@@ -219,9 +191,6 @@ Future<void> _pump(
       overrides: [
         galleryAlbumNotifierProvider.overrideWith(
           () => _StaticAlbumNotifier(albumState),
-        ),
-        collectionNotifierProvider.overrideWith(
-          () => _StaticCollectionNotifier(collectionState),
         ),
       ],
       child: MaterialApp(
@@ -248,16 +217,4 @@ class _StaticAlbumNotifier extends GalleryAlbumNotifier {
 
   @override
   GalleryAlbumState build() => initialState;
-}
-
-class _StaticCollectionNotifier extends CollectionNotifier {
-  _StaticCollectionNotifier(this.initialState);
-
-  final CollectionState initialState;
-
-  @override
-  CollectionState build() => initialState;
-
-  @override
-  Future<void> initialize() async {}
 }

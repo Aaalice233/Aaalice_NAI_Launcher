@@ -4,11 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/data/models/gallery/gallery_album.dart';
-import 'package:nai_launcher/data/models/gallery/image_collection.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
-import 'package:nai_launcher/presentation/providers/collection_provider.dart';
 import 'package:nai_launcher/presentation/providers/gallery_album_provider.dart';
-import 'package:nai_launcher/presentation/widgets/collection_select_dialog.dart';
 import 'package:nai_launcher/presentation/widgets/gallery/album_select_dialog.dart';
 
 void main() {
@@ -22,23 +19,6 @@ void main() {
         viewInsets: const EdgeInsets.only(bottom: 180),
         padding: const EdgeInsets.only(top: 24, bottom: 16),
       );
-      expect(tester.takeException(), isNull);
-
-      await tester.tap(find.text('Open collection'));
-      await tester.pumpAndSettle();
-      expect(find.byType(AlertDialog), findsNothing);
-      expect(find.byType(DraggableScrollableSheet), findsOneWidget);
-      final collectionScroll = find.byKey(
-        const Key('collection-select-scroll'),
-      );
-      expect(collectionScroll, findsOneWidget);
-      await _jumpToEndUntilVisible(
-        tester,
-        tester.widget<CustomScrollView>(collectionScroll).controller!,
-        find.text('Collection 19'),
-      );
-      await _tapVisibleTop(tester, find.text('Collection 19'));
-      expect(find.text('collection:collection-19'), findsOneWidget);
       expect(tester.takeException(), isNull);
 
       await tester.tap(find.text('Open album'));
@@ -69,17 +49,6 @@ void main() {
         size: const Size(320, 320),
         textScaler: TextScaler.noScaling,
       );
-
-      await tester.tap(find.text('Open collection'));
-      await tester.pumpAndSettle();
-      expect(find.byIcon(Icons.search).hitTestable(), findsOneWidget);
-      await _scrollToEnd(
-        tester,
-        find.byKey(const Key('collection-select-scroll')),
-      );
-      await tester.tap(find.text('Collection 19'));
-      await tester.pumpAndSettle();
-      expect(find.text('collection:collection-19'), findsOneWidget);
 
       await tester.tap(find.text('Open album'));
       await tester.pumpAndSettle();
@@ -128,27 +97,13 @@ void main() {
       textScaler: TextScaler.noScaling,
     );
 
-    await tester.tap(find.text('Open collection'));
-    await tester.pumpAndSettle();
-    expect(
-      find.byKey(const ValueKey('adaptive-centered-form')),
-      findsOneWidget,
-    );
-    expect(find.byType(AlertDialog), findsNothing);
-    expect(find.byType(AlertDialog), findsNothing);
-    final collectionDialog = tester.getRect(
-      find.byKey(const ValueKey('adaptive-centered-form')),
-    );
-    expect(collectionDialog.width, 450);
-    await tester.tap(find.byTooltip('Close'));
-    await tester.pumpAndSettle();
-
     await tester.tap(find.text('Open album'));
     await tester.pumpAndSettle();
     expect(
       find.byKey(const ValueKey('adaptive-centered-form')),
       findsOneWidget,
     );
+    expect(find.byType(AlertDialog), findsNothing);
     final albumDialog = tester.getRect(
       find.byKey(const ValueKey('adaptive-centered-form')),
     );
@@ -182,27 +137,12 @@ Future<void> _pumpHost(
             updatedAt: DateTime(2026),
           ),
         );
-  final collections = empty
-      ? <ImageCollection>[]
-      : List.generate(
-          20,
-          (index) => ImageCollection(
-            id: 'collection-$index',
-            name: 'Collection $index',
-            createdAt: DateTime(2026),
-          ),
-        );
 
   await tester.pumpWidget(
     ProviderScope(
       overrides: [
         galleryAlbumNotifierProvider.overrideWith(
           () => _StaticAlbumNotifier(GalleryAlbumState(albums: albums)),
-        ),
-        collectionNotifierProvider.overrideWith(
-          () => _StaticCollectionNotifier(
-            CollectionState(collections: collections),
-          ),
         ),
       ],
       child: MaterialApp(
@@ -270,12 +210,6 @@ class _PresenterHostState extends State<_PresenterHost> {
         children: [
           FilledButton(
             onPressed: () {
-              unawaited(_showCollection());
-            },
-            child: const Text('Open collection'),
-          ),
-          FilledButton(
-            onPressed: () {
               unawaited(_showAlbum());
             },
             child: const Text('Open album'),
@@ -284,16 +218,6 @@ class _PresenterHostState extends State<_PresenterHost> {
         ],
       ),
     );
-  }
-
-  Future<void> _showCollection() async {
-    final result = await CollectionSelectDialog.show(
-      context,
-      theme: Theme.of(context),
-    );
-    if (result != null && mounted) {
-      setState(() => _result = 'collection:${result.collectionId}');
-    }
   }
 
   Future<void> _showAlbum() async {
@@ -311,16 +235,4 @@ class _StaticAlbumNotifier extends GalleryAlbumNotifier {
 
   @override
   GalleryAlbumState build() => initialState;
-}
-
-class _StaticCollectionNotifier extends CollectionNotifier {
-  _StaticCollectionNotifier(this.initialState);
-
-  final CollectionState initialState;
-
-  @override
-  CollectionState build() => initialState;
-
-  @override
-  Future<void> initialize() async {}
 }
