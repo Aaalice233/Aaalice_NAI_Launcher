@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/data/models/auth/saved_account.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
+import 'package:nai_launcher/presentation/widgets/common/input_surface_container.dart';
 import 'package:nai_launcher/presentation/widgets/settings/nickname_edit_dialog.dart';
 
 void main() {
@@ -155,4 +156,77 @@ void main() {
     expect(find.byType(NicknameEditDialog), findsNothing);
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets(
+    'shows label, icon and counter; errors only for invalid input at 320/600 and 3x',
+    (tester) async {
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+
+      for (final width in [320.0, 600.0]) {
+        for (final scale in [1.0, 3.0]) {
+          final reason = 'width=$width scale=$scale';
+          tester.view.physicalSize = Size(width, 800);
+          await tester.pumpWidget(const SizedBox.shrink());
+          await tester.pumpWidget(
+            testApp(
+              textScaler: TextScaler.linear(scale),
+              home: Builder(
+                builder: (context) => Scaffold(
+                  body: FilledButton(
+                    onPressed: () => NicknameEditDialog.show(
+                      context: context,
+                      account: account,
+                      onSave: (_) {},
+                    ),
+                    child: const Text('Edit'),
+                  ),
+                ),
+              ),
+            ),
+          );
+          await tester.tap(find.text('Edit'));
+          await tester.pumpAndSettle();
+
+          final field = find.byType(TextField);
+          expect(find.text('Nickname'), findsOneWidget, reason: reason);
+          expect(
+            find.descendant(
+              of: find.byType(NicknameEditDialog),
+              matching: find.byIcon(Icons.person_outline),
+            ),
+            findsOneWidget,
+            reason: reason,
+          );
+
+          await tester.enterText(field, 'Bob');
+          await tester.pump();
+          expect(find.text('3/64'), findsOneWidget, reason: reason);
+          expect(_surfaceHasError(tester), isFalse, reason: reason);
+
+          await tester.enterText(field, '   ');
+          await tester.pump();
+          expect(
+            find.text('Please enter a nickname'),
+            findsOneWidget,
+            reason: reason,
+          );
+          expect(_surfaceHasError(tester), isTrue, reason: reason);
+          expect(tester.takeException(), isNull, reason: reason);
+
+          await tester.tap(find.byTooltip('Close'));
+          await tester.pumpAndSettle();
+        }
+      }
+    },
+  );
 }
+
+bool _surfaceHasError(WidgetTester tester) => tester
+    .widget<InputSurfaceContainer>(
+      find.descendant(
+        of: find.byType(NicknameEditDialog),
+        matching: find.byType(InputSurfaceContainer),
+      ),
+    )
+    .hasError;

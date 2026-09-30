@@ -7,7 +7,7 @@ import 'input_surface_container.dart';
 ///
 /// 使用共享深色填充与清晰、无发光的聚焦和错误轮廓。
 /// 支持 [validator] 验证功能和错误提示显示。
-class ThemedFormInput extends StatelessWidget {
+class ThemedFormInput extends StatefulWidget {
   /// 文本控制器
   final TextEditingController? controller;
 
@@ -98,7 +98,7 @@ class ThemedFormInput extends StatelessWidget {
   /// 编辑完成回调
   final VoidCallback? onEditingComplete;
 
-  /// 初始值
+  /// 初始值；未传 [controller] 时作为输入内容，之后的外部更新在输入框未聚焦时同步
   final String? initialValue;
 
   /// 文本对齐方式
@@ -113,7 +113,10 @@ class ThemedFormInput extends StatelessWidget {
   /// 点击输入框外部时的回调
   final TapRegionCallback? onTapOutside;
 
-  /// 额外的 InputDecoration（会与默认配置合并）
+  /// 额外的 InputDecoration，非空属性覆盖同名参数
+  ///
+  /// 边框、填充与启用状态由组件负责；帮助、错误与计数显示在输入框下方，
+  /// [validator] 的错误优先于 [InputDecoration.errorText]。
   final InputDecoration? decoration;
 
   const ThemedFormInput({
@@ -201,142 +204,317 @@ class ThemedFormInput extends StatelessWidget {
   });
 
   @override
+  State<ThemedFormInput> createState() => _ThemedFormInputState();
+}
+
+class _ThemedFormInputState extends State<ThemedFormInput> {
+  static const double _supportingGap = 4;
+  static const double _counterGap = 8;
+
+  TextEditingController? _ownedController;
+  late String _observedText;
+  bool _editing = false;
+  bool _initialValueChangedWhileEditing = false;
+
+  TextEditingController get _controller =>
+      widget.controller ?? _ownedController!;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.controller == null) {
+      _ownedController = TextEditingController(text: widget.initialValue);
+    }
+    _observedText = _controller.text;
+    _controller.addListener(_handleTextChanged);
+  }
+
+  @override
+  void didUpdateWidget(ThemedFormInput oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.controller != oldWidget.controller) {
+      final previous = oldWidget.controller ?? _ownedController!;
+      previous.removeListener(_handleTextChanged);
+      if (widget.controller == null) {
+        _ownedController = TextEditingController.fromValue(previous.value);
+      } else {
+        _ownedController?.dispose();
+        _ownedController = null;
+      }
+      _observedText = _controller.text;
+      _controller.addListener(_handleTextChanged);
+    } else if (widget.controller == null &&
+        widget.initialValue != oldWidget.initialValue) {
+      if (_editing) {
+        _initialValueChangedWhileEditing = true;
+      } else {
+        _showInitialValue();
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.removeListener(_handleTextChanged);
+    _ownedController?.dispose();
+    super.dispose();
+  }
+
+  // 编辑中不覆盖：调用方常把输入规整后回传（如去掉末尾逗号），实时写回会吞掉正在输入的字符
+  void _handleFocusChange(bool focused) {
+    _editing = focused;
+    if (focused || !_initialValueChangedWhileEditing) return;
+    _initialValueChangedWhileEditing = false;
+    if (widget.controller == null) _showInitialValue();
+  }
+
+  void _showInitialValue() {
+    final value = widget.initialValue ?? '';
+    if (_controller.text != value) _controller.text = value;
+  }
+
+  // 程序写入的内容不经过 onChanged，需要重建才能让自动校验读到新内容
+  void _handleTextChanged() {
+    if (_controller.text == _observedText) return;
+    _observedText = _controller.text;
+    setState(() {});
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+    final decoration = widget.decoration ?? const InputDecoration();
+    final contentPadding = decoration.contentPadding ?? widget.contentPadding;
 
     return Focus(
       canRequestFocus: false,
       skipTraversal: true,
+      onFocusChange: _handleFocusChange,
       child: Builder(
         builder: (focusContext) {
           final hasFocus = Focus.of(focusContext).hasFocus;
+          final validator = widget.validator;
+          final onSaved = widget.onSaved;
           return FormField<String>(
-            initialValue: controller?.text ?? initialValue ?? '',
-            validator: validator,
-            autovalidateMode: autovalidateMode ?? AutovalidateMode.disabled,
-            onSaved: onSaved,
-            builder: (FormFieldState<String> field) {
-              final hasError = field.hasError;
-              final errorText = field.errorText;
-
-              // 构建基础 InputDecoration
-              var inputDecoration = InputDecoration(
-                hintText: hintText,
-                hintStyle: hintStyle,
-                labelText: labelText,
-                border: InputBorder.none,
-                enabledBorder: InputBorder.none,
-                focusedBorder: InputBorder.none,
-                disabledBorder: InputBorder.none,
-                errorBorder: InputBorder.none,
-                focusedErrorBorder: InputBorder.none,
-                filled: false,
-                contentPadding: contentPadding,
-                prefixIcon: prefixIcon,
-                suffixIcon: suffixIcon,
-                isDense: true,
-                counterText: '', // 隐藏字符计数
-              );
-
-              // 如果提供了额外的 decoration，合并属性
-              if (decoration != null) {
-                inputDecoration = inputDecoration.copyWith(
-                  labelStyle: decoration!.labelStyle,
-                  floatingLabelStyle: decoration!.floatingLabelStyle,
-                  helperStyle: decoration!.helperStyle,
-                  errorStyle: decoration!.errorStyle,
-                  prefix: decoration!.prefix,
-                  prefixText: decoration!.prefixText,
-                  prefixStyle: decoration!.prefixStyle,
-                  suffix: decoration!.suffix,
-                  suffixText: decoration!.suffixText,
-                  suffixStyle: decoration!.suffixStyle,
-                  counter: decoration!.counter,
-                  counterStyle: decoration!.counterStyle,
-                );
-              }
-
-              final textField = TextField(
-                controller: controller,
-                focusNode: focusNode,
-                maxLines: maxLines,
-                minLines: minLines,
-                expands: expands,
-                textInputAction: textInputAction,
-                keyboardType: keyboardType,
-                onChanged: (value) {
-                  field.didChange(value);
-                  onChanged?.call(value);
-                },
-                onSubmitted: (value) {
-                  onSubmitted?.call(value);
-                  onFieldSubmitted?.call(value);
-                },
-                onTap: onTap,
-                onEditingComplete: onEditingComplete,
-                onTapOutside: onTapOutside,
-                readOnly: readOnly,
-                enabled: enabled,
-                inputFormatters: inputFormatters,
-                obscureText: obscureText,
-                maxLength: maxLength,
-                style: style,
-                autofocus: autofocus,
-                textAlign: textAlign,
-                textAlignVertical:
-                    textAlignVertical ??
-                    (maxLines == 1 && !expands
-                        ? TextAlignVertical.center
-                        : null),
-                cursorColor: cursorColor,
-                decoration: inputDecoration,
-              );
-
-              final container = InputSurfaceContainer(
-                borderRadius: borderRadius,
-                enabled: enabled,
-                hasError: hasError,
-                isFocused: hasFocus,
-                child: textField,
-              );
-
-              // 构建完整的输入框，包含错误提示和帮助文字
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  container,
-                  if (hasError && errorText != null) ...[
-                    const SizedBox(height: 4),
-                    Padding(
-                      padding: const EdgeInsets.only(left: 12),
-                      child: Text(
-                        errorText,
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: theme.colorScheme.error,
-                        ),
-                      ),
-                    ),
-                  ] else if (helperText != null) ...[
-                    const SizedBox(height: 4),
-                    Padding(
-                      padding: const EdgeInsets.only(left: 12),
-                      child: Text(
-                        helperText!,
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: theme.colorScheme.outline,
-                        ),
-                      ),
-                    ),
-                  ],
-                ],
-              );
-            },
+            initialValue: _controller.text,
+            validator: validator == null
+                ? null
+                : (_) => validator(_controller.text),
+            autovalidateMode:
+                widget.autovalidateMode ?? AutovalidateMode.disabled,
+            onSaved: onSaved == null ? null : (_) => onSaved(_controller.text),
+            builder: (field) => _buildField(
+              context,
+              field: field,
+              decoration: decoration,
+              contentPadding: contentPadding,
+              hasFocus: hasFocus,
+            ),
           );
         },
       ),
+    );
+  }
+
+  Widget _buildField(
+    BuildContext context, {
+    required FormFieldState<String> field,
+    required InputDecoration decoration,
+    required EdgeInsetsGeometry contentPadding,
+    required bool hasFocus,
+  }) {
+    final theme = Theme.of(context);
+    final message = _buildMessage(theme, field.errorText, decoration);
+    final counter = _buildCounter(theme, decoration);
+    final inset = contentPadding.resolve(Directionality.of(context));
+
+    // 恒用 Column 包裹：错误出现或消失时输入框不重建，焦点与输入法连接不中断
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        InputSurfaceContainer(
+          borderRadius: widget.borderRadius,
+          enabled: widget.enabled,
+          hasError:
+              field.hasError ||
+              decoration.error != null ||
+              decoration.errorText != null,
+          isFocused: hasFocus,
+          child: _buildTextField(field, decoration, contentPadding),
+        ),
+        if (message != null || counter != null) ...[
+          const SizedBox(height: _supportingGap),
+          Padding(
+            padding: EdgeInsets.only(left: inset.left, right: inset.right),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(child: message ?? const SizedBox.shrink()),
+                if (counter != null)
+                  Padding(
+                    padding: const EdgeInsetsDirectional.only(
+                      start: _counterGap,
+                    ),
+                    child: counter,
+                  ),
+              ],
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+
+  TextField _buildTextField(
+    FormFieldState<String> field,
+    InputDecoration decoration,
+    EdgeInsetsGeometry contentPadding,
+  ) {
+    return TextField(
+      controller: _controller,
+      focusNode: widget.focusNode,
+      maxLines: widget.maxLines,
+      minLines: widget.minLines,
+      expands: widget.expands,
+      textInputAction: widget.textInputAction,
+      keyboardType: widget.keyboardType,
+      onChanged: (value) {
+        field.didChange(value);
+        widget.onChanged?.call(value);
+      },
+      onSubmitted: (value) {
+        widget.onSubmitted?.call(value);
+        widget.onFieldSubmitted?.call(value);
+      },
+      onTap: widget.onTap,
+      onEditingComplete: widget.onEditingComplete,
+      onTapOutside: widget.onTapOutside,
+      readOnly: widget.readOnly,
+      enabled: widget.enabled,
+      inputFormatters: widget.inputFormatters,
+      obscureText: widget.obscureText,
+      maxLength: widget.maxLength,
+      style: widget.style,
+      autofocus: widget.autofocus,
+      textAlign: widget.textAlign,
+      textAlignVertical:
+          widget.textAlignVertical ??
+          (widget.maxLines == 1 && !widget.expands
+              ? TextAlignVertical.center
+              : null),
+      cursorColor: widget.cursorColor,
+      decoration: _fieldDecoration(decoration, contentPadding),
+    );
+  }
+
+  // 与 ThemedInput 一致由 decoration 优先：contentPadding 带默认值，无法判断参数是否显式传入
+  InputDecoration _fieldDecoration(
+    InputDecoration decoration,
+    EdgeInsetsGeometry contentPadding,
+  ) {
+    final hasLabel = decoration.label != null || decoration.labelText != null;
+    final hasHint = decoration.hint != null || decoration.hintText != null;
+    return InputDecoration(
+      icon: decoration.icon,
+      iconColor: decoration.iconColor,
+      label: decoration.label,
+      labelText: hasLabel ? decoration.labelText : widget.labelText,
+      labelStyle: decoration.labelStyle,
+      floatingLabelStyle: decoration.floatingLabelStyle,
+      hint: decoration.hint,
+      hintText: hasHint ? decoration.hintText : widget.hintText,
+      hintStyle: decoration.hintStyle ?? widget.hintStyle,
+      hintTextDirection: decoration.hintTextDirection,
+      hintMaxLines: decoration.hintMaxLines,
+      hintFadeDuration: decoration.hintFadeDuration,
+      maintainHintSize: decoration.maintainHintSize,
+      maintainLabelSize: decoration.maintainLabelSize,
+      floatingLabelBehavior: decoration.floatingLabelBehavior,
+      floatingLabelAlignment: decoration.floatingLabelAlignment,
+      isCollapsed: decoration.isCollapsed,
+      isDense: decoration.isDense ?? true,
+      contentPadding: contentPadding,
+      prefixIcon: decoration.prefixIcon ?? widget.prefixIcon,
+      prefixIconConstraints: decoration.prefixIconConstraints,
+      prefix: decoration.prefix,
+      prefixText: decoration.prefixText,
+      prefixStyle: decoration.prefixStyle,
+      prefixIconColor: decoration.prefixIconColor,
+      suffixIcon: decoration.suffixIcon ?? widget.suffixIcon,
+      suffix: decoration.suffix,
+      suffixText: decoration.suffixText,
+      suffixStyle: decoration.suffixStyle,
+      suffixIconColor: decoration.suffixIconColor,
+      suffixIconConstraints: decoration.suffixIconConstraints,
+      counterText: '',
+      filled: false,
+      border: InputBorder.none,
+      enabledBorder: InputBorder.none,
+      focusedBorder: InputBorder.none,
+      disabledBorder: InputBorder.none,
+      errorBorder: InputBorder.none,
+      focusedErrorBorder: InputBorder.none,
+      alignLabelWithHint: decoration.alignLabelWithHint,
+      constraints: decoration.constraints,
+      visualDensity: decoration.visualDensity,
+    );
+  }
+
+  Widget? _buildMessage(
+    ThemeData theme,
+    String? validatorError,
+    InputDecoration decoration,
+  ) {
+    final base = theme.textTheme.bodySmall;
+    if (validatorError != null ||
+        decoration.error != null ||
+        decoration.errorText != null) {
+      final style = base
+          ?.copyWith(color: theme.colorScheme.error)
+          .merge(decoration.errorStyle);
+      if (validatorError == null && decoration.error != null) {
+        return DefaultTextStyle.merge(style: style, child: decoration.error!);
+      }
+      return _supportingText(
+        validatorError ?? decoration.errorText!,
+        style,
+        decoration.errorMaxLines,
+      );
+    }
+
+    final style = base
+        ?.copyWith(color: theme.colorScheme.onSurfaceVariant)
+        .merge(decoration.helperStyle);
+    if (decoration.helper != null) {
+      return DefaultTextStyle.merge(style: style, child: decoration.helper!);
+    }
+    final helperText = decoration.helperText ?? widget.helperText;
+    if (helperText == null) return null;
+    return _supportingText(helperText, style, decoration.helperMaxLines);
+  }
+
+  Text _supportingText(String text, TextStyle? style, int? maxLines) {
+    return Text(
+      text,
+      style: style,
+      maxLines: maxLines,
+      overflow: maxLines == null ? null : TextOverflow.ellipsis,
+    );
+  }
+
+  Widget? _buildCounter(ThemeData theme, InputDecoration decoration) {
+    final style = theme.textTheme.bodySmall
+        ?.copyWith(color: theme.colorScheme.onSurfaceVariant)
+        .merge(decoration.counterStyle);
+    if (decoration.counter != null) {
+      return DefaultTextStyle.merge(style: style, child: decoration.counter!);
+    }
+    final counterText = decoration.counterText;
+    if (counterText == null || counterText.isEmpty) return null;
+    return Text(
+      counterText,
+      style: style,
+      semanticsLabel: decoration.semanticCounterText,
     );
   }
 }
