@@ -46,6 +46,7 @@ const _group = RandomTagGroup(
       enabled: false,
     ),
   ],
+  // 关闭每年重复时才出现年份字段，布局矩阵覆盖字段最多的形态
   timeCondition: TimeCondition(
     id: 'time',
     name: 'Always',
@@ -53,6 +54,8 @@ const _group = RandomTagGroup(
     startDay: 1,
     endMonth: 12,
     endDay: 31,
+    recurring: false,
+    specificYear: 2026,
   ),
   postProcessRules: [
     PostProcessRule(
@@ -155,8 +158,8 @@ final _formCases = <_FormCase>[
     controls: {
       () => find.byType(IconButton): 1,
       () => find.byType(SurfaceInkWell): 3,
-      _dropdowns: 4,
-      () => find.byType(Switch): 3,
+      _dropdowns: 5,
+      () => find.byType(Switch): 2,
       () => find.byType(EditableText): 1,
     },
   ),

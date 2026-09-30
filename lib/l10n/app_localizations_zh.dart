@@ -12170,6 +12170,15 @@ class AppLocalizationsZh extends AppLocalizations {
   String get diy_repeatYearlyHint => '每年在相同日期范围内自动启用';
 
   @override
+  String get diy_repeatOnceHint => '只在所选年份的日期范围内启用';
+
+  @override
+  String get diy_year => '年份';
+
+  @override
+  String get diy_yearUnsetHint => '尚未选择年份，目前每年都会启用';
+
+  @override
   String get diy_currentlyActive => '当前激活';
 
   @override
@@ -27212,6 +27221,15 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get diy_repeatYearlyHint => '每年在相同日期範圍內自動啟用';
+
+  @override
+  String get diy_repeatOnceHint => '只在所選年份的日期範圍內啟用';
+
+  @override
+  String get diy_year => '年份';
+
+  @override
+  String get diy_yearUnsetHint => '尚未選擇年份，目前每年都會啟用';
 
   @override
   String get diy_currentlyActive => '當前啟用';

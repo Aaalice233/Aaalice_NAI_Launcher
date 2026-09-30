@@ -355,8 +355,8 @@ class RandomTagGroup with _$RandomTagGroup {
   /// 是否有可见性规则
   bool get hasVisibilityRules => visibilityRules.isNotEmpty;
 
-  /// 是否有时间条件
-  bool get hasTimeCondition => timeCondition != null;
+  /// 是否有启用的时间条件
+  bool get hasTimeCondition => timeCondition?.enabled ?? false;
 
   /// 是否有后处理规则
   bool get hasPostProcessRules => postProcessRules.isNotEmpty;
@@ -370,10 +370,11 @@ class RandomTagGroup with _$RandomTagGroup {
       hasPostProcessRules ||
       emphasisProbability > 0;
 
-  /// 检查时间条件是否满足
+  /// 检查时间条件是否满足，没有或停用的时间条件不限制词组
   bool isTimeConditionActive([DateTime? date]) {
-    if (timeCondition == null) return true;
-    return timeCondition!.isActive(date);
+    final condition = timeCondition;
+    if (condition == null || !condition.enabled) return true;
+    return condition.isActive(date);
   }
 
   /// 检查以本词组 ID 为目标的可见性规则
