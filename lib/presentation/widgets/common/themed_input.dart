@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import '../../../core/utils/localization_extension.dart';
 import '../../adaptive/interaction_policy.dart';
 import 'input_surface_container.dart';
+import 'input_surface_decoration.dart';
 import 'themed_confirm_dialog.dart';
 import 'themed_text_selection_toolbar.dart';
 
@@ -111,8 +112,7 @@ class ThemedInput extends StatefulWidget {
   /// 点击输入框外部时的回调
   final TapRegionCallback? onTapOutside;
 
-  /// 额外的 InputDecoration（会与默认配置合并）
-  /// 用于兼容需要额外装饰属性的场景
+  /// 额外的 InputDecoration，呈现规则见 [InputSurfaceDecoration]
   final InputDecoration? decoration;
 
   /// 是否显示清空按钮（有内容时才显示）
@@ -234,6 +234,8 @@ class ThemedInput extends StatefulWidget {
 }
 
 class _ThemedInputState extends State<ThemedInput> {
+  // 下方文字出现或消失会改变外层结构，靠它移动而非重建输入框，焦点与输入法连接不中断
+  final GlobalKey _surfaceKey = GlobalKey();
   late TextEditingController _effectiveController;
   late FocusNode _effectiveFocusNode;
   bool _ownsFocusNode = false;
@@ -331,53 +333,15 @@ class _ThemedInputState extends State<ThemedInput> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    // 构建基础 InputDecoration
-    var inputDecoration = InputDecoration(
+    final surface = InputSurfaceDecoration(
+      widget.decoration,
+      contentPadding: widget.contentPadding,
       hintText: widget.hintText,
       hintStyle: widget.hintStyle,
-      border: InputBorder.none,
-      enabledBorder: InputBorder.none,
-      focusedBorder: InputBorder.none,
-      disabledBorder: InputBorder.none,
-      errorBorder: InputBorder.none,
-      focusedErrorBorder: InputBorder.none,
-      filled: false,
-      contentPadding: widget.contentPadding,
       prefixIcon: widget.prefixIcon,
       suffixIcon: widget.suffixIcon,
-      isDense: true,
-      counterText: '', // 隐藏字符计数
+      helperText: widget.helperText,
     );
-
-    // 如果提供了额外的 decoration，合并属性
-    if (widget.decoration != null) {
-      inputDecoration = inputDecoration.copyWith(
-        hintText: widget.decoration!.hintText ?? widget.hintText,
-        hintStyle: widget.decoration!.hintStyle ?? widget.hintStyle,
-        labelText: widget.decoration!.labelText,
-        labelStyle: widget.decoration!.labelStyle,
-        floatingLabelStyle: widget.decoration!.floatingLabelStyle,
-        helperText: widget.decoration!.helperText,
-        helperStyle: widget.decoration!.helperStyle,
-        errorText: widget.decoration!.errorText,
-        errorStyle: widget.decoration!.errorStyle,
-        prefixIcon: widget.decoration!.prefixIcon ?? widget.prefixIcon,
-        prefix: widget.decoration!.prefix,
-        prefixText: widget.decoration!.prefixText,
-        prefixStyle: widget.decoration!.prefixStyle,
-        suffixIcon: widget.decoration!.suffixIcon ?? widget.suffixIcon,
-        suffix: widget.decoration!.suffix,
-        suffixText: widget.decoration!.suffixText,
-        suffixStyle: widget.decoration!.suffixStyle,
-        counter: widget.decoration!.counter,
-        counterStyle: widget.decoration!.counterStyle,
-        contentPadding:
-            widget.decoration!.contentPadding ?? widget.contentPadding,
-        isDense: widget.decoration!.isDense,
-      );
-    }
 
     final field = Semantics(
       label: widget.semanticLabel,
@@ -410,7 +374,7 @@ class _ThemedInputState extends State<ThemedInput> {
                 ? TextAlignVertical.center
                 : null),
         cursorColor: widget.cursorColor,
-        decoration: inputDecoration,
+        decoration: surface.fieldDecoration,
         // 不传时用带主题字体的默认实现：Flutter 自带的工具栏按钮会绕开
         // 主题字体，右键菜单会一直是系统默认字体。
         contextMenuBuilder:
@@ -448,34 +412,26 @@ class _ThemedInputState extends State<ThemedInput> {
     }
 
     final container = InputSurfaceContainer(
+      key: _surfaceKey,
       borderRadius: widget.borderRadius,
       enabled: widget.enabled,
       isFocused: _effectiveFocusNode.hasFocus,
-      hasError: widget.hasError || inputDecoration.errorText != null,
+      hasError: widget.hasError || surface.hasError(),
       backgroundColor: widget.surfaceColor,
       child: content,
     );
 
-    // 如果有帮助文字，添加在下方
-    if (widget.helperText != null) {
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          container,
-          const SizedBox(height: 4),
-          Padding(
-            padding: const EdgeInsets.only(left: 12),
-            child: Text(
-              widget.helperText!,
-              style: TextStyle(fontSize: 12, color: theme.colorScheme.outline),
-            ),
-          ),
-        ],
-      );
-    }
-
-    return container;
+    // 没有下方文字时直接返回色面，调用方给定的固定高度仍由色面填满
+    final supporting = surface.supportingText();
+    if (supporting == null) return container;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: widget.expands ? MainAxisSize.max : MainAxisSize.min,
+      children: [
+        if (widget.expands) Expanded(child: container) else container,
+        supporting,
+      ],
+    );
   }
 }
 

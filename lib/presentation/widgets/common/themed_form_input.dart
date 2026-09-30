@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import 'input_surface_container.dart';
+import 'input_surface_decoration.dart';
 
 /// 带表单验证的统一样式输入框组件
 ///
@@ -113,10 +114,8 @@ class ThemedFormInput extends StatefulWidget {
   /// 点击输入框外部时的回调
   final TapRegionCallback? onTapOutside;
 
-  /// 额外的 InputDecoration，非空属性覆盖同名参数
-  ///
-  /// 边框、填充与启用状态由组件负责；帮助、错误与计数显示在输入框下方，
-  /// [validator] 的错误优先于 [InputDecoration.errorText]。
+  /// 额外的 InputDecoration，呈现规则见 [InputSurfaceDecoration]；
+  /// [validator] 的错误优先于 [InputDecoration.errorText]
   final InputDecoration? decoration;
 
   const ThemedFormInput({
@@ -208,9 +207,6 @@ class ThemedFormInput extends StatefulWidget {
 }
 
 class _ThemedFormInputState extends State<ThemedFormInput> {
-  static const double _supportingGap = 4;
-  static const double _counterGap = 8;
-
   TextEditingController? _ownedController;
   late String _observedText;
   bool _editing = false;
@@ -282,8 +278,16 @@ class _ThemedFormInputState extends State<ThemedFormInput> {
 
   @override
   Widget build(BuildContext context) {
-    final decoration = widget.decoration ?? const InputDecoration();
-    final contentPadding = decoration.contentPadding ?? widget.contentPadding;
+    final surface = InputSurfaceDecoration(
+      widget.decoration,
+      contentPadding: widget.contentPadding,
+      labelText: widget.labelText,
+      hintText: widget.hintText,
+      hintStyle: widget.hintStyle,
+      prefixIcon: widget.prefixIcon,
+      suffixIcon: widget.suffixIcon,
+      helperText: widget.helperText,
+    );
 
     return Focus(
       canRequestFocus: false,
@@ -302,73 +306,33 @@ class _ThemedFormInputState extends State<ThemedFormInput> {
             autovalidateMode:
                 widget.autovalidateMode ?? AutovalidateMode.disabled,
             onSaved: onSaved == null ? null : (_) => onSaved(_controller.text),
-            builder: (field) => _buildField(
-              context,
-              field: field,
-              decoration: decoration,
-              contentPadding: contentPadding,
-              hasFocus: hasFocus,
-            ),
+            builder: (field) {
+              final supporting = surface.supportingText(field.errorText);
+              // 恒用 Column 包裹：错误出现或消失时输入框不重建，焦点与输入法连接不中断
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  InputSurfaceContainer(
+                    borderRadius: widget.borderRadius,
+                    enabled: widget.enabled,
+                    hasError: surface.hasError(field.errorText),
+                    isFocused: hasFocus,
+                    child: _buildTextField(field, surface.fieldDecoration),
+                  ),
+                  if (supporting != null) supporting,
+                ],
+              );
+            },
           );
         },
       ),
     );
   }
 
-  Widget _buildField(
-    BuildContext context, {
-    required FormFieldState<String> field,
-    required InputDecoration decoration,
-    required EdgeInsetsGeometry contentPadding,
-    required bool hasFocus,
-  }) {
-    final theme = Theme.of(context);
-    final message = _buildMessage(theme, field.errorText, decoration);
-    final counter = _buildCounter(theme, decoration);
-    final inset = contentPadding.resolve(Directionality.of(context));
-
-    // 恒用 Column 包裹：错误出现或消失时输入框不重建，焦点与输入法连接不中断
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        InputSurfaceContainer(
-          borderRadius: widget.borderRadius,
-          enabled: widget.enabled,
-          hasError:
-              field.hasError ||
-              decoration.error != null ||
-              decoration.errorText != null,
-          isFocused: hasFocus,
-          child: _buildTextField(field, decoration, contentPadding),
-        ),
-        if (message != null || counter != null) ...[
-          const SizedBox(height: _supportingGap),
-          Padding(
-            padding: EdgeInsets.only(left: inset.left, right: inset.right),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(child: message ?? const SizedBox.shrink()),
-                if (counter != null)
-                  Padding(
-                    padding: const EdgeInsetsDirectional.only(
-                      start: _counterGap,
-                    ),
-                    child: counter,
-                  ),
-              ],
-            ),
-          ),
-        ],
-      ],
-    );
-  }
-
   TextField _buildTextField(
     FormFieldState<String> field,
     InputDecoration decoration,
-    EdgeInsetsGeometry contentPadding,
   ) {
     return TextField(
       controller: _controller,
@@ -403,118 +367,7 @@ class _ThemedFormInputState extends State<ThemedFormInput> {
               ? TextAlignVertical.center
               : null),
       cursorColor: widget.cursorColor,
-      decoration: _fieldDecoration(decoration, contentPadding),
-    );
-  }
-
-  // 与 ThemedInput 一致由 decoration 优先：contentPadding 带默认值，无法判断参数是否显式传入
-  InputDecoration _fieldDecoration(
-    InputDecoration decoration,
-    EdgeInsetsGeometry contentPadding,
-  ) {
-    final hasLabel = decoration.label != null || decoration.labelText != null;
-    final hasHint = decoration.hint != null || decoration.hintText != null;
-    return InputDecoration(
-      icon: decoration.icon,
-      iconColor: decoration.iconColor,
-      label: decoration.label,
-      labelText: hasLabel ? decoration.labelText : widget.labelText,
-      labelStyle: decoration.labelStyle,
-      floatingLabelStyle: decoration.floatingLabelStyle,
-      hint: decoration.hint,
-      hintText: hasHint ? decoration.hintText : widget.hintText,
-      hintStyle: decoration.hintStyle ?? widget.hintStyle,
-      hintTextDirection: decoration.hintTextDirection,
-      hintMaxLines: decoration.hintMaxLines,
-      hintFadeDuration: decoration.hintFadeDuration,
-      maintainHintSize: decoration.maintainHintSize,
-      maintainLabelSize: decoration.maintainLabelSize,
-      floatingLabelBehavior: decoration.floatingLabelBehavior,
-      floatingLabelAlignment: decoration.floatingLabelAlignment,
-      isCollapsed: decoration.isCollapsed,
-      isDense: decoration.isDense ?? true,
-      contentPadding: contentPadding,
-      prefixIcon: decoration.prefixIcon ?? widget.prefixIcon,
-      prefixIconConstraints: decoration.prefixIconConstraints,
-      prefix: decoration.prefix,
-      prefixText: decoration.prefixText,
-      prefixStyle: decoration.prefixStyle,
-      prefixIconColor: decoration.prefixIconColor,
-      suffixIcon: decoration.suffixIcon ?? widget.suffixIcon,
-      suffix: decoration.suffix,
-      suffixText: decoration.suffixText,
-      suffixStyle: decoration.suffixStyle,
-      suffixIconColor: decoration.suffixIconColor,
-      suffixIconConstraints: decoration.suffixIconConstraints,
-      counterText: '',
-      filled: false,
-      border: InputBorder.none,
-      enabledBorder: InputBorder.none,
-      focusedBorder: InputBorder.none,
-      disabledBorder: InputBorder.none,
-      errorBorder: InputBorder.none,
-      focusedErrorBorder: InputBorder.none,
-      alignLabelWithHint: decoration.alignLabelWithHint,
-      constraints: decoration.constraints,
-      visualDensity: decoration.visualDensity,
-    );
-  }
-
-  Widget? _buildMessage(
-    ThemeData theme,
-    String? validatorError,
-    InputDecoration decoration,
-  ) {
-    final base = theme.textTheme.bodySmall;
-    if (validatorError != null ||
-        decoration.error != null ||
-        decoration.errorText != null) {
-      final style = base
-          ?.copyWith(color: theme.colorScheme.error)
-          .merge(decoration.errorStyle);
-      if (validatorError == null && decoration.error != null) {
-        return DefaultTextStyle.merge(style: style, child: decoration.error!);
-      }
-      return _supportingText(
-        validatorError ?? decoration.errorText!,
-        style,
-        decoration.errorMaxLines,
-      );
-    }
-
-    final style = base
-        ?.copyWith(color: theme.colorScheme.onSurfaceVariant)
-        .merge(decoration.helperStyle);
-    if (decoration.helper != null) {
-      return DefaultTextStyle.merge(style: style, child: decoration.helper!);
-    }
-    final helperText = decoration.helperText ?? widget.helperText;
-    if (helperText == null) return null;
-    return _supportingText(helperText, style, decoration.helperMaxLines);
-  }
-
-  Text _supportingText(String text, TextStyle? style, int? maxLines) {
-    return Text(
-      text,
-      style: style,
-      maxLines: maxLines,
-      overflow: maxLines == null ? null : TextOverflow.ellipsis,
-    );
-  }
-
-  Widget? _buildCounter(ThemeData theme, InputDecoration decoration) {
-    final style = theme.textTheme.bodySmall
-        ?.copyWith(color: theme.colorScheme.onSurfaceVariant)
-        .merge(decoration.counterStyle);
-    if (decoration.counter != null) {
-      return DefaultTextStyle.merge(style: style, child: decoration.counter!);
-    }
-    final counterText = decoration.counterText;
-    if (counterText == null || counterText.isEmpty) return null;
-    return Text(
-      counterText,
-      style: style,
-      semanticsLabel: decoration.semanticCounterText,
+      decoration: decoration,
     );
   }
 }
