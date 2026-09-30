@@ -1,9 +1,11 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:archive/archive.dart';
 import 'package:path/path.dart' as path;
 
+import '../../core/utils/isolate_pool.dart';
 import '../../core/utils/zip_archive_entry.dart';
 import '../models/tag_library/import_models.dart';
 import '../models/tag_library/import_plan.dart';
@@ -300,6 +302,12 @@ class TagLibraryIOService {
       await thumbnailsDir.create(recursive: true);
     }
 
+    final thumbnailBytes = await _readMembersInBackground(bytes, {
+      for (final item in plan.entries)
+        if (item.thumbnailEntryId != null && item.source.hasThumbnail)
+          if (thumbnailMembers[item.source.id] case final member?) member.name,
+    });
+
     final totalSteps = plan.categories.length + plan.entries.length;
     final progressBase = totalSteps == 0 ? 1 : totalSteps;
     var currentStep = 0;
@@ -330,6 +338,7 @@ class TagLibraryIOService {
           entry: item.source,
           targetId: targetId,
           thumbnailMembers: thumbnailMembers,
+          thumbnailBytes: thumbnailBytes,
           thumbnailsDir: thumbnailsDir,
         ),
       );
@@ -352,6 +361,7 @@ class TagLibraryIOService {
     required TagLibraryEntry entry,
     required String targetId,
     required Map<String, ArchiveFile> thumbnailMembers,
+    required Map<String, Uint8List> thumbnailBytes,
     required Directory thumbnailsDir,
   }) async {
     final member = entry.hasThumbnail ? thumbnailMembers[entry.id] : null;
@@ -363,8 +373,29 @@ class TagLibraryIOService {
     return importPortableThumbnail(
       targetId,
       extension,
-      Stream.value(member.content as List<int>),
+      Stream.value(thumbnailBytes[member.name]!),
     );
+  }
+
+  // 预览图按原分辨率打包，纯 Dart 解压可达 MB 级；一次后台调用取出本次要落盘的全部成员
+  static Future<Map<String, Uint8List>> _readMembersInBackground(
+    Uint8List zipBytes,
+    Set<String> memberNames,
+  ) async {
+    if (memberNames.isEmpty) return const {};
+    return ComputeGate().runIsolate(() => _readMembers(zipBytes, memberNames));
+  }
+
+  static Map<String, Uint8List> _readMembers(
+    Uint8List zipBytes,
+    Set<String> memberNames,
+  ) {
+    final archive = ZipDecoder().decodeBytes(zipBytes);
+    return {
+      for (final file in archive.files)
+        if (memberNames.contains(file.name))
+          file.name: Uint8List.fromList(file.content as List<int>),
+    };
   }
 
   /// 生成导出文件名
