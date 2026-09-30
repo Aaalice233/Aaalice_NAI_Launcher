@@ -46,6 +46,7 @@ class TagLibraryDropMenu extends StatelessWidget {
     return AdaptivePresenter.showForm<TagLibraryDropAction>(
       context: context,
       dialogWidth: 400,
+      headerScrollsWithContent: true,
       titleBuilder: (panelContext) => Row(
         children: [
           Icon(

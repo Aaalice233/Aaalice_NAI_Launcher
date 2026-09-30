@@ -46,6 +46,7 @@ class _PrivacySettingsSectionState
         style: Theme.of(panelContext).textTheme.titleMedium,
       ),
       dialogWidth: 420,
+      headerScrollsWithContent: true,
       builder: (panelContext, scrollController) => _NumberEditorForm(
         initialValue: initialValue,
         label: label,

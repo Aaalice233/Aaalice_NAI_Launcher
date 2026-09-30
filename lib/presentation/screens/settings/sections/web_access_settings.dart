@@ -311,6 +311,7 @@ class _WebAccessSettingsState extends ConsumerState<WebAccessSettings> {
         style: Theme.of(panelContext).textTheme.titleMedium,
       ),
       dialogWidth: 420,
+      headerScrollsWithContent: true,
       builder: (panelContext, scrollController) =>
           _ApiKeyEditorForm(hasKey: hasKey, scrollController: scrollController),
     );

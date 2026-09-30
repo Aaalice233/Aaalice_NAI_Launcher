@@ -4,6 +4,8 @@ import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/widgets/image_editor/core/editor_state.dart';
 import 'package:nai_launcher/presentation/widgets/image_editor/widgets/panels/color_panel.dart';
 
+import '../../../../../helpers/adaptive_panel_expectations.dart';
+
 Widget _wrapPanel(
   EditorState state, {
   TextScaler textScaler = TextScaler.noScaling,
@@ -47,6 +49,7 @@ void main() {
 
     expect(find.byKey(const ValueKey('adaptive-bottom-sheet')), findsOneWidget);
     expect(find.byKey(const Key('color_picker_surface')), findsOneWidget);
+    expectPanelHeaderScrollsWithContent(tester);
     expect(find.byKey(const Key('color_picker_cancel')), findsOneWidget);
     expect(find.byKey(const Key('color_picker_confirm')), findsOneWidget);
 

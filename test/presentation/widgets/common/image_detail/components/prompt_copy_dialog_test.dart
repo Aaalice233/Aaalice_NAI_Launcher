@@ -5,6 +5,8 @@ import 'package:nai_launcher/data/models/gallery/nai_image_metadata.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/widgets/common/image_detail/components/prompt_copy_dialog.dart';
 
+import '../../../../../helpers/adaptive_panel_expectations.dart';
+
 void main() {
   String? clipboardText;
 
@@ -59,6 +61,7 @@ void main() {
       await tester.tap(find.text('open'));
       await tester.pumpAndSettle();
 
+      expectPanelHeaderScrollsWithContent(tester);
       final values = tester
           .widgetList<Checkbox>(find.byType(Checkbox))
           .map((checkbox) => checkbox.value)
@@ -196,6 +199,7 @@ void main() {
 
     expect(find.byKey(const ValueKey('adaptive-bottom-sheet')), findsOneWidget);
     expect(find.byKey(const Key('prompt-copy-options-list')), findsOneWidget);
+    expectPanelHeaderScrollsWithContent(tester);
     expect(tester.takeException(), isNull);
 
     final copyButton = find.text('Copy');

@@ -4,6 +4,8 @@ import 'package:nai_launcher/core/enums/precise_ref_type.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/widgets/common/precise_reference_type_dialog.dart';
 
+import '../../../helpers/adaptive_panel_expectations.dart';
+
 void main() {
   testWidgets('returns the selected precise reference type', (tester) async {
     PreciseRefType? selected;
@@ -91,6 +93,7 @@ void main() {
         for (final type in PreciseRefType.values) {
           await tester.tap(find.text('Open'));
           await tester.pumpAndSettle();
+          expectPanelHeaderScrollsWithContent(tester);
           final choice = find.byKey(
             ValueKey('precise-reference-type-${type.name}'),
           );
@@ -106,7 +109,7 @@ void main() {
             choice.hitTestable(),
             findsOneWidget,
             reason:
-                '$size / $type; choice=${tester.getRect(choice)}; list=${tester.getRect(find.byType(ListView))}',
+                '$size / $type; choice=${tester.getRect(choice)}; list=${tester.getRect(find.byWidgetPredicate((widget) => widget is ScrollView))}',
           );
           await tester.tap(choice);
           await tester.pumpAndSettle();

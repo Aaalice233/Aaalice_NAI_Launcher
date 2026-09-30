@@ -314,6 +314,7 @@ class ImageDestinationDialog extends ConsumerWidget {
       context: context,
       title: context.l10n.drop_metadataErrorDetails,
       dialogWidth: 600,
+      headerScrollsWithContent: true,
       builder: (panelContext, scrollController) => ContentSizedAdaptiveForm(
         scrollViewKey: const ValueKey('metadata-error-details-scroll'),
         scrollController: scrollController,

@@ -6,6 +6,8 @@ import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/providers/vibe_library_provider.dart';
 import 'package:nai_launcher/presentation/widgets/common/save_vibe_dialog.dart';
 
+import '../../../helpers/adaptive_panel_expectations.dart';
+
 void main() {
   setUp(() {
     final view =
@@ -99,14 +101,18 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byKey(const ValueKey('adaptive-bottom-sheet')), findsOneWidget);
-    expect(find.byType(ListView), findsOneWidget);
+    expect(
+      find.byWidgetPredicate((widget) => widget is ScrollView),
+      findsOneWidget,
+    );
+    expectPanelHeaderScrollsWithContent(tester);
     final save = find.text('保存');
     await tester.scrollUntilVisible(
       save,
       200,
       scrollable: find
           .descendant(
-            of: find.byType(ListView),
+            of: find.byWidgetPredicate((widget) => widget is ScrollView),
             matching: find.byType(Scrollable),
           )
           .first,

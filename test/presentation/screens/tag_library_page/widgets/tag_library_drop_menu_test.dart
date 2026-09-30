@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/screens/tag_library_page/widgets/tag_library_drop_menu.dart';
 
+import '../../../../helpers/adaptive_panel_expectations.dart';
 import '../../../../helpers/flutter_error_collector.dart';
 
 void main() {
@@ -26,6 +27,7 @@ void main() {
           ),
         );
         expect(tester.getSize(panel).height, lessThan(450));
+        expectPanelHeaderScrollsWithContent(tester);
         expect(
           tester.getRect(panel).bottom - tester.getRect(find.text('取消')).bottom,
           lessThan(60),

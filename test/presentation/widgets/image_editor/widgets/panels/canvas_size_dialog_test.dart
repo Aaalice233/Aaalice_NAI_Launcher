@@ -3,6 +3,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/widgets/image_editor/widgets/panels/canvas_size_dialog.dart';
 
+import '../../../../../helpers/adaptive_panel_expectations.dart';
+
 void main() {
   testWidgets('320x568、3x 文本与 IME 下字段和底部动作始终可达', (tester) async {
     tester.view.physicalSize = const Size(320, 568);
@@ -22,6 +24,7 @@ void main() {
     expect(find.byType(AlertDialog), findsNothing);
     expect(find.byKey(const ValueKey('canvas-size-scroll')), findsOneWidget);
     expect(tester.takeException(), isNull);
+    expectPanelHeaderScrollsWithContent(tester);
 
     final dialog = tester.getRect(
       find.byKey(const ValueKey('canvas-size-dialog')),

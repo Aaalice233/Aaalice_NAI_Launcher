@@ -96,6 +96,7 @@ class CanvasSizeDialog extends StatefulWidget {
     return AdaptivePresenter.showForm<CanvasSizeResult>(
       context: context,
       dialogWidth: 480,
+      headerScrollsWithContent: true,
       titleBuilder: (context) => Text(
         resolvedTitle,
         maxLines: 2,

@@ -100,6 +100,7 @@ class ColorPanel extends StatelessWidget {
     AdaptivePresenter.showForm<void>(
       context: context,
       dialogWidth: 440,
+      headerScrollsWithContent: true,
       titleBuilder: (context) => Text(
         context.l10n.editor_colorPickerTitle,
         maxLines: 2,
