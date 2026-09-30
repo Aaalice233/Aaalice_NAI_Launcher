@@ -3,7 +3,6 @@ import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:image/image.dart' as img;
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../../../core/constants/api_constants.dart';
@@ -13,6 +12,7 @@ import '../../../core/network/critical_network_activity.dart';
 import '../../../core/network/js_compatible_json.dart';
 import '../../../core/network/nai_api_endpoint_service.dart';
 import '../../../core/utils/app_logger.dart';
+import '../../../core/utils/decoded_image_size.dart';
 import '../../../core/utils/zip_utils.dart';
 
 part 'nai_image_enhancement_api_service.g.dart';
@@ -105,18 +105,15 @@ class NAIImageEnhancementApiService {
     void Function(int, int)? onProgress,
   }) async {
     try {
-      final decoded = img.decodeImage(image);
-      if (decoded == null) {
-        throw Exception('无法解析图像尺寸');
-      }
+      final (width, height) = await _readImageSize(image);
 
       final response = await _dio.post(
         _endpointService.mainUrl(ApiConstants.upscaleEndpoint),
         data: {
           'image': base64Encode(image),
           'scale': scale,
-          'width': decoded.width,
-          'height': decoded.height,
+          'width': width,
+          'height': height,
         },
         options: Options(
           responseType: ResponseType.bytes,
@@ -130,6 +127,14 @@ class NAIImageEnhancementApiService {
       AppLogger.w('Legacy upscale failed: ${e.message}', 'NAIEnhancement');
       throw Exception('图像放大失败: ${_mapDioError(e)}');
     }
+  }
+
+  static Future<(int, int)> _readImageSize(Uint8List image) async {
+    final size = await DecodedImageSize.read(image);
+    if (size == null) {
+      throw Exception('无法解析图像尺寸');
+    }
+    return size;
   }
 
   Uint8List _extractUpscaleResult(Uint8List raw) {
@@ -206,10 +211,7 @@ class NAIImageEnhancementApiService {
       CriticalNetworkActivityType.directorTool,
     );
     try {
-      final decoded = img.decodeImage(image);
-      if (decoded == null) {
-        throw Exception('无法解析图像尺寸');
-      }
+      final (width, height) = await _readImageSize(image);
 
       // 官网只有上色与表情工具带提示词和 defry，上色的空提示词也照发。
       final hasPromptControls =
@@ -219,8 +221,8 @@ class NAIImageEnhancementApiService {
         'use_new_shared_trial': true,
         if (hasPromptControls) 'prompt': prompt ?? '',
         if (hasPromptControls) 'defry': defry.clamp(0, 5),
-        'width': decoded.width,
-        'height': decoded.height,
+        'width': width,
+        'height': height,
         'image': 'image',
       });
 

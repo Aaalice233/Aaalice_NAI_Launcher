@@ -3,11 +3,10 @@ import 'dart:convert';
 import 'dart:typed_data';
 import 'dart:ui';
 
-import 'package:image/image.dart' as img;
-
 import '../../../core/krita/krita_bridge_models.dart';
 import '../../../core/models/image_generation_artifact.dart';
 import '../../../core/utils/app_logger.dart';
+import '../../../core/utils/decoded_image_size.dart';
 import '../../../core/utils/focused_inpaint_utils.dart';
 import '../../../core/utils/inpaint_mask_utils.dart';
 import '../../../core/utils/nai_resolution_adapter.dart';
@@ -340,16 +339,12 @@ class KritaBridgeService implements KritaBridgeMessageService {
         sourceImage == null) {
       return selection;
     }
-    img.Image? decoded;
-    try {
-      decoded = img.decodeImage(sourceImage);
-    } catch (_) {
-      return selection;
-    }
-    if (decoded == null) return selection;
+    // 协议层只接受带 IHDR 的 PNG，编码头即给出与解码一致的尺寸。
+    final sourceSize = DecodedImageSize.readHeader(sourceImage);
+    if (sourceSize == null) return selection;
     return FocusedInpaintUtils.constrainSelectionRect(
-          sourceWidth: decoded.width,
-          sourceHeight: decoded.height,
+          sourceWidth: sourceSize.$1,
+          sourceHeight: sourceSize.$2,
           selectionRect: selection,
           minContextMegaPixels: mapping.minimumContextPixels.toDouble(),
         ) ??
