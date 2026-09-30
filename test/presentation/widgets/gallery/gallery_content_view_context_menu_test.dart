@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/core/platform/platform_capabilities.dart';
 import 'package:nai_launcher/data/models/gallery/local_image_record.dart';
+import 'package:nai_launcher/data/models/gallery/nai_image_metadata.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/adaptive/interaction_policy.dart';
 import 'package:nai_launcher/presentation/widgets/common/card_action_buttons.dart';
@@ -74,6 +75,51 @@ void main() {
 
     expect(selectedRecord, same(record));
     expect(selectedPosition, isNotNull);
+  });
+
+  testWidgets('grouped card aspect ratio follows a replaced file', (
+    tester,
+  ) async {
+    Future<double?> pumpCardHeight(LocalImageRecord record) async {
+      await tester.pumpWidget(
+        ProviderScope(
+          child: MaterialApp(
+            locale: const Locale('en'),
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            home: Scaffold(
+              body: GenericGalleryContentView<LocalImageRecord>(
+                columns: 1,
+                itemWidth: 160,
+                state: _GroupedGalleryState(record),
+                selectionState: const _InactiveSelectionState(),
+                itemBuilder: (_, __, ___, ____) => const SizedBox.shrink(),
+                idExtractor: (item) => item.path,
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+      await tester.pump();
+      return tester
+          .widget<LocalImageCard3D>(find.byType(LocalImageCard3D))
+          .height;
+    }
+
+    final portrait = LocalImageRecord(
+      path: 'G:/gallery/replaced-image.png',
+      size: 42,
+      modifiedAt: DateTime(2026, 9, 1),
+      metadata: const NaiImageMetadata(width: 100, height: 200),
+    );
+    expect(await pumpCardHeight(portrait), 320);
+
+    final replaced = portrait.copyWith(
+      modifiedAt: DateTime(2026, 9, 2),
+      metadata: const NaiImageMetadata(width: 200, height: 100),
+    );
+    expect(await pumpCardHeight(replaced), 80);
   });
 
   testWidgets('local card action layout follows the image aspect ratio', (
