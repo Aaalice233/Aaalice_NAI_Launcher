@@ -80,7 +80,12 @@ class ImageSendActionDispatcher {
             suggestedName: _baseName(fileName),
           );
         case LocalImageContextAction.sendToKrita:
-          KritaSendHelper.sendImageBytes(context, ref, bytes, name: fileName);
+          await KritaSendHelper.sendImageBytes(
+            context,
+            ref,
+            bytes,
+            name: fileName,
+          );
         case LocalImageContextAction.upscale:
           ImageWorkflowLauncher.openUpscale(ref, bytes);
           context.go(AppRoutes.home);

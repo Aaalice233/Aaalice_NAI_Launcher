@@ -11,20 +11,26 @@ import '../widgets/common/app_toast.dart';
 class KritaSendHelper {
   const KritaSendHelper._();
 
-  static void sendImageBytes(
+  static Future<void> sendImageBytes(
     BuildContext context,
     WidgetRef ref,
     Uint8List imageBytes, {
     required String name,
-  }) {
-    final outboundImage = _prepareImage(context, imageBytes, name);
+  }) async {
+    // 转码期间触发入口可能已卸载，先取应用级 notifier，保证点击即发送。
+    final bridge = ref.read(kritaBridgeNotifierProvider.notifier);
+    final outboundImage = await _prepareImage(context, imageBytes, name);
     if (outboundImage == null) {
       return;
     }
 
-    final sent = ref
-        .read(kritaBridgeNotifierProvider.notifier)
-        .sendImageToKrita(outboundImage.bytes, name: outboundImage.name);
+    final sent = bridge.sendImageToKrita(
+      outboundImage.bytes,
+      name: outboundImage.name,
+    );
+    if (!context.mounted) {
+      return;
+    }
     if (!sent) {
       AppToast.warning(context, context.l10n.toast_kritaNotConnected);
       return;
@@ -33,15 +39,23 @@ class KritaSendHelper {
     AppToast.success(context, context.l10n.toast_sentToKrita);
   }
 
-  static KritaOutboundImage? _prepareImage(
+  static Future<KritaOutboundImage?> _prepareImage(
     BuildContext context,
     Uint8List imageBytes,
     String name,
-  ) {
+  ) async {
     try {
-      return KritaOutboundImage.prepare(imageBytes, name: name);
+      return await KritaOutboundImage.prepareInBackground(
+        imageBytes,
+        name: name,
+      );
     } on FormatException {
-      AppToast.warning(context, context.l10n.toast_kritaUnsupportedImageFormat);
+      if (context.mounted) {
+        AppToast.warning(
+          context,
+          context.l10n.toast_kritaUnsupportedImageFormat,
+        );
+      }
       return null;
     }
   }
