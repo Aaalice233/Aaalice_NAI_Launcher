@@ -30,7 +30,7 @@ pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/run_flutter_tests.ps1
 | 构建 | 目标平台编译、链接与打包 | 已启动或交互正常 |
 | 运行验收 | 实际页面操作、截图与增量日志 | 未操作的平台、尺寸或状态 |
 
-真实 UI 验收使用 [aaalice-runtime-verify](../.agents/skills/aaalice-runtime-verify/SKILL.md)：用户提出自动化验收时，Agent 自动启动或复用热重载，Windows 使用 Computer Use，Android 使用 ADB，并实际查看截图。单纯运行测试或修改文档不会自动触发该流程。
+真实 UI 验收使用 [aaalice-runtime-verify](../.agents/skills/aaalice-runtime-verify/SKILL.md)：用户提出自动化验收时，Agent 自动启动或复用热重载，按该技能规定的工具完成真实操作并实际查看截图。单纯运行测试或修改文档不会自动触发该流程。
 
 ## 测试维护
 
