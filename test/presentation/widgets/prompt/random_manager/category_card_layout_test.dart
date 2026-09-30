@@ -315,12 +315,7 @@ Future<void> _expectOverviewUsable(
   );
   await _expectReachable(
     tester,
-    find
-        .ancestor(
-          of: find.text(_l10n.randomManager_addCategory),
-          matching: find.byType(AnimatedContainer),
-        )
-        .first,
+    find.byType(AddCategoryButton),
     container: _overview(),
     reason: 'add category $reason',
   );
