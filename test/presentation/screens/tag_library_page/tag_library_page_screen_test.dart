@@ -259,8 +259,10 @@ void main() {
     await tester.tap(createCategory);
     await tester.pumpAndSettle();
 
+    // iOS 分支：窄屏分类树在左侧抽屉里而不是底部面板（见 tag_library_page_screen.dart），
+    // 所以这里只有「新建分类」表单这一个底部面板。
     final panels = find.byKey(const ValueKey('adaptive-bottom-sheet'));
-    expect(panels, findsNWidgets(2));
+    expect(panels, findsOneWidget);
     final panel = panels.last;
     expect(
       find.byKey(const ValueKey('tag-library-add-category-form')),
@@ -280,7 +282,9 @@ void main() {
       find.byKey(const ValueKey('tag-library-add-category-form')),
       findsNothing,
     );
-    expect(find.byKey(const ValueKey('adaptive-bottom-sheet')), findsOneWidget);
+    // iOS 分支：返回只关掉表单，分类抽屉仍然开着。
+    expect(find.byKey(const ValueKey('adaptive-bottom-sheet')), findsNothing);
+    expect(find.byType(Drawer), findsOneWidget);
   });
 
   testWidgets('responsive sidebar rebuild keeps the active library viewport', (

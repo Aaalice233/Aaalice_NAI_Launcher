@@ -340,7 +340,11 @@ void main() {
       ProviderScope(
         overrides: [
           localStorageServiceProvider.overrideWith((ref) {
-            return _TestLocalStorageService();
+            // iOS 分支：移动端默认隐藏随机提示词工具（见
+            // LocalStorageService.getShowRandomPromptTools）。这条用例检查的是
+            // 骰子按钮的摆放位置，所以显式打开它。
+            return _TestLocalStorageService()
+              ..values[StorageKeys.showRandomPromptTools] = true;
           }),
           characterPromptNotifierProvider.overrideWith(
             _TestCharacterPromptNotifier.new,

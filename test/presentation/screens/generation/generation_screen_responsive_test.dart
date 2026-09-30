@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -27,13 +28,15 @@ void main() {
   setUpAll(() async {
     hiveDirectory = await Directory.systemTemp.createTemp('generation-screen-');
     Hive.init(hiveDirectory.path);
-    await Hive.openBox<dynamic>(StorageKeys.settingsBox);
-    await Hive.openBox<dynamic>(StorageKeys.historyBox);
+    // 内存后端：落盘写一旦从 widget test 的 FakeAsync 时钟发起就不会完成，会锁死 box
+    await Hive.openBox<dynamic>(StorageKeys.settingsBox, bytes: Uint8List(0));
+    await Hive.openBox<dynamic>(StorageKeys.historyBox, bytes: Uint8List(0));
   });
 
   tearDownAll(() async {
     PlatformCapabilities.debugOverride = null;
-    await Hive.close();
+    // 有界等待：box 被锁死时快速失败，不把整个测试分片拖到看门狗超时
+    await Hive.close().timeout(const Duration(seconds: 10));
     await hiveDirectory.delete(recursive: true);
   });
 
@@ -179,6 +182,10 @@ void main() {
       find.byKey(const Key('generation-fixed-tags-overlay')),
       findsOneWidget,
     );
+    // iOS 分支：Token 计数有 400ms 防抖（prompt_token_counter_provider.dart）。
+    // 这条用例的 container 由 addTearDown 释放，晚于框架的挂起计时器检查，
+    // 所以先把防抖计时器走完。
+    await tester.pump(const Duration(milliseconds: 400));
     flutterErrors.expectNoErrors(reason: '839↔840 boundary transition');
   });
 

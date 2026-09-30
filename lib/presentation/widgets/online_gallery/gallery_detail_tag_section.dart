@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../../core/utils/localization_extension.dart';
+import '../../../l10n/app_localizations.dart';
 import '../../adaptive/interaction_policy.dart';
 import '../tag_chip.dart';
 
@@ -51,14 +51,16 @@ class GalleryDetailTagSection extends StatelessWidget {
     // 的菜单入口在触屏上是长按（见 tag_chip.dart）。文案与真实手势对不上时，
     // 等于这个功能在手机上不存在，所以按 interactionPolicy 切一套触屏说法。
     // 调用方传进来的文案保持不变，指针设备仍然看到上游原文。
-    final exposeTouchAlternatives =
-        context.interactionPolicy.shouldExposeTouchAlternatives;
-    final l10n = context.l10n;
+    // 本地化按可空取：取不到（如未挂 AppLocalizations 的上游组件测试）就
+    // 退回调用方给的文案，不在这里引入新的硬依赖。
+    final touchL10n = context.interactionPolicy.shouldExposeTouchAlternatives
+        ? AppLocalizations.of(context)
+        : null;
     String tooltipFor({required bool filtered}) {
-      if (exposeTouchAlternatives) {
+      if (touchL10n != null) {
         return filtered
-            ? l10n.onlineGallery_outputFilteredTagTooltipTouch
-            : l10n.onlineGallery_tagContextMenuTooltipTouch;
+            ? touchL10n.onlineGallery_outputFilteredTagTooltipTouch
+            : touchL10n.onlineGallery_tagContextMenuTooltipTouch;
       }
       return filtered ? filteredTooltip : normalTooltip;
     }

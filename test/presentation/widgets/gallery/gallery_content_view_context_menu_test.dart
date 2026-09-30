@@ -270,23 +270,32 @@ void main() {
           locale: const Locale('en'),
           localizationsDelegates: AppLocalizations.localizationsDelegates,
           supportedLocales: AppLocalizations.supportedLocales,
-          home: Scaffold(
-            body: Align(
-              alignment: Alignment.topLeft,
-              child: SizedBox(
-                width: 360,
-                height: 600,
-                child: GenericGalleryContentView<LocalImageRecord>(
-                  columns: 1,
-                  itemWidth: 160,
-                  state: _GroupedGalleryState(record),
-                  selectionState: const _InactiveSelectionState(),
-                  itemBuilder: (_, __, ___, ____) => const SizedBox.shrink(),
-                  idExtractor: (item) => item.path,
-                  onSendAction: (item, action) async {
-                    selectedRecord = item;
-                    selectedAction = action;
-                  },
+          // 同上一条用例：卡片操作按钮按 precisePointerAvailable 门控，
+          // 没有指针策略时悬停路径关闭、发送按钮不渲染。
+          home: InteractionPolicyScope(
+            initialPolicy: const InteractionPolicy(
+              modality: InteractionModality.pointer,
+              touchAvailable: false,
+              precisePointerAvailable: true,
+            ),
+            child: Scaffold(
+              body: Align(
+                alignment: Alignment.topLeft,
+                child: SizedBox(
+                  width: 360,
+                  height: 600,
+                  child: GenericGalleryContentView<LocalImageRecord>(
+                    columns: 1,
+                    itemWidth: 160,
+                    state: _GroupedGalleryState(record),
+                    selectionState: const _InactiveSelectionState(),
+                    itemBuilder: (_, __, ___, ____) => const SizedBox.shrink(),
+                    idExtractor: (item) => item.path,
+                    onSendAction: (item, action) async {
+                      selectedRecord = item;
+                      selectedAction = action;
+                    },
+                  ),
                 ),
               ),
             ),
@@ -295,20 +304,25 @@ void main() {
       ),
     );
     await tester.pump();
+    // 全程用鼠标点击：InteractionPolicyScope 会随观察到的输入切换交互模式，
+    // 默认的触摸点击会把卡片切到触屏动作菜单，卸掉菜单锚定的悬停按钮。
     final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
     await mouse.addPointer(
       location: tester.getCenter(find.byType(LocalImageCard3D)),
     );
     await tester.pump();
 
-    await tester.tap(find.byIcon(Icons.send));
+    await tester.tap(find.byIcon(Icons.send), kind: PointerDeviceKind.mouse);
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
     await tester.pump(const Duration(milliseconds: 300));
     expect(find.text('Send to Reverse Prompt'), findsOneWidget);
     expect(find.text('Import Image Metadata'), findsNothing);
 
-    await tester.tap(find.text('Send to Reverse Prompt'));
+    await tester.tap(
+      find.text('Send to Reverse Prompt'),
+      kind: PointerDeviceKind.mouse,
+    );
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
 
@@ -316,12 +330,21 @@ void main() {
     expect(selectedAction, LocalImageContextAction.sendToReversePrompt);
 
     selectedAction = null;
-    await tester.tap(find.byIcon(Icons.text_snippet_outlined));
+    // 点菜单项时指针离开了卡片；悬停按钮只在悬停时渲染，先把鼠标移回卡片。
+    await mouse.moveTo(tester.getCenter(find.byType(LocalImageCard3D)));
+    await tester.pump();
+    await tester.tap(
+      find.byIcon(Icons.text_snippet_outlined),
+      kind: PointerDeviceKind.mouse,
+    );
     await tester.pump();
     expect(selectedAction, LocalImageContextAction.copyPrompt);
 
     selectedAction = null;
-    await tester.tap(find.byIcon(Icons.delete_outline));
+    await tester.tap(
+      find.byIcon(Icons.delete_outline),
+      kind: PointerDeviceKind.mouse,
+    );
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
     await tester.pump();

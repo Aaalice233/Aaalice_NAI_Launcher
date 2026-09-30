@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -28,13 +29,17 @@ void main() {
   setUpAll(() async {
     hiveDirectory = await Directory.systemTemp.createTemp('generation-drawer-');
     Hive.init(hiveDirectory.path);
-    await Hive.openBox<dynamic>(StorageKeys.settingsBox);
-    await Hive.openBox<dynamic>(StorageKeys.historyBox);
+    // 与上游 generation_screen_responsive_test（aa743762）同一修法：内存后端。
+    // 落盘写一旦从 widget test 的 FakeAsync 时钟发起就不会完成，会锁死 box，
+    // tearDownAll 的 Hive.close() 随之永久挂起。
+    await Hive.openBox<dynamic>(StorageKeys.settingsBox, bytes: Uint8List(0));
+    await Hive.openBox<dynamic>(StorageKeys.historyBox, bytes: Uint8List(0));
   });
 
   tearDownAll(() async {
     PlatformCapabilities.debugOverride = null;
-    await Hive.close();
+    // 有界等待：box 被锁死时快速失败，而不是拖到看门狗超时
+    await Hive.close().timeout(const Duration(seconds: 10));
     await hiveDirectory.delete(recursive: true);
   });
 
