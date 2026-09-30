@@ -4,7 +4,95 @@ import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/themes/core/layered_surface_style.dart';
 import 'package:nai_launcher/presentation/widgets/prompt/new_preset_dialog.dart';
 
+import '../../../helpers/reachability_expectations.dart';
+
+const _landscapePadding = FakeViewPadding(left: 32, right: 48);
+
+final _viewports = <({Size size, double keyboard, FakeViewPadding padding})>[
+  for (final width in [320.0, 600.0, 840.0, 1180.0, 1600.0])
+    (size: Size(width, 900), keyboard: 0, padding: FakeViewPadding.zero),
+  (size: const Size(740, 360), keyboard: 0, padding: FakeViewPadding.zero),
+  (size: const Size(740, 360), keyboard: 80, padding: FakeViewPadding.zero),
+  (size: const Size(740, 360), keyboard: 160, padding: _landscapePadding),
+  (size: const Size(568, 320), keyboard: 120, padding: FakeViewPadding.zero),
+  (size: const Size(360, 740), keyboard: 300, padding: FakeViewPadding.zero),
+];
+
+Finder _ancestorOfText(String text, bool Function(Widget) matches) =>
+    find.ancestor(
+      of: find.text(text, skipOffstage: false),
+      matching: find.byWidgetPredicate(matches, skipOffstage: false),
+    );
+
 void main() {
+  for (final locale in ['zh', 'en']) {
+    for (final textScale in [1.0, 3.0]) {
+      testWidgets(
+        '新建预设在各宽度、短横屏、安全区与键盘下不溢出，$locale ${textScale}x 时标题、字段、选项与操作都可达',
+        (tester) async {
+          for (final viewport in _viewports) {
+            await _setView(
+              tester,
+              size: viewport.size,
+              padding: viewport.padding,
+              viewInsets: FakeViewPadding(bottom: viewport.keyboard),
+            );
+            await _pumpLauncher(
+              tester,
+              textScale: textScale,
+              locale: Locale(locale),
+            );
+            await tester.tap(find.text('打开'));
+            await tester.pumpAndSettle();
+            final reason =
+                '${viewport.size} keyboard=${viewport.keyboard} '
+                'padding=${viewport.padding.left} $locale ${textScale}x';
+            expect(tester.takeException(), isNull, reason: reason);
+            final l10n = AppLocalizations.of(
+              tester.element(find.byType(NewPresetDialog)),
+            )!;
+            bool isButton(Widget widget) => widget is ButtonStyleButton;
+            bool isInk(Widget widget) => widget is InkWell;
+            for (final (label, target) in [
+              (
+                '关闭',
+                find.ancestor(
+                  of: find.byIcon(Icons.close, skipOffstage: false),
+                  matching: find.byType(IconButton, skipOffstage: false),
+                ),
+              ),
+              ('名称', find.byType(TextField, skipOffstage: false)),
+              (
+                '基于默认预设',
+                _ancestorOfText(l10n.newPresetDialog_template, isInk).first,
+              ),
+              (
+                '完全空白',
+                _ancestorOfText(l10n.newPresetDialog_blank, isInk).first,
+              ),
+              ('取消', _ancestorOfText(l10n.common_cancel, isButton)),
+              ('创建', _ancestorOfText(l10n.common_create, isButton)),
+            ]) {
+              await scrollUntilBuilt(
+                tester,
+                target,
+                find.byKey(
+                  const ValueKey('new-preset-dialog-scroll'),
+                  skipOffstage: false,
+                ),
+              );
+              await revealOnScreen(tester, target);
+              expectReachable(tester, target, reason: '$reason $label');
+            }
+            expect(tester.takeException(), isNull, reason: reason);
+            await tester.binding.handlePopRoute();
+            await tester.pumpAndSettle();
+          }
+        },
+      );
+    }
+  }
+
   testWidgets('320 宽紧凑窗格以全屏长表单呈现', (tester) async {
     await _setView(tester, size: const Size(320, 640));
 
@@ -188,11 +276,12 @@ Future<void> _setView(
 Future<void> _pumpLauncher(
   WidgetTester tester, {
   double textScale = 1,
+  Locale locale = const Locale('zh'),
   ValueChanged<NewPresetResult?>? onResult,
 }) async {
   await tester.pumpWidget(
     MaterialApp(
-      locale: const Locale('zh'),
+      locale: locale,
       localizationsDelegates: AppLocalizations.localizationsDelegates,
       supportedLocales: AppLocalizations.supportedLocales,
       builder: (context, child) => MediaQuery(

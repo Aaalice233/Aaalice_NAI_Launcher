@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../themes/core/layered_surface_style.dart';
 import '../themes/theme_extension.dart';
+import 'content_sized_adaptive_form.dart';
 import 'window_size_class.dart';
 
 /// Builds a panel body with the presenter-owned scroll controller.
@@ -22,6 +23,11 @@ class AdaptivePresenter {
 
   /// Presents dialog-style editing flows in a content-sized bottom sheet on
   /// compact panes and in a bounded, centered surface on wider panes.
+  ///
+  /// With [headerScrollsWithContent], the [ContentSizedAdaptiveForm] returned
+  /// by [builder] hosts the header in its scroll view: pinned while the panel
+  /// has room, scrolling away on short viewports so a tall title cannot starve
+  /// the form.
   static Future<T?> showForm<T>({
     required BuildContext context,
     String? title,
@@ -34,6 +40,7 @@ class AdaptivePresenter {
     bool requestFocus = true,
     bool restoreFocus = true,
     bool showHeader = true,
+    bool headerScrollsWithContent = false,
   }) async {
     assert(!showHeader || title != null || titleBuilder != null);
     final metrics = context.adaptiveWindow;
@@ -54,6 +61,7 @@ class AdaptivePresenter {
         barrierDismissible: barrierDismissible,
         requestFocus: requestFocus,
         showHeader: showHeader,
+        hostHeaderInContent: headerScrollsWithContent,
       );
       if (restoreFocus && context.mounted && previousFocus?.context != null) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -73,6 +81,7 @@ class AdaptivePresenter {
       barrierDismissible: barrierDismissible,
       requestFocus: requestFocus,
       showHeader: showHeader,
+      hostHeaderInContent: headerScrollsWithContent,
     );
     if (restoreFocus && context.mounted && previousFocus?.context != null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -92,6 +101,7 @@ class AdaptivePresenter {
     required bool requestFocus,
     required bool showHeader,
     required bool expand,
+    required bool hostHeaderInContent,
     double? maxHeight,
   }) {
     final motion = Theme.of(context).appTheme;
@@ -123,6 +133,7 @@ class AdaptivePresenter {
                     titleBuilder: titleBuilder,
                     scrollController: scrollController,
                     showHeader: showHeader,
+                    hostHeaderInContent: hostHeaderInContent,
                     child: builder(context, scrollController),
                   ),
                 )
@@ -130,6 +141,7 @@ class AdaptivePresenter {
                   titleBuilder: titleBuilder,
                   builder: builder,
                   showHeader: showHeader,
+                  hostHeaderInContent: hostHeaderInContent,
                   maxHeight: maxHeight,
                 ),
         );
@@ -299,6 +311,7 @@ class AdaptivePresenter {
     required bool barrierDismissible,
     required bool requestFocus,
     required bool showHeader,
+    bool hostHeaderInContent = false,
     double? maxHeight,
   }) {
     final reduceMotion = MediaQuery.disableAnimationsOf(context);
@@ -318,6 +331,7 @@ class AdaptivePresenter {
         titleBuilder: titleBuilder,
         builder: builder,
         showHeader: showHeader,
+        hostHeaderInContent: hostHeaderInContent,
         maxHeight: maxHeight,
       ),
       transitionBuilder: (context, animation, _, child) {
@@ -333,12 +347,14 @@ class _BottomFormPanel extends StatefulWidget {
     required this.titleBuilder,
     required this.builder,
     required this.showHeader,
+    required this.hostHeaderInContent,
     this.maxHeight,
   });
 
   final WidgetBuilder titleBuilder;
   final AdaptivePanelBuilder builder;
   final bool showHeader;
+  final bool hostHeaderInContent;
   final double? maxHeight;
 
   @override
@@ -372,6 +388,7 @@ class _BottomFormPanelState extends State<_BottomFormPanel> {
               scrollController: _scrollController,
               contentSized: true,
               showHeader: widget.showHeader,
+              hostHeaderInContent: widget.hostHeaderInContent,
               child: widget.builder(context, _scrollController),
             ),
           ),
@@ -387,6 +404,7 @@ class _CenteredFormPanel extends StatefulWidget {
     required this.titleBuilder,
     required this.builder,
     required this.showHeader,
+    required this.hostHeaderInContent,
     this.maxHeight,
   });
 
@@ -394,6 +412,7 @@ class _CenteredFormPanel extends StatefulWidget {
   final WidgetBuilder titleBuilder;
   final AdaptivePanelBuilder builder;
   final bool showHeader;
+  final bool hostHeaderInContent;
   final double? maxHeight;
 
   @override
@@ -431,6 +450,7 @@ class _CenteredFormPanelState extends State<_CenteredFormPanel> {
               scrollController: _scrollController,
               centered: true,
               showHeader: widget.showHeader,
+              hostHeaderInContent: widget.hostHeaderInContent,
               child: widget.builder(context, _scrollController),
             );
             return Center(
@@ -443,6 +463,42 @@ class _CenteredFormPanelState extends State<_CenteredFormPanel> {
               ),
             );
           },
+        ),
+      ),
+    );
+  }
+}
+
+class _PanelHeader extends StatelessWidget {
+  const _PanelHeader({required this.titleBuilder});
+
+  final WidgetBuilder titleBuilder;
+
+  @override
+  Widget build(BuildContext context) {
+    return ColoredBox(
+      key: const ValueKey('adaptive-panel-header-surface'),
+      color: sectionSurfaceColor(Theme.of(context).colorScheme),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(minHeight: 56),
+        child: Padding(
+          padding: const EdgeInsetsDirectional.only(start: 20, end: 8),
+          child: Row(
+            children: [
+              Expanded(
+                child: DefaultTextStyle.merge(
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  child: titleBuilder(context),
+                ),
+              ),
+              IconButton(
+                onPressed: () => Navigator.of(context).maybePop(),
+                tooltip: MaterialLocalizations.of(context).closeButtonTooltip,
+                icon: const Icon(Icons.close),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -463,6 +519,7 @@ class _PanelSurface extends StatelessWidget {
     this.centered = false,
     this.contentSized = false,
     this.showHeader = true,
+    this.hostHeaderInContent = false,
   });
 
   final WidgetBuilder titleBuilder;
@@ -471,10 +528,17 @@ class _PanelSurface extends StatelessWidget {
   final bool centered;
   final bool contentSized;
   final bool showHeader;
+  final bool hostHeaderInContent;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final header = showHeader ? _PanelHeader(titleBuilder: titleBuilder) : null;
+    final hostedHeader = hostHeaderInContent ? header : null;
+    final body = PrimaryScrollController(
+      controller: scrollController,
+      child: child,
+    );
     return FocusTraversalGroup(
       policy: ReadingOrderTraversalPolicy(),
       child: Semantics(
@@ -510,39 +574,7 @@ class _PanelSurface extends StatelessWidget {
                     ),
                   ),
                 ),
-              if (showHeader) ...[
-                ColoredBox(
-                  key: const ValueKey('adaptive-panel-header-surface'),
-                  color: sectionSurfaceColor(theme.colorScheme),
-                  child: ConstrainedBox(
-                    constraints: const BoxConstraints(minHeight: 56),
-                    child: Padding(
-                      padding: const EdgeInsetsDirectional.only(
-                        start: 20,
-                        end: 8,
-                      ),
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: DefaultTextStyle.merge(
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                              child: titleBuilder(context),
-                            ),
-                          ),
-                          IconButton(
-                            onPressed: () => Navigator.of(context).maybePop(),
-                            tooltip: MaterialLocalizations.of(
-                              context,
-                            ).closeButtonTooltip,
-                            icon: const Icon(Icons.close),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              ],
+              if (header != null && hostedHeader == null) header,
               Flexible(
                 fit: centered || contentSized ? FlexFit.loose : FlexFit.tight,
                 child: SafeArea(
@@ -550,10 +582,12 @@ class _PanelSurface extends StatelessWidget {
                   left: false,
                   right: false,
                   bottom: true,
-                  child: PrimaryScrollController(
-                    controller: scrollController,
-                    child: child,
-                  ),
+                  child: hostedHeader == null
+                      ? body
+                      : AdaptivePanelHeaderScope(
+                          header: hostedHeader,
+                          child: body,
+                        ),
                 ),
               ),
             ],

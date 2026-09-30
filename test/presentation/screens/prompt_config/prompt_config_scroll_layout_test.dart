@@ -1,5 +1,3 @@
-import 'dart:math' as math;
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -15,6 +13,8 @@ import 'package:nai_launcher/presentation/providers/tag_group_sync_provider.dart
 import 'package:nai_launcher/presentation/providers/tag_library_provider.dart';
 import 'package:nai_launcher/presentation/screens/prompt_config/prompt_config_screen.dart';
 import 'package:nai_launcher/presentation/widgets/prompt/random_manager/category_card.dart';
+
+import '../../../helpers/reachability_expectations.dart';
 
 const _widths = [320.0, 600.0, 840.0, 1180.0, 1600.0];
 const _landscape = Size(740, 360);
@@ -151,107 +151,30 @@ bool _isExpanded(WidgetTester tester, RandomCategory category) =>
         .turns ==
     0.5;
 
-Rect _visibleBody(WidgetTester tester) {
-  final view = tester.view;
-  final size = view.physicalSize / view.devicePixelRatio;
-  return Rect.fromLTRB(
-    view.padding.left,
-    view.padding.top,
-    size.width - view.padding.right,
-    size.height -
-        (view.viewInsets.bottom > view.padding.bottom
-            ? view.viewInsets.bottom
-            : view.padding.bottom),
-  );
-}
-
-// 列表项按需构建，先按视口半高逐步跳转直到目标进入构建范围
-Future<void> _buildLazyTarget(
-  WidgetTester tester,
-  Finder target,
-  Finder scrollable,
-) async {
-  if (target.evaluate().isNotEmpty) return;
-  final position = tester.state<ScrollableState>(scrollable).position;
-  position.jumpTo(position.minScrollExtent);
-  await tester.pump();
-  while (target.evaluate().isEmpty &&
-      position.pixels < position.maxScrollExtent) {
-    position.jumpTo(
-      math.min(
-        position.pixels + position.viewportDimension / 2,
-        position.maxScrollExtent,
-      ),
-    );
-    await tester.pump();
-  }
-  expect(target, findsOneWidget);
-}
-
-// 与获得焦点时一致地走 showOnScreen：固定头部内的目标不会被 ensureVisible 滚到末尾
-Future<void> _reveal(WidgetTester tester, Finder target) async {
-  tester.renderObject(target).showOnScreen();
-  await tester.pumpAndSettle();
-}
-
-void _expectReachable(
-  WidgetTester tester,
-  Finder target, {
-  required String reason,
-  double minExtent = 48,
-}) {
-  final rect = tester.getRect(target);
-  final visible = _visibleBody(tester);
-  final shown = rect.intersect(visible);
-  // 比可见区域还宽的目标（放大文字下的分段）只要求露出足够点按的部分
-  bool fits(double extent, double shownExtent, double visibleExtent) =>
-      extent <= visibleExtent
-      ? (shownExtent - extent).abs() < 0.5
-      : shownExtent >= minExtent;
-  expect(
-    !shown.isEmpty &&
-        fits(rect.width, shown.width, visible.width) &&
-        fits(rect.height, shown.height, visible.height),
-    isTrue,
-    reason: '$reason: $rect 未完整进入可见区域 $visible',
-  );
-  expect(rect.width, greaterThanOrEqualTo(minExtent), reason: reason);
-  expect(rect.height, greaterThanOrEqualTo(minExtent), reason: reason);
-  final targetBox = tester.renderObject(target);
-  expect(
-    tester
-        .hitTestOnBinding(shown.center)
-        .path
-        .any((entry) => entry.target == targetBox),
-    isTrue,
-    reason: '$reason: 可见部分中心被遮挡或不可点中',
-  );
-}
-
 Future<void> _expectChromeUsable(WidgetTester tester, String reason) async {
   for (final key in [
     'random-manager-more-actions',
     'random-manager-preset-selector',
   ]) {
-    await _reveal(tester, _key(key));
-    _expectReachable(tester, _key(key), reason: '$reason $key');
+    await revealOnScreen(tester, _key(key));
+    expectReachable(tester, _key(key), reason: '$reason $key');
   }
 }
 
 Future<void> _expectRecipeUsable(WidgetTester tester, String reason) async {
-  await _reveal(tester, _searchField());
-  _expectReachable(tester, _searchField(), reason: '$reason 搜索框');
+  await revealOnScreen(tester, _searchField());
+  expectReachable(tester, _searchField(), reason: '$reason 搜索框');
   final addCategory = find.byType(AddCategoryButton, skipOffstage: false);
-  await _reveal(tester, addCategory);
-  _expectReachable(tester, addCategory, reason: '$reason 新增类别');
+  await revealOnScreen(tester, addCategory);
+  expectReachable(tester, addCategory, reason: '$reason 新增类别');
   for (final category in [_preset.categories.first, _preset.categories.last]) {
-    await _buildLazyTarget(
+    await scrollUntilBuilt(
       tester,
       _key('random-manager-category-${category.id}'),
       _categoryScrollable(),
     );
-    await _reveal(tester, _categoryToggle(category));
-    _expectReachable(
+    await revealOnScreen(tester, _categoryToggle(category));
+    expectReachable(
       tester,
       _categoryToggle(category),
       reason: '$reason 类别 ${category.key}',
@@ -269,16 +192,16 @@ Finder _buttonWithText(String text) => find.ancestor(
 
 Future<void> _expectPreviewUsable(WidgetTester tester, String reason) async {
   final generate = _key('random-manager-generate-sample');
-  await _reveal(tester, generate);
-  _expectReachable(tester, generate, reason: '$reason 生成样例');
+  await revealOnScreen(tester, generate);
+  expectReachable(tester, generate, reason: '$reason 生成样例');
 }
 
 Future<void> _expectAlgorithmUsable(WidgetTester tester, String reason) async {
   final globalSettings = _buttonWithText(
     _l10n(tester).randomManager_globalPeopleSettings,
   );
-  await _reveal(tester, globalSettings);
-  _expectReachable(tester, globalSettings, reason: '$reason 全局人数设置');
+  await revealOnScreen(tester, globalSettings);
+  expectReachable(tester, globalSettings, reason: '$reason 全局人数设置');
 }
 
 Future<void> _selectSection(WidgetTester tester, String label) async {
@@ -294,10 +217,10 @@ Future<void> _selectSection(WidgetTester tester, String label) async {
         ),
       )
       .first;
-  await _reveal(tester, segment);
-  _expectReachable(tester, segment, reason: '分区 $label');
+  await revealOnScreen(tester, segment);
+  expectReachable(tester, segment, reason: '分区 $label');
   await tester.tapAt(
-    tester.getRect(segment).intersect(_visibleBody(tester)).center,
+    tester.getRect(segment).intersect(visibleViewRect(tester)).center,
   );
   await tester.pumpAndSettle();
 }
@@ -394,7 +317,7 @@ void main() {
     expect(_categoryPosition(tester).pixels, greaterThan(0));
     expect(tester.getTopLeft(_searchField()).dy, searchTop);
     expect(tester.getTopLeft(_key('random-manager-more-actions')).dy, moreTop);
-    _expectReachable(tester, _searchField(), reason: '固定的搜索框');
+    expectReachable(tester, _searchField(), reason: '固定的搜索框');
 
     await _resize(tester, size: _landscape);
     expect(_pinnedSliverOf(tester, _searchField()).isPinned, isFalse);
@@ -444,7 +367,7 @@ void main() {
       target.key,
     );
     expect(_isExpanded(tester, target), isTrue);
-    _expectReachable(tester, _searchField(), reason: '键盘弹出后仍可见的搜索框');
+    expectReachable(tester, _searchField(), reason: '键盘弹出后仍可见的搜索框');
 
     await _resize(tester, keyboard: 0);
     expect(_pinnedSliverOf(tester, _searchField()).isPinned, isTrue);
@@ -511,7 +434,7 @@ void main() {
     expect(tester.takeException(), isNull);
     await _expectChromeUsable(tester, '加载失败');
     final retry = _buttonWithText(_l10n(tester).common_retry);
-    await _reveal(tester, retry);
-    _expectReachable(tester, retry, reason: '重试');
+    await revealOnScreen(tester, retry);
+    expectReachable(tester, retry, reason: '重试');
   });
 }

@@ -3,6 +3,7 @@ import 'package:nai_launcher/core/utils/localization_extension.dart';
 import 'package:nai_launcher/presentation/widgets/common/themed_input.dart';
 
 import '../../adaptive/adaptive_presenter.dart';
+import '../../adaptive/content_sized_adaptive_form.dart';
 import 'adaptive_dialog_frame.dart';
 
 /// 通用输入对话框
@@ -84,6 +85,7 @@ class ThemedInputDialog extends StatefulWidget {
       context: context,
       title: title,
       dialogWidth: multiline ? 440 : 380,
+      headerScrollsWithContent: true,
       builder: (context, scrollController) => ThemedInputDialog(
         title: title,
         labelText: labelText,
@@ -157,33 +159,23 @@ class _ThemedInputDialogState extends State<ThemedInputDialog> {
 
     final contentWidth = widget.multiline ? 400.0 : 320.0;
 
-    final content = AdaptiveDialogFrame(
-      maxWidth: contentWidth,
-      maxHeight: widget.multiline ? 280 : 120,
-      reservedVerticalSpace: widget.presentationManaged ? 80 : 120,
-      scaleReservedVerticalSpace: true,
-      horizontalMargin: widget.presentationManaged ? 0 : 24,
-      child: SingleChildScrollView(
-        controller: widget.scrollController,
-        child: ThemedInput(
-          controller: _controller,
-          autofocus: true,
-          maxLines: widget.multiline ? widget.maxLines : 1,
-          minLines: widget.multiline ? 3 : 1,
-          decoration: InputDecoration(
-            labelText: widget.labelText,
-            hintText: widget.hintText,
-            border: const OutlineInputBorder(),
-            errorText: _errorText,
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: 12,
-              vertical: 12,
-            ),
-          ),
-          onChanged: _validate,
-          onSubmitted: widget.multiline ? null : (_) => _submit(),
+    final input = ThemedInput(
+      controller: _controller,
+      autofocus: true,
+      maxLines: widget.multiline ? widget.maxLines : 1,
+      minLines: widget.multiline ? 3 : 1,
+      decoration: InputDecoration(
+        labelText: widget.labelText,
+        hintText: widget.hintText,
+        border: const OutlineInputBorder(),
+        errorText: _errorText,
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 12,
+          vertical: 12,
         ),
       ),
+      onChanged: _validate,
+      onSubmitted: widget.multiline ? null : (_) => _submit(),
     );
     final actions = <Widget>[
       TextButton(
@@ -211,26 +203,35 @@ class _ThemedInputDialogState extends State<ThemedInputDialog> {
             color: theme.colorScheme.onSurface,
           ),
         ),
-        content: content,
+        content: AdaptiveDialogFrame(
+          maxWidth: contentWidth,
+          maxHeight: widget.multiline ? 280 : 120,
+          reservedVerticalSpace: 120,
+          scaleReservedVerticalSpace: true,
+          child: SingleChildScrollView(child: input),
+        ),
         actions: actions,
       );
     }
 
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Align(alignment: Alignment.topCenter, child: content),
-          const SizedBox(height: 8),
-          SafeArea(
-            top: false,
-            child: Align(
-              alignment: AlignmentDirectional.centerEnd,
-              child: Wrap(spacing: 8, runSpacing: 8, children: actions),
-            ),
+    return ContentSizedAdaptiveForm(
+      scrollController: widget.scrollController,
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+      content: [
+        Align(
+          alignment: Alignment.topCenter,
+          child: ConstrainedBox(
+            constraints: BoxConstraints(maxWidth: contentWidth),
+            child: input,
           ),
-        ],
+        ),
+      ],
+      footer: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+        child: Align(
+          alignment: AlignmentDirectional.centerEnd,
+          child: Wrap(spacing: 8, runSpacing: 8, children: actions),
+        ),
       ),
     );
   }

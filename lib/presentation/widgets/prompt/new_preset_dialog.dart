@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:nai_launcher/core/utils/localization_extension.dart';
 
 import '../../adaptive/adaptive_presenter.dart';
+import '../../adaptive/content_sized_adaptive_form.dart';
 import '../../themes/core/layered_surface_style.dart';
 
 /// 预设创建模式
@@ -37,6 +38,7 @@ class NewPresetDialog extends StatefulWidget {
       context: context,
       dialogWidth: 420,
       maxCenteredHeight: 460,
+      headerScrollsWithContent: true,
       titleBuilder: (panelContext) => Row(
         children: [
           Icon(
@@ -100,105 +102,85 @@ class _NewPresetDialogState extends State<NewPresetDialog> {
     final colorScheme = theme.colorScheme;
     final l10n = context.l10n;
 
-    return SizedBox.expand(
+    return ContentSizedAdaptiveForm(
       key: const ValueKey('new-preset-dialog-frame'),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          // 内容区域在键盘、小高度和大字体下滚动，动作始终固定可达。
-          Expanded(
-            child: SingleChildScrollView(
-              key: const ValueKey('new-preset-dialog-scroll'),
-              controller: widget.scrollController,
-              keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // 名称输入
-                  TextField(
-                    controller: _nameController,
-                    focusNode: _nameFocusNode,
-                    decoration: InputDecoration(
-                      labelText: l10n.newPresetDialog_nameLabel,
-                      hintText: l10n.newPresetDialog_nameHint,
-                      errorText: _nameError,
-                      border: const OutlineInputBorder(),
-                      prefixIcon: const Icon(Icons.edit_outlined),
-                    ),
-                    onChanged: (_) {
-                      if (_nameError != null) {
-                        setState(() => _nameError = null);
-                      }
-                    },
-                    onSubmitted: (_) => _validateAndSubmit(),
-                  ),
-                  const SizedBox(height: 20),
-
-                  // 创建模式选择
-                  Text(
-                    l10n.newPresetDialog_creationMode,
-                    style: theme.textTheme.titleSmall?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-
-                  // 基于默认预设选项
-                  _ModeOptionCard(
-                    icon: Icons.content_copy_outlined,
-                    title: l10n.newPresetDialog_template,
-                    subtitle: l10n.newPresetDialog_templateDesc,
-                    isSelected: _selectedMode == PresetCreationMode.template,
-                    onTap: () => setState(
-                      () => _selectedMode = PresetCreationMode.template,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-
-                  // 完全空白选项
-                  _ModeOptionCard(
-                    icon: Icons.note_add_outlined,
-                    title: l10n.newPresetDialog_blank,
-                    subtitle: l10n.newPresetDialog_blankDesc,
-                    isSelected: _selectedMode == PresetCreationMode.blank,
-                    onTap: () => setState(
-                      () => _selectedMode = PresetCreationMode.blank,
-                    ),
-                  ),
-                ],
-              ),
-            ),
+      scrollController: widget.scrollController,
+      scrollViewKey: const ValueKey('new-preset-dialog-scroll'),
+      content: [
+        // 名称输入
+        TextField(
+          controller: _nameController,
+          focusNode: _nameFocusNode,
+          decoration: InputDecoration(
+            labelText: l10n.newPresetDialog_nameLabel,
+            hintText: l10n.newPresetDialog_nameHint,
+            errorText: _nameError,
+            border: const OutlineInputBorder(),
+            prefixIcon: const Icon(Icons.edit_outlined),
           ),
+          onChanged: (_) {
+            if (_nameError != null) {
+              setState(() => _nameError = null);
+            }
+          },
+          onSubmitted: (_) => _validateAndSubmit(),
+        ),
+        const SizedBox(height: 20),
 
-          // 底部按钮
-          Container(
-            padding: const EdgeInsets.all(16),
-            color: sectionSurfaceColor(colorScheme),
-            child: SafeArea(
-              top: false,
-              left: false,
-              right: false,
-              child: Wrap(
-                alignment: WrapAlignment.end,
-                crossAxisAlignment: WrapCrossAlignment.center,
-                spacing: 8,
-                runSpacing: 8,
-                children: [
-                  TextButton(
-                    onPressed: () => Navigator.of(context).pop(),
-                    child: Text(l10n.common_cancel),
-                  ),
-                  FilledButton.icon(
-                    onPressed: _validateAndSubmit,
-                    icon: const Icon(Icons.check, size: 18),
-                    label: Text(l10n.common_create),
-                  ),
-                ],
-              ),
-            ),
+        // 创建模式选择
+        Text(
+          l10n.newPresetDialog_creationMode,
+          style: theme.textTheme.titleSmall?.copyWith(
+            fontWeight: FontWeight.bold,
           ),
-        ],
+        ),
+        const SizedBox(height: 8),
+
+        // 基于默认预设选项
+        _ModeOptionCard(
+          icon: Icons.content_copy_outlined,
+          title: l10n.newPresetDialog_template,
+          subtitle: l10n.newPresetDialog_templateDesc,
+          isSelected: _selectedMode == PresetCreationMode.template,
+          onTap: () =>
+              setState(() => _selectedMode = PresetCreationMode.template),
+        ),
+        const SizedBox(height: 8),
+
+        // 完全空白选项
+        _ModeOptionCard(
+          icon: Icons.note_add_outlined,
+          title: l10n.newPresetDialog_blank,
+          subtitle: l10n.newPresetDialog_blankDesc,
+          isSelected: _selectedMode == PresetCreationMode.blank,
+          onTap: () => setState(() => _selectedMode = PresetCreationMode.blank),
+        ),
+      ],
+      footer: Container(
+        padding: const EdgeInsets.all(16),
+        color: sectionSurfaceColor(colorScheme),
+        child: SafeArea(
+          top: false,
+          left: false,
+          right: false,
+          child: Wrap(
+            alignment: WrapAlignment.end,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: Text(l10n.common_cancel),
+              ),
+              FilledButton.icon(
+                onPressed: _validateAndSubmit,
+                icon: const Icon(Icons.check, size: 18),
+                label: Text(l10n.common_create),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
