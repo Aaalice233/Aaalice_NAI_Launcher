@@ -9,6 +9,7 @@ import '../../../core/krita/krita_bridge_models.dart';
 import '../../../core/models/image_generation_artifact.dart';
 import '../../../core/utils/app_logger.dart';
 import '../../../core/utils/focused_inpaint_utils.dart';
+import '../../../core/utils/inpaint_mask_utils.dart';
 import '../../../core/utils/nai_resolution_adapter.dart';
 import '../../../data/models/image/image_params.dart';
 import '../../../data/models/image/image_stream_chunk.dart';
@@ -248,24 +249,26 @@ class KritaBridgeService implements KritaBridgeMessageService {
       return;
     }
 
-    final request = KritaBridgeGenerateRequest(
-      id: id,
-      params: mapping.params.copyWith(nSamples: 1),
-      focusedInpaintEnabled: mapping.focusedInpaintEnabled,
-      minimumContextPixels: mapping.minimumContextPixels.toDouble(),
-      focusedSelectionRect: _resolveFocusedSelectionRect(mapping),
-    );
-
     _isBridgeGenerating = true;
     _activeRequestId = id;
     _activeRequestReporter?.call(id);
     _cancelled = false;
     AppLogger.i(
-      'Accepted Krita request: $id action=${request.params.action.name}',
+      'Accepted Krita request: $id action=${mapping.params.action.name}',
       _logTag,
     );
 
     try {
+      final request = KritaBridgeGenerateRequest(
+        id: id,
+        params: await _withBinaryMask(mapping.params.copyWith(nSamples: 1)),
+        focusedInpaintEnabled: mapping.focusedInpaintEnabled,
+        minimumContextPixels: mapping.minimumContextPixels.toDouble(),
+        focusedSelectionRect: _resolveFocusedSelectionRect(mapping),
+      );
+      if (_cancelled) {
+        return;
+      }
       final artifact = await _generateImage(request);
       if (_cancelled) {
         return;
@@ -313,6 +316,17 @@ class KritaBridgeService implements KritaBridgeMessageService {
   }
 
   static void _noop() {}
+
+  // 未重装的旧插件会把选区写成灰度 39，官网 alpha>155 采样会把它整片丢掉。
+  Future<ImageParams> _withBinaryMask(ImageParams params) async {
+    final mask = params.maskImage;
+    if (mask == null) {
+      return params;
+    }
+    return params.copyWith(
+      maskImage: await InpaintMaskUtils.normalizeMaskBytesAsync(mask),
+    );
+  }
 
   Rect? _resolveFocusedSelectionRect(KritaImageParamsMapping mapping) {
     final selection = _toRect(mapping.selectionRect);

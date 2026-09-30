@@ -7,6 +7,7 @@ import '../../../core/agent/resources/agent_chat_resource_reference.dart';
 import '../../../core/constants/model_capabilities.dart';
 import '../../../core/services/anlas_calculator.dart';
 import '../../../core/services/character_conversion_service.dart';
+import '../../../core/utils/inpaint_mask_utils.dart';
 import '../../../core/utils/nai_resolution_adapter.dart';
 import '../../../data/models/fixed_tag/fixed_tag_prompt_type.dart';
 import '../../../data/models/image/image_params.dart';
@@ -272,6 +273,11 @@ class GenerationPreparationService {
           'Image path is not permitted.',
         );
       }
+    }
+
+    // 外部蒙版的低灰度选区会被官网 alpha>155 采样丢掉，与聚焦裁切等处的 ≥32 判定不一致。
+    if (maskBytes != null) {
+      maskBytes = await InpaintMaskUtils.normalizeMaskBytesAsync(maskBytes);
     }
 
     double ratio(String key, double fallback) {
