@@ -138,7 +138,7 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('依赖配置表单在最窄屏、安全区和键盘组合下字段与动作均可达，失效引用不崩溃', (tester) async {
+  testWidgets('依赖配置表单在最窄屏、3x 文字、安全区和键盘组合下字段与动作均可达，失效引用不崩溃', (tester) async {
     tester.view.physicalSize = const Size(320, 640);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize);
@@ -150,6 +150,7 @@ void main() {
         padding: const EdgeInsets.fromLTRB(12, 24, 12, 16),
         viewPadding: const EdgeInsets.fromLTRB(12, 24, 12, 16),
         viewInsets: const EdgeInsets.only(bottom: 180),
+        textScaler: const TextScaler.linear(3),
       ),
     );
     await _openDiyForm(tester, '依赖配置');
@@ -177,10 +178,19 @@ void main() {
       await tester.ensureVisible(inForm);
       await tester.pump();
       expect(tester.getRect(inForm).overlaps(formRect), isTrue);
+      expect(inForm.hitTestable(), findsOneWidget);
       expect(tester.takeException(), isNull);
     }
 
     final confirm = find.descendant(of: form, matching: find.text('确定'));
+    await tester.scrollUntilVisible(
+      confirm,
+      200,
+      scrollable: find
+          .descendant(of: form, matching: find.byType(Scrollable))
+          .first,
+    );
+    await tester.pump();
     expect(confirm.hitTestable(), findsOneWidget);
     await tester.tap(confirm);
     await tester.pumpAndSettle();
@@ -273,6 +283,79 @@ void main() {
     expect(saved.postProcessRules.single.targetCategoryIds, [
       'cat-outfit',
       'gone',
+    ]);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('可见性规则新增后立即可编辑，所选类别按 ID 保存', (tester) async {
+    final notifier = _EditablePresetNotifier(_referenceCategories);
+    await _pumpReferenceCard(
+      tester,
+      notifier: notifier,
+      group: _referenceGroup,
+    );
+    await _openDiyForm(tester, '可见性规则', groupName: _referenceGroup.name);
+
+    final form = _formSurfaces().last;
+    await tester.tap(find.descendant(of: form, matching: find.text('添加规则')));
+    await tester.pumpAndSettle();
+
+    final dropdowns = find.descendant(
+      of: form,
+      matching: find.byType(DropdownButtonFormField<String>),
+    );
+    expect(dropdowns, findsNWidgets(2));
+    expect(
+      find.descendant(of: dropdowns.first, matching: find.text('未设置')),
+      findsOneWidget,
+    );
+    await tester.tap(dropdowns.first);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('发色').last);
+    await tester.pumpAndSettle();
+
+    await _confirmAndSave(tester);
+    final rule = notifier.savedGroup.visibilityRules.single;
+    expect(rule.sourceCategoryId, 'cat-hair');
+    expect(rule.targetCategoryId, isEmpty);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('后处理移除类别按 ID 多选，已失效的目标可以移除', (tester) async {
+    final notifier = _EditablePresetNotifier(_referenceCategories);
+    await _pumpReferenceCard(
+      tester,
+      notifier: notifier,
+      group: _referenceGroup.copyWith(
+        postProcessRules: const [
+          PostProcessRule(
+            id: 'post',
+            name: '移除服装',
+            action: PostProcessAction.removeCategory,
+            targetCategoryIds: ['gone'],
+          ),
+        ],
+      ),
+    );
+    await _openDiyForm(tester, '后处理规则', groupName: _referenceGroup.name);
+
+    final form = _formSurfaces().last;
+    await tester.tap(find.descendant(of: form, matching: find.text('移除服装')));
+    await tester.pumpAndSettle();
+
+    final stale = find.widgetWithText(InputChip, '已失效：gone');
+    expect(stale, findsOneWidget);
+    await tester.tap(find.widgetWithText(FilterChip, '服装'));
+    await tester.pumpAndSettle();
+    await tester.tap(
+      find.descendant(of: stale, matching: find.byTooltip('删除')),
+    );
+    await tester.pumpAndSettle();
+    expect(stale, findsNothing);
+
+    await _confirmAndSave(tester);
+    expect(notifier.savedGroup.postProcessRules.single.targetCategoryIds, [
+      'cat-outfit',
     ]);
     expect(tester.takeException(), isNull);
   });

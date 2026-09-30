@@ -3,10 +3,12 @@ import 'package:nai_launcher/core/utils/localization_extension.dart';
 
 import '../../../../adaptive/interaction_policy.dart';
 import '../../../../../data/models/prompt/conditional_branch.dart';
+import '../../../common/labeled_slider_rows.dart';
 import '../../../common/surface_ink_well.dart';
-import '../../../common/themed_slider.dart';
 import '../../../../widgets/common/themed_divider.dart';
 import '../../../../widgets/common/elevated_card.dart';
+import '../diy_badges.dart';
+import '../diy_panel_header.dart';
 import 'package:nai_launcher/presentation/widgets/common/themed_form_input.dart';
 
 /// 条件分支配置面板
@@ -87,10 +89,13 @@ class _ConditionalBranchPanelState extends State<ConditionalBranchPanel> {
   void _removeBranch(int index) {
     final newBranches = List<ConditionalBranch>.from(_config.branches)
       ..removeAt(index);
+    final selected = _selectedIndex;
+    _selectedIndex = selected == null || selected == index
+        ? null
+        : selected > index
+        ? selected - 1
+        : selected;
     _updateConfig(_config.copyWith(branches: newBranches));
-    if (_selectedIndex == index) {
-      _selectedIndex = null;
-    }
   }
 
   void _updateBranch(int index, ConditionalBranch branch) {
@@ -115,83 +120,34 @@ class _ConditionalBranchPanelState extends State<ConditionalBranchPanel> {
           const SizedBox(height: 12),
           _buildAddButton(),
         ],
-        if (_selectedIndex != null) ...[
+        if (_selectedIndex != null &&
+            _selectedIndex! < _config.branches.length) ...[
           const SizedBox(height: 12),
-          _buildBranchEditor(_selectedIndex!),
+          // 输入框只在创建时读取初始值，切换分支需要重建编辑区
+          KeyedSubtree(
+            key: ValueKey(_selectedIndex),
+            child: _buildBranchEditor(_selectedIndex!),
+          ),
         ],
       ],
     );
   }
 
   Widget _buildHeader() {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
+    final colorScheme = Theme.of(context).colorScheme;
 
-    return Row(
-      children: [
-        // 图标容器 - 渐变背景
-        Container(
-          padding: const EdgeInsets.all(10),
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [
-                colorScheme.secondary.withValues(alpha: 0.2),
-                colorScheme.secondary.withValues(alpha: 0.1),
-              ],
+    return DiyPanelHeader(
+      icon: Icons.call_split_rounded,
+      accent: colorScheme.secondary,
+      title: context.l10n.diy_conditionalTitle,
+      subtitle: context.l10n.diy_conditionalSubtitle,
+      trailing: _config.branches.isEmpty
+          ? null
+          : DiyCountBadge(
+              label: context.l10n.diy_branchCount(_config.branches.length),
+              accent: colorScheme.secondary,
+              container: colorScheme.secondaryContainer,
             ),
-            borderRadius: BorderRadius.circular(10),
-            boxShadow: [
-              BoxShadow(
-                color: colorScheme.secondary.withValues(alpha: 0.1),
-                blurRadius: 8,
-                offset: const Offset(0, 2),
-              ),
-            ],
-          ),
-          child: Icon(
-            Icons.call_split_rounded,
-            size: 20,
-            color: colorScheme.secondary,
-          ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                context.l10n.diy_conditionalTitle,
-                style: theme.textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              Text(
-                context.l10n.diy_conditionalSubtitle,
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: colorScheme.onSurfaceVariant,
-                ),
-              ),
-            ],
-          ),
-        ),
-        if (_config.branches.isNotEmpty)
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-            decoration: BoxDecoration(
-              color: colorScheme.secondaryContainer.withValues(alpha: 0.5),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Text(
-              context.l10n.diy_branchCount(_config.branches.length),
-              style: theme.textTheme.labelSmall?.copyWith(
-                fontWeight: FontWeight.bold,
-                color: colorScheme.secondary,
-              ),
-            ),
-          ),
-      ],
     );
   }
 
@@ -221,72 +177,86 @@ class _ConditionalBranchPanelState extends State<ConditionalBranchPanel> {
       padding: EdgeInsets.zero,
       child: ClipRRect(
         borderRadius: BorderRadius.circular(12),
-        child: SizedBox(
-          height: context.interactionPolicy.minimumControlExtent,
-          child: Row(
-            children: _config.branches.asMap().entries.map((entry) {
-              final index = entry.key;
-              final branch = entry.value;
-              final colors = gradients[index % gradients.length];
-              final percent = (branch.probability / total * 100)
-                  .toStringAsFixed(0);
-              final isSelected = _selectedIndex == index;
-
-              return Expanded(
-                flex: branch.probability,
-                child: Tooltip(
-                  message: '${branch.name}: $percent%',
-                  child: SurfaceInkWell(
-                    borderRadius: BorderRadius.zero,
-                    gradient: LinearGradient(
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                      colors: isSelected
-                          ? colors
-                          : [
-                              colors[0].withValues(alpha: 0.6),
-                              colors[1].withValues(alpha: 0.4),
-                            ],
-                    ),
-                    duration: const Duration(milliseconds: 200),
-                    onTap: () => setState(() => _selectedIndex = index),
-                    child: Center(
-                      child: branch.probability >= 10
-                          ? Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Text(
-                                  branch.name,
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.bold,
-                                    shadows: [
-                                      Shadow(
-                                        color: Colors.black26,
-                                        blurRadius: 2,
-                                      ),
-                                    ],
-                                  ),
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                                Text(
-                                  '$percent%',
-                                  style: TextStyle(
-                                    color: Colors.white.withValues(alpha: 0.9),
-                                    fontSize: 9,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
-                              ],
-                            )
-                          : null,
+        // 放大文字后分段标签变高，条高度随内容增长而不是溢出
+        child: IntrinsicHeight(
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              minHeight: context.interactionPolicy.minimumControlExtent,
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                for (final (index, branch) in _config.branches.indexed)
+                  Expanded(
+                    flex: branch.probability,
+                    child: _buildProbabilitySegment(
+                      index: index,
+                      branch: branch,
+                      colors: gradients[index % gradients.length],
+                      percent: (branch.probability / total * 100)
+                          .toStringAsFixed(0),
                     ),
                   ),
-                ),
-              );
-            }).toList(),
+              ],
+            ),
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildProbabilitySegment({
+    required int index,
+    required ConditionalBranch branch,
+    required List<Color> colors,
+    required String percent,
+  }) {
+    final isSelected = _selectedIndex == index;
+    return Tooltip(
+      message: '${branch.name}: $percent%',
+      child: SurfaceInkWell(
+        borderRadius: BorderRadius.zero,
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: isSelected
+              ? colors
+              : [
+                  colors[0].withValues(alpha: 0.6),
+                  colors[1].withValues(alpha: 0.4),
+                ],
+        ),
+        duration: const Duration(milliseconds: 200),
+        onTap: () => setState(() => _selectedIndex = index),
+        child: Center(
+          child: branch.probability >= 10
+              ? Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      branch.name,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                        shadows: [Shadow(color: Colors.black26, blurRadius: 2)],
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    Text(
+                      '$percent%',
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.9),
+                        fontSize: 9,
+                        fontWeight: FontWeight.w500,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                )
+              : null,
         ),
       ),
     );
@@ -376,11 +346,15 @@ class _ConditionalBranchPanelState extends State<ConditionalBranchPanel> {
                 ),
                 child: Row(
                   children: [
-                    // 概率圆形指示器
+                    // 概率圆形指示器；放大文字后撑成胶囊而不是让读数溢出
                     Container(
-                      width: 44,
-                      height: 44,
-                      decoration: BoxDecoration(
+                      constraints: const BoxConstraints(
+                        minWidth: 44,
+                        minHeight: 44,
+                      ),
+                      padding: const EdgeInsets.symmetric(horizontal: 6),
+                      decoration: ShapeDecoration(
+                        shape: const StadiumBorder(),
                         gradient: LinearGradient(
                           begin: Alignment.topLeft,
                           end: Alignment.bottomRight,
@@ -394,8 +368,7 @@ class _ConditionalBranchPanelState extends State<ConditionalBranchPanel> {
                                   colorScheme.surfaceContainerHighest,
                                 ],
                         ),
-                        shape: BoxShape.circle,
-                        boxShadow: branch.enabled
+                        shadows: branch.enabled
                             ? [
                                 BoxShadow(
                                   color: accentColor.withValues(alpha: 0.3),
@@ -408,6 +381,8 @@ class _ConditionalBranchPanelState extends State<ConditionalBranchPanel> {
                       child: Center(
                         child: Text(
                           '${branch.probability}%',
+                          maxLines: 1,
+                          softWrap: false,
                           style: TextStyle(
                             fontSize: 11,
                             fontWeight: FontWeight.bold,
@@ -439,29 +414,13 @@ class _ConditionalBranchPanelState extends State<ConditionalBranchPanel> {
                                 color: colorScheme.onSurfaceVariant,
                               ),
                             ),
+                          if (!branch.enabled) ...[
+                            const SizedBox(height: 4),
+                            const DiyDisabledBadge(),
+                          ],
                         ],
                       ),
                     ),
-                    // 状态和操作
-                    if (!branch.enabled)
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 2,
-                        ),
-                        decoration: BoxDecoration(
-                          color: colorScheme.errorContainer.withValues(
-                            alpha: 0.5,
-                          ),
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                        child: Text(
-                          context.l10n.common_disabled,
-                          style: theme.textTheme.labelSmall?.copyWith(
-                            color: colorScheme.error,
-                          ),
-                        ),
-                      ),
                     if (!widget.readOnly) ...[
                       const SizedBox(width: 8),
                       IconButton(
@@ -484,40 +443,11 @@ class _ConditionalBranchPanelState extends State<ConditionalBranchPanel> {
   }
 
   Widget _buildAddButton() {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-
     return Center(
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: _addBranch,
-          borderRadius: BorderRadius.circular(10),
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-            decoration: BoxDecoration(
-              border: Border.all(
-                color: colorScheme.primary.withValues(alpha: 0.5),
-                width: 1.5,
-              ),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(Icons.add_rounded, size: 18, color: colorScheme.primary),
-                const SizedBox(width: 8),
-                Text(
-                  context.l10n.diy_addBranch,
-                  style: theme.textTheme.labelLarge?.copyWith(
-                    color: colorScheme.primary,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
+      child: FilledButton.tonalIcon(
+        onPressed: _addBranch,
+        icon: const Icon(Icons.add_rounded, size: 18),
+        label: Text(context.l10n.diy_addBranch),
       ),
     );
   }
@@ -546,39 +476,19 @@ class _ConditionalBranchPanelState extends State<ConditionalBranchPanel> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // 标题栏
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(6),
-                decoration: BoxDecoration(
-                  color: colorScheme.primaryContainer.withValues(alpha: 0.5),
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: Icon(
-                  Icons.edit_rounded,
-                  size: 14,
-                  color: colorScheme.primary,
-                ),
+          DiySectionTitle(
+            icon: Icons.edit_rounded,
+            accent: colorScheme.primary,
+            container: colorScheme.primaryContainer,
+            title: context.l10n.diy_editBranch(branch.name),
+            trailing: IconButton(
+              icon: Icon(
+                Icons.close_rounded,
+                color: colorScheme.onSurfaceVariant,
               ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  context.l10n.diy_editBranch(branch.name),
-                  style: theme.textTheme.titleSmall?.copyWith(
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-              IconButton(
-                icon: Icon(
-                  Icons.close_rounded,
-                  color: colorScheme.onSurfaceVariant,
-                ),
-                onPressed: () => setState(() => _selectedIndex = null),
-                tooltip: context.l10n.common_close,
-              ),
-            ],
+              onPressed: () => setState(() => _selectedIndex = null),
+              tooltip: context.l10n.common_close,
+            ),
           ),
           const SizedBox(height: 12),
           const ThemedDivider(),
@@ -596,67 +506,26 @@ class _ConditionalBranchPanelState extends State<ConditionalBranchPanel> {
             },
           ),
           const SizedBox(height: 16),
-          // 概率滑块
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(6),
-                decoration: BoxDecoration(
-                  color: colorScheme.tertiaryContainer.withValues(alpha: 0.5),
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: Icon(
-                  Icons.percent_rounded,
-                  size: 14,
-                  color: colorScheme.tertiary,
-                ),
-              ),
-              const SizedBox(width: 10),
-              Text(
-                context.l10n.diy_probability,
-                style: theme.textTheme.titleSmall,
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: ThemedSlider(
-                  label: context.l10n.diy_probability,
-                  valueText: _probabilityText,
-                  value: branch.probability.toDouble(),
-                  min: 0,
-                  max: 100,
-                  divisions: 100,
-                  onChanged: widget.readOnly
-                      ? null
-                      : (value) {
-                          _updateBranch(
-                            index,
-                            branch.copyWith(probability: value.round()),
-                          );
-                        },
-                ),
-              ),
-              const SizedBox(width: 8),
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 4,
-                ),
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [
-                      colorScheme.tertiary.withValues(alpha: 0.15),
-                      colorScheme.tertiary.withValues(alpha: 0.08),
-                    ],
-                  ),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Text(
-                  _probabilityText(branch.probability.toDouble()),
-                  style: theme.textTheme.labelLarge?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: colorScheme.tertiary,
-                  ),
-                ),
+          LabeledSliderRows(
+            labelStyle: theme.textTheme.titleSmall,
+            valueStyle: theme.textTheme.labelLarge?.copyWith(
+              fontWeight: FontWeight.bold,
+              color: colorScheme.tertiary,
+            ),
+            sliders: [
+              LabeledSlider(
+                label: context.l10n.diy_probability,
+                valueText: _probabilityText,
+                value: branch.probability.toDouble(),
+                min: 0,
+                max: 100,
+                divisions: 100,
+                onChanged: widget.readOnly
+                    ? null
+                    : (value) => _updateBranch(
+                        index,
+                        branch.copyWith(probability: value.round()),
+                      ),
               ),
             ],
           ),

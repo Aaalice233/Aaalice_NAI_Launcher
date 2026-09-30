@@ -1,10 +1,13 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:nai_launcher/core/utils/localization_extension.dart';
 
 import '../../../../../data/models/prompt/visibility_rule.dart';
 import '../../../../widgets/common/themed_divider.dart';
 import '../../../../widgets/common/elevated_card.dart';
+import '../diy_badges.dart';
 import '../diy_category_field.dart';
+import '../diy_panel_header.dart';
 import 'package:nai_launcher/presentation/widgets/common/themed_form_input.dart';
 
 /// 可见性规则面板
@@ -37,36 +40,60 @@ class VisibilityRulePanel extends StatefulWidget {
 }
 
 class _VisibilityRulePanelState extends State<VisibilityRulePanel> {
+  // 弹出的表单路由不随父级重建，面板自己持有正在编辑的规则
+  late List<VisibilityRule> _rules;
   int? _selectedIndex;
+
+  @override
+  void initState() {
+    super.initState();
+    _rules = widget.rules;
+  }
+
+  @override
+  void didUpdateWidget(VisibilityRulePanel oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!listEquals(widget.rules, _rules)) {
+      _rules = widget.rules;
+      if ((_selectedIndex ?? 0) >= _rules.length) _selectedIndex = null;
+    }
+  }
+
+  void _setRules(List<VisibilityRule> rules, {int? selectedIndex}) {
+    setState(() {
+      _rules = rules;
+      _selectedIndex = selectedIndex;
+    });
+    widget.onRulesChanged(rules);
+  }
 
   void _addRule() {
     final newRule = VisibilityRule(
       id: DateTime.now().millisecondsSinceEpoch.toString(),
-      name: context.l10n.diy_ruleDefaultName(widget.rules.length + 1),
+      name: context.l10n.diy_ruleDefaultName(_rules.length + 1),
       targetCategoryId: '',
       sourceCategoryId: '',
       conditionValue: '',
     );
-    widget.onRulesChanged([...widget.rules, newRule]);
-    setState(() {
-      _selectedIndex = widget.rules.length;
-    });
+    _setRules([..._rules, newRule], selectedIndex: _rules.length);
   }
 
   void _removeRule(int index) {
-    final newRules = List<VisibilityRule>.from(widget.rules)..removeAt(index);
-    widget.onRulesChanged(newRules);
-    if (_selectedIndex == index) {
-      setState(() {
-        _selectedIndex = null;
-      });
-    }
+    final selected = _selectedIndex;
+    _setRules(
+      List<VisibilityRule>.from(_rules)..removeAt(index),
+      selectedIndex: selected == null || selected == index
+          ? null
+          : selected > index
+          ? selected - 1
+          : selected,
+    );
   }
 
   void _updateRule(int index, VisibilityRule rule) {
-    final newRules = List<VisibilityRule>.from(widget.rules);
+    final newRules = List<VisibilityRule>.from(_rules);
     newRules[index] = rule;
-    widget.onRulesChanged(newRules);
+    _setRules(newRules, selectedIndex: _selectedIndex);
   }
 
   @override
@@ -81,84 +108,33 @@ class _VisibilityRulePanelState extends State<VisibilityRulePanel> {
           const SizedBox(height: 12),
           _buildAddButton(),
         ],
-        if (_selectedIndex != null &&
-            _selectedIndex! < widget.rules.length) ...[
+        if (_selectedIndex != null && _selectedIndex! < _rules.length) ...[
           const SizedBox(height: 12),
-          _buildRuleEditor(_selectedIndex!),
+          // 输入框只在创建时读取初始值，切换规则需要重建编辑区
+          KeyedSubtree(
+            key: ValueKey(_selectedIndex),
+            child: _buildRuleEditor(_selectedIndex!),
+          ),
         ],
       ],
     );
   }
 
   Widget _buildHeader() {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
+    final colorScheme = Theme.of(context).colorScheme;
 
-    return Row(
-      children: [
-        // 图标容器 - 渐变背景
-        Container(
-          padding: const EdgeInsets.all(10),
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [
-                colorScheme.secondary.withValues(alpha: 0.2),
-                colorScheme.secondary.withValues(alpha: 0.1),
-              ],
+    return DiyPanelHeader(
+      icon: Icons.visibility_rounded,
+      accent: colorScheme.secondary,
+      title: context.l10n.diy_visibilityTitle,
+      subtitle: context.l10n.diy_visibilitySubtitle,
+      trailing: _rules.isEmpty
+          ? null
+          : DiyCountBadge(
+              label: context.l10n.diy_ruleCount(_rules.length),
+              accent: colorScheme.secondary,
+              container: colorScheme.secondaryContainer,
             ),
-            borderRadius: BorderRadius.circular(10),
-            boxShadow: [
-              BoxShadow(
-                color: colorScheme.secondary.withValues(alpha: 0.1),
-                blurRadius: 8,
-                offset: const Offset(0, 2),
-              ),
-            ],
-          ),
-          child: Icon(
-            Icons.visibility_rounded,
-            size: 20,
-            color: colorScheme.secondary,
-          ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                context.l10n.diy_visibilityTitle,
-                style: theme.textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              Text(
-                context.l10n.diy_visibilitySubtitle,
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: colorScheme.onSurfaceVariant,
-                ),
-              ),
-            ],
-          ),
-        ),
-        if (widget.rules.isNotEmpty)
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-            decoration: BoxDecoration(
-              color: colorScheme.secondaryContainer.withValues(alpha: 0.5),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Text(
-              context.l10n.diy_ruleCount(widget.rules.length),
-              style: theme.textTheme.labelSmall?.copyWith(
-                fontWeight: FontWeight.bold,
-                color: colorScheme.secondary,
-              ),
-            ),
-          ),
-      ],
     );
   }
 
@@ -166,7 +142,7 @@ class _VisibilityRulePanelState extends State<VisibilityRulePanel> {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
 
-    if (widget.rules.isEmpty) {
+    if (_rules.isEmpty) {
       return ElevatedCard(
         elevation: CardElevation.level1,
         borderRadius: 12,
@@ -213,13 +189,13 @@ class _VisibilityRulePanelState extends State<VisibilityRulePanel> {
       child: ListView.separated(
         shrinkWrap: true,
         physics: const NeverScrollableScrollPhysics(),
-        itemCount: widget.rules.length,
+        itemCount: _rules.length,
         separatorBuilder: (_, __) => Divider(
           height: 1,
           color: colorScheme.outline.withValues(alpha: 0.1),
         ),
         itemBuilder: (context, index) {
-          final rule = widget.rules[index];
+          final rule = _rules[index];
           final isSelected = _selectedIndex == index;
 
           return Material(
@@ -299,7 +275,10 @@ class _VisibilityRulePanelState extends State<VisibilityRulePanel> {
                             ),
                           ),
                           const SizedBox(height: 2),
-                          Row(
+                          Wrap(
+                            spacing: 6,
+                            runSpacing: 4,
+                            crossAxisAlignment: WrapCrossAlignment.center,
                             children: [
                               Container(
                                 padding: const EdgeInsets.symmetric(
@@ -318,15 +297,10 @@ class _VisibilityRulePanelState extends State<VisibilityRulePanel> {
                                   ),
                                 ),
                               ),
-                              Padding(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 6,
-                                ),
-                                child: Icon(
-                                  Icons.arrow_forward_rounded,
-                                  size: 12,
-                                  color: colorScheme.onSurfaceVariant,
-                                ),
+                              Icon(
+                                Icons.arrow_forward_rounded,
+                                size: 12,
+                                color: colorScheme.onSurfaceVariant,
                               ),
                               Container(
                                 padding: const EdgeInsets.symmetric(
@@ -345,31 +319,12 @@ class _VisibilityRulePanelState extends State<VisibilityRulePanel> {
                                   ),
                                 ),
                               ),
+                              if (!rule.enabled) const DiyDisabledBadge(),
                             ],
                           ),
                         ],
                       ),
                     ),
-                    // 状态标签
-                    if (!rule.enabled)
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 2,
-                        ),
-                        decoration: BoxDecoration(
-                          color: colorScheme.errorContainer.withValues(
-                            alpha: 0.5,
-                          ),
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                        child: Text(
-                          context.l10n.common_disabled,
-                          style: theme.textTheme.labelSmall?.copyWith(
-                            color: colorScheme.error,
-                          ),
-                        ),
-                      ),
                     if (!widget.readOnly) ...[
                       const SizedBox(width: 8),
                       IconButton(
@@ -392,40 +347,11 @@ class _VisibilityRulePanelState extends State<VisibilityRulePanel> {
   }
 
   Widget _buildAddButton() {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-
     return Center(
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: _addRule,
-          borderRadius: BorderRadius.circular(10),
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-            decoration: BoxDecoration(
-              border: Border.all(
-                color: colorScheme.primary.withValues(alpha: 0.5),
-                width: 1.5,
-              ),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(Icons.add_rounded, size: 18, color: colorScheme.primary),
-                const SizedBox(width: 8),
-                Text(
-                  context.l10n.diy_addRule,
-                  style: theme.textTheme.labelLarge?.copyWith(
-                    color: colorScheme.primary,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
+      child: FilledButton.tonalIcon(
+        onPressed: _addRule,
+        icon: const Icon(Icons.add_rounded, size: 18),
+        label: Text(context.l10n.diy_addRule),
       ),
     );
   }
@@ -433,7 +359,7 @@ class _VisibilityRulePanelState extends State<VisibilityRulePanel> {
   Widget _buildRuleEditor(int index) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
-    final rule = widget.rules[index];
+    final rule = _rules[index];
 
     return ElevatedCard(
       elevation: CardElevation.level2,
@@ -451,38 +377,19 @@ class _VisibilityRulePanelState extends State<VisibilityRulePanel> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // 标题栏
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(6),
-                decoration: BoxDecoration(
-                  color: colorScheme.secondaryContainer.withValues(alpha: 0.5),
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: Icon(
-                  Icons.edit_rounded,
-                  size: 14,
-                  color: colorScheme.secondary,
-                ),
+          DiySectionTitle(
+            icon: Icons.edit_rounded,
+            accent: colorScheme.secondary,
+            container: colorScheme.secondaryContainer,
+            title: context.l10n.diy_editRule,
+            trailing: IconButton(
+              icon: Icon(
+                Icons.close_rounded,
+                color: colorScheme.onSurfaceVariant,
               ),
-              const SizedBox(width: 10),
-              Text(
-                context.l10n.diy_editRule,
-                style: theme.textTheme.titleSmall?.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              const Spacer(),
-              IconButton(
-                icon: Icon(
-                  Icons.close_rounded,
-                  color: colorScheme.onSurfaceVariant,
-                ),
-                onPressed: () => setState(() => _selectedIndex = null),
-                tooltip: context.l10n.common_close,
-              ),
-            ],
+              onPressed: () => setState(() => _selectedIndex = null),
+              tooltip: context.l10n.common_close,
+            ),
           ),
           const SizedBox(height: 12),
           const ThemedDivider(),
@@ -529,6 +436,8 @@ class _VisibilityRulePanelState extends State<VisibilityRulePanel> {
           // 条件类型
           DropdownButtonFormField<VisibilityConditionType>(
             initialValue: rule.conditionType,
+            isExpanded: true,
+            itemHeight: null,
             decoration: InputDecoration(
               labelText: context.l10n.diy_conditionType,
               prefixIcon: Icon(
