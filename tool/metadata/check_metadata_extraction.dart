@@ -226,7 +226,6 @@ Future<TestResult> testMetadataExtraction(String rootPath) async {
     final result = UnifiedMetadataParser.parseFromFile(
       file.path,
       useGradualRead: true,
-      useCache: false, // 测试时不使用缓存
     );
 
     if (result.success && result.metadata != null) {

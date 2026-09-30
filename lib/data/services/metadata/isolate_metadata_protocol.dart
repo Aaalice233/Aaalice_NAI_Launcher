@@ -24,12 +24,10 @@ enum IsolateParseFailureKind { definitive, infrastructure, cancelled }
 class IsolateParseConfig {
   final Duration timeout;
   final bool useGradualRead;
-  final bool useCache;
 
   const IsolateParseConfig({
     this.timeout = const Duration(seconds: 5),
     this.useGradualRead = true,
-    this.useCache = true,
   });
 }
 

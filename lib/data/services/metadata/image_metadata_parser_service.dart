@@ -10,7 +10,7 @@ import 'metadata_parse_result.dart';
 import 'metadata_text_decoder.dart';
 import 'webp_exif_metadata_extractor.dart';
 
-/// Coordinates container decoding, text interpretation, files, cache and stats.
+/// Coordinates container decoding, text interpretation, files and stats.
 class ImageMetadataParserService {
   ImageMetadataParserService({
     MetadataTextDecoder? textDecoder,
@@ -22,14 +22,12 @@ class ImageMetadataParserService {
 
   final MetadataTextDecoder _textDecoder;
   final MetadataFileRepository _fileRepository;
-  final Map<String, MetadataParseResult> _resultCache = {};
   final ParseStatistics statistics = ParseStatistics();
 
   MetadataParseResult parseFromFile(
     String filePath, {
     int? maxBytes,
     bool useGradualRead = true,
-    bool useCache = true,
   }) {
     final stopwatch = Stopwatch()..start();
     statistics.totalAttempts++;
@@ -57,11 +55,8 @@ class ImageMetadataParserService {
         useGradualRead: useGradualRead,
         statistics: statistics,
         parseBytes: (bytes, path) =>
-            parseFromImage(bytes, filePathForLog: path, useCache: false),
+            parseFromImage(bytes, filePathForLog: path),
       );
-      if (useCache && result.success && result.metadata != null) {
-        _cacheFileResult(filePath, result);
-      }
       _updateStatistics(result, stopwatch.elapsed);
       return result;
     } on FileSystemException catch (error) {
@@ -83,21 +78,12 @@ class ImageMetadataParserService {
   MetadataParseResult parseFromImage(
     Uint8List bytes, {
     String? filePathForLog,
-    bool useCache = false,
   }) {
     if (ImageMetadataContainerCodec.isPngHeader(bytes)) {
-      return parseFromPng(
-        bytes,
-        filePathForLog: filePathForLog,
-        useCache: useCache,
-      );
+      return parseFromPng(bytes, filePathForLog: filePathForLog);
     }
     if (WebpExifMetadataExtractor.hasWebpHeader(bytes)) {
-      return parseFromWebp(
-        bytes,
-        filePathForLog: filePathForLog,
-        useCache: useCache,
-      );
+      return parseFromWebp(bytes, filePathForLog: filePathForLog);
     }
 
     final stopwatch = Stopwatch()..start();
@@ -113,29 +99,15 @@ class ImageMetadataParserService {
     return result;
   }
 
-  MetadataParseResult parseFromPng(
-    Uint8List bytes, {
-    String? filePathForLog,
-    bool useCache = false,
-  }) {
+  MetadataParseResult parseFromPng(Uint8List bytes, {String? filePathForLog}) {
     final stopwatch = Stopwatch()..start();
     statistics.totalAttempts++;
-    final cacheKey = _bytesCacheKey(bytes);
-    if (useCache) {
-      final cached = _resultCache[cacheKey];
-      if (cached != null) {
-        _updateStatistics(cached, stopwatch.elapsed);
-        return cached;
-      }
-    }
-
     final result = _parsePng(
       bytes,
       stopwatch,
       filePathForLog: filePathForLog,
       includeStealth: true,
     )!;
-    if (useCache && result.success) _resultCache[cacheKey] = result;
     _updateStatistics(result, stopwatch.elapsed);
     return result;
   }
@@ -229,22 +201,9 @@ class ImageMetadataParserService {
     }
   }
 
-  MetadataParseResult parseFromWebp(
-    Uint8List bytes, {
-    String? filePathForLog,
-    bool useCache = false,
-  }) {
+  MetadataParseResult parseFromWebp(Uint8List bytes, {String? filePathForLog}) {
     final stopwatch = Stopwatch()..start();
     statistics.totalAttempts++;
-    final cacheKey = _bytesCacheKey(bytes);
-    if (useCache) {
-      final cached = _resultCache[cacheKey];
-      if (cached != null) {
-        _updateStatistics(cached, stopwatch.elapsed);
-        return cached;
-      }
-    }
-
     try {
       final extraction = WebpExifMetadataExtractor.extract(bytes);
       if (extraction.errorMessage != null || !extraction.hasMetadata) {
@@ -275,7 +234,6 @@ class ImageMetadataParserService {
               parseTime: stopwatch.elapsed,
               bytesRead: bytes.length,
             );
-      if (useCache && result.success) _resultCache[cacheKey] = result;
       _updateStatistics(result, stopwatch.elapsed);
       return result;
     } catch (error, stackTrace) {
@@ -353,20 +311,6 @@ class ImageMetadataParserService {
   }
 
   void resetStatistics() => statistics.reset();
-
-  void clearCache() => _resultCache.clear();
-
-  void _cacheFileResult(String filePath, MetadataParseResult result) {
-    final key =
-        '$filePath:${result.bytesRead}:${result.metadata?.prompt.hashCode ?? 0}';
-    _resultCache[key] = result;
-    if (_resultCache.length > 100) _resultCache.remove(_resultCache.keys.first);
-  }
-
-  String _bytesCacheKey(Uint8List bytes) {
-    final data = bytes.length > 1024 ? bytes.sublist(0, 1024) : bytes;
-    return data.hashCode.toString();
-  }
 
   void _updateStatistics(MetadataParseResult result, Duration elapsed) {
     statistics.totalParseTime += elapsed;

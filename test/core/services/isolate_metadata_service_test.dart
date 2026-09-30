@@ -93,7 +93,6 @@ void main() {
           config: const IsolateParseConfig(
             timeout: Duration(seconds: 10),
             useGradualRead: false,
-            useCache: false,
           ),
         );
 
@@ -105,7 +104,6 @@ void main() {
           config: const IsolateParseConfig(
             timeout: Duration(seconds: 10),
             useGradualRead: false,
-            useCache: false,
           ),
         );
         final oldResult = await oldParse;
@@ -144,7 +142,6 @@ void main() {
           config: const IsolateParseConfig(
             timeout: Duration.zero,
             useGradualRead: false,
-            useCache: false,
           ),
         );
         final second = service.parseMetadata(
@@ -152,7 +149,6 @@ void main() {
           config: const IsolateParseConfig(
             timeout: Duration.zero,
             useGradualRead: false,
-            useCache: false,
           ),
         );
 
@@ -161,7 +157,6 @@ void main() {
           config: const IsolateParseConfig(
             timeout: Duration(seconds: 2),
             useGradualRead: false,
-            useCache: false,
           ),
         );
 
@@ -216,7 +211,6 @@ void main() {
           config: const IsolateParseConfig(
             timeout: Duration(seconds: 2),
             useGradualRead: false,
-            useCache: false,
           ),
         );
 
@@ -241,7 +235,6 @@ void main() {
         config: const IsolateParseConfig(
           timeout: Duration(seconds: 2),
           useGradualRead: false,
-          useCache: false,
         ),
       );
 

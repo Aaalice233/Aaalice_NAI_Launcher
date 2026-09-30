@@ -120,10 +120,7 @@ Future<Map<String, Object?>> _writeSentinel(
     bytes = _removeTextChunksWithoutReencoding(withStealth);
   }
 
-  final parseResult = UnifiedMetadataParser.parseFromPng(
-    bytes,
-    useCache: false,
-  );
+  final parseResult = UnifiedMetadataParser.parseFromPng(bytes);
   if (!parseResult.success ||
       parseResult.rawData?.contains(promptToken) != true) {
     throw StateError(

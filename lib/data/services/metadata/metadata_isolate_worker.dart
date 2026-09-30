@@ -283,7 +283,6 @@ void _handleMetadataParseRequest(
     final result = UnifiedMetadataParser.parseFromImage(
       bytes,
       filePathForLog: request.filePath,
-      useCache: request.config.useCache,
     );
 
     stopwatch.stop();
