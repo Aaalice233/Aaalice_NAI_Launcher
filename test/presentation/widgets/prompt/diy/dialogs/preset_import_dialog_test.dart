@@ -43,6 +43,33 @@ void main() {
     expect(find.byType(PresetImportDialog), findsNothing);
   });
 
+  for (final fontSize in [12.0, 15.0]) {
+    testWidgets('JSON 输入区字号取自主题 bodySmall=$fontSize 并保持等宽字体', (tester) async {
+      final base = ThemeData();
+      final theme = base.copyWith(
+        textTheme: base.textTheme.copyWith(
+          bodySmall: base.textTheme.bodySmall!.copyWith(fontSize: fontSize),
+        ),
+      );
+      await _pumpLauncher(tester, theme: theme);
+      await tester.tap(find.text('open'));
+      await tester.pumpAndSettle();
+
+      final style = tester
+          .widget<EditableText>(
+            find.descendant(
+              of: find.byType(PresetImportDialog),
+              matching: find.byType(EditableText),
+            ),
+          )
+          .style;
+      expect(style.fontSize, fontSize);
+      expect(style.fontFamily, 'monospace');
+      expect(style.color, theme.colorScheme.onSurface);
+      expect(tester.takeException(), isNull);
+    });
+  }
+
   testWidgets('导入面板在 Expanded 使用受限宽度居中弹窗', (tester) async {
     tester.view.physicalSize = const Size(1600, 900);
     tester.view.devicePixelRatio = 1;
@@ -110,10 +137,12 @@ Future<void> _pumpLauncher(
   WidgetTester tester, {
   double textScale = 1,
   ValueChanged<RandomPreset?>? onImported,
+  ThemeData? theme,
 }) async {
   await tester.pumpWidget(
     MaterialApp(
       locale: const Locale('zh'),
+      theme: theme,
       localizationsDelegates: AppLocalizations.localizationsDelegates,
       supportedLocales: AppLocalizations.supportedLocales,
       builder: (context, child) => MediaQuery(

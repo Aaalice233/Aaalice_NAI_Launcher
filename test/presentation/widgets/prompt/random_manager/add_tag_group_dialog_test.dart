@@ -2,6 +2,7 @@ import 'dart:ui' show Tristate;
 
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -325,6 +326,33 @@ void main() {
     },
   );
 
+  testWidgets('来源标签栏字号取自主题的 labelMedium，选中与未选中一致', (tester) async {
+    final base = ThemeData();
+    final theme = base.copyWith(
+      textTheme: base.textTheme.copyWith(
+        labelMedium: base.textTheme.labelMedium!.copyWith(fontSize: 17),
+      ),
+    );
+    tester.view.physicalSize = const Size(1180, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    await _pumpHost(tester, category: category, theme: theme);
+    await tester.tap(find.text('Open'));
+    await tester.pumpAndSettle();
+
+    for (final label in ['Custom', 'Tag Group', 'Danbooru Pool']) {
+      final style = tester
+          .renderObject<RenderParagraph>(
+            find.descendant(of: _sourceTab(label), matching: find.text(label)),
+          )
+          .text
+          .style;
+      expect(style?.fontSize, 17, reason: label);
+      expect(style?.fontWeight, FontWeight.w600, reason: label);
+    }
+    expect(tester.takeException(), isNull);
+  });
+
   group('Danbooru 条目', () {
     const sources = [
       ('Tag Group', 'Hair Color'),
@@ -499,6 +527,7 @@ Future<void> _pumpHost(
   required RandomCategory category,
   MediaQueryData Function(MediaQueryData data)? mediaQuery,
   InteractionPolicy? interactionPolicy,
+  ThemeData? theme,
 }) {
   Widget wrap(BuildContext context, Widget child) {
     final policyScoped = interactionPolicy == null
@@ -519,6 +548,7 @@ Future<void> _pumpHost(
     ProviderScope(
       child: MaterialApp(
         locale: const Locale('en'),
+        theme: theme,
         supportedLocales: AppLocalizations.supportedLocales,
         localizationsDelegates: AppLocalizations.localizationsDelegates,
         builder: mediaQuery == null && interactionPolicy == null
