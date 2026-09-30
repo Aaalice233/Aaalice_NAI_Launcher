@@ -1,5 +1,7 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:isolate';
 
 import 'package:archive/archive_io.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -41,18 +43,34 @@ class LocalOnnxModelDescriptor {
   bool get isOnnx => p.extension(path).toLowerCase() == '.onnx';
 }
 
+typedef OnnxArchiveExtractionRunner =
+    Future<List<LocalOnnxImportSource>> Function(
+      FutureOr<List<LocalOnnxImportSource>> Function() extraction,
+    );
+
+/// GB 级模型包可能解压数分钟，占着 ComputeGate 许可会一直挡住前台的解码任务，
+/// 因此像 DLSS 运行库解包一样用独立 isolate；同一时刻只有设置页发起的一次导入。
+Future<List<LocalOnnxImportSource>> runOnnxArchiveExtractionInIsolate(
+  FutureOr<List<LocalOnnxImportSource>> Function() extraction,
+) => Isolate.run(extraction, debugName: 'onnx-archive-extract');
+
 final localOnnxModelServiceProvider = Provider<LocalOnnxModelService>((ref) {
   return LocalOnnxModelService(ref.read(localStorageServiceProvider));
 });
 
 class LocalOnnxModelService {
-  const LocalOnnxModelService(this._storage);
+  const LocalOnnxModelService(
+    this._storage, {
+    OnnxArchiveExtractionRunner runArchiveExtraction =
+        runOnnxArchiveExtractionInIsolate,
+  }) : _runArchiveExtraction = runArchiveExtraction;
 
   static const int _archiveFileCountLimit = 64;
   static const int _archiveExpandedBytesLimit = 4 * 1024 * 1024 * 1024;
   static const int _archiveEntryBytesLimit = 2 * 1024 * 1024 * 1024;
 
   final LocalStorageService _storage;
+  final OnnxArchiveExtractionRunner _runArchiveExtraction;
 
   String get taggerDirectory =>
       _storage.getSetting<String>(StorageKeys.onnxTaggerModelDirectory) ?? '';
@@ -94,9 +112,10 @@ class LocalOnnxModelService {
         }
         extractionCreated = true;
         expandedSources.addAll(
-          await _extractTaggerArchive(
+          await _extractTaggerArchiveInBackground(
+            _runArchiveExtraction,
             source,
-            Directory(p.join(extractionDirectory.path, '$index')),
+            p.join(extractionDirectory.path, '$index'),
           ),
         );
       }
@@ -108,7 +127,14 @@ class LocalOnnxModelService {
     }
   }
 
-  Future<List<LocalOnnxImportSource>> _extractTaggerArchive(
+  // 闭包只捕获参数，避免把持有存储的服务实例带进后台 isolate
+  static Future<List<LocalOnnxImportSource>> _extractTaggerArchiveInBackground(
+    OnnxArchiveExtractionRunner run,
+    LocalOnnxImportSource source,
+    String outputPath,
+  ) => run(() => _extractTaggerArchive(source, Directory(outputPath)));
+
+  static Future<List<LocalOnnxImportSource>> _extractTaggerArchive(
     LocalOnnxImportSource source,
     Directory outputDirectory,
   ) async {
@@ -168,7 +194,7 @@ class LocalOnnxModelService {
     return extracted;
   }
 
-  Future<LocalOnnxImportSource?> _extractTaggerArchiveEntry(
+  static Future<LocalOnnxImportSource?> _extractTaggerArchiveEntry(
     ArchiveFile entry, {
     required Directory outputDirectory,
     required Set<String> selectedNames,
@@ -522,7 +548,7 @@ class LocalOnnxModelService {
     return result;
   }
 
-  String _sanitizeImportedFileName(String value) {
+  static String _sanitizeImportedFileName(String value) {
     final baseName = p
         .basename(value)
         .replaceAll(RegExp(r'[\x00-\x1f/\\]'), '_');
@@ -532,7 +558,7 @@ class LocalOnnxModelService {
     return baseName;
   }
 
-  bool _isSupportedImportFile(String fileName) {
+  static bool _isSupportedImportFile(String fileName) {
     return const {
       '.onnx',
       '.data',
