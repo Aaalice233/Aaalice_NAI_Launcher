@@ -6,6 +6,7 @@ import 'package:nai_launcher/core/constants/storage_keys.dart';
 import 'package:nai_launcher/core/storage/local_storage_service.dart';
 import 'package:nai_launcher/core/storage/queue_state_storage.dart';
 import 'package:nai_launcher/core/storage/replication_queue_storage.dart';
+import 'package:nai_launcher/core/utils/inpaint_mask_utils.dart';
 import 'package:nai_launcher/data/models/character/character_prompt.dart';
 import 'package:nai_launcher/data/models/image/image_params.dart'
     show ImageParams;
@@ -175,6 +176,42 @@ void main() {
     await generation.waitForStart(1);
     expect(container.read(queueExecutionNotifierProvider).failedCount, 1);
     expect(generation.startedPrompts, ['failed', 'next']);
+  });
+
+  test('空 latent 蒙版失败不重试且原因留在失败任务上', () async {
+    final tasks = [
+      ReplicationTask.create(prompt: 'thin mask'),
+      ReplicationTask.create(prompt: 'next'),
+    ];
+    final generation = _ControlledImageGenerationNotifier();
+    final container = _buildControlledQueueContainer(
+      tasks,
+      generation,
+      localStorage: _RetryingLocalStorageService(),
+    );
+    addTearDown(container.dispose);
+
+    await container.read(queueExecutionNotifierProvider.notifier).startQueue();
+    await generation.waitForStart(0);
+    generation.fail(
+      0,
+      message: const EmptyInpaintMaskException(latentGridSize: 8).toString(),
+    );
+    await _waitForCurrentTask(container, tasks[1].id);
+    generation.settle(0);
+    await generation.waitForStart(1);
+
+    expect(generation.startedPrompts, ['thin mask', 'next']);
+    final failedTask = container
+        .read(replicationQueueNotifierProvider)
+        .failedTasks
+        .single;
+    expect(failedTask.id, tasks[0].id);
+    expect(
+      EmptyInpaintMaskException.tryParse(failedTask.errorMessage),
+      isNotNull,
+    );
+    expect(container.read(queueExecutionNotifierProvider).failedCount, 1);
   });
 
   test('取消会释放运行任务但不会启动下一任务', () async {
@@ -688,11 +725,11 @@ class _ControlledImageGenerationNotifier extends ImageGenerationNotifier {
     state = state.copyWith(status: GenerationStatus.completed);
   }
 
-  void fail(int index) {
+  void fail(int index, {String message = 'controlled failure'}) {
     expect(_invocations[index], same(_activeInvocation));
     state = state.copyWith(
       status: GenerationStatus.error,
-      errorMessage: 'controlled failure',
+      errorMessage: message,
     );
   }
 
@@ -735,6 +772,15 @@ class _NoRetryLocalStorageService extends LocalStorageService {
   @override
   T? getSetting<T>(String key, {T? defaultValue}) {
     if (key == StorageKeys.queueRetryCount) return 0 as T;
+    if (key == StorageKeys.queueRetryInterval) return 0.0 as T;
+    return defaultValue;
+  }
+}
+
+class _RetryingLocalStorageService extends LocalStorageService {
+  @override
+  T? getSetting<T>(String key, {T? defaultValue}) {
+    if (key == StorageKeys.queueRetryCount) return 3 as T;
     if (key == StorageKeys.queueRetryInterval) return 0.0 as T;
     return defaultValue;
   }

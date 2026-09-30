@@ -1117,6 +1117,34 @@ void main() {
       },
     );
 
+    final emptyAfterSampling = {
+      // The plugin still exports an all-black PNG for off-canvas selections.
+      'selection outside the canvas': _kritaSelectionMaskPng(
+        canvasSize,
+        const KritaSelectionRect(x: 0, y: 0, width: 0, height: 0),
+        selectedValue: 255,
+      ),
+      'one-pixel selection line': _kritaSelectionMaskPng(
+        canvasSize,
+        const KritaSelectionRect(x: 10, y: 0, width: 1, height: canvasSize),
+        selectedValue: 39,
+      ),
+    };
+    for (final entry in emptyAfterSampling.entries) {
+      test(
+        '${entry.key} reports empty_mask without a network request',
+        () async {
+          final adapter = _RecordingGenerationAdapter();
+          final sent = await _runKritaInpaint(entry.value, adapter: adapter);
+
+          expect(adapter.requests, isEmpty);
+          expect(sent.single['type'], 'error');
+          expect(sent.single['code'], KritaBridgeErrorCode.emptyMask.value);
+          expectNoSensitiveBridgeData(sent.single);
+        },
+      );
+    }
+
     test(
       'cancel while the mask is binarized never starts generation',
       () async {

@@ -15,6 +15,7 @@ import 'package:nai_launcher/core/network/browser_identity/chrome_identity.dart'
 import 'package:nai_launcher/core/network/nai_api_endpoint.dart';
 import 'package:nai_launcher/core/network/nai_api_endpoint_service.dart';
 import 'package:nai_launcher/core/network/critical_network_activity.dart';
+import 'package:nai_launcher/core/utils/inpaint_mask_utils.dart';
 import 'package:nai_launcher/data/datasources/remote/nai_image_enhancement_api_service.dart';
 import 'package:nai_launcher/data/datasources/remote/nai_image_generation_api_service.dart';
 import 'package:nai_launcher/data/models/image/image_params.dart';
@@ -937,6 +938,49 @@ void main() {
       expect(decoded.getPixel(128, 128).b.toInt(), greaterThan(210));
     },
   );
+
+  test('empty latent inpaint masks fail before any request is sent', () async {
+    final adapter = _PendingDioAdapter();
+    final dio = Dio()..httpClientAdapter = adapter;
+    final endpointService = NaiApiEndpointService();
+    final networkActivity = CriticalNetworkActivityCoordinator();
+    final service = NAIImageGenerationApiService(
+      dio,
+      NAIImageEnhancementApiService(dio, endpointService),
+      endpointService,
+      networkActivity,
+    );
+    final params = ImageParams(
+      action: ImageGenerationAction.infill,
+      model: 'nai-diffusion-4-5-full-inpainting',
+      width: 256,
+      height: 256,
+      sourceImage: _solidPng(width: 256, height: 256, r: 10, g: 20, b: 30),
+      maskImage: _rectMaskPng(
+        width: 256,
+        height: 256,
+        x: 10,
+        y: 0,
+        rectWidth: 1,
+        rectHeight: 256,
+      ),
+    );
+
+    await expectLater(
+      service.generateImage(params),
+      throwsA(isA<EmptyInpaintMaskException>()),
+    );
+    await expectLater(
+      service.generateImageArtifactsCancellable(params),
+      throwsA(isA<EmptyInpaintMaskException>()),
+    );
+    final chunks = await service.generateImageStream(params).toList();
+
+    expect(chunks.single.hasError, isTrue);
+    expect(EmptyInpaintMaskException.tryParse(chunks.single.error), isNotNull);
+    expect(adapter.requests, isEmpty);
+    expect(networkActivity.isActive, isFalse);
+  });
 
   test('focused stream preview keeps raw crop and carries placement', () async {
     final adapter = _PendingDioAdapter();

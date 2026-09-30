@@ -178,6 +178,94 @@ void main() {
       },
     );
 
+    test('prepareNovelAiInpaintMaskArtifacts flags an empty latent mask', () {
+      final thinLine = _opaqueMask(64, 64);
+      for (var y = 0; y < 64; y++) {
+        thinLine.setPixelRgba(10, y, 255, 255, 255, 255);
+      }
+      final block = _opaqueMask(64, 64);
+      for (var y = 16; y < 48; y++) {
+        for (var x = 16; x < 48; x++) {
+          block.setPixelRgba(x, y, 255, 255, 255, 255);
+        }
+      }
+      NovelAiInpaintMaskArtifacts prepare(Uint8List bytes) =>
+          InpaintMaskUtils.prepareNovelAiInpaintMaskArtifacts(
+            bytes,
+            targetWidth: 64,
+            targetHeight: 64,
+          );
+
+      final thin = prepare(Uint8List.fromList(img.encodePng(thinLine)));
+      final solid = prepare(Uint8List.fromList(img.encodePng(block)));
+      final undecodable = prepare(Uint8List.fromList([1, 2, 3]));
+
+      expect(thin.isLatentMaskEmpty, isTrue);
+      expect(thin.latentGridSize, 8);
+      expect(
+        img.decodeImage(thin.requestMaskBytes)!.every((p) => p.r.toInt() == 0),
+        isTrue,
+      );
+      expect(solid.isLatentMaskEmpty, isFalse);
+      expect(undecodable.isLatentMaskEmpty, isFalse);
+      expect(undecodable.requestMaskBytes, orderedEquals([1, 2, 3]));
+    });
+
+    test(
+      'entry-normalized low-gray masks agree across both preparation branches',
+      () {
+        final lowGray = img.Image(width: 64, height: 64, numChannels: 1);
+        for (var y = 16; y < 48; y++) {
+          for (var x = 16; x < 48; x++) {
+            lowGray.setPixelR(x, y, 39);
+          }
+        }
+        final raw = Uint8List.fromList(img.encodePng(lowGray));
+        final normalized = InpaintMaskUtils.normalizeMaskBytes(raw);
+        bool isEmpty(Uint8List bytes, {int expansion = 0}) =>
+            InpaintMaskUtils.prepareNovelAiInpaintMaskArtifacts(
+              bytes,
+              targetWidth: 64,
+              targetHeight: 64,
+              expansionIterations: expansion,
+            ).isLatentMaskEmpty;
+
+        expect(isEmpty(raw), isTrue);
+        expect(isEmpty(raw, expansion: 1), isFalse);
+        expect(isEmpty(normalized), isFalse);
+        expect(isEmpty(normalized, expansion: 1), isFalse);
+      },
+    );
+
+    test('EmptyInpaintMaskException round-trips through error strings', () {
+      const error = EmptyInpaintMaskException(latentGridSize: 8);
+
+      expect(
+        EmptyInpaintMaskException.tryParse(error)?.latentGridSize,
+        equals(8),
+      );
+      expect(
+        EmptyInpaintMaskException.tryParse(error.toString())?.latentGridSize,
+        equals(8),
+      );
+      expect(
+        EmptyInpaintMaskException.tryParse(
+          Exception(error.encodedMessage),
+        )?.latentGridSize,
+        equals(8),
+      );
+      expect(error.toString(), contains('mask'));
+      expect(error.toString(), contains('empty'));
+      expect(EmptyInpaintMaskException.tryParse('API_ERROR_500|x'), isNull);
+      expect(
+        EmptyInpaintMaskException.tryParse(
+          '${EmptyInpaintMaskException.errorCode}|oops',
+        ),
+        isNull,
+      );
+      expect(EmptyInpaintMaskException.tryParse(null), isNull);
+    });
+
     test(
       'prepareNovelAiRequestMaskBytesAsync should match the sync request mask',
       () async {
@@ -239,6 +327,8 @@ void main() {
         expect(asyncResult.requestHeight, syncResult.requestHeight);
         expect(asyncResult.latentWidth, syncResult.latentWidth);
         expect(asyncResult.latentHeight, syncResult.latentHeight);
+        expect(asyncResult.latentGridSize, syncResult.latentGridSize);
+        expect(asyncResult.isLatentMaskEmpty, syncResult.isLatentMaskEmpty);
       },
     );
 
@@ -715,6 +805,12 @@ void main() {
     b: pixel.b.toInt(),
     a: pixel.a.toInt(),
   );
+}
+
+img.Image _opaqueMask(int width, int height) {
+  final image = img.Image(width: width, height: height, numChannels: 4);
+  img.fill(image, color: img.ColorRgba8(0, 0, 0, 255));
+  return image;
 }
 
 img.Image _buildParityMask({required int width, required int height}) {

@@ -8607,6 +8607,18 @@ abstract class AppLocalizations {
     int suggestedHeight,
   );
 
+  /// No description provided for @generation_emptyInpaintMask.
+  ///
+  /// In en, this message translates to:
+  /// **'Inpaint mask is empty after sampling'**
+  String get generation_emptyInpaintMask;
+
+  /// No description provided for @generation_emptyInpaintMaskHint.
+  ///
+  /// In en, this message translates to:
+  /// **'The mask is too thin or too small: nothing is left to repaint after sampling it on the {gridSize}-pixel grid. Make the mask thicker or larger and try again.'**
+  String generation_emptyInpaintMaskHint(int gridSize);
+
   /// No description provided for @api_error_429.
   ///
   /// In en, this message translates to:

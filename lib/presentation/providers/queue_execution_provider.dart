@@ -8,6 +8,7 @@ import '../../core/platform/platform_capabilities.dart';
 import '../../core/storage/local_storage_service.dart';
 import '../../core/storage/queue_state_storage.dart';
 import '../../core/utils/app_logger.dart';
+import '../../core/utils/inpaint_mask_utils.dart';
 import '../../data/models/queue/replication_task.dart';
 import '../../data/models/queue/replication_task_generation_snapshot.dart';
 import '../../data/models/queue/replication_task_status.dart';
@@ -622,6 +623,12 @@ class QueueExecutionNotifier extends _$QueueExecutionNotifier {
     // 生成错误
     if (previous?.status == GenerationStatus.generating &&
         next.status == GenerationStatus.error) {
+      final errorMessage = next.errorMessage;
+      if (errorMessage != null &&
+          EmptyInpaintMaskException.tryParse(errorMessage) != null) {
+        unawaited(_settleUnretryableTaskError(errorMessage));
+        return;
+      }
       _onTaskError();
       return;
     }
@@ -719,6 +726,21 @@ class QueueExecutionNotifier extends _$QueueExecutionNotifier {
       // 超过重试次数，根据策略处理
       await _handleFailedTask();
     }
+  }
+
+  /// 同一份任务参数必然再次失败时直接结算，原因留在任务上供失败池查看
+  Future<void> _settleUnretryableTaskError(String errorMessage) async {
+    final taskId = state.currentTaskId;
+    if (taskId != null) {
+      await ref
+          .read(replicationQueueNotifierProvider.notifier)
+          .updateTaskStatus(
+            taskId,
+            ReplicationTaskStatus.running,
+            errorMessage: errorMessage,
+          );
+    }
+    await _handleFailedTask(errorMessage: errorMessage, retryable: false);
   }
 
   /// 处理失败任务

@@ -2105,6 +2105,13 @@
       "suggestedHeight": { "type": "int" }
     }
   },
+  "generation_emptyInpaintMask": "インペイントマスクがサンプリング後に空になりました",
+  "generation_emptyInpaintMaskHint": "マスクが細すぎるか小さすぎるため、{gridSize} ピクセル単位のグリッドでサンプリングすると再描画する領域が残りません。マスクを太くするか広げてから、もう一度お試しください。",
+  "@generation_emptyInpaintMaskHint": {
+    "placeholders": {
+      "gridSize": { "type": "int" }
+    }
+  },
   "api_error_429": "同時実行制限に達しました",
   "api_error_429_hint": "リクエストが多すぎます。しばらく待ってからもう一度お試しください (共有アカウントの場合に共通)",
   "api_error_401": "認証に失敗しました",

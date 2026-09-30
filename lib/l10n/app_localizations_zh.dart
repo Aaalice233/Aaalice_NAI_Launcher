@@ -4639,6 +4639,14 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
+  String get generation_emptyInpaintMask => '重绘蒙版采样后为空';
+
+  @override
+  String generation_emptyInpaintMaskHint(int gridSize) {
+    return '蒙版太细或太小，按 $gridSize 像素网格采样后没有留下可重绘的区域。请加粗或扩大蒙版后重试。';
+  }
+
+  @override
   String get api_error_429 => '并发限制';
 
   @override
@@ -19947,6 +19955,14 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
     int suggestedHeight,
   ) {
     return '$width×$height 無法用於生成。寬度和高度必須是 64 的倍數、單邊不能超過 4096，且總畫素不能超過 3,145,728。最接近的可用尺寸是 $suggestedWidth×$suggestedHeight。';
+  }
+
+  @override
+  String get generation_emptyInpaintMask => '重繪蒙版取樣後為空';
+
+  @override
+  String generation_emptyInpaintMaskHint(int gridSize) {
+    return '蒙版太細或太小，按 $gridSize 像素網格取樣後沒有留下可重繪的區域。請加粗或擴大蒙版後重試。';
   }
 
   @override
