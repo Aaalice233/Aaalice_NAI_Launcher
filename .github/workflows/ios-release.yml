@@ -2,15 +2,13 @@ name: iOS Release
 run-name: iOS unsigned IPA (${{ github.ref_name }})
 
 on:
-  # macOS runner minutes bill at 10x, so this never runs on a plain push:
-  # only a deliberate ios-v* tag or a manual dispatch starts a build.
+  # Never runs on a plain push: only a deliberate ios-v* tag or a manual
+  # dispatch starts a build.
+  # - workflow_dispatch: build the IPA as an Actions artifact only.
+  # - ios-v<version>[-<n>] tag: additionally attach the IPA to the existing
+  #   upstream release v<version>. The iOS build never creates its own release,
+  #   so it can never become the repository's "latest" release.
   workflow_dispatch:
-    inputs:
-      create_release:
-        description: Create a GitHub Release with the unsigned IPA attached
-        required: false
-        default: false
-        type: boolean
   push:
     tags:
       - "ios-v*"
@@ -36,7 +34,7 @@ jobs:
     runs-on: macos-15
     timeout-minutes: 60
 
-    # The release step publishes the IPA onto an ios-v* tag.
+    # The attach step uploads the IPA to the matching upstream release.
     permissions:
       contents: write
 
@@ -101,13 +99,11 @@ jobs:
             exit 1
           fi
           version="${BASH_REMATCH[1]}"
+          build_number="${BASH_REMATCH[2]}"
 
-          release_tag="$GITHUB_REF_NAME"
-          if [[ "$GITHUB_REF" != refs/tags/ios-v* ]]; then
-            release_tag="ios-v${version}"
-          fi
-
-          file_name="NAI_Launcher_iOS_${version}_${GITHUB_SHA::7}_unsigned.ipa"
+          # Same naming as the other platforms' release assets, so re-running
+          # the attach step replaces the previous IPA instead of piling up files.
+          file_name="NAI_Launcher_iOS_${version}+${build_number}_unsigned.ipa"
           rm -rf build/ios/Payload
           mkdir -p build/ios/Payload dist
           cp -R "$app" build/ios/Payload/
@@ -119,7 +115,6 @@ jobs:
             echo "path=dist/$file_name"
             echo "file_name=$file_name"
             echo "version=$version"
-            echo "release_tag=$release_tag"
           } >> "$GITHUB_OUTPUT"
 
       - name: Report artifact sizes
@@ -146,19 +141,63 @@ jobs:
           retention-days: 30
           compression-level: 0
 
-      - name: Create GitHub release
-        if: ${{ startsWith(github.ref, 'refs/tags/ios-v') || (github.event_name == 'workflow_dispatch' && inputs.create_release) }}
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: ${{ steps.artifact.outputs.release_tag }}
-          name: NAI Launcher iOS ${{ steps.artifact.outputs.release_tag }}
-          files: |
-            ${{ steps.artifact.outputs.path }}
-            ${{ steps.artifact.outputs.path }}.sha256
-          generate_release_notes: true
-          body: |
-            This release contains an UNSIGNED IPA.
-            You must self-sign or sideload it before it can run on a physical iOS device.
-            The app embeds a native asset dylib (nai_png_codec), so the signing tool
-            must re-sign every nested binary inside Payload/Runner.app, not just the
-            main executable.
+      - name: Attach IPA to the matching upstream release
+        if: ${{ startsWith(github.ref, 'refs/tags/ios-v') }}
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          IPA_PATH: ${{ steps.artifact.outputs.path }}
+          IPA_NAME: ${{ steps.artifact.outputs.file_name }}
+          APP_VERSION: ${{ steps.artifact.outputs.version }}
+        run: |
+          set -euo pipefail
+          # ios-v4.2.1 and ios-v4.2.1-2 (an iOS-only rebuild of the same version)
+          # both belong to the upstream release v4.2.1. The tag must match the
+          # version in pubspec.yaml, otherwise the IPA would land on the wrong
+          # release.
+          if [[ "$GITHUB_REF_NAME" != "ios-v${APP_VERSION}" && "$GITHUB_REF_NAME" != "ios-v${APP_VERSION}-"* ]]; then
+            echo "Tag $GITHUB_REF_NAME does not match pubspec.yaml version $APP_VERSION." >&2
+            exit 1
+          fi
+          target="v${APP_VERSION}"
+          # Fail instead of creating a release: iOS only ever joins an existing one.
+          gh release view "$target" --json tagName > /dev/null
+
+          gh release upload "$target" "$IPA_PATH" "$IPA_PATH.sha256" --clobber
+
+          gh release view "$target" --json body -q .body > release_body.md
+          python3 - "$target" <<'PY'
+          import os, re, sys
+          from urllib.parse import quote
+
+          target = sys.argv[1]
+          repo = os.environ["GITHUB_REPOSITORY"]
+          tag = os.environ["GITHUB_REF_NAME"]
+          full_sha = os.environ["GITHUB_SHA"]
+          sha = full_sha[:7]
+          name = os.environ["IPA_NAME"]
+          url = f"https://github.com/{repo}/releases/download/{target}/{quote(name)}"
+          section = f"""<!-- ios-build:start -->
+          ## 📱 iOS
+
+          | OS | Download |
+          | --- | --- |
+          | **iOS** | [![iOS unsigned IPA](https://img.shields.io/badge/iOS-IPA_unsigned-000000?style=flat-square&logo=apple&logoColor=white)]({url}) |
+
+          - 由 `ios` 分支的 [`{tag}`](https://github.com/{repo}/tree/{tag})（提交 [`{sha}`](https://github.com/{repo}/commit/{full_sha})）构建，版本与本 Release 相同。
+          - **未签名**，需要自行签名后侧载。签名工具必须重签 `Payload/Runner.app` 里的每一个嵌套二进制（含 `nai_png_codec.framework`）；保持 Bundle ID `com.aaalice.naiLauncher` 覆盖安装可保留数据。
+          - iOS 不支持应用内更新，新版本请回到 Release 页面下载。SHA-256 见同名 `.sha256` 文件（`checksums.txt` 与 `release_manifest.json` 不含 iOS 包）。
+          - 与其他平台的差异见 [docs/ios.md](https://github.com/{repo}/blob/ios/docs/ios.md)。
+          <!-- ios-build:end -->"""
+
+          with open("release_body.md", encoding="utf-8") as f:
+              body = f.read()
+          pattern = re.compile(r"<!-- ios-build:start -->.*?<!-- ios-build:end -->", re.S)
+          if pattern.search(body):
+              body = pattern.sub(lambda _: section, body)
+          else:
+              body = body.rstrip() + "\n\n" + section + "\n"
+          with open("release_body.md", "w", encoding="utf-8") as f:
+              f.write(body)
+          PY
+          gh release edit "$target" --notes-file release_body.md
