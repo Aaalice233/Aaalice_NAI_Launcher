@@ -274,7 +274,8 @@ class _AddTagGroupDialogState extends ConsumerState<AddTagGroupDialog>
   }
 
   Widget _buildSourceTabs(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(14, 8, 14, 0),
@@ -293,8 +294,7 @@ class _AddTagGroupDialogState extends ConsumerState<AddTagGroupDialog>
             dividerColor: Colors.transparent,
             labelColor: colorScheme.primary,
             unselectedLabelColor: colorScheme.onSurfaceVariant,
-            labelStyle: const TextStyle(
-              fontSize: 12,
+            labelStyle: theme.textTheme.labelMedium?.copyWith(
               fontWeight: FontWeight.w600,
             ),
             tabs: [

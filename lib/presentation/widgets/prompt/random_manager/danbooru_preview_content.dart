@@ -178,7 +178,8 @@ class _TagChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -188,7 +189,9 @@ class _TagChip extends StatelessWidget {
       ),
       child: TranslatedTagText(
         tag,
-        style: TextStyle(fontSize: 11, color: colorScheme.onSurface),
+        style: theme.textTheme.labelSmall?.copyWith(
+          color: colorScheme.onSurface,
+        ),
       ),
     );
   }

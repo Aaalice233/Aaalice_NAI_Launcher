@@ -220,9 +220,8 @@ class _PresetImportDialogState extends State<PresetImportDialog> {
                   hintText: widget.isExport ? '' : l10n.diy_presetPasteJsonHint,
                   contentPadding: const EdgeInsets.all(14),
                 ),
-                style: TextStyle(
+                style: theme.textTheme.bodySmall?.copyWith(
                   fontFamily: 'monospace',
-                  fontSize: 11,
                   color: colorScheme.onSurface,
                 ),
               ),

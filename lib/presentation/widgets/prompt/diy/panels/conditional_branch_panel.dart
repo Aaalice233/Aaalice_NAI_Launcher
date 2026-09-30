@@ -234,6 +234,7 @@ class _ConditionalBranchPanelState extends State<ConditionalBranchPanel> {
     required String percent,
   }) {
     final isSelected = _selectedIndex == index;
+    final textTheme = Theme.of(context).textTheme;
     return Tooltip(
       message: '${branch.name}: $percent%',
       child: SurfaceInkWell(
@@ -257,20 +258,20 @@ class _ConditionalBranchPanelState extends State<ConditionalBranchPanel> {
                   children: [
                     Text(
                       branch.name,
-                      style: const TextStyle(
+                      style: textTheme.labelSmall?.copyWith(
                         color: Colors.white,
-                        fontSize: 11,
                         fontWeight: FontWeight.bold,
-                        shadows: [Shadow(color: Colors.black26, blurRadius: 2)],
+                        shadows: const [
+                          Shadow(color: Colors.black26, blurRadius: 2),
+                        ],
                       ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
                     Text(
                       '$percent%',
-                      style: TextStyle(
+                      style: textTheme.labelSmall?.copyWith(
                         color: Colors.white.withValues(alpha: 0.9),
-                        fontSize: 9,
                         fontWeight: FontWeight.w500,
                       ),
                       maxLines: 1,
@@ -405,8 +406,7 @@ class _ConditionalBranchPanelState extends State<ConditionalBranchPanel> {
                           '${branch.probability}%',
                           maxLines: 1,
                           softWrap: false,
-                          style: TextStyle(
-                            fontSize: 11,
+                          style: theme.textTheme.labelSmall?.copyWith(
                             fontWeight: FontWeight.bold,
                             color: branch.enabled
                                 ? Colors.white
