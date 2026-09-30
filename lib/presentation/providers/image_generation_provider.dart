@@ -705,9 +705,6 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
           final settings = ref.read(imageSaveSettingsNotifierProvider);
           if (settings.autoSave) {
             await _saveImages(images, epoch: epoch);
-            if (!_isCurrentLifecycle(epoch) || event.runId != _activeRunId) {
-              return;
-            }
           }
         }
       case GenerationCancelled():
