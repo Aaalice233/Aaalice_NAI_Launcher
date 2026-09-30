@@ -519,7 +519,6 @@ class _DependencyConfigPanelState extends State<DependencyConfigPanel> {
                 Icons.edit_note_rounded,
                 color: colorScheme.onSurfaceVariant,
               ),
-              border: InputBorder.none,
             ),
             readOnly: widget.readOnly,
             onChanged: (value) {
@@ -718,9 +717,6 @@ class _MappingRuleFormState extends State<_MappingRuleForm> {
                             Icons.input_rounded,
                             color: colorScheme.onSurfaceVariant,
                           ),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(10),
-                    ),
                   ),
                   onChanged: (_) => setState(() {}),
                   onSubmitted: (_) => _valueFocusNode.requestFocus(),
@@ -740,9 +736,6 @@ class _MappingRuleFormState extends State<_MappingRuleForm> {
                             Icons.output_rounded,
                             color: colorScheme.onSurfaceVariant,
                           ),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(10),
-                    ),
                   ),
                   onChanged: (_) => setState(() {}),
                   onSubmitted: (_) {

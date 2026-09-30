@@ -494,9 +494,6 @@ class _PostProcessRulePanelState extends State<PostProcessRulePanel> {
                 Icons.label_outline_rounded,
                 color: colorScheme.onSurfaceVariant,
               ),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(10),
-              ),
             ),
             readOnly: widget.readOnly,
             onChanged: (value) {
@@ -550,9 +547,6 @@ class _PostProcessRulePanelState extends State<PostProcessRulePanel> {
                 Icons.play_circle_outline_rounded,
                 color: colorScheme.onSurfaceVariant,
               ),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(10),
-              ),
             ),
             readOnly: widget.readOnly,
             onChanged: (value) {
@@ -594,9 +588,6 @@ class _PostProcessRulePanelState extends State<PostProcessRulePanel> {
                 prefixIcon: Icon(
                   Icons.label_outline_rounded,
                   color: colorScheme.onSurfaceVariant,
-                ),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(10),
                 ),
               ),
               readOnly: widget.readOnly,

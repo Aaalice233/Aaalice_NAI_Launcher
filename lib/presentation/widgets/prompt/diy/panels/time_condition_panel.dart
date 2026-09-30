@@ -564,9 +564,6 @@ class _TimeConditionPanelState extends State<TimeConditionPanel> {
                       Icons.edit_rounded,
                       color: colorScheme.onSurfaceVariant,
                     ),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(10),
-                    ),
                   ),
                   readOnly: widget.readOnly,
                   onChanged: (value) {
