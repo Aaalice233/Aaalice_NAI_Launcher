@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'dart:typed_data';
 
@@ -119,6 +120,69 @@ void main() {
       expect(filePicker.allowMultiple, isTrue);
     },
   );
+
+  testWidgets('ONNX 导入进行中按钮显示忙碌且不能重复导入', (tester) async {
+    FilePicker? originalFilePicker;
+    try {
+      originalFilePicker = FilePicker.platform;
+    } catch (_) {
+      originalFilePicker = null;
+    }
+    FilePicker.platform = _RecordingFilePicker(
+      result: FilePickerResult([
+        PlatformFile(
+          name: 'tagger.zip',
+          size: 1,
+          path: r'C:\picked\tagger.zip',
+        ),
+      ]),
+    );
+    addTearDown(() {
+      if (originalFilePicker != null) {
+        FilePicker.platform = originalFilePicker;
+      }
+    });
+    PlatformCapabilities.debugOverride = PlatformCapabilities.forPlatform(
+      TargetPlatform.android,
+    );
+    final onnx = _PendingOnnxModelService(storage);
+
+    await tester.pumpWidget(_buildSubject(storage, onnxService: onnx));
+    await tester.pump();
+
+    final importButton = find.byTooltip('导入 ONNX 模型、标签文件或 ZIP 压缩包');
+    IconButton button() => tester.widget<IconButton>(
+      find.ancestor(of: importButton, matching: find.byType(IconButton)).first,
+    );
+    await tester.tap(importButton);
+    await tester.pump();
+
+    expect(onnx.imports, 1);
+    expect(button().onPressed, isNull);
+    expect(
+      find.descendant(
+        of: importButton,
+        matching: find.byType(CircularProgressIndicator),
+      ),
+      findsOneWidget,
+    );
+    await tester.tap(importButton, warnIfMissed: false);
+    await tester.pump();
+    expect(onnx.imports, 1);
+
+    onnx.finish(2);
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 5));
+
+    expect(button().onPressed, isNotNull);
+    expect(
+      find.descendant(
+        of: importButton,
+        matching: find.byType(CircularProgressIndicator),
+      ),
+      findsNothing,
+    );
+  });
 
   testWidgets('Android 同步到系统相册开关默认开启，关闭后写入设置', (tester) async {
     PlatformCapabilities.debugOverride = PlatformCapabilities.forPlatform(
@@ -257,6 +321,7 @@ void main() {
 
 Widget _buildSubject(
   _MemoryLocalStorageService storage, {
+  LocalOnnxModelService? onnxService,
   double textScale = 1,
   CooccurrenceDataPackService? cooccurrenceService,
   EdgeInsets padding = EdgeInsets.zero,
@@ -266,7 +331,7 @@ Widget _buildSubject(
     overrides: [
       localStorageServiceProvider.overrideWith((ref) => storage),
       localOnnxModelServiceProvider.overrideWith(
-        (ref) => LocalOnnxModelService(storage),
+        (ref) => onnxService ?? LocalOnnxModelService(storage),
       ),
       cacheStatisticsProvider.overrideWith(
         (ref) async => CacheStatistics(
@@ -327,7 +392,28 @@ class _ReadyCooccurrenceService extends CooccurrenceDataPackService {
   }
 }
 
+class _PendingOnnxModelService extends LocalOnnxModelService {
+  _PendingOnnxModelService(super.storage);
+
+  final _pending = Completer<int>();
+  var imports = 0;
+
+  void finish(int count) => _pending.complete(count);
+
+  @override
+  Future<int> importTaggerSelections(List<LocalOnnxImportSource> sources) {
+    imports++;
+    return _pending.future;
+  }
+
+  @override
+  Future<int> managedFileCount() async => 0;
+}
+
 class _RecordingFilePicker extends FilePicker {
+  _RecordingFilePicker({this.result});
+
+  final FilePickerResult? result;
   FileType? type;
   List<String>? allowedExtensions;
   bool? allowMultiple;
@@ -350,7 +436,7 @@ class _RecordingFilePicker extends FilePicker {
     this.type = type;
     this.allowedExtensions = allowedExtensions;
     this.allowMultiple = allowMultiple;
-    return null;
+    return result;
   }
 }
 

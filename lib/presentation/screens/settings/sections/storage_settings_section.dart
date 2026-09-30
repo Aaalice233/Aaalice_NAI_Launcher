@@ -32,6 +32,8 @@ class StorageSettingsSection extends ConsumerStatefulWidget {
 
 class _StorageSettingsSectionState
     extends ConsumerState<StorageSettingsSection> {
+  bool _importingLocalOnnx = false;
+
   Future<void> _selectSaveDirectory(BuildContext context) async {
     try {
       final result = await FilePicker.platform.getDirectoryPath(
@@ -101,6 +103,7 @@ class _StorageSettingsSectionState
             (file) => LocalOnnxImportSource(name: file.name, path: file.path!),
           )
           .toList(growable: false);
+      if (mounted) setState(() => _importingLocalOnnx = true);
       final importedCount = await ref
           .read(localOnnxModelServiceProvider)
           .importTaggerSelections(sources);
@@ -117,6 +120,10 @@ class _StorageSettingsSectionState
           context,
           context.l10n.tagLibrary_importFailedWithError('$e'),
         );
+      }
+    } finally {
+      if (mounted && _importingLocalOnnx) {
+        setState(() => _importingLocalOnnx = false);
       }
     }
   }
@@ -313,13 +320,27 @@ class _StorageSettingsSectionState
                         IconButton(
                           icon: const Icon(Icons.delete_outline, size: 20),
                           tooltip: context.l10n.common_delete,
-                          onPressed: _clearLocalOnnxTaggerFiles,
+                          onPressed: _importingLocalOnnx
+                              ? null
+                              : _clearLocalOnnxTaggerFiles,
                         ),
                       IconButton(
-                        icon: const Icon(Icons.file_upload_outlined, size: 20),
+                        icon: _importingLocalOnnx
+                            ? SizedBox.square(
+                                dimension: 18,
+                                child: CircularProgressIndicator(
+                                  value: MediaQuery.disableAnimationsOf(context)
+                                      ? 0.75
+                                      : null,
+                                  strokeWidth: 2,
+                                ),
+                              )
+                            : const Icon(Icons.file_upload_outlined, size: 20),
                         tooltip:
                             context.l10n.settings_importLocalOnnxTaggerFiles,
-                        onPressed: _importLocalOnnxTaggerFiles,
+                        onPressed: _importingLocalOnnx
+                            ? null
+                            : _importLocalOnnxTaggerFiles,
                       ),
                     ] else ...[
                       if (localOnnxDirectory.isNotEmpty)
@@ -332,7 +353,7 @@ class _StorageSettingsSectionState
                     ],
                   ],
                 ),
-                onTap: _configureLocalOnnxTagger,
+                onTap: _importingLocalOnnx ? null : _configureLocalOnnxTagger,
               ),
               // Vibe库保存路径设置
               const VibeLibraryPathTile(),
