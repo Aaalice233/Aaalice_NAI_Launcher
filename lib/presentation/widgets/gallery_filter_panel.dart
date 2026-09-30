@@ -419,7 +419,6 @@ class _GalleryFilterPanelState extends ConsumerState<GalleryFilterPanel> {
           color: colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
           fontSize: 13,
         ),
-        border: InputBorder.none,
         contentPadding: const EdgeInsets.symmetric(
           horizontal: 14,
           vertical: 12,
@@ -525,7 +524,6 @@ class _GalleryFilterPanelState extends ConsumerState<GalleryFilterPanel> {
             color: colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
             fontSize: 13,
           ),
-          border: InputBorder.none,
           contentPadding: const EdgeInsets.symmetric(
             horizontal: 8,
             vertical: 10,

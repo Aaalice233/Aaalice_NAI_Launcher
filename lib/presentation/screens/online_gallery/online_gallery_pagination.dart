@@ -208,13 +208,9 @@ class OnlineGalleryPagination extends StatelessWidget {
         style: theme.textTheme.labelLarge?.copyWith(
           fontWeight: FontWeight.w500,
         ),
-        decoration: InputDecoration(
+        decoration: const InputDecoration(
           isDense: true,
-          contentPadding: const EdgeInsets.symmetric(
-            horizontal: 8,
-            vertical: 8,
-          ),
-          border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
+          contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
         ),
         inputFormatters: [
           FilteringTextInputFormatter.digitsOnly,

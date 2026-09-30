@@ -509,7 +509,6 @@ class _CategoryItemState extends State<_CategoryItem> {
                               style: const TextStyle(fontSize: 13),
                               decoration: const InputDecoration(
                                 isDense: true,
-                                border: InputBorder.none,
                                 contentPadding: EdgeInsets.zero,
                               ),
                               onSubmitted: (value) {

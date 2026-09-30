@@ -90,10 +90,6 @@ class _FixedTagLibraryPickerDialogState
                 horizontal: 12,
                 vertical: 10,
               ),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(10),
-                borderSide: BorderSide(color: theme.colorScheme.outline),
-              ),
             ),
             style: const TextStyle(fontSize: 13),
             onChanged: (value) => setState(() => _searchQuery = value),

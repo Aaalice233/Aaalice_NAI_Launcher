@@ -525,7 +525,6 @@ class _LayerTileState extends State<_LayerTile>
                               horizontal: 8,
                               vertical: 4,
                             ),
-                            border: OutlineInputBorder(),
                           ),
                           onSubmitted: (value) {
                             widget.onRename(value);

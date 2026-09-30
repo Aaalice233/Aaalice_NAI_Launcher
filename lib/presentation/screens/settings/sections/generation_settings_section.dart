@@ -12,7 +12,6 @@ import '../../../../core/utils/localization_extension.dart';
 import '../../../providers/generation/generation_params_notifier.dart';
 import '../../../providers/generation/generation_settings_notifiers.dart';
 import '../../../providers/notification_settings_provider.dart';
-import '../../../themes/core/input_surface_style.dart';
 import '../../../utils/single_line_text_width.dart';
 import '../../../widgets/common/app_toast.dart';
 import '../../../widgets/common/labeled_control_rows.dart';
@@ -22,8 +21,7 @@ import '../widgets/settings_card.dart';
 import '../widgets/settings_page_layout.dart';
 
 /// 构建标准输入框装饰（自原队列设置迁入）
-InputDecoration _buildSettingsInputDecoration(
-  ThemeData theme, {
+InputDecoration _buildSettingsInputDecoration({
   String? labelText,
   String? hintText,
 }) {
@@ -31,19 +29,7 @@ InputDecoration _buildSettingsInputDecoration(
     labelText: labelText,
     hintText: hintText,
     isDense: true,
-    filled: true,
-    fillColor: inputSurfaceFillColor(theme.colorScheme),
     contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-    border: inputSurfaceBorder(theme.colorScheme, BorderRadius.circular(8)),
-    enabledBorder: inputSurfaceBorder(
-      theme.colorScheme,
-      BorderRadius.circular(8),
-    ),
-    focusedBorder: inputSurfaceBorder(
-      theme.colorScheme,
-      BorderRadius.circular(8),
-      focused: true,
-    ),
   );
 }
 
@@ -413,7 +399,7 @@ class _GenerationSettingsSectionState
     const unitGap = 8.0;
     // 内容区左右内边距、输入框容器两侧 1px 描边、光标 2px 宽度与其后 1px
     final inputChrome =
-        _buildSettingsInputDecoration(theme).contentPadding!.horizontal + 5;
+        _buildSettingsInputDecoration().contentPadding!.horizontal + 5;
     double widest(Iterable<String> texts, TextStyle? style) => texts.fold(
       0.0,
       (width, text) =>
@@ -506,7 +492,7 @@ class _GenerationSettingsSectionState
               semanticLabel: label,
               keyboardType: slider.keyboardType,
               textAlign: TextAlign.center,
-              decoration: _buildSettingsInputDecoration(theme),
+              decoration: _buildSettingsInputDecoration(),
               onSubmitted: slider.onSubmitted,
             ),
           ),
