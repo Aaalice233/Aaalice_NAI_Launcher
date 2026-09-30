@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:freezed_annotation/freezed_annotation.dart';
 
 part 'visibility_rule.freezed.dart';
@@ -131,28 +133,29 @@ class VisibilityRuleSet with _$VisibilityRuleSet {
   factory VisibilityRuleSet.fromJson(Map<String, dynamic> json) =>
       _$VisibilityRuleSetFromJson(json);
 
-  /// 检查类别是否可见
+  /// 检查目标是否可见
   ///
+  /// 命中的规则中最高优先级一档决定结果，同档只要有一条隐藏即隐藏；
+  /// 一条都没命中时，存在"条件匹配时可见"的规则就说明目标只在其条件成立时出现。
   /// [categoryId] 目标类别ID
   /// [context] 当前上下文
   bool isCategoryVisible(String categoryId, Map<String, List<String>> context) {
-    // 获取所有针对该类别的规则，按优先级排序
     final applicableRules = rules
         .where((r) => r.targetCategoryId == categoryId && r.enabled)
-        .toList()
-      ..sort((a, b) => b.priority.compareTo(a.priority));
+        .toList();
+    if (applicableRules.isEmpty) return true;
 
-    if (applicableRules.isEmpty) return true; // 无规则时默认可见
-
-    // 使用最高优先级的匹配规则
-    for (final rule in applicableRules) {
-      if (rule.checkCondition(context)) {
-        return rule.visibleWhenMatched;
-      }
+    final matchedRules = applicableRules
+        .where((r) => r.checkCondition(context))
+        .toList();
+    if (matchedRules.isEmpty) {
+      return !applicableRules.any((r) => r.visibleWhenMatched);
     }
 
-    // 没有规则匹配时默认可见
-    return true;
+    final topPriority = matchedRules.map((r) => r.priority).reduce(math.max);
+    return matchedRules
+        .where((r) => r.priority == topPriority)
+        .every((r) => r.visibleWhenMatched);
   }
 
   /// 获取所有可见的类别ID
