@@ -1,4 +1,5 @@
 import 'package:collection/collection.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -448,6 +449,8 @@ class _TagGroupEditDialogState extends ConsumerState<_TagGroupEditDialog>
   final _tabBarKey = GlobalKey();
   final _actionsKey = GlobalKey();
 
+  double _swipeDistance = 0;
+
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
@@ -477,27 +480,34 @@ class _TagGroupEditDialogState extends ConsumerState<_TagGroupEditDialog>
                   child: InkHost(
                     child: ListenableBuilder(
                       listenable: _tabController,
-                      builder: (context, _) => CustomScrollView(
-                        key: const ValueKey('tag-group-editor-scroll'),
-                        controller: widget.scrollController,
-                        slivers: [
-                          if (chromeScrolls)
-                            SliverToBoxAdapter(child: tabBar)
-                          else
-                            PinnedHeaderSliver(child: tabBar),
-                          KeyedSubtree(
-                            key: ValueKey(
-                              'tag-group-editor-tab-${_tabController.index}',
+                      builder: (context, _) => RawGestureDetector(
+                        gestures: _tabSwipeGestures(
+                          context,
+                          constraints.maxWidth,
+                        ),
+                        child: CustomScrollView(
+                          key: const ValueKey('tag-group-editor-scroll'),
+                          controller: widget.scrollController,
+                          slivers: [
+                            if (chromeScrolls)
+                              SliverToBoxAdapter(child: tabBar)
+                            else
+                              PinnedHeaderSliver(child: tabBar),
+                            KeyedSubtree(
+                              key: ValueKey(
+                                'tag-group-editor-tab-${_tabController.index}',
+                              ),
+                              child: _buildTabContent(
+                                context,
+                                tagCount: tagCount,
+                                tagList: tagList,
+                                fillViewport: !chromeScrolls,
+                              ),
                             ),
-                            child: _buildTabContent(
-                              context,
-                              tagCount: tagCount,
-                              tagList: tagList,
-                              fillViewport: !chromeScrolls,
-                            ),
-                          ),
-                          if (chromeScrolls) SliverToBoxAdapter(child: actions),
-                        ],
+                            if (chromeScrolls)
+                              SliverToBoxAdapter(child: actions),
+                          ],
+                        ),
                       ),
                     ),
                   ),
@@ -568,6 +578,58 @@ class _TagGroupEditDialogState extends ConsumerState<_TagGroupEditDialog>
   void _scrollToContentStart() {
     final controller = widget.scrollController;
     if (controller.hasClients) controller.jumpTo(0);
+  }
+
+  // 沿用滚动配置的拖动设备与速度追踪，横滑切页的触发条件与原 TabBarView 一致
+  Map<Type, GestureRecognizerFactory> _tabSwipeGestures(
+    BuildContext context,
+    double width,
+  ) {
+    final scrollConfiguration = ScrollConfiguration.of(context);
+    return {
+      _TabSwipeGestureRecognizer:
+          GestureRecognizerFactoryWithHandlers<_TabSwipeGestureRecognizer>(
+            () => _TabSwipeGestureRecognizer(
+              startsOnChrome: _startsOnChrome,
+              supportedDevices: scrollConfiguration.dragDevices,
+            ),
+            (instance) => instance
+              ..velocityTrackerBuilder = scrollConfiguration
+                  .velocityTrackerBuilder(context)
+              ..gestureSettings = MediaQuery.gestureSettingsOf(context)
+              ..supportedDevices = scrollConfiguration.dragDevices
+              ..onStart = _startTabSwipe
+              ..onUpdate = _updateTabSwipe
+              ..onEnd = (details) => _finishTabSwipe(details, width),
+          ),
+    };
+  }
+
+  void _startTabSwipe(DragStartDetails details) => _swipeDistance = 0;
+
+  void _updateTabSwipe(DragUpdateDetails details) =>
+      _swipeDistance += details.primaryDelta ?? 0;
+
+  bool _startsOnChrome(Offset position) => [_tabBarKey, _actionsKey].any((key) {
+    final box = key.currentContext?.findRenderObject();
+    if (box is! RenderBox || !box.attached || !box.hasSize) return false;
+    return (Offset.zero & box.size).contains(box.globalToLocal(position));
+  });
+
+  // 甩动按速度方向切页；慢速拖动需越过正文一半宽度，与 PageView 的吸附规则相同
+  void _finishTabSwipe(DragEndDetails details, double width) {
+    final velocity = details.primaryVelocity ?? 0;
+    final movement = velocity != 0
+        ? velocity
+        : _swipeDistance.abs() > width / 2
+        ? _swipeDistance
+        : 0.0;
+    if (movement == 0) return;
+    final ltr = Directionality.of(context) == TextDirection.ltr;
+    final target = _tabController.index + ((movement < 0) == ltr ? 1 : -1);
+    if (target < 0 || target >= _tabController.length) return;
+    _tabController.animateTo(target);
+    _scrollToContentStart();
   }
 
   Widget _buildTabContent(
@@ -1215,6 +1277,24 @@ class _TagGroupEditDialogState extends ConsumerState<_TagGroupEditDialog>
     notifier.updateCategory(updatedCategory);
     Navigator.pop(context);
   }
+}
+
+/// 从标签栏或操作栏开始的横滑不切换标签页，与它们位于原 TabBarView 之外时一致
+class _TabSwipeGestureRecognizer extends HorizontalDragGestureRecognizer {
+  _TabSwipeGestureRecognizer({
+    required this.startsOnChrome,
+    super.supportedDevices,
+  });
+
+  final bool Function(Offset position) startsOnChrome;
+
+  @override
+  bool isPointerAllowed(PointerEvent event) =>
+      !startsOnChrome(event.position) && super.isPointerAllowed(event);
+
+  @override
+  bool isPointerPanZoomAllowed(PointerPanZoomStartEvent event) =>
+      !startsOnChrome(event.position) && super.isPointerPanZoomAllowed(event);
 }
 
 class _DiySection extends StatefulWidget {
