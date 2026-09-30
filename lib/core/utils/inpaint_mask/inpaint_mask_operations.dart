@@ -167,6 +167,16 @@ class InpaintMaskUtils {
     return _encodeBinaryMask(binaryMask, width, height);
   }
 
+  static Future<Uint8List> encodeBinaryMaskAsync(
+    Uint8List binaryMask,
+    int width,
+    int height,
+  ) {
+    return ComputeGate().runIsolate(
+      () => encodeBinaryMask(binaryMask, width, height),
+    );
+  }
+
   static Future<Uint8List> encodeEditorOverlayFromBinaryMaskAsync(
     Uint8List binaryMask, {
     required int width,
@@ -199,6 +209,10 @@ class InpaintMaskUtils {
 
     final binaryMask = _createBinaryMask(decoded);
     return binaryMask.any((value) => value == 1);
+  }
+
+  static Future<bool> hasMaskedPixelsAsync(Uint8List bytes) {
+    return ComputeGate().runIsolate(() => hasMaskedPixels(bytes));
   }
 
   /// 单次解码得到 0/1 二值蒙版数组及尺寸；解码失败返回 null。

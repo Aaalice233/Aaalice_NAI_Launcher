@@ -203,7 +203,10 @@ class ManualInpaintToolbox implements InpaintDraftAuthoringHost {
   }
 
   /// 权限层按此实时估价，草稿里存的估价也必须走同一条路径，两道门禁才不会分歧。
-  int _estimateDraftAnlas(Map<String, dynamic> snapshot, Uint8List? mask) {
+  Future<int> _estimateDraftAnlas(
+    Map<String, dynamic> snapshot,
+    Uint8List? mask,
+  ) {
     final storedBatchSize = snapshot['_agentBatchSize'];
     final batchSize = storedBatchSize is int && storedBatchSize > 0
         ? storedBatchSize
@@ -219,15 +222,15 @@ class ManualInpaintToolbox implements InpaintDraftAuthoringHost {
   /// 聚焦重绘实际请求的是放大后的裁剪区，而不是原图尺寸；按原图估价在小底图上
   /// 会低估，用户确认到的数字就会比真实扣费少。
   @override
-  int estimateInfillAnlas(
+  Future<int> estimateInfillAnlas(
     ImageParams params, {
     required int batchSize,
     required Uint8List? maskImage,
     required GenerationFocusedSnapshot focused,
-  }) {
+  }) async {
     var effective = params.copyWith(action: ImageGenerationAction.infill);
     if (focused.enabled && maskImage != null) {
-      final geometry = FocusedInpaintUtils.resolveGeometryForMask(
+      final geometry = await FocusedInpaintUtils.resolveGeometryForMaskAsync(
         maskImage: maskImage,
         minContextMegaPixels: focused.minimumContextMegaPixels,
       );
@@ -441,7 +444,7 @@ class ManualInpaintToolbox implements InpaintDraftAuthoringHost {
       final prepared = await _repository.prepare(
         sourceBytes: source,
         parameterSnapshot: snapshot,
-        estimatedAnlas: _estimateDraftAnlas(snapshot, null),
+        estimatedAnlas: await _estimateDraftAnlas(snapshot, null),
       );
       createdDraftId = prepared.id;
       if (!isCurrentSession()) {
@@ -535,7 +538,7 @@ class ManualInpaintToolbox implements InpaintDraftAuthoringHost {
                 id,
                 sourceBytes: replacement,
                 parameterSnapshot: snapshot,
-                estimatedAnlas: _estimateDraftAnlas(snapshot, null),
+                estimatedAnlas: await _estimateDraftAnlas(snapshot, null),
               )
             : await _repository.cancel(id);
         await notifyDraftChanged(cancelled);
@@ -546,7 +549,7 @@ class ManualInpaintToolbox implements InpaintDraftAuthoringHost {
         sourceBytes: replacement ?? originalSource,
         maskBytes: mask,
         parameterSnapshot: snapshot,
-        estimatedAnlas: _estimateDraftAnlas(snapshot, mask),
+        estimatedAnlas: await _estimateDraftAnlas(snapshot, mask),
       );
       await notifyDraftChanged(ready);
     } on Object catch (error, stackTrace) {
@@ -618,10 +621,11 @@ class ManualInpaintToolbox implements InpaintDraftAuthoringHost {
     // 隐式使用的那个矩形——蒙版外接框——两条路径才会得到同一个结果。
     Rect? selectionRect;
     if (focused.enabled) {
-      selectionRect = FocusedInpaintUtils.resolveGeometryForMask(
+      final geometry = await FocusedInpaintUtils.resolveGeometryForMaskAsync(
         maskImage: mask,
         minContextMegaPixels: focused.minimumContextMegaPixels,
-      )?.focusBounds.rect;
+      );
+      selectionRect = geometry?.focusBounds.rect;
     }
     final sourceIsOutpaint = manualInpaintSourceIsOutpaint(
       draft.parameterSnapshot,

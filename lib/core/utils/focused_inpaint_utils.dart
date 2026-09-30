@@ -405,6 +405,18 @@ class FocusedInpaintUtils {
     );
   }
 
+  static Future<FocusedInpaintGeometry?> resolveGeometryForMaskAsync({
+    required Uint8List maskImage,
+    required double minContextMegaPixels,
+  }) {
+    return ComputeGate().runIsolate(
+      () => resolveGeometryForMask(
+        maskImage: maskImage,
+        minContextMegaPixels: minContextMegaPixels,
+      ),
+    );
+  }
+
   static (int, int)? resolveRequestSizeForMask({
     required Uint8List maskImage,
     required double minContextMegaPixels,

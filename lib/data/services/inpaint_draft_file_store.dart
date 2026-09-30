@@ -7,12 +7,23 @@ import 'package:image/image.dart' as img;
 import 'package:path/path.dart' as p;
 import 'package:uuid/uuid.dart';
 
+import '../../core/utils/isolate_pool.dart';
+import '../../core/utils/nai_resolution_adapter.dart';
 import '../models/inpaint/inpaint_draft.dart';
 import 'inpaint_draft_repository.dart';
 
+/// Must decode every pixel: inspection relies on it to reject truncated images.
+typedef InpaintDraftImageSizeDecoder =
+    Future<(int, int)?> Function(Uint8List bytes);
+
 /// Owns atomic file replacement and integrity checks for inpaint draft assets.
 class InpaintDraftFileStore {
+  InpaintDraftFileStore({InpaintDraftImageSizeDecoder? decodeImageSize})
+    : _decodeImageSize = decodeImageSize ?? _decodeImageSizeInBackground;
+
   static final Map<String, Future<void>> _pendingOperations = {};
+
+  final InpaintDraftImageSizeDecoder _decodeImageSize;
 
   Future<void> atomicWriteBytes(File target, List<int> bytes) {
     return _synchronized(
@@ -72,7 +83,7 @@ class InpaintDraftFileStore {
     if (!await file.exists()) {
       throw InpaintDraftIntegrityException('$label file is missing');
     }
-    verifyBytes(await file.readAsBytes(), expected, label);
+    await verifyBytes(await file.readAsBytes(), expected, label);
   }
 
   bool hasChecksum(List<int> bytes, InpaintDraftAsset expected) {
@@ -80,29 +91,52 @@ class InpaintDraftFileStore {
         sha256.convert(bytes).toString() == expected.sha256;
   }
 
-  void verifyBytes(List<int> bytes, InpaintDraftAsset expected, String label) {
+  Future<void> verifyBytes(
+    List<int> bytes,
+    InpaintDraftAsset expected,
+    String label,
+  ) async {
     if (!hasChecksum(bytes, expected)) {
       throw InpaintDraftIntegrityException('$label checksum or size mismatch');
     }
-    final decoded = img.decodeImage(Uint8List.fromList(bytes));
-    if (decoded == null ||
-        decoded.width != expected.width ||
-        decoded.height != expected.height) {
-      throw InpaintDraftIntegrityException('$label dimensions mismatch');
+    final data = bytes is Uint8List ? bytes : Uint8List.fromList(bytes);
+    // Headers skip JPEG EXIF rotation; only a mismatch needs a full decode.
+    if (_hasDimensions(NaiResolutionAdapter.readImageSize(data), expected) ||
+        _hasDimensions(await _decodeImageSize(data), expected)) {
+      return;
     }
+    throw InpaintDraftIntegrityException('$label dimensions mismatch');
   }
 
-  InpaintDraftAsset inspectImage(Uint8List bytes, {required String label}) {
-    final decoded = img.decodeImage(bytes);
-    if (decoded == null) {
+  Future<InpaintDraftAsset> inspectImage(
+    Uint8List bytes, {
+    required String label,
+  }) async {
+    final size = await _decodeImageSize(bytes);
+    if (size == null) {
       throw InpaintDraftIntegrityException('$label is not a supported image');
     }
     return InpaintDraftAsset(
       sha256: sha256.convert(bytes).toString(),
       sizeBytes: bytes.length,
-      width: decoded.width,
-      height: decoded.height,
+      width: size.$1,
+      height: size.$2,
     );
+  }
+
+  static bool _hasDimensions((int, int)? size, InpaintDraftAsset expected) {
+    return size != null &&
+        size.$1 == expected.width &&
+        size.$2 == expected.height;
+  }
+
+  static Future<(int, int)?> _decodeImageSizeInBackground(Uint8List bytes) {
+    return ComputeGate().runCompute(_decodeImageSizeSync, bytes);
+  }
+
+  static (int, int)? _decodeImageSizeSync(Uint8List bytes) {
+    final decoded = img.decodeImage(bytes);
+    return decoded == null ? null : (decoded.width, decoded.height);
   }
 
   Future<void> _atomicWriteBytesUnlocked(File target, List<int> bytes) async {

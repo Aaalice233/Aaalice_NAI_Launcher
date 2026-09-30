@@ -48,7 +48,7 @@ abstract interface class InpaintDraftAuthoringHost {
     Map<String, dynamic> args,
   );
 
-  int estimateInfillAnlas(
+  Future<int> estimateInfillAnlas(
     ImageParams params, {
     required int batchSize,
     required Uint8List? maskImage,
@@ -214,7 +214,9 @@ class InpaintDraftAuthoringService {
       return agentToolError('expand_failed', '$error');
     }
 
-    final decodedMask = InpaintMaskUtils.decodeBinaryMask(expanded.maskImage);
+    final decodedMask = await InpaintMaskUtils.decodeBinaryMaskAsync(
+      expanded.maskImage,
+    );
     if (decodedMask == null) {
       return agentToolError(
         'expand_failed',
@@ -266,7 +268,7 @@ class InpaintDraftAuthoringService {
     bool isCurrentSession() => _host.currentSessionId == sessionId;
     String? createdDraftId;
     try {
-      final maskPng = InpaintMaskUtils.encodeBinaryMask(
+      final maskPng = await InpaintMaskUtils.encodeBinaryMaskAsync(
         maskBinary,
         width,
         height,
@@ -292,7 +294,7 @@ class InpaintDraftAuthoringService {
       snapshot['_agentSourceIsOutpaint'] = sourceIsOutpaint;
       final batchSize = _host.requestBatchSize;
       snapshot['_agentBatchSize'] = batchSize;
-      final estimatedAnlas = _host.estimateInfillAnlas(
+      final estimatedAnlas = await _host.estimateInfillAnlas(
         ImageParams.fromJson(snapshot),
         batchSize: batchSize,
         maskImage: maskPng,

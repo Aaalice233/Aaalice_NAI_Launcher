@@ -49,7 +49,7 @@ class InpaintDraftFileRepository implements InpaintDraftRepository {
     required Map<String, dynamic> parameterSnapshot,
     required num estimatedAnlas,
   }) async {
-    final source = _fileStore.inspectImage(sourceBytes, label: 'source');
+    final source = await _fileStore.inspectImage(sourceBytes, label: 'source');
     final snapshot = _normalizeSnapshot(parameterSnapshot);
     _validateEstimatedAnlas(estimatedAnlas);
     final id = _newId();
@@ -179,7 +179,7 @@ class InpaintDraftFileRepository implements InpaintDraftRepository {
     );
     await _fileStore.recoverAtomicTarget(file);
     final bytes = await file.readAsBytes();
-    _fileStore.verifyBytes(bytes, draft.source, 'source');
+    await _fileStore.verifyBytes(bytes, draft.source, 'source');
     return bytes;
   }
 
@@ -194,7 +194,7 @@ class InpaintDraftFileRepository implements InpaintDraftRepository {
     final file = File(p.join(_draftDirectory(id).path, _maskFileName));
     await _fileStore.recoverAtomicTarget(file);
     final bytes = await file.readAsBytes();
-    _fileStore.verifyBytes(bytes, draft.mask!, 'mask');
+    await _fileStore.verifyBytes(bytes, draft.mask!, 'mask');
     return bytes;
   }
 
@@ -241,8 +241,8 @@ class InpaintDraftFileRepository implements InpaintDraftRepository {
   }) async {
     final draft = await _requireDraft(id);
     _requireStatus(draft, 'complete', {InpaintDraftStatus.editing});
-    final source = _fileStore.inspectImage(sourceBytes, label: 'source');
-    final mask = _fileStore.inspectImage(maskBytes, label: 'mask');
+    final source = await _fileStore.inspectImage(sourceBytes, label: 'source');
+    final mask = await _fileStore.inspectImage(maskBytes, label: 'mask');
     if (mask.width != source.width || mask.height != source.height) {
       throw const InpaintDraftIntegrityException(
         'mask dimensions must match source dimensions',
@@ -315,7 +315,10 @@ class InpaintDraftFileRepository implements InpaintDraftRepository {
       _requireStatus(draft, 'cancel with edited source', {
         InpaintDraftStatus.editing,
       });
-      final source = _fileStore.inspectImage(sourceBytes, label: 'source');
+      final source = await _fileStore.inspectImage(
+        sourceBytes,
+        label: 'source',
+      );
       final snapshot = _normalizeSnapshot(parameterSnapshot);
       _validateEstimatedAnlas(estimatedAnlas);
       // source.image still backs the editing metadata, so the edited source
