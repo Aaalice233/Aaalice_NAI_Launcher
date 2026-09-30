@@ -9429,29 +9429,11 @@ abstract class AppLocalizations {
   /// **'Categories'**
   String get randomManager_categories;
 
-  /// No description provided for @randomManager_tagGroups.
-  ///
-  /// In en, this message translates to:
-  /// **'Tag Groups'**
-  String get randomManager_tagGroups;
-
-  /// No description provided for @randomManager_tags.
-  ///
-  /// In en, this message translates to:
-  /// **'Tags'**
-  String get randomManager_tags;
-
   /// No description provided for @randomManager_addTagGroup.
   ///
   /// In en, this message translates to:
   /// **'Add Tag Group'**
   String get randomManager_addTagGroup;
-
-  /// No description provided for @randomManager_locked.
-  ///
-  /// In en, this message translates to:
-  /// **'Locked'**
-  String get randomManager_locked;
 
   /// No description provided for @randomManager_addCategory.
   ///
@@ -10029,41 +10011,17 @@ abstract class AppLocalizations {
   /// **'More Actions'**
   String get randomManager_moreActions;
 
-  /// No description provided for @scope_global.
-  ///
-  /// In en, this message translates to:
-  /// **'Main'**
-  String get scope_global;
-
-  /// No description provided for @scope_globalTooltip.
-  ///
-  /// In en, this message translates to:
-  /// **'Prompt will appear in main prompt area\nSuitable for: background, scene, style, etc.'**
-  String get scope_globalTooltip;
-
   /// No description provided for @scope_character.
   ///
   /// In en, this message translates to:
   /// **'Char'**
   String get scope_character;
 
-  /// No description provided for @scope_characterTooltip.
-  ///
-  /// In en, this message translates to:
-  /// **'Prompt will only appear in character prompts\nGenerated separately for each character\nSuitable for: hair color, eye color, clothing, expression, etc.'**
-  String get scope_characterTooltip;
-
   /// No description provided for @scope_all.
   ///
   /// In en, this message translates to:
   /// **'Both'**
   String get scope_all;
-
-  /// No description provided for @scope_allTooltip.
-  ///
-  /// In en, this message translates to:
-  /// **'Prompt appears in both main and character prompts\nSuitable for: pose, interaction, and other universal tags'**
-  String get scope_allTooltip;
 
   /// No description provided for @vibeParseFailed.
   ///

@@ -2370,10 +2370,7 @@
     }
   },
   "randomManager_categories": "Categories",
-  "randomManager_tagGroups": "Tag Groups",
-  "randomManager_tags": "Tags",
   "randomManager_addTagGroup": "Add Tag Group",
-  "randomManager_locked": "Locked",
   "randomManager_addCategory": "Add Category",
   "randomManager_noCategories": "No categories",
   "randomManager_noCategoriesHint": "Click \"Add Category\" to start configuring",
@@ -2515,12 +2512,8 @@
   },
   "randomManager_previewHint": "No sample generated yet",
   "randomManager_moreActions": "More Actions",
-  "scope_global": "Main",
-  "scope_globalTooltip": "Prompt will appear in main prompt area\nSuitable for: background, scene, style, etc.",
   "scope_character": "Char",
-  "scope_characterTooltip": "Prompt will only appear in character prompts\nGenerated separately for each character\nSuitable for: hair color, eye color, clothing, expression, etc.",
   "scope_all": "Both",
-  "scope_allTooltip": "Prompt appears in both main and character prompts\nSuitable for: pose, interaction, and other universal tags",
 
   "vibeParseFailed": "Failed to parse Vibe file",
 

@@ -5324,16 +5324,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get randomManager_categories => 'Categories';
 
   @override
-  String get randomManager_tagGroups => 'Tag Groups';
-
-  @override
-  String get randomManager_tags => 'Tags';
-
-  @override
   String get randomManager_addTagGroup => 'Add Tag Group';
-
-  @override
-  String get randomManager_locked => 'Locked';
 
   @override
   String get randomManager_addCategory => 'Add Category';
@@ -5658,25 +5649,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get randomManager_moreActions => 'More Actions';
 
   @override
-  String get scope_global => 'Main';
-
-  @override
-  String get scope_globalTooltip =>
-      'Prompt will appear in main prompt area\nSuitable for: background, scene, style, etc.';
-
-  @override
   String get scope_character => 'Char';
 
   @override
-  String get scope_characterTooltip =>
-      'Prompt will only appear in character prompts\nGenerated separately for each character\nSuitable for: hair color, eye color, clothing, expression, etc.';
-
-  @override
   String get scope_all => 'Both';
-
-  @override
-  String get scope_allTooltip =>
-      'Prompt appears in both main and character prompts\nSuitable for: pose, interaction, and other universal tags';
 
   @override
   String get vibeParseFailed => 'Failed to parse Vibe file';

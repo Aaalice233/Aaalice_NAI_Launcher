@@ -5091,16 +5091,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get randomManager_categories => '类别';
 
   @override
-  String get randomManager_tagGroups => '词组';
-
-  @override
-  String get randomManager_tags => '标签';
-
-  @override
   String get randomManager_addTagGroup => '添加词组';
-
-  @override
-  String get randomManager_locked => '已锁定';
 
   @override
   String get randomManager_addCategory => '新增类别';
@@ -5410,23 +5401,10 @@ class AppLocalizationsZh extends AppLocalizations {
   String get randomManager_moreActions => '更多操作';
 
   @override
-  String get scope_global => '主提示词';
-
-  @override
-  String get scope_globalTooltip => '提示词将出现在主提示词区域\n适合：背景、场景、画面风格等';
-
-  @override
   String get scope_character => '角色';
 
   @override
-  String get scope_characterTooltip =>
-      '提示词将只出现在角色提示词内\n每个角色单独生成\n适合：发色、眵色、服装、表情等';
-
-  @override
   String get scope_all => '通用';
-
-  @override
-  String get scope_allTooltip => '提示词同时出现在主提示词和角色提示词\n适合：姿势、互动等通用标签';
 
   @override
   String get vibeParseFailed => '无法解析 Vibe 文件';
@@ -20242,16 +20220,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get randomManager_categories => '類別';
 
   @override
-  String get randomManager_tagGroups => '片語';
-
-  @override
-  String get randomManager_tags => '標籤';
-
-  @override
   String get randomManager_addTagGroup => '新增片語';
-
-  @override
-  String get randomManager_locked => '已鎖定';
 
   @override
   String get randomManager_addCategory => '新增類別';
@@ -20561,23 +20530,10 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get randomManager_moreActions => '更多操作';
 
   @override
-  String get scope_global => '主提示詞';
-
-  @override
-  String get scope_globalTooltip => '提示詞將出現在主提示詞區域\n適合：背景、場景、畫面風格等';
-
-  @override
   String get scope_character => '角色';
 
   @override
-  String get scope_characterTooltip =>
-      '提示詞將只出現在角色提示詞內\n每個角色單獨生成\n適合：髮色、眵色、服裝、表情等';
-
-  @override
   String get scope_all => '通用';
-
-  @override
-  String get scope_allTooltip => '提示詞同時出現在主提示詞和角色提示詞\n適合：姿勢、互動等通用標籤';
 
   @override
   String get vibeParseFailed => '無法解析 Vibe 檔案';
