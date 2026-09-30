@@ -400,6 +400,81 @@ void main() {
       expect(activity.isActive, isFalse);
     });
 
+    test(
+      'director tools send the decoded size for oriented jpeg and gif sources',
+      () async {
+        final cases = [
+          (_buildOrientedJpeg(orientation: 6), (4, 6)),
+          (
+            Uint8List.fromList(img.encodeGif(img.Image(width: 20, height: 12))),
+            (20, 12),
+          ),
+        ];
+
+        for (final (source, size) in cases) {
+          final decoded = img.decodeImage(source)!;
+          final request = await _directorRequestFor(source);
+
+          expect((decoded.width, decoded.height), size);
+          expect((request['width'], request['height']), size);
+        }
+      },
+    );
+
+    test('legacy upscale sends the decoded size of an oriented jpeg', () async {
+      final dio = _MockDio();
+      final zipBytes = _buildZipWithSingleImage(_buildPng(width: 8, height: 8));
+      final capturedBodies = <Object?>[];
+      when(
+        () => dio.post<dynamic>(
+          any(),
+          data: any(named: 'data'),
+          options: any(named: 'options'),
+          onReceiveProgress: any(named: 'onReceiveProgress'),
+        ),
+      ).thenAnswer((invocation) async {
+        capturedBodies.add(invocation.namedArguments[#data]);
+        if (capturedBodies.length == 1) {
+          throw DioException(
+            requestOptions: RequestOptions(path: '/ai/upscale'),
+            response: Response<dynamic>(
+              statusCode: 404,
+              requestOptions: RequestOptions(path: '/ai/upscale'),
+            ),
+            type: DioExceptionType.badResponse,
+          );
+        }
+        return Response<dynamic>(
+          data: zipBytes,
+          requestOptions: RequestOptions(path: '/ai/upscale'),
+        );
+      });
+      final source = _buildOrientedJpeg(orientation: 8);
+
+      await NAIImageEnhancementApiService(dio).upscaleImage(source);
+
+      final legacyBody = Map<String, dynamic>.from(capturedBodies.last! as Map);
+      expect(legacyBody['width'], 4);
+      expect(legacyBody['height'], 6);
+    });
+
+    test('undecodable director sources keep the size error', () async {
+      final service = NAIImageEnhancementApiService(_MockDio());
+      final source = Uint8List.fromList(utf8.encode('not an image at all'));
+      expect(img.decodeImage(source), isNull);
+
+      await expectLater(
+        service.declutter(source),
+        throwsA(
+          isA<Exception>().having(
+            (error) => error.toString(),
+            'message',
+            contains('无法解析图像尺寸'),
+          ),
+        ),
+      );
+    });
+
     test('director lease releases when local validation fails', () async {
       final activity = CriticalNetworkActivityCoordinator();
       final service = NAIImageEnhancementApiService(
@@ -421,6 +496,34 @@ Uint8List _buildPng({required int width, required int height}) {
   final image = img.Image(width: width, height: height);
   img.fill(image, color: img.ColorRgb8(255, 255, 255));
   return Uint8List.fromList(img.encodePng(image));
+}
+
+Future<Map<String, dynamic>> _directorRequestFor(Uint8List source) async {
+  final dio = _MockDio();
+  final capture = _RequestCapture();
+  final zipBytes = _buildZipWithSingleImage(_buildPng(width: 8, height: 8));
+  when(
+    () => dio.post<dynamic>(
+      any(),
+      data: any(named: 'data'),
+      options: any(named: 'options'),
+    ),
+  ).thenAnswer((invocation) async {
+    capture.record(invocation);
+    return Response<dynamic>(
+      data: zipBytes,
+      requestOptions: RequestOptions(path: '/augment-image'),
+    );
+  });
+
+  await NAIImageEnhancementApiService(dio).declutter(source);
+  return capture.requestJson;
+}
+
+Uint8List _buildOrientedJpeg({required int orientation}) {
+  final image = img.Image(width: 6, height: 4)
+    ..exif.imageIfd.orientation = orientation;
+  return Uint8List.fromList(img.encodeJpg(image));
 }
 
 Uint8List _buildZipWithSingleImage(Uint8List imageBytes) {
