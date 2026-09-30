@@ -6,6 +6,7 @@ import 'package:synchronized/synchronized.dart';
 
 import '../../core/storage/local_storage_service.dart';
 import '../../core/utils/app_logger.dart';
+import '../../core/utils/last_result_memo.dart';
 import '../../data/models/tag_library/import_plan.dart';
 import '../../data/models/tag_library/tag_library_category.dart';
 import '../../data/models/tag_library/tag_library_entry.dart';
@@ -42,6 +43,14 @@ enum TagLibrarySortBy {
   /// 按更新时间
   updatedAt,
 }
+
+typedef _TagLibraryCriteria = ({
+  List<TagLibraryEntry> entries,
+  List<TagLibraryCategory> categories,
+  String? selectedCategoryId,
+  String searchQuery,
+  TagLibrarySortBy sortBy,
+});
 
 /// 词库页面状态
 class TagLibraryPageState {
@@ -96,9 +105,22 @@ class TagLibraryPageState {
   /// 获取所有条目数量
   int get totalCount => entries.length;
 
+  // 按输入而非实例记忆：视图模式、加载标志变化不重排，同一次构建多处读取也只算一次
+  static final _filteredMemo =
+      LastResultMemo<_TagLibraryCriteria, List<TagLibraryEntry>>();
+
   /// 获取当前分类的条目
-  List<TagLibraryEntry> get filteredEntries {
-    var result = entries;
+  List<TagLibraryEntry> get filteredEntries => _filteredMemo.resolve((
+    entries: entries,
+    categories: categories,
+    selectedCategoryId: selectedCategoryId,
+    searchQuery: searchQuery,
+    sortBy: sortBy,
+  ), _filterAndSort);
+
+  static List<TagLibraryEntry> _filterAndSort(_TagLibraryCriteria criteria) {
+    var result = criteria.entries;
+    final selectedCategoryId = criteria.selectedCategoryId;
 
     // 按分类筛选
     if (selectedCategoryId != null) {
@@ -107,8 +129,8 @@ class TagLibraryPageState {
       } else {
         // 包括子分类的条目
         final categoryIds = {
-          selectedCategoryId!,
-          ...categories.getDescendantIds(selectedCategoryId!),
+          selectedCategoryId,
+          ...criteria.categories.getDescendantIds(selectedCategoryId),
         };
         result = result
             .where((e) => categoryIds.contains(e.categoryId))
@@ -117,13 +139,13 @@ class TagLibraryPageState {
     }
 
     // 搜索过滤
-    if (searchQuery.isNotEmpty) {
-      result = result.search(searchQuery);
+    if (criteria.searchQuery.isNotEmpty) {
+      result = result.search(criteria.searchQuery);
     }
 
     // 排序
     List<TagLibraryEntry> sorted;
-    switch (sortBy) {
+    switch (criteria.sortBy) {
       case TagLibrarySortBy.order:
         sorted = result.sortedByOrder();
       case TagLibrarySortBy.name:
@@ -138,10 +160,10 @@ class TagLibraryPageState {
     if (selectedCategoryId != 'favorites') {
       final favorites = sorted.where((e) => e.isFavorite).toList();
       final nonFavorites = sorted.where((e) => !e.isFavorite).toList();
-      return [...favorites, ...nonFavorites];
+      return List.unmodifiable([...favorites, ...nonFavorites]);
     }
 
-    return sorted;
+    return List.unmodifiable(sorted);
   }
 
   /// 获取指定分类的条目数量
