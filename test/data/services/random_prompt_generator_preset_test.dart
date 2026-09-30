@@ -606,6 +606,49 @@ void main() {
       expect(tags, isNot(contains('jeans')));
     });
 
+    test('条件标签被强调括号包裹、用户输入下划线时仍然命中', () async {
+      final preset = _preset([
+        _category(
+          id: 'cat-pose',
+          key: 'pose',
+          groups: [
+            _group(
+              id: 'pose_group',
+              tags: ['full body'],
+              emphasisProbability: 1,
+            ),
+          ],
+        ),
+        _category(
+          id: 'cat-lower',
+          key: 'lower',
+          groups: [
+            _group(id: 'shoes', tags: ['boots']),
+          ],
+        ),
+        _category(
+          id: 'cat-extra',
+          key: 'extra',
+          groups: [
+            _group(
+              id: 'owner',
+              tags: ['smile'],
+              visibilityRules: [hideLowerWhen('Full_Body')],
+            ),
+          ],
+        ),
+      ]);
+
+      final result = await generator.generateFromPreset(
+        preset: preset,
+        seed: 1,
+      );
+
+      final tags = _promptTags(result.mainPrompt);
+      expect(tags, contains('{full body}'));
+      expect(tags, isNot(contains('boots')));
+    });
+
     test('条件不成立时目标类别照常生成', () async {
       final result = await generator.generateFromPreset(
         preset: lowerBodyPreset(

@@ -1,5 +1,7 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
 
+import 'rule_tag_match.dart';
+
 part 'dependency_config.freezed.dart';
 part 'dependency_config.g.dart';
 
@@ -88,8 +90,14 @@ class DependencyConfig with _$DependencyConfig {
       final byCount = _matchMapping('$sourceCount');
       if (byCount != null) return byCount;
     }
+    // 已选值可能带权重括号，映射键可能用下划线，按比较键匹配
+    final resultsByKey = <String, String>{};
+    for (final entry in mappingRules.entries) {
+      final key = ruleTagMatchKey(entry.key);
+      if (key.isNotEmpty) resultsByKey.putIfAbsent(key, () => entry.value);
+    }
     for (final value in sourceValues) {
-      final result = mappingRules[value];
+      final result = resultsByKey[ruleTagMatchKey(value)];
       if (result != null) return result;
     }
     return defaultValue;
