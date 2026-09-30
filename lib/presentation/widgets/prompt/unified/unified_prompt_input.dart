@@ -1410,13 +1410,6 @@ class _UnifiedPromptInputState extends ConsumerState<UnifiedPromptInput> {
           contentPadding: requestedContentPadding,
         ).copyWith(
           hintText: widget.config.hintText,
-          filled: widget.decoration?.filled,
-          fillColor: widget.decoration?.fillColor,
-          border: widget.decoration?.border,
-          enabledBorder: widget.decoration?.enabledBorder,
-          focusedBorder: widget.decoration?.focusedBorder,
-          errorBorder: widget.decoration?.errorBorder,
-          focusedErrorBorder: widget.decoration?.focusedErrorBorder,
           prefixIcon: widget.decoration?.prefixIcon,
           suffixIcon: widget.decoration?.suffixIcon,
           prefix: widget.decoration?.prefix,
