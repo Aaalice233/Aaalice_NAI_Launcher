@@ -4,22 +4,19 @@ import 'dart:typed_data';
 
 import 'package:crypto/crypto.dart';
 
-import '../../../core/utils/app_logger.dart';
-
 /// 文件哈希计算器
 ///
 /// 提供文件 SHA256 哈希计算，支持：
 /// - 异步文件读取
 /// - 并发控制
 /// - 去重（相同路径同时只有一个计算任务）
-/// - 路径到哈希的映射缓存
+/// - 路径到哈希的映射缓存（按文件身份校验，文件被改写后自动失效）
 class FileHashCalculator {
   static final FileHashCalculator _instance = FileHashCalculator._internal();
   factory FileHashCalculator() => _instance;
   FileHashCalculator._internal();
 
-  final _pathToHashMap = <String, String>{};
-  final _hashToPathsMap = <String, Set<String>>{};
+  final _pathEntries = <String, _PathHashEntry>{};
   final _pendingHashFutures = <String, Future<String>>{};
   final _semaphore = _Semaphore(3);
 
@@ -28,11 +25,13 @@ class FileHashCalculator {
 
   /// 计算文件哈希（带缓存和并发控制）
   Future<String> calculate(String filePath) async {
-    // 检查路径映射缓存
-    final cachedHash = _pathToHashMap[filePath];
-    if (cachedHash != null) {
-      _hashCacheHitCount++;
-      return cachedHash;
+    final cached = _pathEntries[filePath];
+    if (cached != null) {
+      if (cached.identity == await _FileIdentity.stat(filePath)) {
+        _hashCacheHitCount++;
+        return cached.hash;
+      }
+      _forget(filePath, cached);
     }
 
     // 检查是否有正在进行的计算
@@ -58,43 +57,30 @@ class FileHashCalculator {
     return sha256.convert(bytes).toString();
   }
 
-  /// 注册路径到哈希的映射
-  ///
-  /// 用于在已知哈希的情况下建立映射关系
-  void registerPathHash(String filePath, String hash) {
-    _pathToHashMap[filePath] = hash;
-    _hashToPathsMap.putIfAbsent(hash, () => {}).add(filePath);
+  /// 登记刚写入文件的哈希，文件已不存在时不登记
+  Future<void> registerPathHash(String filePath, String hash) async {
+    final identity = await _FileIdentity.stat(filePath);
+    if (identity == null) return;
+    _pathEntries[filePath] = _PathHashEntry(hash, identity);
   }
 
-  /// 通知路径变更（文件重命名）
-  void notifyPathChanged(String oldPath, String newPath) {
-    final hash = _pathToHashMap[oldPath];
-    if (hash == null) return;
-
-    _pathToHashMap[newPath] = hash;
-    _pathToHashMap.remove(oldPath);
-
-    final paths = _hashToPathsMap[hash];
-    if (paths != null) {
-      paths.remove(oldPath);
-      paths.add(newPath);
+  /// 同步返回与当前文件身份一致的已知哈希，文件变化或不存在时丢弃映射
+  String? verifiedHashForPathSync(String filePath) {
+    final cached = _pathEntries[filePath];
+    if (cached == null) return null;
+    if (cached.identity == _FileIdentity.statSync(filePath)) {
+      return cached.hash;
     }
-
-    AppLogger.d('Hash mapping updated: $oldPath -> $newPath', 'FileHashCalculator');
+    _forget(filePath, cached);
+    return null;
   }
 
-  /// 获取哈希对应的所有路径
-  List<String> getPathsForHash(String hash) {
-    return _hashToPathsMap[hash]?.toList() ?? [];
-  }
-
-  /// 获取路径对应的哈希
-  String? getHashForPath(String path) => _pathToHashMap[path];
+  /// 不校验文件身份，只用于按路径定位已发起的解析任务
+  String? getHashForPath(String path) => _pathEntries[path]?.hash;
 
   /// 清除所有缓存
   void clearCache() {
-    _pathToHashMap.clear();
-    _hashToPathsMap.clear();
+    _pathEntries.clear();
     _pendingHashFutures.clear();
   }
 
@@ -107,7 +93,7 @@ class FileHashCalculator {
     'hashComputeCount': _hashComputeCount,
     'hashCacheHitCount': _hashCacheHitCount,
     'pendingCalculations': _pendingHashFutures.length,
-    'pathMappings': _pathToHashMap.length,
+    'pathMappings': _pathEntries.length,
   };
 
   void resetStatistics() {
@@ -120,13 +106,14 @@ class FileHashCalculator {
   Future<String> _calculateWithSemaphore(String filePath) async {
     await _semaphore.acquire();
     try {
-      final file = File(filePath);
-      final bytes = await file.readAsBytes();
+      final before = await _FileIdentity.stat(filePath);
+      final bytes = await File(filePath).readAsBytes();
       final hash = sha256.convert(bytes).toString();
 
-      // 更新映射
-      _pathToHashMap[filePath] = hash;
-      _hashToPathsMap.putIfAbsent(hash, () => {}).add(filePath);
+      // 读取期间文件被改写时不登记映射，下次重新计算
+      if (before != null && before == await _FileIdentity.stat(filePath)) {
+        _pathEntries[filePath] = _PathHashEntry(hash, before);
+      }
 
       _hashComputeCount++;
       return hash;
@@ -134,6 +121,58 @@ class FileHashCalculator {
       _semaphore.release();
     }
   }
+
+  void _forget(String filePath, _PathHashEntry stale) {
+    if (identical(_pathEntries[filePath], stale)) {
+      _pathEntries.remove(filePath);
+    }
+  }
+}
+
+final class _PathHashEntry {
+  const _PathHashEntry(this.hash, this.identity);
+
+  final String hash;
+  final _FileIdentity identity;
+}
+
+/// 同一路径上的文件是否仍是计算哈希时那一份
+final class _FileIdentity {
+  const _FileIdentity({
+    required this.size,
+    required this.modifiedMicros,
+    required this.changedMicros,
+  });
+
+  static Future<_FileIdentity?> stat(String path) async =>
+      _fromStat(await FileStat.stat(path));
+
+  static _FileIdentity? statSync(String path) =>
+      _fromStat(FileStat.statSync(path));
+
+  static _FileIdentity? _fromStat(FileStat stat) {
+    if (stat.type != FileSystemEntityType.file) return null;
+    return _FileIdentity(
+      size: stat.size,
+      modifiedMicros: stat.modified.microsecondsSinceEpoch,
+      changedMicros: stat.changed.microsecondsSinceEpoch,
+    );
+  }
+
+  final int size;
+  final int modifiedMicros;
+  // Windows 上是创建时间，POSIX 上是 inode 变更时间，能识别保留 mtime 的替换
+  final int changedMicros;
+
+  @override
+  bool operator ==(Object other) =>
+      other is _FileIdentity &&
+      other.size == size &&
+      other.modifiedMicros == modifiedMicros &&
+      other.changedMicros == changedMicros;
+
+  @override
+  int get hashCode => Object.hash(size, modifiedMicros, changedMicros);
 }
 
 /// 信号量（并发控制）

@@ -511,9 +511,10 @@ class ImageMetadataService {
   }
 
   /// 从缓存获取元数据（同步检查）
+  ///
+  /// 已知路径会同步 stat 一次校验文件身份，文件被改写或删除时返回 null。
   NaiImageMetadata? getCached(String path) {
-
-    final hash = _hashCalculator.getHashForPath(path);
+    final hash = _hashCalculator.verifiedHashForPathSync(path);
     if (hash == null) return null;
 
     // 检查 L1 内存缓存
@@ -557,11 +558,6 @@ class ImageMetadataService {
     await _cacheManager.clearPersistent();
   }
 
-  /// 通知路径变更（文件重命名检测）
-  void notifyPathChanged(String oldPath, String newPath) {
-    _hashCalculator.notifyPathChanged(oldPath, newPath);
-  }
-
   // ==================== 统计信息 ====================
 
   /// L1 内存缓存大小
@@ -581,9 +577,6 @@ class ImageMetadataService {
 
   /// Hive 缓存 Box（用于 L2CacheCleaner 访问）
   Box<String>? get persistentBox => _cacheManager.box;
-
-  /// 获取哈希对应的所有路径
-  List<String> getPathsForHash(String hash) => _hashCalculator.getPathsForHash(hash);
 
   /// 获取解析统计
   ParseStatistics get parseStatistics => _statistics;
