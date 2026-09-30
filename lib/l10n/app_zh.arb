@@ -5707,8 +5707,13 @@
   "diy_dependencyType": "依赖类型",
   "diy_sourceCategory": "源类别",
   "diy_selectSourceCategory": "选择源类别",
-  "diy_sourceCategoryId": "源类别 ID",
-  "diy_enterCategoryId": "输入类别 ID",
+  "diy_sourceCharacterCount": "角色数量",
+  "diy_categoryUnavailable": "已失效：{reference}",
+  "@diy_categoryUnavailable": {
+    "placeholders": {
+      "reference": {"type": "String"}
+    }
+  },
   "diy_mappingRules": "映射规则",
   "diy_noMappingRules": "暂无映射规则",
   "diy_deleteRule": "删除规则",
@@ -5794,7 +5799,6 @@
   "diy_triggerTags": "触发标签",
   "diy_commaSeparatedTagsHint": "用逗号分隔标签",
   "diy_targetCategories": "目标类别",
-  "diy_commaSeparatedCategoryIdsHint": "用逗号分隔类别 ID",
   "diy_targetTags": "目标标签",
   "diy_actionRemoveTags": "移除标签",
   "diy_actionReplaceTags": "替换标签",

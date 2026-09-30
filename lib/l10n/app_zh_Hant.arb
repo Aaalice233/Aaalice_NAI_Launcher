@@ -5773,8 +5773,15 @@
   "diy_dependencyType": "依賴型別",
   "diy_sourceCategory": "源類別",
   "diy_selectSourceCategory": "選擇源類別",
-  "diy_sourceCategoryId": "源類別 ID",
-  "diy_enterCategoryId": "輸入類別 ID",
+  "diy_sourceCharacterCount": "角色數量",
+  "diy_categoryUnavailable": "已失效：{reference}",
+  "@diy_categoryUnavailable": {
+    "placeholders": {
+      "reference": {
+        "type": "String"
+      }
+    }
+  },
   "diy_mappingRules": "對映規則",
   "diy_noMappingRules": "暫無對映規則",
   "diy_deleteRule": "刪除規則",
@@ -5870,7 +5877,6 @@
   "diy_triggerTags": "觸發標籤",
   "diy_commaSeparatedTagsHint": "用逗號分隔標籤",
   "diy_targetCategories": "目標類別",
-  "diy_commaSeparatedCategoryIdsHint": "用逗號分隔類別 ID",
   "diy_targetTags": "目標標籤",
   "diy_actionRemoveTags": "移除標籤",
   "diy_actionReplaceTags": "替換標籤",

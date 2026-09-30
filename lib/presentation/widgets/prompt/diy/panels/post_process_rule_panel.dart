@@ -5,6 +5,7 @@ import '../../../../../data/models/prompt/post_process_rule.dart';
 import '../../../../widgets/common/themed_divider.dart';
 import '../../../../widgets/common/elevated_card.dart';
 import '../../../../widgets/common/surface_ink_well.dart';
+import '../diy_category_field.dart';
 import 'package:nai_launcher/presentation/widgets/common/themed_form_input.dart';
 
 /// 后处理规则面板
@@ -18,8 +19,8 @@ class PostProcessRulePanel extends StatefulWidget {
   /// 规则变更回调
   final ValueChanged<List<PostProcessRule>> onRulesChanged;
 
-  /// 可选的类别列表
-  final List<String> availableCategories;
+  /// 移除类别操作可选的目标类别
+  final List<DiyCategoryOption> categoryOptions;
 
   /// 是否只读
   final bool readOnly;
@@ -28,7 +29,7 @@ class PostProcessRulePanel extends StatefulWidget {
     super.key,
     required this.rules,
     required this.onRulesChanged,
-    this.availableCategories = const [],
+    this.categoryOptions = const [],
     this.readOnly = false,
   });
 
@@ -648,11 +649,12 @@ class _PostProcessRulePanelState extends State<PostProcessRulePanel> {
           const SizedBox(height: 16),
           // 目标
           if (rule.action == PostProcessAction.removeCategory)
-            ThemedFormInput(
-              initialValue: rule.targetCategoryIds.join(', '),
+            DiyCategoryMultiSelect(
+              values: rule.targetCategoryIds,
+              options: widget.categoryOptions,
+              readOnly: widget.readOnly,
               decoration: InputDecoration(
                 labelText: context.l10n.diy_targetCategories,
-                hintText: context.l10n.diy_commaSeparatedCategoryIdsHint,
                 prefixIcon: Icon(
                   Icons.folder_outlined,
                   color: colorScheme.onSurfaceVariant,
@@ -661,13 +663,7 @@ class _PostProcessRulePanelState extends State<PostProcessRulePanel> {
                   borderRadius: BorderRadius.circular(10),
                 ),
               ),
-              readOnly: widget.readOnly,
-              onChanged: (value) {
-                final ids = value
-                    .split(',')
-                    .map((s) => s.trim())
-                    .where((s) => s.isNotEmpty)
-                    .toList();
+              onChanged: (ids) {
                 _updateRule(index, rule.copyWith(targetCategoryIds: ids));
               },
             )

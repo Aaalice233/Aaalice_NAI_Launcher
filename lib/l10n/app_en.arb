@@ -5954,8 +5954,13 @@
   "diy_dependencyType": "Dependency Type",
   "diy_sourceCategory": "Source Category",
   "diy_selectSourceCategory": "Select a source category",
-  "diy_sourceCategoryId": "Source Category ID",
-  "diy_enterCategoryId": "Enter a category ID",
+  "diy_sourceCharacterCount": "Character count",
+  "diy_categoryUnavailable": "Unavailable: {reference}",
+  "@diy_categoryUnavailable": {
+    "placeholders": {
+      "reference": {"type": "String"}
+    }
+  },
   "diy_mappingRules": "Mapping Rules",
   "diy_noMappingRules": "No mapping rules",
   "diy_deleteRule": "Delete rule",
@@ -6041,7 +6046,6 @@
   "diy_triggerTags": "Trigger Tags",
   "diy_commaSeparatedTagsHint": "Comma-separated tag list",
   "diy_targetCategories": "Target Categories",
-  "diy_commaSeparatedCategoryIdsHint": "Comma-separated category ID list",
   "diy_targetTags": "Target Tags",
   "diy_actionRemoveTags": "Remove Tags",
   "diy_actionReplaceTags": "Replace Tags",

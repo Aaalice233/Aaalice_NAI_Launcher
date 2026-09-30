@@ -12312,10 +12312,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get diy_selectSourceCategory => 'Select a source category';
 
   @override
-  String get diy_sourceCategoryId => 'Source Category ID';
+  String get diy_sourceCharacterCount => 'Character count';
 
   @override
-  String get diy_enterCategoryId => 'Enter a category ID';
+  String diy_categoryUnavailable(String reference) {
+    return 'Unavailable: $reference';
+  }
 
   @override
   String get diy_mappingRules => 'Mapping Rules';
@@ -12496,10 +12498,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get diy_targetCategories => 'Target Categories';
-
-  @override
-  String get diy_commaSeparatedCategoryIdsHint =>
-      'Comma-separated category ID list';
 
   @override
   String get diy_targetTags => 'Target Tags';

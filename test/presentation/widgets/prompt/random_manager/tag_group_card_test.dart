@@ -138,7 +138,7 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('依赖配置表单在最窄屏、安全区和键盘组合下字段与动作均可达', (tester) async {
+  testWidgets('依赖配置表单在最窄屏、安全区和键盘组合下字段与动作均可达，失效引用不崩溃', (tester) async {
     tester.view.physicalSize = const Size(320, 640);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize);
@@ -146,9 +146,6 @@ void main() {
 
     await _pumpCard(
       tester,
-      group: _group.copyWith(
-        dependencyConfig: const DependencyConfig(sourceCategoryId: 'Category'),
-      ),
       mediaQuery: (data) => data.copyWith(
         padding: const EdgeInsets.fromLTRB(12, 24, 12, 16),
         viewPadding: const EdgeInsets.fromLTRB(12, 24, 12, 16),
@@ -163,6 +160,11 @@ void main() {
     final formRect = tester.getRect(form);
     expect(formRect.left, greaterThanOrEqualTo(0));
     expect(formRect.right, lessThanOrEqualTo(320));
+    // 夹具的源类别 'source' 不是当前预设里的类别
+    expect(
+      find.descendant(of: form, matching: find.text('已失效：source')),
+      findsOneWidget,
+    );
 
     for (final target in [
       find.byType(DropdownButtonFormField<String>),
@@ -184,6 +186,94 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(sheets, findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('依赖源下拉以类别 ID 选中并显示名称，改选后保存的是 ID', (tester) async {
+    final notifier = _EditablePresetNotifier(_referenceCategories);
+    await _pumpReferenceCard(
+      tester,
+      notifier: notifier,
+      group: _referenceGroup.copyWith(
+        dependencyConfig: const DependencyConfig(sourceCategoryId: 'cat-hair'),
+      ),
+    );
+    await _openDiyForm(tester, '依赖配置', groupName: _referenceGroup.name);
+
+    final form = _formSurfaces().last;
+    final dropdown = find.descendant(
+      of: form,
+      matching: find.byType(DropdownButtonFormField<String>),
+    );
+    expect(
+      find.descendant(of: dropdown, matching: find.text('发色')),
+      findsOneWidget,
+    );
+
+    await tester.tap(dropdown);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('服装').last);
+    await tester.pumpAndSettle();
+    expect(
+      find.descendant(of: dropdown, matching: find.text('服装')),
+      findsOneWidget,
+    );
+
+    await _confirmAndSave(tester);
+    expect(
+      notifier.savedGroup.dependencyConfig?.sourceCategoryId,
+      'cat-outfit',
+    );
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('按类别名称保存的存量引用在打开编辑器时换成 ID，保存后生效', (tester) async {
+    final notifier = _EditablePresetNotifier(_referenceCategories);
+    await _pumpReferenceCard(
+      tester,
+      notifier: notifier,
+      group: _referenceGroup.copyWith(
+        dependencyConfig: const DependencyConfig(sourceCategoryId: '发色'),
+        visibilityRules: const [
+          VisibilityRule(
+            id: 'legacy',
+            name: 'legacy',
+            sourceCategoryId: 'hairColor',
+            targetCategoryId: '服装',
+            conditionValue: 'portrait',
+          ),
+        ],
+        postProcessRules: const [
+          PostProcessRule(
+            id: 'legacy-post',
+            name: 'legacy-post',
+            action: PostProcessAction.removeCategory,
+            targetCategoryIds: ['服装', 'gone'],
+          ),
+        ],
+      ),
+    );
+    await _openDiyForm(tester, '依赖配置', groupName: _referenceGroup.name);
+
+    final dropdown = find.descendant(
+      of: _formSurfaces().last,
+      matching: find.byType(DropdownButtonFormField<String>),
+    );
+    expect(
+      find.descendant(of: dropdown, matching: find.text('发色')),
+      findsOneWidget,
+    );
+
+    await _confirmAndSave(tester);
+    final saved = notifier.savedGroup;
+    expect(saved.dependencyConfig?.sourceCategoryId, 'cat-hair');
+    expect(saved.visibilityRules.single.sourceCategoryId, 'cat-hair');
+    expect(saved.visibilityRules.single.targetCategoryId, 'cat-outfit');
+    // 找不到对应类别的旧值原样保留，界面标记为已失效
+    expect(saved.postProcessRules.single.targetCategoryIds, [
+      'cat-outfit',
+      'gone',
+    ]);
     expect(tester.takeException(), isNull);
   });
 
@@ -337,8 +427,100 @@ Future<void> _pumpCard(
   );
 }
 
-Future<void> _openDiyForm(WidgetTester tester, String section) async {
-  await tester.tap(find.text('包含全部复杂配置的超长词组名称'));
+const _referenceGroup = RandomTagGroup(id: 'reference', name: '引用词组');
+
+const _referenceCategories = [
+  RandomCategory(
+    id: 'cat-hair',
+    name: '发色',
+    key: 'hairColor',
+    groups: [_referenceGroup],
+  ),
+  RandomCategory(id: 'cat-outfit', name: '服装', key: 'custom2'),
+];
+
+/// 保存只更新内存状态，不触碰持久化存储
+class _EditablePresetNotifier extends RandomPresetNotifier {
+  _EditablePresetNotifier(this._categories);
+
+  final List<RandomCategory> _categories;
+
+  RandomTagGroup get savedGroup => state.selectedPreset!.categories.first.groups
+      .firstWhere((group) => group.id == _referenceGroup.id);
+
+  @override
+  RandomPresetState build() => RandomPresetState(
+    presets: [
+      RandomPreset(id: 'preset', name: 'Preset', categories: _categories),
+    ],
+    selectedPresetId: 'preset',
+  );
+
+  @override
+  Future<void> updateCategory(RandomCategory category) async {
+    state = state.copyWith(
+      presets: [state.selectedPreset!.updateCategory(category)],
+    );
+  }
+}
+
+Future<void> _pumpReferenceCard(
+  WidgetTester tester, {
+  required _EditablePresetNotifier notifier,
+  required RandomTagGroup group,
+}) async {
+  tester.view.physicalSize = const Size(1180, 900);
+  tester.view.devicePixelRatio = 1;
+  addTearDown(tester.view.resetPhysicalSize);
+  addTearDown(tester.view.resetDevicePixelRatio);
+  await tester.pumpWidget(
+    ProviderScope(
+      overrides: [randomPresetNotifierProvider.overrideWith(() => notifier)],
+      child: MaterialApp(
+        locale: const Locale('zh'),
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: Scaffold(
+          body: TagGroupCard(
+            tagGroup: group,
+            categoryId: 'cat-hair',
+            categoryKey: 'hairColor',
+            presetId: 'preset',
+          ),
+        ),
+      ),
+    ),
+  );
+}
+
+Finder _formSurfaces() => find.byWidgetPredicate(
+  (widget) =>
+      widget.key == const ValueKey('adaptive-bottom-sheet') ||
+      widget.key == const ValueKey('adaptive-centered-form'),
+);
+
+Future<void> _confirmAndSave(WidgetTester tester) async {
+  final form = _formSurfaces().last;
+  final confirm = find.descendant(of: form, matching: find.text('确定'));
+  await tester.scrollUntilVisible(
+    confirm,
+    200,
+    scrollable: find
+        .descendant(of: form, matching: find.byType(Scrollable))
+        .first,
+  );
+  await tester.tap(confirm);
+  await tester.pumpAndSettle();
+  await tester.tap(find.text('保存'));
+  await tester.pumpAndSettle();
+}
+
+Future<void> _openDiyForm(
+  WidgetTester tester,
+  String section, {
+  String groupName = '包含全部复杂配置的超长词组名称',
+}) async {
+  await tester.tap(find.text(groupName));
   await tester.pumpAndSettle();
 
   final diyTab = find.byIcon(Icons.account_tree_outlined);
