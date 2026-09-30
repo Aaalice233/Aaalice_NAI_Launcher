@@ -358,7 +358,6 @@ class _BulkMetadataEditDialogState
                     ),
                     fontSize: 13,
                   ),
-                  border: InputBorder.none,
                   contentPadding: const EdgeInsets.symmetric(
                     horizontal: 12,
                     vertical: 8,

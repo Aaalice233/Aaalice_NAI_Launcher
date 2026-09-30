@@ -151,7 +151,6 @@ class _ToolNumberField extends StatelessWidget {
       decoration: const InputDecoration(
         isDense: true,
         contentPadding: EdgeInsets.symmetric(horizontal: 4, vertical: 4),
-        border: OutlineInputBorder(),
       ),
       keyboardType: TextInputType.number,
       onSubmitted: (text) {

@@ -91,7 +91,6 @@ class _ComfyUISettingsSectionState
                         decoration: InputDecoration(
                           labelText: context.l10n.settings_comfyUiServerUrl,
                           hintText: 'http://127.0.0.1:8188',
-                          border: const OutlineInputBorder(),
                           isDense: true,
                           prefixIcon: const Icon(Icons.dns_outlined),
                         ),
