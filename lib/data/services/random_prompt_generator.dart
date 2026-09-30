@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../../core/utils/app_logger.dart';
+import '../../core/utils/nai_prompt_parser.dart';
 import '../datasources/local/pool_cache_service.dart';
 import '../datasources/local/tag_group_cache_service.dart';
 import '../models/character/character_prompt.dart';
@@ -486,16 +487,21 @@ class RandomPromptGenerator {
       results.addAll(categoryTags);
     }
 
-    final processed = rules.applyPostProcess(results, generationContext);
+    // 先展开变量再后处理，变量得到的标签同样受后处理规则约束
+    final expanded = await _applyVariableReplacement(
+      results,
+      rules,
+      random,
+      generationContext,
+    );
+    final processed = rules.applyPostProcess(expanded, generationContext);
     generationContext.reconcileProcessedTags(
-      originalTags: results,
+      originalTags: expanded,
       processedTags: processed,
     );
 
-    // 应用变量替换
-    final replaced = await _applyVariableReplacement(processed, rules, random);
     return _applyEmphasis(
-      _stableUniqueTags(replaced),
+      _stableUniqueTags(processed),
       preset.algorithmConfig.globalEmphasisProbability,
       preset.algorithmConfig.globalEmphasisBracketCount,
       random,
@@ -953,14 +959,15 @@ class RandomPromptGenerator {
   /// 创建变量解析器
   ///
   /// 为 VariableReplacementService 创建解析器函数
-  /// 该解析器会在预设的类别和词组中查找变量名
+  /// 该解析器会在预设的类别和词组中查找变量名，在本轮生成的上下文中生成取值，
+  /// 并把取值记入所属类别，使按类别生效的后处理规则也能作用于它
   Future<String?> _createVariableResolver(
     RandomPresetRules rules,
     Random random,
     String varName,
+    RandomPresetGenerationContext context,
   ) async {
     // 在类别中查找匹配（按名称或 key）
-    final context = RandomPresetGenerationContext();
     for (final category in rules.preset.categories) {
       // 检查类别本身
       if (category.name == varName || category.key == varName) {
@@ -969,6 +976,11 @@ class RandomPromptGenerator {
           random,
           rules: rules,
           context: context,
+        );
+        context.addCategoryTags(
+          category.key,
+          generated,
+          categoryId: category.id,
         );
         return generated.join(', ');
       }
@@ -982,6 +994,11 @@ class RandomPromptGenerator {
             random,
             context,
           );
+          context.addCategoryTags(
+            category.key,
+            generated,
+            categoryId: category.id,
+          );
           return generated.join(', ');
         }
       }
@@ -992,16 +1009,26 @@ class RandomPromptGenerator {
   }
 
   /// 对生成结果进行变量替换
+  ///
+  /// 展开得到的取值可能包含多个标签，拆成单个标签后规则才能逐个匹配；
+  /// 未含变量的标签保持原样
   Future<List<String>> _applyVariableReplacement(
     List<String> tags,
     RandomPresetRules rules,
     Random random,
+    RandomPresetGenerationContext context,
   ) async {
-    // 使用 VariableReplacementService 批量替换
-    return _variableReplacementService.replaceListAsync(
+    final replaced = await _variableReplacementService.replaceListAsync(
       tags,
-      (varName) => _createVariableResolver(rules, random, varName),
+      (varName) => _createVariableResolver(rules, random, varName, context),
     );
+    return [
+      for (var index = 0; index < tags.length; index++)
+        if (replaced[index] == tags[index])
+          tags[index]
+        else
+          ...NaiPromptParser.splitSegments(replaced[index]),
+    ];
   }
 
   // ========== 从缓存获取标签（用于同步类型的组） ==========
