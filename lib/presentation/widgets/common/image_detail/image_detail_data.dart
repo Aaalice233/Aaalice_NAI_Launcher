@@ -8,7 +8,6 @@ import '../../../../data/models/gallery/local_image_record.dart';
 import '../../../../data/models/gallery/nai_image_metadata.dart';
 import '../../../../data/models/fixed_tag/fixed_tag_usage_snapshot.dart';
 import '../../../../data/services/image_metadata_service.dart';
-import '../../../../data/services/metadata/isolate_metadata_service.dart';
 
 /// 图像详情数据抽象接口
 ///
@@ -126,26 +125,15 @@ class LocalImageDetailData implements ImageDetailData {
   NaiImageMetadata? get metadata =>
       record.metadata?.upgradeFromRawJsonIfNeeded();
 
-  /// 异步获取元数据（从文件解析）
+  /// 异步获取元数据（图库记录没有时从文件解析）
   ///
   /// **前台高优先级调用** - 用户主动打开详情页时使用
-  ///
-  /// 【优化】使用 Isolate 在后台线程解析，避免阻塞 UI
   Future<NaiImageMetadata?> getMetadataAsync() async {
-    // 1. 先检查已缓存的元数据
-    final cachedRecordMetadata = metadata;
-    if (cachedRecordMetadata != null) return cachedRecordMetadata;
+    final recordMetadata = metadata;
+    if (recordMetadata != null) return recordMetadata;
 
-    // 2. 在 Isolate 中解析（不阻塞 UI）
-    // 先尝试快速路径（缓存）
-    final cached = await ImageMetadataService().getMetadataImmediate(
-      record.path,
-    );
-    if (cached != null) return cached;
-
-    // 3. 使用 Isolate 深度解析（针对大文件或复杂格式）
-    final isolateService = IsolateMetadataService.instance;
-    return isolateService.parseForDetailView(record.path);
+    // 服务已在后台 isolate 走完整条解析链，换通道重解只会重复同一次整图解码。
+    return ImageMetadataService().getMetadataImmediate(record.path);
   }
 
   @override
@@ -226,12 +214,11 @@ class GeneratedImageDetailData implements ImageDetailData {
   /// 异步获取元数据（从内存字节解析）
   ///
   /// **前台高优先级调用** - 用户主动打开详情页时使用
-  /// 内存字节直接解析，不受后台队列影响
   Future<NaiImageMetadata?> getMetadataAsync() async {
     // 1. 先检查已缓存的元数据
     if (_metadata != null) return _metadata;
 
-    // 2. 从内存字节直接解析（内存操作，无需排队）
+    // 2. 从内存字节解析
     return ImageMetadataService().getMetadataFromBytes(imageBytes);
   }
 

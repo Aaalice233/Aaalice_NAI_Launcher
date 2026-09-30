@@ -43,9 +43,6 @@ class IsolateMetadataService {
     IsolateParseConfig config = const IsolateParseConfig(),
   }) => _pool.parseMetadata(filePath, config: config);
 
-  Future<NaiImageMetadata?> parseForDetailView(String filePath) =>
-      _pool.parseForDetailView(filePath);
-
   Future<NaiImageMetadata?> parseForEdit(String filePath) =>
       _pool.parseForEdit(filePath);
 
