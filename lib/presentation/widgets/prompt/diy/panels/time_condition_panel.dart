@@ -1,9 +1,14 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:nai_launcher/core/utils/localization_extension.dart';
 
 import '../../../../../data/models/prompt/time_condition.dart';
+import '../../../../adaptive/interaction_policy.dart';
+import '../../../../utils/single_line_text_width.dart';
 import '../../../../widgets/common/elevated_card.dart';
 import '../../../../widgets/common/surface_ink_well.dart';
+import '../diy_panel_header.dart';
 import 'package:nai_launcher/presentation/widgets/common/themed_form_input.dart';
 
 /// 时间条件面板
@@ -109,59 +114,11 @@ class _TimeConditionPanelState extends State<TimeConditionPanel> {
   }
 
   Widget _buildHeader() {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-
-    return Row(
-      children: [
-        // 图标容器 - 渐变背景
-        Container(
-          padding: const EdgeInsets.all(10),
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [
-                colorScheme.primary.withValues(alpha: 0.2),
-                colorScheme.primary.withValues(alpha: 0.1),
-              ],
-            ),
-            borderRadius: BorderRadius.circular(10),
-            boxShadow: [
-              BoxShadow(
-                color: colorScheme.primary.withValues(alpha: 0.1),
-                blurRadius: 8,
-                offset: const Offset(0, 2),
-              ),
-            ],
-          ),
-          child: Icon(
-            Icons.calendar_month_rounded,
-            size: 20,
-            color: colorScheme.primary,
-          ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                context.l10n.diy_timeTitle,
-                style: theme.textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              Text(
-                context.l10n.diy_timeSubtitle,
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: colorScheme.onSurfaceVariant,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
+    return DiyPanelHeader(
+      icon: Icons.calendar_month_rounded,
+      accent: Theme.of(context).colorScheme.primary,
+      title: context.l10n.diy_timeTitle,
+      subtitle: context.l10n.diy_timeSubtitle,
     );
   }
 
@@ -257,28 +214,11 @@ class _TimeConditionPanelState extends State<TimeConditionPanel> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(6),
-                decoration: BoxDecoration(
-                  color: colorScheme.secondaryContainer.withValues(alpha: 0.5),
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: Icon(
-                  Icons.auto_awesome_rounded,
-                  size: 14,
-                  color: colorScheme.secondary,
-                ),
-              ),
-              const SizedBox(width: 10),
-              Text(
-                context.l10n.diy_presetTemplates,
-                style: theme.textTheme.titleSmall?.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
+          DiySectionTitle(
+            icon: Icons.auto_awesome_rounded,
+            accent: colorScheme.secondary,
+            container: colorScheme.secondaryContainer,
+            title: context.l10n.diy_presetTemplates,
           ),
           const SizedBox(height: 12),
           Row(
@@ -336,76 +276,16 @@ class _TimeConditionPanelState extends State<TimeConditionPanel> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(6),
-                decoration: BoxDecoration(
-                  color: colorScheme.tertiaryContainer.withValues(alpha: 0.5),
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: Icon(
-                  Icons.date_range_rounded,
-                  size: 14,
-                  color: colorScheme.tertiary,
-                ),
-              ),
-              const SizedBox(width: 10),
-              Text(
-                context.l10n.diy_dateRange,
-                style: theme.textTheme.titleSmall?.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
+          DiySectionTitle(
+            icon: Icons.date_range_rounded,
+            accent: colorScheme.tertiary,
+            container: colorScheme.tertiaryContainer,
+            title: context.l10n.diy_dateRange,
           ),
           const SizedBox(height: 16),
-          Row(
-            children: [
-              Expanded(
-                child: _buildMonthDaySelector(
-                  label: context.l10n.diy_startDate,
-                  month: _condition.startMonth,
-                  day: _condition.startDay,
-                  color: colorScheme.primary,
-                  onMonthChanged: (month) {
-                    _updateCondition(_condition.copyWith(startMonth: month));
-                  },
-                  onDayChanged: (day) {
-                    _updateCondition(_condition.copyWith(startDay: day));
-                  },
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 12),
-                child: Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: colorScheme.surfaceContainerHighest,
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(
-                    Icons.arrow_forward_rounded,
-                    size: 16,
-                    color: colorScheme.onSurfaceVariant,
-                  ),
-                ),
-              ),
-              Expanded(
-                child: _buildMonthDaySelector(
-                  label: context.l10n.diy_endDate,
-                  month: _condition.endMonth,
-                  day: _condition.endDay,
-                  color: colorScheme.secondary,
-                  onMonthChanged: (month) {
-                    _updateCondition(_condition.copyWith(endMonth: month));
-                  },
-                  onDayChanged: (day) {
-                    _updateCondition(_condition.copyWith(endDay: day));
-                  },
-                ),
-              ),
-            ],
+          LayoutBuilder(
+            builder: (context, constraints) =>
+                _buildDateRange(constraints.maxWidth),
           ),
           if (_condition.isCrossYear) ...[
             const SizedBox(height: 12),
@@ -445,19 +325,114 @@ class _TimeConditionPanelState extends State<TimeConditionPanel> {
     );
   }
 
+  static const _selectorPadding = EdgeInsets.all(12);
+  static const _fieldPadding = EdgeInsets.symmetric(horizontal: 10);
+  static const _fieldGap = 8.0;
+  static const _fieldIconSize = 24.0;
+  static const _arrowPadding = EdgeInsets.all(8);
+  static const _arrowIconSize = 16.0;
+  static const _arrowGap = 12.0;
+
+  // 起止日期与月/日按实测宽度决定并排还是上下排，窄屏或放大文字时不挤压下拉框
+  Widget _buildDateRange(double maxWidth) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final valueStyle = theme.textTheme.titleMedium;
+    final labelStyle = theme.textTheme.bodySmall;
+    final fieldWidth =
+        [
+          singleLineTextWidth(context, '31', valueStyle) + _fieldIconSize,
+          singleLineTextWidth(context, context.l10n.diy_month, labelStyle),
+          singleLineTextWidth(context, context.l10n.diy_day, labelStyle),
+        ].reduce(math.max) +
+        _fieldPadding.horizontal;
+    final selectorWidth =
+        fieldWidth * 2 + _fieldGap + _selectorPadding.horizontal;
+    final arrowWidth =
+        _arrowIconSize + _arrowPadding.horizontal + _arrowGap * 2;
+    final selectorsSideBySide = selectorWidth * 2 + arrowWidth <= maxWidth;
+    final fieldsSideBySide = selectorWidth <= maxWidth;
+
+    final start = _buildMonthDaySelector(
+      label: context.l10n.diy_startDate,
+      month: _condition.startMonth,
+      day: _condition.startDay,
+      color: colorScheme.primary,
+      fieldsSideBySide: fieldsSideBySide,
+      onMonthChanged: (month) {
+        _updateCondition(_condition.copyWith(startMonth: month));
+      },
+      onDayChanged: (day) {
+        _updateCondition(_condition.copyWith(startDay: day));
+      },
+    );
+    final end = _buildMonthDaySelector(
+      label: context.l10n.diy_endDate,
+      month: _condition.endMonth,
+      day: _condition.endDay,
+      color: colorScheme.secondary,
+      fieldsSideBySide: fieldsSideBySide,
+      onMonthChanged: (month) {
+        _updateCondition(_condition.copyWith(endMonth: month));
+      },
+      onDayChanged: (day) {
+        _updateCondition(_condition.copyWith(endDay: day));
+      },
+    );
+    final arrow = Container(
+      padding: _arrowPadding,
+      decoration: BoxDecoration(
+        color: colorScheme.surfaceContainerHighest,
+        shape: BoxShape.circle,
+      ),
+      child: Icon(
+        selectorsSideBySide
+            ? Icons.arrow_forward_rounded
+            : Icons.arrow_downward_rounded,
+        size: _arrowIconSize,
+        color: colorScheme.onSurfaceVariant,
+      ),
+    );
+
+    if (selectorsSideBySide) {
+      return Row(
+        spacing: _arrowGap,
+        children: [
+          Expanded(child: start),
+          arrow,
+          Expanded(child: end),
+        ],
+      );
+    }
+    return Column(spacing: _fieldGap, children: [start, arrow, end]);
+  }
+
   Widget _buildMonthDaySelector({
     required String label,
     required int month,
     required int day,
     required Color color,
+    required bool fieldsSideBySide,
     required ValueChanged<int> onMonthChanged,
     required ValueChanged<int> onDayChanged,
   }) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
+    final monthField = _buildNumberDropdown(
+      label: context.l10n.diy_month,
+      value: month,
+      count: 12,
+      onChanged: onMonthChanged,
+    );
+    final dayField = _buildNumberDropdown(
+      label: context.l10n.diy_day,
+      value: day,
+      count: 31,
+      onChanged: onDayChanged,
+    );
 
     return Container(
-      padding: const EdgeInsets.all(12),
+      padding: _selectorPadding,
       decoration: BoxDecoration(
         color: Color.alphaBlend(
           color.withValues(alpha: 0.07),
@@ -466,7 +441,7 @@ class _TimeConditionPanelState extends State<TimeConditionPanel> {
         borderRadius: BorderRadius.circular(10),
       ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Row(
             children: [
@@ -476,57 +451,62 @@ class _TimeConditionPanelState extends State<TimeConditionPanel> {
                 decoration: BoxDecoration(color: color, shape: BoxShape.circle),
               ),
               const SizedBox(width: 6),
-              Text(
-                label,
-                style: theme.textTheme.labelSmall?.copyWith(
-                  color: colorScheme.onSurfaceVariant,
-                  fontWeight: FontWeight.w600,
+              Flexible(
+                child: Text(
+                  label,
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    color: colorScheme.onSurfaceVariant,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ),
             ],
           ),
           const SizedBox(height: 10),
-          Row(
-            children: [
-              Expanded(
-                child: DropdownButtonFormField<int>(
-                  initialValue: month,
-                  decoration: InputDecoration(
-                    labelText: context.l10n.diy_month,
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 10),
-                    isDense: true,
-                  ),
-                  items: List.generate(12, (i) => i + 1).map((m) {
-                    return DropdownMenuItem(value: m, child: Text('$m'));
-                  }).toList(),
-                  onChanged: widget.readOnly ? null : (v) => onMonthChanged(v!),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: DropdownButtonFormField<int>(
-                  initialValue: day,
-                  decoration: InputDecoration(
-                    labelText: context.l10n.diy_day,
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 10),
-                    isDense: true,
-                  ),
-                  items: List.generate(31, (i) => i + 1).map((d) {
-                    return DropdownMenuItem(value: d, child: Text('$d'));
-                  }).toList(),
-                  onChanged: widget.readOnly ? null : (v) => onDayChanged(v!),
-                ),
-              ),
-            ],
-          ),
+          if (fieldsSideBySide)
+            Row(
+              spacing: _fieldGap,
+              children: [
+                Expanded(child: monthField),
+                Expanded(child: dayField),
+              ],
+            )
+          else
+            Column(
+              spacing: _fieldGap,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [monthField, dayField],
+            ),
         ],
       ),
+    );
+  }
+
+  Widget _buildNumberDropdown({
+    required String label,
+    required int value,
+    required int count,
+    required ValueChanged<int> onChanged,
+  }) {
+    return DropdownButtonFormField<int>(
+      initialValue: value,
+      isExpanded: true,
+      iconSize: _fieldIconSize,
+      decoration: InputDecoration(
+        labelText: label,
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+        contentPadding: _fieldPadding,
+        isDense: true,
+        // 紧凑字段没有纵向内边距，命中区由交互策略的最小控件尺寸保证
+        constraints: BoxConstraints(
+          minHeight: context.interactionPolicy.minimumControlExtent,
+        ),
+      ),
+      items: [
+        for (var number = 1; number <= count; number++)
+          DropdownMenuItem(value: number, child: Text('$number')),
+      ],
+      onChanged: widget.readOnly ? null : (selected) => onChanged(selected!),
     );
   }
 
@@ -545,30 +525,11 @@ class _TimeConditionPanelState extends State<TimeConditionPanel> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(6),
-                      decoration: BoxDecoration(
-                        color: colorScheme.primaryContainer.withValues(
-                          alpha: 0.5,
-                        ),
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: Icon(
-                        Icons.label_outline_rounded,
-                        size: 14,
-                        color: colorScheme.primary,
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    Text(
-                      context.l10n.diy_conditionName,
-                      style: theme.textTheme.titleSmall?.copyWith(
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ],
+                DiySectionTitle(
+                  icon: Icons.label_outline_rounded,
+                  accent: colorScheme.primary,
+                  container: colorScheme.primaryContainer,
+                  title: context.l10n.diy_conditionName,
                 ),
                 const SizedBox(height: 12),
                 ThemedFormInput(
@@ -758,40 +719,48 @@ class _TimeConditionPanelState extends State<TimeConditionPanel> {
                     color: colorScheme.onSurfaceVariant,
                   ),
                 ),
-              ],
-            ),
-          ),
-          if (isActive)
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    colorScheme.primary.withValues(alpha: 0.2),
-                    colorScheme.primary.withValues(alpha: 0.1),
-                  ],
-                ),
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    Icons.check_rounded,
-                    size: 16,
-                    color: colorScheme.primary,
-                  ),
-                  const SizedBox(width: 4),
-                  Text(
-                    context.l10n.diy_activeBadge,
-                    style: theme.textTheme.labelSmall?.copyWith(
-                      fontWeight: FontWeight.bold,
-                      color: colorScheme.primary,
+                // 徽标跟随状态文字换行，不与其争抢同一行宽度
+                if (isActive) ...[
+                  const SizedBox(height: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 6,
+                    ),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          colorScheme.primary.withValues(alpha: 0.2),
+                          colorScheme.primary.withValues(alpha: 0.1),
+                        ],
+                      ),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.check_rounded,
+                          size: 16,
+                          color: colorScheme.primary,
+                        ),
+                        const SizedBox(width: 4),
+                        Flexible(
+                          child: Text(
+                            context.l10n.diy_activeBadge,
+                            style: theme.textTheme.labelSmall?.copyWith(
+                              fontWeight: FontWeight.bold,
+                              color: colorScheme.primary,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ],
-              ),
+              ],
             ),
+          ),
         ],
       ),
     );

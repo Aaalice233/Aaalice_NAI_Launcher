@@ -1,12 +1,17 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:nai_launcher/core/utils/localization_extension.dart';
 
 import '../../../../../data/models/prompt/dependency_config.dart';
 import '../../../../../data/models/prompt/diy_category_references.dart';
 import '../../../../adaptive/adaptive_presenter.dart';
+import '../../../../utils/single_line_text_width.dart';
 import '../../../../widgets/common/elevated_card.dart';
+import '../../../../widgets/common/horizontal_segmented_control.dart';
 import '../../../../widgets/common/surface_ink_well.dart';
 import '../diy_category_field.dart';
+import '../diy_panel_header.dart';
 import 'package:nai_launcher/presentation/widgets/common/themed_form_input.dart';
 import 'package:nai_launcher/presentation/widgets/common/themed_input.dart';
 
@@ -84,96 +89,21 @@ class _DependencyConfigPanelState extends State<DependencyConfigPanel> {
   }
 
   Widget _buildHeader() {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
+    final colorScheme = Theme.of(context).colorScheme;
 
-    return Row(
-      children: [
-        // 图标容器 - 渐变背景
-        Container(
-          padding: const EdgeInsets.all(10),
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [
-                colorScheme.tertiary.withValues(alpha: 0.2),
-                colorScheme.tertiary.withValues(alpha: 0.1),
-              ],
-            ),
-            borderRadius: BorderRadius.circular(10),
-            boxShadow: [
-              BoxShadow(
-                color: colorScheme.tertiary.withValues(alpha: 0.1),
-                blurRadius: 8,
-                offset: const Offset(0, 2),
-              ),
-            ],
-          ),
-          child: Icon(
-            Icons.link_rounded,
-            size: 20,
-            color: colorScheme.tertiary,
-          ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                context.l10n.diy_dependencyTitle,
-                style: theme.textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              Text(
-                context.l10n.diy_dependencySubtitle,
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: colorScheme.onSurfaceVariant,
-                ),
-              ),
-            ],
-          ),
-        ),
-        if (widget.config != null && !widget.readOnly)
-          Material(
-            color: Colors.transparent,
-            child: InkWell(
-              onTap: () => widget.onConfigChanged(null),
-              borderRadius: BorderRadius.circular(8),
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 6,
-                ),
-                decoration: BoxDecoration(
-                  border: Border.all(
-                    color: colorScheme.error.withValues(alpha: 0.5),
-                  ),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      Icons.delete_outline_rounded,
-                      size: 16,
-                      color: colorScheme.error,
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      context.l10n.common_clear,
-                      style: theme.textTheme.labelMedium?.copyWith(
-                        color: colorScheme.error,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-      ],
+    return DiyPanelHeader(
+      icon: Icons.link_rounded,
+      accent: colorScheme.tertiary,
+      title: context.l10n.diy_dependencyTitle,
+      subtitle: context.l10n.diy_dependencySubtitle,
+      trailing: widget.config != null && !widget.readOnly
+          ? TextButton.icon(
+              onPressed: () => widget.onConfigChanged(null),
+              style: TextButton.styleFrom(foregroundColor: colorScheme.error),
+              icon: const Icon(Icons.delete_outline_rounded, size: 18),
+              label: Text(context.l10n.common_clear),
+            )
+          : null,
     );
   }
 
@@ -205,95 +135,14 @@ class _DependencyConfigPanelState extends State<DependencyConfigPanel> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(6),
-                decoration: BoxDecoration(
-                  color: colorScheme.primaryContainer.withValues(alpha: 0.5),
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: Icon(
-                  Icons.category_rounded,
-                  size: 14,
-                  color: colorScheme.primary,
-                ),
-              ),
-              const SizedBox(width: 10),
-              Text(
-                context.l10n.diy_dependencyType,
-                style: theme.textTheme.titleSmall?.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
+          DiySectionTitle(
+            icon: Icons.category_rounded,
+            accent: colorScheme.primary,
+            container: colorScheme.primaryContainer,
+            title: context.l10n.diy_dependencyType,
           ),
           const SizedBox(height: 12),
-          // 自定义类型选择器
-          Row(
-            children: DependencyType.values.map((type) {
-              final isSelected = _config.type == type;
-              final color = typeColors[type]!;
-              final icon = typeIcons[type]!;
-
-              return Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 3),
-                  child: SurfaceInkWell(
-                    borderRadius: BorderRadius.circular(10),
-                    gradient: isSelected
-                        ? LinearGradient(
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                            colors: [color, color.withValues(alpha: 0.8)],
-                          )
-                        : null,
-                    color: isSelected
-                        ? null
-                        : colorScheme.surfaceContainerHighest,
-                    shadows: isSelected
-                        ? [
-                            BoxShadow(
-                              color: color.withValues(alpha: 0.3),
-                              blurRadius: 8,
-                              offset: const Offset(0, 2),
-                            ),
-                          ]
-                        : null,
-                    duration: const Duration(milliseconds: 200),
-                    onTap: widget.readOnly
-                        ? null
-                        : () => _updateConfig(_config.copyWith(type: type)),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      child: Column(
-                        children: [
-                          Icon(
-                            icon,
-                            size: 20,
-                            color: isSelected
-                                ? Colors.white
-                                : colorScheme.onSurfaceVariant,
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            _getDependencyTypeLabel(type),
-                            style: theme.textTheme.labelSmall?.copyWith(
-                              fontWeight: FontWeight.w600,
-                              color: isSelected
-                                  ? Colors.white
-                                  : colorScheme.onSurface,
-                            ),
-                            textAlign: TextAlign.center,
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              );
-            }).toList(),
-          ),
+          _buildTypeOptions(typeIcons, typeColors),
           const SizedBox(height: 12),
           // 描述
           Container(
@@ -326,9 +175,108 @@ class _DependencyConfigPanelState extends State<DependencyConfigPanel> {
     );
   }
 
-  Widget _buildSourceCategorySelector() {
+  // 四种类型是互斥模式：放得下时等宽排满一行，否则整行横向滚动，不竖排也不截断标签
+  Widget _buildTypeOptions(
+    Map<DependencyType, IconData> typeIcons,
+    Map<DependencyType, Color> typeColors,
+  ) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
+    final labelStyle = theme.textTheme.labelSmall?.copyWith(
+      fontWeight: FontWeight.w600,
+    );
+    const contentPadding = EdgeInsets.symmetric(horizontal: 8, vertical: 12);
+    const gap = 6.0;
+    final tileWidth =
+        DependencyType.values.fold(
+          0.0,
+          (widest, type) => math.max(
+            widest,
+            singleLineTextWidth(
+              context,
+              _getDependencyTypeLabel(type),
+              labelStyle,
+            ),
+          ),
+        ) +
+        contentPadding.horizontal;
+
+    Widget option(DependencyType type) {
+      final isSelected = _config.type == type;
+      final color = typeColors[type]!;
+      return SurfaceInkWell(
+        borderRadius: BorderRadius.circular(10),
+        gradient: isSelected
+            ? LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [color, color.withValues(alpha: 0.8)],
+              )
+            : null,
+        color: isSelected ? null : colorScheme.surfaceContainerHighest,
+        shadows: isSelected
+            ? [
+                BoxShadow(
+                  color: color.withValues(alpha: 0.3),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ]
+            : null,
+        duration: const Duration(milliseconds: 200),
+        onTap: widget.readOnly
+            ? null
+            : () => _updateConfig(_config.copyWith(type: type)),
+        child: Padding(
+          padding: contentPadding,
+          child: Column(
+            children: [
+              Icon(
+                typeIcons[type],
+                size: 20,
+                color: isSelected ? Colors.white : colorScheme.onSurfaceVariant,
+              ),
+              const SizedBox(height: 4),
+              Text(
+                _getDependencyTypeLabel(type),
+                style: labelStyle?.copyWith(
+                  color: isSelected ? Colors.white : colorScheme.onSurface,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        const types = DependencyType.values;
+        final fits =
+            tileWidth * types.length + gap * (types.length - 1) <=
+            constraints.maxWidth;
+        if (fits) {
+          return Row(
+            spacing: gap,
+            children: [for (final type in types) Expanded(child: option(type))],
+          );
+        }
+        return HorizontalSegmentedControl(
+          child: Row(
+            spacing: gap,
+            children: [
+              for (final type in types)
+                SizedBox(width: tileWidth, child: option(type)),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildSourceCategorySelector() {
+    final colorScheme = Theme.of(context).colorScheme;
 
     return ElevatedCard(
       elevation: CardElevation.level1,
@@ -339,28 +287,11 @@ class _DependencyConfigPanelState extends State<DependencyConfigPanel> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(6),
-                decoration: BoxDecoration(
-                  color: colorScheme.secondaryContainer.withValues(alpha: 0.5),
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: Icon(
-                  Icons.source_rounded,
-                  size: 14,
-                  color: colorScheme.secondary,
-                ),
-              ),
-              const SizedBox(width: 10),
-              Text(
-                context.l10n.diy_sourceCategory,
-                style: theme.textTheme.titleSmall?.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
+          DiySectionTitle(
+            icon: Icons.source_rounded,
+            accent: colorScheme.secondary,
+            container: colorScheme.secondaryContainer,
+            title: context.l10n.diy_sourceCategory,
           ),
           const SizedBox(height: 12),
           DiyCategoryDropdown(
@@ -411,67 +342,18 @@ class _DependencyConfigPanelState extends State<DependencyConfigPanel> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(6),
-                decoration: BoxDecoration(
-                  color: colorScheme.tertiaryContainer.withValues(alpha: 0.5),
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: Icon(
-                  Icons.swap_horiz_rounded,
-                  size: 14,
-                  color: colorScheme.tertiary,
-                ),
-              ),
-              const SizedBox(width: 10),
-              Text(
-                context.l10n.diy_mappingRules,
-                style: theme.textTheme.titleSmall?.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              const Spacer(),
-              if (!widget.readOnly)
-                Material(
-                  color: Colors.transparent,
-                  child: InkWell(
-                    onTap: _addMappingRule,
-                    borderRadius: BorderRadius.circular(8),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 6,
-                      ),
-                      decoration: BoxDecoration(
-                        border: Border.all(
-                          color: colorScheme.primary.withValues(alpha: 0.5),
-                        ),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            Icons.add_rounded,
-                            size: 16,
-                            color: colorScheme.primary,
-                          ),
-                          const SizedBox(width: 4),
-                          Text(
-                            context.l10n.common_add,
-                            style: theme.textTheme.labelMedium?.copyWith(
-                              color: colorScheme.primary,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
+          DiySectionTitle(
+            icon: Icons.swap_horiz_rounded,
+            accent: colorScheme.tertiary,
+            container: colorScheme.tertiaryContainer,
+            title: context.l10n.diy_mappingRules,
+            trailing: widget.readOnly
+                ? null
+                : TextButton.icon(
+                    onPressed: _addMappingRule,
+                    icon: const Icon(Icons.add_rounded, size: 18),
+                    label: Text(context.l10n.common_add),
                   ),
-                ),
-            ],
           ),
           const SizedBox(height: 12),
           if (_config.mappingRules.isEmpty)
@@ -519,54 +401,59 @@ class _DependencyConfigPanelState extends State<DependencyConfigPanel> {
                   ),
                   child: Row(
                     children: [
-                      // 源值
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 4,
-                        ),
-                        decoration: BoxDecoration(
-                          color: colorScheme.primaryContainer.withValues(
-                            alpha: 0.5,
-                          ),
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: Text(
-                          entry.key,
-                          style: theme.textTheme.labelMedium?.copyWith(
-                            fontWeight: FontWeight.bold,
-                            color: colorScheme.primary,
-                          ),
+                      Expanded(
+                        child: Wrap(
+                          spacing: 8,
+                          runSpacing: 4,
+                          crossAxisAlignment: WrapCrossAlignment.center,
+                          children: [
+                            // 源值
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                                vertical: 4,
+                              ),
+                              decoration: BoxDecoration(
+                                color: colorScheme.primaryContainer.withValues(
+                                  alpha: 0.5,
+                                ),
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: Text(
+                                entry.key,
+                                style: theme.textTheme.labelMedium?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                  color: colorScheme.primary,
+                                ),
+                              ),
+                            ),
+                            Icon(
+                              Icons.arrow_forward_rounded,
+                              size: 16,
+                              color: colorScheme.onSurfaceVariant,
+                            ),
+                            // 目标值
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                                vertical: 4,
+                              ),
+                              decoration: BoxDecoration(
+                                color: colorScheme.secondaryContainer
+                                    .withValues(alpha: 0.5),
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: Text(
+                                entry.value,
+                                style: theme.textTheme.labelMedium?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                  color: colorScheme.secondary,
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                      const SizedBox(width: 8),
-                      Icon(
-                        Icons.arrow_forward_rounded,
-                        size: 16,
-                        color: colorScheme.onSurfaceVariant,
-                      ),
-                      const SizedBox(width: 8),
-                      // 目标值
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 4,
-                        ),
-                        decoration: BoxDecoration(
-                          color: colorScheme.secondaryContainer.withValues(
-                            alpha: 0.5,
-                          ),
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: Text(
-                          entry.value,
-                          style: theme.textTheme.labelMedium?.copyWith(
-                            fontWeight: FontWeight.bold,
-                            color: colorScheme.secondary,
-                          ),
-                        ),
-                      ),
-                      const Spacer(),
                       if (!widget.readOnly)
                         IconButton(
                           icon: Icon(
@@ -588,8 +475,7 @@ class _DependencyConfigPanelState extends State<DependencyConfigPanel> {
   }
 
   Widget _buildDefaultValueField() {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
+    final colorScheme = Theme.of(context).colorScheme;
 
     return ElevatedCard(
       elevation: CardElevation.level1,
@@ -600,28 +486,11 @@ class _DependencyConfigPanelState extends State<DependencyConfigPanel> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(6),
-                decoration: BoxDecoration(
-                  color: colorScheme.primaryContainer.withValues(alpha: 0.5),
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: Icon(
-                  Icons.text_snippet_outlined,
-                  size: 14,
-                  color: colorScheme.primary,
-                ),
-              ),
-              const SizedBox(width: 10),
-              Text(
-                context.l10n.diy_defaultValue,
-                style: theme.textTheme.titleSmall?.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
+          DiySectionTitle(
+            icon: Icons.text_snippet_outlined,
+            accent: colorScheme.primary,
+            container: colorScheme.primaryContainer,
+            title: context.l10n.diy_defaultValue,
           ),
           const SizedBox(height: 12),
           ThemedFormInput(

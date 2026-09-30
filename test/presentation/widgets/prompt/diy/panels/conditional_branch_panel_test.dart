@@ -8,6 +8,44 @@ import 'package:nai_launcher/presentation/widgets/prompt/diy/panels/conditional_
 import '../../../../../helpers/ink_expectations.dart';
 
 void main() {
+  testWidgets('删除编辑中分支之前的分支后，编辑区仍指向原分支且不越界', (tester) async {
+    ConditionalBranchConfig? changed;
+    await tester.pumpWidget(
+      MaterialApp(
+        locale: const Locale('en'),
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: Scaffold(
+          body: SingleChildScrollView(
+            child: ConditionalBranchPanel(
+              config: const ConditionalBranchConfig(
+                id: 'outfit',
+                name: 'Outfit',
+                branches: [
+                  ConditionalBranch(name: 'Uniform', probability: 60),
+                  ConditionalBranch(name: 'Casual', probability: 40),
+                ],
+              ),
+              onConfigChanged: (config) => changed = config,
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    await tester.tap(find.text('Casual').last);
+    await tester.pump();
+    expect(find.text('Edit: Casual'), findsOneWidget);
+
+    await tester.tap(find.byTooltip('Delete branch').first);
+    await tester.pump();
+
+    expect(changed?.branches.map((branch) => branch.name), ['Casual']);
+    expect(find.text('Edit: Casual'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('概率条分段的悬停与按压反馈画在分段渐变之上，选中后依旧可见', (tester) async {
     await tester.pumpWidget(
       MaterialApp(

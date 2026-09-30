@@ -157,18 +157,12 @@ Future<void> _pumpPanel(
       ),
       home: Scaffold(
         body: SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: SizedBox(
-            width: textScale >= 2 ? 600 : tester.view.physicalSize.width,
-            child: SingleChildScrollView(
-              child: DependencyConfigPanel(
-                config: const DependencyConfig(sourceCategoryId: 'characters'),
-                categoryOptions: const [
-                  DiyCategoryOption(id: 'characters', label: 'Characters'),
-                ],
-                onConfigChanged: onChanged,
-              ),
-            ),
+          child: DependencyConfigPanel(
+            config: const DependencyConfig(sourceCategoryId: 'characters'),
+            categoryOptions: const [
+              DiyCategoryOption(id: 'characters', label: 'Characters'),
+            ],
+            onConfigChanged: onChanged,
           ),
         ),
       ),

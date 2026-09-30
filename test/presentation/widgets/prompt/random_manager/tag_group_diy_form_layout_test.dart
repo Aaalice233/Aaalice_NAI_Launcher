@@ -1,0 +1,388 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:nai_launcher/data/models/prompt/conditional_branch.dart';
+import 'package:nai_launcher/data/models/prompt/dependency_config.dart';
+import 'package:nai_launcher/data/models/prompt/post_process_rule.dart';
+import 'package:nai_launcher/data/models/prompt/random_category.dart';
+import 'package:nai_launcher/data/models/prompt/random_preset.dart';
+import 'package:nai_launcher/data/models/prompt/random_tag_group.dart';
+import 'package:nai_launcher/data/models/prompt/time_condition.dart';
+import 'package:nai_launcher/data/models/prompt/visibility_rule.dart';
+import 'package:nai_launcher/l10n/app_localizations.dart';
+import 'package:nai_launcher/presentation/adaptive/interaction_policy.dart';
+import 'package:nai_launcher/presentation/providers/random_preset_provider.dart';
+import 'package:nai_launcher/presentation/widgets/common/surface_ink_well.dart';
+import 'package:nai_launcher/presentation/widgets/prompt/random_manager/tag_group_card.dart';
+
+// flutter_test 字体每个字形 1em，英文宽度约为真实两倍，作为最窄的压力场景
+const _locale = Locale('en');
+const _widths = [320.0, 600.0, 840.0, 1180.0, 1600.0];
+const _textScales = [1.0, 3.0];
+const _minTouchExtent = 44.0;
+
+const _group = RandomTagGroup(
+  id: 'group',
+  name: 'Group',
+  conditionalBranchConfig: ConditionalBranchConfig(
+    id: 'branch',
+    name: 'Branch',
+    branches: [
+      ConditionalBranch(name: 'Uniform', probability: 60),
+      ConditionalBranch(name: 'Casual', probability: 40, enabled: false),
+    ],
+  ),
+  dependencyConfig: DependencyConfig(
+    sourceCategoryId: 'cat-hair',
+    mappingRules: {'1': '0-3', '2': '0-2'},
+  ),
+  visibilityRules: [
+    VisibilityRule(
+      id: 'rule',
+      name: 'Portrait hides outfit',
+      sourceCategoryId: 'cat-hair',
+      targetCategoryId: 'cat-outfit',
+      conditionValue: 'portrait',
+      enabled: false,
+    ),
+  ],
+  timeCondition: TimeCondition(
+    id: 'time',
+    name: 'Always',
+    startMonth: 1,
+    startDay: 1,
+    endMonth: 12,
+    endDay: 31,
+  ),
+  postProcessRules: [
+    PostProcessRule(
+      id: 'post',
+      name: 'Sleeping',
+      triggerTags: ['sleeping'],
+      action: PostProcessAction.removeCategory,
+      targetCategoryIds: ['cat-outfit', 'gone'],
+    ),
+  ],
+);
+
+const _categories = [
+  RandomCategory(
+    id: 'cat-hair',
+    name: '发色',
+    key: 'hairColor',
+    isBuiltin: true,
+    groups: [_group],
+  ),
+  RandomCategory(id: 'cat-outfit', name: 'Outfit', key: 'custom2'),
+];
+
+class _FixedPresetNotifier extends RandomPresetNotifier {
+  @override
+  RandomPresetState build() => const RandomPresetState(
+    presets: [
+      RandomPreset(id: 'preset', name: 'Preset', categories: _categories),
+    ],
+    selectedPresetId: 'preset',
+  );
+}
+
+final _l10n = lookupAppLocalizations(_locale);
+
+Finder _formSurfaces() => find.byWidgetPredicate(
+  (widget) =>
+      widget.key == const ValueKey('adaptive-bottom-sheet') ||
+      widget.key == const ValueKey('adaptive-centered-form'),
+);
+
+const _confirmKey = ValueKey('tag-group-diy-form-confirm');
+
+// Material 3 的 IconButton 也是 ButtonStyleButton，按具体按钮族筛选；确认按钮单独校验
+Finder _buttons() => find.byWidgetPredicate(
+  (w) => (w is TextButton || w is FilledButton) && w.key != _confirmKey,
+);
+Finder _dropdowns() => find.byWidgetPredicate((w) => w is DropdownButton);
+
+/// 一个 DIY 表单：入口标题、打开后需要展开的编辑区，以及展开后各类控件的数量
+class _FormCase {
+  const _FormCase({
+    required this.title,
+    required this.controls,
+    this.expandText,
+  });
+
+  final String title;
+  final String? expandText;
+  final Map<Finder Function(), int> controls;
+}
+
+final _formCases = <_FormCase>[
+  _FormCase(
+    title: _l10n.randomManager_conditionalBranch,
+    expandText: 'Uniform',
+    controls: {
+      _buttons: 1,
+      () => find.byType(IconButton): 4,
+      () => find.byType(SurfaceInkWell): 2,
+      () => find.byType(Slider): 1,
+      () => find.byType(Switch): 1,
+      () => find.byType(EditableText): 1,
+    },
+  ),
+  _FormCase(
+    title: _l10n.randomManager_dependencyConfig,
+    controls: {
+      _buttons: 2,
+      () => find.byType(IconButton): 3,
+      () => find.byType(SurfaceInkWell): 4,
+      _dropdowns: 1,
+      () => find.byType(Switch): 1,
+      () => find.byType(EditableText): 1,
+    },
+  ),
+  _FormCase(
+    title: _l10n.randomManager_visibilityRules,
+    expandText: 'Portrait hides outfit',
+    controls: {
+      _buttons: 1,
+      () => find.byType(IconButton): 3,
+      _dropdowns: 3,
+      () => find.byType(Switch): 2,
+      () => find.byType(EditableText): 2,
+    },
+  ),
+  _FormCase(
+    title: _l10n.randomManager_timeCondition,
+    controls: {
+      () => find.byType(IconButton): 1,
+      () => find.byType(SurfaceInkWell): 3,
+      _dropdowns: 4,
+      () => find.byType(Switch): 3,
+      () => find.byType(EditableText): 1,
+    },
+  ),
+  _FormCase(
+    title: _l10n.randomManager_postProcessRules,
+    expandText: 'Sleeping',
+    controls: {
+      _buttons: 1,
+      () => find.byType(IconButton): 3,
+      () => find.byType(SurfaceInkWell): 2,
+      _dropdowns: 1,
+      () => find.byType(FilterChip): 2,
+      () => find.byType(InputChip): 1,
+      () => find.byType(Switch): 1,
+      () => find.byType(EditableText): 2,
+    },
+  ),
+];
+
+void main() {
+  for (final formCase in _formCases) {
+    for (final textScale in _textScales) {
+      testWidgets(
+        '${formCase.title} 在 320–1600 宽度、${textScale}x 文字下无溢出且全部控件可达',
+        (tester) async {
+          for (final width in _widths) {
+            await _openForm(
+              tester,
+              formCase,
+              size: Size(width, 900),
+              textScale: textScale,
+            );
+            await _expectFormUsable(
+              tester,
+              formCase,
+              reason: 'width=$width scale=$textScale',
+            );
+          }
+        },
+      );
+    }
+
+    testWidgets('${formCase.title} 在短横屏、软键盘与安全区下可滚动到全部控件', (tester) async {
+      for (final textScale in _textScales) {
+        await _openForm(
+          tester,
+          formCase,
+          size: const Size(740, 360),
+          textScale: textScale,
+          padding: const FakeViewPadding(left: 32, right: 32, bottom: 16),
+          keyboardInset: 160,
+        );
+        await _expectFormUsable(
+          tester,
+          formCase,
+          reason: 'landscape scale=$textScale',
+        );
+      }
+    });
+  }
+}
+
+Future<void> _openForm(
+  WidgetTester tester,
+  _FormCase formCase, {
+  required Size size,
+  required double textScale,
+  FakeViewPadding padding = FakeViewPadding.zero,
+  double keyboardInset = 0,
+}) async {
+  tester.view.physicalSize = size;
+  tester.view.devicePixelRatio = 1;
+  tester.view.padding = padding;
+  tester.view.viewPadding = padding;
+  tester.view.viewInsets = FakeViewPadding.zero;
+  addTearDown(tester.view.reset);
+
+  // 同一用例内逐个表单打开，前一个表单的弹窗路由必须随整棵树一起卸载
+  await tester.pumpWidget(const SizedBox.shrink());
+  await tester.pumpWidget(
+    ProviderScope(
+      overrides: [
+        randomPresetNotifierProvider.overrideWith(_FixedPresetNotifier.new),
+      ],
+      child: MaterialApp(
+        locale: _locale,
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        builder: (context, child) => InteractionPolicyScope(
+          initialPolicy: InteractionPolicy.touchFirst,
+          child: MediaQuery(
+            data: MediaQuery.of(
+              context,
+            ).copyWith(textScaler: TextScaler.linear(textScale)),
+            child: child!,
+          ),
+        ),
+        home: const Scaffold(
+          body: TagGroupCard(
+            tagGroup: _group,
+            categoryId: 'cat-hair',
+            categoryKey: 'hairColor',
+            presetId: 'preset',
+          ),
+        ),
+      ),
+    ),
+  );
+
+  await tester.tap(find.text(_group.name));
+  await tester.pumpAndSettle();
+  final diyTab = find.byIcon(Icons.account_tree_outlined);
+  await tester.ensureVisible(diyTab);
+  await tester.pumpAndSettle();
+  await tester.tap(diyTab);
+  await tester.pumpAndSettle();
+
+  final action = find.byKey(ValueKey('tag-group-diy-action-${formCase.title}'));
+  await tester.ensureVisible(action);
+  await tester.pumpAndSettle();
+  await tester.tap(action);
+  await tester.pumpAndSettle();
+  expect(_formSurfaces(), findsNWidgets(2));
+
+  final expandText = formCase.expandText;
+  if (expandText != null) {
+    final item = find
+        .descendant(of: _formSurfaces().last, matching: find.text(expandText))
+        .last;
+    await tester.ensureVisible(item);
+    await tester.pumpAndSettle();
+    await tester.tap(item);
+    await tester.pumpAndSettle();
+  }
+
+  // 软键盘在 DIY 表单内编辑字段时才弹出，只作用于当前路由
+  if (keyboardInset > 0) {
+    tester.view.viewInsets = FakeViewPadding(bottom: keyboardInset);
+    await tester.pumpAndSettle();
+  }
+}
+
+Future<void> _expectFormUsable(
+  WidgetTester tester,
+  _FormCase formCase, {
+  required String reason,
+}) async {
+  final form = _formSurfaces().last;
+  final body = find
+      .descendant(of: form, matching: find.byType(Scrollable))
+      .first;
+  expect(tester.takeException(), isNull, reason: 'open $reason');
+
+  for (final entry in formCase.controls.entries) {
+    final controls = find.descendant(of: form, matching: entry.key());
+    expect(
+      controls,
+      findsNWidgets(entry.value),
+      reason: '${entry.key()} $reason',
+    );
+    for (var i = 0; i < entry.value; i++) {
+      final control = controls.at(i);
+      await tester.ensureVisible(control);
+      await tester.pump();
+      final formRect = tester.getRect(form);
+      final rect = tester.getRect(control);
+      final label = '${tester.widget(control).runtimeType} #$i $reason';
+      expect(
+        rect.left,
+        greaterThanOrEqualTo(formRect.left - 0.5),
+        reason: label,
+      );
+      expect(
+        rect.right,
+        lessThanOrEqualTo(formRect.right + 0.5),
+        reason: label,
+      );
+      final scrolled = find
+          .ancestor(of: control, matching: body)
+          .evaluate()
+          .isNotEmpty;
+      _expectHitWithinViewport(
+        tester,
+        control,
+        tester.getRect(scrolled ? body : form),
+        label,
+      );
+      if (tester.widget(control) is! SurfaceInkWell &&
+          tester.widget(control) is! Slider &&
+          tester.widget(control) is! EditableText) {
+        expect(
+          rect.shortestSide,
+          greaterThanOrEqualTo(_minTouchExtent),
+          reason: '命中区 $label',
+        );
+      }
+    }
+  }
+
+  // 确认按钮随正文滚动，列表按需构建，滚到末尾才会出现
+  final confirm = find.descendant(of: form, matching: find.byKey(_confirmKey));
+  await tester.scrollUntilVisible(confirm, 200, scrollable: body);
+  await tester.pump();
+  expect(confirm.hitTestable(), findsOneWidget, reason: 'confirm $reason');
+  expect(
+    tester.getSize(confirm).shortestSide,
+    greaterThanOrEqualTo(_minTouchExtent),
+    reason: 'confirm $reason',
+  );
+  expect(tester.takeException(), isNull, reason: reason);
+}
+
+// 比正文视口还高的控件（放大文字后的模板按钮）只要露出的部分能点中即可
+void _expectHitWithinViewport(
+  WidgetTester tester,
+  Finder control,
+  Rect viewport,
+  String reason,
+) {
+  final visible = tester.getRect(control).intersect(viewport);
+  expect(visible.width > 0 && visible.height > 0, isTrue, reason: reason);
+  final target = tester.renderObject(control);
+  final path = tester.hitTestOnBinding(visible.center).path;
+  expect(
+    path.any((entry) => entry.target == target),
+    isTrue,
+    reason: '可点中 $reason',
+  );
+}

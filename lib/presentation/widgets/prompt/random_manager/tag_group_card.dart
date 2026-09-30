@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/utils/localization_extension.dart';
 import '../../../adaptive/adaptive_presenter.dart';
+import '../../../adaptive/content_sized_adaptive_form.dart';
 import '../../../providers/random_preset_provider.dart';
 import '../../../providers/tag_library_provider.dart';
 import '../../../themes/core/layered_surface_style.dart';
@@ -1091,10 +1092,11 @@ class _TagGroupEditDialogState extends ConsumerState<_TagGroupEditDialog>
             size: 20,
           ),
           const SizedBox(width: 12),
+          // 面板内首行标题会完整换行显示同一名称，这里单行以把高度留给正文
           Expanded(
             child: Text(
               title,
-              maxLines: 2,
+              maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: Theme.of(
                 panelContext,
@@ -1103,29 +1105,19 @@ class _TagGroupEditDialogState extends ConsumerState<_TagGroupEditDialog>
           ),
         ],
       ),
-      builder: (panelContext, scrollController) => Column(
-        children: [
-          Expanded(
-            child: ListView(
-              controller: scrollController,
-              keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-              padding: const EdgeInsets.all(16),
-              children: [child],
-            ),
-          ),
-          const Divider(height: 1),
-          SafeArea(
-            top: false,
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Align(
-                alignment: AlignmentDirectional.centerEnd,
-                child: FilledButton.icon(
-                  onPressed: () => Navigator.pop(panelContext),
-                  icon: const Icon(Icons.check, size: 18),
-                  label: Text(panelContext.l10n.common_confirm),
-                ),
-              ),
+      // 确认随正文滚动：短横屏叠加软键盘时固定页脚会把正文挤到零高度
+      builder: (panelContext, scrollController) => ContentSizedAdaptiveForm(
+        scrollController: scrollController,
+        content: [
+          child,
+          const SizedBox(height: 16),
+          Align(
+            alignment: AlignmentDirectional.centerEnd,
+            child: FilledButton.icon(
+              key: const ValueKey('tag-group-diy-form-confirm'),
+              onPressed: () => Navigator.pop(panelContext),
+              icon: const Icon(Icons.check, size: 18),
+              label: Text(panelContext.l10n.common_confirm),
             ),
           ),
         ],
