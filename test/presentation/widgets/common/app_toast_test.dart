@@ -514,6 +514,9 @@ void main() {
     );
 
     await tester.tap(find.text('显示 Toast'));
+    // 第一帧才把 toast 挂上去、滑入动画从这一帧起算；再推进 301ms 才到位。
+    // 只推一次时 toast 还停在屏幕右侧外，点它会落空。
+    await tester.pump();
     await tester.pump(const Duration(milliseconds: 301));
 
     final message = find.text('已加入队列');

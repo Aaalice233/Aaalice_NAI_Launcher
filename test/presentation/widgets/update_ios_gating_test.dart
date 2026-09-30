@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
+import 'package:nai_launcher/core/constants/app_version.dart';
 import 'package:nai_launcher/core/platform/platform_capabilities.dart';
 import 'package:nai_launcher/core/services/update_check_service.dart';
 import 'package:nai_launcher/core/storage/local_storage_service.dart';
@@ -13,6 +14,7 @@ import 'package:nai_launcher/presentation/screens/settings/sections/about_settin
 import 'package:nai_launcher/presentation/screens/splash/app_bootstrap.dart';
 import 'package:nai_launcher/presentation/widgets/common/update_check_dialog.dart';
 import 'package:nai_launcher/presentation/widgets/common/update_notice_banner.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 
 /// iOS 是未签名 IPA 自签侧载：Release 里没有 iOS 资产，整条应用内更新链路
 /// （自动检查 / 提示横幅 / 弹窗下载 / 设置入口）必须在 iOS 上整体关闭，而在
@@ -32,6 +34,18 @@ class _MockUpdateCheckService extends Mock implements UpdateCheckService {}
 class _MockLocalStorageService extends Mock implements LocalStorageService {}
 
 void main() {
+  // 关于页标题行读 AppVersion.versionName，未初始化会直接抛 StateError。
+  setUpAll(() async {
+    PackageInfo.setMockInitialValues(
+      appName: 'NAI Launcher',
+      packageName: 'nai_launcher',
+      version: '1.0.0',
+      buildNumber: '1',
+      buildSignature: '',
+    );
+    await AppVersion.initialize();
+  });
+
   const windowsAsset = ReleaseAssetInfo(
     type: ReleaseAssetType.windowsPortable,
     platform: 'windows',
@@ -241,6 +255,9 @@ void main() {
     });
 
     await onPlatform(TargetPlatform.android, () async {
+      // aboutHost 里的 MaterialApp 是 const 子树，直接再 pump 会被原样复用、
+      // 不会重新 build，能力位切换就体现不出来。先卸掉整棵树再挂回去。
+      await tester.pumpWidget(const SizedBox.shrink());
       await tester.pumpWidget(aboutHost());
       await tester.pump();
 

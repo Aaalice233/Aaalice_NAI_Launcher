@@ -1,44 +1,31 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:hive_flutter/hive_flutter.dart';
-import 'package:nai_launcher/core/constants/storage_keys.dart';
+import 'package:nai_launcher/core/storage/local_storage_service.dart';
 import 'package:nai_launcher/data/models/character/character_prompt.dart';
+import 'package:nai_launcher/data/repositories/character_prompt_repository.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/providers/character_prompt_provider.dart';
 import 'package:nai_launcher/presentation/widgets/character/add_character_buttons.dart';
 
+import '../../../helpers/memory_local_storage.dart';
+
 /// 到达官方角色上限后 addCharacter 只写日志就 return。上游没有在这个组件里
 /// 做任何上限判断，触屏上只有 tooltip 等于没有提示，这里锁住"变灰 + 点击有
 /// 可见反馈"两条行为。
+///
+/// 角色配置与设置都换成内存实现：在 testWidgets 的假异步区里写真实 Hive，
+/// 落盘 Future 永远完成不了，tearDownAll 的 Hive.close() 会一直挂住。
 void main() {
-  TestWidgetsFlutterBinding.ensureInitialized();
-
-  late Directory hiveTempDir;
-
-  setUpAll(() async {
-    hiveTempDir = await Directory.systemTemp.createTemp(
-      'nai_launcher_add_character_limit_hive_',
-    );
-    Hive.init(hiveTempDir.path);
-    await Hive.openBox(StorageKeys.settingsBox);
-  });
-
-  tearDownAll(() async {
-    await Hive.close();
-    if (await hiveTempDir.exists()) {
-      await hiveTempDir.delete(recursive: true);
-    }
-  });
-
-  setUp(() async {
-    await Hive.box(StorageKeys.settingsBox).clear();
-  });
-
   Future<ProviderContainer> pumpButtons(WidgetTester tester) async {
-    final container = ProviderContainer();
+    final container = ProviderContainer(
+      overrides: [
+        characterPromptRepositoryProvider.overrideWith(
+          (ref) => _MemoryCharacterPromptRepository(),
+        ),
+        localStorageServiceProvider.overrideWith((ref) => MemoryLocalStorage()),
+      ],
+    );
     addTearDown(container.dispose);
 
     await tester.pumpWidget(
@@ -108,4 +95,17 @@ void main() {
     await tester.pump(const Duration(seconds: 4));
     await tester.pumpAndSettle();
   });
+}
+
+class _MemoryCharacterPromptRepository extends CharacterPromptRepository {
+  CharacterPromptConfig config = const CharacterPromptConfig();
+
+  @override
+  CharacterPromptConfig load() => config;
+
+  @override
+  Future<bool> save(CharacterPromptConfig value) async {
+    config = value;
+    return true;
+  }
 }

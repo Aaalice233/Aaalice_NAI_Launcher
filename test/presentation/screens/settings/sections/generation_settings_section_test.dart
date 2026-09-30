@@ -244,7 +244,11 @@ void main() {
   });
 
   testWidgets('音效开关关闭时隐藏自定义音效入口', (tester) async {
-    final storage = _MemoryLocalStorageService();
+    // iOS 分支：移动端默认关闭完成音效（见 notification_settings_provider.dart），
+    // 这条用例要从「开着」出发验证关闭后隐藏，所以显式打开。
+    final storage = _MemoryLocalStorageService(
+      initialValues: {StorageKeys.notificationSoundEnabled: true},
+    );
     await tester.binding.setSurfaceSize(const Size(1000, 1600));
     addTearDown(() => tester.binding.setSurfaceSize(null));
 
