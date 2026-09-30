@@ -10767,11 +10767,17 @@ abstract class AppLocalizations {
   /// **'Favorites'**
   String get statistics_favorites;
 
-  /// No description provided for @statistics_samplerDistribution.
+  /// No description provided for @statistics_parameterDistribution.
   ///
   /// In en, this message translates to:
-  /// **'Sampler Distribution'**
-  String get statistics_samplerDistribution;
+  /// **'Parameter Distribution'**
+  String get statistics_parameterDistribution;
+
+  /// No description provided for @statistics_parameterOther.
+  ///
+  /// In en, this message translates to:
+  /// **'Other'**
+  String get statistics_parameterOther;
 
   /// No description provided for @statistics_additionalStats.
   ///

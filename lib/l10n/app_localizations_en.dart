@@ -6079,7 +6079,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get statistics_favorites => 'Favorites';
 
   @override
-  String get statistics_samplerDistribution => 'Sampler Distribution';
+  String get statistics_parameterDistribution => 'Parameter Distribution';
+
+  @override
+  String get statistics_parameterOther => 'Other';
 
   @override
   String get statistics_additionalStats => 'Additional Statistics';

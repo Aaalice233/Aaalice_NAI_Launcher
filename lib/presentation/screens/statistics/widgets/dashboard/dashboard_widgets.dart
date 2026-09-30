@@ -5,7 +5,7 @@ export 'animated_refresh_button.dart';
 export 'overview_stats_row.dart';
 export 'other_stats_card.dart';
 export 'anlas_cost_card.dart';
-export 'sampler_distribution_card.dart';
+export 'parameter_distribution_card.dart';
 export 'aspect_ratio_card.dart';
 export 'activity_heatmap_card.dart';
 export 'hourly_distribution_card.dart';

@@ -176,7 +176,7 @@ class _StatisticsScreenState extends ConsumerState<StatisticsScreen> {
           ),
           StaggeredGridTile.fit(
             crossAxisCellCount: 1,
-            child: SamplerDistributionCard(stats: stats),
+            child: ParameterDistributionCard(stats: stats),
           ),
           StaggeredGridTile.fit(
             crossAxisCellCount: 1,
