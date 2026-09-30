@@ -2389,10 +2389,7 @@
     }
   },
   "randomManager_categories": "类别",
-  "randomManager_tagGroups": "词组",
-  "randomManager_tags": "标签",
   "randomManager_addTagGroup": "添加词组",
-  "randomManager_locked": "已锁定",
   "randomManager_addCategory": "新增类别",
   "randomManager_noCategories": "暂无类别",
   "randomManager_noCategoriesHint": "点击“新增类别”开始配置",
@@ -2534,12 +2531,8 @@
   },
   "randomManager_previewHint": "尚未生成样例",
   "randomManager_moreActions": "更多操作",
-  "scope_global": "主提示词",
-  "scope_globalTooltip": "提示词将出现在主提示词区域\n适合：背景、场景、画面风格等",
   "scope_character": "角色",
-  "scope_characterTooltip": "提示词将只出现在角色提示词内\n每个角色单独生成\n适合：发色、眵色、服装、表情等",
   "scope_all": "通用",
-  "scope_allTooltip": "提示词同时出现在主提示词和角色提示词\n适合：姿势、互动等通用标签",
 
   "vibeParseFailed": "无法解析 Vibe 文件",
 

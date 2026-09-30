@@ -5189,16 +5189,7 @@ class AppLocalizationsJa extends AppLocalizations {
   String get randomManager_categories => 'カテゴリ';
 
   @override
-  String get randomManager_tagGroups => 'タググループ';
-
-  @override
-  String get randomManager_tags => 'タグ';
-
-  @override
   String get randomManager_addTagGroup => 'タググループの追加';
-
-  @override
-  String get randomManager_locked => 'ロックされました';
 
   @override
   String get randomManager_addCategory => 'カテゴリを追加';
@@ -5511,25 +5502,10 @@ class AppLocalizationsJa extends AppLocalizations {
   String get randomManager_moreActions => 'その他のアクション';
 
   @override
-  String get scope_global => 'メイン';
-
-  @override
-  String get scope_globalTooltip =>
-      'プロンプトはメイン プロンプト領域に表示されます\n適した用途: 背景、シーン、スタイルなど。';
-
-  @override
   String get scope_character => 'キャラクター';
 
   @override
-  String get scope_characterTooltip =>
-      'プロンプトはキャラクタープロンプトにのみ表示されます\nキャラクターごとに個別に生成されます\n適用対象: 髪の色、目の色、服装、表情など。';
-
-  @override
   String get scope_all => '両方';
-
-  @override
-  String get scope_allTooltip =>
-      'プロンプトはメイン プロンプトとキャラクター プロンプトの両方に表示されます\n用途: ポーズ、インタラクション、その他の汎用タグ';
 
   @override
   String get vibeParseFailed => 'Vibe ファイルの解析に失敗しました';
