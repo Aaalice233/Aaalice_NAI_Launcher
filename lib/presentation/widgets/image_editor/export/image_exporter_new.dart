@@ -133,7 +133,9 @@ class ImageExporterNew {
       throw Exception('Failed to convert mask to bytes');
     }
 
-    return InpaintMaskUtils.normalizeMaskBytes(byteData.buffer.asUint8List());
+    return InpaintMaskUtils.normalizeMaskBytesAsync(
+      byteData.buffer.asUint8List(),
+    );
   }
 
   /// Returns the CPU hard-edge raster without a PNG encode/decode round trip.
@@ -171,7 +173,7 @@ class ImageExporterNew {
       forceHardEdges: true,
       additionalMaskRects: additionalMaskRects,
     );
-    final decoded = InpaintMaskUtils.decodeBinaryMask(bytes);
+    final decoded = await InpaintMaskUtils.decodeBinaryMaskAsync(bytes);
     if (decoded == null) {
       throw StateError('Failed to read the layer mask.');
     }
@@ -212,8 +214,9 @@ class ImageExporterNew {
     if (byteData == null) {
       throw Exception('Failed to convert mask to bytes');
     }
-    final decoded = InpaintMaskUtils.decodeBinaryMask(
-      InpaintMaskUtils.normalizeMaskBytes(byteData.buffer.asUint8List()),
+    // 归一化只把像素收敛成 0/255，二值判定结果不变，省掉一轮编解码。
+    final decoded = await InpaintMaskUtils.decodeBinaryMaskAsync(
+      byteData.buffer.asUint8List(),
     );
     if (decoded == null) {
       throw StateError('Failed to read the layer mask.');

@@ -350,7 +350,7 @@ class MagicWandController extends ChangeNotifier {
       forceHardEdges: true,
       preferCpuHardEdgeExport: true,
     );
-    final decoded = InpaintMaskUtils.decodeBinaryMask(encoded);
+    final decoded = await InpaintMaskUtils.decodeBinaryMaskAsync(encoded);
     if (decoded == null || decoded.width != width || decoded.height != height) {
       throw StateError('Failed to read the current inpaint mask.');
     }
