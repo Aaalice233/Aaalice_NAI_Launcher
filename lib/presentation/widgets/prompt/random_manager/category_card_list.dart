@@ -5,6 +5,7 @@ import '../../../../core/utils/localization_extension.dart';
 import '../../../../data/models/prompt/official_wordlist.dart';
 import '../../../../data/models/prompt/random_category.dart';
 import '../../../../data/models/prompt/random_preset.dart';
+import '../../../adaptive/adaptive_pinned_header_sliver.dart';
 import '../../../providers/random_preset_provider.dart';
 import '../../../themes/core/layered_surface_style.dart';
 import 'category_card.dart';
@@ -14,83 +15,98 @@ class CategoryCardList extends ConsumerWidget {
     super.key,
     this.onAddCategory,
     this.query = '',
-    this.shrinkWrap = false,
     this.overviewHeader,
+    this.leadingSlivers = const [],
   });
 
   final VoidCallback? onAddCategory;
   final String query;
-  final bool shrinkWrap;
   final Widget? overviewHeader;
+
+  /// Page chrome that shares this scroll view above the overview.
+  final List<Widget> leadingSlivers;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final preset = ref.watch(randomPresetNotifierProvider).selectedPreset;
-    if (preset == null) {
-      return Center(
-        child: Text(context.l10n.randomManager_selectPresetRequired),
-      );
-    }
-
-    final categories = _filteredCategories(preset, query);
-    final list = categories.isEmpty
-        ? _NoCategoryResults(
-            hasQuery: query.isNotEmpty,
-            canEdit: !preset.isDefault,
-          )
-        : ListView.separated(
-            shrinkWrap: shrinkWrap,
-            physics: shrinkWrap
-                ? const NeverScrollableScrollPhysics()
-                : const ClampingScrollPhysics(),
-            keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-            padding: const EdgeInsets.only(bottom: 4),
-            itemCount: categories.length,
-            separatorBuilder: (_, _) => const SizedBox(height: 8),
-            itemBuilder: (context, index) {
-              final category = categories[index];
-              return CategoryCard(
-                key: ValueKey(category.id),
-                category: category,
-                presetId: preset.id,
-                isPresetDefault: preset.isDefault,
-              );
-            },
-          );
-
-    return Padding(
-      padding: EdgeInsets.fromLTRB(overviewHeader == null ? 0 : 16, 16, 16, 16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        mainAxisSize: shrinkWrap ? MainAxisSize.min : MainAxisSize.max,
-        children: [
-          Container(
-            key: const ValueKey('random-manager-overview-card'),
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: sectionSurfaceColor(Theme.of(context).colorScheme),
-              borderRadius: BorderRadius.circular(12),
+    return CustomScrollView(
+      key: const ValueKey('random-manager-category-scroll'),
+      physics: const ClampingScrollPhysics(),
+      keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+      slivers: [
+        ...leadingSlivers,
+        if (preset == null)
+          SliverFillRemaining(
+            hasScrollBody: false,
+            child: Center(
+              child: Text(context.l10n.randomManager_selectPresetRequired),
             ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                if (overviewHeader != null) ...[
-                  overviewHeader!,
-                  const SizedBox(height: 14),
+          )
+        else
+          ..._buildPresetSlivers(context, preset),
+      ],
+    );
+  }
+
+  List<Widget> _buildPresetSlivers(BuildContext context, RandomPreset preset) {
+    final categories = _filteredCategories(preset, query);
+    final leading = overviewHeader == null ? 0.0 : 16.0;
+    return [
+      AdaptivePinnedHeaderSliver(
+        child: ColoredBox(
+          // 固定时列表从下方滚过，用画布色遮住卡片圆角与间距处的内容
+          color: Theme.of(context).colorScheme.surface,
+          child: Padding(
+            padding: EdgeInsets.fromLTRB(leading, 16, 16, 12),
+            child: Container(
+              key: const ValueKey('random-manager-overview-card'),
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: sectionSurfaceColor(Theme.of(context).colorScheme),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  if (overviewHeader != null) ...[
+                    overviewHeader!,
+                    const SizedBox(height: 14),
+                  ],
+                  _RecipeSummary(
+                    preset: preset,
+                    visibleCount: categories.length,
+                    onAddCategory: onAddCategory,
+                  ),
                 ],
-                _RecipeSummary(
-                  preset: preset,
-                  visibleCount: categories.length,
-                  onAddCategory: onAddCategory,
-                ),
-              ],
+              ),
             ),
           ),
-          const SizedBox(height: 12),
-          if (shrinkWrap) list else Expanded(child: list),
-        ],
+        ),
       ),
-    );
+      SliverPadding(
+        padding: EdgeInsets.fromLTRB(leading, 0, 16, 20),
+        sliver: categories.isEmpty
+            ? SliverToBoxAdapter(
+                child: _NoCategoryResults(
+                  hasQuery: query.isNotEmpty,
+                  canEdit: !preset.isDefault,
+                ),
+              )
+            : SliverList.separated(
+                itemCount: categories.length,
+                separatorBuilder: (_, _) => const SizedBox(height: 8),
+                itemBuilder: (context, index) {
+                  final category = categories[index];
+                  return CategoryCard(
+                    key: ValueKey(category.id),
+                    category: category,
+                    presetId: preset.id,
+                    isPresetDefault: preset.isDefault,
+                  );
+                },
+              ),
+      ),
+    ];
   }
 
   List<RandomCategory> _filteredCategories(
