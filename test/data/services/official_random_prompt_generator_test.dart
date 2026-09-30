@@ -139,6 +139,56 @@ void main() {
     },
   );
 
+  test('legless picks skip records that bundle a blocked leg clothing tag', () {
+    final entries = [
+      OfficialWordlistEntry.fromRaw(
+        groupId: 'fixture',
+        raw: ['sukeban, delinquent, sarashi, long skirt', 10, [], [], []],
+      ),
+      OfficialWordlistEntry.fromRaw(
+        groupId: 'fixture',
+        raw: ['sailor', 1, [], [], []],
+      ),
+    ];
+
+    expect(
+      OfficialRandomPromptGenerator.selectCharacterRecordForTest(
+        entries: entries,
+        state: <String>{},
+        randomValue: 0,
+      ),
+      'sukeban, delinquent, sarashi, long skirt',
+    );
+    expect(
+      OfficialRandomPromptGenerator.selectCharacterRecordForTest(
+        entries: entries,
+        state: <String>{},
+        randomValue: 0,
+        blockedTags: const {'long skirt'},
+      ),
+      'sailor',
+    );
+    expect(
+      OfficialRandomPromptGenerator.selectLegacyRecordForTest(
+        entries: entries,
+        selectedTags: const [],
+        randomValue: 0,
+        blockedTags: const {'long skirt'},
+      ),
+      'sailor',
+    );
+    expect(
+      OfficialRandomPromptGenerator.selectLegacyRecordForTest(
+        entries: entries,
+        selectedTags: const [],
+        randomValue: 0,
+        blockedTags: const {'skirt'},
+      ),
+      'sukeban, delinquent, sarashi, long skirt',
+      reason: 'only whole comma-separated tags are compared',
+    );
+  });
+
   group('asset flags gate Character Prompts roles', () {
     late OfficialWordlist library;
     late List<_Role> roles;
@@ -246,12 +296,6 @@ void main() {
       final legwear = _values(library, 'dk');
       final footwear = _values(library, 'dI');
       final bottoms = _values(library, 'dA');
-      // Uniform records bundle a whole outfit, e.g. "sukeban, ..., long skirt";
-      // only the dedicated clothing picks are gated by legs.
-      final outfits = _values(
-        library,
-        'dM',
-      ).where((outfit) => outfit.contains(', ')).toList();
       final legless = roles
           .where(
             (role) => role.tags.any(
@@ -263,10 +307,9 @@ void main() {
       expect(legless.length, greaterThan(40));
       expect(legless.where((role) => role.showsLegs).length, greaterThan(10));
       for (final role in legless) {
-        final picks = role.withoutOutfits(outfits);
-        expect(picks.wears(bottoms), isFalse, reason: role.prompt);
-        expect(picks.wears(footwear), isFalse, reason: role.prompt);
-        expect(picks.wears(legwear), isFalse, reason: role.prompt);
+        expect(role.wears(bottoms), isFalse, reason: role.prompt);
+        expect(role.wears(footwear), isFalse, reason: role.prompt);
+        expect(role.wears(legwear), isFalse, reason: role.prompt);
       }
 
       final legged = roles.where(
@@ -493,12 +536,6 @@ class _Role {
   bool get showsLegs => framing == 'cowboy shot' || framing == 'full body';
 
   bool wears(Set<String> values) => _wears(tags, values, colors);
-
-  _Role withoutOutfits(Iterable<String> outfits) => _Role(
-    outfits.fold(prompt, (text, outfit) => text.replaceAll(outfit, '')),
-    colors,
-    framing: framing,
-  );
 }
 
 Future<List<_Role>> _sampleRoles(
