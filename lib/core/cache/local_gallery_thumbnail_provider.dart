@@ -80,13 +80,17 @@ class LocalGallerySourceIdentity {
     required int size,
     required DateTime modifiedAt,
   }) {
-    var normalizedPath = p.normalize(p.absolute(path));
-    if (Platform.isWindows) normalizedPath = normalizedPath.toLowerCase();
     return LocalGallerySourceIdentity(
-      path: normalizedPath,
+      path: normalizePath(path),
       size: size,
       modifiedAtMillis: modifiedAt.millisecondsSinceEpoch,
     );
+  }
+
+  /// Spells one local file the same way in every image cache key.
+  static String normalizePath(String path) {
+    final normalizedPath = p.normalize(p.absolute(path));
+    return Platform.isWindows ? normalizedPath.toLowerCase() : normalizedPath;
   }
 
   final String path;
