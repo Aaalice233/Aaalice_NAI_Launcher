@@ -1,5 +1,8 @@
+import 'dart:async';
+
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
+import '../../../core/cache/gallery_cache_manager.dart';
 import '../../../core/database/database_providers.dart';
 import '../../../core/database/datasources/gallery_data_source.dart' as ds;
 import '../../../core/utils/app_logger.dart';
@@ -55,16 +58,63 @@ class StatisticsNotifier extends _$StatisticsNotifier {
   Future<void>? _loadFuture;
   bool _needsRefreshAfterWarmup = false;
 
+  /// Gallery index writes arriving within this window share one reload.
+  static const Duration galleryChangeDebounce = Duration(seconds: 1);
+
+  // Bumped on every gallery index write; data loaded at an older revision is
+  // stale.
+  int _galleryRevision = 0;
+  int _loadedRevision = 0;
+  // Listeners mean statistics are on screen; only then do writes reload.
+  bool _watched = false;
+  Timer? _galleryChangeTimer;
+
+  bool get _missesGalleryChanges => _loadedRevision != _galleryRevision;
+
   @override
-  StatisticsData build() => const StatisticsData();
+  StatisticsData build() {
+    final cacheManager = GalleryCacheManager();
+    cacheManager.registerOnStatisticsInvalidated(_onGalleryIndexChanged);
+    ref.onAddListener(() => _watched = true);
+    ref.onCancel(_stopWatching);
+    ref.onDispose(() {
+      _stopWatching();
+      cacheManager.unregisterOnStatisticsInvalidated(_onGalleryIndexChanged);
+    });
+    return const StatisticsData();
+  }
 
   Future<void> whenLoaded() {
-    if (_needsRefreshAfterWarmup) {
-      _needsRefreshAfterWarmup = false;
-      return _loadStatistics(usePersistentCache: false);
+    if (state.statistics == null) return _loadStatistics();
+    if (!_needsRefreshAfterWarmup && !_missesGalleryChanges) {
+      return Future<void>.value();
     }
-    if (state.statistics != null) return Future<void>.value();
-    return _loadStatistics();
+    _needsRefreshAfterWarmup = false;
+    return _loadStatistics(usePersistentCache: false);
+  }
+
+  void _onGalleryIndexChanged() {
+    _galleryRevision++;
+    // A hidden page reloads on its next open through whenLoaded.
+    if (!_watched) return;
+    _galleryChangeTimer?.cancel();
+    _galleryChangeTimer = Timer(galleryChangeDebounce, () {
+      _galleryChangeTimer = null;
+      unawaited(_reloadAfterGalleryChange());
+    });
+  }
+
+  Future<void> _reloadAfterGalleryChange() async {
+    final inFlight = _loadFuture;
+    if (inFlight != null) await inFlight;
+    if (!_watched || !_missesGalleryChanges) return;
+    await _loadStatistics(usePersistentCache: false);
+  }
+
+  void _stopWatching() {
+    _watched = false;
+    _galleryChangeTimer?.cancel();
+    _galleryChangeTimer = null;
   }
 
   Future<void> _loadStatistics({bool usePersistentCache = true}) async {
@@ -107,12 +157,16 @@ class StatisticsNotifier extends _$StatisticsNotifier {
         }
       }
 
+      // Taken before the query: a write racing it costs one extra reload at
+      // most, never a missed one.
+      final revision = _galleryRevision;
       final snapshot = await dataSource.getDashboardStatistics();
       final statistics = ref
           .read(statisticsServiceProvider)
           .fromDashboardSnapshot(snapshot);
 
       _needsRefreshAfterWarmup = false;
+      _loadedRevision = revision;
       state = StatisticsData(
         statistics: statistics,
         isLoading: false,
