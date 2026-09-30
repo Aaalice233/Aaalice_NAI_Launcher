@@ -10,7 +10,6 @@ import '../models/gallery/nai_image_metadata.dart';
 import 'fixed_tag/fixed_tag_usage_record_store.dart';
 import 'metadata/cache_manager.dart';
 import 'metadata/hash_calculator.dart';
-import 'metadata/preloader.dart';
 import 'metadata/unified_metadata_parser.dart';
 
 /// 解析任务取消 Token
@@ -122,7 +121,6 @@ class ParseStatistics {
 /// - ImageMetadataService: 主服务，协调各组件
 /// - MetadataCacheManager: L1/L2 缓存管理
 /// - FileHashCalculator: 文件哈希计算
-/// - MetadataPreloader: 后台预加载队列
 /// - UnifiedMetadataParser: 统一元数据解析器
 ///
 /// 新特性：
@@ -138,7 +136,6 @@ class ImageMetadataService {
   // 子组件
   final _cacheManager = MetadataCacheManager();
   final _hashCalculator = FileHashCalculator();
-  final _preloader = MetadataPreloader();
   final _fixedTagUsageRecords = FixedTagUsageRecordStore();
 
   // 并发控制
@@ -510,15 +507,6 @@ class ImageMetadataService {
     }
   }
 
-  /// 将图像加入预加载队列
-  void enqueuePreload({
-    required String taskId,
-    String? filePath,
-    Uint8List? bytes,
-  }) {
-    _preloader.enqueue(taskId: taskId, filePath: filePath, bytes: bytes);
-  }
-
   /// 从缓存获取元数据（同步检查）
   NaiImageMetadata? getCached(String path) {
 
@@ -571,9 +559,6 @@ class ImageMetadataService {
     _hashCalculator.notifyPathChanged(oldPath, newPath);
   }
 
-  /// 预加载（简写）
-  void preload(String path) => enqueuePreload(taskId: path, filePath: path);
-
   // ==================== 统计信息 ====================
 
   /// L1 内存缓存大小
@@ -601,7 +586,6 @@ class ImageMetadataService {
   void resetStatistics() {
     _cacheManager.resetStatistics();
     _hashCalculator.resetStatistics();
-    _preloader.resetStatistics();
     _statistics.reset();
   }
 
@@ -609,14 +593,10 @@ class ImageMetadataService {
   Map<String, dynamic> getStats() => {
     ..._cacheManager.getStatistics(),
     ..._hashCalculator.getStatistics(),
-    ..._preloader.getStatistics(),
     ..._statistics.toMap(),
     'pendingTasks': _pendingTasks.length,
     'activeTimeouts': _activeTimeouts.length,
   };
-
-  /// 获取预加载队列状态
-  Map<String, dynamic> getPreloadQueueStatus() => _preloader.getStatistics();
 
   // ==================== 私有方法 ====================
 

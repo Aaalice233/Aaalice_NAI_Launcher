@@ -1,4 +1,3 @@
-import '../../../../data/services/image_metadata_service.dart';
 import '../../../providers/generation/generation_models.dart';
 import '../../../widgets/common/image_detail/file_image_detail_data.dart';
 import '../../../widgets/common/image_detail/image_detail_data.dart';
@@ -11,10 +10,6 @@ class GenerationDetailData {
   static ImageDetailData forImage(GeneratedImage image) {
     final filePath = image.filePath;
     if (filePath != null && filePath.isNotEmpty) {
-      ImageMetadataService().enqueuePreload(
-        taskId: image.id,
-        filePath: filePath,
-      );
       return FileImageDetailData(
         filePath: filePath,
         cachedBytes: image.bytes,
