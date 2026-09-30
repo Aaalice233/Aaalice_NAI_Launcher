@@ -34,8 +34,10 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
   // 宽屏与紧凑排布互换时保留标题栏与类别列表（搜索焦点、展开状态、滚动位置）
   final _headerKey = GlobalKey();
   final _categoryListKey = GlobalKey();
+  static const _recipeSection = 0;
+
   String _query = '';
-  int _compactSection = 0;
+  int _compactSection = _recipeSection;
 
   @override
   void dispose() {
@@ -64,7 +66,7 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
       child: Actions(
         actions: {
           _FocusSearchIntent: CallbackAction<_FocusSearchIntent>(
-            onInvoke: (_) => _searchFocusNode.requestFocus(),
+            onInvoke: (_) => _focusSearch(),
           ),
           _PreviewIntent: CallbackAction<_PreviewIntent>(
             onInvoke: (_) => _previewController.generate(),
@@ -182,6 +184,18 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
 
   void _updateQuery(String value) {
     setState(() => _query = value.trim().toLowerCase());
+  }
+
+  // 紧凑排布下搜索框只在配方分区，其他分区里它不可聚焦，先切回配方分区再聚焦
+  void _focusSearch() {
+    if (_searchFocusNode.canRequestFocus) {
+      _searchFocusNode.requestFocus();
+      return;
+    }
+    setState(() => _compactSection = _recipeSection);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _searchFocusNode.requestFocus();
+    });
   }
 
   Future<void> _showImportExportActions() async {
