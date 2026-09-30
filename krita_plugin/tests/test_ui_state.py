@@ -1367,6 +1367,7 @@ class DockerStateTests(unittest.TestCase):
             "unauthorized_bridge_client": "桥接客户端尚未认证",
             "unsupported_message": "当前插件消息不受支持",
             "stream_interrupted": "生成流中断",
+            "empty_mask": "蒙版为空或过细，请标记重绘区域，或加粗、扩大选区",
         }
 
         for code, expected in cases.items():
