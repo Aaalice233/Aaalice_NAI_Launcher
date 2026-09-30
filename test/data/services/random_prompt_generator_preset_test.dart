@@ -659,10 +659,7 @@ void main() {
 
       expect(_promptTags(portrait.mainPrompt), isNot(contains('boots')));
       expect(_promptTags(portrait.mainPrompt), isNot(contains('jeans')));
-      expect(
-        _promptTags(fullBody.mainPrompt),
-        containsAll(['boots', 'jeans']),
-      );
+      expect(_promptTags(fullBody.mainPrompt), containsAll(['boots', 'jeans']));
     });
 
     test('以本词组 ID 为目标的存量规则仍只控制该词组', () async {
@@ -690,10 +687,155 @@ void main() {
         seed: 1,
       );
 
+      expect(_promptTags(result.mainPrompt), containsAll(['boots', 'jeans']));
+    });
+  });
+
+  group('词组上的后处理规则', () {
+    RandomPreset sleepingPreset({
+      required List<String> poseTags,
+      required List<String> eyeFeatureTags,
+      required PostProcessRule rule,
+      bool ownerEnabled = true,
+    }) => _preset([
+      _category(
+        id: 'cat-eyes',
+        key: 'eyeColor',
+        name: '眼睛',
+        groups: [
+          _group(id: 'eye_color', tags: ['blue eyes']),
+          _group(id: 'eye_feature', tags: eyeFeatureTags),
+        ],
+      ),
+      _category(
+        id: 'cat-pose',
+        key: 'pose',
+        groups: [
+          _group(
+            id: 'pose_group',
+            tags: poseTags,
+            enabled: ownerEnabled,
+            postProcessRules: [rule],
+          ),
+          _group(id: 'pose_extra', tags: ['arms up']),
+        ],
+      ),
+    ]);
+
+    test('睡眠预设移除其他类别里的瞳色', () async {
+      final result = await generator.generateFromPreset(
+        preset: sleepingPreset(
+          poseTags: ['sleeping'],
+          eyeFeatureTags: const [],
+          rule: PostProcessRule.sleepingRule(targetCategoryIds: ['cat-eyes']),
+        ),
+        seed: 1,
+      );
+
+      final tags = _promptTags(result.mainPrompt);
+      expect(tags, contains('sleeping'));
+      expect(tags, isNot(contains('blue eyes')));
+    });
+
+    test('触发标签本身属于目标类别时保留，只移除同类的其他标签', () async {
+      final result = await generator.generateFromPreset(
+        preset: sleepingPreset(
+          poseTags: ['standing'],
+          eyeFeatureTags: ['closed eyes'],
+          rule: PostProcessRule.sleepingRule(targetCategoryIds: ['cat-eyes']),
+        ),
+        seed: 1,
+      );
+
+      final tags = _promptTags(result.mainPrompt);
+      expect(tags, contains('closed eyes'));
+      expect(tags, isNot(contains('blue eyes')));
+    });
+
+    test('按类别键名保存的存量目标同样生效，且不触发时不改动结果', () async {
+      final legacyRule = PostProcessRule.sleepingRule(
+        targetCategoryIds: ['eyeColor'],
+      );
+      final sleeping = await generator.generateFromPreset(
+        preset: sleepingPreset(
+          poseTags: ['sleeping'],
+          eyeFeatureTags: const [],
+          rule: legacyRule,
+        ),
+        seed: 1,
+      );
+      final awake = await generator.generateFromPreset(
+        preset: sleepingPreset(
+          poseTags: ['standing'],
+          eyeFeatureTags: const [],
+          rule: legacyRule,
+        ),
+        seed: 1,
+      );
+
+      expect(_promptTags(sleeping.mainPrompt), isNot(contains('blue eyes')));
+      expect(
+        _promptTags(awake.mainPrompt),
+        containsAll(['standing', 'blue eyes', 'arms up']),
+      );
+    });
+
+    test('停用的词组不再施加它的后处理规则', () async {
+      final result = await generator.generateFromPreset(
+        preset: sleepingPreset(
+          poseTags: ['sleeping'],
+          eyeFeatureTags: ['closed eyes'],
+          rule: PostProcessRule.sleepingRule(targetCategoryIds: ['cat-eyes']),
+          ownerEnabled: false,
+        ),
+        seed: 1,
+      );
+
       expect(
         _promptTags(result.mainPrompt),
-        containsAll(['boots', 'jeans']),
+        containsAll(['blue eyes', 'closed eyes']),
       );
+    });
+
+    test('美人鱼规则移除用户选定的腿部服装类别', () async {
+      final preset = _preset([
+        _category(
+          id: 'cat-species',
+          key: 'species',
+          groups: [
+            _group(
+              id: 'species_group',
+              tags: ['mermaid'],
+              postProcessRules: [
+                PostProcessRule.mermaidRule(targetCategoryIds: ['cat-legwear']),
+              ],
+            ),
+          ],
+        ),
+        _category(
+          id: 'cat-legwear',
+          key: 'custom3',
+          groups: [
+            _group(id: 'legwear', tags: ['thighhighs']),
+          ],
+        ),
+        _category(
+          id: 'cat-top',
+          key: 'custom4',
+          groups: [
+            _group(id: 'top', tags: ['seashell bra']),
+          ],
+        ),
+      ]);
+
+      final result = await generator.generateFromPreset(
+        preset: preset,
+        seed: 1,
+      );
+
+      final tags = _promptTags(result.mainPrompt);
+      expect(tags, containsAll(['mermaid', 'seashell bra']));
+      expect(tags, isNot(contains('thighhighs')));
     });
   });
 }

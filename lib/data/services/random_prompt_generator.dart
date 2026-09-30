@@ -485,11 +485,7 @@ class RandomPromptGenerator {
       results.addAll(categoryTags);
     }
 
-    final processed = preset.algorithmConfig.applyGlobalPostProcessRules(
-      results,
-      generationContext.tagContext,
-      variables: generationContext.variables,
-    );
+    final processed = rules.applyPostProcess(results, generationContext);
     generationContext.reconcileProcessedTags(
       originalTags: results,
       processedTags: processed,
@@ -637,7 +633,7 @@ class RandomPromptGenerator {
 
     // Pool 类型使用专门的生成逻辑
     if (group.sourceType == TagGroupSourceType.pool) {
-      return _generateFromPoolGroup(group, category, random, context);
+      return _generateFromPoolGroup(group, category, random);
     }
 
     // 获取标签列表：对于同步类型的组从缓存读取，否则使用内嵌标签
@@ -674,12 +670,6 @@ class RandomPromptGenerator {
       random,
     );
 
-    bracketedTags = group.applyPostProcessRules(
-      bracketedTags,
-      context.tagContext,
-      variables: context.variables,
-    );
-
     // 词组级打乱
     if (group.shuffle) {
       bracketedTags.shuffle(random);
@@ -699,7 +689,6 @@ class RandomPromptGenerator {
     RandomTagGroup group,
     RandomCategory category,
     Random random,
-    RandomPresetGenerationContext context,
   ) async {
     final sourceId = group.sourceId;
     if (sourceId == null || sourceId.isEmpty) {
@@ -768,22 +757,16 @@ class RandomPromptGenerator {
         : group.bracketMax;
 
     // 应用权重括号并格式化标签
-    var formattedTags = allTags.map((tag) {
+    final formattedTags = allTags.map((tag) {
       final formattedTag = tag.replaceAll('_', ' ');
       return _applyBrackets(formattedTag, bracketMin, bracketMax, random);
     }).toList();
 
-    formattedTags = _applyEmphasis(
+    return _applyEmphasis(
       formattedTags,
       group.emphasisProbability,
       group.emphasisBracketCount,
       random,
-    );
-
-    return group.applyPostProcessRules(
-      formattedTags,
-      context.tagContext,
-      variables: context.variables,
     );
   }
 

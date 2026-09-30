@@ -387,22 +387,6 @@ class RandomTagGroup with _$RandomTagGroup {
     return ruleSet.isCategoryVisible(id, context);
   }
 
-  /// 应用后处理规则
-  ///
-  /// [tags] 当前标签列表
-  /// [context] 当前上下文
-  /// [variables] 当前变量值映射
-  List<String> applyPostProcessRules(
-    List<String> tags,
-    Map<String, List<String>> context, {
-    Map<String, String>? variables,
-  }) {
-    if (postProcessRules.isEmpty) return tags;
-
-    final ruleSet = PostProcessRuleSet(rules: postProcessRules);
-    return ruleSet.applyAll(tags, context, variables: variables);
-  }
-
   /// 获取 DIY 能力图标列表（用于 UI 显示）
   List<String> get diyFeatureIcons {
     final icons = <String>[];
