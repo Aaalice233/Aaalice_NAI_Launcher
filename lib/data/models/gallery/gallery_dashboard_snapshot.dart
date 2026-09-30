@@ -1,7 +1,9 @@
+import 'gallery_parameter.dart';
+
 /// Small, pre-aggregated payload used by the statistics dashboard.
 ///
-/// Keeping this model count-only prevents dashboard queries from materializing
-/// image prompts and other large metadata fields.
+/// Counts and the recent-image rows carry only light columns, so dashboard
+/// queries never materialize image prompts or other large metadata fields.
 class GalleryDashboardSnapshot {
   final int totalImages;
   final int totalSizeBytes;
@@ -16,6 +18,8 @@ class GalleryDashboardSnapshot {
   final Map<int, int> dailyCounts;
   final Map<int, int> hourlyCounts;
   final Map<int, int> weekdayCounts;
+  final Map<GalleryParameter, Map<String, int>> parameterCounts;
+  final List<GalleryRecentImage> recentImages;
 
   GalleryDashboardSnapshot({
     required this.totalImages,
@@ -31,6 +35,8 @@ class GalleryDashboardSnapshot {
     required Map<int, int> dailyCounts,
     required Map<int, int> hourlyCounts,
     required Map<int, int> weekdayCounts,
+    Map<GalleryParameter, Map<String, int>> parameterCounts = const {},
+    List<GalleryRecentImage> recentImages = const [],
   }) : resolutionCounts = Map.unmodifiable(resolutionCounts),
        modelCounts = Map.unmodifiable(modelCounts),
        samplerCounts = Map.unmodifiable(samplerCounts),
@@ -38,5 +44,41 @@ class GalleryDashboardSnapshot {
        tagCounts = Map.unmodifiable(tagCounts),
        dailyCounts = Map.unmodifiable(dailyCounts),
        hourlyCounts = Map.unmodifiable(hourlyCounts),
-       weekdayCounts = Map.unmodifiable(weekdayCounts);
+       weekdayCounts = Map.unmodifiable(weekdayCounts),
+       parameterCounts = Map.unmodifiable({
+         for (final entry in parameterCounts.entries)
+           entry.key: Map<String, int>.unmodifiable(entry.value),
+       }),
+       recentImages = List.unmodifiable(recentImages);
+}
+
+/// One image in recent activity, limited to light columns (no prompts).
+class GalleryRecentImage {
+  const GalleryRecentImage({
+    required this.path,
+    required this.size,
+    required this.modifiedAt,
+    required this.isFavorite,
+    required this.tags,
+    required this.hasMetadata,
+    this.width,
+    this.height,
+    this.model,
+    this.sampler,
+    this.steps,
+    this.scale,
+  });
+
+  final String path;
+  final int size;
+  final DateTime modifiedAt;
+  final bool isFavorite;
+  final List<String> tags;
+  final bool hasMetadata;
+  final int? width;
+  final int? height;
+  final String? model;
+  final String? sampler;
+  final int? steps;
+  final double? scale;
 }

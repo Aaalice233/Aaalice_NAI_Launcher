@@ -108,6 +108,90 @@ void main() {
     expect(exportedText, contains('"tag,one",3,30.00%'));
   });
 
+  testWidgets(
+    'parameter distribution goes to JSON and CSV, recent activity to JSON only',
+    (tester) async {
+      String? exportedText;
+      Future<String?> capture({
+        required String text,
+        required String fileName,
+        required String dialogTitle,
+        required String mimeType,
+        required List<String> allowedExtensions,
+      }) async {
+        exportedText = text;
+        return null;
+      }
+
+      final statistics = _statistics.copyWith(
+        parameterDistribution: const [
+          ParameterStatistics(
+            parameterName: 'sampler',
+            value: 'k_euler',
+            count: 6,
+            percentage: 60,
+          ),
+          ParameterStatistics(
+            parameterName: 'scale',
+            value: '5.0',
+            count: 4,
+            percentage: 40,
+          ),
+        ],
+        recentActivity: const [
+          {
+            'path': '/gallery/recent.png',
+            'size': 1024,
+            'modifiedAt': '2026-09-29T08:30:00.000',
+            'isFavorite': false,
+            'tags': ['portrait'],
+            'hasMetadata': true,
+            'width': 832,
+            'height': 1216,
+            'model': 'model-a',
+            'sampler': 'k_euler',
+            'steps': 28,
+            'scale': 5.0,
+          },
+        ],
+      );
+
+      await _pumpDialog(tester, writer: capture, statistics: statistics);
+      await tester.tap(find.byKey(const Key('statistics-export-submit')));
+      await tester.pump();
+
+      final payload = jsonDecode(exportedText!) as Map<String, dynamic>;
+      final exported = payload['statistics'] as Map<String, dynamic>;
+      expect(exported['parameterDistribution'], [
+        {
+          'parameterName': 'sampler',
+          'value': 'k_euler',
+          'count': 6,
+          'percentage': 60.0,
+        },
+        {
+          'parameterName': 'scale',
+          'value': '5.0',
+          'count': 4,
+          'percentage': 40.0,
+        },
+      ]);
+      expect(exported['recentActivity'], statistics.recentActivity);
+
+      await _pumpDialog(tester, writer: capture, statistics: statistics);
+      await tester.tap(find.byKey(const Key('statistics-export-format-csv')));
+      await tester.pump();
+      await tester.tap(find.byKey(const Key('statistics-export-submit')));
+      await tester.pump();
+
+      expect(exportedText, contains('Parameter Distribution'));
+      expect(exportedText, contains('Parameter Name,Value,Count,Percentage'));
+      expect(exportedText, contains('sampler,k_euler,6,60.00%'));
+      expect(exportedText, contains('scale,5.0,4,40.00%'));
+      expect(exportedText, isNot(contains('/gallery/recent.png')));
+    },
+  );
+
   testWidgets('pending export shows progress and disables format changes', (
     tester,
   ) async {
@@ -180,6 +264,7 @@ Future<void> _pumpDialog(
   WidgetTester tester, {
   required StatisticsExportWriter writer,
   Size size = const Size(840, 600),
+  GalleryStatistics? statistics,
 }) {
   tester.view.devicePixelRatio = 1;
   tester.view.physicalSize = size;
@@ -193,7 +278,7 @@ Future<void> _pumpDialog(
         supportedLocales: AppLocalizations.supportedLocales,
         home: Scaffold(
           body: StatisticsExportDialog(
-            statistics: _statistics,
+            statistics: statistics ?? _statistics,
             exportWriter: writer,
           ),
         ),

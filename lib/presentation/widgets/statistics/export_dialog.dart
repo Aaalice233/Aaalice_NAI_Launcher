@@ -388,6 +388,7 @@ class _StatisticsExportDialogState
               },
             )
             .toList(),
+        'recentActivity': widget.statistics.recentActivity,
       },
     };
 

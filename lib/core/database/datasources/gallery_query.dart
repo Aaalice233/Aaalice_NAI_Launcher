@@ -1,6 +1,7 @@
 import 'dart:math';
 
 import '../../../data/models/gallery/gallery_dashboard_snapshot.dart';
+import '../../../data/models/gallery/gallery_parameter.dart';
 import '../../../data/models/gallery/local_image_record.dart'
     show MetadataStatus;
 import '../../utils/app_logger.dart';
@@ -718,17 +719,13 @@ class SqliteGalleryQuery implements GalleryQuery {
             ORDER BY item_count DESC
           ''');
 
-          final samplerRows = await txn.rawQuery('''
-            SELECT m.sampler AS label, COUNT(*) AS item_count
-            FROM ${GalleryTables.metadata} m
-            INNER JOIN ${GalleryTables.images} i
-              ON i.id = m.image_id
-            WHERE i.is_deleted = 0
-              AND m.sampler IS NOT NULL
-              AND m.sampler != ''
-            GROUP BY m.sampler
-            ORDER BY item_count DESC
-          ''');
+          // 采样器分布与参数分布的采样器一档共用这一次聚合，数字天然一致
+          final parameterCounts = <GalleryParameter, Map<String, int>>{};
+          for (final parameter in GalleryParameter.values) {
+            parameterCounts[parameter] = _statisticsValueCounts(
+              await txn.rawQuery(_parameterCountsSql(parameter)),
+            );
+          }
 
           final sizeRows = await txn.rawQuery('''
             SELECT
@@ -820,6 +817,51 @@ class SqliteGalleryQuery implements GalleryQuery {
             ORDER BY bucket
           ''');
 
+          final recentSince = DateTime.now()
+              .subtract(_recentActivityWindow)
+              .millisecondsSinceEpoch;
+          final recentRows = await txn.rawQuery(
+            '''
+            SELECT
+              i.id AS id,
+              i.file_path AS file_path,
+              i.file_size AS file_size,
+              i.modified_at AS modified_at,
+              EXISTS (
+                SELECT 1 FROM ${GalleryTables.favorites} f
+                WHERE f.image_id = i.id
+              ) AS is_favorite,
+              COALESCE(m.has_metadata, 0) AS has_metadata,
+              m.width AS width,
+              m.height AS height,
+              m.model AS model,
+              m.sampler AS sampler,
+              m.steps AS steps,
+              m.cfg_scale AS cfg_scale
+            FROM ${GalleryTables.images} i
+            LEFT JOIN ${GalleryTables.metadata} m
+              ON m.image_id = i.id
+            WHERE i.is_deleted = 0
+              AND i.modified_at > ?
+            ORDER BY i.modified_at DESC, i.id DESC
+          ''',
+            [recentSince],
+          );
+          final recentTagRows = await txn.rawQuery(
+            '''
+            SELECT it.image_id AS image_id, t.name AS name
+            FROM ${GalleryTables.imageTags} it
+            INNER JOIN ${GalleryTables.tags} t
+              ON t.id = it.tag_id
+            INNER JOIN ${GalleryTables.images} i
+              ON i.id = it.image_id
+            WHERE i.is_deleted = 0
+              AND i.modified_at > ?
+            ORDER BY it.image_id, t.name
+          ''',
+            [recentSince],
+          );
+
           final base = baseRows.first;
           final weekdayCounts = <int, int>{};
           for (final row in weekdayRows) {
@@ -842,18 +884,89 @@ class SqliteGalleryQuery implements GalleryQuery {
                     _statisticsInt(row['item_count']),
             },
             modelCounts: _statisticsStringCounts(modelRows),
-            samplerCounts: _statisticsStringCounts(samplerRows),
+            samplerCounts: parameterCounts[GalleryParameter.sampler]!,
             sizeCounts: _statisticsStringCounts(sizeRows),
             tagCounts: _statisticsStringCounts(tagRows),
             dailyCounts: _statisticsIntCounts(dailyRows),
             hourlyCounts: _statisticsIntCounts(hourlyRows),
             weekdayCounts: weekdayCounts,
+            parameterCounts: parameterCounts,
+            recentImages: _recentImages(recentRows, recentTagRows),
           );
         }),
         timeout: const Duration(seconds: 30),
         maxRetries: 2,
       );
     });
+  }
+
+  static const Duration _recentActivityWindow = Duration(days: 30);
+
+  String _parameterCountsSql(GalleryParameter parameter) {
+    final column = switch (parameter) {
+      GalleryParameter.sampler => 'sampler',
+      GalleryParameter.steps => 'steps',
+      GalleryParameter.scale => 'cfg_scale',
+      GalleryParameter.noiseSchedule => 'noise_schedule',
+      GalleryParameter.cfgRescale => 'cfg_rescale',
+    };
+    return '''
+      SELECT m.$column AS label, COUNT(*) AS item_count
+      FROM ${GalleryTables.metadata} m
+      INNER JOIN ${GalleryTables.images} i
+        ON i.id = m.image_id
+      WHERE i.is_deleted = 0
+        AND m.$column IS NOT NULL
+        AND m.$column != ''
+      GROUP BY m.$column
+      ORDER BY item_count DESC
+    ''';
+  }
+
+  /// 数值列按 Dart 的 toString 成文，与元数据里的取值写法一致（如 28、5.0）
+  Map<String, int> _statisticsValueCounts(List<Map<String, Object?>> rows) {
+    final counts = <String, int>{};
+    for (final row in rows) {
+      final label = switch (row['label']) {
+        final String text => text,
+        final num number => number.toString(),
+        _ => null,
+      };
+      if (label == null || label.isEmpty) continue;
+      counts[label] = _statisticsInt(row['item_count']);
+    }
+    return counts;
+  }
+
+  List<GalleryRecentImage> _recentImages(
+    List<Map<String, Object?>> rows,
+    List<Map<String, Object?>> tagRows,
+  ) {
+    final tagsByImage = <int, List<String>>{};
+    for (final row in tagRows) {
+      tagsByImage
+          .putIfAbsent(_statisticsInt(row['image_id']), () => [])
+          .add(row['name'] as String);
+    }
+    return [
+      for (final row in rows)
+        GalleryRecentImage(
+          path: row['file_path'] as String,
+          size: _statisticsInt(row['file_size']),
+          modifiedAt: DateTime.fromMillisecondsSinceEpoch(
+            _statisticsInt(row['modified_at']),
+          ),
+          isFavorite: _statisticsInt(row['is_favorite']) == 1,
+          tags: tagsByImage[_statisticsInt(row['id'])] ?? const [],
+          hasMetadata: _statisticsInt(row['has_metadata']) == 1,
+          width: (row['width'] as num?)?.toInt(),
+          height: (row['height'] as num?)?.toInt(),
+          model: row['model'] as String?,
+          sampler: row['sampler'] as String?,
+          steps: (row['steps'] as num?)?.toInt(),
+          scale: (row['cfg_scale'] as num?)?.toDouble(),
+        ),
+    ];
   }
 
   int _statisticsInt(Object? value) => (value as num?)?.toInt() ?? 0;
