@@ -168,6 +168,9 @@ class _EditorCanvasState extends State<EditorCanvas>
                                 showTransparentCanvasBackground:
                                     widget.showTransparentCanvasBackground,
                                 revealOutsideFrame: widget.revealOutsideFrame,
+                                devicePixelRatio: MediaQuery.devicePixelRatioOf(
+                                  context,
+                                ),
                               ),
                             ),
                           ),

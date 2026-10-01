@@ -3,6 +3,7 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:nai_launcher/presentation/widgets/common/checkerboard_pattern.dart';
 import 'package:nai_launcher/presentation/widgets/image_editor/canvas/layer_painter.dart';
 import 'package:nai_launcher/presentation/widgets/image_editor/core/editor_state.dart';
 
@@ -116,8 +117,8 @@ Future<ui.Image> _createTwoToneImage() async {
 }
 
 void main() {
-  setUp(LayerPainter.debugResetCheckerboardCache);
-  tearDown(LayerPainter.debugResetCheckerboardCache);
+  setUp(CheckerboardPattern.debugReset);
+  tearDown(CheckerboardPattern.debugReset);
 
   test('default canvas background remains white', () async {
     final color = await _paintCanvasPixel(
@@ -135,96 +136,41 @@ void main() {
     expect(color, isNot(Colors.white));
   });
 
-  test('checkerboard cache key changes when canvas size changes', () {
-    const baseKey = CheckerboardCacheKey(
-      canvasSize: Size(32, 32),
-      cellSize: 16,
-      color1: Color(0xFFE0E0E0),
-      color2: Color(0xFFF5F5F5),
-    );
-    const resizedKey = CheckerboardCacheKey(
-      canvasSize: Size(64, 32),
-      cellSize: 16,
-      color1: Color(0xFFE0E0E0),
-      color2: Color(0xFFF5F5F5),
-    );
+  test('opaque canvas skips the checkerboard under its white base', () {
+    final state = EditorState()..setCanvasSize(const Size(32, 32));
+    addTearDown(state.dispose);
 
-    expect(resizedKey, isNot(baseKey));
+    final recorder = ui.PictureRecorder();
+    LayerPainter(
+      state: state,
+      showTransparentCanvasBackground: false,
+    ).paint(Canvas(recorder), state.canvasSize);
+    recorder.endRecording().dispose();
+
+    expect(CheckerboardPattern.debugTileBuildCount, 0);
   });
 
-  test('checkerboard cache key changes when cell size changes', () {
-    const baseKey = CheckerboardCacheKey(
-      canvasSize: Size(32, 32),
-      cellSize: 16,
-      color1: Color(0xFFE0E0E0),
-      color2: Color(0xFFF5F5F5),
-    );
-    const sameCellSizeKey = CheckerboardCacheKey(
-      canvasSize: Size(32, 32),
-      cellSize: 16,
-      color1: Color(0xFFE0E0E0),
-      color2: Color(0xFFF5F5F5),
-    );
-    const changedCellSizeKey = CheckerboardCacheKey(
-      canvasSize: Size(32, 32),
-      cellSize: 8,
-      color1: Color(0xFFE0E0E0),
-      color2: Color(0xFFF5F5F5),
-    );
-
-    expect(sameCellSizeKey, baseKey);
-    expect(changedCellSizeKey, isNot(baseKey));
-  });
-
-  test('checkerboard cache key changes when checkerboard colors change', () {
-    const baseKey = CheckerboardCacheKey(
-      canvasSize: Size(32, 32),
-      cellSize: 16,
-      color1: Color(0xFFE0E0E0),
-      color2: Color(0xFFF5F5F5),
-    );
-    const recoloredKey = CheckerboardCacheKey(
-      canvasSize: Size(32, 32),
-      cellSize: 16,
-      color1: Color(0xFFCCCCCC),
-      color2: Color(0xFFFFFFFF),
-    );
-
-    expect(recoloredKey, isNot(baseKey));
-  });
-
-  test('checkerboard cache reuses recorded picture for repeated size', () {
+  test('checkerboard texture is reused across repaints and canvas sizes', () {
     final state = EditorState()..setCanvasSize(const Size(32, 32));
     addTearDown(state.dispose);
 
     _paintLayer(state);
-    final firstKey = LayerPainter.debugCheckerboardCacheKey;
-
-    expect(LayerPainter.debugCheckerboardRecordCount, 1);
-    expect(firstKey, isNotNull);
-
+    _paintLayer(state);
+    state.setCanvasSize(const Size(4096, 4096));
     _paintLayer(state);
 
-    expect(LayerPainter.debugCheckerboardRecordCount, 1);
-    expect(LayerPainter.debugCheckerboardCacheKey, firstKey);
+    expect(CheckerboardPattern.debugTileBuildCount, 1);
   });
 
-  test('checkerboard cache rebuilds when canvas size changes', () {
+  test('checkerboard starts its 16px cells at the frame corner', () async {
     final state = EditorState()..setCanvasSize(const Size(32, 32));
     addTearDown(state.dispose);
 
-    _paintLayer(state);
-    final firstKey = LayerPainter.debugCheckerboardCacheKey;
+    final pixels = await _paintFramePixels(state, revealOutsideFrame: false);
 
-    state.setCanvasSize(const Size(64, 32));
-    _paintLayer(state);
-
-    expect(LayerPainter.debugCheckerboardRecordCount, 2);
-    expect(LayerPainter.debugCheckerboardCacheKey, isNot(firstKey));
-    expect(
-      LayerPainter.debugCheckerboardCacheKey?.canvasSize,
-      const Size(64, 32),
-    );
+    expect(_pixelAt(pixels, 32, 4, 4), Colors.grey.shade300);
+    expect(_pixelAt(pixels, 32, 20, 4), Colors.grey.shade100);
+    expect(_pixelAt(pixels, 32, 20, 20), Colors.grey.shade300);
   });
 
   test('checkerboard paint stays clipped to non-multiple canvas size',
