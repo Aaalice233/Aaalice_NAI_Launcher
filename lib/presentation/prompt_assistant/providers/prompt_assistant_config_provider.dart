@@ -54,7 +54,9 @@ class PromptAssistantConfigNotifier
     return _secure.getPromptAssistantApiKey(providerId);
   }
 
+  /// 服务商已删除时忽略：页内编辑可能在删除之后才提交，不能留下孤立密钥。
   Future<void> setProviderApiKey(String providerId, String apiKey) async {
+    if (!state.providers.any((provider) => provider.id == providerId)) return;
     final trimmed = apiKey.trim();
     if (trimmed.isEmpty) {
       await _secure.deletePromptAssistantApiKey(providerId);
@@ -103,6 +105,16 @@ class PromptAssistantConfigNotifier
     }
     state = state.copyWith(providers: providers);
     await _save();
+  }
+
+  /// 同 [setProviderApiKey]，服务商已删除时不能被延迟提交写回来。
+  Future<void> setProviderBaseUrl(String providerId, String baseUrl) async {
+    final index = state.providers.indexWhere((p) => p.id == providerId);
+    if (index < 0) return;
+    final trimmed = baseUrl.trim();
+    final provider = state.providers[index];
+    if (provider.baseUrl == trimmed) return;
+    await upsertProvider(provider.copyWith(baseUrl: trimmed));
   }
 
   Future<void> deleteProvider(String providerId) async {
@@ -180,96 +192,115 @@ class PromptAssistantConfigNotifier
     await _save();
   }
 
-  /// 以供应商接口返回的 [modelNames] 为准，同步某供应商的模型列表：
-  /// - 新增接口里出现、但本地缺失的模型（标记为 [ModelSource.api]）；
-  /// - 删除本地 [ModelSource.api] 来源、但已不在接口列表里的“弃用”模型；
-  /// - 保留所有 [ModelSource.manual]（手动/默认/占位）模型；
-  /// - 若某任务路由指向被清理的模型，自动迁移到最新列表的首个模型。
-  ///
-  /// 返回被清理掉的弃用模型名（去重），便于 UI 反馈。
-  Future<List<String>> syncProviderModels(
+  /// 每个模型按全部任务各存一份，与 [PromptAssistantConfigState.decode] 的展开规则一致；
+  /// 已有的模型跳过，加入真实模型后清掉占位模型。
+  Future<void> addProviderModels(
     String providerId,
-    List<String> modelNames,
-  ) async {
-    final incoming = <String>[
-      for (final name in modelNames)
-        if (name.trim().isNotEmpty) name.trim(),
+    Iterable<String> names, {
+    required ModelSource source,
+  }) async {
+    final existing = {
+      for (final model in state.models)
+        if (model.providerId == providerId && !model.isPlaceholder) model.name,
+    };
+    final added = <String>[
+      for (final raw in names)
+        if (raw.trim().isNotEmpty && existing.add(raw.trim())) raw.trim(),
     ];
-    if (incoming.isEmpty) return const [];
-    final incomingSet = incoming.toSet();
+    if (added.isEmpty) return;
 
-    final removed = <String>{};
-    final models = <ModelConfig>[];
-    for (final model in state.models) {
-      if (model.providerId != providerId) {
-        models.add(model);
-        continue;
-      }
-      final isStaleApiModel =
-          model.source == ModelSource.api &&
-          !model.isPlaceholder &&
-          !incomingSet.contains(model.name);
-      if (isStaleApiModel) {
-        removed.add(model.name);
-        continue;
-      }
-      models.add(model);
+    final models = [
+      for (final model in state.models)
+        if (model.providerId != providerId || !model.isPlaceholder) model,
+      for (final name in added)
+        for (final task in AssistantTaskType.values)
+          ModelConfig(
+            providerId: providerId,
+            name: name,
+            displayName: name,
+            forTask: task,
+            source: source,
+          ),
+    ];
+    state = state.copyWith(
+      models: models,
+      routing: _repointRoutes(providerId, models),
+    );
+    await _save();
+  }
+
+  /// 同时移除该模型在所有任务下的副本；指向它的任务路由改到同服务商剩余的模型。
+  Future<void> removeProviderModels(
+    String providerId,
+    Iterable<String> names,
+  ) async {
+    final removed = names.toSet();
+    final models = [
+      for (final model in state.models)
+        if (model.providerId != providerId || !removed.contains(model.name))
+          model,
+    ];
+    if (models.length == state.models.length) return;
+    state = state.copyWith(
+      models: models,
+      routing: _repointRoutes(providerId, models),
+    );
+    await _save();
+  }
+
+  /// [displayName] 留空或与模型 ID 相同时回到目录里的官方名。
+  Future<void> renameProviderModel(
+    String providerId,
+    String name,
+    String displayName,
+  ) async {
+    final trimmed = displayName.trim();
+    final next = trimmed.isEmpty ? name : trimmed;
+    bool matches(ModelConfig model) =>
+        model.providerId == providerId && model.name == name;
+    if (!state.models.any(
+      (model) => matches(model) && model.displayName != next,
+    )) {
+      return;
     }
+    state = state.copyWith(
+      models: [
+        for (final model in state.models)
+          matches(model) ? model.copyWith(displayName: next) : model,
+      ],
+    );
+    await _save();
+  }
 
-    for (final task in AssistantTaskType.values) {
-      for (final name in incoming) {
-        final exists = models.any(
-          (m) =>
-              m.providerId == providerId && m.forTask == task && m.name == name,
-        );
-        if (!exists) {
-          models.add(
-            ModelConfig(
-              providerId: providerId,
-              name: name,
-              displayName: name,
-              forTask: task,
-              source: ModelSource.api,
-            ),
-          );
-        }
-      }
-    }
-
+  TaskRoutingConfig _repointRoutes(
+    String providerId,
+    List<ModelConfig> models,
+  ) {
+    final next = state.copyWith(models: models);
     var routing = state.routing;
     for (final taskType in AssistantTaskType.values) {
       if (routing.providerIdFor(taskType) != providerId) continue;
-      final current = routing.modelFor(taskType);
-      final stillExists = models.any(
-        (m) =>
-            m.providerId == providerId &&
-            m.forTask == taskType &&
-            m.name == current,
+      final candidates = next.modelsForProviderTask(
+        providerId: providerId,
+        taskType: taskType,
       );
-      if (!stillExists) {
-        routing = routing.copyWithTask(
-          taskType: taskType,
-          providerId: providerId,
-          model: incoming.first,
-        );
+      if (candidates.any((model) => model.name == routing.modelFor(taskType))) {
+        continue;
       }
-    }
-
-    state = state.copyWith(models: models, routing: routing);
-    await _save();
-    return removed.toList();
-  }
-
-  Future<void> deleteModel(ModelConfig model) async {
-    final models = [...state.models]
-      ..removeWhere(
-        (m) =>
-            m.providerId == model.providerId &&
-            m.name == model.name &&
-            m.forTask == model.forTask,
+      final fallback = candidates.isNotEmpty
+          ? (providerId: providerId, model: candidates.first.name)
+          : _firstAvailableRoute(
+              providers: state.providers,
+              models: models,
+              taskType: taskType,
+            );
+      routing = routing.copyWithTask(
+        taskType: taskType,
+        providerId: fallback.providerId,
+        model: fallback.model,
       );
-    state = state.copyWith(models: models);
-    await _save();
+    }
+    return routing;
   }
 
   Future<void> setRouting(TaskRoutingConfig routing) async {

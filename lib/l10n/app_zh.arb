@@ -3323,25 +3323,119 @@
   },
   "promptAssistant_provider": "服务商",
   "promptAssistant_model": "模型",
-  "promptAssistant_noModelsPullFirst": "暂无模型，请先拉取",
-  "promptAssistant_providerManagement": "服务商管理",
-  "promptAssistant_providerManagementSubtitle": "支持 OpenAI Chat / Responses、Anthropic、Gemini、DeepSeek、LM Studio、Ollama、Pollinations 和自定义兼容端点",
-  "promptAssistant_apiKeyConfigured": "API Key: 已配置",
-  "promptAssistant_apiKeyNotConfigured": "API Key: 未配置",
-  "promptAssistant_supportsImageInput": "支持图片输入",
-  "promptAssistant_textOnly": "仅文本",
-  "promptAssistant_connectionConfig": "连接配置",
-  "promptAssistant_pullModelList": "拉取模型列表",
-  "promptAssistant_editProvider": "编辑服务商",
-  "promptAssistant_deleteProvider": "删除服务商",
-  "promptAssistant_pullingModels": "正在拉取模型列表...",
-  "promptAssistant_emptyModelList": "服务返回空模型列表",
-  "promptAssistant_modelsSynced": "已同步 {count} 个模型",
-  "@promptAssistant_modelsSynced": {
+  "promptAssistant_noModelsPullFirst": "暂无模型，请先在模型服务中添加",
+  "settings_modelServices": "模型服务",
+  "modelServices_searchProviders": "搜索服务商",
+  "modelServices_noProviderMatches": "没有匹配的服务商",
+  "modelServices_emptyTitle": "添加第一个服务商",
+  "modelServices_emptyBody": "服务商提供提示词助手和智能体使用的模型。",
+  "modelServices_disabled": "已停用",
+  "modelServices_enableProvider": "启用服务商",
+  "modelServices_moreActions": "更多操作",
+  "modelServices_connection": "连接",
+  "modelServices_apiKey": "API 密钥",
+  "modelServices_apiKeySavedHint": "已保存，输入新密钥即可替换",
+  "modelServices_apiKeyOptional": "此服务商可以不填",
+  "modelServices_showApiKey": "显示密钥",
+  "modelServices_hideApiKey": "隐藏密钥",
+  "modelServices_clearApiKey": "清除已保存的密钥",
+  "modelServices_apiKeyCleared": "API 密钥已清除",
+  "modelServices_baseUrl": "API 地址",
+  "modelServices_checkConnection": "检查连接",
+  "modelServices_connectionOk": "连接正常，接口列出了 {count} 个模型",
+  "@modelServices_connectionOk": {
     "placeholders": {
       "count": {}
     }
   },
+  "modelServices_connectionFailed": "连接失败：{error}",
+  "@modelServices_connectionFailed": {
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "modelServices_models": "模型",
+  "modelServices_modelCount": "{count} 个模型",
+  "@modelServices_modelCount": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "modelServices_noModels": "还没有模型。可以从接口列表挑选，或手动添加模型 ID。",
+  "modelServices_manageModels": "管理模型",
+  "modelServices_addModel": "手动添加",
+  "modelServices_manageModelsTitle": "{provider} 的模型",
+  "@modelServices_manageModelsTitle": {
+    "placeholders": {
+      "provider": {}
+    }
+  },
+  "modelServices_addGroup": "添加 {group} 整组",
+  "@modelServices_addGroup": {
+    "placeholders": {
+      "group": {}
+    }
+  },
+  "modelServices_removeGroup": "移除 {group} 整组",
+  "@modelServices_removeGroup": {
+    "placeholders": {
+      "group": {}
+    }
+  },
+  "modelServices_notListed": "接口已不再列出",
+  "modelServices_reasoning": "推理",
+  "modelServices_vision": "视觉",
+  "modelServices_contextWindow": "上下文 {size}",
+  "@modelServices_contextWindow": {
+    "placeholders": {
+      "size": {}
+    }
+  },
+  "modelServices_modelId": "模型 ID",
+  "modelServices_modelIdRequired": "请输入模型 ID",
+  "modelServices_modelExists": "这个服务商已经有这个模型",
+  "modelServices_displayName": "显示名称",
+  "modelServices_displayNameHint": "留空则使用 {name}",
+  "@modelServices_displayNameHint": {
+    "placeholders": {
+      "name": {}
+    }
+  },
+  "modelServices_editModel": "编辑模型",
+  "modelServices_removeModel": "移除模型",
+  "modelServices_removeModelConfirm": "从这个服务商移除 {name}？",
+  "@modelServices_removeModelConfirm": {
+    "placeholders": {
+      "name": {}
+    }
+  },
+  "modelServices_removeModelInUse": "{name} 正被{usages}使用。移除后，任务路由会改用这个服务商剩下的模型，智能体需要重新选择模型。",
+  "@modelServices_removeModelInUse": {
+    "placeholders": {
+      "name": {},
+      "usages": {}
+    }
+  },
+  "modelServices_usageSeparator": "、",
+  "modelServices_cleanStaleModels": "清理失效模型",
+  "modelServices_addAllModels": "添加全部模型",
+  "modelServices_staleModelCount": "{count} 个失效模型",
+  "@modelServices_staleModelCount": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "modelServices_addAllConfirm": "要向这个服务商添加 {count} 个模型吗？",
+  "@modelServices_addAllConfirm": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "promptAssistant_supportsImageInput": "支持图片输入",
+  "promptAssistant_textOnly": "仅文本",
+  "promptAssistant_editProvider": "编辑服务商",
+  "promptAssistant_deleteProvider": "删除服务商",
+  "promptAssistant_emptyModelList": "服务返回空模型列表",
   "promptAssistant_pullModelsFailed": "拉取模型失败: {error}",
   "@promptAssistant_pullModelsFailed": {
     "placeholders": {
@@ -3358,16 +3452,7 @@
   "promptAssistant_allowImageInput": "允许发送图片输入",
   "promptAssistant_allowImageInputSubtitle": "仅在模型和服务商实际支持视觉输入时启用",
   "promptAssistant_apiKeyLeaveEmpty": "API Key (留空不改)",
-  "promptAssistant_connectionTitle": "{name} 连接配置",
-  "@promptAssistant_connectionTitle": {
-    "placeholders": {
-      "name": {}
-    }
-  },
   "promptAssistant_baseUrlHint": "例如: https://api.openai.com/v1",
-  "promptAssistant_clearCurrentApiKey": "清空当前 API Key",
-  "promptAssistant_protocolSupportsImagePayload": "当前协议支持图片载荷，仍需模型本身支持视觉输入",
-  "promptAssistant_protocolTextOnlyWarning": "当前协议默认仅文本，开启后也可能被服务端拒绝",
   "promptAssistant_addRuleTitle": "新增规则",
   "promptAssistant_editRuleTitle": "编辑规则",
   "promptAssistant_taskType": "任务类型",
@@ -6929,9 +7014,9 @@
   "agentSettings_floatingWindowDescription": "浮窗常驻所有页面，可拖动和调整大小；开启后右栏只显示历史。",
   "agentSettings_chatModel": "聊天模型",
   "agentSettings_providerModel": "供应商 / 模型",
-  "agentSettings_modelManagedInIntegrations": "供应商、API Key 与模型发现仍在“集成”中统一管理。",
+  "agentSettings_modelManagedInIntegrations": "服务商、API 密钥和模型在“集成 → 模型服务”中管理。",
   "agentSettings_manageProviders": "管理服务商",
-  "agentSettings_noModel": "没有可用聊天模型。请先在“集成”中添加供应商并发现模型。",
+  "agentSettings_noModel": "没有可用的聊天模型。请先在“集成 → 模型服务”中添加服务商和模型。",
   "agentSettings_pendingMatch": "待匹配",
   "agentSettings_contextWindow": "上下文窗口（token）",
   "agentSettings_contextWindowKnown": "留空使用内置值 {value}。第三方中转站或自定义部署的实际窗口不同时，在此填写覆盖。",

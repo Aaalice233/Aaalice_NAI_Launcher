@@ -4,11 +4,13 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/screens/settings/sections/integrations_settings_section.dart';
 
+const _modelServicesPanelKey = ValueKey<String>('panel-model-services');
 const _promptAssistantPanelKey = ValueKey<String>('panel-prompt-assistant');
 const _comfyUiPanelKey = ValueKey<String>('panel-comfyui');
 const _kritaPanelKey = ValueKey<String>('panel-krita');
 const _mcpPanelKey = ValueKey<String>('panel-mcp');
 const _panelKeys = [
+  _modelServicesPanelKey,
   _promptAssistantPanelKey,
   _comfyUiPanelKey,
   _kritaPanelKey,
@@ -69,28 +71,33 @@ void main() {
           home: Scaffold(
             body: SingleChildScrollView(
               child: IntegrationsSettingsSection(
-                panelBuilders: [
-                  (_) => _PanelProbe(
+                panelBuilders: {
+                  IntegrationPanel.modelServices: (_) => _PanelProbe(
+                    key: _modelServicesPanelKey,
+                    label: 'panel-model-services',
+                    onDispose: () => disposedPanels.add('model-services'),
+                  ),
+                  IntegrationPanel.promptAssistant: (_) => _PanelProbe(
                     key: _promptAssistantPanelKey,
                     label: 'panel-prompt-assistant',
                     onDispose: () => disposedPanels.add('prompt-assistant'),
                   ),
-                  (_) => _PanelProbe(
+                  IntegrationPanel.comfyUi: (_) => _PanelProbe(
                     key: _comfyUiPanelKey,
                     label: 'panel-comfyui',
                     onDispose: () => disposedPanels.add('comfyui'),
                   ),
-                  (_) => _PanelProbe(
+                  IntegrationPanel.krita: (_) => _PanelProbe(
                     key: _kritaPanelKey,
                     label: 'panel-krita',
                     onDispose: () => disposedPanels.add('krita'),
                   ),
-                  (_) => _PanelProbe(
+                  IntegrationPanel.mcp: (_) => _PanelProbe(
                     key: _mcpPanelKey,
                     label: 'panel-mcp',
                     onDispose: () => disposedPanels.add('mcp'),
                   ),
-                ],
+                },
               ),
             ),
           ),
@@ -111,13 +118,16 @@ void main() {
     }
   }
 
-  test('测试注入面板数量必须恰好为四项', () {
+  test('测试注入面板必须恰好覆盖 DLSS 以外的五个面板', () {
     Widget buildPanel(BuildContext _) => const SizedBox.shrink();
+    final panels = IntegrationsSettingsSection.injectablePanels.toList();
 
-    for (final invalidLength in [0, 1, 2, 3, 5]) {
+    for (final invalidLength in [0, 1, 2, 3, 4]) {
       expect(
         () => IntegrationsSettingsSection(
-          panelBuilders: List<WidgetBuilder>.filled(invalidLength, buildPanel),
+          panelBuilders: {
+            for (final panel in panels.take(invalidLength)) panel: buildPanel,
+          },
         ),
         throwsAssertionError,
         reason: 'panelBuilders length $invalidLength should be rejected',
@@ -126,48 +136,61 @@ void main() {
 
     expect(
       () => IntegrationsSettingsSection(
-        panelBuilders: List<WidgetBuilder>.filled(4, buildPanel),
+        panelBuilders: {for (final panel in panels) panel: buildPanel},
       ),
       returnsNormally,
     );
     expect(() => const IntegrationsSettingsSection(), returnsNormally);
   });
 
-  testWidgets('默认显示第一个面板且四段可切换', (tester) async {
+  testWidgets('默认显示模型服务且五段可切换', (tester) async {
     final disposedPanels = <String>[];
     await pumpSection(tester, disposedPanels);
 
-    // 四段子导航
+    expect(find.text('模型服务'), findsOneWidget);
     expect(find.text('提示词助手'), findsOneWidget);
     expect(find.text('ComfyUI'), findsOneWidget);
     expect(find.text('Krita'), findsOneWidget);
     expect(find.text('MCP'), findsOneWidget);
 
     // 从完整元素树确认默认只挂载第一个面板。
-    expectOnlyPanel(_promptAssistantPanelKey);
+    expectOnlyPanel(_modelServicesPanelKey);
     expect(disposedPanels, isEmpty);
+
+    await tester.tap(find.text('提示词助手'));
+    await tester.pumpAndSettle();
+    expectOnlyPanel(_promptAssistantPanelKey);
+    expect(disposedPanels, ['model-services']);
 
     await tester.tap(find.text('ComfyUI'));
     await tester.pumpAndSettle();
     expectOnlyPanel(_comfyUiPanelKey);
-    expect(disposedPanels, ['prompt-assistant']);
+    expect(disposedPanels, ['model-services', 'prompt-assistant']);
 
     await tester.tap(find.text('Krita'));
     await tester.pumpAndSettle();
     expectOnlyPanel(_kritaPanelKey);
-    expect(disposedPanels, ['prompt-assistant', 'comfyui']);
 
     await tester.tap(find.text('MCP'));
     await tester.pumpAndSettle();
     expectOnlyPanel(_mcpPanelKey);
-    expect(disposedPanels, ['prompt-assistant', 'comfyui', 'krita']);
+    expect(disposedPanels, [
+      'model-services',
+      'prompt-assistant',
+      'comfyui',
+      'krita',
+    ]);
   });
 
   testWidgets('英文环境切换集成面板时分段导航总宽度保持不变', (tester) async {
     final disposedPanels = <String>[];
     await pumpSection(tester, disposedPanels, locale: const Locale('en'));
 
-    final segmentedButton = find.byType(SegmentedButton<int>);
+    final segmentedButton = find.byType(SegmentedButton<IntegrationPanel>);
+    final modelServicesWidth = tester.getSize(segmentedButton).width;
+
+    await tester.tap(find.text('Prompt Assistant'));
+    await tester.pumpAndSettle();
     final promptAssistantWidth = tester.getSize(segmentedButton).width;
 
     await tester.tap(find.text('ComfyUI'));
@@ -184,8 +207,9 @@ void main() {
 
     expect(
       [promptAssistantWidth, comfyUiWidth, kritaWidth, mcpWidth],
-      everyElement(promptAssistantWidth),
+      everyElement(modelServicesWidth),
       reason:
+          'Model services=$modelServicesWidth, '
           'Prompt Assistant=$promptAssistantWidth, '
           'ComfyUI=$comfyUiWidth, Krita=$kritaWidth, MCP=$mcpWidth',
     );
@@ -199,15 +223,18 @@ void main() {
       targetPlatform: TargetPlatform.android,
     );
 
-    final segmentedButton = tester.widget<SegmentedButton<int>>(
-      find.byType(SegmentedButton<int>),
+    final segmentedButton = tester.widget<SegmentedButton<IntegrationPanel>>(
+      find.byType(SegmentedButton<IntegrationPanel>),
     );
-    expect(segmentedButton.segments[1].enabled, isFalse);
-    expect(segmentedButton.segments[1].tooltip, '仅桌面端可用');
+    final comfyUi = segmentedButton.segments.singleWhere(
+      (segment) => segment.value == IntegrationPanel.comfyUi,
+    );
+    expect(comfyUi.enabled, isFalse);
+    expect(comfyUi.tooltip, '仅桌面端可用');
 
     await tester.tap(find.text('ComfyUI'), warnIfMissed: false);
     await tester.pumpAndSettle();
-    expectOnlyPanel(_promptAssistantPanelKey);
+    expectOnlyPanel(_modelServicesPanelKey);
     expect(disposedPanels, isEmpty);
   });
 
@@ -220,24 +247,24 @@ void main() {
         textScale: width == 320 ? 3 : 1,
       );
 
-      expect(find.byType(SegmentedButton<int>), findsOneWidget);
+      expect(find.byType(SegmentedButton<IntegrationPanel>), findsOneWidget);
       expect(find.byType(SingleChildScrollView), findsWidgets);
       expect(tester.takeException(), isNull);
     });
   }
 
   const expectedLabels = <String, List<String>>{
-    'en': ['Prompt Assistant', 'ComfyUI', 'Krita', 'MCP'],
-    'zh': ['提示词助手', 'ComfyUI', 'Krita', 'MCP'],
-    'ja': ['プロンプトアシスタント', 'ComfyUI', 'Krita', 'MCP'],
+    'en': ['Model services', 'Prompt Assistant', 'ComfyUI', 'Krita', 'MCP'],
+    'zh': ['模型服务', '提示词助手', 'ComfyUI', 'Krita', 'MCP'],
+    'ja': ['モデルサービス', 'プロンプトアシスタント', 'ComfyUI', 'Krita', 'MCP'],
   };
 
   for (final entry in expectedLabels.entries) {
     testWidgets('分段导航按 ${entry.key} 显示精确文案', (tester) async {
       await pumpSection(tester, <String>[], locale: Locale(entry.key));
 
-      final segmentedButton = tester.widget<SegmentedButton<int>>(
-        find.byType(SegmentedButton<int>),
+      final segmentedButton = tester.widget<SegmentedButton<IntegrationPanel>>(
+        find.byType(SegmentedButton<IntegrationPanel>),
       );
       final labels = segmentedButton.segments
           .map((segment) => (segment.label as Text).data)

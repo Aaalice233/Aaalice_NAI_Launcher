@@ -33,8 +33,8 @@ const _levels = <String>[
 ];
 const _reasoningCatalogPath =
     'lib/presentation/prompt_assistant/models/pi_reasoning_model_catalog.dart';
-const _displayNamesPath =
-    'lib/presentation/prompt_assistant/models/pi_model_display_names.dart';
+const _modelProfilesPath =
+    'lib/presentation/prompt_assistant/models/pi_model_profiles.dart';
 
 void main(List<String> arguments) {
   final check = arguments.contains('--check');
@@ -63,8 +63,8 @@ void main(List<String> arguments) {
     _reasoningCatalogPath: _formatGeneratedCatalog(
       _generateReasoningCatalog(root, version),
     ),
-    _displayNamesPath: _formatGeneratedCatalog(
-      _generateDisplayNames(root, version),
+    _modelProfilesPath: _formatGeneratedCatalog(
+      _generateModelProfiles(root, version),
     ),
   };
   for (final entry in outputs.entries) {
@@ -200,23 +200,23 @@ String _generateReasoningCatalog(Directory root, String version) {
   return output.toString();
 }
 
-String _generateDisplayNames(Directory root, String version) {
+String _generateModelProfiles(Directory root, String version) {
   final output = StringBuffer()
     ..writeln('// GENERATED from @earendil-works/pi-ai $version.')
-    ..writeln(
-      '// Source: dist/providers/data/*.json. Do not edit by hand.',
-    )
+    ..writeln('// Source: dist/providers/data/*.json. Do not edit by hand.')
     ..writeln()
-    ..writeln(
-      'const piModelDisplayNames = <String, Map<String, String>>{',
-    );
+    ..writeln('typedef PiModelProfile = ({String? name, bool imageInput});')
+    ..writeln()
+    ..writeln('const piModelProfiles = <String, Map<String, PiModelProfile>>{');
   for (final provider in _providers) {
     output.writeln("  ${_quote(provider)}: {");
     for (final model in _chatModels(root, provider)) {
+      final id = model['id'] as String;
       final name = (model['name'] as String?)?.trim() ?? '';
-      if (name.isEmpty) continue;
+      final input = (model['input'] as List?)?.cast<String>() ?? const [];
       output.writeln(
-        '    ${_quote(model['id'] as String)}: ${_quote(name)},',
+        '    ${_quote(id)}: (name: ${name.isEmpty ? 'null' : _quote(name)}, '
+        'imageInput: ${input.contains('image')}),',
       );
     }
     output.writeln('  },');
