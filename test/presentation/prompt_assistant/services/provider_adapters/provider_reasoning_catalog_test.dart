@@ -165,4 +165,118 @@ void main() {
       }
     },
   );
+
+  test('Gemini 3.1 Pro maps medium natively and clamps off to LOW', () {
+    final metadata = AssistantModelCatalog.resolveProvider(
+      provider: ProviderPreset.gemini.createConfig(),
+      model: 'gemini-3.1-pro-preview',
+    );
+    expect(metadata.selectableThinkingLevels, [
+      ThinkingLevel.low,
+      ThinkingLevel.medium,
+      ThinkingLevel.high,
+    ]);
+    expect(
+      geminiThinkingConfig(metadata.resolveReasoningRequest('medium')),
+      containsPair('thinkingLevel', 'MEDIUM'),
+    );
+    expect(
+      geminiThinkingConfig(metadata.resolveReasoningRequest(null)),
+      containsPair('thinkingLevel', 'LOW'),
+    );
+  });
+
+  group('DeepSeek V4.1 Flash', () {
+    final official = AssistantModelCatalog.resolveProvider(
+      provider: ProviderPreset.deepseek.createConfig(),
+      model: 'deepseek-flash',
+    );
+
+    test('is recognised with reasoning-content replay', () {
+      expect(official.selectableThinkingLevels, [
+        ThinkingLevel.off,
+        ThinkingLevel.low,
+        ThinkingLevel.high,
+        ThinkingLevel.max,
+      ]);
+      expect(official.reasoningRule?.requiresReasoningContent, isTrue);
+      expect(official.contextWindow, 1000000);
+    });
+
+    for (final legacy in ['deepseek-v4-flash', 'deepseek-v4-flash-vision-exp']) {
+      for (final provider in [
+        ProviderPreset.deepseek.createConfig(),
+        const ProviderConfig(
+          id: 'custom-deepseek',
+          name: 'Custom',
+          baseUrl: 'https://api.deepseek.com',
+          protocol: ProviderProtocol.openaiChatCompletions,
+          preset: ProviderPreset.openaiCompatibleChat,
+        ),
+      ]) {
+        test('retired $legacy on ${provider.id} reuses the Flash rule', () {
+          final metadata = AssistantModelCatalog.resolveProvider(
+            provider: provider,
+            model: legacy,
+          );
+          expect(metadata.reasoningRule, same(official.reasoningRule));
+        });
+      }
+    }
+  });
+
+  group('display labels', () {
+    final deepseek = ProviderPreset.deepseek.createConfig();
+    ModelConfig model(String name, {String? displayName}) => ModelConfig(
+      providerId: deepseek.id,
+      name: name,
+      displayName: displayName ?? name,
+      forTask: AssistantTaskType.chat,
+    );
+
+    test('use the Pi catalog name for official IDs', () {
+      expect(
+        AssistantModelCatalog.displayLabel(
+          provider: deepseek,
+          model: model('deepseek-flash'),
+        ),
+        'DeepSeek V4.1 Flash',
+      );
+    });
+
+    test('keep a custom name over the catalog name', () {
+      expect(
+        AssistantModelCatalog.displayLabel(
+          provider: deepseek,
+          model: model('deepseek-flash', displayName: 'Daily driver'),
+        ),
+        'Daily driver',
+      );
+    });
+
+    test('fall back to the model ID when the catalog has no entry', () {
+      expect(
+        AssistantModelCatalog.displayLabel(
+          provider: deepseek,
+          model: model('deepseek-v4-flash'),
+        ),
+        'deepseek-v4-flash',
+      );
+    });
+
+    test('resolve a relay that passes official IDs through', () {
+      expect(
+        AssistantModelCatalog.catalogDisplayName(
+          provider: const ProviderConfig(
+            id: 'relay',
+            name: 'Relay',
+            baseUrl: 'https://relay.example.test/v1',
+            protocol: ProviderProtocol.openaiChatCompletions,
+          ),
+          model: 'DeepSeek-Flash',
+        ),
+        'DeepSeek V4.1 Flash',
+      );
+    });
+  });
 }

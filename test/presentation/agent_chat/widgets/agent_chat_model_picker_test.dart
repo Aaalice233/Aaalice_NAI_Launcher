@@ -126,6 +126,62 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('models sit under provider headers with catalog names', (
+    tester,
+  ) async {
+    final deepSeek = ProviderPreset.deepseek.createConfig();
+    final config = _config.copyWith(
+      providers: [..._config.providers, deepSeek],
+      models: [
+        ..._config.models,
+        ModelConfig(
+          providerId: deepSeek.id,
+          name: 'deepseek-flash',
+          displayName: 'deepseek-flash',
+          forTask: AssistantTaskType.chat,
+        ),
+      ],
+    );
+    await _pumpControls(tester, width: 840, config: config);
+    await tester.tap(find.byKey(const ValueKey('agent-chat-model-selector')));
+    await tester.pumpAndSettle();
+
+    for (final provider in config.providers) {
+      expect(
+        find.byKey(ValueKey('agent-chat-model-group-${provider.id}')),
+        findsOneWidget,
+        reason: provider.id,
+      );
+    }
+    final results = find.byKey(const ValueKey('agent-chat-model-results'));
+    expect(
+      find.descendant(of: results, matching: find.text('DeepSeek V4.1 Flash')),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(of: results, matching: find.text('deepseek-flash')),
+      findsNothing,
+    );
+    expect(find.byTooltip('deepseek-flash'), findsOneWidget);
+    expect(
+      tester
+          .getTopLeft(
+            find.byKey(ValueKey('agent-chat-model-group-${deepSeek.id}')),
+          )
+          .dy,
+      lessThan(
+        tester
+            .getTopLeft(
+              find.byKey(
+                ValueKey('agent-chat-model-option-${deepSeek.id}-deepseek-flash'),
+              ),
+            )
+            .dy,
+      ),
+    );
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('search supports empty results clearing and keyboard selection', (
     tester,
   ) async {

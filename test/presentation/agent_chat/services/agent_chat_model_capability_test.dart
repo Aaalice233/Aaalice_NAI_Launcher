@@ -50,7 +50,11 @@ void main() {
             protocol: ProviderProtocol.geminiGenerateContent,
             baseUrl: 'https://generativelanguage.googleapis.com/v1beta',
             model: 'gemini-3.1-pro-preview',
-            levels: const [ThinkingLevel.low, ThinkingLevel.high],
+            levels: const [
+              ThinkingLevel.low,
+              ThinkingLevel.medium,
+              ThinkingLevel.high,
+            ],
           ),
           (
             provider: 'deepseek',
@@ -128,7 +132,7 @@ void main() {
             provider: 'cerebras',
             protocol: ProviderProtocol.openaiChatCompletions,
             baseUrl: 'https://api.cerebras.ai/v1',
-            model: 'gemma-4-31b',
+            model: 'qwen-3.8-27b',
             levels: const [
               ThinkingLevel.off,
               ThinkingLevel.low,
@@ -199,7 +203,7 @@ void main() {
       (ProviderPreset.xai, 'grok-4.6'),
       (ProviderPreset.mistral, 'magistral-medium-latest'),
       (ProviderPreset.groq, 'openai/gpt-oss-120b'),
-      (ProviderPreset.cerebras, 'gemma-4-31b'),
+      (ProviderPreset.cerebras, 'qwen-3.8-27b'),
       (ProviderPreset.minimax, 'MiniMax-M3'),
       (ProviderPreset.minimaxCn, 'MiniMax-M3'),
       (ProviderPreset.kimiCoding, 'kimi-for-coding'),
@@ -240,7 +244,7 @@ void main() {
         protocol: ProviderProtocol.openaiChatCompletions,
         baseUrl: 'https://api.mistral.ai',
       ),
-      'magistral-small',
+      'magistral-medium-latest',
     );
 
     expect(deepSeek.levels, [
@@ -425,7 +429,7 @@ void main() {
     test('borrows the window for a transparently proxied model', () {
       final capability = AgentChatModelCapability.resolve(
         relay,
-        'kimi-k2-thinking',
+        'kimi-k2.6',
       );
 
       expect(capability.model.contextWindow, 262144);
@@ -435,7 +439,7 @@ void main() {
       expect(
         AgentChatModelCapability.resolve(
           relay,
-          'Kimi-K2-Thinking',
+          'Kimi-K2.6',
         ).model.contextWindow,
         262144,
       );

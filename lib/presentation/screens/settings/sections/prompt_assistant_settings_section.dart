@@ -8,6 +8,7 @@ import '../../../../core/platform/platform_capabilities.dart';
 import '../../../../core/utils/localization_extension.dart';
 import '../../../adaptive/adaptive_presenter.dart';
 import '../../../../data/models/prompt_assistant/prompt_assistant_models.dart';
+import '../../../prompt_assistant/models/assistant_model_capability.dart';
 import '../../../prompt_assistant/providers/prompt_assistant_config_provider.dart';
 import '../../../prompt_assistant/services/prompt_assistant_service.dart';
 import '../../../widgets/common/themed_confirm_dialog.dart';
@@ -192,24 +193,22 @@ class PromptAssistantSettingsSection extends ConsumerWidget {
     final provider = state.providers
         .where((provider) => provider.id == providerId)
         .firstOrNull;
-    final providerName = provider?.name;
-    final modelOptions = models
-        .map(
-          (model) => ModelPickerOption(
-            id: model.name,
-            modelId: model.name,
-            subtitleLeading: ProviderIcon(provider: provider, size: 14),
-            value: model.name,
-            title: model.displayName.trim().isEmpty
-                ? model.name
-                : model.displayName.trim(),
-            subtitle: model.displayName.trim() == model.name.trim()
-                ? (providerName ?? providerId)
-                : '${providerName ?? providerId} · ${model.name}',
-            searchTerms: [providerId],
-          ),
-        )
-        .toList(growable: false);
+    final modelOptions =
+        models
+            .map(
+              (model) => ModelPickerOption(
+                id: model.name,
+                modelId: model.name,
+                value: model.name,
+                title: _modelLabel(provider, model),
+                tooltip: model.name,
+                searchTerms: [providerId, model.name],
+              ),
+            )
+            .toList()
+          ..sort(
+            (a, b) => a.title.toLowerCase().compareTo(b.title.toLowerCase()),
+          );
     final hasRealModel = models.any(
       (m) => m.name.trim().isNotEmpty && m.name.trim() != 'default-model',
     );
@@ -744,6 +743,14 @@ class PromptAssistantSettingsSection extends ConsumerWidget {
     );
 
     await notifier.upsertRule(next);
+  }
+
+  String _modelLabel(ProviderConfig? provider, ModelConfig model) {
+    if (provider == null) {
+      final custom = model.displayName.trim();
+      return custom.isEmpty ? model.name : custom;
+    }
+    return AssistantModelCatalog.displayLabel(provider: provider, model: model);
   }
 
   String _assistantTaskLabel(BuildContext context, AssistantTaskType taskType) {
