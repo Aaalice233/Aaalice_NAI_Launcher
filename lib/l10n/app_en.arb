@@ -3296,25 +3296,119 @@
   },
   "promptAssistant_provider": "Provider",
   "promptAssistant_model": "Model",
-  "promptAssistant_noModelsPullFirst": "No models yet. Pull the model list first",
-  "promptAssistant_providerManagement": "Provider Management",
-  "promptAssistant_providerManagementSubtitle": "Supports OpenAI Chat / Responses, Anthropic, Gemini, DeepSeek, LM Studio, Ollama, Pollinations, and custom compatible endpoints",
-  "promptAssistant_apiKeyConfigured": "API Key: configured",
-  "promptAssistant_apiKeyNotConfigured": "API Key: not configured",
-  "promptAssistant_supportsImageInput": "Supports image input",
-  "promptAssistant_textOnly": "Text only",
-  "promptAssistant_connectionConfig": "Connection Config",
-  "promptAssistant_pullModelList": "Pull model list",
-  "promptAssistant_editProvider": "Edit provider",
-  "promptAssistant_deleteProvider": "Delete provider",
-  "promptAssistant_pullingModels": "Pulling model list...",
-  "promptAssistant_emptyModelList": "Provider returned an empty model list",
-  "promptAssistant_modelsSynced": "Synced {count} models",
-  "@promptAssistant_modelsSynced": {
+  "promptAssistant_noModelsPullFirst": "No models yet. Add some in Model services first",
+  "settings_modelServices": "Model services",
+  "modelServices_searchProviders": "Search providers",
+  "modelServices_noProviderMatches": "No matching providers",
+  "modelServices_emptyTitle": "Add your first provider",
+  "modelServices_emptyBody": "Providers supply the models used by the prompt assistant and Agent.",
+  "modelServices_disabled": "Off",
+  "modelServices_enableProvider": "Enable provider",
+  "modelServices_moreActions": "More actions",
+  "modelServices_connection": "Connection",
+  "modelServices_apiKey": "API key",
+  "modelServices_apiKeySavedHint": "Saved. Enter a new key to replace it.",
+  "modelServices_apiKeyOptional": "Optional for this provider",
+  "modelServices_showApiKey": "Show key",
+  "modelServices_hideApiKey": "Hide key",
+  "modelServices_clearApiKey": "Remove saved key",
+  "modelServices_apiKeyCleared": "API key removed",
+  "modelServices_baseUrl": "API address",
+  "modelServices_checkConnection": "Check connection",
+  "modelServices_connectionOk": "Connected. The provider lists {count} models.",
+  "@modelServices_connectionOk": {
     "placeholders": {
       "count": {}
     }
   },
+  "modelServices_connectionFailed": "Couldn't connect: {error}",
+  "@modelServices_connectionFailed": {
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "modelServices_models": "Models",
+  "modelServices_modelCount": "{count} models",
+  "@modelServices_modelCount": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "modelServices_noModels": "No models yet. Pick from the provider's list or add a model ID.",
+  "modelServices_manageModels": "Manage models",
+  "modelServices_addModel": "Add model",
+  "modelServices_manageModelsTitle": "{provider} models",
+  "@modelServices_manageModelsTitle": {
+    "placeholders": {
+      "provider": {}
+    }
+  },
+  "modelServices_addGroup": "Add all {group} models",
+  "@modelServices_addGroup": {
+    "placeholders": {
+      "group": {}
+    }
+  },
+  "modelServices_removeGroup": "Remove all {group} models",
+  "@modelServices_removeGroup": {
+    "placeholders": {
+      "group": {}
+    }
+  },
+  "modelServices_notListed": "No longer listed",
+  "modelServices_reasoning": "Reasoning",
+  "modelServices_vision": "Vision",
+  "modelServices_contextWindow": "{size} context",
+  "@modelServices_contextWindow": {
+    "placeholders": {
+      "size": {}
+    }
+  },
+  "modelServices_modelId": "Model ID",
+  "modelServices_modelIdRequired": "Enter a model ID",
+  "modelServices_modelExists": "This provider already has this model",
+  "modelServices_displayName": "Display name",
+  "modelServices_displayNameHint": "Leave empty to use {name}",
+  "@modelServices_displayNameHint": {
+    "placeholders": {
+      "name": {}
+    }
+  },
+  "modelServices_editModel": "Edit model",
+  "modelServices_removeModel": "Remove model",
+  "modelServices_removeModelConfirm": "Remove {name} from this provider?",
+  "@modelServices_removeModelConfirm": {
+    "placeholders": {
+      "name": {}
+    }
+  },
+  "modelServices_removeModelInUse": "{name} is used by {usages}. Task routing switches to this provider's next model, and Agent asks you to pick a model again.",
+  "@modelServices_removeModelInUse": {
+    "placeholders": {
+      "name": {},
+      "usages": {}
+    }
+  },
+  "modelServices_usageSeparator": ", ",
+  "modelServices_cleanStaleModels": "Remove delisted models",
+  "modelServices_addAllModels": "Add all models",
+  "modelServices_staleModelCount": "{count} delisted models",
+  "@modelServices_staleModelCount": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "modelServices_addAllConfirm": "Add {count} models to this provider?",
+  "@modelServices_addAllConfirm": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "promptAssistant_supportsImageInput": "Supports image input",
+  "promptAssistant_textOnly": "Text only",
+  "promptAssistant_editProvider": "Edit provider",
+  "promptAssistant_deleteProvider": "Delete provider",
+  "promptAssistant_emptyModelList": "Provider returned an empty model list",
   "promptAssistant_pullModelsFailed": "Failed to pull models: {error}",
   "@promptAssistant_pullModelsFailed": {
     "placeholders": {
@@ -3331,16 +3425,7 @@
   "promptAssistant_allowImageInput": "Allow image input",
   "promptAssistant_allowImageInputSubtitle": "Enable only when the model and provider actually support vision input",
   "promptAssistant_apiKeyLeaveEmpty": "API Key (leave empty to keep unchanged)",
-  "promptAssistant_connectionTitle": "{name} Connection Config",
-  "@promptAssistant_connectionTitle": {
-    "placeholders": {
-      "name": {}
-    }
-  },
   "promptAssistant_baseUrlHint": "Example: https://api.openai.com/v1",
-  "promptAssistant_clearCurrentApiKey": "Clear current API Key",
-  "promptAssistant_protocolSupportsImagePayload": "The current protocol supports image payloads; the model itself must still support vision input",
-  "promptAssistant_protocolTextOnlyWarning": "The current protocol is text-only by default; enabling this may still be rejected by the server",
   "promptAssistant_addRuleTitle": "Add Rule",
   "promptAssistant_editRuleTitle": "Edit Rule",
   "promptAssistant_taskType": "Task Type",
@@ -6860,9 +6945,9 @@
   "agentSettings_floatingWindowDescription": "The floating window stays on every page and can be moved and resized; the right panel then shows only history.",
   "agentSettings_chatModel": "Chat model",
   "agentSettings_providerModel": "Provider / model",
-  "agentSettings_modelManagedInIntegrations": "Providers, API keys, and model discovery remain centrally managed in Integrations.",
+  "agentSettings_modelManagedInIntegrations": "Providers, API keys, and models are managed in Integrations > Model services.",
   "agentSettings_manageProviders": "Manage providers",
-  "agentSettings_noModel": "No chat model is available. Add a provider and discover models in Integrations first.",
+  "agentSettings_noModel": "No chat model is available. Add a provider and its models in Integrations > Model services first.",
   "agentSettings_pendingMatch": "pending match",
   "agentSettings_contextWindow": "Context window (tokens)",
   "agentSettings_contextWindowKnown": "Leave empty to use the built-in value {value}. Override it when a relay or custom deployment exposes a different window.",

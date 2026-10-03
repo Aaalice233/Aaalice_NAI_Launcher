@@ -6,15 +6,24 @@ import 'package:flutter/services.dart';
 import '../../adaptive/adaptive_presenter.dart';
 import '../../adaptive/interaction_policy.dart';
 import '../../themes/theme_extension.dart';
+import 'adaptive_title_bar.dart';
 import 'heading_semantics.dart';
 import 'model_family_icon.dart';
 
 class ModelPickerGroup {
-  const ModelPickerGroup({required this.id, required this.label, this.leading});
+  const ModelPickerGroup({
+    required this.id,
+    required this.label,
+    this.leading,
+    this.trailing,
+  });
 
   final String id;
   final String label;
   final Widget? leading;
+
+  /// 组级操作按钮，例如整组添加。
+  final Widget? trailing;
 }
 
 class ModelPickerOption<T> {
@@ -29,6 +38,7 @@ class ModelPickerOption<T> {
     this.subtitleLeading,
     this.group,
     this.tooltip,
+    this.trailing,
   });
 
   final String id;
@@ -41,6 +51,9 @@ class ModelPickerOption<T> {
   final Widget? subtitleLeading;
   final ModelPickerGroup? group;
   final String? tooltip;
+
+  /// 替换选中勾号的位置，用于展示添加/移除等状态。
+  final Widget? trailing;
 
   String get searchText => [
     title,
@@ -231,6 +244,9 @@ class SearchableModelPickerBody<T> extends StatefulWidget {
     this.keyPrefix = 'model-picker',
     this.headerKeyPrefix,
     this.onBack,
+    this.selectedIds = const {},
+    this.titleBadge,
+    this.headerActions = const [],
   });
 
   final String title;
@@ -245,6 +261,15 @@ class SearchableModelPickerBody<T> extends StatefulWidget {
   final String keyPrefix;
   final String? headerKeyPrefix;
   final VoidCallback? onBack;
+
+  /// 多选场景的已选项；与 [selectedId] 同时生效。
+  final Set<String> selectedIds;
+
+  /// 标题旁的计数等短标记。
+  final String? titleBadge;
+
+  /// 作用于整个列表的批量操作，放在标题栏关闭按钮之前。
+  final List<Widget> headerActions;
 
   @override
   State<SearchableModelPickerBody<T>> createState() =>
@@ -334,7 +359,11 @@ class _SearchableModelPickerBodyState<T>
     return (touch ? 72.0 : 64.0) + _textGrowth(context, 36);
   }
 
-  double _groupExtent(BuildContext context) => 40 + _textGrowth(context, 18);
+  double _groupExtent(BuildContext context, ModelPickerGroup group) {
+    if (group.trailing == null) return 40 + _textGrowth(context, 18);
+    final touch = context.interactionPolicy.touchAvailable;
+    return (touch ? 56.0 : 48.0) + _textGrowth(context, 18);
+  }
 
   List<double> _entryExtents(
     BuildContext context,
@@ -343,7 +372,7 @@ class _SearchableModelPickerBodyState<T>
   ) => [
     for (final entry in entries)
       switch (entry) {
-        _ModelPickerGroupEntry() => _groupExtent(context),
+        _ModelPickerGroupEntry(:final group) => _groupExtent(context, group),
         _ModelPickerOptionEntry(:final optionIndex) => _optionExtent(
           context,
           filtered[optionIndex],
@@ -376,6 +405,8 @@ class _SearchableModelPickerBodyState<T>
                       title: widget.title,
                       keyPrefix: widget.headerKeyPrefix ?? widget.keyPrefix,
                       onBack: widget.onBack,
+                      badge: widget.titleBadge,
+                      actions: widget.headerActions,
                     ),
                     Padding(
                       padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
@@ -474,7 +505,9 @@ class _SearchableModelPickerBodyState<T>
     final option = filtered[index];
     return _ModelPickerTile<T>(
       option: option,
-      selected: option.id == widget.selectedId,
+      selected:
+          option.id == widget.selectedId ||
+          widget.selectedIds.contains(option.id),
       highlighted: index == _highlightedIndex,
       itemKey: ValueKey(
         '${widget.keyPrefix}-option-${option.keyValue ?? option.id}',
@@ -581,47 +614,109 @@ class _ModelPickerHeader extends StatelessWidget {
     required this.title,
     required this.keyPrefix,
     this.onBack,
+    this.badge,
+    this.actions = const [],
   });
 
   final String title;
   final String keyPrefix;
   final VoidCallback? onBack;
+  final String? badge;
+  final List<Widget> actions;
 
   @override
   Widget build(BuildContext context) {
-    return ConstrainedBox(
-      constraints: const BoxConstraints(minHeight: 56),
-      child: Padding(
-        padding: const EdgeInsetsDirectional.only(start: 8, end: 8, top: 4),
-        child: Row(
+    final localizations = MaterialLocalizations.of(context);
+    return Padding(
+      padding: const EdgeInsetsDirectional.fromSTEB(8, 4, 8, 0),
+      child: AdaptiveTitleBar(
+        minRowHeight: 52,
+        title: Row(
+          mainAxisSize: MainAxisSize.min,
           children: [
             if (onBack != null)
               IconButton(
                 key: ValueKey('$keyPrefix-back'),
                 onPressed: onBack,
-                tooltip: MaterialLocalizations.of(context).backButtonTooltip,
+                tooltip: localizations.backButtonTooltip,
                 icon: const Icon(Icons.arrow_back_rounded),
               )
             else
               const SizedBox(width: 12),
-            Expanded(
-              child: Text(
-                title,
-                key: ValueKey('$keyPrefix-title'),
-                style: Theme.of(context).textTheme.titleMedium,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
+            Flexible(
+              child: _ModelPickerTitle(
+                title: title,
+                badge: badge,
+                keyPrefix: keyPrefix,
               ),
-            ),
-            IconButton(
-              key: ValueKey('$keyPrefix-close'),
-              onPressed: () => Navigator.maybePop(context),
-              tooltip: MaterialLocalizations.of(context).closeButtonTooltip,
-              icon: const Icon(Icons.close_rounded),
             ),
           ],
         ),
+        actions: Wrap(
+          key: ValueKey('$keyPrefix-actions'),
+          alignment: WrapAlignment.end,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          spacing: 4,
+          runSpacing: 4,
+          children: actions,
+        ),
+        trailing: IconButton(
+          key: ValueKey('$keyPrefix-close'),
+          onPressed: () => Navigator.maybePop(context),
+          tooltip: localizations.closeButtonTooltip,
+          icon: const Icon(Icons.close_rounded),
+        ),
       ),
+    );
+  }
+}
+
+class _ModelPickerTitle extends StatelessWidget {
+  const _ModelPickerTitle({
+    required this.title,
+    required this.badge,
+    required this.keyPrefix,
+  });
+
+  final String title;
+  final String? badge;
+  final String keyPrefix;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final badge = this.badge;
+    return Row(
+      children: [
+        Flexible(
+          child: Text(
+            title,
+            key: ValueKey('$keyPrefix-title'),
+            style: theme.textTheme.titleMedium,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+        if (badge != null) ...[
+          const SizedBox(width: 8),
+          DecoratedBox(
+            key: ValueKey('$keyPrefix-title-badge'),
+            decoration: BoxDecoration(
+              color: theme.colorScheme.surfaceContainerHighest,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+              child: Text(
+                badge,
+                style: theme.textTheme.labelMedium?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ],
     );
   }
 }
@@ -702,16 +797,17 @@ class _ModelPickerTile<T> extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: 8),
-                SizedBox(
-                  width: 20,
-                  child: selected
-                      ? Icon(
-                          Icons.check_rounded,
-                          size: 18,
-                          color: theme.colorScheme.primary,
-                        )
-                      : null,
-                ),
+                option.trailing ??
+                    SizedBox(
+                      width: 20,
+                      child: selected
+                          ? Icon(
+                              Icons.check_rounded,
+                              size: 18,
+                              color: theme.colorScheme.primary,
+                            )
+                          : null,
+                    ),
               ],
             ),
           ),
@@ -763,7 +859,9 @@ class _ModelPickerGroupHeader extends StatelessWidget {
       level: 3,
       child: Padding(
         key: headerKey,
-        padding: const EdgeInsetsDirectional.fromSTEB(12, 12, 12, 4),
+        padding: group.trailing == null
+            ? const EdgeInsetsDirectional.fromSTEB(12, 12, 12, 4)
+            : const EdgeInsetsDirectional.fromSTEB(12, 4, 4, 0),
         child: Row(
           children: [
             if (group.leading != null) ...[
@@ -781,6 +879,7 @@ class _ModelPickerGroupHeader extends StatelessWidget {
                 overflow: TextOverflow.ellipsis,
               ),
             ),
+            if (group.trailing != null) group.trailing!,
           ],
         ),
       ),

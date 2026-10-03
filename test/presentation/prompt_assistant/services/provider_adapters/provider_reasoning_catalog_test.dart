@@ -2,6 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/core/agent/agent_types.dart';
 import 'package:nai_launcher/presentation/prompt_assistant/models/agent_protocol.dart';
 import 'package:nai_launcher/presentation/prompt_assistant/models/assistant_model_capability.dart';
+import 'package:nai_launcher/presentation/prompt_assistant/models/pi_model_profiles.dart';
 import 'package:nai_launcher/presentation/prompt_assistant/models/pi_reasoning_model_catalog.dart';
 import 'package:nai_launcher/data/models/prompt_assistant/prompt_assistant_models.dart';
 import 'package:nai_launcher/presentation/prompt_assistant/services/provider_adapters/reasoning_payload.dart';
@@ -277,6 +278,31 @@ void main() {
         ),
         'DeepSeek V4.1 Flash',
       );
+    });
+
+    test('keep official names that only differ from the ID by case', () {
+      final openai = ProviderPreset.openaiResponses.createConfig();
+      String? name(String id) =>
+          AssistantModelCatalog.catalogDisplayName(provider: openai, model: id);
+
+      expect(name('gpt-4o'), 'GPT-4o');
+      expect(name('o3'), 'o3');
+      expect(
+        AssistantModelCatalog.catalogProfile(
+          provider: openai,
+          model: 'O3',
+        )?.imageInput,
+        isTrue,
+      );
+    });
+
+    test('expose image input from the catalog profile', () {
+      PiModelProfile? profile(String id) =>
+          AssistantModelCatalog.catalogProfile(provider: deepseek, model: id);
+
+      expect(profile('deepseek-flash')?.imageInput, isTrue);
+      expect(profile('deepseek-v4-pro')?.imageInput, isFalse);
+      expect(profile('deepseek-v4-flash'), isNull);
     });
   });
 }
