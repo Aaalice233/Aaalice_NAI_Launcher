@@ -31,11 +31,10 @@ const _levels = <String>[
   'xhigh',
   'max',
 ];
-const _mistralEffortModels = <String>{
-  'mistral-small-2603',
-  'mistral-small-latest',
-  'mistral-medium-3.5',
-};
+const _reasoningCatalogPath =
+    'lib/presentation/prompt_assistant/models/pi_reasoning_model_catalog.dart';
+const _displayNamesPath =
+    'lib/presentation/prompt_assistant/models/pi_model_display_names.dart';
 
 void main(List<String> arguments) {
   final check = arguments.contains('--check');
@@ -59,25 +58,30 @@ void main(List<String> arguments) {
     File('tool/agent/pi_reasoning_source_lock.json'),
   );
   _validateSourceLock(root, package, sourceLock);
-  final output = _formatGeneratedCatalog(
-    _generate(root, package['version'] as String),
-  );
-  final target = File(
-    'lib/presentation/prompt_assistant/models/pi_reasoning_model_catalog.dart',
-  );
-  if (check) {
-    if (!target.existsSync() || target.readAsStringSync() != output) {
-      stderr.writeln('${target.path} is not synchronized with ${root.path}.');
-      exitCode = 1;
-    } else {
-      stdout.writeln('${target.path} is up to date.');
+  final version = package['version'] as String;
+  final outputs = <String, String>{
+    _reasoningCatalogPath: _formatGeneratedCatalog(
+      _generateReasoningCatalog(root, version),
+    ),
+    _displayNamesPath: _formatGeneratedCatalog(
+      _generateDisplayNames(root, version),
+    ),
+  };
+  for (final entry in outputs.entries) {
+    final target = File(entry.key);
+    if (check) {
+      if (!target.existsSync() || target.readAsStringSync() != entry.value) {
+        stderr.writeln('${target.path} is not synchronized with ${root.path}.');
+        exitCode = 1;
+      } else {
+        stdout.writeln('${target.path} is up to date.');
+      }
+      continue;
     }
-    return;
+    target.parent.createSync(recursive: true);
+    target.writeAsStringSync(entry.value, flush: true);
+    stdout.writeln('Generated ${target.path} from pi-ai $version.');
   }
-
-  target.parent.createSync(recursive: true);
-  target.writeAsStringSync(output, flush: true);
-  stdout.writeln('Generated ${target.path} from pi-ai ${package['version']}.');
 }
 
 void _validateSourceLock(
@@ -127,7 +131,7 @@ String _formatGeneratedCatalog(String source) {
   }
 }
 
-String _generate(Directory root, String version) {
+String _generateReasoningCatalog(Directory root, String version) {
   final output = StringBuffer()
     ..writeln('// GENERATED from @earendil-works/pi-ai $version.')
     ..writeln(
@@ -144,18 +148,10 @@ String _generate(Directory root, String version) {
     );
 
   for (final provider in _providers) {
-    final data = _jsonObject(
-      File('${root.path}/dist/providers/data/$provider.json'),
-    );
-    final models =
-        <Map<String, dynamic>>[
-          for (final apiModels in data.values)
-            for (final model in (apiModels as Map<String, dynamic>).values)
-              if ((model as Map<String, dynamic>)['reasoning'] == true) model,
-        ]..sort(
-          (left, right) =>
-              (left['id'] as String).compareTo(right['id'] as String),
-        );
+    final models = [
+      for (final model in _chatModels(root, provider))
+        if (model['reasoning'] == true) model,
+    ];
 
     output.writeln("  ${_quote(provider)}: {");
     for (final model in models) {
@@ -177,7 +173,11 @@ String _generate(Directory root, String version) {
       ];
       final supportsEffort = _supportsReasoningEffort(model, compat);
       final thinkingBudgets = _thinkingBudgets(api, model['id'] as String);
-      final disabledEffort = _disabledEffort(api, model['id'] as String);
+      final disabledEffort = _disabledEffort(
+        api,
+        supportedLevels,
+        sourceLevelMap,
+      );
       output.writeln(
         '    ${_quote(model['id'] as String)}: AgentReasoningModelRule('
         'api: AgentReasoningApi.$api, '
@@ -198,6 +198,47 @@ String _generate(Directory root, String version) {
   }
   output.writeln('};');
   return output.toString();
+}
+
+String _generateDisplayNames(Directory root, String version) {
+  final output = StringBuffer()
+    ..writeln('// GENERATED from @earendil-works/pi-ai $version.')
+    ..writeln(
+      '// Source: dist/providers/data/*.json. Do not edit by hand.',
+    )
+    ..writeln()
+    ..writeln(
+      'const piModelDisplayNames = <String, Map<String, String>>{',
+    );
+  for (final provider in _providers) {
+    output.writeln("  ${_quote(provider)}: {");
+    for (final model in _chatModels(root, provider)) {
+      final name = (model['name'] as String?)?.trim() ?? '';
+      if (name.isEmpty) continue;
+      output.writeln(
+        '    ${_quote(model['id'] as String)}: ${_quote(name)},',
+      );
+    }
+    output.writeln('  },');
+  }
+  output.writeln('};');
+  return output.toString();
+}
+
+// Pi 1.0 keys entries as "<type>:<id>" and ships image/classifier models in
+// the same files; only chat models are selectable in the assistant.
+List<Map<String, dynamic>> _chatModels(Directory root, String provider) {
+  final data = _jsonObject(
+    File('${root.path}/dist/providers/data/$provider.json'),
+  );
+  return <Map<String, dynamic>>[
+    for (final apiModels in data.values)
+      for (final model in (apiModels as Map<String, dynamic>).values)
+        if (((model as Map<String, dynamic>)['type'] ?? 'chat') == 'chat')
+          model,
+  ]..sort(
+    (left, right) => (left['id'] as String).compareTo(right['id'] as String),
+  );
 }
 
 bool _supportsReasoningEffort(
@@ -240,11 +281,6 @@ bool _supportsLevel(
   if (api == 'geminiBudget' && modelId.contains('2.5-pro') && level == 'off') {
     return false;
   }
-  if (api == 'geminiLevel' &&
-      level == 'minimal' &&
-      _geminiMinimumLevel(modelId) == 'LOW') {
-    return false;
-  }
   if (levelMap[level] == null && levelMap.containsKey(level)) return false;
   if ((level == 'xhigh' || level == 'max') && !levelMap.containsKey(level)) {
     return false;
@@ -263,23 +299,12 @@ Map<String, dynamic> _emittedLevelMap(
       if (source[level] == null && source.containsKey(level))
         level: null
       else if (level != 'off' && _supportsLevel(api, modelId, level, source))
-        level: _geminiNativeLevel(
-          modelId,
-          (source[level] as String?)?.toLowerCase() ?? level,
-        ),
+        level: _googleThinkingLevel(source, level),
   };
 }
 
-String _geminiNativeLevel(String modelId, String level) {
-  final id = modelId.toLowerCase();
-  if (RegExp(r'gemini-3(?:\.\d+)?-pro').hasMatch(id)) {
-    return level == 'minimal' || level == 'low' ? 'LOW' : 'HIGH';
-  }
-  if (RegExp(r'gemma-?4').hasMatch(id)) {
-    return level == 'minimal' || level == 'low' ? 'MINIMAL' : 'HIGH';
-  }
-  return level.toUpperCase();
-}
+String _googleThinkingLevel(Map<String, dynamic> levelMap, String level) =>
+    ((levelMap[level] as String?) ?? level).toUpperCase();
 
 Map<String, int> _thinkingBudgets(String api, String modelId) {
   if (api != 'geminiBudget') return const {};
@@ -295,19 +320,25 @@ Map<String, int> _thinkingBudgets(String api, String modelId) {
   return const {};
 }
 
-String? _disabledEffort(String api, String modelId) {
+// Thinking-level Gemini models cannot fully disable thinking; Pi clamps "off"
+// to the lowest supported level and sends that instead.
+String? _disabledEffort(
+  String api,
+  List<String> supportedLevels,
+  Map<String, dynamic> levelMap,
+) {
   if (api != 'geminiLevel') return null;
-  return _geminiMinimumLevel(modelId);
+  final fallback = supportedLevels.firstOrNull ?? 'off';
+  if (fallback == 'off') return null;
+  return _googleThinkingLevel(levelMap, fallback);
 }
 
-String _geminiMinimumLevel(String modelId) {
-  final normalizedId = modelId.toLowerCase();
-  if (RegExp(r'gemini-3(?:\.\d+)?-pro').hasMatch(normalizedId) ||
-      normalizedId == 'gemini-3.7-flash' ||
-      normalizedId == 'gemini-3.8-flash') {
-    return 'LOW';
-  }
-  return 'MINIMAL';
+bool _usesGoogleThinkingLevel(String modelId) {
+  final id = modelId.toLowerCase();
+  return RegExp(r'gemini-3(?:\.\d+)?-(?:pro|flash)').hasMatch(id) ||
+      id == 'gemini-flash-latest' ||
+      id == 'gemini-flash-lite-latest' ||
+      RegExp(r'gemma-?4').hasMatch(id);
 }
 
 String _reasoningApi(Map<String, dynamic> model, Map<String, dynamic> compat) {
@@ -320,17 +351,12 @@ String _reasoningApi(Map<String, dynamic> model, Map<String, dynamic> compat) {
         : 'anthropicBudget';
   }
   if (api == 'google-generative-ai') {
-    return id.startsWith('gemini-3') ||
-            id.startsWith('gemma-4') ||
-            id == 'gemini-flash-latest' ||
-            id == 'gemini-flash-lite-latest'
-        ? 'geminiLevel'
-        : 'geminiBudget';
+    return _usesGoogleThinkingLevel(id) ? 'geminiLevel' : 'geminiBudget';
   }
   if (api == 'mistral-conversations') {
-    return _mistralEffortModels.contains(id)
-        ? 'mistralEffort'
-        : 'mistralPromptMode';
+    return model['thinkingLevelMap'] == null
+        ? 'mistralPromptMode'
+        : 'mistralEffort';
   }
   return switch (compat['thinkingFormat']) {
     'deepseek' => 'deepSeek',

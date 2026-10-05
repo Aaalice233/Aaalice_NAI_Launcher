@@ -754,6 +754,17 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
     return (provider, model, null);
   }
 
+  String _routeLabel((ProviderConfig, String, String?) route) {
+    final (provider, model, _) = route;
+    final name =
+        AssistantModelCatalog.catalogDisplayName(
+          provider: provider,
+          model: model,
+        ) ??
+        model;
+    return '${provider.name} / $name';
+  }
+
   AgentChatModelCapability _modelCapability(
     (ProviderConfig, String, String?)? route,
   ) {
@@ -858,7 +869,7 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
     }
     state = state.copyWith(
       routeReady: true,
-      routeLabel: '${_routeCache!.$1.name} / ${_routeCache!.$2}',
+      routeLabel: _routeLabel(_routeCache!),
       routeError: '',
       contextUsage: resolveAgentContextUsage(
         _sessionControllerValue?.agent?.state.messages ?? state.messages,

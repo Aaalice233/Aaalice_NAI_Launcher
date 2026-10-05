@@ -2,6 +2,7 @@ import '../../../core/agent/agent_types.dart';
 import 'agent_protocol.dart';
 import '../../../data/models/prompt_assistant/prompt_assistant_models.dart';
 import 'agent_reasoning_model_rule.dart';
+import 'pi_model_display_names.dart';
 import 'pi_reasoning_model_catalog.dart';
 
 const _thinkingOrder = <ThinkingLevel>[
@@ -211,10 +212,13 @@ class AssistantModelCatalog {
       }
     }
 
-    if (rule == null && provider.preset == ProviderPreset.deepseek) {
+    if (rule == null && providerKey == 'deepseek') {
       rule = switch (model) {
         'deepseek-chat' => _legacyDeepSeekChat,
         'deepseek-reasoner' => _legacyDeepSeekReasoner,
+        // 官方已下线这两个名字但仍接受请求，实际由 deepseek-flash 提供服务。
+        'deepseek-v4-flash' ||
+        'deepseek-v4-flash-vision-exp' => _lookupRule('deepseek', 'deepseek-flash'),
         _ => null,
       };
     }
@@ -283,6 +287,43 @@ class AssistantModelCatalog {
       thinkingLevels: const [],
     );
   }
+
+  /// 用户自定义名优先，其次 Pi 目录里的官方名，都没有时回退到模型 ID。
+  static String displayLabel({
+    required ProviderConfig provider,
+    required ModelConfig model,
+  }) {
+    final id = model.name.trim();
+    final custom = model.displayName.trim();
+    if (custom.isNotEmpty && custom != id) return custom;
+    return catalogDisplayName(provider: provider, model: id) ?? id;
+  }
+
+  static String? catalogDisplayName({
+    required ProviderConfig provider,
+    required String model,
+  }) {
+    final normalized = model.trim().toLowerCase();
+    final providerKey = _resolvePiProvider(provider, model);
+    final names = providerKey == null ? null : piModelDisplayNames[providerKey];
+    if (names == null) return _displayNamesByModelName[normalized];
+    // 已识别的服务商以自身目录为准：同名模型在别家可能是另一个版本。
+    for (final entry in names.entries) {
+      if (entry.key.toLowerCase() == normalized) return entry.value;
+    }
+    return null;
+  }
+
+  /// 中转站透传官方模型名时按名回查；多个服务商同名取目录顺序中的第一个。
+  static final Map<String, String> _displayNamesByModelName = () {
+    final index = <String, String>{};
+    for (final names in piModelDisplayNames.values) {
+      for (final entry in names.entries) {
+        index.putIfAbsent(entry.key.toLowerCase(), () => entry.value);
+      }
+    }
+    return index;
+  }();
 
   /// 目录按模型名反查索引；窗口为 0 的条目不参与，命中即可用。
   static final Map<String, List<AgentReasoningModelRule>> _rulesByModelName =
