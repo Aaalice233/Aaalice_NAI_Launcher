@@ -8,6 +8,8 @@ import '../../../adaptive/content_sized_adaptive_form.dart';
 import '../../../../data/models/prompt_assistant/prompt_assistant_models.dart';
 import '../../../widgets/common/themed_confirm_dialog.dart';
 import '../../../widgets/common/provider_icon.dart';
+import 'assistant_task_labels.dart';
+import 'settings_form_footer.dart';
 
 class PromptAssistantProviderFormResult {
   const PromptAssistantProviderFormResult({
@@ -165,12 +167,15 @@ class _PromptAssistantProviderFormState
             labelText: context.l10n.promptAssistant_protocol,
           ),
         ),
-        const SizedBox(height: 12),
-        TextField(
-          controller: _baseController,
-          keyboardType: TextInputType.url,
-          decoration: const InputDecoration(labelText: 'Base URL'),
-        ),
+        // 已有服务商的地址和密钥在模型服务页内直接编辑，这里不再重复。
+        if (widget.provider == null) ...[
+          const SizedBox(height: 12),
+          TextField(
+            controller: _baseController,
+            keyboardType: TextInputType.url,
+            decoration: const InputDecoration(labelText: 'Base URL'),
+          ),
+        ],
         const SizedBox(height: 8),
         SwitchListTile(
           value: _allowImageInput,
@@ -229,133 +234,18 @@ class _PromptAssistantProviderFormState
             context.l10n.promptAssistant_concurrencyAutoDescription,
             style: Theme.of(context).textTheme.bodySmall,
           ),
-        const SizedBox(height: 12),
-        TextField(
-          controller: _keyController,
-          decoration: InputDecoration(
-            labelText: context.l10n.promptAssistant_apiKeyLeaveEmpty,
+        if (widget.provider == null) ...[
+          const SizedBox(height: 12),
+          TextField(
+            controller: _keyController,
+            decoration: InputDecoration(
+              labelText: context.l10n.promptAssistant_apiKeyLeaveEmpty,
+            ),
+            obscureText: true,
           ),
-          obscureText: true,
-        ),
+        ],
       ],
-      footer: _FormFooter(onSave: _save),
-    );
-  }
-}
-
-class PromptAssistantConnectionFormResult {
-  const PromptAssistantConnectionFormResult({
-    required this.baseUrl,
-    required this.apiKey,
-    required this.clearApiKey,
-    required this.allowImageInput,
-  });
-
-  final String baseUrl;
-  final String apiKey;
-  final bool clearApiKey;
-  final bool allowImageInput;
-}
-
-class PromptAssistantConnectionForm extends StatefulWidget {
-  const PromptAssistantConnectionForm({
-    super.key,
-    required this.provider,
-    required this.scrollController,
-  });
-
-  final ProviderConfig provider;
-  final ScrollController scrollController;
-
-  @override
-  State<PromptAssistantConnectionForm> createState() =>
-      _PromptAssistantConnectionFormState();
-}
-
-class _PromptAssistantConnectionFormState
-    extends State<PromptAssistantConnectionForm> {
-  late final TextEditingController _baseController;
-  final TextEditingController _keyController = TextEditingController();
-  bool _clearApiKey = false;
-  late bool _allowImageInput;
-
-  @override
-  void initState() {
-    super.initState();
-    _baseController = TextEditingController(text: widget.provider.baseUrl);
-    _allowImageInput = widget.provider.allowImageInput;
-  }
-
-  @override
-  void dispose() {
-    _baseController.dispose();
-    _keyController.dispose();
-    super.dispose();
-  }
-
-  void _save() {
-    Navigator.pop(
-      context,
-      PromptAssistantConnectionFormResult(
-        baseUrl: _baseController.text.trim(),
-        apiKey: _keyController.text,
-        clearApiKey: _clearApiKey,
-        allowImageInput: _allowImageInput,
-      ),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return ContentSizedAdaptiveForm(
-      key: const ValueKey('prompt-assistant-connection-dialog'),
-      scrollController: widget.scrollController,
-      content: [
-        ProviderNameLabel(
-          provider: widget.provider,
-          style: Theme.of(context).textTheme.titleSmall,
-        ),
-        const SizedBox(height: 12),
-        TextField(
-          controller: _baseController,
-          keyboardType: TextInputType.url,
-          decoration: InputDecoration(
-            labelText: 'Base URL',
-            hintText: context.l10n.promptAssistant_baseUrlHint,
-          ),
-        ),
-        const SizedBox(height: 12),
-        TextField(
-          controller: _keyController,
-          decoration: InputDecoration(
-            labelText: context.l10n.promptAssistant_apiKeyLeaveEmpty,
-          ),
-          obscureText: true,
-        ),
-        const SizedBox(height: 8),
-        CheckboxListTile(
-          value: _clearApiKey,
-          contentPadding: EdgeInsets.zero,
-          title: Text(context.l10n.promptAssistant_clearCurrentApiKey),
-          onChanged: (value) {
-            setState(() => _clearApiKey = value ?? false);
-          },
-        ),
-        SwitchListTile(
-          value: _allowImageInput,
-          contentPadding: EdgeInsets.zero,
-          title: Text(context.l10n.promptAssistant_allowImageInput),
-          subtitle: Text(
-            widget.provider.protocol.supportsImagePayload
-                ? context.l10n.promptAssistant_protocolSupportsImagePayload
-                : context.l10n.promptAssistant_protocolTextOnlyWarning,
-          ),
-          onChanged: (value) {
-            setState(() => _allowImageInput = value);
-          },
-        ),
-      ],
-      footer: _FormFooter(onSave: _save),
+      footer: SettingsFormFooter(onSave: _save),
     );
   }
 }
@@ -424,7 +314,7 @@ class _PromptAssistantRuleFormState extends State<PromptAssistantRuleForm> {
     if (rule == null) return;
     final confirmed = await ThemedConfirmDialog.showDelete(
       context: context,
-      itemName: _displayRuleName(context, rule),
+      itemName: localizedRuleName(context.l10n, rule),
     );
     if (confirmed && mounted) {
       Navigator.pop(context, const PromptAssistantRuleFormResult.deleted());
@@ -465,7 +355,7 @@ class _PromptAssistantRuleFormState extends State<PromptAssistantRuleForm> {
                 (value) => DropdownMenuItem(
                   value: value,
                   child: Text(
-                    _assistantTaskLabel(context, value),
+                    value.localizedLabel(context.l10n),
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
@@ -489,7 +379,7 @@ class _PromptAssistantRuleFormState extends State<PromptAssistantRuleForm> {
           ),
         ),
       ],
-      footer: _FormFooter(
+      footer: SettingsFormFooter(
         onSave: _save,
         leading: rule != null && !rule.isDefault
             ? TextButton(
@@ -500,71 +390,4 @@ class _PromptAssistantRuleFormState extends State<PromptAssistantRuleForm> {
       ),
     );
   }
-}
-
-class _FormFooter extends StatelessWidget {
-  const _FormFooter({required this.onSave, this.leading});
-
-  final VoidCallback onSave;
-  final Widget? leading;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        const Divider(height: 1),
-        SafeArea(
-          top: false,
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Align(
-              alignment: Alignment.centerRight,
-              child: Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: [
-                  if (leading != null) leading!,
-                  TextButton(
-                    onPressed: () => Navigator.pop(context),
-                    child: Text(context.l10n.common_cancel),
-                  ),
-                  FilledButton(
-                    onPressed: onSave,
-                    child: Text(context.l10n.common_save),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-String _assistantTaskLabel(BuildContext context, AssistantTaskType taskType) {
-  return switch (taskType) {
-    AssistantTaskType.llm => context.l10n.promptAssistant_taskOptimize,
-    AssistantTaskType.translate => context.l10n.promptAssistant_taskTranslate,
-    AssistantTaskType.reverse => context.l10n.promptAssistant_taskReverse,
-    AssistantTaskType.characterReplace =>
-      context.l10n.promptAssistant_taskCharacterReplace,
-    AssistantTaskType.custom => context.l10n.promptAssistant_taskCustom,
-    AssistantTaskType.chat => context.l10n.agentChat_tab,
-  };
-}
-
-String _displayRuleName(BuildContext context, PromptRuleTemplate rule) {
-  if (!rule.isDefault) return rule.name;
-  final l10n = context.l10n;
-  return switch (rule.id) {
-    'opt_default' => l10n.promptAssistant_defaultOptimizeRuleName,
-    'translate_default' => l10n.promptAssistant_defaultTranslateRuleName,
-    'reverse_default' => l10n.promptAssistant_defaultReverseRuleName,
-    'character_replace_default' =>
-      l10n.promptAssistant_defaultCharacterReplaceRuleName,
-    'custom_default' => l10n.promptAssistant_defaultCustomRuleName,
-    _ => rule.name,
-  };
 }

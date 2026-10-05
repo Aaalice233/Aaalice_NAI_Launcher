@@ -10,10 +10,9 @@ import '../../../adaptive/adaptive_presenter.dart';
 import '../../../../data/models/prompt_assistant/prompt_assistant_models.dart';
 import '../../../prompt_assistant/models/assistant_model_capability.dart';
 import '../../../prompt_assistant/providers/prompt_assistant_config_provider.dart';
-import '../../../prompt_assistant/services/prompt_assistant_service.dart';
-import '../../../widgets/common/themed_confirm_dialog.dart';
 import '../../../widgets/common/searchable_model_picker.dart';
 import '../widgets/prompt_assistant_settings_forms.dart';
+import '../widgets/assistant_task_labels.dart';
 import '../widgets/assistant_task_thinking_field.dart';
 import '../widgets/settings_card.dart';
 
@@ -90,13 +89,6 @@ class PromptAssistantSettingsSection extends ConsumerWidget {
               ),
             ],
           ),
-        ),
-        const SizedBox(height: 16),
-        SettingsCard(
-          key: const ValueKey('prompt-assistant-provider-section'),
-          title: context.l10n.promptAssistant_providerManagement,
-          description: context.l10n.promptAssistant_providerManagementSubtitle,
-          child: _buildProviders(context, ref, state, notifier),
         ),
         const SizedBox(height: 16),
         SettingsCard(
@@ -223,7 +215,7 @@ class PromptAssistantSettingsSection extends ConsumerWidget {
 
     return _buildTaskRouteCard(
       context: context,
-      title: _assistantTaskLabel(context, taskType),
+      title: taskType.localizedLabel(context.l10n),
       modelPickerKeyPrefix: 'prompt-route-${taskType.name}-model',
       thinkingField: AssistantTaskThinkingField(
         task: taskType,
@@ -347,197 +339,6 @@ class PromptAssistantSettingsSection extends ConsumerWidget {
     );
   }
 
-  Widget _buildProviders(
-    BuildContext context,
-    WidgetRef ref,
-    PromptAssistantConfigState state,
-    PromptAssistantConfigNotifier notifier,
-  ) {
-    return Column(
-      children: [
-        Align(
-          alignment: Alignment.centerLeft,
-          child: FilledButton.tonalIcon(
-            key: const ValueKey('prompt-assistant-add-provider'),
-            onPressed: () => _showProviderDialog(context, notifier, state),
-            icon: const Icon(Icons.add),
-            label: Text(context.l10n.promptAssistant_addProvider),
-          ),
-        ),
-        const SizedBox(height: 8),
-        ...state.providers.map((provider) {
-          final hasApiKey = state.providerHasApiKey[provider.id] ?? false;
-
-          Widget buildDetails() {
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                ProviderNameLabel(
-                  provider: provider,
-                  style: Theme.of(context).textTheme.titleMedium,
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  '${provider.protocol.label}  ${provider.baseUrl}',
-                  style: Theme.of(context).textTheme.bodyMedium,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  [
-                    hasApiKey
-                        ? context.l10n.promptAssistant_apiKeyConfigured
-                        : context.l10n.promptAssistant_apiKeyNotConfigured,
-                    provider.allowImageInput
-                        ? context.l10n.promptAssistant_supportsImageInput
-                        : context.l10n.promptAssistant_textOnly,
-                  ].join(' · '),
-                  style: Theme.of(context).textTheme.bodySmall,
-                ),
-              ],
-            );
-          }
-
-          Widget buildActions() {
-            return Wrap(
-              spacing: 4,
-              runSpacing: 4,
-              crossAxisAlignment: WrapCrossAlignment.center,
-              alignment: WrapAlignment.end,
-              children: [
-                TextButton.icon(
-                  onPressed: () => _showConnectionDialog(
-                    context,
-                    notifier,
-                    provider: provider,
-                  ),
-                  icon: const Icon(Icons.link, size: 16),
-                  label: Text(context.l10n.promptAssistant_connectionConfig),
-                ),
-                IconButton(
-                  icon: const Icon(Icons.download_for_offline_outlined),
-                  tooltip: context.l10n.promptAssistant_pullModelList,
-                  onPressed: () =>
-                      _pullProviderModels(context, ref, notifier, provider.id),
-                ),
-                IconButton(
-                  icon: const Icon(Icons.edit),
-                  tooltip: context.l10n.promptAssistant_editProvider,
-                  onPressed: () => _showProviderDialog(
-                    context,
-                    notifier,
-                    state,
-                    provider: provider,
-                  ),
-                ),
-                IconButton(
-                  icon: const Icon(Icons.delete_outline),
-                  tooltip: context.l10n.promptAssistant_deleteProvider,
-                  onPressed: () async {
-                    final confirmed = await ThemedConfirmDialog.showDelete(
-                      context: context,
-                      itemName: provider.name,
-                    );
-                    if (!confirmed || !context.mounted) return;
-                    await notifier.deleteProvider(provider.id);
-                  },
-                ),
-              ],
-            );
-          }
-
-          return Container(
-            key: ValueKey('prompt-assistant-provider-${provider.id}'),
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-            child: LayoutBuilder(
-              builder: (context, constraints) {
-                final useStackedLayout = constraints.maxWidth < 720;
-                final toggle = Switch(
-                  value: provider.enabled,
-                  onChanged: (value) {
-                    notifier.upsertProvider(provider.copyWith(enabled: value));
-                  },
-                );
-
-                if (useStackedLayout) {
-                  return Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.center,
-                        children: [
-                          toggle,
-                          const SizedBox(width: 8),
-                          Expanded(child: buildDetails()),
-                        ],
-                      ),
-                      const SizedBox(height: 4),
-                      Align(
-                        alignment: Alignment.centerRight,
-                        child: buildActions(),
-                      ),
-                    ],
-                  );
-                }
-
-                return Row(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    toggle,
-                    const SizedBox(width: 8),
-                    Expanded(child: buildDetails()),
-                    const SizedBox(width: 8),
-                    ConstrainedBox(
-                      constraints: const BoxConstraints(maxWidth: 360),
-                      child: buildActions(),
-                    ),
-                  ],
-                );
-              },
-            ),
-          );
-        }),
-      ],
-    );
-  }
-
-  Future<void> _pullProviderModels(
-    BuildContext context,
-    WidgetRef ref,
-    PromptAssistantConfigNotifier notifier,
-    String providerId,
-  ) async {
-    final l10n = context.l10n;
-    final messenger = ScaffoldMessenger.maybeOf(context);
-    messenger?.showSnackBar(
-      SnackBar(content: Text(l10n.promptAssistant_pullingModels)),
-    );
-
-    try {
-      final service = ref.read(promptAssistantServiceProvider);
-      final modelNames = await service.fetchAvailableModels(providerId);
-      if (modelNames.isEmpty) {
-        throw StateError(l10n.promptAssistant_emptyModelList);
-      }
-
-      // 以接口返回的最新列表为准同步：新增缺失模型、清理已弃用的 API 模型、
-      // 保留手动/默认模型，并在需要时迁移受影响的任务路由。
-      await notifier.syncProviderModels(providerId, modelNames);
-
-      messenger?.showSnackBar(
-        SnackBar(
-          content: Text(l10n.promptAssistant_modelsSynced(modelNames.length)),
-        ),
-      );
-    } catch (e) {
-      messenger?.showSnackBar(
-        SnackBar(content: Text(l10n.promptAssistant_pullModelsFailed('$e'))),
-      );
-    }
-  }
-
   Widget _buildRules(
     BuildContext context,
     PromptAssistantConfigState state,
@@ -552,7 +353,7 @@ class PromptAssistantSettingsSection extends ConsumerWidget {
       children: [
         ...rules.map(
           (rule) => ListTile(
-            title: Text(_displayRuleName(context, rule)),
+            title: Text(localizedRuleName(context.l10n, rule)),
             subtitle: Text(
               _displayRuleContent(context, rule),
               maxLines: 2,
@@ -580,132 +381,6 @@ class PromptAssistantSettingsSection extends ConsumerWidget {
         ),
       ],
     );
-  }
-
-  Future<void> _showProviderDialog(
-    BuildContext context,
-    PromptAssistantConfigNotifier notifier,
-    PromptAssistantConfigState state, {
-    ProviderConfig? provider,
-  }) async {
-    final result =
-        await AdaptivePresenter.showForm<PromptAssistantProviderFormResult>(
-          context: context,
-          dialogWidth: 520,
-          title: provider == null
-              ? context.l10n.promptAssistant_addProvider
-              : context.l10n.promptAssistant_editProviderTitle,
-          builder: (context, scrollController) => PromptAssistantProviderForm(
-            provider: provider,
-            scrollController: scrollController,
-          ),
-        );
-    if (result == null) return;
-
-    final resolvedName = result.name.isEmpty
-        ? result.preset.defaultName
-        : result.name;
-    final resolvedId =
-        provider?.id ??
-        _uniqueProviderId(
-          state,
-          _providerIdFromName(resolvedName, fallback: result.preset.defaultId),
-        );
-    final next = ProviderConfig(
-      id: resolvedId,
-      name: resolvedName,
-      type: result.preset.legacyType,
-      protocol: result.preset.defaultProtocol,
-      preset: result.preset,
-      baseUrl: result.baseUrl,
-      enabled: provider?.enabled ?? true,
-      allowImageInput: result.allowImageInput,
-      concurrency: result.concurrency,
-    );
-
-    await notifier.upsertProvider(next);
-
-    if (result.apiKey.trim().isNotEmpty) {
-      await notifier.setProviderApiKey(resolvedId, result.apiKey);
-    }
-
-    for (final taskType in AssistantTaskType.values) {
-      final hasModel = state.models.any(
-        (m) => m.providerId == resolvedId && m.forTask == taskType,
-      );
-      if (!hasModel) {
-        final defaultModels = next.preset?.defaultModelNames ?? const [];
-        final modelName = defaultModels.isNotEmpty
-            ? defaultModels.first
-            : 'default-model';
-        await notifier.upsertModel(
-          ModelConfig(
-            providerId: resolvedId,
-            name: modelName,
-            displayName: modelName,
-            forTask: taskType,
-            isDefault: true,
-          ),
-        );
-      }
-    }
-  }
-
-  String _uniqueProviderId(PromptAssistantConfigState state, String baseId) {
-    if (!state.providers.any((provider) => provider.id == baseId)) {
-      return baseId;
-    }
-    var index = 2;
-    while (state.providers.any(
-      (provider) => provider.id == '${baseId}_$index',
-    )) {
-      index++;
-    }
-    return '${baseId}_$index';
-  }
-
-  String _providerIdFromName(String name, {required String fallback}) {
-    final normalized = name
-        .trim()
-        .toLowerCase()
-        .replaceAll(RegExp(r'[^a-z0-9]+'), '_')
-        .replaceAll(RegExp(r'_+'), '_')
-        .replaceAll(RegExp(r'^_|_$'), '');
-    return normalized.isEmpty ? fallback : normalized;
-  }
-
-  Future<void> _showConnectionDialog(
-    BuildContext context,
-    PromptAssistantConfigNotifier notifier, {
-    required ProviderConfig provider,
-  }) async {
-    final result =
-        await AdaptivePresenter.showForm<PromptAssistantConnectionFormResult>(
-          context: context,
-          dialogWidth: 520,
-          title: context.l10n.promptAssistant_connectionTitle(provider.name),
-          builder: (context, scrollController) => PromptAssistantConnectionForm(
-            provider: provider,
-            scrollController: scrollController,
-          ),
-        );
-    if (result == null) return;
-
-    await notifier.upsertProvider(
-      provider.copyWith(
-        baseUrl: result.baseUrl,
-        allowImageInput: result.allowImageInput,
-      ),
-    );
-
-    if (result.clearApiKey) {
-      await notifier.setProviderApiKey(provider.id, '');
-      return;
-    }
-
-    if (result.apiKey.trim().isNotEmpty) {
-      await notifier.setProviderApiKey(provider.id, result.apiKey);
-    }
   }
 
   Future<void> _showRuleDialog(
@@ -751,37 +426,6 @@ class PromptAssistantSettingsSection extends ConsumerWidget {
       return custom.isEmpty ? model.name : custom;
     }
     return AssistantModelCatalog.displayLabel(provider: provider, model: model);
-  }
-
-  String _assistantTaskLabel(BuildContext context, AssistantTaskType taskType) {
-    switch (taskType) {
-      case AssistantTaskType.llm:
-        return context.l10n.promptAssistant_taskOptimize;
-      case AssistantTaskType.translate:
-        return context.l10n.promptAssistant_taskTranslate;
-      case AssistantTaskType.reverse:
-        return context.l10n.promptAssistant_taskReverse;
-      case AssistantTaskType.characterReplace:
-        return context.l10n.promptAssistant_taskCharacterReplace;
-      case AssistantTaskType.custom:
-        return context.l10n.promptAssistant_taskCustom;
-      case AssistantTaskType.chat:
-        return context.l10n.agentChat_tab;
-    }
-  }
-
-  String _displayRuleName(BuildContext context, PromptRuleTemplate rule) {
-    if (!rule.isDefault) return rule.name;
-    final l10n = context.l10n;
-    return switch (rule.id) {
-      'opt_default' => l10n.promptAssistant_defaultOptimizeRuleName,
-      'translate_default' => l10n.promptAssistant_defaultTranslateRuleName,
-      'reverse_default' => l10n.promptAssistant_defaultReverseRuleName,
-      'character_replace_default' =>
-        l10n.promptAssistant_defaultCharacterReplaceRuleName,
-      'custom_default' => l10n.promptAssistant_defaultCustomRuleName,
-      _ => rule.name,
-    };
   }
 
   String _displayRuleContent(BuildContext context, PromptRuleTemplate rule) {

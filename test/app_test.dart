@@ -22,7 +22,6 @@ import 'package:nai_launcher/core/constants/api_constants.dart';
 import 'package:nai_launcher/core/constants/storage_keys.dart';
 import 'package:nai_launcher/core/shortcuts/default_shortcuts.dart';
 import 'package:nai_launcher/core/shortcuts/shortcut_config.dart';
-import 'package:nai_launcher/core/storage/local_storage_service.dart';
 import 'package:nai_launcher/core/utils/file_explorer_utils.dart';
 import 'package:nai_launcher/core/utils/nai_resolution_adapter.dart';
 import 'package:nai_launcher/data/models/fixed_tag/fixed_tag_entry.dart';
@@ -50,7 +49,6 @@ import 'package:nai_launcher/presentation/providers/tag_library_page_provider.da
 import 'package:nai_launcher/presentation/screens/online_gallery/online_gallery_screen.dart';
 import 'package:nai_launcher/data/models/prompt_assistant/prompt_assistant_models.dart';
 import 'package:nai_launcher/presentation/prompt_assistant/models/assistant_model_capability.dart';
-import 'package:nai_launcher/presentation/prompt_assistant/providers/prompt_assistant_config_provider.dart';
 import 'package:nai_launcher/presentation/prompt_assistant/providers/prompt_assistant_history_provider.dart';
 import 'package:nai_launcher/presentation/prompt_assistant/services/provider_adapters/prompt_assistant_adapter.dart';
 import 'package:nai_launcher/presentation/prompt_assistant/services/prompt_assistant_api_client.dart';
@@ -70,8 +68,6 @@ import 'package:nai_launcher/presentation/widgets/prompt/unified/unified_prompt_
 import 'package:nai_launcher/presentation/widgets/shortcuts/shortcut_aware_widget.dart';
 
 class _MockDio extends Mock implements Dio {}
-
-class _MockLocalStorageService extends Mock implements LocalStorageService {}
 
 class _IdleQueueExecutionNotifier extends QueueExecutionNotifier {
   @override
@@ -1722,92 +1718,6 @@ void main() {
 
       expect(pulledModel.source, ModelSource.api);
       expect(defaultModel.source, ModelSource.manual);
-    });
-
-    test('refresh replaces stale API models and keeps manual models', () async {
-      final localStorage = _MockLocalStorageService();
-      when(
-        () => localStorage.getSetting<String>(
-          StorageKeys.promptAssistantConfigJson,
-        ),
-      ).thenReturn(null);
-      when(
-        () => localStorage.setSetting<String>(
-          StorageKeys.promptAssistantConfigJson,
-          any(),
-        ),
-      ).thenAnswer((_) async {});
-
-      final container = ProviderContainer(
-        overrides: [
-          localStorageServiceProvider.overrideWithValue(localStorage),
-        ],
-      );
-      addTearDown(container.dispose);
-
-      final notifier = container.read(promptAssistantConfigProvider.notifier);
-      const providerId = 'openai_custom';
-      await notifier.upsertProvider(
-        const ProviderConfig(
-          id: providerId,
-          name: 'OpenAI Compatible',
-          type: ProviderType.openaiCompatible,
-          baseUrl: 'https://example.invalid/v1',
-          enabled: true,
-        ),
-      );
-      await notifier.upsertModel(
-        const ModelConfig(
-          providerId: providerId,
-          name: 'old-api-model',
-          displayName: 'old-api-model',
-          forTask: AssistantTaskType.llm,
-          source: ModelSource.api,
-        ),
-      );
-      await notifier.upsertModel(
-        const ModelConfig(
-          providerId: providerId,
-          name: 'manual-model',
-          displayName: 'manual-model',
-          forTask: AssistantTaskType.llm,
-        ),
-      );
-      await notifier.setRouting(
-        container
-            .read(promptAssistantConfigProvider)
-            .routing
-            .copyWithTask(
-              taskType: AssistantTaskType.llm,
-              providerId: providerId,
-              model: 'old-api-model',
-            ),
-      );
-
-      final removed = await notifier.syncProviderModels(providerId, const [
-        'new-api-model',
-      ]);
-      final state = container.read(promptAssistantConfigProvider);
-
-      expect(removed, ['old-api-model']);
-      expect(
-        state.models.any((model) => model.name == 'old-api-model'),
-        isFalse,
-      );
-      expect(state.models.any((model) => model.name == 'manual-model'), isTrue);
-      for (final taskType in AssistantTaskType.values) {
-        expect(
-          state.models.any(
-            (model) =>
-                model.providerId == providerId &&
-                model.forTask == taskType &&
-                model.name == 'new-api-model' &&
-                model.source == ModelSource.api,
-          ),
-          isTrue,
-        );
-      }
-      expect(state.routing.modelFor(AssistantTaskType.llm), 'new-api-model');
     });
   });
 
