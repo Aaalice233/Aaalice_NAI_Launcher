@@ -70,6 +70,7 @@ class _AppBootstrapEffectsState extends ConsumerState<AppBootstrapEffects>
   ProviderSubscription<dynamic>? _cooccurrenceDataPackSubscription;
   bool _queuePausedForBackground = false;
   bool _cloudSyncLifecycleRunning = false;
+  bool _cloudSyncRestoreOnResume = false;
 
   @override
   void initState() {
@@ -105,10 +106,15 @@ class _AppBootstrapEffectsState extends ConsumerState<AppBootstrapEffects>
     if (state == AppLifecycleState.resumed) {
       InteractiveWorkGate.instance.markInteraction();
       unawaited(_resumeQueueAfterBackground());
-      unawaited(_restoreCloudBackupConnection());
+      // 桌面端切换窗口焦点也会 inactive→resumed，只有真正进过后台才重新恢复连接
+      if (_cloudSyncRestoreOnResume) {
+        _cloudSyncRestoreOnResume = false;
+        unawaited(_restoreCloudBackupConnection());
+      }
     } else if (state == AppLifecycleState.paused ||
         state == AppLifecycleState.hidden ||
         state == AppLifecycleState.detached) {
+      _cloudSyncRestoreOnResume = true;
       unawaited(_persistAndPauseForBackground());
     }
   }

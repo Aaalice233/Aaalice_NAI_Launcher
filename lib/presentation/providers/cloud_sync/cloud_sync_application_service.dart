@@ -250,6 +250,11 @@ class CloudSyncApplicationService implements CloudSyncUiPort {
     CloudSyncConnectionDraft connection,
   ) async {
     if (!connection.backend.usesOAuth || connection.accountId.isEmpty) return;
+    // Sessions are keyed by account, so the saved connection shares this one.
+    if (_state.backend == connection.backend &&
+        _state.accountId == connection.accountId) {
+      return;
+    }
     final providers = _cloudDriveProviders;
     if (providers == null) return;
     await providers

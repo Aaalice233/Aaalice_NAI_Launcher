@@ -6,6 +6,7 @@ import '../../providers/cloud_sync/cloud_sync_ui_provider.dart';
 import '../settings/widgets/settings_page_layout.dart';
 import 'cloud_sync_dashboard.dart';
 import 'cloud_sync_setup.dart';
+import 'cloud_sync_setup_draft.dart';
 import 'cloud_sync_widgets.dart';
 
 class CloudSyncScreen extends ConsumerWidget {
@@ -14,6 +15,8 @@ class CloudSyncScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(cloudSyncUiStateProvider);
+    // Held here, not in the form: the form leaves the tree while restoring.
+    final setupDraft = ref.watch(cloudSyncSetupDraftProvider.notifier);
     return SettingsPageLayout(
       title: context.l10n.cloudSync_title,
       description: context.l10n.cloudSync_description,
@@ -48,7 +51,7 @@ class CloudSyncScreen extends ConsumerWidget {
         else if (state.isConnected)
           CloudSyncDashboard(state: state)
         else
-          const CloudSyncSetup(),
+          CloudSyncSetup(draft: setupDraft),
       ],
     );
   }
