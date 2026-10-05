@@ -29,6 +29,8 @@ import 'package:nai_launcher/data/models/fixed_tag/fixed_tag_entry.dart';
 import 'package:nai_launcher/data/models/gallery/gallery_statistics.dart';
 import 'package:nai_launcher/data/models/gallery/local_image_record.dart';
 import 'package:nai_launcher/data/models/gallery/nai_image_metadata.dart';
+import 'package:nai_launcher/data/models/image/image_params.dart'
+    show ImageParams;
 import 'package:nai_launcher/data/models/tag/local_tag.dart';
 import 'package:nai_launcher/data/models/vibe/vibe_library_entry.dart';
 import 'package:nai_launcher/data/models/vibe/vibe_reference.dart';
@@ -36,9 +38,11 @@ import 'package:nai_launcher/data/services/local_onnx_tagger_service.dart';
 import 'package:nai_launcher/data/services/statistics_service.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/providers/fixed_tags_provider.dart';
+import 'package:nai_launcher/presentation/providers/generation/generation_params_notifier.dart';
 import 'package:nai_launcher/presentation/providers/generation/image_workflow_controller.dart';
 import 'package:nai_launcher/presentation/providers/local_gallery_provider.dart';
 import 'package:nai_launcher/presentation/providers/online_gallery_provider.dart';
+import 'package:nai_launcher/presentation/providers/queue_execution_provider.dart';
 import 'package:nai_launcher/presentation/providers/selection_mode_provider.dart';
 import 'package:nai_launcher/presentation/providers/share_image_settings_provider.dart';
 import 'package:nai_launcher/presentation/providers/shortcuts_provider.dart';
@@ -68,6 +72,37 @@ import 'package:nai_launcher/presentation/widgets/shortcuts/shortcut_aware_widge
 class _MockDio extends Mock implements Dio {}
 
 class _MockLocalStorageService extends Mock implements LocalStorageService {}
+
+class _IdleQueueExecutionNotifier extends QueueExecutionNotifier {
+  @override
+  QueueExecutionState build() => const QueueExecutionState();
+}
+
+class _InertGenerationParamsNotifier extends GenerationParamsNotifier {
+  @override
+  ImageParams build() => const ImageParams();
+
+  @override
+  Future<void> saveGenerationState() async {}
+}
+
+List<Override> _backgroundLifecycleOverrides() => [
+  queueExecutionNotifierProvider.overrideWith(_IdleQueueExecutionNotifier.new),
+  generationParamsNotifierProvider.overrideWith(
+    _InertGenerationParamsNotifier.new,
+  ),
+];
+
+void _returnFromBackground(WidgetTester tester) {
+  for (final state in const [
+    AppLifecycleState.inactive,
+    AppLifecycleState.hidden,
+    AppLifecycleState.inactive,
+    AppLifecycleState.resumed,
+  ]) {
+    tester.binding.handleAppLifecycleStateChanged(state);
+  }
+}
 
 /// 简单的 Widget 测试示例
 ///
@@ -152,7 +187,38 @@ void main() {
       expect(buildCount, 1);
     });
 
-    testWidgets('AppBootstrapEffects 在启动和 resumed 恢复云备份连接', (tester) async {
+    testWidgets('AppBootstrapEffects 在启动和从后台返回时恢复云备份连接', (tester) async {
+      var calls = 0;
+      final inert = StateProvider<int>((ref) => 0);
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: _backgroundLifecycleOverrides(),
+          child: MaterialApp(
+            home: AppBootstrapEffects(
+              anlasWatcher: inert,
+              kritaBridge: inert,
+              cooccurrenceDataPack: inert,
+              cloudSyncLifecycle: () async {
+                calls++;
+              },
+              child: const SizedBox.shrink(),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+      expect(calls, 1);
+
+      _returnFromBackground(tester);
+      await tester.pump();
+      expect(calls, 2);
+
+      _returnFromBackground(tester);
+      await tester.pump();
+      expect(calls, 3);
+    });
+
+    testWidgets('仅切换窗口焦点时不重新恢复云备份连接', (tester) async {
       var calls = 0;
       final inert = StateProvider<int>((ref) => 0);
       await tester.pumpWidget(
@@ -173,9 +239,16 @@ void main() {
       await tester.pump();
       expect(calls, 1);
 
-      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
-      await tester.pump();
-      expect(calls, 2);
+      for (var round = 0; round < 3; round++) {
+        tester.binding.handleAppLifecycleStateChanged(
+          AppLifecycleState.inactive,
+        );
+        tester.binding.handleAppLifecycleStateChanged(
+          AppLifecycleState.resumed,
+        );
+        await tester.pump();
+      }
+      expect(calls, 1);
     });
 
     testWidgets('云备份连接恢复未完成时跳过重复 resumed', (tester) async {
@@ -184,6 +257,7 @@ void main() {
       final inert = StateProvider<int>((ref) => 0);
       await tester.pumpWidget(
         ProviderScope(
+          overrides: _backgroundLifecycleOverrides(),
           child: MaterialApp(
             home: AppBootstrapEffects(
               anlasWatcher: inert,
@@ -201,7 +275,7 @@ void main() {
       await tester.pump();
       expect(calls, 1);
 
-      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+      _returnFromBackground(tester);
       await tester.pump();
       expect(calls, 1);
       release.complete();
