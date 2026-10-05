@@ -5,11 +5,14 @@ import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/core/cloud_sync/backend/cloud_sync_backend.dart';
+import 'package:nai_launcher/core/cloud_sync/cloud_drive_provider.dart';
 import 'package:nai_launcher/core/cloud_sync/coordinator.dart';
 import 'package:nai_launcher/core/cloud_sync/content_selection.dart';
 import 'package:nai_launcher/core/cloud_sync/data_source.dart';
 import 'package:nai_launcher/core/cloud_sync/journal.dart';
 import 'package:nai_launcher/core/cloud_sync/models.dart';
+import 'package:nai_launcher/core/cloud_sync/oauth/cloud_drive_oauth_config.dart';
+import 'package:nai_launcher/core/cloud_sync/oauth/cloud_drive_oauth_models.dart';
 import 'package:nai_launcher/core/constants/storage_keys.dart';
 import 'package:nai_launcher/core/storage/local_storage_service.dart';
 import 'package:nai_launcher/core/storage/secure_storage_service.dart';
@@ -145,6 +148,52 @@ void main() {
         fixture.local.values[StorageKeys.cloudSyncConfiguration],
         isNotNull,
       );
+    },
+  );
+
+  test(
+    'discarding a fresh authorization of the saved account keeps its session',
+    () async {
+      final backend = _ApplicationBackend()
+        ..headReadError = const CloudBackendException(
+          CloudBackendErrorKind.network,
+          'offline',
+        );
+      final drive = _RecordingCloudDriveProvider();
+      final fixture = await _Fixture.create(
+        backend: backend,
+        cloudDriveProviders: CloudDriveProviderRegistry([drive]),
+      );
+      addTearDown(fixture.dispose);
+      await CloudSyncConnectionStore(
+        localStorage: fixture.local,
+        secureStorage: fixture.secure,
+      ).save(const CloudSyncConnectionDraft(
+        backend: CloudSyncBackendKind.oneDrive,
+        accountId: 'saved-id',
+        accountLabel: 'saved@example.test',
+        path: 'backup',
+      ), {CloudSyncDataKind.settings});
+      await expectLater(
+        fixture.service.restorePersisted(),
+        throwsA(isA<CloudBackendException>()),
+      );
+
+      await fixture.service.discardCloudDriveAuthorization(
+        const CloudSyncConnectionDraft(
+          backend: CloudSyncBackendKind.oneDrive,
+          accountId: 'saved-id',
+        ),
+      );
+      expect(drive.disconnectedAccounts, isEmpty);
+
+      await fixture.service.discardCloudDriveAuthorization(
+        const CloudSyncConnectionDraft(
+          backend: CloudSyncBackendKind.oneDrive,
+          accountId: 'other-id',
+        ),
+      );
+      expect(drive.disconnectedAccounts, ['other-id']);
     },
   );
 
@@ -496,6 +545,7 @@ class _Fixture {
 
   static Future<_Fixture> create({
     _ApplicationBackend? backend,
+    CloudDriveProviderRegistry? cloudDriveProviders,
     String theme = 'dark',
   }) async {
     final directory = await Directory.systemTemp.createTemp('cloud-sync-app-');
@@ -517,6 +567,7 @@ class _Fixture {
       secureStorage: secure,
       localStorage: local,
       onState: states.add,
+      cloudDriveProviders: cloudDriveProviders,
       deviceIdFactory: () => 'test-device',
     );
     return _Fixture(
@@ -684,5 +735,37 @@ class _MemorySecureStorage extends SecureStorageService {
   @override
   Future<void> clearCloudSyncSecrets() async {
     credentials = null;
+  }
+}
+
+class _RecordingCloudDriveProvider implements CloudDriveProvider {
+  final disconnectedAccounts = <String>[];
+
+  @override
+  CloudDriveOAuthProvider get id => CloudDriveOAuthProvider.oneDrive;
+
+  @override
+  CloudDriveOAuthConfigDiagnostic diagnose() => CloudDriveOAuthConfigDiagnostic(
+    provider: id,
+    platform: CloudDriveOAuthPlatform.windows,
+    isConfigured: true,
+    reasons: const [],
+  );
+
+  @override
+  Future<CloudDriveOAuthSession> connect() => throw UnimplementedError();
+
+  @override
+  Future<void> cancelConnect() async {}
+
+  @override
+  CloudSyncBackend createBackend({
+    required String accountId,
+    required String namespace,
+  }) => throw UnimplementedError();
+
+  @override
+  Future<void> disconnect(String accountId) async {
+    disconnectedAccounts.add(accountId);
   }
 }

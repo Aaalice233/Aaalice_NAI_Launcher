@@ -2,103 +2,9 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 
+import '../../common/checkerboard_pattern.dart';
 import '../../common/image_viewport_surface.dart';
 import '../core/editor_state.dart';
-
-class CheckerboardCacheKey {
-  const CheckerboardCacheKey({
-    required this.canvasSize,
-    required this.cellSize,
-    required this.color1,
-    required this.color2,
-  });
-
-  final Size canvasSize;
-  final double cellSize;
-  final Color color1;
-  final Color color2;
-
-  @override
-  bool operator ==(Object other) {
-    return identical(this, other) ||
-        other is CheckerboardCacheKey &&
-            other.canvasSize == canvasSize &&
-            other.cellSize == cellSize &&
-            other.color1 == color1 &&
-            other.color2 == color2;
-  }
-
-  @override
-  int get hashCode => Object.hash(canvasSize, cellSize, color1, color2);
-}
-
-/// 棋盘格缓存管理器
-/// 缓存棋盘格 Picture，避免每帧重复绘制单元格
-class _CheckerboardCache {
-  static CheckerboardCacheKey? _key;
-  static ui.Picture? _picture;
-  static int _recordCount = 0;
-
-  /// 棋盘格单元格大小
-  static const double cellSize = 16.0;
-
-  /// 棋盘格颜色
-  static final Color color1 = Colors.grey.shade300;
-  static final Color color2 = Colors.grey.shade100;
-
-  static CheckerboardCacheKey? get currentKey => _key;
-  static int get recordCount => _recordCount;
-
-  static void draw(Canvas canvas, CheckerboardCacheKey key) {
-    final picture = _pictureFor(key);
-    canvas.save();
-    canvas.clipRect(
-      Rect.fromLTWH(0, 0, key.canvasSize.width, key.canvasSize.height),
-    );
-    canvas.drawPicture(picture);
-    canvas.restore();
-  }
-
-  static ui.Picture _pictureFor(CheckerboardCacheKey key) {
-    if (_picture != null && _key == key) {
-      return _picture!;
-    }
-
-    _picture?.dispose();
-    _key = key;
-    _picture = _recordPicture(key);
-    _recordCount++;
-    return _picture!;
-  }
-
-  static ui.Picture _recordPicture(CheckerboardCacheKey key) {
-    final recorder = ui.PictureRecorder();
-    final canvas = Canvas(recorder);
-    final paint1 = Paint()..color = key.color1;
-    final paint2 = Paint()..color = key.color2;
-
-    for (double y = 0; y < key.canvasSize.height; y += key.cellSize) {
-      for (double x = 0; x < key.canvasSize.width; x += key.cellSize) {
-        final isEven = ((x ~/ key.cellSize) + (y ~/ key.cellSize)) % 2 == 0;
-        canvas.drawRect(
-          Rect.fromLTWH(x, y, key.cellSize, key.cellSize),
-          isEven ? paint1 : paint2,
-        );
-      }
-    }
-
-    return recorder.endRecording();
-  }
-
-  /// 释放缓存（通常不需要调用，除非显式清理）
-  // ignore: unused_element
-  static void dispose() {
-    _picture?.dispose();
-    _picture = null;
-    _key = null;
-    _recordCount = 0;
-  }
-}
 
 /// 图层绘制器
 /// 负责绘制所有图层内容
@@ -108,6 +14,15 @@ class LayerPainter extends CustomPainter {
 
   /// 框外内容照常绘制并压暗，表示保留但不会送出
   final bool revealOutsideFrame;
+
+  /// 决定透明底纹的纹理精度
+  final double devicePixelRatio;
+
+  static final CheckerboardPattern _checkerboard = CheckerboardPattern(
+    cellSize: 16,
+    evenColor: Colors.grey.shade300,
+    oddColor: Colors.grey.shade100,
+  );
 
   static final Color _outsideFrameScrim = ImageViewportSurface.background
       .withValues(alpha: 0.72);
@@ -119,22 +34,8 @@ class LayerPainter extends CustomPainter {
     required this.state,
     this.showTransparentCanvasBackground = false,
     this.revealOutsideFrame = false,
+    this.devicePixelRatio = 1.0,
   }) : super(repaint: state.renderNotifier);
-
-  @visibleForTesting
-  static CheckerboardCacheKey? get debugCheckerboardCacheKey {
-    return _CheckerboardCache.currentKey;
-  }
-
-  @visibleForTesting
-  static int get debugCheckerboardRecordCount {
-    return _CheckerboardCache.recordCount;
-  }
-
-  @visibleForTesting
-  static void debugResetCheckerboardCache() {
-    _CheckerboardCache.dispose();
-  }
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -147,11 +48,15 @@ class LayerPainter extends CustomPainter {
     // 平移、以取景框中心旋转/镜像、缩放
     controller.applyViewTransform(canvas, state.frame);
 
-    // 绘制画布背景（棋盘格表示透明）
-    _drawCheckerboard(canvas, frame);
-
-    // 绘制白色画布底色
-    if (!showTransparentCanvasBackground) {
+    // 透明画布用棋盘格表示透明，否则铺白色底色
+    if (showTransparentCanvasBackground) {
+      _checkerboard.paint(
+        canvas,
+        frame,
+        origin: frame.topLeft,
+        pixelScale: controller.scale * devicePixelRatio,
+      );
+    } else {
       canvas.drawRect(frame, Paint()..color = Colors.white);
     }
 
@@ -186,22 +91,6 @@ class LayerPainter extends CustomPainter {
     canvas.restore();
   }
 
-  /// 绘制棋盘格背景（表示透明区域）
-  /// 使用 Picture 缓存优化性能
-  void _drawCheckerboard(Canvas canvas, Rect frame) {
-    final key = CheckerboardCacheKey(
-      canvasSize: frame.size,
-      cellSize: _CheckerboardCache.cellSize,
-      color1: _CheckerboardCache.color1,
-      color2: _CheckerboardCache.color2,
-    );
-
-    canvas.save();
-    canvas.translate(frame.left, frame.top);
-    _CheckerboardCache.draw(canvas, key);
-    canvas.restore();
-  }
-
   @override
   bool shouldRepaint(covariant LayerPainter oldDelegate) {
     // repaint: renderNotifier 已经处理了渲染相关的变化监听
@@ -209,7 +98,8 @@ class LayerPainter extends CustomPainter {
     // 返回 false 避免工具切换等无关操作触发不必要的重绘
     return showTransparentCanvasBackground !=
             oldDelegate.showTransparentCanvasBackground ||
-        revealOutsideFrame != oldDelegate.revealOutsideFrame;
+        revealOutsideFrame != oldDelegate.revealOutsideFrame ||
+        devicePixelRatio != oldDelegate.devicePixelRatio;
   }
 }
 
