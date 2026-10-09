@@ -3650,7 +3650,9 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get onlineGallery_queueFullMax => 'Queue is full (maximum 50 items)';
+  String onlineGallery_queueFullMax(int max) {
+    return 'Queue is full (maximum $max items)';
+  }
 
   @override
   String get onlineGallery_chooseDownloadDirectory =>

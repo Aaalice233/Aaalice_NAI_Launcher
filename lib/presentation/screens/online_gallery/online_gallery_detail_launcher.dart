@@ -591,7 +591,7 @@ class OnlineGalleryDetailLauncher {
       } else {
         AppToast.warning(
           dialogContext,
-          dialogContext.l10n.onlineGallery_queueFullMax,
+          dialogContext.l10n.onlineGallery_queueFullMax(kMaxQueueCapacity),
         );
       }
     } catch (error, stack) {

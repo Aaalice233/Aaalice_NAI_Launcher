@@ -620,7 +620,10 @@ class _QueueManagementPageState extends ConsumerState<QueueManagementPage>
         .add(ReplicationTask.create(prompt: prompt));
     if (!mounted) return;
     if (!added) {
-      AppToast.warning(context, context.l10n.onlineGallery_queueFullMax);
+      AppToast.warning(
+        context,
+        context.l10n.onlineGallery_queueFullMax(kMaxQueueCapacity),
+      );
       return;
     }
 

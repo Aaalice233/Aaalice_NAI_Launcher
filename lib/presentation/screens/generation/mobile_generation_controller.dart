@@ -381,7 +381,10 @@ class MobileGenerationController extends ChangeNotifier
         .add(task);
     if (_disposed || !context.mounted) return;
     if (!added) {
-      AppToast.warning(context, context.l10n.onlineGallery_queueFullMax);
+      AppToast.warning(
+        context,
+        context.l10n.onlineGallery_queueFullMax(kMaxQueueCapacity),
+      );
       return;
     }
     AppToast.success(context, context.l10n.queue_taskAdded);

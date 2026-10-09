@@ -1,4 +1,6 @@
+import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hive_flutter/hive_flutter.dart';
@@ -22,6 +24,7 @@ void main() {
     Hive.init(hiveDirectory.path);
     await Hive.openBox<String>(StorageKeys.replicationQueueBox);
     await Hive.openBox<String>(StorageKeys.queueExecutionStateBox);
+    await Hive.openBox<String>(StorageKeys.replicationQueueBlobBox);
   });
 
   tearDown(() async {
@@ -136,4 +139,127 @@ void main() {
     expect(restored.taskIntervalSeconds, 1.5);
     expect(restored.failureStrategy, FailureHandlingStrategy.pauseAndWait);
   });
+
+  group('生成快照图像去重', () {
+    test('多个任务共用的同一张图只保存一份并可完整恢复', () async {
+      final image = _largeImage(seed: 1);
+      final tasks = [
+        for (var i = 0; i < 40; i++)
+          _taskWithSnapshot('task-$i', {
+            'sourceImage': image,
+            'preciseReferences': [
+              {'image': image, 'type': 'character'},
+            ],
+          }),
+      ];
+
+      await ReplicationQueueStorage().save(tasks);
+      await _reopenQueueBoxes();
+      final restored = ReplicationQueueStorage().load();
+
+      expect(_blobBox.length, 1);
+      expect(_queueJson().length, lessThan(image.length));
+      expect(restored.map((task) => task.id), [
+        for (var i = 0; i < 40; i++) 'task-$i',
+      ]);
+      for (final task in restored) {
+        final snapshot = task.generationSnapshot!;
+        expect(snapshot['sourceImage'], image);
+        expect((snapshot['preciseReferences'] as List).single['image'], image);
+      }
+    });
+
+    test('不再被任何任务引用的图像在保存时清理', () async {
+      final storage = ReplicationQueueStorage();
+      final kept = _taskWithSnapshot('kept', {
+        'sourceImage': _largeImage(seed: 2),
+      });
+
+      await storage.save([
+        _taskWithSnapshot('removed', {'sourceImage': _largeImage(seed: 3)}),
+        kept,
+      ]);
+      expect(_blobBox.length, 2);
+
+      await storage.save([kept]);
+      expect(_blobBox.length, 1);
+    });
+
+    test('读取旧版内嵌图像的队列并在下次保存时外置', () async {
+      final image = _largeImage(seed: 4);
+      final legacyTask = _taskWithSnapshot('legacy', {'sourceImage': image});
+      await Hive.box<String>(StorageKeys.replicationQueueBox).put(
+        StorageKeys.replicationQueueData,
+        jsonEncode(ReplicationTaskList(tasks: [legacyTask]).toJson()),
+      );
+
+      final storage = ReplicationQueueStorage();
+      final restored = storage.load();
+      expect(restored.single.generationSnapshot!['sourceImage'], image);
+
+      await storage.save(restored);
+      expect(_blobBox.length, 1);
+      expect(_queueJson(), isNot(contains(image)));
+    });
+
+    test('估算持久化体积时共用图像只计一次', () {
+      final shared = {'sourceImage': _largeImage(seed: 6)};
+      final other = {'sourceImage': _largeImage(seed: 7)};
+      final single = ReplicationQueueStorage.estimatePersistedSnapshotBytes([
+        shared,
+      ]);
+
+      final repeated = ReplicationQueueStorage.estimatePersistedSnapshotBytes(
+        List.filled(40, shared),
+      );
+      final distinct = ReplicationQueueStorage.estimatePersistedSnapshotBytes([
+        shared,
+        other,
+      ]);
+
+      expect(single, greaterThan(_largeImage(seed: 6).length));
+      expect(repeated, lessThan(single * 2));
+      expect(distinct, greaterThan(single * 2 - 1024));
+    });
+
+    test('引用的图像缺失时只跳过该任务', () async {
+      await ReplicationQueueStorage().save([
+        _taskWithSnapshot('intact', {'batchSize': 1}),
+        _taskWithSnapshot('broken', {'sourceImage': _largeImage(seed: 5)}),
+      ]);
+      await _blobBox.clear();
+
+      final restored = ReplicationQueueStorage().load();
+
+      expect(restored.map((task) => task.id), ['intact']);
+    });
+  });
+}
+
+Box<String> get _blobBox =>
+    Hive.box<String>(StorageKeys.replicationQueueBlobBox);
+
+String _queueJson() => Hive.box<String>(
+  StorageKeys.replicationQueueBox,
+).get(StorageKeys.replicationQueueData)!;
+
+Future<void> _reopenQueueBoxes() async {
+  await Hive.box<String>(StorageKeys.replicationQueueBox).close();
+  await _blobBox.close();
+  await Hive.openBox<String>(StorageKeys.replicationQueueBox);
+  await Hive.openBox<String>(StorageKeys.replicationQueueBlobBox);
+}
+
+/// 约 64 KB 的 base64 文本，模拟参考图等大体积快照字段。
+String _largeImage({required int seed}) => base64Encode(
+  Uint8List.fromList(List.generate(48 * 1024, (i) => (i * seed) % 251)),
+);
+
+ReplicationTask _taskWithSnapshot(String id, Map<String, dynamic> snapshot) {
+  return ReplicationTask(
+    id: id,
+    prompt: 'prompt $id',
+    createdAt: DateTime.utc(2026, 10, 10),
+    generationSnapshot: snapshot,
+  );
 }

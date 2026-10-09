@@ -1545,7 +1545,12 @@
       "count": {}
     }
   },
-  "onlineGallery_queueFullMax": "队列已满（最多50项）",
+  "onlineGallery_queueFullMax": "队列已满（最多{max}项）",
+  "@onlineGallery_queueFullMax": {
+    "placeholders": {
+      "max": { "type": "int" }
+    }
+  },
   "onlineGallery_chooseDownloadDirectory": "选择下载目录",
   "onlineGallery_downloadStarted": "开始下载...",
   "onlineGallery_downloadFailed": "下载失败: {error}",

@@ -177,6 +177,10 @@ final startupInitializationTasksProvider = Provider<StartupInitializationTasks>(
             hivePath: hivePath,
           ),
           _openHiveBoxIfNeeded<String>(
+            StorageKeys.replicationQueueBlobBox,
+            hivePath: hivePath,
+          ),
+          _openHiveBoxIfNeeded<String>(
             StorageKeys.queueExecutionStateBox,
             hivePath: hivePath,
           ),

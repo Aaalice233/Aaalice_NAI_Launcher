@@ -3564,7 +3564,9 @@ class AppLocalizationsJa extends AppLocalizations {
   }
 
   @override
-  String get onlineGallery_queueFullMax => 'キューがいっぱいです (最大 50 項目)';
+  String onlineGallery_queueFullMax(int max) {
+    return 'キューがいっぱいです (最大 $max 項目)';
+  }
 
   @override
   String get onlineGallery_chooseDownloadDirectory => 'ダウンロード ディレクトリを選択してください';

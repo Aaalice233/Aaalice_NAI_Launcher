@@ -6530,8 +6530,8 @@ abstract class AppLocalizations {
   /// No description provided for @onlineGallery_queueFullMax.
   ///
   /// In en, this message translates to:
-  /// **'Queue is full (maximum 50 items)'**
-  String get onlineGallery_queueFullMax;
+  /// **'Queue is full (maximum {max} items)'**
+  String onlineGallery_queueFullMax(int max);
 
   /// No description provided for @onlineGallery_chooseDownloadDirectory.
   ///

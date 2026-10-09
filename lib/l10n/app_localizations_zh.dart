@@ -3505,7 +3505,9 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
-  String get onlineGallery_queueFullMax => '队列已满（最多50项）';
+  String onlineGallery_queueFullMax(int max) {
+    return '队列已满（最多$max项）';
+  }
 
   @override
   String get onlineGallery_chooseDownloadDirectory => '选择下载目录';
@@ -18777,7 +18779,9 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   }
 
   @override
-  String get onlineGallery_queueFullMax => '佇列已滿（最多50項）';
+  String onlineGallery_queueFullMax(int max) {
+    return '佇列已滿（最多$max項）';
+  }
 
   @override
   String get onlineGallery_chooseDownloadDirectory => '選擇下載目錄';

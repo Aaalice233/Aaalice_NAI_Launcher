@@ -477,7 +477,7 @@ class _DanbooruPostCardState extends ConsumerState<DanbooruPostCard> {
             } else {
               AppToast.warning(
                 context,
-                context.l10n.onlineGallery_queueFullMax,
+                context.l10n.onlineGallery_queueFullMax(kMaxQueueCapacity),
               );
             }
           }

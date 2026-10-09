@@ -1559,7 +1559,12 @@
       "count": {}
     }
   },
-  "onlineGallery_queueFullMax": "佇列已滿（最多50項）",
+  "onlineGallery_queueFullMax": "佇列已滿（最多{max}項）",
+  "@onlineGallery_queueFullMax": {
+    "placeholders": {
+      "max": { "type": "int" }
+    }
+  },
   "onlineGallery_chooseDownloadDirectory": "選擇下載目錄",
   "onlineGallery_downloadStarted": "開始下載...",
   "onlineGallery_downloadFailed": "下載失敗: {error}",

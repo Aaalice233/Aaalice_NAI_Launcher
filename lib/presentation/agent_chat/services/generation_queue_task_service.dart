@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/agent/agent_types.dart';
+import '../../../core/storage/replication_queue_storage.dart';
 import '../../../data/models/queue/replication_task.dart';
 import '../../../data/models/queue/replication_task_generation_snapshot.dart';
 import '../../providers/queue_execution_provider.dart';
@@ -78,18 +79,18 @@ class GenerationQueueTaskService {
       focused: const QueuedFocusedInpaint.disabled(),
     );
     final snapshotBytes = utf8.encode(jsonEncode(generationSnapshot)).length;
-    final existingSnapshotBytes = _ref
-        .read(replicationQueueNotifierProvider)
-        .tasks
-        .map((task) => task.generationSnapshot)
-        .whereType<Map<String, dynamic>>()
-        .fold<int>(
-          0,
-          (total, snapshot) => total + utf8.encode(jsonEncode(snapshot)).length,
-        );
+    // 队列存储按内容去重图像，同一参考图被多个任务共用时只占一份空间。
+    final persistedSnapshotBytes =
+        ReplicationQueueStorage.estimatePersistedSnapshotBytes([
+          ..._ref
+              .read(replicationQueueNotifierProvider)
+              .tasks
+              .map((task) => task.generationSnapshot)
+              .whereType<Map<String, dynamic>>(),
+          for (var i = 0; i < count; i++) generationSnapshot,
+        ]);
     if (snapshotBytes > _maxQueueSnapshotBytes ||
-        existingSnapshotBytes + snapshotBytes * count >
-            _maxPersistedQueueSnapshotBytes) {
+        persistedSnapshotBytes > _maxPersistedQueueSnapshotBytes) {
       return agentToolError(
         'queue_snapshot_too_large',
         'The complete generation snapshot is too large to persist safely. '

@@ -1625,7 +1625,12 @@
       "count": {}
     }
   },
-  "onlineGallery_queueFullMax": "キューがいっぱいです (最大 50 項目)",
+  "onlineGallery_queueFullMax": "キューがいっぱいです (最大 {max} 項目)",
+  "@onlineGallery_queueFullMax": {
+    "placeholders": {
+      "max": { "type": "int" }
+    }
+  },
   "onlineGallery_chooseDownloadDirectory": "ダウンロード ディレクトリを選択してください",
   "onlineGallery_downloadStarted": "ダウンロードが開始されました...",
   "onlineGallery_downloadFailed": "ダウンロードに失敗しました: {error}",

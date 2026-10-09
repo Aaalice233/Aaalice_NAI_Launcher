@@ -1638,7 +1638,12 @@
       "count": {}
     }
   },
-  "onlineGallery_queueFullMax": "Queue is full (maximum 50 items)",
+  "onlineGallery_queueFullMax": "Queue is full (maximum {max} items)",
+  "@onlineGallery_queueFullMax": {
+    "placeholders": {
+      "max": { "type": "int" }
+    }
+  },
   "onlineGallery_chooseDownloadDirectory": "Choose Download Directory",
   "onlineGallery_downloadStarted": "Download started...",
   "onlineGallery_downloadFailed": "Download failed: {error}",

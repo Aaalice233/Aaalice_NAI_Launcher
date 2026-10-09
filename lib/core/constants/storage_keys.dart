@@ -232,6 +232,9 @@ class StorageKeys {
   static const String replicationQueueBox = 'replication_queue';
   static const String replicationQueueData = 'replication_queue_data';
 
+  /// 队列生成快照中的图像，按内容哈希只保存一份
+  static const String replicationQueueBlobBox = 'replication_queue_blobs';
+
   // Queue Settings (队列设置)
   static const String queueRetryCount = 'queue_retry_count';
   static const String queueRetryInterval = 'queue_retry_interval';

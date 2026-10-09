@@ -8,8 +8,8 @@ import '../../data/models/queue/replication_task_status.dart';
 
 part 'replication_queue_provider.g.dart';
 
-/// 队列容量限制
-const int kMaxQueueCapacity = 50;
+/// 队列容量限制（快照图像按内容去重保存，见 ReplicationQueueStorage）
+const int kMaxQueueCapacity = 500;
 
 /// 复刻队列状态
 class ReplicationQueueState {
