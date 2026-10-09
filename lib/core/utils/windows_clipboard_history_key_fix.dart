@@ -41,6 +41,12 @@ class WindowsClipboardHistoryKeyFix {
 
 /// 将 Flutter Engine 误报的 Win+V 模拟按键还原为 Ctrl+V。
 ///
+/// 不同 Windows / Flutter 版本会产生两种序列，物理键均为
+/// [_invalidPhysicalKey]：
+/// - 旧序列：Ctrl↓、空事件、Ctrl↑、Ctrl↓(合成)、Ctrl↑(合成)，V 被误报为 Ctrl。
+/// - 新序列：Ctrl↓、Ctrl↑(合成)、V↓、V↑、Ctrl↓(合成)、Ctrl↑(合成)，逻辑键
+///   正确，但 Ctrl 在 V 按下前就被释放（Windows 11 26200 + Flutter 3.41 起）。
+///
 /// 返回 `null` 表示该条无效中间事件应被消费。
 class WindowsClipboardHistoryKeyEventNormalizer {
   static const int _invalidPhysicalKey = 0x1600000000;
@@ -49,73 +55,123 @@ class WindowsClipboardHistoryKeyEventNormalizer {
   static const int _keyVPhysicalKey = 0x70019;
   static const int _keyVLogicalKey = 0x76;
 
-  bool _normalizingClipboardPaste = false;
+  _ClipboardPasteStage _stage = _ClipboardPasteStage.idle;
 
   KeyData? normalize(KeyData data) {
-    if (!_normalizingClipboardPaste &&
-        data.physical == _invalidPhysicalKey &&
-        data.logical == _controlLeftLogicalKey &&
-        data.type == KeyEventType.down &&
-        !data.synthesized) {
-      _normalizingClipboardPaste = true;
-      return _copyAs(
-        data,
-        type: KeyEventType.down,
-        physical: _controlLeftPhysicalKey,
-        logical: _controlLeftLogicalKey,
-      );
+    if (data.physical != _invalidPhysicalKey) {
+      if (_stage != _ClipboardPasteStage.idle && _isEmptyKeyDown(data)) {
+        return null;
+      }
+      _stage = _ClipboardPasteStage.idle;
+      return data;
     }
 
-    if (_normalizingClipboardPaste &&
-        data.physical == 0 &&
-        data.logical == 0 &&
-        data.type == KeyEventType.down &&
-        !data.synthesized) {
-      return null;
+    final isControl = data.logical == _controlLeftLogicalKey;
+    final isKeyV = data.logical == _keyVLogicalKey;
+    final isDown = data.type == KeyEventType.down;
+    final isUp = data.type == KeyEventType.up;
+    final synthesized = data.synthesized;
+
+    switch (_stage) {
+      case _ClipboardPasteStage.idle:
+        if (isControl && isDown && !synthesized) {
+          return _emitControl(
+            data,
+            KeyEventType.down,
+            next: _ClipboardPasteStage.controlDown,
+          );
+        }
+      case _ClipboardPasteStage.controlDown:
+        if (isControl && isUp && !synthesized) {
+          return _emitKeyV(
+            data,
+            KeyEventType.down,
+            next: _ClipboardPasteStage.legacyKeyVDown,
+          );
+        }
+        if (isControl && isUp && synthesized) {
+          return _consume(next: _ClipboardPasteStage.awaitingKeyV);
+        }
+      case _ClipboardPasteStage.legacyKeyVDown:
+        if (isControl && isDown && synthesized) {
+          return _emitKeyV(
+            data,
+            KeyEventType.up,
+            next: _ClipboardPasteStage.legacyKeyVUp,
+          );
+        }
+      case _ClipboardPasteStage.legacyKeyVUp:
+      case _ClipboardPasteStage.awaitingControlUp:
+        if (isControl && isUp && synthesized) {
+          return _emitControl(
+            data,
+            KeyEventType.up,
+            next: _ClipboardPasteStage.idle,
+          );
+        }
+      case _ClipboardPasteStage.awaitingKeyV:
+        if (isKeyV && isDown) {
+          return _emitKeyV(
+            data,
+            KeyEventType.down,
+            next: _ClipboardPasteStage.keyVDown,
+          );
+        }
+      case _ClipboardPasteStage.keyVDown:
+        if (isKeyV && isUp) {
+          return _emitKeyV(
+            data,
+            KeyEventType.up,
+            next: _ClipboardPasteStage.keyVUp,
+          );
+        }
+      case _ClipboardPasteStage.keyVUp:
+        if (isControl && isDown && synthesized) {
+          return _consume(next: _ClipboardPasteStage.awaitingControlUp);
+        }
     }
 
-    if (_normalizingClipboardPaste &&
-        data.physical == _invalidPhysicalKey &&
-        data.logical == _controlLeftLogicalKey &&
-        data.type == KeyEventType.up &&
-        !data.synthesized) {
-      return _copyAs(
-        data,
-        type: KeyEventType.down,
-        physical: _keyVPhysicalKey,
-        logical: _keyVLogicalKey,
-      );
-    }
-
-    if (_normalizingClipboardPaste &&
-        data.physical == _invalidPhysicalKey &&
-        data.logical == _controlLeftLogicalKey &&
-        data.type == KeyEventType.down &&
-        data.synthesized) {
-      return _copyAs(
-        data,
-        type: KeyEventType.up,
-        physical: _keyVPhysicalKey,
-        logical: _keyVLogicalKey,
-      );
-    }
-
-    if (_normalizingClipboardPaste &&
-        data.physical == _invalidPhysicalKey &&
-        data.logical == _controlLeftLogicalKey &&
-        data.type == KeyEventType.up &&
-        data.synthesized) {
-      _normalizingClipboardPaste = false;
-      return _copyAs(
-        data,
-        type: KeyEventType.up,
-        physical: _controlLeftPhysicalKey,
-        logical: _controlLeftLogicalKey,
-      );
-    }
-
-    _normalizingClipboardPaste = false;
+    _stage = _ClipboardPasteStage.idle;
     return data;
+  }
+
+  bool _isEmptyKeyDown(KeyData data) =>
+      data.physical == 0 &&
+      data.logical == 0 &&
+      data.type == KeyEventType.down &&
+      !data.synthesized;
+
+  KeyData? _consume({required _ClipboardPasteStage next}) {
+    _stage = next;
+    return null;
+  }
+
+  KeyData _emitControl(
+    KeyData source,
+    KeyEventType type, {
+    required _ClipboardPasteStage next,
+  }) {
+    _stage = next;
+    return _copyAs(
+      source,
+      type: type,
+      physical: _controlLeftPhysicalKey,
+      logical: _controlLeftLogicalKey,
+    );
+  }
+
+  KeyData _emitKeyV(
+    KeyData source,
+    KeyEventType type, {
+    required _ClipboardPasteStage next,
+  }) {
+    _stage = next;
+    return _copyAs(
+      source,
+      type: type,
+      physical: _keyVPhysicalKey,
+      logical: _keyVLogicalKey,
+    );
   }
 
   KeyData _copyAs(
@@ -133,4 +189,29 @@ class WindowsClipboardHistoryKeyEventNormalizer {
       synthesized: false,
     );
   }
+}
+
+enum _ClipboardPasteStage {
+  idle,
+
+  /// 已输出 Ctrl↓，尚未区分新旧序列。
+  controlDown,
+
+  /// 旧序列：已输出 V↓。
+  legacyKeyVDown,
+
+  /// 旧序列：已输出 V↑。
+  legacyKeyVUp,
+
+  /// 新序列：已消费提前到达的 Ctrl↑(合成)。
+  awaitingKeyV,
+
+  /// 新序列：已输出 V↓。
+  keyVDown,
+
+  /// 新序列：已输出 V↑。
+  keyVUp,
+
+  /// 新序列：已消费 Ctrl↓(合成)，等待最终 Ctrl↑。
+  awaitingControlUp,
 }
