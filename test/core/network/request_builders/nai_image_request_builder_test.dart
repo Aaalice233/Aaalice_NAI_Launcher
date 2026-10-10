@@ -2314,7 +2314,7 @@ void main() {
           action: ImageGenerationAction.infill,
           model: ImageModels.animeDiffusionV5FullMedium,
           sourceImage: _validPngBytes(),
-          maskImage: _validPngBytes(),
+          maskImage: _solidPngBytes(width: 2, height: 2),
         ),
         encodeVibe: _fakeEncodeVibe,
       ).build(sampler: Samplers.kEulerAncestral);
