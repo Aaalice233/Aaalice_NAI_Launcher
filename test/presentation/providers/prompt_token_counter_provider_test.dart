@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:nai_launcher/core/constants/api_constants.dart' as api;
 import 'package:nai_launcher/core/constants/storage_keys.dart';
+import 'package:nai_launcher/core/enums/image_model_mode.dart';
 import 'package:nai_launcher/core/services/prompt_token_counter_service.dart';
 import 'package:nai_launcher/core/storage/local_storage_service.dart';
 import 'package:nai_launcher/data/models/character/character_prompt.dart';
@@ -447,6 +448,84 @@ void main() {
     );
 
     expect(_FakePromptTokenEncoder.callCount, greaterThan(initialCallCount));
+  });
+
+  group('buildPromptTokenCountPayload effort and furry mode', () {
+    test('furry mode counts the dataset prefix as its own breakdown row', () {
+      final payload = buildPromptTokenCountPayload(
+        target: PromptTokenCountTarget.positive,
+        prompt: 'wolf',
+        negativePrompt: '',
+        model: api.ImageModels.animeDiffusionV5Full,
+        fixedTagsState: const FixedTagsState(),
+        qualityToggle: false,
+        ucPreset: api.UcPresets.noneApiValue,
+        modelMode: ImageModelMode.furry,
+        characters: const [],
+        resolveAliases: (text) => text,
+      );
+
+      expect(payload.mainText, 'fur dataset, wolf');
+      final row = payload.breakdown.singleWhere(
+        (item) => item.label == '数据集标签',
+      );
+      expect(row.texts, ['fur dataset']);
+    });
+
+    test('a hand-written dataset tag is not counted twice', () {
+      final payload = buildPromptTokenCountPayload(
+        target: PromptTokenCountTarget.positive,
+        prompt: 'fur dataset, wolf',
+        negativePrompt: '',
+        model: api.ImageModels.animeDiffusionV5Full,
+        fixedTagsState: const FixedTagsState(),
+        qualityToggle: false,
+        ucPreset: api.UcPresets.noneApiValue,
+        modelMode: ImageModelMode.furry,
+        characters: const [],
+        resolveAliases: (text) => text,
+      );
+
+      expect(payload.mainText, 'fur dataset, wolf');
+      expect(
+        payload.breakdown.map((item) => item.label),
+        isNot(contains('数据集标签')),
+      );
+    });
+
+    test('medium counts only the fixed UC preset as the negative prompt', () {
+      final payload = buildPromptTokenCountPayload(
+        target: PromptTokenCountTarget.negative,
+        prompt: '1girl',
+        negativePrompt: 'bad hands',
+        model: api.ImageModels.animeDiffusionV5FullMedium,
+        fixedTagsState: FixedTagsState(
+          entries: [
+            FixedTagEntry.create(
+              name: 'negative-prefix',
+              content: 'bad anatomy',
+              position: FixedTagPosition.prefix,
+              promptType: FixedTagPromptType.negative,
+              sortOrder: 0,
+            ),
+          ],
+        ),
+        qualityToggle: true,
+        ucPreset: api.UcPresets.noneApiValue,
+        characters: [
+          CharacterPrompt.create(
+            name: 'A',
+            prompt: 'girl',
+          ).copyWith(negativePrompt: 'blurry'),
+        ],
+        resolveAliases: (text) => text,
+      );
+      final heavy = api.UcPresets.v5Presets[api.UcPresetType.heavy];
+
+      expect(payload.mainText, heavy);
+      expect(payload.extraTexts, isEmpty);
+      expect(payload.breakdown.single.label, '负面预设');
+    });
   });
 }
 

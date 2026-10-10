@@ -53,10 +53,11 @@ class NAIImageRequestBuildResult {
 
 class NAIImageRequestBuilder {
   NAIImageRequestBuilder({
-    required this.params,
+    required ImageParams params,
     required this.encodeVibe,
     List<PreciseReference>? preciseReferences,
-  }) : _preciseReferences =
+  }) : params = params.resolveFixedSettings(),
+       _preciseReferences =
            (preciseReferences ??
                    (params.capabilities.supportsPreciseReference
                        ? params.preciseReferences
@@ -74,21 +75,18 @@ class NAIImageRequestBuilder {
     required String effectiveNegativePrompt,
     required bool isStream,
   }) {
-    final noiseSchedule = params.capabilities.supportsNoiseSchedule
-        ? NoiseSchedules.resolve(
-            params.noiseSchedule,
-            allowNative: params.capabilities.allowsNativeNoiseSchedule,
-          )
-        : NoiseSchedules.karras;
+    final requestSampler =
+        params.capabilities.fixedSettings?.sampler ?? sampler;
+    final noiseSchedule = params.effectiveNoiseSchedule;
     final usesBrownianEulerAncestral =
-        sampler == Samplers.kEulerAncestral &&
+        requestSampler == Samplers.kEulerAncestral &&
         noiseSchedule != NoiseSchedules.native;
     final requestParameters = <String, dynamic>{
       'params_version': _officialParamsVersion,
       'width': params.width,
       'height': params.height,
       'scale': params.scale,
-      'sampler': sampler,
+      'sampler': requestSampler,
       'steps': params.steps,
       'n_samples': params.nSamples,
       'ucPresetId': _resolveUcPresetId(),
@@ -100,7 +98,8 @@ class NAIImageRequestBuilder {
       'add_original_image': params.action == ImageGenerationAction.infill
           ? false
           : params.addOriginalImage,
-      'cfg_rescale': params.cfgRescale,
+      if (params.capabilities.supportsCfgRescale)
+        'cfg_rescale': params.cfgRescale,
       'noise_schedule': noiseSchedule,
       if (params.isV4Model || params.inpaintStrength != 1.0)
         'inpaintImg2ImgStrength': params.inpaintStrength,
@@ -632,6 +631,7 @@ class NAIImageRequestBuilder {
       qualityTier: params.qualityTier,
       characters: _buildAutoTextCharacters(),
       useCoords: params.useCoords,
+      modelMode: params.modelMode,
     );
     final effectivePrompt = promptSemantics.effectivePrompt;
     final effectiveNegativePrompt = promptSemantics.effectiveNegativePrompt;

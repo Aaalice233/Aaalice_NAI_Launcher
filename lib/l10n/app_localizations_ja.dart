@@ -1542,6 +1542,35 @@ class AppLocalizationsJa extends AppLocalizations {
   String get generation_model => 'モデル';
 
   @override
+  String get generation_modelMode => 'モード';
+
+  @override
+  String get generation_modelModeAnime => 'アニメ';
+
+  @override
+  String get generation_modelModeFurry => 'ケモノ';
+
+  @override
+  String get generation_effort => '生成モード';
+
+  @override
+  String get generation_effortMedium => '節約';
+
+  @override
+  String get generation_effortHigh => '通常';
+
+  @override
+  String get generation_effortUnavailableHint => '節約モードでは使用しません';
+
+  @override
+  String get generation_effortNegativeLocked => '節約モードでは送信しません';
+
+  @override
+  String generation_effortNegativeLockedHint(Object ucPreset) {
+    return '節約モードでは除外したい要素を送信せず、「$ucPreset」除外したい要素プリセットのみを使用します。入力内容は保持され、通常モードに戻すと再び使用されます';
+  }
+
+  @override
   String generation_opusUsageRemaining(Object percent) {
     return 'Opus 無料生成の残り $percent%';
   }

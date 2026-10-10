@@ -6,6 +6,7 @@ import 'package:hive/hive.dart';
 import 'package:image/image.dart' as img;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/core/constants/api_constants.dart';
+import 'package:nai_launcher/core/enums/image_model_mode.dart';
 import 'package:nai_launcher/core/utils/comfyui_prompt_parser.dart';
 import 'package:nai_launcher/core/utils/image_save_utils.dart';
 import 'package:nai_launcher/data/models/character/character_prompt.dart';
@@ -150,7 +151,7 @@ void main() {
       final restored = ImageSaveUtils.rebuildParamsFromMetadata(parsed);
 
       expect(commentJson['tag_hint_qt'], 3);
-      expect(pngMetadata['Source'], 'NovelAI Diffusion V5 657484A5');
+      expect(pngMetadata['Source'], 'NovelAI Diffusion V5 0ADF9AB7');
       expect(parsed.model, ImageModels.animeDiffusionV5Full);
       expect(parsed.qualityToggle, isTrue);
       expect(parsed.qualityTier, QualityTags.lightTier);
@@ -808,5 +809,93 @@ void main() {
       ImageSaveUtils.galleryFileName(now: now),
       '08-05-03-${now.millisecondsSinceEpoch}.png',
     );
+  });
+
+  group('ImageSaveUtils effort and furry mode', () {
+    test('records medium with its own fingerprint and the sent settings', () {
+      const params = ImageParams(
+        prompt: '1girl',
+        negativePrompt: 'bad hands',
+        model: ImageModels.animeDiffusionV5FullMedium,
+        steps: 35,
+        sampler: Samplers.kDpmpp2m,
+        cfgRescale: 0.4,
+        ucPreset: UcPresets.noneApiValue,
+      );
+
+      final commentJson = ImageSaveUtils.buildCommentJson(
+        params: params,
+        actualSeed: 7,
+      );
+      final pngMetadata = ImageSaveUtils.buildMetadata(
+        commentJson: commentJson,
+        params: params,
+      );
+      final parsed = NaiImageMetadata.fromNaiComment(pngMetadata);
+
+      expect(commentJson['steps'], 14);
+      expect(commentJson['sampler'], Samplers.kEulerAncestral);
+      expect(commentJson['uc'], '');
+      expect(commentJson['uc_preset'], UcPresets.heavyApiValue);
+      expect(commentJson.containsKey('cfg_rescale'), isFalse);
+      expect(pngMetadata['Source'], 'NovelAI Diffusion V5 70AB5786');
+      expect(parsed.model, ImageModels.animeDiffusionV5FullMedium);
+      expect(parsed.steps, 14);
+    });
+
+    test('records the fur dataset prefix and restores furry mode', () {
+      const params = ImageParams(
+        prompt: 'wolf',
+        model: ImageModels.animeDiffusionV45Full,
+        modelMode: ImageModelMode.furry,
+        qualityToggle: false,
+        ucPreset: UcPresets.noneApiValue,
+      );
+
+      final commentJson = ImageSaveUtils.buildCommentJson(
+        params: params,
+        actualSeed: 7,
+      );
+      final parsed = NaiImageMetadata.fromNaiComment(
+        ImageSaveUtils.buildMetadata(commentJson: commentJson, params: params),
+      );
+      final restored = ImageSaveUtils.rebuildParamsFromMetadata(parsed);
+
+      expect(commentJson['prompt'], 'fur dataset, wolf');
+      expect(
+        ((commentJson['v4_prompt'] as Map)['caption'] as Map)['base_caption'],
+        'fur dataset, wolf',
+      );
+      expect(parsed.prompt, 'wolf');
+      expect(parsed.modelMode, ImageModelMode.furry);
+      expect(restored?.prompt, 'wolf');
+      expect(restored?.modelMode, ImageModelMode.furry);
+    });
+
+    test('writes the fingerprint the server uses for each V5 weight', () {
+      const expected = {
+        ImageModels.animeDiffusionV5Full: 'NovelAI Diffusion V5 0ADF9AB7',
+        ImageModels.animeDiffusionV5FullInpainting:
+            'NovelAI Diffusion V5 657484A5',
+        ImageModels.animeDiffusionV5FullMedium:
+            'NovelAI Diffusion V5 70AB5786',
+        ImageModels.animeDiffusionV5FullMediumInpainting:
+            'NovelAI Diffusion V5 93F4BD30',
+        ImageModels.animeDiffusionV5Curated: 'NovelAI Diffusion V5',
+      };
+
+      for (final entry in expected.entries) {
+        final source = ImageSaveUtils.getModelSourceName(entry.key);
+        expect(source, entry.value, reason: entry.key);
+        expect(
+          NaiImageMetadata.fromNaiComment({
+            'Source': source,
+            'Comment': '{}',
+          }).model,
+          ImageModels.resolveBaseModel(entry.key),
+          reason: entry.key,
+        );
+      }
+    });
   });
 }

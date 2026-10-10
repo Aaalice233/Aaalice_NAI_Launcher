@@ -3,8 +3,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/constants/api_constants.dart';
 import '../../core/constants/model_capabilities.dart';
+import '../../core/enums/image_model_mode.dart';
 import '../../core/services/prompt_token_counter_service.dart';
 import '../../core/utils/novelai_auto_text.dart';
+import '../../core/utils/novelai_dataset_prefix.dart';
 import '../../core/utils/prompt_preset_resolution.dart';
 import '../../core/utils/character_prompt_block_parser.dart';
 import '../../core/utils/prompt_semantics_utils.dart';
@@ -63,6 +65,7 @@ final promptTokenUsageProvider =
                 params.shouldApplyEnhancePromptAddition,
             transparentBackground: params.transparentBackground,
             qualityTier: params.qualityTier,
+            modelMode: params.modelMode,
           ),
         ),
       );
@@ -105,6 +108,7 @@ final promptTokenUsageProvider =
         isEnhanceRequest: promptState.isEnhanceRequest,
         transparentBackground: promptState.transparentBackground,
         qualityTier: promptState.qualityTier,
+        modelMode: promptState.modelMode,
         characters: characterConfig.characters,
         useCoords: !characterConfig.globalAiChoice,
         resolveAliases: aliasResolver.resolveAliases,
@@ -159,6 +163,7 @@ PromptTokenCountPayload buildPromptTokenCountPayload({
   required String Function(String text) resolveAliases,
   bool transparentBackground = false,
   String qualityTier = QualityTags.standardTier,
+  ImageModelMode modelMode = ImageModelMode.anime,
   bool useCoords = false,
 }) {
   return switch (target) {
@@ -177,6 +182,7 @@ PromptTokenCountPayload buildPromptTokenCountPayload({
       isEnhanceRequest: isEnhanceRequest,
       transparentBackground: transparentBackground,
       qualityTier: qualityTier,
+      modelMode: modelMode,
       characters: characters,
       useCoords: useCoords,
       resolveAliases: resolveAliases,
@@ -216,6 +222,7 @@ PromptTokenCountPayload _buildPositiveTokenCountPayload({
   required String Function(String text) resolveAliases,
   bool transparentBackground = false,
   String qualityTier = QualityTags.standardTier,
+  ImageModelMode modelMode = ImageModelMode.anime,
   bool useCoords = false,
 }) {
   final resolvedPrompt = CharacterPromptBlockParser.parse(
@@ -289,6 +296,7 @@ PromptTokenCountPayload _buildPositiveTokenCountPayload({
     qualityTier: qualityTier,
     characters: resolvedCharacters,
     useCoords: useCoords,
+    modelMode: modelMode,
   );
   final fixedTagTexts = [
     ...fixedTagsState.enabledPrefixes
@@ -313,6 +321,10 @@ PromptTokenCountPayload _buildPositiveTokenCountPayload({
           qualityTags,
         ].where((text) => text.isNotEmpty).join(', ')
       : qualityTags;
+  // 只有自动补上的前缀单列，用户手写的数据集标签已计入提示词。
+  final appliesDatasetPrefix =
+      NovelAiDatasetPrefix.hasFurryPrefix(promptSemantics.effectivePrompt) &&
+      !NovelAiDatasetPrefix.hasFurryPrefix(presetResolution.prompt);
 
   return PromptTokenCountPayload(
     mainText: promptSemantics.effectivePrompt,
@@ -328,6 +340,11 @@ PromptTokenCountPayload _buildPositiveTokenCountPayload({
         PromptTokenCountBreakdownGroup(
           label: '文字转录',
           texts: [promptSemantics.autoTextBlock!],
+        ),
+      if (appliesDatasetPrefix)
+        const PromptTokenCountBreakdownGroup(
+          label: '数据集标签',
+          texts: [NovelAiDatasetPrefix.furryTag],
         ),
       PromptTokenCountBreakdownGroup(label: '角色', texts: extraTexts),
     ],
@@ -354,6 +371,14 @@ PromptTokenCountPayload _buildNegativeTokenCountPayload({
   final promptWithFixedTags = fixedTagsState
       .applyToPrompt(resolvedPrompt)
       .trim();
+  final fixedSettings = ModelCapabilityRegistry.of(model).fixedSettings;
+  if (fixedSettings != null) {
+    return _buildFixedNegativeTokenCountPayload(
+      prompt: promptWithFixedTags,
+      model: model,
+      ucPreset: fixedSettings.ucPreset,
+    );
+  }
   final negativePromptWithFixedTags = fixedTagsState
       .applyToNegativePrompt(resolvedNegativePrompt)
       .trim();
@@ -422,6 +447,30 @@ PromptTokenCountPayload _buildNegativeTokenCountPayload({
         texts: [resolvedUcPresetContent.trim()],
       ),
       PromptTokenCountBreakdownGroup(label: '角色负面', texts: extraTexts),
+    ],
+  );
+}
+
+/// 固定参数模型只发送固定 UC 预设，用户与角色负面词都不参与计数。
+PromptTokenCountPayload _buildFixedNegativeTokenCountPayload({
+  required String prompt,
+  required String model,
+  required int ucPreset,
+}) {
+  final effectiveNegativePrompt = buildPromptSemanticsSnapshot(
+    prompt: prompt,
+    negativePrompt: '',
+    model: model,
+    qualityToggle: false,
+    ucPreset: ucPreset,
+  ).effectiveNegativePrompt;
+  return PromptTokenCountPayload(
+    mainText: effectiveNegativePrompt,
+    breakdown: [
+      PromptTokenCountBreakdownGroup(
+        label: '负面预设',
+        texts: [effectiveNegativePrompt],
+      ),
     ],
   );
 }

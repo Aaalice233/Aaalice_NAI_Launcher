@@ -12,6 +12,7 @@ import '../../../widgets/common/model_family_icon.dart';
 import '../../../widgets/common/themed_input.dart';
 import '../../../widgets/common/themed_slider.dart';
 import 'generation_toggle_button.dart';
+import 'model_option_controls.dart';
 import 'size_selector.dart';
 
 /// 生成参数分节控件集
@@ -36,7 +37,7 @@ class ParamSectionTitle extends StatelessWidget {
   }
 }
 
-/// 模型选择分节（标题 + 下拉框）
+/// 模型选择分节（标题行带模式与档位切换 + 下拉框）
 class ModelSection extends ConsumerWidget {
   const ModelSection({super.key});
 
@@ -45,18 +46,22 @@ class ModelSection extends ConsumerWidget {
     final model = ref.watch(
       generationParamsNotifierProvider.select((params) => params.model),
     );
-    // 测试期的 custom 键归一到正式 ID，保证下拉框 value 一定在候选项里。
-    final normalizedModel = ImageModels.migrateLegacyModel(model);
+    // 测试期的 custom 键与 Effort 变体都归到下拉框条目，保证 value 一定在候选项里。
+    final selectorModel = ImageModels.selectorModel(model);
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        ParamSectionTitle(context.l10n.generation_model),
+        Row(
+          children: [
+            ParamSectionTitle(context.l10n.generation_model),
+            const SizedBox(width: 12),
+            const Expanded(child: ModelOptionControls()),
+          ],
+        ),
         const SizedBox(height: 8),
         ThemedDropdown<String>(
-          value: normalizedModel,
-          items: ImageModels.visibleModels(current: normalizedModel).map((
-            model,
-          ) {
+          value: selectorModel,
+          items: ImageModels.visibleModels(current: selectorModel).map((model) {
             return DropdownMenuItem(
               value: model,
               child: ModelNameLabel(
@@ -67,7 +72,8 @@ class ModelSection extends ConsumerWidget {
             );
           }).toList(),
           onChanged: (value) {
-            if (value != null) {
+            // 重选同一条目不能把 Medium 档改回 High。
+            if (value != null && value != selectorModel) {
               ref
                   .read(generationParamsNotifierProvider.notifier)
                   .updateModel(value);
@@ -151,7 +157,11 @@ class SamplerSection extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final data = ref.watch(
       generationParamsNotifierProvider.select(
-        (params) => (sampler: params.sampler, isV4Model: params.isV4Model),
+        (params) => (
+          sampler: params.effectiveSampler,
+          isV4Model: params.isV4Model,
+          locked: params.usesFixedSettings,
+        ),
       ),
     );
     // V4 起官网不提供 DDIM；存量选择显示为实际会发送的 Euler Ancestral。
@@ -184,13 +194,15 @@ class SamplerSection extends ConsumerWidget {
               ),
             );
           }).toList(),
-          onChanged: (value) {
-            if (value != null) {
-              ref
-                  .read(generationParamsNotifierProvider.notifier)
-                  .updateSampler(value);
-            }
-          },
+          onChanged: data.locked
+              ? null
+              : (value) {
+                  if (value != null) {
+                    ref
+                        .read(generationParamsNotifierProvider.notifier)
+                        .updateSampler(value);
+                  }
+                },
         ),
       ],
     );
@@ -206,13 +218,14 @@ class NoiseScheduleSection extends ConsumerWidget {
     final data = ref.watch(
       generationParamsNotifierProvider.select(
         (params) => (
-          noiseSchedule: params.noiseSchedule,
+          noiseSchedule: params.effectiveNoiseSchedule,
           allowsNative: params.capabilities.allowsNativeNoiseSchedule,
           supportsNoiseSchedule: params.capabilities.supportsNoiseSchedule,
+          locked: params.usesFixedSettings,
         ),
       ),
     );
-    if (!data.supportsNoiseSchedule) {
+    if (!data.supportsNoiseSchedule && !data.locked) {
       return const SizedBox.shrink();
     }
     return Column(
@@ -221,10 +234,7 @@ class NoiseScheduleSection extends ConsumerWidget {
         ParamSectionTitle(context.l10n.generation_noiseSchedule),
         const SizedBox(height: 8),
         ThemedDropdown<String>(
-          value: NoiseSchedules.resolve(
-            data.noiseSchedule,
-            allowNative: data.allowsNative,
-          ),
+          value: data.noiseSchedule,
           items: [
             if (data.allowsNative)
               DropdownMenuItem(
@@ -249,13 +259,15 @@ class NoiseScheduleSection extends ConsumerWidget {
               );
             }),
           ],
-          onChanged: (value) {
-            if (value != null) {
-              ref
-                  .read(generationParamsNotifierProvider.notifier)
-                  .updateNoiseSchedule(value);
-            }
-          },
+          onChanged: data.locked
+              ? null
+              : (value) {
+                  if (value != null) {
+                    ref
+                        .read(generationParamsNotifierProvider.notifier)
+                        .updateNoiseSchedule(value);
+                  }
+                },
         ),
       ],
     );
@@ -270,27 +282,32 @@ class StepsSection extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final steps = ref.watch(
-      generationParamsNotifierProvider.select((params) => params.steps),
+    final data = ref.watch(
+      generationParamsNotifierProvider.select(
+        (params) =>
+            (steps: params.effectiveSteps, locked: params.usesFixedSettings),
+      ),
     );
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         ParamSectionTitle(
-          context.l10n.generation_steps(_valueText(steps.toDouble())),
+          context.l10n.generation_steps(_valueText(data.steps.toDouble())),
         ),
         ThemedSlider(
           label: context.l10n.generation_stepsLabel,
           valueText: _valueText,
-          value: steps.toDouble(),
+          value: data.steps.toDouble(),
           min: 1,
           max: 50,
           divisions: 49,
-          onChanged: (value) {
-            ref
-                .read(generationParamsNotifierProvider.notifier)
-                .updateSteps(value.round());
-          },
+          onChanged: data.locked
+              ? null
+              : (value) {
+                  ref
+                      .read(generationParamsNotifierProvider.notifier)
+                      .updateSteps(value.round());
+                },
         ),
       ],
     );
@@ -313,6 +330,7 @@ class CfgScaleSection extends ConsumerWidget {
           varietyPlus: params.varietyPlus,
           isV3Model: params.isV3Model,
           supportsVarietyPlus: params.capabilities.supportsVarietyPlus,
+          locked: params.usesFixedSettings,
         ),
       ),
     );
@@ -351,6 +369,15 @@ class CfgScaleSection extends ConsumerWidget {
                           .read(generationParamsNotifierProvider.notifier)
                           .updateVarietyPlus(value);
                     },
+                  )
+                else if (data.locked)
+                  Tooltip(
+                    message: context.l10n.generation_effortUnavailableHint,
+                    child: const GenerationToggleButton(
+                      label: 'Variety+',
+                      isEnabled: false,
+                      onChanged: null,
+                    ),
                   ),
               ],
             ),
@@ -568,6 +595,7 @@ class AdvancedSamplingOptions extends ConsumerWidget {
           smea: params.smea,
           smeaDyn: params.smeaDyn,
           cfgRescale: params.cfgRescale,
+          supportsCfgRescale: params.capabilities.supportsCfgRescale,
         ),
       ),
     );
@@ -647,8 +675,10 @@ class AdvancedSamplingOptions extends ConsumerWidget {
               ),
             ),
         ],
-        // V4 模型: CFG Rescale
-        if (data.isV4Model)
+        // V4 模型: CFG Rescale；不发送该字段的模型显示为停用
+        if (data.isV4Model && !data.supportsCfgRescale)
+          const _UnavailableCfgRescale()
+        else if (data.isV4Model)
           ListTile(
             contentPadding: EdgeInsets.zero,
             title: Text(
@@ -671,6 +701,30 @@ class AdvancedSamplingOptions extends ConsumerWidget {
             ),
           ),
       ],
+    );
+  }
+}
+
+/// 当前模型不发送 `cfg_rescale` 时的停用展示，不显示用户保留的取值。
+class _UnavailableCfgRescale extends StatelessWidget {
+  const _UnavailableCfgRescale();
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    return ListTile(
+      contentPadding: EdgeInsets.zero,
+      enabled: false,
+      title: Text(l10n.generation_cfgRescaleLabel),
+      subtitle: ThemedSlider(
+        label: l10n.generation_cfgRescaleLabel,
+        valueText: AdvancedSamplingOptions._cfgRescaleText,
+        value: 0,
+        min: 0,
+        max: 1,
+        divisions: 100,
+        onChanged: null,
+      ),
     );
   }
 }

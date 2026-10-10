@@ -392,13 +392,15 @@ class GenerationToolDefinitions {
         name: 'get_generation_settings',
         label: 'Get Generation Settings',
         description:
-            'Read all image generation settings: model, sampler, '
+            'Read all image generation settings: model, effort, '
+            'model_mode, sampler, '
             'steps, scale (CFG), cfg_rescale, noise_schedule, uc_preset, '
             'quality_toggle, variety_plus, decrisp, smea flags, '
             'transparent_background, width/height, seed, generation count, '
             'action (generate/img2img/infill) and strength values. Call '
             'this before update_generation_settings to learn current values '
-            'and valid model ids.',
+            'and valid model ids. steps and sampler report what is actually '
+            'sent; locked_by_effort lists fields Medium effort ignores.',
         parameters: const {
           'type': 'object',
           'properties': <String, dynamic>{},
@@ -416,6 +418,12 @@ class GenerationToolDefinitions {
             'exact model id OR a friendly name like "v5", "v5 curated", '
             '"v4.5 full", "v3" (get_generation_settings lists all); '
             'switching model may auto-adjust scale/steps defaults. '
+            '"effort" (V5 Full only): "medium" costs fewer Anlas and less '
+            'V5 quota but always uses 14 steps, Euler Ancestral and the '
+            'Heavy UC preset and does not send negative prompts, '
+            'cfg_rescale or Variety+; "high" is the full model. '
+            '"model_mode" (V4+): "furry" prepends the "fur dataset" tag to '
+            'the prompt, "anime" does not. '
             '"sampler" examples: k_euler_ancestral, k_euler, k_dpmpp_2m, '
             'k_dpmpp_2m_sde. "steps" clamped to 1-50; "scale" 0-10; '
             '"cfg_rescale" 0-1; "noise_schedule" one of '
@@ -431,6 +439,14 @@ class GenerationToolDefinitions {
           'type': 'object',
           'properties': {
             'model': {'type': 'string'},
+            'effort': {
+              'type': 'string',
+              'enum': ['medium', 'high'],
+            },
+            'model_mode': {
+              'type': 'string',
+              'enum': ['anime', 'furry'],
+            },
             'sampler': {'type': 'string', 'enum': Samplers.allSamplers},
             'steps': {'type': 'integer', 'minimum': 1, 'maximum': 50},
             'scale': {'type': 'number', 'minimum': 0, 'maximum': 10},

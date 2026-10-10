@@ -123,6 +123,9 @@ void main() {
     testWidgets('parameter sliders keep their discrete behavior', (
       tester,
     ) async {
+      // 默认 800×600 窗口会把面板压到 600px，CFG 区落在惰性列表构建范围外
+      await tester.binding.setSurfaceSize(const Size(960, 1200));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
@@ -173,6 +176,9 @@ void main() {
     });
 
     testWidgets('步数与 CFG 滑块以不含数值的名称朗读，读数与标题一致', (tester) async {
+      // 默认 800×600 窗口会把面板压到 600px，CFG 区落在惰性列表构建范围外
+      await tester.binding.setSurfaceSize(const Size(960, 1200));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
       await tester.pumpWidget(
         ProviderScope(
           overrides: [

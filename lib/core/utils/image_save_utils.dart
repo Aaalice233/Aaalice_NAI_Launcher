@@ -13,9 +13,11 @@ import '../../data/services/image_metadata_service.dart';
 import '../../data/services/metadata/hash_calculator.dart';
 import '../../data/services/metadata/unified_metadata_parser.dart';
 import '../constants/api_constants.dart';
+import '../enums/image_model_mode.dart';
 import '../enums/precise_ref_type.dart';
 import 'app_logger.dart';
 import 'isolate_pool.dart';
+import 'novelai_dataset_prefix.dart';
 import 'prompt_semantics_utils.dart';
 
 /// 统一图像保存工具类
@@ -39,61 +41,68 @@ class ImageSaveUtils {
     List<Map<String, dynamic>>? charNegCaptions,
     bool useCoords = false,
   }) {
+    final request = params.resolveFixedSettings();
+    final recordedPrompt = NovelAiDatasetPrefix.apply(
+      request.prompt,
+      mode: request.modelMode,
+      capabilities: request.capabilities,
+    );
     final qualityTagHint = QualityTags.toTagHint(
-      model: params.model,
-      enabled: params.qualityToggle,
-      tier: params.qualityTier,
-      omit: params.omitQualityTagHint,
+      model: request.model,
+      enabled: request.qualityToggle,
+      tier: request.qualityTier,
+      omit: request.omitQualityTagHint,
     );
     final ucPresetTagHint = UcPresets.toTagHint(
-      params.ucPreset,
-      omit: params.omitUcPresetTagHint,
+      request.ucPreset,
+      omit: request.omitUcPresetTagHint,
     );
     final commentJson = <String, dynamic>{
-      'prompt': params.prompt,
-      'uc': params.negativePrompt,
+      'prompt': recordedPrompt,
+      'uc': request.negativePrompt,
       'seed': actualSeed,
-      'steps': params.steps,
-      'width': params.width,
-      'height': params.height,
-      'scale': params.scale,
+      'steps': request.steps,
+      'width': request.width,
+      'height': request.height,
+      'scale': request.scale,
       'uncond_scale': 0.0,
-      'cfg_rescale': params.cfgRescale,
+      if (request.capabilities.supportsCfgRescale)
+        'cfg_rescale': request.cfgRescale,
       'n_samples': 1,
-      'noise_schedule': params.noiseSchedule,
-      'sampler': params.sampler,
-      'sm': params.smea,
-      'sm_dyn': params.smeaDyn,
-      'model': params.model,
-      'quality_toggle': params.qualityToggle,
-      'uc_preset': params.ucPreset,
+      'noise_schedule': request.noiseSchedule,
+      'sampler': request.sampler,
+      'sm': request.smea,
+      'sm_dyn': request.smeaDyn,
+      'model': request.model,
+      'quality_toggle': request.qualityToggle,
+      'uc_preset': request.ucPreset,
       if (qualityTagHint != null) 'tag_hint_qt': qualityTagHint,
       if (ucPresetTagHint != null) 'tag_hint_uc_preset': ucPresetTagHint,
       // NAI官方格式字段
-      'version': params.isV4Model ? 1 : 'v3',
+      'version': request.isV4Model ? 1 : 'v3',
       'legacy_v3_extend': false,
       // img2img参数
-      if (params.isImg2Img) ...{
-        'strength': params.strength,
-        'noise': params.noise,
+      if (request.isImg2Img) ...{
+        'strength': request.strength,
+        'noise': request.noise,
         'extra_noise_seed': actualSeed - 1,
       },
       // V5 专属参数：官网写回元数据时保留 upscale 与透明背景，只剔除
       // upscaled_enhance（增强 max 档是一次性动作，不属于图片参数）。
-      if (params.capabilities.supportsTransparentBackground) ...{
-        'straight_alpha': params.straightAlpha,
-        if (params.transparentBackground)
+      if (request.capabilities.supportsTransparentBackground) ...{
+        'straight_alpha': request.straightAlpha,
+        if (request.transparentBackground)
           'tag_hint_transparent_background': true,
       },
-      if (params.effectiveE2eUpscale)
+      if (request.effectiveE2eUpscale)
         'upscale': {'declared_blur_sigma': E2eUpscale.declaredBlurSigma},
     };
 
     // V4多角色提示词
-    if (params.isV4Model) {
+    if (request.isV4Model) {
       commentJson['v4_prompt'] = {
         'caption': {
-          'base_caption': params.prompt,
+          'base_caption': recordedPrompt,
           'char_captions': charCaptions ?? const [],
         },
         'use_coords': useCoords,
@@ -102,7 +111,7 @@ class ImageSaveUtils {
       };
       commentJson['v4_negative_prompt'] = {
         'caption': {
-          'base_caption': params.negativePrompt,
+          'base_caption': request.negativePrompt,
           'char_captions': charNegCaptions ?? const [],
         },
         'use_coords': false,
@@ -112,8 +121,8 @@ class ImageSaveUtils {
     }
 
     // Vibe Transfer 数据（关键！之前缺失）
-    if (params.hasVibeReferencesV4) {
-      final validVibes = params.enabledVibeReferencesV4
+    if (request.hasVibeReferencesV4) {
+      final validVibes = request.enabledVibeReferencesV4
           .where((v) => v.vibeEncoding.isNotEmpty)
           .toList();
 
@@ -131,8 +140,8 @@ class ImageSaveUtils {
     }
 
     // Precise Reference 数据
-    if (params.hasPreciseReferences) {
-      final preciseReferences = params.enabledPreciseReferences;
+    if (request.hasPreciseReferences) {
+      final preciseReferences = request.enabledPreciseReferences;
       commentJson['use_precise_ref'] = true;
       commentJson['precise_ref_type'] = preciseReferences.first.type
           .toApiString();
@@ -141,8 +150,8 @@ class ImageSaveUtils {
     }
 
     // V4.5 参数
-    if (params.isV45Model) {
-      commentJson['variety_plus'] = params.varietyPlus;
+    if (request.isV45Model) {
+      commentJson['variety_plus'] = request.varietyPlus;
     }
 
     return commentJson;
@@ -220,6 +229,7 @@ class ImageSaveUtils {
             ucPreset: params.ucPreset,
             transparentBackground: params.transparentBackground,
             qualityTier: params.qualityTier,
+            modelMode: params.modelMode,
           ).effectivePrompt,
       source: existingMetadata?.source ?? getModelSourceName(params.model),
       software: existingMetadata?.software ?? 'NovelAI',
@@ -367,6 +377,7 @@ class ImageSaveUtils {
         qualityTier: metadata.qualityTier ?? QualityTags.standardTier,
         ucPreset: metadata.ucPreset ?? UcPresets.noneApiValue,
         transparentBackground: metadata.transparentBackground ?? false,
+        modelMode: metadata.modelMode ?? ImageModelMode.anime,
       );
 
       // 恢复Vibe数据
@@ -400,11 +411,20 @@ class ImageSaveUtils {
   /// 获取模型显示名称
   static String getModelSourceName(String model) {
     if (model.contains('diffusion-5') || model == ImageModels.v5StagingKey) {
-      // 官方解析按已知 Full 指纹区分，其余 V5 一律归 Curated；
-      // Full 带上网页端的真实指纹保证自家图能被官网与启动器双向识别。
-      return model.contains('diffusion-5-full')
-          ? 'NovelAI Diffusion V5 657484A5'
-          : 'NovelAI Diffusion V5';
+      // 与服务端实写一致：底模与重绘权重各有指纹，官方解析两者都认，
+      // 不带已知指纹的 V5 一律归 Curated。
+      final inpainting = ImageModels.isInpaintingModel(model);
+      if (model.contains('diffusion-5-full-medium')) {
+        return inpainting
+            ? 'NovelAI Diffusion V5 93F4BD30'
+            : 'NovelAI Diffusion V5 70AB5786';
+      }
+      if (model.contains('diffusion-5-full')) {
+        return inpainting
+            ? 'NovelAI Diffusion V5 657484A5'
+            : 'NovelAI Diffusion V5 0ADF9AB7';
+      }
+      return 'NovelAI Diffusion V5';
     } else if (model.contains('diffusion-4-5')) {
       return model.contains('curated')
           ? 'NovelAI Diffusion V4.5 Curated'

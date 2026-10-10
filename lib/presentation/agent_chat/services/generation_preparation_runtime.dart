@@ -53,49 +53,53 @@ class GenerationPreparation {
   final Uint8List? maskImage;
   GenerationPreparationStatus status = GenerationPreparationStatus.prepared;
 
-  Map<String, dynamic> toJson() => {
-    'ok': true,
-    'preparation_id': id,
-    'status': status.name,
-    'operation': kind.name,
-    'estimated_anlas': estimatedAnlas,
-    'count': count,
-    'batch_size': batchSize,
-    'auto_start': autoStart,
-    if (savePath != null) 'save_path': savePath,
-    if (savePathSource != null) 'save_path_source': savePathSource!.wireName,
-    'parameters': {
-      'prompt': params.prompt,
-      'negative_prompt': params.negativePrompt,
-      'model': params.model,
-      'width': params.width,
-      'height': params.height,
-      'steps': params.steps,
-      'sampler': params.sampler,
-      'scale': params.scale,
-      'seed': params.seed,
-      'action': params.action.value,
-      'character_layout_mode': params.useCoords ? 'custom' : 'ai_choice',
-      'character_count': params.characters.length,
-      'characters': [
-        for (var index = 0; index < params.characters.length; index++)
-          {
-            'order': index,
-            'prompt': params.characters[index].prompt,
-            'negative_prompt': params.characters[index].negativePrompt,
-            if (params.useCoords)
-              'center': {
-                'x': params.characters[index].positionX,
-                'y': params.characters[index].positionY,
-              },
-          },
-      ],
-      if (sourceImage != null) 'has_source_image': true,
-      if (maskImage != null) 'has_mask_image': true,
-    },
-    'confirmation_required':
-        status == GenerationPreparationStatus.prepared && estimatedAnlas != 0,
-  };
+  Map<String, dynamic> toJson() {
+    // 回显实际会发送的参数：模型固定的步数、采样器与负面词以覆盖后为准。
+    final request = params.resolveFixedSettings();
+    return {
+      'ok': true,
+      'preparation_id': id,
+      'status': status.name,
+      'operation': kind.name,
+      'estimated_anlas': estimatedAnlas,
+      'count': count,
+      'batch_size': batchSize,
+      'auto_start': autoStart,
+      if (savePath != null) 'save_path': savePath,
+      if (savePathSource != null) 'save_path_source': savePathSource!.wireName,
+      'parameters': {
+        'prompt': request.prompt,
+        'negative_prompt': request.negativePrompt,
+        'model': request.model,
+        'width': request.width,
+        'height': request.height,
+        'steps': request.steps,
+        'sampler': request.sampler,
+        'scale': request.scale,
+        'seed': request.seed,
+        'action': request.action.value,
+        'character_layout_mode': request.useCoords ? 'custom' : 'ai_choice',
+        'character_count': request.characters.length,
+        'characters': [
+          for (var index = 0; index < request.characters.length; index++)
+            {
+              'order': index,
+              'prompt': request.characters[index].prompt,
+              'negative_prompt': request.characters[index].negativePrompt,
+              if (request.useCoords)
+                'center': {
+                  'x': request.characters[index].positionX,
+                  'y': request.characters[index].positionY,
+                },
+            },
+        ],
+        if (sourceImage != null) 'has_source_image': true,
+        if (maskImage != null) 'has_mask_image': true,
+      },
+      'confirmation_required':
+          status == GenerationPreparationStatus.prepared && estimatedAnlas != 0,
+    };
+  }
 }
 
 /// In-memory transaction store owned by the Agent runtime, not by a tool list.

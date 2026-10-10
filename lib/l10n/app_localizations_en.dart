@@ -1577,6 +1577,35 @@ class AppLocalizationsEn extends AppLocalizations {
   String get generation_model => 'Model';
 
   @override
+  String get generation_modelMode => 'Mode';
+
+  @override
+  String get generation_modelModeAnime => 'Anime';
+
+  @override
+  String get generation_modelModeFurry => 'Furry';
+
+  @override
+  String get generation_effort => 'Effort';
+
+  @override
+  String get generation_effortMedium => 'Medium';
+
+  @override
+  String get generation_effortHigh => 'High';
+
+  @override
+  String get generation_effortUnavailableHint => 'Not used on Medium effort';
+
+  @override
+  String get generation_effortNegativeLocked => 'Not sent on Medium';
+
+  @override
+  String generation_effortNegativeLockedHint(Object ucPreset) {
+    return 'Medium effort does not send Undesired Content and only uses the \"$ucPreset\" Undesired Content Preset. Your text is kept and applies again on High effort';
+  }
+
+  @override
   String generation_opusUsageRemaining(Object percent) {
     return '$percent% of Opus Generations remaining';
   }

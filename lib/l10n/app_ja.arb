@@ -615,6 +615,20 @@
     }
   },
   "generation_model": "モデル",
+  "generation_modelMode": "モード",
+  "generation_modelModeAnime": "アニメ",
+  "generation_modelModeFurry": "ケモノ",
+  "generation_effort": "生成モード",
+  "generation_effortMedium": "節約",
+  "generation_effortHigh": "通常",
+  "generation_effortUnavailableHint": "節約モードでは使用しません",
+  "generation_effortNegativeLocked": "節約モードでは送信しません",
+  "generation_effortNegativeLockedHint": "節約モードでは除外したい要素を送信せず、「{ucPreset}」除外したい要素プリセットのみを使用します。入力内容は保持され、通常モードに戻すと再び使用されます",
+  "@generation_effortNegativeLockedHint": {
+    "placeholders": {
+      "ucPreset": {}
+    }
+  },
   "generation_opusUsageRemaining": "Opus 無料生成の残り {percent}%",
   "generation_opusUsageEstimate": "あと約 {count} 枚生成可能",
   "generation_opusUsageRefill": "上限は時間経過で自動回復します",

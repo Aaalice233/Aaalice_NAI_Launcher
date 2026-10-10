@@ -419,6 +419,7 @@ class ImageWorkflowLauncher {
           applyImportedUcPreset(read, value);
         },
         updateTransparentBackground: notifier.updateTransparentBackground,
+        updateModelMode: notifier.updateModelMode,
       ),
     );
 

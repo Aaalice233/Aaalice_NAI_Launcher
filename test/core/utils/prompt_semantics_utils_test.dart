@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/core/constants/api_constants.dart';
+import 'package:nai_launcher/core/enums/image_model_mode.dart';
 import 'package:nai_launcher/core/utils/novelai_auto_text.dart';
 import 'package:nai_launcher/core/utils/prompt_semantics_utils.dart';
 
@@ -122,6 +123,24 @@ void main() {
       );
 
       expect(snapshot.effectivePrompt, 'two characters, teXt: LEFT\n\nRIGHT');
+    });
+
+    test('furry mode prefixes the prompt after quality and text blocks', () {
+      final snapshot = buildPromptSemanticsSnapshot(
+        prompt: 'wolf, "HI"',
+        negativePrompt: '',
+        model: ImageModels.animeDiffusionV5Full,
+        qualityToggle: true,
+        ucPreset: UcPresets.noneApiValue,
+        modelMode: ImageModelMode.furry,
+      );
+
+      expect(
+        snapshot.effectivePrompt,
+        'fur dataset, wolf, "HI", very aesthetic, masterpiece, no text, '
+        'teXt: HI',
+      );
+      expect(snapshot.basePrompt, 'wolf, "HI"');
     });
 
     test('should keep quoted prompts unchanged before V5', () {

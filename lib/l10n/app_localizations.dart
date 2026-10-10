@@ -2936,6 +2936,60 @@ abstract class AppLocalizations {
   /// **'Model'**
   String get generation_model;
 
+  /// No description provided for @generation_modelMode.
+  ///
+  /// In en, this message translates to:
+  /// **'Mode'**
+  String get generation_modelMode;
+
+  /// No description provided for @generation_modelModeAnime.
+  ///
+  /// In en, this message translates to:
+  /// **'Anime'**
+  String get generation_modelModeAnime;
+
+  /// No description provided for @generation_modelModeFurry.
+  ///
+  /// In en, this message translates to:
+  /// **'Furry'**
+  String get generation_modelModeFurry;
+
+  /// No description provided for @generation_effort.
+  ///
+  /// In en, this message translates to:
+  /// **'Effort'**
+  String get generation_effort;
+
+  /// No description provided for @generation_effortMedium.
+  ///
+  /// In en, this message translates to:
+  /// **'Medium'**
+  String get generation_effortMedium;
+
+  /// No description provided for @generation_effortHigh.
+  ///
+  /// In en, this message translates to:
+  /// **'High'**
+  String get generation_effortHigh;
+
+  /// No description provided for @generation_effortUnavailableHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Not used on Medium effort'**
+  String get generation_effortUnavailableHint;
+
+  /// No description provided for @generation_effortNegativeLocked.
+  ///
+  /// In en, this message translates to:
+  /// **'Not sent on Medium'**
+  String get generation_effortNegativeLocked;
+
+  /// No description provided for @generation_effortNegativeLockedHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Medium effort does not send Undesired Content and only uses the \"{ucPreset}\" Undesired Content Preset. Your text is kept and applies again on High effort'**
+  String generation_effortNegativeLockedHint(Object ucPreset);
+
   /// No description provided for @generation_opusUsageRemaining.
   ///
   /// In en, this message translates to:

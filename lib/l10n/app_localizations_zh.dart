@@ -1519,6 +1519,35 @@ class AppLocalizationsZh extends AppLocalizations {
   String get generation_model => '模型';
 
   @override
+  String get generation_modelMode => '模式';
+
+  @override
+  String get generation_modelModeAnime => '动漫';
+
+  @override
+  String get generation_modelModeFurry => '兽人';
+
+  @override
+  String get generation_effort => '生成档位';
+
+  @override
+  String get generation_effortMedium => '节约';
+
+  @override
+  String get generation_effortHigh => '标准';
+
+  @override
+  String get generation_effortUnavailableHint => '节约档不使用此项';
+
+  @override
+  String get generation_effortNegativeLocked => '节约档不发送';
+
+  @override
+  String generation_effortNegativeLockedHint(Object ucPreset) {
+    return '节约档不发送负向提示词，只使用「$ucPreset」负面预设。已填写的内容会保留，切回标准档后继续生效';
+  }
+
+  @override
   String generation_opusUsageRemaining(Object percent) {
     return 'Opus 免费生成剩余 $percent%';
   }
@@ -16789,6 +16818,35 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get generation_model => '模型';
+
+  @override
+  String get generation_modelMode => '模式';
+
+  @override
+  String get generation_modelModeAnime => '動漫';
+
+  @override
+  String get generation_modelModeFurry => '獸人';
+
+  @override
+  String get generation_effort => '生成檔位';
+
+  @override
+  String get generation_effortMedium => '節約';
+
+  @override
+  String get generation_effortHigh => '標準';
+
+  @override
+  String get generation_effortUnavailableHint => '節約檔不使用此項';
+
+  @override
+  String get generation_effortNegativeLocked => '節約檔不傳送';
+
+  @override
+  String generation_effortNegativeLockedHint(Object ucPreset) {
+    return '節約檔不傳送負向提示詞，只使用「$ucPreset」負面預設。已填寫的內容會保留，切回標準檔後繼續生效';
+  }
 
   @override
   String generation_opusUsageRemaining(Object percent) {

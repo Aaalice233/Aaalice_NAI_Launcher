@@ -608,6 +608,20 @@
     }
   },
   "generation_model": "模型",
+  "generation_modelMode": "模式",
+  "generation_modelModeAnime": "动漫",
+  "generation_modelModeFurry": "兽人",
+  "generation_effort": "生成档位",
+  "generation_effortMedium": "节约",
+  "generation_effortHigh": "标准",
+  "generation_effortUnavailableHint": "节约档不使用此项",
+  "generation_effortNegativeLocked": "节约档不发送",
+  "generation_effortNegativeLockedHint": "节约档不发送负向提示词，只使用「{ucPreset}」负面预设。已填写的内容会保留，切回标准档后继续生效",
+  "@generation_effortNegativeLockedHint": {
+    "placeholders": {
+      "ucPreset": {}
+    }
+  },
   "generation_opusUsageRemaining": "Opus 免费生成剩余 {percent}%",
   "generation_opusUsageEstimate": "约可再生成 {count} 张",
   "generation_opusUsageRefill": "额度会随时间自动恢复",
