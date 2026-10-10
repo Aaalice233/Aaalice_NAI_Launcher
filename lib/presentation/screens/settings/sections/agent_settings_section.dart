@@ -139,6 +139,12 @@ class _ModelCard extends ConsumerWidget {
     for (final provider in promptConfig.providers.where(
       (item) => item.enabled,
     )) {
+      final group = ModelPickerGroup(
+        id: provider.id,
+        label: provider.name,
+        leading: ProviderIcon(provider: provider, size: 14),
+      );
+      final providerOptions = <ModelPickerOption<AgentModelReference>>[];
       for (final model in promptConfig.models.where(
         (item) =>
             item.providerId == provider.id &&
@@ -150,23 +156,26 @@ class _ModelCard extends ConsumerWidget {
           model: model.name,
         );
         available.add(reference);
-        final displayName = model.displayName.trim().isEmpty
-            ? model.name
-            : model.displayName.trim();
-        pickerOptions.add(
+        providerOptions.add(
           ModelPickerOption(
             id: _modelPickerId(reference),
             value: reference,
-            title: displayName,
+            title: AssistantModelCatalog.displayLabel(
+              provider: provider,
+              model: model,
+            ),
             modelId: model.name,
-            subtitleLeading: ProviderIcon(provider: provider, size: 14),
-            subtitle: displayName == model.name
-                ? provider.name
-                : '${provider.name} · ${model.name}',
-            searchTerms: [provider.id],
+            tooltip: model.name,
+            group: group,
+            searchTerms: [provider.id, model.name],
           ),
         );
       }
+      pickerOptions.addAll(
+        providerOptions..sort(
+          (a, b) => a.title.toLowerCase().compareTo(b.title.toLowerCase()),
+        ),
+      );
     }
     final selected = settings.chat.modelReference;
     final isPending = selected.isConfigured && !available.contains(selected);

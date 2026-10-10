@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart'
     show WebViewEnvironment;
 
+import '../../../common/checkerboard_pattern.dart';
 import '../../../common/image_viewport_surface.dart';
 import '../../../../../core/platform/platform_capabilities.dart';
 import '../../../../../core/utils/app_logger.dart';
@@ -843,13 +844,13 @@ class _LayerThumbnail extends StatelessWidget {
                   fit: BoxFit.contain,
                   filterQuality: FilterQuality.medium,
                 )
-              : _buildPlaceholder(theme),
+              : _buildPlaceholder(context, theme),
         ),
       ),
     );
   }
 
-  Widget _buildPlaceholder(ThemeData theme) {
+  Widget _buildPlaceholder(BuildContext context, ThemeData theme) {
     // 检查是否有内容
     if (layer.hasContent) {
       // 有内容但缩略图还没生成，显示加载指示
@@ -868,9 +869,7 @@ class _LayerThumbnail extends StatelessWidget {
     // 空图层，显示透明网格图案
     return CustomPaint(
       painter: _TransparentGridPainter(
-        gridSize: 5,
-        color1: Colors.white,
-        color2: Colors.grey.shade300,
+        devicePixelRatio: MediaQuery.devicePixelRatioOf(context),
       ),
     );
   }
@@ -878,33 +877,22 @@ class _LayerThumbnail extends StatelessWidget {
 
 /// 透明网格绘制器（棋盘格图案）
 class _TransparentGridPainter extends CustomPainter {
-  final double gridSize;
-  final Color color1;
-  final Color color2;
+  static final CheckerboardPattern _pattern = CheckerboardPattern(
+    cellSize: 5,
+    evenColor: Colors.white,
+    oddColor: Colors.grey.shade300,
+  );
 
-  _TransparentGridPainter({
-    required this.gridSize,
-    required this.color1,
-    required this.color2,
-  });
+  final double devicePixelRatio;
+
+  const _TransparentGridPainter({required this.devicePixelRatio});
 
   @override
   void paint(Canvas canvas, Size size) {
-    final paint1 = Paint()..color = color1;
-    final paint2 = Paint()..color = color2;
-
-    for (double y = 0; y < size.height; y += gridSize) {
-      for (double x = 0; x < size.width; x += gridSize) {
-        final isEven =
-            ((x / gridSize).floor() + (y / gridSize).floor()) % 2 == 0;
-        canvas.drawRect(
-          Rect.fromLTWH(x, y, gridSize, gridSize),
-          isEven ? paint1 : paint2,
-        );
-      }
-    }
+    _pattern.paint(canvas, Offset.zero & size, pixelScale: devicePixelRatio);
   }
 
   @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+  bool shouldRepaint(_TransparentGridPainter oldDelegate) =>
+      oldDelegate.devicePixelRatio != devicePixelRatio;
 }

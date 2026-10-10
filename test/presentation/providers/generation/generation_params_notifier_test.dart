@@ -7,11 +7,14 @@ import 'package:hive_flutter/hive_flutter.dart';
 import 'package:image/image.dart' as img;
 import 'package:nai_launcher/core/constants/api_constants.dart';
 import 'package:nai_launcher/core/constants/storage_keys.dart';
+import 'package:nai_launcher/core/enums/generation_effort.dart';
+import 'package:nai_launcher/core/enums/image_model_mode.dart';
 import 'package:nai_launcher/core/enums/precise_ref_type.dart';
 import 'package:nai_launcher/core/services/anlas_calculator.dart';
 import 'package:nai_launcher/core/storage/local_storage_service.dart';
 import 'package:nai_launcher/core/utils/nai_api_utils.dart';
 import 'package:nai_launcher/data/datasources/remote/nai_image_enhancement_api_service.dart';
+import 'package:nai_launcher/data/models/image/image_params.dart';
 import 'package:nai_launcher/data/models/user/user_subscription.dart';
 import 'package:nai_launcher/data/models/vibe/vibe_reference.dart';
 import 'package:nai_launcher/data/services/vibe_library_storage_service.dart';
@@ -112,6 +115,72 @@ void main() {
 
     final storage = LocalStorageService();
     expect(storage.getLastVarietyPlus(), isTrue);
+  });
+
+  test('effort round trip keeps every setting Medium locks', () async {
+    final container = ProviderContainer();
+    addTearDown(container.dispose);
+    final notifier = container.read(generationParamsNotifierProvider.notifier);
+    notifier.updateSteps(35);
+    notifier.updateSampler(Samplers.kDpmpp2m);
+    notifier.updateCfgRescale(0.3);
+    notifier.updateNegativePrompt('bad hands');
+    notifier.updateVarietyPlus(true);
+    // 负向提示词经 microtask 写入 state。
+    await Future<void>.delayed(Duration.zero);
+
+    notifier.updateEffort(GenerationEffort.medium);
+    var params = container.read(generationParamsNotifierProvider);
+    expect(params.model, ImageModels.animeDiffusionV5FullMedium);
+    expect(params.steps, 35);
+    expect(params.effectiveSteps, 14);
+    expect(LocalStorageService().getDefaultModel(), params.model);
+
+    notifier.updateEffort(GenerationEffort.high);
+    params = container.read(generationParamsNotifierProvider);
+    expect(params.model, ImageModels.animeDiffusionV5Full);
+    expect(params.steps, 35);
+    expect(params.sampler, Samplers.kDpmpp2m);
+    expect(params.cfgRescale, 0.3);
+    expect(params.negativePrompt, 'bad hands');
+    expect(params.varietyPlus, isTrue);
+  });
+
+  test('effort is ignored on models without effort levels', () {
+    final container = ProviderContainer();
+    addTearDown(container.dispose);
+    final notifier = container.read(generationParamsNotifierProvider.notifier);
+    notifier.updateModel(ImageModels.animeDiffusionV45Full);
+
+    notifier.updateEffort(GenerationEffort.medium);
+
+    expect(
+      container.read(generationParamsNotifierProvider).model,
+      ImageModels.animeDiffusionV45Full,
+    );
+  });
+
+  test('model mode persists and survives restart and reset', () async {
+    final container = ProviderContainer();
+    addTearDown(container.dispose);
+    container
+        .read(generationParamsNotifierProvider.notifier)
+        .updateModelMode(ImageModelMode.furry);
+    await Future<void>.delayed(Duration.zero);
+
+    expect(LocalStorageService().getImageModelMode(), ImageModelMode.furry);
+
+    final restarted = ProviderContainer();
+    addTearDown(restarted.dispose);
+    expect(
+      restarted.read(generationParamsNotifierProvider).modelMode,
+      ImageModelMode.furry,
+    );
+    restarted.read(generationParamsNotifierProvider.notifier).reset();
+    expect(
+      restarted.read(generationParamsNotifierProvider).modelMode,
+      ImageModelMode.furry,
+    );
   });
 
   test('alpha mode should default to straight and persist changes', () async {

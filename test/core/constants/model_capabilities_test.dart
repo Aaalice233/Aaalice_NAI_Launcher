@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/core/constants/api_constants.dart';
 import 'package:nai_launcher/core/constants/model_capabilities.dart';
+import 'package:nai_launcher/core/enums/generation_effort.dart';
 
 void main() {
   group('ModelCapabilityRegistry.of', () {
@@ -599,6 +600,155 @@ void main() {
       );
 
       expect(followUps.varietyPlus, isNull);
+    });
+  });
+
+  group('V5 Full Medium effort', () {
+    const medium = ModelCapabilityRegistry.v5FullMedium;
+    const full = ModelCapabilityRegistry.v5Full;
+
+    test('medium ids and suffixed medium ids resolve to the medium entry', () {
+      expect(
+        ModelCapabilityRegistry.tryOf(ImageModels.animeDiffusionV5FullMedium),
+        same(medium),
+      );
+      expect(
+        ModelCapabilityRegistry.tryOf(
+          ImageModels.animeDiffusionV5FullMediumInpainting,
+        ),
+        same(medium),
+      );
+      expect(
+        ModelCapabilityRegistry.of('nai-diffusion-5-full-medium-next'),
+        same(medium),
+      );
+    });
+
+    test('mirrors V5 Full except the settings the web client changes', () {
+      expect(medium.promptStructure, full.promptStructure);
+      expect(medium.tokenizer, full.tokenizer);
+      expect(medium.tokenLimit, full.tokenLimit);
+      expect(medium.paramsVersion, full.paramsVersion);
+      expect(medium.maxCharacters, full.maxCharacters);
+      expect(medium.defaultScale, full.defaultScale);
+      expect(medium.defaultSteps, full.defaultSteps);
+      expect(medium.supportsTransparentBackground, isTrue);
+      expect(medium.supportsMaxEnhance, isTrue);
+      expect(medium.supportsAutoText, isTrue);
+      expect(medium.hasFurryMode, isTrue);
+      expect(medium.anlasMultiplier, full.anlasMultiplier);
+      expect(medium.hasOpusUsageLimit, isTrue);
+      expect(medium.supportsVibeTransfer, isFalse);
+
+      expect(medium.supportsCfgRescale, isFalse);
+      expect(medium.supportsNoiseSchedule, isFalse);
+      expect(medium.supportsVarietyPlus, isFalse);
+      expect(medium.stepCostFactor, closeTo(1 / 1.06521739, 1e-12));
+      expect(medium.fixedSettings?.steps, 14);
+      expect(medium.fixedSettings?.sampler, Samplers.kEulerAncestral);
+      expect(medium.fixedSettings?.ucPreset, UcPresets.heavyApiValue);
+      expect(full.fixedSettings, isNull);
+      expect(full.supportsCfgRescale, isTrue);
+    });
+
+    test('effort switches only between V5 Full and its medium variant', () {
+      expect(
+        ImageModels.effortOf(ImageModels.animeDiffusionV5Full),
+        GenerationEffort.high,
+      );
+      expect(
+        ImageModels.effortOf(ImageModels.animeDiffusionV5FullMedium),
+        GenerationEffort.medium,
+      );
+      expect(ImageModels.effortOf(ImageModels.animeDiffusionV5Curated), isNull);
+      expect(ImageModels.effortOf(ImageModels.animeDiffusionV45Full), isNull);
+
+      expect(
+        ImageModels.withEffort(
+          ImageModels.animeDiffusionV5Full,
+          GenerationEffort.medium,
+        ),
+        ImageModels.animeDiffusionV5FullMedium,
+      );
+      expect(
+        ImageModels.withEffort(
+          ImageModels.animeDiffusionV5FullMedium,
+          GenerationEffort.high,
+        ),
+        ImageModels.animeDiffusionV5Full,
+      );
+      expect(
+        ImageModels.withEffort(
+          ImageModels.animeDiffusionV45Full,
+          GenerationEffort.medium,
+        ),
+        ImageModels.animeDiffusionV45Full,
+      );
+    });
+
+    test('the model selector shows V5 Full while medium is selected', () {
+      expect(
+        ImageModels.selectorModel(ImageModels.animeDiffusionV5FullMedium),
+        ImageModels.animeDiffusionV5Full,
+      );
+      expect(
+        ImageModels.visibleModels(
+          current: ImageModels.animeDiffusionV5FullMedium,
+        ),
+        ImageModels.allModels,
+      );
+      expect(
+        ImageModels.allModels,
+        isNot(contains(ImageModels.animeDiffusionV5FullMedium)),
+      );
+      expect(
+        ImageModels.supportedModels,
+        contains(ImageModels.animeDiffusionV5FullMedium),
+      );
+    });
+
+    test('switching effort levels changes no other settings', () {
+      final followUps = resolveModelSwitchFollowUps(
+        from: full,
+        to: medium,
+        currentScale: full.defaultScale,
+        currentSteps: full.defaultSteps,
+        currentNoiseSchedule: NoiseSchedules.karras,
+        currentVarietyPlus: false,
+      );
+      expect(followUps.isEmpty, isTrue);
+    });
+  });
+
+  group('furry mode capability', () {
+    test('matches the web client hasFurryMode flag per family', () {
+      for (final model in [
+        ImageModels.animeDiffusionV4Curated,
+        ImageModels.animeDiffusionV4Full,
+        ImageModels.animeDiffusionV45Curated,
+        ImageModels.animeDiffusionV45Full,
+        ImageModels.animeDiffusionV5Curated,
+        ImageModels.animeDiffusionV5Full,
+        ImageModels.animeDiffusionV5FullMedium,
+      ]) {
+        expect(
+          ModelCapabilityRegistry.of(model).hasFurryMode,
+          isTrue,
+          reason: model,
+        );
+      }
+      for (final model in [
+        ImageModels.animeDiffusionV3,
+        ImageModels.furryDiffusionV3,
+        ImageModels.furryDiffusion,
+        ImageModels.animeV2,
+      ]) {
+        expect(
+          ModelCapabilityRegistry.of(model).hasFurryMode,
+          isFalse,
+          reason: model,
+        );
+      }
     });
   });
 }

@@ -1266,7 +1266,10 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
     required int outputWidth,
     required int outputHeight,
   }) {
-    final effective = params.copyWith(width: outputWidth, height: outputHeight);
+    final effective = params.resolveFixedSettings().copyWith(
+      width: outputWidth,
+      height: outputHeight,
+    );
     final charCaptions = <Map<String, dynamic>>[];
     final charNegCaptions = <Map<String, dynamic>>[];
     for (var index = 0; index < effective.characters.length; index++) {

@@ -684,6 +684,75 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('V5 节约档把负向提示词设为只读并说明原因', (tester) async {
+    final storage = _TestLocalStorageService(
+      defaultModel: 'nai-diffusion-5-full-medium',
+    );
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          localStorageServiceProvider.overrideWith((ref) => storage),
+          characterPromptNotifierProvider.overrideWith(
+            _TestCharacterPromptNotifier.new,
+          ),
+          promptTokenUsageProvider(
+            PromptTokenCountTarget.positive,
+          ).overrideWith(
+            (ref) async => const PromptTokenUsage(usedTokens: 0, limit: 1471),
+          ),
+          promptTokenUsageProvider(
+            PromptTokenCountTarget.negative,
+          ).overrideWith(
+            (ref) async => const PromptTokenUsage(usedTokens: 0, limit: 1471),
+          ),
+        ],
+        child: const MaterialApp(
+          locale: Locale('zh'),
+          supportedLocales: AppLocalizations.supportedLocales,
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          home: Scaffold(
+            body: SizedBox(
+              width: 960,
+              height: 420,
+              child: PromptInputWidget(autoGrow: true),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
+
+    final lockedLabel = find.byKey(
+      const ValueKey('generation_negative_locked_label'),
+    );
+    expect(lockedLabel, findsNothing);
+    final ucButton = tester.widget<TextButton>(
+      find.descendant(
+        of: find.byType(UcPresetSelector),
+        matching: find.byType(TextButton),
+      ),
+    );
+    expect(ucButton.onPressed, isNull);
+    expect(
+      find.descendant(
+        of: find.byType(UcPresetSelector),
+        matching: find.text('重度'),
+      ),
+      findsOneWidget,
+    );
+
+    await tester.tap(find.byIcon(Icons.block).first);
+    await tester.pump();
+
+    final negativeInput = tester.widget<UnifiedPromptInput>(
+      find.byKey(const ValueKey('generation_prompt_negative_input')),
+    );
+    expect(negativeInput.config.readOnly, isTrue);
+    expect(lockedLabel, findsOneWidget);
+    expect(find.text('节约档不发送'), findsOneWidget);
+  });
+
   testWidgets('V5 透明背景开关切换正负面提示词后仍然可见', (tester) async {
     final storage = _TestLocalStorageService(
       defaultModel: 'nai-diffusion-5-curated',

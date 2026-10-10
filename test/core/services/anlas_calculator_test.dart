@@ -610,4 +610,60 @@ void main() {
       expect(AnlasCalculator.resolveVibeReferenceExtraCost(params), 0);
     });
   });
+
+  group('AnlasCalculator V5 Full Medium effort', () {
+    int priceFor(String model, {int steps = 28, int width = 832}) =>
+        AnlasCalculator.calculateFromValues(
+          width: width,
+          height: 1216,
+          steps: steps,
+          nSamples: 1,
+          smea: false,
+          smeaDyn: false,
+          model: model,
+        );
+
+    // 官网：ceil(面积项 + 步数项 × 1/1.06521739) × 1.5，步数固定 14。
+    test('prices medium at its fixed 14 steps with the reduced step term', () {
+      expect(priceFor(ImageModels.animeDiffusionV5FullMedium), 17);
+      expect(priceFor(ImageModels.animeDiffusionV5Full), 30);
+      // 同为 14 步时 V5 Full 是 18，差值来自步数项系数。
+      expect(priceFor(ImageModels.animeDiffusionV5Full, steps: 14), 18);
+    });
+
+    test('ignores the UI step value the caller passes for medium', () {
+      for (final steps in [1, 14, 28, 50]) {
+        expect(
+          priceFor(ImageModels.animeDiffusionV5FullMedium, steps: steps),
+          17,
+          reason: 'steps $steps',
+        );
+      }
+    });
+
+    test('medium stays Opus-free even when the stored steps exceed 28', () {
+      const params = ImageParams(
+        model: ImageModels.animeDiffusionV5FullMedium,
+        width: 832,
+        height: 1216,
+        steps: 50,
+      );
+      expect(AnlasCalculator.isOpusFreeGeneration(params, isOpus: true), true);
+      expect(
+        AnlasCalculator.calculate(
+          params,
+          isOpus: true,
+          opusQuotaExhausted: true,
+        ),
+        17,
+      );
+    });
+
+    test('medium inpainting shares the medium price', () {
+      expect(
+        priceFor(ImageModels.animeDiffusionV5FullMediumInpainting),
+        priceFor(ImageModels.animeDiffusionV5FullMedium),
+      );
+    });
+  });
 }

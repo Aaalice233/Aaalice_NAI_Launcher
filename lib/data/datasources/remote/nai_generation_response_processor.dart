@@ -151,7 +151,7 @@ class NaiGenerationResponseProcessor {
               eventType == 'intermediate') {
             final currentStep =
                 (_optionalInt(message['step_ix']) ?? messageCount) + 1;
-            final totalSteps = context.originalParams.steps;
+            final totalSteps = context.originalParams.effectiveSteps;
             yield ImageStreamChunk.progress(
               progress: (currentStep / totalSteps).clamp(0.0, 0.99),
               sampleIndex: sampleIndex,

@@ -63,12 +63,27 @@ class CardDragSource extends StatefulWidget {
 class _CardDragSourceState extends State<CardDragSource> {
   final _dragging = GalleryDragSessionState();
   List<DragItem> _items = const [];
+  bool _policyAllowsDrag = false;
+
+  bool get _dragEnabled => widget.enabled && _policyAllowsDrag;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _policyAllowsDrag = context.interactionPolicy.usesAnchoredMenus;
+  }
 
   @override
   void dispose() {
     _dragging.dispose();
     super.dispose();
   }
+
+  List<DropOperation> _allowedOperations() =>
+      _dragEnabled ? [DropOperation.copy] : [];
+
+  // The desktop drag recognizer keeps the predicate it was first built with.
+  bool _isLocationDraggable(Offset _) => _dragEnabled;
 
   Future<DragItem?> _start(DragItemRequest request) async {
     final overlay = Overlay.maybeOf(context, rootOverlay: true);
@@ -185,15 +200,13 @@ class _CardDragSourceState extends State<CardDragSource> {
 
   @override
   Widget build(BuildContext context) {
-    final enabled =
-        widget.enabled && context.interactionPolicy.usesAnchoredMenus;
     return DragItemWidget(
-      allowedOperations: () => enabled ? [DropOperation.copy] : [],
+      allowedOperations: _allowedOperations,
       dragItemProvider: _start,
       dragBuilder: _feedback,
       liftBuilder: _feedback,
       child: DraggableWidget(
-        isLocationDraggable: (_) => enabled,
+        isLocationDraggable: _isLocationDraggable,
         onDragConfiguration: (configuration, session) {
           final first = configuration.items.first;
           return DragConfiguration(

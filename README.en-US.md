@@ -47,6 +47,7 @@ NAI Launcher is built for people who use NovelAI regularly. Generation, editing,
 
 - Text-to-image, image-to-image, regular Inpaint, Focused Inpaint, Outpaint, variations, and enhancement are supported.
 - Common NovelAI V5 Curated / Full, V4.5, V4, and V3 workflows are available. Controls, defaults, Token limits, and reference features follow the selected model's capabilities.
+- V5 Full offers the Medium / High effort switch: Medium costs fewer Anlas and less of the Opus allowance, and like the official site it fixes the steps, sampler and Undesired Content preset. V4 and later models offer Anime / Furry mode; Furry mode adds the fur dataset tag to the start of the prompt and is recognized automatically when importing images.
 - Configure size, sampler, Steps, CFG, Seed, noise schedule, and related parameters. Invalid NovelAI dimensions are caught early with a usable size suggestion.
 - Estimated Anlas cost appears before generation. Important paid actions require separate confirmation, and balances and statistics refresh afterward.
 - Built-in history and previews let you reuse Prompts, Seeds, models, or selected settings without overwriting work still being edited.
@@ -64,7 +65,7 @@ NAI Launcher is built for people who use NovelAI regularly. Generation, editing,
 - Disable and restore tags without losing their content. The `/*disabled:original fragment*/` notation is saved and cloud-synced with the Prompt, while disabled content is excluded from generation, effective previews, and Token counts. This is Launcher editing syntax; older clients and external tools may not recognize it. Choose “Copy effective prompt” from the menu for external use.
 - Local translation misses can be sent to a configured AI translation service.
 - Prompt Assistant tasks, including reverse prompting, optimization, and translation, share a configurable response wait timeout: 1, 2, 5, 10, 15, or 30 minutes, with a 5-minute default.
-- Each Prompt Assistant provider saves its own automatic or manual concurrency mode. Automatic mode starts at 5 concurrent requests, and independent tag batches translate in parallel. Each task offers the thinking levels supported by its model. Configure these local settings under Settings → Integrations → Prompt Assistant.
+- Each Prompt Assistant provider saves its own automatic or manual concurrency mode. Automatic mode starts at 5 concurrent requests, and independent tag batches translate in parallel. Each task offers the thinking levels supported by its model. Manage providers, API keys, and models under Settings → Integrations → Model services, and task routing and thinking levels under Settings → Integrations → Prompt Assistant. Both stay on this device.
 
 ### 🧬 Vibe, Precise Reference, and image editing
 
@@ -107,7 +108,7 @@ NAI Launcher is built for people who use NovelAI regularly. Generation, editing,
 - Structured questions offer three feasible directions, one Recommended marker, and a custom-answer option per question. Answer sequentially, then review and submit the full set. After two minutes without submission, all recommended options are selected automatically. New questions show a Toast, a question-mark entry icon, and an Android system notification.
 - On Windows and macOS, a local MCP server can be enabled under Settings → Integrations → MCP, letting external agents such as Claude Code, Codex CLI, Cursor, Cherry Studio, Pi, and Claude Desktop drive Launcher through the same tools. The server is off by default; approvals and Anlas cost confirmations still happen inside Launcher. See [MCP server](docs/mcp_server.md).
 - MCP generation and image retrieval return original-resolution images by default. Clients may show them inside collapsed tool details. Inline answers can use temporary loopback HTTP image URLs for same-machine clients such as Cherry Studio, or optional display-cache files for Codex, without saving gallery copies. HTTP links last at most one hour and are revoked on server shutdown or cache eviction. With Protection Mode and "Remove all metadata when copying or dragging" enabled, MCP images, HTTP display, display-cache files, saved exports, and clipboard output all remove metadata and NAI steganographic watermark data without exposing original file paths. Local originals remain unchanged. Sanitized exports use PNG and retain destination-permission and no-overwrite checks.
-- Supports OpenAI-compatible APIs, Google's native Gemini API, third-party Gemini-compatible relays, and OpenRouter, including model lists, thinking levels, and tool calls when supported.
+- Supports OpenAI-compatible APIs, Google's native Gemini API, third-party Gemini-compatible relays, and OpenRouter. Pick models from each provider's list or add a model ID by hand, with thinking levels and tool calls when supported.
 - Your provider controls API keys, regional availability, and fees. Extra network tools such as web search are off by default.
 
 ### 📋 Queue, history, and statistics

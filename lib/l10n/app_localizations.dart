@@ -2942,6 +2942,60 @@ abstract class AppLocalizations {
   /// **'Model'**
   String get generation_model;
 
+  /// No description provided for @generation_modelMode.
+  ///
+  /// In en, this message translates to:
+  /// **'Mode'**
+  String get generation_modelMode;
+
+  /// No description provided for @generation_modelModeAnime.
+  ///
+  /// In en, this message translates to:
+  /// **'Anime'**
+  String get generation_modelModeAnime;
+
+  /// No description provided for @generation_modelModeFurry.
+  ///
+  /// In en, this message translates to:
+  /// **'Furry'**
+  String get generation_modelModeFurry;
+
+  /// No description provided for @generation_effort.
+  ///
+  /// In en, this message translates to:
+  /// **'Effort'**
+  String get generation_effort;
+
+  /// No description provided for @generation_effortMedium.
+  ///
+  /// In en, this message translates to:
+  /// **'Medium'**
+  String get generation_effortMedium;
+
+  /// No description provided for @generation_effortHigh.
+  ///
+  /// In en, this message translates to:
+  /// **'High'**
+  String get generation_effortHigh;
+
+  /// No description provided for @generation_effortUnavailableHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Not used on Medium effort'**
+  String get generation_effortUnavailableHint;
+
+  /// No description provided for @generation_effortNegativeLocked.
+  ///
+  /// In en, this message translates to:
+  /// **'Not sent on Medium'**
+  String get generation_effortNegativeLocked;
+
+  /// No description provided for @generation_effortNegativeLockedHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Medium effort does not send Undesired Content and only uses the \"{ucPreset}\" Undesired Content Preset. Your text is kept and applies again on High effort'**
+  String generation_effortNegativeLockedHint(Object ucPreset);
+
   /// No description provided for @generation_opusUsageRemaining.
   ///
   /// In en, this message translates to:
@@ -12802,32 +12856,284 @@ abstract class AppLocalizations {
   /// No description provided for @promptAssistant_noModelsPullFirst.
   ///
   /// In en, this message translates to:
-  /// **'No models yet. Pull the model list first'**
+  /// **'No models yet. Add some in Model services first'**
   String get promptAssistant_noModelsPullFirst;
 
-  /// No description provided for @promptAssistant_providerManagement.
+  /// No description provided for @settings_modelServices.
   ///
   /// In en, this message translates to:
-  /// **'Provider Management'**
-  String get promptAssistant_providerManagement;
+  /// **'Model services'**
+  String get settings_modelServices;
 
-  /// No description provided for @promptAssistant_providerManagementSubtitle.
+  /// No description provided for @modelServices_searchProviders.
   ///
   /// In en, this message translates to:
-  /// **'Supports OpenAI Chat / Responses, Anthropic, Gemini, DeepSeek, LM Studio, Ollama, Pollinations, and custom compatible endpoints'**
-  String get promptAssistant_providerManagementSubtitle;
+  /// **'Search providers'**
+  String get modelServices_searchProviders;
 
-  /// No description provided for @promptAssistant_apiKeyConfigured.
+  /// No description provided for @modelServices_noProviderMatches.
   ///
   /// In en, this message translates to:
-  /// **'API Key: configured'**
-  String get promptAssistant_apiKeyConfigured;
+  /// **'No matching providers'**
+  String get modelServices_noProviderMatches;
 
-  /// No description provided for @promptAssistant_apiKeyNotConfigured.
+  /// No description provided for @modelServices_emptyTitle.
   ///
   /// In en, this message translates to:
-  /// **'API Key: not configured'**
-  String get promptAssistant_apiKeyNotConfigured;
+  /// **'Add your first provider'**
+  String get modelServices_emptyTitle;
+
+  /// No description provided for @modelServices_emptyBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Providers supply the models used by the prompt assistant and Agent.'**
+  String get modelServices_emptyBody;
+
+  /// No description provided for @modelServices_disabled.
+  ///
+  /// In en, this message translates to:
+  /// **'Off'**
+  String get modelServices_disabled;
+
+  /// No description provided for @modelServices_enableProvider.
+  ///
+  /// In en, this message translates to:
+  /// **'Enable provider'**
+  String get modelServices_enableProvider;
+
+  /// No description provided for @modelServices_moreActions.
+  ///
+  /// In en, this message translates to:
+  /// **'More actions'**
+  String get modelServices_moreActions;
+
+  /// No description provided for @modelServices_connection.
+  ///
+  /// In en, this message translates to:
+  /// **'Connection'**
+  String get modelServices_connection;
+
+  /// No description provided for @modelServices_apiKey.
+  ///
+  /// In en, this message translates to:
+  /// **'API key'**
+  String get modelServices_apiKey;
+
+  /// No description provided for @modelServices_apiKeySavedHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Saved. Enter a new key to replace it.'**
+  String get modelServices_apiKeySavedHint;
+
+  /// No description provided for @modelServices_apiKeyOptional.
+  ///
+  /// In en, this message translates to:
+  /// **'Optional for this provider'**
+  String get modelServices_apiKeyOptional;
+
+  /// No description provided for @modelServices_showApiKey.
+  ///
+  /// In en, this message translates to:
+  /// **'Show key'**
+  String get modelServices_showApiKey;
+
+  /// No description provided for @modelServices_hideApiKey.
+  ///
+  /// In en, this message translates to:
+  /// **'Hide key'**
+  String get modelServices_hideApiKey;
+
+  /// No description provided for @modelServices_clearApiKey.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove saved key'**
+  String get modelServices_clearApiKey;
+
+  /// No description provided for @modelServices_apiKeyCleared.
+  ///
+  /// In en, this message translates to:
+  /// **'API key removed'**
+  String get modelServices_apiKeyCleared;
+
+  /// No description provided for @modelServices_baseUrl.
+  ///
+  /// In en, this message translates to:
+  /// **'API address'**
+  String get modelServices_baseUrl;
+
+  /// No description provided for @modelServices_checkConnection.
+  ///
+  /// In en, this message translates to:
+  /// **'Check connection'**
+  String get modelServices_checkConnection;
+
+  /// No description provided for @modelServices_connectionOk.
+  ///
+  /// In en, this message translates to:
+  /// **'Connected. The provider lists {count} models.'**
+  String modelServices_connectionOk(Object count);
+
+  /// No description provided for @modelServices_connectionFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t connect: {error}'**
+  String modelServices_connectionFailed(Object error);
+
+  /// No description provided for @modelServices_models.
+  ///
+  /// In en, this message translates to:
+  /// **'Models'**
+  String get modelServices_models;
+
+  /// No description provided for @modelServices_modelCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} models'**
+  String modelServices_modelCount(Object count);
+
+  /// No description provided for @modelServices_noModels.
+  ///
+  /// In en, this message translates to:
+  /// **'No models yet. Pick from the provider\'s list or add a model ID.'**
+  String get modelServices_noModels;
+
+  /// No description provided for @modelServices_manageModels.
+  ///
+  /// In en, this message translates to:
+  /// **'Manage models'**
+  String get modelServices_manageModels;
+
+  /// No description provided for @modelServices_addModel.
+  ///
+  /// In en, this message translates to:
+  /// **'Add model'**
+  String get modelServices_addModel;
+
+  /// No description provided for @modelServices_manageModelsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'{provider} models'**
+  String modelServices_manageModelsTitle(Object provider);
+
+  /// No description provided for @modelServices_addGroup.
+  ///
+  /// In en, this message translates to:
+  /// **'Add all {group} models'**
+  String modelServices_addGroup(Object group);
+
+  /// No description provided for @modelServices_removeGroup.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove all {group} models'**
+  String modelServices_removeGroup(Object group);
+
+  /// No description provided for @modelServices_notListed.
+  ///
+  /// In en, this message translates to:
+  /// **'No longer listed'**
+  String get modelServices_notListed;
+
+  /// No description provided for @modelServices_reasoning.
+  ///
+  /// In en, this message translates to:
+  /// **'Reasoning'**
+  String get modelServices_reasoning;
+
+  /// No description provided for @modelServices_vision.
+  ///
+  /// In en, this message translates to:
+  /// **'Vision'**
+  String get modelServices_vision;
+
+  /// No description provided for @modelServices_contextWindow.
+  ///
+  /// In en, this message translates to:
+  /// **'{size} context'**
+  String modelServices_contextWindow(Object size);
+
+  /// No description provided for @modelServices_modelId.
+  ///
+  /// In en, this message translates to:
+  /// **'Model ID'**
+  String get modelServices_modelId;
+
+  /// No description provided for @modelServices_modelIdRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter a model ID'**
+  String get modelServices_modelIdRequired;
+
+  /// No description provided for @modelServices_modelExists.
+  ///
+  /// In en, this message translates to:
+  /// **'This provider already has this model'**
+  String get modelServices_modelExists;
+
+  /// No description provided for @modelServices_displayName.
+  ///
+  /// In en, this message translates to:
+  /// **'Display name'**
+  String get modelServices_displayName;
+
+  /// No description provided for @modelServices_displayNameHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Leave empty to use {name}'**
+  String modelServices_displayNameHint(Object name);
+
+  /// No description provided for @modelServices_editModel.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit model'**
+  String get modelServices_editModel;
+
+  /// No description provided for @modelServices_removeModel.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove model'**
+  String get modelServices_removeModel;
+
+  /// No description provided for @modelServices_removeModelConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove {name} from this provider?'**
+  String modelServices_removeModelConfirm(Object name);
+
+  /// No description provided for @modelServices_removeModelInUse.
+  ///
+  /// In en, this message translates to:
+  /// **'{name} is used by {usages}. Task routing switches to this provider\'s next model, and Agent asks you to pick a model again.'**
+  String modelServices_removeModelInUse(Object name, Object usages);
+
+  /// No description provided for @modelServices_usageSeparator.
+  ///
+  /// In en, this message translates to:
+  /// **', '**
+  String get modelServices_usageSeparator;
+
+  /// No description provided for @modelServices_cleanStaleModels.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove delisted models'**
+  String get modelServices_cleanStaleModels;
+
+  /// No description provided for @modelServices_addAllModels.
+  ///
+  /// In en, this message translates to:
+  /// **'Add all models'**
+  String get modelServices_addAllModels;
+
+  /// No description provided for @modelServices_staleModelCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} delisted models'**
+  String modelServices_staleModelCount(Object count);
+
+  /// No description provided for @modelServices_addAllConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Add {count} models to this provider?'**
+  String modelServices_addAllConfirm(Object count);
 
   /// No description provided for @promptAssistant_supportsImageInput.
   ///
@@ -12841,18 +13147,6 @@ abstract class AppLocalizations {
   /// **'Text only'**
   String get promptAssistant_textOnly;
 
-  /// No description provided for @promptAssistant_connectionConfig.
-  ///
-  /// In en, this message translates to:
-  /// **'Connection Config'**
-  String get promptAssistant_connectionConfig;
-
-  /// No description provided for @promptAssistant_pullModelList.
-  ///
-  /// In en, this message translates to:
-  /// **'Pull model list'**
-  String get promptAssistant_pullModelList;
-
   /// No description provided for @promptAssistant_editProvider.
   ///
   /// In en, this message translates to:
@@ -12865,23 +13159,11 @@ abstract class AppLocalizations {
   /// **'Delete provider'**
   String get promptAssistant_deleteProvider;
 
-  /// No description provided for @promptAssistant_pullingModels.
-  ///
-  /// In en, this message translates to:
-  /// **'Pulling model list...'**
-  String get promptAssistant_pullingModels;
-
   /// No description provided for @promptAssistant_emptyModelList.
   ///
   /// In en, this message translates to:
   /// **'Provider returned an empty model list'**
   String get promptAssistant_emptyModelList;
-
-  /// No description provided for @promptAssistant_modelsSynced.
-  ///
-  /// In en, this message translates to:
-  /// **'Synced {count} models'**
-  String promptAssistant_modelsSynced(Object count);
 
   /// No description provided for @promptAssistant_pullModelsFailed.
   ///
@@ -12949,35 +13231,11 @@ abstract class AppLocalizations {
   /// **'API Key (leave empty to keep unchanged)'**
   String get promptAssistant_apiKeyLeaveEmpty;
 
-  /// No description provided for @promptAssistant_connectionTitle.
-  ///
-  /// In en, this message translates to:
-  /// **'{name} Connection Config'**
-  String promptAssistant_connectionTitle(Object name);
-
   /// No description provided for @promptAssistant_baseUrlHint.
   ///
   /// In en, this message translates to:
   /// **'Example: https://api.openai.com/v1'**
   String get promptAssistant_baseUrlHint;
-
-  /// No description provided for @promptAssistant_clearCurrentApiKey.
-  ///
-  /// In en, this message translates to:
-  /// **'Clear current API Key'**
-  String get promptAssistant_clearCurrentApiKey;
-
-  /// No description provided for @promptAssistant_protocolSupportsImagePayload.
-  ///
-  /// In en, this message translates to:
-  /// **'The current protocol supports image payloads; the model itself must still support vision input'**
-  String get promptAssistant_protocolSupportsImagePayload;
-
-  /// No description provided for @promptAssistant_protocolTextOnlyWarning.
-  ///
-  /// In en, this message translates to:
-  /// **'The current protocol is text-only by default; enabling this may still be rejected by the server'**
-  String get promptAssistant_protocolTextOnlyWarning;
 
   /// No description provided for @promptAssistant_addRuleTitle.
   ///
@@ -25183,7 +25441,7 @@ abstract class AppLocalizations {
   /// No description provided for @agentSettings_modelManagedInIntegrations.
   ///
   /// In en, this message translates to:
-  /// **'Providers, API keys, and model discovery remain centrally managed in Integrations.'**
+  /// **'Providers, API keys, and models are managed in Integrations > Model services.'**
   String get agentSettings_modelManagedInIntegrations;
 
   /// No description provided for @agentSettings_manageProviders.
@@ -25195,7 +25453,7 @@ abstract class AppLocalizations {
   /// No description provided for @agentSettings_noModel.
   ///
   /// In en, this message translates to:
-  /// **'No chat model is available. Add a provider and discover models in Integrations first.'**
+  /// **'No chat model is available. Add a provider and its models in Integrations > Model services first.'**
   String get agentSettings_noModel;
 
   /// No description provided for @agentSettings_pendingMatch.

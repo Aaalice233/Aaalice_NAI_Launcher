@@ -1580,6 +1580,35 @@ class AppLocalizationsEn extends AppLocalizations {
   String get generation_model => 'Model';
 
   @override
+  String get generation_modelMode => 'Mode';
+
+  @override
+  String get generation_modelModeAnime => 'Anime';
+
+  @override
+  String get generation_modelModeFurry => 'Furry';
+
+  @override
+  String get generation_effort => 'Effort';
+
+  @override
+  String get generation_effortMedium => 'Medium';
+
+  @override
+  String get generation_effortHigh => 'High';
+
+  @override
+  String get generation_effortUnavailableHint => 'Not used on Medium effort';
+
+  @override
+  String get generation_effortNegativeLocked => 'Not sent on Medium';
+
+  @override
+  String generation_effortNegativeLockedHint(Object ucPreset) {
+    return 'Medium effort does not send Undesired Content and only uses the \"$ucPreset\" Undesired Content Preset. Your text is kept and applies again on High effort';
+  }
+
+  @override
   String generation_opusUsageRemaining(Object percent) {
     return '$percent% of Opus Generations remaining';
   }
@@ -7232,20 +7261,173 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get promptAssistant_noModelsPullFirst =>
-      'No models yet. Pull the model list first';
+      'No models yet. Add some in Model services first';
 
   @override
-  String get promptAssistant_providerManagement => 'Provider Management';
+  String get settings_modelServices => 'Model services';
 
   @override
-  String get promptAssistant_providerManagementSubtitle =>
-      'Supports OpenAI Chat / Responses, Anthropic, Gemini, DeepSeek, LM Studio, Ollama, Pollinations, and custom compatible endpoints';
+  String get modelServices_searchProviders => 'Search providers';
 
   @override
-  String get promptAssistant_apiKeyConfigured => 'API Key: configured';
+  String get modelServices_noProviderMatches => 'No matching providers';
 
   @override
-  String get promptAssistant_apiKeyNotConfigured => 'API Key: not configured';
+  String get modelServices_emptyTitle => 'Add your first provider';
+
+  @override
+  String get modelServices_emptyBody =>
+      'Providers supply the models used by the prompt assistant and Agent.';
+
+  @override
+  String get modelServices_disabled => 'Off';
+
+  @override
+  String get modelServices_enableProvider => 'Enable provider';
+
+  @override
+  String get modelServices_moreActions => 'More actions';
+
+  @override
+  String get modelServices_connection => 'Connection';
+
+  @override
+  String get modelServices_apiKey => 'API key';
+
+  @override
+  String get modelServices_apiKeySavedHint =>
+      'Saved. Enter a new key to replace it.';
+
+  @override
+  String get modelServices_apiKeyOptional => 'Optional for this provider';
+
+  @override
+  String get modelServices_showApiKey => 'Show key';
+
+  @override
+  String get modelServices_hideApiKey => 'Hide key';
+
+  @override
+  String get modelServices_clearApiKey => 'Remove saved key';
+
+  @override
+  String get modelServices_apiKeyCleared => 'API key removed';
+
+  @override
+  String get modelServices_baseUrl => 'API address';
+
+  @override
+  String get modelServices_checkConnection => 'Check connection';
+
+  @override
+  String modelServices_connectionOk(Object count) {
+    return 'Connected. The provider lists $count models.';
+  }
+
+  @override
+  String modelServices_connectionFailed(Object error) {
+    return 'Couldn\'t connect: $error';
+  }
+
+  @override
+  String get modelServices_models => 'Models';
+
+  @override
+  String modelServices_modelCount(Object count) {
+    return '$count models';
+  }
+
+  @override
+  String get modelServices_noModels =>
+      'No models yet. Pick from the provider\'s list or add a model ID.';
+
+  @override
+  String get modelServices_manageModels => 'Manage models';
+
+  @override
+  String get modelServices_addModel => 'Add model';
+
+  @override
+  String modelServices_manageModelsTitle(Object provider) {
+    return '$provider models';
+  }
+
+  @override
+  String modelServices_addGroup(Object group) {
+    return 'Add all $group models';
+  }
+
+  @override
+  String modelServices_removeGroup(Object group) {
+    return 'Remove all $group models';
+  }
+
+  @override
+  String get modelServices_notListed => 'No longer listed';
+
+  @override
+  String get modelServices_reasoning => 'Reasoning';
+
+  @override
+  String get modelServices_vision => 'Vision';
+
+  @override
+  String modelServices_contextWindow(Object size) {
+    return '$size context';
+  }
+
+  @override
+  String get modelServices_modelId => 'Model ID';
+
+  @override
+  String get modelServices_modelIdRequired => 'Enter a model ID';
+
+  @override
+  String get modelServices_modelExists =>
+      'This provider already has this model';
+
+  @override
+  String get modelServices_displayName => 'Display name';
+
+  @override
+  String modelServices_displayNameHint(Object name) {
+    return 'Leave empty to use $name';
+  }
+
+  @override
+  String get modelServices_editModel => 'Edit model';
+
+  @override
+  String get modelServices_removeModel => 'Remove model';
+
+  @override
+  String modelServices_removeModelConfirm(Object name) {
+    return 'Remove $name from this provider?';
+  }
+
+  @override
+  String modelServices_removeModelInUse(Object name, Object usages) {
+    return '$name is used by $usages. Task routing switches to this provider\'s next model, and Agent asks you to pick a model again.';
+  }
+
+  @override
+  String get modelServices_usageSeparator => ', ';
+
+  @override
+  String get modelServices_cleanStaleModels => 'Remove delisted models';
+
+  @override
+  String get modelServices_addAllModels => 'Add all models';
+
+  @override
+  String modelServices_staleModelCount(Object count) {
+    return '$count delisted models';
+  }
+
+  @override
+  String modelServices_addAllConfirm(Object count) {
+    return 'Add $count models to this provider?';
+  }
 
   @override
   String get promptAssistant_supportsImageInput => 'Supports image input';
@@ -7254,28 +7436,14 @@ class AppLocalizationsEn extends AppLocalizations {
   String get promptAssistant_textOnly => 'Text only';
 
   @override
-  String get promptAssistant_connectionConfig => 'Connection Config';
-
-  @override
-  String get promptAssistant_pullModelList => 'Pull model list';
-
-  @override
   String get promptAssistant_editProvider => 'Edit provider';
 
   @override
   String get promptAssistant_deleteProvider => 'Delete provider';
 
   @override
-  String get promptAssistant_pullingModels => 'Pulling model list...';
-
-  @override
   String get promptAssistant_emptyModelList =>
       'Provider returned an empty model list';
-
-  @override
-  String promptAssistant_modelsSynced(Object count) {
-    return 'Synced $count models';
-  }
 
   @override
   String promptAssistant_pullModelsFailed(Object error) {
@@ -7316,24 +7484,8 @@ class AppLocalizationsEn extends AppLocalizations {
       'API Key (leave empty to keep unchanged)';
 
   @override
-  String promptAssistant_connectionTitle(Object name) {
-    return '$name Connection Config';
-  }
-
-  @override
   String get promptAssistant_baseUrlHint =>
       'Example: https://api.openai.com/v1';
-
-  @override
-  String get promptAssistant_clearCurrentApiKey => 'Clear current API Key';
-
-  @override
-  String get promptAssistant_protocolSupportsImagePayload =>
-      'The current protocol supports image payloads; the model itself must still support vision input';
-
-  @override
-  String get promptAssistant_protocolTextOnlyWarning =>
-      'The current protocol is text-only by default; enabling this may still be rejected by the server';
 
   @override
   String get promptAssistant_addRuleTitle => 'Add Rule';
@@ -14531,14 +14683,14 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get agentSettings_modelManagedInIntegrations =>
-      'Providers, API keys, and model discovery remain centrally managed in Integrations.';
+      'Providers, API keys, and models are managed in Integrations > Model services.';
 
   @override
   String get agentSettings_manageProviders => 'Manage providers';
 
   @override
   String get agentSettings_noModel =>
-      'No chat model is available. Add a provider and discover models in Integrations first.';
+      'No chat model is available. Add a provider and its models in Integrations > Model services first.';
 
   @override
   String get agentSettings_pendingMatch => 'pending match';

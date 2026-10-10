@@ -1545,6 +1545,35 @@ class AppLocalizationsJa extends AppLocalizations {
   String get generation_model => 'モデル';
 
   @override
+  String get generation_modelMode => 'モード';
+
+  @override
+  String get generation_modelModeAnime => 'アニメ';
+
+  @override
+  String get generation_modelModeFurry => 'ケモノ';
+
+  @override
+  String get generation_effort => '生成モード';
+
+  @override
+  String get generation_effortMedium => '節約';
+
+  @override
+  String get generation_effortHigh => '通常';
+
+  @override
+  String get generation_effortUnavailableHint => '節約モードでは使用しません';
+
+  @override
+  String get generation_effortNegativeLocked => '節約モードでは送信しません';
+
+  @override
+  String generation_effortNegativeLockedHint(Object ucPreset) {
+    return '節約モードでは除外したい要素を送信せず、「$ucPreset」除外したい要素プリセットのみを使用します。入力内容は保持され、通常モードに戻すと再び使用されます';
+  }
+
+  @override
   String generation_opusUsageRemaining(Object percent) {
     return 'Opus 無料生成の残り $percent%';
   }
@@ -7052,20 +7081,172 @@ class AppLocalizationsJa extends AppLocalizations {
   String get promptAssistant_model => 'モデル';
 
   @override
-  String get promptAssistant_noModelsPullFirst => 'モデルはまだありません。まずモデルリストを取得します';
+  String get promptAssistant_noModelsPullFirst =>
+      'モデルはまだありません。先にモデルサービスで追加してください';
 
   @override
-  String get promptAssistant_providerManagement => 'プロバイダー管理';
+  String get settings_modelServices => 'モデルサービス';
 
   @override
-  String get promptAssistant_providerManagementSubtitle =>
-      'OpenAI Chat / Responses、Anthropic、Gemini、DeepSeek、LM Studio、Ollama、Pollinations、カスタム互換エンドポイントをサポート';
+  String get modelServices_searchProviders => 'プロバイダーを検索';
 
   @override
-  String get promptAssistant_apiKeyConfigured => 'API キー: 設定済み';
+  String get modelServices_noProviderMatches => '一致するプロバイダーはありません';
 
   @override
-  String get promptAssistant_apiKeyNotConfigured => 'API キー: 設定されていません';
+  String get modelServices_emptyTitle => '最初のプロバイダーを追加';
+
+  @override
+  String get modelServices_emptyBody =>
+      'プロバイダーは、プロンプトアシスタントとエージェントが使うモデルを提供します。';
+
+  @override
+  String get modelServices_disabled => '無効';
+
+  @override
+  String get modelServices_enableProvider => 'プロバイダーを有効にする';
+
+  @override
+  String get modelServices_moreActions => 'その他の操作';
+
+  @override
+  String get modelServices_connection => '接続';
+
+  @override
+  String get modelServices_apiKey => 'API キー';
+
+  @override
+  String get modelServices_apiKeySavedHint => '保存済みです。新しいキーを入力すると置き換わります。';
+
+  @override
+  String get modelServices_apiKeyOptional => 'このプロバイダーでは省略できます';
+
+  @override
+  String get modelServices_showApiKey => 'キーを表示';
+
+  @override
+  String get modelServices_hideApiKey => 'キーを隠す';
+
+  @override
+  String get modelServices_clearApiKey => '保存済みのキーを削除';
+
+  @override
+  String get modelServices_apiKeyCleared => 'API キーを削除しました';
+
+  @override
+  String get modelServices_baseUrl => 'API アドレス';
+
+  @override
+  String get modelServices_checkConnection => '接続を確認';
+
+  @override
+  String modelServices_connectionOk(Object count) {
+    return '接続できました。$count 個のモデルが一覧にあります。';
+  }
+
+  @override
+  String modelServices_connectionFailed(Object error) {
+    return '接続できませんでした：$error';
+  }
+
+  @override
+  String get modelServices_models => 'モデル';
+
+  @override
+  String modelServices_modelCount(Object count) {
+    return '$count 個のモデル';
+  }
+
+  @override
+  String get modelServices_noModels =>
+      'モデルはまだありません。プロバイダーの一覧から選ぶか、モデル ID を追加してください。';
+
+  @override
+  String get modelServices_manageModels => 'モデルを管理';
+
+  @override
+  String get modelServices_addModel => 'モデルを追加';
+
+  @override
+  String modelServices_manageModelsTitle(Object provider) {
+    return '$provider のモデル';
+  }
+
+  @override
+  String modelServices_addGroup(Object group) {
+    return '$group をすべて追加';
+  }
+
+  @override
+  String modelServices_removeGroup(Object group) {
+    return '$group をすべて削除';
+  }
+
+  @override
+  String get modelServices_notListed => '一覧に表示されなくなりました';
+
+  @override
+  String get modelServices_reasoning => '推論';
+
+  @override
+  String get modelServices_vision => '画像入力';
+
+  @override
+  String modelServices_contextWindow(Object size) {
+    return 'コンテキスト $size';
+  }
+
+  @override
+  String get modelServices_modelId => 'モデル ID';
+
+  @override
+  String get modelServices_modelIdRequired => 'モデル ID を入力してください';
+
+  @override
+  String get modelServices_modelExists => 'このプロバイダーには既にこのモデルがあります';
+
+  @override
+  String get modelServices_displayName => '表示名';
+
+  @override
+  String modelServices_displayNameHint(Object name) {
+    return '空欄の場合は $name を使用します';
+  }
+
+  @override
+  String get modelServices_editModel => 'モデルを編集';
+
+  @override
+  String get modelServices_removeModel => 'モデルを削除';
+
+  @override
+  String modelServices_removeModelConfirm(Object name) {
+    return 'このプロバイダーから $name を削除しますか？';
+  }
+
+  @override
+  String modelServices_removeModelInUse(Object name, Object usages) {
+    return '$name は $usages で使用中です。削除すると、タスクルーティングはこのプロバイダーの別のモデルに切り替わり、エージェントではモデルを選び直す必要があります。';
+  }
+
+  @override
+  String get modelServices_usageSeparator => '、';
+
+  @override
+  String get modelServices_cleanStaleModels => '一覧にないモデルを整理';
+
+  @override
+  String get modelServices_addAllModels => 'すべてのモデルを追加';
+
+  @override
+  String modelServices_staleModelCount(Object count) {
+    return '一覧にないモデル $count 個';
+  }
+
+  @override
+  String modelServices_addAllConfirm(Object count) {
+    return 'このプロバイダーに $count 個のモデルを追加しますか？';
+  }
 
   @override
   String get promptAssistant_supportsImageInput => '画像入力をサポート';
@@ -7074,27 +7255,13 @@ class AppLocalizationsJa extends AppLocalizations {
   String get promptAssistant_textOnly => 'テキストのみ';
 
   @override
-  String get promptAssistant_connectionConfig => '接続構成';
-
-  @override
-  String get promptAssistant_pullModelList => 'モデルリストをプルします';
-
-  @override
   String get promptAssistant_editProvider => 'プロバイダーの編集';
 
   @override
   String get promptAssistant_deleteProvider => 'プロバイダーを削除します';
 
   @override
-  String get promptAssistant_pullingModels => 'モデル リストを取得しています...';
-
-  @override
   String get promptAssistant_emptyModelList => 'プロバイダーが空のモデル リストを返しました';
-
-  @override
-  String promptAssistant_modelsSynced(Object count) {
-    return '同期された $count モデル';
-  }
 
   @override
   String promptAssistant_pullModelsFailed(Object error) {
@@ -7134,23 +7301,7 @@ class AppLocalizationsJa extends AppLocalizations {
   String get promptAssistant_apiKeyLeaveEmpty => 'API キー (変更しない場合は空のままにします)';
 
   @override
-  String promptAssistant_connectionTitle(Object name) {
-    return '$name 接続構成';
-  }
-
-  @override
   String get promptAssistant_baseUrlHint => '例: https://api.openai.com/v1';
-
-  @override
-  String get promptAssistant_clearCurrentApiKey => '現在の API キーをクリアします';
-
-  @override
-  String get promptAssistant_protocolSupportsImagePayload =>
-      '現在のプロトコルは画像ペイロードをサポートしています。モデル自体は引き続きビジョン入力をサポートする必要があります';
-
-  @override
-  String get promptAssistant_protocolTextOnlyWarning =>
-      '現在のプロトコルはデフォルトではテキストのみです。これを有効にしてもサーバーによって拒否される可能性があります';
 
   @override
   String get promptAssistant_addRuleTitle => 'ルールの追加';
@@ -14149,14 +14300,14 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get agentSettings_modelManagedInIntegrations =>
-      'プロバイダー、API キー、モデル検出は引き続き「連携」で一元管理されます。';
+      'プロバイダー、API キー、モデルは「連携 → モデルサービス」で管理します。';
 
   @override
   String get agentSettings_manageProviders => 'プロバイダーを管理';
 
   @override
   String get agentSettings_noModel =>
-      '利用可能なチャットモデルがありません。先に「連携」でプロバイダーを追加し、モデルを検出してください。';
+      '利用可能なチャットモデルがありません。先に「連携 → モデルサービス」でプロバイダーとモデルを追加してください。';
 
   @override
   String get agentSettings_pendingMatch => '照合待ち';

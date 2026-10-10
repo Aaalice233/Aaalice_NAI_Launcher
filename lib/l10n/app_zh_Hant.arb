@@ -604,6 +604,20 @@
     }
   },
   "generation_model": "模型",
+  "generation_modelMode": "模式",
+  "generation_modelModeAnime": "動漫",
+  "generation_modelModeFurry": "獸人",
+  "generation_effort": "生成檔位",
+  "generation_effortMedium": "節約",
+  "generation_effortHigh": "標準",
+  "generation_effortUnavailableHint": "節約檔不使用此項",
+  "generation_effortNegativeLocked": "節約檔不傳送",
+  "generation_effortNegativeLockedHint": "節約檔不傳送負向提示詞，只使用「{ucPreset}」負面預設。已填寫的內容會保留，切回標準檔後繼續生效",
+  "@generation_effortNegativeLockedHint": {
+    "placeholders": {
+      "ucPreset": {}
+    }
+  },
   "generation_opusUsageRemaining": "Opus 免費生成剩餘 {percent}%",
   "generation_opusUsageEstimate": "約可再生成 {count} 張",
   "generation_opusUsageRefill": "額度會隨時間自動恢復",
@@ -3340,25 +3354,119 @@
   },
   "promptAssistant_provider": "服務商",
   "promptAssistant_model": "模型",
-  "promptAssistant_noModelsPullFirst": "暫無模型，請先拉取",
-  "promptAssistant_providerManagement": "服務商管理",
-  "promptAssistant_providerManagementSubtitle": "支援 OpenAI Chat / Responses、Anthropic、Gemini、DeepSeek、LM Studio、Ollama、Pollinations 和自定義相容端點",
-  "promptAssistant_apiKeyConfigured": "API Key: 已配置",
-  "promptAssistant_apiKeyNotConfigured": "API Key: 未配置",
-  "promptAssistant_supportsImageInput": "支援圖片輸入",
-  "promptAssistant_textOnly": "僅文字",
-  "promptAssistant_connectionConfig": "連線配置",
-  "promptAssistant_pullModelList": "拉取模型列表",
-  "promptAssistant_editProvider": "編輯服務商",
-  "promptAssistant_deleteProvider": "刪除服務商",
-  "promptAssistant_pullingModels": "正在拉取模型列表...",
-  "promptAssistant_emptyModelList": "服務返回空模型列表",
-  "promptAssistant_modelsSynced": "已同步 {count} 個模型",
-  "@promptAssistant_modelsSynced": {
+  "promptAssistant_noModelsPullFirst": "暫無模型，請先在模型服務中新增",
+  "settings_modelServices": "模型服務",
+  "modelServices_searchProviders": "搜尋服務商",
+  "modelServices_noProviderMatches": "沒有符合的服務商",
+  "modelServices_emptyTitle": "新增第一個服務商",
+  "modelServices_emptyBody": "服務商提供提示詞助手與智慧體使用的模型。",
+  "modelServices_disabled": "已停用",
+  "modelServices_enableProvider": "啟用服務商",
+  "modelServices_moreActions": "更多操作",
+  "modelServices_connection": "連線",
+  "modelServices_apiKey": "API 金鑰",
+  "modelServices_apiKeySavedHint": "已儲存，輸入新金鑰即可取代",
+  "modelServices_apiKeyOptional": "此服務商可以不填",
+  "modelServices_showApiKey": "顯示金鑰",
+  "modelServices_hideApiKey": "隱藏金鑰",
+  "modelServices_clearApiKey": "清除已儲存的金鑰",
+  "modelServices_apiKeyCleared": "API 金鑰已清除",
+  "modelServices_baseUrl": "API 位址",
+  "modelServices_checkConnection": "檢查連線",
+  "modelServices_connectionOk": "連線正常，介面列出了 {count} 個模型",
+  "@modelServices_connectionOk": {
     "placeholders": {
       "count": {}
     }
   },
+  "modelServices_connectionFailed": "連線失敗：{error}",
+  "@modelServices_connectionFailed": {
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "modelServices_models": "模型",
+  "modelServices_modelCount": "{count} 個模型",
+  "@modelServices_modelCount": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "modelServices_noModels": "還沒有模型。可以從介面清單挑選，或手動新增模型 ID。",
+  "modelServices_manageModels": "管理模型",
+  "modelServices_addModel": "手動新增",
+  "modelServices_manageModelsTitle": "{provider} 的模型",
+  "@modelServices_manageModelsTitle": {
+    "placeholders": {
+      "provider": {}
+    }
+  },
+  "modelServices_addGroup": "新增 {group} 整組",
+  "@modelServices_addGroup": {
+    "placeholders": {
+      "group": {}
+    }
+  },
+  "modelServices_removeGroup": "移除 {group} 整組",
+  "@modelServices_removeGroup": {
+    "placeholders": {
+      "group": {}
+    }
+  },
+  "modelServices_notListed": "介面已不再列出",
+  "modelServices_reasoning": "推理",
+  "modelServices_vision": "視覺",
+  "modelServices_contextWindow": "上下文 {size}",
+  "@modelServices_contextWindow": {
+    "placeholders": {
+      "size": {}
+    }
+  },
+  "modelServices_modelId": "模型 ID",
+  "modelServices_modelIdRequired": "請輸入模型 ID",
+  "modelServices_modelExists": "這個服務商已經有這個模型",
+  "modelServices_displayName": "顯示名稱",
+  "modelServices_displayNameHint": "留空則使用 {name}",
+  "@modelServices_displayNameHint": {
+    "placeholders": {
+      "name": {}
+    }
+  },
+  "modelServices_editModel": "編輯模型",
+  "modelServices_removeModel": "移除模型",
+  "modelServices_removeModelConfirm": "從這個服務商移除 {name}？",
+  "@modelServices_removeModelConfirm": {
+    "placeholders": {
+      "name": {}
+    }
+  },
+  "modelServices_removeModelInUse": "{name} 正被{usages}使用。移除後，任務路由會改用這個服務商剩下的模型，智慧體需要重新選擇模型。",
+  "@modelServices_removeModelInUse": {
+    "placeholders": {
+      "name": {},
+      "usages": {}
+    }
+  },
+  "modelServices_usageSeparator": "、",
+  "modelServices_cleanStaleModels": "清理失效模型",
+  "modelServices_addAllModels": "新增全部模型",
+  "modelServices_staleModelCount": "{count} 個失效模型",
+  "@modelServices_staleModelCount": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "modelServices_addAllConfirm": "要向這個服務商新增 {count} 個模型嗎？",
+  "@modelServices_addAllConfirm": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "promptAssistant_supportsImageInput": "支援圖片輸入",
+  "promptAssistant_textOnly": "僅文字",
+  "promptAssistant_editProvider": "編輯服務商",
+  "promptAssistant_deleteProvider": "刪除服務商",
+  "promptAssistant_emptyModelList": "服務返回空模型列表",
   "promptAssistant_pullModelsFailed": "拉取模型失敗: {error}",
   "@promptAssistant_pullModelsFailed": {
     "placeholders": {
@@ -3375,16 +3483,7 @@
   "promptAssistant_allowImageInput": "允許傳送圖片輸入",
   "promptAssistant_allowImageInputSubtitle": "僅在模型和服務商實際支援視覺輸入時啟用",
   "promptAssistant_apiKeyLeaveEmpty": "API Key (留空不改)",
-  "promptAssistant_connectionTitle": "{name} 連線配置",
-  "@promptAssistant_connectionTitle": {
-    "placeholders": {
-      "name": {}
-    }
-  },
   "promptAssistant_baseUrlHint": "例如: https://api.openai.com/v1",
-  "promptAssistant_clearCurrentApiKey": "清空當前 API Key",
-  "promptAssistant_protocolSupportsImagePayload": "當前協議支援圖片載荷，仍需模型本身支援視覺輸入",
-  "promptAssistant_protocolTextOnlyWarning": "當前協議預設僅文字，開啟後也可能被服務端拒絕",
   "promptAssistant_addRuleTitle": "新增規則",
   "promptAssistant_editRuleTitle": "編輯規則",
   "promptAssistant_taskType": "任務型別",
@@ -7218,9 +7317,9 @@
   "agentSettings_floatingWindowDescription": "浮窗常駐所有頁面，可拖曳並調整大小；開啟後右欄只顯示歷史。",
   "agentSettings_chatModel": "聊天模型",
   "agentSettings_providerModel": "供應商 / 模型",
-  "agentSettings_modelManagedInIntegrations": "供應商、API Key 與模型探索仍在「整合」中統一管理。",
+  "agentSettings_modelManagedInIntegrations": "服務商、API 金鑰與模型在「整合 → 模型服務」中管理。",
   "agentSettings_manageProviders": "管理供應商",
-  "agentSettings_noModel": "沒有可用聊天模型。請先在「整合」中新增供應商並探索模型。",
+  "agentSettings_noModel": "沒有可用的聊天模型。請先在「整合 → 模型服務」中新增服務商與模型。",
   "agentSettings_pendingMatch": "待配對",
   "agentSettings_contextWindow": "上下文視窗（token）",
   "agentSettings_contextWindowKnown": "留空則使用內建值 {value}。第三方中轉站或自訂部署的實際視窗不同時，可在此填寫覆寫。",

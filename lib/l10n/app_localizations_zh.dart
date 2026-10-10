@@ -1522,6 +1522,35 @@ class AppLocalizationsZh extends AppLocalizations {
   String get generation_model => '模型';
 
   @override
+  String get generation_modelMode => '模式';
+
+  @override
+  String get generation_modelModeAnime => '动漫';
+
+  @override
+  String get generation_modelModeFurry => '兽人';
+
+  @override
+  String get generation_effort => '生成档位';
+
+  @override
+  String get generation_effortMedium => '节约';
+
+  @override
+  String get generation_effortHigh => '标准';
+
+  @override
+  String get generation_effortUnavailableHint => '节约档不使用此项';
+
+  @override
+  String get generation_effortNegativeLocked => '节约档不发送';
+
+  @override
+  String generation_effortNegativeLockedHint(Object ucPreset) {
+    return '节约档不发送负向提示词，只使用「$ucPreset」负面预设。已填写的内容会保留，切回标准档后继续生效';
+  }
+
+  @override
   String generation_opusUsageRemaining(Object percent) {
     return 'Opus 免费生成剩余 $percent%';
   }
@@ -6928,20 +6957,169 @@ class AppLocalizationsZh extends AppLocalizations {
   String get promptAssistant_model => '模型';
 
   @override
-  String get promptAssistant_noModelsPullFirst => '暂无模型，请先拉取';
+  String get promptAssistant_noModelsPullFirst => '暂无模型，请先在模型服务中添加';
 
   @override
-  String get promptAssistant_providerManagement => '服务商管理';
+  String get settings_modelServices => '模型服务';
 
   @override
-  String get promptAssistant_providerManagementSubtitle =>
-      '支持 OpenAI Chat / Responses、Anthropic、Gemini、DeepSeek、LM Studio、Ollama、Pollinations 和自定义兼容端点';
+  String get modelServices_searchProviders => '搜索服务商';
 
   @override
-  String get promptAssistant_apiKeyConfigured => 'API Key: 已配置';
+  String get modelServices_noProviderMatches => '没有匹配的服务商';
 
   @override
-  String get promptAssistant_apiKeyNotConfigured => 'API Key: 未配置';
+  String get modelServices_emptyTitle => '添加第一个服务商';
+
+  @override
+  String get modelServices_emptyBody => '服务商提供提示词助手和智能体使用的模型。';
+
+  @override
+  String get modelServices_disabled => '已停用';
+
+  @override
+  String get modelServices_enableProvider => '启用服务商';
+
+  @override
+  String get modelServices_moreActions => '更多操作';
+
+  @override
+  String get modelServices_connection => '连接';
+
+  @override
+  String get modelServices_apiKey => 'API 密钥';
+
+  @override
+  String get modelServices_apiKeySavedHint => '已保存，输入新密钥即可替换';
+
+  @override
+  String get modelServices_apiKeyOptional => '此服务商可以不填';
+
+  @override
+  String get modelServices_showApiKey => '显示密钥';
+
+  @override
+  String get modelServices_hideApiKey => '隐藏密钥';
+
+  @override
+  String get modelServices_clearApiKey => '清除已保存的密钥';
+
+  @override
+  String get modelServices_apiKeyCleared => 'API 密钥已清除';
+
+  @override
+  String get modelServices_baseUrl => 'API 地址';
+
+  @override
+  String get modelServices_checkConnection => '检查连接';
+
+  @override
+  String modelServices_connectionOk(Object count) {
+    return '连接正常，接口列出了 $count 个模型';
+  }
+
+  @override
+  String modelServices_connectionFailed(Object error) {
+    return '连接失败：$error';
+  }
+
+  @override
+  String get modelServices_models => '模型';
+
+  @override
+  String modelServices_modelCount(Object count) {
+    return '$count 个模型';
+  }
+
+  @override
+  String get modelServices_noModels => '还没有模型。可以从接口列表挑选，或手动添加模型 ID。';
+
+  @override
+  String get modelServices_manageModels => '管理模型';
+
+  @override
+  String get modelServices_addModel => '手动添加';
+
+  @override
+  String modelServices_manageModelsTitle(Object provider) {
+    return '$provider 的模型';
+  }
+
+  @override
+  String modelServices_addGroup(Object group) {
+    return '添加 $group 整组';
+  }
+
+  @override
+  String modelServices_removeGroup(Object group) {
+    return '移除 $group 整组';
+  }
+
+  @override
+  String get modelServices_notListed => '接口已不再列出';
+
+  @override
+  String get modelServices_reasoning => '推理';
+
+  @override
+  String get modelServices_vision => '视觉';
+
+  @override
+  String modelServices_contextWindow(Object size) {
+    return '上下文 $size';
+  }
+
+  @override
+  String get modelServices_modelId => '模型 ID';
+
+  @override
+  String get modelServices_modelIdRequired => '请输入模型 ID';
+
+  @override
+  String get modelServices_modelExists => '这个服务商已经有这个模型';
+
+  @override
+  String get modelServices_displayName => '显示名称';
+
+  @override
+  String modelServices_displayNameHint(Object name) {
+    return '留空则使用 $name';
+  }
+
+  @override
+  String get modelServices_editModel => '编辑模型';
+
+  @override
+  String get modelServices_removeModel => '移除模型';
+
+  @override
+  String modelServices_removeModelConfirm(Object name) {
+    return '从这个服务商移除 $name？';
+  }
+
+  @override
+  String modelServices_removeModelInUse(Object name, Object usages) {
+    return '$name 正被$usages使用。移除后，任务路由会改用这个服务商剩下的模型，智能体需要重新选择模型。';
+  }
+
+  @override
+  String get modelServices_usageSeparator => '、';
+
+  @override
+  String get modelServices_cleanStaleModels => '清理失效模型';
+
+  @override
+  String get modelServices_addAllModels => '添加全部模型';
+
+  @override
+  String modelServices_staleModelCount(Object count) {
+    return '$count 个失效模型';
+  }
+
+  @override
+  String modelServices_addAllConfirm(Object count) {
+    return '要向这个服务商添加 $count 个模型吗？';
+  }
 
   @override
   String get promptAssistant_supportsImageInput => '支持图片输入';
@@ -6950,27 +7128,13 @@ class AppLocalizationsZh extends AppLocalizations {
   String get promptAssistant_textOnly => '仅文本';
 
   @override
-  String get promptAssistant_connectionConfig => '连接配置';
-
-  @override
-  String get promptAssistant_pullModelList => '拉取模型列表';
-
-  @override
   String get promptAssistant_editProvider => '编辑服务商';
 
   @override
   String get promptAssistant_deleteProvider => '删除服务商';
 
   @override
-  String get promptAssistant_pullingModels => '正在拉取模型列表...';
-
-  @override
   String get promptAssistant_emptyModelList => '服务返回空模型列表';
-
-  @override
-  String promptAssistant_modelsSynced(Object count) {
-    return '已同步 $count 个模型';
-  }
 
   @override
   String promptAssistant_pullModelsFailed(Object error) {
@@ -7009,23 +7173,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get promptAssistant_apiKeyLeaveEmpty => 'API Key (留空不改)';
 
   @override
-  String promptAssistant_connectionTitle(Object name) {
-    return '$name 连接配置';
-  }
-
-  @override
   String get promptAssistant_baseUrlHint => '例如: https://api.openai.com/v1';
-
-  @override
-  String get promptAssistant_clearCurrentApiKey => '清空当前 API Key';
-
-  @override
-  String get promptAssistant_protocolSupportsImagePayload =>
-      '当前协议支持图片载荷，仍需模型本身支持视觉输入';
-
-  @override
-  String get promptAssistant_protocolTextOnlyWarning =>
-      '当前协议默认仅文本，开启后也可能被服务端拒绝';
 
   @override
   String get promptAssistant_addRuleTitle => '新增规则';
@@ -13891,13 +14039,13 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get agentSettings_modelManagedInIntegrations =>
-      '供应商、API Key 与模型发现仍在“集成”中统一管理。';
+      '服务商、API 密钥和模型在“集成 → 模型服务”中管理。';
 
   @override
   String get agentSettings_manageProviders => '管理服务商';
 
   @override
-  String get agentSettings_noModel => '没有可用聊天模型。请先在“集成”中添加供应商并发现模型。';
+  String get agentSettings_noModel => '没有可用的聊天模型。请先在“集成 → 模型服务”中添加服务商和模型。';
 
   @override
   String get agentSettings_pendingMatch => '待匹配';
@@ -16676,6 +16824,35 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get generation_model => '模型';
+
+  @override
+  String get generation_modelMode => '模式';
+
+  @override
+  String get generation_modelModeAnime => '動漫';
+
+  @override
+  String get generation_modelModeFurry => '獸人';
+
+  @override
+  String get generation_effort => '生成檔位';
+
+  @override
+  String get generation_effortMedium => '節約';
+
+  @override
+  String get generation_effortHigh => '標準';
+
+  @override
+  String get generation_effortUnavailableHint => '節約檔不使用此項';
+
+  @override
+  String get generation_effortNegativeLocked => '節約檔不傳送';
+
+  @override
+  String generation_effortNegativeLockedHint(Object ucPreset) {
+    return '節約檔不傳送負向提示詞，只使用「$ucPreset」負面預設。已填寫的內容會保留，切回標準檔後繼續生效';
+  }
 
   @override
   String generation_opusUsageRemaining(Object percent) {
@@ -22084,20 +22261,169 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get promptAssistant_model => '模型';
 
   @override
-  String get promptAssistant_noModelsPullFirst => '暫無模型，請先拉取';
+  String get promptAssistant_noModelsPullFirst => '暫無模型，請先在模型服務中新增';
 
   @override
-  String get promptAssistant_providerManagement => '服務商管理';
+  String get settings_modelServices => '模型服務';
 
   @override
-  String get promptAssistant_providerManagementSubtitle =>
-      '支援 OpenAI Chat / Responses、Anthropic、Gemini、DeepSeek、LM Studio、Ollama、Pollinations 和自定義相容端點';
+  String get modelServices_searchProviders => '搜尋服務商';
 
   @override
-  String get promptAssistant_apiKeyConfigured => 'API Key: 已配置';
+  String get modelServices_noProviderMatches => '沒有符合的服務商';
 
   @override
-  String get promptAssistant_apiKeyNotConfigured => 'API Key: 未配置';
+  String get modelServices_emptyTitle => '新增第一個服務商';
+
+  @override
+  String get modelServices_emptyBody => '服務商提供提示詞助手與智慧體使用的模型。';
+
+  @override
+  String get modelServices_disabled => '已停用';
+
+  @override
+  String get modelServices_enableProvider => '啟用服務商';
+
+  @override
+  String get modelServices_moreActions => '更多操作';
+
+  @override
+  String get modelServices_connection => '連線';
+
+  @override
+  String get modelServices_apiKey => 'API 金鑰';
+
+  @override
+  String get modelServices_apiKeySavedHint => '已儲存，輸入新金鑰即可取代';
+
+  @override
+  String get modelServices_apiKeyOptional => '此服務商可以不填';
+
+  @override
+  String get modelServices_showApiKey => '顯示金鑰';
+
+  @override
+  String get modelServices_hideApiKey => '隱藏金鑰';
+
+  @override
+  String get modelServices_clearApiKey => '清除已儲存的金鑰';
+
+  @override
+  String get modelServices_apiKeyCleared => 'API 金鑰已清除';
+
+  @override
+  String get modelServices_baseUrl => 'API 位址';
+
+  @override
+  String get modelServices_checkConnection => '檢查連線';
+
+  @override
+  String modelServices_connectionOk(Object count) {
+    return '連線正常，介面列出了 $count 個模型';
+  }
+
+  @override
+  String modelServices_connectionFailed(Object error) {
+    return '連線失敗：$error';
+  }
+
+  @override
+  String get modelServices_models => '模型';
+
+  @override
+  String modelServices_modelCount(Object count) {
+    return '$count 個模型';
+  }
+
+  @override
+  String get modelServices_noModels => '還沒有模型。可以從介面清單挑選，或手動新增模型 ID。';
+
+  @override
+  String get modelServices_manageModels => '管理模型';
+
+  @override
+  String get modelServices_addModel => '手動新增';
+
+  @override
+  String modelServices_manageModelsTitle(Object provider) {
+    return '$provider 的模型';
+  }
+
+  @override
+  String modelServices_addGroup(Object group) {
+    return '新增 $group 整組';
+  }
+
+  @override
+  String modelServices_removeGroup(Object group) {
+    return '移除 $group 整組';
+  }
+
+  @override
+  String get modelServices_notListed => '介面已不再列出';
+
+  @override
+  String get modelServices_reasoning => '推理';
+
+  @override
+  String get modelServices_vision => '視覺';
+
+  @override
+  String modelServices_contextWindow(Object size) {
+    return '上下文 $size';
+  }
+
+  @override
+  String get modelServices_modelId => '模型 ID';
+
+  @override
+  String get modelServices_modelIdRequired => '請輸入模型 ID';
+
+  @override
+  String get modelServices_modelExists => '這個服務商已經有這個模型';
+
+  @override
+  String get modelServices_displayName => '顯示名稱';
+
+  @override
+  String modelServices_displayNameHint(Object name) {
+    return '留空則使用 $name';
+  }
+
+  @override
+  String get modelServices_editModel => '編輯模型';
+
+  @override
+  String get modelServices_removeModel => '移除模型';
+
+  @override
+  String modelServices_removeModelConfirm(Object name) {
+    return '從這個服務商移除 $name？';
+  }
+
+  @override
+  String modelServices_removeModelInUse(Object name, Object usages) {
+    return '$name 正被$usages使用。移除後，任務路由會改用這個服務商剩下的模型，智慧體需要重新選擇模型。';
+  }
+
+  @override
+  String get modelServices_usageSeparator => '、';
+
+  @override
+  String get modelServices_cleanStaleModels => '清理失效模型';
+
+  @override
+  String get modelServices_addAllModels => '新增全部模型';
+
+  @override
+  String modelServices_staleModelCount(Object count) {
+    return '$count 個失效模型';
+  }
+
+  @override
+  String modelServices_addAllConfirm(Object count) {
+    return '要向這個服務商新增 $count 個模型嗎？';
+  }
 
   @override
   String get promptAssistant_supportsImageInput => '支援圖片輸入';
@@ -22106,27 +22432,13 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get promptAssistant_textOnly => '僅文字';
 
   @override
-  String get promptAssistant_connectionConfig => '連線配置';
-
-  @override
-  String get promptAssistant_pullModelList => '拉取模型列表';
-
-  @override
   String get promptAssistant_editProvider => '編輯服務商';
 
   @override
   String get promptAssistant_deleteProvider => '刪除服務商';
 
   @override
-  String get promptAssistant_pullingModels => '正在拉取模型列表...';
-
-  @override
   String get promptAssistant_emptyModelList => '服務返回空模型列表';
-
-  @override
-  String promptAssistant_modelsSynced(Object count) {
-    return '已同步 $count 個模型';
-  }
 
   @override
   String promptAssistant_pullModelsFailed(Object error) {
@@ -22165,23 +22477,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get promptAssistant_apiKeyLeaveEmpty => 'API Key (留空不改)';
 
   @override
-  String promptAssistant_connectionTitle(Object name) {
-    return '$name 連線配置';
-  }
-
-  @override
   String get promptAssistant_baseUrlHint => '例如: https://api.openai.com/v1';
-
-  @override
-  String get promptAssistant_clearCurrentApiKey => '清空當前 API Key';
-
-  @override
-  String get promptAssistant_protocolSupportsImagePayload =>
-      '當前協議支援圖片載荷，仍需模型本身支援視覺輸入';
-
-  @override
-  String get promptAssistant_protocolTextOnlyWarning =>
-      '當前協議預設僅文字，開啟後也可能被服務端拒絕';
 
   @override
   String get promptAssistant_addRuleTitle => '新增規則';
@@ -29048,13 +29344,13 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get agentSettings_modelManagedInIntegrations =>
-      '供應商、API Key 與模型探索仍在「整合」中統一管理。';
+      '服務商、API 金鑰與模型在「整合 → 模型服務」中管理。';
 
   @override
   String get agentSettings_manageProviders => '管理供應商';
 
   @override
-  String get agentSettings_noModel => '沒有可用聊天模型。請先在「整合」中新增供應商並探索模型。';
+  String get agentSettings_noModel => '沒有可用的聊天模型。請先在「整合 → 模型服務」中新增服務商與模型。';
 
   @override
   String get agentSettings_pendingMatch => '待配對';

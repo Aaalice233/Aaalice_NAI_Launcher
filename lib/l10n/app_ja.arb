@@ -616,6 +616,20 @@
     }
   },
   "generation_model": "モデル",
+  "generation_modelMode": "モード",
+  "generation_modelModeAnime": "アニメ",
+  "generation_modelModeFurry": "ケモノ",
+  "generation_effort": "生成モード",
+  "generation_effortMedium": "節約",
+  "generation_effortHigh": "通常",
+  "generation_effortUnavailableHint": "節約モードでは使用しません",
+  "generation_effortNegativeLocked": "節約モードでは送信しません",
+  "generation_effortNegativeLockedHint": "節約モードでは除外したい要素を送信せず、「{ucPreset}」除外したい要素プリセットのみを使用します。入力内容は保持され、通常モードに戻すと再び使用されます",
+  "@generation_effortNegativeLockedHint": {
+    "placeholders": {
+      "ucPreset": {}
+    }
+  },
   "generation_opusUsageRemaining": "Opus 無料生成の残り {percent}%",
   "generation_opusUsageEstimate": "あと約 {count} 枚生成可能",
   "generation_opusUsageRefill": "上限は時間経過で自動回復します",
@@ -3249,25 +3263,119 @@
   },
   "promptAssistant_provider": "プロバイダー",
   "promptAssistant_model": "モデル",
-  "promptAssistant_noModelsPullFirst": "モデルはまだありません。まずモデルリストを取得します",
-  "promptAssistant_providerManagement": "プロバイダー管理",
-  "promptAssistant_providerManagementSubtitle": "OpenAI Chat / Responses、Anthropic、Gemini、DeepSeek、LM Studio、Ollama、Pollinations、カスタム互換エンドポイントをサポート",
-  "promptAssistant_apiKeyConfigured": "API キー: 設定済み",
-  "promptAssistant_apiKeyNotConfigured": "API キー: 設定されていません",
-  "promptAssistant_supportsImageInput": "画像入力をサポート",
-  "promptAssistant_textOnly": "テキストのみ",
-  "promptAssistant_connectionConfig": "接続構成",
-  "promptAssistant_pullModelList": "モデルリストをプルします",
-  "promptAssistant_editProvider": "プロバイダーの編集",
-  "promptAssistant_deleteProvider": "プロバイダーを削除します",
-  "promptAssistant_pullingModels": "モデル リストを取得しています...",
-  "promptAssistant_emptyModelList": "プロバイダーが空のモデル リストを返しました",
-  "promptAssistant_modelsSynced": "同期された {count} モデル",
-  "@promptAssistant_modelsSynced": {
+  "promptAssistant_noModelsPullFirst": "モデルはまだありません。先にモデルサービスで追加してください",
+  "settings_modelServices": "モデルサービス",
+  "modelServices_searchProviders": "プロバイダーを検索",
+  "modelServices_noProviderMatches": "一致するプロバイダーはありません",
+  "modelServices_emptyTitle": "最初のプロバイダーを追加",
+  "modelServices_emptyBody": "プロバイダーは、プロンプトアシスタントとエージェントが使うモデルを提供します。",
+  "modelServices_disabled": "無効",
+  "modelServices_enableProvider": "プロバイダーを有効にする",
+  "modelServices_moreActions": "その他の操作",
+  "modelServices_connection": "接続",
+  "modelServices_apiKey": "API キー",
+  "modelServices_apiKeySavedHint": "保存済みです。新しいキーを入力すると置き換わります。",
+  "modelServices_apiKeyOptional": "このプロバイダーでは省略できます",
+  "modelServices_showApiKey": "キーを表示",
+  "modelServices_hideApiKey": "キーを隠す",
+  "modelServices_clearApiKey": "保存済みのキーを削除",
+  "modelServices_apiKeyCleared": "API キーを削除しました",
+  "modelServices_baseUrl": "API アドレス",
+  "modelServices_checkConnection": "接続を確認",
+  "modelServices_connectionOk": "接続できました。{count} 個のモデルが一覧にあります。",
+  "@modelServices_connectionOk": {
     "placeholders": {
       "count": {}
     }
   },
+  "modelServices_connectionFailed": "接続できませんでした：{error}",
+  "@modelServices_connectionFailed": {
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "modelServices_models": "モデル",
+  "modelServices_modelCount": "{count} 個のモデル",
+  "@modelServices_modelCount": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "modelServices_noModels": "モデルはまだありません。プロバイダーの一覧から選ぶか、モデル ID を追加してください。",
+  "modelServices_manageModels": "モデルを管理",
+  "modelServices_addModel": "モデルを追加",
+  "modelServices_manageModelsTitle": "{provider} のモデル",
+  "@modelServices_manageModelsTitle": {
+    "placeholders": {
+      "provider": {}
+    }
+  },
+  "modelServices_addGroup": "{group} をすべて追加",
+  "@modelServices_addGroup": {
+    "placeholders": {
+      "group": {}
+    }
+  },
+  "modelServices_removeGroup": "{group} をすべて削除",
+  "@modelServices_removeGroup": {
+    "placeholders": {
+      "group": {}
+    }
+  },
+  "modelServices_notListed": "一覧に表示されなくなりました",
+  "modelServices_reasoning": "推論",
+  "modelServices_vision": "画像入力",
+  "modelServices_contextWindow": "コンテキスト {size}",
+  "@modelServices_contextWindow": {
+    "placeholders": {
+      "size": {}
+    }
+  },
+  "modelServices_modelId": "モデル ID",
+  "modelServices_modelIdRequired": "モデル ID を入力してください",
+  "modelServices_modelExists": "このプロバイダーには既にこのモデルがあります",
+  "modelServices_displayName": "表示名",
+  "modelServices_displayNameHint": "空欄の場合は {name} を使用します",
+  "@modelServices_displayNameHint": {
+    "placeholders": {
+      "name": {}
+    }
+  },
+  "modelServices_editModel": "モデルを編集",
+  "modelServices_removeModel": "モデルを削除",
+  "modelServices_removeModelConfirm": "このプロバイダーから {name} を削除しますか？",
+  "@modelServices_removeModelConfirm": {
+    "placeholders": {
+      "name": {}
+    }
+  },
+  "modelServices_removeModelInUse": "{name} は {usages} で使用中です。削除すると、タスクルーティングはこのプロバイダーの別のモデルに切り替わり、エージェントではモデルを選び直す必要があります。",
+  "@modelServices_removeModelInUse": {
+    "placeholders": {
+      "name": {},
+      "usages": {}
+    }
+  },
+  "modelServices_usageSeparator": "、",
+  "modelServices_cleanStaleModels": "一覧にないモデルを整理",
+  "modelServices_addAllModels": "すべてのモデルを追加",
+  "modelServices_staleModelCount": "一覧にないモデル {count} 個",
+  "@modelServices_staleModelCount": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "modelServices_addAllConfirm": "このプロバイダーに {count} 個のモデルを追加しますか？",
+  "@modelServices_addAllConfirm": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "promptAssistant_supportsImageInput": "画像入力をサポート",
+  "promptAssistant_textOnly": "テキストのみ",
+  "promptAssistant_editProvider": "プロバイダーの編集",
+  "promptAssistant_deleteProvider": "プロバイダーを削除します",
+  "promptAssistant_emptyModelList": "プロバイダーが空のモデル リストを返しました",
   "promptAssistant_pullModelsFailed": "モデルのプルに失敗しました: {error}",
   "@promptAssistant_pullModelsFailed": {
     "placeholders": {
@@ -3284,16 +3392,7 @@
   "promptAssistant_allowImageInput": "画像入力を許可します",
   "promptAssistant_allowImageInputSubtitle": "モデルとプロバイダーが実際にビジョン入力をサポートしている場合にのみ有効になります",
   "promptAssistant_apiKeyLeaveEmpty": "API キー (変更しない場合は空のままにします)",
-  "promptAssistant_connectionTitle": "{name} 接続構成",
-  "@promptAssistant_connectionTitle": {
-    "placeholders": {
-      "name": {}
-    }
-  },
   "promptAssistant_baseUrlHint": "例: https://api.openai.com/v1",
-  "promptAssistant_clearCurrentApiKey": "現在の API キーをクリアします",
-  "promptAssistant_protocolSupportsImagePayload": "現在のプロトコルは画像ペイロードをサポートしています。モデル自体は引き続きビジョン入力をサポートする必要があります",
-  "promptAssistant_protocolTextOnlyWarning": "現在のプロトコルはデフォルトではテキストのみです。これを有効にしてもサーバーによって拒否される可能性があります",
   "promptAssistant_addRuleTitle": "ルールの追加",
   "promptAssistant_editRuleTitle": "ルールの編集",
   "promptAssistant_taskType": "タスクの種類",
@@ -6884,9 +6983,9 @@
   "agentSettings_floatingWindowDescription": "フローティングウィンドウはすべてのページに常駐し、移動とサイズ変更ができます。有効にすると右パネルには履歴のみ表示されます。",
   "agentSettings_chatModel": "チャットモデル",
   "agentSettings_providerModel": "プロバイダー / モデル",
-  "agentSettings_modelManagedInIntegrations": "プロバイダー、API キー、モデル検出は引き続き「連携」で一元管理されます。",
+  "agentSettings_modelManagedInIntegrations": "プロバイダー、API キー、モデルは「連携 → モデルサービス」で管理します。",
   "agentSettings_manageProviders": "プロバイダーを管理",
-  "agentSettings_noModel": "利用可能なチャットモデルがありません。先に「連携」でプロバイダーを追加し、モデルを検出してください。",
+  "agentSettings_noModel": "利用可能なチャットモデルがありません。先に「連携 → モデルサービス」でプロバイダーとモデルを追加してください。",
   "agentSettings_pendingMatch": "照合待ち",
   "agentSettings_contextWindow": "コンテキストウィンドウ（トークン）",
   "agentSettings_contextWindowKnown": "空欄なら内蔵値 {value} を使用します。中継サービスや独自デプロイで実際の値が異なる場合はここで上書きしてください。",
