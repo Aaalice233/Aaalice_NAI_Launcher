@@ -1071,6 +1071,9 @@ class AppLocalizationsJa extends AppLocalizations {
   }
 
   @override
+  String get agentChat_dropHint => 'ドロップして会話に追加';
+
+  @override
   String get agentChat_newChat => '新しいチャット';
 
   @override

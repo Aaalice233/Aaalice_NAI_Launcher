@@ -9,6 +9,7 @@ import '../../../core/utils/localization_extension.dart';
 import '../../adaptive/interaction_policy.dart';
 import '../../../core/utils/token_count_format.dart';
 import '../../../core/windowing/agent_chat_layout_contract.dart';
+import 'agent_chat_composer_image_input.dart';
 import 'agent_chat_shared_widgets.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../data/models/prompt_assistant/prompt_assistant_models.dart';
@@ -263,6 +264,9 @@ class _AgentChatComposerState extends State<AgentChatComposer> {
       focusNode: controller.inputFocus,
       onTapOutside: (_) => controller.inputFocus.unfocus(),
       enabled: viewData.state.initialized,
+      contentInsertionConfiguration: agentChatKeyboardImageInsertion(
+        commands.attachImageFiles,
+      ),
       expands: _editorExpanded,
       minLines: _editorExpanded
           ? null
@@ -381,7 +385,10 @@ class _AgentChatComposerState extends State<AgentChatComposer> {
                         context.interactionPolicy.shouldExposeTouchAlternatives,
                   )
                 : null,
-            child: editor,
+            child: AgentChatImagePasteScope(
+              onPasteImage: commands.pasteClipboardImage,
+              child: editor,
+            ),
           ),
           Positioned(
             top: 6,

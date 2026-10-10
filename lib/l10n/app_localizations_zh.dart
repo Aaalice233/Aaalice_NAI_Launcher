@@ -1051,6 +1051,9 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
+  String get agentChat_dropHint => '松开以添加到对话';
+
+  @override
   String get agentChat_newChat => '新建聊天';
 
   @override
@@ -16350,6 +16353,9 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String agentChat_unsupportedImageFormat(Object fileName) {
     return '不支援的圖片格式：$fileName';
   }
+
+  @override
+  String get agentChat_dropHint => '放開以加入對話';
 
   @override
   String get agentChat_newChat => '新對話';

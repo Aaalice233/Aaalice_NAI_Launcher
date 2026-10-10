@@ -417,6 +417,7 @@
       "fileName": {}
     }
   },
+  "agentChat_dropHint": "松开以添加到对话",
   "agentChat_newChat": "新建聊天",
   "agentChat_searchSessions": "搜索聊天",
   "agentChat_send": "发送",

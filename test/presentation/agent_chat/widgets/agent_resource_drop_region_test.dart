@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
@@ -6,10 +8,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/core/agent/resources/agent_chat_resource_reference.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
+import 'package:nai_launcher/presentation/agent_chat/services/agent_chat_drop_reader.dart';
 import 'package:nai_launcher/presentation/providers/online_gallery_provider.dart';
 import 'package:nai_launcher/presentation/agent_chat/widgets/agent_resource_drop_region.dart';
+import 'package:nai_launcher/presentation/utils/dropped_file_reader.dart';
 import 'package:nai_launcher/presentation/widgets/common/image_card_actions.dart';
 import 'package:super_drag_and_drop/super_drag_and_drop.dart';
+
+import '../../../helpers/card_drop_test_utils.dart';
 
 void main() {
   testWidgets('drag sources keep a stable registered widget tree', (
@@ -144,6 +150,169 @@ void main() {
     expect(childMenuCalls, 1);
     expect(find.byType(PopupMenuItem<bool>, skipOffstage: false), findsNothing);
   });
+
+  group('drop region', () {
+    testWidgets('hovering outside images shows the hint and keeps the panel', (
+      tester,
+    ) async {
+      var initializations = 0;
+      var disposals = 0;
+      await tester.pumpWidget(
+        _dropRegionApp(
+          child: _LifecycleProbe(
+            onInit: () => initializations++,
+            onDispose: () => disposals++,
+          ),
+        ),
+      );
+      final region = tester.widget<DropRegion>(find.byType(DropRegion));
+      final session = TestCardDropSession([
+        TestCardDropItem(formats: [Formats.png]),
+      ]);
+      addTearDown(session.dispose);
+
+      expect(
+        await region.onDropOver(
+          DropOverEvent(session: session, position: testCardDropPosition),
+        ),
+        DropOperation.copy,
+      );
+      await tester.pump();
+      expect(find.text('Drop to add to the chat'), findsOneWidget);
+
+      region.onDropLeave?.call(DropEvent(session: session));
+      await tester.pump();
+      expect(find.text('Drop to add to the chat'), findsNothing);
+      expect(initializations, 1);
+      expect(disposals, 0);
+    });
+
+    testWidgets('a panel that is not ready refuses every drop', (tester) async {
+      await tester.pumpWidget(_dropRegionApp(enabled: false));
+      final region = tester.widget<DropRegion>(find.byType(DropRegion));
+
+      for (final item in [
+        TestCardDropItem.resource('vibe-1'),
+        TestCardDropItem(formats: [Formats.png]),
+      ]) {
+        final session = TestCardDropSession([item]);
+        addTearDown(session.dispose);
+        expect(
+          await region.onDropOver(
+            DropOverEvent(session: session, position: testCardDropPosition),
+          ),
+          DropOperation.none,
+        );
+      }
+      await tester.pump();
+      expect(find.text('Drop to add to the chat'), findsNothing);
+    });
+
+    testWidgets('resources stay references and outside images go inline', (
+      tester,
+    ) async {
+      final references = <String>[];
+      final images = <String>[];
+      final external = TestCardDropItem(formats: [Formats.png]);
+      await tester.pumpWidget(
+        _dropRegionApp(
+          onDrop: (reference) async => references.add(reference.resourceId),
+          onDropImages: (files) async =>
+              images.addAll(files.map((file) => file.fileName)),
+          readExternalImage: (item) async => identical(item, external)
+              ? DroppedFileData(fileName: 'shot.png', bytes: Uint8List(8))
+              : null,
+        ),
+      );
+      final region = tester.widget<DropRegion>(find.byType(DropRegion));
+      final session = TestCardDropSession([
+        TestCardDropItem.resource('vibe-1'),
+        external,
+      ]);
+      addTearDown(session.dispose);
+
+      await region.onPerformDrop(
+        PerformDropEvent(
+          session: session,
+          position: testCardDropPosition,
+          acceptedOperation: DropOperation.copy,
+        ),
+      );
+
+      expect(references, ['vibe-1']);
+      expect(images, ['shot.png']);
+    });
+
+    testWidgets('unreadable items are reported and readable ones still land', (
+      tester,
+    ) async {
+      final images = <String>[];
+      final readable = TestCardDropItem(formats: [Formats.png]);
+      final pendingRead = Completer<DroppedFileData?>();
+      await tester.pumpWidget(
+        _dropRegionApp(
+          onDropImages: (files) async =>
+              images.addAll(files.map((file) => file.fileName)),
+          readExternalImage: (item) => identical(item, readable)
+              ? pendingRead.future
+              : Future.value(),
+        ),
+      );
+      final region = tester.widget<DropRegion>(find.byType(DropRegion));
+      final session = TestCardDropSession([
+        TestCardDropItem(formats: [Formats.fileUri]),
+        readable,
+      ]);
+      addTearDown(session.dispose);
+
+      final drop = region.onPerformDrop(
+        PerformDropEvent(
+          session: session,
+          position: testCardDropPosition,
+          acceptedOperation: DropOperation.copy,
+        ),
+      );
+      await tester.pump();
+      expect(find.byType(CircularProgressIndicator), findsOneWidget);
+
+      pendingRead.complete(
+        DroppedFileData(fileName: 'kept.png', bytes: Uint8List(8)),
+      );
+      await drop;
+      await tester.pump();
+
+      expect(find.byType(CircularProgressIndicator), findsNothing);
+      expect(images, ['kept.png']);
+      expect(find.textContaining('1/2'), findsOneWidget);
+      await tester.pump(const Duration(seconds: 4));
+      await tester.pumpAndSettle();
+    });
+  });
+}
+
+Widget _dropRegionApp({
+  bool enabled = true,
+  Future<void> Function(AgentChatResourceReference reference)? onDrop,
+  Future<void> Function(List<DroppedFileData> files)? onDropImages,
+  AgentChatExternalImageReader? readExternalImage,
+  Widget child = const ColoredBox(color: Colors.blue),
+}) {
+  return ProviderScope(
+    child: MaterialApp(
+      locale: const Locale('en'),
+      supportedLocales: AppLocalizations.supportedLocales,
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      home: Scaffold(
+        body: AgentResourceDropRegion(
+          enabled: enabled,
+          onDrop: onDrop ?? (_) async {},
+          onDropImages: onDropImages ?? (_) async {},
+          readExternalImage: readExternalImage ?? (_) async => null,
+          child: child,
+        ),
+      ),
+    ),
+  );
 }
 
 Widget _manySourcesApp() {

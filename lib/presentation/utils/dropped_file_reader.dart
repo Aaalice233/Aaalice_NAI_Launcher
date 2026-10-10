@@ -53,6 +53,10 @@ class DroppedFileReader {
     (format: Formats.bmp, extension: 'bmp'),
   ];
 
+  /// Formats [read] can decode directly, without a file path or remote URI.
+  static Iterable<FileFormat> get imageFormats =>
+      _imageFormats.map((imageFormat) => imageFormat.format);
+
   static Future<DroppedFileData?> read(
     DataReader reader, {
     bool allowVibeFiles = false,

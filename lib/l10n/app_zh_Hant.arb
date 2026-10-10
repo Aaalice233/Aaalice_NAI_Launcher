@@ -412,6 +412,7 @@
       "fileName": {}
     }
   },
+  "agentChat_dropHint": "放開以加入對話",
   "agentChat_newChat": "新對話",
   "agentChat_searchSessions": "搜尋對話",
   "agentChat_send": "傳送",

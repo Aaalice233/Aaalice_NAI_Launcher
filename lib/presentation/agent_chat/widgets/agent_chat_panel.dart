@@ -180,6 +180,8 @@ class _AgentChatPanelState extends ConsumerState<AgentChatPanel> {
             viewData.compactHeight;
         final panel = AgentResourceDropRegion(
           onDrop: commands.addPendingResource,
+          onDropImages: commands.attachImageFiles,
+          enabled: state.initialized,
           child: useStackedLayout
               ? _MobileAgentChatLayout(
                   viewData: viewData,
