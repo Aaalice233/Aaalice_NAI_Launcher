@@ -18,8 +18,8 @@ void main() {
 
     test('derives the configured major version', () {
       expect(
-        buildChromeSecChUa(152),
-        '"Chromium";v="152", "Not?A_Brand";v="24", "Google Chrome";v="152"',
+        buildChromeSecChUa(156),
+        '"Not:A-Brand";v="8", "Chromium";v="156", "Google Chrome";v="156"',
       );
     });
 
@@ -38,7 +38,7 @@ void main() {
         identity.userAgent,
         'Mozilla/5.0 (Windows NT 10.0; Win64; x64) '
         'AppleWebKit/537.36 (KHTML, like Gecko) '
-        'Chrome/152.0.0.0 Safari/537.36',
+        'Chrome/156.0.0.0 Safari/537.36',
       );
       expect(identity.secChUaPlatform, '"Windows"');
       expect(identity.secChUaMobile, '?0');
@@ -51,7 +51,7 @@ void main() {
         identity.userAgent,
         'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) '
         'AppleWebKit/537.36 (KHTML, like Gecko) '
-        'Chrome/152.0.0.0 Safari/537.36',
+        'Chrome/156.0.0.0 Safari/537.36',
       );
       expect(identity.secChUaPlatform, '"macOS"');
       expect(identity.secChUaMobile, '?0');
@@ -64,7 +64,7 @@ void main() {
         identity.userAgent,
         'Mozilla/5.0 (Linux; Android 10; K) '
         'AppleWebKit/537.36 (KHTML, like Gecko) '
-        'Chrome/152.0.0.0 Mobile Safari/537.36',
+        'Chrome/156.0.0.0 Mobile Safari/537.36',
       );
       expect(identity.secChUaPlatform, '"Android"');
       expect(identity.secChUaMobile, '?1');
@@ -77,7 +77,7 @@ void main() {
         identity.userAgent,
         'Mozilla/5.0 (X11; Linux x86_64) '
         'AppleWebKit/537.36 (KHTML, like Gecko) '
-        'Chrome/152.0.0.0 Safari/537.36',
+        'Chrome/156.0.0.0 Safari/537.36',
       );
       expect(identity.secChUaPlatform, '"Linux"');
       expect(identity.secChUaMobile, '?0');
