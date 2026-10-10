@@ -1,6 +1,8 @@
 import '../constants/api_constants.dart';
 import '../constants/model_capabilities.dart';
+import '../enums/image_model_mode.dart';
 import 'novelai_auto_text.dart';
+import 'novelai_dataset_prefix.dart';
 import 'prompt_edit_document.dart';
 
 /// 提示词语义快照
@@ -34,6 +36,7 @@ PromptSemanticsSnapshot buildPromptSemanticsSnapshot({
   String qualityTier = QualityTags.standardTier,
   List<NovelAiAutoTextCharacter> characters = const [],
   bool useCoords = false,
+  ImageModelMode modelMode = ImageModelMode.anime,
 }) {
   final basePrompt = prompt;
   final baseNegativePrompt = negativePrompt;
@@ -81,6 +84,11 @@ PromptSemanticsSnapshot buildPromptSemanticsSnapshot({
       useCoords: useCoords,
     );
   }
+  effectivePrompt = NovelAiDatasetPrefix.apply(
+    effectivePrompt,
+    mode: modelMode,
+    capabilities: capabilities,
+  );
 
   final effectiveNegativePrompt = UcPresets.applyPresetWithNsfwCheck(
     negativePrompt,

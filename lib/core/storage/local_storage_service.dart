@@ -5,6 +5,7 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 import '../constants/api_constants.dart';
 import '../constants/model_capabilities.dart';
 import '../constants/storage_keys.dart';
+import '../enums/image_model_mode.dart';
 
 part 'local_storage_service.g.dart';
 
@@ -654,6 +655,18 @@ class LocalStorageService {
   /// 保存端到端 ×2 放大开关
   Future<void> setLastE2eUpscale(bool value) async {
     await setSetting(StorageKeys.lastE2eUpscale, value);
+  }
+
+  /// 获取 Anime / Furry 模式 (V4 起生效)
+  ImageModelMode getImageModelMode() {
+    return ImageModelMode.fromName(
+      getSetting<String>(StorageKeys.imageModelMode),
+    );
+  }
+
+  /// 保存 Anime / Furry 模式
+  Future<void> setImageModelMode(ImageModelMode mode) async {
+    await setSetting(StorageKeys.imageModelMode, mode.name);
   }
 
   // ==================== Seed Lock ====================

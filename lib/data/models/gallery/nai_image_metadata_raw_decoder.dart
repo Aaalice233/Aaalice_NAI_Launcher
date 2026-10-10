@@ -5,6 +5,7 @@ import '../../../core/constants/model_capabilities.dart';
 import '../../../core/enums/precise_ref_type.dart';
 import '../../../core/utils/nai_prompt_parser.dart';
 import '../../../core/utils/novelai_auto_text.dart';
+import '../../../core/utils/novelai_dataset_prefix.dart';
 import '../../../core/utils/portable_logger.dart';
 import '../vibe/vibe_reference.dart';
 
@@ -110,7 +111,7 @@ class NaiImageMetadataRawDecoder {
     }
 
     final sourceModel = modelIdFromSource(source);
-    final prompt =
+    final promptWithoutAutoText =
         sourceModel != null &&
             ModelCapabilityRegistry.of(sourceModel).supportsAutoText
         ? NovelAiAutoText.stripGeneratedBlock(
@@ -132,6 +133,13 @@ class NaiImageMetadataRawDecoder {
             useCoords: characterUseCoords == true,
           )
         : rawPrompt;
+    final datasetModel = sourceModel ?? _safeGetString(commentData, 'model');
+    final prompt = datasetModel == null
+        ? promptWithoutAutoText
+        : NovelAiDatasetPrefix.strip(
+            promptWithoutAutoText,
+            capabilities: ModelCapabilityRegistry.of(datasetModel),
+          ).prompt;
     final importedUcPreset = _toInt(commentData['uc_preset']);
     final importedQualityToggle =
         _safeGetBool(commentData, 'quality_toggle') ??
@@ -933,10 +941,14 @@ class NaiImageMetadataRawDecoder {
     // Official PNG Source fingerprints are exact model identifiers. Do not
     // fall back to prompt/UC inference when the Source text is ambiguous.
     // Production writes `NovelAI Diffusion V5 <hash>`; the known Full hashes
-    // come from the web client (657484A5 / 0ADF9AB7), everything else in the
-    // V5 family resolves to Curated, mirroring the official parser. Staging
-    // used the enum name form (`DiffusionModelMetaName.NAIv5 DE206BDA`).
+    // (657484A5 / 0ADF9AB7) and Full Medium hashes (93F4BD30 / 70AB5786) come
+    // from the web client, everything else in the V5 family resolves to
+    // Curated, mirroring the official parser. Staging used the enum name form
+    // (`DiffusionModelMetaName.NAIv5 DE206BDA`).
     if (normalized.contains('naiv5') || normalized.contains('diffusion v5')) {
+      if (normalized.contains('93f4bd30') || normalized.contains('70ab5786')) {
+        return ImageModels.animeDiffusionV5FullMedium;
+      }
       return normalized.contains('657484a5') ||
               normalized.contains('0adf9ab7') ||
               normalized.contains('full')

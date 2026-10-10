@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 
+import '../enums/generation_effort.dart';
 import 'model_capabilities.dart';
 
 /// NovelAI API 常量定义
@@ -96,6 +97,10 @@ class ImageModels {
       'nai-diffusion-5-curated-inpainting';
   static const String animeDiffusionV5FullInpainting =
       'nai-diffusion-5-full-inpainting';
+  static const String animeDiffusionV5FullMedium =
+      'nai-diffusion-5-full-medium';
+  static const String animeDiffusionV5FullMediumInpainting =
+      'nai-diffusion-5-full-medium-inpainting';
 
   /// V5 测试期的历史模型键。
   ///
@@ -115,8 +120,18 @@ class ImageModels {
     furryDiffusion,
   ];
 
+  /// 只通过 Effort 档位选择、不进入模型下拉框的变体。
+  static const List<String> effortVariantModels = [animeDiffusionV5FullMedium];
+
+  /// 可以作为生成模型的全部 ID：下拉框模型加 Effort 变体。
+  static const List<String> supportedModels = [
+    ...allModels,
+    ...effortVariantModels,
+  ];
+
   static const Map<String, String> modelDisplayNames = {
     animeDiffusionV5Full: 'NAI Diffusion V5 (Full)',
+    animeDiffusionV5FullMedium: 'NAI Diffusion V5 (Full, Medium Effort)',
     animeDiffusionV5Curated: 'NAI Diffusion V5 (Curated)',
     animeDiffusionV45Full: 'NAI Diffusion V4.5 (Full)',
     animeDiffusionV45Curated: 'NAI Diffusion V4.5 (Curated)',
@@ -132,11 +147,40 @@ class ImageModels {
   /// [current] 是当前选中的模型：它可能来自元数据导入等非常规途径，
   /// 必须保留在候选项里，否则下拉框会因为 value 不在列表中而断言失败。
   static List<String> visibleModels({String? current}) {
-    final normalized = current == null ? null : migrateLegacyModel(current);
+    final normalized = current == null ? null : selectorModel(current);
     if (normalized != null && !allModels.contains(normalized)) {
       return [normalized, ...allModels];
     }
     return allModels;
+  }
+
+  /// 模型下拉框展示的 ID：Effort 变体显示为它的完整档基础模型。
+  static String selectorModel(String model) {
+    final migrated = migrateLegacyModel(model);
+    return _highEffortModels[migrated] ?? migrated;
+  }
+
+  static const Map<String, String> _mediumEffortVariants = {
+    animeDiffusionV5Full: animeDiffusionV5FullMedium,
+  };
+
+  static const Map<String, String> _highEffortModels = {
+    animeDiffusionV5FullMedium: animeDiffusionV5Full,
+  };
+
+  /// 当前模型的 Effort 档位；没有档位可选时返回 null。
+  static GenerationEffort? effortOf(String model) {
+    if (_highEffortModels.containsKey(model)) return GenerationEffort.medium;
+    if (_mediumEffortVariants.containsKey(model)) return GenerationEffort.high;
+    return null;
+  }
+
+  /// 切到指定档位后的模型；当前模型没有档位时原样返回。
+  static String withEffort(String model, GenerationEffort effort) {
+    return switch (effort) {
+      GenerationEffort.medium => _mediumEffortVariants[model] ?? model,
+      GenerationEffort.high => _highEffortModels[model] ?? model,
+    };
   }
 
   /// 把测试期的历史模型键迁移到正式 ID。
@@ -176,6 +220,7 @@ class ImageModels {
       // V5 Curated 的重绘权重尚未就绪，网页端映射到 V4.5 Curated Inpainting。
       animeDiffusionV5Curated => animeDiffusionV45CuratedInpainting,
       animeDiffusionV5Full => animeDiffusionV5FullInpainting,
+      animeDiffusionV5FullMedium => animeDiffusionV5FullMediumInpainting,
       animeDiffusionV45Full => animeDiffusionV45FullInpainting,
       animeDiffusionV45Curated => animeDiffusionV45CuratedInpainting,
       animeDiffusionV4Full => animeDiffusionV4FullInpainting,
@@ -189,6 +234,7 @@ class ImageModels {
   static String resolveBaseModel(String model) {
     return switch (model) {
       animeDiffusionV5FullInpainting => animeDiffusionV5Full,
+      animeDiffusionV5FullMediumInpainting => animeDiffusionV5FullMedium,
       animeDiffusionV5CuratedInpainting => animeDiffusionV5Curated,
       animeDiffusionV45FullInpainting => animeDiffusionV45Full,
       animeDiffusionV45CuratedInpainting => animeDiffusionV45Curated,
@@ -377,6 +423,8 @@ class QualityTags {
     // 按这条实证登记；两个 V5 变体在官网代码里没有拆分。
     ImageModels.v5StagingKey: 'very aesthetic, masterpiece, no text',
     ImageModels.animeDiffusionV5Full: 'very aesthetic, masterpiece, no text',
+    ImageModels.animeDiffusionV5FullMedium:
+        'very aesthetic, masterpiece, no text',
     ImageModels.animeDiffusionV5Curated: 'very aesthetic, masterpiece, no text',
 
     // V4.5 系列 (添加到末尾)
@@ -420,6 +468,7 @@ class QualityTags {
   static const Map<String, Map<String, String>> modelQualityTagTiers = {
     ImageModels.v5StagingKey: _v5QualityTiers,
     ImageModels.animeDiffusionV5Full: _v5QualityTiers,
+    ImageModels.animeDiffusionV5FullMedium: _v5QualityTiers,
     ImageModels.animeDiffusionV5Curated: _v5QualityTiers,
   };
 
@@ -876,6 +925,8 @@ class UcPresets {
       case ImageModels.animeDiffusionV5CuratedInpainting:
       case ImageModels.animeDiffusionV5Full:
       case ImageModels.animeDiffusionV5FullInpainting:
+      case ImageModels.animeDiffusionV5FullMedium:
+      case ImageModels.animeDiffusionV5FullMediumInpainting:
         return v5Presets;
       case ImageModels.animeDiffusionV45Full:
         return v45FullPresets;

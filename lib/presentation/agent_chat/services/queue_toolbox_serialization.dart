@@ -1,3 +1,4 @@
+import '../../../data/models/image/image_params.dart' show ImageParamsExtension;
 import '../../../data/models/queue/replication_task.dart';
 import '../../../data/models/queue/replication_task_generation_snapshot.dart';
 import '../../providers/queue_execution_provider.dart';
@@ -55,8 +56,8 @@ Map<String, dynamic> _generationSnapshotSummary(Map<String, dynamic> snapshot) {
       'model': params.model,
       'width': params.width,
       'height': params.height,
-      'steps': params.steps,
-      'sampler': params.sampler,
+      'steps': params.effectiveSteps,
+      'sampler': params.effectiveSampler,
       'scale': params.scale,
       'seed': params.seed,
       'has_source_image': params.sourceImage != null,

@@ -603,6 +603,20 @@
     }
   },
   "generation_model": "模型",
+  "generation_modelMode": "模式",
+  "generation_modelModeAnime": "動漫",
+  "generation_modelModeFurry": "獸人",
+  "generation_effort": "生成檔位",
+  "generation_effortMedium": "節約",
+  "generation_effortHigh": "標準",
+  "generation_effortUnavailableHint": "節約檔不使用此項",
+  "generation_effortNegativeLocked": "節約檔不傳送",
+  "generation_effortNegativeLockedHint": "節約檔不傳送負向提示詞，只使用「{ucPreset}」負面預設。已填寫的內容會保留，切回標準檔後繼續生效",
+  "@generation_effortNegativeLockedHint": {
+    "placeholders": {
+      "ucPreset": {}
+    }
+  },
   "generation_opusUsageRemaining": "Opus 免費生成剩餘 {percent}%",
   "generation_opusUsageEstimate": "約可再生成 {count} 張",
   "generation_opusUsageRefill": "額度會隨時間自動恢復",

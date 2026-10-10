@@ -3,6 +3,9 @@ import 'dart:convert';
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:hive/hive.dart';
 
+import '../../../core/constants/model_capabilities.dart';
+import '../../../core/enums/image_model_mode.dart';
+import '../../../core/utils/novelai_dataset_prefix.dart';
 import '../image/image_params.dart';
 import '../fixed_tag/fixed_tag_usage_snapshot.dart';
 import '../vibe/vibe_reference.dart';
@@ -209,6 +212,17 @@ class NaiImageMetadata with _$NaiImageMetadata {
   /// 用于导入/展示的模型 ID。Source 是官方图片的模型来源，优先级高于旧缓存中的 model。
   String? get effectiveModel => sourceModel ?? model;
 
+  /// 生成时使用的 Anime / Furry 模式，模型没有该模式或无法判断时为 null。
+  ImageModelMode? get modelMode {
+    final model = effectiveModel;
+    final recorded = originalPrompt;
+    if (model == null || recorded == null) return null;
+    return NovelAiDatasetPrefix.strip(
+      recorded,
+      capabilities: ModelCapabilityRegistry.of(model),
+    ).mode;
+  }
+
   NaiImageMetadata upgradeFromRawJsonIfNeeded() {
     final sourceResolvedModel = sourceModel;
     final base = sourceResolvedModel != null && model != sourceResolvedModel
@@ -227,9 +241,7 @@ class NaiImageMetadata with _$NaiImageMetadata {
       );
       if (reparsed == null || !reparsed.hasData) return base;
       return base.copyWith(
-        prompt:
-            base.prompt == base.originalPrompt &&
-                reparsed.prompt != reparsed.originalPrompt
+        prompt: _adoptsReparsedPrompt(base, reparsed)
             ? reparsed.prompt
             : base.prompt,
         model: base.model ?? reparsed.model,
@@ -404,6 +416,14 @@ NaiImageMetadata _rawMetadataFromFields(NaiImageMetadataFields fields) =>
       fixedTagUsageData: fields.fixedTagUsageData,
       hasRecordedFixedTagFields: fields.hasRecordedFixedTagFields,
     );
+
+/// 旧缓存可能早于自动文本段或数据集前缀的剥离规则，此时改用重新解析的结果。
+bool _adoptsReparsedPrompt(NaiImageMetadata base, NaiImageMetadata reparsed) {
+  if (reparsed.prompt == reparsed.originalPrompt) return false;
+  if (base.prompt == base.originalPrompt) return true;
+  return NovelAiDatasetPrefix.hasFurryPrefix(base.prompt) &&
+      !NovelAiDatasetPrefix.hasFurryPrefix(reparsed.prompt);
+}
 
 bool _rawJsonMayContainUpgrade(String raw) {
   final text = raw.toLowerCase();

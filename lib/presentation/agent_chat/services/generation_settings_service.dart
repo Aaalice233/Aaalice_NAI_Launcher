@@ -1,22 +1,48 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/agent/agent_types.dart';
 import '../../../core/constants/api_constants.dart';
+import '../../../core/enums/generation_effort.dart';
+import '../../../core/enums/image_model_mode.dart';
+import '../../../data/models/image/image_params.dart';
 import '../../providers/image_generation_provider.dart';
 import 'defined_agent_tool.dart';
 
 class GenerationSettingsService {
   GenerationSettingsService(this._ref);
   final Ref _ref;
+
+  /// 被模型固定参数接管、修改后也不会发送的字段。
+  static const List<String> _fixedSettingFields = [
+    'steps',
+    'sampler',
+    'uc_preset',
+    'negative_prompt',
+    'cfg_rescale',
+    'noise_schedule',
+    'variety_plus',
+  ];
+
   Map<String, dynamic> settingsJson() {
     final params = _ref.read(generationParamsNotifierProvider);
     return {
       'model': params.model,
+      'effort': ImageModels.effortOf(params.model)?.name,
+      'model_mode': params.modelMode.name,
+      'model_mode_applies': params.capabilities.hasFurryMode,
+      if (params.usesFixedSettings) 'locked_by_effort': _fixedSettingFields,
       'available_models': [
         for (final id in ImageModels.allModels)
-          {'id': id, 'name': ImageModels.modelDisplayNames[id] ?? id},
+          {
+            'id': id,
+            'name': ImageModels.modelDisplayNames[id] ?? id,
+            if (ImageModels.effortOf(id) != null)
+              'efforts': [
+                for (final effort in GenerationEffort.values) effort.name,
+              ],
+          },
       ],
-      'sampler': params.sampler,
-      'steps': params.steps,
+      'sampler': params.effectiveSampler,
+      'steps': params.effectiveSteps,
       'scale': params.scale,
       'cfg_rescale': params.cfgRescale,
       'noise_schedule': params.noiseSchedule,
@@ -52,17 +78,56 @@ class GenerationSettingsService {
     // model 先应用（切换模型可能联动 steps/scale 默认值），随后显式字段覆盖。
     // 支持友好别名（v5 / v4.5 curated / v3 等），解析失败时列出可选模型。
     final model = (args['model'] as String?)?.trim();
+    String? resolvedModel;
     if (model != null && model.isNotEmpty) {
-      final resolved = _resolveModelId(model);
-      if (resolved == null) {
+      resolvedModel = _resolveModelId(model);
+      if (resolvedModel == null) {
         return agentToolError(
           'unknown_model',
           'Unknown model "$model". Available models: '
-              '${ImageModels.allModels.join(", ")}.',
+              '${ImageModels.supportedModels.join(", ")}.',
         );
       }
-      notifier.updateModel(resolved);
-      applied['model'] = resolved;
+    }
+    final rawEffort = (args['effort'] as String?)?.trim();
+    final effort = GenerationEffort.tryParse(rawEffort);
+    if (rawEffort != null && rawEffort.isNotEmpty && effort == null) {
+      return agentToolError(
+        'unknown_effort',
+        'Unknown effort "$rawEffort". Use "medium" or "high".',
+      );
+    }
+    final targetModel =
+        resolvedModel ?? _ref.read(generationParamsNotifierProvider).model;
+    if (effort != null && ImageModels.effortOf(targetModel) == null) {
+      return agentToolError(
+        'effort_unavailable',
+        'Model $targetModel has no effort levels. Only '
+            '${ImageModels.animeDiffusionV5Full} supports medium/high.',
+      );
+    }
+    final rawModelMode = (args['model_mode'] as String?)?.trim();
+    final modelMode = rawModelMode == null || rawModelMode.isEmpty
+        ? null
+        : ImageModelMode.values.asNameMap()[rawModelMode];
+    if (rawModelMode != null && rawModelMode.isNotEmpty && modelMode == null) {
+      return agentToolError(
+        'unknown_model_mode',
+        'Unknown model_mode "$rawModelMode". Use "anime" or "furry".',
+      );
+    }
+
+    if (resolvedModel != null) {
+      notifier.updateModel(resolvedModel);
+      applied['model'] = resolvedModel;
+    }
+    if (effort != null) {
+      notifier.updateEffort(effort);
+      applied['effort'] = effort.name;
+    }
+    if (modelMode != null) {
+      notifier.updateModelMode(modelMode);
+      applied['model_mode'] = modelMode.name;
     }
     final sampler = (args['sampler'] as String?)?.trim();
     if (sampler != null && sampler.isNotEmpty) {
@@ -140,7 +205,7 @@ class GenerationSettingsService {
     if (normalized.isEmpty) {
       return null;
     }
-    for (final id in ImageModels.allModels) {
+    for (final id in ImageModels.supportedModels) {
       if (id.toLowerCase() == normalized) {
         return id;
       }
@@ -148,6 +213,8 @@ class GenerationSettingsService {
     const aliases = <String, String>{
       'v5': ImageModels.animeDiffusionV5Full,
       'v5 full': ImageModels.animeDiffusionV5Full,
+      'v5 medium': ImageModels.animeDiffusionV5FullMedium,
+      'v5 full medium': ImageModels.animeDiffusionV5FullMedium,
       'v5 curated': ImageModels.animeDiffusionV5Curated,
       'v4.5': ImageModels.animeDiffusionV45Full,
       'v45': ImageModels.animeDiffusionV45Full,

@@ -207,6 +207,7 @@ const portableSettingKeys = <String>{
   StorageKeys.compositionGuideColumns,
   StorageKeys.compositionGuideRows,
   StorageKeys.defaultModel,
+  StorageKeys.imageModelMode,
   StorageKeys.defaultSampler,
   StorageKeys.defaultSteps,
   StorageKeys.defaultScale,

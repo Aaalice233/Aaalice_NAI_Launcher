@@ -200,6 +200,7 @@ class StorageKeys {
   static const String lastVarietyPlus = 'last_variety_plus';
   static const String lastTransparentBackground = 'last_transparent_background';
   static const String lastE2eUpscale = 'last_e2e_upscale';
+  static const String imageModelMode = 'image_model_mode';
 
   // Gallery Keys (画廊相关)
   static const String generationHistory = 'generation_history';

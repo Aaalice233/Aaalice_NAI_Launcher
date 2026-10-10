@@ -623,6 +623,20 @@
     }
   },
   "generation_model": "Model",
+  "generation_modelMode": "Mode",
+  "generation_modelModeAnime": "Anime",
+  "generation_modelModeFurry": "Furry",
+  "generation_effort": "Effort",
+  "generation_effortMedium": "Medium",
+  "generation_effortHigh": "High",
+  "generation_effortUnavailableHint": "Not used on Medium effort",
+  "generation_effortNegativeLocked": "Not sent on Medium",
+  "generation_effortNegativeLockedHint": "Medium effort does not send Undesired Content and only uses the \"{ucPreset}\" Undesired Content Preset. Your text is kept and applies again on High effort",
+  "@generation_effortNegativeLockedHint": {
+    "placeholders": {
+      "ucPreset": {}
+    }
+  },
   "generation_opusUsageRemaining": "{percent}% of Opus Generations remaining",
   "generation_opusUsageEstimate": "About {count} images left",
   "generation_opusUsageRefill": "The allowance refills automatically over time",

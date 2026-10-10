@@ -6,6 +6,8 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../../../core/constants/api_constants.dart';
 import '../../../core/constants/model_capabilities.dart';
+import '../../../core/enums/generation_effort.dart';
+import '../../../core/enums/image_model_mode.dart';
 import '../../../core/enums/precise_ref_type.dart';
 import '../../../core/storage/local_storage_service.dart';
 import '../../../core/utils/app_logger.dart';
@@ -215,6 +217,19 @@ class GenerationParamsNotifier extends _$GenerationParamsNotifier {
     }
   }
 
+  /// 切换 Effort 档位；不跟随默认值，Medium 锁定的参数留在状态里供切回 High 使用。
+  void updateEffort(GenerationEffort effort) {
+    final target = ImageModels.withEffort(state.model, effort);
+    if (target == state.model) return;
+    updateModel(target, followDefaults: false);
+  }
+
+  /// 更新 Anime / Furry 模式
+  void updateModelMode(ImageModelMode modelMode) {
+    state = state.copyWith(modelMode: modelMode);
+    _storage.setImageModelMode(modelMode);
+  }
+
   /// 更新尺寸
   void updateSize(int width, int height, {bool persist = true}) {
     state = state.copyWith(width: width, height: height);
@@ -293,6 +308,7 @@ class GenerationParamsNotifier extends _$GenerationParamsNotifier {
       scale: storage.getDefaultScale(),
       width: storage.getDefaultWidth(),
       height: storage.getDefaultHeight(),
+      modelMode: storage.getImageModelMode(),
     );
     _scheduleGenerationStateSave(immediate: true);
   }
