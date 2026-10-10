@@ -1,11 +1,9 @@
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
-import 'package:super_clipboard/super_clipboard.dart';
 import 'package:super_drag_and_drop/super_drag_and_drop.dart';
 
-import '../../../core/utils/app_logger.dart';
-import '../../utils/dropped_file_reader.dart';
+import '../../utils/clipboard_image.dart';
 import '../../utils/internal_drag_protocol.dart';
 import '../../utils/card_drop_reader.dart';
 
@@ -73,7 +71,10 @@ class GlobalDropController extends ChangeNotifier {
 
     _setReadingClipboard(true);
     try {
-      final pastedFile = await _safeReadClipboardFile();
+      final pastedFile = await readClipboardFile(
+        logTag: 'ClipboardPaste',
+        allowVibeFiles: true,
+      );
       if (pastedFile == null) {
         fallbackTextPaste?.call();
         return;
@@ -111,34 +112,6 @@ class GlobalDropController extends ChangeNotifier {
     } finally {
       _setProcessing(false);
     }
-  }
-
-  Future<DroppedFileData?> _safeReadClipboardFile() async {
-    try {
-      return await _readClipboardFile();
-    } catch (error) {
-      AppLogger.d(
-        'Failed to inspect clipboard for pasted image: $error',
-        'ClipboardPaste',
-      );
-      return null;
-    }
-  }
-
-  Future<DroppedFileData?> _readClipboardFile() async {
-    final clipboard = SystemClipboard.instance;
-    if (clipboard == null) return null;
-    final clipboardReader = await clipboard.read();
-    for (final item in clipboardReader.items) {
-      final fileData = await DroppedFileReader.read(
-        item,
-        allowVibeFiles: true,
-        allowRemoteImages: false,
-        logTag: 'ClipboardPaste',
-      );
-      if (fileData != null) return fileData;
-    }
-    return null;
   }
 
   void _setDragging(bool value) {

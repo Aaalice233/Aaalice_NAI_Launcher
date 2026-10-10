@@ -2087,6 +2087,12 @@ abstract class AppLocalizations {
   /// **'Unsupported image format: {fileName}'**
   String agentChat_unsupportedImageFormat(Object fileName);
 
+  /// No description provided for @agentChat_dropHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Drop to add to the chat'**
+  String get agentChat_dropHint;
+
   /// No description provided for @agentChat_newChat.
   ///
   /// In en, this message translates to:

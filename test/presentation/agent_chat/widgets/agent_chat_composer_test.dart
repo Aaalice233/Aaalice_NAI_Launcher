@@ -22,6 +22,7 @@ import 'package:nai_launcher/data/models/prompt_assistant/prompt_assistant_model
 import 'package:nai_launcher/presentation/prompt_assistant/providers/web_access_provider.dart';
 import 'package:nai_launcher/presentation/themes/core/layered_surface_style.dart';
 import 'package:nai_launcher/presentation/themes/modules/color/palettes/grunge_palette.dart';
+import 'package:nai_launcher/presentation/utils/dropped_file_reader.dart';
 import 'package:nai_launcher/presentation/widgets/common/model_family_icon.dart';
 import 'package:nai_launcher/presentation/widgets/common/ai_brand_icon.dart';
 
@@ -1214,6 +1215,81 @@ void main() {
       findsNothing,
     );
   });
+
+  testWidgets('Ctrl+V in the input asks for a clipboard image first', (
+    tester,
+  ) async {
+    var pastes = 0;
+    final controller = AgentChatPanelController();
+    addTearDown(controller.dispose);
+    await _pumpComposer(
+      tester,
+      width: 840,
+      mobile: false,
+      controller: controller,
+      onPasteClipboardImage: () async {
+        pastes++;
+        return true;
+      },
+    );
+
+    await tester.tap(_input);
+    await tester.pump();
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+    await tester.sendKeyEvent(LogicalKeyboardKey.keyV);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+    await tester.pump();
+
+    expect(pastes, 1);
+    expect(controller.inputController.text, isEmpty);
+  });
+
+  testWidgets('keyboard-inserted images reach the attachment command', (
+    tester,
+  ) async {
+    final attached = <DroppedFileData>[];
+    await _pumpComposer(
+      tester,
+      width: 420,
+      onAttachImageFiles: (files) async => attached.addAll(files),
+    );
+    await tester.tap(_input);
+    await tester.pump();
+
+    await _commitKeyboardContent(
+      tester,
+      mimeType: 'image/png',
+      uri: 'content://ime.provider/clipboard/shot.png',
+      data: const [0x89, 0x50, 0x4E, 0x47],
+    );
+
+    expect(attached.single.fileName, 'shot.png');
+    expect(attached.single.bytes, [0x89, 0x50, 0x4E, 0x47]);
+  });
+}
+
+/// The engine routes IME image commits through performAction; -1 is the
+/// client id test bindings accept without a live connection.
+Future<void> _commitKeyboardContent(
+  WidgetTester tester, {
+  required String mimeType,
+  required String uri,
+  required List<int> data,
+}) async {
+  final message = const JSONMessageCodec().encodeMessage(<String, Object?>{
+    'method': 'TextInputClient.performAction',
+    'args': <Object?>[
+      -1,
+      'TextInputAction.commitContent',
+      <String, Object?>{'mimeType': mimeType, 'data': data, 'uri': uri},
+    ],
+  });
+  await tester.binding.defaultBinaryMessenger.handlePlatformMessage(
+    'flutter/textinput',
+    message,
+    (_) {},
+  );
+  await tester.pump();
 }
 
 final _input = find.byKey(const ValueKey('agent-chat-input'));
@@ -1258,6 +1334,8 @@ Future<void> _pumpComposer(
   VoidCallback? onStop,
   Future<void> Function()? onAttachCurrentCanvas,
   void Function(AgentChatMoreAction action)? onMoreAction,
+  Future<bool> Function()? onPasteClipboardImage,
+  Future<void> Function(List<DroppedFileData> files)? onAttachImageFiles,
   AgentChatResourceReference? currentCanvasReference,
   PromptAssistantConfigState? config,
   AgentSettingsState? agentSettings,
@@ -1299,6 +1377,8 @@ Future<void> _pumpComposer(
                 onStop: onStop,
                 onAttachCurrentCanvas: onAttachCurrentCanvas,
                 onMoreAction: onMoreAction,
+                onPasteClipboardImage: onPasteClipboardImage,
+                onAttachImageFiles: onAttachImageFiles,
                 currentCanvasReference: currentCanvasReference,
                 config: config,
                 agentSettings: agentSettings,
@@ -1322,6 +1402,8 @@ class _ComposerHarness extends StatefulWidget {
     this.onStop,
     this.onAttachCurrentCanvas,
     this.onMoreAction,
+    this.onPasteClipboardImage,
+    this.onAttachImageFiles,
     this.currentCanvasReference,
     this.config,
     this.agentSettings,
@@ -1335,6 +1417,8 @@ class _ComposerHarness extends StatefulWidget {
   final VoidCallback? onStop;
   final Future<void> Function()? onAttachCurrentCanvas;
   final void Function(AgentChatMoreAction action)? onMoreAction;
+  final Future<bool> Function()? onPasteClipboardImage;
+  final Future<void> Function(List<DroppedFileData> files)? onAttachImageFiles;
   final AgentChatResourceReference? currentCanvasReference;
   final PromptAssistantConfigState? config;
   final AgentSettingsState? agentSettings;
@@ -1382,6 +1466,8 @@ class _ComposerHarnessState extends State<_ComposerHarness> {
       selectPermissionMode: (_) async {},
       setWebAccessEnabled: (_) async {},
       pickImages: () async {},
+      pasteClipboardImage: widget.onPasteClipboardImage ?? () async => false,
+      attachImageFiles: widget.onAttachImageFiles ?? (_) async {},
       attachCurrentCanvas: widget.onAttachCurrentCanvas ?? () async {},
       openReferenceGallery: () async {},
       openResourceLibrary: () async {},

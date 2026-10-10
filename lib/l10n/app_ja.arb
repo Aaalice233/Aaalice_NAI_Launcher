@@ -424,6 +424,7 @@
       "fileName": {}
     }
   },
+  "agentChat_dropHint": "ドロップして会話に追加",
   "agentChat_newChat": "新しいチャット",
   "agentChat_searchSessions": "チャットを検索",
   "agentChat_send": "送信",

@@ -432,6 +432,7 @@
       "fileName": {}
     }
   },
+  "agentChat_dropHint": "Drop to add to the chat",
   "agentChat_newChat": "New chat",
   "agentChat_searchSessions": "Search chats",
   "agentChat_send": "Send",

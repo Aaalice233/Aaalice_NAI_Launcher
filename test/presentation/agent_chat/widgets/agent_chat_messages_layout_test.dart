@@ -576,6 +576,8 @@ AgentChatPanelCommands _commandsWithResolver(
   selectPermissionMode: (_) async {},
   setWebAccessEnabled: (_) async {},
   pickImages: () async {},
+  pasteClipboardImage: () async => false,
+  attachImageFiles: (_) async {},
   attachCurrentCanvas: () async {},
   openReferenceGallery: () async {},
   openResourceLibrary: () async {},

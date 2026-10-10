@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:super_drag_and_drop/super_drag_and_drop.dart';
 
@@ -9,6 +8,7 @@ import '../../../core/platform/platform_capabilities.dart';
 import 'global_drop_action_coordinator.dart';
 import 'global_drop_controller.dart';
 import 'global_drop_overlay.dart';
+import 'image_paste_shortcuts.dart';
 import '../../utils/card_drop_reader.dart';
 
 export 'dropped_image_inspector.dart'
@@ -66,17 +66,6 @@ class _GlobalDropHandlerState extends ConsumerState<GlobalDropHandler> {
     if (mounted) setState(() {});
   }
 
-  VoidCallback? _createTextPasteFallback(BuildContext? focusedContext) {
-    if (focusedContext == null) return null;
-    return () {
-      if (!focusedContext.mounted) return;
-      Actions.maybeInvoke(
-        focusedContext,
-        const PasteTextIntent(SelectionChangedCause.keyboard),
-      );
-    };
-  }
-
   @override
   Widget build(BuildContext context) {
     final content = Stack(
@@ -98,17 +87,12 @@ class _GlobalDropHandlerState extends ConsumerState<GlobalDropHandler> {
         : content;
 
     return Shortcuts(
-      shortcuts: const <ShortcutActivator, Intent>{
-        SingleActivator(LogicalKeyboardKey.keyV, control: true):
-            _PasteImageIntent(),
-        SingleActivator(LogicalKeyboardKey.keyV, meta: true):
-            _PasteImageIntent(),
-      },
+      shortcuts: imagePasteShortcuts(const _PasteImageIntent()),
       child: Actions(
         actions: <Type, Action<Intent>>{
           _PasteImageIntent: CallbackAction<_PasteImageIntent>(
             onInvoke: (intent) {
-              final fallbackTextPaste = _createTextPasteFallback(
+              final fallbackTextPaste = textPasteFallbackFor(
                 FocusManager.instance.primaryFocus?.context,
               );
               unawaited(_controller.handlePasteShortcut(fallbackTextPaste));

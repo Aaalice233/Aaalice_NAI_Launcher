@@ -1091,6 +1091,9 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get agentChat_dropHint => 'Drop to add to the chat';
+
+  @override
   String get agentChat_newChat => 'New chat';
 
   @override

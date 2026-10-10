@@ -1,8 +1,64 @@
 import 'dart:isolate';
 import 'dart:typed_data';
 
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image/image.dart' as img;
 import 'package:super_clipboard/super_clipboard.dart';
+
+import '../../core/utils/app_logger.dart';
+import 'dropped_file_reader.dart';
+
+/// 剪贴板同时带纯文本与图片时由谁胜出。
+enum ClipboardContentPriority { image, text }
+
+typedef ClipboardFileReader =
+    Future<DroppedFileData?> Function({
+      required String logTag,
+      ClipboardContentPriority priority,
+      bool allowVibeFiles,
+    });
+
+/// 系统剪贴板读取入口；测试替换它以避开平台插件。
+final clipboardFileReaderProvider = Provider<ClipboardFileReader>(
+  (ref) => readClipboardFile,
+);
+
+/// 文本优先时，带纯文本的剪贴板交还文本粘贴；复制的文件仍按文件处理，
+/// 因为 Finder 复制文件会附带文件名纯文本，不能把图片附件降级成粘贴文件名。
+bool clipboardDefersToText(
+  DataReader reader,
+  ClipboardContentPriority priority,
+) =>
+    priority == ClipboardContentPriority.text &&
+    reader.canProvide(Formats.plainText) &&
+    !reader.canProvide(Formats.fileUri);
+
+/// 读取剪贴板里第一份可用的图片或文件；为空表示调用方应走文本粘贴。
+Future<DroppedFileData?> readClipboardFile({
+  required String logTag,
+  ClipboardContentPriority priority = ClipboardContentPriority.image,
+  bool allowVibeFiles = false,
+}) async {
+  try {
+    final clipboard = SystemClipboard.instance;
+    if (clipboard == null) return null;
+    final reader = await clipboard.read();
+    if (clipboardDefersToText(reader, priority)) return null;
+    for (final item in reader.items) {
+      final file = await DroppedFileReader.read(
+        item,
+        allowVibeFiles: allowVibeFiles,
+        allowRemoteImages: false,
+        logTag: logTag,
+      );
+      if (file != null) return file;
+    }
+    return null;
+  } catch (error) {
+    AppLogger.d('Failed to inspect clipboard for pasted image: $error', logTag);
+    return null;
+  }
+}
 
 /// 把图片字节写入系统剪贴板，统一规范化为 PNG。
 ///

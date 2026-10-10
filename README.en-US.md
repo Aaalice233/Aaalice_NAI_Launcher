@@ -100,7 +100,7 @@ NAI Launcher is built for people who use NovelAI regularly. Generation, editing,
 ### 🤖 Agent Chat
 
 - From a desktop sidebar or mobile drawer, the agent can search tags, organize Prompts, inspect generation history, use libraries, and prepare generation tasks.
-- Images, Vibes, and Precise References can be added directly as context. The agent can also prepare masks, expanded canvases, and inpaint drafts.
+- Images, Vibes, and Precise References can be added directly as context. Images can also be pasted into the input with Ctrl/Cmd+V or dragged onto the panel from a file manager or browser, and Android keyboards can insert them. The agent can also prepare masks, expanded canvases, and inpaint drafts.
 - Preparation verifies the cost before generation. In Full Access, verified zero-Anlas generations proceed directly; deleting saved data and paid operations still require approval.
 - The default character research workflow combines online identity verification, canonical tag lookup, and gallery appearance evidence, noting disabled web access or missing evidence.
 - Customize the system prompt by adding plain-language instructions or replacing the built-in body; no placeholders are needed. The working directory, web availability, Skills, and app execution rules are added automatically, with a preview of the final prompt. Customization does not bypass app permission checks.

@@ -38,6 +38,8 @@ import 'package:nai_launcher/presentation/screens/generation/mobile_layout.dart'
 import 'package:nai_launcher/presentation/screens/generation/widgets/generation_workspace_row.dart';
 import 'package:nai_launcher/presentation/screens/generation/widgets/right_panel.dart';
 import 'package:nai_launcher/presentation/themes/core/layered_surface_style.dart';
+import 'package:nai_launcher/presentation/utils/clipboard_image.dart';
+import 'package:nai_launcher/presentation/utils/dropped_file_reader.dart';
 
 import '../../../helpers/ink_expectations.dart';
 
@@ -247,6 +249,98 @@ void main() {
       find.byKey(const ValueKey('agent-chat-desktop-header')),
       findsOneWidget,
     );
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('Ctrl+V admits clipboard images through the shared rule', (
+    tester,
+  ) async {
+    final tempDir = Directory.systemTemp.createTempSync(
+      'agent_chat_panel_paste_test_',
+    );
+    late ProviderContainer container;
+    addTearDown(() {
+      container.dispose();
+      if (tempDir.existsSync()) {
+        tempDir.deleteSync(recursive: true);
+      }
+    });
+    final clipboard = <DroppedFileData>[
+      DroppedFileData(
+        fileName: 'clip.png',
+        bytes: Uint8List.fromList(const [137, 80, 78, 71, 13, 10, 26, 10]),
+      ),
+      DroppedFileData(
+        fileName: 'clip.bmp',
+        bytes: Uint8List.fromList([0x42, 0x4D, 0, 0, 0, 0]),
+      ),
+    ];
+    final priorities = <ClipboardContentPriority>[];
+    container = ProviderContainer(
+      overrides: [
+        localStorageServiceProvider.overrideWithValue(_MemoryLocalStorage()),
+        agentChatNotifierProvider.overrideWith((ref) {
+          return _TestAgentChatNotifier(
+            ref,
+            supportDir: tempDir,
+            workspaceDir: tempDir,
+          );
+        }),
+        clipboardFileReaderProvider.overrideWithValue(({
+          required logTag,
+          priority = ClipboardContentPriority.image,
+          allowVibeFiles = false,
+        }) async {
+          priorities.add(priority);
+          return clipboard.removeAt(0);
+        }),
+      ],
+    );
+    await tester.runAsync(() async {
+      container.read(agentChatNotifierProvider);
+      await _waitForInitialized(container);
+    });
+    (container.read(agentChatNotifierProvider.notifier)
+            as _TestAgentChatNotifier)
+        .setRouteReady(true);
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: const MaterialApp(
+          locale: Locale('en'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(
+            body: SizedBox(width: 360, height: 720, child: AgentChatPanel()),
+          ),
+        ),
+      ),
+    );
+    final input = find.byKey(const ValueKey('agent-chat-input'));
+    Future<void> pasteWithControlV() async {
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+      await tester.sendKeyEvent(LogicalKeyboardKey.keyV);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+      await tester.pump();
+    }
+
+    await tester.tap(input);
+    await tester.pump();
+    await pasteWithControlV();
+
+    expect(priorities, [ClipboardContentPriority.text]);
+    expect(
+      find.byKey(const ValueKey('agent-chat-attachment-strip')),
+      findsOneWidget,
+    );
+    expect(tester.widget<TextField>(input).controller!.text, '[image1] ');
+
+    await pasteWithControlV();
+
+    expect(find.text('Unsupported image format: clip.bmp'), findsOneWidget);
+    expect(tester.widget<TextField>(input).controller!.text, '[image1] ');
+    await tester.pump(const Duration(seconds: 4));
+    await tester.pumpAndSettle();
     expect(tester.takeException(), isNull);
   });
 
