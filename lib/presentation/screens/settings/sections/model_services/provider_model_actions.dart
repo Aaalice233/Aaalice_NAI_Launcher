@@ -100,6 +100,7 @@ Future<void> showAddModelForm(
   final result = await AdaptivePresenter.showForm<ProviderModelFormResult>(
     context: context,
     dialogWidth: 480,
+    headerScrollsWithContent: true,
     title: context.l10n.modelServices_addModel,
     builder: (context, scrollController) => ProviderModelForm(
       provider: provider,
@@ -130,6 +131,7 @@ Future<void> showEditModelForm(
   final result = await AdaptivePresenter.showForm<ProviderModelFormResult>(
     context: context,
     dialogWidth: 480,
+    headerScrollsWithContent: true,
     title: context.l10n.modelServices_editModel,
     builder: (context, scrollController) => ProviderModelForm(
       provider: provider,

@@ -491,24 +491,38 @@ void main() {
     );
     expect(tester.takeException(), isNull);
 
-    for (final (trigger, dialogKey) in [
-      ('连接配置', 'prompt-assistant-connection-dialog'),
-      ('新增规则', 'prompt-assistant-rule-dialog'),
-    ]) {
-      await tester.scrollUntilVisible(
-        find.text(trigger),
-        200,
-        scrollable: contentScrollable,
-      );
-      await tester.tap(find.text(trigger));
+    Future<void> expectFormHeaderScrolls(Finder trigger, String formKey) async {
+      await tester.ensureVisible(trigger);
       await tester.pumpAndSettle();
-      expect(find.byKey(ValueKey(dialogKey)), findsOneWidget);
-      expectPanelHeaderScrollsWithContent(tester, reason: dialogKey);
-      expect(tester.takeException(), isNull, reason: dialogKey);
+      await tester.tap(trigger);
+      await tester.pumpAndSettle();
+      expect(find.byKey(ValueKey(formKey)), findsOneWidget);
+      expectPanelHeaderScrollsWithContent(tester, reason: formKey);
+      expect(tester.takeException(), isNull, reason: formKey);
       await tester.binding.handlePopRoute();
       await tester.pumpAndSettle();
-      expect(find.byKey(ValueKey(dialogKey)), findsNothing);
+      expect(find.byKey(ValueKey(formKey)), findsNothing);
     }
+
+    await expectFormHeaderScrolls(
+      find.byKey(const ValueKey('model-services-add-model')),
+      'model-services-model-form',
+    );
+
+    await tester.binding.handlePopRoute();
+    await tester.pumpAndSettle();
+    expect(find.byType(ProviderDetailPage), findsNothing);
+    await tester.tap(find.text('提示词助手'));
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(
+      find.text('新增规则'),
+      200,
+      scrollable: contentScrollable,
+    );
+    await expectFormHeaderScrolls(
+      find.text('新增规则'),
+      'prompt-assistant-rule-dialog',
+    );
 
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pumpAndSettle();

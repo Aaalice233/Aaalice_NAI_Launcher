@@ -19,6 +19,7 @@ Future<String?> showProviderEditor(
       await AdaptivePresenter.showForm<PromptAssistantProviderFormResult>(
         context: context,
         dialogWidth: 520,
+        headerScrollsWithContent: true,
         title: provider == null
             ? context.l10n.promptAssistant_addProvider
             : context.l10n.promptAssistant_editProviderTitle,
