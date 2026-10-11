@@ -13,7 +13,6 @@ import '../../../core/utils/localization_extension.dart';
 import '../../../data/models/queue/replication_task.dart';
 import '../../../data/models/queue/replication_task_generation_snapshot.dart';
 import '../../adaptive/adaptive_presenter.dart';
-import '../../providers/auth_provider.dart';
 import '../../../data/services/auth_provider.dart';
 import '../../providers/generation/image_workflow_controller.dart';
 import '../../providers/image_generation_provider.dart';

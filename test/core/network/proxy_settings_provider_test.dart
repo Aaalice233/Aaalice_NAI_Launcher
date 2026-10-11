@@ -5,7 +5,7 @@ import 'package:nai_launcher/core/constants/storage_keys.dart';
 import 'package:nai_launcher/core/platform/platform_capabilities.dart';
 import 'package:nai_launcher/core/storage/local_storage_service.dart';
 import 'package:nai_launcher/data/models/settings/proxy_settings.dart';
-import 'package:nai_launcher/presentation/providers/proxy_settings_provider.dart';
+import 'package:nai_launcher/core/network/proxy_settings_provider.dart';
 
 import '../../helpers/memory_local_storage.dart';
 

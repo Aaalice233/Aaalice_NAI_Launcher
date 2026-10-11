@@ -37,7 +37,7 @@ import 'layout_state_provider.dart';
 import 'local_gallery_provider.dart';
 import 'online_gallery_provider.dart';
 import 'precise_ref_library_provider.dart';
-import 'proxy_settings_provider.dart';
+import '../../core/network/proxy_settings_provider.dart';
 import 'random_preset_provider.dart';
 import 'tag_library_page_provider.dart';
 import 'tag_library_provider.dart';

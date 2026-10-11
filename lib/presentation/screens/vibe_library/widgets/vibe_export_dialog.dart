@@ -210,10 +210,11 @@ class _VibeExportDialogState extends ConsumerState<VibeExportDialog> {
       PlatformCapabilities.current.supportsDirectoryBatchExport ||
       _selectedExportEntryCount <= 1;
 
-  /// 与 [_export] 里的过滤口径保持一致，避免 `_selectedEntryIds` 里残留
+  /// 与 [_export] 里的过滤口径保持一致，避免选择集里残留
   /// 不属于 `widget.entries` 的 id 时数出错误的数量。
-  int get _selectedExportEntryCount =>
-      widget.entries.where((e) => _selectedEntryIds.contains(e.id)).length;
+  int get _selectedExportEntryCount => widget.entries
+      .where((e) => _selection.selectedEntryIds.contains(e.id))
+      .length;
 
   List<VibeExportFormat> get _availableFormats {
     return VibeExportFormat.values
@@ -301,7 +302,8 @@ class _VibeExportDialogState extends ConsumerState<VibeExportDialog> {
 
                       const Divider(height: 24),
 
-                      if (_effectiveExportFormat != VibeExportFormat.embeddedPng) ...[
+                      if (_effectiveExportFormat !=
+                          VibeExportFormat.embeddedPng) ...[
                         LibraryExportThumbnailOption(
                           title: context.l10n.vibe_export_include_thumbnails,
                           subtitle: context
