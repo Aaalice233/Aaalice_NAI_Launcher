@@ -30,6 +30,13 @@ class NaiGenerationResponseContext {
 }
 
 class NaiGenerationResponseProcessor {
+  /// 聚焦重绘只作用于源图与蒙版齐全的 infill 请求；估价据此判断是否按聚焦几何计费
+  static bool usesFocusedInpaint(ImageParams params, {required bool enabled}) =>
+      enabled &&
+      params.action == ImageGenerationAction.infill &&
+      params.sourceImage != null &&
+      params.maskImage != null;
+
   /// [focusedContextCrop] 为聚焦外扩的固定裁切区；重绘请求准备失败时直接报错，
   /// 退回普通重绘会把整张拼接画布原样发出去
   Future<FocusedInpaintRequest?> prepareFocusedInpaint(
@@ -39,10 +46,7 @@ class NaiGenerationResponseProcessor {
     Rect? focusedSelectionRect,
     Rect? focusedContextCrop,
   }) async {
-    if (!enabled ||
-        params.action != ImageGenerationAction.infill ||
-        params.sourceImage == null ||
-        params.maskImage == null) {
+    if (!usesFocusedInpaint(params, enabled: enabled)) {
       return null;
     }
 

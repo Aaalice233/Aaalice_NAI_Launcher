@@ -374,6 +374,40 @@ class FocusedInpaintUtils {
     );
   }
 
+  /// [prepareRequest] 将采用的请求几何，只解码不做裁剪、缩放与编码；
+  /// 返回 null 时执行端不会发出聚焦重绘请求。
+  static FocusedInpaintGeometry? resolveRequestGeometry({
+    required Uint8List sourceImage,
+    required Uint8List maskImage,
+    Rect? focusedSelectionRect,
+    Rect? contextCrop,
+    required double minContextMegaPixels,
+  }) => _resolveFocusedContext(
+    sourceImage: sourceImage,
+    maskImage: maskImage,
+    focusedSelectionRect: focusedSelectionRect,
+    contextCrop: contextCrop,
+    minContextMegaPixels: minContextMegaPixels,
+  )?.geometry;
+
+  static Future<FocusedInpaintGeometry?> resolveRequestGeometryAsync({
+    required Uint8List sourceImage,
+    required Uint8List maskImage,
+    Rect? focusedSelectionRect,
+    Rect? contextCrop,
+    required double minContextMegaPixels,
+  }) {
+    return ComputeGate().runIsolate(
+      () => resolveRequestGeometry(
+        sourceImage: sourceImage,
+        maskImage: maskImage,
+        focusedSelectionRect: focusedSelectionRect,
+        contextCrop: contextCrop,
+        minContextMegaPixels: minContextMegaPixels,
+      ),
+    );
+  }
+
   /// [contextCrop] 给定时按它原样裁切（取景框），不再从选区或蒙版推导上下文
   static FocusedInpaintRequest? prepareRequest({
     required Uint8List sourceImage,

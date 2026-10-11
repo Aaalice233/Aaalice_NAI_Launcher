@@ -5,16 +5,16 @@ import '../../../core/agent/agent_types.dart';
 import '../../../core/services/anlas_calculator.dart';
 import '../../../core/utils/isolate_pool.dart';
 import '../../../core/utils/json_utf8_stream.dart';
-import '../../../data/models/image/image_params.dart';
 import '../../../data/models/queue/replication_task.dart';
 import '../../../data/models/queue/replication_task_generation_snapshot.dart';
 import '../../../data/models/queue/replication_task_status.dart';
-import '../../providers/cost_estimate_provider.dart';
+import '../../providers/generation/image_workflow_controller.dart';
 import '../../providers/image_generation_provider.dart';
 import '../../providers/queue_execution_provider.dart';
+import '../../providers/queued_generation_request.dart';
 import '../../providers/replication_queue_provider.dart';
-import '../../providers/subscription_provider.dart';
 import 'defined_agent_tool.dart';
+import 'generation_anlas_estimator.dart';
 import 'queue_toolbox_serialization.dart';
 import 'toolbox_json.dart';
 
@@ -454,66 +454,39 @@ class QueueToolbox {
     return true;
   }
 
+  // 与执行端同源：快照记录的批量与聚焦状态优先，缺失时跟随生成页当前设置
   Future<int> _estimate(List<ReplicationTask> tasks) async {
     final base = _ref.read(generationParamsNotifierProvider);
-    final subscription = _ref.read(subscriptionNotifierProvider).subscription;
-    final tier = subscription?.isOpus == true ? AnlasCalculator.opusTier : 0;
-    final batchSize = _ref.read(imagesPerRequestProvider);
+    final pageFocused = _ref
+        .read(imageWorkflowControllerProvider)
+        .focusedSnapshot;
+    final estimator = GenerationAnlasEstimator(_ref);
     var total = 0;
     // 逐个解码：同一时刻只持有一份解码后的快照
     for (final task in tasks) {
-      final params = task.generationSnapshot == null
-          ? base.copyWith(
-              prompt: task.prompt,
-              negativePrompt: task.applyNegativePrompt
-                  ? task.negativePrompt
-                  : base.negativePrompt,
-              model: task.model ?? base.model,
-              sampler: task.sampler ?? base.sampler,
-              steps: task.steps ?? base.steps,
-              scale: task.cfgScale ?? base.scale,
-              seed: task.seed ?? -1,
-              width: task.width ?? base.width,
-              height: task.height ?? base.height,
-              nSamples: 1,
-            )
-          : (await ReplicationTaskGenerationSnapshot.decode(
-              task.generationSnapshot!,
-            )).copyWith(
-              prompt: task.prompt,
-              negativePrompt: task.applyNegativePrompt
-                  ? task.negativePrompt
-                  : base.negativePrompt,
-              nSamples: 1,
+      final snapshot = task.generationSnapshot;
+      final snapshotParams = snapshot == null
+          ? null
+          : await ReplicationTaskGenerationSnapshot.decode(snapshot);
+      final focused = snapshot == null
+          ? null
+          : queuedFocusedOverride(
+              ReplicationTaskGenerationSnapshot.decodeFocused(snapshot),
             );
-      final billingSize = resolveGenerationBillingSize(
-        width: params.width,
-        height: params.height,
-        maxEnhance: params.effectiveUpscaledEnhance,
+      final params = await resolveFocusedBillingParams(
+        resolveQueuedTaskParams(
+          task,
+          base: base,
+          snapshotParams: snapshotParams,
+        ),
+        focused ?? pageFocused,
       );
-      final cost = AnlasCalculator.calculateRequestCost(
-        width: billingSize.width,
-        height: billingSize.height,
-        steps: params.steps,
-        batchCount: 1,
-        batchSize: batchSize,
-        smea: params.effectiveSmea,
-        smeaDyn: params.effectiveSmeaDyn,
-        model: params.model,
-        subscriptionTier: tier,
-        opusQuotaExhausted: subscription?.usage?.isNegative ?? false,
-        strength: switch (params.action) {
-          ImageGenerationAction.img2img => params.strength,
-          ImageGenerationAction.infill => params.inpaintStrength,
-          ImageGenerationAction.generate => 1,
-        },
-        extraPerSampleCost: AnlasCalculator.resolvePreciseReferenceExtraCost(
-          params,
-        ),
-        extraPerRequestCost: AnlasCalculator.resolveVibeReferenceExtraCost(
-          params,
-        ),
-        oneTimeCost: AnlasCalculator.resolveVibeEncodingCost(params),
+      final cost = estimator.estimate(
+        params,
+        requestCount: 1,
+        batchSize: snapshot == null
+            ? null
+            : ReplicationTaskGenerationSnapshot.decodeBatchSize(snapshot),
       );
       if (cost == AnlasCalculator.invalidCost) return cost;
       total += cost;

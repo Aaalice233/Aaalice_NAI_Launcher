@@ -19,6 +19,7 @@ import 'image_generation_provider.dart';
 import '../../data/services/auth_provider.dart';
 import 'krita/krita_bridge_notifier.dart';
 import 'notification_settings_provider.dart';
+import 'queued_generation_request.dart';
 import 'replication_queue_provider.dart';
 import '../../core/services/notification_service.dart';
 
@@ -457,36 +458,20 @@ class QueueExecutionNotifier extends _$QueueExecutionNotifier {
       if (ready == null) return;
       final (task, snapshotParams) = ready;
 
-      final baseParams = ref.read(generationParamsNotifierProvider);
       final snapshot = task.generationSnapshot;
       final batchSizeOverride = snapshot == null
           ? null
           : ReplicationTaskGenerationSnapshot.decodeBatchSize(snapshot);
-      final queuedFocused = snapshot == null
-          ? null
-          : ReplicationTaskGenerationSnapshot.decodeFocused(snapshot);
-      final params = snapshotParams == null
-          ? baseParams.copyWith(
-              prompt: task.prompt,
-              negativePrompt: task.applyNegativePrompt
-                  ? task.negativePrompt
-                  : baseParams.negativePrompt,
-              model: task.model ?? baseParams.model,
-              sampler: task.sampler ?? baseParams.sampler,
-              steps: task.steps ?? baseParams.steps,
-              scale: task.cfgScale ?? baseParams.scale,
-              seed: task.seed ?? -1,
-              width: task.width ?? baseParams.width,
-              height: task.height ?? baseParams.height,
-              nSamples: 1,
-            )
-          : snapshotParams.copyWith(
-              prompt: task.prompt,
-              negativePrompt: task.applyNegativePrompt
-                  ? task.negativePrompt
-                  : baseParams.negativePrompt,
-              nSamples: 1,
-            );
+      final focusedOverride = queuedFocusedOverride(
+        snapshot == null
+            ? null
+            : ReplicationTaskGenerationSnapshot.decodeFocused(snapshot),
+      );
+      final params = resolveQueuedTaskParams(
+        task,
+        base: ref.read(generationParamsNotifierProvider),
+        snapshotParams: snapshotParams,
+      );
 
       // generate() 在首次异步让出前会把状态切到 generating；此后由生成状态
       // 本身阻止重复提交，不要让该锁跨越整次生成而吞掉下一任务的触发。
@@ -495,14 +480,7 @@ class QueueExecutionNotifier extends _$QueueExecutionNotifier {
         params,
         batchSizeOverride: batchSizeOverride,
         preserveCharacterSnapshot: snapshot != null,
-        focusedOverride: queuedFocused == null
-            ? null
-            : GenerationFocusedSnapshot(
-                enabled: queuedFocused.enabled,
-                minimumContextMegaPixels: queuedFocused.contextPadding,
-                selectionRect: queuedFocused.selectionRect,
-                contextCrop: queuedFocused.contextCrop,
-              ),
+        focusedOverride: focusedOverride,
       );
     } on FormatException catch (error, stackTrace) {
       final taskId = state.currentTaskId;

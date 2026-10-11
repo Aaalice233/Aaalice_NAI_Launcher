@@ -508,16 +508,9 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
         focused: GenerationFocusedPreparation(
           // 只有生成页会把聚焦状态存在 workflow 里；Agent 等其他提交方必须显式
           // 传入，否则会继承上一张图残留的聚焦选区。
-          read: () {
-            if (focusedOverride != null) return focusedOverride;
-            final workflow = ref.read(imageWorkflowControllerProvider);
-            return GenerationFocusedSnapshot(
-              enabled: workflow.focusedInpaintEnabled,
-              minimumContextMegaPixels: workflow.minimumContextMegaPixels,
-              selectionRect: workflow.focusedSelectionRect,
-              contextCrop: workflow.focusedContextCrop,
-            );
-          },
+          read: () =>
+              focusedOverride ??
+              ref.read(imageWorkflowControllerProvider).focusedSnapshot,
         ),
         vibes: GenerationVibePreparation(prepare: _prepareVibesForGeneration),
       ),

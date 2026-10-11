@@ -932,6 +932,98 @@ void main() {
       }
     });
   });
+
+  group('resolveRequestGeometry matches what prepareRequest sends', () {
+    Uint8List png(img.Image image) => Uint8List.fromList(img.encodePng(image));
+    img.Image black(int width, int height) => img.fill(
+      img.Image(width: width, height: height),
+      color: img.ColorRgb8(0, 0, 0),
+    );
+    final source = png(black(1200, 800));
+    final mask = png(_buildIrregularMask(width: 1200, height: 800));
+
+    final focusModes = <String, ({Rect? selection, Rect? crop})>{
+      'mask bounds': (selection: null, crop: null),
+      'explicit selection': (
+        selection: const Rect.fromLTWH(120, 160, 240, 280),
+        crop: null,
+      ),
+      'context crop': (
+        selection: null,
+        crop: const Rect.fromLTWH(300, 100, 640, 512),
+      ),
+    };
+    for (final MapEntry(key: name, value: focus) in focusModes.entries) {
+      test(name, () {
+        final request = FocusedInpaintUtils.prepareRequest(
+          sourceImage: source,
+          maskImage: mask,
+          focusedSelectionRect: focus.selection,
+          contextCrop: focus.crop,
+          minContextMegaPixels: 88,
+        )!;
+        final geometry = FocusedInpaintUtils.resolveRequestGeometry(
+          sourceImage: source,
+          maskImage: mask,
+          focusedSelectionRect: focus.selection,
+          contextCrop: focus.crop,
+          minContextMegaPixels: 88,
+        )!;
+
+        expect(
+          (geometry.requestWidth, geometry.requestHeight),
+          (request.targetWidth, request.targetHeight),
+        );
+        expect(
+          (
+            geometry.contextCrop.x,
+            geometry.contextCrop.y,
+            geometry.contextCrop.width,
+            geometry.contextCrop.height,
+          ),
+          (
+            request.crop.x,
+            request.crop.y,
+            request.crop.width,
+            request.crop.height,
+          ),
+        );
+      });
+    }
+
+    test('is null exactly when prepareRequest sends no focused request', () {
+      final rejected = <String, ({Uint8List mask, Rect? crop})>{
+        'empty mask': (mask: png(black(1200, 800)), crop: null),
+        'mask size differs': (mask: png(black(600, 400)), crop: null),
+        'crop without masked pixels': (
+          mask: mask,
+          crop: const Rect.fromLTWH(0, 0, 128, 128),
+        ),
+      };
+      for (final MapEntry(key: name, value: input) in rejected.entries) {
+        expect(
+          FocusedInpaintUtils.prepareRequest(
+            sourceImage: source,
+            maskImage: input.mask,
+            contextCrop: input.crop,
+            minContextMegaPixels: 88,
+          ),
+          isNull,
+          reason: name,
+        );
+        expect(
+          FocusedInpaintUtils.resolveRequestGeometry(
+            sourceImage: source,
+            maskImage: input.mask,
+            contextCrop: input.crop,
+            minContextMegaPixels: 88,
+          ),
+          isNull,
+          reason: name,
+        );
+      }
+    });
+  });
 }
 
 /// 构造带斜向笔画、分离色块与孔洞的不规则蒙版。
