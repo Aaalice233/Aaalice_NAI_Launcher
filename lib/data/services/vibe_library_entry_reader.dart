@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 
 import '../../core/utils/app_logger.dart';
+import '../../core/utils/byte_content.dart';
 import '../../core/utils/vibe_performance_diagnostics.dart';
 import '../models/vibe/vibe_library_entry.dart';
 import '../models/vibe/vibe_reference.dart';
@@ -8,6 +9,15 @@ import 'vibe_display_cache_repository.dart';
 import 'vibe_file_storage_service.dart';
 import 'vibe_library_storage_protocol.dart';
 import 'vibe_library_storage_types.dart';
+
+/// Whether saving [vibe] to the library may overwrite [entry] as its original.
+///
+/// Raw image bytes are only compared once the name matches and the encodings
+/// differ; two entries without raw images count as the same source.
+bool isVibeOverwriteCandidate(VibeLibraryEntry entry, VibeReference vibe) =>
+    entry.displayName == vibe.displayName &&
+    (entry.vibeEncoding == vibe.vibeEncoding ||
+        ByteContent.equals(entry.rawImageData, vibe.rawImageData));
 
 /// Read/query boundary for full entries, detail documents, and display views.
 class VibeLibraryEntryReader {
@@ -31,7 +41,7 @@ class VibeLibraryEntryReader {
     final thumbnail = vibe.thumbnail;
     if (thumbnail == null || thumbnail.isEmpty) return null;
     return _repository.firstEntryWhere(
-      (entry) => _bytesEqual(entry.thumbnail, thumbnail),
+      (entry) => ByteContent.equals(entry.thumbnail, thumbnail),
     );
   }
 
@@ -39,10 +49,7 @@ class VibeLibraryEntryReader {
     if (vibes.length != 1) return Future.value();
     final vibe = vibes.single;
     return _repository.firstEntryWhere(
-      (entry) =>
-          entry.displayName == vibe.displayName &&
-          (entry.vibeEncoding == vibe.vibeEncoding ||
-              _bytesEqual(entry.rawImageData, vibe.rawImageData)),
+      (entry) => isVibeOverwriteCandidate(entry, vibe),
     );
   }
 
@@ -248,16 +255,5 @@ class VibeLibraryEntryReader {
       strength: params.strength,
       infoExtracted: params.infoExtracted,
     );
-  }
-
-  bool _bytesEqual(Uint8List? left, Uint8List? right) {
-    if (identical(left, right)) return true;
-    if (left == null || right == null || left.length != right.length) {
-      return false;
-    }
-    for (var index = 0; index < left.length; index++) {
-      if (left[index] != right[index]) return false;
-    }
-    return true;
   }
 }

@@ -10,6 +10,7 @@ import '../../../core/constants/model_capabilities.dart';
 import '../../../core/enums/precise_ref_type.dart';
 import '../../../core/storage/local_storage_service.dart';
 import '../../../core/utils/app_logger.dart';
+import '../../../core/utils/byte_content.dart';
 import '../../../core/utils/nai_api_utils.dart';
 import '../../../core/utils/vibe_performance_diagnostics.dart';
 import '../../../data/models/image/image_params.dart';
@@ -381,7 +382,7 @@ Uint8List _encodeStateJson(Map<String, Object?> input) {
           'bundleSource': raw['bundleSource'],
           'thumbnailBase64':
               preview != null &&
-                  (rawImage == null || !_bytesEqual(preview, rawImage))
+                  (rawImage == null || !ByteContent.equals(preview, rawImage))
               ? base64Encode(preview)
               : null,
           'rawImageDataBase64': rawImage == null
@@ -484,13 +485,4 @@ Uint8List? _decodeBase64(String? value) {
   } catch (_) {
     return null;
   }
-}
-
-bool _bytesEqual(Uint8List left, Uint8List right) {
-  if (identical(left, right)) return true;
-  if (left.length != right.length) return false;
-  for (var index = 0; index < left.length; index++) {
-    if (left[index] != right[index]) return false;
-  }
-  return true;
 }

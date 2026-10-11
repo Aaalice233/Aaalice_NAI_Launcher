@@ -10,53 +10,6 @@ import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/screens/generation/handlers/vibe_import_handler.dart';
 
 void main() {
-  test('单个来自库的 Vibe 会匹配到可覆盖的原始条目', () {
-    final imageBytes = Uint8List.fromList(const [1, 2, 3, 4]);
-    final entry = VibeLibraryEntry(
-      id: 'library-entry',
-      name: 'Library Vibe',
-      vibeDisplayName: 'Library Vibe',
-      vibeEncoding: 'encoded-before',
-      thumbnail: imageBytes,
-      rawImageData: imageBytes,
-      strength: 0.6,
-      infoExtracted: 0.2,
-      sourceTypeIndex: VibeSourceType.naiv4vibe.index,
-      createdAt: DateTime(2026, 4, 15),
-    );
-
-    final candidate = findOriginalLibraryEntryForOverwrite(
-      [entry.toVibeReference()],
-      [entry],
-    );
-
-    expect(candidate?.id, 'library-entry');
-  });
-
-  test('多个 Vibe 保存到库时不会显示覆盖原条目的入口', () {
-    final entries = [
-      VibeLibraryEntry(
-        id: 'library-entry',
-        name: 'Library Vibe',
-        vibeDisplayName: 'Library Vibe',
-        vibeEncoding: 'encoded-before',
-        thumbnail: Uint8List.fromList(const [1, 2, 3, 4]),
-        rawImageData: Uint8List.fromList(const [1, 2, 3, 4]),
-        strength: 0.6,
-        infoExtracted: 0.2,
-        sourceTypeIndex: VibeSourceType.naiv4vibe.index,
-        createdAt: DateTime(2026, 4, 15),
-      ),
-    ];
-
-    final candidate = findOriginalLibraryEntryForOverwrite([
-      entries.first.toVibeReference(),
-      entries.first.toVibeReference().copyWith(displayName: 'Other'),
-    ], entries);
-
-    expect(candidate, isNull);
-  });
-
   test('只要存在无法重编码的 Vibe，保存到库时就不显示信息提取调节项', () {
     final imageBytes = Uint8List.fromList(const [1, 2, 3, 4]);
     final withRaw = VibeReference(

@@ -372,7 +372,11 @@ Future<List<VibeReference>> showVibeEmbedSelectionForm({
   required BuildContext context,
   required List<VibeReference> vibes,
 }) async {
-  final selected = <VibeReference>[];
+  // 按下标记录：Vibe 的 == 会深比较整张原图，内容相同的两项还会被连带勾选
+  final selectedIndices = <int>{};
+  List<VibeReference> selectedVibes() => List<VibeReference>.unmodifiable([
+    for (final index in selectedIndices) vibes[index],
+  ]);
   final result = await AdaptivePresenter.showForm<List<VibeReference>>(
     context: context,
     title: context.l10n.vibe_export_selectToEmbed,
@@ -388,19 +392,18 @@ Future<List<VibeReference>> showVibeEmbedSelectionForm({
               itemCount: vibes.length,
               itemBuilder: (context, index) {
                 final vibe = vibes[index];
-                final isSelected = selected.contains(vibe);
                 return CheckboxListTile(
                   title: Text(vibe.displayName),
                   subtitle: Text(
                     panelContext.vibeSourceTypeLabel(vibe.sourceType),
                   ),
-                  value: isSelected,
+                  value: selectedIndices.contains(index),
                   onChanged: (value) {
                     setState(() {
                       if (value == true) {
-                        selected.add(vibe);
+                        selectedIndices.add(index);
                       } else {
-                        selected.remove(vibe);
+                        selectedIndices.remove(index);
                       }
                     });
                   },
@@ -424,16 +427,15 @@ Future<List<VibeReference>> showVibeEmbedSelectionForm({
                   TextButton(
                     key: const ValueKey('vibe-embed-selection-cancel'),
                     onPressed: () {
-                      selected.clear();
+                      selectedIndices.clear();
                       Navigator.of(panelContext).pop(<VibeReference>[]);
                     },
                     child: Text(panelContext.l10n.common_cancel),
                   ),
                   FilledButton(
                     key: const ValueKey('vibe-embed-selection-confirm'),
-                    onPressed: () => Navigator.of(
-                      panelContext,
-                    ).pop(List<VibeReference>.unmodifiable(selected)),
+                    onPressed: () =>
+                        Navigator.of(panelContext).pop(selectedVibes()),
                     child: Text(panelContext.l10n.common_confirm),
                   ),
                 ],
@@ -445,5 +447,5 @@ Future<List<VibeReference>> showVibeEmbedSelectionForm({
     ),
   );
 
-  return result ?? List<VibeReference>.unmodifiable(selected);
+  return result ?? selectedVibes();
 }

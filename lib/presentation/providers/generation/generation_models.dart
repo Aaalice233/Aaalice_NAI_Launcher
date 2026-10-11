@@ -1,9 +1,9 @@
 import 'dart:typed_data';
 
-import 'package:crypto/crypto.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../../core/constants/api_constants.dart';
+import '../../../core/utils/byte_content.dart';
 import '../../../core/utils/nai_resolution_adapter.dart';
 import '../../../data/models/gallery/nai_image_metadata.dart';
 import '../../../data/models/fixed_tag/fixed_tag_usage_snapshot.dart';
@@ -23,13 +23,13 @@ class ImageComparisonSource {
     required this.bytes,
     required this.width,
     required this.height,
-    required String contentDigest,
-  }) : _contentDigest = contentDigest;
+    required int contentFingerprint,
+  }) : _contentFingerprint = contentFingerprint;
 
   final Uint8List bytes;
   final int width;
   final int height;
-  final String _contentDigest;
+  final int _contentFingerprint;
 
   static ImageComparisonSource? fromBytes(
     Uint8List bytes, {
@@ -40,11 +40,10 @@ class ImageComparisonSource {
     final size = NaiResolutionAdapter.readImageSize(bytes);
     if (size == null || size.$1 <= 0 || size.$2 <= 0) return null;
 
-    final contentDigest = sha256.convert(bytes).toString();
+    final contentFingerprint = ByteContent.fingerprint(bytes);
     for (final candidate in reuseCandidates) {
-      if (candidate._contentDigest == contentDigest &&
-          candidate.bytes.length == bytes.length &&
-          _sameBytes(candidate.bytes, bytes)) {
+      if (candidate._contentFingerprint == contentFingerprint &&
+          ByteContent.equals(candidate.bytes, bytes)) {
         return candidate;
       }
     }
@@ -53,15 +52,8 @@ class ImageComparisonSource {
       bytes: Uint8List.fromList(bytes).asUnmodifiableView(),
       width: size.$1,
       height: size.$2,
-      contentDigest: contentDigest,
+      contentFingerprint: contentFingerprint,
     );
-  }
-
-  static bool _sameBytes(Uint8List first, Uint8List second) {
-    for (var index = 0; index < first.length; index++) {
-      if (first[index] != second[index]) return false;
-    }
-    return true;
   }
 
   /// Accepts an exact ratio, Enhance's grid rounding or per-edge scaler drift.

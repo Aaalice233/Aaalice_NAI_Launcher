@@ -137,6 +137,8 @@ class _VibeExportDialogState extends ConsumerState<VibeExportDialog> {
   Uint8List? _selectedExternalCarrierImageBytes;
   String? _selectedExternalCarrierImagePath;
   String? _carrierImageErrorMessage;
+  ({VibeLibraryEntry entry, List<VibeExportImageCandidate> options})?
+  _carrierImageOptionsMemo;
 
   late final LibrarySelectionTree<VibeLibraryEntry> _tree;
   late final LibrarySelectionController _selection;
@@ -192,9 +194,16 @@ class _VibeExportDialogState extends ConsumerState<VibeExportDialog> {
     if (entry == null) {
       return const <VibeExportImageCandidate>[];
     }
-    return VibeExportUtils.collectImageCandidates(entry)
+    // build 每次重建都会读取，按条目身份缓存，免得反复比较整张原图
+    final memo = _carrierImageOptionsMemo;
+    if (memo != null && identical(memo.entry, entry)) {
+      return memo.options;
+    }
+    final options = VibeExportUtils.collectImageCandidates(entry)
         .where((candidate) => _isPngBytes(candidate.bytes))
         .toList(growable: false);
+    _carrierImageOptionsMemo = (entry: entry, options: options);
+    return options;
   }
 
   List<VibeExportFormat> get _availableFormats {

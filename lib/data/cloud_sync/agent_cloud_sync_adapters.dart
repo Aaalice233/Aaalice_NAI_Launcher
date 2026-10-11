@@ -2,13 +2,13 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
-import 'package:crypto/crypto.dart';
 import 'package:path/path.dart' as p;
 
 import '../../core/agent/skill_archive_service.dart';
 import '../../core/agent/skill_catalog.dart';
 import '../../core/constants/storage_keys.dart';
 import '../../core/storage/local_storage_service.dart';
+import '../../core/utils/byte_content.dart';
 import '../models/agent/agent_settings.dart';
 import 'cloud_sync_data_adapter.dart';
 import 'portable_sync_record.dart';
@@ -384,7 +384,7 @@ class AgentSkillsCloudSyncAdapter extends ValidatingCloudSyncDataAdapter {
         final localBytes = await _archiveService.exportSkills([
           (name: local.id, manifest: File(local.skill.filePath)),
         ]);
-        if (sha256.convert(localBytes) == sha256.convert(bytes)) continue;
+        if (ByteContent.equals(localBytes, bytes)) continue;
         final normalizedTarget = p.normalize(
           p.join(target.path, parsed.name, 'SKILL.md'),
         );
