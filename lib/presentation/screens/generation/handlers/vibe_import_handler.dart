@@ -92,6 +92,7 @@ class VibeImportHandler {
               parsedFiles++;
               parsedVibes += vibes.length;
 
+              await notifier.prepareVibeImageHashes(vibes);
               notifier.addVibeReferences(vibes);
               addedVibes += vibes.length;
             } catch (e) {
@@ -157,8 +158,9 @@ class VibeImportHandler {
       }
       groups.add((vibes: vibes, libraryId: entry?.id));
     }
-    if (!context.mounted) return 0;
     final all = groups.expand((group) => group.vibes).toList();
+    await notifier.prepareVibeImageHashes(all);
+    if (!context.mounted) return 0;
     notifier.validateVibeReferenceBatch(all);
     // No asynchronous gap between validation and applying the ordered groups.
     for (final group in groups) {

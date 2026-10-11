@@ -427,15 +427,19 @@ class GlobalDropActionCoordinator {
         }
         return false;
       }
-      for (final vibe in vibes) {
-        final vibeToAdd = forceRaw && vibe.vibeEncoding.isNotEmpty
-            ? vibe.copyWith(
-                vibeEncoding: '',
-                rawImageData: bytes,
-                sourceType: VibeSourceType.rawImage,
-              )
-            : vibe;
-        notifier.addVibeReference(vibeToAdd);
+      final vibesToAdd = [
+        for (final vibe in vibes)
+          forceRaw && vibe.vibeEncoding.isNotEmpty
+              ? vibe.copyWith(
+                  vibeEncoding: '',
+                  rawImageData: bytes,
+                  sourceType: VibeSourceType.rawImage,
+                )
+              : vibe,
+      ];
+      await notifier.prepareVibeImageHashes(vibesToAdd);
+      for (final vibe in vibesToAdd) {
+        notifier.addVibeReference(vibe);
       }
       if (context.mounted) {
         AppToast.success(
@@ -471,6 +475,8 @@ class GlobalDropActionCoordinator {
     GenerationParamsNotifier notifier,
     AppLocalizations l10n,
   ) async {
+    await notifier.prepareVibeImageHashes([vibe]);
+    if (!context.mounted) return false;
     final currentState = ref.read(generationParamsNotifierProvider);
     const maxCount = 16;
     if (currentState.vibeReferencesV4.length >= maxCount) {
