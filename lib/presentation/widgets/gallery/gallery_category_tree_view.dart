@@ -355,13 +355,13 @@ class _GalleryCategoryTreeViewState extends State<GalleryCategoryTreeView> {
           setState(() => _superDraggingCategoryIds.remove(key));
         }
       },
-      onPerformDrop: (event) async {
+      onPerformDrop: (event) {
         final key = categoryId ?? '__root__';
         if (_superDraggingCategoryIds.contains(key)) {
           setState(() => _superDraggingCategoryIds.remove(key));
         }
 
-        await performGalleryDrop(
+        return performGalleryDrop(
           context,
           event,
           (paths) => widget.onImagesDrop!(paths, categoryId),

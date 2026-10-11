@@ -11,6 +11,7 @@ import '../../../../../core/utils/app_logger.dart';
 import '../../../../../core/utils/picture_png_encoder.dart';
 import '../../../../adaptive/interaction_policy.dart';
 import '../../../../utils/card_drop_reader.dart';
+import '../../../../utils/native_drop_callback.dart';
 import '../../../../widgets/common/app_toast.dart';
 import '../../../../themes/design_tokens.dart';
 import '../../../../widgets/common/decoded_memory_image.dart';
@@ -246,9 +247,10 @@ class _VibePreviewDropZoneState extends State<VibePreviewDropZone> {
       onDropLeave: (_) {
         if (_isDragging) setState(() => _isDragging = false);
       },
-      onPerformDrop: (event) async {
-        await _handleDrop(event);
-      },
+      onPerformDrop: (event) => releaseNativeDropCallback(
+        () => _handleDrop(event),
+        library: 'VibePreviewDropZone',
+      ),
       child: content,
     );
   }

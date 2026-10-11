@@ -213,15 +213,19 @@ void main() {
     ) async {
       final references = <String>[];
       final images = <String>[];
+      final requested = <DropItem>[];
       final external = TestCardDropItem(formats: [Formats.png]);
       await tester.pumpWidget(
         _dropRegionApp(
           onDrop: (reference) async => references.add(reference.resourceId),
           onDropImages: (files) async =>
               images.addAll(files.map((file) => file.fileName)),
-          readExternalImage: (item) async => identical(item, external)
-              ? DroppedFileData(fileName: 'shot.png', bytes: Uint8List(8))
-              : null,
+          readExternalImage: (item) async {
+            requested.add(item);
+            return identical(item, external)
+                ? DroppedFileData(fileName: 'shot.png', bytes: Uint8List(8))
+                : null;
+          },
         ),
       );
       final region = tester.widget<DropRegion>(find.byType(DropRegion));
@@ -231,13 +235,16 @@ void main() {
       ]);
       addTearDown(session.dispose);
 
-      await region.onPerformDrop(
+      final native = region.onPerformDrop(
         PerformDropEvent(
           session: session,
           position: testCardDropPosition,
           acceptedOperation: DropOperation.copy,
         ),
       );
+      expect(requested, [external]);
+      await native;
+      await tester.pump();
 
       expect(references, ['vibe-1']);
       expect(images, ['shot.png']);
@@ -265,6 +272,7 @@ void main() {
       ]);
       addTearDown(session.dispose);
 
+      var nativeReturned = false;
       final drop = region.onPerformDrop(
         PerformDropEvent(
           session: session,
@@ -272,7 +280,9 @@ void main() {
           acceptedOperation: DropOperation.copy,
         ),
       );
+      unawaited(drop.then((_) => nativeReturned = true));
       await tester.pump();
+      expect(nativeReturned, isTrue);
       expect(find.byType(CircularProgressIndicator), findsOneWidget);
 
       pendingRead.complete(

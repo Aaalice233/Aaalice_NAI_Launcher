@@ -1,5 +1,6 @@
 import '../../widgets/common/image_card_batch_scope.dart';
 import '../../utils/card_drop_reader.dart';
+import '../../utils/native_drop_callback.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../services/library_sidebar_move_service.dart';
@@ -118,9 +119,12 @@ class VibeLibraryWorkspace extends StatelessWidget {
             return DropOperation.copy;
           },
           onDropLeave: (_) => controller.setDragging(false),
-          onPerformDrop: (event) async {
+          onPerformDrop: (event) {
             controller.setDragging(false);
-            await onCommand(PerformVibeDropCommand(event));
+            return releaseNativeDropCallback(
+              () => onCommand(PerformVibeDropCommand(event)),
+              library: 'VibeLibraryWorkspace',
+            );
           },
           child: content,
         );

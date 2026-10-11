@@ -18,6 +18,7 @@ import '../../../providers/tag_library_page_provider.dart';
 import '../../../prompt_assistant/providers/prompt_assistant_history_provider.dart';
 import '../../../utils/asset_protection_guard.dart';
 import '../../../utils/card_drop_reader.dart';
+import '../../../utils/native_drop_callback.dart';
 import '../../../widgets/common/image_card_action.dart';
 import '../../../../core/utils/localization_extension.dart';
 import '../../../widgets/common/app_toast.dart';
@@ -192,9 +193,12 @@ class _ReversePromptPanelState extends ConsumerState<ReversePromptPanel> {
           setState(() => _isDragging = false);
         }
       },
-      onPerformDrop: (event) async {
+      onPerformDrop: (event) {
         setState(() => _isDragging = false);
-        await _handleDrop(event);
+        return releaseNativeDropCallback(
+          () => _handleDrop(event),
+          library: 'ReversePromptPanel',
+        );
       },
       child: button,
     );

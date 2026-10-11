@@ -20,6 +20,7 @@ void main() {
   ) async {
     final accepted = <String>[];
     final resolved = <String>[];
+    final resolvedAtAccept = <List<String>>[];
     await tester.pumpWidget(
       app(
         LibraryClassificationDropTarget<String>(
@@ -29,7 +30,7 @@ void main() {
             return id;
           },
           onAccept: (id) {
-            expect(resolved, ['a', 'b']);
+            resolvedAtAccept.add(List.of(resolved));
             accepted.add(id);
           },
           child: const SizedBox(width: 100, height: 60),
@@ -55,7 +56,12 @@ void main() {
         acceptedOperation: DropOperation.copy,
       ),
     );
+    await tester.pump();
     expect(accepted, ['a', 'b']);
+    expect(resolvedAtAccept, [
+      ['a', 'b'],
+      ['a', 'b'],
+    ]);
   });
 
   testWidgets('mixed types and empty sets reject the entire set', (
@@ -124,6 +130,8 @@ void main() {
         acceptedOperation: DropOperation.copy,
       ),
     );
+    await tester.pump();
+    expect(find.textContaining('missing'), findsOneWidget);
     expect(accepted, isEmpty);
     await tester.pumpWidget(const SizedBox());
     await tester.pumpAndSettle();

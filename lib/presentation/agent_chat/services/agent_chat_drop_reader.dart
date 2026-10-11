@@ -38,9 +38,10 @@ class AgentChatDropReader {
             isInternal(item) || _externalImageFormats.any(item.canProvide),
       );
 
-  /// Callers must await this inside the perform callback: the native readers
-  /// die with the drop session. One unreadable item never hides the others;
-  /// it comes back as an [AgentChatDropFailure].
+  /// Issues every native read before returning, because the readers die with
+  /// the drop session; await the result outside the perform callback. One
+  /// unreadable item never hides the others; it comes back as an
+  /// [AgentChatDropFailure].
   Future<List<AgentChatDropPayload>> read(List<DropItem> items) {
     return Future.wait([
       for (final (index, item) in items.indexed) _readSafely(item, index + 1),

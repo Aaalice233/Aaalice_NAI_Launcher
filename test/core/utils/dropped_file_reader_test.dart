@@ -10,6 +10,37 @@ import '../../helpers/webp_metadata_fixture.dart';
 
 void main() {
   group('DroppedFileReader', () {
+    test('issues every native read before returning control', () async {
+      final pngBytes = Uint8List.fromList([1, 2, 3]);
+      final reader = _SessionBoundDataReader(pngBytes: pngBytes);
+
+      final pending = DroppedFileReader.read(reader);
+      reader.endSession();
+
+      expect(reader.requests, {
+        'fileUri',
+        'suggestedName',
+        'png',
+        'jpeg',
+        'uri',
+        'html',
+        'plainText',
+      });
+      final result = await pending;
+      expect(result!.bytes, pngBytes);
+      expect(reader.lateRequests, isEmpty);
+    });
+
+    test('closes representations that were requested but never read', () async {
+      final reader = _SessionBoundDataReader(pngBytes: Uint8List(4));
+
+      await DroppedFileReader.read(reader, allowRemoteImages: false);
+      await Future<void>.delayed(Duration.zero);
+
+      expect(reader.jpegCallbackFinished, isTrue);
+      expect(reader.jpegReads, 0);
+    });
+
     test('skips remote URL lookup when remote images are disabled', () async {
       final reader = _PlainTextDataReader(
         'https://cdn.example.test/images/copied.png',
@@ -393,6 +424,135 @@ class _FileUriDataReader extends _StubDataReader {
   }) => identical(format, Formats.fileUri)
       ? _deliver(() async => onValue(uri as T))
       : null;
+}
+
+/// Mirrors a drop session: requests made after [endSession] fail like a
+/// disposed native reader.
+class _SessionBoundDataReader extends DataReader {
+  _SessionBoundDataReader({required this.pngBytes});
+
+  final Uint8List pngBytes;
+  final requests = <String>{};
+  final lateRequests = <String>[];
+  var jpegCallbackFinished = false;
+  var jpegReads = 0;
+  var _sessionEnded = false;
+
+  void endSession() => _sessionEnded = true;
+
+  void _record(String name) {
+    if (_sessionEnded) {
+      lateRequests.add(name);
+      throw StateError('Reader not found: $name');
+    }
+    requests.add(name);
+  }
+
+  static final Map<DataFormat, String> _values = {
+    Formats.fileUri: 'fileUri',
+    Formats.uri: 'uri',
+    Formats.htmlText: 'html',
+    Formats.plainText: 'plainText',
+  };
+
+  @override
+  bool canProvide(DataFormat format) =>
+      _values.containsKey(format) ||
+      identical(format, Formats.png) ||
+      identical(format, Formats.jpeg);
+
+  @override
+  List<DataFormat> getFormats(List<DataFormat> allFormats) =>
+      allFormats.where(canProvide).toList(growable: false);
+
+  @override
+  ReadProgress? getValue<T extends Object>(
+    ValueFormat<T> format,
+    AsyncValueChanged<T?> onValue, {
+    ValueChanged<Object>? onError,
+  }) {
+    final name = _values[format];
+    if (name == null) return null;
+    _record(name);
+    final Object value = switch (name) {
+      'fileUri' => Uri.file('/dropped/readme.txt'),
+      'uri' => NamedUri(Uri.parse('https://cdn.example.test/original.png')),
+      _ => '<img src="https://cdn.example.test/original.png">',
+    };
+    Future<void>.microtask(() => onValue(value as T));
+    return _CompletedReadProgress();
+  }
+
+  @override
+  ReadProgress? getFile(
+    FileFormat? format,
+    AsyncValueChanged<DataReaderFile> onFile, {
+    ValueChanged<Object>? onError,
+    bool allowVirtualFiles = true,
+    bool synthesizeFilesFromURIs = true,
+  }) {
+    if (identical(format, Formats.png)) {
+      _record('png');
+      Future<void>.microtask(
+        () => onFile(_MemoryDataReaderFile(pngBytes, fileName: 'a.png')),
+      );
+      return _CompletedReadProgress();
+    }
+    if (identical(format, Formats.jpeg)) {
+      _record('jpeg');
+      final file = _CountingDataReaderFile(onRead: () => jpegReads++);
+      Future<void>.microtask(() async {
+        await onFile(file);
+        jpegCallbackFinished = true;
+      });
+      return _CompletedReadProgress();
+    }
+    return null;
+  }
+
+  @override
+  bool isSynthesized(DataFormat format) => false;
+
+  @override
+  bool isVirtual(DataFormat format) => false;
+
+  @override
+  Future<String?> getSuggestedName() {
+    _record('suggestedName');
+    return Future.value('dropped.png');
+  }
+
+  @override
+  Future<VirtualFileReceiver?> getVirtualFileReceiver({
+    FileFormat? format,
+  }) async => null;
+
+  @override
+  List<PlatformFormat> get platformFormats => const [];
+}
+
+class _CountingDataReaderFile extends DataReaderFile {
+  _CountingDataReaderFile({required this.onRead});
+
+  final VoidCallback onRead;
+
+  @override
+  String? get fileName => 'b.jpg';
+
+  @override
+  int? get fileSize => 1;
+
+  @override
+  void close() {}
+
+  @override
+  Stream<Uint8List> getStream() => Stream.value(Uint8List(1));
+
+  @override
+  Future<Uint8List> readAll() async {
+    onRead();
+    return Uint8List(1);
+  }
 }
 
 class _MemoryDataReaderFile extends DataReaderFile {

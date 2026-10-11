@@ -20,6 +20,7 @@ import '../../../data/services/efficient_vit_sam_service.dart';
 import '../../adaptive/adaptive_layout.dart';
 import '../../adaptive/adaptive_presenter.dart';
 import '../../utils/card_drop_reader.dart';
+import '../../utils/native_drop_callback.dart';
 import '../../widgets/common/app_toast.dart';
 import 'controllers/magic_wand_controller.dart';
 import 'core/editor_state.dart';
@@ -1406,9 +1407,10 @@ class ImageEditorWorkspaceState extends State<ImageEditorWorkspace> {
             ? DropOperation.copy
             : DropOperation.none;
       },
-      onPerformDrop: (event) async {
-        await _handleDroppedImageLayerDrop(event);
-      },
+      onPerformDrop: (event) => releaseNativeDropCallback(
+        () => _handleDroppedImageLayerDrop(event),
+        library: 'ImageEditorWorkspace',
+      ),
       child: child,
     );
   }

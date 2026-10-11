@@ -20,6 +20,7 @@ import '../../selection/card_selection_scope.dart';
 import '../../utils/card_drop_reader.dart';
 import '../../utils/card_resource_drag_factory.dart';
 import '../../utils/gallery_drop_reader.dart';
+import '../../utils/native_drop_callback.dart';
 
 export '../../../core/agent/resources/agent_chat_resource_drag_format.dart';
 
@@ -90,7 +91,13 @@ class _AgentResourceDropRegionState
     return accepted ? DropOperation.copy : DropOperation.none;
   }
 
-  Future<void> _onPerformDrop(PerformDropEvent event) async {
+  Future<void> _onPerformDrop(PerformDropEvent event) =>
+      releaseNativeDropCallback(
+        () => _handleDrop(event),
+        library: 'AgentResourceDropRegion',
+      );
+
+  Future<void> _handleDrop(PerformDropEvent event) async {
     _setHovering(false);
     final overlay = Overlay.maybeOf(context, rootOverlay: true);
     final l10n = context.l10n;

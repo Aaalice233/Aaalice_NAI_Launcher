@@ -32,6 +32,7 @@ import '../../services/precise_ref_library_batch_sender.dart';
 import '../../router/app_routes.dart';
 import '../../services/image_workflow_launcher.dart';
 import '../../utils/card_drop_reader.dart';
+import '../../utils/native_drop_callback.dart';
 import '../../../core/utils/app_logger.dart';
 import '../../widgets/common/app_toast.dart';
 import '../../widgets/common/pagination_bar.dart';
@@ -277,8 +278,7 @@ class _PreciseRefLibraryScreenState
         policy: _dropPolicy,
       );
       if (!mounted) return;
-      // Native readers must finish here; business work runs after the OS loop.
-      unawaited(Future<void>(() => _importDroppedResources(resources)));
+      await _importDroppedResources(resources);
     } catch (error, stack) {
       AppLogger.e(
         'Precise reference drop read failed',
@@ -677,9 +677,12 @@ class _PreciseRefLibraryScreenState
                 setState(() => _isDragging = false);
               }
             },
-            onPerformDrop: (event) async {
+            onPerformDrop: (event) {
               setState(() => _isDragging = false);
-              await _handleDrop(event);
+              return releaseNativeDropCallback(
+                () => _handleDrop(event),
+                library: 'PreciseRefLibraryScreen',
+              );
             },
             child: content,
           );

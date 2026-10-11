@@ -143,7 +143,8 @@ class CardDropReader {
   }
 }
 
-/// Capture all native readers before awaiting; a drop cannot outlive its callback.
+/// Issues every native read before returning; await the result only after the
+/// drop callback has been released (see `releaseNativeDropCallback`).
 /// Every member must resolve before the caller starts any business mutation.
 Future<List<CardDroppedResource>> readCardDrop(
   BuildContext context,
