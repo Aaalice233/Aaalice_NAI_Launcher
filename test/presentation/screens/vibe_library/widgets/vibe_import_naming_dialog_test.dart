@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:nai_launcher/core/cache/box_fit_resize_image.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/screens/vibe_library/widgets/vibe_import_naming_dialog.dart';
 
@@ -29,7 +30,7 @@ void main() {
       await tester.pump();
       expect(
         tester.widget<Image>(find.byType(Image)).image,
-        isA<ResizeImage>(),
+        isA<BoxFitResizeImage>(),
       );
 
       final frame = tester.getRect(

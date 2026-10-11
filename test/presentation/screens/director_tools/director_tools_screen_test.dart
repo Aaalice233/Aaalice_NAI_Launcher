@@ -4,9 +4,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:image/image.dart' as img;
+import 'package:nai_launcher/core/cache/box_fit_resize_image.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/providers/subscription_provider.dart';
 import 'package:nai_launcher/presentation/screens/director_tools/director_tools_screen.dart';
+import 'package:nai_launcher/presentation/widgets/common/decoded_memory_image.dart';
 
 import '../../../helpers/light_theme_contrast.dart';
 
@@ -97,17 +99,27 @@ void main() {
   testWidgets('原图预览按显示器尺寸封顶解码，与窗口尺寸无关', (WidgetTester tester) async {
     await _pumpScreen(tester);
     final display = tester.view.display;
-    final expected = ResizeImage(
+    final logicalDisplay = display.size / display.devicePixelRatio;
+    final pixelRatio = tester.view.devicePixelRatio;
+    final expected = BoxFitResizeImage(
       MemoryImage(_sourceImage),
-      width: display.size.width.round().clamp(1, 4096),
-      height: display.size.height.round().clamp(1, 4096),
-      policy: ResizeImagePolicy.fit,
+      width: DecodedMemoryImage.resolveCacheDimension(
+        logicalSize: logicalDisplay.width,
+        constrainedSize: null,
+        pixelRatio: pixelRatio,
+      ),
+      height: DecodedMemoryImage.resolveCacheDimension(
+        logicalSize: logicalDisplay.height,
+        constrainedSize: null,
+        pixelRatio: pixelRatio,
+      ),
+      fit: DecodeFit.contain,
     );
 
-    ResizeImage sourcePreview() => tester
+    BoxFitResizeImage sourcePreview() => tester
         .widgetList<Image>(find.byType(Image))
         .map((image) => image.image)
-        .whereType<ResizeImage>()
+        .whereType<BoxFitResizeImage>()
         .single;
 
     expect(sourcePreview(), expected);

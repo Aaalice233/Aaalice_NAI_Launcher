@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:nai_launcher/core/cache/box_fit_resize_image.dart';
 import 'package:nai_launcher/core/comfyui/workflow_template.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/providers/comfyui/comfyui_provider.dart';
@@ -59,7 +60,7 @@ void main() {
     expect(previews, isNotEmpty);
     expect(
       previews.map((image) => image.image),
-      everyElement(isA<ResizeImage>()),
+      everyElement(isA<BoxFitResizeImage>()),
     );
 
     await tester.ensureVisible(find.text('使用结果'));

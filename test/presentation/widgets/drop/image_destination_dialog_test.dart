@@ -4,6 +4,7 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:nai_launcher/core/cache/box_fit_resize_image.dart';
 import 'package:nai_launcher/data/models/gallery/nai_image_metadata.dart';
 import 'package:nai_launcher/data/models/tag_library/tag_library_entry.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
@@ -78,10 +79,10 @@ void main() {
         expect(previews, isNotEmpty);
         for (final preview in previews) {
           final provider = preview.image;
-          expect(provider, isA<ResizeImage>());
-          provider as ResizeImage;
-          expect(provider.width, lessThanOrEqualTo(4096));
-          expect(provider.height, lessThanOrEqualTo(4096));
+          expect(provider, isA<BoxFitResizeImage>());
+          provider as BoxFitResizeImage;
+          expect(provider.width, allOf(isNotNull, lessThanOrEqualTo(4096)));
+          expect(provider.height, allOf(isNotNull, lessThanOrEqualTo(4096)));
         }
       },
     );

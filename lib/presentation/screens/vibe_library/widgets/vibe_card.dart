@@ -14,6 +14,7 @@ import '../../../../data/services/vibe_library_storage_service.dart';
 import '../../../adaptive/interaction_policy.dart';
 import '../../../widgets/app_branch_visibility.dart';
 import '../../../widgets/common/card_action_buttons.dart';
+import '../../../widgets/common/decoded_memory_image.dart';
 import '../../../widgets/common/image_card_actions.dart';
 import '../../../widgets/common/image_card_action_region.dart';
 import '../../../widgets/common/image_hover_preview_controller.dart';
@@ -407,19 +408,14 @@ class _VibeCardState extends ConsumerState<VibeCard>
   }
 
   Widget _buildMainContent() {
-    final pixelRatio = MediaQuery.of(context).devicePixelRatio;
-    final cacheWidth = (widget.width * pixelRatio).toInt();
-    final cacheHeight = ((widget.height ?? widget.width) * pixelRatio).toInt();
-
     return Container(
       color: ImageViewportSurface.background,
       child: _thumbnailData != null
-          ? Image.memory(
-              _thumbnailData!,
-              fit: BoxFit.cover,
-              cacheWidth: cacheWidth,
-              cacheHeight: cacheHeight,
-              gaplessPlayback: true,
+          ? DecodedMemoryImage(
+              bytes: _thumbnailData!,
+              filterQuality: FilterQuality.medium,
+              maxLogicalWidth: widget.width,
+              maxLogicalHeight: widget.height ?? widget.width,
               errorBuilder: (context, error, stackTrace) {
                 return Container(
                   color: ImageViewportSurface.background,
@@ -491,9 +487,6 @@ class _VibeCardState extends ConsumerState<VibeCard>
   Widget _buildSingleCard(Uint8List preview, double progress) {
     final cardWidth = widget.width * 0.65;
     final cardHeight = (widget.height ?? widget.width) * 0.75;
-    final pixelRatio = MediaQuery.of(context).devicePixelRatio;
-    final cacheWidth = (cardWidth * pixelRatio).toInt();
-    final cacheHeight = (cardHeight * pixelRatio).toInt();
 
     // 从收起状态到展开状态的动画
     final scale = 0.8 + (0.2 * progress);
@@ -526,12 +519,11 @@ class _VibeCardState extends ConsumerState<VibeCard>
         child: ClipRRect(
           borderRadius: BorderRadius.circular(6),
           child: ImageViewportSurface(
-            child: Image.memory(
-              preview,
-              fit: BoxFit.cover,
-              cacheWidth: cacheWidth,
-              cacheHeight: cacheHeight,
-              gaplessPlayback: true,
+            child: DecodedMemoryImage(
+              bytes: preview,
+              filterQuality: FilterQuality.medium,
+              maxLogicalWidth: cardWidth,
+              maxLogicalHeight: cardHeight,
             ),
           ),
         ),
@@ -548,9 +540,6 @@ class _VibeCardState extends ConsumerState<VibeCard>
   ) {
     final cardWidth = widget.width * 0.55;
     final cardHeight = (widget.height ?? widget.width) * 0.7;
-    final pixelRatio = MediaQuery.of(context).devicePixelRatio;
-    final cacheWidth = (cardWidth * pixelRatio).toInt();
-    final cacheHeight = (cardHeight * pixelRatio).toInt();
 
     // 计算扇形角度
     const maxAngle = 0.5; // 最大展开角度（弧度）
@@ -598,12 +587,11 @@ class _VibeCardState extends ConsumerState<VibeCard>
           child: ClipRRect(
             borderRadius: BorderRadius.circular(6),
             child: ImageViewportSurface(
-              child: Image.memory(
-                preview,
-                fit: BoxFit.cover,
-                cacheWidth: cacheWidth,
-                cacheHeight: cacheHeight,
-                gaplessPlayback: true,
+              child: DecodedMemoryImage(
+                bytes: preview,
+                filterQuality: FilterQuality.medium,
+                maxLogicalWidth: cardWidth,
+                maxLogicalHeight: cardHeight,
                 errorBuilder: (context, error, stackTrace) => Container(
                   color: ImageViewportSurface.background,
                   child: const Icon(

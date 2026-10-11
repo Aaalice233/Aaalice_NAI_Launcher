@@ -3,6 +3,7 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 
+import '../../../../../core/cache/box_fit_resize_image.dart';
 import '../../../../../core/cache/local_file_image.dart';
 import '../../image_viewport_surface.dart';
 import '../../decoded_memory_image.dart';
@@ -38,26 +39,23 @@ class PreviewThumbnail extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final pixelRatio = MediaQuery.devicePixelRatioOf(context);
-    final cacheSize = DecodedMemoryImage.resolveCacheDimension(
-      logicalSize: size,
-      constrainedSize: null,
-      pixelRatio: pixelRatio,
-    );
 
     // 优先使用字节数据
     if (imageBytes != null && imageBytes!.isNotEmpty) {
       return ClipRRect(
         borderRadius: BorderRadius.circular(borderRadius),
         child: ImageViewportSurface(
-          child: Image.memory(
-            imageBytes!,
-            width: size,
-            height: size,
-            cacheWidth: cacheSize,
-            cacheHeight: cacheSize,
-            fit: BoxFit.cover,
-            errorBuilder: (context, error, stackTrace) => _buildFallback(theme),
+          child: SizedBox.square(
+            dimension: size,
+            child: DecodedMemoryImage(
+              bytes: imageBytes!,
+              fit: BoxFit.cover,
+              filterQuality: FilterQuality.medium,
+              maxLogicalWidth: size,
+              maxLogicalHeight: size,
+              errorBuilder: (context, error, stackTrace) =>
+                  _buildFallback(theme),
+            ),
           ),
         ),
       );
@@ -74,14 +72,20 @@ class PreviewThumbnail extends StatelessWidget {
           }
 
           if (snapshot.data == true) {
+            final cacheSize = DecodedMemoryImage.resolveCacheDimension(
+              logicalSize: size,
+              constrainedSize: null,
+              pixelRatio: MediaQuery.devicePixelRatioOf(context),
+            );
             return ClipRRect(
               borderRadius: BorderRadius.circular(borderRadius),
               child: ImageViewportSurface(
                 child: Image(
-                  image: LocalFileImage.withCacheSize(
-                    imagePath!,
-                    cacheWidth: cacheSize,
-                    cacheHeight: cacheSize,
+                  image: BoxFitResizeImage.resizeIfNeeded(
+                    LocalFileImage(imagePath!),
+                    fit: BoxFit.cover,
+                    width: cacheSize,
+                    height: cacheSize,
                   ),
                   width: size,
                   height: size,

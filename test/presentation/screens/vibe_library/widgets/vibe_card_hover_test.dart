@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:nai_launcher/core/cache/box_fit_resize_image.dart';
 import 'package:nai_launcher/data/models/vibe/vibe_library_entry.dart';
 import 'package:nai_launcher/data/models/vibe/vibe_reference.dart';
 import 'package:nai_launcher/data/services/vibe_library_storage_service.dart';
@@ -109,7 +110,7 @@ void main() {
     final image = tester.widget<Image>(
       find.descendant(of: hoverMedia, matching: find.byType(Image)),
     );
-    final resized = image.image as ResizeImage;
+    final resized = image.image as BoxFitResizeImage;
     expect(
       (resized.imageProvider as MemoryImage).bytes,
       same(highResolutionImage),
