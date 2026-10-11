@@ -36,6 +36,32 @@ void main() {
       },
     );
 
+    test('collectImageCandidates should deduplicate equal content held in '
+        'separate buffers but keep same-length images that differ', () {
+      final pngBytes = _createInMemoryPngBytes();
+      final sameLengthOther = Uint8List.fromList(pngBytes)
+        ..[pngBytes.length - 1] ^= 0xff;
+      final entry =
+          VibeLibraryEntry.create(
+            name: 'Test',
+            vibeDisplayName: 'Test Vibe',
+            vibeEncoding: 'dGVzdA==',
+          ).copyWith(
+            rawImageData: pngBytes,
+            vibeThumbnail: Uint8List.fromList(pngBytes),
+            thumbnail: sameLengthOther,
+          );
+
+      final candidates = VibeExportUtils.collectImageCandidates(entry);
+
+      expect(candidates.map((candidate) => candidate.id), [
+        'raw_image',
+        'thumbnail',
+      ]);
+      expect(candidates.first.bytes, same(pngBytes));
+      expect(candidates.last.bytes, same(sameLengthOther));
+    });
+
     test(
       'buildEmbeddedPngExportPlans should use first candidate and skip entries without images',
       () {

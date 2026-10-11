@@ -5,6 +5,7 @@ import 'dart:typed_data';
 import 'package:crypto/crypto.dart';
 import 'package:dio/dio.dart';
 
+import '../../utils/byte_content.dart';
 import '../operation.dart';
 import 'cloud_object_inventory_verifier.dart';
 import '../telemetry.dart';
@@ -431,7 +432,7 @@ class GoogleDriveCloudSyncBackend
     final expectedMd5 = md5.convert(bytes).toString();
     if (written.md5Checksum != expectedMd5) {
       final read = await _download(written, maxBytes);
-      if (!_bytesEqual(read.bytes, bytes)) {
+      if (!ByteContent.equals(read.bytes, bytes)) {
         throw const CloudBackendException(
           CloudBackendErrorKind.conflict,
           'Google Drive 写入后内容已被其他客户端改变。',
@@ -825,14 +826,6 @@ class GoogleDriveCloudSyncBackend
   static String _hashBytes(List<int> bytes) {
     CloudSyncTelemetry.recordHashPass();
     return sha256.convert(bytes).toString();
-  }
-
-  static bool _bytesEqual(Uint8List left, Uint8List right) {
-    if (left.length != right.length) return false;
-    for (var index = 0; index < left.length; index++) {
-      if (left[index] != right[index]) return false;
-    }
-    return true;
   }
 
   static void _checkUpload(Uint8List bytes, int maxBytes) {

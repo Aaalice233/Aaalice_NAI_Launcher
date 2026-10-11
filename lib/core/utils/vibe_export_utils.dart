@@ -3,13 +3,13 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:archive/archive.dart';
-import 'package:crypto/crypto.dart';
 import 'package:path/path.dart' as p;
 
 import '../../data/models/vibe/vibe_library_entry.dart';
 import '../../data/models/vibe/vibe_reference.dart';
 import '../services/file_export_service.dart';
 import 'app_logger.dart';
+import 'byte_content.dart';
 import 'file_name_sanitizer.dart';
 import 'novelai_vibe_codec.dart';
 import 'vibe_file_parser.dart';
@@ -57,14 +57,12 @@ class VibeExportUtils {
     VibeLibraryEntry entry,
   ) {
     final candidates = <VibeExportImageCandidate>[];
-    final seenHashes = <String>{};
 
     void addCandidate(String id, String label, Uint8List? bytes) {
       if (bytes == null || bytes.isEmpty) {
         return;
       }
-      final hash = sha256.convert(bytes).toString();
-      if (!seenHashes.add(hash)) {
+      if (candidates.any((seen) => ByteContent.equals(seen.bytes, bytes))) {
         return;
       }
       candidates.add(

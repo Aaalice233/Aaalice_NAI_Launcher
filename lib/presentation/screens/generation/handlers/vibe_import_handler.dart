@@ -1,6 +1,5 @@
 import 'dart:io';
 
-import 'package:collection/collection.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -92,7 +91,6 @@ class VibeImportHandler {
               parsedFiles++;
               parsedVibes += vibes.length;
 
-              await notifier.prepareVibeImageHashes(vibes);
               notifier.addVibeReferences(vibes);
               addedVibes += vibes.length;
             } catch (e) {
@@ -158,9 +156,8 @@ class VibeImportHandler {
       }
       groups.add((vibes: vibes, libraryId: entry?.id));
     }
-    final all = groups.expand((group) => group.vibes).toList();
-    await notifier.prepareVibeImageHashes(all);
     if (!context.mounted) return 0;
+    final all = groups.expand((group) => group.vibes).toList();
     notifier.validateVibeReferenceBatch(all);
     // No asynchronous gap between validation and applying the ordered groups.
     for (final group in groups) {
@@ -681,26 +678,6 @@ Widget _buildVibeLibraryDialogSlider(
       ),
     ],
   );
-}
-
-VibeLibraryEntry? findOriginalLibraryEntryForOverwrite(
-  List<VibeReference> vibes,
-  List<VibeLibraryEntry> entries,
-) {
-  if (vibes.length != 1) {
-    return null;
-  }
-
-  final vibe = vibes.single;
-  return entries.firstWhereOrNull((entry) {
-    final sameDisplayName = entry.displayName == vibe.displayName;
-    final sameEncoding = entry.vibeEncoding == vibe.vibeEncoding;
-    final sameRawImage = const ListEquality<int>().equals(
-      entry.rawImageData,
-      vibe.rawImageData,
-    );
-    return sameDisplayName && (sameEncoding || sameRawImage);
-  });
 }
 
 bool shouldShowInfoExtractedForLibrarySave(List<VibeReference> vibes) {

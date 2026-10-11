@@ -711,18 +711,18 @@ class LocalGalleryActionCoordinator {
       if (bytes == null || !_mounted() || _warnIfStyleReferenceLimitReached()) {
         return;
       }
-      final notifier = _ref.read(generationParamsNotifierProvider.notifier);
-      final reference = LocalGalleryReferenceFactory.createRawStyleReference(
-        fileName: path.basename(record.path),
-        imageBytes: bytes,
-      );
-      await notifier.prepareVibeImageHashes([reference]);
-      if (!_mounted() || _warnIfStyleReferenceLimitReached()) return;
       final currentCount = _ref
           .read(generationParamsNotifierProvider)
           .vibeReferencesV4
           .length;
-      notifier.addVibeReference(reference);
+      _ref
+          .read(generationParamsNotifierProvider.notifier)
+          .addVibeReference(
+            LocalGalleryReferenceFactory.createRawStyleReference(
+              fileName: path.basename(record.path),
+              imageBytes: bytes,
+            ),
+          );
       if (_mounted()) {
         _context().go(AppRoutes.home);
         AppToast.success(
