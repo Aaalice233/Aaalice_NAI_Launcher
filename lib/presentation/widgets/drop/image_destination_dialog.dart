@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:nai_launcher/core/utils/localization_extension.dart';
 
+import '../common/decoded_memory_image.dart';
 import '../common/image_viewport_surface.dart';
 import '../common/model_family_icon.dart';
 import '../../../data/models/gallery/nai_image_metadata.dart';
@@ -166,9 +167,12 @@ class ImageDestinationDialog extends ConsumerWidget {
               ),
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(8),
-                child: Image.memory(
-                  imageBytes,
+                child: DecodedMemoryImage(
+                  bytes: imageBytes,
                   fit: BoxFit.contain,
+                  filterQuality: FilterQuality.medium,
+                  maxLogicalWidth: 200,
+                  maxLogicalHeight: 200,
                   errorBuilder: (context, error, stackTrace) {
                     return Container(
                       width: 200,
@@ -463,9 +467,12 @@ class ImageDestinationDialog extends ConsumerWidget {
           ),
           child: ClipRRect(
             borderRadius: BorderRadius.circular(9),
-            child: Image.memory(
-              imageBytes,
+            child: DecodedMemoryImage(
+              bytes: imageBytes,
               fit: BoxFit.contain,
+              filterQuality: FilterQuality.medium,
+              maxLogicalWidth: width,
+              maxLogicalHeight: height,
               errorBuilder: (context, error, stackTrace) => const ColoredBox(
                 color: ImageViewportSurface.background,
                 child: Icon(
@@ -665,7 +672,11 @@ class ImageDestinationDialog extends ConsumerWidget {
                     ),
                     child: ClipRRect(
                       borderRadius: BorderRadius.circular(8),
-                      child: Image.memory(vibe.thumbnail!, fit: BoxFit.cover),
+                      child: DecodedMemoryImage(
+                        bytes: vibe.thumbnail!,
+                        maxLogicalWidth: 64,
+                        maxLogicalHeight: 64,
+                      ),
                     ),
                   ),
                   const SizedBox(width: 12),

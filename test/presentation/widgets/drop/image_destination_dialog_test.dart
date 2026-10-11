@@ -63,6 +63,30 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  for (final metadata in const [null, NaiImageMetadata(prompt: 'positive')]) {
+    testWidgets(
+      'preview decodes at display size (metadata: ${metadata != null})',
+      (tester) async {
+        await _openMetadataDialog(tester, metadata: metadata);
+
+        final previews = tester.widgetList<Image>(
+          find.descendant(
+            of: find.byType(ImageDestinationDialog),
+            matching: find.byType(Image),
+          ),
+        );
+        expect(previews, isNotEmpty);
+        for (final preview in previews) {
+          final provider = preview.image;
+          expect(provider, isA<ResizeImage>());
+          provider as ResizeImage;
+          expect(provider.width, lessThanOrEqualTo(4096));
+          expect(provider.height, lessThanOrEqualTo(4096));
+        }
+      },
+    );
+  }
+
   testWidgets('shows reverse prompt before image-to-image destination', (
     tester,
   ) async {

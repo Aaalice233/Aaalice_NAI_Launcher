@@ -373,13 +373,19 @@ class ImageMetadataContainerCodec {
       ).getUint32(0);
 
       // 读取 chunk 类型（4字节）
-      final type = latin1.decode(bytes.sublist(offset + 4, offset + 8));
+      final type = latin1.decode(
+        Uint8List.sublistView(bytes, offset + 4, offset + 8),
+      );
 
       // 检查数据边界
       if (offset + 12 + length > bytes.length) break;
 
-      // 读取 chunk 数据
-      final data = bytes.sublist(offset + 8, offset + 8 + length);
+      // 视图而非拷贝：IDAT 占满整个文件，所有调用方都只读
+      final data = Uint8List.sublistView(
+        bytes,
+        offset + 8,
+        offset + 8 + length,
+      );
 
       chunks.add(_PngChunk(type, data));
 
@@ -843,14 +849,24 @@ class ImageMetadataContainerCodec {
     return img.encodePng(image);
   }
 
+  /// 编码头像素数超出 stealth 解码上限时返回 null，不必整图解码再丢弃。
+  static img.Decoder? stealthDecoderFor(Uint8List imageBytes) {
+    final decoder = img.findDecoderForData(imageBytes);
+    final info = decoder?.startDecode(imageBytes);
+    if (info == null ||
+        info.width <= 0 ||
+        info.height <= 0 ||
+        info.width * info.height > _maxStealthDecodePixels) {
+      return null;
+    }
+    return decoder;
+  }
+
   /// 从 NovelAI stealth_pngcomp alpha LSB 数据中读取元数据。
   static String? extractStealthMetadataText(Uint8List imageBytes) {
     try {
-      final image = img.decodeImage(imageBytes);
-      if (image == null ||
-          image.width * image.height > _maxStealthDecodePixels) {
-        return null;
-      }
+      final image = stealthDecoderFor(imageBytes)?.decode(imageBytes);
+      if (image == null) return null;
 
       final magicBytes = utf8.encode(_magic);
       final headerBytes = _readAlphaLsbBytes(image, magicBytes.length + 4);
