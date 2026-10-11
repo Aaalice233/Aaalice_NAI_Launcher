@@ -423,6 +423,13 @@ class GenerationParamsNotifier extends _$GenerationParamsNotifier {
     _applyVibeReferences([...state.vibeReferencesV4, vibeToAdd]);
   }
 
+  /// 外部原图加入 Vibe 前调用，否则去重与编码缓存查询会在 UI 线程哈希整张大图。
+  Future<void> prepareVibeImageHashes(Iterable<VibeReference> incoming) =>
+      _vibeReferences.primeImageHashes([
+        ...incoming,
+        ...state.vibeReferencesV4,
+      ]);
+
   String? getCachedVibeEncoding(
     Uint8List imageData, {
     String? model,

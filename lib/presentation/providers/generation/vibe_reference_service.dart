@@ -5,11 +5,13 @@ import 'package:crypto/crypto.dart';
 
 import '../../../core/constants/model_capabilities.dart';
 import '../../../core/utils/app_logger.dart';
+import '../../../core/utils/isolate_pool.dart';
 import '../../../core/utils/nai_api_utils.dart';
 import '../../../core/utils/vibe_performance_diagnostics.dart';
 import '../../../data/datasources/remote/nai_image_enhancement_api_service.dart';
 import '../../../data/models/vibe/vibe_library_entry.dart';
 import '../../../data/models/vibe/vibe_reference.dart';
+import '../../../data/services/metadata/hash_calculator.dart';
 import '../../../data/services/vibe_library_storage_service.dart';
 
 final class VibeReferenceService {
@@ -41,9 +43,30 @@ final class VibeReferenceService {
   String imageHash(Uint8List imageData) {
     final cached = _imageHashes[imageData];
     if (cached != null) return cached;
-    final hash = base64Encode(sha256.convert(imageData).bytes);
+    final hash = _sha256Base64(imageData);
     _imageHashes[imageData] = hash;
     return hash;
+  }
+
+  /// 在后台算好原图哈希写入按实例的缓存，随后的同步查询不再在 UI 线程哈希整张图。
+  Future<void> primeImageHashes(Iterable<VibeReference> references) async {
+    final pending = <Uint8List>{
+      for (final reference in references)
+        if (reference.rawImageData case final raw?)
+          if (raw.length >= FileHashCalculator.backgroundHashMinBytes &&
+              _imageHashes[raw] == null)
+            raw,
+    };
+    await Future.wait(
+      pending.map((raw) async {
+        final hash = await ComputeGate().runCompute(
+          _sha256Base64,
+          raw,
+          debugLabel: 'vibe_image_hash',
+        );
+        _imageHashes[raw] ??= hash;
+      }),
+    );
   }
 
   String cacheKey(
@@ -544,3 +567,6 @@ final class PreciseReferenceNormalizationResult {
   final Uint8List? image;
   final Object? error;
 }
+
+String _sha256Base64(Uint8List imageData) =>
+    base64Encode(sha256.convert(imageData).bytes);

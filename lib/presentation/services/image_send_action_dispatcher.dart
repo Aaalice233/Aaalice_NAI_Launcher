@@ -69,7 +69,7 @@ class ImageSendActionDispatcher {
             context.l10n.localGallery_sentToReversePrompt,
           );
         case LocalImageContextAction.sendToStyleTransfer:
-          _sendToStyleTransfer(context, ref, bytes, fileName);
+          await _sendToStyleTransfer(context, ref, bytes, fileName);
         case LocalImageContextAction.sendToPreciseReference:
           await _sendToPreciseReference(context, ref, bytes);
         case LocalImageContextAction.saveToPreciseRefLibrary:
@@ -168,12 +168,12 @@ class ImageSendActionDispatcher {
     );
   }
 
-  static void _sendToStyleTransfer(
+  static Future<void> _sendToStyleTransfer(
     BuildContext context,
     WidgetRef ref,
     Uint8List bytes,
     String fileName,
-  ) {
+  ) async {
     const maxCount = 16;
     final currentCount = ref
         .read(generationParamsNotifierProvider)
@@ -186,14 +186,14 @@ class ImageSendActionDispatcher {
       );
       return;
     }
-    ref
-        .read(generationParamsNotifierProvider.notifier)
-        .addVibeReference(
-          LocalGalleryReferenceFactory.createRawStyleReference(
-            fileName: fileName,
-            imageBytes: bytes,
-          ),
-        );
+    final notifier = ref.read(generationParamsNotifierProvider.notifier);
+    final reference = LocalGalleryReferenceFactory.createRawStyleReference(
+      fileName: fileName,
+      imageBytes: bytes,
+    );
+    await notifier.prepareVibeImageHashes([reference]);
+    if (!context.mounted) return;
+    notifier.addVibeReference(reference);
     context.go(AppRoutes.home);
     AppToast.success(
       context,
