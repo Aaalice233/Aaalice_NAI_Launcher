@@ -46,15 +46,17 @@
 
 当前调度默认 Android 2 路/16 MiB 在途 payload，桌面 4 路/32 MiB；更保守的后端限制仍需遵守。暂停/取消阻止新任务，manifest/HEAD 的提交顺序保持串行。
 
+后端读出的 revision 只能随存储字节变化：协调器跨请求比较它来判断其他写入者，服务端的元数据处理不能被当成远端前进。provider 的元数据级标签只用作条件请求的前提，已持久化的旧格式校验凭据仅在原标签未变时继续有效。
+
 | 后端 | 维护约束 |
 |---|---|
-| OneDrive | 已有目录先只读解析，缺失时按明确的 fail 冲突语义创建并处理并发创建；复用分页 inventory；HEAD 保持条件更新，模糊响应读回校验 |
-| Google Drive | 授权审核未通过，新增连接入口暂时禁用；保留已保存连接、备份读取和后端实现。保持 `manualBackupOnly`，不把 version/headRevisionId 当作强 CAS |
+| OneDrive | 已有目录先只读解析，缺失时按明确的 fail 冲突语义创建并处理并发创建；复用分页 inventory；revision 取 `cTag`，上传后会自行变化的 `eTag` 只作 `If-Match`；HEAD 条件更新先核对 `cTag` 再用当时的 `eTag`，前提失败后重读核对、有限重试；模糊响应读回校验 |
+| Google Drive | 授权审核未通过，新增连接入口暂时禁用；保留已保存连接、备份读取和后端实现。保持 `manualBackupOnly`，不把 version/headRevisionId 当作强 CAS；revision 取 `md5Checksum`，缺失时才退回含 version 的组合 |
 | GitHub | 读取固定 commit/tree；对象通过 Git Database API 组织，tree/commit/ref 一次发布，禁止逐文件 Contents API 替代原子提交 |
 | WebDAV | 根据实际 ETag/条件写能力决定模式；能力不足保持手动备份；坚果云单并发，不自动合并或恢复历史 |
 | WebDAV 远端维护 | 不执行自动 GC；缺少可证明安全的删除协调时不能猜测共享对象已无引用 |
 
-重试须区分不可变对象与可变提交；429、Retry-After、响应丢失、409/412 等保留原始错误与上下文。不能盲目重放 HEAD 提交。
+重试须区分不可变对象与可变提交；429、Retry-After、响应丢失、409/412 等保留原始错误与上下文。不能盲目重放 HEAD 提交，只有重读确认内容 revision 未变时才能换用新的条件令牌重试。
 
 保存连接仅保存并验证配置，不自动上传、下载、恢复或续跑待处理操作。OAuth/账户凭据和设备专属状态不进备份；本地图库图像字节不参与云备份。
 

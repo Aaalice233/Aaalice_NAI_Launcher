@@ -18,13 +18,19 @@ class OneDriveItem {
     required this.eTag,
     required this.size,
     required this.isFolder,
+    this.cTag,
   });
 
   final String? id;
   final String name;
   final String eTag;
+  final String? cTag;
   final int size;
   final bool isFolder;
+
+  // OneDrive rewrites eTag shortly after an upload without touching the bytes.
+  // Graph returns cTag for files; an eTag fallback only over-reports conflicts.
+  String get contentRevision => cTag ?? eTag;
 }
 
 Dio _createOneDriveDio() => Dio(
@@ -296,7 +302,7 @@ class OneDriveApiClient {
     final items = <OneDriveItem>[];
     final visited = <Uri>{};
     Uri? next = _graphUri(
-      '${_itemEndpoint(path)}:/children?%24select=id,name,eTag,size,file,folder&%24top=200',
+      '${_itemEndpoint(path)}:/children?%24select=id,name,eTag,cTag,size,file,folder&%24top=200',
     );
     var accumulatedBytes = 0;
     while (next != null) {
@@ -518,6 +524,7 @@ class OneDriveApiClient {
     final id = value['id'];
     final name = value['name'];
     final eTag = value['eTag'] ?? value['@odata.etag'];
+    final cTag = value['cTag'];
     final size = value['size'];
     final isFile = value['file'] is Map;
     final isFolder = value['folder'] is Map;
@@ -527,18 +534,20 @@ class OneDriveApiClient {
         name.isEmpty ||
         eTag is! String ||
         eTag.isEmpty ||
+        (cTag != null && (cTag is! String || cTag.isEmpty)) ||
         size is! int ||
         size < 0 ||
         isFile == isFolder) {
       throw const CloudBackendException(
         CloudBackendErrorKind.invalidResponse,
-        'OneDrive 文件项目缺少有效的 id、name、eTag、size 或类型。',
+        'OneDrive 文件项目缺少有效的 id、name、eTag、cTag、size 或类型。',
       );
     }
     return OneDriveItem(
       id: id as String?,
       name: name,
       eTag: eTag,
+      cTag: cTag as String?,
       size: size,
       isFolder: isFolder,
     );

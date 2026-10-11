@@ -40,6 +40,9 @@ class CloudObjectRead {
   const CloudObjectRead({required this.bytes, required this.revision});
 
   final Uint8List bytes;
+
+  /// Changes only when the stored bytes change; callers compare it across reads
+  /// to detect other writers, so metadata-only provider tags must not leak here.
   final String revision;
 }
 
