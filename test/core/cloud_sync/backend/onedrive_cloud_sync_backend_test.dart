@@ -11,6 +11,7 @@ import 'package:nai_launcher/core/cloud_sync/operation.dart';
 
 import 'cloud_sync_backend_contract.dart';
 import '../packed_snapshot_contract.dart';
+import '../uploaded_object_proof_contract.dart';
 
 void main() {
   test(
@@ -53,6 +54,14 @@ void main() {
       await verifyPackedSnapshotRoundTrip(_backend(api), _backend(api));
     },
   );
+
+  test('uploaded objects stay trusted in the next session', () async {
+    final api = _FakeOneDriveApi();
+    await verifyUploadedObjectProofsSurviveRestart(
+      createBackend: () => _backend(api),
+      objectDownloads: () => _signedDownloads(api).length,
+    );
+  });
 
   runCloudSyncBackendContract(
     provider: 'OneDrive',

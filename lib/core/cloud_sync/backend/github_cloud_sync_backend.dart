@@ -64,7 +64,7 @@ class GitHubCloudSyncBackend
   _StagingSession? _view;
   _StagingSession? _staging;
   Future<_StagingSession>? _stagingLoad;
-  final Map<String, String> _verifiedObjectRevisions = {};
+  final Map<String, String> _verifiedObjectProofs = {};
 
   @override
   int get maxConcurrentObjectUploads => 4;
@@ -127,7 +127,7 @@ class GitHubCloudSyncBackend
       );
     }
     if (read != null && CloudObjectNaming.isContentAddressedId(objectId)) {
-      _verifiedObjectRevisions[objectId] = read.revision;
+      _verifiedObjectProofs[objectId] = _proof(read.revision);
     }
     return read;
   }
@@ -174,15 +174,14 @@ class GitHubCloudSyncBackend
           objectId: entry.key,
           size: entry.value,
           revision: remote.sha,
-          verificationRevision: 'github:$owner/$repository:${remote.sha}',
+          verificationRevision: _proof(remote.sha),
         ),
       );
     }
     final effectiveTrustedRevisions = {...trustedRevisions};
     for (final candidate in candidates) {
-      final inMemory = _verifiedObjectRevisions[candidate.objectId];
-      if (inMemory == candidate.revision ||
-          inMemory == candidate.verificationRevision) {
+      if (_verifiedObjectProofs[candidate.objectId] ==
+          candidate.verificationRevision) {
         effectiveTrustedRevisions[candidate.objectId] =
             candidate.verificationRevision;
       }
@@ -206,9 +205,17 @@ class GitHubCloudSyncBackend
         }
       },
     );
-    _verifiedObjectRevisions.addAll(result.verifiedRevisions);
+    _verifiedObjectProofs.addAll(result.verifiedRevisions);
     return result;
   }
+
+  @override
+  Map<String, String> verifiedObjectProofs(Iterable<String> objectIds) => {
+    for (final objectId in objectIds)
+      if (_verifiedObjectProofs[objectId] case final proof?) objectId: proof,
+  };
+
+  String _proof(String blobSha) => 'github:$owner/$repository:$blobSha';
 
   @override
   Future<CloudCommitResult> putObject(
@@ -267,7 +274,7 @@ class GitHubCloudSyncBackend
       );
       if (_hashBytes(existing.bytes) == expectedHash) {
         if (path.startsWith('$_root/objects/')) {
-          _verifiedObjectRevisions[expectedHash] = existing.revision;
+          _verifiedObjectProofs[expectedHash] = _proof(existing.revision);
         }
         return CloudCommitResult(revision: existing.revision);
       }
@@ -285,7 +292,7 @@ class GitHubCloudSyncBackend
     }
     session.entries[path] = blobSha;
     if (path.startsWith('$_root/objects/')) {
-      _verifiedObjectRevisions[expectedHash] = blobSha;
+      _verifiedObjectProofs[expectedHash] = _proof(blobSha);
     }
     return CloudCommitResult(revision: blobSha);
   }
@@ -411,7 +418,7 @@ class GitHubCloudSyncBackend
     if (!view.inventory.keys.any(
       (path) => path == _root || path.startsWith('$_root/'),
     )) {
-      _verifiedObjectRevisions.clear();
+      _verifiedObjectProofs.clear();
       return;
     }
     await _api.commitTree(
@@ -421,7 +428,7 @@ class GitHubCloudSyncBackend
       ],
       message: 'cloud-sync: delete namespace',
     );
-    _verifiedObjectRevisions.clear();
+    _verifiedObjectProofs.clear();
   }
 
   static List<Map<String, Object?>> _blobEntries(

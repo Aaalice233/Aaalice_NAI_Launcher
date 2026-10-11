@@ -365,6 +365,12 @@ final class _DiskBenchmarkBackend
   }
 
   @override
+  Map<String, String> verifiedObjectProofs(Iterable<String> objectIds) => {
+    for (final objectId in objectIds)
+      if (File('${_objects.path}/$objectId').existsSync()) objectId: objectId,
+  };
+
+  @override
   Future<CloudCommitResult> putSnapshotManifest(
     String snapshotId,
     Uint8List bytes, {

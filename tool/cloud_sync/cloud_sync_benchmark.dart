@@ -562,6 +562,12 @@ final class _BenchmarkBackend
         );
 
   @override
+  Map<String, String> verifiedObjectProofs(Iterable<String> objectIds) => {
+    for (final objectId in objectIds)
+      if (objects.containsKey(objectId)) objectId: objectId,
+  };
+
+  @override
   Future<CloudObjectRead?> readObject(String objectId) async => null;
 
   @override

@@ -43,7 +43,7 @@ class OneDriveCloudSyncBackend
   final String namespace;
   final OneDriveApiClient _api;
   Future<void>? _objectsDirectoryFuture;
-  final Map<String, String> _verifiedObjectRevisions = {};
+  final Map<String, String> _verifiedObjectProofs = {};
 
   @override
   int get maxConcurrentObjectUploads => 4;
@@ -69,7 +69,10 @@ class OneDriveCloudSyncBackend
   Future<CloudHeadRead?> readHead() async {
     final read = await _read(_headPath, maxCloudHeadResponseBytes);
     if (read == null) return null;
-    return CloudHeadRead(bytes: read.bytes, revision: read.revision);
+    return CloudHeadRead(
+      bytes: read.bytes,
+      revision: read.item.contentRevision,
+    );
   }
 
   @override
@@ -79,19 +82,24 @@ class OneDriveCloudSyncBackend
       '$_objectsPath/$objectId',
       maxCloudObjectResponseBytes,
     );
-    if (read != null &&
-        CloudObjectNaming.isContentAddressedId(objectId) &&
-        _hashBytes(read.bytes) != objectId) {
-      throw const CloudBackendException(
-        CloudBackendErrorKind.conflict,
-        'OneDrive 不可变对象内容与对象标识不一致。',
-      );
+    if (read == null) return null;
+    if (CloudObjectNaming.isContentAddressedId(objectId)) {
+      if (_hashBytes(read.bytes) != objectId) {
+        throw const CloudBackendException(
+          CloudBackendErrorKind.conflict,
+          'OneDrive 不可变对象内容与对象标识不一致。',
+        );
+      }
+      _rememberProof(objectId, read.item);
     }
-    if (read != null && CloudObjectNaming.isContentAddressedId(objectId)) {
-      _verifiedObjectRevisions[objectId] = read.revision;
-    }
-    return read;
+    return _objectRead(read);
   }
+
+  @override
+  Map<String, String> verifiedObjectProofs(Iterable<String> objectIds) => {
+    for (final objectId in objectIds)
+      if (_verifiedObjectProofs[objectId] case final proof?) objectId: proof,
+  };
 
   @override
   Future<CloudObjectInventoryResult> findExistingObjects(
@@ -157,7 +165,7 @@ class OneDriveCloudSyncBackend
         }
       },
     );
-    _verifiedObjectRevisions.addAll(result.verifiedRevisions);
+    _verifiedObjectProofs.addAll(result.verifiedRevisions);
     return result;
   }
 
@@ -183,7 +191,7 @@ class OneDriveCloudSyncBackend
       objectId: objectId,
       size: size,
       revision: item.contentRevision,
-      verificationRevision: 'onedrive:$itemId:${item.contentRevision}',
+      verificationRevision: _proof(itemId, item.contentRevision),
     );
   }
 
@@ -195,18 +203,29 @@ class OneDriveCloudSyncBackend
     final effective = {...trustedRevisions};
     for (final candidate in candidates) {
       final listed = listedItems[candidate.objectId]!;
-      final inMemory = _verifiedObjectRevisions[candidate.objectId];
       // Proofs persisted before content tags were keyed by eTag; an unchanged
       // eTag still pins the exact bytes that were verified.
-      final legacyProof = 'onedrive:${listed.id}:${listed.eTag}';
-      if (inMemory == candidate.revision ||
-          inMemory == candidate.verificationRevision ||
+      final legacyProof = _proof(listed.id!, listed.eTag);
+      if (_verifiedObjectProofs[candidate.objectId] ==
+              candidate.verificationRevision ||
           trustedRevisions[candidate.objectId] == legacyProof) {
         effective[candidate.objectId] = candidate.verificationRevision;
       }
     }
     return effective;
   }
+
+  static String _proof(String itemId, String revision) =>
+      'onedrive:$itemId:$revision';
+
+  void _rememberProof(String objectId, OneDriveItem item) {
+    final itemId = item.id;
+    if (itemId == null || itemId.isEmpty) return;
+    _verifiedObjectProofs[objectId] = _proof(itemId, item.contentRevision);
+  }
+
+  static CloudObjectRead _objectRead(_ItemRead read) =>
+      CloudObjectRead(bytes: read.bytes, revision: read.item.contentRevision);
 
   Future<Uint8List> _downloadListedObject(
     String objectId,
@@ -223,7 +242,8 @@ class OneDriveCloudSyncBackend
       if (error.statusCode != 412) rethrow;
     }
     final current = await _read(path, maxCloudObjectResponseBytes);
-    if (current == null || current.revision != listed.contentRevision) {
+    if (current == null ||
+        current.item.contentRevision != listed.contentRevision) {
       throw const CloudBackendException(
         CloudBackendErrorKind.conflict,
         'OneDrive 不可变对象在校验期间被改写或删除。',
@@ -233,9 +253,13 @@ class OneDriveCloudSyncBackend
   }
 
   @override
-  Future<CloudObjectRead?> readSnapshotManifest(String snapshotId) {
+  Future<CloudObjectRead?> readSnapshotManifest(String snapshotId) async {
     final name = CloudObjectNaming.manifestFileName(snapshotId);
-    return _read('$namespace/snapshots/$name', maxCloudManifestResponseBytes);
+    final read = await _read(
+      '$namespace/snapshots/$name',
+      maxCloudManifestResponseBytes,
+    );
+    return read == null ? null : _objectRead(read);
   }
 
   @override
@@ -301,11 +325,11 @@ class OneDriveCloudSyncBackend
       await _api.delete(namespace);
     } finally {
       _invalidateNamespaceDirectories();
-      _verifiedObjectRevisions.clear();
+      _verifiedObjectProofs.clear();
     }
   }
 
-  Future<CloudObjectRead?> _read(String path, int maxBytes) async {
+  Future<_ItemRead?> _read(String path, int maxBytes) async {
     for (var attempt = 1; ; attempt++) {
       final item = await _api.metadata(path);
       if (item == null) return null;
@@ -321,7 +345,7 @@ class OneDriveCloudSyncBackend
           expectedETag: item.eTag,
           maxBytes: maxBytes,
         );
-        return CloudObjectRead(bytes: bytes, revision: item.contentRevision);
+        return (item: item, bytes: bytes);
       } on CloudBackendException catch (error) {
         if (error.statusCode != 412 || attempt >= _preconditionAttempts) {
           rethrow;
@@ -388,15 +412,15 @@ class OneDriveCloudSyncBackend
         bytes,
         expectedETag: null,
       );
-      _verifiedObjectRevisions[objectId] = uploaded.contentRevision;
+      _rememberProof(objectId, uploaded);
       return CloudCommitResult(revision: uploaded.contentRevision);
     } on CloudBackendException catch (error) {
       if (error.statusCode != 409) rethrow;
       final raced = await _read(path, maxCloudObjectResponseBytes);
       if (raced != null &&
           _hashBytes(raced.bytes) == expectedHash.toLowerCase()) {
-        _verifiedObjectRevisions[objectId] = raced.revision;
-        return CloudCommitResult(revision: raced.revision);
+        _rememberProof(objectId, raced.item);
+        return CloudCommitResult(revision: raced.item.contentRevision);
       }
       throw const CloudBackendException(
         CloudBackendErrorKind.conflict,
@@ -419,7 +443,7 @@ class OneDriveCloudSyncBackend
     final existing = await _read(path, maxBytes);
     if (existing != null) {
       if (_hashBytes(existing.bytes) == actualHash) {
-        return CloudCommitResult(revision: existing.revision);
+        return CloudCommitResult(revision: existing.item.contentRevision);
       }
       throw const CloudBackendException(
         CloudBackendErrorKind.conflict,
@@ -438,7 +462,7 @@ class OneDriveCloudSyncBackend
       if (error.statusCode != 409) rethrow;
       final raced = await _read(path, maxBytes);
       if (raced != null && _hashBytes(raced.bytes) == actualHash) {
-        return CloudCommitResult(revision: raced.revision);
+        return CloudCommitResult(revision: raced.item.contentRevision);
       }
       throw const CloudBackendException(
         CloudBackendErrorKind.conflict,
@@ -523,3 +547,5 @@ class OneDriveCloudSyncBackend
     }
   }
 }
+
+typedef _ItemRead = ({OneDriveItem item, Uint8List bytes});

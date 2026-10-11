@@ -216,8 +216,8 @@ abstract interface class CloudSyncDataSource {
   Future<void> completeOperation(String operationId);
 }
 
-/// Durable performance cache for provider revisions whose object bytes have
-/// already been verified against their content-addressed SHA-256 identity.
+/// Durable performance cache of backend verification proofs, as issued by
+/// `CloudObjectInventoryBackend.verifiedObjectProofs`, keyed by object id.
 abstract interface class CloudObjectVerificationDataSource {
   Future<Map<String, String>> readVerifiedCloudObjects();
 

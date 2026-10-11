@@ -13,6 +13,7 @@ import 'package:nai_launcher/core/cloud_sync/telemetry.dart';
 import 'backend_test_support.dart';
 import 'cloud_sync_backend_contract.dart';
 import '../packed_snapshot_contract.dart';
+import '../uploaded_object_proof_contract.dart';
 
 void main() {
   test(
@@ -25,6 +26,36 @@ void main() {
       );
     },
   );
+
+  test('objects without a PUT ETag commit but issue no proof', () async {
+    final api = _StatefulWebDavApi()..omitPutEtag = true;
+    final backend = _backend(RecordingAdapter(api.handle));
+    final bytes = Uint8List.fromList(utf8.encode('no put etag'));
+    final objectId = sha256.convert(bytes).toString();
+
+    final committed = await backend.putObject(
+      objectId,
+      bytes,
+      sha256: objectId,
+    );
+
+    expect(committed.revision, startsWith('"stateful-'));
+    expect(backend.verifiedObjectProofs([objectId]), isEmpty);
+  });
+
+  test('uploaded objects stay trusted in the next session', () async {
+    final adapter = RecordingAdapter(_StatefulWebDavApi().handle);
+    await verifyUploadedObjectProofsSurviveRestart(
+      createBackend: () => _backend(adapter),
+      objectDownloads: () => adapter.requests
+          .where(
+            (request) =>
+                request.method == 'GET' &&
+                request.uri.path.contains('/objects/'),
+          )
+          .length,
+    );
+  });
 
   runCloudSyncBackendContract(
     provider: 'WebDAV',
@@ -901,6 +932,7 @@ class _StatefulWebDavApi {
   final Map<String, String> _etags = {};
   final Set<String> _collections = {'/sync/'};
   var _revision = 0;
+  bool omitPutEtag = false;
 
   TestHttpResponse handle(RequestOptions request) {
     final path = request.uri.path;
@@ -936,7 +968,7 @@ class _StatefulWebDavApi {
         final etag = '"stateful-${++_revision}"';
         _etags[path] = etag;
         return TestHttpResponse(existing == null ? 201 : 204, '', {
-          'etag': [etag],
+          if (!omitPutEtag) 'etag': [etag],
         });
       case 'DELETE':
         final expected = request.headers['If-Match']?.toString();

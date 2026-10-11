@@ -160,6 +160,10 @@ abstract interface class CloudObjectInventoryBackend {
     OperationToken? token,
     CloudObjectInventoryProgressCallback? onProgress,
   });
+
+  /// Proofs for [objectIds] this instance wrote, byte-verified, or confirmed
+  /// through [findExistingObjects], in the form it accepts as trusted revisions.
+  Map<String, String> verifiedObjectProofs(Iterable<String> objectIds);
 }
 
 /// Optional lightweight validation used while saving or restoring a WebDAV

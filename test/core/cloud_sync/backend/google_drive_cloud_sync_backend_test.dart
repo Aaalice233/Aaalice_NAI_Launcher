@@ -12,6 +12,7 @@ import 'package:nai_launcher/core/cloud_sync/operation.dart';
 
 import 'backend_test_support.dart';
 import 'cloud_sync_backend_contract.dart';
+import '../uploaded_object_proof_contract.dart';
 
 void main() {
   runCloudSyncBackendContract(
@@ -21,6 +22,14 @@ void main() {
       mode: CloudBackendMode.manualBackupOnly,
     ),
   );
+
+  test('uploaded objects stay trusted in the next session', () async {
+    final api = _FakeDriveApi();
+    await verifyUploadedObjectProofsSurviveRestart(
+      createBackend: () => _backend(api),
+      objectDownloads: () => _mediaDownloads(api).length,
+    );
+  });
 
   test('cancellation interrupts the private access-token wait', () async {
     final tokenResult = Completer<String>();

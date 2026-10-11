@@ -17,15 +17,15 @@ class WebDavOperationInventory {
     required this.http,
     required this.headers,
     required this.objects,
-    required this.verifiedObjectRevisions,
-    required this.verificationScope,
+    required this.verifiedObjectProofs,
+    required this.proofFor,
   });
 
   final BackendHttp http;
   final Map<String, String> headers;
   final Uri objects;
-  final Map<String, String> verifiedObjectRevisions;
-  final String verificationScope;
+  final Map<String, String> verifiedObjectProofs;
+  final String Function(String objectId, String etag) proofFor;
 
   static final Uint8List _properties = Uint8List.fromList(
     utf8.encode(
@@ -126,8 +126,7 @@ class WebDavOperationInventory {
             objectId: name,
             size: length,
             revision: etag!,
-            verificationRevision:
-                'webdav:$verificationScope:${resolved.toString()}:$etag',
+            verificationRevision: proofFor(name, etag),
           ),
         );
       }
@@ -139,9 +138,8 @@ class WebDavOperationInventory {
 
     final effectiveTrustedRevisions = {...trustedRevisions};
     for (final candidate in candidates) {
-      final inMemory = verifiedObjectRevisions[candidate.objectId];
-      if (inMemory == candidate.revision ||
-          inMemory == candidate.verificationRevision) {
+      if (verifiedObjectProofs[candidate.objectId] ==
+          candidate.verificationRevision) {
         effectiveTrustedRevisions[candidate.objectId] =
             candidate.verificationRevision;
       }
@@ -178,7 +176,7 @@ class WebDavOperationInventory {
         }
       },
     );
-    verifiedObjectRevisions.addAll(result.verifiedRevisions);
+    verifiedObjectProofs.addAll(result.verifiedRevisions);
     return result;
   }
 
