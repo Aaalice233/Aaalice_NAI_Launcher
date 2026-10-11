@@ -20,18 +20,59 @@ abstract final class DecodedImageSize {
       if (decoder == null || !_headerFormats.contains(decoder.format)) {
         return null;
       }
-      final info = decoder.startDecode(bytes);
-      if (info == null || info.width <= 0 || info.height <= 0) {
-        return null;
-      }
+      final size = decoder.format == img.ImageFormat.jpg
+          ? _jpegFrameSize(bytes)
+          : _decoderHeaderSize(decoder, bytes);
+      if (size == null) return null;
+      final (width, height) = size;
       if (ExifOrientation.swapsAxes(bytes)) {
-        return (info.height, info.width);
+        return (height, width);
       }
-      return (info.width, info.height);
+      return (width, height);
     } catch (_) {
       return null;
     }
   }
+
+  static (int, int)? _decoderHeaderSize(img.Decoder decoder, Uint8List bytes) {
+    final info = decoder.startDecode(bytes);
+    if (info == null || info.width <= 0 || info.height <= 0) return null;
+    return (info.width, info.height);
+  }
+
+  // 逐段跳到帧头：image 包的 JPEG startDecode 会扫完全部熵编码数据，大图要数百毫秒
+  static (int, int)? _jpegFrameSize(Uint8List bytes) {
+    final data = ByteData.sublistView(bytes);
+    var offset = 2;
+    while (offset < bytes.length) {
+      if (bytes[offset] != 0xFF) return null;
+      while (offset < bytes.length && bytes[offset] == 0xFF) {
+        offset++;
+      }
+      if (offset >= bytes.length) return null;
+      final marker = bytes[offset++];
+      if (marker == 0x01 || (marker >= 0xD0 && marker <= 0xD8)) continue;
+      if (marker == 0xD9 || marker == 0xDA) return null;
+      if (offset + 2 > bytes.length) return null;
+      final length = data.getUint16(offset);
+      if (length < 2 || offset + length > bytes.length) return null;
+      if (_isStartOfFrame(marker)) {
+        if (length < 7) return null;
+        final height = data.getUint16(offset + 3);
+        final width = data.getUint16(offset + 5);
+        return width > 0 && height > 0 ? (width, height) : null;
+      }
+      offset += length;
+    }
+    return null;
+  }
+
+  static bool _isStartOfFrame(int marker) =>
+      marker >= 0xC0 &&
+      marker <= 0xCF &&
+      marker != 0xC4 &&
+      marker != 0xC8 &&
+      marker != 0xCC;
 
   /// 编码头读不出时在后台 isolate 完整解码；解码异常与 `img.decodeImage` 一样原样抛出。
   static Future<(int, int)?> read(Uint8List bytes, {ComputeGate? gate}) async {
