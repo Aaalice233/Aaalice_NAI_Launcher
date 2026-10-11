@@ -461,8 +461,8 @@ class _MemoryGenerationStateRepository
   String? _stateJson;
 
   @override
-  Future<void> saveJson(String stateJson) async {
-    _stateJson = stateJson;
+  Future<void> saveUtf8Json(Uint8List stateJson) async {
+    _stateJson = utf8.decode(stateJson);
   }
 
   @override

@@ -277,16 +277,20 @@ class VibeLibraryStorageService {
     required List<Map<String, dynamic>> vibeReferences,
     required List<Map<String, dynamic>> preciseReferences,
     required bool normalizeVibeStrength,
-  }) => saveGenerationStateJson(
-    jsonEncode({
-      'vibeReferences': vibeReferences,
-      'preciseReferences': preciseReferences,
-      'normalizeVibeStrength': normalizeVibeStrength,
-      'savedAt': DateTime.now().toIso8601String(),
-    }),
+  }) => saveGenerationStateUtf8Json(
+    utf8.encode(
+      jsonEncode({
+        'vibeReferences': vibeReferences,
+        'preciseReferences': preciseReferences,
+        'normalizeVibeStrength': normalizeVibeStrength,
+        'savedAt': DateTime.now().toIso8601String(),
+      }),
+    ),
   );
-  Future<void> saveGenerationStateJson(String stateJson) =>
-      _generation.saveJson(stateJson);
+
+  /// Carries base64 images, so callers encode the UTF-8 off the UI isolate.
+  Future<void> saveGenerationStateUtf8Json(Uint8List stateJson) =>
+      _generation.saveUtf8Json(stateJson);
   Future<Map<String, dynamic>?> loadGenerationState() async {
     try {
       final value = await loadGenerationStateJson();

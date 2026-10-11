@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
@@ -1199,8 +1200,8 @@ class _FakeGenerationStateStorage extends VibeLibraryStorageService {
   String? generationStateJson;
 
   @override
-  Future<void> saveGenerationStateJson(String stateJson) async {
-    generationStateJson = stateJson;
+  Future<void> saveGenerationStateUtf8Json(Uint8List stateJson) async {
+    generationStateJson = utf8.decode(stateJson);
   }
 
   @override

@@ -39,7 +39,9 @@ abstract interface class VibeLibraryRepositoryProtocol {
 }
 
 abstract interface class VibeGenerationStateRepositoryProtocol {
-  Future<void> saveJson(String stateJson);
+  Future<void> saveUtf8Json(Uint8List stateJson);
+
+  /// Decoding as text keeps invalid UTF-8 falling back to the legacy copy.
   Future<String?> loadJson();
   Future<void> clear();
 }
