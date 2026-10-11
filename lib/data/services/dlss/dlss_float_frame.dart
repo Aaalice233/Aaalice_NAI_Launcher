@@ -3,6 +3,8 @@ import 'dart:typed_data';
 
 import 'package:image/image.dart' as img;
 
+import '../../../core/utils/exif_orientation.dart';
+
 /// Linear-light RGBA float32 transport for the isolated Windows worker.
 /// The source and final NR result cross this boundary once; NR processing stays
 /// in GPU float16 textures and never pass through an 8-bit image codec.
@@ -14,7 +16,7 @@ class DlssFloatFrame {
   static const _magic = 0x31464141;
 
   factory DlssFloatFrame.fromImage(Uint8List bytes) {
-    final image = img.decodeImage(bytes);
+    final image = ExifOrientation.decodeUpright(bytes);
     if (image == null) throw const FormatException('Invalid DLSS source image');
     return DlssFloatFrame.fromDecodedImage(image);
   }

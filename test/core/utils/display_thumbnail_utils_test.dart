@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:image/image.dart' as img;
 import 'package:nai_launcher/core/utils/display_thumbnail_utils.dart';
 
+import '../../helpers/grayscale_png_fixture.dart';
 import '../../helpers/shared_compute_gate.dart';
 
 void main() {
@@ -49,6 +50,16 @@ void main() {
 
     expect(thumbnail, isNull);
     expect(await DisplayThumbnailUtils.normalize(Uint8List(64)), isNull);
+  });
+
+  test('single-channel grayscale thumbnails stay gray', () {
+    final thumbnail = DisplayThumbnailUtils.resizeSync(
+      grayscalePng(width: 1024, height: 512),
+    )!;
+
+    final decoded = img.decodeImage(thumbnail)!;
+    expect(decoded.width, DisplayThumbnailUtils.maxDimension);
+    expectUniformGray(decoded, 160);
   });
 }
 

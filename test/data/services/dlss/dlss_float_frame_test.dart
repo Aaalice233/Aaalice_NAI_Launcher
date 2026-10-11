@@ -3,6 +3,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:image/image.dart' as img;
 import 'package:nai_launcher/data/services/dlss/dlss_float_frame.dart';
 
+import '../../../helpers/grayscale_png_fixture.dart';
+
 void main() {
   test(
     'float transport preserves sub-byte precision and rejects corrupt frames',
@@ -65,5 +67,41 @@ void main() {
       unchanged.getPixel(0, 0).r,
       (DlssFloatFrame.linearToSrgb(0.1) * 255).round(),
     );
+  });
+  test('single-channel grayscale sources fill every color plane opaquely', () {
+    final frame = DlssFloatFrame.fromImage(grayscalePng(width: 4, height: 2));
+    final expected = DlssFloatFrame.srgbToLinear(160 / 255);
+
+    for (var offset = 0; offset < frame.pixels.length; offset += 4) {
+      expect(frame.pixels.sublist(offset, offset + 3), [
+        for (var channel = 0; channel < 3; channel++) closeTo(expected, 1e-6),
+      ]);
+      expect(frame.pixels[offset + 3], 1);
+    }
+  });
+
+  test('16-bit rgb sources stay opaque and keep sub-byte precision', () {
+    final source = img.Image.fromBytes(
+      width: 1,
+      height: 1,
+      bytes: Uint16List.fromList([32768, 257, 65535]).buffer,
+      format: img.Format.uint16,
+      numChannels: 3,
+    );
+
+    final frame = DlssFloatFrame.fromImage(
+      Uint8List.fromList(img.encodePng(source)),
+    );
+
+    expect(
+      frame.pixels[0],
+      closeTo(DlssFloatFrame.srgbToLinear(32768 / 65535), 1e-6),
+    );
+    expect(
+      frame.pixels[1],
+      closeTo(DlssFloatFrame.srgbToLinear(1 / 255), 1e-6),
+    );
+    expect(frame.pixels[2], closeTo(1, 1e-6));
+    expect(frame.pixels[3], 1);
   });
 }
