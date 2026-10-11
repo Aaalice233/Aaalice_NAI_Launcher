@@ -3,6 +3,7 @@ import 'dart:typed_data';
 
 import 'package:image/image.dart' as img;
 
+import '../../core/utils/color_channel_normalizer.dart';
 import 'local_onnx_model_service.dart';
 
 enum OnnxTaggerPreprocessing { wd14, clTagger, clTaggerV2, animeTimm }
@@ -96,9 +97,10 @@ class LocalOnnxTaggerPreprocessor {
   }
 
   static OnnxImageInput preprocess(
-    img.Image source,
+    img.Image image,
     LocalOnnxModelDescriptor model,
   ) {
+    final source = ColorChannelNormalizer.normalize(image);
     final profile = profileFor(model);
     if (profile.preprocessing == OnnxTaggerPreprocessing.animeTimm) {
       return _preprocessAnimeTimm(source, profile.inputSize);

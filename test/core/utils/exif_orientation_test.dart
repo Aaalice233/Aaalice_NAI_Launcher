@@ -125,6 +125,44 @@ void main() {
       );
     });
 
+    test('matches the gray and 16-bit png colors flutter displays', () async {
+      const rgb8 = (img.Format.uint8, 3);
+      const rgba8 = (img.Format.uint8, 4);
+      const rgba16 = (img.Format.uint16, 4);
+      for (final (name, png, layout) in [
+        ('gray1', _grayPng(img.Format.uint1), rgb8),
+        ('gray2', _grayPng(img.Format.uint2), rgb8),
+        ('gray4', _grayPng(img.Format.uint4), rgb8),
+        ('gray8', _grayPng(img.Format.uint8), rgb8),
+        ('gray16', _grayPng(img.Format.uint16), rgba16),
+        ('grayAlpha8', _rawPng(img.Format.uint8, 2), rgba8),
+        ('grayAlpha16', _rawPng(img.Format.uint16, 2), rgba16),
+        ('rgb16', _rawPng(img.Format.uint16, 3), rgba16),
+      ]) {
+        final upright = ExifOrientation.decodeUpright(png)!;
+        final shown = await _flutterDecode(png);
+
+        expect((upright.format, upright.numChannels), layout, reason: name);
+        for (final pixel in shown) {
+          final other = upright.getPixel(pixel.x, pixel.y);
+          expect(
+            [
+              other.rNormalized,
+              other.gNormalized,
+              other.bNormalized,
+              other.aNormalized,
+            ].map((channel) => (channel * 255).round()),
+            pairwiseCompare(
+              [pixel.r, pixel.g, pixel.b, pixel.a],
+              (num actual, num expected) => (actual - expected).abs() <= 1,
+              'within 1 of',
+            ),
+            reason: '$name at ${pixel.x},${pixel.y}',
+          );
+        }
+      }
+    });
+
     test('uprightSize answers the decodeUpright size without rotating', () {
       for (final orientation in orientations) {
         for (final bytes in [
@@ -217,6 +255,42 @@ img.Image _image(int width, int height) {
 
 Uint8List _png(int width, int height) =>
     Uint8List.fromList(img.encodePng(_image(width, height)));
+
+Uint8List _grayPng(img.Format format) {
+  final image = img.Image(width: 6, height: 4, format: format, numChannels: 1);
+  final maxValue = image.maxChannelValue.toInt();
+  final step = 37 * (maxValue ~/ 255 + 1);
+  for (final pixel in image) {
+    pixel.r = (pixel.x + pixel.y * image.width) * step % (maxValue + 1);
+  }
+  return Uint8List.fromList(img.encodePng(image));
+}
+
+// 这些布局的 getter/setter 本身有误，只能按原始通道写入；透明度保持较高，
+// 避免 Flutter 预乘后反算的取整误差盖过被测差异
+Uint8List _rawPng(img.Format format, int channels) {
+  const width = 6;
+  const height = 4;
+  final maxValue = format == img.Format.uint16 ? 65535 : 255;
+  final samples = List<int>.generate(width * height * channels, (index) {
+    final pixel = index ~/ channels;
+    final channel = index % channels;
+    final isAlpha = channels == 2 && channel == 1;
+    return isAlpha
+        ? maxValue - pixel * maxValue ~/ 48
+        : (pixel * 37 + channel * 91) * (maxValue ~/ 255) % (maxValue + 1);
+  });
+  final image = img.Image.fromBytes(
+    width: width,
+    height: height,
+    bytes: format == img.Format.uint16
+        ? Uint16List.fromList(samples).buffer
+        : Uint8List.fromList(samples).buffer,
+    format: format,
+    numChannels: channels,
+  );
+  return Uint8List.fromList(img.encodePng(image));
+}
 
 Uint8List _pngWithExif({required int orientation}) => withPngExif(
   _png(6, 4),

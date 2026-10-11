@@ -52,6 +52,23 @@ void main() {
       expect(input.data[planeSize * 2], closeTo(2.1459, 0.001));
       expect(profile.normalizeScores([0]).single, closeTo(0.5, 0.000001));
     });
+    test('feeds single-channel grayscale as equal color channels', () {
+      const descriptor = LocalOnnxModelDescriptor(
+        name: 'wd-v1-4-vit-tagger-v2.onnx',
+        path: 'wd-v1-4-vit-tagger-v2.onnx',
+        kind: LocalOnnxModelKind.wd14Tagger,
+      );
+      final gray = img.Image(width: 4, height: 4, numChannels: 1);
+      for (final pixel in gray) {
+        pixel.r = 160;
+      }
+
+      final input = LocalOnnxTaggerPreprocessor.preprocess(gray, descriptor);
+      const center = (224 * 448 + 224) * 3;
+
+      expect(input.shape, [1, 448, 448, 3]);
+      expect(input.data.sublist(center, center + 3), [160, 160, 160]);
+    });
   });
 
   group('LocalOnnxTaggerService session loading', () {

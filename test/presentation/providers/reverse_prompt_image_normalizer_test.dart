@@ -4,6 +4,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:image/image.dart' as img;
 import 'package:nai_launcher/presentation/utils/reverse_prompt_image_normalizer.dart';
 
+import '../../helpers/grayscale_png_fixture.dart';
+
 void main() {
   test(
     'resizes images that exceed the reverse-prompt long-side limit',
@@ -59,4 +61,19 @@ void main() {
       expect(img.decodeImage(output), isNotNull);
     },
   );
+
+  test('re-encodes single-channel grayscale as gray instead of red', () async {
+    final output = await ReversePromptImageNormalizer.normalize(
+      grayscalePng(width: 640, height: 320),
+      limits: const ReversePromptImageLimits(
+        maxBytes: 2 * 1024 * 1024,
+        maxLongSide: 320,
+        maxPixels: 320 * 320,
+      ),
+    );
+
+    final decoded = img.decodeImage(output)!;
+    expect(decoded.width, 320);
+    expectUniformGray(decoded, 160);
+  });
 }

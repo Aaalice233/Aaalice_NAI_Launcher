@@ -6,6 +6,7 @@ import 'package:image/image.dart' as img;
 import 'package:nai_launcher/data/models/image/image_stream_chunk.dart';
 import 'package:nai_launcher/presentation/providers/generation/stream_snapshot_composition.dart';
 
+import '../../../helpers/grayscale_png_fixture.dart';
 import '../../../helpers/image_pixel_matchers.dart';
 
 final _red = img.ColorRgb8(255, 0, 0);
@@ -75,6 +76,26 @@ void main() {
           color: _red,
         ),
       );
+    });
+
+    test('keeps the patch color over a single-channel grayscale source', () {
+      final patch = img.Image(width: 40, height: 30);
+      img.fill(patch, color: img.ColorRgb8(10, 120, 240));
+      final frame = StreamPreviewFrame(
+        bytes: Uint8List.fromList(img.encodePng(patch)),
+        placement: FocusedStreamPreviewPlacement(
+          sourceImage: grayscalePng(width: 96, height: 72),
+          xPercent: 0.25,
+          yPercent: 0.25,
+          widthPercent: 0.5,
+          heightPercent: 0.5,
+        ),
+      );
+
+      final composed = img.decodePng(composeStreamSnapshot(frame))!;
+
+      expect(composed.getPixel(48, 36).toList().take(3), [10, 120, 240]);
+      expect(composed.getPixel(2, 2).toList().take(3), [160, 160, 160]);
     });
 
     test('returns the preview bytes when no valid placement exists', () {

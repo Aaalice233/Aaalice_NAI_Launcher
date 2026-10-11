@@ -65,6 +65,8 @@ import 'package:nai_launcher/presentation/widgets/prompt/unified/unified_prompt_
 import 'package:nai_launcher/presentation/widgets/prompt/unified/unified_prompt_input.dart';
 import 'package:nai_launcher/presentation/widgets/shortcuts/shortcut_aware_widget.dart';
 
+import 'helpers/grayscale_png_fixture.dart';
+
 class _MockDio extends Mock implements Dio {}
 
 class _IdleQueueExecutionNotifier extends QueueExecutionNotifier {
@@ -2207,6 +2209,22 @@ void main() {
         closeTo(originalImage.width / originalImage.height, 0.02),
       );
     });
+
+    test(
+      'normalizes single-channel grayscale attachments to gray jpeg',
+      () async {
+        final optimized = await optimizePromptAssistantImagePartForUpload(
+          PromptAssistantImagePart(
+            bytes: grayscalePng(width: 64, height: 48),
+            mimeType: 'image/png',
+          ),
+          normalizeToJpeg: true,
+        );
+
+        expect(optimized.mimeType, 'image/jpeg');
+        expectUniformGray(img.decodeJpg(optimized.bytes)!, 160);
+      },
+    );
 
     test('compresses typed image payload before posting', () async {
       const maxBytes = 20 * 1024;
