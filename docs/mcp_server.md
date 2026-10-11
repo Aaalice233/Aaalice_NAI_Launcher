@@ -172,6 +172,10 @@ MCP 协议端点为 `http://127.0.0.1:<port>/mcp`，默认端口 `20624`（`McpS
 
 普通生图的最短链路是 `prepare_generation → submit_generation`，无需默认先读取应用上下文。提示词、尺寸、数量、种子、角色等参数全部内联在 `prepare_generation` 里，只对本次请求生效，不改动生成页面，也不需要先把它们写进页面。准备响应只包含 ID、精确费用、关键参数和 `next_action`；状态为 `prepared` 时尚未生成，直接按 `next_action` 提交，不查询进度或历史图。完整参数可通过 `inspect_generation_preparation` 或 `include_parameters: true` 获取。需要一个由调用方掌握的持久文件时，在准备阶段传 `save_path`，提交后启动器把每张成品写到该路径。
 
+带 `source_ref` 或 `source_image` 且不传尺寸时，尺寸取底图的导入分辨率，不沿用生成页尺寸，避免底图被拉伸。再加 `enhance: {level, scale}` 即按 NovelAI 增强执行：`level` 1–5 对应强度 0.2/0.4/0.5/0.6/0.7，5 级另加噪声 0.1，显式传入的 `strength`/`noise` 优先；`scale` 取 `1x`、`1.5x`、`2x` 或 `max`，省略的项沿用生成页增强面板。增强不接受蒙版和 `width`/`height`，尺寸由底图与倍率推导；`max` 只在模型支持且底图约 2.5 MP 以内时可用，发送原尺寸由服务端放大到 3.14 MP，并按放大后面积计费；显式指定不可用的倍率直接拒绝并列出可选值。`prompt` 仍必须显式给出，不继承原图元数据或生成页提示词。普通请求不再继承生成页停在增强面板时的增强标记。
+
+`upscale_image` 单次调用完成放大，不经准备阶段。`resource_ref` 与 `image_path` 二选一；`backend` 取 `novelai` 或 `comfyui`，省略时跟随生成页放大设置，`scale`（1–2）只对 ComfyUI 有效，两者都只作用于本次调用、不写回页面。NovelAI 按原图面积计费（Opus 640×640 以内免费），超过 3145728 像素直接拒绝；付费调用按调用时的估价走启动器审批，审批期间参数变化或费用高于报价时返回 `upscale_cost_changed`，需要重新调用。ComfyUI 本地免费执行，使用生成页选定的模块与模型，未在设置中启用时返回 `comfyui_disabled`。已有放大在执行时最多排队等待 300 秒，可随调用中止。结果保留原图元数据、加入生成历史并替换生成页当前显示，返回格式与生成结果相同；`save_path` 规则同上，但只能使用 `{id}`，放大结果没有种子。只想打开生成页的放大或增强面板让用户自己调整时，仍使用 `open_generation_image_workflow`。
+
 `generate_image` / `queue_image_task` 保留为兼容入口：不带 `preparation_id` 时只准备，费用为零也不会自动执行；带 ID 时提交已有快照，不必重传 `prompt`。`auto_start` 只表示队列提交入队后是否启动，不代表已经生成。应用内费用审批保持不变。
 
 只在任务需要现有参数时读取 `get_generation_settings` / `get_prompt_state`；`set_positive_prompt`、`update_generation_settings`、角色与源图工具是替用户改动生成页面，不是生图步骤，外部工具面在这些描述末尾统一注明；`get_application_context` 用于导航、画廊和队列状态，默认仅返回草稿摘要，`include_draft_details: true` 才包含完整草稿参数。MCP 文本与 `structuredContent` 继续保留同源兼容表示，不把协议载荷字节数直接当作模型 token 计费数。

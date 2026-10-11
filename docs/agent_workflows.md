@@ -46,6 +46,7 @@
 - 完全访问下普通读写和页面状态移除（角色、当前参考、源图、草稿、已完成队列记录）直接执行；永久删除已保存数据的工具（Vibe/精准参考/词库条目与分类、固定词、待执行与失败队列任务，以及今后新增的 `delete_` 工具）和计费仍走审批。
 - 生成先准备并取得实际 Anlas 估算；精确为零的提交不要求模型提供确认标志，在完全访问下不弹审批。
 - 正数或未知费用仍走审批。付费提交携带原有 `confirmed=true`（重绘为 `confirm=true`）表达提交意图，该标志不能绕过应用审批。
+- `upscale_image` 没有准备阶段，审批时按原图面积报价，执行时若参数变化或费用高于审批时的报价（如原图在等待审批期间被替换）直接拒绝，不按新价格扣费。增强走 `prepare_generation` 的同一次准备与提交，按推导出的输出尺寸估价。
 - 全自动（`AgentPermissionMode.autopilot`）在完全访问之上把计费审批改为 `AgentChargeApproval.confirmAtThreshold`：已知正数估算低于保护模式高消耗阈值时直接执行，达到阈值或未知费用仍走审批，阈值关闭时已知估算一律直接执行。阈值经 `ShareImageSettings.effectiveHighAnlasCostThreshold` 在每次调用时读取，与生成按钮的高消耗确认同一来源。永久删除已保存数据仍走审批；切入该模式由界面确认一次，配置文件导出导入时降为完全访问。
 - 不在聊天文本或结构化问题中先索要一次确认、随后又弹一次审批。
 - 安全模式和写入前询问模式继续遵循其权限限制；已准备任务仍保持一次提交语义。
@@ -58,6 +59,7 @@
 - `user_question_flow_test.dart`：逐题推进、自定义、返回修改、推荐标记和响应式可达性。
 - `agent_chat_notifier_test.dart`：实际工具注册、等待答案与模型续跑。
 - `generation_toolbox_test.dart`、`manual_inpaint_toolbox_test.dart`、`agent_tool_permission_controller_test.dart`：零费用、付费、重复提交与模式约束。
+- `image_upscale_toolbox_test.dart`、`generation_enhance_preparation_test.dart`：放大的后端选择、报价与审批，增强的尺寸推导、倍率回退与参数冲突。
 - `agent_system_prompt_test.dart`：策略组装与联网不可用时的边界。
 
 提示策略测试能验证默认指令和工具契约，不能证明每个外部模型都必然遵循调查顺序；评估实际模型时应查看工具轨迹与引用依据。
