@@ -19,6 +19,7 @@ import '../../../providers/generation/generation_panel_expansion_provider.dart';
 import '../../../providers/image_generation_provider.dart';
 import '../../../providers/precise_ref_library_provider.dart';
 import '../../../utils/card_drop_reader.dart';
+import '../../../utils/native_drop_callback.dart';
 import '../../../widgets/common/image_card_action.dart';
 import '../../../utils/precise_ref_library_import_helper.dart';
 import '../../../widgets/common/app_toast.dart';
@@ -334,9 +335,12 @@ class _PreciseReferencePanelState extends ConsumerState<PreciseReferencePanel> {
           setState(() => _isFileDraggingOver = false);
         }
       },
-      onPerformDrop: (event) async {
+      onPerformDrop: (event) {
         setState(() => _isFileDraggingOver = false);
-        await _handleDroppedReferences(event);
+        return releaseNativeDropCallback(
+          () => _handleDroppedReferences(event),
+          library: 'PreciseReferencePanel',
+        );
       },
       child: AnimatedContainer(
         duration: MediaQuery.disableAnimationsOf(context)
@@ -504,8 +508,7 @@ class _PreciseReferencePanelState extends ConsumerState<PreciseReferencePanel> {
     setState(() => _isProcessingDroppedFiles = true);
     try {
       final resources = await readCardDrop(context, event.session.items);
-      // The type chooser opens only after the native read session returns.
-      unawaited(Future<void>(() => _applyDroppedReferences(resources)));
+      await _applyDroppedReferences(resources);
     } catch (error) {
       if (!mounted) return;
       setState(() => _isProcessingDroppedFiles = false);

@@ -10,6 +10,7 @@ import '_internal/loading_overlay.dart';
 import '_internal/picker_handler.dart';
 import '_internal/preview_thumbnail.dart';
 import '../../../utils/card_drop_reader.dart';
+import '../../../utils/native_drop_callback.dart';
 import '../app_toast.dart';
 import 'image_picker_result.dart';
 import 'image_picker_type.dart';
@@ -431,9 +432,12 @@ class _ImagePickerCardState extends State<ImagePickerCard> {
           setState(() => _isDragOver = false);
         }
       },
-      onPerformDrop: (event) async {
+      onPerformDrop: (event) {
         setState(() => _isDragOver = false);
-        await _handleDrop(event);
+        return releaseNativeDropCallback(
+          () => _handleDrop(event),
+          library: 'ImagePickerCard',
+        );
       },
       child: child,
     );

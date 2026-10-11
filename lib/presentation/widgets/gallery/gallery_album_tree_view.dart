@@ -142,9 +142,9 @@ class _GalleryAlbumTreeViewState extends State<GalleryAlbumTreeView> {
       onDropLeave: (_) {
         if (_favoriteDropActive) setState(() => _favoriteDropActive = false);
       },
-      onPerformDrop: (event) async {
+      onPerformDrop: (event) {
         if (_favoriteDropActive) setState(() => _favoriteDropActive = false);
-        await performGalleryDrop(context, event, onDrop, internalOnly: true);
+        return performGalleryDrop(context, event, onDrop, internalOnly: true);
       },
       child: AnimatedContainer(
         duration: MediaQuery.disableAnimationsOf(context)
@@ -312,11 +312,11 @@ class _GalleryAlbumTreeViewState extends State<GalleryAlbumTreeView> {
           setState(() => _superDraggingAlbumIds.remove(album.id));
         }
       },
-      onPerformDrop: (event) async {
+      onPerformDrop: (event) {
         if (_superDraggingAlbumIds.contains(album.id)) {
           setState(() => _superDraggingAlbumIds.remove(album.id));
         }
-        await performGalleryDrop(
+        return performGalleryDrop(
           context,
           event,
           (paths) => widget.onImagesDrop!(paths, album.id),

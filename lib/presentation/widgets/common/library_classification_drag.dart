@@ -9,6 +9,7 @@ import '../../../core/agent/resources/agent_chat_resource_drag_format.dart';
 import '../../../core/utils/app_logger.dart';
 import '../../../core/utils/localization_extension.dart';
 import '../../utils/card_drag_format.dart';
+import '../../utils/native_drop_callback.dart';
 import 'app_toast.dart';
 import 'image_card_action.dart';
 
@@ -81,6 +82,53 @@ class _LibraryClassificationDropTargetState<T extends Object>
     if (mounted && value != _accepting) setState(() => _accepting = value);
   }
 
+  Future<void> _handleDrop(PerformDropEvent event) async {
+    _setAccepting(false);
+    final overlay = Overlay.maybeOf(context, rootOverlay: true);
+    final errorLabel = context.l10n.common_error;
+    final resolve = widget.resolve;
+    final needsChange = widget.needsChange;
+    final onAccept = widget.onAccept;
+    try {
+      if (!_canRead(event.session.items)) {
+        throw StateError('Unsupported classification resource set');
+      }
+      final targets = <T>[];
+      for (final item in event.session.items) {
+        final reference = decodeLocalAgentResource(item.localData)!;
+        final target = await resolve(reference.resourceId);
+        if (target == null) {
+          throw StateError(
+            'Classification target is unavailable: ${reference.resourceId}',
+          );
+        }
+        targets.add(target);
+      }
+      HapticFeedback.heavyImpact();
+      final result = await ImageCardBatchResult.execute<T>(targets, (
+        target,
+      ) async {
+        if (needsChange?.call(target) ?? true) await onAccept(target);
+      });
+      if (result.failures.isNotEmpty) {
+        for (final failure in result.failures.values) {
+          AppLogger.e(
+            'Classification drop failed',
+            failure.error,
+            failure.stackTrace,
+            'CardDrag',
+          );
+        }
+        throw StateError(
+          '${result.failures.length}/${targets.length}: ${result.failures.values.map((failure) => failure.error).join('; ')}',
+        );
+      }
+    } catch (error, stack) {
+      AppLogger.e('Classification drop failed', error, stack, 'CardDrag');
+      AppToast.errorOnOverlay(overlay, '$errorLabel: $error');
+    }
+  }
+
   @override
   Widget build(BuildContext context) => DropRegion(
     formats: [cardDragFormat, agentChatResourceDragFormat],
@@ -90,52 +138,10 @@ class _LibraryClassificationDropTargetState<T extends Object>
       return accepts ? DropOperation.copy : DropOperation.none;
     },
     onDropLeave: (_) => _setAccepting(false),
-    onPerformDrop: (event) async {
-      _setAccepting(false);
-      final overlay = Overlay.maybeOf(context, rootOverlay: true);
-      final errorLabel = context.l10n.common_error;
-      final resolve = widget.resolve;
-      final needsChange = widget.needsChange;
-      final onAccept = widget.onAccept;
-      try {
-        if (!_canRead(event.session.items)) {
-          throw StateError('Unsupported classification resource set');
-        }
-        final targets = <T>[];
-        for (final item in event.session.items) {
-          final reference = decodeLocalAgentResource(item.localData)!;
-          final target = await resolve(reference.resourceId);
-          if (target == null) {
-            throw StateError(
-              'Classification target is unavailable: ${reference.resourceId}',
-            );
-          }
-          targets.add(target);
-        }
-        HapticFeedback.heavyImpact();
-        final result = await ImageCardBatchResult.execute<T>(targets, (
-          target,
-        ) async {
-          if (needsChange?.call(target) ?? true) await onAccept(target);
-        });
-        if (result.failures.isNotEmpty) {
-          for (final failure in result.failures.values) {
-            AppLogger.e(
-              'Classification drop failed',
-              failure.error,
-              failure.stackTrace,
-              'CardDrag',
-            );
-          }
-          throw StateError(
-            '${result.failures.length}/${targets.length}: ${result.failures.values.map((failure) => failure.error).join('; ')}',
-          );
-        }
-      } catch (error, stack) {
-        AppLogger.e('Classification drop failed', error, stack, 'CardDrag');
-        AppToast.errorOnOverlay(overlay, '$errorLabel: $error');
-      }
-    },
+    onPerformDrop: (event) => releaseNativeDropCallback(
+      () => _handleDrop(event),
+      library: 'LibraryClassificationDropTarget',
+    ),
     child: LibraryClassificationDropTargetStatus(
       isAccepting: _accepting,
       child: widget.child,

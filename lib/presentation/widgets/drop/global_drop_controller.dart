@@ -6,6 +6,7 @@ import 'package:super_drag_and_drop/super_drag_and_drop.dart';
 import '../../utils/clipboard_image.dart';
 import '../../utils/internal_drag_protocol.dart';
 import '../../utils/card_drop_reader.dart';
+import '../../utils/native_drop_callback.dart';
 
 class GlobalDropController extends ChangeNotifier {
   GlobalDropController({
@@ -49,18 +50,13 @@ class GlobalDropController extends ChangeNotifier {
 
   void onDropLeave(DropEvent event) => _setDragging(false);
 
-  Future<void> onPerformDrop(PerformDropEvent event) async {
+  Future<void> onPerformDrop(PerformDropEvent event) {
     _setDragging(false);
     _setProcessing(true);
-    try {
-      // The native reader belongs to the drop session. Finish taking all data
-      // before returning, but release the OS drag loop before opening dialogs.
-      final files = await _readDrop(event);
-      unawaited(Future<void>(() => _processDroppedFiles(files)));
-    } catch (_) {
-      _setProcessing(false);
-      rethrow;
-    }
+    return releaseNativeDropCallback(
+      () => _processDroppedFiles(_readDrop(event)),
+      library: 'GlobalDropController',
+    );
   }
 
   Future<void> handlePasteShortcut(VoidCallback? fallbackTextPaste) async {
@@ -94,21 +90,14 @@ class GlobalDropController extends ChangeNotifier {
     }
   }
 
-  Future<void> _processDroppedFiles(List<DroppedFileData> files) async {
+  Future<void> _processDroppedFiles(
+    Future<List<DroppedFileData>> acquisition,
+  ) async {
     try {
-      for (final file in files) {
+      for (final file in await acquisition) {
         if (_isDisposed) return;
         await _processFile(file);
       }
-    } catch (error, stack) {
-      FlutterError.reportError(
-        FlutterErrorDetails(
-          exception: error,
-          stack: stack,
-          library: 'GlobalDropController',
-          context: ErrorDescription('while processing acquired dropped images'),
-        ),
-      );
     } finally {
       _setProcessing(false);
     }

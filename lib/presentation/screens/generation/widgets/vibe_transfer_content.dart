@@ -13,6 +13,7 @@ import '../../../../data/models/vibe/vibe_reference.dart';
 import '../../../providers/image_generation_provider.dart';
 import '../../../providers/generation/generation_params_notifier.dart';
 import '../../../utils/card_drop_reader.dart';
+import '../../../utils/native_drop_callback.dart';
 import '../../../widgets/common/app_toast.dart';
 import '../../../widgets/common/surface_ink_well.dart';
 import 'recent_vibes_section.dart';
@@ -407,9 +408,12 @@ class _VibeTransferContentState extends ConsumerState<VibeTransferContent> {
           setState(() => _isFileDraggingOver = false);
         }
       },
-      onPerformDrop: (event) async {
+      onPerformDrop: (event) {
         setState(() => _isFileDraggingOver = false);
-        await _handleFileDrop(event);
+        return releaseNativeDropCallback(
+          () => _handleFileDrop(event),
+          library: 'VibeTransferContent',
+        );
       },
       child: AnimatedContainer(
         duration: MediaQuery.disableAnimationsOf(context)

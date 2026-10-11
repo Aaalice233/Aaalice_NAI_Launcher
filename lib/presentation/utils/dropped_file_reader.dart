@@ -9,6 +9,7 @@ import '../../core/utils/app_logger.dart';
 import '../../core/utils/file_name_sanitizer.dart';
 import '../../core/utils/isolate_pool.dart';
 import '../../core/utils/vibe_file_parser.dart';
+import 'dropped_data_request.dart';
 
 class DroppedFileData {
   const DroppedFileData({
@@ -58,17 +59,42 @@ class DroppedFileReader {
   static Iterable<FileFormat> get imageFormats =>
       _imageFormats.map((imageFormat) => imageFormat.format);
 
+  /// Issues every native read before returning, so a drop callback can call
+  /// this and return at once; awaiting the result there blocks the platform
+  /// thread until the bytes arrive.
   static Future<DroppedFileData?> read(
     DataReader reader, {
     bool allowVibeFiles = false,
     bool allowPreciseReferenceFiles = false,
     bool allowRemoteImages = true,
     String logTag = 'DroppedFileReader',
-  }) async {
+  }) {
     _logAvailableFormats(reader, logTag);
-
-    final localFile = await _readLocalFile(
+    final request = DroppedDataRequest.issue(
       reader,
+      imageFormats: _imageFormats,
+      includeRemoteSources: allowRemoteImages,
+      timeout: readTimeout,
+      logTag: logTag,
+    );
+    return _resolve(
+      request,
+      allowVibeFiles: allowVibeFiles,
+      allowPreciseReferenceFiles: allowPreciseReferenceFiles,
+      allowRemoteImages: allowRemoteImages,
+      logTag: logTag,
+    ).whenComplete(request.discardUnread);
+  }
+
+  static Future<DroppedFileData?> _resolve(
+    DroppedDataRequest request, {
+    required bool allowVibeFiles,
+    required bool allowPreciseReferenceFiles,
+    required bool allowRemoteImages,
+    required String logTag,
+  }) async {
+    final localFile = await _readLocalFile(
+      request,
       allowVibeFiles: allowVibeFiles,
       allowPreciseReferenceFiles: allowPreciseReferenceFiles,
       logTag: logTag,
@@ -77,12 +103,12 @@ class DroppedFileReader {
       return localFile;
     }
 
-    final hasRealDirectImage = _hasNonSynthesizedDirectImage(reader);
+    final hasRealDirectImage = request.hasNonSynthesizedImage;
     final directImageFuture = hasRealDirectImage
-        ? _readDirectImageFile(reader, logTag: logTag)
+        ? _readDirectImageFile(request, logTag: logTag)
         : null;
     final remoteUri = allowRemoteImages
-        ? await _readRemoteImageUri(reader, logTag: logTag)
+        ? await _readRemoteImageUri(request)
         : null;
     final normalizedRemoteUri = remoteUri == null
         ? null
@@ -108,7 +134,7 @@ class DroppedFileReader {
     }
 
     var remoteLookupAttempted = false;
-    if (allowRemoteImages && _hasOnlySynthesizedDirectImages(reader)) {
+    if (allowRemoteImages && request.hasOnlySynthesizedImages) {
       remoteLookupAttempted = true;
       AppLogger.d(
         'Preferring the remote source over synthesized dropped image data',
@@ -124,7 +150,7 @@ class DroppedFileReader {
     }
 
     if (!hasRealDirectImage) {
-      final directImage = await _readDirectImageFile(reader, logTag: logTag);
+      final directImage = await _readDirectImageFile(request, logTag: logTag);
       if (directImage != null) {
         return directImage;
       }
@@ -135,36 +161,6 @@ class DroppedFileReader {
     }
 
     return null;
-  }
-
-  static bool _hasOnlySynthesizedDirectImages(DataReader reader) {
-    var foundDirectImage = false;
-    try {
-      for (final imageFormat in _imageFormats) {
-        if (!reader.canProvide(imageFormat.format)) {
-          continue;
-        }
-        foundDirectImage = true;
-        if (!reader.isSynthesized(imageFormat.format)) {
-          return false;
-        }
-      }
-    } catch (_) {
-      return false;
-    }
-    return foundDirectImage;
-  }
-
-  static bool _hasNonSynthesizedDirectImage(DataReader reader) {
-    try {
-      return _imageFormats.any(
-        (imageFormat) =>
-            reader.canProvide(imageFormat.format) &&
-            !reader.isSynthesized(imageFormat.format),
-      );
-    } catch (_) {
-      return false;
-    }
   }
 
   static Uri? extractImageUriFromText(String text) {
@@ -241,21 +237,12 @@ class DroppedFileReader {
   }
 
   static Future<DroppedFileData?> _readLocalFile(
-    DataReader reader, {
+    DroppedDataRequest request, {
     required bool allowVibeFiles,
     required bool allowPreciseReferenceFiles,
     required String logTag,
   }) async {
-    if (!reader.canProvide(Formats.fileUri)) {
-      return null;
-    }
-
-    final uri = await _readValue<Uri>(
-      reader,
-      Formats.fileUri,
-      label: 'file URI',
-      logTag: logTag,
-    );
+    final uri = await request.fileUri;
     if (uri == null) {
       return null;
     }
@@ -310,28 +297,19 @@ class DroppedFileReader {
   }
 
   static Future<DroppedFileData?> _readDirectImageFile(
-    DataReader reader, {
+    DroppedDataRequest request, {
     required String logTag,
   }) async {
-    final suggestedName = await _safeSuggestedName(reader);
-    for (final imageFormat in _imageFormats) {
-      if (!reader.canProvide(imageFormat.format)) {
-        continue;
-      }
-
-      final file = await _readImageFile(
-        reader,
-        imageFormat.format,
-        label: imageFormat.extension,
-        logTag: logTag,
-      );
+    final suggestedName = await request.suggestedName;
+    for (final imageFile in request.imageFiles) {
+      final file = await imageFile.read();
       if (file == null) {
         continue;
       }
 
       final fileName = _ensureImageFileName(
         file.fileName ?? suggestedName ?? 'dropped_image',
-        fallbackExtension: imageFormat.extension,
+        fallbackExtension: imageFile.extension,
       );
       final bytes = file.bytes;
       if (bytes.isEmpty) {
@@ -344,50 +322,21 @@ class DroppedFileReader {
     return null;
   }
 
-  static Future<Uri?> _readRemoteImageUri(
-    DataReader reader, {
-    required String logTag,
-  }) async {
-    if (reader.canProvide(Formats.uri)) {
-      final namedUri = await _readValue<NamedUri>(
-        reader,
-        Formats.uri,
-        label: 'URI',
-        logTag: logTag,
-      );
-      final uri = _parseHttpUri(namedUri?.uri.toString());
-      if (uri != null) {
-        return uri;
-      }
+  static Future<Uri?> _readRemoteImageUri(DroppedDataRequest request) async {
+    final namedUri = await request.namedUri;
+    final uri = _parseHttpUri(namedUri?.uri.toString());
+    if (uri != null) {
+      return uri;
     }
 
-    if (reader.canProvide(Formats.htmlText)) {
-      final html = await _readValue<String>(
-        reader,
-        Formats.htmlText,
-        label: 'HTML',
-        logTag: logTag,
-      );
-      final uri = html == null ? null : extractImageUriFromText(html);
-      if (uri != null) {
-        return uri;
-      }
+    final html = await request.htmlText;
+    final htmlUri = html == null ? null : extractImageUriFromText(html);
+    if (htmlUri != null) {
+      return htmlUri;
     }
 
-    if (reader.canProvide(Formats.plainText)) {
-      final text = await _readValue<String>(
-        reader,
-        Formats.plainText,
-        label: 'plain text',
-        logTag: logTag,
-      );
-      final uri = text == null ? null : extractImageUriFromText(text);
-      if (uri != null) {
-        return uri;
-      }
-    }
-
-    return null;
+    final text = await request.plainText;
+    return text == null ? null : extractImageUriFromText(text);
   }
 
   static Future<DroppedFileData?> _readRemoteImage(
@@ -713,89 +662,6 @@ class DroppedFileReader {
         (fileNameFromDisposition != null &&
             _imageExtensions.contains(_extensionOf(fileNameFromDisposition))) ||
         _extensionFromUriQuery(uri) != null;
-  }
-
-  static Future<T?> _readValue<T extends Object>(
-    DataReader reader,
-    ValueFormat<T> format, {
-    required String label,
-    required String logTag,
-  }) async {
-    final completer = Completer<T?>();
-    final progress = reader.getValue<T>(
-      format,
-      (value) {
-        if (!completer.isCompleted) {
-          completer.complete(value);
-        }
-      },
-      onError: (e) {
-        AppLogger.w('Failed to read dropped $label: $e', logTag);
-        if (!completer.isCompleted) {
-          completer.complete(null);
-        }
-      },
-    );
-    if (progress == null) {
-      return null;
-    }
-    return completer.future.timeout(
-      readTimeout,
-      onTimeout: () {
-        AppLogger.w('Timed out reading dropped $label', logTag);
-        return null;
-      },
-    );
-  }
-
-  static Future<({String? fileName, Uint8List bytes})?> _readImageFile(
-    DataReader reader,
-    FileFormat format, {
-    required String label,
-    required String logTag,
-  }) async {
-    final completer = Completer<({String? fileName, Uint8List bytes})?>();
-    final progress = reader.getFile(
-      format,
-      (file) async {
-        try {
-          final bytes = await file.readAll();
-          if (!completer.isCompleted) {
-            completer.complete((fileName: file.fileName, bytes: bytes));
-          }
-        } catch (e) {
-          AppLogger.w('Failed to read dropped $label bytes: $e', logTag);
-          if (!completer.isCompleted) {
-            completer.complete(null);
-          }
-        }
-      },
-      onError: (e) {
-        AppLogger.w('Failed to read dropped $label image: $e', logTag);
-        if (!completer.isCompleted) {
-          completer.complete(null);
-        }
-      },
-      synthesizeFilesFromURIs: false,
-    );
-    if (progress == null) {
-      return null;
-    }
-    return completer.future.timeout(
-      readTimeout,
-      onTimeout: () {
-        AppLogger.w('Timed out reading dropped $label image', logTag);
-        return null;
-      },
-    );
-  }
-
-  static Future<String?> _safeSuggestedName(DataReader reader) async {
-    try {
-      return await reader.getSuggestedName().timeout(readTimeout);
-    } catch (_) {
-      return null;
-    }
   }
 
   static String _ensureImageFileName(
