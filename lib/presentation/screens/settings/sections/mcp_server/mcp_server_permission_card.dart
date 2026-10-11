@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../../core/utils/localization_extension.dart';
+import '../../../../agent_settings/widgets/agent_permission_mode_confirmation.dart';
 import '../../../../mcp/providers/mcp_server_notifier.dart';
 import '../../../../../data/models/prompt_assistant/prompt_assistant_models.dart';
 import '../../../../themes/design_tokens.dart';
@@ -34,6 +35,11 @@ class McpServerPermissionCard extends ConsumerWidget {
         l10n.agentSettings_permissionFull,
         l10n.agentSettings_permissionFullDescription,
       ),
+      (
+        AgentPermissionMode.autopilot,
+        l10n.agentSettings_permissionAutopilot,
+        l10n.agentSettings_permissionAutopilotDescription,
+      ),
     ];
 
     return SettingsCard(
@@ -45,9 +51,7 @@ class McpServerPermissionCard extends ConsumerWidget {
             groupValue: mode,
             onChanged: (value) {
               if (value == null) return;
-              ref
-                  .read(mcpServerNotifierProvider.notifier)
-                  .setPermissionMode(value);
+              _selectPermissionMode(context, ref, from: mode, to: value);
             },
             child: Column(
               children: [
@@ -81,5 +85,21 @@ class McpServerPermissionCard extends ConsumerWidget {
         ],
       ),
     );
+  }
+
+  Future<void> _selectPermissionMode(
+    BuildContext context,
+    WidgetRef ref, {
+    required AgentPermissionMode from,
+    required AgentPermissionMode to,
+  }) async {
+    final confirmed = await confirmAgentPermissionModeChange(
+      context: context,
+      ref: ref,
+      from: from,
+      to: to,
+    );
+    if (!confirmed || !context.mounted) return;
+    await ref.read(mcpServerNotifierProvider.notifier).setPermissionMode(to);
   }
 }

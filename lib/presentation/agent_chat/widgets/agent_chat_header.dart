@@ -305,6 +305,7 @@ String agentPermissionModeLabel(
   AgentPermissionMode.safe => l10n.agentChat_permissionSafe,
   AgentPermissionMode.askBeforeSensitiveActions => l10n.agentChat_permissionAsk,
   AgentPermissionMode.fullAccess => l10n.agentChat_permissionFull,
+  AgentPermissionMode.autopilot => l10n.agentChat_permissionAutopilot,
 };
 
 String agentPermissionModeDescription(
@@ -315,4 +316,6 @@ String agentPermissionModeDescription(
   AgentPermissionMode.askBeforeSensitiveActions =>
     l10n.agentChat_permissionAskDescription,
   AgentPermissionMode.fullAccess => l10n.agentChat_permissionFullDescription,
+  AgentPermissionMode.autopilot =>
+    l10n.agentChat_permissionAutopilotDescription,
 };

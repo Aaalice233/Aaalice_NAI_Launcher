@@ -1447,6 +1447,13 @@ class AppLocalizationsZh extends AppLocalizations {
       '仅删除已存数据或消耗 Anlas 时询问，可访问工作区外文件';
 
   @override
+  String get agentChat_permissionAutopilot => '全自动';
+
+  @override
+  String get agentChat_permissionAutopilotDescription =>
+      '消耗 Anlas 不再询问，仅删除已存数据或达到高消耗阈值时询问';
+
+  @override
   String agentChat_approvalTitle(Object toolName) {
     return '允许执行 $toolName？';
   }
@@ -9778,7 +9785,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get settings_mcpServerAnlasNotice =>
-      '任何可能消耗 Anlas 的操作都会在启动器内单独确认，与权限模式无关。';
+      '可能消耗 Anlas 的操作会在启动器内单独确认；全自动模式下，只有单次消耗达到保护模式的高消耗阈值时才确认。';
 
   @override
   String settings_mcpServerPendingApproval(Object client, Object tool) {
@@ -13909,6 +13916,28 @@ class AppLocalizationsZh extends AppLocalizations {
       '允许访问工作区外文件并直接执行工具；删除已保存的数据或消耗 Anlas 前仍会确认。仅在信任当前任务时使用。';
 
   @override
+  String get agentSettings_permissionAutopilot => '全自动';
+
+  @override
+  String get agentSettings_permissionAutopilotDescription =>
+      '包含完全访问的全部权限，生成等消耗 Anlas 的操作也直接执行；仅在单次消耗达到保护模式的高消耗阈值或删除已保存的数据时确认。适合无人值守的批量任务。';
+
+  @override
+  String get agentSettings_autopilotConfirmTitle => '开启全自动？';
+
+  @override
+  String agentSettings_autopilotConfirmThreshold(Object threshold) {
+    return '生成、重绘、启动队列等消耗 Anlas 的操作将直接执行，不再逐次确认。单次预计消耗达到 $threshold Anlas（保护模式的高消耗阈值）时仍会确认，删除已保存的数据也仍会确认。';
+  }
+
+  @override
+  String get agentSettings_autopilotConfirmUnlimited =>
+      '生成、重绘、启动队列等消耗 Anlas 的操作将直接执行，不再逐次确认。保护模式的高消耗警告当前未开启，任何金额都会直接扣除；删除已保存的数据仍会确认。';
+
+  @override
+  String get agentSettings_autopilotConfirmAction => '开启';
+
+  @override
   String get agentSettings_webPreference => '联网偏好';
 
   @override
@@ -16562,6 +16591,13 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   @override
   String get agentChat_permissionFullDescription =>
       '僅刪除已存資料或消耗 Anlas 時詢問，可存取工作區外檔案';
+
+  @override
+  String get agentChat_permissionAutopilot => '全自動';
+
+  @override
+  String get agentChat_permissionAutopilotDescription =>
+      '消耗 Anlas 不再詢問，僅刪除已存資料或達到高消耗閾值時詢問';
 
   @override
   String agentChat_approvalTitle(Object toolName) {
@@ -24895,7 +24931,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get settings_mcpServerAnlasNotice =>
-      '任何可能消耗 Anlas 的操作都會在啟動器內單獨確認，與權限模式無關。';
+      '可能消耗 Anlas 的操作會在啟動器內單獨確認；全自動模式下，只有單次消耗達到保護模式的高消耗閾值時才確認。';
 
   @override
   String settings_mcpServerPendingApproval(Object client, Object tool) {
@@ -29025,6 +29061,28 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   @override
   String get agentSettings_permissionFullDescription =>
       '允許存取工作區外檔案並直接執行工具；刪除已儲存的資料或消耗 Anlas 前仍會確認。僅在信任目前任務時使用。';
+
+  @override
+  String get agentSettings_permissionAutopilot => '全自動';
+
+  @override
+  String get agentSettings_permissionAutopilotDescription =>
+      '包含完全存取的全部權限，生成等消耗 Anlas 的操作也直接執行；僅在單次消耗達到保護模式的高消耗閾值或刪除已儲存的資料時確認。適合無人值守的批次任務。';
+
+  @override
+  String get agentSettings_autopilotConfirmTitle => '開啟全自動？';
+
+  @override
+  String agentSettings_autopilotConfirmThreshold(Object threshold) {
+    return '生成、重繪、啟動佇列等消耗 Anlas 的操作將直接執行，不再逐次確認。單次預計消耗達到 $threshold Anlas（保護模式的高消耗閾值）時仍會確認，刪除已儲存的資料也仍會確認。';
+  }
+
+  @override
+  String get agentSettings_autopilotConfirmUnlimited =>
+      '生成、重繪、啟動佇列等消耗 Anlas 的操作將直接執行，不再逐次確認。保護模式的高消耗警告目前未開啟，任何金額都會直接扣除；刪除已儲存的資料仍會確認。';
+
+  @override
+  String get agentSettings_autopilotConfirmAction => '開啟';
 
   @override
   String get agentSettings_webPreference => '連網偏好';

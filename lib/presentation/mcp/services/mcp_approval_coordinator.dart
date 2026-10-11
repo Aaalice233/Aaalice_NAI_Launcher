@@ -30,6 +30,7 @@ class McpApprovalCoordinator {
     estimateAnlas,
     required List<String> Function(String toolName, Map<String, dynamic> args)
     describeFileTargets,
+    required int? Function() chargeConfirmThreshold,
     required bool Function() isMounted,
     Duration timeout = McpServerDefaults.approvalTimeout,
     DateTime Function()? clock,
@@ -41,6 +42,7 @@ class McpApprovalCoordinator {
       auditSink: auditSink,
       estimateAnlas: estimateAnlas,
       describeFileTargets: describeFileTargets,
+      chargeConfirmThreshold: chargeConfirmThreshold,
       onApprovalChanged: _handleApprovalChanged,
       isMounted: () => !_disposed && isMounted(),
     );

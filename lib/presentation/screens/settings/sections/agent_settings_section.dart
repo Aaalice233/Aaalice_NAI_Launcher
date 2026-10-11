@@ -8,6 +8,7 @@ import '../../../../data/models/agent/agent_settings.dart';
 import '../../../../core/utils/localization_extension.dart';
 import '../../../prompt_assistant/models/assistant_model_capability.dart';
 import '../../../agent_settings/providers/agent_settings_provider.dart';
+import '../../../agent_settings/widgets/agent_permission_mode_confirmation.dart';
 import '../../../../data/models/prompt_assistant/prompt_assistant_models.dart';
 import '../../../prompt_assistant/providers/prompt_assistant_config_provider.dart';
 import '../../../widgets/common/app_toast.dart';
@@ -376,6 +377,9 @@ class _PermissionCard extends ConsumerWidget {
 
   final AgentSettings settings;
 
+  static const double _singleColumnBelow = 680;
+  static const double _twoColumnsBelow = 1080;
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return SettingsCard(
@@ -387,7 +391,7 @@ class _PermissionCard extends ConsumerWidget {
           if (value != null) {
             _reportAgentSettingFailure(
               context,
-              ref.read(agentSettingsProvider.notifier).setPermissionMode(value),
+              _selectPermissionMode(context, ref, value),
             );
           }
         },
@@ -409,25 +413,54 @@ class _PermissionCard extends ConsumerWidget {
                 context.l10n.agentSettings_permissionFull,
                 context.l10n.agentSettings_permissionFullDescription,
               ),
+              (
+                AgentPermissionMode.autopilot,
+                context.l10n.agentSettings_permissionAutopilot,
+                context.l10n.agentSettings_permissionAutopilotDescription,
+              ),
             ];
-            if (constraints.maxWidth < 680) {
-              return Column(
-                children: [for (final card in cards) _permissionTile(card)],
-              );
-            }
-            return Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            final columns = constraints.maxWidth < _singleColumnBelow
+                ? 1
+                : constraints.maxWidth < _twoColumnsBelow
+                ? 2
+                : cards.length;
+            return Column(
               children: [
-                for (var index = 0; index < cards.length; index++) ...[
-                  if (index > 0) const SizedBox(width: 8),
-                  Expanded(child: _permissionTile(cards[index])),
-                ],
+                for (var start = 0; start < cards.length; start += columns)
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      for (
+                        var index = start;
+                        index < start + columns && index < cards.length;
+                        index++
+                      ) ...[
+                        if (index > start) const SizedBox(width: 8),
+                        Expanded(child: _permissionTile(cards[index])),
+                      ],
+                    ],
+                  ),
               ],
             );
           },
         ),
       ),
     );
+  }
+
+  Future<void> _selectPermissionMode(
+    BuildContext context,
+    WidgetRef ref,
+    AgentPermissionMode mode,
+  ) async {
+    final confirmed = await confirmAgentPermissionModeChange(
+      context: context,
+      ref: ref,
+      from: settings.chat.permissionMode,
+      to: mode,
+    );
+    if (!confirmed || !context.mounted) return;
+    await ref.read(agentSettingsProvider.notifier).setPermissionMode(mode);
   }
 
   Widget _permissionTile((AgentPermissionMode, String, String) card) =>

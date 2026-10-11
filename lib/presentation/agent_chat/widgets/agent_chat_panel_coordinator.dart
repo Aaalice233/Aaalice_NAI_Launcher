@@ -11,9 +11,11 @@ import '../../../core/agent/resources/agent_chat_resource_reference_codec.dart';
 import '../../../core/agent/resources/agent_chat_resource_reference.dart';
 import '../../../core/utils/localization_extension.dart';
 import '../../../core/utils/token_count_format.dart';
+import '../../../data/models/prompt_assistant/prompt_assistant_models.dart';
 import 'package:nai_launcher/presentation/providers/layout_state_provider.dart';
 
 import '../../agent_settings/providers/agent_settings_provider.dart';
+import '../../agent_settings/widgets/agent_permission_mode_confirmation.dart';
 import '../../utils/clipboard_image.dart';
 import '../../utils/dropped_file_reader.dart';
 import '../../widgets/common/app_toast.dart';
@@ -70,7 +72,7 @@ class AgentChatPanelCoordinator {
       selectModel: (providerId, model) =>
           _notifier.selectChatModel(providerId, model),
       selectThinkingLevel: _notifier.setThinkingLevel,
-      selectPermissionMode: _notifier.setPermissionMode,
+      selectPermissionMode: (mode) => _selectPermissionMode(context, mode),
       setWebAccessEnabled: (enabled) => _ref
           .read(agentSettingsProvider.notifier)
           .setWebAccessEnabled(enabled),
@@ -452,6 +454,20 @@ class AgentChatPanelCoordinator {
     final path = file.path;
     if (path == null || path.isEmpty) return null;
     return File(path).readAsBytes();
+  }
+
+  Future<void> _selectPermissionMode(
+    BuildContext context,
+    AgentPermissionMode mode,
+  ) async {
+    final confirmed = await confirmAgentPermissionModeChange(
+      context: context,
+      ref: _ref,
+      from: _ref.read(agentSettingsProvider).settings.chat.permissionMode,
+      to: mode,
+    );
+    if (!confirmed || !_isMounted()) return;
+    await _notifier.setPermissionMode(mode);
   }
 
   Future<void> _renameSession(BuildContext context, String sessionId) async {

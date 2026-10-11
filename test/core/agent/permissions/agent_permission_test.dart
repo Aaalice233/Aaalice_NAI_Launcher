@@ -403,6 +403,83 @@ void main() {
       }
     });
 
+    test('confirmAtThreshold only waives known charges below it', () {
+      final catalog = AgentToolPermissionCatalog(
+        toolNames: const ['generate'],
+        descriptors: const [generate],
+      );
+      AgentPermissionDecision decide(
+        int? estimate,
+        int? threshold, {
+        AgentAccessMode mode = AgentAccessMode.allowWrite,
+      }) => catalog.decide(
+        toolName: 'generate',
+        policy: AgentPermissionPolicy({
+          AgentPermissionDomain.generation: mode,
+        }, chargeApproval: AgentChargeApproval.confirmAtThreshold),
+        estimatedAnlas: estimate,
+        chargeConfirmThreshold: threshold,
+      );
+
+      expect(decide(49, 50), AgentPermissionDecision.allow);
+      expect(decide(50, 50), AgentPermissionDecision.confirmCharge);
+      expect(decide(5000, null), AgentPermissionDecision.allow);
+      expect(decide(null, null), AgentPermissionDecision.confirmCharge);
+      expect(decide(null, 50), AgentPermissionDecision.confirmCharge);
+      expect(decide(0, 50), AgentPermissionDecision.allow);
+      expect(decide(-1, null), AgentPermissionDecision.block);
+      expect(
+        decide(10, null, mode: AgentAccessMode.askBeforeWrite),
+        AgentPermissionDecision.ask,
+        reason: 'waiving the charge must not waive the write approval',
+      );
+      expect(
+        decide(10, null, mode: AgentAccessMode.readOnly),
+        AgentPermissionDecision.block,
+      );
+    });
+
+    test('confirmEach ignores the threshold', () {
+      final catalog = AgentToolPermissionCatalog(
+        toolNames: const ['generate'],
+        descriptors: const [generate],
+      );
+      expect(
+        catalog.decide(
+          toolName: 'generate',
+          policy: AgentPermissionPolicy(const {
+            AgentPermissionDomain.generation: AgentAccessMode.allowWrite,
+          }),
+          estimatedAnlas: 1,
+          chargeConfirmThreshold: 50,
+        ),
+        AgentPermissionDecision.confirmCharge,
+      );
+    });
+
+    test('agentPermissionPolicy pairs threshold charges with full access', () {
+      expect(
+        agentPermissionPolicy(
+          safeMode: false,
+          fullAccess: true,
+          chargeApproval: AgentChargeApproval.confirmAtThreshold,
+        ).chargeApproval,
+        AgentChargeApproval.confirmAtThreshold,
+      );
+      expect(
+        agentPermissionPolicy(safeMode: false, fullAccess: true).chargeApproval,
+        AgentChargeApproval.confirmEach,
+      );
+      expect(
+        () => agentPermissionPolicy(
+          safeMode: false,
+          fullAccess: false,
+          chargeApproval: AgentChargeApproval.confirmAtThreshold,
+        ),
+        throwsA(isA<AssertionError>()),
+      );
+    });
+
     test('rejects missing, duplicate, and unknown descriptors', () {
       expect(
         () => AgentToolPermissionCatalog(

@@ -354,6 +354,9 @@ class McpServerNotifier extends StateNotifier<McpServerState> {
           args,
           generationRuntime: factory.generationRuntime,
         ),
+        chargeConfirmThreshold: () => _ref
+            .read(shareImageSettingsProvider)
+            .effectiveHighAnlasCostThreshold,
         isMounted: () => mounted,
         notifyRequested: _notifyApprovalRequested ?? _playApprovalSound,
       );

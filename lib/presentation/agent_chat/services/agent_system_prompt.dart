@@ -252,8 +252,8 @@ String _buildRuntimeContext({
         'When it is exactly zero, call submit_generation with the '
         'preparation_id directly, without asking for confirmation. '
         'When cost is positive, report the exact cost and call submit_generation '
-        'with confirmed=true; the application permission UI obtains the '
-        'actual user approval before execution. Do not ask a duplicate '
+        'with confirmed=true; the application permission gate decides '
+        'whether user approval is needed before execution. Do not ask a duplicate '
         'question in chat or through ask_user_question. Unknown cost is not free. '
         'Use inspect/update/cancel_generation_preparation while pending. '
         'Never claim submission from a preparation result.',
@@ -282,7 +282,10 @@ String _buildRuntimeContext({
         '(characters, active references, source images, drafts, completed '
         'queue records) directly. Permanently deleting saved data (library '
         'entries or categories, fixed tags, pending or failed queue tasks) and '
-        'paid/unknown-cost submissions still need its approval. '
+        'paid/unknown-cost submissions still need its approval. In Autopilot, '
+        'paid submissions below the user\'s high-cost threshold run without '
+        'approval, so submit only what the task needs and never repeat a paid '
+        'call to retry or compare unless asked. '
         'Do not add a conversational permission checkpoint before the tool '
         'approval UI, and never disguise a permission request as a preference '
         'question. Stay within the user\'s actual task scope.',

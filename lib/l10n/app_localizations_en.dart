@@ -1501,6 +1501,13 @@ class AppLocalizationsEn extends AppLocalizations {
       'Ask only to delete saved data or spend Anlas; allow outside files';
 
   @override
+  String get agentChat_permissionAutopilot => 'Autopilot';
+
+  @override
+  String get agentChat_permissionAutopilotDescription =>
+      'Spend Anlas without asking; ask only to delete saved data or at the high-cost threshold';
+
+  @override
   String agentChat_approvalTitle(Object toolName) {
     return 'Allow $toolName?';
   }
@@ -10172,7 +10179,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get settings_mcpServerAnlasNotice =>
-      'Anything that may spend Anlas is confirmed separately inside the launcher, regardless of the permission mode.';
+      'Anything that may spend Anlas is confirmed separately inside the launcher. In Autopilot, only a single request reaching the Protection Mode high-cost threshold asks first.';
 
   @override
   String settings_mcpServerPendingApproval(Object client, Object tool) {
@@ -14548,6 +14555,28 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get agentSettings_permissionFullDescription =>
       'Allow direct tool use and files outside the workspace; deleting saved data or spending Anlas still asks first. Use only for trusted tasks.';
+
+  @override
+  String get agentSettings_permissionAutopilot => 'Autopilot';
+
+  @override
+  String get agentSettings_permissionAutopilotDescription =>
+      'Everything in Full access, plus generations and other Anlas spending run directly. Only a single request reaching the Protection Mode high-cost threshold, or deleting saved data, still asks first. For unattended batch work.';
+
+  @override
+  String get agentSettings_autopilotConfirmTitle => 'Turn on Autopilot?';
+
+  @override
+  String agentSettings_autopilotConfirmThreshold(Object threshold) {
+    return 'Generations, inpainting, queue runs and other Anlas spending will run without asking each time. A single request estimated at $threshold Anlas or more (the Protection Mode high-cost threshold) still asks first, and so does deleting saved data.';
+  }
+
+  @override
+  String get agentSettings_autopilotConfirmUnlimited =>
+      'Generations, inpainting, queue runs and other Anlas spending will run without asking each time. The Protection Mode high-cost warning is off, so any amount is spent directly; deleting saved data still asks first.';
+
+  @override
+  String get agentSettings_autopilotConfirmAction => 'Turn on';
 
   @override
   String get agentSettings_webPreference => 'Web preference';

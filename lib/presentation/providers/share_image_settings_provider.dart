@@ -42,6 +42,9 @@ class ShareImageSettings {
   bool get effectiveWarnHighAnlasCost =>
       protectionMode && warnHighAnlasCost && highAnlasCostThreshold > 0;
 
+  int? get effectiveHighAnlasCostThreshold =>
+      effectiveWarnHighAnlasCost ? highAnlasCostThreshold : null;
+
   int get effectiveGenerationIntervalSeconds =>
       protectionMode && limitGenerationInterval ? generationIntervalSeconds : 0;
 

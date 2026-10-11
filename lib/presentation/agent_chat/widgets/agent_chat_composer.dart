@@ -1023,6 +1023,7 @@ class _AgentChatComposerState extends State<AgentChatComposer> {
       AgentPermissionMode.safe => Icons.shield_outlined,
       AgentPermissionMode.askBeforeSensitiveActions => Icons.gpp_maybe_outlined,
       AgentPermissionMode.fullAccess => Icons.lock_open_outlined,
+      AgentPermissionMode.autopilot => Icons.auto_mode_outlined,
     };
     return PopupMenuButton<AgentPermissionMode>(
       key: const ValueKey('agent-chat-permission-mode'),

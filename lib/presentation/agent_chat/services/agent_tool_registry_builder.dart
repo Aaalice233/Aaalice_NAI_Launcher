@@ -256,7 +256,10 @@ class AgentToolRegistryBuilder {
     );
     final policy = agentPermissionPolicy(
       safeMode: permissionMode == AgentPermissionMode.safe,
-      fullAccess: permissionMode == AgentPermissionMode.fullAccess,
+      fullAccess: permissionMode.grantsFullAccess,
+      chargeApproval: permissionMode.autoApprovesCharges
+          ? AgentChargeApproval.confirmAtThreshold
+          : AgentChargeApproval.confirmEach,
     );
     return AgentToolRegistry(
       tools: [
