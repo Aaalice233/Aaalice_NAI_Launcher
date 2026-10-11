@@ -41,6 +41,7 @@ class AgentToolPermissionCatalog {
     required String toolName,
     required AgentPermissionPolicy policy,
     int? estimatedAnlas,
+    int? chargeConfirmThreshold,
   }) {
     final descriptor = descriptorFor(toolName);
     final policyDecision = policy.decide(
@@ -61,7 +62,31 @@ class AgentToolPermissionCatalog {
       return AgentPermissionDecision.block;
     }
     if (estimatedAnlas == 0) return ordinaryDecision;
-    return AgentPermissionDecision.confirmCharge;
+    return _decideCharge(
+      chargeApproval: policy.chargeApproval,
+      ordinaryDecision: ordinaryDecision,
+      estimatedAnlas: estimatedAnlas,
+      chargeConfirmThreshold: chargeConfirmThreshold,
+    );
+  }
+
+  /// [estimatedAnlas] is positive or unknown here; [chargeConfirmThreshold]
+  /// is null when the high-cost warning is off.
+  static AgentPermissionDecision _decideCharge({
+    required AgentChargeApproval chargeApproval,
+    required AgentPermissionDecision ordinaryDecision,
+    required int? estimatedAnlas,
+    required int? chargeConfirmThreshold,
+  }) {
+    final waived = switch (chargeApproval) {
+      AgentChargeApproval.confirmEach => false,
+      AgentChargeApproval.confirmAtThreshold =>
+        estimatedAnlas != null &&
+            (chargeConfirmThreshold == null ||
+                estimatedAnlas < chargeConfirmThreshold),
+    };
+    // Waiving the charge must not also waive a write the domain still asks for.
+    return waived ? ordinaryDecision : AgentPermissionDecision.confirmCharge;
   }
 
   static Map<String, AgentToolPermissionDescriptor> _build(
@@ -278,7 +303,12 @@ AgentToolPermissionDescriptor describeAgentToolPermission(String toolName) {
 AgentPermissionPolicy agentPermissionPolicy({
   required bool safeMode,
   required bool fullAccess,
+  AgentChargeApproval chargeApproval = AgentChargeApproval.confirmEach,
 }) {
+  assert(
+    fullAccess || chargeApproval == AgentChargeApproval.confirmEach,
+    'Unattended charges require full access.',
+  );
   final mode = fullAccess
       ? AgentAccessMode.allowWrite
       : safeMode
@@ -286,5 +316,5 @@ AgentPermissionPolicy agentPermissionPolicy({
       : AgentAccessMode.askBeforeWrite;
   return AgentPermissionPolicy({
     for (final domain in AgentPermissionDomain.values) domain: mode,
-  });
+  }, chargeApproval: chargeApproval);
 }

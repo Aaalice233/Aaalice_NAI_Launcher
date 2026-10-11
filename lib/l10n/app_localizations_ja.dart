@@ -1468,6 +1468,13 @@ class AppLocalizationsJa extends AppLocalizations {
       '保存データの削除と Anlas 消費時のみ確認、ワークスペース外も許可';
 
   @override
+  String get agentChat_permissionAutopilot => '全自動';
+
+  @override
+  String get agentChat_permissionAutopilotDescription =>
+      'Anlas 消費は確認なし。保存データの削除と高コストしきい値到達時のみ確認';
+
+  @override
   String agentChat_approvalTitle(Object toolName) {
     return '$toolName の実行を許可しますか？';
   }
@@ -9931,7 +9938,7 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get settings_mcpServerAnlasNotice =>
-      'Anlas を消費する可能性のある操作は、権限モードに関係なくランチャー内で個別に確認します。';
+      'Anlas を消費する可能性のある操作はランチャー内で個別に確認します。全自動モードでは、1 回の消費が保護モードの高コストしきい値に達した場合のみ確認します。';
 
   @override
   String settings_mcpServerPendingApproval(Object client, Object tool) {
@@ -14169,6 +14176,28 @@ class AppLocalizationsJa extends AppLocalizations {
   @override
   String get agentSettings_permissionFullDescription =>
       'ワークスペース外のファイルとツールの直接実行を許可します。保存済みデータの削除と Anlas の消費は引き続き確認します。信頼できるタスクにのみ使用してください。';
+
+  @override
+  String get agentSettings_permissionAutopilot => '全自動';
+
+  @override
+  String get agentSettings_permissionAutopilotDescription =>
+      'フルアクセスのすべての権限に加え、生成など Anlas を消費する操作も直接実行します。1 回の消費が保護モードの高コストしきい値に達した場合と、保存済みデータの削除のみ確認します。無人のバッチ作業向けです。';
+
+  @override
+  String get agentSettings_autopilotConfirmTitle => '全自動をオンにしますか？';
+
+  @override
+  String agentSettings_autopilotConfirmThreshold(Object threshold) {
+    return '生成、インペイント、キューの開始など Anlas を消費する操作は、毎回確認せずに直接実行されます。1 回の推定消費が $threshold Anlas（保護モードの高コストしきい値）に達した場合と、保存済みデータの削除は引き続き確認します。';
+  }
+
+  @override
+  String get agentSettings_autopilotConfirmUnlimited =>
+      '生成、インペイント、キューの開始など Anlas を消費する操作は、毎回確認せずに直接実行されます。保護モードの高コスト警告がオフのため、金額にかかわらず直接消費されます。保存済みデータの削除は引き続き確認します。';
+
+  @override
+  String get agentSettings_autopilotConfirmAction => 'オンにする';
 
   @override
   String get agentSettings_webPreference => 'Web 接続設定';

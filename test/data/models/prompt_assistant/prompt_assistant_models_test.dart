@@ -144,6 +144,23 @@ void main() {
   });
 
   group('AgentPermissionMode persistence', () {
+    test('only autopilot waives charges, and it keeps full access', () {
+      expect(
+        [
+          for (final mode in AgentPermissionMode.values)
+            if (mode.grantsFullAccess) mode,
+        ],
+        [AgentPermissionMode.fullAccess, AgentPermissionMode.autopilot],
+      );
+      expect(
+        [
+          for (final mode in AgentPermissionMode.values)
+            if (mode.autoApprovesCharges) mode,
+        ],
+        [AgentPermissionMode.autopilot],
+      );
+    });
+
     for (final mode in AgentPermissionMode.values) {
       test('round-trips ${mode.name}', () {
         final encoded = PromptAssistantConfigState.defaults()

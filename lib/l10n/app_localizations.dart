@@ -2825,6 +2825,18 @@ abstract class AppLocalizations {
   /// **'Ask only to delete saved data or spend Anlas; allow outside files'**
   String get agentChat_permissionFullDescription;
 
+  /// No description provided for @agentChat_permissionAutopilot.
+  ///
+  /// In en, this message translates to:
+  /// **'Autopilot'**
+  String get agentChat_permissionAutopilot;
+
+  /// No description provided for @agentChat_permissionAutopilotDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Spend Anlas without asking; ask only to delete saved data or at the high-cost threshold'**
+  String get agentChat_permissionAutopilotDescription;
+
   /// No description provided for @agentChat_approvalTitle.
   ///
   /// In en, this message translates to:
@@ -17859,7 +17871,7 @@ abstract class AppLocalizations {
   /// No description provided for @settings_mcpServerAnlasNotice.
   ///
   /// In en, this message translates to:
-  /// **'Anything that may spend Anlas is confirmed separately inside the launcher, regardless of the permission mode.'**
+  /// **'Anything that may spend Anlas is confirmed separately inside the launcher. In Autopilot, only a single request reaching the Protection Mode high-cost threshold asks first.'**
   String get settings_mcpServerAnlasNotice;
 
   /// No description provided for @settings_mcpServerPendingApproval.
@@ -25191,6 +25203,42 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Allow direct tool use and files outside the workspace; deleting saved data or spending Anlas still asks first. Use only for trusted tasks.'**
   String get agentSettings_permissionFullDescription;
+
+  /// No description provided for @agentSettings_permissionAutopilot.
+  ///
+  /// In en, this message translates to:
+  /// **'Autopilot'**
+  String get agentSettings_permissionAutopilot;
+
+  /// No description provided for @agentSettings_permissionAutopilotDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Everything in Full access, plus generations and other Anlas spending run directly. Only a single request reaching the Protection Mode high-cost threshold, or deleting saved data, still asks first. For unattended batch work.'**
+  String get agentSettings_permissionAutopilotDescription;
+
+  /// No description provided for @agentSettings_autopilotConfirmTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Turn on Autopilot?'**
+  String get agentSettings_autopilotConfirmTitle;
+
+  /// No description provided for @agentSettings_autopilotConfirmThreshold.
+  ///
+  /// In en, this message translates to:
+  /// **'Generations, inpainting, queue runs and other Anlas spending will run without asking each time. A single request estimated at {threshold} Anlas or more (the Protection Mode high-cost threshold) still asks first, and so does deleting saved data.'**
+  String agentSettings_autopilotConfirmThreshold(Object threshold);
+
+  /// No description provided for @agentSettings_autopilotConfirmUnlimited.
+  ///
+  /// In en, this message translates to:
+  /// **'Generations, inpainting, queue runs and other Anlas spending will run without asking each time. The Protection Mode high-cost warning is off, so any amount is spent directly; deleting saved data still asks first.'**
+  String get agentSettings_autopilotConfirmUnlimited;
+
+  /// No description provided for @agentSettings_autopilotConfirmAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Turn on'**
+  String get agentSettings_autopilotConfirmAction;
 
   /// No description provided for @agentSettings_webPreference.
   ///

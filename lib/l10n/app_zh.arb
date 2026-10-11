@@ -553,6 +553,8 @@
   "agentChat_permissionAskDescription": "敏感操作执行前询问",
   "agentChat_permissionFull": "完全访问",
   "agentChat_permissionFullDescription": "仅删除已存数据或消耗 Anlas 时询问，可访问工作区外文件",
+  "agentChat_permissionAutopilot": "全自动",
+  "agentChat_permissionAutopilotDescription": "消耗 Anlas 不再询问，仅删除已存数据或达到高消耗阈值时询问",
   "agentChat_approvalTitle": "允许执行 {toolName}？",
   "@agentChat_approvalTitle": {
     "placeholders": {
@@ -4691,7 +4693,7 @@
   "settings_mcpServerRegenerateToken": "重新生成令牌",
   "settings_mcpServerRegenerateTokenTitle": "重新生成接入令牌",
   "settings_mcpServerRegenerateTokenMessage": "当前令牌会立即失效，已连接的客户端将断开。请在所有客户端配置中更新新令牌。",
-  "settings_mcpServerAnlasNotice": "任何可能消耗 Anlas 的操作都会在启动器内单独确认，与权限模式无关。",
+  "settings_mcpServerAnlasNotice": "可能消耗 Anlas 的操作会在启动器内单独确认；全自动模式下，只有单次消耗达到保护模式的高消耗阈值时才确认。",
   "settings_mcpServerPendingApproval": "{client} 请求调用 {tool}",
   "@settings_mcpServerPendingApproval": {
     "placeholders": {
@@ -6944,6 +6946,17 @@
   "agentSettings_permissionAskDescription": "默认模式。写文件、执行生成等敏感操作前先请求确认。",
   "agentSettings_permissionFull": "完全访问",
   "agentSettings_permissionFullDescription": "允许访问工作区外文件并直接执行工具；删除已保存的数据或消耗 Anlas 前仍会确认。仅在信任当前任务时使用。",
+  "agentSettings_permissionAutopilot": "全自动",
+  "agentSettings_permissionAutopilotDescription": "包含完全访问的全部权限，生成等消耗 Anlas 的操作也直接执行；仅在单次消耗达到保护模式的高消耗阈值或删除已保存的数据时确认。适合无人值守的批量任务。",
+  "agentSettings_autopilotConfirmTitle": "开启全自动？",
+  "agentSettings_autopilotConfirmThreshold": "生成、重绘、启动队列等消耗 Anlas 的操作将直接执行，不再逐次确认。单次预计消耗达到 {threshold} Anlas（保护模式的高消耗阈值）时仍会确认，删除已保存的数据也仍会确认。",
+  "@agentSettings_autopilotConfirmThreshold": {
+    "placeholders": {
+      "threshold": {}
+    }
+  },
+  "agentSettings_autopilotConfirmUnlimited": "生成、重绘、启动队列等消耗 Anlas 的操作将直接执行，不再逐次确认。保护模式的高消耗警告当前未开启，任何金额都会直接扣除；删除已保存的数据仍会确认。",
+  "agentSettings_autopilotConfirmAction": "开启",
   "agentSettings_webPreference": "联网偏好",
   "agentSettings_webEnabled": "允许智能体使用 Web 工具",
   "agentSettings_webDescription": "开启后模型可搜索并读取公开网页；关闭后相关工具会从运行时工具表移除。",

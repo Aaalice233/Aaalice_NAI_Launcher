@@ -11,11 +11,19 @@ enum AssistantTaskType {
   chat,
 }
 
-/// Agent 工具权限。除 [fullAccess] 外，文件访问始终限制在 Agent 工作区内。
+/// Agent 工具权限。除 [fullAccess] 与 [autopilot] 外，文件访问始终限制在
+/// Agent 工作区内。
 enum AgentPermissionMode {
   safe,
   askBeforeSensitiveActions,
-  fullAccess;
+  fullAccess,
+
+  /// 完全访问之上，扣点不再逐次确认，只在达到保护模式高消耗阈值时确认。
+  autopilot;
+
+  bool get grantsFullAccess => this == fullAccess || this == autopilot;
+
+  bool get autoApprovesCharges => this == autopilot;
 
   static AgentPermissionMode fromName(String? value) =>
       AgentPermissionMode.values.firstWhere(

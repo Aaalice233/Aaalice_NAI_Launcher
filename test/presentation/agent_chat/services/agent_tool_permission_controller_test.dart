@@ -21,6 +21,7 @@ void main() {
         auditSink: audit,
         estimateAnlas: (_, _) async => throw StateError('Read does not bill'),
         describeFileTargets: (_, _) => const [],
+        chargeConfirmThreshold: () => null,
         onApprovalChanged: (_) =>
             fail('Read should not request write approval'),
         isMounted: () => true,
@@ -75,6 +76,7 @@ void main() {
         auditSink: MemoryAgentAuditSink(),
         estimateAnlas: (_, _) async => null,
         describeFileTargets: (_, _) => const [],
+        chargeConfirmThreshold: () => null,
         onApprovalChanged: onApprovalChanged,
         isMounted: () => true,
       );
@@ -296,6 +298,85 @@ void main() {
       );
     });
 
+    test('autopilot submits below the threshold without approval', () async {
+      AgentToolApprovalRequest? approval;
+      final controller = _controller(
+        mode: AgentAccessMode.allowWrite,
+        estimate: 49,
+        onApproval: (value) => approval = value,
+        chargeApproval: AgentChargeApproval.confirmAtThreshold,
+        chargeConfirmThreshold: () => 50,
+      );
+
+      final pending = controller.beforeToolCall(_context('cheap'), null);
+      await Future<void>.delayed(Duration.zero);
+
+      expect(approval, isNull);
+      expect(await pending, isNull);
+      expect(controller.takeDecision('cheap'), AgentPermissionDecision.allow);
+    });
+
+    test('autopilot still asks at the threshold', () async {
+      AgentToolApprovalRequest? approval;
+      final controller = _controller(
+        mode: AgentAccessMode.allowWrite,
+        estimate: 50,
+        onApproval: (value) => approval = value,
+        chargeApproval: AgentChargeApproval.confirmAtThreshold,
+        chargeConfirmThreshold: () => 50,
+      );
+
+      final pending = controller.beforeToolCall(_context('costly'), null);
+      await Future<void>.delayed(Duration.zero);
+
+      expect(approval?.estimatedAnlas, 50);
+      expect(controller.resolveApproval('costly', false), isTrue);
+      expect((await pending)?.block, isTrue);
+    });
+
+    test('autopilot reads the threshold for every call', () async {
+      int? threshold = 10;
+      final approvals = <AgentToolApprovalRequest?>[];
+      final controller = _controller(
+        mode: AgentAccessMode.allowWrite,
+        estimate: 20,
+        onApproval: approvals.add,
+        chargeApproval: AgentChargeApproval.confirmAtThreshold,
+        chargeConfirmThreshold: () => threshold,
+      );
+
+      final pending = controller.beforeToolCall(_context('first'), null);
+      await Future<void>.delayed(Duration.zero);
+      expect(approvals.single?.estimatedAnlas, 20);
+      controller.resolveApproval('first', false);
+      await pending;
+
+      threshold = null;
+      final second = controller.beforeToolCall(_context('second'), null);
+      await Future<void>.delayed(Duration.zero);
+
+      expect(approvals.whereType<AgentToolApprovalRequest>(), hasLength(1));
+      expect(await second, isNull);
+    });
+
+    test('autopilot never treats an unknown cost as free', () async {
+      AgentToolApprovalRequest? approval;
+      final controller = _controller(
+        mode: AgentAccessMode.allowWrite,
+        estimate: null,
+        onApproval: (value) => approval = value,
+        chargeApproval: AgentChargeApproval.confirmAtThreshold,
+      );
+
+      final pending = controller.beforeToolCall(_context('unknown'), null);
+      await Future<void>.delayed(Duration.zero);
+
+      expect(approval?.toolName, 'submit_generation');
+      expect(approval?.estimatedAnlas, isNull);
+      controller.resolveApproval('unknown', false);
+      expect((await pending)?.block, isTrue);
+    });
+
     test('stale window response cannot resolve a newer approval', () async {
       final controller = _controller(
         mode: AgentAccessMode.allowWrite,
@@ -364,6 +445,8 @@ AgentToolPermissionController _controller({
   required int? estimate,
   required void Function(AgentToolApprovalRequest?) onApproval,
   List<String> Function(String, Map<String, dynamic>)? describeFileTargets,
+  AgentChargeApproval chargeApproval = AgentChargeApproval.confirmEach,
+  int? Function()? chargeConfirmThreshold,
 }) {
   final descriptor = describeAgentToolPermission('submit_generation');
   final catalog = AgentToolPermissionCatalog(
@@ -374,9 +457,11 @@ AgentToolPermissionController _controller({
     auditSink: MemoryAgentAuditSink(),
     estimateAnlas: (_, _) async => estimate,
     describeFileTargets: describeFileTargets ?? ((_, _) => const []),
+    chargeConfirmThreshold: chargeConfirmThreshold ?? () => null,
     onApprovalChanged: onApproval,
     isMounted: () => true,
   );
+  addTearDown(controller.dispose);
   controller.configure(
     AgentToolRegistry(
       tools: const [],
@@ -384,7 +469,7 @@ AgentToolPermissionController _controller({
       policy: AgentPermissionPolicy({
         descriptor.domain: mode,
         AgentPermissionDomain.file: mode,
-      }),
+      }, chargeApproval: chargeApproval),
     ),
   );
   return controller;

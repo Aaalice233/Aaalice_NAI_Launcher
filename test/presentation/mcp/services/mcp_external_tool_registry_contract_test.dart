@@ -138,6 +138,16 @@ void main() {
     }
   });
 
+  test('autopilot exposes exactly the full access tool surface', () {
+    List<String> names(AgentPermissionMode mode) =>
+        factory.build(mode).tools.map((tool) => tool.name).toList();
+
+    expect(
+      names(AgentPermissionMode.autopilot),
+      names(AgentPermissionMode.fullAccess),
+    );
+  });
+
   test('repeated builds keep tool order stable', () {
     final first = factory
         .build(AgentPermissionMode.askBeforeSensitiveActions)

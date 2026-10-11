@@ -13,6 +13,7 @@ import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/agent_chat/providers/agent_chat_state.dart';
 import 'package:nai_launcher/presentation/mcp/providers/mcp_server_notifier.dart';
 import 'package:nai_launcher/presentation/mcp/services/mcp_approval_coordinator.dart';
+import 'package:nai_launcher/presentation/providers/share_image_settings_provider.dart';
 import 'package:nai_launcher/data/models/prompt_assistant/prompt_assistant_models.dart';
 import 'package:nai_launcher/presentation/screens/settings/sections/mcp_server_settings_section.dart';
 
@@ -83,6 +84,7 @@ void main() {
     double width = 1180,
     double height = 2400,
     TextScaler textScaler = TextScaler.noScaling,
+    ShareImageSettings shareSettings = const ShareImageSettings(),
   }) async {
     late _FakeMcpServerNotifier notifier;
     tester.view.physicalSize = Size(width, height);
@@ -92,6 +94,9 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
+          shareImageSettingsProvider.overrideWith(
+            () => _FixedShareImageSettingsNotifier(shareSettings),
+          ),
           mcpServerNotifierProvider.overrideWith((ref) {
             notifier = _FakeMcpServerNotifier(
               ref,
@@ -310,6 +315,61 @@ void main() {
     );
     await tester.pumpAndSettle();
     expect(notifier.permissionModes, [AgentPermissionMode.fullAccess]);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
+
+  testWidgets('切入全自动先确认，取消不写回', (tester) async {
+    final notifier = await pumpSection(
+      tester,
+      initialState: listeningState(),
+      shareSettings: const ShareImageSettings(
+        protectionMode: true,
+        highAnlasCostThreshold: 40,
+      ),
+    );
+    final l10n = await AppLocalizations.delegate.load(const Locale('zh'));
+    final autopilot = find.byKey(
+      const ValueKey('mcp-server-permission-autopilot'),
+    );
+
+    await tester.ensureVisible(autopilot);
+    await tester.tap(autopilot);
+    await tester.pumpAndSettle();
+    expect(find.text(l10n.agentSettings_autopilotConfirmTitle), findsOneWidget);
+    expect(
+      find.text(l10n.agentSettings_autopilotConfirmThreshold(40)),
+      findsOneWidget,
+    );
+    await tester.tap(find.text(l10n.common_cancel));
+    await tester.pumpAndSettle();
+    expect(notifier.permissionModes, isEmpty);
+
+    await tester.tap(autopilot);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text(l10n.agentSettings_autopilotConfirmAction));
+    await tester.pumpAndSettle();
+    expect(notifier.permissionModes, [AgentPermissionMode.autopilot]);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
+
+  testWidgets('保护模式关闭时提示任何金额都会直接扣除', (tester) async {
+    await pumpSection(tester, initialState: listeningState());
+    final l10n = await AppLocalizations.delegate.load(const Locale('zh'));
+    final autopilot = find.byKey(
+      const ValueKey('mcp-server-permission-autopilot'),
+    );
+
+    await tester.ensureVisible(autopilot);
+    await tester.tap(autopilot);
+    await tester.pumpAndSettle();
+    expect(
+      find.text(l10n.agentSettings_autopilotConfirmUnlimited),
+      findsOneWidget,
+    );
+    await tester.tap(find.text(l10n.common_cancel));
+    await tester.pumpAndSettle();
 
     await tester.pumpWidget(const SizedBox.shrink());
   });
@@ -596,6 +656,15 @@ McpApprovalRequest _approval() {
     clientLabel: 'codex 1.0.0',
     expiresAt: DateTime(2026, 9, 13, 10, 35),
   );
+}
+
+class _FixedShareImageSettingsNotifier extends ShareImageSettingsNotifier {
+  _FixedShareImageSettingsNotifier(this.settings);
+
+  final ShareImageSettings settings;
+
+  @override
+  ShareImageSettings build() => settings;
 }
 
 class _FakeMcpServerNotifier extends McpServerNotifier {

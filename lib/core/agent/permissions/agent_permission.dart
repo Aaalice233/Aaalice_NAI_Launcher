@@ -35,11 +35,24 @@ enum AgentPermissionOperation {
 /// Action the caller must take before invoking a tool.
 enum AgentPermissionDecision { allow, block, ask, confirmCharge }
 
+/// How a positive Anlas estimate is approved once the domain allows the call.
+enum AgentChargeApproval {
+  confirmEach,
+
+  /// Mirrors the generation button: only estimates at or above the high-cost
+  /// threshold ask, and no threshold means every known estimate proceeds.
+  confirmAtThreshold,
+}
+
 class AgentPermissionPolicy {
-  AgentPermissionPolicy(Map<AgentPermissionDomain, AgentAccessMode> modes)
-    : _modes = Map.unmodifiable(modes);
+  AgentPermissionPolicy(
+    Map<AgentPermissionDomain, AgentAccessMode> modes, {
+    this.chargeApproval = AgentChargeApproval.confirmEach,
+  }) : _modes = Map.unmodifiable(modes);
 
   final Map<AgentPermissionDomain, AgentAccessMode> _modes;
+
+  final AgentChargeApproval chargeApproval;
 
   Map<AgentPermissionDomain, AgentAccessMode> get modes => _modes;
 

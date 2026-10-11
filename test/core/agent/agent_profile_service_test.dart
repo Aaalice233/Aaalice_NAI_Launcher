@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/core/agent/agent_profile_service.dart';
 import 'package:nai_launcher/data/models/agent/agent_settings.dart';
+import 'package:nai_launcher/data/models/prompt_assistant/prompt_assistant_models.dart';
 
 void main() {
   const service = AgentProfileService();
@@ -28,6 +29,30 @@ void main() {
     expect(text, contains('"systemPromptMode": "override"'));
     expect(text, isNot(contains('apiKey')));
     expect(text, isNot(contains('chatHistory')));
+  });
+
+  test('autopilot never travels inside a profile', () {
+    final autopilot = settings.copyWith(
+      chat: settings.chat.copyWith(
+        permissionMode: AgentPermissionMode.autopilot,
+      ),
+    );
+
+    final exported = service.exportProfile(autopilot);
+    expect(exported, contains('"permissionMode": "fullAccess"'));
+    expect(exported, isNot(contains('autopilot')));
+
+    final handEdited = jsonEncode({
+      'format': 'aaalice-agent-profile',
+      'schemaVersion': AgentProfileService.schemaVersion,
+      'settings': autopilot.toJson(),
+    });
+    final preview = service.previewImport(raw: handEdited, current: settings);
+    expect(
+      preview.settings.chat.permissionMode,
+      AgentPermissionMode.fullAccess,
+    );
+    expect(preview.changes, contains('permissionMode'));
   });
 
   test('refuses to export secrets or absolute paths embedded in prompts', () {

@@ -568,6 +568,8 @@
   "agentChat_permissionAskDescription": "Ask before sensitive actions",
   "agentChat_permissionFull": "Full access",
   "agentChat_permissionFullDescription": "Ask only to delete saved data or spend Anlas; allow outside files",
+  "agentChat_permissionAutopilot": "Autopilot",
+  "agentChat_permissionAutopilotDescription": "Spend Anlas without asking; ask only to delete saved data or at the high-cost threshold",
   "agentChat_approvalTitle": "Allow {toolName}?",
   "@agentChat_approvalTitle": {
     "placeholders": {
@@ -4898,7 +4900,7 @@
   "settings_mcpServerRegenerateToken": "Regenerate token",
   "settings_mcpServerRegenerateTokenTitle": "Regenerate access token",
   "settings_mcpServerRegenerateTokenMessage": "The current token stops working immediately and connected clients are disconnected. Update every client configuration with the new token.",
-  "settings_mcpServerAnlasNotice": "Anything that may spend Anlas is confirmed separately inside the launcher, regardless of the permission mode.",
+  "settings_mcpServerAnlasNotice": "Anything that may spend Anlas is confirmed separately inside the launcher. In Autopilot, only a single request reaching the Protection Mode high-cost threshold asks first.",
   "settings_mcpServerPendingApproval": "{client} is requesting {tool}",
   "@settings_mcpServerPendingApproval": {
     "placeholders": {
@@ -6875,6 +6877,17 @@
   "agentSettings_permissionAskDescription": "Default. Ask before writing files, generating images, or other sensitive actions.",
   "agentSettings_permissionFull": "Full access",
   "agentSettings_permissionFullDescription": "Allow direct tool use and files outside the workspace; deleting saved data or spending Anlas still asks first. Use only for trusted tasks.",
+  "agentSettings_permissionAutopilot": "Autopilot",
+  "agentSettings_permissionAutopilotDescription": "Everything in Full access, plus generations and other Anlas spending run directly. Only a single request reaching the Protection Mode high-cost threshold, or deleting saved data, still asks first. For unattended batch work.",
+  "agentSettings_autopilotConfirmTitle": "Turn on Autopilot?",
+  "agentSettings_autopilotConfirmThreshold": "Generations, inpainting, queue runs and other Anlas spending will run without asking each time. A single request estimated at {threshold} Anlas or more (the Protection Mode high-cost threshold) still asks first, and so does deleting saved data.",
+  "@agentSettings_autopilotConfirmThreshold": {
+    "placeholders": {
+      "threshold": {}
+    }
+  },
+  "agentSettings_autopilotConfirmUnlimited": "Generations, inpainting, queue runs and other Anlas spending will run without asking each time. The Protection Mode high-cost warning is off, so any amount is spent directly; deleting saved data still asks first.",
+  "agentSettings_autopilotConfirmAction": "Turn on",
   "agentSettings_webPreference": "Web preference",
   "agentSettings_webEnabled": "Allow the Agent to use Web tools",
   "agentSettings_webDescription": "When enabled, the model can search and read public pages. Turning it off removes Web tools at runtime.",

@@ -514,6 +514,7 @@ void main() {
         auditSink: MemoryAgentAuditSink(),
         estimateAnlas: (_, _) async => null,
         describeFileTargets: (_, _) => const [],
+        chargeConfirmThreshold: () => null,
         onApprovalChanged: (_) {},
         isMounted: () => true,
       ),

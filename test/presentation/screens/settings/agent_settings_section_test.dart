@@ -444,6 +444,11 @@ void main() {
         await tester.binding.setSurfaceSize(size);
         await tester.pump(const Duration(milliseconds: 400));
         expect(find.byType(AgentSettingsSection), findsOneWidget);
+        expect(
+          find.byType(RadioListTile<AgentPermissionMode>),
+          findsNWidgets(AgentPermissionMode.values.length),
+          reason: '$size',
+        );
         expect(tester.takeException(), isNull);
       }
     } finally {

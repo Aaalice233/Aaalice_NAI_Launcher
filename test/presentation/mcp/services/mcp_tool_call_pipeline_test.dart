@@ -205,6 +205,45 @@ void main() {
     expect((await charged).isError, isTrue);
   });
 
+  test(
+    'autopilot charges below the threshold, still guards the rest',
+    () async {
+      final autopilot = _Harness(
+        mode: AgentPermissionMode.autopilot,
+        chargeConfirmThreshold: 25,
+      );
+      addTearDown(autopilot.dispose);
+
+      final charged = autopilot.call(
+        'a1',
+        'generate_image',
+        arguments: const {'preparation_id': 'prep-1'},
+      );
+      await pumpEventQueue();
+      expect(autopilot.coordinator.current, isNull);
+      expect((await charged).isError, isNot(isTrue));
+      expect(autopilot.executed, ['generate_image']);
+
+      autopilot.chargeConfirmThreshold = 24;
+      final costly = autopilot.call(
+        'a2',
+        'generate_image',
+        arguments: const {'preparation_id': 'prep-2'},
+      );
+      await pumpEventQueue();
+      expect(autopilot.coordinator.current?.request.estimatedAnlas, 24);
+      autopilot.coordinator.resolve('a2', false);
+      expect((await costly).isError, isTrue);
+
+      final deletion = autopilot.call('a3', 'delete_fixed_tag');
+      await pumpEventQueue();
+      expect(autopilot.coordinator.current?.toolCallId, 'a3');
+      autopilot.coordinator.resolve('a3', false);
+      expect((await deletion).isError, isTrue);
+      expect(autopilot.executed, ['generate_image']);
+    },
+  );
+
   test('tools reflect the currently built registry', () {
     expect(
       harness.executor.tools.map((tool) => tool.name),
@@ -659,6 +698,7 @@ class _Harness {
     this.sourceResult,
     List<AgentTool>? toolOverrides,
     int estimatedAnlas = 24,
+    this.chargeConfirmThreshold,
     void Function(String sessionId, AgentToolResult result)? observeResult,
   }) {
     tools =
@@ -708,6 +748,7 @@ class _Harness {
       estimateAnlas: (_, args) async =>
           args['preparation_id'] is String ? estimatedAnlas : null,
       describeFileTargets: (_, _) => const [],
+      chargeConfirmThreshold: () => chargeConfirmThreshold,
       isMounted: () => true,
       timeout: timeout,
     );
@@ -728,6 +769,7 @@ class _Harness {
 
   final MemoryAgentAuditSink audit = MemoryAgentAuditSink();
   final AgentToolResult? sourceResult;
+  int? chargeConfirmThreshold;
   final List<String> executed = [];
   late final List<AgentTool> tools;
   late final McpApprovalCoordinator coordinator;

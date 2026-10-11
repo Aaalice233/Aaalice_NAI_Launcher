@@ -112,6 +112,7 @@ class _Harness {
       auditSink: audit,
       estimateAnlas: (_, _) async => null,
       describeFileTargets: (_, _) => const [],
+      chargeConfirmThreshold: () => null,
       isMounted: () => true,
       timeout: _timeout,
     );

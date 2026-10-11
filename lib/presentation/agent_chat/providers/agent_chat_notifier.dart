@@ -34,6 +34,7 @@ import '../../prompt_assistant/providers/web_access_provider.dart';
 import '../../prompt_assistant/services/prompt_assistant_service.dart';
 import '../../providers/fixed_tags_provider.dart';
 import '../../providers/precise_ref_library_provider.dart';
+import '../../providers/share_image_settings_provider.dart';
 import '../../providers/tag_library_page_provider.dart';
 import '../../providers/vibe_library_provider.dart';
 import '../../router/app_router_config.dart';
@@ -219,6 +220,8 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
       auditSink: auditSink,
       estimateAnlas: _estimatePreparedAnlas,
       describeFileTargets: _describePreparedFileTargets,
+      chargeConfirmThreshold: () =>
+          _ref.read(shareImageSettingsProvider).effectiveHighAnlasCostThreshold,
       onApprovalChanged: (request) {
         final boundRequest = request?.bind(
           turnId: _sessionControllerValue?.activeTurnId,
@@ -305,7 +308,7 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
         .settings
         .chat
         .permissionMode;
-    final fullAccess = permissionMode == AgentPermissionMode.fullAccess;
+    final fullAccess = permissionMode.grantsFullAccess;
     final capability = _modelCapability(_routeCache);
     final agent = Agent(
       AgentOptions(
@@ -362,9 +365,7 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
     final agent = _sessionControllerValue?.agent;
     if (agent == null) return;
     final mode = _ref.read(agentSettingsProvider).settings.chat.permissionMode;
-    agent.state.tools = _buildTools(
-      fullAccess: mode == AgentPermissionMode.fullAccess,
-    );
+    agent.state.tools = _buildTools(fullAccess: mode.grantsFullAccess);
     agent.setSystemPrompt(await _buildSystemPrompt());
   }
 
@@ -434,9 +435,7 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
           .settings
           .chat
           .permissionMode;
-      agent.state.tools = _buildTools(
-        fullAccess: mode == AgentPermissionMode.fullAccess,
-      );
+      agent.state.tools = _buildTools(fullAccess: mode.grantsFullAccess);
       agent.setSystemPrompt(
         await _buildSystemPrompt(settingsOverride: _activeAgentSettings),
       );
@@ -458,9 +457,7 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
           .settings
           .chat
           .permissionMode;
-      agent.state.tools = _buildTools(
-        fullAccess: mode == AgentPermissionMode.fullAccess,
-      );
+      agent.state.tools = _buildTools(fullAccess: mode.grantsFullAccess);
       agent.setSystemPrompt(await _buildSystemPrompt());
     }
     if (mounted) {
@@ -1226,7 +1223,7 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
             capability.levels.firstOrNull ?? ThinkingLevel.off;
       }
       agent.state.tools = _buildTools(
-        fullAccess: permissionMode == AgentPermissionMode.fullAccess,
+        fullAccess: permissionMode.grantsFullAccess,
       );
       agent.setSystemPrompt(
         await _buildSystemPrompt(settingsOverride: agentSettings),

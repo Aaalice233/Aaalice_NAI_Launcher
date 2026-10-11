@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import '../../data/models/agent/agent_settings.dart';
+import '../../data/models/prompt_assistant/prompt_assistant_models.dart';
 import 'private_data_guard.dart';
 
 class AgentProfilePreview {
@@ -25,7 +26,7 @@ class AgentProfileService {
     final payload = <String, Object?>{
       'format': 'aaalice-agent-profile',
       'schemaVersion': schemaVersion,
-      'settings': settings.toJson(),
+      'settings': _withoutAutopilot(settings).toJson(),
     };
     _assertPortable(payload);
     return const JsonEncoder.withIndent('  ').convert(payload);
@@ -59,7 +60,9 @@ class AgentProfileService {
     if (settingsValue is! Map) {
       throw const FormatException('Agent profile settings must be an object.');
     }
-    final imported = AgentSettings.decode(jsonEncode(settingsValue));
+    final imported = _withoutAutopilot(
+      AgentSettings.decode(jsonEncode(settingsValue)),
+    );
     final changes = <String>[];
     final warnings = <String>[];
     if (current.chat.modelReference != imported.chat.modelReference) {
@@ -104,6 +107,16 @@ class AgentProfileService {
       warnings: warnings,
     );
   }
+
+  // 全自动免确认扣点，只能在本机手动开启，不随配置文件流转。
+  static AgentSettings _withoutAutopilot(AgentSettings settings) =>
+      settings.chat.permissionMode.autoApprovesCharges
+      ? settings.copyWith(
+          chat: settings.chat.copyWith(
+            permissionMode: AgentPermissionMode.fullAccess,
+          ),
+        )
+      : settings;
 
   bool _sameMap(Map<String, bool> a, Map<String, bool> b) =>
       a.length == b.length &&

@@ -58,7 +58,10 @@ AgentToolRegistry fakeToolRegistry(
     ),
     policy: agentPermissionPolicy(
       safeMode: mode == AgentPermissionMode.safe,
-      fullAccess: mode == AgentPermissionMode.fullAccess,
+      fullAccess: mode.grantsFullAccess,
+      chargeApproval: mode.autoApprovesCharges
+          ? AgentChargeApproval.confirmAtThreshold
+          : AgentChargeApproval.confirmEach,
     ),
   );
 }

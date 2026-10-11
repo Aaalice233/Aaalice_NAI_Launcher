@@ -188,10 +188,7 @@ class McpExternalToolRegistryFactory {
 
   AgentToolRegistry build(AgentPermissionMode mode) {
     return McpExternalToolSurface.filter(
-      _builder.build(
-        fullAccess: mode == AgentPermissionMode.fullAccess,
-        permissionMode: mode,
-      ),
+      _builder.build(fullAccess: mode.grantsFullAccess, permissionMode: mode),
     );
   }
 }
