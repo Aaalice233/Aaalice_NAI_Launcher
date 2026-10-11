@@ -304,14 +304,11 @@ class _ReversePromptPanelState extends ConsumerState<ReversePromptPanel> {
             models.any((m) => m.path == state.selectedTaggerModelPath)
             ? state.selectedTaggerModelPath
             : null;
-        // 未选择时运行会落到第一个模型，分类与提示跟随实际要用的模型
+        // 未选择时运行会落到第一个模型，分类跟随实际要用的模型
         final effectiveModel =
             models.where((model) => model.path == selected).firstOrNull ??
             models.firstOrNull;
         final labelsPath = effectiveModel?.labelsPath;
-        final hintStyle = Theme.of(context).textTheme.bodySmall?.copyWith(
-          color: Theme.of(context).colorScheme.onSurfaceVariant,
-        );
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
@@ -378,11 +375,6 @@ class _ReversePromptPanelState extends ConsumerState<ReversePromptPanel> {
                 ),
               ],
             ),
-            Text(context.l10n.reversePrompt_taggerFilterHint, style: hintStyle),
-            if (effectiveModel?.kind == LocalOnnxModelKind.pixaiTagger) ...[
-              const SizedBox(height: 4),
-              Text(context.l10n.reversePrompt_pixaiTaggerHint, style: hintStyle),
-            ],
           ],
         );
       },

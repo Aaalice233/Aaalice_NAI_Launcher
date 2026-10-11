@@ -6942,19 +6942,11 @@ class AppLocalizationsEn extends AppLocalizations {
   String get reversePrompt_characterThreshold => 'Character tag threshold';
 
   @override
-  String get reversePrompt_taggerFilterHint =>
-      'General and character tags follow the thresholds above. Copyright, artist and meta tags use the model\'s recommended thresholds, falling back to the character or general threshold. Rating tags are not output.';
-
-  @override
   String get reversePrompt_taggerCategories => 'Output categories';
 
   @override
   String get reversePrompt_keepOneTaggerCategory =>
       'Keep at least one output category selected';
-
-  @override
-  String get reversePrompt_pixaiTaggerHint =>
-      'PixAI Tagger runs at 1008 px and takes from a few to tens of seconds per image; FP32 models can peak at about 9 GB of RAM while loading.';
 
   @override
   String get reversePrompt_replacementEmptyHint =>

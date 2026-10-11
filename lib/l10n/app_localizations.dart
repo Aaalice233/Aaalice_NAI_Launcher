@@ -12271,12 +12271,6 @@ abstract class AppLocalizations {
   /// **'Character tag threshold'**
   String get reversePrompt_characterThreshold;
 
-  /// No description provided for @reversePrompt_taggerFilterHint.
-  ///
-  /// In en, this message translates to:
-  /// **'General and character tags follow the thresholds above. Copyright, artist and meta tags use the model\'s recommended thresholds, falling back to the character or general threshold. Rating tags are not output.'**
-  String get reversePrompt_taggerFilterHint;
-
   /// No description provided for @reversePrompt_taggerCategories.
   ///
   /// In en, this message translates to:
@@ -12288,12 +12282,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Keep at least one output category selected'**
   String get reversePrompt_keepOneTaggerCategory;
-
-  /// No description provided for @reversePrompt_pixaiTaggerHint.
-  ///
-  /// In en, this message translates to:
-  /// **'PixAI Tagger runs at 1008 px and takes from a few to tens of seconds per image; FP32 models can peak at about 9 GB of RAM while loading.'**
-  String get reversePrompt_pixaiTaggerHint;
 
   /// No description provided for @reversePrompt_replacementEmptyHint.
   ///

@@ -6768,18 +6768,10 @@ class AppLocalizationsJa extends AppLocalizations {
   String get reversePrompt_characterThreshold => 'キャラクタータグのしきい値';
 
   @override
-  String get reversePrompt_taggerFilterHint =>
-      '一般・キャラクタータグは上のしきい値で絞り込みます。著作権・アーティスト・メタはモデルの推奨しきい値を使い、未提供の場合はキャラクターまたは一般のしきい値を使います。評価タグは出力しません。';
-
-  @override
   String get reversePrompt_taggerCategories => '出力カテゴリ';
 
   @override
   String get reversePrompt_keepOneTaggerCategory => '出力カテゴリを1つ以上選択してください';
-
-  @override
-  String get reversePrompt_pixaiTaggerHint =>
-      'PixAI Tagger は 1008 px で推論するため、1 枚あたり数秒〜数十秒かかります。FP32 モデルは読み込み時に最大約 9 GB のメモリを使います。';
 
   @override
   String get reversePrompt_replacementEmptyHint =>

@@ -40,7 +40,6 @@ void main() {
     ]) {
       expect(_chip(tester, label).selected, selected, reason: label);
     }
-    expect(find.text(l10n.reversePrompt_pixaiTaggerHint), findsOneWidget);
 
     await tester.tap(find.widgetWithText(FilterChip, l10n.tagCategory_artist));
     await tester.pumpAndSettle();
@@ -60,7 +59,6 @@ void main() {
       find.widgetWithText(FilterChip, l10n.tagCategory_copyright),
       findsNothing,
     );
-    expect(find.text(l10n.reversePrompt_pixaiTaggerHint), findsNothing);
 
     await tester.tap(find.widgetWithText(FilterChip, l10n.tagCategory_general));
     await tester.pumpAndSettle();
