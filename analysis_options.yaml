@@ -5,6 +5,10 @@ analyzer:
     - "**/*.g.dart"
     - "**/*.freezed.dart"
     - "flutter/**"
+    - "build/**"
+    - "android/**"
+    - "windows/**"
+    - "macos/**"
   errors:
     invalid_annotation_target: ignore
 

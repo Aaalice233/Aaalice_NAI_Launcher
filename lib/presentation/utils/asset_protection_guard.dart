@@ -1,9 +1,7 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:path/path.dart' as p;
 
+import '../../core/services/file_export_service.dart';
 import '../providers/cost_estimate_provider.dart';
 import '../providers/share_image_settings_provider.dart';
 import '../widgets/common/themed_confirm_dialog.dart';
@@ -99,23 +97,6 @@ class AssetProtectionGuard {
     );
   }
 
-  static Future<String> resolveNonOverwritingPath(String requestedPath) async {
-    final file = File(requestedPath);
-    if (!await file.exists()) {
-      return requestedPath;
-    }
-
-    final directory = p.dirname(requestedPath);
-    final extension = p.extension(requestedPath);
-    final baseName = p.basenameWithoutExtension(requestedPath);
-
-    var index = 1;
-    while (true) {
-      final candidate = p.join(directory, '$baseName ($index)$extension');
-      if (!await File(candidate).exists()) {
-        return candidate;
-      }
-      index += 1;
-    }
-  }
+  static Future<String> resolveNonOverwritingPath(String requestedPath) =>
+      FileExportService.resolveNonOverwritingPath(requestedPath);
 }

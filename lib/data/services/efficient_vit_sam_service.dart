@@ -141,7 +141,7 @@ class EfficientVitSamService {
           EfficientVitSamProgressStage.postprocessingMask,
         ),
       );
-      return EfficientVitSamImageProcessor.postprocessMaskAsync(
+      return await EfficientVitSamImageProcessor.postprocessMaskAsync(
         lowResolutionMask: lowResolutionMask,
         outputWidth: width,
         outputHeight: height,

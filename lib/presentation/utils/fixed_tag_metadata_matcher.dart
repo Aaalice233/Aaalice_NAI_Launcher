@@ -1,5 +1,7 @@
+import '../../core/constants/api_constants.dart';
 import '../../core/utils/nai_prompt_parser.dart';
 import '../../data/models/fixed_tag/fixed_tag_entry.dart';
+import '../../data/models/gallery/fixed_tag_usage_projection.dart';
 import '../../data/models/gallery/nai_image_metadata.dart';
 
 NaiImageMetadata matchMetadataFixedTags({
@@ -12,19 +14,25 @@ NaiImageMetadata matchMetadataFixedTags({
       metadata.fixedSuffixTags.isNotEmpty ||
       metadata.fixedNegativePrefixTags.isNotEmpty ||
       metadata.fixedNegativeSuffixTags.isNotEmpty) {
-    return metadata;
+    return projectFixedTagUsageSnapshot(metadata);
   }
   final positiveMatches = _inferMatches(
     metadata.prompt,
     positiveEntries,
     recordedPrefix: metadata.fixedPrefixTags,
     recordedSuffix: metadata.fixedSuffixTags,
+    trailingBlockers: [
+      metadata.qualityTags.expand(_extractTags).map(_normalizeTag).toList(),
+      if (metadata.hasRecordedTransparentBackgroundTag)
+        [_normalizeTag(QualityTags.transparentBackgroundTag)],
+    ],
   );
   final negativeMatches = _inferMatches(
     metadata.negativePrompt,
     negativeEntries,
     recordedPrefix: metadata.fixedNegativePrefixTags,
     recordedSuffix: metadata.fixedNegativeSuffixTags,
+    trailingBlockers: const [],
   );
 
   return metadata.copyWith(
@@ -61,11 +69,31 @@ List<String> _mergeMatches(List<String> recorded, List<String> inferred) {
 String normalizeFixedTagMetadataEntry(String entry) =>
     _extractTags(entry).map(_normalizeTag).join(',');
 
+/// 后缀匹配的起点：让开 prompt 尾部那些不属于固定词的区块。
+///
+/// [blockers] 按"从尾往前"的顺序给出（质量词在外、透明背景标记在内）。
+///
+/// 某项对不上就跳过继续试下一项：自定义质量词模式下质量词列表为空，
+/// 停在第一项会让透明背景标记也让不开。
+int _initialSuffixCursor(
+  List<String> normalizedPrompt,
+  List<List<String>> blockers,
+) {
+  var cursor = normalizedPrompt.length;
+  for (final blocker in blockers) {
+    if (blocker.isEmpty) continue;
+    final start = cursor - blocker.length;
+    if (_matchesAt(normalizedPrompt, blocker, start)) cursor = start;
+  }
+  return cursor;
+}
+
 ({List<String> prefix, List<String> suffix}) _inferMatches(
   String prompt,
   Iterable<FixedTagEntry> entries, {
   required List<String> recordedPrefix,
   required List<String> recordedSuffix,
+  required List<List<String>> trailingBlockers,
 }) {
   final promptTags = _extractTags(prompt);
   final normalizedPrompt = promptTags.map(_normalizeTag).toList();
@@ -83,13 +111,14 @@ String normalizeFixedTagMetadataEntry(String entry) =>
     recordedPrefix,
     fromStart: true,
   );
+  final tailStart = _initialSuffixCursor(normalizedPrompt, trailingBlockers);
   final suffixBoundary = _matchedBoundaryLength(
-    normalizedPrompt,
+    normalizedPrompt.sublist(0, tailStart),
     recordedSuffix,
     fromStart: false,
   );
   var prefixCursor = prefixBoundary;
-  var suffixCursor = normalizedPrompt.length - suffixBoundary;
+  var suffixCursor = tailStart - suffixBoundary;
   final usedEntryIds = <String>{};
   final prefix = <String>[];
   final suffix = <String>[];

@@ -37,6 +37,7 @@ void main() {
     String requestId = 'request-1',
     Map<String, dynamic>? args,
     int? estimatedAnlas = 12,
+    List<String> fileTargets = const [],
     ValueChanged<bool>? onResolve,
   }) {
     return AgentChatApprovalCard(
@@ -50,6 +51,7 @@ void main() {
             'images': 1,
           },
       estimatedAnlas: estimatedAnlas,
+      fileTargets: fileTargets,
       onResolve: onResolve ?? (_) {},
     );
   }
@@ -116,13 +118,14 @@ void main() {
   testWidgets('is bounded at required widths with TextScaler 3', (
     tester,
   ) async {
+    const target = r'C:\Users\Alice\Pictures\novelai\render-final.png';
     for (final width in [320.0, 360.0, 412.0, 600.0, 840.0, 1180.0, 1600.0]) {
       await tester.binding.setSurfaceSize(Size(width, 800));
       await tester.pumpWidget(
         app(
           width: width,
           textScaler: const TextScaler.linear(3),
-          child: approval(),
+          child: approval(fileTargets: const [target]),
         ),
       );
       await tester.pump();
@@ -188,6 +191,28 @@ void main() {
     expect(find.textContaining(r'C:\Users\Alice'), findsNothing);
   });
 
+  testWidgets('shows the write target while path arguments stay redacted', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      app(
+        width: 360,
+        child: approval(
+          args: const {'destination_path': r'C:\Users\Alice\art\out.png'},
+          fileTargets: const [r'C:\Users\Alice\art\out.png'],
+        ),
+      ),
+    );
+
+    expect(find.textContaining(r'C:\Users\Alice\art\out.png'), findsOneWidget);
+
+    await tester.tap(find.byKey(const ValueKey('agent-chat-approval-details')));
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('[local path]'), findsWidgets);
+    expect(find.textContaining(r'C:\Users\Alice\art\out.png'), findsOneWidget);
+  });
+
   testWidgets(
     'same tool and arguments become actionable for a new request id',
     (tester) async {
@@ -224,6 +249,7 @@ void main() {
           toolName: 'delete_tag_library_entry',
           args: const {'id': 'entry-1'},
           estimatedAnlas: null,
+          fileTargets: const [],
           onResolve: (_) {},
         ),
       ),

@@ -166,6 +166,9 @@ class LocalGalleryRepository {
   Future<int?> getImageIdByPath(String filePath) =>
       _dataSource.getImageIdByPath(filePath);
 
+  Future<void> markAsDeleted(List<String> filePaths) =>
+      _dataSource.batchMarkAsDeleted(filePaths);
+
   Future<bool> toggleFavorite(String filePath) async {
     final file = File(filePath);
     var imageId = await _dataSource.getImageIdByPath(filePath);
@@ -227,7 +230,6 @@ class LocalGalleryRepository {
     );
     if (hasMetadata) {
       await _dataSource.upsertMetadata(imageId, resolvedMetadata!);
-      ImageMetadataService().cacheMetadata(file.path, resolvedMetadata);
     }
     AppLogger.i(
       '[AddNewImage] Added new image immediately: ${p.basename(file.path)} '

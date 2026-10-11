@@ -4,12 +4,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/constants/api_constants.dart';
+import '../../../core/constants/model_capabilities.dart';
 import '../../../core/utils/localization_extension.dart';
 import '../../../data/models/tag_library/tag_library_entry.dart';
 import '../../providers/uc_preset_provider.dart';
 import '../common/translated_tag_text.dart';
 import '../../themes/prompt_semantic_colors.dart';
 import 'prompt_control_button.dart';
+import 'uc_preset_type_label.dart';
 import '../tag_library/tag_library_picker_dialog.dart';
 import 'components/library_entry_menu_item.dart';
 
@@ -39,24 +41,18 @@ class UcPresetSelector extends ConsumerStatefulWidget {
 class _UcPresetSelectorState extends ConsumerState<UcPresetSelector> {
   final _buttonKey = GlobalKey();
 
-  String _getPresetDisplayName(BuildContext context, UcPresetType type) {
-    switch (type) {
-      case UcPresetType.heavy:
-        return context.l10n.ucPreset_heavy;
-      case UcPresetType.light:
-        return context.l10n.ucPreset_light;
-      case UcPresetType.furryFocus:
-        return context.l10n.ucPreset_furryFocus;
-      case UcPresetType.humanFocus:
-        return context.l10n.ucPreset_humanFocus;
-      case UcPresetType.none:
-        return context.l10n.ucPreset_none;
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final fixedSettings = ModelCapabilityRegistry.of(
+      widget.model,
+    ).fixedSettings;
+    if (fixedSettings != null) {
+      return _buildLockedButton(
+        theme,
+        UcPresets.getPresetTypeFromInt(fixedSettings.ucPreset),
+      );
+    }
     final presetState = ref.watch(ucPresetNotifierProvider);
     final customEntries = ref.watch(ucCustomEntriesProvider);
     final currentEntry = ref.watch(currentUcEntryProvider);
@@ -118,6 +114,72 @@ class _UcPresetSelectorState extends ConsumerState<UcPresetSelector> {
     );
   }
 
+  /// 模型固定 UC 预设时的停用入口，悬停说明原因与实际发送的预设内容。
+  Widget _buildLockedButton(ThemeData theme, UcPresetType presetType) {
+    final l10n = context.l10n;
+    final presetLabel = presetType.label(l10n);
+    return DelayedRichTooltip(
+      content: RichTooltipSurface(
+        maxWidth: 360,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              l10n.generation_effortNegativeLockedHint(presetLabel),
+              style: theme.textTheme.labelMedium?.copyWith(
+                color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
+              ),
+            ),
+            const SizedBox(height: 6),
+            TranslatedPromptText(
+              UcPresets.getPresetContent(widget.model, presetType),
+              selectable: false,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: theme.promptSemanticColors.negativeQuality,
+                height: 1.4,
+              ),
+            ),
+          ],
+        ),
+      ),
+      child: PromptControlButton(
+        key: _buttonKey,
+        color: theme.promptSemanticColors.negativeQuality,
+        active: true,
+        onPressed: null,
+        padding: EdgeInsets.symmetric(
+          horizontal: widget.compact ? 8 : 10,
+          vertical: widget.compact ? 4 : 6,
+        ),
+        builder: (colors) => Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.lock_outline, size: 16, color: colors.accent),
+            if (!widget.iconOnly) ...[
+              const SizedBox(width: 4),
+              ConstrainedBox(
+                constraints: BoxConstraints(
+                  maxWidth: widget.maxLabelWidth ?? double.infinity,
+                ),
+                child: Text(
+                  presetLabel,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: colors.foreground,
+                  ),
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
   Future<void> _showMenu(
     BuildContext context,
     UcPresetState presetState,
@@ -162,7 +224,7 @@ class _UcPresetSelectorState extends ConsumerState<UcPresetSelector> {
       final name = customEntry.displayName;
       return name.length > 8 ? '${name.substring(0, 8)}...' : name;
     }
-    return _getPresetDisplayName(context, state.presetType);
+    return state.presetType.label(context.l10n);
   }
 
   List<PopupMenuEntry<String>> _buildMenuItems(
@@ -187,7 +249,7 @@ class _UcPresetSelectorState extends ConsumerState<UcPresetSelector> {
                 const SizedBox(width: 16),
               const SizedBox(width: 8),
               Text(
-                _getPresetDisplayName(context, type),
+                type.label(context.l10n),
                 style: TextStyle(
                   fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
                   color: isSelected ? theme.colorScheme.primary : null,

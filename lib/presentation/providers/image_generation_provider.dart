@@ -9,9 +9,10 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 import '../../core/constants/model_capabilities.dart';
 import '../../core/platform/platform_capabilities.dart';
 import '../../core/services/android_foreground_task_service.dart';
-import '../../core/services/android_media_store_service.dart';
 import '../../core/services/anlas_calculator.dart';
 import '../../core/services/character_conversion_service.dart';
+import '../../core/services/system_gallery_publisher.dart';
+import '../../core/storage/local_storage_service.dart';
 import '../../core/utils/app_logger.dart';
 import '../../core/utils/character_center_resolver.dart';
 import '../../core/utils/image_save_utils.dart';
@@ -23,17 +24,16 @@ import '../../core/utils/pica_lanczos_resizer.dart';
 import '../../core/utils/prompt_preset_resolution.dart';
 import '../../data/datasources/remote/nai_image_generation_api_service.dart';
 import '../../data/models/character/character_prompt.dart' as ui_character;
-import '../../data/models/fixed_tag/fixed_tag_entry.dart';
-import '../../data/models/fixed_tag/fixed_tag_prompt_type.dart';
 import '../../data/models/fixed_tag/fixed_tag_usage_snapshot.dart';
 import '../../data/models/gallery/nai_image_metadata.dart';
 import '../../data/models/image/image_params.dart';
 import '../../data/models/image/image_stream_chunk.dart';
 import '../../data/repositories/gallery_folder_repository.dart';
-import '../../data/services/alias_resolver_service.dart';
+import 'alias_resolver_service.dart';
+import '../../data/services/gallery/gallery_image_file_deleter.dart';
 import '../../data/services/statistics_cache_service.dart';
 import '../services/generation_history_storage_service.dart';
-import 'auth_provider.dart';
+import '../../data/services/auth_provider.dart';
 import 'dlss_provider.dart';
 import 'character_prompt_provider.dart';
 import 'fixed_tags_provider.dart';
@@ -84,6 +84,9 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
   GenerationRunHandle? _activeRun;
   ImageGenerationCoordinator? _coordinator;
   final Map<String, String?> _persistedHistoryFilePaths = <String, String?>{};
+
+  // 清空历史或超出上限只移出记录、保留文件；只有用户删过的结果，晚到的保存要连文件一起清掉。
+  final Set<String> _deletedImageIds = <String>{};
   final StreamPreviewSnapshotStore _streamPreviews =
       StreamPreviewSnapshotStore();
   final Set<String> _failedSnapshotKeys = {};
@@ -126,21 +129,31 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
   GenerationResultLifecycleService _lifecycle() {
     final gallery = ref.read(localGalleryNotifierProvider.notifier);
     final statistics = ref.read(statisticsCacheServiceProvider);
+    final systemGallery = SystemGalleryPublisher(
+      syncEnabled: ref
+          .read(imageSaveSettingsNotifierProvider)
+          .syncToSystemGallery,
+      capabilities: PlatformCapabilities.operatingSystem,
+    );
     return GenerationResultLifecycleService(
       GenerationResultLifecycleDependencies(
         historyStorage: ref.read(generationHistoryStorageServiceProvider),
         resolveGalleryRootPath: GalleryFolderRepository.instance.getRootPath,
         addGalleryImages: gallery.addNewlySavedImages,
         refreshGallery: gallery.refresh,
+        removeGalleryImages: gallery.removeDeletedImages,
+        deleteGalleryFile: GalleryImageFileDeleter(
+          ref.read(localStorageServiceProvider),
+        ).delete,
         incrementStatistics: statistics.incrementImageCount,
-        publishToSystemGallery:
-            PlatformCapabilities.operatingSystem.supportsSystemGalleryExport
+        publishToSystemGallery: systemGallery.isActive
             ? (sourcePath, fileName) async {
-                await AndroidMediaStoreService.saveImageFromPath(
+                final outcome = await systemGallery.publishFile(
                   sourcePath: sourcePath,
                   fileName: fileName,
                   mimeType: 'image/png',
                 );
+                outcome.throwIfFailed();
               }
             : null,
       ),
@@ -395,6 +408,7 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
         minimumContextMegaPixels:
             prepared.focusedSnapshot.minimumContextMegaPixels,
         focusedSelectionRect: prepared.focusedSnapshot.selectionRect,
+        focusedContextCrop: prepared.focusedSnapshot.contextCrop,
         streamPreviewEnabled: ref.read(generationStreamPreviewSettingsProvider),
       );
       final handle = coordinator.start(command);
@@ -490,6 +504,7 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
               enabled: workflow.focusedInpaintEnabled,
               minimumContextMegaPixels: workflow.minimumContextMegaPixels,
               selectionRect: workflow.focusedSelectionRect,
+              contextCrop: workflow.focusedContextCrop,
             );
           },
         ),
@@ -684,7 +699,7 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
           final lifecycle = _lifecycle();
           final settings = ref.read(imageSaveSettingsNotifierProvider);
           if (settings.autoSave) {
-            await _saveImages(images, params, epoch: epoch);
+            await _saveImages(images, epoch: epoch);
             if (!_isCurrentLifecycle(epoch) || event.runId != _activeRunId) {
               return;
             }
@@ -974,6 +989,11 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
       comparisonSource: comparisonSourceImage == null
           ? null
           : _comparisonSourceFor(comparisonSourceImage),
+      fixedTagUsageSnapshot: embedNaiMetadata
+          ? FixedTagUsageSnapshot.capture(
+              ref.read(fixedTagsNotifierProvider).entries,
+            )
+          : null,
       embedNaiMetadata: embedNaiMetadata,
     );
     if (!_isCurrentLifecycle(epoch)) return null;
@@ -1001,21 +1021,19 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
     if (saveToLocal) {
       final result = await _saveImages(
         [image],
-        prepared.params,
         epoch: epoch,
         directoryPath: saveDirectoryPath,
         syncToGalleryIndex: syncToGalleryIndex,
       );
       image = result.images.first;
-      return image.filePath;
+      return _deletedImageIds.contains(image.id) ? null : image.filePath;
     }
     lifecycle.preloadMetadata([image]);
     return null;
   }
 
   Future<GenerationSaveResult> _saveImages(
-    List<GeneratedImage> images,
-    ImageParams params, {
+    List<GeneratedImage> images, {
     required int epoch,
     String? directoryPath,
     bool syncToGalleryIndex = true,
@@ -1023,53 +1041,25 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
     if (!_isCurrentLifecycle(epoch)) {
       return GenerationSaveResult(images, const []);
     }
-    final fixedTagUsageSnapshot =
-        (images.isEmpty ? null : images.first.fixedTagUsageSnapshot) ??
-        FixedTagUsageSnapshot.capture(
-          ref.read(fixedTagsNotifierProvider).entries,
-        );
     final lifecycle = _lifecycle();
     final result = await lifecycle.saveImages(
       images,
-      params,
-      snapshot: GenerationSaveSnapshot(
-        fixedPrefixTags: fixedTagUsageSnapshot
-            .entriesFor(
-              promptType: FixedTagPromptType.positive,
-              position: FixedTagPosition.prefix,
-            )
-            .map((entry) => entry.renderedContent)
-            .toList(),
-        fixedSuffixTags: fixedTagUsageSnapshot
-            .entriesFor(
-              promptType: FixedTagPromptType.positive,
-              position: FixedTagPosition.suffix,
-            )
-            .map((entry) => entry.renderedContent)
-            .toList(),
-        fixedNegativePrefixTags: fixedTagUsageSnapshot
-            .entriesFor(
-              promptType: FixedTagPromptType.negative,
-              position: FixedTagPosition.prefix,
-            )
-            .map((entry) => entry.renderedContent)
-            .toList(),
-        fixedNegativeSuffixTags: fixedTagUsageSnapshot
-            .entriesFor(
-              promptType: FixedTagPromptType.negative,
-              position: FixedTagPosition.suffix,
-            )
-            .map((entry) => entry.renderedContent)
-            .toList(),
-        fixedTagUsageSnapshot: fixedTagUsageSnapshot,
-        useCoords: params.useCoords,
-      ),
       directoryPath: directoryPath,
       syncToGalleryIndex: syncToGalleryIndex,
     );
     if (!_isCurrentLifecycle(epoch)) return result;
+    final orphanedPaths = <String>[];
     for (final image in result.images) {
-      if (image.filePath != null) _replaceImage(image.id, image);
+      final path = image.filePath;
+      if (path == null) continue;
+      if (_deletedImageIds.contains(image.id)) {
+        orphanedPaths.add(path);
+      } else {
+        _replaceImage(image.id, image);
+      }
+    }
+    if (orphanedPaths.isNotEmpty) {
+      await lifecycle.deleteSavedFiles(orphanedPaths);
     }
     return result;
   }
@@ -1113,11 +1103,73 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
     _retainHistoryCaches();
   }
 
+  /// 从当前批次、历史与中央预览移除这些结果，并永久删除它们关联的图库文件。
+  ///
+  /// 仍被其他结果引用的文件不会删除。
+  Future<GeneratedImageRemovalResult> removeImages(
+    Iterable<String> imageIds,
+  ) async {
+    if (_isDisposed) return const GeneratedImageRemovalResult();
+    final ids = imageIds.toSet();
+    final removed = <String, GeneratedImage>{
+      for (final image in [
+        ...state.currentImages,
+        ...state.history,
+        ...state.displayImages,
+      ])
+        if (ids.contains(image.id)) image.id: image,
+    };
+    if (removed.isEmpty) return const GeneratedImageRemovalResult();
+    _deletedImageIds.addAll(removed.keys);
+
+    bool retained(GeneratedImage image) => !removed.containsKey(image.id);
+    final displayImages = state.displayImages.where(retained).toList();
+    state = state.copyWith(
+      currentImages: state.currentImages.where(retained).toList(),
+      history: state.history.where(retained).toList(),
+      displayImages: displayImages,
+      displayWidth: displayImages.isEmpty ? null : displayImages.first.width,
+      displayHeight: displayImages.isEmpty ? null : displayImages.first.height,
+      completionPreviews: {
+        for (final entry in state.completionPreviews.entries)
+          if (!removed.containsKey(entry.key)) entry.key: entry.value,
+      },
+      errorMessage: state.errorMessage,
+    );
+    _retainHistoryCaches();
+
+    final referencedPaths = <String?>{
+      for (final image in [
+        ...state.currentImages,
+        ...state.history,
+        ...state.displayImages,
+      ])
+        image.filePath,
+    };
+    final paths = <String>[
+      for (final image in removed.values)
+        if (image.filePath case final String path
+            when path.isNotEmpty && !referencedPaths.contains(path))
+          path,
+    ];
+    final files = paths.isEmpty
+        ? const SavedFileDeletionResult()
+        : await _lifecycle().deleteSavedFiles(paths);
+    return GeneratedImageRemovalResult(
+      removedCount: removed.length,
+      files: files,
+    );
+  }
+
   void updateDisplayImages(List<GeneratedImage> images) {
     state = state.copyWith(displayImages: images);
   }
 
   void updateImageFilePath(String imageId, String filePath) {
+    if (_deletedImageIds.contains(imageId)) {
+      unawaited(_lifecycle().deleteSavedFiles([filePath]));
+      return;
+    }
     final image = state.findImageById(imageId);
     if (image == null) return;
     _replaceImage(imageId, image.copyWithFilePath(filePath));
@@ -1214,7 +1266,10 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
     required int outputWidth,
     required int outputHeight,
   }) {
-    final effective = params.copyWith(width: outputWidth, height: outputHeight);
+    final effective = params.resolveFixedSettings().copyWith(
+      width: outputWidth,
+      height: outputHeight,
+    );
     final charCaptions = <Map<String, dynamic>>[];
     final charNegCaptions = <Map<String, dynamic>>[];
     for (var index = 0; index < effective.characters.length; index++) {
@@ -1243,44 +1298,20 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
     final comment = ImageSaveUtils.buildCommentJson(
       params: effective,
       actualSeed: effective.seed,
-      fixedTagUsageSnapshot: _activeFixedTagUsageSnapshot,
-      fixedPrefixTags: _activeFixedTagUsageSnapshot
-          ?.entriesFor(
-            promptType: FixedTagPromptType.positive,
-            position: FixedTagPosition.prefix,
-          )
-          .map((entry) => entry.renderedContent)
-          .toList(),
-      fixedSuffixTags: _activeFixedTagUsageSnapshot
-          ?.entriesFor(
-            promptType: FixedTagPromptType.positive,
-            position: FixedTagPosition.suffix,
-          )
-          .map((entry) => entry.renderedContent)
-          .toList(),
-      fixedNegativePrefixTags: _activeFixedTagUsageSnapshot
-          ?.entriesFor(
-            promptType: FixedTagPromptType.negative,
-            position: FixedTagPosition.prefix,
-          )
-          .map((entry) => entry.renderedContent)
-          .toList(),
-      fixedNegativeSuffixTags: _activeFixedTagUsageSnapshot
-          ?.entriesFor(
-            promptType: FixedTagPromptType.negative,
-            position: FixedTagPosition.suffix,
-          )
-          .map((entry) => entry.renderedContent)
-          .toList(),
       charCaptions: charCaptions,
       charNegCaptions: charNegCaptions,
       useCoords: effective.useCoords,
     );
     final raw = jsonEncode(comment);
-    return NaiImageMetadata.fromNaiComment({
+    final metadata = NaiImageMetadata.fromNaiComment({
       'Comment': raw,
       'Software': 'NovelAI',
       'Source': ImageSaveUtils.getModelSourceName(effective.model),
     }, rawJson: raw);
+    final snapshot = _activeFixedTagUsageSnapshot;
+    // 快照不再进 PNG，内存元数据仍要带上供历史面板与详情页判定固定词。
+    return snapshot == null
+        ? metadata
+        : metadata.withFixedTagUsageData(snapshot.toJson());
   }
 }

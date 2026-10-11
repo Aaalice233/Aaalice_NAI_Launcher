@@ -18,6 +18,8 @@ import 'package:nai_launcher/presentation/widgets/common/pagination_bar.dart';
 import 'package:nai_launcher/presentation/widgets/gallery/gallery_library_toolbar.dart';
 import 'package:nai_launcher/presentation/widgets/gallery/gallery_sidebar.dart';
 
+import '../../../helpers/ink_expectations.dart';
+
 void main() {
   setUp(() {
     PlatformCapabilities.debugOverride = PlatformCapabilities.forPlatform(
@@ -541,6 +543,52 @@ void main() {
       expect(tester.takeException(), isNull);
     },
   );
+
+  testWidgets('选择器条目的反馈叠在缩略图之上，选中描边画在反馈之上', (tester) async {
+    await _setViewport(tester, const Size(1200, 900));
+    await _pumpSelectorHost(tester);
+    await tester.tap(find.text('打开选择器'));
+    await tester.pumpAndSettle();
+
+    final item = find.byKey(const Key('precise-ref-selector-item-target-ref'));
+    await tester.ensureVisible(item);
+    await tester.pumpAndSettle();
+    final theme = Theme.of(tester.element(item));
+    final colors = theme.colorScheme;
+
+    await hoverOver(tester, item);
+    expectInkOnTop(
+      tester,
+      item,
+      ink: theme.hoverColor,
+      below: colors.surfaceContainerLow,
+    );
+
+    final press = await pressAndHold(tester, item);
+    expectInkOnTop(
+      tester,
+      item,
+      ink: theme.highlightColor,
+      below: colors.surfaceContainerLow,
+    );
+    await press.up();
+    await tester.pumpAndSettle();
+
+    expect(
+      tester.renderObject(item),
+      paints
+        ..something(
+          (method, arguments) => isInkCall(method, arguments, theme.hoverColor),
+        )
+        ..drrect(color: colors.primary),
+    );
+    expectInkOnTop(
+      tester,
+      item,
+      ink: theme.hoverColor,
+      below: colors.primaryContainer,
+    );
+  });
 }
 
 Future<void> _setViewport(

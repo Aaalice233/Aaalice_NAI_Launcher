@@ -3,19 +3,14 @@ import 'dart:async';
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../data/services/alias_resolver_service.dart';
-import '../../presentation/prompt_assistant/services/prompt_assistant_service.dart';
 import '../database/services/service_providers.dart';
 import '../network/network_failure_diagnostics.dart';
 import 'autocomplete_cache_database.dart';
-import 'autocomplete_settings.dart';
 import 'cooccurrence_completion_source.dart';
 import 'completion_models.dart';
 import 'completion_orchestrator.dart';
 import 'danbooru_completion_source.dart';
 import 'fast_tag_service_provider.dart';
-import 'llm_translation_resolver.dart';
-import 'tag_library_completion_source.dart';
 
 export 'fast_tag_service_provider.dart'
     show
@@ -57,15 +52,6 @@ final danbooruCompletionSourceProvider = Provider<DanbooruCompletionSource>((
   return DanbooruCompletionSource(
     dio: dio,
     cache: ref.watch(autocompleteCacheDatabaseProvider),
-  );
-});
-
-final llmTranslationResolverProvider = Provider<LlmTranslationResolver>((ref) {
-  return LlmTranslationResolver(
-    service: ref.watch(promptAssistantServiceProvider),
-    cache: ref.watch(autocompleteCacheDatabaseProvider),
-    isEnabled: () =>
-        ref.read(autocompleteSettingsProvider).llmTranslationEnabled,
   );
 });
 
@@ -112,32 +98,4 @@ final autocompleteLocalSourcesProvider = Provider<List<CompletionSource>>((
     ref.watch(fastTagServiceProvider),
     ref.watch(cooccurrenceCompletionSourceProvider),
   ];
-});
-
-final tagLibraryCompletionSourceProvider = Provider<TagLibraryCompletionSource>(
-  (ref) => TagLibraryCompletionSource(
-    searchEntries: (query, limit) => ref
-        .read(aliasResolverServiceProvider.notifier)
-        .searchEntries(query, limit: limit)
-        .map(
-          (entry) => LibraryCompletionEntry(
-            name: entry.name,
-            contentPreview: entry.contentPreview,
-            useCount: entry.useCount,
-          ),
-        )
-        .toList(growable: false),
-  ),
-);
-
-final autocompleteServicesProvider = Provider<AutocompleteServices>((ref) {
-  final fastTags = ref.watch(fastTagServiceProvider);
-  return AutocompleteServices(
-    localSources: ref.watch(autocompleteLocalSourcesProvider),
-    tagLookupSources: [fastTags],
-    dictionaryTranslations: fastTags,
-    llmTranslations: ref.watch(llmTranslationResolverProvider),
-    danbooru: ref.watch(danbooruCompletionSourceProvider),
-    libraryAliases: ref.watch(tagLibraryCompletionSourceProvider),
-  );
 });

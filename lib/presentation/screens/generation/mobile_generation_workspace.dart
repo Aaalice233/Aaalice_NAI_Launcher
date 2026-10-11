@@ -1,7 +1,10 @@
 import 'package:nai_launcher/presentation/widgets/common/horizontal_action_strip.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/utils/localization_extension.dart';
+import '../../providers/generation/image_generation_selectors.dart';
+import '../../providers/image_generation_provider.dart';
 import '../../themes/theme_extension.dart';
 import '../../widgets/common/keyboard_dismiss_region.dart';
 import 'mobile_generation_controller.dart';
@@ -110,10 +113,8 @@ class _MobileGenerationWorkspaceState extends State<MobileGenerationWorkspace> {
                                       ),
                                     ),
                                   ),
-                                  if (data.generationState.isGenerating)
-                                    MobileGenerationProgress(
-                                      progress: data.generationState.progress,
-                                    ),
+                                  if (data.batchStatus.isGenerating)
+                                    const MobileGenerationProgressBar(),
                                 ],
                               ),
                             ),
@@ -137,10 +138,8 @@ class _MobileGenerationWorkspaceState extends State<MobileGenerationWorkspace> {
                             ),
                           ),
                           const Expanded(child: ImagePreviewWidget()),
-                          if (data.generationState.isGenerating)
-                            MobileGenerationProgress(
-                              progress: data.generationState.progress,
-                            ),
+                          if (data.batchStatus.isGenerating)
+                            const MobileGenerationProgressBar(),
                           Padding(
                             padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
                             child: MobileCollapsedPromptLauncher(
@@ -432,6 +431,18 @@ class _PromptOverviewItem extends StatelessWidget {
       ),
     );
   }
+}
+
+/// 进度条自订阅进度字段，避免逐帧重建整个移动端工作区。
+class MobileGenerationProgressBar extends ConsumerWidget {
+  const MobileGenerationProgressBar({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) => MobileGenerationProgress(
+    progress: ref.watch(
+      imageGenerationNotifierProvider.select(selectGenerationProgress),
+    ),
+  );
 }
 
 class MobileGenerationProgress extends StatelessWidget {

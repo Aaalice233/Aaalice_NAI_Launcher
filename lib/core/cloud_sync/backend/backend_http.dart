@@ -327,7 +327,7 @@ class BackendHttp {
         final becomesGet =
             status == 303 ||
             ((status == 301 || status == 302) && method == 'POST');
-        return _request(
+        return await _request(
           becomesGet ? 'GET' : method,
           target,
           headers: headers,

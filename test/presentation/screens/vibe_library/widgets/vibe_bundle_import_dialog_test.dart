@@ -4,6 +4,8 @@ import 'package:nai_launcher/data/models/vibe/vibe_reference.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/screens/vibe_library/widgets/vibe_bundle_import_dialog.dart';
 
+import '../../../../helpers/labeled_rows_expectations.dart';
+
 void main() {
   setUp(() {
     final view =
@@ -166,6 +168,49 @@ void main() {
     expect(result?.selectedIndices, [0, 1]);
     expect(tester.takeException(), isNull);
   });
+
+  for (final locale in const ['zh', 'ja', 'en']) {
+    for (final width in labeledRowWidths) {
+      for (final scale in labeledRowTextScales) {
+        final scenario = '$locale ${width.toInt()} ${scale}x';
+        testWidgets('$scenario keeps parameter slider labels whole', (
+          tester,
+        ) async {
+          final view =
+              TestWidgetsFlutterBinding.instance.platformDispatcher.views.first;
+          view.physicalSize = Size(width, 900);
+
+          await tester.pumpWidget(
+            _wrap(
+              const VibeBundleImportDialog(
+                bundleName: 'params.naiv4vibebundle',
+                vibeNames: ['Vibe A'],
+                vibeReferences: [
+                  VibeReference(
+                    displayName: 'Vibe A',
+                    vibeEncoding: 'encoded-a',
+                  ),
+                ],
+              ),
+              locale: locale,
+              textScale: scale,
+            ),
+          );
+          await tester.pump();
+          expect(tester.takeException(), isNull, reason: scenario);
+
+          final l10n = lookupAppLocalizations(Locale(locale));
+          await expectLabeledSliderRows(
+            tester,
+            labels: [l10n.vibe_strength, l10n.vibe_infoExtracted],
+            labelsSingleLine: locale != 'en',
+            reason: scenario,
+          );
+          expect(tester.takeException(), isNull, reason: scenario);
+        });
+      }
+    }
+  }
 }
 
 class _Scenario {
@@ -180,9 +225,14 @@ class _Scenario {
   final double keyboardHeight;
 }
 
-Widget _wrap(Widget child, {double textScale = 1, double keyboardHeight = 0}) {
+Widget _wrap(
+  Widget child, {
+  String locale = 'zh',
+  double textScale = 1,
+  double keyboardHeight = 0,
+}) {
   return MaterialApp(
-    locale: const Locale('zh'),
+    locale: Locale(locale),
     supportedLocales: AppLocalizations.supportedLocales,
     localizationsDelegates: AppLocalizations.localizationsDelegates,
     builder: (context, child) => MediaQuery(

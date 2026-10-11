@@ -410,7 +410,9 @@ void main() {
     );
     expect(
       deleteButton.style!.foregroundColor!.resolve(const {}),
-      Theme.of(tester.element(find.byIcon(Icons.delete))).colorScheme.error,
+      ImageOverlayControlStyle.errorForeground(
+        Theme.of(tester.element(find.byIcon(Icons.delete))).colorScheme,
+      ),
     );
     expect(tester.takeException(), isNull);
   });

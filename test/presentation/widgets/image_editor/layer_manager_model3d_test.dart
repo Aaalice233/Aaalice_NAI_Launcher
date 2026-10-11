@@ -58,7 +58,7 @@ void main() {
     expect(cloned.model3d?.modelRef, 'builtin:mannequin');
   });
 
-  test('cloneAsync() copies model3d metadata', () async {
+  test('clone() copies model3d metadata together with the base image', () async {
     final manager = LayerManager();
     addTearDown(manager.dispose);
 
@@ -69,11 +69,12 @@ void main() {
       sceneState: {'version': 1},
     );
 
-    final cloned = await layer.cloneAsync();
+    final cloned = layer.clone();
     addTearDown(cloned.dispose);
 
     expect(cloned.model3d?.modelRef, 'builtin:mannequin');
-    // cloneAsync 会重新解码底图,顺带确认底图也完整复制
+    // 同步克隆必须带上已解码的底图，否则复制出的图层是空白
     expect(cloned.hasBaseImage, isTrue);
+    expect(cloned.baseImageOffset, layer.baseImageOffset);
   });
 }

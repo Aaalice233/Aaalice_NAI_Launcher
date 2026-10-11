@@ -6,6 +6,7 @@ import '../../adaptive/window_size_class.dart';
 import '../../agent_chat/widgets/agent_chat_entry_button.dart';
 import '../../providers/image_generation_provider.dart';
 import '../../services/mobile_image_metadata_importer.dart';
+import '../../providers/generation/image_generation_selectors.dart';
 import '../../themes/design_tokens.dart';
 import '../../widgets/anlas/anlas_balance_chip.dart';
 import '../../widgets/anlas/opus_usage_chip.dart';
@@ -261,7 +262,7 @@ class MobileGenerationChrome extends ConsumerWidget {
             _MobileGenerateButton(
               isGenerating: data.isGenerating,
               showCancel: data.isLauncherGenerating,
-              generationState: data.generationState,
+              batchStatus: data.batchStatus,
               cooldownRemainingSeconds: data.cooldownRemainingSeconds,
               onGenerate: () => controller.generate(context),
               onCancel: controller.cancelGeneration,
@@ -322,7 +323,7 @@ class _MobileGenerateButton extends StatelessWidget {
   const _MobileGenerateButton({
     required this.isGenerating,
     required this.showCancel,
-    required this.generationState,
+    required this.batchStatus,
     required this.cooldownRemainingSeconds,
     required this.onGenerate,
     required this.onCancel,
@@ -333,7 +334,7 @@ class _MobileGenerateButton extends StatelessWidget {
 
   final bool isGenerating;
   final bool showCancel;
-  final ImageGenerationState generationState;
+  final GenerationButtonViewData batchStatus;
   final int cooldownRemainingSeconds;
   final VoidCallback onGenerate;
   final VoidCallback onCancel;
@@ -343,11 +344,11 @@ class _MobileGenerateButton extends StatelessWidget {
 
   bool get _canSkipCurrentBatch =>
       showCancel &&
-      generationState.currentImage > 0 &&
-      generationState.totalImages > generationState.currentImage;
+      batchStatus.currentImage > 0 &&
+      batchStatus.totalImages > batchStatus.currentImage;
 
   /// 已提交但还没开跑，此时按钮必须立刻反馈，否则点击会被静默吞掉。
-  bool get _isPreparing => generationState.isPreparing;
+  bool get _isPreparing => batchStatus.isPreparing;
 
   bool get _showCancelAction => showCancel || _isPreparing;
 
@@ -438,8 +439,7 @@ class _MobileGenerateButton extends StatelessWidget {
       ),
     );
     if (!_canSkipCurrentBatch) return primaryButton;
-    final progress =
-        '${generationState.currentImage}/${generationState.totalImages}';
+    final progress = '${batchStatus.currentImage}/${batchStatus.totalImages}';
     final skipButton = ThemedButton(
       onPressed: onSkipCurrent,
       icon: const Icon(Icons.skip_next),

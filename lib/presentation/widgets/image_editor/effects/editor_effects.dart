@@ -22,27 +22,6 @@ enum EditorEffectType {
   flipVertical,
 }
 
-String editorEffectLabel(EditorEffectType type) {
-  return switch (type) {
-    EditorEffectType.brightness => 'Brightness',
-    EditorEffectType.contrast => 'Contrast',
-    EditorEffectType.saturation => 'Saturation',
-    EditorEffectType.temperature => 'Temperature',
-    EditorEffectType.gamma => 'Gamma',
-    EditorEffectType.grayscale => 'Grayscale',
-    EditorEffectType.invert => 'Invert',
-    EditorEffectType.sepia => 'Sepia',
-    EditorEffectType.denoise => 'Denoise',
-    EditorEffectType.blur => 'Gaussian Blur',
-    EditorEffectType.sharpen => 'Sharpen',
-    EditorEffectType.cropToSelection => 'Crop to Selection',
-    EditorEffectType.rotateLeft => 'Rotate Left 90°',
-    EditorEffectType.rotateRight => 'Rotate Right 90°',
-    EditorEffectType.flipHorizontal => 'Flip Horizontal',
-    EditorEffectType.flipVertical => 'Flip Vertical',
-  };
-}
-
 double editorEffectDefaultIntensity(EditorEffectType type) {
   return switch (type) {
     EditorEffectType.brightness => 0.25,

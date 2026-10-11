@@ -791,6 +791,120 @@ void main() {
     );
 
     test(
+      'applyInpaintEditorResult keeps a focus outpaint crop over a selection',
+      () {
+        final controller = container.read(
+          imageWorkflowControllerProvider.notifier,
+        );
+        final canvas = _validImageBytes(width: 1216, height: 1216);
+        final mask = _validMaskBytes(width: 1216, height: 1216);
+
+        controller.applyInpaintEditorResult(
+          sourceImage: canvas,
+          sourceWidth: 1216,
+          sourceHeight: 1216,
+          sourceIsOutpaint: false,
+          maskImage: mask,
+          focusedInpaintEnabled: true,
+          focusedSelectionRect: const Rect.fromLTWH(0, 0, 256, 256),
+          focusedContextCrop: const Rect.fromLTWH(384, 0, 832, 1216),
+          minimumContextMegaPixels: 88,
+        );
+
+        final workflow = container.read(imageWorkflowControllerProvider);
+        final params = container.read(generationParamsNotifierProvider);
+        expect(workflow.focusedInpaintEnabled, isTrue);
+        expect(
+          workflow.focusedContextCrop,
+          const Rect.fromLTWH(384, 0, 832, 1216),
+        );
+        expect(workflow.focusedSelectionRect, isNull);
+        expect(workflow.isOutpaint, isFalse);
+        expect(
+          (workflow.sourceImageWidth, workflow.sourceImageHeight),
+          (1216, 1216),
+        );
+        expect(params.sourceImage, same(canvas));
+        expect(params.maskImage, same(mask));
+        expect(params.isOutpaint, isFalse);
+      },
+    );
+
+    test('applyInpaintEditorResult drops a crop outside the new source', () {
+      final controller = container.read(
+        imageWorkflowControllerProvider.notifier,
+      );
+
+      controller.applyInpaintEditorResult(
+        sourceImage: _validImageBytes(width: 1216, height: 1216),
+        sourceWidth: 1216,
+        sourceHeight: 1216,
+        sourceIsOutpaint: false,
+        maskImage: _validMaskBytes(width: 1216, height: 1216),
+        focusedInpaintEnabled: true,
+        focusedSelectionRect: null,
+        focusedContextCrop: const Rect.fromLTWH(512, 0, 832, 1216),
+        minimumContextMegaPixels: 88,
+      );
+
+      final workflow = container.read(imageWorkflowControllerProvider);
+      expect(workflow.focusedContextCrop, isNull);
+      expect(workflow.focusedInpaintEnabled, isFalse);
+    });
+
+    test('a focus outpaint crop clears with every focused reset', () {
+      final controller = container.read(
+        imageWorkflowControllerProvider.notifier,
+      );
+      Rect? cropAfter(void Function() reset) {
+        controller.applyInpaintEditorResult(
+          sourceImage: _validImageBytes(width: 1216, height: 1216),
+          sourceWidth: 1216,
+          sourceHeight: 1216,
+          sourceIsOutpaint: false,
+          maskImage: _validMaskBytes(width: 1216, height: 1216),
+          focusedInpaintEnabled: true,
+          focusedSelectionRect: null,
+          focusedContextCrop: const Rect.fromLTWH(384, 0, 832, 1216),
+          minimumContextMegaPixels: 88,
+        );
+        expect(
+          container.read(imageWorkflowControllerProvider).focusedContextCrop,
+          isNotNull,
+        );
+        reset();
+        return container
+            .read(imageWorkflowControllerProvider)
+            .focusedContextCrop;
+      }
+
+      expect(
+        cropAfter(
+          () => controller.setFocusedSelectionRect(
+            const Rect.fromLTWH(0, 0, 256, 256),
+          ),
+        ),
+        isNull,
+      );
+      expect(
+        cropAfter(() => controller.setFocusedInpaintEnabled(false)),
+        isNull,
+      );
+      expect(
+        cropAfter(
+          () => controller.replaceSourceImage(
+            _validImageBytes(width: 832, height: 1216),
+          ),
+        ),
+        isNull,
+      );
+      expect(
+        cropAfter(() => controller.enterBaseMode(clearMask: true)),
+        isNull,
+      );
+    });
+
+    test(
       'applyInpaintEditorResult requires dimensions with outpaint source',
       () {
         final controller = container.read(

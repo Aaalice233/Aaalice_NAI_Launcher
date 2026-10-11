@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'dart:math' as math;
+import 'dart:typed_data';
 
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
@@ -30,14 +31,16 @@ void main() {
       'nai_local_card_hive_',
     );
     Hive.init(hiveDirectory.path);
-    await Hive.openBox<dynamic>(StorageKeys.settingsBox);
+    // 内存后端：落盘写一旦从 widget test 的 FakeAsync 时钟发起就不会完成，会锁死 box
+    await Hive.openBox<dynamic>(StorageKeys.settingsBox, bytes: Uint8List(0));
     storage = LocalStorageService();
   });
 
   setUp(() => Hive.box<dynamic>(StorageKeys.settingsBox).clear());
 
   tearDownAll(() async {
-    await Hive.close();
+    // 有界等待：box 被锁死时快速失败，不把整个测试分片拖到看门狗超时
+    await Hive.close().timeout(const Duration(seconds: 10));
     await hiveDirectory.delete(recursive: true);
   });
 

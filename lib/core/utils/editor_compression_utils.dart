@@ -77,16 +77,20 @@ class EditorCompressionPlan {
     return best ?? targets.first;
   }
 
+  /// [focusedContextCrop] 是只把这块送去生成的固定裁切区（取景框），
+  /// 此时整图不受请求面积上限约束，只要求投影后的裁切区不超限
   static EditorCompressionPlan resolve({
     required int workWidth,
     required int workHeight,
     required bool focusedInpaintEnabled,
     Rect? focusedSelectionRect,
+    Rect? focusedContextCrop,
     double minimumContextPixels = 88,
   }) {
     if (workWidth <= 0 || workHeight <= 0) {
       throw ArgumentError('Editor work dimensions must be positive.');
     }
+    final sendsCropOnly = focusedInpaintEnabled || focusedContextCrop != null;
 
     final isLandscape = workWidth >= workHeight;
     final workLongSide = math.max(workWidth, workHeight);
@@ -129,7 +133,7 @@ class EditorCompressionPlan {
         longSide: longSide,
         aspect: aspect,
         maxShortSide: workShortSide,
-        maxAreaInclusive: focusedInpaintEnabled ? null : maxRequestAreaPixels,
+        maxAreaInclusive: sendsCropOnly ? null : maxRequestAreaPixels,
       );
       if (shortSide == null) continue;
       final target = _fromOriented((
@@ -137,7 +141,7 @@ class EditorCompressionPlan {
         shortSide: shortSide,
       ), isLandscape: isLandscape);
       if (target.width > workWidth || target.height > workHeight) continue;
-      if (!focusedInpaintEnabled && target.area > maxRequestAreaPixels) {
+      if (!sendsCropOnly && target.area > maxRequestAreaPixels) {
         continue;
       }
       if (!_isFocusedTargetLegal(
@@ -146,6 +150,7 @@ class EditorCompressionPlan {
         workHeight: workHeight,
         focusedInpaintEnabled: focusedInpaintEnabled,
         focusedSelectionRect: focusedSelectionRect,
+        focusedContextCrop: focusedContextCrop,
         minimumContextPixels: minimumContextPixels,
       )) {
         continue;
@@ -159,6 +164,7 @@ class EditorCompressionPlan {
       workHeight: workHeight,
       focusedInpaintEnabled: focusedInpaintEnabled,
       focusedSelectionRect: focusedSelectionRect,
+      focusedContextCrop: focusedContextCrop,
       minimumContextPixels: minimumContextPixels,
     )) {
       candidates.add(original);
@@ -202,8 +208,18 @@ class EditorCompressionPlan {
     required int workHeight,
     required bool focusedInpaintEnabled,
     required Rect? focusedSelectionRect,
+    required Rect? focusedContextCrop,
     required double minimumContextPixels,
   }) {
+    if (focusedContextCrop != null) {
+      final projected = EditorCompressionGeometry.projectCropToTarget(
+        focusedContextCrop,
+        workWidth: workWidth,
+        workHeight: workHeight,
+        target: target,
+      );
+      return projected.width * projected.height <= maxRequestAreaPixels;
+    }
     if (!focusedInpaintEnabled || focusedSelectionRect == null) {
       return true;
     }
@@ -356,6 +372,28 @@ class EditorCompressionGeometry {
       rect.top * scaleY,
       rect.right * scaleX,
       rect.bottom * scaleY,
+    );
+  }
+
+  /// 固定裁切区投影到档位后按边取整，生成页就按这块整数区域裁切
+  static Rect projectCropToTarget(
+    Rect crop, {
+    required int workWidth,
+    required int workHeight,
+    required EditorCompressionTarget target,
+  }) {
+    final projected = projectRect(
+      crop,
+      sourceWidth: workWidth,
+      sourceHeight: workHeight,
+      targetWidth: target.width,
+      targetHeight: target.height,
+    );
+    return Rect.fromLTRB(
+      projected.left.roundToDouble(),
+      projected.top.roundToDouble(),
+      projected.right.roundToDouble(),
+      projected.bottom.roundToDouble(),
     );
   }
 

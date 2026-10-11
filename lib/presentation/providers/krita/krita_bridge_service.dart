@@ -165,8 +165,8 @@ class KritaBridgeService implements KritaBridgeMessageService {
       'prompt': promptSnapshot.prompt,
       'negative_prompt': promptSnapshot.negativePrompt,
       'model': params.model,
-      'sampler': params.sampler,
-      'steps': params.steps,
+      'sampler': params.effectiveSampler,
+      'steps': params.effectiveSteps,
       'cfg_scale': params.scale,
       'seed': params.seed,
       'width': params.width,
@@ -451,7 +451,8 @@ class KritaBridgeService implements KritaBridgeMessageService {
     };
   }
 
-  Map<String, dynamic> _paramsMetadata(ImageParams params) {
+  Map<String, dynamic> _paramsMetadata(ImageParams requested) {
+    final params = requested.resolveFixedSettings();
     return {
       'prompt': params.prompt,
       'negative_prompt': params.negativePrompt,

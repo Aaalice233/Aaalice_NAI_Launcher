@@ -11,7 +11,7 @@ import 'package:nai_launcher/core/constants/storage_keys.dart';
 import 'package:nai_launcher/data/datasources/remote/nai_image_generation_api_service.dart';
 import 'package:nai_launcher/data/models/image/image_params.dart';
 import 'package:nai_launcher/data/models/image/image_stream_chunk.dart';
-import 'package:nai_launcher/presentation/providers/auth_provider.dart';
+import 'package:nai_launcher/data/services/auth_provider.dart';
 import 'package:nai_launcher/presentation/providers/generation/stream_preview_snapshot.dart';
 import 'package:nai_launcher/presentation/providers/image_generation_provider.dart';
 import 'package:nai_launcher/presentation/providers/notification_settings_provider.dart';

@@ -482,12 +482,29 @@ class AppLocalizationsZh extends AppLocalizations {
   String get auth_selectAccount => '选择账号';
 
   @override
-  String get auth_deleteAccount => '删除账号';
+  String get auth_manageAccounts => '管理账号';
 
   @override
-  String auth_deleteAccountConfirm(Object name) {
-    return '确定要删除账号 \"$name\" 吗？此操作不可撤销。';
+  String get auth_removeSavedAccount => '移除账号';
+
+  @override
+  String get auth_removeSavedAccountAction => '移除';
+
+  @override
+  String auth_removeSavedAccountConfirm(Object name) {
+    return '将从本机移除「$name」保存的登录凭据和头像。NovelAI 账号本身不受影响，之后可以重新登录。';
   }
+
+  @override
+  String get auth_removeSessionAccountNotice => '你当前正在使用此账号，确认后会先退出登录。';
+
+  @override
+  String auth_removeSavedAccountSuccess(Object name) {
+    return '已移除「$name」';
+  }
+
+  @override
+  String get auth_removeSavedAccountFailed => '移除账号失败，请稍后重试';
 
   @override
   String get auth_removeAvatar => '移除头像';
@@ -737,6 +754,13 @@ class AppLocalizationsZh extends AppLocalizations {
   String get settings_autoSaveSubtitle => '生成后自动保存图片';
 
   @override
+  String get settings_syncToSystemGallery => '同步到系统相册';
+
+  @override
+  String get settings_syncToSystemGallerySubtitle =>
+      '关闭后仅保存到应用图库，不再出现在系统相册；已同步的图片不受影响';
+
+  @override
   String get settings_about => '关于';
 
   @override
@@ -936,6 +960,18 @@ class AppLocalizationsZh extends AppLocalizations {
   String get agentChat_tab => '聊天';
 
   @override
+  String get agentChat_popOutFloating => '弹出为浮窗';
+
+  @override
+  String get agentChat_dockToSidePanel => '停靠回侧栏';
+
+  @override
+  String get agentChat_hideFloating => '隐藏浮窗';
+
+  @override
+  String get agentChat_resizeDockSplit => '调整聊天与历史的分隔';
+
+  @override
   String get nav_agent => '智能体';
 
   @override
@@ -1013,6 +1049,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String agentChat_unsupportedImageFormat(Object fileName) {
     return '不支持的图片格式：$fileName';
   }
+
+  @override
+  String get agentChat_dropHint => '松开以添加到对话';
 
   @override
   String get agentChat_newChat => '新建聊天';
@@ -1302,6 +1341,11 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
+  String agentChat_approvalFileTarget(String path) {
+    return '将写入文件：$path';
+  }
+
+  @override
   String get agentChat_needSetup => '未配置聊天模型。请先在设置中添加支持工具调用的供应商。';
 
   @override
@@ -1399,7 +1443,8 @@ class AppLocalizationsZh extends AppLocalizations {
   String get agentChat_permissionFull => '完全访问';
 
   @override
-  String get agentChat_permissionFullDescription => '不询问并允许访问工作区外文件';
+  String get agentChat_permissionFullDescription =>
+      '仅删除已存数据或消耗 Anlas 时询问，可访问工作区外文件';
 
   @override
   String agentChat_approvalTitle(Object toolName) {
@@ -1414,6 +1459,19 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get agentChat_approvalDeny => '拒绝';
+
+  @override
+  String mcpApproval_title(Object client) {
+    return '外部智能体 $client 请求授权';
+  }
+
+  @override
+  String mcpApproval_expiresIn(Object seconds) {
+    return '$seconds 秒后自动拒绝';
+  }
+
+  @override
+  String get mcpApproval_unknownClient => '未知客户端';
 
   @override
   String get generation_failedStreamSnapshot => '失败快照';
@@ -1432,7 +1490,65 @@ class AppLocalizationsZh extends AppLocalizations {
   String get generation_clearHistoryConfirm => '确定要清除所有历史记录吗？此操作不可撤销。';
 
   @override
+  String get generation_deleteImageConfirm => '从历史记录中删除这张图片？此操作不可撤销。';
+
+  @override
+  String generation_deleteImageWithFileConfirm(Object fileName) {
+    return '从历史记录中删除这张图片，并永久删除本地图库中的文件「$fileName」？此操作不可撤销。';
+  }
+
+  @override
+  String generation_deleteImagesConfirm(Object count) {
+    return '从历史记录中删除选中的 $count 张图片？此操作不可撤销。';
+  }
+
+  @override
+  String generation_deleteImagesWithFilesConfirm(
+    Object count,
+    Object fileCount,
+  ) {
+    return '从历史记录中删除选中的 $count 张图片，并永久删除其中 $fileCount 个已保存到本地图库的文件？此操作不可撤销。';
+  }
+
+  @override
+  String get generation_deleteConfirmSkipForSession => '本次运行期间不再询问';
+
+  @override
+  String generation_deleteImageFilesFailed(Object count, Object error) {
+    return '图片已从历史记录移除，但有 $count 个本地文件删除失败：$error';
+  }
+
+  @override
   String get generation_model => '模型';
+
+  @override
+  String get generation_modelMode => '模式';
+
+  @override
+  String get generation_modelModeAnime => '动漫';
+
+  @override
+  String get generation_modelModeFurry => '兽人';
+
+  @override
+  String get generation_effort => '生成档位';
+
+  @override
+  String get generation_effortMedium => '节约';
+
+  @override
+  String get generation_effortHigh => '标准';
+
+  @override
+  String get generation_effortUnavailableHint => '节约档不使用此项';
+
+  @override
+  String get generation_effortNegativeLocked => '节约档不发送';
+
+  @override
+  String generation_effortNegativeLockedHint(Object ucPreset) {
+    return '节约档不发送负向提示词，只使用「$ucPreset」负面预设。已填写的内容会保留，切回标准档后继续生效';
+  }
 
   @override
   String generation_opusUsageRemaining(Object percent) {
@@ -1471,9 +1587,15 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
+  String get generation_stepsLabel => '步数';
+
+  @override
   String generation_cfgScale(Object scale) {
     return 'CFG 强度：$scale';
   }
+
+  @override
+  String get generation_cfgScaleLabel => 'CFG 强度';
 
   @override
   String get generation_seed => '种子';
@@ -1554,6 +1676,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String generation_cfgRescale(Object value) {
     return 'CFG 重缩放：$value';
   }
+
+  @override
+  String get generation_cfgRescaleLabel => 'CFG 重缩放';
 
   @override
   String get generation_noiseSchedule => '噪声调度';
@@ -2007,6 +2132,81 @@ class AppLocalizationsZh extends AppLocalizations {
   String get img2img_directorDeclutter => '杂线清理';
 
   @override
+  String get img2img_directorPixelSnap => '像素对齐';
+
+  @override
+  String get img2img_directorPixelSnapHint =>
+      '完全在本机计算，不消耗 Anlas、不联网。大图可能要几秒到十几秒。';
+
+  @override
+  String get img2img_directorPixelSnapPalette => '调色板';
+
+  @override
+  String get img2img_directorPixelSnapPaletteOff => '关闭';
+
+  @override
+  String get img2img_directorPixelSnapPaletteAuto => '自动';
+
+  @override
+  String get img2img_directorPixelSnapPaletteCustom => '自定义';
+
+  @override
+  String get img2img_directorPixelSnapColors => '色数';
+
+  @override
+  String get img2img_directorPixelSnapAvoidOverRefining => '不过度细化';
+
+  @override
+  String get img2img_directorPixelSnapAvoidOverRefiningOn => '始终保留检测到的像素尺寸。';
+
+  @override
+  String get img2img_directorPixelSnapAvoidOverRefiningOff =>
+      '更细的像素尺寸更贴合原图时会改用它。';
+
+  @override
+  String get img2img_directorPixelSnapUpscale => '放大回原尺寸';
+
+  @override
+  String get img2img_directorPixelSnapUpscaleOn => '结果会放大到接近原图的大小。';
+
+  @override
+  String get img2img_directorPixelSnapUpscaleOff => '结果保持对齐后的像素尺寸。';
+
+  @override
+  String img2img_directorPixelSnapSummary(int width, int height, int colors) {
+    return '$width×$height 像素 · $colors 色';
+  }
+
+  @override
+  String img2img_directorPixelSnapSummaryNoPalette(int width, int height) {
+    return '$width×$height 像素';
+  }
+
+  @override
+  String get img2img_directorPixelSnapNoGrid => '这张图里找不到重复的像素网格。';
+
+  @override
+  String get img2img_directorPixelSnapBlank => '这张图整幅都是透明的。';
+
+  @override
+  String get img2img_directorPixelSnapDownscaled => '图片超过尺寸上限，已先降采样再分析。';
+
+  @override
+  String get img2img_directorCancel => '取消';
+
+  @override
+  String get img2img_directorStageAnalyzing => '分析图像';
+
+  @override
+  String get img2img_directorStageSearchingPitch => '搜索像素尺寸';
+
+  @override
+  String get img2img_directorStageRefiningGrid => '细化网格';
+
+  @override
+  String get img2img_directorStageFinishing => '生成结果';
+
+  @override
   String get img2img_enhance => '增强';
 
   @override
@@ -2189,7 +2389,22 @@ class AppLocalizationsZh extends AppLocalizations {
   String get editor_intensity => '强度';
 
   @override
-  String get editor_sourcePoint => 'Alt+点击设置源点';
+  String get editor_cloneStampSetSource => '设置源点';
+
+  @override
+  String get editor_cloneStampSetSourceTooltip =>
+      '开启后，下一次点击画布的位置设为源点；也可以按住 Alt 点击画布';
+
+  @override
+  String get editor_cloneStampPickingHint => '点击画布选取仿制源点';
+
+  @override
+  String get editor_cloneStampNoSourceHint => '尚未设置源点，开启「设置源点」后点击画布';
+
+  @override
+  String editor_cloneStampSourceReadout(int x, int y) {
+    return '源点: X $x, Y $y';
+  }
 
   @override
   String get editor_brushPresets => '笔刷预设';
@@ -2237,10 +2452,10 @@ class AppLocalizationsZh extends AppLocalizations {
   String get editor_magicWandMode => '选择方式';
 
   @override
-  String get editor_magicWandSmartObject => '智能对象（EfficientViT）';
+  String get editor_magicWandSmartObject => '智能对象';
 
   @override
-  String get editor_magicWandColorArea => '颜色区域（洪水填充）';
+  String get editor_magicWandColorArea => '颜色区域';
 
   @override
   String get editor_magicWandSmartHelp =>
@@ -2307,6 +2522,15 @@ class AppLocalizationsZh extends AppLocalizations {
   String get editor_fitToWindow => '适应窗口';
 
   @override
+  String get editor_viewOptions => '视图选项';
+
+  @override
+  String get editor_menuGroupView => '视图';
+
+  @override
+  String get editor_menuGroupCanvas => '画布';
+
+  @override
   String get editor_tempColorPickerShortcut => 'Alt+点击: 临时取色';
 
   @override
@@ -2338,6 +2562,9 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get editor_shortcutTemporaryColorPicker => '临时拾色器';
+
+  @override
+  String get editor_shortcutCloneStampSource => '设置仿制图章源点';
 
   @override
   String get editor_shortcutRectSelection => '矩形选区';
@@ -2757,6 +2984,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String editor_focusMinimumContextArea(Object value) {
     return '最小上下文区域：$value';
   }
+
+  @override
+  String get editor_focusMinimumContextAreaLabel => '最小上下文区域';
 
   @override
   String get editor_canvasSizeTitle => '画布尺寸';
@@ -5602,9 +5832,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get statistics_noData => '暂无统计数据';
 
   @override
-  String get statistics_noTagData => '暂无标签数据';
-
-  @override
   String get statistics_generateFirst => '先生成一些图片吧';
 
   @override
@@ -6730,20 +6957,169 @@ class AppLocalizationsZh extends AppLocalizations {
   String get promptAssistant_model => '模型';
 
   @override
-  String get promptAssistant_noModelsPullFirst => '暂无模型，请先拉取';
+  String get promptAssistant_noModelsPullFirst => '暂无模型，请先在模型服务中添加';
 
   @override
-  String get promptAssistant_providerManagement => '服务商管理';
+  String get settings_modelServices => '模型服务';
 
   @override
-  String get promptAssistant_providerManagementSubtitle =>
-      '支持 OpenAI Chat / Responses、Anthropic、Gemini、DeepSeek、LM Studio、Ollama、Pollinations 和自定义兼容端点';
+  String get modelServices_searchProviders => '搜索服务商';
 
   @override
-  String get promptAssistant_apiKeyConfigured => 'API Key: 已配置';
+  String get modelServices_noProviderMatches => '没有匹配的服务商';
 
   @override
-  String get promptAssistant_apiKeyNotConfigured => 'API Key: 未配置';
+  String get modelServices_emptyTitle => '添加第一个服务商';
+
+  @override
+  String get modelServices_emptyBody => '服务商提供提示词助手和智能体使用的模型。';
+
+  @override
+  String get modelServices_disabled => '已停用';
+
+  @override
+  String get modelServices_enableProvider => '启用服务商';
+
+  @override
+  String get modelServices_moreActions => '更多操作';
+
+  @override
+  String get modelServices_connection => '连接';
+
+  @override
+  String get modelServices_apiKey => 'API 密钥';
+
+  @override
+  String get modelServices_apiKeySavedHint => '已保存，输入新密钥即可替换';
+
+  @override
+  String get modelServices_apiKeyOptional => '此服务商可以不填';
+
+  @override
+  String get modelServices_showApiKey => '显示密钥';
+
+  @override
+  String get modelServices_hideApiKey => '隐藏密钥';
+
+  @override
+  String get modelServices_clearApiKey => '清除已保存的密钥';
+
+  @override
+  String get modelServices_apiKeyCleared => 'API 密钥已清除';
+
+  @override
+  String get modelServices_baseUrl => 'API 地址';
+
+  @override
+  String get modelServices_checkConnection => '检查连接';
+
+  @override
+  String modelServices_connectionOk(Object count) {
+    return '连接正常，接口列出了 $count 个模型';
+  }
+
+  @override
+  String modelServices_connectionFailed(Object error) {
+    return '连接失败：$error';
+  }
+
+  @override
+  String get modelServices_models => '模型';
+
+  @override
+  String modelServices_modelCount(Object count) {
+    return '$count 个模型';
+  }
+
+  @override
+  String get modelServices_noModels => '还没有模型。可以从接口列表挑选，或手动添加模型 ID。';
+
+  @override
+  String get modelServices_manageModels => '管理模型';
+
+  @override
+  String get modelServices_addModel => '手动添加';
+
+  @override
+  String modelServices_manageModelsTitle(Object provider) {
+    return '$provider 的模型';
+  }
+
+  @override
+  String modelServices_addGroup(Object group) {
+    return '添加 $group 整组';
+  }
+
+  @override
+  String modelServices_removeGroup(Object group) {
+    return '移除 $group 整组';
+  }
+
+  @override
+  String get modelServices_notListed => '接口已不再列出';
+
+  @override
+  String get modelServices_reasoning => '推理';
+
+  @override
+  String get modelServices_vision => '视觉';
+
+  @override
+  String modelServices_contextWindow(Object size) {
+    return '上下文 $size';
+  }
+
+  @override
+  String get modelServices_modelId => '模型 ID';
+
+  @override
+  String get modelServices_modelIdRequired => '请输入模型 ID';
+
+  @override
+  String get modelServices_modelExists => '这个服务商已经有这个模型';
+
+  @override
+  String get modelServices_displayName => '显示名称';
+
+  @override
+  String modelServices_displayNameHint(Object name) {
+    return '留空则使用 $name';
+  }
+
+  @override
+  String get modelServices_editModel => '编辑模型';
+
+  @override
+  String get modelServices_removeModel => '移除模型';
+
+  @override
+  String modelServices_removeModelConfirm(Object name) {
+    return '从这个服务商移除 $name？';
+  }
+
+  @override
+  String modelServices_removeModelInUse(Object name, Object usages) {
+    return '$name 正被$usages使用。移除后，任务路由会改用这个服务商剩下的模型，智能体需要重新选择模型。';
+  }
+
+  @override
+  String get modelServices_usageSeparator => '、';
+
+  @override
+  String get modelServices_cleanStaleModels => '清理失效模型';
+
+  @override
+  String get modelServices_addAllModels => '添加全部模型';
+
+  @override
+  String modelServices_staleModelCount(Object count) {
+    return '$count 个失效模型';
+  }
+
+  @override
+  String modelServices_addAllConfirm(Object count) {
+    return '要向这个服务商添加 $count 个模型吗？';
+  }
 
   @override
   String get promptAssistant_supportsImageInput => '支持图片输入';
@@ -6752,27 +7128,13 @@ class AppLocalizationsZh extends AppLocalizations {
   String get promptAssistant_textOnly => '仅文本';
 
   @override
-  String get promptAssistant_connectionConfig => '连接配置';
-
-  @override
-  String get promptAssistant_pullModelList => '拉取模型列表';
-
-  @override
   String get promptAssistant_editProvider => '编辑服务商';
 
   @override
   String get promptAssistant_deleteProvider => '删除服务商';
 
   @override
-  String get promptAssistant_pullingModels => '正在拉取模型列表...';
-
-  @override
   String get promptAssistant_emptyModelList => '服务返回空模型列表';
-
-  @override
-  String promptAssistant_modelsSynced(Object count) {
-    return '已同步 $count 个模型';
-  }
 
   @override
   String promptAssistant_pullModelsFailed(Object error) {
@@ -6811,23 +7173,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get promptAssistant_apiKeyLeaveEmpty => 'API Key (留空不改)';
 
   @override
-  String promptAssistant_connectionTitle(Object name) {
-    return '$name 连接配置';
-  }
-
-  @override
   String get promptAssistant_baseUrlHint => '例如: https://api.openai.com/v1';
-
-  @override
-  String get promptAssistant_clearCurrentApiKey => '清空当前 API Key';
-
-  @override
-  String get promptAssistant_protocolSupportsImagePayload =>
-      '当前协议支持图片载荷，仍需模型本身支持视觉输入';
-
-  @override
-  String get promptAssistant_protocolTextOnlyWarning =>
-      '当前协议默认仅文本，开启后也可能被服务端拒绝';
 
   @override
   String get promptAssistant_addRuleTitle => '新增规则';
@@ -7601,6 +7947,16 @@ class AppLocalizationsZh extends AppLocalizations {
   @override
   String settings_queueRetryIntervalValue(Object seconds) {
     return '$seconds 秒';
+  }
+
+  @override
+  String settings_decreaseValue(Object field) {
+    return '减少$field';
+  }
+
+  @override
+  String settings_increaseValue(Object field) {
+    return '增加$field';
   }
 
   @override
@@ -9261,11 +9617,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get vibe_maxReached => '已达到最大数量 (16张)';
 
   @override
-  String vibe_addedNamed(String name) {
-    return '已添加 Vibe: $name';
-  }
-
-  @override
   String vibe_addedCount(int count) {
     return '已添加 $count 个 vibes';
   }
@@ -9463,6 +9814,162 @@ class AppLocalizationsZh extends AppLocalizations {
   String settings_kritaBridgeClient(Object client) {
     return '客户端：$client';
   }
+
+  @override
+  String get settings_mcpServerPermissionSection => '权限';
+
+  @override
+  String get settings_mcpServerClientsSection => '客户端';
+
+  @override
+  String get settings_mcpServerEnable => '启用 MCP 服务器';
+
+  @override
+  String get settings_mcpServerDisabledText => '默认关闭；开启后只监听本机 127.0.0.1';
+
+  @override
+  String get settings_mcpServerStartingText => '正在启动本地 MCP 服务...';
+
+  @override
+  String get settings_mcpServerListeningText => '等待 MCP 客户端连接';
+
+  @override
+  String get settings_mcpServerErrorText => '启动失败，请查看错误信息';
+
+  @override
+  String get settings_mcpServerDisabled => '已关闭';
+
+  @override
+  String get settings_mcpServerStarting => '启动中';
+
+  @override
+  String get settings_mcpServerListening => '监听中';
+
+  @override
+  String get settings_mcpServerError => '错误';
+
+  @override
+  String get settings_mcpServerEndpoint => '端点地址';
+
+  @override
+  String get settings_mcpServerCopyEndpoint => '复制端点地址';
+
+  @override
+  String get settings_mcpServerPort => '端口';
+
+  @override
+  String get settings_mcpServerPortHelper => '更改后会断开已连接的客户端';
+
+  @override
+  String settings_mcpServerPortInvalid(Object min, Object max) {
+    return '端口需在 $min 到 $max 之间';
+  }
+
+  @override
+  String settings_mcpServerPortInUseHint(Object port) {
+    return '端口 $port 已被占用，请在下方改用其他端口';
+  }
+
+  @override
+  String get settings_mcpServerDiscoveryFile => '发现文件';
+
+  @override
+  String get settings_mcpServerToken => '接入令牌';
+
+  @override
+  String get settings_mcpServerRevealToken => '显示令牌';
+
+  @override
+  String get settings_mcpServerHideToken => '隐藏令牌';
+
+  @override
+  String get settings_mcpServerCopyToken => '复制令牌';
+
+  @override
+  String get settings_mcpServerRegenerateToken => '重新生成令牌';
+
+  @override
+  String get settings_mcpServerRegenerateTokenTitle => '重新生成接入令牌';
+
+  @override
+  String get settings_mcpServerRegenerateTokenMessage =>
+      '当前令牌会立即失效，已连接的客户端将断开。请在所有客户端配置中更新新令牌。';
+
+  @override
+  String get settings_mcpServerAnlasNotice =>
+      '任何可能消耗 Anlas 的操作都会在启动器内单独确认，与权限模式无关。';
+
+  @override
+  String settings_mcpServerPendingApproval(Object client, Object tool) {
+    return '$client 请求调用 $tool';
+  }
+
+  @override
+  String get settings_mcpServerPendingApprovalHint => '请在页面顶部的授权横幅中处理';
+
+  @override
+  String get settings_mcpServerConnectedClients => '已连接客户端';
+
+  @override
+  String get settings_mcpServerSessionsEmpty => '尚无客户端连接';
+
+  @override
+  String settings_mcpServerSessionConnectedAt(Object time) {
+    return '接入于 $time';
+  }
+
+  @override
+  String settings_mcpServerSessionLastActivity(Object time) {
+    return '最近活动 $time';
+  }
+
+  @override
+  String get settings_mcpServerClientConfigs => '客户端配置';
+
+  @override
+  String get settings_mcpServerConfigUnavailable => '启用服务器后显示客户端配置';
+
+  @override
+  String get settings_mcpServerCopyConfig => '复制配置';
+
+  @override
+  String get settings_mcpServerTokenMaskNotice => '预览中的令牌已打码，复制时写入真实令牌。';
+
+  @override
+  String settings_mcpServerCliMissing(Object path) {
+    return '未找到随包 CLI（预期位置：$path），开发运行时属正常现象';
+  }
+
+  @override
+  String get settings_mcpServerViewDocs => '查看文档';
+
+  @override
+  String get settings_mcpServerAgentPromptTitle => '推荐：让智能体自己配置';
+
+  @override
+  String get settings_mcpServerAgentPromptHint =>
+      '把以下提示词发给要接入的智能体，它会读取配置文档并自行完成安装。提示词不含令牌，令牌由随包 CLI 在本机读取。';
+
+  @override
+  String get settings_mcpServerClaudeCodeHint => '在终端运行以下命令注册服务器。';
+
+  @override
+  String get settings_mcpServerCodexHint => '先运行命令注册服务器，再把令牌写入下面的环境变量。';
+
+  @override
+  String get settings_mcpServerCursorHint => '把以下内容合并进 Cursor 的 mcp.json 配置文件。';
+
+  @override
+  String get settings_mcpServerCherryStudioHint =>
+      '在 Cherry Studio 的 MCP 服务器设置中用“从 JSON 导入”粘贴以下内容；timeout 单位为秒，已留足应用内审批时间。';
+
+  @override
+  String get settings_mcpServerPiHint =>
+      'Pi 本体不带 MCP，需先安装 pi-mcp-adapter 包，再把以下内容合并进 ~/.pi/agent/mcp.json。';
+
+  @override
+  String get settings_mcpServerClaudeDesktopHint =>
+      '把以下内容合并进 Claude Desktop 配置；它通过随包 CLI 以 stdio 方式接入。';
 
   @override
   String get settings_fontScale => '字体大小';
@@ -9695,7 +10202,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get settings_stripMetadataSubtitle =>
-      '生成净化副本，清除 PNG 文本块、EXIF 与 NAI 隐写水印，并避免拖拽暴露原始路径。';
+      '复制、拖拽及 MCP 图片返回时清除 PNG 文本块、EXIF 与 NAI 隐写水印，不修改本地原图；MCP 保留原分辨率，其 saved_path 指向的图库原图不受影响。';
 
   @override
   String get settings_confirmDangerousActionsTitle => '危险资产操作二次确认';
@@ -12141,6 +12648,147 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
+  String get editor_toolFrame => '取景框';
+
+  @override
+  String get editor_toolMove => '移动';
+
+  @override
+  String get editor_toolGroupInpaint => '重绘';
+
+  @override
+  String get editor_toolGroupEdit => '编辑';
+
+  @override
+  String get editor_toolGroupCommon => '通用';
+
+  @override
+  String get editor_toolMaskBrush => '蒙版画笔';
+
+  @override
+  String get editor_toolMaskEraser => '蒙版橡皮擦';
+
+  @override
+  String get editor_toolMaskColorFill => '按颜色填充蒙版';
+
+  @override
+  String get editor_toolMaskMagicWand => '蒙版魔棒';
+
+  @override
+  String get editor_moveLayerHint => '拖动以移动整个当前图层。';
+
+  @override
+  String get editor_moveSelectionHint => '拖动以移动当前图层在选区内的像素。';
+
+  @override
+  String get editor_moveBaseLayerHint => '底图不能整体移动；先框选，再移动选区内的像素。';
+
+  @override
+  String get editor_moveNoLayer => '没有可移动的图层。';
+
+  @override
+  String get editor_moveNudgeHint => '方向键移动 1 像素，按住 Shift 移动 10 像素。';
+
+  @override
+  String get editor_shortcutNudge => '移动 1 像素';
+
+  @override
+  String get editor_shortcutNudgeFar => '移动 10 像素';
+
+  @override
+  String get selection_clearPixels => '删除选区内容';
+
+  @override
+  String selection_cutLayerName(Object name) {
+    return '$name 剪切';
+  }
+
+  @override
+  String layer_duplicateName(Object name) {
+    return '$name 副本';
+  }
+
+  @override
+  String get layer_roleMask => '蒙版';
+
+  @override
+  String get layer_addImage => '添加图片图层';
+
+  @override
+  String get layer_addMask => '添加蒙版图层';
+
+  @override
+  String get img2img_inpaintSourceUpdated => '底图修改已保存，涂上蒙版后即可局部重绘';
+
+  @override
+  String get editor_frameToolHint =>
+      '在框内按住拖动可整体移动取景框，拖动边缘可调整尺寸。框外内容会保留并压暗显示，只有框内部分会送去生成；移动时至少与原图重叠 64 像素。';
+
+  @override
+  String editor_frameSizeReadout(int width, int height) {
+    return '尺寸: $width x $height';
+  }
+
+  @override
+  String editor_frameOffsetReadout(int x, int y) {
+    return '相对原图: X $x, Y $y';
+  }
+
+  @override
+  String get editor_frameMoveLockedByView => '视图旋转或镜像时无法移动取景框，按 R 重置视图后再试。';
+
+  @override
+  String get editor_resetFrame => '重置取景框';
+
+  @override
+  String get editor_cropToFrame => '裁切到取景框';
+
+  @override
+  String get editor_cropToFrameHint => '丢弃取景框外的原图和蒙版，可撤销';
+
+  @override
+  String editor_cropToFrameFailed(Object error) {
+    return '裁切到取景框失败: $error';
+  }
+
+  @override
+  String get editor_changeFrameSize => '调整取景框尺寸';
+
+  @override
+  String editor_frameResized(int width, int height) {
+    return '取景框已调整为 $width x $height';
+  }
+
+  @override
+  String get editor_frameToolHintPasteBack =>
+      '在框内按住拖动可按 64 像素一格移动取景框，拖动边缘可调整尺寸。只有框内部分会送去生成；框外还有原图时，结果按蒙版贴回整张图，框外内容保持不变。框须与原图重叠至少 64 像素。';
+
+  @override
+  String editor_frameRequestReadout(int width, int height) {
+    return '发送: $width x $height';
+  }
+
+  @override
+  String get editor_frameRequestFree => '免费';
+
+  @override
+  String editor_frameRequestCost(int cost) {
+    return '约 $cost Anlas';
+  }
+
+  @override
+  String editor_frameResizeRejected(int overlap, int max) {
+    return '无法调整取景框：框须与原图重叠至少 $overlap 像素，且与原图合起来每边不超过 $max 像素。';
+  }
+
+  @override
+  String get editor_compressionFrameLimited => '取景框在更高分辨率下会超过请求面积上限，因此滑条上限已收紧。';
+
+  @override
+  String get img2img_focusOutpaintHint =>
+      '聚焦外扩：只发送取景框内的部分，生成结果按蒙版贴回整张图。可在重绘编辑器里用取景框工具调整位置。';
+
+  @override
   String get savePreset_title => '另存为预设';
 
   @override
@@ -12156,6 +12804,15 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get onlineGallery_videoLoadFailed => '视频加载失败';
+
+  @override
+  String get onlineGallery_videoPositionLabel => '播放进度';
+
+  @override
+  String get onlineGallery_videoPlay => '播放';
+
+  @override
+  String get onlineGallery_videoPause => '暂停';
 
   @override
   String get vibe_releaseToAddStyleReference => '松开后添加风格参考';
@@ -12599,6 +13256,44 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
+  String get image_savedToAppGallery => '已保存到应用图库';
+
+  @override
+  String get image_saveAs => '另存为…';
+
+  @override
+  String get image_saveAsDialogTitle => '另存为图片';
+
+  @override
+  String get image_saveAsToFolder => '另存为到文件夹…';
+
+  @override
+  String get image_saveAsFolderDialogTitle => '选择保存文件夹';
+
+  @override
+  String image_savedAs(Object path) {
+    return '已另存为 $path';
+  }
+
+  @override
+  String get image_savedAsToChosenLocation => '已保存到所选位置';
+
+  @override
+  String image_savedAsToFolder(int count, Object path) {
+    return '已保存 $count 张图片到 $path';
+  }
+
+  @override
+  String image_savedAsToChosenFolder(int count) {
+    return '已保存 $count 张图片到所选文件夹';
+  }
+
+  @override
+  String image_savedAsPartial(int saved, int failed, Object error) {
+    return '已保存 $saved 张，$failed 张失败：$error';
+  }
+
+  @override
   String image_shareFailed(Object error) {
     return '分享失败: $error';
   }
@@ -12835,6 +13530,12 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get cloudSync_galleryAlbumsDescription => '只保存相册结构与图片引用，不上传原图';
+
+  @override
+  String get cloudSync_fixedTagUsage => '固定词使用记录';
+
+  @override
+  String get cloudSync_fixedTagUsageDescription => '只保存每张图用了哪些固定词的轻量记录，不上传图片';
 
   @override
   String get cloudSync_optionalResources => '可选资源（默认关闭）';
@@ -13302,6 +14003,35 @@ class AppLocalizationsZh extends AppLocalizations {
   String get agentSettings_densityCompact => '紧凑';
 
   @override
+  String get agentSettings_chatPlacement => '聊天位置';
+
+  @override
+  String get agentSettings_chatPlacementDescription => '仅在宽屏生效；窄屏保持全屏聊天。';
+
+  @override
+  String get agentSettings_dockLayout => '右栏布局';
+
+  @override
+  String get agentSettings_dockLayoutDescription =>
+      '独占切换时右栏一次只显示聊天或历史；分栏则同时显示两者。';
+
+  @override
+  String get agentSettings_dockExclusive => '独占切换';
+
+  @override
+  String get agentSettings_dockStacked => '上下分栏';
+
+  @override
+  String get agentSettings_dockSideBySide => '左右分栏';
+
+  @override
+  String get agentSettings_floatingWindow => '以浮窗显示聊天';
+
+  @override
+  String get agentSettings_floatingWindowDescription =>
+      '浮窗常驻所有页面，可拖动和调整大小；开启后右栏只显示历史。';
+
+  @override
   String get agentSettings_chatModel => '聊天模型';
 
   @override
@@ -13309,13 +14039,13 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get agentSettings_modelManagedInIntegrations =>
-      '供应商、API Key 与模型发现仍在“集成”中统一管理。';
+      '服务商、API 密钥和模型在“集成 → 模型服务”中管理。';
 
   @override
   String get agentSettings_manageProviders => '管理服务商';
 
   @override
-  String get agentSettings_noModel => '没有可用聊天模型。请先在“集成”中添加供应商并发现模型。';
+  String get agentSettings_noModel => '没有可用的聊天模型。请先在“集成 → 模型服务”中添加服务商和模型。';
 
   @override
   String get agentSettings_pendingMatch => '待匹配';
@@ -13363,7 +14093,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get agentSettings_permissionFullDescription =>
-      '允许访问工作区外文件并直接执行工具。仅在信任当前任务时使用。';
+      '允许访问工作区外文件并直接执行工具；删除已保存的数据或消耗 Anlas 前仍会确认。仅在信任当前任务时使用。';
 
   @override
   String get agentSettings_webPreference => '联网偏好';
@@ -15113,12 +15843,29 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get auth_selectAccount => '選擇賬號';
 
   @override
-  String get auth_deleteAccount => '刪除賬號';
+  String get auth_manageAccounts => '管理賬號';
 
   @override
-  String auth_deleteAccountConfirm(Object name) {
-    return '確定要刪除賬號 \"$name\" 嗎？此操作不可撤銷。';
+  String get auth_removeSavedAccount => '移除賬號';
+
+  @override
+  String get auth_removeSavedAccountAction => '移除';
+
+  @override
+  String auth_removeSavedAccountConfirm(Object name) {
+    return '將從本機移除「$name」儲存的登入憑據和頭像。NovelAI 賬號本身不受影響，之後可以重新登入。';
   }
+
+  @override
+  String get auth_removeSessionAccountNotice => '你目前正在使用此賬號，確認後會先退出登入。';
+
+  @override
+  String auth_removeSavedAccountSuccess(Object name) {
+    return '已移除「$name」';
+  }
+
+  @override
+  String get auth_removeSavedAccountFailed => '移除賬號失敗，請稍後重試';
 
   @override
   String get auth_removeAvatar => '移除頭像';
@@ -15368,6 +16115,13 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get settings_autoSaveSubtitle => '生成後自動儲存圖片';
 
   @override
+  String get settings_syncToSystemGallery => '同步到系統相簿';
+
+  @override
+  String get settings_syncToSystemGallerySubtitle =>
+      '關閉後僅儲存到應用程式圖庫，不再出現在系統相簿；已同步的圖片不受影響';
+
+  @override
   String get settings_about => '關於';
 
   @override
@@ -15567,6 +16321,18 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get agentChat_tab => '聊天';
 
   @override
+  String get agentChat_popOutFloating => '彈出為浮窗';
+
+  @override
+  String get agentChat_dockToSidePanel => '停靠回側欄';
+
+  @override
+  String get agentChat_hideFloating => '隱藏浮窗';
+
+  @override
+  String get agentChat_resizeDockSplit => '調整聊天與歷史的分隔';
+
+  @override
   String get nav_agent => '智慧體';
 
   @override
@@ -15644,6 +16410,9 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String agentChat_unsupportedImageFormat(Object fileName) {
     return '不支援的圖片格式：$fileName';
   }
+
+  @override
+  String get agentChat_dropHint => '放開以加入對話';
 
   @override
   String get agentChat_newChat => '新對話';
@@ -15933,6 +16702,11 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   }
 
   @override
+  String agentChat_approvalFileTarget(String path) {
+    return '將寫入檔案：$path';
+  }
+
+  @override
   String get agentChat_needSetup => '未設定聊天模型。請先在設定中新增支援工具呼叫的供應商。';
 
   @override
@@ -16030,7 +16804,8 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get agentChat_permissionFull => '完全存取';
 
   @override
-  String get agentChat_permissionFullDescription => '不詢問並允許存取工作區外檔案';
+  String get agentChat_permissionFullDescription =>
+      '僅刪除已存資料或消耗 Anlas 時詢問，可存取工作區外檔案';
 
   @override
   String agentChat_approvalTitle(Object toolName) {
@@ -16045,6 +16820,19 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get agentChat_approvalDeny => '拒絕';
+
+  @override
+  String mcpApproval_title(Object client) {
+    return '外部智慧體 $client 請求授權';
+  }
+
+  @override
+  String mcpApproval_expiresIn(Object seconds) {
+    return '$seconds 秒後自動拒絕';
+  }
+
+  @override
+  String get mcpApproval_unknownClient => '未知用戶端';
 
   @override
   String get generation_failedStreamSnapshot => '失敗快照';
@@ -16063,7 +16851,65 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get generation_clearHistoryConfirm => '確定要清除所有歷史記錄嗎？此操作不可撤銷。';
 
   @override
+  String get generation_deleteImageConfirm => '從歷史記錄中刪除這張圖片？此操作不可撤銷。';
+
+  @override
+  String generation_deleteImageWithFileConfirm(Object fileName) {
+    return '從歷史記錄中刪除這張圖片，並永久刪除本機圖庫中的檔案「$fileName」？此操作不可撤銷。';
+  }
+
+  @override
+  String generation_deleteImagesConfirm(Object count) {
+    return '從歷史記錄中刪除選取的 $count 張圖片？此操作不可撤銷。';
+  }
+
+  @override
+  String generation_deleteImagesWithFilesConfirm(
+    Object count,
+    Object fileCount,
+  ) {
+    return '從歷史記錄中刪除選取的 $count 張圖片，並永久刪除其中 $fileCount 個已儲存到本機圖庫的檔案？此操作不可撤銷。';
+  }
+
+  @override
+  String get generation_deleteConfirmSkipForSession => '本次執行期間不再詢問';
+
+  @override
+  String generation_deleteImageFilesFailed(Object count, Object error) {
+    return '圖片已從歷史記錄移除，但有 $count 個本機檔案刪除失敗：$error';
+  }
+
+  @override
   String get generation_model => '模型';
+
+  @override
+  String get generation_modelMode => '模式';
+
+  @override
+  String get generation_modelModeAnime => '動漫';
+
+  @override
+  String get generation_modelModeFurry => '獸人';
+
+  @override
+  String get generation_effort => '生成檔位';
+
+  @override
+  String get generation_effortMedium => '節約';
+
+  @override
+  String get generation_effortHigh => '標準';
+
+  @override
+  String get generation_effortUnavailableHint => '節約檔不使用此項';
+
+  @override
+  String get generation_effortNegativeLocked => '節約檔不傳送';
+
+  @override
+  String generation_effortNegativeLockedHint(Object ucPreset) {
+    return '節約檔不傳送負向提示詞，只使用「$ucPreset」負面預設。已填寫的內容會保留，切回標準檔後繼續生效';
+  }
 
   @override
   String generation_opusUsageRemaining(Object percent) {
@@ -16102,9 +16948,15 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   }
 
   @override
+  String get generation_stepsLabel => '步數';
+
+  @override
   String generation_cfgScale(Object scale) {
     return 'CFG 強度：$scale';
   }
+
+  @override
+  String get generation_cfgScaleLabel => 'CFG 強度';
 
   @override
   String get generation_seed => '種子';
@@ -16185,6 +17037,9 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String generation_cfgRescale(Object value) {
     return 'CFG 重縮放：$value';
   }
+
+  @override
+  String get generation_cfgRescaleLabel => 'CFG 重縮放';
 
   @override
   String get generation_noiseSchedule => '噪聲排程';
@@ -16638,6 +17493,81 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get img2img_directorDeclutter => '雜線清理';
 
   @override
+  String get img2img_directorPixelSnap => '像素對齊';
+
+  @override
+  String get img2img_directorPixelSnapHint =>
+      '完全在本機計算，不消耗 Anlas、不連網。大圖可能要幾秒到十幾秒。';
+
+  @override
+  String get img2img_directorPixelSnapPalette => '調色盤';
+
+  @override
+  String get img2img_directorPixelSnapPaletteOff => '關閉';
+
+  @override
+  String get img2img_directorPixelSnapPaletteAuto => '自動';
+
+  @override
+  String get img2img_directorPixelSnapPaletteCustom => '自訂';
+
+  @override
+  String get img2img_directorPixelSnapColors => '色數';
+
+  @override
+  String get img2img_directorPixelSnapAvoidOverRefining => '不過度細化';
+
+  @override
+  String get img2img_directorPixelSnapAvoidOverRefiningOn => '始終保留偵測到的像素尺寸。';
+
+  @override
+  String get img2img_directorPixelSnapAvoidOverRefiningOff =>
+      '更細的像素尺寸更貼合原圖時會改用它。';
+
+  @override
+  String get img2img_directorPixelSnapUpscale => '放大回原尺寸';
+
+  @override
+  String get img2img_directorPixelSnapUpscaleOn => '結果會放大到接近原圖的大小。';
+
+  @override
+  String get img2img_directorPixelSnapUpscaleOff => '結果保持對齊後的像素尺寸。';
+
+  @override
+  String img2img_directorPixelSnapSummary(int width, int height, int colors) {
+    return '$width×$height 像素 · $colors 色';
+  }
+
+  @override
+  String img2img_directorPixelSnapSummaryNoPalette(int width, int height) {
+    return '$width×$height 像素';
+  }
+
+  @override
+  String get img2img_directorPixelSnapNoGrid => '這張圖裡找不到重複的像素網格。';
+
+  @override
+  String get img2img_directorPixelSnapBlank => '這張圖整幅都是透明的。';
+
+  @override
+  String get img2img_directorPixelSnapDownscaled => '圖片超過尺寸上限，已先降採樣再分析。';
+
+  @override
+  String get img2img_directorCancel => '取消';
+
+  @override
+  String get img2img_directorStageAnalyzing => '分析影像';
+
+  @override
+  String get img2img_directorStageSearchingPitch => '搜尋像素尺寸';
+
+  @override
+  String get img2img_directorStageRefiningGrid => '細化網格';
+
+  @override
+  String get img2img_directorStageFinishing => '產生結果';
+
+  @override
   String get img2img_enhance => '增強';
 
   @override
@@ -16820,7 +17750,22 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get editor_intensity => '強度';
 
   @override
-  String get editor_sourcePoint => 'Alt+點選設定源點';
+  String get editor_cloneStampSetSource => '設定源點';
+
+  @override
+  String get editor_cloneStampSetSourceTooltip =>
+      '開啟後，下一次點選畫布的位置設為源點；也可以按住 Alt 點選畫布';
+
+  @override
+  String get editor_cloneStampPickingHint => '點選畫布選取仿製源點';
+
+  @override
+  String get editor_cloneStampNoSourceHint => '尚未設定源點，開啟「設定源點」後點選畫布';
+
+  @override
+  String editor_cloneStampSourceReadout(int x, int y) {
+    return '源點: X $x, Y $y';
+  }
 
   @override
   String get editor_brushPresets => '筆刷預設';
@@ -16868,10 +17813,10 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get editor_magicWandMode => '選擇方式';
 
   @override
-  String get editor_magicWandSmartObject => '智慧物件（EfficientViT）';
+  String get editor_magicWandSmartObject => '智慧物件';
 
   @override
-  String get editor_magicWandColorArea => '顏色區域（洪水填充）';
+  String get editor_magicWandColorArea => '顏色區域';
 
   @override
   String get editor_magicWandSmartHelp =>
@@ -16938,6 +17883,15 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get editor_fitToWindow => '適應視窗';
 
   @override
+  String get editor_viewOptions => '檢視選項';
+
+  @override
+  String get editor_menuGroupView => '檢視';
+
+  @override
+  String get editor_menuGroupCanvas => '畫布';
+
+  @override
   String get editor_tempColorPickerShortcut => 'Alt+點選: 臨時取色';
 
   @override
@@ -16969,6 +17923,9 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get editor_shortcutTemporaryColorPicker => '臨時拾色器';
+
+  @override
+  String get editor_shortcutCloneStampSource => '設定仿製圖章源點';
 
   @override
   String get editor_shortcutRectSelection => '矩形選區';
@@ -17388,6 +18345,9 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String editor_focusMinimumContextArea(Object value) {
     return '最小上下文區域：$value';
   }
+
+  @override
+  String get editor_focusMinimumContextAreaLabel => '最小上下文區域';
 
   @override
   String get editor_canvasSizeTitle => '畫布尺寸';
@@ -20233,9 +21193,6 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get statistics_noData => '暫無統計資料';
 
   @override
-  String get statistics_noTagData => '暫無標籤資料';
-
-  @override
   String get statistics_generateFirst => '先生成一些圖片吧';
 
   @override
@@ -21361,20 +22318,169 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get promptAssistant_model => '模型';
 
   @override
-  String get promptAssistant_noModelsPullFirst => '暫無模型，請先拉取';
+  String get promptAssistant_noModelsPullFirst => '暫無模型，請先在模型服務中新增';
 
   @override
-  String get promptAssistant_providerManagement => '服務商管理';
+  String get settings_modelServices => '模型服務';
 
   @override
-  String get promptAssistant_providerManagementSubtitle =>
-      '支援 OpenAI Chat / Responses、Anthropic、Gemini、DeepSeek、LM Studio、Ollama、Pollinations 和自定義相容端點';
+  String get modelServices_searchProviders => '搜尋服務商';
 
   @override
-  String get promptAssistant_apiKeyConfigured => 'API Key: 已配置';
+  String get modelServices_noProviderMatches => '沒有符合的服務商';
 
   @override
-  String get promptAssistant_apiKeyNotConfigured => 'API Key: 未配置';
+  String get modelServices_emptyTitle => '新增第一個服務商';
+
+  @override
+  String get modelServices_emptyBody => '服務商提供提示詞助手與智慧體使用的模型。';
+
+  @override
+  String get modelServices_disabled => '已停用';
+
+  @override
+  String get modelServices_enableProvider => '啟用服務商';
+
+  @override
+  String get modelServices_moreActions => '更多操作';
+
+  @override
+  String get modelServices_connection => '連線';
+
+  @override
+  String get modelServices_apiKey => 'API 金鑰';
+
+  @override
+  String get modelServices_apiKeySavedHint => '已儲存，輸入新金鑰即可取代';
+
+  @override
+  String get modelServices_apiKeyOptional => '此服務商可以不填';
+
+  @override
+  String get modelServices_showApiKey => '顯示金鑰';
+
+  @override
+  String get modelServices_hideApiKey => '隱藏金鑰';
+
+  @override
+  String get modelServices_clearApiKey => '清除已儲存的金鑰';
+
+  @override
+  String get modelServices_apiKeyCleared => 'API 金鑰已清除';
+
+  @override
+  String get modelServices_baseUrl => 'API 位址';
+
+  @override
+  String get modelServices_checkConnection => '檢查連線';
+
+  @override
+  String modelServices_connectionOk(Object count) {
+    return '連線正常，介面列出了 $count 個模型';
+  }
+
+  @override
+  String modelServices_connectionFailed(Object error) {
+    return '連線失敗：$error';
+  }
+
+  @override
+  String get modelServices_models => '模型';
+
+  @override
+  String modelServices_modelCount(Object count) {
+    return '$count 個模型';
+  }
+
+  @override
+  String get modelServices_noModels => '還沒有模型。可以從介面清單挑選，或手動新增模型 ID。';
+
+  @override
+  String get modelServices_manageModels => '管理模型';
+
+  @override
+  String get modelServices_addModel => '手動新增';
+
+  @override
+  String modelServices_manageModelsTitle(Object provider) {
+    return '$provider 的模型';
+  }
+
+  @override
+  String modelServices_addGroup(Object group) {
+    return '新增 $group 整組';
+  }
+
+  @override
+  String modelServices_removeGroup(Object group) {
+    return '移除 $group 整組';
+  }
+
+  @override
+  String get modelServices_notListed => '介面已不再列出';
+
+  @override
+  String get modelServices_reasoning => '推理';
+
+  @override
+  String get modelServices_vision => '視覺';
+
+  @override
+  String modelServices_contextWindow(Object size) {
+    return '上下文 $size';
+  }
+
+  @override
+  String get modelServices_modelId => '模型 ID';
+
+  @override
+  String get modelServices_modelIdRequired => '請輸入模型 ID';
+
+  @override
+  String get modelServices_modelExists => '這個服務商已經有這個模型';
+
+  @override
+  String get modelServices_displayName => '顯示名稱';
+
+  @override
+  String modelServices_displayNameHint(Object name) {
+    return '留空則使用 $name';
+  }
+
+  @override
+  String get modelServices_editModel => '編輯模型';
+
+  @override
+  String get modelServices_removeModel => '移除模型';
+
+  @override
+  String modelServices_removeModelConfirm(Object name) {
+    return '從這個服務商移除 $name？';
+  }
+
+  @override
+  String modelServices_removeModelInUse(Object name, Object usages) {
+    return '$name 正被$usages使用。移除後，任務路由會改用這個服務商剩下的模型，智慧體需要重新選擇模型。';
+  }
+
+  @override
+  String get modelServices_usageSeparator => '、';
+
+  @override
+  String get modelServices_cleanStaleModels => '清理失效模型';
+
+  @override
+  String get modelServices_addAllModels => '新增全部模型';
+
+  @override
+  String modelServices_staleModelCount(Object count) {
+    return '$count 個失效模型';
+  }
+
+  @override
+  String modelServices_addAllConfirm(Object count) {
+    return '要向這個服務商新增 $count 個模型嗎？';
+  }
 
   @override
   String get promptAssistant_supportsImageInput => '支援圖片輸入';
@@ -21383,27 +22489,13 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get promptAssistant_textOnly => '僅文字';
 
   @override
-  String get promptAssistant_connectionConfig => '連線配置';
-
-  @override
-  String get promptAssistant_pullModelList => '拉取模型列表';
-
-  @override
   String get promptAssistant_editProvider => '編輯服務商';
 
   @override
   String get promptAssistant_deleteProvider => '刪除服務商';
 
   @override
-  String get promptAssistant_pullingModels => '正在拉取模型列表...';
-
-  @override
   String get promptAssistant_emptyModelList => '服務返回空模型列表';
-
-  @override
-  String promptAssistant_modelsSynced(Object count) {
-    return '已同步 $count 個模型';
-  }
 
   @override
   String promptAssistant_pullModelsFailed(Object error) {
@@ -21442,23 +22534,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get promptAssistant_apiKeyLeaveEmpty => 'API Key (留空不改)';
 
   @override
-  String promptAssistant_connectionTitle(Object name) {
-    return '$name 連線配置';
-  }
-
-  @override
   String get promptAssistant_baseUrlHint => '例如: https://api.openai.com/v1';
-
-  @override
-  String get promptAssistant_clearCurrentApiKey => '清空當前 API Key';
-
-  @override
-  String get promptAssistant_protocolSupportsImagePayload =>
-      '當前協議支援圖片載荷，仍需模型本身支援視覺輸入';
-
-  @override
-  String get promptAssistant_protocolTextOnlyWarning =>
-      '當前協議預設僅文字，開啟後也可能被服務端拒絕';
 
   @override
   String get promptAssistant_addRuleTitle => '新增規則';
@@ -22232,6 +23308,16 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   @override
   String settings_queueRetryIntervalValue(Object seconds) {
     return '$seconds 秒';
+  }
+
+  @override
+  String settings_decreaseValue(Object field) {
+    return '減少$field';
+  }
+
+  @override
+  String settings_increaseValue(Object field) {
+    return '增加$field';
   }
 
   @override
@@ -23892,11 +24978,6 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get vibe_maxReached => '已達到最大數量 (16張)';
 
   @override
-  String vibe_addedNamed(String name) {
-    return '已新增 Vibe: $name';
-  }
-
-  @override
   String vibe_addedCount(int count) {
     return '已新增 $count 個 vibes';
   }
@@ -24094,6 +25175,162 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String settings_kritaBridgeClient(Object client) {
     return '客戶端：$client';
   }
+
+  @override
+  String get settings_mcpServerPermissionSection => '權限';
+
+  @override
+  String get settings_mcpServerClientsSection => '用戶端';
+
+  @override
+  String get settings_mcpServerEnable => '啟用 MCP 伺服器';
+
+  @override
+  String get settings_mcpServerDisabledText => '預設關閉；開啟後只監聽本機 127.0.0.1';
+
+  @override
+  String get settings_mcpServerStartingText => '正在啟動本機 MCP 服務...';
+
+  @override
+  String get settings_mcpServerListeningText => '等待 MCP 用戶端連線';
+
+  @override
+  String get settings_mcpServerErrorText => '啟動失敗，請查看錯誤訊息';
+
+  @override
+  String get settings_mcpServerDisabled => '已關閉';
+
+  @override
+  String get settings_mcpServerStarting => '啟動中';
+
+  @override
+  String get settings_mcpServerListening => '監聽中';
+
+  @override
+  String get settings_mcpServerError => '錯誤';
+
+  @override
+  String get settings_mcpServerEndpoint => '端點位址';
+
+  @override
+  String get settings_mcpServerCopyEndpoint => '複製端點位址';
+
+  @override
+  String get settings_mcpServerPort => '連接埠';
+
+  @override
+  String get settings_mcpServerPortHelper => '變更後會中斷已連線的用戶端';
+
+  @override
+  String settings_mcpServerPortInvalid(Object min, Object max) {
+    return '連接埠需在 $min 到 $max 之間';
+  }
+
+  @override
+  String settings_mcpServerPortInUseHint(Object port) {
+    return '連接埠 $port 已被占用，請在下方改用其他連接埠';
+  }
+
+  @override
+  String get settings_mcpServerDiscoveryFile => '探索檔案';
+
+  @override
+  String get settings_mcpServerToken => '存取權杖';
+
+  @override
+  String get settings_mcpServerRevealToken => '顯示權杖';
+
+  @override
+  String get settings_mcpServerHideToken => '隱藏權杖';
+
+  @override
+  String get settings_mcpServerCopyToken => '複製權杖';
+
+  @override
+  String get settings_mcpServerRegenerateToken => '重新產生權杖';
+
+  @override
+  String get settings_mcpServerRegenerateTokenTitle => '重新產生存取權杖';
+
+  @override
+  String get settings_mcpServerRegenerateTokenMessage =>
+      '目前權杖會立即失效，已連線的用戶端將中斷。請在所有用戶端設定中更新新權杖。';
+
+  @override
+  String get settings_mcpServerAnlasNotice =>
+      '任何可能消耗 Anlas 的操作都會在啟動器內單獨確認，與權限模式無關。';
+
+  @override
+  String settings_mcpServerPendingApproval(Object client, Object tool) {
+    return '$client 請求呼叫 $tool';
+  }
+
+  @override
+  String get settings_mcpServerPendingApprovalHint => '請在頁面頂端的授權橫幅中處理';
+
+  @override
+  String get settings_mcpServerConnectedClients => '已連線用戶端';
+
+  @override
+  String get settings_mcpServerSessionsEmpty => '尚無用戶端連線';
+
+  @override
+  String settings_mcpServerSessionConnectedAt(Object time) {
+    return '連線於 $time';
+  }
+
+  @override
+  String settings_mcpServerSessionLastActivity(Object time) {
+    return '最近活動 $time';
+  }
+
+  @override
+  String get settings_mcpServerClientConfigs => '用戶端設定';
+
+  @override
+  String get settings_mcpServerConfigUnavailable => '啟用伺服器後顯示用戶端設定';
+
+  @override
+  String get settings_mcpServerCopyConfig => '複製設定';
+
+  @override
+  String get settings_mcpServerTokenMaskNotice => '預覽中的權杖已遮罩，複製時會寫入真實權杖。';
+
+  @override
+  String settings_mcpServerCliMissing(Object path) {
+    return '找不到隨附 CLI（預期位置：$path），開發執行時屬正常現象';
+  }
+
+  @override
+  String get settings_mcpServerViewDocs => '查看文件';
+
+  @override
+  String get settings_mcpServerAgentPromptTitle => '推薦：讓智慧代理自行設定';
+
+  @override
+  String get settings_mcpServerAgentPromptHint =>
+      '把以下提示詞發給要接入的智慧代理，它會讀取設定文件並自行完成安裝。提示詞不含權杖，權杖由隨附 CLI 在本機讀取。';
+
+  @override
+  String get settings_mcpServerClaudeCodeHint => '在終端機執行以下指令註冊伺服器。';
+
+  @override
+  String get settings_mcpServerCodexHint => '先執行指令註冊伺服器，再把權杖寫入下方的環境變數。';
+
+  @override
+  String get settings_mcpServerCursorHint => '把以下內容合併進 Cursor 的 mcp.json 設定檔。';
+
+  @override
+  String get settings_mcpServerCherryStudioHint =>
+      '在 Cherry Studio 的 MCP 伺服器設定中用「從 JSON 匯入」貼上以下內容；timeout 單位為秒，已留足應用內審批時間。';
+
+  @override
+  String get settings_mcpServerPiHint =>
+      'Pi 本體不帶 MCP，需先安裝 pi-mcp-adapter 套件，再把以下內容合併進 ~/.pi/agent/mcp.json。';
+
+  @override
+  String get settings_mcpServerClaudeDesktopHint =>
+      '把以下內容合併進 Claude Desktop 設定；它透過隨附 CLI 以 stdio 方式連線。';
 
   @override
   String get settings_fontScale => '字型大小';
@@ -24326,7 +25563,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get settings_stripMetadataSubtitle =>
-      '生成淨化副本，清除 PNG 文字塊、EXIF 與 NAI 隱寫水印，並避免拖拽暴露原始路徑。';
+      '複製、拖拽及 MCP 圖片回傳時清除 PNG 文字塊、EXIF 與 NAI 隱寫水印，不修改本機原圖；MCP 保留原解析度，其 saved_path 指向的圖庫原圖不受影響。';
 
   @override
   String get settings_confirmDangerousActionsTitle => '危險資產操作二次確認';
@@ -26772,6 +28009,147 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   }
 
   @override
+  String get editor_toolFrame => '取景框';
+
+  @override
+  String get editor_toolMove => '移動';
+
+  @override
+  String get editor_toolGroupInpaint => '重繪';
+
+  @override
+  String get editor_toolGroupEdit => '編輯';
+
+  @override
+  String get editor_toolGroupCommon => '通用';
+
+  @override
+  String get editor_toolMaskBrush => '蒙版畫筆';
+
+  @override
+  String get editor_toolMaskEraser => '蒙版橡皮擦';
+
+  @override
+  String get editor_toolMaskColorFill => '按顏色填充蒙版';
+
+  @override
+  String get editor_toolMaskMagicWand => '蒙版魔棒';
+
+  @override
+  String get editor_moveLayerHint => '拖曳以移動整個目前圖層。';
+
+  @override
+  String get editor_moveSelectionHint => '拖曳以移動目前圖層在選區內的像素。';
+
+  @override
+  String get editor_moveBaseLayerHint => '底圖不能整體移動；先框選，再移動選區內的像素。';
+
+  @override
+  String get editor_moveNoLayer => '沒有可移動的圖層。';
+
+  @override
+  String get editor_moveNudgeHint => '方向鍵移動 1 像素，按住 Shift 移動 10 像素。';
+
+  @override
+  String get editor_shortcutNudge => '移動 1 像素';
+
+  @override
+  String get editor_shortcutNudgeFar => '移動 10 像素';
+
+  @override
+  String get selection_clearPixels => '刪除選區內容';
+
+  @override
+  String selection_cutLayerName(Object name) {
+    return '$name 剪下';
+  }
+
+  @override
+  String layer_duplicateName(Object name) {
+    return '$name 副本';
+  }
+
+  @override
+  String get layer_roleMask => '蒙版';
+
+  @override
+  String get layer_addImage => '新增圖片圖層';
+
+  @override
+  String get layer_addMask => '新增蒙版圖層';
+
+  @override
+  String get img2img_inpaintSourceUpdated => '底圖修改已儲存，塗上蒙版後即可區域性重繪';
+
+  @override
+  String get editor_frameToolHint =>
+      '在框內按住拖曳可整體移動取景框，拖曳邊緣可調整尺寸。框外內容會保留並調暗顯示，只有框內部分會送去生成；移動時至少與原圖重疊 64 像素。';
+
+  @override
+  String editor_frameSizeReadout(int width, int height) {
+    return '尺寸: $width x $height';
+  }
+
+  @override
+  String editor_frameOffsetReadout(int x, int y) {
+    return '相對原圖: X $x, Y $y';
+  }
+
+  @override
+  String get editor_frameMoveLockedByView => '檢視旋轉或鏡像時無法移動取景框，按 R 重置檢視後再試。';
+
+  @override
+  String get editor_resetFrame => '重置取景框';
+
+  @override
+  String get editor_cropToFrame => '裁切到取景框';
+
+  @override
+  String get editor_cropToFrameHint => '丟棄取景框外的原圖和蒙版，可撤銷';
+
+  @override
+  String editor_cropToFrameFailed(Object error) {
+    return '裁切到取景框失敗: $error';
+  }
+
+  @override
+  String get editor_changeFrameSize => '調整取景框尺寸';
+
+  @override
+  String editor_frameResized(int width, int height) {
+    return '取景框已調整為 $width x $height';
+  }
+
+  @override
+  String get editor_frameToolHintPasteBack =>
+      '在框內按住拖曳可按 64 像素一格移動取景框，拖曳邊緣可調整尺寸。只有框內部分會送去生成；框外還有原圖時，結果按遮罩貼回整張圖，框外內容保持不變。框須與原圖重疊至少 64 像素。';
+
+  @override
+  String editor_frameRequestReadout(int width, int height) {
+    return '傳送: $width x $height';
+  }
+
+  @override
+  String get editor_frameRequestFree => '免費';
+
+  @override
+  String editor_frameRequestCost(int cost) {
+    return '約 $cost Anlas';
+  }
+
+  @override
+  String editor_frameResizeRejected(int overlap, int max) {
+    return '無法調整取景框：框須與原圖重疊至少 $overlap 像素，且與原圖合起來每邊不超過 $max 像素。';
+  }
+
+  @override
+  String get editor_compressionFrameLimited => '取景框在更高解析度下會超過請求面積上限，因此滑條上限已收緊。';
+
+  @override
+  String get img2img_focusOutpaintHint =>
+      '聚焦外擴：只傳送取景框內的部分，生成結果按遮罩貼回整張圖。可在重繪編輯器裡用取景框工具調整位置。';
+
+  @override
   String get savePreset_title => '另存為預設';
 
   @override
@@ -26787,6 +28165,15 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get onlineGallery_videoLoadFailed => '影片載入失敗';
+
+  @override
+  String get onlineGallery_videoPositionLabel => '播放進度';
+
+  @override
+  String get onlineGallery_videoPlay => '播放';
+
+  @override
+  String get onlineGallery_videoPause => '暫停';
 
   @override
   String get vibe_releaseToAddStyleReference => '鬆開後新增風格參考';
@@ -27230,6 +28617,44 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   }
 
   @override
+  String get image_savedToAppGallery => '已儲存到應用程式圖庫';
+
+  @override
+  String get image_saveAs => '另存為…';
+
+  @override
+  String get image_saveAsDialogTitle => '另存為圖片';
+
+  @override
+  String get image_saveAsToFolder => '另存為到資料夾…';
+
+  @override
+  String get image_saveAsFolderDialogTitle => '選擇儲存資料夾';
+
+  @override
+  String image_savedAs(Object path) {
+    return '已另存為 $path';
+  }
+
+  @override
+  String get image_savedAsToChosenLocation => '已儲存到所選位置';
+
+  @override
+  String image_savedAsToFolder(int count, Object path) {
+    return '已儲存 $count 張圖片到 $path';
+  }
+
+  @override
+  String image_savedAsToChosenFolder(int count) {
+    return '已儲存 $count 張圖片到所選資料夾';
+  }
+
+  @override
+  String image_savedAsPartial(int saved, int failed, Object error) {
+    return '已儲存 $saved 張，$failed 張失敗：$error';
+  }
+
+  @override
   String image_shareFailed(Object error) {
     return '分享失敗: $error';
   }
@@ -27467,6 +28892,12 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get cloudSync_galleryAlbumsDescription => '只儲存相簿結構與圖片引用，不上傳原圖';
+
+  @override
+  String get cloudSync_fixedTagUsage => '固定詞使用記錄';
+
+  @override
+  String get cloudSync_fixedTagUsageDescription => '只儲存每張圖用了哪些固定詞的輕量記錄，不上傳圖片';
 
   @override
   String get cloudSync_optionalResources => '可選資源（預設關閉）';
@@ -27934,6 +29365,35 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get agentSettings_densityCompact => '緊湊';
 
   @override
+  String get agentSettings_chatPlacement => '聊天位置';
+
+  @override
+  String get agentSettings_chatPlacementDescription => '僅在寬螢幕生效；窄螢幕保持全螢幕聊天。';
+
+  @override
+  String get agentSettings_dockLayout => '右欄佈局';
+
+  @override
+  String get agentSettings_dockLayoutDescription =>
+      '獨佔切換時右欄一次只顯示聊天或歷史；分欄則同時顯示兩者。';
+
+  @override
+  String get agentSettings_dockExclusive => '獨佔切換';
+
+  @override
+  String get agentSettings_dockStacked => '上下分欄';
+
+  @override
+  String get agentSettings_dockSideBySide => '左右分欄';
+
+  @override
+  String get agentSettings_floatingWindow => '以浮窗顯示聊天';
+
+  @override
+  String get agentSettings_floatingWindowDescription =>
+      '浮窗常駐所有頁面，可拖曳並調整大小；開啟後右欄只顯示歷史。';
+
+  @override
   String get agentSettings_chatModel => '聊天模型';
 
   @override
@@ -27941,13 +29401,13 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get agentSettings_modelManagedInIntegrations =>
-      '供應商、API Key 與模型探索仍在「整合」中統一管理。';
+      '服務商、API 金鑰與模型在「整合 → 模型服務」中管理。';
 
   @override
   String get agentSettings_manageProviders => '管理供應商';
 
   @override
-  String get agentSettings_noModel => '沒有可用聊天模型。請先在「整合」中新增供應商並探索模型。';
+  String get agentSettings_noModel => '沒有可用的聊天模型。請先在「整合 → 模型服務」中新增服務商與模型。';
 
   @override
   String get agentSettings_pendingMatch => '待配對';
@@ -27995,7 +29455,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get agentSettings_permissionFullDescription =>
-      '允許存取工作區外檔案並直接執行工具。僅在信任目前任務時使用。';
+      '允許存取工作區外檔案並直接執行工具；刪除已儲存的資料或消耗 Anlas 前仍會確認。僅在信任目前任務時使用。';
 
   @override
   String get agentSettings_webPreference => '連網偏好';

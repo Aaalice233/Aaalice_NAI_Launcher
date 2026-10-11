@@ -15,6 +15,7 @@ class CompactIconButton extends StatelessWidget {
     this.tooltip,
     this.onPressed,
     this.isActive = false,
+    this.toggleable = false,
     this.isDanger = false,
     this.isLoading = false,
     this.shortcutId,
@@ -26,6 +27,9 @@ class CompactIconButton extends StatelessWidget {
   final String? tooltip;
   final VoidCallback? onPressed;
   final bool isActive;
+
+  /// 为 true 时 [isActive] 同时作为读屏的开关状态
+  final bool toggleable;
   final bool isDanger;
   final bool isLoading;
   final String? shortcutId;
@@ -106,7 +110,8 @@ class CompactIconButton extends StatelessWidget {
         label: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text(label!),
+            // 受限宽度下换行；无界时（横向滚动工具栏）仍按自然宽度排布
+            Flexible(child: Text(label!)),
             if (trailingIcon != null) ...[
               const SizedBox(width: 4),
               Icon(trailingIcon, size: 18),
@@ -131,6 +136,13 @@ class CompactIconButton extends StatelessWidget {
       );
     } else if (hasLabel && message != null && message != label) {
       button = Tooltip(message: message, child: button);
+    }
+
+    if (toggleable) {
+      // 按钮自成语义节点，外包 Semantics 须合并才能落到按钮上
+      button = MergeSemantics(
+        child: Semantics(toggled: isActive, child: button),
+      );
     }
 
     return button;

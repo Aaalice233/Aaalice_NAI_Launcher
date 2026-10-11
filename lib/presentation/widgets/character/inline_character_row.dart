@@ -14,6 +14,7 @@ import '../../providers/character_prompt_provider.dart';
 import '../../providers/image_generation_provider.dart';
 import '../../providers/tag_library_page_provider.dart';
 import '../common/app_toast.dart';
+import '../common/ink_host.dart';
 import '../tag_library/tag_library_picker_dialog.dart';
 import 'add_to_library_dialog.dart';
 import 'character_position_canvas.dart';
@@ -467,30 +468,35 @@ class _RowEditorPanelState extends ConsumerState<_RowEditorPanel> {
                 ? null
                 : Border.all(color: colorScheme.primary, width: 1.5),
           ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (largeText) ...[
-                buildIdentity(),
-                const SizedBox(height: 4),
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: Row(mainAxisSize: MainAxisSize.min, children: actions),
+          child: InkHost(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (largeText) ...[
+                  buildIdentity(),
+                  const SizedBox(height: 4),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: actions,
+                    ),
+                  ),
+                ] else
+                  Row(
+                    children: [
+                      Expanded(child: buildIdentity()),
+                      ...actions,
+                    ],
+                  ),
+                const SizedBox(height: 6),
+                CharacterPromptEditor(
+                  character: widget.character,
+                  compact: !widget.borderless,
                 ),
-              ] else
-                Row(
-                  children: [
-                    Expanded(child: buildIdentity()),
-                    ...actions,
-                  ],
-                ),
-              const SizedBox(height: 6),
-              CharacterPromptEditor(
-                character: widget.character,
-                compact: !widget.borderless,
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
@@ -585,16 +591,17 @@ class _AddCharacterChip extends ConsumerWidget {
           child: GestureDetector(
             behavior: HitTestBehavior.opaque,
             onTap: () => AppToast.warning(context, message),
-            child: _buildChipBody(theme, l10n),
+            child: _buildChipSurface(theme, _buildChipBody(theme, l10n)),
           ),
         ),
       );
     }
 
-    return PopupMenuButton<_CharacterAddAction>(
+    final menu = PopupMenuButton<_CharacterAddAction>(
       key: const Key('character-add-menu'),
       tooltip: l10n.character_addCharacter,
       padding: EdgeInsets.zero,
+      borderRadius: _chipRadius,
       position: PopupMenuPosition.under,
       offset: const Offset(0, 4),
       onSelected: (action) => _handleAdd(context, ref, action),
@@ -635,15 +642,24 @@ class _AddCharacterChip extends ConsumerWidget {
       // 与角色卡同宽的添加卡（宽度由外部网格单元给定）
       child: _buildChipBody(theme, l10n),
     );
+    return _buildChipSurface(theme, menu);
+  }
+
+  static const _chipRadius = BorderRadius.all(Radius.circular(8));
+
+  Widget _buildChipSurface(ThemeData theme, Widget child) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerLow,
+        borderRadius: _chipRadius,
+      ),
+      child: InkHost(child: child),
+    );
   }
 
   Widget _buildChipBody(ThemeData theme, AppLocalizations l10n) {
     return Container(
       constraints: const BoxConstraints(minHeight: 72),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerLow,
-        borderRadius: BorderRadius.circular(8),
-      ),
       child: Center(
         child: Row(
           mainAxisSize: MainAxisSize.min,

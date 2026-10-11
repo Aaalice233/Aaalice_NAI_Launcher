@@ -9,7 +9,7 @@ import '../../../core/constants/storage_keys.dart';
 import '../../../core/krita/krita_bridge_server.dart';
 import '../../../core/utils/app_logger.dart';
 import '../../../data/datasources/remote/nai_image_generation_api_service.dart';
-import '../auth_provider.dart';
+import '../../../data/services/auth_provider.dart';
 import '../fixed_tags_provider.dart';
 import '../generation/image_workflow_controller.dart';
 import '../image_generation_provider.dart';
@@ -126,9 +126,11 @@ class KritaBridgeNotifier extends StateNotifier<KritaBridgeState> {
     );
 
     final server = _serverFactory();
+    var started = false;
     try {
       AppLogger.i('Enabling Krita bridge', _logTag);
       await server.start(preferredPort: 0);
+      started = true;
       _server = server;
       _service = _serviceFactory?.call(server);
       _service?.setActiveRequestReporter(_setActiveRequest);
@@ -180,7 +182,11 @@ class KritaBridgeNotifier extends StateNotifier<KritaBridgeState> {
       }
       AppLogger.i('Krita bridge enabled on port ${server.port}', _logTag);
     } catch (error) {
-      await server.stop();
+      _server = null;
+      // Stopping a server that never started deletes another owner's file.
+      if (started) {
+        await server.stop();
+      }
       AppLogger.e('Failed to enable Krita bridge', error, null, _logTag);
       if (!mounted) {
         return;

@@ -3,9 +3,23 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/providers/cost_estimate_provider.dart';
-import 'package:nai_launcher/presentation/providers/image_generation_provider.dart';
+import 'package:nai_launcher/presentation/providers/generation/image_generation_selectors.dart';
 import 'package:nai_launcher/presentation/screens/generation/widgets/generation_controls/generate_button.dart';
 import 'package:nai_launcher/presentation/widgets/common/anlas_cost_badge.dart';
+
+const GenerationButtonViewData _idleBatchStatus = (
+  isGenerating: false,
+  isPreparing: false,
+  currentImage: 0,
+  totalImages: 0,
+);
+
+const GenerationButtonViewData _generatingBatchStatus = (
+  isGenerating: true,
+  isPreparing: false,
+  currentImage: 2,
+  totalImages: 4,
+);
 
 void main() {
   late AppLocalizations l10n;
@@ -19,7 +33,7 @@ void main() {
     required bool isGenerating,
     required bool showCancel,
     int cooldownRemainingSeconds = 0,
-    ImageGenerationState generationState = const ImageGenerationState(),
+    GenerationButtonViewData batchStatus = _idleBatchStatus,
     VoidCallback? onGenerate,
     VoidCallback? onCancel,
     VoidCallback? onSkipCurrent,
@@ -40,7 +54,7 @@ void main() {
               child: GenerateButtonWithCost(
                 isGenerating: isGenerating,
                 showCancel: showCancel,
-                generationState: generationState,
+                batchStatus: batchStatus,
                 cooldownRemainingSeconds: cooldownRemainingSeconds,
                 onGenerate: onGenerate ?? () {},
                 onCancel: onCancel ?? () {},
@@ -140,10 +154,7 @@ void main() {
         tester,
         isGenerating: true,
         showCancel: true,
-        generationState: const ImageGenerationState(
-          currentImage: 2,
-          totalImages: 4,
-        ),
+        batchStatus: _generatingBatchStatus,
       );
 
       expect(
@@ -165,10 +176,7 @@ void main() {
         tester,
         isGenerating: true,
         showCancel: true,
-        generationState: const ImageGenerationState(
-          currentImage: 2,
-          totalImages: 4,
-        ),
+        batchStatus: _generatingBatchStatus,
         onSkipCurrent: () => skipCalled = true,
         onCancel: () => cancelCalled = true,
       );

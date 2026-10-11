@@ -288,6 +288,20 @@ class _StorageSettingsSectionState
                       .setAutoSave(value);
                 },
               ),
+              if (PlatformCapabilities.current.supportsSystemGalleryExport)
+                SwitchListTile(
+                  secondary: const Icon(Icons.photo_library_outlined),
+                  title: Text(context.l10n.settings_syncToSystemGallery),
+                  subtitle: Text(
+                    context.l10n.settings_syncToSystemGallerySubtitle,
+                  ),
+                  value: saveSettings.syncToSystemGallery,
+                  onChanged: (value) async {
+                    await ref
+                        .read(imageSaveSettingsNotifierProvider.notifier)
+                        .setSyncToSystemGallery(value);
+                  },
+                ),
             ],
           ),
         ),

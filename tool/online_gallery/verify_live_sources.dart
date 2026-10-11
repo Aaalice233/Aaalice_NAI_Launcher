@@ -6,6 +6,10 @@ import 'package:dio/dio.dart';
 const _userAgent =
     'Aaalice-NAI-Launcher/online-gallery-contract-check (+https://github.com/Aaalice-Team/Aaalice_NAI_Launcher)';
 
+const _aiTagBase = 'https://aitag.win';
+// aitag.win 对 /api 与图片 CDN 都要求同源 Referer，且必须带路径斜杠，去掉斜杠返回 403
+const _aiTagHeaders = {'Referer': '$_aiTagBase/'};
+
 Future<void> main() async {
   final dio = Dio(
     BaseOptions(
@@ -102,8 +106,11 @@ Future<void> _verifySafebooru(Dio dio) async {
 }
 
 Future<void> _verifyAiTag(Dio dio) async {
-  const base = 'https://aitag.win';
-  final config = _map(await _getJson(dio, '$base/api/config'), 'AI TAG config');
+  const base = _aiTagBase;
+  final config = _map(
+    await _getJson(dio, '$base/api/config', headers: _aiTagHeaders),
+    'AI TAG config',
+  );
   final assetBase = config['asset_base_url']?.toString() ?? '';
   _require(
     Uri.tryParse(assetBase)?.isAbsolute == true,
@@ -128,6 +135,7 @@ Future<void> _verifyAiTag(Dio dio) async {
         'sort': 'new',
         'time_range': 'all',
       },
+      headers: _aiTagHeaders,
     ),
     'AI TAG search page 1',
   );
@@ -141,6 +149,7 @@ Future<void> _verifyAiTag(Dio dio) async {
         'sort': 'new',
         'time_range': 'all',
       },
+      headers: _aiTagHeaders,
     ),
     'AI TAG search page 2',
   );
@@ -178,7 +187,7 @@ Future<void> _verifyAiTag(Dio dio) async {
   final workId = _int(work['id']);
   _require(workId != null && workId > 0, 'AI TAG work id is invalid');
   final detail = _map(
-    await _getJson(dio, '$base/api/work/$workId'),
+    await _getJson(dio, '$base/api/work/$workId', headers: _aiTagHeaders),
     'AI TAG work detail',
   );
   final images = _list(detail['images'], 'AI TAG detail images');
@@ -195,19 +204,18 @@ Future<void> _verifyAiTag(Dio dio) async {
     !firstImage.contains('pximg.net'),
     'Pixiv must not be used as CDN fallback',
   );
-  const aiTagImageHeaders = {'Referer': '$base/'};
   await _verifyMedia(
     dio,
     firstImage,
     'AI TAG first CDN image',
-    headers: aiTagImageHeaders,
+    headers: _aiTagHeaders,
   );
   if (lastImage != firstImage) {
     await _verifyMedia(
       dio,
       lastImage,
       'AI TAG last CDN image',
-      headers: aiTagImageHeaders,
+      headers: _aiTagHeaders,
     );
   }
 }
@@ -231,6 +239,7 @@ Future<void> _verifyAiSearch(
         if (q != null) 'q': q,
         if (prompt != null) 'prompt': prompt,
       },
+      headers: _aiTagHeaders,
     ),
     'AI TAG q/prompt search',
   );
@@ -246,7 +255,13 @@ Future<void> _verifyAiRank(
   bool allowProcessing = false,
 }) async {
   final response = _map(
-    await _getJson(dio, url, query: query, acceptErrorJson: allowProcessing),
+    await _getJson(
+      dio,
+      url,
+      query: query,
+      acceptErrorJson: allowProcessing,
+      headers: _aiTagHeaders,
+    ),
     label,
   );
   if (response['error'] == 'rank_processing' ||
@@ -310,12 +325,14 @@ Future<Object?> _getJson(
   String url, {
   Map<String, Object?>? query,
   bool acceptErrorJson = false,
+  Map<String, String> headers = const {},
 }) async {
   final response = await dio.get<Object?>(
     url,
     queryParameters: query,
     options: Options(
       responseType: ResponseType.plain,
+      headers: headers.isEmpty ? null : headers,
       validateStatus: (status) =>
           status != null && (status >= 200 && status < 300 || acceptErrorJson),
     ),

@@ -2,9 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/data/models/prompt/dependency_config.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
+import 'package:nai_launcher/presentation/widgets/common/surface_ink_well.dart';
 import 'package:nai_launcher/presentation/widgets/common/themed_input.dart';
 import 'package:nai_launcher/presentation/widgets/prompt/diy/dialogs/dependency_config_dialog.dart';
 import 'package:nai_launcher/presentation/widgets/prompt/diy/panels/dependency_config_panel.dart';
+
+import '../../../../../helpers/ink_expectations.dart';
 
 void main() {
   testWidgets('320px、3x 文本、SafeArea 与 IME 下字段和动作均可达', (tester) async {
@@ -184,6 +187,45 @@ void main() {
     expect(find.widgetWithText(TextButton, '清除'), findsWidgets);
     expect(find.widgetWithText(FilledButton, '保存'), findsOneWidget);
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('依赖类型选项的悬停与按压反馈画在选项底色与选中渐变之上', (tester) async {
+    tester.view.physicalSize = const Size(1200, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+    await _pumpPanel(tester, onChanged: (_) {});
+
+    Finder option(String label) => find.ancestor(
+      of: find.text(label),
+      matching: find.byType(SurfaceInkWell),
+    );
+    final exists = option('存在');
+    final count = option('数量');
+    await tester.ensureVisible(count);
+    await tester.pump();
+    final theme = Theme.of(tester.element(exists));
+
+    await hoverOver(tester, exists);
+    expectInkOnTop(
+      tester,
+      exists,
+      ink: theme.hoverColor,
+      below: theme.colorScheme.surfaceContainerHighest,
+    );
+
+    final press = await pressAndHold(tester, count);
+    expectInkOnTop(
+      tester,
+      count,
+      ink: theme.highlightColor,
+      belowGradient: true,
+      reason: '已选的渐变底色先画，按压高亮随后',
+    );
+    await press.up();
+    await tester.pump();
   });
 }
 

@@ -1,17 +1,24 @@
-import 'dart:ui' as ui;
+import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 
+import '../frame/editor_frame_commands.dart';
 import '../layers/layer.dart';
 import '../layers/layer_manager.dart';
+import '../layers/layer_role.dart';
 import '../tools/tool_base.dart';
 import '../tools/brush_tool.dart';
 import '../tools/eraser_tool.dart';
 import 'canvas_controller.dart';
 import 'color_manager.dart';
 import 'history_manager.dart';
+import 'layer_commands.dart';
+import 'layer_move_controller.dart';
+import 'layer_role_policy.dart';
+import 'mask_paint_style.dart';
+import 'pixel_readback_queue.dart';
 import 'selection_manager.dart';
 import 'stroke_manager.dart';
 import 'tool_manager.dart';
@@ -25,6 +32,8 @@ typedef MagicWandHandler =
       required int tolerance,
       required bool invert,
     });
+
+typedef ClosedRegionFillHandler = Future<void> Function(Offset canvasPoint);
 
 /// 编辑器全局状态（协调器）
 /// 协调各 Manager 之间的交互，提供统一的 API 给 UI 层
@@ -52,6 +61,18 @@ class EditorState extends ChangeNotifier {
   /// 历史管理器
   final HistoryManager historyManager = HistoryManager();
 
+  /// 图层结构与选区像素操作，全部经撤销栈执行
+  late final LayerCommands layerCommands = LayerCommands(this);
+
+  /// 移动工具的拖动与微移
+  late final LayerMoveController layerMover = LayerMoveController(this);
+
+  /// 填充等需要先回读像素的编辑；导出与撤销前须等它清空
+  final PixelReadbackQueue pixelReadbacks = PixelReadbackQueue();
+
+  LayerRolePolicy _rolePolicy = const LayerRolePolicy.disabled();
+  LayerRolePolicy get rolePolicy => _rolePolicy;
+
   // ===== 通知器 =====
 
   /// 渲染变化通知器（仅用于触发画布重绘）
@@ -70,17 +91,39 @@ class EditorState extends ChangeNotifier {
     const Size(1024, 1024),
   );
 
+  /// 取景框通知器（位置或尺寸变化都会通知）
+  final ValueNotifier<Rect> frameNotifier = ValueNotifier(
+    const Rect.fromLTWH(0, 0, 1024, 1024),
+  );
+
+  /// 取景框平移预览，只影响绘制，提交前不参与导出
+  final ValueNotifier<Rect?> framePreviewNotifier = ValueNotifier(null);
+
   /// 光标位置通知器（仅光标绘制器监听）
   /// 避免光标移动触发整个 UI 重建
   final ValueNotifier<Offset?> cursorNotifier = ValueNotifier(null);
 
   // ===== 画布状态 =====
 
-  /// 画布尺寸
-  Size _canvasSize = const Size(1024, 1024);
-  Size get canvasSize => _canvasSize;
+  /// 取景框：文档坐标中实际导出、送去生成的区域
+  Rect _frame = const Rect.fromLTWH(0, 0, 1024, 1024);
+  Rect get frame => _frame;
+
+  /// 取景框尺寸，沿用画布尺寸的读法
+  Size get canvasSize => _frame.size;
+
+  /// 绘制用取景框，平移预览期间跟随预览
+  Rect get displayFrame => framePreviewNotifier.value ?? _frame;
+
+  /// 编辑模式的像素工具依赖取景框固定在原点，只有重绘模式允许离开原点
+  bool allowsDetachedFrame = false;
+
+  EditorFrameCommands? _frameCommands;
+  EditorFrameCommands? get frameCommands => _frameCommands;
+
   Rect Function(Rect candidate, Offset fixedAnchor)? _rectSelectionConstraint;
   MagicWandHandler? _magicWandHandler;
+  ClosedRegionFillHandler? _closedRegionFillHandler;
 
   // ===== 内部状态 =====
 
@@ -88,12 +131,13 @@ class EditorState extends ChangeNotifier {
   bool _isNotifying = false;
 
   bool _isDisposed = false;
+  bool get isDisposed => _isDisposed;
   bool _strokePreviewFrameScheduled = false;
   bool _pendingStrokePreviewChange = false;
   int _batchDepth = 0;
   bool _pendingBatchedRenderChange = false;
   bool _pendingBatchedStateNotification = false;
-  bool _pendingBatchedCanvasSizeNotification = false;
+  bool _pendingBatchedFrameNotification = false;
   bool _pendingBatchedToolChangeNotification = false;
   EditorTool? _pendingBatchedToolChange;
 
@@ -136,6 +180,35 @@ class EditorState extends ChangeNotifier {
   void setMagicWandHandler(MagicWandHandler? handler) {
     _magicWandHandler = handler;
   }
+
+  void setFrameCommands(EditorFrameCommands? commands) {
+    _frameCommands = commands;
+  }
+
+  void setClosedRegionFillHandler(ClosedRegionFillHandler? handler) {
+    _closedRegionFillHandler = handler;
+  }
+
+  bool get canFillClosedRegions => _closedRegionFillHandler != null;
+
+  Future<void> fillClosedRegionAt(Offset canvasPoint) async {
+    await _closedRegionFillHandler?.call(canvasPoint);
+  }
+
+  void setRolePolicy(LayerRolePolicy policy) {
+    _rolePolicy = policy;
+    _safeNotifyListeners();
+  }
+
+  /// 当前画在蒙版上：笔刷、填充改用蒙版外观，只保留蒙版可用的工具
+  bool get isMaskLayerActive => layerManager.activeLayer?.isMask ?? false;
+
+  LayerRole get activeLayerRole =>
+      layerManager.activeLayer?.role ?? LayerRole.image;
+
+  /// 笔刷与填充实际使用的颜色
+  Color get paintColor =>
+      isMaskLayerActive ? MaskPaintStyle.color : foregroundColor;
 
   Future<void> applyMagicWand(
     Offset canvasPoint, {
@@ -259,30 +332,32 @@ class EditorState extends ChangeNotifier {
       selectionManager.setSelection(path, saveHistory: saveHistory);
   void clearSelection({bool saveHistory = true}) =>
       selectionManager.clearSelection(saveHistory: saveHistory);
-  void invertSelection() => selectionManager.invertSelection(_canvasSize);
+  void invertSelection() => selectionManager.invertSelection(_frame);
   void setPreviewPath(Path? path) => selectionManager.setPreviewPath(path);
   void clearPreview() => selectionManager.clearPreview();
-  bool get isTransforming => selectionManager.isTransforming;
 
   // ===== 代理方法：笔画 =====
 
-  /// 将点裁剪到画布范围内
-  Offset _clampToCanvas(Offset point) {
+  /// 笔画只落在取景框内；原图层另外限制在原图区域内，保证它的范围始终等于原图
+  Offset _clampToPaintBounds(Offset point) {
+    final active = layerManager.activeLayer;
+    final lock = active == null ? null : _rolePolicy.extentLockFor(active);
+    final bounds = lock == null || !lock.overlaps(_frame)
+        ? _frame
+        : _frame.intersect(lock);
     return Offset(
-      point.dx.clamp(0, _canvasSize.width),
-      point.dy.clamp(0, _canvasSize.height),
+      point.dx.clamp(bounds.left, bounds.right),
+      point.dy.clamp(bounds.top, bounds.bottom),
     );
   }
 
   void startStroke(Offset point) {
-    // 将点裁剪到画布范围内，防止画布外涂抹
-    strokeManager.startStroke(_clampToCanvas(point));
+    strokeManager.startStroke(_clampToPaintBounds(point));
     _notifyStrokePreviewChange();
   }
 
   void updateStroke(Offset point) {
-    // 将点裁剪到画布范围内，防止画布外涂抹
-    strokeManager.updateStroke(_clampToCanvas(point));
+    strokeManager.updateStroke(_clampToPaintBounds(point));
     _notifyStrokePreviewChangeCoalesced();
   }
 
@@ -304,20 +379,42 @@ class EditorState extends ChangeNotifier {
 
   // ===== 画布方法 =====
 
+  /// 保持取景框原点，只改尺寸
   void setCanvasSize(Size size) {
-    _canvasSize = size;
+    setFrame(Rect.fromLTWH(_frame.left, _frame.top, size.width, size.height));
+  }
+
+  void setFrame(Rect frame) {
+    assert(
+      allowsDetachedFrame || frame.topLeft == Offset.zero,
+      'Only the inpaint editor may move the frame away from the origin.',
+    );
+    _frame = frame;
+    // 拾色快照只覆盖旧框区域
+    layerManager.invalidateSnapshot();
     if (_isBatching) {
-      _pendingBatchedCanvasSizeNotification = true;
+      _pendingBatchedFrameNotification = true;
     } else {
-      canvasSizeNotifier.value = size;
+      _publishFrame();
     }
     _notifyRenderChange();
     _safeNotifyListeners();
   }
 
+  void setFramePreview(Rect? preview) {
+    if (framePreviewNotifier.value == preview) return;
+    framePreviewNotifier.value = preview;
+    _notifyRenderChange();
+  }
+
+  void _publishFrame() {
+    canvasSizeNotifier.value = _frame.size;
+    frameNotifier.value = _frame;
+  }
+
   /// 更新画布快照（供拾色器使用）
   Future<bool> updateCanvasSnapshot() async {
-    return await layerManager.updateSnapshotAsync(_canvasSize);
+    return await layerManager.updateSnapshotAsync(_frame);
   }
 
   // ===== 笔刷方法 =====
@@ -325,35 +422,36 @@ class EditorState extends ChangeNotifier {
   double get brushSize {
     final tool = toolManager.currentTool;
     if (tool is BrushTool) {
-      return tool.settings.size;
+      return tool.sizeFor(this);
     } else if (tool is EraserTool) {
       return tool.size;
     }
     final brushTool = toolManager.tools.whereType<BrushTool>().firstOrNull;
-    return brushTool?.settings.size ?? 20.0;
+    return brushTool?.sizeFor(this) ?? 20.0;
   }
 
   void setBrushSize(double size) {
     final tool = toolManager.currentTool;
     if (tool is BrushTool) {
-      tool.setSize(size);
+      tool.setSizeFor(this, size);
     } else if (tool is EraserTool) {
       tool.setSize(size);
     }
     notifyListeners();
   }
 
+  /// 蒙版笔迹的不透明度固定，调节只作用于图片层笔刷
   double get brushOpacity {
     final tool = toolManager.currentTool;
     if (tool is BrushTool) {
-      return tool.settings.opacity;
+      return isMaskLayerActive ? MaskPaintStyle.opacity : tool.settings.opacity;
     }
     return 1.0;
   }
 
   void setBrushOpacity(double opacity) {
     final tool = toolManager.currentTool;
-    if (tool is BrushTool) {
+    if (tool is BrushTool && !isMaskLayerActive) {
       tool.setOpacity(opacity);
       notifyListeners();
     }
@@ -388,12 +486,7 @@ class EditorState extends ChangeNotifier {
       return true;
     }
 
-    // 撤销绘画操作
-    final result = historyManager.undo(this);
-    if (result) {
-      notifyListeners();
-    }
-    return result;
+    return _afterPendingEdits(historyManager.undo);
   }
 
   bool redo() {
@@ -404,12 +497,20 @@ class EditorState extends ChangeNotifier {
       return true;
     }
 
-    // 重做绘画操作
-    final result = historyManager.redo(this);
-    if (result) {
-      notifyListeners();
+    return _afterPendingEdits(historyManager.redo);
+  }
+
+  /// 排队中的编辑先落地，撤销与重做才对应用户操作的先后
+  bool _afterPendingEdits(bool Function(EditorState state) step) {
+    bool apply() {
+      final result = step(this);
+      if (result) notifyListeners();
+      return result;
     }
-    return result;
+
+    if (pixelReadbacks.isIdle) return apply();
+    unawaited(pixelReadbacks.run(() async => apply()));
+    return true;
   }
 
   bool get canUndo {
@@ -429,7 +530,7 @@ class EditorState extends ChangeNotifier {
   /// 清空当前图层（支持撤销）
   void clearActiveLayerWithHistory() {
     final layer = layerManager.activeLayer;
-    if (layer == null || layer.locked || !layer.hasContent) return;
+    if (layer == null || !_rolePolicy.canClear(layer)) return;
 
     historyManager.execute(ClearLayerAction(layerId: layer.id), this);
   }
@@ -437,117 +538,12 @@ class EditorState extends ChangeNotifier {
   /// 调整画布大小（支持撤销）
   void resizeCanvas(Size newSize, CanvasResizeMode mode) {
     // 如果新尺寸与当前尺寸相同，则不执行操作
-    if (_canvasSize == newSize) return;
+    if (canvasSize == newSize) return;
 
     historyManager.execute(
       ResizeCanvasAction(newSize: newSize, mode: mode),
       this,
     );
-  }
-
-  // ===== 选区操作 =====
-
-  /// 将选区内容剪切到新图层
-  Future<bool> cutSelectionToNewLayer() async {
-    final selection = selectionManager.selectionPath;
-    final activeLayer = layerManager.activeLayer;
-    if (selection == null || activeLayer == null || activeLayer.locked) {
-      return false;
-    }
-
-    final w = _canvasSize.width.toInt();
-    final h = _canvasSize.height.toInt();
-    if (w <= 0 || h <= 0) return false;
-
-    final layerImg = await _renderLayerToImage(activeLayer, _canvasSize, w, h);
-
-    final cutImg = await _extractSelection(layerImg, selection, w, h);
-    final remainImg = await _eraseSelection(layerImg, selection, w, h);
-    layerImg.dispose();
-
-    final cutPng = await cutImg.toByteData(format: ui.ImageByteFormat.png);
-    final remainPng = await remainImg.toByteData(
-      format: ui.ImageByteFormat.png,
-    );
-    if (cutPng == null || remainPng == null) {
-      cutImg.dispose();
-      remainImg.dispose();
-      return false;
-    }
-
-    historyManager.execute(
-      ReplaceLayerImageAction(
-        layerId: activeLayer.id,
-        newImageBytes: remainPng.buffer.asUint8List(),
-        newImage: remainImg,
-        actionDescription: 'Cut Selection',
-      ),
-      this,
-    );
-
-    final cutLayer = layerManager.addLayer(
-      name: '${activeLayer.name} (Selection)',
-    );
-    await cutLayer.setBaseImage(cutPng.buffer.asUint8List());
-    cutImg.dispose();
-
-    selectionManager.clearSelection();
-    _notifyRenderChange();
-    notifyListeners();
-    return true;
-  }
-
-  Future<ui.Image> _renderLayerToImage(
-    dynamic layer,
-    Size canvasSize,
-    int w,
-    int h,
-  ) async {
-    final rec = ui.PictureRecorder();
-    final c = Canvas(rec);
-    (layer as dynamic).render(c, canvasSize);
-    final pic = rec.endRecording();
-    final img = await pic.toImage(w, h);
-    pic.dispose();
-    return img;
-  }
-
-  Future<ui.Image> _extractSelection(
-    ui.Image source,
-    Path selection,
-    int w,
-    int h,
-  ) async {
-    final rec = ui.PictureRecorder();
-    final c = Canvas(rec);
-    c.clipPath(selection);
-    c.drawImage(source, Offset.zero, Paint());
-    final pic = rec.endRecording();
-    final img = await pic.toImage(w, h);
-    pic.dispose();
-    return img;
-  }
-
-  Future<ui.Image> _eraseSelection(
-    ui.Image source,
-    Path selection,
-    int w,
-    int h,
-  ) async {
-    final rec = ui.PictureRecorder();
-    final c = Canvas(rec);
-    c.drawImage(source, Offset.zero, Paint());
-    c.save();
-    c.clipPath(selection);
-    c.drawRect(
-      Rect.fromLTWH(0, 0, w.toDouble(), h.toDouble()),
-      Paint()..blendMode = BlendMode.clear,
-    );
-    c.restore();
-    final pic = rec.endRecording();
-    final img = await pic.toImage(w, h);
-    pic.dispose();
-    return img;
   }
 
   // ===== 内部方法 =====
@@ -687,20 +683,20 @@ class EditorState extends ChangeNotifier {
       return;
     }
 
-    final notifyCanvasSize = _pendingBatchedCanvasSizeNotification;
+    final notifyFrame = _pendingBatchedFrameNotification;
     final notifyToolChange = _pendingBatchedToolChangeNotification;
     final pendingToolChange = _pendingBatchedToolChange;
     final notifyRender = _pendingBatchedRenderChange;
     final notifyState = _pendingBatchedStateNotification;
 
-    _pendingBatchedCanvasSizeNotification = false;
+    _pendingBatchedFrameNotification = false;
     _pendingBatchedToolChangeNotification = false;
     _pendingBatchedToolChange = null;
     _pendingBatchedRenderChange = false;
     _pendingBatchedStateNotification = false;
 
-    if (notifyCanvasSize) {
-      canvasSizeNotifier.value = _canvasSize;
+    if (notifyFrame) {
+      _publishFrame();
     }
     if (notifyToolChange && pendingToolChange != null) {
       toolChangeNotifier.value = pendingToolChange;
@@ -716,8 +712,8 @@ class EditorState extends ChangeNotifier {
   Future<void> _updateActiveLayerCacheIfNeeded() async {
     final layer = layerManager.activeLayer;
     if (layer != null && layer.shouldRasterizeNow()) {
-      await layer.rasterize(_canvasSize);
-      await layer.updateCompositeCache(_canvasSize);
+      await layer.rasterize();
+      await layer.updateCompositeCache();
       _notifyRenderChange();
     }
   }
@@ -727,26 +723,28 @@ class EditorState extends ChangeNotifier {
   void _scheduleSnapshotUpdate() {
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (_isDisposed) return;
-      await layerManager.updateSnapshotAsync(_canvasSize);
+      await layerManager.updateSnapshotAsync(_frame);
     });
   }
 
   // ===== 重置与初始化 =====
 
   void reset() {
+    _rolePolicy = const LayerRolePolicy.disabled();
     layerManager.clear();
     historyManager.clear();
     colorManager.reset();
     selectionManager.reset();
     strokeManager.reset();
     canvasController.reset();
+    framePreviewNotifier.value = null;
     notifyListeners();
   }
 
   void initNewCanvas(Size size, {String? initialLayerName}) {
     reset();
-    _canvasSize = size;
-    canvasSizeNotifier.value = size;
+    _frame = Offset.zero & size;
+    _publishFrame();
     layerManager.addLayer(name: initialLayerName ?? 'Layer 1');
     // 同步初始工具到通知器
     toolChangeNotifier.value = toolManager.currentTool;
@@ -756,8 +754,11 @@ class EditorState extends ChangeNotifier {
   @override
   void dispose() {
     _isDisposed = true;
+    pixelReadbacks.close();
     _pendingStrokePreviewChange = false;
     _magicWandHandler = null;
+    _closedRegionFillHandler = null;
+    _frameCommands = null;
 
     // 移除监听器
     layerManager.removeListener(_onLayerChanged);
@@ -773,6 +774,8 @@ class EditorState extends ChangeNotifier {
     strokeManager.dispose();
     layerManager.dispose();
     canvasController.dispose();
+    // 撤销栈里的动作持有底图克隆，关闭编辑器时一并释放
+    historyManager.clear();
     historyManager.dispose();
 
     // 释放通知器
@@ -780,6 +783,8 @@ class EditorState extends ChangeNotifier {
     strokePreviewNotifier.dispose();
     toolChangeNotifier.dispose();
     canvasSizeNotifier.dispose();
+    frameNotifier.dispose();
+    framePreviewNotifier.dispose();
 
     super.dispose();
   }

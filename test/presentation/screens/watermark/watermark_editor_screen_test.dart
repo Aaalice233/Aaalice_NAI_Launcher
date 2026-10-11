@@ -15,6 +15,8 @@ import 'package:nai_launcher/presentation/screens/watermark/watermark_editor_con
 import 'package:nai_launcher/presentation/screens/watermark/watermark_editor_launcher.dart';
 import 'package:nai_launcher/presentation/screens/watermark/watermark_editor_screen.dart';
 
+import '../../../helpers/labeled_rows_expectations.dart';
+
 void main() {
   late Directory directory;
   late LocalStorageService storage;
@@ -22,14 +24,16 @@ void main() {
   setUpAll(() async {
     directory = await Directory.systemTemp.createTemp('watermark-editor-test');
     Hive.init(directory.path);
-    await Hive.openBox<dynamic>(StorageKeys.settingsBox);
+    // 内存后端：落盘写一旦从 widget test 的 FakeAsync 时钟发起就不会完成，会锁死 box
+    await Hive.openBox<dynamic>(StorageKeys.settingsBox, bytes: Uint8List(0));
     storage = LocalStorageService();
   });
 
   setUp(() => Hive.box<dynamic>(StorageKeys.settingsBox).clear());
 
   tearDownAll(() async {
-    await Hive.close();
+    // 有界等待：box 被锁死时快速失败，不把整个测试分片拖到看门狗超时
+    await Hive.close().timeout(const Duration(seconds: 10));
     await directory.delete(recursive: true);
   });
 
@@ -370,6 +374,113 @@ void main() {
     expect(find.text('Allura'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets('ratio slider speaks its name and the displayed percentage', (
+    tester,
+  ) async {
+    const settings = WatermarkSettings();
+    await tester.binding.setSurfaceSize(const Size(420, 760));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await tester.pumpWidget(
+      MaterialApp(
+        locale: const Locale('en'),
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: Scaffold(
+          body: WatermarkEditorControls(
+            settings: settings,
+            layout: settings.universalLayout,
+            selectedLayer: WatermarkEditableLayer.text,
+            logoAvailable: false,
+            preserveMetadata: false,
+            onOpenMetadataSettings: () {},
+            onSettingsChanged: (_) {},
+            onLayoutChanged: (_) {},
+            onSelectedLayerChanged: (_) {},
+            onChooseLogo: () {},
+          ),
+        ),
+      ),
+    );
+    await tester.scrollUntilVisible(
+      find.text('Opacity'),
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.pumpAndSettle();
+
+    // 名称与读数只落在滑块自身节点；外包 Semantics 会多出一个读数不同的容器节点
+    final named = find.semantics.byPredicate(
+      (node) => node.label == 'Opacity' && node.value.isNotEmpty,
+    );
+    expect(named, findsOne);
+    final node = named.evaluate().single;
+    expect(node.flagsCollection.isSlider, isTrue);
+    expect(node.value, '82%');
+    expect(find.text('82%'), findsOneWidget);
+  });
+
+  for (final locale in const ['en', 'ja']) {
+    for (final width in labeledRowWidths) {
+      for (final scale in labeledRowTextScales) {
+        final scenario = '$locale ${width.toInt()} ${scale}x';
+        testWidgets('$scenario ratio sliders keep labels whole and reachable', (
+          tester,
+        ) async {
+          const settings = WatermarkSettings();
+          await tester.binding.setSurfaceSize(Size(width, 900));
+          addTearDown(() => tester.binding.setSurfaceSize(null));
+          await tester.pumpWidget(
+            MaterialApp(
+              locale: Locale(locale),
+              localizationsDelegates: AppLocalizations.localizationsDelegates,
+              supportedLocales: AppLocalizations.supportedLocales,
+              builder: (context, child) => MediaQuery(
+                data: MediaQuery.of(
+                  context,
+                ).copyWith(textScaler: TextScaler.linear(scale)),
+                child: child!,
+              ),
+              home: Scaffold(
+                body: WatermarkEditorControls(
+                  settings: settings,
+                  layout: settings.universalLayout,
+                  selectedLayer: WatermarkEditableLayer.text,
+                  logoAvailable: false,
+                  preserveMetadata: false,
+                  onOpenMetadataSettings: () {},
+                  onSettingsChanged: (_) {},
+                  onLayoutChanged: (_) {},
+                  onSelectedLayerChanged: (_) {},
+                  onChooseLogo: () {},
+                ),
+              ),
+            ),
+          );
+          // 字体与锚点下拉框在窄屏大字号下的既有溢出不属于滑块行，行内越界由逐项边界断言覆盖
+          tester.takeException();
+
+          final l10n = lookupAppLocalizations(Locale(locale));
+          await expectLabeledSliderRows(
+            tester,
+            labels: [
+              l10n.watermark_letterSpacing,
+              l10n.watermark_stroke,
+              l10n.watermark_shadow,
+              l10n.watermark_opacity,
+              l10n.watermark_size,
+              l10n.watermark_margin,
+            ],
+            labelsSingleLine: locale != 'en',
+            readouts: const ['82%'],
+            lazyScrollable: find.byType(Scrollable).first,
+            reason: scenario,
+          );
+          tester.takeException();
+        });
+      }
+    }
+  }
 }
 
 Uint8List _pngBytes(int width, int height) {

@@ -1,5 +1,3 @@
-import 'dart:ui' as ui;
-
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -9,9 +7,6 @@ import 'base_selection_tool.dart';
 /// 套索选区工具（自由选区）
 class LassoSelectionTool extends BaseSelectionTool {
   final List<Offset> _points = [];
-
-  bool _isDraggingSelection = false;
-  Offset? _dragLastPoint;
 
   @override
   String get id => 'lasso_selection';
@@ -32,44 +27,22 @@ class LassoSelectionTool extends BaseSelectionTool {
   @override
   void onPointerDown(PointerDownEvent event, EditorState state) {
     final pos = event.localPosition;
+    if (beginOutlineDrag(state, pos)) return;
 
-    if (state.selectionManager.isTransforming) {
-      final bounds = state.selectionManager.transformedBounds;
-      if (bounds != null && bounds.contains(pos)) {
-        _isDraggingSelection = true;
-        _dragLastPoint = pos;
-        return;
-      }
-      state.selectionManager.commitTransform();
-    }
-
-    if (state.selectionManager.hasSelection &&
-        state.selectionManager.hitTestSelection(pos)) {
-      state.selectionManager.enterTransform(_createPlaceholderImage());
-      _isDraggingSelection = true;
-      _dragLastPoint = pos;
-      return;
-    }
-
-    state.clearSelection(saveHistory: false);
     state.clearPreview();
-    _points.clear();
-    _points.add(pos);
+    _points
+      ..clear()
+      ..add(pos);
     _updatePreviewPath(state);
   }
 
   @override
   void onPointerMove(PointerMoveEvent event, EditorState state) {
-    if (_isDraggingSelection && _dragLastPoint != null) {
-      final delta = event.localPosition - _dragLastPoint!;
-      state.selectionManager.updateTransformOffset(delta);
-      _dragLastPoint = event.localPosition;
-      return;
-    }
+    if (updateOutlineDrag(state, event.localPosition)) return;
 
     if (_points.isNotEmpty) {
       final point = event.localPosition;
-      if (_points.isEmpty || (_points.last - point).distance > 3) {
+      if ((_points.last - point).distance > 3) {
         _points.add(point);
         _updatePreviewPath(state);
       }
@@ -78,34 +51,16 @@ class LassoSelectionTool extends BaseSelectionTool {
 
   @override
   void onPointerUp(PointerUpEvent event, EditorState state) {
-    if (_isDraggingSelection) {
-      _isDraggingSelection = false;
-      _dragLastPoint = null;
-      return;
-    }
+    if (endOutlineDrag(state)) return;
+    if (_points.isEmpty) return;
 
-    if (_points.length >= 3) {
-      final path = _createPath();
-      path.close();
-      state.setSelection(path);
-    } else {
-      state.clearPreview();
-    }
+    commitNewSelection(state, _points.length >= 3 ? (_createPath()..close()) : null);
     _points.clear();
   }
 
   @override
   void onSelectionCancel() {
     _points.clear();
-    _isDraggingSelection = false;
-    _dragLastPoint = null;
-  }
-
-  static ui.Image _createPlaceholderImage() {
-    final recorder = ui.PictureRecorder();
-    Canvas(recorder).drawPaint(Paint()..color = const Color(0x00000000));
-    final picture = recorder.endRecording();
-    return picture.toImageSync(1, 1);
   }
 
   void _updatePreviewPath(EditorState state) {

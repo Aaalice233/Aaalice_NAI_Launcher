@@ -65,6 +65,7 @@ final class GenerationParamsPersistenceService {
       transparentBackground: _localStorage.getLastTransparentBackground(),
       qualityTier: _localStorage.getQualityPresetNaiTier(),
       e2eUpscale: _localStorage.getLastE2eUpscale(),
+      modelMode: _localStorage.getImageModelMode(),
       seed:
           _localStorage.getSeedLocked() &&
               _localStorage.getLockedSeedValue() != null

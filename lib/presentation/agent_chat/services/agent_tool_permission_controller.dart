@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
+
 import '../../../core/agent/agent.dart';
 import '../../../core/agent/audit/audit_event.dart';
 import '../../../core/agent/audit/audit_sink.dart';
@@ -13,15 +15,20 @@ class AgentToolPermissionController {
     required AgentAuditSink auditSink,
     required Future<int?> Function(String toolName, Map<String, dynamic> args)
     estimateAnlas,
+    required List<String> Function(String toolName, Map<String, dynamic> args)
+    describeFileTargets,
     required void Function(AgentToolApprovalRequest? request) onApprovalChanged,
     required bool Function() isMounted,
   }) : _auditSink = auditSink,
        _estimateAnlas = estimateAnlas,
+       _describeFileTargets = describeFileTargets,
        _onApprovalChanged = onApprovalChanged,
        _isMounted = isMounted;
 
   final AgentAuditSink _auditSink;
   final Future<int?> Function(String, Map<String, dynamic>) _estimateAnlas;
+  final List<String> Function(String, Map<String, dynamic>)
+  _describeFileTargets;
   final void Function(AgentToolApprovalRequest?) _onApprovalChanged;
   final bool Function() _isMounted;
   final Map<String, AgentPermissionDecision> _toolDecisions = {};
@@ -80,19 +87,22 @@ class AgentToolPermissionController {
     if (!isNonBillingPreparation && descriptor.mayConsumeAnlas) {
       estimatedAnlas = await _estimateAnlas(context.toolCall.name, args);
     }
-    final decision = isNonBillingPreparation
-        ? AgentPermissionDecision.allow
-        : catalog.decide(
-            toolName: context.toolCall.name,
-            policy: permissionPolicy,
-            estimatedAnlas: estimatedAnlas,
-          );
+    final fileTargets = _describeFileTargets(context.toolCall.name, args);
+    final decision = _decideWithFileTargets(
+      catalog: catalog,
+      policy: permissionPolicy,
+      toolName: context.toolCall.name,
+      estimatedAnlas: estimatedAnlas,
+      isNonBillingPreparation: isNonBillingPreparation,
+      fileTargets: fileTargets,
+    );
     _toolDecisions[context.toolCall.id] = decision;
     await writeAudit(
       id: '${context.toolCall.id}.decision',
       summary:
           '${context.toolCall.name} ${descriptor.domain.name}/'
-          '${descriptor.operation.name}',
+          '${descriptor.operation.name}'
+          '${fileTargets.isEmpty ? '' : ' file/create'}',
       result: decision,
     );
     if (decision == AgentPermissionDecision.allow) {
@@ -118,6 +128,7 @@ class AgentToolPermissionController {
         toolName: context.toolCall.name,
         args: args,
         estimatedAnlas: estimatedAnlas,
+        fileTargets: fileTargets,
       ),
     );
 
@@ -151,6 +162,53 @@ class AgentToolPermissionController {
             block: true,
             reason: 'The user declined this tool call.',
           );
+  }
+
+  /// 写盘目标来自 preparation，工具自身的 descriptor 覆盖不到它，必须并上 file/create。
+  AgentPermissionDecision _decideWithFileTargets({
+    required AgentToolPermissionCatalog catalog,
+    required AgentPermissionPolicy policy,
+    required String toolName,
+    required int? estimatedAnlas,
+    required bool isNonBillingPreparation,
+    required List<String> fileTargets,
+  }) {
+    final decision = isNonBillingPreparation
+        ? AgentPermissionDecision.allow
+        : catalog.decide(
+            toolName: toolName,
+            policy: policy,
+            estimatedAnlas: estimatedAnlas,
+          );
+    if (fileTargets.isEmpty || toolName == 'save_generated_image') {
+      return decision;
+    }
+    return mergeDecisions(
+      decision,
+      policy.decide(
+        AgentPermissionDomain.file,
+        AgentPermissionOperation.create,
+      ),
+    );
+  }
+
+  @visibleForTesting
+  static AgentPermissionDecision mergeDecisions(
+    AgentPermissionDecision a,
+    AgentPermissionDecision b,
+  ) {
+    if (a == AgentPermissionDecision.block ||
+        b == AgentPermissionDecision.block) {
+      return AgentPermissionDecision.block;
+    }
+    if (a == AgentPermissionDecision.confirmCharge ||
+        b == AgentPermissionDecision.confirmCharge) {
+      return AgentPermissionDecision.confirmCharge;
+    }
+    if (a == AgentPermissionDecision.ask || b == AgentPermissionDecision.ask) {
+      return AgentPermissionDecision.ask;
+    }
+    return AgentPermissionDecision.allow;
   }
 
   bool resolveApproval(String toolCallId, bool approved) {

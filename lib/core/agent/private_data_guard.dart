@@ -27,32 +27,79 @@ class PrivateDataGuard {
     multiLine: true,
   );
 
-  static String? detect(String value) {
+  // 赋值右侧是引用或表达式而不是字面量，取到的是名字不是密钥本身。
+  static final RegExp _referenceValuePattern = RegExp(
+    r'^(?:[$%<{\[]|[A-Za-z_][\w.]*\s*[(\[]|process\.env\b|Deno\.env\b)',
+    caseSensitive: false,
+  );
+  static final RegExp _placeholderValuePattern = RegExp(
+    r'^(?:your[\w-]*|changeme|placeholder|todo|x{3,}|\*{3,}|\.{3,}|-{3,}'
+    r'|(?:null|none|undefined|nil)$)',
+    caseSensitive: false,
+  );
+  static final RegExp _valueTrimPattern = RegExp(
+    '^["\x27]+|["\x27,;:)}\\]]+\$',
+  );
+
+  // 类型标注的右侧是类型名，不是密钥。
+  static final RegExp _typeNameValuePattern = RegExp(
+    r'^(?:str|string|int|integer|bool|boolean|bytes|float|double|number|'
+    r'any|object|dict|map|list|array|text|self|cls|var|let|const|final)$',
+    caseSensitive: false,
+  );
+
+  static final RegExp _bearerPattern = RegExp(
+    r'\b(bearer)\s+(\S+)',
+    caseSensitive: false,
+  );
+  static final RegExp _credentialAssignmentPattern = RegExp(
+    r'\b((?:api[_-]?key|access[_-]?token|refresh[_-]?token|auth(?:orization)?|'
+    r'password|passwd|client[_-]?secret|private[_-]?key|token|cookies?|'
+    r'session(?:id|[_-]?(?:token|key))?))\b["\x27]?\s*[:=]\s*(\S+)',
+    caseSensitive: false,
+  );
+  static final RegExp _cookieHeaderPattern = RegExp(
+    r'\b(set-cookie|cookies?)\s*:\s*(\S+)',
+    caseSensitive: false,
+  );
+  static final RegExp _secretAssignmentPattern = RegExp(
+    r'\b(secret|credentials?)\b["\x27]?\s*[:=]\s*["\x27]?'
+    r'([A-Za-z0-9_+/.=-]{8,})',
+    caseSensitive: false,
+  );
+
+  static String _identity(String value) =>
+      value.toLowerCase().replaceAll(RegExp(r'[_-]'), '');
+
+  static bool _assignsLiteralSecret(String text, RegExp pattern) {
+    for (final match in pattern.allMatches(text)) {
+      final value = match.group(2)!.replaceAll(_valueTrimPattern, '');
+      if (value.isEmpty ||
+          _referenceValuePattern.hasMatch(value) ||
+          _placeholderValuePattern.hasMatch(value) ||
+          _typeNameValuePattern.hasMatch(value) ||
+          // 值就是键自己的名字，说明传的是变量而不是字面量。
+          _identity(value) == _identity(match.group(1)!)) {
+        continue;
+      }
+      return true;
+    }
+    return false;
+  }
+
+  static String? detect(String value, {bool absolutePaths = true}) {
     if (RegExp(
       r'-----BEGIN (?:[A-Z0-9 ]+ )?PRIVATE KEY(?: BLOCK)?-----',
       caseSensitive: false,
     ).hasMatch(value)) {
       return 'private key';
     }
-    if (RegExp(r'\bbearer\s+\S+', caseSensitive: false).hasMatch(value)) {
+    if (_assignsLiteralSecret(value, _bearerPattern)) {
       return 'authorization token';
     }
-    if (RegExp(
-      r'\b(?:api[_-]?key|access[_-]?token|refresh[_-]?token|auth(?:orization)?|password|passwd|client[_-]?secret|private[_-]?key|token|cookies?|session(?:id|[_-]?(?:token|key))?)\b["\x27]?\s*[:=]\s*["\x27]?\S+',
-      caseSensitive: false,
-    ).hasMatch(value)) {
-      return 'credential';
-    }
-    if (RegExp(
-      r'\b(?:set-cookie|cookies?)\s*:\s*\S+',
-      caseSensitive: false,
-    ).hasMatch(value)) {
-      return 'credential';
-    }
-    if (RegExp(
-      r'\b(?:secret|credentials?)\b["\x27]?\s*[:=]\s*["\x27]?[A-Za-z0-9_+/.=-]{8,}',
-      caseSensitive: false,
-    ).hasMatch(value)) {
+    if (_assignsLiteralSecret(value, _credentialAssignmentPattern) ||
+        _assignsLiteralSecret(value, _cookieHeaderPattern) ||
+        _assignsLiteralSecret(value, _secretAssignmentPattern)) {
       return 'credential';
     }
     if (RegExp(
@@ -65,7 +112,7 @@ class PrivateDataGuard {
     ).hasMatch(value)) {
       return 'credential';
     }
-    if (_containsAbsolutePath(value)) {
+    if (absolutePaths && _containsAbsolutePath(value)) {
       return 'absolute path';
     }
     return null;
@@ -114,14 +161,18 @@ class PrivateDataGuard {
         name.contains('token');
   }
 
-  static void rejectPrivateText(String relativePath, Uint8List bytes) {
+  static void rejectPrivateText(
+    String relativePath,
+    Uint8List bytes, {
+    bool allowAbsolutePaths = false,
+  }) {
     late String text;
     try {
       text = utf8.decode(bytes);
     } on FormatException {
       return;
     }
-    final kind = detect(text);
+    final kind = detect(text, absolutePaths: !allowAbsolutePaths);
     if (kind != null) {
       throw FormatException('$relativePath contains a non-portable $kind.');
     }

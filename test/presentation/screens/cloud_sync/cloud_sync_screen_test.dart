@@ -409,6 +409,124 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('后台恢复连接失败后表单保留已填写内容', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(700, 900));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final stateSource = _stateSource();
+    await tester.pumpWidget(
+      _subject(port: _FakePort(), stateSource: stateSource),
+    );
+    await tester.pumpAndSettle();
+    await tester.enterText(_fieldWithLabel('WebDAV 地址'), 'https://dav.test');
+    await tester.enterText(_fieldWithLabel('用户名'), 'user');
+    await tester.enterText(_fieldWithLabel('密码'), 'webdav-secret');
+
+    _setState(
+      tester,
+      stateSource,
+      const CloudSyncUiState(
+        connectionStatus: CloudSyncConnectionStatus.restoring,
+      ),
+    );
+    await tester.pump();
+    expect(find.text('正在恢复连接'), findsOneWidget);
+    expect(_fieldWithLabel('WebDAV 地址'), findsNothing);
+
+    _setState(
+      tester,
+      stateSource,
+      const CloudSyncUiState(error: 'backend.network'),
+    );
+    await tester.pumpAndSettle();
+    expect(_textOf(tester, 'WebDAV 地址'), 'https://dav.test');
+    expect(_textOf(tester, '用户名'), 'user');
+    expect(_textOf(tester, '密码'), 'webdav-secret');
+    final save = find.byKey(const ValueKey('cloud-sync-save-connection'));
+    expect(tester.widget<FilledButton>(save).onPressed, isNotNull);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('后台恢复连接期间不撤销已完成的 OAuth 授权', (tester) async {
+    final port = _FakePort();
+    final stateSource = _stateSource();
+    await tester.pumpWidget(
+      _subject(
+        port: port,
+        registry: _oneDriveRegistry(),
+        stateSource: stateSource,
+      ),
+    );
+    await tester.pumpAndSettle();
+    await _authorizeOneDrive(tester);
+
+    _setState(
+      tester,
+      stateSource,
+      const CloudSyncUiState(
+        connectionStatus: CloudSyncConnectionStatus.restoring,
+      ),
+    );
+    await tester.pump();
+    _setState(tester, stateSource, const CloudSyncUiState());
+    await tester.pumpAndSettle();
+
+    expect(find.text('test@example.com'), findsOneWidget);
+    expect(port.discardedAuthorizations, isEmpty);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('连接建立后清空表单草稿并交出未保存的 OAuth 授权', (tester) async {
+    final port = _FakePort();
+    final stateSource = _stateSource();
+    await tester.pumpWidget(
+      _subject(
+        port: port,
+        registry: _oneDriveRegistry(),
+        stateSource: stateSource,
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.enterText(_fieldWithLabel('WebDAV 地址'), 'https://dav.test');
+    await _authorizeOneDrive(tester);
+
+    _setState(
+      tester,
+      stateSource,
+      _connectedState(activityStatus: CloudSyncActivityStatus.idle),
+    );
+    await tester.pumpAndSettle();
+    expect(port.discardedAuthorizations.single.accountId, 'account-1');
+
+    _setState(tester, stateSource, const CloudSyncUiState());
+    await tester.pumpAndSettle();
+    expect(
+      tester
+          .widget<ChoiceChip>(find.widgetWithText(ChoiceChip, 'WebDAV'))
+          .selected,
+      isTrue,
+    );
+    expect(_textOf(tester, 'WebDAV 地址'), isEmpty);
+    expect(find.text('test@example.com'), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('跨越窄屏断点重建设置页时保留已填写内容', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(1180, 900));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await tester.pumpWidget(_subject(port: _FakePort()));
+    await tester.pumpAndSettle();
+    await tester.enterText(_fieldWithLabel('WebDAV 地址'), 'https://dav.test');
+    await tester.enterText(_fieldWithLabel('密码'), 'webdav-secret');
+
+    for (final size in const [Size(390, 844), Size(1180, 900)]) {
+      await tester.binding.setSurfaceSize(size);
+      await tester.pumpAndSettle();
+      expect(_textOf(tester, 'WebDAV 地址'), 'https://dav.test');
+      expect(_textOf(tester, '密码'), 'webdav-secret');
+    }
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('已连接状态展示降级能力、完整进度、历史与待处理冲突', (tester) async {
     final state = _connectedState();
     final port = _FakePort();
@@ -704,6 +822,22 @@ void main() {
 Finder _fieldWithLabel(String label) =>
     find.byKey(ValueKey('cloud-sync-field-$label'));
 
+String _textOf(WidgetTester tester, String label) =>
+    tester.widget<TextField>(_fieldWithLabel(label)).controller!.text;
+
+StateProvider<CloudSyncUiState> _stateSource() =>
+    StateProvider<CloudSyncUiState>((ref) => const CloudSyncUiState());
+
+void _setState(
+  WidgetTester tester,
+  StateProvider<CloudSyncUiState> stateSource,
+  CloudSyncUiState state,
+) {
+  ProviderScope.containerOf(
+    tester.element(find.byType(SettingsScreen)),
+  ).read(stateSource.notifier).state = state;
+}
+
 CloudDriveProviderRegistry _oneDriveRegistry() => CloudDriveProviderRegistry([
   const _ConfiguredCloudDriveProvider(CloudDriveOAuthProvider.oneDrive),
 ]);
@@ -743,6 +877,7 @@ Finder get _pageScrollable => find
 
 Widget _subject({
   CloudSyncUiState? state,
+  StateProvider<CloudSyncUiState>? stateSource,
   CloudSyncUiPort? port,
   double textScale = 1,
   CloudDriveProviderRegistry? registry,
@@ -750,7 +885,10 @@ Widget _subject({
 }) {
   return ProviderScope(
     overrides: [
-      if (state != null) cloudSyncUiStateProvider.overrideWithValue(state),
+      if (state != null)
+        cloudSyncUiStateProvider.overrideWithValue(state)
+      else if (stateSource != null)
+        cloudSyncUiStateProvider.overrideWith((ref) => ref.watch(stateSource)),
       if (port != null) cloudSyncUiPortProvider.overrideWithValue(port),
       if (registry != null)
         cloudDriveProviderRegistryProvider.overrideWithValue(registry),

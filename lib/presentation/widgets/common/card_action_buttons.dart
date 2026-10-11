@@ -22,6 +22,16 @@ abstract final class ImageOverlayControlStyle {
   static const hoveredBorder = Color(0x52FFFFFF);
   static const toolbarSurface = Color(0x99000000);
 
+  // 深红 error 压在覆盖面上看不清；只提亮不换色相，纯白图上的静止态也要够 3:1。
+  static const _errorMinimumLightness = 0.85;
+
+  static Color errorForeground(ColorScheme colors) {
+    final error = HSLColor.fromColor(colors.error);
+    return error.lightness >= _errorMinimumLightness
+        ? colors.error
+        : error.withLightness(_errorMinimumLightness).toColor();
+  }
+
   static ButtonStyle iconButton(
     BuildContext context, {
     required double extent,
@@ -112,7 +122,7 @@ class CardActionButtons extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           for (final action in shortcuts)
-            _CardActionButton(config: action, extent: extent),
+            ImageCardOverlayActionButton(config: action, extent: extent),
           more,
         ],
       );
@@ -134,7 +144,7 @@ class CardActionButtons extends StatelessWidget {
         : ((size.width + 4) / (extent + 4)).floor().clamp(1, 2).toInt();
     final allWidgets = <Widget>[
       for (final button in buttons.where((a) => !a.isDanger))
-        _CardActionButton(config: button, extent: extent),
+        ImageCardOverlayActionButton(config: button, extent: extent),
       for (final group in groupMenus.entries)
         if (this.buttons.any((a) => a.visible && a.group == group.key))
           _CardOverflowButton(
@@ -146,7 +156,7 @@ class CardActionButtons extends StatelessWidget {
             label: group.value.label,
           ),
       for (final button in buttons.where((a) => a.isDanger))
-        _CardActionButton(config: button, extent: extent),
+        ImageCardOverlayActionButton(config: button, extent: extent),
     ];
     final capacity = size == null
         ? allWidgets.length
@@ -255,8 +265,13 @@ class _CardOverflowButton extends StatelessWidget {
   }
 }
 
-class _CardActionButton extends StatelessWidget {
-  const _CardActionButton({required this.config, required this.extent});
+/// 图片上的单个覆盖动作按钮，危险动作统一使用 [ImageOverlayControlStyle.errorForeground]。
+class ImageCardOverlayActionButton extends StatelessWidget {
+  const ImageCardOverlayActionButton({
+    super.key,
+    required this.config,
+    required this.extent,
+  });
 
   final ImageCardAction config;
   final double extent;
@@ -265,6 +280,11 @@ class _CardActionButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final canActivate = config.enabled && !config.isLoading;
     final reducedMotion = MediaQuery.disableAnimationsOf(context);
+    final foreground = config.isDanger
+        ? ImageOverlayControlStyle.errorForeground(
+            Theme.of(context).colorScheme,
+          )
+        : config.iconColor;
     return Semantics(
       button: true,
       enabled: canActivate,
@@ -284,7 +304,7 @@ class _CardActionButton extends StatelessWidget {
           style: ImageOverlayControlStyle.iconButton(
             context,
             extent: extent,
-            foregroundColor: config.iconColor,
+            foregroundColor: foreground,
           ),
           icon: config.isLoading
               ? SizedBox.square(
@@ -292,8 +312,7 @@ class _CardActionButton extends StatelessWidget {
                   child: CircularProgressIndicator(
                     strokeWidth: 2,
                     value: reducedMotion ? 0.72 : null,
-                    color:
-                        config.iconColor ?? ImageOverlayControlStyle.foreground,
+                    color: foreground ?? ImageOverlayControlStyle.foreground,
                   ),
                 )
               : Icon(config.icon, size: 16),

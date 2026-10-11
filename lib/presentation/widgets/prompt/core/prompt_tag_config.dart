@@ -28,42 +28,6 @@ class TagChipSizes {
   static const double editInputPadding = 8.0;
 }
 
-/// 标签交互模式
-enum TagInteractionMode {
-  /// 正常模式：单击选中，双击编辑，悬浮显示菜单
-  normal,
-
-  /// 只读模式：禁用所有交互
-  readOnly,
-
-  /// 批量选择模式：单击切换选中
-  batchSelect,
-
-  /// 编辑模式：当前正在编辑某个标签
-  editing,
-}
-
-/// 标签操作类型
-enum TagActionType {
-  /// 增加权重
-  increaseWeight,
-
-  /// 减少权重
-  decreaseWeight,
-
-  /// 切换启用/禁用
-  toggleEnabled,
-
-  /// 编辑文本
-  edit,
-
-  /// 删除
-  delete,
-
-  /// 复制
-  copy,
-}
-
 /// 标签动画时长配置
 class TagAnimationDurations {
   TagAnimationDurations._();

@@ -3,6 +3,7 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:nai_launcher/presentation/widgets/common/checkerboard_pattern.dart';
 import 'package:nai_launcher/presentation/widgets/image_editor/canvas/layer_painter.dart';
 import 'package:nai_launcher/presentation/widgets/image_editor/core/editor_state.dart';
 
@@ -61,6 +62,41 @@ int _redByte(Color color) {
   return (color.r * 255).round().clamp(0, 255);
 }
 
+Future<ByteData> _paintFramePixels(
+  EditorState state, {
+  required bool revealOutsideFrame,
+}) async {
+  final recorder = ui.PictureRecorder();
+  final canvas = Canvas(recorder);
+  LayerPainter(
+    state: state,
+    showTransparentCanvasBackground: true,
+    revealOutsideFrame: revealOutsideFrame,
+  ).paint(canvas, const Size(32, 32));
+
+  final picture = recorder.endRecording();
+  addTearDown(picture.dispose);
+  final image = await picture.toImage(32, 32);
+  addTearDown(image.dispose);
+  final byteData = await image.toByteData(format: ui.ImageByteFormat.rawRgba);
+  expect(byteData, isNotNull);
+  return byteData!;
+}
+
+Future<ui.Image> _createSolidImage(int width, int height, Color color) async {
+  final recorder = ui.PictureRecorder();
+  Canvas(recorder).drawRect(
+    Rect.fromLTWH(0, 0, width.toDouble(), height.toDouble()),
+    Paint()..color = color,
+  );
+  final picture = recorder.endRecording();
+  try {
+    return await picture.toImage(width, height);
+  } finally {
+    picture.dispose();
+  }
+}
+
 Future<ui.Image> _createTwoToneImage() async {
   final recorder = ui.PictureRecorder();
   final canvas = Canvas(recorder);
@@ -81,8 +117,8 @@ Future<ui.Image> _createTwoToneImage() async {
 }
 
 void main() {
-  setUp(LayerPainter.debugResetCheckerboardCache);
-  tearDown(LayerPainter.debugResetCheckerboardCache);
+  setUp(CheckerboardPattern.debugReset);
+  tearDown(CheckerboardPattern.debugReset);
 
   test('default canvas background remains white', () async {
     final color = await _paintCanvasPixel(
@@ -100,96 +136,41 @@ void main() {
     expect(color, isNot(Colors.white));
   });
 
-  test('checkerboard cache key changes when canvas size changes', () {
-    const baseKey = CheckerboardCacheKey(
-      canvasSize: Size(32, 32),
-      cellSize: 16,
-      color1: Color(0xFFE0E0E0),
-      color2: Color(0xFFF5F5F5),
-    );
-    const resizedKey = CheckerboardCacheKey(
-      canvasSize: Size(64, 32),
-      cellSize: 16,
-      color1: Color(0xFFE0E0E0),
-      color2: Color(0xFFF5F5F5),
-    );
+  test('opaque canvas skips the checkerboard under its white base', () {
+    final state = EditorState()..setCanvasSize(const Size(32, 32));
+    addTearDown(state.dispose);
 
-    expect(resizedKey, isNot(baseKey));
+    final recorder = ui.PictureRecorder();
+    LayerPainter(
+      state: state,
+      showTransparentCanvasBackground: false,
+    ).paint(Canvas(recorder), state.canvasSize);
+    recorder.endRecording().dispose();
+
+    expect(CheckerboardPattern.debugTileBuildCount, 0);
   });
 
-  test('checkerboard cache key changes when cell size changes', () {
-    const baseKey = CheckerboardCacheKey(
-      canvasSize: Size(32, 32),
-      cellSize: 16,
-      color1: Color(0xFFE0E0E0),
-      color2: Color(0xFFF5F5F5),
-    );
-    const sameCellSizeKey = CheckerboardCacheKey(
-      canvasSize: Size(32, 32),
-      cellSize: 16,
-      color1: Color(0xFFE0E0E0),
-      color2: Color(0xFFF5F5F5),
-    );
-    const changedCellSizeKey = CheckerboardCacheKey(
-      canvasSize: Size(32, 32),
-      cellSize: 8,
-      color1: Color(0xFFE0E0E0),
-      color2: Color(0xFFF5F5F5),
-    );
-
-    expect(sameCellSizeKey, baseKey);
-    expect(changedCellSizeKey, isNot(baseKey));
-  });
-
-  test('checkerboard cache key changes when checkerboard colors change', () {
-    const baseKey = CheckerboardCacheKey(
-      canvasSize: Size(32, 32),
-      cellSize: 16,
-      color1: Color(0xFFE0E0E0),
-      color2: Color(0xFFF5F5F5),
-    );
-    const recoloredKey = CheckerboardCacheKey(
-      canvasSize: Size(32, 32),
-      cellSize: 16,
-      color1: Color(0xFFCCCCCC),
-      color2: Color(0xFFFFFFFF),
-    );
-
-    expect(recoloredKey, isNot(baseKey));
-  });
-
-  test('checkerboard cache reuses recorded picture for repeated size', () {
+  test('checkerboard texture is reused across repaints and canvas sizes', () {
     final state = EditorState()..setCanvasSize(const Size(32, 32));
     addTearDown(state.dispose);
 
     _paintLayer(state);
-    final firstKey = LayerPainter.debugCheckerboardCacheKey;
-
-    expect(LayerPainter.debugCheckerboardRecordCount, 1);
-    expect(firstKey, isNotNull);
-
+    _paintLayer(state);
+    state.setCanvasSize(const Size(4096, 4096));
     _paintLayer(state);
 
-    expect(LayerPainter.debugCheckerboardRecordCount, 1);
-    expect(LayerPainter.debugCheckerboardCacheKey, firstKey);
+    expect(CheckerboardPattern.debugTileBuildCount, 1);
   });
 
-  test('checkerboard cache rebuilds when canvas size changes', () {
+  test('checkerboard starts its 16px cells at the frame corner', () async {
     final state = EditorState()..setCanvasSize(const Size(32, 32));
     addTearDown(state.dispose);
 
-    _paintLayer(state);
-    final firstKey = LayerPainter.debugCheckerboardCacheKey;
+    final pixels = await _paintFramePixels(state, revealOutsideFrame: false);
 
-    state.setCanvasSize(const Size(64, 32));
-    _paintLayer(state);
-
-    expect(LayerPainter.debugCheckerboardRecordCount, 2);
-    expect(LayerPainter.debugCheckerboardCacheKey, isNot(firstKey));
-    expect(
-      LayerPainter.debugCheckerboardCacheKey?.canvasSize,
-      const Size(64, 32),
-    );
+    expect(_pixelAt(pixels, 32, 4, 4), Colors.grey.shade300);
+    expect(_pixelAt(pixels, 32, 20, 4), Colors.grey.shade100);
+    expect(_pixelAt(pixels, 32, 20, 20), Colors.grey.shade300);
   });
 
   test('checkerboard paint stays clipped to non-multiple canvas size',
@@ -278,4 +259,81 @@ void main() {
       expect(boundaryRed, lessThan(255));
     },
   );
+
+  test('rotated view keeps layers that rotate into the viewport', () async {
+    const red = Color(0xFFFF0000);
+    const viewport = Size(128, 32);
+    final state = EditorState()..setCanvasSize(const Size(64, 64));
+    addTearDown(state.dispose);
+    // 未旋转时这块内容在视口下方，旋转 90° 后落到视口左侧 (4..24, 0..20)
+    state.layerManager
+        .addLayerFromUiImage(await _createSolidImage(20, 20, red), name: 'red')
+        .translateContent(const Offset(0, 40));
+    state.canvasController
+      ..setViewportSize(viewport)
+      ..rotateRight(degrees: 90);
+
+    final recorder = ui.PictureRecorder();
+    LayerPainter(
+      state: state,
+      showTransparentCanvasBackground: true,
+    ).paint(Canvas(recorder), viewport);
+    final picture = recorder.endRecording();
+    addTearDown(picture.dispose);
+    final image = await picture.toImage(128, 32);
+    addTearDown(image.dispose);
+    final pixels = await image.toByteData(format: ui.ImageByteFormat.rawRgba);
+
+    expect(_pixelAt(pixels!, 128, 14, 10), red);
+  });
+
+  group('detached frame', () {
+    const red = Color(0xFFFF0000);
+
+    Future<EditorState> createState() async {
+      final state = EditorState()
+        ..allowsDetachedFrame = true
+        ..setFrame(const Rect.fromLTWH(16, 0, 16, 32));
+      addTearDown(state.dispose);
+      state.canvasController.setViewportSize(const Size(32, 32));
+      state.layerManager.addLayerFromUiImage(
+        await _createSolidImage(32, 32, red),
+        name: 'source',
+      );
+      return state;
+    }
+
+    test('reveal mode keeps outside content visible but dimmed', () async {
+      final state = await createState();
+
+      final pixels = await _paintFramePixels(state, revealOutsideFrame: true);
+
+      expect(_pixelAt(pixels, 32, 24, 16), red);
+      final outside = _pixelAt(pixels, 32, 8, 16);
+      expect(_alphaByte(outside), 255);
+      expect(outside, isNot(red));
+      expect(_redByte(outside), lessThan(255));
+    });
+
+    test('clip mode hides everything outside the frame', () async {
+      final state = await createState();
+
+      final pixels = await _paintFramePixels(state, revealOutsideFrame: false);
+
+      expect(_pixelAt(pixels, 32, 24, 16), red);
+      expect(_alphaByte(_pixelAt(pixels, 32, 8, 16)), 0);
+    });
+
+    test('checkerboard follows the frame origin', () async {
+      final state = EditorState()
+        ..allowsDetachedFrame = true
+        ..setFrame(const Rect.fromLTWH(16, 0, 16, 32));
+      addTearDown(state.dispose);
+
+      final pixels = await _paintFramePixels(state, revealOutsideFrame: false);
+
+      expect(_alphaByte(_pixelAt(pixels, 32, 4, 4)), 0);
+      expect(_alphaByte(_pixelAt(pixels, 32, 20, 4)), greaterThan(0));
+    });
+  });
 }

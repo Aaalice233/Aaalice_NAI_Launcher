@@ -7,8 +7,10 @@ import 'package:image/image.dart' as img;
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../../../core/constants/api_constants.dart';
+import '../../../core/network/browser_multipart_body.dart';
 import '../../../core/network/dio_client.dart';
 import '../../../core/network/critical_network_activity.dart';
+import '../../../core/network/js_compatible_json.dart';
 import '../../../core/network/nai_api_endpoint_service.dart';
 import '../../../core/utils/app_logger.dart';
 import '../../../core/utils/zip_utils.dart';
@@ -63,30 +65,18 @@ class NAIImageEnhancementApiService {
       CriticalNetworkActivityType.cloudUpscale,
     );
     try {
-      final request = jsonEncode({
+      final body = _buildImageToolMultipart(image, <String, dynamic>{
         'image': 'image',
         'model': _upscaleModel,
         'declared_blur_sigma': _upscaleDeclaredBlurSigma,
       });
-      final formData = FormData.fromMap({
-        'image': MultipartFile.fromBytes(
-          image,
-          filename: 'blob',
-          contentType: DioMediaType('image', 'png'),
-        ),
-        'request': MultipartFile.fromBytes(
-          utf8.encode(request),
-          filename: 'blob',
-          contentType: DioMediaType('application', 'json'),
-        ),
-      });
 
       final response = await _dio.post(
         _endpointService.imageUrl(ApiConstants.upscaleEndpoint),
-        data: formData,
+        data: body.bytes,
         options: Options(
           responseType: ResponseType.bytes,
-          headers: {'Accept': 'application/x-zip-compressed'},
+          contentType: body.contentType,
         ),
         onReceiveProgress: onProgress,
       );
@@ -148,6 +138,29 @@ class NAIImageEnhancementApiService {
     return raw;
   }
 
+  /// 官网图像端点共用的 multipart 布局：图片分块在前，`request` JSON 在后。
+  ///
+  /// JSON 里对应的图片字段写成分块名，字节只在分块里出现一次。
+  static BrowserMultipartBody _buildImageToolMultipart(
+    Uint8List image,
+    Map<String, dynamic> request,
+  ) {
+    return BrowserMultipartBody.encode([
+      BrowserMultipartPart(
+        name: 'image',
+        bytes: image,
+        filename: 'blob',
+        contentType: 'image/png',
+      ),
+      BrowserMultipartPart(
+        name: 'request',
+        bytes: utf8.encode(encodeJsCompatibleJson(request)),
+        filename: 'blob',
+        contentType: 'application/json',
+      ),
+    ]);
+  }
+
   // ==================== Vibe Transfer API ====================
   Future<String> encodeVibe(
     Uint8List image, {
@@ -158,14 +171,19 @@ class NAIImageEnhancementApiService {
       CriticalNetworkActivityType.vibeEncoding,
     );
     try {
+      final body = _buildImageToolMultipart(image, <String, dynamic>{
+        'image': 'image',
+        'information_extracted': informationExtracted,
+        'model': model,
+      });
+
       final response = await _dio.post(
         _endpointService.imageUrl(ApiConstants.encodeVibeEndpoint),
-        data: {
-          'image': base64Encode(image),
-          'model': model,
-          'information_extracted': informationExtracted,
-        },
-        options: Options(responseType: ResponseType.bytes),
+        data: body.bytes,
+        options: Options(
+          responseType: ResponseType.bytes,
+          contentType: body.contentType,
+        ),
       );
 
       return base64Encode(response.data as Uint8List);
@@ -193,21 +211,25 @@ class NAIImageEnhancementApiService {
         throw Exception('无法解析图像尺寸');
       }
 
-      final requestData = <String, dynamic>{
-        'image': base64Encode(image),
+      // 官网只有上色与表情工具带提示词和 defry，上色的空提示词也照发。
+      final hasPromptControls =
+          reqType == _reqTypeColorize || reqType == _reqTypeEmotion;
+      final body = _buildImageToolMultipart(image, <String, dynamic>{
         'req_type': reqType,
+        'use_new_shared_trial': true,
+        if (hasPromptControls) 'prompt': prompt ?? '',
+        if (hasPromptControls) 'defry': defry.clamp(0, 5),
         'width': decoded.width,
         'height': decoded.height,
-        'defry': defry.clamp(0, 5),
-        if (prompt != null && prompt.isNotEmpty) 'prompt': prompt,
-      };
+        'image': 'image',
+      });
 
       final response = await _dio.post(
         _endpointService.imageUrl(ApiConstants.augmentImageEndpoint),
-        data: requestData,
+        data: body.bytes,
         options: Options(
           responseType: ResponseType.bytes,
-          headers: {'Accept': 'application/x-zip-compressed'},
+          contentType: body.contentType,
         ),
       );
 

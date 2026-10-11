@@ -7,6 +7,8 @@ import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart' show visibleForTesting;
 
 import '../../../core/constants/api_constants.dart';
+import '../../../core/network/browser_multipart_body.dart';
+import '../../../core/network/js_compatible_json.dart';
 import '../../../core/network/nai_api_endpoint_service.dart';
 import '../../../core/utils/app_logger.dart';
 
@@ -38,9 +40,6 @@ class NaiGenerationRequest {
 class NaiGenerationTransport {
   NaiGenerationTransport(this._dio, this._endpointService);
 
-  static const String _correlationIdAlphabet =
-      'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz123456789';
-  static final Random _correlationIdRandom = Random.secure();
   static final Uint8List _imageCacheHmacKey = Uint8List.fromList(
     List<int>.generate(32, (_) => Random.secure().nextInt(256)),
   );
@@ -123,14 +122,15 @@ class NaiGenerationTransport {
     NaiGenerationRequest request, {
     void Function(int, int)? onProgress,
   }) {
+    final body = buildGenerationMultipart(requestData);
     return _dio.post<Uint8List>(
       _endpointService.imageUrl(ApiConstants.generateImageEndpoint),
-      data: buildGenerationFormData(requestData),
+      data: body.bytes,
       cancelToken: request.cancelToken,
       onReceiveProgress: onProgress,
       options: Options(
         responseType: ResponseType.bytes,
-        headers: _requestHeaders('application/x-zip-compressed'),
+        contentType: body.contentType,
       ),
     );
   }
@@ -139,52 +139,38 @@ class NaiGenerationTransport {
     Map<String, dynamic> requestData,
     NaiGenerationRequest request,
   ) {
+    final body = buildGenerationMultipart(requestData);
     return _dio.post<ResponseBody>(
       _endpointService.imageUrl(ApiConstants.generateImageStreamEndpoint),
-      data: buildGenerationFormData(requestData),
+      data: body.bytes,
       cancelToken: request.cancelToken,
       options: Options(
         responseType: ResponseType.stream,
-        headers: _requestHeaders('application/x-msgpack'),
+        contentType: body.contentType,
       ),
     );
   }
 
-  static Map<String, String> _requestHeaders(String accept) {
-    return {
-      'Accept': accept,
-      'x-correlation-id': List.generate(
-        6,
-        (_) =>
-            _correlationIdAlphabet[_correlationIdRandom.nextInt(
-              _correlationIdAlphabet.length,
-            )],
-        growable: false,
-      ).join(),
-      'x-initiated-at': DateTime.now().toUtc().toIso8601String(),
-    };
-  }
-
   /// Encodes the official multipart layout while preserving image-part order.
-  static FormData buildGenerationFormData(Map<String, dynamic> requestData) {
+  static BrowserMultipartBody buildGenerationMultipart(
+    Map<String, dynamic> requestData,
+  ) {
     // Copies only the rewritten containers: encoding and parsing every base64
     // payload again just to obtain a writable copy costs more than the request.
     final transformedRequest = Map<String, dynamic>.of(requestData);
 
-    final formData = FormData();
+    final parts = <BrowserMultipartPart>[];
     final partNamesByPayload = <String, String>{};
 
     String appendImagePart(String encodedImage, String requestedPartName) {
       final existingPartName = partNamesByPayload[encodedImage];
       if (existingPartName != null) return existingPartName;
-      formData.files.add(
-        MapEntry(
-          requestedPartName,
-          MultipartFile.fromBytes(
-            base64Decode(encodedImage),
-            filename: 'blob',
-            contentType: DioMediaType('image', 'png'),
-          ),
+      parts.add(
+        BrowserMultipartPart(
+          name: requestedPartName,
+          bytes: base64Decode(encodedImage),
+          filename: 'blob',
+          contentType: 'image/png',
         ),
       );
       partNamesByPayload[encodedImage] = requestedPartName;
@@ -305,17 +291,15 @@ class NaiGenerationTransport {
       );
     }
 
-    formData.files.add(
-      MapEntry(
-        'request',
-        MultipartFile.fromBytes(
-          utf8.encode(jsonEncode(transformedRequest)),
-          filename: 'blob',
-          contentType: DioMediaType('application', 'json'),
-        ),
+    parts.add(
+      BrowserMultipartPart(
+        name: 'request',
+        bytes: utf8.encode(encodeJsCompatibleJson(transformedRequest)),
+        filename: 'blob',
+        contentType: 'application/json',
       ),
     );
-    return formData;
+    return BrowserMultipartBody.encode(parts);
   }
 
   /// Copies one JSON object container; nested values stay shared with [source].

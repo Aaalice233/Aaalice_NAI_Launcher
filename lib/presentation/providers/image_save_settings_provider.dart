@@ -1,5 +1,7 @@
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
+import '../../core/services/system_gallery_publisher.dart';
 import '../../core/storage/local_storage_service.dart';
 
 part 'image_save_settings_provider.g.dart';
@@ -12,19 +14,25 @@ class ImageSaveSettings {
   /// 是否自动保存
   final bool autoSave;
 
+  /// 保存时是否同时发布到系统相册
+  final bool syncToSystemGallery;
+
   const ImageSaveSettings({
     this.customPath,
     this.autoSave = false,
+    this.syncToSystemGallery = true,
   });
 
   ImageSaveSettings copyWith({
     String? customPath,
     bool? autoSave,
+    bool? syncToSystemGallery,
     bool clearCustomPath = false,
   }) {
     return ImageSaveSettings(
       customPath: clearCustomPath ? null : (customPath ?? this.customPath),
       autoSave: autoSave ?? this.autoSave,
+      syncToSystemGallery: syncToSystemGallery ?? this.syncToSystemGallery,
     );
   }
 
@@ -46,6 +54,7 @@ class ImageSaveSettingsNotifier extends _$ImageSaveSettingsNotifier {
     return ImageSaveSettings(
       customPath: storage.getImageSavePath(),
       autoSave: storage.getAutoSaveImages(),
+      syncToSystemGallery: storage.getSyncImagesToSystemGallery(),
     );
   }
 
@@ -78,4 +87,22 @@ class ImageSaveSettingsNotifier extends _$ImageSaveSettingsNotifier {
   Future<void> toggleAutoSave() async {
     await setAutoSave(!state.autoSave);
   }
+
+  Future<void> setSyncToSystemGallery(bool value) async {
+    final storage = ref.read(localStorageServiceProvider);
+    await storage.setSyncImagesToSystemGallery(value);
+    state = state.copyWith(syncToSystemGallery: value);
+  }
+}
+
+/// 每次保存前读取，保证开关变更对下一次保存立即生效。
+@riverpod
+SystemGalleryPublisher systemGalleryPublisher(Ref ref) {
+  return SystemGalleryPublisher(
+    syncEnabled: ref.watch(
+      imageSaveSettingsNotifierProvider.select(
+        (settings) => settings.syncToSystemGallery,
+      ),
+    ),
+  );
 }

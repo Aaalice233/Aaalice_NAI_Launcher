@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 import '../../../core/utils/localization_extension.dart';
 import '../../providers/cost_estimate_provider.dart';
 import '../../providers/subscription_provider.dart';
+import '../common/surface_ink_well.dart';
 
 /// Anlas 余额显示芯片
 ///
@@ -104,7 +105,9 @@ class AnlasBalanceChip extends ConsumerWidget {
       backgroundColor = null;
     }
 
-    return InkWell(
+    return _ChipContainer(
+      compact: compact,
+      backgroundColor: backgroundColor,
       onTap: () {
         HapticFeedback.lightImpact();
         ref
@@ -113,25 +116,20 @@ class AnlasBalanceChip extends ConsumerWidget {
               priority: SubscriptionRefreshPriority.userInitiated,
             );
       },
-      borderRadius: BorderRadius.circular(8),
-      child: _ChipContainer(
-        compact: compact,
-        backgroundColor: backgroundColor,
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            _buildIcon(theme, isInsufficient),
-            const SizedBox(width: 4),
-            Text(
-              formatter.format(balance),
-              style: TextStyle(
-                color: textColor,
-                fontWeight: FontWeight.w600,
-                fontSize: compact ? 12 : 14,
-              ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _buildIcon(theme, isInsufficient),
+          const SizedBox(width: 4),
+          Text(
+            formatter.format(balance),
+            style: TextStyle(
+              color: textColor,
+              fontWeight: FontWeight.w600,
+              fontSize: compact ? 12 : 14,
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -142,38 +140,35 @@ class AnlasBalanceChip extends ConsumerWidget {
     ThemeData theme,
     bool compact,
   ) {
-    return InkWell(
-      onTap: () {
-        HapticFeedback.lightImpact();
-        ref.read(subscriptionNotifierProvider.notifier).fetchSubscription();
-      },
-      borderRadius: BorderRadius.circular(8),
-      child: Tooltip(
-        message: context.l10n.common_clickToRetry,
-        child: _ChipContainer(
-          compact: compact,
-          backgroundColor: theme.colorScheme.errorContainer.withValues(
-            alpha: 0.3,
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                Icons.error_outline,
-                size: compact ? 14 : 16,
+    return Tooltip(
+      message: context.l10n.common_clickToRetry,
+      child: _ChipContainer(
+        compact: compact,
+        backgroundColor: theme.colorScheme.errorContainer.withValues(
+          alpha: 0.3,
+        ),
+        onTap: () {
+          HapticFeedback.lightImpact();
+          ref.read(subscriptionNotifierProvider.notifier).fetchSubscription();
+        },
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.error_outline,
+              size: compact ? 14 : 16,
+              color: theme.colorScheme.error,
+            ),
+            const SizedBox(width: 4),
+            Text(
+              '--',
+              style: TextStyle(
                 color: theme.colorScheme.error,
+                fontWeight: FontWeight.w600,
+                fontSize: compact ? 12 : 14,
               ),
-              const SizedBox(width: 4),
-              Text(
-                '--',
-                style: TextStyle(
-                  color: theme.colorScheme.error,
-                  fontWeight: FontWeight.w600,
-                  fontSize: compact ? 12 : 14,
-                ),
-              ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
@@ -194,27 +189,30 @@ class _ChipContainer extends StatelessWidget {
   final Widget child;
   final bool compact;
   final Color? backgroundColor;
+  final VoidCallback? onTap;
 
   const _ChipContainer({
     required this.child,
     required this.compact,
     this.backgroundColor,
+    this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    return Container(
-      padding: EdgeInsets.symmetric(
-        horizontal: compact ? 8 : 12,
-        vertical: compact ? 4 : 6,
+    return SurfaceInkWell(
+      borderRadius: BorderRadius.circular(8),
+      color: backgroundColor ?? theme.colorScheme.surfaceContainerHigh,
+      onTap: onTap,
+      child: Padding(
+        padding: EdgeInsets.symmetric(
+          horizontal: compact ? 8 : 12,
+          vertical: compact ? 4 : 6,
+        ),
+        child: child,
       ),
-      decoration: BoxDecoration(
-        color: backgroundColor ?? theme.colorScheme.surfaceContainerHigh,
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: child,
     );
   }
 }

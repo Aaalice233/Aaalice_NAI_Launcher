@@ -10,6 +10,8 @@ import '../../../../data/models/image/image_params.dart';
 import '../../../providers/cost_estimate_provider.dart';
 import '../../../providers/generation/generation_params_notifier.dart';
 import '../../../providers/generation/image_workflow_controller.dart';
+import '../../../widgets/common/ink_host.dart';
+import '../../../widgets/common/themed_slider.dart';
 import 'img2img_panel_data.dart';
 
 class Img2ImgAdjustmentSection extends ConsumerWidget {
@@ -55,24 +57,34 @@ class _InpaintPanel extends ConsumerWidget {
         (value) => (value.width, value.height),
       ),
     );
+    final sourceWidth =
+        workflow.sourceImageWidth ?? workflow.sourceWidth ?? generationSize.$1;
+    final sourceHeight =
+        workflow.sourceImageHeight ??
+        workflow.sourceHeight ??
+        generationSize.$2;
+    final contextCrop = workflow.focusedContextCrop;
     final selection = workflow.focusedSelectionRect;
-    final geometry = selection == null
+    final geometry = contextCrop != null
+        ? FocusedInpaintUtils.resolveGeometryForCrop(
+            sourceWidth: sourceWidth,
+            sourceHeight: sourceHeight,
+            crop: contextCrop,
+          )
+        : selection == null
         ? null
         : FocusedInpaintUtils.resolveGeometryForSelection(
-            sourceWidth:
-                workflow.sourceImageWidth ??
-                workflow.sourceWidth ??
-                generationSize.$1,
-            sourceHeight:
-                workflow.sourceImageHeight ??
-                workflow.sourceHeight ??
-                generationSize.$2,
+            sourceWidth: sourceWidth,
+            sourceHeight: sourceHeight,
             selectionRect: selection,
             minContextMegaPixels: workflow.minimumContextMegaPixels,
           );
     final focusedCost = geometry == null
         ? null
         : ref.watch(estimatedCostProvider);
+    final enabledHint = contextCrop != null
+        ? context.l10n.img2img_focusOutpaintHint
+        : context.l10n.img2img_focusedInpaintEnabledHint;
     return _SubPanel(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -94,9 +106,9 @@ class _InpaintPanel extends ConsumerWidget {
             ),
             subtitle: Text(
               workflow.focusedInpaintEnabled && geometry != null
-                  ? '${context.l10n.img2img_focusedInpaintEnabledHint}\n${context.l10n.editor_focusRequestSummary(geometry.contextCrop.width, geometry.contextCrop.height, geometry.requestWidth, geometry.requestHeight, focusedCost ?? 0)}'
+                  ? '$enabledHint\n${context.l10n.editor_focusRequestSummary(geometry.contextCrop.width, geometry.contextCrop.height, geometry.requestWidth, geometry.requestHeight, focusedCost ?? 0)}'
                   : workflow.focusedInpaintEnabled
-                  ? context.l10n.img2img_focusedInpaintEnabledHint
+                  ? enabledHint
                   : context.l10n.img2img_focusedInpaintDisabledHint,
               style: theme.textTheme.bodySmall?.copyWith(
                 color: theme.colorScheme.onSurfaceVariant,
@@ -227,17 +239,14 @@ class _EnhancePanelState extends ConsumerState<_EnhancePanel> {
               onChanged: (value) =>
                   controller.updateEnhanceLevel(value.round()),
             ),
-            Material(
-              type: MaterialType.transparency,
-              child: SwitchListTile.adaptive(
-                contentPadding: EdgeInsets.zero,
-                title: Text(
-                  context.l10n.img2img_enhanceShowIndividualSettings,
-                  style: theme.textTheme.bodyMedium,
-                ),
-                value: enhance.showIndividualSettings,
-                onChanged: controller.toggleEnhanceIndividualSettings,
+            SwitchListTile.adaptive(
+              contentPadding: EdgeInsets.zero,
+              title: Text(
+                context.l10n.img2img_enhanceShowIndividualSettings,
+                style: theme.textTheme.bodyMedium,
               ),
+              value: enhance.showIndividualSettings,
+              onChanged: controller.toggleEnhanceIndividualSettings,
             ),
             const SizedBox(height: 8),
             Text(
@@ -313,6 +322,9 @@ class Img2ImgSlider extends StatelessWidget {
   final int? divisions;
   final String Function(double)? valueLabelBuilder;
 
+  String _valueText(double value) =>
+      valueLabelBuilder?.call(value) ?? value.toStringAsFixed(2);
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -324,14 +336,16 @@ class Img2ImgSlider extends StatelessWidget {
             Text(label, style: theme.textTheme.bodyMedium),
             const Spacer(),
             Text(
-              valueLabelBuilder?.call(value) ?? value.toStringAsFixed(2),
+              _valueText(value),
               style: theme.textTheme.bodySmall?.copyWith(
                 fontWeight: FontWeight.w600,
               ),
             ),
           ],
         ),
-        Slider(
+        NamedSlider(
+          label: label,
+          valueText: _valueText,
           value: value,
           min: min,
           max: max,
@@ -361,6 +375,6 @@ class _SubPanel extends StatelessWidget {
       color: Theme.of(context).colorScheme.surfaceContainerHigh,
       borderRadius: BorderRadius.circular(10),
     ),
-    child: child,
+    child: InkHost(child: child),
   );
 }

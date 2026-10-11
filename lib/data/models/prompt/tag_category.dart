@@ -1,30 +1,3 @@
-import 'package:freezed_annotation/freezed_annotation.dart';
-
-/// Danbooru 官方标签类别
-///
-/// 对应 Danbooru API 的 category 字段
-enum DanbooruTagCategory {
-  /// 通用标签（描述画面内容）- category=0
-  @JsonValue(0)
-  general,
-
-  /// 画师/创作者名称 - category=1
-  @JsonValue(1)
-  artist,
-
-  /// 作品/版权/系列 - category=3
-  @JsonValue(3)
-  copyright,
-
-  /// 角色名称 - category=4
-  @JsonValue(4)
-  character,
-
-  /// 元数据（图片属性）- category=5
-  @JsonValue(5)
-  meta,
-}
-
 /// 语义子分类（用于 General 类别的细分）
 ///
 /// NovelAI 对 Danbooru 的 General 类别进行了语义子分类

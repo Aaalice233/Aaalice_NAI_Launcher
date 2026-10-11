@@ -14,7 +14,7 @@ import '../../data/models/queue/replication_task_status.dart';
 import '../../data/models/queue/failure_handling_strategy.dart';
 import 'character_prompt_provider.dart';
 import 'image_generation_provider.dart';
-import 'auth_provider.dart';
+import '../../data/services/auth_provider.dart';
 import 'krita/krita_bridge_notifier.dart';
 import 'notification_settings_provider.dart';
 import 'replication_queue_provider.dart';
@@ -465,6 +465,9 @@ class QueueExecutionNotifier extends _$QueueExecutionNotifier {
       final batchSizeOverride = snapshot == null
           ? null
           : ReplicationTaskGenerationSnapshot.decodeBatchSize(snapshot);
+      final queuedFocused = snapshot == null
+          ? null
+          : ReplicationTaskGenerationSnapshot.decodeFocused(snapshot);
       final params = snapshot == null
           ? baseParams.copyWith(
               prompt: task.prompt,
@@ -495,6 +498,14 @@ class QueueExecutionNotifier extends _$QueueExecutionNotifier {
         params,
         batchSizeOverride: batchSizeOverride,
         preserveCharacterSnapshot: snapshot != null,
+        focusedOverride: queuedFocused == null
+            ? null
+            : GenerationFocusedSnapshot(
+                enabled: queuedFocused.enabled,
+                minimumContextMegaPixels: queuedFocused.contextPadding,
+                selectionRect: queuedFocused.selectionRect,
+                contextCrop: queuedFocused.contextCrop,
+              ),
       );
     } on FormatException catch (error, stackTrace) {
       final taskId = state.currentTaskId;

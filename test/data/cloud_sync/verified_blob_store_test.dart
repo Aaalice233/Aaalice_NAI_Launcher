@@ -142,6 +142,7 @@ void main() {
     await storage.writeSnapshot(storage.stage('pending-b'), snapshot('b'));
     final part = File('${root.path}/blobs/unfinished.part');
     await part.writeAsBytes(const [4]);
+    await _ageBlob(root, orphan.sha256);
 
     expect(
       await storage.collectUnreferencedBlobs(gracePeriod: Duration.zero),
@@ -232,6 +233,7 @@ void main() {
     final base = Directory('${root.path}/base');
     await storage.writeSnapshot(base, snapshot(oldPayload));
     await storage.writeSnapshot(base, snapshot(currentPayload));
+    await _ageBlob(root, oldPayload.sha256);
 
     expect(
       await storage.collectUnreferencedBlobs(gracePeriod: Duration.zero),
@@ -253,7 +255,8 @@ void main() {
     'blob GC prunes aged pending refs and unpublished generations',
     () async {
       final store = VerifiedBlobStore(root);
-      final storage = CloudSyncOperationStorage(root, store);
+      var now = DateTime.now();
+      final storage = CloudSyncOperationStorage(root, store, now: () => now);
       final owner = storage.stage('interrupted');
       final pending = File('${owner.path}/refs/00000000000000000000.pending');
       final generation = Directory(
@@ -264,7 +267,14 @@ void main() {
       await generation.create(recursive: true);
       await File('${generation.path}/index.json').writeAsString('{}');
 
-      await storage.collectUnreferencedBlobs(gracePeriod: Duration.zero);
+      now = now.add(const Duration(days: 6));
+      await storage.collectUnreferencedBlobs();
+
+      expect(pending.existsSync(), isTrue);
+      expect(generation.existsSync(), isTrue);
+
+      now = now.add(const Duration(days: 2));
+      await storage.collectUnreferencedBlobs();
 
       expect(pending.existsSync(), isFalse);
       expect(generation.existsSync(), isFalse);
@@ -278,6 +288,7 @@ void main() {
     final refs = Directory('${storage.stage('broken').path}/refs');
     await refs.create(recursive: true);
     await File('${refs.path}/000.ref').writeAsString('{broken');
+    await _ageBlob(root, orphan.sha256);
 
     await expectLater(
       storage.collectUnreferencedBlobs(gracePeriod: Duration.zero),
@@ -286,3 +297,9 @@ void main() {
     expect(File('${root.path}/blobs/${orphan.sha256}').existsSync(), isTrue);
   });
 }
+
+// GC keeps files that are not strictly older than now minus the grace period,
+// and a freshly written file can share its timestamp tick with the GC call.
+Future<void> _ageBlob(Directory root, String sha256) => File(
+  '${root.path}/blobs/$sha256',
+).setLastModified(DateTime.now().subtract(const Duration(days: 1)));

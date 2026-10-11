@@ -4,6 +4,7 @@ import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import '../../../widgets/common/ink_host.dart';
 import '../../../widgets/common/model_family_icon.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:super_drag_and_drop/super_drag_and_drop.dart';
@@ -26,6 +27,7 @@ import '../../../widgets/common/translated_tag_text.dart';
 import '../../../widgets/common/collapsible_image_panel.dart';
 import '../../../widgets/common/decoded_memory_image.dart';
 import '../../../widgets/common/themed_divider.dart';
+import '../../../widgets/common/labeled_slider_rows.dart';
 import '../../../widgets/tag_library/tag_library_picker_dialog.dart';
 
 class ReversePromptPanel extends ConsumerStatefulWidget {
@@ -252,26 +254,28 @@ class _ReversePromptPanelState extends ConsumerState<ReversePromptPanel> {
               Positioned(
                 top: 0,
                 right: 0,
-                child: InkWell(
-                  onTap: () => ref
-                      .read(reversePromptProvider.notifier)
-                      .removeImage(image.id),
-                  borderRadius: BorderRadius.circular(24),
-                  child: SizedBox.square(
-                    dimension: 48,
-                    child: Align(
-                      alignment: Alignment.topRight,
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: Colors.black.withValues(alpha: 0.65),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        padding: const EdgeInsets.all(2),
-                        // 固定深色底必须搭配固定浅色图标，避免浅色主题下失去对比。
-                        child: const Icon(
-                          Icons.close,
-                          size: 14,
-                          color: Colors.white,
+                child: InkHost(
+                  child: InkWell(
+                    onTap: () => ref
+                        .read(reversePromptProvider.notifier)
+                        .removeImage(image.id),
+                    borderRadius: BorderRadius.circular(24),
+                    child: SizedBox.square(
+                      dimension: 48,
+                      child: Align(
+                        alignment: Alignment.topRight,
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: Colors.black.withValues(alpha: 0.65),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          padding: const EdgeInsets.all(2),
+                          // 固定深色底必须搭配固定浅色图标，避免浅色主题下失去对比。
+                          child: const Icon(
+                            Icons.close,
+                            size: 14,
+                            color: Colors.white,
+                          ),
                         ),
                       ),
                     ),
@@ -347,23 +351,27 @@ class _ReversePromptPanelState extends ConsumerState<ReversePromptPanel> {
               ),
             ),
             const SizedBox(height: 6),
-            _ThresholdSlider(
-              label: context.l10n.reversePrompt_generalThreshold,
-              value: state.taggerGeneralThreshold,
-              onChanged: state.isProcessing
-                  ? null
-                  : ref
-                        .read(reversePromptProvider.notifier)
-                        .setTaggerGeneralThreshold,
-            ),
-            _ThresholdSlider(
-              label: context.l10n.reversePrompt_characterThreshold,
-              value: state.taggerCharacterThreshold,
-              onChanged: state.isProcessing
-                  ? null
-                  : ref
-                        .read(reversePromptProvider.notifier)
-                        .setTaggerCharacterThreshold,
+            LabeledSliderRows(
+              sliders: [
+                _thresholdSlider(
+                  label: context.l10n.reversePrompt_generalThreshold,
+                  value: state.taggerGeneralThreshold,
+                  onChanged: state.isProcessing
+                      ? null
+                      : ref
+                            .read(reversePromptProvider.notifier)
+                            .setTaggerGeneralThreshold,
+                ),
+                _thresholdSlider(
+                  label: context.l10n.reversePrompt_characterThreshold,
+                  value: state.taggerCharacterThreshold,
+                  onChanged: state.isProcessing
+                      ? null
+                      : ref
+                            .read(reversePromptProvider.notifier)
+                            .setTaggerCharacterThreshold,
+                ),
+              ],
             ),
             Text(
               context.l10n.reversePrompt_taggerFilterHint,
@@ -660,35 +668,19 @@ class _ReversePromptPanelState extends ConsumerState<ReversePromptPanel> {
   }
 }
 
-class _ThresholdSlider extends StatelessWidget {
-  const _ThresholdSlider({
-    required this.label,
-    required this.value,
-    required this.onChanged,
-  });
-
-  final String label;
-  final double value;
-  final ValueChanged<double>? onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        SizedBox(width: 104, child: Text('$label ${value.toStringAsFixed(2)}')),
-        Expanded(
-          child: Slider(
-            value: value,
-            min: 0.05,
-            max: 0.95,
-            divisions: 18,
-            onChanged: onChanged,
-          ),
-        ),
-      ],
-    );
-  }
-}
+LabeledSlider _thresholdSlider({
+  required String label,
+  required double value,
+  required ValueChanged<double>? onChanged,
+}) => LabeledSlider(
+  label: label,
+  value: value,
+  min: 0.05,
+  max: 0.95,
+  divisions: 18,
+  valueText: (value) => value.toStringAsFixed(2),
+  onChanged: onChanged,
+);
 
 class _PromptOutputBlock extends StatelessWidget {
   const _PromptOutputBlock({required this.title, required this.text});

@@ -4,6 +4,7 @@ import 'package:freezed_annotation/freezed_annotation.dart';
 
 import '../../../core/constants/api_constants.dart';
 import '../../../core/constants/model_capabilities.dart';
+import '../../../core/enums/image_model_mode.dart';
 import '../../../core/enums/precise_ref_type.dart';
 import '../vibe/vibe_reference.dart';
 
@@ -142,6 +143,11 @@ class ImageParams with _$ImageParams {
 
     /// 官方质量词档位 (standard/light，light 仅 V5 提供)
     @Default(QualityTags.standardTier) String qualityTier,
+
+    /// Anime / Furry 模式，仅对 [ModelCapabilities.hasFurryMode] 的模型生效。
+    @Default(ImageModelMode.anime)
+    @JsonKey(unknownEnumValue: ImageModelMode.anime)
+    ImageModelMode modelMode,
 
     /// 自定义质量词没有官网预设 ID，请求中应省略 `tag_hint_qt`。
     @Default(false)
@@ -315,6 +321,40 @@ extension ImageParamsExtension on ImageParams {
       isEnhanceRequest &&
       !effectiveUpscaledEnhance &&
       capabilities.supportsEnhancePromptAdd;
+
+  /// 实际发送的步数。
+  int get effectiveSteps => capabilities.fixedSettings?.steps ?? steps;
+
+  /// 实际发送的采样器（V4 起的 DDIM 回退由请求服务处理）。
+  String get effectiveSampler => capabilities.fixedSettings?.sampler ?? sampler;
+
+  /// 实际发送的噪声调度：模型不开放选择时与网页端一样固定为 karras。
+  String get effectiveNoiseSchedule => capabilities.supportsNoiseSchedule
+      ? NoiseSchedules.resolve(
+          noiseSchedule,
+          allowNative: capabilities.allowsNativeNoiseSchedule,
+        )
+      : NoiseSchedules.karras;
+
+  /// 是否有参数被模型固定，界面据此把对应控件显示为锁定。
+  bool get usesFixedSettings => capabilities.fixedSettings != null;
+
+  /// 套用模型固定参数后的请求参数，只用于构造与记录请求，不回写界面状态。
+  ImageParams resolveFixedSettings() {
+    final fixed = capabilities.fixedSettings;
+    if (fixed == null) return this;
+    return copyWith(
+      steps: fixed.steps,
+      sampler: fixed.sampler,
+      ucPreset: fixed.ucPreset,
+      omitUcPresetTagHint: false,
+      negativePrompt: '',
+      characters: [
+        for (final character in characters)
+          character.copyWith(negativePrompt: ''),
+      ],
+    );
+  }
 
   /// 开启端到端放大后服务端实际输出的尺寸。
   (int, int) get outputSize => effectiveE2eUpscale

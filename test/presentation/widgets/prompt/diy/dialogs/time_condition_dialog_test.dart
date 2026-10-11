@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/data/models/prompt/time_condition.dart';
@@ -91,13 +93,43 @@ void main() {
     );
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets('enabling through the panel enables saving and returns it', (
+    tester,
+  ) async {
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(1600, 900);
+    addTearDown(() {
+      tester.view.resetDevicePixelRatio();
+      tester.view.resetPhysicalSize();
+    });
+
+    final result = await _pump(tester, child: const TimeConditionDialog());
+
+    final save = find.descendant(
+      of: find.byKey(const ValueKey('time-condition-dialog')),
+      matching: find.byType(FilledButton),
+    );
+    expect(tester.widget<FilledButton>(save).onPressed, isNull);
+
+    expect(find.byType(Switch), findsOneWidget);
+    await tester.tap(find.byType(Switch));
+    await tester.pumpAndSettle();
+    expect(tester.widget<FilledButton>(save).onPressed, isNotNull);
+
+    await tester.tap(save);
+    await tester.pumpAndSettle();
+
+    expect(await result.future, isA<TimeCondition>());
+  });
 }
 
-Future<void> _pump(
+Future<Completer<TimeCondition?>> _pump(
   WidgetTester tester, {
   required Widget child,
   double textScale = 1,
 }) async {
+  final result = Completer<TimeCondition?>();
   await tester.pumpWidget(
     MaterialApp(
       locale: const Locale('en'),
@@ -112,11 +144,15 @@ Future<void> _pump(
       home: Scaffold(
         body: Builder(
           builder: (context) => TextButton(
-            onPressed: () => TimeConditionDialog.show(
-              context,
-              initialCondition: (child as TimeConditionDialog).initialCondition,
-              title: child.title,
-            ),
+            onPressed: () async {
+              final condition = await TimeConditionDialog.show(
+                context,
+                initialCondition:
+                    (child as TimeConditionDialog).initialCondition,
+                title: child.title,
+              );
+              result.complete(condition);
+            },
             child: const Text('Open'),
           ),
         ),
@@ -125,4 +161,5 @@ Future<void> _pump(
   );
   await tester.tap(find.text('Open'));
   await tester.pumpAndSettle();
+  return result;
 }

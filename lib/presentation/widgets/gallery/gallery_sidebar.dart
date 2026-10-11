@@ -4,7 +4,9 @@ import 'resizable_gallery_sidebar.dart';
 
 import '../../../core/utils/localization_extension.dart';
 import '../../adaptive/interaction_policy.dart';
+import '../common/ink_host.dart';
 import '../common/library_classification_drag.dart';
+import '../common/surface_ink_well.dart';
 import '../../themes/core/layered_surface_style.dart';
 
 /// Shared geometry for collection pages that pair a navigation sidebar with a
@@ -48,7 +50,7 @@ class GalleryCollectionToolbarSurface extends StatelessWidget {
       ),
       padding: GalleryCollectionChrome.toolbarPadding(context),
       color: sectionSurfaceColor(Theme.of(context).colorScheme),
-      child: child,
+      child: InkHost(child: child),
     );
   }
 }
@@ -77,7 +79,7 @@ class GalleryCollectionFooterSurface extends StatelessWidget {
             GalleryCollectionChrome.regionRadius,
           ),
         ),
-        child: child,
+        child: InkHost(child: child),
       ),
     );
   }
@@ -222,11 +224,13 @@ class GallerySidebarSurface extends StatelessWidget {
     final colorScheme = Theme.of(context).colorScheme;
     final content = ColoredBox(
       color: controlSurfaceColor(colorScheme),
-      child: Column(
-        children: [
-          Expanded(child: child),
-          if (footer != null) footer!,
-        ],
+      child: InkHost(
+        child: Column(
+          children: [
+            Expanded(child: child),
+            if (footer != null) footer!,
+          ],
+        ),
       ),
     );
     if (modal) return SizedBox(width: double.infinity, child: content);
@@ -335,12 +339,10 @@ class _GallerySidebarNavigationItemState
         cursor: SystemMouseCursors.click,
         onEnter: (_) => setState(() => _isHovered = true),
         onExit: (_) => setState(() => _isHovered = false),
-        child: AnimatedContainer(
-          duration: MediaQuery.disableAnimationsOf(context)
-              ? Duration.zero
-              : const Duration(milliseconds: 150),
-          margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 1),
-          decoration: BoxDecoration(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 1),
+          child: SurfaceInkWell(
+            borderRadius: BorderRadius.circular(8),
             color: widget.isSelected
                 ? colors.primaryContainer
                 : isAcceptingDrop
@@ -348,11 +350,10 @@ class _GallerySidebarNavigationItemState
                 : _isHovered
                 ? colors.surfaceContainerHighest
                 : Colors.transparent,
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: InkWell(
+            // Unselected rows show hover through the fill alone.
+            hoverColor: widget.isSelected ? null : Colors.transparent,
+            duration: const Duration(milliseconds: 150),
             onTap: widget.onTap,
-            borderRadius: BorderRadius.circular(8),
             child: ConstrainedBox(
               constraints: const BoxConstraints(minHeight: controlExtent),
               child: Padding(
@@ -557,6 +558,8 @@ class _GallerySidebarSectionHeaderState
         child: InkWell(
           onTap: widget.onToggle,
           borderRadius: BorderRadius.circular(8),
+          // The header fill already darkens on hover.
+          hoverColor: Colors.transparent,
           child: ConstrainedBox(
             constraints: const BoxConstraints(minHeight: 48),
             child: Row(

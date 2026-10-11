@@ -19,6 +19,7 @@ class FileImageDetailData implements ImageDetailData {
   final String? _id;
   final NaiImageMetadata? _initialMetadata;
   final bool _showCopyButton;
+  final bool _showSaveAsButton;
 
   /// 图像最大维度阈值（超过此值会进行缩放优化）
   static const int _maxImageDimension = 4096;
@@ -29,10 +30,12 @@ class FileImageDetailData implements ImageDetailData {
     String? id,
     NaiImageMetadata? initialMetadata,
     bool showCopyButton = true,
+    bool showSaveAsButton = true,
   }) : _cachedBytes = cachedBytes,
        _id = id ?? filePath,
        _initialMetadata = initialMetadata,
-       _showCopyButton = showCopyButton;
+       _showCopyButton = showCopyButton,
+       _showSaveAsButton = showSaveAsButton;
 
   @override
   ImageProvider getImageProvider() {
@@ -142,48 +145,31 @@ class FileImageDetailData implements ImageDetailData {
   @override
   String get identifier => _id ?? filePath;
 
-  /// 异步获取文件信息
-  ///
-  /// 使用异步文件操作避免阻塞 UI 线程
+  /// 异步获取文件信息（含大小与修改时间）
   Future<FileInfo> getFileInfoAsync() async {
-    final file = File(filePath);
-    final stat = await file.stat();
+    final stat = await File(filePath).stat();
     return FileInfo(
       path: filePath,
       fileName: p.basename(filePath),
-      size: stat.size,
-      modifiedAt: stat.modified,
+      size: stat.type == FileSystemEntityType.notFound ? null : stat.size,
+      modifiedAt: stat.type == FileSystemEntityType.notFound
+          ? null
+          : stat.modified,
     );
   }
 
   @override
-  FileInfo get fileInfo {
-    // 同步回退：返回默认值，实际数据通过 getFileInfoAsync 获取
-    // 警告：同步获取文件信息可能在文件系统繁忙时阻塞 UI
-    final file = File(filePath);
-    try {
-      return FileInfo(
-        path: filePath,
-        fileName: p.basename(filePath),
-        size: file.lengthSync(),
-        modifiedAt: file.lastModifiedSync(),
-      );
-    } catch (_) {
-      // 如果同步获取失败，返回默认值
-      return FileInfo(
-        path: filePath,
-        fileName: p.basename(filePath),
-        size: 0,
-        modifiedAt: DateTime.now(),
-      );
-    }
-  }
+  FileInfo get fileInfo =>
+      FileInfo(path: filePath, fileName: p.basename(filePath));
 
   @override
   bool get showSaveButton => false;
 
   @override
   bool get showCopyButton => _showCopyButton;
+
+  @override
+  bool get showSaveAsButton => _showSaveAsButton;
 
   @override
   bool get showFavoriteButton => true;

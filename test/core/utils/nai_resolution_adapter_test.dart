@@ -159,6 +159,74 @@ void main() {
       },
     );
 
+    for (final channels in [3, 4]) {
+      test('normalizes 16-bit $channels-channel PNG requests', () async {
+        final source = img.Image(
+          width: 9,
+          height: 7,
+          format: img.Format.uint16,
+          numChannels: channels,
+        )..setPixelRgba(4, 3, 0x1234, 0xabcd, 0xffff, 0x807f);
+        final bytes = Uint8List.fromList(img.encodePng(source));
+        final originalBytes = Uint8List.fromList(bytes);
+        expect(img.decodePng(bytes)!.format, img.Format.uint16);
+        final expected = NaiResolutionAdapter.normalizeImageForRequest(
+          Uint8List.fromList(
+            img.encodePng(
+              source.convert(format: img.Format.uint8, numChannels: 4),
+            ),
+          ),
+          targetWidth: 7,
+          targetHeight: 5,
+        );
+
+        final normalized = NaiResolutionAdapter.normalizeImageForRequest(
+          bytes,
+          targetWidth: 7,
+          targetHeight: 5,
+        );
+        final normalizedAsync =
+            await NaiResolutionAdapter.normalizeImageForRequestAsync(
+              bytes,
+              targetWidth: 7,
+              targetHeight: 5,
+            );
+
+        expect(normalized, expected);
+        expect(normalizedAsync, expected);
+        final decoded = img.decodePng(normalized!)!;
+        expect((decoded.width, decoded.height), (7, 5));
+        expect(decoded.format, img.Format.uint8);
+        expect(decoded.numChannels, 4);
+        expect(bytes, originalBytes);
+      });
+    }
+
+    test('preserves exact-size 16-bit PNG request bytes', () async {
+      final bytes = Uint8List.fromList(
+        img.encodePng(
+          img.Image(width: 9, height: 7, format: img.Format.uint16)
+            ..setPixelRgb(4, 3, 0x1234, 0xabcd, 0xffff),
+        ),
+      );
+
+      final normalized = NaiResolutionAdapter.normalizeImageForRequest(
+        bytes,
+        targetWidth: 9,
+        targetHeight: 7,
+      );
+      final normalizedAsync =
+          await NaiResolutionAdapter.normalizeImageForRequestAsync(
+            bytes,
+            targetWidth: 9,
+            targetHeight: 7,
+          );
+
+      expect(identical(normalized, bytes), isTrue);
+      expect(identical(normalizedAsync, bytes), isTrue);
+      expect(img.decodePng(normalized!)!.format, img.Format.uint16);
+    });
+
     test('uses Lanczos3 resampling instead of package cubic resizing', () {
       final source = img.Image(width: 7, height: 5);
       for (var y = 0; y < source.height; y++) {

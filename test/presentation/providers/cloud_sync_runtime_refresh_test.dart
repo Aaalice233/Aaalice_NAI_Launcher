@@ -8,7 +8,7 @@ import 'package:nai_launcher/core/constants/storage_keys.dart';
 import 'package:nai_launcher/core/storage/local_storage_service.dart';
 import 'package:nai_launcher/presentation/providers/cloud_sync/cloud_sync_runtime_refresh.dart';
 import 'package:nai_launcher/presentation/providers/history_click_behavior_provider.dart';
-import 'package:nai_launcher/presentation/providers/locale_provider.dart';
+import 'package:nai_launcher/core/utils/locale_provider.dart';
 import 'package:nai_launcher/presentation/providers/online_gallery_output_filter_provider.dart';
 import 'package:nai_launcher/presentation/providers/tag_library_page_provider.dart';
 import 'package:nai_launcher/presentation/providers/watermark_settings_provider.dart';

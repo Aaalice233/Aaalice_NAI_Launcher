@@ -395,7 +395,8 @@ class OutpaintVirtualFrame {
 class InpaintOutpaintUtils {
   InpaintOutpaintUtils._();
 
-  static const int _maxDimension = 4096;
+  /// 扩图画布（含取景框拼接后的整张画布）的单边上限
+  static const int maxDimension = 4096;
   static const int _snapSize = 64;
 
   static OutpaintFrameResizeResult resizeFrame({
@@ -896,7 +897,7 @@ class InpaintOutpaintUtils {
   }
 
   static void _validateExpandedDimensions(int width, int height) {
-    if (width > _maxDimension || height > _maxDimension) {
+    if (width > maxDimension || height > maxDimension) {
       throw ArgumentError('Expanded image dimensions exceed 4096');
     }
   }
@@ -950,37 +951,37 @@ class InpaintOutpaintUtils {
     required int sourceSize,
     required bool snapTo64,
   }) {
-    if (requestedSize > _maxDimension) {
+    if (requestedSize > maxDimension) {
       return requestedSize;
     }
-    final clamped = requestedSize.clamp(_snapSize, _maxDimension).toInt();
+    final clamped = requestedSize.clamp(_snapSize, maxDimension).toInt();
     if (!snapTo64) {
       return clamped;
     }
     final lower = (clamped ~/ _snapSize) * _snapSize;
     final upper = lower == clamped ? lower : lower + _snapSize;
     if (lower == upper) {
-      return lower.clamp(_snapSize, _maxDimension).toInt();
+      return lower.clamp(_snapSize, maxDimension).toInt();
     }
 
     final lowerDistance = (clamped - lower).abs();
     final upperDistance = (upper - clamped).abs();
     if (lowerDistance < upperDistance) {
-      return lower.clamp(_snapSize, _maxDimension).toInt();
+      return lower.clamp(_snapSize, maxDimension).toInt();
     }
     if (upperDistance < lowerDistance) {
-      return upper.clamp(_snapSize, _maxDimension).toInt();
+      return upper.clamp(_snapSize, maxDimension).toInt();
     }
 
-    final clampedSource = sourceSize.clamp(_snapSize, _maxDimension).toInt();
+    final clampedSource = sourceSize.clamp(_snapSize, maxDimension).toInt();
     if (clampedSource % _snapSize == 0 &&
         (clampedSource == lower || clampedSource == upper)) {
       return clampedSource;
     }
 
     return requestedSize >= sourceSize
-        ? upper.clamp(_snapSize, _maxDimension).toInt()
-        : lower.clamp(_snapSize, _maxDimension).toInt();
+        ? upper.clamp(_snapSize, maxDimension).toInt()
+        : lower.clamp(_snapSize, maxDimension).toInt();
   }
 
   static img.Image _createExpandedSource(

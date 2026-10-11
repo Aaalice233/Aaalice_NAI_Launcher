@@ -41,6 +41,15 @@ final class AgentChatResourceReference {
   final Map<String, String> display;
   final Map<String, String> provenance;
 
+  // Transports drop display and provenance, so identity must ignore both.
+  String get identityKey => [
+    version,
+    kind.name,
+    Uri.encodeComponent(source),
+    Uri.encodeComponent(resourceId),
+    if (mediaId case final mediaId?) Uri.encodeComponent(mediaId),
+  ].join('|');
+
   @override
   bool operator ==(Object other) {
     return identical(this, other) ||

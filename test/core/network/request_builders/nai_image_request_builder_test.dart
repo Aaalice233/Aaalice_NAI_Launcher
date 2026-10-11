@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:image/image.dart' as img;
 import 'package:nai_launcher/core/constants/api_constants.dart';
+import 'package:nai_launcher/core/enums/image_model_mode.dart';
 import 'package:nai_launcher/core/enums/precise_ref_type.dart';
 import 'package:nai_launcher/core/network/request_builders/nai_image_request_builder.dart';
 import 'package:nai_launcher/core/utils/nai_api_utils.dart';
@@ -729,8 +730,10 @@ void main() {
           equals([0.4]),
         );
         expect(
-          result.requestParameters['reference_information_extracted_multiple'],
-          equals([0.3]),
+          result.requestParameters.containsKey(
+            'reference_information_extracted_multiple',
+          ),
+          isFalse,
         );
         expect(result.vibeEncodingMap, equals({1: 'enabled-encoded'}));
       },
@@ -757,6 +760,208 @@ void main() {
       expect(
         result.requestParameters['reference_strength_multiple'],
         equals([3.25]),
+      );
+    });
+
+    test(
+      'should scale encoded vibe strengths like the web client once their sum exceeds one',
+      () async {
+        const params = ImageParams(
+          model: 'nai-diffusion-4-full',
+          normalizeVibeStrength: true,
+          vibeReferencesV4: [
+            VibeReference(
+              displayName: 'first',
+              vibeEncoding: 'first-encoded',
+              sourceType: VibeSourceType.png,
+              strength: 0.6,
+            ),
+            VibeReference(
+              displayName: 'second',
+              vibeEncoding: 'second-encoded',
+              sourceType: VibeSourceType.png,
+              strength: 0.7,
+            ),
+          ],
+        );
+        const total = 0.6 + 0.7;
+        final builder = NAIImageRequestBuilder(
+          params: params,
+          encodeVibe: _fakeEncodeVibe,
+        );
+
+        final nonStreamResult = await builder.build(sampler: 'k_euler');
+        final streamResult = await builder.build(
+          sampler: 'k_euler',
+          isStream: true,
+        );
+
+        for (final result in [nonStreamResult, streamResult]) {
+          expect(
+            result.requestParameters['reference_strength_multiple'],
+            equals([0.6 / total, 0.7 / total]),
+          );
+          expect(
+            result.requestParameters['normalize_reference_strength_multiple'],
+            isTrue,
+          );
+        }
+      },
+    );
+
+    test(
+      'should keep encoded vibe strengths when normalization is off or unnecessary',
+      () async {
+        const disabled = ImageParams(
+          model: 'nai-diffusion-4-full',
+          normalizeVibeStrength: false,
+          vibeReferencesV4: [
+            VibeReference(
+              displayName: 'first',
+              vibeEncoding: 'first-encoded',
+              sourceType: VibeSourceType.png,
+              strength: 0.6,
+            ),
+            VibeReference(
+              displayName: 'second',
+              vibeEncoding: 'second-encoded',
+              sourceType: VibeSourceType.png,
+              strength: 0.7,
+            ),
+          ],
+        );
+        const withinOne = ImageParams(
+          model: 'nai-diffusion-4-full',
+          normalizeVibeStrength: true,
+          vibeReferencesV4: [
+            VibeReference(
+              displayName: 'first',
+              vibeEncoding: 'first-encoded',
+              sourceType: VibeSourceType.png,
+              strength: 0.3,
+            ),
+            VibeReference(
+              displayName: 'second',
+              vibeEncoding: 'second-encoded',
+              sourceType: VibeSourceType.png,
+              strength: 0.5,
+            ),
+          ],
+        );
+
+        final disabledResult = await NAIImageRequestBuilder(
+          params: disabled,
+          encodeVibe: _fakeEncodeVibe,
+        ).build(sampler: 'k_euler');
+        final withinOneResult = await NAIImageRequestBuilder(
+          params: withinOne,
+          encodeVibe: _fakeEncodeVibe,
+        ).build(sampler: 'k_euler');
+
+        expect(
+          disabledResult.requestParameters['reference_strength_multiple'],
+          equals([0.6, 0.7]),
+        );
+        expect(
+          disabledResult
+              .requestParameters['normalize_reference_strength_multiple'],
+          isFalse,
+        );
+        expect(
+          withinOneResult.requestParameters['reference_strength_multiple'],
+          equals([0.3, 0.5]),
+        );
+      },
+    );
+
+    test('should normalize over successfully encoded vibes only', () async {
+      final params = ImageParams(
+        model: 'nai-diffusion-4-full',
+        normalizeVibeStrength: true,
+        vibeReferencesV4: [
+          VibeReference(
+            displayName: 'failing-raw',
+            vibeEncoding: '',
+            rawImageData: Uint8List.fromList([9, 9, 9]),
+            sourceType: VibeSourceType.rawImage,
+            strength: 0.9,
+          ),
+          const VibeReference(
+            displayName: 'first',
+            vibeEncoding: 'first-encoded',
+            sourceType: VibeSourceType.png,
+            strength: 0.6,
+          ),
+          const VibeReference(
+            displayName: 'second',
+            vibeEncoding: 'second-encoded',
+            sourceType: VibeSourceType.png,
+            strength: 0.7,
+          ),
+        ],
+      );
+      const total = 0.6 + 0.7;
+      final builder = NAIImageRequestBuilder(
+        params: params,
+        encodeVibe: (image, {required model, informationExtracted = 1.0}) async {
+          return '';
+        },
+      );
+
+      final nonStreamResult = await builder.build(sampler: 'k_euler');
+      final streamResult = await builder.build(
+        sampler: 'k_euler',
+        isStream: true,
+      );
+
+      for (final result in [nonStreamResult, streamResult]) {
+        expect(
+          result.requestParameters['reference_image_multiple'],
+          equals(['first-encoded', 'second-encoded']),
+        );
+        expect(
+          result.requestParameters['reference_strength_multiple'],
+          equals([0.6 / total, 0.7 / total]),
+        );
+      }
+    });
+
+    test('should send raw V3 vibe strengths without normalization', () async {
+      final firstImage = Uint8List.fromList([1, 2, 3]);
+      final secondImage = Uint8List.fromList([4, 5, 6]);
+      final params = ImageParams(
+        model: ImageModels.animeDiffusionV3,
+        normalizeVibeStrength: true,
+        vibeReferencesV4: [
+          VibeReference(
+            displayName: 'first-raw',
+            vibeEncoding: '',
+            rawImageData: firstImage,
+            sourceType: VibeSourceType.rawImage,
+            strength: 0.6,
+          ),
+          VibeReference(
+            displayName: 'second-raw',
+            vibeEncoding: '',
+            rawImageData: secondImage,
+            sourceType: VibeSourceType.rawImage,
+            strength: 0.7,
+          ),
+        ],
+      );
+
+      final result = await NAIImageRequestBuilder(
+        params: params,
+        encodeVibe: _fakeEncodeVibe,
+      ).build(sampler: 'k_euler');
+
+      expect(
+        result.requestParameters['reference_image_multiple'],
+        equals([base64Encode(firstImage), base64Encode(secondImage)]),
+      );
+      expect(
+        result.requestParameters['reference_strength_multiple'],
+        equals([0.6, 0.7]),
       );
     });
 
@@ -1972,6 +2177,169 @@ void main() {
       final result = await builder.build(sampler: 'k_euler_ancestral');
 
       expect(result.requestData['input'], '1girl');
+    });
+  });
+
+  group('NAIImageRequestBuilder V5 Full Medium effort', () {
+    final heavyPreset =
+        UcPresets.v5Presets[UcPresetType.heavy] ?? (throw StateError('heavy'));
+
+    test(
+      'overrides steps, sampler and UC preset like the web client',
+      () async {
+        final result = await NAIImageRequestBuilder(
+          params: const ImageParams(
+            prompt: '1girl',
+            negativePrompt: 'bad hands, extra fingers',
+            model: ImageModels.animeDiffusionV5FullMedium,
+            steps: 35,
+            sampler: Samplers.kDpmpp2m,
+            ucPreset: UcPresets.noneApiValue,
+            cfgRescale: 0.4,
+            noiseSchedule: NoiseSchedules.exponential,
+            varietyPlus: true,
+            qualityToggle: false,
+            characters: [
+              CharacterPrompt(prompt: 'girl', negativePrompt: 'blurry'),
+            ],
+            useCoords: false,
+          ),
+          encodeVibe: _fakeEncodeVibe,
+        ).build(sampler: Samplers.kDpmpp2m);
+        final parameters = result.requestParameters;
+
+        expect(
+          result.requestData['model'],
+          ImageModels.animeDiffusionV5FullMedium,
+        );
+        expect(parameters['steps'], 14);
+        expect(parameters['sampler'], Samplers.kEulerAncestral);
+        expect(parameters['ucPresetId'], 'heavy');
+        expect(parameters['tag_hint_uc_preset'], 2);
+        expect(parameters['negative_prompt'], heavyPreset);
+        expect(result.effectiveNegativePrompt, heavyPreset);
+        expect(parameters.containsKey('cfg_rescale'), isFalse);
+        expect(parameters['noise_schedule'], NoiseSchedules.karras);
+        expect(parameters.containsKey('skip_cfg_above_sigma'), isFalse);
+        expect(parameters['prefer_brownian'], isTrue);
+        expect(parameters['deliberate_euler_ancestral_bug'], isFalse);
+
+        final characterPrompts = parameters['characterPrompts'] as List;
+        expect((characterPrompts.single as Map)['uc'], '');
+        final negativeCaptions =
+            ((parameters['v4_negative_prompt'] as Map)['caption']
+                    as Map)['char_captions']
+                as List;
+        expect((negativeCaptions.single as Map)['char_caption'], '');
+      },
+    );
+
+    test('V5 Full keeps the user settings that medium overrides', () async {
+      final result = await NAIImageRequestBuilder(
+        params: const ImageParams(
+          prompt: '1girl',
+          negativePrompt: 'bad hands',
+          model: ImageModels.animeDiffusionV5Full,
+          steps: 35,
+          sampler: Samplers.kDpmpp2m,
+          ucPreset: UcPresets.noneApiValue,
+          cfgRescale: 0.4,
+          qualityToggle: false,
+        ),
+        encodeVibe: _fakeEncodeVibe,
+      ).build(sampler: Samplers.kDpmpp2m);
+
+      expect(result.requestParameters['steps'], 35);
+      expect(result.requestParameters['sampler'], Samplers.kDpmpp2m);
+      expect(result.requestParameters['cfg_rescale'], 0.4);
+      expect(result.requestParameters['negative_prompt'], 'bad hands');
+    });
+
+    test('medium inpaints with the medium inpainting model', () async {
+      final result = await NAIImageRequestBuilder(
+        params: ImageParams(
+          action: ImageGenerationAction.infill,
+          model: ImageModels.animeDiffusionV5FullMedium,
+          sourceImage: _validPngBytes(),
+          maskImage: _validPngBytes(),
+        ),
+        encodeVibe: _fakeEncodeVibe,
+      ).build(sampler: Samplers.kEulerAncestral);
+
+      expect(
+        result.requestData['model'],
+        ImageModels.animeDiffusionV5FullMediumInpainting,
+      );
+      expect(result.requestParameters['steps'], 14);
+    });
+  });
+
+  group('NAIImageRequestBuilder furry mode', () {
+    Future<NAIImageRequestBuildResult> build(ImageParams params) =>
+        NAIImageRequestBuilder(
+          params: params,
+          encodeVibe: _fakeEncodeVibe,
+        ).build(sampler: Samplers.kEulerAncestral);
+
+    test(
+      'prepends fur dataset to the base prompt after quality tags',
+      () async {
+        final result = await build(
+          const ImageParams(
+            prompt: 'wolf, forest',
+            model: ImageModels.animeDiffusionV5Full,
+            modelMode: ImageModelMode.furry,
+            qualityToggle: true,
+            characters: [CharacterPrompt(prompt: 'wolf, male')],
+          ),
+        );
+        const expected =
+            'fur dataset, wolf, forest, very aesthetic, masterpiece, no text';
+
+        expect(result.requestData['input'], expected);
+        final caption =
+            (result.requestParameters['v4_prompt'] as Map)['caption'] as Map;
+        expect(caption['base_caption'], expected);
+        expect(
+          ((caption['char_captions'] as List).single as Map)['char_caption'],
+          'wolf, male',
+        );
+      },
+    );
+
+    test('anime mode and models without furry mode send no prefix', () async {
+      final anime = await build(
+        const ImageParams(
+          prompt: 'wolf',
+          model: ImageModels.animeDiffusionV45Full,
+          qualityToggle: false,
+        ),
+      );
+      final v3 = await build(
+        const ImageParams(
+          prompt: 'wolf',
+          model: ImageModels.animeDiffusionV3,
+          modelMode: ImageModelMode.furry,
+          qualityToggle: false,
+        ),
+      );
+
+      expect(anime.requestData['input'], 'wolf');
+      expect(v3.requestData['input'], 'wolf');
+    });
+
+    test('does not duplicate a dataset tag the user already wrote', () async {
+      for (final prompt in ['fur dataset, wolf', 'background dataset, sky']) {
+        final result = await build(
+          ImageParams(
+            prompt: prompt,
+            model: ImageModels.animeDiffusionV45Full,
+            modelMode: ImageModelMode.furry,
+            qualityToggle: false,
+          ),
+        );
+        expect(result.requestData['input'], prompt);
+      }
     });
   });
 }

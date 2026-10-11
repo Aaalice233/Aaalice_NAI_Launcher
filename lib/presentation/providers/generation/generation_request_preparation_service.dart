@@ -78,11 +78,15 @@ class GenerationFocusedSnapshot {
     required this.enabled,
     required this.minimumContextMegaPixels,
     this.selectionRect,
+    this.contextCrop,
   });
 
   final bool enabled;
   final double minimumContextMegaPixels;
   final Rect? selectionRect;
+
+  /// 聚焦外扩的固定裁切区，给定时优先于 [selectionRect]
+  final Rect? contextCrop;
 }
 
 class GenerationPreparationResult {

@@ -1,4 +1,4 @@
-import '../providers/auth_provider.dart';
+import '../../data/services/auth_provider.dart';
 
 /// 应用路由路径。
 abstract final class AppRoutes {

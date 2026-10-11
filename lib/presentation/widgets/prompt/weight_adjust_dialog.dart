@@ -4,6 +4,7 @@ import 'package:nai_launcher/core/utils/localization_extension.dart';
 
 import '../../../data/models/prompt/prompt_tag.dart';
 import '../../adaptive/adaptive_presenter.dart';
+import '../common/themed_slider.dart';
 import '../common/themed_switch.dart';
 import '../common/translated_tag_text.dart';
 import '../tag_chip.dart';
@@ -92,7 +93,6 @@ class _WeightAdjustDialogState extends State<WeightAdjustDialog> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final chipColor = TagColors.fromCategory(widget.tag.category);
-    final weightPercent = (_currentWeight * 100).round();
     final bracketLayers = ((_currentWeight - 1.0) / PromptTag.weightStep)
         .round();
     final weightColor = _currentWeight > 1.0
@@ -191,7 +191,7 @@ class _WeightAdjustDialogState extends State<WeightAdjustDialog> {
                           child: Column(
                             children: [
                               Text(
-                                '$weightPercent%',
+                                PromptTag.formatWeightPercent(_currentWeight),
                                 style: theme.textTheme.displaySmall?.copyWith(
                                   fontWeight: FontWeight.bold,
                                   color: weightColor,
@@ -231,7 +231,9 @@ class _WeightAdjustDialogState extends State<WeightAdjustDialog> {
                                     alpha: 0.2,
                                   ),
                                 ),
-                                child: Slider(
+                                child: NamedSlider(
+                                  label: context.l10n.weight_title,
+                                  valueText: PromptTag.formatWeightPercent,
                                   value: _currentWeight,
                                   min: PromptTag.minWeight,
                                   max: PromptTag.maxWeight,

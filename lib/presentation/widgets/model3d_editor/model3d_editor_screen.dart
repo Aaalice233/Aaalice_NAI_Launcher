@@ -11,6 +11,7 @@ import '../../../core/utils/localization_extension.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../adaptive/adaptive_presenter.dart';
 import '../../adaptive/interaction_policy.dart';
+import '../common/themed_slider.dart';
 import '../image_editor/layers/model3d_layer_data.dart';
 import 'local_asset_server.dart';
 import 'model3d_bridge.dart';
@@ -628,6 +629,8 @@ class _LightSliderField extends StatelessWidget {
   final double max;
   final ValueChanged<double> onChanged;
 
+  static String _valueText(double value) => value.toStringAsFixed(1);
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -640,7 +643,7 @@ class _LightSliderField extends StatelessWidget {
             Expanded(child: Text(label, style: theme.textTheme.labelLarge)),
             const SizedBox(width: 12),
             Text(
-              value.toStringAsFixed(1),
+              _valueText(value),
               style: theme.textTheme.labelLarge?.copyWith(
                 color: theme.colorScheme.primary,
                 fontFeatures: const [FontFeature.tabularFigures()],
@@ -648,7 +651,14 @@ class _LightSliderField extends StatelessWidget {
             ),
           ],
         ),
-        Slider(value: value, min: min, max: max, onChanged: onChanged),
+        NamedSlider(
+          label: label,
+          valueText: _valueText,
+          value: value,
+          min: min,
+          max: max,
+          onChanged: onChanged,
+        ),
       ],
     );
   }

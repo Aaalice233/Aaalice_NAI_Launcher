@@ -47,9 +47,11 @@ NAI Launcher is built for people who use NovelAI regularly. Generation, editing,
 
 - Text-to-image, image-to-image, regular Inpaint, Focused Inpaint, Outpaint, variations, and enhancement are supported.
 - Common NovelAI V5 Curated / Full, V4.5, V4, and V3 workflows are available. Controls, defaults, Token limits, and reference features follow the selected model's capabilities.
+- V5 Full offers the Medium / High effort switch: Medium costs fewer Anlas and less of the Opus allowance, and like the official site it fixes the steps, sampler and Undesired Content preset. V4 and later models offer Anime / Furry mode; Furry mode adds the fur dataset tag to the start of the prompt and is recognized automatically when importing images.
 - Configure size, sampler, Steps, CFG, Seed, noise schedule, and related parameters. Invalid NovelAI dimensions are caught early with a usable size suggestion.
 - Estimated Anlas cost appears before generation. Important paid actions require separate confirmation, and balances and statistics refresh afterward.
 - Built-in history and previews let you reuse Prompts, Seeds, models, or selected settings without overwriting work still being edited.
+- Previews and history images support "Save as": pick a location and file name for one image from its context menu, More menu, or the full-screen detail toolbar, or save a multi-selection into one folder. Save as exports a copy with its full generation parameters and does not add it to the app gallery. With Protection Mode and "Avoid overwriting existing files on export" enabled, name conflicts are numbered automatically.
 
 ### ✍️ Prompts, pinned tags, and characters
 
@@ -63,7 +65,7 @@ NAI Launcher is built for people who use NovelAI regularly. Generation, editing,
 - Disable and restore tags without losing their content. The `/*disabled:original fragment*/` notation is saved and cloud-synced with the Prompt, while disabled content is excluded from generation, effective previews, and Token counts. This is Launcher editing syntax; older clients and external tools may not recognize it. Choose “Copy effective prompt” from the menu for external use.
 - Local translation misses can be sent to a configured AI translation service.
 - Prompt Assistant tasks, including reverse prompting, optimization, and translation, share a configurable response wait timeout: 1, 2, 5, 10, 15, or 30 minutes, with a 5-minute default.
-- Each Prompt Assistant provider saves its own automatic or manual concurrency mode. Automatic mode starts at 5 concurrent requests, and independent tag batches translate in parallel. Each task offers the thinking levels supported by its model. Configure these local settings under Settings → Integrations → Prompt Assistant.
+- Each Prompt Assistant provider saves its own automatic or manual concurrency mode. Automatic mode starts at 5 concurrent requests, and independent tag batches translate in parallel. Each task offers the thinking levels supported by its model. Manage providers, API keys, and models under Settings → Integrations → Model services, and task routing and thinking levels under Settings → Integrations → Prompt Assistant. Both stay on this device.
 
 ### 🧬 Vibe, Precise Reference, and image editing
 
@@ -86,6 +88,7 @@ NAI Launcher is built for people who use NovelAI regularly. Generation, editing,
 - Image and resource cards use consistent actions across context menus, More menus, and batch toolbars. Selected cards open batch actions; unselected cards act only on themselves. Desktop supports Ctrl/Cmd toggling, Shift range selection, and selecting the current page, with selection preserved across pages.
 - Dragging a selected card includes the entire selected set: actual images for image cards and portable resource files for Vibes, Bundles, and Precise References. In-app targets include compatible generation references, Agent, categories, and albums; single-item targets reject multiple items.
 - Local images can go directly to generation, Agent Chat, or Krita without repeated exports and file picking.
+- On Android, saved images are copied to the photo gallery by default. Turn off "Sync to photo gallery" in Settings → Data & Storage to keep generated and saved images in the app gallery only; you can still save individual images to the photo gallery when needed.
 
 ### 🔎 Online galleries and inspiration
 
@@ -98,12 +101,14 @@ NAI Launcher is built for people who use NovelAI regularly. Generation, editing,
 ### 🤖 Agent Chat
 
 - From a desktop sidebar or mobile drawer, the agent can search tags, organize Prompts, inspect generation history, use libraries, and prepare generation tasks.
-- Images, Vibes, and Precise References can be added directly as context. The agent can also prepare masks, expanded canvases, and inpaint drafts.
-- Preparation verifies the cost before generation. In Full Access, verified zero-Anlas generations proceed directly; deletion and paid operations still require approval.
+- Images, Vibes, and Precise References can be added directly as context. Images can also be pasted into the input with Ctrl/Cmd+V or dragged onto the panel from a file manager or browser, and Android keyboards can insert them. The agent can also prepare masks, expanded canvases, and inpaint drafts.
+- Preparation verifies the cost before generation. In Full Access, verified zero-Anlas generations proceed directly; deleting saved data and paid operations still require approval.
 - The default character research workflow combines online identity verification, canonical tag lookup, and gallery appearance evidence, noting disabled web access or missing evidence.
 - Customize the system prompt by adding plain-language instructions or replacing the built-in body; no placeholders are needed. The working directory, web availability, Skills, and app execution rules are added automatically, with a preview of the final prompt. Customization does not bypass app permission checks.
 - Structured questions offer three feasible directions, one Recommended marker, and a custom-answer option per question. Answer sequentially, then review and submit the full set. After two minutes without submission, all recommended options are selected automatically. New questions show a Toast, a question-mark entry icon, and an Android system notification.
-- Supports OpenAI-compatible APIs, Google's native Gemini API, third-party Gemini-compatible relays, and OpenRouter, including model lists, thinking levels, and tool calls when supported.
+- On Windows and macOS, a local MCP server can be enabled under Settings → Integrations → MCP, letting external agents such as Claude Code, Codex CLI, Cursor, Cherry Studio, Pi, and Claude Desktop drive Launcher through the same tools. The server is off by default; approvals and Anlas cost confirmations still happen inside Launcher. See [MCP server](docs/mcp_server.md).
+- MCP generation and image retrieval return original-resolution images by default. Clients may show them inside collapsed tool details. Inline answers can use temporary loopback HTTP image URLs for same-machine clients such as Cherry Studio, or optional display-cache files for Codex, without saving gallery copies. HTTP links last at most one hour and are revoked on server shutdown or cache eviction. With Protection Mode and "Remove all metadata when copying or dragging" enabled, MCP images, HTTP display, display-cache files, saved exports, and clipboard output all remove metadata and NAI steganographic watermark data without exposing original file paths. Local originals remain unchanged. Sanitized exports use PNG and retain destination-permission and no-overwrite checks.
+- Supports OpenAI-compatible APIs, Google's native Gemini API, third-party Gemini-compatible relays, and OpenRouter. Pick models from each provider's list or add a model ID by hand, with thinking levels and tool calls when supported.
 - Your provider controls API keys, regional availability, and fees. Extra network tools such as web search are off by default.
 
 ### 📋 Queue, history, and statistics
@@ -123,7 +128,7 @@ NAI Launcher is built for people who use NovelAI regularly. Generation, editing,
 
 - Supports OneDrive, GitHub, and WebDAV. New Google Drive connections are temporarily disabled pending authorization approval. Connecting an account never uploads, downloads, or overwrites content by itself.
 - Push, pull, and restore start only when requested, with change previews and conflict handling.
-- Select settings, Prompts and libraries, previews, online-gallery settings and favorites, local albums, Agent Prompts and Skills, and optional Vibe or Precise Reference content independently.
+- Select settings, Prompts and libraries, previews, online-gallery settings and favorites, local albums, fixed-tag usage records, Agent Prompts and Skills, and optional Vibe or Precise Reference content independently.
 - Original local and remote gallery images, credentials, caches, and logs never enter a backup.
 - Backups use readable plain data and need no separate recovery key. Check the destination's permissions before syncing.
 
@@ -158,8 +163,8 @@ NAI Launcher is built for people who use NovelAI regularly. Generation, editing,
 
 | Platform | Current status | Notes |
 | --- | --- | --- |
-| **Windows** | Primary development and release platform | Installer and portable packages are available. Well suited to long sessions, batch work, and Krita / ComfyUI integration. |
-| **macOS** | Available and still being refined | A portable package is available. If macOS blocks an unnotarized build, allow it through the system security prompt. |
+| **Windows** | Primary development and release platform | Installer and portable packages are available. Well suited to long sessions, batch work, Krita / ComfyUI integration, and external MCP access. |
+| **macOS** | Available and still being refined | Requires macOS 12 or later. A portable package is available. If macOS blocks an unnotarized build, allow it through the system security prompt. |
 | **Android** | Beta | Supports phones, landscape, tablets, and large screens, with touch access to generation, galleries, libraries, queues, Agent Chat, and settings. |
 | **iOS** | In development | Developed on the [`ios`](https://github.com/Aaalice233/Aaalice_NAI_Launcher/tree/ios) branch. No official package yet; you can build an unsigned IPA and sideload it with your own signature. |
 | **Linux** | No official release package | No official download is currently provided. |
@@ -204,7 +209,7 @@ NAI Launcher does not host your account or artwork on a project-operated server.
 
 - NovelAI Tokens, OAuth access/refresh tokens, WebDAV passwords, and GitHub Tokens use device secure storage and are never written into backups.
 - Local Prompts, gallery indexes, tags, resource libraries, and Agent sessions stay on the device by default.
-- Cloud backups store selected data in plaintext. Local gallery image files are not uploaded; albums, categories, and membership references can sync as lightweight data.
+- Cloud backups store selected data in plaintext. Local gallery image files are not uploaded; albums, categories, membership references, and fixed-tag usage records can sync as lightweight data.
 - Online galleries can contain third-party content. Rating filters do not replace user judgment.
 - WebDAV security depends on the server and transport you configure. Keep a local copy of important data.
 

@@ -76,6 +76,10 @@ Map<String, dynamic> _strictToolParameters(Map<String, dynamic> parameters) {
   return {...parameters, 'additionalProperties': false};
 }
 
+AgentToolResult agentToolTextResult(String text) {
+  return AgentToolResult(content: [ToolResultTextContent(text)], details: null);
+}
+
 AgentToolResult agentToolJsonResult(Map<String, dynamic> value) {
   return AgentToolResult(
     content: [ToolResultTextContent(jsonEncode(value))],

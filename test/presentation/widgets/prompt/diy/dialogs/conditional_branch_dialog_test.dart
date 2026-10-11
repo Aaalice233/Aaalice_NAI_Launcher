@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/data/models/prompt/conditional_branch.dart';
@@ -86,13 +88,44 @@ void main() {
     );
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets('adding a branch enables saving and returns the config', (
+    tester,
+  ) async {
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(1600, 900);
+    addTearDown(() {
+      tester.view.resetDevicePixelRatio();
+      tester.view.resetPhysicalSize();
+    });
+
+    final result = await _pump(tester, child: const ConditionalBranchDialog());
+
+    final save = find.descendant(
+      of: find.byKey(const ValueKey('conditional-branch-dialog')),
+      matching: find.byType(FilledButton),
+    );
+    expect(tester.widget<FilledButton>(save).onPressed, isNull);
+
+    await tester.tap(find.byIcon(Icons.add_rounded));
+    await tester.pumpAndSettle();
+    expect(tester.widget<FilledButton>(save).onPressed, isNotNull);
+
+    await tester.tap(save);
+    await tester.pumpAndSettle();
+
+    final config = await result.future;
+    expect(config, isNotNull);
+    expect(config!.branches, hasLength(1));
+  });
 }
 
-Future<void> _pump(
+Future<Completer<ConditionalBranchConfig?>> _pump(
   WidgetTester tester, {
   required Widget child,
   double textScale = 1,
 }) async {
+  final result = Completer<ConditionalBranchConfig?>();
   await tester.pumpWidget(
     MaterialApp(
       locale: const Locale('en'),
@@ -107,11 +140,14 @@ Future<void> _pump(
       home: Scaffold(
         body: Builder(
           builder: (context) => TextButton(
-            onPressed: () => ConditionalBranchDialog.show(
-              context,
-              initialConfig: (child as ConditionalBranchDialog).initialConfig,
-              title: child.title,
-            ),
+            onPressed: () async {
+              final config = await ConditionalBranchDialog.show(
+                context,
+                initialConfig: (child as ConditionalBranchDialog).initialConfig,
+                title: child.title,
+              );
+              result.complete(config);
+            },
             child: const Text('Open'),
           ),
         ),
@@ -120,4 +156,5 @@ Future<void> _pump(
   );
   await tester.tap(find.text('Open'));
   await tester.pumpAndSettle();
+  return result;
 }

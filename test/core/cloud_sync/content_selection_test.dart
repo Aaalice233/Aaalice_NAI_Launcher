@@ -13,6 +13,8 @@ void main() {
     expect(selection.includeTagThumbnails, isTrue);
     expect(selection.includeOnlineGallerySettings, isTrue);
     expect(selection.includeOnlineGalleryFavorites, isTrue);
+    expect(selection.includeGalleryAlbums, isTrue);
+    expect(selection.includeFixedTagUsage, isTrue);
     expect(selection.includeAgentSystemPrompt, isTrue);
     expect(selection.includeSkills, isTrue);
     expect(selection.includeVibes, isFalse);
@@ -29,7 +31,39 @@ void main() {
     expect(selection.includeSettings, isTrue);
     expect(selection.includeTagThumbnails, isTrue);
     expect(selection.includeAgentSystemPrompt, isTrue);
+    expect(selection.includeFixedTagUsage, isTrue);
     expect(selection.includeVibes, isFalse);
+  });
+
+  test(
+    'version 2 selection keeps its choices and opts into fixed-tag usage',
+    () {
+      final selection = CloudSyncContentSelection.decode(
+        '{"version":2,"includeSettings":false,"includePromptsAndTags":true,'
+        '"includeTagThumbnails":false,"includeOnlineGallerySettings":true,'
+        '"includeOnlineGalleryFavorites":false,"includeGalleryAlbums":true,'
+        '"includeAgentSystemPrompt":false,"includeSkills":true,'
+        '"includeVibes":true,"includePreciseReferences":false,'
+        '"selectedSkillIds":[]}',
+      );
+
+      expect(selection.includeSettings, isFalse);
+      expect(selection.includeTagThumbnails, isFalse);
+      expect(selection.includeOnlineGalleryFavorites, isFalse);
+      expect(selection.includeGalleryAlbums, isTrue);
+      expect(selection.includeVibes, isTrue);
+      expect(selection.includeFixedTagUsage, isTrue);
+    },
+  );
+
+  test('version 3 round-trips the fixed-tag usage choice', () {
+    const selection = CloudSyncContentSelection(includeFixedTagUsage: false);
+    final restored = CloudSyncContentSelection.decode(selection.encode());
+
+    expect(selection.toJson()['version'], 3);
+    expect(restored.includeFixedTagUsage, isFalse);
+    expect(restored.includeGalleryAlbums, isTrue);
+    expect(restored.selectedItemCount, selection.selectedItemCount);
   });
 
   test('content selection persists exact source-qualified Skill ids', () async {
@@ -72,6 +106,17 @@ void main() {
       () => CloudSyncContentSelection.decode(
         '{"version":1,"includeAgentSystemPrompt":true,'
         '"includeSkills":false,"selectedSkillIds":[],"extra":true}',
+      ),
+      throwsFormatException,
+    );
+    expect(
+      () => CloudSyncContentSelection.decode(
+        '{"version":2,"includeSettings":true,"includePromptsAndTags":true,'
+        '"includeTagThumbnails":true,"includeOnlineGallerySettings":true,'
+        '"includeOnlineGalleryFavorites":true,"includeGalleryAlbums":true,'
+        '"includeFixedTagUsage":true,"includeAgentSystemPrompt":true,'
+        '"includeSkills":true,"includeVibes":false,'
+        '"includePreciseReferences":false,"selectedSkillIds":[]}',
       ),
       throwsFormatException,
     );

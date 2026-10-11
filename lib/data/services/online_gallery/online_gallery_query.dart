@@ -4,11 +4,14 @@ import '../../models/online_gallery/gallery_source.dart';
 class OnlineGalleryQuery {
   const OnlineGalleryQuery();
 
+  static final RegExp _querySeparator = RegExp(r'[,，\s]+');
+  static final RegExp _whitespace = RegExp(r'\s+');
+
   String buildSearchQuery(String query, {required bool fuzzyMatch}) {
     final trimmed = query.trim();
     if (trimmed.isEmpty) return '';
     final tags = trimmed
-        .split(RegExp(r'[,，\s]+'))
+        .split(_querySeparator)
         .map((tag) => tag.trim())
         .where((tag) => tag.isNotEmpty);
     return tags
@@ -24,7 +27,7 @@ class OnlineGalleryQuery {
     while (normalized.startsWith('-')) {
       normalized = normalized.substring(1).trimLeft();
     }
-    normalized = normalized.replaceAll(RegExp(r'\s+'), '_');
+    normalized = normalized.replaceAll(_whitespace, '_');
     return normalized.isEmpty ? null : normalized;
   }
 
@@ -38,7 +41,7 @@ class OnlineGalleryQuery {
         .trim()
         .toLowerCase()
         .replaceAll('_', ' ')
-        .split(RegExp(r'\s+'))
+        .split(_whitespace)
         .where((term) => term.isNotEmpty);
     if (terms.isEmpty) return true;
     final haystack = [

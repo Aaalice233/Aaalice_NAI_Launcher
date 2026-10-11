@@ -400,6 +400,7 @@ class _VibeImageEncodeDialogState extends State<VibeImageEncodeDialog> {
             ),
             EditableDoubleField(
               value: _strength,
+              semanticLabel: context.l10n.vibe_strength,
               onChanged: (value) {
                 setState(() => _strength = value);
               },
@@ -412,6 +413,8 @@ class _VibeImageEncodeDialogState extends State<VibeImageEncodeDialog> {
         ),
         const SizedBox(height: 8),
         ThemedSlider(
+          label: context.l10n.vibe_strength,
+          valueText: EditableDoubleField.format,
           value: sliderValue,
           onChanged: (value) {
             setState(() => _strength = value);
@@ -447,6 +450,7 @@ class _VibeImageEncodeDialogState extends State<VibeImageEncodeDialog> {
             ),
             EditableDoubleField(
               value: _infoExtracted,
+              semanticLabel: context.l10n.vibe_infoExtracted,
               min: VibeReference.minInfoExtracted,
               max: 1.0,
               onChanged: (value) {
@@ -461,6 +465,8 @@ class _VibeImageEncodeDialogState extends State<VibeImageEncodeDialog> {
         ),
         const SizedBox(height: 8),
         ThemedSlider(
+          label: context.l10n.vibe_infoExtracted,
+          valueText: EditableDoubleField.format,
           value: _infoExtracted,
           onChanged: (value) {
             setState(() => _infoExtracted = value);

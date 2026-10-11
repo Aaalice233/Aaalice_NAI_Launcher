@@ -199,13 +199,23 @@
   "auth_switchAccount": "Switch Account",
   "auth_currentAccount": "Current Account",
   "auth_selectAccount": "Select Account",
-  "auth_deleteAccount": "Delete Account",
-  "auth_deleteAccountConfirm": "Are you sure you want to delete \"{name}\"? This cannot be undone.",
-  "@auth_deleteAccountConfirm": {
+  "auth_manageAccounts": "Manage Accounts",
+  "auth_removeSavedAccount": "Remove Account",
+  "auth_removeSavedAccountAction": "Remove",
+  "auth_removeSavedAccountConfirm": "The saved login credentials and avatar for \"{name}\" will be removed from this device. Your NovelAI account is not affected, and you can log in again later.",
+  "@auth_removeSavedAccountConfirm": {
     "placeholders": {
       "name": {}
     }
   },
+  "auth_removeSessionAccountNotice": "You are currently logged in with this account. You will be logged out first.",
+  "auth_removeSavedAccountSuccess": "Removed \"{name}\"",
+  "@auth_removeSavedAccountSuccess": {
+    "placeholders": {
+      "name": {}
+    }
+  },
+  "auth_removeSavedAccountFailed": "Couldn't remove the account. Please try again.",
   "auth_removeAvatar": "Remove Avatar",
   "auth_selectFromGallery": "Select from Gallery",
   "auth_quickLogin": "Quick Login",
@@ -297,6 +307,8 @@
   "settings_imageSavePath": "Image Save Location",
   "settings_autoSave": "Auto Save",
   "settings_autoSaveSubtitle": "Automatically save images after generation",
+  "settings_syncToSystemGallery": "Sync to photo gallery",
+  "settings_syncToSystemGallerySubtitle": "When off, images are saved only to the app gallery and won't appear in your photo gallery. Images already synced are not affected.",
   "settings_about": "About",
   "settings_version": "Version {version}",
   "@settings_version": {
@@ -385,6 +397,10 @@
   "generation_history": "History",
   "generation_historyRecord": "History Records",
   "agentChat_tab": "Chat",
+  "agentChat_popOutFloating": "Pop out as floating window",
+  "agentChat_dockToSidePanel": "Dock to side panel",
+  "agentChat_hideFloating": "Hide floating window",
+  "agentChat_resizeDockSplit": "Resize chat and history",
   "nav_agent": "Agent",
   "agentChat_inputHint": "Message the AI agent…",
   "agentChat_inputHintWithSlash": "Message the AI agent, / for skills…",
@@ -416,6 +432,7 @@
       "fileName": {}
     }
   },
+  "agentChat_dropHint": "Drop to add to the chat",
   "agentChat_newChat": "New chat",
   "agentChat_searchSessions": "Search chats",
   "agentChat_send": "Send",
@@ -515,6 +532,8 @@
   "@agentChat_addResourceFailed": {"placeholders":{"error":{"type":"String"}}},
   "agentChat_approvalEstimatedAnlas": "Estimated cost: {cost} Anlas",
   "@agentChat_approvalEstimatedAnlas": {"placeholders": {"cost": {"type": "int"}}},
+  "agentChat_approvalFileTarget": "Will write file: {path}",
+  "@agentChat_approvalFileTarget": {"placeholders": {"path": {"type": "String"}}},
   "agentChat_needSetup": "No chat model configured. Add a provider with tool-calling support in Settings first.",
   "agentChat_heroTitle": "What would you like to do today?",
   "agentChat_heroSubtitle": "Prepare character prompts, organize ideas, or fine-tune settings.",
@@ -548,7 +567,7 @@
   "agentChat_permissionAsk": "Ask",
   "agentChat_permissionAskDescription": "Ask before sensitive actions",
   "agentChat_permissionFull": "Full access",
-  "agentChat_permissionFullDescription": "Run without prompts and allow files outside the workspace",
+  "agentChat_permissionFullDescription": "Ask only to delete saved data or spend Anlas; allow outside files",
   "agentChat_approvalTitle": "Allow {toolName}?",
   "@agentChat_approvalTitle": {
     "placeholders": {
@@ -558,12 +577,67 @@
   "agentChat_approvalDescription": "This tool may read local data, change application state, or incur a charge.",
   "agentChat_approvalAllow": "Allow once",
   "agentChat_approvalDeny": "Deny",
+  "mcpApproval_title": "External agent {client} is requesting approval",
+  "@mcpApproval_title": {
+    "placeholders": {
+      "client": {}
+    }
+  },
+  "mcpApproval_expiresIn": "Auto-declines in {seconds}s",
+  "@mcpApproval_expiresIn": {
+    "placeholders": {
+      "seconds": {}
+    }
+  },
+  "mcpApproval_unknownClient": "Unknown client",
   "generation_failedStreamSnapshot": "Failed snapshot",
   "generation_failedStreamSnapshotHint": "Generation did not finish; only the last preview frame is kept. It cannot be saved, favorited, or used for image workflows.",
   "generation_noHistory": "No history records",
   "generation_clearHistory": "Clear History",
   "generation_clearHistoryConfirm": "Are you sure you want to clear all history records? This action cannot be undone.",
+  "generation_deleteImageConfirm": "Delete this image from history? This action cannot be undone.",
+  "generation_deleteImageWithFileConfirm": "Delete this image from history and permanently delete the file \"{fileName}\" from the local gallery? This action cannot be undone.",
+  "@generation_deleteImageWithFileConfirm": {
+    "placeholders": {
+      "fileName": {}
+    }
+  },
+  "generation_deleteImagesConfirm": "Delete the {count} selected images from history? This action cannot be undone.",
+  "@generation_deleteImagesConfirm": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "generation_deleteImagesWithFilesConfirm": "Delete the {count} selected images from history and permanently delete {fileCount} of their files saved in the local gallery? This action cannot be undone.",
+  "@generation_deleteImagesWithFilesConfirm": {
+    "placeholders": {
+      "count": {},
+      "fileCount": {}
+    }
+  },
+  "generation_deleteConfirmSkipForSession": "Don't ask again until the app restarts",
+  "generation_deleteImageFilesFailed": "Removed from history, but {count} local files could not be deleted: {error}",
+  "@generation_deleteImageFilesFailed": {
+    "placeholders": {
+      "count": {},
+      "error": {}
+    }
+  },
   "generation_model": "Model",
+  "generation_modelMode": "Mode",
+  "generation_modelModeAnime": "Anime",
+  "generation_modelModeFurry": "Furry",
+  "generation_effort": "Effort",
+  "generation_effortMedium": "Medium",
+  "generation_effortHigh": "High",
+  "generation_effortUnavailableHint": "Not used on Medium effort",
+  "generation_effortNegativeLocked": "Not sent on Medium",
+  "generation_effortNegativeLockedHint": "Medium effort does not send Undesired Content and only uses the \"{ucPreset}\" Undesired Content Preset. Your text is kept and applies again on High effort",
+  "@generation_effortNegativeLockedHint": {
+    "placeholders": {
+      "ucPreset": {}
+    }
+  },
   "generation_opusUsageRemaining": "{percent}% of Opus Generations remaining",
   "generation_opusUsageEstimate": "About {count} images left",
   "generation_opusUsageRefill": "The allowance refills automatically over time",
@@ -578,7 +652,9 @@
       "steps": {}
     }
   },
+  "generation_stepsLabel": "Steps",
   "generation_cfgScale": "CFG Scale: {scale}",
+  "generation_cfgScaleLabel": "CFG Scale",
   "@character_limitReached": {
     "placeholders": {
       "limit": {}
@@ -635,6 +711,7 @@
       "value": {}
     }
   },
+  "generation_cfgRescaleLabel": "CFG Rescale",
   "generation_noiseSchedule": "Noise Schedule",
   "prompt_positive": "Prompt",
   "prompt_negative": "Undesired Content",
@@ -872,6 +949,42 @@
   "img2img_directorColorize": "Colorize",
   "img2img_directorEmotion": "Fix Emotion",
   "img2img_directorDeclutter": "Declutter",
+  "img2img_directorPixelSnap": "Pixel Snap",
+  "img2img_directorPixelSnapHint": "Runs entirely on your computer. No Anlas, no network. Large images can take a few seconds.",
+  "img2img_directorPixelSnapPalette": "Palettize",
+  "img2img_directorPixelSnapPaletteOff": "Off",
+  "img2img_directorPixelSnapPaletteAuto": "Auto",
+  "img2img_directorPixelSnapPaletteCustom": "Custom",
+  "img2img_directorPixelSnapColors": "Colors",
+  "img2img_directorPixelSnapAvoidOverRefining": "Avoid Over-Refining",
+  "img2img_directorPixelSnapAvoidOverRefiningOn": "The detected pixel size is always kept.",
+  "img2img_directorPixelSnapAvoidOverRefiningOff": "A finer pixel size may be used when it matches the image better.",
+  "img2img_directorPixelSnapUpscale": "Upscale",
+  "img2img_directorPixelSnapUpscaleOn": "The result is scaled back up to roughly the input size.",
+  "img2img_directorPixelSnapUpscaleOff": "The result is kept at its snapped pixel size.",
+  "img2img_directorPixelSnapSummary": "{width}×{height} pixels · {colors} colors",
+  "@img2img_directorPixelSnapSummary": {
+    "placeholders": {
+      "width": {"type": "int"},
+      "height": {"type": "int"},
+      "colors": {"type": "int"}
+    }
+  },
+  "img2img_directorPixelSnapSummaryNoPalette": "{width}×{height} pixels",
+  "@img2img_directorPixelSnapSummaryNoPalette": {
+    "placeholders": {
+      "width": {"type": "int"},
+      "height": {"type": "int"}
+    }
+  },
+  "img2img_directorPixelSnapNoGrid": "No repeating pixel grid was found in this image.",
+  "img2img_directorPixelSnapBlank": "This image is fully transparent.",
+  "img2img_directorPixelSnapDownscaled": "The image was downscaled before analysis because it exceeds the size limit.",
+  "img2img_directorCancel": "Cancel",
+  "img2img_directorStageAnalyzing": "Analyzing image",
+  "img2img_directorStageSearchingPitch": "Searching pixel size",
+  "img2img_directorStageRefiningGrid": "Refining grid",
+  "img2img_directorStageFinishing": "Building result",
   "img2img_enhance": "Enhance",
   "img2img_enhanceHint": "Enhance keeps using the current prompt while it upscales and regenerates the source image in latent space.",
   "img2img_enhanceMagnitude": "Magnitude",
@@ -945,7 +1058,17 @@
   "editor_done": "Done",
   "editor_tolerance": "Tolerance",
   "editor_intensity": "Intensity",
-  "editor_sourcePoint": "Alt+Click to set source point",
+  "editor_cloneStampSetSource": "Set Source",
+  "editor_cloneStampSetSourceTooltip": "When on, the next point you pick on the canvas becomes the source. Alt+click on the canvas also sets it.",
+  "editor_cloneStampPickingHint": "Pick a point on the canvas to clone from.",
+  "editor_cloneStampNoSourceHint": "No source point yet. Turn on Set Source, then pick a point on the canvas.",
+  "editor_cloneStampSourceReadout": "Source point: X {x}, Y {y}",
+  "@editor_cloneStampSourceReadout": {
+    "placeholders": {
+      "x": {"type": "int"},
+      "y": {"type": "int"}
+    }
+  },
   "editor_brushPresets": "Brush Presets",
   "editor_size": "Size",
   "editor_opacity": "Opacity",
@@ -961,8 +1084,8 @@
   "editor_toolFill": "Fill",
   "editor_toolMagicWand": "Magic Wand",
   "editor_magicWandMode": "Selection method",
-  "editor_magicWandSmartObject": "Smart object (EfficientViT)",
-  "editor_magicWandColorArea": "Color area (flood fill)",
+  "editor_magicWandSmartObject": "Smart object",
+  "editor_magicWandColorArea": "Color area",
   "editor_magicWandSmartHelp": "Click the object to select. The first use downloads the approximately 133 MiB EfficientViT-SAM L0 model from MIT Han Lab (Apache-2.0), then keeps it locally.",
   "editor_magicWandColorHelp": "Click a contiguous region of similar color. This works best on flat, clean boundaries and requires no model download.",
   "editor_magicWandInvert": "Invert result",
@@ -984,6 +1107,9 @@
   "editor_zoomIn": "Zoom In",
   "editor_zoomOut": "Zoom Out",
   "editor_fitToWindow": "Fit to Window",
+  "editor_viewOptions": "View Options",
+  "editor_menuGroupView": "View",
+  "editor_menuGroupCanvas": "Canvas",
   "editor_tempColorPickerShortcut": "Alt+Click: temporary color picker",
   "editor_shortcutHelpTitle": "Shortcut Help",
   "editor_shortcutPaintTools": "Paint Tools",
@@ -995,6 +1121,7 @@
   "editor_shortcutHistoryActions": "History Actions",
   "editor_shortcutSelectionActions": "Selection Actions",
   "editor_shortcutTemporaryColorPicker": "Temporary Color Picker",
+  "editor_shortcutCloneStampSource": "Set Clone Stamp Source",
   "editor_shortcutRectSelection": "Rectangle Selection",
   "editor_shortcutEllipseSelection": "Ellipse Selection",
   "editor_shortcutLassoSelection": "Lasso Selection",
@@ -1258,6 +1385,7 @@
       "value": {}
     }
   },
+  "editor_focusMinimumContextAreaLabel": "Minimum Context Area",
   "editor_canvasSizeTitle": "Canvas Size",
   "editor_presetSize": "Preset Size",
   "editor_customSize": "Custom",
@@ -2586,7 +2714,6 @@
 
   "statistics_title": "Statistics",
   "statistics_noData": "No statistics available",
-  "statistics_noTagData": "No tag data",
   "statistics_generateFirst": "Generate some images first",
   "statistics_totalImages": "Total Images",
   "statistics_totalSize": "Total Size",
@@ -3184,25 +3311,119 @@
   },
   "promptAssistant_provider": "Provider",
   "promptAssistant_model": "Model",
-  "promptAssistant_noModelsPullFirst": "No models yet. Pull the model list first",
-  "promptAssistant_providerManagement": "Provider Management",
-  "promptAssistant_providerManagementSubtitle": "Supports OpenAI Chat / Responses, Anthropic, Gemini, DeepSeek, LM Studio, Ollama, Pollinations, and custom compatible endpoints",
-  "promptAssistant_apiKeyConfigured": "API Key: configured",
-  "promptAssistant_apiKeyNotConfigured": "API Key: not configured",
-  "promptAssistant_supportsImageInput": "Supports image input",
-  "promptAssistant_textOnly": "Text only",
-  "promptAssistant_connectionConfig": "Connection Config",
-  "promptAssistant_pullModelList": "Pull model list",
-  "promptAssistant_editProvider": "Edit provider",
-  "promptAssistant_deleteProvider": "Delete provider",
-  "promptAssistant_pullingModels": "Pulling model list...",
-  "promptAssistant_emptyModelList": "Provider returned an empty model list",
-  "promptAssistant_modelsSynced": "Synced {count} models",
-  "@promptAssistant_modelsSynced": {
+  "promptAssistant_noModelsPullFirst": "No models yet. Add some in Model services first",
+  "settings_modelServices": "Model services",
+  "modelServices_searchProviders": "Search providers",
+  "modelServices_noProviderMatches": "No matching providers",
+  "modelServices_emptyTitle": "Add your first provider",
+  "modelServices_emptyBody": "Providers supply the models used by the prompt assistant and Agent.",
+  "modelServices_disabled": "Off",
+  "modelServices_enableProvider": "Enable provider",
+  "modelServices_moreActions": "More actions",
+  "modelServices_connection": "Connection",
+  "modelServices_apiKey": "API key",
+  "modelServices_apiKeySavedHint": "Saved. Enter a new key to replace it.",
+  "modelServices_apiKeyOptional": "Optional for this provider",
+  "modelServices_showApiKey": "Show key",
+  "modelServices_hideApiKey": "Hide key",
+  "modelServices_clearApiKey": "Remove saved key",
+  "modelServices_apiKeyCleared": "API key removed",
+  "modelServices_baseUrl": "API address",
+  "modelServices_checkConnection": "Check connection",
+  "modelServices_connectionOk": "Connected. The provider lists {count} models.",
+  "@modelServices_connectionOk": {
     "placeholders": {
       "count": {}
     }
   },
+  "modelServices_connectionFailed": "Couldn't connect: {error}",
+  "@modelServices_connectionFailed": {
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "modelServices_models": "Models",
+  "modelServices_modelCount": "{count} models",
+  "@modelServices_modelCount": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "modelServices_noModels": "No models yet. Pick from the provider's list or add a model ID.",
+  "modelServices_manageModels": "Manage models",
+  "modelServices_addModel": "Add model",
+  "modelServices_manageModelsTitle": "{provider} models",
+  "@modelServices_manageModelsTitle": {
+    "placeholders": {
+      "provider": {}
+    }
+  },
+  "modelServices_addGroup": "Add all {group} models",
+  "@modelServices_addGroup": {
+    "placeholders": {
+      "group": {}
+    }
+  },
+  "modelServices_removeGroup": "Remove all {group} models",
+  "@modelServices_removeGroup": {
+    "placeholders": {
+      "group": {}
+    }
+  },
+  "modelServices_notListed": "No longer listed",
+  "modelServices_reasoning": "Reasoning",
+  "modelServices_vision": "Vision",
+  "modelServices_contextWindow": "{size} context",
+  "@modelServices_contextWindow": {
+    "placeholders": {
+      "size": {}
+    }
+  },
+  "modelServices_modelId": "Model ID",
+  "modelServices_modelIdRequired": "Enter a model ID",
+  "modelServices_modelExists": "This provider already has this model",
+  "modelServices_displayName": "Display name",
+  "modelServices_displayNameHint": "Leave empty to use {name}",
+  "@modelServices_displayNameHint": {
+    "placeholders": {
+      "name": {}
+    }
+  },
+  "modelServices_editModel": "Edit model",
+  "modelServices_removeModel": "Remove model",
+  "modelServices_removeModelConfirm": "Remove {name} from this provider?",
+  "@modelServices_removeModelConfirm": {
+    "placeholders": {
+      "name": {}
+    }
+  },
+  "modelServices_removeModelInUse": "{name} is used by {usages}. Task routing switches to this provider's next model, and Agent asks you to pick a model again.",
+  "@modelServices_removeModelInUse": {
+    "placeholders": {
+      "name": {},
+      "usages": {}
+    }
+  },
+  "modelServices_usageSeparator": ", ",
+  "modelServices_cleanStaleModels": "Remove delisted models",
+  "modelServices_addAllModels": "Add all models",
+  "modelServices_staleModelCount": "{count} delisted models",
+  "@modelServices_staleModelCount": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "modelServices_addAllConfirm": "Add {count} models to this provider?",
+  "@modelServices_addAllConfirm": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "promptAssistant_supportsImageInput": "Supports image input",
+  "promptAssistant_textOnly": "Text only",
+  "promptAssistant_editProvider": "Edit provider",
+  "promptAssistant_deleteProvider": "Delete provider",
+  "promptAssistant_emptyModelList": "Provider returned an empty model list",
   "promptAssistant_pullModelsFailed": "Failed to pull models: {error}",
   "@promptAssistant_pullModelsFailed": {
     "placeholders": {
@@ -3219,16 +3440,7 @@
   "promptAssistant_allowImageInput": "Allow image input",
   "promptAssistant_allowImageInputSubtitle": "Enable only when the model and provider actually support vision input",
   "promptAssistant_apiKeyLeaveEmpty": "API Key (leave empty to keep unchanged)",
-  "promptAssistant_connectionTitle": "{name} Connection Config",
-  "@promptAssistant_connectionTitle": {
-    "placeholders": {
-      "name": {}
-    }
-  },
   "promptAssistant_baseUrlHint": "Example: https://api.openai.com/v1",
-  "promptAssistant_clearCurrentApiKey": "Clear current API Key",
-  "promptAssistant_protocolSupportsImagePayload": "The current protocol supports image payloads; the model itself must still support vision input",
-  "promptAssistant_protocolTextOnlyWarning": "The current protocol is text-only by default; enabling this may still be rejected by the server",
   "promptAssistant_addRuleTitle": "Add Rule",
   "promptAssistant_editRuleTitle": "Edit Rule",
   "promptAssistant_taskType": "Task Type",
@@ -3661,6 +3873,18 @@
   "@settings_queueRetryIntervalValue": {
     "placeholders": {
       "seconds": {}
+    }
+  },
+  "settings_decreaseValue": "Decrease {field}",
+  "@settings_decreaseValue": {
+    "placeholders": {
+      "field": {}
+    }
+  },
+  "settings_increaseValue": "Increase {field}",
+  "@settings_increaseValue": {
+    "placeholders": {
+      "field": {}
     }
   },
   "unit_times": "times",
@@ -4646,12 +4870,6 @@
   },
   "vibe_saveToLibrary_tagHint": "Enter a tag, then press Add",
   "vibe_maxReached": "Maximum 16 vibes reached",
-  "vibe_addedNamed": "Added Vibe: {name}",
-  "@vibe_addedNamed": {
-    "placeholders": {
-      "name": {"type": "String"}
-    }
-  },
   "vibe_addedCount": "Added {count} vibes",
   "@vibe_addedCount": {
     "placeholders": {
@@ -4739,6 +4957,85 @@
     }
   },
 
+  "settings_mcpServerPermissionSection": "Permissions",
+  "settings_mcpServerClientsSection": "Clients",
+  "settings_mcpServerEnable": "Enable MCP server",
+  "settings_mcpServerDisabledText": "Off by default; listens only on local 127.0.0.1 when enabled",
+  "settings_mcpServerStartingText": "Starting the local MCP server...",
+  "settings_mcpServerListeningText": "Waiting for MCP client connections",
+  "settings_mcpServerErrorText": "Startup failed, check the error message",
+  "settings_mcpServerDisabled": "Disabled",
+  "settings_mcpServerStarting": "Starting",
+  "settings_mcpServerListening": "Listening",
+  "settings_mcpServerError": "Error",
+  "settings_mcpServerEndpoint": "Endpoint",
+  "settings_mcpServerCopyEndpoint": "Copy endpoint",
+  "settings_mcpServerPort": "Port",
+  "settings_mcpServerPortHelper": "Changing it disconnects connected clients",
+  "settings_mcpServerPortInvalid": "Enter a port between {min} and {max}",
+  "@settings_mcpServerPortInvalid": {
+    "placeholders": {
+      "min": {},
+      "max": {}
+    }
+  },
+  "settings_mcpServerPortInUseHint": "Port {port} is already in use, pick another port below",
+  "@settings_mcpServerPortInUseHint": {
+    "placeholders": {
+      "port": {}
+    }
+  },
+  "settings_mcpServerDiscoveryFile": "Discovery file",
+  "settings_mcpServerToken": "Access token",
+  "settings_mcpServerRevealToken": "Show token",
+  "settings_mcpServerHideToken": "Hide token",
+  "settings_mcpServerCopyToken": "Copy token",
+  "settings_mcpServerRegenerateToken": "Regenerate token",
+  "settings_mcpServerRegenerateTokenTitle": "Regenerate access token",
+  "settings_mcpServerRegenerateTokenMessage": "The current token stops working immediately and connected clients are disconnected. Update every client configuration with the new token.",
+  "settings_mcpServerAnlasNotice": "Anything that may spend Anlas is confirmed separately inside the launcher, regardless of the permission mode.",
+  "settings_mcpServerPendingApproval": "{client} is requesting {tool}",
+  "@settings_mcpServerPendingApproval": {
+    "placeholders": {
+      "client": {},
+      "tool": {}
+    }
+  },
+  "settings_mcpServerPendingApprovalHint": "Respond in the approval banner at the top of the page",
+  "settings_mcpServerConnectedClients": "Connected clients",
+  "settings_mcpServerSessionsEmpty": "No clients connected yet",
+  "settings_mcpServerSessionConnectedAt": "Connected at {time}",
+  "@settings_mcpServerSessionConnectedAt": {
+    "placeholders": {
+      "time": {}
+    }
+  },
+  "settings_mcpServerSessionLastActivity": "Last activity {time}",
+  "@settings_mcpServerSessionLastActivity": {
+    "placeholders": {
+      "time": {}
+    }
+  },
+  "settings_mcpServerClientConfigs": "Client configuration",
+  "settings_mcpServerConfigUnavailable": "Client configuration appears once the server is running",
+  "settings_mcpServerCopyConfig": "Copy configuration",
+  "settings_mcpServerTokenMaskNotice": "The token is masked in the preview; copying writes the real token.",
+  "settings_mcpServerCliMissing": "Bundled CLI not found (expected at {path}), which is normal in development runs",
+  "@settings_mcpServerCliMissing": {
+    "placeholders": {
+      "path": {}
+    }
+  },
+  "settings_mcpServerViewDocs": "View documentation",
+  "settings_mcpServerAgentPromptTitle": "Recommended: let the agent configure itself",
+  "settings_mcpServerAgentPromptHint": "Send this prompt to the agent you want to connect; it reads the setup documentation and installs the configuration itself. The prompt carries no token — the bundled CLI reads it locally.",
+  "settings_mcpServerClaudeCodeHint": "Run this command in a terminal to register the server.",
+  "settings_mcpServerCodexHint": "Run the command to register the server, then set the token in the environment variable below.",
+  "settings_mcpServerCursorHint": "Merge this into the Cursor mcp.json configuration file.",
+  "settings_mcpServerCherryStudioHint": "Paste this into Cherry Studio's MCP server settings with “Import from JSON”; timeout is in seconds and already covers the in-app approval wait.",
+  "settings_mcpServerPiHint": "Pi has no built-in MCP: install the pi-mcp-adapter package first, then merge this into ~/.pi/agent/mcp.json.",
+  "settings_mcpServerClaudeDesktopHint": "Merge this into the Claude Desktop configuration; it connects over stdio through the bundled CLI.",
+
   "settings_fontScale": "Font Size",
   "settings_fontScale_description": "Adjust global font scale",
   "settings_fontScale_previewSmall": "The setting sun and lone duck fly together",
@@ -4820,7 +5117,7 @@
   "settings_copyDragWatermarkTitle": "Add watermark when copying or dragging",
   "settings_copyDragWatermarkSubtitle": "Use the saved default watermark. Adding a watermark does not remove metadata. To remove it, enable \"Remove all metadata when copying or dragging\" above.",
   "settings_stripMetadataTitle": "Remove all metadata when copying or dragging",
-  "settings_stripMetadataSubtitle": "Create a sanitized copy, remove PNG text chunks, EXIF, and NAI steganographic watermark data, and avoid exposing the original path while dragging.",
+  "settings_stripMetadataSubtitle": "Remove PNG text chunks, EXIF, and NAI steganographic watermark data when copying, dragging, or returning MCP images. Local originals stay unchanged; MCP keeps the original resolution, and the gallery original it reports as saved_path is not sanitized.",
   "settings_confirmDangerousActionsTitle": "Double-confirm dangerous asset actions",
   "settings_confirmDangerousActionsSubtitle": "Deleting, moving, or batch-moving local assets will show an additional protection confirmation.",
   "settings_warnExternalImageSendTitle": "Confirm before sending to external services",
@@ -6149,6 +6446,96 @@
       "max": {"type": "int"}
     }
   },
+  "editor_toolFrame": "Frame",
+  "editor_toolMove": "Move",
+  "editor_toolGroupInpaint": "Inpaint",
+  "editor_toolGroupEdit": "Edit",
+  "editor_toolGroupCommon": "General",
+  "editor_toolMaskBrush": "Mask Brush",
+  "editor_toolMaskEraser": "Mask Eraser",
+  "editor_toolMaskColorFill": "Fill Mask by Color",
+  "editor_toolMaskMagicWand": "Mask Magic Wand",
+  "editor_moveLayerHint": "Drag to move the whole current layer.",
+  "editor_moveSelectionHint": "Drag to move the pixels of the current layer inside the selection.",
+  "editor_moveBaseLayerHint": "The base image cannot be moved as a whole. Make a selection first, then move the pixels inside it.",
+  "editor_moveNoLayer": "There is no layer to move.",
+  "editor_moveNudgeHint": "Arrow keys move 1 pixel; hold Shift to move 10 pixels.",
+  "editor_shortcutNudge": "Move 1 pixel",
+  "editor_shortcutNudgeFar": "Move 10 pixels",
+  "selection_clearPixels": "Delete Selected Pixels",
+  "selection_cutLayerName": "{name} Cut",
+  "@selection_cutLayerName": {
+    "placeholders": {
+      "name": {}
+    }
+  },
+  "layer_duplicateName": "{name} Copy",
+  "@layer_duplicateName": {
+    "placeholders": {
+      "name": {}
+    }
+  },
+  "layer_roleMask": "Mask",
+  "layer_addImage": "Add Image Layer",
+  "layer_addMask": "Add Mask Layer",
+  "img2img_inpaintSourceUpdated": "Base image edits saved. Paint a mask to start inpainting.",
+  "editor_frameToolHint": "Drag inside the frame to move it, or drag its edges to resize. Content outside the frame is kept and dimmed; only the area inside is sent for generation. A moved frame keeps at least 64 px of overlap with the image.",
+  "editor_frameSizeReadout": "Size: {width} x {height}",
+  "@editor_frameSizeReadout": {
+    "placeholders": {
+      "width": {"type": "int"},
+      "height": {"type": "int"}
+    }
+  },
+  "editor_frameOffsetReadout": "Offset from image: X {x}, Y {y}",
+  "@editor_frameOffsetReadout": {
+    "placeholders": {
+      "x": {"type": "int"},
+      "y": {"type": "int"}
+    }
+  },
+  "editor_frameMoveLockedByView": "The frame can't be moved while the view is rotated or mirrored. Press R to reset the view, then try again.",
+  "editor_resetFrame": "Reset Frame",
+  "editor_cropToFrame": "Crop to Frame",
+  "editor_cropToFrameHint": "Discard the image and mask outside the frame. This can be undone.",
+  "editor_cropToFrameFailed": "Crop to frame failed: {error}",
+  "@editor_cropToFrameFailed": {
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "editor_changeFrameSize": "Change Frame Size",
+  "editor_frameResized": "Frame resized to {width} x {height}",
+  "@editor_frameResized": {
+    "placeholders": {
+      "width": {"type": "int"},
+      "height": {"type": "int"}
+    }
+  },
+  "editor_frameToolHintPasteBack": "Drag inside the frame to move it in 64 px steps, or drag its edges to resize. Only the area inside is sent for generation; when part of the image lies outside the frame, the result is pasted back into the full image through the mask and the outside stays unchanged. The frame keeps at least 64 px of overlap with the image.",
+  "editor_frameRequestReadout": "Request: {width} x {height}",
+  "@editor_frameRequestReadout": {
+    "placeholders": {
+      "width": {"type": "int"},
+      "height": {"type": "int"}
+    }
+  },
+  "editor_frameRequestFree": "Free",
+  "editor_frameRequestCost": "~{cost} Anlas",
+  "@editor_frameRequestCost": {
+    "placeholders": {
+      "cost": {"type": "int"}
+    }
+  },
+  "editor_frameResizeRejected": "Can't resize the frame: it must overlap the image by at least {overlap} px, and the frame and image together can't exceed {max} px per side.",
+  "@editor_frameResizeRejected": {
+    "placeholders": {
+      "overlap": {"type": "int"},
+      "max": {"type": "int"}
+    }
+  },
+  "editor_compressionFrameLimited": "Higher resolutions are unavailable because the frame would exceed the request area limit.",
+  "img2img_focusOutpaintHint": "Focus outpaint: only the frame is sent, and the result is pasted back into the full image through the mask. Adjust the frame with the Frame tool in the inpaint editor.",
 
   "savePreset_title": "Save as Preset",
   "savePreset_nameHint": "Enter preset name",
@@ -6161,6 +6548,9 @@
   },
 
   "onlineGallery_videoLoadFailed": "Failed to load video",
+  "onlineGallery_videoPositionLabel": "Playback position",
+  "onlineGallery_videoPlay": "Play",
+  "onlineGallery_videoPause": "Pause",
   "vibe_releaseToAddStyleReference": "Release to add style reference",
   "router_backAgainToExit": "Swipe or press back again to exit",
   "router_pageNotFound": "Page not found: {error}",
@@ -6313,6 +6703,20 @@
   "@localGallery_saveToSystemGalleryFailed": {"placeholders":{"error":{}}},
   "image_savedAppOnly": "Saved to the app gallery, but could not export to your photo gallery: {error}",
   "@image_savedAppOnly": {"placeholders":{"error":{}}},
+  "image_savedToAppGallery": "Saved to the app gallery",
+  "image_saveAs": "Save as…",
+  "image_saveAsDialogTitle": "Save image as",
+  "image_saveAsToFolder": "Save to folder…",
+  "image_saveAsFolderDialogTitle": "Choose a folder to save to",
+  "image_savedAs": "Saved as {path}",
+  "@image_savedAs": {"placeholders":{"path":{}}},
+  "image_savedAsToChosenLocation": "Saved to the chosen location",
+  "image_savedAsToFolder": "Saved {count} images to {path}",
+  "@image_savedAsToFolder": {"placeholders":{"count":{"type":"int"},"path":{}}},
+  "image_savedAsToChosenFolder": "Saved {count} images to the chosen folder",
+  "@image_savedAsToChosenFolder": {"placeholders":{"count":{"type":"int"}}},
+  "image_savedAsPartial": "Saved {saved}, {failed} failed: {error}",
+  "@image_savedAsPartial": {"placeholders":{"saved":{"type":"int"},"failed":{"type":"int"},"error":{}}},
   "image_shareFailed": "Share failed: {error}",
   "@image_shareFailed": {"placeholders":{"error":{}}},
   "onlineGallery_savedFiles": "Saved {count} files",
@@ -6392,6 +6796,8 @@
   "cloudSync_onlineGalleryFavoritesDescription": "Stores source IDs and recovery fields only, never original images",
   "cloudSync_galleryAlbums": "Local gallery albums",
   "cloudSync_galleryAlbumsDescription": "Stores album structure and image references, never original images",
+  "cloudSync_fixedTagUsage": "Fixed-tag usage records",
+  "cloudSync_fixedTagUsageDescription": "Stores a lightweight record of which fixed tags each image used, never the images",
   "cloudSync_optionalResources": "Optional resources (off by default)",
   "cloudSync_vibes": "Vibe",
   "cloudSync_preciseReferences": "Precise references",
@@ -6543,11 +6949,20 @@
   "agentSettings_densityDescription": "Comfortable preserves touch targets and spacing; compact fits more on desktop.",
   "agentSettings_densityComfortable": "Comfortable",
   "agentSettings_densityCompact": "Compact",
+  "agentSettings_chatPlacement": "Chat placement",
+  "agentSettings_chatPlacementDescription": "Applies to wide windows only; narrow screens keep the full-screen chat.",
+  "agentSettings_dockLayout": "Right panel layout",
+  "agentSettings_dockLayoutDescription": "Switch shows either chat or history in the right panel; split layouts show both at once.",
+  "agentSettings_dockExclusive": "Switch",
+  "agentSettings_dockStacked": "Stacked",
+  "agentSettings_dockSideBySide": "Side by side",
+  "agentSettings_floatingWindow": "Show chat in a floating window",
+  "agentSettings_floatingWindowDescription": "The floating window stays on every page and can be moved and resized; the right panel then shows only history.",
   "agentSettings_chatModel": "Chat model",
   "agentSettings_providerModel": "Provider / model",
-  "agentSettings_modelManagedInIntegrations": "Providers, API keys, and model discovery remain centrally managed in Integrations.",
+  "agentSettings_modelManagedInIntegrations": "Providers, API keys, and models are managed in Integrations > Model services.",
   "agentSettings_manageProviders": "Manage providers",
-  "agentSettings_noModel": "No chat model is available. Add a provider and discover models in Integrations first.",
+  "agentSettings_noModel": "No chat model is available. Add a provider and its models in Integrations > Model services first.",
   "agentSettings_pendingMatch": "pending match",
   "agentSettings_contextWindow": "Context window (tokens)",
   "agentSettings_contextWindowKnown": "Leave empty to use the built-in value {value}. Override it when a relay or custom deployment exposes a different window.",
@@ -6562,7 +6977,7 @@
   "agentSettings_permissionAsk": "Ask before sensitive actions",
   "agentSettings_permissionAskDescription": "Default. Ask before writing files, generating images, or other sensitive actions.",
   "agentSettings_permissionFull": "Full access",
-  "agentSettings_permissionFullDescription": "Allow direct tool use and files outside the workspace. Use only for trusted tasks.",
+  "agentSettings_permissionFullDescription": "Allow direct tool use and files outside the workspace; deleting saved data or spending Anlas still asks first. Use only for trusted tasks.",
   "agentSettings_webPreference": "Web preference",
   "agentSettings_webEnabled": "Allow the Agent to use Web tools",
   "agentSettings_webDescription": "When enabled, the model can search and read public pages. Turning it off removes Web tools at runtime.",

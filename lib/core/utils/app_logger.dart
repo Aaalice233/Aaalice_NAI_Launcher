@@ -21,6 +21,7 @@ class AppLogger {
   static bool _isTestEnvironment = false;
   static bool _fileLoggingEnabled = false;
   static Level? _minimumLevelOverride;
+  static String? _logDirectoryOverride;
 
   /// 文件日志轮转检查摊销阈值。
   static const int _rotateCheckLogInterval = 50;
@@ -110,19 +111,25 @@ class AppLogger {
     }
   }
 
+  /// 仅影响之后新建的日志文件，需在开启文件日志前设置。
+  @visibleForTesting
+  static void debugSetLogDirectoryForTesting(String? directory) {
+    _logDirectoryOverride = directory;
+  }
+
   static Future<bool> _enableFileOutput() async {
     try {
       await _setupLogDirectory();
       await _cleanupOldLogs();
       await _createNewLogFile();
-      return _fileOutput != null;
+      if (_fileOutput?.isOpen ?? false) return true;
     } catch (_) {
       // File logging is optional at startup; logger output may not exist yet.
-      await _fileOutput?.destroy();
-      _fileOutput = null;
-      _currentLogFile = null;
-      return false;
     }
+    await _fileOutput?.destroy();
+    _fileOutput = null;
+    _currentLogFile = null;
+    return false;
   }
 
   static Future<void> _recreateFileOutput() async {
@@ -190,6 +197,13 @@ class AppLogger {
   ///
   /// 日志目录：Documents/NAI_Launcher/logs/ (与 images/ 平级)
   static Future<void> _setupLogDirectory() async {
+    final overrideDirectory = _logDirectoryOverride;
+    if (overrideDirectory != null) {
+      await Directory(overrideDirectory).create(recursive: true);
+      _logDirectory = overrideDirectory;
+      return;
+    }
+
     try {
       // 使用 Documents/NAI_Launcher/logs/ 路径，与 images/ 平级
       final appDir = await getApplicationDocumentsDirectory();
@@ -588,15 +602,17 @@ class AppLogger {
   }
 }
 
-/// 文件日志输出
-///
-/// 【修复】使用同步写入 + 定时刷新，避免日志截断和格式问题
+/// 文件日志输出：日志先进内存缓冲，再经串行写队列追加到文件。
 class FileOutput extends LogOutput {
   final File file;
   final bool overrideExisting;
   final Encoding encoding;
-  IOSink? _sink;
-  bool _isDestroyed = false;
+  final StringBuffer _pendingText = StringBuffer();
+  RandomAccessFile? _handle;
+  Future<void>? _opening;
+  Future<void>? _closing;
+  Future<void> _writes = Future<void>.value();
+  bool _writeQueued = false;
 
   FileOutput({
     required this.file,
@@ -604,52 +620,70 @@ class FileOutput extends LogOutput {
     this.encoding = utf8,
   });
 
+  /// 日志文件是否已成功打开。
+  bool get isOpen => _handle != null;
+
+  // Logger 构造时会再次调用 init 且不监听结果，因此必须幂等且不能抛错
   @override
-  Future<void> init() async {
-    // 【修复】使用 append 模式，确保不覆盖已有日志
-    _sink = file.openWrite(
-      mode: overrideExisting ? FileMode.writeOnly : FileMode.writeOnlyAppend,
-      encoding: encoding,
-    );
-    _isDestroyed = false;
+  Future<void> init() => _opening ??= _open();
+
+  Future<void> _open() async {
+    try {
+      _handle = await file.open(
+        mode: overrideExisting ? FileMode.writeOnly : FileMode.writeOnlyAppend,
+      );
+    } catch (_) {
+      // 打开失败经 isOpen 反馈给调用方，由其回退到控制台日志
+    }
   }
 
   @override
   void output(OutputEvent event) {
-    if (_sink == null || _isDestroyed) return;
-
-    try {
-      // 【修复】逐行写入，避免 join 导致的格式问题
-      for (final line in event.lines) {
-        _sink!.writeln(line);
-      }
-      // 【修复】不再每次 flush，让系统自动缓冲，提高性能
-      // 在 destroy 时会强制 flush
-    } catch (e) {
-      // 忽略写入错误，避免日志系统本身导致崩溃
+    if (_closing != null) return;
+    for (final line in event.lines) {
+      _pendingText.writeln(line);
     }
+    _queueWrite();
   }
 
-  /// 【新增】强制刷新到文件
-  Future<void> flush() async {
-    if (_sink != null && !_isDestroyed) {
-      try {
-        await _sink!.flush();
-      } catch (e) {
-        // 忽略 flush 错误
-      }
-    }
+  /// 等待此前输出的全部日志写入文件。
+  Future<void> flush() {
+    _queueWrite();
+    return _writes;
   }
 
   @override
-  Future<void> destroy() async {
-    _isDestroyed = true;
+  Future<void> destroy() => _closing ??= _close();
+
+  Future<void> _close() async {
+    await flush();
+    final opening = _opening;
+    if (opening != null) await opening;
+    final handle = _handle;
+    _handle = null;
     try {
-      await _sink?.flush();
-      await _sink?.close();
-    } catch (e) {
-      // 忽略关闭错误
+      await handle?.close();
+    } catch (_) {
+      // Logging must never become the source of application failures.
     }
-    _sink = null;
+  }
+
+  void _queueWrite() {
+    if (_writeQueued || _pendingText.isEmpty) return;
+    _writeQueued = true;
+    _writes = _writes.then((_) => _writePending());
+  }
+
+  Future<void> _writePending() async {
+    _writeQueued = false;
+    final text = _pendingText.toString();
+    _pendingText.clear();
+    try {
+      final bytes = encoding.encode(text);
+      await init();
+      await _handle?.writeFrom(bytes);
+    } catch (_) {
+      // Logging must never become the source of application failures.
+    }
   }
 }

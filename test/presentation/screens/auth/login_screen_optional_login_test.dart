@@ -4,8 +4,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:nai_launcher/data/models/auth/saved_account.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
-import 'package:nai_launcher/presentation/providers/account_manager_provider.dart';
-import 'package:nai_launcher/presentation/providers/auth_provider.dart';
+import 'package:nai_launcher/data/services/account_manager_provider.dart';
+import 'package:nai_launcher/data/services/auth_provider.dart';
 import 'package:nai_launcher/presentation/screens/auth/login_screen.dart';
 
 class _UnauthenticatedAuthNotifier extends AuthNotifier {

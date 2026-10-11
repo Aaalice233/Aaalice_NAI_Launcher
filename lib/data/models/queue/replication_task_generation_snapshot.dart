@@ -1,9 +1,34 @@
 import 'dart:convert';
 import 'dart:typed_data';
+import 'dart:ui';
 
 import '../../../core/enums/precise_ref_type.dart';
+import '../../../core/utils/focused_inpaint_utils.dart';
 import '../image/image_params.dart';
 import '../vibe/vibe_reference.dart';
+
+/// 队列任务确认时的聚焦重绘状态；它属于任务自带的源图，执行时不能借用生成页当前状态
+class QueuedFocusedInpaint {
+  const QueuedFocusedInpaint({
+    required this.enabled,
+    required this.contextPadding,
+    this.selectionRect,
+    this.contextCrop,
+  });
+
+  const QueuedFocusedInpaint.disabled()
+    : enabled = false,
+      contextPadding = FocusedInpaintUtils.defaultContextPadding,
+      selectionRect = null,
+      contextCrop = null;
+
+  final bool enabled;
+  final double contextPadding;
+  final Rect? selectionRect;
+
+  /// 聚焦外扩的固定裁切区
+  final Rect? contextCrop;
+}
 
 /// Durable, path-free snapshot of the exact generation request confirmed for a
 /// queue task. Binary inputs are owned by the persisted task instead of being
@@ -11,8 +36,11 @@ import '../vibe/vibe_reference.dart';
 abstract final class ReplicationTaskGenerationSnapshot {
   static const int schemaVersion = 1;
 
-  static Map<String, dynamic> clone(Map<String, dynamic> snapshot) =>
-      encode(decode(snapshot), batchSize: decodeBatchSize(snapshot));
+  static Map<String, dynamic> clone(Map<String, dynamic> snapshot) => encode(
+    decode(snapshot),
+    batchSize: decodeBatchSize(snapshot),
+    focused: decodeFocused(snapshot),
+  );
 
   static Map<String, dynamic> withTaskText(
     Map<String, dynamic> snapshot, {
@@ -21,11 +49,18 @@ abstract final class ReplicationTaskGenerationSnapshot {
   }) => encode(
     decode(snapshot).copyWith(prompt: prompt, negativePrompt: negativePrompt),
     batchSize: decodeBatchSize(snapshot),
+    focused: decodeFocused(snapshot),
   );
 
-  static Map<String, dynamic> encode(ImageParams params, {int? batchSize}) => {
+  /// [focused] 为空时不写入聚焦段，执行端沿用旧快照的行为
+  static Map<String, dynamic> encode(
+    ImageParams params, {
+    int? batchSize,
+    QueuedFocusedInpaint? focused,
+  }) => {
     'schemaVersion': schemaVersion,
     if (batchSize != null) 'batchSize': batchSize,
+    if (focused != null) 'focused': _encodeFocused(focused),
     'params': params.toJson(),
     'transient': {
       'omitQualityTagHint': params.omitQualityTagHint,
@@ -76,6 +111,53 @@ abstract final class ReplicationTaskGenerationSnapshot {
       throw const FormatException('Invalid queue generation batch size');
     }
     return value;
+  }
+
+  /// 旧快照没有聚焦段时返回 null
+  static QueuedFocusedInpaint? decodeFocused(Map<String, dynamic> snapshot) {
+    final value = snapshot['focused'];
+    if (value == null) return null;
+    if (value is! Map ||
+        value['enabled'] is! bool ||
+        value['contextPadding'] is! num) {
+      throw const FormatException('Invalid queued focused inpaint');
+    }
+    return QueuedFocusedInpaint(
+      enabled: value['enabled'] as bool,
+      contextPadding: (value['contextPadding'] as num).toDouble(),
+      selectionRect: _decodeRect(value['selectionRect']),
+      contextCrop: _decodeRect(value['contextCrop']),
+    );
+  }
+
+  static Map<String, dynamic> _encodeFocused(QueuedFocusedInpaint focused) => {
+    'enabled': focused.enabled,
+    'contextPadding': focused.contextPadding,
+    if (focused.selectionRect != null)
+      'selectionRect': _encodeRect(focused.selectionRect!),
+    if (focused.contextCrop != null)
+      'contextCrop': _encodeRect(focused.contextCrop!),
+  };
+
+  static List<double> _encodeRect(Rect rect) => [
+    rect.left,
+    rect.top,
+    rect.width,
+    rect.height,
+  ];
+
+  static Rect? _decodeRect(Object? value) {
+    if (value == null) return null;
+    if (value is! List || value.length != 4 || value.any((v) => v is! num)) {
+      throw const FormatException('Invalid queued focused rectangle');
+    }
+    final numbers = value.cast<num>();
+    return Rect.fromLTWH(
+      numbers[0].toDouble(),
+      numbers[1].toDouble(),
+      numbers[2].toDouble(),
+      numbers[3].toDouble(),
+    );
   }
 
   static ImageParams decode(Map<String, dynamic> snapshot) {

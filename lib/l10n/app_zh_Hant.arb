@@ -195,13 +195,23 @@
   "auth_switchAccount": "切換賬號",
   "auth_currentAccount": "當前賬號",
   "auth_selectAccount": "選擇賬號",
-  "auth_deleteAccount": "刪除賬號",
-  "auth_deleteAccountConfirm": "確定要刪除賬號 \"{name}\" 嗎？此操作不可撤銷。",
-  "@auth_deleteAccountConfirm": {
+  "auth_manageAccounts": "管理賬號",
+  "auth_removeSavedAccount": "移除賬號",
+  "auth_removeSavedAccountAction": "移除",
+  "auth_removeSavedAccountConfirm": "將從本機移除「{name}」儲存的登入憑據和頭像。NovelAI 賬號本身不受影響，之後可以重新登入。",
+  "@auth_removeSavedAccountConfirm": {
     "placeholders": {
       "name": {}
     }
   },
+  "auth_removeSessionAccountNotice": "你目前正在使用此賬號，確認後會先退出登入。",
+  "auth_removeSavedAccountSuccess": "已移除「{name}」",
+  "@auth_removeSavedAccountSuccess": {
+    "placeholders": {
+      "name": {}
+    }
+  },
+  "auth_removeSavedAccountFailed": "移除賬號失敗，請稍後重試",
   "auth_removeAvatar": "移除頭像",
   "auth_selectFromGallery": "從相簿選擇",
   "auth_quickLogin": "一鍵登入",
@@ -286,6 +296,8 @@
   "settings_imageSavePath": "圖片儲存位置",
   "settings_autoSave": "自動儲存",
   "settings_autoSaveSubtitle": "生成後自動儲存圖片",
+  "settings_syncToSystemGallery": "同步到系統相簿",
+  "settings_syncToSystemGallerySubtitle": "關閉後僅儲存到應用程式圖庫，不再出現在系統相簿；已同步的圖片不受影響",
   "settings_about": "關於",
   "settings_version": "版本 {version}",
   "settings_openSource": "開源專案",
@@ -365,6 +377,10 @@
   "generation_history": "歷史",
   "generation_historyRecord": "歷史記錄",
   "agentChat_tab": "聊天",
+  "agentChat_popOutFloating": "彈出為浮窗",
+  "agentChat_dockToSidePanel": "停靠回側欄",
+  "agentChat_hideFloating": "隱藏浮窗",
+  "agentChat_resizeDockSplit": "調整聊天與歷史的分隔",
   "nav_agent": "智慧體",
   "agentChat_inputHint": "給 AI 助手傳送訊息…",
   "agentChat_inputHintWithSlash": "給 AI 助手傳送訊息，輸入 / 引用技能…",
@@ -396,6 +412,7 @@
       "fileName": {}
     }
   },
+  "agentChat_dropHint": "放開以加入對話",
   "agentChat_newChat": "新對話",
   "agentChat_searchSessions": "搜尋對話",
   "agentChat_send": "傳送",
@@ -495,6 +512,8 @@
   "@agentChat_addResourceFailed": {"placeholders":{"error":{"type":"String"}}},
   "agentChat_approvalEstimatedAnlas": "預計消耗：{cost} Anlas",
   "@agentChat_approvalEstimatedAnlas": {"placeholders": {"cost": {"type": "int"}}},
+  "agentChat_approvalFileTarget": "將寫入檔案：{path}",
+  "@agentChat_approvalFileTarget": {"placeholders": {"path": {"type": "String"}}},
   "agentChat_needSetup": "未設定聊天模型。請先在設定中新增支援工具呼叫的供應商。",
   "agentChat_heroTitle": "今天想做什麼？",
   "agentChat_heroSubtitle": "準備生成角色提示詞、整理靈感或最佳化設定。",
@@ -528,7 +547,7 @@
   "agentChat_permissionAsk": "詢問模式",
   "agentChat_permissionAskDescription": "敏感操作執行前詢問",
   "agentChat_permissionFull": "完全存取",
-  "agentChat_permissionFullDescription": "不詢問並允許存取工作區外檔案",
+  "agentChat_permissionFullDescription": "僅刪除已存資料或消耗 Anlas 時詢問，可存取工作區外檔案",
   "agentChat_approvalTitle": "允許執行 {toolName}？",
   "@agentChat_approvalTitle": {
     "placeholders": {
@@ -538,12 +557,67 @@
   "agentChat_approvalDescription": "此工具會讀取本機資料、修改應用程式狀態或產生費用。",
   "agentChat_approvalAllow": "允許一次",
   "agentChat_approvalDeny": "拒絕",
+  "mcpApproval_title": "外部智慧體 {client} 請求授權",
+  "@mcpApproval_title": {
+    "placeholders": {
+      "client": {}
+    }
+  },
+  "mcpApproval_expiresIn": "{seconds} 秒後自動拒絕",
+  "@mcpApproval_expiresIn": {
+    "placeholders": {
+      "seconds": {}
+    }
+  },
+  "mcpApproval_unknownClient": "未知用戶端",
   "generation_failedStreamSnapshot": "失敗快照",
   "generation_failedStreamSnapshotHint": "生成未完成，僅保留最後一幀預覽；不可儲存、收藏或用於圖生圖",
   "generation_noHistory": "暫無歷史記錄",
   "generation_clearHistory": "清除歷史記錄",
   "generation_clearHistoryConfirm": "確定要清除所有歷史記錄嗎？此操作不可撤銷。",
+  "generation_deleteImageConfirm": "從歷史記錄中刪除這張圖片？此操作不可撤銷。",
+  "generation_deleteImageWithFileConfirm": "從歷史記錄中刪除這張圖片，並永久刪除本機圖庫中的檔案「{fileName}」？此操作不可撤銷。",
+  "@generation_deleteImageWithFileConfirm": {
+    "placeholders": {
+      "fileName": {}
+    }
+  },
+  "generation_deleteImagesConfirm": "從歷史記錄中刪除選取的 {count} 張圖片？此操作不可撤銷。",
+  "@generation_deleteImagesConfirm": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "generation_deleteImagesWithFilesConfirm": "從歷史記錄中刪除選取的 {count} 張圖片，並永久刪除其中 {fileCount} 個已儲存到本機圖庫的檔案？此操作不可撤銷。",
+  "@generation_deleteImagesWithFilesConfirm": {
+    "placeholders": {
+      "count": {},
+      "fileCount": {}
+    }
+  },
+  "generation_deleteConfirmSkipForSession": "本次執行期間不再詢問",
+  "generation_deleteImageFilesFailed": "圖片已從歷史記錄移除，但有 {count} 個本機檔案刪除失敗：{error}",
+  "@generation_deleteImageFilesFailed": {
+    "placeholders": {
+      "count": {},
+      "error": {}
+    }
+  },
   "generation_model": "模型",
+  "generation_modelMode": "模式",
+  "generation_modelModeAnime": "動漫",
+  "generation_modelModeFurry": "獸人",
+  "generation_effort": "生成檔位",
+  "generation_effortMedium": "節約",
+  "generation_effortHigh": "標準",
+  "generation_effortUnavailableHint": "節約檔不使用此項",
+  "generation_effortNegativeLocked": "節約檔不傳送",
+  "generation_effortNegativeLockedHint": "節約檔不傳送負向提示詞，只使用「{ucPreset}」負面預設。已填寫的內容會保留，切回標準檔後繼續生效",
+  "@generation_effortNegativeLockedHint": {
+    "placeholders": {
+      "ucPreset": {}
+    }
+  },
   "generation_opusUsageRemaining": "Opus 免費生成剩餘 {percent}%",
   "generation_opusUsageEstimate": "約可再生成 {count} 張",
   "generation_opusUsageRefill": "額度會隨時間自動恢復",
@@ -553,7 +627,9 @@
   "generation_e2eUpscaleHint": "服務端輸出 {size}",
   "generation_sampler": "取樣器",
   "generation_steps": "步數: {steps}",
+  "generation_stepsLabel": "步數",
   "generation_cfgScale": "CFG 強度：{scale}",
+  "generation_cfgScaleLabel": "CFG 強度",
   "generation_seed": "種子",
   "generation_previewApplySeed": "使用當前圖片的種子",
   "generation_imageComparison": "對比",
@@ -580,6 +656,7 @@
   "generation_smeaDyn": "SMEA DYN",
   "generation_smeaDescription": "高解析度取樣器會在超過一定影象尺寸時自動使用",
   "generation_cfgRescale": "CFG 重縮放：{value}",
+  "generation_cfgRescaleLabel": "CFG 重縮放",
   "generation_noiseSchedule": "噪聲排程",
   "prompt_positive": "正面",
   "prompt_negative": "負面",
@@ -795,6 +872,42 @@
   "img2img_directorColorize": "上色",
   "img2img_directorEmotion": "表情修復",
   "img2img_directorDeclutter": "雜線清理",
+  "img2img_directorPixelSnap": "像素對齊",
+  "img2img_directorPixelSnapHint": "完全在本機計算，不消耗 Anlas、不連網。大圖可能要幾秒到十幾秒。",
+  "img2img_directorPixelSnapPalette": "調色盤",
+  "img2img_directorPixelSnapPaletteOff": "關閉",
+  "img2img_directorPixelSnapPaletteAuto": "自動",
+  "img2img_directorPixelSnapPaletteCustom": "自訂",
+  "img2img_directorPixelSnapColors": "色數",
+  "img2img_directorPixelSnapAvoidOverRefining": "不過度細化",
+  "img2img_directorPixelSnapAvoidOverRefiningOn": "始終保留偵測到的像素尺寸。",
+  "img2img_directorPixelSnapAvoidOverRefiningOff": "更細的像素尺寸更貼合原圖時會改用它。",
+  "img2img_directorPixelSnapUpscale": "放大回原尺寸",
+  "img2img_directorPixelSnapUpscaleOn": "結果會放大到接近原圖的大小。",
+  "img2img_directorPixelSnapUpscaleOff": "結果保持對齊後的像素尺寸。",
+  "img2img_directorPixelSnapSummary": "{width}×{height} 像素 · {colors} 色",
+  "@img2img_directorPixelSnapSummary": {
+    "placeholders": {
+      "width": {"type": "int"},
+      "height": {"type": "int"},
+      "colors": {"type": "int"}
+    }
+  },
+  "img2img_directorPixelSnapSummaryNoPalette": "{width}×{height} 像素",
+  "@img2img_directorPixelSnapSummaryNoPalette": {
+    "placeholders": {
+      "width": {"type": "int"},
+      "height": {"type": "int"}
+    }
+  },
+  "img2img_directorPixelSnapNoGrid": "這張圖裡找不到重複的像素網格。",
+  "img2img_directorPixelSnapBlank": "這張圖整幅都是透明的。",
+  "img2img_directorPixelSnapDownscaled": "圖片超過尺寸上限，已先降採樣再分析。",
+  "img2img_directorCancel": "取消",
+  "img2img_directorStageAnalyzing": "分析影像",
+  "img2img_directorStageSearchingPitch": "搜尋像素尺寸",
+  "img2img_directorStageRefiningGrid": "細化網格",
+  "img2img_directorStageFinishing": "產生結果",
   "img2img_enhance": "增強",
   "img2img_enhanceHint": "增強會繼續參考當前提示詞，對源圖進行潛空間放大與再生成。",
   "img2img_enhanceMagnitude": "幅度",
@@ -866,7 +979,17 @@
   "img2img_upscalePanelOpened": "已開啟圖生圖超分面板",
   "editor_tolerance": "容差",
   "editor_intensity": "強度",
-  "editor_sourcePoint": "Alt+點選設定源點",
+  "editor_cloneStampSetSource": "設定源點",
+  "editor_cloneStampSetSourceTooltip": "開啟後，下一次點選畫布的位置設為源點；也可以按住 Alt 點選畫布",
+  "editor_cloneStampPickingHint": "點選畫布選取仿製源點",
+  "editor_cloneStampNoSourceHint": "尚未設定源點，開啟「設定源點」後點選畫布",
+  "editor_cloneStampSourceReadout": "源點: X {x}, Y {y}",
+  "@editor_cloneStampSourceReadout": {
+    "placeholders": {
+      "x": {"type": "int"},
+      "y": {"type": "int"}
+    }
+  },
   "editor_brushPresets": "筆刷預設",
   "editor_size": "大小",
   "editor_opacity": "不透明度",
@@ -881,8 +1004,8 @@
   "editor_toolFill": "填充",
   "editor_toolMagicWand": "魔棒",
   "editor_magicWandMode": "選擇方式",
-  "editor_magicWandSmartObject": "智慧物件（EfficientViT）",
-  "editor_magicWandColorArea": "顏色區域（洪水填充）",
+  "editor_magicWandSmartObject": "智慧物件",
+  "editor_magicWandColorArea": "顏色區域",
   "editor_magicWandSmartHelp": "點選要選擇的物件。首次使用會從 MIT Han Lab 下載約 133 MiB 的 EfficientViT-SAM L0 模型（Apache-2.0），之後儲存在本地。",
   "editor_magicWandColorHelp": "點選顏色相近的連續區域。適合邊界清晰的純色影象，無需下載模型。",
   "editor_magicWandInvert": "反選結果",
@@ -906,6 +1029,9 @@
   "editor_zoomIn": "放大",
   "editor_zoomOut": "縮小",
   "editor_fitToWindow": "適應視窗",
+  "editor_viewOptions": "檢視選項",
+  "editor_menuGroupView": "檢視",
+  "editor_menuGroupCanvas": "畫布",
   "editor_tempColorPickerShortcut": "Alt+點選: 臨時取色",
   "editor_shortcutHelpTitle": "快捷鍵幫助",
   "editor_shortcutPaintTools": "繪畫工具",
@@ -917,6 +1043,7 @@
   "editor_shortcutHistoryActions": "歷史操作",
   "editor_shortcutSelectionActions": "選區操作",
   "editor_shortcutTemporaryColorPicker": "臨時拾色器",
+  "editor_shortcutCloneStampSource": "設定仿製圖章源點",
   "editor_shortcutRectSelection": "矩形選區",
   "editor_shortcutEllipseSelection": "橢圓選區",
   "editor_shortcutLassoSelection": "套索選區",
@@ -1206,6 +1333,7 @@
       "value": {}
     }
   },
+  "editor_focusMinimumContextAreaLabel": "最小上下文區域",
   "editor_canvasSizeTitle": "畫布尺寸",
   "editor_presetSize": "預設尺寸",
   "editor_customSize": "自定義",
@@ -2618,7 +2746,6 @@
   "comparison_loadError": "載入圖片失敗",
   "statistics_title": "統計儀表盤",
   "statistics_noData": "暫無統計資料",
-  "statistics_noTagData": "暫無標籤資料",
   "statistics_generateFirst": "先生成一些圖片吧",
   "statistics_totalImages": "總圖片數",
   "statistics_totalSize": "總大小",
@@ -3227,25 +3354,119 @@
   },
   "promptAssistant_provider": "服務商",
   "promptAssistant_model": "模型",
-  "promptAssistant_noModelsPullFirst": "暫無模型，請先拉取",
-  "promptAssistant_providerManagement": "服務商管理",
-  "promptAssistant_providerManagementSubtitle": "支援 OpenAI Chat / Responses、Anthropic、Gemini、DeepSeek、LM Studio、Ollama、Pollinations 和自定義相容端點",
-  "promptAssistant_apiKeyConfigured": "API Key: 已配置",
-  "promptAssistant_apiKeyNotConfigured": "API Key: 未配置",
-  "promptAssistant_supportsImageInput": "支援圖片輸入",
-  "promptAssistant_textOnly": "僅文字",
-  "promptAssistant_connectionConfig": "連線配置",
-  "promptAssistant_pullModelList": "拉取模型列表",
-  "promptAssistant_editProvider": "編輯服務商",
-  "promptAssistant_deleteProvider": "刪除服務商",
-  "promptAssistant_pullingModels": "正在拉取模型列表...",
-  "promptAssistant_emptyModelList": "服務返回空模型列表",
-  "promptAssistant_modelsSynced": "已同步 {count} 個模型",
-  "@promptAssistant_modelsSynced": {
+  "promptAssistant_noModelsPullFirst": "暫無模型，請先在模型服務中新增",
+  "settings_modelServices": "模型服務",
+  "modelServices_searchProviders": "搜尋服務商",
+  "modelServices_noProviderMatches": "沒有符合的服務商",
+  "modelServices_emptyTitle": "新增第一個服務商",
+  "modelServices_emptyBody": "服務商提供提示詞助手與智慧體使用的模型。",
+  "modelServices_disabled": "已停用",
+  "modelServices_enableProvider": "啟用服務商",
+  "modelServices_moreActions": "更多操作",
+  "modelServices_connection": "連線",
+  "modelServices_apiKey": "API 金鑰",
+  "modelServices_apiKeySavedHint": "已儲存，輸入新金鑰即可取代",
+  "modelServices_apiKeyOptional": "此服務商可以不填",
+  "modelServices_showApiKey": "顯示金鑰",
+  "modelServices_hideApiKey": "隱藏金鑰",
+  "modelServices_clearApiKey": "清除已儲存的金鑰",
+  "modelServices_apiKeyCleared": "API 金鑰已清除",
+  "modelServices_baseUrl": "API 位址",
+  "modelServices_checkConnection": "檢查連線",
+  "modelServices_connectionOk": "連線正常，介面列出了 {count} 個模型",
+  "@modelServices_connectionOk": {
     "placeholders": {
       "count": {}
     }
   },
+  "modelServices_connectionFailed": "連線失敗：{error}",
+  "@modelServices_connectionFailed": {
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "modelServices_models": "模型",
+  "modelServices_modelCount": "{count} 個模型",
+  "@modelServices_modelCount": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "modelServices_noModels": "還沒有模型。可以從介面清單挑選，或手動新增模型 ID。",
+  "modelServices_manageModels": "管理模型",
+  "modelServices_addModel": "手動新增",
+  "modelServices_manageModelsTitle": "{provider} 的模型",
+  "@modelServices_manageModelsTitle": {
+    "placeholders": {
+      "provider": {}
+    }
+  },
+  "modelServices_addGroup": "新增 {group} 整組",
+  "@modelServices_addGroup": {
+    "placeholders": {
+      "group": {}
+    }
+  },
+  "modelServices_removeGroup": "移除 {group} 整組",
+  "@modelServices_removeGroup": {
+    "placeholders": {
+      "group": {}
+    }
+  },
+  "modelServices_notListed": "介面已不再列出",
+  "modelServices_reasoning": "推理",
+  "modelServices_vision": "視覺",
+  "modelServices_contextWindow": "上下文 {size}",
+  "@modelServices_contextWindow": {
+    "placeholders": {
+      "size": {}
+    }
+  },
+  "modelServices_modelId": "模型 ID",
+  "modelServices_modelIdRequired": "請輸入模型 ID",
+  "modelServices_modelExists": "這個服務商已經有這個模型",
+  "modelServices_displayName": "顯示名稱",
+  "modelServices_displayNameHint": "留空則使用 {name}",
+  "@modelServices_displayNameHint": {
+    "placeholders": {
+      "name": {}
+    }
+  },
+  "modelServices_editModel": "編輯模型",
+  "modelServices_removeModel": "移除模型",
+  "modelServices_removeModelConfirm": "從這個服務商移除 {name}？",
+  "@modelServices_removeModelConfirm": {
+    "placeholders": {
+      "name": {}
+    }
+  },
+  "modelServices_removeModelInUse": "{name} 正被{usages}使用。移除後，任務路由會改用這個服務商剩下的模型，智慧體需要重新選擇模型。",
+  "@modelServices_removeModelInUse": {
+    "placeholders": {
+      "name": {},
+      "usages": {}
+    }
+  },
+  "modelServices_usageSeparator": "、",
+  "modelServices_cleanStaleModels": "清理失效模型",
+  "modelServices_addAllModels": "新增全部模型",
+  "modelServices_staleModelCount": "{count} 個失效模型",
+  "@modelServices_staleModelCount": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "modelServices_addAllConfirm": "要向這個服務商新增 {count} 個模型嗎？",
+  "@modelServices_addAllConfirm": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "promptAssistant_supportsImageInput": "支援圖片輸入",
+  "promptAssistant_textOnly": "僅文字",
+  "promptAssistant_editProvider": "編輯服務商",
+  "promptAssistant_deleteProvider": "刪除服務商",
+  "promptAssistant_emptyModelList": "服務返回空模型列表",
   "promptAssistant_pullModelsFailed": "拉取模型失敗: {error}",
   "@promptAssistant_pullModelsFailed": {
     "placeholders": {
@@ -3262,16 +3483,7 @@
   "promptAssistant_allowImageInput": "允許傳送圖片輸入",
   "promptAssistant_allowImageInputSubtitle": "僅在模型和服務商實際支援視覺輸入時啟用",
   "promptAssistant_apiKeyLeaveEmpty": "API Key (留空不改)",
-  "promptAssistant_connectionTitle": "{name} 連線配置",
-  "@promptAssistant_connectionTitle": {
-    "placeholders": {
-      "name": {}
-    }
-  },
   "promptAssistant_baseUrlHint": "例如: https://api.openai.com/v1",
-  "promptAssistant_clearCurrentApiKey": "清空當前 API Key",
-  "promptAssistant_protocolSupportsImagePayload": "當前協議支援圖片載荷，仍需模型本身支援視覺輸入",
-  "promptAssistant_protocolTextOnlyWarning": "當前協議預設僅文字，開啟後也可能被服務端拒絕",
   "promptAssistant_addRuleTitle": "新增規則",
   "promptAssistant_editRuleTitle": "編輯規則",
   "promptAssistant_taskType": "任務型別",
@@ -3690,6 +3902,18 @@
   "@settings_queueRetryIntervalValue": {
     "placeholders": {
       "seconds": {}
+    }
+  },
+  "settings_decreaseValue": "減少{field}",
+  "@settings_decreaseValue": {
+    "placeholders": {
+      "field": {}
+    }
+  },
+  "settings_increaseValue": "增加{field}",
+  "@settings_increaseValue": {
+    "placeholders": {
+      "field": {}
     }
   },
   "unit_times": "次",
@@ -4535,14 +4759,6 @@
   },
   "vibe_saveToLibrary_tagHint": "輸入標籤後點選新增",
   "vibe_maxReached": "已達到最大數量 (16張)",
-  "vibe_addedNamed": "已新增 Vibe: {name}",
-  "@vibe_addedNamed": {
-    "placeholders": {
-      "name": {
-        "type": "String"
-      }
-    }
-  },
   "vibe_addedCount": "已新增 {count} 個 vibes",
   "@vibe_addedCount": {
     "placeholders": {
@@ -4632,6 +4848,85 @@
       "client": {}
     }
   },
+
+  "settings_mcpServerPermissionSection": "權限",
+  "settings_mcpServerClientsSection": "用戶端",
+  "settings_mcpServerEnable": "啟用 MCP 伺服器",
+  "settings_mcpServerDisabledText": "預設關閉；開啟後只監聽本機 127.0.0.1",
+  "settings_mcpServerStartingText": "正在啟動本機 MCP 服務...",
+  "settings_mcpServerListeningText": "等待 MCP 用戶端連線",
+  "settings_mcpServerErrorText": "啟動失敗，請查看錯誤訊息",
+  "settings_mcpServerDisabled": "已關閉",
+  "settings_mcpServerStarting": "啟動中",
+  "settings_mcpServerListening": "監聽中",
+  "settings_mcpServerError": "錯誤",
+  "settings_mcpServerEndpoint": "端點位址",
+  "settings_mcpServerCopyEndpoint": "複製端點位址",
+  "settings_mcpServerPort": "連接埠",
+  "settings_mcpServerPortHelper": "變更後會中斷已連線的用戶端",
+  "settings_mcpServerPortInvalid": "連接埠需在 {min} 到 {max} 之間",
+  "@settings_mcpServerPortInvalid": {
+    "placeholders": {
+      "min": {},
+      "max": {}
+    }
+  },
+  "settings_mcpServerPortInUseHint": "連接埠 {port} 已被占用，請在下方改用其他連接埠",
+  "@settings_mcpServerPortInUseHint": {
+    "placeholders": {
+      "port": {}
+    }
+  },
+  "settings_mcpServerDiscoveryFile": "探索檔案",
+  "settings_mcpServerToken": "存取權杖",
+  "settings_mcpServerRevealToken": "顯示權杖",
+  "settings_mcpServerHideToken": "隱藏權杖",
+  "settings_mcpServerCopyToken": "複製權杖",
+  "settings_mcpServerRegenerateToken": "重新產生權杖",
+  "settings_mcpServerRegenerateTokenTitle": "重新產生存取權杖",
+  "settings_mcpServerRegenerateTokenMessage": "目前權杖會立即失效，已連線的用戶端將中斷。請在所有用戶端設定中更新新權杖。",
+  "settings_mcpServerAnlasNotice": "任何可能消耗 Anlas 的操作都會在啟動器內單獨確認，與權限模式無關。",
+  "settings_mcpServerPendingApproval": "{client} 請求呼叫 {tool}",
+  "@settings_mcpServerPendingApproval": {
+    "placeholders": {
+      "client": {},
+      "tool": {}
+    }
+  },
+  "settings_mcpServerPendingApprovalHint": "請在頁面頂端的授權橫幅中處理",
+  "settings_mcpServerConnectedClients": "已連線用戶端",
+  "settings_mcpServerSessionsEmpty": "尚無用戶端連線",
+  "settings_mcpServerSessionConnectedAt": "連線於 {time}",
+  "@settings_mcpServerSessionConnectedAt": {
+    "placeholders": {
+      "time": {}
+    }
+  },
+  "settings_mcpServerSessionLastActivity": "最近活動 {time}",
+  "@settings_mcpServerSessionLastActivity": {
+    "placeholders": {
+      "time": {}
+    }
+  },
+  "settings_mcpServerClientConfigs": "用戶端設定",
+  "settings_mcpServerConfigUnavailable": "啟用伺服器後顯示用戶端設定",
+  "settings_mcpServerCopyConfig": "複製設定",
+  "settings_mcpServerTokenMaskNotice": "預覽中的權杖已遮罩，複製時會寫入真實權杖。",
+  "settings_mcpServerCliMissing": "找不到隨附 CLI（預期位置：{path}），開發執行時屬正常現象",
+  "@settings_mcpServerCliMissing": {
+    "placeholders": {
+      "path": {}
+    }
+  },
+  "settings_mcpServerViewDocs": "查看文件",
+  "settings_mcpServerAgentPromptTitle": "推薦：讓智慧代理自行設定",
+  "settings_mcpServerAgentPromptHint": "把以下提示詞發給要接入的智慧代理，它會讀取設定文件並自行完成安裝。提示詞不含權杖，權杖由隨附 CLI 在本機讀取。",
+  "settings_mcpServerClaudeCodeHint": "在終端機執行以下指令註冊伺服器。",
+  "settings_mcpServerCodexHint": "先執行指令註冊伺服器，再把權杖寫入下方的環境變數。",
+  "settings_mcpServerCursorHint": "把以下內容合併進 Cursor 的 mcp.json 設定檔。",
+  "settings_mcpServerCherryStudioHint": "在 Cherry Studio 的 MCP 伺服器設定中用「從 JSON 匯入」貼上以下內容；timeout 單位為秒，已留足應用內審批時間。",
+  "settings_mcpServerPiHint": "Pi 本體不帶 MCP，需先安裝 pi-mcp-adapter 套件，再把以下內容合併進 ~/.pi/agent/mcp.json。",
+  "settings_mcpServerClaudeDesktopHint": "把以下內容合併進 Claude Desktop 設定；它透過隨附 CLI 以 stdio 方式連線。",
   "settings_fontScale": "字型大小",
   "settings_fontScale_description": "調整應用全域性字型縮放比例",
   "settings_fontScale_previewSmall": "落霞與孤鶩齊飛",
@@ -4711,7 +5006,7 @@
   "settings_copyDragWatermarkTitle": "複製/拖拽時添加浮水印",
   "settings_copyDragWatermarkSubtitle": "使用已儲存的預設浮水印方案。添加浮水印不會清除後設資料；如需清除，請開啟上方「複製/拖拽時移除全部後設資料」。",
   "settings_stripMetadataTitle": "複製/拖拽時移除全部後設資料",
-  "settings_stripMetadataSubtitle": "生成淨化副本，清除 PNG 文字塊、EXIF 與 NAI 隱寫水印，並避免拖拽暴露原始路徑。",
+  "settings_stripMetadataSubtitle": "複製、拖拽及 MCP 圖片回傳時清除 PNG 文字塊、EXIF 與 NAI 隱寫水印，不修改本機原圖；MCP 保留原解析度，其 saved_path 指向的圖庫原圖不受影響。",
   "settings_confirmDangerousActionsTitle": "危險資產操作二次確認",
   "settings_confirmDangerousActionsSubtitle": "刪除、移動、批次移動等本地資產操作會額外彈出保護確認。",
   "settings_warnExternalImageSendTitle": "傳送到外部服務前提示",
@@ -6387,6 +6682,108 @@
       }
     }
   },
+  "editor_toolFrame": "取景框",
+  "editor_toolMove": "移動",
+  "editor_toolGroupInpaint": "重繪",
+  "editor_toolGroupEdit": "編輯",
+  "editor_toolGroupCommon": "通用",
+  "editor_toolMaskBrush": "蒙版畫筆",
+  "editor_toolMaskEraser": "蒙版橡皮擦",
+  "editor_toolMaskColorFill": "按顏色填充蒙版",
+  "editor_toolMaskMagicWand": "蒙版魔棒",
+  "editor_moveLayerHint": "拖曳以移動整個目前圖層。",
+  "editor_moveSelectionHint": "拖曳以移動目前圖層在選區內的像素。",
+  "editor_moveBaseLayerHint": "底圖不能整體移動；先框選，再移動選區內的像素。",
+  "editor_moveNoLayer": "沒有可移動的圖層。",
+  "editor_moveNudgeHint": "方向鍵移動 1 像素，按住 Shift 移動 10 像素。",
+  "editor_shortcutNudge": "移動 1 像素",
+  "editor_shortcutNudgeFar": "移動 10 像素",
+  "selection_clearPixels": "刪除選區內容",
+  "selection_cutLayerName": "{name} 剪下",
+  "@selection_cutLayerName": {
+    "placeholders": {
+      "name": {}
+    }
+  },
+  "layer_duplicateName": "{name} 副本",
+  "@layer_duplicateName": {
+    "placeholders": {
+      "name": {}
+    }
+  },
+  "layer_roleMask": "蒙版",
+  "layer_addImage": "新增圖片圖層",
+  "layer_addMask": "新增蒙版圖層",
+  "img2img_inpaintSourceUpdated": "底圖修改已儲存，塗上蒙版後即可區域性重繪",
+  "editor_frameToolHint": "在框內按住拖曳可整體移動取景框，拖曳邊緣可調整尺寸。框外內容會保留並調暗顯示，只有框內部分會送去生成；移動時至少與原圖重疊 64 像素。",
+  "editor_frameSizeReadout": "尺寸: {width} x {height}",
+  "@editor_frameSizeReadout": {
+    "placeholders": {
+      "width": {
+        "type": "int"
+      },
+      "height": {
+        "type": "int"
+      }
+    }
+  },
+  "editor_frameOffsetReadout": "相對原圖: X {x}, Y {y}",
+  "@editor_frameOffsetReadout": {
+    "placeholders": {
+      "x": {
+        "type": "int"
+      },
+      "y": {
+        "type": "int"
+      }
+    }
+  },
+  "editor_frameMoveLockedByView": "檢視旋轉或鏡像時無法移動取景框，按 R 重置檢視後再試。",
+  "editor_resetFrame": "重置取景框",
+  "editor_cropToFrame": "裁切到取景框",
+  "editor_cropToFrameHint": "丟棄取景框外的原圖和蒙版，可撤銷",
+  "editor_cropToFrameFailed": "裁切到取景框失敗: {error}",
+  "@editor_cropToFrameFailed": {
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "editor_changeFrameSize": "調整取景框尺寸",
+  "editor_frameResized": "取景框已調整為 {width} x {height}",
+  "@editor_frameResized": {
+    "placeholders": {
+      "width": {
+        "type": "int"
+      },
+      "height": {
+        "type": "int"
+      }
+    }
+  },
+  "editor_frameToolHintPasteBack": "在框內按住拖曳可按 64 像素一格移動取景框，拖曳邊緣可調整尺寸。只有框內部分會送去生成；框外還有原圖時，結果按遮罩貼回整張圖，框外內容保持不變。框須與原圖重疊至少 64 像素。",
+  "editor_frameRequestReadout": "傳送: {width} x {height}",
+  "@editor_frameRequestReadout": {
+    "placeholders": {
+      "width": {"type": "int"},
+      "height": {"type": "int"}
+    }
+  },
+  "editor_frameRequestFree": "免費",
+  "editor_frameRequestCost": "約 {cost} Anlas",
+  "@editor_frameRequestCost": {
+    "placeholders": {
+      "cost": {"type": "int"}
+    }
+  },
+  "editor_frameResizeRejected": "無法調整取景框：框須與原圖重疊至少 {overlap} 像素，且與原圖合起來每邊不超過 {max} 像素。",
+  "@editor_frameResizeRejected": {
+    "placeholders": {
+      "overlap": {"type": "int"},
+      "max": {"type": "int"}
+    }
+  },
+  "editor_compressionFrameLimited": "取景框在更高解析度下會超過請求面積上限，因此滑條上限已收緊。",
+  "img2img_focusOutpaintHint": "聚焦外擴：只傳送取景框內的部分，生成結果按遮罩貼回整張圖。可在重繪編輯器裡用取景框工具調整位置。",
   "savePreset_title": "另存為預設",
   "savePreset_nameHint": "輸入預設名稱",
   "savePreset_metadataDescription": "從圖片後設資料儲存",
@@ -6399,6 +6796,9 @@
     }
   },
   "onlineGallery_videoLoadFailed": "影片載入失敗",
+  "onlineGallery_videoPositionLabel": "播放進度",
+  "onlineGallery_videoPlay": "播放",
+  "onlineGallery_videoPause": "暫停",
   "vibe_releaseToAddStyleReference": "鬆開後新增風格參考",
   "router_backAgainToExit": "再滑一次或按返回鍵退出應用",
   "router_pageNotFound": "頁面未找到: {error}",
@@ -6660,6 +7060,20 @@
   "@localGallery_saveToSystemGalleryFailed": {"placeholders":{"error":{}}},
   "image_savedAppOnly": "已儲存到應用程式圖庫，但無法匯出到系統相簿：{error}",
   "@image_savedAppOnly": {"placeholders":{"error":{}}},
+  "image_savedToAppGallery": "已儲存到應用程式圖庫",
+  "image_saveAs": "另存為…",
+  "image_saveAsDialogTitle": "另存為圖片",
+  "image_saveAsToFolder": "另存為到資料夾…",
+  "image_saveAsFolderDialogTitle": "選擇儲存資料夾",
+  "image_savedAs": "已另存為 {path}",
+  "@image_savedAs": {"placeholders":{"path":{}}},
+  "image_savedAsToChosenLocation": "已儲存到所選位置",
+  "image_savedAsToFolder": "已儲存 {count} 張圖片到 {path}",
+  "@image_savedAsToFolder": {"placeholders":{"count":{"type":"int"},"path":{}}},
+  "image_savedAsToChosenFolder": "已儲存 {count} 張圖片到所選資料夾",
+  "@image_savedAsToChosenFolder": {"placeholders":{"count":{"type":"int"}}},
+  "image_savedAsPartial": "已儲存 {saved} 張，{failed} 張失敗：{error}",
+  "@image_savedAsPartial": {"placeholders":{"saved":{"type":"int"},"failed":{"type":"int"},"error":{}}},
   "image_shareFailed": "分享失敗: {error}",
   "@image_shareFailed": {"placeholders":{"error":{}}},
   "onlineGallery_savedFiles": "已儲存 {count} 個檔案",
@@ -6739,6 +7153,8 @@
   "cloudSync_onlineGalleryFavoritesDescription": "僅儲存來源 ID 與恢復所需資訊，不儲存原圖",
   "cloudSync_galleryAlbums": "本機畫廊相簿",
   "cloudSync_galleryAlbumsDescription": "只儲存相簿結構與圖片引用，不上傳原圖",
+  "cloudSync_fixedTagUsage": "固定詞使用記錄",
+  "cloudSync_fixedTagUsageDescription": "只儲存每張圖用了哪些固定詞的輕量記錄，不上傳圖片",
   "cloudSync_optionalResources": "可選資源（預設關閉）",
   "cloudSync_vibes": "Vibe",
   "cloudSync_preciseReferences": "精準參考",
@@ -6890,11 +7306,20 @@
   "agentSettings_densityDescription": "舒適模式優先保證觸控與留白；緊湊模式適合桌面高資訊密度。",
   "agentSettings_densityComfortable": "舒適",
   "agentSettings_densityCompact": "緊湊",
+  "agentSettings_chatPlacement": "聊天位置",
+  "agentSettings_chatPlacementDescription": "僅在寬螢幕生效；窄螢幕保持全螢幕聊天。",
+  "agentSettings_dockLayout": "右欄佈局",
+  "agentSettings_dockLayoutDescription": "獨佔切換時右欄一次只顯示聊天或歷史；分欄則同時顯示兩者。",
+  "agentSettings_dockExclusive": "獨佔切換",
+  "agentSettings_dockStacked": "上下分欄",
+  "agentSettings_dockSideBySide": "左右分欄",
+  "agentSettings_floatingWindow": "以浮窗顯示聊天",
+  "agentSettings_floatingWindowDescription": "浮窗常駐所有頁面，可拖曳並調整大小；開啟後右欄只顯示歷史。",
   "agentSettings_chatModel": "聊天模型",
   "agentSettings_providerModel": "供應商 / 模型",
-  "agentSettings_modelManagedInIntegrations": "供應商、API Key 與模型探索仍在「整合」中統一管理。",
+  "agentSettings_modelManagedInIntegrations": "服務商、API 金鑰與模型在「整合 → 模型服務」中管理。",
   "agentSettings_manageProviders": "管理供應商",
-  "agentSettings_noModel": "沒有可用聊天模型。請先在「整合」中新增供應商並探索模型。",
+  "agentSettings_noModel": "沒有可用的聊天模型。請先在「整合 → 模型服務」中新增服務商與模型。",
   "agentSettings_pendingMatch": "待配對",
   "agentSettings_contextWindow": "上下文視窗（token）",
   "agentSettings_contextWindowKnown": "留空則使用內建值 {value}。第三方中轉站或自訂部署的實際視窗不同時，可在此填寫覆寫。",
@@ -6909,7 +7334,7 @@
   "agentSettings_permissionAsk": "敏感操作前詢問",
   "agentSettings_permissionAskDescription": "預設模式。寫入檔案、執行生成等敏感操作前先要求確認。",
   "agentSettings_permissionFull": "完全存取",
-  "agentSettings_permissionFullDescription": "允許存取工作區外檔案並直接執行工具。僅在信任目前任務時使用。",
+  "agentSettings_permissionFullDescription": "允許存取工作區外檔案並直接執行工具；刪除已儲存的資料或消耗 Anlas 前仍會確認。僅在信任目前任務時使用。",
   "agentSettings_webPreference": "連網偏好",
   "agentSettings_webEnabled": "允許智慧體使用 Web 工具",
   "agentSettings_webDescription": "開啟後模型可搜尋並讀取公開網頁；關閉後相關工具會從執行階段工具表移除。",

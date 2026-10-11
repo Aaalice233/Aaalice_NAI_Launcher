@@ -6,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/core/platform/platform_capabilities.dart';
 import 'package:nai_launcher/presentation/adaptive/interaction_policy.dart';
+import 'package:nai_launcher/presentation/widgets/common/animated_favorite_button.dart';
 import 'package:nai_launcher/presentation/widgets/common/card_action_buttons.dart';
 import 'package:nai_launcher/presentation/widgets/common/image_card_actions.dart';
 import 'package:nai_launcher/presentation/widgets/common/image_card_surface.dart';
@@ -557,4 +558,150 @@ void main() {
       ImageOverlayControlStyle.foreground,
     );
   });
+
+  group('覆盖层上的 error 前景', () {
+    test('深色 error 提亮到可读明度且保留色相', () {
+      const colors = ColorScheme.light(error: Color(0xFFB71C1C));
+      final result = ImageOverlayControlStyle.errorForeground(colors);
+      final source = HSLColor.fromColor(colors.error);
+      final lifted = HSLColor.fromColor(result);
+
+      expect(lifted.lightness, closeTo(0.85, 0.01));
+      expect(lifted.hue, closeTo(source.hue, 0.5));
+      expect(
+        _contrast(result, ImageOverlayControlStyle.surface),
+        greaterThanOrEqualTo(3),
+      );
+    });
+
+    test('本来就够亮的 error 原样使用', () {
+      const colors = ColorScheme.dark(error: Color(0xFFF9DEDC));
+      expect(ImageOverlayControlStyle.errorForeground(colors), colors.error);
+    });
+  });
+
+  testWidgets('危险覆盖动作忽略菜单用的 iconColor，改用覆盖层 error 前景', (tester) async {
+    const colors = ColorScheme.light(error: Color(0xFFB3261E));
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: ThemeData(colorScheme: colors),
+        home: Center(
+          child: ImageCardOverlayActionButton(
+            extent: 40,
+            config: ImageCardAction(
+              id: ImageCardActionId.delete,
+              icon: Icons.delete_outline,
+              label: 'delete',
+              iconColor: colors.error,
+              isDanger: true,
+              invoke: () {},
+            ),
+          ),
+        ),
+      ),
+    );
+
+    final style = tester.widget<IconButton>(find.byType(IconButton)).style!;
+    expect(
+      style.foregroundColor!.resolve(const {}),
+      ImageOverlayControlStyle.errorForeground(colors),
+    );
+    expect(tester.getSize(find.byType(IconButton)), const Size.square(40));
+  });
+
+  testWidgets('右上操作轨：悬停动作在前、收藏在最后，同高同尺寸', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: Center(
+          child: ImageCardCornerActionRail(
+            pinnedActions: [
+              ImageCardAction(
+                id: ImageCardActionId.copy,
+                icon: Icons.copy_rounded,
+                label: 'copy',
+                invoke: () {},
+              ),
+              ImageCardAction(
+                id: ImageCardActionId.delete,
+                icon: Icons.delete_outline,
+                label: 'delete',
+                isDanger: true,
+                invoke: () {},
+              ),
+            ],
+            favorite: CardFavoriteButton(
+              isFavorite: true,
+              onToggle: () {},
+              borderRadius: 999,
+            ),
+          ),
+        ),
+      ),
+    );
+
+    final copy = tester.getRect(find.byTooltip('copy'));
+    final delete = tester.getRect(find.byTooltip('delete'));
+    final favorite = tester.getRect(find.byType(CardFavoriteButton));
+    expect(copy.size, const Size.square(40));
+    expect(delete.size, const Size.square(40));
+    expect(favorite.size, const Size.square(40));
+    expect(delete.left - copy.right, 4);
+    expect(favorite.left - delete.right, 4);
+    expect(copy.center.dy, favorite.center.dy);
+
+    final favoriteStyle = tester
+        .widget<IconButton>(
+          find.descendant(
+            of: find.byType(CardFavoriteButton),
+            matching: find.byType(IconButton),
+          ),
+        )
+        .style!;
+    expect(
+      favoriteStyle.backgroundColor!.resolve(const {}),
+      ImageOverlayControlStyle.surface,
+    );
+    expect(
+      favoriteStyle.side!.resolve(const {})!.color,
+      ImageOverlayControlStyle.border,
+    );
+    expect(
+      favoriteStyle.foregroundColor!.resolve(const {}),
+      ImageOverlayControlStyle.errorForeground(
+        Theme.of(tester.element(find.byType(CardFavoriteButton))).colorScheme,
+      ),
+    );
+  });
+
+  testWidgets('触屏可用时卡片收藏保留 48px 命中区', (tester) async {
+    await tester.pumpWidget(
+      InteractionPolicyScope(
+        initialPolicy: InteractionPolicy.touchFirst,
+        child: MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Center(
+            child: CardFavoriteButton(isFavorite: false, onToggle: () {}),
+          ),
+        ),
+      ),
+    );
+
+    expect(
+      tester.getSize(find.byType(CardFavoriteButton)),
+      const Size.square(48),
+    );
+  });
+}
+
+double _contrast(Color foreground, Color overlay) {
+  final background = Color.alphaBlend(overlay, Colors.white);
+  final lighter = foreground.computeLuminance() > background.computeLuminance()
+      ? foreground
+      : background;
+  final darker = identical(lighter, foreground) ? background : foreground;
+  return (lighter.computeLuminance() + 0.05) /
+      (darker.computeLuminance() + 0.05);
 }

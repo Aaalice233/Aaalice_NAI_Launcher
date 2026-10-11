@@ -34,7 +34,7 @@ class VibeLibraryStorageService {
   VibeLibraryStorageService({
     VibeFileStorageService? fileStorage,
     VibeLibraryRepositoryProtocol? repository,
-    VibeGenerationStateRepository? generationStateRepository,
+    VibeGenerationStateRepositoryProtocol? generationStateRepository,
   }) : _files = fileStorage ?? VibeFileStorageService(),
        _repository = repository ?? HiveVibeLibraryRepository(),
        _generation =
@@ -52,7 +52,7 @@ class VibeLibraryStorageService {
 
   final VibeFileStorageService _files;
   final VibeLibraryRepositoryProtocol _repository;
-  final VibeGenerationStateRepository _generation;
+  final VibeGenerationStateRepositoryProtocol _generation;
   late final VibeDisplayCacheRepository _displayCache;
   late final VibeLibraryEntryReader _reader;
   late final VibeLibraryEntryWriter _writer;

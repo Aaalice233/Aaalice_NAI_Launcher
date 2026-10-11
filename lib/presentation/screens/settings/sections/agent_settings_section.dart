@@ -7,13 +7,14 @@ import '../../../../data/models/agent/agent_settings.dart';
 import '../../../../core/utils/localization_extension.dart';
 import '../../../prompt_assistant/models/assistant_model_capability.dart';
 import '../../../agent_settings/providers/agent_settings_provider.dart';
-import '../../../prompt_assistant/models/prompt_assistant_models.dart';
+import '../../../../data/models/prompt_assistant/prompt_assistant_models.dart';
 import '../../../prompt_assistant/providers/prompt_assistant_config_provider.dart';
 import '../../../widgets/common/app_toast.dart';
 import '../../../widgets/common/searchable_model_picker.dart';
 import '../widgets/settings_card.dart';
 import '../widgets/settings_page_layout.dart';
 import 'web_access_settings.dart';
+import 'agent/agent_chat_placement_card.dart';
 import 'agent/agent_profile_actions.dart';
 import 'agent/context_window_field.dart';
 import 'agent/skill_management_panel.dart';
@@ -108,6 +109,7 @@ class _AgentSettingsSectionState extends ConsumerState<AgentSettingsSection> {
           onOpenIntegrations: widget.onOpenIntegrations,
         ),
         _ReadingPreferencesCard(settings: state.settings),
+        const AgentChatPlacementCard(),
         _PermissionCard(settings: state.settings),
         _WebAccessCard(settings: state.settings),
         if (_selectedPanel == 0)
@@ -137,6 +139,12 @@ class _ModelCard extends ConsumerWidget {
     for (final provider in promptConfig.providers.where(
       (item) => item.enabled,
     )) {
+      final group = ModelPickerGroup(
+        id: provider.id,
+        label: provider.name,
+        leading: ProviderIcon(provider: provider, size: 14),
+      );
+      final providerOptions = <ModelPickerOption<AgentModelReference>>[];
       for (final model in promptConfig.models.where(
         (item) =>
             item.providerId == provider.id &&
@@ -148,23 +156,26 @@ class _ModelCard extends ConsumerWidget {
           model: model.name,
         );
         available.add(reference);
-        final displayName = model.displayName.trim().isEmpty
-            ? model.name
-            : model.displayName.trim();
-        pickerOptions.add(
+        providerOptions.add(
           ModelPickerOption(
             id: _modelPickerId(reference),
             value: reference,
-            title: displayName,
+            title: AssistantModelCatalog.displayLabel(
+              provider: provider,
+              model: model,
+            ),
             modelId: model.name,
-            subtitleLeading: ProviderIcon(provider: provider, size: 14),
-            subtitle: displayName == model.name
-                ? provider.name
-                : '${provider.name} · ${model.name}',
-            searchTerms: [provider.id],
+            tooltip: model.name,
+            group: group,
+            searchTerms: [provider.id, model.name],
           ),
         );
       }
+      pickerOptions.addAll(
+        providerOptions..sort(
+          (a, b) => a.title.toLowerCase().compareTo(b.title.toLowerCase()),
+        ),
+      );
     }
     final selected = settings.chat.modelReference;
     final isPending = selected.isConfigured && !available.contains(selected);

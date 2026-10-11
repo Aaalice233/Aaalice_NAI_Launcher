@@ -8,9 +8,10 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../../core/constants/app_version.dart';
 import '../../../core/constants/community_links.dart';
 import '../../../data/models/auth/saved_account.dart';
-import '../../providers/account_manager_provider.dart';
+import '../../../data/services/account_manager_provider.dart';
 import '../../providers/auth_mode_provider.dart';
-import '../../providers/auth_provider.dart';
+import '../../../data/services/auth_provider.dart';
+import '../../../core/services/auth_error_service.dart';
 import '../../providers/layout_state_provider.dart';
 import '../../providers/queue_execution_provider.dart';
 import '../../providers/replication_queue_provider.dart';
@@ -22,6 +23,7 @@ import '../../router/app_routes.dart';
 import '../../themes/theme_extension.dart';
 import '../auth/account_avatar.dart';
 import '../auth/login_form_container.dart';
+import '../settings/account_profile_sheet.dart';
 
 import '../common/app_toast.dart';
 
@@ -1373,6 +1375,23 @@ class _AccountAvatarButtonState extends State<_AccountAvatarButton> {
             ),
           ),
 
+        if (menuCurrentAccount != null)
+          PopupMenuItem<String>(
+            key: const Key('main-nav-manage-accounts'),
+            value: 'manage',
+            child: Row(
+              children: [
+                Icon(
+                  Icons.manage_accounts_outlined,
+                  color: theme.colorScheme.onSurface,
+                  size: 20,
+                ),
+                const SizedBox(width: 12),
+                Text(context.l10n.auth_manageAccounts),
+              ],
+            ),
+          ),
+
         // 退出登录
         if (authState.isAuthenticated)
           PopupMenuItem<String>(
@@ -1401,6 +1420,13 @@ class _AccountAvatarButtonState extends State<_AccountAvatarButton> {
         // ignore: use_build_context_synchronously
         _showAddAccountDialog(context);
       }
+    } else if (value == 'manage' &&
+        menuCurrentAccount != null &&
+        context.mounted) {
+      AccountProfileBottomSheet.show(
+        context: context,
+        account: menuCurrentAccount,
+      );
     } else if (value == 'logout') {
       // Use SchedulerBinding.endOfFrame to ensure logout happens AFTER the menu is fully disposed
       // This prevents the "ref.listen can only be used within build method" error that occurs when

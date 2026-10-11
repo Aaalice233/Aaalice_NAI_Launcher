@@ -18,6 +18,41 @@ void main() {
     expect(resolution.metadata.fixedPrefixTags, isEmpty);
   });
 
+  test('structured snapshot strips fixed tags from the main prompt', () {
+    final resolution = resolveFixedTagImport(
+      metadata: const NaiImageMetadata(
+        prompt: 'masterpiece, best quality, 1girl, watermark',
+        fixedTagUsageData: {
+          'version': 1,
+          'entries': [
+            {
+              'name': 'A',
+              'content': 'masterpiece, best quality',
+              'weight': 1,
+              'rendered_content': 'masterpiece, best quality',
+              'position': 'prefix',
+              'prompt_type': 'positive',
+              'order': 0,
+            },
+            {
+              'name': 'B',
+              'content': 'watermark',
+              'weight': 1,
+              'rendered_content': 'watermark',
+              'position': 'suffix',
+              'prompt_type': 'positive',
+              'order': 1,
+            },
+          ],
+        },
+      ),
+      entries: const [],
+    );
+
+    expect(resolution.source, FixedTagImportSource.structured);
+    expect(resolution.metadata.mainPrompt, '1girl');
+  });
+
   test('legacy fields are authoritative and block extra inference', () {
     final resolution = resolveFixedTagImport(
       metadata: const NaiImageMetadata(

@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:archive/archive.dart';
 import 'package:path/path.dart' as path;
 
+import '../../core/utils/zip_archive_entry.dart';
 import '../models/tag_library/import_models.dart';
 import '../models/tag_library/import_plan.dart';
 import '../models/tag_library/tag_library_category.dart';
@@ -161,7 +162,7 @@ class TagLibraryIOService {
       throw Exception('无法解压词库文件：${e.toString()}');
     }
 
-    _preflightArchive(archive);
+    final thumbnailMembers = _preflightArchive(archive);
 
     // 读取 manifest
     final manifestFile = archive.findFile('manifest.json');
@@ -211,11 +212,6 @@ class TagLibraryIOService {
 
     _verifyIdentifiers(entries: entries, categories: categories);
 
-    // 检查是否有预览图
-    final hasThumbnails = archive.files.any(
-      (f) => f.name.startsWith(_thumbnailsPrefix),
-    );
-
     return ImportPreview(
       version: manifestData['version'] as String? ?? '1.0',
       exportDate:
@@ -224,7 +220,7 @@ class TagLibraryIOService {
       appVersion: manifestData['appVersion'] as String?,
       entries: entries,
       categories: categories,
-      hasThumbnails: hasThumbnails,
+      hasThumbnails: thumbnailMembers.isNotEmpty,
     );
   }
 
@@ -389,12 +385,10 @@ class TagLibraryIOService {
       if (file.isSymbolicLink) {
         throw FormatException('词库文件包含符号链接：${_excerpt(name)}');
       }
-      if (!file.isFile) {
-        throw FormatException('词库文件包含非文件条目：${_excerpt(name)}');
-      }
       if (!_isSafeMemberPath(name)) {
         throw FormatException('词库文件包含不安全路径：${_excerpt(name)}');
       }
+      if (isZipDirectoryEntry(file)) continue;
       if (!names.add(name.toLowerCase())) {
         throw FormatException('词库文件包含重复条目：${_excerpt(name)}');
       }
@@ -436,9 +430,13 @@ class TagLibraryIOService {
     if (value.codeUnits.any((unit) => unit < 0x20 || unit == 0x7f)) {
       return false;
     }
-    return value
-        .split('/')
-        .every((part) => part.isNotEmpty && part != '.' && part != '..');
+    final normalized = zipEntryNameMarksDirectory(value)
+        ? value.substring(0, value.length - 1)
+        : value;
+    return normalized.isNotEmpty &&
+        normalized
+            .split('/')
+            .every((part) => part.isNotEmpty && part != '.' && part != '..');
   }
 
   static void _verifyIdentifiers({

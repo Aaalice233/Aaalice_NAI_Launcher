@@ -173,4 +173,40 @@ void main() {
       },
     );
   }
+
+  testWidgets('switches between enabled and disabled without build errors', (
+    tester,
+  ) async {
+    var presses = 0;
+    Widget app({required bool enabled}) => MaterialApp(
+      builder: (context, child) => InteractionPolicyScope(child: child!),
+      home: Scaffold(
+        body: PromptControlButton(
+          color: Colors.blue,
+          active: true,
+          padding: EdgeInsets.zero,
+          onPressed: enabled ? () => presses++ : null,
+          builder: (_) => const Icon(Icons.lock_outline),
+        ),
+      ),
+    );
+    WidgetStatesController controller() =>
+        tester.widget<TextButton>(find.byType(TextButton)).statesController!;
+
+    await tester.pumpWidget(app(enabled: false));
+    expect(tester.takeException(), isNull);
+    expect(controller().value, contains(WidgetState.disabled));
+    await tester.tap(find.byType(PromptControlButton));
+    expect(presses, 0);
+
+    await tester.pumpWidget(app(enabled: true));
+    expect(tester.takeException(), isNull);
+    expect(controller().value, isNot(contains(WidgetState.disabled)));
+    await tester.tap(find.byType(PromptControlButton));
+    expect(presses, 1);
+
+    await tester.pumpWidget(app(enabled: false));
+    expect(tester.takeException(), isNull);
+    expect(controller().value, contains(WidgetState.disabled));
+  });
 }

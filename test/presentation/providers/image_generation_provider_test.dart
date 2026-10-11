@@ -16,13 +16,14 @@ import 'package:nai_launcher/data/datasources/remote/nai_image_enhancement_api_s
 import 'package:nai_launcher/data/datasources/remote/nai_image_generation_api_service.dart';
 import 'package:nai_launcher/data/models/fixed_tag/fixed_tag_entry.dart';
 import 'package:nai_launcher/data/models/fixed_tag/fixed_tag_prompt_type.dart';
+import 'package:nai_launcher/data/models/gallery/gallery_index_admission.dart';
 import 'package:nai_launcher/data/models/gallery/nai_image_metadata.dart';
 import 'package:nai_launcher/data/services/metadata/unified_metadata_parser.dart';
 import 'package:nai_launcher/data/models/image/image_params.dart';
 import 'package:nai_launcher/data/models/image/image_stream_chunk.dart';
 import 'package:nai_launcher/data/models/user/user_subscription.dart';
 import 'package:nai_launcher/data/models/vibe/vibe_reference.dart';
-import 'package:nai_launcher/presentation/providers/auth_provider.dart';
+import 'package:nai_launcher/data/services/auth_provider.dart';
 import 'package:nai_launcher/presentation/providers/generation/image_workflow_controller.dart';
 import 'package:nai_launcher/presentation/providers/image_generation_provider.dart';
 import 'package:nai_launcher/presentation/providers/image_save_settings_provider.dart';
@@ -85,8 +86,9 @@ class TestLocalGalleryNotifier extends LocalGalleryNotifier {
   LocalGalleryState build() => const LocalGalleryState(isInitialized: true);
 
   @override
-  Future<int> addNewlySavedImages(List<String> filePaths) async =>
-      filePaths.length;
+  Future<GalleryIndexAdmission> addNewlySavedImages(
+    List<String> filePaths,
+  ) async => GalleryIndexAdmission.added;
 }
 
 void main() {
@@ -107,12 +109,17 @@ void main() {
     await Hive.close();
     if (!await hiveTempDir.exists()) return;
 
-    for (var attempt = 0; attempt < 5; attempt++) {
+    const attempts = 50;
+    for (var attempt = 1; attempt <= attempts; attempt++) {
       try {
         await hiveTempDir.delete(recursive: true);
         return;
       } on FileSystemException {
-        if (attempt == 4) rethrow;
+        if (attempt == attempts) {
+          // Windows 可能在关闭后仍持有句柄；hosted runner 用完即弃，交给系统回收
+          if (Platform.isWindows) return;
+          rethrow;
+        }
         await Future<void>.delayed(const Duration(milliseconds: 100));
       }
     }
@@ -979,6 +986,16 @@ void main() {
       final mockApiService = MockNAIImageGenerationApiService();
       final originalSource = _validImageBytes(width: 640, height: 960);
       final originalMask = _validMaskBytes(width: 640, height: 960);
+      // API 服务贴回后的结果自带服务端元数据，尺寸已校正为整图。
+      final composedResult = await _buildImageWithEmbeddedMetadata(
+        imageWidth: 640,
+        imageHeight: 960,
+        metadataWidth: 640,
+        metadataHeight: 960,
+        prompt: 'focused server prompt',
+        negativePrompt: 'focused server negative',
+        seed: 9876,
+      );
       when(
         () => mockApiService.generateImage(
           any(),
@@ -997,7 +1014,7 @@ void main() {
         ),
       ).thenAnswer(
         (_) => Stream<ImageStreamChunk>.fromIterable([
-          ImageStreamChunk.complete(_validImageBytes(width: 640, height: 960)),
+          ImageStreamChunk.complete(composedResult),
         ]),
       );
 
@@ -1068,6 +1085,8 @@ void main() {
         await File(generationState.history.single.filePath!).readAsBytes(),
       );
       expect(savedResult.success, isTrue);
+      expect(savedResult.metadata?.prompt, equals('focused server prompt'));
+      expect(savedResult.metadata?.seed, equals(9876));
       expect(savedResult.metadata?.width, equals(640));
       expect(savedResult.metadata?.height, equals(960));
 

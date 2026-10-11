@@ -13,6 +13,7 @@ import 'package:nai_launcher/presentation/providers/generation/image_workflow_co
 import 'package:nai_launcher/presentation/providers/generation/novel_ai_upscale_task_provider.dart';
 import 'package:nai_launcher/presentation/screens/generation/widgets/img2img_panel.dart';
 
+import '../../../../helpers/ink_expectations.dart';
 import '../../../../helpers/light_theme_contrast.dart';
 
 void main() {
@@ -168,6 +169,50 @@ void main() {
       expect(find.text('Focused Inpainting（聚焦重绘）'), findsOneWidget);
       expect(find.textContaining('Minimum Context Area'), findsNothing);
       expect(find.textContaining('重绘编辑器左上角按钮'), findsOneWidget);
+    });
+
+    testWidgets('增强面板里的开关行按压反馈画在面板底色之上', (tester) async {
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+      await tester.binding.setSurfaceSize(const Size(1400, 1600));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+
+      final controller = container.read(
+        imageWorkflowControllerProvider.notifier,
+      );
+      controller.replaceSourceImage(_testImageBytes);
+      controller.enterEnhanceMode();
+      controller.setPanelExpanded(true);
+
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: const MaterialApp(
+            locale: Locale('zh'),
+            supportedLocales: AppLocalizations.supportedLocales,
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            home: Scaffold(body: SingleChildScrollView(child: Img2ImgPanel())),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final toggle = find.byType(SwitchListTile);
+      await tester.ensureVisible(toggle);
+      await tester.pumpAndSettle();
+      final panel = find
+          .ancestor(of: toggle, matching: find.byType(Container))
+          .first;
+      final theme = Theme.of(tester.element(panel));
+      final press = await pressAndHold(tester, toggle);
+      expectInkOnTop(
+        tester,
+        panel,
+        ink: theme.highlightColor,
+        below: theme.colorScheme.surfaceContainerHigh,
+      );
+      await press.cancel();
+      await tester.pumpAndSettle();
     });
 
     testWidgets('超分模型下拉项不重复显示当前模块前缀', (tester) async {

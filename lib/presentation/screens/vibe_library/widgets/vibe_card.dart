@@ -690,7 +690,7 @@ class _VibeCardState extends ConsumerState<VibeCard>
             ),
             const SizedBox(width: 6),
             Text(
-              '${(value * 100).toInt()}%',
+              '${(value * 100).round()}%',
               style: TextStyle(
                 color: Colors.white.withValues(alpha: 0.78),
                 fontSize: 10,

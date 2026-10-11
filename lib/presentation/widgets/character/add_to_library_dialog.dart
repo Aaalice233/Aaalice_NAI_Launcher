@@ -9,6 +9,7 @@ import '../../adaptive/adaptive_presenter.dart';
 import '../../providers/tag_library_page_provider.dart';
 import '../common/app_toast.dart';
 import '../common/image_picker_card/image_picker_card.dart';
+import '../common/ink_host.dart';
 import '../common/themed_input.dart';
 import '../common/translated_tag_text.dart';
 
@@ -262,33 +263,36 @@ class _AddToLibraryDialogState extends ConsumerState<AddToLibraryDialog> {
             color: colorScheme.surfaceContainer,
             borderRadius: BorderRadius.circular(8),
           ),
-          child: DropdownButtonHideUnderline(
-            child: DropdownButton<String?>(
-              value: _selectedCategoryId,
-              isExpanded: true,
-              borderRadius: BorderRadius.zero,
-              padding: const EdgeInsets.symmetric(horizontal: 12),
-              hint: Text(
-                l10n.tagLibrary_rootCategory,
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: colorScheme.onSurfaceVariant,
-                ),
-              ),
-              items: [
-                DropdownMenuItem<String?>(
-                  value: null,
-                  child: Text(l10n.tagLibrary_rootCategory),
-                ),
-                ...categories.rootCategories.sortedByOrder().map(
-                  (category) => DropdownMenuItem<String?>(
-                    value: category.id,
-                    child: Text(category.name),
+          clipBehavior: Clip.antiAlias,
+          child: InkHost(
+            child: DropdownButtonHideUnderline(
+              child: DropdownButton<String?>(
+                value: _selectedCategoryId,
+                isExpanded: true,
+                borderRadius: BorderRadius.zero,
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                hint: Text(
+                  l10n.tagLibrary_rootCategory,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: colorScheme.onSurfaceVariant,
                   ),
                 ),
-              ],
-              onChanged: (value) {
-                setState(() => _selectedCategoryId = value);
-              },
+                items: [
+                  DropdownMenuItem<String?>(
+                    value: null,
+                    child: Text(l10n.tagLibrary_rootCategory),
+                  ),
+                  ...categories.rootCategories.sortedByOrder().map(
+                    (category) => DropdownMenuItem<String?>(
+                      value: category.id,
+                      child: Text(category.name),
+                    ),
+                  ),
+                ],
+                onChanged: (value) {
+                  setState(() => _selectedCategoryId = value);
+                },
+              ),
             ),
           ),
         ),

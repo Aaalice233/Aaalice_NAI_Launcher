@@ -69,6 +69,22 @@ class _DelayedReadStorage extends PreciseRefLibraryStorageService {
   }
 }
 
+class _FailingReadStorage extends PreciseRefLibraryStorageService {
+  _FailingReadStorage({required super.overrideDirectory});
+
+  final Completer<void> readStarted = Completer<void>();
+  final Completer<void> failRead = Completer<void>();
+
+  @override
+  Future<Uint8List?> readImageBytes(String id) async {
+    if (!readStarted.isCompleted) {
+      readStarted.complete();
+    }
+    await failRead.future;
+    throw const FileSystemException('image unavailable');
+  }
+}
+
 class _ConcurrentReadStorage extends PreciseRefLibraryStorageService {
   _ConcurrentReadStorage({required super.overrideDirectory});
 
@@ -324,6 +340,22 @@ void main() {
     expect(await thumbnailLoad, isNull);
     expect(await cache.get(entry.id), isNull);
     expect(delayed.peekDisplayThumbnail(entry.id), isNull);
+  });
+
+  test('并发等待同一缩略图的调用方在读取失败时都得到 null', () async {
+    final entry = await storage.importFromBytes(_pngBytes(), name: 'fail');
+    final cache = Hive.lazyBox<Uint8List>('precise_ref_library_thumbnails_v1');
+    await cache.delete(entry.id);
+
+    final failing = _FailingReadStorage(overrideDirectory: imageDir.path);
+    storage = failing;
+    final first = failing.getDisplayThumbnail(entry.id);
+    await failing.readStarted.future;
+    final second = failing.getDisplayThumbnail(entry.id);
+    failing.failRead.complete();
+
+    expect(await first, isNull);
+    expect(await second, isNull);
   });
 
   test('启动对账恢复被中断的删除并清理孤立原图与缓存', () async {

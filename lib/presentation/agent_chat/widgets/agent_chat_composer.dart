@@ -9,10 +9,12 @@ import '../../../core/utils/localization_extension.dart';
 import '../../adaptive/interaction_policy.dart';
 import '../../../core/utils/token_count_format.dart';
 import '../../../core/windowing/agent_chat_layout_contract.dart';
-import '../../../core/windowing/agent_chat_shared_widgets.dart';
+import 'agent_chat_composer_image_input.dart';
+import 'agent_chat_shared_widgets.dart';
 import '../../../l10n/app_localizations.dart';
-import '../../prompt_assistant/models/prompt_assistant_models.dart';
+import '../../../data/models/prompt_assistant/prompt_assistant_models.dart';
 import '../../themes/core/layered_surface_style.dart';
+import '../../widgets/common/ink_host.dart';
 import '../models/agent_chat_slash_command.dart';
 import '../providers/agent_chat_state.dart';
 import 'agent_chat_header.dart';
@@ -159,43 +161,45 @@ class _AgentChatComposerState extends State<AgentChatComposer> {
             color: controlSurfaceColor(theme.colorScheme),
             borderRadius: BorderRadius.circular(18),
           ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              if (!viewData.compactWidth &&
-                  viewData.state.queuedMessages.isNotEmpty)
-                _queuedMessages(theme, l10n),
-              if (controller.isEditingUserMessage)
-                _messageEditHeader(theme, l10n),
-              if (slashMatches.isNotEmpty)
-                AgentChatSlashMenu(
-                  commands: slashMatches,
-                  highlightIndex: slashHighlight,
-                  onSelected: (command) =>
-                      _acceptSlashCommand(command, slashQuery!.end),
-                  onHighlightChanged: (index) =>
-                      setState(() => _slashHighlight = index),
+          child: InkHost(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                if (!viewData.compactWidth &&
+                    viewData.state.queuedMessages.isNotEmpty)
+                  _queuedMessages(theme, l10n),
+                if (controller.isEditingUserMessage)
+                  _messageEditHeader(theme, l10n),
+                if (slashMatches.isNotEmpty)
+                  AgentChatSlashMenu(
+                    commands: slashMatches,
+                    highlightIndex: slashHighlight,
+                    onSelected: (command) =>
+                        _acceptSlashCommand(command, slashQuery!.end),
+                    onHighlightChanged: (index) =>
+                        setState(() => _slashHighlight = index),
+                  ),
+                if (viewData.state.pendingResources.isNotEmpty ||
+                    controller.pendingImages.isNotEmpty)
+                  _attachmentCards(),
+                _editor(
+                  context,
+                  theme,
+                  l10n,
+                  slashMatches,
+                  slashHighlight,
+                  slashQuery?.end ?? 0,
                 ),
-              if (viewData.state.pendingResources.isNotEmpty ||
-                  controller.pendingImages.isNotEmpty)
-                _attachmentCards(),
-              _editor(
-                context,
-                theme,
-                l10n,
-                slashMatches,
-                slashHighlight,
-                slashQuery?.end ?? 0,
-              ),
-              if (viewData.compactWidth &&
-                  viewData.state.queuedMessages.isNotEmpty)
-                _queuedMessages(theme, l10n),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(8, 2, 8, 6),
-                child: _composerControls(theme, l10n),
-              ),
-            ],
+                if (viewData.compactWidth &&
+                    viewData.state.queuedMessages.isNotEmpty)
+                  _queuedMessages(theme, l10n),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(8, 2, 8, 6),
+                  child: _composerControls(theme, l10n),
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -260,6 +264,9 @@ class _AgentChatComposerState extends State<AgentChatComposer> {
       focusNode: controller.inputFocus,
       onTapOutside: (_) => controller.inputFocus.unfocus(),
       enabled: viewData.state.initialized,
+      contentInsertionConfiguration: agentChatKeyboardImageInsertion(
+        commands.attachImageFiles,
+      ),
       expands: _editorExpanded,
       minLines: _editorExpanded
           ? null
@@ -378,7 +385,10 @@ class _AgentChatComposerState extends State<AgentChatComposer> {
                         context.interactionPolicy.shouldExposeTouchAlternatives,
                   )
                 : null,
-            child: editor,
+            child: AgentChatImagePasteScope(
+              onPasteImage: commands.pasteClipboardImage,
+              child: editor,
+            ),
           ),
           Positioned(
             top: 6,

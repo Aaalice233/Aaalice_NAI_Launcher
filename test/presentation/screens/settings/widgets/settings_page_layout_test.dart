@@ -23,6 +23,22 @@ void main() {
     expect(card.color, sectionSurfaceColor(scheme));
   });
 
+  testWidgets('page title is a level-2 heading', (tester) async {
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(
+          body: SettingsPageLayout(title: 'Page title', children: []),
+        ),
+      ),
+    );
+
+    final title = tester.getSemantics(
+      find.byKey(const ValueKey('settings-page-title')),
+    );
+    expect(title.flagsCollection.isHeader, isTrue);
+    expect(title.headingLevel, 2);
+  });
+
   Widget buildSubject({
     required Brightness brightness,
     required double textScale,

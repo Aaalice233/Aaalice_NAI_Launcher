@@ -116,6 +116,37 @@ void main() {
       );
     }
   });
+  test('batched tag lookups sum group results rather than a reported total', () {
+    expect(
+      structuredAgentToolResultSummary(
+        en,
+        result('search_tags', {
+          'ok': true,
+          'groups': [
+            {
+              'query': 'blue_hair',
+              'mode': 'search',
+              'results': [{}, {}],
+            },
+            {
+              'query': 'nonexistent',
+              'mode': 'search',
+              'results': [],
+              'note': 'No catalog match for "nonexistent".',
+            },
+            {
+              'query': '蓝发',
+              'mode': 'translate',
+              'results': [{}],
+            },
+          ],
+          'returned_count': 900,
+          'note': 'No results for: nonexistent.',
+        }),
+      ),
+      'Returned 3 tags · No results for: nonexistent.',
+    );
+  });
   test('image and queue outcomes distinguish inspection and preparation', () {
     expect(
       structuredAgentToolResultSummary(

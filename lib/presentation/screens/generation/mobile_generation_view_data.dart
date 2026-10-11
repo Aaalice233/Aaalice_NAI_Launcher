@@ -1,8 +1,8 @@
-import '../../providers/image_generation_provider.dart';
+import '../../providers/generation/image_generation_selectors.dart';
 
 class MobileGenerationViewData {
   const MobileGenerationViewData({
-    required this.generationState,
+    required this.batchStatus,
     required this.cooldownRemainingSeconds,
     required this.isPromptMaximized,
     required this.keyboardVisible,
@@ -19,7 +19,7 @@ class MobileGenerationViewData {
     required this.fixedTagCount,
   });
 
-  final ImageGenerationState generationState;
+  final GenerationButtonViewData batchStatus;
   final int cooldownRemainingSeconds;
   final bool isPromptMaximized;
   final bool keyboardVisible;

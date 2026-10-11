@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 
 import '../../../core/utils/localization_extension.dart';
 import '../../adaptive/interaction_policy.dart';
+import 'card_action_buttons.dart';
 
 /// 统一收藏按钮。
 ///
@@ -172,21 +173,33 @@ class _FavoriteIconButtonState extends State<_FavoriteIconButton>
     final interaction = context.interactionPolicy;
 
     Color foreground(Set<WidgetState> states) {
+      if (widget.cardOverlay) {
+        final color = widget.isFavorite
+            ? ImageOverlayControlStyle.errorForeground(colors)
+            : ImageOverlayControlStyle.foreground;
+        return states.contains(WidgetState.disabled)
+            ? color.withValues(alpha: 0.55)
+            : color;
+      }
       if (states.contains(WidgetState.disabled)) {
         return colors.onSurface.withValues(alpha: 0.38);
       }
       if (widget.isFavorite) return activeColor;
-      if (widget.cardOverlay) return Colors.white;
       return inactiveColor;
     }
 
     Color background(Set<WidgetState> states) {
       final interactive = interaction.isControlHighlighted(states);
-      if (states.contains(WidgetState.disabled) && !widget.cardOverlay) {
-        return Colors.transparent;
-      }
       if (widget.cardOverlay) {
-        return Colors.black.withValues(alpha: interactive ? 0.68 : 0.5);
+        if (states.contains(WidgetState.disabled)) {
+          return ImageOverlayControlStyle.disabledSurface;
+        }
+        return interactive
+            ? ImageOverlayControlStyle.hoveredSurface
+            : ImageOverlayControlStyle.surface;
+      }
+      if (states.contains(WidgetState.disabled)) {
+        return Colors.transparent;
       }
       if (widget.showBackground) {
         if (widget.isFavorite) {
@@ -209,8 +222,20 @@ class _FavoriteIconButtonState extends State<_FavoriteIconButton>
         foregroundColor: WidgetStateProperty.resolveWith(foreground),
         backgroundColor: WidgetStateProperty.resolveWith(background),
         overlayColor: const WidgetStatePropertyAll(Colors.transparent),
-        side: const WidgetStatePropertyAll(BorderSide.none),
+        side: WidgetStateProperty.resolveWith(
+          (states) => widget.cardOverlay
+              ? BorderSide(
+                  color: interaction.isControlHighlighted(states)
+                      ? ImageOverlayControlStyle.hoveredBorder
+                      : ImageOverlayControlStyle.border,
+                )
+              : BorderSide.none,
+        ),
         minimumSize: const WidgetStatePropertyAll(Size.square(40)),
+        // 精确指针下与同排覆盖按钮同为 40px；触屏保留 48px 命中区。
+        tapTargetSize: widget.cardOverlay && !interaction.touchAvailable
+            ? MaterialTapTargetSize.shrinkWrap
+            : null,
         padding: const WidgetStatePropertyAll(EdgeInsets.all(6)),
         shape: WidgetStatePropertyAll(
           RoundedRectangleBorder(borderRadius: BorderRadius.circular(radius)),

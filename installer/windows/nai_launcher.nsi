@@ -25,6 +25,10 @@
   !define APP_EXE "nai_launcher.exe"
 !endif
 
+!ifndef MCP_CLI_EXE
+  !define MCP_CLI_EXE "nai_launcher_mcp.exe"
+!endif
+
 !ifndef PUBLISHER
   !define PUBLISHER "Aaalice"
 !endif
@@ -48,6 +52,9 @@ Unicode true
 !define /math PROCESS_PATH_BUFFER_BYTES ${NSIS_MAX_STRLEN} * 2
 !define PROCESS_ENTRY_SIZE 556
 
+; taskkill stops one PID, but every MCP client thread owns its own stdio proxy.
+!define CLOSE_PROCESS_MAX_ROUNDS 32
+
 !define MUI_ABORTWARNING
 !define MUI_FINISHPAGE_RUN "$INSTDIR\${APP_EXE}"
 !insertmacro MUI_PAGE_WELCOME
@@ -67,11 +74,12 @@ LangString AppCloseFailed ${LANG_ENGLISH} "Unable to close ${APP_NAME}. Exit it 
 LangString AppInspectionFailed ${LANG_SIMPCHINESE} "无法确认正在运行的 ${APP_NAME} 是否来自当前安装目录。为避免覆盖占用中的文件，请从系统托盘手动退出应用后重试。"
 LangString AppInspectionFailed ${LANG_ENGLISH} "Setup could not verify whether a running ${APP_NAME} belongs to this installation. Exit the app from the system tray and try again to avoid overwriting files in use."
 
+Var TargetProcessExe
 Var TargetProcessId
 Var ProcessInspectionFailed
 
 !macro DefineProcessFunctions Prefix
-Function ${Prefix}FindInstalledAppProcess
+Function ${Prefix}FindInstalledProcess
   Push $R0
   Push $R1
   Push $R2
@@ -88,10 +96,10 @@ Function ${Prefix}FindInstalledAppProcess
 
   ; With no target executable there is nothing in this installation to stop.
   ; Scanning would let an unrelated inaccessible same-named process block first install.
-  IfFileExists "$INSTDIR\${APP_EXE}" 0 find_process_done
+  IfFileExists "$INSTDIR\$TargetProcessExe" 0 find_process_done
 
   ClearErrors
-  GetFullPathName $R9 "$INSTDIR\${APP_EXE}"
+  GetFullPathName $R9 "$INSTDIR\$TargetProcessExe"
   IfErrors find_process_snapshot_failed
 
   System::Call 'kernel32::CreateToolhelp32Snapshot(i 0x00000002, i 0) p .R0'
@@ -106,7 +114,7 @@ Function ${Prefix}FindInstalledAppProcess
 
 find_process_loop:
   System::Call '*$R1(i, i, i .R4, p, i, i, i, i, i, &w260 .R8)'
-  System::Call 'kernel32::lstrcmpiW(w R8, w "${APP_EXE}") i .R3'
+  System::Call 'kernel32::lstrcmpiW(w R8, w "$TargetProcessExe") i .R3'
   StrCmp $R3 "0" 0 find_process_next
 
   System::Call 'kernel32::OpenProcess(i ${PROCESS_QUERY_ACCESS}, i 0, i R4) p .R5'
@@ -174,8 +182,14 @@ find_process_done:
   Pop $R0
 FunctionEnd
 
-Function ${Prefix}EnsureAppClosed
-  Call ${Prefix}FindInstalledAppProcess
+Function ${Prefix}CloseInstalledProcess
+  Push $R0
+  Push $R1
+  Push $R2
+
+  StrCpy $R1 0
+
+  Call ${Prefix}FindInstalledProcess
   StrCmp $ProcessInspectionFailed "1" process_inspection_failed
   StrCmp $TargetProcessId "0" app_closed
 
@@ -183,12 +197,22 @@ Function ${Prefix}EnsureAppClosed
   MessageBox MB_ICONEXCLAMATION|MB_OKCANCEL "$(AppRunningPrompt)" IDOK close_app IDCANCEL cancel_install
 
 close_app:
+  StrCpy $R2 $TargetProcessId
   nsExec::ExecToLog '"$SYSDIR\taskkill.exe" /PID $TargetProcessId /T /F'
+  Pop $R0
   Sleep 1000
-  Call ${Prefix}FindInstalledAppProcess
+  IntOp $R1 $R1 + 1
+  Call ${Prefix}FindInstalledProcess
   StrCmp $ProcessInspectionFailed "1" process_inspection_failed
   StrCmp $TargetProcessId "0" app_closed
+  ; A repeated PID means the kill failed; a new PID is just the next proxy.
+  StrCmp $TargetProcessId $R2 close_failed
+  IntCmp $R1 ${CLOSE_PROCESS_MAX_ROUNDS} close_failed close_app close_failed
 
+close_failed:
+  Pop $R2
+  Pop $R1
+  Pop $R0
   IfSilent silent_close_failed 0
   MessageBox MB_ICONSTOP|MB_OK "$(AppCloseFailed)"
   Abort
@@ -198,6 +222,9 @@ silent_close_failed:
   Quit
 
 process_inspection_failed:
+  Pop $R2
+  Pop $R1
+  Pop $R0
   IfSilent silent_inspection_failed 0
   MessageBox MB_ICONSTOP|MB_OK "$(AppInspectionFailed)"
   Abort
@@ -207,9 +234,23 @@ silent_inspection_failed:
   Quit
 
 cancel_install:
+  Pop $R2
+  Pop $R1
+  Pop $R0
   Abort
 
 app_closed:
+  Pop $R2
+  Pop $R1
+  Pop $R0
+FunctionEnd
+
+Function ${Prefix}EnsureAppClosed
+  StrCpy $TargetProcessExe "${APP_EXE}"
+  Call ${Prefix}CloseInstalledProcess
+  ; MCP clients keep the stdio proxy running after the launcher exits.
+  StrCpy $TargetProcessExe "${MCP_CLI_EXE}"
+  Call ${Prefix}CloseInstalledProcess
 FunctionEnd
 !macroend
 

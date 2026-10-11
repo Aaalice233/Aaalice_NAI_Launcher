@@ -6,12 +6,14 @@ import 'package:flutter/material.dart';
 import '../../../../core/utils/app_logger.dart';
 import '../core/history_manager.dart';
 import 'layer.dart';
+import 'layer_raster.dart';
+import 'layer_role.dart';
 import 'snapshot_cache.dart';
 
 /// 图层管理器
 /// 管理所有图层的增删改查、排序等操作
 class LayerManager extends ChangeNotifier {
-  /// 图层列表（从底到顶排列）
+  /// 图层列表：索引 0 在最上层、最后绘制，图层面板按同一顺序自上而下列出
   final List<Layer> _layers = [];
   List<Layer> get layers => List.unmodifiable(_layers);
 
@@ -42,6 +44,9 @@ class LayerManager extends ChangeNotifier {
   /// 批量操作期间是否有内容变化（笔画添加）
   bool _pendingContentChange = false;
 
+  /// 各角色最近激活的图层，工具入口切换角色时回到用户刚才在用的那一层
+  final Map<LayerRole, String> _lastActiveIdByRole = {};
+
   bool _pendingActiveLayerNotification = false;
   String? _pendingActiveLayerId;
   final Map<String, bool> _pendingLayerActiveValues = {};
@@ -49,8 +54,9 @@ class LayerManager extends ChangeNotifier {
   // ===== 快照缓存管理器 =====
 
   /// 快照缓存管理器（延迟初始化）
+  /// 拾色只取画面内容，重绘会话里的蒙版叠加色不参与
   late final CanvasSnapshotManager _snapshotManager = CanvasSnapshotManager(
-    renderCallback: renderAll,
+    renderCallback: renderImageLayers,
   );
 
   /// 获取快照版本号
@@ -67,9 +73,32 @@ class LayerManager extends ChangeNotifier {
 
     _activeLayerId = layerId;
     _setActiveLayerNotifierValue(layerId);
+    _rememberActiveRole(layerId);
 
     // 新活动图层：通知变为活动
     _setLayerActiveNotifierValue(layerId, true);
+  }
+
+  void _rememberActiveRole(String? layerId) {
+    final layer = layerId == null ? null : getLayerById(layerId);
+    if (layer != null) _lastActiveIdByRole[layer.role] = layer.id;
+  }
+
+  /// 切到 [role] 时落到的图层：最近激活过且未锁定的同角色图层，其次最上方未锁定的
+  Layer? preferredLayerFor(LayerRole role) {
+    final rememberedId = _lastActiveIdByRole[role];
+    final remembered = rememberedId == null ? null : getLayerById(rememberedId);
+    if (remembered != null && remembered.role == role && !remembered.locked) {
+      return remembered;
+    }
+
+    Layer? firstOfRole;
+    for (final layer in _layers) {
+      if (layer.role != role) continue;
+      if (!layer.locked) return layer;
+      firstOfRole ??= layer;
+    }
+    return firstOfRole;
   }
 
   /// 仅通知UI更新（不触发画布重绘）
@@ -103,10 +132,38 @@ class LayerManager extends ChangeNotifier {
   /// 是否为空
   bool get isEmpty => _layers.isEmpty;
 
-  /// 添加图层
-  Layer addLayer({String? name, int? index}) {
+  Iterable<Layer> get maskLayers => _layers.where((layer) => layer.isMask);
+
+  Iterable<Layer> get imageLayers => _layers.where((layer) => !layer.isMask);
+
+  int indexOfLayer(String layerId) =>
+      _layers.indexWhere((layer) => layer.id == layerId);
+
+  /// 插入已构造的图层；[index] 越界时追加到最底层
+  Layer insertLayer(Layer layer, int index, {bool setActive = true}) {
+    if (index >= 0 && index <= _layers.length) {
+      _layers.insert(index, layer);
+    } else {
+      _layers.add(layer);
+    }
+    if (setActive) {
+      _setActiveLayerIdInternal(layer.id);
+    }
+    _markStructureChanged();
+    return layer;
+  }
+
+  void translateLayer(String layerId, Offset delta) {
+    final layer = getLayerById(layerId);
+    if (layer == null || delta == Offset.zero) return;
+    layer.translateContent(delta);
+    _markContentChanged();
+  }
+
+  /// 添加图层；不指定 [index] 时追加到最底层
+  Layer addLayer({String? name, int? index, LayerRole role = LayerRole.image}) {
     final layerName = name ?? 'Layer ${_layers.length + 1}';
-    final layer = Layer(name: layerName);
+    final layer = Layer(name: layerName, role: role);
 
     if (index != null && index >= 0 && index <= _layers.length) {
       _layers.insert(index, layer);
@@ -141,20 +198,25 @@ class LayerManager extends ChangeNotifier {
     return layer;
   }
 
-  /// 从图像数据创建图层
+  /// 从图像数据创建图层，底图左上角落在文档坐标 [offset]
   ///
   /// 如果图像解码失败，返回 null 并清理资源
   Future<Layer?> addLayerFromImage(
     Uint8List imageBytes, {
     String? name,
     int? index,
+    Offset offset = Offset.zero,
+    LayerRole role = LayerRole.image,
   }) async {
     final layerName = name ?? 'Imported Image ${_layers.length + 1}';
-    final layer = Layer(name: layerName);
+    final layer = Layer(name: layerName, role: role);
 
     try {
       // 设置基础图像
       await layer.setBaseImage(imageBytes);
+      if (offset != Offset.zero) {
+        layer.setBaseImageOffset(offset);
+      }
     } catch (e) {
       // 解码失败，清理资源
       layer.dispose();
@@ -199,14 +261,56 @@ class LayerManager extends ChangeNotifier {
     return layer;
   }
 
+  /// 同步替换底图并清空笔画；[image] 的所有权移交给图层
+  void replaceLayerBaseImageSync(
+    String layerId,
+    ui.Image image,
+    Uint8List? bytes, {
+    Offset offset = Offset.zero,
+  }) {
+    replaceLayerBaseRasterSync(
+      layerId,
+      LayerRaster(image, bytes: bytes),
+      offset: offset,
+    );
+  }
+
+  /// 同步替换底图并清空笔画；[raster] 的一份持有移交给图层
+  void replaceLayerBaseRasterSync(
+    String layerId,
+    LayerRaster raster, {
+    Offset offset = Offset.zero,
+  }) {
+    final layer = getLayerById(layerId);
+    if (layer == null) {
+      raster.release();
+      return;
+    }
+    layer.clearStrokes();
+    layer.setBaseRaster(raster, offset: offset);
+    _markContentChanged();
+  }
+
+  /// 把图层内容恢复为快照；快照不被消费
+  void restoreLayerContent(String layerId, LayerContentSnapshot snapshot) {
+    final layer = getLayerById(layerId);
+    if (layer == null) return;
+    layer.restoreContent(snapshot);
+    _markContentChanged();
+  }
+
   /// 替换图层底图(3D 图层再编辑用),保留图层其余状态
   Future<Layer?> replaceLayerBaseImage(
     String layerId,
-    Uint8List imageBytes,
-  ) async {
+    Uint8List imageBytes, {
+    Offset offset = Offset.zero,
+  }) async {
     final layer = getLayerById(layerId);
     if (layer == null) return null;
     await layer.setBaseImage(imageBytes);
+    if (offset != Offset.zero) {
+      layer.setBaseImageOffset(offset);
+    }
     _markContentChanged();
     return layer;
   }
@@ -234,139 +338,6 @@ class LayerManager extends ChangeNotifier {
     return true;
   }
 
-  /// 复制图层
-  Layer? duplicateLayer(String layerId) {
-    final sourceLayer = getLayerById(layerId);
-    if (sourceLayer == null) return null;
-
-    final index = _layers.indexOf(sourceLayer);
-    final cloned = sourceLayer.clone();
-    _layers.insert(index + 1, cloned);
-    _setActiveLayerIdInternal(cloned.id);
-
-    _markStructureChanged();
-    return cloned;
-  }
-
-  /// 合并图层（将上层合并到下层）
-  /// 使用批量操作优化，只触发一次通知
-  bool mergeLayers(String topLayerId, String bottomLayerId) {
-    final topLayer = getLayerById(topLayerId);
-    final bottomLayer = getLayerById(bottomLayerId);
-    if (topLayer == null || bottomLayer == null) return false;
-
-    // 使用批量操作
-    beginBatch();
-    try {
-      // 批量添加笔画（使用副本避免引用问题）
-      final strokeCopies = topLayer.strokes.map((s) => s.copyWith()).toList();
-      addStrokesBatch(bottomLayerId, strokeCopies);
-
-      // 内部删除上层（不触发通知）
-      _removeLayerInternal(topLayerId);
-      _setActiveLayerIdInternal(bottomLayerId);
-      _markStructureChanged();
-    } finally {
-      endBatch();
-    }
-
-    return true;
-  }
-
-  /// 内部删除图层（不触发通知）
-  /// 用于批量操作
-  void _removeLayerInternal(String layerId) {
-    final index = _layers.indexWhere((l) => l.id == layerId);
-    if (index == -1) return;
-
-    final layer = _layers.removeAt(index);
-    layer.dispose();
-  }
-
-  /// 向下合并当前图层
-  bool mergeDown() {
-    if (_activeLayerId == null) return false;
-
-    final activeIndex = _layers.indexWhere((l) => l.id == _activeLayerId);
-    if (activeIndex <= 0) return false; // 已经是最底层
-
-    final bottomLayer = _layers[activeIndex - 1];
-    return mergeLayers(_activeLayerId!, bottomLayer.id);
-  }
-
-  /// 合并可见图层
-  /// 使用批量操作优化，只触发一次通知
-  Layer? mergeVisible() {
-    final visibleLayers = _layers.where((l) => l.visible).toList();
-    if (visibleLayers.length < 2) return null;
-
-    // 创建合并后的图层
-    final merged = Layer(name: 'Merged Layer');
-
-    // 使用批量操作
-    beginBatch();
-    try {
-      // 按顺序合并所有可见图层的笔画
-      for (final layer in visibleLayers) {
-        for (final stroke in layer.strokes) {
-          merged.addStrokeInternal(stroke.copyWith());
-        }
-      }
-
-      // 删除原有可见图层
-      for (final layer in visibleLayers) {
-        _layers.remove(layer);
-        layer.dispose();
-      }
-
-      // 添加合并后的图层
-      _layers.add(merged);
-      _setActiveLayerIdInternal(merged.id);
-      _markStructureChanged();
-      _markContentChanged();
-    } finally {
-      endBatch();
-    }
-
-    return merged;
-  }
-
-  /// 展平所有图层
-  /// 使用批量操作优化，只触发一次通知
-  Layer? flattenAll() {
-    if (_layers.isEmpty) return null;
-
-    final flattened = Layer(name: 'Background');
-
-    // 使用批量操作
-    beginBatch();
-    try {
-      for (final layer in _layers) {
-        if (layer.visible) {
-          for (final stroke in layer.strokes) {
-            flattened.addStrokeInternal(stroke.copyWith());
-          }
-        }
-      }
-
-      // 清除所有图层
-      for (final layer in _layers) {
-        layer.dispose();
-      }
-      _layers.clear();
-
-      // 添加展平后的图层
-      _layers.add(flattened);
-      _setActiveLayerIdInternal(flattened.id);
-      _markStructureChanged();
-      _markContentChanged();
-    } finally {
-      endBatch();
-    }
-
-    return flattened;
-  }
-
   /// 重排图层
   void reorderLayer(int oldIndex, int newIndex) {
     if (oldIndex < 0 || oldIndex >= _layers.length) return;
@@ -376,24 +347,6 @@ class LayerManager extends ChangeNotifier {
     final layer = _layers.removeAt(oldIndex);
     _layers.insert(newIndex, layer);
     _markStructureChanged();
-  }
-
-  /// 上移图层
-  bool moveLayerUp(String layerId) {
-    final index = _layers.indexWhere((l) => l.id == layerId);
-    if (index == -1 || index >= _layers.length - 1) return false;
-
-    reorderLayer(index, index + 1);
-    return true;
-  }
-
-  /// 下移图层
-  bool moveLayerDown(String layerId) {
-    final index = _layers.indexWhere((l) => l.id == layerId);
-    if (index <= 0) return false;
-
-    reorderLayer(index, index - 1);
-    return true;
   }
 
   /// 设置活动图层
@@ -410,6 +363,7 @@ class LayerManager extends ChangeNotifier {
     if (newLayer != null) {
       _activeLayerId = layerId;
       // 保持兼容：更新全局通知器（其他需要监听活动图层的组件）
+      _rememberActiveRole(layerId);
       _setLayerActiveNotifierValue(layerId, true);
       _setActiveLayerNotifierValue(layerId);
     }
@@ -524,6 +478,7 @@ class LayerManager extends ChangeNotifier {
       layer.dispose();
     }
     _layers.clear();
+    _lastActiveIdByRole.clear();
     _setActiveLayerIdInternal(null);
     _markStructureChanged();
   }
@@ -548,29 +503,8 @@ class LayerManager extends ChangeNotifier {
     }
   }
 
-  void translateLayersContent(Iterable<String> layerIds, Offset delta) {
-    if (delta == Offset.zero) return;
-
-    final targetLayerIds = layerIds.toSet();
-    if (targetLayerIds.isEmpty) return;
-
-    runBatch(() {
-      var translatedAny = false;
-      for (final layer in _layers) {
-        if (!targetLayerIds.contains(layer.id)) {
-          continue;
-        }
-        layer.translateContent(delta);
-        translatedAny = true;
-      }
-      if (translatedAny) {
-        _markContentChanged();
-      }
-    });
-  }
-
-  /// 更新所有缩略图
-  Future<void> updateAllThumbnails(Size canvasSize) async {
+  /// 更新所有缩略图（[region] 为取景框）
+  Future<void> updateAllThumbnails(Rect region) async {
     if (_isUpdatingThumbnails) return;
     _isUpdatingThumbnails = true;
 
@@ -578,7 +512,7 @@ class LayerManager extends ChangeNotifier {
       // 创建快照避免并发修改
       final layersSnapshot = List<Layer>.from(_layers);
       for (final layer in layersSnapshot) {
-        await layer.updateThumbnail(canvasSize);
+        await layer.updateThumbnail(region);
       }
       notifyListeners();
     } finally {
@@ -586,22 +520,33 @@ class LayerManager extends ChangeNotifier {
     }
   }
 
-  /// 渲染所有可见图层到画布
-  /// 面板下方的图层渲染在上层（覆盖面板上方的图层）
-  /// 使用 renderWithCache 优先利用缓存提升性能
+  /// 以文档坐标渲染所有可见图层，使用 renderWithCache 优先利用缓存
   /// [viewportBounds] 视口边界，用于空间剔除优化（可选）
   void renderAll(
-    Canvas canvas,
-    Size canvasSize, {
+    Canvas canvas, {
     Rect? viewportBounds,
     FilterQuality filterQuality = FilterQuality.none,
   }) {
-    // 反向遍历：面板上方的图层先画（底层），面板下方的图层后画（顶层）
+    renderWhere(
+      canvas,
+      (_) => true,
+      viewportBounds: viewportBounds,
+      filterQuality: filterQuality,
+    );
+  }
+
+  /// 只渲染满足 [include] 的可见图层，顺序与 [renderAll] 相同
+  void renderWhere(
+    Canvas canvas,
+    bool Function(Layer layer) include, {
+    Rect? viewportBounds,
+    FilterQuality filterQuality = FilterQuality.none,
+  }) {
+    // 索引 0 在最上层，所以从末尾往前画
     for (final layer in _layers.reversed) {
-      if (layer.visible) {
+      if (layer.visible && include(layer)) {
         layer.renderWithCache(
           canvas,
-          canvasSize,
           viewportBounds: viewportBounds,
           filterQuality: filterQuality,
         );
@@ -609,28 +554,31 @@ class LayerManager extends ChangeNotifier {
     }
   }
 
-  /// 导出合并后的图像
+  /// 只合成图片层；蒙版层的叠加色不属于画面内容
+  void renderImageLayers(Canvas canvas) {
+    renderWhere(canvas, (layer) => !layer.isMask);
+  }
+
+  /// 导出 [region]（取景框）内合并后的图像
   Future<ui.Image> exportMergedImage(
-    Size canvasSize, {
+    Rect region, {
     bool transparentBackground = false,
+    bool Function(Layer layer)? include,
   }) async {
     final recorder = ui.PictureRecorder();
     final canvas = Canvas(recorder);
+    canvas.translate(-region.left, -region.top);
 
     if (!transparentBackground) {
-      canvas.drawRect(
-        Rect.fromLTWH(0, 0, canvasSize.width, canvasSize.height),
-        Paint()..color = Colors.white,
-      );
+      canvas.drawRect(region, Paint()..color = Colors.white);
     }
 
-    // 渲染所有图层
-    renderAll(canvas, canvasSize);
+    renderWhere(canvas, include ?? (_) => true);
 
     final picture = recorder.endRecording();
     final image = await picture.toImage(
-      canvasSize.width.toInt(),
-      canvasSize.height.toInt(),
+      region.width.round(),
+      region.height.round(),
     );
     picture.dispose();
 
@@ -752,30 +700,16 @@ class LayerManager extends ChangeNotifier {
     }
   }
 
-  /// 批量添加笔画（不触发中间通知）
-  /// 用于图层合并等批量操作
-  void addStrokesBatch(String layerId, List<StrokeData> strokes) {
-    final layer = getLayerById(layerId);
-    if (layer == null || layer.locked || strokes.isEmpty) return;
-
-    // 直接添加到图层，不触发单独的通知
-    for (final stroke in strokes) {
-      layer.addStrokeInternal(stroke);
-    }
-
-    _markContentChanged();
-  }
-
   // ===== 快照缓存方法（代理到 CanvasSnapshotManager）=====
 
   /// 标记快照失效（在图层变化时调用）
   void invalidateSnapshot() => _snapshotManager.invalidate();
 
-  /// 异步更新画布快照
-  Future<bool> updateSnapshotAsync(Size canvasSize) =>
-      _snapshotManager.updateSnapshotAsync(canvasSize);
+  /// 异步更新 [region]（取景框）的画布快照
+  Future<bool> updateSnapshotAsync(Rect region) =>
+      _snapshotManager.updateSnapshotAsync(region);
 
-  /// 同步读取指定位置的像素颜色
+  /// 同步读取指定文档坐标的像素颜色
   Color? getPixelColor(int x, int y) => _snapshotManager.getPixelColor(x, y);
 
   /// 同步获取放大镜网格像素
@@ -785,12 +719,12 @@ class LayerManager extends ChangeNotifier {
     int gridSize,
   ) => _snapshotManager.getMagnifierPixels(centerX, centerY, gridSize);
 
-  /// 更新区域快照（仅渲染光标周围的小区域）
+  /// 更新区域快照（仅渲染光标周围的小区域，限制在 [region] 内）
   Future<bool> updateRegionalSnapshot(
     int centerX,
     int centerY,
-    Size canvasSize,
-  ) => _snapshotManager.updateRegionalSnapshot(centerX, centerY, canvasSize);
+    Rect region,
+  ) => _snapshotManager.updateRegionalSnapshot(centerX, centerY, region);
 
   /// 获取区域缓存中的像素颜色（同步，O(1)）
   Color? getRegionalPixel(int x, int y) =>

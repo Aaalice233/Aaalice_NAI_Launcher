@@ -8,6 +8,8 @@ import 'package:nai_launcher/presentation/screens/online_gallery/online_gallery_
 import 'package:nai_launcher/presentation/screens/online_gallery/online_gallery_screen_controller.dart';
 import 'package:nai_launcher/presentation/themes/core/layered_surface_style.dart';
 
+import '../../../helpers/ink_expectations.dart';
+
 class _MockOnlineGalleryNotifier extends Mock
     implements OnlineGalleryNotifier {}
 
@@ -96,6 +98,38 @@ void main() {
       expect(tester.takeException(), isNull);
     },
   );
+
+  testWidgets('页码按钮的悬停与按压反馈画在页脚色面之上', (tester) async {
+    final controller = _createController();
+    addTearDown(controller.dispose);
+    await _pumpPagination(
+      tester,
+      width: 900,
+      state: const OnlineGalleryState(searchCache: ModeCache(page: 2)),
+      controller: controller,
+      notifier: _MockOnlineGalleryNotifier(),
+    );
+
+    final surface = find.byKey(
+      const ValueKey('online-gallery-footer-tonal-surface'),
+    );
+    final page = find
+        .ancestor(of: find.text('Page 2'), matching: find.byType(InkWell))
+        .first;
+    await tester.ensureVisible(page);
+    await tester.pumpAndSettle();
+    final theme = Theme.of(tester.element(page));
+    final fill = controlSurfaceColor(theme.colorScheme);
+
+    await hoverOver(tester, page);
+    expectInkOnTop(tester, surface, ink: theme.hoverColor, below: fill);
+
+    final press = await pressAndHold(tester, page);
+    expectInkOnTop(tester, surface, ink: theme.highlightColor, below: fill);
+    await press.up();
+    await tester.pumpAndSettle();
+    expect(controller.isEditingPage, isTrue);
+  });
 }
 
 void _expectBorderlessFooterSurface(WidgetTester tester) {

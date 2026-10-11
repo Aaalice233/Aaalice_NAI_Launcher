@@ -28,7 +28,7 @@ Google Drive 的应用授权审核尚未通过，产品暂时禁用新增连接�
 - Microsoft Graph DriveItem：[列举 children](https://learn.microsoft.com/en-us/graph/api/driveitem-list-children)、[下载 content](https://learn.microsoft.com/en-us/graph/api/driveitem-get-content)、[上传/替换 content](https://learn.microsoft.com/en-us/graph/api/driveitem-put-content)、[大文件 upload session](https://learn.microsoft.com/en-us/graph/api/driveitem-createuploadsession)、[删除与 `If-Match`](https://learn.microsoft.com/en-us/graph/api/driveitem-delete)。所有 `@odata.nextLink` 都要消费；`eTag` 用于文件内容的条件更新，`412` 映射为同步冲突，不能覆盖重试。
 - 两家服务的 `429`/临时 `5xx` 仅在操作可安全重放时按 `Retry-After` 有界退避；响应丢失后结果不确定的可变写入必须回到重新读取/对账流程，不能盲目重放。
 
-`google_sign_in 7.2.0` 与 `flutter_appauth 12.1.0` 均兼容项目的 Dart 3.10.7+、Flutter 3.44.2。`flutter_appauth` 不支持 Windows，因此 Windows 使用仓库内有界 loopback 实现。
+`google_sign_in 7.2.0` 与 `flutter_appauth 12.1.0` 均兼容项目的 Dart 3.10.7+、Flutter 3.47.5。`flutter_appauth` 不支持 Windows，因此 Windows 使用仓库内有界 loopback 实现。
 
 ## Google Cloud Console
 

@@ -78,6 +78,10 @@ class ImageMetadataContainerCodec {
       return embedTextChunkOnly(imageBytes, 'Comment', metadataJson);
     }
 
+    // Re-encoding can discard bad ancillary CRCs or trailing bytes, so validate
+    // the original container before the decoder can normalize it.
+    _scanValidatedPngChunks(imageBytes);
+
     // 完整路径：stealth + tEXt（保持最大兼容性）
     final stealthBytes = await _embedStealthData(imageBytes, metadataJson);
     return _updateTextChunk(stealthBytes, metadataJson);
@@ -310,6 +314,96 @@ class ImageMetadataContainerCodec {
       // 失败时返回原始数据
       return originalPng;
     }
+  }
+
+  /// Replaces multiple text fields in one container pass. Unchanged chunks,
+  /// including their CRCs, are copied verbatim after validation.
+  static Uint8List embedTextChunks(
+    Uint8List originalPng,
+    Map<String, String> replacements,
+  ) {
+    if (!isPngHeader(originalPng)) {
+      throw const FormatException('Metadata target must be PNG');
+    }
+    if (replacements.isEmpty) return originalPng;
+    for (final keyword in replacements.keys) {
+      if (keyword.isEmpty ||
+          keyword.length > 79 ||
+          keyword.codeUnits.any((value) => value == 0 || value > 255)) {
+        throw ArgumentError.value(keyword, 'keyword', 'Invalid PNG keyword');
+      }
+    }
+    final output = BytesBuilder(copy: false)
+      ..add(Uint8List.sublistView(originalPng, 0, 8));
+    var inserted = false;
+    _scanValidatedPngChunks(
+      originalPng,
+      onChunk: (type, offset, end) {
+        if (type == 'IDAT' && !inserted) {
+          for (final entry in replacements.entries) {
+            _writeTextMetadataChunk(output, entry.key, entry.value);
+          }
+          inserted = true;
+        }
+        final keyword = const {'tEXt', 'iTXt', 'zTXt'}.contains(type)
+            ? _textChunkKeyword(
+                _PngChunk(
+                  type,
+                  Uint8List.sublistView(originalPng, offset + 8, end - 4),
+                ),
+              )
+            : null;
+        if (keyword == null || !replacements.containsKey(keyword)) {
+          output.add(Uint8List.sublistView(originalPng, offset, end));
+        }
+      },
+    );
+    return output.takeBytes();
+  }
+
+  static void _scanValidatedPngChunks(
+    Uint8List originalPng, {
+    void Function(String type, int offset, int end)? onChunk,
+  }) {
+    if (!isPngHeader(originalPng)) {
+      throw const FormatException('Metadata target must be PNG');
+    }
+    final view = ByteData.sublistView(originalPng);
+    var offset = 8;
+    var hasImageData = false;
+    var ended = false;
+    while (offset < originalPng.length) {
+      if (offset + 12 > originalPng.length) {
+        throw const FormatException('Truncated PNG chunk');
+      }
+      final length = view.getUint32(offset);
+      final end = offset + length + 12;
+      if (end > originalPng.length) {
+        throw const FormatException('Truncated PNG payload');
+      }
+      final type = latin1.decode(
+        Uint8List.sublistView(originalPng, offset + 4, offset + 8),
+      );
+      if (offset == 8 && (type != 'IHDR' || length != 13) ||
+          offset != 8 && type == 'IHDR') {
+        throw const FormatException('Invalid PNG header chunk');
+      }
+      final expectedCrc = view.getUint32(end - 4);
+      if (_crc32(Uint8List.sublistView(originalPng, offset + 4, end - 4)) !=
+          expectedCrc) {
+        throw FormatException('Invalid PNG CRC: $type');
+      }
+      if (type == 'IEND') {
+        if (!hasImageData || length != 0 || end != originalPng.length) {
+          throw const FormatException('Invalid PNG end or missing image data');
+        }
+        ended = true;
+      }
+      if (type == 'IDAT') hasImageData = true;
+      onChunk?.call(type, offset, end);
+      offset = end;
+    }
+    if (!ended) throw const FormatException('Missing PNG end chunk');
   }
 
   /// 手动解析 PNG chunks

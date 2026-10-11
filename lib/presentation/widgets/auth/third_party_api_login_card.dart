@@ -4,8 +4,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/network/nai_api_endpoint.dart';
 import '../../../core/utils/localization_extension.dart';
-import '../../providers/account_manager_provider.dart';
-import '../../providers/auth_provider.dart';
+import '../../../data/services/account_manager_provider.dart';
+import '../../../data/services/auth_provider.dart';
+import '../../../core/services/auth_error_service.dart';
 import '../common/floating_label_input.dart';
 
 /// 第三方 NAI-compatible API 登录卡片。

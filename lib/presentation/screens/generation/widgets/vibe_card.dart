@@ -11,9 +11,10 @@ import '../../../../data/models/vibe/vibe_reference.dart';
 import '../../../widgets/common/app_toast.dart';
 import '../../../widgets/common/decoded_memory_image.dart';
 import '../../../widgets/common/editable_double_field.dart';
-import '../../../providers/auth_provider.dart';
+import '../../../../data/services/auth_provider.dart';
 import '../../../providers/generation/generation_params_notifier.dart';
 import '../../../widgets/common/hover_image_preview.dart';
+import '../../../widgets/common/themed_slider.dart';
 import '../handlers/vibe_import_handler.dart';
 
 const double _disabledVibeCardOpacity = 0.48;
@@ -613,7 +614,7 @@ class _VibeCardState extends ConsumerState<VibeCard> {
     final sliderMax = isInfoExtracted
         ? VibeReference.maxInfoExtracted
         : VibeReference.maxSliderStrength;
-    final sliderValue = value.clamp(sliderMin, sliderMax).toDouble();
+    const decimals = 2;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -631,9 +632,10 @@ class _VibeCardState extends ConsumerState<VibeCard> {
             ),
             EditableDoubleField(
               value: value,
+              semanticLabel: label,
               min: fieldMin,
               max: fieldMax,
-              decimals: 2,
+              decimals: decimals,
               width: 60,
               onChanged: onChanged,
               textStyle: theme.textTheme.bodySmall?.copyWith(
@@ -649,8 +651,10 @@ class _VibeCardState extends ConsumerState<VibeCard> {
             thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6),
             overlayShape: const RoundSliderOverlayShape(overlayRadius: 12),
           ),
-          child: Slider(
-            value: sliderValue,
+          child: NamedSlider(
+            label: label,
+            valueText: (v) => EditableDoubleField.format(v, decimals: decimals),
+            value: value,
             min: sliderMin,
             max: sliderMax,
             divisions: 99,

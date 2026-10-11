@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:dio/dio.dart';
 import 'package:file/file.dart' as fs;
 import 'package:file/memory.dart';
 import 'package:flutter_cache_manager/flutter_cache_manager.dart';
@@ -9,6 +10,8 @@ import 'package:nai_launcher/core/cache/cancellable_gallery_image_loader.dart';
 import 'package:nai_launcher/core/cache/gallery_image_request.dart';
 import 'package:nai_launcher/core/cache/online_gallery_prefetch_coordinator.dart';
 import 'package:nai_launcher/core/network/critical_network_activity.dart';
+
+import '../../helpers/unreachable_loopback.dart';
 
 void main() {
   test(
@@ -357,9 +360,9 @@ void main() {
   test(
     'connection failure settles without leaving the operation pending',
     () async {
-      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      final server = await bindHangUpServer();
+      addTearDown(() => server.close(force: true));
       final url = 'http://${server.address.host}:${server.port}/offline.webp';
-      await server.close(force: true);
       final cache = _RecordingCacheManager();
       final loader = CancellableGalleryImageLoader(cacheManager: cache);
       addTearDown(loader.dispose);
@@ -375,7 +378,7 @@ void main() {
             )
             .future
             .timeout(const Duration(seconds: 2)),
-        throwsA(isA<Exception>()),
+        throwsA(isA<DioException>()),
       );
       expect(cache.putCalled, isFalse);
     },

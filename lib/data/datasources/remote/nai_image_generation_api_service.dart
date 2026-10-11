@@ -9,6 +9,7 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../../../core/constants/api_constants.dart';
 import '../../../core/models/image_generation_artifact.dart';
+import '../../../core/network/browser_multipart_body.dart';
 import '../../../core/network/dio_client.dart';
 import '../../../core/network/critical_network_activity.dart';
 import '../../../core/network/nai_api_endpoint_service.dart';
@@ -81,8 +82,10 @@ class NAIImageGenerationApiService {
 
   /// Retained for callers and tests that inspect the official multipart shape.
   @visibleForTesting
-  static FormData buildGenerationFormData(Map<String, dynamic> requestData) {
-    return NaiGenerationTransport.buildGenerationFormData(requestData);
+  static BrowserMultipartBody buildGenerationMultipart(
+    Map<String, dynamic> requestData,
+  ) {
+    return NaiGenerationTransport.buildGenerationMultipart(requestData);
   }
 
   Future<(List<Uint8List>, Map<int, String>)> generateImage(
@@ -91,6 +94,7 @@ class NAIImageGenerationApiService {
     bool focusedInpaintEnabled = false,
     double minimumContextMegaPixels = 88.0,
     Rect? focusedSelectionRect,
+    Rect? focusedContextCrop,
     NaiGenerationCancellationLease? cancellationLease,
   }) async {
     final result = await _generateImageArtifacts(
@@ -99,6 +103,7 @@ class NAIImageGenerationApiService {
       focusedInpaintEnabled: focusedInpaintEnabled,
       minimumContextMegaPixels: minimumContextMegaPixels,
       focusedSelectionRect: focusedSelectionRect,
+      focusedContextCrop: focusedContextCrop,
       cancellationLease: cancellationLease,
     );
     return (
@@ -116,6 +121,7 @@ class NAIImageGenerationApiService {
     bool focusedInpaintEnabled = false,
     double minimumContextMegaPixels = 88.0,
     Rect? focusedSelectionRect,
+    Rect? focusedContextCrop,
     NaiGenerationCancellationLease? cancellationLease,
   }) {
     return generateImage(
@@ -124,6 +130,7 @@ class NAIImageGenerationApiService {
       focusedInpaintEnabled: focusedInpaintEnabled,
       minimumContextMegaPixels: minimumContextMegaPixels,
       focusedSelectionRect: focusedSelectionRect,
+      focusedContextCrop: focusedContextCrop,
       cancellationLease: cancellationLease,
     );
   }
@@ -134,6 +141,7 @@ class NAIImageGenerationApiService {
     bool focusedInpaintEnabled = false,
     double minimumContextMegaPixels = 88.0,
     Rect? focusedSelectionRect,
+    Rect? focusedContextCrop,
     NaiGenerationCancellationLease? cancellationLease,
   }) async {
     final result = await generateImageWithEncodingsCancellable(
@@ -142,6 +150,7 @@ class NAIImageGenerationApiService {
       focusedInpaintEnabled: focusedInpaintEnabled,
       minimumContextMegaPixels: minimumContextMegaPixels,
       focusedSelectionRect: focusedSelectionRect,
+      focusedContextCrop: focusedContextCrop,
       cancellationLease: cancellationLease,
     );
     return result.$1;
@@ -153,6 +162,7 @@ class NAIImageGenerationApiService {
     bool focusedInpaintEnabled = false,
     double minimumContextMegaPixels = 88.0,
     Rect? focusedSelectionRect,
+    Rect? focusedContextCrop,
     NaiGenerationCancellationLease? cancellationLease,
   }) async {
     final result = await _generateImageArtifacts(
@@ -161,6 +171,7 @@ class NAIImageGenerationApiService {
       focusedInpaintEnabled: focusedInpaintEnabled,
       minimumContextMegaPixels: minimumContextMegaPixels,
       focusedSelectionRect: focusedSelectionRect,
+      focusedContextCrop: focusedContextCrop,
       cancellationLease: cancellationLease,
     );
     return result.$1;
@@ -173,6 +184,7 @@ class NAIImageGenerationApiService {
     required bool focusedInpaintEnabled,
     required double minimumContextMegaPixels,
     Rect? focusedSelectionRect,
+    Rect? focusedContextCrop,
     NaiGenerationCancellationLease? cancellationLease,
   }) async {
     final activity = _networkActivity.acquire(
@@ -188,6 +200,7 @@ class NAIImageGenerationApiService {
         focusedInpaintEnabled: focusedInpaintEnabled,
         minimumContextMegaPixels: minimumContextMegaPixels,
         focusedSelectionRect: focusedSelectionRect,
+        focusedContextCrop: focusedContextCrop,
       );
       final response = await _transport.sendZip(
         command.buildResult.requestData,
@@ -230,6 +243,7 @@ class NAIImageGenerationApiService {
     bool focusedInpaintEnabled = false,
     double minimumContextMegaPixels = 88.0,
     Rect? focusedSelectionRect,
+    Rect? focusedContextCrop,
     NaiGenerationCancellationLease? cancellationLease,
   }) {
     final effectiveLease = _effectiveCancellationLease(cancellationLease);
@@ -243,6 +257,7 @@ class NAIImageGenerationApiService {
       focusedInpaintEnabled: focusedInpaintEnabled,
       minimumContextMegaPixels: minimumContextMegaPixels,
       focusedSelectionRect: focusedSelectionRect,
+      focusedContextCrop: focusedContextCrop,
     );
   }
 
@@ -253,6 +268,7 @@ class NAIImageGenerationApiService {
     required bool focusedInpaintEnabled,
     required double minimumContextMegaPixels,
     Rect? focusedSelectionRect,
+    Rect? focusedContextCrop,
   }) async* {
     // async* does not execute until listen, so an abandoned stream owns no
     // transport request. Leases and the legacy epoch retain pre-listen cancel.
@@ -275,6 +291,7 @@ class NAIImageGenerationApiService {
         focusedInpaintEnabled: focusedInpaintEnabled,
         minimumContextMegaPixels: minimumContextMegaPixels,
         focusedSelectionRect: focusedSelectionRect,
+        focusedContextCrop: focusedContextCrop,
       );
       if (request.cancelToken.isCancelled) {
         yield ImageStreamChunk.error('Cancelled');
@@ -309,12 +326,14 @@ class NAIImageGenerationApiService {
     required bool focusedInpaintEnabled,
     required double minimumContextMegaPixels,
     Rect? focusedSelectionRect,
+    Rect? focusedContextCrop,
   }) async {
     final focusedRequest = await _responseProcessor.prepareFocusedInpaint(
       params,
       enabled: focusedInpaintEnabled,
       minimumContextMegaPixels: minimumContextMegaPixels,
       focusedSelectionRect: focusedSelectionRect,
+      focusedContextCrop: focusedContextCrop,
     );
     final effectiveParams = _responseProcessor.applyFocusedRequest(
       params,

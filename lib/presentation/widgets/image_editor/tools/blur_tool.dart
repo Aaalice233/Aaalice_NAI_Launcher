@@ -5,7 +5,10 @@ import 'package:flutter/material.dart';
 import '../../../../core/utils/localization_extension.dart';
 import '../core/editor_state.dart';
 import '../core/history_manager.dart';
+import '../layers/layer_patch_baker.dart';
+import '../layers/layer_role.dart';
 import 'tool_base.dart';
+import 'tool_setting_rows.dart';
 
 /// Blur 工具 - 真正的像素级高斯模糊
 ///
@@ -16,8 +19,6 @@ class BlurTool extends EditorTool {
 
   double _size = 30.0;
   double get size => _size;
-
-  bool _isApplying = false;
 
   void setIntensity(double value) {
     _intensity = value.clamp(0.0, 1.0);
@@ -39,6 +40,13 @@ class BlurTool extends EditorTool {
   @override
   bool get isPaintTool => true;
 
+  /// 模糊只处理画面像素，蒙版层上没有意义
+  @override
+  bool supportsRole(LayerRole role) => role == LayerRole.image;
+
+  @override
+  bool get followsLayerRole => true;
+
   @override
   void onPointerDown(PointerDownEvent event, EditorState state) {
     state.startStroke(event.localPosition);
@@ -53,10 +61,6 @@ class BlurTool extends EditorTool {
 
   @override
   void onPointerUp(PointerUpEvent event, EditorState state) {
-    if (_isApplying) {
-      state.endStroke();
-      return;
-    }
     if (state.isDrawing && state.currentStrokePoints.isNotEmpty) {
       final points = List<Offset>.from(state.currentStrokePoints);
       state.endStroke();
@@ -66,92 +70,61 @@ class BlurTool extends EditorTool {
     }
   }
 
-  Future<void> _applyBlur(EditorState state, List<Offset> points) async {
-    final activeLayer = state.layerManager.activeLayer;
-    if (activeLayer == null || activeLayer.locked) return;
-    _isApplying = true;
+  void _applyBlur(EditorState state, List<Offset> points) {
+    final layer = state.layerManager.activeLayer;
+    if (layer == null || layer.locked) return;
 
+    final frame = state.frame;
+    final mask = _buildStrokePath(points);
+    final dirty = mask.getBounds().intersect(frame);
+    if (dirty.isEmpty) return;
+
+    final sigma = _size * _intensity * 0.5;
+    // 只取笔画周围覆盖高斯核半径的像素；贴着取景框的一侧仍按框边缘延展
+    final source = _pixelAligned(
+      dirty.inflate((sigma * 3).ceilToDouble() + 1).intersect(frame),
+    );
+    final sourcePixels = layer.renderToImageSync(source);
+    final BakedLayerImage baked;
     try {
-      final canvasSize = state.canvasSize;
-      final w = canvasSize.width.toInt();
-      final h = canvasSize.height.toInt();
-
-      final original = await _renderLayerToImage(activeLayer, canvasSize, w, h);
-
-      final sigma = _size * _intensity * 0.5;
-      final blurred = await _createBlurredImage(original, sigma, w, h);
-
-      final strokeMask = _buildStrokePath(points);
-
-      final result = await _compositeBlur(
-        original,
-        blurred,
-        strokeMask,
-        w,
-        h,
-        canvasSize,
-      );
-      original.dispose();
-      blurred.dispose();
-
-      final pngData = await result.toByteData(format: ui.ImageByteFormat.png);
-      if (pngData == null) {
-        result.dispose();
-        return;
-      }
-
-      state.historyManager.execute(
-        ReplaceLayerImageAction(
-          layerId: activeLayer.id,
-          newImageBytes: pngData.buffer.asUint8List(),
-          newImage: result,
-          actionDescription: 'Blur',
-        ),
-        state,
+      baked = LayerPatchBaker.paintOver(
+        layer,
+        dirtyRect: dirty,
+        extentLock: state.rolePolicy.extentLockFor(layer),
+        paint: (canvas) {
+          canvas.clipPath(mask);
+          canvas.drawImage(
+            sourcePixels,
+            source.topLeft,
+            Paint()
+              ..imageFilter = ui.ImageFilter.blur(
+                sigmaX: sigma,
+                sigmaY: sigma,
+                tileMode: TileMode.clamp,
+              ),
+          );
+        },
       );
     } finally {
-      _isApplying = false;
+      sourcePixels.dispose();
     }
-  }
 
-  Future<ui.Image> _renderLayerToImage(
-    dynamic layer,
-    Size canvasSize,
-    int w,
-    int h,
-  ) async {
-    final rec = ui.PictureRecorder();
-    final c = Canvas(rec);
-    (layer as dynamic).render(c, canvasSize);
-    final pic = rec.endRecording();
-    final img = await pic.toImage(w, h);
-    pic.dispose();
-    return img;
-  }
-
-  Future<ui.Image> _createBlurredImage(
-    ui.Image source,
-    double sigma,
-    int w,
-    int h,
-  ) async {
-    final rec = ui.PictureRecorder();
-    final c = Canvas(rec);
-    c.drawImage(
-      source,
-      Offset.zero,
-      Paint()
-        ..imageFilter = ui.ImageFilter.blur(
-          sigmaX: sigma,
-          sigmaY: sigma,
-          tileMode: TileMode.clamp,
-        ),
+    state.historyManager.execute(
+      ReplaceLayerImageAction.baked(
+        layerId: layer.id,
+        pixels: baked,
+        actionDescription: 'Blur',
+      ),
+      state,
     );
-    final pic = rec.endRecording();
-    final img = await pic.toImage(w, h);
-    pic.dispose();
-    return img;
   }
+
+  static Rect _pixelAligned(Rect rect) => Rect.fromLTRB(
+    rect.left.floorToDouble(),
+    rect.top.floorToDouble(),
+    rect.right.ceilToDouble(),
+    rect.bottom.ceilToDouble(),
+  );
 
   Path _buildStrokePath(List<Offset> points) {
     final path = Path();
@@ -167,36 +140,16 @@ class BlurTool extends EditorTool {
       if (len < 0.1) continue;
       final nx = -dy / len * _size / 2;
       final ny = dx / len * _size / 2;
+      // 与 addOval 同为顺时针，否则非零环绕下与圆重叠处互相抵消成空洞
       final rect = Path()
-        ..moveTo(a.dx + nx, a.dy + ny)
-        ..lineTo(b.dx + nx, b.dy + ny)
+        ..moveTo(a.dx - nx, a.dy - ny)
         ..lineTo(b.dx - nx, b.dy - ny)
-        ..lineTo(a.dx - nx, a.dy - ny)
+        ..lineTo(b.dx + nx, b.dy + ny)
+        ..lineTo(a.dx + nx, a.dy + ny)
         ..close();
       path.addPath(rect, Offset.zero);
     }
     return path;
-  }
-
-  Future<ui.Image> _compositeBlur(
-    ui.Image original,
-    ui.Image blurred,
-    Path mask,
-    int w,
-    int h,
-    Size canvasSize,
-  ) async {
-    final rec = ui.PictureRecorder();
-    final c = Canvas(rec);
-    c.drawImage(original, Offset.zero, Paint());
-    c.save();
-    c.clipPath(mask);
-    c.drawImage(blurred, Offset.zero, Paint());
-    c.restore();
-    final pic = rec.endRecording();
-    final img = await pic.toImage(w, h);
-    pic.dispose();
-    return img;
   }
 
   @override
@@ -218,42 +171,26 @@ class BlurTool extends EditorTool {
                   fontWeight: FontWeight.bold,
                 ),
               ),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  Text(
-                    context.l10n.editor_size,
-                    style: theme.textTheme.bodySmall,
-                  ),
-                  const Spacer(),
-                  Text('${_size.round()}', style: theme.textTheme.bodySmall),
-                ],
-              ),
-              Slider(
-                value: _size,
-                min: 1,
-                max: 200,
-                onChanged: (v) => setState(() => setSize(v)),
-              ),
               const SizedBox(height: 8),
-              Row(
-                children: [
-                  Text(
-                    context.l10n.editor_intensity,
-                    style: theme.textTheme.bodySmall,
+              ToolSettingRows(
+                rowPadding: const EdgeInsets.symmetric(vertical: 4),
+                rows: [
+                  ToolSettingRow.slider(
+                    label: context.l10n.editor_size,
+                    value: _size,
+                    min: 1,
+                    max: 200,
+                    onChanged: (v) => setState(() => setSize(v)),
                   ),
-                  const Spacer(),
-                  Text(
-                    '${(_intensity * 100).round()}%',
-                    style: theme.textTheme.bodySmall,
+                  ToolSettingRow.slider(
+                    label: context.l10n.editor_intensity,
+                    value: _intensity * 100,
+                    min: 0,
+                    max: 100,
+                    suffix: '%',
+                    onChanged: (v) => setState(() => setIntensity(v / 100)),
                   ),
                 ],
-              ),
-              Slider(
-                value: _intensity,
-                min: 0.0,
-                max: 1.0,
-                onChanged: (v) => setState(() => setIntensity(v)),
               ),
             ],
           ),

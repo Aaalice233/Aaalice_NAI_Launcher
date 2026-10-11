@@ -22,6 +22,7 @@
 | iOS 分支 | [iOS 分支说明](ios.md) | `ios` 分支的定位、构建与签名、与其他平台的差异、同步上游的触点对照与真机回归清单 |
 | 标签数据 | [标签目录](../tool/tag_catalog/README.md)、[随机词库](../tool/random_tag_library/README.md) | 锁定来源、构建与校验 |
 | Krita | [插件说明](../krita_plugin/README.md) | 安装、连接、隔离预检与真实联动验收 |
+| MCP 服务 | [外部智能体接入](mcp_server.md) | 本地 MCP 端点、令牌与权限、stdio 代理 CLI、客户端配置 |
 | Windows 拖放 | [OLE 检查器](../tool/ole_drag_inspector/README.md) | 格式检查与元数据保护回归 |
 | DLSS 图像处理 | [处理管线](dlss_processing.md) | 原生 FP16 单次 NR、运行库、构建与验证边界 |
 | CI 缓存 | [prepare-flutter-build](../.github/actions/prepare-flutter-build/README.md) | Flutter 构建层与缓存约束 |

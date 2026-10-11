@@ -96,8 +96,9 @@ class NAIAuthApiService {
       'NAIAuth',
     );
 
+    final Response<dynamic> response;
     try {
-      final response = await _dio.get(
+      response = await _dio.get(
         endpoint.userUrl(ApiConstants.userSubscriptionEndpoint),
         options: Options(
           headers: {'Authorization': authHeader},
@@ -105,25 +106,6 @@ class NAIAuthApiService {
           sendTimeout: _timeout,
         ),
       );
-
-      final data = response.data;
-      if (data is! Map<String, dynamic>) {
-        // 站点把未知路径兜底成网页时会 200 返回 HTML，视同缺失订阅端点。
-        if (endpoint.isThirdParty) {
-          AppLogger.w(
-            'Third-party /user/subscription returned non-JSON body, '
-            'falling back to image endpoint probe',
-            'NAIAuth',
-          );
-          return _probeThirdPartyImageAuth(endpoint, authHeader);
-        }
-        throw StateError(
-          'Unexpected /user/subscription payload: ${data.runtimeType}',
-        );
-      }
-
-      AppLogger.i('Token validation successful', 'NAIAuth');
-      return TokenValidationResult.subscribed(data);
     } on DioException catch (e) {
       if (endpoint.isThirdParty && e.response?.statusCode == 404) {
         AppLogger.w(
@@ -155,6 +137,25 @@ class NAIAuthApiService {
       }
       rethrow;
     }
+
+    final data = response.data;
+    if (data is! Map<String, dynamic>) {
+      // 站点把未知路径兜底成网页时会 200 返回 HTML，视同缺失订阅端点。
+      if (endpoint.isThirdParty) {
+        AppLogger.w(
+          'Third-party /user/subscription returned non-JSON body, '
+          'falling back to image endpoint probe',
+          'NAIAuth',
+        );
+        return _probeThirdPartyImageAuth(endpoint, authHeader);
+      }
+      throw StateError(
+        'Unexpected /user/subscription payload: ${data.runtimeType}',
+      );
+    }
+
+    AppLogger.i('Token validation successful', 'NAIAuth');
+    return TokenValidationResult.subscribed(data);
   }
 
   /// 用生成端点对第三方 Token 做鉴权探测。

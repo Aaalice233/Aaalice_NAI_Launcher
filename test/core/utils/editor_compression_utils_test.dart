@@ -126,6 +126,39 @@ void main() {
       },
     );
 
+    test('a fixed context crop only limits the projected crop area', () {
+      final fits = EditorCompressionPlan.resolve(
+        workWidth: 3328,
+        workHeight: 1216,
+        focusedInpaintEnabled: false,
+        focusedContextCrop: const Rect.fromLTWH(2496, 0, 832, 1216),
+      );
+      expect(fits.highestTarget.isOriginal, isTrue);
+      expect(fits.highestTarget.area, greaterThan(3145728));
+
+      final oversized = EditorCompressionPlan.resolve(
+        workWidth: 3584,
+        workHeight: 2560,
+        focusedInpaintEnabled: false,
+        focusedContextCrop: const Rect.fromLTWH(0, 0, 2048, 2560),
+      );
+      expect(oversized.highestTarget.isOriginal, isFalse);
+      for (final target in oversized.targets) {
+        final projected = EditorCompressionGeometry.projectRect(
+          const Rect.fromLTWH(0, 0, 2048, 2560),
+          sourceWidth: 3584,
+          sourceHeight: 2560,
+          targetWidth: target.width,
+          targetHeight: target.height,
+        );
+        expect(
+          projected.width.round() * projected.height.round(),
+          lessThanOrEqualTo(3145728),
+          reason: '${target.width}x${target.height}',
+        );
+      }
+    });
+
     test('resolves the nearest target without increasing linear scale', () {
       final plan = EditorCompressionPlan.resolve(
         workWidth: 2560,

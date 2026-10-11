@@ -3,7 +3,10 @@ import 'package:flutter/material.dart';
 import '../../../core/utils/localization_extension.dart';
 
 class GlobalDropOverlay extends StatelessWidget {
-  const GlobalDropOverlay({super.key});
+  const GlobalDropOverlay({super.key, this.message});
+
+  /// 为空时使用通用的拖放提示。
+  final String? message;
 
   @override
   Widget build(BuildContext context) {
@@ -48,7 +51,7 @@ class GlobalDropOverlay extends StatelessWidget {
                         ),
                         const SizedBox(height: 12),
                         Text(
-                          context.l10n.drop_hint,
+                          message ?? context.l10n.drop_hint,
                           textAlign: TextAlign.center,
                           style: theme.textTheme.titleMedium?.copyWith(
                             color: theme.colorScheme.primary,

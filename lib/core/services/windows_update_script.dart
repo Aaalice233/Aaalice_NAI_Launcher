@@ -1,7 +1,7 @@
 /// Windows 平台应用内更新的辅助脚本生成器。
 ///
-/// 更新在应用完全退出后执行。脚本记录日志与结构化结果，安装失败会
-/// 重新启动旧版本；便携版通过同卷目录切换和备份实现可回滚更新。
+/// 更新在应用完全退出后执行。脚本先写启动标记供主应用确认接管，再记录
+/// 日志与结构化结果；便携版通过同卷目录切换和备份实现可回滚更新。
 library;
 
 class WindowsUpdateScript {
@@ -14,6 +14,7 @@ class WindowsUpdateScript {
     required String executablePath,
     required String resultPath,
     required String pendingMetadataPath,
+    required String startedMarkerPath,
     required String logPath,
   }) {
     return '''
@@ -24,10 +25,13 @@ class WindowsUpdateScript {
 \$ExePath = '${_escape(executablePath)}'
 \$ResultPath = '${_escape(resultPath)}'
 \$PendingMetadataPath = '${_escape(pendingMetadataPath)}'
+\$StartedPath = '${_escape(startedMarkerPath)}'
 \$LogPath = '${_escape(logPath)}'
 \$ScriptPath = \$MyInvocation.MyCommand.Path
 
 ${_commonFunctions()}
+
+Write-UpdateStarted
 
 try {
   Write-UpdateLog "Waiting for application process \$AppPid to exit."
@@ -63,10 +67,12 @@ try {
     required String zipPath,
     required String appDirectory,
     required String executableName,
+    required String proxyExecutableName,
     required String extractDirectory,
     required String backupDirectory,
     required String resultPath,
     required String pendingMetadataPath,
+    required String startedMarkerPath,
     required String logPath,
   }) {
     return '''
@@ -76,15 +82,20 @@ try {
 \$ZipPath = '${_escape(zipPath)}'
 \$AppDir = '${_escape(appDirectory)}'
 \$ExeName = '${_escape(executableName)}'
+\$ProxyExeName = '${_escape(proxyExecutableName)}'
 \$ExtractDir = '${_escape(extractDirectory)}'
 \$BackupDir = '${_escape(backupDirectory)}'
 \$ResultPath = '${_escape(resultPath)}'
 \$PendingMetadataPath = '${_escape(pendingMetadataPath)}'
+\$StartedPath = '${_escape(startedMarkerPath)}'
 \$LogPath = '${_escape(logPath)}'
 \$ScriptPath = \$MyInvocation.MyCommand.Path
 \$Swapped = \$false
 
 ${_commonFunctions()}
+${_stopBundledProxiesFunction()}
+
+Write-UpdateStarted
 
 try {
   Write-UpdateLog "Waiting for application process \$AppPid to exit."
@@ -122,6 +133,8 @@ try {
   } else {
     Write-UpdateLog 'No existing file manifest; skipping user-file migration for this update.'
   }
+
+  Stop-BundledProxies
 
   Write-UpdateLog "Moving current application to backup: \$BackupDir"
   Move-Item -LiteralPath \$AppDir -Destination \$BackupDir
@@ -191,6 +204,20 @@ function Write-UpdateLog {
   Add-Content -LiteralPath \$LogPath -Value "[\$Timestamp] \$Message" -Encoding UTF8
 }
 
+# 主应用据此确认脚本真的开始执行；标记迟迟不出现说明脚本被策略或安全软件拦下。
+function Write-UpdateStarted {
+  \$Started = [ordered]@{
+    version = \$Version
+    appPid = \$AppPid
+  } | ConvertTo-Json -Compress
+  [System.IO.File]::WriteAllText(
+    \$StartedPath,
+    \$Started,
+    (New-Object System.Text.UTF8Encoding(\$false))
+  )
+  Write-UpdateLog "Updater script started for version \$Version."
+}
+
 function Write-UpdateResult {
   param([bool]\$Success, [string]\$Message)
   \$Result = [ordered]@{
@@ -204,6 +231,8 @@ function Write-UpdateResult {
     \$Result,
     (New-Object System.Text.UTF8Encoding(\$false))
   )
+  # 有了结果就不再需要启动标记，留着会让下次启动误判成安装被中断。
+  Remove-Item -LiteralPath \$StartedPath -Force -ErrorAction SilentlyContinue
 }
 
 function Wait-ApplicationExit {
@@ -215,6 +244,39 @@ function Wait-ApplicationExit {
   Start-Sleep -Milliseconds 500
   if (Get-Process -Id \$AppPid -ErrorAction SilentlyContinue) {
     throw "Application process \$AppPid did not exit within 120 seconds."
+  }
+}
+''';
+  }
+
+  static String _stopBundledProxiesFunction() {
+    return '''
+# 目录整体切换要求 AppDir 内没有运行中的映像，而每个 MCP 客户端各起一个代理。
+function Stop-BundledProxies {
+  \$ProxyPath = [System.IO.Path]::GetFullPath((Join-Path \$AppDir \$ProxyExeName))
+  \$Deadline = [DateTime]::UtcNow.AddSeconds(15)
+  while (\$true) {
+    \$Running = @(
+      Get-CimInstance -ClassName Win32_Process |
+        Where-Object {
+          \$_.ExecutablePath -and [string]::Equals(
+            \$_.ExecutablePath,
+            \$ProxyPath,
+            [System.StringComparison]::OrdinalIgnoreCase
+          )
+        }
+    )
+    if (\$Running.Count -eq 0) {
+      return
+    }
+    if ([DateTime]::UtcNow -ge \$Deadline) {
+      throw "Stdio proxy processes in \$AppDir did not exit within 15 seconds."
+    }
+    foreach (\$Proxy in \$Running) {
+      Write-UpdateLog "Stopping stdio proxy process \$(\$Proxy.ProcessId)."
+      Stop-Process -Id \$Proxy.ProcessId -Force -ErrorAction SilentlyContinue
+    }
+    Start-Sleep -Milliseconds 250
   }
 }
 ''';

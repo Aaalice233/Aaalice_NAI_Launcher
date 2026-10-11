@@ -10,6 +10,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:image/image.dart' as img;
 import 'package:msgpack_dart/msgpack_dart.dart' as msgpack;
 import 'package:nai_launcher/core/constants/api_constants.dart';
+import 'package:nai_launcher/core/network/browser_identity/browser_headers_interceptor.dart';
+import 'package:nai_launcher/core/network/browser_identity/chrome_identity.dart';
 import 'package:nai_launcher/core/network/nai_api_endpoint.dart';
 import 'package:nai_launcher/core/network/nai_api_endpoint_service.dart';
 import 'package:nai_launcher/core/network/critical_network_activity.dart';
@@ -19,6 +21,7 @@ import 'package:nai_launcher/data/models/image/image_params.dart';
 import 'package:nai_launcher/data/models/vibe/vibe_reference.dart';
 import 'package:nai_launcher/presentation/providers/generation/image_generation_service.dart';
 
+import '../../../helpers/browser_multipart_reader.dart';
 import '../../../helpers/image_pixel_matchers.dart';
 
 void main() {
@@ -29,7 +32,7 @@ void main() {
       final maskBytes = Uint8List.fromList([5, 6, 7, 8]);
       final vibeBytes = Uint8List.fromList([9, 10, 11]);
       final directorBytes = Uint8List.fromList([12, 13, 14]);
-      final formData = NAIImageGenerationApiService.buildGenerationFormData({
+      final body = NAIImageGenerationApiService.buildGenerationMultipart({
         'input': 'test',
         'model': ImageModels.animeDiffusionV5Curated,
         'action': 'infill',
@@ -41,10 +44,10 @@ void main() {
         },
         'use_new_shared_trial': true,
       });
+      final decodedParts = parseBrowserMultipart(body.bytes, body.boundary);
 
-      expect(formData.fields, isEmpty);
       expect(
-        formData.files.map((entry) => entry.key),
+        decodedParts.map((part) => part.name),
         orderedEquals([
           'image',
           'mask',
@@ -53,26 +56,23 @@ void main() {
           'request',
         ]),
       );
-      final parts = {
-        for (final entry in formData.files) entry.key: entry.value,
-      };
+      final parts = {for (final part in decodedParts) part.name: part};
       final request =
-          jsonDecode(utf8.decode(await _readMultipartFile(parts['request']!)))
-              as Map<String, dynamic>;
+          jsonDecode(parts['request']!.text) as Map<String, dynamic>;
       final parameters = request['parameters'] as Map<String, dynamic>;
       final cachedVibes =
           parameters['reference_image_multiple_cached'] as List<dynamic>;
       final cachedDirectors =
           parameters['director_reference_images_cached'] as List<dynamic>;
 
-      expect(await _readMultipartFile(parts['image']!), imageBytes);
-      expect(await _readMultipartFile(parts['mask']!), maskBytes);
-      expect(await _readMultipartFile(parts['ref_multiple_0']!), vibeBytes);
-      expect(await _readMultipartFile(parts['director_ref_0']!), directorBytes);
+      expect(parts['image']!.bytes, imageBytes);
+      expect(parts['mask']!.bytes, maskBytes);
+      expect(parts['ref_multiple_0']!.bytes, vibeBytes);
+      expect(parts['director_ref_0']!.bytes, directorBytes);
       expect(parts['request']!.filename, 'blob');
-      expect(parts['request']!.contentType.toString(), 'application/json');
+      expect(parts['request']!.contentType, 'application/json');
       expect(parts['image']!.filename, 'blob');
-      expect(parts['image']!.contentType.toString(), 'image/png');
+      expect(parts['image']!.contentType, 'image/png');
       expect(parameters['image'], 'image');
       expect(parameters['mask'], 'mask');
       expect(parameters['image_cache_secret_key'], matches(r'^[0-9a-f]{64}$'));
@@ -92,8 +92,8 @@ void main() {
     },
   );
 
-  test('encodes text-only generation as one JSON multipart part', () async {
-    final formData = NAIImageGenerationApiService.buildGenerationFormData({
+  test('encodes text-only generation as one JSON multipart part', () {
+    final body = NAIImageGenerationApiService.buildGenerationMultipart({
       'input': 'test',
       'model': ImageModels.animeDiffusionV5Curated,
       'action': 'generate',
@@ -101,13 +101,11 @@ void main() {
       'use_new_shared_trial': true,
     });
 
-    expect(formData.files, hasLength(1));
-    expect(formData.files.single.key, 'request');
-    expect(formData.files.single.value.filename, 'blob');
-    expect(
-      formData.files.single.value.contentType.toString(),
-      'application/json',
-    );
+    final parts = parseBrowserMultipart(body.bytes, body.boundary);
+    expect(parts, hasLength(1));
+    expect(parts.single.name, 'request');
+    expect(parts.single.filename, 'blob');
+    expect(parts.single.contentType, 'application/json');
   });
 
   test('maps DDIM onto Euler Ancestral for every v4-structure model', () {
@@ -141,9 +139,15 @@ void main() {
     );
   });
 
-  test('sends official transport headers with generation requests', () async {
+  test('sends generation requests as a browser multipart body', () async {
     final adapter = _PendingDioAdapter();
     final dio = Dio()..httpClientAdapter = adapter;
+    dio.interceptors.add(
+      BrowserHeadersInterceptor(
+        identity: const ChromeIdentity(platform: ChromePlatform.windows),
+        resolveAcceptLanguage: () => 'en-US,en;q=0.9',
+      ),
+    );
     final endpointService = NaiApiEndpointService();
     final service = NAIImageGenerationApiService(
       dio,
@@ -155,15 +159,29 @@ void main() {
       const ImageParams(prompt: 'transport headers'),
     );
     await _waitForRequestCount(adapter, 1);
-    final headers = adapter.requests.single.options.headers;
+    final options = adapter.requests.single.options;
+    final headers = options.headers;
 
-    expect(headers['Accept'], 'application/x-zip-compressed');
+    expect(
+      headers['content-type'],
+      matches(
+        r'^multipart/form-data; boundary=----WebKitFormBoundary[A-Za-z0-9]{16}$',
+      ),
+    );
+    expect(headers['accept'], '*/*');
     expect(
       headers['x-correlation-id'],
       matches(r'^[A-Zabcdefghijkmnopqrstuvwxyz1-9]{6}$'),
     );
     expect(DateTime.tryParse(headers['x-initiated-at'] as String), isNotNull);
-    expect(adapter.requests.single.options.data, isA<FormData>());
+    expect(options.data, isA<Uint8List>());
+    expect(
+      parseBrowserMultipart(
+        options.data as Uint8List,
+        boundaryOf(headers['content-type'] as String),
+      ).single.name,
+      'request',
+    );
 
     adapter.requests.single.completeWithEmptyZip();
     await expectLater(generation, throwsA(isA<Exception>()));
@@ -1009,6 +1027,100 @@ void main() {
     expect(decodedFinal.getPixel(128, 128).b.toInt(), greaterThan(230));
   });
 
+  test('focus outpaint sends only the frame and pastes it back', () async {
+    final adapter = _PendingDioAdapter();
+    final dio = Dio()..httpClientAdapter = adapter;
+    final endpointService = NaiApiEndpointService();
+    final service = NAIImageGenerationApiService(
+      dio,
+      NAIImageEnhancementApiService(dio, endpointService),
+      endpointService,
+    );
+
+    // 整张画布 384x256：左 256 为原图，右 128 是扩出的透明空白
+    final canvasImage = img.Image(width: 384, height: 256, numChannels: 4);
+    img.fill(canvasImage, color: img.ColorRgba8(0, 0, 0, 0));
+    img.fillRect(
+      canvasImage,
+      x1: 0,
+      y1: 0,
+      x2: 255,
+      y2: 255,
+      color: img.ColorRgba8(10, 20, 30, 255),
+    );
+    final canvas = Uint8List.fromList(img.encodePng(canvasImage));
+    final mask = _rectMaskPng(
+      width: 384,
+      height: 256,
+      x: 255,
+      y: 0,
+      rectWidth: 129,
+      rectHeight: 256,
+    );
+    final generated = _solidPng(
+      width: 1024,
+      height: 1024,
+      r: 200,
+      g: 210,
+      b: 220,
+    );
+
+    final chunksFuture = service
+        .generateImageStream(
+          ImageParams(
+            action: ImageGenerationAction.infill,
+            model: 'nai-diffusion-4-5-full-inpainting',
+            width: 384,
+            height: 256,
+            sourceImage: canvas,
+            maskImage: mask,
+          ),
+          focusedInpaintEnabled: true,
+          focusedContextCrop: const Rect.fromLTWH(128, 0, 256, 256),
+        )
+        .toList();
+    await _waitForRequestCount(adapter, 1);
+
+    final options = adapter.requests.single.options;
+    final parts = {
+      for (final part in parseBrowserMultipart(
+        options.data as Uint8List,
+        boundaryOf(options.headers['content-type'] as String),
+      ))
+        part.name: part,
+    };
+    final parameters =
+        (jsonDecode(parts['request']!.text)
+                as Map<String, dynamic>)['parameters']
+            as Map<String, dynamic>;
+    expect((parameters['width'], parameters['height']), (1024, 1024));
+    final requestImage = img.decodePng(parts['image']!.bytes)!;
+    expect((requestImage.width, requestImage.height), (1024, 1024));
+    expect(requestImage.getPixel(100, 512).r.toInt(), 10);
+    expect(requestImage.getPixel(100, 512).a.toInt(), 255);
+    expect(requestImage.getPixel(900, 512).a.toInt(), 0);
+
+    adapter.requests.single.completeWithMsgpackMessages([
+      {'event_type': 'final', 'samp_ix': 0, 'image': generated},
+    ]);
+
+    final chunks = await chunksFuture.timeout(const Duration(seconds: 2));
+    final decoded = img.decodeImage(chunks.single.finalImage!)!;
+
+    expect((decoded.width, decoded.height), (384, 256));
+    for (final x in const [0, 64, 127, 140]) {
+      final pixel = decoded.getPixel(x, 128);
+      expect(
+        (pixel.r.toInt(), pixel.g.toInt(), pixel.b.toInt(), pixel.a.toInt()),
+        (10, 20, 30, 255),
+        reason: 'x=$x keeps the source',
+      );
+    }
+    final filled = decoded.getPixel(330, 128);
+    expect(filled.r.toInt(), greaterThan(190));
+    expect(filled.a.toInt(), 255);
+  });
+
   test('stream outpaint final preserves official raw service image', () async {
     final adapter = _PendingDioAdapter();
     final dio = Dio()..httpClientAdapter = adapter;
@@ -1286,12 +1398,4 @@ class _PendingRequest {
       ),
     );
   }
-}
-
-Future<Uint8List> _readMultipartFile(MultipartFile file) async {
-  final builder = BytesBuilder(copy: false);
-  await for (final chunk in file.finalize()) {
-    builder.add(chunk);
-  }
-  return builder.takeBytes();
 }

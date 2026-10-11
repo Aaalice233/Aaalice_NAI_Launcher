@@ -26,8 +26,8 @@ import '../../data/services/gallery/scan_state_manager.dart';
 import '../../data/services/image_metadata_service.dart';
 import '../../data/services/vibe_library_migration_service.dart';
 import '../../data/services/wordlist_service.dart';
-import 'account_manager_provider.dart';
-import 'auth_provider.dart';
+import '../../data/services/account_manager_provider.dart';
+import '../../data/services/auth_provider.dart';
 import 'character_prompt_provider.dart';
 import 'fixed_tags_provider.dart';
 import 'gallery_album_provider.dart';
@@ -37,11 +37,12 @@ import 'layout_state_provider.dart';
 import 'local_gallery_provider.dart';
 import 'online_gallery_provider.dart';
 import 'precise_ref_library_provider.dart';
-import 'proxy_settings_provider.dart';
+import '../../core/network/proxy_settings_provider.dart';
 import 'random_preset_provider.dart';
 import 'tag_library_page_provider.dart';
 import 'tag_library_provider.dart';
 import 'vibe_library_provider.dart';
+import '../agent_chat/providers/agent_chat_dock_provider.dart';
 import '../agent_chat/providers/agent_chat_notifier.dart';
 import '../screens/statistics/statistics_state.dart';
 
@@ -209,12 +210,12 @@ final startupInitializationTasksProvider = Provider<StartupInitializationTasks>(
             .read(preciseRefLibraryNotifierProvider.notifier)
             .initialize();
         final layoutState = ref.read(layoutStateNotifierProvider);
-        final rightPanelTab = ref
-            .read(localStorageServiceProvider)
-            .getSetting<int>(StorageKeys.rightPanelTab);
         final agentChatInitialization =
-            layoutState.rightPanelExpanded &&
-                (rightPanelTab == null || rightPanelTab == 0)
+            ref
+                .read(agentChatDockProvider)
+                .chatVisibleAtStartup(
+                  rightPanelExpanded: layoutState.rightPanelExpanded,
+                )
             ? ref.read(agentChatNotifierProvider.notifier).ensureInitialized()
             : Future<void>.value();
         final statisticsInitialization = ref

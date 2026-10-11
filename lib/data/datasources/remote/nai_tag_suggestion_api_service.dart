@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../../../core/constants/api_constants.dart';
+import '../../../core/network/browser_identity/browser_headers_interceptor.dart';
 import '../../../core/network/dio_client.dart';
 import '../../../core/network/nai_api_endpoint_service.dart';
 import '../../../core/utils/app_logger.dart';
@@ -13,6 +14,7 @@ part 'nai_tag_suggestion_api_service.g.dart';
 /// NovelAI Tag Suggestion API 服务
 class NAITagSuggestionApiService {
   static const Duration _timeout = Duration(seconds: 5);
+  static const String _v5AnimeType = 'animev5';
 
   final Dio _dio;
   final NaiApiEndpointService _endpointService;
@@ -28,8 +30,10 @@ class NAITagSuggestionApiService {
 
     try {
       final queryParams = <String, dynamic>{
-        'prompt': input.trim(),
         if (model != null) 'model': model,
+        'prompt': input.trim(),
+        // 官网给 V5 请求带 type 区分动漫/兽人词库，启动器只有动漫模式。
+        if (model != null && ImageModels.isV5Model(model)) 'type': _v5AnimeType,
       };
 
       final response = await _dio.get(
@@ -38,6 +42,7 @@ class NAITagSuggestionApiService {
         options: Options(
           receiveTimeout: _timeout,
           sendTimeout: _timeout,
+          extra: omitTrackingHeadersExtra(),
         ),
       );
 

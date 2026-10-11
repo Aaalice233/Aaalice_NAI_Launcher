@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../../../core/utils/localization_extension.dart';
 import '../../../data/services/dlss/dlss_options.dart';
+import '../../widgets/common/themed_slider.dart';
 import 'dlss_parameter_row.dart';
 
 class DlssParameterSlider extends StatefulWidget {
@@ -24,7 +25,7 @@ class DlssParameterSlider extends StatefulWidget {
   final ValueChanged<double>? onChanged;
   final double minimum;
   final double? maximum;
-  final String? valueLabel;
+  final String? Function(double value)? valueLabel;
 
   @override
   State<DlssParameterSlider> createState() => _DlssParameterSliderState();
@@ -42,7 +43,14 @@ class _DlssParameterSliderState extends State<DlssParameterSlider> {
     _focus.addListener(_onFocusChanged);
   }
 
-  String get _formattedValue => widget.value.toString();
+  // 去掉滑块插值留下的二进制尾差，如 -0.45000000000000007
+  static String _format(double value) =>
+      double.parse(value.toStringAsFixed(6)).toString();
+
+  String get _formattedValue => _format(widget.value);
+
+  String _valueText(double value) =>
+      widget.valueLabel?.call(value) ?? _format(value);
 
   @override
   void didUpdateWidget(covariant DlssParameterSlider oldWidget) {
@@ -91,7 +99,7 @@ class _DlssParameterSliderState extends State<DlssParameterSlider> {
           DlssParameterRow(
             label: widget.label,
             description: widget.description,
-            valueLabel: widget.valueLabel,
+            valueLabel: widget.valueLabel?.call(widget.value),
             error: _invalid ? context.l10n.dlss_invalidNumber : null,
             trailing: Semantics(
               label: widget.label,
@@ -113,7 +121,9 @@ class _DlssParameterSliderState extends State<DlssParameterSlider> {
               ),
             ),
           ),
-          Slider(
+          NamedSlider(
+            label: widget.label,
+            valueText: _valueText,
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
             value: widget.value,
             min: widget.minimum,
@@ -121,8 +131,6 @@ class _DlssParameterSliderState extends State<DlssParameterSlider> {
             divisions: maximum <= 2
                 ? ((maximum - widget.minimum) / 0.05).round()
                 : null,
-            label: widget.valueLabel ?? _formattedValue,
-            semanticFormatterCallback: (value) => '${widget.label}: $value',
             onChanged: widget.onChanged,
           ),
         ],

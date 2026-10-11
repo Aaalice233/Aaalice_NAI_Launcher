@@ -6,6 +6,7 @@ import 'package:video_player/video_player.dart';
 import '../../../core/cache/online_gallery_image_cache_manager.dart';
 import '../../../core/utils/app_logger.dart';
 import '../app_branch_visibility.dart';
+import '../common/themed_slider.dart';
 
 /// 简洁视频播放器组件
 ///
@@ -257,6 +258,9 @@ class OnlineGalleryVideoControls extends StatelessWidget {
                   .clamp(0.0, 1.0)
                   .toDouble()
             : 0.0;
+        Duration positionAt(double fraction) => Duration(
+          milliseconds: (fraction * duration.inMilliseconds).round(),
+        );
 
         return Stack(
           fit: StackFit.expand,
@@ -307,13 +311,9 @@ class OnlineGalleryVideoControls extends StatelessWidget {
                   ),
                   child: Row(
                     children: [
-                      GestureDetector(
-                        onTap: onTogglePlayPause,
-                        child: Icon(
-                          isPlaying ? Icons.pause : Icons.play_arrow,
-                          color: Colors.white,
-                          size: 20,
-                        ),
+                      _PlayPauseToggle(
+                        isPlaying: isPlaying,
+                        onPressed: onTogglePlayPause,
                       ),
                       const SizedBox(width: 8),
                       Text(
@@ -342,17 +342,14 @@ class OnlineGalleryVideoControls extends StatelessWidget {
                             thumbColor: Colors.white,
                             overlayColor: Colors.white.withValues(alpha: 0.2),
                           ),
-                          child: Slider(
+                          child: NamedSlider(
+                            label:
+                                context.l10n.onlineGallery_videoPositionLabel,
+                            valueText: (fraction) =>
+                                _formatVideoDuration(positionAt(fraction)),
                             value: progress,
-                            onChanged: (sliderValue) {
-                              onSeek(
-                                Duration(
-                                  milliseconds:
-                                      (sliderValue * duration.inMilliseconds)
-                                          .round(),
-                                ),
-                              );
-                            },
+                            onChanged: (fraction) =>
+                                onSeek(positionAt(fraction)),
                           ),
                         ),
                       ),
@@ -372,6 +369,37 @@ class OnlineGalleryVideoControls extends StatelessWidget {
           ],
         );
       },
+    );
+  }
+}
+
+class _PlayPauseToggle extends StatelessWidget {
+  const _PlayPauseToggle({required this.isPlaying, required this.onPressed});
+
+  final bool isPlaying;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final label = isPlaying
+        ? context.l10n.onlineGallery_videoPause
+        : context.l10n.onlineGallery_videoPlay;
+    return Tooltip(
+      message: label,
+      excludeFromSemantics: true,
+      child: Semantics(
+        container: true,
+        button: true,
+        label: label,
+        child: GestureDetector(
+          onTap: onPressed,
+          child: Icon(
+            isPlaying ? Icons.pause : Icons.play_arrow,
+            color: Colors.white,
+            size: 20,
+          ),
+        ),
+      ),
     );
   }
 }

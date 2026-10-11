@@ -13,7 +13,7 @@ import 'package:nai_launcher/presentation/agent_chat/widgets/agent_chat_panel_vi
 import 'package:nai_launcher/presentation/agent_chat/widgets/agent_chat_tool_widgets.dart';
 import 'package:nai_launcher/presentation/agent_chat/widgets/agent_chat_turn.dart';
 import 'package:nai_launcher/presentation/agent_settings/providers/agent_settings_provider.dart';
-import 'package:nai_launcher/presentation/prompt_assistant/models/prompt_assistant_models.dart';
+import 'package:nai_launcher/data/models/prompt_assistant/prompt_assistant_models.dart';
 import 'package:nai_launcher/presentation/prompt_assistant/providers/web_access_provider.dart';
 
 void main() {
@@ -745,7 +745,7 @@ Future<void> _pump(
                 height: height,
                 onClose: null,
                 onOpenSettings: null,
-                mobileHeaderWrapper: null,
+                headerWrapper: null,
               ),
               commands: _commands,
               controller: controller,
@@ -775,6 +775,8 @@ final _commands = AgentChatPanelCommands(
   selectPermissionMode: (_) async {},
   setWebAccessEnabled: (_) async {},
   pickImages: () async {},
+  pasteClipboardImage: () async => false,
+  attachImageFiles: (_) async {},
   attachCurrentCanvas: () async {},
   openReferenceGallery: () async {},
   openResourceLibrary: () async {},

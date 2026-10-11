@@ -162,14 +162,21 @@ Future<void> _disposeDatabaseManagerIfNeeded() async {
 }
 
 Future<void> _deleteDirectoryWhenReleased(Directory directory) async {
-  for (var attempt = 0; attempt < 20; attempt++) {
+  const attempts = 50;
+  for (var attempt = 1; attempt <= attempts; attempt++) {
     if (!await directory.exists()) return;
     try {
       await directory.delete(recursive: true);
       return;
     } on FileSystemException {
-      if (attempt == 19) rethrow;
-      await Future<void>.delayed(const Duration(milliseconds: 25));
+      if (attempt == attempts) {
+        // ConnectionPool.dispose marks in-use connections for eviction instead
+        // of closing them, so SQLite can still hold the file. Hosted runners
+        // are ephemeral, so leave it for the operating system to reclaim.
+        if (Platform.isWindows) return;
+        rethrow;
+      }
+      await Future<void>.delayed(const Duration(milliseconds: 100));
     }
   }
 }

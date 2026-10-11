@@ -4,6 +4,8 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:nai_launcher/core/services/pixel_snap/pixel_snap_progress.dart';
+import 'package:nai_launcher/data/models/director/director_tool_type.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/adaptive/interaction_policy.dart';
 import 'package:nai_launcher/presentation/providers/director_tools_notifier.dart';
@@ -98,6 +100,102 @@ void main() {
       expect(tester.takeException(), isNull);
     });
   }
+
+  for (final scenario in <({Size size, double textScale, String name})>[
+    (size: const Size(320, 720), textScale: 1, name: '320 compact'),
+    (size: const Size(600, 720), textScale: 1, name: '600 medium'),
+    (size: const Size(840, 720), textScale: 1, name: '840 expanded'),
+    (size: const Size(1180, 720), textScale: 1, name: '1180 wide'),
+    (size: const Size(1600, 900), textScale: 1, name: '1600 extra wide'),
+    (size: const Size(320, 720), textScale: 3, name: '320 with 3x text'),
+    (size: const Size(840, 720), textScale: 3, name: '840 with 3x text'),
+  ]) {
+    testWidgets('Pixel Snap options stay reachable at ${scenario.name}', (
+      tester,
+    ) async {
+      await _pumpScreen(
+        tester,
+        size: scenario.size,
+        textScale: scenario.textScale,
+        initialState: DirectorToolsState(
+          selectedTool: DirectorToolType.pixelSnap,
+          sourceImage: sourceImage,
+          imageWidth: 512,
+          imageHeight: 512,
+        ),
+      );
+
+      for (final label in [
+        'Palettize',
+        'Off',
+        'Auto',
+        'Custom',
+        'Avoid Over-Refining',
+        'Upscale',
+        'Run Pixel Snap',
+      ]) {
+        await _scrollControlIntoView(tester, find.text(label));
+        expect(find.text(label), findsOneWidget, reason: label);
+      }
+      // 本机工具没有计费，Anlas 徽章必须不出现。
+      expect(find.byIcon(Icons.diamond_outlined), findsNothing);
+      expect(tester.takeException(), isNull);
+    });
+  }
+
+  testWidgets('Pixel Snap progress keeps cancel reachable at 3x text', (
+    tester,
+  ) async {
+    await _pumpScreen(
+      tester,
+      size: const Size(320, 720),
+      textScale: 3,
+      initialState: DirectorToolsState(
+        selectedTool: DirectorToolType.pixelSnap,
+        sourceImage: sourceImage,
+        imageWidth: 512,
+        imageHeight: 512,
+        isRunning: true,
+        progress: const PixelSnapProgress(PixelSnapStage.searchingPitch, 0.42),
+      ),
+    );
+
+    await _scrollControlIntoView(tester, find.text('Cancel'));
+    expect(find.text('Searching pixel size'), findsOneWidget);
+    expect(find.text('42%'), findsOneWidget);
+    expect(find.byType(LinearProgressIndicator), findsOneWidget);
+    expect(find.text('Cancel'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('running Pixel Snap skips the Anlas confirmation', (
+    tester,
+  ) async {
+    final initialState = DirectorToolsState(
+      selectedTool: DirectorToolType.pixelSnap,
+      sourceImage: sourceImage,
+      imageWidth: 512,
+      imageHeight: 512,
+    );
+    final notifier = _RecordingDirectorToolsNotifier(initialState);
+    await _pumpScreen(
+      tester,
+      size: const Size(840, 720),
+      initialState: initialState,
+      notifier: notifier,
+    );
+
+    final runButton = find.widgetWithText(FilledButton, 'Run Pixel Snap');
+    await _scrollControlIntoView(tester, find.text('Run Pixel Snap'));
+    await tester.ensureVisible(runButton);
+    await tester.pumpAndSettle();
+    expect(tester.widget<FilledButton>(runButton).onPressed, isNotNull);
+    await tester.tap(runButton);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Confirm Anlas usage'), findsNothing);
+    expect(notifier.runCalls, 1);
+  });
 
   testWidgets('run stays disabled until the image cost can be estimated', (
     tester,

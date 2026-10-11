@@ -2,7 +2,9 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../tools/closed_region_fill_tool.dart';
 import 'editor_state.dart';
+import 'editor_view_action.dart';
 
 /// 键盘状态管理
 class KeyboardState {
@@ -98,6 +100,13 @@ class GestureState {
     initialScale = 1.0;
   }
 }
+
+final Map<LogicalKeyboardKey, Offset> _arrowDirections = {
+  LogicalKeyboardKey.arrowLeft: const Offset(-1, 0),
+  LogicalKeyboardKey.arrowRight: const Offset(1, 0),
+  LogicalKeyboardKey.arrowUp: const Offset(0, -1),
+  LogicalKeyboardKey.arrowDown: const Offset(0, 1),
+};
 
 /// 输入处理器
 /// 负责处理键盘、鼠标、手势等输入事件
@@ -219,7 +228,7 @@ class InputHandler {
           state.redo();
           return KeyEventResult.handled;
         case LogicalKeyboardKey.digit0:
-          state.canvasController.resetTo100(canvasSize: state.canvasSize);
+          EditorViewAction.actualSize.perform(state);
           return KeyEventResult.handled;
         case LogicalKeyboardKey.equal:
         case LogicalKeyboardKey.add:
@@ -233,31 +242,13 @@ class InputHandler {
 
     // Krita 风格视图快捷键（无修饰键）
     if (isDown && !keyboard.isCtrlPressed) {
+      final viewAction = EditorViewAction.forShortcut(event.logicalKey);
+      if (viewAction != null) {
+        viewAction.perform(state);
+        return KeyEventResult.handled;
+      }
+
       switch (event.logicalKey) {
-        case LogicalKeyboardKey.digit1:
-          state.canvasController.resetTo100(canvasSize: state.canvasSize);
-          return KeyEventResult.handled;
-        case LogicalKeyboardKey.digit2:
-          state.canvasController.fitToHeight(state.canvasSize);
-          return KeyEventResult.handled;
-        case LogicalKeyboardKey.digit3:
-          state.canvasController.fitToWidth(state.canvasSize);
-          return KeyEventResult.handled;
-        case LogicalKeyboardKey.digit4:
-          state.canvasController.rotateLeft();
-          return KeyEventResult.handled;
-        case LogicalKeyboardKey.digit5:
-          state.canvasController.resetRotation();
-          return KeyEventResult.handled;
-        case LogicalKeyboardKey.digit6:
-          state.canvasController.rotateRight();
-          return KeyEventResult.handled;
-        case LogicalKeyboardKey.keyF:
-          state.canvasController.toggleMirrorHorizontal();
-          return KeyEventResult.handled;
-        case LogicalKeyboardKey.keyR:
-          state.canvasController.resetView(state.canvasSize);
-          return KeyEventResult.handled;
         case LogicalKeyboardKey.keyX:
           state.swapColors();
           return KeyEventResult.handled;
@@ -274,14 +265,28 @@ class InputHandler {
           state.increaseBrushOpacity();
           return KeyEventResult.handled;
         case LogicalKeyboardKey.escape:
+          // 拖动中的工具（移动、选区、取景框）一并放弃本次手势
+          _cancelDrawingPointer();
           state.cancelStroke();
           return KeyEventResult.handled;
         case LogicalKeyboardKey.delete:
         case LogicalKeyboardKey.backspace:
           if (state.selectionPath != null) {
-            state.clearSelection();
+            state.layerCommands.clearSelectionPixels();
           }
           return KeyEventResult.handled;
+      }
+    }
+
+    // 方向键微移：1 像素，按住 Shift 为 10 像素
+    if ((isDown || event is KeyRepeatEvent) && !keyboard.isCtrlPressed) {
+      final direction = _arrowDirections[event.logicalKey];
+      final tool = state.currentTool;
+      if (direction != null && tool != null) {
+        final step = keyboard.isShiftPressed ? 10.0 : 1.0;
+        if (tool.onArrowNudge(state, direction * step)) {
+          return KeyEventResult.handled;
+        }
       }
     }
 
@@ -296,7 +301,7 @@ class InputHandler {
 
     // 处理工具快捷键
     for (final tool in state.tools) {
-      if (tool.shortcutKey == event.logicalKey) {
+      if (tool.shortcutKey == event.logicalKey && tool.isAvailableIn(state)) {
         state.setTool(tool);
         return true;
       }
@@ -326,7 +331,7 @@ class InputHandler {
     if (tool != null) {
       final canvasPosition = state.canvasController.screenToCanvas(
         event.localPosition,
-        canvasSize: state.canvasSize,
+        frame: state.frame,
       );
       tool.onPointerHover(PointerHoverEvent(position: canvasPosition), state);
     }
@@ -390,7 +395,7 @@ class InputHandler {
       if (tool != null) {
         final canvasPosition = state.canvasController.screenToCanvas(
           event.localPosition,
-          canvasSize: state.canvasSize,
+          frame: state.frame,
         );
         _drawingPointerId = event.pointer;
         _drawingPointerKind = event.kind;
@@ -433,7 +438,7 @@ class InputHandler {
       if (tool != null) {
         final canvasPosition = state.canvasController.screenToCanvas(
           event.localPosition,
-          canvasSize: state.canvasSize,
+          frame: state.frame,
         );
         tool.onPointerUp(PointerUpEvent(position: canvasPosition), state);
       }
@@ -512,7 +517,7 @@ class InputHandler {
       if (tool != null) {
         final canvasPosition = state.canvasController.screenToCanvas(
           event.localPosition,
-          canvasSize: state.canvasSize,
+          frame: state.frame,
         );
         tool.onPointerMove(PointerMoveEvent(position: canvasPosition), state);
       }
@@ -629,7 +634,12 @@ class InputHandler {
 
   void _cancelDrawingPointer() {
     if (_drawingPointerId != null) {
-      state.cancelStroke();
+      final tool = state.currentTool;
+      if (tool != null) {
+        tool.onPointerCancel(state);
+      } else {
+        state.cancelStroke();
+      }
     }
     _drawingPointerId = null;
     _drawingPointerKind = null;
@@ -669,6 +679,11 @@ class InputHandler {
         return SystemMouseCursors.precise;
       case 'color_picker':
         return SystemMouseCursors.precise;
+      case 'frame':
+      case 'move':
+        return SystemMouseCursors.move;
+      case ClosedRegionFillTool.toolId:
+        return SystemMouseCursors.click;
       default:
         return SystemMouseCursors.basic;
     }

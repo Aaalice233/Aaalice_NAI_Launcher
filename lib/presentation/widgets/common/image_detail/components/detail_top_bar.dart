@@ -25,6 +25,7 @@ class DetailTopBar extends StatelessWidget {
   final VoidCallback? onReuseMetadata;
   final VoidCallback? onFavoriteToggle;
   final VoidCallback? onSave;
+  final VoidCallback? onSaveAs;
   final VoidCallback? onCopyImage;
 
   /// 复制「去除元数据」的副本。
@@ -71,6 +72,7 @@ class DetailTopBar extends StatelessWidget {
     this.onReuseMetadata,
     this.onFavoriteToggle,
     this.onSave,
+    this.onSaveAs,
     this.onCopyImage,
     this.onCopyImageClean,
     this.onSaveToAlbum,
@@ -150,6 +152,7 @@ class DetailTopBar extends StatelessWidget {
                 onReuseMetadata: onReuseMetadata,
                 onFavoriteToggle: onFavoriteToggle,
                 onSave: onSave,
+                onSaveAs: onSaveAs,
                 onCopyImage: onCopyImage,
                 onCopyImageClean: onCopyImageClean,
                 onSaveToAlbum: onSaveToAlbum,
@@ -170,6 +173,7 @@ class DetailTopBar extends StatelessWidget {
 enum _DetailOverflowAction {
   save,
   saveToAlbum,
+  saveAs,
   share,
   favorite,
   reuse,
@@ -188,6 +192,7 @@ class _DetailTopBarActions extends ConsumerWidget {
     this.onReuseMetadata,
     this.onFavoriteToggle,
     this.onSave,
+    this.onSaveAs,
     this.onCopyImage,
     this.onCopyImageClean,
     this.onSaveToAlbum,
@@ -204,6 +209,7 @@ class _DetailTopBarActions extends ConsumerWidget {
   final VoidCallback? onReuseMetadata;
   final VoidCallback? onFavoriteToggle;
   final VoidCallback? onSave;
+  final VoidCallback? onSaveAs;
   final VoidCallback? onCopyImage;
   final VoidCallback? onCopyImageClean;
   final VoidCallback? onSaveToAlbum;
@@ -259,6 +265,7 @@ class _DetailTopBarActions extends ConsumerWidget {
     final favorite = currentImage.showFavoriteButton && onFavoriteToggle != null
         ? _buildFavorite(ref)
         : null;
+    final canSaveAs = currentImage.showSaveAsButton && onSaveAs != null;
 
     if (compact) {
       final overflowActions = <PopupMenuEntry<_DetailOverflowAction>>[
@@ -277,6 +284,14 @@ class _DetailTopBarActions extends ConsumerWidget {
             child: ListTile(
               leading: const Icon(Icons.photo_library_outlined),
               title: Text(l10n.image_saveToAlbum),
+            ),
+          ),
+        if (canSaveAs)
+          PopupMenuItem(
+            value: _DetailOverflowAction.saveAs,
+            child: ListTile(
+              leading: const Icon(Icons.save_as),
+              title: Text(l10n.image_saveAs),
             ),
           ),
         if (veryCompact && onShare != null)
@@ -402,6 +417,9 @@ class _DetailTopBarActions extends ConsumerWidget {
                   case _DetailOverflowAction.saveToAlbum:
                     onSaveToAlbum?.call();
                     break;
+                  case _DetailOverflowAction.saveAs:
+                    onSaveAs?.call();
+                    break;
                   case _DetailOverflowAction.share:
                     onShare?.call();
                     break;
@@ -448,6 +466,12 @@ class _DetailTopBarActions extends ConsumerWidget {
             icon: const Icon(Icons.photo_library_outlined, color: Colors.white),
             onPressed: onSaveToAlbum,
             tooltip: l10n.image_saveToAlbum,
+          ),
+        if (canSaveAs)
+          IconButton(
+            icon: const Icon(Icons.save_as, color: Colors.white),
+            onPressed: onSaveAs,
+            tooltip: l10n.image_saveAs,
           ),
         if (onShare != null)
           IconButton(

@@ -7,7 +7,9 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   GoogleFonts.config.allowRuntimeFetching = false;
 
-  test('all app themes hide slider tick marks', () {
+  // testWidgets keeps the theme's async GoogleFonts loads inside FakeAsync, so
+  // their offline failure cannot land after the test has completed.
+  testWidgets('all app themes hide slider tick marks', (tester) async {
     for (final style in AppStyle.values) {
       for (final brightness in Brightness.values) {
         final theme = AppTheme.getTheme(style, brightness);

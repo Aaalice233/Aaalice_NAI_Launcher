@@ -7,9 +7,10 @@ import 'package:nai_launcher/presentation/screens/statistics/widgets/cards/chart
 import 'package:nai_launcher/presentation/screens/statistics/widgets/cards/metric_card.dart';
 import 'package:nai_launcher/presentation/screens/statistics/widgets/charts/aspect_ratio_chart.dart';
 import 'package:nai_launcher/presentation/screens/statistics/widgets/charts/heatmap_chart.dart';
-import 'package:nai_launcher/presentation/screens/statistics/widgets/charts/top_tags_ranking.dart';
 import 'package:nai_launcher/presentation/screens/statistics/widgets/common/section_container.dart';
 import 'package:nai_launcher/presentation/themes/core/layered_surface_style.dart';
+
+import '../../../../helpers/ink_expectations.dart';
 
 void main() {
   testWidgets(
@@ -198,39 +199,6 @@ void main() {
   );
 
   testWidgets(
-    'top tag columns depend on ranking width and preserve every item',
-    (tester) async {
-      tester.view.physicalSize = const Size(1400, 1400);
-      tester.view.devicePixelRatio = 1;
-      addTearDown(tester.view.resetPhysicalSize);
-      addTearDown(tester.view.resetDevicePixelRatio);
-
-      for (final width in [700.0, 840.0, 1180.0]) {
-        await tester.pumpWidget(
-          _testApp(
-            SizedBox(
-              width: width,
-              child: const TopTagsRanking(items: _rankingItems),
-            ),
-          ),
-        );
-
-        for (final item in _rankingItems) {
-          expect(find.text(item.tag), findsOneWidget);
-        }
-        final firstY = tester.getTopLeft(find.text('tag-1')).dy;
-        final fourthY = tester.getTopLeft(find.text('tag-4')).dy;
-        if (width < 840) {
-          expect(fourthY, greaterThan(firstY));
-        } else {
-          expect(fourthY, firstY);
-        }
-        expect(tester.takeException(), isNull);
-      }
-    },
-  );
-
-  testWidgets(
     'aspect ratio chart stacks its legend on narrow large-text surfaces',
     (tester) async {
       tester.view.physicalSize = const Size(360, 1000);
@@ -266,6 +234,52 @@ void main() {
       expect(tester.takeException(), isNull);
     },
   );
+
+  testWidgets('图表卡片里的图例条目悬停与按压反馈画在卡片色面之上', (tester) async {
+    tester.view.physicalSize = const Size(900, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(
+      _testApp(
+        const SizedBox(
+          width: 640,
+          child: ChartCard(
+            title: 'Ratios',
+            child: AspectRatioChart(
+              height: 160,
+              items: [
+                AspectRatioItem(
+                  ratio: '16:9',
+                  label: 'Landscape',
+                  count: 10,
+                  percentage: 100,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final card = find.byType(ChartCard);
+    final legend = find
+        .ancestor(of: find.text('16:9'), matching: find.byType(InkWell))
+        .first;
+    final theme = Theme.of(tester.element(legend));
+    // 指针进入卡片后卡片切到悬停色面
+    final fill = controlSurfaceColor(theme.colorScheme);
+
+    await hoverOver(tester, legend);
+    expectInkOnTop(tester, card, ink: theme.hoverColor, below: fill);
+
+    final press = await pressAndHold(tester, legend);
+    expectInkOnTop(tester, card, ink: theme.highlightColor, below: fill);
+    await press.up();
+    await tester.pumpAndSettle();
+  });
 
   testWidgets('interactive heatmap cells expose 48px touch targets', (
     tester,
@@ -353,28 +367,6 @@ void main() {
       expect(tester.takeException(), isNull);
     },
   );
-
-  testWidgets('narrow top tag ranking remains complete at 3x text scale', (
-    tester,
-  ) async {
-    tester.view.physicalSize = const Size(360, 1600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(tester.view.resetPhysicalSize);
-    addTearDown(tester.view.resetDevicePixelRatio);
-
-    await tester.pumpWidget(
-      _testApp(
-        const SizedBox(width: 320, child: TopTagsRanking(items: _rankingItems)),
-        textScaler: const TextScaler.linear(3),
-      ),
-    );
-
-    for (final item in _rankingItems) {
-      expect(find.text(item.tag), findsOneWidget);
-      expect(find.text('${item.count}'), findsOneWidget);
-    }
-    expect(tester.takeException(), isNull);
-  });
 }
 
 Widget _testApp(
@@ -396,12 +388,3 @@ Widget _testApp(
     ),
   );
 }
-
-const _rankingItems = [
-  TagRankItem(tag: 'tag-1', count: 60, percentage: 0.6, trend: 1),
-  TagRankItem(tag: 'tag-2', count: 50, percentage: 0.5, trend: -1),
-  TagRankItem(tag: 'tag-3', count: 40, percentage: 0.4, trend: 0),
-  TagRankItem(tag: 'tag-4', count: 30, percentage: 0.3, trend: 1),
-  TagRankItem(tag: 'tag-5', count: 20, percentage: 0.2, trend: -1),
-  TagRankItem(tag: 'tag-6', count: 10, percentage: 0.1, trend: 0),
-];

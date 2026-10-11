@@ -195,6 +195,8 @@ class AnlasCalculator {
   }) {
     final pixels = width * height;
     final capabilities = ModelCapabilityRegistry.of(model);
+    // 调用方传的是界面步数，固定步数的模型按实际发送的步数计价与判定免费。
+    final effectiveSteps = capabilities.fixedSettings?.steps ?? steps;
 
     // 计算每张图的基础消耗
     double perSample;
@@ -202,9 +204,12 @@ class AnlasCalculator {
     if (capabilities.anlasFormula == AnlasFormula.modern) {
       // 网页端只对面积与步数部分取整，随后连乘 SMEA 倍率、模型倍率与重绘
       // 强度，最后统一取整。V5 的模型倍率是 1.5。
-      final baseCost =
-          (_areaCoefficient * pixels + _stepAreaCoefficient * pixels * steps)
-              .ceil();
+      final stepCost =
+          _stepAreaCoefficient *
+          pixels *
+          effectiveSteps *
+          capabilities.stepCostFactor;
+      final baseCost = (_areaCoefficient * pixels + stepCost).ceil();
       final smeaFactor = !smea ? 1.0 : (!smeaDyn ? 1.2 : 1.4);
       perSample = baseCost * smeaFactor * capabilities.anlasMultiplier;
     } else {
@@ -214,7 +219,7 @@ class AnlasCalculator {
           (15.266497014243718 *
                   math.exp(pixels / 1024 / 1024 * 0.6326248927474729) -
               15.225164493059737) *
-          steps /
+          effectiveSteps /
           28;
     }
 
@@ -228,7 +233,7 @@ class AnlasCalculator {
         !quotaBlocked &&
             _isOpusFree(
               isOpus: isOpus || subscriptionTier >= opusTier,
-              steps: steps,
+              steps: effectiveSteps,
               resolution: pixels,
             )
         ? 1

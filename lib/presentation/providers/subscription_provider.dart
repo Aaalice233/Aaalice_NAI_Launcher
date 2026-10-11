@@ -10,7 +10,7 @@ import '../../core/utils/app_logger.dart';
 import '../../data/datasources/remote/nai_user_info_api_service.dart';
 import '../../data/models/user/user_subscription.dart';
 import '../../data/services/anlas_statistics_service.dart';
-import 'auth_provider.dart';
+import '../../data/services/auth_provider.dart';
 
 part 'subscription_provider.g.dart';
 

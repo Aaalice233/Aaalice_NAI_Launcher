@@ -1,31 +1,35 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:path/path.dart' as p;
 import '../../../../core/platform/platform_capabilities.dart';
-import '../../../../core/services/android_media_store_service.dart';
 import '../../../../core/services/file_export_service.dart';
-import '../../../../core/utils/image_save_utils.dart';
 import '../../../../core/utils/localization_extension.dart';
 import '../../../../core/utils/zip_utils.dart';
-import '../../../../data/repositories/gallery_folder_repository.dart';
 import '../../../providers/generation/image_card_selection_provider.dart';
 import '../../../providers/image_generation_provider.dart';
-import '../../../providers/local_gallery_provider.dart';
 import '../../../utils/zip_export_progress.dart';
 import '../../../widgets/common/app_toast.dart';
 import '../../../widgets/common/image_card_action.dart';
+import 'generation_image_deletion.dart';
 
 class GenerationImageBatchActions {
   GenerationImageBatchActions({
     required this.context,
     required this.images,
-    required this.gallery,
     required this.selection,
+    required this.deletion,
+    required this.saveImages,
+    required this.saveImagesToFolder,
   });
   final BuildContext context;
   final List<GeneratedImage> images;
-  final LocalGalleryNotifier gallery;
   final GenerationImageCardSelection selection;
+  final GenerationImageDeletion deletion;
+
+  /// 全部成功才返回 true。
+  final Future<bool> Function(List<GeneratedImage> images) saveImages;
+
+  /// 另存为到用户选择的文件夹，全部成功才返回 true。
+  final Future<bool> Function(List<GeneratedImage> images) saveImagesToFolder;
 
   List<ImageCardAction> build() => [
     ImageCardAction(
@@ -43,62 +47,38 @@ class GenerationImageBatchActions {
       isPrimary: true,
       invoke: _saveSelectedImages,
     ),
+    // 【偏离上游】iOS 拿不到可长期写入的目录（pickExportDirectory 返回 null），
+    // 「另存为到文件夹」只会表现为点了没反应，入口直接隐藏；单张另存为仍走分享面板。
+    if (PlatformCapabilities.current.supportsDirectoryBatchExport)
+      ImageCardAction(
+        id: ImageCardActionId.saveAs,
+        icon: Icons.save_as_outlined,
+        label: context.l10n.image_saveAsToFolder,
+        supportsBatch: true,
+        invoke: _saveSelectedImagesToFolder,
+      ),
+    ImageCardAction(
+      id: ImageCardActionId.delete,
+      icon: Icons.delete_outline,
+      label: context.l10n.common_delete,
+      supportsBatch: true,
+      isDanger: true,
+      invoke: () => deletion.confirmAndDelete(images),
+    ),
   ];
   Future<void> _saveSelectedImages() async {
     if (images.isEmpty) return;
+    // 部分失败时保留选择，重试会复用已保存的文件，不会重复落盘。
+    if (await saveImages(images) && context.mounted) {
+      selection.deselectAll(images.map((image) => image.id));
+    }
+  }
 
-    try {
-      final saveDirPath = await GalleryFolderRepository.instance.getRootPath();
-      if (saveDirPath == null) return;
-
-      final selectedImages = images;
-
-      Object? systemGalleryError;
-      // 原子保存：日期分类路径 + 独占防冲突 + 失败清理，全部在工具内完成
-      for (int i = 0; i < selectedImages.length; i++) {
-        final image = selectedImages[i];
-        final filePath = await ImageSaveUtils.saveBytesToDatedPath(
-          rootPath: saveDirPath,
-          bytes: image.bytes,
-          seed: await ImageSaveUtils.resolveSeed(
-            metadata: image.metadata,
-            bytes: image.bytes,
-          ),
-        );
-        if (PlatformCapabilities.current.supportsSystemGalleryExport) {
-          try {
-            await AndroidMediaStoreService.savePng(
-              bytes: image.bytes,
-              fileName: p.basename(filePath),
-            );
-          } catch (error) {
-            systemGalleryError ??= error;
-          }
-        }
-      }
-
-      await gallery.refresh();
-
-      if (context.mounted) {
-        if (systemGalleryError != null) {
-          AppToast.warning(
-            context,
-            context.l10n.image_savedAppOnly(systemGalleryError.toString()),
-          );
-        } else {
-          AppToast.success(
-            context,
-            PlatformCapabilities.current.supportsSystemGalleryExport
-                ? context.l10n.image_savedToSystemGallery
-                : context.l10n.image_imageSaved(saveDirPath),
-          );
-        }
-        selection.deselectAll(images.map((image) => image.id));
-      }
-    } catch (e) {
-      if (context.mounted) {
-        AppToast.error(context, context.l10n.image_saveFailed(e.toString()));
-      }
+  Future<void> _saveSelectedImagesToFolder() async {
+    if (images.isEmpty) return;
+    // 部分失败或取消时保留选择，方便重试。
+    if (await saveImagesToFolder(images) && context.mounted) {
+      selection.deselectAll(images.map((image) => image.id));
     }
   }
 

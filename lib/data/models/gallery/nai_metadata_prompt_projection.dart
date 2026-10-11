@@ -8,6 +8,26 @@ import '../../../core/utils/portable_logger.dart';
 import '../image/image_params.dart';
 import 'nai_image_metadata.dart';
 
+/// 判定 [source] 从 [start] 起是否逐段等于 [expected]（trim 后大小写不敏感）。
+///
+/// 固定词的剥离与回填必须共用这一条规则，否则会出现"判定说能剥、实际没剥"。
+bool promptSegmentsMatchAt(
+  List<String> source,
+  List<String> expected,
+  int start,
+) {
+  if (expected.isEmpty || start < 0 || start + expected.length > source.length) {
+    return false;
+  }
+  for (var offset = 0; offset < expected.length; offset++) {
+    if (NaiPromptParser.normalizeSegment(source[start + offset]) !=
+        NaiPromptParser.normalizeSegment(expected[offset])) {
+      return false;
+    }
+  }
+  return true;
+}
+
 /// Projects imported metadata into prompt text and reusable image references.
 ///
 /// This keeps display/copy policy separate from the persisted Hive/Freezed
@@ -225,10 +245,7 @@ class NaiMetadataPromptProjection {
     List<String> source,
     List<String> expected,
   ) {
-    if (expected.isEmpty || source.length < expected.length) return;
-    for (var i = 0; i < expected.length; i++) {
-      if (source[i].toLowerCase() != expected[i].toLowerCase()) return;
-    }
+    if (!promptSegmentsMatchAt(source, expected, 0)) return;
     source.removeRange(0, expected.length);
   }
 
@@ -236,11 +253,8 @@ class NaiMetadataPromptProjection {
     List<String> source,
     List<String> expected,
   ) {
-    if (expected.isEmpty || source.length < expected.length) return;
     final offset = source.length - expected.length;
-    for (var i = 0; i < expected.length; i++) {
-      if (source[offset + i].toLowerCase() != expected[i].toLowerCase()) return;
-    }
+    if (!promptSegmentsMatchAt(source, expected, offset)) return;
     source.removeRange(offset, source.length);
   }
 

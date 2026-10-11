@@ -8,7 +8,7 @@ import '../../../providers/fixed_tags_provider.dart';
 import '../../../providers/image_generation_provider.dart';
 import '../../../providers/quality_preset_provider.dart';
 import '../../../providers/uc_preset_provider.dart';
-import '../../../../data/services/alias_resolver_service.dart';
+import '../../../providers/alias_resolver_service.dart';
 import '../../../adaptive/interaction_policy.dart';
 import '../../../themes/prompt_semantic_colors.dart';
 import '../../../themes/prompt_control_colors.dart';

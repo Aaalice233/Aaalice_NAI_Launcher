@@ -203,6 +203,35 @@ void main() {
       expect(container.read(generationPreviewSelectionProvider), 'c');
     });
 
+    test('deleting the selected image clears the selection', () {
+      final notifier = container.read(
+        generationPreviewSelectionProvider.notifier,
+      )..select('c');
+
+      generationNotifier.replace(
+        ImageGenerationState(
+          currentImages: [_image('a'), _image('b')],
+          history: [_image('b')],
+        ),
+      );
+
+      expect(container.read(generationPreviewSelectionProvider), isNull);
+      expect(notifier, isNotNull);
+    });
+
+    test('deleting another image keeps the selection', () {
+      container.read(generationPreviewSelectionProvider.notifier).select('b');
+
+      generationNotifier.replace(
+        ImageGenerationState(
+          currentImages: [_image('b')],
+          history: [_image('b'), _image('c')],
+        ),
+      );
+
+      expect(container.read(generationPreviewSelectionProvider), 'b');
+    });
+
     test(
       'switching to classic clears selection and linked mode can resume',
       () {

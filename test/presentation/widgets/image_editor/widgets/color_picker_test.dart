@@ -60,4 +60,41 @@ void main() {
     );
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets('色面与色相条以滑块朗读，色值框只有一个具名输入节点', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: ListView(
+            children: [
+              HSVColorPicker(
+                color: Colors.blue,
+                hexLabel: '颜色值',
+                saturationBrightnessLabel: '饱和度与亮度',
+                hueLabel: '色相',
+                onColorChanged: (_) {},
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    for (final label in const ['饱和度与亮度', '色相']) {
+      expect(
+        find.semantics.byPredicate(
+          (node) => node.flagsCollection.isSlider && node.label == label,
+        ),
+        findsOne,
+        reason: label,
+      );
+    }
+    final fields = find.semantics.byPredicate(
+      (node) => node.flagsCollection.isTextField,
+    );
+    expect(fields, findsOne);
+    final hex = fields.evaluate().single;
+    expect(hex.label, '颜色值');
+    expect(hex.value, isNotEmpty);
+  });
 }

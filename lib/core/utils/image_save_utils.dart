@@ -1,19 +1,23 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:isolate';
 import 'dart:typed_data';
 
 import 'package:path/path.dart' as p;
 
 import '../../data/models/gallery/nai_image_metadata.dart';
 import '../../data/models/fixed_tag/fixed_tag_usage_snapshot.dart';
-import '../../data/models/fixed_tag/fixed_tag_entry.dart';
-import '../../data/models/fixed_tag/fixed_tag_prompt_type.dart';
 import '../../data/models/image/image_params.dart';
+import '../../data/services/fixed_tag/fixed_tag_usage_record_store.dart';
 import '../../data/services/image_metadata_service.dart';
+import '../../data/services/metadata/hash_calculator.dart';
 import '../../data/services/metadata/unified_metadata_parser.dart';
 import '../constants/api_constants.dart';
+import '../enums/image_model_mode.dart';
 import '../enums/precise_ref_type.dart';
 import 'app_logger.dart';
+import 'isolate_pool.dart';
+import 'novelai_dataset_prefix.dart';
 import 'prompt_semantics_utils.dart';
 
 /// 统一图像保存工具类
@@ -27,100 +31,78 @@ class ImageSaveUtils {
   ///
   /// [params] - 图像生成参数
   /// [actualSeed] - 实际使用的种子
-  /// [fixedPrefixTags] - 固定前缀标签列表
-  /// [fixedSuffixTags] - 固定后缀标签列表
-  /// [fixedNegativePrefixTags] - 负向固定前缀标签列表
-  /// [fixedNegativeSuffixTags] - 负向固定后缀标签列表
   /// [charCaptions] - 角色提示词列表（V4多角色）
   /// [charNegCaptions] - 角色负面提示词列表
   /// [useCoords] - 是否使用坐标模式
   static Map<String, dynamic> buildCommentJson({
     required ImageParams params,
     required int actualSeed,
-    List<String>? fixedPrefixTags,
-    List<String>? fixedSuffixTags,
-    List<String>? fixedNegativePrefixTags,
-    List<String>? fixedNegativeSuffixTags,
-    FixedTagUsageSnapshot? fixedTagUsageSnapshot,
     List<Map<String, dynamic>>? charCaptions,
     List<Map<String, dynamic>>? charNegCaptions,
     bool useCoords = false,
   }) {
+    final request = params.resolveFixedSettings();
+    final recordedPrompt = NovelAiDatasetPrefix.apply(
+      request.prompt,
+      mode: request.modelMode,
+      capabilities: request.capabilities,
+    );
     final qualityTagHint = QualityTags.toTagHint(
-      model: params.model,
-      enabled: params.qualityToggle,
-      tier: params.qualityTier,
-      omit: params.omitQualityTagHint,
+      model: request.model,
+      enabled: request.qualityToggle,
+      tier: request.qualityTier,
+      omit: request.omitQualityTagHint,
     );
     final ucPresetTagHint = UcPresets.toTagHint(
-      params.ucPreset,
-      omit: params.omitUcPresetTagHint,
+      request.ucPreset,
+      omit: request.omitUcPresetTagHint,
     );
     final commentJson = <String, dynamic>{
-      'prompt': params.prompt,
-      'uc': params.negativePrompt,
+      'prompt': recordedPrompt,
+      'uc': request.negativePrompt,
       'seed': actualSeed,
-      'steps': params.steps,
-      'width': params.width,
-      'height': params.height,
-      'scale': params.scale,
+      'steps': request.steps,
+      'width': request.width,
+      'height': request.height,
+      'scale': request.scale,
       'uncond_scale': 0.0,
-      'cfg_rescale': params.cfgRescale,
+      if (request.capabilities.supportsCfgRescale)
+        'cfg_rescale': request.cfgRescale,
       'n_samples': 1,
-      'noise_schedule': params.noiseSchedule,
-      'sampler': params.sampler,
-      'sm': params.smea,
-      'sm_dyn': params.smeaDyn,
-      'model': params.model,
-      'quality_toggle': params.qualityToggle,
-      'uc_preset': params.ucPreset,
+      'noise_schedule': request.noiseSchedule,
+      'sampler': request.sampler,
+      'sm': request.smea,
+      'sm_dyn': request.smeaDyn,
+      'model': request.model,
+      'quality_toggle': request.qualityToggle,
+      'uc_preset': request.ucPreset,
       if (qualityTagHint != null) 'tag_hint_qt': qualityTagHint,
       if (ucPresetTagHint != null) 'tag_hint_uc_preset': ucPresetTagHint,
       // NAI官方格式字段
-      'version': params.isV4Model ? 1 : 'v3',
+      'version': request.isV4Model ? 1 : 'v3',
       'legacy_v3_extend': false,
       // img2img参数
-      if (params.isImg2Img) ...{
-        'strength': params.strength,
-        'noise': params.noise,
+      if (request.isImg2Img) ...{
+        'strength': request.strength,
+        'noise': request.noise,
         'extra_noise_seed': actualSeed - 1,
       },
       // V5 专属参数：官网写回元数据时保留 upscale 与透明背景，只剔除
       // upscaled_enhance（增强 max 档是一次性动作，不属于图片参数）。
-      if (params.capabilities.supportsTransparentBackground) ...{
-        'straight_alpha': params.straightAlpha,
-        if (params.transparentBackground)
+      if (request.capabilities.supportsTransparentBackground) ...{
+        'straight_alpha': request.straightAlpha,
+        if (request.transparentBackground)
           'tag_hint_transparent_background': true,
       },
-      if (params.effectiveE2eUpscale)
+      if (request.effectiveE2eUpscale)
         'upscale': {'declared_blur_sigma': E2eUpscale.declaredBlurSigma},
     };
 
-    if (fixedTagUsageSnapshot != null) {
-      commentJson['aaalice_fixed_tags'] = fixedTagUsageSnapshot.toJson();
-    }
-    if (fixedTagUsageSnapshot != null || fixedPrefixTags?.isNotEmpty == true) {
-      commentJson['fixed_prefix'] = fixedPrefixTags ?? const <String>[];
-    }
-    if (fixedTagUsageSnapshot != null || fixedSuffixTags?.isNotEmpty == true) {
-      commentJson['fixed_suffix'] = fixedSuffixTags ?? const <String>[];
-    }
-    if (fixedTagUsageSnapshot != null ||
-        fixedNegativePrefixTags?.isNotEmpty == true) {
-      commentJson['fixed_negative_prefix'] =
-          fixedNegativePrefixTags ?? const <String>[];
-    }
-    if (fixedTagUsageSnapshot != null ||
-        fixedNegativeSuffixTags?.isNotEmpty == true) {
-      commentJson['fixed_negative_suffix'] =
-          fixedNegativeSuffixTags ?? const <String>[];
-    }
-
     // V4多角色提示词
-    if (params.isV4Model) {
+    if (request.isV4Model) {
       commentJson['v4_prompt'] = {
         'caption': {
-          'base_caption': params.prompt,
+          'base_caption': recordedPrompt,
           'char_captions': charCaptions ?? const [],
         },
         'use_coords': useCoords,
@@ -129,7 +111,7 @@ class ImageSaveUtils {
       };
       commentJson['v4_negative_prompt'] = {
         'caption': {
-          'base_caption': params.negativePrompt,
+          'base_caption': request.negativePrompt,
           'char_captions': charNegCaptions ?? const [],
         },
         'use_coords': false,
@@ -139,8 +121,8 @@ class ImageSaveUtils {
     }
 
     // Vibe Transfer 数据（关键！之前缺失）
-    if (params.hasVibeReferencesV4) {
-      final validVibes = params.enabledVibeReferencesV4
+    if (request.hasVibeReferencesV4) {
+      final validVibes = request.enabledVibeReferencesV4
           .where((v) => v.vibeEncoding.isNotEmpty)
           .toList();
 
@@ -158,8 +140,8 @@ class ImageSaveUtils {
     }
 
     // Precise Reference 数据
-    if (params.hasPreciseReferences) {
-      final preciseReferences = params.enabledPreciseReferences;
+    if (request.hasPreciseReferences) {
+      final preciseReferences = request.enabledPreciseReferences;
       commentJson['use_precise_ref'] = true;
       commentJson['precise_ref_type'] = preciseReferences.first.type
           .toApiString();
@@ -168,8 +150,8 @@ class ImageSaveUtils {
     }
 
     // V4.5 参数
-    if (params.isV45Model) {
-      commentJson['variety_plus'] = params.varietyPlus;
+    if (request.isV45Model) {
+      commentJson['variety_plus'] = request.varietyPlus;
     }
 
     return commentJson;
@@ -199,11 +181,6 @@ class ImageSaveUtils {
     required Uint8List imageBytes,
     required ImageParams params,
     int? actualSeed,
-    List<String>? fixedPrefixTags,
-    List<String>? fixedSuffixTags,
-    List<String>? fixedNegativePrefixTags,
-    List<String>? fixedNegativeSuffixTags,
-    FixedTagUsageSnapshot? fixedTagUsageSnapshot,
     List<Map<String, dynamic>>? charCaptions,
     List<Map<String, dynamic>>? charNegCaptions,
     bool useCoords = false,
@@ -231,11 +208,6 @@ class ImageSaveUtils {
     final rebuiltCommentJson = buildCommentJson(
       params: params,
       actualSeed: normalizedSeed,
-      fixedPrefixTags: fixedPrefixTags,
-      fixedSuffixTags: fixedSuffixTags,
-      fixedNegativePrefixTags: fixedNegativePrefixTags,
-      fixedNegativeSuffixTags: fixedNegativeSuffixTags,
-      fixedTagUsageSnapshot: fixedTagUsageSnapshot,
       charCaptions: charCaptions,
       charNegCaptions: charNegCaptions,
       useCoords: useCoords,
@@ -257,6 +229,7 @@ class ImageSaveUtils {
             ucPreset: params.ucPreset,
             transparentBackground: params.transparentBackground,
             qualityTier: params.qualityTier,
+            modelMode: params.modelMode,
           ).effectivePrompt,
       source: existingMetadata?.source ?? getModelSourceName(params.model),
       software: existingMetadata?.software ?? 'NovelAI',
@@ -264,68 +237,12 @@ class ImageSaveUtils {
     );
   }
 
-  /// Adds Launcher fixed-tag provenance without replacing existing NAI fields.
-  static Future<Uint8List> mergeFixedTagUsageMetadata({
-    required Uint8List imageBytes,
-    required FixedTagUsageSnapshot snapshot,
-    bool useStealth = false,
-  }) async {
-    final existing = _extractEmbeddedPngMetadata(imageBytes);
-    if (existing?.commentJson == null) return imageBytes;
-    final commentJson = <String, dynamic>{
-      ...existing!.commentJson,
-      'aaalice_fixed_tags': snapshot.toJson(),
-      'fixed_prefix': _fixedTagContents(
-        snapshot,
-        FixedTagPromptType.positive,
-        FixedTagPosition.prefix,
-      ),
-      'fixed_suffix': _fixedTagContents(
-        snapshot,
-        FixedTagPromptType.positive,
-        FixedTagPosition.suffix,
-      ),
-      'fixed_negative_prefix': _fixedTagContents(
-        snapshot,
-        FixedTagPromptType.negative,
-        FixedTagPosition.prefix,
-      ),
-      'fixed_negative_suffix': _fixedTagContents(
-        snapshot,
-        FixedTagPromptType.negative,
-        FixedTagPosition.suffix,
-      ),
-    };
-    return _embedNaiAlignedMetadata(
-      imageBytes: imageBytes,
-      commentJson: commentJson,
-      description: existing.description,
-      source: existing.source,
-      software: existing.software,
-      useStealth: useStealth,
-    );
-  }
-
-  static List<String> _fixedTagContents(
-    FixedTagUsageSnapshot snapshot,
-    FixedTagPromptType promptType,
-    FixedTagPosition position,
-  ) => snapshot
-      .entriesFor(promptType: promptType, position: position)
-      .map((entry) => entry.renderedContent)
-      .where((content) => content.isNotEmpty)
-      .toList(growable: false);
-
   /// 保存图像并嵌入完整元数据
   ///
   /// [imageBytes] - 图像字节数据
   /// [filePath] - 目标文件路径
   /// [params] - 图像生成参数
   /// [actualSeed] - 实际使用的种子
-  /// [fixedPrefixTags] - 固定前缀标签
-  /// [fixedSuffixTags] - 固定后缀标签
-  /// [fixedNegativePrefixTags] - 负向固定前缀标签
-  /// [fixedNegativeSuffixTags] - 负向固定后缀标签
   /// [charCaptions] - 角色提示词列表
   /// [charNegCaptions] - 角色负面提示词列表
   /// [useStealth] - 是否使用stealth编码（默认false）
@@ -337,11 +254,6 @@ class ImageSaveUtils {
     required String filePath,
     required ImageParams params,
     required int actualSeed,
-    List<String>? fixedPrefixTags,
-    List<String>? fixedSuffixTags,
-    List<String>? fixedNegativePrefixTags,
-    List<String>? fixedNegativeSuffixTags,
-    FixedTagUsageSnapshot? fixedTagUsageSnapshot,
     List<Map<String, dynamic>>? charCaptions,
     List<Map<String, dynamic>>? charNegCaptions,
     bool useCoords = false,
@@ -352,11 +264,6 @@ class ImageSaveUtils {
       imageBytes: imageBytes,
       params: params,
       actualSeed: actualSeed,
-      fixedPrefixTags: fixedPrefixTags,
-      fixedSuffixTags: fixedSuffixTags,
-      fixedNegativePrefixTags: fixedNegativePrefixTags,
-      fixedNegativeSuffixTags: fixedNegativeSuffixTags,
-      fixedTagUsageSnapshot: fixedTagUsageSnapshot,
       charCaptions: charCaptions,
       charNegCaptions: charNegCaptions,
       useCoords: useCoords,
@@ -470,6 +377,7 @@ class ImageSaveUtils {
         qualityTier: metadata.qualityTier ?? QualityTags.standardTier,
         ucPreset: metadata.ucPreset ?? UcPresets.noneApiValue,
         transparentBackground: metadata.transparentBackground ?? false,
+        modelMode: metadata.modelMode ?? ImageModelMode.anime,
       );
 
       // 恢复Vibe数据
@@ -503,11 +411,20 @@ class ImageSaveUtils {
   /// 获取模型显示名称
   static String getModelSourceName(String model) {
     if (model.contains('diffusion-5') || model == ImageModels.v5StagingKey) {
-      // 官方解析按已知 Full 指纹区分，其余 V5 一律归 Curated；
-      // Full 带上网页端的真实指纹保证自家图能被官网与启动器双向识别。
-      return model.contains('diffusion-5-full')
-          ? 'NovelAI Diffusion V5 657484A5'
-          : 'NovelAI Diffusion V5';
+      // 与服务端实写一致：底模与重绘权重各有指纹，官方解析两者都认，
+      // 不带已知指纹的 V5 一律归 Curated。
+      final inpainting = ImageModels.isInpaintingModel(model);
+      if (model.contains('diffusion-5-full-medium')) {
+        return inpainting
+            ? 'NovelAI Diffusion V5 93F4BD30'
+            : 'NovelAI Diffusion V5 70AB5786';
+      }
+      if (model.contains('diffusion-5-full')) {
+        return inpainting
+            ? 'NovelAI Diffusion V5 657484A5'
+            : 'NovelAI Diffusion V5 0ADF9AB7';
+      }
+      return 'NovelAI Diffusion V5';
     } else if (model.contains('diffusion-4-5')) {
       return model.contains('curated')
           ? 'NovelAI Diffusion V4.5 Curated'
@@ -588,39 +505,19 @@ class ImageSaveUtils {
     required String source,
     bool useStealth = false,
   }) async {
-    final commentText = jsonEncode(commentJson);
-    AppLogger.d(
-      'Embedding aligned metadata: commentKeys=${commentJson.keys.take(20).toList()}',
-      'ImageSaveUtils',
+    final result = await ComputeGate().runCompute(
+      _writeAlignedMetadata,
+      _MetadataWriteRequest(
+        bytes: TransferableTypedData.fromList([imageBytes]),
+        commentJson: commentJson,
+        description: description,
+        software: software,
+        source: source,
+        useStealth: useStealth,
+      ),
+      debugLabel: 'save-image-metadata',
     );
-
-    var output = imageBytes;
-    if (useStealth) {
-      output = await UnifiedMetadataParser.embedMetadata(
-        output,
-        commentText,
-        useStealth: true,
-      );
-    } else {
-      output = UnifiedMetadataParser.embedTextChunkOnly(
-        output,
-        'Comment',
-        commentText,
-      );
-    }
-
-    output = UnifiedMetadataParser.embedTextChunkOnly(
-      output,
-      'Description',
-      description,
-    );
-    output = UnifiedMetadataParser.embedTextChunkOnly(
-      output,
-      'Software',
-      software,
-    );
-    output = UnifiedMetadataParser.embedTextChunkOnly(output, 'Source', source);
-    return output;
+    return result.materialize().asUint8List();
   }
 
   static _NormalizedPrebuiltMetadata _normalizePrebuiltMetadata(
@@ -705,12 +602,9 @@ class ImageSaveUtils {
               .basenameWithoutExtension(p.basename(preferredFileName))
               .replaceAll(RegExp(r'[<>:"/\\|?*\x00-\x1F]'), '_')
               .trim();
-    final seedPart = (seed != null && seed >= 0)
-        ? '$seed'
-        : '${time.millisecondsSinceEpoch}';
     final baseName = preferredStem.isNotEmpty
         ? preferredStem
-        : '${two(time.hour)}-${two(time.minute)}-${two(time.second)}-$seedPart';
+        : _galleryFileStem(seed: seed, time: time);
     var candidate = p.join(dir.path, '$baseName.png');
     var suffix = 2;
     File file;
@@ -741,6 +635,85 @@ class ImageSaveUtils {
     return candidate;
   }
 
+  /// 图库保存时的默认文件名 `时-分-秒-seed.png`，另存为的建议文件名与它一致。
+  static String galleryFileName({int? seed, DateTime? now}) =>
+      '${_galleryFileStem(seed: seed, time: now ?? DateTime.now())}.png';
+
+  static String _galleryFileStem({int? seed, required DateTime time}) {
+    String two(int v) => v.toString().padLeft(2, '0');
+    final seedPart = (seed != null && seed >= 0)
+        ? '$seed'
+        : '${time.millisecondsSinceEpoch}';
+    return '${two(time.hour)}-${two(time.minute)}-${two(time.second)}-$seedPart';
+  }
+
+  /// 生成结果最终落盘的字节，保存与另存为共用以得到同一份文件。
+  ///
+  /// 字节已带 NovelAI 元数据时原样返回；否则仅按 [metadata] 补写，没有就原样返回。
+  static Future<PreparedResultImage> prepareResultBytes({
+    required Uint8List imageBytes,
+    required bool preserveOriginalBytes,
+    NaiImageMetadata? metadata,
+  }) async {
+    final rebuilt =
+        !preserveOriginalBytes &&
+        metadata != null &&
+        !hasEmbeddedNovelAiMetadata(imageBytes);
+    if (!rebuilt) return PreparedResultImage._(imageBytes, null);
+    return PreparedResultImage._(
+      await _embedOwnMetadata(imageBytes: imageBytes, metadata: metadata),
+      metadata,
+    );
+  }
+
+  /// 生成结果的唯一落盘入口，只认图像自身数据，不读当前生成参数。
+  ///
+  /// 最终字节见 [prepareResultBytes]。
+  /// 固定词快照只进旁路记录库。
+  static Future<SavedResultImage> saveResultImage({
+    required String rootPath,
+    required Uint8List imageBytes,
+    required bool preserveOriginalBytes,
+    NaiImageMetadata? metadata,
+    FixedTagUsageSnapshot? fixedTagUsageSnapshot,
+    String? preferredFileName,
+    DateTime? now,
+  }) async {
+    final prepared = await prepareResultBytes(
+      imageBytes: imageBytes,
+      preserveOriginalBytes: preserveOriginalBytes,
+      metadata: metadata,
+    );
+    final bytes = prepared.bytes;
+    final path = await saveBytesToDatedPath(
+      rootPath: rootPath,
+      bytes: bytes,
+      seed: await prepared.resolveSeed(),
+      preferredFileName: preferredFileName,
+      now: now,
+    );
+    final contentHash = FileHashCalculator().calculateFromBytes(bytes);
+    FileHashCalculator().registerPathHash(path, contentHash);
+    final snapshot = fixedTagUsageSnapshot ?? metadata?.fixedTagUsageSnapshot;
+    if (!preserveOriginalBytes && snapshot != null) {
+      try {
+        await FixedTagUsageRecordStore().record(
+          contentHash: contentHash,
+          snapshot: snapshot,
+        );
+      } catch (error, stack) {
+        // 文件已落盘，记录失败不能让调用方把这次保存报成失败。
+        AppLogger.e(
+          'Failed to record fixed-tag usage for $path',
+          error,
+          stack,
+          'ImageSaveUtils',
+        );
+      }
+    }
+    return SavedResultImage(path: path, bytes: bytes, contentHash: contentHash);
+  }
+
   /// 解析图片的真实 seed：优先用已有元数据，否则从 PNG 字节解析。
   ///
   /// 用于保存入口的日期分类文件名，保证非自动保存路径（详情页保存、
@@ -764,6 +737,64 @@ class ImageSaveUtils {
     return null;
   }
 
+  static Future<Uint8List> _embedOwnMetadata({
+    required Uint8List imageBytes,
+    required NaiImageMetadata metadata,
+  }) => _embedNaiAlignedMetadata(
+    imageBytes: imageBytes,
+    commentJson: _commentJsonOf(metadata),
+    description: metadata.prompt,
+    software: metadata.software ?? 'NovelAI',
+    source: metadata.source ?? 'NovelAI Diffusion',
+  );
+
+  // rawJson 是完整 Comment；字段投影会丢掉 v4_prompt、预设与 tag_hint 等。
+  static Map<String, dynamic> _commentJsonOf(NaiImageMetadata metadata) {
+    final raw = metadata.rawJson;
+    final decoded = raw == null ? null : _tryDecodeJsonMap(raw);
+    if (decoded != null) {
+      final comment = _unwrapCommentIfWrapped(decoded);
+      if (comment.containsKey('prompt')) return comment;
+    }
+    return _commentJsonFromFields(metadata);
+  }
+
+  static Map<String, dynamic> _commentJsonFromFields(
+    NaiImageMetadata metadata,
+  ) {
+    final commentJson = <String, dynamic>{
+      'prompt': metadata.prompt,
+      'uc': metadata.negativePrompt,
+      'seed': metadata.seed ?? -1,
+      'steps': metadata.steps ?? 28,
+      'width': metadata.width ?? 832,
+      'height': metadata.height ?? 1216,
+      'scale': metadata.scale ?? 5.0,
+      'uncond_scale': 0.0,
+      'cfg_rescale': metadata.cfgRescale ?? 0.0,
+      'n_samples': 1,
+      'noise_schedule': metadata.noiseSchedule ?? 'native',
+      'sampler': metadata.sampler ?? 'k_euler_ancestral',
+      'sm': metadata.smea ?? false,
+      'sm_dyn': metadata.smeaDyn ?? false,
+    };
+    final vibes = metadata.vibeReferences
+        .where((v) => v.vibeEncoding.isNotEmpty)
+        .toList();
+    if (vibes.isNotEmpty) {
+      commentJson['reference_image_multiple'] = vibes
+          .map((v) => v.vibeEncoding)
+          .toList();
+      commentJson['reference_strength_multiple'] = vibes
+          .map((v) => v.strength)
+          .toList();
+      commentJson['reference_information_extracted_multiple'] = vibes
+          .map((v) => v.infoExtracted)
+          .toList();
+    }
+    return commentJson;
+  }
+
   /// 兼容历史“外层包装”结构：{Description, Software, Source, Comment:"{...}"}
   static Map<String, dynamic> _unwrapCommentIfWrapped(
     Map<String, dynamic> map,
@@ -780,6 +811,69 @@ class ImageSaveUtils {
     }
     return map;
   }
+}
+
+/// 结果图落盘产物：最终字节、路径与内容哈希（固定词记录键）。
+class PreparedResultImage {
+  const PreparedResultImage._(this.bytes, this._embeddedMetadata);
+
+  final Uint8List bytes;
+  final NaiImageMetadata? _embeddedMetadata;
+
+  // 文件名里的 seed 必须与最终落盘字节内的元数据一致；只在按 seed 命名时才解析。
+  Future<int?> resolveSeed() =>
+      ImageSaveUtils.resolveSeed(metadata: _embeddedMetadata, bytes: bytes);
+}
+
+class SavedResultImage {
+  const SavedResultImage({
+    required this.path,
+    required this.bytes,
+    required this.contentHash,
+  });
+
+  final String path;
+  final Uint8List bytes;
+  final String contentHash;
+}
+
+class _MetadataWriteRequest {
+  const _MetadataWriteRequest({
+    required this.bytes,
+    required this.commentJson,
+    required this.description,
+    required this.software,
+    required this.source,
+    required this.useStealth,
+  });
+
+  final TransferableTypedData bytes;
+  final Map<String, dynamic> commentJson;
+  final String description;
+  final String software;
+  final String source;
+  final bool useStealth;
+}
+
+Future<TransferableTypedData> _writeAlignedMetadata(
+  _MetadataWriteRequest request,
+) async {
+  var bytes = request.bytes.materialize().asUint8List();
+  final commentText = jsonEncode(request.commentJson);
+  if (request.useStealth) {
+    bytes = await UnifiedMetadataParser.embedMetadata(
+      bytes,
+      commentText,
+      useStealth: true,
+    );
+  }
+  final output = UnifiedMetadataParser.embedTextChunks(bytes, {
+    'Comment': commentText,
+    'Description': request.description,
+    'Software': request.software,
+    'Source': request.source,
+  });
+  return TransferableTypedData.fromList([output]);
 }
 
 class _NormalizedPrebuiltMetadata {

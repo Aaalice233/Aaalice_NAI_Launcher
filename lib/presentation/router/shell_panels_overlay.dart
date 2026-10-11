@@ -20,6 +20,7 @@ class ShellPanelsOverlay extends StatefulWidget {
     required this.onClose,
     required this.onQueueStarted,
     required this.onOpenAgentSettings,
+    this.onPopOutAgent,
   });
 
   final ShellPanel? activePanel;
@@ -27,6 +28,8 @@ class ShellPanelsOverlay extends StatefulWidget {
   final VoidCallback onClose;
   final VoidCallback onQueueStarted;
   final VoidCallback onOpenAgentSettings;
+
+  final VoidCallback? onPopOutAgent;
 
   @override
   State<ShellPanelsOverlay> createState() => _ShellPanelsOverlayState();
@@ -160,6 +163,9 @@ class _ShellPanelsOverlayState extends State<ShellPanelsOverlay> {
                                             onClose: widget.onClose,
                                             onOpenSettings:
                                                 widget.onOpenAgentSettings,
+                                            onPopOut: widget.desktop
+                                                ? widget.onPopOutAgent
+                                                : null,
                                           )
                                         : const SizedBox.shrink(),
                                   ),

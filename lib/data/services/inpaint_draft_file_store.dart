@@ -75,9 +75,13 @@ class InpaintDraftFileStore {
     verifyBytes(await file.readAsBytes(), expected, label);
   }
 
+  bool hasChecksum(List<int> bytes, InpaintDraftAsset expected) {
+    return bytes.length == expected.sizeBytes &&
+        sha256.convert(bytes).toString() == expected.sha256;
+  }
+
   void verifyBytes(List<int> bytes, InpaintDraftAsset expected, String label) {
-    if (bytes.length != expected.sizeBytes ||
-        sha256.convert(bytes).toString() != expected.sha256) {
+    if (!hasChecksum(bytes, expected)) {
       throw InpaintDraftIntegrityException('$label checksum or size mismatch');
     }
     final decoded = img.decodeImage(Uint8List.fromList(bytes));

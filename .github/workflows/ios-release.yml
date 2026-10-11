@@ -21,13 +21,13 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  FLUTTER_VERSION: "3.44.2"
+  FLUTTER_VERSION: "3.47.5"
   PUB_HOSTED_URL: "https://pub.dev"
 
 jobs:
   build-ios:
     name: Build unsigned iOS IPA
-    # macos-15 ships Xcode 16.4 by default, which matches the Flutter 3.44.x
+    # macos-15 ships Xcode 16.4 by default, which matches the Flutter 3.47.x
     # toolchain and the iOS 16.0 deployment target. macos-latest is pinned
     # here on purpose so a future macos-26/Xcode 26 rollout cannot silently
     # change the SDK under an unsigned-IPA build.
