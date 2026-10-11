@@ -7,9 +7,9 @@ import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart';
 import 'package:crypto/crypto.dart';
-import 'package:csv/csv.dart';
 import 'package:ffi/ffi.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:image/image.dart' as img;
 import 'package:onnxruntime_v2/onnxruntime_v2.dart';
 import 'package:path/path.dart' as p;
 // ignore: implementation_imports
@@ -19,57 +19,32 @@ import 'package:onnxruntime_v2/src/bindings/onnxruntime_bindings_generated.dart'
 import '../../core/platform/platform_capabilities.dart';
 import '../../core/utils/exif_orientation.dart';
 import '../../core/utils/isolate_pool.dart';
+import '../../core/utils/prompt_tag_utils.dart';
 import 'local_onnx_model_service.dart';
+import 'local_onnx_tagger_labels.dart';
 import 'local_onnx_tagger_preprocessor.dart';
+import 'onnx_session_input_spec.dart';
 
 final localOnnxTaggerServiceProvider = Provider<LocalOnnxTaggerService>((ref) {
   return const LocalOnnxTaggerService();
 });
 
-enum OnnxTaggerLabelCategory { rating, general, character, other }
-
-class OnnxTaggerLabel {
-  const OnnxTaggerLabel({required this.name, this.category});
-
-  final String name;
-  final String? category;
-
-  OnnxTaggerLabelCategory get labelCategory {
-    final normalizedCategory = category?.trim().toLowerCase();
-    if (normalizedCategory == '9' ||
-        normalizedCategory == 'rating' ||
-        name.startsWith('rating:')) {
-      return OnnxTaggerLabelCategory.rating;
-    }
-    if (normalizedCategory == '0' ||
-        normalizedCategory == 'general' ||
-        normalizedCategory == 'tag' ||
-        normalizedCategory == 'tags') {
-      return OnnxTaggerLabelCategory.general;
-    }
-    if (normalizedCategory == '4' ||
-        normalizedCategory == 'character' ||
-        normalizedCategory == 'characters') {
-      return OnnxTaggerLabelCategory.character;
-    }
-    return OnnxTaggerLabelCategory.other;
-  }
-
-  bool get isRating {
-    return labelCategory == OnnxTaggerLabelCategory.rating;
-  }
-
-  bool get isGeneral => labelCategory == OnnxTaggerLabelCategory.general;
-
-  bool get isCharacter => labelCategory == OnnxTaggerLabelCategory.character;
-}
-
 class OnnxTaggerTag {
-  const OnnxTaggerTag({required this.name, required this.score, this.category});
+  const OnnxTaggerTag({
+    required this.name,
+    required this.score,
+    required this.labelCategory,
+    this.category,
+  });
 
   final String name;
   final double score;
   final String? category;
+  final OnnxTaggerLabelCategory labelCategory;
+
+  String get promptText => labelCategory == OnnxTaggerLabelCategory.artist
+      ? PromptTagUtils.artistPromptTag(name)
+      : name;
 }
 
 class OnnxTaggerResult {
@@ -78,10 +53,33 @@ class OnnxTaggerResult {
   final LocalOnnxModelDescriptor model;
   final List<OnnxTaggerTag> tags;
 
-  String get prompt => tags.map((tag) => tag.name).join(', ');
+  String get prompt => tags.map((tag) => tag.promptText).join(', ');
 }
 
-enum OnnxSessionLoadMode { externalDataFile, patchedSingleFile }
+// 通用、角色跟随滑块；其余分类用模型推荐值，模型未给出时版权、画师沿用角色滑块
+class OnnxTaggerThresholds {
+  const OnnxTaggerThresholds({
+    required this.general,
+    required this.character,
+    this.recommended = const {},
+  });
+
+  final double general;
+  final double character;
+  final Map<OnnxTaggerLabelCategory, double> recommended;
+
+  double forCategory(OnnxTaggerLabelCategory category) => switch (category) {
+    OnnxTaggerLabelCategory.general => general,
+    OnnxTaggerLabelCategory.character => character,
+    OnnxTaggerLabelCategory.copyright ||
+    OnnxTaggerLabelCategory.artist => recommended[category] ?? character,
+    OnnxTaggerLabelCategory.meta ||
+    OnnxTaggerLabelCategory.rating ||
+    OnnxTaggerLabelCategory.other => recommended[category] ?? general,
+  };
+}
+
+enum OnnxSessionLoadMode { originalFile, patchedSingleFile }
 
 class LocalOnnxTaggerService {
   const LocalOnnxTaggerService();
@@ -108,17 +106,17 @@ class LocalOnnxTaggerService {
 
   /// 单次推理允许使用的 intra-op 线程数。
   ///
-  /// 桌面端保持单线程；手机单核性能远低于桌面，单线程会让本地反推明显变慢，
-  /// 移动端放开到 `min(4, CPU 核数)`：既用上大核，又不至于在小核上抢占调度
+  /// 桌面端只占一半逻辑核心，给界面和其他后台任务留出余量；手机单核性能远低于
+  /// 桌面，移动端放开到 `min(4, CPU 核数)`：既用上大核，又不至于在小核上抢占调度
   /// （推理本身已在独立 isolate 里串行执行，见 [tagImage] 的 ComputeGate）。
   static int resolveIntraOpThreadCount(
     PlatformCapabilities capabilities, {
     int? processorCount,
   }) {
-    if (!capabilities.isMobile) {
-      return 1;
-    }
     final cores = processorCount ?? Platform.numberOfProcessors;
+    if (!capabilities.isMobile) {
+      return math.max(1, cores ~/ 2);
+    }
     return math.max(1, math.min(4, cores));
   }
 
@@ -130,38 +128,48 @@ class LocalOnnxTaggerService {
   Future<OnnxTaggerResult> tagImage({
     required Uint8List imageBytes,
     required LocalOnnxModelDescriptor model,
-    double? threshold,
     double generalThreshold = 0.35,
     double characterThreshold = 0.35,
-    bool includeRatings = false,
+    Set<OnnxTaggerLabelCategory> categories =
+        OnnxTaggerLabelCategory.defaultPromptCategories,
   }) {
     final imageData = TransferableTypedData.fromList([imageBytes]);
+    final selectedCategories = Set<OnnxTaggerLabelCategory>.of(categories);
     return ComputeGate.singleTask().runIsolate(
       () => const LocalOnnxTaggerService()._tagImageInCurrentIsolate(
         imageData: imageData,
         model: model,
-        generalThreshold: threshold ?? generalThreshold,
-        characterThreshold: threshold ?? characterThreshold,
-        includeRatings: includeRatings,
+        generalThreshold: generalThreshold,
+        characterThreshold: characterThreshold,
+        categories: selectedCategories,
       ),
+    );
+  }
+
+  // 十万级标签表的解析放到后台 isolate，避免卡住面板
+  Future<Set<OnnxTaggerLabelCategory>> labelCategories(String labelsPath) {
+    return Isolate.run(
+      () async => (await OnnxTaggerLabelFiles.load(labelsPath)).categories,
+      debugName: 'onnx-tagger-label-categories',
     );
   }
 
   Future<OnnxTaggerResult> _tagImageInCurrentIsolate({
     required TransferableTypedData imageData,
     required LocalOnnxModelDescriptor model,
-    double generalThreshold = 0.35,
-    double characterThreshold = 0.35,
-    bool includeRatings = false,
+    required double generalThreshold,
+    required double characterThreshold,
+    required Set<OnnxTaggerLabelCategory> categories,
   }) async {
     if (model.labelsPath == null || model.labelsPath!.isEmpty) {
       throw StateError(
-        '模型缺少标签文件，请放置 selected_tags.csv / tags.csv / labels.txt / model_vocabulary.json',
+        '模型缺少标签文件，请放置 selected_tags.csv / tags.csv / labels.txt / '
+        'model_vocabulary.json / tags.json / config.json',
       );
     }
 
-    final labels = await loadLabels(model.labelsPath!);
-    if (labels.isEmpty) {
+    final labelSet = await OnnxTaggerLabelFiles.load(model.labelsPath!);
+    if (labelSet.labels.isEmpty) {
       throw StateError('标签文件为空: ${model.labelsPath}');
     }
 
@@ -171,7 +179,7 @@ class LocalOnnxTaggerService {
       throw StateError('无法解码图片');
     }
 
-    final input = LocalOnnxTaggerPreprocessor.preprocess(decoded, model);
+    final profile = LocalOnnxTaggerPreprocessor.profileFor(model);
     // 这里跑在 `ComputeGate` 派生出来的独立 isolate 里，`debugDefaultTargetPlatform`
     // 那套 override 不会跨 isolate 传播，所以用纯 dart:io 的 `operatingSystem`。
     final options = OrtSessionOptions()
@@ -181,58 +189,113 @@ class LocalOnnxTaggerService {
       )
       ..setSessionGraphOptimizationLevel(GraphOptimizationLevel.ortEnableAll);
     final runOptions = OrtRunOptions();
-    final inputOrt = OrtValueTensor.createTensorWithDataList(
-      input.data,
-      input.shape,
-    );
 
     OrtSession? session;
+    OrtValue? inputOrt;
     List<OrtValue?>? outputs;
     try {
       session = await _createSession(model, options);
       final inputName = _resolveInputName(session, model);
-      final outputNames = _resolveOutputNames(session, model);
-      final inputs = {inputName: inputOrt};
-      outputs = session.run(runOptions, inputs, outputNames);
+      final spec = OnnxSessionInputSpec.read(
+        session,
+        math.max(0, session.inputNames.indexOf(inputName)),
+      );
+      final input = _prepareInput(decoded, model, profile, spec);
+      inputOrt = OrtValueTensor.createTensorWithDataList(
+        input.data,
+        input.shape,
+      );
+      outputs = session.run(
+        runOptions,
+        {inputName: inputOrt},
+        _resolveOutputNames(session, model),
+      );
       final scores = outputs.isNotEmpty
-          ? _normalizeScores(_flattenScores(outputs.first?.value), model)
+          ? profile.normalizeScores(_flattenScores(outputs.first?.value))
           : <double>[];
       return OnnxTaggerResult(
         model: model,
-        tags: _buildTags(
-          labels: labels,
+        tags: selectTags(
+          labels: labelSet.labels,
           scores: scores,
-          generalThreshold: generalThreshold,
-          characterThreshold: characterThreshold,
-          includeRatings: includeRatings,
+          thresholds: OnnxTaggerThresholds(
+            general: generalThreshold,
+            character: characterThreshold,
+            recommended: {
+              ...profile.recommendedThresholds,
+              ...labelSet.recommendedThresholds,
+            },
+          ),
+          categories: categories,
         ),
       );
     } finally {
       for (final output in outputs ?? const <OrtValue?>[]) {
         output?.release();
       }
-      inputOrt.release();
+      inputOrt?.release();
       runOptions.release();
       if (session != null) await session.release();
       options.release();
     }
   }
 
-  Future<List<OnnxTaggerLabel>> loadLabels(String labelsPath) async {
-    final file = File(labelsPath);
-    if (!await file.exists()) {
-      return const [];
+  static OnnxImageInput _prepareInput(
+    img.Image decoded,
+    LocalOnnxModelDescriptor model,
+    OnnxTaggerPreprocessProfile profile,
+    OnnxSessionInputSpec spec,
+  ) {
+    final layout = spec.layout;
+    if (layout != null && layout != profile.layout) {
+      throw StateError(
+        '模型输入为 ${layout.name.toUpperCase()} 布局，'
+        '与识别出的 ${model.kind.name} 预处理不符，请检查模型与标签文件是否配套',
+      );
+    }
+    return LocalOnnxTaggerPreprocessor.preprocess(
+      decoded,
+      model,
+      inputSize: spec.squareSize,
+    ).repeatedForBatch(spec.batchSize);
+  }
+
+  // 分类顺序同在线画廊的提示词类别，组内按置信度从高到低
+  static List<OnnxTaggerTag> selectTags({
+    required List<OnnxTaggerLabel> labels,
+    required List<double> scores,
+    required OnnxTaggerThresholds thresholds,
+    required Set<OnnxTaggerLabelCategory> categories,
+  }) {
+    final count = math.min(labels.length, scores.length);
+    final tags = <OnnxTaggerTag>[];
+    for (var index = 0; index < count; index++) {
+      final label = labels[index];
+      final category = label.labelCategory;
+      if (!categories.contains(category)) continue;
+      final score = scores[index];
+      if (score < thresholds.forCategory(category)) continue;
+      tags.add(
+        OnnxTaggerTag(
+          name: label.name,
+          score: score,
+          labelCategory: category,
+          category: label.category,
+        ),
+      );
     }
 
-    final extension = labelsPath.split('.').last.toLowerCase();
-    final raw = await file.readAsString();
-    if (extension == 'json') {
-      return _parseJsonLabels(raw);
+    const order = OnnxTaggerLabelCategory.promptOrder;
+    int rank(OnnxTaggerLabelCategory category) {
+      final position = order.indexOf(category);
+      return position < 0 ? order.length : position;
     }
-    if (extension == 'csv') {
-      return _parseCsvLabels(raw);
-    }
-    return _parseTextLabels(raw);
+
+    tags.sort((a, b) {
+      final byCategory = rank(a.labelCategory).compareTo(rank(b.labelCategory));
+      return byCategory != 0 ? byCategory : b.score.compareTo(a.score);
+    });
+    return tags;
   }
 
   Future<OrtSession> _createSession(
@@ -240,7 +303,7 @@ class LocalOnnxTaggerService {
     OrtSessionOptions options,
   ) async {
     final loadMode = _resolveSessionLoadMode(model);
-    if (loadMode == OnnxSessionLoadMode.externalDataFile) {
+    if (loadMode == OnnxSessionLoadMode.originalFile) {
       return _createFileSession(model.path, options);
     }
 
@@ -290,10 +353,13 @@ class LocalOnnxTaggerService {
         >()(options, 1);
     OrtStatus.checkOrtStatus(statusPtr);
 
+    final intraOpThreads = resolveIntraOpThreadCount(
+      PlatformCapabilities.operatingSystem,
+    );
     statusPtr = OrtEnv.instance.ortApiPtr.ref.SetIntraOpNumThreads
         .asFunction<
           bg.OrtStatusPtr Function(ffi.Pointer<bg.OrtSessionOptions>, int)
-        >()(options, 1);
+        >()(options, intraOpThreads);
     OrtStatus.checkOrtStatus(statusPtr);
 
     statusPtr = OrtEnv.instance.ortApiPtr.ref.SetSessionGraphOptimizationLevel
@@ -448,8 +514,11 @@ class LocalOnnxTaggerService {
     LocalOnnxModelDescriptor model,
   ) {
     final hasExternalData = File('${model.path}.data').existsSync();
-    return hasExternalData
-        ? OnnxSessionLoadMode.externalDataFile
+    final lowersOpset = LocalOnnxTaggerPreprocessor.profileFor(
+      model,
+    ).lowersOpsetImports;
+    return hasExternalData || !lowersOpset
+        ? OnnxSessionLoadMode.originalFile
         : OnnxSessionLoadMode.patchedSingleFile;
   }
 
@@ -489,15 +558,6 @@ class LocalOnnxTaggerService {
 
     walk(value);
     return scores;
-  }
-
-  List<double> _normalizeScores(
-    List<double> scores,
-    LocalOnnxModelDescriptor model,
-  ) {
-    return LocalOnnxTaggerPreprocessor.profileFor(
-      model,
-    ).normalizeScores(scores);
   }
 
   Uint8List _patchUnsupportedOpsetImports(Uint8List bytes) {
@@ -560,250 +620,5 @@ class LocalOnnxTaggerService {
         }
       }
     }
-  }
-
-  List<OnnxTaggerTag> _buildTags({
-    required List<OnnxTaggerLabel> labels,
-    required List<double> scores,
-    required double generalThreshold,
-    required double characterThreshold,
-    required bool includeRatings,
-  }) {
-    final count = math.min(labels.length, scores.length);
-    final tags = <OnnxTaggerTag>[];
-    for (var i = 0; i < count; i++) {
-      final label = labels[i];
-      final category = label.labelCategory;
-      if (category == OnnxTaggerLabelCategory.rating && !includeRatings) {
-        continue;
-      }
-      if (category != OnnxTaggerLabelCategory.general &&
-          category != OnnxTaggerLabelCategory.character &&
-          !(includeRatings && category == OnnxTaggerLabelCategory.rating)) {
-        continue;
-      }
-
-      final score = scores[i];
-      final effectiveThreshold = switch (category) {
-        OnnxTaggerLabelCategory.character => characterThreshold,
-        OnnxTaggerLabelCategory.rating => generalThreshold,
-        OnnxTaggerLabelCategory.general => generalThreshold,
-        OnnxTaggerLabelCategory.other => generalThreshold,
-      };
-      if (score < effectiveThreshold) continue;
-      tags.add(
-        OnnxTaggerTag(name: label.name, score: score, category: label.category),
-      );
-    }
-    tags.sort((a, b) => b.score.compareTo(a.score));
-    return tags;
-  }
-
-  List<OnnxTaggerLabel> _parseCsvLabels(String raw) {
-    final rows = const CsvToListConverter(
-      shouldParseNumbers: false,
-    ).convert(raw).where((row) => row.isNotEmpty).toList();
-    final parsed = _labelsFromCsvRows(rows);
-    if (parsed.isNotEmpty) {
-      return parsed;
-    }
-
-    return _labelsFromCsvRows(
-      raw
-          .split(RegExp(r'\r?\n'))
-          .map((line) => line.trim())
-          .where((line) => line.isNotEmpty)
-          .map((line) => line.split(',').map((cell) => cell.trim()).toList())
-          .toList(),
-    );
-  }
-
-  List<OnnxTaggerLabel> _labelsFromCsvRows(List<List<dynamic>> rows) {
-    if (rows.isEmpty) {
-      return const [];
-    }
-
-    final header = rows.first.map((e) => e.toString().toLowerCase()).toList();
-    final hasHeader =
-        header.contains('name') ||
-        header.contains('tag') ||
-        header.contains('category');
-    final headerNameIndex = hasHeader
-        ? math.max(header.indexOf('name'), header.indexOf('tag'))
-        : -1;
-    final nameIndex = headerNameIndex >= 0
-        ? headerNameIndex
-        : rows.first.length > 1
-        ? 1
-        : 0;
-    final categoryIndex = hasHeader ? header.indexOf('category') : 2;
-    final dataRows = hasHeader ? rows.skip(1) : rows;
-
-    return dataRows
-        .map((row) {
-          if (row.length <= nameIndex) {
-            return null;
-          }
-          final name = row[nameIndex].toString().trim();
-          if (name.isEmpty) {
-            return null;
-          }
-          final category = categoryIndex >= 0 && row.length > categoryIndex
-              ? row[categoryIndex].toString().trim()
-              : null;
-          return OnnxTaggerLabel(name: name, category: category);
-        })
-        .whereType<OnnxTaggerLabel>()
-        .toList();
-  }
-
-  List<OnnxTaggerLabel> _parseTextLabels(String raw) {
-    return raw
-        .split(RegExp(r'\r?\n'))
-        .map((line) => line.trim())
-        .where((line) => line.isNotEmpty && !line.startsWith('#'))
-        .map((line) {
-          final parts = line.split(RegExp(r'[\t,]'));
-          return OnnxTaggerLabel(name: parts.first.trim());
-        })
-        .toList();
-  }
-
-  List<OnnxTaggerLabel> _parseJsonLabels(String raw) {
-    final decoded = jsonDecode(raw);
-    if (decoded is List) {
-      return decoded
-          .map((item) {
-            if (item is String) {
-              return OnnxTaggerLabel(name: item.trim());
-            }
-            if (item is Map<String, dynamic>) {
-              final name = (item['name'] ?? item['tag'] ?? item['label'])
-                  ?.toString()
-                  .trim();
-              if (name == null || name.isEmpty) {
-                return null;
-              }
-              return OnnxTaggerLabel(
-                name: name,
-                category: item['category']?.toString(),
-              );
-            }
-            return null;
-          })
-          .whereType<OnnxTaggerLabel>()
-          .toList();
-    }
-    if (decoded is Map<String, dynamic>) {
-      final vocabularyLabels = _parseVocabularyLabels(decoded);
-      if (vocabularyLabels.isNotEmpty) {
-        return vocabularyLabels;
-      }
-
-      final numericKeys =
-          decoded.keys.map(int.tryParse).whereType<int>().toList()..sort();
-      if (numericKeys.isNotEmpty) {
-        return numericKeys
-            .map((index) {
-              final item = decoded[index.toString()];
-              if (item is String) {
-                final name = item.trim();
-                return name.isEmpty ? null : OnnxTaggerLabel(name: name);
-              }
-              if (item is Map<String, dynamic>) {
-                final name = (item['tag'] ?? item['name'] ?? item['label'])
-                    ?.toString()
-                    .trim();
-                if (name == null || name.isEmpty) {
-                  return null;
-                }
-                return OnnxTaggerLabel(
-                  name: name,
-                  category: item['category']?.toString(),
-                );
-              }
-              return null;
-            })
-            .whereType<OnnxTaggerLabel>()
-            .toList();
-      }
-
-      final labels = decoded['labels'] ?? decoded['tags'];
-      if (labels is List) {
-        return labels
-            .map((item) => item.toString().trim())
-            .where((item) => item.isNotEmpty)
-            .map((item) => OnnxTaggerLabel(name: item))
-            .toList();
-      }
-    }
-    return const [];
-  }
-
-  List<OnnxTaggerLabel> _parseVocabularyLabels(Map<String, dynamic> decoded) {
-    final labelsByIndex = <int, String>{};
-    final idxToTag = decoded['idx_to_tag'];
-    if (idxToTag is Map) {
-      for (final entry in idxToTag.entries) {
-        final index = int.tryParse(entry.key.toString());
-        final tag = entry.value?.toString().trim();
-        if (index != null && tag != null && tag.isNotEmpty) {
-          labelsByIndex[index] = tag;
-        }
-      }
-    } else if (idxToTag is List) {
-      for (var i = 0; i < idxToTag.length; i++) {
-        final tag = idxToTag[i]?.toString().trim();
-        if (tag != null && tag.isNotEmpty) {
-          labelsByIndex[i] = tag;
-        }
-      }
-    }
-
-    if (labelsByIndex.isEmpty) {
-      final tagToIdx = decoded['tag_to_idx'];
-      if (tagToIdx is Map) {
-        for (final entry in tagToIdx.entries) {
-          final index = int.tryParse(entry.value.toString());
-          final tag = entry.key.toString().trim();
-          if (index != null && tag.isNotEmpty) {
-            labelsByIndex[index] = tag;
-          }
-        }
-      }
-    }
-
-    if (labelsByIndex.isEmpty) {
-      return const [];
-    }
-
-    final tagToCategory = _scalarStringMap(decoded['tag_to_category']);
-    final categories = _scalarStringMap(decoded['categories']);
-    final sortedIndexes = labelsByIndex.keys.toList()..sort();
-    return sortedIndexes.map((index) {
-      final name = labelsByIndex[index]!;
-      final rawCategory = tagToCategory[name];
-      final category = rawCategory == null
-          ? null
-          : categories[rawCategory] ?? rawCategory;
-      return OnnxTaggerLabel(name: name, category: category);
-    }).toList();
-  }
-
-  Map<String, String> _scalarStringMap(Object? raw) {
-    if (raw is! Map) {
-      return const {};
-    }
-    final result = <String, String>{};
-    for (final entry in raw.entries) {
-      final value = entry.value;
-      if (value is String || value is num || value is bool) {
-        final normalized = value.toString().trim();
-        if (normalized.isNotEmpty) {
-          result[entry.key.toString()] = normalized;
-        }
-      }
-    }
-    return result;
   }
 }

@@ -101,4 +101,13 @@ abstract final class PromptTagUtils {
 
   static List<String> parseForDisplay(String prompt) =>
       uniqueForDisplay(splitForDisplay(prompt));
+
+  /// NovelAI reads artist tags as `artist:name`; an existing prefix keeps the
+  /// name but is normalized to lowercase instead of being doubled.
+  static String artistPromptTag(String tag) {
+    const prefix = 'artist:';
+    return tag.toLowerCase().startsWith(prefix)
+        ? '$prefix${tag.substring(prefix.length)}'
+        : '$prefix$tag';
+  }
 }

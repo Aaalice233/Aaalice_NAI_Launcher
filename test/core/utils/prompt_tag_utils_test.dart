@@ -46,4 +46,17 @@ void main() {
       );
     });
   });
+  group('PromptTagUtils.artistPromptTag', () {
+    test('adds the NovelAI artist prefix once', () {
+      expect(PromptTagUtils.artistPromptTag('kujiran'), 'artist:kujiran');
+      expect(
+        PromptTagUtils.artistPromptTag('artist:kujiran'),
+        'artist:kujiran',
+      );
+      expect(
+        PromptTagUtils.artistPromptTag('Artist:Kujiran'),
+        'artist:Kujiran',
+      );
+    });
+  });
 }

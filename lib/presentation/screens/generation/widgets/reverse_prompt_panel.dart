@@ -29,6 +29,7 @@ import '../../../widgets/common/decoded_memory_image.dart';
 import '../../../widgets/common/themed_divider.dart';
 import '../../../widgets/common/labeled_slider_rows.dart';
 import '../../../widgets/tag_library/tag_library_picker_dialog.dart';
+import 'reverse_prompt_tagger_category_chips.dart';
 
 class ReversePromptPanel extends ConsumerStatefulWidget {
   const ReversePromptPanel({super.key});
@@ -303,6 +304,14 @@ class _ReversePromptPanelState extends ConsumerState<ReversePromptPanel> {
             models.any((m) => m.path == state.selectedTaggerModelPath)
             ? state.selectedTaggerModelPath
             : null;
+        // 未选择时运行会落到第一个模型，分类与提示跟随实际要用的模型
+        final effectiveModel =
+            models.where((model) => model.path == selected).firstOrNull ??
+            models.firstOrNull;
+        final labelsPath = effectiveModel?.labelsPath;
+        final hintStyle = Theme.of(context).textTheme.bodySmall?.copyWith(
+          color: Theme.of(context).colorScheme.onSurfaceVariant,
+        );
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
@@ -339,6 +348,13 @@ class _ReversePromptPanelState extends ConsumerState<ReversePromptPanel> {
                 ),
               ],
             ),
+            if (labelsPath != null) ...[
+              const SizedBox(height: 8),
+              ReversePromptTaggerCategoryChips(
+                labelsPath: labelsPath,
+                enabled: !state.isProcessing,
+              ),
+            ],
             const SizedBox(height: 6),
             LabeledSliderRows(
               sliders: [
@@ -362,12 +378,11 @@ class _ReversePromptPanelState extends ConsumerState<ReversePromptPanel> {
                 ),
               ],
             ),
-            Text(
-              context.l10n.reversePrompt_taggerFilterHint,
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
-              ),
-            ),
+            Text(context.l10n.reversePrompt_taggerFilterHint, style: hintStyle),
+            if (effectiveModel?.kind == LocalOnnxModelKind.pixaiTagger) ...[
+              const SizedBox(height: 4),
+              Text(context.l10n.reversePrompt_pixaiTaggerHint, style: hintStyle),
+            ],
           ],
         );
       },

@@ -297,6 +297,128 @@ void main() {
     }
   });
 
+  group('PixAI Tagger layouts', () {
+    Future<List<LocalOnnxModelDescriptor>> scan(
+      String folder,
+      Map<String, String> files,
+    ) async {
+      final directory = await Directory(
+        p.join(tempDirectory.path, 'pixai_layouts', folder),
+      ).create(recursive: true);
+      for (final MapEntry(key: name, value: content) in files.entries) {
+        await File(p.join(directory.path, name)).writeAsString(content);
+      }
+      await service.setTaggerDirectory(directory.path);
+      return service.scanTaggerModels();
+    }
+
+    test('recognizes the hugging face config layout', () async {
+      final models = await scan('flat_config', {
+        'model.onnx': 'onnx',
+        'config.json': _pixaiConfigJson,
+      });
+
+      expect(models.single.kind, LocalOnnxModelKind.pixaiTagger);
+      expect(p.basename(models.single.labelsPath!), 'config.json');
+    });
+
+    test('recognizes the category offset tag map layout', () async {
+      final models = await scan('flat_tag_map', {
+        'model.onnx': 'onnx',
+        'model.onnx.data': 'weights',
+        'tags.json': _pixaiTagMapJson,
+      });
+
+      expect(models.single.kind, LocalOnnxModelKind.pixaiTagger);
+      expect(p.basename(models.single.labelsPath!), 'tags.json');
+    });
+
+    test(
+      'recognizes selected_tags.csv beside a rescale_pad declaration',
+      () async {
+        final models = await scan('flat_csv', {
+          'model.onnx': 'onnx',
+          'model_fp16.onnx': 'onnx',
+          'selected_tags.csv': 'tag_id,name,category,count\n0,1girl,0,0\n',
+          'preprocess.json':
+              '{"stages":[{"type":"rescale_pad","size":1008,"pad_value":0}]}',
+        });
+
+        expect(models.map((model) => model.kind), [
+          LocalOnnxModelKind.pixaiTagger,
+          LocalOnnxModelKind.pixaiTagger,
+        ]);
+        expect(models.map((model) => p.basename(model.labelsPath!)).toSet(), {
+          'selected_tags.csv',
+        });
+      },
+    );
+
+    test(
+      'keeps models with their own labels out of a shared rescale_pad folder',
+      () async {
+        final models = await scan('shared_with_other_taggers', {
+          'model.onnx': 'onnx',
+          'selected_tags.csv': 'tag_id,name,category,count\n0,1girl,0,0\n',
+          'preprocess.json':
+              '{"stages":[{"type":"rescale_pad","size":1008,"pad_value":0}]}',
+          'wd-eva02-large-tagger-v3.onnx': 'onnx',
+          'wd-eva02-large-tagger-v3.csv':
+              'tag_id,name,category,count\n0,1girl,0,0\n',
+          'pixai-tagger-v1.0.onnx': 'onnx',
+          'pixai-tagger-v1.0.csv': 'tag_id,name,category,count\n0,1girl,0,0\n',
+        });
+
+        expect(
+          {for (final model in models) model.name: model.kind},
+          {
+            'model.onnx': LocalOnnxModelKind.pixaiTagger,
+            'pixai-tagger-v1.0.onnx': LocalOnnxModelKind.pixaiTagger,
+            'wd-eva02-large-tagger-v3.onnx': LocalOnnxModelKind.unknown,
+          },
+        );
+        expect(
+          p.basename(
+            models
+                .singleWhere((model) => model.name == 'pixai-tagger-v1.0.onnx')
+                .labelsPath!,
+          ),
+          'pixai-tagger-v1.0.csv',
+        );
+      },
+    );
+
+    test('recognizes a pixai folder name without other hints', () async {
+      final models = await scan('pixai-tagger-v1.0-onnx', {
+        'model.onnx': 'onnx',
+        'selected_tags.csv': 'tag_id,name,category,count\n0,1girl,0,0\n',
+      });
+
+      expect(models.single.kind, LocalOnnxModelKind.pixaiTagger);
+    });
+
+    test('leaves generic wd14-style folders and configs alone', () async {
+      final models = await scan('generic', {
+        'model.onnx': 'onnx',
+        'selected_tags.csv': 'tag_id,name,category,count\n0,1girl,0,0\n',
+        'config.json': '{"architecture":"vit_large_patch14"}',
+      });
+
+      expect(models.single.kind, LocalOnnxModelKind.unknown);
+      expect(p.basename(models.single.labelsPath!), 'selected_tags.csv');
+    });
+
+    test('does not treat an unrelated config.json as labels', () async {
+      final models = await scan('config_only', {
+        'model.onnx': 'onnx',
+        'config.json': '{"architecture":"vit_large_patch14"}',
+      });
+
+      expect(models.single.labelsPath, isNull);
+      expect(models.single.kind, LocalOnnxModelKind.unknown);
+    });
+  });
+
   test(
     'rejects unsupported files selected by an unrestricted picker',
     () async {
@@ -418,3 +540,20 @@ class _TestPathProviderPlatform extends PathProviderPlatform {
     return temporaryPath;
   }
 }
+
+const _pixaiConfigJson = '''
+{
+  "model_type": "cls_vitdet",
+  "num_classes": 2,
+  "tags": ["1girl", "rating:g"],
+  "tags_split": [["general", 1], ["rating", 1]]
+}
+''';
+
+const _pixaiTagMapJson = '''
+{
+  "num_classes": 1,
+  "category_order": ["general"],
+  "categories": [{"name": "general", "offset": 0, "count": 1, "tags": ["1girl"]}]
+}
+''';
