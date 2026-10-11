@@ -233,6 +233,10 @@ void main() {
           () => _FakeUpdateNotifier(const UpdateState()),
         ),
         updateCheckServiceProvider.overrideWithValue(updateService),
+        // 4.3.0 起关于页经 updateCheckServiceReadyProvider 等待服务就绪
+        updateCheckServiceReadyProvider.overrideWith(
+          (ref) => Future.value(updateService),
+        ),
         localStorageServiceProvider.overrideWithValue(storage),
       ],
       child: const MaterialApp(
