@@ -4,6 +4,7 @@ import 'package:nai_launcher/core/utils/localization_extension.dart';
 import '../../../../../data/models/prompt/post_process_rule.dart';
 import '../../../../widgets/common/themed_divider.dart';
 import '../../../../widgets/common/elevated_card.dart';
+import '../../../../widgets/common/surface_ink_well.dart';
 import 'package:nai_launcher/presentation/widgets/common/themed_form_input.dart';
 
 /// 后处理规则面板
@@ -229,46 +230,36 @@ class _PostProcessRulePanelState extends State<PostProcessRulePanel> {
                 (String, String, PostProcessRule Function(), Color) preset,
               ) {
                 final (emoji, label, ruleFactory, color) = preset;
+                final side = BorderSide(color: color.withValues(alpha: 0.3));
                 return Padding(
                   padding: EdgeInsets.symmetric(
                     horizontal: stackPresets ? 0 : 4,
                     vertical: stackPresets ? 4 : 0,
                   ),
-                  child: Material(
-                    color: Colors.transparent,
-                    child: InkWell(
-                      onTap: () => _addPresetRule(ruleFactory()),
-                      borderRadius: BorderRadius.circular(10),
-                      child: Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 12,
-                        ),
-                        decoration: BoxDecoration(
-                          color: colorScheme.surfaceContainerHighest,
-                          borderRadius: BorderRadius.circular(10),
-                          border: Border.all(
-                            color: color.withValues(alpha: 0.3),
-                          ),
-                        ),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Text(emoji, style: const TextStyle(fontSize: 18)),
-                            const SizedBox(width: 8),
-                            Flexible(
-                              child: Text(
-                                label,
-                                textAlign: TextAlign.center,
-                                softWrap: true,
-                                style: theme.textTheme.labelMedium?.copyWith(
-                                  fontWeight: FontWeight.w600,
-                                ),
+                  child: SurfaceInkWell(
+                    borderRadius: BorderRadius.circular(10),
+                    color: colorScheme.surfaceContainerHighest,
+                    side: side,
+                    onTap: () => _addPresetRule(ruleFactory()),
+                    child: Container(
+                      width: double.infinity,
+                      padding: EdgeInsets.all(12 + side.width),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(emoji, style: const TextStyle(fontSize: 18)),
+                          const SizedBox(width: 8),
+                          Flexible(
+                            child: Text(
+                              label,
+                              textAlign: TextAlign.center,
+                              softWrap: true,
+                              style: theme.textTheme.labelMedium?.copyWith(
+                                fontWeight: FontWeight.w600,
                               ),
                             ),
-                          ],
-                        ),
+                          ),
+                        ],
                       ),
                     ),
                   ),

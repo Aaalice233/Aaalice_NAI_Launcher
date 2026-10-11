@@ -36,7 +36,8 @@ void main() {
       'nai_launcher_selectable_card_hive_',
     );
     Hive.init(hiveTempDir.path);
-    await Hive.openBox(StorageKeys.settingsBox);
+    // 内存后端：落盘写一旦从 widget test 的 FakeAsync 时钟发起就不会完成，会锁死 box
+    await Hive.openBox(StorageKeys.settingsBox, bytes: Uint8List(0));
   });
 
   setUp(() {
@@ -50,7 +51,8 @@ void main() {
   });
 
   tearDownAll(() async {
-    await Hive.close();
+    // 有界等待：box 被锁死时快速失败，不把整个测试分片拖到看门狗超时
+    await Hive.close().timeout(const Duration(seconds: 10));
     if (await hiveTempDir.exists()) {
       await hiveTempDir.delete(recursive: true);
     }
@@ -208,6 +210,44 @@ void main() {
 
     expect(find.text('局部重绘'), findsOneWidget);
     expect(find.text('放大'), findsOneWidget);
+  });
+
+  testWidgets('context menu offers save-as right after save', (tester) async {
+    await tester.pumpWidget(_buildCardApp());
+
+    final gesture = await tester.startGesture(
+      tester.getCenter(find.byType(SelectableImageCard)),
+      kind: PointerDeviceKind.mouse,
+      buttons: kSecondaryMouseButton,
+    );
+    addTearDown(gesture.removePointer);
+    await tester.pumpAndSettle();
+    await gesture.up();
+    await tester.pumpAndSettle();
+
+    expect(find.text('另存为…'), findsOneWidget);
+    final menu = tester.widget<ProContextMenu>(find.byType(ProContextMenu));
+    final itemIds = menu.items
+        .where((item) => !item.isDivider)
+        .map((item) => item.id)
+        .toList();
+    expect(
+      itemIds.indexOf(ImageCardActionId.saveAs.name),
+      itemIds.indexOf(ImageCardActionId.save.name) + 1,
+    );
+  });
+
+  testWidgets('save-as stays out of the hover action bar', (tester) async {
+    await tester.pumpWidget(_buildCardApp());
+
+    final gesture = await tester.createGesture(kind: PointerDeviceKind.mouse);
+    addTearDown(gesture.removePointer);
+    await gesture.addPointer();
+    await gesture.moveTo(tester.getCenter(find.byType(SelectableImageCard)));
+    await tester.pumpAndSettle();
+
+    expect(find.byTooltip('保存'), findsOneWidget);
+    expect(find.byTooltip('另存为…'), findsNothing);
   });
 
   testWidgets('context menu closes before invoking route launching actions', (
@@ -784,12 +824,54 @@ void main() {
     expect(toggled, isTrue);
   });
 
+  testWidgets('save action delegates to the owner-supplied onSave', (
+    tester,
+  ) async {
+    var saveCount = 0;
+    await tester.pumpWidget(_buildCardApp(onSave: () => saveCount++));
+
+    final gesture = await tester.createGesture(kind: PointerDeviceKind.mouse);
+    addTearDown(gesture.removePointer);
+    await gesture.addPointer();
+    await gesture.moveTo(tester.getCenter(find.byType(SelectableImageCard)));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byTooltip('保存'));
+    await tester.pumpAndSettle();
+
+    expect(saveCount, 1);
+  });
+
+  testWidgets('save-as menu item delegates to the owner-supplied onSaveAs', (
+    tester,
+  ) async {
+    var saveAsCount = 0;
+    await tester.pumpWidget(_buildCardApp(onSaveAs: () => saveAsCount++));
+
+    final gesture = await tester.startGesture(
+      tester.getCenter(find.byType(SelectableImageCard)),
+      kind: PointerDeviceKind.mouse,
+      buttons: kSecondaryMouseButton,
+    );
+    addTearDown(gesture.removePointer);
+    await tester.pumpAndSettle();
+    await gesture.up();
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('另存为…'));
+    await tester.pumpAndSettle();
+
+    expect(saveAsCount, 1);
+    expect(find.byType(ProContextMenu), findsNothing);
+  });
+
   testWidgets('read-only card hides save and copy actions but keeps badge', (
     tester,
   ) async {
     await tester.pumpWidget(
       _buildCardApp(
-        enableSaveAction: false,
+        onSave: null,
+        onSaveAs: null,
         enableCopyAction: false,
         statusBadgeLabel: '失败快照',
         onInpaint: null,
@@ -820,6 +902,7 @@ void main() {
 
     expect(find.text('保存图片'), findsNothing);
     expect(find.text('复制图片'), findsNothing);
+    expect(find.text('另存为…'), findsNothing);
     expect(find.byType(ProContextMenu), findsNothing);
   });
 }
@@ -976,7 +1059,8 @@ Widget _buildCardApp({
   bool isFavorite = false,
   bool isGenerating = false,
   bool disableAnimations = false,
-  bool enableSaveAction = true,
+  VoidCallback? onSave = _noop,
+  VoidCallback? onSaveAs = _noop,
   bool enableCopyAction = true,
   String? statusBadgeLabel,
   VoidCallback? onFavoriteToggle,
@@ -1002,7 +1086,8 @@ Widget _buildCardApp({
     imageHeight: 32,
     enableSelection: false,
     hoverEffectsEnabled: hoverEffectsEnabled,
-    enableSaveAction: enableSaveAction,
+    onSave: onSave,
+    onSaveAs: onSaveAs,
     enableCopyAction: enableCopyAction,
     statusBadgeLabel: statusBadgeLabel,
     isFavorite: isFavorite,

@@ -6,9 +6,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/utils/app_logger.dart';
 import '../../core/services/anlas_calculator.dart';
+import '../../core/services/pixel_snap/pixel_snap_options.dart';
+import '../../core/services/pixel_snap/pixel_snap_progress.dart';
+import '../../core/services/pixel_snap/pixel_snap_service.dart';
 import '../../data/datasources/remote/nai_image_enhancement_api_service.dart';
 import '../../data/models/director/director_tool_type.dart';
-import 'auth_provider.dart';
+import '../../data/services/auth_provider.dart';
 import 'image_generation_provider.dart';
 import 'subscription_provider.dart';
 
@@ -51,6 +54,10 @@ class DirectorToolsState {
     this.sourceImage,
     this.imageWidth = 0,
     this.imageHeight = 0,
+    this.pixelSnap = const PixelSnapOptions(),
+    this.progress,
+    this.pixelSnapResult,
+    this.errorCause,
   });
 
   final DirectorToolType selectedTool;
@@ -63,7 +70,19 @@ class DirectorToolsState {
   final int imageWidth;
   final int imageHeight;
 
+  final PixelSnapOptions pixelSnap;
+
+  /// 本地计算的进度，仅 Pixel Snap 运行时非空。
+  final PixelSnapProgress? progress;
+
+  /// Pixel Snap 的结果元信息，用于结果区展示像素块数与色数。
+  final PixelSnapOutput? pixelSnapResult;
+
+  /// 原始异常对象。UI 靠它把已知失败翻成本地化文案，[error] 只是兜底文本。
+  final Object? errorCause;
+
   int estimatedAnlasCost({bool isOpus = false}) {
+    if (selectedTool.runsLocally) return 0;
     if (imageWidth == 0 || imageHeight == 0) return 0;
     return AnlasCalculator.calculateAugmentCost(
       width: imageWidth,
@@ -83,8 +102,13 @@ class DirectorToolsState {
     Uint8List? sourceImage,
     int? imageWidth,
     int? imageHeight,
+    PixelSnapOptions? pixelSnap,
+    PixelSnapProgress? progress,
+    PixelSnapOutput? pixelSnapResult,
+    Object? errorCause,
     bool clearResult = false,
     bool clearError = false,
+    bool clearProgress = false,
   }) {
     return DirectorToolsState(
       selectedTool: selectedTool ?? this.selectedTool,
@@ -96,6 +120,12 @@ class DirectorToolsState {
       sourceImage: sourceImage ?? this.sourceImage,
       imageWidth: imageWidth ?? this.imageWidth,
       imageHeight: imageHeight ?? this.imageHeight,
+      pixelSnap: pixelSnap ?? this.pixelSnap,
+      progress: clearProgress ? null : (progress ?? this.progress),
+      pixelSnapResult: clearResult
+          ? null
+          : (pixelSnapResult ?? this.pixelSnapResult),
+      errorCause: clearError ? null : (errorCause ?? this.errorCause),
     );
   }
 }
@@ -150,6 +180,17 @@ class DirectorToolsNotifier extends Notifier<DirectorToolsState> {
     state = state.copyWith(prompt: value);
   }
 
+  /// 改参数不清结果：旧结果只是不再对应当前参数，本身仍然是一张有效输出。
+  /// 与 [updateDefry]、[updatePrompt] 保持一致，真正该清的是切换工具和重新运行。
+  void updatePixelSnapOptions(PixelSnapOptions options) {
+    state = state.copyWith(pixelSnap: options);
+  }
+
+  PixelSnapCancellation? _pixelSnapCancellation;
+
+  /// 取消正在跑的 Pixel Snap。其它工具没有取消入口。
+  void cancelRun() => _pixelSnapCancellation?.cancel();
+
   /// 当前选中的 emotion preset（null 表示自定义）
   EmotionPreset? _activePreset;
   EmotionPreset? get activePreset => _activePreset;
@@ -162,7 +203,9 @@ class DirectorToolsNotifier extends Notifier<DirectorToolsState> {
   Future<void> runTool() async {
     final source = state.sourceImage;
     if (source == null) return;
-    if (!requireAuthenticatedAction(ref, AuthPromptReason.directorTools)) {
+    // 门禁只拦要发请求、要扣 Anlas 的工具，本机工具与马赛克/水印编辑器一样直接放行。
+    if (!state.selectedTool.runsLocally &&
+        !requireAuthenticatedAction(ref, AuthPromptReason.directorTools)) {
       return;
     }
 
@@ -170,7 +213,13 @@ class DirectorToolsNotifier extends Notifier<DirectorToolsState> {
       isRunning: true,
       clearError: true,
       clearResult: true,
+      clearProgress: true,
     );
+
+    if (state.selectedTool == DirectorToolType.pixelSnap) {
+      await _runPixelSnap(source);
+      return;
+    }
 
     try {
       final service = ref.read(naiImageEnhancementApiServiceProvider);
@@ -200,6 +249,9 @@ class DirectorToolsNotifier extends Notifier<DirectorToolsState> {
           );
         case DirectorToolType.declutter:
           result = await service.declutter(source);
+        case DirectorToolType.pixelSnap:
+          // 上面已经分流，这里只是让 switch 保持穷举。
+          return;
       }
 
       state = state.copyWith(result: result, isRunning: false);
@@ -209,6 +261,40 @@ class DirectorToolsNotifier extends Notifier<DirectorToolsState> {
       ref
           .read(subscriptionNotifierProvider.notifier)
           .schedulePostBillingRefresh();
+    }
+  }
+
+  /// Pixel Snap 走本机计算，不碰订阅也不触发计费刷新。
+  Future<void> _runPixelSnap(Uint8List source) async {
+    final cancellation = PixelSnapCancellation();
+    _pixelSnapCancellation = cancellation;
+    try {
+      final output = await const PixelSnapService().run(
+        source,
+        state.pixelSnap,
+        cancellation: cancellation,
+        onProgress: (progress) {
+          if (!state.isRunning) return;
+          state = state.copyWith(progress: progress);
+        },
+      );
+      state = state.copyWith(
+        result: output.pngBytes,
+        pixelSnapResult: output,
+        isRunning: false,
+        clearProgress: true,
+      );
+    } on PixelSnapCancelledException {
+      state = state.copyWith(isRunning: false, clearProgress: true);
+    } catch (e) {
+      state = state.copyWith(
+        error: e.toString(),
+        errorCause: e,
+        isRunning: false,
+        clearProgress: true,
+      );
+    } finally {
+      _pixelSnapCancellation = null;
     }
   }
 
@@ -230,6 +316,9 @@ class DirectorToolsNotifier extends Notifier<DirectorToolsState> {
           state.result!,
           params: saveParams,
           saveToLocal: true,
+          // 与 DLSS 增强、NovelAI 超分一致：加工结果顶替当前展示图，
+          // 否则它只进历史，会排在仍占着当前区的原图下面。
+          replaceCurrentDisplay: true,
         );
   }
 

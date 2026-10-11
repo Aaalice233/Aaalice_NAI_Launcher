@@ -12,29 +12,33 @@ class LocalFirstPromptTranslationPipeline {
 
   final TagTranslationLookup _localTranslations;
 
+  static final RegExp _chineseCharacter = RegExp(r'[\u3400-\u9fff]');
+  static final RegExp _chineseTargetLanguage = RegExp(r'(zh|chinese|中文)');
+  static final RegExp _canonicalTag = RegExp(r'^[a-z0-9_():.!+\-]+$');
+  static final RegExp _tagSeparator = RegExp(r'[,，\r\n]');
+  static final RegExp _canonicalTagText = RegExp(
+    r'^[\s{}\[\]()*+\-:.0-9a-zA-Z_\\]+$',
+  );
+
   Future<TagTextTranslation?> translate(
     String input, {
     String? targetLanguage,
     required MissingTagTranslator translateMissing,
   }) async {
-    if (RegExp(r'[\u3400-\u9fff]').hasMatch(input)) return null;
+    if (_chineseCharacter.hasMatch(input)) return null;
     final requestedLanguage = targetLanguage?.trim().toLowerCase() ?? '';
     if (requestedLanguage.isNotEmpty &&
-        !RegExp(r'(zh|chinese|中文)').hasMatch(requestedLanguage)) {
+        !_chineseTargetLanguage.hasMatch(requestedLanguage)) {
       return null;
     }
 
     final plan = await _localTranslations.prepareTagTextTranslation(input);
     if (plan.tagCount == 0 ||
-        plan.unresolvedTags.any(
-          (tag) => !RegExp(r'^[a-z0-9_():.!+\-]+$').hasMatch(tag),
-        )) {
+        plan.unresolvedTags.any((tag) => !_canonicalTag.hasMatch(tag))) {
       return null;
     }
-    final isTagList = input.contains(RegExp(r'[,，\r\n]'));
-    final isSingleCanonicalTag = RegExp(
-      r'^[\s{}\[\]()*+\-:.0-9a-zA-Z_\\]+$',
-    ).hasMatch(input);
+    final isTagList = input.contains(_tagSeparator);
+    final isSingleCanonicalTag = _canonicalTagText.hasMatch(input);
     if (plan.localTranslations.isEmpty && !isTagList && !isSingleCanonicalTag) {
       return null;
     }

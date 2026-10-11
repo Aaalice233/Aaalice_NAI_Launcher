@@ -7,6 +7,7 @@ import 'package:flutter/scheduler.dart';
 
 import '../../../../core/utils/inpaint_outpaint_utils.dart';
 import '../core/canvas_controller.dart';
+import '../frame/frame_geometry.dart';
 
 typedef OutpaintEdgeDragPreviewChanged = void Function(OutpaintEdges edges);
 typedef OutpaintEdgeDragCommitted =
@@ -27,27 +28,32 @@ class OutpaintEdgeDragOverlay extends StatefulWidget {
   static const double handleSize = 22;
   static const double cornerHandleSize = 24;
 
-  final Size canvasSize;
+  /// 文档坐标中的取景框
+  final Rect frame;
   final CanvasController controller;
   final OutpaintEdgeDragPreviewChanged? onPreviewChanged;
   final OutpaintEdgeDragCommitted onCommitted;
   final OutpaintFrameResizeCommitted? onFrameResizeCommitted;
   final bool enabled;
 
+  /// 缩放后的候选取景框（文档坐标）不满足约束时既不预览也不提交
+  final bool Function(Rect candidateFrame)? isFrameAllowed;
+
   const OutpaintEdgeDragOverlay({
     super.key,
-    required this.canvasSize,
+    required this.frame,
     required this.controller,
     this.onPreviewChanged,
     required this.onCommitted,
     this.onFrameResizeCommitted,
     this.enabled = true,
+    this.isFrameAllowed,
   });
 
   static bool isResizeInteractionPoint({
     required Offset localPosition,
     required Size viewportSize,
-    required Size canvasSize,
+    required Rect frame,
     required CanvasController controller,
   }) {
     if (controller.rotation != 0 || controller.isMirroredHorizontally) {
@@ -56,7 +62,7 @@ class OutpaintEdgeDragOverlay extends StatefulWidget {
 
     final canvasRect = _screenCanvasRectFor(
       controller: controller,
-      canvasSize: canvasSize,
+      frame: frame,
     );
     // 手柄可能被 clamp 到视口边缘、落在边缘条之外，必须一并算作拖拽热区，
     // 否则画布会在手柄上开始一笔，和拖拽同时发生。
@@ -123,15 +129,12 @@ class OutpaintEdgeDragOverlay extends StatefulWidget {
 
   static Rect _screenCanvasRectFor({
     required CanvasController controller,
-    required Size canvasSize,
+    required Rect frame,
   }) {
-    final topLeft = controller.canvasToScreen(
-      Offset.zero,
-      canvasSize: canvasSize,
-    );
+    final topLeft = controller.canvasToScreen(frame.topLeft, frame: frame);
     final bottomRight = controller.canvasToScreen(
-      Offset(canvasSize.width, canvasSize.height),
-      canvasSize: canvasSize,
+      frame.bottomRight,
+      frame: frame,
     );
     return Rect.fromPoints(topLeft, bottomRight);
   }
@@ -293,7 +296,7 @@ class _OutpaintEdgeDragOverlayState extends State<OutpaintEdgeDragOverlay> {
   Rect get _screenCanvasRect {
     return OutpaintEdgeDragOverlay._screenCanvasRectFor(
       controller: widget.controller,
-      canvasSize: widget.canvasSize,
+      frame: widget.frame,
     );
   }
 
@@ -636,13 +639,21 @@ class _OutpaintEdgeDragOverlayState extends State<OutpaintEdgeDragOverlay> {
     _OutpaintDragHandle handle,
     OutpaintFrameDelta delta,
   ) {
-    return InpaintOutpaintUtils.tryResolveFrameGeometry(
-      sourceWidth: widget.canvasSize.width.round(),
-      sourceHeight: widget.canvasSize.height.round(),
+    final geometry = InpaintOutpaintUtils.tryResolveFrameGeometry(
+      sourceWidth: widget.frame.width.round(),
+      sourceHeight: widget.frame.height.round(),
       delta: delta,
       horizontalSnapTarget: _horizontalSnapTarget(handle),
       verticalSnapTarget: _verticalSnapTarget(handle),
     );
+    final isFrameAllowed = widget.isFrameAllowed;
+    if (geometry == null ||
+        !geometry.hasAppliedChange ||
+        isFrameAllowed == null) {
+      return geometry;
+    }
+    final candidate = EditorFrameGeometry.appliedFrame(widget.frame, geometry);
+    return isFrameAllowed(candidate) ? geometry : null;
   }
 
   Future<void> _commitDrag() async {

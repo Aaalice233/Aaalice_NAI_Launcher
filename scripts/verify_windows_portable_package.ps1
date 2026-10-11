@@ -41,6 +41,7 @@ function Assert-WindowsFlutterRuntime {
 
   foreach ($required in @(
       'nai_launcher.exe',
+      'nai_launcher_mcp.exe',
       'flutter_windows.dll',
       'data/icudtl.dat'
     )) {

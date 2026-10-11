@@ -4,8 +4,8 @@ import 'package:nai_launcher/core/utils/localization_extension.dart';
 
 import '../../../data/models/auth/saved_account.dart';
 import '../../../data/models/user/user_subscription.dart';
-import '../../providers/auth_provider.dart';
-import '../../providers/account_manager_provider.dart';
+import '../../../data/services/auth_provider.dart';
+import '../../../data/services/account_manager_provider.dart';
 import '../../providers/subscription_provider.dart';
 import '../auth/account_avatar.dart';
 

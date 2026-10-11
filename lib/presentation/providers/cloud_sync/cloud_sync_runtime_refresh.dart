@@ -12,7 +12,7 @@ import '../gallery_album_provider.dart';
 import '../generation/generation_settings_notifiers.dart';
 import '../history_click_behavior_provider.dart';
 import '../image_save_settings_provider.dart';
-import '../locale_provider.dart';
+import '../../../core/utils/locale_provider.dart';
 import '../notification_settings_provider.dart';
 import '../online_gallery_blacklist_provider.dart';
 import '../online_gallery_local_favorites_provider.dart';

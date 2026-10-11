@@ -4,6 +4,7 @@ import '../../../../core/utils/nai_prompt_parser.dart';
 import '../../../../core/utils/localization_extension.dart';
 import '../../../../data/models/character/character_prompt.dart';
 import '../../../../l10n/app_localizations.dart';
+import '../../../widgets/common/ink_host.dart';
 import '../../../widgets/common/translated_tag_text.dart';
 
 /// Compact heading for prompt composition previews.
@@ -251,88 +252,90 @@ class _TooltipCompositionCardState extends State<_TooltipCompositionCard> {
         borderRadius: BorderRadius.circular(8),
       ),
       clipBehavior: Clip.antiAlias,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Semantics(
-            button: true,
-            expanded: _expanded,
-            label: '${widget.label}, ${widget.itemCount}',
-            child: InkWell(
-              onTap: () => setState(() => _expanded = !_expanded),
-              mouseCursor: SystemMouseCursors.click,
-              borderRadius: BorderRadius.circular(8),
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(9, 7, 8, 7),
-                child: Row(
-                  children: [
-                    Container(
-                      width: 32,
-                      height: 32,
-                      alignment: Alignment.center,
-                      decoration: BoxDecoration(
-                        color: widget.color.withValues(alpha: 0.16),
-                        borderRadius: BorderRadius.circular(7),
+      child: InkHost(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Semantics(
+              button: true,
+              expanded: _expanded,
+              label: '${widget.label}, ${widget.itemCount}',
+              child: InkWell(
+                onTap: () => setState(() => _expanded = !_expanded),
+                mouseCursor: SystemMouseCursors.click,
+                borderRadius: BorderRadius.circular(8),
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(9, 7, 8, 7),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 32,
+                        height: 32,
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          color: widget.color.withValues(alpha: 0.16),
+                          borderRadius: BorderRadius.circular(7),
+                        ),
+                        child: Icon(widget.icon, size: 16, color: widget.color),
                       ),
-                      child: Icon(widget.icon, size: 16, color: widget.color),
-                    ),
-                    const SizedBox(width: 9),
-                    Expanded(
-                      child: Text(
-                        widget.label,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: widget.theme.textTheme.labelMedium?.copyWith(
-                          color: widget.theme.colorScheme.onSurface,
-                          fontWeight: FontWeight.w600,
+                      const SizedBox(width: 9),
+                      Expanded(
+                        child: Text(
+                          widget.label,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: widget.theme.textTheme.labelMedium?.copyWith(
+                            color: widget.theme.colorScheme.onSurface,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
                       ),
-                    ),
-                    if (widget.itemCount > 0) ...[
-                      const SizedBox(width: 8),
-                      _TooltipCountBadge(
-                        theme: widget.theme,
-                        label: '${widget.itemCount}',
+                      if (widget.itemCount > 0) ...[
+                        const SizedBox(width: 8),
+                        _TooltipCountBadge(
+                          theme: widget.theme,
+                          label: '${widget.itemCount}',
+                        ),
+                      ],
+                      const SizedBox(width: 6),
+                      Tooltip(
+                        message: actionLabel,
+                        child: AnimatedRotation(
+                          turns: _expanded ? 0.5 : 0,
+                          duration: duration,
+                          child: Icon(
+                            Icons.keyboard_arrow_down_rounded,
+                            size: 20,
+                            color: widget.theme.colorScheme.onSurfaceVariant,
+                          ),
+                        ),
                       ),
                     ],
-                    const SizedBox(width: 6),
-                    Tooltip(
-                      message: actionLabel,
-                      child: AnimatedRotation(
-                        turns: _expanded ? 0.5 : 0,
-                        duration: duration,
-                        child: Icon(
-                          Icons.keyboard_arrow_down_rounded,
-                          size: 20,
-                          color: widget.theme.colorScheme.onSurfaceVariant,
-                        ),
-                      ),
-                    ),
-                  ],
+                  ),
                 ),
               ),
             ),
-          ),
-          AnimatedSize(
-            duration: duration,
-            curve: Curves.easeOutCubic,
-            alignment: Alignment.topCenter,
-            child: _expanded
-                ? Padding(
-                    padding: const EdgeInsets.fromLTRB(9, 0, 9, 9),
-                    child: Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.fromLTRB(10, 8, 10, 9),
-                      decoration: BoxDecoration(
-                        color: contentBackground,
-                        borderRadius: BorderRadius.circular(7),
+            AnimatedSize(
+              duration: duration,
+              curve: Curves.easeOutCubic,
+              alignment: Alignment.topCenter,
+              child: _expanded
+                  ? Padding(
+                      padding: const EdgeInsets.fromLTRB(9, 0, 9, 9),
+                      child: Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.fromLTRB(10, 8, 10, 9),
+                        decoration: BoxDecoration(
+                          color: contentBackground,
+                          borderRadius: BorderRadius.circular(7),
+                        ),
+                        child: widget.child,
                       ),
-                      child: widget.child,
-                    ),
-                  )
-                : const SizedBox.shrink(),
-          ),
-        ],
+                    )
+                  : const SizedBox.shrink(),
+            ),
+          ],
+        ),
       ),
     );
   }

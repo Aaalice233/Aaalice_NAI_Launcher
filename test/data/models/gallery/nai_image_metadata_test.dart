@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/core/constants/api_constants.dart';
+import 'package:nai_launcher/core/enums/image_model_mode.dart';
 import 'package:nai_launcher/core/enums/precise_ref_type.dart';
 import 'package:nai_launcher/data/models/gallery/local_image_record.dart';
 import 'package:nai_launcher/data/models/gallery/nai_image_metadata.dart';
@@ -1295,4 +1296,133 @@ void main() {
     expect(applied, isTrue);
     expect(count, greaterThan(0));
   });
+
+  group('NaiImageMetadata effort and furry mode', () {
+    NaiImageMetadata parse({
+      required String prompt,
+      String source = 'NovelAI Diffusion V5 0ADF9AB7',
+    }) => NaiImageMetadata.fromNaiComment({
+      'Comment': jsonEncode({'prompt': prompt, 'uc': ''}),
+      'Software': 'NovelAI',
+      'Source': source,
+    });
+
+    test('maps both medium fingerprints to the medium model', () {
+      for (final source in [
+        'NovelAI Diffusion V5 93F4BD30',
+        'NovelAI Diffusion V5 70AB5786',
+      ]) {
+        final metadata = parse(prompt: '1girl', source: source);
+        expect(metadata.model, ImageModels.animeDiffusionV5FullMedium);
+        expect(
+          MetadataImportApplier.resolveImportableModel(metadata),
+          ImageModels.animeDiffusionV5FullMedium,
+        );
+      }
+    });
+
+    test('strips the fur dataset prefix and reports furry mode', () {
+      final metadata = parse(
+        prompt: 'fur dataset, wolf, very aesthetic, masterpiece, no text',
+      );
+
+      expect(metadata.prompt, 'wolf, very aesthetic, masterpiece, no text');
+      expect(
+        metadata.originalPrompt,
+        'fur dataset, wolf, very aesthetic, masterpiece, no text',
+      );
+      expect(metadata.modelMode, ImageModelMode.furry);
+    });
+
+    test('reports anime mode without the prefix', () {
+      expect(parse(prompt: 'wolf').modelMode, ImageModelMode.anime);
+    });
+
+    test('leaves models without furry mode untouched', () {
+      final metadata = parse(
+        prompt: 'fur dataset, wolf',
+        source: 'NovelAI Diffusion V3 7BCCAA2C',
+      );
+      expect(metadata.prompt, 'fur dataset, wolf');
+      expect(metadata.modelMode, isNull);
+    });
+
+    test('old cached records pick up the prefix stripping on upgrade', () {
+      final raw = jsonEncode({
+        'prompt': 'fur dataset, wolf, teXt: hi',
+        'uc': '',
+        'v4_prompt': {
+          'caption': {'base_caption': 'fur dataset, wolf', 'char_captions': []},
+        },
+      });
+      final cached = NaiImageMetadata(
+        prompt: 'fur dataset, wolf',
+        originalPrompt: 'fur dataset, wolf, teXt: hi',
+        source: 'NovelAI Diffusion V5 0ADF9AB7',
+        rawJson: raw,
+      );
+
+      final upgraded = cached.upgradeFromRawJsonIfNeeded();
+
+      expect(upgraded.prompt, isNot(startsWith('fur dataset')));
+      expect(upgraded.modelMode, ImageModelMode.furry);
+    });
+
+    test('importing the prompt restores the mode alongside it', () {
+      final metadata = parse(prompt: 'fur dataset, wolf');
+      ImageModelMode? appliedMode;
+      String? appliedPrompt;
+
+      MetadataImportApplier.applyPromptAndGenerationParams(
+        metadata: metadata,
+        options: MetadataImportOptions.all(),
+        currentModel: ImageModels.animeDiffusionV45Full,
+        target: _recordingTarget(
+          onPrompt: (value) => appliedPrompt = value,
+          onModelMode: (value) => appliedMode = value,
+        ),
+      );
+
+      expect(appliedPrompt, 'wolf');
+      expect(appliedMode, ImageModelMode.furry);
+    });
+
+    test('skipping the prompt keeps the current mode', () {
+      ImageModelMode? appliedMode;
+
+      MetadataImportApplier.applyPromptAndGenerationParams(
+        metadata: parse(prompt: 'fur dataset, wolf'),
+        options: MetadataImportOptions.all().copyWith(importPrompt: false),
+        currentModel: ImageModels.animeDiffusionV45Full,
+        target: _recordingTarget(onModelMode: (value) => appliedMode = value),
+      );
+
+      expect(appliedMode, isNull);
+    });
+  });
+}
+
+MetadataImportTarget _recordingTarget({
+  void Function(String value)? onPrompt,
+  void Function(ImageModelMode value)? onModelMode,
+}) {
+  return MetadataImportTarget(
+    updatePrompt: onPrompt ?? (_) {},
+    updateNegativePrompt: (_) {},
+    updateSeed: (_) {},
+    updateSteps: (_) {},
+    updateScale: (_) {},
+    updateSize: (_, __) {},
+    updateSampler: (_) {},
+    updateModel: (_) {},
+    updateSmea: (_) {},
+    updateSmeaDyn: (_) {},
+    updateVarietyPlus: (_) {},
+    updateNoiseSchedule: (_) {},
+    updateCfgRescale: (_) {},
+    updateQualityToggle: (_) {},
+    updateUcPreset: (_) {},
+    updateTransparentBackground: (_) {},
+    updateModelMode: onModelMode ?? (_) {},
+  );
 }

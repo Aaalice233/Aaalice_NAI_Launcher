@@ -1,8 +1,10 @@
 import 'dart:convert';
+import 'dart:math' as math;
 import 'dart:typed_data';
 
 import '../../../core/agent/agent_types.dart';
 import '../../../core/agent/harness/tools/image.dart';
+import '../../../core/agent/resources/agent_chat_resource_reference.dart';
 import '../../../core/agent/resources/agent_chat_resource_reference_codec.dart';
 import '../../../core/utils/app_logger.dart';
 import '../../../core/utils/inpaint_mask/inpaint_mask_geometry.dart';
@@ -20,8 +22,12 @@ import 'defined_agent_tool.dart';
 import 'inpaint_mask_authoring.dart';
 import 'manual_inpaint_toolbox_serialization.dart';
 
-/// [filePath] 只用于观察台账比对，不进入模型可见输出。
-typedef InpaintResolvedSource = ({Uint8List bytes, String? filePath});
+/// [filePath] 与 [reference] 只用于观察台账比对，不进入模型可见输出。
+typedef InpaintResolvedSource = ({
+  Uint8List bytes,
+  String? filePath,
+  AgentChatResourceReference? reference,
+});
 
 class InpaintSourceResolution {
   const InpaintSourceResolution.ok(this.resource) : error = null;
@@ -64,13 +70,16 @@ class InpaintDraftAuthoringService {
   final InpaintDraftAuthoringHost _host;
   AgentImageObservationLedger? _observationLedger;
   String Function()? _observationSessionId;
+  String _observationGuidance = '';
 
   void configureObservationLedger(
     AgentImageObservationLedger ledger, {
     required String Function() activeSessionId,
+    required String observationGuidance,
   }) {
     _observationLedger = ledger;
     _observationSessionId = activeSessionId;
+    _observationGuidance = observationGuidance;
   }
 
   Future<AgentToolResult> createFromGeometry(Map<String, dynamic> args) async {
@@ -89,8 +98,6 @@ class InpaintDraftAuthoringService {
     final resolutionError = resolution.error;
     if (resolutionError != null) return resolutionError;
     final resource = resolution.resource!;
-    final notObserved = _requireObservedSource(resource.filePath);
-    if (notObserved != null) return notObserved;
 
     final size = NaiResolutionAdapter.readImageSize(resource.bytes);
     if (size == null) {
@@ -100,6 +107,13 @@ class InpaintDraftAuthoringService {
       );
     }
     final (width, height) = size;
+
+    final notObserved = _requireObservedSource(
+      filePath: resource.filePath,
+      reference: resource.reference,
+      sourceLongSide: math.max(width, height),
+    );
+    if (notObserved != null) return notObserved;
 
     final Uint8List maskBinary;
     try {
@@ -379,20 +393,30 @@ class InpaintDraftAuthoringService {
     }
   }
 
-  /// 没有台账记录说明模型没真正看过这张图，坐标只能是猜的，不能放行到扣费环节。
-  AgentToolResult? _requireObservedSource(String? filePath) {
+  /// 没看过、或只看过缩略图，坐标就只能是猜的，不能放行到扣费环节。
+  AgentToolResult? _requireObservedSource({
+    required String? filePath,
+    required AgentChatResourceReference? reference,
+    required int sourceLongSide,
+  }) {
     final ledger = _observationLedger;
     final sessionId = _observationSessionId?.call();
     if (ledger == null || sessionId == null) return null;
-    if (filePath != null && ledger.hasObserved(sessionId, filePath)) {
-      return null;
-    }
+    final observed = ledger.hasObserved(
+      sessionId,
+      paths: [if (filePath != null) filePath],
+      references: [if (reference != null) reference],
+      sourceLongSide: sourceLongSide,
+    );
+    if (observed) return null;
     return agentToolError(
       'image_not_observed',
-      'Read the source image with the read tool before authoring a mask for '
-          'it, so the coordinates come from the image instead of a guess. '
-          'Generated images expose a workspace path only when they are saved '
-          'to disk.',
+      [
+        'The source image has not been viewed in this session at a usable '
+            'resolution, so the mask coordinates would be a guess.',
+        if (_observationGuidance.isNotEmpty) _observationGuidance,
+        'Display thumbnails and reported sizes do not count.',
+      ].join(' '),
     );
   }
 }

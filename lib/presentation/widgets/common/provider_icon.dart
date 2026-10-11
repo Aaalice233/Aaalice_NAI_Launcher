@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../prompt_assistant/models/prompt_assistant_models.dart';
+import '../../../data/models/prompt_assistant/prompt_assistant_models.dart';
 import 'ai_brand_icon.dart';
 
 /// Provider identity is independent of the models exposed through its API.

@@ -42,6 +42,9 @@ class ImageDetailCallbacks {
   /// 保存回调
   final Future<void> Function(ImageDetailData image)? onSave;
 
+  /// 另存为回调
+  final Future<void> Function(ImageDetailData image)? onSaveAs;
+
   /// 复制图像回调
   final Future<void> Function(ImageDetailData image)? onCopyImage;
 
@@ -55,6 +58,7 @@ class ImageDetailCallbacks {
     this.onFavoriteToggle,
     this.onReuseMetadata,
     this.onSave,
+    this.onSaveAs,
     this.onCopyImage,
     this.onSendToImg2Img,
     this.onSendToReversePrompt,
@@ -669,6 +673,9 @@ class _ImageDetailViewerState extends ConsumerState<ImageDetailViewer> {
                 : null,
             onSave: widget.callbacks?.onSave != null
                 ? () => widget.callbacks!.onSave!(_currentImage)
+                : null,
+            onSaveAs: widget.callbacks?.onSaveAs != null
+                ? () => widget.callbacks!.onSaveAs!(_currentImage)
                 : null,
             // 上游的复制：跟随 shareImageSettingsProvider（默认带元数据）
             onCopyImage: _currentImage.showCopyButton

@@ -16,8 +16,10 @@ String buildAgentResearchInstructions({required bool webAccessEnabled}) => [
     '- Web access is disabled: say that web verification is unavailable. '
         'Continue with the available catalog and gallery evidence; do not '
         'pretend to have searched online or silently enable web access.',
-  '- Next call search_tags with mode=search on the candidate English tag '
-      'and inspect canonical tag, aliases, category and franchise qualifier. '
+  '- Next call search_tags with mode=search on the candidate English tag, '
+      'batching several candidate spellings through "queries" instead of one '
+      'call each, and inspect canonical tag, aliases, category and franchise '
+      'qualifier. '
       'Chinese translation lookup can help discover candidates, but an absent '
       'optional dictionary is not proof that the character does not exist. '
       'An empty catalog result is also not proof: newer characters may be '

@@ -268,7 +268,7 @@ class HiveVibeLibraryRepository implements VibeLibraryRepositoryProtocol {
   Future<Uint8List?> readThumbnail(String id) async {
     try {
       await ensureThumbnailCacheBox();
-      return thumbnailCacheBox!.get(id);
+      return await thumbnailCacheBox!.get(id);
     } catch (_) {
       return null;
     }

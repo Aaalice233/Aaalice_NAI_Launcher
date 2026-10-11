@@ -8,7 +8,7 @@ import 'package:nai_launcher/core/agent/agent_types.dart';
 import 'package:nai_launcher/core/agent/harness/harness_messages.dart';
 import 'package:nai_launcher/presentation/prompt_assistant/models/agent_protocol.dart';
 import 'package:nai_launcher/presentation/prompt_assistant/models/assistant_model_capability.dart';
-import 'package:nai_launcher/presentation/prompt_assistant/models/prompt_assistant_models.dart';
+import 'package:nai_launcher/data/models/prompt_assistant/prompt_assistant_models.dart';
 import 'package:nai_launcher/presentation/prompt_assistant/services/provider_adapters/agent_wire_helpers.dart';
 import 'package:nai_launcher/presentation/prompt_assistant/services/provider_adapters/openai_responses_adapter.dart';
 import 'package:nai_launcher/presentation/prompt_assistant/services/provider_adapters/reasoning_payload.dart';
@@ -21,7 +21,7 @@ const _provider = ProviderConfig(
 );
 
 void main() {
-  for (final model in ['deepseek-v4-flash', 'glm-5']) {
+  for (final model in ['deepseek-flash', 'glm-5']) {
     test('$model keeps catalog levels across protocol switches', () {
       final responses = AssistantModelCatalog.resolveProvider(
         provider: _provider,
@@ -118,7 +118,7 @@ void main() {
       ];
       final metadata = AssistantModelCatalog.resolveProvider(
         provider: _provider,
-        model: 'deepseek-v4-flash',
+        model: 'deepseek-flash',
       );
       final events = await const OpenAiResponsesAdapter()
           .completeAgent(
@@ -126,7 +126,7 @@ void main() {
             request: AgentChatRequest(
               sessionId: 'test',
               provider: _provider,
-              model: 'deepseek-v4-flash',
+              model: 'deepseek-flash',
               systemPrompt: '',
               messages: harnessConvertToLlm(messages),
               tools: const [],

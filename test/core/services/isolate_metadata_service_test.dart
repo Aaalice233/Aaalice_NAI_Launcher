@@ -172,7 +172,12 @@ void main() {
         expect(queuedResult.metadata?.prompt, 'queued-prompt');
         expect(timedOutResults.every((result) => result.wasTimeout), isTrue);
         expect(timedOutResults.every((result) => result.retryable), isTrue);
-        expect(service.getStatistics()['restartedWorkers'], 2);
+        // restartedWorkers counts committed replacements, which land after the
+        // timed-out futures resolve.
+        await _waitForCondition(
+          () => service.getStatistics()['restartedWorkers'] == 2,
+          'Expected both timed-out workers to be replaced',
+        );
       },
     );
 

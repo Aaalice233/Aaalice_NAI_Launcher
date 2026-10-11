@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
 /// Compact pill toggle shared by generation controls.
+///
+/// A null [onChanged] renders the toggle disabled.
 class GenerationToggleButton extends StatefulWidget {
   const GenerationToggleButton({
     super.key,
@@ -11,7 +13,7 @@ class GenerationToggleButton extends StatefulWidget {
 
   final String label;
   final bool isEnabled;
-  final ValueChanged<bool> onChanged;
+  final ValueChanged<bool>? onChanged;
 
   @override
   State<GenerationToggleButton> createState() => _GenerationToggleButtonState();
@@ -24,29 +26,32 @@ class _GenerationToggleButtonState extends State<GenerationToggleButton> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
+    final onChanged = widget.onChanged;
+    final interactive = onChanged != null;
+    final hovered = interactive && _isHovered;
 
     Color backgroundColor;
     if (widget.isEnabled) {
-      backgroundColor = _isHovered
+      backgroundColor = hovered
           ? theme.colorScheme.primary.withValues(alpha: 0.85)
           : theme.colorScheme.primary;
     } else {
       final baseColor = isDark
           ? Colors.white.withValues(alpha: 0.08)
           : Colors.black.withValues(alpha: 0.05);
-      backgroundColor = _isHovered
+      backgroundColor = hovered
           ? (isDark
                 ? Colors.white.withValues(alpha: 0.15)
                 : Colors.black.withValues(alpha: 0.1))
           : baseColor;
     }
 
-    return MouseRegion(
+    final toggle = MouseRegion(
       onEnter: (_) => setState(() => _isHovered = true),
       onExit: (_) => setState(() => _isHovered = false),
-      cursor: SystemMouseCursors.click,
+      cursor: interactive ? SystemMouseCursors.click : MouseCursor.defer,
       child: GestureDetector(
-        onTap: () => widget.onChanged(!widget.isEnabled),
+        onTap: interactive ? () => onChanged(!widget.isEnabled) : null,
         child: AnimatedContainer(
           duration: MediaQuery.disableAnimationsOf(context)
               ? Duration.zero
@@ -79,7 +84,7 @@ class _GenerationToggleButtonState extends State<GenerationToggleButton> {
                     color: widget.isEnabled
                         ? theme.colorScheme.onPrimary
                         : theme.colorScheme.onSurface.withValues(
-                            alpha: _isHovered ? 0.8 : 0.6,
+                            alpha: hovered ? 0.8 : 0.6,
                           ),
                   ),
                 ),
@@ -88,6 +93,12 @@ class _GenerationToggleButtonState extends State<GenerationToggleButton> {
           ),
         ),
       ),
+    );
+    return Semantics(
+      button: true,
+      toggled: widget.isEnabled,
+      enabled: interactive,
+      child: interactive ? toggle : Opacity(opacity: 0.38, child: toggle),
     );
   }
 }

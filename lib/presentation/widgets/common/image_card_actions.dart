@@ -4,17 +4,13 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:path/path.dart' as p;
 
 import '../../../core/mosaic/mosaic_derivative_registry.dart';
 import '../../../core/platform/platform_capabilities.dart';
 import '../../../core/storage/local_storage_service.dart';
-import '../../../core/services/android_media_store_service.dart';
-import '../../../core/utils/image_save_utils.dart';
 import '../../../core/utils/image_share_sanitizer.dart';
 import '../../../core/utils/localization_extension.dart';
 import '../../../core/watermark/watermark_derivative_registry.dart';
-import '../../../data/repositories/gallery_folder_repository.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../providers/mosaic_settings_provider.dart';
 import '../../providers/share_image_settings_provider.dart';
@@ -109,16 +105,21 @@ class ImageCardActionCatalog {
         hover: false,
       );
     }
-    if (capabilities.enableSaveAction) {
-      add(
-        ImageCardActionId.save,
-        Icons.save_alt_rounded,
-        l10n.image_save,
-        coordinator.saveImage,
-        primary: true,
-        menuLabel: l10n.shortcut_action_save_image,
-      );
-    }
+    add(
+      ImageCardActionId.save,
+      Icons.save_alt_rounded,
+      l10n.image_save,
+      capabilities.onSave,
+      primary: true,
+      menuLabel: l10n.shortcut_action_save_image,
+    );
+    add(
+      ImageCardActionId.saveAs,
+      Icons.save_as_rounded,
+      l10n.image_saveAs,
+      capabilities.onSaveAs,
+      hover: false,
+    );
     if (capabilities.enableCopyAction) {
       add(
         ImageCardActionId.copy,
@@ -238,7 +239,7 @@ class ImageCardActionCatalog {
       l10n.img2img_enhance,
       capabilities.onEnhance,
     );
-    if (capabilities.enableSaveAction &&
+    if (capabilities.onSave != null &&
         PlatformCapabilities.current.supportsDlssEnhancement &&
         (data.imageBytes != null || data.sourceFilePath != null)) {
       add(
@@ -266,6 +267,13 @@ class ImageCardActionCatalog {
       data.isFavorite ? l10n.common_unfavorite : l10n.common_favorite,
       capabilities.onFavoriteToggle,
       hover: false,
+    );
+    add(
+      ImageCardActionId.delete,
+      Icons.delete_outline,
+      l10n.common_delete,
+      capabilities.onDelete,
+      danger: true,
     );
     return actions;
   }
@@ -369,52 +377,6 @@ class ImageCardActionCoordinator {
       stripMetadata: stripMetadata,
       transform: ref.read(copyDragWatermarkProvider),
     );
-  }
-
-  Future<void> saveImage() async {
-    final l10n = context.l10n;
-    final bytes = _data.imageBytes;
-    if (bytes == null) return;
-    try {
-      final rootPath = await GalleryFolderRepository.instance.getRootPath();
-      if (rootPath == null || rootPath.isEmpty) {
-        if (context.mounted) AppToast.error(context, l10n.toast_saveDirNotSet);
-        return;
-      }
-      final filePath = await ImageSaveUtils.saveBytesToDatedPath(
-        rootPath: rootPath,
-        bytes: bytes,
-        seed: await ImageSaveUtils.resolveSeed(bytes: bytes),
-      );
-      if (PlatformCapabilities.current.supportsSystemGalleryExport) {
-        try {
-          await AndroidMediaStoreService.savePng(
-            bytes: bytes,
-            fileName: p.basename(filePath),
-          );
-        } catch (error) {
-          if (context.mounted) {
-            AppToast.warning(
-              context,
-              l10n.image_savedAppOnly(error.toString()),
-            );
-          }
-          return;
-        }
-      }
-      if (context.mounted) {
-        AppToast.success(
-          context,
-          PlatformCapabilities.current.supportsSystemGalleryExport
-              ? l10n.image_savedToSystemGallery
-              : l10n.toast_savedTo(rootPath),
-        );
-      }
-    } catch (error) {
-      if (context.mounted) {
-        AppToast.error(context, l10n.image_saveFailed(error.toString()));
-      }
-    }
   }
 
   ImageCardCallback createCopyImageAction() {

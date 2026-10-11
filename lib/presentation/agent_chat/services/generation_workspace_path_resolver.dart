@@ -3,7 +3,7 @@ import 'dart:io';
 import 'package:path/path.dart' as p;
 
 import '../../../core/agent/harness/env/dart_io_execution_env.dart';
-import '../../../core/agent/harness/harness_result.dart';
+import '../../../core/agent/harness/harness_types.dart';
 
 class GenerationWorkspacePathResolver {
   GenerationWorkspacePathResolver({
@@ -21,6 +21,9 @@ class GenerationWorkspacePathResolver {
 
   final String _workspaceDir;
   final DartIoExecutionEnv _fileEnv;
+
+  /// Same boundary the generation tools already resolve paths through.
+  ExecutionEnv get env => _fileEnv;
 
   /// Returns the exact relative argument accepted by the `read` tool, but
   /// only after the same execution environment proves that the existing file

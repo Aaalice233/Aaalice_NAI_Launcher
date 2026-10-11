@@ -3,7 +3,6 @@ import 'dart:convert';
 
 import 'package:crypto/crypto.dart' as crypto;
 
-const cloudSyncProtocol = 'aaalice-cloud-sync';
 const cloudSyncSchemaVersion = 3;
 
 /// Hard limit for each object sent to or received from a backend.

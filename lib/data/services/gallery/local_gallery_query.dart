@@ -84,6 +84,33 @@ class LocalGalleryQuery {
     }
   }
 
+  /// Drops [filePaths] from both the full and the filtered ordering and
+  /// returns the tracked spellings that were removed.
+  List<String> removePaths(Iterable<String> filePaths) {
+    final keys = {for (final path in filePaths) galleryFilePathKey(path)};
+    final removed = <String>[];
+    final remaining = <File>[];
+    for (final file in _allFiles) {
+      if (keys.contains(galleryFilePathKey(file.path))) {
+        removed.add(file.path);
+      } else {
+        remaining.add(file);
+      }
+    }
+    if (removed.isEmpty) return removed;
+
+    _allFiles = remaining;
+    _fileListGeneration++;
+    // Removing members keeps every surviving file's filter verdict valid.
+    _filteredFiles = _currentFilter.hasFilters
+        ? [
+            for (final file in _filteredFiles)
+              if (!keys.contains(galleryFilePathKey(file.path))) file,
+          ]
+        : _allFiles;
+    return removed;
+  }
+
   Future<void> applyFilter(FilterCriteria criteria) async {
     final generation = ++_filterGeneration;
     final previousOperationId = _activeFilterOperationId;

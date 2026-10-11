@@ -1,10 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/semantics.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/core/constants/storage_keys.dart';
 import 'package:nai_launcher/core/storage/local_storage_service.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/screens/settings/sections/generation_settings_section.dart';
+
+import '../../../../helpers/labeled_rows_expectations.dart';
+import '../../../../helpers/text_layout_expectations.dart';
 
 void main() {
   testWidgets('prompt weight wheel switch defaults on and persists changes', (
@@ -132,6 +136,94 @@ void main() {
     expect(find.text('完成音效'), findsOneWidget);
   });
 
+  testWidgets('重试滑块以设置名朗读，读数与说明一致并按一格步进', (tester) async {
+    final storage = _MemoryLocalStorageService();
+    await tester.binding.setSurfaceSize(const Size(1000, 1600));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [localStorageServiceProvider.overrideWith((ref) => storage)],
+        child: const MaterialApp(
+          locale: Locale('zh'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(
+            body: SingleChildScrollView(child: GenerationSettingsSection()),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      tester.widgetList<Slider>(find.byType(Slider)).map((s) => s.divisions),
+      [29, 19],
+    );
+    final interval = _sliderNode('重试间隔');
+    expect(interval.value, endsWith('秒'));
+    expect(find.text(interval.value), findsOneWidget);
+
+    final count = _sliderNode('重试次数');
+    expect(find.text(count.value), findsOneWidget);
+    final before = int.parse(RegExp(r'\d+').firstMatch(count.value)![0]!);
+    tester.semantics.increase(
+      find.semantics.byPredicate(
+        (node) => node.flagsCollection.isSlider && node.label == '重试次数',
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(count.increasedValue, '最多 ${before + 1} 次');
+    expect(storage.values[StorageKeys.queueRetryCount], before + 1);
+  });
+
+  testWidgets('重试行的数值框与增减按钮以设置名朗读', (tester) async {
+    final storage = _MemoryLocalStorageService();
+    await tester.binding.setSurfaceSize(const Size(1000, 1600));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [localStorageServiceProvider.overrideWith((ref) => storage)],
+        child: const MaterialApp(
+          locale: Locale('zh'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(
+            body: SingleChildScrollView(child: GenerationSettingsSection()),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    SemanticsNode fieldNode(String label) {
+      final field = find.semantics.byPredicate(
+        (node) => node.flagsCollection.isTextField && node.label == label,
+      );
+      expect(field, findsOne, reason: label);
+      return field.evaluate().single;
+    }
+
+    for (final label in const ['重试次数', '重试间隔']) {
+      expect(fieldNode(label).value, isNotEmpty, reason: label);
+      for (final action in ['减少$label', '增加$label']) {
+        expect(
+          find.semantics.byPredicate(
+            (node) => node.flagsCollection.isButton && node.tooltip == action,
+          ),
+          findsOne,
+          reason: action,
+        );
+      }
+    }
+
+    final before = int.parse(fieldNode('重试次数').value);
+    await tester.tap(find.byTooltip('增加重试次数'));
+    await tester.pumpAndSettle();
+    expect(storage.values[StorageKeys.queueRetryCount], before + 1);
+  });
+
   testWidgets('透明图像 Alpha 模式默认直通并可切换为预乘', (tester) async {
     final storage = _MemoryLocalStorageService();
     await tester.binding.setSurfaceSize(const Size(1000, 1600));
@@ -205,43 +297,84 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('320–1600 宽度和 3x 文本下表单无布局溢出', (tester) async {
-    final storage = _MemoryLocalStorageService();
-    addTearDown(() => tester.binding.setSurfaceSize(null));
-
-    for (final width in const [320.0, 600.0, 840.0, 1180.0, 1600.0]) {
-      await tester.binding.setSurfaceSize(Size(width, 1200));
-      await tester.pumpWidget(
-        ProviderScope(
-          overrides: [
-            localStorageServiceProvider.overrideWith((ref) => storage),
-          ],
-          child: MaterialApp(
-            locale: const Locale('zh'),
-            localizationsDelegates: AppLocalizations.localizationsDelegates,
-            supportedLocales: AppLocalizations.supportedLocales,
-            builder: (context, child) => MediaQuery(
-              data: MediaQuery.of(
-                context,
-              ).copyWith(textScaler: const TextScaler.linear(3)),
-              child: child!,
-            ),
-            home: const Scaffold(
-              body: SingleChildScrollView(
-                padding: EdgeInsets.all(12),
-                child: GenerationSettingsSection(),
+  for (final locale in const ['zh', 'en']) {
+    for (final width in labeledRowWidths) {
+      for (final scale in labeledRowTextScales) {
+        final scenario = '$locale ${width.toInt()} ${scale}x';
+        testWidgets('$scenario 下表单无溢出，重试行标签完整且控件可达', (tester) async {
+          // 取区间上限，读数与输入框内容都是最宽的
+          final storage = _MemoryLocalStorageService(
+            initialValues: {
+              StorageKeys.queueRetryCount: 30,
+              StorageKeys.queueRetryInterval: 10.0,
+            },
+          );
+          await tester.binding.setSurfaceSize(Size(width, 1200));
+          addTearDown(() => tester.binding.setSurfaceSize(null));
+          await tester.pumpWidget(
+            ProviderScope(
+              overrides: [
+                localStorageServiceProvider.overrideWith((ref) => storage),
+              ],
+              child: MaterialApp(
+                locale: Locale(locale),
+                localizationsDelegates: AppLocalizations.localizationsDelegates,
+                supportedLocales: AppLocalizations.supportedLocales,
+                builder: (context, child) => MediaQuery(
+                  data: MediaQuery.of(
+                    context,
+                  ).copyWith(textScaler: TextScaler.linear(scale)),
+                  child: child!,
+                ),
+                home: const Scaffold(
+                  body: SingleChildScrollView(
+                    padding: EdgeInsets.all(12),
+                    child: GenerationSettingsSection(),
+                  ),
+                ),
               ),
             ),
-          ),
-        ),
-      );
-      await tester.pump();
+          );
+          await tester.pump();
+          expect(tester.takeException(), isNull, reason: scenario);
 
-      expect(find.text('重试次数'), findsOneWidget);
-      expect(find.text('重试间隔'), findsOneWidget);
-      expect(tester.takeException(), isNull, reason: 'width=$width');
+          final l10n = lookupAppLocalizations(Locale(locale));
+          final labels = [
+            l10n.settings_queueRetryCount,
+            l10n.settings_queueRetryInterval,
+          ];
+          await expectLabeledSliderRows(
+            tester,
+            labels: labels,
+            labelsSingleLine: locale != 'en',
+            reason: scenario,
+          );
+          for (final label in labels) {
+            final description = labeledRowText(_sliderNode(label).value);
+            expect(description, findsOneWidget, reason: '$label $scenario');
+            expectFullyVisible(tester, description, reason: scenario);
+            for (final tooltip in [
+              l10n.settings_decreaseValue(label),
+              l10n.settings_increaseValue(label),
+            ]) {
+              final button = find.byTooltip(tooltip);
+              await tester.ensureVisible(button);
+              await tester.pump();
+              expect(button.hitTestable(), findsOneWidget, reason: tooltip);
+            }
+          }
+          for (final unit in [l10n.unit_times, l10n.unit_seconds]) {
+            expectFullyVisible(
+              tester,
+              labeledRowText(unit),
+              reason: '$unit $scenario',
+            );
+          }
+          expect(tester.takeException(), isNull, reason: scenario);
+        });
+      }
     }
-  });
+  }
 
   testWidgets('音效开关关闭时隐藏自定义音效入口', (tester) async {
     // iOS 分支：移动端默认关闭完成音效（见 notification_settings_provider.dart），
@@ -274,6 +407,14 @@ void main() {
 
     expect(find.text('自定义音效'), findsNothing);
   });
+}
+
+SemanticsNode _sliderNode(String label) {
+  final slider = find.semantics.byPredicate(
+    (node) => node.flagsCollection.isSlider && node.label == label,
+  );
+  expect(slider, findsOne, reason: label);
+  return slider.evaluate().single;
 }
 
 class _MemoryLocalStorageService extends LocalStorageService {

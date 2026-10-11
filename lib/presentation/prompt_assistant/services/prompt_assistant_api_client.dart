@@ -4,7 +4,7 @@ import 'dart:convert';
 import 'package:dio/dio.dart';
 
 import '../../../core/utils/app_logger.dart';
-import '../models/prompt_assistant_models.dart';
+import '../../../data/models/prompt_assistant/prompt_assistant_models.dart';
 import 'assistant_cancellation.dart';
 import 'assistant_request_scheduler.dart';
 import 'provider_adapters/anthropic_messages_adapter.dart';

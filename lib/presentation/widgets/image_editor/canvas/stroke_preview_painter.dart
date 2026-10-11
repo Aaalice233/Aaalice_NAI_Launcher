@@ -28,31 +28,11 @@ class StrokePreviewPainter extends CustomPainter {
       return;
     }
 
-    final canvasSize = state.canvasSize;
-    final controller = state.canvasController;
+    final frame = state.frame;
 
     canvas.save();
-    canvas.translate(controller.offset.dx, controller.offset.dy);
-
-    final centerX = canvasSize.width * controller.scale / 2;
-    final centerY = canvasSize.height * controller.scale / 2;
-
-    if (controller.rotation != 0 || controller.isMirroredHorizontally) {
-      canvas.translate(centerX, centerY);
-
-      if (controller.rotation != 0) {
-        canvas.rotate(controller.rotation);
-      }
-
-      if (controller.isMirroredHorizontally) {
-        canvas.scale(-1.0, 1.0);
-      }
-
-      canvas.translate(-centerX, -centerY);
-    }
-
-    canvas.scale(controller.scale);
-    canvas.clipRect(Rect.fromLTWH(0, 0, canvasSize.width, canvasSize.height));
+    state.canvasController.applyViewTransform(canvas, frame);
+    canvas.clipRect(frame);
     _drawCurrentStroke(canvas, points);
     canvas.restore();
   }
@@ -68,9 +48,11 @@ class StrokePreviewPainter extends CustomPainter {
     bool isEraser = false;
 
     if (tool is BrushTool) {
-      size = tool.settings.size;
-      opacity = tool.settings.opacity;
-      hardness = tool.settings.hardness;
+      final style = tool.strokeStyleFor(state);
+      size = style.size;
+      color = style.color;
+      opacity = style.opacity;
+      hardness = style.hardness;
     } else if (tool is EraserTool) {
       size = tool.size;
       hardness = tool.hardness;

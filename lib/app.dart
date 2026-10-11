@@ -23,8 +23,9 @@ import 'presentation/router/shell_panels_overlay.dart';
 import 'presentation/providers/theme_provider.dart';
 import 'presentation/providers/font_provider.dart';
 import 'presentation/providers/font_scale_provider.dart';
-import 'presentation/providers/locale_provider.dart';
+import 'core/utils/locale_provider.dart';
 import 'presentation/providers/cloud_sync/cloud_sync_provider_wiring.dart';
+import 'presentation/mcp/providers/mcp_server_notifier.dart';
 import 'presentation/providers/krita/krita_bridge_notifier.dart';
 import 'presentation/providers/image_generation_provider.dart';
 import 'presentation/providers/queue_execution_provider.dart';
@@ -43,6 +44,7 @@ class AppBootstrapEffects extends ConsumerStatefulWidget {
   final Widget child;
   final ProviderListenable<dynamic>? anlasWatcher;
   final ProviderListenable<dynamic>? kritaBridge;
+  final ProviderListenable<dynamic>? mcpServer;
   final ProviderListenable<dynamic>? cooccurrenceDataPack;
   final Future<void> Function()? cloudSyncLifecycle;
 
@@ -51,6 +53,7 @@ class AppBootstrapEffects extends ConsumerStatefulWidget {
     required this.child,
     this.anlasWatcher,
     this.kritaBridge,
+    this.mcpServer,
     this.cooccurrenceDataPack,
     this.cloudSyncLifecycle,
   });
@@ -64,9 +67,11 @@ class _AppBootstrapEffectsState extends ConsumerState<AppBootstrapEffects>
     with WidgetsBindingObserver {
   ProviderSubscription<dynamic>? _anlasWatcherSubscription;
   ProviderSubscription<dynamic>? _kritaBridgeSubscription;
+  ProviderSubscription<dynamic>? _mcpServerSubscription;
   ProviderSubscription<dynamic>? _cooccurrenceDataPackSubscription;
   bool _queuePausedForBackground = false;
   bool _cloudSyncLifecycleRunning = false;
+  bool _cloudSyncRestoreOnResume = false;
 
   @override
   void initState() {
@@ -79,7 +84,9 @@ class _AppBootstrapEffectsState extends ConsumerState<AppBootstrapEffects>
         (_, __) {},
       );
       final usesTestOverrides =
-          widget.kritaBridge != null || widget.cooccurrenceDataPack != null;
+          widget.kritaBridge != null ||
+          widget.mcpServer != null ||
+          widget.cooccurrenceDataPack != null;
       if (usesTestOverrides) {
         _mountInjectedEffects();
       } else {
@@ -100,10 +107,15 @@ class _AppBootstrapEffectsState extends ConsumerState<AppBootstrapEffects>
     if (state == AppLifecycleState.resumed) {
       InteractiveWorkGate.instance.markInteraction();
       unawaited(_resumeQueueAfterBackground());
-      unawaited(_restoreCloudBackupConnection());
+      // 桌面端切换窗口焦点也会 inactive→resumed，只有真正进过后台才重新恢复连接
+      if (_cloudSyncRestoreOnResume) {
+        _cloudSyncRestoreOnResume = false;
+        unawaited(_restoreCloudBackupConnection());
+      }
     } else if (state == AppLifecycleState.paused ||
         state == AppLifecycleState.hidden ||
         state == AppLifecycleState.detached) {
+      _cloudSyncRestoreOnResume = true;
       unawaited(_persistAndPauseForBackground());
     }
   }
@@ -113,6 +125,13 @@ class _AppBootstrapEffectsState extends ConsumerState<AppBootstrapEffects>
         PlatformCapabilities.current.supportsKritaBridge) {
       _kritaBridgeSubscription = ref.listenManual(
         widget.kritaBridge ?? kritaBridgeNotifierProvider,
+        (_, __) {},
+      );
+    }
+    if (widget.mcpServer != null ||
+        PlatformCapabilities.current.supportsMcpServer) {
+      _mcpServerSubscription = ref.listenManual(
+        widget.mcpServer ?? mcpServerNotifierProvider,
         (_, __) {},
       );
     }
@@ -132,6 +151,19 @@ class _AppBootstrapEffectsState extends ConsumerState<AppBootstrapEffects>
         }
         _kritaBridgeSubscription = ref.listenManual(
           kritaBridgeNotifierProvider,
+          (_, __) {},
+        );
+      },
+    );
+    await _runProductionIdleEffect(
+      'MCP server',
+      minimumDelay: const Duration(seconds: 10),
+      action: () async {
+        if (!mounted || !PlatformCapabilities.current.supportsMcpServer) {
+          return;
+        }
+        _mcpServerSubscription = ref.listenManual(
+          mcpServerNotifierProvider,
           (_, __) {},
         );
       },
@@ -231,6 +263,7 @@ class _AppBootstrapEffectsState extends ConsumerState<AppBootstrapEffects>
     WidgetsBinding.instance.removeObserver(this);
     _anlasWatcherSubscription?.close();
     _kritaBridgeSubscription?.close();
+    _mcpServerSubscription?.close();
     _cooccurrenceDataPackSubscription?.close();
     super.dispose();
   }

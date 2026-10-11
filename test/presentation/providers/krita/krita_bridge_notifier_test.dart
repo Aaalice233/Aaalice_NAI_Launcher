@@ -90,6 +90,36 @@ void main() {
     expect(await File(state.discoveryFilePath!).exists(), isTrue);
   });
 
+  test('a failed enable keeps the discovery file of another instance',
+      () async {
+    const foreignContent = '{"port":4711,"pid":777,"version":1,'
+        '"secret":"other-instance","started_at":"2026-05-07T09:00:00.000Z"}';
+    final foreign =
+        File('${tempDir.path}${Platform.pathSeparator}krita-bridge.json');
+    await foreign.writeAsString(foreignContent);
+
+    final failing = KritaBridgeNotifier(
+      serverFactory: () => KritaBridgeServer(
+        discoveryDirectory: tempDir,
+        pidProvider: () => throw StateError('pid unavailable'),
+        secretGenerator: () => 'failing-secret',
+        clock: () => DateTime.utc(2026, 5, 7, 10, 30),
+      ),
+      serviceFactory: (_) => bridgeService,
+      persistEnabled: persistedEnabledValues.add,
+    );
+    addTearDown(failing.close);
+
+    await failing.enable();
+
+    expect(failing.state.enabled, isFalse);
+    expect(failing.state.status, KritaBridgeStatus.error);
+    expect(failing.state.port, isNull);
+    expect(persistedEnabledValues, isEmpty);
+    expect(await foreign.exists(), isTrue);
+    expect(await foreign.readAsString(), foreignContent);
+  });
+
   test('disable stops server and clears session state', () async {
     await notifier.enable();
     final discoveryFilePath = notifier.state.discoveryFilePath!;

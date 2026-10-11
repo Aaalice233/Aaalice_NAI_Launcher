@@ -4,7 +4,7 @@ import 'package:nai_launcher/l10n/app_localizations.dart';
 
 import '../../../../data/models/character/character_prompt.dart';
 import '../../../../data/models/fixed_tag/fixed_tag_entry.dart';
-import '../../../../data/services/alias_resolver_service.dart';
+import '../../../providers/alias_resolver_service.dart';
 import '../../../themes/prompt_semantic_colors.dart';
 import '../../../widgets/common/app_toast.dart';
 import 'prompt_tooltip_components.dart';

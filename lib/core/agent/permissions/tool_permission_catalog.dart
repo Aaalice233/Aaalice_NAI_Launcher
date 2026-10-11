@@ -6,12 +6,16 @@ class AgentToolPermissionDescriptor {
     required this.domain,
     required this.operation,
     this.mayConsumeAnlas = false,
+    this.deletesStoredData = false,
   });
 
   final String toolName;
   final AgentPermissionDomain domain;
   final AgentPermissionOperation operation;
   final bool mayConsumeAnlas;
+
+  /// Permanently removes persisted user data, as opposed to page state.
+  final bool deletesStoredData;
 }
 
 /// Complete, immutable permission metadata for a known set of tools.
@@ -39,10 +43,16 @@ class AgentToolPermissionCatalog {
     int? estimatedAnlas,
   }) {
     final descriptor = descriptorFor(toolName);
-    final ordinaryDecision = policy.decide(
+    final policyDecision = policy.decide(
       descriptor.domain,
       descriptor.operation,
     );
+    // Full access skips ordinary write approval, never unrecoverable deletes.
+    final ordinaryDecision =
+        descriptor.deletesStoredData &&
+            policyDecision == AgentPermissionDecision.allow
+        ? AgentPermissionDecision.ask
+        : policyDecision;
     if (ordinaryDecision == AgentPermissionDecision.block ||
         !descriptor.mayConsumeAnlas) {
       return ordinaryDecision;
@@ -162,6 +172,16 @@ AgentToolPermissionDescriptor describeAgentToolPermission(String toolName) {
     'clear_failed_generation_queue_tasks',
     'clear_completed_generation_queue_tasks',
   };
+  // Completed queue records live only in memory, so clearing them stays direct.
+  const storedDataDeletions = {
+    'delete_fixed_tag',
+    'delete_tag_library_entry',
+    'delete_tag_library_category',
+    'delete_precise_reference_entry',
+    'delete_vibe_library_entry',
+    'delete_generation_queue_task',
+    'clear_failed_generation_queue_tasks',
+  };
 
   final domain = switch (toolName) {
     'ask_user_question' => AgentPermissionDomain.status,
@@ -249,6 +269,9 @@ AgentToolPermissionDescriptor describeAgentToolPermission(String toolName) {
     domain: domain,
     operation: operation,
     mayConsumeAnlas: charged.contains(toolName),
+    deletesStoredData:
+        storedDataDeletions.contains(toolName) ||
+        toolName.startsWith('delete_'),
   );
 }
 

@@ -1,8 +1,11 @@
 import '../../core/constants/api_constants.dart';
+import '../../core/enums/image_model_mode.dart';
 import '../../data/models/gallery/nai_image_metadata.dart';
 import '../../data/models/metadata/metadata_import_options.dart';
 
 void _ignoreQualityTier(String _) {}
+
+void _ignoreModelMode(ImageModelMode _) {}
 
 class MetadataImportTarget {
   const MetadataImportTarget({
@@ -23,6 +26,7 @@ class MetadataImportTarget {
     this.updateQualityTier = _ignoreQualityTier,
     required this.updateUcPreset,
     required this.updateTransparentBackground,
+    this.updateModelMode = _ignoreModelMode,
   });
 
   final void Function(String value) updatePrompt;
@@ -42,6 +46,7 @@ class MetadataImportTarget {
   final void Function(String value) updateQualityTier;
   final void Function(int value) updateUcPreset;
   final void Function(bool value) updateTransparentBackground;
+  final void Function(ImageModelMode value) updateModelMode;
 }
 
 class MetadataImportApplier {
@@ -59,6 +64,9 @@ class MetadataImportApplier {
       target.updatePrompt(
         metadata.hasSeparatedFields ? metadata.mainPrompt : metadata.prompt,
       );
+      // 数据集前缀已从提示词剥离，模式随提示词一起恢复才能复现原图。
+      final modelMode = metadata.modelMode;
+      if (modelMode != null) target.updateModelMode(modelMode);
       count++;
     }
 
@@ -175,7 +183,7 @@ class MetadataImportApplier {
     if (model == null || model.isEmpty) return null;
     // 测试期生成的图元数据里是 `custom`，迁移到正式 ID。
     final normalized = ImageModels.migrateLegacyModel(model);
-    return ImageModels.allModels.contains(normalized) ? normalized : null;
+    return ImageModels.supportedModels.contains(normalized) ? normalized : null;
   }
 
   static String? resolveImportableModel(NaiImageMetadata metadata) {

@@ -39,13 +39,3 @@ PreviewDimensionsViewData selectPreviewDimensionsViewData(ImageParams params) =>
       width: params.width,
       height: params.height,
     );
-
-typedef CharacterPanelViewData = ({
-  bool isV4Model,
-  List<CharacterPrompt> characters,
-});
-
-CharacterPanelViewData selectCharacterPanelViewData(ImageParams params) => (
-      isV4Model: params.isV4Model,
-      characters: params.characters,
-    );

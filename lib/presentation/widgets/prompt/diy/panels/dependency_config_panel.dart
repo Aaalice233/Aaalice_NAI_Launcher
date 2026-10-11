@@ -4,6 +4,7 @@ import 'package:nai_launcher/core/utils/localization_extension.dart';
 import '../../../../../data/models/prompt/dependency_config.dart';
 import '../../../../adaptive/adaptive_presenter.dart';
 import '../../../../widgets/common/elevated_card.dart';
+import '../../../../widgets/common/surface_ink_well.dart';
 import 'package:nai_launcher/presentation/widgets/common/themed_form_input.dart';
 import 'package:nai_launcher/presentation/widgets/common/themed_input.dart';
 
@@ -236,62 +237,54 @@ class _DependencyConfigPanelState extends State<DependencyConfigPanel> {
               return Expanded(
                 child: Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 3),
-                  child: Material(
-                    color: Colors.transparent,
-                    child: InkWell(
-                      onTap: widget.readOnly
-                          ? null
-                          : () => _updateConfig(_config.copyWith(type: type)),
-                      borderRadius: BorderRadius.circular(10),
-                      child: AnimatedContainer(
-                        duration: MediaQuery.disableAnimationsOf(context)
-                            ? Duration.zero
-                            : const Duration(milliseconds: 200),
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                        decoration: BoxDecoration(
-                          gradient: isSelected
-                              ? LinearGradient(
-                                  begin: Alignment.topLeft,
-                                  end: Alignment.bottomRight,
-                                  colors: [color, color.withValues(alpha: 0.8)],
-                                )
-                              : null,
-                          color: isSelected
-                              ? null
-                              : colorScheme.surfaceContainerHighest,
-                          borderRadius: BorderRadius.circular(10),
-                          boxShadow: isSelected
-                              ? [
-                                  BoxShadow(
-                                    color: color.withValues(alpha: 0.3),
-                                    blurRadius: 8,
-                                    offset: const Offset(0, 2),
-                                  ),
-                                ]
-                              : null,
-                        ),
-                        child: Column(
-                          children: [
-                            Icon(
-                              icon,
-                              size: 20,
+                  child: SurfaceInkWell(
+                    borderRadius: BorderRadius.circular(10),
+                    gradient: isSelected
+                        ? LinearGradient(
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                            colors: [color, color.withValues(alpha: 0.8)],
+                          )
+                        : null,
+                    color: isSelected
+                        ? null
+                        : colorScheme.surfaceContainerHighest,
+                    shadows: isSelected
+                        ? [
+                            BoxShadow(
+                              color: color.withValues(alpha: 0.3),
+                              blurRadius: 8,
+                              offset: const Offset(0, 2),
+                            ),
+                          ]
+                        : null,
+                    duration: const Duration(milliseconds: 200),
+                    onTap: widget.readOnly
+                        ? null
+                        : () => _updateConfig(_config.copyWith(type: type)),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      child: Column(
+                        children: [
+                          Icon(
+                            icon,
+                            size: 20,
+                            color: isSelected
+                                ? Colors.white
+                                : colorScheme.onSurfaceVariant,
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            _getDependencyTypeLabel(type),
+                            style: theme.textTheme.labelSmall?.copyWith(
+                              fontWeight: FontWeight.w600,
                               color: isSelected
                                   ? Colors.white
-                                  : colorScheme.onSurfaceVariant,
+                                  : colorScheme.onSurface,
                             ),
-                            const SizedBox(height: 4),
-                            Text(
-                              _getDependencyTypeLabel(type),
-                              style: theme.textTheme.labelSmall?.copyWith(
-                                fontWeight: FontWeight.w600,
-                                color: isSelected
-                                    ? Colors.white
-                                    : colorScheme.onSurface,
-                              ),
-                              textAlign: TextAlign.center,
-                            ),
-                          ],
-                        ),
+                            textAlign: TextAlign.center,
+                          ),
+                        ],
                       ),
                     ),
                   ),

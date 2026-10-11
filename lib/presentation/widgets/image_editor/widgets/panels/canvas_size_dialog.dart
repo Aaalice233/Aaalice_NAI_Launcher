@@ -67,6 +67,9 @@ class CanvasSizeDialog extends StatefulWidget {
   final ContentHandlingMode? initialMode;
   final String title;
   final String confirmText;
+
+  /// 重绘模式调整的是取景框，不缩放内容，因此不提供拉伸
+  final bool allowStretch;
   final ScrollController? scrollController;
 
   const CanvasSizeDialog({
@@ -75,6 +78,7 @@ class CanvasSizeDialog extends StatefulWidget {
     this.initialMode,
     this.title = 'Canvas Size',
     this.confirmText = 'Confirm',
+    this.allowStretch = true,
     this.scrollController,
   });
 
@@ -85,6 +89,7 @@ class CanvasSizeDialog extends StatefulWidget {
     ContentHandlingMode? initialMode,
     String? title,
     String? confirmText,
+    bool allowStretch = true,
   }) {
     final resolvedTitle = title ?? context.l10n.editor_canvasSizeTitle;
     final resolvedConfirmText = confirmText ?? context.l10n.common_confirm;
@@ -102,6 +107,7 @@ class CanvasSizeDialog extends StatefulWidget {
         initialMode: initialMode,
         title: resolvedTitle,
         confirmText: resolvedConfirmText,
+        allowStretch: allowStretch,
         scrollController: scrollController,
       ),
     );
@@ -127,7 +133,10 @@ class _CanvasSizeDialogState extends State<CanvasSizeDialog> {
     _widthController = TextEditingController(text: initialWidth.toString());
     _heightController = TextEditingController(text: initialHeight.toString());
     _aspectRatio = initialWidth / initialHeight;
-    _selectedMode = widget.initialMode ?? ContentHandlingMode.crop;
+    final initialMode = widget.initialMode ?? ContentHandlingMode.crop;
+    _selectedMode = _availableModes.contains(initialMode)
+        ? initialMode
+        : ContentHandlingMode.crop;
 
     // 检查是否匹配预设
     for (final preset in canvasPresets) {
@@ -144,6 +153,11 @@ class _CanvasSizeDialogState extends State<CanvasSizeDialog> {
     _heightController.dispose();
     super.dispose();
   }
+
+  List<ContentHandlingMode> get _availableModes => [
+    for (final mode in ContentHandlingMode.values)
+      if (widget.allowStretch || mode != ContentHandlingMode.stretch) mode,
+  ];
 
   @override
   Widget build(BuildContext context) {
@@ -203,7 +217,7 @@ class _CanvasSizeDialogState extends State<CanvasSizeDialog> {
             labelText: context.l10n.editor_contentHandling,
             isDense: true,
           ),
-          items: ContentHandlingMode.values
+          items: _availableModes
               .map(
                 (mode) => DropdownMenuItem(
                   value: mode,

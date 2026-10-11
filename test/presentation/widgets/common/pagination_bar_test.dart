@@ -5,6 +5,8 @@ import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/adaptive/interaction_policy.dart';
 import 'package:nai_launcher/presentation/widgets/common/pagination_bar.dart';
 
+import '../../../helpers/ink_expectations.dart';
+
 void main() {
   testWidgets('narrow gallery pagination matches the compact online style', (
     tester,
@@ -193,6 +195,59 @@ void main() {
 
     expect(decoration.color, isNot(canvas));
   });
+
+  testWidgets('窄屏跳页按钮的悬停与按压反馈画在分页条底色之上', (tester) async {
+    await _pumpPagination(tester, width: 430, onPageChanged: (_) {});
+    final bar = find
+        .descendant(
+          of: find.byType(PaginationBar),
+          matching: find.byWidgetPredicate(
+            (widget) => widget is Container && widget.decoration != null,
+          ),
+        )
+        .first;
+    final jump = find
+        .ancestor(of: find.text('第 2 页'), matching: find.byType(InkWell))
+        .first;
+    final theme = Theme.of(tester.element(jump));
+    final fill = theme.colorScheme.surface;
+
+    await hoverOver(tester, jump);
+    expectInkOnTop(tester, bar, ink: theme.hoverColor, below: fill);
+
+    final press = await pressAndHold(tester, jump);
+    expectInkOnTop(tester, bar, ink: theme.highlightColor, below: fill);
+    await press.up();
+    await tester.pump();
+    expect(find.byType(EditableText), findsOneWidget);
+  });
+
+  testWidgets(
+    '每页数量下拉框的键盘焦点高亮画在下拉框底色之上',
+    (tester) async {
+      await _pumpPagination(tester, width: 900, onPageChanged: (_) {});
+      final dropdown = find.byType(DropdownButton<int>);
+      final container = find
+          .ancestor(of: dropdown, matching: find.byType(Container))
+          .first;
+      final theme = Theme.of(tester.element(dropdown));
+
+      await tabUntilFocused(
+        tester,
+        find.descendant(of: dropdown, matching: find.byType(InkWell)).first,
+      );
+      expectInkOnTop(
+        tester,
+        container,
+        ink: theme.focusColor,
+        below: theme.colorScheme.surfaceContainerHigh,
+      );
+    },
+    variant: const TargetPlatformVariant({
+      TargetPlatform.windows,
+      TargetPlatform.macOS,
+    }),
+  );
 }
 
 Future<void> _pumpPagination(

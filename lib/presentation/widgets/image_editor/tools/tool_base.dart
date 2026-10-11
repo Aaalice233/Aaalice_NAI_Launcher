@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../core/editor_state.dart';
+import '../layers/layer_role.dart';
 
 /// 工具基类
 /// 所有编辑器工具的抽象基类
@@ -30,6 +31,19 @@ abstract class EditorTool {
   /// 工具是否自行处理 Alt 键（跳过临时拾色器切换）
   bool get handlesAltKey => false;
 
+  /// 当前编辑会话能否使用此工具，与当前图层无关
+  bool isEnabledInSession(EditorState state) => true;
+
+  /// 能否作用于该角色的图层
+  bool supportsRole(LayerRole role) => true;
+
+  /// 行为随图层角色改变：重绘会话里蒙版与图片各有一个入口，点入口会切到对应图层
+  bool get followsLayerRole => false;
+
+  /// 会话与当前图层都允许时才可用；不可用时不响应快捷键
+  bool isAvailableIn(EditorState state) =>
+      isEnabledInSession(state) && supportsRole(state.activeLayerRole);
+
   /// 指针按下
   void onPointerDown(PointerDownEvent event, EditorState state);
 
@@ -51,6 +65,9 @@ abstract class EditorTool {
   /// 仅清理内存中的临时状态，不触发任何异步操作
   /// 用于实现即时工具切换
   void onDeactivateFast(EditorState state) {}
+
+  /// 方向键微移；返回 true 表示工具已处理
+  bool onArrowNudge(EditorState state, Offset delta) => false;
 
   /// 延迟激活（在下一帧异步执行）
   /// 用于资源预热、缓存更新等耗时操作
@@ -136,34 +153,6 @@ enum SelectionMode {
 
   /// 交叉
   intersect,
-}
-
-extension SelectionModeExtension on SelectionMode {
-  String get label {
-    switch (this) {
-      case SelectionMode.replace:
-        return 'Replace';
-      case SelectionMode.add:
-        return 'Add';
-      case SelectionMode.subtract:
-        return 'Subtract';
-      case SelectionMode.intersect:
-        return 'Intersect';
-    }
-  }
-
-  IconData get icon {
-    switch (this) {
-      case SelectionMode.replace:
-        return Icons.crop_square;
-      case SelectionMode.add:
-        return Icons.add_box_outlined;
-      case SelectionMode.subtract:
-        return Icons.indeterminate_check_box_outlined;
-      case SelectionMode.intersect:
-        return Icons.filter_none;
-    }
-  }
 }
 
 /// 选区设置

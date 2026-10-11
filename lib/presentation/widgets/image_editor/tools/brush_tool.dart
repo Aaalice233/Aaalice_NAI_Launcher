@@ -4,10 +4,19 @@ import 'package:flutter/services.dart';
 import '../../../../core/utils/localization_extension.dart';
 import '../core/editor_state.dart';
 import '../core/history_manager.dart';
+import '../core/mask_paint_style.dart';
 import 'color_picker_tool.dart';
 import 'tool_base.dart';
+import 'tool_setting_rows.dart';
+import '../../../widgets/common/horizontal_action_strip.dart';
 import '../../../widgets/common/themed_divider.dart';
-import 'package:nai_launcher/presentation/widgets/common/themed_input.dart';
+
+typedef BrushStrokeStyle = ({
+  double size,
+  Color color,
+  double opacity,
+  double hardness,
+});
 
 /// 笔刷预设
 class BrushPreset {
@@ -99,8 +108,15 @@ class BrushTool extends EditorTool {
   int _selectedPresetIndex = 2; // Default to "Standard Brush".
   int get selectedPresetIndex => _selectedPresetIndex;
 
+  /// 蒙版笔只有大小可调，与图片笔刷各自记忆
+  double _maskSize = 40.0;
+  double get maskSize => _maskSize;
+
   @override
   String get id => 'brush';
+
+  @override
+  bool get followsLayerRole => true;
 
   @override
   String get name => 'Brush';
@@ -143,6 +159,32 @@ class BrushTool extends EditorTool {
   /// 设置硬度
   void setHardness(double hardness) {
     _settings = _settings.copyWith(hardness: hardness.clamp(0.0, 1.0));
+  }
+
+  void setMaskSize(double size) {
+    _maskSize = size.clamp(1.0, 500.0);
+  }
+
+  double sizeFor(EditorState state) =>
+      state.isMaskLayerActive ? _maskSize : _settings.size;
+
+  /// 当前图层上一笔实际使用的样式，提交与实时预览共用
+  BrushStrokeStyle strokeStyleFor(EditorState state) {
+    final paintsMask = state.isMaskLayerActive;
+    return (
+      size: sizeFor(state),
+      color: state.paintColor,
+      opacity: paintsMask ? MaskPaintStyle.opacity : _settings.opacity,
+      hardness: paintsMask ? MaskPaintStyle.hardness : _settings.hardness,
+    );
+  }
+
+  void setSizeFor(EditorState state, double size) {
+    if (state.isMaskLayerActive) {
+      setMaskSize(size);
+    } else {
+      setSize(size);
+    }
   }
 
   @override
@@ -189,13 +231,13 @@ class BrushTool extends EditorTool {
   void _commitCurrentStroke(EditorState state) {
     final activeLayer = state.layerManager.activeLayer;
     if (activeLayer != null && !activeLayer.locked) {
-      // 创建笔画数据
+      final style = strokeStyleFor(state);
       final stroke = StrokeData(
         points: List.from(state.currentStrokePoints),
-        size: _settings.size,
-        color: state.foregroundColor,
-        opacity: _settings.opacity,
-        hardness: _settings.hardness,
+        size: style.size,
+        color: style.color,
+        opacity: style.opacity,
+        hardness: style.hardness,
         isEraser: false,
       );
 
@@ -217,16 +259,99 @@ class BrushTool extends EditorTool {
   }
 
   @override
-  double getCursorRadius(EditorState state) => _settings.size / 2;
+  double getCursorRadius(EditorState state) => sizeFor(state) / 2;
 
   @override
   Widget buildSettingsPanel(BuildContext context, EditorState state) {
-    return _BrushSettingsPanel(
-      tool: this,
-      onSettingsChanged: () {
-        // 触发刷新
-        state.requestUiUpdate();
+    // 切换图层时蒙版笔与图片笔刷的面板随之互换
+    return ValueListenableBuilder<String?>(
+      valueListenable: state.layerManager.activeLayerNotifier,
+      builder: (context, _, _) {
+        if (state.isMaskLayerActive) {
+          return _MaskBrushSettingsPanel(
+            tool: this,
+            onSettingsChanged: state.requestUiUpdate,
+          );
+        }
+        return _BrushSettingsPanel(
+          tool: this,
+          onSettingsChanged: state.requestUiUpdate,
+        );
       },
+    );
+  }
+}
+
+/// 蒙版笔只调大小：颜色、不透明度与硬度对蒙版结果没有影响
+class _MaskBrushSettingsPanel extends StatefulWidget {
+  const _MaskBrushSettingsPanel({
+    required this.tool,
+    required this.onSettingsChanged,
+  });
+
+  final BrushTool tool;
+  final VoidCallback onSettingsChanged;
+
+  @override
+  State<_MaskBrushSettingsPanel> createState() =>
+      _MaskBrushSettingsPanelState();
+}
+
+class _MaskBrushSettingsPanelState extends State<_MaskBrushSettingsPanel> {
+  late final TextEditingController _sizeController = TextEditingController(
+    text: widget.tool.maskSize.round().toString(),
+  );
+
+  @override
+  void didUpdateWidget(_MaskBrushSettingsPanel oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final text = widget.tool.maskSize.round().toString();
+    if (_sizeController.text != text) {
+      _sizeController.text = text;
+    }
+  }
+
+  @override
+  void dispose() {
+    _sizeController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          child: Text(
+            context.l10n.editor_toolMaskBrush,
+            style: theme.textTheme.titleSmall?.copyWith(
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ),
+        const ThemedDivider(height: 1),
+        ToolSettingRows(
+          rows: [
+            ToolSettingRow.slider(
+              label: context.l10n.editor_size,
+              value: widget.tool.maskSize,
+              min: 1,
+              max: 500,
+              controller: _sizeController,
+              onChanged: (value) {
+                setState(() {
+                  widget.tool.setMaskSize(value);
+                  _sizeController.text = value.round().toString();
+                });
+                widget.onSettingsChanged();
+              },
+            ),
+          ],
+        ),
+      ],
     );
   }
 }
@@ -304,16 +429,13 @@ class _BrushSettingsPanelState extends State<_BrushSettingsPanel> {
                 ),
               ),
               const SizedBox(height: 8),
-              SizedBox(
-                height: 70,
-                child: ListView.builder(
-                  scrollDirection: Axis.horizontal,
-                  itemCount: defaultBrushPresets.length,
-                  itemBuilder: (context, index) {
-                    final preset = defaultBrushPresets[index];
-                    return Padding(
-                      padding: const EdgeInsets.only(right: 8),
-                      child: _BrushPresetButton(
+              HorizontalActionStrip(
+                child: Row(
+                  spacing: 8,
+                  children: [
+                    for (final (index, preset) in defaultBrushPresets.indexed)
+                      _BrushPresetButton(
+                        key: ValueKey('brush-preset-$index'),
                         preset: preset,
                         presetIndex: index,
                         isSelected: widget.tool.selectedPresetIndex == index,
@@ -327,8 +449,7 @@ class _BrushSettingsPanelState extends State<_BrushSettingsPanel> {
                           widget.onSettingsChanged();
                         },
                       ),
-                    );
-                  },
+                  ],
                 ),
               ),
             ],
@@ -336,50 +457,54 @@ class _BrushSettingsPanelState extends State<_BrushSettingsPanel> {
         ),
         const ThemedDivider(height: 1),
 
-        // 大小
-        _SettingRow(
-          label: context.l10n.editor_size,
-          value: settings.size,
-          min: 1,
-          max: 500,
-          controller: _sizeController,
-          onChanged: (value) {
-            setState(() {
-              widget.tool.setSize(value);
-              _sizeController.text = value.round().toString();
-            });
-            widget.onSettingsChanged();
-          },
-        ),
+        ToolSettingRows(
+          rows: [
+            // 大小
+            ToolSettingRow.slider(
+              label: context.l10n.editor_size,
+              value: settings.size,
+              min: 1,
+              max: 500,
+              controller: _sizeController,
+              onChanged: (value) {
+                setState(() {
+                  widget.tool.setSize(value);
+                  _sizeController.text = value.round().toString();
+                });
+                widget.onSettingsChanged();
+              },
+            ),
 
-        // 不透明度
-        _SettingRow(
-          label: context.l10n.editor_opacity,
-          value: settings.opacity * 100,
-          min: 0,
-          max: 100,
-          suffix: '%',
-          onChanged: (value) {
-            setState(() {
-              widget.tool.setOpacity(value / 100);
-            });
-            widget.onSettingsChanged();
-          },
-        ),
+            // 不透明度
+            ToolSettingRow.slider(
+              label: context.l10n.editor_opacity,
+              value: settings.opacity * 100,
+              min: 0,
+              max: 100,
+              suffix: '%',
+              onChanged: (value) {
+                setState(() {
+                  widget.tool.setOpacity(value / 100);
+                });
+                widget.onSettingsChanged();
+              },
+            ),
 
-        // 硬度
-        _SettingRow(
-          label: context.l10n.editor_hardness,
-          value: settings.hardness * 100,
-          min: 0,
-          max: 100,
-          suffix: '%',
-          onChanged: (value) {
-            setState(() {
-              widget.tool.setHardness(value / 100);
-            });
-            widget.onSettingsChanged();
-          },
+            // 硬度
+            ToolSettingRow.slider(
+              label: context.l10n.editor_hardness,
+              value: settings.hardness * 100,
+              min: 0,
+              max: 100,
+              suffix: '%',
+              onChanged: (value) {
+                setState(() {
+                  widget.tool.setHardness(value / 100);
+                });
+                widget.onSettingsChanged();
+              },
+            ),
+          ],
         ),
       ],
     );
@@ -394,6 +519,7 @@ class _BrushPresetButton extends StatelessWidget {
   final VoidCallback onTap;
 
   const _BrushPresetButton({
+    super.key,
     required this.preset,
     required this.presetIndex,
     required this.isSelected,
@@ -404,52 +530,77 @@ class _BrushPresetButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final presetName = _localizedPresetName(context);
+    final foreground = isSelected
+        ? theme.colorScheme.onPrimaryContainer
+        : theme.colorScheme.onSurfaceVariant;
+    final labelStyle = theme.textTheme.labelSmall?.copyWith(color: foreground);
+    // 描边画在 Material 前景、不占内边距；Ink/Container 会让选中磁贴变宽
+    final shape = RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(8),
+      side: isSelected
+          ? BorderSide(color: theme.colorScheme.primary, width: 1)
+          : BorderSide.none,
+    );
 
     return Semantics(
+      container: true,
       label: presetName,
       hint: context.l10n.brushPreset_selectHint,
       button: true,
       selected: isSelected,
       enabled: true,
-      excludeSemantics: true,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(8),
-        child: Container(
-          width: 56,
-          padding: const EdgeInsets.all(4),
-          decoration: BoxDecoration(
-            color: isSelected
-                ? theme.colorScheme.primary.withValues(alpha: 0.12)
-                : theme.colorScheme.surfaceContainer,
-            border: isSelected
-                ? Border.all(color: theme.colorScheme.primary, width: 1)
-                : null,
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(
-                preset.icon,
-                size: 24,
-                color: isSelected
-                    ? theme.colorScheme.onPrimaryContainer
-                    : theme.colorScheme.onSurfaceVariant,
-              ),
-              const SizedBox(height: 2),
-              Text(
-                presetName,
-                style: theme.textTheme.labelSmall?.copyWith(
-                  color: isSelected
-                      ? theme.colorScheme.onPrimaryContainer
-                      : theme.colorScheme.onSurfaceVariant,
-                  fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+      // 底色放在 Material 上，墨水才画在底色之上；不透明子节点会盖住高亮
+      child: Material(
+        color: isSelected
+            ? theme.colorScheme.primary.withValues(alpha: 0.12)
+            : theme.colorScheme.surfaceContainer,
+        shape: shape,
+        // Material 只插值描边、底色瞬切，统一瞬切
+        animationDuration: Duration.zero,
+        child: InkWell(
+          onTap: onTap,
+          customBorder: shape,
+          // 名称由外层 Semantics 提供；只排除文字，点击与焦点动作仍来自 InkWell
+          child: ExcludeSemantics(
+            // 只设下限：文字放大时磁贴随标签长高变宽
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(minWidth: 56, minHeight: 70),
+              child: Padding(
+                padding: const EdgeInsets.all(4),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(preset.icon, size: 24, color: foreground),
+                    const SizedBox(height: 2),
+                    // 按粗体占宽：选中切换字重时磁贴宽度不变
+                    Stack(
+                      alignment: Alignment.center,
+                      children: [
+                        Visibility.maintain(
+                          visible: false,
+                          child: Text(
+                            presetName,
+                            style: labelStyle?.copyWith(
+                              fontWeight: FontWeight.bold,
+                            ),
+                            softWrap: false,
+                          ),
+                        ),
+                        Text(
+                          presetName,
+                          style: labelStyle?.copyWith(
+                            fontWeight: isSelected
+                                ? FontWeight.bold
+                                : FontWeight.normal,
+                          ),
+                          softWrap: false,
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
-                overflow: TextOverflow.ellipsis,
-                textAlign: TextAlign.center,
               ),
-            ],
+            ),
           ),
         ),
       ),
@@ -477,87 +628,5 @@ class _BrushPresetButton extends StatelessWidget {
       default:
         return preset.name;
     }
-  }
-}
-
-/// 设置行组件
-class _SettingRow extends StatelessWidget {
-  final String label;
-  final double value;
-  final double min;
-  final double max;
-  final String? suffix;
-  final TextEditingController? controller;
-  final ValueChanged<double> onChanged;
-
-  const _SettingRow({
-    required this.label,
-    required this.value,
-    required this.min,
-    required this.max,
-    this.suffix,
-    this.controller,
-    required this.onChanged,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-      child: Row(
-        children: [
-          SizedBox(
-            width: 60,
-            child: Text(label, style: theme.textTheme.bodySmall),
-          ),
-          Expanded(
-            child: SliderTheme(
-              data: SliderTheme.of(context).copyWith(
-                trackHeight: 2,
-                thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6),
-                overlayShape: const RoundSliderOverlayShape(overlayRadius: 12),
-              ),
-              child: Slider(
-                value: value.clamp(min, max),
-                min: min,
-                max: max,
-                onChanged: onChanged,
-              ),
-            ),
-          ),
-          SizedBox(
-            width: 50,
-            child: controller != null
-                ? ThemedInput(
-                    controller: controller,
-                    style: theme.textTheme.bodySmall,
-                    textAlign: TextAlign.center,
-                    decoration: const InputDecoration(
-                      isDense: true,
-                      contentPadding: EdgeInsets.symmetric(
-                        horizontal: 4,
-                        vertical: 4,
-                      ),
-                      border: OutlineInputBorder(),
-                    ),
-                    keyboardType: TextInputType.number,
-                    onSubmitted: (text) {
-                      final parsed = double.tryParse(text);
-                      if (parsed != null) {
-                        onChanged(parsed.clamp(min, max));
-                      }
-                    },
-                  )
-                : Text(
-                    '${value.round()}${suffix ?? ''}',
-                    style: theme.textTheme.bodySmall,
-                    textAlign: TextAlign.center,
-                  ),
-          ),
-        ],
-      ),
-    );
   }
 }

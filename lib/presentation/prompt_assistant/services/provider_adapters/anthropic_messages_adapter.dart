@@ -4,7 +4,7 @@ import 'package:dio/dio.dart';
 
 import '../../../../core/agent/agent_types.dart';
 import '../../models/agent_protocol.dart';
-import '../../models/prompt_assistant_models.dart';
+import '../../../../data/models/prompt_assistant/prompt_assistant_models.dart';
 import 'agent_wire_helpers.dart';
 import 'prompt_assistant_adapter.dart';
 import 'reasoning_payload.dart';
@@ -73,6 +73,7 @@ class AnthropicMessagesAdapter extends PromptAssistantProviderAdapter {
     // message_delta 携带 stop_reason 与输出用量。
     final blocks = <int, _AnthropicBlock>{};
     final blockOrder = <int>[];
+    final emittedToolCallIds = <String>{};
     var stopReason = StopReason.stop;
     Usage? usage;
     var sawError = false;
@@ -148,13 +149,16 @@ class AnthropicMessagesAdapter extends PromptAssistantProviderAdapter {
             final block = blocks[index];
             if (block != null && !block.flushed) {
               block.flushed = true;
-              pending.add(
-                AgentWireToolCallDone(
-                  id: block.id,
-                  name: block.name,
-                  arguments: parseToolArguments(block.args.toString()),
-                ),
-              );
+              // 同一 id 再次出现是渠道重放；放行会让工具执行两次。
+              if (block.id.isEmpty || emittedToolCallIds.add(block.id)) {
+                pending.add(
+                  AgentWireToolCallDone(
+                    id: block.id,
+                    name: block.name,
+                    arguments: parseToolArguments(block.args.toString()),
+                  ),
+                );
+              }
             }
           case 'message_delta':
             final delta = json['delta'];
@@ -225,7 +229,9 @@ class AnthropicMessagesAdapter extends PromptAssistantProviderAdapter {
     // 兜底：部分兼容实现不发 content_block_stop。
     for (final index in blockOrder) {
       final block = blocks[index];
-      if (block != null && !block.flushed) {
+      if (block != null &&
+          !block.flushed &&
+          (block.id.isEmpty || emittedToolCallIds.add(block.id))) {
         yield AgentWireToolCallDone(
           id: block.id,
           name: block.name,

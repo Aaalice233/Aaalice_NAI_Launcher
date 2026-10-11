@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
@@ -13,7 +14,7 @@ import 'package:nai_launcher/core/platform/platform_capabilities.dart';
 import 'package:nai_launcher/core/storage/local_storage_service.dart';
 import 'package:nai_launcher/data/services/local_onnx_model_service.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
-import 'package:nai_launcher/presentation/providers/data_source_cache_provider.dart';
+import 'package:nai_launcher/core/database/providers/data_source_cache_provider.dart';
 import 'package:nai_launcher/presentation/screens/settings/sections/storage_settings_section.dart';
 import 'package:nai_launcher/presentation/screens/settings/widgets/cache_statistics_tile.dart';
 import 'package:nai_launcher/presentation/screens/settings/widgets/data_source_cache_settings.dart';
@@ -41,7 +42,8 @@ void main() {
       appSupportPath: appSupportDir.path,
     );
     Hive.init('${tempDir.path}${Platform.pathSeparator}hive');
-    await Hive.openBox(StorageKeys.settingsBox);
+    // 内存后端：落盘写一旦从 widget test 的 FakeAsync 时钟发起就不会完成，会锁死 box
+    await Hive.openBox(StorageKeys.settingsBox, bytes: Uint8List(0));
   });
 
   setUp(() async {
@@ -59,7 +61,8 @@ void main() {
   });
 
   tearDownAll(() async {
-    await Hive.close();
+    // 有界等待：box 被锁死时快速失败，不把整个测试分片拖到看门狗超时
+    await Hive.close().timeout(const Duration(seconds: 10));
     if (await tempDir.exists()) {
       await tempDir.delete(recursive: true);
     }
@@ -147,6 +150,33 @@ void main() {
     // 图片保存路径 / Vibe 库路径 / Hive 路径三处都只读，且用 iOS 而非 Android 文案。
     expect(find.textContaining('沙盒'), findsNWidgets(3));
     expect(find.textContaining('由系统安全管理'), findsNothing);
+  });
+
+  testWidgets('Android 同步到系统相册开关默认开启，关闭后写入设置', (tester) async {
+    PlatformCapabilities.debugOverride = PlatformCapabilities.forPlatform(
+      TargetPlatform.android,
+    );
+
+    await tester.pumpWidget(_buildSubject(storage));
+    await tester.pump();
+
+    final syncSwitch = find.widgetWithText(SwitchListTile, '同步到系统相册');
+    expect(syncSwitch, findsOneWidget);
+    expect(tester.widget<SwitchListTile>(syncSwitch).value, isTrue);
+
+    await tester.ensureVisible(syncSwitch);
+    await tester.tap(syncSwitch);
+    await tester.pump();
+
+    expect(tester.widget<SwitchListTile>(syncSwitch).value, isFalse);
+    expect(storage.values[StorageKeys.syncImagesToSystemGallery], isFalse);
+  });
+
+  testWidgets('桌面端不显示同步到系统相册开关', (tester) async {
+    await tester.pumpWidget(_buildSubject(storage));
+    await tester.pump();
+
+    expect(find.text('同步到系统相册'), findsNothing);
   });
 
   testWidgets('聚焦数据与存储：保护模式移出，数据源缓存迁入', (tester) async {

@@ -22,13 +22,13 @@ class ImageEditorScreen extends StatefulWidget {
     this.initialFocusedInpaintEnabled = false,
     this.focusedInpaintCostConfig,
     this.showMaskExport = true,
+    this.supportsFocusOutpaint = false,
+    this.existingFrameRect,
     this.mode = ImageEditorMode.edit,
     this.title = '',
     this.completionLabel,
     this.initialOutpaintCommitPending = false,
     this.initialShowLayerPanel = true,
-    this.debugFailOutpaintSourceReplacement = false,
-    this.debugFailOutpaintAfterFocusedDisable = false,
     this.debugDisableDropRegion = false,
     this.debugEfficientVitSamSelector,
   });
@@ -48,14 +48,13 @@ class ImageEditorScreen extends StatefulWidget {
       initialFocusedInpaintEnabled: config.initialFocusedInpaintEnabled,
       focusedInpaintCostConfig: config.focusedInpaintCostConfig,
       showMaskExport: config.showMaskExport,
+      supportsFocusOutpaint: config.supportsFocusOutpaint,
+      existingFrameRect: config.existingFrameRect,
       mode: config.mode,
       title: config.title,
       completionLabel: config.completionLabel,
       initialOutpaintCommitPending: debug.initialOutpaintCommitPending,
       initialShowLayerPanel: debug.initialShowLayerPanel,
-      debugFailOutpaintSourceReplacement: debug.failOutpaintSourceReplacement,
-      debugFailOutpaintAfterFocusedDisable:
-          debug.failOutpaintAfterFocusedDisable,
       debugDisableDropRegion: debug.disableDropRegion,
       debugEfficientVitSamSelector: debug.efficientVitSamSelector,
     );
@@ -69,6 +68,8 @@ class ImageEditorScreen extends StatefulWidget {
   final bool initialFocusedInpaintEnabled;
   final ImageEditorFocusedInpaintCostConfig? focusedInpaintCostConfig;
   final bool showMaskExport;
+  final bool supportsFocusOutpaint;
+  final Rect? existingFrameRect;
   final ImageEditorMode mode;
   final String title;
   final String? completionLabel;
@@ -77,10 +78,6 @@ class ImageEditorScreen extends StatefulWidget {
   final bool initialOutpaintCommitPending;
   @visibleForTesting
   final bool initialShowLayerPanel;
-  @visibleForTesting
-  final bool debugFailOutpaintSourceReplacement;
-  @visibleForTesting
-  final bool debugFailOutpaintAfterFocusedDisable;
   @visibleForTesting
   final bool debugDisableDropRegion;
   @visibleForTesting
@@ -95,14 +92,14 @@ class ImageEditorScreen extends StatefulWidget {
     initialFocusedInpaintEnabled: initialFocusedInpaintEnabled,
     focusedInpaintCostConfig: focusedInpaintCostConfig,
     showMaskExport: showMaskExport,
+    supportsFocusOutpaint: supportsFocusOutpaint,
+    existingFrameRect: existingFrameRect,
     mode: mode,
     title: title,
     completionLabel: completionLabel,
     debugOptions: ImageEditorDebugOptions(
       initialOutpaintCommitPending: initialOutpaintCommitPending,
       initialShowLayerPanel: initialShowLayerPanel,
-      failOutpaintSourceReplacement: debugFailOutpaintSourceReplacement,
-      failOutpaintAfterFocusedDisable: debugFailOutpaintAfterFocusedDisable,
       disableDropRegion: debugDisableDropRegion,
       efficientVitSamSelector: debugEfficientVitSamSelector,
     ),
@@ -118,6 +115,8 @@ class ImageEditorScreen extends StatefulWidget {
     bool initialFocusedInpaintEnabled = false,
     ImageEditorFocusedInpaintCostConfig? focusedInpaintCostConfig,
     bool showMaskExport = true,
+    bool supportsFocusOutpaint = false,
+    Rect? existingFrameRect,
     ImageEditorMode mode = ImageEditorMode.edit,
     String? title,
     String? completionLabel,
@@ -133,6 +132,8 @@ class ImageEditorScreen extends StatefulWidget {
           initialFocusedInpaintEnabled: initialFocusedInpaintEnabled,
           focusedInpaintCostConfig: focusedInpaintCostConfig,
           showMaskExport: showMaskExport,
+          supportsFocusOutpaint: supportsFocusOutpaint,
+          existingFrameRect: existingFrameRect,
           mode: mode,
           title: title ?? context.l10n.editor_defaultTitle,
           completionLabel: completionLabel,
@@ -153,6 +154,8 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
 
   @visibleForTesting
   Size get debugCanvasSize => _workspace.debugCanvasSize;
+  @visibleForTesting
+  Rect get debugFrame => _workspace.debugFrame;
   @visibleForTesting
   Size get debugCompressionTargetSize => _workspace.debugCompressionTargetSize;
   @visibleForTesting
@@ -240,18 +243,6 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
     OutpaintVerticalSnapTarget verticalSnapTarget =
         OutpaintVerticalSnapTarget.bottom,
   }) => _workspace.debugApplyOutpaintFrameDelta(
-    delta,
-    horizontalSnapTarget: horizontalSnapTarget,
-    verticalSnapTarget: verticalSnapTarget,
-  );
-  @visibleForTesting
-  Future<void> debugApplyOutpaintFrameDeltaMaterialized(
-    OutpaintFrameDelta delta, {
-    OutpaintHorizontalSnapTarget horizontalSnapTarget =
-        OutpaintHorizontalSnapTarget.right,
-    OutpaintVerticalSnapTarget verticalSnapTarget =
-        OutpaintVerticalSnapTarget.bottom,
-  }) => _workspace.debugApplyOutpaintFrameDeltaMaterialized(
     delta,
     horizontalSnapTarget: horizontalSnapTarget,
     verticalSnapTarget: verticalSnapTarget,

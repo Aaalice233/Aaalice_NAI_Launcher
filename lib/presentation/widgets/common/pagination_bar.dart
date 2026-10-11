@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:nai_launcher/presentation/adaptive/interaction_policy.dart';
 import 'package:nai_launcher/core/utils/localization_extension.dart';
+import 'package:nai_launcher/presentation/widgets/common/ink_host.dart';
 import 'package:nai_launcher/presentation/widgets/common/themed_input.dart';
 import 'package:nai_launcher/presentation/widgets/gallery/gallery_sidebar.dart';
 
@@ -190,17 +191,19 @@ class _PaginationBarState extends State<PaginationBar> {
                       ),
                     ),
                   ),
-            child: narrow
-                ? _buildNarrowLayout(
-                    theme,
-                    colorScheme,
-                    veryNarrow: constraints.maxWidth < 400,
-                  )
-                : widget.compact
-                ? _buildCompactLayout(theme, colorScheme)
-                : constraints.maxWidth < 1600 || largeText
-                ? _buildMediumLayout(theme, colorScheme)
-                : _buildFullLayout(theme, colorScheme),
+            child: InkHost(
+              child: narrow
+                  ? _buildNarrowLayout(
+                      theme,
+                      colorScheme,
+                      veryNarrow: constraints.maxWidth < 400,
+                    )
+                  : widget.compact
+                  ? _buildCompactLayout(theme, colorScheme)
+                  : constraints.maxWidth < 1600 || largeText
+                  ? _buildMediumLayout(theme, colorScheme)
+                  : _buildFullLayout(theme, colorScheme),
+            ),
           );
           if (!widget.tonalCard) return bar;
           return GalleryCollectionFooterSurface(child: bar);
@@ -755,24 +758,26 @@ class _PaginationBarState extends State<PaginationBar> {
             color: colorScheme.surfaceContainerHigh,
             borderRadius: BorderRadius.circular(6),
           ),
-          child: DropdownButtonHideUnderline(
-            child: DropdownButton<int>(
-              value: widget.itemsPerPage,
-              isDense: true,
-              items: _effectiveItemsPerPageOptions.map((count) {
-                return DropdownMenuItem(
-                  value: count,
-                  child: Text('$count', style: theme.textTheme.bodyMedium),
-                );
-              }).toList(),
-              onChanged: !_canInteract
-                  ? null
-                  : (value) {
-                      if (value != null &&
-                          widget.onItemsPerPageChanged != null) {
-                        widget.onItemsPerPageChanged!(value);
-                      }
-                    },
+          child: InkHost(
+            child: DropdownButtonHideUnderline(
+              child: DropdownButton<int>(
+                value: widget.itemsPerPage,
+                isDense: true,
+                items: _effectiveItemsPerPageOptions.map((count) {
+                  return DropdownMenuItem(
+                    value: count,
+                    child: Text('$count', style: theme.textTheme.bodyMedium),
+                  );
+                }).toList(),
+                onChanged: !_canInteract
+                    ? null
+                    : (value) {
+                        if (value != null &&
+                            widget.onItemsPerPageChanged != null) {
+                          widget.onItemsPerPageChanged!(value);
+                        }
+                      },
+              ),
             ),
           ),
         ),

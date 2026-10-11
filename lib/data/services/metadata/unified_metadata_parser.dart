@@ -93,6 +93,11 @@ class UnifiedMetadataParser {
     text,
   );
 
+  static Uint8List embedTextChunks(
+    Uint8List originalPng,
+    Map<String, String> replacements,
+  ) => ImageMetadataContainerCodec.embedTextChunks(originalPng, replacements);
+
   static Uint8List copySupportedMetadata({
     required Uint8List source,
     required Uint8List targetPng,

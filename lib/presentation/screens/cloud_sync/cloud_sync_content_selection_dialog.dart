@@ -137,6 +137,15 @@ class _CloudSyncContentSelectionBodyState
                         _selection.copyWith(includeGalleryAlbums: value),
                       ),
                     ),
+                    _toggle(
+                      key: 'fixed-tag-usage',
+                      title: context.l10n.cloudSync_fixedTagUsage,
+                      subtitle: context.l10n.cloudSync_fixedTagUsageDescription,
+                      value: _selection.includeFixedTagUsage,
+                      onChanged: (value) => _update(
+                        _selection.copyWith(includeFixedTagUsage: value),
+                      ),
+                    ),
                   ],
                 ),
                 const SizedBox(height: 24),

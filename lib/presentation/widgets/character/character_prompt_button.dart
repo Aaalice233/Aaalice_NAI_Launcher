@@ -1,4 +1,5 @@
 import '../common/delayed_rich_tooltip.dart';
+import '../common/ink_host.dart';
 import 'package:flutter/material.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -55,12 +56,6 @@ class CharacterPromptButton extends ConsumerWidget {
         horizontal: compact ? 8 : 10,
         vertical: compact ? 4 : 6,
       ),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(10),
-        color: hasCharacters
-            ? colorScheme.primary.withValues(alpha: 0.12)
-            : colorScheme.surfaceContainerLow,
-      ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.center,
@@ -95,19 +90,28 @@ class CharacterPromptButton extends ConsumerWidget {
 
     return _CharacterTooltipWrapper(
       config: config,
-      child: Material(
-        color: Colors.transparent,
-        child: onManage == null
-            ? _AddCharacterMenu(child: buttonContent)
-            : InkWell(
-                onTap: onManage,
-                borderRadius: BorderRadius.circular(10),
-                child: buttonContent,
-              ),
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          borderRadius: _buttonRadius,
+          color: hasCharacters
+              ? colorScheme.primary.withValues(alpha: 0.12)
+              : colorScheme.surfaceContainerLow,
+        ),
+        child: InkHost(
+          child: onManage == null
+              ? _AddCharacterMenu(child: buttonContent)
+              : InkWell(
+                  onTap: onManage,
+                  borderRadius: _buttonRadius,
+                  child: buttonContent,
+                ),
+        ),
       ),
     );
   }
 }
+
+const _buttonRadius = BorderRadius.all(Radius.circular(10));
 
 /// 无角色时的添加菜单包装
 class _AddCharacterMenu extends ConsumerWidget {
@@ -123,6 +127,7 @@ class _AddCharacterMenu extends ConsumerWidget {
     return PopupMenuButton<_CharacterAddAction>(
       tooltip: '',
       padding: EdgeInsets.zero,
+      borderRadius: _buttonRadius,
       onSelected: (action) => _handleAdd(context, ref, action),
       itemBuilder: (context) => [
         PopupMenuItem(

@@ -2,102 +2,9 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 
+import '../../common/checkerboard_pattern.dart';
+import '../../common/image_viewport_surface.dart';
 import '../core/editor_state.dart';
-
-class CheckerboardCacheKey {
-  const CheckerboardCacheKey({
-    required this.canvasSize,
-    required this.cellSize,
-    required this.color1,
-    required this.color2,
-  });
-
-  final Size canvasSize;
-  final double cellSize;
-  final Color color1;
-  final Color color2;
-
-  @override
-  bool operator ==(Object other) {
-    return identical(this, other) ||
-        other is CheckerboardCacheKey &&
-            other.canvasSize == canvasSize &&
-            other.cellSize == cellSize &&
-            other.color1 == color1 &&
-            other.color2 == color2;
-  }
-
-  @override
-  int get hashCode => Object.hash(canvasSize, cellSize, color1, color2);
-}
-
-/// 棋盘格缓存管理器
-/// 缓存棋盘格 Picture，避免每帧重复绘制单元格
-class _CheckerboardCache {
-  static CheckerboardCacheKey? _key;
-  static ui.Picture? _picture;
-  static int _recordCount = 0;
-
-  /// 棋盘格单元格大小
-  static const double cellSize = 16.0;
-
-  /// 棋盘格颜色
-  static final Color color1 = Colors.grey.shade300;
-  static final Color color2 = Colors.grey.shade100;
-
-  static CheckerboardCacheKey? get currentKey => _key;
-  static int get recordCount => _recordCount;
-
-  static void draw(Canvas canvas, CheckerboardCacheKey key) {
-    final picture = _pictureFor(key);
-    canvas.save();
-    canvas.clipRect(
-      Rect.fromLTWH(0, 0, key.canvasSize.width, key.canvasSize.height),
-    );
-    canvas.drawPicture(picture);
-    canvas.restore();
-  }
-
-  static ui.Picture _pictureFor(CheckerboardCacheKey key) {
-    if (_picture != null && _key == key) {
-      return _picture!;
-    }
-
-    _picture?.dispose();
-    _key = key;
-    _picture = _recordPicture(key);
-    _recordCount++;
-    return _picture!;
-  }
-
-  static ui.Picture _recordPicture(CheckerboardCacheKey key) {
-    final recorder = ui.PictureRecorder();
-    final canvas = Canvas(recorder);
-    final paint1 = Paint()..color = key.color1;
-    final paint2 = Paint()..color = key.color2;
-
-    for (double y = 0; y < key.canvasSize.height; y += key.cellSize) {
-      for (double x = 0; x < key.canvasSize.width; x += key.cellSize) {
-        final isEven = ((x ~/ key.cellSize) + (y ~/ key.cellSize)) % 2 == 0;
-        canvas.drawRect(
-          Rect.fromLTWH(x, y, key.cellSize, key.cellSize),
-          isEven ? paint1 : paint2,
-        );
-      }
-    }
-
-    return recorder.endRecording();
-  }
-
-  /// 释放缓存（通常不需要调用，除非显式清理）
-  // ignore: unused_element
-  static void dispose() {
-    _picture?.dispose();
-    _picture = null;
-    _key = null;
-    _recordCount = 0;
-  }
-}
 
 /// 图层绘制器
 /// 负责绘制所有图层内容
@@ -105,101 +12,83 @@ class LayerPainter extends CustomPainter {
   final EditorState state;
   final bool showTransparentCanvasBackground;
 
+  /// 框外内容照常绘制并压暗，表示保留但不会送出
+  final bool revealOutsideFrame;
+
+  /// 决定透明底纹的纹理精度
+  final double devicePixelRatio;
+
+  static final CheckerboardPattern _checkerboard = CheckerboardPattern(
+    cellSize: 16,
+    evenColor: Colors.grey.shade300,
+    oddColor: Colors.grey.shade100,
+  );
+
+  static final Color _outsideFrameScrim = ImageViewportSurface.background
+      .withValues(alpha: 0.72);
+
   /// 使用 renderNotifier 而非整个 state
   /// 这样只有在渲染相关变化时才会触发重绘
   /// 切换活动图层等 UI 操作不会导致画布重绘
   LayerPainter({
     required this.state,
     this.showTransparentCanvasBackground = false,
+    this.revealOutsideFrame = false,
+    this.devicePixelRatio = 1.0,
   }) : super(repaint: state.renderNotifier);
-
-  @visibleForTesting
-  static CheckerboardCacheKey? get debugCheckerboardCacheKey {
-    return _CheckerboardCache.currentKey;
-  }
-
-  @visibleForTesting
-  static int get debugCheckerboardRecordCount {
-    return _CheckerboardCache.recordCount;
-  }
-
-  @visibleForTesting
-  static void debugResetCheckerboardCache() {
-    _CheckerboardCache.dispose();
-  }
 
   @override
   void paint(Canvas canvas, Size size) {
-    final canvasSize = state.canvasSize;
+    final frame = state.displayFrame;
     final controller = state.canvasController;
 
     // 保存状态
     canvas.save();
 
-    // 应用基础变换（平移和缩放）
-    canvas.translate(controller.offset.dx, controller.offset.dy);
+    // 平移、以取景框中心旋转/镜像、缩放
+    controller.applyViewTransform(canvas, state.frame);
 
-    // 应用旋转和镜像（以画布中心为基准）
-    final centerX = canvasSize.width * controller.scale / 2;
-    final centerY = canvasSize.height * controller.scale / 2;
-
-    if (controller.rotation != 0 || controller.isMirroredHorizontally) {
-      canvas.translate(centerX, centerY);
-
-      if (controller.rotation != 0) {
-        canvas.rotate(controller.rotation);
-      }
-
-      if (controller.isMirroredHorizontally) {
-        canvas.scale(-1.0, 1.0);
-      }
-
-      canvas.translate(-centerX, -centerY);
-    }
-
-    canvas.scale(controller.scale);
-
-    // 绘制画布背景（棋盘格表示透明）
-    _drawCheckerboard(canvas, canvasSize);
-
-    // 绘制白色画布底色
-    if (!showTransparentCanvasBackground) {
-      canvas.drawRect(
-        Rect.fromLTWH(0, 0, canvasSize.width, canvasSize.height),
-        Paint()..color = Colors.white,
+    // 透明画布用棋盘格表示透明，否则铺白色底色
+    if (showTransparentCanvasBackground) {
+      _checkerboard.paint(
+        canvas,
+        frame,
+        origin: frame.topLeft,
+        pixelScale: controller.scale * devicePixelRatio,
       );
+    } else {
+      canvas.drawRect(frame, Paint()..color = Colors.white);
     }
 
-    // 裁剪到画布范围，防止笔画超出边界
-    canvas.clipRect(Rect.fromLTWH(0, 0, canvasSize.width, canvasSize.height));
+    if (!revealOutsideFrame) {
+      // 裁剪到取景框范围，防止笔画超出边界
+      canvas.clipRect(frame);
+    }
 
     // 获取视口边界用于空间剔除优化
     // 这可以避免渲染不在视口内的图层，提高性能（特别是放大查看时）
-    final viewportBounds = controller.viewportBounds;
+    final viewportBounds = controller.viewportBounds(state.frame);
 
     // 绘制所有图层（传入视口边界以启用空间剔除优化）
     state.layerManager.renderAll(
       canvas,
-      canvasSize,
       viewportBounds: viewportBounds,
       filterQuality: FilterQuality.medium,
     );
+
+    if (revealOutsideFrame) {
+      _drawOutsideFrameScrim(canvas, frame);
+    }
 
     // 恢复状态
     canvas.restore();
   }
 
-  /// 绘制棋盘格背景（表示透明区域）
-  /// 使用 Picture 缓存优化性能
-  void _drawCheckerboard(Canvas canvas, Size size) {
-    final key = CheckerboardCacheKey(
-      canvasSize: size,
-      cellSize: _CheckerboardCache.cellSize,
-      color1: _CheckerboardCache.color1,
-      color2: _CheckerboardCache.color2,
-    );
-
-    _CheckerboardCache.draw(canvas, key);
+  void _drawOutsideFrameScrim(Canvas canvas, Rect frame) {
+    canvas.save();
+    canvas.clipRect(frame, clipOp: ui.ClipOp.difference);
+    canvas.drawPaint(Paint()..color = _outsideFrameScrim);
+    canvas.restore();
   }
 
   @override
@@ -208,48 +97,36 @@ class LayerPainter extends CustomPainter {
     // shouldRepaint 只需处理 CustomPainter 本身的属性变化
     // 返回 false 避免工具切换等无关操作触发不必要的重绘
     return showTransparentCanvasBackground !=
-        oldDelegate.showTransparentCanvasBackground;
+            oldDelegate.showTransparentCanvasBackground ||
+        revealOutsideFrame != oldDelegate.revealOutsideFrame ||
+        devicePixelRatio != oldDelegate.devicePixelRatio;
   }
 }
 
 class VirtualOutpaintMaskPainter extends CustomPainter {
   final EditorState state;
-  final List<Rect> maskRects;
 
-  VirtualOutpaintMaskPainter({required this.state, required this.maskRects})
+  /// 给定取景框局部坐标下待生成的空白区域
+  final List<Rect> Function(Rect frame) maskRectsFor;
+
+  VirtualOutpaintMaskPainter({required this.state, required this.maskRectsFor})
     : super(repaint: state.renderNotifier);
 
   @override
   void paint(Canvas canvas, Size size) {
+    // 跟随平移预览，拖动过程中就能看到哪些区域会被生成
+    final frame = state.displayFrame;
+    final maskRects = maskRectsFor(frame);
     if (maskRects.isEmpty) {
       return;
     }
 
-    final canvasSize = state.canvasSize;
     final controller = state.canvasController;
 
     canvas.save();
-    canvas.translate(controller.offset.dx, controller.offset.dy);
-
-    final centerX = canvasSize.width * controller.scale / 2;
-    final centerY = canvasSize.height * controller.scale / 2;
-
-    if (controller.rotation != 0 || controller.isMirroredHorizontally) {
-      canvas.translate(centerX, centerY);
-
-      if (controller.rotation != 0) {
-        canvas.rotate(controller.rotation);
-      }
-
-      if (controller.isMirroredHorizontally) {
-        canvas.scale(-1.0, 1.0);
-      }
-
-      canvas.translate(-centerX, -centerY);
-    }
-
-    canvas.scale(controller.scale);
-    canvas.clipRect(Rect.fromLTWH(0, 0, canvasSize.width, canvasSize.height));
+    controller.applyViewTransform(canvas, state.frame);
+    canvas.translate(frame.left, frame.top);
+    canvas.clipRect(Offset.zero & frame.size);
 
     final fill = Paint()..color = const Color(0x5560AAFF);
     final outline = Paint()
@@ -268,22 +145,7 @@ class VirtualOutpaintMaskPainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant VirtualOutpaintMaskPainter oldDelegate) {
     return state != oldDelegate.state ||
-        !_rectListsEqual(maskRects, oldDelegate.maskRects);
-  }
-
-  static bool _rectListsEqual(List<Rect> a, List<Rect> b) {
-    if (identical(a, b)) {
-      return true;
-    }
-    if (a.length != b.length) {
-      return false;
-    }
-    for (var i = 0; i < a.length; i++) {
-      if (a[i] != b[i]) {
-        return false;
-      }
-    }
-    return true;
+        maskRectsFor != oldDelegate.maskRectsFor;
   }
 }
 
@@ -315,82 +177,17 @@ class SelectionPainter extends CustomPainter {
     }
 
     final controller = state.canvasController;
-    final canvasSize = state.canvasSize;
 
     canvas.save();
-    canvas.translate(controller.offset.dx, controller.offset.dy);
+    controller.applyViewTransform(canvas, state.frame);
 
-    // 应用旋转和镜像（以画布中心为基准）
-    final centerX = canvasSize.width * controller.scale / 2;
-    final centerY = canvasSize.height * controller.scale / 2;
-
-    if (controller.rotation != 0 || controller.isMirroredHorizontally) {
-      canvas.translate(centerX, centerY);
-
-      if (controller.rotation != 0) {
-        canvas.rotate(controller.rotation);
-      }
-
-      if (controller.isMirroredHorizontally) {
-        canvas.scale(-1.0, 1.0);
-      }
-
-      canvas.translate(-centerX, -centerY);
-    }
-
-    canvas.scale(controller.scale);
-
-    // 绘制预览（绘制中）
-    if (state.previewPath != null) {
-      _drawMarchingAnts(canvas, state.previewPath!);
-    }
-
-    // 绘制已确认的选区（蚂蚁线）
-    if (state.selectionPath != null) {
-      if (state.selectionManager.isTransforming) {
-        final bounds = state.selectionManager.transformedBounds;
-        if (bounds != null) {
-          final transformedPath = Path()..addRect(bounds);
-          _drawMarchingAnts(canvas, transformedPath);
-          _drawTransformHandles(canvas, bounds, controller.scale);
-        }
-      } else {
-        _drawMarchingAnts(canvas, state.selectionPath!);
-      }
+    // 绘制新选区期间旧选区让位；拖动中显示平移后的轮廓
+    final selection = state.previewPath ?? state.selectionManager.displayPath;
+    if (selection != null) {
+      _drawMarchingAnts(canvas, selection);
     }
 
     canvas.restore();
-  }
-
-  /// 绘制变换控制点
-  void _drawTransformHandles(Canvas canvas, Rect bounds, double viewScale) {
-    final handleSize = 6.0 / viewScale;
-    final handlePaint = Paint()..color = Colors.white;
-    final handleBorder = Paint()
-      ..color = Colors.black
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.0 / viewScale;
-
-    final corners = [
-      bounds.topLeft,
-      bounds.topCenter,
-      bounds.topRight,
-      bounds.centerLeft,
-      bounds.centerRight,
-      bounds.bottomLeft,
-      bounds.bottomCenter,
-      bounds.bottomRight,
-    ];
-
-    for (final corner in corners) {
-      final rect = Rect.fromCenter(
-        center: corner,
-        width: handleSize,
-        height: handleSize,
-      );
-      canvas.drawRect(rect, handlePaint);
-      canvas.drawRect(rect, handleBorder);
-    }
   }
 
   /// 绘制蚂蚁线（选区边框动画）

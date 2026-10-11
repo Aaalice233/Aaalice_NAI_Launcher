@@ -16,7 +16,7 @@ import '../../../data/models/agent/agent_settings.dart';
 import '../../../data/repositories/gallery_folder_repository.dart';
 import '../../agent_chat/services/agent_system_prompt.dart';
 import '../../providers/image_save_settings_provider.dart';
-import '../../prompt_assistant/models/prompt_assistant_models.dart';
+import '../../../data/models/prompt_assistant/prompt_assistant_models.dart';
 
 class AgentSettingsState {
   const AgentSettingsState({

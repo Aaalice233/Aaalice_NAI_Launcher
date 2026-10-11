@@ -5,8 +5,8 @@ import 'dart:math' as math;
 
 import 'package:dio/dio.dart';
 
-import '../models/assistant_execution_settings.dart';
-import '../models/prompt_assistant_models.dart';
+import '../../../data/models/prompt_assistant/assistant_execution_settings.dart';
+import '../../../data/models/prompt_assistant/prompt_assistant_models.dart';
 import 'assistant_cancellation.dart';
 
 /// One queue per configured endpoint, shared by every prompt-assistant task.

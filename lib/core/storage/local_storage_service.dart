@@ -5,6 +5,7 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 import '../constants/api_constants.dart';
 import '../constants/model_capabilities.dart';
 import '../constants/storage_keys.dart';
+import '../enums/image_model_mode.dart';
 import '../platform/platform_capabilities.dart';
 
 part 'local_storage_service.g.dart';
@@ -242,6 +243,19 @@ class LocalStorageService {
   /// 保存是否自动保存图片
   Future<void> setAutoSaveImages(bool value) async {
     await setSetting(StorageKeys.autoSaveImages, value);
+  }
+
+  /// 保存图片时是否同时发布到系统相册（仅 Android 生效）
+  bool getSyncImagesToSystemGallery() {
+    return getSetting<bool>(
+          StorageKeys.syncImagesToSystemGallery,
+          defaultValue: true,
+        ) ??
+        true;
+  }
+
+  Future<void> setSyncImagesToSystemGallery(bool value) async {
+    await setSetting(StorageKeys.syncImagesToSystemGallery, value);
   }
 
   /// 获取透明图像的 Alpha 模式（true=Straight，false=Premultiplied）。
@@ -650,6 +664,18 @@ class LocalStorageService {
   /// 保存端到端 ×2 放大开关
   Future<void> setLastE2eUpscale(bool value) async {
     await setSetting(StorageKeys.lastE2eUpscale, value);
+  }
+
+  /// 获取 Anime / Furry 模式 (V4 起生效)
+  ImageModelMode getImageModelMode() {
+    return ImageModelMode.fromName(
+      getSetting<String>(StorageKeys.imageModelMode),
+    );
+  }
+
+  /// 保存 Anime / Furry 模式
+  Future<void> setImageModelMode(ImageModelMode mode) async {
+    await setSetting(StorageKeys.imageModelMode, mode.name);
   }
 
   // ==================== Seed Lock ====================

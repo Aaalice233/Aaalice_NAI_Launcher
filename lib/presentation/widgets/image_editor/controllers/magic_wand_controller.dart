@@ -15,6 +15,7 @@ import '../export/image_exporter_new.dart';
 import '../image_editor_controller.dart';
 import '../image_editor_types.dart';
 import '../layers/layer.dart';
+import '../layers/layer_patch_baker.dart';
 
 @immutable
 class MagicWandSnapshot {
@@ -48,10 +49,12 @@ class MagicWandController extends ChangeNotifier {
     required bool invert,
   }) async {
     if (_disposed || _snapshot.processing) return;
-    final width = editorState.canvasSize.width.round();
-    final height = editorState.canvasSize.height.round();
-    final x = point.dx.floor();
-    final y = point.dy.floor();
+    // 结果按调用时的取景框落位，异步期间框被移动也不会错位
+    final region = editorState.frame;
+    final width = region.width.round();
+    final height = region.height.round();
+    final x = (point.dx - region.left).floor();
+    final y = (point.dy - region.top).floor();
     if (width <= 0 ||
         height <= 0 ||
         x < 0 ||
@@ -61,17 +64,17 @@ class MagicWandController extends ChangeNotifier {
       return;
     }
 
-    final target = config.mode == ImageEditorMode.inpaint
-        ? _sourceLayer()
-        : _editTarget();
-    if (target == null) {
+    // 蒙版层上：从画面取样生成蒙版；图片层上：擦除当前图层中选中的像素
+    final masksTarget = editorState.isMaskLayerActive;
+    final eraseTarget = masksTarget ? null : _editTarget();
+    if (masksTarget ? !_hasImageContent() : eraseTarget == null) {
       AppToast.warning(context, context.l10n.editor_magicWandNoSource);
       return;
     }
     _update(const MagicWandSnapshot(processing: true));
     final epoch = session.beginOperation();
     try {
-      final source = await _renderSource(target);
+      final source = await _renderSource(eraseTarget, region);
       if (!session.accepts(epoch)) return;
       final selection = await _select(
         source: source,
@@ -87,18 +90,10 @@ class MagicWandController extends ChangeNotifier {
           selection.mask.length != width * height) {
         throw StateError('Magic Wand returned an invalid selection mask.');
       }
-      if (config.mode == ImageEditorMode.inpaint) {
-        await _applyMask(context, selection, width, height, epoch);
+      if (eraseTarget == null) {
+        await _applyMask(context, selection, region, epoch);
       } else {
-        await _applyErase(
-          context,
-          target,
-          source,
-          selection,
-          width,
-          height,
-          epoch,
-        );
+        await _applyErase(context, eraseTarget, source, selection, region, epoch);
       }
       if (!context.mounted || !session.accepts(epoch)) return;
       editorState.layerManager.invalidateSnapshot();
@@ -113,13 +108,16 @@ class MagicWandController extends ChangeNotifier {
     }
   }
 
+  /// 优先擦当前图层，其次原图层，最后任一可编辑的图片层
   Layer? _editTarget() {
-    final source = _sourceLayer();
-    if (source != null && !source.locked) return source;
+    bool editable(Layer? layer) =>
+        layer != null && !layer.isMask && !layer.locked && layer.hasContent;
     final active = editorState.layerManager.activeLayer;
-    if (active != null && !active.locked && active.hasContent) return active;
-    for (final layer in editorState.layerManager.layers) {
-      if (layer.visible && !layer.locked && layer.hasContent) return layer;
+    if (editable(active)) return active;
+    final source = _sourceLayer();
+    if (editable(source)) return source;
+    for (final layer in editorState.layerManager.imageLayers) {
+      if (layer.visible && editable(layer)) return layer;
     }
     return null;
   }
@@ -127,19 +125,24 @@ class MagicWandController extends ChangeNotifier {
   Layer? _sourceLayer() {
     final id = session.sourceLayerId;
     if (id == null) return null;
-    final layer = editorState.layerManager.getLayerById(id);
-    return layer?.hasContent == true ? layer : null;
+    return editorState.layerManager.getLayerById(id);
   }
 
-  Future<EditorRawRgbaImage> _renderSource(Layer layer) async {
-    final width = editorState.canvasSize.width.round();
-    final height = editorState.canvasSize.height.round();
+  bool _hasImageContent() => editorState.layerManager.imageLayers.any(
+    (layer) => layer.visible && layer.hasContent,
+  );
+
+  /// [layer] 为空时取全部可见图片层的合成画面，否则只取该图层的像素
+  Future<EditorRawRgbaImage> _renderSource(Layer? layer, Rect region) async {
+    final width = region.width.round();
+    final height = region.height.round();
     final recorder = ui.PictureRecorder();
     final canvas = Canvas(recorder);
-    if (layer.baseImage != null && layer.strokes.isEmpty) {
-      canvas.drawImage(layer.baseImage!, layer.baseImageOffset, Paint());
+    canvas.translate(-region.left, -region.top);
+    if (layer == null) {
+      editorState.layerManager.renderImageLayers(canvas);
     } else {
-      layer.render(canvas, editorState.canvasSize);
+      layer.renderPixels(canvas);
     }
     final picture = recorder.endRecording();
     ui.Image? image;
@@ -203,11 +206,12 @@ class MagicWandController extends ChangeNotifier {
   Future<void> _applyMask(
     BuildContext context,
     ContiguousRegionSelection selection,
-    int width,
-    int height,
+    Rect region,
     int epoch,
   ) async {
-    final mask = await _existingMask(width, height);
+    final width = region.width.round();
+    final height = region.height.round();
+    final mask = await _existingMask(region);
     if (!context.mounted || !session.accepts(epoch)) return;
     var changed = 0;
     for (var i = 0; i < mask.length; i++) {
@@ -233,11 +237,20 @@ class MagicWandController extends ChangeNotifier {
     final target = resolveMagicWandMaskTarget(
       context.l10n.editor_maskLayerName,
     );
+    final BakedLayerImage baked;
+    try {
+      baked = LayerPatchBaker.replaceRegion(
+        target,
+        patch: image,
+        patchRect: region,
+      );
+    } finally {
+      image.dispose();
+    }
     editorState.historyManager.execute(
-      ReplaceLayerImageAction(
+      ReplaceLayerImageAction.baked(
         layerId: target.id,
-        newImageBytes: bytes,
-        newImage: image,
+        pixels: baked,
         actionDescription: 'Apply Magic Wand Mask',
       ),
       editorState,
@@ -245,17 +258,16 @@ class MagicWandController extends ChangeNotifier {
     editorState.layerManager.setActiveLayer(target.id);
   }
 
+  /// 写入当前蒙版层；当前不是可写蒙版层时取第一个可写蒙版层，都没有再新建
   @visibleForTesting
   Layer resolveMagicWandMaskTarget(String maskLayerName) {
     final activeLayer = editorState.layerManager.activeLayer;
-    if (activeLayer != null &&
-        activeLayer.id != session.sourceLayerId &&
-        !activeLayer.locked) {
+    if (activeLayer != null && activeLayer.isMask && !activeLayer.locked) {
       return activeLayer;
     }
 
-    for (final layer in editorState.layerManager.layers) {
-      if (layer.id != session.sourceLayerId && !layer.locked) {
+    for (final layer in editorState.layerManager.maskLayers) {
+      if (!layer.locked) {
         return layer;
       }
     }
@@ -268,10 +280,11 @@ class MagicWandController extends ChangeNotifier {
     Layer target,
     EditorRawRgbaImage source,
     ContiguousRegionSelection selection,
-    int width,
-    int height,
+    Rect region,
     int epoch,
   ) async {
+    final width = region.width.round();
+    final height = region.height.round();
     final edited = Uint8List.fromList(source.bytes);
     var changed = 0;
     for (var i = 0; i < selection.mask.length; i++) {
@@ -294,11 +307,21 @@ class MagicWandController extends ChangeNotifier {
       image.dispose();
       return;
     }
+    final BakedLayerImage baked;
+    try {
+      baked = LayerPatchBaker.replaceRegion(
+        target,
+        patch: image,
+        patchRect: region,
+        extentLock: editorState.rolePolicy.extentLockFor(target),
+      );
+    } finally {
+      image.dispose();
+    }
     editorState.historyManager.execute(
-      ReplaceLayerImageAction(
+      ReplaceLayerImageAction.baked(
         layerId: target.id,
-        newImageBytes: bytes,
-        newImage: image,
+        pixels: baked,
         actionDescription: 'Erase Magic Wand Region',
       ),
       editorState,
@@ -307,14 +330,13 @@ class MagicWandController extends ChangeNotifier {
     session.hasTransparentCutout = true;
   }
 
-  Future<Uint8List> _existingMask(int width, int height) async {
-    final excluded = {
-      if (session.sourceLayerId != null) session.sourceLayerId!,
-    };
+  Future<Uint8List> _existingMask(Rect region) async {
+    final width = region.width.round();
+    final height = region.height.round();
+    final maskLayers = editorState.layerManager.maskLayers;
     final raster = await ImageExporterNew.tryExportHardEdgeMaskRasterFromLayers(
-      editorState.layerManager,
-      editorState.canvasSize,
-      excludedBaseImageLayerIds: excluded,
+      maskLayers,
+      region,
     );
     if (raster != null &&
         raster.width == width &&
@@ -323,9 +345,8 @@ class MagicWandController extends ChangeNotifier {
       return Uint8List.fromList(raster.mask);
     }
     final encoded = await ImageExporterNew.exportMaskFromLayers(
-      editorState.layerManager,
-      editorState.canvasSize,
-      excludedBaseImageLayerIds: excluded,
+      maskLayers,
+      region,
       forceHardEdges: true,
       preferCpuHardEdgeExport: true,
     );

@@ -4,6 +4,7 @@ import 'package:nai_launcher/core/config/auth_feature_flags.dart';
 import 'package:nai_launcher/core/utils/localization_extension.dart';
 
 import '../../providers/auth_mode_provider.dart';
+import '../common/surface_ink_well.dart';
 
 /// 登录模式切换组件
 class AuthModeSwitcher extends ConsumerWidget {
@@ -99,49 +100,46 @@ class AuthModeSwitcher extends ConsumerWidget {
               : theme.colorScheme.onSurfaceVariant)
         : theme.disabledColor;
 
-    final button = InkWell(
-      key: key,
-      onTap: enabled ? onTap : null,
-      borderRadius: BorderRadius.circular(12),
-      child: Opacity(
-        opacity: enabled ? 1 : 0.55,
-        child: AnimatedContainer(
-          duration: MediaQuery.disableAnimationsOf(context)
-              ? Duration.zero
-              : const Duration(milliseconds: 180),
+    final button = Opacity(
+      opacity: enabled ? 1 : 0.55,
+      child: SizedBox(
+        width: double.infinity,
+        height: 76,
+        child: SurfaceInkWell(
+          key: key,
+          borderRadius: BorderRadius.circular(12),
+          color: isSelected
+              ? theme.colorScheme.primaryContainer
+              : theme.colorScheme.surfaceContainerHighest.withValues(
+                  alpha: 0.5,
+                ),
+          duration: const Duration(milliseconds: 180),
           curve: Curves.easeOutCubic,
-          width: double.infinity,
-          height: 76,
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-          decoration: BoxDecoration(
-            color: isSelected
-                ? theme.colorScheme.primaryContainer
-                : theme.colorScheme.surfaceContainerHighest.withValues(
-                    alpha: 0.5,
-                  ),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(icon, size: 20, color: foregroundColor),
-              const SizedBox(height: 6),
-              Flexible(
-                child: Text(
-                  label,
-                  maxLines: maxLabelLines,
-                  overflow: TextOverflow.ellipsis,
-                  textAlign: TextAlign.center,
-                  style: theme.textTheme.labelLarge?.copyWith(
-                    color: foregroundColor,
-                    height: 1.1,
-                    fontWeight: enabled && isSelected
-                        ? FontWeight.w600
-                        : FontWeight.normal,
+          onTap: enabled ? onTap : null,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(icon, size: 20, color: foregroundColor),
+                const SizedBox(height: 6),
+                Flexible(
+                  child: Text(
+                    label,
+                    maxLines: maxLabelLines,
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.center,
+                    style: theme.textTheme.labelLarge?.copyWith(
+                      color: foregroundColor,
+                      height: 1.1,
+                      fontWeight: enabled && isSelected
+                          ? FontWeight.w600
+                          : FontWeight.normal,
+                    ),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),

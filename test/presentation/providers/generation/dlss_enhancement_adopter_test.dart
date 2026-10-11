@@ -1,8 +1,15 @@
+import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:hive/hive.dart';
+import 'package:nai_launcher/data/models/fixed_tag/fixed_tag_entry.dart';
+import 'package:nai_launcher/data/models/fixed_tag/fixed_tag_prompt_type.dart';
+import 'package:nai_launcher/data/models/fixed_tag/fixed_tag_usage_snapshot.dart';
 import 'package:nai_launcher/data/models/image/image_params.dart';
+import 'package:nai_launcher/data/services/fixed_tag/fixed_tag_usage_record_store.dart';
+import 'package:nai_launcher/data/services/metadata/hash_calculator.dart';
 import 'package:nai_launcher/presentation/providers/generation/dlss_enhancement_adopter.dart';
 import 'package:nai_launcher/presentation/providers/image_generation_provider.dart';
 
@@ -58,6 +65,59 @@ void main() {
     expect(path, isNull);
     expect(registrar.registrations, hasLength(1));
   });
+
+  test(
+    'a result that was not saved still inherits the source record',
+    () async {
+      final directory = await Directory.systemTemp.createTemp(
+        'dlss-fixed-tag-',
+      );
+      Hive.init(directory.path);
+      addTearDown(() async {
+        await Hive.close();
+        await directory.delete(recursive: true);
+      });
+      final store = FixedTagUsageRecordStore();
+      await store.initialize();
+
+      final hashes = FileHashCalculator();
+      final source = Uint8List.fromList([1]);
+      final result = Uint8List.fromList([2]);
+      await store.record(
+        contentHash: hashes.calculateFromBytes(source),
+        snapshot: const FixedTagUsageSnapshot(
+          entries: [
+            FixedTagUsageEntry(
+              fixedTagId: 'fixed-a',
+              name: 'A',
+              content: 'masterpiece',
+              weight: 1,
+              renderedContent: 'masterpiece',
+              position: FixedTagPosition.prefix,
+              promptType: FixedTagPromptType.positive,
+              order: 0,
+            ),
+          ],
+        ),
+      );
+
+      final registrar = _Registrar();
+      final container = ProviderContainer(
+        overrides: [
+          imageGenerationNotifierProvider.overrideWith(() => registrar),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      final path = await container
+          .read(dlssEnhancementAdopterProvider)
+          .adopt(result: result, source: source);
+
+      final propagated = store.lookup(hashes.calculateFromBytes(result));
+      expect(path, isNull);
+      expect(propagated?.entries.single.fixedTagId, 'fixed-a');
+    },
+  );
 }
 
 class _Registration {

@@ -3,9 +3,10 @@ import 'package:flutter/material.dart';
 import '../../../core/agent/agent_types.dart';
 import '../../../core/agent/resources/agent_chat_resource_reference.dart';
 import '../../../core/windowing/agent_chat_layout_contract.dart';
-import '../../prompt_assistant/models/prompt_assistant_models.dart';
+import '../../../data/models/prompt_assistant/prompt_assistant_models.dart';
 import '../../prompt_assistant/providers/web_access_provider.dart';
 import '../../agent_settings/providers/agent_settings_provider.dart';
+import '../../utils/dropped_file_reader.dart';
 import '../providers/agent_chat_notifier.dart';
 import '../services/agent_resource_resolver.dart';
 
@@ -22,7 +23,9 @@ class AgentChatPanelViewData {
     required this.height,
     required this.onClose,
     required this.onOpenSettings,
-    required this.mobileHeaderWrapper,
+    required this.headerWrapper,
+    this.onPopOut,
+    this.onDock,
     this.currentCanvasReference,
   });
 
@@ -36,9 +39,19 @@ class AgentChatPanelViewData {
   final double height;
   final VoidCallback? onClose;
   final VoidCallback? onOpenSettings;
-  final Widget Function(Widget child)? mobileHeaderWrapper;
+
+  /// Lets the host attach gestures to the header, such as dragging a
+  /// floating window or swiping a mobile sheet closed.
+  final Widget Function(Widget child)? headerWrapper;
+
+  final VoidCallback? onPopOut;
+
+  /// Only floating hosts set this; the header derives its floating chrome
+  /// from it.
+  final VoidCallback? onDock;
   final AgentChatResourceReference? currentCanvasReference;
 
+  bool get floating => onDock != null;
   bool get running => state.status == AgentChatRunStatus.running;
   AgentChatWidthClass get widthClass =>
       AgentChatLayoutContract.widthClassFor(width);
@@ -83,6 +96,8 @@ class AgentChatPanelCommands {
     required this.selectPermissionMode,
     required this.setWebAccessEnabled,
     required this.pickImages,
+    required this.pasteClipboardImage,
+    required this.attachImageFiles,
     required this.attachCurrentCanvas,
     required this.openReferenceGallery,
     required this.openResourceLibrary,
@@ -117,6 +132,11 @@ class AgentChatPanelCommands {
   final Future<void> Function(AgentPermissionMode mode) selectPermissionMode;
   final Future<void> Function(bool enabled) setWebAccessEnabled;
   final Future<void> Function() pickImages;
+
+  /// Completes with false when the clipboard holds no attachable image, so
+  /// the caller falls back to a regular text paste.
+  final Future<bool> Function() pasteClipboardImage;
+  final Future<void> Function(List<DroppedFileData> files) attachImageFiles;
   final Future<void> Function() attachCurrentCanvas;
   final Future<void> Function() openReferenceGallery;
   final Future<void> Function() openResourceLibrary;

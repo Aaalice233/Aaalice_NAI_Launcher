@@ -192,13 +192,23 @@
   "auth_switchAccount": "アカウントを切り替える",
   "auth_currentAccount": "現在のアカウント",
   "auth_selectAccount": "アカウントを選択してください",
-  "auth_deleteAccount": "アカウントを削除",
-  "auth_deleteAccountConfirm": "「{name}」を削除してもよろしいですか?これを元に戻すことはできません。",
-  "@auth_deleteAccountConfirm": {
+  "auth_manageAccounts": "アカウント管理",
+  "auth_removeSavedAccount": "アカウントを削除",
+  "auth_removeSavedAccountAction": "削除",
+  "auth_removeSavedAccountConfirm": "「{name}」の保存済みログイン情報とアバターをこの端末から削除します。NovelAI アカウント自体には影響せず、あとで再ログインできます。",
+  "@auth_removeSavedAccountConfirm": {
     "placeholders": {
       "name": {}
     }
   },
+  "auth_removeSessionAccountNotice": "現在このアカウントでログイン中です。削除の前にログアウトします。",
+  "auth_removeSavedAccountSuccess": "「{name}」を削除しました",
+  "@auth_removeSavedAccountSuccess": {
+    "placeholders": {
+      "name": {}
+    }
+  },
+  "auth_removeSavedAccountFailed": "アカウントを削除できませんでした。もう一度お試しください。",
   "auth_removeAvatar": "アバターを削除",
   "auth_selectFromGallery": "ギャラリーから選択",
   "auth_quickLogin": "クイックログイン",
@@ -288,6 +298,8 @@
   "settings_imageSavePath": "画像の保存場所",
   "settings_autoSave": "自動保存",
   "settings_autoSaveSubtitle": "生成後に画像を自動的に保存します",
+  "settings_syncToSystemGallery": "システムギャラリーに同期",
+  "settings_syncToSystemGallerySubtitle": "オフにすると画像はアプリ内ギャラリーにのみ保存され、システムギャラリーには表示されません。同期済みの画像には影響しません。",
   "settings_about": "概要",
   "settings_version": "バージョン {version}",
   "@settings_version": {
@@ -377,6 +389,10 @@
   "generation_history": "履歴",
   "generation_historyRecord": "履歴レコード",
   "agentChat_tab": "チャット",
+  "agentChat_popOutFloating": "フローティングウィンドウで表示",
+  "agentChat_dockToSidePanel": "サイドパネルに戻す",
+  "agentChat_hideFloating": "フローティングウィンドウを隠す",
+  "agentChat_resizeDockSplit": "チャットと履歴の境界を調整",
   "nav_agent": "エージェント",
   "agentChat_inputHint": "AI アシスタントにメッセージを送る…",
   "agentChat_inputHintWithSlash": "AI アシスタントにメッセージを送る。/ でスキル…",
@@ -408,6 +424,7 @@
       "fileName": {}
     }
   },
+  "agentChat_dropHint": "ドロップして会話に追加",
   "agentChat_newChat": "新しいチャット",
   "agentChat_searchSessions": "チャットを検索",
   "agentChat_send": "送信",
@@ -507,6 +524,8 @@
   "@agentChat_addResourceFailed": {"placeholders":{"error":{"type":"String"}}},
   "agentChat_approvalEstimatedAnlas": "推定コスト：{cost} Anlas",
   "@agentChat_approvalEstimatedAnlas": {"placeholders": {"cost": {"type": "int"}}},
+  "agentChat_approvalFileTarget": "ファイルを書き込みます：{path}",
+  "@agentChat_approvalFileTarget": {"placeholders": {"path": {"type": "String"}}},
   "agentChat_needSetup": "チャットモデルが未設定です。先に設定でツール呼び出しに対応したプロバイダーを追加してください。",
   "agentChat_heroTitle": "今日は何をしますか？",
   "agentChat_heroSubtitle": "キャラクタープロンプトの準備、アイデアの整理、設定の調整ができます。",
@@ -540,7 +559,7 @@
   "agentChat_permissionAsk": "確認",
   "agentChat_permissionAskDescription": "機密性の高い操作の前に確認",
   "agentChat_permissionFull": "フルアクセス",
-  "agentChat_permissionFullDescription": "確認なしで実行し、ワークスペース外のファイルも許可",
+  "agentChat_permissionFullDescription": "保存データの削除と Anlas 消費時のみ確認、ワークスペース外も許可",
   "agentChat_approvalTitle": "{toolName} の実行を許可しますか？",
   "@agentChat_approvalTitle": {
     "placeholders": {
@@ -550,12 +569,67 @@
   "agentChat_approvalDescription": "このツールはローカルデータの読み取り、アプリ状態の変更、または料金の発生を伴う可能性があります。",
   "agentChat_approvalAllow": "今回のみ許可",
   "agentChat_approvalDeny": "拒否",
+  "mcpApproval_title": "外部エージェント {client} が承認を求めています",
+  "@mcpApproval_title": {
+    "placeholders": {
+      "client": {}
+    }
+  },
+  "mcpApproval_expiresIn": "{seconds} 秒後に自動的に拒否します",
+  "@mcpApproval_expiresIn": {
+    "placeholders": {
+      "seconds": {}
+    }
+  },
+  "mcpApproval_unknownClient": "不明なクライアント",
   "generation_failedStreamSnapshot": "スナップショットが失敗しました",
   "generation_failedStreamSnapshotHint": "生成が完了しませんでした。最後のプレビュー フレームのみが保持されます。保存したり、お気に入りに登録したり、画像ワークフローに使用したりすることはできません。",
   "generation_noHistory": "履歴レコードがありません",
   "generation_clearHistory": "履歴をクリア",
   "generation_clearHistoryConfirm": "すべての履歴レコードをクリアしてもよろしいですか?この操作は元に戻すことができません。",
+  "generation_deleteImageConfirm": "この画像を履歴から削除しますか？この操作は元に戻せません。",
+  "generation_deleteImageWithFileConfirm": "この画像を履歴から削除し、ローカルギャラリーのファイル「{fileName}」も完全に削除しますか？この操作は元に戻せません。",
+  "@generation_deleteImageWithFileConfirm": {
+    "placeholders": {
+      "fileName": {}
+    }
+  },
+  "generation_deleteImagesConfirm": "選択した {count} 枚の画像を履歴から削除しますか？この操作は元に戻せません。",
+  "@generation_deleteImagesConfirm": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "generation_deleteImagesWithFilesConfirm": "選択した {count} 枚の画像を履歴から削除し、そのうちローカルギャラリーに保存済みの {fileCount} 個のファイルも完全に削除しますか？この操作は元に戻せません。",
+  "@generation_deleteImagesWithFilesConfirm": {
+    "placeholders": {
+      "count": {},
+      "fileCount": {}
+    }
+  },
+  "generation_deleteConfirmSkipForSession": "アプリを再起動するまで確認しない",
+  "generation_deleteImageFilesFailed": "履歴からは削除しましたが、{count} 個のローカルファイルを削除できませんでした：{error}",
+  "@generation_deleteImageFilesFailed": {
+    "placeholders": {
+      "count": {},
+      "error": {}
+    }
+  },
   "generation_model": "モデル",
+  "generation_modelMode": "モード",
+  "generation_modelModeAnime": "アニメ",
+  "generation_modelModeFurry": "ケモノ",
+  "generation_effort": "生成モード",
+  "generation_effortMedium": "節約",
+  "generation_effortHigh": "通常",
+  "generation_effortUnavailableHint": "節約モードでは使用しません",
+  "generation_effortNegativeLocked": "節約モードでは送信しません",
+  "generation_effortNegativeLockedHint": "節約モードでは除外したい要素を送信せず、「{ucPreset}」除外したい要素プリセットのみを使用します。入力内容は保持され、通常モードに戻すと再び使用されます",
+  "@generation_effortNegativeLockedHint": {
+    "placeholders": {
+      "ucPreset": {}
+    }
+  },
   "generation_opusUsageRemaining": "Opus 無料生成の残り {percent}%",
   "generation_opusUsageEstimate": "あと約 {count} 枚生成可能",
   "generation_opusUsageRefill": "上限は時間経過で自動回復します",
@@ -570,7 +644,9 @@
       "steps": {}
     }
   },
+  "generation_stepsLabel": "ステップ",
   "generation_cfgScale": "CFG スケール: {scale}",
+  "generation_cfgScaleLabel": "CFG スケール",
   "@character_limitReached": {
     "placeholders": {
       "limit": {}
@@ -627,6 +703,7 @@
       "value": {}
     }
   },
+  "generation_cfgRescaleLabel": "CFG リスケール",
   "generation_noiseSchedule": "ノイズスケジュール",
   "prompt_positive": "プロンプト",
   "prompt_negative": "除外したい要素",
@@ -862,6 +939,42 @@
   "img2img_directorColorize": "カラー化",
   "img2img_directorEmotion": "感情",
   "img2img_directorDeclutter": "デクラッター",
+  "img2img_directorPixelSnap": "ピクセルスナップ",
+  "img2img_directorPixelSnapHint": "すべてこの PC 上で処理します。Anlas も通信も不要です。大きな画像では数秒かかります。",
+  "img2img_directorPixelSnapPalette": "パレット化",
+  "img2img_directorPixelSnapPaletteOff": "オフ",
+  "img2img_directorPixelSnapPaletteAuto": "自動",
+  "img2img_directorPixelSnapPaletteCustom": "カスタム",
+  "img2img_directorPixelSnapColors": "色数",
+  "img2img_directorPixelSnapAvoidOverRefining": "細かくしすぎない",
+  "img2img_directorPixelSnapAvoidOverRefiningOn": "検出したピクセルサイズを常に維持します。",
+  "img2img_directorPixelSnapAvoidOverRefiningOff": "画像により適している場合、より細かいピクセルサイズを使用することがあります。",
+  "img2img_directorPixelSnapUpscale": "アップスケール",
+  "img2img_directorPixelSnapUpscaleOn": "結果を元の画像とほぼ同じサイズまで拡大し直します。",
+  "img2img_directorPixelSnapUpscaleOff": "結果をスナップ後のピクセルサイズのまま保持します。",
+  "img2img_directorPixelSnapSummary": "{width}×{height} ピクセル · {colors} 色",
+  "@img2img_directorPixelSnapSummary": {
+    "placeholders": {
+      "width": {"type": "int"},
+      "height": {"type": "int"},
+      "colors": {"type": "int"}
+    }
+  },
+  "img2img_directorPixelSnapSummaryNoPalette": "{width}×{height} ピクセル",
+  "@img2img_directorPixelSnapSummaryNoPalette": {
+    "placeholders": {
+      "width": {"type": "int"},
+      "height": {"type": "int"}
+    }
+  },
+  "img2img_directorPixelSnapNoGrid": "この画像には繰り返しのピクセルグリッドが見つかりませんでした。",
+  "img2img_directorPixelSnapBlank": "この画像は全体が透明です。",
+  "img2img_directorPixelSnapDownscaled": "サイズ上限を超えているため、縮小してから解析しました。",
+  "img2img_directorCancel": "キャンセル",
+  "img2img_directorStageAnalyzing": "画像を解析中",
+  "img2img_directorStageSearchingPitch": "ピクセルサイズを探索中",
+  "img2img_directorStageRefiningGrid": "グリッドを調整中",
+  "img2img_directorStageFinishing": "結果を生成中",
   "img2img_enhance": "品質向上",
   "img2img_enhanceHint": "品質向上は、潜在スペースでソース画像を拡大して再生成する間、現在のプロンプトを使用し続けます。",
   "img2img_enhanceMagnitude": "大きさ",
@@ -934,7 +1047,17 @@
   "editor_done": "完了",
   "editor_tolerance": "許容差",
   "editor_intensity": "強度",
-  "editor_sourcePoint": "Alt+クリックしてソースポイントを設定します",
+  "editor_cloneStampSetSource": "ソースを設定",
+  "editor_cloneStampSetSourceTooltip": "オンにすると、次にキャンバス上で選んだ位置がソースポイントになります。Alt キーを押しながらキャンバスをクリックしても設定できます。",
+  "editor_cloneStampPickingHint": "キャンバス上でクローン元の位置を選びます",
+  "editor_cloneStampNoSourceHint": "ソースポイントが未設定です。「ソースを設定」をオンにしてから、キャンバス上の位置を選んでください。",
+  "editor_cloneStampSourceReadout": "ソースポイント: X {x}, Y {y}",
+  "@editor_cloneStampSourceReadout": {
+    "placeholders": {
+      "x": {"type": "int"},
+      "y": {"type": "int"}
+    }
+  },
   "editor_brushPresets": "ブラシ プリセット",
   "editor_size": "サイズ",
   "editor_opacity": "不透明度",
@@ -950,8 +1073,8 @@
   "editor_toolFill": "塗りつぶし",
   "editor_toolMagicWand": "マジックワンド",
   "editor_magicWandMode": "選択方法",
-  "editor_magicWandSmartObject": "スマートオブジェクト（EfficientViT）",
-  "editor_magicWandColorArea": "色領域（塗りつぶし）",
+  "editor_magicWandSmartObject": "オブジェクト",
+  "editor_magicWandColorArea": "色領域",
   "editor_magicWandSmartHelp": "選択するオブジェクトをクリックします。初回使用時に MIT Han Lab から約 133 MiB の EfficientViT-SAM L0 モデル（Apache-2.0）をダウンロードし、以後はローカルに保存します。",
   "editor_magicWandColorHelp": "近い色の連続領域をクリックします。境界が明瞭なフラット画像に適し、モデルのダウンロードは不要です。",
   "editor_magicWandInvert": "結果を反転",
@@ -973,6 +1096,9 @@
   "editor_zoomIn": "ズームイン",
   "editor_zoomOut": "ズームアウト",
   "editor_fitToWindow": "窓に合わせる",
+  "editor_viewOptions": "ビューのオプション",
+  "editor_menuGroupView": "ビュー",
+  "editor_menuGroupCanvas": "キャンバス",
   "editor_tempColorPickerShortcut": "Alt+クリック: 一時的なカラーピッカー",
   "editor_shortcutHelpTitle": "ショートカット ヘルプ",
   "editor_shortcutPaintTools": "ペイント ツール",
@@ -984,6 +1110,7 @@
   "editor_shortcutHistoryActions": "履歴アクション",
   "editor_shortcutSelectionActions": "選択アクション",
   "editor_shortcutTemporaryColorPicker": "一時的なカラーピッカー",
+  "editor_shortcutCloneStampSource": "クローンスタンプのソースを設定",
   "editor_shortcutRectSelection": "長方形の選択",
   "editor_shortcutEllipseSelection": "楕円の選択",
   "editor_shortcutLassoSelection": "なげなわ選択",
@@ -1247,6 +1374,7 @@
       "value": {}
     }
   },
+  "editor_focusMinimumContextAreaLabel": "最小コンテキスト領域",
   "editor_canvasSizeTitle": "キャンバスのサイズ",
   "editor_presetSize": "プリセット サイズ",
   "editor_customSize": "カスタム",
@@ -1293,9 +1421,9 @@
   "editor_sample": "サンプル",
   "editor_samplePoint": "ポイント",
   "editor_sampleArea": "エリア",
-  "editor_source": "ソース",
-  "editor_sourceCurrentLayer": "現在のレイヤー",
-  "editor_sourceAllLayers": "すべてのレイヤー",
+  "editor_source": "対象レイヤー",
+  "editor_sourceCurrentLayer": "現在",
+  "editor_sourceAllLayers": "すべて",
   "editor_lassoSelectionHelp": "押したままドラッグして、自由形式の選択範囲を描画します。放すと自動的に閉まります。",
   "layer_empty": "レイヤーがありません",
   "layer_add": "レイヤーを追加",
@@ -2549,7 +2677,6 @@
   "comparison_loadError": "画像のロードに失敗しました",
   "statistics_title": "統計",
   "statistics_noData": "利用可能な統計はありません",
-  "statistics_noTagData": "タグデータがありません",
   "statistics_generateFirst": "最初にいくつかの画像を生成します",
   "statistics_totalImages": "合計画像数",
   "statistics_totalSize": "合計サイズ",
@@ -3136,25 +3263,119 @@
   },
   "promptAssistant_provider": "プロバイダー",
   "promptAssistant_model": "モデル",
-  "promptAssistant_noModelsPullFirst": "モデルはまだありません。まずモデルリストを取得します",
-  "promptAssistant_providerManagement": "プロバイダー管理",
-  "promptAssistant_providerManagementSubtitle": "OpenAI Chat / Responses、Anthropic、Gemini、DeepSeek、LM Studio、Ollama、Pollinations、カスタム互換エンドポイントをサポート",
-  "promptAssistant_apiKeyConfigured": "API キー: 設定済み",
-  "promptAssistant_apiKeyNotConfigured": "API キー: 設定されていません",
-  "promptAssistant_supportsImageInput": "画像入力をサポート",
-  "promptAssistant_textOnly": "テキストのみ",
-  "promptAssistant_connectionConfig": "接続構成",
-  "promptAssistant_pullModelList": "モデルリストをプルします",
-  "promptAssistant_editProvider": "プロバイダーの編集",
-  "promptAssistant_deleteProvider": "プロバイダーを削除します",
-  "promptAssistant_pullingModels": "モデル リストを取得しています...",
-  "promptAssistant_emptyModelList": "プロバイダーが空のモデル リストを返しました",
-  "promptAssistant_modelsSynced": "同期された {count} モデル",
-  "@promptAssistant_modelsSynced": {
+  "promptAssistant_noModelsPullFirst": "モデルはまだありません。先にモデルサービスで追加してください",
+  "settings_modelServices": "モデルサービス",
+  "modelServices_searchProviders": "プロバイダーを検索",
+  "modelServices_noProviderMatches": "一致するプロバイダーはありません",
+  "modelServices_emptyTitle": "最初のプロバイダーを追加",
+  "modelServices_emptyBody": "プロバイダーは、プロンプトアシスタントとエージェントが使うモデルを提供します。",
+  "modelServices_disabled": "無効",
+  "modelServices_enableProvider": "プロバイダーを有効にする",
+  "modelServices_moreActions": "その他の操作",
+  "modelServices_connection": "接続",
+  "modelServices_apiKey": "API キー",
+  "modelServices_apiKeySavedHint": "保存済みです。新しいキーを入力すると置き換わります。",
+  "modelServices_apiKeyOptional": "このプロバイダーでは省略できます",
+  "modelServices_showApiKey": "キーを表示",
+  "modelServices_hideApiKey": "キーを隠す",
+  "modelServices_clearApiKey": "保存済みのキーを削除",
+  "modelServices_apiKeyCleared": "API キーを削除しました",
+  "modelServices_baseUrl": "API アドレス",
+  "modelServices_checkConnection": "接続を確認",
+  "modelServices_connectionOk": "接続できました。{count} 個のモデルが一覧にあります。",
+  "@modelServices_connectionOk": {
     "placeholders": {
       "count": {}
     }
   },
+  "modelServices_connectionFailed": "接続できませんでした：{error}",
+  "@modelServices_connectionFailed": {
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "modelServices_models": "モデル",
+  "modelServices_modelCount": "{count} 個のモデル",
+  "@modelServices_modelCount": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "modelServices_noModels": "モデルはまだありません。プロバイダーの一覧から選ぶか、モデル ID を追加してください。",
+  "modelServices_manageModels": "モデルを管理",
+  "modelServices_addModel": "モデルを追加",
+  "modelServices_manageModelsTitle": "{provider} のモデル",
+  "@modelServices_manageModelsTitle": {
+    "placeholders": {
+      "provider": {}
+    }
+  },
+  "modelServices_addGroup": "{group} をすべて追加",
+  "@modelServices_addGroup": {
+    "placeholders": {
+      "group": {}
+    }
+  },
+  "modelServices_removeGroup": "{group} をすべて削除",
+  "@modelServices_removeGroup": {
+    "placeholders": {
+      "group": {}
+    }
+  },
+  "modelServices_notListed": "一覧に表示されなくなりました",
+  "modelServices_reasoning": "推論",
+  "modelServices_vision": "画像入力",
+  "modelServices_contextWindow": "コンテキスト {size}",
+  "@modelServices_contextWindow": {
+    "placeholders": {
+      "size": {}
+    }
+  },
+  "modelServices_modelId": "モデル ID",
+  "modelServices_modelIdRequired": "モデル ID を入力してください",
+  "modelServices_modelExists": "このプロバイダーには既にこのモデルがあります",
+  "modelServices_displayName": "表示名",
+  "modelServices_displayNameHint": "空欄の場合は {name} を使用します",
+  "@modelServices_displayNameHint": {
+    "placeholders": {
+      "name": {}
+    }
+  },
+  "modelServices_editModel": "モデルを編集",
+  "modelServices_removeModel": "モデルを削除",
+  "modelServices_removeModelConfirm": "このプロバイダーから {name} を削除しますか？",
+  "@modelServices_removeModelConfirm": {
+    "placeholders": {
+      "name": {}
+    }
+  },
+  "modelServices_removeModelInUse": "{name} は {usages} で使用中です。削除すると、タスクルーティングはこのプロバイダーの別のモデルに切り替わり、エージェントではモデルを選び直す必要があります。",
+  "@modelServices_removeModelInUse": {
+    "placeholders": {
+      "name": {},
+      "usages": {}
+    }
+  },
+  "modelServices_usageSeparator": "、",
+  "modelServices_cleanStaleModels": "一覧にないモデルを整理",
+  "modelServices_addAllModels": "すべてのモデルを追加",
+  "modelServices_staleModelCount": "一覧にないモデル {count} 個",
+  "@modelServices_staleModelCount": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "modelServices_addAllConfirm": "このプロバイダーに {count} 個のモデルを追加しますか？",
+  "@modelServices_addAllConfirm": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "promptAssistant_supportsImageInput": "画像入力をサポート",
+  "promptAssistant_textOnly": "テキストのみ",
+  "promptAssistant_editProvider": "プロバイダーの編集",
+  "promptAssistant_deleteProvider": "プロバイダーを削除します",
+  "promptAssistant_emptyModelList": "プロバイダーが空のモデル リストを返しました",
   "promptAssistant_pullModelsFailed": "モデルのプルに失敗しました: {error}",
   "@promptAssistant_pullModelsFailed": {
     "placeholders": {
@@ -3171,16 +3392,7 @@
   "promptAssistant_allowImageInput": "画像入力を許可します",
   "promptAssistant_allowImageInputSubtitle": "モデルとプロバイダーが実際にビジョン入力をサポートしている場合にのみ有効になります",
   "promptAssistant_apiKeyLeaveEmpty": "API キー (変更しない場合は空のままにします)",
-  "promptAssistant_connectionTitle": "{name} 接続構成",
-  "@promptAssistant_connectionTitle": {
-    "placeholders": {
-      "name": {}
-    }
-  },
   "promptAssistant_baseUrlHint": "例: https://api.openai.com/v1",
-  "promptAssistant_clearCurrentApiKey": "現在の API キーをクリアします",
-  "promptAssistant_protocolSupportsImagePayload": "現在のプロトコルは画像ペイロードをサポートしています。モデル自体は引き続きビジョン入力をサポートする必要があります",
-  "promptAssistant_protocolTextOnlyWarning": "現在のプロトコルはデフォルトではテキストのみです。これを有効にしてもサーバーによって拒否される可能性があります",
   "promptAssistant_addRuleTitle": "ルールの追加",
   "promptAssistant_editRuleTitle": "ルールの編集",
   "promptAssistant_taskType": "タスクの種類",
@@ -3595,6 +3807,18 @@
   "@settings_queueRetryIntervalValue": {
     "placeholders": {
       "seconds": {}
+    }
+  },
+  "settings_decreaseValue": "{field}を減らす",
+  "@settings_decreaseValue": {
+    "placeholders": {
+      "field": {}
+    }
+  },
+  "settings_increaseValue": "{field}を増やす",
+  "@settings_increaseValue": {
+    "placeholders": {
+      "field": {}
     }
   },
   "unit_times": "回",
@@ -4670,14 +4894,6 @@
   },
   "vibe_saveToLibrary_tagHint": "タグを入力して、[追加] を押します",
   "vibe_maxReached": "最大 16 件の Vibe に達しました",
-  "vibe_addedNamed": "Vibe を追加しました: {name}",
-  "@vibe_addedNamed": {
-    "placeholders": {
-      "name": {
-        "type": "String"
-      }
-    }
-  },
   "vibe_addedCount": "{count} 件の Vibe を追加しました",
   "@vibe_addedCount": {
     "placeholders": {
@@ -4767,6 +4983,85 @@
       "client": {}
     }
   },
+
+  "settings_mcpServerPermissionSection": "権限",
+  "settings_mcpServerClientsSection": "クライアント",
+  "settings_mcpServerEnable": "MCP サーバーを有効にする",
+  "settings_mcpServerDisabledText": "既定ではオフ。有効にするとローカルの 127.0.0.1 でのみ待ち受けます",
+  "settings_mcpServerStartingText": "ローカル MCP サーバーを起動しています...",
+  "settings_mcpServerListeningText": "MCP クライアントの接続を待っています",
+  "settings_mcpServerErrorText": "起動に失敗しました。エラーメッセージを確認してください",
+  "settings_mcpServerDisabled": "無効",
+  "settings_mcpServerStarting": "起動中",
+  "settings_mcpServerListening": "待ち受け中",
+  "settings_mcpServerError": "エラー",
+  "settings_mcpServerEndpoint": "エンドポイント",
+  "settings_mcpServerCopyEndpoint": "エンドポイントをコピー",
+  "settings_mcpServerPort": "ポート",
+  "settings_mcpServerPortHelper": "変更すると接続中のクライアントは切断されます",
+  "settings_mcpServerPortInvalid": "ポートは {min} から {max} の範囲で入力してください",
+  "@settings_mcpServerPortInvalid": {
+    "placeholders": {
+      "min": {},
+      "max": {}
+    }
+  },
+  "settings_mcpServerPortInUseHint": "ポート {port} は使用中です。下で別のポートを指定してください",
+  "@settings_mcpServerPortInUseHint": {
+    "placeholders": {
+      "port": {}
+    }
+  },
+  "settings_mcpServerDiscoveryFile": "ディスカバリーファイル",
+  "settings_mcpServerToken": "アクセストークン",
+  "settings_mcpServerRevealToken": "トークンを表示",
+  "settings_mcpServerHideToken": "トークンを隠す",
+  "settings_mcpServerCopyToken": "トークンをコピー",
+  "settings_mcpServerRegenerateToken": "トークンを再生成",
+  "settings_mcpServerRegenerateTokenTitle": "アクセストークンを再生成",
+  "settings_mcpServerRegenerateTokenMessage": "現在のトークンは直ちに無効になり、接続中のクライアントは切断されます。すべてのクライアント設定を新しいトークンに更新してください。",
+  "settings_mcpServerAnlasNotice": "Anlas を消費する可能性のある操作は、権限モードに関係なくランチャー内で個別に確認します。",
+  "settings_mcpServerPendingApproval": "{client} が {tool} の実行を要求しています",
+  "@settings_mcpServerPendingApproval": {
+    "placeholders": {
+      "client": {},
+      "tool": {}
+    }
+  },
+  "settings_mcpServerPendingApprovalHint": "ページ上部の承認バナーで対応してください",
+  "settings_mcpServerConnectedClients": "接続中のクライアント",
+  "settings_mcpServerSessionsEmpty": "接続中のクライアントはありません",
+  "settings_mcpServerSessionConnectedAt": "接続 {time}",
+  "@settings_mcpServerSessionConnectedAt": {
+    "placeholders": {
+      "time": {}
+    }
+  },
+  "settings_mcpServerSessionLastActivity": "最終アクティビティ {time}",
+  "@settings_mcpServerSessionLastActivity": {
+    "placeholders": {
+      "time": {}
+    }
+  },
+  "settings_mcpServerClientConfigs": "クライアント設定",
+  "settings_mcpServerConfigUnavailable": "サーバーを有効にするとクライアント設定が表示されます",
+  "settings_mcpServerCopyConfig": "設定をコピー",
+  "settings_mcpServerTokenMaskNotice": "プレビューのトークンはマスクされています。コピーすると実際のトークンが書き込まれます。",
+  "settings_mcpServerCliMissing": "同梱 CLI が見つかりません（想定パス: {path}）。開発実行では正常です",
+  "@settings_mcpServerCliMissing": {
+    "placeholders": {
+      "path": {}
+    }
+  },
+  "settings_mcpServerViewDocs": "ドキュメントを見る",
+  "settings_mcpServerAgentPromptTitle": "推奨: エージェントに設定させる",
+  "settings_mcpServerAgentPromptHint": "接続したいエージェントに次のプロンプトを渡すと、設定ドキュメントを読んで自分でインストールします。プロンプトにトークンは含まれず、同梱 CLI がローカルで読み取ります。",
+  "settings_mcpServerClaudeCodeHint": "ターミナルで次のコマンドを実行してサーバーを登録します。",
+  "settings_mcpServerCodexHint": "コマンドでサーバーを登録してから、下の環境変数にトークンを設定します。",
+  "settings_mcpServerCursorHint": "次の内容を Cursor の mcp.json に統合してください。",
+  "settings_mcpServerCherryStudioHint": "Cherry Studio の MCP サーバー設定で「JSON からインポート」に次の内容を貼り付けてください。timeout は秒単位で、アプリ内の承認待ちに十分な余裕があります。",
+  "settings_mcpServerPiHint": "Pi 本体に MCP はありません。先に pi-mcp-adapter パッケージをインストールし、次の内容を ~/.pi/agent/mcp.json に統合してください。",
+  "settings_mcpServerClaudeDesktopHint": "次の内容を Claude Desktop の設定に統合してください。同梱 CLI を介して stdio で接続します。",
   "settings_fontScale": "フォント サイズ",
   "settings_fontScale_description": "グローバルフォントスケールを調整します",
   "settings_fontScale_previewSmall": "夕日と一匹のアヒルが一緒に飛ぶ",
@@ -4848,7 +5143,7 @@
   "settings_copyDragWatermarkTitle": "コピーまたはドラッグ時に透かしを追加",
   "settings_copyDragWatermarkSubtitle": "保存済みの既定の透かしを使用します。透かしの追加ではメタデータは削除されません。削除するには、上の「コピーまたはドラッグするときにすべてのメタデータを削除します」を有効にしてください。",
   "settings_stripMetadataTitle": "コピーまたはドラッグするときにすべてのメタデータを削除します",
-  "settings_stripMetadataSubtitle": "サニタイズされたコピーを作成し、PNG テキスト チャンク、EXIF、および NAI ステガノグラフィック透かしデータを削除し、ドラッグ中に元のパスが露出しないようにします。",
+  "settings_stripMetadataSubtitle": "コピー、ドラッグ、MCP 画像の返却時に PNG テキストチャンク、EXIF、NAI のステガノグラフィック透かしを削除します。ローカルの元画像は変更せず、MCP は元の解像度を維持します。MCP が saved_path として返すギャラリーの元画像はそのままです。",
   "settings_confirmDangerousActionsTitle": "危険な資産のアクションを再確認する",
   "settings_confirmDangerousActionsSubtitle": "ローカル アセットを削除、移動、またはバッチ移動すると、追加の保護の確認が表示されます。",
   "settings_warnExternalImageSendTitle": "外部サービスに送信する前に確認してください",
@@ -6174,6 +6469,96 @@
       "max": {"type": "int"}
     }
   },
+  "editor_toolFrame": "フレーム",
+  "editor_toolMove": "移動",
+  "editor_toolGroupInpaint": "インペイント",
+  "editor_toolGroupEdit": "編集",
+  "editor_toolGroupCommon": "共通",
+  "editor_toolMaskBrush": "マスクブラシ",
+  "editor_toolMaskEraser": "マスク消しゴム",
+  "editor_toolMaskColorFill": "色でマスクを塗りつぶし",
+  "editor_toolMaskMagicWand": "マスクマジックワンド",
+  "editor_moveLayerHint": "ドラッグして現在のレイヤー全体を移動します。",
+  "editor_moveSelectionHint": "ドラッグして現在のレイヤーの選択範囲内のピクセルを移動します。",
+  "editor_moveBaseLayerHint": "ベース画像は全体を移動できません。先に範囲を選択してから、その中のピクセルを移動してください。",
+  "editor_moveNoLayer": "移動できるレイヤーがありません。",
+  "editor_moveNudgeHint": "矢印キーで 1 ピクセル、Shift を押しながらで 10 ピクセル移動します。",
+  "editor_shortcutNudge": "1 ピクセル移動",
+  "editor_shortcutNudgeFar": "10 ピクセル移動",
+  "selection_clearPixels": "選択範囲の内容を削除",
+  "selection_cutLayerName": "{name} カット",
+  "@selection_cutLayerName": {
+    "placeholders": {
+      "name": {}
+    }
+  },
+  "layer_duplicateName": "{name} のコピー",
+  "@layer_duplicateName": {
+    "placeholders": {
+      "name": {}
+    }
+  },
+  "layer_roleMask": "マスク",
+  "layer_addImage": "画像レイヤーを追加",
+  "layer_addMask": "マスクレイヤーを追加",
+  "img2img_inpaintSourceUpdated": "ベース画像の編集を保存しました。マスクを塗るとインペイントできます。",
+  "editor_frameToolHint": "フレーム内をドラッグすると全体を移動し、端をドラッグするとサイズを変更します。フレーム外の内容は暗く表示されたまま保持され、生成に送られるのはフレーム内だけです。移動後も元画像と 64 ピクセル以上重なるようにします。",
+  "editor_frameSizeReadout": "サイズ: {width} × {height}",
+  "@editor_frameSizeReadout": {
+    "placeholders": {
+      "width": {"type": "int"},
+      "height": {"type": "int"}
+    }
+  },
+  "editor_frameOffsetReadout": "元画像からの位置: X {x}, Y {y}",
+  "@editor_frameOffsetReadout": {
+    "placeholders": {
+      "x": {"type": "int"},
+      "y": {"type": "int"}
+    }
+  },
+  "editor_frameMoveLockedByView": "ビューを回転・反転している間はフレームを移動できません。R でビューをリセットしてから再度お試しください。",
+  "editor_resetFrame": "フレームをリセット",
+  "editor_cropToFrame": "フレームで切り抜き",
+  "editor_cropToFrameHint": "フレーム外の画像とマスクを破棄します。元に戻せます。",
+  "editor_cropToFrameFailed": "フレームでの切り抜きに失敗しました: {error}",
+  "@editor_cropToFrameFailed": {
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "editor_changeFrameSize": "フレームのサイズを変更",
+  "editor_frameResized": "フレームのサイズを {width} × {height} に変更しました",
+  "@editor_frameResized": {
+    "placeholders": {
+      "width": {"type": "int"},
+      "height": {"type": "int"}
+    }
+  },
+  "editor_frameToolHintPasteBack": "フレーム内をドラッグすると 64 ピクセル単位で移動し、端をドラッグするとサイズを変更します。生成に送られるのはフレーム内だけです。フレーム外にも元画像がある場合、結果はマスクに沿って画像全体に貼り戻され、フレーム外はそのまま残ります。フレームは元画像と 64 ピクセル以上重なる必要があります。",
+  "editor_frameRequestReadout": "送信: {width} × {height}",
+  "@editor_frameRequestReadout": {
+    "placeholders": {
+      "width": {"type": "int"},
+      "height": {"type": "int"}
+    }
+  },
+  "editor_frameRequestFree": "無料",
+  "editor_frameRequestCost": "約 {cost} Anlas",
+  "@editor_frameRequestCost": {
+    "placeholders": {
+      "cost": {"type": "int"}
+    }
+  },
+  "editor_frameResizeRejected": "フレームを変更できません：元画像と {overlap} ピクセル以上重なり、元画像と合わせて各辺 {max} ピクセル以内である必要があります。",
+  "@editor_frameResizeRejected": {
+    "placeholders": {
+      "overlap": {"type": "int"},
+      "max": {"type": "int"}
+    }
+  },
+  "editor_compressionFrameLimited": "フレームがリクエスト面積上限を超えるため、これ以上の解像度は選べません。",
+  "img2img_focusOutpaintHint": "フォーカスアウトペイント：フレーム内だけを送信し、生成結果はマスクに沿って画像全体に貼り戻されます。位置はインペイント エディターのフレームツールで調整できます。",
 
   "savePreset_title": "プリセットとして保存",
   "savePreset_nameHint": "プリセット名を入力",
@@ -6186,6 +6571,9 @@
   },
 
   "onlineGallery_videoLoadFailed": "動画を読み込めませんでした",
+  "onlineGallery_videoPositionLabel": "再生位置",
+  "onlineGallery_videoPlay": "再生",
+  "onlineGallery_videoPause": "一時停止",
   "vibe_releaseToAddStyleReference": "離すとスタイル参照を追加",
   "router_backAgainToExit": "もう一度スワイプするか戻るボタンを押すと終了します",
   "router_pageNotFound": "ページが見つかりません: {error}",
@@ -6338,6 +6726,20 @@
   "@localGallery_saveToSystemGalleryFailed": {"placeholders":{"error":{}}},
   "image_savedAppOnly": "アプリ内ギャラリーには保存しましたが、システムギャラリーに書き出せませんでした: {error}",
   "@image_savedAppOnly": {"placeholders":{"error":{}}},
+  "image_savedToAppGallery": "アプリ内ギャラリーに保存しました",
+  "image_saveAs": "名前を付けて保存…",
+  "image_saveAsDialogTitle": "画像に名前を付けて保存",
+  "image_saveAsToFolder": "フォルダーに保存…",
+  "image_saveAsFolderDialogTitle": "保存先フォルダーを選択",
+  "image_savedAs": "{path} に保存しました",
+  "@image_savedAs": {"placeholders":{"path":{}}},
+  "image_savedAsToChosenLocation": "選択した場所に保存しました",
+  "image_savedAsToFolder": "{count} 枚の画像を {path} に保存しました",
+  "@image_savedAsToFolder": {"placeholders":{"count":{"type":"int"},"path":{}}},
+  "image_savedAsToChosenFolder": "{count} 枚の画像を選択したフォルダーに保存しました",
+  "@image_savedAsToChosenFolder": {"placeholders":{"count":{"type":"int"}}},
+  "image_savedAsPartial": "{saved} 枚を保存、{failed} 枚が失敗しました: {error}",
+  "@image_savedAsPartial": {"placeholders":{"saved":{"type":"int"},"failed":{"type":"int"},"error":{}}},
   "image_shareFailed": "共有に失敗しました: {error}",
   "@image_shareFailed": {"placeholders":{"error":{}}},
   "onlineGallery_savedFiles": "{count} 個のファイルを保存しました",
@@ -6417,6 +6819,8 @@
   "cloudSync_onlineGalleryFavoritesDescription": "ソース ID と復元に必要な情報のみを保存し、原画像は保存しません",
   "cloudSync_galleryAlbums": "ローカルギャラリーのアルバム",
   "cloudSync_galleryAlbumsDescription": "アルバム構造と画像参照のみを保存し、原画像はアップロードしません",
+  "cloudSync_fixedTagUsage": "固定タグの使用記録",
+  "cloudSync_fixedTagUsageDescription": "各画像がどの固定タグを使ったかの軽量な記録のみを保存し、画像はアップロードしません",
   "cloudSync_optionalResources": "任意のリソース（既定はオフ）",
   "cloudSync_vibes": "Vibe",
   "cloudSync_preciseReferences": "精密参照",
@@ -6568,11 +6972,20 @@
   "agentSettings_densityDescription": "快適はタッチ領域と余白を保ち、コンパクトはデスクトップで多くの情報を表示します。",
   "agentSettings_densityComfortable": "快適",
   "agentSettings_densityCompact": "コンパクト",
+  "agentSettings_chatPlacement": "チャットの配置",
+  "agentSettings_chatPlacementDescription": "ワイド表示でのみ有効です。狭い画面では全画面チャットのままです。",
+  "agentSettings_dockLayout": "右パネルのレイアウト",
+  "agentSettings_dockLayoutDescription": "切り替えでは右パネルにチャットか履歴の一方を表示し、分割では両方を同時に表示します。",
+  "agentSettings_dockExclusive": "切り替え",
+  "agentSettings_dockStacked": "上下に分割",
+  "agentSettings_dockSideBySide": "左右に分割",
+  "agentSettings_floatingWindow": "チャットをフローティングウィンドウで表示",
+  "agentSettings_floatingWindowDescription": "フローティングウィンドウはすべてのページに常駐し、移動とサイズ変更ができます。有効にすると右パネルには履歴のみ表示されます。",
   "agentSettings_chatModel": "チャットモデル",
   "agentSettings_providerModel": "プロバイダー / モデル",
-  "agentSettings_modelManagedInIntegrations": "プロバイダー、API キー、モデル検出は引き続き「連携」で一元管理されます。",
+  "agentSettings_modelManagedInIntegrations": "プロバイダー、API キー、モデルは「連携 → モデルサービス」で管理します。",
   "agentSettings_manageProviders": "プロバイダーを管理",
-  "agentSettings_noModel": "利用可能なチャットモデルがありません。先に「連携」でプロバイダーを追加し、モデルを検出してください。",
+  "agentSettings_noModel": "利用可能なチャットモデルがありません。先に「連携 → モデルサービス」でプロバイダーとモデルを追加してください。",
   "agentSettings_pendingMatch": "照合待ち",
   "agentSettings_contextWindow": "コンテキストウィンドウ（トークン）",
   "agentSettings_contextWindowKnown": "空欄なら内蔵値 {value} を使用します。中継サービスや独自デプロイで実際の値が異なる場合はここで上書きしてください。",
@@ -6587,7 +7000,7 @@
   "agentSettings_permissionAsk": "機密操作の前に確認",
   "agentSettings_permissionAskDescription": "既定。ファイル書き込みや画像生成などの前に確認します。",
   "agentSettings_permissionFull": "フルアクセス",
-  "agentSettings_permissionFullDescription": "ワークスペース外のファイルとツールの直接実行を許可します。信頼できるタスクにのみ使用してください。",
+  "agentSettings_permissionFullDescription": "ワークスペース外のファイルとツールの直接実行を許可します。保存済みデータの削除と Anlas の消費は引き続き確認します。信頼できるタスクにのみ使用してください。",
   "agentSettings_webPreference": "Web 接続設定",
   "agentSettings_webEnabled": "エージェントによる Web ツールの使用を許可",
   "agentSettings_webDescription": "有効にすると公開ページを検索・閲覧できます。無効にすると実行時ツールから Web 機能が削除されます。",

@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:typed_data';
 import 'dart:ui';
 
@@ -5,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:image/image.dart' as img;
 import 'package:nai_launcher/core/utils/focused_inpaint_utils.dart';
 import 'package:nai_launcher/core/utils/inpaint_mask_utils.dart';
+import 'package:nai_launcher/data/services/metadata/unified_metadata_parser.dart';
 
 import '../../helpers/image_pixel_matchers.dart';
 
@@ -207,6 +209,57 @@ void main() {
         },
       );
 
+      group('fixed context crop', () {
+        FocusedInpaintGeometry? resolveCrop(Rect crop, {int size = 2560}) {
+          return FocusedInpaintUtils.resolveGeometryForCrop(
+            sourceWidth: size,
+            sourceHeight: size,
+            crop: crop,
+          );
+        }
+
+        test('uses the crop exactly and keeps a free-tier frame as is', () {
+          final geometry = resolveCrop(
+            const Rect.fromLTWH(384, 0, 832, 1216),
+            size: 1216,
+          )!;
+
+          expect(
+            geometry.contextCrop.rect,
+            const Rect.fromLTWH(384, 0, 832, 1216),
+          );
+          expect(geometry.focusBounds.rect, geometry.contextCrop.rect);
+          expect(geometry.wasDynamicallyConstrained, isFalse);
+          expect((geometry.requestWidth, geometry.requestHeight), (832, 1216));
+        });
+
+        test('follows the focused sizing rules', () {
+          final small = resolveCrop(const Rect.fromLTWH(0, 0, 512, 512))!;
+          expect(small.requestMode, FocusedInpaintRequestMode.upscaleToTarget);
+          expect((small.requestWidth, small.requestHeight), (1024, 1024));
+
+          final paid = resolveCrop(const Rect.fromLTWH(0, 0, 1216, 1216))!;
+          expect(paid.requestMode, FocusedInpaintRequestMode.preserveCrop);
+          expect((paid.requestWidth, paid.requestHeight), (1216, 1216));
+        });
+
+        test('shrinks an oversized crop without changing its aspect', () {
+          final geometry = resolveCrop(const Rect.fromLTWH(0, 0, 2048, 2048))!;
+
+          expect((geometry.requestWidth, geometry.requestHeight), (1728, 1728));
+          expect(
+            geometry.requestArea,
+            lessThanOrEqualTo(FocusedInpaintUtils.maxRequestAreaPixels),
+          );
+        });
+
+        test('rejects crops that leave the source', () {
+          expect(resolveCrop(const Rect.fromLTWH(-64, 0, 832, 1216)), isNull);
+          expect(resolveCrop(const Rect.fromLTWH(2000, 0, 832, 1216)), isNull);
+          expect(resolveCrop(const Rect.fromLTWH(10, 10, 0, 64)), isNull);
+        });
+      });
+
       test('fixed-corner constraint keeps the pointer-down corner', () {
         final geometry = resolve(
           sourceWidth: 4096,
@@ -316,6 +369,91 @@ void main() {
     );
 
     test(
+      'composeGeneratedImageArtifact takes display metadata from the server result only',
+      () {
+        Map<String, String> naiText(
+          String prompt,
+          int seed, {
+          required int width,
+          required int height,
+        }) => {
+          'Comment': jsonEncode({
+            'prompt': prompt,
+            'width': width,
+            'height': height,
+            'seed': seed,
+          }),
+          'Description': prompt,
+          'Software': 'NovelAI',
+          'Source': 'NovelAI Diffusion V4.5',
+        };
+        final source = img.Image(width: 400, height: 300);
+        img.fill(source, color: img.ColorRgb8(16, 32, 64));
+        final mask = img.Image(width: 400, height: 300);
+        img.fill(mask, color: img.ColorRgb8(0, 0, 0));
+        img.fillRect(
+          mask,
+          x1: 150,
+          y1: 120,
+          x2: 189,
+          y2: 159,
+          color: img.ColorRgb8(255, 255, 255),
+        );
+        final request = FocusedInpaintUtils.prepareRequest(
+          sourceImage: UnifiedMetadataParser.embedTextChunks(
+            Uint8List.fromList(img.encodePng(source)),
+            naiText('original prompt', 1, width: 400, height: 300),
+          ),
+          maskImage: Uint8List.fromList(img.encodePng(mask)),
+          minContextMegaPixels: 40,
+        )!;
+        final generated = img.Image(
+          width: request.targetWidth,
+          height: request.targetHeight,
+        );
+        img.fill(generated, color: img.ColorRgb8(255, 255, 255));
+        expect((request.targetWidth, request.targetHeight), isNot((400, 300)));
+        final serverText = naiText(
+          'focused prompt',
+          4242,
+          width: request.targetWidth,
+          height: request.targetHeight,
+        );
+        final maskArtifacts =
+            InpaintMaskUtils.prepareNovelAiInpaintMaskArtifacts(
+              request.requestMaskImage,
+              targetWidth: request.targetWidth,
+              targetHeight: request.targetHeight,
+            );
+
+        final artifact = request.composeGeneratedImageArtifact(
+          UnifiedMetadataParser.embedTextChunks(
+            Uint8List.fromList(img.encodePng(generated)),
+            serverText,
+          ),
+          maskArtifacts,
+        );
+
+        final displayText = UnifiedMetadataParser.extractPngTextData(
+          artifact.displayImageBytes,
+        );
+        expect(
+          jsonDecode(displayText['Comment']!),
+          equals({
+            'prompt': 'focused prompt',
+            'width': 400,
+            'height': 300,
+            'seed': 4242,
+          }),
+        );
+        expect(
+          Map.of(displayText)..remove('Comment'),
+          equals(Map.of(serverText)..remove('Comment')),
+        );
+      },
+    );
+
+    test(
       'composeGeneratedImageArtifact clears old pixels for transparent focused results',
       () {
         final source = img.Image(width: 400, height: 300);
@@ -407,6 +545,137 @@ void main() {
         expect(decoded.getPixel(110, 80).b.toInt(), equals(64));
       },
     );
+
+    group('fixed context crop request', () {
+      // 832x1216 原图向右下各扩 384/64 后的整张画布，框外两角从未生成过
+      const frame = Rect.fromLTWH(384, 64, 832, 1216);
+
+      img.Image buildCanvas() {
+        final canvas = img.Image(width: 1216, height: 1280, numChannels: 4);
+        img.fill(canvas, color: img.ColorRgba8(0, 0, 0, 0));
+        img.fillRect(
+          canvas,
+          x1: 0,
+          y1: 0,
+          x2: 831,
+          y2: 1215,
+          color: img.ColorRgba8(16, 32, 64, 255),
+        );
+        return canvas;
+      }
+
+      img.Image buildExtensionMask() {
+        final mask = img.Image(width: 1216, height: 1280);
+        img.fill(mask, color: img.ColorRgb8(0, 0, 0));
+        img.fillRect(
+          mask,
+          x1: 832,
+          y1: 64,
+          x2: 1215,
+          y2: 1279,
+          color: img.ColorRgb8(255, 255, 255),
+        );
+        img.fillRect(
+          mask,
+          x1: 384,
+          y1: 1216,
+          x2: 831,
+          y2: 1279,
+          color: img.ColorRgb8(255, 255, 255),
+        );
+        return mask;
+      }
+
+      Uint8List png(img.Image image) =>
+          Uint8List.fromList(img.encodePng(image));
+
+      test('crops exactly the frame and keeps transparent blanks', () {
+        final request = FocusedInpaintUtils.prepareRequest(
+          sourceImage: png(buildCanvas()),
+          maskImage: png(buildExtensionMask()),
+          contextCrop: frame,
+          minContextMegaPixels: 96,
+        )!;
+
+        expect(request.crop.rect, frame);
+        expect((request.targetWidth, request.targetHeight), (832, 1216));
+        final sent = img.decodeImage(request.requestSourceImage)!;
+        expect((sent.width, sent.height), (832, 1216));
+        expect(sent.getPixel(0, 0).r.toInt(), 16);
+        expect(sent.getPixel(0, 0).a.toInt(), 255);
+        expect(sent.getPixel(600, 300).a.toInt(), 0);
+      });
+
+      test('returns null when the crop has nothing to generate', () {
+        final source = png(buildCanvas());
+        final mask = png(buildExtensionMask());
+
+        expect(
+          FocusedInpaintUtils.prepareRequest(
+            sourceImage: source,
+            maskImage: mask,
+            contextCrop: const Rect.fromLTWH(0, 0, 768, 1152),
+            minContextMegaPixels: 96,
+          ),
+          isNull,
+        );
+        expect(
+          FocusedInpaintUtils.prepareRequest(
+            sourceImage: source,
+            maskImage: mask,
+            contextCrop: const Rect.fromLTWH(448, 64, 832, 1216),
+            minContextMegaPixels: 96,
+          ),
+          isNull,
+        );
+      });
+
+      test('pastes only masked pixels back into the whole canvas', () {
+        final canvas = buildCanvas();
+        final request = FocusedInpaintUtils.prepareRequest(
+          sourceImage: png(canvas),
+          maskImage: png(buildExtensionMask()),
+          contextCrop: frame,
+          minContextMegaPixels: 96,
+        )!;
+        final generated = img.Image(
+          width: request.targetWidth,
+          height: request.targetHeight,
+        );
+        img.fill(generated, color: img.ColorRgb8(255, 255, 255));
+        final artifacts = InpaintMaskUtils.prepareNovelAiInpaintMaskArtifacts(
+          request.requestMaskImage,
+          targetWidth: request.targetWidth,
+          targetHeight: request.targetHeight,
+        );
+
+        final display = img.decodeImage(
+          request
+              .composeGeneratedImageArtifact(png(generated), artifacts)
+              .displayImageBytes,
+        )!;
+
+        expect((display.width, display.height), (1216, 1280));
+        for (final point in const [(100, 100), (600, 600)]) {
+          final pixel = display.getPixel(point.$1, point.$2);
+          expect(
+            (
+              pixel.r.toInt(),
+              pixel.g.toInt(),
+              pixel.b.toInt(),
+              pixel.a.toInt(),
+            ),
+            (16, 32, 64, 255),
+            reason: 'original pixel at $point',
+          );
+        }
+        final generatedPixel = display.getPixel(1000, 600);
+        expect(generatedPixel.r.toInt(), 255);
+        expect(generatedPixel.a.toInt(), 255);
+        expect(display.getPixel(1000, 20).a.toInt(), 0);
+        expect(display.getPixel(100, 1250).a.toInt(), 0);
+      });
+    });
 
     test(
       'resolvePreviewCrop should prefer explicit focused selection rect',

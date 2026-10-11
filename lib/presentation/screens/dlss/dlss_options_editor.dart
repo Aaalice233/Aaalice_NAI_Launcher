@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../core/utils/localization_extension.dart';
 import '../../../data/services/dlss/dlss_options.dart';
+import '../../widgets/common/heading_semantics.dart';
 import '../settings/widgets/settings_card.dart';
 import 'dlss_parameter_row.dart';
 import 'dlss_parameter_slider.dart';
@@ -198,7 +199,7 @@ class DlssOptionsEditor extends StatelessWidget {
         value.skin,
         (v) => value.copyWith(skin: v),
         min: -1,
-        valueLabel: value.skin < 0 ? l10n.dlss_modelDefault : null,
+        valueLabel: (skin) => skin < 0 ? l10n.dlss_modelDefault : null,
         enabled: value.autoMask,
       ),
     ]);
@@ -228,8 +229,8 @@ class DlssOptionsEditor extends StatelessWidget {
   ) => Column(
     crossAxisAlignment: CrossAxisAlignment.stretch,
     children: [
-      Semantics(
-        header: true,
+      HeadingSemantics(
+        level: 3,
         child: Text(
           title,
           style: Theme.of(context).textTheme.bodySmall?.copyWith(
@@ -250,7 +251,7 @@ class DlssOptionsEditor extends StatelessWidget {
     DlssOptions Function(double) update, {
     double? max,
     double min = 0,
-    String? valueLabel,
+    String? Function(double value)? valueLabel,
     bool enabled = true,
   }) => DlssParameterSlider(
     label: label,

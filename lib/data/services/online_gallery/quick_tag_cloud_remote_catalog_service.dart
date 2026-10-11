@@ -147,7 +147,7 @@ class QuickTagCloudRemoteCatalogService {
     final key = '${catalog.release}:canonical:$path';
     Future<QuickTagCloudCodex> load() async {
       try {
-        return _parseCodex(
+        return await _parseCodex(
           await _loadVerifiedCachedJson(
             catalog,
             path,
@@ -169,7 +169,7 @@ class QuickTagCloudRemoteCatalogService {
             : _findPreviousMeta(previous, meta);
         if (previous == null || previousMeta == null) rethrow;
         try {
-          return _parseCodex(
+          return await _parseCodex(
             await _loadVerifiedCachedJson(
               previous,
               _canonicalPath(previousMeta.id),
@@ -545,7 +545,7 @@ class QuickTagCloudRemoteCatalogService {
           noStore: true,
           cancelToken: cancelToken,
         );
-        return _parseCodex(
+        return await _parseCodex(
           data,
           meta,
           loadSource: QuickTagCloudCodexLoadSource.external,

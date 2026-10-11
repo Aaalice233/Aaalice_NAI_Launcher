@@ -143,7 +143,9 @@ class GenerationTransferConfiguration {
   static String? _resolveModel(AiTagGenerationInfo info) {
     for (final candidate in [info.extra['Model ID'], info.model]) {
       final model = candidate?.trim();
-      if (model != null && ImageModels.allModels.contains(model)) return model;
+      if (model != null && ImageModels.supportedModels.contains(model)) {
+        return model;
+      }
     }
 
     final descriptor = [
@@ -160,6 +162,9 @@ class GenerationTransferConfiguration {
     }
     if (descriptor.contains(RegExp(r'(?:v|diffusion[-_\s]*)5'))) {
       if (curated) return ImageModels.animeDiffusionV5Curated;
+      if (full && descriptor.contains('medium')) {
+        return ImageModels.animeDiffusionV5FullMedium;
+      }
       if (full) return ImageModels.animeDiffusionV5Full;
     }
     if (descriptor.contains(RegExp(r'(?:v|diffusion[-_\s]*)4[._-]5'))) {

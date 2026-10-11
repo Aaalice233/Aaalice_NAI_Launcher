@@ -7,7 +7,7 @@ import 'package:nai_launcher/core/services/anlas_calculator.dart';
 import 'package:nai_launcher/data/datasources/remote/nai_image_enhancement_api_service.dart';
 import 'package:nai_launcher/data/models/director/director_tool_type.dart';
 import 'package:nai_launcher/data/models/user/user_subscription.dart';
-import 'package:nai_launcher/presentation/providers/auth_provider.dart';
+import 'package:nai_launcher/data/services/auth_provider.dart';
 import 'package:nai_launcher/presentation/providers/director_tools_notifier.dart';
 import 'package:nai_launcher/presentation/providers/subscription_provider.dart';
 
@@ -22,6 +22,15 @@ void main() {
         imageWidth: width,
         imageHeight: height,
       );
+      if (tool.runsLocally) {
+        expect(state.estimatedAnlasCost(), 0, reason: tool.name);
+        expect(
+          state.estimatedAnlasCost(isOpus: true),
+          0,
+          reason: '${tool.name} Opus',
+        );
+        continue;
+      }
       final isBackgroundRemoval = tool == DirectorToolType.removeBackground;
 
       expect(
@@ -72,6 +81,24 @@ void main() {
       );
     });
   }
+
+  test('本地工具未登录也直接放行，不弹登录提示', () async {
+    final apiService = _RecordingEnhancementApiService();
+    final container = _createContainer(apiService, AuthStatus.unauthenticated);
+    addTearDown(container.dispose);
+    final notifier = container.read(directorToolsNotifierProvider.notifier);
+    await notifier.init(Uint8List.fromList([1, 2, 3]));
+    notifier.selectTool(DirectorToolType.pixelSnap);
+
+    await notifier.runTool();
+
+    final after = container.read(directorToolsNotifierProvider);
+    expect(apiService.uploadCalls, 0);
+    expect(container.read(authPromptRequestProvider), isNull);
+    // 源图是三个字节的垃圾，本机引擎解码失败收尾；有 error 就说明门禁没拦住它。
+    expect(after.error, isNotNull);
+    expect(after.isRunning, isFalse);
+  });
 
   test('Director Tools 登录后保留成功调用路径', () async {
     final apiService = _RecordingEnhancementApiService();

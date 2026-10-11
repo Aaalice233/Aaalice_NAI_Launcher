@@ -67,7 +67,7 @@ class LocalAssetServer {
     try {
       final path = Uri.decodeComponent(request.uri.path);
       if (request.method != 'GET' || path.contains('..')) {
-        return _respond(request, HttpStatus.forbidden);
+        return await _respond(request, HttpStatus.forbidden);
       }
       if (path.startsWith(_editorPrefix)) {
         return await _serveAsset(request, path.substring(_editorPrefix.length));
@@ -75,7 +75,7 @@ class LocalAssetServer {
       if (path.startsWith(_modelsPrefix)) {
         return await _serveModel(request, path.substring(_modelsPrefix.length));
       }
-      return _respond(request, HttpStatus.notFound);
+      return await _respond(request, HttpStatus.notFound);
     } catch (_) {
       return _respond(request, HttpStatus.internalServerError);
     }

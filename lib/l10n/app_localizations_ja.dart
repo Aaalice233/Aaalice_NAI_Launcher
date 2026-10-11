@@ -493,12 +493,30 @@ class AppLocalizationsJa extends AppLocalizations {
   String get auth_selectAccount => 'アカウントを選択してください';
 
   @override
-  String get auth_deleteAccount => 'アカウントを削除';
+  String get auth_manageAccounts => 'アカウント管理';
 
   @override
-  String auth_deleteAccountConfirm(Object name) {
-    return '「$name」を削除してもよろしいですか?これを元に戻すことはできません。';
+  String get auth_removeSavedAccount => 'アカウントを削除';
+
+  @override
+  String get auth_removeSavedAccountAction => '削除';
+
+  @override
+  String auth_removeSavedAccountConfirm(Object name) {
+    return '「$name」の保存済みログイン情報とアバターをこの端末から削除します。NovelAI アカウント自体には影響せず、あとで再ログインできます。';
   }
+
+  @override
+  String get auth_removeSessionAccountNotice =>
+      '現在このアカウントでログイン中です。削除の前にログアウトします。';
+
+  @override
+  String auth_removeSavedAccountSuccess(Object name) {
+    return '「$name」を削除しました';
+  }
+
+  @override
+  String get auth_removeSavedAccountFailed => 'アカウントを削除できませんでした。もう一度お試しください。';
 
   @override
   String get auth_removeAvatar => 'アバターを削除';
@@ -753,6 +771,13 @@ class AppLocalizationsJa extends AppLocalizations {
   String get settings_autoSaveSubtitle => '生成後に画像を自動的に保存します';
 
   @override
+  String get settings_syncToSystemGallery => 'システムギャラリーに同期';
+
+  @override
+  String get settings_syncToSystemGallerySubtitle =>
+      'オフにすると画像はアプリ内ギャラリーにのみ保存され、システムギャラリーには表示されません。同期済みの画像には影響しません。';
+
+  @override
   String get settings_about => '概要';
 
   @override
@@ -955,6 +980,18 @@ class AppLocalizationsJa extends AppLocalizations {
   String get agentChat_tab => 'チャット';
 
   @override
+  String get agentChat_popOutFloating => 'フローティングウィンドウで表示';
+
+  @override
+  String get agentChat_dockToSidePanel => 'サイドパネルに戻す';
+
+  @override
+  String get agentChat_hideFloating => 'フローティングウィンドウを隠す';
+
+  @override
+  String get agentChat_resizeDockSplit => 'チャットと履歴の境界を調整';
+
+  @override
   String get nav_agent => 'エージェント';
 
   @override
@@ -1032,6 +1069,9 @@ class AppLocalizationsJa extends AppLocalizations {
   String agentChat_unsupportedImageFormat(Object fileName) {
     return 'サポートされていない画像形式です: $fileName';
   }
+
+  @override
+  String get agentChat_dropHint => 'ドロップして会話に追加';
 
   @override
   String get agentChat_newChat => '新しいチャット';
@@ -1321,6 +1361,11 @@ class AppLocalizationsJa extends AppLocalizations {
   }
 
   @override
+  String agentChat_approvalFileTarget(String path) {
+    return 'ファイルを書き込みます：$path';
+  }
+
+  @override
   String get agentChat_needSetup =>
       'チャットモデルが未設定です。先に設定でツール呼び出しに対応したプロバイダーを追加してください。';
 
@@ -1419,7 +1464,8 @@ class AppLocalizationsJa extends AppLocalizations {
   String get agentChat_permissionFull => 'フルアクセス';
 
   @override
-  String get agentChat_permissionFullDescription => '確認なしで実行し、ワークスペース外のファイルも許可';
+  String get agentChat_permissionFullDescription =>
+      '保存データの削除と Anlas 消費時のみ確認、ワークスペース外も許可';
 
   @override
   String agentChat_approvalTitle(Object toolName) {
@@ -1435,6 +1481,19 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get agentChat_approvalDeny => '拒否';
+
+  @override
+  String mcpApproval_title(Object client) {
+    return '外部エージェント $client が承認を求めています';
+  }
+
+  @override
+  String mcpApproval_expiresIn(Object seconds) {
+    return '$seconds 秒後に自動的に拒否します';
+  }
+
+  @override
+  String get mcpApproval_unknownClient => '不明なクライアント';
 
   @override
   String get generation_failedStreamSnapshot => 'スナップショットが失敗しました';
@@ -1454,7 +1513,65 @@ class AppLocalizationsJa extends AppLocalizations {
       'すべての履歴レコードをクリアしてもよろしいですか?この操作は元に戻すことができません。';
 
   @override
+  String get generation_deleteImageConfirm => 'この画像を履歴から削除しますか？この操作は元に戻せません。';
+
+  @override
+  String generation_deleteImageWithFileConfirm(Object fileName) {
+    return 'この画像を履歴から削除し、ローカルギャラリーのファイル「$fileName」も完全に削除しますか？この操作は元に戻せません。';
+  }
+
+  @override
+  String generation_deleteImagesConfirm(Object count) {
+    return '選択した $count 枚の画像を履歴から削除しますか？この操作は元に戻せません。';
+  }
+
+  @override
+  String generation_deleteImagesWithFilesConfirm(
+    Object count,
+    Object fileCount,
+  ) {
+    return '選択した $count 枚の画像を履歴から削除し、そのうちローカルギャラリーに保存済みの $fileCount 個のファイルも完全に削除しますか？この操作は元に戻せません。';
+  }
+
+  @override
+  String get generation_deleteConfirmSkipForSession => 'アプリを再起動するまで確認しない';
+
+  @override
+  String generation_deleteImageFilesFailed(Object count, Object error) {
+    return '履歴からは削除しましたが、$count 個のローカルファイルを削除できませんでした：$error';
+  }
+
+  @override
   String get generation_model => 'モデル';
+
+  @override
+  String get generation_modelMode => 'モード';
+
+  @override
+  String get generation_modelModeAnime => 'アニメ';
+
+  @override
+  String get generation_modelModeFurry => 'ケモノ';
+
+  @override
+  String get generation_effort => '生成モード';
+
+  @override
+  String get generation_effortMedium => '節約';
+
+  @override
+  String get generation_effortHigh => '通常';
+
+  @override
+  String get generation_effortUnavailableHint => '節約モードでは使用しません';
+
+  @override
+  String get generation_effortNegativeLocked => '節約モードでは送信しません';
+
+  @override
+  String generation_effortNegativeLockedHint(Object ucPreset) {
+    return '節約モードでは除外したい要素を送信せず、「$ucPreset」除外したい要素プリセットのみを使用します。入力内容は保持され、通常モードに戻すと再び使用されます';
+  }
 
   @override
   String generation_opusUsageRemaining(Object percent) {
@@ -1493,9 +1610,15 @@ class AppLocalizationsJa extends AppLocalizations {
   }
 
   @override
+  String get generation_stepsLabel => 'ステップ';
+
+  @override
   String generation_cfgScale(Object scale) {
     return 'CFG スケール: $scale';
   }
+
+  @override
+  String get generation_cfgScaleLabel => 'CFG スケール';
 
   @override
   String get generation_seed => 'シード';
@@ -1577,6 +1700,9 @@ class AppLocalizationsJa extends AppLocalizations {
   String generation_cfgRescale(Object value) {
     return 'CFG リスケール: $value';
   }
+
+  @override
+  String get generation_cfgRescaleLabel => 'CFG リスケール';
 
   @override
   String get generation_noiseSchedule => 'ノイズスケジュール';
@@ -2036,6 +2162,84 @@ class AppLocalizationsJa extends AppLocalizations {
   String get img2img_directorDeclutter => 'デクラッター';
 
   @override
+  String get img2img_directorPixelSnap => 'ピクセルスナップ';
+
+  @override
+  String get img2img_directorPixelSnapHint =>
+      'すべてこの PC 上で処理します。Anlas も通信も不要です。大きな画像では数秒かかります。';
+
+  @override
+  String get img2img_directorPixelSnapPalette => 'パレット化';
+
+  @override
+  String get img2img_directorPixelSnapPaletteOff => 'オフ';
+
+  @override
+  String get img2img_directorPixelSnapPaletteAuto => '自動';
+
+  @override
+  String get img2img_directorPixelSnapPaletteCustom => 'カスタム';
+
+  @override
+  String get img2img_directorPixelSnapColors => '色数';
+
+  @override
+  String get img2img_directorPixelSnapAvoidOverRefining => '細かくしすぎない';
+
+  @override
+  String get img2img_directorPixelSnapAvoidOverRefiningOn =>
+      '検出したピクセルサイズを常に維持します。';
+
+  @override
+  String get img2img_directorPixelSnapAvoidOverRefiningOff =>
+      '画像により適している場合、より細かいピクセルサイズを使用することがあります。';
+
+  @override
+  String get img2img_directorPixelSnapUpscale => 'アップスケール';
+
+  @override
+  String get img2img_directorPixelSnapUpscaleOn => '結果を元の画像とほぼ同じサイズまで拡大し直します。';
+
+  @override
+  String get img2img_directorPixelSnapUpscaleOff => '結果をスナップ後のピクセルサイズのまま保持します。';
+
+  @override
+  String img2img_directorPixelSnapSummary(int width, int height, int colors) {
+    return '$width×$height ピクセル · $colors 色';
+  }
+
+  @override
+  String img2img_directorPixelSnapSummaryNoPalette(int width, int height) {
+    return '$width×$height ピクセル';
+  }
+
+  @override
+  String get img2img_directorPixelSnapNoGrid =>
+      'この画像には繰り返しのピクセルグリッドが見つかりませんでした。';
+
+  @override
+  String get img2img_directorPixelSnapBlank => 'この画像は全体が透明です。';
+
+  @override
+  String get img2img_directorPixelSnapDownscaled =>
+      'サイズ上限を超えているため、縮小してから解析しました。';
+
+  @override
+  String get img2img_directorCancel => 'キャンセル';
+
+  @override
+  String get img2img_directorStageAnalyzing => '画像を解析中';
+
+  @override
+  String get img2img_directorStageSearchingPitch => 'ピクセルサイズを探索中';
+
+  @override
+  String get img2img_directorStageRefiningGrid => 'グリッドを調整中';
+
+  @override
+  String get img2img_directorStageFinishing => '結果を生成中';
+
+  @override
   String get img2img_enhance => '品質向上';
 
   @override
@@ -2224,7 +2428,23 @@ class AppLocalizationsJa extends AppLocalizations {
   String get editor_intensity => '強度';
 
   @override
-  String get editor_sourcePoint => 'Alt+クリックしてソースポイントを設定します';
+  String get editor_cloneStampSetSource => 'ソースを設定';
+
+  @override
+  String get editor_cloneStampSetSourceTooltip =>
+      'オンにすると、次にキャンバス上で選んだ位置がソースポイントになります。Alt キーを押しながらキャンバスをクリックしても設定できます。';
+
+  @override
+  String get editor_cloneStampPickingHint => 'キャンバス上でクローン元の位置を選びます';
+
+  @override
+  String get editor_cloneStampNoSourceHint =>
+      'ソースポイントが未設定です。「ソースを設定」をオンにしてから、キャンバス上の位置を選んでください。';
+
+  @override
+  String editor_cloneStampSourceReadout(int x, int y) {
+    return 'ソースポイント: X $x, Y $y';
+  }
 
   @override
   String get editor_brushPresets => 'ブラシ プリセット';
@@ -2272,10 +2492,10 @@ class AppLocalizationsJa extends AppLocalizations {
   String get editor_magicWandMode => '選択方法';
 
   @override
-  String get editor_magicWandSmartObject => 'スマートオブジェクト（EfficientViT）';
+  String get editor_magicWandSmartObject => 'オブジェクト';
 
   @override
-  String get editor_magicWandColorArea => '色領域（塗りつぶし）';
+  String get editor_magicWandColorArea => '色領域';
 
   @override
   String get editor_magicWandSmartHelp =>
@@ -2343,6 +2563,15 @@ class AppLocalizationsJa extends AppLocalizations {
   String get editor_fitToWindow => '窓に合わせる';
 
   @override
+  String get editor_viewOptions => 'ビューのオプション';
+
+  @override
+  String get editor_menuGroupView => 'ビュー';
+
+  @override
+  String get editor_menuGroupCanvas => 'キャンバス';
+
+  @override
   String get editor_tempColorPickerShortcut => 'Alt+クリック: 一時的なカラーピッカー';
 
   @override
@@ -2374,6 +2603,9 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get editor_shortcutTemporaryColorPicker => '一時的なカラーピッカー';
+
+  @override
+  String get editor_shortcutCloneStampSource => 'クローンスタンプのソースを設定';
 
   @override
   String get editor_shortcutRectSelection => '長方形の選択';
@@ -2802,6 +3034,9 @@ class AppLocalizationsJa extends AppLocalizations {
   }
 
   @override
+  String get editor_focusMinimumContextAreaLabel => '最小コンテキスト領域';
+
+  @override
   String get editor_canvasSizeTitle => 'キャンバスのサイズ';
 
   @override
@@ -2902,13 +3137,13 @@ class AppLocalizationsJa extends AppLocalizations {
   String get editor_sampleArea => 'エリア';
 
   @override
-  String get editor_source => 'ソース';
+  String get editor_source => '対象レイヤー';
 
   @override
-  String get editor_sourceCurrentLayer => '現在のレイヤー';
+  String get editor_sourceCurrentLayer => '現在';
 
   @override
-  String get editor_sourceAllLayers => 'すべてのレイヤー';
+  String get editor_sourceAllLayers => 'すべて';
 
   @override
   String get editor_lassoSelectionHelp =>
@@ -5705,9 +5940,6 @@ class AppLocalizationsJa extends AppLocalizations {
   String get statistics_noData => '利用可能な統計はありません';
 
   @override
-  String get statistics_noTagData => 'タグデータがありません';
-
-  @override
   String get statistics_generateFirst => '最初にいくつかの画像を生成します';
 
   @override
@@ -6849,20 +7081,172 @@ class AppLocalizationsJa extends AppLocalizations {
   String get promptAssistant_model => 'モデル';
 
   @override
-  String get promptAssistant_noModelsPullFirst => 'モデルはまだありません。まずモデルリストを取得します';
+  String get promptAssistant_noModelsPullFirst =>
+      'モデルはまだありません。先にモデルサービスで追加してください';
 
   @override
-  String get promptAssistant_providerManagement => 'プロバイダー管理';
+  String get settings_modelServices => 'モデルサービス';
 
   @override
-  String get promptAssistant_providerManagementSubtitle =>
-      'OpenAI Chat / Responses、Anthropic、Gemini、DeepSeek、LM Studio、Ollama、Pollinations、カスタム互換エンドポイントをサポート';
+  String get modelServices_searchProviders => 'プロバイダーを検索';
 
   @override
-  String get promptAssistant_apiKeyConfigured => 'API キー: 設定済み';
+  String get modelServices_noProviderMatches => '一致するプロバイダーはありません';
 
   @override
-  String get promptAssistant_apiKeyNotConfigured => 'API キー: 設定されていません';
+  String get modelServices_emptyTitle => '最初のプロバイダーを追加';
+
+  @override
+  String get modelServices_emptyBody =>
+      'プロバイダーは、プロンプトアシスタントとエージェントが使うモデルを提供します。';
+
+  @override
+  String get modelServices_disabled => '無効';
+
+  @override
+  String get modelServices_enableProvider => 'プロバイダーを有効にする';
+
+  @override
+  String get modelServices_moreActions => 'その他の操作';
+
+  @override
+  String get modelServices_connection => '接続';
+
+  @override
+  String get modelServices_apiKey => 'API キー';
+
+  @override
+  String get modelServices_apiKeySavedHint => '保存済みです。新しいキーを入力すると置き換わります。';
+
+  @override
+  String get modelServices_apiKeyOptional => 'このプロバイダーでは省略できます';
+
+  @override
+  String get modelServices_showApiKey => 'キーを表示';
+
+  @override
+  String get modelServices_hideApiKey => 'キーを隠す';
+
+  @override
+  String get modelServices_clearApiKey => '保存済みのキーを削除';
+
+  @override
+  String get modelServices_apiKeyCleared => 'API キーを削除しました';
+
+  @override
+  String get modelServices_baseUrl => 'API アドレス';
+
+  @override
+  String get modelServices_checkConnection => '接続を確認';
+
+  @override
+  String modelServices_connectionOk(Object count) {
+    return '接続できました。$count 個のモデルが一覧にあります。';
+  }
+
+  @override
+  String modelServices_connectionFailed(Object error) {
+    return '接続できませんでした：$error';
+  }
+
+  @override
+  String get modelServices_models => 'モデル';
+
+  @override
+  String modelServices_modelCount(Object count) {
+    return '$count 個のモデル';
+  }
+
+  @override
+  String get modelServices_noModels =>
+      'モデルはまだありません。プロバイダーの一覧から選ぶか、モデル ID を追加してください。';
+
+  @override
+  String get modelServices_manageModels => 'モデルを管理';
+
+  @override
+  String get modelServices_addModel => 'モデルを追加';
+
+  @override
+  String modelServices_manageModelsTitle(Object provider) {
+    return '$provider のモデル';
+  }
+
+  @override
+  String modelServices_addGroup(Object group) {
+    return '$group をすべて追加';
+  }
+
+  @override
+  String modelServices_removeGroup(Object group) {
+    return '$group をすべて削除';
+  }
+
+  @override
+  String get modelServices_notListed => '一覧に表示されなくなりました';
+
+  @override
+  String get modelServices_reasoning => '推論';
+
+  @override
+  String get modelServices_vision => '画像入力';
+
+  @override
+  String modelServices_contextWindow(Object size) {
+    return 'コンテキスト $size';
+  }
+
+  @override
+  String get modelServices_modelId => 'モデル ID';
+
+  @override
+  String get modelServices_modelIdRequired => 'モデル ID を入力してください';
+
+  @override
+  String get modelServices_modelExists => 'このプロバイダーには既にこのモデルがあります';
+
+  @override
+  String get modelServices_displayName => '表示名';
+
+  @override
+  String modelServices_displayNameHint(Object name) {
+    return '空欄の場合は $name を使用します';
+  }
+
+  @override
+  String get modelServices_editModel => 'モデルを編集';
+
+  @override
+  String get modelServices_removeModel => 'モデルを削除';
+
+  @override
+  String modelServices_removeModelConfirm(Object name) {
+    return 'このプロバイダーから $name を削除しますか？';
+  }
+
+  @override
+  String modelServices_removeModelInUse(Object name, Object usages) {
+    return '$name は $usages で使用中です。削除すると、タスクルーティングはこのプロバイダーの別のモデルに切り替わり、エージェントではモデルを選び直す必要があります。';
+  }
+
+  @override
+  String get modelServices_usageSeparator => '、';
+
+  @override
+  String get modelServices_cleanStaleModels => '一覧にないモデルを整理';
+
+  @override
+  String get modelServices_addAllModels => 'すべてのモデルを追加';
+
+  @override
+  String modelServices_staleModelCount(Object count) {
+    return '一覧にないモデル $count 個';
+  }
+
+  @override
+  String modelServices_addAllConfirm(Object count) {
+    return 'このプロバイダーに $count 個のモデルを追加しますか？';
+  }
 
   @override
   String get promptAssistant_supportsImageInput => '画像入力をサポート';
@@ -6871,27 +7255,13 @@ class AppLocalizationsJa extends AppLocalizations {
   String get promptAssistant_textOnly => 'テキストのみ';
 
   @override
-  String get promptAssistant_connectionConfig => '接続構成';
-
-  @override
-  String get promptAssistant_pullModelList => 'モデルリストをプルします';
-
-  @override
   String get promptAssistant_editProvider => 'プロバイダーの編集';
 
   @override
   String get promptAssistant_deleteProvider => 'プロバイダーを削除します';
 
   @override
-  String get promptAssistant_pullingModels => 'モデル リストを取得しています...';
-
-  @override
   String get promptAssistant_emptyModelList => 'プロバイダーが空のモデル リストを返しました';
-
-  @override
-  String promptAssistant_modelsSynced(Object count) {
-    return '同期された $count モデル';
-  }
 
   @override
   String promptAssistant_pullModelsFailed(Object error) {
@@ -6931,23 +7301,7 @@ class AppLocalizationsJa extends AppLocalizations {
   String get promptAssistant_apiKeyLeaveEmpty => 'API キー (変更しない場合は空のままにします)';
 
   @override
-  String promptAssistant_connectionTitle(Object name) {
-    return '$name 接続構成';
-  }
-
-  @override
   String get promptAssistant_baseUrlHint => '例: https://api.openai.com/v1';
-
-  @override
-  String get promptAssistant_clearCurrentApiKey => '現在の API キーをクリアします';
-
-  @override
-  String get promptAssistant_protocolSupportsImagePayload =>
-      '現在のプロトコルは画像ペイロードをサポートしています。モデル自体は引き続きビジョン入力をサポートする必要があります';
-
-  @override
-  String get promptAssistant_protocolTextOnlyWarning =>
-      '現在のプロトコルはデフォルトではテキストのみです。これを有効にしてもサーバーによって拒否される可能性があります';
 
   @override
   String get promptAssistant_addRuleTitle => 'ルールの追加';
@@ -7723,6 +8077,16 @@ class AppLocalizationsJa extends AppLocalizations {
   @override
   String settings_queueRetryIntervalValue(Object seconds) {
     return '$seconds 秒';
+  }
+
+  @override
+  String settings_decreaseValue(Object field) {
+    return '$fieldを減らす';
+  }
+
+  @override
+  String settings_increaseValue(Object field) {
+    return '$fieldを増やす';
   }
 
   @override
@@ -9407,11 +9771,6 @@ class AppLocalizationsJa extends AppLocalizations {
   String get vibe_maxReached => '最大 16 件の Vibe に達しました';
 
   @override
-  String vibe_addedNamed(String name) {
-    return 'Vibe を追加しました: $name';
-  }
-
-  @override
   String vibe_addedCount(int count) {
     return '$count 件の Vibe を追加しました';
   }
@@ -9611,6 +9970,167 @@ class AppLocalizationsJa extends AppLocalizations {
   String settings_kritaBridgeClient(Object client) {
     return 'クライアント: $client';
   }
+
+  @override
+  String get settings_mcpServerPermissionSection => '権限';
+
+  @override
+  String get settings_mcpServerClientsSection => 'クライアント';
+
+  @override
+  String get settings_mcpServerEnable => 'MCP サーバーを有効にする';
+
+  @override
+  String get settings_mcpServerDisabledText =>
+      '既定ではオフ。有効にするとローカルの 127.0.0.1 でのみ待ち受けます';
+
+  @override
+  String get settings_mcpServerStartingText => 'ローカル MCP サーバーを起動しています...';
+
+  @override
+  String get settings_mcpServerListeningText => 'MCP クライアントの接続を待っています';
+
+  @override
+  String get settings_mcpServerErrorText => '起動に失敗しました。エラーメッセージを確認してください';
+
+  @override
+  String get settings_mcpServerDisabled => '無効';
+
+  @override
+  String get settings_mcpServerStarting => '起動中';
+
+  @override
+  String get settings_mcpServerListening => '待ち受け中';
+
+  @override
+  String get settings_mcpServerError => 'エラー';
+
+  @override
+  String get settings_mcpServerEndpoint => 'エンドポイント';
+
+  @override
+  String get settings_mcpServerCopyEndpoint => 'エンドポイントをコピー';
+
+  @override
+  String get settings_mcpServerPort => 'ポート';
+
+  @override
+  String get settings_mcpServerPortHelper => '変更すると接続中のクライアントは切断されます';
+
+  @override
+  String settings_mcpServerPortInvalid(Object min, Object max) {
+    return 'ポートは $min から $max の範囲で入力してください';
+  }
+
+  @override
+  String settings_mcpServerPortInUseHint(Object port) {
+    return 'ポート $port は使用中です。下で別のポートを指定してください';
+  }
+
+  @override
+  String get settings_mcpServerDiscoveryFile => 'ディスカバリーファイル';
+
+  @override
+  String get settings_mcpServerToken => 'アクセストークン';
+
+  @override
+  String get settings_mcpServerRevealToken => 'トークンを表示';
+
+  @override
+  String get settings_mcpServerHideToken => 'トークンを隠す';
+
+  @override
+  String get settings_mcpServerCopyToken => 'トークンをコピー';
+
+  @override
+  String get settings_mcpServerRegenerateToken => 'トークンを再生成';
+
+  @override
+  String get settings_mcpServerRegenerateTokenTitle => 'アクセストークンを再生成';
+
+  @override
+  String get settings_mcpServerRegenerateTokenMessage =>
+      '現在のトークンは直ちに無効になり、接続中のクライアントは切断されます。すべてのクライアント設定を新しいトークンに更新してください。';
+
+  @override
+  String get settings_mcpServerAnlasNotice =>
+      'Anlas を消費する可能性のある操作は、権限モードに関係なくランチャー内で個別に確認します。';
+
+  @override
+  String settings_mcpServerPendingApproval(Object client, Object tool) {
+    return '$client が $tool の実行を要求しています';
+  }
+
+  @override
+  String get settings_mcpServerPendingApprovalHint => 'ページ上部の承認バナーで対応してください';
+
+  @override
+  String get settings_mcpServerConnectedClients => '接続中のクライアント';
+
+  @override
+  String get settings_mcpServerSessionsEmpty => '接続中のクライアントはありません';
+
+  @override
+  String settings_mcpServerSessionConnectedAt(Object time) {
+    return '接続 $time';
+  }
+
+  @override
+  String settings_mcpServerSessionLastActivity(Object time) {
+    return '最終アクティビティ $time';
+  }
+
+  @override
+  String get settings_mcpServerClientConfigs => 'クライアント設定';
+
+  @override
+  String get settings_mcpServerConfigUnavailable =>
+      'サーバーを有効にするとクライアント設定が表示されます';
+
+  @override
+  String get settings_mcpServerCopyConfig => '設定をコピー';
+
+  @override
+  String get settings_mcpServerTokenMaskNotice =>
+      'プレビューのトークンはマスクされています。コピーすると実際のトークンが書き込まれます。';
+
+  @override
+  String settings_mcpServerCliMissing(Object path) {
+    return '同梱 CLI が見つかりません（想定パス: $path）。開発実行では正常です';
+  }
+
+  @override
+  String get settings_mcpServerViewDocs => 'ドキュメントを見る';
+
+  @override
+  String get settings_mcpServerAgentPromptTitle => '推奨: エージェントに設定させる';
+
+  @override
+  String get settings_mcpServerAgentPromptHint =>
+      '接続したいエージェントに次のプロンプトを渡すと、設定ドキュメントを読んで自分でインストールします。プロンプトにトークンは含まれず、同梱 CLI がローカルで読み取ります。';
+
+  @override
+  String get settings_mcpServerClaudeCodeHint => 'ターミナルで次のコマンドを実行してサーバーを登録します。';
+
+  @override
+  String get settings_mcpServerCodexHint =>
+      'コマンドでサーバーを登録してから、下の環境変数にトークンを設定します。';
+
+  @override
+  String get settings_mcpServerCursorHint =>
+      '次の内容を Cursor の mcp.json に統合してください。';
+
+  @override
+  String get settings_mcpServerCherryStudioHint =>
+      'Cherry Studio の MCP サーバー設定で「JSON からインポート」に次の内容を貼り付けてください。timeout は秒単位で、アプリ内の承認待ちに十分な余裕があります。';
+
+  @override
+  String get settings_mcpServerPiHint =>
+      'Pi 本体に MCP はありません。先に pi-mcp-adapter パッケージをインストールし、次の内容を ~/.pi/agent/mcp.json に統合してください。';
+
+  @override
+  String get settings_mcpServerClaudeDesktopHint =>
+      '次の内容を Claude Desktop の設定に統合してください。同梱 CLI を介して stdio で接続します。';
 
   @override
   String get settings_fontScale => 'フォント サイズ';
@@ -9855,7 +10375,7 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get settings_stripMetadataSubtitle =>
-      'サニタイズされたコピーを作成し、PNG テキスト チャンク、EXIF、および NAI ステガノグラフィック透かしデータを削除し、ドラッグ中に元のパスが露出しないようにします。';
+      'コピー、ドラッグ、MCP 画像の返却時に PNG テキストチャンク、EXIF、NAI のステガノグラフィック透かしを削除します。ローカルの元画像は変更せず、MCP は元の解像度を維持します。MCP が saved_path として返すギャラリーの元画像はそのままです。';
 
   @override
   String get settings_confirmDangerousActionsTitle => '危険な資産のアクションを再確認する';
@@ -12346,6 +12866,151 @@ class AppLocalizationsJa extends AppLocalizations {
   }
 
   @override
+  String get editor_toolFrame => 'フレーム';
+
+  @override
+  String get editor_toolMove => '移動';
+
+  @override
+  String get editor_toolGroupInpaint => 'インペイント';
+
+  @override
+  String get editor_toolGroupEdit => '編集';
+
+  @override
+  String get editor_toolGroupCommon => '共通';
+
+  @override
+  String get editor_toolMaskBrush => 'マスクブラシ';
+
+  @override
+  String get editor_toolMaskEraser => 'マスク消しゴム';
+
+  @override
+  String get editor_toolMaskColorFill => '色でマスクを塗りつぶし';
+
+  @override
+  String get editor_toolMaskMagicWand => 'マスクマジックワンド';
+
+  @override
+  String get editor_moveLayerHint => 'ドラッグして現在のレイヤー全体を移動します。';
+
+  @override
+  String get editor_moveSelectionHint => 'ドラッグして現在のレイヤーの選択範囲内のピクセルを移動します。';
+
+  @override
+  String get editor_moveBaseLayerHint =>
+      'ベース画像は全体を移動できません。先に範囲を選択してから、その中のピクセルを移動してください。';
+
+  @override
+  String get editor_moveNoLayer => '移動できるレイヤーがありません。';
+
+  @override
+  String get editor_moveNudgeHint => '矢印キーで 1 ピクセル、Shift を押しながらで 10 ピクセル移動します。';
+
+  @override
+  String get editor_shortcutNudge => '1 ピクセル移動';
+
+  @override
+  String get editor_shortcutNudgeFar => '10 ピクセル移動';
+
+  @override
+  String get selection_clearPixels => '選択範囲の内容を削除';
+
+  @override
+  String selection_cutLayerName(Object name) {
+    return '$name カット';
+  }
+
+  @override
+  String layer_duplicateName(Object name) {
+    return '$name のコピー';
+  }
+
+  @override
+  String get layer_roleMask => 'マスク';
+
+  @override
+  String get layer_addImage => '画像レイヤーを追加';
+
+  @override
+  String get layer_addMask => 'マスクレイヤーを追加';
+
+  @override
+  String get img2img_inpaintSourceUpdated =>
+      'ベース画像の編集を保存しました。マスクを塗るとインペイントできます。';
+
+  @override
+  String get editor_frameToolHint =>
+      'フレーム内をドラッグすると全体を移動し、端をドラッグするとサイズを変更します。フレーム外の内容は暗く表示されたまま保持され、生成に送られるのはフレーム内だけです。移動後も元画像と 64 ピクセル以上重なるようにします。';
+
+  @override
+  String editor_frameSizeReadout(int width, int height) {
+    return 'サイズ: $width × $height';
+  }
+
+  @override
+  String editor_frameOffsetReadout(int x, int y) {
+    return '元画像からの位置: X $x, Y $y';
+  }
+
+  @override
+  String get editor_frameMoveLockedByView =>
+      'ビューを回転・反転している間はフレームを移動できません。R でビューをリセットしてから再度お試しください。';
+
+  @override
+  String get editor_resetFrame => 'フレームをリセット';
+
+  @override
+  String get editor_cropToFrame => 'フレームで切り抜き';
+
+  @override
+  String get editor_cropToFrameHint => 'フレーム外の画像とマスクを破棄します。元に戻せます。';
+
+  @override
+  String editor_cropToFrameFailed(Object error) {
+    return 'フレームでの切り抜きに失敗しました: $error';
+  }
+
+  @override
+  String get editor_changeFrameSize => 'フレームのサイズを変更';
+
+  @override
+  String editor_frameResized(int width, int height) {
+    return 'フレームのサイズを $width × $height に変更しました';
+  }
+
+  @override
+  String get editor_frameToolHintPasteBack =>
+      'フレーム内をドラッグすると 64 ピクセル単位で移動し、端をドラッグするとサイズを変更します。生成に送られるのはフレーム内だけです。フレーム外にも元画像がある場合、結果はマスクに沿って画像全体に貼り戻され、フレーム外はそのまま残ります。フレームは元画像と 64 ピクセル以上重なる必要があります。';
+
+  @override
+  String editor_frameRequestReadout(int width, int height) {
+    return '送信: $width × $height';
+  }
+
+  @override
+  String get editor_frameRequestFree => '無料';
+
+  @override
+  String editor_frameRequestCost(int cost) {
+    return '約 $cost Anlas';
+  }
+
+  @override
+  String editor_frameResizeRejected(int overlap, int max) {
+    return 'フレームを変更できません：元画像と $overlap ピクセル以上重なり、元画像と合わせて各辺 $max ピクセル以内である必要があります。';
+  }
+
+  @override
+  String get editor_compressionFrameLimited =>
+      'フレームがリクエスト面積上限を超えるため、これ以上の解像度は選べません。';
+
+  @override
+  String get img2img_focusOutpaintHint =>
+      'フォーカスアウトペイント：フレーム内だけを送信し、生成結果はマスクに沿って画像全体に貼り戻されます。位置はインペイント エディターのフレームツールで調整できます。';
+
+  @override
   String get savePreset_title => 'プリセットとして保存';
 
   @override
@@ -12361,6 +13026,15 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get onlineGallery_videoLoadFailed => '動画を読み込めませんでした';
+
+  @override
+  String get onlineGallery_videoPositionLabel => '再生位置';
+
+  @override
+  String get onlineGallery_videoPlay => '再生';
+
+  @override
+  String get onlineGallery_videoPause => '一時停止';
 
   @override
   String get vibe_releaseToAddStyleReference => '離すとスタイル参照を追加';
@@ -12812,6 +13486,44 @@ class AppLocalizationsJa extends AppLocalizations {
   }
 
   @override
+  String get image_savedToAppGallery => 'アプリ内ギャラリーに保存しました';
+
+  @override
+  String get image_saveAs => '名前を付けて保存…';
+
+  @override
+  String get image_saveAsDialogTitle => '画像に名前を付けて保存';
+
+  @override
+  String get image_saveAsToFolder => 'フォルダーに保存…';
+
+  @override
+  String get image_saveAsFolderDialogTitle => '保存先フォルダーを選択';
+
+  @override
+  String image_savedAs(Object path) {
+    return '$path に保存しました';
+  }
+
+  @override
+  String get image_savedAsToChosenLocation => '選択した場所に保存しました';
+
+  @override
+  String image_savedAsToFolder(int count, Object path) {
+    return '$count 枚の画像を $path に保存しました';
+  }
+
+  @override
+  String image_savedAsToChosenFolder(int count) {
+    return '$count 枚の画像を選択したフォルダーに保存しました';
+  }
+
+  @override
+  String image_savedAsPartial(int saved, int failed, Object error) {
+    return '$saved 枚を保存、$failed 枚が失敗しました: $error';
+  }
+
+  @override
   String image_shareFailed(Object error) {
     return '共有に失敗しました: $error';
   }
@@ -13059,6 +13771,13 @@ class AppLocalizationsJa extends AppLocalizations {
   @override
   String get cloudSync_galleryAlbumsDescription =>
       'アルバム構造と画像参照のみを保存し、原画像はアップロードしません';
+
+  @override
+  String get cloudSync_fixedTagUsage => '固定タグの使用記録';
+
+  @override
+  String get cloudSync_fixedTagUsageDescription =>
+      '各画像がどの固定タグを使ったかの軽量な記録のみを保存し、画像はアップロードしません';
 
   @override
   String get cloudSync_optionalResources => '任意のリソース（既定はオフ）';
@@ -13544,6 +14263,36 @@ class AppLocalizationsJa extends AppLocalizations {
   String get agentSettings_densityCompact => 'コンパクト';
 
   @override
+  String get agentSettings_chatPlacement => 'チャットの配置';
+
+  @override
+  String get agentSettings_chatPlacementDescription =>
+      'ワイド表示でのみ有効です。狭い画面では全画面チャットのままです。';
+
+  @override
+  String get agentSettings_dockLayout => '右パネルのレイアウト';
+
+  @override
+  String get agentSettings_dockLayoutDescription =>
+      '切り替えでは右パネルにチャットか履歴の一方を表示し、分割では両方を同時に表示します。';
+
+  @override
+  String get agentSettings_dockExclusive => '切り替え';
+
+  @override
+  String get agentSettings_dockStacked => '上下に分割';
+
+  @override
+  String get agentSettings_dockSideBySide => '左右に分割';
+
+  @override
+  String get agentSettings_floatingWindow => 'チャットをフローティングウィンドウで表示';
+
+  @override
+  String get agentSettings_floatingWindowDescription =>
+      'フローティングウィンドウはすべてのページに常駐し、移動とサイズ変更ができます。有効にすると右パネルには履歴のみ表示されます。';
+
+  @override
   String get agentSettings_chatModel => 'チャットモデル';
 
   @override
@@ -13551,14 +14300,14 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get agentSettings_modelManagedInIntegrations =>
-      'プロバイダー、API キー、モデル検出は引き続き「連携」で一元管理されます。';
+      'プロバイダー、API キー、モデルは「連携 → モデルサービス」で管理します。';
 
   @override
   String get agentSettings_manageProviders => 'プロバイダーを管理';
 
   @override
   String get agentSettings_noModel =>
-      '利用可能なチャットモデルがありません。先に「連携」でプロバイダーを追加し、モデルを検出してください。';
+      '利用可能なチャットモデルがありません。先に「連携 → モデルサービス」でプロバイダーとモデルを追加してください。';
 
   @override
   String get agentSettings_pendingMatch => '照合待ち';
@@ -13607,7 +14356,7 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get agentSettings_permissionFullDescription =>
-      'ワークスペース外のファイルとツールの直接実行を許可します。信頼できるタスクにのみ使用してください。';
+      'ワークスペース外のファイルとツールの直接実行を許可します。保存済みデータの削除と Anlas の消費は引き続き確認します。信頼できるタスクにのみ使用してください。';
 
   @override
   String get agentSettings_webPreference => 'Web 接続設定';

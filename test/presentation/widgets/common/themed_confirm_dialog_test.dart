@@ -163,6 +163,84 @@ void main() {
 
     expect(openerFocus.hasFocus, isTrue);
   });
+
+  group('showWithOption', () {
+    Future<Future<ThemedConfirmOutcome>> open(
+      WidgetTester tester, {
+      Size size = const Size(1200, 800),
+    }) async {
+      final view = tester.view;
+      view.devicePixelRatio = 1;
+      view.physicalSize = size;
+      addTearDown(() {
+        view.resetPhysicalSize();
+        view.resetDevicePixelRatio();
+      });
+      late Future<ThemedConfirmOutcome> outcome;
+      await tester.pumpWidget(
+        MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Builder(
+            builder: (context) => FilledButton(
+              onPressed: () => outcome = ThemedConfirmDialog.showWithOption(
+                context: context,
+                title: 'Delete',
+                content: 'Delete this image?',
+                optionLabel: 'Do not ask again',
+                confirmText: 'Delete',
+                type: ThemedConfirmDialogType.danger,
+              ),
+              child: const Text('open'),
+            ),
+          ),
+        ),
+      );
+      await tester.tap(find.text('open'));
+      await tester.pumpAndSettle();
+      return Future.value(outcome);
+    }
+
+    testWidgets('confirming reports the checked option', (tester) async {
+      final outcome = await open(tester);
+      expect(find.byType(AlertDialog), findsOneWidget);
+
+      await tester.tap(find.text('Do not ask again'));
+      await tester.pump();
+      await tester.tap(find.widgetWithText(FilledButton, 'Delete'));
+      await tester.pumpAndSettle();
+
+      expect(await outcome, (confirmed: true, optionChecked: true));
+    });
+
+    testWidgets('cancelling discards the checked option', (tester) async {
+      final outcome = await open(tester);
+
+      await tester.tap(find.text('Do not ask again'));
+      await tester.pump();
+      await tester.tap(find.text('Cancel'));
+      await tester.pumpAndSettle();
+
+      expect(await outcome, (confirmed: false, optionChecked: false));
+    });
+
+    testWidgets('compact sheet keeps the option reachable', (tester) async {
+      final outcome = await open(tester, size: const Size(360, 720));
+      expect(find.byType(AlertDialog), findsNothing);
+
+      await tester.tap(find.text('Do not ask again'));
+      await tester.pump();
+      expect(
+        tester.widget<CheckboxListTile>(find.byType(CheckboxListTile)).value,
+        isTrue,
+      );
+      await tester.tap(find.widgetWithText(FilledButton, 'Delete'));
+      await tester.pumpAndSettle();
+
+      expect(await outcome, (confirmed: true, optionChecked: true));
+      expect(tester.takeException(), isNull);
+    });
+  });
 }
 
 double _contrastRatio(Color foreground, Color background) {

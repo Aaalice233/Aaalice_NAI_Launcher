@@ -505,12 +505,31 @@ class AppLocalizationsEn extends AppLocalizations {
   String get auth_selectAccount => 'Select Account';
 
   @override
-  String get auth_deleteAccount => 'Delete Account';
+  String get auth_manageAccounts => 'Manage Accounts';
 
   @override
-  String auth_deleteAccountConfirm(Object name) {
-    return 'Are you sure you want to delete \"$name\"? This cannot be undone.';
+  String get auth_removeSavedAccount => 'Remove Account';
+
+  @override
+  String get auth_removeSavedAccountAction => 'Remove';
+
+  @override
+  String auth_removeSavedAccountConfirm(Object name) {
+    return 'The saved login credentials and avatar for \"$name\" will be removed from this device. Your NovelAI account is not affected, and you can log in again later.';
   }
+
+  @override
+  String get auth_removeSessionAccountNotice =>
+      'You are currently logged in with this account. You will be logged out first.';
+
+  @override
+  String auth_removeSavedAccountSuccess(Object name) {
+    return 'Removed \"$name\"';
+  }
+
+  @override
+  String get auth_removeSavedAccountFailed =>
+      'Couldn\'t remove the account. Please try again.';
 
   @override
   String get auth_removeAvatar => 'Remove Avatar';
@@ -768,6 +787,13 @@ class AppLocalizationsEn extends AppLocalizations {
       'Automatically save images after generation';
 
   @override
+  String get settings_syncToSystemGallery => 'Sync to photo gallery';
+
+  @override
+  String get settings_syncToSystemGallerySubtitle =>
+      'When off, images are saved only to the app gallery and won\'t appear in your photo gallery. Images already synced are not affected.';
+
+  @override
   String get settings_about => 'About';
 
   @override
@@ -973,6 +999,18 @@ class AppLocalizationsEn extends AppLocalizations {
   String get agentChat_tab => 'Chat';
 
   @override
+  String get agentChat_popOutFloating => 'Pop out as floating window';
+
+  @override
+  String get agentChat_dockToSidePanel => 'Dock to side panel';
+
+  @override
+  String get agentChat_hideFloating => 'Hide floating window';
+
+  @override
+  String get agentChat_resizeDockSplit => 'Resize chat and history';
+
+  @override
   String get nav_agent => 'Agent';
 
   @override
@@ -1051,6 +1089,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String agentChat_unsupportedImageFormat(Object fileName) {
     return 'Unsupported image format: $fileName';
   }
+
+  @override
+  String get agentChat_dropHint => 'Drop to add to the chat';
 
   @override
   String get agentChat_newChat => 'New chat';
@@ -1347,6 +1388,11 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String agentChat_approvalFileTarget(String path) {
+    return 'Will write file: $path';
+  }
+
+  @override
   String get agentChat_needSetup =>
       'No chat model configured. Add a provider with tool-calling support in Settings first.';
 
@@ -1452,7 +1498,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get agentChat_permissionFullDescription =>
-      'Run without prompts and allow files outside the workspace';
+      'Ask only to delete saved data or spend Anlas; allow outside files';
 
   @override
   String agentChat_approvalTitle(Object toolName) {
@@ -1468,6 +1514,19 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get agentChat_approvalDeny => 'Deny';
+
+  @override
+  String mcpApproval_title(Object client) {
+    return 'External agent $client is requesting approval';
+  }
+
+  @override
+  String mcpApproval_expiresIn(Object seconds) {
+    return 'Auto-declines in ${seconds}s';
+  }
+
+  @override
+  String get mcpApproval_unknownClient => 'Unknown client';
 
   @override
   String get generation_failedStreamSnapshot => 'Failed snapshot';
@@ -1487,7 +1546,67 @@ class AppLocalizationsEn extends AppLocalizations {
       'Are you sure you want to clear all history records? This action cannot be undone.';
 
   @override
+  String get generation_deleteImageConfirm =>
+      'Delete this image from history? This action cannot be undone.';
+
+  @override
+  String generation_deleteImageWithFileConfirm(Object fileName) {
+    return 'Delete this image from history and permanently delete the file \"$fileName\" from the local gallery? This action cannot be undone.';
+  }
+
+  @override
+  String generation_deleteImagesConfirm(Object count) {
+    return 'Delete the $count selected images from history? This action cannot be undone.';
+  }
+
+  @override
+  String generation_deleteImagesWithFilesConfirm(
+    Object count,
+    Object fileCount,
+  ) {
+    return 'Delete the $count selected images from history and permanently delete $fileCount of their files saved in the local gallery? This action cannot be undone.';
+  }
+
+  @override
+  String get generation_deleteConfirmSkipForSession =>
+      'Don\'t ask again until the app restarts';
+
+  @override
+  String generation_deleteImageFilesFailed(Object count, Object error) {
+    return 'Removed from history, but $count local files could not be deleted: $error';
+  }
+
+  @override
   String get generation_model => 'Model';
+
+  @override
+  String get generation_modelMode => 'Mode';
+
+  @override
+  String get generation_modelModeAnime => 'Anime';
+
+  @override
+  String get generation_modelModeFurry => 'Furry';
+
+  @override
+  String get generation_effort => 'Effort';
+
+  @override
+  String get generation_effortMedium => 'Medium';
+
+  @override
+  String get generation_effortHigh => 'High';
+
+  @override
+  String get generation_effortUnavailableHint => 'Not used on Medium effort';
+
+  @override
+  String get generation_effortNegativeLocked => 'Not sent on Medium';
+
+  @override
+  String generation_effortNegativeLockedHint(Object ucPreset) {
+    return 'Medium effort does not send Undesired Content and only uses the \"$ucPreset\" Undesired Content Preset. Your text is kept and applies again on High effort';
+  }
 
   @override
   String generation_opusUsageRemaining(Object percent) {
@@ -1527,9 +1646,15 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get generation_stepsLabel => 'Steps';
+
+  @override
   String generation_cfgScale(Object scale) {
     return 'CFG Scale: $scale';
   }
+
+  @override
+  String get generation_cfgScaleLabel => 'CFG Scale';
 
   @override
   String get generation_seed => 'Seed';
@@ -1615,6 +1740,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String generation_cfgRescale(Object value) {
     return 'CFG Rescale: $value';
   }
+
+  @override
+  String get generation_cfgRescaleLabel => 'CFG Rescale';
 
   @override
   String get generation_noiseSchedule => 'Noise Schedule';
@@ -2090,6 +2218,88 @@ class AppLocalizationsEn extends AppLocalizations {
   String get img2img_directorDeclutter => 'Declutter';
 
   @override
+  String get img2img_directorPixelSnap => 'Pixel Snap';
+
+  @override
+  String get img2img_directorPixelSnapHint =>
+      'Runs entirely on your computer. No Anlas, no network. Large images can take a few seconds.';
+
+  @override
+  String get img2img_directorPixelSnapPalette => 'Palettize';
+
+  @override
+  String get img2img_directorPixelSnapPaletteOff => 'Off';
+
+  @override
+  String get img2img_directorPixelSnapPaletteAuto => 'Auto';
+
+  @override
+  String get img2img_directorPixelSnapPaletteCustom => 'Custom';
+
+  @override
+  String get img2img_directorPixelSnapColors => 'Colors';
+
+  @override
+  String get img2img_directorPixelSnapAvoidOverRefining =>
+      'Avoid Over-Refining';
+
+  @override
+  String get img2img_directorPixelSnapAvoidOverRefiningOn =>
+      'The detected pixel size is always kept.';
+
+  @override
+  String get img2img_directorPixelSnapAvoidOverRefiningOff =>
+      'A finer pixel size may be used when it matches the image better.';
+
+  @override
+  String get img2img_directorPixelSnapUpscale => 'Upscale';
+
+  @override
+  String get img2img_directorPixelSnapUpscaleOn =>
+      'The result is scaled back up to roughly the input size.';
+
+  @override
+  String get img2img_directorPixelSnapUpscaleOff =>
+      'The result is kept at its snapped pixel size.';
+
+  @override
+  String img2img_directorPixelSnapSummary(int width, int height, int colors) {
+    return '$width×$height pixels · $colors colors';
+  }
+
+  @override
+  String img2img_directorPixelSnapSummaryNoPalette(int width, int height) {
+    return '$width×$height pixels';
+  }
+
+  @override
+  String get img2img_directorPixelSnapNoGrid =>
+      'No repeating pixel grid was found in this image.';
+
+  @override
+  String get img2img_directorPixelSnapBlank =>
+      'This image is fully transparent.';
+
+  @override
+  String get img2img_directorPixelSnapDownscaled =>
+      'The image was downscaled before analysis because it exceeds the size limit.';
+
+  @override
+  String get img2img_directorCancel => 'Cancel';
+
+  @override
+  String get img2img_directorStageAnalyzing => 'Analyzing image';
+
+  @override
+  String get img2img_directorStageSearchingPitch => 'Searching pixel size';
+
+  @override
+  String get img2img_directorStageRefiningGrid => 'Refining grid';
+
+  @override
+  String get img2img_directorStageFinishing => 'Building result';
+
+  @override
   String get img2img_enhance => 'Enhance';
 
   @override
@@ -2282,7 +2492,24 @@ class AppLocalizationsEn extends AppLocalizations {
   String get editor_intensity => 'Intensity';
 
   @override
-  String get editor_sourcePoint => 'Alt+Click to set source point';
+  String get editor_cloneStampSetSource => 'Set Source';
+
+  @override
+  String get editor_cloneStampSetSourceTooltip =>
+      'When on, the next point you pick on the canvas becomes the source. Alt+click on the canvas also sets it.';
+
+  @override
+  String get editor_cloneStampPickingHint =>
+      'Pick a point on the canvas to clone from.';
+
+  @override
+  String get editor_cloneStampNoSourceHint =>
+      'No source point yet. Turn on Set Source, then pick a point on the canvas.';
+
+  @override
+  String editor_cloneStampSourceReadout(int x, int y) {
+    return 'Source point: X $x, Y $y';
+  }
 
   @override
   String get editor_brushPresets => 'Brush Presets';
@@ -2330,10 +2557,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get editor_magicWandMode => 'Selection method';
 
   @override
-  String get editor_magicWandSmartObject => 'Smart object (EfficientViT)';
+  String get editor_magicWandSmartObject => 'Smart object';
 
   @override
-  String get editor_magicWandColorArea => 'Color area (flood fill)';
+  String get editor_magicWandColorArea => 'Color area';
 
   @override
   String get editor_magicWandSmartHelp =>
@@ -2401,6 +2628,15 @@ class AppLocalizationsEn extends AppLocalizations {
   String get editor_fitToWindow => 'Fit to Window';
 
   @override
+  String get editor_viewOptions => 'View Options';
+
+  @override
+  String get editor_menuGroupView => 'View';
+
+  @override
+  String get editor_menuGroupCanvas => 'Canvas';
+
+  @override
   String get editor_tempColorPickerShortcut =>
       'Alt+Click: temporary color picker';
 
@@ -2433,6 +2669,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get editor_shortcutTemporaryColorPicker => 'Temporary Color Picker';
+
+  @override
+  String get editor_shortcutCloneStampSource => 'Set Clone Stamp Source';
 
   @override
   String get editor_shortcutRectSelection => 'Rectangle Selection';
@@ -2872,6 +3111,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String editor_focusMinimumContextArea(Object value) {
     return 'Minimum Context Area: $value';
   }
+
+  @override
+  String get editor_focusMinimumContextAreaLabel => 'Minimum Context Area';
 
   @override
   String get editor_canvasSizeTitle => 'Canvas Size';
@@ -5852,9 +6094,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get statistics_noData => 'No statistics available';
 
   @override
-  String get statistics_noTagData => 'No tag data';
-
-  @override
   String get statistics_generateFirst => 'Generate some images first';
 
   @override
@@ -7022,20 +7261,173 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get promptAssistant_noModelsPullFirst =>
-      'No models yet. Pull the model list first';
+      'No models yet. Add some in Model services first';
 
   @override
-  String get promptAssistant_providerManagement => 'Provider Management';
+  String get settings_modelServices => 'Model services';
 
   @override
-  String get promptAssistant_providerManagementSubtitle =>
-      'Supports OpenAI Chat / Responses, Anthropic, Gemini, DeepSeek, LM Studio, Ollama, Pollinations, and custom compatible endpoints';
+  String get modelServices_searchProviders => 'Search providers';
 
   @override
-  String get promptAssistant_apiKeyConfigured => 'API Key: configured';
+  String get modelServices_noProviderMatches => 'No matching providers';
 
   @override
-  String get promptAssistant_apiKeyNotConfigured => 'API Key: not configured';
+  String get modelServices_emptyTitle => 'Add your first provider';
+
+  @override
+  String get modelServices_emptyBody =>
+      'Providers supply the models used by the prompt assistant and Agent.';
+
+  @override
+  String get modelServices_disabled => 'Off';
+
+  @override
+  String get modelServices_enableProvider => 'Enable provider';
+
+  @override
+  String get modelServices_moreActions => 'More actions';
+
+  @override
+  String get modelServices_connection => 'Connection';
+
+  @override
+  String get modelServices_apiKey => 'API key';
+
+  @override
+  String get modelServices_apiKeySavedHint =>
+      'Saved. Enter a new key to replace it.';
+
+  @override
+  String get modelServices_apiKeyOptional => 'Optional for this provider';
+
+  @override
+  String get modelServices_showApiKey => 'Show key';
+
+  @override
+  String get modelServices_hideApiKey => 'Hide key';
+
+  @override
+  String get modelServices_clearApiKey => 'Remove saved key';
+
+  @override
+  String get modelServices_apiKeyCleared => 'API key removed';
+
+  @override
+  String get modelServices_baseUrl => 'API address';
+
+  @override
+  String get modelServices_checkConnection => 'Check connection';
+
+  @override
+  String modelServices_connectionOk(Object count) {
+    return 'Connected. The provider lists $count models.';
+  }
+
+  @override
+  String modelServices_connectionFailed(Object error) {
+    return 'Couldn\'t connect: $error';
+  }
+
+  @override
+  String get modelServices_models => 'Models';
+
+  @override
+  String modelServices_modelCount(Object count) {
+    return '$count models';
+  }
+
+  @override
+  String get modelServices_noModels =>
+      'No models yet. Pick from the provider\'s list or add a model ID.';
+
+  @override
+  String get modelServices_manageModels => 'Manage models';
+
+  @override
+  String get modelServices_addModel => 'Add model';
+
+  @override
+  String modelServices_manageModelsTitle(Object provider) {
+    return '$provider models';
+  }
+
+  @override
+  String modelServices_addGroup(Object group) {
+    return 'Add all $group models';
+  }
+
+  @override
+  String modelServices_removeGroup(Object group) {
+    return 'Remove all $group models';
+  }
+
+  @override
+  String get modelServices_notListed => 'No longer listed';
+
+  @override
+  String get modelServices_reasoning => 'Reasoning';
+
+  @override
+  String get modelServices_vision => 'Vision';
+
+  @override
+  String modelServices_contextWindow(Object size) {
+    return '$size context';
+  }
+
+  @override
+  String get modelServices_modelId => 'Model ID';
+
+  @override
+  String get modelServices_modelIdRequired => 'Enter a model ID';
+
+  @override
+  String get modelServices_modelExists =>
+      'This provider already has this model';
+
+  @override
+  String get modelServices_displayName => 'Display name';
+
+  @override
+  String modelServices_displayNameHint(Object name) {
+    return 'Leave empty to use $name';
+  }
+
+  @override
+  String get modelServices_editModel => 'Edit model';
+
+  @override
+  String get modelServices_removeModel => 'Remove model';
+
+  @override
+  String modelServices_removeModelConfirm(Object name) {
+    return 'Remove $name from this provider?';
+  }
+
+  @override
+  String modelServices_removeModelInUse(Object name, Object usages) {
+    return '$name is used by $usages. Task routing switches to this provider\'s next model, and Agent asks you to pick a model again.';
+  }
+
+  @override
+  String get modelServices_usageSeparator => ', ';
+
+  @override
+  String get modelServices_cleanStaleModels => 'Remove delisted models';
+
+  @override
+  String get modelServices_addAllModels => 'Add all models';
+
+  @override
+  String modelServices_staleModelCount(Object count) {
+    return '$count delisted models';
+  }
+
+  @override
+  String modelServices_addAllConfirm(Object count) {
+    return 'Add $count models to this provider?';
+  }
 
   @override
   String get promptAssistant_supportsImageInput => 'Supports image input';
@@ -7044,28 +7436,14 @@ class AppLocalizationsEn extends AppLocalizations {
   String get promptAssistant_textOnly => 'Text only';
 
   @override
-  String get promptAssistant_connectionConfig => 'Connection Config';
-
-  @override
-  String get promptAssistant_pullModelList => 'Pull model list';
-
-  @override
   String get promptAssistant_editProvider => 'Edit provider';
 
   @override
   String get promptAssistant_deleteProvider => 'Delete provider';
 
   @override
-  String get promptAssistant_pullingModels => 'Pulling model list...';
-
-  @override
   String get promptAssistant_emptyModelList =>
       'Provider returned an empty model list';
-
-  @override
-  String promptAssistant_modelsSynced(Object count) {
-    return 'Synced $count models';
-  }
 
   @override
   String promptAssistant_pullModelsFailed(Object error) {
@@ -7106,24 +7484,8 @@ class AppLocalizationsEn extends AppLocalizations {
       'API Key (leave empty to keep unchanged)';
 
   @override
-  String promptAssistant_connectionTitle(Object name) {
-    return '$name Connection Config';
-  }
-
-  @override
   String get promptAssistant_baseUrlHint =>
       'Example: https://api.openai.com/v1';
-
-  @override
-  String get promptAssistant_clearCurrentApiKey => 'Clear current API Key';
-
-  @override
-  String get promptAssistant_protocolSupportsImagePayload =>
-      'The current protocol supports image payloads; the model itself must still support vision input';
-
-  @override
-  String get promptAssistant_protocolTextOnlyWarning =>
-      'The current protocol is text-only by default; enabling this may still be rejected by the server';
 
   @override
   String get promptAssistant_addRuleTitle => 'Add Rule';
@@ -7913,6 +8275,16 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String settings_queueRetryIntervalValue(Object seconds) {
     return '$seconds seconds';
+  }
+
+  @override
+  String settings_decreaseValue(Object field) {
+    return 'Decrease $field';
+  }
+
+  @override
+  String settings_increaseValue(Object field) {
+    return 'Increase $field';
   }
 
   @override
@@ -9630,11 +10002,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get vibe_maxReached => 'Maximum 16 vibes reached';
 
   @override
-  String vibe_addedNamed(String name) {
-    return 'Added Vibe: $name';
-  }
-
-  @override
   String vibe_addedCount(int count) {
     return 'Added $count vibes';
   }
@@ -9838,6 +10205,175 @@ class AppLocalizationsEn extends AppLocalizations {
   String settings_kritaBridgeClient(Object client) {
     return 'Client: $client';
   }
+
+  @override
+  String get settings_mcpServerPermissionSection => 'Permissions';
+
+  @override
+  String get settings_mcpServerClientsSection => 'Clients';
+
+  @override
+  String get settings_mcpServerEnable => 'Enable MCP server';
+
+  @override
+  String get settings_mcpServerDisabledText =>
+      'Off by default; listens only on local 127.0.0.1 when enabled';
+
+  @override
+  String get settings_mcpServerStartingText =>
+      'Starting the local MCP server...';
+
+  @override
+  String get settings_mcpServerListeningText =>
+      'Waiting for MCP client connections';
+
+  @override
+  String get settings_mcpServerErrorText =>
+      'Startup failed, check the error message';
+
+  @override
+  String get settings_mcpServerDisabled => 'Disabled';
+
+  @override
+  String get settings_mcpServerStarting => 'Starting';
+
+  @override
+  String get settings_mcpServerListening => 'Listening';
+
+  @override
+  String get settings_mcpServerError => 'Error';
+
+  @override
+  String get settings_mcpServerEndpoint => 'Endpoint';
+
+  @override
+  String get settings_mcpServerCopyEndpoint => 'Copy endpoint';
+
+  @override
+  String get settings_mcpServerPort => 'Port';
+
+  @override
+  String get settings_mcpServerPortHelper =>
+      'Changing it disconnects connected clients';
+
+  @override
+  String settings_mcpServerPortInvalid(Object min, Object max) {
+    return 'Enter a port between $min and $max';
+  }
+
+  @override
+  String settings_mcpServerPortInUseHint(Object port) {
+    return 'Port $port is already in use, pick another port below';
+  }
+
+  @override
+  String get settings_mcpServerDiscoveryFile => 'Discovery file';
+
+  @override
+  String get settings_mcpServerToken => 'Access token';
+
+  @override
+  String get settings_mcpServerRevealToken => 'Show token';
+
+  @override
+  String get settings_mcpServerHideToken => 'Hide token';
+
+  @override
+  String get settings_mcpServerCopyToken => 'Copy token';
+
+  @override
+  String get settings_mcpServerRegenerateToken => 'Regenerate token';
+
+  @override
+  String get settings_mcpServerRegenerateTokenTitle =>
+      'Regenerate access token';
+
+  @override
+  String get settings_mcpServerRegenerateTokenMessage =>
+      'The current token stops working immediately and connected clients are disconnected. Update every client configuration with the new token.';
+
+  @override
+  String get settings_mcpServerAnlasNotice =>
+      'Anything that may spend Anlas is confirmed separately inside the launcher, regardless of the permission mode.';
+
+  @override
+  String settings_mcpServerPendingApproval(Object client, Object tool) {
+    return '$client is requesting $tool';
+  }
+
+  @override
+  String get settings_mcpServerPendingApprovalHint =>
+      'Respond in the approval banner at the top of the page';
+
+  @override
+  String get settings_mcpServerConnectedClients => 'Connected clients';
+
+  @override
+  String get settings_mcpServerSessionsEmpty => 'No clients connected yet';
+
+  @override
+  String settings_mcpServerSessionConnectedAt(Object time) {
+    return 'Connected at $time';
+  }
+
+  @override
+  String settings_mcpServerSessionLastActivity(Object time) {
+    return 'Last activity $time';
+  }
+
+  @override
+  String get settings_mcpServerClientConfigs => 'Client configuration';
+
+  @override
+  String get settings_mcpServerConfigUnavailable =>
+      'Client configuration appears once the server is running';
+
+  @override
+  String get settings_mcpServerCopyConfig => 'Copy configuration';
+
+  @override
+  String get settings_mcpServerTokenMaskNotice =>
+      'The token is masked in the preview; copying writes the real token.';
+
+  @override
+  String settings_mcpServerCliMissing(Object path) {
+    return 'Bundled CLI not found (expected at $path), which is normal in development runs';
+  }
+
+  @override
+  String get settings_mcpServerViewDocs => 'View documentation';
+
+  @override
+  String get settings_mcpServerAgentPromptTitle =>
+      'Recommended: let the agent configure itself';
+
+  @override
+  String get settings_mcpServerAgentPromptHint =>
+      'Send this prompt to the agent you want to connect; it reads the setup documentation and installs the configuration itself. The prompt carries no token — the bundled CLI reads it locally.';
+
+  @override
+  String get settings_mcpServerClaudeCodeHint =>
+      'Run this command in a terminal to register the server.';
+
+  @override
+  String get settings_mcpServerCodexHint =>
+      'Run the command to register the server, then set the token in the environment variable below.';
+
+  @override
+  String get settings_mcpServerCursorHint =>
+      'Merge this into the Cursor mcp.json configuration file.';
+
+  @override
+  String get settings_mcpServerCherryStudioHint =>
+      'Paste this into Cherry Studio\'s MCP server settings with “Import from JSON”; timeout is in seconds and already covers the in-app approval wait.';
+
+  @override
+  String get settings_mcpServerPiHint =>
+      'Pi has no built-in MCP: install the pi-mcp-adapter package first, then merge this into ~/.pi/agent/mcp.json.';
+
+  @override
+  String get settings_mcpServerClaudeDesktopHint =>
+      'Merge this into the Claude Desktop configuration; it connects over stdio through the bundled CLI.';
 
   @override
   String get settings_fontScale => 'Font Size';
@@ -10094,7 +10630,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get settings_stripMetadataSubtitle =>
-      'Create a sanitized copy, remove PNG text chunks, EXIF, and NAI steganographic watermark data, and avoid exposing the original path while dragging.';
+      'Remove PNG text chunks, EXIF, and NAI steganographic watermark data when copying, dragging, or returning MCP images. Local originals stay unchanged; MCP keeps the original resolution, and the gallery original it reports as saved_path is not sanitized.';
 
   @override
   String get settings_confirmDangerousActionsTitle =>
@@ -12667,6 +13203,154 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get editor_toolFrame => 'Frame';
+
+  @override
+  String get editor_toolMove => 'Move';
+
+  @override
+  String get editor_toolGroupInpaint => 'Inpaint';
+
+  @override
+  String get editor_toolGroupEdit => 'Edit';
+
+  @override
+  String get editor_toolGroupCommon => 'General';
+
+  @override
+  String get editor_toolMaskBrush => 'Mask Brush';
+
+  @override
+  String get editor_toolMaskEraser => 'Mask Eraser';
+
+  @override
+  String get editor_toolMaskColorFill => 'Fill Mask by Color';
+
+  @override
+  String get editor_toolMaskMagicWand => 'Mask Magic Wand';
+
+  @override
+  String get editor_moveLayerHint => 'Drag to move the whole current layer.';
+
+  @override
+  String get editor_moveSelectionHint =>
+      'Drag to move the pixels of the current layer inside the selection.';
+
+  @override
+  String get editor_moveBaseLayerHint =>
+      'The base image cannot be moved as a whole. Make a selection first, then move the pixels inside it.';
+
+  @override
+  String get editor_moveNoLayer => 'There is no layer to move.';
+
+  @override
+  String get editor_moveNudgeHint =>
+      'Arrow keys move 1 pixel; hold Shift to move 10 pixels.';
+
+  @override
+  String get editor_shortcutNudge => 'Move 1 pixel';
+
+  @override
+  String get editor_shortcutNudgeFar => 'Move 10 pixels';
+
+  @override
+  String get selection_clearPixels => 'Delete Selected Pixels';
+
+  @override
+  String selection_cutLayerName(Object name) {
+    return '$name Cut';
+  }
+
+  @override
+  String layer_duplicateName(Object name) {
+    return '$name Copy';
+  }
+
+  @override
+  String get layer_roleMask => 'Mask';
+
+  @override
+  String get layer_addImage => 'Add Image Layer';
+
+  @override
+  String get layer_addMask => 'Add Mask Layer';
+
+  @override
+  String get img2img_inpaintSourceUpdated =>
+      'Base image edits saved. Paint a mask to start inpainting.';
+
+  @override
+  String get editor_frameToolHint =>
+      'Drag inside the frame to move it, or drag its edges to resize. Content outside the frame is kept and dimmed; only the area inside is sent for generation. A moved frame keeps at least 64 px of overlap with the image.';
+
+  @override
+  String editor_frameSizeReadout(int width, int height) {
+    return 'Size: $width x $height';
+  }
+
+  @override
+  String editor_frameOffsetReadout(int x, int y) {
+    return 'Offset from image: X $x, Y $y';
+  }
+
+  @override
+  String get editor_frameMoveLockedByView =>
+      'The frame can\'t be moved while the view is rotated or mirrored. Press R to reset the view, then try again.';
+
+  @override
+  String get editor_resetFrame => 'Reset Frame';
+
+  @override
+  String get editor_cropToFrame => 'Crop to Frame';
+
+  @override
+  String get editor_cropToFrameHint =>
+      'Discard the image and mask outside the frame. This can be undone.';
+
+  @override
+  String editor_cropToFrameFailed(Object error) {
+    return 'Crop to frame failed: $error';
+  }
+
+  @override
+  String get editor_changeFrameSize => 'Change Frame Size';
+
+  @override
+  String editor_frameResized(int width, int height) {
+    return 'Frame resized to $width x $height';
+  }
+
+  @override
+  String get editor_frameToolHintPasteBack =>
+      'Drag inside the frame to move it in 64 px steps, or drag its edges to resize. Only the area inside is sent for generation; when part of the image lies outside the frame, the result is pasted back into the full image through the mask and the outside stays unchanged. The frame keeps at least 64 px of overlap with the image.';
+
+  @override
+  String editor_frameRequestReadout(int width, int height) {
+    return 'Request: $width x $height';
+  }
+
+  @override
+  String get editor_frameRequestFree => 'Free';
+
+  @override
+  String editor_frameRequestCost(int cost) {
+    return '~$cost Anlas';
+  }
+
+  @override
+  String editor_frameResizeRejected(int overlap, int max) {
+    return 'Can\'t resize the frame: it must overlap the image by at least $overlap px, and the frame and image together can\'t exceed $max px per side.';
+  }
+
+  @override
+  String get editor_compressionFrameLimited =>
+      'Higher resolutions are unavailable because the frame would exceed the request area limit.';
+
+  @override
+  String get img2img_focusOutpaintHint =>
+      'Focus outpaint: only the frame is sent, and the result is pasted back into the full image through the mask. Adjust the frame with the Frame tool in the inpaint editor.';
+
+  @override
   String get savePreset_title => 'Save as Preset';
 
   @override
@@ -12682,6 +13366,15 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get onlineGallery_videoLoadFailed => 'Failed to load video';
+
+  @override
+  String get onlineGallery_videoPositionLabel => 'Playback position';
+
+  @override
+  String get onlineGallery_videoPlay => 'Play';
+
+  @override
+  String get onlineGallery_videoPause => 'Pause';
 
   @override
   String get vibe_releaseToAddStyleReference =>
@@ -13155,6 +13848,44 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get image_savedToAppGallery => 'Saved to the app gallery';
+
+  @override
+  String get image_saveAs => 'Save as…';
+
+  @override
+  String get image_saveAsDialogTitle => 'Save image as';
+
+  @override
+  String get image_saveAsToFolder => 'Save to folder…';
+
+  @override
+  String get image_saveAsFolderDialogTitle => 'Choose a folder to save to';
+
+  @override
+  String image_savedAs(Object path) {
+    return 'Saved as $path';
+  }
+
+  @override
+  String get image_savedAsToChosenLocation => 'Saved to the chosen location';
+
+  @override
+  String image_savedAsToFolder(int count, Object path) {
+    return 'Saved $count images to $path';
+  }
+
+  @override
+  String image_savedAsToChosenFolder(int count) {
+    return 'Saved $count images to the chosen folder';
+  }
+
+  @override
+  String image_savedAsPartial(int saved, int failed, Object error) {
+    return 'Saved $saved, $failed failed: $error';
+  }
+
+  @override
   String image_shareFailed(Object error) {
     return 'Share failed: $error';
   }
@@ -13409,6 +14140,13 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get cloudSync_galleryAlbumsDescription =>
       'Stores album structure and image references, never original images';
+
+  @override
+  String get cloudSync_fixedTagUsage => 'Fixed-tag usage records';
+
+  @override
+  String get cloudSync_fixedTagUsageDescription =>
+      'Stores a lightweight record of which fixed tags each image used, never the images';
 
   @override
   String get cloudSync_optionalResources =>
@@ -13908,6 +14646,36 @@ class AppLocalizationsEn extends AppLocalizations {
   String get agentSettings_densityCompact => 'Compact';
 
   @override
+  String get agentSettings_chatPlacement => 'Chat placement';
+
+  @override
+  String get agentSettings_chatPlacementDescription =>
+      'Applies to wide windows only; narrow screens keep the full-screen chat.';
+
+  @override
+  String get agentSettings_dockLayout => 'Right panel layout';
+
+  @override
+  String get agentSettings_dockLayoutDescription =>
+      'Switch shows either chat or history in the right panel; split layouts show both at once.';
+
+  @override
+  String get agentSettings_dockExclusive => 'Switch';
+
+  @override
+  String get agentSettings_dockStacked => 'Stacked';
+
+  @override
+  String get agentSettings_dockSideBySide => 'Side by side';
+
+  @override
+  String get agentSettings_floatingWindow => 'Show chat in a floating window';
+
+  @override
+  String get agentSettings_floatingWindowDescription =>
+      'The floating window stays on every page and can be moved and resized; the right panel then shows only history.';
+
+  @override
   String get agentSettings_chatModel => 'Chat model';
 
   @override
@@ -13915,14 +14683,14 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get agentSettings_modelManagedInIntegrations =>
-      'Providers, API keys, and model discovery remain centrally managed in Integrations.';
+      'Providers, API keys, and models are managed in Integrations > Model services.';
 
   @override
   String get agentSettings_manageProviders => 'Manage providers';
 
   @override
   String get agentSettings_noModel =>
-      'No chat model is available. Add a provider and discover models in Integrations first.';
+      'No chat model is available. Add a provider and its models in Integrations > Model services first.';
 
   @override
   String get agentSettings_pendingMatch => 'pending match';
@@ -13971,7 +14739,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get agentSettings_permissionFullDescription =>
-      'Allow direct tool use and files outside the workspace. Use only for trusted tasks.';
+      'Allow direct tool use and files outside the workspace; deleting saved data or spending Anlas still asks first. Use only for trusted tasks.';
 
   @override
   String get agentSettings_webPreference => 'Web preference';

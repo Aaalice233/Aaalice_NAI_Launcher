@@ -279,6 +279,7 @@ Compact/Medium 下没有持久侧栏时，页面名称保留在主工具栏，�
 ### Sliders
 
 - 滑条可以使用 `divisions` 保留离散取值、键盘步进和语义行为，但所有主题与局部 `SliderTheme` 均隐藏轨道间隔点，只显示轨道、进度和滑块。
+- 滑条统一经 `NamedSlider`（沿用局部 `SliderTheme`）或 `ThemedSlider`（项目外观）创建：读屏名称用所属字段名，读数与界面上显示的数值共用同一格式化；当前值始终在行内可见，不显示拖动数值气泡。
 
 ### Chips
 

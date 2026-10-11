@@ -21,6 +21,13 @@ typedef SelectionPreviewFrameResolver =
       required double minContextMegaPixels,
     });
 
+typedef CropPreviewFrameResolver =
+    FocusedInpaintFrame? Function({
+      required int sourceWidth,
+      required int sourceHeight,
+      required Rect crop,
+    });
+
 typedef MaskOverlayBuilder = Uint8List Function(Uint8List maskImage);
 
 typedef SourcePreviewSizeReader = (int, int)? Function(Uint8List sourceImage);
@@ -69,17 +76,22 @@ class Img2ImgPreviewCache {
   Img2ImgPreviewCache({
     FocusedPreviewFrameResolver? focusedFrameResolver,
     SelectionPreviewFrameResolver? selectionPreviewFrameResolver,
+    CropPreviewFrameResolver? cropPreviewFrameResolver,
     MaskOverlayBuilder? maskOverlayBuilder,
   }) : _focusedFrameResolver =
            focusedFrameResolver ?? FocusedInpaintUtils.resolvePreviewFrame,
        _selectionPreviewFrameResolver =
            selectionPreviewFrameResolver ??
            FocusedInpaintUtils.resolvePreviewFrameForSelection,
+       _cropPreviewFrameResolver =
+           cropPreviewFrameResolver ??
+           FocusedInpaintUtils.resolveGeometryForCrop,
        _maskOverlayBuilder =
            maskOverlayBuilder ?? InpaintMaskUtils.maskToEditorOverlay;
 
   final FocusedPreviewFrameResolver _focusedFrameResolver;
   final SelectionPreviewFrameResolver _selectionPreviewFrameResolver;
+  final CropPreviewFrameResolver _cropPreviewFrameResolver;
   final MaskOverlayBuilder _maskOverlayBuilder;
 
   Uint8List? _lastMaskImageForOverlay;
@@ -88,6 +100,7 @@ class Img2ImgPreviewCache {
   Uint8List? _lastSourceImageForFrame;
   Uint8List? _lastMaskImageForFrame;
   Rect? _lastFocusedSelectionRect;
+  Rect? _lastFocusedContextCrop;
   double? _lastMinimumContextMegaPixels;
   bool? _lastFocusedInpaintEnabled;
   int? _lastSourceWidth;
@@ -99,6 +112,7 @@ class Img2ImgPreviewCache {
     Uint8List? maskImage,
     required bool focusedInpaintEnabled,
     Rect? focusedSelectionRect,
+    Rect? focusedContextCrop,
     required double minContextMegaPixels,
     int? sourceWidth,
     int? sourceHeight,
@@ -112,11 +126,14 @@ class Img2ImgPreviewCache {
 
     final shouldResolveFocusedFrame =
         focusedInpaintEnabled &&
-        (maskImage != null || focusedSelectionRect != null);
+        (maskImage != null ||
+            focusedSelectionRect != null ||
+            focusedContextCrop != null);
     final frameInputsChanged =
         !identical(sourceImage, _lastSourceImageForFrame) ||
         !identical(maskImage, _lastMaskImageForFrame) ||
         _lastFocusedSelectionRect != focusedSelectionRect ||
+        _lastFocusedContextCrop != focusedContextCrop ||
         _lastMinimumContextMegaPixels != minContextMegaPixels ||
         _lastFocusedInpaintEnabled != focusedInpaintEnabled ||
         _lastSourceWidth != sourceWidth ||
@@ -125,7 +142,15 @@ class Img2ImgPreviewCache {
     if (!shouldResolveFocusedFrame) {
       _cachedFocusedFrame = null;
     } else if (frameInputsChanged) {
-      if (focusedSelectionRect != null &&
+      if (focusedContextCrop != null) {
+        _cachedFocusedFrame = sourceWidth == null || sourceHeight == null
+            ? null
+            : _cropPreviewFrameResolver(
+                sourceWidth: sourceWidth,
+                sourceHeight: sourceHeight,
+                crop: focusedContextCrop,
+              );
+      } else if (focusedSelectionRect != null &&
           sourceWidth != null &&
           sourceHeight != null) {
         _cachedFocusedFrame = _selectionPreviewFrameResolver(
@@ -147,6 +172,7 @@ class Img2ImgPreviewCache {
     _lastSourceImageForFrame = sourceImage;
     _lastMaskImageForFrame = maskImage;
     _lastFocusedSelectionRect = focusedSelectionRect;
+    _lastFocusedContextCrop = focusedContextCrop;
     _lastMinimumContextMegaPixels = minContextMegaPixels;
     _lastFocusedInpaintEnabled = focusedInpaintEnabled;
     _lastSourceWidth = sourceWidth;

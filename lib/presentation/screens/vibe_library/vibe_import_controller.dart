@@ -24,7 +24,7 @@ import '../../../data/models/vibe/vibe_reference.dart';
 import '../../../data/services/vibe_import_service.dart';
 import '../../../data/services/vibe_library_import_repository_impl.dart';
 import '../../../data/services/vibe_library_storage_service.dart';
-import '../../providers/auth_provider.dart';
+import '../../../data/services/auth_provider.dart';
 import '../../providers/generation/generation_params_notifier.dart';
 import '../../providers/vibe_library_provider.dart';
 import '../../widgets/common/app_toast.dart';
@@ -404,19 +404,11 @@ class VibeImportController {
 
   Future<bool?> _processImage(VibeImageImportItem image) async {
     try {
-      final parsed = await VibeFileParser.parseFile(image.source, image.bytes);
-      final encoded = parsed
-          .where((vibe) => vibe.vibeEncoding.isNotEmpty)
-          .toList();
-      if (encoded.isEmpty) return _encodeImage(image);
-      if (encoded.length == 1) return _save(encoded.first);
-      return _saveBundle(image.source, encoded);
-    } on NoVibeDataException {
-      return _encodeImage(image);
+      final encoded = await _parseEncodedVibes(image);
+      if (encoded.isEmpty) return await _encodeImage(image);
+      if (encoded.length == 1) return await _save(encoded.first);
+      return await _saveBundle(image.source, encoded);
     } catch (error, stackTrace) {
-      if (error.toString().contains('No naiv4vibe metadata')) {
-        return _encodeImage(image);
-      }
       AppLogger.e(
         'Failed to process ${image.source}',
         error,
@@ -424,6 +416,20 @@ class VibeImportController {
         'VibeLibrary',
       );
       return false;
+    }
+  }
+
+  Future<List<VibeReference>> _parseEncodedVibes(
+    VibeImageImportItem image,
+  ) async {
+    try {
+      final parsed = await VibeFileParser.parseFile(image.source, image.bytes);
+      return parsed.where((vibe) => vibe.vibeEncoding.isNotEmpty).toList();
+    } on NoVibeDataException {
+      return const [];
+    } catch (error) {
+      if (error.toString().contains('No naiv4vibe metadata')) return const [];
+      rethrow;
     }
   }
 

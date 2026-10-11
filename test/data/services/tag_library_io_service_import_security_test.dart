@@ -170,6 +170,35 @@ void main() {
       }
       expect(thumbnailNames(), isEmpty);
     });
+
+    test('接受记录了目录项的词库包', () async {
+      final entry = _entry(id: _entryId, thumbnail: '/exported/thumb.png');
+      final package = _writePackage(workspace, [
+        _manifest(),
+        _directory('entries/'),
+        _json('entries/$_entryId.json', entry.toJson()),
+        _directory('thumbnails/'),
+        _binary('thumbnails/$_entryId.png', _pngBytes),
+      ]);
+
+      final preview = await service.parseImportFile(package);
+
+      expect(preview.entries.single.id, _entryId);
+      expect(preview.hasThumbnails, isTrue);
+    });
+
+    test('空预览图目录不算携带预览图', () async {
+      final entry = _entry(id: _entryId, thumbnail: '/exported/thumb.png');
+      final package = _writePackage(workspace, [
+        _manifest(),
+        _json('entries/$_entryId.json', entry.toJson()),
+        _directory('thumbnails/'),
+      ]);
+
+      final preview = await service.parseImportFile(package);
+
+      expect(preview.hasThumbnails, isFalse);
+    });
   });
 
   group('标识符校验', () {
@@ -350,6 +379,9 @@ ArchiveFile _json(String name, Object? value) =>
 
 ArchiveFile _binary(String name, List<int> bytes) =>
     ArchiveFile(name, bytes.length, bytes);
+
+ArchiveFile _directory(String name) =>
+    ArchiveFile(name, 0, <int>[])..isFile = false;
 
 File _writePackage(
   Directory directory,

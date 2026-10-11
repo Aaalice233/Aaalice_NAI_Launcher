@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../themes/design_tokens.dart';
+import '../../../widgets/common/heading_semantics.dart';
 
 /// 统一设置页面的标题、说明、操作区与分组节奏。
 ///
@@ -28,8 +29,8 @@ class SettingsPageLayout extends StatelessWidget {
     final headingContent = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Semantics(
-          header: true,
+        HeadingSemantics(
+          level: 2,
           child: Text(
             title,
             key: const ValueKey('settings-page-title'),

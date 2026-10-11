@@ -114,6 +114,109 @@ void main() {
     expect(tester.widget<ListTile>(tileFinder).onTap, isNotNull);
   });
 
+  testWidgets('更新服务就绪前不抛异常，其余内容照常可用', (tester) async {
+    final ready = Completer<UpdateCheckService>();
+    addTearDown(() {
+      if (!ready.isCompleted) ready.complete(updateService);
+    });
+
+    await _pumpSubject(
+      tester,
+      exportService,
+      updateService,
+      serviceReady: () => ready.future,
+      settle: false,
+    );
+
+    expect(tester.takeException(), isNull);
+    expect(find.text('应用信息'), findsOneWidget);
+    expect(find.text('更新'), findsOneWidget);
+    expect(find.textContaining('1.0.0'), findsOneWidget);
+
+    // 导出诊断日志不依赖更新服务，就绪前必须照常可点。
+    final exportTile = find.byKey(const ValueKey('export-diagnostic-logs'));
+    expect(tester.widget<ListTile>(exportTile).onTap, isNotNull);
+
+    final checkTile = find.byKey(const ValueKey('check-for-update'));
+    final prereleaseTile = find.byKey(const ValueKey('include-prerelease'));
+    expect(find.text('加载中...'), findsOneWidget);
+    expect(tester.widget<ListTile>(checkTile).enabled, isFalse);
+    expect(tester.widget<SwitchListTile>(prereleaseTile).onChanged, isNull);
+
+    ready.complete(updateService);
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
+    expect(find.text('加载中...'), findsNothing);
+    expect(find.text('从未检查'), findsOneWidget);
+    expect(tester.widget<ListTile>(checkTile).onTap, isNotNull);
+    expect(tester.widget<SwitchListTile>(prereleaseTile).onChanged, isNotNull);
+  });
+
+  testWidgets('更新服务初始化失败时页面降级而不是崩溃', (tester) async {
+    await _pumpSubject(
+      tester,
+      exportService,
+      updateService,
+      serviceReady: () async => throw StateError('package info unavailable'),
+    );
+
+    expect(tester.takeException(), isNull);
+    expect(find.text('错误'), findsOneWidget);
+    expect(
+      tester
+          .widget<ListTile>(find.byKey(const ValueKey('check-for-update')))
+          .enabled,
+      isFalse,
+    );
+    // 其余板块与更新服务无关，必须保持可用。
+    expect(
+      tester
+          .widget<ListTile>(
+            find.byKey(const ValueKey('export-diagnostic-logs')),
+          )
+          .onTap,
+      isNotNull,
+    );
+  });
+
+  testWidgets('未就绪的更新入口在各断点与 3x 文本下不溢出', (tester) async {
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final ready = Completer<UpdateCheckService>();
+    addTearDown(() {
+      if (!ready.isCompleted) ready.complete(updateService);
+    });
+
+    for (final width in <double>[320, 600, 840, 1180, 1600]) {
+      await tester.binding.setSurfaceSize(Size(width, 900));
+      await _pumpSubject(
+        tester,
+        exportService,
+        updateService,
+        serviceReady: () => ready.future,
+        settle: false,
+        textScale: 3,
+      );
+
+      expect(tester.takeException(), isNull, reason: 'width=$width');
+      expect(
+        find.byKey(const ValueKey('check-for-update')),
+        findsOneWidget,
+        reason: 'width=$width',
+      );
+      expect(
+        find.byKey(const ValueKey('include-prerelease')),
+        findsOneWidget,
+        reason: 'width=$width',
+      );
+      expect(
+        find.byKey(const ValueKey('export-diagnostic-logs')),
+        findsOneWidget,
+        reason: 'width=$width',
+      );
+    }
+  });
+
   testWidgets('紧凑与宽屏下的多语言文案不会溢出', (tester) async {
     addTearDown(() => tester.binding.setSurfaceSize(null));
     when(
@@ -152,6 +255,9 @@ Future<void> _pumpSubject(
   UpdateCheckService updateService, {
   Locale locale = const Locale('zh'),
   double textScale = 1,
+  // 传入工厂可以停在服务就绪前那一帧，或让初始化直接失败。
+  Future<UpdateCheckService> Function()? serviceReady,
+  bool settle = true,
 }) async {
   await tester.pumpWidget(
     ProviderScope(
@@ -159,7 +265,9 @@ Future<void> _pumpSubject(
         localStorageServiceProvider.overrideWithValue(
           _MemoryLocalStorageService(),
         ),
-        updateCheckServiceProvider.overrideWithValue(updateService),
+        updateCheckServiceReadyProvider.overrideWith(
+          (ref) => serviceReady?.call() ?? Future.value(updateService),
+        ),
         updateStateProvider.overrideWith(_FakeUpdateStateNotifier.new),
         diagnosticLogExportServiceProvider.overrideWithValue(exportService),
       ],
@@ -179,7 +287,11 @@ Future<void> _pumpSubject(
       ),
     ),
   );
-  await tester.pumpAndSettle();
+  if (settle) {
+    await tester.pumpAndSettle();
+  } else {
+    await tester.pump();
+  }
 }
 
 class _MockDiagnosticLogExportService extends Mock

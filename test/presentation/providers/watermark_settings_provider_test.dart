@@ -89,6 +89,46 @@ void main() {
     );
   });
 
+  test('logo availability follows the stored path and logo style', () async {
+    final logoFile = File('${directory.path}/logo.png')
+      ..writeAsBytesSync(const [1, 2, 3]);
+    final container = createContainer();
+    final notifier = container.read(watermarkSettingsProvider.notifier);
+
+    expect(
+      await container.read(watermarkLocalLogoMissingProvider.future),
+      isFalse,
+      reason: 'a disabled logo style never reports a missing file',
+    );
+
+    await notifier.updateConfiguration(
+      const WatermarkSettings(logoStyle: WatermarkLogoStyle(enabled: true)),
+    );
+    expect(
+      await container.read(watermarkLocalLogoMissingProvider.future),
+      isTrue,
+    );
+
+    await notifier.updateLocalLogoPath(logoFile.path);
+    expect(
+      await container.read(watermarkLocalLogoMissingProvider.future),
+      isFalse,
+    );
+
+    logoFile.deleteSync();
+    container.invalidate(watermarkLocalLogoMissingProvider);
+    expect(
+      await container.read(watermarkLocalLogoMissingProvider.future),
+      isTrue,
+    );
+
+    await notifier.clearLocalLogoPath();
+    expect(
+      await container.read(watermarkLocalLogoMissingProvider.future),
+      isTrue,
+    );
+  });
+
   test(
     'corrupted storage issue remains visible until an explicit save',
     () async {

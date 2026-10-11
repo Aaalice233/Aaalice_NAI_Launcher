@@ -119,11 +119,7 @@ void main() {
   testWidgets('right-click menu exposes view details', (tester) async {
     await tester.pumpWidget(
       _testApp(
-        _card(
-          onFullscreen: () {},
-          enableSaveAction: false,
-          enableCopyAction: false,
-        ),
+        _card(onFullscreen: () {}, onSave: null, enableCopyAction: false),
       ),
     );
 
@@ -143,11 +139,7 @@ void main() {
     try {
       await tester.pumpWidget(
         _testApp(
-          _card(
-            onFullscreen: () {},
-            enableSaveAction: false,
-            enableCopyAction: false,
-          ),
+          _card(onFullscreen: () {}, onSave: null, enableCopyAction: false),
         ),
       );
 
@@ -171,11 +163,7 @@ void main() {
     try {
       await tester.pumpWidget(
         _testApp(
-          _card(
-            onFullscreen: () {},
-            enableSaveAction: false,
-            enableCopyAction: false,
-          ),
+          _card(onFullscreen: () {}, onSave: null, enableCopyAction: false),
         ),
       );
 
@@ -197,7 +185,7 @@ void main() {
       await tester.pumpWidget(
         _testApp(
           _card(
-            enableSaveAction: false,
+            onSave: null,
             enableCopyAction: false,
             onSaveToLibrary: (_, _) => saved++,
           ),
@@ -224,7 +212,7 @@ Widget _card({
   bool isPreviewActive = false,
   bool isSelected = false,
   bool allowRepeatedModifierTaps = false,
-  bool enableSaveAction = true,
+  VoidCallback? onSave = _noop,
   bool enableCopyAction = true,
   void Function(Uint8List imageBytes, String prompt)? onSaveToLibrary,
 }) {
@@ -242,7 +230,7 @@ Widget _card({
       onDoubleTap: onDoubleTap,
       onFullscreen: onFullscreen,
       enableSelection: false,
-      enableSaveAction: enableSaveAction,
+      onSave: onSave,
       enableCopyAction: enableCopyAction,
       onSaveToLibrary: onSaveToLibrary,
     ),
@@ -287,6 +275,8 @@ Future<void> _observeTouch(WidgetTester tester) async {
   await touch.up();
   await tester.pump();
 }
+
+void _noop() {}
 
 const _oneByOnePngBase64 =
     'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO6qv0YAAAAASUVORK5CYII=';

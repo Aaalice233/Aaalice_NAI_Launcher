@@ -2,8 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/presentation/adaptive/interaction_policy.dart';
+import 'package:nai_launcher/presentation/themes/core/input_surface_style.dart';
 import 'package:nai_launcher/presentation/widgets/common/input_surface_container.dart';
 import 'package:nai_launcher/presentation/widgets/common/safe_dropdown.dart';
+
+import '../../../helpers/ink_expectations.dart';
 
 void main() {
   testWidgets('touch dropdown keeps a 48dp target with 3x long text', (
@@ -130,4 +133,95 @@ void main() {
     expect(rect.top, greaterThanOrEqualTo(0));
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets('hover and press feedback paint above the input fill', (
+    tester,
+  ) async {
+    await _pumpInkDropdown(tester);
+    final surface = find.byType(InputSurfaceContainer);
+    final dropdown = find.byType(DropdownButton<String>);
+    final theme = Theme.of(tester.element(dropdown));
+    final fill = inputSurfaceFillColor(theme.colorScheme);
+
+    await hoverOver(tester, dropdown);
+    expectInkOnTop(tester, surface, ink: theme.hoverColor, below: fill);
+
+    final press = await pressAndHold(tester, dropdown);
+    expectInkOnTop(tester, surface, ink: theme.highlightColor, below: fill);
+    await press.cancel();
+    await tester.pump(const Duration(milliseconds: 300));
+  });
+
+  testWidgets(
+    'keyboard focus is shown by the outline alone',
+    (tester) async {
+      await _pumpInkDropdown(
+        tester,
+        policy: const InteractionPolicy(
+          modality: InteractionModality.keyboard,
+          touchAvailable: false,
+          precisePointerAvailable: true,
+        ),
+      );
+      final surface = find.byType(InputSurfaceContainer);
+      final dropdown = find.byType(DropdownButton<String>);
+      final theme = Theme.of(tester.element(dropdown));
+
+      await tabUntilFocused(
+        tester,
+        find.descendant(of: dropdown, matching: find.byType(InkWell)),
+      );
+      final decoration =
+          tester
+                  .widget<AnimatedContainer>(
+                    find.descendant(
+                      of: surface,
+                      matching: find.byType(AnimatedContainer),
+                    ),
+                  )
+                  .decoration!
+              as BoxDecoration;
+      expect(
+        decoration.border!.top.color,
+        theme.colorScheme.primary.withValues(alpha: 0.68),
+      );
+      expect(
+        tester.renderObject(surface),
+        isNot(inkOnTop(ink: theme.focusColor)),
+      );
+    },
+    variant: const TargetPlatformVariant({
+      TargetPlatform.windows,
+      TargetPlatform.macOS,
+    }),
+  );
+}
+
+Future<void> _pumpInkDropdown(
+  WidgetTester tester, {
+  InteractionPolicy? policy,
+}) async {
+  final dropdown = SizedBox(
+    width: 220,
+    child: SafeDropdown<String>(
+      value: 'a',
+      items: const [
+        DropdownMenuItem(value: 'a', child: Text('Alpha')),
+        DropdownMenuItem(value: 'b', child: Text('Beta')),
+      ],
+      onChanged: (_) {},
+    ),
+  );
+  await tester.pumpWidget(
+    MaterialApp(
+      home: Scaffold(
+        body: Align(
+          alignment: Alignment.topLeft,
+          child: policy == null
+              ? dropdown
+              : InteractionPolicyScope(initialPolicy: policy, child: dropdown),
+        ),
+      ),
+    ),
+  );
 }

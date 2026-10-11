@@ -10,6 +10,8 @@ class OnlineGalleryBlacklistFilterService {
 
   final OnlineGalleryQuery _query;
 
+  static final RegExp _promptTagSeparator = RegExp(r'[,，\n]+');
+
   Future<({List<GalleryItem> items, int detailFailures})> filter({
     required List<GalleryItem> items,
     required Set<String> blacklist,
@@ -71,7 +73,7 @@ class OnlineGalleryBlacklistFilterService {
           ])
             if (prompt != null)
               ...prompt
-                  .split(RegExp(r'[,，\n]+'))
+                  .split(_promptTagSeparator)
                   .map((tag) => tag.trim())
                   .where((tag) => tag.isNotEmpty),
         };

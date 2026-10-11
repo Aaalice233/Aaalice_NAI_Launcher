@@ -179,6 +179,67 @@ void main() {
       },
     );
 
+    test('should frame a focus outpaint crop without decoding the source', () {
+      var heavyFrameCalls = 0;
+      var cropFrameCalls = 0;
+      final cache = Img2ImgPreviewCache(
+        maskOverlayBuilder: (maskImage) => maskImage,
+        focusedFrameResolver:
+            ({
+              required Uint8List sourceImage,
+              Uint8List? maskImage,
+              Rect? focusedSelectionRect,
+              required double minContextMegaPixels,
+            }) {
+              heavyFrameCalls += 1;
+              return null;
+            },
+        cropPreviewFrameResolver:
+            ({
+              required int sourceWidth,
+              required int sourceHeight,
+              required Rect crop,
+            }) {
+              cropFrameCalls += 1;
+              return FocusedInpaintUtils.resolveGeometryForCrop(
+                sourceWidth: sourceWidth,
+                sourceHeight: sourceHeight,
+                crop: crop,
+              );
+            },
+      );
+      final sourceImage = Uint8List.fromList([1, 2, 3]);
+      final maskImage = Uint8List.fromList([4, 5, 6]);
+      Img2ImgPreviewDerivedData resolve(Rect crop) => cache.resolve(
+        sourceImage: sourceImage,
+        maskImage: maskImage,
+        focusedInpaintEnabled: true,
+        focusedContextCrop: crop,
+        minContextMegaPixels: 88,
+        sourceWidth: 1216,
+        sourceHeight: 1216,
+      );
+
+      final first = resolve(const Rect.fromLTWH(384, 0, 832, 1216));
+      final second = resolve(const Rect.fromLTWH(384, 0, 832, 1216));
+
+      expect(
+        first.focusedFrame!.contextCrop.rect,
+        const Rect.fromLTWH(384, 0, 832, 1216),
+      );
+      expect(
+        first.focusedFrame!.focusBounds.rect,
+        const Rect.fromLTWH(384, 0, 832, 1216),
+      );
+      expect(identical(second.focusedFrame, first.focusedFrame), isTrue);
+      expect(cropFrameCalls, 1);
+
+      final moved = resolve(const Rect.fromLTWH(320, 0, 832, 1216));
+      expect(moved.focusedFrame!.contextCrop.x, 320);
+      expect(cropFrameCalls, 2);
+      expect(heavyFrameCalls, 0);
+    });
+
     test(
       'should only recompute focused frame when focused inputs actually change',
       () {

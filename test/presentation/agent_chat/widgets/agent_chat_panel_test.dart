@@ -12,7 +12,7 @@ import 'package:flutter_markdown_plus/flutter_markdown_plus.dart' as md;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/core/agent/agent_types.dart';
-import 'package:nai_launcher/core/windowing/agent_chat_session_picker.dart';
+import 'package:nai_launcher/presentation/agent_chat/widgets/agent_chat_session_picker.dart';
 import 'package:nai_launcher/core/shortcuts/shortcut_config.dart';
 import 'package:hive/hive.dart';
 import 'package:nai_launcher/core/constants/storage_keys.dart';
@@ -35,6 +35,13 @@ import 'package:nai_launcher/presentation/widgets/common/image_detail/image_deta
 import 'package:nai_launcher/presentation/widgets/gallery/draggable_image_card.dart';
 import 'package:nai_launcher/presentation/providers/mobile_shell_overlay_provider.dart';
 import 'package:nai_launcher/presentation/screens/generation/mobile_layout.dart';
+import 'package:nai_launcher/presentation/screens/generation/widgets/generation_workspace_row.dart';
+import 'package:nai_launcher/presentation/screens/generation/widgets/right_panel.dart';
+import 'package:nai_launcher/presentation/themes/core/layered_surface_style.dart';
+import 'package:nai_launcher/presentation/utils/clipboard_image.dart';
+import 'package:nai_launcher/presentation/utils/dropped_file_reader.dart';
+
+import '../../../helpers/ink_expectations.dart';
 
 void main() {
   late Directory hiveDir;
@@ -42,11 +49,13 @@ void main() {
   setUpAll(() async {
     hiveDir = Directory.systemTemp.createTempSync('agent_chat_panel_hive_');
     Hive.init(hiveDir.path);
-    await Hive.openBox(StorageKeys.settingsBox);
+    // Memory backend: writes under FakeAsync never finish and lock the box
+    await Hive.openBox(StorageKeys.settingsBox, bytes: Uint8List(0));
   });
 
   tearDownAll(() async {
-    await Hive.close();
+    // Bounded wait: a locked box fails fast instead of hitting the watchdog
+    await Hive.close().timeout(const Duration(seconds: 10));
     if (hiveDir.existsSync()) hiveDir.deleteSync(recursive: true);
   });
 
@@ -240,6 +249,98 @@ void main() {
       find.byKey(const ValueKey('agent-chat-desktop-header')),
       findsOneWidget,
     );
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('Ctrl+V admits clipboard images through the shared rule', (
+    tester,
+  ) async {
+    final tempDir = Directory.systemTemp.createTempSync(
+      'agent_chat_panel_paste_test_',
+    );
+    late ProviderContainer container;
+    addTearDown(() {
+      container.dispose();
+      if (tempDir.existsSync()) {
+        tempDir.deleteSync(recursive: true);
+      }
+    });
+    final clipboard = <DroppedFileData>[
+      DroppedFileData(
+        fileName: 'clip.png',
+        bytes: Uint8List.fromList(const [137, 80, 78, 71, 13, 10, 26, 10]),
+      ),
+      DroppedFileData(
+        fileName: 'clip.bmp',
+        bytes: Uint8List.fromList([0x42, 0x4D, 0, 0, 0, 0]),
+      ),
+    ];
+    final priorities = <ClipboardContentPriority>[];
+    container = ProviderContainer(
+      overrides: [
+        localStorageServiceProvider.overrideWithValue(_MemoryLocalStorage()),
+        agentChatNotifierProvider.overrideWith((ref) {
+          return _TestAgentChatNotifier(
+            ref,
+            supportDir: tempDir,
+            workspaceDir: tempDir,
+          );
+        }),
+        clipboardFileReaderProvider.overrideWithValue(({
+          required logTag,
+          priority = ClipboardContentPriority.image,
+          allowVibeFiles = false,
+        }) async {
+          priorities.add(priority);
+          return clipboard.removeAt(0);
+        }),
+      ],
+    );
+    await tester.runAsync(() async {
+      container.read(agentChatNotifierProvider);
+      await _waitForInitialized(container);
+    });
+    (container.read(agentChatNotifierProvider.notifier)
+            as _TestAgentChatNotifier)
+        .setRouteReady(true);
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: const MaterialApp(
+          locale: Locale('en'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(
+            body: SizedBox(width: 360, height: 720, child: AgentChatPanel()),
+          ),
+        ),
+      ),
+    );
+    final input = find.byKey(const ValueKey('agent-chat-input'));
+    Future<void> pasteWithControlV() async {
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+      await tester.sendKeyEvent(LogicalKeyboardKey.keyV);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+      await tester.pump();
+    }
+
+    await tester.tap(input);
+    await tester.pump();
+    await pasteWithControlV();
+
+    expect(priorities, [ClipboardContentPriority.text]);
+    expect(
+      find.byKey(const ValueKey('agent-chat-attachment-strip')),
+      findsOneWidget,
+    );
+    expect(tester.widget<TextField>(input).controller!.text, '[image1] ');
+
+    await pasteWithControlV();
+
+    expect(find.text('Unsupported image format: clip.bmp'), findsOneWidget);
+    expect(tester.widget<TextField>(input).controller!.text, '[image1] ');
+    await tester.pump(const Duration(seconds: 4));
+    await tester.pumpAndSettle();
     expect(tester.takeException(), isNull);
   });
 
@@ -909,11 +1010,10 @@ void main() {
                     onOpenSettings: () => settingsOpened = true,
                     // Session picker scaling is covered by its own shared-widget
                     // tests; keep this regression focused on the composer.
-                    mobileHeaderWrapper: (child) =>
-                        MediaQuery.withClampedTextScaling(
-                          maxScaleFactor: 1.6,
-                          child: child,
-                        ),
+                    headerWrapper: (child) => MediaQuery.withClampedTextScaling(
+                      maxScaleFactor: 1.6,
+                      child: child,
+                    ),
                   ),
                 ),
               ),
@@ -1613,6 +1713,138 @@ void main() {
       await tester.pump(const Duration(seconds: 5));
     },
   );
+
+  testWidgets('mobile layout paints press feedback above its opaque surfaces', (
+    tester,
+  ) async {
+    final notifier = await _pumpInkProbe(
+      tester,
+      policy: const InteractionPolicy(
+        modality: InteractionModality.touch,
+        touchAvailable: true,
+        precisePointerAvailable: false,
+      ),
+      child: const SizedBox(width: 360, height: 720, child: AgentChatPanel()),
+    );
+    notifier
+      ..setRouteReady(true)
+      ..setError('Request failed');
+    await tester.pump();
+
+    final viewport = find.byKey(const ValueKey('agent-chat-mobile-viewport'));
+    final theme = Theme.of(tester.element(viewport));
+    final dismiss = find.byKey(const ValueKey('agent-chat-error-dismiss'));
+    final dismissPress = await pressAndHold(tester, dismiss);
+    expectInkOnTop(
+      tester,
+      viewport,
+      ink: theme.highlightColor,
+      below: theme.colorScheme.surface,
+    );
+    await dismissPress.cancel();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    final composer = find.byKey(const ValueKey('agent-chat-composer-surface'));
+    final attach = find.byKey(const ValueKey('agent-chat-more-actions'));
+    final attachPress = await pressAndHold(tester, attach);
+    expectInkOnTop(
+      tester,
+      composer,
+      ink: theme.highlightColor,
+      below: controlSurfaceColor(theme.colorScheme),
+    );
+    await attachPress.cancel();
+    await tester.pump(const Duration(milliseconds: 300));
+  });
+
+  testWidgets(
+    'desktop right panel paints agent hover feedback above its fill',
+    (tester) async {
+      final notifier = await _pumpInkProbe(
+        tester,
+        storage: {StorageKeys.rightPanelTab: 0},
+        child: const SizedBox(
+          width: 720,
+          height: 800,
+          child: RightPanel(
+            allocation: GenerationRightPanelAllocation(
+              width: 720,
+              expanded: true,
+              canExpand: true,
+            ),
+          ),
+        ),
+      );
+      notifier.setError('Request failed');
+      await tester.pump();
+
+      final panel = find.byKey(const ValueKey('generation-right-panel'));
+      final theme = Theme.of(tester.element(panel));
+      await hoverOver(
+        tester,
+        find.byKey(const ValueKey('agent-chat-error-dismiss')),
+      );
+      expectInkOnTop(
+        tester,
+        panel,
+        ink: theme.hoverColor,
+        below: theme.colorScheme.surface,
+      );
+    },
+  );
+}
+
+Future<_TestAgentChatNotifier> _pumpInkProbe(
+  WidgetTester tester, {
+  required Widget child,
+  InteractionPolicy? policy,
+  Map<String, Object?> storage = const {},
+}) async {
+  final tempDir = Directory.systemTemp.createTempSync('agent_chat_ink_');
+  final container = ProviderContainer(
+    overrides: [
+      localStorageServiceProvider.overrideWithValue(
+        _MemoryLocalStorage(storage),
+      ),
+      agentChatNotifierProvider.overrideWith(
+        (ref) => _TestAgentChatNotifier(
+          ref,
+          supportDir: tempDir,
+          workspaceDir: tempDir,
+        ),
+      ),
+    ],
+  );
+  addTearDown(() {
+    container.dispose();
+    if (tempDir.existsSync()) tempDir.deleteSync(recursive: true);
+  });
+  await tester.runAsync(() async {
+    container.read(agentChatNotifierProvider);
+    await _waitForInitialized(container);
+  });
+  addTearDown(() => tester.pumpWidget(const SizedBox.shrink()));
+  await tester.pumpWidget(
+    UncontrolledProviderScope(
+      container: container,
+      child: MaterialApp(
+        locale: const Locale('en'),
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: Scaffold(
+          body: Align(
+            alignment: Alignment.topLeft,
+            child: policy == null
+                ? child
+                : InteractionPolicyScope(initialPolicy: policy, child: child),
+          ),
+        ),
+      ),
+    ),
+  );
+  await tester.pump();
+  return container.read(agentChatNotifierProvider.notifier)
+      as _TestAgentChatNotifier;
 }
 
 Future<void> _waitForInitialized(ProviderContainer container) async {

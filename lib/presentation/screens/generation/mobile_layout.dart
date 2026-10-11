@@ -4,9 +4,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/constants/api_constants.dart';
 import '../../../core/platform/platform_capabilities.dart';
 import '../../../core/utils/localization_extension.dart';
-import '../../providers/auth_provider.dart';
+import '../../../data/models/image/image_params.dart';
+import '../../../data/services/auth_provider.dart';
 import '../../providers/character_prompt_provider.dart';
 import '../../providers/fixed_tags_provider.dart';
+import '../../providers/generation/image_generation_selectors.dart';
 import '../../providers/generation/image_workflow_controller.dart';
 import '../../providers/image_generation_provider.dart';
 import '../../providers/krita/krita_bridge_notifier.dart';
@@ -14,6 +16,7 @@ import '../../providers/prompt_maximize_provider.dart';
 import '../../providers/quality_preset_provider.dart';
 import '../../providers/uc_preset_provider.dart';
 import '../../widgets/common/owned_scroll_controller.dart';
+import '../../widgets/prompt/uc_preset_type_label.dart';
 import 'mobile_generation_controller.dart';
 import 'mobile_generation_shell.dart';
 import 'mobile_generation_view_data.dart';
@@ -73,7 +76,9 @@ class _MobileGenerationLayoutState
 
   @override
   Widget build(BuildContext context) {
-    final generationState = ref.watch(imageGenerationNotifierProvider);
+    final batchStatus = ref.watch(
+      imageGenerationNotifierProvider.select(selectGenerationButtonViewData),
+    );
     final cooldownState = ref.watch(generationCooldownProvider);
     final isAuthenticated = ref.watch(
       authNotifierProvider.select((state) => state.isAuthenticated),
@@ -101,6 +106,11 @@ class _MobileGenerationLayoutState
       qualityPresetNotifierProvider.select((state) => state.isEnabled),
     );
     final ucPresetState = ref.watch(ucPresetNotifierProvider);
+    final fixedUcPreset = ref.watch(
+      generationParamsNotifierProvider.select(
+        (params) => params.capabilities.fixedSettings?.ucPreset,
+      ),
+    );
     final fixedTagCount = ref.watch(
       fixedTagsNotifierProvider.select(
         (state) => state.enabledCount + state.negativeEnabledCount,
@@ -116,19 +126,19 @@ class _MobileGenerationLayoutState
             MediaQuery.viewInsetsOf(context).bottom > 0 ||
             View.of(context).viewInsets.bottom > 0;
         _controller.updateKeyboardVisibility(keyboardVisible);
-        final isLauncherGenerating = generationState.isGenerating;
+        final isLauncherGenerating = batchStatus.isGenerating;
         final isGenerating = isLauncherGenerating || isKritaGenerating;
-        final negativePresetLabel = ucPresetState.isCustom
+        final negativePresetType = fixedUcPreset == null
+            ? ucPresetState.presetType
+            : UcPresets.getPresetTypeFromInt(fixedUcPreset);
+        final negativePresetLabel =
+            ucPresetState.isCustom && fixedUcPreset == null
             ? context.l10n.ucPreset_label
-            : switch (ucPresetState.presetType) {
-                UcPresetType.heavy => context.l10n.ucPreset_heavy,
-                UcPresetType.light => context.l10n.ucPreset_light,
-                UcPresetType.furryFocus => context.l10n.ucPreset_furryFocus,
-                UcPresetType.humanFocus => context.l10n.ucPreset_humanFocus,
-                UcPresetType.none => null,
-              };
+            : negativePresetType == UcPresetType.none
+            ? null
+            : negativePresetType.label(context.l10n);
         final data = MobileGenerationViewData(
-          generationState: generationState,
+          batchStatus: batchStatus,
           cooldownRemainingSeconds: cooldownState.remainingSeconds,
           isPromptMaximized: isPromptMaximized,
           keyboardVisible: keyboardVisible,

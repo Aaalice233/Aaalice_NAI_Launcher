@@ -49,7 +49,7 @@ class SkillArchiveService {
 
   static const int maxArchiveBytes = 50 * 1024 * 1024;
   static const int maxExpandedBytes = 50 * 1024 * 1024;
-  static const int maxFileBytes = 5 * 1024 * 1024;
+  static const int maxFileBytes = 16 * 1024 * 1024;
   static const int maxFiles = 500;
   static const int maxPathDepth = 8;
 

@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import '../../../../../core/utils/localization_extension.dart';
 import '../../../../widgets/common/context_menu_anchor.dart';
 import '../../../../widgets/common/library_classification_drag.dart';
+import '../../../../widgets/common/surface_ink_well.dart';
 import '../../../../adaptive/interaction_policy.dart';
 
 enum _VibeCategoryAction { rename, addSubCategory, delete }
@@ -109,12 +110,10 @@ class _VibeCategoryItemState extends State<VibeCategoryItem> {
                 widget.onDelete != null
             ? (details) => _showContextMenu(context, details.globalPosition)
             : null,
-        child: AnimatedContainer(
-          duration: MediaQuery.disableAnimationsOf(context)
-              ? Duration.zero
-              : const Duration(milliseconds: 150),
-          margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 1),
-          decoration: BoxDecoration(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 1),
+          child: SurfaceInkWell(
+            borderRadius: BorderRadius.circular(8),
             color: widget.isSelected
                 ? theme.colorScheme.primaryContainer
                 : isAcceptingDrop
@@ -122,11 +121,10 @@ class _VibeCategoryItemState extends State<VibeCategoryItem> {
                 : (_isHovering
                       ? theme.colorScheme.surfaceContainerHighest
                       : Colors.transparent),
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: InkWell(
+            // 未选中时悬停由底色表达
+            hoverColor: widget.isSelected ? null : Colors.transparent,
+            duration: const Duration(milliseconds: 150),
             onTap: widget.onTap,
-            borderRadius: BorderRadius.circular(8),
             child: ConstrainedBox(
               constraints: const BoxConstraints(minHeight: controlExtent),
               child: Padding(

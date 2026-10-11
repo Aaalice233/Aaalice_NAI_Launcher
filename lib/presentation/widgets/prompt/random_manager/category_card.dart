@@ -6,7 +6,9 @@ import '../../../../data/models/prompt/random_category.dart';
 import '../../../../data/models/prompt/tag_scope.dart';
 import '../../../providers/random_preset_provider.dart';
 import '../../../themes/core/layered_surface_style.dart';
+import '../../common/themed_slider.dart';
 import 'add_tag_group_dialog.dart';
+import 'probability_text.dart';
 import 'random_config_l10n.dart';
 import 'tag_group_card.dart';
 
@@ -14,7 +16,6 @@ export 'add_tag_group_dialog.dart' show AddTagGroupDialog;
 export 'category_card_widgets.dart'
     show
         ScopeTripleSwitch,
-        ColorfulProbabilitySlider,
         AddTagGroupCard,
         AddCategoryButton,
         EmptyCategoryPlaceholder,
@@ -406,8 +407,10 @@ class _ProbabilityEditor extends StatelessWidget {
         ),
         const SizedBox(width: 8),
         Expanded(
-          child: Slider(
-            value: value.clamp(0, 1),
+          child: NamedSlider(
+            label: context.l10n.randomManager_probability,
+            valueText: formatProbabilityPercent,
+            value: value,
             divisions: 20,
             onChanged: enabled ? onChanged : null,
           ),
@@ -415,7 +418,7 @@ class _ProbabilityEditor extends StatelessWidget {
         SizedBox(
           width: 42,
           child: Text(
-            '${(value * 100).round()}%',
+            formatProbabilityPercent(value),
             textAlign: TextAlign.end,
             style: theme.textTheme.labelMedium?.copyWith(
               fontFeatures: const [FontFeature.tabularFigures()],

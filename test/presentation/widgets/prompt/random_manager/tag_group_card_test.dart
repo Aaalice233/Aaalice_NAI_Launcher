@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/semantics.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/data/models/prompt/conditional_branch.dart';
@@ -11,7 +12,10 @@ import 'package:nai_launcher/data/models/prompt/time_condition.dart';
 import 'package:nai_launcher/data/models/prompt/visibility_rule.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/providers/random_preset_provider.dart';
+import 'package:nai_launcher/presentation/themes/core/layered_surface_style.dart';
 import 'package:nai_launcher/presentation/widgets/prompt/random_manager/tag_group_card.dart';
+
+import '../../../../helpers/ink_expectations.dart';
 
 const _group = RandomTagGroup(
   id: 'group',
@@ -133,4 +137,106 @@ void main() {
     expect(find.byType(Dialog), findsNothing);
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets('概率滑块以字段名朗读，读数与界面一致且按四舍五入显示', (tester) async {
+    // 0.1 分 10 格的第 7 格插值结果，截断取整会显示成 6%
+    const group = RandomTagGroup(
+      id: 'rounding',
+      name: '取整词组',
+      probability: 0.35,
+      emphasisProbability: 0.06999999999999999,
+    );
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          randomPresetNotifierProvider.overrideWith(
+            _FixedRandomPresetNotifier.new,
+          ),
+        ],
+        child: const MaterialApp(
+          locale: Locale('zh'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(
+            body: TagGroupCard(
+              tagGroup: group,
+              categoryId: 'category',
+              categoryKey: 'category',
+              presetId: 'preset',
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('取整词组'));
+    await tester.pumpAndSettle();
+    expect(_sliderNode('概率').value, '35%');
+    expect(find.text('35%'), findsOneWidget);
+
+    await tester.tap(find.byIcon(Icons.account_tree_outlined));
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('7%'));
+    await tester.pumpAndSettle();
+
+    final emphasis = _sliderNode('强调概率');
+    expect(emphasis.value, '7%');
+    expect(emphasis.increasedValue, '8%');
+    expect(find.text('6%'), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('选择模式下拉框的悬停反馈画在分组底色之上', (tester) async {
+    tester.view.physicalSize = const Size(1180, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          randomPresetNotifierProvider.overrideWith(
+            _FixedRandomPresetNotifier.new,
+          ),
+        ],
+        child: const MaterialApp(
+          locale: Locale('zh'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(
+            body: TagGroupCard(
+              tagGroup: _group,
+              categoryId: 'category',
+              categoryKey: 'category',
+              presetId: 'preset',
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.tap(find.text('包含全部复杂配置的超长词组名称'));
+    await tester.pumpAndSettle();
+
+    final selector = find.byType(DropdownButton<SelectionMode>);
+    await tester.ensureVisible(selector);
+    await tester.pumpAndSettle();
+    final section = find
+        .ancestor(of: find.byType(TabBarView), matching: find.byType(Container))
+        .first;
+    final theme = Theme.of(tester.element(selector));
+    await hoverOver(tester, selector);
+    expectInkOnTop(
+      tester,
+      section,
+      ink: theme.hoverColor,
+      below: sectionSurfaceColor(theme.colorScheme),
+    );
+  });
+}
+
+SemanticsNode _sliderNode(String label) {
+  final slider = find.semantics.byPredicate(
+    (node) => node.flagsCollection.isSlider && node.label == label,
+  );
+  expect(slider, findsOne, reason: label);
+  return slider.evaluate().single;
 }

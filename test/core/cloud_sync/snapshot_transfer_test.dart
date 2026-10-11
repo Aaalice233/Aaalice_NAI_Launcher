@@ -162,7 +162,7 @@ class _ConcurrentReadBackend extends CoordinatorTestBackend {
     if (activeReads > maxActiveReads) maxActiveReads = activeReads;
     try {
       await Future<void>.delayed(const Duration(milliseconds: 5));
-      return super.readObject(objectId);
+      return await super.readObject(objectId);
     } finally {
       activeReads--;
     }

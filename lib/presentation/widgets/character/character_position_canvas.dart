@@ -13,9 +13,11 @@ import '../../providers/character_position_canvas_provider.dart';
 import '../../providers/character_prompt_provider.dart';
 import '../../providers/composition_guide_provider.dart';
 import '../../providers/generation/generation_params_selectors.dart';
+import '../../providers/generation/image_generation_selectors.dart';
 import '../../providers/image_generation_provider.dart';
 import '../common/composition_guide.dart';
 import '../common/decoded_memory_image.dart';
+import '../common/surface_ink_well.dart';
 import 'composition_guide_button.dart';
 
 /// 芯片显示信息：性别符号 + 显示名
@@ -158,14 +160,16 @@ class _CharacterPositionCanvasViewState
     CharacterPromptConfig config,
   ) {
     final colorScheme = theme.colorScheme;
-    final generationState = ref.watch(imageGenerationNotifierProvider);
+    final displayImages = ref.watch(
+      imageGenerationNotifierProvider.select(selectDisplayImages),
+    );
     final previewDimensions = ref.watch(
       generationParamsNotifierProvider.select(selectPreviewDimensionsViewData),
     );
     final guide = ref.watch(compositionGuideNotifierProvider);
 
-    final backgroundImage = generationState.displayImages.isNotEmpty
-        ? generationState.displayImages.first
+    final backgroundImage = displayImages.isNotEmpty
+        ? displayImages.first
         : null;
     // 锚点坐标用于下一次请求；历史预览只作背景，不能决定画布尺寸。
     final aspectRatio = previewDimensions.width / previewDimensions.height;
@@ -599,20 +603,15 @@ class _CharacterChip extends StatelessWidget {
         ? colorScheme.primary
         : colorScheme.onSurfaceVariant;
 
-    return InkWell(
-      onTap: onTap,
+    return SurfaceInkWell(
       borderRadius: BorderRadius.circular(6),
-      child: AnimatedContainer(
-        duration: MediaQuery.disableAnimationsOf(context)
-            ? Duration.zero
-            : const Duration(milliseconds: 150),
+      color: selected
+          ? colorScheme.primary.withValues(alpha: 0.14)
+          : colorScheme.surfaceContainerLow,
+      duration: const Duration(milliseconds: 150),
+      onTap: onTap,
+      child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-        decoration: BoxDecoration(
-          color: selected
-              ? colorScheme.primary.withValues(alpha: 0.14)
-              : colorScheme.surfaceContainerLow,
-          borderRadius: BorderRadius.circular(6),
-        ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [

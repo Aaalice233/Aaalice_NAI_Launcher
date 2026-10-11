@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'checkerboard_pattern.dart';
+
 /// 透明图片的预览底色（对齐官网结果区的 transparencyBackground 设置）
 ///
 /// 存储值与官网保持一致：三档棋盘格、`none`、六个具名纯色，以及
@@ -113,8 +115,12 @@ class TransparencyBackgroundLayer extends StatelessWidget {
     if (checkerColors != null) {
       layer = CustomPaint(
         painter: _CheckerPainter(
-          cellColor: checkerColors.$1,
-          baseColor: checkerColors.$2,
+          pattern: CheckerboardPattern(
+            cellSize: _CheckerPainter.cellSize,
+            evenColor: checkerColors.$1,
+            oddColor: checkerColors.$2,
+          ),
+          devicePixelRatio: MediaQuery.devicePixelRatioOf(context),
         ),
       );
     } else {
@@ -204,37 +210,24 @@ class _TransparencyIconPainter extends CustomPainter {
 
 /// 棋盘格绘制：格子边长与官网一致（12px 背景平铺 → 6px 方格）
 class _CheckerPainter extends CustomPainter {
-  static const double _cell = 6.0;
+  static const double cellSize = 6.0;
 
-  final Color cellColor;
-  final Color baseColor;
+  final CheckerboardPattern pattern;
+  final double devicePixelRatio;
 
-  const _CheckerPainter({required this.cellColor, required this.baseColor});
+  const _CheckerPainter({
+    required this.pattern,
+    required this.devicePixelRatio,
+  });
 
   @override
   void paint(Canvas canvas, Size size) {
-    if (size.isEmpty) return;
-
-    canvas.drawRect(Offset.zero & size, Paint()..color = baseColor);
-
-    // 所有格子合成一条 Path 后一次绘制，避免逐格 drawRect 的调用开销
-    final path = Path();
-    final columns = (size.width / _cell).ceil();
-    final rows = (size.height / _cell).ceil();
-    for (var row = 0; row < rows; row++) {
-      for (var column = row.isEven ? 0 : 1; column < columns; column += 2) {
-        path.addRect(
-          Rect.fromLTWH(column * _cell, row * _cell, _cell, _cell),
-        );
-      }
-    }
-    canvas.clipRect(Offset.zero & size);
-    canvas.drawPath(path, Paint()..color = cellColor);
+    pattern.paint(canvas, Offset.zero & size, pixelScale: devicePixelRatio);
   }
 
   @override
   bool shouldRepaint(_CheckerPainter oldDelegate) {
-    return oldDelegate.cellColor != cellColor ||
-        oldDelegate.baseColor != baseColor;
+    return oldDelegate.pattern != pattern ||
+        oldDelegate.devicePixelRatio != devicePixelRatio;
   }
 }

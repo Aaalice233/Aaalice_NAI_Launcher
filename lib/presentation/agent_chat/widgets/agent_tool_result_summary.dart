@@ -93,6 +93,18 @@ String? _outcome(AppLocalizations l10n, Map decoded, String toolName) {
       if (decoded['retried'] case final int value when value >= 0) {
         summary = count('retried', value);
       }
+    case 'search_tags':
+      // 批量查询按组返回，逐组累加而不是读计数字段，避免把请求上限当成结果数。
+      final total = switch (decoded) {
+        {'groups': final List groups} => groups
+            .whereType<Map>()
+            .map((group) => group['results'])
+            .whereType<List>()
+            .fold<int>(0, (sum, results) => sum + results.length),
+        {'results': final List results} => results.length,
+        _ => null,
+      };
+      if (total != null) summary = count('tags', total);
     case 'set_positive_prompt' || 'set_negative_prompt':
       final value =
           decoded[toolName == 'set_positive_prompt'
@@ -101,7 +113,6 @@ String? _outcome(AppLocalizations l10n, Map decoded, String toolName) {
       if (value is String) summary = count('updatedText', value.runes.length);
     default:
       final collection = switch (toolName) {
-        'search_tags' => ('results', 'tags'),
         'list_tag_library_entries' ||
         'list_fixed_tags' ||
         'list_vibe_library' ||

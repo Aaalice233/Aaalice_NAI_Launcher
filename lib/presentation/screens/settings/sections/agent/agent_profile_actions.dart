@@ -10,7 +10,7 @@ import 'package:nai_launcher/core/utils/localization_extension.dart';
 import 'package:nai_launcher/presentation/adaptive/adaptive_presenter.dart';
 import 'package:nai_launcher/presentation/agent_settings/providers/agent_prompt_draft_provider.dart';
 import 'package:nai_launcher/presentation/agent_settings/providers/agent_settings_provider.dart';
-import 'package:nai_launcher/presentation/prompt_assistant/models/prompt_assistant_models.dart';
+import 'package:nai_launcher/data/models/prompt_assistant/prompt_assistant_models.dart';
 import 'package:nai_launcher/presentation/prompt_assistant/providers/prompt_assistant_config_provider.dart';
 import 'package:nai_launcher/presentation/widgets/common/app_toast.dart';
 

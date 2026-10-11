@@ -6,9 +6,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../prompt_assistant/providers/prompt_assistant_config_provider.dart';
 import '../../prompt_assistant/providers/web_access_provider.dart';
 import '../../agent_settings/providers/agent_settings_provider.dart';
+import '../../providers/generation/image_generation_selectors.dart';
 import '../../providers/image_generation_provider.dart';
 import '../../../core/agent/resources/agent_chat_resource_reference.dart';
+import '../../widgets/common/ink_host.dart';
 import '../providers/agent_chat_notifier.dart';
+import '../providers/agent_chat_surface_registry.dart';
 import 'agent_chat_composer.dart';
 import 'agent_chat_header.dart';
 import 'agent_chat_messages.dart';
@@ -36,13 +39,26 @@ class AgentChatPanel extends ConsumerStatefulWidget {
     this.onClose,
     this.onOpenSettings,
     this.fullScreen = false,
-    this.mobileHeaderWrapper,
+    this.headerWrapper,
+    this.onPopOut,
+    this.onDock,
+    this.focusRequest,
+    this.backgroundColor,
   });
 
   final VoidCallback? onClose;
   final VoidCallback? onOpenSettings;
   final bool fullScreen;
-  final Widget Function(Widget child)? mobileHeaderWrapper;
+  final Widget Function(Widget child)? headerWrapper;
+  final VoidCallback? onPopOut;
+  final VoidCallback? onDock;
+
+  /// Moves keyboard focus to the composer when the host asks for it, even if
+  /// the request was issued before this panel mounted.
+  final AgentChatFocusRequest? focusRequest;
+
+  /// Canvas behind the stacked layout; defaults to the page surface.
+  final Color? backgroundColor;
 
   @override
   ConsumerState<AgentChatPanel> createState() => _AgentChatPanelState();
@@ -51,6 +67,7 @@ class AgentChatPanel extends ConsumerStatefulWidget {
 class _AgentChatPanelState extends ConsumerState<AgentChatPanel> {
   late final AgentChatPanelController _controller;
   late final AgentChatPanelCoordinator _coordinator;
+  late final AgentChatPanelCommands _commands = _coordinator.commands(context);
 
   @override
   void initState() {
@@ -65,12 +82,24 @@ class _AgentChatPanelState extends ConsumerState<AgentChatPanel> {
       controller: _controller,
       isMounted: () => mounted,
     );
+    widget.focusRequest?.addListener(_scheduleRequestedFocus);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       unawaited(
         ref.read(agentChatNotifierProvider.notifier).ensureInitialized(),
       );
+      _applyRequestedFocus();
     });
+  }
+
+  @override
+  void didUpdateWidget(AgentChatPanel oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.focusRequest != widget.focusRequest) {
+      oldWidget.focusRequest?.removeListener(_scheduleRequestedFocus);
+      widget.focusRequest?.addListener(_scheduleRequestedFocus);
+      _scheduleRequestedFocus();
+    }
   }
 
   void _refresh() {
@@ -83,8 +112,20 @@ class _AgentChatPanelState extends ConsumerState<AgentChatPanel> {
         .setComposerText(_controller.inputController.text);
   }
 
+  // Hosts request focus in the frame that reveals them; waiting for layout
+  // lets focus land on a composer that is already visible.
+  void _scheduleRequestedFocus() {
+    WidgetsBinding.instance.addPostFrameCallback((_) => _applyRequestedFocus());
+  }
+
+  void _applyRequestedFocus() {
+    if (!mounted || widget.focusRequest?.consume() != true) return;
+    _controller.inputFocus.requestFocus();
+  }
+
   @override
   void dispose() {
+    widget.focusRequest?.removeListener(_scheduleRequestedFocus);
     _controller.removeListener(_refresh);
     _controller.inputController.removeListener(_syncComposerDraft);
     _controller.dispose();
@@ -97,26 +138,22 @@ class _AgentChatPanelState extends ConsumerState<AgentChatPanel> {
     final config = ref.watch(promptAssistantConfigProvider);
     final agentSettings = ref.watch(agentSettingsProvider);
     final webAccess = ref.watch(webAccessConfigProvider);
-    final generation = ref.watch(imageGenerationNotifierProvider);
-    final currentCanvas = generation.displayImages
-        .where((image) => image.kind == GeneratedImageKind.completed)
-        .firstOrNull;
-    final currentCanvasReference = currentCanvas == null
+    final currentCanvasId = ref.watch(
+      imageGenerationNotifierProvider.select(selectCurrentCanvasImageId),
+    );
+    final currentCanvasReference = currentCanvasId == null
         ? null
         : AgentChatResourceReference(
             kind: AgentChatResourceKind.generatedImage,
             source: 'generation_history',
-            resourceId: currentCanvas.id,
+            resourceId: currentCanvasId,
           );
     _controller
       ..attachOverlayContext(context)
       ..observe(state)
       ..syncComposerText(state.composerText);
-    final commands = _coordinator.commands(
-      context,
-      state,
-      currentCanvasReference: currentCanvasReference,
-    );
+    _coordinator.currentCanvasReference = currentCanvasReference;
+    final commands = _commands;
 
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -132,7 +169,9 @@ class _AgentChatPanelState extends ConsumerState<AgentChatPanel> {
           height: constraints.maxHeight,
           onClose: widget.onClose,
           onOpenSettings: widget.onOpenSettings,
-          mobileHeaderWrapper: widget.mobileHeaderWrapper,
+          headerWrapper: widget.headerWrapper,
+          onPopOut: widget.onPopOut,
+          onDock: widget.onDock,
           currentCanvasReference: currentCanvasReference,
         );
         final useStackedLayout =
@@ -141,11 +180,16 @@ class _AgentChatPanelState extends ConsumerState<AgentChatPanel> {
             viewData.compactHeight;
         final panel = AgentResourceDropRegion(
           onDrop: commands.addPendingResource,
+          onDropImages: commands.attachImageFiles,
+          enabled: state.initialized,
           child: useStackedLayout
               ? _MobileAgentChatLayout(
                   viewData: viewData,
                   commands: commands,
                   controller: _controller,
+                  backgroundColor:
+                      widget.backgroundColor ??
+                      Theme.of(context).colorScheme.surface,
                 )
               : _EmbeddedAgentChatLayout(
                   viewData: viewData,
@@ -214,65 +258,73 @@ class _MobileAgentChatLayout extends StatelessWidget {
     required this.viewData,
     required this.commands,
     required this.controller,
+    required this.backgroundColor,
   });
 
   final AgentChatPanelViewData viewData;
   final AgentChatPanelCommands commands;
   final AgentChatPanelController controller;
+  final Color backgroundColor;
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     return ColoredBox(
       key: const ValueKey('agent-chat-mobile-viewport'),
-      color: theme.colorScheme.surface,
-      child: Column(
-        children: [
-          AgentChatHeader(viewData: viewData, commands: commands),
-          Expanded(
-            child: LayoutBuilder(
-              builder: (context, constraints) {
-                // Keep decisions adjacent to the composer without allowing a
-                // long approval or error to displace input on an IME viewport.
-                final statusFraction = viewData.compactHeight ? 0.24 : 0.38;
-                final statusMaxHeight = (constraints.maxHeight * statusFraction)
-                    .clamp(0.0, 280.0);
-                return Column(
-                  children: [
-                    Expanded(
-                      child: AgentChatMessages(
+      color: backgroundColor,
+      child: InkHost(
+        child: Column(
+          children: [
+            AgentChatHeader(viewData: viewData, commands: commands),
+            Expanded(
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  // Keep decisions adjacent to the composer without allowing a
+                  // long approval or error to displace input on an IME viewport.
+                  final statusFraction = viewData.compactHeight ? 0.24 : 0.38;
+                  final statusMaxHeight =
+                      (constraints.maxHeight * statusFraction).clamp(
+                        0.0,
+                        280.0,
+                      );
+                  return Column(
+                    children: [
+                      Expanded(
+                        child: AgentChatMessages(
+                          viewData: viewData,
+                          commands: commands,
+                          controller: controller,
+                        ),
+                      ),
+                      _AgentChatStatusViewport(
+                        key: const ValueKey(
+                          'agent-chat-mobile-status-viewport',
+                        ),
+                        maxHeight: statusMaxHeight,
                         viewData: viewData,
                         commands: commands,
-                        controller: controller,
                       ),
-                    ),
-                    _AgentChatStatusViewport(
-                      key: const ValueKey('agent-chat-mobile-status-viewport'),
-                      maxHeight: statusMaxHeight,
-                      viewData: viewData,
-                      commands: commands,
-                    ),
-                    if (viewData.state.questionRequest case final request?)
-                      Expanded(
-                        flex: 2,
-                        child: Align(
-                          alignment: Alignment.bottomCenter,
-                          child: AgentChatQuestionCard(request: request),
+                      if (viewData.state.questionRequest case final request?)
+                        Expanded(
+                          flex: 2,
+                          child: Align(
+                            alignment: Alignment.bottomCenter,
+                            child: AgentChatQuestionCard(request: request),
+                          ),
+                        )
+                      else if (viewData.state.routeReady)
+                        ConstrainedBox(
+                          constraints: BoxConstraints(
+                            maxHeight: constraints.maxHeight * 0.82,
+                          ),
+                          child: _composer(),
                         ),
-                      )
-                    else if (viewData.state.routeReady)
-                      ConstrainedBox(
-                        constraints: BoxConstraints(
-                          maxHeight: constraints.maxHeight * 0.82,
-                        ),
-                        child: _composer(),
-                      ),
-                  ],
-                );
-              },
+                    ],
+                  );
+                },
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

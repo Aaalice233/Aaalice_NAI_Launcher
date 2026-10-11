@@ -5,7 +5,10 @@ import 'package:flutter/services.dart';
 
 import '../../../../core/utils/localization_extension.dart';
 import '../core/editor_state.dart';
+import '../core/editor_tool_groups.dart';
 import 'tool_base.dart';
+import 'tool_setting_rows.dart';
+import '../../../widgets/common/horizontal_segmented_control.dart';
 
 class MagicWandTool extends EditorTool {
   MagicWandSelectionMode _mode = MagicWandSelectionMode.smartObject;
@@ -32,6 +35,9 @@ class MagicWandTool extends EditorTool {
 
   @override
   String get id => 'magic_wand';
+
+  @override
+  bool get followsLayerRole => true;
 
   @override
   String get name => 'Magic Wand';
@@ -80,7 +86,7 @@ class MagicWandTool extends EditorTool {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                context.l10n.editor_toolMagicWand,
+                editorToolLabel(context, this, state.activeLayerRole),
                 style: theme.textTheme.titleSmall?.copyWith(
                   fontWeight: FontWeight.bold,
                 ),
@@ -95,53 +101,55 @@ class MagicWandTool extends EditorTool {
                 ),
               ),
               const SizedBox(height: 12),
-              DropdownButtonFormField<MagicWandSelectionMode>(
-                initialValue: _mode,
-                decoration: InputDecoration(
-                  labelText: context.l10n.editor_magicWandMode,
-                  isDense: true,
-                  border: const OutlineInputBorder(),
+              Text(
+                context.l10n.editor_magicWandMode,
+                style: theme.textTheme.bodySmall,
+              ),
+              const SizedBox(height: 4),
+              HorizontalSegmentedControl(
+                child: SegmentedButton<MagicWandSelectionMode>(
+                  segments: [
+                    ButtonSegment(
+                      value: MagicWandSelectionMode.smartObject,
+                      label: Text(context.l10n.editor_magicWandSmartObject),
+                    ),
+                    ButtonSegment(
+                      value: MagicWandSelectionMode.colorArea,
+                      label: Text(context.l10n.editor_magicWandColorArea),
+                    ),
+                  ],
+                  selected: {_mode},
+                  onSelectionChanged: _isApplying
+                      ? null
+                      : (selected) {
+                          setState(() => setMode(selected.first));
+                        },
+                  style: ButtonStyle(
+                    visualDensity: VisualDensity.compact,
+                    textStyle: WidgetStatePropertyAll(
+                      theme.textTheme.bodySmall,
+                    ),
+                  ),
                 ),
-                items: [
-                  DropdownMenuItem(
-                    value: MagicWandSelectionMode.smartObject,
-                    child: Text(context.l10n.editor_magicWandSmartObject),
-                  ),
-                  DropdownMenuItem(
-                    value: MagicWandSelectionMode.colorArea,
-                    child: Text(context.l10n.editor_magicWandColorArea),
-                  ),
-                ],
-                onChanged: _isApplying
-                    ? null
-                    : (value) {
-                        if (value != null) {
-                          setState(() => setMode(value));
-                        }
-                      },
               ),
               if (_mode == MagicWandSelectionMode.colorArea) ...[
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    Text(
-                      context.l10n.editor_tolerance,
-                      style: theme.textTheme.bodySmall,
+                const SizedBox(height: 8),
+                ToolSettingRows(
+                  rowPadding: const EdgeInsets.symmetric(vertical: 4),
+                  rows: [
+                    ToolSettingRow.slider(
+                      label: context.l10n.editor_tolerance,
+                      value: _tolerance.toDouble(),
+                      min: 0,
+                      max: 255,
+                      divisions: 255,
+                      onChanged: _isApplying
+                          ? null
+                          : (value) {
+                              setState(() => setTolerance(value.round()));
+                            },
                     ),
-                    const Spacer(),
-                    Text('$_tolerance', style: theme.textTheme.bodySmall),
                   ],
-                ),
-                Slider(
-                  value: _tolerance.toDouble(),
-                  min: 0,
-                  max: 255,
-                  divisions: 255,
-                  onChanged: _isApplying
-                      ? null
-                      : (value) {
-                          setState(() => setTolerance(value.round()));
-                        },
                 ),
               ],
               SwitchListTile(

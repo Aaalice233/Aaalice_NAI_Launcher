@@ -133,7 +133,7 @@ abstract final class GenerationCharacterOrchestrator {
       );
     }
 
-    final layoutMode = _parseLayoutMode(
+    final layoutMode = _resolveLayoutMode(
       rawLayoutMode,
       inferredCustom: hasManualPosition,
     );
@@ -176,24 +176,25 @@ abstract final class GenerationCharacterOrchestrator {
     );
   }
 
-  static GenerationCharacterLayoutMode _parseLayoutMode(
+  static GenerationCharacterLayoutMode? parseLayoutMode(Object? value) =>
+      switch (value) {
+        null => null,
+        'ai_choice' => GenerationCharacterLayoutMode.aiChoice,
+        'custom' => GenerationCharacterLayoutMode.custom,
+        _ => throw const GenerationCharacterValidationException(
+          'invalid_character_layout_mode',
+          'character_layout_mode must be "ai_choice" or "custom".',
+        ),
+      };
+
+  static GenerationCharacterLayoutMode _resolveLayoutMode(
     Object? value, {
     required bool inferredCustom,
-  }) {
-    if (value == null) {
-      return inferredCustom
+  }) =>
+      parseLayoutMode(value) ??
+      (inferredCustom
           ? GenerationCharacterLayoutMode.custom
-          : GenerationCharacterLayoutMode.aiChoice;
-    }
-    return switch (value) {
-      'ai_choice' => GenerationCharacterLayoutMode.aiChoice,
-      'custom' => GenerationCharacterLayoutMode.custom,
-      _ => throw const GenerationCharacterValidationException(
-        'invalid_character_layout_mode',
-        'character_layout_mode must be "ai_choice" or "custom".',
-      ),
-    };
-  }
+          : GenerationCharacterLayoutMode.aiChoice);
 
   static double _coordinate(
     Object? value, {

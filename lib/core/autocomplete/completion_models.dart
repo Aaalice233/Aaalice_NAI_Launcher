@@ -108,7 +108,9 @@ class CompletionQuery {
   final TagCategory? categoryFilter;
   final CompletionQueryKind kind;
 
-  bool get isChinese => RegExp(r'[\u3400-\u9fff]').hasMatch(token);
+  static final RegExp _chineseCharacter = RegExp(r'[\u3400-\u9fff]');
+
+  bool get isChinese => _chineseCharacter.hasMatch(token);
   bool get isEnglish => !isChinese;
 
   CompletionQuery copyWith({

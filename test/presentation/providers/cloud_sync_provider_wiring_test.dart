@@ -88,4 +88,31 @@ void main() {
       isFalse,
     );
   });
+
+  test('fixed-tag usage records follow the gallery scope and its toggle', () {
+    const scope = {CloudSyncDataKind.galleries};
+
+    expect(
+      isCloudSyncAdapterInScope(
+        'fixed-tag-usage',
+        scope,
+        const CloudSyncContentSelection(),
+      ),
+      isTrue,
+    );
+    expect(
+      isCloudSyncAdapterInScope(
+        'fixed-tag-usage',
+        scope,
+        const CloudSyncContentSelection(includeFixedTagUsage: false),
+      ),
+      isFalse,
+    );
+    expect(
+      isCloudSyncAdapterInScope('fixed-tag-usage', const {
+        CloudSyncDataKind.settings,
+      }, const CloudSyncContentSelection()),
+      isFalse,
+    );
+  });
 }

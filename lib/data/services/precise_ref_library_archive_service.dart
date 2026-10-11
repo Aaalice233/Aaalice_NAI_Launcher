@@ -8,6 +8,7 @@ import 'package:path/path.dart' as p;
 import 'package:uuid/uuid.dart';
 
 import '../../core/enums/precise_ref_type.dart';
+import '../../core/utils/zip_archive_entry.dart';
 import '../models/precise_ref/precise_ref_library_entry.dart';
 import 'precise_ref_library_storage_service.dart';
 
@@ -161,20 +162,25 @@ class PreciseRefLibraryArchiveService {
     late final Archive archive;
     try {
       archive = ZipDecoder().decodeBuffer(input);
-      if (archive.files.isEmpty || archive.files.length > _maxEntries + 1) {
+      if (archive.files.isEmpty) {
         throw const FormatException('Invalid precise reference archive size');
       }
       final names = <String>{};
       for (final file in archive.files) {
-        if (!file.isFile || file.isSymbolicLink || !_isSafePath(file.name)) {
+        if (file.isSymbolicLink || !_isSafePath(file.name)) {
           throw FormatException(
             'Unsafe precise reference archive path: ${file.name}',
           );
         }
+        if (isZipDirectoryEntry(file)) continue;
         if (!names.add(file.name.toLowerCase())) {
           throw FormatException(
             'Duplicate precise reference archive path: ${file.name}',
           );
+        }
+        // 目录项不占额度，上限只约束清单加资源文件
+        if (names.length > _maxEntries + 1) {
+          throw const FormatException('Invalid precise reference archive size');
         }
       }
       final manifestFile = archive.findFile(_manifestPath);
@@ -245,10 +251,13 @@ class PreciseRefLibraryArchiveService {
     if (value.startsWith('/') || RegExp(r'^[A-Za-z]:').hasMatch(value)) {
       return false;
     }
-    final parts = value.split('/');
-    return parts.every(
-      (part) => part.isNotEmpty && part != '.' && part != '..',
-    );
+    final normalized = zipEntryNameMarksDirectory(value)
+        ? value.substring(0, value.length - 1)
+        : value;
+    return normalized.isNotEmpty &&
+        normalized
+            .split('/')
+            .every((part) => part.isNotEmpty && part != '.' && part != '..');
   }
 
   static bool _isSafeResource(String value) =>

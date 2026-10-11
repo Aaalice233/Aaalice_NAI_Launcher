@@ -4,13 +4,15 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/data/models/character/character_prompt.dart';
 import 'package:nai_launcher/data/models/fixed_tag/fixed_tag_entry.dart';
 import 'package:nai_launcher/data/models/fixed_tag/fixed_tag_prompt_type.dart';
-import 'package:nai_launcher/data/services/alias_resolver_service.dart';
+import 'package:nai_launcher/presentation/providers/alias_resolver_service.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/screens/generation/widgets/prompt_input_tooltips.dart';
 import 'package:nai_launcher/presentation/screens/generation/widgets/prompt_tooltip_components.dart';
 import 'package:nai_launcher/presentation/themes/prompt_semantic_colors.dart';
 import 'package:nai_launcher/presentation/widgets/common/rich_tooltip_surface.dart';
 import 'package:nai_launcher/presentation/widgets/common/translated_tag_text.dart';
+
+import '../../../helpers/ink_expectations.dart';
 
 void main() {
   for (final brightness in Brightness.values) {
@@ -549,6 +551,56 @@ void main() {
       expect(fixedTagPrompt.prompt, contains('prefix_${index}_tag'));
     }
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('组成卡片标题的悬停与按压反馈画在卡片底色之上', (tester) async {
+    final theme = ThemeData.dark();
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: theme,
+        home: Scaffold(
+          body: SizedBox(
+            width: 320,
+            child: TooltipSection(
+              key: const ValueKey('step'),
+              theme: theme,
+              icon: Icons.push_pin,
+              label: 'Fixed tags',
+              color: theme.colorScheme.secondary,
+              content: 'best quality, detailed',
+              isDark: true,
+            ),
+          ),
+        ),
+      ),
+    );
+
+    final section = find.byKey(const ValueKey('step'));
+    final header = find.descendant(of: section, matching: find.byType(InkWell));
+    final card = find
+        .descendant(
+          of: section,
+          matching: find.byWidgetPredicate(
+            (widget) => widget is Container && widget.decoration != null,
+          ),
+        )
+        .first;
+    final background =
+        (tester.widget<Container>(card).decoration! as BoxDecoration).color;
+    final inkTheme = Theme.of(tester.element(header));
+
+    await hoverOver(tester, header);
+    expectInkOnTop(tester, card, ink: inkTheme.hoverColor, below: background);
+
+    final press = await pressAndHold(tester, header);
+    expectInkOnTop(
+      tester,
+      card,
+      ink: inkTheme.highlightColor,
+      below: background,
+    );
+    await press.up();
+    await tester.pumpAndSettle();
   });
 
   testWidgets('composition cards and final prompt expand independently', (

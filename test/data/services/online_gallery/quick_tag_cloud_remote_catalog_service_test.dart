@@ -185,35 +185,7 @@ void main() {
         {'id': 'one', 'title': 'New entry'},
       ],
     });
-    final nextFiles = <String, Map<String, Object>>{
-      'codexes.json': _CatalogFixture._metadata(fixture.codexesBytes),
-      'media.json': _CatalogFixture._metadata(fixture.mediaBytes),
-      'book.json': _CatalogFixture._metadata(nextCanonicalBytes),
-      'external.json': _CatalogFixture._metadata(fixture.fallbackBytes),
-    };
-    final nextContentHash = _CatalogFixture._contentHash(nextFiles);
-    final nextRelease = 'r-${nextContentHash.substring(0, 20)}';
-    final nextManifest = {
-      'schemaVersion': 1,
-      'release': nextRelease,
-      'contentHash': nextContentHash,
-      'files': nextFiles,
-    };
-    fixture.routes['https://data.example/root/current.json'] =
-        _CatalogFixture._jsonBytes({
-          'schemaVersion': 1,
-          'release': nextRelease,
-          'manifest': 'releases/$nextRelease/manifest.json',
-          'contentHash': nextContentHash,
-        });
-    fixture.routes['https://data.example/root/releases/$nextRelease/manifest.json'] =
-        _CatalogFixture._jsonBytes(nextManifest);
-    fixture.routes['https://data.example/root/releases/$nextRelease/codexes.json'] =
-        fixture.codexesBytes;
-    fixture.routes['https://data.example/root/releases/$nextRelease/media.json'] =
-        fixture.mediaBytes;
-    final nextBookUrl =
-        'https://data.example/root/releases/$nextRelease/book.json';
+    final nextBookUrl = fixture.publishNextRelease(nextCanonicalBytes);
     adapter.failures.add(nextBookUrl);
 
     final nextCatalog = await service.fetchCatalog();
@@ -230,7 +202,6 @@ void main() {
     expect(adapter.count(nextBookUrl), 1);
 
     adapter.failures.remove(nextBookUrl);
-    fixture.routes[nextBookUrl] = nextCanonicalBytes;
     final current = await service.fetchCodex(
       nextCatalog,
       nextCatalog.findCodex('book')!,
@@ -264,6 +235,32 @@ void main() {
     expect(offlineCatalog.release, previousCatalog.release);
     expect(offlineCatalog.isOffline, isTrue);
   });
+
+  test(
+    'keeps the previous verified release when a new codex fails to parse',
+    () async {
+      final previousCatalog = await service.fetchCatalog();
+      await service.fetchCodex(
+        previousCatalog,
+        previousCatalog.findCodex('book')!,
+      );
+
+      fixture.publishNextRelease(_CatalogFixture._jsonBytes(['not a codex']));
+      final nextCatalog = await service.fetchCatalog();
+      service.clearMemoryCache();
+      final recovered = await service.fetchCodex(
+        nextCatalog,
+        nextCatalog.findCodex('book')!,
+      );
+
+      expect(recovered.entries.single.title, 'Canonical entry');
+      expect(
+        recovered.loadSource,
+        QuickTagCloudCodexLoadSource.previousRelease,
+      );
+      expect(recovered.sourceRelease, previousCatalog.release);
+    },
+  );
 
   test(
     'fetches pointer previousRelease and resolves renamed codex aliases',
@@ -478,6 +475,35 @@ class _CatalogFixture {
       fallbackUrl: fallbackBytes,
       externalUrl: externalBytes,
     };
+  }
+
+  /// Returns the `book.json` URL of the published release.
+  String publishNextRelease(List<int> bookBytes) {
+    final nextFiles = <String, Map<String, Object>>{
+      'codexes.json': _metadata(codexesBytes),
+      'media.json': _metadata(mediaBytes),
+      'book.json': _metadata(bookBytes),
+      'external.json': _metadata(fallbackBytes),
+    };
+    final nextContentHash = _contentHash(nextFiles);
+    final nextRelease = 'r-${nextContentHash.substring(0, 20)}';
+    final releaseRoot = 'https://data.example/root/releases/$nextRelease';
+    routes['https://data.example/root/current.json'] = _jsonBytes({
+      'schemaVersion': 1,
+      'release': nextRelease,
+      'manifest': 'releases/$nextRelease/manifest.json',
+      'contentHash': nextContentHash,
+    });
+    routes['$releaseRoot/manifest.json'] = _jsonBytes({
+      'schemaVersion': 1,
+      'release': nextRelease,
+      'contentHash': nextContentHash,
+      'files': nextFiles,
+    });
+    routes['$releaseRoot/codexes.json'] = codexesBytes;
+    routes['$releaseRoot/media.json'] = mediaBytes;
+    routes['$releaseRoot/book.json'] = bookBytes;
+    return '$releaseRoot/book.json';
   }
 
   static Map<String, Object> _metadata(List<int> bytes) => {

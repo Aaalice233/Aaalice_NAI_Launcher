@@ -1,4 +1,11 @@
 abstract final class PromptTagUtils {
+  static final RegExp _numericWeightPrefix = RegExp(
+    r'^[\(\[\{]*\s*[+-]?(?:\d+(?:\.\d+)?|\.\d+)\s*$',
+  );
+  static final RegExp _numericWeightGroup = RegExp(
+    r'^[+-]?(?:\d+(?:\.\d+)?|\.\d+)\s*::([\s\S]*)::$',
+  );
+
   /// Splits NovelAI prompts only at top-level separators. Commas inside
   /// emphasis wrappers and numeric weights remain part of the same tag.
   static List<String> splitTopLevel(String prompt) {
@@ -31,9 +38,7 @@ abstract final class PromptTagUtils {
           numericWeightOpen = false;
         } else {
           final prefix = prompt.substring(tokenStart, index).trimLeft();
-          if (RegExp(
-            r'^[\(\[\{]*\s*[+-]?(?:\d+(?:\.\d+)?|\.\d+)\s*$',
-          ).hasMatch(prefix)) {
+          if (_numericWeightPrefix.hasMatch(prefix)) {
             numericWeightOpen = true;
           }
         }
@@ -71,11 +76,8 @@ abstract final class PromptTagUtils {
   /// flattened here so one weighted group does not become a single giant chip.
   static List<String> splitForDisplay(String prompt) {
     final tags = <String>[];
-    final numericWeight = RegExp(
-      r'^[+-]?(?:\d+(?:\.\d+)?|\.\d+)\s*::([\s\S]*)::$',
-    );
     for (final token in splitTopLevel(prompt)) {
-      final match = numericWeight.firstMatch(token);
+      final match = _numericWeightGroup.firstMatch(token);
       if (match == null) {
         tags.add(token);
         continue;

@@ -1,7 +1,7 @@
 import 'dart:typed_data';
 
 import '../../../core/agent/agent_types.dart';
-import 'prompt_assistant_models.dart';
+import '../../../data/models/prompt_assistant/prompt_assistant_models.dart';
 
 /// Agent 线协议类型（应用层适配）。
 ///

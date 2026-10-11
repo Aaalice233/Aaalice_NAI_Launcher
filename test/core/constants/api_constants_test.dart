@@ -266,4 +266,39 @@ void main() {
       },
     );
   });
+
+  group('V5 Full Medium tables', () {
+    const medium = ImageModels.animeDiffusionV5FullMedium;
+
+    test('medium inpaints with its own inpainting model and maps back', () {
+      expect(
+        ImageModels.resolveInpaintingModel(medium),
+        ImageModels.animeDiffusionV5FullMediumInpainting,
+      );
+      expect(
+        ImageModels.resolveBaseModel(
+          ImageModels.animeDiffusionV5FullMediumInpainting,
+        ),
+        medium,
+      );
+    });
+
+    test('medium shares the V5 quality tiers and UC presets', () {
+      expect(
+        QualityTags.getQualityTags(medium),
+        QualityTags.getQualityTags(ImageModels.animeDiffusionV5Full),
+      );
+      expect(QualityTags.tiersForModel(medium), [
+        QualityTags.standardTier,
+        QualityTags.lightTier,
+      ]);
+      expect(UcPresets.getPresetsForModel(medium), same(UcPresets.v5Presets));
+      expect(
+        UcPresets.getPresetsForModel(
+          ImageModels.animeDiffusionV5FullMediumInpainting,
+        ),
+        same(UcPresets.v5Presets),
+      );
+    });
+  });
 }

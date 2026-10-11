@@ -20,8 +20,8 @@ class ConnectionLeaseException implements Exception {
 
 /// 连接已失效异常
 class ConnectionInvalidException extends ConnectionLeaseException {
-  ConnectionInvalidException({String? operationId})
-    : super('Connection is no longer valid', operationId: operationId);
+  ConnectionInvalidException({super.operationId})
+    : super('Connection is no longer valid');
 }
 
 /// 连接版本不匹配异常
@@ -32,10 +32,9 @@ class ConnectionVersionMismatchException extends ConnectionLeaseException {
   ConnectionVersionMismatchException({
     required this.expectedVersion,
     required this.actualVersion,
-    String? operationId,
+    super.operationId,
   }) : super(
          'Connection version mismatch: expected $expectedVersion, got $actualVersion',
-         operationId: operationId,
        );
 }
 
@@ -344,27 +343,4 @@ Future<ConnectionLease> acquireLease({
     'Timeout acquiring connection lease after ${timeout.inSeconds}s',
     operationId: operationId,
   );
-}
-
-/// 便捷函数：使用连接租借执行操作
-///
-/// [operation] 数据库操作
-/// [operationId] 操作标识
-/// [timeout] 操作超时时间
-Future<T> withLease<T>(
-  Future<T> Function(Database db) operation, {
-  String? operationId,
-  Duration acquireTimeout = const Duration(seconds: 5),
-  Duration operationTimeout = const Duration(seconds: 30),
-}) async {
-  final lease = await acquireLease(
-    operationId: operationId,
-    timeout: acquireTimeout,
-  );
-
-  try {
-    return await lease.execute(operation).timeout(operationTimeout);
-  } finally {
-    await lease.dispose();
-  }
 }

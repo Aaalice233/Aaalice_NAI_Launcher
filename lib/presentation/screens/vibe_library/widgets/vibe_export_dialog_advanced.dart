@@ -20,6 +20,7 @@ import '../../../adaptive/adaptive_presenter.dart';
 import '../../../adaptive/interaction_policy.dart';
 import '../../../providers/generation/generation_params_notifier.dart';
 import '../../../widgets/common/app_toast.dart';
+import '../../../widgets/common/surface_ink_well.dart';
 
 @visibleForTesting
 Size vibeExportChangeImageMinimumSize(InteractionPolicy policy) {
@@ -1361,7 +1362,7 @@ class _VibeExportDialogAdvancedState
           ? '${entries.first.displayName}_vibe.png'
           : 'vibe_bundle_${vibes.length}.png';
 
-      return VibeExportUtils.exportToEmbeddedPng(
+      return await VibeExportUtils.exportToEmbeddedPng(
         vibes,
         carrierImageBytes: carrierImageBytes,
         fileName: fileName,
@@ -1516,19 +1517,16 @@ class _OptionCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    return InkWell(
-      onTap: isDisabled ? null : onTap,
+    return SurfaceInkWell(
       borderRadius: BorderRadius.circular(12),
-      child: Container(
+      color: isDisabled
+          ? theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.3)
+          : isSelected
+          ? theme.colorScheme.primaryContainer.withValues(alpha: 0.16)
+          : theme.colorScheme.surfaceContainerLow,
+      onTap: isDisabled ? null : onTap,
+      child: Padding(
         padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(12),
-          color: isDisabled
-              ? theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.3)
-              : isSelected
-              ? theme.colorScheme.primaryContainer.withValues(alpha: 0.16)
-              : theme.colorScheme.surfaceContainerLow,
-        ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [

@@ -1,5 +1,4 @@
 import 'dart:io';
-import 'dart:math';
 import 'dart:typed_data';
 
 import 'package:path/path.dart' as p;
@@ -7,6 +6,7 @@ import 'package:path/path.dart' as p;
 import '../../../core/utils/app_logger.dart';
 import '../../../core/utils/image_save_utils.dart';
 import '../../../core/utils/nai_resolution_adapter.dart';
+import '../../../data/models/gallery/gallery_index_admission.dart';
 import '../../../data/models/image/image_params.dart';
 import '../../../data/models/fixed_tag/fixed_tag_usage_snapshot.dart';
 import '../../../data/services/image_metadata_service.dart';
@@ -19,35 +19,24 @@ class GenerationResultLifecycleDependencies {
     required this.resolveGalleryRootPath,
     required this.addGalleryImages,
     required this.refreshGallery,
+    required this.removeGalleryImages,
+    required this.deleteGalleryFile,
     required this.incrementStatistics,
     this.publishToSystemGallery,
   });
 
   final GenerationHistoryStorageService historyStorage;
   final Future<String?> Function() resolveGalleryRootPath;
-  final Future<int> Function(List<String> paths) addGalleryImages;
+  final Future<GalleryIndexAdmission> Function(List<String> paths)
+  addGalleryImages;
   final Future<void> Function() refreshGallery;
+  final Future<void> Function(List<String> paths) removeGalleryImages;
+
+  /// 文件已不存在时返回 `false`。
+  final Future<bool> Function(String path) deleteGalleryFile;
   final Future<void> Function(int count) incrementStatistics;
   final Future<void> Function(String sourcePath, String fileName)?
   publishToSystemGallery;
-}
-
-class GenerationSaveSnapshot {
-  const GenerationSaveSnapshot({
-    this.fixedPrefixTags = const [],
-    this.fixedSuffixTags = const [],
-    this.fixedNegativePrefixTags = const [],
-    this.fixedNegativeSuffixTags = const [],
-    this.fixedTagUsageSnapshot,
-    this.useCoords = false,
-  });
-
-  final List<String> fixedPrefixTags;
-  final List<String> fixedSuffixTags;
-  final List<String> fixedNegativePrefixTags;
-  final List<String> fixedNegativeSuffixTags;
-  final FixedTagUsageSnapshot? fixedTagUsageSnapshot;
-  final bool useCoords;
 }
 
 class GenerationSaveResult {
@@ -60,6 +49,26 @@ class GenerationSaveResult {
   final List<GeneratedImage> images;
   final List<String> savedPaths;
   final int systemGalleryExportFailureCount;
+}
+
+class SavedFileDeletionResult {
+  const SavedFileDeletionResult({
+    this.deletedPaths = const [],
+    this.failures = const {},
+  });
+
+  final List<String> deletedPaths;
+  final Map<String, Object> failures;
+}
+
+class GeneratedImageRemovalResult {
+  const GeneratedImageRemovalResult({
+    this.removedCount = 0,
+    this.files = const SavedFileDeletionResult(),
+  });
+
+  final int removedCount;
+  final SavedFileDeletionResult files;
 }
 
 class ExternalImagePreparationResult {
@@ -113,6 +122,7 @@ class GenerationResultLifecycleService {
     int? width,
     int? height,
     ImageComparisonSource? comparisonSource,
+    FixedTagUsageSnapshot? fixedTagUsageSnapshot,
     required bool embedNaiMetadata,
   }) async {
     final size =
@@ -136,6 +146,7 @@ class GenerationResultLifecycleService {
         width: size.$1,
         height: size.$2,
         comparisonSource: comparisonSource,
+        fixedTagUsageSnapshot: fixedTagUsageSnapshot,
         preserveOriginalBytesOnSave: !embedNaiMetadata,
       ),
       params: effectiveParams,
@@ -143,9 +154,7 @@ class GenerationResultLifecycleService {
   }
 
   Future<GenerationSaveResult> saveImages(
-    List<GeneratedImage> images,
-    ImageParams params, {
-    required GenerationSaveSnapshot snapshot,
+    List<GeneratedImage> images, {
     String? directoryPath,
     bool syncToGalleryIndex = true,
   }) async {
@@ -165,72 +174,19 @@ class GenerationResultLifecycleService {
       return GenerationSaveResult(images, const []);
     }
 
-    final charCaptions = <Map<String, dynamic>>[];
-    final charNegCaptions = <Map<String, dynamic>>[];
-    for (final character in params.characters) {
-      charCaptions.add({
-        'char_caption': character.prompt,
-        'centers': [
-          {'x': 0.5, 'y': 0.5},
-        ],
-      });
-      charNegCaptions.add({
-        'char_caption': character.negativePrompt,
-        'centers': [
-          {'x': 0.5, 'y': 0.5},
-        ],
-      });
-    }
-
     final updated = <GeneratedImage>[];
     final paths = <String>[];
     var systemGalleryExportFailureCount = 0;
     for (final image in images) {
       try {
-        final hasMetadata = ImageSaveUtils.hasEmbeddedNovelAiMetadata(
-          image.bytes,
-        );
-        var actualSeed = params.seed;
-        if (actualSeed < 0 || hasMetadata) {
-          final metadata = await ImageMetadataService().getMetadataFromBytes(
-            image.bytes,
-          );
-          actualSeed = metadata?.seed ?? actualSeed;
-          if (actualSeed < 0) {
-            actualSeed = Random().nextInt(4294967295);
-          }
-        }
-        final fixedTagUsageSnapshot =
-            image.fixedTagUsageSnapshot ?? snapshot.fixedTagUsageSnapshot;
-        final bytes = image.preserveOriginalBytesOnSave
-            ? image.bytes
-            : hasMetadata && fixedTagUsageSnapshot != null
-            ? await ImageSaveUtils.mergeFixedTagUsageMetadata(
-                imageBytes: image.bytes,
-                snapshot: fixedTagUsageSnapshot,
-              )
-            : await ImageSaveUtils.rebuildImageBytesWithMetadata(
-                imageBytes: image.bytes,
-                params: params.copyWith(
-                  width: image.width,
-                  height: image.height,
-                ),
-                actualSeed: actualSeed,
-                fixedPrefixTags: snapshot.fixedPrefixTags,
-                fixedSuffixTags: snapshot.fixedSuffixTags,
-                fixedNegativePrefixTags: snapshot.fixedNegativePrefixTags,
-                fixedNegativeSuffixTags: snapshot.fixedNegativeSuffixTags,
-                fixedTagUsageSnapshot: fixedTagUsageSnapshot,
-                charCaptions: charCaptions,
-                charNegCaptions: charNegCaptions,
-                useCoords: snapshot.useCoords,
-                useStealth: false,
-              );
-        final path = await ImageSaveUtils.saveBytesToDatedPath(
+        final saved = await ImageSaveUtils.saveResultImage(
           rootPath: rootPath,
-          bytes: bytes,
-          seed: actualSeed,
+          imageBytes: image.bytes,
+          preserveOriginalBytes: image.preserveOriginalBytesOnSave,
+          metadata: image.metadata,
+          fixedTagUsageSnapshot: image.fixedTagUsageSnapshot,
         );
+        final path = saved.path;
         paths.add(path);
         updated.add(image.copyWithFilePath(path));
         final publishToSystemGallery = dependencies.publishToSystemGallery;
@@ -251,8 +207,11 @@ class GenerationResultLifecycleService {
     if (paths.isNotEmpty) {
       if (syncToGalleryIndex) {
         try {
-          final added = await dependencies.addGalleryImages(paths);
-          if (added < paths.length) await dependencies.refreshGallery();
+          // 全量重扫要枚举整个图库根目录，只有索引与磁盘真的对不上才值得付这个代价。
+          final admission = await dependencies.addGalleryImages(paths);
+          if (admission.requiresFullRescan) {
+            await dependencies.refreshGallery();
+          }
         } catch (error, stackTrace) {
           AppLogger.e('自动保存图库索引更新失败', error, stackTrace);
         }
@@ -268,6 +227,33 @@ class GenerationResultLifecycleService {
       updated,
       paths,
       systemGalleryExportFailureCount: systemGalleryExportFailureCount,
+    );
+  }
+
+  /// 单个文件失败不阻断其余文件；只把真正删掉的路径移出图库索引。
+  Future<SavedFileDeletionResult> deleteSavedFiles(
+    Iterable<String> paths,
+  ) async {
+    final deleted = <String>[];
+    final failures = <String, Object>{};
+    for (final path in paths.toSet()) {
+      try {
+        if (await dependencies.deleteGalleryFile(path)) deleted.add(path);
+      } catch (error, stackTrace) {
+        AppLogger.e('删除生成结果的图库文件失败', error, stackTrace);
+        failures[path] = error;
+      }
+    }
+    if (deleted.isNotEmpty) {
+      try {
+        await dependencies.removeGalleryImages(deleted);
+      } catch (error, stackTrace) {
+        AppLogger.e('删除后更新图库索引失败', error, stackTrace);
+      }
+    }
+    return SavedFileDeletionResult(
+      deletedPaths: List.unmodifiable(deleted),
+      failures: Map.unmodifiable(failures),
     );
   }
 

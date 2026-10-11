@@ -1,6 +1,10 @@
+import 'dart:async';
 import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:logger/logger.dart' show Level, LogEvent, OutputEvent;
 import 'package:nai_launcher/core/utils/app_logger.dart';
+
+import '../../helpers/isolated_app_log_directory.dart';
 
 /// 日志系统全面测试
 ///
@@ -16,14 +20,12 @@ void main() {
 
     setUp(() async {
       // 创建临时目录用于测试
-      tempDir = Directory.systemTemp.createTempSync('log_test_');
+      tempDir = createIsolatedAppLogDirectory('log_test_');
     });
 
     tearDown(() async {
       // 清理临时目录
-      if (await tempDir.exists()) {
-        await tempDir.delete(recursive: true);
-      }
+      await deleteIsolatedAppLogDirectory(tempDir);
     });
 
     test('正式环境日志文件名格式正确', () async {
@@ -71,7 +73,7 @@ void main() {
       AppLogger.e('错误信息', Exception('测试异常'), StackTrace.current, 'TestTag');
 
       // 等待写入完成
-      await Future.delayed(const Duration(milliseconds: 100));
+      await AppLogger.flush();
 
       // 读取日志文件内容
       final logFile = AppLogger.currentLogFile;
@@ -85,6 +87,17 @@ void main() {
       expect(content, contains('[TestTag]'));
     });
 
+    test('错误日志之后紧跟的日志不会丢失', () async {
+      await AppLogger.initialize(isTestEnvironment: true);
+
+      AppLogger.e('错误信息', Exception('测试异常'), null, 'TestTag');
+      AppLogger.i('紧跟错误的日志', 'TestTag');
+      await AppLogger.flush();
+
+      final content = await File(AppLogger.currentLogFile!).readAsString();
+      expect(content, contains('紧跟错误的日志'));
+    });
+
     test('网络日志格式正确', () async {
       await AppLogger.initialize(isTestEnvironment: true);
 
@@ -95,7 +108,7 @@ void main() {
         data: {'key': 'value'},
       );
 
-      await Future.delayed(const Duration(milliseconds: 100));
+      await AppLogger.flush();
 
       final logFile = AppLogger.currentLogFile;
       final content = await File(logFile!).readAsString();
@@ -113,7 +126,7 @@ void main() {
         success: true,
       );
 
-      await Future.delayed(const Duration(milliseconds: 100));
+      await AppLogger.flush();
 
       final logFile = AppLogger.currentLogFile;
       final content = await File(logFile!).readAsString();
@@ -133,7 +146,7 @@ void main() {
         success: true,
       );
 
-      await Future.delayed(const Duration(milliseconds: 100));
+      await AppLogger.flush();
 
       final logFile = AppLogger.currentLogFile;
       final content = await File(logFile!).readAsString();
@@ -176,39 +189,30 @@ void main() {
     });
 
     test('getLogFiles返回按时间倒序排列', () async {
+      // 日志目录已隔离，需预置一个更旧的日志才有可比较的两个文件
+      final olderLog = File(
+        '${tempDir.path}${Platform.pathSeparator}test_20000101_000000_000.log',
+      );
+      await olderLog.writeAsString('旧日志内容');
+      await olderLog.setLastModified(DateTime(2000));
+
       await AppLogger.initialize(isTestEnvironment: true);
-
-      // 等待第一个日志文件创建
-      await Future.delayed(const Duration(milliseconds: 100));
-
-      // 重新初始化创建第二个日志文件
-      await Future.delayed(const Duration(milliseconds: 1100)); // 确保时间戳不同
-      await AppLogger.initialize(isTestEnvironment: true);
-
-      await Future.delayed(const Duration(milliseconds: 100));
 
       // 获取日志文件列表
       final files = await AppLogger.getLogFiles();
 
-      // 验证列表不为空
-      expect(files, isNotEmpty);
-
       // 验证是按时间倒序排列（最新的在前）
-      if (files.length >= 2) {
-        final firstTime = files[0].lastModifiedSync();
-        final secondTime = files[1].lastModifiedSync();
-        expect(
-            firstTime.isAfter(secondTime) ||
-                firstTime.isAtSameMomentAs(secondTime),
-            isTrue,);
-      }
+      expect(
+        files.map((file) => file.path),
+        [AppLogger.currentLogFile, olderLog.path],
+      );
     });
 
     test('logDirectory返回正确路径', () async {
       await AppLogger.initialize(isTestEnvironment: true);
 
       final logDir = AppLogger.logDirectory;
-      expect(logDir, isNotNull);
+      expect(logDir, tempDir.path);
 
       // 验证目录存在
       final dir = Directory(logDir!);
@@ -226,7 +230,7 @@ void main() {
         response: longText,
       );
 
-      await Future.delayed(const Duration(milliseconds: 100));
+      await AppLogger.flush();
 
       final logFile = AppLogger.currentLogFile;
       final content = await File(logFile!).readAsString();
@@ -235,6 +239,77 @@ void main() {
       expect(content, contains('... (truncated)'));
     });
   });
+
+  group('FileOutput', () {
+    late Directory tempDir;
+    late File logFile;
+
+    setUp(() {
+      tempDir = Directory.systemTemp.createTempSync('file_output_test_');
+      logFile = File('${tempDir.path}${Platform.pathSeparator}test_output.log');
+    });
+
+    tearDown(() async {
+      await tempDir.delete(recursive: true);
+    });
+
+    test('init 完成时日志文件已经创建', () async {
+      final output = FileOutput(file: logFile);
+
+      await output.init();
+
+      expect(output.isOpen, isTrue);
+      expect(logFile.existsSync(), isTrue);
+      await output.destroy();
+    });
+
+    test('flush 进行中写入的日志按顺序落盘', () async {
+      final output = FileOutput(file: logFile);
+      await output.init();
+
+      output.output(_event('第一行'));
+      final inFlight = output.flush();
+      output.output(_event('第二行'));
+      await inFlight;
+      await output.flush();
+
+      expect(await logFile.readAsString(), '第一行\n第二行\n');
+      await output.destroy();
+    });
+
+    test('重复 init 与 flush 进行中 destroy 都会释放文件句柄', () async {
+      final output = FileOutput(file: logFile);
+      await output.init();
+      await output.init();
+
+      output.output(_event('最后一行'));
+      unawaited(output.flush());
+      await output.destroy();
+
+      expect(await logFile.readAsString(), '最后一行\n');
+      logFile.deleteSync();
+      expect(logFile.existsSync(), isFalse);
+    });
+
+    test('无法打开文件时不抛错且 isOpen 为 false', () async {
+      final output = FileOutput(
+        file: File(
+          '${tempDir.path}${Platform.pathSeparator}missing'
+          '${Platform.pathSeparator}test_output.log',
+        ),
+      );
+
+      await output.init();
+      output.output(_event('无处可写'));
+      await output.flush();
+      await output.destroy();
+
+      expect(output.isOpen, isFalse);
+    });
+  });
 }
+
+OutputEvent _event(String line) =>
+    OutputEvent(LogEvent(Level.info, line), [line]);
 
 String _pad(int number) => number.toString().padLeft(2, '0');

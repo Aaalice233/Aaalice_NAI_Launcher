@@ -22,7 +22,9 @@ class PromptControlButton extends StatefulWidget {
   final Color color;
   final bool active;
   final bool? selected;
-  final VoidCallback onPressed;
+
+  /// null 时按钮停用，用于被其他设置接管的入口。
+  final VoidCallback? onPressed;
   final VoidCallback? onLongPress;
   final EdgeInsetsGeometry padding;
   final Widget Function(PromptControlColors colors) builder;
@@ -37,7 +39,22 @@ class _PromptControlButtonState extends State<PromptControlButton> {
   @override
   void initState() {
     super.initState();
+    _syncDisabledState();
     _states.addListener(_stateChanged);
+  }
+
+  @override
+  void didUpdateWidget(PromptControlButton oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // 随后必定 build，这里同步禁用态不经监听器触发 setState。
+    _states.removeListener(_stateChanged);
+    _syncDisabledState();
+    _states.addListener(_stateChanged);
+  }
+
+  /// TextButton 会在构建期间写入禁用态，提前写好才不会在构建中回调 setState。
+  void _syncDisabledState() {
+    _states.update(WidgetState.disabled, widget.onPressed == null);
   }
 
   void _stateChanged() => setState(() {});

@@ -12,6 +12,7 @@ import '../../../../data/models/precise_ref/precise_ref_library_entry.dart';
 import '../../../../data/services/precise_ref_library_storage_service.dart';
 import '../../../adaptive/adaptive_presenter.dart';
 import '../../../providers/precise_ref_library_provider.dart';
+import '../../../widgets/common/surface_ink_well.dart';
 import 'precise_ref_type_filter_chips.dart';
 
 enum PreciseRefSelectorPurpose { add, export }
@@ -419,88 +420,84 @@ class _SelectorItemState extends ConsumerState<_SelectorItem> {
     final theme = Theme.of(context);
     final entry = widget.entry;
 
-    return InkWell(
+    return SurfaceInkWell(
       key: Key('precise-ref-selector-item-${entry.id}'),
-      onTap: widget.onTap,
       borderRadius: BorderRadius.circular(8),
-      child: Container(
-        decoration: BoxDecoration(
-          color: widget.selected
-              ? theme.colorScheme.primaryContainer
-              : theme.colorScheme.surfaceContainerLow,
-          borderRadius: BorderRadius.circular(8),
-          border: widget.selected
-              ? Border.all(color: theme.colorScheme.primary, width: 1)
-              : null,
-        ),
-        clipBehavior: Clip.antiAlias,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Expanded(
-              child: Stack(
-                fit: StackFit.expand,
-                children: [
-                  if (_thumbnail != null)
-                    Image.memory(
-                      _thumbnail!,
-                      fit: BoxFit.cover,
-                      gaplessPlayback: true,
-                    )
-                  else
-                    Container(
-                      color: theme.colorScheme.surfaceContainerHighest,
+      color: widget.selected
+          ? theme.colorScheme.primaryContainer
+          : theme.colorScheme.surfaceContainerLow,
+      side: widget.selected
+          ? BorderSide(color: theme.colorScheme.primary, width: 1)
+          : BorderSide.none,
+      clipBehavior: Clip.antiAlias,
+      inkAboveChild: true,
+      onTap: widget.onTap,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Expanded(
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                if (_thumbnail != null)
+                  Image.memory(
+                    _thumbnail!,
+                    fit: BoxFit.cover,
+                    gaplessPlayback: true,
+                  )
+                else
+                  Container(
+                    color: theme.colorScheme.surfaceContainerHighest,
+                    child: Icon(
+                      Icons.image_outlined,
+                      size: 24,
+                      color: theme.colorScheme.onSurfaceVariant.withValues(
+                        alpha: 0.4,
+                      ),
+                    ),
+                  ),
+                if (widget.selected)
+                  Positioned(
+                    top: 4,
+                    right: 4,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: theme.colorScheme.primary,
+                        shape: BoxShape.circle,
+                      ),
+                      padding: const EdgeInsets.all(2),
                       child: Icon(
-                        Icons.image_outlined,
-                        size: 24,
-                        color: theme.colorScheme.onSurfaceVariant.withValues(
-                          alpha: 0.4,
-                        ),
+                        Icons.check,
+                        size: 12,
+                        color: theme.colorScheme.onPrimary,
                       ),
                     ),
-                  if (widget.selected)
-                    Positioned(
-                      top: 4,
-                      right: 4,
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: theme.colorScheme.primary,
-                          shape: BoxShape.circle,
-                        ),
-                        padding: const EdgeInsets.all(2),
-                        child: Icon(
-                          Icons.check,
-                          size: 12,
-                          color: theme.colorScheme.onPrimary,
-                        ),
-                      ),
-                    ),
-                ],
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-              child: Row(
-                children: [
-                  Icon(
-                    entry.type.icon,
-                    size: 11,
-                    color: theme.colorScheme.primary,
                   ),
-                  const SizedBox(width: 3),
-                  Expanded(
-                    child: Text(
-                      entry.name,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: theme.textTheme.labelSmall,
-                    ),
-                  ),
-                ],
-              ),
+              ],
             ),
-          ],
-        ),
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+            child: Row(
+              children: [
+                Icon(
+                  entry.type.icon,
+                  size: 11,
+                  color: theme.colorScheme.primary,
+                ),
+                const SizedBox(width: 3),
+                Expanded(
+                  child: Text(
+                    entry.name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.labelSmall,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }

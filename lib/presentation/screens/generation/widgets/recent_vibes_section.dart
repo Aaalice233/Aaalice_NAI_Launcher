@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../../core/utils/localization_extension.dart';
 import '../../../../data/models/vibe/vibe_library_entry.dart';
 import '../../../widgets/common/decoded_memory_image.dart';
+import '../../../widgets/common/surface_ink_well.dart';
 
 /// 最近使用的 Vibes 区域组件
 ///
@@ -115,15 +116,13 @@ class RecentVibeItem extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(8),
-      child: Container(
-        width: 72,
-        decoration: BoxDecoration(
-          color: theme.colorScheme.surfaceContainerLow,
-          borderRadius: BorderRadius.circular(8),
-        ),
+    return SizedBox(
+      width: 72,
+      child: SurfaceInkWell(
+        borderRadius: BorderRadius.circular(8),
+        color: theme.colorScheme.surfaceContainerLow,
+        inkAboveChild: true,
+        onTap: onTap,
         child: Column(
           children: [
             // 缩略图

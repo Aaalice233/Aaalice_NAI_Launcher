@@ -29,6 +29,15 @@ abstract interface class InpaintDraftRepository {
 
   Future<InpaintDraft> cancel(String id);
 
+  /// Cancels an editing draft whose editor returned no mask but an edited
+  /// source, keeping that source so a later re-edit starts from it.
+  Future<InpaintDraft> cancelWithEditedSource(
+    String id, {
+    required Uint8List sourceBytes,
+    required Map<String, dynamic> parameterSnapshot,
+    required num estimatedAnlas,
+  });
+
   Future<InpaintDraft> reEdit(String id);
 
   Future<InpaintDraft> beginSubmission(String id);

@@ -7,7 +7,10 @@ import 'package:super_drag_and_drop/super_drag_and_drop.dart';
 import 'package:nai_launcher/data/models/gallery/gallery_album.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/widgets/common/desktop_window_frame.dart';
+import 'package:nai_launcher/presentation/widgets/common/surface_ink_well.dart';
 import 'package:nai_launcher/presentation/widgets/gallery/gallery_album_tree_view.dart';
+
+import '../../../helpers/ink_expectations.dart';
 
 GalleryAlbum _album(String id, {String? parentId}) => GalleryAlbum(
   id: id,
@@ -253,4 +256,73 @@ void main() {
     expect(find.text('mid'), findsOneWidget);
     expect(find.text('leaf'), findsOneWidget);
   });
+
+  testWidgets('选中的全部图片行：悬停与按压反馈画在渐变底色之上', (tester) async {
+    await _pumpAllImagesRow(tester);
+    final row = _allImagesRow();
+    final theme = Theme.of(tester.element(row));
+
+    await hoverOver(tester, row);
+    expectInkOnTop(tester, row, ink: theme.hoverColor, belowGradient: true);
+
+    final press = await pressAndHold(tester, row);
+    expectInkOnTop(tester, row, ink: theme.highlightColor, belowGradient: true);
+    await press.up();
+    await tester.pumpAndSettle();
+  });
+
+  testWidgets('未选中的全部图片行：悬停只加深底色，按压反馈画在底色之上', (tester) async {
+    await _pumpAllImagesRow(tester, selectedAlbumId: 'favorites');
+    final row = _allImagesRow();
+    final theme = Theme.of(tester.element(row));
+    final hovered = theme.colorScheme.onSurface.withValues(alpha: 0.09);
+
+    await hoverOver(tester, row);
+    expect(tester.widget<SurfaceInkWell>(row).color, hovered);
+    expect(tester.renderObject(row), isNot(inkOnTop(ink: theme.hoverColor)));
+
+    final press = await pressAndHold(tester, row);
+    expectInkOnTop(tester, row, ink: theme.highlightColor, below: hovered);
+    await press.up();
+    await tester.pumpAndSettle();
+  });
+
+  testWidgets(
+    'Tab 聚焦选中的全部图片行时焦点高亮画在渐变底色之上',
+    (tester) async {
+      await _pumpAllImagesRow(tester);
+      final row = _allImagesRow();
+      final theme = Theme.of(tester.element(row));
+
+      await tabUntilFocused(
+        tester,
+        find.descendant(of: row, matching: find.byType(InkWell)),
+      );
+      expectInkOnTop(tester, row, ink: theme.focusColor, belowGradient: true);
+    },
+    variant: const TargetPlatformVariant({
+      TargetPlatform.windows,
+      TargetPlatform.macOS,
+    }),
+  );
 }
+
+Future<void> _pumpAllImagesRow(
+  WidgetTester tester, {
+  String? selectedAlbumId,
+}) async {
+  await tester.pumpWidget(
+    _host(
+      GalleryAlbumTreeView(
+        albums: const [],
+        totalImageCount: 3,
+        selectedAlbumId: selectedAlbumId,
+        onAlbumSelected: (_) {},
+      ),
+    ),
+  );
+  await tester.pumpAndSettle();
+}
+
+Finder _allImagesRow() =>
+    find.ancestor(of: find.text('全部图片'), matching: find.byType(SurfaceInkWell));

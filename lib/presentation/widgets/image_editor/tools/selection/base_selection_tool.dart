@@ -1,5 +1,3 @@
-import 'dart:ui' as ui;
-
 import 'package:flutter/material.dart';
 
 import '../../../../../core/utils/localization_extension.dart';
@@ -10,21 +8,61 @@ import '../../../../widgets/common/themed_divider.dart';
 /// 选区工具基类
 /// 提供所有选区工具的共享功能
 abstract class BaseSelectionTool extends EditorTool {
+  /// 轮廓拖动的起点；为 null 表示当前手势在绘制新选区
+  Offset? outlineDragStart;
+
   @override
   bool get isSelectionTool => true;
 
   @override
-  void onDeactivateFast(EditorState state) {
-    if (state.selectionManager.isTransforming) {
-      state.selectionManager.commitTransform();
-    }
-  }
+  void onDeactivateFast(EditorState state) => _abortGesture(state);
 
   @override
   void onPointerCancel(EditorState state) {
-    onSelectionCancel();
-    state.clearPreview();
+    _abortGesture(state);
     state.cancelStroke();
+  }
+
+  void _abortGesture(EditorState state) {
+    onSelectionCancel();
+    outlineDragStart = null;
+    state.selectionManager.cancelDrag();
+    state.clearPreview();
+  }
+
+  /// 在已有选区内按下时拖动轮廓；返回是否已接管本次拖动
+  bool beginOutlineDrag(EditorState state, Offset position) {
+    final selection = state.selectionManager;
+    if (!selection.hasSelection || !selection.hitTestSelection(position)) {
+      return false;
+    }
+    outlineDragStart = position;
+    selection.beginDrag();
+    return true;
+  }
+
+  bool updateOutlineDrag(EditorState state, Offset position) {
+    final start = outlineDragStart;
+    if (start == null) return false;
+    state.selectionManager.updateDrag(position - start);
+    return true;
+  }
+
+  bool endOutlineDrag(EditorState state) {
+    if (outlineDragStart == null) return false;
+    outlineDragStart = null;
+    state.selectionManager.commitDrag();
+    return true;
+  }
+
+  /// 新选区太小时视为单击空白处：取消选区，并进选区历史
+  void commitNewSelection(EditorState state, Path? path) {
+    state.clearPreview();
+    if (path != null) {
+      state.setSelection(path);
+    } else {
+      state.clearSelection();
+    }
   }
 
   /// 子类实现：取消选区时清理内部状态
@@ -71,101 +109,48 @@ abstract class ShapeSelectionTool extends BaseSelectionTool {
   /// 起始点
   Offset? startPoint;
 
-  /// 是否正在拖动选区
-  bool _isDraggingSelection = false;
-  Offset? _dragLastPoint;
-
   @override
   void onPointerDown(PointerDownEvent event, EditorState state) {
     final pos = event.localPosition;
-
-    if (state.selectionManager.isTransforming) {
-      final bounds = state.selectionManager.transformedBounds;
-      if (bounds != null && bounds.contains(pos)) {
-        _isDraggingSelection = true;
-        _dragLastPoint = pos;
-        return;
-      }
-      state.selectionManager.commitTransform();
-      state.clearPreview();
-      startPoint = pos;
-      return;
-    }
-
-    if (state.selectionManager.hasSelection &&
-        state.selectionManager.hitTestSelection(pos)) {
-      _startTransform(state, pos);
-      return;
-    }
-
-    state.clearSelection(saveHistory: false);
+    if (beginOutlineDrag(state, pos)) return;
     state.clearPreview();
     startPoint = pos;
   }
 
   @override
   void onPointerMove(PointerMoveEvent event, EditorState state) {
-    if (_isDraggingSelection && _dragLastPoint != null) {
-      final delta = event.localPosition - _dragLastPoint!;
-      state.selectionManager.updateTransformOffset(delta);
-      _dragLastPoint = event.localPosition;
-      return;
-    }
+    if (updateOutlineDrag(state, event.localPosition)) return;
 
-    if (startPoint != null) {
-      final currentPoint = event.localPosition;
-      final candidate = Rect.fromPoints(startPoint!, currentPoint);
-      final rect = id == 'rect_selection'
-          ? state.constrainRectSelection(candidate, startPoint!)
-          : candidate;
-      final path = createShapePath(rect);
-      state.setPreviewPath(path);
+    final start = startPoint;
+    if (start != null) {
+      state.setPreviewPath(createShapePath(_constrainedRect(state, start, event.localPosition)));
     }
   }
 
   @override
   void onPointerUp(PointerUpEvent event, EditorState state) {
-    if (_isDraggingSelection) {
-      _isDraggingSelection = false;
-      _dragLastPoint = null;
-      return;
-    }
+    if (endOutlineDrag(state)) return;
 
-    if (startPoint != null) {
-      final endPoint = event.localPosition;
-      final candidate = Rect.fromPoints(startPoint!, endPoint);
-      final rect = id == 'rect_selection'
-          ? state.constrainRectSelection(candidate, startPoint!)
-          : candidate;
-
-      if (rect.width > 2 && rect.height > 2) {
-        final path = createShapePath(rect);
-        state.setSelection(path);
-      } else {
-        state.clearPreview();
-      }
-    }
+    final start = startPoint;
     startPoint = null;
+    if (start == null) return;
+    final rect = _constrainedRect(state, start, event.localPosition);
+    commitNewSelection(
+      state,
+      rect.width > 2 && rect.height > 2 ? createShapePath(rect) : null,
+    );
   }
 
   @override
   void onSelectionCancel() {
     startPoint = null;
-    _isDraggingSelection = false;
-    _dragLastPoint = null;
   }
 
-  void _startTransform(EditorState state, Offset pos) {
-    state.selectionManager.enterTransform(_createPlaceholderImage());
-    _isDraggingSelection = true;
-    _dragLastPoint = pos;
-  }
-
-  static ui.Image _createPlaceholderImage() {
-    final recorder = ui.PictureRecorder();
-    Canvas(recorder).drawPaint(Paint()..color = const Color(0x00000000));
-    final picture = recorder.endRecording();
-    return picture.toImageSync(1, 1);
+  Rect _constrainedRect(EditorState state, Offset start, Offset end) {
+    final candidate = Rect.fromPoints(start, end);
+    return id == 'rect_selection'
+        ? state.constrainRectSelection(candidate, start)
+        : candidate;
   }
 
   /// 子类实现：根据矩形创建形状路径
@@ -238,57 +223,75 @@ class SelectionSettingsPanel extends StatelessWidget {
           const ThemedDivider(height: 1),
         ],
 
-        // 操作按钮
+        // 操作按钮：选区与当前图层变化时刷新可用状态
         Padding(
           padding: const EdgeInsets.all(12),
-          child: Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              OutlinedButton.icon(
-                onPressed: () => state.clearSelection(),
-                icon: const Icon(Icons.deselect, size: 16),
-                label: Text(context.l10n.selection_clear_selection),
-                style: OutlinedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 8,
-                  ),
-                  textStyle: theme.textTheme.bodySmall,
-                ),
-              ),
-              OutlinedButton.icon(
-                onPressed: () => state.invertSelection(),
-                icon: const Icon(Icons.flip, size: 16),
-                label: Text(context.l10n.selection_invert_selection),
-                style: OutlinedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 8,
-                  ),
-                  textStyle: theme.textTheme.bodySmall,
-                ),
-              ),
-              ValueListenableBuilder<Path?>(
-                valueListenable: state.selectionManager.selectionNotifier,
-                builder: (context, selectionPath, _) {
-                  return FilledButton.icon(
-                    onPressed: selectionPath != null
-                        ? () => state.cutSelectionToNewLayer()
-                        : null,
-                    icon: const Icon(Icons.content_cut, size: 16),
-                    label: Text(context.l10n.selection_cut_to_layer),
-                    style: FilledButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 8,
-                      ),
-                      textStyle: theme.textTheme.bodySmall,
-                    ),
-                  );
-                },
-              ),
-            ],
+          child: ListenableBuilder(
+            listenable: Listenable.merge([
+              state.selectionManager.selectionNotifier,
+              state.layerManager,
+              state.layerManager.activeLayerNotifier,
+              state.layerManager.uiUpdateNotifier,
+            ]),
+            builder: (context, _) => _SelectionActions(state: state),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _SelectionActions extends StatelessWidget {
+  const _SelectionActions({required this.state});
+
+  final EditorState state;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final commands = state.layerCommands;
+    final hasSelection = state.selectionPath != null;
+    final canEditPixels = commands.canEditSelectionPixels;
+    final activeName = state.layerManager.activeLayer?.name ?? '';
+    const padding = EdgeInsets.symmetric(horizontal: 12, vertical: 8);
+    final outlined = OutlinedButton.styleFrom(
+      padding: padding,
+      textStyle: theme.textTheme.bodySmall,
+    );
+
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: [
+        OutlinedButton.icon(
+          onPressed: hasSelection ? () => state.clearSelection() : null,
+          icon: const Icon(Icons.deselect, size: 16),
+          label: Text(context.l10n.selection_clear_selection),
+          style: outlined,
+        ),
+        OutlinedButton.icon(
+          onPressed: hasSelection ? () => state.invertSelection() : null,
+          icon: const Icon(Icons.flip, size: 16),
+          label: Text(context.l10n.selection_invert_selection),
+          style: outlined,
+        ),
+        OutlinedButton.icon(
+          onPressed: canEditPixels ? commands.clearSelectionPixels : null,
+          icon: const Icon(Icons.backspace_outlined, size: 16),
+          label: Text(context.l10n.selection_clearPixels),
+          style: outlined,
+        ),
+        FilledButton.icon(
+          onPressed: canEditPixels
+              ? () => commands.cutSelectionToNewLayer(
+                  layerName: context.l10n.selection_cutLayerName(activeName),
+                )
+              : null,
+          icon: const Icon(Icons.content_cut, size: 16),
+          label: Text(context.l10n.selection_cut_to_layer),
+          style: FilledButton.styleFrom(
+            padding: padding,
+            textStyle: theme.textTheme.bodySmall,
           ),
         ),
       ],

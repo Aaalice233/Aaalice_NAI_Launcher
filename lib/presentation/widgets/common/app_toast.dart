@@ -137,6 +137,10 @@ class AppToast {
     _showOnOverlay(overlay, message, ToastType.error);
   }
 
+  static void warningOnOverlay(OverlayState? overlay, String message) {
+    _showOnOverlay(overlay, message, ToastType.warning);
+  }
+
   /// 显示警告通知
   static void warning(BuildContext context, String message) {
     _show(context, message, ToastType.warning);

@@ -12,7 +12,7 @@ import 'package:nai_launcher/core/storage/local_storage_service.dart';
 import 'package:nai_launcher/core/storage/secure_storage_service.dart';
 import 'package:nai_launcher/data/models/agent/agent_settings.dart';
 import 'package:nai_launcher/presentation/agent_settings/providers/agent_settings_provider.dart';
-import 'package:nai_launcher/presentation/prompt_assistant/models/prompt_assistant_models.dart';
+import 'package:nai_launcher/data/models/prompt_assistant/prompt_assistant_models.dart';
 
 class _MemoryStorage extends LocalStorageService {
   final values = <String, Object?>{};

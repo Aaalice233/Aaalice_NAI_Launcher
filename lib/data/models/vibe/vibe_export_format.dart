@@ -4,9 +4,6 @@ import 'package:hive/hive.dart';
 part 'vibe_export_format.freezed.dart';
 part 'vibe_export_format.g.dart';
 
-/// Vibe 文件扩展名常量
-const String kNaiv4vibeExtension = 'naiv4vibe';
-
 /// Vibe Bundle 文件扩展名常量
 const String kNaiv4vibebundleExtension = 'naiv4vibebundle';
 

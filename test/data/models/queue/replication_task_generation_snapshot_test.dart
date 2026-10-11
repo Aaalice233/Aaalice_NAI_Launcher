@@ -1,4 +1,6 @@
+import 'dart:convert';
 import 'dart:typed_data';
+import 'dart:ui';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/core/enums/precise_ref_type.dart';
@@ -109,5 +111,92 @@ void main() {
       () => ReplicationTaskGenerationSnapshot.decode(snapshot),
       throwsFormatException,
     );
+  });
+
+  group('focused inpaint state', () {
+    const focused = QueuedFocusedInpaint(
+      enabled: true,
+      contextPadding: 120,
+      selectionRect: Rect.fromLTWH(10, 20, 30, 40),
+      contextCrop: Rect.fromLTWH(384, 0, 832, 1216),
+    );
+
+    void expectFocused(QueuedFocusedInpaint? actual) {
+      expect(actual, isNotNull);
+      expect(actual!.enabled, isTrue);
+      expect(actual.contextPadding, 120);
+      expect(actual.selectionRect, const Rect.fromLTWH(10, 20, 30, 40));
+      expect(actual.contextCrop, const Rect.fromLTWH(384, 0, 832, 1216));
+    }
+
+    test('round-trips through the persisted task JSON', () {
+      final task = ReplicationTask.create(
+        prompt: 'focused',
+        generationSnapshot: ReplicationTaskGenerationSnapshot.encode(
+          const ImageParams(prompt: 'focused'),
+          focused: focused,
+        ),
+      );
+
+      final restored = ReplicationTask.fromJson(
+        jsonDecode(jsonEncode(task.toJson())) as Map<String, dynamic>,
+      );
+
+      expectFocused(
+        ReplicationTaskGenerationSnapshot.decodeFocused(
+          restored.generationSnapshot!,
+        ),
+      );
+    });
+
+    test('survives clone and prompt edits', () {
+      final snapshot = ReplicationTaskGenerationSnapshot.encode(
+        const ImageParams(prompt: 'focused'),
+        focused: focused,
+      );
+
+      expectFocused(
+        ReplicationTaskGenerationSnapshot.decodeFocused(
+          ReplicationTaskGenerationSnapshot.clone(snapshot),
+        ),
+      );
+      expectFocused(
+        ReplicationTaskGenerationSnapshot.decodeFocused(
+          ReplicationTaskGenerationSnapshot.withTaskText(
+            snapshot,
+            prompt: 'edited',
+            negativePrompt: 'edited negative',
+          ),
+        ),
+      );
+    });
+
+    test('is absent from snapshots written before it existed', () {
+      final legacy = ReplicationTaskGenerationSnapshot.encode(
+        const ImageParams(prompt: 'legacy'),
+      );
+
+      expect(legacy.containsKey('focused'), isFalse);
+      expect(ReplicationTaskGenerationSnapshot.decodeFocused(legacy), isNull);
+      expect(
+        ReplicationTaskGenerationSnapshot.decodeFocused(
+          ReplicationTaskGenerationSnapshot.clone(legacy),
+        ),
+        isNull,
+      );
+    });
+
+    test('rejects malformed rectangles', () {
+      final snapshot = ReplicationTaskGenerationSnapshot.encode(
+        const ImageParams(prompt: 'focused'),
+        focused: focused,
+      );
+      (snapshot['focused'] as Map<String, dynamic>)['contextCrop'] = [1, 2];
+
+      expect(
+        () => ReplicationTaskGenerationSnapshot.decodeFocused(snapshot),
+        throwsFormatException,
+      );
+    });
   });
 }

@@ -4,6 +4,8 @@ import 'dart:io';
 import 'dart:math';
 import 'dart:typed_data';
 
+import '../platform/launcher_discovery_directory.dart';
+import '../platform/owner_only_permissions.dart';
 import '../utils/app_logger.dart';
 import 'krita_bridge_models.dart';
 import 'krita_bridge_protocol.dart';
@@ -18,12 +20,14 @@ class KritaBridgeServer {
     KritaBridgeSecretGenerator? secretGenerator,
     KritaBridgePidProvider? pidProvider,
     KritaBridgeClock? clock,
+    OwnerOnlyPermissionGuard? restrictToOwner,
     this.maxTextFrameBytes = KritaBridgeProtocol.defaultMaxTextFrameBytes,
   })  : _discoveryDirectory =
             discoveryDirectory ?? _defaultDiscoveryDirectory(),
         _secretGenerator = secretGenerator ?? _generateSecret,
         _pidProvider = pidProvider ?? (() => pid),
-        _clock = clock ?? DateTime.now;
+        _clock = clock ?? DateTime.now,
+        _restrictToOwner = restrictToOwner ?? restrictPathToOwner;
 
   static const String discoveryFileName = 'krita-bridge.json';
   static const String _logTag = 'KritaBridge';
@@ -32,6 +36,7 @@ class KritaBridgeServer {
   final KritaBridgeSecretGenerator _secretGenerator;
   final KritaBridgePidProvider _pidProvider;
   final KritaBridgeClock _clock;
+  final OwnerOnlyPermissionGuard _restrictToOwner;
   final int maxTextFrameBytes;
 
   final StreamController<KritaBridgeMessage> _messageController =
@@ -68,18 +73,31 @@ class KritaBridgeServer {
       await stop();
     }
 
-    _secret = _secretGenerator();
-    _startedAt = _clock().toUtc();
-    _server = await HttpServer.bind(
+    final server = await HttpServer.bind(
       InternetAddress.loopbackIPv4,
       preferredPort,
     );
-    unawaited(_acceptRequests(_server!));
-    await _writeDiscoveryFile();
+    _server = server;
+    try {
+      _secret = _secretGenerator();
+      _startedAt = _clock().toUtc();
+      unawaited(_acceptRequests(server));
+      await _writeDiscoveryFile();
+    } catch (_) {
+      // Publishing failed, so the discovery file is not ours to delete.
+      await _releaseListener();
+      rethrow;
+    }
     AppLogger.i('Bridge listening on 127.0.0.1:$port', _logTag);
   }
 
   Future<void> stop() async {
+    await _releaseListener();
+    await _deleteDiscoveryFile();
+    AppLogger.i('Bridge stopped', _logTag);
+  }
+
+  Future<void> _releaseListener() async {
     final client = _client;
     _client = null;
     _clientAuthenticated = false;
@@ -94,16 +112,19 @@ class KritaBridgeServer {
 
     final server = _server;
     _server = null;
+    _secret = null;
+    _startedAt = null;
     if (server != null) {
       await server.close(force: true);
     }
+  }
 
+  Future<void> _deleteDiscoveryFile() async {
     final file = discoveryFile;
     if (await file.exists()) {
       await file.delete();
       AppLogger.i('Discovery file deleted: ${file.path}', _logTag);
     }
-    AppLogger.i('Bridge stopped', _logTag);
   }
 
   Future<void> dispose() async {
@@ -256,6 +277,7 @@ class KritaBridgeServer {
 
   Future<void> _writeDiscoveryFile() async {
     await _discoveryDirectory.create(recursive: true);
+    await _restrictToOwner(_discoveryDirectory.path, '700');
 
     final target = discoveryFile;
     final temp = File(
@@ -273,25 +295,31 @@ class KritaBridgeServer {
       'started_at': _startedAt?.toIso8601String(),
     };
 
-    await temp.writeAsString(jsonEncode(data), flush: true);
-    if (await target.exists()) {
-      await target.delete();
+    await temp.create(exclusive: true);
+    try {
+      await _restrictToOwner(temp.path, '600');
+      await temp.writeAsString(jsonEncode(data), flush: true);
+      // rename replaces the target; an extra delete only blanks it for Krita.
+      await temp.rename(target.path);
+    } catch (_) {
+      await _discardTemp(temp);
+      rethrow;
     }
-    await temp.rename(target.path);
     AppLogger.i('Discovery file written: ${target.path}', _logTag);
   }
 
-  static Directory _defaultDiscoveryDirectory() {
-    final appData = Platform.environment['APPDATA'];
-    if (appData != null && appData.isNotEmpty) {
-      return Directory(_join(appData, 'nai-launcher'));
+  Future<void> _discardTemp(File temp) async {
+    try {
+      if (await temp.exists()) {
+        await temp.delete();
+      }
+    } on FileSystemException {
+      // Cleanup must not mask the write failure the caller is about to see.
     }
-
-    final home = Platform.environment['HOME'] ??
-        Platform.environment['USERPROFILE'] ??
-        Directory.current.path;
-    return Directory(_join(home, '.nai-launcher'));
   }
+
+  static Directory _defaultDiscoveryDirectory() =>
+      resolveLauncherDiscoveryDirectory();
 
   static String _generateSecret() {
     final random = Random.secure();

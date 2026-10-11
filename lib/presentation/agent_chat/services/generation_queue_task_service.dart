@@ -7,7 +7,6 @@ import '../../providers/queue_execution_provider.dart';
 import '../../providers/replication_queue_provider.dart';
 import 'defined_agent_tool.dart';
 import 'generation_preparation_runtime.dart';
-import 'generation_tool_results.dart';
 
 class GenerationQueueTaskService {
   GenerationQueueTaskService(
@@ -26,11 +25,15 @@ class GenerationQueueTaskService {
     final base = prepared.params;
     final prompt = base.prompt.trim();
     if (prompt.isEmpty) {
-      return generationErrorResult('Parameter "prompt" is required.');
+      return agentToolError(
+        'missing_prompt',
+        'Parameter "prompt" is required.',
+      );
     }
     final requestedCount = prepared.count;
     if (requestedCount < 1 || requestedCount > kMaxQueueCapacity) {
-      return generationErrorResult(
+      return agentToolError(
+        'invalid_count',
         'Parameter "count" must be between 1 and $kMaxQueueCapacity.',
       );
     }
@@ -38,14 +41,16 @@ class GenerationQueueTaskService {
         .read(replicationQueueNotifierProvider)
         .remainingCapacity;
     if (remaining <= 0) {
-      return generationErrorResult(
+      return agentToolError(
+        'queue_full',
         'Queue is full (capacity $kMaxQueueCapacity). Clear or complete tasks first.',
       );
     }
     if (remaining < requestedCount) {
-      return generationErrorResult(
+      return agentToolError(
+        'queue_capacity_insufficient',
         'Queue has room for $remaining task(s), but this confirmed preparation '
-        'requires $requestedCount. Prepare again for the current capacity.',
+            'requires $requestedCount. Prepare again for the current capacity.',
       );
     }
     final count = requestedCount;
@@ -66,9 +71,11 @@ class GenerationQueueTaskService {
       negativePrompt: negativePrompt,
       nSamples: 1,
     );
+    // Agent 提交方必须显式给出聚焦状态，否则执行时会继承生成页残留的聚焦选区
     final generationSnapshot = ReplicationTaskGenerationSnapshot.encode(
       queuedParams,
       batchSize: prepared.batchSize,
+      focused: const QueuedFocusedInpaint.disabled(),
     );
     final snapshotBytes = utf8.encode(jsonEncode(generationSnapshot)).length;
     final existingSnapshotBytes = _ref
@@ -111,7 +118,8 @@ class GenerationQueueTaskService {
           .read(replicationQueueNotifierProvider.notifier)
           .addAll(tasks);
       if (added == 0) {
-        return generationErrorResult(
+        return agentToolError(
+          'queue_full',
           'Queue is full (capacity $kMaxQueueCapacity). Clear or complete tasks first.',
         );
       }
@@ -128,17 +136,15 @@ class GenerationQueueTaskService {
         };
       }
       final queue = _ref.read(replicationQueueNotifierProvider);
-      return generationTextResult(
-        jsonEncode({
-          'ok': true,
-          'added': added,
-          if (added < requestedCount) 'requested': requestedCount,
-          'queue_pending': queue.count,
-          'queue_started': started,
-        }),
-      );
+      return agentToolJsonResult({
+        'ok': true,
+        'added': added,
+        if (added < requestedCount) 'requested': requestedCount,
+        'queue_pending': queue.count,
+        'queue_started': started,
+      });
     } catch (e) {
-      return generationErrorResult('Failed to enqueue: $e');
+      return agentToolError('queue_enqueue_failed', 'Failed to enqueue: $e');
     }
   }
 

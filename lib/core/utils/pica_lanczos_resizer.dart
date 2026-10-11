@@ -29,7 +29,11 @@ class PicaLanczosResizer {
       return source.clone();
     }
 
-    final sourceBytes = source.getBytes(order: img.ChannelOrder.rgba);
+    final normalizedSource =
+        source.format == img.Format.uint8 && !source.hasPalette
+        ? source
+        : source.convert(format: img.Format.uint8, numChannels: 4);
+    final sourceBytes = normalizedSource.getBytes(order: img.ChannelOrder.rgba);
     final resizedBytes = resizeRgba(
       sourceBytes,
       sourceWidth: source.width,

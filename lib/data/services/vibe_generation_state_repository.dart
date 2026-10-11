@@ -80,7 +80,7 @@ class VibeGenerationStateRepository
     final file = await _resolveFile(createDirectory: false);
     if (file != null) {
       try {
-        if (await file.exists()) return file.readAsString();
+        if (await file.exists()) return await file.readAsString();
       } catch (error, stackTrace) {
         AppLogger.e(
           'Failed to read generation state file, falling back to SharedPreferences',

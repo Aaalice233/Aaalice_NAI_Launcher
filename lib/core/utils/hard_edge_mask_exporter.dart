@@ -83,6 +83,13 @@ class HardEdgeMaskRectOperation extends HardEdgeMaskOperation {
   final Rect rect;
 }
 
+/// 一个图层内的操作：先单独光栅化再并入总蒙版，橡皮擦只擦得到本层
+class HardEdgeMaskLayerOperation extends HardEdgeMaskOperation {
+  const HardEdgeMaskLayerOperation({required this.operations});
+
+  final List<HardEdgeMaskOperation> operations;
+}
+
 class HardEdgeMaskExporter {
   const HardEdgeMaskExporter._();
 
@@ -163,8 +170,34 @@ class HardEdgeMaskExporter {
       _fillRect(mask, operation.rect);
       return;
     }
+    if (operation is HardEdgeMaskLayerOperation) {
+      _applyLayerOperation(mask, operation);
+      return;
+    }
 
     throw ArgumentError('Unsupported hard-edge mask operation: $operation');
+  }
+
+  static void _applyLayerOperation(
+    img.Image mask,
+    HardEdgeMaskLayerOperation operation,
+  ) {
+    final layerMask = img.Image(
+      width: mask.width,
+      height: mask.height,
+      numChannels: 4,
+    );
+    img.fill(layerMask, color: img.ColorRgba8(0, 0, 0, 255));
+    for (final child in operation.operations) {
+      _applyOperation(layerMask, child);
+    }
+    for (var y = 0; y < mask.height; y++) {
+      for (var x = 0; x < mask.width; x++) {
+        if (layerMask.getPixel(x, y).r.toInt() > 0) {
+          _setMaskPixel(mask, x, y, masked: true);
+        }
+      }
+    }
   }
 
   static void _pasteBaseMask(img.Image mask, HardEdgeMaskBaseImage baseMask) {
