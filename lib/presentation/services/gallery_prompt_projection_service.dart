@@ -1,3 +1,4 @@
+import '../../core/utils/prompt_tag_utils.dart';
 import '../../data/models/gallery/nai_image_metadata.dart';
 import '../../data/models/online_gallery/gallery_item.dart';
 import '../../data/models/online_gallery/gallery_prompt_projection.dart';
@@ -184,7 +185,7 @@ class GalleryPromptProjectionService {
     final seen = <String>{};
     for (final tag in tags) {
       final rendered = category == GalleryPromptCopyCategory.artist
-          ? _formatArtistTag(tag)
+          ? PromptTagUtils.artistPromptTag(tag)
           : tag;
       if (outputFilter.contains(tag) || outputFilter.contains(rendered)) {
         continue;
@@ -192,12 +193,6 @@ class GalleryPromptProjectionService {
       if (seen.add(rendered)) values.add(rendered);
     }
     return values.join(', ');
-  }
-
-  String _formatArtistTag(String tag) {
-    const prefix = 'artist:';
-    if (tag.toLowerCase().startsWith(prefix)) return tag;
-    return '$prefix$tag';
   }
 
   List<GalleryCharacterPrompt> _aiTagCharacters(

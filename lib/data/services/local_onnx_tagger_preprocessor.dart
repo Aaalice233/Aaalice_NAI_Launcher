@@ -3,23 +3,45 @@ import 'dart:typed_data';
 
 import 'package:image/image.dart' as img;
 
+import '../../core/utils/antialiased_bilinear_resampler.dart';
 import '../../core/utils/color_channel_normalizer.dart';
 import 'local_onnx_model_service.dart';
+import 'local_onnx_tagger_labels.dart';
 
-enum OnnxTaggerPreprocessing { wd14, clTagger, clTaggerV2, animeTimm }
+enum OnnxTaggerPreprocessing {
+  wd14,
+  clTagger,
+  clTaggerV2,
+  animeTimm,
+  pixaiRescalePad,
+}
 
 enum OnnxTaggerOutputActivation { auto, sigmoid }
+
+enum OnnxTensorLayout { nchw, nhwc }
 
 class OnnxTaggerPreprocessProfile {
   const OnnxTaggerPreprocessProfile({
     required this.preprocessing,
     required this.inputSize,
     required this.outputActivation,
+    this.layout = OnnxTensorLayout.nchw,
+    this.recommendedThresholds = const {},
+    this.lowersOpsetImports = true,
   });
 
   final OnnxTaggerPreprocessing preprocessing;
+
+  // 模型输入未声明固定尺寸时采用的边长
   final int inputSize;
   final OnnxTaggerOutputActivation outputActivation;
+  final OnnxTensorLayout layout;
+
+  // 模型官方的分类阈值，标签文件自带阈值时让位
+  final Map<OnnxTaggerLabelCategory, double> recommendedThresholds;
+
+  // 单文件模型加载前把 opset 降到 18，绕开捆绑 ORT 绑定 Shape(19) 失败
+  final bool lowersOpsetImports;
 
   List<double> normalizeScores(List<double> scores) {
     if (outputActivation == OnnxTaggerOutputActivation.sigmoid ||
@@ -35,6 +57,15 @@ class OnnxImageInput {
 
   final Float32List data;
   final List<int> shape;
+
+  OnnxImageInput repeatedForBatch(int batchSize) {
+    if (batchSize <= 1) return this;
+    final batched = Float32List(data.length * batchSize);
+    for (var index = 0; index < batchSize; index++) {
+      batched.setRange(index * data.length, (index + 1) * data.length, data);
+    }
+    return OnnxImageInput(data: batched, shape: [batchSize, ...shape.skip(1)]);
+  }
 }
 
 class OnnxLetterboxLayout {
@@ -72,6 +103,21 @@ class LocalOnnxTaggerPreprocessor {
     LocalOnnxModelDescriptor model,
   ) {
     return switch (model.kind) {
+      LocalOnnxModelKind.pixaiTagger => const OnnxTaggerPreprocessProfile(
+        preprocessing: OnnxTaggerPreprocessing.pixaiRescalePad,
+        inputSize: 1008,
+        outputActivation: OnnxTaggerOutputActivation.auto,
+        recommendedThresholds: {
+          OnnxTaggerLabelCategory.general: 0.17,
+          OnnxTaggerLabelCategory.character: 0.27,
+          OnnxTaggerLabelCategory.copyright: 0.24,
+          OnnxTaggerLabelCategory.artist: 0.15,
+          OnnxTaggerLabelCategory.meta: 0.17,
+          OnnxTaggerLabelCategory.rating: 0.41,
+        },
+        // 社区导出用到 opset 20 的 Gelu，降 opset 会让图失效
+        lowersOpsetImports: false,
+      ),
       LocalOnnxModelKind.clTaggerV2 => const OnnxTaggerPreprocessProfile(
         preprocessing: OnnxTaggerPreprocessing.clTaggerV2,
         inputSize: 384,
@@ -92,23 +138,33 @@ class LocalOnnxTaggerPreprocessor {
         preprocessing: OnnxTaggerPreprocessing.wd14,
         inputSize: _inputSizeFromName(model.name),
         outputActivation: OnnxTaggerOutputActivation.auto,
+        layout: OnnxTensorLayout.nhwc,
       ),
     };
   }
 
   static OnnxImageInput preprocess(
     img.Image image,
-    LocalOnnxModelDescriptor model,
-  ) {
+    LocalOnnxModelDescriptor model, {
+    int? inputSize,
+  }) {
     final source = ColorChannelNormalizer.normalize(image);
     final profile = profileFor(model);
-    if (profile.preprocessing == OnnxTaggerPreprocessing.animeTimm) {
-      return _preprocessAnimeTimm(source, profile.inputSize);
+    final size = inputSize ?? profile.inputSize;
+    switch (profile.preprocessing) {
+      case OnnxTaggerPreprocessing.animeTimm:
+        return _preprocessAnimeTimm(source, size);
+      case OnnxTaggerPreprocessing.pixaiRescalePad:
+        return _preprocessRescalePad(source, size);
+      case OnnxTaggerPreprocessing.wd14 ||
+          OnnxTaggerPreprocessing.clTagger ||
+          OnnxTaggerPreprocessing.clTaggerV2:
+        break;
     }
 
     final resized = _letterbox(
       source,
-      profile.inputSize,
+      size,
       interpolation: img.Interpolation.cubic,
     );
     return switch (profile.preprocessing) {
@@ -123,10 +179,109 @@ class LocalOnnxTaggerPreprocessor {
         normalize: (value, _) => value / 255.0,
       ),
       OnnxTaggerPreprocessing.wd14 => _nhwcBgrInput(resized),
-      OnnxTaggerPreprocessing.animeTimm => throw StateError(
-        'AnimeTimm preprocessing must use its official resize pipeline',
+      OnnxTaggerPreprocessing.animeTimm ||
+      OnnxTaggerPreprocessing.pixaiRescalePad => throw StateError(
+        '${profile.preprocessing.name} must use its own resize pipeline',
       ),
     };
+  }
+
+  // PixAI 官方 RescalePadProcessor：白底铺平透明 → torchvision 抗锯齿双线性缩放
+  // （尺寸向下取整）→ 黑边居中补齐 → (x - 0.5) / 0.5
+  static OnnxImageInput _preprocessRescalePad(img.Image source, int inputSize) {
+    final layout = computeRescalePadLayout(
+      sourceWidth: source.width,
+      sourceHeight: source.height,
+      inputSize: inputSize,
+    );
+    final resized = AntialiasedBilinearResampler.resizeRgbToPlanes(
+      _flattenOnWhite(source),
+      sourceWidth: source.width,
+      sourceHeight: source.height,
+      targetWidth: layout.resizedWidth,
+      targetHeight: layout.resizedHeight,
+    );
+    final planeSize = layout.canvasPixels;
+    final resizedPlaneSize = layout.resizedWidth * layout.resizedHeight;
+    final data = Float32List(planeSize * 3)..fillRange(0, planeSize * 3, -1);
+    for (var channel = 0; channel < 3; channel++) {
+      for (var y = 0; y < layout.resizedHeight; y++) {
+        final sourceRow = channel * resizedPlaneSize + y * layout.resizedWidth;
+        final targetRow =
+            channel * planeSize +
+            (y + layout.offsetY) * layout.canvasWidth +
+            layout.offsetX;
+        for (var x = 0; x < layout.resizedWidth; x++) {
+          data[targetRow + x] = resized[sourceRow + x] * 2 - 1;
+        }
+      }
+    }
+    return OnnxImageInput(data: data, shape: [1, 3, inputSize, inputSize]);
+  }
+
+  static OnnxLetterboxLayout computeRescalePadLayout({
+    required int sourceWidth,
+    required int sourceHeight,
+    required int inputSize,
+  }) {
+    if (sourceWidth == inputSize && sourceHeight == inputSize) {
+      return OnnxLetterboxLayout(
+        canvasWidth: inputSize,
+        canvasHeight: inputSize,
+        resizedWidth: inputSize,
+        resizedHeight: inputSize,
+        offsetX: 0,
+        offsetY: 0,
+      );
+    }
+    final ratio = math.min(inputSize / sourceHeight, inputSize / sourceWidth);
+    final resizedWidth = (sourceWidth * ratio).toInt().clamp(1, inputSize);
+    final resizedHeight = (sourceHeight * ratio).toInt().clamp(1, inputSize);
+    return OnnxLetterboxLayout(
+      canvasWidth: inputSize,
+      canvasHeight: inputSize,
+      resizedWidth: resizedWidth,
+      resizedHeight: resizedHeight,
+      offsetX: (inputSize - resizedWidth) ~/ 2,
+      offsetY: (inputSize - resizedHeight) ~/ 2,
+    );
+  }
+
+  static Uint8List _flattenOnWhite(img.Image source) {
+    final hasAlpha = source.hasPalette
+        ? source.palette!.numChannels > 3
+        : source.hasAlpha;
+    final channels = hasAlpha ? 4 : 3;
+    final rgb8 =
+        source.format == img.Format.uint8 &&
+            !source.hasPalette &&
+            source.numChannels == channels
+        ? source
+        : source.convert(format: img.Format.uint8, numChannels: channels);
+    if (!hasAlpha) return rgb8.getBytes(order: img.ChannelOrder.rgb);
+
+    final rgba = rgb8.getBytes(order: img.ChannelOrder.rgba);
+    final pixelCount = source.width * source.height;
+    final rgb = Uint8List(pixelCount * 3);
+    for (var pixel = 0; pixel < pixelCount; pixel++) {
+      final alpha = rgba[pixel * 4 + 3];
+      for (var channel = 0; channel < 3; channel++) {
+        rgb[pixel * 3 + channel] = _compositeOnWhite(
+          rgba[pixel * 4 + channel],
+          alpha,
+        );
+      }
+    }
+    return rgb;
+  }
+
+  // PIL alpha_composite 叠到不透明白底时的整数公式，保证与官方输入逐字节一致
+  static int _compositeOnWhite(int value, int alpha) {
+    if (alpha == 0) return 255;
+    final sourceWeight = alpha << 7;
+    final backgroundWeight = (255 << 7) - sourceWeight;
+    final blended = value * sourceWeight + 255 * backgroundWeight + (0x80 << 7);
+    return (((blended >> 8) + blended) >> 8) >> 7;
   }
 
   static OnnxImageInput _preprocessAnimeTimm(img.Image source, int inputSize) {

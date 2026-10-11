@@ -11,12 +11,14 @@ import 'package:path_provider/path_provider.dart';
 import '../../core/constants/storage_keys.dart';
 import '../../core/storage/local_storage_service.dart';
 import '../../core/utils/app_logger.dart';
+import 'local_onnx_tagger_labels.dart';
 
 enum LocalOnnxModelKind {
   wd14Tagger,
   clTagger,
   clTaggerV2,
   animeTimmEva02,
+  pixaiTagger,
   unknown,
 }
 
@@ -495,6 +497,7 @@ class LocalOnnxModelService {
         LocalOnnxModelKind.clTagger,
         LocalOnnxModelKind.clTaggerV2,
         LocalOnnxModelKind.animeTimmEva02,
+        LocalOnnxModelKind.pixaiTagger,
         LocalOnnxModelKind.unknown,
       },
     );
@@ -521,7 +524,7 @@ class LocalOnnxModelService {
 
       final relativePath = p.relative(entity.path, from: directory.path);
       final labelsPath = await _findLabelsFile(entity.path, relativePath);
-      final kind = _inferKind(entity.path, relativePath, labelsPath);
+      final kind = await _inferKind(entity.path, relativePath, labelsPath);
       if (!allowedKinds.contains(kind)) continue;
 
       result.add(
@@ -591,11 +594,11 @@ class LocalOnnxModelService {
     return false;
   }
 
-  LocalOnnxModelKind _inferKind(
+  Future<LocalOnnxModelKind> _inferKind(
     String filePath,
     String relativePath,
     String? labelsPath,
-  ) {
+  ) async {
     final lowerPath = filePath.toLowerCase();
     // 宽泛关键字只看根目录以下的路径，避免根目录名（如 ComfyUI-WD14-Tagger）误伤
     final lower = p.withoutExtension(relativePath).toLowerCase();
@@ -607,6 +610,16 @@ class LocalOnnxModelService {
     }
     if (lowerPath.contains('eva02_large_patch14')) {
       return LocalOnnxModelKind.animeTimmEva02;
+    }
+    // 只看文件名与所在目录名，上层分类文件夹叫 pixai 不应波及其中所有模型
+    final nameHint =
+        '${p.basename(p.dirname(filePath))}/${p.basename(filePath)}'
+            .toLowerCase();
+    if (nameHint.contains('pixai') ||
+        (labelsPath != null &&
+            await OnnxTaggerLabelFiles.sniffFormat(labelsPath) !=
+                OnnxTaggerLabelFormat.other)) {
+      return LocalOnnxModelKind.pixaiTagger;
     }
     if (lower.contains('wd14') ||
         lower.contains('wd-v1-4') ||
@@ -620,7 +633,43 @@ class LocalOnnxModelService {
         lowerLabels.endsWith('tag_mapping.json')) {
       return LocalOnnxModelKind.clTagger;
     }
+    // 通用 selected_tags.csv 的 PixAI 导出只能靠同目录的预处理声明区分；带同名
+    // 标签表的模型自成一套，多模型共用目录时不该被目录级声明改判
+    if (labelsPath != null &&
+        !_hasDedicatedLabels(filePath, labelsPath) &&
+        await _declaresRescalePadPreprocessing(p.dirname(filePath))) {
+      return LocalOnnxModelKind.pixaiTagger;
+    }
     return LocalOnnxModelKind.unknown;
+  }
+
+  static bool _hasDedicatedLabels(String modelPath, String labelsPath) =>
+      p.equals(p.withoutExtension(labelsPath), p.withoutExtension(modelPath));
+
+  Future<bool> _declaresRescalePadPreprocessing(String directory) async {
+    final preprocess = await _readJsonObject(
+      p.join(directory, 'preprocess.json'),
+    );
+    final stages = preprocess?['stages'];
+    if (stages is List &&
+        stages.any((stage) => stage is Map && stage['type'] == 'rescale_pad')) {
+      return true;
+    }
+    final processorConfig = await _readJsonObject(
+      p.join(directory, 'preprocessor_config.json'),
+    );
+    return processorConfig?['image_processor_type'] == 'RescalePadProcessor';
+  }
+
+  Future<Map<String, dynamic>?> _readJsonObject(String path) async {
+    final file = File(path);
+    if (!await file.exists()) return null;
+    try {
+      final decoded = jsonDecode(await file.readAsString());
+      return decoded is Map<String, dynamic> ? decoded : null;
+    } on FormatException {
+      return null;
+    }
   }
 
   Future<String?> _findLabelsFile(String onnxPath, String relativePath) async {
@@ -649,11 +698,19 @@ class LocalOnnxModelService {
       'classes.txt',
       'tag_mapping.json',
       'model_vocabulary.json',
+      'tags.json',
     ]) {
       final candidate = p.join(directory, name);
       if (await File(candidate).exists()) {
         return candidate;
       }
+    }
+
+    // config.json 名字太通用，只认带 tags_split 的 HF 标签器配置
+    final config = p.join(directory, 'config.json');
+    if (await OnnxTaggerLabelFiles.sniffFormat(config) ==
+        OnnxTaggerLabelFormat.splitTagConfig) {
+      return config;
     }
     return null;
   }

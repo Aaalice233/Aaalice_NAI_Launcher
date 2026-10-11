@@ -7,6 +7,7 @@ import '../../core/constants/storage_keys.dart';
 import '../../core/storage/local_storage_service.dart';
 import '../../data/models/character/character_prompt.dart';
 import '../../data/services/local_onnx_model_service.dart';
+import '../../data/services/local_onnx_tagger_labels.dart';
 import '../../data/services/local_onnx_tagger_service.dart';
 import '../../data/models/prompt_assistant/prompt_assistant_models.dart';
 import '../prompt_assistant/services/prompt_assistant_service.dart';
@@ -16,6 +17,11 @@ final reversePromptProvider =
     StateNotifierProvider<ReversePromptNotifier, ReversePromptState>((ref) {
   return ReversePromptNotifier(ref);
 });
+
+final reversePromptTaggerCategoriesProvider = FutureProvider.autoDispose
+    .family<Set<OnnxTaggerLabelCategory>, String>((ref, labelsPath) {
+      return ref.read(localOnnxTaggerServiceProvider).labelCategories(labelsPath);
+    });
 
 final reversePromptCharacterProvider = StateNotifierProvider<
     ReversePromptCharacterNotifier, CharacterPromptConfig>((ref) {
@@ -113,6 +119,7 @@ class ReversePromptState {
     this.selectedCharacterId,
     this.taggerGeneralThreshold = 0.35,
     this.taggerCharacterThreshold = 0.35,
+    this.taggerCategories = OnnxTaggerLabelCategory.defaultPromptCategories,
     this.taggerPrompt = '',
     this.llmPrompt = '',
     this.characterReplacePrompt = '',
@@ -130,6 +137,7 @@ class ReversePromptState {
   final String? selectedCharacterId;
   final double taggerGeneralThreshold;
   final double taggerCharacterThreshold;
+  final Set<OnnxTaggerLabelCategory> taggerCategories;
   final String taggerPrompt;
   final String llmPrompt;
   final String characterReplacePrompt;
@@ -151,6 +159,7 @@ class ReversePromptState {
     bool clearSelectedCharacterId = false,
     double? taggerGeneralThreshold,
     double? taggerCharacterThreshold,
+    Set<OnnxTaggerLabelCategory>? taggerCategories,
     String? taggerPrompt,
     String? llmPrompt,
     String? characterReplacePrompt,
@@ -176,6 +185,7 @@ class ReversePromptState {
           taggerGeneralThreshold ?? this.taggerGeneralThreshold,
       taggerCharacterThreshold:
           taggerCharacterThreshold ?? this.taggerCharacterThreshold,
+      taggerCategories: taggerCategories ?? this.taggerCategories,
       taggerPrompt: taggerPrompt ?? this.taggerPrompt,
       llmPrompt: llmPrompt ?? this.llmPrompt,
       characterReplacePrompt:
@@ -196,6 +206,10 @@ class ReversePromptState {
         'selectedCharacterId': selectedCharacterId,
         'taggerGeneralThreshold': taggerGeneralThreshold,
         'taggerCharacterThreshold': taggerCharacterThreshold,
+        'taggerCategories': [
+          for (final category in OnnxTaggerLabelCategory.selectable)
+            if (taggerCategories.contains(category)) category.name,
+        ],
       };
 
   factory ReversePromptState.fromPersistedJson(Map<String, dynamic> json) {
@@ -215,7 +229,19 @@ class ReversePromptState {
           (json['taggerCharacterThreshold'] as num?)?.toDouble() ??
               (json['taggerThreshold'] as num?)?.toDouble() ??
               0.35,
+      taggerCategories: _taggerCategoriesFromJson(json['taggerCategories']),
     );
+  }
+
+  static Set<OnnxTaggerLabelCategory> _taggerCategoriesFromJson(Object? raw) {
+    if (raw is! List) return OnnxTaggerLabelCategory.defaultPromptCategories;
+    final categories = {
+      for (final category in OnnxTaggerLabelCategory.selectable)
+        if (raw.contains(category.name)) category,
+    };
+    return categories.isEmpty
+        ? OnnxTaggerLabelCategory.defaultPromptCategories
+        : Set.unmodifiable(categories);
   }
 }
 
@@ -331,6 +357,24 @@ class ReversePromptNotifier extends StateNotifier<ReversePromptState> {
     await _save();
   }
 
+  // 取消勾选后当前模型已无可输出分类时拒绝，返回 false
+  Future<bool> setTaggerCategory(
+    OnnxTaggerLabelCategory category,
+    bool selected, {
+    required Set<OnnxTaggerLabelCategory> available,
+  }) async {
+    final categories = state.taggerCategories.toSet();
+    if (selected) {
+      categories.add(category);
+    } else {
+      categories.remove(category);
+      if (!categories.any(available.contains)) return false;
+    }
+    state = state.copyWith(taggerCategories: Set.unmodifiable(categories));
+    await _save();
+    return true;
+  }
+
   Future<void> runChain() async {
     if (!state.canRun) {
       state = state.copyWith(error: 'reversePrompt_needImageAndMethod');
@@ -360,6 +404,7 @@ class ReversePromptNotifier extends StateNotifier<ReversePromptState> {
               model: model,
               generalThreshold: state.taggerGeneralThreshold,
               characterThreshold: state.taggerCharacterThreshold,
+              categories: state.taggerCategories,
             );
         currentPrompt = result.prompt;
         state = state.copyWith(

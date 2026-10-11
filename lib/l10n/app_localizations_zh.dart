@@ -6657,7 +6657,17 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get reversePrompt_taggerFilterHint =>
-      '只输出 General / Character 分类标签；Rating、Artist、Copyright、Meta 等分类会被过滤。';
+      '通用、角色标签按上方阈值筛选；版权、艺术家、元数据使用模型推荐阈值，模型未提供时沿用角色或通用阈值；分级标签不输出。';
+
+  @override
+  String get reversePrompt_taggerCategories => '输出分类';
+
+  @override
+  String get reversePrompt_keepOneTaggerCategory => '至少保留一个输出分类';
+
+  @override
+  String get reversePrompt_pixaiTaggerHint =>
+      'PixAI Tagger 以 1008 分辨率推理，单张需要数秒到数十秒；FP32 模型加载时内存峰值可达约 9 GB。';
 
   @override
   String get reversePrompt_replacementEmptyHint =>
@@ -21917,7 +21927,17 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get reversePrompt_taggerFilterHint =>
-      '只輸出 General / Character 分類標籤；Rating、Artist、Copyright、Meta 等分類會被過濾。';
+      '通用、角色標籤按上方閾值篩選；版權、藝術家、後設資料使用模型推薦閾值，模型未提供時沿用角色或通用閾值；分級標籤不輸出。';
+
+  @override
+  String get reversePrompt_taggerCategories => '輸出分類';
+
+  @override
+  String get reversePrompt_keepOneTaggerCategory => '至少保留一個輸出分類';
+
+  @override
+  String get reversePrompt_pixaiTaggerHint =>
+      'PixAI Tagger 以 1008 解析度推論，單張需要數秒到數十秒；FP32 模型載入時記憶體峰值可達約 9 GB。';
 
   @override
   String get reversePrompt_replacementEmptyHint =>

@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/constants/storage_keys.dart';
+import '../../core/utils/prompt_tag_utils.dart';
 import '../../core/storage/local_storage_service.dart';
 import '../../data/models/online_gallery/gallery_item.dart';
 import 'online_gallery_output_filter_provider.dart';
@@ -66,7 +67,7 @@ class OnlineGalleryPromptTagSettings {
       if (!categories.contains(category)) continue;
       for (final tag in categoryTags[category]!) {
         final rendered = category == OnlineGalleryPromptTagCategory.artist
-            ? _formatArtistTag(tag)
+            ? PromptTagUtils.artistPromptTag(tag)
             : tag;
         if (outputFilter?.contains(tag) == true ||
             outputFilter?.contains(rendered) == true) {
@@ -76,14 +77,6 @@ class OnlineGalleryPromptTagSettings {
       }
     }
     return selectedTags.join(', ');
-  }
-
-  String _formatArtistTag(String tag) {
-    const prefix = 'artist:';
-    if (tag.toLowerCase().startsWith(prefix)) {
-      return '$prefix${tag.substring(prefix.length)}';
-    }
-    return '$prefix$tag';
   }
 }
 
