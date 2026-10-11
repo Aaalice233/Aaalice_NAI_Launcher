@@ -5,8 +5,10 @@ import 'package:image/image.dart' as img;
 import 'package:super_clipboard/super_clipboard.dart';
 
 import '../../core/utils/app_logger.dart';
+import '../../core/utils/dib_bitmap_codec.dart';
 import '../../core/utils/exif_orientation.dart';
 import '../../core/utils/isolate_pool.dart';
+import '../../core/utils/windows_clipboard_bitmap_reader.dart';
 import 'dropped_file_reader.dart';
 
 /// 剪贴板同时带纯文本与图片时由谁胜出。
@@ -54,12 +56,35 @@ Future<DroppedFileData?> readClipboardFile({
       );
       if (file != null) return file;
     }
-    return null;
+    // 带纯文本时保持原有的文本粘贴结果，只为纯图片剪贴板兜底。
+    if (reader.canProvide(Formats.plainText)) return null;
+    return await _readWindowsClipboardBitmap(logTag);
   } catch (error) {
     AppLogger.d('Failed to inspect clipboard for pasted image: $error', logTag);
     return null;
   }
 }
+
+/// super_clipboard 读不到只以 GDI 位图提供的图片，例如 Win+V 剪贴板历史恢复的条目。
+Future<DroppedFileData?> _readWindowsClipboardBitmap(String logTag) async {
+  if (!WindowsClipboardBitmapReader.isSupported) return null;
+  try {
+    final png = await ComputeGate().runIsolate(() {
+      final dib = WindowsClipboardBitmapReader.readDib();
+      return dib == null ? null : DibBitmapCodec.toPng(dib);
+    }, debugName: 'ClipboardBitmapToPng');
+    if (png == null) return null;
+    return DroppedFileData(fileName: _clipboardBitmapFileName, bytes: png);
+  } on FormatException catch (error) {
+    AppLogger.w('Unsupported clipboard bitmap: ${error.message}', logTag);
+    return null;
+  } on WindowsClipboardBusyException catch (error) {
+    AppLogger.w('Failed to read clipboard bitmap: $error', logTag);
+    return null;
+  }
+}
+
+const String _clipboardBitmapFileName = 'clipboard_image.png';
 
 /// 把图片字节写入系统剪贴板，统一规范化为 PNG。
 ///
