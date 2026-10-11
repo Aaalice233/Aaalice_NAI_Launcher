@@ -27,6 +27,10 @@ void main() {
         ),
       );
       await tester.pump();
+      expect(
+        tester.widget<Image>(find.byType(Image)).image,
+        isA<ResizeImage>(),
+      );
 
       final frame = tester.getRect(
         find.byKey(const Key('vibe-import-naming-frame')),

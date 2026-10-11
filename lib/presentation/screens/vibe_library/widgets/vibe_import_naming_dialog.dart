@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:nai_launcher/core/utils/localization_extension.dart';
 import 'package:nai_launcher/presentation/themes/core/input_surface_style.dart';
 
+import '../../../widgets/common/decoded_memory_image.dart';
 import '../../../widgets/common/image_viewport_surface.dart';
 import '../../../../core/utils/app_logger.dart';
 import '../../../adaptive/adaptive_presenter.dart';
@@ -301,9 +302,12 @@ class _VibeImportNamingDialogState extends State<VibeImportNamingDialog> {
             color: ImageViewportSurface.background,
           ),
           clipBehavior: Clip.antiAlias,
-          child: Image.memory(
-            widget.thumbnail!,
+          child: DecodedMemoryImage(
+            bytes: widget.thumbnail!,
             fit: BoxFit.contain,
+            filterQuality: FilterQuality.medium,
+            maxLogicalWidth: extent,
+            maxLogicalHeight: extent,
             errorBuilder: (context, error, stackTrace) {
               AppLogger.w('缩略图加载失败: $error', 'VibeImportNamingDialog');
               return Column(

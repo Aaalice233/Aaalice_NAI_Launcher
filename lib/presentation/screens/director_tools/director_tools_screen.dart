@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../widgets/common/decoded_memory_image.dart';
 import '../../widgets/common/image_viewport_surface.dart';
 import '../../../core/utils/localization_extension.dart';
 import '../../../data/models/director/director_tool_type.dart';
@@ -175,7 +176,7 @@ class _DirectorToolsScreenState extends ConsumerState<DirectorToolsScreen> {
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(16),
-        child: Image.memory(source, fit: BoxFit.contain, gaplessPlayback: true),
+        child: _SourcePreview(bytes: source),
       ),
     );
   }
@@ -202,13 +203,7 @@ class _DirectorToolsScreenState extends ConsumerState<DirectorToolsScreen> {
                       ),
                     ),
                     const SizedBox(height: 4),
-                    Flexible(
-                      child: Image.memory(
-                        state.sourceImage!,
-                        fit: BoxFit.contain,
-                        gaplessPlayback: true,
-                      ),
-                    ),
+                    Flexible(child: _SourcePreview(bytes: state.sourceImage!)),
                   ],
                 ),
               ),
@@ -639,6 +634,26 @@ class _ToolListTile extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+/// 用户原图可能远大于屏幕；按显示器尺寸封顶解码，拖动窗口时缓存键不变、不反复整图解码。
+class _SourcePreview extends StatelessWidget {
+  const _SourcePreview({required this.bytes});
+
+  final Uint8List bytes;
+
+  @override
+  Widget build(BuildContext context) {
+    final display = View.of(context).display;
+    final logicalDisplay = display.size / display.devicePixelRatio;
+    return DecodedMemoryImage(
+      bytes: bytes,
+      fit: BoxFit.contain,
+      filterQuality: FilterQuality.medium,
+      maxLogicalWidth: logicalDisplay.width,
+      maxLogicalHeight: logicalDisplay.height,
     );
   }
 }

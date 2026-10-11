@@ -50,6 +50,17 @@ void main() {
     expect(panelRect.top, greaterThanOrEqualTo(24));
     expect(panelRect.bottom, lessThanOrEqualTo(580));
     expect(tester.takeException(), isNull);
+    final previews = tester.widgetList<Image>(
+      find.descendant(
+        of: find.byType(ComfyUIWorkflowDialog),
+        matching: find.byType(Image),
+      ),
+    );
+    expect(previews, isNotEmpty);
+    expect(
+      previews.map((image) => image.image),
+      everyElement(isA<ResizeImage>()),
+    );
 
     await tester.ensureVisible(find.text('使用结果'));
     await tester.tap(find.text('使用结果'));

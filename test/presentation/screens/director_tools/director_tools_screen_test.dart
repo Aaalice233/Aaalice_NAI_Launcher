@@ -93,4 +93,26 @@ void main() {
 
     expect(find.text('始终保留检测到的像素尺寸。'), findsOneWidget);
   });
+
+  testWidgets('原图预览按显示器尺寸封顶解码，与窗口尺寸无关', (WidgetTester tester) async {
+    await _pumpScreen(tester);
+    final display = tester.view.display;
+    final expected = ResizeImage(
+      MemoryImage(_sourceImage),
+      width: display.size.width.round().clamp(1, 4096),
+      height: display.size.height.round().clamp(1, 4096),
+      policy: ResizeImagePolicy.fit,
+    );
+
+    ResizeImage sourcePreview() => tester
+        .widgetList<Image>(find.byType(Image))
+        .map((image) => image.image)
+        .whereType<ResizeImage>()
+        .single;
+
+    expect(sourcePreview(), expected);
+    await tester.binding.setSurfaceSize(const Size(1100, 900));
+    await tester.pumpAndSettle();
+    expect(sourcePreview(), expected);
+  });
 }
