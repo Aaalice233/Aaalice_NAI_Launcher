@@ -1,11 +1,10 @@
-import 'dart:convert';
-
-import 'package:crypto/crypto.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../../core/agent/agent_types.dart';
 import '../../../core/services/anlas_calculator.dart';
+import '../../../core/utils/isolate_pool.dart';
+import '../../../core/utils/json_utf8_stream.dart';
 import '../../../data/models/image/image_params.dart';
 import '../../../data/models/queue/replication_task.dart';
 import '../../../data/models/queue/replication_task_generation_snapshot.dart';
@@ -94,17 +93,19 @@ class QueueToolbox {
         'execution': queueExecutionJson(execution),
         'capacity': kMaxQueueCapacity,
         'remaining_capacity': queue.remainingCapacity,
+        // 逐个等待：同一时刻只持有一份解码后的快照
         'pending': [
-          for (final task in queue.tasks.take(limit)) replicationTaskJson(task),
+          for (final task in queue.tasks.take(limit))
+            await replicationTaskJson(task),
         ],
         'failed': [
           for (final task in queue.failedTasks.take(limit))
-            replicationTaskJson(task),
+            await replicationTaskJson(task),
         ],
         if (params['include_completed'] == true)
           'completed': [
             for (final task in queue.completedTasks.reversed.take(limit))
-              replicationTaskJson(task),
+              await replicationTaskJson(task),
           ],
       });
     },
@@ -122,7 +123,7 @@ class QueueToolbox {
           ? agentToolError('not_found', 'Queue task not found.')
           : agentToolJsonResult({
               'ok': true,
-              'task': replicationTaskJson(task, full: true),
+              'task': await replicationTaskJson(task, full: true),
             });
     },
   );
@@ -198,17 +199,13 @@ class QueueToolbox {
       final kind = QueueControlPreparationKind.values.firstWhere(
         (value) => value.name == params['action'],
       );
-      final tasks = _ref
-          .read(replicationQueueNotifierProvider)
-          .tasks
-          .where((task) => task.status == ReplicationTaskStatus.pending)
-          .toList();
+      final tasks = _pendingTasks();
       if (tasks.isEmpty) {
         return agentToolError('queue_empty', 'Queue is empty.');
       }
       late final int estimate;
       try {
-        estimate = _estimate(tasks);
+        estimate = await _estimate(tasks);
       } on FormatException catch (error) {
         return agentToolError(
           'invalid_queue_snapshot',
@@ -218,11 +215,18 @@ class QueueToolbox {
       if (estimate == AnlasCalculator.invalidCost) {
         return agentToolError('invalid_cost', 'Unable to estimate queue cost.');
       }
+      final fingerprints = await _taskFingerprints(tasks);
+      if (!_samePendingTasks(tasks)) {
+        return agentToolError(
+          'queue_changed',
+          'Queue changed during estimation; prepare it again.',
+        );
+      }
       final preparation = _runtime.add(
         QueueControlPreparation(
           kind: kind,
           taskIds: tasks.map((task) => task.id).toList(),
-          taskFingerprints: tasks.map(_taskFingerprint).toList(),
+          taskFingerprints: fingerprints,
           estimatedAnlas: estimate,
         ),
       );
@@ -397,19 +401,16 @@ class QueueToolbox {
           'Prepare this queue action again.',
         );
       }
-      final currentTasks = _ref
-          .read(replicationQueueNotifierProvider)
-          .tasks
-          .where((task) => task.status == ReplicationTaskStatus.pending)
-          .toList();
+      final currentTasks = _pendingTasks();
       if (!_sameList(
             currentTasks.map((task) => task.id).toList(),
             preparation.taskIds,
           ) ||
           !_sameList(
-            currentTasks.map(_taskFingerprint).toList(),
+            await _taskFingerprints(currentTasks),
             preparation.taskFingerprints,
-          )) {
+          ) ||
+          !_samePendingTasks(currentTasks)) {
         return agentToolError(
           'queue_changed',
           'Queue changed after estimation; prepare it again.',
@@ -437,14 +438,29 @@ class QueueToolbox {
     ].where((task) => task.id == id).firstOrNull;
   }
 
-  String _taskFingerprint(ReplicationTask task) =>
-      sha256.convert(utf8.encode(jsonEncode(task.toJson()))).toString();
+  List<ReplicationTask> _pendingTasks() => _ref
+      .read(replicationQueueNotifierProvider)
+      .tasks
+      .where((task) => task.status == ReplicationTaskStatus.pending)
+      .toList();
 
-  int _estimate(List<ReplicationTask> tasks) {
+  // 任务对象不可变，任何修改都会换实例；按引用比较即可确认等待期间队列未变
+  bool _samePendingTasks(List<ReplicationTask> expected) {
+    final current = _pendingTasks();
+    if (current.length != expected.length) return false;
+    for (var index = 0; index < current.length; index++) {
+      if (!identical(current[index], expected[index])) return false;
+    }
+    return true;
+  }
+
+  Future<int> _estimate(List<ReplicationTask> tasks) async {
     final base = _ref.read(generationParamsNotifierProvider);
     final subscription = _ref.read(subscriptionNotifierProvider).subscription;
     final tier = subscription?.isOpus == true ? AnlasCalculator.opusTier : 0;
+    final batchSize = _ref.read(imagesPerRequestProvider);
     var total = 0;
+    // 逐个解码：同一时刻只持有一份解码后的快照
     for (final task in tasks) {
       final params = task.generationSnapshot == null
           ? base.copyWith(
@@ -461,9 +477,9 @@ class QueueToolbox {
               height: task.height ?? base.height,
               nSamples: 1,
             )
-          : ReplicationTaskGenerationSnapshot.decode(
+          : (await ReplicationTaskGenerationSnapshot.decode(
               task.generationSnapshot!,
-            ).copyWith(
+            )).copyWith(
               prompt: task.prompt,
               negativePrompt: task.applyNegativePrompt
                   ? task.negativePrompt
@@ -480,7 +496,7 @@ class QueueToolbox {
         height: billingSize.height,
         steps: params.steps,
         batchCount: 1,
-        batchSize: _ref.read(imagesPerRequestProvider),
+        batchSize: batchSize,
         smea: params.effectiveSmea,
         smeaDyn: params.effectiveSmeaDyn,
         model: params.model,
@@ -512,6 +528,16 @@ final _taskIdSchema = toolboxObject(
   },
   required: const ['task_id'],
 );
+
+// 顶层函数：闭包不能捕获持有 Ref 的工具箱实例，否则无法发送到 isolate
+Future<List<String>> _taskFingerprints(List<ReplicationTask> tasks) =>
+    ComputeGate().runIsolate(
+      () => [
+        for (final task in tasks)
+          JsonUtf8Stream.sha256Digest(task.toJson()).toString(),
+      ],
+      debugName: 'QueueToolbox.fingerprints',
+    );
 
 bool _sameList(List<String> a, List<String> b) {
   if (a.length != b.length) return false;

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:typed_data';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -167,7 +168,7 @@ void main() {
     final notifier = container.read(replicationQueueNotifierProvider.notifier);
     final task = ReplicationTask.create(
       prompt: 'before',
-      generationSnapshot: ReplicationTaskGenerationSnapshot.encode(
+      generationSnapshot: await ReplicationTaskGenerationSnapshot.encode(
         const ImageParams(prompt: 'before', strength: 0.37),
       ),
     );
@@ -179,7 +180,7 @@ void main() {
         .read(replicationQueueNotifierProvider)
         .tasks
         .single;
-    final params = ReplicationTaskGenerationSnapshot.decode(
+    final params = await ReplicationTaskGenerationSnapshot.decode(
       updated.generationSnapshot!,
     );
     expect(params.prompt, 'after');
@@ -196,7 +197,7 @@ void main() {
       );
       final task = ReplicationTask.create(
         prompt: 'copy',
-        generationSnapshot: ReplicationTaskGenerationSnapshot.encode(
+        generationSnapshot: await ReplicationTaskGenerationSnapshot.encode(
           const ImageParams(prompt: 'copy', noise: 0.29),
         ),
       );
@@ -211,13 +212,93 @@ void main() {
         isNot(same(task.generationSnapshot)),
       );
       expect(
-        ReplicationTaskGenerationSnapshot.decode(
+        (await ReplicationTaskGenerationSnapshot.decode(
           tasks.last.generationSnapshot!,
-        ).noise,
+        )).noise,
         0.29,
       );
     },
   );
+
+  group('queue changes while a large snapshot is rewritten', () {
+    Future<(ProviderContainer, ReplicationQueueNotifier, ReplicationTask)>
+    seed() async {
+      final container = _buildContainer();
+      addTearDown(container.dispose);
+      final notifier = container.read(
+        replicationQueueNotifierProvider.notifier,
+      );
+      final task = ReplicationTask.create(
+        prompt: 'before',
+        generationSnapshot: await ReplicationTaskGenerationSnapshot.encode(
+          ImageParams(prompt: 'before', sourceImage: Uint8List(128 * 1024)),
+        ),
+      );
+      await notifier.add(task);
+      return (container, notifier, task);
+    }
+
+    test('an edit does not overwrite a task that started running', () async {
+      final (container, notifier, task) = await seed();
+
+      final update = notifier.updateTask(task.copyWith(prompt: 'after'));
+      await notifier.updateTaskStatus(task.id, ReplicationTaskStatus.running);
+
+      expect(await update, isFalse);
+      final current = container
+          .read(replicationQueueNotifierProvider)
+          .tasks
+          .single;
+      expect(current.prompt, 'before');
+      expect(current.status, ReplicationTaskStatus.running);
+      expect(current.generationSnapshot, task.generationSnapshot);
+    });
+
+    test('concurrent edits never interleave prompt and snapshot', () async {
+      final (container, notifier, task) = await seed();
+
+      final results = await Future.wait([
+        notifier.updateTask(task.copyWith(prompt: 'first')),
+        notifier.updateTask(task.copyWith(prompt: 'second')),
+      ]);
+
+      expect(results.where((updated) => updated), hasLength(1));
+      final current = container
+          .read(replicationQueueNotifierProvider)
+          .tasks
+          .single;
+      final params = await ReplicationTaskGenerationSnapshot.decode(
+        current.generationSnapshot!,
+      );
+      expect(params.prompt, current.prompt);
+      expect(current.prompt, results.first ? 'first' : 'second');
+    });
+
+    test('duplicating gives up when the queue fills meanwhile', () async {
+      final (container, notifier, task) = await seed();
+
+      final duplicated = notifier.duplicateTask(task.id);
+      await notifier.addAll([
+        for (var index = 1; index < kMaxQueueCapacity; index++)
+          ReplicationTask.create(prompt: 'filler $index'),
+      ]);
+
+      expect(await duplicated, isFalse);
+      final tasks = container.read(replicationQueueNotifierProvider).tasks;
+      expect(tasks, hasLength(kMaxQueueCapacity));
+      expect(tasks.where((queued) => queued.prompt == 'before'), hasLength(1));
+    });
+
+    test('duplicating gives up when the source is removed meanwhile', () async {
+      final (container, notifier, task) = await seed();
+
+      final duplicated = notifier.duplicateTask(task.id);
+      await notifier.remove(task.id);
+
+      expect(await duplicated, isFalse);
+      expect(container.read(replicationQueueNotifierProvider).tasks, isEmpty);
+    });
+  });
 }
 
 ProviderContainer _buildContainer({
