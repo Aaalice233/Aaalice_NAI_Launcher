@@ -47,13 +47,16 @@ class GenerationImageBatchActions {
       isPrimary: true,
       invoke: _saveSelectedImages,
     ),
-    ImageCardAction(
-      id: ImageCardActionId.saveAs,
-      icon: Icons.save_as_outlined,
-      label: context.l10n.image_saveAsToFolder,
-      supportsBatch: true,
-      invoke: _saveSelectedImagesToFolder,
-    ),
+    // 【偏离上游】iOS 拿不到可长期写入的目录（pickExportDirectory 返回 null），
+    // 「另存为到文件夹」只会表现为点了没反应，入口直接隐藏；单张另存为仍走分享面板。
+    if (PlatformCapabilities.current.supportsDirectoryBatchExport)
+      ImageCardAction(
+        id: ImageCardActionId.saveAs,
+        icon: Icons.save_as_outlined,
+        label: context.l10n.image_saveAsToFolder,
+        supportsBatch: true,
+        invoke: _saveSelectedImagesToFolder,
+      ),
     ImageCardAction(
       id: ImageCardActionId.delete,
       icon: Icons.delete_outline,

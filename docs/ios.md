@@ -8,7 +8,7 @@
 
 ## 构建
 
-环境：macOS、Xcode（已验证 16.4）、Flutter 3.44.2（与上游 CI 一致）、CocoaPods。最低系统版本 iOS 16.0（`ios/Podfile`、`project.pbxproj`）。
+环境：macOS、Xcode（已验证 16.4）、Flutter 3.47.5（与上游 CI 一致）、CocoaPods。最低系统版本 iOS 16.0（`ios/Podfile`、`project.pbxproj`）。
 
 1. 获取 `assets/databases/tag_catalog.db`：与上游相同，按 `assets/databases/manifest.json` 锁定的 URL 下载并校验大小与 SHA-256（`scripts/prepare_bundled_database.ps1`），确认是真实 SQLite 而不是 LFS pointer。
 2. `flutter pub get --enforce-lockfile`，然后 `dart run build_runner build --delete-conflicting-outputs`。
@@ -52,7 +52,7 @@ IPA 不写入 `checksums.txt` 与 `release_manifest.json`：应用内更新只�
 | --- | --- |
 | 应用内更新 | 关闭：不做周期检查、不弹更新横幅；「关于」页改为打开 GitHub Release 页面 |
 | 导出 / 另存为 | 写入临时文件后交给系统分享面板，关闭面板视为取消 |
-| 先选文件夹再批量导出 | 不支持（拿不到可长期写入的目录）：画廊批量下载与详情「下载全部媒体」入口隐藏；Vibe 多条导出只提供打包格式；提取内部 Vibe 一次只能导出一条 |
+| 先选文件夹再批量导出 | 不支持（拿不到可长期写入的目录）：画廊批量下载、详情「下载全部媒体」与生成页「另存为到文件夹」入口隐藏（单张另存为走分享面板）；Vibe 多条导出只提供打包格式；提取内部 Vibe 一次只能导出一条 |
 | 系统相册 | 保存**不会**自动进入相册；详情页「保存到相册」是独立的手动动作（`gal`，首次询问「仅添加照片」权限） |
 | 读取图片元数据 | 取图来源多一个「从相册选择」（PHPicker，`allowCompression: false` 以取得未转码的原图） |
 | 存储路径 | 图片、Vibe 库、Hive 三处路径只读，说明为沙盒固定 |
@@ -92,7 +92,7 @@ IPA 不写入 `checksums.txt` 与 `release_manifest.json`：应用内更新只�
 git grep -n "偏离上游"
 ```
 
-同步到上游新的正式版时，从该版本开新分支，按下表逐条把 iOS 改动迁移过去；迁移时顺带把插在上游文件里的大段逻辑挪进独立文件，上游文件只保留挂钩。遇到上游已实现等价能力的条目，先确认行为再决定是否丢弃。
+同步到上游新的正式版时，从 `ios` 开 PR 分支并 merge 该版本的 tag（v4.2.1 → v4.3.0 即按此进行），冲突按下表逐条核对：保留 iOS 行为、改用上游的新结构。合并后用上面的 `git grep` 确认「偏离上游」标记数没有减少，并检查上游新增的功能是否落进 iOS 的平台限制（例如需要先选文件夹的入口）。遇到上游已实现等价能力的条目，先确认行为再决定是否丢弃。
 
 ### 文件与条目对照
 
@@ -107,7 +107,7 @@ iOS 自有文件：`ios/`、`.github/workflows/ios-release.yml`、`lib/core/serv
 | 应用内更新 | `core/services/app_installation_service.dart`、`data/datasources/remote/github_api_service.dart`、`screens/splash/app_bootstrap.dart`、`widgets/common/update_notice_banner.dart`、`widgets/common/update_check_dialog.dart`、`screens/settings/sections/about_settings_section.dart` |
 | 存储路径与反推模型 | `screens/settings/sections/storage_settings_section.dart`、`data/services/local_onnx_model_service.dart`、`data/services/local_onnx_tagger_service.dart` |
 | 沙盒路径变化 | `data/services/gallery/gallery_album_import_coordinator.dart`、`image_detail_viewer.dart` / `detail_top_bar.dart`（元数据兜底）、`widgets/common/image_detail/image_detail_data.dart`、`widgets/common/image_detail/file_image_detail_data.dart` |
-| 代理 | `providers/proxy_settings_provider.dart`、`providers/startup_initialization_provider.dart`、`screens/settings/sections/network_settings_section.dart` |
+| 代理 | `core/network/proxy_settings_provider.dart`、`providers/startup_initialization_provider.dart`、`screens/settings/sections/network_settings_section.dart` |
 | Krita 入口 | `screens/generation/widgets/image_preview.dart`、`screens/generation/widgets/history_panel.dart` |
 | 键盘 | `lib/app.dart`、`screens/online_gallery/online_gallery_grid.dart` |
 | 中文输入 | `widgets/prompt/unified/unified_prompt_input.dart`、`providers/generation/generation_params_notifier.dart` |
@@ -116,7 +116,7 @@ iOS 自有文件：`ios/`、`.github/workflows/ios-release.yml`、`lib/core/serv
 | 复制不带元数据 | `image_detail_viewer.dart`、`detail_top_bar.dart` |
 | 窄屏分类树与图库列数 | `screens/local_gallery/local_gallery_screen.dart`、`screens/local_gallery/local_gallery_screen_controller.dart`、`screens/local_gallery/local_gallery_view_model.dart`、`screens/tag_library_page/tag_library_page_screen.dart`、`screens/vibe_library/vibe_library_screen.dart` |
 | AI TAG 原样发送 | `providers/pending_prompt_provider.dart`、`services/generation_prompt_transfer_service.dart`、`screens/generation/widgets/prompt_input_coordinator.dart`、`online_gallery_detail_launcher.dart` |
-| 移动端默认值 | `providers/notification_settings_provider.dart`、`providers/proxy_settings_provider.dart`、`core/storage/local_storage_service.dart` |
+| 移动端默认值 | `providers/notification_settings_provider.dart`、`core/network/proxy_settings_provider.dart`、`core/storage/local_storage_service.dart` |
 | 底栏与 toast | `router/mobile_shell.dart`、`widgets/common/app_toast.dart` |
 | 剪贴板 | `utils/clipboard_image.dart`、`services/mobile_image_metadata_importer.dart`、`mobile_generation_chrome.dart`、`screens/generation/widgets/img2img_source_section.dart`、`screens/generation/widgets/precise_reference_panel.dart`、`screens/generation/widgets/reverse_prompt_panel.dart`、`screens/generation/widgets/vibe_transfer_content.dart` |
 | 触屏可用性 | `widgets/image_editor/widgets/color_picker.dart`、`widgets/tag_chip.dart`、`widgets/online_gallery/gallery_detail_tag_section.dart`、`assets/model3d_editor/editor.js`、`assets/model3d_editor/editor.html`、`widgets/character/add_character_buttons.dart`、`widgets/character/inline_character_row.dart`、`history_panel.dart`、`widgets/gallery/gallery_grid.dart`、`widgets/gallery/local_image_card_3d.dart` |

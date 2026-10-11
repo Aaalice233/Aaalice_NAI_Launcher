@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:nai_launcher/core/platform/platform_capabilities.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/providers/generation/image_card_selection_provider.dart';
 import 'package:nai_launcher/presentation/providers/image_generation_provider.dart';
@@ -163,5 +164,19 @@ void main() {
       'a',
       'b',
     });
+  });
+
+  testWidgets('iOS 没有可长期写入的目录，不提供批量另存为到文件夹', (tester) async {
+    PlatformCapabilities.debugOverride = PlatformCapabilities.forPlatform(
+      TargetPlatform.iOS,
+    );
+    addTearDown(() => PlatformCapabilities.debugOverride = null);
+    final container = selectedContainer();
+    addTearDown(container.dispose);
+    final actions = await batchActions(tester, container);
+
+    final ids = actions.map((action) => action.id);
+    expect(ids, isNot(contains(ImageCardActionId.saveAs)));
+    expect(ids, contains(ImageCardActionId.save));
   });
 }
