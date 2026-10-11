@@ -4,6 +4,8 @@ import 'dart:ui';
 
 import '../../../core/enums/precise_ref_type.dart';
 import '../../../core/utils/focused_inpaint_utils.dart';
+import '../../../core/utils/isolate_pool.dart';
+import '../../../core/utils/json_utf8_stream.dart';
 import '../image/image_params.dart';
 import '../vibe/vibe_reference.dart';
 
@@ -33,27 +35,130 @@ class QueuedFocusedInpaint {
 /// Durable, path-free snapshot of the exact generation request confirmed for a
 /// queue task. Binary inputs are owned by the persisted task instead of being
 /// resolved again from mutable application libraries at execution time.
+///
+/// Image payloads are stored as base64 text; conversions carrying a large
+/// payload run on a [ComputeGate] isolate instead of the caller's isolate.
 abstract final class ReplicationTaskGenerationSnapshot {
   static const int schemaVersion = 1;
 
-  static Map<String, dynamic> clone(Map<String, dynamic> snapshot) => encode(
-    decode(snapshot),
-    batchSize: decodeBatchSize(snapshot),
-    focused: decodeFocused(snapshot),
+  // 低于此长度的 base64 转换不足 0.1ms，不值得启动 isolate 和排队等闸门
+  static const int _inlinePayloadLimit = 64 * 1024;
+
+  static Future<Map<String, dynamic>> clone(
+    Map<String, dynamic> snapshot, {
+    ComputeGate? gate,
+  }) => _convert(
+    _storedPayloadLength(snapshot),
+    () => _clone(snapshot),
+    gate: gate,
+    debugName: 'ReplicationSnapshot.clone',
   );
 
-  static Map<String, dynamic> withTaskText(
+  static Future<Map<String, dynamic>> withTaskText(
     Map<String, dynamic> snapshot, {
     required String prompt,
     required String negativePrompt,
-  }) => encode(
-    decode(snapshot).copyWith(prompt: prompt, negativePrompt: negativePrompt),
+    ComputeGate? gate,
+  }) => _convert(
+    _storedPayloadLength(snapshot),
+    () =>
+        _withTaskText(snapshot, prompt: prompt, negativePrompt: negativePrompt),
+    gate: gate,
+    debugName: 'ReplicationSnapshot.withTaskText',
+  );
+
+  /// [focused] 为空时不写入聚焦段，执行端沿用旧快照的行为
+  static Future<Map<String, dynamic>> encode(
+    ImageParams params, {
+    int? batchSize,
+    QueuedFocusedInpaint? focused,
+    ComputeGate? gate,
+  }) => _convert(
+    _paramsPayloadLength(params),
+    () => _encode(params, batchSize: batchSize, focused: focused),
+    gate: gate,
+    debugName: 'ReplicationSnapshot.encode',
+  );
+
+  static Future<ImageParams> decode(
+    Map<String, dynamic> snapshot, {
+    ComputeGate? gate,
+  }) => _convert(
+    _storedPayloadLength(snapshot),
+    () => _decodeChecked(snapshot),
+    gate: gate,
+    debugName: 'ReplicationSnapshot.decode',
+  );
+
+  /// 每个快照按 `utf8.encode(jsonEncode(snapshot)).length` 计的持久化字节数，顺序与入参一致
+  static Future<List<int>> measurePersistedBytes(
+    List<Map<String, dynamic>> snapshots, {
+    ComputeGate? gate,
+  }) => (gate ?? ComputeGate()).runIsolate(
+    () => [
+      for (final snapshot in snapshots) JsonUtf8Stream.byteLength(snapshot),
+    ],
+    debugName: 'ReplicationSnapshot.measure',
+  );
+
+  static Future<T> _convert<T>(
+    int payloadLength,
+    T Function() conversion, {
+    required ComputeGate? gate,
+    required String debugName,
+  }) => payloadLength < _inlinePayloadLimit
+      ? Future.sync(conversion)
+      : (gate ?? ComputeGate()).runIsolate(conversion, debugName: debugName);
+
+  static int _paramsPayloadLength(ImageParams params) {
+    var length =
+        _base64Length(params.sourceImage) + _base64Length(params.maskImage);
+    for (final reference in params.vibeReferencesV4) {
+      length += _base64Length(reference.rawImageData);
+    }
+    for (final reference in params.preciseReferences) {
+      length += _base64Length(reference.image);
+    }
+    return length;
+  }
+
+  static int _base64Length(Uint8List? bytes) =>
+      bytes == null ? 0 : (bytes.length + 2) ~/ 3 * 4;
+
+  // 只做长度估算，结构非法时交给解码抛 FormatException
+  static int _storedPayloadLength(Map<String, dynamic> snapshot) {
+    int textLength(Object? value) => value is String ? value.length : 0;
+    int itemsLength(Object? items, String key) => items is List
+        ? items.fold(
+            0,
+            (total, item) => total + (item is Map ? textLength(item[key]) : 0),
+          )
+        : 0;
+    return textLength(snapshot['sourceImage']) +
+        textLength(snapshot['maskImage']) +
+        itemsLength(snapshot['vibeReferences'], 'rawImageData') +
+        itemsLength(snapshot['preciseReferences'], 'image');
+  }
+
+  static Map<String, dynamic> _clone(Map<String, dynamic> snapshot) => _encode(
+    _decodeChecked(snapshot),
     batchSize: decodeBatchSize(snapshot),
     focused: decodeFocused(snapshot),
   );
 
-  /// [focused] 为空时不写入聚焦段，执行端沿用旧快照的行为
-  static Map<String, dynamic> encode(
+  static Map<String, dynamic> _withTaskText(
+    Map<String, dynamic> snapshot, {
+    required String prompt,
+    required String negativePrompt,
+  }) => _encode(
+    _decodeChecked(
+      snapshot,
+    ).copyWith(prompt: prompt, negativePrompt: negativePrompt),
+    batchSize: decodeBatchSize(snapshot),
+    focused: decodeFocused(snapshot),
+  );
+
+  static Map<String, dynamic> _encode(
     ImageParams params, {
     int? batchSize,
     QueuedFocusedInpaint? focused,
@@ -160,7 +265,7 @@ abstract final class ReplicationTaskGenerationSnapshot {
     );
   }
 
-  static ImageParams decode(Map<String, dynamic> snapshot) {
+  static ImageParams _decodeChecked(Map<String, dynamic> snapshot) {
     try {
       return _decode(snapshot);
     } on FormatException {

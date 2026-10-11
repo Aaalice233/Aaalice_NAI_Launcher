@@ -432,7 +432,7 @@ void main() {
           .read(replicationQueueNotifierProvider)
           .tasks
           .single;
-      final restored = ReplicationTaskGenerationSnapshot.decode(
+      final restored = await ReplicationTaskGenerationSnapshot.decode(
         task.generationSnapshot!,
       );
       expect(restored.action, ImageGenerationAction.img2img);
@@ -504,7 +504,7 @@ void main() {
     });
 
     expect(submitted.isError, isFalse);
-    final restored = ReplicationTaskGenerationSnapshot.decode(
+    final restored = await ReplicationTaskGenerationSnapshot.decode(
       container
           .read(replicationQueueNotifierProvider)
           .tasks
@@ -601,7 +601,7 @@ void main() {
         '{{{masterpiece, best_quality, year_2024}}}',
       );
       expect(task.negativePrompt, 'lowres, bad anatomy');
-      final restored = ReplicationTaskGenerationSnapshot.decode(
+      final restored = await ReplicationTaskGenerationSnapshot.decode(
         task.generationSnapshot!,
       );
       expect(restored.prompt, task.prompt);
@@ -1416,7 +1416,9 @@ void main() {
       );
       final task = ReplicationTask.create(
         prompt: 'snapshot prompt',
-        generationSnapshot: ReplicationTaskGenerationSnapshot.encode(params),
+        generationSnapshot: await ReplicationTaskGenerationSnapshot.encode(
+          params,
+        ),
       );
       final container = ProviderContainer(
         overrides: [

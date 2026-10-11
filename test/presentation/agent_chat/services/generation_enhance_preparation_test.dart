@@ -313,7 +313,9 @@ void main() {
       );
       final task = ReplicationTask.create(
         prompt: '1girl',
-        generationSnapshot: ReplicationTaskGenerationSnapshot.encode(params),
+        generationSnapshot: await ReplicationTaskGenerationSnapshot.encode(
+          params,
+        ),
       );
       final container = ProviderContainer(
         overrides: [

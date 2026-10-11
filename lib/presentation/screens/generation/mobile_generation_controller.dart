@@ -381,6 +381,14 @@ class MobileGenerationController extends ChangeNotifier
       selectionRect: workflow.focusedSelectionRect,
       contextCrop: workflow.focusedContextCrop,
     );
+    final batchSize = ref.read(imagesPerRequestProvider);
+    // 编码期间布局切换可能销毁本控制器，入队仍须完成，之后不再读 ref
+    final queue = ref.read(replicationQueueNotifierProvider.notifier);
+    final generationSnapshot = await ReplicationTaskGenerationSnapshot.encode(
+      queuedParams,
+      batchSize: batchSize,
+      focused: focused,
+    );
     final task = ReplicationTask.create(
       prompt: params.prompt,
       negativePrompt: params.negativePrompt,
@@ -395,11 +403,7 @@ class MobileGenerationController extends ChangeNotifier
             ),
           )
           .toList(growable: false),
-      generationSnapshot: ReplicationTaskGenerationSnapshot.encode(
-        queuedParams,
-        batchSize: ref.read(imagesPerRequestProvider),
-        focused: focused,
-      ),
+      generationSnapshot: generationSnapshot,
       source: ReplicationTaskSource.local,
       seed: params.seed,
       sampler: params.sampler,
@@ -409,9 +413,7 @@ class MobileGenerationController extends ChangeNotifier
       width: params.width,
       height: params.height,
     );
-    final added = await ref
-        .read(replicationQueueNotifierProvider.notifier)
-        .add(task);
+    final added = await queue.add(task);
     if (_disposed || !context.mounted) return;
     if (!added) {
       AppToast.warning(context, context.l10n.onlineGallery_queueFullMax);

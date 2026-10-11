@@ -335,9 +335,7 @@ class ReplicationQueueNotifier extends _$ReplicationQueueNotifier {
 
   /// 更新待执行任务。执行快照启动后不可被编辑覆盖。
   Future<bool> updateTask(ReplicationTask updatedTask) async {
-    final taskIndex = state.tasks.indexWhere(
-      (task) => task.id == updatedTask.id,
-    );
+    var taskIndex = state.tasks.indexWhere((task) => task.id == updatedTask.id);
     if (taskIndex < 0 ||
         state.tasks[taskIndex].status != ReplicationTaskStatus.pending) {
       return false;
@@ -349,12 +347,18 @@ class ReplicationQueueNotifier extends _$ReplicationQueueNotifier {
         (previousTask.prompt != updatedTask.prompt ||
             previousTask.negativePrompt != updatedTask.negativePrompt)) {
       try {
-        generationSnapshot = ReplicationTaskGenerationSnapshot.withTaskText(
-          generationSnapshot,
-          prompt: updatedTask.prompt,
-          negativePrompt: updatedTask.negativePrompt,
-        );
+        generationSnapshot =
+            await ReplicationTaskGenerationSnapshot.withTaskText(
+              generationSnapshot,
+              prompt: updatedTask.prompt,
+              negativePrompt: updatedTask.negativePrompt,
+            );
       } on FormatException {
+        return false;
+      }
+      // 重写快照期间任务可能已开始执行或被再次编辑，旧编辑不得覆盖
+      taskIndex = state.tasks.indexWhere((task) => task.id == updatedTask.id);
+      if (taskIndex < 0 || !identical(state.tasks[taskIndex], previousTask)) {
         return false;
       }
     }
@@ -597,12 +601,16 @@ class ReplicationQueueNotifier extends _$ReplicationQueueNotifier {
     if (!_hasGeneratableContent(task)) return false;
 
     Map<String, dynamic>? generationSnapshot;
-    try {
-      generationSnapshot = task.generationSnapshot == null
-          ? null
-          : ReplicationTaskGenerationSnapshot.clone(task.generationSnapshot!);
-    } on FormatException {
-      return false;
+    if (task.generationSnapshot != null) {
+      try {
+        generationSnapshot = await ReplicationTaskGenerationSnapshot.clone(
+          task.generationSnapshot!,
+        );
+      } on FormatException {
+        return false;
+      }
+      // 复制快照期间队列可能已被填满
+      if (state.isFull) return false;
     }
     final newTask = ReplicationTask.create(
       prompt: task.prompt,
@@ -622,6 +630,7 @@ class ReplicationQueueNotifier extends _$ReplicationQueueNotifier {
     );
 
     final taskIndex = state.tasks.indexWhere((t) => t.id == taskId);
+    if (taskIndex < 0) return false;
     final tasks = List<ReplicationTask>.from(state.tasks);
     tasks.insert(taskIndex + 1, newTask);
 

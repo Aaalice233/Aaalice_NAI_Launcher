@@ -1,4 +1,6 @@
 import 'dart:async';
+import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -17,6 +19,8 @@ import 'package:nai_launcher/presentation/providers/prompt_maximize_provider.dar
 import 'package:nai_launcher/presentation/screens/generation/mobile_generation_controller.dart';
 import 'package:nai_launcher/presentation/screens/generation/mobile_generation_gestures.dart';
 import 'package:nai_launcher/presentation/widgets/common/drag_claim_notification.dart';
+
+import '../../../helpers/real_async_pump.dart';
 
 void main() {
   for (final initialWidth in [1180.0, 700.0]) {
@@ -188,7 +192,7 @@ void main() {
       ReplicationTaskGenerationSnapshot.decodeBatchSize(snapshot),
       expectedBatchSize,
     );
-    final decoded = ReplicationTaskGenerationSnapshot.decode(snapshot);
+    final decoded = await ReplicationTaskGenerationSnapshot.decode(snapshot);
     expect(decoded, expected.copyWith(nSamples: 1));
     expect(decoded.prompt, expected.prompt);
     expect(decoded.negativePrompt, expected.negativePrompt);
@@ -211,6 +215,54 @@ void main() {
     expect(tester.takeException(), isNull);
 
     await tester.pump(const Duration(seconds: 4));
+  });
+
+  testWidgets('大图参数在后台编码后入队，期间控制器卸载也不丢任务', (tester) async {
+    final storage = _MemoryLocalStorageService({
+      StorageKeys.mobileGenerationGestureHintCompleted: true,
+    });
+    final queueNotifier = _TestReplicationQueueNotifier();
+    final container = ProviderContainer(
+      overrides: [
+        localStorageServiceProvider.overrideWith((ref) => storage),
+        replicationQueueNotifierProvider.overrideWith(() => queueNotifier),
+      ],
+    );
+    addTearDown(container.dispose);
+    Future<void> pumpHome(Widget home) => tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: MaterialApp(
+          locale: const Locale('zh'),
+          supportedLocales: AppLocalizations.supportedLocales,
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          home: home,
+        ),
+      ),
+    );
+    await pumpHome(const _ControllerHarness(showQueueAction: true));
+    final sourceImage = Uint8List.fromList(
+      List.generate(128 * 1024, (index) => index & 0xff),
+    );
+    container.read(generationParamsNotifierProvider.notifier)
+      ..updatePrompt('large prompt')
+      ..setSourceImage(sourceImage);
+    await tester.pump();
+
+    await tester.tap(find.text('MOBILE_QUEUE'));
+    await tester.pump();
+    expect(queueNotifier.addCallCount, 0);
+    await pumpHome(const SizedBox());
+    await pumpUntilRealAsync(
+      tester,
+      () => queueNotifier.addCallCount == 1,
+      reason: 'background snapshot encoding should finish and enqueue',
+    );
+
+    final snapshot = queueNotifier.addedTask!.generationSnapshot!;
+    expect(snapshot['sourceImage'], base64Encode(sourceImage));
+    expect(snapshot['params'], containsPair('prompt', 'large prompt'));
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('未登录且提示词为空时直接进入登录页', (tester) async {

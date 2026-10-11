@@ -13,10 +13,10 @@ Map<String, dynamic> queueExecutionJson(QueueExecutionState state) => {
   'progress': state.progress,
 };
 
-Map<String, dynamic> replicationTaskJson(
+Future<Map<String, dynamic>> replicationTaskJson(
   ReplicationTask task, {
   bool full = false,
-}) => {
+}) async => {
   'task_id': task.id,
   'status': task.status.name,
   'prompt': task.prompt,
@@ -33,7 +33,9 @@ Map<String, dynamic> replicationTaskJson(
   'retry_count': task.retryCount,
   'error': task.errorMessage,
   if (task.generationSnapshot != null)
-    'generation_snapshot': _generationSnapshotSummary(task.generationSnapshot!),
+    'generation_snapshot': await _generationSnapshotSummary(
+      task.generationSnapshot!,
+    ),
   'characters': [
     for (final character in task.characterPrompts ?? const [])
       {
@@ -46,9 +48,11 @@ Map<String, dynamic> replicationTaskJson(
   ],
 };
 
-Map<String, dynamic> _generationSnapshotSummary(Map<String, dynamic> snapshot) {
+Future<Map<String, dynamic>> _generationSnapshotSummary(
+  Map<String, dynamic> snapshot,
+) async {
   try {
-    final params = ReplicationTaskGenerationSnapshot.decode(snapshot);
+    final params = await ReplicationTaskGenerationSnapshot.decode(snapshot);
     return {
       'schema_version': snapshot['schemaVersion'],
       'valid': true,

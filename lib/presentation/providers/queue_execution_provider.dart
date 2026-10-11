@@ -8,6 +8,7 @@ import '../../core/platform/platform_capabilities.dart';
 import '../../core/storage/local_storage_service.dart';
 import '../../core/storage/queue_state_storage.dart';
 import '../../core/utils/app_logger.dart';
+import '../../data/models/image/image_params.dart';
 import '../../data/models/queue/replication_task.dart';
 import '../../data/models/queue/replication_task_generation_snapshot.dart';
 import '../../data/models/queue/replication_task_status.dart';
@@ -174,12 +175,14 @@ class QueueSettings {
 class QueueExecutionNotifier extends _$QueueExecutionNotifier {
   late final QueueStateStorage _stateStorage;
   bool _generationTriggerPending = false;
+  bool _isDisposed = false;
   Future<void> _pendingStateWrite = Future.value();
   int _executionRevision = 0;
 
   @override
   QueueExecutionState build() {
     _stateStorage = ref.read(queueStateStorageProvider);
+    ref.onDispose(() => _isDisposed = true);
 
     // 使用 ref.listen 监听生成状态变化（不会触发 provider 重建，避免竞态条件）
     ref.listen<ImageGenerationState>(imageGenerationNotifierProvider, (
@@ -445,23 +448,16 @@ class QueueExecutionNotifier extends _$QueueExecutionNotifier {
       // invocation 所有权，避免下一任务因 generate() 的并发保护而被静默丢弃。
       await generationNotifier.waitUntilGenerationInvocationSettled();
 
-      if (state.status != QueueExecutionStatus.ready) return;
-      if (ref.read(imageGenerationNotifierProvider).isBusy ||
-          (PlatformCapabilities.current.supportsKritaBridge &&
-              ref.read(kritaBridgeNotifierProvider).isBridgeGenerating)) {
-        return;
-      }
+      if (!_canGenerateReadyTask()) return;
+      final current = _currentQueueTask();
+      if (current == null) return;
+      final ready = current.generationSnapshot == null
+          ? (current, null)
+          : await _decodeReadyTask(current);
+      if (ready == null) return;
+      final (task, snapshotParams) = ready;
 
       final baseParams = ref.read(generationParamsNotifierProvider);
-      final queueState = ref.read(replicationQueueNotifierProvider);
-      ReplicationTask? task;
-      for (final candidate in queueState.tasks) {
-        if (candidate.id == state.currentTaskId) {
-          task = candidate;
-          break;
-        }
-      }
-      if (task == null) return;
       final snapshot = task.generationSnapshot;
       final batchSizeOverride = snapshot == null
           ? null
@@ -469,7 +465,7 @@ class QueueExecutionNotifier extends _$QueueExecutionNotifier {
       final queuedFocused = snapshot == null
           ? null
           : ReplicationTaskGenerationSnapshot.decodeFocused(snapshot);
-      final params = snapshot == null
+      final params = snapshotParams == null
           ? baseParams.copyWith(
               prompt: task.prompt,
               negativePrompt: task.applyNegativePrompt
@@ -484,7 +480,7 @@ class QueueExecutionNotifier extends _$QueueExecutionNotifier {
               height: task.height ?? baseParams.height,
               nSamples: 1,
             )
-          : ReplicationTaskGenerationSnapshot.decode(snapshot).copyWith(
+          : snapshotParams.copyWith(
               prompt: task.prompt,
               negativePrompt: task.applyNegativePrompt
                   ? task.negativePrompt
@@ -530,6 +526,40 @@ class QueueExecutionNotifier extends _$QueueExecutionNotifier {
     } finally {
       _generationTriggerPending = false;
     }
+  }
+
+  /// 快照在后台解码，期间通知器可能被释放、队列可能暂停或被手动生成占用，
+  /// 当前任务也可能被编辑；结算后重新核对，任务被替换时改用最新任务。
+  Future<(ReplicationTask, ImageParams?)?> _decodeReadyTask(
+    ReplicationTask task,
+  ) async {
+    var current = task;
+    while (true) {
+      final snapshot = current.generationSnapshot;
+      if (snapshot == null) return (current, null);
+      final decoding = ReplicationTaskGenerationSnapshot.decode(snapshot);
+      // 先等结算再核对；FormatException 只在确认仍是当前任务后才抛出
+      await decoding.then<void>((_) {}, onError: (Object _) {});
+      if (_isDisposed || !_canGenerateReadyTask()) return null;
+      final latest = _currentQueueTask();
+      if (latest == null) return null;
+      if (identical(latest, current)) return (current, await decoding);
+      current = latest;
+    }
+  }
+
+  bool _canGenerateReadyTask() =>
+      state.status == QueueExecutionStatus.ready &&
+      !ref.read(imageGenerationNotifierProvider).isBusy &&
+      !(PlatformCapabilities.current.supportsKritaBridge &&
+          ref.read(kritaBridgeNotifierProvider).isBridgeGenerating);
+
+  ReplicationTask? _currentQueueTask() {
+    final currentTaskId = state.currentTaskId;
+    for (final candidate in ref.read(replicationQueueNotifierProvider).tasks) {
+      if (candidate.id == currentTaskId) return candidate;
+    }
+    return null;
   }
 
   /// 开始执行队列
