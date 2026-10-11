@@ -68,7 +68,7 @@ class WebDavCloudSyncBackend
   late final WebDavCollectionEnsurer _collections;
   final String namespace;
   CloudBackendMode? _verifiedMode;
-  final Map<String, String> _verifiedObjectRevisions = {};
+  final Map<String, String> _verifiedObjectProofs = {};
 
   @override
   int get maxConcurrentObjectUploads =>
@@ -144,10 +144,28 @@ class WebDavCloudSyncBackend
         'WebDAV 不可变对象内容与对象标识不一致。',
       );
     }
-    if (read != null && CloudObjectNaming.isContentAddressedId(objectId)) {
-      _verifiedObjectRevisions[objectId] = read.revision;
+    // Manual-backup reads may carry weak or synthesized revisions; only strong
+    // ETags can pin bytes for the inventory.
+    if (read != null &&
+        CloudObjectNaming.isContentAddressedId(objectId) &&
+        _verifiedMode != CloudBackendMode.manualBackupOnly) {
+      _verifiedObjectProofs[objectId] = _proofFor(objectId, read.revision);
     }
     return read;
+  }
+
+  @override
+  Map<String, String> verifiedObjectProofs(Iterable<String> objectIds) => {
+    for (final objectId in objectIds)
+      if (_verifiedObjectProofs[objectId] case final proof?) objectId: proof,
+  };
+
+  String _proofFor(String objectId, String etag) =>
+      'webdav:$_verificationScope:${_objectUri(objectId)}:$etag';
+
+  void _rememberProof(String? objectId, String etag) {
+    if (objectId == null) return;
+    _verifiedObjectProofs[objectId] = _proofFor(objectId, etag);
   }
 
   @override
@@ -182,8 +200,8 @@ class WebDavCloudSyncBackend
       http: _http,
       headers: _headers,
       objects: _objects,
-      verifiedObjectRevisions: _verifiedObjectRevisions,
-      verificationScope: _verificationScope,
+      verifiedObjectProofs: _verifiedObjectProofs,
+      proofFor: _proofFor,
     ).findExisting(
       expectedObjects,
       trustedRevisions: trustedRevisions,
@@ -208,6 +226,7 @@ class WebDavCloudSyncBackend
       bytes,
       sha256: sha256,
       maxBytes: maxCloudObjectResponseBytes,
+      proofObjectId: objectId,
     );
   }
 
@@ -234,6 +253,7 @@ class WebDavCloudSyncBackend
     Uint8List bytes, {
     required String sha256,
     required int maxBytes,
+    String? proofObjectId,
   }) async {
     if (_verifiedMode == CloudBackendMode.manualBackupOnly) {
       final existing = await _get(uri, maxBytes: maxBytes);
@@ -276,6 +296,7 @@ class WebDavCloudSyncBackend
     if (response.statusCode == 412) {
       final existing = await _get(uri, maxBytes: maxBytes);
       if (existing != null && _sha256(existing.bytes) == sha256) {
+        _rememberProof(proofObjectId, existing.revision);
         return CloudCommitResult(revision: existing.revision);
       }
       throw const CloudBackendException(
@@ -285,9 +306,10 @@ class WebDavCloudSyncBackend
       );
     }
     _expect(response, const {200, 201, 204}, action: '上传对象');
-    final revision =
-        _strongEtag(response.headers.value('etag')) ??
-        _strongEtag(await _readEtag(uri));
+    // Only the PUT response pins our bytes; a later PROPFIND ETag cannot.
+    final writtenEtag = _strongEtag(response.headers.value('etag'));
+    if (writtenEtag != null) _rememberProof(proofObjectId, writtenEtag);
+    final revision = writtenEtag ?? _strongEtag(await _readEtag(uri));
     if (revision == null) {
       throw const CloudBackendException(
         CloudBackendErrorKind.invalidResponse,
@@ -447,7 +469,7 @@ class WebDavCloudSyncBackend
       objects: _objects,
       snapshots: _snapshots,
     ).clean();
-    _verifiedObjectRevisions.clear();
+    _verifiedObjectProofs.clear();
   }
 
   Future<CloudObjectRead?> _get(Uri uri, {required int maxBytes}) async {

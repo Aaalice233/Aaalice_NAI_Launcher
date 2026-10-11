@@ -14,8 +14,23 @@ import 'package:nai_launcher/core/cloud_sync/snapshot_uploader.dart';
 
 import 'github_fake_api.dart';
 import '../packed_snapshot_contract.dart';
+import '../uploaded_object_proof_contract.dart';
 
 void main() {
+  test('uploaded objects stay trusted in the next session', () async {
+    final api = FakeGitHubApi();
+    await verifyUploadedObjectProofsSurviveRestart(
+      createBackend: () => _backend(api),
+      objectDownloads: () => api.requests
+          .where(
+            (request) =>
+                request.method == 'GET' &&
+                request.uri.path.contains('/git/blobs/'),
+          )
+          .length,
+    );
+  });
+
   test(
     'packed configuration roundtrip preserves legacy GitHub backups',
     () async {

@@ -44,6 +44,12 @@ class CoordinatorTestBackend
   }
 
   @override
+  Map<String, String> verifiedObjectProofs(Iterable<String> objectIds) => {
+    for (final objectId in objectIds)
+      if (objects[objectId] case final object?) objectId: object.revision,
+  };
+
+  @override
   Future<CloudObjectRead?> readObject(String objectId) async {
     objectReads++;
     return objects[objectId];
