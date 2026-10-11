@@ -43,6 +43,9 @@ class BundleGalleryStrip extends StatelessWidget {
     this.onUseAll,
   });
 
+  static const double _itemExtent = 64;
+  static const double _selectedItemExtent = 70;
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -177,12 +180,7 @@ class BundleGalleryStrip extends StatelessWidget {
     final preview = vibePreviews != null && index < vibePreviews!.length
         ? vibePreviews![index]
         : null;
-    final itemExtent = isSelected ? 70.0 : 64.0;
-    final cacheSize = DecodedMemoryImage.resolveCacheDimension(
-      logicalSize: itemExtent,
-      constrainedSize: null,
-      pixelRatio: MediaQuery.devicePixelRatioOf(context),
-    );
+    final itemExtent = isSelected ? _selectedItemExtent : _itemExtent;
 
     return GestureDetector(
       onTap: () => onSelected(index),
@@ -224,12 +222,13 @@ class BundleGalleryStrip extends StatelessWidget {
           ),
           child: ClipRRect(
             borderRadius: DesignTokens.borderRadiusMd,
+            // 按选中态的较大尺寸解码，切换选中不重新解码
             child: preview != null
-                ? Image.memory(
-                    preview,
-                    fit: BoxFit.cover,
-                    cacheWidth: cacheSize,
-                    cacheHeight: cacheSize,
+                ? DecodedMemoryImage(
+                    bytes: preview,
+                    filterQuality: FilterQuality.medium,
+                    maxLogicalWidth: _selectedItemExtent,
+                    maxLogicalHeight: _selectedItemExtent,
                     errorBuilder: (_, __, ___) =>
                         _buildItemPlaceholder(theme, index),
                   )

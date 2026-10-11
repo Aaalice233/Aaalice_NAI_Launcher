@@ -1,6 +1,8 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
+import '../../../core/cache/box_fit_resize_image.dart';
+
 /// 根据布局尺寸限制内存图解码尺寸，避免列表里反复全尺寸解码大图。
 class DecodedMemoryImage extends StatelessWidget {
   const DecodedMemoryImage({
@@ -52,21 +54,13 @@ class DecodedMemoryImage extends StatelessWidget {
           decodeScale: decodeScale,
         );
 
-        final memoryImage = MemoryImage(bytes);
-        final ImageProvider<Object> imageProvider;
-        if (cacheWidth == null && cacheHeight == null) {
-          imageProvider = memoryImage;
-        } else {
-          imageProvider = ResizeImage(
-            memoryImage,
+        return Image(
+          image: BoxFitResizeImage.resizeIfNeeded(
+            MemoryImage(bytes),
+            fit: fit,
             width: cacheWidth,
             height: cacheHeight,
-            policy: ResizeImagePolicy.fit,
-          );
-        }
-
-        return Image(
-          image: imageProvider,
+          ),
           fit: fit,
           alignment: alignment,
           filterQuality: filterQuality,
@@ -90,8 +84,18 @@ class DecodedMemoryImage extends StatelessWidget {
     }
 
     final physicalSize = (effectiveLogicalSize * pixelRatio * decodeScale)
-        .round()
-        .clamp(1, 4096);
-    return physicalSize;
+        .ceil()
+        .clamp(1, BoxFitResizeImage.maximumDecodedDimension);
+    return _roundUpToSizeClass(physicalSize);
+  }
+
+  static const int _sizeClassBitsPerOctave = 2;
+
+  // 每个二倍区间分 4 档向上取整：最多多解码 25%，换来窗口缩放时只在跨档处换缓存键
+  static int _roundUpToSizeClass(int size) {
+    final stepBits = size.bitLength - 1 - _sizeClassBitsPerOctave;
+    if (stepBits <= 0) return size;
+    final step = 1 << stepBits;
+    return (size + step - 1) ~/ step * step;
   }
 }

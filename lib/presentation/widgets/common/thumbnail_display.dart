@@ -2,8 +2,10 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 
+import '../../../core/cache/box_fit_resize_image.dart';
 import '../../../core/cache/local_file_image.dart';
 import '../../../core/utils/nai_resolution_adapter.dart';
+import 'decoded_memory_image.dart';
 import 'image_viewport_surface.dart';
 
 /// 缩略图显示组件
@@ -147,13 +149,10 @@ class _ThumbnailDisplayState extends State<ThumbnailDisplay> {
           child: Transform.translate(
             offset: Offset(-shiftX, -shiftY),
             child: Image(
-              image: LocalFileImage.withCacheSize(
-                widget.imagePath,
-                cacheWidth: _decodeCacheExtent(virtualWidth, devicePixelRatio),
-                cacheHeight: _decodeCacheExtent(
-                  virtualHeight,
-                  devicePixelRatio,
-                ),
+              image: _coverDecodedImage(
+                virtualWidth,
+                virtualHeight,
+                devicePixelRatio,
               ),
               width: virtualWidth,
               height: virtualHeight,
@@ -181,10 +180,10 @@ class _ThumbnailDisplayState extends State<ThumbnailDisplay> {
         width: widget.width,
         height: widget.height,
         child: Image(
-          image: LocalFileImage.withCacheSize(
-            widget.imagePath,
-            cacheWidth: _decodeCacheExtent(widget.width, devicePixelRatio),
-            cacheHeight: _decodeCacheExtent(widget.height, devicePixelRatio),
+          image: _coverDecodedImage(
+            widget.width,
+            widget.height,
+            devicePixelRatio,
           ),
           fit: BoxFit.cover,
           errorBuilder: (_, __, ___) => _buildError(),
@@ -208,6 +207,17 @@ class _ThumbnailDisplayState extends State<ThumbnailDisplay> {
     child: const Icon(Icons.broken_image_outlined, color: Colors.white38),
   );
 
+  ImageProvider<Object> _coverDecodedImage(
+    double logicalWidth,
+    double logicalHeight,
+    double devicePixelRatio,
+  ) => BoxFitResizeImage.resizeIfNeeded(
+    LocalFileImage(widget.imagePath),
+    fit: BoxFit.cover,
+    width: _decodeCacheExtent(logicalWidth, devicePixelRatio),
+    height: _decodeCacheExtent(logicalHeight, devicePixelRatio),
+  );
+
   static int? _decodeCacheExtent(
     double logicalExtent,
     double devicePixelRatio,
@@ -219,6 +229,10 @@ class _ThumbnailDisplayState extends State<ThumbnailDisplay> {
       return null;
     }
 
-    return (logicalExtent * devicePixelRatio).ceil().clamp(1, 1 << 30);
+    return DecodedMemoryImage.resolveCacheDimension(
+      logicalSize: logicalExtent,
+      constrainedSize: null,
+      pixelRatio: devicePixelRatio,
+    );
   }
 }

@@ -21,6 +21,7 @@ import '../../utils/image_detail_opener.dart';
 import '../../screens/online_gallery/online_gallery_detail_launcher.dart';
 import '../../themes/theme_extension.dart';
 import '../../widgets/common/app_toast.dart';
+import '../../widgets/common/decoded_memory_image.dart';
 import '../../widgets/common/image_card_hover_motion.dart';
 import '../../widgets/common/surface_ink_well.dart';
 import '../../widgets/common/image_detail/file_image_detail_data.dart';
@@ -1136,9 +1137,10 @@ class _ToolResultResourcePreviewState
   Widget _buildPreview(Uint8List bytes) {
     final isOnlineGallery =
         widget.reference.kind == AgentChatResourceKind.onlineGalleryMedia;
-    final image = _AgentChatMemoryThumbnail(
+    final image = DecodedMemoryImage(
       bytes: bytes,
       fit: isOnlineGallery ? BoxFit.cover : BoxFit.contain,
+      filterQuality: FilterQuality.medium,
       errorBuilder: (_, _, _) => const _AgentResourceUnavailableImage(),
     );
     if (isOnlineGallery) {
@@ -1309,48 +1311,13 @@ class _ToolResultInlineImage extends StatelessWidget {
       image: GeneratedImageDetailData(imageBytes: bytes),
       showMetadataPanel: true,
     ),
-    child: _AgentChatMemoryThumbnail(
+    child: DecodedMemoryImage(
       bytes: bytes,
       fit: BoxFit.contain,
+      filterQuality: FilterQuality.medium,
       errorBuilder: (_, _, _) => const SizedBox.shrink(),
     ),
   );
-}
-
-class _AgentChatMemoryThumbnail extends StatelessWidget {
-  const _AgentChatMemoryThumbnail({
-    required this.bytes,
-    required this.fit,
-    required this.errorBuilder,
-  });
-
-  final Uint8List bytes;
-  final BoxFit fit;
-  final ImageErrorWidgetBuilder errorBuilder;
-
-  @override
-  Widget build(BuildContext context) {
-    final pixelRatio = MediaQuery.devicePixelRatioOf(context);
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final width = constraints.maxWidth.isFinite
-            ? (constraints.maxWidth * pixelRatio).ceil()
-            : null;
-        final height = constraints.maxHeight.isFinite
-            ? (constraints.maxHeight * pixelRatio).ceil()
-            : null;
-        return Image.memory(
-          bytes,
-          fit: fit,
-          alignment: Alignment.center,
-          gaplessPlayback: true,
-          cacheWidth: width,
-          cacheHeight: height,
-          errorBuilder: errorBuilder,
-        );
-      },
-    );
-  }
 }
 
 class _ToolResultNetworkImage extends StatelessWidget {

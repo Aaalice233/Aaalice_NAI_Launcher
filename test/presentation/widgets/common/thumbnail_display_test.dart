@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:image/image.dart' as img;
+import 'package:nai_launcher/core/cache/box_fit_resize_image.dart';
 import 'package:nai_launcher/core/cache/local_file_image.dart';
 import 'package:nai_launcher/presentation/widgets/common/thumbnail_display.dart';
 
@@ -24,10 +25,11 @@ void main() {
     );
 
     final image = tester.widget<Image>(find.byType(Image));
-    final resized = image.image as ResizeImage;
+    final resized = image.image as BoxFitResizeImage;
 
-    expect(resized.width, 300);
-    expect(resized.height, 120);
+    expect(resized.width, 320);
+    expect(resized.height, 128);
+    expect(resized.fit, DecodeFit.cover);
     expect(
       resized.imageProvider,
       const LocalFileImage('missing-thumbnail.png'),
@@ -65,10 +67,11 @@ void main() {
       ),
     );
 
-    final resized = await _pumpUntilResizeWidth(tester, 400);
+    final resized = await _pumpUntilResizeWidth(tester, 448);
 
-    expect(resized.width, 400);
-    expect(resized.height, 400);
+    expect(resized.width, 448);
+    expect(resized.height, 448);
+    expect(resized.fit, DecodeFit.cover);
   });
 
   testWidgets('uses the actual viewport ratio when covering the thumbnail', (
@@ -111,11 +114,11 @@ void main() {
   });
 }
 
-Future<ResizeImage> _pumpUntilResizeWidth(
+Future<BoxFitResizeImage> _pumpUntilResizeWidth(
   WidgetTester tester,
   int expectedWidth,
 ) async {
-  ResizeImage? latest;
+  BoxFitResizeImage? latest;
 
   for (var attempt = 0; attempt < 50; attempt++) {
     await tester.runAsync(() async {
@@ -123,7 +126,7 @@ Future<ResizeImage> _pumpUntilResizeWidth(
     });
     await tester.pump(const Duration(milliseconds: 20));
     final image = tester.widget<Image>(find.byType(Image));
-    latest = image.image as ResizeImage;
+    latest = image.image as BoxFitResizeImage;
     if (latest.width == expectedWidth) {
       return latest;
     }

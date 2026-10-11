@@ -25,6 +25,7 @@ import 'package:nai_launcher/presentation/widgets/common/image_detail/image_deta
 import 'package:nai_launcher/presentation/widgets/online_gallery/gallery_detail_dialog.dart';
 
 import '../../../helpers/ink_expectations.dart';
+import '../../../helpers/real_async_pump.dart';
 
 void main() {
   Future<void> pumpResult(WidgetTester tester, ToolResultMessage result) async {
@@ -244,6 +245,46 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('agent-tool-result-preview-1')));
     await tester.pump();
     expect(find.byType(Image), findsOneWidget);
+  });
+
+  testWidgets('inline image previews keep the source aspect ratio', (
+    tester,
+  ) async {
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetDevicePixelRatio);
+    addTearDown(
+      () => PaintingBinding.instance.imageCache
+        ..clear()
+        ..clearLiveImages(),
+    );
+    final result = ToolResultMessage(
+      toolCallId: 'preview-wide',
+      toolName: 'preview_generated_image',
+      content: [
+        ToolResultImageContent(
+          ImageContent(
+            source: ImageSource.base64(
+              mimeType: 'image/png',
+              base64Data: base64Encode(
+                image_lib.encodePng(image_lib.Image(width: 640, height: 320)),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+
+    await pumpResult(tester, result);
+    await tester.tap(
+      find.byKey(const ValueKey('agent-tool-result-preview-wide')),
+    );
+    await tester.pump();
+    await pumpUntilRealAsync(
+      tester,
+      () => tester.widget<RawImage>(find.byType(RawImage)).image != null,
+    );
+
+    expect(tester.getSize(find.byType(RawImage)), const Size(320, 160));
   });
 
   testWidgets('read image results never create transcript previews', (
