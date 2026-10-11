@@ -1,10 +1,7 @@
 import 'dart:async';
-import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/agent/agent_types.dart';
-import '../../../core/agent/harness/tools/image.dart';
 import '../../../core/utils/app_logger.dart';
-import '../../../core/utils/display_thumbnail_utils.dart';
 import '../../../core/utils/nai_resolution_adapter.dart';
 import '../../providers/image_generation_provider.dart';
 import 'defined_agent_tool.dart';
@@ -218,50 +215,9 @@ class GenerationExecutionService {
         await Future<void>.delayed(const Duration(milliseconds: 250));
       }
       final exports = await _exportToSavePath(prepared, signal, onUpdate);
-      final report = <Map<String, dynamic>>[];
-      final savedFiles = <String>[];
-      for (final image
-          in _ref.read(imageGenerationNotifierProvider).currentImages) {
-        final descriptor = await _imageReadContract.describe(
-          image,
-          export: exports[image.id],
-        );
-        if (descriptor.saved) {
-          if (image.filePath case final path?) savedFiles.add(path);
-        }
-        report.add(descriptor.toModelJson());
-      }
-      final content = <ToolResultContent>[
-        ToolResultTextContent(jsonEncode({'ok': true, 'images': report})),
-      ];
-      for (final image
-          in _ref.read(imageGenerationNotifierProvider).currentImages) {
-        final thumbnail = await DisplayThumbnailUtils.normalize(image.bytes);
-        final mime = thumbnail == null
-            ? null
-            : detectSupportedImageMimeType(thumbnail);
-        if (thumbnail != null && mime != null) {
-          content.add(
-            ToolResultImageContent(
-              ImageContent(
-                source: ImageSource.base64(
-                  mimeType: mime,
-                  base64Data: base64Encode(thumbnail),
-                ),
-              ),
-            ),
-          );
-        }
-      }
-      return AgentToolResult(
-        content: content,
-        details: <String, dynamic>{
-          'images': report,
-          if (savedFiles.isNotEmpty) ...{
-            'files': savedFiles,
-            'preferFileImages': true,
-          },
-        },
+      return await _imageReadContract.buildResult(
+        _ref.read(imageGenerationNotifierProvider).currentImages,
+        exports: exports,
       );
     } on Object catch (error) {
       AppLogger.w('Agent generation failed: $error', 'AgentChat');

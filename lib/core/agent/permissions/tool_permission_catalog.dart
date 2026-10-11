@@ -182,6 +182,7 @@ AgentToolPermissionDescriptor describeAgentToolPermission(String toolName) {
     'submit_manual_inpaint_draft',
     'start_generation_queue',
     'resume_generation_queue',
+    'upscale_image',
   };
   const destructive = {
     'delete_fixed_tag',
@@ -230,6 +231,7 @@ AgentToolPermissionDescriptor describeAgentToolPermission(String toolName) {
     String() when toolName.contains('precise_ref') =>
       AgentPermissionDomain.preciseRefLibrary,
     String() when toolName.contains('inpaint') => AgentPermissionDomain.inpaint,
+    'upscale_image' => AgentPermissionDomain.generation,
     'queue_image_task' ||
     'get_generation_status' => AgentPermissionDomain.generationQueue,
     String() when toolName.contains('generation_queue') =>

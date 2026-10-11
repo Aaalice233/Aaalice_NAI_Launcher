@@ -348,6 +348,7 @@ class McpServerNotifier extends StateNotifier<McpServerState> {
           generationRuntime: factory.generationRuntime,
           queueRuntime: factory.queueRuntime,
           manualInpaintToolbox: factory.manualInpaintToolbox,
+          imageUpscaleToolbox: factory.imageUpscaleToolbox,
         ),
         describeFileTargets: (toolName, args) => preparedFileTargets(
           toolName,

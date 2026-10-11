@@ -951,7 +951,7 @@ class _Registrar extends ImageGenerationNotifier {
   @override
   Future<void> ensureGenerationHistoryRestored() async {}
   @override
-  Future<String?> registerExternalImage(
+  Future<GeneratedImage?> registerExternalImageEntry(
     Uint8List imageBytes, {
     required ImageParams params,
     int? width,
@@ -966,6 +966,12 @@ class _Registrar extends ImageGenerationNotifier {
   }) async {
     results.add(imageBytes);
     comparisonSources.add(comparisonSourceImage);
-    return savedPath;
+    return GeneratedImage(
+      id: 'adopted-${results.length}',
+      bytes: imageBytes,
+      width: 1,
+      height: 1,
+      filePath: savedPath,
+    );
   }
 }

@@ -63,6 +63,7 @@ AgentToolResult compactMcpToolResponse(
             'character_count',
             'has_source_image',
             'has_mask_image',
+            'enhance',
           ])
             if (parameters.containsKey(key)) key: parameters[key],
         },

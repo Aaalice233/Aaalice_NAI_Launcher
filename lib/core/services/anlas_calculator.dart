@@ -18,12 +18,15 @@ class AnlasCalculator {
   static const int maximumPerSampleCost = 140;
   static const int novelAiUpscaleOpusFreeMaxInputPixels = 640 * 640;
 
+  /// 网页端云端超分计费分档覆盖的最大输入面积，更大的原图无法估价。
+  static const int novelAiUpscaleMaxInputPixels = 3145728;
+
   /// 当前 NovelAI 网页端的云端超分输入面积计费分档。
   static const List<(int maxInputPixels, int cost)> _novelAiUpscaleCostTiers = [
     (1048576, 1),
     (1747627, 2),
     (2446678, 3),
-    (3145728, 4),
+    (novelAiUpscaleMaxInputPixels, 4),
   ];
 
   static const double _areaCoefficient = 2.951823174884865e-6;

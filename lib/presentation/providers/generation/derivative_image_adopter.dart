@@ -6,23 +6,25 @@ import '../../../data/models/image/image_params.dart';
 import '../../../data/services/fixed_tag/fixed_tag_usage_record_store.dart';
 import '../image_generation_provider.dart';
 
-final dlssEnhancementAdopterProvider = Provider(DlssEnhancementAdopter.new);
+final derivativeImageAdopterProvider = Provider(DerivativeImageAdopter.new);
 
-/// Keeps a manually enhanced image as the latest saved generation result.
-final class DlssEnhancementAdopter {
-  DlssEnhancementAdopter(this.ref);
+/// Keeps an image derived from one source (DLSS enhancement, agent upscale)
+/// as the latest saved generation result.
+final class DerivativeImageAdopter {
+  DerivativeImageAdopter(this.ref);
 
   final Ref ref;
 
-  /// Returns the saved file path, or null when the file could not be written.
-  Future<String?> adopt({
+  /// Returns the registered history entry; its file path is null when the
+  /// file could not be written. Null means the entry no longer exists.
+  Future<GeneratedImage?> adopt({
     required Uint8List result,
     required Uint8List source,
   }) async {
     final generation = ref.read(imageGenerationNotifierProvider.notifier);
     // Persisting before startup restore completes would evict older records.
     await generation.ensureGenerationHistoryRestored();
-    final savedPath = await generation.registerExternalImage(
+    final image = await generation.registerExternalImageEntry(
       result,
       // Bytes stay verbatim; params only seed filenames without metadata.
       params: const ImageParams(),
@@ -37,6 +39,6 @@ final class DlssEnhancementAdopter {
       sourceBytes: source,
       outputBytes: result,
     );
-    return savedPath;
+    return image;
   }
 }

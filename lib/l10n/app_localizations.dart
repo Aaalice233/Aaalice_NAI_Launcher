@@ -2531,6 +2531,12 @@ abstract class AppLocalizations {
   /// **'Submit generation'**
   String get agentChat_toolSubmitGeneration;
 
+  /// No description provided for @agentChat_toolUpscaleImage.
+  ///
+  /// In en, this message translates to:
+  /// **'Upscale image'**
+  String get agentChat_toolUpscaleImage;
+
   /// No description provided for @agentChat_toolCreateInpaint.
   ///
   /// In en, this message translates to:

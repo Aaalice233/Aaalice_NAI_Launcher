@@ -494,6 +494,7 @@
   "agentChat_toolUpdateGeneration": "修改生成草稿",
   "agentChat_toolCancelGeneration": "取消生成草稿",
   "agentChat_toolSubmitGeneration": "提交生成任務",
+  "agentChat_toolUpscaleImage": "放大圖像",
   "agentChat_toolCreateInpaint": "建立手動局部重繪草稿",
   "agentChat_toolListInpaint": "查看局部重繪草稿列表",
   "agentChat_toolInspectInpaint": "查看局部重繪草稿",

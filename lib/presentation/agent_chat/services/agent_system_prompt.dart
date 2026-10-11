@@ -94,6 +94,11 @@ String buildAgentSystemPromptBody({required bool webAccessEnabled}) {
         'variations, director, enhance, or upscale in the real application. It '
         'never submits or spends Anlas; report its next_step and let the user '
         'edit/review before any separately confirmed paid submission.',
+    '- To run them directly instead: upscale_image enlarges an image in one '
+        'call without changing its content; prepare_generation with '
+        'source_ref and enhance re-renders details at a higher resolution and '
+        'needs a prompt describing the image. Their paid calls are approved '
+        'inside the launcher.',
     '',
     'Image2Image source image:',
     '- The generation page has a persistent Image2Image source slot. '

@@ -51,6 +51,7 @@ import '../services/agent_prepared_file_targets.dart';
 import '../services/agent_resource_resolver.dart';
 import '../services/agent_workspace_directory.dart';
 import '../services/generation_preparation_runtime.dart';
+import '../services/image_upscale_toolbox.dart';
 import '../services/manual_inpaint_toolbox.dart';
 import '../services/queue_toolbox.dart';
 import '../services/agent_tool_permission_controller.dart';
@@ -138,6 +139,9 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
   AgentUserQuestionController? _questionController;
   late AgentToolRegistryBuilder _toolRegistryBuilder;
   late ManualInpaintToolbox _manualInpaintToolbox;
+  late final ImageUpscaleToolbox _imageUpscaleToolbox = ImageUpscaleToolbox(
+    _ref,
+  );
   late AgentApiClient _client;
   final Map<String, HarnessSkill> _skills = {};
   final List<SkillDiagnostic> _skillDiagnostics = [];
@@ -258,6 +262,7 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
       generationRuntime: _generationPreparationRuntime,
       queueRuntime: _queueControlRuntime,
       manualInpaintToolbox: _manualInpaintToolbox,
+      imageUpscaleToolbox: _imageUpscaleToolbox,
       messages: () =>
           _sessionControllerValue?.agent?.state.messages ?? const [],
       activeSessionId: () => state.activeSessionId,
@@ -913,6 +918,7 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
     generationRuntime: _generationPreparationRuntime,
     queueRuntime: _queueControlRuntime,
     manualInpaintToolbox: _manualInpaintToolbox,
+    imageUpscaleToolbox: _imageUpscaleToolbox,
   );
 
   List<String> _describePreparedFileTargets(

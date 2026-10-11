@@ -207,6 +207,10 @@ void main() {
       );
 
       expect(result?.block, isTrue);
+      expect(
+        result?.reason,
+        contains('cost of this call cannot be calculated'),
+      );
       expect(approval, isNull);
     });
 

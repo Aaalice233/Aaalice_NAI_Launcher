@@ -1002,6 +1002,40 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
     bool replaceCurrentDisplay = false,
     bool embedNaiMetadata = true,
   }) async {
+    final image = await registerExternalImageEntry(
+      imageBytes,
+      params: params,
+      width: width,
+      height: height,
+      comparisonSourceImage: comparisonSourceImage,
+      saveToLocal: saveToLocal,
+      saveDirectoryPath: saveDirectoryPath,
+      syncToGalleryIndex: syncToGalleryIndex,
+      addToDisplay: addToDisplay,
+      replaceCurrentDisplay: replaceCurrentDisplay,
+      embedNaiMetadata: embedNaiMetadata,
+    );
+    return image?.filePath;
+  }
+
+  /// Same as [registerExternalImage], but returns the registered history entry
+  /// so callers can address the result by its stable id.
+  ///
+  /// Returns null when the generation lifecycle ended or the entry was deleted
+  /// before registration finished.
+  Future<GeneratedImage?> registerExternalImageEntry(
+    Uint8List imageBytes, {
+    required ImageParams params,
+    int? width,
+    int? height,
+    Uint8List? comparisonSourceImage,
+    bool saveToLocal = false,
+    String? saveDirectoryPath,
+    bool syncToGalleryIndex = true,
+    bool addToDisplay = false,
+    bool replaceCurrentDisplay = false,
+    bool embedNaiMetadata = true,
+  }) async {
     assert(!addToDisplay || !replaceCurrentDisplay);
     if (_isDisposed) return null;
     final epoch = _lifecycleEpoch;
@@ -1051,9 +1085,9 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
         syncToGalleryIndex: syncToGalleryIndex,
       );
       image = result.images.first;
-      return _deletedImageIds.contains(image.id) ? null : image.filePath;
+      return _deletedImageIds.contains(image.id) ? null : image;
     }
-    return null;
+    return image;
   }
 
   Future<GenerationSaveResult> _saveImages(

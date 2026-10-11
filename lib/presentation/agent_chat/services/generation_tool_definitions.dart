@@ -74,6 +74,8 @@ class GenerationToolDefinitions {
             'Prepare an image generation transaction without submitting it. '
             'Returns a persistent preparation_id and the exact estimated '
             'Anlas cost. operation is generate (synchronous) or queue. '
+            'With source_ref or source_image, add enhance to run NovelAI '
+            'Enhance instead of plain img2img. '
             'Submit exact zero-cost preparations directly. Paid submissions '
             'use confirmed=true and the application permission approval UI.',
         parameters: {
@@ -173,8 +175,8 @@ class GenerationToolDefinitions {
             '1920x1088; Small 512x768 / 768x512 / 640x640. Custom sizes '
             'are allowed but limited: width and height MUST be multiples '
             'of 64 (minimum 64), each side at most 4096, total pixels at '
-            'most 3145728. Omit to reuse the generation '
-            'page size. '
+            'most 3145728. Omit to reuse the generation page size, or the '
+            'source image import resolution when source_image is given. '
             '(4) "seed": omit or -1 for random. A fixed seed is honored '
             'only when count = 1; with count > 1 every image gets an '
             'independent random seed (identical to the generation page). '
@@ -185,7 +187,9 @@ class GenerationToolDefinitions {
             'switch to inpaint with "inpaint_strength" (0-0.99); "noise" '
             '(0-0.99) adds variation. Without "source_image" this is plain '
             'text-to-image regardless of the generation page img2img '
-            'state. These arguments apply to this single transaction only and '
+            'state. Add "enhance" with source_image to run NovelAI Enhance; '
+            'width and height then derive from the source and scale. '
+            'These arguments apply to this single transaction only and '
             'never change the generation page Image2Image panel; use '
             'set_generation_source_image when the user should see the image '
             'loaded there. '
@@ -275,6 +279,7 @@ class GenerationToolDefinitions {
                   'Inpaint strength 0-0.99 (only with '
                   'mask_image).',
             },
+            'enhance': generationEnhanceProperty,
             'preparation_id': {
               'type': 'string',
               'description': 'ID returned by the first unconfirmed call.',

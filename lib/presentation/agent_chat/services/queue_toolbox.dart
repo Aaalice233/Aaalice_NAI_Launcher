@@ -10,6 +10,7 @@ import '../../../data/models/image/image_params.dart';
 import '../../../data/models/queue/replication_task.dart';
 import '../../../data/models/queue/replication_task_generation_snapshot.dart';
 import '../../../data/models/queue/replication_task_status.dart';
+import '../../providers/cost_estimate_provider.dart';
 import '../../providers/image_generation_provider.dart';
 import '../../providers/queue_execution_provider.dart';
 import '../../providers/replication_queue_provider.dart';
@@ -469,9 +470,14 @@ class QueueToolbox {
                   : base.negativePrompt,
               nSamples: 1,
             );
-      final cost = AnlasCalculator.calculateRequestCost(
+      final billingSize = resolveGenerationBillingSize(
         width: params.width,
         height: params.height,
+        maxEnhance: params.effectiveUpscaledEnhance,
+      );
+      final cost = AnlasCalculator.calculateRequestCost(
+        width: billingSize.width,
+        height: billingSize.height,
         steps: params.steps,
         batchCount: 1,
         batchSize: _ref.read(imagesPerRequestProvider),

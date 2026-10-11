@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/agent/agent_types.dart';
 import '../../../core/agent/harness/harness_types.dart';
 import '../../../core/agent/resources/agent_chat_resource_reference.dart';
+import '../../../core/constants/api_constants.dart';
 import '../../../core/constants/model_capabilities.dart';
 import '../../../core/services/anlas_calculator.dart';
 import '../../../core/services/character_conversion_service.dart';
@@ -14,6 +15,7 @@ import '../../../data/models/image/image_params.dart';
 import '../../providers/alias_resolver_service.dart';
 import '../../providers/character_prompt_provider.dart';
 import '../../providers/fixed_tags_provider.dart';
+import '../../providers/generation/image_workflow_controller.dart';
 import '../../providers/image_generation_provider.dart';
 import '../../providers/precise_ref_library_provider.dart';
 import '../../providers/replication_queue_provider.dart';
@@ -23,26 +25,18 @@ import 'defined_agent_tool.dart';
 import 'generated_image_export_writer.dart';
 import 'generation_anlas_estimator.dart';
 import 'generation_character_orchestration.dart';
+import 'generation_enhance_resolver.dart';
 import 'generation_preparation_runtime.dart';
-import 'generation_save_path_template.dart';
+import 'generation_save_path_validator.dart';
 import 'generation_workspace_path_resolver.dart';
 
 typedef _ResolvedSavePath = ({String? path, GenerationSavePathSource? source});
 
-/// 模板校验只回报原因，文案与错误码由落盘来源决定。
-enum _SavePathRejection {
-  placeholderInDirectory,
-  missingPlaceholder,
-  invalidTarget,
-  extensionMismatch,
-  notPermitted,
-  exists,
-  checkFailed,
-  unavailable,
-}
-
-/// v4 不会生成全零随机位，样本路径因此撞不上真实目标。
-const String _sampleImageId = '00000000-0000-4000-8000-000000000000';
+typedef _RequestGeometry = ({
+  int width,
+  int height,
+  GenerationEnhanceSelection? enhance,
+});
 
 class GenerationPreparationService {
   GenerationPreparationService(
@@ -69,7 +63,10 @@ class GenerationPreparationService {
   }) : _runtime = runtime,
        _resourceResolver = resourceResolver,
        _pathResolver = pathResolver,
-       _exportWriter = exportWriter,
+       _savePathValidator = GenerationSavePathValidator(
+         pathResolver: pathResolver,
+         exportWriter: exportWriter,
+       ),
        _maxGenerateCount = maxGenerateCount,
        _anlasEstimator = anlasEstimator,
        _executeGeneration = executeGeneration,
@@ -79,7 +76,7 @@ class GenerationPreparationService {
   final GenerationPreparationRuntime _runtime;
   final AgentResourceResolver _resourceResolver;
   final GenerationWorkspacePathResolver _pathResolver;
-  final GeneratedImageExportWriter _exportWriter;
+  final GenerationSavePathValidator _savePathValidator;
   final int _maxGenerateCount;
   final GenerationAnlasEstimator _anlasEstimator;
   final Future<AgentToolResult> Function(
@@ -145,6 +142,7 @@ class GenerationPreparationService {
     Map<String, dynamic> args, {
     ImageParams? baseOverride,
     ImageParams? characterSnapshotOverride,
+    EnhanceWorkflowSettings? enhanceDefaultsOverride,
   }) async {
     final prompt = (args['prompt'] as String?)?.trim() ?? '';
     if (prompt.isEmpty) {
@@ -173,20 +171,6 @@ class GenerationPreparationService {
 
     final ImageParams base =
         baseOverride ?? _ref.read(generationParamsNotifierProvider);
-    final width = (args['width'] as num?)?.toInt() ?? base.width;
-    final height = (args['height'] as num?)?.toInt() ?? base.height;
-    final resolutionIssue = NaiResolutionAdapter.validateGenerationResolution(
-      width,
-      height,
-    );
-    if (resolutionIssue != null) {
-      return agentToolError(
-        'invalid_resolution',
-        'Invalid generation resolution ${width}x$height. Width and height '
-            'must be multiples of 64 and total pixels must not exceed '
-            '${NaiResolutionAdapter.officialMaxPixels}.',
-      );
-    }
 
     final promptParts = <String>[prompt];
     final negativePromptParts = <String>[
@@ -278,6 +262,33 @@ class GenerationPreparationService {
     // 外部蒙版的低灰度选区会被官网 alpha>155 采样丢掉，与聚焦裁切等处的 ≥32 判定不一致。
     if (maskBytes != null) {
       maskBytes = await InpaintMaskUtils.normalizeMaskBytesAsync(maskBytes);
+    }
+
+    final enhanceDefaults = args['enhance'] == null
+        ? null
+        : enhanceDefaultsOverride ??
+              _ref.read(imageWorkflowControllerProvider).enhance;
+    final geometryResult = await _resolveRequestGeometry(
+      args,
+      base: base,
+      sourceBytes: sourceBytes,
+      maskBytes: maskBytes,
+      enhanceDefaults: enhanceDefaults,
+    );
+    if (geometryResult.errorOrNull case final rejection?) return rejection;
+    final geometry = geometryResult.valueOrNull!;
+    final enhance = geometry.enhance;
+    final resolutionIssue = NaiResolutionAdapter.validateGenerationResolution(
+      geometry.width,
+      geometry.height,
+    );
+    if (resolutionIssue != null) {
+      return agentToolError(
+        'invalid_resolution',
+        'Invalid generation resolution ${geometry.width}x${geometry.height}. '
+            'Width and height must be multiples of 64 and total pixels must '
+            'not exceed ${NaiResolutionAdapter.officialMaxPixels}.',
+      );
     }
 
     double ratio(String key, double fallback) {
@@ -412,16 +423,19 @@ class GenerationPreparationService {
       negativePrompt: negativePromptParts
           .where((value) => value.isNotEmpty)
           .join(', '),
-      width: width,
-      height: height,
+      width: geometry.width,
+      height: geometry.height,
       seed: (args['seed'] as num?)?.toInt() ?? -1,
       nSamples: kind == GenerationPreparationKind.generate ? count : 1,
       action: action,
       sourceImage: sourceBytes,
       maskImage: maskBytes,
-      strength: ratio('strength', base.strength),
-      noise: ratio('noise', base.noise),
+      strength: enhance?.plan.strength ?? ratio('strength', base.strength),
+      noise: enhance?.plan.noise ?? ratio('noise', base.noise),
       inpaintStrength: ratio('inpaint_strength', base.inpaintStrength),
+      // 基底取自生成页，页面停在增强面板时两个一次性标记会跟着漏进普通请求。
+      upscaledEnhance: enhance?.plan.maxScale ?? false,
+      isEnhanceRequest: enhance != null,
       vibeReferencesV4: vibeReferences,
       preciseReferences: preciseReferences,
       characters: characters,
@@ -460,9 +474,91 @@ class GenerationPreparationService {
         savePathSource: savePathResult.valueOrNull?.source,
         sourceImage: sourceBytes,
         maskImage: maskBytes,
+        enhance: enhance,
+        enhanceDefaults: enhanceDefaults,
       ),
     );
     return agentToolJsonResult(preparation.toJson());
+  }
+
+  Future<HarnessResult<_RequestGeometry, AgentToolResult>>
+  _resolveRequestGeometry(
+    Map<String, dynamic> args, {
+    required ImageParams base,
+    required Uint8List? sourceBytes,
+    required Uint8List? maskBytes,
+    required EnhanceWorkflowSettings? enhanceDefaults,
+  }) async {
+    final requestedWidth = (args['width'] as num?)?.toInt();
+    final requestedHeight = (args['height'] as num?)?.toInt();
+    final rawEnhance = args['enhance'];
+    if (rawEnhance != null) {
+      if (sourceBytes == null) {
+        return err(
+          agentToolError(
+            'enhance_requires_source',
+            'enhance needs source_ref or source_image.',
+          ),
+        );
+      }
+      if (maskBytes != null) {
+        return err(
+          agentToolError(
+            'enhance_with_mask',
+            'enhance cannot be combined with a mask; use inpainting instead.',
+          ),
+        );
+      }
+      if (requestedWidth != null || requestedHeight != null) {
+        return err(
+          agentToolError(
+            'enhance_size_conflict',
+            'enhance derives width and height from the source and '
+                'enhance.scale; omit width and height.',
+          ),
+        );
+      }
+      double? callerRatio(String key) =>
+          (args[key] as num?)?.toDouble().clamp(0.0, 0.99);
+      final resolved = await GenerationEnhanceResolver.resolve(
+        rawEnhance: rawEnhance,
+        base: base,
+        source: sourceBytes,
+        pageDefaults: enhanceDefaults!,
+        callerStrength: callerRatio('strength'),
+        callerNoise: callerRatio('noise'),
+      );
+      if (resolved.errorOrNull case final rejection?) return err(rejection);
+      final enhance = resolved.valueOrNull!;
+      return ok((
+        width: enhance.plan.width,
+        height: enhance.plan.height,
+        enhance: enhance,
+      ));
+    }
+    if (sourceBytes != null &&
+        requestedWidth == null &&
+        requestedHeight == null) {
+      // 发送前的重采样不保持宽高比，沿用生成页尺寸会把底图拉伸变形。
+      final imported = await NaiResolutionAdapter.describeImageForImportAsync(
+        sourceBytes,
+        isStableDiffusionFamily: ImageModels.usesStableDiffusionImportBounds(
+          base.model,
+        ),
+      );
+      if (imported != null) {
+        return ok((
+          width: imported.width,
+          height: imported.height,
+          enhance: null,
+        ));
+      }
+    }
+    return ok((
+      width: requestedWidth ?? base.width,
+      height: requestedHeight ?? base.height,
+      enhance: null,
+    ));
   }
 
   Future<HarnessResult<_ResolvedSavePath, AgentToolResult>> _resolveSavePath(
@@ -472,17 +568,9 @@ class GenerationPreparationService {
     int batchSize,
   ) async {
     final requested = args['save_path'];
-    if (requested != null && requested is! String) {
-      return err(
-        agentToolError(
-          'invalid_save_path',
-          'Parameter "save_path" must be a string file target.',
-        ),
-      );
-    }
-    final template = (requested as String?)?.trim() ?? '';
-    if (template.isEmpty) return ok(_resolveDefaultSavePath(kind));
-    if (kind == GenerationPreparationKind.queue) {
+    if (kind == GenerationPreparationKind.queue &&
+        requested is String &&
+        requested.trim().isNotEmpty) {
       return err(
         agentToolError(
           'unsupported_queue_save_path',
@@ -490,15 +578,17 @@ class GenerationPreparationService {
         ),
       );
     }
-    final total = count * batchSize;
-    final resolved = await _validateSavePathTemplate(template, total);
-    if (resolved.errorOrNull case final reason?) {
-      return err(_callerSavePathRejection(reason, total));
-    }
-    return ok((
-      path: resolved.valueOrNull!,
-      source: GenerationSavePathSource.caller,
-    ));
+    final validated = await _savePathValidator.validate(
+      requested,
+      total: count * batchSize,
+    );
+    if (validated.errorOrNull case final rejection?) return err(rejection);
+    final path = validated.valueOrNull;
+    return ok(
+      path == null
+          ? _resolveDefaultSavePath(kind)
+          : (path: path, source: GenerationSavePathSource.caller),
+    );
   }
 
   /// 调用方没给 save_path 时不写任何副本，最多把 saved_path 指向图库原图。
@@ -511,90 +601,6 @@ class GenerationPreparationService {
       source: references ? GenerationSavePathSource.galleryOriginal : null,
     );
   }
-
-  Future<HarnessResult<String, _SavePathRejection>> _validateSavePathTemplate(
-    String template,
-    int total,
-  ) async {
-    if (GenerationSavePathTemplate.hasPlaceholderInDirectory(template)) {
-      return err(_SavePathRejection.placeholderInDirectory);
-    }
-    if (total > 1 && !GenerationSavePathTemplate.hasPlaceholder(template)) {
-      return err(_SavePathRejection.missingPlaceholder);
-    }
-    final absolute = (await _pathResolver.env.absolutePath(template))
-        .valueOrNull;
-    if (absolute == null) return err(_SavePathRejection.notPermitted);
-    // 模板本身不是文件名，展开一份样本才能校验扩展名、作用域和占位情况。
-    final sample = GenerationSavePathTemplate.expand(
-      absolute,
-      index: 1,
-      total: total,
-      seed: 0,
-      id: _sampleImageId,
-    );
-    final failure = (await _exportWriter.validate(
-      sample,
-      mimeType: 'image/png',
-    )).errorOrNull;
-    return failure == null
-        ? ok(absolute.replaceAll(r'\', '/'))
-        : err(_rejectionFor(failure.kind));
-  }
-
-  static _SavePathRejection _rejectionFor(
-    GeneratedImageExportFailureKind kind,
-  ) => switch (kind) {
-    GeneratedImageExportFailureKind.invalidTarget =>
-      _SavePathRejection.invalidTarget,
-    GeneratedImageExportFailureKind.extensionMismatch =>
-      _SavePathRejection.extensionMismatch,
-    GeneratedImageExportFailureKind.outsideScope =>
-      _SavePathRejection.notPermitted,
-    GeneratedImageExportFailureKind.exists => _SavePathRejection.exists,
-    GeneratedImageExportFailureKind.checkFailed =>
-      _SavePathRejection.checkFailed,
-    _ => _SavePathRejection.unavailable,
-  };
-
-  static AgentToolResult _callerSavePathRejection(
-    _SavePathRejection reason,
-    int total,
-  ) => switch (reason) {
-    _SavePathRejection.placeholderInDirectory => agentToolError(
-      'invalid_save_path',
-      'save_path placeholders are only allowed in the file name.',
-    ),
-    _SavePathRejection.missingPlaceholder => agentToolError(
-      'invalid_save_path',
-      'This submission produces $total images, so the save_path file name '
-          'must contain {index}, {seed} or {id}.',
-    ),
-    _SavePathRejection.invalidTarget => agentToolError(
-      'invalid_save_path',
-      'save_path must identify a file, not a directory.',
-    ),
-    _SavePathRejection.extensionMismatch => agentToolError(
-      'invalid_save_path',
-      'save_path must use the .png extension.',
-    ),
-    _SavePathRejection.notPermitted => agentToolError(
-      'save_path_not_permitted',
-      'save_path is outside the permitted file scope.',
-    ),
-    _SavePathRejection.exists => agentToolError(
-      'save_path_exists',
-      'save_path already exists; generated images are never overwritten.',
-    ),
-    _SavePathRejection.checkFailed => agentToolError(
-      'save_path_unavailable',
-      'save_path could not be checked safely.',
-    ),
-    _SavePathRejection.unavailable => agentToolError(
-      'save_path_unavailable',
-      'save_path could not be validated.',
-    ),
-  };
 
   Future<AgentToolResult?> _appendTextReferences(
     dynamic rawReferences,
@@ -680,6 +686,7 @@ class GenerationPreparationService {
       merged,
       baseOverride: current.baseParams,
       characterSnapshotOverride: current.params,
+      enhanceDefaultsOverride: current.enhanceDefaults,
     );
     if (!result.isError) _runtime.cancel(id);
     return result;

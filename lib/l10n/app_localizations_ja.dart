@@ -1309,6 +1309,9 @@ class AppLocalizationsJa extends AppLocalizations {
   String get agentChat_toolSubmitGeneration => '生成タスクを送信';
 
   @override
+  String get agentChat_toolUpscaleImage => '画像を拡大';
+
+  @override
   String get agentChat_toolCreateInpaint => '手動インペイントドラフトを作成';
 
   @override

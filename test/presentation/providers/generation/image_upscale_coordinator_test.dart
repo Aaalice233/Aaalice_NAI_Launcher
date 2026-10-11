@@ -5,16 +5,18 @@ import 'dart:typed_data';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:image/image.dart' as img;
+import 'package:nai_launcher/core/comfyui/comfyui_models.dart';
 import 'package:nai_launcher/core/comfyui/seedvr2_support.dart';
 import 'package:nai_launcher/data/models/image/image_params.dart';
 import 'package:nai_launcher/presentation/providers/comfyui/comfyui_provider.dart';
+import 'package:nai_launcher/presentation/providers/generation/image_upscale_coordinator.dart';
 import 'package:nai_launcher/presentation/providers/generation/image_workflow_controller.dart';
+import 'package:nai_launcher/presentation/providers/generation/novel_ai_upscale_task_provider.dart';
 import 'package:nai_launcher/presentation/providers/image_generation_provider.dart';
 import 'package:nai_launcher/presentation/providers/image_save_settings_provider.dart';
-import 'package:nai_launcher/presentation/screens/generation/widgets/img2img_upscale_coordinator.dart';
 
 const _coordinatorPath =
-    'lib/presentation/screens/generation/widgets/img2img_upscale_coordinator.dart';
+    'lib/presentation/providers/generation/image_upscale_coordinator.dart';
 
 const _regularModel = '4x-UltraSharp.pth';
 const _legacySeedvr2Model = 'seedvr2_ema_3b_fp8_e4m3fn.safetensors';
@@ -32,7 +34,7 @@ void main() {
   final webp = _losslessWebp(320, 200);
   final unreadable = Uint8List.fromList([0, 1, 2, 3, 4, 5, 6, 7, 8, 9]);
 
-  group('Img2ImgUpscaleCoordinator source sizing', () {
+  group('ImageUpscaleCoordinator source sizing', () {
     test('every comfy module reads the same size from one source', () async {
       final sizes = <ComfyUpscaleModule, (int?, int?)>{};
       for (final module in ComfyUpscaleModule.values) {
@@ -46,7 +48,7 @@ void main() {
 
         final result = await harness.run();
 
-        expect(result, isA<Img2ImgUpscaleSuccess>(), reason: module.name);
+        expect(result, isA<ImageUpscaleSuccess>(), reason: module.name);
         sizes[module] = (harness.registeredWidth, harness.registeredHeight);
       }
 
@@ -126,10 +128,10 @@ void main() {
 
         expect(
           result,
-          isA<Img2ImgUpscaleRejected>().having(
+          isA<ImageUpscaleRejected>().having(
             (rejected) => rejected.reason,
             'reason',
-            Img2ImgUpscaleFailure.sourceDecodeFailed,
+            ImageUpscaleFailure.sourceDecodeFailed,
           ),
           reason: module.name,
         );
@@ -138,7 +140,7 @@ void main() {
     });
   });
 
-  group('Img2ImgUpscaleCoordinator output sizing', () {
+  group('ImageUpscaleCoordinator output sizing', () {
     test('reports no result for empty and missing backend output', () async {
       for (final results in <List<Uint8List>?>[null, const []]) {
         for (final module in ComfyUpscaleModule.values) {
@@ -154,10 +156,10 @@ void main() {
 
           expect(
             result,
-            isA<Img2ImgUpscaleRejected>().having(
+            isA<ImageUpscaleRejected>().having(
               (rejected) => rejected.reason,
               'reason',
-              Img2ImgUpscaleFailure.noResult,
+              ImageUpscaleFailure.noResult,
             ),
             reason: module.name,
           );
@@ -179,7 +181,7 @@ void main() {
 
         expect(
           result,
-          isA<Img2ImgUpscaleSuccess>()
+          isA<ImageUpscaleSuccess>()
               .having((success) => success.width, 'width', 640)
               .having((success) => success.height, 'height', 400),
           reason: module.name,
@@ -216,6 +218,149 @@ void main() {
     });
   });
 
+  group('ImageUpscaleCoordinator NovelAI outcomes', () {
+    Future<(ImageUpscaleResult, _Harness)> runNovelAi(
+      NovelAiUpscaleOutcome outcome,
+    ) async {
+      final harness = _Harness(
+        source: png,
+        module: ComfyUpscaleModule.regular,
+        scale: 1.0,
+        results: null,
+        backend: UpscaleBackend.novelai,
+        novelAiOutcome: outcome,
+      );
+      addTearDown(harness.dispose);
+      return (await harness.run(), harness);
+    }
+
+    test('a completed upscale reports and registers the output size', () async {
+      final (result, harness) = await runNovelAi(
+        NovelAiUpscaleCompleted(_png(640, 400)),
+      );
+
+      expect(
+        result,
+        isA<ImageUpscaleSuccess>()
+            .having((success) => success.kind, 'kind', ImageUpscaleKind.novelAi)
+            .having((success) => success.width, 'width', 640)
+            .having((success) => success.height, 'height', 400),
+      );
+      expect(harness.registeredWidth, 640);
+      expect(harness.registeredHeight, 400);
+    });
+
+    test(
+      'requests that never ran or failed are not reported as success',
+      () async {
+        const expectations = {
+          NovelAiUpscaleSkipped(NovelAiUpscaleSkipReason.busy):
+              ImageUpscaleFailure.busy,
+          NovelAiUpscaleSkipped(NovelAiUpscaleSkipReason.unauthenticated):
+              ImageUpscaleFailure.authenticationRequired,
+          NovelAiUpscaleFailed('图像放大失败: 服务器返回错误: 402'):
+              ImageUpscaleFailure.requestFailed,
+        };
+        for (final MapEntry(key: outcome, value: reason)
+            in expectations.entries) {
+          final (result, harness) = await runNovelAi(outcome);
+
+          expect(
+            result,
+            isA<ImageUpscaleRejected>().having(
+              (rejected) => rejected.reason,
+              'reason',
+              reason,
+            ),
+            reason: '$outcome',
+          );
+          expect(harness.registrarEvents, isEmpty, reason: '$outcome');
+        }
+        final (failed, _) = await runNovelAi(
+          const NovelAiUpscaleFailed('图像放大失败: 服务器返回错误: 402'),
+        );
+        expect((failed as ImageUpscaleRejected).detail, '图像放大失败: 服务器返回错误: 402');
+      },
+    );
+  });
+
+  test(
+    'the generation page registers with its params, auto-save and source',
+    () async {
+      final novelAi = _Harness(
+        source: png,
+        module: ComfyUpscaleModule.regular,
+        scale: 1.0,
+        results: null,
+        backend: UpscaleBackend.novelai,
+        novelAiOutcome: NovelAiUpscaleCompleted(_png(640, 400)),
+      );
+      final seedVr2 = _Harness(
+        source: png,
+        module: ComfyUpscaleModule.seedvr2,
+        scale: 1.5,
+        results: [_png(480, 300)],
+      );
+      addTearDown(novelAi.dispose);
+      addTearDown(seedVr2.dispose);
+
+      await novelAi.run();
+      await seedVr2.run();
+
+      final registration = novelAi.registrar;
+      expect(registration.params?.sourceImage, same(png));
+      expect(registration.comparisonSourceImage, same(png));
+      expect(registration.saveToLocal, isFalse);
+      expect(registration.replaceCurrentDisplay, isTrue);
+      expect(registration.embedNaiMetadata, isTrue);
+      // SeedVR2 遵循面板上的"嵌入 NAI 元数据"开关，默认关闭。
+      expect(seedVr2.registrar.embedNaiMetadata, isFalse);
+    },
+  );
+
+  test('the generation page restores history before registering', () async {
+    for (final module in ComfyUpscaleModule.values) {
+      final harness = _Harness(
+        source: png,
+        module: module,
+        scale: 1.5,
+        results: [_png(480, 300)],
+      );
+      addTearDown(harness.dispose);
+
+      await harness.run();
+
+      expect(harness.registrarEvents, [
+        'restore',
+        'register',
+      ], reason: '$module');
+    }
+  });
+
+  test('a failed comfy task reports its error code as detail', () async {
+    final harness = _Harness(
+      source: png,
+      module: ComfyUpscaleModule.regular,
+      scale: 1.5,
+      results: null,
+      comfyErrorCode: ComfyUITaskErrorCode.connectionFailed,
+    );
+    addTearDown(harness.dispose);
+
+    final result = await harness.run();
+
+    expect(
+      result,
+      isA<ImageUpscaleRejected>()
+          .having(
+            (rejected) => rejected.reason,
+            'reason',
+            ImageUpscaleFailure.noResult,
+          )
+          .having((rejected) => rejected.detail, 'detail', 'connectionFailed'),
+    );
+  });
+
   test('upscale coordinator never decodes full frames', () {
     final source = File(_coordinatorPath).readAsStringSync();
 
@@ -231,9 +376,14 @@ final class _Harness {
     required ComfyUpscaleModule module,
     required double scale,
     required List<Uint8List>? results,
-  }) : _task = _StubComfyTask(results),
+    UpscaleBackend backend = UpscaleBackend.comfyui,
+    NovelAiUpscaleOutcome? novelAiOutcome,
+    ComfyUITaskErrorCode? comfyErrorCode,
+  }) : _task = _StubComfyTask(results, comfyErrorCode),
+       _novelAi = _StubNovelAiUpscaleTask(novelAiOutcome),
        _registrar = _RecordingImageGenerationNotifier() {
     final settings = UpscaleWorkflowSettings(
+      backend: backend,
       comfyModule: module,
       comfyScale: scale,
       comfyRegularModel: _regularModel,
@@ -260,6 +410,7 @@ final class _Harness {
           ], _legacyCapabilities),
         ),
         comfyUITaskProvider.overrideWith(() => _task),
+        novelAiUpscaleTaskProvider.overrideWith(() => _novelAi),
         imageGenerationNotifierProvider.overrideWith(() => _registrar),
         imageSaveSettingsNotifierProvider.overrideWith(
           _StubImageSaveSettings.new,
@@ -274,6 +425,7 @@ final class _Harness {
   }
 
   final _StubComfyTask _task;
+  final _StubNovelAiUpscaleTask _novelAi;
   final _RecordingImageGenerationNotifier _registrar;
   late final ProviderContainer _container;
   late final List<ProviderSubscription<Object?>> _subscriptions;
@@ -281,9 +433,11 @@ final class _Harness {
   Map<String, dynamic>? get paramValues => _task.paramValues;
   int? get registeredWidth => _registrar.width;
   int? get registeredHeight => _registrar.height;
+  List<String> get registrarEvents => _registrar.events;
+  _RecordingImageGenerationNotifier get registrar => _registrar;
 
-  Future<Img2ImgUpscaleResult> run() =>
-      _container.read(img2ImgUpscaleCoordinatorProvider).run();
+  Future<ImageUpscaleResult> run() =>
+      _container.read(imageUpscaleCoordinatorProvider).runFromGenerationPage();
 
   void dispose() {
     for (final subscription in _subscriptions) {
@@ -325,9 +479,10 @@ final class _StubSeedvr2Models extends ComfyUISeedvr2Models {
 }
 
 final class _StubComfyTask extends ComfyUITask {
-  _StubComfyTask(this._results);
+  _StubComfyTask(this._results, this._errorCode);
 
   final List<Uint8List>? _results;
+  final ComfyUITaskErrorCode? _errorCode;
   Map<String, dynamic>? paramValues;
 
   @override
@@ -340,16 +495,46 @@ final class _StubComfyTask extends ComfyUITask {
     Map<String, dynamic> paramValues = const {},
   }) async {
     this.paramValues = paramValues;
+    if (_errorCode case final code?) {
+      state = state.copyWith(status: ComfyUITaskStatus.failed, errorCode: code);
+    }
     return _results;
+  }
+}
+
+final class _StubNovelAiUpscaleTask extends NovelAiUpscaleTaskNotifier {
+  _StubNovelAiUpscaleTask(this._outcome);
+
+  final NovelAiUpscaleOutcome? _outcome;
+
+  @override
+  Future<NovelAiUpscaleOutcome> execute({
+    required Uint8List sourceImage,
+    required Future<void> Function(Uint8List result) adopt,
+  }) async {
+    final outcome = _outcome!;
+    if (outcome case NovelAiUpscaleCompleted(:final bytes)) await adopt(bytes);
+    return outcome;
   }
 }
 
 final class _RecordingImageGenerationNotifier extends ImageGenerationNotifier {
   int? width;
   int? height;
+  ImageParams? params;
+  Uint8List? comparisonSourceImage;
+  bool? saveToLocal;
+  bool? replaceCurrentDisplay;
+  bool? embedNaiMetadata;
+  final events = <String>[];
 
   @override
   ImageGenerationState build() => const ImageGenerationState();
+
+  @override
+  Future<void> ensureGenerationHistoryRestored() async {
+    events.add('restore');
+  }
 
   @override
   Future<String?> registerExternalImage(
@@ -365,8 +550,14 @@ final class _RecordingImageGenerationNotifier extends ImageGenerationNotifier {
     bool replaceCurrentDisplay = false,
     bool embedNaiMetadata = true,
   }) async {
+    events.add('register');
     this.width = width;
     this.height = height;
+    this.params = params;
+    this.comparisonSourceImage = comparisonSourceImage;
+    this.saveToLocal = saveToLocal;
+    this.replaceCurrentDisplay = replaceCurrentDisplay;
+    this.embedNaiMetadata = embedNaiMetadata;
     return null;
   }
 }

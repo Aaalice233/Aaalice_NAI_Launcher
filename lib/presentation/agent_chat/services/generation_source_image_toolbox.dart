@@ -1,15 +1,10 @@
-import 'dart:io';
-import 'dart:typed_data';
-
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/agent/agent_types.dart';
-import '../../../core/agent/private_data_guard.dart';
-import '../../../core/agent/resources/agent_chat_resource_reference_codec.dart';
-import '../../../core/utils/nai_resolution_adapter.dart';
 import '../../../data/models/image/image_params.dart';
 import '../../providers/generation/generation_params_notifier.dart';
 import '../../providers/generation/image_workflow_controller.dart';
+import 'agent_image_source_loader.dart';
 import 'agent_resource_resolver.dart';
 import 'defined_agent_tool.dart';
 import 'generation_workspace_path_resolver.dart';
@@ -26,12 +21,13 @@ class GenerationSourceImageToolbox {
     this._ref, {
     required AgentResourceResolver resolver,
     required GenerationWorkspacePathResolver pathResolver,
-  }) : _resolver = resolver,
-       _pathResolver = pathResolver;
+  }) : _sourceLoader = AgentImageSourceLoader(
+         resolver: resolver,
+         pathResolver: pathResolver,
+       );
 
   final Ref _ref;
-  final AgentResourceResolver _resolver;
-  final GenerationWorkspacePathResolver _pathResolver;
+  final AgentImageSourceLoader _sourceLoader;
 
   List<AgentTool> tools() => [_get(), _set(), _clear(), _updateSettings()];
 
@@ -159,14 +155,8 @@ class GenerationSourceImageToolbox {
   );
 
   Future<AgentToolResult> _setSourceImage(Map<String, dynamic> params) async {
-    final rawPath = (params['image_path'] as String?)?.trim() ?? '';
-    final hasReference = params['resource_ref'] != null;
-    if (hasReference == rawPath.isNotEmpty) {
-      return agentToolError(
-        'invalid_source',
-        'Provide exactly one of resource_ref or image_path.',
-      );
-    }
+    final selectionError = _sourceLoader.rejectSelection(params);
+    if (selectionError != null) return selectionError;
 
     // 载入不会把 enhance/upscale 切回 base，所以子模式裁决在写入前后等价；
     // 提前拒绝可以避免"图已换、参数没生效"的半成功。
@@ -174,18 +164,10 @@ class GenerationSourceImageToolbox {
     final rejection = _rejectRatiosOwnedBySubMode(ratios);
     if (rejection != null) return rejection;
 
-    final source = hasReference
-        ? await _resolveReference(params['resource_ref'])
-        : await _resolveFile(rawPath);
-    if (source.error != null) return source.error!;
+    final source = await _sourceLoader.load(params);
+    if (source.error case final error?) return error;
 
     final bytes = source.bytes!;
-    if (NaiResolutionAdapter.readImageSize(bytes) == null) {
-      return agentToolError(
-        'invalid_image',
-        'The provided data could not be decoded as an image.',
-      );
-    }
 
     await _workflow.replaceSourceImageAsync(bytes);
     _workflow.setPanelExpanded(true);
@@ -196,61 +178,6 @@ class GenerationSourceImageToolbox {
         'resource_ref': source.encodedReference,
       ..._stateJson(),
     });
-  }
-
-  Future<_SourceImageBytes> _resolveReference(dynamic rawReference) async {
-    try {
-      final reference = _resolver.decode(rawReference);
-      final resolved = await _resolver.resolve(reference);
-      if (resolved == null) {
-        return _SourceImageBytes.failed(
-          'resource_unavailable',
-          'The referenced resource is unavailable.',
-        );
-      }
-      final bytes = resolved.bytes;
-      if (bytes == null || bytes.isEmpty) {
-        return _SourceImageBytes.failed(
-          'not_an_image',
-          'The referenced resource has no image data.',
-        );
-      }
-      return _SourceImageBytes(
-        bytes: bytes,
-        encodedReference: AgentChatResourceReferenceCodec.encodeJsonMap(
-          resolved.reference,
-        ),
-      );
-    } on FormatException catch (error) {
-      return _SourceImageBytes.failed('invalid_resource_ref', '$error');
-    }
-  }
-
-  Future<_SourceImageBytes> _resolveFile(String rawPath) async {
-    final String resolved;
-    try {
-      resolved = await _pathResolver.resolveLocalImagePath(rawPath);
-    } on Object {
-      return _SourceImageBytes.failed(
-        'image_path_not_permitted',
-        'Image path is not permitted.',
-      );
-    }
-    final file = File(resolved);
-    if (!file.existsSync()) {
-      return _SourceImageBytes.failed(
-        'source_not_found',
-        'Source image not found.',
-      );
-    }
-    try {
-      return _SourceImageBytes(bytes: await file.readAsBytes());
-    } on Object catch (error) {
-      return _SourceImageBytes.failed(
-        'source_unreadable',
-        PrivateDataGuard.redactAbsolutePaths('$error'),
-      );
-    }
   }
 
   /// 两种子模式各自管理 strength/noise，直接写进去会被它们覆盖掉。
@@ -312,17 +239,6 @@ class GenerationSourceImageToolbox {
       'panel_expanded': workflow.isPanelExpanded,
     };
   }
-}
-
-class _SourceImageBytes {
-  const _SourceImageBytes({this.bytes, this.encodedReference, this.error});
-
-  factory _SourceImageBytes.failed(String code, String message) =>
-      _SourceImageBytes(error: agentToolError(code, message));
-
-  final Uint8List? bytes;
-  final Map<String, dynamic>? encodedReference;
-  final AgentToolResult? error;
 }
 
 class _SourceRatios {
