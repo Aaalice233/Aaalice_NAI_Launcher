@@ -1,5 +1,7 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
@@ -55,11 +57,11 @@ class VibeGenerationStateRepository
   }
 
   @override
-  Future<void> saveJson(String stateJson) async {
+  Future<void> saveUtf8Json(Uint8List stateJson) async {
     final file = await _resolveFile(createDirectory: true);
     if (file != null) {
       try {
-        await file.writeAsString(stateJson);
+        await file.writeAsBytes(stateJson);
         unawaited(_removeLegacyPreference());
         return;
       } catch (error, stackTrace) {
@@ -72,7 +74,7 @@ class VibeGenerationStateRepository
       }
     }
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(generationStateKey, stateJson);
+    await prefs.setString(generationStateKey, utf8.decode(stateJson));
   }
 
   @override

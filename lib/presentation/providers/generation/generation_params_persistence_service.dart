@@ -138,17 +138,17 @@ final class GenerationParamsPersistenceService {
         'preciseRefs': snapshot.preciseReferences.length,
       },
     );
-    var jsonChars = 0;
+    var jsonBytes = 0;
     try {
       final input = snapshot.toIsolateInput();
       final stateJson = await Isolate.run(() => _encodeStateJson(input));
-      jsonChars = stateJson.length;
-      await _referenceStorage.saveGenerationStateJson(stateJson);
+      jsonBytes = stateJson.length;
+      await _referenceStorage.saveGenerationStateUtf8Json(stateJson);
       AppLogger.d('Generation state saved', 'GenerationParams');
     } catch (error, stackTrace) {
       AppLogger.e('Failed to save generation state', error, stackTrace);
     } finally {
-      span.finish(details: {'jsonChars': jsonChars});
+      span.finish(details: {'jsonBytes': jsonBytes});
     }
   }
 
@@ -170,14 +170,14 @@ final class GenerationParamsPersistenceService {
   Future<GenerationStateRestoreResult> _restore() async {
     final span = VibePerformanceDiagnostics.start('generation.restoreState');
     _isRestoring = true;
-    var jsonChars = 0;
+    var jsonBytes = 0;
     try {
       final stateJson = await _referenceStorage.loadGenerationStateJson();
       if (stateJson == null || stateJson.isEmpty) {
         _hasRestored = true;
         return const GenerationStateRestoreResult.empty();
       }
-      jsonChars = stateJson.length;
+      jsonBytes = stateJson.length;
       final decoded = stateJson.length < _isolateDecodeThreshold
           ? _decodeStateJson(stateJson)
           : await Isolate.run(() => _decodeStateJson(stateJson));
@@ -189,7 +189,7 @@ final class GenerationParamsPersistenceService {
       return const GenerationStateRestoreResult.failed();
     } finally {
       _isRestoring = false;
-      span.finish(details: {'jsonChars': jsonChars});
+      span.finish(details: {'jsonBytes': jsonBytes});
     }
   }
 
@@ -363,7 +363,7 @@ final class GenerationStateRestoreResult {
   final bool isTerminal;
 }
 
-String _encodeStateJson(Map<String, Object?> input) {
+Uint8List _encodeStateJson(Map<String, Object?> input) {
   final vibes = (input['vibeReferences'] as List? ?? const [])
       .whereType<Map>()
       .map((raw) {
@@ -404,13 +404,15 @@ String _encodeStateJson(Map<String, Object?> input) {
         };
       })
       .toList(growable: false);
-  return jsonEncode({
+  // Straight to UTF-8: base64 images never build an equally large String.
+  final encoded = JsonUtf8Encoder().convert({
     'schemaVersion': input['schemaVersion'],
     'vibeReferences': vibes,
     'preciseReferences': precise,
     'normalizeVibeStrength': input['normalizeVibeStrength'] as bool? ?? true,
     'savedAt': input['savedAt'],
   });
+  return encoded is Uint8List ? encoded : Uint8List.fromList(encoded);
 }
 
 Map<String, Object?> _decodeStateJson(String source) {

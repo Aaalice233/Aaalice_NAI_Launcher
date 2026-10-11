@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -24,7 +25,7 @@ void main() {
         },
       );
 
-      await repository.saveJson('{"unknown":{"kept":true}}');
+      await repository.saveUtf8Json(utf8.encode('{"unknown":{"kept":true}}'));
 
       expect(await repository.loadJson(), '{"unknown":{"kept":true}}');
       await repository.clear();
@@ -37,7 +38,7 @@ void main() {
     final repository = VibeGenerationStateRepository(
       fileResolver: ({required createDirectory}) async => null,
     );
-    await repository.saveJson('{broken json');
+    await repository.saveUtf8Json(utf8.encode('{broken json'));
     final storage = VibeLibraryStorageService(
       generationStateRepository: repository,
     );
@@ -55,7 +56,7 @@ void main() {
             throw const FileSystemException('unavailable'),
       );
 
-      await repository.saveJson('{"vibeReferences":[]}');
+      await repository.saveUtf8Json(utf8.encode('{"vibeReferences":[]}'));
 
       expect(await repository.loadJson(), '{"vibeReferences":[]}');
     },

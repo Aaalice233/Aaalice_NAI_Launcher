@@ -650,7 +650,7 @@ class _TestVibeLibraryStorageService extends VibeLibraryStorageService {
   }
 
   @override
-  Future<void> saveGenerationStateJson(String stateJson) async {}
+  Future<void> saveGenerationStateUtf8Json(Uint8List stateJson) async {}
 }
 
 class _FakeEnhancementApiService extends NAIImageEnhancementApiService {
