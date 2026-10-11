@@ -28,6 +28,20 @@ void main() {
       }
     });
 
+    test('jpeg frame size skips segment payloads by length', () {
+      final jpeg = Uint8List.fromList(img.encodeJpg(_image(6, 4)));
+      // APP2 payload that looks like a 9x9 baseline frame header.
+      const decoyFrame = [0xFF, 0xC0, 0x00, 0x11, 0x08, 0x00, 0x09, 0x00, 0x09];
+      final withDecoy = Uint8List.fromList([
+        ...jpeg.sublist(0, 2),
+        0xFF, 0xE2, 0x00, 2 + decoyFrame.length, ...decoyFrame, //
+        ...jpeg.sublist(2),
+      ]);
+
+      expect(_decodedSize(withDecoy), (6, 4));
+      expect(DecodedImageSize.readHeader(withDecoy), (6, 4));
+    });
+
     test('reads webp headers even when the pixel decoder rejects them', () {
       expect(() => img.decodeImage(_webpPalette), throwsRangeError);
       expect(DecodedImageSize.readHeader(_webpPalette), (6, 4));
