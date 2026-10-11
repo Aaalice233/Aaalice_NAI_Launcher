@@ -1,4 +1,5 @@
 import '../../../core/constants/model_capabilities.dart';
+import 'generation_enhance_resolver.dart';
 
 Map<String, dynamic> generationPreparationProperties({
   required bool includeOperation,
@@ -22,11 +23,15 @@ Map<String, dynamic> generationPreparationProperties({
   },
   'width': {
     'type': 'integer',
-    'description': 'Multiple of 64; omit to inherit the page value.',
+    'description':
+        'Multiple of 64; omit to inherit the page value, or the source image '
+        'import resolution when a source is given.',
   },
   'height': {
     'type': 'integer',
-    'description': 'Multiple of 64; omit to inherit the page value.',
+    'description':
+        'Multiple of 64; omit to inherit the page value, or the source image '
+        'import resolution when a source is given.',
   },
   'count': {
     'type': 'integer',
@@ -118,6 +123,7 @@ Map<String, dynamic> generationPreparationProperties({
   },
   'strength': {'type': 'number'},
   'noise': {'type': 'number'},
+  'enhance': generationEnhanceProperty,
   'inpaint_strength': {'type': 'number'},
   'auto_start': {'type': 'boolean'},
   'save_path': {
@@ -129,5 +135,36 @@ Map<String, dynamic> generationPreparationProperties({
         '{id}. Only for operation generate. Without it saved_path points at '
         'the launcher gallery original; an empty string on update restores '
         'that default.',
+  },
+};
+
+/// 增强沿用同一次生成事务，只额外决定尺寸、强度与增强专属请求标记。
+const Map<String, dynamic> generationEnhanceProperty = {
+  'type': 'object',
+  'additionalProperties': false,
+  'description':
+      'NovelAI Enhance of source_ref/source_image: re-renders the image with '
+      'your prompt at the chosen scale. Requires a source without a mask; '
+      'width and height derive from the source import resolution and scale, '
+      'so omit them. strength/noise follow the level unless given '
+      'explicitly. Omitted level/scale inherit the generation page Enhance '
+      'panel; an inherited scale that does not fit falls back like the page.',
+  'properties': {
+    'level': {
+      'type': 'integer',
+      'minimum': 1,
+      'maximum': 5,
+      'description':
+          'Magnitude: strength 0.2/0.4/0.5/0.6/0.7, level 5 adds noise 0.1.',
+    },
+    'scale': {
+      'type': 'string',
+      'enum': GenerationEnhanceResolver.scaleWireNames,
+      'description':
+          'Output scale. max (models that support it, source under about '
+          '2.5 megapixels) sends the source size and lets the server upscale '
+          'to 3.14 megapixels, billed at that area. An unavailable explicit '
+          'scale is rejected with the available list.',
+    },
   },
 };

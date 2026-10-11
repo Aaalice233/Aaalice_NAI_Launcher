@@ -77,6 +77,7 @@ String agentToolLabel(BuildContext context, String toolName) {
     'update_generation_preparation' => l10n.agentChat_toolUpdateGeneration,
     'cancel_generation_preparation' => l10n.agentChat_toolCancelGeneration,
     'submit_generation' => l10n.agentChat_toolSubmitGeneration,
+    'upscale_image' => l10n.agentChat_toolUpscaleImage,
     'create_manual_inpaint_draft' => l10n.agentChat_toolCreateInpaint,
     'list_manual_inpaint_drafts' => l10n.agentChat_toolListInpaint,
     'get_manual_inpaint_draft' => l10n.agentChat_toolInspectInpaint,
@@ -107,6 +108,7 @@ String agentToolLabel(BuildContext context, String toolName) {
 IconData agentToolIcon(String toolName) => switch (toolName) {
   'generate_image' || 'submit_generation' => Icons.auto_awesome_outlined,
   'queue_image_task' => Icons.schedule_send_outlined,
+  'upscale_image' => Icons.zoom_out_map_rounded,
   'interrogate_image' ||
   'get_recent_images' ||
   'preview_generated_image' ||

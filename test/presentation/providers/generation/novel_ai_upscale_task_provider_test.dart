@@ -5,21 +5,20 @@ import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/data/datasources/remote/nai_image_enhancement_api_service.dart';
-import 'package:nai_launcher/data/models/image/image_params.dart';
 import 'package:nai_launcher/data/models/user/user_subscription.dart';
 import 'package:nai_launcher/data/services/auth_provider.dart';
 import 'package:nai_launcher/presentation/providers/generation/novel_ai_upscale_task_provider.dart';
-import 'package:nai_launcher/presentation/providers/image_generation_provider.dart';
-import 'package:nai_launcher/presentation/providers/image_save_settings_provider.dart';
 import 'package:nai_launcher/presentation/providers/subscription_provider.dart';
 
 void main() {
   test(
-    'continues and registers the result after UI listeners are removed',
+    'continues and adopts the result after UI listeners are removed',
     () async {
       final apiService = _BlockingEnhancementApiService();
       final container = _createContainer(apiService);
       addTearDown(container.dispose);
+      Uint8List? adopted;
+      bool? runningWhileAdopting;
 
       final subscription = container.listen(
         novelAiUpscaleTaskProvider,
@@ -29,8 +28,13 @@ void main() {
       final task = container
           .read(novelAiUpscaleTaskProvider.notifier)
           .execute(
-            params: const ImageParams(width: 640, height: 832),
             sourceImage: Uint8List.fromList([1, 2, 3]),
+            adopt: (result) async {
+              adopted = result;
+              runningWhileAdopting = container
+                  .read(novelAiUpscaleTaskProvider)
+                  .isRunning;
+            },
           );
 
       expect(container.read(novelAiUpscaleTaskProvider).isRunning, isTrue);
@@ -38,25 +42,25 @@ void main() {
 
       subscription.close();
       apiService.complete(Uint8List.fromList([9, 8, 7]));
-      await task;
+      final outcome = await task;
 
-      final state = container.read(novelAiUpscaleTaskProvider);
-      final imageGeneration =
-          container.read(imageGenerationNotifierProvider.notifier)
-              as _RecordingImageGenerationNotifier;
       final subscriptionNotifier =
           container.read(subscriptionNotifierProvider.notifier)
               as _TestSubscriptionNotifier;
-
-      expect(state.status, NovelAiUpscaleTaskStatus.completed);
-      expect(imageGeneration.registeredBytes, Uint8List.fromList([9, 8, 7]));
       expect(
-        imageGeneration.registeredComparisonSourceImage,
-        Uint8List.fromList([1, 2, 3]),
+        outcome,
+        isA<NovelAiUpscaleCompleted>().having(
+          (completed) => completed.bytes,
+          'bytes',
+          Uint8List.fromList([9, 8, 7]),
+        ),
       );
-      expect(imageGeneration.registeredParams?.width, 640);
-      expect(imageGeneration.saveToLocal, isFalse);
-      expect(imageGeneration.replaceCurrentDisplay, isTrue);
+      expect(adopted, Uint8List.fromList([9, 8, 7]));
+      expect(runningWhileAdopting, isTrue);
+      expect(
+        container.read(novelAiUpscaleTaskProvider).status,
+        NovelAiUpscaleTaskStatus.completed,
+      );
       expect(subscriptionNotifier.refreshScheduleCount, 1);
     },
   );
@@ -67,19 +71,29 @@ void main() {
       final container = _createContainer(apiService, authStatus: status);
       addTearDown(container.dispose);
       const initialState = NovelAiUpscaleTaskState();
+      var adoptCalls = 0;
 
-      await container
+      final outcome = await container
           .read(novelAiUpscaleTaskProvider.notifier)
           .execute(
-            params: const ImageParams(width: 640, height: 832),
             sourceImage: Uint8List.fromList([1, 2, 3]),
+            adopt: (_) async => adoptCalls++,
           );
 
       final state = container.read(novelAiUpscaleTaskProvider);
+      expect(
+        outcome,
+        isA<NovelAiUpscaleSkipped>().having(
+          (skipped) => skipped.reason,
+          'reason',
+          NovelAiUpscaleSkipReason.unauthenticated,
+        ),
+      );
       expect(state.status, initialState.status);
       expect(state.errorMessage, initialState.errorMessage);
       expect(state.isRunning, isFalse);
       expect(apiService.requestedScale, isNull);
+      expect(adoptCalls, 0);
       expect(
         container.read(authPromptRequestProvider)?.reason,
         AuthPromptReason.novelAiUpscale,
@@ -87,10 +101,39 @@ void main() {
     });
   }
 
+  test('a second request while one is running is skipped as busy', () async {
+    final apiService = _BlockingEnhancementApiService();
+    final container = _createContainer(apiService);
+    addTearDown(container.dispose);
+    final notifier = container.read(novelAiUpscaleTaskProvider.notifier);
+    final first = notifier.execute(
+      sourceImage: Uint8List.fromList([1]),
+      adopt: (_) async {},
+    );
+
+    final second = await notifier.execute(
+      sourceImage: Uint8List.fromList([2]),
+      adopt: (_) async => fail('a skipped request must not adopt'),
+    );
+
+    expect(
+      second,
+      isA<NovelAiUpscaleSkipped>().having(
+        (skipped) => skipped.reason,
+        'reason',
+        NovelAiUpscaleSkipReason.busy,
+      ),
+    );
+    expect(apiService.requestCount, 1);
+    apiService.complete(Uint8List.fromList([9]));
+    expect(await first, isA<NovelAiUpscaleCompleted>());
+  });
+
   test('retains a failure state after UI listeners are removed', () async {
     final apiService = _BlockingEnhancementApiService();
     final container = _createContainer(apiService);
     addTearDown(container.dispose);
+    var adoptCalls = 0;
 
     final subscription = container.listen(
       novelAiUpscaleTaskProvider,
@@ -100,22 +143,46 @@ void main() {
     final task = container
         .read(novelAiUpscaleTaskProvider.notifier)
         .execute(
-          params: const ImageParams(),
           sourceImage: Uint8List.fromList([1, 2, 3]),
+          adopt: (_) async => adoptCalls++,
         );
 
     subscription.close();
     apiService.fail(StateError('upscale failed'));
-    await task;
+    final outcome = await task;
 
     final state = container.read(novelAiUpscaleTaskProvider);
-    final imageGeneration =
-        container.read(imageGenerationNotifierProvider.notifier)
-            as _RecordingImageGenerationNotifier;
-
+    expect(
+      outcome,
+      isA<NovelAiUpscaleFailed>().having(
+        (failed) => failed.message,
+        'message',
+        contains('upscale failed'),
+      ),
+    );
     expect(state.status, NovelAiUpscaleTaskStatus.failed);
     expect(state.errorMessage, contains('upscale failed'));
-    expect(imageGeneration.registeredBytes, isNull);
+    expect(adoptCalls, 0);
+  });
+
+  test('a result that cannot be registered is a failure', () async {
+    final apiService = _BlockingEnhancementApiService();
+    final container = _createContainer(apiService);
+    addTearDown(container.dispose);
+
+    final task = container
+        .read(novelAiUpscaleTaskProvider.notifier)
+        .execute(
+          sourceImage: Uint8List.fromList([1, 2, 3]),
+          adopt: (_) async => throw StateError('history unavailable'),
+        );
+    apiService.complete(Uint8List.fromList([9, 8, 7]));
+
+    expect(await task, isA<NovelAiUpscaleFailed>());
+    expect(
+      container.read(novelAiUpscaleTaskProvider).status,
+      NovelAiUpscaleTaskStatus.failed,
+    );
   });
 }
 
@@ -127,12 +194,6 @@ ProviderContainer _createContainer(
     overrides: [
       authNotifierProvider.overrideWith(() => _TestAuthNotifier(authStatus)),
       naiImageEnhancementApiServiceProvider.overrideWithValue(apiService),
-      imageGenerationNotifierProvider.overrideWith(
-        _RecordingImageGenerationNotifier.new,
-      ),
-      imageSaveSettingsNotifierProvider.overrideWith(
-        _TestImageSaveSettingsNotifier.new,
-      ),
       subscriptionNotifierProvider.overrideWith(_TestSubscriptionNotifier.new),
     ],
   );
@@ -152,6 +213,7 @@ class _BlockingEnhancementApiService extends NAIImageEnhancementApiService {
 
   final Completer<Uint8List> _completer = Completer<Uint8List>();
   int? requestedScale;
+  int requestCount = 0;
 
   @override
   Future<Uint8List> upscaleImage(
@@ -159,6 +221,7 @@ class _BlockingEnhancementApiService extends NAIImageEnhancementApiService {
     int scale = 2,
     void Function(int, int)? onProgress,
   }) {
+    requestCount++;
     requestedScale = scale;
     return _completer.future;
   }
@@ -166,44 +229,6 @@ class _BlockingEnhancementApiService extends NAIImageEnhancementApiService {
   void complete(Uint8List bytes) => _completer.complete(bytes);
 
   void fail(Object error) => _completer.completeError(error);
-}
-
-class _RecordingImageGenerationNotifier extends ImageGenerationNotifier {
-  Uint8List? registeredBytes;
-  Uint8List? registeredComparisonSourceImage;
-  ImageParams? registeredParams;
-  bool? saveToLocal;
-  bool? replaceCurrentDisplay;
-
-  @override
-  ImageGenerationState build() => const ImageGenerationState();
-
-  @override
-  Future<String?> registerExternalImage(
-    Uint8List imageBytes, {
-    required ImageParams params,
-    int? width,
-    int? height,
-    Uint8List? comparisonSourceImage,
-    bool saveToLocal = false,
-    String? saveDirectoryPath,
-    bool syncToGalleryIndex = true,
-    bool addToDisplay = false,
-    bool replaceCurrentDisplay = false,
-    bool embedNaiMetadata = true,
-  }) async {
-    registeredBytes = imageBytes;
-    registeredComparisonSourceImage = comparisonSourceImage;
-    registeredParams = params;
-    this.saveToLocal = saveToLocal;
-    this.replaceCurrentDisplay = replaceCurrentDisplay;
-    return null;
-  }
-}
-
-class _TestImageSaveSettingsNotifier extends ImageSaveSettingsNotifier {
-  @override
-  ImageSaveSettings build() => const ImageSaveSettings(autoSave: false);
 }
 
 class _TestSubscriptionNotifier extends SubscriptionNotifier {

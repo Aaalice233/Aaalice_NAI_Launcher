@@ -506,6 +506,7 @@
   "agentChat_toolUpdateGeneration": "生成ドラフトを更新",
   "agentChat_toolCancelGeneration": "生成ドラフトをキャンセル",
   "agentChat_toolSubmitGeneration": "生成タスクを送信",
+  "agentChat_toolUpscaleImage": "画像を拡大",
   "agentChat_toolCreateInpaint": "手動インペイントドラフトを作成",
   "agentChat_toolListInpaint": "インペイントドラフト一覧を表示",
   "agentChat_toolInspectInpaint": "インペイントドラフトを表示",

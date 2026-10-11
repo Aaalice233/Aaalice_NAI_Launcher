@@ -538,7 +538,7 @@ class ComfyUISeedvr2Models extends _$ComfyUISeedvr2Models {
     'SaveImage',
   };
 
-  bool _isFetching = false;
+  Future<void>? _inFlightFetch;
   bool _hasFetchedFromServer = false;
   ComfySeedvr2Capabilities _capabilities = const ComfySeedvr2Capabilities();
 
@@ -550,7 +550,7 @@ class ComfyUISeedvr2Models extends _$ComfyUISeedvr2Models {
     ref.listen<ComfyUISettingsState>(comfyUISettingsProvider, (prev, next) {
       if (!next.enabled) {
         _hasFetchedFromServer = false;
-        _isFetching = false;
+        _inFlightFetch = null;
         _capabilities = const ComfySeedvr2Capabilities();
         state = _fallback;
         return;
@@ -582,16 +582,24 @@ class ComfyUISeedvr2Models extends _$ComfyUISeedvr2Models {
   }
 
   void _scheduleAutoFetch({bool force = false}) {
-    if (_isFetching) return;
+    if (_inFlightFetch != null) return;
     if (_hasFetchedFromServer && !force) return;
     Future.microtask(() => fetch(force: force));
   }
 
-  Future<void> fetch({bool force = false}) async {
-    if (_isFetching) return;
-    if (_hasFetchedFromServer && !force) return;
+  /// 拉取进行中再次调用会等同一次拉取结束，调用方随后读到的能力表才是新的。
+  Future<void> fetch({bool force = false}) {
+    final inFlight = _inFlightFetch;
+    if (inFlight != null) return inFlight;
+    if (_hasFetchedFromServer && !force) return Future.value();
+    final run = _fetchFromServer();
+    _inFlightFetch = run;
+    return run.whenComplete(() {
+      if (identical(_inFlightFetch, run)) _inFlightFetch = null;
+    });
+  }
 
-    _isFetching = true;
+  Future<void> _fetchFromServer() async {
     final connNotifier = ref.read(comfyUIConnectionProvider.notifier);
     var conn = connNotifier.manager;
 
@@ -605,14 +613,12 @@ class ComfyUISeedvr2Models extends _$ComfyUISeedvr2Models {
         final ok = await connNotifier.connect();
         if (!ok) {
           AppLogger.w('Cannot fetch models: ComfyUI not connected', _tag);
-          _isFetching = false;
           return;
         }
       }
       conn = connNotifier.manager;
       if (conn?.api == null) {
         AppLogger.w('ComfyUI manager or api is null after connect', _tag);
-        _isFetching = false;
         return;
       }
     }
@@ -694,8 +700,6 @@ class ComfyUISeedvr2Models extends _$ComfyUISeedvr2Models {
     } catch (e, st) {
       AppLogger.w('Failed to fetch ComfyUI upscale models: $e', _tag);
       AppLogger.d('Stack: $st', _tag);
-    } finally {
-      _isFetching = false;
     }
   }
 

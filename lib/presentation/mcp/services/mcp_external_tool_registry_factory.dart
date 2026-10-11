@@ -11,6 +11,7 @@ import '../../agent_chat/services/agent_tool_registry_builder.dart';
 import '../../agent_chat/services/agent_user_question_controller.dart';
 import '../../agent_chat/services/defined_agent_tool.dart';
 import '../../agent_chat/services/generation_preparation_runtime.dart';
+import '../../agent_chat/services/image_upscale_toolbox.dart';
 import '../../agent_chat/services/manual_inpaint_toolbox.dart';
 import '../../agent_chat/services/queue_toolbox.dart';
 import '../../../data/models/prompt_assistant/prompt_assistant_models.dart';
@@ -90,11 +91,7 @@ abstract final class McpExternalToolSurface {
           'description':
               'Include full draft parameter snapshots. Default false.',
         },
-      if ({
-        'generate_image',
-        'submit_generation',
-        'display_images',
-      }.contains(name)) ...{
+      if (McpImageResponseService.displayTools.contains(name)) ...{
         'include_display_file': {
           'type': 'boolean',
           'description':
@@ -123,6 +120,7 @@ class McpExternalToolRegistryFactory {
   }) : _isHostAlive = isHostAlive,
        generationRuntime = GenerationPreparationRuntime(),
        queueRuntime = QueueControlRuntime(),
+       imageUpscaleToolbox = ImageUpscaleToolbox(ref),
        manualInpaintToolbox = ManualInpaintToolbox(
          ref,
          supportDirectory: supportDir,
@@ -158,6 +156,7 @@ class McpExternalToolRegistryFactory {
       generationRuntime: generationRuntime,
       queueRuntime: queueRuntime,
       manualInpaintToolbox: manualInpaintToolbox,
+      imageUpscaleToolbox: imageUpscaleToolbox,
       activeSessionId: _resolveSessionId,
       observationLedger: observationLedger,
       isMounted: _isHostAlive,
@@ -183,6 +182,7 @@ class McpExternalToolRegistryFactory {
   final GenerationPreparationRuntime generationRuntime;
   final QueueControlRuntime queueRuntime;
   final ManualInpaintToolbox manualInpaintToolbox;
+  final ImageUpscaleToolbox imageUpscaleToolbox;
   late final AgentToolRegistryBuilder _builder;
   late final McpImageResponseService imageResponses;
 

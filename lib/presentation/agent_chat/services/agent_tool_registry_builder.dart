@@ -14,20 +14,27 @@ import '../../router/app_router_config.dart';
 import '../../router/app_routes.dart';
 import 'agent_image_observation_ledger.dart';
 import 'agent_attached_image.dart';
+import 'agent_image_source_loader.dart';
 import 'agent_resource_resolver.dart';
 import 'application_context_toolbox.dart';
 import 'execution_toolbox.dart';
 import 'fixed_tags_toolbox.dart';
 import 'gallery_toolbox.dart';
+import 'generated_image_export_writer.dart';
 import 'generation_image_favorite_toolbox.dart';
+import 'generation_image_read_contract.dart';
 import 'generation_image_workflow_launcher_adapter.dart';
 import 'generation_image_workflow_service.dart';
 import 'generation_image_workflow_toolbox.dart';
 import 'generation_preparation_runtime.dart';
 import 'generation_resource_toolbox.dart';
+import 'generation_save_path_exporter.dart';
+import 'generation_save_path_validator.dart';
 import 'generation_toolbox.dart';
+import 'generation_workspace_path_resolver.dart';
 import 'image_resource_action_service.dart';
 import 'image_resource_action_toolbox.dart';
+import 'image_upscale_toolbox.dart';
 import 'image_presentation_toolbox.dart';
 import 'manual_inpaint_toolbox.dart';
 import 'prompt_toolbox.dart';
@@ -67,6 +74,7 @@ class AgentToolRegistryBuilder {
     required GenerationPreparationRuntime generationRuntime,
     required QueueControlRuntime queueRuntime,
     required ManualInpaintToolbox manualInpaintToolbox,
+    required ImageUpscaleToolbox imageUpscaleToolbox,
     required String Function() activeSessionId,
     required bool Function() isMounted,
     required List<Message> Function() messages,
@@ -83,6 +91,7 @@ class AgentToolRegistryBuilder {
        _generationRuntime = generationRuntime,
        _queueRuntime = queueRuntime,
        _manualInpaintToolbox = manualInpaintToolbox,
+       _imageUpscaleToolbox = imageUpscaleToolbox,
        _activeSessionId = activeSessionId,
        _isMounted = isMounted,
        _messages = messages,
@@ -100,6 +109,7 @@ class AgentToolRegistryBuilder {
   final GenerationPreparationRuntime _generationRuntime;
   final QueueControlRuntime _queueRuntime;
   final ManualInpaintToolbox _manualInpaintToolbox;
+  final ImageUpscaleToolbox _imageUpscaleToolbox;
   final String Function() _activeSessionId;
   final bool Function() _isMounted;
   final List<Message> Function() _messages;
@@ -158,6 +168,27 @@ class AgentToolRegistryBuilder {
       loadInpaintDraftImage: _manualInpaintToolbox.loadDraftImage,
     );
     _manualInpaintToolbox.configureResourceResolver(resourceResolver);
+    final pathResolver = GenerationWorkspacePathResolver(
+      workspaceDir: _workspaceDir,
+      allowOutsideWorkspace: fullAccess,
+    );
+    final exportWriter = GeneratedImageExportWriter(env: pathResolver.env);
+    _imageUpscaleToolbox.configure(
+      sourceLoader: AgentImageSourceLoader(
+        resolver: resourceResolver,
+        pathResolver: pathResolver,
+      ),
+      savePathValidator: GenerationSavePathValidator(
+        pathResolver: pathResolver,
+        exportWriter: exportWriter,
+      ),
+      exporter: GenerationSavePathExporter(
+        writer: exportWriter,
+        prepareExport: _prepareImageExport,
+      ),
+      readContract: GenerationImageReadContract(pathResolver),
+      referencesGalleryOriginal: _referencesGalleryOriginal,
+    );
     final workflowService = GenerationImageWorkflowService(
       loadResource: generationWorkflowResourceLoader(_ref),
       activeSessionId: _activeSessionId,
@@ -239,6 +270,7 @@ class AgentToolRegistryBuilder {
       ...ImagePresentationToolbox(resourceResolver).tools(),
       ...GenerationResourceToolbox(_ref).tools(),
       ...GenerationImageWorkflowToolbox(workflowService).tools(),
+      ..._imageUpscaleToolbox.tools(),
       ...GenerationImageFavoriteToolbox(_ref).tools(),
       ...ImageResourceActionToolbox(imageActionService).tools(),
       if (webAccessEnabled)

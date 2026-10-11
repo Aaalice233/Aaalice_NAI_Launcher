@@ -62,12 +62,17 @@ class McpImageResponseService {
     return McpImageDisplayStyle.inlineUrl;
   }
 
-  static const imageTools = {
+  /// Tools whose results are newly produced images.
+  static const producingTools = {
     'generate_image',
     'submit_generation',
-    'inspect_images',
-    'display_images',
+    'upscale_image',
   };
+
+  /// Tools that prepare display references for their images.
+  static const displayTools = {...producingTools, 'display_images'};
+
+  static const imageTools = {...displayTools, 'inspect_images'};
 
   final AgentImageResourceResolver _resolve;
   final AgentImageResourceValidator? _validate;
@@ -121,8 +126,7 @@ class McpImageResponseService {
       throwIfAborted(signal);
       final stripMetadata = _shouldStripMetadata();
       final includeImages = imageTools.contains(toolName);
-      final generated =
-          toolName == 'generate_image' || toolName == 'submit_generation';
+      final generated = producingTools.contains(toolName);
       // 链接样式的客户端无法内联图片，默认两种展示引用都备好：HTTP 一小时过期，
       // 显示缓存文件留得更久。
       final fileByDefault =

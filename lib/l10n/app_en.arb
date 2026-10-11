@@ -514,6 +514,7 @@
   "agentChat_toolUpdateGeneration": "Update generation draft",
   "agentChat_toolCancelGeneration": "Cancel generation draft",
   "agentChat_toolSubmitGeneration": "Submit generation",
+  "agentChat_toolUpscaleImage": "Upscale image",
   "agentChat_toolCreateInpaint": "Create manual inpaint draft",
   "agentChat_toolListInpaint": "List manual inpaint drafts",
   "agentChat_toolInspectInpaint": "Inspect manual inpaint draft",

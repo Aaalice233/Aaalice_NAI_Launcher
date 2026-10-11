@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/services/anlas_calculator.dart';
 import '../../../data/models/image/image_params.dart';
+import '../../providers/cost_estimate_provider.dart';
 import '../../providers/image_generation_provider.dart';
 import '../../providers/subscription_provider.dart';
 
@@ -19,9 +20,14 @@ class GenerationAnlasEstimator {
   }) {
     final subscription = _ref.read(subscriptionNotifierProvider).subscription;
     final tier = subscription?.isOpus == true ? AnlasCalculator.opusTier : 0;
-    return AnlasCalculator.calculateRequestCost(
+    final billingSize = resolveGenerationBillingSize(
       width: params.width,
       height: params.height,
+      maxEnhance: params.effectiveUpscaledEnhance,
+    );
+    return AnlasCalculator.calculateRequestCost(
+      width: billingSize.width,
+      height: billingSize.height,
       steps: params.steps,
       batchCount: params.nSamples * requestCount,
       batchSize: batchSize ?? currentBatchSize,

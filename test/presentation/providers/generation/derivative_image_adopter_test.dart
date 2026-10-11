@@ -9,7 +9,7 @@ import 'package:nai_launcher/data/models/fixed_tag/fixed_tag_prompt_type.dart';
 import 'package:nai_launcher/data/models/fixed_tag/fixed_tag_usage_snapshot.dart';
 import 'package:nai_launcher/data/models/image/image_params.dart';
 import 'package:nai_launcher/data/services/fixed_tag/fixed_tag_usage_record_store.dart';
-import 'package:nai_launcher/presentation/providers/generation/dlss_enhancement_adopter.dart';
+import 'package:nai_launcher/presentation/providers/generation/derivative_image_adopter.dart';
 import 'package:nai_launcher/presentation/providers/image_generation_provider.dart';
 
 import '../../../helpers/content_hash.dart';
@@ -29,11 +29,11 @@ void main() {
       final source = Uint8List.fromList([1]);
       final result = Uint8List.fromList([2]);
 
-      final path = await container
-          .read(dlssEnhancementAdopterProvider)
+      final adopted = await container
+          .read(derivativeImageAdopterProvider)
           .adopt(result: result, source: source);
 
-      expect(path, 'gallery/2026-09-06/enhanced.png');
+      expect(adopted?.filePath, 'gallery/2026-09-06/enhanced.png');
       expect(registrar.restoreCalls, 1);
       final registration = registrar.registrations.single;
       expect(registration.restoredFirst, isTrue);
@@ -56,14 +56,15 @@ void main() {
     );
     addTearDown(container.dispose);
 
-    final path = await container
-        .read(dlssEnhancementAdopterProvider)
+    final adopted = await container
+        .read(derivativeImageAdopterProvider)
         .adopt(
           result: Uint8List.fromList([2]),
           source: Uint8List.fromList([1]),
         );
 
-    expect(path, isNull);
+    expect(adopted, isNotNull);
+    expect(adopted?.filePath, isNull);
     expect(registrar.registrations, hasLength(1));
   });
 
@@ -109,12 +110,12 @@ void main() {
       );
       addTearDown(container.dispose);
 
-      final path = await container
-          .read(dlssEnhancementAdopterProvider)
+      final adopted = await container
+          .read(derivativeImageAdopterProvider)
           .adopt(result: result, source: source);
 
       final propagated = store.lookup(contentHashOf(result));
-      expect(path, isNull);
+      expect(adopted?.filePath, isNull);
       expect(propagated?.entries.single.fixedTagId, 'fixed-a');
     },
   );
@@ -156,7 +157,7 @@ class _Registrar extends ImageGenerationNotifier {
   }
 
   @override
-  Future<String?> registerExternalImage(
+  Future<GeneratedImage?> registerExternalImageEntry(
     Uint8List imageBytes, {
     required ImageParams params,
     int? width,
@@ -181,6 +182,12 @@ class _Registrar extends ImageGenerationNotifier {
         embedNaiMetadata: embedNaiMetadata,
       ),
     );
-    return savedPath;
+    return GeneratedImage(
+      id: 'adopted-${registrations.length}',
+      bytes: imageBytes,
+      width: 1,
+      height: 1,
+      filePath: savedPath,
+    );
   }
 }

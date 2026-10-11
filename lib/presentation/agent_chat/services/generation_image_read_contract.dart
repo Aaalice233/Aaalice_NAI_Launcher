@@ -1,7 +1,11 @@
+import 'dart:convert';
 import 'dart:io';
 
+import '../../../core/agent/agent_types.dart';
+import '../../../core/agent/harness/tools/image.dart';
 import '../../../core/agent/resources/agent_chat_resource_reference.dart';
 import '../../../core/agent/resources/agent_chat_resource_reference_codec.dart';
+import '../../../core/utils/display_thumbnail_utils.dart';
 import '../../providers/image_generation_provider.dart';
 import 'generation_image_resource.dart';
 import 'generation_preparation_runtime.dart';
@@ -32,6 +36,58 @@ final class GenerationImageReadContract {
       saved: saved,
       readPath: readPath,
       export: export,
+    );
+  }
+
+  /// Result shape shared by generation and upscale: MCP image responses find
+  /// new images by `images[].resource_ref`; thumbnails let the chat show them.
+  Future<AgentToolResult> buildResult(
+    List<GeneratedImage> images, {
+    Map<String, GeneratedImageExportOutcome> exports = const {},
+    Map<String, dynamic> extra = const {},
+  }) async {
+    final report = <Map<String, dynamic>>[];
+    final savedFiles = <String>[];
+    for (final image in images) {
+      final descriptor = await describe(image, export: exports[image.id]);
+      if (descriptor.saved) {
+        if (image.filePath case final path?) savedFiles.add(path);
+      }
+      report.add(descriptor.toModelJson());
+    }
+    final content = <ToolResultContent>[
+      ToolResultTextContent(
+        jsonEncode({'ok': true, ...extra, 'images': report}),
+      ),
+    ];
+    for (final image in images) {
+      final thumbnail = await DisplayThumbnailUtils.normalize(image.bytes);
+      final mime = thumbnail == null
+          ? null
+          : detectSupportedImageMimeType(thumbnail);
+      if (thumbnail != null && mime != null) {
+        content.add(
+          ToolResultImageContent(
+            ImageContent(
+              source: ImageSource.base64(
+                mimeType: mime,
+                base64Data: base64Encode(thumbnail),
+              ),
+            ),
+          ),
+        );
+      }
+    }
+    return AgentToolResult(
+      content: content,
+      details: <String, dynamic>{
+        ...extra,
+        'images': report,
+        if (savedFiles.isNotEmpty) ...{
+          'files': savedFiles,
+          'preferFileImages': true,
+        },
+      },
     );
   }
 }

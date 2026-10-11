@@ -22,7 +22,10 @@ const mcpImageToolDescriptions = <String, String>{
       'Pass the whole request here: prompt, negative_prompt, width/height, '
       'count, seed, characters and references are one-shot arguments that '
       'leave the launcher page untouched, so do not edit the page first; '
-      'omitted fields inherit the page. Validate and snapshot a generation '
+      'omitted fields inherit the page, except that a source image sets the '
+      'size from its own import resolution. With source_ref or source_image, '
+      'enhance runs NovelAI Enhance (level, scale) instead of plain img2img. '
+      'Validate and snapshot a generation '
       'without running it. Returns a compact '
       'preparation_id, exact estimated_anlas and next_action. Submit that ID '
       'directly; do not poll status or history while prepared. operation is '
@@ -63,8 +66,9 @@ const mcpImageToolDescriptions = <String, String>{
       'zero cost; follow next_action, not status/history polling. With an ID it '
       'submits the stored snapshot; prompt is then unnecessary. Paid submissions '
       'need confirmed=true and launcher approval. count is 1-8 variations of '
-      'one prompt. Omitted size/settings inherit the generation page; source_image '
-      'and mask_image affect only this request. $_imageContract$_ownTurn',
+      'one prompt. Omitted settings inherit the generation page and omitted size '
+      'follows source_image when given; source_image, mask_image and enhance '
+      'affect only this request. $_imageContract$_ownTurn',
   'submit_generation':
       'Execute a prepared transaction once. Omit confirmed at exact zero cost; '
       'paid requests need confirmed=true and approval inside the launcher, not '
@@ -72,6 +76,18 @@ const mcpImageToolDescriptions = <String, String>{
       'images WITH top-level display_markdown; no status/history/display call '
       'is needed when that reference works. queue returns queue status instead. '
       '$_imageContract$_ownTurn',
+  'upscale_image':
+      'Upscale one image in a single call and return the result WITH top-level '
+      'display_markdown. Provide exactly one of resource_ref or image_path. '
+      'backend novelai is the cloud upscaler, billed by source area (free on '
+      'Opus up to 640x640; sources above 3145728 pixels are rejected) and '
+      'approved inside the launcher; backend comfyui is local and free with '
+      'the module chosen on the generation page. Omitted backend/scale follow '
+      'the generation page and are not written back; scale (1-2) is comfyui '
+      'only. The result keeps the source metadata. Without save_path '
+      'saved_path points at the gallery original; save_path ({id}, not '
+      '{seed}) copies it into your working directory. Use prepare_generation '
+      'with enhance to re-render details instead. $_imageContract$_ownTurn',
   'get_recent_images':
       'List saved generation-history resource_ref handles only, newest first; '
       'not image bytes or local paths. limit is required (1-20). Not needed '

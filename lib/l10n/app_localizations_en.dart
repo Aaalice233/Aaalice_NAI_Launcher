@@ -1336,6 +1336,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get agentChat_toolSubmitGeneration => 'Submit generation';
 
   @override
+  String get agentChat_toolUpscaleImage => 'Upscale image';
+
+  @override
   String get agentChat_toolCreateInpaint => 'Create manual inpaint draft';
 
   @override

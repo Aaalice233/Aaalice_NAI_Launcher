@@ -1289,6 +1289,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get agentChat_toolSubmitGeneration => '提交生成任务';
 
   @override
+  String get agentChat_toolUpscaleImage => '放大图像';
+
+  @override
   String get agentChat_toolCreateInpaint => '创建手动局部重绘草稿';
 
   @override
@@ -16430,6 +16433,9 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get agentChat_toolSubmitGeneration => '提交生成任務';
+
+  @override
+  String get agentChat_toolUpscaleImage => '放大圖像';
 
   @override
   String get agentChat_toolCreateInpaint => '建立手動局部重繪草稿';

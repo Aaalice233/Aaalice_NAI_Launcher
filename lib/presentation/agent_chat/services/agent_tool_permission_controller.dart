@@ -113,9 +113,13 @@ class AgentToolPermissionController {
       return null;
     }
     if (decision == AgentPermissionDecision.block) {
-      return const BeforeToolCallResult(
+      return BeforeToolCallResult(
         block: true,
-        reason: 'This tool is blocked by its permission domain policy.',
+        reason: estimatedAnlas != null && estimatedAnlas < 0
+            ? 'The Anlas cost of this call cannot be calculated, so it was '
+                  'not sent; check the tool limits (for example the source '
+                  'image size) and adjust the arguments.'
+            : 'This tool is blocked by its permission domain policy.',
       );
     }
     final previousApproval = _approvalCompleter;
