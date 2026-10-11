@@ -570,7 +570,89 @@ void main() {
       expect((await backend.testCapability()).supportsBidirectional, isFalse);
     },
   );
+
+  test('HEAD revision ignores Drive version bumps without new bytes', () async {
+    final api = _FakeDriveApi()
+      ..addFile(
+        name: 'aaalice-cloud-sync-HEAD.json',
+        type: 'head',
+        bytes: Uint8List.fromList([1]),
+      );
+    final before = await _backend(api).readHead();
+
+    api.files.values.single.version++;
+    final after = await _backend(api).readHead();
+    await _backend(
+      api,
+    ).commitHead(Uint8List.fromList([2]), expectedRevision: before!.revision);
+
+    expect(after!.revision, before.revision);
+    expect(api.files.values.single.bytes, [2]);
+  });
+
+  test('object trust proofs survive Drive version bumps', () async {
+    final bytes = Uint8List.fromList([3, 4]);
+    final objectId = sha256.convert(bytes).toString();
+    final api = _FakeDriveApi()
+      ..addFile(
+        name: 'aaalice-cloud-sync-object-$objectId',
+        type: 'object',
+        bytes: bytes,
+      );
+
+    final first = await _backend(
+      api,
+    ).findExistingObjects({objectId: bytes.length});
+    final downloadsAfterFirst = _mediaDownloads(api).length;
+    api.files.values.single.version++;
+    final second = await _backend(api).findExistingObjects({
+      objectId: bytes.length,
+    }, trustedRevisions: first.verifiedRevisions);
+
+    expect(second, {objectId});
+    expect(second.verifiedRevisions, first.verifiedRevisions);
+    expect(_mediaDownloads(api), hasLength(downloadsAfterFirst));
+  });
+
+  test(
+    'legacy Drive trust proofs stay valid only while the version is unchanged',
+    () async {
+      final bytes = Uint8List.fromList([5, 6]);
+      final objectId = sha256.convert(bytes).toString();
+      final api = _FakeDriveApi()
+        ..addFile(
+          name: 'aaalice-cloud-sync-object-$objectId',
+          type: 'object',
+          bytes: bytes,
+        );
+      final file = api.files.values.single;
+      final checksum = md5.convert(bytes).toString();
+      final legacyProof =
+          'google-drive:${file.id}:${file.id}:${file.version}:'
+          '2026-01-01T00:00:00Z:$checksum';
+
+      final migrated = await _backend(api).findExistingObjects(
+        {objectId: bytes.length},
+        trustedRevisions: {objectId: legacyProof},
+      );
+      expect(_mediaDownloads(api), isEmpty);
+      expect(
+        migrated.verifiedRevisions[objectId],
+        'google-drive:${file.id}:${file.id}:$checksum',
+      );
+
+      file.version++;
+      await _backend(api).findExistingObjects(
+        {objectId: bytes.length},
+        trustedRevisions: {objectId: legacyProof},
+      );
+      expect(_mediaDownloads(api), hasLength(1));
+    },
+  );
 }
+
+Iterable<RequestOptions> _mediaDownloads(_FakeDriveApi api) => api.requests
+    .where((request) => request.uri.queryParameters['alt'] == 'media');
 
 GoogleDriveCloudSyncBackend _backend(HttpClientAdapter adapter) =>
     GoogleDriveCloudSyncBackend(

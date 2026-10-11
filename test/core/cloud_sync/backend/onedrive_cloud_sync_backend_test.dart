@@ -347,6 +347,7 @@ void main() {
       Uint8List.fromList([1]),
       expectedRevision: null,
     );
+    final eTagBeforeReplace = api.files[_headPath]!.eTag;
 
     final head2 = await backend.commitHead(
       Uint8List.fromList([2]),
@@ -354,28 +355,194 @@ void main() {
     );
 
     expect(head2.revision, isNot(head1.revision));
-    final replaceSessions = api.requests.where(
-      (request) =>
-          request.uri.path.endsWith(':/createUploadSession') &&
-          request.headers['If-Match'] == head1.revision,
+    expect(
+      _uploadSessions(
+        api,
+      ).where((request) => request.headers['If-Match'] == eTagBeforeReplace),
+      hasLength(1),
     );
-    expect(replaceSessions, hasLength(1));
+    final sessionsBeforeStaleCommit = _uploadSessions(api).length;
     await expectLater(
       backend.commitHead(
         Uint8List.fromList([3]),
         expectedRevision: head1.revision,
       ),
-      throwsA(
-        isA<CloudBackendException>()
-            .having(
-              (error) => error.kind,
-              'kind',
-              CloudBackendErrorKind.conflict,
-            )
-            .having((error) => error.statusCode, 'statusCode', 412),
-      ),
+      _conflictWithStatus(412),
     );
+    expect(_uploadSessions(api), hasLength(sessionsBeforeStaleCommit));
+    expect(api.fileBytes(_headPath), [2]);
   });
+
+  test('HEAD revision ignores metadata-only eTag rewrites', () async {
+    final api = _FakeOneDriveApi();
+    final backend = _backend(api);
+    await backend.commitHead(Uint8List.fromList([1]), expectedRevision: null);
+    final before = await backend.readHead();
+
+    api.rewriteMetadata(_headPath);
+    final rewrittenETag = api.files[_headPath]!.eTag;
+    final after = await backend.readHead();
+    await backend.commitHead(
+      Uint8List.fromList([2]),
+      expectedRevision: before!.revision,
+    );
+
+    expect(after!.revision, before.revision);
+    expect(
+      _uploadSessions(api).last.headers['If-Match'],
+      rewrittenETag,
+      reason: 'the precondition must use the eTag observed at commit time',
+    );
+    expect(api.fileBytes(_headPath), [2]);
+  });
+
+  test(
+    'HEAD commit re-verifies content after a precondition race and retries',
+    () async {
+      final api = _FakeOneDriveApi()..putFile(_headPath, [1]);
+      final backend = _backend(api);
+      final expected = (await backend.readHead())!.revision;
+      api.metadataRewritesBeforeUploadSession[_headPath] = 2;
+
+      await backend.commitHead(
+        Uint8List.fromList([2]),
+        expectedRevision: expected,
+      );
+
+      expect(api.observedStalePrecondition, isTrue);
+      expect(_uploadSessions(api), hasLength(3));
+      expect(api.fileBytes(_headPath), [2]);
+    },
+  );
+
+  test('HEAD commit stops after bounded precondition races', () async {
+    final api = _FakeOneDriveApi()..putFile(_headPath, [1]);
+    final backend = _backend(api);
+    final expected = (await backend.readHead())!.revision;
+    api.metadataRewritesBeforeUploadSession[_headPath] = 3;
+
+    await expectLater(
+      backend.commitHead(Uint8List.fromList([2]), expectedRevision: expected),
+      _conflictWithStatus(412),
+    );
+    expect(_uploadSessions(api), hasLength(3));
+    expect(api.fileBytes(_headPath), [1]);
+  });
+
+  test('HEAD commit reports a conditional target deleted meanwhile', () async {
+    final api = _FakeOneDriveApi()..putFile(_headPath, [1]);
+    final backend = _backend(api);
+    final expected = (await backend.readHead())!.revision;
+    api.files.remove(_headPath);
+
+    await expectLater(
+      backend.commitHead(Uint8List.fromList([2]), expectedRevision: expected),
+      _conflictWithStatus(404),
+    );
+    expect(_uploadSessions(api), isEmpty);
+  });
+
+  test('reads retry metadata rewrites racing the content download', () async {
+    final api = _FakeOneDriveApi()..putFile(_headPath, [1]);
+    final backend = _backend(api);
+    final expected = (await backend.readHead())!.revision;
+
+    api.metadataRewritesBeforeDownload[_headPath] = 2;
+    final reread = await backend.readHead();
+    expect(reread!.revision, expected);
+    expect(reread.bytes, [1]);
+
+    api.metadataRewritesBeforeDownload[_headPath] = 3;
+    await expectLater(backend.readHead(), _conflictWithStatus(412));
+  });
+
+  test('files without cTag keep the stricter eTag revision', () async {
+    final api = _FakeOneDriveApi()
+      ..omitContentTags = true
+      ..putFile(_headPath, [1]);
+
+    final head = await _backend(api).readHead();
+
+    expect(head!.revision, api.files[_headPath]!.eTag);
+  });
+
+  test(
+    'object inventory survives eTag rewrites and keeps its trust proof',
+    () async {
+      final bytes = Uint8List.fromList([5, 6, 7]);
+      final objectId = sha256.convert(bytes).toString();
+      final path = 'cloud/objects/$objectId';
+      final api = _FakeOneDriveApi()..putFile(path, bytes);
+      api.metadataRewritesBeforeDownload[path] = 1;
+
+      final first = await _backend(
+        api,
+      ).findExistingObjects({objectId: bytes.length});
+      expect(first, {objectId});
+      final downloadsAfterFirst = _signedDownloads(api).length;
+
+      api.rewriteMetadata(path);
+      final second = await _backend(api).findExistingObjects({
+        objectId: bytes.length,
+      }, trustedRevisions: first.verifiedRevisions);
+
+      expect(second, {objectId});
+      expect(second.verifiedRevisions, first.verifiedRevisions);
+      expect(_signedDownloads(api), hasLength(downloadsAfterFirst));
+    },
+  );
+
+  test(
+    'object inventory rejects content rewritten during verification',
+    () async {
+      final bytes = Uint8List.fromList([5, 6, 7]);
+      final objectId = sha256.convert(bytes).toString();
+      final path = 'cloud/objects/$objectId';
+      final api = _FakeOneDriveApi()..putFile(path, bytes);
+      api.contentRewritesBeforeDownload[path] = bytes;
+
+      await expectLater(
+        _backend(api).findExistingObjects({objectId: bytes.length}),
+        throwsA(
+          isA<CloudBackendException>().having(
+            (error) => error.kind,
+            'kind',
+            CloudBackendErrorKind.conflict,
+          ),
+        ),
+      );
+    },
+  );
+
+  test(
+    'legacy eTag trust proofs stay valid only while the eTag is unchanged',
+    () async {
+      final bytes = Uint8List.fromList([8, 9]);
+      final objectId = sha256.convert(bytes).toString();
+      final path = 'cloud/objects/$objectId';
+      final api = _FakeOneDriveApi()..putFile(path, bytes);
+      final stored = api.files[path]!;
+      final legacyProof =
+          'onedrive:${_FakeOneDriveApi.fileId(path)}:${stored.eTag}';
+
+      final migrated = await _backend(api).findExistingObjects(
+        {objectId: bytes.length},
+        trustedRevisions: {objectId: legacyProof},
+      );
+      expect(_signedDownloads(api), isEmpty);
+      expect(
+        migrated.verifiedRevisions[objectId],
+        'onedrive:${_FakeOneDriveApi.fileId(path)}:${stored.cTag}',
+      );
+
+      api.rewriteMetadata(path);
+      await _backend(api).findExistingObjects(
+        {objectId: bytes.length},
+        trustedRevisions: {objectId: legacyProof},
+      );
+      expect(_signedDownloads(api), hasLength(1));
+    },
+  );
 
   test(
     'expected null never falls back to overwrite and immutable is idempotent',
@@ -615,11 +782,29 @@ OneDriveCloudSyncBackend _backend(HttpClientAdapter adapter) =>
       dio: Dio()..httpClientAdapter = adapter,
     );
 
+const _headPath = 'cloud/HEAD.json';
+
+Iterable<RequestOptions> _uploadSessions(_FakeOneDriveApi api) => api.requests
+    .where((request) => request.uri.path.endsWith(':/createUploadSession'));
+
+Iterable<RequestOptions> _signedDownloads(_FakeOneDriveApi api) =>
+    api.requests.where(
+      (request) =>
+          request.uri.host == 'signed.onedrive.test' && request.method == 'GET',
+    );
+
+Matcher _conflictWithStatus(int statusCode) => throwsA(
+  isA<CloudBackendException>()
+      .having((error) => error.kind, 'kind', CloudBackendErrorKind.conflict)
+      .having((error) => error.statusCode, 'statusCode', statusCode),
+);
+
 class _StoredFile {
-  _StoredFile(this.bytes, this.eTag);
+  _StoredFile(this.bytes, this.eTag, this.cTag);
 
   Uint8List bytes;
   String eTag;
+  final String cTag;
 }
 
 class _UploadSession {
@@ -686,15 +871,31 @@ class _FakeOneDriveApi implements HttpClientAdapter {
   String appRootFailureCode = 'serviceNotAvailable';
   String? appRootInnerFailureCode;
   String? appRootFailureMessage;
+  bool omitContentTags = false;
+  final Map<String, int> metadataRewritesBeforeUploadSession = {};
+  final Map<String, int> metadataRewritesBeforeDownload = {};
+  final Map<String, List<int>> contentRewritesBeforeDownload = {};
   int _revision = 0;
   int _session = 0;
 
   void putFile(String path, List<int> bytes) {
     _ensureFolders(path);
-    files[path] = _StoredFile(Uint8List.fromList(bytes), _nextETag());
+    files[path] = _newStoredFile(Uint8List.fromList(bytes));
   }
 
   List<int>? fileBytes(String path) => files[path]?.bytes;
+
+  // Mirrors OneDrive's post-upload processing: eTag moves, bytes and cTag stay.
+  void rewriteMetadata(String path) {
+    files[path]!.eTag = _nextETag();
+  }
+
+  void _consumeMetadataRewrite(Map<String, int> pending, String path) {
+    final remaining = pending[path] ?? 0;
+    if (remaining <= 0 || !files.containsKey(path)) return;
+    pending[path] = remaining - 1;
+    rewriteMetadata(path);
+  }
 
   void removeNamespace(String path) {
     files.removeWhere(
@@ -734,7 +935,7 @@ class _FakeOneDriveApi implements HttpClientAdapter {
         final session = sessions.remove(request.uri.path.split('/').last);
         if (session == null) return _FakeResponse.json(404, {});
         final bytes = await _requestBytes(request, requestStream);
-        final stored = _StoredFile(bytes, _nextETag());
+        final stored = _newStoredFile(bytes);
         files[session.path] = stored;
         return _FakeResponse.json(201, _item(session.path, stored));
       }
@@ -817,6 +1018,7 @@ class _FakeOneDriveApi implements HttpClientAdapter {
           'error': {'code': 'itemNotFound'},
         });
       }
+      _consumeMetadataRewrite(metadataRewritesBeforeUploadSession, path);
       final current = files[path];
       final expected = request.headers['If-Match']?.toString();
       if (expected != null && current?.eTag != expected) {
@@ -842,6 +1044,11 @@ class _FakeOneDriveApi implements HttpClientAdapter {
     }
     if (request.method == 'GET' && request.uri.path.endsWith(':/content')) {
       final path = graphPath!;
+      _consumeMetadataRewrite(metadataRewritesBeforeDownload, path);
+      final replacement = contentRewritesBeforeDownload.remove(path);
+      if (replacement != null) {
+        files[path] = _newStoredFile(Uint8List.fromList(replacement));
+      }
       final stored = files[path];
       if (stored == null) return _FakeResponse.json(404, {});
       if (request.headers['If-Match'] != stored.eTag) {
@@ -934,12 +1141,15 @@ class _FakeOneDriveApi implements HttpClientAdapter {
   }
 
   Map<String, Object> _item(String path, _StoredFile stored) => {
-    'id': 'file-${Uri.encodeComponent(path)}',
+    'id': fileId(path),
     'name': path.split('/').last,
     'eTag': stored.eTag,
+    if (!omitContentTags) 'cTag': stored.cTag,
     'size': stored.bytes.length,
     'file': <String, Object?>{},
   };
+
+  static String fileId(String path) => 'file-${Uri.encodeComponent(path)}';
 
   static String? graphItemPath(String uriPath) {
     const marker = '/v1.0/me/drive/special/approot:/';
@@ -964,6 +1174,9 @@ class _FakeOneDriveApi implements HttpClientAdapter {
   }
 
   String _nextETag() => '"e${++_revision}"';
+
+  _StoredFile _newStoredFile(Uint8List bytes) =>
+      _StoredFile(bytes, _nextETag(), '"c${++_revision}"');
 
   static Future<Uint8List> _requestBytes(
     RequestOptions request,

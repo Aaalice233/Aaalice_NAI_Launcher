@@ -31,6 +31,15 @@ class OneDriveCloudSyncBackend
 
   static final RegExp _sha256FileName = RegExp(r'^[0-9a-f]{64}$');
 
+  // Post-upload processing can rewrite eTag between our read and the
+  // conditional request; each retry re-reads and re-checks the content tag.
+  static const int _preconditionAttempts = 3;
+  static const _conditionalTargetDeleted = CloudBackendException(
+    CloudBackendErrorKind.conflict,
+    'OneDrive 中的条件写入目标已被删除。',
+    statusCode: 404,
+  );
+
   final String namespace;
   final OneDriveApiClient _api;
   Future<void>? _objectsDirectoryFuture;
@@ -118,51 +127,27 @@ class OneDriveCloudSyncBackend
     }
 
     final candidates = <CloudObjectInventoryCandidate>[];
+    final listedItems = <String, OneDriveItem>{};
     for (final entry in expectedObjects.entries) {
       final item = byName[entry.key];
       if (item == null) continue;
-      if (item.size != entry.value) {
-        throw const CloudBackendException(
-          CloudBackendErrorKind.conflict,
-          'OneDrive 已存在大小不一致的不可变对象。',
-        );
-      }
-      final itemId = item.id;
-      if (itemId == null || itemId.isEmpty) {
-        throw const CloudBackendException(
-          CloudBackendErrorKind.invalidResponse,
-          'OneDrive 对象清单缺少文件标识。',
-        );
-      }
-      candidates.add(
-        CloudObjectInventoryCandidate(
-          objectId: entry.key,
-          size: entry.value,
-          revision: item.eTag,
-          verificationRevision: 'onedrive:$itemId:${item.eTag}',
-        ),
-      );
-    }
-    final effectiveTrustedRevisions = {...trustedRevisions};
-    for (final candidate in candidates) {
-      final inMemory = _verifiedObjectRevisions[candidate.objectId];
-      if (inMemory == candidate.revision ||
-          inMemory == candidate.verificationRevision) {
-        effectiveTrustedRevisions[candidate.objectId] =
-            candidate.verificationRevision;
-      }
+      candidates.add(_inventoryCandidate(entry.key, entry.value, item));
+      listedItems[entry.key] = item;
     }
     final result = await verifyCloudObjectInventory(
       candidates: candidates,
-      trustedRevisions: effectiveTrustedRevisions,
+      trustedRevisions: _effectiveTrustedRevisions(
+        candidates,
+        listedItems,
+        trustedRevisions,
+      ),
       maxConcurrentItems: maxConcurrentObjectUploads,
       token: token,
       onProgress: onProgress,
       verify: (candidate) async {
-        final bytes = await _api.download(
-          '$_objectsPath/${candidate.objectId}',
-          expectedETag: candidate.revision,
-          maxBytes: maxCloudObjectResponseBytes,
+        final bytes = await _downloadListedObject(
+          candidate.objectId,
+          listedItems[candidate.objectId]!,
         );
         if (_hashBytes(bytes) != candidate.objectId) {
           throw const CloudBackendException(
@@ -174,6 +159,77 @@ class OneDriveCloudSyncBackend
     );
     _verifiedObjectRevisions.addAll(result.verifiedRevisions);
     return result;
+  }
+
+  CloudObjectInventoryCandidate _inventoryCandidate(
+    String objectId,
+    int size,
+    OneDriveItem item,
+  ) {
+    if (item.size != size) {
+      throw const CloudBackendException(
+        CloudBackendErrorKind.conflict,
+        'OneDrive 已存在大小不一致的不可变对象。',
+      );
+    }
+    final itemId = item.id;
+    if (itemId == null || itemId.isEmpty) {
+      throw const CloudBackendException(
+        CloudBackendErrorKind.invalidResponse,
+        'OneDrive 对象清单缺少文件标识。',
+      );
+    }
+    return CloudObjectInventoryCandidate(
+      objectId: objectId,
+      size: size,
+      revision: item.contentRevision,
+      verificationRevision: 'onedrive:$itemId:${item.contentRevision}',
+    );
+  }
+
+  Map<String, String> _effectiveTrustedRevisions(
+    List<CloudObjectInventoryCandidate> candidates,
+    Map<String, OneDriveItem> listedItems,
+    Map<String, String> trustedRevisions,
+  ) {
+    final effective = {...trustedRevisions};
+    for (final candidate in candidates) {
+      final listed = listedItems[candidate.objectId]!;
+      final inMemory = _verifiedObjectRevisions[candidate.objectId];
+      // Proofs persisted before content tags were keyed by eTag; an unchanged
+      // eTag still pins the exact bytes that were verified.
+      final legacyProof = 'onedrive:${listed.id}:${listed.eTag}';
+      if (inMemory == candidate.revision ||
+          inMemory == candidate.verificationRevision ||
+          trustedRevisions[candidate.objectId] == legacyProof) {
+        effective[candidate.objectId] = candidate.verificationRevision;
+      }
+    }
+    return effective;
+  }
+
+  Future<Uint8List> _downloadListedObject(
+    String objectId,
+    OneDriveItem listed,
+  ) async {
+    final path = '$_objectsPath/$objectId';
+    try {
+      return await _api.download(
+        path,
+        expectedETag: listed.eTag,
+        maxBytes: maxCloudObjectResponseBytes,
+      );
+    } on CloudBackendException catch (error) {
+      if (error.statusCode != 412) rethrow;
+    }
+    final current = await _read(path, maxCloudObjectResponseBytes);
+    if (current == null || current.revision != listed.contentRevision) {
+      throw const CloudBackendException(
+        CloudBackendErrorKind.conflict,
+        'OneDrive 不可变对象在校验期间被改写或删除。',
+      );
+    }
+    return current.bytes;
   }
 
   @override
@@ -250,7 +306,7 @@ class OneDriveCloudSyncBackend
   }
 
   Future<CloudObjectRead?> _read(String path, int maxBytes) async {
-    for (var attempt = 0; attempt < 2; attempt++) {
+    for (var attempt = 1; ; attempt++) {
       final item = await _api.metadata(path);
       if (item == null) return null;
       if (item.isFolder || item.size > maxBytes) {
@@ -265,12 +321,13 @@ class OneDriveCloudSyncBackend
           expectedETag: item.eTag,
           maxBytes: maxBytes,
         );
-        return CloudObjectRead(bytes: bytes, revision: item.eTag);
+        return CloudObjectRead(bytes: bytes, revision: item.contentRevision);
       } on CloudBackendException catch (error) {
-        if (error.statusCode != 412 || attempt != 0) rethrow;
+        if (error.statusCode != 412 || attempt >= _preconditionAttempts) {
+          rethrow;
+        }
       }
     }
-    throw StateError('unreachable');
   }
 
   Future<CloudCommitResult> _commitMutable(
@@ -281,22 +338,37 @@ class OneDriveCloudSyncBackend
   ) async {
     _checkSize(bytes, maxBytes);
     await _ensureParent(path);
-    try {
-      final uploaded = await _uploadWithDirectoryRecovery(
+    if (expectedRevision == null) {
+      final created = await _uploadWithDirectoryRecovery(
         path,
         bytes,
-        expectedETag: expectedRevision,
+        expectedETag: null,
       );
-      return CloudCommitResult(revision: uploaded.eTag);
-    } on CloudBackendException catch (error) {
-      if (expectedRevision != null && error.statusCode == 404) {
+      return CloudCommitResult(revision: created.contentRevision);
+    }
+    for (var attempt = 1; ; attempt++) {
+      final current = await _api.metadata(path);
+      if (current == null) throw _conditionalTargetDeleted;
+      if (current.contentRevision != expectedRevision) {
         throw const CloudBackendException(
           CloudBackendErrorKind.conflict,
-          'OneDrive 中的条件写入目标已被删除。',
-          statusCode: 404,
+          'OneDrive 中的条件写入目标已被其他设备更新。',
+          statusCode: 412,
         );
       }
-      rethrow;
+      try {
+        final uploaded = await _uploadWithDirectoryRecovery(
+          path,
+          bytes,
+          expectedETag: current.eTag,
+        );
+        return CloudCommitResult(revision: uploaded.contentRevision);
+      } on CloudBackendException catch (error) {
+        if (error.statusCode == 404) throw _conditionalTargetDeleted;
+        final preconditionFailed =
+            error.statusCode == 409 || error.statusCode == 412;
+        if (!preconditionFailed || attempt >= _preconditionAttempts) rethrow;
+      }
     }
   }
 
@@ -316,8 +388,8 @@ class OneDriveCloudSyncBackend
         bytes,
         expectedETag: null,
       );
-      _verifiedObjectRevisions[objectId] = uploaded.eTag;
-      return CloudCommitResult(revision: uploaded.eTag);
+      _verifiedObjectRevisions[objectId] = uploaded.contentRevision;
+      return CloudCommitResult(revision: uploaded.contentRevision);
     } on CloudBackendException catch (error) {
       if (error.statusCode != 409) rethrow;
       final raced = await _read(path, maxCloudObjectResponseBytes);
@@ -361,7 +433,7 @@ class OneDriveCloudSyncBackend
         bytes,
         expectedETag: null,
       );
-      return CloudCommitResult(revision: uploaded.eTag);
+      return CloudCommitResult(revision: uploaded.contentRevision);
     } on CloudBackendException catch (error) {
       if (error.statusCode != 409) rethrow;
       final raced = await _read(path, maxBytes);

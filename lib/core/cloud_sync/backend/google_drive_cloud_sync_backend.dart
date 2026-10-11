@@ -205,18 +205,13 @@ class GoogleDriveCloudSyncBackend
         ),
       );
     }
-    final inMemoryRevisions = <String, String>{};
-    for (final candidate in inventoryCandidates) {
-      final inMemory =
-          _verifiedObjectRevisions[_fileName('object', candidate.objectId)];
-      if (inMemory == candidate.revision ||
-          inMemory == candidate.verificationRevision) {
-        inMemoryRevisions[candidate.objectId] = candidate.verificationRevision;
-      }
-    }
     final result = await verifyCloudObjectInventory(
       candidates: inventoryCandidates,
-      trustedRevisions: {...trustedRevisions, ...inMemoryRevisions},
+      trustedRevisions: _effectiveTrustedRevisions(
+        inventoryCandidates,
+        filesByObjectId,
+        trustedRevisions,
+      ),
       maxConcurrentItems: maxConcurrentObjectUploads,
       token: token,
       onProgress: onProgress,
@@ -237,6 +232,28 @@ class GoogleDriveCloudSyncBackend
       _verifiedObjectRevisions[_fileName('object', entry.key)] = entry.value;
     }
     return result;
+  }
+
+  Map<String, String> _effectiveTrustedRevisions(
+    List<CloudObjectInventoryCandidate> candidates,
+    Map<String, _DriveFile> filesByObjectId,
+    Map<String, String> trustedRevisions,
+  ) {
+    final effective = {...trustedRevisions};
+    for (final candidate in candidates) {
+      final file = filesByObjectId[candidate.objectId]!;
+      final inMemory =
+          _verifiedObjectRevisions[_fileName('object', candidate.objectId)];
+      // Proofs persisted before checksum revisions embed version; an unchanged
+      // version still pins the exact bytes that were verified.
+      final legacyProof = 'google-drive:${file.id}:${file.legacyRevision}';
+      if (inMemory == candidate.revision ||
+          inMemory == candidate.verificationRevision ||
+          trustedRevisions[candidate.objectId] == legacyProof) {
+        effective[candidate.objectId] = candidate.verificationRevision;
+      }
+    }
+    return effective;
   }
 
   @override
@@ -848,6 +865,7 @@ class _DriveFile {
     required this.namespace,
     required this.recordType,
     required this.revision,
+    required this.legacyRevision,
     required this.md5Checksum,
   });
 
@@ -858,6 +876,7 @@ class _DriveFile {
   final String namespace;
   final String recordType;
   final String revision;
+  final String legacyRevision;
   final String? md5Checksum;
 
   factory _DriveFile.fromJson(Map<dynamic, dynamic> json) {
@@ -890,18 +909,22 @@ class _DriveFile {
         'Google Drive 文件元数据缺少 id、name、size 或 appProperties。',
       );
     }
-    final revisionParts = [
+    final legacyParts = [
       id,
       if (version != null) '$version',
       if (modifiedTime != null) '$modifiedTime',
       if (checksum != null) '$checksum',
     ];
-    if (revisionParts.length == 1) {
+    if (legacyParts.length == 1) {
       throw const CloudBackendException(
         CloudBackendErrorKind.invalidResponse,
         'Google Drive 文件元数据缺少 revision 信息。',
       );
     }
+    final md5Checksum = checksum is String && checksum.isNotEmpty
+        ? checksum
+        : null;
+    final legacyRevision = legacyParts.join(':');
     return _DriveFile(
       id: id,
       name: name,
@@ -909,8 +932,11 @@ class _DriveFile {
       protocol: protocol,
       namespace: namespace,
       recordType: recordType,
-      revision: revisionParts.join(':'),
-      md5Checksum: checksum is String && checksum.isNotEmpty ? checksum : null,
+      // Drive bumps version for server-side metadata changes too; only the
+      // checksum tracks bytes. Without one, keep the stricter composite.
+      revision: md5Checksum == null ? legacyRevision : '$id:$md5Checksum',
+      legacyRevision: legacyRevision,
+      md5Checksum: md5Checksum,
     );
   }
 }
