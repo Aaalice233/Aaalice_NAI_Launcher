@@ -4,6 +4,7 @@ import 'package:nai_launcher/presentation/themes/core/input_surface_style.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 
+import '../../../widgets/common/decoded_memory_image.dart';
 import '../../../widgets/common/image_viewport_surface.dart';
 import '../../../../core/utils/app_logger.dart';
 import '../../../../core/utils/localization_extension.dart';
@@ -298,9 +299,12 @@ class _VibeImageEncodeDialogState extends State<VibeImageEncodeDialog> {
         ),
         clipBehavior: Clip.antiAlias,
         child: widget.thumbnail != null
-            ? Image.memory(
-                widget.thumbnail!,
+            ? DecodedMemoryImage(
+                bytes: widget.thumbnail!,
                 fit: BoxFit.contain,
+                filterQuality: FilterQuality.medium,
+                maxLogicalWidth: extent,
+                maxLogicalHeight: extent,
                 errorBuilder: (context, error, stackTrace) {
                   AppLogger.w('缩略图加载失败: $error', 'VibeImageEncodeDialog');
                   return _buildErrorPlaceholder(theme);
