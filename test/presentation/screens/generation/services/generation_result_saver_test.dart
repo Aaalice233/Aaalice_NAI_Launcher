@@ -5,6 +5,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:hive/hive.dart';
 import 'package:image/image.dart' as image_lib;
 import 'package:nai_launcher/core/platform/platform_capabilities.dart';
+import 'package:nai_launcher/core/save_naming/image_save_naming.dart';
+import 'package:nai_launcher/core/save_naming/save_name_context.dart';
 import 'package:nai_launcher/core/services/system_gallery_publisher.dart';
 import 'package:nai_launcher/core/utils/image_save_utils.dart';
 import 'package:nai_launcher/data/models/fixed_tag/fixed_tag_entry.dart';
@@ -69,9 +71,11 @@ void main() {
     bool rootConfigured = true,
     GalleryIndexAdmission admission = GalleryIndexAdmission.added,
     Set<String> failingRecordIds = const {},
+    ImageSaveNaming naming = ImageSaveNaming.standard,
   }) => GenerationResultSaver(
     resolveGalleryRootPath: () async =>
         rootConfigured ? rootPath ?? galleryRoot.path : null,
+    naming: naming,
     systemGallery: SystemGalleryPublisher(
       syncEnabled: true,
       capabilities: PlatformCapabilities.forPlatform(TargetPlatform.android),
@@ -95,10 +99,12 @@ void main() {
     FixedTagUsageSnapshot? fixedTagUsageSnapshot,
     bool preserveOriginalBytes = false,
     String? savedPath,
+    DateTime? createdAt,
   }) => GenerationResultSaveRequest(
     imageId: id,
     bytes: plainPng,
     preserveOriginalBytes: preserveOriginalBytes,
+    createdAt: createdAt ?? DateTime(2026, 10, 12, 9, 8, 7),
     metadata: metadata,
     fixedTagUsageSnapshot: fixedTagUsageSnapshot,
     savedPath: savedPath,
@@ -204,9 +210,11 @@ void main() {
   }
 
   test('已在当前图库里的结果复用原文件，不重复落盘', () async {
-    final existing = await ImageSaveUtils.saveBytesToDatedPath(
+    final existing = await ImageSaveUtils.saveBytesToGallery(
       rootPath: galleryRoot.path,
       bytes: plainPng,
+      naming: ImageSaveNaming.standard,
+      context: SaveNameContext(createdAt: DateTime.now()),
     );
 
     final file = await saver().save(request('image-7', savedPath: existing));
@@ -218,6 +226,25 @@ void main() {
     expect(recordedPaths, isEmpty);
     expect(systemGalleryWrites, isEmpty);
     expect(admittedPaths, isEmpty);
+  });
+
+  test('按命名规则落盘，序号取本次保存中的位置', () async {
+    const naming = ImageSaveNaming(
+      folderTemplate: '',
+      fileNameTemplate: '{date}_{index}_{id}',
+    );
+
+    final report = await saver(
+      naming: naming,
+    ).saveAll([request('first'), request('second')]);
+
+    expect(
+      [
+        for (final file in report!.files)
+          p.relative(file.path, from: galleryRoot.path),
+      ],
+      ['2026-10-12_1_first.png', '2026-10-12_2_second.png'],
+    );
   });
 
   test('记录的文件已被删掉时重新落盘并改记新路径', () async {
@@ -235,9 +262,11 @@ void main() {
       'generation_result_saver_previous_',
     );
     addTearDown(() => previousRoot.delete(recursive: true));
-    final previous = await ImageSaveUtils.saveBytesToDatedPath(
+    final previous = await ImageSaveUtils.saveBytesToGallery(
       rootPath: previousRoot.path,
       bytes: plainPng,
+      naming: ImageSaveNaming.standard,
+      context: SaveNameContext(createdAt: DateTime.now()),
     );
 
     final file = await saver().save(request('image-9', savedPath: previous));
@@ -249,9 +278,11 @@ void main() {
   });
 
   test('批量保存单张失败不阻断其余，新文件合并成一次收录', () async {
-    final existing = await ImageSaveUtils.saveBytesToDatedPath(
+    final existing = await ImageSaveUtils.saveBytesToGallery(
       rootPath: galleryRoot.path,
       bytes: plainPng,
+      naming: ImageSaveNaming.standard,
+      context: SaveNameContext(createdAt: DateTime.now()),
     );
 
     final report = await saver(failingRecordIds: {'bad'}).saveAll([
@@ -420,7 +451,7 @@ void main() {
       final source = File(entry).readAsStringSync();
       for (final bypass in const [
         'saveResultImage(',
-        'saveBytesToDatedPath(',
+        'saveBytesToGallery(',
         'rebuildImageBytesWithMetadata(',
       ]) {
         expect(source, isNot(contains(bypass)), reason: '$entry: $bypass');

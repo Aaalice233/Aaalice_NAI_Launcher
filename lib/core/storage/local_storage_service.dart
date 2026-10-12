@@ -6,6 +6,7 @@ import '../constants/api_constants.dart';
 import '../constants/model_capabilities.dart';
 import '../constants/storage_keys.dart';
 import '../enums/image_model_mode.dart';
+import '../save_naming/image_save_naming.dart';
 
 part 'local_storage_service.g.dart';
 
@@ -255,6 +256,30 @@ class LocalStorageService {
 
   Future<void> setSyncImagesToSystemGallery(bool value) async {
     await setSetting(StorageKeys.syncImagesToSystemGallery, value);
+  }
+
+  /// 图库保存的子文件夹与文件名规则；未设置时沿用默认规则。
+  ImageSaveNaming getImageSaveNaming() {
+    return ImageSaveNaming(
+      folderTemplate:
+          getSetting<String>(StorageKeys.imageSaveFolderTemplate) ??
+          ImageSaveNaming.defaultFolderTemplate,
+      fileNameTemplate:
+          getSetting<String>(StorageKeys.imageSaveFileNameTemplate) ??
+          ImageSaveNaming.defaultFileNameTemplate,
+    );
+  }
+
+  // 选回默认规则也要写入，云同步才能把“改回默认”带到其他设备。
+  Future<void> setImageSaveNaming(ImageSaveNaming naming) async {
+    await setSetting(
+      StorageKeys.imageSaveFolderTemplate,
+      naming.folderTemplate,
+    );
+    await setSetting(
+      StorageKeys.imageSaveFileNameTemplate,
+      naming.fileNameTemplate,
+    );
   }
 
   /// 获取透明图像的 Alpha 模式（true=Straight，false=Premultiplied）。

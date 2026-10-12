@@ -3,11 +3,10 @@ import 'dart:math' as math;
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
-import 'package:path/path.dart' as p;
-
 import '../../data/models/gallery/nai_image_metadata.dart';
 import '../../data/models/mosaic/mosaic_settings.dart';
 import '../../data/services/metadata/unified_metadata_parser.dart';
+import '../derivatives/derivative_registry.dart';
 import '../utils/image_share_sanitizer.dart';
 import '../utils/isolate_pool.dart';
 
@@ -321,7 +320,7 @@ class MosaicRenderService {
 
       return MosaicRenderResult(
         bytes: outputBytes,
-        fileName: buildOutputFileName(request.sourceFileName),
+        fileName: DerivativeKind.mosaic.outputFileName(request.sourceFileName),
         width: width,
         height: height,
         metadataPreserved: metadataPreserved,
@@ -433,15 +432,6 @@ class MosaicRenderService {
     } finally {
       picture.dispose();
     }
-  }
-
-  static String buildOutputFileName(String sourceFileName) {
-    final leaf = p.basename(sourceFileName.trim());
-    final base = p.basenameWithoutExtension(leaf);
-    final safeBase = base
-        .replaceAll(RegExp(r'[<>:"/\\|?*\x00-\x1F]'), '_')
-        .trim();
-    return '${safeBase.isEmpty ? 'image' : safeBase}_redacted.png';
   }
 
   static _MetadataTransfer _preserveSupportedMetadata({

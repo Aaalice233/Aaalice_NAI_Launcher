@@ -20,6 +20,7 @@ import '../../../widgets/common/themed_confirm_dialog.dart';
 import '../widgets/cache_statistics_tile.dart';
 import '../widgets/data_source_cache_settings.dart';
 import '../widgets/gallery_cache_actions.dart';
+import '../widgets/save_naming/save_naming_tile.dart';
 import '../widgets/settings_card.dart';
 import '../widgets/settings_page_layout.dart';
 
@@ -261,6 +262,7 @@ class _StorageSettingsSectionState
                     ? () => _selectSaveDirectory(context)
                     : null,
               ),
+              const SaveNamingTile(),
               // 自动保存开关
               SwitchListTile(
                 secondary: const Icon(Icons.save_outlined),

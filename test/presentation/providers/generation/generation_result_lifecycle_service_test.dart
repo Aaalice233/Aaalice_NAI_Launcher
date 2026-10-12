@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:hive/hive.dart';
 import 'package:image/image.dart' as image_lib;
 import 'package:nai_launcher/data/models/image/image_params.dart';
+import 'package:nai_launcher/core/save_naming/image_save_naming.dart';
 import 'package:nai_launcher/core/utils/image_save_utils.dart';
 import 'package:nai_launcher/data/models/fixed_tag/fixed_tag_entry.dart';
 import 'package:nai_launcher/data/models/fixed_tag/fixed_tag_prompt_type.dart';
@@ -46,6 +47,7 @@ void main() {
       GenerationResultLifecycleDependencies(
         historyStorage: GenerationHistoryStorageService(enabled: false),
         resolveGalleryRootPath: () async => directory.path,
+        saveNaming: ImageSaveNaming.standard,
         addGalleryImages: (paths) async {
           indexedPaths = paths;
           return GalleryIndexAdmission.added;
@@ -74,6 +76,47 @@ void main() {
     }
   });
 
+  test('自动保存按命名规则取生成时间与本批序号', () async {
+    final directory = await Directory.systemTemp.createTemp(
+      'nai_generation_naming_',
+    );
+    addTearDown(() => directory.delete(recursive: true));
+    final bytes = Uint8List.fromList(
+      image_lib.encodePng(image_lib.Image(width: 2, height: 2)),
+    );
+    final createdAt = DateTime(2026, 10, 12, 9, 8, 7);
+    final images = List.generate(
+      2,
+      (_) => GeneratedImage.create(
+        bytes,
+        width: 2,
+        height: 2,
+        createdAt: createdAt,
+        preserveOriginalBytesOnSave: true,
+      ),
+    );
+
+    final result = await _serviceSavingTo(
+      directory,
+      naming: const ImageSaveNaming(
+        folderTemplate: '{year}/{month}',
+        fileNameTemplate: '{date}_{time}_{index|pad:2}',
+      ),
+    ).saveImages(images);
+
+    expect(
+      [
+        for (final path in result.savedPaths)
+          p.relative(path, from: directory.path),
+      ],
+      [
+        p.join('2026', '10', '2026-10-12_09-08-07_01.png'),
+        p.join('2026', '10', '2026-10-12_09-08-07_02.png'),
+      ],
+    );
+    expect(result.images.map((image) => image.filePath), result.savedPaths);
+  });
+
   test('系统相册发布失败不回滚应用图库自动保存', () async {
     final directory = await Directory.systemTemp.createTemp(
       'nai_generation_media_store_failure_',
@@ -88,6 +131,7 @@ void main() {
       GenerationResultLifecycleDependencies(
         historyStorage: GenerationHistoryStorageService(enabled: false),
         resolveGalleryRootPath: () async => directory.path,
+        saveNaming: ImageSaveNaming.standard,
         addGalleryImages: (paths) async {
           indexedCount = paths.length;
           return GalleryIndexAdmission.added;
@@ -283,6 +327,7 @@ void main() {
         GenerationResultLifecycleDependencies(
           historyStorage: GenerationHistoryStorageService(enabled: false),
           resolveGalleryRootPath: () async => directory.path,
+          saveNaming: ImageSaveNaming.standard,
           addGalleryImages: (_) async => admission,
           refreshGallery: () async => refreshCount++,
           removeGalleryImages: _unexpectedGalleryRemoval,
@@ -373,6 +418,7 @@ void main() {
       GenerationResultLifecycleDependencies(
         historyStorage: GenerationHistoryStorageService(enabled: false),
         resolveGalleryRootPath: () async => null,
+        saveNaming: ImageSaveNaming.standard,
         addGalleryImages: (_) async => GalleryIndexAdmission.added,
         refreshGallery: _unexpectedGalleryRefresh,
         removeGalleryImages: removeGalleryImages,
@@ -438,11 +484,14 @@ void main() {
   });
 }
 
-GenerationResultLifecycleService _serviceSavingTo(Directory directory) =>
-    GenerationResultLifecycleService(
+GenerationResultLifecycleService _serviceSavingTo(
+  Directory directory, {
+  ImageSaveNaming naming = ImageSaveNaming.standard,
+}) => GenerationResultLifecycleService(
       GenerationResultLifecycleDependencies(
         historyStorage: GenerationHistoryStorageService(enabled: false),
         resolveGalleryRootPath: () async => directory.path,
+        saveNaming: naming,
         addGalleryImages: (_) async => GalleryIndexAdmission.added,
         refreshGallery: () async {},
         removeGalleryImages: _unexpectedGalleryRemoval,

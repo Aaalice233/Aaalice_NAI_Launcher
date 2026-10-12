@@ -143,6 +143,9 @@ class StorageKeys {
   static const String autoSaveImages = 'auto_save_images';
   static const String syncImagesToSystemGallery =
       'sync_images_to_system_gallery';
+  static const String imageSaveFolderTemplate = 'image_save_folder_template';
+  static const String imageSaveFileNameTemplate =
+      'image_save_file_name_template';
   static const String imageStraightAlpha = 'image_straight_alpha';
   static const String shareStripMetadata = 'share_strip_metadata';
   static const String shareWatermark = 'share_watermark';

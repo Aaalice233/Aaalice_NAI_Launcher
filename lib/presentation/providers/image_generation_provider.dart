@@ -131,16 +131,16 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
   GenerationResultLifecycleService _lifecycle() {
     final gallery = ref.read(localGalleryNotifierProvider.notifier);
     final statistics = ref.read(statisticsCacheServiceProvider);
+    final saveSettings = ref.read(imageSaveSettingsNotifierProvider);
     final systemGallery = SystemGalleryPublisher(
-      syncEnabled: ref
-          .read(imageSaveSettingsNotifierProvider)
-          .syncToSystemGallery,
+      syncEnabled: saveSettings.syncToSystemGallery,
       capabilities: PlatformCapabilities.operatingSystem,
     );
     return GenerationResultLifecycleService(
       GenerationResultLifecycleDependencies(
         historyStorage: ref.read(generationHistoryStorageServiceProvider),
         resolveGalleryRootPath: GalleryFolderRepository.instance.getRootPath,
+        saveNaming: saveSettings.naming,
         addGalleryImages: gallery.addNewlySavedImages,
         refreshGallery: gallery.refresh,
         removeGalleryImages: gallery.removeDeletedImages,

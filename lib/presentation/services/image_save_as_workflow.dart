@@ -1,6 +1,7 @@
 import 'package:flutter/widgets.dart';
 
 import '../../core/platform/platform_capabilities.dart';
+import '../../core/save_naming/image_save_naming.dart';
 import '../../core/services/file_export_service.dart';
 import '../../core/services/image_save_as_service.dart';
 import '../../core/utils/app_logger.dart';
@@ -18,6 +19,7 @@ class ImageSaveAsWorkflow {
   static Future<void> saveOne(
     BuildContext context,
     ImageSaveAsSource source, {
+    required ImageSaveNaming naming,
     required bool preventOverwrite,
   }) async {
     final l10n = context.l10n;
@@ -27,6 +29,7 @@ class ImageSaveAsWorkflow {
       final location = await ImageSaveAsService.saveOne(
         source,
         dialogTitle: l10n.image_saveAsDialogTitle,
+        naming: naming,
         preventOverwrite: preventOverwrite,
       );
       if (location == null) return;
@@ -46,18 +49,26 @@ class ImageSaveAsWorkflow {
   /// cancelled.
   static Future<ImageCardBatchResult<ImageSaveAsSource>?> saveAllToFolder(
     BuildContext context,
-    List<ImageSaveAsSource> sources,
-  ) async {
+    List<ImageSaveAsSource> sources, {
+    required ImageSaveNaming naming,
+  }) async {
     if (sources.isEmpty) return null;
     final l10n = context.l10n;
     final overlay = Overlay.maybeOf(context, rootOverlay: true);
     final directory = await _pickFolder(l10n, overlay);
     if (directory == null) return null;
 
+    final positions = {
+      for (final (index, source) in sources.indexed) source: index,
+    };
     final result = await ImageCardBatchResult.execute<ImageSaveAsSource>(
       sources,
-      (source) =>
-          ImageSaveAsService.writeToDirectory(source, directory: directory),
+      (source) => ImageSaveAsService.writeToDirectory(
+        source,
+        directory: directory,
+        naming: naming,
+        index: positions[source],
+      ),
     );
     for (final failure in result.failures.values) {
       AppLogger.e(

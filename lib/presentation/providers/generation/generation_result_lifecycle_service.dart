@@ -3,6 +3,8 @@ import 'dart:typed_data';
 
 import 'package:path/path.dart' as p;
 
+import '../../../core/save_naming/image_save_naming.dart';
+import '../../../core/save_naming/save_name_context.dart';
 import '../../../core/utils/app_logger.dart';
 import '../../../core/utils/image_save_utils.dart';
 import '../../../core/utils/nai_resolution_adapter.dart';
@@ -17,6 +19,7 @@ class GenerationResultLifecycleDependencies {
   const GenerationResultLifecycleDependencies({
     required this.historyStorage,
     required this.resolveGalleryRootPath,
+    required this.saveNaming,
     required this.addGalleryImages,
     required this.refreshGallery,
     required this.removeGalleryImages,
@@ -27,6 +30,7 @@ class GenerationResultLifecycleDependencies {
 
   final GenerationHistoryStorageService historyStorage;
   final Future<String?> Function() resolveGalleryRootPath;
+  final ImageSaveNaming saveNaming;
   final Future<GalleryIndexAdmission> Function(List<String> paths)
   addGalleryImages;
   final Future<void> Function() refreshGallery;
@@ -177,12 +181,20 @@ class GenerationResultLifecycleService {
     final updated = <GeneratedImage>[];
     final paths = <String>[];
     var systemGalleryExportFailureCount = 0;
-    for (final image in images) {
+    for (final (index, image) in images.indexed) {
       try {
         final saved = await ImageSaveUtils.saveResultImage(
           rootPath: rootPath,
           imageBytes: image.bytes,
           preserveOriginalBytes: image.preserveOriginalBytesOnSave,
+          naming: dependencies.saveNaming,
+          context: SaveNameContext(
+            createdAt: image.createdAt,
+            imageId: image.id,
+            index: index,
+            width: image.width,
+            height: image.height,
+          ),
           metadata: image.metadata,
           fixedTagUsageSnapshot: image.fixedTagUsageSnapshot,
         );

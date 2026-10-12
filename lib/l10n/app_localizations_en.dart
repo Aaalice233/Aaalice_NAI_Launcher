@@ -794,6 +794,255 @@ class AppLocalizationsEn extends AppLocalizations {
       'When off, images are saved only to the app gallery and won\'t appear in your photo gallery. Images already synced are not affected.';
 
   @override
+  String get settings_saveNaming => 'Folders & File Names';
+
+  @override
+  String settings_saveNamingSubtitle(Object example) {
+    return 'Example: $example';
+  }
+
+  @override
+  String get settings_saveNamingFolderSection => 'Subfolder';
+
+  @override
+  String get settings_saveNamingFileNameSection => 'File Name';
+
+  @override
+  String get settings_saveNamingFolderByDate => 'By date';
+
+  @override
+  String get settings_saveNamingFolderByMonth => 'By month';
+
+  @override
+  String get settings_saveNamingFolderByYearMonth => 'By year, then month';
+
+  @override
+  String get settings_saveNamingFolderNone => 'No subfolder';
+
+  @override
+  String get settings_saveNamingFolderNoneExample =>
+      'Saved directly in the image save location';
+
+  @override
+  String get settings_saveNamingFileTimeSeed => 'Time + seed';
+
+  @override
+  String get settings_saveNamingFileDateTimeSeed => 'Date and time + seed';
+
+  @override
+  String get settings_saveNamingFilePromptSeed => 'Prompt + seed';
+
+  @override
+  String get settings_saveNamingCustom => 'Custom';
+
+  @override
+  String get settings_saveNamingFolderTemplate => 'Subfolder template';
+
+  @override
+  String get settings_saveNamingFolderTemplateHelper =>
+      'Separate nested folders with /. Leave empty to save without a subfolder.';
+
+  @override
+  String get settings_saveNamingFileNameTemplate => 'File name template';
+
+  @override
+  String get settings_saveNamingFileNameTemplateHelper =>
+      'The .png extension is added automatically.';
+
+  @override
+  String get settings_saveNamingFileNameEmpty =>
+      'File name template can\'t be empty';
+
+  @override
+  String get settings_saveNamingInsertField => 'Insert field';
+
+  @override
+  String get settings_saveNamingPreview => 'Preview';
+
+  @override
+  String get settings_saveNamingPreviewLatest =>
+      'Based on your latest generated image';
+
+  @override
+  String get settings_saveNamingPreviewSample => 'Based on sample data';
+
+  @override
+  String get settings_saveNamingOmitsDateHint =>
+      'The path has no date, so images from different days end up together. Add a date to the subfolder or file name if you need to tell days apart.';
+
+  @override
+  String get settings_saveNamingAppliesToNewHint =>
+      'Applies to images saved from now on. Existing files are not renamed or moved.';
+
+  @override
+  String get settings_saveNamingRestoreDefaults => 'Restore defaults';
+
+  @override
+  String get settings_saveNamingSyntaxHelp => 'Template syntax';
+
+  @override
+  String get settings_saveNamingSyntaxIntro =>
+      'Insert image details with fields. Filters run from left to right; when a field is empty, its pre and suf are skipped too. Type two opening braces for a literal one.';
+
+  @override
+  String get settings_saveNamingSyntaxFields => 'Fields';
+
+  @override
+  String get settings_saveNamingSyntaxFilters => 'Filters';
+
+  @override
+  String get settings_saveNamingSyntaxCharacterFilters =>
+      'Character filters (characters only, before other filters)';
+
+  @override
+  String get settings_saveNamingSyntaxExamples => 'Examples';
+
+  @override
+  String get settings_saveNamingFieldPrompt =>
+      'Prompt (first 80 characters unless a length filter is used)';
+
+  @override
+  String get settings_saveNamingFieldSeed => 'Seed';
+
+  @override
+  String get settings_saveNamingFieldDate => 'Generation date, e.g. 2026-10-12';
+
+  @override
+  String get settings_saveNamingFieldTime => 'Generation time, e.g. 14-30-05';
+
+  @override
+  String get settings_saveNamingFieldYear => 'Year, e.g. 2026';
+
+  @override
+  String get settings_saveNamingFieldMonth => 'Month, e.g. 10';
+
+  @override
+  String get settings_saveNamingFieldDay => 'Day, e.g. 12';
+
+  @override
+  String get settings_saveNamingFieldModel => 'Model ID';
+
+  @override
+  String get settings_saveNamingFieldModelName => 'Model name';
+
+  @override
+  String get settings_saveNamingFieldResolution => 'Resolution, e.g. 832x1216';
+
+  @override
+  String get settings_saveNamingFieldWidth => 'Width';
+
+  @override
+  String get settings_saveNamingFieldHeight => 'Height';
+
+  @override
+  String get settings_saveNamingFieldIndex =>
+      'Position within one save, starting at 1';
+
+  @override
+  String get settings_saveNamingFieldId => 'Image ID';
+
+  @override
+  String get settings_saveNamingFieldType =>
+      'Generation method: inpaint, image2image or vibe-transfer; empty for text-to-image';
+
+  @override
+  String get settings_saveNamingFieldCharacters =>
+      'Character names, first 3 joined with +';
+
+  @override
+  String get settings_saveNamingFilterFirst => 'Keep the first N characters';
+
+  @override
+  String get settings_saveNamingFilterLast => 'Keep the last N characters';
+
+  @override
+  String get settings_saveNamingFilterWords =>
+      'Keep the first N words; a negative number keeps the last ones';
+
+  @override
+  String get settings_saveNamingFilterTags =>
+      'Keep the first N comma-separated tags; a negative number keeps the last ones';
+
+  @override
+  String get settings_saveNamingFilterPre => 'Add X before a non-empty value';
+
+  @override
+  String get settings_saveNamingFilterSuf => 'Add X after a non-empty value';
+
+  @override
+  String get settings_saveNamingFilterPad =>
+      'Pad numbers with leading zeros to N digits';
+
+  @override
+  String get settings_saveNamingFilterLower => 'Lowercase';
+
+  @override
+  String get settings_saveNamingFilterUpper => 'Uppercase';
+
+  @override
+  String get settings_saveNamingFilterMax =>
+      'Use up to N characters (default 3)';
+
+  @override
+  String get settings_saveNamingFilterAt => 'Use only character N';
+
+  @override
+  String get settings_saveNamingFilterEach =>
+      'Keep the first N characters of each name';
+
+  @override
+  String get settings_saveNamingFilterJoin => 'Join names with X (default +)';
+
+  @override
+  String get settings_saveNamingFilterFull =>
+      'Use full character prompts instead of names';
+
+  @override
+  String settings_saveNamingErrorUnclosedBrace(int position) {
+    return 'Unclosed opening brace at character $position';
+  }
+
+  @override
+  String settings_saveNamingErrorUnknownField(Object name) {
+    return 'Unknown field \"$name\"';
+  }
+
+  @override
+  String settings_saveNamingErrorUnknownFilter(Object name) {
+    return 'Unknown filter \"$name\"';
+  }
+
+  @override
+  String settings_saveNamingErrorFilterOnlyForCharacters(Object name) {
+    return 'Filter \"$name\" only works with characters';
+  }
+
+  @override
+  String settings_saveNamingErrorCharacterFilterOrder(Object name) {
+    return 'Filter \"$name\" must come before filters like first or pre';
+  }
+
+  @override
+  String settings_saveNamingErrorFilterTakesNoValue(Object name) {
+    return 'Filter \"$name\" doesn\'t take a value';
+  }
+
+  @override
+  String settings_saveNamingErrorFilterNeedsValue(Object name) {
+    return 'Filter \"$name\" needs a value, e.g. $name:-';
+  }
+
+  @override
+  String settings_saveNamingErrorFilterNeedsPositiveNumber(Object name) {
+    return 'Filter \"$name\" needs a positive whole number';
+  }
+
+  @override
+  String settings_saveNamingErrorFilterNeedsNonZeroNumber(Object name) {
+    return 'Filter \"$name\" needs a non-zero whole number';
+  }
+
+  @override
   String get settings_about => 'About';
 
   @override
