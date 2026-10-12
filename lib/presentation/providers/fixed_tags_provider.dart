@@ -720,6 +720,7 @@ class FixedTagsNotifier extends _$FixedTagsNotifier {
       return;
     }
 
+    final previousCategoryId = state.entries[index].categoryId;
     final newEntries = [...state.entries];
     newEntries[index] = updatedEntry;
     final sanitizedLinks = _sanitizeLinks(newEntries, state.links);
@@ -741,7 +742,10 @@ class FixedTagsNotifier extends _$FixedTagsNotifier {
         'sourceEntryId is ${updatedEntry.sourceEntryId}, calling _syncToTagLibrary',
         'FixedTagsProvider',
       );
-      await _syncToTagLibrary(updatedEntry);
+      await _syncToTagLibrary(
+        updatedEntry,
+        syncCategory: updatedEntry.categoryId != previousCategoryId,
+      );
     } else {
       AppLogger.d(
         'sourceEntryId is null, skipping sync to tag library',
@@ -752,10 +756,29 @@ class FixedTagsNotifier extends _$FixedTagsNotifier {
 
   /// 【新增】从词库同步更新固定词
   ///
-  /// 当词库条目更新时，更新所有 sourceEntryId 匹配的固定词
-  Future<void> syncFromTagLibrary(TagLibraryEntry tagEntry) async {
+  /// 当词库条目更新时，更新所有 sourceEntryId 匹配的固定词。
+  ///
+  /// 手动输入的固定词没有 `sourceEntryId`，只按 id 匹配的话，词库里同一个词
+  /// 改了名称或内容，固定词不会跟着变。传入 [previousContent]（词库条目修改前
+  /// 的内容）时，未关联且内容与之一致的固定词视为同一个词：一并更新并补写
+  /// `sourceEntryId`，之后按正常的双向同步处理。该参数为空时只按 id 匹配。
+  ///
+  /// 与 `resolveFixedTagImport` / `fixedTagResolution` 无关：那条链路决定
+  /// 从图片元数据导入时的固定词归属，不经过本方法。
+  Future<void> syncFromTagLibrary(
+    TagLibraryEntry tagEntry, {
+    String? previousContent,
+  }) async {
+    final prev = previousContent?.trim();
     final entriesToSync = state.entries
-        .where((e) => e.sourceEntryId == tagEntry.id)
+        .where(
+          (e) =>
+              e.sourceEntryId == tagEntry.id ||
+              (e.sourceEntryId == null &&
+                  prev != null &&
+                  prev.isNotEmpty &&
+                  e.content.trim() == prev),
+        )
         .toList();
 
     if (entriesToSync.isEmpty) return;
@@ -769,6 +792,9 @@ class FixedTagsNotifier extends _$FixedTagsNotifier {
           name: tagEntry.name,
           content: tagEntry.content,
           categoryId: tagEntry.categoryId,
+          // 补写关联：被"按修改前内容"收养的固定词从此有了 sourceEntryId，
+          // 后续更新按 sourceEntryId 匹配。
+          sourceEntryId: tagEntry.id,
           updatedAt: DateTime.now(),
         );
       }
@@ -799,7 +825,13 @@ class FixedTagsNotifier extends _$FixedTagsNotifier {
   /// 【新增】同步到词库（反向同步）
   ///
   /// 当固定词更新时，同步更新关联的词库条目
-  Future<void> _syncToTagLibrary(FixedTagEntry fixedTag) async {
+  ///
+  /// [syncCategory] 只在本次编辑改了分类时为 true：固定词的分类可能是从词库
+  /// 推断出来的展示值，没改过就不回写，避免把词库条目误挪到根目录。
+  Future<void> _syncToTagLibrary(
+    FixedTagEntry fixedTag, {
+    bool syncCategory = false,
+  }) async {
     AppLogger.d(
       '_syncToTagLibrary called: fixedTag=${fixedTag.name}, sourceEntryId=${fixedTag.sourceEntryId}',
       'FixedTagsProvider',
@@ -859,10 +891,11 @@ class FixedTagsNotifier extends _$FixedTagsNotifier {
         'FixedTagsProvider',
       );
 
-      // 更新词库条目（只更新名称和内容）
+      // 更新词库条目：名称、内容，以及本次改动过的分类
       final updatedTagEntry = tagEntry.copyWith(
         name: fixedTag.name,
         content: fixedTag.content,
+        categoryId: syncCategory ? fixedTag.categoryId : tagEntry.categoryId,
         updatedAt: DateTime.now(),
       );
 
