@@ -13,6 +13,13 @@ class T5PromptTokenEncoder implements PromptTokenEncoder {
 
   final SentencePieceTokenizer _tokenizer;
 
+  /// 按文本内容缓存计数结果（LRU）。一次计数会把主提示词、固定词、质量预设、
+  /// 角色等多段文本分别编码，两次计数之间大部分段落没有变化，缓存后只需重新
+  /// 编码改动过的段落。分词在 UI 线程同步执行，移动端这笔开销很明显。
+  final Map<String, int> _countCache = <String, int>{};
+
+  static const int _countCacheLimit = 512;
+
   static Future<T5PromptTokenEncoder> load({required String assetPath}) {
     return _instances.putIfAbsent(assetPath, () => _loadFromAsset(assetPath));
   }
@@ -33,7 +40,19 @@ class T5PromptTokenEncoder implements PromptTokenEncoder {
       return 0;
     }
 
+    // LRU 命中：取出后重新写回末尾，保持最近使用顺序。
+    final cached = _countCache.remove(normalized);
+    if (cached != null) {
+      _countCache[normalized] = cached;
+      return cached;
+    }
+
     final encoding = _tokenizer.encode(normalized, addSpecialTokens: false);
-    return encoding.ids.length;
+    final count = encoding.ids.length;
+    if (_countCache.length >= _countCacheLimit) {
+      _countCache.remove(_countCache.keys.first);
+    }
+    _countCache[normalized] = count;
+    return count;
   }
 }

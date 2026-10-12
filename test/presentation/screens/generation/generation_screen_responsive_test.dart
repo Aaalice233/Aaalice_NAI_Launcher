@@ -182,6 +182,9 @@ void main() {
       find.byKey(const Key('generation-fixed-tags-overlay')),
       findsOneWidget,
     );
+    // Token 计数有 400ms 防抖（prompt_token_counter_provider.dart）。这条用例的
+    // container 由 addTearDown 释放，晚于框架的挂起计时器检查，先走完计时器。
+    await tester.pump(const Duration(milliseconds: 400));
     flutterErrors.expectNoErrors(reason: '839↔840 boundary transition');
   });
 
