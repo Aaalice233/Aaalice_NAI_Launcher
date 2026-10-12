@@ -4,11 +4,13 @@ import 'dart:typed_data';
 
 import 'package:archive/archive.dart';
 import 'package:dio/dio.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:image/image.dart' as img;
 import 'package:mocktail/mocktail.dart';
 import 'package:nai_launcher/data/datasources/remote/nai_image_enhancement_api_service.dart';
 import 'package:nai_launcher/core/network/critical_network_activity.dart';
+import 'package:nai_launcher/core/network/dio_client.dart';
 import 'package:nai_launcher/core/network/nai_api_endpoint_service.dart';
 
 import '../../../helpers/browser_multipart_reader.dart';
@@ -18,6 +20,42 @@ class _MockDio extends Mock implements Dio {}
 void main() {
   setUpAll(() {
     registerFallbackValue(Options());
+  });
+
+  test('provider uses the HTTP/1.1 image generation client', () async {
+    final generationDio = _MockDio();
+    final generalDio = _MockDio();
+    final container = ProviderContainer(
+      overrides: [
+        imageGenerationDioClientProvider.overrideWithValue(generationDio),
+        dioClientProvider.overrideWithValue(generalDio),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    final service = container.read(naiImageEnhancementApiServiceProvider);
+    when(
+      () => generationDio.post<dynamic>(
+        any(),
+        data: any(named: 'data'),
+        options: any(named: 'options'),
+        onReceiveProgress: any(named: 'onReceiveProgress'),
+      ),
+    ).thenThrow(StateError('stop after routing'));
+
+    await expectLater(
+      service.upscaleImage(_buildPng(width: 8, height: 8), scale: 2),
+      throwsA(isA<StateError>()),
+    );
+    verify(
+      () => generationDio.post<dynamic>(
+        any(),
+        data: any(named: 'data'),
+        options: any(named: 'options'),
+        onReceiveProgress: any(named: 'onReceiveProgress'),
+      ),
+    ).called(1);
+    verifyZeroInteractions(generalDio);
   });
 
   group('NAIImageEnhancementApiService', () {
@@ -52,7 +90,10 @@ void main() {
 
       expect(result, isNotEmpty);
       expect(capturedUrl, contains('image.novelai.net'));
-      expect(parts.map((part) => part.name), orderedEquals(['image', 'request']));
+      expect(
+        parts.map((part) => part.name),
+        orderedEquals(['image', 'request']),
+      );
       expect(parts.first.filename, 'blob');
       expect(parts.first.contentType, 'image/png');
       expect(parts.first.bytes, sourceImage);
