@@ -209,6 +209,13 @@ void main() {
     expect(portableSettingKeys, contains(StorageKeys.imageModelMode));
     expect(portableSettingKeys, contains(StorageKeys.shareWatermark));
     expect(portableSettingKeys, contains(StorageKeys.watermarkConfigV1));
+    expect(portableSettingKeys, contains(StorageKeys.imageSaveFolderTemplate));
+    expect(
+      portableSettingKeys,
+      contains(StorageKeys.imageSaveFileNameTemplate),
+    );
+    // The gallery root is a device path and never leaves this machine.
+    expect(portableSettingKeys, isNot(contains(StorageKeys.imageSavePath)));
     // Redaction remains local-only, including its original-file associations.
     expect(portableSettingKeys, isNot(contains(StorageKeys.mosaicConfigV1)));
     expect(

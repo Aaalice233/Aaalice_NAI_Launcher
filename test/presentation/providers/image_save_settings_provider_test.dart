@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hive/hive.dart';
 import 'package:nai_launcher/core/constants/storage_keys.dart';
+import 'package:nai_launcher/core/save_naming/image_save_naming.dart';
 import 'package:nai_launcher/core/storage/local_storage_service.dart';
 import 'package:nai_launcher/presentation/providers/image_save_settings_provider.dart';
 
@@ -76,5 +77,41 @@ void main() {
     final settings = container.read(imageSaveSettingsNotifierProvider);
     expect(settings.autoSave, isFalse);
     expect(settings.syncToSystemGallery, isFalse);
+  });
+
+  test('未写过命名规则时沿用日期文件夹与时间-种子命名', () {
+    expect(
+      createContainer().read(imageSaveSettingsNotifierProvider).naming,
+      ImageSaveNaming.standard,
+    );
+  });
+
+  test('命名规则持久化，选回默认也写入以便同步到其他设备', () async {
+    final container = createContainer();
+    final notifier = container.read(imageSaveSettingsNotifierProvider.notifier);
+    const custom = ImageSaveNaming(
+      folderTemplate: '',
+      fileNameTemplate: '{prompt}{seed|pre: s-}',
+    );
+
+    await notifier.setNaming(custom);
+
+    expect(container.read(imageSaveSettingsNotifierProvider).naming, custom);
+    expect(
+      createContainer().read(imageSaveSettingsNotifierProvider).naming,
+      custom,
+    );
+    expect(storage.getSetting<String>(StorageKeys.imageSaveFolderTemplate), '');
+
+    await notifier.setNaming(ImageSaveNaming.standard);
+
+    expect(
+      storage.getSetting<String>(StorageKeys.imageSaveFolderTemplate),
+      ImageSaveNaming.defaultFolderTemplate,
+    );
+    expect(
+      storage.getSetting<String>(StorageKeys.imageSaveFileNameTemplate),
+      ImageSaveNaming.defaultFileNameTemplate,
+    );
   });
 }

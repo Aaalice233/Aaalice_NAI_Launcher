@@ -8,6 +8,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../../core/derivatives/derivative_registry.dart';
+import '../../../core/save_naming/save_name_context.dart';
 import '../../../core/services/native_share_service.dart';
 import '../../../core/services/system_gallery_publisher.dart';
 import '../../../core/storage/local_storage_service.dart';
@@ -492,10 +494,13 @@ class _WatermarkEditorScreenState extends ConsumerState<WatermarkEditorScreen> {
         throw StateError(context.l10n.localGallery_saveDirectoryNotSet);
       }
       final systemGallery = ref.read(systemGalleryPublisherProvider);
-      final output = await ImageSaveUtils.saveBytesToDatedPath(
+      final output = await ImageSaveUtils.saveBytesToGallery(
         rootPath: galleryRoot,
         bytes: result.bytes,
+        naming: ref.read(imageSaveSettingsNotifierProvider).naming,
+        context: SaveNameContext(createdAt: DateTime.now()),
         preferredFileName: result.fileName,
+        protectedSuffix: DerivativeKind.watermark.fileNameSuffix,
       );
       await FixedTagUsageRecordStore().copyForDerivative(
         sourceBytes: _sourceBytes,

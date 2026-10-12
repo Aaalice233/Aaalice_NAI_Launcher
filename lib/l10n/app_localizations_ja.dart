@@ -778,6 +778,242 @@ class AppLocalizationsJa extends AppLocalizations {
       'オフにすると画像はアプリ内ギャラリーにのみ保存され、システムギャラリーには表示されません。同期済みの画像には影響しません。';
 
   @override
+  String get settings_saveNaming => 'フォルダーとファイル名';
+
+  @override
+  String settings_saveNamingSubtitle(Object example) {
+    return '例：$example';
+  }
+
+  @override
+  String get settings_saveNamingFolderSection => 'サブフォルダー';
+
+  @override
+  String get settings_saveNamingFileNameSection => 'ファイル名';
+
+  @override
+  String get settings_saveNamingFolderByDate => '日付ごと';
+
+  @override
+  String get settings_saveNamingFolderByMonth => '月ごと';
+
+  @override
+  String get settings_saveNamingFolderByYearMonth => '年・月の2階層';
+
+  @override
+  String get settings_saveNamingFolderNone => 'サブフォルダーを作らない';
+
+  @override
+  String get settings_saveNamingFolderNoneExample => '画像の保存場所に直接保存';
+
+  @override
+  String get settings_saveNamingFileTimeSeed => '時刻 + シード';
+
+  @override
+  String get settings_saveNamingFileDateTimeSeed => '日時 + シード';
+
+  @override
+  String get settings_saveNamingFilePromptSeed => 'プロンプト + シード';
+
+  @override
+  String get settings_saveNamingCustom => 'カスタム';
+
+  @override
+  String get settings_saveNamingFolderTemplate => 'サブフォルダーのテンプレート';
+
+  @override
+  String get settings_saveNamingFolderTemplateHelper =>
+      '/ で階層を区切ります。空欄にするとサブフォルダーを作りません。';
+
+  @override
+  String get settings_saveNamingFileNameTemplate => 'ファイル名のテンプレート';
+
+  @override
+  String get settings_saveNamingFileNameTemplateHelper => '拡張子 .png は自動で付きます。';
+
+  @override
+  String get settings_saveNamingFileNameEmpty => 'ファイル名のテンプレートを入力してください';
+
+  @override
+  String get settings_saveNamingInsertField => 'フィールドを挿入';
+
+  @override
+  String get settings_saveNamingPreview => 'プレビュー';
+
+  @override
+  String get settings_saveNamingPreviewLatest => '直近に生成した画像をもとにした例です';
+
+  @override
+  String get settings_saveNamingPreviewSample => 'サンプルデータをもとにした例です';
+
+  @override
+  String get settings_saveNamingOmitsDateHint =>
+      'パスに日付が含まれないため、異なる日の画像が混在します。日付で区別したい場合はサブフォルダーかファイル名に日付を加えてください。';
+
+  @override
+  String get settings_saveNamingAppliesToNewHint =>
+      '今後保存する画像にのみ適用され、既存のファイルの名前変更や移動は行いません。';
+
+  @override
+  String get settings_saveNamingRestoreDefaults => '既定に戻す';
+
+  @override
+  String get settings_saveNamingSyntaxHelp => 'テンプレートの書き方';
+
+  @override
+  String get settings_saveNamingSyntaxIntro =>
+      'フィールドで画像の情報を挿入します。フィルターは左から順に適用され、フィールドが空のときは pre と suf も省略されます。左波括弧を 2 つ続けると 1 つの波括弧になります。';
+
+  @override
+  String get settings_saveNamingSyntaxFields => 'フィールド';
+
+  @override
+  String get settings_saveNamingSyntaxFilters => 'フィルター';
+
+  @override
+  String get settings_saveNamingSyntaxCharacterFilters =>
+      'キャラクター用フィルター（characters 専用、他のフィルターより前に記述）';
+
+  @override
+  String get settings_saveNamingSyntaxExamples => '例';
+
+  @override
+  String get settings_saveNamingFieldPrompt => 'プロンプト（長さのフィルターがない場合は先頭 80 文字）';
+
+  @override
+  String get settings_saveNamingFieldSeed => 'シード';
+
+  @override
+  String get settings_saveNamingFieldDate => '生成日（例：2026-10-12）';
+
+  @override
+  String get settings_saveNamingFieldTime => '生成時刻（例：14-30-05）';
+
+  @override
+  String get settings_saveNamingFieldYear => '年（例：2026）';
+
+  @override
+  String get settings_saveNamingFieldMonth => '月（例：10）';
+
+  @override
+  String get settings_saveNamingFieldDay => '日（例：12）';
+
+  @override
+  String get settings_saveNamingFieldModel => 'モデル ID';
+
+  @override
+  String get settings_saveNamingFieldModelName => 'モデル名';
+
+  @override
+  String get settings_saveNamingFieldResolution => '解像度（例：832x1216）';
+
+  @override
+  String get settings_saveNamingFieldWidth => '幅';
+
+  @override
+  String get settings_saveNamingFieldHeight => '高さ';
+
+  @override
+  String get settings_saveNamingFieldIndex => '1 回の保存内での番号（1 から）';
+
+  @override
+  String get settings_saveNamingFieldId => '画像 ID';
+
+  @override
+  String get settings_saveNamingFieldType =>
+      '生成方法：inpaint、image2image、vibe-transfer のいずれか。テキストからの生成では空';
+
+  @override
+  String get settings_saveNamingFieldCharacters => 'キャラクター名（既定では先頭 3 人を + で連結）';
+
+  @override
+  String get settings_saveNamingFilterFirst => '先頭 N 文字を残す';
+
+  @override
+  String get settings_saveNamingFilterLast => '末尾 N 文字を残す';
+
+  @override
+  String get settings_saveNamingFilterWords => '先頭 N 語を残す（負の数で末尾から）';
+
+  @override
+  String get settings_saveNamingFilterTags => 'カンマ区切りのタグを先頭 N 個残す（負の数で末尾から）';
+
+  @override
+  String get settings_saveNamingFilterPre => '値が空でなければ前に X を付ける';
+
+  @override
+  String get settings_saveNamingFilterSuf => '値が空でなければ後ろに X を付ける';
+
+  @override
+  String get settings_saveNamingFilterPad => '数値を 0 埋めして N 桁にする';
+
+  @override
+  String get settings_saveNamingFilterLower => '小文字にする';
+
+  @override
+  String get settings_saveNamingFilterUpper => '大文字にする';
+
+  @override
+  String get settings_saveNamingFilterMax => '最大 N 人まで（既定 3）';
+
+  @override
+  String get settings_saveNamingFilterAt => 'N 番目のキャラクターのみ';
+
+  @override
+  String get settings_saveNamingFilterEach => '各キャラクター名を先頭 N 文字に';
+
+  @override
+  String get settings_saveNamingFilterJoin => '名前を X で連結（既定 +）';
+
+  @override
+  String get settings_saveNamingFilterFull => '名前ではなくキャラクタープロンプト全体を使う';
+
+  @override
+  String settings_saveNamingErrorUnclosedBrace(int position) {
+    return '$position 文字目の左波括弧が閉じられていません';
+  }
+
+  @override
+  String settings_saveNamingErrorUnknownField(Object name) {
+    return '不明なフィールド「$name」';
+  }
+
+  @override
+  String settings_saveNamingErrorUnknownFilter(Object name) {
+    return '不明なフィルター「$name」';
+  }
+
+  @override
+  String settings_saveNamingErrorFilterOnlyForCharacters(Object name) {
+    return 'フィルター「$name」は characters 専用です';
+  }
+
+  @override
+  String settings_saveNamingErrorCharacterFilterOrder(Object name) {
+    return 'フィルター「$name」は first や pre などより前に書いてください';
+  }
+
+  @override
+  String settings_saveNamingErrorFilterTakesNoValue(Object name) {
+    return 'フィルター「$name」に値は不要です';
+  }
+
+  @override
+  String settings_saveNamingErrorFilterNeedsValue(Object name) {
+    return 'フィルター「$name」には値が必要です（例：$name:-）';
+  }
+
+  @override
+  String settings_saveNamingErrorFilterNeedsPositiveNumber(Object name) {
+    return 'フィルター「$name」には正の整数が必要です';
+  }
+
+  @override
+  String settings_saveNamingErrorFilterNeedsNonZeroNumber(Object name) {
+    return 'フィルター「$name」には 0 以外の整数が必要です';
+  }
+
+  @override
   String get settings_about => '概要';
 
   @override

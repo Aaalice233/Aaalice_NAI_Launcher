@@ -3,6 +3,8 @@ import 'dart:typed_data';
 
 import 'package:path/path.dart' as p;
 
+import '../../../../core/save_naming/image_save_naming.dart';
+import '../../../../core/save_naming/save_name_context.dart';
 import '../../../../core/services/system_gallery_publisher.dart';
 import '../../../../core/utils/image_save_utils.dart';
 import '../../../../data/models/fixed_tag/fixed_tag_usage_snapshot.dart';
@@ -17,6 +19,7 @@ class GenerationResultSaveRequest {
     required this.imageId,
     required this.bytes,
     required this.preserveOriginalBytes,
+    required this.createdAt,
     this.metadata,
     this.fixedTagUsageSnapshot,
     this.savedPath,
@@ -27,18 +30,22 @@ class GenerationResultSaveRequest {
         imageId: image.id,
         bytes: image.bytes,
         preserveOriginalBytes: image.preserveOriginalBytesOnSave,
+        createdAt: image.createdAt,
         metadata: image.metadata,
         fixedTagUsageSnapshot: image.fixedTagUsageSnapshot,
         savedPath: image.filePath,
       );
 
+  /// [createdAt] 取对应生成结果的生成时间，找不到结果时用当前时间。
   static Future<GenerationResultSaveRequest> fromDetail(
     ImageDetailData detail, {
     String? savedPath,
+    DateTime? createdAt,
   }) async => GenerationResultSaveRequest(
     imageId: detail.identifier,
     bytes: await detail.getImageBytes(),
     preserveOriginalBytes: detail.preserveOriginalBytesOnSave,
+    createdAt: createdAt ?? DateTime.now(),
     metadata: detail.metadata,
     fixedTagUsageSnapshot: detail is GeneratedImageDetailData
         ? detail.fixedTagUsageSnapshot
@@ -49,6 +56,9 @@ class GenerationResultSaveRequest {
   final String imageId;
   final Uint8List bytes;
   final bool preserveOriginalBytes;
+
+  /// 生成时间，文件名规则里的日期与时刻取自它。
+  final DateTime createdAt;
   final NaiImageMetadata? metadata;
   final FixedTagUsageSnapshot? fixedTagUsageSnapshot;
 
@@ -129,6 +139,7 @@ class GenerationResultSaveReport {
 class GenerationResultSaver {
   const GenerationResultSaver({
     required this.resolveGalleryRootPath,
+    required this.naming,
     required this.systemGallery,
     required this.recordSavedPath,
     required this.addGalleryImages,
@@ -136,6 +147,7 @@ class GenerationResultSaver {
   });
 
   final Future<String?> Function() resolveGalleryRootPath;
+  final ImageSaveNaming naming;
   final SystemGalleryPublisher systemGallery;
   final void Function(String imageId, String path) recordSavedPath;
   final Future<GalleryIndexAdmission> Function(List<String> paths)
@@ -165,9 +177,9 @@ class GenerationResultSaver {
 
     final files = <GenerationResultFile>[];
     final failures = <GenerationResultSaveFailure>[];
-    for (final request in requests) {
+    for (final (index, request) in requests.indexed) {
       try {
-        files.add(await _saveOne(rootPath, request));
+        files.add(await _saveOne(rootPath, request, index: index));
       } catch (error, stackTrace) {
         failures.add((
           imageId: request.imageId,
@@ -194,8 +206,9 @@ class GenerationResultSaver {
 
   Future<GenerationResultFile> _saveOne(
     String rootPath,
-    GenerationResultSaveRequest request,
-  ) async {
+    GenerationResultSaveRequest request, {
+    required int index,
+  }) async {
     final existing = await _reusablePath(rootPath, request.savedPath);
     if (existing != null) {
       return GenerationResultAlreadySaved(rootPath: rootPath, path: existing);
@@ -205,6 +218,12 @@ class GenerationResultSaver {
       rootPath: rootPath,
       imageBytes: request.bytes,
       preserveOriginalBytes: request.preserveOriginalBytes,
+      naming: naming,
+      context: SaveNameContext(
+        createdAt: request.createdAt,
+        imageId: request.imageId,
+        index: index,
+      ),
       metadata: request.metadata,
       fixedTagUsageSnapshot: request.fixedTagUsageSnapshot,
     );

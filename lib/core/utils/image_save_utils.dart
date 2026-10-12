@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 import 'dart:isolate';
+import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:path/path.dart' as p;
@@ -16,8 +17,12 @@ import '../../data/services/metadata/unified_metadata_parser.dart';
 import '../constants/api_constants.dart';
 import '../enums/image_model_mode.dart';
 import '../enums/precise_ref_type.dart';
+import '../save_naming/image_save_naming.dart';
+import '../save_naming/save_name_context.dart';
+import '../save_naming/save_path_sanitizer.dart';
 import 'app_logger.dart';
 import 'isolate_pool.dart';
+import 'nai_resolution_adapter.dart';
 import 'novelai_dataset_prefix.dart';
 import 'prompt_semantics_utils.dart';
 
@@ -569,39 +574,47 @@ class ImageSaveUtils {
     return null;
   }
 
-  /// 原子保存图片到日期分类目录：<根目录>/yyyy-MM-dd/<文件名>.png
+  /// 原子保存图片到图库：子文件夹与文件名按 [naming] 解析，均相对 [rootPath]。
   ///
   /// 所有图库保存入口必须走这里：路径选择、独占防冲突、写入、
   /// 失败清理都在一个方法内完成，调用方无需感知占位文件。
-  /// - [preferredFileName] 存在时使用清理后的文件名；适用于水印等派生副本
-  /// - 否则 [seed] 为 null 或小于 0 时用毫秒时间戳代替，保证文件名唯一
+  /// - [context] 的元数据应取自最终字节；缺失且规则用到时从 [bytes] 解析
+  /// - [preferredFileName] 存在时沿用清理后的文件名，只套用子文件夹规则；适用于
+  ///   水印等派生副本，路径过长需要截短时 [protectedSuffix] 原样保留
   /// - 独占创建原子保留路径，并发保存不会拿到同一路径后相互覆盖
   /// - 写入失败时删除占位文件后重新抛出，不留空 PNG 进图库扫描
   /// - 仅名称冲突（候选已存在）才追加 -2、-3 序号；目录只读、磁盘满等
   ///   不可恢复错误直接抛出，避免无限循环
-  static Future<String> saveBytesToDatedPath({
+  static Future<String> saveBytesToGallery({
     required String rootPath,
     required Uint8List bytes,
-    int? seed,
+    required ImageSaveNaming naming,
+    required SaveNameContext context,
     String? preferredFileName,
-    DateTime? now,
+    String protectedSuffix = '',
+    int? maxPathLength,
   }) async {
-    final time = now ?? DateTime.now();
-    String two(int v) => v.toString().padLeft(2, '0');
-    final dateFolder = '${time.year}-${two(time.month)}-${two(time.day)}';
-    final dir = Directory(p.join(rootPath, dateFolder));
+    final resolved = await resolveNamingContext(
+      naming: naming,
+      context: context,
+      bytes: bytes,
+      includeFileName: preferredFileName == null,
+    );
+    final target = naming.resolve(
+      resolved,
+      preferredFileName: preferredFileName,
+      protectedSuffix: protectedSuffix,
+    );
+    final dir = Directory(p.joinAll([rootPath, ...target.folders]));
     if (!await dir.exists()) {
       await dir.create(recursive: true);
     }
-    final preferredStem = preferredFileName == null
-        ? ''
-        : p
-              .basenameWithoutExtension(p.basename(preferredFileName))
-              .replaceAll(RegExp(r'[<>:"/\\|?*\x00-\x1F]'), '_')
-              .trim();
-    final baseName = preferredStem.isNotEmpty
-        ? preferredStem
-        : _galleryFileStem(seed: seed, time: time);
+    final baseName = _fitPathLength(
+      dir.path,
+      target.stem,
+      protectedSuffix: protectedSuffix,
+      maxPathLength: maxPathLength ?? _platformMaxPathLength,
+    );
     var candidate = p.join(dir.path, '$baseName.png');
     var suffix = 2;
     File file;
@@ -632,16 +645,74 @@ class ImageSaveUtils {
     return candidate;
   }
 
-  /// 图库保存时的默认文件名 `时-分-秒-seed.png`，另存为的建议文件名与它一致。
-  static String galleryFileName({int? seed, DateTime? now}) =>
-      '${_galleryFileStem(seed: seed, time: now ?? DateTime.now())}.png';
+  /// 另存为的建议文件名，与按同一规则保存到图库时的文件名一致。
+  static Future<String> galleryFileName({
+    required Uint8List bytes,
+    required ImageSaveNaming naming,
+    required SaveNameContext context,
+  }) async {
+    final resolved = await resolveNamingContext(
+      naming: naming,
+      context: context,
+      bytes: bytes,
+    );
+    return '${naming.fileStem(resolved)}.png';
+  }
 
-  static String _galleryFileStem({int? seed, required DateTime time}) {
-    String two(int v) => v.toString().padLeft(2, '0');
-    final seedPart = (seed != null && seed >= 0)
-        ? '$seed'
-        : '${time.millisecondsSinceEpoch}';
-    return '${two(time.hour)}-${two(time.minute)}-${two(time.second)}-$seedPart';
+  /// 补齐 [naming] 用到而 [context] 还没有的元数据与像素尺寸。
+  ///
+  /// 元数据解析失败不阻断保存，对应字段按空值渲染。
+  static Future<SaveNameContext> resolveNamingContext({
+    required ImageSaveNaming naming,
+    required SaveNameContext context,
+    required Uint8List bytes,
+    bool includeFileName = true,
+  }) async {
+    var resolved = context;
+    if (resolved.metadata == null &&
+        naming.readsMetadata(includeFileName: includeFileName)) {
+      try {
+        final parsed = await ImageMetadataService().getMetadataFromBytes(bytes);
+        if (parsed != null) resolved = resolved.copyWith(metadata: parsed);
+      } catch (error, stack) {
+        AppLogger.e(
+          'Failed to read metadata for save naming',
+          error,
+          stack,
+          'ImageSaveUtils',
+        );
+      }
+    }
+    if ((resolved.width == null || resolved.height == null) &&
+        naming.readsDimensions(includeFileName: includeFileName)) {
+      final size = NaiResolutionAdapter.readImageSize(bytes);
+      if (size != null) {
+        resolved = resolved.copyWith(width: size.$1, height: size.$2);
+      }
+    }
+    return resolved;
+  }
+
+  // Windows 资源管理器等不支持长路径的程序打不开超过 MAX_PATH 的文件。
+  static int? get _platformMaxPathLength => Platform.isWindows ? 259 : null;
+
+  static const int _minStemLength = 16;
+
+  static String _fitPathLength(
+    String directory,
+    String stem, {
+    required String protectedSuffix,
+    required int? maxPathLength,
+  }) {
+    if (maxPathLength == null) return stem;
+    const collisionReserve = '-999.png';
+    final budget =
+        maxPathLength - directory.length - 1 - collisionReserve.length;
+    return SavePathSanitizer.fitLength(
+      stem,
+      math.max(budget, _minStemLength),
+      protectedSuffix: protectedSuffix,
+    );
   }
 
   /// 生成结果最终落盘的字节，保存与另存为共用以得到同一份文件。
@@ -668,16 +739,17 @@ class ImageSaveUtils {
 
   /// 生成结果的唯一落盘入口，只认图像自身数据，不读当前生成参数。
   ///
-  /// 最终字节见 [prepareResultBytes]。
+  /// 最终字节见 [prepareResultBytes]；文件名字段取自最终字节内的元数据，
+  /// [context] 只需提供生成时间、图片 ID 与本次保存中的位置。
   /// 固定词快照只进旁路记录库。
   static Future<SavedResultImage> saveResultImage({
     required String rootPath,
     required Uint8List imageBytes,
     required bool preserveOriginalBytes,
+    required ImageSaveNaming naming,
+    required SaveNameContext context,
     NaiImageMetadata? metadata,
     FixedTagUsageSnapshot? fixedTagUsageSnapshot,
-    String? preferredFileName,
-    DateTime? now,
   }) async {
     final prepared = await prepareResultBytes(
       imageBytes: imageBytes,
@@ -685,12 +757,11 @@ class ImageSaveUtils {
       metadata: metadata,
     );
     final bytes = prepared.bytes;
-    final path = await saveBytesToDatedPath(
+    final path = await saveBytesToGallery(
       rootPath: rootPath,
       bytes: bytes,
-      seed: await prepared.resolveSeed(),
-      preferredFileName: preferredFileName,
-      now: now,
+      naming: naming,
+      context: prepared.namingContext(context),
     );
     final contentHash = await FileHashCalculator().registerWrittenBytes(
       path,
@@ -714,29 +785,6 @@ class ImageSaveUtils {
       }
     }
     return SavedResultImage(path: path, bytes: bytes, contentHash: contentHash);
-  }
-
-  /// 解析图片的真实 seed：优先用已有元数据，否则从 PNG 字节解析。
-  ///
-  /// 用于保存入口的日期分类文件名，保证非自动保存路径（详情页保存、
-  /// 历史补存、批量保存、定位前补存等）也能拿到真实 seed。
-  /// 解析不到时返回 null，由调用方决定文件名兜底。
-  static Future<int?> resolveSeed({
-    NaiImageMetadata? metadata,
-    Uint8List? bytes,
-  }) async {
-    if (metadata?.seed != null && metadata!.seed! >= 0) {
-      return metadata.seed;
-    }
-    if (bytes != null) {
-      final extracted = await ImageMetadataService().getMetadataFromBytes(
-        bytes,
-      );
-      if (extracted?.seed != null && extracted!.seed! >= 0) {
-        return extracted.seed;
-      }
-    }
-    return null;
   }
 
   static Future<Uint8List> _embedOwnMetadata({
@@ -822,9 +870,15 @@ class PreparedResultImage {
   final Uint8List bytes;
   final NaiImageMetadata? _embeddedMetadata;
 
-  // 文件名里的 seed 必须与最终落盘字节内的元数据一致；只在按 seed 命名时才解析。
-  Future<int?> resolveSeed() =>
-      ImageSaveUtils.resolveSeed(metadata: _embeddedMetadata, bytes: bytes);
+  // 文件名字段必须与最终落盘字节内的元数据一致：补写过的直接用，否则交给保存时按需解析。
+  SaveNameContext namingContext(SaveNameContext base) => SaveNameContext(
+    createdAt: base.createdAt,
+    metadata: _embeddedMetadata,
+    imageId: base.imageId,
+    index: base.index,
+    width: base.width,
+    height: base.height,
+  );
 }
 
 class SavedResultImage {

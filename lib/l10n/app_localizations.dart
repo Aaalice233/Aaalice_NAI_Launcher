@@ -1541,6 +1541,426 @@ abstract class AppLocalizations {
   /// **'When off, images are saved only to the app gallery and won\'t appear in your photo gallery. Images already synced are not affected.'**
   String get settings_syncToSystemGallerySubtitle;
 
+  /// No description provided for @settings_saveNaming.
+  ///
+  /// In en, this message translates to:
+  /// **'Folders & File Names'**
+  String get settings_saveNaming;
+
+  /// No description provided for @settings_saveNamingSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Example: {example}'**
+  String settings_saveNamingSubtitle(Object example);
+
+  /// No description provided for @settings_saveNamingFolderSection.
+  ///
+  /// In en, this message translates to:
+  /// **'Subfolder'**
+  String get settings_saveNamingFolderSection;
+
+  /// No description provided for @settings_saveNamingFileNameSection.
+  ///
+  /// In en, this message translates to:
+  /// **'File Name'**
+  String get settings_saveNamingFileNameSection;
+
+  /// No description provided for @settings_saveNamingFolderByDate.
+  ///
+  /// In en, this message translates to:
+  /// **'By date'**
+  String get settings_saveNamingFolderByDate;
+
+  /// No description provided for @settings_saveNamingFolderByMonth.
+  ///
+  /// In en, this message translates to:
+  /// **'By month'**
+  String get settings_saveNamingFolderByMonth;
+
+  /// No description provided for @settings_saveNamingFolderByYearMonth.
+  ///
+  /// In en, this message translates to:
+  /// **'By year, then month'**
+  String get settings_saveNamingFolderByYearMonth;
+
+  /// No description provided for @settings_saveNamingFolderNone.
+  ///
+  /// In en, this message translates to:
+  /// **'No subfolder'**
+  String get settings_saveNamingFolderNone;
+
+  /// No description provided for @settings_saveNamingFolderNoneExample.
+  ///
+  /// In en, this message translates to:
+  /// **'Saved directly in the image save location'**
+  String get settings_saveNamingFolderNoneExample;
+
+  /// No description provided for @settings_saveNamingFileTimeSeed.
+  ///
+  /// In en, this message translates to:
+  /// **'Time + seed'**
+  String get settings_saveNamingFileTimeSeed;
+
+  /// No description provided for @settings_saveNamingFileDateTimeSeed.
+  ///
+  /// In en, this message translates to:
+  /// **'Date and time + seed'**
+  String get settings_saveNamingFileDateTimeSeed;
+
+  /// No description provided for @settings_saveNamingFilePromptSeed.
+  ///
+  /// In en, this message translates to:
+  /// **'Prompt + seed'**
+  String get settings_saveNamingFilePromptSeed;
+
+  /// No description provided for @settings_saveNamingCustom.
+  ///
+  /// In en, this message translates to:
+  /// **'Custom'**
+  String get settings_saveNamingCustom;
+
+  /// No description provided for @settings_saveNamingFolderTemplate.
+  ///
+  /// In en, this message translates to:
+  /// **'Subfolder template'**
+  String get settings_saveNamingFolderTemplate;
+
+  /// No description provided for @settings_saveNamingFolderTemplateHelper.
+  ///
+  /// In en, this message translates to:
+  /// **'Separate nested folders with /. Leave empty to save without a subfolder.'**
+  String get settings_saveNamingFolderTemplateHelper;
+
+  /// No description provided for @settings_saveNamingFileNameTemplate.
+  ///
+  /// In en, this message translates to:
+  /// **'File name template'**
+  String get settings_saveNamingFileNameTemplate;
+
+  /// No description provided for @settings_saveNamingFileNameTemplateHelper.
+  ///
+  /// In en, this message translates to:
+  /// **'The .png extension is added automatically.'**
+  String get settings_saveNamingFileNameTemplateHelper;
+
+  /// No description provided for @settings_saveNamingFileNameEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'File name template can\'t be empty'**
+  String get settings_saveNamingFileNameEmpty;
+
+  /// No description provided for @settings_saveNamingInsertField.
+  ///
+  /// In en, this message translates to:
+  /// **'Insert field'**
+  String get settings_saveNamingInsertField;
+
+  /// No description provided for @settings_saveNamingPreview.
+  ///
+  /// In en, this message translates to:
+  /// **'Preview'**
+  String get settings_saveNamingPreview;
+
+  /// No description provided for @settings_saveNamingPreviewLatest.
+  ///
+  /// In en, this message translates to:
+  /// **'Based on your latest generated image'**
+  String get settings_saveNamingPreviewLatest;
+
+  /// No description provided for @settings_saveNamingPreviewSample.
+  ///
+  /// In en, this message translates to:
+  /// **'Based on sample data'**
+  String get settings_saveNamingPreviewSample;
+
+  /// No description provided for @settings_saveNamingOmitsDateHint.
+  ///
+  /// In en, this message translates to:
+  /// **'The path has no date, so images from different days end up together. Add a date to the subfolder or file name if you need to tell days apart.'**
+  String get settings_saveNamingOmitsDateHint;
+
+  /// No description provided for @settings_saveNamingAppliesToNewHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Applies to images saved from now on. Existing files are not renamed or moved.'**
+  String get settings_saveNamingAppliesToNewHint;
+
+  /// No description provided for @settings_saveNamingRestoreDefaults.
+  ///
+  /// In en, this message translates to:
+  /// **'Restore defaults'**
+  String get settings_saveNamingRestoreDefaults;
+
+  /// No description provided for @settings_saveNamingSyntaxHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Template syntax'**
+  String get settings_saveNamingSyntaxHelp;
+
+  /// No description provided for @settings_saveNamingSyntaxIntro.
+  ///
+  /// In en, this message translates to:
+  /// **'Insert image details with fields. Filters run from left to right; when a field is empty, its pre and suf are skipped too. Type two opening braces for a literal one.'**
+  String get settings_saveNamingSyntaxIntro;
+
+  /// No description provided for @settings_saveNamingSyntaxFields.
+  ///
+  /// In en, this message translates to:
+  /// **'Fields'**
+  String get settings_saveNamingSyntaxFields;
+
+  /// No description provided for @settings_saveNamingSyntaxFilters.
+  ///
+  /// In en, this message translates to:
+  /// **'Filters'**
+  String get settings_saveNamingSyntaxFilters;
+
+  /// No description provided for @settings_saveNamingSyntaxCharacterFilters.
+  ///
+  /// In en, this message translates to:
+  /// **'Character filters (characters only, before other filters)'**
+  String get settings_saveNamingSyntaxCharacterFilters;
+
+  /// No description provided for @settings_saveNamingSyntaxExamples.
+  ///
+  /// In en, this message translates to:
+  /// **'Examples'**
+  String get settings_saveNamingSyntaxExamples;
+
+  /// No description provided for @settings_saveNamingFieldPrompt.
+  ///
+  /// In en, this message translates to:
+  /// **'Prompt (first 80 characters unless a length filter is used)'**
+  String get settings_saveNamingFieldPrompt;
+
+  /// No description provided for @settings_saveNamingFieldSeed.
+  ///
+  /// In en, this message translates to:
+  /// **'Seed'**
+  String get settings_saveNamingFieldSeed;
+
+  /// No description provided for @settings_saveNamingFieldDate.
+  ///
+  /// In en, this message translates to:
+  /// **'Generation date, e.g. 2026-10-12'**
+  String get settings_saveNamingFieldDate;
+
+  /// No description provided for @settings_saveNamingFieldTime.
+  ///
+  /// In en, this message translates to:
+  /// **'Generation time, e.g. 14-30-05'**
+  String get settings_saveNamingFieldTime;
+
+  /// No description provided for @settings_saveNamingFieldYear.
+  ///
+  /// In en, this message translates to:
+  /// **'Year, e.g. 2026'**
+  String get settings_saveNamingFieldYear;
+
+  /// No description provided for @settings_saveNamingFieldMonth.
+  ///
+  /// In en, this message translates to:
+  /// **'Month, e.g. 10'**
+  String get settings_saveNamingFieldMonth;
+
+  /// No description provided for @settings_saveNamingFieldDay.
+  ///
+  /// In en, this message translates to:
+  /// **'Day, e.g. 12'**
+  String get settings_saveNamingFieldDay;
+
+  /// No description provided for @settings_saveNamingFieldModel.
+  ///
+  /// In en, this message translates to:
+  /// **'Model ID'**
+  String get settings_saveNamingFieldModel;
+
+  /// No description provided for @settings_saveNamingFieldModelName.
+  ///
+  /// In en, this message translates to:
+  /// **'Model name'**
+  String get settings_saveNamingFieldModelName;
+
+  /// No description provided for @settings_saveNamingFieldResolution.
+  ///
+  /// In en, this message translates to:
+  /// **'Resolution, e.g. 832x1216'**
+  String get settings_saveNamingFieldResolution;
+
+  /// No description provided for @settings_saveNamingFieldWidth.
+  ///
+  /// In en, this message translates to:
+  /// **'Width'**
+  String get settings_saveNamingFieldWidth;
+
+  /// No description provided for @settings_saveNamingFieldHeight.
+  ///
+  /// In en, this message translates to:
+  /// **'Height'**
+  String get settings_saveNamingFieldHeight;
+
+  /// No description provided for @settings_saveNamingFieldIndex.
+  ///
+  /// In en, this message translates to:
+  /// **'Position within one save, starting at 1'**
+  String get settings_saveNamingFieldIndex;
+
+  /// No description provided for @settings_saveNamingFieldId.
+  ///
+  /// In en, this message translates to:
+  /// **'Image ID'**
+  String get settings_saveNamingFieldId;
+
+  /// No description provided for @settings_saveNamingFieldType.
+  ///
+  /// In en, this message translates to:
+  /// **'Generation method: inpaint, image2image or vibe-transfer; empty for text-to-image'**
+  String get settings_saveNamingFieldType;
+
+  /// No description provided for @settings_saveNamingFieldCharacters.
+  ///
+  /// In en, this message translates to:
+  /// **'Character names, first 3 joined with +'**
+  String get settings_saveNamingFieldCharacters;
+
+  /// No description provided for @settings_saveNamingFilterFirst.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep the first N characters'**
+  String get settings_saveNamingFilterFirst;
+
+  /// No description provided for @settings_saveNamingFilterLast.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep the last N characters'**
+  String get settings_saveNamingFilterLast;
+
+  /// No description provided for @settings_saveNamingFilterWords.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep the first N words; a negative number keeps the last ones'**
+  String get settings_saveNamingFilterWords;
+
+  /// No description provided for @settings_saveNamingFilterTags.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep the first N comma-separated tags; a negative number keeps the last ones'**
+  String get settings_saveNamingFilterTags;
+
+  /// No description provided for @settings_saveNamingFilterPre.
+  ///
+  /// In en, this message translates to:
+  /// **'Add X before a non-empty value'**
+  String get settings_saveNamingFilterPre;
+
+  /// No description provided for @settings_saveNamingFilterSuf.
+  ///
+  /// In en, this message translates to:
+  /// **'Add X after a non-empty value'**
+  String get settings_saveNamingFilterSuf;
+
+  /// No description provided for @settings_saveNamingFilterPad.
+  ///
+  /// In en, this message translates to:
+  /// **'Pad numbers with leading zeros to N digits'**
+  String get settings_saveNamingFilterPad;
+
+  /// No description provided for @settings_saveNamingFilterLower.
+  ///
+  /// In en, this message translates to:
+  /// **'Lowercase'**
+  String get settings_saveNamingFilterLower;
+
+  /// No description provided for @settings_saveNamingFilterUpper.
+  ///
+  /// In en, this message translates to:
+  /// **'Uppercase'**
+  String get settings_saveNamingFilterUpper;
+
+  /// No description provided for @settings_saveNamingFilterMax.
+  ///
+  /// In en, this message translates to:
+  /// **'Use up to N characters (default 3)'**
+  String get settings_saveNamingFilterMax;
+
+  /// No description provided for @settings_saveNamingFilterAt.
+  ///
+  /// In en, this message translates to:
+  /// **'Use only character N'**
+  String get settings_saveNamingFilterAt;
+
+  /// No description provided for @settings_saveNamingFilterEach.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep the first N characters of each name'**
+  String get settings_saveNamingFilterEach;
+
+  /// No description provided for @settings_saveNamingFilterJoin.
+  ///
+  /// In en, this message translates to:
+  /// **'Join names with X (default +)'**
+  String get settings_saveNamingFilterJoin;
+
+  /// No description provided for @settings_saveNamingFilterFull.
+  ///
+  /// In en, this message translates to:
+  /// **'Use full character prompts instead of names'**
+  String get settings_saveNamingFilterFull;
+
+  /// No description provided for @settings_saveNamingErrorUnclosedBrace.
+  ///
+  /// In en, this message translates to:
+  /// **'Unclosed opening brace at character {position}'**
+  String settings_saveNamingErrorUnclosedBrace(int position);
+
+  /// No description provided for @settings_saveNamingErrorUnknownField.
+  ///
+  /// In en, this message translates to:
+  /// **'Unknown field \"{name}\"'**
+  String settings_saveNamingErrorUnknownField(Object name);
+
+  /// No description provided for @settings_saveNamingErrorUnknownFilter.
+  ///
+  /// In en, this message translates to:
+  /// **'Unknown filter \"{name}\"'**
+  String settings_saveNamingErrorUnknownFilter(Object name);
+
+  /// No description provided for @settings_saveNamingErrorFilterOnlyForCharacters.
+  ///
+  /// In en, this message translates to:
+  /// **'Filter \"{name}\" only works with characters'**
+  String settings_saveNamingErrorFilterOnlyForCharacters(Object name);
+
+  /// No description provided for @settings_saveNamingErrorCharacterFilterOrder.
+  ///
+  /// In en, this message translates to:
+  /// **'Filter \"{name}\" must come before filters like first or pre'**
+  String settings_saveNamingErrorCharacterFilterOrder(Object name);
+
+  /// No description provided for @settings_saveNamingErrorFilterTakesNoValue.
+  ///
+  /// In en, this message translates to:
+  /// **'Filter \"{name}\" doesn\'t take a value'**
+  String settings_saveNamingErrorFilterTakesNoValue(Object name);
+
+  /// No description provided for @settings_saveNamingErrorFilterNeedsValue.
+  ///
+  /// In en, this message translates to:
+  /// **'Filter \"{name}\" needs a value, e.g. {name}:-'**
+  String settings_saveNamingErrorFilterNeedsValue(Object name);
+
+  /// No description provided for @settings_saveNamingErrorFilterNeedsPositiveNumber.
+  ///
+  /// In en, this message translates to:
+  /// **'Filter \"{name}\" needs a positive whole number'**
+  String settings_saveNamingErrorFilterNeedsPositiveNumber(Object name);
+
+  /// No description provided for @settings_saveNamingErrorFilterNeedsNonZeroNumber.
+  ///
+  /// In en, this message translates to:
+  /// **'Filter \"{name}\" needs a non-zero whole number'**
+  String settings_saveNamingErrorFilterNeedsNonZeroNumber(Object name);
+
   /// No description provided for @settings_about.
   ///
   /// In en, this message translates to:

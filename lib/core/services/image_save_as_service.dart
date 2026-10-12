@@ -4,6 +4,8 @@ import 'dart:typed_data';
 import 'package:path/path.dart' as p;
 
 import '../../data/models/gallery/nai_image_metadata.dart';
+import '../save_naming/image_save_naming.dart';
+import '../save_naming/save_name_context.dart';
 import '../utils/image_save_utils.dart';
 import 'file_export_service.dart';
 
@@ -15,11 +17,15 @@ class ImageSaveAsSource {
     String? filePath,
     NaiImageMetadata? metadata,
     bool preserveOriginalBytes = false,
+    DateTime? createdAt,
+    String? imageId,
   }) : this.deferred(
          loadBytes: () async => bytes,
          filePath: filePath,
          metadata: metadata,
          preserveOriginalBytes: preserveOriginalBytes,
+         createdAt: createdAt,
+         imageId: imageId,
        );
 
   const ImageSaveAsSource.deferred({
@@ -27,17 +33,24 @@ class ImageSaveAsSource {
     this.filePath,
     this.metadata,
     this.preserveOriginalBytes = false,
+    this.createdAt,
+    this.imageId,
   });
 
   final Future<Uint8List> Function() loadBytes;
   final String? filePath;
   final NaiImageMetadata? metadata;
   final bool preserveOriginalBytes;
+
+  /// Generation time used by date fields of the suggested file name; the
+  /// export time stands in when unknown.
+  final DateTime? createdAt;
+  final String? imageId;
 }
 
 /// Exports copies to user-chosen locations without touching the gallery or
 /// the image's saved path. Unsaved images are written exactly as the gallery
-/// Save would write them.
+/// Save would write them, and named by the same [ImageSaveNaming] rule.
 class ImageSaveAsService {
   ImageSaveAsService._();
 
@@ -48,8 +61,8 @@ class ImageSaveAsService {
   static Future<String?> saveOne(
     ImageSaveAsSource source, {
     required String dialogTitle,
+    required ImageSaveNaming naming,
     bool preventOverwrite = false,
-    DateTime? now,
   }) async {
     final sourcePath = await _existingFilePath(source);
     if (sourcePath != null) {
@@ -62,7 +75,7 @@ class ImageSaveAsService {
         preventOverwrite: preventOverwrite,
       );
     }
-    final prepared = await _prepareBytes(source, now: now);
+    final prepared = await _prepareBytes(source, naming: naming);
     return FileExportService.saveBytes(
       bytes: prepared.bytes,
       fileName: prepared.fileName,
@@ -75,10 +88,13 @@ class ImageSaveAsService {
 
   /// Writes into [directory] from [FileExportService.pickExportDirectory];
   /// name conflicts get a `(n)` suffix instead of overwriting.
+  ///
+  /// [index] is the source's position in a multi-image export.
   static Future<String> writeToDirectory(
     ImageSaveAsSource source, {
     required String directory,
-    DateTime? now,
+    required ImageSaveNaming naming,
+    int? index,
   }) async {
     final sourcePath = await _existingFilePath(source);
     if (sourcePath != null) {
@@ -89,7 +105,7 @@ class ImageSaveAsService {
         mimeType: mimeType,
       );
     }
-    final prepared = await _prepareBytes(source, now: now);
+    final prepared = await _prepareBytes(source, naming: naming, index: index);
     return FileExportService.writeBytesToDirectory(
       directory: directory,
       bytes: prepared.bytes,
@@ -107,7 +123,8 @@ class ImageSaveAsService {
 
   static Future<({Uint8List bytes, String fileName})> _prepareBytes(
     ImageSaveAsSource source, {
-    DateTime? now,
+    required ImageSaveNaming naming,
+    int? index,
   }) async {
     final original = await source.loadBytes();
     if (original.isEmpty) {
@@ -121,9 +138,16 @@ class ImageSaveAsService {
     final filePath = source.filePath;
     final fileName = filePath != null && filePath.isNotEmpty
         ? p.basename(filePath)
-        : ImageSaveUtils.galleryFileName(
-            seed: await prepared.resolveSeed(),
-            now: now,
+        : await ImageSaveUtils.galleryFileName(
+            bytes: prepared.bytes,
+            naming: naming,
+            context: prepared.namingContext(
+              SaveNameContext(
+                createdAt: source.createdAt ?? DateTime.now(),
+                imageId: source.imageId,
+                index: index,
+              ),
+            ),
           );
     return (bytes: prepared.bytes, fileName: fileName);
   }

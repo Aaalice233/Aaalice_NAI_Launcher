@@ -5,6 +5,8 @@ import 'dart:typed_data';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hive/hive.dart';
 import 'package:image/image.dart' as img;
+import 'package:nai_launcher/core/save_naming/image_save_naming.dart';
+import 'package:nai_launcher/core/save_naming/save_name_context.dart';
 import 'package:nai_launcher/core/services/image_save_as_service.dart';
 import 'package:nai_launcher/core/utils/image_save_utils.dart';
 import 'package:nai_launcher/data/models/gallery/nai_image_metadata.dart';
@@ -64,6 +66,7 @@ void main() {
           filePath: galleryFile.path,
         ),
         directory: exportDirectory.path,
+        naming: ImageSaveNaming.standard,
       );
 
       expect(output, p.join(exportDirectory.path, '07-00-00-7.png'));
@@ -76,14 +79,19 @@ void main() {
         rootPath: galleryDirectory.path,
         imageBytes: plainPng,
         preserveOriginalBytes: false,
+        naming: ImageSaveNaming.standard,
+        context: SaveNameContext(createdAt: now),
         metadata: seededMetadata,
-        now: now,
       );
 
       final output = await ImageSaveAsService.writeToDirectory(
-        ImageSaveAsSource(bytes: plainPng, metadata: seededMetadata),
+        ImageSaveAsSource(
+          bytes: plainPng,
+          metadata: seededMetadata,
+          createdAt: now,
+        ),
         directory: exportDirectory.path,
-        now: now,
+        naming: ImageSaveNaming.standard,
       );
 
       final exported = await File(output).readAsBytes();
@@ -102,6 +110,7 @@ void main() {
           preserveOriginalBytes: true,
         ),
         directory: exportDirectory.path,
+        naming: ImageSaveNaming.standard,
       );
 
       expect(await File(output).readAsBytes(), orderedEquals(plainPng));
@@ -114,6 +123,7 @@ void main() {
           filePath: p.join(galleryDirectory.path, 'deleted.png'),
         ),
         directory: exportDirectory.path,
+        naming: ImageSaveNaming.standard,
       );
 
       expect(p.basename(output), 'deleted.png');
@@ -124,21 +134,51 @@ void main() {
       final source = ImageSaveAsSource(
         bytes: plainPng,
         metadata: seededMetadata,
+        createdAt: now,
       );
 
       final first = await ImageSaveAsService.writeToDirectory(
         source,
         directory: exportDirectory.path,
-        now: now,
+        naming: ImageSaveNaming.standard,
       );
       final second = await ImageSaveAsService.writeToDirectory(
         source,
         directory: exportDirectory.path,
-        now: now,
+        naming: ImageSaveNaming.standard,
       );
 
       expect(p.basename(first), '08-05-03-42.png');
       expect(p.basename(second), '08-05-03-42 (1).png');
+    });
+
+    test('names unsaved images by the configured file name rule', () async {
+      const naming = ImageSaveNaming(
+        fileNameTemplate: '{prompt}{seed|pre: s-}_{index|pad:2}',
+      );
+      final sources = [
+        for (var i = 0; i < 2; i++)
+          ImageSaveAsSource(
+            bytes: plainPng,
+            metadata: seededMetadata,
+            createdAt: now,
+          ),
+      ];
+
+      final outputs = [
+        for (final (index, source) in sources.indexed)
+          await ImageSaveAsService.writeToDirectory(
+            source,
+            directory: exportDirectory.path,
+            naming: naming,
+            index: index,
+          ),
+      ];
+
+      expect(outputs.map(p.basename), [
+        'own prompt s-42_01.png',
+        'own prompt s-42_02.png',
+      ]);
     });
 
     test('rejects empty image bytes', () async {
@@ -146,6 +186,7 @@ void main() {
         ImageSaveAsService.writeToDirectory(
           ImageSaveAsSource(bytes: Uint8List(0), metadata: seededMetadata),
           directory: exportDirectory.path,
+          naming: ImageSaveNaming.standard,
         ),
         throwsStateError,
       );
@@ -160,9 +201,13 @@ void main() {
       useFakeFilePicker(picker);
 
       final saved = await ImageSaveAsService.saveOne(
-        ImageSaveAsSource(bytes: plainPng, metadata: seededMetadata),
+        ImageSaveAsSource(
+          bytes: plainPng,
+          metadata: seededMetadata,
+          createdAt: now,
+        ),
         dialogTitle: 'Save image as',
-        now: now,
+        naming: ImageSaveNaming.standard,
       );
 
       expect(saved, target);
@@ -185,6 +230,7 @@ void main() {
           filePath: galleryFile.path,
         ),
         dialogTitle: 'Save image as',
+        naming: ImageSaveNaming.standard,
       );
 
       expect(saved, target);
@@ -201,6 +247,7 @@ void main() {
       final saved = await ImageSaveAsService.saveOne(
         ImageSaveAsSource(bytes: plainPng, metadata: seededMetadata),
         dialogTitle: 'Save image as',
+        naming: ImageSaveNaming.standard,
         preventOverwrite: true,
       );
 
@@ -214,6 +261,7 @@ void main() {
       final saved = await ImageSaveAsService.saveOne(
         ImageSaveAsSource(bytes: plainPng, metadata: seededMetadata),
         dialogTitle: 'Save image as',
+        naming: ImageSaveNaming.standard,
       );
 
       expect(saved, isNull);

@@ -8,6 +8,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/core/constants/api_constants.dart';
 import 'package:nai_launcher/core/enums/image_model_mode.dart';
 import 'package:nai_launcher/core/network/request_builders/nai_image_request_builder.dart';
+import 'package:nai_launcher/core/save_naming/image_save_naming.dart';
+import 'package:nai_launcher/core/save_naming/save_name_context.dart';
 import 'package:nai_launcher/core/utils/comfyui_prompt_parser.dart';
 import 'package:nai_launcher/core/utils/image_save_utils.dart';
 import 'package:nai_launcher/data/datasources/remote/nai_image_generation_api_service.dart';
@@ -529,6 +531,8 @@ void main() {
         rootPath: root.path,
         imageBytes: base,
         preserveOriginalBytes: false,
+        naming: ImageSaveNaming.standard,
+        context: SaveNameContext(createdAt: DateTime.now()),
         metadata: const NaiImageMetadata(prompt: 'must not replace', seed: 1),
         fixedTagUsageSnapshot: snapshot,
       );
@@ -608,6 +612,8 @@ void main() {
         rootPath: root.path,
         imageBytes: plainPng,
         preserveOriginalBytes: false,
+        naming: ImageSaveNaming.standard,
+        context: SaveNameContext(createdAt: DateTime.now()),
         metadata: metadata,
       );
 
@@ -627,15 +633,13 @@ void main() {
         rootPath: root.path,
         imageBytes: plainPng,
         preserveOriginalBytes: false,
-        now: now,
+        naming: ImageSaveNaming.standard,
+        context: SaveNameContext(createdAt: now),
       );
 
       expect(saved.bytes, orderedEquals(plainPng));
       expect(UnifiedMetadataParser.extractPngTextData(saved.bytes), isEmpty);
-      expect(
-        p.basename(saved.path),
-        '08-09-10-${now.millisecondsSinceEpoch}.png',
-      );
+      expect(p.basename(saved.path), '08-09-10.png');
     });
 
     test('stealth-only NovelAI bytes are recognised and kept', () async {
@@ -684,6 +688,8 @@ void main() {
         rootPath: root.path,
         imageBytes: plainPng,
         preserveOriginalBytes: false,
+        naming: ImageSaveNaming.standard,
+        context: SaveNameContext(createdAt: DateTime.now()),
         metadata: metadata,
       );
 
@@ -715,6 +721,8 @@ void main() {
         rootPath: root.path,
         imageBytes: plainPng,
         preserveOriginalBytes: false,
+        naming: ImageSaveNaming.standard,
+        context: SaveNameContext(createdAt: DateTime.now()),
         metadata: const NaiImageMetadata(
           prompt: 'own prompt',
           seed: 5,
@@ -745,6 +753,8 @@ void main() {
         rootPath: root.path,
         imageBytes: large,
         preserveOriginalBytes: false,
+        naming: ImageSaveNaming.standard,
+        context: SaveNameContext(createdAt: DateTime.now()),
         metadata: const NaiImageMetadata(prompt: 'large prompt', seed: 7),
         fixedTagUsageSnapshot: snapshot,
       );
@@ -764,6 +774,8 @@ void main() {
         rootPath: root.path,
         imageBytes: plainPng,
         preserveOriginalBytes: true,
+        naming: ImageSaveNaming.standard,
+        context: SaveNameContext(createdAt: DateTime.now()),
         metadata: const NaiImageMetadata(prompt: 'own prompt', seed: 5),
         fixedTagUsageSnapshot: const FixedTagUsageSnapshot(),
       );
@@ -828,57 +840,169 @@ void main() {
     );
   });
 
-  test('named dated saves sanitize conflicts and finish atomically', () async {
+  test('derivative copies keep their name and only follow the folder rule', () async {
     final root = await Directory.systemTemp.createTemp('named-image-save');
     addTearDown(() => root.delete(recursive: true));
     final bytes = Uint8List.fromList([1, 2, 3, 4]);
-    final now = DateTime(2026, 8, 31, 12, 30);
+    final context = SaveNameContext(createdAt: DateTime(2026, 8, 31, 12, 30));
 
-    final first = await ImageSaveUtils.saveBytesToDatedPath(
+    Future<String> save() => ImageSaveUtils.saveBytesToGallery(
       rootPath: root.path,
       bytes: bytes,
+      naming: const ImageSaveNaming(fileNameTemplate: 'ignored-{time}'),
+      context: context,
       preferredFileName: 'portrait:*_watermarked.png',
-      now: now,
+      protectedSuffix: '_watermarked',
     );
-    final second = await ImageSaveUtils.saveBytesToDatedPath(
-      rootPath: root.path,
-      bytes: bytes,
-      preferredFileName: 'portrait:*_watermarked.png',
-      now: now,
-    );
+    final first = await save();
+    final second = await save();
 
     expect(p.basename(first), 'portrait___watermarked.png');
     expect(p.basename(second), 'portrait___watermarked-2.png');
+    expect(p.basename(p.dirname(first)), '2026-08-31');
     expect(await File(first).readAsBytes(), bytes);
     expect(await File(second).readAsBytes(), bytes);
   });
 
-  test('dated saves and save-as suggestions share the gallery name', () async {
+  test('default rule keeps the dated folder and time-seed name', () async {
     final root = await Directory.systemTemp.createTemp('gallery-name-save');
     addTearDown(() => root.delete(recursive: true));
-    final now = DateTime(2026, 9, 26, 8, 5, 3);
+    final context = SaveNameContext(
+      createdAt: DateTime(2026, 9, 26, 8, 5, 3),
+      metadata: const NaiImageMetadata(seed: 42),
+    );
 
-    final saved = await ImageSaveUtils.saveBytesToDatedPath(
+    final saved = await ImageSaveUtils.saveBytesToGallery(
       rootPath: root.path,
       bytes: Uint8List.fromList([1]),
-      seed: 42,
-      now: now,
+      naming: ImageSaveNaming.standard,
+      context: context,
     );
 
-    expect(p.basename(saved), '08-05-03-42.png');
-    expect(p.basename(p.dirname(saved)), '2026-09-26');
     expect(
-      ImageSaveUtils.galleryFileName(seed: 42, now: now),
+      p.relative(saved, from: root.path),
+      p.join('2026-09-26', '08-05-03-42.png'),
+    );
+    expect(
+      await ImageSaveUtils.galleryFileName(
+        bytes: Uint8List.fromList([1]),
+        naming: ImageSaveNaming.standard,
+        context: context,
+      ),
       p.basename(saved),
     );
+  });
+
+  test('flat folder rule writes straight into the gallery root', () async {
+    final root = await Directory.systemTemp.createTemp('gallery-flat-save');
+    addTearDown(() => root.delete(recursive: true));
+
+    final saved = await ImageSaveUtils.saveBytesToGallery(
+      rootPath: root.path,
+      bytes: Uint8List.fromList([1]),
+      naming: ImageSaveNaming(
+        folderTemplate: SaveFolderPreset.none.template,
+        fileNameTemplate: SaveFileNamePreset.promptSeed.template,
+      ),
+      context: SaveNameContext(
+        createdAt: DateTime(2026, 10, 12),
+        metadata: const NaiImageMetadata(prompt: '1girl, solo', seed: 7),
+      ),
+    );
+
+    expect(p.dirname(saved), root.path);
+    expect(p.basename(saved), '1girl, solo s-7.png');
+  });
+
+  test('nested folder rule never leaves the gallery root', () async {
+    final root = await Directory.systemTemp.createTemp('gallery-nested-save');
+    addTearDown(() => root.delete(recursive: true));
+
+    final saved = await ImageSaveUtils.saveBytesToGallery(
+      rootPath: root.path,
+      bytes: Uint8List.fromList([1]),
+      naming: const ImageSaveNaming(
+        folderTemplate: '../{model}/{year}/{month}',
+      ),
+      context: SaveNameContext(
+        createdAt: DateTime(2026, 10, 12, 1, 2, 3),
+        metadata: const NaiImageMetadata(model: 'nai/../diffusion', seed: 1),
+      ),
+    );
+
+    expect(p.isWithin(root.path, saved), isTrue);
     expect(
-      ImageSaveUtils.galleryFileName(seed: -1, now: now),
-      '08-05-03-${now.millisecondsSinceEpoch}.png',
+      p.relative(saved, from: root.path),
+      p.join('nai_.._diffusion', '2026', '10', '01-02-03-1.png'),
+    );
+  });
+
+  test('metadata fields are read from the bytes when not supplied', () async {
+    final root = await Directory.systemTemp.createTemp('gallery-parse-save');
+    final hive = await Directory.systemTemp.createTemp('gallery-parse-hive');
+    Hive.init(hive.path);
+    addTearDown(() async {
+      await Hive.close();
+      await hive.delete(recursive: true);
+      await root.delete(recursive: true);
+    });
+    final bytes = await ImageSaveUtils.rebuildImageBytesWithMetadata(
+      imageBytes: Uint8List.fromList(
+        img.encodePng(img.Image(width: 4, height: 6)),
+      ),
+      params: const ImageParams(prompt: 'from bytes', seed: 99),
+      actualSeed: 99,
+    );
+
+    final saved = await ImageSaveUtils.saveBytesToGallery(
+      rootPath: root.path,
+      bytes: bytes,
+      naming: const ImageSaveNaming(
+        folderTemplate: '',
+        fileNameTemplate: '{prompt} {resolution}{seed|pre: s-}',
+      ),
+      context: SaveNameContext(createdAt: DateTime(2026, 10, 12)),
+    );
+
+    expect(p.basename(saved), 'from bytes 4x6 s-99.png');
+  });
+
+  test('long names are shortened to fit the path limit', () async {
+    final root = await Directory.systemTemp.createTemp('gallery-long-save');
+    addTearDown(() => root.delete(recursive: true));
+    final context = SaveNameContext(
+      createdAt: DateTime(2026, 10, 12),
+      metadata: NaiImageMetadata(prompt: 'a' * 300, seed: 5),
+    );
+    final limit = p.join(root.path, '2026-10-12').length + 120;
+    const collisionReserve = '-999';
+
+    final saved = await ImageSaveUtils.saveBytesToGallery(
+      rootPath: root.path,
+      bytes: Uint8List.fromList([1]),
+      naming: const ImageSaveNaming(fileNameTemplate: '{prompt|first:300}'),
+      context: context,
+      maxPathLength: limit,
+    );
+    final derived = await ImageSaveUtils.saveBytesToGallery(
+      rootPath: root.path,
+      bytes: Uint8List.fromList([1]),
+      naming: ImageSaveNaming.standard,
+      context: context,
+      preferredFileName: '${'b' * 200}_redacted.png',
+      protectedSuffix: '_redacted',
+      maxPathLength: limit,
+    );
+
+    expect(
+      saved.length + collisionReserve.length,
+      lessThanOrEqualTo(limit),
     );
     expect(
-      ImageSaveUtils.galleryFileName(now: now),
-      '08-05-03-${now.millisecondsSinceEpoch}.png',
+      derived.length + collisionReserve.length,
+      lessThanOrEqualTo(limit),
     );
+    expect(p.basenameWithoutExtension(derived), endsWith('_redacted'));
   });
 
   group('ImageSaveUtils effort and furry mode', () {

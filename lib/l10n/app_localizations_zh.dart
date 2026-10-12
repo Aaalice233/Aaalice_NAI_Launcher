@@ -761,6 +761,240 @@ class AppLocalizationsZh extends AppLocalizations {
       '关闭后仅保存到应用图库，不再出现在系统相册；已同步的图片不受影响';
 
   @override
+  String get settings_saveNaming => '文件夹与文件名';
+
+  @override
+  String settings_saveNamingSubtitle(Object example) {
+    return '示例：$example';
+  }
+
+  @override
+  String get settings_saveNamingFolderSection => '子文件夹';
+
+  @override
+  String get settings_saveNamingFileNameSection => '文件名';
+
+  @override
+  String get settings_saveNamingFolderByDate => '按日期';
+
+  @override
+  String get settings_saveNamingFolderByMonth => '按月份';
+
+  @override
+  String get settings_saveNamingFolderByYearMonth => '按年、月两级';
+
+  @override
+  String get settings_saveNamingFolderNone => '不建子文件夹';
+
+  @override
+  String get settings_saveNamingFolderNoneExample => '直接保存在图片保存位置';
+
+  @override
+  String get settings_saveNamingFileTimeSeed => '时间 + 种子';
+
+  @override
+  String get settings_saveNamingFileDateTimeSeed => '日期时间 + 种子';
+
+  @override
+  String get settings_saveNamingFilePromptSeed => '提示词 + 种子';
+
+  @override
+  String get settings_saveNamingCustom => '自定义';
+
+  @override
+  String get settings_saveNamingFolderTemplate => '子文件夹模板';
+
+  @override
+  String get settings_saveNamingFolderTemplateHelper => '用 / 分隔多级文件夹；留空则不建子文件夹';
+
+  @override
+  String get settings_saveNamingFileNameTemplate => '文件名模板';
+
+  @override
+  String get settings_saveNamingFileNameTemplateHelper => '自动添加 .png 扩展名';
+
+  @override
+  String get settings_saveNamingFileNameEmpty => '文件名模板不能为空';
+
+  @override
+  String get settings_saveNamingInsertField => '插入字段';
+
+  @override
+  String get settings_saveNamingPreview => '预览';
+
+  @override
+  String get settings_saveNamingPreviewLatest => '示例取自最近一张生成图';
+
+  @override
+  String get settings_saveNamingPreviewSample => '示例使用内置样例数据';
+
+  @override
+  String get settings_saveNamingOmitsDateHint =>
+      '路径里没有日期，不同日期的图片会混在一起；需要按日期区分时，请在子文件夹或文件名中加入日期。';
+
+  @override
+  String get settings_saveNamingAppliesToNewHint => '只影响之后保存的图片，已有文件不会重命名或移动。';
+
+  @override
+  String get settings_saveNamingRestoreDefaults => '恢复默认';
+
+  @override
+  String get settings_saveNamingSyntaxHelp => '模板语法';
+
+  @override
+  String get settings_saveNamingSyntaxIntro =>
+      '用字段插入图片信息，过滤器从左到右依次生效；字段没有值时，它的 pre 和 suf 也一并省略。连写两个左花括号可输出一个左花括号。';
+
+  @override
+  String get settings_saveNamingSyntaxFields => '字段';
+
+  @override
+  String get settings_saveNamingSyntaxFilters => '过滤器';
+
+  @override
+  String get settings_saveNamingSyntaxCharacterFilters =>
+      '角色过滤器（仅限 characters，写在其他过滤器之前）';
+
+  @override
+  String get settings_saveNamingSyntaxExamples => '示例';
+
+  @override
+  String get settings_saveNamingFieldPrompt => '提示词（未使用长度过滤器时截取前 80 个字符）';
+
+  @override
+  String get settings_saveNamingFieldSeed => '种子';
+
+  @override
+  String get settings_saveNamingFieldDate => '生成日期，如 2026-10-12';
+
+  @override
+  String get settings_saveNamingFieldTime => '生成时刻，如 14-30-05';
+
+  @override
+  String get settings_saveNamingFieldYear => '年份，如 2026';
+
+  @override
+  String get settings_saveNamingFieldMonth => '月份，如 10';
+
+  @override
+  String get settings_saveNamingFieldDay => '日，如 12';
+
+  @override
+  String get settings_saveNamingFieldModel => '模型 ID';
+
+  @override
+  String get settings_saveNamingFieldModelName => '模型名称';
+
+  @override
+  String get settings_saveNamingFieldResolution => '分辨率，如 832x1216';
+
+  @override
+  String get settings_saveNamingFieldWidth => '宽度';
+
+  @override
+  String get settings_saveNamingFieldHeight => '高度';
+
+  @override
+  String get settings_saveNamingFieldIndex => '同一次保存中的序号，从 1 开始';
+
+  @override
+  String get settings_saveNamingFieldId => '图片 ID';
+
+  @override
+  String get settings_saveNamingFieldType =>
+      '生成方式：inpaint、image2image 或 vibe-transfer，文生图为空';
+
+  @override
+  String get settings_saveNamingFieldCharacters => '角色名，默认取前 3 个并用 + 连接';
+
+  @override
+  String get settings_saveNamingFilterFirst => '保留前 N 个字符';
+
+  @override
+  String get settings_saveNamingFilterLast => '保留后 N 个字符';
+
+  @override
+  String get settings_saveNamingFilterWords => '保留前 N 个词，负数保留末尾几个';
+
+  @override
+  String get settings_saveNamingFilterTags => '保留前 N 个逗号分隔的标签，负数保留末尾几个';
+
+  @override
+  String get settings_saveNamingFilterPre => '值非空时在前面加上 X';
+
+  @override
+  String get settings_saveNamingFilterSuf => '值非空时在后面加上 X';
+
+  @override
+  String get settings_saveNamingFilterPad => '数字左侧补 0 到 N 位';
+
+  @override
+  String get settings_saveNamingFilterLower => '转为小写';
+
+  @override
+  String get settings_saveNamingFilterUpper => '转为大写';
+
+  @override
+  String get settings_saveNamingFilterMax => '最多取 N 个角色（默认 3）';
+
+  @override
+  String get settings_saveNamingFilterAt => '只取第 N 个角色';
+
+  @override
+  String get settings_saveNamingFilterEach => '每个角色名保留前 N 个字符';
+
+  @override
+  String get settings_saveNamingFilterJoin => '用 X 连接角色名（默认 +）';
+
+  @override
+  String get settings_saveNamingFilterFull => '使用完整角色提示词而不是角色名';
+
+  @override
+  String settings_saveNamingErrorUnclosedBrace(int position) {
+    return '第 $position 个字符处的左花括号没有闭合';
+  }
+
+  @override
+  String settings_saveNamingErrorUnknownField(Object name) {
+    return '未知字段“$name”';
+  }
+
+  @override
+  String settings_saveNamingErrorUnknownFilter(Object name) {
+    return '未知过滤器“$name”';
+  }
+
+  @override
+  String settings_saveNamingErrorFilterOnlyForCharacters(Object name) {
+    return '过滤器“$name”只能用于 characters';
+  }
+
+  @override
+  String settings_saveNamingErrorCharacterFilterOrder(Object name) {
+    return '过滤器“$name”必须写在 first、pre 等过滤器之前';
+  }
+
+  @override
+  String settings_saveNamingErrorFilterTakesNoValue(Object name) {
+    return '过滤器“$name”不需要参数';
+  }
+
+  @override
+  String settings_saveNamingErrorFilterNeedsValue(Object name) {
+    return '过滤器“$name”需要参数，例如 $name:-';
+  }
+
+  @override
+  String settings_saveNamingErrorFilterNeedsPositiveNumber(Object name) {
+    return '过滤器“$name”需要正整数';
+  }
+
+  @override
+  String settings_saveNamingErrorFilterNeedsNonZeroNumber(Object name) {
+    return '过滤器“$name”需要非零整数';
+  }
+
+  @override
   String get settings_about => '关于';
 
   @override
@@ -16019,6 +16253,241 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   @override
   String get settings_syncToSystemGallerySubtitle =>
       '關閉後僅儲存到應用程式圖庫，不再出現在系統相簿；已同步的圖片不受影響';
+
+  @override
+  String get settings_saveNaming => '資料夾與檔案名稱';
+
+  @override
+  String settings_saveNamingSubtitle(Object example) {
+    return '範例：$example';
+  }
+
+  @override
+  String get settings_saveNamingFolderSection => '子資料夾';
+
+  @override
+  String get settings_saveNamingFileNameSection => '檔案名稱';
+
+  @override
+  String get settings_saveNamingFolderByDate => '按日期';
+
+  @override
+  String get settings_saveNamingFolderByMonth => '按月份';
+
+  @override
+  String get settings_saveNamingFolderByYearMonth => '按年、月兩層';
+
+  @override
+  String get settings_saveNamingFolderNone => '不建立子資料夾';
+
+  @override
+  String get settings_saveNamingFolderNoneExample => '直接儲存在圖片儲存位置';
+
+  @override
+  String get settings_saveNamingFileTimeSeed => '時間 + 種子';
+
+  @override
+  String get settings_saveNamingFileDateTimeSeed => '日期時間 + 種子';
+
+  @override
+  String get settings_saveNamingFilePromptSeed => '提示詞 + 種子';
+
+  @override
+  String get settings_saveNamingCustom => '自訂';
+
+  @override
+  String get settings_saveNamingFolderTemplate => '子資料夾範本';
+
+  @override
+  String get settings_saveNamingFolderTemplateHelper =>
+      '以 / 分隔多層資料夾；留空則不建立子資料夾';
+
+  @override
+  String get settings_saveNamingFileNameTemplate => '檔案名稱範本';
+
+  @override
+  String get settings_saveNamingFileNameTemplateHelper => '自動加上 .png 副檔名';
+
+  @override
+  String get settings_saveNamingFileNameEmpty => '檔案名稱範本不能為空';
+
+  @override
+  String get settings_saveNamingInsertField => '插入欄位';
+
+  @override
+  String get settings_saveNamingPreview => '預覽';
+
+  @override
+  String get settings_saveNamingPreviewLatest => '範例取自最近一張生成圖';
+
+  @override
+  String get settings_saveNamingPreviewSample => '範例使用內建樣本資料';
+
+  @override
+  String get settings_saveNamingOmitsDateHint =>
+      '路徑中沒有日期，不同日期的圖片會混在一起；需要依日期區分時，請在子資料夾或檔案名稱中加入日期。';
+
+  @override
+  String get settings_saveNamingAppliesToNewHint => '只影響之後儲存的圖片，既有檔案不會重新命名或移動。';
+
+  @override
+  String get settings_saveNamingRestoreDefaults => '恢復預設';
+
+  @override
+  String get settings_saveNamingSyntaxHelp => '範本語法';
+
+  @override
+  String get settings_saveNamingSyntaxIntro =>
+      '用欄位插入圖片資訊，過濾器由左至右依序生效；欄位沒有值時，它的 pre 和 suf 也一併省略。連寫兩個左大括號可輸出一個左大括號。';
+
+  @override
+  String get settings_saveNamingSyntaxFields => '欄位';
+
+  @override
+  String get settings_saveNamingSyntaxFilters => '過濾器';
+
+  @override
+  String get settings_saveNamingSyntaxCharacterFilters =>
+      '角色過濾器（僅限 characters，寫在其他過濾器之前）';
+
+  @override
+  String get settings_saveNamingSyntaxExamples => '範例';
+
+  @override
+  String get settings_saveNamingFieldPrompt => '提示詞（未使用長度過濾器時擷取前 80 個字元）';
+
+  @override
+  String get settings_saveNamingFieldSeed => '種子';
+
+  @override
+  String get settings_saveNamingFieldDate => '生成日期，如 2026-10-12';
+
+  @override
+  String get settings_saveNamingFieldTime => '生成時刻，如 14-30-05';
+
+  @override
+  String get settings_saveNamingFieldYear => '年份，如 2026';
+
+  @override
+  String get settings_saveNamingFieldMonth => '月份，如 10';
+
+  @override
+  String get settings_saveNamingFieldDay => '日，如 12';
+
+  @override
+  String get settings_saveNamingFieldModel => '模型 ID';
+
+  @override
+  String get settings_saveNamingFieldModelName => '模型名稱';
+
+  @override
+  String get settings_saveNamingFieldResolution => '解析度，如 832x1216';
+
+  @override
+  String get settings_saveNamingFieldWidth => '寬度';
+
+  @override
+  String get settings_saveNamingFieldHeight => '高度';
+
+  @override
+  String get settings_saveNamingFieldIndex => '同一次儲存中的序號，從 1 開始';
+
+  @override
+  String get settings_saveNamingFieldId => '圖片 ID';
+
+  @override
+  String get settings_saveNamingFieldType =>
+      '生成方式：inpaint、image2image 或 vibe-transfer，文生圖為空';
+
+  @override
+  String get settings_saveNamingFieldCharacters => '角色名稱，預設取前 3 個並以 + 連接';
+
+  @override
+  String get settings_saveNamingFilterFirst => '保留前 N 個字元';
+
+  @override
+  String get settings_saveNamingFilterLast => '保留後 N 個字元';
+
+  @override
+  String get settings_saveNamingFilterWords => '保留前 N 個詞，負數保留末尾幾個';
+
+  @override
+  String get settings_saveNamingFilterTags => '保留前 N 個以逗號分隔的標籤，負數保留末尾幾個';
+
+  @override
+  String get settings_saveNamingFilterPre => '值非空時在前面加上 X';
+
+  @override
+  String get settings_saveNamingFilterSuf => '值非空時在後面加上 X';
+
+  @override
+  String get settings_saveNamingFilterPad => '數字左側補 0 至 N 位';
+
+  @override
+  String get settings_saveNamingFilterLower => '轉為小寫';
+
+  @override
+  String get settings_saveNamingFilterUpper => '轉為大寫';
+
+  @override
+  String get settings_saveNamingFilterMax => '最多取 N 個角色（預設 3）';
+
+  @override
+  String get settings_saveNamingFilterAt => '只取第 N 個角色';
+
+  @override
+  String get settings_saveNamingFilterEach => '每個角色名稱保留前 N 個字元';
+
+  @override
+  String get settings_saveNamingFilterJoin => '以 X 連接角色名稱（預設 +）';
+
+  @override
+  String get settings_saveNamingFilterFull => '使用完整角色提示詞而非角色名稱';
+
+  @override
+  String settings_saveNamingErrorUnclosedBrace(int position) {
+    return '第 $position 個字元處的左大括號沒有閉合';
+  }
+
+  @override
+  String settings_saveNamingErrorUnknownField(Object name) {
+    return '未知欄位「$name」';
+  }
+
+  @override
+  String settings_saveNamingErrorUnknownFilter(Object name) {
+    return '未知過濾器「$name」';
+  }
+
+  @override
+  String settings_saveNamingErrorFilterOnlyForCharacters(Object name) {
+    return '過濾器「$name」只能用於 characters';
+  }
+
+  @override
+  String settings_saveNamingErrorCharacterFilterOrder(Object name) {
+    return '過濾器「$name」必須寫在 first、pre 等過濾器之前';
+  }
+
+  @override
+  String settings_saveNamingErrorFilterTakesNoValue(Object name) {
+    return '過濾器「$name」不需要參數';
+  }
+
+  @override
+  String settings_saveNamingErrorFilterNeedsValue(Object name) {
+    return '過濾器「$name」需要參數，例如 $name:-';
+  }
+
+  @override
+  String settings_saveNamingErrorFilterNeedsPositiveNumber(Object name) {
+    return '過濾器「$name」需要正整數';
+  }
+
+  @override
+  String settings_saveNamingErrorFilterNeedsNonZeroNumber(Object name) {
+    return '過濾器「$name」需要非零整數';
+  }
 
   @override
   String get settings_about => '關於';

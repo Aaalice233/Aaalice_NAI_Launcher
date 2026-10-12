@@ -25,6 +25,7 @@ class GenerationSaveService {
     final gallery = ref.read(localGalleryNotifierProvider.notifier);
     return GenerationResultSaver(
       resolveGalleryRootPath: GalleryFolderRepository.instance.getRootPath,
+      naming: ref.read(imageSaveSettingsNotifierProvider).naming,
       systemGallery: ref.read(systemGalleryPublisherProvider),
       recordSavedPath: generation.updateImageFilePath,
       addGalleryImages: gallery.addNewlySavedImages,
@@ -49,6 +50,8 @@ class GenerationSaveService {
       filePath: latest.filePath,
       metadata: latest.metadata,
       preserveOriginalBytes: latest.preserveOriginalBytesOnSave,
+      createdAt: latest.createdAt,
+      imageId: latest.id,
     );
   }
 
@@ -59,6 +62,7 @@ class GenerationSaveService {
   ) => ImageSaveAsWorkflow.saveOne(
     context,
     saveAsSourceFor(ref, image),
+    naming: ref.read(imageSaveSettingsNotifierProvider).naming,
     preventOverwrite: AssetProtectionGuard.shouldPreventOverwrite(ref),
   );
 
@@ -69,7 +73,11 @@ class GenerationSaveService {
     List<GeneratedImage> images,
   ) async {
     final sources = [for (final image in images) saveAsSourceFor(ref, image)];
-    final result = await ImageSaveAsWorkflow.saveAllToFolder(context, sources);
+    final result = await ImageSaveAsWorkflow.saveAllToFolder(
+      context,
+      sources,
+      naming: ref.read(imageSaveSettingsNotifierProvider).naming,
+    );
     return result != null && result.failures.isEmpty;
   }
 
@@ -79,20 +87,20 @@ class GenerationSaveService {
     ImageDetailData image,
   ) async {
     if (!image.showSaveAsButton) return;
-    final savedPath =
-        image.fileInfo?.path ??
-        ref
-            .read(imageGenerationNotifierProvider)
-            .findImageById(image.identifier)
-            ?.filePath;
+    final generated = ref
+        .read(imageGenerationNotifierProvider)
+        .findImageById(image.identifier);
     await ImageSaveAsWorkflow.saveOne(
       context,
       ImageSaveAsSource.deferred(
         loadBytes: image.getImageBytes,
-        filePath: savedPath,
+        filePath: image.fileInfo?.path ?? generated?.filePath,
         metadata: image.metadata,
         preserveOriginalBytes: image.preserveOriginalBytesOnSave,
+        createdAt: generated?.createdAt,
+        imageId: generated?.id,
       ),
+      naming: ref.read(imageSaveSettingsNotifierProvider).naming,
       preventOverwrite: AssetProtectionGuard.shouldPreventOverwrite(ref),
     );
   }
@@ -107,17 +115,17 @@ class GenerationSaveService {
     ImageDetailData image,
   ) async {
     final saver = saverFor(ref);
-    final savedPath = ref
+    final generated = ref
         .read(imageGenerationNotifierProvider)
-        .findImageById(image.identifier)
-        ?.filePath;
+        .findImageById(image.identifier);
     await _saveWithFeedback(
       context,
       saver,
       () async => [
         await GenerationResultSaveRequest.fromDetail(
           image,
-          savedPath: savedPath,
+          savedPath: generated?.filePath,
+          createdAt: generated?.createdAt,
         ),
       ],
     );
