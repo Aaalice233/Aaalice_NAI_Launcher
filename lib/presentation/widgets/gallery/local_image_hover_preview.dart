@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math' as math;
 import 'dart:ui' as ui;
 
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import '../common/model_family_icon.dart';
 
@@ -99,7 +100,10 @@ class _LocalImageHoverPreviewState extends State<LocalImageHoverPreview> {
     return CompositedTransformTarget(
       link: _layerLink,
       child: MouseRegion(
-        onEnter: (_) => _schedulePreview(),
+        // 只响应鼠标 / 触控板悬停，触控笔悬停不弹预览卡（见 LocalImageCard3D）
+        onEnter: (event) {
+          if (event.kind == PointerDeviceKind.mouse) _schedulePreview();
+        },
         onExit: (_) => _hoverController.dismissFor(widget.record.path),
         child: widget.child,
       ),

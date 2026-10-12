@@ -123,4 +123,40 @@ void main() {
       await tester.pump();
     },
   );
+
+  testWidgets('stylus hover does not open the preview', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: LocalImageHoverPreview(
+            record: LocalImageRecord(
+              path: 'assets/icons/tray_icon.png',
+              size: 42,
+              modifiedAt: DateTime(2026),
+            ),
+            hoverDelay: Duration.zero,
+            child: const SizedBox(
+              key: ValueKey('hover-target'),
+              width: 120,
+              height: 160,
+            ),
+          ),
+        ),
+      ),
+    );
+
+    final stylus = await tester.createGesture(kind: PointerDeviceKind.stylus);
+    addTearDown(stylus.removePointer);
+    await stylus.addPointer(location: const Offset(400, 400));
+    await stylus.moveTo(
+      tester.getCenter(find.byKey(const ValueKey('hover-target'))),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
+
+    expect(
+      find.byKey(const ValueKey('local-gallery-hover-preview')),
+      findsNothing,
+    );
+  });
 }
