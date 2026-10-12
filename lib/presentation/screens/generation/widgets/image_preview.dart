@@ -844,7 +844,9 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> {
       onUpscale: canUseAsInput
           ? () => ImageWorkflowLauncher.openUpscale(ref, imageBytes)
           : null,
-      onSendToKrita: canUseAsInput
+      // Krita 桥接只在桌面可用，移动端菜单里出现这一项点了只会提示未连接
+      onSendToKrita:
+          canUseAsInput && PlatformCapabilities.current.supportsKritaBridge
           ? () => KritaSendHelper.sendImageBytes(
               context,
               ref,

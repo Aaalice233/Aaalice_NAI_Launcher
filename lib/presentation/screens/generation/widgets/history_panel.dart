@@ -970,7 +970,13 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
                                     historyImage.bytes,
                                   )
                                 : null,
-                            onSendToKrita: historyImage.canUseAsGenerationInput
+                            // Krita 桥接只在桌面可用，移动端菜单里出现这一项
+                            // 点了只会提示未连接
+                            onSendToKrita:
+                                historyImage.canUseAsGenerationInput &&
+                                    PlatformCapabilities
+                                        .current
+                                        .supportsKritaBridge
                                 ? () => KritaSendHelper.sendImageBytes(
                                     context,
                                     ref,
@@ -1181,7 +1187,10 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
           onUpscale: image.canUseAsGenerationInput
               ? () => ImageWorkflowLauncher.openUpscale(ref, imageBytes)
               : null,
-          onSendToKrita: image.canUseAsGenerationInput
+          // Krita 桥接只在桌面可用
+          onSendToKrita:
+              image.canUseAsGenerationInput &&
+                  PlatformCapabilities.current.supportsKritaBridge
               ? () => KritaSendHelper.sendImageBytes(
                   context,
                   ref,
