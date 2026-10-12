@@ -1,0 +1,110 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:nai_launcher/core/storage/local_storage_service.dart';
+import 'package:nai_launcher/data/models/character/character_prompt.dart';
+import 'package:nai_launcher/data/repositories/character_prompt_repository.dart';
+import 'package:nai_launcher/l10n/app_localizations.dart';
+import 'package:nai_launcher/presentation/providers/character_prompt_provider.dart';
+import 'package:nai_launcher/presentation/widgets/character/add_character_buttons.dart';
+
+import '../../../helpers/memory_local_storage.dart';
+
+/// 到达官方角色上限后 addCharacter 只写日志就返回。锁住两条行为：添加入口
+/// 变灰，点击时有可见提示（触屏上看不到 tooltip）。
+///
+/// 角色配置与设置都换成内存实现：在 testWidgets 的假异步区里写真实 Hive，
+/// 落盘 Future 永远完成不了，tearDownAll 的 Hive.close() 会一直挂住。
+void main() {
+  Future<ProviderContainer> pumpButtons(WidgetTester tester) async {
+    final container = ProviderContainer(
+      overrides: [
+        characterPromptRepositoryProvider.overrideWith(
+          (ref) => _MemoryCharacterPromptRepository(),
+        ),
+        localStorageServiceProvider.overrideWith((ref) => MemoryLocalStorage()),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: const MaterialApp(
+          locale: Locale('en'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(
+            body: Align(
+              alignment: Alignment.topLeft,
+              child: AddCharacterButtons(),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+    return container;
+  }
+
+  testWidgets('未到上限时添加入口可用且不挂禁用原因', (tester) async {
+    final container = await pumpButtons(tester);
+    final l10n = await AppLocalizations.delegate.load(const Locale('en'));
+
+    expect(container.read(characterLimitReachedProvider), isFalse);
+    expect(find.byType(Tooltip), findsNothing);
+
+    await tester.tap(find.text(l10n.characterEditor_addFemale));
+    await tester.pump();
+
+    expect(
+      container.read(characterPromptNotifierProvider).characters,
+      hasLength(1),
+    );
+  });
+
+  testWidgets('到达角色上限后四个入口禁用并在点击时给出提示', (tester) async {
+    final container = await pumpButtons(tester);
+    final l10n = await AppLocalizations.delegate.load(const Locale('en'));
+
+    final notifier = container.read(characterPromptNotifierProvider.notifier);
+    final limit = notifier.characterLimit;
+    for (var i = 0; i < limit; i++) {
+      notifier.addCharacter(CharacterGender.female);
+    }
+    await tester.pump();
+
+    expect(container.read(characterLimitReachedProvider), isTrue);
+
+    final message = l10n.character_limitReached(limit.toString());
+    // 女 / 男 / 其他 / 词库 四个入口全部进入禁用态并挂上同一句原因
+    expect(find.byTooltip(message), findsNWidgets(4));
+
+    await tester.tap(find.text(l10n.characterEditor_addFemale));
+    await tester.pump();
+
+    // 点击不再添加角色，而是弹出提示（触屏没有 hover，只给 tooltip 等于没提示）
+    expect(
+      container.read(characterPromptNotifierProvider).characters,
+      hasLength(limit),
+    );
+    expect(find.text(message), findsOneWidget);
+
+    // 放掉 toast 的自动消失定时器，避免遗留 pending timer
+    await tester.pump(const Duration(seconds: 4));
+    await tester.pumpAndSettle();
+  });
+}
+
+class _MemoryCharacterPromptRepository extends CharacterPromptRepository {
+  CharacterPromptConfig config = const CharacterPromptConfig();
+
+  @override
+  CharacterPromptConfig load() => config;
+
+  @override
+  Future<bool> save(CharacterPromptConfig value) async {
+    config = value;
+    return true;
+  }
+}

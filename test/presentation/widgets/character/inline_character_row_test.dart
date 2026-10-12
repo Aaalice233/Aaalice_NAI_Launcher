@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/data/models/character/character_prompt.dart';
 import 'package:nai_launcher/data/repositories/character_prompt_repository.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
+import 'package:nai_launcher/presentation/adaptive/interaction_policy.dart';
 import 'package:nai_launcher/presentation/providers/character_prompt_provider.dart';
 import 'package:nai_launcher/presentation/providers/image_generation_provider.dart';
 import 'package:nai_launcher/presentation/widgets/character/inline_character_row.dart';
@@ -156,5 +157,74 @@ void main() {
     expectInkOnTop(tester, card, ink: theme.highlightColor, below: cardFill);
     await press.cancel();
     await tester.pump(const Duration(milliseconds: 400));
+  });
+
+  Widget host(List<CharacterPrompt> characters, {InteractionPolicy? policy}) =>
+      ProviderScope(
+        overrides: [
+          characterPromptRepositoryProvider.overrideWith(
+            (ref) => _MemoryCharacterPromptRepository(
+              CharacterPromptConfig(characters: characters),
+            ),
+          ),
+          imageGenerationNotifierProvider.overrideWith(
+            _IdleImageGenerationNotifier.new,
+          ),
+        ],
+        child: MaterialApp(
+          locale: const Locale('en'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: InteractionPolicyScope(
+            initialPolicy: policy,
+            child: const Scaffold(
+              body: SingleChildScrollView(child: InlineCharacterRow()),
+            ),
+          ),
+        ),
+      );
+
+  testWidgets('触屏下角色面板的紧凑图标按钮命中区不小于 44', (tester) async {
+    await tester.pumpWidget(
+      host(const [
+        CharacterPrompt(id: 'alice', name: 'Alice', prompt: 'girl'),
+      ], policy: InteractionPolicy.touchFirst),
+    );
+    await tester.pump();
+    ProviderScope.containerOf(
+      tester.element(find.byType(InlineCharacterRow)),
+    ).read(selectedCharacterIdProvider.notifier).select('alice');
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+
+    final closeButton = find.descendant(
+      of: find.byTooltip('Close'),
+      matching: find.byType(SizedBox),
+    );
+    expect(tester.getSize(closeButton.first).width, greaterThanOrEqualTo(44));
+  });
+
+  testWidgets('到达角色上限后点添加入口给出提示', (tester) async {
+    await tester.pumpWidget(host(const []));
+    await tester.pump();
+    final container = ProviderScope.containerOf(
+      tester.element(find.byType(InlineCharacterRow)),
+    );
+    final notifier = container.read(characterPromptNotifierProvider.notifier);
+    final limit = notifier.characterLimit;
+    notifier.replaceAll([
+      for (var index = 0; index < limit; index++)
+        CharacterPrompt(id: 'c$index', name: 'C$index', prompt: 'girl'),
+    ]);
+    await tester.pump();
+    final message = 'Character limit for this model reached ($limit)';
+
+    final addChip = find.byTooltip(message);
+    await tester.ensureVisible(addChip);
+    await tester.pump();
+    await tester.tap(addChip);
+    await tester.pump();
+    expect(find.text(message), findsWidgets);
+    await tester.pump(const Duration(seconds: 4));
   });
 }
