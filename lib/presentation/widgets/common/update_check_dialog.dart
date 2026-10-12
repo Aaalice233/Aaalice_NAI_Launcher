@@ -566,6 +566,10 @@ class UpdateCheckDialog extends ConsumerWidget {
           horizontal: 10,
           vertical: 7,
         ),
+        // flutter_markdown_plus 只在列宽为 Fixed/Intrinsic 时才给表格套横向
+        // 滚动容器；默认的 FlexColumnWidth 会让窄屏表格逐字换行，下面的
+        // tableScrollbarThumbVisibility 也就不起作用。
+        tableColumnWidth: const IntrinsicColumnWidth(),
         tableScrollbarThumbVisibility: true,
         horizontalRuleDecoration: BoxDecoration(
           border: Border(top: BorderSide(color: colorScheme.outlineVariant)),
