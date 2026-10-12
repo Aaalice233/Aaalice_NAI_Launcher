@@ -125,6 +125,8 @@ class FixedTagsDialogCoordinator {
         position: result.position,
         promptType: result.promptType,
         enabled: result.enabled,
+        sourceEntryId: result.sourceEntryId,
+        categoryId: result.categoryId,
       );
     } else {
       await notifier.updateEntry(result);
