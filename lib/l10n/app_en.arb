@@ -1704,6 +1704,14 @@
   "onlineGallery_blacklistMenuHint": "Hide gallery images containing this tag",
   "onlineGallery_outputFilteredTagTooltip": "Removed when copying, sending, or adding to queue; right-click to manage",
   "onlineGallery_tagContextMenuTooltip": "Right-click to add to the blacklist or output filter",
+  "onlineGallery_outputFilteredTagTooltipTouch": "Removed when copying, sending, or adding to queue; long-press to manage",
+  "@onlineGallery_outputFilteredTagTooltipTouch": {
+    "description": "Tooltip for an output-filtered tag chip on touch devices; mirrors onlineGallery_outputFilteredTagTooltip."
+  },
+  "onlineGallery_tagContextMenuTooltipTouch": "Long-press to add to the blacklist or output filter",
+  "@onlineGallery_tagContextMenuTooltipTouch": {
+    "description": "Tooltip for a tag chip on touch devices, where there is no right-click; mirrors onlineGallery_tagContextMenuTooltip."
+  },
   "onlineGallery_outputFilterTagAdded": "Added {tag} to the output filter",
   "@onlineGallery_outputFilterTagAdded": {
     "placeholders": {

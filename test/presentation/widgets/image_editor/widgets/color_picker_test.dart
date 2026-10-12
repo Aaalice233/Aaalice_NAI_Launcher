@@ -97,4 +97,37 @@ void main() {
     expect(hex.label, '颜色值');
     expect(hex.value, isNotEmpty);
   });
+
+  testWidgets('点按 SV 面板与色相条即取色，不需要拖动', (tester) async {
+    final changes = <Color>[];
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: ListView(
+            children: [
+              HSVColorPicker(
+                color: Colors.blue,
+                hexLabel: '颜色值',
+                saturationBrightnessLabel: '饱和度与亮度',
+                hueLabel: '色相',
+                onColorChanged: changes.add,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    final svPanel = find.byKey(const ValueKey('hsv-color-picker-sv-panel'));
+    await tester.tapAt(tester.getTopLeft(svPanel) + const Offset(8, 8));
+    await tester.pump();
+    expect(changes, hasLength(1));
+
+    final hueSlider = find.byKey(const ValueKey('hsv-color-picker-hue-slider'));
+    await tester.tapAt(
+      tester.getRect(hueSlider).centerLeft + const Offset(8, 0),
+    );
+    await tester.pump();
+    expect(changes, hasLength(2));
+  });
 }

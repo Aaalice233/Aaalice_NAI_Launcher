@@ -3824,6 +3824,14 @@ class AppLocalizationsEn extends AppLocalizations {
       'Right-click to add to the blacklist or output filter';
 
   @override
+  String get onlineGallery_outputFilteredTagTooltipTouch =>
+      'Removed when copying, sending, or adding to queue; long-press to manage';
+
+  @override
+  String get onlineGallery_tagContextMenuTooltipTouch =>
+      'Long-press to add to the blacklist or output filter';
+
+  @override
   String onlineGallery_outputFilterTagAdded(Object tag) {
     return 'Added $tag to the output filter';
   }

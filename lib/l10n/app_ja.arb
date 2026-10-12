@@ -1691,6 +1691,14 @@
   "onlineGallery_blacklistMenuHint": "このタグを含むギャラリー画像を非表示にします",
   "onlineGallery_outputFilteredTagTooltip": "コピー、送信、キュー追加時に除外されます。右クリックで管理できます",
   "onlineGallery_tagContextMenuTooltip": "右クリックでブラックリストまたは出力フィルターに追加",
+  "onlineGallery_outputFilteredTagTooltipTouch": "コピー、送信、キュー追加時に除外されます。長押しで管理できます",
+  "@onlineGallery_outputFilteredTagTooltipTouch": {
+    "description": "Tooltip for an output-filtered tag chip on touch devices; mirrors onlineGallery_outputFilteredTagTooltip."
+  },
+  "onlineGallery_tagContextMenuTooltipTouch": "長押しでブラックリストまたは出力フィルターに追加",
+  "@onlineGallery_tagContextMenuTooltipTouch": {
+    "description": "Tooltip for a tag chip on touch devices, where there is no right-click; mirrors onlineGallery_tagContextMenuTooltip."
+  },
   "onlineGallery_outputFilterTagAdded": "{tag} を出力フィルターに追加しました",
   "@onlineGallery_outputFilterTagAdded": {
     "placeholders": {
