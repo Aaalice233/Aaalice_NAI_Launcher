@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/core/constants/storage_keys.dart';
+import 'package:nai_launcher/core/platform/platform_capabilities.dart';
 import 'package:nai_launcher/core/storage/local_storage_service.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/core/network/proxy_settings_provider.dart';
+import 'package:nai_launcher/data/models/settings/proxy_settings.dart';
 import 'package:nai_launcher/presentation/screens/settings/sections/network_settings_section.dart';
 import 'package:nai_launcher/presentation/widgets/common/themed_input.dart';
 
@@ -42,6 +44,38 @@ void main() {
       expect(find.textContaining('系统代理或手动代理'), findsOneWidget);
     },
   );
+
+  testWidgets('移动端不显示代理模式选择，直接显示手动地址表单', (tester) async {
+    PlatformCapabilities.debugOverride = PlatformCapabilities.forPlatform(
+      TargetPlatform.android,
+    );
+    addTearDown(() => PlatformCapabilities.debugOverride = null);
+    final storage = _MemoryLocalStorageService({
+      StorageKeys.proxyEnabled: true,
+      StorageKeys.proxyMode: 'auto',
+    });
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          localStorageServiceProvider.overrideWith((ref) => storage),
+          detectedSystemProxyProvider.overrideWith((ref) => null),
+        ],
+        child: const MaterialApp(
+          locale: Locale('zh'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(
+            body: SingleChildScrollView(child: NetworkSettingsSection()),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.byType(SegmentedButton<ProxyMode>), findsNothing);
+    expect(find.byType(ThemedInput), findsNWidgets(2));
+  });
 
   testWidgets('手动代理表单在 320–1600 宽度和 3x 文本下无溢出', (tester) async {
     addTearDown(() => tester.binding.setSurfaceSize(null));
