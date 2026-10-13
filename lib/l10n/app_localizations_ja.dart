@@ -13390,6 +13390,11 @@ class AppLocalizationsJa extends AppLocalizations {
       'この端末にインポートした ONNX モデルとラベルファイルを削除します。';
 
   @override
+  String settings_clearLocalOnnxModelsFailed(Object error) {
+    return 'ローカル ONNX モデルの削除に失敗しました: $error';
+  }
+
+  @override
   String updateAndroidDownloadedHint(Object version) {
     return 'v$version をダウンロードし、検証が完了しました。Android のシステムインストーラーを開いて更新を続行できます。';
   }

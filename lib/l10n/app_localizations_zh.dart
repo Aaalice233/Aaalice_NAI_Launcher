@@ -13154,6 +13154,11 @@ class AppLocalizationsZh extends AppLocalizations {
   String get settings_clearLocalOnnxModelsContent => '将删除导入到此设备的 ONNX 模型及标签文件。';
 
   @override
+  String settings_clearLocalOnnxModelsFailed(Object error) {
+    return '清除本地 ONNX 模型失败：$error';
+  }
+
+  @override
   String updateAndroidDownloadedHint(Object version) {
     return '新版本 v$version 已下载并通过校验。可以打开 Android 系统安装界面继续更新。';
   }
@@ -28267,6 +28272,11 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   @override
   String get settings_clearLocalOnnxModelsContent =>
       '將刪除此裝置上已匯入的 ONNX 模型及標籤檔案。';
+
+  @override
+  String settings_clearLocalOnnxModelsFailed(Object error) {
+    return '清除本機 ONNX 模型失敗：$error';
+  }
 
   @override
   String updateAndroidDownloadedHint(Object version) {

@@ -137,10 +137,22 @@ class _StorageSettingsSectionState
     );
     if (!confirmed || !mounted) return;
     final container = ProviderScope.containerOf(context, listen: false);
-    await container
-        .read(localOnnxModelServiceProvider)
-        .clearManagedTaggerFiles();
-    invalidateLocalTaggerCaches(container);
+    try {
+      await container
+          .read(localOnnxModelServiceProvider)
+          .clearManagedTaggerFiles();
+    } catch (e, stackTrace) {
+      AppLogger.e('Failed to clear local ONNX tagger files', e, stackTrace);
+      if (mounted) {
+        AppToast.error(
+          context,
+          context.l10n.settings_clearLocalOnnxModelsFailed('$e'),
+        );
+      }
+    } finally {
+      // 删除中途失败时目录可能只清了一部分，缓存必须按磁盘现状重扫
+      invalidateLocalTaggerCaches(container);
+    }
     if (mounted) setState(() {});
   }
 
