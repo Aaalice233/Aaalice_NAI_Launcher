@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math';
 import 'dart:typed_data';
 
+import 'package:flutter/scheduler.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../../../core/constants/api_constants.dart';
@@ -141,10 +142,15 @@ class GenerationParamsNotifier extends _$GenerationParamsNotifier {
   }
 
   /// 更新提示词
+  ///
+  /// 用户输入路径同步写入状态。若一律用 `Future.microtask` 延后，同一事件内
+  /// 连续两次文本更新（输入法组合串、快速连删）会留下两个过期写入，与
+  /// prompt_input 的 state→controller 回写监听形成新旧值永久振荡：微任务队列
+  /// 永不排空，应用整体卡死。只在构建/布局阶段延后到帧尾，以免在构建期间
+  /// 修改 provider。
   void updatePrompt(String prompt) {
     final storage = _storage;
-    // 使用 Future.microtask 延迟更新，避免在 widget tree 构建期间修改 provider
-    Future.microtask(() {
+    _applyPromptUpdate(() {
       if (_isDisposed) return;
       state = state.copyWith(prompt: prompt);
       storage.setLastPrompt(prompt);
@@ -152,14 +158,25 @@ class GenerationParamsNotifier extends _$GenerationParamsNotifier {
   }
 
   /// 更新负向提示词
+  ///
+  /// 写入时机同 [updatePrompt]。
   void updateNegativePrompt(String negativePrompt) {
     final storage = _storage;
-    // 使用 Future.microtask 延迟更新，避免在 widget tree 构建期间修改 provider
-    Future.microtask(() {
+    _applyPromptUpdate(() {
       if (_isDisposed) return;
       state = state.copyWith(negativePrompt: negativePrompt);
       storage.setLastNegativePrompt(negativePrompt);
     });
+  }
+
+  void _applyPromptUpdate(void Function() apply) {
+    final binding = SchedulerBinding.instance;
+    if (binding.schedulerPhase == SchedulerPhase.persistentCallbacks) {
+      // 构建/布局回调期间不允许修改 provider，延后到帧结束
+      binding.addPostFrameCallback((_) => apply());
+      return;
+    }
+    apply();
   }
 
   /// 更新模型
