@@ -4,6 +4,7 @@ import '../../../core/shortcuts/default_shortcuts.dart';
 import '../../../core/shortcuts/shortcut_config.dart';
 import '../../../core/shortcuts/shortcut_manager.dart';
 import '../../providers/shortcuts_provider.dart';
+import '../../selection/card_selection_scope.dart';
 
 /// 快捷键感知包装器
 /// 按用户配置把快捷键分派给回调，配置未就绪时使用默认绑定
@@ -182,6 +183,41 @@ class PageShortcuts extends StatelessWidget {
       shortcuts: shortcuts,
       autofocus: true,
       child: child,
+    );
+  }
+}
+
+/// 带卡片多选的页面快捷键包装器，需放在 [CardSelectionScope] 之内
+/// 焦点只交给内层多选处理器，页面快捷键才位于按键冒泡路径上；
+/// 内层 FocusScope 承接输入框失焦，焦点不会退回到处理器之上的路由作用域
+class CardSelectionPageShortcuts extends StatelessWidget {
+  /// 子组件
+  final Widget child;
+
+  /// 页面上下文类型
+  final ShortcutContext contextType;
+
+  /// 快捷键动作映射
+  final Map<String, VoidCallback> shortcuts;
+
+  const CardSelectionPageShortcuts({
+    super.key,
+    required this.child,
+    required this.contextType,
+    required this.shortcuts,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return ShortcutAwareWidget(
+      contextType: contextType,
+      shortcuts: shortcuts,
+      child: CardSelectionShortcuts(
+        child: FocusScope(
+          debugLabel: 'CardSelectionPageShortcuts(${contextType.name})',
+          child: child,
+        ),
+      ),
     );
   }
 }

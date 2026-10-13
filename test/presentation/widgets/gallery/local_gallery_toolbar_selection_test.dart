@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hive/hive.dart';
@@ -242,6 +243,44 @@ void main() {
     });
     expect(find.byTooltip('取消全部'), findsOneWidget);
   });
+
+  testWidgets('调用方持有的搜索焦点节点可聚焦搜索框，Ctrl+A 全选文字且不冒泡到页面快捷键', (tester) async {
+    final searchFocus = FocusNode();
+    addTearDown(searchFocus.dispose);
+    var pageSelectAll = 0;
+    await _pumpToolbar(
+      tester,
+      selectionActive: false,
+      searchFocusNode: searchFocus,
+      onPageSelectAll: () => pageSelectAll++,
+    );
+
+    searchFocus.requestFocus();
+    await tester.pump();
+    final editable = tester.widget<EditableText>(
+      find.descendant(
+        of: find.byType(LocalGalleryToolbar),
+        matching: find.byType(EditableText),
+      ),
+    );
+    expect(editable.focusNode, same(searchFocus));
+    expect(searchFocus.hasPrimaryFocus, isTrue);
+
+    editable.controller.value = const TextEditingValue(
+      text: 'cat',
+      selection: TextSelection.collapsed(offset: 1),
+    );
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+    await tester.sendKeyEvent(LogicalKeyboardKey.keyA);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+    await tester.pump();
+
+    expect(
+      editable.controller.selection,
+      const TextSelection(baseOffset: 0, extentOffset: 3),
+    );
+    expect(pageSelectAll, 0);
+  });
 }
 
 Future<ProviderContainer> _pumpToolbar(
@@ -251,7 +290,19 @@ Future<ProviderContainer> _pumpToolbar(
   VoidCallback? onRemoveFromAlbum,
   double textScaleFactor = 1,
   bool showPageTitle = true,
+  FocusNode? searchFocusNode,
+  VoidCallback? onPageSelectAll,
 }) async {
+  Widget withPageSelectAll(Widget toolbar) => onPageSelectAll == null
+      ? toolbar
+      : CallbackShortcuts(
+          bindings: {
+            const SingleActivator(LogicalKeyboardKey.keyA, control: true):
+                onPageSelectAll,
+          },
+          child: toolbar,
+        );
+
   await tester.pumpWidget(
     ProviderScope(
       overrides: [
@@ -293,35 +344,38 @@ Future<ProviderContainer> _pumpToolbar(
               context,
             ).copyWith(textScaler: TextScaler.linear(textScaleFactor)),
             child: Scaffold(
-              body: LocalGalleryToolbar(
-                enableSearchAutocomplete: false,
-                showPageTitle: showPageTitle,
-                onToggleCategoryPanel: _noop,
-                batchActions: [
-                  const ImageCardAction(
-                    id: ImageCardActionId.classify,
-                    icon: Icons.drive_file_move_outline,
-                    label: '移动到分类',
-                    supportsBatch: true,
-                    invoke: _noop,
-                  ),
-                  const ImageCardAction(
-                    id: ImageCardActionId.delete,
-                    icon: Icons.delete_outline,
-                    label: '删除',
-                    supportsBatch: true,
-                    isDanger: true,
-                    invoke: _noop,
-                  ),
-                  if (onRemoveFromAlbum != null)
-                    ImageCardAction(
-                      id: ImageCardActionId.removeFromAlbum,
-                      icon: Icons.playlist_remove,
-                      label: '移出相簿',
+              body: withPageSelectAll(
+                LocalGalleryToolbar(
+                  enableSearchAutocomplete: false,
+                  showPageTitle: showPageTitle,
+                  searchFocusNode: searchFocusNode,
+                  onToggleCategoryPanel: _noop,
+                  batchActions: [
+                    const ImageCardAction(
+                      id: ImageCardActionId.classify,
+                      icon: Icons.drive_file_move_outline,
+                      label: '移动到分类',
                       supportsBatch: true,
-                      invoke: onRemoveFromAlbum,
+                      invoke: _noop,
                     ),
-                ],
+                    const ImageCardAction(
+                      id: ImageCardActionId.delete,
+                      icon: Icons.delete_outline,
+                      label: '删除',
+                      supportsBatch: true,
+                      isDanger: true,
+                      invoke: _noop,
+                    ),
+                    if (onRemoveFromAlbum != null)
+                      ImageCardAction(
+                        id: ImageCardActionId.removeFromAlbum,
+                        icon: Icons.playlist_remove,
+                        label: '移出相簿',
+                        supportsBatch: true,
+                        invoke: onRemoveFromAlbum,
+                      ),
+                  ],
+                ),
               ),
             ),
           ),
