@@ -28,7 +28,11 @@ void main() {
 
   setUp(() => SharedPreferences.setMockInitialValues({}));
   // 用例不得依赖前序用例预热的全局 imageCache
-  tearDown(() => imageCache..clear()..clearLiveImages());
+  tearDown(
+    () => imageCache
+      ..clear()
+      ..clearLiveImages(),
+  );
 
   testWidgets(
     'single image adapts from compact to wide metadata presentation',
@@ -175,6 +179,15 @@ void main() {
     await tester.sendKeyEvent(LogicalKeyboardKey.home);
     await tester.pumpAndSettle();
     expect(find.text('1 / 3'), findsOneWidget);
+
+    await tester.tap(
+      find.descendant(
+        of: find.byType(DetailThumbnailBar),
+        matching: find.byKey(const ValueKey('third')),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('3 / 3'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
