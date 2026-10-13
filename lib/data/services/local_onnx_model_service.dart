@@ -519,13 +519,14 @@ class LocalOnnxModelService {
       if (entity is! File) continue;
       if (p.extension(entity.path).toLowerCase() != '.onnx') continue;
 
-      final labelsPath = await _findLabelsFile(entity.path);
-      final kind = _inferKind(entity.path, labelsPath);
+      final relativePath = p.relative(entity.path, from: directory.path);
+      final labelsPath = await _findLabelsFile(entity.path, relativePath);
+      final kind = _inferKind(entity.path, relativePath, labelsPath);
       if (!allowedKinds.contains(kind)) continue;
 
       result.add(
         LocalOnnxModelDescriptor(
-          name: p.relative(entity.path, from: directory.path),
+          name: relativePath,
           path: entity.path,
           kind: kind,
           labelsPath: labelsPath,
@@ -537,9 +538,7 @@ class LocalOnnxModelService {
     return result;
   }
 
-  /// 列出目录及其下 [_modelScanDepth] 层子目录里的文件。
-  ///
-  /// 隐藏目录不进入：托管目录的 `.import-*` 事务里是未提交的暂存副本。
+  // 跳过隐藏目录：托管目录的 .import-* 里是未提交的暂存副本
   Stream<FileSystemEntity> _listModelCandidates(
     Directory directory, {
     int depth = 0,
@@ -592,9 +591,14 @@ class LocalOnnxModelService {
     return false;
   }
 
-  LocalOnnxModelKind _inferKind(String filePath, String? labelsPath) {
+  LocalOnnxModelKind _inferKind(
+    String filePath,
+    String relativePath,
+    String? labelsPath,
+  ) {
     final lowerPath = filePath.toLowerCase();
-    final lower = p.basenameWithoutExtension(filePath).toLowerCase();
+    // 宽泛关键字只看根目录以下的路径，避免根目录名（如 ComfyUI-WD14-Tagger）误伤
+    final lower = p.withoutExtension(relativePath).toLowerCase();
     final lowerLabels = labelsPath?.toLowerCase() ?? '';
     if (lowerPath.contains('cl_tagger_v2') ||
         lowerPath.contains('cl-tagger-v2') ||
@@ -612,18 +616,18 @@ class LocalOnnxModelService {
         lower.contains('swinv2')) {
       return LocalOnnxModelKind.wd14Tagger;
     }
-    if (lower.contains('cl') && lower.contains('tagger')) {
+    if ((lower.contains('cl') && lower.contains('tagger')) ||
+        lowerLabels.endsWith('tag_mapping.json')) {
       return LocalOnnxModelKind.clTagger;
     }
     return LocalOnnxModelKind.unknown;
   }
 
-  Future<String?> _findLabelsFile(String onnxPath) async {
+  Future<String?> _findLabelsFile(String onnxPath, String relativePath) async {
     final base = p.withoutExtension(onnxPath);
-    final lowerBaseName = p.basenameWithoutExtension(onnxPath).toLowerCase();
     final directory = p.dirname(onnxPath);
 
-    if (lowerBaseName.contains('cl_tagger')) {
+    if (relativePath.toLowerCase().contains('cl_tagger')) {
       final mapping = p.join(directory, 'tag_mapping.json');
       if (await File(mapping).exists()) {
         return mapping;

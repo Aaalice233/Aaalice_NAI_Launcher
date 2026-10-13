@@ -225,6 +225,45 @@ void main() {
     );
   });
 
+  test('recognizes CL Tagger v1 kept in its Hugging Face folders', () async {
+    final root = await Directory(
+      p.join(tempDirectory.path, 'ComfyUI-WD14-Tagger', 'models'),
+    ).create(recursive: true);
+    final modelDirectory = await Directory(
+      p.join(root.path, 'cl_tagger_1_02'),
+    ).create();
+    for (final name in const ['model.onnx', 'model_optimized.onnx']) {
+      await File(p.join(modelDirectory.path, name)).writeAsBytes([1]);
+    }
+    final mapping = await File(
+      p.join(modelDirectory.path, 'tag_mapping.json'),
+    ).writeAsString('{"0":{"tag":"1girl","category":"General"}}');
+    final wd = await File(
+      p.join(root.path, 'wd-eva02-large-tagger-v3', 'model.onnx'),
+    ).create(recursive: true);
+    await File(
+      p.join(wd.parent.path, 'selected_tags.csv'),
+    ).writeAsString('name,category\n1girl,0\n');
+
+    for (final directory in [root, modelDirectory]) {
+      await service.setTaggerDirectory(directory.path);
+
+      final models = await service.scanTaggerModels();
+      final clModels = models.where(
+        (model) => p.equals(p.dirname(model.path), modelDirectory.path),
+      );
+
+      expect(clModels, hasLength(2));
+      for (final model in clModels) {
+        expect(model.kind, LocalOnnxModelKind.clTagger);
+        expect(model.labelsPath, mapping.path);
+      }
+      for (final model in models.where((model) => model.path == wd.path)) {
+        expect(model.kind, isNot(LocalOnnxModelKind.clTagger));
+      }
+    }
+  });
+
   test('recognizes the AnimeTimm EVA02 model family', () async {
     for (final layout in const [
       (
