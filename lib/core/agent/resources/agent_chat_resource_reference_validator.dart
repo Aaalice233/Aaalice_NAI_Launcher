@@ -41,6 +41,11 @@ abstract final class AgentChatResourceReferenceValidator {
     _validateMetadata('provenance', reference.provenance);
   }
 
+  static bool isOpaqueIdentifier(String value) =>
+      value.length <= maxIdentifierLength &&
+      _identifierPattern.hasMatch(value) &&
+      !_isLocationOrEmbeddedData(value);
+
   static void validatePayloadSize(String payload) {
     final byteLength = utf8.encode(payload).length;
     if (byteLength > maxPayloadBytes) {
@@ -101,6 +106,12 @@ abstract final class AgentChatResourceReferenceValidator {
   }
 
   static void _rejectLocationOrEmbeddedData(String name, String value) {
+    if (_isLocationOrEmbeddedData(value)) {
+      throw FormatException('$name must not contain a path, URL, or data');
+    }
+  }
+
+  static bool _isLocationOrEmbeddedData(String value) {
     final normalized = value.trim();
     final lower = normalized.toLowerCase();
     final uri = Uri.tryParse(normalized);
@@ -125,8 +136,6 @@ abstract final class AgentChatResourceReferenceValidator {
         lower.contains(';base64,') ||
         _longBase64.hasMatch(normalized);
 
-    if (hasUrlScheme || hasTraversal || isAbsolutePath || looksEmbedded) {
-      throw FormatException('$name must not contain a path, URL, or data');
-    }
+    return hasUrlScheme || hasTraversal || isAbsolutePath || looksEmbedded;
   }
 }

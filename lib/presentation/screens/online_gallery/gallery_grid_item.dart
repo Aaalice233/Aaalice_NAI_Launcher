@@ -4,11 +4,11 @@ import 'package:flutter/material.dart';
 
 import '../../widgets/common/image_viewport_surface.dart';
 import '../../../core/cache/online_gallery_detail_coordinator.dart';
-import '../../../core/agent/resources/agent_chat_resource_reference.dart';
 import '../../../core/utils/localization_extension.dart';
 import '../../../data/models/online_gallery/danbooru_post.dart';
 import 'online_gallery_grid.dart';
 import 'online_gallery_viewport_tracker.dart';
+import '../../agent_chat/services/online_gallery_resource_identity.dart';
 import '../../agent_chat/widgets/agent_resource_drop_region.dart';
 import '../../widgets/online_gallery/online_gallery_image_placeholder.dart';
 
@@ -150,17 +150,12 @@ class _GalleryGridItemState extends State<GalleryGridItem> {
         if (!id.startsWith(prefix)) {
           throw StateError('Gallery drag contains a different source: $id');
         }
-        return AgentChatResourceReference(
-          kind: AgentChatResourceKind.onlineGalleryMedia,
-          source: item.sourceId.key,
-          resourceId: id.substring(prefix.length),
-        );
+        return OnlineGalleryResourceIdentity(
+          source: item.sourceId,
+          workId: id.substring(prefix.length),
+        ).toReference();
       },
-      reference: AgentChatResourceReference(
-        kind: AgentChatResourceKind.onlineGalleryMedia,
-        source: item.sourceId.key,
-        resourceId: item.sourceWorkId,
-        mediaId: item.coverMediaId,
+      reference: OnlineGalleryResourceIdentity.coverOf(item).toReference(
         display: {
           if (item.title?.trim().isNotEmpty == true)
             'title': item.title!.trim(),

@@ -5,10 +5,13 @@ import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/core/agent/agent_types.dart';
+import 'package:nai_launcher/core/agent/resources/agent_chat_resource_reference_codec.dart';
 import 'package:nai_launcher/core/storage/local_storage_service.dart';
 import 'package:nai_launcher/data/datasources/remote/online_gallery/gallery_source_adapter.dart';
 import 'package:nai_launcher/data/models/online_gallery/gallery_item.dart';
 import 'package:nai_launcher/data/models/online_gallery/gallery_source.dart';
+import 'package:nai_launcher/data/models/online_gallery/quick_tag_cloud_codex.dart';
+import 'package:nai_launcher/presentation/agent_chat/services/online_gallery_resource_identity.dart';
 import 'package:nai_launcher/presentation/agent_chat/services/online_gallery_toolbox.dart';
 import 'package:nai_launcher/presentation/providers/online_gallery_provider.dart';
 
@@ -219,6 +222,42 @@ void main() {
       expect(reference['resourceId'], 'codex-7');
       expect(reference.containsKey('mediaId'), isFalse);
       expect(jsonEncode(result.details), isNot(contains('no-image')));
+    },
+  );
+
+  test(
+    'QuickTagCloud path-like work ids browse into valid resource refs',
+    () async {
+      final workId = quickTagCloudEntryWorkId('community:codex', 'entry/1 中');
+      final quickTagCloud = _ScriptedGalleryAdapter(
+        GallerySourceId.quickTagCloud,
+        (request, _) async => _page(request, [_quickTagCloudItem(workId)]),
+      );
+      final harness = _createHarness({
+        GallerySourceId.quickTagCloud: quickTagCloud,
+      });
+      addTearDown(harness.container.dispose);
+
+      final result = await harness.browse.execute('path-like', {
+        'source': 'quick_tag_cloud',
+        'mode': 'search',
+        'query': 'concept',
+      });
+
+      expect(result.isError, isFalse);
+      final item = (result.details['items'] as List).single as Map;
+      expect(item['work_id'], workId);
+      expect(item['media_id'], '$workId:0');
+      final reference = AgentChatResourceReferenceCodec.decodeJsonMap(
+        Map<String, dynamic>.from(item['resource_ref'] as Map),
+      );
+      expect(reference.source, 'quick_tag_cloud');
+      expect(reference.resourceId, isNot(contains('/')));
+      expect(reference.mediaId, isNot(contains('/')));
+      final identity = OnlineGalleryResourceIdentity.fromReference(reference)!;
+      expect(identity.source, GallerySourceId.quickTagCloud);
+      expect(identity.workId, workId);
+      expect(identity.mediaId, '$workId:0');
     },
   );
 
@@ -473,6 +512,26 @@ GalleryItem _textOnlyQuickTagCloudItem(int id) => GalleryItem(
   tags: const ['abstract concept'],
   tagsComplete: true,
   cover: GalleryMedia.noImage,
+);
+
+GalleryItem _quickTagCloudItem(String workId) => GalleryItem(
+  id: 7,
+  workId: workId,
+  sourceId: GallerySourceId.quickTagCloud,
+  createdAt: 'v1',
+  uploaderId: 0,
+  tags: const ['abstract concept'],
+  tagsComplete: true,
+  cover: GalleryMedia(
+    id: '$workId:0',
+    previewUrl: 'https://example.test/qtc-preview.webp',
+    displayUrl: 'https://example.test/qtc.webp',
+    downloadUrl: 'https://example.test/qtc.webp',
+    width: 832,
+    height: 1216,
+    extension: 'webp',
+    mediaType: 'image',
+  ),
 );
 
 class _MemoryStorage extends LocalStorageService {

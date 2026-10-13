@@ -13,6 +13,7 @@ import '../../core/utils/vibe_export_utils.dart';
 import '../../data/services/precise_ref_library_archive_service.dart';
 import '../../data/services/precise_ref_library_storage_service.dart';
 import '../agent_chat/services/agent_resource_resolver.dart';
+import '../agent_chat/services/online_gallery_resource_identity.dart';
 import '../providers/copy_drag_watermark_provider.dart';
 import '../providers/share_image_settings_provider.dart';
 import '../providers/vibe_library_provider.dart';
@@ -150,17 +151,19 @@ class CardResourceDragFactory {
   }
 
   String? _onlineMediaExtension(AgentChatResourceReference reference) {
+    final identity = OnlineGalleryResourceIdentity.fromReference(reference);
+    if (identity == null) return null;
     final item = _ref
         .read(onlineGalleryNotifierProvider)
         .posts
         .where(
           (item) =>
-              item.sourceId.key == reference.source &&
-              item.sourceWorkId == reference.resourceId,
+              item.sourceId == identity.source &&
+              item.sourceWorkId == identity.workId,
         )
         .firstOrNull;
     if (item == null) return null;
-    final mediaId = reference.mediaId;
+    final mediaId = identity.mediaId;
     final coverExtension = item.coverMediaId == null
         ? null
         : item.cover.extension ?? item.fileExt;

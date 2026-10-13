@@ -1,7 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/agent/agent_types.dart';
-import '../../../core/agent/resources/agent_chat_resource_reference.dart';
 import '../../../core/agent/resources/agent_chat_resource_reference_codec.dart';
 import '../../../core/online_gallery/gallery_tag_query.dart';
 import '../../../data/datasources/remote/danbooru_api_service.dart';
@@ -9,6 +8,7 @@ import '../../../data/models/online_gallery/gallery_item.dart';
 import '../../../data/models/online_gallery/gallery_source.dart';
 import '../../providers/online_gallery_provider.dart';
 import 'defined_agent_tool.dart';
+import 'online_gallery_resource_identity.dart';
 import 'toolbox_json.dart';
 
 /// Source-capability-aware online-gallery tools backed by the visible gallery.
@@ -439,11 +439,7 @@ Map<String, dynamic> _itemJson(GalleryItem item) => {
   'work_id': item.sourceWorkId,
   'media_id': item.coverMediaId,
   'resource_ref': AgentChatResourceReferenceCodec.encodeJsonMap(
-    AgentChatResourceReference(
-      kind: AgentChatResourceKind.onlineGalleryMedia,
-      source: item.sourceId.key,
-      resourceId: item.sourceWorkId,
-      mediaId: item.coverMediaId,
+    OnlineGalleryResourceIdentity.coverOf(item).toReference(
       display: {
         'source_label': item.sourceId.label,
         if (item.title?.trim().isNotEmpty == true) 'title': item.title!.trim(),
@@ -469,11 +465,11 @@ Map<String, dynamic> _mediaJson(
 }) => {
   'media_id': media.id,
   'resource_ref': AgentChatResourceReferenceCodec.encodeJsonMap(
-    AgentChatResourceReference(
-      kind: AgentChatResourceKind.onlineGalleryMedia,
-      source: source.key,
-      resourceId: workId,
+    OnlineGalleryResourceIdentity(
+      source: source,
+      workId: workId,
       mediaId: media.id,
+    ).toReference(
       display: {
         'source_label': source.label,
         if (title?.trim().isNotEmpty == true) 'title': title!.trim(),
