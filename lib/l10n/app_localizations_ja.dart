@@ -3730,6 +3730,14 @@ class AppLocalizationsJa extends AppLocalizations {
       '右クリックでブラックリストまたは出力フィルターに追加';
 
   @override
+  String get onlineGallery_outputFilteredTagTooltipTouch =>
+      'コピー、送信、キュー追加時に除外されます。長押しで管理できます';
+
+  @override
+  String get onlineGallery_tagContextMenuTooltipTouch =>
+      '長押しでブラックリストまたは出力フィルターに追加';
+
+  @override
   String onlineGallery_outputFilterTagAdded(Object tag) {
     return '$tag を出力フィルターに追加しました';
   }

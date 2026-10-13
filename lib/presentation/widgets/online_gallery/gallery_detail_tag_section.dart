@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../l10n/app_localizations.dart';
 import '../../adaptive/interaction_policy.dart';
 import '../tag_chip.dart';
 
@@ -46,6 +47,22 @@ class GalleryDetailTagSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // 调用方传入的 tooltip 写的是「右键可…」，而 SimpleTagChip 的菜单入口在
+    // 触屏上是长按（见 tag_chip.dart），所以触屏改用长按的说法；指针设备仍显示
+    // 调用方的文案。本地化按可空取，取不到（如组件测试未挂 AppLocalizations）
+    // 就退回调用方的文案。
+    final touchL10n = context.interactionPolicy.shouldExposeTouchAlternatives
+        ? AppLocalizations.of(context)
+        : null;
+    String tooltipFor({required bool filtered}) {
+      if (touchL10n != null) {
+        return filtered
+            ? touchL10n.onlineGallery_outputFilteredTagTooltipTouch
+            : touchL10n.onlineGallery_tagContextMenuTooltipTouch;
+      }
+      return filtered ? filteredTooltip : normalTooltip;
+    }
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -69,10 +86,10 @@ class GalleryDetailTagSection extends StatelessWidget {
                   tag: tag,
                   color: groups[index].color,
                   isOutputFiltered: isOutputFiltered(tag),
-                  tooltip: isOutputFiltered(tag)
-                      ? filteredTooltip
-                      : normalTooltip,
+                  tooltip: tooltipFor(filtered: isOutputFiltered(tag)),
                   onTap: () => onTagTap(tag),
+                  // 长按不用显式接线：SimpleTagChip 在未传 onLongPressStart 时
+                  // 会把长按位置合成成 TapUpDetails 走同一个 onSecondaryTapUp。
                   onSecondaryTapUp: (details) =>
                       onTagSecondaryTapUp(tag, details),
                 ),
