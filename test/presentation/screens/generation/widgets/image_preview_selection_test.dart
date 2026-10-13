@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:image/image.dart' as img;
+import 'package:nai_launcher/core/platform/platform_capabilities.dart';
 import 'package:nai_launcher/core/shortcuts/shortcut_config.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/providers/generation/preview_selection_provider.dart';
@@ -85,6 +86,39 @@ void main() {
       expect(find.byType(SelectableImageCard), findsNWidgets(2));
     },
   );
+
+  testWidgets('send-to-Krita is only offered where the Krita bridge exists', (
+    tester,
+  ) async {
+    addTearDown(() => PlatformCapabilities.debugOverride = null);
+    Future<SelectableImageCard> pumpOn(TargetPlatform platform) async {
+      PlatformCapabilities.debugOverride = PlatformCapabilities.forPlatform(
+        platform,
+      );
+      final container = ProviderContainer(
+        overrides: [
+          imageGenerationNotifierProvider.overrideWith(
+            () => _SelectionImageGenerationNotifier(
+              ImageGenerationState(displayImages: [_image('only', 20)]),
+            ),
+          ),
+          shortcutConfigNotifierProvider.overrideWith(
+            _DefaultShortcutConfigNotifier.new,
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+      await tester.pumpWidget(_app(container));
+      await tester.pumpAndSettle();
+      return tester.widget<SelectableImageCard>(
+        find.byType(SelectableImageCard),
+      );
+    }
+
+    expect((await pumpOn(TargetPlatform.windows)).onSendToKrita, isNotNull);
+    await tester.pumpWidget(const SizedBox.shrink());
+    expect((await pumpOn(TargetPlatform.android)).onSendToKrita, isNull);
+  });
 
   testWidgets('generating state keeps priority over linked selection', (
     tester,
