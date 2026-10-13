@@ -251,6 +251,27 @@ void main() {
       expect(onnx.scans, 3);
       expect(onnx.managedCounts, 3);
     });
+
+    testWidgets('清除中途失败仍按磁盘现状重扫并提示错误', (tester) async {
+      PlatformCapabilities.debugOverride = PlatformCapabilities.forPlatform(
+        TargetPlatform.android,
+      );
+      final onnx = await pumpWithCachedModels(tester);
+      onnx.clearError = const FileSystemException('locked', 'tagger.onnx');
+
+      await tester.tap(find.byTooltip('删除'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 500));
+      await tester.tap(find.widgetWithText(FilledButton, '删除'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 500));
+
+      expect(onnx.clears, 1);
+      expect(onnx.scans, 2);
+      expect(onnx.managedCounts, 2);
+      expect(find.textContaining('清除本地 ONNX 模型失败'), findsOneWidget);
+      await tester.pump(const Duration(seconds: 5));
+    });
   });
 
   testWidgets('Android 同步到系统相册开关默认开启，关闭后写入设置', (tester) async {
@@ -525,6 +546,7 @@ class _CountingOnnxModelService extends LocalOnnxModelService {
   var imports = 0;
   var clears = 0;
   var managedCounts = 0;
+  Object? clearError;
 
   @override
   Future<List<LocalOnnxModelDescriptor>> scanTaggerModels() async {
@@ -541,6 +563,7 @@ class _CountingOnnxModelService extends LocalOnnxModelService {
   @override
   Future<void> clearManagedTaggerFiles() async {
     clears++;
+    if (clearError case final error?) throw error;
   }
 
   @override

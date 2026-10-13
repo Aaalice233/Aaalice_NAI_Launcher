@@ -6688,6 +6688,8 @@
   "@settings_localOnnxManagedFiles": {"placeholders":{"count":{"type":"int"}}},
   "settings_clearLocalOnnxModelsTitle": "ローカル ONNX モデルを消去しますか？",
   "settings_clearLocalOnnxModelsContent": "この端末にインポートした ONNX モデルとラベルファイルを削除します。",
+  "settings_clearLocalOnnxModelsFailed": "ローカル ONNX モデルの削除に失敗しました: {error}",
+  "@settings_clearLocalOnnxModelsFailed": {"placeholders":{"error":{}}},
   "updateAndroidDownloadedHint": "v{version} をダウンロードし、検証が完了しました。Android のシステムインストーラーを開いて更新を続行できます。",
   "@updateAndroidDownloadedHint": {"placeholders":{"version":{}}},
   "updateAndroidInstallingHint": "Android のシステムインストーラーを開いています。システムの案内に従って更新を確認してください。",

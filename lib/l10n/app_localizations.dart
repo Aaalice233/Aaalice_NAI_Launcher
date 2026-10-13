@@ -23962,6 +23962,12 @@ abstract class AppLocalizations {
   /// **'This removes the ONNX models and label files imported on this device.'**
   String get settings_clearLocalOnnxModelsContent;
 
+  /// No description provided for @settings_clearLocalOnnxModelsFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to clear local ONNX models: {error}'**
+  String settings_clearLocalOnnxModelsFailed(Object error);
+
   /// No description provided for @updateAndroidDownloadedHint.
   ///
   /// In en, this message translates to:

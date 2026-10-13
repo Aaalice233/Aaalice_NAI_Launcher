@@ -6732,6 +6732,8 @@
   "@settings_localOnnxManagedFiles": {"placeholders":{"count":{"type":"int"}}},
   "settings_clearLocalOnnxModelsTitle": "清除本地 ONNX 模型？",
   "settings_clearLocalOnnxModelsContent": "将删除导入到此设备的 ONNX 模型及标签文件。",
+  "settings_clearLocalOnnxModelsFailed": "清除本地 ONNX 模型失败：{error}",
+  "@settings_clearLocalOnnxModelsFailed": {"placeholders":{"error":{}}},
   "updateAndroidDownloadedHint": "新版本 v{version} 已下载并通过校验。可以打开 Android 系统安装界面继续更新。",
   "@updateAndroidDownloadedHint": {"placeholders":{"version":{}}},
   "updateAndroidInstallingHint": "正在打开 Android 系统安装界面，请按系统提示确认更新。",

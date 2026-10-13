@@ -13830,6 +13830,11 @@ class AppLocalizationsEn extends AppLocalizations {
       'This removes the ONNX models and label files imported on this device.';
 
   @override
+  String settings_clearLocalOnnxModelsFailed(Object error) {
+    return 'Failed to clear local ONNX models: $error';
+  }
+
+  @override
   String updateAndroidDownloadedHint(Object version) {
     return 'v$version has been downloaded and verified. Open Android\'s system installer to continue the update.';
   }
