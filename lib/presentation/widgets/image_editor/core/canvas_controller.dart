@@ -301,4 +301,13 @@ class CanvasController extends ChangeNotifier {
       Offset.zero & _viewportSize,
     );
   }
+
+  /// 取景框落在视口里的部分；视口尚未布局时没有依据，视为整个取景框可见
+  Rect visiblePartOf(Rect frame) {
+    if (_viewportSize == Size.zero) {
+      return frame;
+    }
+    // 多留 1 像素，免得浮点误差在视口边缘露缝
+    return frame.intersect(viewportBounds(frame).inflate(1));
+  }
 }

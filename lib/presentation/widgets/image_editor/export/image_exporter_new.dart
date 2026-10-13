@@ -8,6 +8,7 @@ import '../../../../core/utils/hard_edge_mask_exporter.dart';
 import '../../../../core/utils/inpaint_mask_utils.dart';
 import '../../../../core/utils/picture_png_encoder.dart';
 import '../core/history_manager.dart';
+import '../core/stroke_rendering.dart';
 import '../layers/layer.dart';
 import '../layers/layer_manager.dart';
 
@@ -316,59 +317,17 @@ class ImageExporterNew {
     StrokeData stroke, {
     bool forceHardEdges = false,
   }) {
-    if (stroke.points.isEmpty) {
-      return;
-    }
-
-    final paint = Paint()
-      ..color = Colors.white
-      ..strokeWidth = stroke.size
-      ..strokeCap = StrokeCap.round
-      ..strokeJoin = StrokeJoin.round
-      ..style = PaintingStyle.stroke;
-
+    final paint = Paint()..color = Colors.white;
     if (stroke.isEraser) {
       paint.blendMode = BlendMode.clear;
     }
 
-    if (!forceHardEdges && stroke.hardness < 1.0) {
-      final sigma = stroke.size * (1.0 - stroke.hardness) * 0.5;
-      paint.maskFilter = MaskFilter.blur(BlurStyle.normal, sigma);
-    }
-
-    if (stroke.points.length == 1) {
-      canvas.drawCircle(
-        stroke.points.first,
-        stroke.size / 2,
-        paint..style = PaintingStyle.fill,
-      );
-      return;
-    }
-
-    canvas.drawPath(_createSmoothPath(stroke.points), paint);
-  }
-
-  static Path _createSmoothPath(List<Offset> points) {
-    final path = Path();
-    if (points.isEmpty) {
-      return path;
-    }
-
-    path.moveTo(points.first.dx, points.first.dy);
-
-    if (points.length == 2) {
-      path.lineTo(points.last.dx, points.last.dy);
-      return path;
-    }
-
-    for (int i = 1; i < points.length - 1; i++) {
-      final p0 = points[i];
-      final p1 = points[i + 1];
-      final midX = (p0.dx + p1.dx) / 2;
-      final midY = (p0.dy + p1.dy) / 2;
-      path.quadraticBezierTo(p0.dx, p0.dy, midX, midY);
-    }
-    path.lineTo(points.last.dx, points.last.dy);
-    return path;
+    StrokeRendering.draw(
+      canvas,
+      stroke.points,
+      paint,
+      size: stroke.size,
+      hardness: forceHardEdges ? 1.0 : stroke.hardness,
+    );
   }
 }

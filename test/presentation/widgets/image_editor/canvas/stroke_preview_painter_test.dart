@@ -6,7 +6,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/presentation/widgets/image_editor/canvas/stroke_preview_painter.dart';
 import 'package:nai_launcher/presentation/widgets/image_editor/core/editor_state.dart';
 import 'package:nai_launcher/presentation/widgets/image_editor/core/layer_role_policy.dart';
-import 'package:nai_launcher/presentation/widgets/image_editor/core/mask_paint_style.dart';
 import 'package:nai_launcher/presentation/widgets/image_editor/layers/layer_role.dart';
 
 Future<ByteData> _paintPreview(
@@ -84,7 +83,7 @@ void main() {
     expect(_alphaByte(pathPixel), greaterThan(200));
   });
 
-  test('brush preview on a mask layer uses the mask style it commits', () async {
+  test('leaves brush strokes on a mask layer to the layer painter', () async {
     final state = EditorState()..setCanvasSize(const Size(48, 48));
     addTearDown(state.dispose);
     final image = state.layerManager.addLayer(name: 'image');
@@ -94,24 +93,14 @@ void main() {
       role: LayerRole.mask,
     );
     state.setRolePolicy(LayerRolePolicy.inpaint(protectedLayerId: image.id));
-
-    state.setForegroundColor(const Color(0xFF000000));
-    state.layerManager.setActiveLayer(image.id);
-    state.setBrushSize(4);
-    state.setBrushOpacity(1);
-    state.setBrushHardness(0.2);
     state.layerManager.setActiveLayer(mask.id);
     state.setBrushSize(16);
     state.startStroke(const Offset(24, 24));
 
     final byteData = await _paintPreview(state);
-    final center = _pixelAt(byteData, 48, 24, 24);
-    // 离中心 6 像素：只有蒙版笔的 16 像素直径能覆盖到
-    final rim = _pixelAt(byteData, 48, 30, 24);
 
-    expect(_alphaByte(center), closeTo(MaskPaintStyle.opacity * 255, 3));
-    expect(center.b, greaterThan(center.r));
-    expect(_alphaByte(rim), closeTo(MaskPaintStyle.opacity * 255, 3));
+    expect(state.isPaintingMask, isTrue);
+    expect(_alphaByte(_pixelAt(byteData, 48, 24, 24)), 0);
   });
 
   test('draws eraser preview as semi-transparent grey', () async {
@@ -142,6 +131,75 @@ void main() {
     expect(center.b, greaterThan(center.r));
     expect(center.b, greaterThan(center.g));
     expect(_alphaByte(center), inInclusiveRange(20, 100));
+  });
+
+  group('soft strokes in a magnified view', () {
+    const viewport = Size(100, 100);
+
+    // 放大 8 倍并让文档 (200, 200) 落在视口中央
+    EditorState createState({required double hardness, double scale = 8}) {
+      final state = EditorState()..setCanvasSize(const Size(400, 400));
+      addTearDown(state.dispose);
+      state.setForegroundColor(const Color(0xFFFF0000));
+      state.setBrushSize(20);
+      state.setBrushOpacity(1);
+      state.setBrushHardness(hardness);
+      state.canvasController
+        ..setViewportSize(viewport)
+        ..setScale(scale)
+        ..setOffset(Offset(50 - 200 * scale, 50 - 200 * scale));
+      state.startStroke(const Offset(120, 120));
+      state.updateStroke(const Offset(200, 200));
+      state.updateStroke(const Offset(280, 260));
+      return state;
+    }
+
+    List<Symbol> drawCalls(EditorState state) {
+      final canvas = TestRecordingCanvas();
+      StrokePreviewPainter(state: state).paint(canvas, viewport);
+      return [
+        for (final call in canvas.invocations)
+          if (call.invocation.memberName.toString().contains('draw'))
+            call.invocation.memberName,
+      ];
+    }
+
+    test('are rendered at document resolution within the viewport', () {
+      final state = createState(hardness: 0.5);
+      final canvas = TestRecordingCanvas();
+      StrokePreviewPainter(state: state).paint(canvas, viewport);
+
+      final images = [
+        for (final call in canvas.invocations)
+          if (call.invocation.memberName == #drawImage)
+            call.invocation.positionalArguments[0] as ui.Image,
+      ];
+      expect(drawCalls(state), [#drawImage]);
+      // 可见文档区域 12.5 像素见方，各边外扩 1 像素再向外取整后至多 16
+      expect(images.single.width, lessThanOrEqualTo(16));
+      expect(images.single.height, lessThanOrEqualTo(16));
+    });
+
+    test('still show the stroke color under the cursor', () async {
+      final state = createState(hardness: 0.5);
+
+      final byteData = await _paintPreview(state, size: viewport);
+      final center = _pixelAt(byteData, 100, 50, 50);
+
+      expect(center.r, greaterThan(0.8));
+      expect(_alphaByte(center), greaterThan(200));
+    });
+
+    test('stay vector when the view is not magnified', () {
+      expect(
+        drawCalls(createState(hardness: 0.5, scale: 1)),
+        [#drawPath],
+      );
+    });
+
+    test('hard strokes stay vector when magnified', () {
+      expect(drawCalls(createState(hardness: 1)), [#drawPath]);
+    });
   });
 
   test('listens to canvas transform changes', () {
