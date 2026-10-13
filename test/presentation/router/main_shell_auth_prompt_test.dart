@@ -12,6 +12,7 @@ import 'package:nai_launcher/data/services/account_manager_provider.dart';
 import 'package:nai_launcher/data/services/auth_provider.dart';
 import 'package:nai_launcher/core/services/auth_error_service.dart';
 import 'package:nai_launcher/presentation/providers/mobile_shell_overlay_provider.dart';
+import 'package:nai_launcher/presentation/providers/replication_queue_provider.dart';
 import 'package:nai_launcher/presentation/providers/shortcuts_provider.dart';
 import 'package:nai_launcher/presentation/router/app_shell.dart';
 import 'package:nai_launcher/presentation/router/shell_panels_overlay.dart';
@@ -551,6 +552,120 @@ void main() {
     await tester.pump(const Duration(seconds: 3));
     await tester.pumpAndSettle();
   });
+
+  for (final width in [390.0, 1180.0]) {
+    testWidgets('宽度 $width 下系统返回与 Escape 先退出队列多选，再关闭面板', (
+      tester,
+    ) async {
+      PlatformCapabilities.debugOverride = PlatformCapabilities.forPlatform(
+        TargetPlatform.android,
+      );
+      addTearDown(() => PlatformCapabilities.debugOverride = null);
+
+      final container = ProviderContainer(
+        overrides: [
+          accountManagerNotifierProvider.overrideWith(
+            _TestAccountManagerNotifier.new,
+          ),
+          authNotifierProvider.overrideWith(_UnauthenticatedAuthNotifier.new),
+          shortcutConfigNotifierProvider.overrideWith(
+            _TestShortcutConfigNotifier.new,
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      final router = GoRouter(
+        routes: [
+          StatefulShellRoute(
+            navigatorContainerBuilder: (context, navigationShell, children) {
+              return MainShell(
+                navigationShell: navigationShell,
+                children: children,
+              );
+            },
+            builder: (context, state, navigationShell) => navigationShell,
+            branches: [
+              StatefulShellBranch(
+                routes: [
+                  GoRoute(
+                    path: '/',
+                    builder: (context, state) => const _BranchDetailPage(),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ],
+      );
+      addTearDown(router.dispose);
+
+      await tester.binding.setSurfaceSize(Size(width, 820));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: MaterialApp.router(
+            routerConfig: router,
+            locale: const Locale('zh'),
+            supportedLocales: AppLocalizations.supportedLocales,
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('打开详情'));
+      await tester.pumpAndSettle();
+      container.read(shellPanelProvider.notifier).state = ShellPanel.queue;
+      await tester.pumpAndSettle();
+      container
+          .read(replicationQueueNotifierProvider.notifier)
+          .toggleSelectionMode();
+      await tester.pumpAndSettle();
+      expect(
+        container.read(replicationQueueNotifierProvider).isSelectionMode,
+        isTrue,
+      );
+
+      await tester.binding.handlePopRoute();
+      await tester.pumpAndSettle();
+      expect(
+        container.read(replicationQueueNotifierProvider).isSelectionMode,
+        isFalse,
+      );
+      expect(container.read(shellPanelProvider), ShellPanel.queue);
+      expect(find.text('分支详情'), findsOneWidget);
+
+      await tester.binding.handlePopRoute();
+      await tester.pumpAndSettle();
+      expect(container.read(shellPanelProvider), isNull);
+      expect(find.text('分支详情'), findsOneWidget);
+
+      await tester.binding.handlePopRoute();
+      await tester.pumpAndSettle();
+      expect(find.text('分支详情'), findsNothing);
+      expect(find.text('打开详情'), findsOneWidget);
+
+      container.read(shellPanelProvider.notifier).state = ShellPanel.queue;
+      await tester.pumpAndSettle();
+      container
+          .read(replicationQueueNotifierProvider.notifier)
+          .toggleSelectionMode();
+      await tester.pumpAndSettle();
+      await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+      await tester.pumpAndSettle();
+      expect(
+        container.read(replicationQueueNotifierProvider).isSelectionMode,
+        isFalse,
+      );
+      expect(container.read(shellPanelProvider), ShellPanel.queue);
+      await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+      await tester.pumpAndSettle();
+      expect(container.read(shellPanelProvider), isNull);
+      expect(tester.takeException(), isNull);
+    });
+  }
 }
 
 class _BranchDetailPage extends StatefulWidget {

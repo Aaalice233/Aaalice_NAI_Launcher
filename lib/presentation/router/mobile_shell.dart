@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -15,6 +14,7 @@ import 'android_root_back_guard.dart';
 import 'app_branch.dart';
 import 'global_status_banners.dart';
 import 'mobile_more_panel.dart';
+import 'shell_panel_dismiss_scope.dart';
 import 'shell_panels_overlay.dart';
 
 /// Compact touch-first shell. Secondary destinations remain explicit in the
@@ -160,26 +160,18 @@ class MobileShell extends ConsumerWidget {
             ),
     );
 
-    return CallbackShortcuts(
-      bindings: {
-        if (activePanel != null)
-          const SingleActivator(LogicalKeyboardKey.escape): closePanel,
-      },
-      child: PopScope<void>(
-        canPop: activePanel == null,
-        onPopInvokedWithResult: (didPop, _) {
-          if (!didPop && activePanel != null) closePanel();
-        },
-        child: AndroidRootBackGuard(
-          enabled:
-              PlatformCapabilities.current.isAndroid &&
-              activePanel == null &&
-              !branchCanHandlePop,
-          resetKey: navigationShell.currentIndex,
-          onExitHint: () =>
-              AppToast.info(context, context.l10n.router_backAgainToExit),
-          child: scaffold,
-        ),
+    return ShellPanelDismissScope(
+      activePanel: activePanel,
+      onClose: closePanel,
+      child: AndroidRootBackGuard(
+        enabled:
+            PlatformCapabilities.current.isAndroid &&
+            activePanel == null &&
+            !branchCanHandlePop,
+        resetKey: navigationShell.currentIndex,
+        onExitHint: () =>
+            AppToast.info(context, context.l10n.router_backAgainToExit),
+        child: scaffold,
       ),
     );
   }
