@@ -4,9 +4,7 @@ import 'dart:ui';
 const double _fallbackMaxWidth = 500;
 const double _fallbackMaxMediaHeight = 650;
 
-/// Largest card whose media area keeps [aspectRatio] inside [maxSize].
-///
-/// [footerHeight] is docked below the media and included in the height.
+/// Largest card in [maxSize] with [aspectRatio] media atop [footerHeight].
 Size fitImageCardSize({
   required double aspectRatio,
   required Size maxSize,

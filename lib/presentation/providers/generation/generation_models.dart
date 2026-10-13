@@ -64,8 +64,7 @@ class ImageComparisonSource {
     return true;
   }
 
-  /// Accepts an exact aspect ratio, NovelAI Enhance's per-edge grid rounding,
-  /// or the small drift left by scalers that round each edge on their own.
+  /// Accepts an exact ratio, Enhance's grid rounding or per-edge scaler drift.
   bool isCompatibleWithDimensions(int targetWidth, int targetHeight) {
     if (targetWidth <= 0 || targetHeight <= 0) return false;
     if (width * targetHeight == height * targetWidth) return true;
@@ -87,8 +86,7 @@ class ImageComparisonSource {
         sourceRatio * _maxRoundingAspectDrift;
   }
 
-  // Enhance max scale and local scalers round edges off the 64 grid; a real
-  // recomposition such as outpainting changes the ratio far beyond this.
+  // Edge rounding drifts the ratio by far less than any recomposition.
   static const double _maxRoundingAspectDrift = 0.04;
 }
 
