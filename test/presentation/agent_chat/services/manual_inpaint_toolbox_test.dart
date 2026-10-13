@@ -18,7 +18,7 @@ import 'package:nai_launcher/data/models/inpaint/inpaint_draft_status.dart';
 import 'package:nai_launcher/data/services/inpaint_draft_file_repository.dart';
 import 'package:nai_launcher/presentation/agent_chat/services/agent_image_observation_ledger.dart';
 import 'package:nai_launcher/presentation/agent_chat/services/manual_inpaint_toolbox.dart';
-import 'package:nai_launcher/presentation/providers/generation/generation_params_notifier.dart';
+import 'package:nai_launcher/presentation/providers/image_generation_provider.dart';
 import 'package:nai_launcher/presentation/widgets/image_editor/image_editor_types.dart';
 
 import '../../../helpers/exif_orientation_fixture.dart';
@@ -193,6 +193,59 @@ void main() {
 
     expect(closed, isTrue);
     expect((await repository.get(id))!.status, InpaintDraftStatus.cancelled);
+  });
+
+  test('provider submission keeps the draft prompt in random mode', () async {
+    final sourceFile = File('${root.path}/source.png');
+    await sourceFile.writeAsBytes(_png(value: 30));
+    final fake = _RecordingImageGenerationNotifier();
+    final providerContainer = ProviderContainer(
+      overrides: [
+        generationParamsNotifierProvider.overrideWith(
+          _TestGenerationParamsNotifier.new,
+        ),
+        imageGenerationNotifierProvider.overrideWith(() => fake),
+      ],
+    );
+    addTearDown(providerContainer.dispose);
+    final editorResult = Completer<ImageEditorResult?>();
+    final toolbox = ManualInpaintToolbox(
+      providerContainer.read(_refProvider),
+      supportDirectory: root,
+      anlasEstimator: (_, _) => 0,
+      workspaceDir: root.path,
+      repository: repository,
+      editorLauncher: (_, __, ___) => ManualInpaintEditorSession(
+        result: editorResult.future,
+        close: () {},
+      ),
+    );
+    final tools = {for (final tool in toolbox.tools()) tool.name: tool};
+    final created = _json(
+      await tools['create_manual_inpaint_draft']!.execute('create', {
+        'source_image': sourceFile.path,
+        'prompt': 'repair face',
+      }),
+    );
+    final id = (created['draft'] as Map)['draftId'] as String;
+    editorResult.complete(
+      ImageEditorResult(
+        maskImage: _png(value: 255),
+        inpaintSourceImage: _png(value: 30),
+        hasMaskChanges: true,
+      ),
+    );
+    await _waitForStatus(repository, id, InpaintDraftStatus.ready);
+
+    final submitted = await tools['submit_manual_inpaint_draft']!.execute(
+      'submit',
+      {'draft_id': id},
+    );
+
+    expect(submitted.isError, isFalse);
+    await _waitForStatus(repository, id, InpaintDraftStatus.submitted);
+    expect(fake.prompt, 'repair face');
+    expect(fake.bypassRandomPrompt, isTrue);
   });
 
   test(
@@ -1094,4 +1147,25 @@ ImageEditorResult _inpaintResult(
 class _TestGenerationParamsNotifier extends GenerationParamsNotifier {
   @override
   ImageParams build() => const ImageParams(negativePrompt: 'bad anatomy');
+}
+
+class _RecordingImageGenerationNotifier extends ImageGenerationNotifier {
+  String? prompt;
+  bool? bypassRandomPrompt;
+
+  @override
+  ImageGenerationState build() => const ImageGenerationState();
+
+  @override
+  Future<void> generate(
+    ImageParams params, {
+    int? batchSizeOverride,
+    bool preserveCharacterSnapshot = false,
+    GenerationFocusedSnapshot? focusedOverride,
+    bool bypassRandomPrompt = false,
+  }) async {
+    prompt = params.prompt;
+    this.bypassRandomPrompt = bypassRandomPrompt;
+    state = const ImageGenerationState(status: GenerationStatus.completed);
+  }
 }
