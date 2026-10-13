@@ -386,6 +386,30 @@ void main() {
       await tester.pump(const Duration(milliseconds: 300));
     });
 
+    testWidgets('中间角色禁用后按启用顺序编号，禁用角色不显示编号', (tester) async {
+      await tester.pumpWidget(buildTestApp());
+      final container = ProviderScope.containerOf(
+        tester.element(find.byType(CharacterPositionCanvasView)),
+      );
+      final notifier = container.read(characterPromptNotifierProvider.notifier);
+      notifier.addCharacter(CharacterGender.female, name: 'Alice');
+      notifier.addCharacter(CharacterGender.male, name: 'Bob');
+      notifier.addCharacter(CharacterGender.female, name: 'Carol');
+      notifier.setGlobalAiChoice(false);
+      final bob = container
+          .read(characterPromptNotifierProvider)
+          .characters
+          .singleWhere((character) => character.name == 'Bob');
+      notifier.toggleCharacterEnabled(bob.id);
+      // 预览区 provider 链可能存在持续性 timer，用固定帧替代 pumpAndSettle
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+
+      expect(find.text('1'), findsWidgets);
+      expect(find.text('2'), findsWidgets);
+      expect(find.text('3'), findsNothing);
+    });
+
     testWidgets('自定义模式显示锚点，AI 选择模式隐藏锚点', (tester) async {
       await tester.pumpWidget(buildTestApp());
       final container = ProviderScope.containerOf(
