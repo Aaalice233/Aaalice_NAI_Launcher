@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/utils/emphasis_weight_format.dart';
 import '../../../core/utils/localization_extension.dart';
 import '../../adaptive/interaction_policy.dart';
 import '../../themes/core/layered_surface_style.dart';
@@ -40,7 +41,11 @@ class _PromptWeightControlsState extends State<PromptWeightControls> {
     _input = TextEditingController(text: _value);
   }
 
-  String get _value => widget.weight?.toStringAsFixed(2) ?? '';
+  String get _value {
+    final weight = widget.weight;
+    return weight == null ? '' : formatEmphasisWeight(weight);
+  }
+
   @override
   void didUpdateWidget(PromptWeightControls oldWidget) {
     super.didUpdateWidget(oldWidget);

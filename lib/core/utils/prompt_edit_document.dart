@@ -249,6 +249,62 @@ class PromptEditDocument {
     );
   }
 
+  /// Inline emphasis [parse] leaves as plain text; a new `x::` ends an open one.
+  static List<(int, int)> emphasisRanges(String source, int lower, int upper) {
+    final ranges = <(int, int)>[];
+    final brackets = <(int, String)>[];
+    int? numeric;
+    var pipe = false;
+    for (var i = lower; i < upper; i++) {
+      final char = source[i];
+      if (char == r'\') {
+        i++;
+        continue;
+      }
+      if (source.startsWith(disabledPrefix, i)) {
+        final end = disabledEnd(source, i);
+        if (end < 0 || end > upper) break;
+        i = end - 1;
+        continue;
+      }
+      final literalEnd = PromptLiteralScanner.endAt(source, i, upper);
+      if (literalEnd != null) {
+        i = literalEnd - 1;
+        continue;
+      }
+      if (source.startsWith('||', i)) {
+        pipe = !pipe;
+        i++;
+        continue;
+      }
+      if (pipe) continue;
+      final opening = _numericOpening.matchAsPrefix(source, i);
+      if (opening != null &&
+          opening.end <= upper &&
+          (i == lower ||
+              source[i - 1].trim().isEmpty ||
+              '{[,'.contains(source[i - 1]))) {
+        if (numeric != null) ranges.add((numeric, i));
+        numeric = i;
+        i = opening.end - 1;
+        continue;
+      }
+      if (numeric != null && i + 1 < upper && source.startsWith('::', i)) {
+        ranges.add((numeric, i + 2));
+        numeric = null;
+        i++;
+        continue;
+      }
+      if (char == '{' || char == '[') brackets.add((i, char));
+      if ((char == '}' || char == ']') &&
+          brackets.isNotEmpty &&
+          brackets.last.$2 == (char == '}' ? '{' : '[')) {
+        ranges.add((brackets.removeLast().$1, i + 1));
+      }
+    }
+    return ranges;
+  }
+
   static PromptEditSpan? singleSelected(String source, int start, int end) {
     if (start < 0 || end > source.length || start >= end) return null;
     while (start < end && source[start].trim().isEmpty) {

@@ -140,4 +140,29 @@ void main() {
     );
     expect(PromptEditDocument.effectiveText('a /*disabled:b*/ c'), 'a  c');
   });
+  test('inline emphasis ranges cover numeric and bracket wrappers', () {
+    const source = 'a girl 1.05::red {umbrella}:: in {{rain}}';
+    final ranges = PromptEditDocument.emphasisRanges(source, 0, source.length);
+    expect(ranges.map((range) => source.substring(range.$1, range.$2)), [
+      '{umbrella}',
+      '1.05::red {umbrella}::',
+      '{rain}',
+      '{{rain}}',
+    ]);
+  });
+  test('inline emphasis skips escapes, literals and disabled text', () {
+    const source = r'a \{b\}, "1.1::c::", /*disabled:{d}*/, 0.9::e::';
+    final ranges = PromptEditDocument.emphasisRanges(source, 0, source.length);
+    expect(ranges.map((range) => source.substring(range.$1, range.$2)), [
+      '0.9::e::',
+    ]);
+  });
+  test('a new numeric opening ends the one still open', () {
+    const source = '0.9::a 1.05::b::';
+    final ranges = PromptEditDocument.emphasisRanges(source, 0, source.length);
+    expect(ranges.map((range) => source.substring(range.$1, range.$2)), [
+      '0.9::a ',
+      '1.05::b::',
+    ]);
+  });
 }

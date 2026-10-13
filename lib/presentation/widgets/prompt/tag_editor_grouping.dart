@@ -1,4 +1,5 @@
 import '../../../core/utils/prompt_edit_document.dart';
+import 'prompt_weight_editing.dart';
 
 /// A selection is gathered at its nearest common parent, retaining any
 /// partially selected inner wrappers on both sides of the split.
@@ -35,10 +36,7 @@ class PromptSelectionGrouping {
           )
           .firstOrNull;
       if (containing == null) break;
-      weightedParent |=
-          containing.prefix.endsWith('::') ||
-          containing.prefix.endsWith('{') ||
-          containing.prefix.endsWith('[');
+      weightedParent |= PromptWeightEditing.isEmphasisPrefix(containing.prefix);
       siblings = containing.children;
     }
     bool affected(PromptEditSpan span) =>
@@ -78,7 +76,11 @@ class PromptSelectionGrouping {
             .map((span) => split(span, false))
             .whereType<PromptGroupFragment>(),
       ),
-      !weightedParent && !selected.text.contains('::'),
+      PromptWeightEditing.allowsNumericWeight(
+        numericWrapper: false,
+        insideEmphasis: weightedParent,
+        content: [selected.text],
+      ),
     );
   }
 

@@ -92,23 +92,14 @@ class TagEditorCommands {
     final group = session.selectedGroup;
     if (group != null) {
       // Rewrite only this wrapper; nested weights and leaf identities survive.
-      final shell = PromptWeightEditing.withWeight(
-        '${group.span.prefix}x${group.span.suffix}',
+      final (prefix, suffix) = PromptWeightEditing.rewrap(
+        group.span,
         value ?? weight! + step!,
         numericEmphasisEnabled: _useNumericWeight(group, numeric),
       );
-      final split = shell.indexOf('x');
       session.apply([
-        PromptTextPatch(
-          group.span.start,
-          group.span.editStart,
-          shell.substring(0, split),
-        ),
-        PromptTextPatch(
-          group.span.editEnd,
-          group.span.end,
-          shell.substring(split + 1),
-        ),
+        PromptTextPatch(group.span.start, group.span.editStart, prefix),
+        PromptTextPatch(group.span.editEnd, group.span.end, suffix),
       ]);
       return;
     }
@@ -146,23 +137,12 @@ class TagEditorCommands {
 
   bool _useNumericWeight(PromptEditorTag target, bool supported) {
     if (!supported) return false;
-    // Numeric separators reset emphasis rather than restoring an outer scope.
-    // Keep existing numeric wrappers, but never introduce one inside a group.
-    // A root group owns its complete boundary and can safely end with a reset.
-    if (target.span.prefix.trim().endsWith('::')) return true;
-    if (target.children.any((child) => child.span.raw.contains('::'))) {
-      return false;
-    }
     bool nested(List<PromptEditorTag> tags, bool weighted) {
       for (final tag in tags) {
         if (identical(tag, target)) return weighted;
-        final prefix = tag.span.prefix.trim();
         if (nested(
           tag.children,
-          weighted ||
-              prefix.endsWith('::') ||
-              prefix.endsWith('{') ||
-              prefix.endsWith('['),
+          weighted || PromptWeightEditing.isEmphasisPrefix(tag.span.prefix),
         )) {
           return true;
         }
@@ -170,7 +150,12 @@ class TagEditorCommands {
       return false;
     }
 
-    return !nested(session.tags, false);
+    // A root group owns its complete boundary and can safely end with a reset.
+    return PromptWeightEditing.allowsNumericWeight(
+      numericWrapper: target.span.prefix.trim().endsWith('::'),
+      insideEmphasis: nested(session.tags, false),
+      content: target.children.map((child) => child.span.raw),
+    );
   }
 
   bool available(TagEditorAction action) => switch (action) {

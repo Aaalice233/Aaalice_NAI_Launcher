@@ -1,3 +1,4 @@
+import 'emphasis_weight_format.dart';
 import 'tag_normalizer.dart';
 import 'prompt_edit_document.dart';
 
@@ -335,12 +336,7 @@ class SdToNaiConverter {
       var s = item[0] as String;
       final w = item[1] as double;
 
-      // 格式化权重值
-      var weightStr = w.toStringAsFixed(5);
-      // 移除末尾的0和小数点
-      weightStr = weightStr.replaceAll(RegExp(r'0+$'), '');
-      weightStr = weightStr.replaceAll(RegExp(r'\.$'), '');
-
+      final weightStr = formatEmphasisWeight(w, fractionDigits: 5);
       final hasWeight = weightStr != '1';
 
       // 处理转义字符

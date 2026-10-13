@@ -190,11 +190,7 @@ class _WeightAdjustToolbarWrapperState
     if (!PromptWeightEditing.protectNegativeBlockSyntax(widget.controller)) {
       return;
     }
-    final result = PromptWeightEditing.parseSelection(widget.controller);
-    PromptWeightEditing.applyWeight(
-      widget.controller,
-      (result.weight + step).clamp(0.1, 3.0),
-    );
+    PromptWeightEditing.stepWeight(widget.controller, step);
     if (mounted && _toolbarVisible) {
       setState(() {});
     }
@@ -343,12 +339,12 @@ class _WeightAdjustToolbar extends StatelessWidget {
     }
   }
 
-  void _step(double step) => _weight(
-    (PromptWeightEditing.parseSelection(controller).weight + step).clamp(
-      0.1,
-      3.0,
-    ),
-  );
+  void _step(double step) {
+    if (PromptWeightEditing.protectNegativeBlockSyntax(controller)) {
+      PromptWeightEditing.stepWeight(controller, step);
+    }
+  }
+
   void _wheel(PointerSignalEvent event) {
     if (!enableWheelAdjustment ||
         event is! PointerScrollEvent ||
