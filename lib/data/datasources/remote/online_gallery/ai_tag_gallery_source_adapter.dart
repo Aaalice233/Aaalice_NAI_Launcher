@@ -440,13 +440,7 @@ class AiTagGallerySourceAdapter implements GallerySourceAdapter {
       searchTerms: List<String>.unmodifiable(searchTerms),
       // The list payload omits per-media prompts the blacklist must inspect.
       tagsComplete: false,
-      cover: GalleryMedia(
-        id: '${id}_pending',
-        previewUrl: '',
-        displayUrl: '',
-        downloadUrl: '',
-        mediaType: 'image',
-      ),
+      cover: GalleryMedia.pending('$id'),
     );
   }
 

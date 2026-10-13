@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -164,6 +165,55 @@ void main() {
       expect(danbooru.requests, isEmpty);
     },
   );
+
+  test(
+    'AI TAG list items expose no placeholder media id in browse results',
+    () async {
+      final aiTag = _ScriptedGalleryAdapter(
+        GallerySourceId.aiTag,
+        (request, _) async => _page(request, [_pendingAiTagItem(101)]),
+      );
+      final harness = _createHarness({GallerySourceId.aiTag: aiTag});
+      addTearDown(harness.container.dispose);
+
+      final result = await harness.browse.execute('pending-cover', {
+        'source': 'ai_tag',
+        'mode': 'search',
+        'query': 'ibuki',
+      });
+
+      expect(result.isError, isFalse);
+      final item = (result.details['items'] as List).single as Map;
+      expect(item['work_id'], '101');
+      expect(item['media_id'], isNull);
+      final reference = item['resource_ref'] as Map;
+      expect(reference['resourceId'], '101');
+      expect(reference.containsKey('mediaId'), isFalse);
+      expect(jsonEncode(result.details), isNot(contains('_pending')));
+    },
+  );
+
+  test('resolved covers keep their media id in browse results', () async {
+    final harness = _createHarness({
+      GallerySourceId.gelbooru: _ScriptedGalleryAdapter(
+        GallerySourceId.gelbooru,
+        (request, _) async => _page(request, [
+          _item(GallerySourceId.gelbooru, 404, const ['ibuki']),
+        ]),
+      ),
+    });
+    addTearDown(harness.container.dispose);
+
+    final result = await harness.browse.execute('resolved-cover', {
+      'source': 'gelbooru',
+      'mode': 'search',
+      'query': 'ibuki',
+    });
+
+    final item = (result.details['items'] as List).single as Map;
+    expect(item['media_id'], '404');
+    expect((item['resource_ref'] as Map)['mediaId'], '404');
+  });
 
   test('omitted source uses danbooru adapter', () async {
     final danbooru = _ScriptedGalleryAdapter(
@@ -374,6 +424,16 @@ GalleryItem _item(GallerySourceId source, int id, List<String> tags) =>
         extension: 'webp',
       ),
     );
+
+GalleryItem _pendingAiTagItem(int id) => GalleryItem(
+  id: id,
+  sourceId: GallerySourceId.aiTag,
+  createdAt: '2026-08-30',
+  uploaderId: 1,
+  tags: const ['ibuki'],
+  tagsComplete: true,
+  cover: GalleryMedia(id: '${id}_pending', mediaType: 'image'),
+);
 
 class _MemoryStorage extends LocalStorageService {
   final Map<String, Object?> _values = {};

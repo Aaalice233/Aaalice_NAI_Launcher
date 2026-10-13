@@ -437,13 +437,13 @@ Map<String, dynamic> _capabilitiesJson(GallerySourceId source) {
 Map<String, dynamic> _itemJson(GalleryItem item) => {
   'source': item.sourceId.key,
   'work_id': item.sourceWorkId,
-  'media_id': item.cover.id,
+  'media_id': item.coverMediaId,
   'resource_ref': AgentChatResourceReferenceCodec.encodeJsonMap(
     AgentChatResourceReference(
       kind: AgentChatResourceKind.onlineGalleryMedia,
       source: item.sourceId.key,
       resourceId: item.sourceWorkId,
-      mediaId: item.cover.id,
+      mediaId: item.coverMediaId,
       display: {
         'source_label': item.sourceId.label,
         if (item.title?.trim().isNotEmpty == true) 'title': item.title!.trim(),

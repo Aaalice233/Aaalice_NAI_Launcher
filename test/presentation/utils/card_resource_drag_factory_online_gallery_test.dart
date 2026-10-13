@@ -1,0 +1,158 @@
+import 'package:dio/dio.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:nai_launcher/core/agent/resources/agent_chat_resource_reference.dart';
+import 'package:nai_launcher/core/storage/local_storage_service.dart';
+import 'package:nai_launcher/data/datasources/remote/online_gallery/gallery_source_adapter.dart';
+import 'package:nai_launcher/data/models/online_gallery/gallery_item.dart';
+import 'package:nai_launcher/data/models/online_gallery/gallery_source.dart';
+import 'package:nai_launcher/presentation/agent_chat/services/online_gallery_toolbox.dart';
+import 'package:nai_launcher/presentation/providers/online_gallery_provider.dart';
+import 'package:nai_launcher/presentation/utils/card_resource_drag_factory.dart';
+
+final _refProvider = Provider<Ref>((ref) => ref);
+
+void main() {
+  late ProviderContainer container;
+
+  setUp(() async {
+    container = ProviderContainer(
+      overrides: [
+        localStorageServiceProvider.overrideWithValue(_MemoryStorage()),
+        onlineGalleryTagMetadataLoaderProvider.overrideWithValue(
+          (_) async => const {},
+        ),
+        onlineGallerySourceAdaptersProvider.overrideWithValue({
+          for (final source in GallerySourceId.values)
+            source: source == GallerySourceId.aiTag
+                ? _AiTagAdapter()
+                : _EmptyAdapter(source),
+        }),
+      ],
+    );
+    final browse = OnlineGalleryToolbox(
+      container.read(_refProvider),
+    ).tools().singleWhere((tool) => tool.name == 'browse_online_gallery');
+    final result = await browse.execute('browse', {
+      'source': 'ai_tag',
+      'mode': 'search',
+      'query': 'ibuki',
+    });
+    expect(result.isError, isFalse);
+  });
+
+  tearDown(() => container.dispose());
+
+  String dragFileName(String? mediaId) =>
+      CardResourceDragFactory(container.read(_refProvider))
+          .create(
+            AgentChatResourceReference(
+              kind: AgentChatResourceKind.onlineGalleryMedia,
+              source: GallerySourceId.aiTag.key,
+              resourceId: '101',
+              mediaId: mediaId,
+              display: const {'title': 'work'},
+            ),
+          )
+          .fileName;
+
+  test('drag-out keeps the format of the dragged media', () async {
+    final notifier = container.read(onlineGalleryNotifierProvider.notifier);
+    await notifier.loadDetail(
+      container.read(onlineGalleryNotifierProvider).posts.single,
+    );
+
+    expect(dragFileName('101_p0'), 'work.webp');
+    expect(dragFileName('101_p1'), 'work.jpg');
+    expect(dragFileName(null), 'work.webp');
+  });
+
+  test('unresolved placeholder cover falls back to png', () {
+    expect(dragFileName(null), 'work.png');
+  });
+}
+
+GalleryMedia _media(int index, String extension) => GalleryMedia(
+  id: '101_p$index',
+  previewUrl: 'https://example.test/101_p$index.$extension',
+  displayUrl: 'https://example.test/101_p$index.$extension',
+  downloadUrl: 'https://example.test/101_p$index.$extension',
+  extension: extension,
+  mediaType: 'image',
+);
+
+class _AiTagAdapter extends GallerySourceAdapter {
+  @override
+  GallerySourceId get sourceId => GallerySourceId.aiTag;
+
+  @override
+  Future<GalleryPage> search(
+    GallerySearchRequest request, {
+    CancelToken? cancelToken,
+  }) async => GalleryPage(
+    items: [
+      const GalleryItem(
+        id: 101,
+        sourceId: GallerySourceId.aiTag,
+        tags: ['ibuki'],
+        tagsComplete: true,
+        mediaCount: 2,
+        cover: GalleryMedia(id: '101_pending', mediaType: 'image'),
+      ),
+    ],
+    cursor: request.cursor,
+    nextCursor: null,
+    hasMore: false,
+    total: 1,
+    rawItemCount: 1,
+  );
+
+  @override
+  Future<GalleryDetail> detail(
+    GalleryItem item, {
+    CancelToken? cancelToken,
+  }) async {
+    final media = [_media(0, 'webp'), _media(1, 'jpg')];
+    return GalleryDetail(
+      item: item.copyWith(cover: media.first),
+      media: media,
+    );
+  }
+}
+
+class _EmptyAdapter extends GallerySourceAdapter {
+  _EmptyAdapter(this.sourceId);
+
+  @override
+  final GallerySourceId sourceId;
+
+  @override
+  Future<GalleryPage> search(
+    GallerySearchRequest request, {
+    CancelToken? cancelToken,
+  }) async => GalleryPage(
+    items: const [],
+    cursor: request.cursor,
+    nextCursor: null,
+    hasMore: false,
+    rawItemCount: 0,
+  );
+}
+
+class _MemoryStorage extends LocalStorageService {
+  final Map<String, Object?> _values = {};
+
+  @override
+  T? getSetting<T>(String key, {T? defaultValue}) =>
+      (_values[key] ?? defaultValue) as T?;
+
+  @override
+  Future<void> setSetting<T>(String key, T value) async {
+    _values[key] = value;
+  }
+
+  @override
+  Future<void> deleteSetting(String key) async {
+    _values.remove(key);
+  }
+}
