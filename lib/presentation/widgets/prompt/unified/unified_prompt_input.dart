@@ -72,7 +72,7 @@ class UnifiedPromptInput extends ConsumerStatefulWidget {
   /// 编辑色面；未指定时沿用共享输入框色面。
   final Color? surfaceColor;
 
-  /// 文本变化回调
+  /// 文本变化回调；宿主经 [controller] 写入的文本不会回调
   final ValueChanged<String>? onChanged;
 
   /// 提交回调（按 Enter 键时触发，不阻止 Shift+Enter 换行）
@@ -143,6 +143,7 @@ class _UnifiedPromptInputState extends ConsumerState<UnifiedPromptInput> {
   /// 语法高亮控制器
   NaiSyntaxController? _syntaxController;
   bool _syncingControllerValue = false;
+  String _hostKnownText = '';
   Object get _modeId => widget.sessionId ?? _effectiveController;
   bool get _tagMode =>
       widget.config.enableTagMode && ref.read(promptTagModeProvider(_modeId));
@@ -294,7 +295,8 @@ class _UnifiedPromptInputState extends ConsumerState<UnifiedPromptInput> {
     if (widget.controller != null) {
       _syntaxController!.value = widget.controller!.value;
     }
-    _syntaxController!.addListener(_syncToExternalController);
+    _hostKnownText = _syntaxController!.text;
+    _syntaxController!.addListener(_onSyntaxValueChanged);
 
     // 初始化焦点节点（如果需要）
     if (widget.focusNode == null) {
@@ -356,7 +358,7 @@ class _UnifiedPromptInputState extends ConsumerState<UnifiedPromptInput> {
     HardwareKeyboard.instance.removeHandler(_handleHardwareKeyEvent);
     _effectiveFocusNode.removeListener(_onFocusChanged);
     widget.controller?.removeListener(_syncFromExternalController);
-    _syntaxController?.removeListener(_syncToExternalController);
+    _syntaxController?.removeListener(_onSyntaxValueChanged);
     _syntaxController?.dispose();
     _internalFocusNode?.dispose();
     _tagFocusNode.dispose();
@@ -419,7 +421,6 @@ class _UnifiedPromptInputState extends ConsumerState<UnifiedPromptInput> {
           _effectiveController.selection = TextSelection.collapsed(
             offset: _effectiveController.text.length,
           );
-          widget.onChanged?.call(finalText);
         }
         stateNotifier.finishProcessing(_sessionId);
         final afterText = _effectiveController.text;
@@ -524,7 +525,6 @@ class _UnifiedPromptInputState extends ConsumerState<UnifiedPromptInput> {
         selection: selection,
         composing: TextRange.empty,
       );
-      _handleTextChanged(text);
       if (mounted && messages.isNotEmpty) {
         AppToast.info(context, messages.join(' + '));
       }
@@ -589,14 +589,21 @@ class _UnifiedPromptInputState extends ConsumerState<UnifiedPromptInput> {
     }
   }
 
-  /// 处理文本变化
-  void _handleTextChanged(String text) {
-    // 触发回调
-    widget.onChanged?.call(text);
-
-    if (_searchVisible && text != _lastSearchSourceText) {
-      _refreshSearchMatches(preserveActive: true, selectActiveMatch: false);
+  // 权重工具栏、替换等程序化改写不经过 TextField.onChanged，统一在此回调宿主
+  void _onSyntaxValueChanged() {
+    if (_syncingControllerValue) {
+      _hostKnownText = _syntaxController!.text;
+      return;
     }
+    _syncToExternalController();
+    _notifyTextChanged();
+  }
+
+  void _notifyTextChanged() {
+    final text = _effectiveController.text;
+    if (text == _hostKnownText) return;
+    _hostKnownText = text;
+    widget.onChanged?.call(text);
   }
 
   /// 处理清空操作
@@ -615,7 +622,6 @@ class _UnifiedPromptInputState extends ConsumerState<UnifiedPromptInput> {
       widget.controller!.value = clearedValue;
     }
 
-    widget.onChanged?.call('');
     widget.config.onClearPressed?.call();
   }
 
@@ -923,9 +929,6 @@ class _UnifiedPromptInputState extends ConsumerState<UnifiedPromptInput> {
       widget.controller!.value = value;
     }
 
-    // 程序化改写不会触发 TextField.onChanged，需要手动通知外部。
-    widget.onChanged?.call(newText);
-
     if (recordHistory) {
       ref
           .read(promptAssistantHistoryProvider.notifier)
@@ -997,7 +1000,6 @@ class _UnifiedPromptInputState extends ConsumerState<UnifiedPromptInput> {
     if (isCut && !widget.config.readOnly) {
       if (display != null) {
         display.deleteSelection();
-        _handleTextChanged(controller.text);
         return true;
       }
       final newValue = TextEditingValue(
@@ -1010,7 +1012,6 @@ class _UnifiedPromptInputState extends ConsumerState<UnifiedPromptInput> {
           !identical(widget.controller, controller)) {
         widget.controller!.value = newValue;
       }
-      _handleTextChanged(newValue.text);
     }
 
     return true;
@@ -1126,7 +1127,6 @@ class _UnifiedPromptInputState extends ConsumerState<UnifiedPromptInput> {
               sessionId: _sessionId,
               controller: _effectiveController,
               interactionPolicy: context.interactionPolicy,
-              onChanged: widget.onChanged,
               onOpenSettings: widget.onOpenAssistantSettings,
             ),
           ),
@@ -1464,9 +1464,6 @@ class _UnifiedPromptInputState extends ConsumerState<UnifiedPromptInput> {
                 );
               }),
             ],
-      onChanged: widget.config.enableAutocomplete
-          ? null
-          : (_) => _handleTextChanged(_effectiveController.text),
       onSubmitted: (_) => widget.onSubmitted?.call(_effectiveController.text),
       showClearButton: widget.config.showClearButton,
       onClearPressed: widget.config.showClearButton ? _handleClear : null,
@@ -1495,7 +1492,6 @@ class _UnifiedPromptInputState extends ConsumerState<UnifiedPromptInput> {
         enabled: !widget.config.readOnly,
         enableAutocomplete: widget.config.enableAutocomplete,
         enableWheelAdjustment: enableWheelAdjustment,
-        onChanged: _handleTextChanged,
         onSearch: (replace) => _openSearch(showReplace: replace),
         child: clipboardAwareInput,
       );
@@ -1519,7 +1515,6 @@ class _UnifiedPromptInputState extends ConsumerState<UnifiedPromptInput> {
         focusNode: _effectiveFocusNode,
         config: widget.config.autocompleteConfig,
         enabled: !widget.config.readOnly && !_tagMode,
-        onChanged: (_) => _handleTextChanged(_effectiveController.text),
         contentPadding: effectiveDecoration.contentPadding,
         maxLines: widget.maxLines,
         expands: widget.expands,

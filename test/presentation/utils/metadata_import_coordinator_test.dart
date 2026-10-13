@@ -8,6 +8,7 @@ import 'package:hive_flutter/hive_flutter.dart';
 import 'package:nai_launcher/core/constants/api_constants.dart';
 import 'package:nai_launcher/core/constants/storage_keys.dart';
 import 'package:nai_launcher/core/enums/precise_ref_type.dart';
+import 'package:nai_launcher/data/models/character/character_prompt.dart';
 import 'package:nai_launcher/data/models/gallery/nai_image_metadata.dart';
 import 'package:nai_launcher/data/models/fixed_tag/fixed_tag_entry.dart';
 import 'package:nai_launcher/data/models/fixed_tag/fixed_tag_prompt_type.dart';
@@ -159,6 +160,110 @@ void main() {
       expect(characters.characters.single.customPosition?.row, 0.2);
     },
   );
+
+  group('character selection', () {
+    const metadata = NaiImageMetadata(
+      characterPrompts: ['girl A', 'girl B', 'girl C'],
+      characterNegativePrompts: ['neg A', 'neg B', 'neg C'],
+      characterInfos: [
+        CharacterPromptInfo(
+          prompt: 'girl A',
+          negativePrompt: 'neg A',
+          centerX: 0.1,
+          centerY: 0.1,
+        ),
+        CharacterPromptInfo(
+          prompt: 'girl B',
+          negativePrompt: 'neg B',
+          centerX: 0.5,
+          centerY: 0.5,
+        ),
+        CharacterPromptInfo(
+          prompt: 'girl C',
+          negativePrompt: 'neg C',
+          centerX: 0.9,
+          centerY: 0.9,
+        ),
+      ],
+      characterUseCoords: true,
+    );
+
+    MetadataImportOptions charactersOnly(List<int> indices) =>
+        MetadataImportOptions(
+          importPrompt: false,
+          importNegativePrompt: false,
+          importFixedTags: false,
+          importQualityTags: false,
+          selectedCharacterIndices: indices,
+        );
+
+    List<String> importedPrompts(ProviderContainer container) => container
+        .read(characterPromptNotifierProvider)
+        .characters
+        .map((character) => character.prompt)
+        .toList();
+
+    test('imports only checked characters in their original order', () async {
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+
+      final appliedCount = await MetadataImportCoordinator.apply(
+        read: container.read,
+        metadata: metadata,
+        options: charactersOnly(const [2, 0]),
+        l10n: AppLocalizationsEn(),
+      );
+
+      final characters = container
+          .read(characterPromptNotifierProvider)
+          .characters;
+      expect(appliedCount, 1);
+      expect(importedPrompts(container), ['girl A', 'girl C']);
+      expect(characters.map((character) => character.negativePrompt), [
+        'neg A',
+        'neg C',
+      ]);
+      expect(characters.map((character) => character.name), [
+        'Character 1',
+        'Character 2',
+      ]);
+      expect(characters.last.customPosition?.column, closeTo(0.9, 0.0001));
+    });
+
+    test('keeps current characters when none is checked', () async {
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+      container.read(characterPromptNotifierProvider.notifier)
+        ..clearAllCharacters()
+        ..addCharacter(CharacterGender.female, prompt: 'existing');
+
+      final appliedCount = await MetadataImportCoordinator.apply(
+        read: container.read,
+        metadata: metadata,
+        options: charactersOnly(const []),
+        l10n: AppLocalizationsEn(),
+      );
+
+      expect(appliedCount, 0);
+      expect(importedPrompts(container), ['existing']);
+    });
+
+    test('legacy metadata without character details imports all', () async {
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+
+      await MetadataImportCoordinator.apply(
+        read: container.read,
+        metadata: const NaiImageMetadata(
+          characterPrompts: ['girl A', 'girl B'],
+        ),
+        options: charactersOnly(const []),
+        l10n: AppLocalizationsEn(),
+      );
+
+      expect(importedPrompts(container), ['girl A', 'girl B']);
+    });
+  });
 
   test('reimporting the same weighted comma fixed tag stays unique', () async {
     final container = ProviderContainer();
