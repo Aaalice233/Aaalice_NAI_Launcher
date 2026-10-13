@@ -15,6 +15,7 @@ import 'package:nai_launcher/core/platform/platform_capabilities.dart';
 import 'package:nai_launcher/core/storage/local_storage_service.dart';
 import 'package:nai_launcher/data/services/local_onnx_model_service.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
+import 'package:nai_launcher/presentation/providers/local_tagger_models_provider.dart';
 import 'package:nai_launcher/core/database/providers/data_source_cache_provider.dart';
 import 'package:nai_launcher/presentation/screens/settings/sections/storage_settings_section.dart';
 import 'package:nai_launcher/presentation/screens/settings/widgets/cache_statistics_tile.dart';
@@ -165,6 +166,91 @@ void main() {
       ),
       findsNothing,
     );
+  });
+
+  group('本地 tagger 模型缓存', () {
+    late _RecordingFilePicker filePicker;
+
+    setUp(() {
+      FilePicker? originalFilePicker;
+      try {
+        originalFilePicker = FilePicker.platform;
+      } catch (_) {
+        originalFilePicker = null;
+      }
+      filePicker = _RecordingFilePicker(
+        result: FilePickerResult([
+          PlatformFile(
+            name: 'tagger.onnx',
+            size: 1,
+            path: r'C:\picked\tagger.onnx',
+          ),
+        ]),
+        directory: r'C:\models\comfyui_wd14',
+      );
+      FilePicker.platform = filePicker;
+      addTearDown(() {
+        if (originalFilePicker != null) {
+          FilePicker.platform = originalFilePicker;
+        }
+      });
+    });
+
+    Future<_CountingOnnxModelService> pumpWithCachedModels(
+      WidgetTester tester,
+    ) async {
+      final onnx = _CountingOnnxModelService(storage);
+      await tester.pumpWidget(_buildSubject(storage, onnxService: onnx));
+      await tester.pump();
+      final container = ProviderScope.containerOf(
+        tester.element(find.byType(StorageSettingsSection)),
+      );
+      final subscription = container.listen(
+        localTaggerModelsProvider,
+        (_, _) {},
+      );
+      addTearDown(subscription.close);
+      await tester.pump();
+      expect(onnx.scans, 1);
+      return onnx;
+    }
+
+    testWidgets('桌面端换目录后重新扫描', (tester) async {
+      final onnx = await pumpWithCachedModels(tester);
+
+      await tester.tap(find.text('本地 ONNX tagger 模型'));
+      await tester.pump();
+      await tester.pump();
+
+      expect(onnx.taggerDirectory, r'C:\models\comfyui_wd14');
+      expect(onnx.scans, 2);
+    });
+
+    testWidgets('移动端导入与清除后重新扫描，重建不重复统计', (tester) async {
+      PlatformCapabilities.debugOverride = PlatformCapabilities.forPlatform(
+        TargetPlatform.android,
+      );
+      final onnx = await pumpWithCachedModels(tester);
+      expect(onnx.managedCounts, 1);
+
+      await tester.tap(find.byTooltip('导入 ONNX 模型、标签文件或 ZIP 压缩包'));
+      await tester.pump();
+      await tester.pump();
+      expect(onnx.imports, 1);
+      expect(onnx.scans, 2);
+      expect(onnx.managedCounts, 2);
+      await tester.pump(const Duration(seconds: 5));
+
+      await tester.tap(find.byTooltip('删除'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 500));
+      await tester.tap(find.widgetWithText(FilledButton, '删除'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 500));
+      expect(onnx.clears, 1);
+      expect(onnx.scans, 3);
+      expect(onnx.managedCounts, 3);
+    });
   });
 
   testWidgets('Android 同步到系统相册开关默认开启，关闭后写入设置', (tester) async {
@@ -395,9 +481,10 @@ class _PendingOnnxModelService extends LocalOnnxModelService {
 }
 
 class _RecordingFilePicker extends FilePicker {
-  _RecordingFilePicker({this.result});
+  _RecordingFilePicker({this.result, this.directory});
 
   final FilePickerResult? result;
+  final String? directory;
   FileType? type;
   List<String>? allowedExtensions;
   bool? allowMultiple;
@@ -421,6 +508,45 @@ class _RecordingFilePicker extends FilePicker {
     this.allowedExtensions = allowedExtensions;
     this.allowMultiple = allowMultiple;
     return result;
+  }
+
+  @override
+  Future<String?> getDirectoryPath({
+    String? dialogTitle,
+    bool lockParentWindow = false,
+    String? initialDirectory,
+  }) async => directory;
+}
+
+class _CountingOnnxModelService extends LocalOnnxModelService {
+  _CountingOnnxModelService(super.storage);
+
+  var scans = 0;
+  var imports = 0;
+  var clears = 0;
+  var managedCounts = 0;
+
+  @override
+  Future<List<LocalOnnxModelDescriptor>> scanTaggerModels() async {
+    scans++;
+    return const [];
+  }
+
+  @override
+  Future<int> importTaggerSelections(List<LocalOnnxImportSource> sources) async {
+    imports++;
+    return sources.length;
+  }
+
+  @override
+  Future<void> clearManagedTaggerFiles() async {
+    clears++;
+  }
+
+  @override
+  Future<int> managedFileCount() async {
+    managedCounts++;
+    return 0;
   }
 }
 

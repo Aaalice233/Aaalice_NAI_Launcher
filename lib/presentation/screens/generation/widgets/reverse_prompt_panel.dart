@@ -13,6 +13,7 @@ import '../../../../data/models/character/character_prompt.dart';
 import '../../../../data/services/local_onnx_model_service.dart';
 import '../../../providers/generation/generation_panel_expansion_provider.dart';
 import '../../../providers/generation/generation_params_notifier.dart';
+import '../../../providers/local_tagger_models_provider.dart';
 import '../../../providers/reverse_prompt_provider.dart';
 import '../../../providers/tag_library_page_provider.dart';
 import '../../../prompt_assistant/providers/prompt_assistant_history_provider.dart';
@@ -294,7 +295,8 @@ class _ReversePromptPanelState extends ConsumerState<ReversePromptPanel> {
 
   Widget _buildTaggerControls(ReversePromptState state) {
     return FutureBuilder<List<LocalOnnxModelDescriptor>>(
-      future: ref.read(localOnnxModelServiceProvider).scanTaggerModels(),
+      // 缓存失效前始终是同一个 Future，重建不会重新扫描模型目录
+      future: ref.watch(localTaggerModelsProvider.future),
       builder: (context, snapshot) {
         final models = snapshot.data ?? const <LocalOnnxModelDescriptor>[];
         final selected =
@@ -304,27 +306,38 @@ class _ReversePromptPanelState extends ConsumerState<ReversePromptPanel> {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            DropdownButtonFormField<String>(
-              initialValue: selected,
-              isExpanded: true,
-              items: models
-                  .map(
-                    (model) => DropdownMenuItem(
-                      value: model.path,
-                      child: ModelNameLabel(modelId: model.name),
+            Row(
+              children: [
+                Expanded(
+                  child: DropdownButtonFormField<String>(
+                    initialValue: selected,
+                    isExpanded: true,
+                    items: models
+                        .map(
+                          (model) => DropdownMenuItem(
+                            value: model.path,
+                            child: ModelNameLabel(modelId: model.name),
+                          ),
+                        )
+                        .toList(),
+                    onChanged: state.isProcessing
+                        ? null
+                        : ref
+                              .read(reversePromptProvider.notifier)
+                              .setSelectedTaggerModelPath,
+                    decoration: InputDecoration(
+                      labelText: context.l10n.reversePrompt_localTaggerModel,
+                      hintText: context.l10n.reversePrompt_localTaggerModelHint,
+                      isDense: true,
                     ),
-                  )
-                  .toList(),
-              onChanged: state.isProcessing
-                  ? null
-                  : ref
-                        .read(reversePromptProvider.notifier)
-                        .setSelectedTaggerModelPath,
-              decoration: InputDecoration(
-                labelText: context.l10n.reversePrompt_localTaggerModel,
-                hintText: context.l10n.reversePrompt_localTaggerModelHint,
-                isDense: true,
-              ),
+                  ),
+                ),
+                IconButton(
+                  tooltip: context.l10n.common_refresh,
+                  onPressed: () => ref.invalidate(localTaggerModelsProvider),
+                  icon: const Icon(Icons.refresh_rounded),
+                ),
+              ],
             ),
             const SizedBox(height: 6),
             LabeledSliderRows(

@@ -41,6 +41,57 @@ void main() {
     expect(find.text('保留的反推结果'), findsOneWidget);
   });
 
+  testWidgets('本地模型列表跨重建复用，只在刷新时重新扫描目录', (tester) async {
+    late _CountingTaggerModels models;
+    final container = createStorageFreeContainer(
+      overrides: [
+        localOnnxModelServiceProvider.overrideWith(
+          (ref) => models = _CountingTaggerModels(
+            ref.read(localStorageServiceProvider),
+          ),
+        ),
+      ],
+    );
+    addTearDown(container.dispose);
+    await container
+        .read(generationPanelExpansionProvider.notifier)
+        .setExpanded(GenerationWorkbenchPanel.reversePrompt, true);
+    await tester.binding.setSurfaceSize(const Size(600, 1200));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: const MaterialApp(
+          locale: Locale('zh'),
+          supportedLocales: AppLocalizations.supportedLocales,
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          home: Scaffold(
+            body: SingleChildScrollView(child: ReversePromptPanel()),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    tester.takeException();
+
+    expect(models.scans, 1);
+
+    final notifier = container.read(reversePromptProvider.notifier);
+    for (final threshold in const [0.4, 0.45, 0.5]) {
+      await notifier.setTaggerGeneralThreshold(threshold);
+      await tester.pumpAndSettle();
+    }
+    expect(models.scans, 1);
+
+    final refresh = find.byTooltip('刷新');
+    expect(refresh, findsOneWidget);
+    await tester.tap(refresh);
+    await tester.pumpAndSettle();
+    tester.takeException();
+
+    expect(models.scans, 2);
+  });
+
   for (final locale in const ['zh', 'ja', 'en']) {
     for (final width in labeledRowWidths) {
       for (final scale in labeledRowTextScales) {
@@ -105,6 +156,24 @@ class _NoTaggerModels extends LocalOnnxModelService {
 
   @override
   Future<List<LocalOnnxModelDescriptor>> scanTaggerModels() async => const [];
+}
+
+class _CountingTaggerModels extends LocalOnnxModelService {
+  _CountingTaggerModels(super.storage);
+
+  var scans = 0;
+
+  @override
+  Future<List<LocalOnnxModelDescriptor>> scanTaggerModels() async {
+    scans++;
+    return const [
+      LocalOnnxModelDescriptor(
+        name: 'wd-v1-4-convnext.onnx',
+        path: 'models/wd-v1-4-convnext.onnx',
+        kind: LocalOnnxModelKind.wd14Tagger,
+      ),
+    ];
+  }
 }
 
 final Uint8List _testImageBytes = Uint8List.fromList(

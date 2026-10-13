@@ -14,6 +14,7 @@ import '../../../../core/utils/vibe_library_path_helper.dart';
 import '../../../../data/services/local_onnx_model_service.dart';
 import '../../../providers/image_save_settings_provider.dart';
 import '../../../providers/local_onnx_import_provider.dart';
+import '../../../providers/local_tagger_models_provider.dart';
 import '../../../widgets/common/app_toast.dart';
 import '../../../widgets/common/themed_confirm_dialog.dart';
 import '../widgets/cache_statistics_tile.dart';
@@ -67,7 +68,9 @@ class _StorageSettingsSectionState
       );
       if (result == null || !mounted) return;
       final service = ref.read(localOnnxModelServiceProvider);
+      final container = ProviderScope.containerOf(context, listen: false);
       await service.setTaggerDirectory(result);
+      invalidateLocalTaggerCaches(container);
       if (mounted) {
         setState(() {});
         AppToast.success(
@@ -133,7 +136,11 @@ class _StorageSettingsSectionState
       icon: Icons.delete_outline,
     );
     if (!confirmed || !mounted) return;
-    await ref.read(localOnnxModelServiceProvider).clearManagedTaggerFiles();
+    final container = ProviderScope.containerOf(context, listen: false);
+    await container
+        .read(localOnnxModelServiceProvider)
+        .clearManagedTaggerFiles();
+    invalidateLocalTaggerCaches(container);
     if (mounted) setState(() {});
   }
 
@@ -282,7 +289,9 @@ class _StorageSettingsSectionState
                 subtitle:
                     PlatformCapabilities.current.supportsManagedFileImports
                     ? FutureBuilder<int>(
-                        future: localOnnxService.managedFileCount(),
+                        future: ref.watch(
+                          localTaggerManagedFileCountProvider.future,
+                        ),
                         builder: (context, snapshot) {
                           final count = snapshot.data ?? 0;
                           return Text(
