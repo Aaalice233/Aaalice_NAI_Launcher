@@ -609,6 +609,82 @@ void main() {
     },
   );
 
+  for (final route in ['submit_generation', 'generate_image']) {
+    test(
+      '$route sends the prompt text resolved during preparation',
+      () async {
+        final fake = _FakeImageGenerationNotifier();
+        final container = ProviderContainer(
+          overrides: [
+            imageGenerationNotifierProvider.overrideWith(() => fake),
+            generationParamsNotifierProvider.overrideWith(
+              _TestGenerationParamsNotifier.new,
+            ),
+            characterPromptNotifierProvider.overrideWith(
+              _TestCharacterPromptNotifier.new,
+            ),
+            subscriptionNotifierProvider.overrideWith(
+              _TestSubscriptionNotifier.new,
+            ),
+          ],
+        );
+        addTearDown(container.dispose);
+        final positive = AgentChatResourceReference(
+          kind: AgentChatResourceKind.tagLibraryEntry,
+          source: 'tag_library',
+          resourceId: 'blue-hair',
+        );
+        final negative = AgentChatResourceReference(
+          kind: AgentChatResourceKind.tagLibraryEntry,
+          source: 'tag_library',
+          resourceId: 'bad-anatomy',
+        );
+        final tools = GenerationToolbox(
+          _makeRef(container),
+          resourceResolver: _TestResourceResolver(
+            _makeRef(container),
+            textByResourceId: const {
+              'blue-hair': 'blue hair',
+              'bad-anatomy': 'bad anatomy',
+            },
+          ),
+        ).tools();
+        final prepareTool = route == 'generate_image'
+            ? 'generate_image'
+            : 'prepare_generation';
+        final prepared = _json(
+          await tools.firstWhere((tool) => tool.name == prepareTool).execute(
+            'prepare-$route-refs',
+            {
+              if (route == 'submit_generation') 'operation': 'generate',
+              'prompt': '1girl',
+              'negative_prompt': 'lowres',
+              'prompt_refs': [
+                AgentChatResourceReferenceCodec.encodeJsonMap(positive),
+              ],
+              'negative_prompt_refs': [
+                AgentChatResourceReferenceCodec.encodeJsonMap(negative),
+              ],
+            },
+          ),
+        );
+        expect(prepared['parameters']['prompt'], '1girl, blue hair');
+
+        final submitted = await tools
+            .firstWhere((tool) => tool.name == route)
+            .execute('submit-$route-refs', {
+              'preparation_id': prepared['preparation_id'],
+              'confirmed': true,
+            });
+
+        expect(submitted.isError, isFalse);
+        expect(fake.generateCalls, 1);
+        expect(fake.params?.prompt, '1girl, blue hair');
+        expect(fake.params?.negativePrompt, 'lowres, bad anatomy');
+      },
+    );
+  }
+
   test(
     'enabled fixed-tag references are left to fixed-tag application',
     () async {
@@ -1088,6 +1164,9 @@ void main() {
     final mask = image_lib.decodeImage(params.maskImage!)!;
     expect(mask.getPixel(32, 32).r.toInt(), 255);
     expect(mask.getPixel(0, 0).r.toInt(), 0);
+    expect(fake.focusedOverride?.enabled, isFalse);
+    expect(fake.focusedOverride?.selectionRect, isNull);
+    expect(fake.focusedOverride?.contextCrop, isNull);
   });
 
   test('update and cancel keep preparation lifecycle structured', () async {
@@ -1832,6 +1911,7 @@ class _FakeImageGenerationNotifier extends ImageGenerationNotifier {
   int? batchSize;
   ImageParams? params;
   bool? preserveCharacterSnapshot;
+  GenerationFocusedSnapshot? focusedOverride;
 
   @override
   ImageGenerationState build() => const ImageGenerationState();
@@ -1847,6 +1927,7 @@ class _FakeImageGenerationNotifier extends ImageGenerationNotifier {
     batchSize = batchSizeOverride;
     this.params = params;
     this.preserveCharacterSnapshot = preserveCharacterSnapshot;
+    this.focusedOverride = focusedOverride;
     state = ImageGenerationState(
       status: GenerationStatus.completed,
       currentImages: [
