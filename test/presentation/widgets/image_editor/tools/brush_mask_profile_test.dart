@@ -6,6 +6,8 @@ import 'package:nai_launcher/presentation/widgets/image_editor/core/mask_paint_s
 import 'package:nai_launcher/presentation/widgets/image_editor/layers/layer.dart';
 import 'package:nai_launcher/presentation/widgets/image_editor/layers/layer_role.dart';
 import 'package:nai_launcher/presentation/widgets/image_editor/tools/brush_tool.dart';
+import 'package:nai_launcher/presentation/widgets/image_editor/tools/eraser_tool.dart';
+import 'package:nai_launcher/presentation/widgets/image_editor/tools/tool_base.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
@@ -65,6 +67,22 @@ void main() {
     expect(imageStroke.opacity, 0.4);
     expect(imageStroke.hardness, 0.2);
   });
+
+  test('the eraser always clears a mask with a hard edge', () {
+    final session = _inpaintSession();
+    final state = session.state;
+    final eraser = state.tools.whereType<EraserTool>().single;
+    state.setTool(eraser);
+    eraser.setHardness(0.2);
+
+    state.layerManager.setActiveLayer(session.mask.id);
+    _drawLine(eraser, state);
+    state.layerManager.setActiveLayer(session.image.id);
+    _drawLine(eraser, state);
+
+    expect(session.mask.strokes.single.hardness, MaskPaintStyle.hardness);
+    expect(session.image.strokes.single.hardness, 0.2);
+  });
 }
 
 ({EditorState state, Layer image, Layer mask}) _inpaintSession() {
@@ -78,8 +96,8 @@ void main() {
   return (state: state, image: image, mask: mask);
 }
 
-void _drawLine(BrushTool brush, EditorState state) {
-  brush.onPointerDown(const PointerDownEvent(position: Offset(10, 10)), state);
-  brush.onPointerMove(const PointerMoveEvent(position: Offset(30, 30)), state);
-  brush.onPointerUp(const PointerUpEvent(position: Offset(30, 30)), state);
+void _drawLine(EditorTool tool, EditorState state) {
+  tool.onPointerDown(const PointerDownEvent(position: Offset(10, 10)), state);
+  tool.onPointerMove(const PointerMoveEvent(position: Offset(30, 30)), state);
+  tool.onPointerUp(const PointerUpEvent(position: Offset(30, 30)), state);
 }

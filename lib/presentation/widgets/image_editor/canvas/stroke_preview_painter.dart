@@ -68,7 +68,7 @@ class StrokePreviewPainter extends CustomPainter {
       hardness = style.hardness;
     } else if (tool is EraserTool) {
       size = tool.size;
-      hardness = tool.hardness;
+      hardness = tool.hardnessFor(state);
       isEraser = true;
     } else if (tool is BlurTool) {
       size = tool.size;
