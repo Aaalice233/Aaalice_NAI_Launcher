@@ -18,6 +18,7 @@ import '../../providers/selection_mode_provider.dart';
 import '../../services/gallery_prompt_projection_service.dart';
 import '../../widgets/common/app_toast.dart';
 import '../../widgets/common/image_card_action.dart';
+import 'online_gallery_download_plan.dart';
 import 'online_gallery_utils.dart';
 
 class OnlineGallerySelectionActions {
@@ -59,7 +60,7 @@ class OnlineGallerySelectionActions {
           enabled: complete,
           invoke: () => favoriteSelected(posts),
         ),
-      if (posts.every((post) => post.hasValidPreview))
+      if (posts.every(canDownloadGalleryItem))
         ImageCardAction(
           id: ImageCardActionId.save,
           icon: Icons.download,
@@ -339,67 +340,20 @@ class OnlineGallerySelectionActions {
     }
   }
 
-  /// AI TAG 普通卡按作品下载全部媒体；媒体焦点卡只下载目标图片。
   Future<(int success, int fail, int skipped)> _downloadPosts(
     List<DanbooruPost> posts,
     String destinationDir,
   ) async {
-    final jobs = <_GalleryDownloadJob>[];
     const concurrency = 4;
-    for (var start = 0; start < posts.length; start += concurrency) {
-      final batch = posts.sublist(
-        start,
-        min(start + concurrency, posts.length),
-      );
-      final resolved = await Future.wait(
-        batch.map((post) async {
-          if (!post.hasValidPreview) return <_GalleryDownloadJob>[];
-          if (!post.sourceId.capabilities.supportsMultipleMedia ||
-              post.mediaCount <= 1) {
-            return [
-              _GalleryDownloadJob(post: post, media: post.cover, mediaIndex: 1),
-            ];
-          }
-          if (post.focusedMediaId != null) {
-            return [
-              _GalleryDownloadJob(
-                post: post,
-                media: post.cover,
-                mediaIndex: (post.focusedMediaIndex ?? 0) + 1,
-              ),
-            ];
-          }
-          try {
-            final detail = await _galleryNotifier.loadDetail(post);
-            return [
-              for (var index = 0; index < detail.media.length; index++)
-                _GalleryDownloadJob(
-                  post: detail.item,
-                  media: detail.media[index],
-                  mediaIndex: index + 1,
-                ),
-            ];
-          } catch (error) {
-            debugPrint(
-              'Failed to resolve gallery work ${post.sourceWorkId}: $error',
-            );
-            return <_GalleryDownloadJob>[];
-          }
-        }),
-      );
-      jobs.addAll(resolved.expand((batchJobs) => batchJobs));
-    }
-
+    final plan = await planGalleryDownloads(
+      posts,
+      loadDetail: _galleryNotifier.loadDetail,
+      concurrency: concurrency,
+    );
+    final jobs = plan.jobs;
     var successCount = 0;
-    final skippedCount = posts.where((post) => !post.hasValidPreview).length;
-    var failCount = posts
-        .where(
-          (post) =>
-              post.hasValidPreview &&
-              post.sourceId.capabilities.supportsMultipleMedia &&
-              !jobs.any((job) => job.post.stableKey == post.stableKey),
-        )
-        .length;
+    final skippedCount = plan.skippedCount;
+    var failCount = plan.unresolvedCount;
     final progress = ValueNotifier<int>(0);
     BuildContext? progressPanelContext;
     Future<void>? progressPresentation;
@@ -515,16 +469,4 @@ class _GalleryDownloadProgressPanel extends StatelessWidget {
       ),
     );
   }
-}
-
-class _GalleryDownloadJob {
-  const _GalleryDownloadJob({
-    required this.post,
-    required this.media,
-    required this.mediaIndex,
-  });
-
-  final GalleryItem post;
-  final GalleryMedia media;
-  final int mediaIndex;
 }
