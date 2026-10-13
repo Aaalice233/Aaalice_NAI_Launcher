@@ -143,8 +143,7 @@ class _AgentChatThreadViewportState extends State<AgentChatThreadViewport> {
   GlobalKey _keyFor(AgentChatTurnModel turn) =>
       _turnKeys.putIfAbsent(_identityFor(turn), GlobalKey.new);
 
-  // Layout is final here; a build-phase capture still sees the previous layout
-  // and would read a wheel offset applied in between as content drift.
+  // Post-frame: a build-time capture would read a wheel offset as drift.
   void _scheduleFrameEndRefresh() {
     if (_frameEndRefreshScheduled) return;
     _frameEndRefreshScheduled = true;
@@ -177,8 +176,7 @@ class _AgentChatThreadViewportState extends State<AgentChatThreadViewport> {
     );
   }
 
-  // Keep-alive turns outside the cache keep heights from the old width; wait
-  // for the width to settle so a drag resize does not lay out every turn.
+  // Remeasure once the width settles, not on every frame of a drag resize.
   void _trackCrossAxisExtent() {
     final box = context.findRenderObject();
     if (box is! RenderBox || !box.hasSize) return;
@@ -209,10 +207,9 @@ class _AgentChatThreadViewportState extends State<AgentChatThreadViewport> {
 
   bool _canCorrectPausedDrift() {
     final controller = widget.controller;
-    if (controller.followingLatest || controller.userScrolling) return false;
-    final scroll = controller.scrollController;
-    // Driven and ballistic activities overwrite pixels with absolute values.
-    return scroll.hasClients && !scroll.position.isScrollingNotifier.value;
+    return !controller.followingLatest &&
+        controller.scrollController.hasClients &&
+        !controller.scrollOffsetAnimating;
   }
 
   double _minimumDriftCorrection() {
@@ -304,20 +301,13 @@ class _AgentChatThreadViewportState extends State<AgentChatThreadViewport> {
       if (!widget.historyLoading) await widget.onLoadEarlier?.call();
       return;
     }
-    final scroll = widget.controller.scrollController;
-    final before = scroll.hasClients ? scroll.offset : null;
+    // Older turns append past the anchor; layout corrections already keep it.
     setState(() {
       _visibleTurnCount = (_visibleTurnCount + _historyPageSize).clamp(
         0,
         widget.turns.length,
       );
       _measureWholeWindow = true;
-    });
-    // In reverse geometry older turns are appended beyond the current anchor.
-    // Keep the exact pixel anchor if the framework performs any correction.
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (before == null || !scroll.hasClients) return;
-      widget.controller.jumpToPreservingFollow(before);
     });
   }
 

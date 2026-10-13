@@ -5,9 +5,7 @@ import 'package:flutter/services.dart';
 
 final RegExp agentChatImageTokenPattern = RegExp(r'\[image(\d+)\]');
 
-/// 删除第 [removedNumber] 张附件的引用并把后续编号前移，选区随每处改写映射。
-///
-/// 只吃掉标记一侧的一个空格（与插入时补的空格对称），不动用户自己写的连续空格或缩进。
+// 只吃标记一侧的一个空格，与插入时补的空格对称，用户自己的空白不动。
 TextEditingValue removeAgentChatImageToken(
   TextEditingValue value,
   int removedNumber,

@@ -86,6 +86,8 @@ class AgentChatPanelController extends ChangeNotifier {
   bool _autoScroll = true;
   bool _userScrollActive = false;
   bool _potentialUserScroll = false;
+  bool _potentialWheelScroll = false;
+  bool _potentialKeyScroll = false;
   bool _programmaticScrollActive = false;
   double? _lastUserScrollPixels;
   bool _scrollToBottomScheduled = false;
@@ -110,7 +112,17 @@ class AgentChatPanelController extends ChangeNotifier {
   bool get isEditingUserMessage => _editingUserMessageIndex != null;
   bool get showJumpToLatest => !_autoScroll;
   bool get followingLatest => _autoScroll;
-  bool get userScrolling => _userScrollActive || _potentialUserScroll;
+  bool get userScrolling => _userScrollActive || _hasPotentialUserScroll;
+  bool get scrollOffsetAnimating {
+    if (!scrollController.hasClients) return false;
+    final position = scrollController.position;
+    return position is _AgentChatScrollPosition
+        ? position.offsetAnimating
+        : position.isScrollingNotifier.value;
+  }
+
+  bool get _hasPotentialUserScroll =>
+      _potentialUserScroll || _potentialWheelScroll || _potentialKeyScroll;
 
   void setHoveredUserMessageIndex(int? value) {
     if (_hoveredUserMessageIndex == value) return;
@@ -252,8 +264,7 @@ class AgentChatPanelController extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Images whose `[imageN]` reference was edited out of the text are still in
-  /// the attachment strip, so they follow the text in attachment order.
+  // Unreferenced attachments are still in the strip, so they are still sent.
   List<UserContent> buildInlineUserContent(
     String text,
     List<PendingAgentChatImage> images,
@@ -475,10 +486,12 @@ class AgentChatPanelController extends ChangeNotifier {
           _beginUserScroll(notification.metrics);
         }
       case ScrollStartNotification(:final dragDetails)
-          when dragDetails != null || _potentialUserScroll:
+          when dragDetails != null || _hasPotentialUserScroll:
         _beginUserScroll(notification.metrics);
       case ScrollUpdateNotification(:final dragDetails, :final scrollDelta)
-          when dragDetails != null || _userScrollActive || _potentialUserScroll:
+          when dragDetails != null ||
+              _userScrollActive ||
+              _hasPotentialUserScroll:
         _beginUserScroll(notification.metrics, preserveBaseline: true);
         _updateUserScrollIntent(notification.metrics, scrollDelta: scrollDelta);
       case ScrollEndNotification():
@@ -512,21 +525,37 @@ class AgentChatPanelController extends ChangeNotifier {
   void beginPotentialUserScroll() {
     if (_programmaticScrollActive) return;
     _potentialUserScroll = true;
+    _captureUserScrollBaseline();
+  }
+
+  // An edge wheel emits no notification, so only a microtask releases it.
+  void beginPotentialWheelScroll() {
+    if (_programmaticScrollActive) return;
+    _potentialWheelScroll = true;
+    _captureUserScrollBaseline();
+    scheduleMicrotask(_endPotentialWheelScroll);
+  }
+
+  void cancelPotentialUserScroll() {
+    _potentialUserScroll = false;
+    _releaseIdleUserScrollBaseline();
+  }
+
+  void _endPotentialWheelScroll() {
+    _potentialWheelScroll = false;
+    _releaseIdleUserScrollBaseline();
+  }
+
+  void _captureUserScrollBaseline() {
     if (scrollController.hasClients) {
       _lastUserScrollPixels = scrollController.position.pixels;
     }
   }
 
-  // A wheel scroll resolves inside its pointer event; at the scroll edge it
-  // emits no notification, so the intent would otherwise never be released.
-  void beginPotentialWheelScroll() {
-    beginPotentialUserScroll();
-    scheduleMicrotask(cancelPotentialUserScroll);
-  }
-
-  void cancelPotentialUserScroll() {
-    _potentialUserScroll = false;
-    if (!_userScrollActive) _lastUserScrollPixels = null;
+  void _releaseIdleUserScrollBaseline() {
+    if (!_userScrollActive && !_hasPotentialUserScroll) {
+      _lastUserScrollPixels = null;
+    }
   }
 
   KeyEventResult handleViewportKeyEvent(FocusNode _, KeyEvent event) {
@@ -534,9 +563,12 @@ class AgentChatPanelController extends ChangeNotifier {
       return KeyEventResult.ignored;
     }
     if (event is KeyDownEvent || event is KeyRepeatEvent) {
-      beginPotentialUserScroll();
+      if (_programmaticScrollActive) return KeyEventResult.ignored;
+      _potentialKeyScroll = true;
+      _captureUserScrollBaseline();
     } else if (event is KeyUpEvent) {
-      cancelPotentialUserScroll();
+      _potentialKeyScroll = false;
+      _releaseIdleUserScrollBaseline();
     }
     return KeyEventResult.ignored;
   }
@@ -550,11 +582,15 @@ class AgentChatPanelController extends ChangeNotifier {
       _lastUserScrollPixels = metrics.pixels;
     }
     _potentialUserScroll = false;
+    _potentialWheelScroll = false;
+    _potentialKeyScroll = false;
     _userScrollActive = true;
   }
 
   void _endUserScroll() {
     _potentialUserScroll = false;
+    _potentialWheelScroll = false;
+    _potentialKeyScroll = false;
     _userScrollActive = false;
     _lastUserScrollPixels = null;
   }
@@ -858,6 +894,22 @@ class _AgentChatScrollController extends ScrollController {
   final ValueChanged<ScrollPosition> onDetachPosition;
 
   @override
+  ScrollPosition createScrollPosition(
+    ScrollPhysics physics,
+    ScrollContext context,
+    ScrollPosition? oldPosition,
+  ) {
+    return _AgentChatScrollPosition(
+      physics: physics,
+      context: context,
+      initialPixels: initialScrollOffset,
+      keepScrollOffset: keepScrollOffset,
+      oldPosition: oldPosition,
+      debugLabel: debugLabel,
+    );
+  }
+
+  @override
   void attach(ScrollPosition position) {
     super.attach(position);
     onAttachPosition(position);
@@ -868,4 +920,19 @@ class _AgentChatScrollController extends ScrollController {
     onDetachPosition(position);
     super.detach(position);
   }
+}
+
+class _AgentChatScrollPosition extends ScrollPositionWithSingleContext {
+  _AgentChatScrollPosition({
+    required super.physics,
+    required super.context,
+    super.initialPixels,
+    super.keepScrollOffset,
+    super.oldPosition,
+    super.debugLabel,
+  });
+
+  // Drags and held pointers move by deltas; animations step toward own targets.
+  bool get offsetAnimating =>
+      activity is BallisticScrollActivity || activity is DrivenScrollActivity;
 }
