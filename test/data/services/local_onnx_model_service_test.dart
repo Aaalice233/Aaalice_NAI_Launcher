@@ -179,6 +179,52 @@ void main() {
     },
   );
 
+  test('lists models kept in per-model folders of a shared directory', () async {
+    final root = await Directory(
+      p.join(tempDirectory.path, 'comfyui_wd14_models'),
+    ).create(recursive: true);
+    Future<File> write(List<String> segments, [String content = '']) async {
+      final file = File(p.joinAll([root.path, ...segments]));
+      await file.parent.create(recursive: true);
+      return file.writeAsString(content);
+    }
+
+    final topLevel = await write(['wd-v1-4-convnext-tagger-v2.onnx']);
+    await write(['wd-v1-4-convnext-tagger-v2.csv'], 'name,category\n1girl,0\n');
+    final perModel = await write(['wd-eva02-large-tagger-v3', 'model.onnx']);
+    await write([
+      'wd-eva02-large-tagger-v3',
+      'selected_tags.csv',
+    ], 'name,category\n1girl,0\n');
+    final versioned = await write(['cl_tagger_v2', 'v2_01a', 'model.onnx']);
+    await write([
+      'cl_tagger_v2',
+      'v2_01a',
+      'model_vocabulary.json',
+    ], '{"idx_to_tag":{"0":"1girl"}}');
+    await write(['archive', 'old', 'nested', 'too-deep.onnx']);
+    await write(['.import-1', 'staged', 'tagger.onnx']);
+    await service.setTaggerDirectory(root.path);
+
+    final models = await service.scanTaggerModels();
+
+    expect(models.map((model) => model.path), [
+      versioned.path,
+      perModel.path,
+      topLevel.path,
+    ]);
+    expect(models.map((model) => model.name), [
+      p.join('cl_tagger_v2', 'v2_01a', 'model.onnx'),
+      p.join('wd-eva02-large-tagger-v3', 'model.onnx'),
+      'wd-v1-4-convnext-tagger-v2.onnx',
+    ]);
+    expect(models.first.kind, LocalOnnxModelKind.clTaggerV2);
+    expect(
+      models[1].labelsPath,
+      p.join(root.path, 'wd-eva02-large-tagger-v3', 'selected_tags.csv'),
+    );
+  });
+
   test('recognizes the AnimeTimm EVA02 model family', () async {
     for (final layout in const [
       (
