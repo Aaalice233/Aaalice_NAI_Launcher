@@ -8,6 +8,7 @@ import '../../../data/models/image/image_params.dart';
 import '../../../data/services/auth_provider.dart';
 import '../../providers/character_prompt_provider.dart';
 import '../../providers/fixed_tags_provider.dart';
+import '../../providers/generation/image_card_selection_provider.dart';
 import '../../providers/generation/image_generation_selectors.dart';
 import '../../providers/generation/image_workflow_controller.dart';
 import '../../providers/generation/workflow_panel_reveal_provider.dart';
@@ -31,11 +32,13 @@ class MobileGenerationLayout extends ConsumerStatefulWidget {
     this.historyViewport,
     this.promptInputController,
     this.promptInputKey,
+    this.fixedTagsOverlayVisible = false,
   });
 
   final OwnedViewportOffset? historyViewport;
   final PromptInputController? promptInputController;
   final GlobalKey? promptInputKey;
+  final bool fixedTagsOverlayVisible;
 
   @override
   ConsumerState<MobileGenerationLayout> createState() =>
@@ -98,6 +101,9 @@ class _MobileGenerationLayoutState
         ? ref.watch(kritaBridgeNotifierProvider).isBridgeGenerating
         : false;
     final isPromptMaximized = ref.watch(promptMaximizeNotifierProvider);
+    final isSelectionMode = ref.watch(
+      generationImageCardSelectionProvider.select((state) => state.isActive),
+    );
     final showRandomTools = ref.watch(randomPromptToolsVisibilityProvider);
     final isUpscaleMode = ref.watch(
       imageWorkflowControllerProvider.select((workflow) => workflow.isUpscale),
@@ -151,6 +157,8 @@ class _MobileGenerationLayoutState
           batchStatus: batchStatus,
           cooldownRemainingSeconds: cooldownState.remainingSeconds,
           isPromptMaximized: isPromptMaximized,
+          isSelectionMode: isSelectionMode,
+          isFixedTagsOverlayVisible: widget.fixedTagsOverlayVisible,
           keyboardVisible: keyboardVisible,
           isGenerating: isGenerating,
           isLauncherGenerating: isLauncherGenerating,

@@ -28,9 +28,9 @@ class MobileGenerationShell extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return PopScope<void>(
-      canPop: !data.isPromptMaximized && !controller.agentFullScreen,
+      canPop: controller.canPopRoute(data),
       onPopInvokedWithResult: (didPop, _) {
-        if (!didPop) controller.handleBack(data.isPromptMaximized);
+        if (!didPop) controller.handleBack(data);
       },
       child: MobileGenerationChrome(
         controller: controller,

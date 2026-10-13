@@ -13,14 +13,17 @@ import '../../../core/utils/localization_extension.dart';
 import '../../../data/models/queue/replication_task.dart';
 import '../../../data/models/queue/replication_task_generation_snapshot.dart';
 import '../../../data/services/auth_provider.dart';
+import '../../providers/generation/image_card_selection_provider.dart';
 import '../../providers/generation/image_workflow_controller.dart';
 import '../../providers/image_generation_provider.dart';
 import '../../providers/krita/krita_bridge_notifier.dart';
+import '../../providers/layout_state_provider.dart';
 import '../../providers/mobile_shell_overlay_provider.dart';
 import '../../providers/prompt_maximize_provider.dart';
 import '../../providers/replication_queue_provider.dart';
 import '../../utils/asset_protection_guard.dart';
 import '../../widgets/common/app_toast.dart';
+import 'mobile_generation_view_data.dart';
 
 class MobileGenerationController extends ChangeNotifier
     with WidgetsBindingObserver {
@@ -120,11 +123,29 @@ class MobileGenerationController extends ChangeNotifier
     notifyListeners();
   }
 
-  void handleBack(bool isPromptMaximized) {
-    if (agentFullScreen) {
+  bool canPopRoute(MobileGenerationViewData data) =>
+      !data.isFixedTagsOverlayVisible &&
+      !agentFullScreen &&
+      !data.isPromptMaximized &&
+      !data.isSelectionMode;
+
+  /// 按层级由上到下逐层退出，每次返回只退一层。
+  void handleBack(MobileGenerationViewData data) {
+    if (data.isFixedTagsOverlayVisible) {
+      unawaited(
+        ref
+            .read(layoutStateNotifierProvider.notifier)
+            .setFixedTagsSidebarExpanded(false),
+      );
+    } else if (agentFullScreen) {
       handleAgentBack();
-    } else if (isPromptMaximized) {
+    } else if (data.isPromptMaximized) {
       closePromptEditor();
+    } else if (scaffoldKey.currentState?.isDrawerOpen ?? false) {
+      // 拦截返回时抽屉自己的历史项不会被弹出，参数抽屉盖住预览，须先由这里关闭
+      closeParameterDrawer();
+    } else if (data.isSelectionMode) {
+      ref.read(generationImageCardSelectionProvider.notifier).exit();
     }
   }
 
