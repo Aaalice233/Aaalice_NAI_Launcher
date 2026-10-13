@@ -63,6 +63,10 @@ void main() {
     expect(adapter.detailRequests, 1);
   });
 
+  test('legacy no-image placeholder media id resolves the work', () async {
+    expect(await resolver.exists(reference(GalleryMedia.noImageId)), isTrue);
+  });
+
   test('unknown media of a loaded work is reported missing', () async {
     expect(await resolver.exists(reference('101_p9')), isFalse);
   });

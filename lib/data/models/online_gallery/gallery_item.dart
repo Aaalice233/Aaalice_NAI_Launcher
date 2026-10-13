@@ -29,6 +29,13 @@ class GalleryMedia {
 
   static String pendingIdFor(String workId) => '${workId}_pending';
 
+  /// Cover of entries that carry no media at all, such as text-only entries.
+  static const GalleryMedia noImage = GalleryMedia(id: noImageId);
+  static const String noImageId = 'no-image';
+
+  static bool isPlaceholderId(String? id, String workId) =>
+      id == noImageId || id == pendingIdFor(workId);
+
   final String id;
   final String previewUrl;
   final String displayUrl;
@@ -258,7 +265,8 @@ class GalleryItem {
       cover.id == GalleryMedia.pendingIdFor(sourceWorkId);
 
   /// Null while the cover is a placeholder that detail media never contains.
-  String? get coverMediaId => hasPendingCover ? null : cover.id;
+  String? get coverMediaId =>
+      GalleryMedia.isPlaceholderId(cover.id, sourceWorkId) ? null : cover.id;
   bool get hasFile => downloadUrl.isNotEmpty;
   bool get hasLarge => (largeFileUrl ?? '').isNotEmpty;
   String? get mediaTypeLabel {

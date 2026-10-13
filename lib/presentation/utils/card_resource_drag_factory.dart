@@ -161,7 +161,7 @@ class CardResourceDragFactory {
         .firstOrNull;
     if (item == null) return null;
     final mediaId = reference.mediaId;
-    final coverExtension = item.hasPendingCover
+    final coverExtension = item.coverMediaId == null
         ? null
         : item.cover.extension ?? item.fileExt;
     if (coverExtension != null &&

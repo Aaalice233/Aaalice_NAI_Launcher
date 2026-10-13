@@ -558,9 +558,7 @@ OnlineGalleryFavoriteRecord _quickTagCloudRecord(
       ),
     );
   }
-  final cover = media.isEmpty
-      ? const GalleryMedia(id: 'no-image')
-      : media.first;
+  final cover = media.isEmpty ? GalleryMedia.noImage : media.first;
   final attribution = <String>[];
   for (final value in [entry.credit, entry.author, codex.author]) {
     final normalized = value.trim();
