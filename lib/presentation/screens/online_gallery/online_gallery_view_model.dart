@@ -43,9 +43,4 @@ class OnlineGalleryViewModel {
   bool get allVisibleSelected =>
       postStableKeys.isNotEmpty &&
       postStableKeys.every(selection.selectedIds.contains);
-
-  bool get canDownloadSelected => gallery.posts.any(
-    (post) =>
-        selection.selectedIds.contains(post.stableKey) && post.hasValidPreview,
-  );
 }
