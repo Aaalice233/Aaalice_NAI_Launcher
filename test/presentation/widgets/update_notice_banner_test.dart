@@ -216,4 +216,23 @@ void main() {
     expect(find.textContaining('+33'), findsNothing);
     expect(find.text('立即安装'), findsOneWidget);
   });
+
+  testWidgets('describes a failed download with its localized reason', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      app(
+        const UpdateState(
+          status: UpdateStatus.error,
+          versionInfo: info,
+          installFailure: UpdateInstallFailure.diskFull,
+          notificationVisible: true,
+        ),
+      ),
+    );
+
+    expect(find.text('上次更新没有完成'), findsOneWidget);
+    expect(find.text('磁盘空间不足，无法保存更新包。请清理空间后重试。'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
 }

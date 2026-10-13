@@ -5,7 +5,6 @@ import 'package:markdown/markdown.dart' as md;
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/platform/platform_capabilities.dart';
-import '../../../core/services/update_check_service.dart';
 import '../../../core/utils/byte_format.dart';
 import '../../../core/utils/in_app_release_notes.dart';
 import '../../../core/utils/localization_extension.dart';
@@ -16,6 +15,7 @@ import '../../providers/queue_execution_provider.dart';
 import '../../providers/update_provider.dart';
 import 'adaptive_dialog_frame.dart';
 import 'app_toast.dart';
+import 'update_error_text.dart';
 
 /// 更新检查弹窗组件
 ///
@@ -648,18 +648,7 @@ class UpdateCheckDialog extends ConsumerWidget {
   /// 构建错误内容。内部异常只写日志，弹窗始终显示简短、可执行的文案。
   Widget _buildErrorContent(BuildContext context, UpdateState state) {
     final theme = Theme.of(context);
-    final message = switch (state.checkFailureType) {
-      UpdateCheckFailureType.releaseNotFound =>
-        context.l10n.updateErrorReleaseNotReady,
-      UpdateCheckFailureType.rateLimited => context.l10n.updateErrorServerBusy,
-      UpdateCheckFailureType.network => context.l10n.updateErrorNetwork,
-      UpdateCheckFailureType.unavailable =>
-        context.l10n.updateErrorServiceUnavailable,
-      UpdateCheckFailureType.invalidResponse =>
-        context.l10n.updateErrorInvalidMetadata,
-      UpdateCheckFailureType.unknown ||
-      null => state.errorMessage ?? context.l10n.updateErrorUnknown,
-    };
+    final message = describeUpdateError(context, state);
 
     return ConstrainedBox(
       constraints: const BoxConstraints(minHeight: 120, maxHeight: 220),

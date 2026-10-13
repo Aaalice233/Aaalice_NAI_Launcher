@@ -12063,6 +12063,79 @@ class AppLocalizationsEn extends AppLocalizations {
       'Unable to check for updates right now. Please try again later.';
 
   @override
+  String get updateInstallErrorPackageNotFound =>
+      'No update package that can be installed automatically was found. Please download it manually from the Release page.';
+
+  @override
+  String get updateInstallErrorIncompleteMetadata =>
+      'The update package is missing verification information and cannot be installed safely. Please download it manually from the Release page.';
+
+  @override
+  String get updateInstallErrorDiskFull =>
+      'Not enough disk space to save the update package. Free up some space and try again.';
+
+  @override
+  String get updateInstallErrorFileSystem =>
+      'Failed to write the update package. Check your disk and try again.';
+
+  @override
+  String get updateInstallErrorVerificationFailed =>
+      'The update package failed verification. Please download it again.';
+
+  @override
+  String get updateInstallErrorResumeRejected =>
+      'The server rejected the request to resume the download. Please try again later.';
+
+  @override
+  String get updateInstallErrorEmptyResponse =>
+      'The update server returned an empty response. Please try again later.';
+
+  @override
+  String get updateInstallErrorDownloadFailed =>
+      'Failed to download the update package. Please try again later.';
+
+  @override
+  String get updateInstallErrorPackageMissing =>
+      'The update package has been cleaned up. Please download it again.';
+
+  @override
+  String get updateInstallErrorPackageCorrupted =>
+      'The update package is damaged. Please download it again.';
+
+  @override
+  String get updateInstallErrorInvalidAndroidPackage =>
+      'The Android update package has an invalid format. Please download it manually from the Release page.';
+
+  @override
+  String get updateInstallErrorAndroidInstaller =>
+      'Could not open Android\'s system installer. Please try again.';
+
+  @override
+  String get updateInstallErrorUpdaterLaunchFailed =>
+      'Could not launch the updater. The current version is unchanged; try again or download the new version manually.';
+
+  @override
+  String get updateInstallErrorUpdaterNotStarted =>
+      'The updater did not start. The current version is unchanged; please download the new version manually to update.';
+
+  @override
+  String get updateInstallErrorInstallFailed =>
+      'The previous update was not installed. You can try again or download and install the new version manually.';
+
+  @override
+  String get updateInstallErrorInterrupted =>
+      'The previous update did not finish installing. You can try again or download and install the new version manually.';
+
+  @override
+  String get updateInstallErrorUnknown =>
+      'The update could not be completed. Please try again later.';
+
+  @override
+  String updateInstallLogPath(Object path) {
+    return 'Log: $path';
+  }
+
+  @override
   String get currentVersion => 'Current Version';
 
   @override

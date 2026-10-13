@@ -11557,6 +11557,67 @@ class AppLocalizationsZh extends AppLocalizations {
   String get updateErrorUnknown => '暂时无法检查更新，请稍后重试。';
 
   @override
+  String get updateInstallErrorPackageNotFound =>
+      '未找到可自动安装的更新包，请前往 Release 页面手动下载。';
+
+  @override
+  String get updateInstallErrorIncompleteMetadata =>
+      '更新包缺少校验信息，无法安全安装，请前往 Release 页面手动下载。';
+
+  @override
+  String get updateInstallErrorDiskFull => '磁盘空间不足，无法保存更新包。请清理空间后重试。';
+
+  @override
+  String get updateInstallErrorFileSystem => '写入更新包失败，请检查磁盘后重试。';
+
+  @override
+  String get updateInstallErrorVerificationFailed => '更新包校验失败，请重新下载。';
+
+  @override
+  String get updateInstallErrorResumeRejected => '服务器拒绝了更新包续传请求，请稍后重试。';
+
+  @override
+  String get updateInstallErrorEmptyResponse => '更新服务器返回了空响应，请稍后重试。';
+
+  @override
+  String get updateInstallErrorDownloadFailed => '下载更新包失败，请稍后重试。';
+
+  @override
+  String get updateInstallErrorPackageMissing => '更新包已被清理，请重新下载。';
+
+  @override
+  String get updateInstallErrorPackageCorrupted => '更新包已损坏，请重新下载。';
+
+  @override
+  String get updateInstallErrorInvalidAndroidPackage =>
+      'Android 更新包格式不正确，请前往 Release 页面手动下载。';
+
+  @override
+  String get updateInstallErrorAndroidInstaller => '打开 Android 系统安装界面失败，请重试。';
+
+  @override
+  String get updateInstallErrorUpdaterLaunchFailed =>
+      '启动更新程序失败，当前版本保持不变；请重试或手动下载新版本。';
+
+  @override
+  String get updateInstallErrorUpdaterNotStarted =>
+      '更新程序未能启动，当前版本保持不变；请手动下载新版本完成更新。';
+
+  @override
+  String get updateInstallErrorInstallFailed => '上次更新没有安装成功，可以重试或手动下载新版本安装。';
+
+  @override
+  String get updateInstallErrorInterrupted => '上次更新安装没有执行完成，可以重试或手动下载新版本安装。';
+
+  @override
+  String get updateInstallErrorUnknown => '更新操作失败，请稍后重试。';
+
+  @override
+  String updateInstallLogPath(Object path) {
+    return '日志：$path';
+  }
+
+  @override
   String get currentVersion => '当前版本';
 
   @override
@@ -26874,6 +26935,67 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get updateErrorUnknown => '暫時無法檢查更新，請稍後重試。';
+
+  @override
+  String get updateInstallErrorPackageNotFound =>
+      '未找到可自動安裝的更新包，請前往 Release 頁面手動下載。';
+
+  @override
+  String get updateInstallErrorIncompleteMetadata =>
+      '更新包缺少校驗資訊，無法安全安裝，請前往 Release 頁面手動下載。';
+
+  @override
+  String get updateInstallErrorDiskFull => '磁碟空間不足，無法儲存更新包。請清理空間後重試。';
+
+  @override
+  String get updateInstallErrorFileSystem => '寫入更新包失敗，請檢查磁碟後重試。';
+
+  @override
+  String get updateInstallErrorVerificationFailed => '更新包校驗失敗，請重新下載。';
+
+  @override
+  String get updateInstallErrorResumeRejected => '伺服器拒絕了更新包續傳請求，請稍後重試。';
+
+  @override
+  String get updateInstallErrorEmptyResponse => '更新伺服器回傳了空回應，請稍後重試。';
+
+  @override
+  String get updateInstallErrorDownloadFailed => '下載更新包失敗，請稍後重試。';
+
+  @override
+  String get updateInstallErrorPackageMissing => '更新包已被清理，請重新下載。';
+
+  @override
+  String get updateInstallErrorPackageCorrupted => '更新包已損壞，請重新下載。';
+
+  @override
+  String get updateInstallErrorInvalidAndroidPackage =>
+      'Android 更新包格式不正確，請前往 Release 頁面手動下載。';
+
+  @override
+  String get updateInstallErrorAndroidInstaller => '開啟 Android 系統安裝介面失敗，請重試。';
+
+  @override
+  String get updateInstallErrorUpdaterLaunchFailed =>
+      '啟動更新程式失敗，當前版本保持不變；請重試或手動下載新版本。';
+
+  @override
+  String get updateInstallErrorUpdaterNotStarted =>
+      '更新程式未能啟動，當前版本保持不變；請手動下載新版本完成更新。';
+
+  @override
+  String get updateInstallErrorInstallFailed => '上次更新沒有安裝成功，可以重試或手動下載新版本安裝。';
+
+  @override
+  String get updateInstallErrorInterrupted => '上次更新安裝沒有執行完成，可以重試或手動下載新版本安裝。';
+
+  @override
+  String get updateInstallErrorUnknown => '更新操作失敗，請稍後重試。';
+
+  @override
+  String updateInstallLogPath(Object path) {
+    return '日誌：$path';
+  }
 
   @override
   String get currentVersion => '當前版本';

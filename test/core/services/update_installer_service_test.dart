@@ -14,6 +14,11 @@ class _SupportedInstallationService extends AppInstallationService {
   bool get supportsInAppInstall => true;
 }
 
+class _UnsupportedInstallationService extends AppInstallationService {
+  @override
+  bool get supportsInAppInstall => false;
+}
+
 class _AndroidInstallationService extends AppInstallationService {
   @override
   AppInstallationType getInstallationType() => AppInstallationType.androidApk;
@@ -196,6 +201,112 @@ void main() {
       }
     });
 
+    test('classifies download preconditions for localized messages', () async {
+      final updateDir = Directory('${tempDir.path}/updates')..createSync();
+      const asset = ReleaseAssetInfo(
+        type: ReleaseAssetType.windowsPortable,
+        platform: 'windows',
+        fileName: 'update.zip',
+        downloadUrl: 'https://example.com/update.zip',
+        sha256: 'abc',
+        size: 10,
+      );
+      VersionInfo release(ReleaseAssetInfo? primaryAsset) => VersionInfo(
+        version: '9.9.9',
+        currentVersion: '1.0.0',
+        primaryAsset: primaryAsset,
+        assets: [if (primaryAsset != null) primaryAsset],
+        isNewer: true,
+      );
+      Matcher failsWith(UpdateInstallFailure failure) => throwsA(
+        isA<UpdateInstallException>().having(
+          (error) => error.failure,
+          'failure',
+          failure,
+        ),
+      );
+      final supported = UpdateInstallerService(
+        dio: Dio(),
+        installationService: _SupportedInstallationService(),
+        updateDirectory: updateDir,
+      );
+
+      await expectLater(
+        UpdateInstallerService(
+          dio: Dio(),
+          installationService: _UnsupportedInstallationService(),
+          updateDirectory: updateDir,
+        ).downloadUpdate(release(asset)),
+        failsWith(UpdateInstallFailure.unsupported),
+      );
+      await expectLater(
+        supported.downloadUpdate(release(null)),
+        failsWith(UpdateInstallFailure.packageNotFound),
+      );
+      await expectLater(
+        supported.downloadUpdate(
+          release(
+            const ReleaseAssetInfo(
+              type: ReleaseAssetType.windowsPortable,
+              platform: 'windows',
+              fileName: 'update.zip',
+              downloadUrl: 'https://example.com/update.zip',
+              size: 10,
+            ),
+          ),
+        ),
+        failsWith(UpdateInstallFailure.incompleteMetadata),
+      );
+    });
+
+    test('classifies a checksum mismatch as a verification failure', () async {
+      final payload = List<int>.generate(4096, (index) => index % 251);
+      final updateDir = Directory('${tempDir.path}/updates')..createSync();
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      server.listen((request) async {
+        request.response.headers.contentLength = payload.length;
+        request.response.add(payload);
+        await request.response.close();
+      });
+
+      try {
+        final asset = ReleaseAssetInfo(
+          type: ReleaseAssetType.windowsPortable,
+          platform: 'windows',
+          fileName: 'mismatch.zip',
+          downloadUrl: 'http://127.0.0.1:${server.port}/update.zip',
+          sha256: '0' * 64,
+          size: payload.length,
+        );
+        final service = UpdateInstallerService(
+          dio: Dio(),
+          installationService: _SupportedInstallationService(),
+          updateDirectory: updateDir,
+        );
+
+        await expectLater(
+          service.downloadUpdate(
+            VersionInfo(
+              version: '9.9.9',
+              currentVersion: '1.0.0',
+              primaryAsset: asset,
+              assets: [asset],
+              isNewer: true,
+            ),
+          ),
+          throwsA(
+            isA<UpdateInstallException>().having(
+              (error) => error.failure,
+              'failure',
+              UpdateInstallFailure.verificationFailed,
+            ),
+          ),
+        );
+      } finally {
+        await server.close(force: true);
+      }
+    });
+
     test('hands a verified Android APK to the system installer', () async {
       final updateDir = Directory('${tempDir.path}/updates')..createSync();
       final apk = File('${updateDir.path}/launcher.apk');
@@ -245,6 +356,7 @@ void main() {
       expect(result!.success, isFalse);
       expect(result.version, '2.0.0');
       expect(result.message, 'access denied');
+      expect(result.interrupted, isFalse);
       expect(await service.consumeExecutionResult(), isNull);
     });
 
@@ -363,9 +475,9 @@ void main() {
           ),
           throwsA(
             isA<UpdateInstallException>().having(
-              (error) => error.message,
-              'message',
-              '启动更新程序失败',
+              (error) => error.failure,
+              'failure',
+              UpdateInstallFailure.updaterLaunchFailed,
             ),
           ),
         );
@@ -408,9 +520,9 @@ void main() {
           ),
           throwsA(
             isA<UpdateInstallException>().having(
-              (error) => error.message,
-              'message',
-              contains('更新程序未能启动'),
+              (error) => error.failure,
+              'failure',
+              UpdateInstallFailure.updaterNotStarted,
             ),
           ),
         );
@@ -523,6 +635,7 @@ void main() {
 
       expect(result, isNotNull);
       expect(result!.success, isFalse);
+      expect(result.interrupted, isTrue);
       expect(result.version, '2.0.0');
       expect(await marker.exists(), isFalse);
       expect(await service.consumeExecutionResult(), isNull);
