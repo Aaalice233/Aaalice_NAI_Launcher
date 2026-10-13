@@ -2,10 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/services/local_onnx_model_service.dart';
 
-/// 反推面板列出的本地 tagger 模型。
-///
-/// 面板重建时复用同一次扫描；切换目录、导入、清除托管模型或用户点刷新时失效重扫，
-/// 面板卸载后释放，下次展开重新扫描以反映外部放入的文件。
+// 面板重建复用同一次扫描，目录/托管文件变化或刷新时失效
 final localTaggerModelsProvider =
     FutureProvider.autoDispose<List<LocalOnnxModelDescriptor>>(
       (ref) => ref.watch(localOnnxModelServiceProvider).scanTaggerModels(),
