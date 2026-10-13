@@ -134,6 +134,58 @@ print('updated');
     expect(find.text('Visible body'), findsOneWidget);
   });
 
+  testWidgets('narrow release notes scroll tables horizontally', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(360, 800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    const info = VersionInfo(
+      version: '2.0.0',
+      currentVersion: '1.0.0',
+      isNewer: true,
+      releaseNotes:
+          '| Platform | Download | Notes |\n'
+          '| --- | --- | --- |\n'
+          '| Windows | Setup x64 installer package | Recommended for most users |',
+    );
+    const state = UpdateState(
+      status: UpdateStatus.available,
+      versionInfo: info,
+      notificationVisible: true,
+    );
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          updateStateNotifierProvider.overrideWith(
+            () => _DialogUpdateNotifier(state),
+          ),
+        ],
+        child: const MaterialApp(
+          locale: Locale('en'),
+          supportedLocales: AppLocalizations.supportedLocales,
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          home: Scaffold(body: UpdateCheckDialog()),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(
+      find.descendant(
+        of: find.byType(MarkdownBody),
+        matching: find.byWidgetPredicate(
+          (widget) =>
+              widget is SingleChildScrollView &&
+              widget.scrollDirection == Axis.horizontal,
+        ),
+      ),
+      findsOneWidget,
+    );
+  });
+
   testWidgets('shows a localized bounded error instead of raw exceptions', (
     tester,
   ) async {
