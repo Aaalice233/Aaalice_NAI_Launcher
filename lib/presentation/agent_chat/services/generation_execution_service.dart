@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/agent/agent_types.dart';
 import '../../../core/utils/app_logger.dart';
+import '../../../core/utils/focused_inpaint_utils.dart';
 import '../../../core/utils/nai_resolution_adapter.dart';
 import '../../providers/image_generation_provider.dart';
 import 'defined_agent_tool.dart';
@@ -22,33 +23,38 @@ class GenerationExecutionService {
   final GenerationImageReadContract _imageReadContract;
   final GenerationSavePathExporter _exporter;
   final int _maxGenerateCount;
+
+  // preparation 不含聚焦参数，沿用生成页状态会套上另一张图残留的选区。
+  static const _unfocused = GenerationFocusedSnapshot(
+    enabled: false,
+    minimumContextMegaPixels: FocusedInpaintUtils.defaultContextPadding,
+  );
+
   Future<AgentToolResult> generate(
     String toolCallId,
     Map<String, dynamic> args, [
     AbortSignal? signal,
     AgentToolUpdateCallback? onUpdate,
   ]) async {
+    // 确认时报给调用方的请求就是要发出的请求，原始参数里没有 prompt_refs 等解析结果。
     final prepared = args['_prepared_generation'] as GenerationPreparation;
-    final prompt = (args['prompt'] as String?)?.trim() ?? '';
-    if (prompt.isEmpty) {
+    final params = prepared.params;
+    if (params.prompt.trim().isEmpty) {
       return agentToolError(
         'missing_prompt',
         'Parameter "prompt" is required.',
       );
     }
 
-    final requestedCount = (args['count'] as num?)?.toInt() ?? 1;
-    if (requestedCount < 1 || requestedCount > _maxGenerateCount) {
+    final count = prepared.count;
+    if (count < 1 || count > _maxGenerateCount) {
       return agentToolError(
         'invalid_count',
         'Parameter "count" must be between 1 and $_maxGenerateCount.',
       );
     }
-    final count = requestedCount;
-    final base = prepared.params;
-    final requestedSeed = (args['seed'] as num?)?.toInt() ?? -1;
-    final width = (args['width'] as num?)?.toInt() ?? base.width;
-    final height = (args['height'] as num?)?.toInt() ?? base.height;
+    final width = params.width;
+    final height = params.height;
     final resolutionIssue = NaiResolutionAdapter.validateGenerationResolution(
       width,
       height,
@@ -64,20 +70,6 @@ class GenerationExecutionService {
             '${resolutionIssue.suggestedHeight}.',
       );
     }
-    final negativePrompt =
-        (args['negative_prompt'] as String?)?.trim() ?? base.negativePrompt;
-
-    double? clamp01Ratio(String key) {
-      final raw = (args[key] as num?)?.toDouble();
-      if (raw == null) {
-        return null;
-      }
-      return raw.clamp(0.0, 0.99);
-    }
-
-    final strength = clamp01Ratio('strength');
-    final noise = clamp01Ratio('noise');
-    final inpaintStrength = clamp01Ratio('inpaint_strength');
 
     // 用户停止时应连正在进行的 NAI 生成一起取消。
     void cancelRunningGeneration() {
@@ -117,21 +109,6 @@ class GenerationExecutionService {
 
     try {
       onUpdate?.call(agentToolTextResult('Generating $count image(s)...'));
-      final params = base.copyWith(
-        prompt: prompt,
-        negativePrompt: negativePrompt,
-        width: width,
-        height: height,
-        // count > 1 时应用原生管线会给每批随机种子（与生成页一致）。
-        seed: requestedSeed,
-        nSamples: count,
-        action: prepared.params.action,
-        sourceImage: prepared.sourceImage,
-        maskImage: prepared.maskImage,
-        strength: strength ?? base.strength,
-        noise: noise ?? base.noise,
-        inpaintStrength: inpaintStrength ?? base.inpaintStrength,
-      );
       final previousImageIds = _ref
           .read(imageGenerationNotifierProvider)
           .currentImages
@@ -144,6 +121,7 @@ class GenerationExecutionService {
             params,
             batchSizeOverride: prepared.batchSize,
             preserveCharacterSnapshot: true,
+            focusedOverride: _unfocused,
           );
       final finished = await _waitForCompletion(
         invocation: invocation,
