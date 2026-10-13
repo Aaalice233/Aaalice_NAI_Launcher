@@ -145,7 +145,12 @@ class AgentChatPanelCoordinator {
     final text = _controller.inputController.text.trim();
     final images = _controller.pendingImages;
     final content = _controller.buildInlineUserContent(text, images);
-    if (content.isEmpty) return;
+    if (content.isEmpty) {
+      if (context.mounted) {
+        AppToast.info(context, context.l10n.agentChat_sendEmptyHint);
+      }
+      return;
+    }
     final editingMessageIndex = _controller.editingUserMessageIndex;
     AgentChatRewindCheckpoint? checkpoint;
     if (editingMessageIndex != null) {
