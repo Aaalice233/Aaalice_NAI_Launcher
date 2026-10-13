@@ -296,6 +296,79 @@ void main() {
     );
 
     test(
+      'externally supplied prompts bypass random mode while page runs keep it',
+      () async {
+        final mockApiService = MockNAIImageGenerationApiService();
+        ImageParams? capturedParams;
+        when(
+          () => mockApiService.generateImage(
+            any(),
+            onProgress: any(named: 'onProgress'),
+            focusedInpaintEnabled: any(named: 'focusedInpaintEnabled'),
+            minimumContextMegaPixels: any(named: 'minimumContextMegaPixels'),
+            focusedSelectionRect: any(named: 'focusedSelectionRect'),
+          ),
+        ).thenAnswer((invocation) async {
+          capturedParams = invocation.positionalArguments.first as ImageParams;
+          return ([_validImageBytes(width: 512, height: 768)], <int, String>{});
+        });
+        when(
+          () => mockApiService.generateImageStream(
+            any(),
+            focusedInpaintEnabled: any(named: 'focusedInpaintEnabled'),
+            minimumContextMegaPixels: any(named: 'minimumContextMegaPixels'),
+            focusedSelectionRect: any(named: 'focusedSelectionRect'),
+          ),
+        ).thenAnswer((_) => const Stream.empty());
+        container.dispose();
+        container = _createAuthenticatedContainer(
+          overrides: [
+            naiImageGenerationApiServiceProvider.overrideWithValue(
+              mockApiService,
+            ),
+            subscriptionNotifierProvider.overrideWith(
+              TestSubscriptionNotifier.new,
+            ),
+          ],
+        );
+        await container
+            .read(notificationSettingsNotifierProvider.notifier)
+            .setSoundEnabled(false);
+        container.read(subscriptionNotifierProvider);
+        container.read(randomPromptModeProvider.notifier).set(true);
+        final params = container
+            .read(generationParamsNotifierProvider)
+            .copyWith(
+              model: 'future-unknown-model',
+              prompt: 'agent prompt',
+              width: 512,
+              height: 768,
+            );
+
+        final notifier = container.read(
+          imageGenerationNotifierProvider.notifier,
+        );
+
+        await notifier.generate(params);
+        expect(
+          container.read(imageGenerationNotifierProvider).errorMessage,
+          'GENERATION_ERROR_UNSUPPORTED_RANDOM_MODEL|future-unknown-model',
+        );
+        expect(capturedParams, isNull);
+
+        await notifier.generate(
+          params,
+          preserveCharacterSnapshot: true,
+          bypassRandomPrompt: true,
+        );
+        final state = container.read(imageGenerationNotifierProvider);
+        expect(state.status, GenerationStatus.completed);
+        expect(capturedParams?.prompt, 'agent prompt');
+        expect(container.read(randomPromptModeProvider), isTrue);
+      },
+    );
+
+    test(
       'generate applies positive and negative fixed tags before request',
       () async {
         final mockApiService = MockNAIImageGenerationApiService();

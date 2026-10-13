@@ -850,6 +850,7 @@ class ManualInpaintToolbox implements InpaintDraftAuthoringHost {
           params,
           batchSizeOverride: batchSize,
           focusedOverride: focused,
+          bypassRandomPrompt: true,
         );
     final after = _ref.read(imageGenerationNotifierProvider);
     return switch (after.status) {

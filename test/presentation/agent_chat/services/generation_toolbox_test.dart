@@ -681,6 +681,7 @@ void main() {
         expect(fake.generateCalls, 1);
         expect(fake.params?.prompt, '1girl, blue hair');
         expect(fake.params?.negativePrompt, 'lowres, bad anatomy');
+        expect(fake.bypassRandomPrompt, isTrue);
       },
     );
   }
@@ -1912,6 +1913,7 @@ class _FakeImageGenerationNotifier extends ImageGenerationNotifier {
   ImageParams? params;
   bool? preserveCharacterSnapshot;
   GenerationFocusedSnapshot? focusedOverride;
+  bool? bypassRandomPrompt;
 
   @override
   ImageGenerationState build() => const ImageGenerationState();
@@ -1922,12 +1924,14 @@ class _FakeImageGenerationNotifier extends ImageGenerationNotifier {
     int? batchSizeOverride,
     bool preserveCharacterSnapshot = false,
     GenerationFocusedSnapshot? focusedOverride,
+    bool bypassRandomPrompt = false,
   }) async {
     generateCalls++;
     batchSize = batchSizeOverride;
     this.params = params;
     this.preserveCharacterSnapshot = preserveCharacterSnapshot;
     this.focusedOverride = focusedOverride;
+    this.bypassRandomPrompt = bypassRandomPrompt;
     state = ImageGenerationState(
       status: GenerationStatus.completed,
       currentImages: [
