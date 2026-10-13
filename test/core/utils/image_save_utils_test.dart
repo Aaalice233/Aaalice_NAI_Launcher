@@ -7,8 +7,10 @@ import 'package:image/image.dart' as img;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/core/constants/api_constants.dart';
 import 'package:nai_launcher/core/enums/image_model_mode.dart';
+import 'package:nai_launcher/core/network/request_builders/nai_image_request_builder.dart';
 import 'package:nai_launcher/core/utils/comfyui_prompt_parser.dart';
 import 'package:nai_launcher/core/utils/image_save_utils.dart';
+import 'package:nai_launcher/data/datasources/remote/nai_image_generation_api_service.dart';
 import 'package:nai_launcher/data/models/character/character_prompt.dart';
 import 'package:nai_launcher/data/models/fixed_tag/fixed_tag_entry.dart';
 import 'package:nai_launcher/data/models/fixed_tag/fixed_tag_prompt_type.dart';
@@ -950,4 +952,94 @@ void main() {
       }
     });
   });
+
+  group('ImageSaveUtils records the sampling values actually sent', () {
+    final sourceImage = Uint8List.fromList(
+      img.encodePng(img.Image(width: 64, height: 64)),
+    );
+    final cases = <String, ImageParams>{
+      'V5 Full Medium keeps the stored schedule out': const ImageParams(
+        prompt: '1girl',
+        model: ImageModels.animeDiffusionV5FullMedium,
+        noiseSchedule: NoiseSchedules.exponential,
+      ),
+      'V5 Curated has no schedule choice': const ImageParams(
+        prompt: '1girl',
+        model: ImageModels.animeDiffusionV5Curated,
+        noiseSchedule: NoiseSchedules.polyexponential,
+      ),
+      'V4.5 does not allow native': const ImageParams(
+        prompt: '1girl',
+        model: ImageModels.animeDiffusionV45Full,
+        noiseSchedule: NoiseSchedules.native,
+      ),
+      'V4 falls back from a stored DDIM': const ImageParams(
+        prompt: '1girl',
+        model: ImageModels.animeDiffusionV4Full,
+        sampler: Samplers.ddim,
+        smea: true,
+        smeaDyn: true,
+        smeaAuto: false,
+      ),
+      'V3 maps DDIM and drops SMEA': const ImageParams(
+        prompt: '1girl',
+        model: ImageModels.animeDiffusionV3,
+        sampler: Samplers.ddim,
+        smea: true,
+        smeaDyn: true,
+        smeaAuto: false,
+      ),
+      'V3 auto SMEA above the threshold': const ImageParams(
+        prompt: '1girl',
+        model: ImageModels.animeDiffusionV3,
+        width: 1536,
+        height: 1536,
+      ),
+      'V3 img2img never sends SMEA': ImageParams(
+        prompt: '1girl',
+        model: ImageModels.animeDiffusionV3,
+        action: ImageGenerationAction.img2img,
+        sourceImage: sourceImage,
+        width: 64,
+        height: 64,
+        smea: true,
+        smeaDyn: true,
+        smeaAuto: false,
+      ),
+    };
+
+    for (final entry in cases.entries) {
+      test(entry.key, () async {
+        final params = entry.value;
+        final request = await NAIImageRequestBuilder(
+          params: params,
+          encodeVibe: _unusedEncodeVibe,
+        ).build(
+          sampler: NAIImageGenerationApiService.mapSamplerForModel(
+            params.sampler,
+            params.model,
+          ),
+        );
+        final sent = request.requestParameters;
+
+        final commentJson = ImageSaveUtils.buildCommentJson(
+          params: params,
+          actualSeed: 7,
+        );
+
+        expect(commentJson['noise_schedule'], sent['noise_schedule']);
+        expect(commentJson['sampler'], sent['sampler']);
+        expect(commentJson['sm'], sent['sm'] ?? false);
+        expect(commentJson['sm_dyn'], sent['sm_dyn'] ?? false);
+      });
+    }
+  });
+}
+
+Future<String> _unusedEncodeVibe(
+  Uint8List image, {
+  required String model,
+  double informationExtracted = 1.0,
+}) {
+  throw StateError('vibe encoding is not expected in metadata tests');
 }

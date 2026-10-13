@@ -64,20 +64,17 @@ class NAIImageGenerationApiService {
   /// Maps model-specific sampler compatibility exactly as the legacy service.
   @visibleForTesting
   static String mapSamplerForModel(String sampler, String model) {
-    if (sampler == Samplers.ddim || sampler == Samplers.ddimV3) {
-      if (ImageModels.isV4Model(model) || model == 'N/A') {
-        AppLogger.w(
-          'Model $model does not support DDIM sampler, falling back to Euler Ancestral',
-          'ImgGen',
-        );
-        return Samplers.kEulerAncestral;
-      }
-      if (model.contains('diffusion-3')) {
-        AppLogger.i('Mapping DDIM to DDIM v3 for model: $model', 'ImgGen');
-        return Samplers.ddimV3;
-      }
+    final mapped = Samplers.resolveForModel(sampler, model);
+    if (mapped == sampler) return sampler;
+    if (mapped == Samplers.kEulerAncestral) {
+      AppLogger.w(
+        'Model $model does not support DDIM sampler, falling back to Euler Ancestral',
+        'ImgGen',
+      );
+    } else {
+      AppLogger.i('Mapping DDIM to DDIM v3 for model: $model', 'ImgGen');
     }
-    return sampler;
+    return mapped;
   }
 
   /// Retained for callers and tests that inspect the official multipart shape.

@@ -70,10 +70,11 @@ class ImageSaveUtils {
       if (request.capabilities.supportsCfgRescale)
         'cfg_rescale': request.cfgRescale,
       'n_samples': 1,
-      'noise_schedule': request.noiseSchedule,
-      'sampler': request.sampler,
-      'sm': request.smea,
-      'sm_dyn': request.smeaDyn,
+      // 记录实际发送的取值，从兜底元数据复现时才与原请求一致。
+      'noise_schedule': request.effectiveNoiseSchedule,
+      'sampler': Samplers.resolveForModel(request.sampler, request.model),
+      'sm': request.effectiveSmea,
+      'sm_dyn': request.effectiveSmeaDyn,
       'model': request.model,
       'quality_toggle': request.qualityToggle,
       'uc_preset': request.ucPreset,
