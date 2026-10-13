@@ -195,7 +195,7 @@ void main() {
     expect((await repository.get(id))!.status, InpaintDraftStatus.cancelled);
   });
 
-  test('provider submission keeps the draft prompt in random mode', () async {
+  test('provider submission requests random prompt bypass', () async {
     final sourceFile = File('${root.path}/source.png');
     await sourceFile.writeAsBytes(_png(value: 30));
     final fake = _RecordingImageGenerationNotifier();
