@@ -15,6 +15,8 @@ import 'package:nai_launcher/presentation/providers/replication_queue_provider.d
 import 'package:nai_launcher/presentation/providers/image_generation_provider.dart';
 import 'package:nai_launcher/presentation/providers/prompt_maximize_provider.dart';
 import 'package:nai_launcher/presentation/screens/generation/mobile_generation_controller.dart';
+import 'package:nai_launcher/presentation/screens/generation/mobile_generation_gestures.dart';
+import 'package:nai_launcher/presentation/widgets/common/drag_claim_notification.dart';
 
 void main() {
   for (final initialWidth in [1180.0, 700.0]) {
@@ -56,6 +58,49 @@ void main() {
         expect(find.byType(_ControllerHarness), findsOneWidget);
         expect(container.read(promptMaximizeNotifierProvider), isTrue);
         expect(storage.values[StorageKeys.promptMaximized], isTrue);
+      },
+    );
+  }
+
+  for (final childClaimsDrag in [false, true]) {
+    testWidgets(
+      childClaimsDrag
+          ? '子组件认领拖拽后上滑不再打开 Agent'
+          : '未被子组件认领的上滑会打开 Agent',
+      (tester) async {
+        final storage = _MemoryLocalStorageService({
+          StorageKeys.mobileGenerationGestureHintCompleted: true,
+        });
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: [
+              localStorageServiceProvider.overrideWith((ref) => storage),
+            ],
+            child: MaterialApp(
+              locale: const Locale('zh'),
+              supportedLocales: AppLocalizations.supportedLocales,
+              localizationsDelegates: AppLocalizations.localizationsDelegates,
+              home: _WorkspaceGestureHarness(childClaimsDrag: childClaimsDrag),
+            ),
+          ),
+        );
+        await tester.pump();
+
+        final state = tester.state<_WorkspaceGestureHarnessState>(
+          find.byType(_WorkspaceGestureHarness),
+        );
+        final gesture = await tester.startGesture(
+          tester.getCenter(find.byKey(const ValueKey('drag-consumer'))),
+        );
+        for (var i = 0; i < 6; i++) {
+          await gesture.moveBy(const Offset(0, -24));
+          await tester.pump(const Duration(milliseconds: 16));
+        }
+        await gesture.up();
+        await tester.pump();
+
+        expect(state.controller.agentFullScreen, !childClaimsDrag);
+        expect(state.controller.workspaceDragFeedback, 0);
       },
     );
   }
@@ -212,6 +257,67 @@ void main() {
     expect(find.text('请输入提示词'), findsNothing);
     expect(tester.takeException(), isNull);
   });
+}
+
+class _WorkspaceGestureHarness extends ConsumerStatefulWidget {
+  const _WorkspaceGestureHarness({required this.childClaimsDrag});
+
+  final bool childClaimsDrag;
+
+  @override
+  ConsumerState<_WorkspaceGestureHarness> createState() =>
+      _WorkspaceGestureHarnessState();
+}
+
+class _WorkspaceGestureHarnessState
+    extends ConsumerState<_WorkspaceGestureHarness> {
+  late final MobileGenerationController controller;
+
+  @override
+  void initState() {
+    super.initState();
+    controller = MobileGenerationController(ref);
+  }
+
+  @override
+  void dispose() {
+    controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: ListenableBuilder(
+        listenable: controller,
+        builder: (context, _) => MobileGenerationGestures(
+          onPointerDown: (event) =>
+              controller.handleWorkspacePointerDown(context, event),
+          onPointerMove: controller.handleWorkspacePointerMove,
+          onPointerUp: controller.handleWorkspacePointerUp,
+          onPointerCancel: controller.handleWorkspacePointerCancel,
+          onScrollNotification: controller.handleWorkspaceScrollNotification,
+          onDragClaimNotification:
+              controller.handleWorkspaceDragClaimNotification,
+          pointerActive: controller.workspacePointerActive,
+          dragOffset: controller.workspaceDragFeedback,
+          showHint: false,
+          child: Builder(
+            builder: (context) => GestureDetector(
+              key: const ValueKey('drag-consumer'),
+              behavior: HitTestBehavior.opaque,
+              onPanStart: (_) {
+                if (widget.childClaimsDrag) {
+                  const DragClaimNotification().dispatch(context);
+                }
+              },
+              child: const SizedBox.expand(),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 class _ControllerHarness extends ConsumerStatefulWidget {

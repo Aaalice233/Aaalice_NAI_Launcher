@@ -69,6 +69,8 @@ class _MobileGenerationWorkspaceState extends State<MobileGenerationWorkspace> {
                   onPointerCancel: controller.handleWorkspacePointerCancel,
                   onScrollNotification:
                       controller.handleWorkspaceScrollNotification,
+                  onDragClaimNotification:
+                      controller.handleWorkspaceDragClaimNotification,
                   pointerExclusionKeys: [_collapsedPromptLauncherKey],
                   pointerActive: controller.workspacePointerActive,
                   dragOffset: controller.workspaceDragFeedback,

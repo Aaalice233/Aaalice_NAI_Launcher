@@ -17,6 +17,7 @@ import '../../providers/generation/image_generation_selectors.dart';
 import '../../providers/image_generation_provider.dart';
 import '../common/composition_guide.dart';
 import '../common/decoded_memory_image.dart';
+import '../common/drag_claim_notification.dart';
 import '../common/surface_ink_well.dart';
 import 'composition_guide_button.dart';
 
@@ -340,6 +341,7 @@ class _CharacterPositionCanvasViewState
           child: GestureDetector(
             behavior: HitTestBehavior.opaque,
             onPanStart: (_) {
+              const DragClaimNotification().dispatch(context);
               ref
                   .read(selectedCharacterIdProvider.notifier)
                   .select(character.id);

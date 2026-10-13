@@ -23,6 +23,7 @@ import '../../providers/prompt_maximize_provider.dart';
 import '../../providers/replication_queue_provider.dart';
 import '../../utils/asset_protection_guard.dart';
 import '../../widgets/common/app_toast.dart';
+import '../../widgets/common/drag_claim_notification.dart';
 import 'mobile_generation_view_data.dart';
 
 class MobileGenerationController extends ChangeNotifier
@@ -68,7 +69,7 @@ class MobileGenerationController extends ChangeNotifier
   bool showGestureHint = false;
   bool keyboardVisible = false;
   bool workspacePointerActive = false;
-  bool workspaceChildScrolled = false;
+  bool workspaceChildConsumedDrag = false;
   bool workspaceThresholdHapticSent = false;
   int? workspacePointer;
   Offset? workspacePointerStart;
@@ -213,7 +214,7 @@ class MobileGenerationController extends ChangeNotifier
     workspacePointerStart = event.position;
     workspaceVelocityTracker = VelocityTracker.withKind(event.kind)
       ..addPosition(event.timeStamp, event.position);
-    workspaceChildScrolled = false;
+    workspaceChildConsumedDrag = false;
     workspaceThresholdHapticSent = false;
     workspacePointerActive = true;
     notifyListeners();
@@ -226,14 +227,14 @@ class MobileGenerationController extends ChangeNotifier
     final vertical = delta.dy.abs();
     final hasVerticalAdvantage =
         vertical >= delta.dx.abs() * verticalAxisAdvantage;
-    final nextFeedback = !workspaceChildScrolled && hasVerticalAdvantage
+    final nextFeedback = !workspaceChildConsumedDrag && hasVerticalAdvantage
         ? (delta.dy / 3).clamp(
             -maximumDragFeedbackOffset,
             maximumDragFeedbackOffset,
           )
         : 0.0;
     final reachedThreshold =
-        !workspaceChildScrolled &&
+        !workspaceChildConsumedDrag &&
         hasVerticalAdvantage &&
         vertical >= verticalShortcutDistance;
     if (reachedThreshold && !workspaceThresholdHapticSent) {
@@ -260,7 +261,7 @@ class MobileGenerationController extends ChangeNotifier
         velocity.abs() >= verticalShortcutVelocity &&
         velocity.sign == delta.dy.sign;
     final committed =
-        !workspaceChildScrolled &&
+        !workspaceChildConsumedDrag &&
         hasVerticalAdvantage &&
         (distanceCommitted || flingCommitted);
     if (committed && !workspaceThresholdHapticSent) {
@@ -288,22 +289,33 @@ class MobileGenerationController extends ChangeNotifier
     workspacePointerStart = null;
     workspaceVelocityTracker = null;
     workspacePointerActive = false;
-    workspaceChildScrolled = false;
+    workspaceChildConsumedDrag = false;
     workspaceThresholdHapticSent = false;
     workspaceDragFeedback = 0;
     if (!_disposed) notifyListeners();
   }
 
   bool handleWorkspaceScrollNotification(ScrollNotification notification) {
-    if (workspacePointerActive &&
-        (notification is ScrollStartNotification ||
-            notification is ScrollUpdateNotification ||
-            notification is OverscrollNotification)) {
-      workspaceChildScrolled = true;
-      workspaceDragFeedback = 0;
-      notifyListeners();
+    if (notification is ScrollStartNotification ||
+        notification is ScrollUpdateNotification ||
+        notification is OverscrollNotification) {
+      _yieldWorkspaceShortcut();
     }
     return false;
+  }
+
+  bool handleWorkspaceDragClaimNotification(
+    DragClaimNotification notification,
+  ) {
+    _yieldWorkspaceShortcut();
+    return false;
+  }
+
+  void _yieldWorkspaceShortcut() {
+    if (!workspacePointerActive || workspaceChildConsumedDrag) return;
+    workspaceChildConsumedDrag = true;
+    workspaceDragFeedback = 0;
+    notifyListeners();
   }
 
   void completeGestureHint() {
