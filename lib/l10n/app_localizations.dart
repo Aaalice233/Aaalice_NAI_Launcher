@@ -21018,6 +21018,114 @@ abstract class AppLocalizations {
   /// **'Unable to check for updates right now. Please try again later.'**
   String get updateErrorUnknown;
 
+  /// No description provided for @updateInstallErrorPackageNotFound.
+  ///
+  /// In en, this message translates to:
+  /// **'No update package that can be installed automatically was found. Please download it manually from the Release page.'**
+  String get updateInstallErrorPackageNotFound;
+
+  /// No description provided for @updateInstallErrorIncompleteMetadata.
+  ///
+  /// In en, this message translates to:
+  /// **'The update package is missing verification information and cannot be installed safely. Please download it manually from the Release page.'**
+  String get updateInstallErrorIncompleteMetadata;
+
+  /// No description provided for @updateInstallErrorDiskFull.
+  ///
+  /// In en, this message translates to:
+  /// **'Not enough disk space to save the update package. Free up some space and try again.'**
+  String get updateInstallErrorDiskFull;
+
+  /// No description provided for @updateInstallErrorFileSystem.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to write the update package. Check your disk and try again.'**
+  String get updateInstallErrorFileSystem;
+
+  /// No description provided for @updateInstallErrorVerificationFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'The update package failed verification. Please download it again.'**
+  String get updateInstallErrorVerificationFailed;
+
+  /// No description provided for @updateInstallErrorResumeRejected.
+  ///
+  /// In en, this message translates to:
+  /// **'The server rejected the request to resume the download. Please try again later.'**
+  String get updateInstallErrorResumeRejected;
+
+  /// No description provided for @updateInstallErrorEmptyResponse.
+  ///
+  /// In en, this message translates to:
+  /// **'The update server returned an empty response. Please try again later.'**
+  String get updateInstallErrorEmptyResponse;
+
+  /// No description provided for @updateInstallErrorDownloadFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to download the update package. Please try again later.'**
+  String get updateInstallErrorDownloadFailed;
+
+  /// No description provided for @updateInstallErrorPackageMissing.
+  ///
+  /// In en, this message translates to:
+  /// **'The update package has been cleaned up. Please download it again.'**
+  String get updateInstallErrorPackageMissing;
+
+  /// No description provided for @updateInstallErrorPackageCorrupted.
+  ///
+  /// In en, this message translates to:
+  /// **'The update package is damaged. Please download it again.'**
+  String get updateInstallErrorPackageCorrupted;
+
+  /// No description provided for @updateInstallErrorInvalidAndroidPackage.
+  ///
+  /// In en, this message translates to:
+  /// **'The Android update package has an invalid format. Please download it manually from the Release page.'**
+  String get updateInstallErrorInvalidAndroidPackage;
+
+  /// No description provided for @updateInstallErrorAndroidInstaller.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not open Android\'s system installer. Please try again.'**
+  String get updateInstallErrorAndroidInstaller;
+
+  /// No description provided for @updateInstallErrorUpdaterLaunchFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not launch the updater. The current version is unchanged; try again or download the new version manually.'**
+  String get updateInstallErrorUpdaterLaunchFailed;
+
+  /// No description provided for @updateInstallErrorUpdaterNotStarted.
+  ///
+  /// In en, this message translates to:
+  /// **'The updater did not start. The current version is unchanged; please download the new version manually to update.'**
+  String get updateInstallErrorUpdaterNotStarted;
+
+  /// No description provided for @updateInstallErrorInstallFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'The previous update was not installed. You can try again or download and install the new version manually.'**
+  String get updateInstallErrorInstallFailed;
+
+  /// No description provided for @updateInstallErrorInterrupted.
+  ///
+  /// In en, this message translates to:
+  /// **'The previous update did not finish installing. You can try again or download and install the new version manually.'**
+  String get updateInstallErrorInterrupted;
+
+  /// No description provided for @updateInstallErrorUnknown.
+  ///
+  /// In en, this message translates to:
+  /// **'The update could not be completed. Please try again later.'**
+  String get updateInstallErrorUnknown;
+
+  /// No description provided for @updateInstallLogPath.
+  ///
+  /// In en, this message translates to:
+  /// **'Log: {path}'**
+  String updateInstallLogPath(Object path);
+
   /// No description provided for @currentVersion.
   ///
   /// In en, this message translates to:

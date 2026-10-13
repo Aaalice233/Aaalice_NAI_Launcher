@@ -11761,6 +11761,78 @@ class AppLocalizationsJa extends AppLocalizations {
   String get updateErrorUnknown => '現在アップデートを確認できません。しばらくしてからもう一度お試しください。';
 
   @override
+  String get updateInstallErrorPackageNotFound =>
+      '自動インストールできる更新パッケージが見つかりません。Release ページから手動でダウンロードしてください。';
+
+  @override
+  String get updateInstallErrorIncompleteMetadata =>
+      '更新パッケージに検証情報がないため、安全にインストールできません。Release ページから手動でダウンロードしてください。';
+
+  @override
+  String get updateInstallErrorDiskFull =>
+      'ディスクの空き容量が不足しているため、更新パッケージを保存できません。空き容量を確保してから、もう一度お試しください。';
+
+  @override
+  String get updateInstallErrorFileSystem =>
+      '更新パッケージを書き込めませんでした。ディスクを確認して、もう一度お試しください。';
+
+  @override
+  String get updateInstallErrorVerificationFailed =>
+      '更新パッケージの検証に失敗しました。もう一度ダウンロードしてください。';
+
+  @override
+  String get updateInstallErrorResumeRejected =>
+      'サーバーがダウンロードの再開要求を拒否しました。しばらくしてからもう一度お試しください。';
+
+  @override
+  String get updateInstallErrorEmptyResponse =>
+      '更新サーバーから空の応答が返されました。しばらくしてからもう一度お試しください。';
+
+  @override
+  String get updateInstallErrorDownloadFailed =>
+      '更新パッケージのダウンロードに失敗しました。しばらくしてからもう一度お試しください。';
+
+  @override
+  String get updateInstallErrorPackageMissing =>
+      '更新パッケージは削除されています。もう一度ダウンロードしてください。';
+
+  @override
+  String get updateInstallErrorPackageCorrupted =>
+      '更新パッケージが破損しています。もう一度ダウンロードしてください。';
+
+  @override
+  String get updateInstallErrorInvalidAndroidPackage =>
+      'Android 更新パッケージの形式が正しくありません。Release ページから手動でダウンロードしてください。';
+
+  @override
+  String get updateInstallErrorAndroidInstaller =>
+      'Android のシステムインストーラーを開けませんでした。もう一度お試しください。';
+
+  @override
+  String get updateInstallErrorUpdaterLaunchFailed =>
+      '更新プログラムを起動できませんでした。現在のバージョンは変更されていません。もう一度試すか、新しいバージョンを手動でダウンロードしてください。';
+
+  @override
+  String get updateInstallErrorUpdaterNotStarted =>
+      '更新プログラムが起動しませんでした。現在のバージョンは変更されていません。新しいバージョンを手動でダウンロードして更新してください。';
+
+  @override
+  String get updateInstallErrorInstallFailed =>
+      '前回の更新はインストールされませんでした。もう一度試すか、新しいバージョンを手動でダウンロードしてインストールしてください。';
+
+  @override
+  String get updateInstallErrorInterrupted =>
+      '前回の更新のインストールが完了しませんでした。もう一度試すか、新しいバージョンを手動でダウンロードしてインストールしてください。';
+
+  @override
+  String get updateInstallErrorUnknown => '更新を完了できませんでした。しばらくしてからもう一度お試しください。';
+
+  @override
+  String updateInstallLogPath(Object path) {
+    return 'ログ: $path';
+  }
+
+  @override
   String get currentVersion => '現在のバージョン';
 
   @override

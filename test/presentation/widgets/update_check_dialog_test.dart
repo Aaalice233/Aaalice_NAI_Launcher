@@ -3,6 +3,7 @@ import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/core/services/update_check_service.dart';
+import 'package:nai_launcher/core/services/update_installer_service.dart';
 import 'package:nai_launcher/data/models/version/release_asset_info.dart';
 import 'package:nai_launcher/data/models/version/version_info.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
@@ -197,7 +198,6 @@ print('updated');
     const state = UpdateState(
       status: UpdateStatus.error,
       checkFailureType: UpdateCheckFailureType.rateLimited,
-      errorMessage: 'DioException with a very long internal stack trace',
     );
     await tester.pumpWidget(
       ProviderScope(
@@ -218,6 +218,42 @@ print('updated');
 
     expect(find.text('更新服务器请求繁忙，请稍后重试。'), findsOneWidget);
     expect(find.textContaining('DioException'), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('shows install failures in the current language with the log', (
+    tester,
+  ) async {
+    const state = UpdateState(
+      status: UpdateStatus.error,
+      installFailure: UpdateInstallFailure.installFailed,
+      errorLogPath: r'C:\Temp\update_2.0.0.log',
+    );
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          updateStateNotifierProvider.overrideWith(
+            () => _DialogUpdateNotifier(state),
+          ),
+        ],
+        child: const MaterialApp(
+          locale: Locale('en'),
+          supportedLocales: AppLocalizations.supportedLocales,
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          home: Scaffold(body: UpdateCheckDialog()),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(
+      find.text(
+        'The previous update was not installed. You can try again or '
+        'download and install the new version manually.\n'
+        r'Log: C:\Temp\update_2.0.0.log',
+      ),
+      findsOneWidget,
+    );
     expect(tester.takeException(), isNull);
   });
 

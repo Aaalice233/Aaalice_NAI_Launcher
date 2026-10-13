@@ -21,15 +21,44 @@ import 'windows_update_script.dart';
 
 part 'update_installer_service.g.dart';
 
+/// 应用内更新下载、安装与上次执行结果的失败类别。
+enum UpdateInstallFailure {
+  unsupported,
+  packageNotFound,
+  incompleteMetadata,
+  network,
+  diskFull,
+  fileSystem,
+  verificationFailed,
+  resumeRejected,
+  emptyResponse,
+  downloadFailed,
+  packageMissing,
+  packageCorrupted,
+  invalidAndroidPackage,
+  androidInstallerUnavailable,
+  updaterLaunchFailed,
+  updaterNotStarted,
+  installFailed,
+  installInterrupted,
+  unknown,
+}
+
 class UpdateInstallException implements Exception {
+  /// 供日志使用的简短错误消息；用户文案由 UI 按 [failure] 本地化。
   final String message;
+  final UpdateInstallFailure failure;
   final Object? originalError;
 
-  const UpdateInstallException(this.message, {this.originalError});
+  const UpdateInstallException(
+    this.message, {
+    required this.failure,
+    this.originalError,
+  });
 
   @override
   String toString() =>
-      'UpdateInstallException: $message${originalError != null ? ' ($originalError)' : ''}';
+      'UpdateInstallException(${failure.name}): $message${originalError != null ? ' ($originalError)' : ''}';
 }
 
 /// 更新下载被取消时抛出，调用方应将其与真正的失败区分开。
@@ -95,14 +124,20 @@ class RestoredDownloadedUpdate {
 class UpdateExecutionResult {
   final bool success;
   final String version;
+
+  /// 脚本记录的原始消息，只用于日志。
   final String? message;
   final String? logPath;
+
+  /// 脚本写出启动标记后没有留下结果。
+  final bool interrupted;
 
   const UpdateExecutionResult({
     required this.success,
     required this.version,
     this.message,
     this.logPath,
+    this.interrupted = false,
   });
 }
 
@@ -163,20 +198,32 @@ class UpdateInstallerService {
     CancelToken? cancelToken,
   }) async {
     if (!_installationService.supportsInAppInstall) {
-      throw const UpdateInstallException('当前版本不支持应用内自动安装更新');
+      throw const UpdateInstallException(
+        '当前版本不支持应用内自动安装更新',
+        failure: UpdateInstallFailure.unsupported,
+      );
     }
 
     final asset = versionInfo.primaryAsset;
     if (asset == null || !asset.supportsInAppInstall) {
-      throw const UpdateInstallException('未找到可自动安装的更新包');
+      throw const UpdateInstallException(
+        '未找到可自动安装的更新包',
+        failure: UpdateInstallFailure.packageNotFound,
+      );
     }
     final expectedSha256 = asset.sha256;
     if (expectedSha256 == null || expectedSha256.isEmpty) {
-      throw const UpdateInstallException('更新包缺少 SHA256 校验信息');
+      throw const UpdateInstallException(
+        '更新包缺少 SHA256 校验信息',
+        failure: UpdateInstallFailure.incompleteMetadata,
+      );
     }
     final expectedSize = asset.size;
     if (expectedSize == null || expectedSize <= 0) {
-      throw const UpdateInstallException('更新包缺少大小校验信息');
+      throw const UpdateInstallException(
+        '更新包缺少大小校验信息',
+        failure: UpdateInstallFailure.incompleteMetadata,
+      );
     }
 
     final updateDir = await _ensureUpdateDir();
@@ -225,16 +272,46 @@ class UpdateInstallerService {
   static UpdateInstallException _mapDownloadError(
     VerifiedDownloadException error,
   ) {
-    final message = switch (error.failure) {
-      VerifiedDownloadFailure.diskFull => '磁盘空间不足，无法保存更新包',
-      VerifiedDownloadFailure.fileSystem => '写入更新包失败',
-      VerifiedDownloadFailure.sizeMismatch => '更新包大小校验失败',
-      VerifiedDownloadFailure.checksumMismatch => '更新包校验失败',
-      VerifiedDownloadFailure.rangeRejected => '服务器拒绝了更新包续传请求',
-      VerifiedDownloadFailure.emptyResponse => '更新服务器返回了空响应',
-      _ => '下载更新包失败',
+    final (message, failure) = switch (error.failure) {
+      VerifiedDownloadFailure.diskFull => (
+        '磁盘空间不足，无法保存更新包',
+        UpdateInstallFailure.diskFull,
+      ),
+      VerifiedDownloadFailure.fileSystem => (
+        '写入更新包失败',
+        UpdateInstallFailure.fileSystem,
+      ),
+      VerifiedDownloadFailure.sizeMismatch => (
+        '更新包大小校验失败',
+        UpdateInstallFailure.verificationFailed,
+      ),
+      VerifiedDownloadFailure.checksumMismatch => (
+        '更新包校验失败',
+        UpdateInstallFailure.verificationFailed,
+      ),
+      VerifiedDownloadFailure.rangeRejected => (
+        '服务器拒绝了更新包续传请求',
+        UpdateInstallFailure.resumeRejected,
+      ),
+      VerifiedDownloadFailure.emptyResponse => (
+        '更新服务器返回了空响应',
+        UpdateInstallFailure.emptyResponse,
+      ),
+      VerifiedDownloadFailure.network => (
+        '连接更新服务器失败',
+        UpdateInstallFailure.network,
+      ),
+      VerifiedDownloadFailure.invalidRequest ||
+      VerifiedDownloadFailure.http => (
+        '下载更新包失败',
+        UpdateInstallFailure.downloadFailed,
+      ),
     };
-    return UpdateInstallException(message, originalError: error);
+    return UpdateInstallException(
+      message,
+      failure: failure,
+      originalError: error,
+    );
   }
 
   /// 恢复上次已经校验完成、但尚未安装的更新包。
@@ -320,12 +397,19 @@ class UpdateInstallerService {
     try {
       final data = jsonDecode(await resultFile.readAsString());
       if (data is! Map<String, dynamic>) return null;
-      return UpdateExecutionResult(
+      final result = UpdateExecutionResult(
         success: data['success'] == true,
         version: data['version'] as String? ?? '',
         message: data['message'] as String?,
         logPath: data['logPath'] as String?,
       );
+      if (!result.success) {
+        AppLogger.w(
+          'Updater reported failure for ${result.version}: ${result.message}',
+          'UpdateInstaller',
+        );
+      }
+      return result;
     } catch (error) {
       AppLogger.w('Unable to read update result: $error', 'UpdateInstaller');
       return null;
@@ -348,7 +432,7 @@ class UpdateInstallerService {
     return UpdateExecutionResult(
       success: false,
       version: version,
-      message: '上次更新安装没有执行完成，可以重试或手动运行安装包',
+      interrupted: true,
     );
   }
 
@@ -356,27 +440,38 @@ class UpdateInstallerService {
   /// Package Installer 确认，应用不会自行绕过系统安装权限。
   Future<void> installAndRestart(DownloadedUpdate update) async {
     if (!await update.file.exists()) {
-      throw const UpdateInstallException('更新包已被清理，请重新下载');
+      throw const UpdateInstallException(
+        '更新包已被清理，请重新下载',
+        failure: UpdateInstallFailure.packageMissing,
+      );
     }
     if (!await _isPackageValid(update.file, update.asset)) {
-      throw const UpdateInstallException('更新包已损坏，请重新下载');
+      throw const UpdateInstallException(
+        '更新包已损坏，请重新下载',
+        failure: UpdateInstallFailure.packageCorrupted,
+      );
     }
 
     final installationType = _installationService.getInstallationType();
     if (installationType == AppInstallationType.androidApk) {
       if (update.asset.type != ReleaseAssetType.androidApk) {
-        throw const UpdateInstallException('Android 更新包格式不正确');
+        throw const UpdateInstallException(
+          'Android 更新包格式不正确',
+          failure: UpdateInstallFailure.invalidAndroidPackage,
+        );
       }
       try {
         await _androidApkInstaller(update.file.path);
       } on AndroidAppInstallException catch (error) {
         throw UpdateInstallException(
           '打开 Android 系统安装界面失败',
+          failure: UpdateInstallFailure.androidInstallerUnavailable,
           originalError: error,
         );
       } catch (error) {
         throw UpdateInstallException(
           '打开 Android 系统安装界面失败',
+          failure: UpdateInstallFailure.androidInstallerUnavailable,
           originalError: error,
         );
       }
@@ -384,7 +479,10 @@ class UpdateInstallerService {
     }
     if (installationType != AppInstallationType.windowsInstaller &&
         installationType != AppInstallationType.windowsPortable) {
-      throw const UpdateInstallException('当前平台不支持应用内自动更新');
+      throw const UpdateInstallException(
+        '当前平台不支持应用内自动更新',
+        failure: UpdateInstallFailure.unsupported,
+      );
     }
 
     // 上一轮留下的标记会让这次的启动确认直接通过，必须先清掉。
@@ -416,7 +514,11 @@ class UpdateInstallerService {
         ProcessStartMode.normal,
       );
     } catch (error) {
-      throw UpdateInstallException('启动更新程序失败', originalError: error);
+      throw UpdateInstallException(
+        '启动更新程序失败',
+        failure: UpdateInstallFailure.updaterLaunchFailed,
+        originalError: error,
+      );
     }
 
     if (!await _awaitUpdaterStart(startedMarker, update.version)) {
@@ -427,7 +529,8 @@ class UpdateInstallerService {
         'UpdateInstaller',
       );
       throw const UpdateInstallException(
-        '更新程序未能启动，当前版本保持不变；请手动下载新版本完成更新',
+        '更新程序未能启动',
+        failure: UpdateInstallFailure.updaterNotStarted,
       );
     }
 
