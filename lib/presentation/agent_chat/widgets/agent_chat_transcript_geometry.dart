@@ -3,8 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 
-/// Sums measured item heights; the default average-based extrapolation makes
-/// the extent jump whenever a very tall turn enters or leaves the layout window.
+// Average-based extrapolation jumps whenever a tall turn enters the window.
 class AgentChatTranscriptChildDelegate extends SliverChildBuilderDelegate {
   AgentChatTranscriptChildDelegate(
     super.builder, {
@@ -47,8 +46,7 @@ class AgentChatTranscriptChildDelegate extends SliverChildBuilderDelegate {
   }
 }
 
-/// Keeps a paused reader's anchor fixed; the metric is in scroll coordinates,
-/// so only content size changes register as drift, never scrolling itself.
+// Scroll-coordinate metric: scrolling never reads as drift, only resizing.
 class AgentChatPausedDriftCorrection {
   AgentChatPausedDriftCorrection({
     required bool Function() isEnabled,
@@ -72,6 +70,13 @@ class AgentChatPausedDriftCorrection {
   void clear() {
     _readMetric = null;
     _referenceMetric = null;
+  }
+
+  // The list's own correction already moves the anchor and pixels together.
+  void rebase(double correction) {
+    final reference = _referenceMetric;
+    if (reference == null) return;
+    _referenceMetric = reference + correction;
   }
 
   double? takeCorrection() {
@@ -107,8 +112,7 @@ class AgentChatPausedDriftCorrection {
   }
 }
 
-/// Reports drift as [SliverGeometry.scrollOffsetCorrection] so the viewport
-/// corrects within the same layout instead of painting one frame off.
+// Correcting inside layout avoids painting one frame at the drifted offset.
 class AgentChatDriftCorrectingSliver extends SingleChildRenderObjectWidget {
   const AgentChatDriftCorrectingSliver({
     super.key,
@@ -139,8 +143,11 @@ class RenderAgentChatDriftCorrectingSliver extends RenderProxySliver {
   @override
   void performLayout() {
     super.performLayout();
-    // The list's own correction must settle first; drift is read next pass.
-    if (geometry?.scrollOffsetCorrection != null) return;
+    final listCorrection = geometry?.scrollOffsetCorrection;
+    if (listCorrection != null) {
+      drift.rebase(listCorrection);
+      return;
+    }
     final correction = drift.takeCorrection();
     if (correction == null) return;
     geometry = SliverGeometry(scrollOffsetCorrection: correction);

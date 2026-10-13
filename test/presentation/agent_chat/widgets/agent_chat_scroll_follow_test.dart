@@ -1,8 +1,10 @@
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/core/agent/agent_types.dart';
+import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/agent_chat/providers/agent_chat_notifier.dart';
 import 'package:nai_launcher/presentation/agent_chat/widgets/agent_chat_history.dart';
 import 'package:nai_launcher/presentation/agent_chat/widgets/agent_chat_panel_controller.dart';
@@ -771,6 +773,218 @@ void main() {
   );
 
   testWidgets(
+    'growth the list corrects itself on re-entering the cache is not corrected twice',
+    (tester) async {
+      final controller = AgentChatPanelController();
+      addTearDown(controller.dispose);
+      final turns = _turns(6);
+      var currentHeight = 600.0;
+
+      Future<void> pumpFrame() => _pumpThreadViewport(
+        tester,
+        controller,
+        turns: turns,
+        geometryRevision: currentHeight,
+        live: const SizedBox.shrink(),
+        turnHeight: (turn) => turn.ordinal == 5 ? currentHeight : 400,
+      );
+
+      await pumpFrame();
+      controller.pauseFollowingLatest();
+      controller.jumpToPreservingFollow(1600);
+      await tester.pump();
+
+      final anchor = find.byKey(const ValueKey('agent-turn-2'));
+      final paintedBeforeWheel = _paintedBottomEdge(tester, anchor);
+      currentHeight = 900;
+      await pumpFrame();
+      expect(
+        _paintedBottomEdge(tester, anchor),
+        closeTo(paintedBeforeWheel, 0.01),
+      );
+
+      final transcript = find.byType(CustomScrollView);
+      final pointer = TestPointer(1, PointerDeviceKind.mouse);
+      pointer.hover(tester.getCenter(transcript));
+      await tester.sendEventToBinding(pointer.scroll(const Offset(0, 200)));
+      await tester.pump();
+
+      expect(
+        controller.scrollController.offset,
+        closeTo(1600 - 200 + 300, 0.01),
+      );
+      expect(
+        _paintedBottomEdge(tester, anchor),
+        closeTo(paintedBeforeWheel + 200, 0.01),
+        reason: 'only the wheel distance may move the anchor',
+      );
+      expect(controller.showJumpToLatest, isTrue);
+    },
+  );
+
+  testWidgets(
+    'revealing earlier turns keeps the oldest visible turn in place',
+    (tester) async {
+      final controller = AgentChatPanelController();
+      addTearDown(controller.dispose);
+      final turns = _turns(10);
+      var currentHeight = 600.0;
+
+      Future<void> pumpFrame() => _pumpThreadViewport(
+        tester,
+        controller,
+        turns: turns,
+        geometryRevision: currentHeight,
+        live: const SizedBox.shrink(),
+        turnHeight: (turn) => turn.ordinal == 9 ? currentHeight : 400,
+      );
+
+      await pumpFrame();
+      await tester.pump();
+      controller.pauseFollowingLatest();
+      controller.jumpToPreservingFollow(
+        controller.scrollController.position.maxScrollExtent,
+      );
+      await tester.pump();
+
+      currentHeight = 900;
+      await pumpFrame();
+      final anchor = find.byKey(const ValueKey('agent-turn-4'));
+      final painted = _paintedBottomEdge(tester, anchor);
+
+      await tester.tap(
+        find.byKey(const ValueKey('agent-chat-earlier-messages')),
+      );
+      await tester.pump();
+      expect(_paintedBottomEdge(tester, anchor), closeTo(painted, 0.01));
+      await tester.pump();
+      expect(_paintedBottomEdge(tester, anchor), closeTo(painted, 0.01));
+      expect(
+        find.byKey(const ValueKey('agent-turn-0'), skipOffstage: false),
+        findsOneWidget,
+      );
+      expect(controller.showJumpToLatest, isTrue);
+    },
+  );
+
+  testWidgets(
+    'a pointer held still on the transcript does not suspend drift correction',
+    (tester) async {
+      final controller = AgentChatPanelController();
+      addTearDown(controller.dispose);
+      final turns = _turns(4);
+      var currentHeight = 600.0;
+
+      Future<void> pumpFrame() => _pumpThreadViewport(
+        tester,
+        controller,
+        turns: turns,
+        geometryRevision: currentHeight,
+        live: const SizedBox.shrink(),
+        turnHeight: (turn) => turn.ordinal == 3 ? currentHeight : 200,
+      );
+
+      await pumpFrame();
+      controller.pauseFollowingLatest();
+      controller.jumpToPreservingFollow(700);
+      await tester.pump();
+
+      final anchor = find.byKey(const ValueKey('agent-turn-2'));
+      final painted = _paintedBottomEdge(tester, anchor);
+      final gesture = await tester.startGesture(
+        tester.getCenter(find.byType(CustomScrollView)),
+      );
+      await tester.pump();
+
+      currentHeight += 240;
+      await pumpFrame();
+      expect(_paintedBottomEdge(tester, anchor), closeTo(painted, 0.01));
+
+      await gesture.up();
+      await tester.pump();
+      expect(_paintedBottomEdge(tester, anchor), closeTo(painted, 0.01));
+      expect(controller.showJumpToLatest, isTrue);
+    },
+  );
+
+  testWidgets(
+    'streaming during a drag keeps the content under the pointer',
+    (tester) async {
+      final controller = AgentChatPanelController();
+      addTearDown(controller.dispose);
+      final turns = _turns(4);
+      var currentHeight = 600.0;
+
+      Future<void> pumpFrame() => _pumpThreadViewport(
+        tester,
+        controller,
+        turns: turns,
+        geometryRevision: currentHeight,
+        live: const SizedBox.shrink(),
+        turnHeight: (turn) => turn.ordinal == 3 ? currentHeight : 200,
+      );
+
+      await pumpFrame();
+      controller.pauseFollowingLatest();
+      controller.jumpToPreservingFollow(700);
+      await tester.pump();
+
+      final anchor = find.byKey(const ValueKey('agent-turn-2'));
+      final gesture = await tester.startGesture(
+        tester.getCenter(find.byType(CustomScrollView)),
+      );
+      await gesture.moveBy(const Offset(0, 30));
+      await gesture.moveBy(const Offset(0, 20));
+      await tester.pump();
+      final painted = _paintedBottomEdge(tester, anchor);
+
+      currentHeight += 240;
+      await pumpFrame();
+      expect(_paintedBottomEdge(tester, anchor), closeTo(painted, 0.01));
+
+      await gesture.moveBy(const Offset(0, 20));
+      await tester.pump();
+      expect(_paintedBottomEdge(tester, anchor), closeTo(painted - 20, 0.01));
+      await gesture.up();
+      await tester.pumpAndSettle();
+      expect(controller.showJumpToLatest, isTrue);
+    },
+  );
+
+  testWidgets(
+    'wheel and key releases do not drop the intent of a pointer still held',
+    (tester) async {
+      final controller = AgentChatPanelController();
+      addTearDown(controller.dispose);
+      final focusNode = FocusNode();
+      addTearDown(focusNode.dispose);
+      KeyEvent arrowKey(bool down) => down
+          ? const KeyDownEvent(
+              physicalKey: PhysicalKeyboardKey.arrowUp,
+              logicalKey: LogicalKeyboardKey.arrowUp,
+              timeStamp: Duration.zero,
+            )
+          : const KeyUpEvent(
+              physicalKey: PhysicalKeyboardKey.arrowUp,
+              logicalKey: LogicalKeyboardKey.arrowUp,
+              timeStamp: Duration.zero,
+            );
+
+      controller.beginPotentialUserScroll();
+      controller.beginPotentialWheelScroll();
+      await tester.pump();
+      expect(controller.userScrolling, isTrue);
+
+      controller.handleViewportKeyEvent(focusNode, arrowKey(true));
+      controller.handleViewportKeyEvent(focusNode, arrowKey(false));
+      expect(controller.userScrolling, isTrue);
+
+      controller.cancelPotentialUserScroll();
+      expect(controller.userScrolling, isFalse);
+    },
+  );
+
+  testWidgets(
     'turns outside the cache are measured again once a resize settles',
     (tester) async {
       final controller = AgentChatPanelController();
@@ -1136,6 +1350,9 @@ Future<void> _pumpThreadViewport(
 }) {
   return tester.pumpWidget(
     MaterialApp(
+      locale: const Locale('en'),
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      supportedLocales: AppLocalizations.supportedLocales,
       home: Scaffold(
         body: SizedBox(
           height: 300,
@@ -1172,8 +1389,7 @@ RenderBox _sliverChildOf(WidgetTester tester, Finder finder) {
   return node as RenderBox;
 }
 
-// Reads the position used for this frame's paint, so a correction applied one
-// frame late shows up even though the settled state looks right.
+// Reads this frame's paint position so a one-frame-late correction shows up.
 double _paintedBottomEdge(WidgetTester tester, Finder finder) {
   final child = _sliverChildOf(tester, finder);
   final parentData = child.parentData! as SliverMultiBoxAdaptorParentData;
