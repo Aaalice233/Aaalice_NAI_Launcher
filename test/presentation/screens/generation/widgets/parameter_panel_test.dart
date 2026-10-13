@@ -273,6 +273,80 @@ void main() {
       expect(tester.takeException(), isNull);
     });
 
+    testWidgets('高级选项只在当前模型有可显示的控件时出现', (tester) async {
+      // 足够高的画布让惰性列表一次建出全部分节，「不存在」的断言才有意义
+      await tester.binding.setSurfaceSize(const Size(960, 6000));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            localStorageServiceProvider.overrideWith(
+              (ref) => _TestLocalStorageService(),
+            ),
+            vibeLibraryStorageServiceProvider.overrideWithValue(
+              _TestVibeLibraryStorageService(),
+            ),
+            kritaBridgeNotifierProvider.overrideWith(
+              (ref) => _TestKritaBridgeNotifier(),
+            ),
+          ],
+          child: const MaterialApp(
+            locale: Locale('zh'),
+            supportedLocales: AppLocalizations.supportedLocales,
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            home: Scaffold(
+              body: SizedBox(width: 960, height: 6000, child: ParameterPanel()),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final container = ProviderScope.containerOf(
+        tester.element(find.byType(ParameterPanel)),
+      );
+      final notifier = container.read(generationParamsNotifierProvider.notifier);
+      final advancedOptions = find.byWidgetPredicate(
+        (widget) =>
+            widget is ExpansionTile &&
+            widget.title is Text &&
+            (widget.title as Text).data == '高级选项',
+      );
+
+      Future<void> expectAdvancedOptions({
+        required String model,
+        String sampler = 'k_euler_ancestral',
+        required bool visible,
+      }) async {
+        notifier
+          ..updateModel(model)
+          ..updateSampler(sampler);
+        await tester.pumpAndSettle();
+        expect(
+          advancedOptions,
+          visible ? findsOneWidget : findsNothing,
+          reason: '$model $sampler',
+        );
+      }
+
+      await expectAdvancedOptions(
+        model: 'nai-diffusion-4-5-full',
+        visible: true,
+      );
+      await expectAdvancedOptions(model: 'nai-diffusion-furry', visible: false);
+      await expectAdvancedOptions(model: 'nai-diffusion-3', visible: true);
+      await expectAdvancedOptions(
+        model: 'nai-diffusion-3',
+        sampler: 'ddim',
+        visible: false,
+      );
+      await expectAdvancedOptions(
+        model: 'nai-diffusion-5-full-medium',
+        visible: true,
+      );
+      expect(tester.takeException(), isNull);
+    });
+
     testWidgets('经典侧栏显示角色编辑，移动参数面板不重复挂载', (tester) async {
       Widget buildSubject({required bool showCharacterEditor}) {
         return ProviderScope(

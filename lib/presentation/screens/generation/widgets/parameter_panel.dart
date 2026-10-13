@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/utils/localization_extension.dart';
+import '../../../../data/models/image/image_params.dart';
 import '../../../providers/image_generation_provider.dart';
 import '../../../widgets/character/inline_character_section.dart';
 import '../../../widgets/common/draggable_number_input.dart';
@@ -29,6 +30,11 @@ class ParameterPanel extends ConsumerWidget {
     final advancedOptionsExpanded = ref.watch(
       generationParamsNotifierProvider.select(
         (params) => params.advancedOptionsExpanded,
+      ),
+    );
+    final hasAdvancedOptions = ref.watch(
+      generationParamsNotifierProvider.select(
+        (params) => params.hasAdvancedSamplingOptions,
       ),
     );
 
@@ -96,26 +102,27 @@ class ParameterPanel extends ConsumerWidget {
         // Precise Reference 面板 (角色/风格参考)
         const PreciseReferencePanel(),
 
-        const SizedBox(height: 16),
-
         // 高级选项
-        Material(
-          type: MaterialType.transparency,
-          child: ExpansionTile(
-            title: Text(
-              context.l10n.generation_advancedOptions,
-              style: theme.textTheme.titleSmall,
+        if (hasAdvancedOptions) ...[
+          const SizedBox(height: 16),
+          Material(
+            type: MaterialType.transparency,
+            child: ExpansionTile(
+              title: Text(
+                context.l10n.generation_advancedOptions,
+                style: theme.textTheme.titleSmall,
+              ),
+              tilePadding: EdgeInsets.zero,
+              initiallyExpanded: advancedOptionsExpanded,
+              onExpansionChanged: (expanded) {
+                ref
+                    .read(generationParamsNotifierProvider.notifier)
+                    .setAdvancedOptionsExpanded(expanded);
+              },
+              children: const [AdvancedSamplingOptions()],
             ),
-            tilePadding: EdgeInsets.zero,
-            initiallyExpanded: advancedOptionsExpanded,
-            onExpansionChanged: (expanded) {
-              ref
-                  .read(generationParamsNotifierProvider.notifier)
-                  .setAdvancedOptionsExpanded(expanded);
-            },
-            children: const [AdvancedSamplingOptions()],
           ),
-        ),
+        ],
       ],
     );
   }

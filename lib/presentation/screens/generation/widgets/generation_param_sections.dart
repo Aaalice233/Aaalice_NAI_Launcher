@@ -572,6 +572,7 @@ class _SeedSectionState extends ConsumerState<SeedSection> {
 ///
 /// 经典布局包在「高级选项」ExpansionTile 里；
 /// 官网式布局在参数抽屉内平铺展示。
+/// 两处都按 [ImageParamsExtension.hasAdvancedSamplingOptions] 决定是否渲染。
 class AdvancedSamplingOptions extends ConsumerWidget {
   const AdvancedSamplingOptions({super.key});
 
@@ -583,9 +584,8 @@ class AdvancedSamplingOptions extends ConsumerWidget {
     final data = ref.watch(
       generationParamsNotifierProvider.select(
         (params) => (
-          isV3Model: params.isV3Model,
-          isV4Model: params.isV4Model,
-          sampler: params.sampler,
+          showsSmeaOptions: params.showsSmeaOptions,
+          showsCfgRescaleOption: params.showsCfgRescaleOption,
           smeaAuto: params.smeaAuto,
           smea: params.smea,
           smeaDyn: params.smeaDyn,
@@ -594,12 +594,14 @@ class AdvancedSamplingOptions extends ConsumerWidget {
         ),
       ),
     );
+    if (!data.showsSmeaOptions && !data.showsCfgRescaleOption) {
+      return const SizedBox.shrink();
+    }
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        // V3 模型: SMEA 选项 (非 DDIM 采样器时显示)
-        if (data.isV3Model && !data.sampler.contains('ddim')) ...[
+        if (data.showsSmeaOptions) ...[
           // 标题和说明
           Padding(
             padding: const EdgeInsets.only(top: 4, bottom: 4),
@@ -670,10 +672,10 @@ class AdvancedSamplingOptions extends ConsumerWidget {
               ),
             ),
         ],
-        // V4 模型: CFG Rescale；不发送该字段的模型显示为停用
-        if (data.isV4Model && !data.supportsCfgRescale)
+        // 不发送 cfg_rescale 的模型显示为停用
+        if (data.showsCfgRescaleOption && !data.supportsCfgRescale)
           const _UnavailableCfgRescale()
-        else if (data.isV4Model)
+        else if (data.showsCfgRescaleOption)
           ListTile(
             contentPadding: EdgeInsets.zero,
             title: Text(
