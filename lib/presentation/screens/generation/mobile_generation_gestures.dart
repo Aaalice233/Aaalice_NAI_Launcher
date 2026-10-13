@@ -7,6 +7,7 @@ import 'package:flutter/services.dart';
 import '../../../core/utils/localization_extension.dart';
 import '../../themes/design_tokens.dart';
 import '../../themes/theme_extension.dart';
+import '../../widgets/common/drag_claim_notification.dart';
 
 class MobileGenerationGestures extends StatelessWidget {
   const MobileGenerationGestures({
@@ -16,6 +17,7 @@ class MobileGenerationGestures extends StatelessWidget {
     required this.onPointerUp,
     required this.onPointerCancel,
     required this.onScrollNotification,
+    required this.onDragClaimNotification,
     this.pointerExclusionKeys = const [],
     required this.pointerActive,
     required this.dragOffset,
@@ -28,6 +30,8 @@ class MobileGenerationGestures extends StatelessWidget {
   final PointerUpEventListener onPointerUp;
   final PointerCancelEventListener onPointerCancel;
   final NotificationListenerCallback<ScrollNotification> onScrollNotification;
+  final NotificationListenerCallback<DragClaimNotification>
+  onDragClaimNotification;
   final List<GlobalKey> pointerExclusionKeys;
   final bool pointerActive;
   final double dragOffset;
@@ -58,27 +62,30 @@ class MobileGenerationGestures extends StatelessWidget {
       onPointerMove: onPointerMove,
       onPointerUp: onPointerUp,
       onPointerCancel: onPointerCancel,
-      child: NotificationListener<ScrollNotification>(
-        onNotification: onScrollNotification,
-        child: AnimatedContainer(
-          duration: pointerActive || disableAnimations
-              ? Duration.zero
-              : theme.appTheme.normalDuration,
-          curve: theme.appTheme.standardCurve,
-          transform: Matrix4.translationValues(
-            0,
-            disableAnimations ? 0 : dragOffset,
-            0,
-          ),
-          child: Stack(
-            fit: StackFit.expand,
-            children: [
-              child,
-              MobileGenerationGestureFeedback(
-                dragOffset: dragOffset,
-                showHint: showHint,
-              ),
-            ],
+      child: NotificationListener<DragClaimNotification>(
+        onNotification: onDragClaimNotification,
+        child: NotificationListener<ScrollNotification>(
+          onNotification: onScrollNotification,
+          child: AnimatedContainer(
+            duration: pointerActive || disableAnimations
+                ? Duration.zero
+                : theme.appTheme.normalDuration,
+            curve: theme.appTheme.standardCurve,
+            transform: Matrix4.translationValues(
+              0,
+              disableAnimations ? 0 : dragOffset,
+              0,
+            ),
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                child,
+                MobileGenerationGestureFeedback(
+                  dragOffset: dragOffset,
+                  showHint: showHint,
+                ),
+              ],
+            ),
           ),
         ),
       ),
