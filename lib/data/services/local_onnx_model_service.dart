@@ -54,6 +54,9 @@ class LocalOnnxModelService {
   static const int _archiveExpandedBytesLimit = 4 * 1024 * 1024 * 1024;
   static const int _archiveEntryBytesLimit = 2 * 1024 * 1024 * 1024;
 
+  // 共用模型目录按模型分文件夹，HF 导出（如 cl_tagger_v2/v2_01a）还会再按版本分一层。
+  static const int _modelScanDepth = 2;
+
   final LocalStorageService _storage;
 
   String get taggerDirectory =>
@@ -512,7 +515,7 @@ class LocalOnnxModelService {
     }
 
     final result = <LocalOnnxModelDescriptor>[];
-    await for (final entity in directory.list(followLinks: false)) {
+    await for (final entity in _listModelCandidates(directory)) {
       if (entity is! File) continue;
       if (p.extension(entity.path).toLowerCase() != '.onnx') continue;
 
@@ -522,7 +525,7 @@ class LocalOnnxModelService {
 
       result.add(
         LocalOnnxModelDescriptor(
-          name: p.basename(entity.path),
+          name: p.relative(entity.path, from: directory.path),
           path: entity.path,
           kind: kind,
           labelsPath: labelsPath,
@@ -532,6 +535,32 @@ class LocalOnnxModelService {
 
     result.sort((a, b) => a.name.compareTo(b.name));
     return result;
+  }
+
+  /// 列出目录及其下 [_modelScanDepth] 层子目录里的文件。
+  ///
+  /// 隐藏目录不进入：托管目录的 `.import-*` 事务里是未提交的暂存副本。
+  Stream<FileSystemEntity> _listModelCandidates(
+    Directory directory, {
+    int depth = 0,
+  }) async* {
+    try {
+      await for (final entity in directory.list(followLinks: false)) {
+        if (entity is! Directory) {
+          yield entity;
+        } else if (depth < _modelScanDepth &&
+            !p.basename(entity.path).startsWith('.')) {
+          yield* _listModelCandidates(entity, depth: depth + 1);
+        }
+      }
+    } on FileSystemException catch (error) {
+      // 一个读不了的子文件夹不应让整份模型列表失败
+      if (depth == 0) rethrow;
+      AppLogger.w(
+        'Skipping unreadable ONNX model folder ${directory.path}: $error',
+        'LocalOnnxModelService',
+      );
+    }
   }
 
   static String _sanitizeImportedFileName(String value) {
