@@ -29,6 +29,7 @@ class TagLibraryToolbar extends ConsumerStatefulWidget {
     this.onAddEntry,
     this.onOpenCategories,
     this.showPageTitle = true,
+    this.searchFocusNode,
   });
 
   final VoidCallback? onShowCategories;
@@ -45,25 +46,30 @@ class TagLibraryToolbar extends ConsumerStatefulWidget {
   final VoidCallback? onOpenCategories;
   final bool showPageTitle;
 
+  /// 搜索框焦点节点，由调用方持有并销毁；不传时工具栏自建
+  final FocusNode? searchFocusNode;
+
   @override
   ConsumerState<TagLibraryToolbar> createState() => _TagLibraryToolbarState();
 }
 
 class _TagLibraryToolbarState extends ConsumerState<TagLibraryToolbar> {
   final TextEditingController _searchController = TextEditingController();
-  late final FocusNode _searchFocusNode;
+  FocusNode? _ownedSearchFocusNode;
+
+  FocusNode get _searchFocusNode =>
+      widget.searchFocusNode ?? (_ownedSearchFocusNode ??= FocusNode());
 
   @override
   void initState() {
     super.initState();
-    _searchFocusNode = FocusNode(onKeyEvent: _handleSearchKeyEvent);
     _syncSearchController(ref.read(tagLibraryPageNotifierProvider).searchQuery);
   }
 
   @override
   void dispose() {
     _searchController.dispose();
-    _searchFocusNode.dispose();
+    _ownedSearchFocusNode?.dispose();
     super.dispose();
   }
 
@@ -258,11 +264,16 @@ class _TagLibraryToolbarState extends ConsumerState<TagLibraryToolbar> {
         treatSpacesAsSeparators: true,
       ),
       onSuggestionSelected: updateSearch,
-      child: GalleryLibrarySearchField(
-        controller: _searchController,
-        focusNode: _searchFocusNode,
-        hintText: context.l10n.tagLibrary_searchHint,
-        onChanged: updateSearch,
+      child: Focus(
+        canRequestFocus: false,
+        skipTraversal: true,
+        onKeyEvent: _handleSearchKeyEvent,
+        child: GalleryLibrarySearchField(
+          controller: _searchController,
+          focusNode: _searchFocusNode,
+          hintText: context.l10n.tagLibrary_searchHint,
+          onChanged: updateSearch,
+        ),
       ),
     );
   }

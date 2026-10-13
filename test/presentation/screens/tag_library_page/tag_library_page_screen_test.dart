@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
@@ -11,6 +12,7 @@ import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/providers/shortcuts_provider.dart';
 import 'package:nai_launcher/presentation/providers/tag_library_page_provider.dart';
 import 'package:nai_launcher/presentation/screens/tag_library_page/tag_library_page_screen.dart';
+import 'package:nai_launcher/presentation/screens/tag_library_page/widgets/tag_library_toolbar.dart';
 import '../../../helpers/light_theme_contrast.dart';
 
 void main() {
@@ -334,6 +336,38 @@ void main() {
     expect(offset(), closeTo(desktopOffset, 1));
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets('挂载后 Ctrl+F 聚焦搜索框，点外部失焦后页面快捷键仍然可用', (tester) async {
+    await _setViewport(tester, const Size(1180, 800));
+    await _pumpTagLibrary(tester, _DialogTagLibraryPageNotifier.new);
+    FocusNode searchFocus() => tester
+        .widget<EditableText>(
+          find.descendant(
+            of: find.byType(TagLibraryToolbar),
+            matching: find.byType(EditableText),
+          ),
+        )
+        .focusNode;
+
+    await _pressCtrl(tester, LogicalKeyboardKey.keyF);
+    expect(searchFocus().hasPrimaryFocus, isTrue);
+
+    await tester.tapAt(const Offset(1160, 780), kind: PointerDeviceKind.mouse);
+    await tester.pump();
+    expect(searchFocus().hasFocus, isFalse);
+
+    await _pressCtrl(tester, LogicalKeyboardKey.keyF);
+    expect(searchFocus().hasPrimaryFocus, isTrue);
+    expect(find.byType(Dialog), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+}
+
+Future<void> _pressCtrl(WidgetTester tester, LogicalKeyboardKey key) async {
+  await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+  await tester.sendKeyEvent(key);
+  await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+  await tester.pump();
 }
 
 Future<void> _setViewport(WidgetTester tester, Size size) async {

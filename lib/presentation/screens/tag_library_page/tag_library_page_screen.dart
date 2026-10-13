@@ -164,53 +164,51 @@ class _TagLibraryPageScreenState extends ConsumerState<TagLibraryPageScreen> {
       selection: selectionState,
       commands: ref.read(tagLibrarySelectionNotifierProvider.notifier),
       orderedIds: state.filteredEntries.map((entry) => entry.id).toList(),
-      child: CardSelectionShortcuts(
-        child: PopScope<void>(
-          canPop: !isSelectionMode,
-          onPopInvokedWithResult: (didPop, _) {
-            if (!didPop && isSelectionMode) {
-              ref.read(tagLibrarySelectionNotifierProvider.notifier).exit();
-            }
-          },
-          child: PageShortcuts(
-            contextType: ShortcutContext.tagLibrary,
-            shortcuts: shortcuts,
-            child: Scaffold(
-              body: LayoutBuilder(
-                builder: (context, constraints) {
-                  final persistentCategories = constraints.maxWidth >= 840;
-                  final showSidebar =
-                      persistentCategories && _showCategoryPanel;
-                  return GalleryCollectionWorkspace(
-                    sidebarWidthKey: StorageKeys.tagLibrarySidebarWidth,
-                    toolbar: TagLibraryToolbar(
-                      showPageTitle: true,
-                      showCategoryPanel: showSidebar,
-                      onShowCategories: persistentCategories
-                          ? () => setState(
-                              () => _showCategoryPanel = !_showCategoryPanel,
-                            )
-                          : () => _showCategoryPanelSheet(state),
-                      onOpenFolder:
-                          PlatformCapabilities.current.supportsOpenFolder
-                          ? _openLibraryFolder
-                          : null,
-                      onEnterSelectionMode: () => ref
-                          .read(tagLibrarySelectionNotifierProvider.notifier)
-                          .enter(),
-                      onBulkDelete: _handleBulkDelete,
-                      onBulkMoveCategory: _handleBulkMoveCategory,
-                      onBulkToggleFavorite: _handleBulkToggleFavorite,
-                      onBulkCopy: _handleBulkCopy,
-                      onImport: _handleImport,
-                      onExport: _handleExport,
-                      onAddEntry: _showAddEntryDialog,
-                    ),
-                    sidebar: showSidebar ? _buildCategorySidebar() : null,
-                    body: _buildContent(theme, state, isSelectionMode),
-                  );
-                },
-              ),
+      child: PopScope<void>(
+        canPop: !isSelectionMode,
+        onPopInvokedWithResult: (didPop, _) {
+          if (!didPop && isSelectionMode) {
+            ref.read(tagLibrarySelectionNotifierProvider.notifier).exit();
+          }
+        },
+        child: CardSelectionPageShortcuts(
+          contextType: ShortcutContext.tagLibrary,
+          shortcuts: shortcuts,
+          child: Scaffold(
+            body: LayoutBuilder(
+              builder: (context, constraints) {
+                final persistentCategories = constraints.maxWidth >= 840;
+                final showSidebar = persistentCategories && _showCategoryPanel;
+                return GalleryCollectionWorkspace(
+                  sidebarWidthKey: StorageKeys.tagLibrarySidebarWidth,
+                  toolbar: TagLibraryToolbar(
+                    showPageTitle: true,
+                    searchFocusNode: _searchFocusNode,
+                    showCategoryPanel: showSidebar,
+                    onShowCategories: persistentCategories
+                        ? () => setState(
+                            () => _showCategoryPanel = !_showCategoryPanel,
+                          )
+                        : () => _showCategoryPanelSheet(state),
+                    onOpenFolder:
+                        PlatformCapabilities.current.supportsOpenFolder
+                        ? _openLibraryFolder
+                        : null,
+                    onEnterSelectionMode: () => ref
+                        .read(tagLibrarySelectionNotifierProvider.notifier)
+                        .enter(),
+                    onBulkDelete: _handleBulkDelete,
+                    onBulkMoveCategory: _handleBulkMoveCategory,
+                    onBulkToggleFavorite: _handleBulkToggleFavorite,
+                    onBulkCopy: _handleBulkCopy,
+                    onImport: _handleImport,
+                    onExport: _handleExport,
+                    onAddEntry: _showAddEntryDialog,
+                  ),
+                  sidebar: showSidebar ? _buildCategorySidebar() : null,
+                  body: _buildContent(theme, state, isSelectionMode),
+                );
+              },
             ),
           ),
         ),

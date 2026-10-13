@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/core/platform/platform_capabilities.dart';
@@ -141,6 +142,36 @@ void main() {
     }
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets('调用方持有的搜索焦点节点可聚焦搜索框，Ctrl+A 不冒泡到页面快捷键', (tester) async {
+    final searchFocus = FocusNode();
+    addTearDown(searchFocus.dispose);
+    var pageSelectAll = 0;
+    await _pumpToolbar(
+      tester,
+      width: 1180,
+      searchFocusNode: searchFocus,
+      onPageSelectAll: () => pageSelectAll++,
+    );
+
+    searchFocus.requestFocus();
+    await tester.pump();
+    final editable = tester.widget<EditableText>(
+      find.descendant(
+        of: find.byType(TagLibraryToolbar),
+        matching: find.byType(EditableText),
+      ),
+    );
+    expect(editable.focusNode, same(searchFocus));
+    expect(searchFocus.hasPrimaryFocus, isTrue);
+
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+    await tester.sendKeyEvent(LogicalKeyboardKey.keyA);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+    await tester.pump();
+
+    expect(pageSelectAll, 0);
+  });
 }
 
 Future<void> _pumpToolbar(
@@ -150,7 +181,19 @@ Future<void> _pumpToolbar(
   VoidCallback? onShowCategories,
   VoidCallback? onOpenFolder,
   InteractionPolicy? interactionPolicy,
+  FocusNode? searchFocusNode,
+  VoidCallback? onPageSelectAll,
 }) async {
+  Widget withPageSelectAll(Widget toolbar) => onPageSelectAll == null
+      ? toolbar
+      : CallbackShortcuts(
+          bindings: {
+            const SingleActivator(LogicalKeyboardKey.keyA, control: true):
+                onPageSelectAll,
+          },
+          child: toolbar,
+        );
+
   await tester.binding.setSurfaceSize(Size(width, 900));
   addTearDown(() => tester.binding.setSurfaceSize(null));
   await tester.pumpWidget(
@@ -172,13 +215,16 @@ Future<void> _pumpToolbar(
             child: InteractionPolicyScope(
               initialPolicy: interactionPolicy,
               child: Scaffold(
-                body: TagLibraryToolbar(
-                  onShowCategories: onShowCategories ?? () {},
-                  onOpenFolder: onOpenFolder ?? () {},
-                  onEnterSelectionMode: () {},
-                  onImport: () {},
-                  onExport: () {},
-                  onAddEntry: () {},
+                body: withPageSelectAll(
+                  TagLibraryToolbar(
+                    onShowCategories: onShowCategories ?? () {},
+                    onOpenFolder: onOpenFolder ?? () {},
+                    onEnterSelectionMode: () {},
+                    onImport: () {},
+                    onExport: () {},
+                    onAddEntry: () {},
+                    searchFocusNode: searchFocusNode,
+                  ),
                 ),
               ),
             ),
