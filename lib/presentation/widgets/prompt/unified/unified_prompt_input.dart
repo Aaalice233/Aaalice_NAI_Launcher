@@ -1527,7 +1527,7 @@ class _UnifiedPromptInputState extends ConsumerState<UnifiedPromptInput> {
       textWheelAdjustmentActive: () =>
           !widget.config.readOnly &&
           enableWheelAdjustment &&
-          PromptWeightEditing.hasSelection(_effectiveController) &&
+          promptWeightWheelActive(_effectiveController) &&
           PromptWeightEditing.protectNegativeBlockSyntax(_effectiveController),
       focused: () => _effectiveFocusNode.hasFocus || _tagFocusNode.hasFocus,
       child: result,

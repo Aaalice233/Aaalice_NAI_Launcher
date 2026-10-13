@@ -7,6 +7,7 @@ import 'package:nai_launcher/core/utils/localization_extension.dart';
 
 import '../prompt/prompt_weight_editing.dart';
 import '../../adaptive/interaction_policy.dart';
+import '../../adaptive/pointer_press_tracker.dart';
 import '../../../core/utils/prompt_edit_document.dart';
 import '../prompt/prompt_action_overlay.dart';
 import '../prompt/prompt_weight_controls.dart';
@@ -74,6 +75,7 @@ class _WeightAdjustToolbarWrapperState
   @override
   void initState() {
     super.initState();
+    PointerPressTracker.observe();
     _initFocusNode();
     widget.controller.addListener(_onSelectionChanged);
   }
@@ -124,6 +126,7 @@ class _WeightAdjustToolbarWrapperState
     if (_ownsFocusNode) {
       _focusNode.dispose();
     }
+    PointerPressTracker.unobserve();
     super.dispose();
   }
 
@@ -201,7 +204,7 @@ class _WeightAdjustToolbarWrapperState
         event.scrollDelta.dy == 0 ||
         !widget.enabled ||
         !widget.enableWheelAdjustment ||
-        !PromptWeightEditing.hasSelection(widget.controller) ||
+        !promptWeightWheelActive(widget.controller) ||
         !PromptWeightEditing.protectNegativeBlockSyntax(widget.controller)) {
       return;
     }
@@ -306,7 +309,7 @@ class WeightAdjustScrollPhysics extends ScrollPhysics {
 
   @override
   bool shouldAcceptUserOffset(ScrollMetrics position) {
-    if (PromptWeightEditing.hasSelection(controllerProvider())) {
+    if (promptWeightWheelActive(controllerProvider())) {
       return false;
     }
     return super.shouldAcceptUserOffset(position);
@@ -316,6 +319,11 @@ class WeightAdjustScrollPhysics extends ScrollPhysics {
 bool supportsPromptWeightScrollPhysics(InteractionPolicy interactionPolicy) {
   return interactionPolicy.precisePointerAvailable;
 }
+
+/// 有选区时滚轮调权重；按住鼠标键（如拖选长文本）时滚轮仍用于滚动。
+bool promptWeightWheelActive(TextEditingController controller) =>
+    PromptWeightEditing.hasSelection(controller) &&
+    !PointerPressTracker.mouseButtonHeld;
 
 class _WeightAdjustToolbar extends StatelessWidget {
   const _WeightAdjustToolbar({
@@ -348,7 +356,8 @@ class _WeightAdjustToolbar extends StatelessWidget {
   void _wheel(PointerSignalEvent event) {
     if (!enableWheelAdjustment ||
         event is! PointerScrollEvent ||
-        event.scrollDelta.dy == 0) {
+        event.scrollDelta.dy == 0 ||
+        !promptWeightWheelActive(controller)) {
       return;
     }
     GestureBinding.instance.pointerSignalResolver.register(event, (resolved) {
