@@ -225,4 +225,43 @@ void main() {
     await tester.tap(find.text('移动到分类'));
     expect(classifyCount, 1);
   });
+
+  testWidgets('更多菜单可以发送到主页', (tester) async {
+    var sendCount = 0;
+    final entry = TagLibraryEntry(
+      id: 'send-entry',
+      name: '发送词条',
+      content: '1girl',
+      createdAt: DateTime(2026),
+      updatedAt: DateTime(2026),
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        locale: const Locale('zh'),
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: InteractionPolicyScope(
+          initialPolicy: const InteractionPolicy(
+            modality: InteractionModality.touch,
+            touchAvailable: true,
+            precisePointerAvailable: false,
+          ),
+          child: Scaffold(
+            body: EntryCard(
+              entry: entry,
+              onTap: () {},
+              onDelete: () {},
+              onToggleFavorite: () {},
+              onSend: () => sendCount++,
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.byIcon(Icons.more_vert_rounded));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('发送到主页'));
+    expect(sendCount, 1);
+  });
 }

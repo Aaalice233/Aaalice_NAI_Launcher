@@ -12,7 +12,7 @@ import '../../../widgets/common/library_card_badges.dart';
 import '../../../widgets/common/thumbnail_display.dart';
 import '../../../widgets/tag_library/tag_library_entry_hover_preview.dart';
 
-enum _EntryAction { select, edit, favorite, classify, copy, delete }
+enum _EntryAction { select, send, edit, favorite, classify, copy, delete }
 
 /// 词库条目卡片 - 名称居中 + 互斥显示
 ///
@@ -25,6 +25,8 @@ class EntryCard extends StatefulWidget {
   final VoidCallback onDelete;
   final VoidCallback onToggleFavorite;
   final VoidCallback? onEdit;
+
+  /// 打开「发送到主页」对话框，出现在卡片的更多菜单里。
   final VoidCallback? onSend;
   final VoidCallback? onClassify;
 
@@ -312,6 +314,8 @@ class _EntryCardState extends State<EntryCard> {
           switch (action) {
             case _EntryAction.select:
               widget.onToggleSelection?.call();
+            case _EntryAction.send:
+              widget.onSend?.call();
             case _EntryAction.edit:
               widget.onEdit?.call();
             case _EntryAction.favorite:
@@ -332,6 +336,15 @@ class _EntryCardState extends State<EntryCard> {
                 contentPadding: EdgeInsets.zero,
                 leading: const Icon(Icons.check_circle_outline),
                 title: Text(l10n.common_select),
+              ),
+            ),
+          if (widget.onSend != null)
+            PopupMenuItem(
+              value: _EntryAction.send,
+              child: ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: const Icon(Icons.send_outlined),
+                title: Text(l10n.sendToHome_dialogTitle),
               ),
             ),
           if (widget.onEdit != null)
