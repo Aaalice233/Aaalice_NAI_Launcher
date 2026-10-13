@@ -160,7 +160,7 @@ class _GalleryGridItemState extends State<GalleryGridItem> {
         kind: AgentChatResourceKind.onlineGalleryMedia,
         source: item.sourceId.key,
         resourceId: item.sourceWorkId,
-        mediaId: item.cover.id,
+        mediaId: item.coverMediaId,
         display: {
           if (item.title?.trim().isNotEmpty == true)
             'title': item.title!.trim(),

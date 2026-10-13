@@ -541,6 +541,8 @@ void main() {
         );
         expect(page.items.single.tags, isNot(containsAll(['Hello', 'World'])));
         expect(page.items.single.tagsComplete, isFalse);
+        expect(page.items.single.hasPendingCover, isTrue);
+        expect(page.items.single.coverMediaId, isNull);
         expect(page.hasMore, isTrue);
         expect(page.nextCursor, '3');
       },
@@ -585,6 +587,8 @@ void main() {
       expect(detail.media.single.downloadUrl, detail.media.single.previewUrl);
       expect(detail.media.single.previewUrl, isNot(contains('pximg.net')));
       expect(detail.media.single.id, '503 p0?#');
+      expect(detail.item.hasPendingCover, isFalse);
+      expect(detail.item.coverMediaId, '503 p0?#');
     });
 
     test('rejects non-HTTPS AI TAG asset bases', () async {
