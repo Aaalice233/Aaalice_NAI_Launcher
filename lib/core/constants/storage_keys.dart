@@ -88,6 +88,9 @@ class StorageKeys {
   static const String generationLayoutMode = 'generation_layout_mode';
   static const String mobileGenerationGestureHintCompleted =
       'mobile_generation_gesture_hint_completed';
+  // Last confirmed metadata import categories stay on this device.
+  static const String metadataImportLastSelection =
+      'metadata_import_last_selection';
   static const String historyClickBehavior = 'history_click_behavior';
   static const String previewTransparencyBackground =
       'preview_transparency_background';

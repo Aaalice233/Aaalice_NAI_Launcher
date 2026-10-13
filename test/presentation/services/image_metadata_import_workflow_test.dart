@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
@@ -12,6 +13,7 @@ import 'package:nai_launcher/data/models/image/image_params.dart';
 import 'package:nai_launcher/data/models/metadata/metadata_import_options.dart';
 import 'package:nai_launcher/data/services/fixed_tag/fixed_tag_usage_record_store.dart';
 import 'package:nai_launcher/data/services/image_metadata_service.dart';
+import 'package:nai_launcher/data/services/metadata_import_selection_store.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/services/image_metadata_import_workflow.dart';
 import 'package:nai_launcher/presentation/services/mobile_image_metadata_importer.dart';
@@ -19,6 +21,7 @@ import 'package:nai_launcher/presentation/utils/fixed_tag_import_resolution.dart
 
 import '../../helpers/content_hash.dart';
 import '../../helpers/image_metadata_service_sandbox.dart';
+import '../../helpers/memory_local_storage.dart';
 
 void main() {
   testWidgets('system picker cancellation stops without processing', (
@@ -76,7 +79,7 @@ void main() {
     final reports = <ImageMetadataImportResult>[];
     final workflow = ImageMetadataImportWorkflow(
       metadataReader: (bytes) async => null,
-      optionsPicker: (context, metadata) async {
+      optionsPicker: (context, metadata, initialOptions) async {
         optionsOpened = true;
         return const MetadataImportOptions();
       },
@@ -106,7 +109,7 @@ void main() {
     final reports = <ImageMetadataImportResult>[];
     final workflow = ImageMetadataImportWorkflow(
       metadataReader: (bytes) async => const NaiImageMetadata(prompt: '1girl'),
-      optionsPicker: (context, metadata) async => null,
+      optionsPicker: (context, metadata, initialOptions) async => null,
       metadataApplier: (read, metadata, options, l10n) async {
         applied = true;
         return 1;
@@ -137,7 +140,7 @@ void main() {
     var openedGeneration = false;
     final workflow = ImageMetadataImportWorkflow(
       metadataReader: (bytes) async => const NaiImageMetadata(prompt: '1girl'),
-      optionsPicker: (context, metadata) async =>
+      optionsPicker: (context, metadata, initialOptions) async =>
           const MetadataImportOptions(importPrompt: true),
       metadataApplier: (read, metadata, options, l10n) async => 0,
       resultReporter: (context, result, appliedCount) => reports.add(result),
@@ -168,7 +171,7 @@ void main() {
     final reports = <(ImageMetadataImportResult, int)>[];
     final workflow = ImageMetadataImportWorkflow(
       metadataReader: (bytes) async => const NaiImageMetadata(prompt: '1girl'),
-      optionsPicker: (context, metadata) async =>
+      optionsPicker: (context, metadata, initialOptions) async =>
           const MetadataImportOptions(importPrompt: true),
       metadataApplier: (read, metadata, options, l10n) async {
         applyCalls++;
@@ -197,6 +200,108 @@ void main() {
     expect(applyCalls, 1);
     expect(reports, [(ImageMetadataImportResult.applied, 1)]);
     expect(openedGeneration, isTrue);
+  });
+
+  group('上次勾选的记忆', () {
+    ImageMetadataImportWorkflow buildWorkflow({
+      required MetadataImportOptionsPicker picker,
+      MetadataImportApplier? applier,
+      List<ImageMetadataImportResult>? reports,
+    }) => ImageMetadataImportWorkflow(
+      metadataReader: (bytes) async =>
+          const NaiImageMetadata(prompt: '1girl', seed: 7),
+      optionsPicker: picker,
+      metadataApplier: applier ?? (read, metadata, options, l10n) async => 1,
+      resultReporter: (context, result, appliedCount) => reports?.add(result),
+      generationPageOpener: (context) {},
+    );
+
+    Future<void> pumpImport(
+      WidgetTester tester,
+      ImageMetadataImportWorkflow workflow,
+      MetadataImportSelectionStore store,
+    ) => _pumpAction(
+      tester,
+      selectionStore: store,
+      action: (context, ref) => workflow.run(
+        context: context,
+        read: ref.read,
+        bytes: Uint8List.fromList([1]),
+      ),
+    );
+
+    testWidgets('确认后的类别开关成为下一次导入的初始勾选', (tester) async {
+      final store = _RecordingSelectionStore();
+      final offered = <MetadataImportOptions>[];
+      final workflow = buildWorkflow(
+        picker: (context, metadata, initialOptions) async {
+          offered.add(initialOptions);
+          return initialOptions.copyWith(
+            importSeed: false,
+            selectedCharacterIndices: [0],
+          );
+        },
+      );
+
+      await pumpImport(tester, workflow, store);
+      for (var round = 0; round < 2; round++) {
+        await tester.tap(find.text('run'));
+        await tester.pumpAndSettle();
+      }
+
+      expect(offered, [
+        MetadataImportOptions.all(),
+        MetadataImportOptions.all().copyWith(importSeed: false),
+      ]);
+      expect(store.saved, hasLength(2));
+    });
+
+    testWidgets('取消对话框不改动已记住的勾选', (tester) async {
+      final store = _RecordingSelectionStore();
+      final remembered = MetadataImportOptions.all().copyWith(
+        importSeed: false,
+      );
+      await store.save(remembered);
+      store.saved.clear();
+      MetadataImportOptions? offered;
+      final workflow = buildWorkflow(
+        picker: (context, metadata, initialOptions) async {
+          offered = initialOptions;
+          return null;
+        },
+      );
+
+      await pumpImport(tester, workflow, store);
+      await tester.tap(find.text('run'));
+      await tester.pumpAndSettle();
+
+      expect(offered, remembered);
+      expect(store.saved, isEmpty);
+      expect(store.load(), remembered);
+    });
+
+    testWidgets('记忆写入失败时仍完成已确认的导入', (tester) async {
+      final store = _RecordingSelectionStore(failSave: true);
+      final reports = <ImageMetadataImportResult>[];
+      var applyCalls = 0;
+      final workflow = buildWorkflow(
+        picker: (context, metadata, initialOptions) async =>
+            const MetadataImportOptions(importPrompt: true),
+        applier: (read, metadata, options, l10n) async {
+          applyCalls++;
+          return 1;
+        },
+        reports: reports,
+      );
+
+      await pumpImport(tester, workflow, store);
+      await tester.tap(find.text('run'));
+      await tester.pumpAndSettle();
+
+      expect(store.saved, hasLength(1));
+      expect(applyCalls, 1);
+      expect(reports, [ImageMetadataImportResult.applied]);
+    });
   });
 
   group('固定词导入判定', () {
@@ -251,12 +356,33 @@ void main() {
 typedef _TestAction =
     Future<Object?> Function(BuildContext context, WidgetRef ref);
 
+class _RecordingSelectionStore extends MetadataImportSelectionStore {
+  _RecordingSelectionStore({this.failSave = false})
+    : super(MemoryLocalStorage());
+
+  final bool failSave;
+  final saved = <MetadataImportOptions>[];
+
+  @override
+  Future<void> save(MetadataImportOptions options) async {
+    saved.add(options);
+    if (failSave) throw const FileSystemException('disk full');
+    await super.save(options);
+  }
+}
+
 Future<void> _pumpAction(
   WidgetTester tester, {
   required _TestAction action,
+  MetadataImportSelectionStore? selectionStore,
 }) async {
   await tester.pumpWidget(
     ProviderScope(
+      overrides: [
+        metadataImportSelectionStoreProvider.overrideWithValue(
+          selectionStore ?? _RecordingSelectionStore(),
+        ),
+      ],
       child: MaterialApp(
         locale: const Locale('en'),
         supportedLocales: AppLocalizations.supportedLocales,
