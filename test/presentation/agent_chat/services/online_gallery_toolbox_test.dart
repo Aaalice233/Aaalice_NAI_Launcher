@@ -193,6 +193,35 @@ void main() {
     },
   );
 
+  test(
+    'QuickTagCloud text-only entries expose no placeholder media id',
+    () async {
+      final quickTagCloud = _ScriptedGalleryAdapter(
+        GallerySourceId.quickTagCloud,
+        (request, _) async => _page(request, [_textOnlyQuickTagCloudItem(7)]),
+      );
+      final harness = _createHarness({
+        GallerySourceId.quickTagCloud: quickTagCloud,
+      });
+      addTearDown(harness.container.dispose);
+
+      final result = await harness.browse.execute('text-only', {
+        'source': 'quick_tag_cloud',
+        'mode': 'search',
+        'query': 'concept',
+      });
+
+      expect(result.isError, isFalse);
+      final item = (result.details['items'] as List).single as Map;
+      expect(item['work_id'], 'codex-7');
+      expect(item['media_id'], isNull);
+      final reference = item['resource_ref'] as Map;
+      expect(reference['resourceId'], 'codex-7');
+      expect(reference.containsKey('mediaId'), isFalse);
+      expect(jsonEncode(result.details), isNot(contains('no-image')));
+    },
+  );
+
   test('resolved covers keep their media id in browse results', () async {
     final harness = _createHarness({
       GallerySourceId.gelbooru: _ScriptedGalleryAdapter(
@@ -433,6 +462,17 @@ GalleryItem _pendingAiTagItem(int id) => GalleryItem(
   tags: const ['ibuki'],
   tagsComplete: true,
   cover: GalleryMedia(id: '${id}_pending', mediaType: 'image'),
+);
+
+GalleryItem _textOnlyQuickTagCloudItem(int id) => GalleryItem(
+  id: id,
+  workId: 'codex-$id',
+  sourceId: GallerySourceId.quickTagCloud,
+  createdAt: 'v1',
+  uploaderId: 0,
+  tags: const ['abstract concept'],
+  tagsComplete: true,
+  cover: GalleryMedia.noImage,
 );
 
 class _MemoryStorage extends LocalStorageService {

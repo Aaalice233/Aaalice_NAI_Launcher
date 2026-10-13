@@ -193,7 +193,10 @@ class AgentResourceResolver {
   AgentChatResourceReference _withResolvableMedia(
     AgentChatResourceReference reference,
   ) {
-    if (reference.mediaId != GalleryMedia.pendingIdFor(reference.resourceId)) {
+    if (!GalleryMedia.isPlaceholderId(
+      reference.mediaId,
+      reference.resourceId,
+    )) {
       return reference;
     }
     return AgentChatResourceReference(

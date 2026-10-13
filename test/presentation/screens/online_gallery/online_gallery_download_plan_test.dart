@@ -77,7 +77,7 @@ void main() {
       id: 7,
       workId: 'codex-7',
       sourceId: GallerySourceId.quickTagCloud,
-      cover: GalleryMedia(id: 'no-image'),
+      cover: GalleryMedia.noImage,
     );
 
     final plan = await planGalleryDownloads(

@@ -13,9 +13,7 @@ class QuickTagCloudGalleryMapper {
 
   GalleryItem toGalleryItem(QuickTagCloudGalleryRecord record) {
     final media = mediaFor(record);
-    final cover = media.isEmpty
-        ? const GalleryMedia(id: 'no-image')
-        : media.first;
+    final cover = media.isEmpty ? GalleryMedia.noImage : media.first;
     final entry = record.entry;
     return GalleryItem(
       id: _stableNumericId(record.workId),

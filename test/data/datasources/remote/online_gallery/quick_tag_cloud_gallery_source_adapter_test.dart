@@ -86,6 +86,8 @@ void main() {
     );
     expect(second.items.single.sourceWorkId, 'book/part%2F50%25');
     expect(second.items.single.hasValidPreview, isFalse);
+    expect(second.items.single.coverMediaId, isNull);
+    expect(second.items.single.hasPendingCover, isFalse);
     expect(second.hasMore, isFalse);
     expect((await adapter.detail(second.items.single)).item.title, 'Text only');
 
@@ -101,10 +103,9 @@ void main() {
     expect(await offlineAdapter.favoriteKeys(), {
       'quick_tag_cloud:book/part%2F50%25',
     });
-    expect(
-      (await offlineAdapter.detail(second.items.single)).item.title,
-      'Text only',
-    );
+    final offlineDetail = await offlineAdapter.detail(second.items.single);
+    expect(offlineDetail.item.title, 'Text only');
+    expect(offlineDetail.item.coverMediaId, isNull);
 
     final rawTagResult = await adapter.search(
       const GallerySearchRequest(
