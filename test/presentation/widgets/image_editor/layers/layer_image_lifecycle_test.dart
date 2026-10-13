@@ -35,29 +35,17 @@ void main() {
     });
   });
 
-  testWidgets('raster and thumbnail renders finishing after dispose are released', (
+  testWidgets('a thumbnail render finishing after dispose is released', (
     tester,
   ) async {
     await tester.runAsync(() async {
       final layer = _layerWithStroke();
-      final raster = layer.rasterize();
+      final recorder = ui.PictureRecorder();
+      layer.renderWithCache(Canvas(recorder));
+      recorder.endRecording().dispose();
       final thumbnail = layer.updateThumbnail(_region);
       layer.dispose();
-      await Future.wait([raster, thumbnail]);
-
-      expect(live.count, 0);
-    });
-  });
-
-  testWidgets('a composite finishing after dispose is released', (
-    tester,
-  ) async {
-    await tester.runAsync(() async {
-      final layer = _layerWithStroke();
-      await layer.rasterize();
-      final composite = layer.updateCompositeCache();
-      layer.dispose();
-      await composite;
+      await thumbnail;
 
       expect(live.count, 0);
     });

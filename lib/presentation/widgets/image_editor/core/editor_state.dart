@@ -233,6 +233,17 @@ class EditorState extends ChangeNotifier {
   List<Offset> get currentStrokePoints => strokeManager.currentStrokePoints;
   bool get isDrawing => strokeManager.isDrawing;
 
+  /// 画笔正在蒙版层上作画：这一笔由图层绘制器画进蒙版层，与已有蒙版重叠处同色
+  bool get isPaintingMask =>
+      isDrawing &&
+      currentStrokePoints.isNotEmpty &&
+      isMaskLayerActive &&
+      currentTool is BrushTool;
+
+  StrokeData? get liveMaskStroke => isPaintingMask
+      ? (currentTool! as BrushTool).strokeFor(this, currentStrokePoints)
+      : null;
+
   // ===== 构造函数 =====
 
   EditorState() {
@@ -376,7 +387,6 @@ class EditorState extends ChangeNotifier {
     _flushPendingStrokePreviewChange();
     strokeManager.endStroke();
     _notifyStrokePreviewChange();
-    _updateActiveLayerCacheIfNeeded();
     // 笔画完成后异步预热快照，供拾色器使用
     _scheduleSnapshotUpdate();
   }
@@ -717,15 +727,6 @@ class EditorState extends ChangeNotifier {
     }
     if (notifyState) {
       _safeNotifyListeners();
-    }
-  }
-
-  Future<void> _updateActiveLayerCacheIfNeeded() async {
-    final layer = layerManager.activeLayer;
-    if (layer != null && layer.shouldRasterizeNow()) {
-      await layer.rasterize();
-      await layer.updateCompositeCache();
-      _notifyRenderChange();
     }
   }
 

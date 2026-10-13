@@ -29,13 +29,19 @@ class LayerPainter extends CustomPainter {
 
   /// 使用 renderNotifier 而非整个 state
   /// 这样只有在渲染相关变化时才会触发重绘
-  /// 切换活动图层等 UI 操作不会导致画布重绘
+  /// 切换活动图层等 UI 操作不会导致画布重绘；
+  /// 涂蒙版时正在画的一笔画在蒙版层里，所以也跟随笔画预览重绘
   LayerPainter({
     required this.state,
     this.showTransparentCanvasBackground = false,
     this.revealOutsideFrame = false,
     this.devicePixelRatio = 1.0,
-  }) : super(repaint: state.renderNotifier);
+  }) : super(
+         repaint: Listenable.merge([
+           state.renderNotifier,
+           state.strokePreviewNotifier,
+         ]),
+       );
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -50,12 +56,15 @@ class LayerPainter extends CustomPainter {
 
     // 透明画布用棋盘格表示透明，否则铺白色底色
     if (showTransparentCanvasBackground) {
-      _checkerboard.paint(
-        canvas,
-        frame,
-        origin: frame.topLeft,
-        pixelScale: controller.scale * devicePixelRatio,
-      );
+      final visibleFrame = controller.visiblePartOf(frame);
+      if (!visibleFrame.isEmpty) {
+        _checkerboard.paint(
+          canvas,
+          visibleFrame,
+          origin: frame.topLeft,
+          pixelScale: controller.scale * devicePixelRatio,
+        );
+      }
     } else {
       canvas.drawRect(frame, Paint()..color = Colors.white);
     }
@@ -74,6 +83,8 @@ class LayerPainter extends CustomPainter {
       canvas,
       viewportBounds: viewportBounds,
       filterQuality: FilterQuality.medium,
+      pixelScale: controller.scale * devicePixelRatio,
+      liveStroke: state.liveMaskStroke,
     );
 
     if (revealOutsideFrame) {

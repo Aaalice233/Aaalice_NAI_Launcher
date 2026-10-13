@@ -32,6 +32,7 @@ class CheckerboardPattern {
   /// 用棋盘格填满 [rect]，第一格的左上角对齐 [origin]。
   ///
   /// [pixelScale] 是当前坐标系到设备像素的缩放，决定纹理精度。
+  /// 放大视图下 [rect] 只应传可见部分：Impeller 按矩形的整个屏幕范围分配离屏纹理，裁剪对它无效。
   void paint(
     Canvas canvas,
     Rect rect, {

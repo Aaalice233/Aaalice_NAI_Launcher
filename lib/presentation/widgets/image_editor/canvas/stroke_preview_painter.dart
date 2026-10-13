@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../core/editor_state.dart';
+import '../core/stroke_rendering.dart';
 import '../tools/blur_tool.dart';
 import '../tools/brush_tool.dart';
 import '../tools/clone_stamp_tool.dart';
@@ -24,20 +25,32 @@ class StrokePreviewPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final points = state.currentStrokePoints;
-    if (!state.isDrawing || points.isEmpty) {
+    // 蒙版上的画笔笔画由图层绘制器画进蒙版层，与已有蒙版合成同一种颜色
+    if (!state.isDrawing || points.isEmpty || state.isPaintingMask) {
       return;
     }
 
     final frame = state.frame;
+    final controller = state.canvasController;
 
     canvas.save();
-    state.canvasController.applyViewTransform(canvas, frame);
+    controller.applyViewTransform(canvas, frame);
     canvas.clipRect(frame);
-    _drawCurrentStroke(canvas, points);
+    _drawCurrentStroke(
+      canvas,
+      points,
+      magnified: controller.scale > 1,
+      visible: controller.visiblePartOf(frame),
+    );
     canvas.restore();
   }
 
-  void _drawCurrentStroke(Canvas canvas, List<Offset> points) {
+  void _drawCurrentStroke(
+    Canvas canvas,
+    List<Offset> points, {
+    required bool magnified,
+    required Rect visible,
+  }) {
     final tool = state.currentTool;
     if (tool == null || !tool.isPaintTool) return;
 
@@ -76,49 +89,27 @@ class StrokePreviewPainter extends CustomPainter {
     final paint = Paint()
       ..color = isEraser
           ? Colors.grey.withValues(alpha: 0.5)
-          : color.withValues(alpha: opacity)
-      ..strokeWidth = size
-      ..strokeCap = StrokeCap.round
-      ..strokeJoin = StrokeJoin.round
-      ..style = PaintingStyle.stroke;
+          : color.withValues(alpha: opacity);
 
-    if (hardness < 1.0) {
-      final sigma = size * (1.0 - hardness) * 0.5;
-      paint.maskFilter = MaskFilter.blur(BlurStyle.normal, sigma);
-    }
-
-    if (points.length == 1) {
-      canvas.drawCircle(
-        points.first,
-        size / 2,
-        paint..style = PaintingStyle.fill,
+    final soft = StrokeRendering.blurSigma(size: size, hardness: hardness) > 0;
+    if (soft && magnified) {
+      StrokeRendering.drawAtDocumentResolution(
+        canvas,
+        points,
+        paint,
+        size: size,
+        hardness: hardness,
+        visible: visible,
       );
     } else {
-      final path = _createSmoothPath(points);
-      canvas.drawPath(path, paint);
+      StrokeRendering.draw(
+        canvas,
+        points,
+        paint,
+        size: size,
+        hardness: hardness,
+      );
     }
-  }
-
-  Path _createSmoothPath(List<Offset> points) {
-    final path = Path();
-    if (points.isEmpty) return path;
-
-    path.moveTo(points.first.dx, points.first.dy);
-
-    if (points.length == 2) {
-      path.lineTo(points.last.dx, points.last.dy);
-    } else {
-      for (int i = 1; i < points.length - 1; i++) {
-        final p0 = points[i];
-        final p1 = points[i + 1];
-        final midX = (p0.dx + p1.dx) / 2;
-        final midY = (p0.dy + p1.dy) / 2;
-        path.quadraticBezierTo(p0.dx, p0.dy, midX, midY);
-      }
-      path.lineTo(points.last.dx, points.last.dy);
-    }
-
-    return path;
   }
 
   @override

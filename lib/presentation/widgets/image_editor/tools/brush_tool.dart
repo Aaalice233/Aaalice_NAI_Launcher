@@ -227,23 +227,29 @@ class BrushTool extends EditorTool {
     }
   }
 
+  /// 当前图层上由 [points] 构成的一笔，提交与涂抹中的蒙版显示共用
+  StrokeData strokeFor(EditorState state, List<Offset> points) {
+    final style = strokeStyleFor(state);
+    return StrokeData(
+      points: List.of(points),
+      size: style.size,
+      color: style.color,
+      opacity: style.opacity,
+      hardness: style.hardness,
+      isEraser: false,
+    );
+  }
+
   /// 提交当前笔画（抽取公共逻辑，供 onPointerDown 和 onPointerUp 调用）
   void _commitCurrentStroke(EditorState state) {
     final activeLayer = state.layerManager.activeLayer;
     if (activeLayer != null && !activeLayer.locked) {
-      final style = strokeStyleFor(state);
-      final stroke = StrokeData(
-        points: List.from(state.currentStrokePoints),
-        size: style.size,
-        color: style.color,
-        opacity: style.opacity,
-        hardness: style.hardness,
-        isEraser: false,
-      );
-
       // 执行添加笔画操作
       state.historyManager.execute(
-        AddStrokeAction(layerId: activeLayer.id, stroke: stroke),
+        AddStrokeAction(
+          layerId: activeLayer.id,
+          stroke: strokeFor(state, state.currentStrokePoints),
+        ),
         state,
       );
     }
