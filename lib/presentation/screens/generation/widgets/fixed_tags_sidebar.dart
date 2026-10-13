@@ -1162,6 +1162,7 @@ class _FixedTagsSidebarState extends ConsumerState<FixedTagsSidebar> {
           position: result.position,
           enabled: result.enabled,
           promptType: result.promptType,
+          sourceEntryId: result.sourceEntryId,
           categoryId: result.categoryId,
         );
   }

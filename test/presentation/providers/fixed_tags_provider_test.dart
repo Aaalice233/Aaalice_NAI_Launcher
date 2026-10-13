@@ -7,6 +7,9 @@ import 'package:nai_launcher/data/models/fixed_tag/fixed_tag_link.dart';
 import 'package:nai_launcher/data/models/fixed_tag/fixed_tag_prompt_type.dart';
 import 'package:nai_launcher/data/models/tag_library/tag_library_entry.dart';
 import 'package:nai_launcher/presentation/providers/fixed_tags_provider.dart';
+import 'package:nai_launcher/presentation/providers/tag_library_page_provider.dart';
+
+import '../../helpers/memory_local_storage.dart';
 
 void main() {
   group('FixedTagsState prompt type filtering', () {
@@ -194,6 +197,142 @@ void main() {
       await notifier.addEntry(name: 'two', content: 'same');
 
       expect(container.read(fixedTagsNotifierProvider).entries, hasLength(2));
+    });
+  });
+
+  group('FixedTagsNotifier.updateEntry 同步到词库', () {
+    Future<
+      ({ProviderContainer container, String libraryId, FixedTagEntry fixed})
+    >
+    linkedPair() async {
+      final container = ProviderContainer(
+        overrides: [
+          localStorageServiceProvider.overrideWithValue(MemoryLocalStorage()),
+        ],
+      );
+      addTearDown(container.dispose);
+      final library = await container
+          .read(tagLibraryPageNotifierProvider.notifier)
+          .addEntry(name: '画风', content: 'watercolor', categoryId: 'style');
+      final fixed = await container
+          .read(fixedTagsNotifierProvider.notifier)
+          .addEntry(
+            name: '画风',
+            content: 'watercolor',
+            sourceEntryId: library.id,
+            categoryId: 'style',
+          );
+      return (container: container, libraryId: library.id, fixed: fixed);
+    }
+
+    TagLibraryEntry libraryEntry(ProviderContainer container, String id) =>
+        container
+            .read(tagLibraryPageNotifierProvider)
+            .entries
+            .singleWhere((e) => e.id == id);
+
+    test('改了分类时词库条目跟着换分类', () async {
+      final (:container, :libraryId, :fixed) = await linkedPair();
+
+      await container
+          .read(fixedTagsNotifierProvider.notifier)
+          .updateEntry(fixed.copyWith(categoryId: 'artist'));
+
+      expect(libraryEntry(container, libraryId).categoryId, 'artist');
+    });
+
+    test('只改内容时不动词库条目的分类', () async {
+      final (:container, :libraryId, :fixed) = await linkedPair();
+
+      await container
+          .read(fixedTagsNotifierProvider.notifier)
+          .updateEntry(fixed.update(content: 'oil painting'));
+
+      final entry = libraryEntry(container, libraryId);
+      expect(entry.content, 'oil painting');
+      expect(entry.categoryId, 'style');
+    });
+  });
+
+  group('FixedTagsNotifier.syncFromTagLibrary', () {
+    test('按修改前的内容收养未关联的手动固定词并补写 sourceEntryId', () async {
+      final storage = _MockLocalStorageService();
+      when(storage.getFixedTagsJson).thenReturn(null);
+      when(storage.getFixedTagLinksJson).thenReturn(null);
+      when(storage.getFixedTagsNegativePanelExpanded).thenReturn(true);
+      when(() => storage.setFixedTagsJson(any())).thenAnswer((_) async {});
+      final container = ProviderContainer(
+        overrides: [localStorageServiceProvider.overrideWithValue(storage)],
+      );
+      addTearDown(container.dispose);
+      final notifier = container.read(fixedTagsNotifierProvider.notifier);
+
+      // 手动敲进去的固定词：没有 sourceEntryId，内容与词库条目当前一致
+      final manual = await notifier.addEntry(
+        name: '手动固定词',
+        content: ' masterpiece ',
+      );
+      // 内容不同的另一条，不应被牵连
+      final unrelated = await notifier.addEntry(
+        name: '无关',
+        content: 'best quality',
+      );
+
+      await notifier.syncFromTagLibrary(
+        TagLibraryEntry(
+          id: 'library-1',
+          name: '改名后的词条',
+          content: 'masterpiece, ultra detailed',
+          categoryId: 'lib-category',
+          createdAt: DateTime(2026),
+          updatedAt: DateTime(2026),
+        ),
+        previousContent: 'masterpiece',
+      );
+
+      final entries = container.read(fixedTagsNotifierProvider).entries;
+      final adopted = entries.firstWhere((e) => e.id == manual.id);
+      expect(adopted.sourceEntryId, 'library-1');
+      expect(adopted.name, '改名后的词条');
+      expect(adopted.content, 'masterpiece, ultra detailed');
+      expect(adopted.categoryId, 'lib-category');
+
+      final untouched = entries.firstWhere((e) => e.id == unrelated.id);
+      expect(untouched.sourceEntryId, isNull);
+      expect(untouched.content, 'best quality');
+    });
+
+    test('不传 previousContent 时只同步 sourceEntryId 匹配的固定词', () async {
+      final storage = _MockLocalStorageService();
+      when(storage.getFixedTagsJson).thenReturn(null);
+      when(storage.getFixedTagLinksJson).thenReturn(null);
+      when(storage.getFixedTagsNegativePanelExpanded).thenReturn(true);
+      when(() => storage.setFixedTagsJson(any())).thenAnswer((_) async {});
+      final container = ProviderContainer(
+        overrides: [localStorageServiceProvider.overrideWithValue(storage)],
+      );
+      addTearDown(container.dispose);
+      final notifier = container.read(fixedTagsNotifierProvider.notifier);
+
+      final manual = await notifier.addEntry(
+        name: '手动固定词',
+        content: 'masterpiece',
+      );
+
+      await notifier.syncFromTagLibrary(
+        TagLibraryEntry(
+          id: 'library-1',
+          name: '改名后的词条',
+          content: 'masterpiece, ultra detailed',
+          createdAt: DateTime(2026),
+          updatedAt: DateTime(2026),
+        ),
+      );
+
+      final entries = container.read(fixedTagsNotifierProvider).entries;
+      final untouched = entries.firstWhere((e) => e.id == manual.id);
+      expect(untouched.sourceEntryId, isNull);
+      expect(untouched.content, 'masterpiece');
     });
   });
 

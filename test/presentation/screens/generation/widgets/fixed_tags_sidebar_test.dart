@@ -24,6 +24,7 @@ import 'package:nai_launcher/presentation/agent_chat/widgets/agent_resource_drop
 import 'package:nai_launcher/presentation/prompt_assistant/widgets/prompt_assistant_overlay.dart';
 import 'package:nai_launcher/presentation/providers/fixed_tags_provider.dart';
 import 'package:nai_launcher/presentation/providers/layout_state_provider.dart';
+import 'package:nai_launcher/presentation/providers/tag_library_page_provider.dart';
 import 'package:nai_launcher/presentation/screens/generation/widgets/fixed_tags_sidebar.dart';
 import 'package:nai_launcher/presentation/screens/generation/widgets/sidebar_entry_tile.dart';
 import 'package:nai_launcher/presentation/screens/generation/widgets/sidebar_link_painter.dart';
@@ -597,6 +598,63 @@ void main() {
       expect(tester.takeException(), isNull);
     },
   );
+
+  testWidgets('管理对话框新建固定词保留所选分类，并与同时保存的词库条目关联', (tester) async {
+    tester.view.physicalSize = const Size(1600, 1200);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final category = TagLibraryCategory.create(name: '画风');
+    final storage = _SidebarTestStorage(
+      fixedEntries: const [],
+      categories: [category],
+      libraryEntries: const [],
+    );
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [localStorageServiceProvider.overrideWith((ref) => storage)],
+        child: const MaterialApp(
+          locale: Locale('zh'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(body: FixedTagsDialog()),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    final container = ProviderScope.containerOf(
+      tester.element(find.byType(FixedTagsDialog)),
+    );
+
+    await tester.tap(find.text('新建').first);
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.descendant(
+        of: find.byKey(const ValueKey('fixed-tag-content-input')),
+        matching: find.byType(EditableText),
+      ),
+      'watercolor',
+    );
+    await tester.tap(find.byType(DropdownButtonFormField<String?>));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('画风').last);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('同时保存到词库'));
+    await tester.pump();
+    await tester.tap(find.text('保存'));
+    await tester.pumpAndSettle();
+
+    final libraryEntry = container
+        .read(tagLibraryPageNotifierProvider)
+        .entries
+        .single;
+    final fixedEntry = container.read(fixedTagsNotifierProvider).entries.single;
+    expect(fixedEntry.content, 'watercolor');
+    expect(fixedEntry.categoryId, category.id);
+    expect(libraryEntry.categoryId, category.id);
+    expect(fixedEntry.sourceEntryId, libraryEntry.id);
+  });
 
   testWidgets('desktop fixed-tag editor keeps binary selectors horizontal', (
     tester,
