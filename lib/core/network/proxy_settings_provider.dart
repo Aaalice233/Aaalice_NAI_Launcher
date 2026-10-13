@@ -3,10 +3,21 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../constants/storage_keys.dart';
 import 'proxy_service.dart';
+import '../platform/platform_capabilities.dart';
 import '../storage/local_storage_service.dart';
 import '../../data/models/settings/proxy_settings.dart';
 
 part 'proxy_settings_provider.g.dart';
+
+/// 把存储里的代理模式解析成当前平台真正可用的模式。
+///
+/// [ProxyService.getSystemProxyAddress] 只实现了 Windows / macOS / Linux，
+/// 移动端的 auto 永远拿不到地址，所以移动端一律按 manual 解析。只在读取时
+/// 折算、不回写存储，同一份设置同步到桌面端时用户原来的选择仍然有效。
+ProxyMode resolveProxyMode(
+  ProxyMode storedMode,
+  PlatformCapabilities capabilities,
+) => capabilities.isMobile ? ProxyMode.manual : storedMode;
 
 /// 代理设置状态 Notifier
 @riverpod
@@ -31,7 +42,7 @@ class ProxySettingsNotifier extends _$ProxySettingsNotifier {
 
     return ProxySettings(
       enabled: enabled,
-      mode: mode,
+      mode: resolveProxyMode(mode, PlatformCapabilities.current),
       manualHost: manualHost,
       manualPort: manualPort,
     );
