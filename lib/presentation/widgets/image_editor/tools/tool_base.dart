@@ -4,6 +4,17 @@ import 'package:flutter/services.dart';
 import '../core/editor_state.dart';
 import '../layers/layer_role.dart';
 
+/// 同组内同族的工具在工具栏里收进一个按钮
+enum EditorToolFamily {
+  /// 点一下作用于一片连续区域
+  region,
+
+  /// 局部修饰图片
+  retouch,
+
+  selection,
+}
+
 /// 工具基类
 /// 所有编辑器工具的抽象基类
 abstract class EditorTool {
@@ -39,6 +50,12 @@ abstract class EditorTool {
 
   /// 行为随图层角色改变：重绘会话里蒙版与图片各有一个入口，点入口会切到对应图层
   bool get followsLayerRole => false;
+
+  /// 为空时单独占一个按钮
+  EditorToolFamily? get family => null;
+
+  /// 不改图层、只服务于重绘的工具；重绘会话里归入重绘组而不是通用组
+  bool get belongsToInpaintGroup => false;
 
   /// 会话与当前图层都允许时才可用；不可用时不响应快捷键
   bool isAvailableIn(EditorState state) =>

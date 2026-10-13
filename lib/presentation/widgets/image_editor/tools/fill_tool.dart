@@ -28,6 +28,9 @@ class FillTool extends EditorTool {
   bool get followsLayerRole => true;
 
   @override
+  EditorToolFamily get family => EditorToolFamily.region;
+
+  @override
   String get name => 'Fill';
 
   @override

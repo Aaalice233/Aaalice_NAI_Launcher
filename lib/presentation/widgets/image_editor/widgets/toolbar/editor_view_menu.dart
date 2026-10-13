@@ -10,6 +10,8 @@ extension EditorViewActionLabels on EditorViewAction {
   String label(BuildContext context) {
     final l10n = context.l10n;
     return switch (this) {
+      EditorViewAction.zoomIn => l10n.editor_zoomIn,
+      EditorViewAction.zoomOut => l10n.editor_zoomOut,
       EditorViewAction.fitToWindow => l10n.editor_fitToWindow,
       EditorViewAction.actualSize => l10n.editor_shortcut100Zoom,
       EditorViewAction.fitWidth => l10n.editor_shortcutFitWidth,

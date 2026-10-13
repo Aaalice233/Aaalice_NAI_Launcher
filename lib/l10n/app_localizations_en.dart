@@ -13036,6 +13036,13 @@ class AppLocalizationsEn extends AppLocalizations {
   String get editor_toolGroupCommon => 'General';
 
   @override
+  String get editor_toolbarFlyoutExpand => 'Show related tools';
+
+  @override
+  String get editor_toolbarFlyoutHint =>
+      'Hover, right-click or long-press for related tools';
+
+  @override
   String get editor_toolMaskBrush => 'Mask Brush';
 
   @override

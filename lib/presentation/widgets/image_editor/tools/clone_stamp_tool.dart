@@ -76,6 +76,9 @@ class CloneStampTool extends EditorTool {
   bool get followsLayerRole => true;
 
   @override
+  EditorToolFamily get family => EditorToolFamily.retouch;
+
+  @override
   String get name => 'Clone Stamp';
 
   @override

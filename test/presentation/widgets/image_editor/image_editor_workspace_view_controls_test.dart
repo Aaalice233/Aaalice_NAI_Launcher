@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -29,13 +30,15 @@ const _touchPolicy = InteractionPolicy(
 
 const _rotationStep = math.pi / 12;
 
-const _desktopButtonActions = {
-  EditorViewAction.fitToWindow,
+const _desktopButtonActions = {EditorViewAction.fitToWindow};
+
+/// 桌面工具栏底部收进「视图方向」折叠按钮的动作
+const _desktopFlyoutActions = [
   EditorViewAction.rotateLeft,
   EditorViewAction.rotateRight,
   EditorViewAction.mirror,
   EditorViewAction.resetView,
-};
+];
 
 void main() {
   final scenarios = <({Size size, double textScale, InteractionPolicy policy})>[
@@ -49,8 +52,8 @@ void main() {
     ])
       for (final textScale in const [1.0, 3.0])
         (size: size, textScale: textScale, policy: _pointerPolicy),
-    // 桌面布局的最矮窗口：视图按钮不再固定在底部，随工具列一起滚动
-    (size: const Size(1180, 500), textScale: 1.0, policy: _pointerPolicy),
+    // 桌面布局的最矮窗口配触屏尺寸
+    (size: const Size(1180, 480), textScale: 1.0, policy: _touchPolicy),
     (size: const Size(1180, 760), textScale: 1.0, policy: _touchPolicy),
     (size: const Size(320, 720), textScale: 1.0, policy: _touchPolicy),
   ];
@@ -69,7 +72,7 @@ void main() {
       );
       expect(tester.takeException(), isNull);
 
-      final driver = _ViewControlDriver(tester);
+      final driver = _ViewControlDriver(tester, touch: touch);
       await driver.expectAllEntriesReachable(
         scenario.policy.minimumControlExtent,
       );
@@ -109,7 +112,8 @@ void main() {
           (size: Size(840, 760), policy: _pointerPolicy, pinned: true),
           (size: Size(1600, 900), policy: _pointerPolicy, pinned: true),
           (size: Size(1180, 760), policy: _touchPolicy, pinned: true),
-          (size: Size(1180, 500), policy: _pointerPolicy, pinned: false),
+          (size: Size(1180, 500), policy: _pointerPolicy, pinned: true),
+          (size: Size(1180, 480), policy: _touchPolicy, pinned: true),
         ]) {
       await pumpEditorWorkspace(
         tester,
@@ -119,21 +123,25 @@ void main() {
       final reason = '${scenario.size} touch=${scenario.policy.touchAvailable}';
       expect(find.byType(DesktopToolbar), findsOneWidget, reason: reason);
 
-      for (final action in _desktopButtonActions) {
+      for (final (name, control) in [
+        for (final action in _desktopButtonActions)
+          (action.name, _desktopButton(action)),
+        ('orientation', _orientationSlot),
+      ]) {
         final scrolled = find.ancestor(
-          of: _desktopButton(action),
+          of: control,
           matching: find.byType(SingleChildScrollView),
         );
         expect(
           scrolled,
           scenario.pinned ? findsNothing : findsOneWidget,
-          reason: '$action $reason',
+          reason: '$name $reason',
         );
         if (scenario.pinned) {
           expect(
-            _desktopButton(action).hitTestable(),
+            control.hitTestable(),
             findsOneWidget,
-            reason: '固定时无需滚动即可点到 $action $reason',
+            reason: '固定时无需滚动即可点到 $name $reason',
           );
         }
       }
@@ -271,6 +279,13 @@ Finder _menuItem(EditorViewAction action) =>
 Finder _desktopButton(EditorViewAction action) =>
     find.byKey(ValueKey('editor-view-button-${action.name}'));
 
+final _orientationSlot = find.byKey(
+  const ValueKey('editor-view-slot-orientation'),
+);
+
+Finder _flyoutItem(EditorViewAction action) =>
+    find.byKey(ValueKey('editor-view-flyout-${action.name}'));
+
 double _fitScale(double available, double extent) {
   expect(available, greaterThan(0), reason: '视口要能容纳适应后的画布');
   return (available / extent)
@@ -294,13 +309,16 @@ double _expectedFitHeight(EditorState state) => _fitScale(
 double _expectedFitToWindow(EditorState state) =>
     math.min(_expectedFitWidth(state), _expectedFitHeight(state));
 
-/// 按当前布局选择入口：桌面工具栏按钮优先，其余经缩放菜单或溢出菜单
+/// 按当前布局选择入口：桌面工具栏按钮与视图方向二级菜单优先，其余经缩放菜单或溢出菜单
 class _ViewControlDriver {
-  _ViewControlDriver(this.tester)
+  _ViewControlDriver(this.tester, {required this.touch})
     : desktop = find.byType(DesktopToolbar).evaluate().isNotEmpty;
 
   final WidgetTester tester;
   final bool desktop;
+
+  /// 触屏长按展开二级菜单，鼠标用右键
+  final bool touch;
 
   Finder get _menuButton => desktop
       ? find.byKey(const ValueKey('editor-view-zoom-menu'))
@@ -325,23 +343,53 @@ class _ViewControlDriver {
     await tester.pumpAndSettle();
   }
 
+  Future<void> _openOrientationFlyout() async {
+    await _reveal(_orientationSlot);
+    if (touch) {
+      await tester.longPress(_orientationSlot);
+    } else {
+      await tester.tap(
+        _orientationSlot,
+        buttons: kSecondaryMouseButton,
+        kind: PointerDeviceKind.mouse,
+      );
+    }
+    await tester.pumpAndSettle();
+  }
+
+  /// 二级菜单不是模态的，点工具栏底部留白收起，避免点到编辑器顶栏的按钮
+  Future<void> _closeOrientationFlyout() async {
+    await tester.tapAt(
+      tester.getBottomLeft(find.byType(DesktopToolbar)) + const Offset(2, -2),
+    );
+    await tester.pumpAndSettle();
+    expect(_flyoutItem(_desktopFlyoutActions.first), findsNothing);
+  }
+
   Future<void> expectAllEntriesReachable(double minimumExtent) async {
     if (desktop) {
-      for (final action in _desktopButtonActions) {
-        final button = _desktopButton(action);
-        await _reveal(button);
-        final size = tester.getSize(button);
+      for (final (name, control) in [
+        for (final action in _desktopButtonActions)
+          (action.name, _desktopButton(action)),
+        ('orientation', _orientationSlot),
+      ]) {
+        await _reveal(control);
+        final size = tester.getSize(control);
+        expect(size.width, greaterThanOrEqualTo(minimumExtent), reason: name);
+        expect(size.height, greaterThanOrEqualTo(minimumExtent), reason: name);
+      }
+
+      await _openOrientationFlyout();
+      for (final action in _desktopFlyoutActions) {
+        final item = _flyoutItem(action);
+        expect(item.hitTestable(), findsOneWidget, reason: '$action');
         expect(
-          size.width,
-          greaterThanOrEqualTo(minimumExtent),
-          reason: '$action',
-        );
-        expect(
-          size.height,
+          tester.getSize(item).height,
           greaterThanOrEqualTo(minimumExtent),
           reason: '$action',
         );
       }
+      await _closeOrientationFlyout();
     }
 
     await _openMenu();
@@ -364,6 +412,9 @@ class _ViewControlDriver {
       final button = _desktopButton(action);
       await _reveal(button);
       await tester.tap(button);
+    } else if (desktop && _desktopFlyoutActions.contains(action)) {
+      await _openOrientationFlyout();
+      await tester.tap(_flyoutItem(action));
     } else {
       await _openMenu();
       final item = _menuItem(action);
@@ -376,6 +427,12 @@ class _ViewControlDriver {
   Future<void> expectActionsChangeView() async {
     final state = _editorState(tester);
     final controller = _controller;
+
+    final initialScale = controller.scale;
+    await perform(EditorViewAction.zoomIn);
+    expect(controller.scale, closeTo(initialScale * 1.25, 1e-9));
+    await perform(EditorViewAction.zoomOut);
+    expect(controller.scale, closeTo(initialScale, 1e-9));
 
     await perform(EditorViewAction.rotateRight);
     expect(controller.rotation, closeTo(_rotationStep, 1e-9));

@@ -32,7 +32,8 @@ void main() {
     final state = session.editorState;
     final workspace = key.currentState!;
     final mask = state.layerManager.activeLayer!;
-    final blurButton = find.byTooltip(RegExp(r'^Blur'));
+    // 模糊收在编辑组的修饰族折叠按钮里，没有单独的提示可找
+    final blurButton = find.byKey(const ValueKey('editor-tool-edit:blur'));
     expect(blurButton, findsNothing);
 
     state.layerCommands.addLayer(name: 'Image');

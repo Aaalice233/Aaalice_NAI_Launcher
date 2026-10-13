@@ -28,12 +28,39 @@ class EditorToolEntry {
   String get key => '${group.name}:${tool.id}';
 }
 
+/// 工具栏上的一个按钮；同组同族的入口折叠在一起，多于一个时可展开
 @immutable
-class EditorToolSection {
-  const EditorToolSection({required this.group, required this.entries});
+class EditorToolSlot {
+  const EditorToolSlot({required this.group, required this.entries})
+    : assert(entries.length > 0);
 
   final EditorToolGroup group;
   final List<EditorToolEntry> entries;
+
+  EditorToolFamily? get family => entries.first.tool.family;
+
+  bool get isFolded => entries.length > 1;
+
+  /// 折叠按钮的身份不随显示的工具变化
+  String get key {
+    final family = this.family;
+    return isFolded ? editorToolSlotKey(group, family!) : entries.single.key;
+  }
+}
+
+String editorToolSlotKey(EditorToolGroup group, EditorToolFamily family) =>
+    '${group.name}:family:${family.name}';
+
+@immutable
+class EditorToolSection {
+  const EditorToolSection({required this.group, required this.slots});
+
+  final EditorToolGroup group;
+  final List<EditorToolSlot> slots;
+
+  List<EditorToolEntry> get entries => [
+    for (final slot in slots) ...slot.entries,
+  ];
 }
 
 /// 编辑会话的图层没有角色，随角色变化的工具只归入编辑组，也不分出重绘组；
@@ -56,19 +83,16 @@ List<EditorToolSection> editorToolSections(EditorState state) {
   for (final tool in state.tools) {
     if (!tool.isEnabledInSession(state)) continue;
     if (!tool.followsLayerRole) {
-      add(EditorToolGroup.common, tool, null);
+      add(_sharedToolGroup(tool, rolesEnabled: rolesEnabled), tool, null);
     } else if (!rolesEnabled) {
       if (tool.supportsRole(LayerRole.image)) {
         add(EditorToolGroup.edit, tool, null);
       }
     } else {
-      if (tool.supportsRole(LayerRole.mask) &&
-          presentRoles.contains(LayerRole.mask)) {
-        add(EditorToolGroup.inpaint, tool, LayerRole.mask);
-      }
-      if (tool.supportsRole(LayerRole.image) &&
-          presentRoles.contains(LayerRole.image)) {
-        add(EditorToolGroup.edit, tool, LayerRole.image);
+      for (final role in const [LayerRole.mask, LayerRole.image]) {
+        if (tool.supportsRole(role) && presentRoles.contains(role)) {
+          add(_roleGroup(role), tool, role);
+        }
       }
     }
   }
@@ -76,8 +100,80 @@ List<EditorToolSection> editorToolSections(EditorState state) {
   return [
     for (final group in EditorToolGroup.values)
       if (entriesByGroup[group]!.isNotEmpty)
-        EditorToolSection(group: group, entries: entriesByGroup[group]!),
+        EditorToolSection(
+          group: group,
+          slots: _foldIntoSlots(group, entriesByGroup[group]!),
+        ),
   ];
+}
+
+EditorToolGroup _roleGroup(LayerRole role) => switch (role) {
+  LayerRole.mask => EditorToolGroup.inpaint,
+  LayerRole.image => EditorToolGroup.edit,
+};
+
+EditorToolGroup _sharedToolGroup(
+  EditorTool tool, {
+  required bool rolesEnabled,
+}) {
+  return rolesEnabled && tool.belongsToInpaintGroup
+      ? EditorToolGroup.inpaint
+      : EditorToolGroup.common;
+}
+
+// 重绘组是主任务，蒙版工具都要一键可达，不折叠
+bool _foldsFamilies(EditorToolGroup group) => group != EditorToolGroup.inpaint;
+
+/// 族里第一个工具的位置决定折叠按钮的位置
+List<EditorToolSlot> _foldIntoSlots(
+  EditorToolGroup group,
+  List<EditorToolEntry> entries,
+) {
+  final folds = _foldsFamilies(group);
+  final membersByKey = <Object, List<EditorToolEntry>>{};
+  for (final entry in entries) {
+    final family = folds ? entry.tool.family : null;
+    (membersByKey[family ?? entry] ??= []).add(entry);
+  }
+  return [
+    for (final members in membersByKey.values)
+      EditorToolSlot(group: group, entries: List.unmodifiable(members)),
+  ];
+}
+
+/// 当前工具此刻落在哪一组；与 [editorToolSections] 的归组规则一致
+EditorToolGroup editorToolGroupOf(EditorState state, EditorTool tool) {
+  final rolesEnabled = state.rolePolicy.rolesEnabled;
+  if (!tool.followsLayerRole) {
+    return _sharedToolGroup(tool, rolesEnabled: rolesEnabled);
+  }
+  return rolesEnabled
+      ? _roleGroup(state.activeLayerRole)
+      : EditorToolGroup.edit;
+}
+
+/// 快捷键、图层切换等任何途径选中折叠工具，都让它成为该按钮之后显示的工具
+void rememberSelectedToolSlot(EditorState state) {
+  final tool = state.currentTool;
+  final family = tool?.family;
+  if (tool == null || family == null) return;
+  final group = editorToolGroupOf(state, tool);
+  if (!_foldsFamilies(group)) return;
+  state.toolbarSlotMemory.remember(editorToolSlotKey(group, family), tool.id);
+}
+
+EditorToolEntry displayedEntryOf(EditorState state, EditorToolSlot slot) {
+  final entries = slot.entries;
+  if (!slot.isFolded) return entries.single;
+  final selected = entries.indexWhere(
+    (entry) => isEditorToolEntrySelected(state, entry),
+  );
+  final index = state.toolbarSlotMemory.displayedIndex(
+    slot.key,
+    [for (final entry in entries) entry.tool.id],
+    selectedIndex: selected < 0 ? null : selected,
+  );
+  return entries[index];
 }
 
 /// 只有重绘会话需要组标题区分改蒙版还是改图片

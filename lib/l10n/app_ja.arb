@@ -6377,6 +6377,8 @@
   "editor_toolGroupInpaint": "インペイント",
   "editor_toolGroupEdit": "編集",
   "editor_toolGroupCommon": "共通",
+  "editor_toolbarFlyoutExpand": "同じグループのツールを表示",
+  "editor_toolbarFlyoutHint": "ホバー、右クリック、長押しで同じグループのツールを表示",
   "editor_toolMaskBrush": "マスクブラシ",
   "editor_toolMaskEraser": "マスク消しゴム",
   "editor_toolMaskColorFill": "色でマスクを塗りつぶし",

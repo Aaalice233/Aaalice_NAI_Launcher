@@ -12706,6 +12706,12 @@ class AppLocalizationsJa extends AppLocalizations {
   String get editor_toolGroupCommon => '共通';
 
   @override
+  String get editor_toolbarFlyoutExpand => '同じグループのツールを表示';
+
+  @override
+  String get editor_toolbarFlyoutHint => 'ホバー、右クリック、長押しで同じグループのツールを表示';
+
+  @override
   String get editor_toolMaskBrush => 'マスクブラシ';
 
   @override

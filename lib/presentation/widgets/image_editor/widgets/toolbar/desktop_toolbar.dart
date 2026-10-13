@@ -8,8 +8,12 @@ import '../../core/editor_view_action.dart';
 import '../../tools/tool_base.dart';
 import '../../../../widgets/common/themed_divider.dart';
 import 'editor_tool_group_section.dart';
+import 'editor_toolbar_flyout.dart';
 import 'editor_toolbar_tools.dart';
 import 'editor_view_menu.dart';
+
+// 相邻按钮间只留 2px：1080p 最大化窗口里重绘会话的整列按钮才能不滚动
+const double _buttonSpacing = 1;
 
 /// 桌面端垂直工具栏
 class DesktopToolbar extends StatelessWidget {
@@ -147,19 +151,51 @@ class _ToolSections extends StatelessWidget {
                 ? editorToolGroupLabel(context, section.group)
                 : null,
             children: [
-              for (final entry in section.entries)
-                _ToolButton(
-                  key: ValueKey('editor-tool-${entry.key}'),
-                  tool: entry.tool,
-                  label: editorToolLabel(context, entry.tool, entry.targetRole),
-                  isSelected: isEditorToolEntrySelected(state, entry),
+              for (final slot in section.slots)
+                _ToolSlot(
+                  key: ValueKey('editor-tool-slot-${slot.key}'),
+                  state: state,
+                  slot: slot,
                   minimumExtent: minimumExtent,
-                  onTap: () => activateEditorToolEntry(state, entry),
                 ),
             ],
           ),
         ],
       ],
+    );
+  }
+}
+
+/// 折叠按钮显示该族当前或最近用过的工具，其余同族工具从侧边二级菜单进入
+class _ToolSlot extends StatelessWidget {
+  const _ToolSlot({
+    super.key,
+    required this.state,
+    required this.slot,
+    required this.minimumExtent,
+  });
+
+  final EditorState state;
+  final EditorToolSlot slot;
+  final double minimumExtent;
+
+  @override
+  Widget build(BuildContext context) {
+    final entry = displayedEntryOf(state, slot);
+    final button = _ToolButton(
+      key: ValueKey('editor-tool-${entry.key}'),
+      tool: entry.tool,
+      label: editorToolLabel(context, entry.tool, entry.targetRole),
+      isSelected: isEditorToolEntrySelected(state, entry),
+      minimumExtent: minimumExtent,
+      folded: slot.isFolded,
+      onTap: () => activateEditorToolEntry(state, entry),
+    );
+    if (!slot.isFolded) return button;
+    return EditorToolbarFlyout(
+      placement: EditorToolbarFlyoutPlacement.side,
+      items: editorToolSlotFlyoutItems(context, state, slot),
+      child: button,
     );
   }
 }
@@ -171,20 +207,10 @@ class _ViewControls extends StatelessWidget {
   final EditorState state;
   final double minimumExtent;
 
-  static const _orientationActions = [
-    EditorViewAction.fitToWindow,
-    EditorViewAction.rotateLeft,
-    EditorViewAction.rotateRight,
-    EditorViewAction.mirror,
-    EditorViewAction.resetView,
-  ];
-
   static const _dividerHeight = 16.0;
 
-  /// 放大、缩放比例、缩小
-  static const _zoomControlRows = 3;
-
-  static final int _rowCount = _zoomControlRows + _orientationActions.length;
+  /// 缩放比例、适应窗口与视图方向折叠按钮；放大缩小在缩放比例菜单里
+  static const _rowCount = 3;
 
   // 固定在底部后工具区至少还要露出四个按钮，否则整列一起滚动
   static const _minimumVisibleToolRows = 4;
@@ -197,34 +223,29 @@ class _ViewControls extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
-      listenable: state.canvasController,
+      listenable: Listenable.merge([
+        state.canvasController,
+        state.toolbarSlotMemory,
+      ]),
       builder: (context, _) {
-        final controller = state.canvasController;
         return Column(
           children: [
             const ThemedDivider(height: _dividerHeight),
-            _ActionButton(
-              minimumExtent: minimumExtent,
-              icon: Icons.zoom_in,
-              tooltip: context.l10n.editor_zoomIn,
-              onTap: () => controller.zoomIn(),
-            ),
             _ZoomMenuButton(state: state, minimumExtent: minimumExtent),
             _ActionButton(
-              minimumExtent: minimumExtent,
-              icon: Icons.zoom_out,
-              tooltip: context.l10n.editor_zoomOut,
-              onTap: () => controller.zoomOut(),
-            ),
-            for (final action in _orientationActions)
-              _ActionButton(
-                key: ValueKey('editor-view-button-${action.name}'),
-                minimumExtent: minimumExtent,
-                icon: action.icon,
-                tooltip: action.tooltip(context),
-                toggled: action.isToggle ? action.isActiveIn(controller) : null,
-                onTap: () => action.perform(state),
+              key: ValueKey(
+                'editor-view-button-${EditorViewAction.fitToWindow.name}',
               ),
+              minimumExtent: minimumExtent,
+              icon: EditorViewAction.fitToWindow.icon,
+              tooltip: EditorViewAction.fitToWindow.tooltip(context),
+              onTap: () => EditorViewAction.fitToWindow.perform(state),
+            ),
+            _OrientationSlot(
+              key: const ValueKey('editor-view-slot-orientation'),
+              state: state,
+              minimumExtent: minimumExtent,
+            ),
           ],
         );
       },
@@ -232,7 +253,66 @@ class _ViewControls extends StatelessWidget {
   }
 }
 
-/// 显示缩放比例；没有键盘时 100%、适应宽高、单独重置旋转都从这里进入
+/// 旋转、镜像与重置视图收进一个按钮，显示最近用过的那个
+class _OrientationSlot extends StatelessWidget {
+  const _OrientationSlot({
+    super.key,
+    required this.state,
+    required this.minimumExtent,
+  });
+
+  final EditorState state;
+  final double minimumExtent;
+
+  static const _actions = [
+    EditorViewAction.rotateLeft,
+    EditorViewAction.rotateRight,
+    EditorViewAction.mirror,
+    EditorViewAction.resetView,
+  ];
+
+  static const _slotKey = 'view:orientation';
+
+  void _perform(EditorViewAction action) {
+    state.toolbarSlotMemory.remember(_slotKey, action.name);
+    action.perform(state);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final controller = state.canvasController;
+    // 镜像是持续状态而不是当前动作，开着时不霸占按钮，旋转仍能一键重复
+    final displayed =
+        _actions[state.toolbarSlotMemory.displayedIndex(_slotKey, [
+          for (final action in _actions) action.name,
+        ])];
+    return EditorToolbarFlyout(
+      placement: EditorToolbarFlyoutPlacement.side,
+      items: [
+        for (final action in _actions)
+          EditorToolbarFlyoutItem(
+            key: ValueKey('editor-view-flyout-${action.name}'),
+            icon: action.icon,
+            label: action.label(context),
+            shortcutLabel: action.shortcutLabel,
+            selected: action.isActiveIn(controller),
+            onActivate: () => _perform(action),
+          ),
+      ],
+      child: _ActionButton(
+        key: ValueKey('editor-view-button-${displayed.name}'),
+        minimumExtent: minimumExtent,
+        icon: displayed.icon,
+        tooltip: displayed.tooltip(context),
+        toggled: displayed.isToggle ? displayed.isActiveIn(controller) : null,
+        folded: true,
+        onTap: () => _perform(displayed),
+      ),
+    );
+  }
+}
+
+/// 显示缩放比例；没有滚轮和键盘时放大缩小、100%、适应宽高、单独重置旋转都从这里进入
 class _ZoomMenuButton extends StatelessWidget {
   const _ZoomMenuButton({required this.state, required this.minimumExtent});
 
@@ -243,7 +323,7 @@ class _ZoomMenuButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: _ActionButton.spacing),
+      padding: const EdgeInsets.symmetric(vertical: _buttonSpacing),
       child: Material(
         type: MaterialType.transparency,
         borderRadius: BorderRadius.circular(8),
@@ -278,6 +358,9 @@ class _ToolButton extends StatelessWidget {
   final VoidCallback onTap;
   final double minimumExtent;
 
+  /// 同族还有其他工具，可展开二级菜单
+  final bool folded;
+
   const _ToolButton({
     super.key,
     required this.tool,
@@ -285,64 +368,59 @@ class _ToolButton extends StatelessWidget {
     required this.isSelected,
     required this.minimumExtent,
     required this.onTap,
+    this.folded = false,
   });
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final foreground = isSelected
+        ? theme.colorScheme.onPrimaryContainer
+        : theme.colorScheme.onSurface;
+    final message = _buildTooltipMessage(context);
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 2),
-      child: Tooltip(
-        message: _buildTooltipMessage(context),
-        child: Semantics(
-          button: true,
-          selected: isSelected,
-          child: Material(
-            color: isSelected
-                ? theme.colorScheme.primaryContainer
-                : Colors.transparent,
-            borderRadius: BorderRadius.circular(8),
-            child: InkWell(
-              onTap: onTap,
-              borderRadius: BorderRadius.circular(8),
-              child: Container(
-                width: minimumExtent,
-                height: minimumExtent,
-                alignment: Alignment.center,
-                child: Icon(
-                  tool.icon,
-                  size: 20,
-                  color: isSelected
-                      ? theme.colorScheme.onPrimaryContainer
-                      : theme.colorScheme.onSurface,
-                ),
-              ),
+    final button = Semantics(
+      button: true,
+      selected: isSelected,
+      // 折叠按钮的说明交给二级菜单，没有 Tooltip 提供读屏名称
+      label: folded ? message : null,
+      child: Material(
+        color: isSelected
+            ? theme.colorScheme.primaryContainer
+            : Colors.transparent,
+        borderRadius: BorderRadius.circular(8),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(8),
+          child: SizedBox.square(
+            dimension: minimumExtent,
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                Center(child: Icon(tool.icon, size: 20, color: foreground)),
+                if (folded) EditorToolbarFoldIndicator(color: foreground),
+              ],
             ),
           ),
         ),
       ),
     );
-  }
 
-  String _getShortcutLabel(EditorTool tool) {
-    final key = tool.shortcutKey;
-    if (key == null) return '';
-    final keyLabel = key.keyLabel;
-    return keyLabel.isNotEmpty ? keyLabel.toUpperCase() : '';
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: _buttonSpacing),
+      child: folded ? button : Tooltip(message: message, child: button),
+    );
   }
 
   String _buildTooltipMessage(BuildContext context) {
-    final shortcut = tool.shortcutKey != null
-        ? ' (${_getShortcutLabel(tool)})'
-        : '';
-    final base = '$label$shortcut';
+    final shortcut = editorToolShortcutLabel(tool);
+    final message = shortcut == null ? label : '$label ($shortcut)';
 
     if (tool.id == 'color_picker') {
-      return '$base\n${context.l10n.editor_tempColorPickerShortcut}';
+      return '$message\n${context.l10n.editor_tempColorPickerShortcut}';
     }
 
-    return base;
+    return message;
   }
 }
 
@@ -357,6 +435,9 @@ class _ActionButton extends StatelessWidget {
   /// 非空时按开关呈现，true 为选中
   final bool? toggled;
 
+  /// 收着同组的其他操作，可展开二级菜单
+  final bool folded;
+
   const _ActionButton({
     super.key,
     required this.icon,
@@ -365,11 +446,11 @@ class _ActionButton extends StatelessWidget {
     required this.minimumExtent,
     this.enabled = true,
     this.toggled,
+    this.folded = false,
   });
 
-  static const double spacing = 2;
-
-  static double rowExtent(double minimumExtent) => minimumExtent + spacing * 2;
+  static double rowExtent(double minimumExtent) =>
+      minimumExtent + _buttonSpacing * 2;
 
   @override
   Widget build(BuildContext context) {
@@ -381,30 +462,35 @@ class _ActionButton extends StatelessWidget {
         ? theme.colorScheme.onPrimaryContainer
         : theme.colorScheme.onSurface;
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: spacing),
-      child: Tooltip(
-        message: tooltip,
-        child: Semantics(
-          toggled: toggled,
-          child: Material(
-            color: selected
-                ? theme.colorScheme.primaryContainer
-                : Colors.transparent,
-            borderRadius: BorderRadius.circular(8),
-            child: InkWell(
-              onTap: enabled ? onTap : null,
-              borderRadius: BorderRadius.circular(8),
-              child: Container(
-                width: minimumExtent,
-                height: minimumExtent,
-                alignment: Alignment.center,
-                child: Icon(icon, size: 20, color: foreground),
-              ),
+    final button = Semantics(
+      toggled: toggled,
+      // 折叠按钮的说明交给二级菜单，没有 Tooltip 提供读屏名称
+      label: folded ? tooltip : null,
+      child: Material(
+        color: selected
+            ? theme.colorScheme.primaryContainer
+            : Colors.transparent,
+        borderRadius: BorderRadius.circular(8),
+        child: InkWell(
+          onTap: enabled ? onTap : null,
+          borderRadius: BorderRadius.circular(8),
+          child: SizedBox.square(
+            dimension: minimumExtent,
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                Center(child: Icon(icon, size: 20, color: foreground)),
+                if (folded) EditorToolbarFoldIndicator(color: foreground),
+              ],
             ),
           ),
         ),
       ),
+    );
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: _buttonSpacing),
+      child: folded ? button : Tooltip(message: tooltip, child: button),
     );
   }
 }
