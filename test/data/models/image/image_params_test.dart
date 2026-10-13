@@ -250,4 +250,42 @@ void main() {
       expect(updated.inpaintStrength, equals(0.35));
     });
   });
+
+  group('ImageParams advanced sampling options', () {
+    test('V3 shows SMEA except under DDIM', () {
+      const params = ImageParams(model: ImageModels.animeDiffusionV3);
+
+      expect(params.showsSmeaOptions, isTrue);
+      expect(params.hasAdvancedSamplingOptions, isTrue);
+      for (final sampler in const [Samplers.ddim, Samplers.ddimV3]) {
+        final ddim = params.copyWith(sampler: sampler);
+        expect(ddim.showsSmeaOptions, isFalse, reason: sampler);
+        expect(ddim.hasAdvancedSamplingOptions, isFalse, reason: sampler);
+      }
+    });
+
+    test('V4 and later always show the CFG Rescale row', () {
+      for (final model in const [
+        ImageModels.animeDiffusionV4Full,
+        ImageModels.animeDiffusionV45Full,
+        ImageModels.animeDiffusionV5Curated,
+        ImageModels.animeDiffusionV5FullMedium,
+      ]) {
+        final params = ImageParams(model: model);
+        expect(params.showsCfgRescaleOption, isTrue, reason: model);
+        expect(params.hasAdvancedSamplingOptions, isTrue, reason: model);
+      }
+    });
+
+    test('pre-V3 models have nothing to show', () {
+      for (final model in const [
+        ImageModels.furryDiffusion,
+        ImageModels.animeV2,
+        ImageModels.animeFull,
+      ]) {
+        final params = ImageParams(model: model);
+        expect(params.hasAdvancedSamplingOptions, isFalse, reason: model);
+      }
+    });
+  });
 }

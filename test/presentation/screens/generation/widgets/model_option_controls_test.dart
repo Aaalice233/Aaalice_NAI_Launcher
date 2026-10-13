@@ -239,6 +239,41 @@ void main() {
     expect(effortToggle, findsNothing);
   });
 
+  testWidgets('advanced sampling options render nothing without controls', (
+    tester,
+  ) async {
+    final advancedContent = find.descendant(
+      of: find.byType(AdvancedSamplingOptions),
+      matching: find.byType(Column),
+    );
+    final container = await pumpSections(
+      tester,
+      model: ImageModels.furryDiffusion,
+    );
+    expect(advancedContent, findsNothing);
+
+    final notifier = container.read(generationParamsNotifierProvider.notifier)
+      ..updateModel(ImageModels.animeDiffusionV3);
+    await tester.pump();
+    expect(advancedContent, findsOneWidget);
+    expect(
+      find.descendant(
+        of: find.byType(AdvancedSamplingOptions),
+        matching: find.text('SMEA'),
+      ),
+      findsWidgets,
+    );
+
+    notifier.updateSampler(Samplers.ddim);
+    await tester.pump();
+    expect(advancedContent, findsNothing);
+
+    notifier.updateModel(ImageModels.animeDiffusionV5FullMedium);
+    await tester.pump();
+    expect(advancedContent, findsOneWidget);
+    expect(cfgRescaleSlider(tester).onChanged, isNull);
+  });
+
   for (final width in [320.0, 600.0, 840.0]) {
     testWidgets('Medium stays fully reachable at ${width.toInt()}px, 3x text', (
       tester,
