@@ -210,6 +210,10 @@ class _MainShellState extends ConsumerState<MainShell> {
   @override
   Widget build(BuildContext context) {
     final currentIndex = widget.navigationShell.currentIndex;
+    // 同一次返回会通知根路由上所有 PopScope，面板已消费时不能再弹分支
+    final shellPanelOpen = ref.watch(
+      shellPanelProvider.select((panel) => panel != null),
+    );
 
     final contentStack = IndexedStack(
       index: currentIndex,
@@ -239,7 +243,9 @@ class _MainShellState extends ConsumerState<MainShell> {
           child: NavigatorPopHandler<void>(
             enabled: isActive,
             onPopWithResult: (_) {
-              if (isActive) branchNavigator.currentState?.maybePop();
+              if (isActive && !shellPanelOpen) {
+                branchNavigator.currentState?.maybePop();
+              }
             },
             child: branchContent,
           ),
