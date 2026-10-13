@@ -1,6 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:nai_launcher/l10n/app_localizations.dart';
+import 'package:nai_launcher/presentation/widgets/image_editor/core/editor_state.dart';
+import 'package:nai_launcher/presentation/widgets/image_editor/core/layer_role_policy.dart';
+import 'package:nai_launcher/presentation/widgets/image_editor/layers/layer_role.dart';
+import 'package:nai_launcher/presentation/widgets/image_editor/tools/eraser_tool.dart';
 import 'package:nai_launcher/presentation/widgets/image_editor/tools/tool_setting_rows.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../../helpers/text_layout_expectations.dart';
 import '../image_editor_workspace_harness.dart';
@@ -42,6 +48,46 @@ void main() {
       });
     }
   }
+
+  testWidgets('蒙版层上的橡皮擦不显示硬度，切回图片层恢复', (tester) async {
+    SharedPreferences.setMockInitialValues({});
+    final state = EditorState();
+    addTearDown(state.dispose);
+    final image = state.layerManager.addLayer(name: 'image');
+    final mask = state.layerManager.addLayer(
+      name: 'mask',
+      index: 0,
+      role: LayerRole.mask,
+    );
+    state.setRolePolicy(LayerRolePolicy.inpaint(protectedLayerId: image.id));
+    final eraser = state.tools.whereType<EraserTool>().single;
+    state.setTool(eraser);
+    state.layerManager.setActiveLayer(mask.id);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        locale: const Locale('en'),
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: Scaffold(
+          body: Builder(
+            builder: (context) => eraser.buildSettingsPanel(context, state),
+          ),
+        ),
+      ),
+    );
+    final hardness = find.descendant(
+      of: find.byType(ToolSettingRows),
+      matching: find.text('Hardness'),
+    );
+
+    expect(hardness, findsNothing);
+
+    state.layerManager.setActiveLayer(image.id);
+    await tester.pump();
+
+    expect(hardness, findsOneWidget);
+  });
 
   testWidgets('橡皮擦大小输入越界时回显钳制后的值', (tester) async {
     await pumpEditorWorkspace(

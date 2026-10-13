@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import '../../../../core/utils/localization_extension.dart';
 import '../core/editor_state.dart';
 import '../core/history_manager.dart';
+import '../core/mask_paint_style.dart';
 import 'color_picker_tool.dart';
 import 'tool_base.dart';
 import 'tool_setting_rows.dart';
@@ -45,6 +46,10 @@ class EraserTool extends EditorTool {
   void setHardness(double hardness) {
     _hardness = hardness.clamp(0.0, 1.0);
   }
+
+  /// 导出时残留的半透明像素仍算蒙版，软边擦不干净，蒙版层上固定硬边
+  double hardnessFor(EditorState state) =>
+      state.isMaskLayerActive ? MaskPaintStyle.hardness : _hardness;
 
   @override
   void onPointerDown(PointerDownEvent event, EditorState state) {
@@ -96,7 +101,7 @@ class EraserTool extends EditorTool {
         size: _size,
         color: Colors.transparent,
         opacity: 1.0,
-        hardness: _hardness,
+        hardness: hardnessFor(state),
         isEraser: true,
       );
 
@@ -122,21 +127,26 @@ class EraserTool extends EditorTool {
 
   @override
   Widget buildSettingsPanel(BuildContext context, EditorState state) {
-    return _EraserSettingsPanel(
-      tool: this,
-      onSettingsChanged: () {
-        state.requestUiUpdate();
-      },
+    // 切换图层时硬度一行随之显隐
+    return ValueListenableBuilder<String?>(
+      valueListenable: state.layerManager.activeLayerNotifier,
+      builder: (context, _, _) => _EraserSettingsPanel(
+        tool: this,
+        state: state,
+        onSettingsChanged: state.requestUiUpdate,
+      ),
     );
   }
 }
 
 class _EraserSettingsPanel extends StatefulWidget {
   final EraserTool tool;
+  final EditorState state;
   final VoidCallback onSettingsChanged;
 
   const _EraserSettingsPanel({
     required this.tool,
+    required this.state,
     required this.onSettingsChanged,
   });
 
@@ -198,20 +208,20 @@ class _EraserSettingsPanelState extends State<_EraserSettingsPanel> {
               },
             ),
 
-            // 硬度
-            ToolSettingRow.slider(
-              label: context.l10n.editor_hardness,
-              value: widget.tool.hardness * 100,
-              min: 0,
-              max: 100,
-              suffix: '%',
-              onChanged: (value) {
-                setState(() {
-                  widget.tool.setHardness(value / 100);
-                });
-                widget.onSettingsChanged();
-              },
-            ),
+            if (!widget.state.isMaskLayerActive)
+              ToolSettingRow.slider(
+                label: context.l10n.editor_hardness,
+                value: widget.tool.hardness * 100,
+                min: 0,
+                max: 100,
+                suffix: '%',
+                onChanged: (value) {
+                  setState(() {
+                    widget.tool.setHardness(value / 100);
+                  });
+                  widget.onSettingsChanged();
+                },
+              ),
           ],
         ),
       ],
