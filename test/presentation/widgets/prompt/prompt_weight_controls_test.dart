@@ -84,4 +84,35 @@ void main() {
     );
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets('weight readout drops trailing zeros', (tester) async {
+    Future<String> readout(double weight) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          supportedLocales: AppLocalizations.supportedLocales,
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          home: Scaffold(
+            body: PromptWeightControls(
+              weight: weight,
+              onWeight: (_) {},
+              onStep: (_) {},
+            ),
+          ),
+        ),
+      );
+      return tester
+          .widget<EditableText>(
+            find.descendant(
+              of: find.byKey(const ValueKey('prompt-weight-value')),
+              matching: find.byType(EditableText),
+            ),
+          )
+          .controller
+          .text;
+    }
+
+    expect(await readout(0.5), '0.5');
+    expect(await readout(1), '1');
+    expect(await readout(1.05), '1.05');
+  });
 }
