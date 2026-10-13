@@ -450,6 +450,47 @@ void main() {
     expect(_FakePromptTokenEncoder.callCount, greaterThan(initialCallCount));
   });
 
+  test('连续输入期间不重复计数，停顿后只算一次', () async {
+    _FakePromptTokenEncoder.callCount = 0;
+    final service = PromptTokenCounterService(
+      encoder: _FakePromptTokenEncoder(),
+    );
+    final container = ProviderContainer(
+      overrides: [
+        localStorageServiceProvider.overrideWith((ref) {
+          return _TestLocalStorageService();
+        }),
+        promptTokenCounterServiceProvider.overrideWith((ref) async => service),
+      ],
+    );
+    addTearDown(container.dispose);
+    final usage = promptTokenUsageProvider(PromptTokenCountTarget.positive);
+    container.listen(usage, (_, _) {});
+    final params = container.read(generationParamsNotifierProvider.notifier);
+
+    // updatePrompt 经 microtask 写入状态，先让出一次再读取计数结果
+    Future<void> settle() async {
+      await Future<void>.delayed(Duration.zero);
+      await container.read(usage.future);
+    }
+
+    await settle();
+    final beforeSingle = _FakePromptTokenEncoder.callCount;
+    params.updatePrompt('1girl, solo');
+    await settle();
+    final singleComputation = _FakePromptTokenEncoder.callCount - beforeSingle;
+    expect(singleComputation, greaterThan(0));
+
+    final beforeBurst = _FakePromptTokenEncoder.callCount;
+    for (final prompt in const ['1boy', '1boy, s', '1boy, so']) {
+      params.updatePrompt(prompt);
+      await Future<void>.delayed(const Duration(milliseconds: 100));
+    }
+    await settle();
+
+    expect(_FakePromptTokenEncoder.callCount - beforeBurst, singleComputation);
+  });
+
   group('buildPromptTokenCountPayload effort and furry mode', () {
     test('furry mode counts the dataset prefix as its own breakdown row', () {
       final payload = buildPromptTokenCountPayload(
