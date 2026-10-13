@@ -3,10 +3,12 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/utils/app_logger.dart';
 import '../../core/utils/localization_extension.dart';
 import '../../data/models/gallery/nai_image_metadata.dart';
 import '../../data/models/metadata/metadata_import_options.dart';
 import '../../data/services/image_metadata_service.dart';
+import '../../data/services/metadata_import_selection_store.dart';
 import '../../l10n/app_localizations.dart';
 import '../router/app_routes.dart';
 import '../providers/fixed_tags_provider.dart';
@@ -29,6 +31,7 @@ typedef MetadataImportOptionsPicker =
     Future<MetadataImportOptions?> Function(
       BuildContext context,
       NaiImageMetadata metadata,
+      MetadataImportOptions initialOptions,
     );
 typedef MetadataImportApplier =
     Future<int> Function(
@@ -91,16 +94,19 @@ class ImageMetadataImportWorkflow {
       entries: read(fixedTagsNotifierProvider).entries,
     );
     final resolvedMetadata = resolution.metadata;
+    final selectionStore = read(metadataImportSelectionStoreProvider);
+    final initialOptions = selectionStore.load();
     final options = _optionsPicker == null
         ? await MetadataImportDialog.show(
             context,
             metadata: resolvedMetadata,
             fixedTagResolution: resolution,
+            initialOptions: initialOptions,
           )
-        : await _optionsPicker(context, resolvedMetadata);
-    if (options == null || !context.mounted) {
-      return ImageMetadataImportResult.cancelled;
-    }
+        : await _optionsPicker(context, resolvedMetadata, initialOptions);
+    if (options == null) return ImageMetadataImportResult.cancelled;
+    await _rememberSelection(selectionStore, options);
+    if (!context.mounted) return ImageMetadataImportResult.cancelled;
 
     final appliedCount = _metadataApplier == null
         ? await MetadataImportCoordinator.apply(
@@ -125,6 +131,23 @@ class ImageMetadataImportWorkflow {
     _resultReporter(context, ImageMetadataImportResult.applied, appliedCount);
     if (openGenerationPage) _generationPageOpener(context);
     return ImageMetadataImportResult.applied;
+  }
+
+  // 记忆写入失败不能拦下用户已确认的导入。
+  static Future<void> _rememberSelection(
+    MetadataImportSelectionStore store,
+    MetadataImportOptions options,
+  ) async {
+    try {
+      await store.save(options);
+    } catch (error, stackTrace) {
+      AppLogger.e(
+        'Failed to remember metadata import selection',
+        error,
+        stackTrace,
+        'MetadataImport',
+      );
+    }
   }
 
   static void _reportResult(
