@@ -304,6 +304,15 @@ class Samplers {
     ddim: 'DDIM',
     ddimV3: 'DDIM V3',
   };
+
+  /// 按模型换算实际发送的采样器：V4 起不支持 DDIM，回退为 Euler Ancestral；
+  /// V3 系列的 DDIM 走 `ddim_v3`。
+  static String resolveForModel(String sampler, String model) {
+    if (sampler != ddim && sampler != ddimV3) return sampler;
+    if (ImageModels.isV4Model(model) || model == 'N/A') return kEulerAncestral;
+    if (model.contains('diffusion-3')) return ddimV3;
+    return sampler;
+  }
 }
 
 /// 噪声调度枚举

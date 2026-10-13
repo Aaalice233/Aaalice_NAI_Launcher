@@ -301,4 +301,45 @@ void main() {
       );
     });
   });
+
+  group('Samplers.resolveForModel', () {
+    test('V4 and later fall back from DDIM to Euler Ancestral', () {
+      for (final model in const [
+        ImageModels.animeDiffusionV4Full,
+        ImageModels.animeDiffusionV45Curated,
+        ImageModels.animeDiffusionV5Full,
+        ImageModels.animeDiffusionV5FullMedium,
+        'N/A',
+      ]) {
+        for (final sampler in const [Samplers.ddim, Samplers.ddimV3]) {
+          expect(
+            Samplers.resolveForModel(sampler, model),
+            Samplers.kEulerAncestral,
+            reason: '$model $sampler',
+          );
+        }
+      }
+    });
+
+    test('V3 sends DDIM as ddim_v3 and older models keep it', () {
+      expect(
+        Samplers.resolveForModel(Samplers.ddim, ImageModels.animeDiffusionV3),
+        Samplers.ddimV3,
+      );
+      expect(
+        Samplers.resolveForModel(Samplers.ddim, ImageModels.furryDiffusion),
+        Samplers.ddim,
+      );
+    });
+
+    test('non-DDIM samplers pass through', () {
+      expect(
+        Samplers.resolveForModel(
+          Samplers.kDpmpp2m,
+          ImageModels.animeDiffusionV5Curated,
+        ),
+        Samplers.kDpmpp2m,
+      );
+    });
+  });
 }
