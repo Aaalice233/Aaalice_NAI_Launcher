@@ -5,6 +5,7 @@ import 'package:flutter/rendering.dart'
 
 import '../../../core/utils/localization_extension.dart';
 import 'agent_chat_panel_controller.dart';
+import 'agent_chat_transcript_geometry.dart';
 import 'agent_chat_turn.dart';
 
 typedef AgentChatTurnBuilder =
@@ -61,11 +62,22 @@ class _AgentChatThreadViewportState extends State<AgentChatThreadViewport> {
   static const _historyPageSize = 8;
   static const _overscanExtent = 900.0;
   static const _estimatedTurnHeight = 180.0;
+  static const _fullMeasureExtent = 100000.0;
 
   final Map<Object, GlobalKey> _turnKeys = {};
   final Map<Object, double> _measuredHeights = {};
   late int _visibleTurnCount;
-  int _anchorRestoreGeneration = 0;
+  double? _liveExtent;
+  double? _earlierButtonExtent;
+  bool _measureWholeWindow = true;
+  bool _frameEndRefreshScheduled = false;
+  double? _measuredCrossExtent;
+  bool _remeasureAfterResize = false;
+  late final AgentChatPausedDriftCorrection _pausedDrift =
+      AgentChatPausedDriftCorrection(
+        isEnabled: _canCorrectPausedDrift,
+        minimumCorrection: _minimumDriftCorrection,
+      );
 
   @override
   void initState() {
@@ -76,29 +88,18 @@ class _AgentChatThreadViewportState extends State<AgentChatThreadViewport> {
 
   @override
   void didUpdateWidget(covariant AgentChatThreadViewport oldWidget) {
-    final sameSession = oldWidget.sessionId == widget.sessionId;
-    final geometryChanged =
-        oldWidget.geometryRevision != widget.geometryRevision ||
-        oldWidget.maxWidth != widget.maxWidth ||
-        oldWidget.horizontalPadding != widget.horizontalPadding ||
-        oldWidget.compactLayout != widget.compactLayout ||
-        oldWidget.prependAnchorEntryId != widget.prependAnchorEntryId;
-    final anchors =
-        sameSession &&
-            geometryChanged &&
-            oldWidget.maxWidth > 0 &&
-            widget.maxWidth > 0 &&
-            !widget.controller.followingLatest
-        ? _captureVisibleAnchors()
-        : const <_ViewportAnchor>[];
     super.didUpdateWidget(oldWidget);
-    if (!sameSession) {
-      _anchorRestoreGeneration++;
+    if (oldWidget.sessionId != widget.sessionId) {
       _visibleTurnCount = _initialVisibleCount;
       _turnKeys.clear();
       _measuredHeights.clear();
+      _liveExtent = null;
+      _earlierButtonExtent = null;
+      _pausedDrift.clear();
+      _measureWholeWindow = true;
       WidgetsBinding.instance.addPostFrameCallback((_) => _restoreOffset());
     } else {
+      final previousVisibleTurnCount = _visibleTurnCount;
       if (widget.turns.length < _visibleTurnCount) {
         _visibleTurnCount = widget.turns.length;
       } else if (widget.turns.length > oldWidget.turns.length &&
@@ -115,7 +116,10 @@ class _AgentChatThreadViewportState extends State<AgentChatThreadViewport> {
           widget.turns.length,
         );
       }
-      if (anchors.isNotEmpty) _scheduleAnchorRestore(anchors);
+      if (widget.turns.length > oldWidget.turns.length ||
+          _visibleTurnCount > previousVisibleTurnCount) {
+        _measureWholeWindow = true;
+      }
     }
   }
 
@@ -139,6 +143,88 @@ class _AgentChatThreadViewportState extends State<AgentChatThreadViewport> {
   GlobalKey _keyFor(AgentChatTurnModel turn) =>
       _turnKeys.putIfAbsent(_identityFor(turn), GlobalKey.new);
 
+  // Layout is final here; a build-phase capture still sees the previous layout
+  // and would read a wheel offset applied in between as content drift.
+  void _scheduleFrameEndRefresh() {
+    if (_frameEndRefreshScheduled) return;
+    _frameEndRefreshScheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _frameEndRefreshScheduled = false;
+      if (!mounted) return;
+      _trackCrossAxisExtent();
+      _refreshPausedDriftAnchor();
+    });
+  }
+
+  void _refreshPausedDriftAnchor() {
+    final controller = widget.controller;
+    if (controller.followingLatest || !controller.scrollController.hasClients) {
+      _pausedDrift.clear();
+      return;
+    }
+    final anchors = _captureVisibleAnchors();
+    if (anchors.isEmpty) {
+      _pausedDrift.clear();
+      return;
+    }
+    final anchor = anchors.first;
+    final renderObject = anchor.key.currentContext?.findRenderObject();
+    _pausedDrift.track(
+      () => AgentChatPausedDriftCorrection.topEdgeOf(
+        renderObject,
+        _measuredHeights[anchor.identity],
+      ),
+    );
+  }
+
+  // Keep-alive turns outside the cache keep heights from the old width; wait
+  // for the width to settle so a drag resize does not lay out every turn.
+  void _trackCrossAxisExtent() {
+    final box = context.findRenderObject();
+    if (box is! RenderBox || !box.hasSize) return;
+    final extent = box.size.width;
+    // Minimizing reports zero size without changing any turn layout.
+    if (extent <= 0) return;
+    final previous = _measuredCrossExtent;
+    _measuredCrossExtent = extent;
+    if (previous == null) return;
+    if (extent != previous) {
+      _remeasureAfterResize = true;
+      _scheduleFrameEndRefresh();
+      WidgetsBinding.instance.scheduleFrame();
+      return;
+    }
+    if (_remeasureAfterResize && !_measureWholeWindow) {
+      _remeasureAfterResize = false;
+      setState(() => _measureWholeWindow = true);
+    }
+  }
+
+  void _scheduleMeasureWindowReset() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !_measureWholeWindow) return;
+      setState(() => _measureWholeWindow = false);
+    });
+  }
+
+  bool _canCorrectPausedDrift() {
+    final controller = widget.controller;
+    if (controller.followingLatest || controller.userScrolling) return false;
+    final scroll = controller.scrollController;
+    // Driven and ballistic activities overwrite pixels with absolute values.
+    return scroll.hasClients && !scroll.position.isScrollingNotifier.value;
+  }
+
+  double _minimumDriftCorrection() {
+    final scroll = widget.controller.scrollController;
+    if (!scroll.hasClients) return double.negativeInfinity;
+    final position = scroll.position;
+    if (!position.hasPixels || !position.hasContentDimensions) {
+      return double.negativeInfinity;
+    }
+    return position.minScrollExtent - position.pixels;
+  }
+
   List<_ViewportAnchor> _captureVisibleAnchors() {
     final viewport = context.findRenderObject();
     if (viewport is! RenderBox || !viewport.attached || !viewport.hasSize) {
@@ -146,16 +232,13 @@ class _AgentChatThreadViewportState extends State<AgentChatThreadViewport> {
     }
     final viewportTop = viewport.localToGlobal(Offset.zero).dy;
     final viewportBottom = viewportTop + viewport.size.height;
-    final stableHistoricalKeys = widget.turns
-        .take(widget.turns.length > 1 ? widget.turns.length - 1 : 0)
-        .map(_identityFor)
-        .map((identity) => _turnKeys[identity])
-        .whereType<GlobalKey>();
     final anchors = <_ViewportAnchor>[];
-    for (final key in stableHistoricalKeys) {
-      final anchorContext = key.currentContext;
-      final renderObject = anchorContext?.findRenderObject();
-      if (renderObject is! RenderBox ||
+    for (final turn in widget.turns) {
+      final identity = _identityFor(turn);
+      final key = _turnKeys[identity];
+      final renderObject = key?.currentContext?.findRenderObject();
+      if (key == null ||
+          renderObject is! RenderBox ||
           !renderObject.attached ||
           !renderObject.hasSize) {
         continue;
@@ -163,7 +246,7 @@ class _AgentChatThreadViewportState extends State<AgentChatThreadViewport> {
       final top = renderObject.localToGlobal(Offset.zero).dy;
       final bottom = top + renderObject.size.height;
       if (bottom <= viewportTop || top >= viewportBottom) continue;
-      anchors.add(_ViewportAnchor(key: key, top: top));
+      anchors.add(_ViewportAnchor(key: key, identity: identity, top: top));
     }
     anchors.sort((a, b) {
       final aDistance = (a.top - viewportTop).abs();
@@ -171,35 +254,6 @@ class _AgentChatThreadViewportState extends State<AgentChatThreadViewport> {
       return aDistance.compareTo(bDistance);
     });
     return anchors;
-  }
-
-  void _scheduleAnchorRestore(List<_ViewportAnchor> anchors) {
-    final generation = ++_anchorRestoreGeneration;
-    final interactionRevision = widget.controller.viewportInteractionRevision;
-    final sessionId = widget.sessionId;
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted ||
-          generation != _anchorRestoreGeneration ||
-          widget.sessionId != sessionId ||
-          widget.controller.followingLatest) {
-        return;
-      }
-      for (final anchor in anchors) {
-        final anchorContext = anchor.key.currentContext;
-        final renderObject = anchorContext?.findRenderObject();
-        if (renderObject is! RenderBox ||
-            !renderObject.attached ||
-            !renderObject.hasSize) {
-          continue;
-        }
-        final currentTop = renderObject.localToGlobal(Offset.zero).dy;
-        widget.controller.restorePausedViewportAnchor(
-          visualDelta: currentTop - anchor.top,
-          expectedInteractionRevision: interactionRevision,
-        );
-        return;
-      }
-    });
   }
 
   Future<void> _jumpTo(AgentChatTurnModel turn) async {
@@ -257,6 +311,7 @@ class _AgentChatThreadViewportState extends State<AgentChatThreadViewport> {
         0,
         widget.turns.length,
       );
+      _measureWholeWindow = true;
     });
     // In reverse geometry older turns are appended beyond the current anchor.
     // Keep the exact pixel anchor if the framework performs any correction.
@@ -274,6 +329,8 @@ class _AgentChatThreadViewportState extends State<AgentChatThreadViewport> {
 
   @override
   Widget build(BuildContext context) {
+    _scheduleFrameEndRefresh();
+    if (_measureWholeWindow) _scheduleMeasureWindowReset();
     final visibleStart = widget.turns.length - _visibleTurnCount;
     final showEarlier = _hiddenCount > 0 || widget.hasEarlier;
     final itemCount = 1 + _visibleTurnCount + (showEarlier ? 1 : 0);
@@ -283,9 +340,17 @@ class _AgentChatThreadViewportState extends State<AgentChatThreadViewport> {
     return Stack(
       children: [
         NotificationListener<ScrollMetricsNotification>(
-          onNotification: widget.controller.handleScrollMetricsNotification,
+          onNotification: (notification) {
+            _scheduleFrameEndRefresh();
+            return widget.controller.handleScrollMetricsNotification(
+              notification,
+            );
+          },
           child: NotificationListener<ScrollNotification>(
-            onNotification: widget.controller.handleScrollNotification,
+            onNotification: (notification) {
+              _scheduleFrameEndRefresh();
+              return widget.controller.handleScrollNotification(notification);
+            },
             // Keyboard and scrollbar track moves are driven scroll activities,
             // so arm their user intent before notifications change the offset.
             child: Focus(
@@ -295,7 +360,7 @@ class _AgentChatThreadViewportState extends State<AgentChatThreadViewport> {
                     widget.controller.beginPotentialUserScroll(),
                 onPointerSignal: (event) {
                   if (event is PointerScrollEvent) {
-                    widget.controller.beginPotentialUserScroll();
+                    widget.controller.beginPotentialWheelScroll();
                   }
                 },
                 onPointerUp: (_) =>
@@ -306,8 +371,8 @@ class _AgentChatThreadViewportState extends State<AgentChatThreadViewport> {
                   key: ValueKey('agent-chat-thread-${widget.sessionId}'),
                   controller: widget.controller.scrollController,
                   reverse: true,
-                  scrollCacheExtent: const ScrollCacheExtent.pixels(
-                    _overscanExtent,
+                  scrollCacheExtent: ScrollCacheExtent.pixels(
+                    _measureWholeWindow ? _fullMeasureExtent : _overscanExtent,
                   ),
                   slivers: [
                     SliverPadding(
@@ -315,80 +380,16 @@ class _AgentChatThreadViewportState extends State<AgentChatThreadViewport> {
                         horizontal: widget.horizontalPadding,
                         vertical: 12,
                       ),
-                      sliver: SliverList.builder(
-                        itemCount: itemCount,
-                        itemBuilder: (context, index) {
-                          if (index == 0) {
-                            return _bounded(widget.live);
-                          }
-                          final reverseTurnIndex = index - 1;
-                          if (reverseTurnIndex < _visibleTurnCount) {
-                            final turnIndex =
-                                widget.turns.length - 1 - reverseTurnIndex;
-                            final turn = widget.turns[turnIndex];
-                            final identity = _identityFor(turn);
-                            return _RetainedTurn(
-                              child: _MeasureSize(
-                                key: _keyFor(turn),
-                                onChange: (size) =>
-                                    _measuredHeights[identity] = size.height,
-                                child: RepaintBoundary(
-                                  key: ValueKey(
-                                    'agent-turn-${turn.timeline?.id ?? turn.ordinal}',
-                                  ),
-                                  child: _bounded(
-                                    widget.turnBuilder(
-                                      context,
-                                      turn,
-                                      turnIndex == widget.turns.length - 1,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            );
-                          }
-                          return _bounded(
-                            Padding(
-                              padding: const EdgeInsets.symmetric(vertical: 8),
-                              child: TextButton.icon(
-                                key: const ValueKey(
-                                  'agent-chat-earlier-messages',
-                                ),
-                                onPressed: widget.historyLoading
-                                    ? null
-                                    : _showEarlier,
-                                icon: widget.historyLoading
-                                    ? SizedBox.square(
-                                        dimension: 16,
-                                        child: CircularProgressIndicator(
-                                          strokeWidth: 1.7,
-                                          value:
-                                              MediaQuery.disableAnimationsOf(
-                                                context,
-                                              )
-                                              ? 0.75
-                                              : null,
-                                        ),
-                                      )
-                                    : const Icon(
-                                        Icons.history_rounded,
-                                        size: 17,
-                                      ),
-                                label: Text(
-                                  widget.historyLoading
-                                      ? context.l10n.common_loading
-                                      : _hiddenCount > 0
-                                      ? context.l10n.agentChat_earlierMessages(
-                                          _hiddenCount,
-                                        )
-                                      : context
-                                            .l10n
-                                            .agentChat_loadEarlierMessages,
-                                ),
-                              ),
-                            ),
-                          );
-                        },
+                      sliver: AgentChatDriftCorrectingSliver(
+                        drift: _pausedDrift,
+                        sliver: SliverList(
+                          delegate: AgentChatTranscriptChildDelegate(
+                            _buildItem,
+                            childCount: itemCount,
+                            measuredExtentOf: _measuredExtentAt,
+                            unmeasuredExtent: _unmeasuredTurnExtent,
+                          ),
+                        ),
                       ),
                     ),
                   ],
@@ -409,6 +410,84 @@ class _AgentChatThreadViewportState extends State<AgentChatThreadViewport> {
       ],
     );
   }
+
+  Widget _buildItem(BuildContext context, int index) {
+    if (index == 0) {
+      return _MeasureSize(
+        onChange: (size) => _liveExtent = size.height,
+        child: _bounded(widget.live),
+      );
+    }
+    final reverseTurnIndex = index - 1;
+    if (reverseTurnIndex < _visibleTurnCount) {
+      final turnIndex = widget.turns.length - 1 - reverseTurnIndex;
+      final turn = widget.turns[turnIndex];
+      final identity = _identityFor(turn);
+      return _RetainedTurn(
+        child: _MeasureSize(
+          key: _keyFor(turn),
+          onChange: (size) => _measuredHeights[identity] = size.height,
+          child: RepaintBoundary(
+            key: ValueKey('agent-turn-${turn.timeline?.id ?? turn.ordinal}'),
+            child: _bounded(
+              widget.turnBuilder(
+                context,
+                turn,
+                turnIndex == widget.turns.length - 1,
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+    return _MeasureSize(
+      onChange: (size) => _earlierButtonExtent = size.height,
+      child: _bounded(
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          child: TextButton.icon(
+            key: const ValueKey('agent-chat-earlier-messages'),
+            onPressed: widget.historyLoading ? null : _showEarlier,
+            icon: widget.historyLoading
+                ? SizedBox.square(
+                    dimension: 16,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 1.7,
+                      value: MediaQuery.disableAnimationsOf(context)
+                          ? 0.75
+                          : null,
+                    ),
+                  )
+                : const Icon(Icons.history_rounded, size: 17),
+            label: Text(
+              widget.historyLoading
+                  ? context.l10n.common_loading
+                  : _hiddenCount > 0
+                  ? context.l10n.agentChat_earlierMessages(_hiddenCount)
+                  : context.l10n.agentChat_loadEarlierMessages,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  double? _measuredExtentAt(int index) {
+    if (index == 0) return _liveExtent;
+    final reverseTurnIndex = index - 1;
+    if (reverseTurnIndex >= _visibleTurnCount) return _earlierButtonExtent;
+    final turnIndex = widget.turns.length - 1 - reverseTurnIndex;
+    if (turnIndex < 0 || turnIndex >= widget.turns.length) return null;
+    return _measuredHeights[_identityFor(widget.turns[turnIndex])];
+  }
+
+  double _unmeasuredTurnExtent() =>
+      AgentChatTranscriptChildDelegate.medianExtent(
+        widget.turns
+            .map((turn) => _measuredHeights[_identityFor(turn)])
+            .whereType<double>(),
+        whenEmpty: _estimatedTurnHeight,
+      );
 
   Widget _bounded(Widget child) => Align(
     alignment: Alignment.center,
@@ -498,9 +577,14 @@ class _RetainedTurnState extends State<_RetainedTurn>
 }
 
 class _ViewportAnchor {
-  const _ViewportAnchor({required this.key, required this.top});
+  const _ViewportAnchor({
+    required this.key,
+    required this.identity,
+    required this.top,
+  });
 
   final GlobalKey key;
+  final Object identity;
   final double top;
 }
 
