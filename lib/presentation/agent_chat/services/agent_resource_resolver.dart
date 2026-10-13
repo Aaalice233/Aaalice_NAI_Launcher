@@ -18,6 +18,7 @@ import '../../providers/precise_ref_library_provider.dart';
 import '../../providers/tag_library_page_provider.dart';
 import '../../providers/vibe_library_provider.dart';
 import 'generation_image_resource.dart';
+import 'online_gallery_resource_identity.dart';
 
 final class ResolvedAgentResource {
   const ResolvedAgentResource({
@@ -94,7 +95,7 @@ class AgentResourceResolver {
       case AgentChatResourceKind.generatedImage:
         return _resolveGenerated(reference);
       case AgentChatResourceKind.onlineGalleryMedia:
-        return _resolveOnline(_withResolvableMedia(reference));
+        return _resolveOnline(reference);
       case AgentChatResourceKind.inpaintDraft:
         return _resolveInpaint(reference);
       case AgentChatResourceKind.fixedTag:
@@ -129,7 +130,8 @@ class AgentResourceResolver {
             .findImageById(reference.resourceId);
         return image != null && !image.isFailedStreamSnapshot;
       case AgentChatResourceKind.onlineGalleryMedia:
-        return _onlineExists(_withResolvableMedia(reference));
+        final identity = OnlineGalleryResourceIdentity.fromReference(reference);
+        return identity != null && await _onlineExists(identity);
       case AgentChatResourceKind.inpaintDraft:
         return await loadInpaintDraftImage?.call(
               reference.resourceId,
@@ -172,7 +174,8 @@ class AgentResourceResolver {
   ) async {
     switch (reference.kind) {
       case AgentChatResourceKind.onlineGalleryMedia:
-        return _onlineExistsLocally(_withResolvableMedia(reference));
+        final identity = OnlineGalleryResourceIdentity.fromReference(reference);
+        return identity != null && _onlineExistsLocally(identity);
       case AgentChatResourceKind.vibeLibraryEntry:
         final entries = _ref.read(vibeLibraryNotifierProvider).entries;
         return entries.isEmpty ||
@@ -189,14 +192,11 @@ class AgentResourceResolver {
     }
   }
 
-  // Placeholder covers never appear in detail media; they mean the first media.
   AgentChatResourceReference _withResolvableMedia(
     AgentChatResourceReference reference,
+    OnlineGalleryResourceIdentity identity,
   ) {
-    if (!GalleryMedia.isPlaceholderId(
-      reference.mediaId,
-      reference.resourceId,
-    )) {
+    if (identity.mediaId != null || reference.mediaId == null) {
       return reference;
     }
     return AgentChatResourceReference(
@@ -209,24 +209,24 @@ class AgentResourceResolver {
     );
   }
 
-  bool _onlineExistsLocally(AgentChatResourceReference reference) {
-    final source = GallerySourceId.values
-        .where((value) => value.key == reference.source)
-        .firstOrNull;
-    if (source == null) return false;
-    final visibleItem = _ref
-        .read(onlineGalleryNotifierProvider)
-        .posts
-        .where(
-          (value) =>
-              value.sourceId == source &&
-              value.sourceWorkId == reference.resourceId,
-        )
-        .firstOrNull;
+  GalleryItem? _visibleOnlineItem(OnlineGalleryResourceIdentity identity) =>
+      _ref
+          .read(onlineGalleryNotifierProvider)
+          .posts
+          .where(
+            (value) =>
+                value.sourceId == identity.source &&
+                value.sourceWorkId == identity.workId,
+          )
+          .firstOrNull;
+
+  bool _onlineExistsLocally(OnlineGalleryResourceIdentity identity) {
+    final visibleItem = _visibleOnlineItem(identity);
     if (visibleItem == null) {
-      return _ref.read(onlineGallerySourceAdaptersProvider)[source] != null;
+      return _ref.read(onlineGallerySourceAdaptersProvider)[identity.source] !=
+          null;
     }
-    final mediaId = reference.mediaId;
+    final mediaId = identity.mediaId;
     if (mediaId == null || mediaId == visibleItem.coverMediaId) return true;
     final detail = _ref
         .read(onlineGalleryNotifierProvider.notifier)
@@ -234,23 +234,12 @@ class AgentResourceResolver {
     return detail == null || detail.media.any((media) => media.id == mediaId);
   }
 
-  Future<bool> _onlineExists(AgentChatResourceReference reference) async {
-    final source = GallerySourceId.values
-        .where((value) => value.key == reference.source)
-        .firstOrNull;
-    if (source == null) return false;
-    final visibleItem = _ref
-        .read(onlineGalleryNotifierProvider)
-        .posts
-        .where(
-          (value) =>
-              value.sourceId == source &&
-              value.sourceWorkId == reference.resourceId,
-        )
-        .firstOrNull;
+  Future<bool> _onlineExists(OnlineGalleryResourceIdentity identity) async {
+    final source = identity.source;
+    final visibleItem = _visibleOnlineItem(identity);
     if (visibleItem != null &&
-        (reference.mediaId == null ||
-            reference.mediaId == visibleItem.coverMediaId)) {
+        (identity.mediaId == null ||
+            identity.mediaId == visibleItem.coverMediaId)) {
       return true;
     }
     final adapter = _ref.read(onlineGallerySourceAdaptersProvider)[source];
@@ -264,23 +253,23 @@ class AgentResourceResolver {
         GallerySearchRequest(
           cursor: '1',
           pageSize: 1,
-          query: 'id:${reference.resourceId}',
+          query: 'id:${identity.workId}',
         ),
       );
       item = page.items
-          .where((value) => value.sourceWorkId == reference.resourceId)
+          .where((value) => value.sourceWorkId == identity.workId)
           .firstOrNull;
       if (item == null) return false;
     }
     item ??= GalleryItem(
-      id: int.tryParse(reference.resourceId) ?? 0,
-      workId: reference.resourceId,
+      id: int.tryParse(identity.workId) ?? 0,
+      workId: identity.workId,
       sourceId: source,
-      focusedMediaId: reference.mediaId,
+      focusedMediaId: identity.mediaId,
     );
     final detail = await adapter.detail(item, cancelToken: CancelToken());
-    return reference.mediaId == null ||
-        detail.media.any((media) => media.id == reference.mediaId);
+    return identity.mediaId == null ||
+        detail.media.any((media) => media.id == identity.mediaId);
   }
 
   Future<ResolvedAgentResource?> _resolveLocal(
@@ -324,19 +313,10 @@ class AgentResourceResolver {
   Future<ResolvedAgentResource?> _resolveOnline(
     AgentChatResourceReference reference,
   ) async {
-    final source = GallerySourceId.values
-        .where((value) => value.key == reference.source)
-        .firstOrNull;
-    if (source == null) return null;
-    GalleryItem? item = _ref
-        .read(onlineGalleryNotifierProvider)
-        .posts
-        .where(
-          (value) =>
-              value.sourceId == source &&
-              value.sourceWorkId == reference.resourceId,
-        )
-        .firstOrNull;
+    final identity = OnlineGalleryResourceIdentity.fromReference(reference);
+    if (identity == null) return null;
+    final source = identity.source;
+    GalleryItem? item = _visibleOnlineItem(identity);
     final adapter = _ref.read(onlineGallerySourceAdaptersProvider)[source]!;
     if (item == null) {
       if (source == GallerySourceId.danbooru ||
@@ -346,27 +326,27 @@ class AgentResourceResolver {
           GallerySearchRequest(
             cursor: '1',
             pageSize: 1,
-            query: 'id:${reference.resourceId}',
+            query: 'id:${identity.workId}',
           ),
         );
         item = page.items
-            .where((value) => value.sourceWorkId == reference.resourceId)
+            .where((value) => value.sourceWorkId == identity.workId)
             .firstOrNull;
       } else {
         item = GalleryItem(
-          id: int.tryParse(reference.resourceId) ?? 0,
-          workId: reference.resourceId,
+          id: int.tryParse(identity.workId) ?? 0,
+          workId: identity.workId,
           sourceId: source,
-          focusedMediaId: reference.mediaId,
+          focusedMediaId: identity.mediaId,
         );
       }
     }
     if (item == null) return null;
     final detail = await adapter.detail(item, cancelToken: CancelToken());
-    final media = reference.mediaId == null
+    final media = identity.mediaId == null
         ? detail.media.firstOrNull
         : detail.media
-              .where((value) => value.id == reference.mediaId)
+              .where((value) => value.id == identity.mediaId)
               .firstOrNull;
     if (media == null) return null;
     final url = media.downloadUrl.isNotEmpty
@@ -379,11 +359,11 @@ class AgentResourceResolver {
       headers: onlineGalleryImageHeadersForUrl(url),
     );
     return ResolvedAgentResource(
-      reference: reference,
+      reference: _withResolvableMedia(reference, identity),
       label:
           reference.display['label'] ??
           detail.item.title ??
-          '${source.label} ${reference.resourceId}',
+          '${source.label} ${identity.workId}',
       bytes: await file.readAsBytes(),
       filePath: file.path,
       text: media.prompt ?? detail.prompt,

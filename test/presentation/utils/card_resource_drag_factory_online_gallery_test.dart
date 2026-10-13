@@ -6,6 +6,8 @@ import 'package:nai_launcher/core/storage/local_storage_service.dart';
 import 'package:nai_launcher/data/datasources/remote/online_gallery/gallery_source_adapter.dart';
 import 'package:nai_launcher/data/models/online_gallery/gallery_item.dart';
 import 'package:nai_launcher/data/models/online_gallery/gallery_source.dart';
+import 'package:nai_launcher/data/models/online_gallery/quick_tag_cloud_codex.dart';
+import 'package:nai_launcher/presentation/agent_chat/services/online_gallery_resource_identity.dart';
 import 'package:nai_launcher/presentation/agent_chat/services/online_gallery_toolbox.dart';
 import 'package:nai_launcher/presentation/providers/online_gallery_provider.dart';
 import 'package:nai_launcher/presentation/utils/card_resource_drag_factory.dart';
@@ -24,9 +26,11 @@ void main() {
         ),
         onlineGallerySourceAdaptersProvider.overrideWithValue({
           for (final source in GallerySourceId.values)
-            source: source == GallerySourceId.aiTag
-                ? _AiTagAdapter()
-                : _EmptyAdapter(source),
+            source: switch (source) {
+              GallerySourceId.aiTag => _AiTagAdapter(),
+              GallerySourceId.quickTagCloud => _QuickTagCloudAdapter(),
+              _ => _EmptyAdapter(source),
+            },
         }),
       ],
     );
@@ -70,7 +74,33 @@ void main() {
   test('unresolved placeholder cover falls back to png', () {
     expect(dragFileName(null), 'work.png');
   });
+
+  test('QuickTagCloud drag-out finds the work behind its encoded id', () async {
+    final browse = OnlineGalleryToolbox(
+      container.read(_refProvider),
+    ).tools().singleWhere((tool) => tool.name == 'browse_online_gallery');
+    final result = await browse.execute('browse', {
+      'source': 'quick_tag_cloud',
+      'mode': 'search',
+      'query': 'concept',
+    });
+    expect(result.isError, isFalse);
+    final reference = OnlineGalleryResourceIdentity(
+      source: GallerySourceId.quickTagCloud,
+      workId: _quickTagCloudWorkId,
+      mediaId: '$_quickTagCloudWorkId:0',
+    ).toReference(display: const {'title': 'work'});
+
+    expect(
+      CardResourceDragFactory(
+        container.read(_refProvider),
+      ).create(reference).fileName,
+      'work.webp',
+    );
+  });
 }
+
+final _quickTagCloudWorkId = quickTagCloudEntryWorkId('codex', 'entry/1');
 
 GalleryMedia _media(int index, String extension) => GalleryMedia(
   id: '101_p$index',
@@ -118,6 +148,40 @@ class _AiTagAdapter extends GallerySourceAdapter {
       media: media,
     );
   }
+}
+
+class _QuickTagCloudAdapter extends GallerySourceAdapter {
+  @override
+  GallerySourceId get sourceId => GallerySourceId.quickTagCloud;
+
+  @override
+  Future<GalleryPage> search(
+    GallerySearchRequest request, {
+    CancelToken? cancelToken,
+  }) async => GalleryPage(
+    items: [
+      GalleryItem(
+        id: 7,
+        workId: _quickTagCloudWorkId,
+        sourceId: sourceId,
+        tags: const ['concept'],
+        tagsComplete: true,
+        cover: GalleryMedia(
+          id: '$_quickTagCloudWorkId:0',
+          previewUrl: 'https://example.test/qtc.webp',
+          displayUrl: 'https://example.test/qtc.webp',
+          downloadUrl: 'https://example.test/qtc.webp',
+          extension: 'webp',
+          mediaType: 'image',
+        ),
+      ),
+    ],
+    cursor: request.cursor,
+    nextCursor: null,
+    hasMore: false,
+    total: 1,
+    rawItemCount: 1,
+  );
 }
 
 class _EmptyAdapter extends GallerySourceAdapter {
