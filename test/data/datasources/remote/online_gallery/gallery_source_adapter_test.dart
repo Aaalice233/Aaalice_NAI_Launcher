@@ -483,7 +483,7 @@ void main() {
         final http = _RecordingHttpAdapter((request) {
           if (request.uri.path == '/api/config') return _configJson;
           expect(request.uri.path, '/api/ai_works_search');
-          expect(request.queryParameters['q'], 'artist::1 name::1');
+          expect(request.queryParameters['q'], 'artist name');
           expect(request.queryParameters['prompt'], '::artist:');
           expect(request.queryParameters['time_range'], 'q2026Q2');
           expect(request.queryParameters['page'], 2);
@@ -674,7 +674,7 @@ void main() {
         expect(rankRequests[1].queryParameters['month'], '2026-07');
         expect(rankRequests[2].queryParameters['month'], 'older');
         expect(
-          rankRequests.every((r) => r.queryParameters['q'] == 'NAI::1'),
+          rankRequests.every((r) => r.queryParameters['q'] == 'NAI'),
           isTrue,
         );
         expect(
