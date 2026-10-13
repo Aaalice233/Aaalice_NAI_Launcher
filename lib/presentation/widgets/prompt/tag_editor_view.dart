@@ -12,6 +12,7 @@ import '../../../core/utils/app_logger.dart';
 import '../../../core/utils/localization_extension.dart';
 import '../../../core/utils/prompt_edit_document.dart';
 import '../../adaptive/interaction_policy.dart';
+import '../../adaptive/pointer_press_tracker.dart';
 import '../../themes/core/layered_surface_style.dart';
 import '../../themes/core/input_surface_style.dart';
 import '../../router/app_routes.dart';
@@ -94,6 +95,7 @@ class _TagEditorViewState extends ConsumerState<TagEditorView> {
   @override
   void initState() {
     super.initState();
+    PointerPressTracker.observe();
     _focus = widget.focusNode ?? FocusNode();
     _autocomplete.addListener(_refresh);
     session.addListener(_sessionChanged);
@@ -231,6 +233,7 @@ class _TagEditorViewState extends ConsumerState<TagEditorView> {
     if (widget.focusNode == null) _focus.dispose();
     _addFocus.dispose();
     _add.dispose();
+    PointerPressTracker.unobserve();
     super.dispose();
   }
 
@@ -374,7 +377,10 @@ class _TagEditorViewState extends ConsumerState<TagEditorView> {
   }
 
   bool get _wheelAdjustmentEnabled =>
-      widget.enabled && commands.canAdjust && session.editing == null;
+      widget.enabled &&
+      commands.canAdjust &&
+      session.editing == null &&
+      !PointerPressTracker.mouseButtonHeld;
 
   bool _claimsWeightWheel(Offset globalPosition) {
     if (!_wheelAdjustmentEnabled) return false;
