@@ -71,10 +71,17 @@ class PreviewNavShortcuts extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final focusNode = ref.watch(generationPreviewFocusNodeProvider);
     final behavior = ref.watch(historyClickBehaviorNotifierProvider);
-    if (behavior != HistoryClickBehavior.selectPreview) {
-      return Focus(focusNode: focusNode, child: child);
-    }
 
+    // 无绑定时也保留 CallbackShortcuts，结构切换会让预览子树重挂并丢失焦点
+    return CallbackShortcuts(
+      bindings: behavior == HistoryClickBehavior.selectPreview
+          ? _resolveBindings(ref)
+          : const {},
+      child: Focus(focusNode: focusNode, child: child),
+    );
+  }
+
+  Map<ShortcutActivator, VoidCallback> _resolveBindings(WidgetRef ref) {
     final config = ref
         .watch(shortcutConfigNotifierProvider)
         .when(
@@ -106,10 +113,7 @@ class PreviewNavShortcuts extends ConsumerWidget {
         ref.read(generationPreviewSelectionProvider.notifier).selectNext,
       );
     }
-
-    final focusedChild = Focus(focusNode: focusNode, child: child);
-    if (bindings.isEmpty) return focusedChild;
-    return CallbackShortcuts(bindings: bindings, child: focusedChild);
+    return bindings;
   }
 }
 

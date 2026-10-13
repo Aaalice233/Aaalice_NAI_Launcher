@@ -41,6 +41,26 @@ class _PreviewShortcutConfigNotifier extends ShortcutConfigNotifier {
   Future<ShortcutConfig> build() => loader();
 }
 
+class _InitCounter extends StatefulWidget {
+  const _InitCounter({required this.onInit});
+
+  final VoidCallback onInit;
+
+  @override
+  State<_InitCounter> createState() => _InitCounterState();
+}
+
+class _InitCounterState extends State<_InitCounter> {
+  @override
+  void initState() {
+    super.initState();
+    widget.onInit();
+  }
+
+  @override
+  Widget build(BuildContext context) => const SizedBox.expand();
+}
+
 void main() {
   testWidgets('linked arrows stay inner while Escape and Ctrl+Enter bubble', (
     tester,
@@ -356,6 +376,50 @@ void main() {
 
     expect(outerRight, 1);
     expect(container.read(generationPreviewSelectionProvider), 'a');
+  });
+
+  testWidgets('mode and enable toggles keep the preview subtree and focus', (
+    tester,
+  ) async {
+    var probeInits = 0;
+    final container = _container(HistoryClickBehavior.openDetail);
+    addTearDown(container.dispose);
+
+    await tester.pumpWidget(
+      _app(
+        container,
+        PreviewNavShortcuts(child: _InitCounter(onInit: () => probeInits++)),
+      ),
+    );
+    await tester.pumpAndSettle();
+    final focusNode = container.read(generationPreviewFocusNodeProvider);
+    focusNode.requestFocus();
+    await tester.pump();
+    final original = tester.state(find.byType(_InitCounter));
+
+    await container
+        .read(historyClickBehaviorNotifierProvider.notifier)
+        .setBehavior(HistoryClickBehavior.selectPreview);
+    await tester.pump();
+    await container
+        .read(shortcutConfigNotifierProvider.notifier)
+        .updateSettings(enableShortcuts: false);
+    await tester.pump();
+    await container
+        .read(shortcutConfigNotifierProvider.notifier)
+        .updateSettings(enableShortcuts: true);
+    await tester.pump();
+    await container
+        .read(historyClickBehaviorNotifierProvider.notifier)
+        .setBehavior(HistoryClickBehavior.openDetail);
+    await tester.pump();
+
+    expect(probeInits, 1);
+    expect(
+      identical(tester.state(find.byType(_InitCounter)), original),
+      isTrue,
+    );
+    expect(focusNode.hasPrimaryFocus, isTrue);
   });
 
   testWidgets('a sibling TextField retains arrow-key caret movement', (
