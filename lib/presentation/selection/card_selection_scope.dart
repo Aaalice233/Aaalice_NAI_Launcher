@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 
 import '../../core/utils/keyboard_modifier_utils.dart';
 import '../widgets/common/image_hover_preview_controller.dart';
+import '../widgets/shortcuts/editable_text_focus.dart';
 import 'card_selection.dart';
 
 /// Each page supplies its own state owner and currently presented ordering.
@@ -54,11 +55,7 @@ class CardSelectionShortcuts extends StatelessWidget {
     autofocus: true,
     skipTraversal: true,
     onKeyEvent: (_, event) {
-      if (event is! KeyDownEvent) return KeyEventResult.ignored;
-      final focusedContext = FocusManager.instance.primaryFocus?.context;
-      if (focusedContext?.widget is EditableText ||
-          focusedContext?.findAncestorWidgetOfExactType<EditableText>() !=
-              null) {
+      if (event is! KeyDownEvent || isEditableTextFocused()) {
         return KeyEventResult.ignored;
       }
       final scope = CardSelectionScope.maybeOf(context);

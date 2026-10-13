@@ -81,6 +81,10 @@ class LocalGalleryToolbar extends ConsumerStatefulWidget {
   final bool showPageTitle;
   final List<ImageCardAction> batchActions;
 
+  /// Search field focus node owned by the caller; created internally when null.
+  /// 搜索框焦点节点，由调用方持有并销毁；不传时工具栏自建。
+  final FocusNode? searchFocusNode;
+
   const LocalGalleryToolbar({
     super.key,
     this.use3DCardView = true,
@@ -98,6 +102,7 @@ class LocalGalleryToolbar extends ConsumerStatefulWidget {
     this.onToggleCategoryPanel,
     this.enableSearchAutocomplete = true,
     this.showPageTitle = true,
+    this.searchFocusNode,
   });
 
   @override
@@ -107,19 +112,16 @@ class LocalGalleryToolbar extends ConsumerStatefulWidget {
 
 class _LocalGalleryToolbarState extends ConsumerState<LocalGalleryToolbar> {
   final TextEditingController _searchController = TextEditingController();
-  late final FocusNode _searchFocusNode;
+  FocusNode? _ownedSearchFocusNode;
   Timer? _debounceTimer;
 
-  @override
-  void initState() {
-    super.initState();
-    _searchFocusNode = FocusNode(onKeyEvent: _handleSearchKeyEvent);
-  }
+  FocusNode get _searchFocusNode =>
+      widget.searchFocusNode ?? (_ownedSearchFocusNode ??= FocusNode());
 
   @override
   void dispose() {
     _searchController.dispose();
-    _searchFocusNode.dispose();
+    _ownedSearchFocusNode?.dispose();
     _debounceTimer?.cancel();
     // Future 不需要 dispose
     super.dispose();
@@ -342,16 +344,21 @@ class _LocalGalleryToolbarState extends ConsumerState<LocalGalleryToolbar> {
   /// Build search field
   /// 构建搜索框 - 类似在线画廊的简洁圆角样式
   Widget _buildSearchField() {
-    final searchField = GalleryLibrarySearchField(
-      controller: _searchController,
-      focusNode: _searchFocusNode,
-      hintText: context.l10n.localGallery_searchFilenamePromptPlaceholder,
-      onChanged: _onSearchChanged,
-      onClear: _clearSearch,
-      onSubmitted: (value) {
-        _debounceTimer?.cancel();
-        ref.read(localGalleryNotifierProvider.notifier).setSearchQuery(value);
-      },
+    final searchField = Focus(
+      canRequestFocus: false,
+      skipTraversal: true,
+      onKeyEvent: _handleSearchKeyEvent,
+      child: GalleryLibrarySearchField(
+        controller: _searchController,
+        focusNode: _searchFocusNode,
+        hintText: context.l10n.localGallery_searchFilenamePromptPlaceholder,
+        onChanged: _onSearchChanged,
+        onClear: _clearSearch,
+        onSubmitted: (value) {
+          _debounceTimer?.cancel();
+          ref.read(localGalleryNotifierProvider.notifier).setSearchQuery(value);
+        },
+      ),
     );
 
     if (!widget.enableSearchAutocomplete) {
