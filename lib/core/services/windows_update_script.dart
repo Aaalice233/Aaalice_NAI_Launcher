@@ -4,8 +4,16 @@
 /// 日志与结构化结果；便携版通过同卷目录切换和备份实现可回滚更新。
 library;
 
+import 'dart:convert';
+import 'dart:typed_data';
+
 class WindowsUpdateScript {
   WindowsUpdateScript._();
+
+  // Windows PowerShell 5.1 按系统 ANSI 代码页读取无 BOM 的脚本，非 ASCII 路径和注释会被解错。
+  static Uint8List encode(String script) => utf8.encode('$_utf8Bom$script');
+
+  static const String _utf8Bom = '\uFEFF';
 
   static String buildInstallerScript({
     required int appPid,
@@ -121,7 +129,7 @@ try {
   \$CanPreserveUserFiles = \$false
   \$OldManifestPath = Join-Path \$AppDir 'app_files_manifest.json'
   if (Test-Path -LiteralPath \$OldManifestPath) {
-    \$OldManifest = Get-Content -LiteralPath \$OldManifestPath -Raw | ConvertFrom-Json
+    \$OldManifest = Get-Content -LiteralPath \$OldManifestPath -Raw -Encoding UTF8 | ConvertFrom-Json
     if (\$null -eq \$OldManifest.files) {
       throw 'The existing application file manifest is invalid.'
     }
@@ -204,7 +212,7 @@ function Write-UpdateLog {
   Add-Content -LiteralPath \$LogPath -Value "[\$Timestamp] \$Message" -Encoding UTF8
 }
 
-# 主应用据此确认脚本真的开始执行；标记迟迟不出现说明脚本被策略或安全软件拦下。
+# 主应用据此确认脚本真的开始执行；标记迟迟不出现说明脚本没能运行。
 function Write-UpdateStarted {
   \$Started = [ordered]@{
     version = \$Version
@@ -282,5 +290,9 @@ function Stop-BundledProxies {
 ''';
   }
 
-  static String _escape(String value) => value.replaceAll("'", "''");
+  // PowerShell 把 ‘ ’ ‚ ‛ 也当作单引号，单引号字符串里每一个都要重复一次。
+  static String _escape(String value) =>
+      value.replaceAllMapped(_singleQuotes, (match) => match[0]! * 2);
+
+  static final RegExp _singleQuotes = RegExp("['\u2018\u2019\u201A\u201B]");
 }
