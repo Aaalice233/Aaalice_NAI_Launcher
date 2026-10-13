@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/services/local_onnx_model_service.dart';
+import 'local_tagger_models_provider.dart';
 
 /// 本地 ONNX 模型是否正在导入；状态不随设置页销毁，GB 级导入期间不能再发起导入或清空模型。
 final localOnnxImportProvider = NotifierProvider<LocalOnnxImportNotifier, bool>(
@@ -26,7 +27,11 @@ class LocalOnnxImportNotifier extends Notifier<bool> {
     try {
       return await service.importTaggerSelections(sources);
     } finally {
-      if (!_disposed) state = false;
+      if (!_disposed) {
+        state = false;
+        // 中途失败也可能已写入部分文件，模型列表按磁盘现状重扫
+        invalidateLocalTaggerCaches(ref.container);
+      }
     }
   }
 }
