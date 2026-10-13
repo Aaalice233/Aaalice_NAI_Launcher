@@ -18,10 +18,11 @@ class ShortcutAwareWidget extends ConsumerStatefulWidget {
   /// key: 快捷键ID, value: 回调函数
   final Map<String, VoidCallback> shortcuts;
 
-  /// 是否自动聚焦
+  /// 首次挂载时有生效的快捷键才自动聚焦锚点，否则让给子组件自己的 autofocus
   final bool autofocus;
 
-  /// 焦点节点（可选）
+  /// 锚点焦点节点（可选），调用方负责销毁
+  /// 按原样使用，不改写 skipTraversal；换节点时锚点上的焦点会转移到新节点
   final FocusNode? focusNode;
 
   const ShortcutAwareWidget({
@@ -38,9 +39,9 @@ class ShortcutAwareWidget extends ConsumerStatefulWidget {
 }
 
 class _ShortcutAwareWidgetState extends ConsumerState<ShortcutAwareWidget> {
-  static final ShortcutConfig _fallbackConfig = ShortcutConfig.createDefault();
-
   late FocusNode _focusNode;
+
+  bool? _anchorAutofocus;
 
   late final Map<Type, Action<Intent>> _actions = {
     _ShortcutIntent: CallbackAction<_ShortcutIntent>(onInvoke: _invoke),
@@ -55,11 +56,12 @@ class _ShortcutAwareWidgetState extends ConsumerState<ShortcutAwareWidget> {
   @override
   void didUpdateWidget(ShortcutAwareWidget oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (widget.focusNode == oldWidget.focusNode) return;
-    if (oldWidget.focusNode == null) {
-      _focusNode.dispose();
+    if (widget.autofocus != oldWidget.autofocus) {
+      _anchorAutofocus = null;
     }
-    _focusNode = widget.focusNode ?? _createOwnedFocusNode();
+    if (widget.focusNode != oldWidget.focusNode) {
+      _replaceFocusNode(ownedPrevious: oldWidget.focusNode == null);
+    }
   }
 
   @override
@@ -70,24 +72,40 @@ class _ShortcutAwareWidgetState extends ConsumerState<ShortcutAwareWidget> {
     super.dispose();
   }
 
-  FocusNode _createOwnedFocusNode() =>
-      FocusNode(debugLabel: 'ShortcutAwareWidget(${widget.contextType.name})');
+  FocusNode _createOwnedFocusNode() => FocusNode(
+    debugLabel: 'ShortcutAwareWidget(${widget.contextType.name})',
+    skipTraversal: true,
+  );
+
+  void _replaceFocusNode({required bool ownedPrevious}) {
+    final hadPrimaryFocus = _focusNode.hasPrimaryFocus;
+    if (ownedPrevious) {
+      _focusNode.dispose();
+    }
+    _focusNode = widget.focusNode ?? _createOwnedFocusNode();
+    if (hadPrimaryFocus) {
+      _focusNode.requestFocus();
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    final config =
-        ref.watch(shortcutConfigNotifierProvider).valueOrNull ??
-        _fallbackConfig;
+    final config = resolveDispatchShortcutConfig(
+      ref.watch(shortcutConfigNotifierProvider),
+    );
+    final shortcuts = _resolveShortcuts(config);
+    // 只在首次挂载判定：无生效快捷键时把 autofocus 让给子组件，之后也不因配置变化抢焦点
+    final anchorAutofocus = _anchorAutofocus ??=
+        widget.autofocus && shortcuts.isNotEmpty;
 
     // 各状态共用同一结构且不带随配置变化的 key，否则 child 子树会重挂并丢失状态与焦点
     return Shortcuts(
-      shortcuts: _resolveShortcuts(config),
+      shortcuts: shortcuts,
       child: Actions(
         actions: _actions,
         child: Focus(
           focusNode: _focusNode,
-          autofocus: widget.autofocus,
-          skipTraversal: true,
+          autofocus: anchorAutofocus,
           child: widget.child,
         ),
       ),

@@ -132,6 +132,19 @@ class ShortcutConfigNotifier extends _$ShortcutConfigNotifier {
   }
 }
 
+final ShortcutConfig _defaultDispatchConfig = ShortcutConfig.createDefault();
+
+/// 按键分派使用的配置：加载中或加载出错时回退默认绑定
+ShortcutConfig resolveDispatchShortcutConfig(
+  AsyncValue<ShortcutConfig> configAsync,
+) {
+  return configAsync.when(
+    data: (config) => config,
+    loading: () => _defaultDispatchConfig,
+    error: (_, __) => _defaultDispatchConfig,
+  );
+}
+
 /// 快捷键绑定编辑状态
 @riverpod
 class ShortcutEditingNotifier extends _$ShortcutEditingNotifier {

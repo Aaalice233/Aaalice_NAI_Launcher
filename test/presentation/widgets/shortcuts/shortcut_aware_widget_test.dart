@@ -151,6 +151,55 @@ Future<_Harness> _pumpHarness(
   return harness;
 }
 
+class _DeferredMount extends StatefulWidget {
+  const _DeferredMount({super.key, required this.child});
+
+  final Widget child;
+
+  @override
+  State<_DeferredMount> createState() => _DeferredMountState();
+}
+
+class _DeferredMountState extends State<_DeferredMount> {
+  bool _mounted = false;
+
+  void mount() => setState(() => _mounted = true);
+
+  @override
+  Widget build(BuildContext context) =>
+      _mounted ? widget.child : const SizedBox.shrink();
+}
+
+/// 配置先就绪再挂载 ShortcutAwareWidget，对应页面在应用启动完成后才打开的情形
+Future<_ControlledShortcutConfigNotifier> _pumpMountedAfterReady(
+  WidgetTester tester, {
+  required ShortcutConfig config,
+  required Widget Function(_ControlledShortcutConfigNotifier notifier) build,
+}) async {
+  final notifier = _ControlledShortcutConfigNotifier();
+  final gateKey = GlobalKey<_DeferredMountState>();
+
+  await tester.pumpWidget(
+    ProviderScope(
+      overrides: [shortcutConfigNotifierProvider.overrideWith(() => notifier)],
+      child: MaterialApp(
+        home: _DeferredMount(key: gateKey, child: build(notifier)),
+      ),
+    ),
+  );
+  ProviderScope.containerOf(
+    gateKey.currentContext!,
+  ).read(shortcutConfigNotifierProvider);
+  notifier.emit(_ready(config));
+  gateKey.currentState!.mount();
+  await tester.pump();
+  await tester.pump();
+  return notifier;
+}
+
+bool _isAnchor(FocusNode? node) =>
+    node?.debugLabel?.startsWith('ShortcutAwareWidget') ?? false;
+
 ShortcutConfig get _defaults => ShortcutConfig.createDefault();
 
 AsyncValue<ShortcutConfig> _ready(ShortcutConfig config) =>
@@ -276,7 +325,7 @@ void main() {
           child: MaterialApp(
             home: ShortcutAwareWidget(
               contextType: ShortcutContext.generation,
-              shortcuts: const {},
+              shortcuts: {ShortcutIds.generateImage: () {}},
               autofocus: true,
               focusNode: external,
               child: const SizedBox.shrink(),
@@ -286,11 +335,177 @@ void main() {
       );
       await tester.pump();
       expect(external.hasPrimaryFocus, isTrue);
+      expect(external.skipTraversal, isFalse, reason: '外部节点按原样使用');
 
       await tester.pumpWidget(const SizedBox.shrink());
+      expect(external.skipTraversal, isFalse);
       void listener() {}
       expect(() => external.addListener(listener), returnsNormally);
       external.removeListener(listener);
+    });
+
+    testWidgets('更换 focusNode 时锚点上的焦点转移到新节点', (tester) async {
+      final first = FocusNode(debugLabel: 'external-first');
+      final second = FocusNode(debugLabel: 'external-second');
+      addTearDown(first.dispose);
+      addTearDown(second.dispose);
+      final notifier = _ControlledShortcutConfigNotifier();
+      FocusNode? current;
+      late StateSetter setHostState;
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            shortcutConfigNotifierProvider.overrideWith(() => notifier),
+          ],
+          child: MaterialApp(
+            home: StatefulBuilder(
+              builder: (context, setState) {
+                setHostState = setState;
+                return ShortcutAwareWidget(
+                  contextType: ShortcutContext.generation,
+                  shortcuts: {ShortcutIds.generateImage: () {}},
+                  autofocus: true,
+                  focusNode: current,
+                  child: const SizedBox.shrink(),
+                );
+              },
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+      expect(_isAnchor(FocusManager.instance.primaryFocus), isTrue);
+
+      Future<void> switchTo(FocusNode? node) async {
+        setHostState(() => current = node);
+        await tester.pump();
+        await tester.pump();
+      }
+
+      await switchTo(first);
+      expect(first.hasPrimaryFocus, isTrue, reason: '自有节点 → 外部节点');
+
+      await switchTo(second);
+      expect(second.hasPrimaryFocus, isTrue, reason: '外部节点 → 外部节点');
+
+      await switchTo(null);
+      expect(
+        _isAnchor(FocusManager.instance.primaryFocus),
+        isTrue,
+        reason: '外部节点 → 自有节点',
+      );
+      expect(first.skipTraversal, isFalse);
+      expect(second.skipTraversal, isFalse);
+    });
+
+    final childFirstScenarios = <String, (ShortcutConfig, ShortcutContext)>{
+      '快捷键全局关闭': (
+        ShortcutConfig.createDefault().copyWith(enableShortcuts: false),
+        ShortcutContext.generation,
+      ),
+      '当前页面没有可用快捷键': (ShortcutConfig.createDefault(), ShortcutContext.gallery),
+    };
+    for (final MapEntry(key: name, value: (config, contextType))
+        in childFirstScenarios.entries) {
+      testWidgets('$name时子组件自己的 autofocus 生效并能收到按键', (tester) async {
+        final listenerFocus = FocusNode(debugLabel: 'child-listener');
+        addTearDown(listenerFocus.dispose);
+        var undoPresses = 0;
+
+        await _pumpMountedAfterReady(
+          tester,
+          config: config,
+          build: (_) => ShortcutAwareWidget(
+            contextType: contextType,
+            shortcuts: {ShortcutIds.generateImage: () {}},
+            autofocus: true,
+            child: KeyboardListener(
+              focusNode: listenerFocus,
+              autofocus: true,
+              onKeyEvent: (event) {
+                if (event is KeyDownEvent &&
+                    event.logicalKey == LogicalKeyboardKey.keyZ) {
+                  undoPresses++;
+                }
+              },
+              child: const SizedBox.shrink(),
+            ),
+          ),
+        );
+
+        expect(listenerFocus.hasPrimaryFocus, isTrue);
+        await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+        await tester.sendKeyEvent(LogicalKeyboardKey.keyZ);
+        await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+        expect(undoPresses, 1);
+      });
+    }
+
+    testWidgets('挂载后再启用快捷键不抢走子组件已获得的焦点', (tester) async {
+      final fieldFocus = FocusNode(debugLabel: 'child-field');
+      addTearDown(fieldFocus.dispose);
+
+      final notifier = await _pumpMountedAfterReady(
+        tester,
+        config: _defaults.copyWith(enableShortcuts: false),
+        build: (_) => ShortcutAwareWidget(
+          contextType: ShortcutContext.generation,
+          shortcuts: {ShortcutIds.generateImage: () {}},
+          autofocus: true,
+          child: Material(
+            child: TextField(focusNode: fieldFocus, autofocus: true),
+          ),
+        ),
+      );
+      expect(fieldFocus.hasPrimaryFocus, isTrue);
+
+      notifier.emit(_ready(_defaults));
+      await tester.pump();
+      await tester.pump();
+
+      expect(fieldFocus.hasPrimaryFocus, isTrue);
+    });
+
+    testWidgets('Tab 遍历不会停在锚点上', (tester) async {
+      final fieldA = FocusNode(debugLabel: 'field-a');
+      final fieldB = FocusNode(debugLabel: 'field-b');
+      addTearDown(fieldA.dispose);
+      addTearDown(fieldB.dispose);
+      final notifier = _ControlledShortcutConfigNotifier();
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            shortcutConfigNotifierProvider.overrideWith(() => notifier),
+          ],
+          child: MaterialApp(
+            home: ShortcutAwareWidget(
+              contextType: ShortcutContext.generation,
+              shortcuts: {ShortcutIds.generateImage: () {}},
+              autofocus: true,
+              child: Material(
+                child: Column(
+                  children: [
+                    TextField(focusNode: fieldA),
+                    TextField(focusNode: fieldB),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+      expect(_isAnchor(FocusManager.instance.primaryFocus), isTrue);
+
+      final visited = <String?>[];
+      for (var i = 0; i < 5; i++) {
+        await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+        await tester.pump();
+        visited.add(FocusManager.instance.primaryFocus?.debugLabel);
+      }
+
+      expect(visited, ['field-a', 'field-b', 'field-a', 'field-b', 'field-a']);
     });
 
     testWidgets('已聚焦的输入框在重建与状态切换中保持焦点', (tester) async {
@@ -364,6 +579,42 @@ void main() {
       expect(harness.count(ShortcutIds.generateImage), 1);
       await harness.press(_ctrl, LogicalKeyboardKey.keyH);
       expect(harness.count(ShortcutIds.generateImage), 2);
+    });
+
+    testWidgets('重新加载期间沿用上次配置，重新加载出错时回退默认绑定', (tester) async {
+      final harness = await _pumpHarness(tester);
+      final custom = _ready(
+        _defaults.setCustomShortcut(ShortcutIds.generateImage, 'ctrl+g'),
+      );
+      await harness.emit(custom);
+
+      await harness.emit(
+        const AsyncLoading<ShortcutConfig>().copyWithPrevious(custom),
+      );
+      await harness.press(_ctrl, LogicalKeyboardKey.keyG);
+      expect(harness.count(ShortcutIds.generateImage), 1, reason: '刷新中');
+
+      await harness.emit(_failed().copyWithPrevious(custom));
+      await harness.press(_ctrl, LogicalKeyboardKey.keyG);
+      expect(harness.count(ShortcutIds.generateImage), 1, reason: '出错旧键失效');
+      await harness.press(_ctrl, LogicalKeyboardKey.enter);
+      expect(harness.count(ShortcutIds.generateImage), 2, reason: '出错用默认键');
+    });
+
+    testWidgets('子树内输入框持有焦点时改绑后的快捷键冒泡触发', (tester) async {
+      final harness = await _pumpHarness(tester);
+      await harness.emit(
+        _ready(
+          _defaults.setCustomShortcut(ShortcutIds.generateImage, 'ctrl+g'),
+        ),
+      );
+      harness.probe.textFocus.requestFocus();
+      await tester.pump();
+
+      await harness.press(_ctrl, LogicalKeyboardKey.keyG);
+
+      expect(harness.count(ShortcutIds.generateImage), 1);
+      expect(harness.probe.textFocus.hasPrimaryFocus, isTrue);
     });
 
     testWidgets('父级重建后回调使用最新传入的映射', (tester) async {

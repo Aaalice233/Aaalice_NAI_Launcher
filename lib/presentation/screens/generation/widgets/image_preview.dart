@@ -20,7 +20,6 @@ import 'package:path/path.dart' as p;
 import '../../../../core/enums/precise_ref_type.dart';
 import '../../../../core/platform/platform_capabilities.dart';
 import '../../../../core/shortcuts/default_shortcuts.dart';
-import '../../../../core/shortcuts/shortcut_config.dart';
 import '../../../../core/shortcuts/shortcut_manager.dart';
 import '../../../../core/utils/app_logger.dart';
 import '../../../../core/utils/file_explorer_utils.dart';
@@ -83,13 +82,9 @@ class PreviewNavShortcuts extends ConsumerWidget {
   }
 
   Map<ShortcutActivator, VoidCallback> _resolveBindings(WidgetRef ref) {
-    final config = ref
-        .watch(shortcutConfigNotifierProvider)
-        .when(
-          data: (value) => value,
-          loading: ShortcutConfig.createDefault,
-          error: (_, _) => ShortcutConfig.createDefault(),
-        );
+    final config = resolveDispatchShortcutConfig(
+      ref.watch(shortcutConfigNotifierProvider),
+    );
     final bindings = <ShortcutActivator, VoidCallback>{};
     if (config.enableShortcuts) {
       void register(String id, VoidCallback callback) {
