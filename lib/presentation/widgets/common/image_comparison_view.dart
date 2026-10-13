@@ -348,8 +348,7 @@ class _ImageComparisonViewState extends ConsumerState<ImageComparisonView> {
     );
   }
 
-  // Both layers share the result's display box: a source whose ratio drifted
-  // by edge rounding is stretched onto it, as the request itself was.
+  // A drifted source is stretched onto the result's box, as the request was.
   Rect? _imageRect(Size viewport) {
     final imageSize = _generatedSize;
     if (imageSize == null || viewport.isEmpty) return null;

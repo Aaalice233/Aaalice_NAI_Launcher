@@ -28,8 +28,7 @@ class ImageCardFrame extends StatelessWidget {
     this.animate = true,
   });
 
-  // Media embedded in the card must clip to the same curve, otherwise the
-  // layers beneath it show through between the two arcs.
+  // Embedded media clips to the same curve so nothing shows between arcs.
   static const double defaultRadius = 12;
 
   final Widget child;
