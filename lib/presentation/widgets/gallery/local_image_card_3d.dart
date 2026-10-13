@@ -3,6 +3,7 @@ import '../common/image_card_frame.dart';
 import 'dart:async';
 import 'dart:io';
 
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 
 import 'package:flutter/services.dart';
@@ -159,6 +160,9 @@ class _LocalImageCard3DState extends ConsumerState<LocalImageCard3D> {
   }
 
   void _onHoverEnter(PointerEvent event) {
+    // MouseTracker 对手写笔悬停同样下发 enter（平板 + 触控笔），悬停效果只
+    // 留给鼠标和触控板，避免笔尖悬停时卡片抬升、盖住正要点的图。
+    if (event.kind != PointerDeviceKind.mouse) return;
     setState(() => _isHovered = true);
   }
 

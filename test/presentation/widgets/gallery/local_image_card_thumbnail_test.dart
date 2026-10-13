@@ -113,7 +113,10 @@ void main() {
             widget.onEnter != null,
       ),
     );
-    hoverRegion.onEnter!(const PointerEnterEvent());
+    // 卡片的悬停效果只响应鼠标 / 触控板，PointerEnterEvent 默认是 touch
+    hoverRegion.onEnter!(
+      const PointerEnterEvent(kind: PointerDeviceKind.mouse),
+    );
     await tester.pump();
     final agentAction = find.byTooltip('Send to Agent');
     expect(agentAction, findsOneWidget);
