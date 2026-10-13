@@ -6,6 +6,8 @@ import 'editor_state.dart';
 
 /// 视图控制动作，键盘快捷键、桌面工具栏与触屏菜单共用同一份定义
 enum EditorViewAction {
+  zoomIn(Icons.zoom_in),
+  zoomOut(Icons.zoom_out),
   fitToWindow(Icons.fit_screen),
   actualSize(Icons.looks_one_outlined, LogicalKeyboardKey.digit1),
   fitWidth(Icons.width_full, LogicalKeyboardKey.digit3),
@@ -46,6 +48,10 @@ enum EditorViewAction {
   void perform(EditorState state) {
     final controller = state.canvasController;
     switch (this) {
+      case zoomIn:
+        controller.zoomIn();
+      case zoomOut:
+        controller.zoomOut();
       case fitToWindow:
         controller.fitToViewport(state.frame);
       case actualSize:

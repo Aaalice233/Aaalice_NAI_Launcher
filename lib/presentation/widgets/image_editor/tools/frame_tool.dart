@@ -28,6 +28,9 @@ class FrameTool extends EditorTool {
   bool isEnabledInSession(EditorState state) => state.frameCommands != null;
 
   @override
+  bool get belongsToInpaintGroup => true;
+
+  @override
   void onPointerDown(PointerDownEvent event, EditorState state) {
     final commands = state.frameCommands;
     final frame = state.frame;

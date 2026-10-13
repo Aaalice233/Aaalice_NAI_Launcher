@@ -22632,6 +22632,18 @@ abstract class AppLocalizations {
   /// **'General'**
   String get editor_toolGroupCommon;
 
+  /// No description provided for @editor_toolbarFlyoutExpand.
+  ///
+  /// In en, this message translates to:
+  /// **'Show related tools'**
+  String get editor_toolbarFlyoutExpand;
+
+  /// No description provided for @editor_toolbarFlyoutHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Hover, right-click or long-press for related tools'**
+  String get editor_toolbarFlyoutHint;
+
   /// No description provided for @editor_toolMaskBrush.
   ///
   /// In en, this message translates to:

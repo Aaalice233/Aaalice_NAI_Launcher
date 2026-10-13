@@ -48,6 +48,9 @@ class BlurTool extends EditorTool {
   bool get followsLayerRole => true;
 
   @override
+  EditorToolFamily get family => EditorToolFamily.retouch;
+
+  @override
   void onPointerDown(PointerDownEvent event, EditorState state) {
     state.startStroke(event.localPosition);
   }

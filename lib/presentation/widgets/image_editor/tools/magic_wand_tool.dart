@@ -40,6 +40,9 @@ class MagicWandTool extends EditorTool {
   bool get followsLayerRole => true;
 
   @override
+  EditorToolFamily get family => EditorToolFamily.region;
+
+  @override
   String get name => 'Magic Wand';
 
   @override

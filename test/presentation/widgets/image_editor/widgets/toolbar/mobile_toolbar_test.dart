@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:nai_launcher/presentation/adaptive/interaction_policy.dart';
 import 'package:nai_launcher/presentation/widgets/image_editor/tools/closed_region_fill_tool.dart';
+import 'package:nai_launcher/presentation/widgets/image_editor/tools/frame_tool.dart';
 import 'package:nai_launcher/presentation/widgets/image_editor/widgets/toolbar/mobile_toolbar.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -24,6 +26,7 @@ void main() {
     await pumpToolbarHost(
       tester,
       size: const Size(360, 720),
+      policy: InteractionPolicy.touchFirst,
       child: bottomBar(MobileToolbar(state: state)),
     );
 
@@ -38,8 +41,9 @@ void main() {
       );
     }
     expectEntryInGroup('inpaint', closedFill);
-    expectEntryInGroup('edit', 'clone_stamp');
-    expect(find.byTooltip('填充封闭区域'), findsOneWidget);
+    expectEntryInGroup('inpaint', FrameTool.toolId);
+    expectEntryInGroup('edit', 'blur');
+    expect(toolEntry('edit', 'clone_stamp'), findsNothing);
 
     await tester.tap(toolEntry('inpaint', 'eraser'));
     await tester.pump();
@@ -47,46 +51,87 @@ void main() {
     expect(state.currentTool?.id, 'eraser');
     expect(isEntrySelected(tester, 'inpaint', 'eraser'), isTrue);
 
-    final cloneStamp = toolEntry('edit', 'clone_stamp');
-    await tester.ensureVisible(cloneStamp);
+    final retouch = toolSlot('edit', 'retouch');
+    await tester.ensureVisible(retouch);
     await tester.pump();
-    await tester.tap(cloneStamp);
+    await tester.longPress(retouch);
     await tester.pump();
+    expect(flyoutLabels(tester), ['模糊', '仿制图章']);
+
+    await chooseFlyoutEntry(tester, flyoutEntry('edit', 'clone_stamp'));
+    expect(find.byType(MenuItemButton), findsNothing);
     expect(state.layerManager.activeLayer, same(source));
     expect(state.currentTool?.id, 'clone_stamp');
+    expect(isEntrySelected(tester, 'edit', 'clone_stamp'), isTrue);
+  });
+
+  testWidgets('long-press opens the family above the bottom bar', (
+    tester,
+  ) async {
+    final (:state, source: _, mask: _) = createInpaintToolbarState();
+    await pumpToolbarHost(
+      tester,
+      size: const Size(360, 720),
+      policy: InteractionPolicy.touchFirst,
+      child: bottomBar(MobileToolbar(state: state)),
+    );
+    expect(toolSlot('inpaint', 'region'), findsNothing);
+    final slot = toolSlot('edit', 'region');
+    await tester.ensureVisible(slot);
+    await tester.pump();
+
+    await tester.longPress(slot);
+    await tester.pump();
+
+    expect(flyoutLabels(tester), ['填充', '魔棒']);
+    final slotRect = tester.getRect(slot);
+    final items = find.byType(MenuItemButton);
+    expect(tester.getRect(items.last).bottom, lessThanOrEqualTo(slotRect.top));
+    for (final item in items.evaluate()) {
+      final rect = tester.getRect(find.byWidget(item.widget));
+      expect(rect.left, greaterThanOrEqualTo(0));
+      expect(rect.right, lessThanOrEqualTo(360));
+      expect(rect.height, greaterThanOrEqualTo(44));
+    }
+    expect(tester.takeException(), isNull);
+
+    // 折叠按钮没有提示气泡，说明只在二级菜单里
+    expect(
+      find.descendant(of: slot, matching: find.byType(Tooltip)),
+      findsNothing,
+    );
   });
 
   for (final width in const [320.0, 600.0]) {
     for (final textScale in const [1.0, 3.0]) {
       for (final locale in const [Locale('zh'), Locale('en')]) {
-        testWidgets(
-          'every group stays reachable: $width $locale x$textScale',
-          (tester) async {
-            final (:state, source: _, mask: _) = createInpaintToolbarState();
-            await pumpToolbarHost(
-              tester,
-              size: Size(width, 720),
-              locale: locale,
-              textScale: textScale,
-              child: bottomBar(MobileToolbar(state: state)),
-            );
+        testWidgets('every group stays reachable: $width $locale x$textScale', (
+          tester,
+        ) async {
+          final (:state, source: _, mask: _) = createInpaintToolbarState();
+          await pumpToolbarHost(
+            tester,
+            size: Size(width, 720),
+            locale: locale,
+            textScale: textScale,
+            policy: InteractionPolicy.touchFirst,
+            child: bottomBar(MobileToolbar(state: state)),
+          );
 
-            expect(tester.takeException(), isNull);
-            for (final (group, toolId) in [
-              ('inpaint', 'brush'),
-              ('edit', 'color_picker'),
-              ('common', 'lasso_selection'),
-            ]) {
-              final entry = toolEntry(group, toolId);
-              await tester.ensureVisible(entry);
-              await tester.pump();
-              final rect = tester.getRect(entry);
-              expect(rect.left, greaterThanOrEqualTo(0));
-              expect(rect.right, lessThanOrEqualTo(width));
-              expect(rect.height, greaterThanOrEqualTo(44));
-            }
-          },
-        );
+          expect(tester.takeException(), isNull);
+          for (final target in [
+            toolEntry('inpaint', 'brush'),
+            toolEntry('edit', 'color_picker'),
+            toolSlot('common', 'selection'),
+          ]) {
+            await tester.ensureVisible(target);
+            await tester.pump();
+            final rect = tester.getRect(target);
+            expect(rect.left, greaterThanOrEqualTo(0));
+            expect(rect.right, lessThanOrEqualTo(width));
+            expect(rect.height, greaterThanOrEqualTo(44));
+          }
+        });
       }
     }
   }

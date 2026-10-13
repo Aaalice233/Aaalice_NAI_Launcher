@@ -13,6 +13,8 @@ import '../tools/brush_tool.dart';
 import '../tools/eraser_tool.dart';
 import 'canvas_controller.dart';
 import 'color_manager.dart';
+import 'editor_tool_groups.dart';
+import 'editor_toolbar_slot_memory.dart';
 import 'history_manager.dart';
 import 'layer_commands.dart';
 import 'layer_move_controller.dart';
@@ -69,6 +71,9 @@ class EditorState extends ChangeNotifier {
 
   /// 填充等需要先回读像素的编辑；导出与撤销前须等它清空
   final PixelReadbackQueue pixelReadbacks = PixelReadbackQueue();
+
+  /// 桌面与移动工具栏会随断点互换，折叠按钮的记忆放在这里才不丢
+  final EditorToolbarSlotMemory toolbarSlotMemory = EditorToolbarSlotMemory();
 
   LayerRolePolicy _rolePolicy = const LayerRolePolicy.disabled();
   LayerRolePolicy get rolePolicy => _rolePolicy;
@@ -251,7 +256,13 @@ class EditorState extends ChangeNotifier {
 
     // 笔画变化 → 触发渲染
     strokeManager.addListener(_onStrokeChanged);
+
+    // 换图层会让随角色变化的工具换到另一组
+    toolManager.toolNotifier.addListener(_rememberToolbarSlot);
+    layerManager.activeLayerNotifier.addListener(_rememberToolbarSlot);
   }
+
+  void _rememberToolbarSlot() => rememberSelectedToolSlot(this);
 
   // ===== 代理方法：工具 =====
 
@@ -766,8 +777,11 @@ class EditorState extends ChangeNotifier {
     colorManager.removeListener(_onColorChanged);
     selectionManager.removeListener(_onSelectionChanged);
     strokeManager.removeListener(_onStrokeChanged);
+    toolManager.toolNotifier.removeListener(_rememberToolbarSlot);
+    layerManager.activeLayerNotifier.removeListener(_rememberToolbarSlot);
 
     // 释放管理器
+    toolbarSlotMemory.dispose();
     toolManager.dispose();
     colorManager.dispose();
     selectionManager.dispose();

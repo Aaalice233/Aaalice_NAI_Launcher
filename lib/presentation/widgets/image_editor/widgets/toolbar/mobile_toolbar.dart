@@ -7,6 +7,7 @@ import '../../core/editor_tool_groups.dart';
 import '../../tools/tool_base.dart';
 import '../../../../widgets/common/themed_divider.dart';
 import 'editor_tool_group_section.dart';
+import 'editor_toolbar_flyout.dart';
 import 'editor_toolbar_tools.dart';
 
 /// 移动端底部工具栏
@@ -134,18 +135,43 @@ class _MobileToolSections extends StatelessWidget {
                 ? editorToolGroupLabel(context, section.group)
                 : null,
             children: [
-              for (final entry in section.entries)
-                _MobileToolButton(
-                  key: ValueKey('editor-tool-${entry.key}'),
-                  tool: entry.tool,
-                  label: editorToolLabel(context, entry.tool, entry.targetRole),
-                  isSelected: isEditorToolEntrySelected(state, entry),
-                  onTap: () => activateEditorToolEntry(state, entry),
+              for (final slot in section.slots)
+                _MobileToolSlot(
+                  key: ValueKey('editor-tool-slot-${slot.key}'),
+                  state: state,
+                  slot: slot,
                 ),
             ],
           ),
         ],
       ],
+    );
+  }
+}
+
+/// 折叠按钮显示该族当前或最近用过的工具，长按向上展开同族工具
+class _MobileToolSlot extends StatelessWidget {
+  const _MobileToolSlot({super.key, required this.state, required this.slot});
+
+  final EditorState state;
+  final EditorToolSlot slot;
+
+  @override
+  Widget build(BuildContext context) {
+    final entry = displayedEntryOf(state, slot);
+    final button = _MobileToolButton(
+      key: ValueKey('editor-tool-${entry.key}'),
+      tool: entry.tool,
+      label: editorToolLabel(context, entry.tool, entry.targetRole),
+      isSelected: isEditorToolEntrySelected(state, entry),
+      folded: slot.isFolded,
+      onTap: () => activateEditorToolEntry(state, entry),
+    );
+    if (!slot.isFolded) return button;
+    return EditorToolbarFlyout(
+      placement: EditorToolbarFlyoutPlacement.above,
+      items: editorToolSlotFlyoutItems(context, state, slot),
+      child: button,
     );
   }
 }
@@ -157,50 +183,57 @@ class _MobileToolButton extends StatelessWidget {
   final bool isSelected;
   final VoidCallback onTap;
 
+  /// 同族还有其他工具，可展开二级菜单
+  final bool folded;
+
   const _MobileToolButton({
     super.key,
     required this.tool,
     required this.label,
     required this.isSelected,
     required this.onTap,
+    this.folded = false,
   });
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final foreground = isSelected
+        ? theme.colorScheme.onPrimaryContainer
+        : theme.colorScheme.onSurface;
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 2),
-      child: Tooltip(
-        message: label,
-        excludeFromSemantics: true,
-        child: Semantics(
-          button: true,
-          selected: isSelected,
-          label: label,
-          child: Material(
-            color: isSelected
-                ? theme.colorScheme.primaryContainer
-                : Colors.transparent,
-            borderRadius: BorderRadius.circular(8),
-            child: InkWell(
-              onTap: onTap,
-              borderRadius: BorderRadius.circular(8),
-              child: SizedBox(
-                width: 48,
-                height: 48,
-                child: Icon(
-                  tool.icon,
-                  size: 22,
-                  color: isSelected
-                      ? theme.colorScheme.onPrimaryContainer
-                      : theme.colorScheme.onSurface,
-                ),
-              ),
+    final button = Semantics(
+      button: true,
+      selected: isSelected,
+      label: label,
+      child: Material(
+        color: isSelected
+            ? theme.colorScheme.primaryContainer
+            : Colors.transparent,
+        borderRadius: BorderRadius.circular(8),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(8),
+          child: SizedBox.square(
+            dimension: 48,
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                Center(child: Icon(tool.icon, size: 22, color: foreground)),
+                if (folded) EditorToolbarFoldIndicator(color: foreground),
+              ],
             ),
           ),
         ),
       ),
+    );
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 2),
+      // 折叠按钮的说明交给二级菜单，长按也留给它
+      child: folded
+          ? button
+          : Tooltip(message: label, excludeFromSemantics: true, child: button),
     );
   }
 }

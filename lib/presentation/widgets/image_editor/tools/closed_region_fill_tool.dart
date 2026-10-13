@@ -27,6 +27,9 @@ class ClosedRegionFillTool extends EditorTool {
   bool get followsLayerRole => true;
 
   @override
+  EditorToolFamily get family => EditorToolFamily.region;
+
+  @override
   bool supportsRole(LayerRole role) => role == LayerRole.mask;
 
   @override

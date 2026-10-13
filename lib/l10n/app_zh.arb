@@ -6417,6 +6417,8 @@
   "editor_toolGroupInpaint": "重绘",
   "editor_toolGroupEdit": "编辑",
   "editor_toolGroupCommon": "通用",
+  "editor_toolbarFlyoutExpand": "展开同组工具",
+  "editor_toolbarFlyoutHint": "悬停、右键或长按可展开同组工具",
   "editor_toolMaskBrush": "蒙版画笔",
   "editor_toolMaskEraser": "蒙版橡皮擦",
   "editor_toolMaskColorFill": "按颜色填充蒙版",

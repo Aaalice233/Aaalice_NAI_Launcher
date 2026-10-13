@@ -12473,6 +12473,12 @@ class AppLocalizationsZh extends AppLocalizations {
   String get editor_toolGroupCommon => '通用';
 
   @override
+  String get editor_toolbarFlyoutExpand => '展开同组工具';
+
+  @override
+  String get editor_toolbarFlyoutHint => '悬停、右键或长按可展开同组工具';
+
+  @override
   String get editor_toolMaskBrush => '蒙版画笔';
 
   @override
@@ -27585,6 +27591,12 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get editor_toolGroupCommon => '通用';
+
+  @override
+  String get editor_toolbarFlyoutExpand => '展開同組工具';
+
+  @override
+  String get editor_toolbarFlyoutHint => '懸停、按右鍵或長按可展開同組工具';
 
   @override
   String get editor_toolMaskBrush => '蒙版畫筆';

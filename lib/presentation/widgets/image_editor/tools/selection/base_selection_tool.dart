@@ -15,6 +15,9 @@ abstract class BaseSelectionTool extends EditorTool {
   bool get isSelectionTool => true;
 
   @override
+  EditorToolFamily get family => EditorToolFamily.selection;
+
+  @override
   void onDeactivateFast(EditorState state) => _abortGesture(state);
 
   @override

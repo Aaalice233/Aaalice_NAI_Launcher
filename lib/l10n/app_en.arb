@@ -6348,6 +6348,8 @@
   "editor_toolGroupInpaint": "Inpaint",
   "editor_toolGroupEdit": "Edit",
   "editor_toolGroupCommon": "General",
+  "editor_toolbarFlyoutExpand": "Show related tools",
+  "editor_toolbarFlyoutHint": "Hover, right-click or long-press for related tools",
   "editor_toolMaskBrush": "Mask Brush",
   "editor_toolMaskEraser": "Mask Eraser",
   "editor_toolMaskColorFill": "Fill Mask by Color",
