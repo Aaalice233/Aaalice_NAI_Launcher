@@ -10,6 +10,7 @@ import '../../providers/character_prompt_provider.dart';
 import '../../providers/fixed_tags_provider.dart';
 import '../../providers/generation/image_generation_selectors.dart';
 import '../../providers/generation/image_workflow_controller.dart';
+import '../../providers/generation/workflow_panel_reveal_provider.dart';
 import '../../providers/image_generation_provider.dart';
 import '../../providers/krita/krita_bridge_notifier.dart';
 import '../../providers/prompt_maximize_provider.dart';
@@ -48,11 +49,19 @@ class _MobileGenerationLayoutState
   late final PromptInputController _promptInputController;
   late final GlobalKey _promptInputKey;
   late final bool _ownsPromptInputController;
+  late final ProviderSubscription<int> _workflowRevealSubscription;
 
   @override
   void initState() {
     super.initState();
     _controller = MobileGenerationController(ref);
+    // 参数面板在抽屉里：放大 / 增强只展开面板时，顺带把抽屉打开
+    _workflowRevealSubscription = ref.listenManual<int>(
+      workflowPanelRevealProvider,
+      (previous, next) {
+        if (next != previous) _controller.openParameterDrawer();
+      },
+    );
     _historyViewport = widget.historyViewport ?? OwnedViewportOffset();
     _ownsPromptInputController = widget.promptInputController == null;
     _promptInputKey =
@@ -69,6 +78,7 @@ class _MobileGenerationLayoutState
 
   @override
   void dispose() {
+    _workflowRevealSubscription.close();
     _controller.dispose();
     if (_ownsPromptInputController) _promptInputController.dispose();
     super.dispose();
