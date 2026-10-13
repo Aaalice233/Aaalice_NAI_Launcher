@@ -12,6 +12,7 @@ import '../../widgets/common/image_viewport_surface.dart';
 import '../../../core/agent/agent_types.dart';
 import '../../../core/utils/app_logger.dart';
 import '../../../core/utils/nai_resolution_adapter.dart';
+import '../models/agent_chat_image_token_syntax.dart';
 import '../providers/agent_chat_notifier.dart';
 import 'agent_chat_input_controller.dart';
 
@@ -190,19 +191,9 @@ class AgentChatPanelController extends ChangeNotifier {
     if (index < 0 || index >= _pendingImages.length) return;
     hideInlineImagePreview();
     _pendingImages.removeAt(index);
-    final removedNumber = index + 1;
-    inputController.value = inputController.value.copyWith(
-      text: inputController.text
-          .replaceAllMapped(AgentChatInputController.imagePattern, (match) {
-            final number = int.tryParse(match.group(1) ?? '');
-            if (number == null) return match.group(0)!;
-            if (number == removedNumber) return '';
-            return number > removedNumber
-                ? '[image${number - 1}]'
-                : match.group(0)!;
-          })
-          .replaceAll(RegExp(r' {2,}'), ' '),
-      composing: TextRange.empty,
+    inputController.value = removeAgentChatImageToken(
+      inputController.value,
+      index + 1,
     );
     inputController.imageCount = _pendingImages.length;
     notifyListeners();
@@ -261,11 +252,14 @@ class AgentChatPanelController extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Images whose `[imageN]` reference was edited out of the text are still in
+  /// the attachment strip, so they follow the text in attachment order.
   List<UserContent> buildInlineUserContent(
     String text,
     List<PendingAgentChatImage> images,
   ) {
     final content = <UserContent>[];
+    final referenced = <int>{};
     var textStart = 0;
     for (final match in AgentChatInputController.imagePattern.allMatches(
       text,
@@ -280,31 +274,35 @@ class AgentChatPanelController extends ChangeNotifier {
       if (leadingText.trim().isNotEmpty) {
         content.add(UserTextContent(leadingText));
       }
-      final image = images[imageNumber - 1];
-      content.add(
-        UserImageContent(
-          ImageContent(
-            source: ImageSource.base64(
-              mimeType: image.mimeType,
-              base64Data: base64Encode(image.bytes),
-            ),
-          ),
-        ),
-      );
+      content.add(_userImageContent(images[imageNumber - 1]));
+      referenced.add(imageNumber);
       textStart = match.end;
     }
     final trailingText = text.substring(textStart);
     if (trailingText.trim().isNotEmpty) {
       content.add(UserTextContent(trailingText));
     }
+    for (var index = 0; index < images.length; index++) {
+      if (!referenced.contains(index + 1)) {
+        content.add(_userImageContent(images[index]));
+      }
+    }
     return content;
   }
 
+  UserImageContent _userImageContent(PendingAgentChatImage image) =>
+      UserImageContent(
+        ImageContent(
+          source: ImageSource.base64(
+            mimeType: image.mimeType,
+            base64Data: base64Encode(image.bytes),
+          ),
+        ),
+      );
+
   void insertImageToken(int imageNumber) {
     final value = inputController.value;
-    final selection = value.selection;
-    final start = selection.start < 0 ? value.text.length : selection.start;
-    final end = selection.end < 0 ? value.text.length : selection.end;
+    final (start, end) = _replacementRange(value);
     final needsLeadingSpace =
         start > 0 && !RegExp(r'\s').hasMatch(value.text[start - 1]);
     final needsTrailingSpace =
@@ -346,13 +344,18 @@ class AgentChatPanelController extends ChangeNotifier {
 
   void insertNewline() {
     final value = inputController.value;
-    final selection = value.selection;
-    final start = selection.start < 0 ? value.text.length : selection.start;
-    final end = selection.end < 0 ? value.text.length : selection.end;
+    final (start, end) = _replacementRange(value);
     inputController.value = TextEditingValue(
       text: value.text.replaceRange(start, end, '\n'),
       selection: TextSelection.collapsed(offset: start + 1),
     );
+  }
+
+  (int, int) _replacementRange(TextEditingValue value) {
+    final length = value.text.length;
+    final selection = value.selection;
+    if (!selection.isValid) return (length, length);
+    return (selection.start.clamp(0, length), selection.end.clamp(0, length));
   }
 
   void setSuggestion(String suggestion) {

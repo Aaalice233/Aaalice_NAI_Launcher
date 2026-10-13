@@ -149,6 +149,39 @@ void main() {
       findsNothing,
     );
   });
+
+  testWidgets(
+    'an attachment whose reference was deleted from the text is still sent',
+    (tester) async {
+      final fixture = await _pumpPanel(tester);
+      addTearDown(fixture.dispose);
+      fixture.notifier
+        ..showMessages([_resourceMessage])
+        ..acceptSend = true;
+      await tester.pump();
+      await _pressEdit(tester);
+      await tester.enterText(
+        find.byKey(const ValueKey('agent-chat-input')),
+        'only text now',
+      );
+      await tester.pump();
+      expect(
+        find.byKey(const ValueKey('agent-chat-pending-image-card')),
+        findsOneWidget,
+      );
+
+      await tester.tap(find.byKey(const ValueKey('agent-chat-send')));
+      await tester.pump();
+
+      expect(fixture.notifier.sentContent, hasLength(2));
+      expect(
+        (fixture.notifier.sentContent.first as UserTextContent).text,
+        'only text now',
+      );
+      final image = fixture.notifier.sentContent.last as UserImageContent;
+      expect(image.image.source.bytes, _pngBytes);
+    },
+  );
 }
 
 Future<void> _pressEdit(WidgetTester tester) async {

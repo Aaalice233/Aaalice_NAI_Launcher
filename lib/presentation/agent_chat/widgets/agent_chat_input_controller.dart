@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../models/agent_chat_image_token_syntax.dart';
 import '../models/agent_chat_slash_syntax.dart';
 
 /// Renders valid `[imageN]` references and a leading `/command` as tokens
@@ -10,7 +11,7 @@ class AgentChatInputController extends TextEditingController {
     required this.onImageExit,
   });
 
-  static final RegExp imagePattern = RegExp(r'\[image(\d+)\]');
+  static final RegExp imagePattern = agentChatImageTokenPattern;
 
   final void Function(int imageNumber, Offset pointerPosition) onImageEnter;
   final VoidCallback onImageExit;
