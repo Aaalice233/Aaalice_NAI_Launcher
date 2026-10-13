@@ -14,6 +14,7 @@ import 'desktop_layout.dart';
 import 'mobile_layout.dart';
 import 'web_style_layout.dart';
 import 'widgets/fixed_tags_sidebar.dart';
+import 'widgets/generation_selection_back_scope.dart';
 import 'widgets/prompt_input_controller.dart';
 
 /// 图像生成页面
@@ -57,31 +58,37 @@ class _GenerationScreenState extends ConsumerState<GenerationScreen> {
         );
         if (sizeClass.isExpandedOrWider) {
           final layoutMode = ref.watch(generationLayoutModeNotifierProvider);
-          return layoutMode == GenerationLayoutMode.webStyle
-              ? WebStyleGenerationLayout(
-                  historyViewport: _historyViewport,
-                  negativeModeNotifier: _webNegativeMode,
-                  promptInputController: _promptInputController,
-                  promptInputKey: _promptInputKey,
-                )
-              : DesktopGenerationLayout(
-                  historyViewport: _historyViewport,
-                  promptInputController: _promptInputController,
-                  promptInputKey: _promptInputKey,
-                );
+          // 手机布局把多选排进自己的返回顺序，这里只覆盖平板及以上宽度
+          return GenerationSelectionBackScope(
+            child: layoutMode == GenerationLayoutMode.webStyle
+                ? WebStyleGenerationLayout(
+                    historyViewport: _historyViewport,
+                    negativeModeNotifier: _webNegativeMode,
+                    promptInputController: _promptInputController,
+                    promptInputKey: _promptInputKey,
+                  )
+                : DesktopGenerationLayout(
+                    historyViewport: _historyViewport,
+                    promptInputController: _promptInputController,
+                    promptInputKey: _promptInputKey,
+                  ),
+          );
         }
 
         final layoutState = ref.watch(layoutStateNotifierProvider);
+        final fixedTagsOverlayVisible =
+            layoutState.fixedTagsSidebarExpanded && constraints.maxWidth < 900;
         final mobileLayout = MobileGenerationLayout(
           historyViewport: _historyViewport,
           promptInputController: _promptInputController,
           promptInputKey: _promptInputKey,
+          fixedTagsOverlayVisible: fixedTagsOverlayVisible,
         );
         if (!layoutState.fixedTagsSidebarExpanded) {
           return mobileLayout;
         }
 
-        if (constraints.maxWidth < 900) {
+        if (fixedTagsOverlayVisible) {
           final overlayWidth = math.max(
             160.0,
             math.min(360.0, constraints.maxWidth - 48),
