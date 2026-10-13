@@ -14,6 +14,8 @@ import 'package:nai_launcher/presentation/providers/generation/preview_selection
 import 'package:nai_launcher/presentation/providers/history_click_behavior_provider.dart';
 import 'package:nai_launcher/presentation/providers/image_generation_provider.dart';
 import 'package:nai_launcher/presentation/providers/shortcuts_provider.dart';
+import 'package:nai_launcher/presentation/widgets/bulk_action_bar.dart';
+import 'package:nai_launcher/presentation/widgets/common/image_card_batch_scope.dart';
 import 'package:nai_launcher/presentation/widgets/common/image_card_frame.dart';
 import 'package:nai_launcher/presentation/widgets/common/image_comparison_toolbar.dart';
 import 'package:nai_launcher/presentation/widgets/common/image_comparison_view.dart';
@@ -332,11 +334,19 @@ void main() {
             isTrue,
             reason: reason,
           );
+          expect(find.byType(BulkActionBar), findsOneWidget, reason: reason);
 
-          container.read(generationComparisonEnabledProvider.notifier).state =
-              true;
+          tester
+              .widget<PreviewInfoBar>(find.byType(PreviewInfoBar))
+              .onComparisonChanged!(true);
           await tester.pumpAndSettle();
 
+          expect(
+            container.read(generationImageCardSelectionProvider).isActive,
+            isFalse,
+            reason: reason,
+          );
+          expect(find.byType(BulkActionBar), findsNothing, reason: reason);
           final card = tester.widget<SelectableImageCard>(
             find.byType(SelectableImageCard),
           );
@@ -384,6 +394,90 @@ void main() {
       }
     },
   );
+
+  testWidgets('turning comparison on leaves batch selection', (tester) async {
+    final result = _comparisonImage(
+      id: 'selected-then-compared',
+      resultWidth: 4,
+      resultHeight: 4,
+      sourceWidth: 8,
+      sourceHeight: 8,
+    );
+    final container = _comparisonContainer(result);
+    addTearDown(container.dispose);
+    container
+        .read(generationImageCardSelectionProvider.notifier)
+        .enterAndSelect(result.id);
+
+    await tester.pumpWidget(_app(container));
+    await tester.pumpAndSettle();
+    final l10n = await AppLocalizations.delegate.load(const Locale('en'));
+    expect(find.byType(BulkActionBar), findsOneWidget);
+
+    await tester.tap(find.text(l10n.generation_imageComparison));
+    await tester.pumpAndSettle();
+
+    expect(
+      container.read(generationImageCardSelectionProvider).isActive,
+      isFalse,
+    );
+    expect(find.byType(BulkActionBar), findsNothing);
+    expect(
+      tester
+          .widget<ImageCardBatchScope>(find.byType(ImageCardBatchScope))
+          .targetIds,
+      isEmpty,
+    );
+    expect(find.byType(ImageComparisonView), findsOneWidget);
+    expect(container.read(generationComparisonEnabledProvider), isTrue);
+  });
+
+  testWidgets('batch selection entered elsewhere suspends comparison', (
+    tester,
+  ) async {
+    final result = _comparisonImage(
+      id: 'compared-then-selected',
+      resultWidth: 4,
+      resultHeight: 4,
+      sourceWidth: 8,
+      sourceHeight: 8,
+    );
+    final container = _comparisonContainer(result);
+    addTearDown(container.dispose);
+    container.read(generationComparisonEnabledProvider.notifier).state = true;
+
+    await tester.pumpWidget(_app(container));
+    await tester.pumpAndSettle();
+    expect(find.byType(ImageComparisonView), findsOneWidget);
+
+    // History cards and Ctrl+A share this selection with the preview.
+    container
+        .read(generationImageCardSelectionProvider.notifier)
+        .enterAndSelect(result.id);
+    await tester.pumpAndSettle();
+
+    final card = tester.widget<SelectableImageCard>(
+      find.byType(SelectableImageCard),
+    );
+    expect(find.byType(ImageComparisonView), findsNothing);
+    expect(find.byType(BulkActionBar), findsOneWidget);
+    expect(card.selectionMode, isTrue);
+    expect(card.isSelected, isTrue);
+    expect(card.imageContent, isNull);
+    expect(card.imageContentFooterHeight, 0);
+    expect(
+      tester
+          .widget<PreviewInfoBar>(find.byType(PreviewInfoBar))
+          .comparisonEnabled,
+      isFalse,
+    );
+
+    container.read(generationImageCardSelectionProvider.notifier).exit();
+    await tester.pumpAndSettle();
+
+    expect(find.byType(ImageComparisonView), findsOneWidget);
+    expect(find.byType(BulkActionBar), findsNothing);
+  });
 
   testWidgets('missing or mismatched source keeps final-only preview', (
     tester,
