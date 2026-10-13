@@ -1,5 +1,7 @@
 import 'dart:convert';
+import 'dart:ui' as ui;
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -19,12 +21,19 @@ import 'package:shared_preferences/shared_preferences.dart';
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
+  late ui.Image readyImage;
+
+  setUpAll(() => readyImage = _paintReadyImage());
+  tearDownAll(() => readyImage.dispose());
+
   setUp(() => SharedPreferences.setMockInitialValues({}));
+  // 用例不得依赖前序用例预热的全局 imageCache
+  tearDown(() => imageCache..clear()..clearLiveImages());
 
   testWidgets(
     'single image adapts from compact to wide metadata presentation',
     (tester) async {
-      final image = _TestImageData('single', _validPngBytes);
+      final image = _TestImageData.ready('single', readyImage);
 
       for (final width in [360.0, 700.0, 900.0, 1200.0, 1600.0]) {
         await tester.binding.setSurfaceSize(Size(width, 700));
@@ -108,7 +117,7 @@ void main() {
 
     await _pumpViewer(
       tester,
-      images: [_TestImageData('scaled', _validPngBytes)],
+      images: [_TestImageData.ready('scaled', readyImage)],
       textScaler: const TextScaler.linear(3),
     );
     await tester.pump();
@@ -126,7 +135,7 @@ void main() {
 
     await _pumpViewer(
       tester,
-      images: [_TestImageData('panel', _validPngBytes)],
+      images: [_TestImageData.ready('panel', readyImage)],
       textScaler: const TextScaler.linear(3),
     );
     await tester.pump(const Duration(milliseconds: 50));
@@ -144,9 +153,9 @@ void main() {
     await tester.binding.setSurfaceSize(const Size(840, 700));
     addTearDown(() => tester.binding.setSurfaceSize(null));
     final images = [
-      _TestImageData('first', _validPngBytes),
-      _TestImageData('second', _validPngBytes),
-      _TestImageData('third', _validPngBytes),
+      _TestImageData.ready('first', readyImage),
+      _TestImageData.ready('second', readyImage),
+      _TestImageData.ready('third', readyImage),
     ];
 
     await _pumpViewer(tester, images: images);
@@ -169,6 +178,35 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('paging settles once the pending page image finishes decoding', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(840, 700));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final pending = _PendingImageProvider();
+    final images = [
+      _TestImageData.pending('first', pending),
+      _TestImageData.pending('second', pending),
+    ];
+
+    await _pumpViewer(tester, images: images);
+    await tester.pump(const Duration(seconds: 2));
+
+    expect(find.byType(CircularProgressIndicator), findsOneWidget);
+    expect(tester.binding.hasScheduledFrame, isTrue);
+
+    pending.complete(readyImage);
+    await tester.pump();
+    await tester.pump();
+    expect(find.byType(CircularProgressIndicator), findsNothing);
+
+    await tester.tap(find.byIcon(Icons.chevron_right));
+    await tester.pumpAndSettle();
+    expect(find.text('2 / 2'), findsOneWidget);
+    expect(find.byType(CircularProgressIndicator), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('failed image replaces loading state with explicit error', (
     tester,
   ) async {
@@ -178,7 +216,7 @@ void main() {
     await _pumpViewer(
       tester,
       images: [
-        _TestImageData('broken', Uint8List.fromList([1, 2, 3])),
+        _TestImageData.encoded('broken', Uint8List.fromList([1, 2, 3])),
       ],
       showMetadataPanel: false,
     );
@@ -196,8 +234,8 @@ void main() {
     addTearDown(() => tester.binding.setSurfaceSize(null));
     final saved = <String>[];
     final images = [
-      _TestImageData('one', _validPngBytes),
-      _TestImageData('two', _validPngBytes),
+      _TestImageData.ready('one', readyImage),
+      _TestImageData.ready('two', readyImage),
     ];
 
     await _pumpViewer(
@@ -222,7 +260,7 @@ void main() {
   testWidgets('close action returns to the previous route', (tester) async {
     await tester.binding.setSurfaceSize(const Size(360, 700));
     addTearDown(() => tester.binding.setSurfaceSize(null));
-    final image = _TestImageData('route', _validPngBytes);
+    final image = _TestImageData.ready('route', readyImage);
 
     await tester.pumpWidget(
       ProviderScope(
@@ -303,10 +341,93 @@ class _FakeShortcutConfigNotifier extends ShortcutConfigNotifier {
   Future<ShortcutConfig> build() async => ShortcutConfig.createDefault();
 }
 
+ui.Image _paintReadyImage() {
+  final recorder = ui.PictureRecorder();
+  Canvas(recorder).drawRect(
+    const Rect.fromLTWH(0, 0, 1, 1),
+    Paint()..color = const Color(0xFF808080),
+  );
+  final picture = recorder.endRecording();
+  try {
+    return picture.toImageSync(1, 1);
+  } finally {
+    picture.dispose();
+  }
+}
+
+// fake zone 内 pump 不让出真实事件循环，引擎解码回调送不进来，图片必须同步就绪
+class _ReadyImageProvider extends ImageProvider<_ReadyImageProvider> {
+  _ReadyImageProvider(this.image);
+
+  final ui.Image image;
+
+  @override
+  Future<_ReadyImageProvider> obtainKey(ImageConfiguration configuration) {
+    return SynchronousFuture<_ReadyImageProvider>(this);
+  }
+
+  @override
+  ImageStreamCompleter loadImage(
+    _ReadyImageProvider key,
+    ImageDecoderCallback decode,
+  ) {
+    return OneFrameImageStreamCompleter(
+      SynchronousFuture<ImageInfo>(ImageInfo(image: image.clone())),
+    );
+  }
+}
+
+class _PendingImageProvider extends ImageProvider<_PendingImageProvider> {
+  final List<_ManualImageStreamCompleter> _loads = [];
+  ui.Image? _decoded;
+
+  void complete(ui.Image image) {
+    assert(_decoded == null, 'pending image completed twice');
+    _decoded = image;
+    for (final load in _loads) {
+      load.deliver(ImageInfo(image: image.clone()));
+    }
+  }
+
+  @override
+  Future<_PendingImageProvider> obtainKey(ImageConfiguration configuration) {
+    return SynchronousFuture<_PendingImageProvider>(this);
+  }
+
+  @override
+  ImageStreamCompleter loadImage(
+    _PendingImageProvider key,
+    ImageDecoderCallback decode,
+  ) {
+    final load = _ManualImageStreamCompleter();
+    final decoded = _decoded;
+    if (decoded == null) {
+      _loads.add(load);
+    } else {
+      load.deliver(ImageInfo(image: decoded.clone()));
+    }
+    return load;
+  }
+}
+
+class _ManualImageStreamCompleter extends ImageStreamCompleter {
+  void deliver(ImageInfo info) => setImage(info);
+}
+
 class _TestImageData implements ImageDetailData {
-  _TestImageData(this.identifier, this.bytes);
+  _TestImageData._(this.identifier, this.bytes, this._provider);
+
+  _TestImageData.ready(String identifier, ui.Image image)
+    : this._(identifier, _validPngBytes, _ReadyImageProvider(image));
+
+  _TestImageData.pending(String identifier, _PendingImageProvider provider)
+    : this._(identifier, _validPngBytes, provider);
+
+  _TestImageData.encoded(String identifier, Uint8List bytes)
+    : this._(identifier, bytes, MemoryImage(bytes));
 
   final Uint8List bytes;
+  final ImageProvider<Object> _provider;
 
   @override
   final String identifier;
@@ -315,7 +436,7 @@ class _TestImageData implements ImageDetailData {
   FileInfo? get fileInfo => null;
 
   @override
-  ImageProvider<Object> getImageProvider() => MemoryImage(bytes);
+  ImageProvider<Object> getImageProvider() => _provider;
 
   @override
   Future<Uint8List> getImageBytes() async => bytes;
