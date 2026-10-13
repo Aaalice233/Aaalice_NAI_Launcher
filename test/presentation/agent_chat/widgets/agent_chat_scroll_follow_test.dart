@@ -518,6 +518,321 @@ void main() {
     },
   );
 
+  testWidgets(
+    'wheel scrolling while streaming keeps the user offset instead of fighting it',
+    (tester) async {
+      final controller = AgentChatPanelController();
+      addTearDown(controller.dispose);
+      final turns = _turns(6);
+
+      Future<void> pumpViewport(double liveHeight) => _pumpThreadViewport(
+        tester,
+        controller,
+        turns: turns,
+        geometryRevision: liveHeight,
+        live: SizedBox(height: liveHeight),
+        turnHeight: (_) => 100,
+      );
+
+      await pumpViewport(80);
+      await tester.pump();
+      final transcript = find.byType(CustomScrollView);
+      await tester.drag(transcript, const Offset(0, 240));
+      await tester.pumpAndSettle();
+      final pausedOffset = controller.scrollController.offset;
+      expect(controller.showJumpToLatest, isTrue);
+
+      final anchor = find.byKey(const ValueKey('agent-turn-3'));
+      final anchorTop = tester.getTopLeft(anchor).dy;
+
+      final pointer = TestPointer(1, PointerDeviceKind.mouse);
+      pointer.hover(tester.getCenter(transcript));
+      await tester.sendEventToBinding(pointer.scroll(const Offset(0, -60)));
+      final wheelOffset = controller.scrollController.offset;
+      expect(wheelOffset, greaterThan(pausedOffset));
+
+      await pumpViewport(200);
+      await tester.pump();
+
+      expect(
+        controller.scrollController.offset,
+        closeTo(wheelOffset + 120, 0.01),
+        reason: 'growth is added on top of the wheel offset, never undoing it',
+      );
+      expect(
+        tester.getTopLeft(anchor).dy,
+        closeTo(anchorTop + 60, 0.01),
+        reason: 'the wheel distance must stay visible',
+      );
+
+      final settledTop = tester.getTopLeft(anchor).dy;
+      await pumpViewport(320);
+      await tester.pump();
+      expect(tester.getTopLeft(anchor).dy, closeTo(settledTop, 0.01));
+      expect(controller.showJumpToLatest, isTrue);
+    },
+  );
+
+  testWidgets(
+    'a wheel scroll that hits the oldest edge does not suspend drift correction',
+    (tester) async {
+      final controller = AgentChatPanelController();
+      addTearDown(controller.dispose);
+      final turns = _turns(6);
+
+      Future<void> pumpViewport(double liveHeight) => _pumpThreadViewport(
+        tester,
+        controller,
+        turns: turns,
+        geometryRevision: liveHeight,
+        live: SizedBox(height: liveHeight),
+        turnHeight: (_) => 100,
+      );
+
+      await pumpViewport(80);
+      await tester.pump();
+      controller.pauseFollowingLatest();
+      controller.jumpToPreservingFollow(
+        controller.scrollController.position.maxScrollExtent,
+      );
+      await tester.pump();
+      final edgeOffset = controller.scrollController.offset;
+
+      final transcript = find.byType(CustomScrollView);
+      final pointer = TestPointer(1, PointerDeviceKind.mouse);
+      pointer.hover(tester.getCenter(transcript));
+      await tester.sendEventToBinding(pointer.scroll(const Offset(0, -60)));
+      expect(controller.scrollController.offset, closeTo(edgeOffset, 0.01));
+      expect(controller.userScrolling, isFalse);
+
+      final anchor = find.byKey(const ValueKey('agent-turn-0'));
+      final painted = _paintedBottomEdge(tester, anchor);
+      await pumpViewport(200);
+      expect(_paintedBottomEdge(tester, anchor), closeTo(painted, 0.01));
+      expect(controller.showJumpToLatest, isTrue);
+    },
+  );
+
+  testWidgets(
+    'bursty streaming keeps the paused transcript painted at the same place',
+    (tester) async {
+      final controller = AgentChatPanelController();
+      addTearDown(controller.dispose);
+      final turns = _turns(6);
+      var liveHeight = 4000.0;
+
+      Future<void> pumpFrame() => _pumpThreadViewport(
+        tester,
+        controller,
+        turns: turns,
+        geometryRevision: liveHeight,
+        live: SizedBox(height: liveHeight),
+        turnHeight: (_) => 120,
+      );
+
+      await pumpFrame();
+      controller.pauseFollowingLatest();
+      controller.jumpToPreservingFollow(4300);
+      await tester.pump();
+
+      final anchor = find.byKey(const ValueKey('agent-turn-3'));
+      final painted = _paintedBottomEdge(tester, anchor);
+      var expectedOffset = controller.scrollController.offset;
+      for (final burst in const [0.0, 120.0, 0.0, 160.0, 0.0, 40.0]) {
+        liveHeight += burst;
+        await pumpFrame();
+        expectedOffset += burst;
+        expect(
+          _paintedBottomEdge(tester, anchor),
+          closeTo(painted, 0.01),
+          reason: 'the frame that streamed $burst px painted the anchor off',
+        );
+        expect(
+          controller.scrollController.offset,
+          closeTo(expectedOffset, 0.01),
+        );
+      }
+      expect(controller.showJumpToLatest, isTrue);
+    },
+  );
+
+  testWidgets(
+    'the growing current turn keeps a paused historical turn painted in place',
+    (tester) async {
+      final controller = AgentChatPanelController();
+      addTearDown(controller.dispose);
+      final turns = _turns(4);
+      var currentHeight = 600.0;
+
+      Future<void> pumpFrame() => _pumpThreadViewport(
+        tester,
+        controller,
+        turns: turns,
+        geometryRevision: currentHeight,
+        live: const SizedBox.shrink(),
+        turnHeight: (turn) => turn.ordinal == 3 ? currentHeight : 200,
+      );
+
+      await pumpFrame();
+      controller.pauseFollowingLatest();
+      controller.jumpToPreservingFollow(700);
+      await tester.pump();
+
+      final anchor = find.byKey(const ValueKey('agent-turn-2'));
+      final painted = _paintedBottomEdge(tester, anchor);
+      for (final burst in const [80.0, 0.0, 240.0, 16.0]) {
+        currentHeight += burst;
+        await pumpFrame();
+        expect(
+          _paintedBottomEdge(tester, anchor),
+          closeTo(painted, 0.01),
+          reason: 'the frame that streamed $burst px painted the anchor off',
+        );
+      }
+      expect(controller.showJumpToLatest, isTrue);
+    },
+  );
+
+  testWidgets(
+    'a single streaming turn stays put while the reader is paused inside it',
+    (tester) async {
+      final controller = AgentChatPanelController();
+      addTearDown(controller.dispose);
+      var turnHeight = 900.0;
+      final turns = _turns(1);
+
+      Future<void> pumpFrame() => _pumpThreadViewport(
+        tester,
+        controller,
+        turns: turns,
+        geometryRevision: turnHeight,
+        live: const SizedBox.shrink(),
+        turnHeight: (_) => turnHeight,
+      );
+
+      await pumpFrame();
+      controller.pauseFollowingLatest();
+      controller.jumpToPreservingFollow(300);
+      await tester.pump();
+
+      final turn = find.byKey(const ValueKey('agent-turn-0'));
+      final painted = _paintedTopEdge(tester, turn);
+      var expectedOffset = controller.scrollController.offset;
+      for (final burst in const [0.0, 120.0, 0.0, 160.0, 0.0, 40.0]) {
+        turnHeight += burst;
+        await pumpFrame();
+        expectedOffset += burst;
+        expect(
+          _paintedTopEdge(tester, turn),
+          closeTo(painted, 0.01),
+          reason: 'the frame that streamed $burst px painted the turn off',
+        );
+        expect(
+          controller.scrollController.offset,
+          closeTo(expectedOffset, 0.01),
+        );
+      }
+      expect(controller.showJumpToLatest, isTrue);
+    },
+  );
+
+  testWidgets(
+    'shrinking content near the live edge clamps the correction without bouncing',
+    (tester) async {
+      final controller = AgentChatPanelController();
+      addTearDown(controller.dispose);
+      final turns = _turns(4);
+      var currentHeight = 600.0;
+
+      Future<void> pumpFrame() => _pumpThreadViewport(
+        tester,
+        controller,
+        turns: turns,
+        geometryRevision: currentHeight,
+        live: const SizedBox.shrink(),
+        turnHeight: (turn) => turn.ordinal == 3 ? currentHeight : 200,
+      );
+
+      await pumpFrame();
+      controller.pauseFollowingLatest();
+      controller.jumpToPreservingFollow(60);
+      await tester.pump();
+
+      currentHeight = 300;
+      await pumpFrame();
+      final position = controller.scrollController.position;
+      expect(position.pixels, greaterThanOrEqualTo(position.minScrollExtent));
+      expect(position.isScrollingNotifier.value, isFalse);
+      final settled = position.pixels;
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(position.pixels, closeTo(settled, 0.01));
+      expect(controller.showJumpToLatest, isTrue);
+    },
+  );
+
+  testWidgets(
+    'turns outside the cache are measured again once a resize settles',
+    (tester) async {
+      final controller = AgentChatPanelController();
+      addTearDown(controller.dispose);
+      final turns = _turns(6);
+      var width = 600.0;
+
+      Future<void> pumpViewport() => _pumpThreadViewport(
+        tester,
+        controller,
+        turns: turns,
+        geometryRevision: width,
+        live: const SizedBox(height: 4000),
+        turnHeight: (_) => 60000 / width,
+        width: width,
+      );
+
+      await pumpViewport();
+      await tester.pumpAndSettle();
+      final position = controller.scrollController.position;
+      expect(position.maxScrollExtent, closeTo(4000 + 600 + 24 - 300, 0.01));
+
+      for (final step in const [500.0, 420.0, 300.0]) {
+        width = step;
+        await pumpViewport();
+      }
+      await tester.pumpAndSettle();
+      expect(position.maxScrollExtent, closeTo(4000 + 1200 + 24 - 300, 0.01));
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets('the scroll extent stays fixed while scrolling static content', (
+    tester,
+  ) async {
+    final controller = AgentChatPanelController();
+    addTearDown(controller.dispose);
+
+    await _pumpThreadViewport(
+      tester,
+      controller,
+      turns: _turns(6),
+      geometryRevision: 0,
+      live: const SizedBox(height: 4000),
+      turnHeight: (_) => 120,
+    );
+    await tester.pump();
+
+    final position = controller.scrollController.position;
+    final extent = position.maxScrollExtent;
+    expect(extent, closeTo(4000 + 6 * 120 + 24 - 300, 0.01));
+    for (final offset in const [0.0, 600.0, 2000.0, 3000.0, 4200.0]) {
+      controller.jumpToPreservingFollow(offset);
+      await tester.pump();
+      expect(
+        position.maxScrollExtent,
+        closeTo(extent, 0.01),
+        reason: 'the scroll extent changed at offset $offset',
+      );
+    }
+  });
+
   testWidgets('returning to the bottom or sending resumes streaming follow', (
     tester,
   ) async {
@@ -800,6 +1115,75 @@ void main() {
     },
   );
 }
+
+List<AgentChatTurnModel> _turns(int count) => List.generate(
+  count,
+  (index) => AgentChatTurnModel(
+    ordinal: index,
+    userMessage: UserMessage.text('turn $index'),
+    userMessageIndex: index,
+  ),
+);
+
+Future<void> _pumpThreadViewport(
+  WidgetTester tester,
+  AgentChatPanelController controller, {
+  required List<AgentChatTurnModel> turns,
+  required Object geometryRevision,
+  required Widget live,
+  required double Function(AgentChatTurnModel turn) turnHeight,
+  double width = 600,
+}) {
+  return tester.pumpWidget(
+    MaterialApp(
+      home: Scaffold(
+        body: SizedBox(
+          height: 300,
+          width: width,
+          child: AgentChatThreadViewport(
+            sessionId: 'a',
+            turns: turns,
+            controller: controller,
+            horizontalPadding: 0,
+            maxWidth: width,
+            compactLayout: true,
+            hasEarlier: false,
+            historyLoading: false,
+            prependAnchorEntryId: null,
+            geometryRevision: geometryRevision,
+            onLoadEarlier: null,
+            live: live,
+            turnBuilder: (context, turn, current) => SizedBox(
+              height: turnHeight(turn),
+              child: Text('turn ${turn.ordinal}'),
+            ),
+          ),
+        ),
+      ),
+    ),
+  );
+}
+
+RenderBox _sliverChildOf(WidgetTester tester, Finder finder) {
+  RenderObject node = tester.renderObject(finder);
+  while (node.parent is! RenderSliver) {
+    node = node.parent!;
+  }
+  return node as RenderBox;
+}
+
+// Reads the position used for this frame's paint, so a correction applied one
+// frame late shows up even though the settled state looks right.
+double _paintedBottomEdge(WidgetTester tester, Finder finder) {
+  final child = _sliverChildOf(tester, finder);
+  final parentData = child.parentData! as SliverMultiBoxAdaptorParentData;
+  final sliver = child.parent! as RenderSliver;
+  return parentData.layoutOffset! - sliver.constraints.scrollOffset;
+}
+
+double _paintedTopEdge(WidgetTester tester, Finder finder) =>
+    _paintedBottomEdge(tester, finder) +
+    _sliverChildOf(tester, finder).size.height;
 
 List<double> _transcriptHeights() => List<double>.generate(
   20,

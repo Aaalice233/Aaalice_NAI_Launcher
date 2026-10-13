@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
 
@@ -90,7 +91,6 @@ class AgentChatPanelController extends ChangeNotifier {
   bool _viewportRestoreScheduled = false;
   bool _needsViewportRestore = false;
   int _viewportRestoreGeneration = 0;
-  int _viewportInteractionRevision = 0;
   int _lastScrollMessageCount = -1;
   String _lastScrollSessionId = '';
   AssistantMessage? _lastStreamingMessage;
@@ -109,7 +109,7 @@ class AgentChatPanelController extends ChangeNotifier {
   bool get isEditingUserMessage => _editingUserMessageIndex != null;
   bool get showJumpToLatest => !_autoScroll;
   bool get followingLatest => _autoScroll;
-  int get viewportInteractionRevision => _viewportInteractionRevision;
+  bool get userScrolling => _userScrollActive || _potentialUserScroll;
 
   void setHoveredUserMessageIndex(int? value) {
     if (_hoveredUserMessageIndex == value) return;
@@ -147,7 +147,6 @@ class AgentChatPanelController extends ChangeNotifier {
     if (sessionChanged && previousSessionId.isNotEmpty) {
       saveSessionOffset(previousSessionId);
       _endUserScroll();
-      _viewportInteractionRevision++;
     }
     _lastScrollSessionId = state.activeSessionId;
     _lastScrollMessageCount = state.messages.length;
@@ -515,6 +514,13 @@ class AgentChatPanelController extends ChangeNotifier {
     }
   }
 
+  // A wheel scroll resolves inside its pointer event; at the scroll edge it
+  // emits no notification, so the intent would otherwise never be released.
+  void beginPotentialWheelScroll() {
+    beginPotentialUserScroll();
+    scheduleMicrotask(cancelPotentialUserScroll);
+  }
+
   void cancelPotentialUserScroll() {
     _potentialUserScroll = false;
     if (!_userScrollActive) _lastUserScrollPixels = null;
@@ -557,7 +563,6 @@ class AgentChatPanelController extends ChangeNotifier {
         : metrics.pixels - previousPixels;
     _lastUserScrollPixels = metrics.pixels;
     if (delta.abs() <= _scrollMovementTolerance) return;
-    _viewportInteractionRevision++;
     if (delta > 0) {
       if (_autoScroll) {
         _logViewport('userScroll.pauseFollow', metrics: metrics);
@@ -800,35 +805,6 @@ class AgentChatPanelController extends ChangeNotifier {
         _programmaticScrollActive = false;
       }
     });
-  }
-
-  /// Keeps a historical message at the same screen position while the live
-  /// edge changes size in a reversed transcript.
-  void restorePausedViewportAnchor({
-    required double visualDelta,
-    required int expectedInteractionRevision,
-  }) {
-    if (_autoScroll ||
-        _userScrollActive ||
-        _potentialUserScroll ||
-        expectedInteractionRevision != _viewportInteractionRevision ||
-        !scrollController.hasClients ||
-        visualDelta.abs() < 0.5) {
-      return;
-    }
-    final position = scrollController.position;
-    if (!_hasUsableViewport(position)) return;
-    final target = (position.pixels - visualDelta)
-        .clamp(position.minScrollExtent, position.maxScrollExtent)
-        .toDouble();
-    _logViewport(
-      'anchor.restore',
-      metrics: position,
-      detail:
-          'delta=${visualDelta.toStringAsFixed(1)} '
-          'target=${target.toStringAsFixed(1)}',
-    );
-    jumpToPreservingFollow(target);
   }
 
   void _logViewport(String event, {ScrollMetrics? metrics, String? detail}) {
