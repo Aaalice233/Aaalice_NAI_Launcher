@@ -31,9 +31,12 @@ class MetadataImportCoordinator {
         );
     final resolvedMetadata = resolution.metadata;
     final notifier = read(generationParamsNotifierProvider.notifier);
-    final characterPrompts = resolvedMetadata.characterPrompts;
+    final characterIndices = _selectedCharacterIndices(
+      resolvedMetadata,
+      options,
+    );
 
-    if (options.importCharacterPrompts && characterPrompts.isNotEmpty) {
+    if (characterIndices.isNotEmpty) {
       read(characterPromptNotifierProvider.notifier).clearAllCharacters();
     }
 
@@ -73,8 +76,8 @@ class MetadataImportCoordinator {
       ),
     );
 
-    if (options.importCharacterPrompts && characterPrompts.isNotEmpty) {
-      _applyCharacterPrompts(read, resolvedMetadata);
+    if (characterIndices.isNotEmpty) {
+      _applyCharacterPrompts(read, resolvedMetadata, characterIndices);
       appliedCount++;
     }
 
@@ -143,16 +146,34 @@ class MetadataImportCoordinator {
     return 1;
   }
 
+  // 旧元数据没有逐角色信息，导入对话框只提供总开关，此时整体导入。
+  static List<int> _selectedCharacterIndices(
+    NaiImageMetadata metadata,
+    MetadataImportOptions options,
+  ) {
+    if (!options.importCharacterPrompts) return const [];
+    final promptCount = metadata.characterPrompts.length;
+    if (metadata.characterInfos.isEmpty) {
+      return List<int>.generate(promptCount, (index) => index);
+    }
+    final selected = options.selectedCharacterIndices.toSet();
+    return [
+      for (var index = 0; index < promptCount; index++)
+        if (selected.contains(index)) index,
+    ];
+  }
+
   static void _applyCharacterPrompts(
     ProviderReader read,
     NaiImageMetadata metadata,
+    List<int> indices,
   ) {
     final characters = <char.CharacterPrompt>[];
     final negativePrompts = metadata.characterNegativePrompts;
     final characterInfos = metadata.characterInfos;
     var hasImportedCenters = false;
 
-    for (var i = 0; i < metadata.characterPrompts.length; i++) {
+    for (final i in indices) {
       final prompt = metadata.characterPrompts[i];
       final info = i < characterInfos.length ? characterInfos[i] : null;
       final negativePrompt =
@@ -169,7 +190,7 @@ class MetadataImportCoordinator {
 
       characters.add(
         char.CharacterPrompt.create(
-          name: 'Character ${i + 1}',
+          name: 'Character ${characters.length + 1}',
           gender: _inferGenderFromPrompt(prompt),
           prompt: prompt,
           negativePrompt: negativePrompt,
