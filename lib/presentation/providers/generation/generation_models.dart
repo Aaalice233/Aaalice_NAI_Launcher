@@ -64,19 +64,32 @@ class ImageComparisonSource {
     return true;
   }
 
-  /// Accepts an exact aspect ratio or NovelAI Enhance's per-edge grid rounding.
+  /// Accepts an exact aspect ratio, NovelAI Enhance's per-edge grid rounding,
+  /// or the small drift left by scalers that round each edge on their own.
   bool isCompatibleWithDimensions(int targetWidth, int targetHeight) {
     if (targetWidth <= 0 || targetHeight <= 0) return false;
     if (width * targetHeight == height * targetWidth) return true;
 
     // Enhance rounds each target edge independently to the nearest 64 pixels.
     const grid = ApiConstants.dimensionGrid;
-    if (targetWidth % grid != 0 || targetHeight % grid != 0) return false;
-    const halfGrid = grid ~/ 2;
-    return (targetWidth - halfGrid) * height <=
-            (targetHeight + halfGrid) * width &&
-        (targetHeight - halfGrid) * width <= (targetWidth + halfGrid) * height;
+    if (targetWidth % grid == 0 && targetHeight % grid == 0) {
+      const halfGrid = grid ~/ 2;
+      if ((targetWidth - halfGrid) * height <=
+              (targetHeight + halfGrid) * width &&
+          (targetHeight - halfGrid) * width <=
+              (targetWidth + halfGrid) * height) {
+        return true;
+      }
+    }
+
+    final sourceRatio = width / height;
+    return (targetWidth / targetHeight - sourceRatio).abs() <=
+        sourceRatio * _maxRoundingAspectDrift;
   }
+
+  // Enhance max scale and local scalers round edges off the 64 grid; a real
+  // recomposition such as outpainting changes the ratio far beyond this.
+  static const double _maxRoundingAspectDrift = 0.04;
 }
 
 /// 生成的图像（带唯一ID）
