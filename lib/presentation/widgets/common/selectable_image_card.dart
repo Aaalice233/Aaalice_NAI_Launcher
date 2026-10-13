@@ -74,6 +74,7 @@ class SelectableImageCard extends ConsumerStatefulWidget {
     this.onDelete,
     this.underlay,
     this.imageContent,
+    this.imageContentFooterHeight = 0,
     this.isGenerating = false,
     this.progress,
     this.postprocessPhase,
@@ -137,7 +138,10 @@ class SelectableImageCard extends ConsumerStatefulWidget {
   final ImageCardCallback? onFavoriteToggle;
   final ImageCardCallback? onDelete;
   final Widget? underlay;
+
+  /// 替代解码图并自带透明底色；[underlay] 只垫在解码图下方。
   final Widget? imageContent;
+  final double imageContentFooterHeight;
   final bool isGenerating;
   final double? progress;
   final ImagePostprocessPhase? postprocessPhase;
@@ -171,6 +175,7 @@ class _SelectableImageCardState extends ConsumerState<SelectableImageCard>
     isFavorite: widget.isFavorite,
     underlay: widget.underlay,
     imageContent: widget.imageContent,
+    imageContentFooterHeight: widget.imageContentFooterHeight,
     isGenerating: widget.isGenerating,
     progress: widget.progress,
     postprocessPhase: widget.postprocessPhase,

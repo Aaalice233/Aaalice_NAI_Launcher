@@ -2,6 +2,8 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
+import 'image_card_frame.dart';
+
 class ImageCardEffects extends StatelessWidget {
   const ImageCardEffects({
     super.key,
@@ -51,7 +53,7 @@ class ImageCardEdgeGlowPainter extends CustomPainter {
       canvas.drawRRect(
         RRect.fromRectAndRadius(
           rect.deflate(inset),
-          Radius.circular(math.max(0, 12 - inset)),
+          Radius.circular(math.max(0, ImageCardFrame.defaultRadius - inset)),
         ),
         Paint()
           ..color = glowColor.withValues(
@@ -63,7 +65,10 @@ class ImageCardEdgeGlowPainter extends CustomPainter {
       );
     }
     canvas.drawRRect(
-      RRect.fromRectAndRadius(rect, const Radius.circular(12)),
+      RRect.fromRectAndRadius(
+        rect,
+        const Radius.circular(ImageCardFrame.defaultRadius),
+      ),
       Paint()
         ..color = glowColor.withValues(alpha: 0.25 * intensity)
         ..style = PaintingStyle.stroke

@@ -7,6 +7,9 @@ import 'package:nai_launcher/core/storage/local_storage_service.dart';
 import 'package:image/image.dart' as img;
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/adaptive/interaction_policy.dart';
+import 'package:nai_launcher/presentation/widgets/common/drag_claim_notification.dart';
+import 'package:nai_launcher/presentation/widgets/common/image_card_frame.dart';
+import 'package:nai_launcher/presentation/widgets/common/image_comparison_toolbar.dart';
 import 'package:nai_launcher/presentation/widgets/common/image_comparison_view.dart';
 
 void main() {
@@ -435,7 +438,169 @@ void main() {
       expect(tester.takeException(), isNull);
     }
   });
+
+  testWidgets('defaults keep the full image on a card-shaped surface', (
+    tester,
+  ) async {
+    final view = ImageComparisonView(
+      sourceImageBytes: _imageBytes(red: 30),
+      generatedImageBytes: _imageBytes(red: 220),
+    );
+    expect(view.fit, BoxFit.contain);
+    expect(view.surfaceRadius, ImageCardFrame.defaultRadius);
+
+    await _pumpComparison(tester, width: 400, height: 300, useDefaultFit: true);
+    final clip = tester.widget<ClipRRect>(
+      find
+          .descendant(
+            of: find.byType(ImageComparisonView),
+            matching: find.byType(ClipRRect),
+          )
+          .first,
+    );
+    expect(
+      clip.borderRadius,
+      BorderRadius.circular(ImageCardFrame.defaultRadius),
+    );
+  });
+
+  testWidgets('single row toolbar height matches its laid out height', (
+    tester,
+  ) async {
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    for (final locale in AppLocalizations.supportedLocales) {
+      for (final width in [320.0, 600.0]) {
+        for (final textScale in [1.0, 3.0]) {
+          await tester.binding.setSurfaceSize(Size(width, 600));
+          await _pumpComparison(
+            tester,
+            width: width,
+            height: 500,
+            textScale: textScale,
+            locale: locale,
+          );
+          final toolbar = find.byType(ImageComparisonToolbar);
+          final expected = ImageComparisonToolbar.singleRowHeight(
+            tester.element(toolbar),
+          );
+          final reason = '$locale width $width text ${textScale}x';
+          expect(tester.getSize(toolbar).height, expected, reason: reason);
+          expect(expected, greaterThanOrEqualTo(56), reason: reason);
+          final viewport = tester.getRect(
+            find.byKey(const ValueKey('generation-image-comparison')),
+          );
+          expect(viewport.height, closeTo(500 - expected, 0.01));
+          expect(tester.takeException(), isNull, reason: reason);
+        }
+      }
+    }
+  });
+
+  testWidgets('layers share the result display box when ratios drift', (
+    tester,
+  ) async {
+    const backdropKey = ValueKey('comparison-test-backdrop');
+    await _pumpComparison(
+      tester,
+      width: 400,
+      height: 356,
+      useDefaultFit: true,
+      generatedSize: const Size(137, 200),
+      sourceSize: const Size(100, 146),
+      imageBackdrop: const ColoredBox(key: backdropKey, color: Colors.green),
+    );
+    final viewport = tester.getRect(
+      find.byKey(const ValueKey('generation-image-comparison')),
+    );
+    final fitted = applyBoxFit(
+      BoxFit.contain,
+      const Size(137, 200),
+      viewport.size,
+    ).destination;
+    final expected = Alignment.center.inscribe(fitted, viewport);
+    final generated = tester.getRect(
+      find.byKey(const ValueKey('generation-comparison-generated')),
+    );
+    final source = tester.getRect(
+      find.byKey(const ValueKey('generation-comparison-source')),
+    );
+
+    expect(generated, _rectCloseTo(expected));
+    expect(source, _rectCloseTo(expected));
+    expect(tester.getRect(find.byKey(backdropKey)), _rectCloseTo(expected));
+    for (final key in [
+      'generation-comparison-generated',
+      'generation-comparison-source',
+    ]) {
+      expect(tester.widget<Image>(find.byKey(ValueKey(key))).fit, BoxFit.fill);
+    }
+  });
+
+  testWidgets('only drags that move the content claim the gesture', (
+    tester,
+  ) async {
+    var claims = 0;
+    await _pumpComparison(
+      tester,
+      width: 400,
+      height: 356,
+      onDragClaim: (_) {
+        claims++;
+        return false;
+      },
+    );
+    final viewportFinder = find.byKey(
+      const ValueKey('generation-image-comparison'),
+    );
+    final viewport = tester.getRect(viewportFinder);
+    final panStart = viewport.topLeft + const Offset(80, 60);
+    final transform = tester
+        .widget<InteractiveViewer>(find.byType(InteractiveViewer))
+        .transformationController!;
+
+    await tester.dragFrom(panStart, const Offset(0, 120));
+    await tester.pumpAndSettle();
+    expect(claims, 0);
+
+    transform.value = Matrix4.identity()..scaleByDouble(2, 2, 2, 1);
+    await tester.pump();
+    await tester.dragFrom(panStart, const Offset(0, 120));
+    await tester.pumpAndSettle();
+    expect(claims, greaterThan(0));
+
+    transform.value = Matrix4.identity();
+    await tester.pump();
+    claims = 0;
+    final first = await tester.startGesture(panStart);
+    final second = await tester.startGesture(panStart + const Offset(80, 80));
+    await first.moveBy(const Offset(-30, -30));
+    await second.moveBy(const Offset(30, 30));
+    await tester.pump();
+    await first.moveBy(const Offset(-30, -30));
+    await second.moveBy(const Offset(30, 30));
+    await tester.pump();
+    await first.up();
+    await second.up();
+    await tester.pumpAndSettle();
+    expect(claims, greaterThan(0));
+
+    transform.value = Matrix4.identity();
+    await tester.pump();
+    claims = 0;
+    await tester.drag(
+      find.byKey(const ValueKey('generation-comparison-divider-handle')),
+      const Offset(60, 0),
+    );
+    await tester.pumpAndSettle();
+    expect(claims, greaterThan(0));
+  });
 }
+
+Matcher _rectCloseTo(Rect expected) => isA<Rect>()
+    .having((rect) => rect.left, 'left', closeTo(expected.left, 0.01))
+    .having((rect) => rect.top, 'top', closeTo(expected.top, 0.01))
+    .having((rect) => rect.right, 'right', closeTo(expected.right, 0.01))
+    .having((rect) => rect.bottom, 'bottom', closeTo(expected.bottom, 0.01));
 
 Future<void> _pumpComparison(
   WidgetTester tester, {
@@ -444,7 +609,26 @@ Future<void> _pumpComparison(
   bool pixelControls = false,
   double textScale = 1,
   Size generatedSize = const Size(4, 3),
+  Size sourceSize = const Size(4, 3),
+  Locale locale = const Locale('zh'),
+  bool useDefaultFit = false,
+  Widget? imageBackdrop,
+  NotificationListenerCallback<DragClaimNotification>? onDragClaim,
 }) async {
+  final view = useDefaultFit
+      ? ImageComparisonView(
+          sourceImageBytes: _imageBytes(red: 30, size: sourceSize),
+          generatedImageBytes: _imageBytes(red: 220, size: generatedSize),
+          showPixelScaleControls: pixelControls,
+          imageBackdrop: imageBackdrop,
+        )
+      : ImageComparisonView(
+          sourceImageBytes: _imageBytes(red: 30, size: sourceSize),
+          generatedImageBytes: _imageBytes(red: 220, size: generatedSize),
+          fit: pixelControls ? BoxFit.contain : BoxFit.cover,
+          showPixelScaleControls: pixelControls,
+          imageBackdrop: imageBackdrop,
+        );
   await tester.pumpWidget(
     ProviderScope(
       overrides: [
@@ -457,7 +641,7 @@ Future<void> _pumpComparison(
           ).copyWith(textScaler: TextScaler.linear(textScale)),
           child: InteractionPolicyScope(child: child!),
         ),
-        locale: const Locale('zh'),
+        locale: locale,
         localizationsDelegates: AppLocalizations.localizationsDelegates,
         supportedLocales: AppLocalizations.supportedLocales,
         home: Scaffold(
@@ -465,11 +649,9 @@ Future<void> _pumpComparison(
             child: SizedBox(
               width: width,
               height: height,
-              child: ImageComparisonView(
-                sourceImageBytes: _imageBytes(red: 30),
-                generatedImageBytes: _imageBytes(red: 220, size: generatedSize),
-                fit: pixelControls ? BoxFit.contain : BoxFit.cover,
-                showPixelScaleControls: pixelControls,
+              child: NotificationListener<DragClaimNotification>(
+                onNotification: onDragClaim ?? (_) => false,
+                child: view,
               ),
             ),
           ),

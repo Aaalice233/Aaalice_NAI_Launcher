@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../themes/theme_extension.dart';
 import 'image_card_controller.dart';
+import 'image_card_frame.dart';
 import 'image_card_models.dart';
 import 'image_card_stream_preview.dart';
 import 'image_postprocess_indicator.dart';
@@ -30,7 +31,7 @@ class ImageCardGenerating extends StatelessWidget {
       builder: (context, child) => Container(
         decoration: BoxDecoration(
           color: hasPreview ? null : theme.colorScheme.surface,
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(ImageCardFrame.defaultRadius),
           boxShadow: [
             BoxShadow(
               color: theme.colorScheme.primary.withValues(
@@ -53,7 +54,7 @@ class ImageCardGenerating extends StatelessWidget {
   Widget _preview(BuildContext context) {
     final progress = data.progress ?? 0;
     return ClipRRect(
-      borderRadius: BorderRadius.circular(12),
+      borderRadius: BorderRadius.circular(ImageCardFrame.defaultRadius),
       child: Stack(
         fit: StackFit.expand,
         children: [

@@ -31,6 +31,7 @@ class ImageCardViewData {
     required this.imageHeight,
     required this.sourceFilePath,
     this.postprocessPhase,
+    this.imageContentFooterHeight = 0,
   });
 
   final Uint8List? imageBytes;
@@ -56,6 +57,9 @@ class ImageCardViewData {
   final int? imageWidth;
   final int? imageHeight;
   final String? sourceFilePath;
+
+  /// [imageContent] 停靠在卡片底部的控件高度，卡片浮层避让到它上方。
+  final double imageContentFooterHeight;
 }
 
 @immutable

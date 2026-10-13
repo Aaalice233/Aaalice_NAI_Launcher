@@ -7,11 +7,17 @@ import 'package:image/image.dart' as img;
 import 'package:nai_launcher/core/platform/platform_capabilities.dart';
 import 'package:nai_launcher/core/shortcuts/shortcut_config.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
+import 'package:nai_launcher/presentation/adaptive/interaction_policy.dart';
+import 'package:nai_launcher/presentation/providers/generation/generation_view_state_provider.dart';
+import 'package:nai_launcher/presentation/providers/generation/image_card_selection_provider.dart';
 import 'package:nai_launcher/presentation/providers/generation/preview_selection_provider.dart';
 import 'package:nai_launcher/presentation/providers/history_click_behavior_provider.dart';
 import 'package:nai_launcher/presentation/providers/image_generation_provider.dart';
 import 'package:nai_launcher/presentation/providers/shortcuts_provider.dart';
+import 'package:nai_launcher/presentation/widgets/common/image_card_frame.dart';
+import 'package:nai_launcher/presentation/widgets/common/image_comparison_toolbar.dart';
 import 'package:nai_launcher/presentation/widgets/common/image_comparison_view.dart';
+import 'package:nai_launcher/presentation/widgets/common/transparency_background.dart';
 import 'package:nai_launcher/presentation/screens/generation/widgets/image_preview.dart';
 import 'package:nai_launcher/presentation/screens/generation/widgets/preview_info_bar.dart';
 import 'package:nai_launcher/presentation/widgets/common/image_detail/image_detail_viewer.dart';
@@ -270,6 +276,115 @@ void main() {
     );
   });
 
+  testWidgets('server scaled result keeps comparison entry', (tester) async {
+    final result = _comparisonImage(
+      id: 'server-scaled',
+      resultWidth: 137,
+      resultHeight: 200,
+      sourceWidth: 100,
+      sourceHeight: 146,
+    );
+    final container = _comparisonContainer(result);
+    addTearDown(container.dispose);
+
+    await tester.pumpWidget(_app(container));
+    await tester.pumpAndSettle();
+    final l10n = await AppLocalizations.delegate.load(const Locale('en'));
+
+    expect(find.text(l10n.generation_imageComparison), findsOneWidget);
+  });
+
+  testWidgets(
+    'comparison card reserves its toolbar and keeps every control reachable',
+    (tester) async {
+      // Chinese glyph widths in the test font are close to real ones.
+      const locale = Locale('zh');
+      final l10n = await AppLocalizations.delegate.load(locale);
+      for (final size in const [Size(320, 560), Size(600, 720)]) {
+        for (final textScale in const [1.0, 3.0]) {
+          final reason = '$size text ${textScale}x';
+          final result = _comparisonImage(
+            id: 'drifted',
+            resultWidth: 137,
+            resultHeight: 200,
+            sourceWidth: 100,
+            sourceHeight: 146,
+          );
+          final container = _comparisonContainer(result);
+          container
+              .read(generationImageCardSelectionProvider.notifier)
+              .enterAndSelect(result.id);
+
+          await tester.pumpWidget(
+            _app(
+              container,
+              size: size,
+              textScale: textScale,
+              locale: locale,
+              policy: InteractionPolicy.touchFirst,
+            ),
+          );
+          await tester.pumpAndSettle();
+          expect(
+            tester
+                .widget<SelectableImageCard>(find.byType(SelectableImageCard))
+                .isSelected,
+            isTrue,
+            reason: reason,
+          );
+
+          container.read(generationComparisonEnabledProvider.notifier).state =
+              true;
+          await tester.pumpAndSettle();
+
+          final card = tester.widget<SelectableImageCard>(
+            find.byType(SelectableImageCard),
+          );
+          final view = tester.widget<ImageComparisonView>(
+            find.byType(ImageComparisonView),
+          );
+          final toolbarFinder = find.byType(ImageComparisonToolbar);
+          final toolbarHeight = ImageComparisonToolbar.singleRowHeight(
+            tester.element(toolbarFinder),
+          );
+          expect(card.isSelected, isFalse, reason: reason);
+          expect(card.selectionMode, isFalse, reason: reason);
+          expect(card.enableSelection, isFalse, reason: reason);
+          expect(card.onLongPress, isNull, reason: reason);
+          expect(card.imageContentFooterHeight, toolbarHeight, reason: reason);
+          expect(view.fit, BoxFit.contain, reason: reason);
+          expect(view.surfaceRadius, ImageCardFrame.defaultRadius);
+          expect(view.imageBackdrop, isA<TransparencyBackgroundLayer>());
+
+          final cardRect = tester.getRect(find.byType(SelectableImageCard));
+          final toolbarRect = tester.getRect(toolbarFinder);
+          final viewport = tester.getRect(
+            find.byKey(const ValueKey('generation-image-comparison')),
+          );
+          expect(toolbarRect.height, toolbarHeight, reason: reason);
+          expect(toolbarRect.bottom, closeTo(cardRect.bottom, 0.01));
+          expect(
+            viewport.width / viewport.height,
+            closeTo(137 / 200, 0.01),
+            reason: reason,
+          );
+
+          final more = tester.getRect(find.byTooltip(l10n.common_moreActions));
+          final follow = tester.getRect(
+            find.byKey(const ValueKey('comparison-follow-mouse')),
+          );
+          expect(more.bottom, lessThanOrEqualTo(toolbarRect.top + 0.01));
+          expect(cardRect.contains(more.topLeft), isTrue, reason: reason);
+          expect(more.overlaps(follow), isFalse, reason: reason);
+          expect(tester.takeException(), isNull, reason: reason);
+
+          await tester.pumpWidget(const SizedBox.shrink());
+          container.dispose();
+        }
+      }
+    },
+  );
+
   testWidgets('missing or mismatched source keeps final-only preview', (
     tester,
   ) async {
@@ -379,12 +494,45 @@ void main() {
   });
 }
 
-Widget _app(ProviderContainer container, {Size size = const Size(640, 480)}) {
+ProviderContainer _comparisonContainer(GeneratedImage image) {
+  return ProviderContainer(
+    overrides: [
+      imageGenerationNotifierProvider.overrideWith(
+        () => _SelectionImageGenerationNotifier(
+          ImageGenerationState(displayImages: [image]),
+        ),
+      ),
+      historyClickBehaviorNotifierProvider.overrideWith(
+        _LinkedHistoryBehaviorNotifier.new,
+      ),
+      shortcutConfigNotifierProvider.overrideWith(
+        _DefaultShortcutConfigNotifier.new,
+      ),
+    ],
+  );
+}
+
+Widget _app(
+  ProviderContainer container, {
+  Size size = const Size(640, 480),
+  double textScale = 1,
+  Locale? locale,
+  InteractionPolicy? policy,
+}) {
   return UncontrolledProviderScope(
     container: container,
     child: MaterialApp(
+      locale: locale,
       localizationsDelegates: AppLocalizations.localizationsDelegates,
       supportedLocales: AppLocalizations.supportedLocales,
+      builder: (context, child) => MediaQuery(
+        data: MediaQuery.of(
+          context,
+        ).copyWith(textScaler: TextScaler.linear(textScale)),
+        child: policy == null
+            ? child!
+            : InteractionPolicyScope(initialPolicy: policy, child: child!),
+      ),
       home: Scaffold(
         body: SizedBox(
           width: size.width,
