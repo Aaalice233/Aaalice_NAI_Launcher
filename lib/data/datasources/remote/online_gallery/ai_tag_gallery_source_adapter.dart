@@ -130,7 +130,7 @@ class AiTagGallerySourceAdapter implements GallerySourceAdapter {
       queryParameters: {
         'page': page,
         'page_size': config.pageSize,
-        'q': _toAiTagWeightedQuery(request.query),
+        'q': request.query,
         'prompt': request.prompt,
         'sort': 'new',
         'time_range': request.timeRange,
@@ -154,7 +154,7 @@ class AiTagGallerySourceAdapter implements GallerySourceAdapter {
     final queryParameters = <String, dynamic>{
       'page': page,
       'page_size': config.pageSize,
-      'q': _toAiTagWeightedQuery(request.query),
+      'q': request.query,
       'prompt': request.prompt,
     };
     if (period == 'current') {
@@ -438,8 +438,7 @@ class AiTagGallerySourceAdapter implements GallerySourceAdapter {
       rank: rank,
       tags: List<String>.unmodifiable(searchableTags),
       searchTerms: List<String>.unmodifiable(searchTerms),
-      // The list payload omits per-media prompts searched by the upstream q
-      // endpoint. Detail loading must aggregate every media prompt first.
+      // The list payload omits per-media prompts the blacklist must inspect.
       tagsComplete: false,
       cover: GalleryMedia(
         id: '${id}_pending',
@@ -552,15 +551,6 @@ class AiTagGallerySourceAdapter implements GallerySourceAdapter {
   static int _mediaPageIndex(String value) {
     final match = RegExp(r'_p(\d+)(?:\D|$)').firstMatch(value);
     return int.tryParse(match?.group(1) ?? '') ?? 0;
-  }
-
-  String _toAiTagWeightedQuery(String query) {
-    return query
-        .trim()
-        .split(RegExp(r'\s+'))
-        .where((term) => term.isNotEmpty)
-        .map((term) => '$term::1')
-        .join(' ');
   }
 
   static int? _asInt(Object? value) {

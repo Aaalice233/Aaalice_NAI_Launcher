@@ -214,7 +214,8 @@ void main() {
       expect(danbooru.appliesOrdinaryQuery(GalleryFeedKind.ranking), isFalse);
       expect(aiTag.metatagPrefixes(GalleryFeedKind.search), isEmpty);
       expect(aiTag.appliesOrdinaryQuery(GalleryFeedKind.ranking), isTrue);
-      expect(aiTag.validatesPushdownLocally, isTrue);
+      expect(aiTag.validatesPushdownLocally, isFalse);
+      expect(aiTag.supportsNegativePushdown, isTrue);
     });
 
     test('other source limits select their native or residual strategy', () {

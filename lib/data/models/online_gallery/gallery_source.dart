@@ -242,13 +242,12 @@ gallerySourceCapabilities = {
     supportsDetails: true,
     supportsMultipleMedia: true,
     randomFeeds: {GalleryFeedKind.search, GalleryFeedKind.ranking},
+    // Server q matches fields the client lacks; re-checking only drops hits.
     tagSearch: GalleryTagSearchCapabilities(
       strategy: GalleryTagSearchStrategy.fixedSeedResidual,
       anonymousLimit: 6,
       listTagsComplete: false,
-      supportsNegativePushdown: false,
       rankingAppliesOrdinaryQuery: true,
-      validatesPushdownLocally: true,
     ),
   ),
   GallerySourceId.quickTagCloud: GallerySourceCapabilities(

@@ -1468,7 +1468,7 @@ void main() {
   });
 
   test(
-    'incomplete AI TAG detail can prove a positive match without all media',
+    'AI TAG keeps server substring hits that no local term equals',
     () async {
       final aiTag = _FakeGalleryAdapter(
         GallerySourceId.aiTag,
@@ -1477,18 +1477,10 @@ void main() {
             2,
             source: GallerySourceId.aiTag,
             tags: const [],
+            searchTerms: const ['誓死追随肥比啾比大人！！！', '铭川'],
             tagsComplete: false,
           ),
         ], nextCursor: null),
-        onDetail: (item, _) async => GalleryDetail(
-          item: _item(
-            2,
-            source: GallerySourceId.aiTag,
-            searchTerms: const ['blue'],
-            tagsComplete: false,
-          ),
-          media: [item.cover],
-        ),
       );
       final container = _container(
         danbooru: _emptyAdapter(GallerySourceId.danbooru),
@@ -1498,54 +1490,43 @@ void main() {
       final notifier = container.read(onlineGalleryNotifierProvider.notifier);
 
       await notifier.setSource(GallerySourceId.aiTag);
-      await notifier.search('blue');
+      await notifier.search('誓死追随');
 
       final state = container.read(onlineGalleryNotifierProvider);
+      expect(aiTag.searchQueries.last, '誓死追随');
       expect(state.posts.single.id, 2);
       expect(state.currentCache.queryDetailFailureCount, 0);
-      expect(aiTag.detailRequests, 1);
+      expect(aiTag.detailRequests, 0);
     },
   );
 
-  test(
-    'incomplete AI TAG detail cannot guess that a negative tag is absent',
-    () async {
-      final aiTag = _FakeGalleryAdapter(
-        GallerySourceId.aiTag,
-        onSearch: (request, _) async => _page(request.cursor, [
-          _item(
-            3,
-            source: GallerySourceId.aiTag,
-            searchTerms: const ['blue'],
-            tagsComplete: false,
-          ),
-        ], nextCursor: null),
-        onDetail: (item, _) async => GalleryDetail(
-          item: _item(
-            3,
-            source: GallerySourceId.aiTag,
-            searchTerms: const ['blue'],
-            tagsComplete: false,
-          ),
-          media: [item.cover],
+  test('AI TAG pushes negative terms down to the server query', () async {
+    final aiTag = _FakeGalleryAdapter(
+      GallerySourceId.aiTag,
+      onSearch: (request, _) async => _page(request.cursor, [
+        _item(
+          3,
+          source: GallerySourceId.aiTag,
+          searchTerms: const ['blue'],
+          tagsComplete: false,
         ),
-      );
-      final container = _container(
-        danbooru: _emptyAdapter(GallerySourceId.danbooru),
-        aiTag: aiTag,
-      );
-      addTearDown(container.dispose);
-      final notifier = container.read(onlineGalleryNotifierProvider.notifier);
+      ], nextCursor: null),
+    );
+    final container = _container(
+      danbooru: _emptyAdapter(GallerySourceId.danbooru),
+      aiTag: aiTag,
+    );
+    addTearDown(container.dispose);
+    final notifier = container.read(onlineGalleryNotifierProvider.notifier);
 
-      await notifier.setSource(GallerySourceId.aiTag);
-      await notifier.search('blue -red');
+    await notifier.setSource(GallerySourceId.aiTag);
+    await notifier.search('blue -red');
 
-      final state = container.read(onlineGalleryNotifierProvider);
-      expect(state.posts, isEmpty);
-      expect(state.currentCache.queryDetailFailureCount, 1);
-      expect(aiTag.detailRequests, 1);
-    },
-  );
+    final state = container.read(onlineGalleryNotifierProvider);
+    expect(aiTag.searchQueries.last, 'blue -red');
+    expect(state.posts.single.id, 3);
+    expect(aiTag.detailRequests, 0);
+  });
 
   test('normalized tag cache does not outlive changed source tags', () async {
     var revised = false;
