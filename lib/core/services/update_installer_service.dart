@@ -427,8 +427,7 @@ class UpdateInstallerService {
         'UpdateInstaller',
       );
       throw const UpdateInstallException(
-        '更新程序没有响应，可能被系统策略或安全软件拦截；'
-        '请手动运行下载好的安装包完成更新',
+        '更新程序未能启动，当前版本保持不变；请手动下载新版本完成更新',
       );
     }
 
@@ -438,8 +437,8 @@ class UpdateInstallerService {
   /// 等待脚本写出启动标记。
   ///
   /// 进程创建成功不代表脚本被执行：组策略锁定的 ExecutionPolicy、安全
-  /// 软件拦截或 AppLocker 都会让 PowerShell 直接退出。确认不到就不能退出
-  /// 应用，否则用户只会看到应用关闭后版本原样不变。
+  /// 软件拦截、AppLocker 或脚本解析失败都会让 PowerShell 直接退出。确认
+  /// 不到就不能退出应用，否则用户只会看到应用关闭后版本原样不变。
   Future<bool> _awaitUpdaterStart(File marker, String version) async {
     final deadline = DateTime.now().add(_updaterStartTimeout);
     while (true) {
@@ -514,7 +513,10 @@ class UpdateInstallerService {
             logPath: logFile.path,
           );
 
-    await scriptFile.writeAsString(script, flush: true);
+    await scriptFile.writeAsBytes(
+      WindowsUpdateScript.encode(script),
+      flush: true,
+    );
     return scriptFile;
   }
 

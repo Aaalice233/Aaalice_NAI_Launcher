@@ -386,7 +386,7 @@ void main() {
           dio: Dio(),
           installationService: _SupportedInstallationService(),
           updateDirectory: updateDir,
-          // 进程创建成功但脚本被策略或安全软件拦下，什么标记都不会出现。
+          // 进程创建成功但脚本没能运行，什么标记都不会出现。
           processStarter: (_, _, _) async {},
           updaterStartTimeout: const Duration(milliseconds: 200),
           shutdownHandler: (_) async {
@@ -410,7 +410,7 @@ void main() {
             isA<UpdateInstallException>().having(
               (error) => error.message,
               'message',
-              contains('更新程序没有响应'),
+              contains('更新程序未能启动'),
             ),
           ),
         );
