@@ -8,6 +8,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:image/image.dart' as img;
 import 'package:nai_launcher/data/models/image/image_stream_chunk.dart';
+import 'package:nai_launcher/l10n/app_localizations.dart';
+import 'package:nai_launcher/presentation/adaptive/interaction_policy.dart';
 import 'package:nai_launcher/presentation/widgets/common/decoded_memory_image.dart';
 import 'package:nai_launcher/presentation/widgets/common/selectable_image_card.dart';
 
@@ -25,6 +27,62 @@ void main() {
       (tester) => _verifyAtomicReplacement(tester, entry.value),
     );
   }
+
+  testWidgets('custom image content owns its backdrop and footer', (
+    tester,
+  ) async {
+    const underlayKey = ValueKey('card-underlay');
+    const footerHeight = 60.0;
+    await tester.pumpWidget(
+      ProviderScope(
+        child: MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          builder: (context, child) => InteractionPolicyScope(
+            initialPolicy: InteractionPolicy.touchFirst,
+            child: child!,
+          ),
+          home: Scaffold(
+            body: Center(
+              child: SizedBox(
+                width: 240,
+                height: 320,
+                child: SelectableImageCard(
+                  imageBytes: _opaquePng(const Color(0xffff0000)),
+                  imageIdentity: 'custom-content',
+                  underlay: const ColoredBox(
+                    key: underlayKey,
+                    color: Color(0xff00ff00),
+                  ),
+                  imageContent: const Column(
+                    children: [
+                      Expanded(child: SizedBox.expand()),
+                      SizedBox(
+                        key: ValueKey('content-footer'),
+                        height: footerHeight,
+                      ),
+                    ],
+                  ),
+                  imageContentFooterHeight: footerHeight,
+                  hoverEffectsEnabled: false,
+                  enableHoverScale: false,
+                  onSave: () {},
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(underlayKey), findsNothing);
+    final l10n = await AppLocalizations.delegate.load(const Locale('en'));
+    final more = tester.getRect(find.byTooltip(l10n.common_moreActions));
+    final footer = tester.getRect(find.byKey(const ValueKey('content-footer')));
+    expect(more.bottom, lessThanOrEqualTo(footer.top));
+    expect(more.overlaps(footer), isFalse);
+  });
 }
 
 Future<void> _verifyAtomicReplacement(

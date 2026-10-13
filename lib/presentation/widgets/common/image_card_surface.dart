@@ -75,6 +75,9 @@ class ImageCardSurface extends StatelessWidget {
         data.showIndex &&
         data.index != null &&
         !controller.isHovering;
+    final footerHeight = data.imageContent == null
+        ? 0.0
+        : data.imageContentFooterHeight;
 
     return MouseRegion(
       onEnter: (_) => controller.hoverEnter(warmShareCache: onWarmShareCache),
@@ -112,8 +115,6 @@ class ImageCardSurface extends StatelessWidget {
           child: Stack(
             fit: StackFit.expand,
             children: [
-              if (data.imageContent != null && data.underlay != null)
-                data.underlay!,
               RepaintBoundary(
                 child: data.imageContent ?? _completedImage(theme),
               ),
@@ -194,13 +195,13 @@ class ImageCardSurface extends StatelessWidget {
                 ),
               if (showHoverBar)
                 Positioned(
-                  bottom: 12,
+                  bottom: 12 + footerHeight,
                   left: 0,
                   right: 0,
                   child: ImageCardHoverActionBar(actions: hoverActions),
                 ),
               Positioned(
-                bottom: 8,
+                bottom: 8 + footerHeight,
                 left: 8,
                 child: Offstage(
                   key: const ValueKey('selectable-image-index-badge-offstage'),
@@ -233,7 +234,9 @@ class ImageCardSurface extends StatelessWidget {
                         color: theme.colorScheme.primary.withValues(
                           alpha: 0.15,
                         ),
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(
+                          ImageCardFrame.defaultRadius,
+                        ),
                       ),
                     ),
                   ),
@@ -245,7 +248,7 @@ class ImageCardSurface extends StatelessWidget {
                   actions.isNotEmpty)
                 Positioned(
                   right: 8,
-                  bottom: 8,
+                  bottom: 8 + footerHeight,
                   child: IconButton(
                     onPressed: () => unawaited(onShowContextMenu(Offset.zero)),
                     tooltip: context.l10n.common_moreActions,

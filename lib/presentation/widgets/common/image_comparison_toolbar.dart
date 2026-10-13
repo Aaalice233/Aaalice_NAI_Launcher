@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 
 import '../../../core/utils/localization_extension.dart';
@@ -17,6 +19,29 @@ class ImageComparisonToolbar extends StatelessWidget {
     required this.canUseActualPixels,
   });
 
+  static const double _controlExtent = 44;
+  static const double _verticalPadding = 6;
+
+  /// Laid-out height of the toolbar without zoom controls, which never wraps.
+  static double singleRowHeight(BuildContext context) {
+    final painter = TextPainter(
+      text: TextSpan(
+        text: context.l10n.comparison_followMouse,
+        style: _labelStyle(Theme.of(context)),
+      ),
+      textDirection: Directionality.of(context),
+      textScaler: MediaQuery.textScalerOf(context),
+      locale: Localizations.maybeLocaleOf(context),
+      maxLines: 1,
+    )..layout();
+    final labelHeight = painter.height;
+    painter.dispose();
+    return math.max(_controlExtent, labelHeight) + _verticalPadding * 2;
+  }
+
+  static TextStyle _labelStyle(ThemeData theme) => theme.textTheme.labelMedium!
+      .copyWith(color: theme.colorScheme.onSurfaceVariant);
+
   final bool followMouse;
   final ValueChanged<bool> onFollowMouseChanged;
   final bool showZoom;
@@ -31,7 +56,7 @@ class ImageComparisonToolbar extends StatelessWidget {
     final fit = (scale - 1).abs() < 0.001;
     final style = TextButton.styleFrom(
       foregroundColor: theme.colorScheme.onSurfaceVariant,
-      minimumSize: const Size(44, 44),
+      minimumSize: const Size(_controlExtent, _controlExtent),
       padding: const EdgeInsets.symmetric(horizontal: 10),
       textStyle: theme.textTheme.labelMedium,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(7)),
@@ -50,13 +75,19 @@ class ImageComparisonToolbar extends StatelessWidget {
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Flexible(child: Text(context.l10n.comparison_followMouse)),
+                Flexible(
+                  child: Text(
+                    context.l10n.comparison_followMouse,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
                 const SizedBox(width: 4),
                 ExcludeSemantics(
                   child: IgnorePointer(
                     child: SizedBox(
-                      width: 44,
-                      height: 44,
+                      width: _controlExtent,
+                      height: _controlExtent,
                       child: Center(
                         child: Transform.scale(
                           scale: 0.65,
@@ -139,11 +170,12 @@ class ImageComparisonToolbar extends StatelessWidget {
     return Material(
       color: theme.colorScheme.surfaceContainerLow,
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        padding: const EdgeInsets.symmetric(
+          horizontal: 12,
+          vertical: _verticalPadding,
+        ),
         child: DefaultTextStyle(
-          style: theme.textTheme.labelMedium!.copyWith(
-            color: theme.colorScheme.onSurfaceVariant,
-          ),
+          style: _labelStyle(theme),
           child: TextButtonTheme(
             data: TextButtonThemeData(style: style),
             child: LayoutBuilder(

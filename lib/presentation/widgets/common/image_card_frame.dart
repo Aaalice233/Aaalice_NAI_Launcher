@@ -16,7 +16,7 @@ class ImageCardFrame extends StatelessWidget {
     this.overlays = const [],
     this.width,
     this.height,
-    this.radius = 12,
+    this.radius = defaultRadius,
     this.clipRadius,
     this.hovered = false,
     this.focused = false,
@@ -27,6 +27,10 @@ class ImageCardFrame extends StatelessWidget {
     this.hoverLift = 0,
     this.animate = true,
   });
+
+  // Media embedded in the card must clip to the same curve, otherwise the
+  // layers beneath it show through between the two arcs.
+  static const double defaultRadius = 12;
 
   final Widget child;
   final Widget? information;

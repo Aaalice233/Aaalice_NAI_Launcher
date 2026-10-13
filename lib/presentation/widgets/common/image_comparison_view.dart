@@ -7,6 +7,8 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'drag_claim_notification.dart';
+import 'image_card_frame.dart';
 import 'image_viewport_surface.dart';
 import '../../../core/utils/localization_extension.dart';
 import '../../../core/utils/nai_resolution_adapter.dart';
@@ -20,9 +22,11 @@ class ImageComparisonView extends ConsumerStatefulWidget {
     super.key,
     required this.sourceImageBytes,
     required this.generatedImageBytes,
-    this.fit = BoxFit.cover,
+    this.fit = BoxFit.contain,
     this.showPixelScaleControls = false,
     this.viewportHeight,
+    this.surfaceRadius = ImageCardFrame.defaultRadius,
+    this.imageBackdrop,
   });
 
   final Uint8List sourceImageBytes;
@@ -30,6 +34,12 @@ class ImageComparisonView extends ConsumerStatefulWidget {
   final BoxFit fit;
   final bool showPixelScaleControls;
   final double? viewportHeight;
+
+  /// Must match the host container's clip so no layer shows between the arcs.
+  final double surfaceRadius;
+
+  /// Painted exactly beneath the image pixels, e.g. the transparency backdrop.
+  final Widget? imageBackdrop;
 
   @override
   ConsumerState<ImageComparisonView> createState() =>
@@ -79,10 +89,8 @@ class _ImageComparisonViewState extends ConsumerState<ImageComparisonView> {
   }
 
   void _readGeneratedSize() {
-    final size = widget.showPixelScaleControls
-        ? NaiResolutionAdapter.readImageSize(widget.generatedImageBytes)
-        : null;
-    _generatedSize = size == null
+    final size = NaiResolutionAdapter.readImageSize(widget.generatedImageBytes);
+    _generatedSize = size == null || size.$1 <= 0 || size.$2 <= 0
         ? null
         : Size(size.$1.toDouble(), size.$2.toDouble());
   }
@@ -91,8 +99,7 @@ class _ImageComparisonViewState extends ConsumerState<ImageComparisonView> {
   void didUpdateWidget(covariant ImageComparisonView oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (!identical(oldWidget.sourceImageBytes, widget.sourceImageBytes) ||
-        !identical(oldWidget.generatedImageBytes, widget.generatedImageBytes) ||
-        oldWidget.showPixelScaleControls != widget.showPixelScaleControls) {
+        !identical(oldWidget.generatedImageBytes, widget.generatedImageBytes)) {
       // A new enhancement of the same source must not change the viewport.
       if (!identical(oldWidget.sourceImageBytes, widget.sourceImageBytes)) {
         _dividerPosition.value = 0.5;
@@ -127,6 +134,20 @@ class _ImageComparisonViewState extends ConsumerState<ImageComparisonView> {
       renderObject.globalToLocal(globalPosition),
     );
     _setPosition(localPosition.dx / renderObject.size.width);
+  }
+
+  bool get _isZoomed =>
+      (_transformationController.value.getMaxScaleOnAxis() - 1).abs() > 0.001;
+
+  void _claimDrag() => const DragClaimNotification().dispatch(context);
+
+  void _handleInteractionStart(ScaleStartDetails details) {
+    _mousePosition = null;
+    if (details.pointerCount > 1 || _isZoomed) _claimDrag();
+  }
+
+  void _handleInteractionUpdate(ScaleUpdateDetails details) {
+    if (details.pointerCount > 1) _claimDrag();
   }
 
   void _followMouseAfterTransform() {
@@ -164,7 +185,7 @@ class _ImageComparisonViewState extends ConsumerState<ImageComparisonView> {
 
   @override
   Widget build(BuildContext context) => ClipRRect(
-    borderRadius: BorderRadius.circular(14),
+    borderRadius: BorderRadius.circular(widget.surfaceRadius),
     child: Column(
       mainAxisSize: widget.viewportHeight == null
           ? MainAxisSize.max
@@ -202,6 +223,7 @@ class _ImageComparisonViewState extends ConsumerState<ImageComparisonView> {
   );
 
   double get _actualPixelScale {
+    if (!widget.showPixelScaleControls) return 1;
     final imageSize = _generatedSize;
     final viewport = _viewportSize;
     if (imageSize == null || viewport == null || viewport.isEmpty) return 1;
@@ -258,16 +280,24 @@ class _ImageComparisonViewState extends ConsumerState<ImageComparisonView> {
       onDoubleTap: _handleDoubleTap,
       child: InteractiveViewer(
         transformationController: _transformationController,
-        onInteractionStart: (_) => _mousePosition = null,
+        onInteractionStart: _handleInteractionStart,
+        onInteractionUpdate: _handleInteractionUpdate,
         minScale: math.min(1, _actualPixelScale),
         maxScale: math.max(4, _actualPixelScale * 4),
         child: LayoutBuilder(
           builder: (context, constraints) {
+            final imageRect = _imageRect(constraints.biggest);
+            final backdrop = widget.imageBackdrop;
             return Stack(
               fit: StackFit.expand,
               children: [
+                if (backdrop != null)
+                  Positioned.fromRect(
+                    rect: imageRect ?? Offset.zero & constraints.biggest,
+                    child: backdrop,
+                  ),
                 // Keep the image regions disjoint so transparent pixels reveal
-                // the card underlay instead of the image on the opposite side.
+                // the backdrop instead of the image on the opposite side.
                 ClipRect(
                   key: const ValueKey('generation-comparison-generated-clip'),
                   clipper: _ComparisonClipper(
@@ -277,12 +307,13 @@ class _ImageComparisonViewState extends ConsumerState<ImageComparisonView> {
                   // A comparison is a detail viewer: decoding a thumbnail here
                   // permanently loses detail when InteractiveViewer zooms in.
                   child: RepaintBoundary(
-                    child: Image.memory(
-                      key: const ValueKey('generation-comparison-generated'),
-                      widget.generatedImageBytes,
+                    child: _ComparisonLayer(
+                      imageKey: const ValueKey(
+                        'generation-comparison-generated',
+                      ),
+                      bytes: widget.generatedImageBytes,
+                      rect: imageRect,
                       fit: widget.fit,
-                      filterQuality: FilterQuality.high,
-                      gaplessPlayback: true,
                     ),
                   ),
                 ),
@@ -293,12 +324,11 @@ class _ImageComparisonViewState extends ConsumerState<ImageComparisonView> {
                     side: _ComparisonSide.source,
                   ),
                   child: RepaintBoundary(
-                    child: Image.memory(
-                      key: const ValueKey('generation-comparison-source'),
-                      widget.sourceImageBytes,
+                    child: _ComparisonLayer(
+                      imageKey: const ValueKey('generation-comparison-source'),
+                      bytes: widget.sourceImageBytes,
+                      rect: imageRect,
                       fit: widget.fit,
-                      filterQuality: FilterQuality.high,
-                      gaplessPlayback: true,
                     ),
                   ),
                 ),
@@ -316,6 +346,15 @@ class _ImageComparisonViewState extends ConsumerState<ImageComparisonView> {
         ),
       ),
     );
+  }
+
+  // Both layers share the result's display box: a source whose ratio drifted
+  // by edge rounding is stretched onto it, as the request itself was.
+  Rect? _imageRect(Size viewport) {
+    final imageSize = _generatedSize;
+    if (imageSize == null || viewport.isEmpty) return null;
+    final fitted = applyBoxFit(widget.fit, imageSize, viewport).destination;
+    return Alignment.center.inscribe(fitted, Offset.zero & viewport);
   }
 
   Widget _buildDivider(BuildContext context, double width, double scale) {
@@ -404,6 +443,7 @@ class _ImageComparisonViewState extends ConsumerState<ImageComparisonView> {
                       _setPositionFromGlobal(details.globalPosition);
                     },
                     onHorizontalDragStart: (details) {
+                      _claimDrag();
                       _dividerFocusNode.requestFocus();
                       _setPositionFromGlobal(details.globalPosition);
                     },
@@ -443,6 +483,37 @@ class _ImageComparisonViewState extends ConsumerState<ImageComparisonView> {
           ),
         ),
       ],
+    );
+  }
+}
+
+class _ComparisonLayer extends StatelessWidget {
+  const _ComparisonLayer({
+    required this.imageKey,
+    required this.bytes,
+    required this.rect,
+    required this.fit,
+  });
+
+  final Key imageKey;
+  final Uint8List bytes;
+  final Rect? rect;
+  final BoxFit fit;
+
+  @override
+  Widget build(BuildContext context) {
+    final rect = this.rect;
+    final image = Image.memory(
+      key: imageKey,
+      bytes,
+      fit: rect == null ? fit : BoxFit.fill,
+      filterQuality: FilterQuality.high,
+      gaplessPlayback: true,
+    );
+    if (rect == null) return image;
+    return Stack(
+      fit: StackFit.expand,
+      children: [Positioned.fromRect(rect: rect, child: image)],
     );
   }
 }

@@ -187,16 +187,13 @@ class _DlssEnhancementPanelState extends ConsumerState<DlssEnhancementPanel> {
   Widget _preview({double? viewportHeight}) {
     final l10n = context.l10n;
     final result = _result;
-    final image = ClipRRect(
-      borderRadius: BorderRadius.circular(12),
-      child: ImageComparisonView(
-        key: _comparisonKey,
-        sourceImageBytes: widget.source,
-        generatedImageBytes: result ?? widget.source,
-        fit: BoxFit.contain,
-        showPixelScaleControls: true,
-        viewportHeight: viewportHeight,
-      ),
+    final image = ImageComparisonView(
+      key: _comparisonKey,
+      sourceImageBytes: widget.source,
+      generatedImageBytes: result ?? widget.source,
+      fit: BoxFit.contain,
+      showPixelScaleControls: true,
+      viewportHeight: viewportHeight,
     );
     return Column(
       mainAxisSize: viewportHeight == null
