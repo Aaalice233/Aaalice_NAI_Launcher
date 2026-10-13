@@ -157,7 +157,7 @@ void main() {
       },
     );
 
-    test('image comparison source accepts enhance grid rounding only', () {
+    test('image comparison source accepts enhance grid rounding', () {
       final sourceBytes = _validImageBytes(width: 832, height: 1216);
       final source = ImageComparisonSource.fromBytes(sourceBytes);
 
