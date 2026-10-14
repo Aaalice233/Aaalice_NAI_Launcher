@@ -938,6 +938,60 @@ void main() {
     expect(tester.widget<PageView>(find.byType(PageView)).controller?.page, 1);
   });
 
+  testWidgets('焦点退回路由作用域后方向键仍然切换媒体', (tester) async {
+    tester.view.physicalSize = const Size(1280, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    const item = GalleryItem(
+      id: 7,
+      workId: 'work-7',
+      sourceId: GallerySourceId.aiTag,
+      focusedMediaId: 'first',
+      focusedMediaIndex: 0,
+    );
+    await tester.pumpWidget(
+      ProviderScope(
+        child: MaterialApp(
+          home: Scaffold(
+            body: GalleryDetailDialog(
+              item: item,
+              detail: const GalleryDetail(
+                item: item,
+                media: [
+                  GalleryMedia(id: 'first'),
+                  GalleryMedia(id: 'second'),
+                ],
+              ),
+              isFavorited: false,
+              favoriteLoading: false,
+              canUseGenerationActions: false,
+              labels: _labels(),
+              onCopyPrompt: (_) {},
+              onToggleFavorite: () async => true,
+              onOpenSource: () {},
+              onSendToGenerate: (_) {},
+              onAddToQueue: (_) async {},
+              onDownloadCurrentOriginal: (_) async {},
+              onTagSearch: (_) {},
+              onBlacklistChanged: () {},
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('1 / 2'), findsOneWidget);
+
+    // 可选中文本点外部失焦时同样走这条路径
+    FocusManager.instance.primaryFocus!.unfocus();
+    await tester.pump();
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowRight);
+    await tester.pumpAndSettle();
+
+    expect(find.text('2 / 2'), findsOneWidget);
+  });
+
   testWidgets('缩略图条的反馈叠在缩略图之上，选中描边不挤占内容', (tester) async {
     tester.view.physicalSize = const Size(1280, 900);
     tester.view.devicePixelRatio = 1;
