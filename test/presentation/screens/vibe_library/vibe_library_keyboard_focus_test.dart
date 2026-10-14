@@ -10,7 +10,9 @@ import 'package:nai_launcher/data/models/image/image_params.dart';
 import 'package:nai_launcher/data/models/vibe/vibe_library_category.dart';
 import 'package:nai_launcher/data/models/vibe/vibe_library_entry.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
+import 'package:nai_launcher/core/shortcuts/shortcut_config.dart';
 import 'package:nai_launcher/presentation/providers/generation/generation_params_notifier.dart';
+import 'package:nai_launcher/presentation/providers/shortcuts_provider.dart';
 import 'package:nai_launcher/presentation/providers/vibe_library_category_provider.dart';
 import 'package:nai_launcher/presentation/providers/vibe_library_provider.dart';
 import 'package:nai_launcher/presentation/providers/vibe_library_selection_provider.dart';
@@ -87,6 +89,9 @@ void main() {
 Future<ProviderContainer> _pumpScreen(WidgetTester tester) async {
   final container = ProviderContainer(
     overrides: [
+      shortcutConfigNotifierProvider.overrideWith(
+        _DefaultShortcutConfigNotifier.new,
+      ),
       generationParamsNotifierProvider.overrideWith(
         _TestGenerationParamsNotifier.new,
       ),
@@ -164,3 +169,8 @@ VibeLibraryEntry _entry(String id) => VibeLibraryEntry(
   vibeEncoding: 'encoding',
   createdAt: DateTime(2025),
 );
+
+class _DefaultShortcutConfigNotifier extends ShortcutConfigNotifier {
+  @override
+  Future<ShortcutConfig> build() async => ShortcutConfig.createDefault();
+}
