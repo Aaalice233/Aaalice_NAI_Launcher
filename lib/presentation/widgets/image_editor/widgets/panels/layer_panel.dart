@@ -1,14 +1,13 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 
 import 'package:flutter_inappwebview/flutter_inappwebview.dart'
     show WebViewEnvironment;
 
 import '../../../common/checkerboard_pattern.dart';
-import '../../../common/focus_on_appear.dart';
 import '../../../common/image_viewport_surface.dart';
+import '../../../common/inline_rename_field.dart';
 import '../../../../../core/platform/platform_capabilities.dart';
 import '../../../../../core/utils/app_logger.dart';
 import '../../../../adaptive/interaction_policy.dart';
@@ -19,7 +18,6 @@ import '../../layers/layer_role.dart';
 import '../../layers/model3d_layer_data.dart';
 import '../editor_image_import.dart';
 import '../../../../widgets/common/themed_divider.dart';
-import 'package:nai_launcher/presentation/widgets/common/themed_input.dart';
 import '../../../model3d_editor/model3d_editor_screen.dart';
 
 /// 图层面板
@@ -462,60 +460,18 @@ class _LayerTile extends StatefulWidget {
 class _LayerTileState extends State<_LayerTile>
     with AutomaticKeepAliveClientMixin {
   bool _isEditing = false;
-  late TextEditingController _nameController;
-  late final FocusNode _nameFocusNode = FocusNode(
-    debugLabel: 'LayerRename',
-    onKeyEvent: _handleNameKeyEvent,
-  );
 
   @override
   bool get wantKeepAlive => true;
 
-  @override
-  void initState() {
-    super.initState();
-    _nameController = TextEditingController(text: widget.layer.name);
-  }
+  void _startEditing() => setState(() => _isEditing = true);
 
-  // Esc 在此消费，不能冒泡给外层面板或页面的 Esc 绑定
-  KeyEventResult _handleNameKeyEvent(FocusNode node, KeyEvent event) {
-    if (event is KeyDownEvent &&
-        event.logicalKey == LogicalKeyboardKey.escape) {
-      _stopEditing();
-      return KeyEventResult.handled;
-    }
-    return KeyEventResult.ignored;
-  }
-
-  // 每次进入都从当前名称开始，取消或空名留下的草稿随之丢弃
-  void _startEditing() {
-    _nameController.text = widget.layer.name;
-    setState(() => _isEditing = true);
-  }
-
-  void _commitEditing(String value) {
-    final name = value.trim();
-    if (name.isNotEmpty) widget.onRename(name);
+  void _commitEditing(String name) {
+    widget.onRename(name);
     _stopEditing();
   }
 
   void _stopEditing() => setState(() => _isEditing = false);
-
-  @override
-  void didUpdateWidget(_LayerTile oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    // 图层名称变化时同步更新控制器（非编辑状态下）
-    if (oldWidget.layer.name != widget.layer.name && !_isEditing) {
-      _nameController.text = widget.layer.name;
-    }
-  }
-
-  @override
-  void dispose() {
-    _nameFocusNode.dispose();
-    _nameController.dispose();
-    super.dispose();
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -572,21 +528,18 @@ class _LayerTileState extends State<_LayerTile>
                 // 图层名称
                 Expanded(
                   child: _isEditing
-                      ? FocusOnAppear(
-                          child: ThemedInput(
-                            controller: _nameController,
-                            focusNode: _nameFocusNode,
-                            style: theme.textTheme.bodySmall,
-                            decoration: const InputDecoration(
-                              isDense: true,
-                              contentPadding: EdgeInsets.symmetric(
-                                horizontal: 8,
-                                vertical: 4,
-                              ),
+                      ? InlineRenameField(
+                          name: widget.layer.name,
+                          style: theme.textTheme.bodySmall,
+                          decoration: const InputDecoration(
+                            isDense: true,
+                            contentPadding: EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 4,
                             ),
-                            onSubmitted: _commitEditing,
-                            onTapOutside: (_) => _stopEditing(),
                           ),
+                          onSubmit: _commitEditing,
+                          onCancel: _stopEditing,
                         )
                       : GestureDetector(
                           // 3D 图层(onDoubleTap 非空)双击名字进入 3D 编辑器;

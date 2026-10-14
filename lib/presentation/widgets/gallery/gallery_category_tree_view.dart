@@ -11,10 +11,9 @@ import '../../adaptive/interaction_policy.dart';
 import '../../../data/models/gallery/gallery_category.dart';
 import '../../../data/models/gallery/gallery_tree_drop_slot.dart';
 import '../common/context_menu_anchor.dart';
-import '../common/focus_on_appear.dart';
+import '../common/inline_rename_field.dart';
 import '../common/surface_ink_well.dart';
 import '../common/themed_divider.dart';
-import 'package:nai_launcher/presentation/widgets/common/themed_input.dart';
 import 'gallery_scan_progress_panel.dart';
 import 'library_sidebar_drag_item.dart';
 import '../../utils/library_sidebar_sort.dart';
@@ -415,27 +414,13 @@ class _CategoryItem extends StatefulWidget {
 class _CategoryItemState extends State<_CategoryItem> {
   bool _isHovering = false;
   bool _isEditing = false;
-  late TextEditingController _editController;
 
-  @override
-  void initState() {
-    super.initState();
-    _editController = TextEditingController(text: widget.label);
+  void _submitRename(String name) {
+    widget.onRename?.call(name);
+    _stopEditing();
   }
 
-  @override
-  void didUpdateWidget(covariant _CategoryItem oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.label != widget.label && !_isEditing) {
-      _editController.text = widget.label;
-    }
-  }
-
-  @override
-  void dispose() {
-    _editController.dispose();
-    super.dispose();
-  }
+  void _stopEditing() => setState(() => _isEditing = false);
 
   @override
   Widget build(BuildContext context) {
@@ -504,23 +489,15 @@ class _CategoryItemState extends State<_CategoryItem> {
                     const SizedBox(width: 8),
                     Expanded(
                       child: _isEditing
-                          ? FocusOnAppear(
-                              child: ThemedInput(
-                                controller: _editController,
-                                style: const TextStyle(fontSize: 13),
-                                decoration: const InputDecoration(
-                                  isDense: true,
-                                  contentPadding: EdgeInsets.zero,
-                                ),
-                                onSubmitted: (value) {
-                                  if (value.trim().isNotEmpty) {
-                                    widget.onRename?.call(value.trim());
-                                  }
-                                  setState(() => _isEditing = false);
-                                },
-                                onTapOutside: (_) =>
-                                    setState(() => _isEditing = false),
+                          ? InlineRenameField(
+                              name: widget.label,
+                              style: const TextStyle(fontSize: 13),
+                              decoration: const InputDecoration(
+                                isDense: true,
+                                contentPadding: EdgeInsets.zero,
                               ),
+                              onSubmit: _submitRename,
+                              onCancel: _stopEditing,
                             )
                           : Text(
                               widget.label,

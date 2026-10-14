@@ -12,6 +12,7 @@ import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/providers/shortcuts_provider.dart';
 import 'package:nai_launcher/presentation/providers/tag_library_page_provider.dart';
 import 'package:nai_launcher/presentation/screens/tag_library_page/tag_library_page_screen.dart';
+import 'package:nai_launcher/presentation/screens/tag_library_page/widgets/category_tree_view.dart';
 import 'package:nai_launcher/presentation/screens/tag_library_page/widgets/tag_library_toolbar.dart';
 import '../../../helpers/light_theme_contrast.dart';
 
@@ -436,6 +437,65 @@ void main() {
     expect(rename.controller.text, '新类别');
     expect(search.controller.text, isEmpty);
   });
+
+  testWidgets('重命名分类时按 Esc 放弃修改并退出，按键不冒泡给页面', (tester) async {
+    await _setViewport(tester, const Size(1180, 800));
+    await _pumpTagLibrary(tester, _TestTagLibraryPageNotifier.new);
+    await _openCategoryRename(tester, '测试类别');
+    final escapes = _recordBubbledEscapes(tester);
+
+    tester.testTextInput.enterText('草稿');
+    await tester.pump();
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pumpAndSettle();
+
+    expect(escapes, isEmpty, reason: 'Esc 应被重命名框消费');
+    expect(_categoryRenameField(), findsNothing);
+    expect(find.text('测试类别'), findsOneWidget);
+
+    await _openCategoryRename(tester, '测试类别');
+    expect(_categoryRenameEditable(tester).controller.text, '测试类别');
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pumpAndSettle();
+    expect(_categoryRenameField(), findsNothing);
+  });
+}
+
+Finder _categoryRenameField() => find.descendant(
+  of: find.byType(CategoryTreeView),
+  matching: find.byType(EditableText),
+);
+
+EditableText _categoryRenameEditable(WidgetTester tester) =>
+    tester.widget<EditableText>(_categoryRenameField());
+
+Future<void> _openCategoryRename(WidgetTester tester, String label) async {
+  await tester.tap(
+    find.text(label),
+    kind: PointerDeviceKind.mouse,
+    buttons: kSecondaryButton,
+  );
+  await tester.pumpAndSettle();
+  await tester.tap(find.text('重命名').last);
+  await tester.pumpAndSettle();
+  expect(_categoryRenameField(), findsOneWidget);
+  expect(_categoryRenameEditable(tester).focusNode.hasPrimaryFocus, isTrue);
+}
+
+/// 路由作用域位于分类树与页面级 Esc 绑定之间，冒泡的 Esc 必先经过它
+List<KeyEvent> _recordBubbledEscapes(WidgetTester tester) {
+  final scope = FocusScope.of(tester.element(find.byType(CategoryTreeView)));
+  final previousHandler = scope.onKeyEvent;
+  final escapes = <KeyEvent>[];
+  scope.onKeyEvent = (node, event) {
+    if (event is KeyDownEvent &&
+        event.logicalKey == LogicalKeyboardKey.escape) {
+      escapes.add(event);
+    }
+    return KeyEventResult.ignored;
+  };
+  addTearDown(() => scope.onKeyEvent = previousHandler);
+  return escapes;
 }
 
 Future<void> _pressCtrl(WidgetTester tester, LogicalKeyboardKey key) async {
