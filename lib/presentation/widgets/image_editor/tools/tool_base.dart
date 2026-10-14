@@ -86,6 +86,26 @@ abstract class EditorTool {
   /// 方向键微移；返回 true 表示工具已处理
   bool onArrowNudge(EditorState state, Offset delta) => false;
 
+  /// Enter 确认工具的待定操作；返回 true 表示工具已处理
+  bool onConfirm(EditorState state) => false;
+
+  /// 没有进行中的拖动时按 Esc；返回 true 表示工具已处理
+  bool onEscape(EditorState state) => false;
+
+  /// 触屏双指落下；返回 true 时本次双指手势交给工具，否则照常平移缩放画布。
+  /// [focal] 为文档坐标
+  bool onMultiTouchStart(EditorState state, Offset focal) => false;
+
+  /// [scale] 与 [rotation] 都相对手势开始时，[rotation] 已换算成文档坐标中的方向
+  void onMultiTouchUpdate(
+    EditorState state,
+    Offset focal,
+    double scale,
+    double rotation,
+  ) {}
+
+  void onMultiTouchEnd(EditorState state) {}
+
   /// 延迟激活（在下一帧异步执行）
   /// 用于资源预热、缓存更新等耗时操作
   /// 不会阻塞工具切换

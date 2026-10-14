@@ -15,6 +15,7 @@ import '../../core/editor_state.dart';
 import '../../layers/layer.dart';
 import '../../layers/layer_role.dart';
 import '../../layers/model3d_layer_data.dart';
+import '../editor_image_import.dart';
 import '../../../../widgets/common/themed_divider.dart';
 import 'package:nai_launcher/presentation/widgets/common/themed_input.dart';
 import '../../../model3d_editor/model3d_editor_screen.dart';
@@ -23,7 +24,10 @@ import '../../../model3d_editor/model3d_editor_screen.dart';
 class LayerPanel extends StatefulWidget {
   final EditorState state;
 
-  const LayerPanel({super.key, required this.state});
+  /// 导入图片后调用；面板以底部弹层呈现时由调用方收起，露出变换框
+  final VoidCallback? onImageImported;
+
+  const LayerPanel({super.key, required this.state, this.onImageImported});
 
   @override
   State<LayerPanel> createState() => _LayerPanelState();
@@ -133,6 +137,18 @@ class _LayerPanelState extends State<LayerPanel> {
     return false;
   }
 
+  Future<void> _onImportImage() async {
+    final picked = await pickEditorImageFile(context);
+    if (picked == null || !mounted) return;
+    final placed = await importImageAsLayer(
+      context,
+      widget.state,
+      bytes: picked.bytes,
+      layerName: picked.name,
+    );
+    if (placed && mounted) widget.onImageImported?.call();
+  }
+
   Future<void> _onAdd3dLayer() async {
     if (!await _ensureWebView2Available()) return;
     if (!mounted) return;
@@ -220,6 +236,7 @@ class _LayerPanelState extends State<LayerPanel> {
                     role: role,
                   );
                 },
+                onImportImage: _onImportImage,
                 onAdd3dLayer: _onAdd3dLayer,
                 onMergeDown: active != null && commands.canMergeDown(active)
                     ? () => commands.mergeDown(active)
@@ -318,12 +335,14 @@ class _LayerPanelState extends State<LayerPanel> {
 class _LayerPanelHeader extends StatelessWidget {
   final bool rolesEnabled;
   final ValueChanged<LayerRole> onAddLayer;
+  final VoidCallback onImportImage;
   final VoidCallback onAdd3dLayer;
   final VoidCallback? onMergeDown;
 
   const _LayerPanelHeader({
     required this.rolesEnabled,
     required this.onAddLayer,
+    required this.onImportImage,
     required this.onAdd3dLayer,
     this.onMergeDown,
   });
@@ -373,6 +392,13 @@ class _LayerPanelHeader extends StatelessWidget {
               onPressed: () => onAddLayer(LayerRole.image),
               visualDensity: VisualDensity.compact,
             ),
+          // 从文件导入图片，导入后直接带着变换框摆放
+          IconButton(
+            icon: const Icon(Icons.add_photo_alternate_outlined, size: 20),
+            tooltip: context.l10n.layer_importImage,
+            onPressed: onImportImage,
+            visualDensity: VisualDensity.compact,
+          ),
           // 添加 3D 模型图层
           IconButton(
             icon: const Icon(Icons.view_in_ar, size: 20),

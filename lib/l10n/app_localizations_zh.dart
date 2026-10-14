@@ -2707,6 +2707,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get editor_effectCropToSelection => '裁剪到选区';
 
   @override
+  String get editor_cropNeedsSelection => '请先建立选区；裁剪会原位保留选区外接矩形内的像素。';
+
+  @override
   String get editor_effectRotateLeft => '向左旋转 90°';
 
   @override
@@ -12512,6 +12515,63 @@ class AppLocalizationsZh extends AppLocalizations {
   String get editor_shortcutNudgeFar => '移动 10 像素';
 
   @override
+  String get editor_transformSection => '变换';
+
+  @override
+  String get editor_transformWidth => '宽度';
+
+  @override
+  String get editor_transformHeight => '高度';
+
+  @override
+  String get editor_transformAngle => '角度';
+
+  @override
+  String get editor_transformCenterX => '中心 X';
+
+  @override
+  String get editor_transformCenterY => '中心 Y';
+
+  @override
+  String get editor_transformKeepAspect => '锁定比例';
+
+  @override
+  String get editor_transformFlipHorizontal => '水平翻转';
+
+  @override
+  String get editor_transformFlipVertical => '垂直翻转';
+
+  @override
+  String get editor_transformApply => '应用变换';
+
+  @override
+  String get editor_transformCancel => '取消变换';
+
+  @override
+  String editor_transformSizeReadout(int width, int height) {
+    return '$width × $height 像素';
+  }
+
+  @override
+  String get editor_transformHandlesHint => '拖动四角或边缘缩放，拖动框上方的圆点旋转。';
+
+  @override
+  String get editor_transformKeysHint =>
+      'Shift 吸附 15° 或临时切换锁定比例，Alt 以中心为基准；Ctrl+T 开始变换，Enter 应用，Esc 取消。';
+
+  @override
+  String get editor_transformTouchHint => '变换时可用双指缩放、旋转和移动，完成后点「应用变换」。';
+
+  @override
+  String get editor_shortcutFreeTransform => '自由变换';
+
+  @override
+  String get editor_shortcutApplyTransform => '应用变换';
+
+  @override
+  String get layer_importImage => '导入图片';
+
+  @override
   String get selection_clearPixels => '删除选区内容';
 
   @override
@@ -17825,6 +17885,9 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get editor_effectCropToSelection => '裁剪到選區';
+
+  @override
+  String get editor_cropNeedsSelection => '請先建立選區；裁剪會原位保留選區外接矩形內的像素。';
 
   @override
   String get editor_effectRotateLeft => '向左旋轉 90°';
@@ -27630,6 +27693,63 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get editor_shortcutNudgeFar => '移動 10 像素';
+
+  @override
+  String get editor_transformSection => '變換';
+
+  @override
+  String get editor_transformWidth => '寬度';
+
+  @override
+  String get editor_transformHeight => '高度';
+
+  @override
+  String get editor_transformAngle => '角度';
+
+  @override
+  String get editor_transformCenterX => '中心 X';
+
+  @override
+  String get editor_transformCenterY => '中心 Y';
+
+  @override
+  String get editor_transformKeepAspect => '鎖定比例';
+
+  @override
+  String get editor_transformFlipHorizontal => '水平翻轉';
+
+  @override
+  String get editor_transformFlipVertical => '垂直翻轉';
+
+  @override
+  String get editor_transformApply => '套用變換';
+
+  @override
+  String get editor_transformCancel => '取消變換';
+
+  @override
+  String editor_transformSizeReadout(int width, int height) {
+    return '$width × $height 像素';
+  }
+
+  @override
+  String get editor_transformHandlesHint => '拖曳四角或邊緣縮放，拖曳框上方的圓點旋轉。';
+
+  @override
+  String get editor_transformKeysHint =>
+      'Shift 吸附 15° 或暫時切換鎖定比例，Alt 以中心為基準；Ctrl+T 開始變換，Enter 套用，Esc 取消。';
+
+  @override
+  String get editor_transformTouchHint => '變換時可用雙指縮放、旋轉和移動，完成後點「套用變換」。';
+
+  @override
+  String get editor_shortcutFreeTransform => '自由變換';
+
+  @override
+  String get editor_shortcutApplyTransform => '套用變換';
+
+  @override
+  String get layer_importImage => '匯入圖片';
 
   @override
   String get selection_clearPixels => '刪除選區內容';

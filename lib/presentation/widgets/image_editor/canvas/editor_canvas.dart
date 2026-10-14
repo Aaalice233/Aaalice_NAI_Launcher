@@ -3,13 +3,17 @@ import 'package:flutter/material.dart';
 
 import 'package:flutter/services.dart';
 
+import '../../../adaptive/interaction_policy.dart';
 import '../../common/image_viewport_surface.dart';
 import '../core/editor_state.dart';
 import '../core/input_handler.dart';
+import '../core/transform_geometry.dart';
 import '../tools/clone_stamp_tool.dart';
+import '../tools/move_tool.dart';
 import 'clone_source_marker_painter.dart';
 import 'layer_painter.dart';
 import 'stroke_preview_painter.dart';
+import 'transform_overlay_painter.dart';
 
 /// 编辑器画布组件
 /// 处理绑制、手势和键盘交互
@@ -43,6 +47,7 @@ class _EditorCanvasState extends State<EditorCanvas>
   /// 选区动画控制器
   late AnimationController _selectionAnimationController;
   bool _disableSelectionAnimations = true;
+  TransformHandleMetrics _transformMetrics = TransformHandleMetrics.pointer;
 
   /// 焦点节点
   final FocusNode _focusNode = FocusNode();
@@ -73,6 +78,11 @@ class _EditorCanvasState extends State<EditorCanvas>
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
+    // 变换框的手柄尺寸随交互方式切换，绘制与命中共用同一份
+    _transformMetrics = context.interactionPolicy.shouldExposeTouchAlternatives
+        ? TransformHandleMetrics.touch
+        : TransformHandleMetrics.pointer;
+    widget.state.layerTransformer.handleMetrics = _transformMetrics;
     final disableAnimations = MediaQuery.disableAnimationsOf(context);
     if (_disableSelectionAnimations == disableAnimations) return;
     _disableSelectionAnimations = disableAnimations;
@@ -97,6 +107,7 @@ class _EditorCanvasState extends State<EditorCanvas>
     if (oldWidget.state != widget.state) {
       oldWidget.state.renderNotifier.removeListener(_syncSelectionAnimation);
       widget.state.renderNotifier.addListener(_syncSelectionAnimation);
+      widget.state.layerTransformer.handleMetrics = _transformMetrics;
       _syncSelectionAnimation();
     }
   }
@@ -129,9 +140,14 @@ class _EditorCanvasState extends State<EditorCanvas>
           onScaleStart: _inputHandler.handleScaleStart,
           onScaleUpdate: _inputHandler.handleScaleUpdate,
           onScaleEnd: _inputHandler.handleScaleEnd,
-          child: MouseRegion(
-            cursor: _inputHandler.getCursor(),
-            onExit: _inputHandler.handleMouseExit,
+          // 悬停在变换手柄上时只换光标，不重建画布子树
+          child: ValueListenableBuilder<MouseCursor>(
+            valueListenable: widget.state.layerTransformer.cursor,
+            builder: (context, _, child) => MouseRegion(
+              cursor: _inputHandler.getCursor(),
+              onExit: _inputHandler.handleMouseExit,
+              child: child,
+            ),
             child: LayoutBuilder(
               builder: (context, constraints) {
                 // 更新视口尺寸
@@ -200,6 +216,19 @@ class _EditorCanvasState extends State<EditorCanvas>
                               ),
                             ),
                           ),
+
+                          // 移动工具的变换框 - 独立重绘区域（拖动时逐帧跟随）
+                          if (widget.state.currentTool is MoveTool)
+                            Positioned.fill(
+                              child: RepaintBoundary(
+                                child: CustomPaint(
+                                  painter: TransformOverlayPainter(
+                                    state: widget.state,
+                                    metrics: _transformMetrics,
+                                  ),
+                                ),
+                              ),
+                            ),
 
                           // 仿制图章源点准星 - 独立重绘区域（涂抹时逐点移动）
                           if (widget.state.currentTool

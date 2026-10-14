@@ -61,6 +61,18 @@ double editorEffectMax(EditorEffectType type) {
   };
 }
 
+/// 旋转、翻转与裁剪改的是像素位置，在图层上原位完成，不在取景框截图上处理
+bool editorEffectWorksInPlace(EditorEffectType type) {
+  return switch (type) {
+    EditorEffectType.rotateLeft ||
+    EditorEffectType.rotateRight ||
+    EditorEffectType.flipHorizontal ||
+    EditorEffectType.flipVertical ||
+    EditorEffectType.cropToSelection => true,
+    _ => false,
+  };
+}
+
 bool editorEffectHasIntensity(EditorEffectType type) {
   return switch (type) {
     EditorEffectType.grayscale ||

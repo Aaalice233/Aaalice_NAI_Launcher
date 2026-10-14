@@ -1099,6 +1099,7 @@
   "editor_effectBlur": "高斯模糊",
   "editor_effectSharpen": "銳化",
   "editor_effectCropToSelection": "裁剪到選區",
+  "editor_cropNeedsSelection": "請先建立選區；裁剪會原位保留選區外接矩形內的像素。",
   "editor_effectRotateLeft": "向左旋轉 90°",
   "editor_effectRotateRight": "向右旋轉 90°",
   "editor_effectFlipHorizontal": "水平翻轉",
@@ -6558,6 +6559,30 @@
   "editor_moveNudgeHint": "方向鍵移動 1 像素，按住 Shift 移動 10 像素。",
   "editor_shortcutNudge": "移動 1 像素",
   "editor_shortcutNudgeFar": "移動 10 像素",
+  "editor_transformSection": "變換",
+  "editor_transformWidth": "寬度",
+  "editor_transformHeight": "高度",
+  "editor_transformAngle": "角度",
+  "editor_transformCenterX": "中心 X",
+  "editor_transformCenterY": "中心 Y",
+  "editor_transformKeepAspect": "鎖定比例",
+  "editor_transformFlipHorizontal": "水平翻轉",
+  "editor_transformFlipVertical": "垂直翻轉",
+  "editor_transformApply": "套用變換",
+  "editor_transformCancel": "取消變換",
+  "editor_transformSizeReadout": "{width} × {height} 像素",
+  "@editor_transformSizeReadout": {
+    "placeholders": {
+      "width": {"type": "int"},
+      "height": {"type": "int"}
+    }
+  },
+  "editor_transformHandlesHint": "拖曳四角或邊緣縮放，拖曳框上方的圓點旋轉。",
+  "editor_transformKeysHint": "Shift 吸附 15° 或暫時切換鎖定比例，Alt 以中心為基準；Ctrl+T 開始變換，Enter 套用，Esc 取消。",
+  "editor_transformTouchHint": "變換時可用雙指縮放、旋轉和移動，完成後點「套用變換」。",
+  "editor_shortcutFreeTransform": "自由變換",
+  "editor_shortcutApplyTransform": "套用變換",
+  "layer_importImage": "匯入圖片",
   "selection_clearPixels": "刪除選區內容",
   "selection_cutLayerName": "{name} 剪下",
   "@selection_cutLayerName": {

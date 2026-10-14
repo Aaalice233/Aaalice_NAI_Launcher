@@ -22,19 +22,19 @@ class LayerMoveController {
 
   bool begin(Offset point) {
     if (_gesture != null) return false;
-    final layer = _movableActiveLayer();
+    final layer = movableActiveLayer();
     if (layer == null) return false;
     final selection = _state.selectionPath;
     if (selection != null) {
       _gesture = _MoveGesture(layerId: layer.id, start: point, region: selection);
-      layer.setMovePreview(
+      layer.setPreview(
         LayerMovePreview.region(selection, Offset.zero, layer.contentBounds),
       );
       _state.selectionManager.beginDrag();
     } else {
       if (!canMoveWholeLayer(layer)) return false;
       _gesture = _MoveGesture(layerId: layer.id, start: point);
-      layer.setMovePreview(LayerMovePreview.whole(Offset.zero));
+      layer.setPreview(LayerMovePreview.whole(Offset.zero));
     }
     _state.notifyRenderChange();
     return true;
@@ -48,7 +48,9 @@ class LayerMoveController {
     if (offset == gesture.offset) return;
     gesture.offset = offset;
     final layer = _state.layerManager.getLayerById(gesture.layerId);
-    layer?.setMovePreview(layer.movePreview?.withOffset(offset));
+    if (layer?.preview case final LayerMovePreview preview) {
+      layer!.setPreview(preview.withOffset(offset));
+    }
     if (gesture.region != null) {
       _state.selectionManager.updateDrag(offset);
     }
@@ -85,7 +87,7 @@ class LayerMoveController {
   /// 方向键微移，每次按键一条撤销记录
   void nudge(Offset delta) {
     if (_gesture != null) return;
-    final layer = _movableActiveLayer();
+    final layer = movableActiveLayer();
     if (layer == null) return;
     final selection = _state.selectionPath;
     if (selection != null) {
@@ -99,7 +101,8 @@ class LayerMoveController {
     );
   }
 
-  Layer? _movableActiveLayer() {
+  /// 当前图层可被移动或变换：未锁定且有内容
+  Layer? movableActiveLayer() {
     final layer = _state.layerManager.activeLayer;
     if (layer == null || layer.locked || !layer.hasContent) return null;
     return layer;
@@ -146,7 +149,7 @@ class LayerMoveController {
   }
 
   void _clearPreview(String layerId) {
-    _state.layerManager.getLayerById(layerId)?.setMovePreview(null);
+    _state.layerManager.getLayerById(layerId)?.setPreview(null);
     _state.selectionManager.cancelDrag();
     _state.notifyRenderChange();
   }

@@ -2817,6 +2817,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get editor_effectCropToSelection => 'Crop to Selection';
 
   @override
+  String get editor_cropNeedsSelection =>
+      'Make a selection first; only the pixels inside its bounding box are kept, in place.';
+
+  @override
   String get editor_effectRotateLeft => 'Rotate Left 90°';
 
   @override
@@ -13064,6 +13068,65 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get editor_shortcutNudgeFar => 'Move 10 pixels';
+
+  @override
+  String get editor_transformSection => 'Transform';
+
+  @override
+  String get editor_transformWidth => 'Width';
+
+  @override
+  String get editor_transformHeight => 'Height';
+
+  @override
+  String get editor_transformAngle => 'Angle';
+
+  @override
+  String get editor_transformCenterX => 'Center X';
+
+  @override
+  String get editor_transformCenterY => 'Center Y';
+
+  @override
+  String get editor_transformKeepAspect => 'Lock Aspect Ratio';
+
+  @override
+  String get editor_transformFlipHorizontal => 'Flip Horizontal';
+
+  @override
+  String get editor_transformFlipVertical => 'Flip Vertical';
+
+  @override
+  String get editor_transformApply => 'Apply Transform';
+
+  @override
+  String get editor_transformCancel => 'Cancel Transform';
+
+  @override
+  String editor_transformSizeReadout(int width, int height) {
+    return '$width × $height px';
+  }
+
+  @override
+  String get editor_transformHandlesHint =>
+      'Drag a corner or edge to scale; drag the dot above the box to rotate.';
+
+  @override
+  String get editor_transformKeysHint =>
+      'Shift snaps to 15° or toggles the aspect lock; Alt scales from the center. Ctrl+T starts a transform, Enter applies it and Esc cancels it.';
+
+  @override
+  String get editor_transformTouchHint =>
+      'While transforming, use two fingers to scale, rotate and move; tap Apply Transform when done.';
+
+  @override
+  String get editor_shortcutFreeTransform => 'Free transform';
+
+  @override
+  String get editor_shortcutApplyTransform => 'Apply transform';
+
+  @override
+  String get layer_importImage => 'Import Image';
 
   @override
   String get selection_clearPixels => 'Delete Selected Pixels';

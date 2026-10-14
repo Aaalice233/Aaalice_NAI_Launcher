@@ -7,6 +7,7 @@ import 'package:nai_launcher/presentation/widgets/image_editor/image_editor_type
 import 'package:nai_launcher/presentation/widgets/image_editor/image_editor_workspace.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'image_editor_workspace_harness.dart';
 import 'layers/layer_pixel_test_helpers.dart';
 
 void main() {
@@ -63,13 +64,15 @@ void main() {
       final png = await solidPng(64, 64, const Color(0xFF00FF00));
       await key.currentState!.debugImportDroppedImageLayer('photo.png', png);
     });
-    await _settleLayerThumbnails(tester);
+    await settleLayerThumbnails(tester);
 
     final layers = state.layerManager.layers;
     expect(layers, hasLength(2));
     expect(layers.first, same(mask));
     expect(layers.last.isMask, isFalse);
-    expect(layers.last.contentBounds, state.frame);
+    // 小图按原尺寸放在取景框中央，带着变换框等待摆放
+    expect(layers.last.contentBounds, const Rect.fromLTWH(224, 224, 64, 64));
+    expect(state.layerTransformer.isActive, isTrue);
     expect(state.layerManager.activeLayer, same(layers.last));
     expect(state.rolePolicy.isValidOrder(layers), isTrue);
   });
@@ -111,18 +114,4 @@ _pumpInpaintWorkspace(WidgetTester tester) async {
   );
   await tester.pumpAndSettle();
   return (key, session);
-}
-
-/// 图层面板缩略图有 500ms 防抖，编码只在真实异步里完成；等到面板不再转圈
-Future<void> _settleLayerThumbnails(WidgetTester tester) async {
-  await tester.pump(const Duration(milliseconds: 600));
-  final spinner = find.byType(CircularProgressIndicator);
-  for (var i = 0; i < 10 && spinner.evaluate().isNotEmpty; i++) {
-    await tester.runAsync(
-      () => Future<void>.delayed(const Duration(milliseconds: 50)),
-    );
-    await tester.pump(const Duration(milliseconds: 100));
-  }
-  expect(spinner, findsNothing);
-  await tester.pumpAndSettle();
 }

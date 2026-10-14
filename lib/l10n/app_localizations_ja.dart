@@ -2750,6 +2750,10 @@ class AppLocalizationsJa extends AppLocalizations {
   String get editor_effectCropToSelection => '選択範囲まで切り抜き';
 
   @override
+  String get editor_cropNeedsSelection =>
+      '先に選択範囲を作成してください。選択範囲を囲む矩形内のピクセルだけをその位置のまま残します。';
+
+  @override
   String get editor_effectRotateLeft => '左に 90 度回転';
 
   @override
@@ -12731,6 +12735,65 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get editor_shortcutNudgeFar => '10 ピクセル移動';
+
+  @override
+  String get editor_transformSection => '変形';
+
+  @override
+  String get editor_transformWidth => '幅';
+
+  @override
+  String get editor_transformHeight => '高さ';
+
+  @override
+  String get editor_transformAngle => '角度';
+
+  @override
+  String get editor_transformCenterX => '中心 X';
+
+  @override
+  String get editor_transformCenterY => '中心 Y';
+
+  @override
+  String get editor_transformKeepAspect => '縦横比を固定';
+
+  @override
+  String get editor_transformFlipHorizontal => '水平方向に反転';
+
+  @override
+  String get editor_transformFlipVertical => '垂直方向に反転';
+
+  @override
+  String get editor_transformApply => '変形を適用';
+
+  @override
+  String get editor_transformCancel => '変形をキャンセル';
+
+  @override
+  String editor_transformSizeReadout(int width, int height) {
+    return '$width × $height ピクセル';
+  }
+
+  @override
+  String get editor_transformHandlesHint =>
+      '四隅または辺をドラッグして拡大縮小し、枠の上の丸をドラッグして回転します。';
+
+  @override
+  String get editor_transformKeysHint =>
+      'Shift で 15° 単位にスナップ、または縦横比の固定を一時的に切り替え、Alt で中心を基準にします。Ctrl+T で変形を開始、Enter で適用、Esc でキャンセルします。';
+
+  @override
+  String get editor_transformTouchHint =>
+      '変形中は 2 本指で拡大縮小・回転・移動できます。終わったら「変形を適用」をタップします。';
+
+  @override
+  String get editor_shortcutFreeTransform => '自由変形';
+
+  @override
+  String get editor_shortcutApplyTransform => '変形を適用';
+
+  @override
+  String get layer_importImage => '画像を読み込む';
 
   @override
   String get selection_clearPixels => '選択範囲の内容を削除';

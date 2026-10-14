@@ -1166,6 +1166,7 @@
   "editor_effectBlur": "ガウスぼかし",
   "editor_effectSharpen": "シャープにする",
   "editor_effectCropToSelection": "選択範囲まで切り抜き",
+  "editor_cropNeedsSelection": "先に選択範囲を作成してください。選択範囲を囲む矩形内のピクセルだけをその位置のまま残します。",
   "editor_effectRotateLeft": "左に 90 度回転",
   "editor_effectRotateRight": "右に 90 度回転",
   "editor_effectFlipHorizontal": "水平方向に反転",
@@ -6386,6 +6387,30 @@
   "editor_moveNudgeHint": "矢印キーで 1 ピクセル、Shift を押しながらで 10 ピクセル移動します。",
   "editor_shortcutNudge": "1 ピクセル移動",
   "editor_shortcutNudgeFar": "10 ピクセル移動",
+  "editor_transformSection": "変形",
+  "editor_transformWidth": "幅",
+  "editor_transformHeight": "高さ",
+  "editor_transformAngle": "角度",
+  "editor_transformCenterX": "中心 X",
+  "editor_transformCenterY": "中心 Y",
+  "editor_transformKeepAspect": "縦横比を固定",
+  "editor_transformFlipHorizontal": "水平方向に反転",
+  "editor_transformFlipVertical": "垂直方向に反転",
+  "editor_transformApply": "変形を適用",
+  "editor_transformCancel": "変形をキャンセル",
+  "editor_transformSizeReadout": "{width} × {height} ピクセル",
+  "@editor_transformSizeReadout": {
+    "placeholders": {
+      "width": {"type": "int"},
+      "height": {"type": "int"}
+    }
+  },
+  "editor_transformHandlesHint": "四隅または辺をドラッグして拡大縮小し、枠の上の丸をドラッグして回転します。",
+  "editor_transformKeysHint": "Shift で 15° 単位にスナップ、または縦横比の固定を一時的に切り替え、Alt で中心を基準にします。Ctrl+T で変形を開始、Enter で適用、Esc でキャンセルします。",
+  "editor_transformTouchHint": "変形中は 2 本指で拡大縮小・回転・移動できます。終わったら「変形を適用」をタップします。",
+  "editor_shortcutFreeTransform": "自由変形",
+  "editor_shortcutApplyTransform": "変形を適用",
+  "layer_importImage": "画像を読み込む",
   "selection_clearPixels": "選択範囲の内容を削除",
   "selection_cutLayerName": "{name} カット",
   "@selection_cutLayerName": {
