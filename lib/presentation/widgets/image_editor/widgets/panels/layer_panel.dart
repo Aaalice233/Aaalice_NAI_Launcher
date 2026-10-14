@@ -631,7 +631,6 @@ class _LayerTileState extends State<_LayerTile>
   }
 
   void _showContextMenu(BuildContext context) async {
-    final theme = Theme.of(context);
     final commands = widget.state.layerCommands;
 
     final canMoveUp = commands.canMoveUp(widget.layer);
@@ -660,12 +659,9 @@ class _LayerTileState extends State<_LayerTile>
         // 复制图层
         PopupMenuItem<String>(
           value: 'duplicate',
-          child: Row(
-            children: [
-              const Icon(Icons.copy_outlined, size: 18),
-              const SizedBox(width: 12),
-              Text(context.l10n.layer_duplicate),
-            ],
+          child: _LayerMenuTile(
+            icon: Icons.copy_outlined,
+            label: context.l10n.layer_duplicate,
           ),
         ),
 
@@ -673,19 +669,11 @@ class _LayerTileState extends State<_LayerTile>
         PopupMenuItem<String>(
           value: 'delete',
           enabled: canDelete,
-          child: Row(
-            children: [
-              Icon(
-                Icons.delete_outlined,
-                size: 18,
-                color: theme.colorScheme.error,
-              ),
-              const SizedBox(width: 12),
-              Text(
-                context.l10n.layer_delete,
-                style: TextStyle(color: theme.colorScheme.error),
-              ),
-            ],
+          child: _LayerMenuTile(
+            icon: Icons.delete_outlined,
+            label: context.l10n.layer_delete,
+            enabled: canDelete,
+            destructive: true,
           ),
         ),
 
@@ -693,12 +681,10 @@ class _LayerTileState extends State<_LayerTile>
         PopupMenuItem<String>(
           value: 'merge_down',
           enabled: canMergeDown,
-          child: Row(
-            children: [
-              const Icon(Icons.merge_type, size: 18),
-              const SizedBox(width: 12),
-              Text(context.l10n.layer_merge),
-            ],
+          child: _LayerMenuTile(
+            icon: Icons.merge_type,
+            label: context.l10n.layer_merge,
+            enabled: canMergeDown,
           ),
         ),
 
@@ -707,50 +693,29 @@ class _LayerTileState extends State<_LayerTile>
         // 切换可见性
         PopupMenuItem<String>(
           value: 'toggle_visibility',
-          child: Row(
-            children: [
-              Icon(
-                widget.layer.visible ? Icons.visibility_off : Icons.visibility,
-                size: 18,
-              ),
-              const SizedBox(width: 12),
-              Text(
-                widget.layer.visible
-                    ? context.l10n.layer_visibility
-                    : context.l10n.layer_visibility,
-              ),
-            ],
+          child: _LayerMenuTile(
+            icon: widget.layer.visible
+                ? Icons.visibility_off
+                : Icons.visibility,
+            label: context.l10n.layer_visibility,
           ),
         ),
 
         // 切换锁定
         PopupMenuItem<String>(
           value: 'toggle_lock',
-          child: Row(
-            children: [
-              Icon(
-                widget.layer.locked ? Icons.lock_open : Icons.lock,
-                size: 18,
-              ),
-              const SizedBox(width: 12),
-              Text(
-                widget.layer.locked
-                    ? context.l10n.layer_lock
-                    : context.l10n.layer_lock,
-              ),
-            ],
+          child: _LayerMenuTile(
+            icon: widget.layer.locked ? Icons.lock_open : Icons.lock,
+            label: context.l10n.layer_lock,
           ),
         ),
 
         // 重命名
         PopupMenuItem<String>(
           value: 'rename',
-          child: Row(
-            children: [
-              const Icon(Icons.edit_outlined, size: 18),
-              const SizedBox(width: 12),
-              Text(context.l10n.layer_rename),
-            ],
+          child: _LayerMenuTile(
+            icon: Icons.edit_outlined,
+            label: context.l10n.layer_rename,
           ),
         ),
 
@@ -760,12 +725,10 @@ class _LayerTileState extends State<_LayerTile>
         PopupMenuItem<String>(
           value: 'move_up',
           enabled: canMoveUp,
-          child: Row(
-            children: [
-              const Icon(Icons.arrow_upward, size: 18),
-              const SizedBox(width: 12),
-              Text(context.l10n.layer_moveUp),
-            ],
+          child: _LayerMenuTile(
+            icon: Icons.arrow_upward,
+            label: context.l10n.layer_moveUp,
+            enabled: canMoveUp,
           ),
         ),
 
@@ -773,12 +736,10 @@ class _LayerTileState extends State<_LayerTile>
         PopupMenuItem<String>(
           value: 'move_down',
           enabled: canMoveDown,
-          child: Row(
-            children: [
-              const Icon(Icons.arrow_downward, size: 18),
-              const SizedBox(width: 12),
-              Text(context.l10n.layer_moveDown),
-            ],
+          child: _LayerMenuTile(
+            icon: Icons.arrow_downward,
+            label: context.l10n.layer_moveDown,
+            enabled: canMoveDown,
           ),
         ),
       ],
@@ -837,6 +798,34 @@ class _LayerBadge extends StatelessWidget {
           color: theme.colorScheme.onSecondaryContainer,
         ),
       ),
+    );
+  }
+}
+
+/// 图层右键菜单项，长文案换行而不是溢出
+class _LayerMenuTile extends StatelessWidget {
+  const _LayerMenuTile({
+    required this.icon,
+    required this.label,
+    this.enabled = true,
+    this.destructive = false,
+  });
+
+  final IconData icon;
+  final String label;
+  final bool enabled;
+  final bool destructive;
+
+  @override
+  Widget build(BuildContext context) {
+    final error = Theme.of(context).colorScheme.error;
+    final accent = destructive && enabled ? error : null;
+    return ListTile(
+      enabled: enabled,
+      leading: Icon(icon),
+      title: Text(label),
+      iconColor: accent,
+      textColor: accent,
     );
   }
 }
