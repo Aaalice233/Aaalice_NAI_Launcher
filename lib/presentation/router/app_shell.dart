@@ -94,6 +94,8 @@ class _MainShellState extends ConsumerState<MainShell> {
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (mounted) _showAuthPrompt(next);
         });
+        // Krita、MCP 等外部请求发布提示时界面可能静止，没有下一帧对话框就弹不出来
+        WidgetsBinding.instance.ensureVisualUpdate();
       },
       fireImmediately: true,
     );

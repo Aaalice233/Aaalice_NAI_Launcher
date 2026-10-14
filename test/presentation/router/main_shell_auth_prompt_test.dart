@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+// ignore: implementation_imports
+import 'package:flutter_riverpod/src/internals.dart' as riverpod_internals;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:nai_launcher/core/constants/app_version.dart';
@@ -105,6 +107,78 @@ void main() {
     expect(container.read(authPromptRequestProvider), isNull);
 
     await tester.pump();
+    expect(find.byType(AlertDialog), findsNothing);
+  });
+
+  testWidgets('画面静止时发布的登录提示立即弹出', (tester) async {
+    final container = ProviderContainer(
+      overrides: [
+        accountManagerNotifierProvider.overrideWith(
+          _TestAccountManagerNotifier.new,
+        ),
+        authNotifierProvider.overrideWith(_UnauthenticatedAuthNotifier.new),
+        shortcutConfigNotifierProvider.overrideWith(
+          _TestShortcutConfigNotifier.new,
+        ),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    final router = GoRouter(
+      routes: [
+        StatefulShellRoute(
+          navigatorContainerBuilder: (context, navigationShell, children) {
+            return MainShell(
+              navigationShell: navigationShell,
+              children: children,
+            );
+          },
+          builder: (context, state, navigationShell) => navigationShell,
+          branches: [
+            StatefulShellBranch(
+              routes: [
+                GoRoute(
+                  path: '/',
+                  builder: (context, state) => const SizedBox.expand(),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ],
+    );
+    addTearDown(router.dispose);
+
+    await tester.binding.setSurfaceSize(const Size(600, 800));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: MaterialApp.router(
+          routerConfig: router,
+          locale: const Locale('zh'),
+          supportedLocales: AppLocalizations.supportedLocales,
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.byType(AlertDialog), findsNothing);
+    expect(tester.binding.hasScheduledFrame, isFalse);
+
+    // Riverpod 只在调试模式改 provider 时顺带重建 ProviderScope 而排帧，摘掉才与发布版一致
+    // ignore: invalid_use_of_internal_member
+    riverpod_internals.debugCanModifyProviders = null;
+    container
+        .read(authPromptRequestProvider.notifier)
+        .publish(AuthPromptReason.kritaBridge);
+    await tester.pumpAndSettle();
+
+    expect(find.byType(AlertDialog), findsOneWidget);
+    expect(find.text('请先登录，再通过 Krita Bridge 生成图片。'), findsOneWidget);
+
+    await tester.tap(find.text('取消'));
+    await tester.pumpAndSettle();
     expect(find.byType(AlertDialog), findsNothing);
   });
 
@@ -554,9 +628,7 @@ void main() {
   });
 
   for (final width in [390.0, 1180.0]) {
-    testWidgets('宽度 $width 下系统返回与 Escape 先退出队列多选，再关闭面板', (
-      tester,
-    ) async {
+    testWidgets('宽度 $width 下系统返回与 Escape 先退出队列多选，再关闭面板', (tester) async {
       PlatformCapabilities.debugOverride = PlatformCapabilities.forPlatform(
         TargetPlatform.android,
       );
