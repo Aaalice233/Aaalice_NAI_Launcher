@@ -3,6 +3,24 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/core/utils/keyboard_modifier_utils.dart';
 
 void main() {
+  test('Command is the primary shortcut modifier only on macOS', () {
+    expect(
+      usesCommandAsPrimaryModifier(platform: TargetPlatform.macOS),
+      isTrue,
+    );
+    for (final platform in [
+      TargetPlatform.windows,
+      TargetPlatform.linux,
+      TargetPlatform.android,
+    ]) {
+      expect(
+        usesCommandAsPrimaryModifier(platform: platform),
+        isFalse,
+        reason: platform.name,
+      );
+    }
+  });
+
   test('Windows selection uses Control and ignores Meta', () {
     final controlKeyboard = HardwareKeyboard();
     _press(
