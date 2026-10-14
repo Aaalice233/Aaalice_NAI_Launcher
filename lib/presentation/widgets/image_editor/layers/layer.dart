@@ -141,8 +141,16 @@ class LayerContentSnapshot {
   }
 }
 
-/// 拖动中的平移预览，只影响屏幕绘制，松手提交前不改动图层数据
-class LayerMovePreview {
+/// 拖动中的预览，只影响屏幕绘制，提交前不改动图层数据
+sealed class LayerPreview {
+  const LayerPreview();
+
+  /// 预览时屏幕上的绘制范围
+  Rect affectedBounds(Rect contentBounds);
+}
+
+/// 平移预览：从图层现有像素里挪动一部分或全部
+final class LayerMovePreview extends LayerPreview {
   /// 整层平移
   LayerMovePreview.whole(this.offset) : region = null, _remainder = null;
 
@@ -166,11 +174,26 @@ class LayerMovePreview {
 
   LayerMovePreview._(this.region, this.offset, this._remainder);
 
+  @override
   Rect affectedBounds(Rect contentBounds) {
     final selected = region;
     if (selected == null) return contentBounds.shift(offset);
     return contentBounds.expandToInclude(selected.getBounds().shift(offset));
   }
+}
+
+/// 自由变换预览：图层现有像素不参与绘制，由 [paintPixels] 画出变换后的像素
+final class LayerTransformPreview extends LayerPreview {
+  const LayerTransformPreview({
+    required this.bounds,
+    required this.paintPixels,
+  });
+
+  final Rect bounds;
+  final void Function(Canvas canvas, Paint paint) paintPixels;
+
+  @override
+  Rect affectedBounds(Rect contentBounds) => bounds;
 }
 
 /// 图层类
@@ -204,8 +227,8 @@ class Layer {
   int _contentRevision = 0;
   int get contentRevision => _contentRevision;
 
-  LayerMovePreview? _movePreview;
-  LayerMovePreview? get movePreview => _movePreview;
+  LayerPreview? _preview;
+  LayerPreview? get preview => _preview;
 
   /// 笔画列表
   final List<StrokeData> _strokes = [];
@@ -433,8 +456,8 @@ class Layer {
     _bounds = _bounds?.shift(delta);
   }
 
-  void setMovePreview(LayerMovePreview? preview) {
-    _movePreview = preview;
+  void setPreview(LayerPreview? preview) {
+    _preview = preview;
   }
 
   /// 内容变了但缓存仍对得上：后续笔画在下次绘制时增量叠进缓存
@@ -620,7 +643,7 @@ class Layer {
     }
     if (!visible) return;
 
-    final preview = _movePreview;
+    final preview = _preview;
     final bounds = _displayBounds(null);
     // 空间剔除优化：放大查看局部时跳过不在视口内的图层
     if (viewportBounds != null && !bounds.overlaps(viewportBounds)) {
@@ -632,7 +655,7 @@ class Layer {
       return;
     }
 
-    // 预览分两块绘制，不透明度与混合模式要在合拢后统一施加一次
+    // 预览分块绘制，不透明度与混合模式要在合拢后统一施加一次
     final isolated = _hasLayerEffects;
     canvas.save();
     if (isolated) {
@@ -641,16 +664,16 @@ class Layer {
         _layerPaint(filterQuality),
       );
     }
-    _drawMovedPixels(canvas, preview, Paint()..filterQuality = filterQuality);
+    _drawPreviewPixels(canvas, preview, Paint()..filterQuality = filterQuality);
     if (isolated) {
       canvas.restore();
     }
     canvas.restore();
   }
 
-  /// 屏幕上的绘制范围：移动预览覆盖的区域，加上正在画进本层的一笔
+  /// 屏幕上的绘制范围：预览覆盖的区域，加上正在画进本层的一笔
   Rect _displayBounds(StrokeData? liveStroke) {
-    final preview = _movePreview;
+    final preview = _preview;
     final bounds = preview == null
         ? contentBounds
         : preview.affectedBounds(contentBounds);
@@ -715,11 +738,11 @@ class Layer {
   }) {
     final sampling = magnified ? FilterQuality.none : filterQuality;
     _withMaskCoverage(canvas, bounds, magnified: magnified, () {
-      final preview = _movePreview;
+      final preview = _preview;
       if (preview == null) {
         _drawPixels(canvas, Paint()..filterQuality = sampling);
       } else {
-        _drawMovedPixels(canvas, preview, Paint()..filterQuality = sampling);
+        _drawPreviewPixels(canvas, preview, Paint()..filterQuality = sampling);
       }
       if (liveStroke == null) return;
       if (magnified && viewportBounds != null) {
@@ -778,6 +801,15 @@ class Layer {
     canvas.restore();
     if (isolated) {
       canvas.restore();
+    }
+  }
+
+  void _drawPreviewPixels(Canvas canvas, LayerPreview preview, Paint paint) {
+    switch (preview) {
+      case LayerMovePreview():
+        _drawMovedPixels(canvas, preview, paint);
+      case LayerTransformPreview(:final paintPixels):
+        paintPixels(canvas, paint);
     }
   }
 
@@ -1095,7 +1127,7 @@ class Layer {
   /// 释放资源
   void dispose() {
     _disposed = true;
-    _movePreview = null;
+    _preview = null;
 
     // 释放通知器
     isActiveNotifier.dispose();

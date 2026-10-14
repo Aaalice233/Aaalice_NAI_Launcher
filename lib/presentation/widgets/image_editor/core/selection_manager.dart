@@ -17,10 +17,12 @@ class SelectionManager extends ChangeNotifier {
   bool _isDragging = false;
   bool get isDragging => _isDragging;
   Offset get dragOffset => _dragOffset;
+
+  /// 拖动或自由变换中显示的轮廓，提交前不改动选区
   Path? _displayPath;
 
-  /// 绘制用选区：拖动中是平移后的轮廓
-  Path? get displayPath => _isDragging ? _displayPath : _selectionPath;
+  /// 绘制用选区：拖动或变换中是预览轮廓
+  Path? get displayPath => _displayPath ?? _selectionPath;
 
   /// 选区历史（用于撤销）
   final List<Path?> _selectionHistory = [];
@@ -179,6 +181,13 @@ class SelectionManager extends ChangeNotifier {
     _isDragging = false;
     _dragOffset = Offset.zero;
     _displayPath = null;
+  }
+
+  /// 自由变换拖动中显示 [path]，传 null 恢复显示真实选区
+  void previewOutline(Path? path) {
+    if (_isDragging || identical(_displayPath, path)) return;
+    _displayPath = path;
+    notifyListeners();
   }
 
   /// 重置

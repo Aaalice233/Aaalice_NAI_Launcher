@@ -5150,6 +5150,12 @@ abstract class AppLocalizations {
   /// **'Crop to Selection'**
   String get editor_effectCropToSelection;
 
+  /// No description provided for @editor_cropNeedsSelection.
+  ///
+  /// In en, this message translates to:
+  /// **'Make a selection first; only the pixels inside its bounding box are kept, in place.'**
+  String get editor_cropNeedsSelection;
+
   /// No description provided for @editor_effectRotateLeft.
   ///
   /// In en, this message translates to:
@@ -22733,6 +22739,114 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Move 10 pixels'**
   String get editor_shortcutNudgeFar;
+
+  /// No description provided for @editor_transformSection.
+  ///
+  /// In en, this message translates to:
+  /// **'Transform'**
+  String get editor_transformSection;
+
+  /// No description provided for @editor_transformWidth.
+  ///
+  /// In en, this message translates to:
+  /// **'Width'**
+  String get editor_transformWidth;
+
+  /// No description provided for @editor_transformHeight.
+  ///
+  /// In en, this message translates to:
+  /// **'Height'**
+  String get editor_transformHeight;
+
+  /// No description provided for @editor_transformAngle.
+  ///
+  /// In en, this message translates to:
+  /// **'Angle'**
+  String get editor_transformAngle;
+
+  /// No description provided for @editor_transformCenterX.
+  ///
+  /// In en, this message translates to:
+  /// **'Center X'**
+  String get editor_transformCenterX;
+
+  /// No description provided for @editor_transformCenterY.
+  ///
+  /// In en, this message translates to:
+  /// **'Center Y'**
+  String get editor_transformCenterY;
+
+  /// No description provided for @editor_transformKeepAspect.
+  ///
+  /// In en, this message translates to:
+  /// **'Lock Aspect Ratio'**
+  String get editor_transformKeepAspect;
+
+  /// No description provided for @editor_transformFlipHorizontal.
+  ///
+  /// In en, this message translates to:
+  /// **'Flip Horizontal'**
+  String get editor_transformFlipHorizontal;
+
+  /// No description provided for @editor_transformFlipVertical.
+  ///
+  /// In en, this message translates to:
+  /// **'Flip Vertical'**
+  String get editor_transformFlipVertical;
+
+  /// No description provided for @editor_transformApply.
+  ///
+  /// In en, this message translates to:
+  /// **'Apply Transform'**
+  String get editor_transformApply;
+
+  /// No description provided for @editor_transformCancel.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel Transform'**
+  String get editor_transformCancel;
+
+  /// No description provided for @editor_transformSizeReadout.
+  ///
+  /// In en, this message translates to:
+  /// **'{width} × {height} px'**
+  String editor_transformSizeReadout(int width, int height);
+
+  /// No description provided for @editor_transformHandlesHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Drag a corner or edge to scale; drag the dot above the box to rotate.'**
+  String get editor_transformHandlesHint;
+
+  /// No description provided for @editor_transformKeysHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Shift snaps to 15° or toggles the aspect lock; Alt scales from the center. Ctrl+T starts a transform, Enter applies it and Esc cancels it.'**
+  String get editor_transformKeysHint;
+
+  /// No description provided for @editor_transformTouchHint.
+  ///
+  /// In en, this message translates to:
+  /// **'While transforming, use two fingers to scale, rotate and move; tap Apply Transform when done.'**
+  String get editor_transformTouchHint;
+
+  /// No description provided for @editor_shortcutFreeTransform.
+  ///
+  /// In en, this message translates to:
+  /// **'Free transform'**
+  String get editor_shortcutFreeTransform;
+
+  /// No description provided for @editor_shortcutApplyTransform.
+  ///
+  /// In en, this message translates to:
+  /// **'Apply transform'**
+  String get editor_shortcutApplyTransform;
+
+  /// No description provided for @layer_importImage.
+  ///
+  /// In en, this message translates to:
+  /// **'Import Image'**
+  String get layer_importImage;
 
   /// No description provided for @selection_clearPixels.
   ///

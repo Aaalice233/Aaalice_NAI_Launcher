@@ -1180,6 +1180,7 @@
   "editor_effectBlur": "Gaussian Blur",
   "editor_effectSharpen": "Sharpen",
   "editor_effectCropToSelection": "Crop to Selection",
+  "editor_cropNeedsSelection": "Make a selection first; only the pixels inside its bounding box are kept, in place.",
   "editor_effectRotateLeft": "Rotate Left 90°",
   "editor_effectRotateRight": "Rotate Right 90°",
   "editor_effectFlipHorizontal": "Flip Horizontal",
@@ -6365,6 +6366,30 @@
   "editor_moveNudgeHint": "Arrow keys move 1 pixel; hold Shift to move 10 pixels.",
   "editor_shortcutNudge": "Move 1 pixel",
   "editor_shortcutNudgeFar": "Move 10 pixels",
+  "editor_transformSection": "Transform",
+  "editor_transformWidth": "Width",
+  "editor_transformHeight": "Height",
+  "editor_transformAngle": "Angle",
+  "editor_transformCenterX": "Center X",
+  "editor_transformCenterY": "Center Y",
+  "editor_transformKeepAspect": "Lock Aspect Ratio",
+  "editor_transformFlipHorizontal": "Flip Horizontal",
+  "editor_transformFlipVertical": "Flip Vertical",
+  "editor_transformApply": "Apply Transform",
+  "editor_transformCancel": "Cancel Transform",
+  "editor_transformSizeReadout": "{width} × {height} px",
+  "@editor_transformSizeReadout": {
+    "placeholders": {
+      "width": {"type": "int"},
+      "height": {"type": "int"}
+    }
+  },
+  "editor_transformHandlesHint": "Drag a corner or edge to scale; drag the dot above the box to rotate.",
+  "editor_transformKeysHint": "Shift snaps to 15° or toggles the aspect lock; Alt scales from the center. Ctrl+T starts a transform, Enter applies it and Esc cancels it.",
+  "editor_transformTouchHint": "While transforming, use two fingers to scale, rotate and move; tap Apply Transform when done.",
+  "editor_shortcutFreeTransform": "Free transform",
+  "editor_shortcutApplyTransform": "Apply transform",
+  "layer_importImage": "Import Image",
   "selection_clearPixels": "Delete Selected Pixels",
   "selection_cutLayerName": "{name} Cut",
   "@selection_cutLayerName": {

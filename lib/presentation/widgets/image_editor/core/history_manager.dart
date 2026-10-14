@@ -69,6 +69,27 @@ class HistoryManager extends ChangeNotifier {
     notifyListeners();
   }
 
+  bool isLatest(EditorAction action) =>
+      _undoStack.isNotEmpty && identical(_undoStack.last, action);
+
+  /// [action] 仍在栈顶时就地改写它的结果，不新增记录
+  bool amendLatest(EditorAction action, void Function() amend) {
+    if (!isLatest(action)) return false;
+    amend();
+    notifyListeners();
+    return true;
+  }
+
+  /// [action] 仍在栈顶时撤回并丢弃，不进入重做栈
+  bool discardLatest(EditorAction action, EditorState state) {
+    if (!isLatest(action)) return false;
+    _undoStack.removeLast();
+    action.undo(state);
+    action.dispose();
+    notifyListeners();
+    return true;
+  }
+
   /// 撤销
   bool undo(EditorState state) {
     if (_undoStack.isEmpty) return false;

@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
@@ -7,11 +8,14 @@ import '../../../../core/utils/localization_extension.dart';
 import '../../common/app_toast.dart';
 import '../core/editor_state.dart';
 import '../core/history_manager.dart';
+import '../core/transform_geometry.dart';
 import '../image_editor_controller.dart';
 import '../layers/layer.dart';
 import '../layers/layer_patch_baker.dart';
 import 'editor_effects.dart';
 import 'effects_preview_dialog.dart';
+
+enum InPlaceEffectOutcome { applied, needsSelection, nothingToApply }
 
 class ImageEditorEffectsController {
   const ImageEditorEffectsController({
@@ -52,9 +56,107 @@ class ImageEditorEffectsController {
       sourceBytes: sourceBytes,
       cropRect: _selectionCropRect(region),
       processingService: session.processingService,
+      inPlacePreview: _inPlacePreview,
     );
     if (selection == null || !context.mounted) return;
     await _apply(context, selection, onChanged);
+  }
+
+  /// 旋转与翻转对应的变换；其余效果返回 null
+  static TransformParams Function(TransformParams)? layerTransformFor(
+    EditorEffectType type,
+  ) {
+    return switch (type) {
+      EditorEffectType.rotateLeft => (params) => params.withRotation(
+        params.rotation - math.pi / 2,
+      ),
+      EditorEffectType.rotateRight => (params) => params.withRotation(
+        params.rotation + math.pi / 2,
+      ),
+      EditorEffectType.flipHorizontal => (params) => params.flipped(
+        horizontal: true,
+      ),
+      EditorEffectType.flipVertical => (params) => params.flipped(
+        horizontal: false,
+      ),
+      _ => null,
+    };
+  }
+
+  /// 原位效果的预览与应用走同一套计算，取景框内看到的就是应用后的结果；
+  /// 没有可处理的内容时返回 null
+  @visibleForTesting
+  Future<Uint8List?> inPlacePreviewFor(
+    EditorEffectType type, {
+    int maxDimension = 768,
+  }) => _inPlacePreview(type, maxDimension: maxDimension);
+
+  Future<Uint8List?> _inPlacePreview(
+    EditorEffectType type, {
+    int maxDimension = 768,
+  }) async {
+    final change = layerTransformFor(type);
+    if (change != null) {
+      final baked = editorState.layerTransformer.bakePreview(change);
+      if (baked == null) return null;
+      return _framePreview(baked, maxDimension);
+    }
+    if (type != EditorEffectType.cropToSelection) return null;
+    final layer = activeLayerForApply;
+    final keep = _cropKeepRect();
+    if (layer == null || keep == null) return null;
+    // 选区内没有像素时裁剪结果是空图层，预览同样为空
+    return _framePreview(LayerPatchBaker.cropTo(layer, keep), maxDimension);
+  }
+
+  /// 把烘焙结果在取景框里的部分缩到 [maxDimension] 以内并编码，接管 [baked] 的释放
+  Future<Uint8List?> _framePreview(
+    BakedLayerImage? baked,
+    int maxDimension,
+  ) async {
+    ui.Picture? picture;
+    ui.Image? image;
+    try {
+      final frame = editorState.frame;
+      final scale = math.min(
+        1.0,
+        maxDimension / math.max(frame.width, frame.height),
+      );
+      final width = math.max(1, (frame.width * scale).round());
+      final height = math.max(1, (frame.height * scale).round());
+      final recorder = ui.PictureRecorder();
+      final canvas = Canvas(recorder)
+        ..scale(scale)
+        ..translate(-frame.left, -frame.top);
+      if (baked != null) {
+        canvas.drawImage(
+          baked.image,
+          baked.offset,
+          Paint()..filterQuality = FilterQuality.medium,
+        );
+      }
+      picture = recorder.endRecording();
+      image = await picture.toImage(width, height);
+      final data = await image.toByteData(format: ui.ImageByteFormat.png);
+      return data?.buffer.asUint8List(data.offsetInBytes, data.lengthInBytes);
+    } finally {
+      image?.dispose();
+      picture?.dispose();
+      baked?.dispose();
+    }
+  }
+
+  /// 裁剪保留的区域：选区外接矩形落在取景框内的整像素部分，与预览一致
+  Rect? _cropKeepRect() {
+    final region = editorState.frame;
+    final crop = _selectionCropRect(region);
+    if (crop == null) return null;
+    return Rect.fromLTWH(
+      region.left + crop.x,
+      region.top + crop.y,
+      crop.width.toDouble(),
+      crop.height.toDouble(),
+    );
   }
 
   Future<void> _apply(
@@ -68,6 +170,22 @@ class ImageEditorEffectsController {
         context,
         context.l10n.editor_selectUnlockedLayerWithContent,
       );
+      return;
+    }
+    if (editorEffectWorksInPlace(selection.type)) {
+      final label = effectLabel(context, selection.type);
+      switch (applyInPlace(selection.type)) {
+        case InPlaceEffectOutcome.applied:
+          onChanged();
+          AppToast.success(context, context.l10n.editor_effectApplied(label));
+        case InPlaceEffectOutcome.needsSelection:
+          AppToast.warning(context, context.l10n.editor_cropNeedsSelection);
+        case InPlaceEffectOutcome.nothingToApply:
+          AppToast.warning(
+            context,
+            context.l10n.editor_selectUnlockedLayerWithContent,
+          );
+      }
       return;
     }
     final epoch = session.beginOperation();
@@ -123,6 +241,38 @@ class ImageEditorEffectsController {
         AppToast.error(context, context.l10n.editor_applyEffectFailed(error));
       }
     }
+  }
+
+  /// 旋转、翻转与裁剪在图层上原位写回，一步撤销。
+  /// 旋转与翻转一次性结束变换，移动工具上已有变换会话时叠加在它的结果之上；
+  /// 裁剪只保留选区外接矩形内的像素，矩形内没有像素时图层清空
+  InPlaceEffectOutcome applyInPlace(EditorEffectType type) {
+    assert(editorEffectWorksInPlace(type), '$type is not an in-place effect');
+    final transform = layerTransformFor(type);
+    if (transform != null) {
+      final transformer = editorState.layerTransformer;
+      final applied = transformer.update(transform);
+      transformer.apply();
+      if (!applied) return InPlaceEffectOutcome.nothingToApply;
+    } else {
+      final layer = activeLayerForApply;
+      if (layer == null) return InPlaceEffectOutcome.nothingToApply;
+      final keep = _cropKeepRect();
+      if (keep == null) return InPlaceEffectOutcome.needsSelection;
+      final baked = LayerPatchBaker.cropTo(layer, keep);
+      editorState.historyManager.execute(
+        baked == null
+            ? ClearLayerAction(layerId: layer.id)
+            : ReplaceLayerImageAction.baked(
+                layerId: layer.id,
+                pixels: baked,
+                actionDescription: 'Crop to Selection',
+              ),
+        editorState,
+      );
+    }
+    editorState.layerManager.invalidateSnapshot();
+    return InPlaceEffectOutcome.applied;
   }
 
   Future<Uint8List?> _readLayerPng(Layer layer, Rect region) async {

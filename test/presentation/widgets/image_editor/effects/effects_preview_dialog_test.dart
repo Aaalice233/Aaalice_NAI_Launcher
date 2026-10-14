@@ -210,6 +210,71 @@ void main() {
     expect(result?.type, EditorEffectType.brightness);
     expect(result?.intensity, 0.25);
   });
+
+  testWidgets('in-place effects are previewed by the editor, not the worker', (
+    tester,
+  ) async {
+    _useTallView(tester);
+    final requested = <EditorEffectType>[];
+    final rotated = _png(2);
+    await tester.pumpWidget(
+      _wrapDialog(
+        sourceBytes,
+        processingService,
+        inPlacePreview: (type) async {
+          requested.add(type);
+          return rotated;
+        },
+      ),
+    );
+    await tester.pump(const Duration(milliseconds: 200));
+    final workerCalls = processingService.previewCalls;
+
+    await tester.tap(find.text('Rotate Right 90°'));
+    await tester.pump(const Duration(milliseconds: 200));
+    await tester.pump();
+
+    expect(requested, [EditorEffectType.rotateRight]);
+    expect(processingService.previewCalls, workerCalls);
+    expect(_applyButton(tester).onPressed, isNotNull);
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
+
+  testWidgets('crop without a selection explains why and cannot be applied', (
+    tester,
+  ) async {
+    _useTallView(tester);
+    await tester.pumpWidget(
+      _wrapDialog(
+        sourceBytes,
+        processingService,
+        inPlacePreview: (_) async => fail('no selection, no preview'),
+      ),
+    );
+    await tester.pump(const Duration(milliseconds: 200));
+
+    await tester.tap(find.text('Crop to Selection'));
+    await tester.pump(const Duration(milliseconds: 200));
+
+    expect(
+      find.text(
+        'Make a selection first; only the pixels inside its bounding box '
+        'are kept, in place.',
+      ),
+      findsOneWidget,
+    );
+    expect(_applyButton(tester).onPressed, isNull);
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
+}
+
+void _useTallView(WidgetTester tester) {
+  tester.view.devicePixelRatio = 1;
+  tester.view.physicalSize = const Size(1200, 2400);
+  addTearDown(() {
+    tester.view.resetPhysicalSize();
+    tester.view.resetDevicePixelRatio();
+  });
 }
 
 Uint8List _png(int size) =>
@@ -221,16 +286,19 @@ FilledButton _applyButton(WidgetTester tester) => tester.widget<FilledButton>(
 
 Widget _wrapDialog(
   Uint8List sourceBytes,
-  ImageEditorProcessingService processingService,
-) {
+  ImageEditorProcessingService processingService, {
+  EditorEffectCropRect? cropRect,
+  EffectInPlacePreview? inPlacePreview,
+}) {
   return MaterialApp(
     localizationsDelegates: AppLocalizations.localizationsDelegates,
     supportedLocales: AppLocalizations.supportedLocales,
     home: Scaffold(
       body: EffectsPreviewDialog(
         sourceBytes: sourceBytes,
-        cropRect: null,
+        cropRect: cropRect,
         processingService: processingService,
+        inPlacePreview: inPlacePreview,
       ),
     ),
   );

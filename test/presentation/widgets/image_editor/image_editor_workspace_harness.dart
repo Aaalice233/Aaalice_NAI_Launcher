@@ -15,8 +15,23 @@ const editorPanelViewSizes = [
   Size(1600, 900),
 ];
 
+/// 图层面板缩略图有 500ms 防抖，编码只在真实异步里完成；等到面板不再转圈
+Future<void> settleLayerThumbnails(WidgetTester tester) async {
+  await tester.pump(const Duration(milliseconds: 600));
+  final spinner = find.byType(CircularProgressIndicator);
+  for (var i = 0; i < 10 && spinner.evaluate().isNotEmpty; i++) {
+    await tester.runAsync(
+      () => Future<void>.delayed(const Duration(milliseconds: 50)),
+    );
+    await tester.pump(const Duration(milliseconds: 100));
+  }
+  expect(spinner, findsNothing);
+  await tester.pumpAndSettle();
+}
+
 /// 以普通编辑模式泵入工作区，按需切到 [toolId] 并等待布局稳定
-Future<void> pumpEditorWorkspace(
+Future<(GlobalKey<ImageEditorWorkspaceState>, ImageEditorController)>
+pumpEditorWorkspace(
   WidgetTester tester, {
   required Size viewSize,
   double textScale = 1,
@@ -68,4 +83,5 @@ Future<void> pumpEditorWorkspace(
     await tester.pumpAndSettle();
     expect(key.currentState!.debugCurrentToolId, toolId);
   }
+  return (key, session);
 }

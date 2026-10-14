@@ -26,12 +26,12 @@ void main() {
       expect(mover.begin(const Offset(5, 5)), isTrue);
       mover.update(const Offset(15.4, 8.6));
 
-      expect(layer.movePreview?.offset, const Offset(10, 4));
+      expect((layer.preview as LayerMovePreview?)?.offset, const Offset(10, 4));
       expect(layer.contentBounds, const Rect.fromLTWH(0, 0, 8, 8));
 
       mover.end();
 
-      expect(layer.movePreview, isNull);
+      expect(layer.preview, isNull);
       expect(layer.contentBounds, const Rect.fromLTWH(10, 4, 8, 8));
       final moved = await LayerPixels.of(layer, _canvas);
       expect(moved.at(12, 6), [255, 0, 0, 255]);
@@ -50,7 +50,7 @@ void main() {
       state.layerMover.update(const Offset(4.3, 3.8));
       state.layerMover.end();
 
-      expect(layer.movePreview, isNull);
+      expect(layer.preview, isNull);
       expect(state.historyManager.canUndo, isFalse);
     });
   });
@@ -68,7 +68,7 @@ void main() {
 
       state.layerMover.cancel();
 
-      expect(layer.movePreview, isNull);
+      expect(layer.preview, isNull);
       expect(state.selectionManager.isDragging, isFalse);
       expect(state.selectionPath!.getBounds(), const Rect.fromLTWH(0, 0, 4, 4));
       expect(state.historyManager.canUndo, isFalse);
@@ -92,7 +92,7 @@ void main() {
 
         mover.end();
 
-        expect(layer.movePreview, isNull);
+        expect(layer.preview, isNull);
         expect(state.selectionManager.isDragging, isFalse);
         expect(
           state.selectionPath!.getBounds(),

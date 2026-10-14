@@ -19,18 +19,24 @@ class EditorEffectSelection {
   final double intensity;
 }
 
+/// 旋转、翻转与裁剪的预览由调用方按实际写回的方式生成；返回 null 表示没有可处理的内容
+typedef EffectInPlacePreview =
+    Future<Uint8List?> Function(EditorEffectType type);
+
 class EffectsPreviewDialog extends StatefulWidget {
   const EffectsPreviewDialog({
     super.key,
     required this.sourceBytes,
     required this.cropRect,
     required this.processingService,
+    this.inPlacePreview,
     this.scrollController,
   });
 
   final Uint8List sourceBytes;
   final EditorEffectCropRect? cropRect;
   final ImageEditorProcessingService processingService;
+  final EffectInPlacePreview? inPlacePreview;
   final ScrollController? scrollController;
 
   static Future<EditorEffectSelection?> show(
@@ -38,6 +44,7 @@ class EffectsPreviewDialog extends StatefulWidget {
     required Uint8List sourceBytes,
     required EditorEffectCropRect? cropRect,
     required ImageEditorProcessingService processingService,
+    EffectInPlacePreview? inPlacePreview,
   }) => AdaptivePresenter.showForm<EditorEffectSelection>(
     context: context,
     dialogWidth: 960,
@@ -51,6 +58,7 @@ class EffectsPreviewDialog extends StatefulWidget {
       sourceBytes: sourceBytes,
       cropRect: cropRect,
       processingService: processingService,
+      inPlacePreview: inPlacePreview,
       scrollController: scrollController,
     ),
   );
@@ -87,6 +95,15 @@ class _EffectsPreviewDialogState extends State<EffectsPreviewDialog> {
   void _refresh() {
     debounce?.cancel();
     final epoch = ++previewEpoch;
+    // 没有选区时不能裁剪，提示原因并禁用应用
+    if (type == EditorEffectType.cropToSelection && widget.cropRect == null) {
+      setState(() {
+        previewBytes = widget.sourceBytes;
+        loading = false;
+        error = context.l10n.editor_cropNeedsSelection;
+      });
+      return;
+    }
     setState(() {
       loading = true;
       error = '';
@@ -94,19 +111,11 @@ class _EffectsPreviewDialogState extends State<EffectsPreviewDialog> {
     debounce = Timer(const Duration(milliseconds: 180), () async {
       bool isCurrent() => mounted && epoch == previewEpoch;
       try {
-        final result = await widget.processingService.previewEffect(
-          EditorEffectJob(
-            imageBytes: widget.sourceBytes,
-            effectType: type,
-            intensity: intensity,
-            maxPreviewDimension: 768,
-            cropRect: widget.cropRect,
-          ),
-          isCurrent: isCurrent,
-        );
-        if (result == null || !isCurrent()) return;
+        final bytes = await _previewBytes(isCurrent);
+        if (!isCurrent()) return;
+        // 没有可变换的像素时保留上一张预览
         setState(() {
-          previewBytes = result.bytes;
+          if (bytes != null) previewBytes = bytes;
           loading = false;
         });
       } catch (exception) {
@@ -117,6 +126,24 @@ class _EffectsPreviewDialogState extends State<EffectsPreviewDialog> {
         });
       }
     });
+  }
+
+  Future<Uint8List?> _previewBytes(bool Function() isCurrent) async {
+    final inPlacePreview = widget.inPlacePreview;
+    if (inPlacePreview != null && editorEffectWorksInPlace(type)) {
+      return inPlacePreview(type);
+    }
+    final result = await widget.processingService.previewEffect(
+      EditorEffectJob(
+        imageBytes: widget.sourceBytes,
+        effectType: type,
+        intensity: intensity,
+        maxPreviewDimension: 768,
+        cropRect: widget.cropRect,
+      ),
+      isCurrent: isCurrent,
+    );
+    return result?.bytes;
   }
 
   @override
