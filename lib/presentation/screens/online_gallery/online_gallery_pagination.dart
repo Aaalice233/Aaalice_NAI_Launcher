@@ -99,7 +99,7 @@ class OnlineGalleryPagination extends StatelessWidget {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   IconButton(
-                    onPressed: state.page > 1
+                    onPressed: state.canGoToPreviousPage
                         ? () => onGoToPage(state.page - 1)
                         : null,
                     icon: const Icon(Icons.chevron_left, size: 24),
@@ -111,10 +111,7 @@ class OnlineGalleryPagination extends StatelessWidget {
                       : _buildPageDisplay(context, theme),
                   SizedBox(width: isCompact ? 4 : 8),
                   IconButton(
-                    onPressed:
-                        (state.currentCache.boundaryForPage(state.page + 1) !=
-                                null ||
-                            state.hasMore)
+                    onPressed: state.canGoToNextPage
                         ? () => onGoToPage(state.page + 1)
                         : null,
                     icon: const Icon(Icons.chevron_right, size: 24),

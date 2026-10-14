@@ -431,6 +431,20 @@ class OnlineGalleryScreenController extends ChangeNotifier {
     return true;
   }
 
+  /// Focuses the query field of the current browsing mode. Modes whose toolbar
+  /// shows no query field leave focus untouched.
+  void focusSearch(OnlineGalleryState state) {
+    final node = switch (state.viewMode) {
+      GalleryViewMode.favorites => favoriteSearchFocusNode,
+      _ when state.activeSourceId == GallerySourceId.quickTagCloud =>
+        searchFocusNode,
+      GalleryViewMode.popular => popularSearchFocusNode,
+      GalleryViewMode.search => searchFocusNode,
+    };
+    // An unattached node would grab focus later, whenever its field appears
+    if (node.context != null) node.requestFocus();
+  }
+
   void beginPageEditing(int currentPage) {
     AppLogger.d('pageEdit begin current=$currentPage', 'GalleryPerf');
     isEditingPage = true;
