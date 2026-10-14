@@ -14,6 +14,7 @@ import '../../../../data/models/vibe/vibe_reference.dart';
 import '../../../adaptive/adaptive_presenter.dart';
 import '../../../providers/generation/generation_params_notifier.dart';
 import '../../../widgets/common/app_toast.dart';
+import '../../../widgets/common/menu_action_label.dart';
 
 /// Vibe 导出处理器
 ///
@@ -329,26 +330,18 @@ class VibeExportHandler {
       itemBuilder: (context) => [
         PopupMenuItem(
           value: 'vibe',
-          child: Row(
-            children: [
-              Icon(
-                Icons.file_download,
-                size: 18,
-                color: theme.colorScheme.primary,
-              ),
-              const SizedBox(width: 8),
-              Text(l10n.common_export),
-            ],
+          child: MenuActionLabel(
+            leading: const Icon(Icons.file_download),
+            label: l10n.common_export,
+            iconColor: theme.colorScheme.primary,
           ),
         ),
         PopupMenuItem(
           value: 'image',
-          child: Row(
-            children: [
-              Icon(Icons.image, size: 18, color: theme.colorScheme.secondary),
-              const SizedBox(width: 8),
-              Text(l10n.vibe_embedToImage),
-            ],
+          child: MenuActionLabel(
+            leading: const Icon(Icons.image),
+            label: l10n.vibe_embedToImage,
+            iconColor: theme.colorScheme.secondary,
           ),
         ),
       ],

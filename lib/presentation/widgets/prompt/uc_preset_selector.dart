@@ -13,7 +13,9 @@ import '../../themes/prompt_semantic_colors.dart';
 import 'prompt_control_button.dart';
 import 'uc_preset_type_label.dart';
 import '../tag_library/tag_library_picker_dialog.dart';
+import '../common/menu_action_label.dart';
 import 'components/library_entry_menu_item.dart';
+import 'components/preset_option_menu_label.dart';
 
 /// UC 预设选择器组件
 ///
@@ -241,21 +243,9 @@ class _UcPresetSelectorState extends ConsumerState<UcPresetSelector> {
       items.add(
         PopupMenuItem<String>(
           value: 'preset_${type.index}',
-          child: Row(
-            children: [
-              if (isSelected)
-                Icon(Icons.check, size: 16, color: theme.colorScheme.primary)
-              else
-                const SizedBox(width: 16),
-              const SizedBox(width: 8),
-              Text(
-                type.label(context.l10n),
-                style: TextStyle(
-                  fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
-                  color: isSelected ? theme.colorScheme.primary : null,
-                ),
-              ),
-            ],
+          child: PresetOptionMenuLabel(
+            label: type.label(context.l10n),
+            selected: isSelected,
           ),
         ),
       );
@@ -268,15 +258,11 @@ class _UcPresetSelectorState extends ConsumerState<UcPresetSelector> {
     items.add(
       PopupMenuItem<String>(
         value: 'add_from_library',
-        child: Row(
-          children: [
-            Icon(Icons.add, size: 16, color: theme.colorScheme.primary),
-            const SizedBox(width: 8),
-            Text(
-              context.l10n.ucPreset_addFromLibrary,
-              style: TextStyle(color: theme.colorScheme.primary),
-            ),
-          ],
+        child: MenuActionLabel(
+          leading: const Icon(Icons.add),
+          label: context.l10n.ucPreset_addFromLibrary,
+          color: theme.colorScheme.primary,
+          iconSize: 16,
         ),
       ),
     );

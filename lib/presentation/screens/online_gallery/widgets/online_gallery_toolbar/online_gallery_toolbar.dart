@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import '../../../../../core/utils/localization_extension.dart';
 import '../../../../../data/models/online_gallery/danbooru_post.dart';
 import '../../../../adaptive/interaction_policy.dart';
+import '../../../../widgets/common/menu_action_label.dart';
 import '../../../../providers/online_gallery_state.dart';
 
 /// Structural toolbar widget. The four slots intentionally mirror the fixed
@@ -334,19 +335,12 @@ class OnlineGallerySourceDropdown extends StatelessWidget {
         final isSelected = selected == e.key;
         return PopupMenuItem<GallerySourceId>(
           value: e.key,
-          child: Row(
-            children: [
-              Text(
-                e.value,
-                style: TextStyle(
-                  fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
-                ),
-              ),
-              if (isSelected) ...[
-                const Spacer(),
-                Icon(Icons.check, size: 16, color: theme.colorScheme.primary),
-              ],
-            ],
+          child: MenuActionLabel(
+            label: e.value,
+            fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+            trailing: isSelected
+                ? Icon(Icons.check, size: 16, color: theme.colorScheme.primary)
+                : null,
           ),
         );
       }).toList(),
@@ -735,29 +729,22 @@ class OnlineGalleryRatingDropdown extends StatelessWidget {
             : selectedRatings.contains(r.$1);
         return PopupMenuItem<String>(
           value: r.$1,
-          child: Row(
-            children: [
-              if (r.$3 != null)
-                Container(
-                  width: 8,
-                  height: 8,
-                  decoration: BoxDecoration(
-                    color: r.$3,
-                    shape: BoxShape.circle,
+          child: MenuActionLabel(
+            leading: r.$3 == null
+                ? null
+                : Container(
+                    width: 8,
+                    height: 8,
+                    decoration: BoxDecoration(
+                      color: r.$3,
+                      shape: BoxShape.circle,
+                    ),
                   ),
-                ),
-              if (r.$3 != null) const SizedBox(width: 8),
-              Text(
-                r.$2,
-                style: TextStyle(
-                  fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
-                ),
-              ),
-              if (isSelected) ...[
-                const Spacer(),
-                Icon(Icons.check, size: 16, color: theme.colorScheme.primary),
-              ],
-            ],
+            label: r.$2,
+            fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+            trailing: isSelected
+                ? Icon(Icons.check, size: 16, color: theme.colorScheme.primary)
+                : null,
           ),
         );
       }).toList(),

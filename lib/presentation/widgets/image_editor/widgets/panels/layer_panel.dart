@@ -8,6 +8,7 @@ import 'package:flutter_inappwebview/flutter_inappwebview.dart'
 import '../../../common/checkerboard_pattern.dart';
 import '../../../common/image_viewport_surface.dart';
 import '../../../common/inline_rename_field.dart';
+import '../../../common/menu_action_label.dart';
 import '../../../../../core/platform/platform_capabilities.dart';
 import '../../../../../core/utils/app_logger.dart';
 import '../../../../adaptive/interaction_policy.dart';
@@ -614,6 +615,19 @@ class _LayerTileState extends State<_LayerTile>
     final canMergeDown = commands.canMergeDown(widget.layer);
     final canDelete = widget.onDelete != null;
 
+    Widget menuLabel({
+      required IconData icon,
+      required String label,
+      bool enabled = true,
+      bool destructive = false,
+    }) => MenuActionLabel(
+      leading: Icon(icon),
+      label: label,
+      enabled: enabled,
+      destructive: destructive,
+      gap: 12,
+    );
+
     // 获取按钮位置用于定位菜单
     final RenderBox button = context.findRenderObject() as RenderBox;
     final Offset offset = button.localToGlobal(Offset.zero);
@@ -635,7 +649,7 @@ class _LayerTileState extends State<_LayerTile>
         // 复制图层
         PopupMenuItem<String>(
           value: 'duplicate',
-          child: _LayerMenuTile(
+          child: menuLabel(
             icon: Icons.copy_outlined,
             label: context.l10n.layer_duplicate,
           ),
@@ -645,7 +659,7 @@ class _LayerTileState extends State<_LayerTile>
         PopupMenuItem<String>(
           value: 'delete',
           enabled: canDelete,
-          child: _LayerMenuTile(
+          child: menuLabel(
             icon: Icons.delete_outlined,
             label: context.l10n.layer_delete,
             enabled: canDelete,
@@ -657,7 +671,7 @@ class _LayerTileState extends State<_LayerTile>
         PopupMenuItem<String>(
           value: 'merge_down',
           enabled: canMergeDown,
-          child: _LayerMenuTile(
+          child: menuLabel(
             icon: Icons.merge_type,
             label: context.l10n.layer_merge,
             enabled: canMergeDown,
@@ -669,7 +683,7 @@ class _LayerTileState extends State<_LayerTile>
         // 切换可见性
         PopupMenuItem<String>(
           value: 'toggle_visibility',
-          child: _LayerMenuTile(
+          child: menuLabel(
             icon: widget.layer.visible
                 ? Icons.visibility_off
                 : Icons.visibility,
@@ -680,7 +694,7 @@ class _LayerTileState extends State<_LayerTile>
         // 切换锁定
         PopupMenuItem<String>(
           value: 'toggle_lock',
-          child: _LayerMenuTile(
+          child: menuLabel(
             icon: widget.layer.locked ? Icons.lock_open : Icons.lock,
             label: context.l10n.layer_lock,
           ),
@@ -689,7 +703,7 @@ class _LayerTileState extends State<_LayerTile>
         // 重命名
         PopupMenuItem<String>(
           value: 'rename',
-          child: _LayerMenuTile(
+          child: menuLabel(
             icon: Icons.edit_outlined,
             label: context.l10n.layer_rename,
           ),
@@ -701,7 +715,7 @@ class _LayerTileState extends State<_LayerTile>
         PopupMenuItem<String>(
           value: 'move_up',
           enabled: canMoveUp,
-          child: _LayerMenuTile(
+          child: menuLabel(
             icon: Icons.arrow_upward,
             label: context.l10n.layer_moveUp,
             enabled: canMoveUp,
@@ -712,7 +726,7 @@ class _LayerTileState extends State<_LayerTile>
         PopupMenuItem<String>(
           value: 'move_down',
           enabled: canMoveDown,
-          child: _LayerMenuTile(
+          child: menuLabel(
             icon: Icons.arrow_downward,
             label: context.l10n.layer_moveDown,
             enabled: canMoveDown,
@@ -774,34 +788,6 @@ class _LayerBadge extends StatelessWidget {
           color: theme.colorScheme.onSecondaryContainer,
         ),
       ),
-    );
-  }
-}
-
-/// 图层右键菜单项，长文案换行而不是溢出
-class _LayerMenuTile extends StatelessWidget {
-  const _LayerMenuTile({
-    required this.icon,
-    required this.label,
-    this.enabled = true,
-    this.destructive = false,
-  });
-
-  final IconData icon;
-  final String label;
-  final bool enabled;
-  final bool destructive;
-
-  @override
-  Widget build(BuildContext context) {
-    final error = Theme.of(context).colorScheme.error;
-    final accent = destructive && enabled ? error : null;
-    return ListTile(
-      enabled: enabled,
-      leading: Icon(icon),
-      title: Text(label),
-      iconColor: accent,
-      textColor: accent,
     );
   }
 }
