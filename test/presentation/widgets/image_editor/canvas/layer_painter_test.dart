@@ -477,6 +477,40 @@ void main() {
       return state;
     }
 
+    // Impeller 回放同一画面时 saveLayer 会沿用棋盘格的图片着色器而跳过 colorFilter，单元测试走 Skia 复现不了，只能锁住隔离结构
+    test(
+      'mask overlay is replayed from its own picture after the checkerboard',
+      () {
+        final state = createState();
+        final canvas = TestRecordingCanvas();
+
+        LayerPainter(
+          state: state,
+          showTransparentCanvasBackground: true,
+        ).paint(canvas, viewport);
+
+        final calls = [for (final call in canvas.invocations) call.invocation];
+        final checkerboard = calls.indexWhere(
+          (call) =>
+              call.memberName == #drawRect &&
+              (call.positionalArguments[1] as Paint).shader != null,
+        );
+        final overlay = calls.indexWhere(
+          (call) => call.memberName == #drawPicture,
+        );
+        expect(checkerboard, isNonNegative);
+        expect(overlay, greaterThan(checkerboard));
+        expect(
+          calls.where(
+            (call) =>
+                call.memberName == #saveLayer &&
+                (call.positionalArguments[1] as Paint).colorFilter != null,
+          ),
+          isEmpty,
+        );
+      },
+    );
+
     test('a stroke being painted matches the mask it overlaps', () async {
       final state = createState();
       state.startStroke(const Offset(24, 6));
