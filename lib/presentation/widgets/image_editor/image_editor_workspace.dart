@@ -349,7 +349,6 @@ class ImageEditorWorkspaceState extends State<ImageEditorWorkspace> {
       session: _controller,
       editorState: _state,
       config: widget.config,
-      addMaskLayer: (name) => _addEmptyMaskLayerAboveSource(name: name),
     );
     _controller.initializeSession(
       canvasSize: const Size(1024, 1024),
@@ -1171,7 +1170,6 @@ class ImageEditorWorkspaceState extends State<ImageEditorWorkspace> {
       return;
     }
     final l10n = context.l10n;
-    final maskLayerName = l10n.editor_maskLayerName;
 
     try {
       // 蒙版按点击时的取景框导出，填充结果落回同一位置
@@ -1208,26 +1206,29 @@ class ImageEditorWorkspaceState extends State<ImageEditorWorkspace> {
           break;
       }
 
-      final overlayBytes = fillResult.overlayBytes;
-      if (overlayBytes == null) {
+      final patch = fillResult.addedPatch;
+      if (patch == null) {
         throw Exception(l10n.editor_generateMaskOverlayFailed);
       }
-      // 超出取景框的蒙版图层保留，框外内容不随填充丢失
-      _removeAllMaskLayers(
-        preservedLayerIds: {
-          for (final layer in _state.layerManager.maskLayers)
-            if (EditorFrameGeometry.exceedsFrame(layer.contentBounds, region))
-              layer.id,
-        },
-      );
-      final layer = await _addMaskLayerAboveSource(
-        overlayBytes,
-        name: maskLayerName,
-        offset: region.topLeft,
-      );
-      if (layer == null) {
+      final ui.Image image;
+      try {
+        image = await _controller.processingService.decode(patch.bytes);
+      } on Object {
         throw Exception(l10n.editor_updateMaskLayerFailed);
       }
+      if (!mounted) {
+        image.dispose();
+        return;
+      }
+      _state.layerCommands.addMaskPixels(
+        image,
+        offset: region.topLeft.translate(
+          patch.left.toDouble(),
+          patch.top.toDouble(),
+        ),
+        newLayerName: l10n.editor_maskLayerName,
+        description: 'Fill Closed Mask Region',
+      );
 
       _state.requestUiUpdate();
       if (mounted) {
@@ -1261,25 +1262,6 @@ class ImageEditorWorkspaceState extends State<ImageEditorWorkspace> {
       offset: offset,
       role: LayerRole.mask,
     );
-  }
-
-  Layer _addEmptyMaskLayerAboveSource({required String name}) {
-    return _state.layerManager.addLayer(
-      name: name,
-      index: _resolveMaskLayerInsertIndex(),
-      role: LayerRole.mask,
-    );
-  }
-
-  void _removeAllMaskLayers({Set<String> preservedLayerIds = const {}}) {
-    final removableLayerIds = _state.layerManager.maskLayers
-        .where((layer) => !preservedLayerIds.contains(layer.id))
-        .map((layer) => layer.id)
-        .toList(growable: false);
-
-    for (final layerId in removableLayerIds) {
-      _state.layerManager.removeLayer(layerId);
-    }
   }
 
   Future<void> _applyOutpaintEdges(
@@ -1376,11 +1358,12 @@ class ImageEditorWorkspaceState extends State<ImageEditorWorkspace> {
       return;
     }
 
-    _removeAllMaskLayers();
+    _state.layerCommands.resetMaskLayers(
+      name: context.l10n.editor_maskLayerName,
+    );
     _state.clearSelection(saveHistory: false);
     _state.clearPreview();
     _focusedSelectionState.clear();
-    _addEmptyMaskLayerAboveSource(name: context.l10n.editor_maskLayerName);
     _state.setToolById(_focusedInpaintEnabled ? 'rect_selection' : 'brush');
     _refreshCompressionPlan();
     _state.requestUiUpdate();
@@ -1605,11 +1588,18 @@ class ImageEditorWorkspaceState extends State<ImageEditorWorkspace> {
         return;
       }
 
-      // 将蒙版添加为新图层，对齐当前取景框
-      final layer = await _addMaskLayerAboveSource(
+      // 蒙版层按 alpha 显示、导出按亮度判定，黑白蒙版不转 overlay 时黑色部分会显示成蒙版
+      final overlayBytes = await InpaintMaskUtils.maskToEditorOverlayAsync(
         picked.bytes,
+      );
+      if (!mounted) {
+        return;
+      }
+      final layer = await _state.layerCommands.addImageLayer(
+        overlayBytes,
         name: maskLayerName,
         offset: _state.frame.topLeft,
+        role: LayerRole.mask,
       );
 
       if (layer != null) {

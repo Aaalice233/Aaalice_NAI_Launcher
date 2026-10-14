@@ -556,7 +556,7 @@ void main() {
     });
 
     test(
-      'fillEditorMaskRegionAtPointAsync should fill a closed region and produce editor overlay',
+      'fillEditorMaskRegionAtPointAsync returns only the newly enclosed pixels, cropped to their bounds',
       () async {
         final source = img.Image(width: 32, height: 24);
         img.fill(source, color: img.ColorRgba8(0, 0, 0, 255));
@@ -578,15 +578,9 @@ void main() {
         );
 
         final originalBytes = Uint8List.fromList(img.encodePng(source));
-        final expectedMask = InpaintMaskUtils.fillMaskRegionAtPoint(
-          originalBytes,
-          x: 7,
-          y: 11,
-        );
-        final expectedOverlay = InpaintMaskUtils.maskToEditorOverlay(
-          expectedMask,
-          overlayAlpha: 160,
-        );
+        final filled = img.decodeImage(
+          InpaintMaskUtils.fillMaskRegionAtPoint(originalBytes, x: 7, y: 11),
+        )!;
 
         final result = await InpaintMaskUtils.fillEditorMaskRegionAtPointAsync(
           originalBytes,
@@ -596,17 +590,59 @@ void main() {
         );
 
         expect(result.status, MaskFillRegionStatus.filled);
-        expect(result.filledMaskBytes, expectedMask);
-        expect(result.overlayBytes, expectedOverlay);
-
-        final decodedMask = img.decodeImage(result.filledMaskBytes!)!;
-        final decodedOverlay = img.decodeImage(result.overlayBytes!)!;
-        expect(decodedMask.getPixel(7, 11).r.toInt(), equals(255));
-        expect(decodedMask.getPixel(23, 11).r.toInt(), equals(0));
-        expect(decodedOverlay.getPixel(7, 11).a.toInt(), equals(160));
-        expect(decodedOverlay.getPixel(0, 0).a.toInt(), equals(0));
+        final patch = result.addedPatch!;
+        // drawRect 画的是 1 像素轮廓，新增的只有轮廓内部
+        expect(
+          (patch.left, patch.top, patch.width, patch.height),
+          (3, 5, 9, 13),
+        );
+        final decoded = img.decodeImage(patch.bytes)!;
+        expect((decoded.width, decoded.height), (patch.width, patch.height));
+        for (var y = 0; y < source.height; y++) {
+          for (var x = 0; x < source.width; x++) {
+            final added =
+                filled.getPixel(x, y).r.toInt() == 255 &&
+                source.getPixel(x, y).r.toInt() == 0;
+            final px = x - patch.left;
+            final py = y - patch.top;
+            final inPatch =
+                px >= 0 && py >= 0 && px < patch.width && py < patch.height;
+            final alpha = inPatch ? decoded.getPixel(px, py).a.toInt() : 0;
+            expect(alpha, added ? 160 : 0, reason: 'pixel ($x, $y)');
+          }
+        }
       },
     );
+
+    test('encodeEditorOverlayPatch crops to the masked pixels', () {
+      final mask = Uint8List(10 * 6);
+      mask[1 * 10 + 7] = 1;
+      mask[4 * 10 + 2] = 1;
+
+      final patch = InpaintMaskUtils.encodeEditorOverlayPatch(
+        mask,
+        width: 10,
+        height: 6,
+      )!;
+
+      expect((patch.left, patch.top, patch.width, patch.height), (2, 1, 6, 4));
+      final decoded = img.decodeImage(patch.bytes)!;
+      expect(decoded.getPixel(5, 0).a.toInt(), 140);
+      expect(decoded.getPixel(0, 3).a.toInt(), 140);
+      expect(decoded.getPixel(0, 0).a.toInt(), 0);
+      expect(decoded.getPixel(5, 3).a.toInt(), 0);
+    });
+
+    test('encodeEditorOverlayPatch returns null for an empty mask', () {
+      expect(
+        InpaintMaskUtils.encodeEditorOverlayPatch(
+          Uint8List(4 * 4),
+          width: 4,
+          height: 4,
+        ),
+        isNull,
+      );
+    });
 
     test(
       'fillEditorMaskRegionAtPointAsync should report open regions without producing overlay',
@@ -632,8 +668,7 @@ void main() {
         );
 
         expect(result.status, MaskFillRegionStatus.openRegion);
-        expect(result.filledMaskBytes, isNull);
-        expect(result.overlayBytes, isNull);
+        expect(result.addedPatch, isNull);
       },
     );
 
@@ -667,35 +702,20 @@ void main() {
 
         expect(result.status, MaskFillRegionStatus.filled);
         expect(result.status, expected.status);
-        expect(result.filledMaskBytes, expected.filledMaskBytes);
-        expect(result.overlayBytes, expected.overlayBytes);
+        final patch = result.addedPatch!;
+        final expectedPatch = expected.addedPatch!;
+        expect(
+          (patch.left, patch.top, patch.width, patch.height),
+          (
+            expectedPatch.left,
+            expectedPatch.top,
+            expectedPatch.width,
+            expectedPatch.height,
+          ),
+        );
+        expect(patch.bytes, expectedPatch.bytes);
       },
     );
-
-    test('extractFilledMaskDelta should only keep newly filled regions', () {
-      final source = img.Image(width: 24, height: 24);
-      img.fill(source, color: img.ColorRgba8(0, 0, 0, 255));
-      img.drawRect(
-        source,
-        x1: 4,
-        y1: 4,
-        x2: 19,
-        y2: 19,
-        color: img.ColorRgba8(255, 255, 255, 255),
-      );
-
-      final originalBytes = Uint8List.fromList(img.encodePng(source));
-      final filledBytes = InpaintMaskUtils.fillClosedMaskRegions(originalBytes);
-      final deltaBytes = InpaintMaskUtils.extractFilledMaskDelta(
-        originalBytes,
-        filledBytes,
-      );
-      final decoded = img.decodeImage(deltaBytes)!;
-
-      expect(decoded.getPixel(12, 12).r.toInt(), equals(255));
-      expect(decoded.getPixel(4, 4).r.toInt(), equals(0));
-      expect(decoded.getPixel(2, 2).r.toInt(), equals(0));
-    });
 
     test('compositeGeneratedImage should preserve source outside mask', () {
       final source = img.Image(width: 4, height: 4);

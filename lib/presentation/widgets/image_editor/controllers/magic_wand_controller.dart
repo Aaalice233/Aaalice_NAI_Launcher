@@ -29,13 +29,11 @@ class MagicWandController extends ChangeNotifier {
     required this.session,
     required this.editorState,
     required this.config,
-    required this.addMaskLayer,
   });
 
   final ImageEditorController session;
   final EditorState editorState;
   final ImageEditorSessionConfig config;
-  final Layer Function(String name) addMaskLayer;
   MagicWandSnapshot _snapshot = const MagicWandSnapshot();
   bool _disposed = false;
 
@@ -211,12 +209,14 @@ class MagicWandController extends ChangeNotifier {
   ) async {
     final width = region.width.round();
     final height = region.height.round();
-    final mask = await _existingMask(region);
+    final existing = await _existingMask(region);
     if (!context.mounted || !session.accepts(epoch)) return;
+    // 只写新增像素，其它蒙版层的内容不会被抄进目标层
+    final added = Uint8List(existing.length);
     var changed = 0;
-    for (var i = 0; i < mask.length; i++) {
-      if (selection.mask[i] == 1 && mask[i] == 0) {
-        mask[i] = 1;
+    for (var i = 0; i < existing.length; i++) {
+      if (selection.mask[i] == 1 && existing[i] == 0) {
+        added[i] = 1;
         changed++;
       }
     }
@@ -224,55 +224,26 @@ class MagicWandController extends ChangeNotifier {
       AppToast.info(context, context.l10n.editor_magicWandNothingChanged);
       return;
     }
-    final bytes = await InpaintMaskUtils.encodeEditorOverlayFromBinaryMaskAsync(
-      mask,
+    final patch = await InpaintMaskUtils.encodeEditorOverlayPatchAsync(
+      added,
       width: width,
       height: height,
     );
-    final image = await session.processingService.decode(bytes);
+    if (patch == null) return;
+    final image = await session.processingService.decode(patch.bytes);
     if (!context.mounted || !session.accepts(epoch)) {
       image.dispose();
       return;
     }
-    final target = resolveMagicWandMaskTarget(
-      context.l10n.editor_maskLayerName,
-    );
-    final BakedLayerImage baked;
-    try {
-      baked = LayerPatchBaker.replaceRegion(
-        target,
-        patch: image,
-        patchRect: region,
-      );
-    } finally {
-      image.dispose();
-    }
-    editorState.historyManager.execute(
-      ReplaceLayerImageAction.baked(
-        layerId: target.id,
-        pixels: baked,
-        actionDescription: 'Apply Magic Wand Mask',
+    editorState.layerCommands.addMaskPixels(
+      image,
+      offset: region.topLeft.translate(
+        patch.left.toDouble(),
+        patch.top.toDouble(),
       ),
-      editorState,
+      newLayerName: context.l10n.editor_maskLayerName,
+      description: 'Apply Magic Wand Mask',
     );
-    editorState.layerManager.setActiveLayer(target.id);
-  }
-
-  /// 写入当前蒙版层；当前不是可写蒙版层时取第一个可写蒙版层，都没有再新建
-  @visibleForTesting
-  Layer resolveMagicWandMaskTarget(String maskLayerName) {
-    final activeLayer = editorState.layerManager.activeLayer;
-    if (activeLayer != null && activeLayer.isMask && !activeLayer.locked) {
-      return activeLayer;
-    }
-
-    for (final layer in editorState.layerManager.maskLayers) {
-      if (!layer.locked) {
-        return layer;
-      }
-    }
-
-    return addMaskLayer(maskLayerName);
   }
 
   Future<void> _applyErase(

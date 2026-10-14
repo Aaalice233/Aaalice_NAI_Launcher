@@ -195,6 +195,75 @@ class InpaintMaskUtils {
     );
   }
 
+  static Future<MaskOverlayPatch?> encodeEditorOverlayPatchAsync(
+    Uint8List binaryMask, {
+    required int width,
+    required int height,
+    int overlayAlpha = 140,
+  }) {
+    if (binaryMask.length != width * height) {
+      throw ArgumentError('Binary mask length does not match dimensions.');
+    }
+    return ComputeGate().runIsolate(
+      () => encodeEditorOverlayPatch(
+        binaryMask,
+        width: width,
+        height: height,
+        overlayAlpha: overlayAlpha,
+      ),
+    );
+  }
+
+  /// 只编码蒙版的外接矩形，叠进图层时不会把图层范围撑满整个取景框；全空时返回 null
+  static MaskOverlayPatch? encodeEditorOverlayPatch(
+    Uint8List binaryMask, {
+    required int width,
+    required int height,
+    int overlayAlpha = 140,
+  }) {
+    var left = width;
+    var top = height;
+    var right = -1;
+    var bottom = -1;
+    var index = 0;
+    for (var y = 0; y < height; y++) {
+      for (var x = 0; x < width; x++) {
+        if (binaryMask[index++] == 1) {
+          if (x < left) left = x;
+          if (x > right) right = x;
+          if (y < top) top = y;
+          bottom = y;
+        }
+      }
+    }
+    if (right < 0) return null;
+
+    final patchWidth = right - left + 1;
+    final patchHeight = bottom - top + 1;
+    final cropped = Uint8List(patchWidth * patchHeight);
+    for (var y = 0; y < patchHeight; y++) {
+      final rowStart = (top + y) * width + left;
+      cropped.setRange(
+        y * patchWidth,
+        (y + 1) * patchWidth,
+        binaryMask,
+        rowStart,
+      );
+    }
+    return MaskOverlayPatch(
+      bytes: _encodeEditorOverlay(
+        cropped,
+        patchWidth,
+        patchHeight,
+        overlayAlpha.clamp(0, 255).toInt(),
+      ),
+      left: left,
+      top: top,
+      width: patchWidth,
+      height: patchHeight,
+    );
+  }
+
   static bool hasMaskedPixels(Uint8List bytes) {
     img.Image? decoded;
     try {
@@ -484,52 +553,21 @@ class InpaintMaskUtils {
       visit(currentX, currentY + 1);
     }
 
+    // 泛洪只走原本为空的像素，region 恰好就是新增部分
+    final added = Uint8List(width * height);
     for (final index in region) {
-      binaryMask[index] = 1;
+      added[index] = 1;
     }
 
     return MaskFillRegionResult(
       status: MaskFillRegionStatus.filled,
-      filledMaskBytes: _encodeBinaryMask(binaryMask, width, height),
-      overlayBytes: _encodeEditorOverlay(
-        binaryMask,
-        width,
-        height,
-        overlayAlpha,
+      addedPatch: encodeEditorOverlayPatch(
+        added,
+        width: width,
+        height: height,
+        overlayAlpha: overlayAlpha,
       ),
     );
-  }
-
-  /// 提取填充操作新补出的区域，避免把原有蒙版重复叠进新图层。
-  static Uint8List extractFilledMaskDelta(
-    Uint8List originalBytes,
-    Uint8List filledBytes,
-  ) {
-    img.Image? original;
-    img.Image? filled;
-    try {
-      original = img.decodeImage(originalBytes);
-      filled = img.decodeImage(filledBytes);
-    } catch (_) {
-      return filledBytes;
-    }
-    if (original == null ||
-        filled == null ||
-        original.width != filled.width ||
-        original.height != filled.height) {
-      return filledBytes;
-    }
-
-    final originalMask = _createBinaryMask(original);
-    final filledMask = _createBinaryMask(filled);
-    final deltaMask = Uint8List(original.width * original.height);
-    for (var index = 0; index < deltaMask.length; index++) {
-      if (filledMask[index] == 1 && originalMask[index] == 0) {
-        deltaMask[index] = 1;
-      }
-    }
-
-    return _encodeBinaryMask(deltaMask, original.width, original.height);
   }
 
   /// 将 inpaint 返回图按蒙版合成回原图。

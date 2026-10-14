@@ -53,16 +53,32 @@ enum MaskFillRegionStatus {
   filled,
 }
 
-class MaskFillRegionResult {
-  const MaskFillRegionResult({
-    required this.status,
-    this.filledMaskBytes,
-    this.overlayBytes,
+/// Editor overlay PNG cropped to the bounding box of its masked pixels.
+/// [left] and [top] locate the crop inside the source mask.
+class MaskOverlayPatch {
+  const MaskOverlayPatch({
+    required this.bytes,
+    required this.left,
+    required this.top,
+    required this.width,
+    required this.height,
   });
 
+  final Uint8List bytes;
+  final int left;
+  final int top;
+  final int width;
+  final int height;
+}
+
+class MaskFillRegionResult {
+  const MaskFillRegionResult({required this.status, this.addedPatch});
+
   final MaskFillRegionStatus status;
-  final Uint8List? filledMaskBytes;
-  final Uint8List? overlayBytes;
+
+  /// Only the newly enclosed pixels; the mask that formed the outline is not
+  /// part of it.
+  final MaskOverlayPatch? addedPatch;
 }
 
 /// NovelAI samples inpaint masks to a 1/8 latent grid for every model.
