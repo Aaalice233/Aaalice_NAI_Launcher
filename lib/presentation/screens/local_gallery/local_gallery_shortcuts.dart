@@ -1,8 +1,8 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../../core/shortcuts/default_shortcuts.dart';
+import '../../../core/utils/keyboard_modifier_utils.dart';
 import '../../widgets/shortcuts/editable_text_focus.dart';
 import '../../widgets/shortcuts/shortcut_aware_widget.dart';
 
@@ -49,10 +49,9 @@ class _LocalGalleryShortcutsState extends State<LocalGalleryShortcuts> {
   @override
   Widget build(BuildContext context) {
     return Shortcuts(
-      shortcuts: switch (defaultTargetPlatform) {
-        TargetPlatform.macOS || TargetPlatform.iOS => _commandHistoryBindings,
-        _ => _controlHistoryBindings,
-      },
+      shortcuts: usesCommandAsPrimaryModifier()
+          ? _commandHistoryBindings
+          : _controlHistoryBindings,
       child: Actions(
         actions: _actions,
         child: CardSelectionPageShortcuts(
