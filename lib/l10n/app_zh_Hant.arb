@@ -4232,6 +4232,8 @@
   "shortcut_action_reuse_params": "複用引數",
   "shortcut_action_previous_image": "上一張",
   "shortcut_action_next_image": "下一張",
+  "shortcut_action_first_image": "第一張",
+  "shortcut_action_last_image": "最後一張",
   "shortcut_action_zoom_in": "放大",
   "shortcut_action_zoom_out": "縮小",
   "shortcut_action_reset_zoom": "重置縮放",

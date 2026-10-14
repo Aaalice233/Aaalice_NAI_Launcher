@@ -4191,6 +4191,8 @@
   "shortcut_action_reuse_params": "Reuse Parameters",
   "shortcut_action_previous_image": "Previous Image",
   "shortcut_action_next_image": "Next Image",
+  "shortcut_action_first_image": "First Image",
+  "shortcut_action_last_image": "Last Image",
   "shortcut_action_zoom_in": "Zoom In",
   "shortcut_action_zoom_out": "Zoom Out",
   "shortcut_action_reset_zoom": "Reset Zoom",
