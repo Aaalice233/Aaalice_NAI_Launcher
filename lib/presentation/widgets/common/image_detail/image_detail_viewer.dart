@@ -316,30 +316,6 @@ class _ImageDetailViewerState extends ConsumerState<ImageDetailViewer> {
     _prefetchNeighbors(index);
   }
 
-  KeyEventResult _handleKeyEvent(FocusNode node, KeyEvent event) {
-    if (event is! KeyDownEvent) return KeyEventResult.ignored;
-
-    switch (event.logicalKey) {
-      case LogicalKeyboardKey.arrowLeft:
-        _goToPage(_currentIndex - 1);
-        return KeyEventResult.handled;
-      case LogicalKeyboardKey.arrowRight:
-        _goToPage(_currentIndex + 1);
-        return KeyEventResult.handled;
-      case LogicalKeyboardKey.escape:
-        _handleKeyboardCloseRequest();
-        return KeyEventResult.handled;
-      case LogicalKeyboardKey.home:
-        _goToPage(0);
-        return KeyEventResult.handled;
-      case LogicalKeyboardKey.end:
-        _goToPage(widget.images.length - 1);
-        return KeyEventResult.handled;
-      default:
-        return KeyEventResult.ignored;
-    }
-  }
-
   void _handleKeyboardCloseRequest() {
     if (_shouldSuppressEscCloseOnWindows()) {
       final elapsedFocus = WindowFocusTracker.elapsedSinceFocus();
@@ -537,6 +513,10 @@ class _ImageDetailViewerState extends ConsumerState<ImageDetailViewer> {
       ShortcutIds.previousImage: () => _goToPage(_currentIndex - 1),
       // 下一张
       ShortcutIds.nextImage: () => _goToPage(_currentIndex + 1),
+      // 第一张
+      ShortcutIds.firstImage: () => _goToPage(0),
+      // 最后一张
+      ShortcutIds.lastImage: () => _goToPage(widget.images.length - 1),
       // 放大
       ShortcutIds.zoomIn: _zoomIn,
       // 缩小
@@ -565,7 +545,6 @@ class _ImageDetailViewerState extends ConsumerState<ImageDetailViewer> {
         focusNode: _focusNode,
         child: Focus(
           focusNode: _focusNode,
-          onKeyEvent: _handleKeyEvent,
           child: Scaffold(
             backgroundColor: ImageViewportSurface.background,
             body: LayoutBuilder(
