@@ -2526,6 +2526,9 @@ Future<void> _pumpOnlineGalleryScreen(WidgetTester tester) async {
         onlineGalleryNotifierProvider.overrideWith(
           _FakeOnlineGalleryNotifier.new,
         ),
+        shortcutConfigNotifierProvider.overrideWith(
+          _FakeShortcutConfigNotifier.new,
+        ),
         autocompleteLocalSourcesProvider.overrideWithValue(const [
           _FakeCompletionSource(),
         ]),

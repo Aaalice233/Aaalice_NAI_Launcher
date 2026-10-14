@@ -467,6 +467,10 @@ class OnlineGalleryState {
   int get page => randomEnabled ? 1 : currentCache.page;
   bool get hasMore =>
       randomEnabled ? !randomSession.exhausted : currentCache.hasMore;
+  bool get canGoToPreviousPage => !randomEnabled && page > 1;
+  bool get canGoToNextPage =>
+      !randomEnabled &&
+      (currentCache.boundaryForPage(page + 1) != null || hasMore);
   double get scrollOffset => randomEnabled
       ? randomSession.cache.scrollOffset
       : currentCache.scrollOffset;
